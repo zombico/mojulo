@@ -44,6 +44,12 @@ import { emitThreeWorld } from './scene-three.js';
 // cast — the bus's `ctrl` verb and syncToCtrl's hand-off, the engine's cast builder (ops, facts, the walk owner) and
 // walk bodies giving way to solid ones — and the walk rule's tank turn flipped so A turns left. A world without cues
 // on its characters runs the same; the controllable trace pins hold except the walk world's (the turn).
+// Re-pinned 2026-10-11 (buildings as game levels; game buildings): the walk rule the page embeds gained two opt-ins, a
+// mouse-look walker that still turns on the keys (`keyTurn`) and a body the world's colliders stop (`collideRadius`,
+// `collideHeight`, `step`). Additions only (6 lines, none removed); a walker without them moves as before.
+// Re-pinned 2026-10-12 (storeys): the walk rule the page embeds gained `probe`, the ground looked for from that high
+// over the feet (a stair's treads climbed, the floor of the storey above never stood on). Two comment lines added and
+// the ground hook's argument chosen by it; a walker without it casts from its eye, as before.
 // Re-pinned 2026-10-08 (interaction): the pilot scheme gains `interact` (live in `reach`), and the controllable runtime
 // reads it as a counted press edge, keeps it from strafing in reach (window.__mojReach), takes no input while a menu is
 // up (window.__mojMenuOpen) and labels a control for the device last used. Events pages without menus or usable places
@@ -98,6 +104,25 @@ import { emitThreeWorld } from './scene-three.js';
 // in a herd run on the alarm. Same proof, same 13 fixtures.
 // Re-pinned 2026-10-11 (the rule facade's clock): `world.time` reaches the rules, so a mind's sightings, memory,
 // regrowth and a group's shared sight read the real time (they read 0). Same proof, same 13 fixtures.
+// Re-pinned 2026-10-11 (the hit loop): melee's contact test is lifted out of stepMelee as meleeContacts (it reads, the
+// apply loop writes, in the same order), and castFacts counts a body's hits as `hit:<id>` facts (what hp-pool reads).
+// A page reads the facts when its cues reach the cast or a reaction listens for a hit; no fixture's does newly. Same
+// proof, same 13 fixtures; the controllable trace pins hold.
+// Re-pinned 2026-10-11 (cameras): two camera rules (`eye`, `overhead`), `walk` lookPitch and `platform` move: 'world',
+// each gated on its own key, so the controllable trace pins hold. With the embedded engine source set aside, all 64
+// fixtures are byte-identical to before: the first-person body-hiding splice is gated at emit time. Same 13 fixtures.
+// Re-pinned 2026-10-11 (side camera): the `side` camera rule, `platform` move: 'lane' and core `laneNear`, each gated on
+// its own key; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (power moves): `platform` airJumps and glideFall, each gated on its own key; the trace pins hold
+// and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (merge of the hit loop with the cameras): both changes to the embedded engine source at once.
+// Re-pinned 2026-10-11 (scene layer): the `shot` camera rule and the cast's shot / unshot / finish ops, each reached
+// only by a scene; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (scene conditions): the `shot` rule frames places (`at`) as well as characters, reached only by
+// a scene; the trace pins hold and, with the engine source set aside, all 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-11 (story cascade): the `shot` rule keeps the camera's side of the line and searches for a clear
+// view as it cuts, the cast's shot op resets both; reached only by a scene. With the engine source set aside, all 64
+// fixtures are unchanged; the trace pins hold. Same 13.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

@@ -8,6 +8,7 @@
  *   then: { spawn: '<who>' | { who, at?, face? } }      wake one minted asleep (dormant: true) or sent away
  *       | { vanish | kill | stop: '<who>' }            send away · fell · end its walk or hold
  *       | { hurt: { who, by } } | { heal: '<who>' | { who, by? } }   its body.hp
+ *       | { rearm: '<who>' | { who, by? } }            rounds for its weapon (by: into its reserve; no by: a full magazine)
  *       | { walk: { who, to, speed?, then?, face?, pose? } }   a dumb path through places: straight lines, no pathfinding
  *
  * A PLACE is a spot's id, an anchor's id (the built map's) or a point [x, y]. SPOTS are action points the play
@@ -39,7 +40,13 @@ export const CAST_WHEN = Object.freeze({
   stuck: "a character's walk can't get through (a second without progress); the walk drops",
   faded: 'a status comes off a character: it ran out or was lifted: { faded: who } any, or { faded: { who, is } }',
   struck: 'a beam reaches a character (its id, a glob)',
+  seen: 'a character with sight (rule.mind.perception) newly sees its target (its id, a glob; the target rides as target)',
 });
+// a world listens for hits when a reaction waits on `hit:<id>` (hp-pool lowers to one): the page then reads the
+// cast's facts, where a hit is counted, even when no cue reaches the cast
+// (or on `seen`: a sighting is counted there too; or `broke`: a block's break; or `down`: a fall, what defeat-all's
+// `who` counts)
+export const listensForHits = (events) => !!events && Array.isArray(events.reactions) && events.reactions.some((r) => r && (String(r.on).startsWith('hit:') || r.on === 'seen' || r.on === 'broke' || r.on === 'down'));
 const TRANSITS_WORDS = 'smoke | hologram | scan | transporter | galvatron';
 export const CAST_THEN = Object.freeze({
   spawn: `wake a character minted asleep (dormant: true) or sent away: { spawn: who | { who, at?: place, face?: degrees, with?: ${TRANSITS_WORDS} } }`,
@@ -47,6 +54,7 @@ export const CAST_THEN = Object.freeze({
   kill: 'a character falls (it lies down; down fires)',
   hurt: '{ hurt: { who, by } } takes from its body.hp; at 0 it falls',
   heal: '{ heal: who | { who, by? } } gives back body.hp (no by: all of it)',
+  rearm: '{ rearm: who | { who, by? } } rounds for the weapon in its hand: by more in its reserve, or (no by, or no reserve) a full magazine',
   walk: "{ walk: { who, to: place | [places], speed?, then?: 'stay' | 'loop' | 'back', face?, pose? } } a dumb path: straight lines, the world's walls push it out, no pathfinding",
   stop: 'end a walk, or a hold at a spot',
   status: `{ status: { who, is, look?, for?, color? } } the character carries a status: is is any name you give it; look is how it shows on the body as it moves (a preset: ${LOOK_NAMES.join(', ')}; a name in play.looks; or its layers), defaulting to the look called is; for seconds, until lifted, or until the cue ends`,
@@ -163,6 +171,7 @@ export function readCastEffect(k, t, where, ctx = {}) {
     if (!(Number.isFinite(o.by) && o.by > 0)) throw new Error(`${w}.by is how much hp it takes`);
     out.by = o.by;
   }
+  if (k === 'rearm' && o.by !== undefined) { if (!(Number.isInteger(o.by) && o.by > 0)) throw new Error(`${w}.by is how many rounds`); out.by = o.by; }
   if (k === 'heal' && o.by !== undefined) { if (!(Number.isFinite(o.by) && o.by > 0)) throw new Error(`${w}.by is how much hp it gives`); out.by = o.by; }
   if ((k === 'spawn' || k === 'vanish' || k === 'transfigure') && o.with !== undefined) {
     if (!TRANSITS.includes(o.with)) throw new Error(`${w}.with is how it comes or goes: ${TRANSITS.join(', ')}`);

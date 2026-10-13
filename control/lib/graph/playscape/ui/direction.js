@@ -35,6 +35,11 @@ import { lowerStats, readStats } from '../stats/stats.js';
 import { STAT_OPS } from '../stats/kernel.js';
 import { readSpots, spotAnchors, withStands, CAST_WHEN } from './cast.js';
 import { withChapterCues, chapterBus } from './chapters.js';
+import { withSceneCues, sceneProgram, sceneBus } from './scenes.js';
+import { questProgram } from './quests.js';
+import { withPartyCues } from './party.js';
+import { withRoutineCues } from './routines.js';
+import { withBattle } from './battles.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -187,8 +192,8 @@ export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.
  * register's dials once it is settled, the greybox until then. Absent `play` ⇒ null (zero bytes).
  */
 export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
-  // chapters (chapters.js) lower to cues, so the play below reads them as its own
-  const play = withChapterCues(manifest && manifest.play);
+  // chapters (chapters.js) and scenes (scenes.js) lower to cues, so the play below reads them as its own
+  const play = withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(manifest && manifest.play)))));
   if (!isObj(play)) return null;
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus
@@ -201,8 +206,13 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   const stats = lowerStats(play);
   const vars = { ...(stats ? stats.vars : {}), ...(cues.vars || {}), ...(menus.vars || {}) };
   if (Object.keys(vars).length) out.vars = vars;
-  const chapters = chapterBus(play) || {};
-  for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || [])]; if (v.length) out[k] = v; }
+  const chapters = chapterBus(play) || {}, flags = sceneBus(play) || {};
+  if (flags.vars) out.vars = { ...(out.vars || {}), ...flags.vars };
+  for (const k of ['sources', 'reactions', 'watches', 'initial', 'sequences', 'timers']) { const v = [...(cues[k] || []), ...(menus[k] || []), ...(chapters[k] || []), ...(flags[k] || [])]; if (v.length) out[k] = v; }
+  // the scenes' program: the page's runner (scene-runner.js) paces their beats, frames their shots, draws the box
+  if (play.scenes !== undefined) { const scenes = sceneProgram(play); if (scenes.length) out.scenes = scenes; }
+  // the quests' journal (quests.js): the page keeps it over the flags
+  if (play.quests !== undefined) { const quests = questProgram(play); if (quests.length) out.quests = quests; }
   const pages = menuPages(play);
   if (pages.length) out.menus = pages;
   // the page reads the characters' happenings and hands them the cast's ops only when something here uses them

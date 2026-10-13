@@ -22,8 +22,8 @@ describe('structureBookHtml', () => {
     expect(books.full).not.toMatch(/\b20\d\d-\d\d-\d\d\b/);
   });
 
-  it('throws for a row that is not a house', () => {
-    expect(() => structureBookHtml({ kind: 'store' })).toThrow(/not a house/);
+  it('throws for a row that is not a building', () => {
+    expect(() => structureBookHtml({ kind: 'condo-complex' })).toThrow(/not a building/);
   });
 
   it('shows a tab per concern the recipe reaches, and names each one it does not in Open', () => {

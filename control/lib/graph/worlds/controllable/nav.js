@@ -154,20 +154,22 @@ export function buildNav(E) {
 
   function navClear(world, from, to, opts) {
     if (!world || !world.colliders || !world.colliders.length) return true;
-    const o = optsOf(world, from, to, opts), g = gridOf(world, o);
-    return lineOpen(g, nearestOpen(g, cellIdx(g, from)), cellIdx(g, to));
+    const o = optsOf(world, from, to, opts), g = gridOf(world, o), own = cellIdx(g, from), s = nearestOpen(g, own);
+    // a walker pressed into a blocked cell (against a wall's end) is not clear: it steps out to the open cell first
+    return s === own && lineOpen(g, s, cellIdx(g, to));
   }
 
   function navPath(world, from, to, opts) {
     if (!world || !world.colliders || !world.colliders.length) return [];
     const o = optsOf(world, from, to, opts), g = gridOf(world, o);
-    const s = nearestOpen(g, cellIdx(g, from)), t = nearestOpen(g, cellIdx(g, to));
+    const own = cellIdx(g, from), s = nearestOpen(g, own), t = nearestOpen(g, cellIdx(g, to));
     if (s < 0 || t < 0) return null;
-    if (lineOpen(g, s, t)) return [];
+    // from a blocked cell, the open one it steps out to comes first
+    const out = s === own ? [] : [centre(g, s)];
+    if (lineOpen(g, s, t)) return out.length ? [...out, [to[0], to[1]]] : [];
     const cells = aStar(g, s, t);
     if (!cells) return null;
     // string pull: from each kept corner, skip ahead to the farthest cell still in line of sight
-    const out = [];
     let a = 0;
     while (a < cells.length - 1) {
       let b = cells.length - 1;

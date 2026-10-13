@@ -222,7 +222,7 @@ export function framingSheets(read, { units = 'imperial', project, size = 'ANSI 
       ? `<rect class="s-hid" x="${n2(L.view.x(fp.x0))}" y="${n2(L.view.y(fp.y0))}" width="${n2(L.view.len(fp.x1 - fp.x0))}" height="${n2(L.view.len(fp.y1 - fp.y0))}"/>${roofOutline(read, L.view)}`
       : '';
     const key = tableSvg(framingKey(read, frame), [L.key[0], L.key[1]]);
-    const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale: L.scale, revision });
+    const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale: L.scale, revision });
     const body = [
       ref, d.svg, overallDims(read, L.view, units), key.svg,
       framingNotes(read, [L.key[0], L.key[1] + key.h + 8]),

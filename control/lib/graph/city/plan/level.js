@@ -1,0 +1,179 @@
+/**
+ * A CITY SEGMENT AS A LEVEL. A segment (segments.js) is played the way a building on the rail is (structure/level.js):
+ * its recipe asks with one field, `level: { segment }`, and its `game` channel, walker, camera and colliders are
+ * lowered from the city on every read, never stored, so an edit to the city moves its levels with it.
+ *
+ *   - its ways out: one reach-exit per neighbour, named for it (`exit: <segment id>`), at the portal on their shared
+ *     edge, where the street crosses; a map game's level exits name the same ids
+ *   - its arrivals: coming in from a neighbour's level, the walker stands a few metres inside that portal
+ *     (`arrive:<that level's ref>`); a segment's neighbours' levels are `<city ref>-<segment id>` unless `refs` says
+ *   - its spawn: the crossing nearest the segment's middle, facing along its street
+ *   - its buildings (doors.js): a walk-in's lobby is part of the map, walked into off the street; a door-scene's door is
+ *     a `door` zone on the walk before it, its inside a level of its own the game links to it
+ *   - its walls: every built mass (lots and sites) in reach, every street tree's trunk and planter (the walk's own), and the segment's own edges, open only at its portals:
+ *     the city goes on past them as the backdrop, and a walker leaves only by a street
+ *   - a segment with no neighbours: its goal is the crossing farthest along the walk from its spawn
+ *
+ * Everything is in the world's units (the legacy city's, CITY_METERS_PER_UNIT).
+ */
+import { CITY_METERS_PER_UNIT } from '../fractal-city.js';
+import { registerLevelKind } from '../../structure/level.js';
+import { designCity } from './design.js';
+import { lobbyOf, LOBBY } from './doors.js';
+import { cityGreen, PLANTER } from './green.js';
+// a tree's trunk as a walker meets it (m, half its side)
+const TRUNK = 0.35;
+
+const U = CITY_METERS_PER_UNIT;
+const r3 = (v) => Math.round(v * 1000) / 1000;
+const u = (v) => r3(v / U);
+export const CITY_LEVEL = Object.freeze({ eye: 1.7, speed: 5, wall: 8, arrive: 7, radius: 0.4 });
+
+const inside = (rect, x, y, m = 0) => x >= rect.x0 - m && x <= rect.x1 + m && y >= rect.y0 - m && y <= rect.y1 + m;
+
+function walkPath(g, from, to) {
+  const adj = g.nodes.map(() => []);
+  for (const e of g.edges) { adj[e.a].push([e.b, e.len]); adj[e.b].push([e.a, e.len]); }
+  const dist = new Float64Array(g.nodes.length).fill(Infinity), prev = new Int32Array(g.nodes.length).fill(-1), done = new Uint8Array(g.nodes.length);
+  dist[from] = 0;
+  for (;;) {
+    let v = -1;
+    for (let i = 0; i < dist.length; i++) if (!done[i] && dist[i] < Infinity && (v < 0 || dist[i] < dist[v])) v = i;
+    if (v < 0) break;
+    done[v] = 1;
+    for (const [w, len] of adj[v]) if (dist[v] + len < dist[w]) { dist[w] = dist[v] + len; prev[w] = v; }
+  }
+  const path = [];
+  if (to !== undefined && dist[to] < Infinity) for (let v = to; v >= 0; v = prev[v]) path.unshift(v);
+  return { dist, path };
+}
+
+/** The level a segment makes, in units: { spawn, heading, exits, arrivals, goal?, colliders, via }; or { error }. */
+export function segmentLevel(d, segId, { refs = {}, cityRef = null, route = null, ways = [] } = {}) {
+  const seg = (d.segments || []).find((s) => s.id === segId);
+  if (!seg) return { error: `the city has no segment '${segId}' (${(d.segments || []).map((s) => s.id).join(', ') || 'cut it with segments: true'})` };
+  const R = seg.rect, cx = (R.x0 + R.x1) / 2, cy = (R.y0 + R.y1) / 2, g = d.walk;
+  const nodesIn = g.nodes.filter((n) => inside(R, n.x, n.y, -2) && n.degree >= 2);
+  if (!nodesIn.length) return { error: `segment '${segId}' has no street to stand on` };
+  const start = nodesIn.reduce((b, n) => (!b || Math.hypot(n.x - cx, n.y - cy) < Math.hypot(b.x - cx, b.y - cy) ? n : b), null);
+  const edge = g.edges.find((e) => (e.a === start.id || e.b === start.id) && inside(R, g.nodes[e.a === start.id ? e.b : e.a].x, g.nodes[e.a === start.id ? e.b : e.a].y));
+  const far = edge ? g.nodes[edge.a === start.id ? edge.b : edge.a] : { x: cx, y: cy };
+  const heading = Math.atan2(far.y - start.y, far.x - start.x);
+  const refOf = (id) => refs[id] ?? (cityRef ? `${cityRef}-${id}` : null);
+  // each way out: at the portal, and coming in by it, a few metres inside along the crossing street
+  const portals = seg.neighbours.map((nb) => {
+    const p = nb.portal, n = { e: [-1, 0], w: [1, 0], s: [0, -1], n: [0, 1] }[nb.side], step = p.half + CITY_LEVEL.arrive;
+    return { id: nb.id, to: refOf(nb.id), at: p.at, radius: p.half + 1.5, arrive: [p.at[0] + n[0] * step, p.at[1] + n[1] * step], street: p.street, side: nb.side, gap: p.half };
+  });
+  for (const k of ['from', 'to']) if (route && route[k] !== undefined && !portals.some((x) => x.id === route[k])) return { error: `segment '${segId}' has no neighbour '${route[k]}' to be routed ${k} (neighbours: ${portals.map((x) => x.id).join(', ') || 'none'})` };
+  // on a route only its two portals open: the way it came in by, the way on (its exit); the rest of the city is backdrop
+  const exits = route ? portals.filter((x) => x.id === route.to) : portals;
+  const open = route ? portals.filter((x) => x.id === route.from || x.id === route.to) : portals;
+  // entered along a route, the walker stands where it came in, facing on into the segment
+  let start0 = start;
+  const cameIn = route && route.from ? portals.find((x) => x.id === route.from) : null;
+  if (cameIn) start0 = nodesIn.reduce((b, n) => (!b || Math.hypot(n.x - cameIn.arrive[0], n.y - cameIn.arrive[1]) < Math.hypot(b.x - cameIn.arrive[0], b.y - cameIn.arrive[1]) ? n : b), null);
+  const { dist } = walkPath(g, start0.id);
+  let goal = null;
+  // the end (no way on, or a map world's way out at it): the crossing farthest along the walk from where it starts
+  const far0 = nodesIn.reduce((b, n) => (dist[n.id] < Infinity && (!b || dist[n.id] > dist[b.id]) ? n : b), null);
+  if (!exits.length) {
+    const best = nodesIn.reduce((b, n) => (dist[n.id] < Infinity && (!b || dist[n.id] > dist[b.id]) ? n : b), null);
+    goal = { at: [best.x, best.y], node: best.id };
+  }
+  // the audit's walk: along the streets to the first way out (or the goal)
+  const target = goal ? goal.node : (() => { const p = exits[0].at; return nodesIn.reduce((b, n) => (!b || Math.hypot(n.x - p[0], n.y - p[1]) < Math.hypot(b.x - p[0], b.y - p[1]) ? n : b), null).id; })();
+  const via = walkPath(g, start0.id, target).path.map((i) => [g.nodes[i].x, g.nodes[i].y]);
+  // a map world's ways out of the city: at its start, a stride behind where the walker stands; at its end, its far crossing
+  const e0 = g.edges.find((e) => e.a === start0.id || e.b === start0.id), f0 = e0 ? g.nodes[e0.a === start0.id ? e0.b : e0.a] : null;
+  const heading0 = cameIn ? (() => { const n = via[1] ?? [far0.x, far0.y]; return Math.atan2(n[1] - start0.y, n[0] - start0.x); })() : start0 === start ? heading : Math.atan2((f0?.y ?? cy) - start0.y, (f0?.x ?? cx) - start0.x);
+  const extra = ways.map((w) => {
+    const at = w.at === 'end' ? [far0.x, far0.y] : [start0.x - 9 * Math.cos(heading0), start0.y - 9 * Math.sin(heading0)];
+    const arrive = w.at === 'end' ? [far0.x + (start0.x - far0.x) * 0.1, far0.y + (start0.y - far0.y) * 0.1] : [start0.x, start0.y];
+    return { id: w.id, to: w.to, at, radius: 4, arrive, ...(w.gate ? { gate: w.gate } : {}), way: true };
+  });
+  // the walls: every built mass within reach, and the segment's edges with a gap at each portal
+  const reach = 40, colliders = [];
+  // a walk-in lot is its lobby's walls and the building over it; a door-scene lot is solid, its door a zone before it
+  const entries = (d.entries || []).filter((e) => !e.error && e.segment === seg.id), walkIn = new Set(entries.filter((e) => e.enter === 'walk').map((e) => e.lot));
+  const toU = (c) => ({ ...c, min: c.min.map(u), max: c.max.map(u) });
+  for (const l of d.lots) {
+    if (l.use === 'parking' || !(l.h > 0) || l.x1 < R.x0 - reach || l.x0 > R.x1 + reach || l.y1 < R.y0 - reach || l.y0 > R.y1 + reach) continue;
+    if (walkIn.has(l.id)) {
+      const lb = lobbyOf(l, {});
+      colliders.push(...lb.colliders.filter((c) => !c.of.endsWith('stair')).map(toU), { min: [u(l.x0), u(l.y0), u(lb.height)], max: [u(l.x1), u(l.y1), u(l.h)], of: `lot:${l.id}:over` });
+      // the lobby's stair: one ramp of a box under its flight (a walker goes no higher than the level does)
+      const st = lb.colliders.filter((c) => c.of.endsWith('stair'));
+      if (st.length) colliders.push(toU({ min: [Math.min(...st.map((c) => c.min[0])), Math.min(...st.map((c) => c.min[1])), 0], max: [Math.max(...st.map((c) => c.max[0])), Math.max(...st.map((c) => c.max[1])), LOBBY.height], of: `lobby:${l.id}:stair` }));
+      // behind the lobby, the building's ground storey stays solid
+      continue;
+    }
+    colliders.push({ min: [u(l.x0), u(l.y0), 0], max: [u(l.x1), u(l.y1), u(l.h)], of: `lot:${l.id}` });
+  }
+  const doors = entries.filter((e) => e.enter === 'door').map((e) => ({ id: e.door.id, lot: e.lot, inside: e.inside, at: [u(e.door.at[0]), u(e.door.at[1]), 0], radius: u(1.4), spawn: [u(e.door.spawn[0]), u(e.door.spawn[1]), 0], heading: e.door.heading }));
+  const lobbies = entries.filter((e) => e.enter === 'walk').map((e) => e.lot);
+  // the green (green.js): a street tree's trunk and a planter's box stop a walker on the walk; a shrub, a crown, a park's
+  // trees and a median's do not (a walker crosses a median between its trees, and the walk runs down the middle line)
+  for (const g of cityGreen(d)) {
+    if (g.strip || g.kind !== 'street' || g.plant === 'shrub' || !inside(R, g.x, g.y, reach)) continue;
+    const r = g.plant === 'planter' ? PLANTER.side / 2 : TRUNK, h = g.plant === 'planter' ? PLANTER.h : 3;
+    colliders.push({ min: [u(g.x - r), u(g.y - r), 0], max: [u(g.x + r), u(g.y + r), u(h)], of: `green:${g.key}` });
+  }
+  for (const s of d.sites) if (s.mass && !(s.mass.x1 < R.x0 - reach || s.mass.x0 > R.x1 + reach || s.mass.y1 < R.y0 - reach || s.mass.y0 > R.y1 + reach)) colliders.push({ min: [u(s.mass.x0), u(s.mass.y0), 0], max: [u(s.mass.x1), u(s.mass.y1), u(s.mass.h)], of: `site:${s.id}` });
+  const T = 0.5, H = CITY_LEVEL.wall;
+  const side = (name, a0, a1, fixed, horizontal) => {
+    const gaps = open.filter((x) => x.side === name).map((x) => [(horizontal ? x.at[0] : x.at[1]) - x.gap, (horizontal ? x.at[0] : x.at[1]) + x.gap]).sort((p, q) => p[0] - q[0]);
+    let a = a0;
+    for (const [g0, g1] of [...gaps, [a1, a1]]) {
+      if (g0 - a > 0.2) colliders.push(horizontal ? { min: [u(a), u(fixed - T), 0], max: [u(g0), u(fixed + T), u(H)], of: `edge:${name}` } : { min: [u(fixed - T), u(a), 0], max: [u(fixed + T), u(g0), u(H)], of: `edge:${name}` });
+      a = Math.max(a, g1);
+    }
+  };
+  side('n', R.x0, R.x1, R.y0, true); side('s', R.x0, R.x1, R.y1, true); side('w', R.y0, R.y1, R.x0, false); side('e', R.y0, R.y1, R.x1, false);
+  return {
+    segment: seg.id, rect: R,
+    // entered along a route, the walker stands just inside the portal it came in by, on its street
+    spawn: cameIn ? [u(cameIn.arrive[0]), u(cameIn.arrive[1]), 0] : [u(start0.x), u(start0.y), 0], heading: r3(cameIn ? Math.atan2(cameIn.arrive[1] - cameIn.at[1], cameIn.arrive[0] - cameIn.at[0]) : heading0),
+    exits: [...exits, ...extra].map((x) => ({ ...x, at: [u(x.at[0]), u(x.at[1]), 0], radius: u(x.radius), arrive: [u(x.arrive[0]), u(x.arrive[1]), 0] })),
+    ...(route ? { route } : {}),
+    ...(goal ? { goal: { at: [u(goal.at[0]), u(goal.at[1]), 0] } } : {}),
+    via: via.map((p) => [u(p[0]), u(p[1])]),
+    colliders, doors, lobbies,
+  };
+}
+
+/**
+ * A city manifest with its segment's level lowered (the building-on-the-rail contract): the `game` channel (a
+ * reach-exit per way out, or the goal), arrivals that move the walker, a first-person walker at the spawn, its camera,
+ * and the walls. `ref` is the level's own sketch ref; `cityRef` the city it was cut from.
+ */
+export function withCityLevel(m, d, ref) {
+  const L = segmentLevel(d, m.level.segment, { refs: m.level.refs ?? {}, cityRef: m.cityRef ?? null, route: m.level.route ?? null, ways: m.level.ways ?? [] });
+  if (L.error) throw new Error(`level: ${L.error}`);
+  const eye = u(CITY_LEVEL.eye);
+  const via = L.via.length ? { via: L.via } : {};
+  // on a route the level ends (success) at its way on, or its end: no exit named, the line's gates do the rest
+  const mechanics = L.route
+    ? (L.goal ? [{ kind: 'reach-exit', at: L.goal.at, radius: u(4), ...via }] : [{ kind: 'reach-exit', at: L.exits[0].at, radius: L.exits[0].radius, ...via }])
+    : [
+      ...(L.goal && !L.exits.length ? [{ kind: 'reach-exit', at: L.goal.at, radius: u(4), ...via }] : []),
+      ...L.exits.map((x, i) => ({ kind: 'reach-exit', exit: x.id, at: x.at, radius: x.radius, ...(i === 0 && L.via.length ? { via: L.via } : {}) })),
+    ];
+  const arrivals = L.route ? [] : L.exits.filter((x) => x.to);
+  // each door-scene building's door: a zone on the walk before it, a walker coming back out standing on the walk
+  const eyeAt = (p) => [p[0], p[1], 0];
+  const doorMechs = L.doors.map((x) => ({ kind: 'door', id: x.id, at: eyeAt(x.at), radius: x.radius, spawn: eyeAt(x.spawn), heading: x.heading }));
+  const game = { levelRef: ref, mechanics: [...doorMechs, ...mechanics], fall: { mode: 'respawn' }, ...(arrivals.length ? { arrive: arrivals.map((x) => x.to) } : {}) };
+  return {
+    ...m,
+    game,
+    entities: [{ id: 'player', pilotable: true, rule: { type: 'walk', speed: r3(CITY_LEVEL.speed / U), turn: 2.4, eye, turnMode: 'look', lookPitch: true, keyTurn: true, strafe: 1, collideRadius: u(CITY_LEVEL.radius), collideHeight: eye }, body: { type: 'none' }, transform: { pos: [L.spawn[0], L.spawn[1], eye], heading: L.heading } }],
+    camera: { rule: 'eye', target: 'player', height: 0, mouseLook: true },
+    events: { reactions: arrivals.map((x) => ({ on: `arrive:${x.to}`, do: 'move', target: 'player', to: [x.arrive[0], x.arrive[1], eye] })) },
+    colliders: L.colliders,
+    walk: false,
+  };
+}
+
+// a city segment is lowered as a building on the rail is, wherever a level is (world-scene, game-resolve)
+registerLevelKind('city', (m, ref) => withCityLevel(m, designCity(m), ref));

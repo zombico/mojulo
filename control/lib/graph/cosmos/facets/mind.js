@@ -45,15 +45,15 @@ export const MIND = Object.freeze({
     social: {
       values: {
         none: { status: 'built' },
-        talk: { status: 'partial', effort: 'M', lowers: 'lib/graph/era/floormap.js', note: 'a talk hotspot verb; no dialogue' },
-        schedule: { status: 'absent', effort: 'L', note: 'no daily routines' },
+        talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: false, note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); web only' },
+        schedule: { status: 'built', lowers: 'lib/graph/playscape/ui/routines.js', godot: false, note: 'play.routines: where each goes hour by hour on the level\'s clock (cues on hour, a walk and a pose); web only' },
       },
     },
     commander: {
       values: {
         none: { status: 'built' },
         builtin: { status: 'built', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'the reference commander, on rule.commanded' },
-        agent: { status: 'partial', effort: 'S', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'hook and http ports are wired; no live model has driven one yet' },
+        agent: { status: 'partial', effort: 'M', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'hook and http ports wired, sketch manifests only; design_game never sets a commander, no live model bridge or test (priced 10-12)' },
       },
     },
   },

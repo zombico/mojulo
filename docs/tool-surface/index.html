@@ -1,0 +1,428 @@
+<title>Mojulo Tool Surface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a workshop ledger. Tab 1 is a ring × verb grid; tab 2 is pack clusters by ring, then the Workflows rails drawn as station lines. */
+:root{
+  --bg:#eceee9; --panel:#f8f9f6; --ink:#1b2022; --muted:#5d666a; --rule:#c9cfca; --accent:#2346a8;
+  --display:"Archivo",ui-sans-serif,system-ui,sans-serif; --body:"Figtree",ui-sans-serif,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --v-create:#1f7a4d; --v-update:#b0681a; --v-compose:#7a3fb0; --v-observe:#1f6fa8; --v-maintain:#6b6f5a; --v-orient:#b03a55;
+  --heat:35,70,168;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141719; --panel:#1c2023; --ink:#e4e8e6; --muted:#97a1a4; --rule:#343b3f; --accent:#8aa6ff;
+  --v-create:#5cc38f; --v-update:#e7a457; --v-compose:#b991ec; --v-observe:#6fb6ea; --v-maintain:#b4b79e; --v-orient:#ec7f97;
+  --heat:138,166,255; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141719; --panel:#1c2023; --ink:#e4e8e6; --muted:#97a1a4; --rule:#343b3f; --accent:#8aa6ff;
+  --v-create:#5cc38f; --v-update:#e7a457; --v-compose:#b991ec; --v-observe:#6fb6ea; --v-maintain:#b4b79e; --v-orient:#ec7f97;
+  --heat:138,166,255; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+header h1{font-family:var(--display);font-stretch:78%;font-weight:800;font-size:clamp(28px,4vw,44px);letter-spacing:-.01em;margin:0;text-wrap:balance;line-height:1.05}
+header p{color:var(--muted);max-width:70ch;margin:.5em 0 0}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:10px}
+.tabs{display:flex;gap:4px;margin:26px 0 18px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.tabs button{font:600 14px var(--body);background:none;border:0;color:var(--muted);padding:10px 14px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button:focus-visible,.chip:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-family:var(--display);font-stretch:85%;font-weight:700;font-size:22px;margin:0 0 4px;text-wrap:balance}
+h3{font-family:var(--display);font-stretch:85%;font-weight:700;font-size:16px;margin:0}
+.lede{color:var(--muted);max-width:75ch;margin:0 0 16px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.toolbar input{font:14px var(--body);padding:8px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink);min-width:0;width:260px;max-width:100%}
+.legend{display:flex;gap:10px;flex-wrap:wrap}
+.legend button{font:500 12px var(--mono);display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:4px 9px;border-radius:999px;cursor:pointer}
+.legend button[aria-pressed="false"]{opacity:.4}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--panel)}
+table.matrix{border-collapse:collapse;width:100%;min-width:980px;font-variant-numeric:tabular-nums}
+.matrix th,.matrix td{border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);vertical-align:top;padding:8px}
+.matrix thead th{position:sticky;top:0;background:var(--panel);text-align:left;font:600 12px var(--mono);z-index:1}
+.matrix thead th .vdesc{display:block;font:400 11px var(--body);color:var(--muted);margin-top:3px;max-width:22ch}
+.matrix tbody th{text-align:left;width:210px;background:var(--panel)}
+.matrix tbody th .rt{font-family:var(--display);font-stretch:85%;font-weight:700;font-size:15px;display:block}
+.matrix tbody th .rs{font-size:12px;color:var(--muted);display:block;margin-top:2px}
+.matrix tbody th .rp{font:11px var(--mono);color:var(--muted);display:block;margin-top:6px}
+.matrix td.cell{background:rgba(var(--heat),var(--h,0))}
+.matrix .tot{font:600 12px var(--mono);color:var(--muted);text-align:right;width:52px}
+.matrix tfoot td,.matrix tfoot th{font:600 12px var(--mono);color:var(--muted);text-align:left;background:var(--panel)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:12px/1.2 var(--mono);border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:3px 6px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;text-align:left;max-width:100%;overflow-wrap:anywhere}
+.chip .dot{width:7px;height:7px}
+.chip.shared{border-style:dashed;color:var(--muted)}
+.chip.dim{opacity:.18}
+.chip.hit{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.detail{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:8px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.08);max-width:760px}
+.detail code{font-family:var(--mono);font-size:13px;font-weight:500}
+.detail .dl{margin:4px 0 0;color:var(--ink)}
+.detail .dm{font:11px var(--mono);color:var(--muted);margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.stat{border-top:2px solid var(--ink);padding-top:6px}
+.stat b{font-family:var(--display);font-stretch:80%;font-size:28px;font-weight:800;display:block;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.bars{display:grid;gap:6px;margin:6px 0 22px;max-width:760px}
+.bar{display:grid;grid-template-columns:90px 1fr 36px;align-items:center;gap:10px;font:12px var(--mono)}
+.bar i{display:block;height:10px;border-radius:2px}
+/* clusters */
+.spine{border:1px dashed var(--rule);border-radius:8px;padding:12px;margin-bottom:22px;background:var(--panel)}
+.rings{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:14px;margin-bottom:34px}
+.ring{border:1px solid var(--rule);border-radius:8px;padding:14px;background:var(--panel);display:flex;flex-direction:column;gap:12px;min-width:0}
+.ring>header{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ring .cnt{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+.pack{border-top:1px solid var(--rule);padding-top:10px;min-width:0}
+.pack .pid{font:500 12px var(--mono);color:var(--accent)}
+.pack .ptitle{font-weight:600;font-size:14px}
+.pack .pbody{font-size:12.5px;color:var(--muted);margin:4px 0 8px;max-width:70ch}
+.vstrip{display:flex;height:6px;border-radius:3px;overflow:hidden;margin:6px 0 8px;max-width:240px}
+.vstrip i{display:block;height:100%}
+.retired{opacity:.75}
+/* rails */
+.rails{display:grid;gap:16px}
+.rail{border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:16px;min-width:0}
+.rail .rhead{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin-bottom:4px}
+.rail .rnote{font-size:13px;color:var(--muted);max-width:80ch;margin:0 0 12px}
+.line{overflow-x:auto;padding-bottom:4px}
+.stations{display:flex;align-items:stretch;gap:0;min-width:max-content}
+.st{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:0 6px;max-width:220px}
+.st .pin{width:14px;height:14px;border-radius:50%;border:3px solid var(--accent);background:var(--panel)}
+.st.gate .pin{border-radius:3px;background:var(--accent)}
+.st .lbl{font-size:12px;color:var(--muted);max-width:24ch}
+.track{flex:1;min-width:28px;height:3px;background:var(--accent);margin-top:6px;align-self:flex-start;position:relative}
+.track.dash{background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 10px)}
+.track em{position:absolute;top:6px;left:2px;font:10px var(--mono);color:var(--muted);font-style:normal;white-space:nowrap}
+.branch{margin-top:12px;padding-left:14px;border-left:3px dashed var(--rule)}
+.branch .eyebrow{display:block;margin-bottom:6px}
+.keyrow{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:4px 0 16px}
+.keyrow span{display:inline-flex;align-items:center;gap:6px}
+.keyrow .pin{width:12px;height:12px;border-radius:50%;border:3px solid var(--accent);display:inline-block}
+.keyrow .gpin{width:12px;height:12px;border-radius:3px;background:var(--accent);display:inline-block}
+/* cosmos */
+:root{--built:#2f8a5b;--local:#b9791b;--partial:#d1a63a;--absent:#c2453d}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--built:#4fbf86;--local:#e0a24a;--partial:#e6c565;--absent:#ef6b62}}
+:root[data-theme="dark"]{--built:#4fbf86;--local:#e0a24a;--partial:#e6c565;--absent:#ef6b62}
+.s-built{background:var(--built)}.s-local{background:var(--local)}.s-partial{background:var(--partial)}.s-absent{background:var(--absent)}
+.cmeta{display:flex;flex-wrap:wrap;gap:6px 18px;font:12px var(--mono);color:var(--muted);margin-bottom:10px}
+.cmeta b{color:var(--ink);font-weight:500}
+.gap{margin-top:30px}
+.net{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-areas:". space . ." "reality power soul mind" ". time . .";gap:6px;max-width:980px}
+.face{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:7px;min-width:0;min-height:13rem}
+.face[data-stage="building"],.face[data-stage="designing"]{border-color:var(--accent)}
+.face .fh{display:flex;justify-content:space-between;align-items:baseline;gap:6px;flex-wrap:wrap}
+.face .asks{margin:0;color:var(--muted);font-size:12.5px;line-height:1.35}
+.face .lifts{font:12px var(--mono);color:var(--muted)}
+.face .lifts b{font-family:var(--display);font-stretch:80%;font-size:24px;color:var(--ink);font-weight:800;margin-right:4px}
+.face .owner{font:11px var(--mono);color:var(--accent)}
+.face .nx{font-size:12px;margin:0}
+.face .foot{margin-top:auto;display:grid;gap:5px}
+.stage{font:10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:999px;border:1px solid var(--rule);color:var(--muted)}
+.sbar{display:flex;height:7px;border-radius:2px;overflow:hidden;background:var(--rule)}
+.sbar span{display:block;height:100%}
+.scount{display:flex;flex-wrap:wrap;gap:2px 9px;font:11px var(--mono);color:var(--muted)}
+.scount i,.slegend i{display:inline-block;width:8px;height:8px;border-radius:1px;margin-right:4px}
+.slegend{display:flex;flex-wrap:wrap;gap:6px 16px;font:12px var(--mono);color:var(--muted);margin-top:8px}
+.vbar{display:flex;height:28px;border-radius:3px;overflow:hidden;font:12px var(--mono);max-width:980px}
+.vbar span{display:flex;align-items:center;padding-inline:8px;white-space:nowrap;overflow:hidden;color:var(--bg)}
+.v-makeable{background:var(--built)}.v-gaps{background:var(--partial)}.v-blocked{background:var(--absent)}
+table.ftable{border-collapse:collapse;width:100%;min-width:720px;font-size:13.5px}
+.ftable th,.ftable td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+.ftable th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ftable td.c{text-align:center;width:8%}
+.sq{display:inline-block;width:14px;height:14px;border-radius:3px}
+.sq.none{border:1px dashed var(--rule)}
+.verdict{font:12px var(--mono);padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid currentColor}
+.verdict.makeable{color:var(--built)}.verdict.gaps{color:var(--local)}.verdict.blocked{color:var(--absent)}
+.fwhy{color:var(--muted);font-size:12px}
+.anchor{color:var(--accent);font:11px var(--mono);margin-left:6px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:28px}
+.two>div{min-width:0}
+.rank{display:grid;gap:6px}
+.rrow{display:grid;grid-template-columns:minmax(0,17rem) 1fr 3rem;gap:10px;align-items:center;font-size:12.5px}
+.rrow .k{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .t{height:9px;background:var(--rule);border-radius:2px;overflow:hidden}
+.rrow .t span{display:block;height:100%}
+.rrow .n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.log{list-style:none;margin:0;padding:0;border-left:2px solid var(--rule);max-width:900px}
+.log li{display:grid;grid-template-columns:8rem 1fr;gap:12px;padding:7px 0 7px 16px;position:relative}
+.log li::before{content:"";position:absolute;left:-6px;top:12px;width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--muted)}
+.log li.ms::before{background:var(--accent);border-color:var(--accent)}
+.log time{font:12px var(--mono);color:var(--muted)}
+.log .tag{font:11px var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-right:8px}
+@media (max-width:760px){.net{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"space time" "reality power" "soul mind"}.rrow{grid-template-columns:minmax(0,1fr) 4rem 2.5rem}.log li{grid-template-columns:1fr;gap:2px}}
+@media (max-width:600px){.wrap{padding-inline:16px}.matrix tbody th{width:150px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">mojulo · <span id="head"></span></div>
+  <h1>Mojulo tool surface</h1>
+  <p>Every listed MCP tool, placed by what it makes (its ring) and what it does to a thing (its verb). The second view groups the same tools into the packs an agent opens and traces the Workflows rails that chain them. The third is the cosmos cube board: which kinds of game the builder can make today, and which facet holds the rest back.</p>
+  <div class="meta">Built by <code>control/scripts/tool-surface.mjs</code> from tool-lines.js · packs.js · cosmos registry + sweep · docs/tool-surface/board-notes.json</div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-matrix" aria-controls="view-matrix" aria-selected="true">Capability matrix</button>
+  <button role="tab" id="tab-rails" aria-controls="view-rails" aria-selected="false">Clusters &amp; rails</button>
+  <button role="tab" id="tab-cosmos" aria-controls="view-cosmos" aria-selected="false">Cosmos cube</button>
+</nav>
+
+<section id="view-matrix" role="tabpanel" aria-labelledby="tab-matrix">
+  <div class="stats" id="stats"></div>
+  <h2>Rings × verbs</h2>
+  <p class="lede">Rows are rings, in tools/list order. Columns are the six verbs from <code>VERBS</code>. Cell shading scales with tool count. Click a tool to read its one-line manual.</p>
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="Filter tools, e.g. stash or export" aria-label="Filter tools">
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="scroll"><table class="matrix" id="matrix"></table></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:24px;margin-top:24px">
+    <div><h3>Tools per verb</h3><div class="bars" id="vbars"></div></div>
+    <div><h3>Tools per ring</h3><div class="bars" id="rbars"></div></div>
+  </div>
+  <div class="detail" id="detail-m" hidden></div>
+</section>
+
+<section id="view-rails" role="tabpanel" aria-labelledby="tab-rails" hidden>
+  <h2>Tool-call clusters</h2>
+  <p class="lede">A pack is the unit the agent opens: one dispatcher tool whose members run as <code>pack_x({ tool, args })</code>. Solid chips are the pack's own members, coloured by verb. Dashed chips are <code>shared</code> tools homed in another pack that this pack also dispatches. The strip under each title is the pack's verb mix.</p>
+  <div class="spine" id="spine"></div>
+  <div class="rings" id="rings"></div>
+
+  <h2>Orchestration rails</h2>
+  <p class="lede">The Workflows ring exists so the agent hands over a list once. Each rail below is a chain of calls the server knows how to run end to end; branches show the alternate paths into or out of the same line.</p>
+  <div class="keyrow">
+    <span><i class="pin"></i> tool call</span>
+    <span><i class="gpin"></i> gate (confirm, accept/reject, intake check)</span>
+    <span><i style="width:28px;height:3px;background:var(--accent);display:inline-block"></i> always next</span>
+    <span><i style="width:28px;height:3px;display:inline-block;background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 10px)"></i> optional or repeated</span>
+  </div>
+  <div class="rails" id="rails"></div>
+
+  <h2 style="margin-top:34px">Retired office packs</h2>
+  <p class="lede">Left the surface in 3.1.0. Still registered and callable by name from the CLI and plan steps (with a deprecation warning), never listed or routed to the agent.</p>
+  <div class="rings retired" id="retired"></div>
+  <div class="detail" id="detail-r" hidden></div>
+</section>
+
+<section id="view-cosmos" role="tabpanel" aria-labelledby="tab-cosmos" hidden>
+  <div class="cmeta" id="cmeta"></div>
+  <p class="lede">A cosmos cube describes a game as six facets. The sweep dry-runs the fixtures, then rolls random cubes against the capability registry, and counts which would be makeable. It builds nothing. It runs as a script (<code>node scripts/cosmos-sweep.mjs</code>), not as an MCP tool, so it does not appear in the matrix.</p>
+
+  <h2>The six facets</h2>
+  <p class="lede">Each face shows what the registry holds for that facet and how many rolled games would step up if the whole facet were built.</p>
+  <div class="net" id="net"></div>
+  <div class="slegend"><span><i class="s-built"></i>built</span><span><i class="s-local"></i>local to one game</span><span><i class="s-partial"></i>partial</span><span><i class="s-absent"></i>absent</span></div>
+
+  <h2 class="gap">The sweep</h2>
+  <p class="lede" id="sweep-cap"></p>
+  <div class="vbar" id="vbar"></div>
+
+  <h2 class="gap">Game types × facets</h2>
+  <p class="lede">Each cell is the worst status that fixture hits in that facet. Anchors are games the tree makes today and must stay makeable.</p>
+  <div class="scroll"><table class="ftable" id="fixtures"></table></div>
+
+  <div class="two gap">
+    <div><h2>Build order</h2><p class="lede">Work packages ranked by lifts per unit of work (effort S = 1, M = 3, L = 8). Unsized packages are listed last.</p><div class="rank" id="packages"></div></div>
+    <div><h2>Single values</h2><p class="lede">Rolled games whose verdict steps up if that one value were built.</p><div class="rank" id="values"></div></div>
+  </div>
+
+  <h2 class="gap">Work log</h2>
+  <p class="lede">Newest first. Filled dots are milestones. Kept in <code>docs/tool-surface/board-notes.json</code>.</p>
+  <ol class="log" id="log"></ol>
+</section>
+</div>
+
+<script>
+const DATA = {"VERBS":["create","update","compose","observe","maintain","orient"],"RING_TITLES":{"orientation":"Orientation — where to start, what mojulo is","characters":"Characters — heroes, creatures, animals","solids":"Solids — objects, parts, houses (Print)","worlds":"Worlds — places to walk, and their exports","games":"Games — playable artifacts (Play)","read":"Pictures, diagrams and study views (Read)","audio":"Audio — scores, sound effects, voices (Hear)","kernel":"Observe — motion, turntables, recorded runs","workflows":"Workflows — plans, sweeps, stash and cook, catalysts, worker handoffs"},"tools":[{"name":"forward_context","verb":"orient","line":"The routing index: what mojulo makes, as FORM rows → the tool to call, the export dispatch and the guards. Call FIRST when unsure.","pack":"spine","ring":"orientation"},{"name":"get_tool_index","verb":"orient","line":"This index: one line per listed tool, by ring. Call when `forward_context` is not specific enough.","pack":"spine","ring":"orientation"},{"name":"get_creative_toolset","verb":"orient","line":"One FORM's tools (character, object, world, game, audio, …). No arg → the form map. Call to MAKE something visual, audible or playable.","pack":"spine","ring":"orientation"},{"name":"semantic_search","verb":"orient","line":"Fuzzy recall over mojulo state and every card library (`kinds`: routing, solid_vocab, view_vocab, beats_vocab, …): refs and snippets for an intent.","pack":"spine","ring":"orientation"},{"name":"get_register_kit","verb":"orient","line":"The glossary in the operator's register, the refusal legend, the commitment vocabulary and the disclosure directive. Pull to define a term or decode a no.","pack":"spine","ring":"orientation"},{"name":"get_worked_example","verb":"orient","line":"An annotated end-to-end trace (`game` / `media`): the calls, the gate moments, one refusal and recovery. Pull before your first build of a kind.","pack":"spine","ring":"orientation"},{"name":"get_ui_map","verb":"orient","line":"The dashboard, page by page, and when to point the user at each. Call when they want to look, browse or click.","pack":"spine","ring":"orientation"},{"name":"get_substrate","verb":"orient","line":"What mojulo is and can honestly claim, plus the substrate facts (data, network, costs, uninstall). Answer questions about mojulo itself from it.","pack":"spine","ring":"orientation"},{"name":"get_tool_ledger","verb":"observe","line":"The server's own tool-call telemetry: per-tool calls, errors, latency; `{ orientation: true }` for the lexicon's misses. Shapes only, never values.","pack":"spine","ring":"orientation"},{"name":"version","verb":"orient","line":"Runtime versions: server, distribution, MCP protocol, Node, platform, MOJULO_HOME; `workers: true` adds which optional workers this host has. Local, no network.","pack":"spine","ring":"orientation"},{"name":"check_for_updates","verb":"orient","line":"Compares the running `mojulo` against npm latest, with a one-line install hint. Read-only; never upgrades.","pack":"spine","ring":"orientation"},{"name":"mint_diagram","verb":"create","line":"The kernel diagram maker (always installed): a flow chart or data chart from stations, edges and marks. `create_sketch` is the creative superset.","pack":"spine","ring":"orientation"},{"name":"create_character","verb":"create","line":"A character `as` hero, creature or animal: the `mint_solid` layered and animal recipes, rigged. Revise with `update_character`; manuals `get_solid_vocab`.","pack":"pack_character","ring":"characters"},{"name":"update_character","verb":"update","line":"Revise a character in its own words: a hero's spec merged key by key, the `target` it is drawn for (its rings), the `geocube` whose light bakes it; `patch` for the rest.","pack":"pack_character","ring":"characters"},{"name":"mint_solid","verb":"create","line":"A 3D solid by `kind`: characters, equipment, furniture, scad parts, workbench objects, assemblies, vehicles and more. Manual: `get_solid_vocab`; revise: `update_sketch`.","pack":"pack_object","ring":"solids"},{"name":"edit_solid","verb":"update","line":"Operate on a minted solid's derived renders: `op:'skin'` paints it, `op:'emote'` poses a figure. Recipe edits go through `update_sketch`.","pack":"pack_object","ring":"solids"},{"name":"measure_solid","verb":"observe","line":"Numbers off a stored solid: bounds, printed mm size, per-part sizes, closure, volume, print advisories. The check before `export_model`.","pack":"pack_object","ring":"solids"},{"name":"fabricate_solid","verb":"compose","line":"Make an object buildable: what each part must do → standard parts, a bill of materials and the cuts or joints that take them. Plan, then mint.","pack":"pack_object","ring":"solids"},{"name":"verify_machina","verb":"observe","line":"A checked feasibility verdict for a materials-handling problem: can this mechanism move this load within these limits?","pack":"pack_object","ring":"solids"},{"name":"get_solid_vocab","verb":"orient","line":"A `mint_solid` kind or `edit_solid` op manual (long ones open to `sections`). Omit `id` to list; find one with `semantic_search` kind solid_vocab.","pack":"pack_object","ring":"solids"},{"name":"mint_building","verb":"create","line":"A walkable house, apartment, room, store, restaurant, mall, office or school with its structure book, or as a game level; `next` names what is open by outcome and its card. Revise: `update_sketch`.","pack":"pack_building","ring":"solids"},{"name":"compose_world","verb":"create","line":"A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual: `get_view_vocab`; themes: `list_world_themes`.","pack":"pack_world","ring":"worlds"},{"name":"list_world_themes","verb":"orient","line":"The theme packs `compose_world` takes, optionally by family (earth / scifi / fantasy). Call before a themed world.","pack":"pack_world","ring":"worlds"},{"name":"export_model","verb":"maintain","line":"A stored world or solid as a file: .glb, print STL / 3MF (mm, true scale), USD, IFC for a house. Diagrams answer `eligible:false`.","pack":"pack_world","ring":"worlds"},{"name":"bind_mesh_render","verb":"maintain","line":"Bind a DCC-refined .glb of an `export_model` file back onto its sketch as a derived artifact; worlds place it by `meshRef`.","pack":"pack_world","ring":"worlds"},{"name":"translate_modeler_lingo","verb":"orient","line":"Modeler words (blockout, kitbash, retopo, bake, rig, LOD) → what mojulo does and the `export_model` handoff for the rest.","pack":"pack_world","ring":"worlds"},{"name":"design_game","verb":"compose","line":"THE GAME RAIL: design a game top down (hero, powers, gear, systems); `run: true` makes each ready step through `create_sketch` and the doors.","pack":"pack_game","ring":"games"},{"name":"tune_ground","verb":"update","line":"A gameworld level's ground on a top-down grid: amplitude and depth dials, cliffs, gorges, raises by cell; a map and hotspots back.","pack":"pack_game","ring":"games"},{"name":"create_game","verb":"compose","line":"A playable game: a shell with a typed store and levels that are worlds. Store design: `get_game_vocab`; revise: `update_sketch`.","pack":"pack_game","ring":"games"},{"name":"create_pixelizer_game","verb":"create","line":"A self-contained 2D reducer game (brickster and kin) for the Arcade; no levels, unlike `create_game`.","pack":"pack_game","ring":"games"},{"name":"create_sprite_sheet","verb":"create","line":"A 2D sprite sheet as a director recipe: frames on a grid, each painted through the image-render handoff.","pack":"pack_game","ring":"games"},{"name":"bake_sprite_sheet","verb":"update","line":"Quantize accepted sprite frames into pixel sprites under one palette, written back onto the sheet.","pack":"pack_game","ring":"games"},{"name":"get_game_vocab","verb":"orient","line":"The GAME drawer: `gameworld-guide` and the page cards first, then store slices, level mechanics, kits, glyphs, sfx, hud. `samples` to browse a page.","pack":"pack_game","ring":"games"},{"name":"get_play_vocab","verb":"orient","line":"The PLAY drawer: make a world interactive (a door, a lever, a HUD, a level) through a `play` block set with `update_sketch`.","pack":"pack_game","ring":"games"},{"name":"create_game_project","verb":"maintain","line":"A game project: one home tying a game's rules, levels, characters, audio and art together, at `/games/<ref>`.","pack":"pack_game","ring":"games"},{"name":"get_game_project","verb":"maintain","line":"One project in full: members by role, the active rules and play URL, level promotion, implied members.","pack":"pack_game","ring":"games"},{"name":"update_game_project","verb":"maintain","line":"Rename a project, revise its charter, or move its status (active → shipped → archived). Members: `bind_to_game_project`.","pack":"pack_game","ring":"games"},{"name":"bind_to_game_project","verb":"maintain","line":"Add or remove typed members (rules, level, character, audio, graphic, animation, reference) of a project.","pack":"pack_game","ring":"games"},{"name":"list_game_projects","verb":"maintain","line":"Every game project: title, status, member counts, playable.","pack":"pack_game","ring":"games"},{"name":"export_game","verb":"maintain","line":"A stored game as a self-contained folder (game.html, levels, score, recipes, README); the sibling of `export_model` and `export_beats`.","pack":"pack_game","ring":"games"},{"name":"create_sketch","verb":"create","line":"A flow chart, data chart or scene illustration (stations, edges, marks, or a recipe). Find a layout with `semantic_search`, read it with `get_sketch_vocab`.","pack":"pack_diagram","ring":"read"},{"name":"update_sketch","verb":"update","line":"Revise any stored recipe in place (`patch` ops or a full `manifest`): sketches, worlds, solids, characters, games. Never re-mint to change a thing.","pack":"pack_diagram","ring":"read"},{"name":"get_sketch_vocab","verb":"orient","line":"A sketch-vocab card: layout math and example marks for one paradigm (donut-ring, stacked-bar, pipeline, …). Pair with `semantic_search`.","pack":"pack_diagram","ring":"read"},{"name":"get_style_vocab","verb":"orient","line":"The style presets a `renderBrief` locks on image sketches (ukiyo-e, clay-render, …). Templates: fork them via overrides.","pack":"pack_diagram","ring":"read"},{"name":"diff_sketches","verb":"observe","line":"A visual diff of two sketch refs: added, removed, changed and moved parts highlighted, with a similarity verdict.","pack":"pack_diagram","ring":"read"},{"name":"sketch_what_possible","verb":"create","line":"VISUAL ONLY: resolve a scene illustration's knobs over turns, then `create_sketch` with the recipe. Charts go through `get_sketch_vocab`.","pack":"pack_illustration","ring":"read"},{"name":"create_cover","verb":"create","line":"A publication cover: illustration, title and metadata under one art direction, ready to bind onto a `cook` outcome.","pack":"pack_illustration","ring":"read"},{"name":"reference_protocol","verb":"orient","line":"Step 1 of reading a photo YOU can see into dials (scene perspective or pose); returns the protocol and the `capture_reference` call to make.","pack":"pack_reference","ring":"read"},{"name":"capture_reference","verb":"create","line":"Step 2: file what you read from a photo into a stash as a cage sketch; feeds `mint_solid` pose, `forge_motion` or `cook`.","pack":"pack_reference","ring":"read"},{"name":"create_view","verb":"create","line":"An animated 3D study object (physics, math, biology: fission, orbits, DNA, …). Manual: `get_view_vocab`; find a kind with `semantic_search`.","pack":"pack_view","ring":"read"},{"name":"get_view_vocab","verb":"orient","line":"A `create_view` kind or `compose_world` base manual: depiction, routing phrases, parameters. Omit `id` for the index.","pack":"pack_view","ring":"read"},{"name":"measure_view","verb":"observe","line":"The physical time series of a science view in declared real units: the measurement channel the render never shows.","pack":"pack_view","ring":"read"},{"name":"save_recipe","verb":"maintain","line":"Keep a tuned study object, beats loop or solid in the operator's cookbook, recallable by intent through `semantic_search`.","pack":"pack_view","ring":"read"},{"name":"create_beats","verb":"create","line":"Music as a seeded recipe: ambient loop, composed score, step-sequenced pattern or sfx cues. Manual: `get_beats_vocab`; revise: `update_beats`.","pack":"pack_audio","ring":"audio"},{"name":"get_beats_vocab","verb":"orient","line":"A `create_beats` kind manual: recipe shape, patches, effects, gestures. Pair with `semantic_search` kind beats_vocab.","pack":"pack_audio","ring":"audio"},{"name":"get_beats","verb":"observe","line":"A beats artifact back: recipe, revisions, open annotations. Read before `update_beats`.","pack":"pack_audio","ring":"audio"},{"name":"update_beats","verb":"update","line":"Revise a beats artifact (full manifest, a revision per change); `update_sketch` refuses beats and points here.","pack":"pack_audio","ring":"audio"},{"name":"annotate_beats","verb":"maintain","line":"Mark a beats artifact in musical terms (bar, step, track, cue), resolve marks, list them.","pack":"pack_audio","ring":"audio"},{"name":"diff_beats","verb":"observe","line":"A musical diff of two beats refs (tempo, tracks, patterns cell-wise); `diff_sketches` refuses beats.","pack":"pack_audio","ring":"audio"},{"name":"export_beats","verb":"maintain","line":"A beats artifact as WAV, or its score as MIDI for a DAW; the audio sibling of `export_model`.","pack":"pack_audio","ring":"audio"},{"name":"create_voice","verb":"create","line":"A voice register: how a voice sounds (confidence, depth) as a deterministic blend an external speech worker renders.","pack":"pack_voice","ring":"audio"},{"name":"get_voice","verb":"observe","line":"A voice register back: its axes, the resolved blend, the bound sample. Read before a variant.","pack":"pack_voice","ring":"audio"},{"name":"bind_voice_sample","verb":"maintain","line":"Bind a worker-rendered WAV onto a voice register so the shelf can play it.","pack":"pack_voice","ring":"audio"},{"name":"get_voice_vocab","verb":"orient","line":"The voice drawer: recipe shape, banks, calibration, the worker ladder. Pull before your first `create_voice`.","pack":"pack_voice","ring":"audio"},{"name":"forge_motion","verb":"observe","line":"Put a subject in motion: camera moves, a slideshow deck, a world flythrough or a recorded traversal run. Decks read a stash `gather`ed in order.","pack":"pack_motion","ring":"kernel"},{"name":"stitch_motion","verb":"compose","line":"Join forged `forge_motion` clips end to end into one MP4 film.","pack":"pack_motion","ring":"kernel"},{"name":"get_motion_vocab","verb":"orient","line":"A `forge_motion` / `stitch_motion` family manual (camera, deck, effect, world, stitch).","pack":"pack_motion","ring":"kernel"},{"name":"recommend_catalysts","verb":"orient","line":"The workflow shelf with what each needs and what it gives. The entry for \"what can I automate?\"; then `get_catalyst`.","pack":"pack_catalysts","ring":"workflows"},{"name":"list_catalysts","verb":"orient","line":"Every shipped and local catalyst, by category and kind.","pack":"pack_catalysts","ring":"workflows"},{"name":"get_catalyst","verb":"orient","line":"One catalyst's full recipe, bound to your host's adapter; how a flow reaches Blender or another MCP.","pack":"pack_catalysts","ring":"workflows"},{"name":"custom_catalyst","verb":"orient","line":"The guide to writing a new catalyst. Read before `mint_catalyst`.","pack":"pack_catalysts","ring":"workflows"},{"name":"mint_catalyst","verb":"maintain","line":"Keep a drafted catalyst on the operator's local shelf, with revisions; returns the file for a PR.","pack":"pack_catalysts","ring":"workflows"},{"name":"list_adapters","verb":"orient","line":"The host adapters mojulo ships (`generic` is the fallback). Read yours with `get_adapter`; `version` names the build.","pack":"pack_catalysts","ring":"workflows"},{"name":"get_adapter","verb":"orient","line":"Your host's card: how you ride mojulo, artifacts, dry runs, scheduling, secrets. Read once before making.","pack":"pack_catalysts","ring":"workflows"},{"name":"meta_context_declare_inventory","verb":"maintain","line":"Record the host's other MCP servers and their tools so a catalyst can be matched to them. Only when the user asks.","pack":"pack_catalysts","ring":"workflows"},{"name":"record_mcp_capabilities","verb":"maintain","line":"Write a provider's capability body from research, with sources; history kept. Read it with `get_mcp_capabilities`.","pack":"pack_catalysts","ring":"workflows"},{"name":"get_mcp_capabilities","verb":"orient","line":"A provider's capability body by `provider_ref` (current, or `asOf`). Written by `record_mcp_capabilities`.","pack":"pack_catalysts","ring":"workflows"},{"name":"pull_agent_task","verb":"maintain","line":"Long-poll for work parked for an outside fulfiller; answer with `submit_envelope_inference` or `cancel_agent_task`.","pack":"pack_catalysts","ring":"workflows"},{"name":"submit_envelope_inference","verb":"maintain","line":"Deliver the envelope for a pulled inference task; validated before the parked request resolves.","pack":"pack_catalysts","ring":"workflows"},{"name":"cancel_agent_task","verb":"maintain","line":"Release a pulled task with a typed error when it cannot be fulfilled.","pack":"pack_catalysts","ring":"workflows"},{"name":"enter_plan_mode","verb":"orient","line":"The plan discipline for a chain of calls: draft, frame for approval, then `forge_plan` → `compile_plan` → `execute_plan`.","pack":"pack_plan","ring":"workflows"},{"name":"forge_plan","verb":"compose","line":"Seal a draft plan: a goal and a manifest of tool calls, each step able to take an earlier result as `{ $step, path }`. Executes nothing.","pack":"pack_plan","ring":"workflows"},{"name":"revise_plan","verb":"update","line":"Revise a plan's goal, lens or manifest with a note; always back to draft.","pack":"pack_plan","ring":"workflows"},{"name":"sketch_plan","verb":"observe","line":"Preview a plan's manifest as a pipeline diagram without compiling.","pack":"pack_plan","ring":"workflows"},{"name":"compile_plan","verb":"update","line":"Check a plan against the live registry: actionable, or draft with the unknown tools named.","pack":"pack_plan","ring":"workflows"},{"name":"execute_plan","verb":"compose","line":"Run an actionable plan step by step with `confirm: true`; stops at the first failure.","pack":"pack_plan","ring":"workflows"},{"name":"list_plans","verb":"maintain","line":"The plan inbox, by status.","pack":"pack_plan","ring":"workflows"},{"name":"get_plan","verb":"maintain","line":"One plan in full: goal, manifest, revisions, execution log.","pack":"pack_plan","ring":"workflows"},{"name":"mint_stash","verb":"create","line":"A renameable bucket of typed items; the corpus a `cook` reads.","pack":"pack_stash","ring":"workflows"},{"name":"gather","verb":"maintain","line":"Bind a typed item (text, markdown, image, svg, link, sketch, …) into a stash; malformed items are refused at intake.","pack":"pack_stash","ring":"workflows"},{"name":"mint_drawer","verb":"maintain","line":"A drawer (chapter or section) inside a stash, idempotent.","pack":"pack_stash","ring":"workflows"},{"name":"rename_stash","verb":"maintain","line":"Relabel a stash; its ref stays.","pack":"pack_stash","ring":"workflows"},{"name":"list_stashes","verb":"maintain","line":"Stashes, most recently active first.","pack":"pack_stash","ring":"workflows"},{"name":"get_stash","verb":"maintain","line":"A stash in full: drawers and every item.","pack":"pack_stash","ring":"workflows"},{"name":"update_item","verb":"update","line":"Change a gathered item in place; the type contract re-checks the merged state.","pack":"pack_stash","ring":"workflows"},{"name":"archive_item","verb":"maintain","line":"Soft-delete an item; asks for `confirm` when a cook cites it.","pack":"pack_stash","ring":"workflows"},{"name":"bind_stash","verb":"maintain","line":"Link a stash to a plan, cook or other ref with a role. Undo with `unbind_stash`; read with `list_stash_bindings`.","pack":"pack_stash","ring":"workflows"},{"name":"unbind_stash","verb":"maintain","line":"Remove a stash link made by `bind_stash`.","pack":"pack_stash","ring":"workflows"},{"name":"list_stash_bindings","verb":"maintain","line":"A stash's links, or what links to a ref.","pack":"pack_stash","ring":"workflows"},{"name":"sketch_stash","verb":"orient","line":"Propose a stash for an intent: drawers, item slots and the `mint_stash` → `gather` → `cook` script. Writes nothing.","pack":"pack_stash","ring":"workflows"},{"name":"recommend_kind","verb":"orient","line":"Rank publication kinds for a stash by rules, before `cook`.","pack":"pack_stash","ring":"workflows"},{"name":"cook","verb":"compose","line":"One publication from stash slices, or `items` gathered in the same call, and ONE aim (essay, picture book, deck, comic, …), in `/outcomes/<cook_ref>/`.","pack":"pack_stash","ring":"workflows"},{"name":"forge_publications","verb":"compose","line":"Cook one stash into 2–4 candidate kinds at once; keep the winner, `archive_cook` the rest.","pack":"pack_stash","ring":"workflows"},{"name":"get_cook","verb":"maintain","line":"A cook row and its outcome folder.","pack":"pack_stash","ring":"workflows"},{"name":"list_cooks","verb":"maintain","line":"Cooks, most recent first.","pack":"pack_stash","ring":"workflows"},{"name":"archive_cook","verb":"maintain","line":"Hide a cook from the inbox; its folder stays.","pack":"pack_stash","ring":"workflows"},{"name":"sign_asset","verb":"maintain","line":"Sign an exported file with the install's creator key: a `.proof.json` receipt beside it, the file unchanged. Opt-in, for licensing what you made.","pack":"pack_stash","ring":"workflows"},{"name":"verify_asset","verb":"observe","line":"Check a file against its creator receipt: bytes, signature, creator id, ref and dates.","pack":"pack_stash","ring":"workflows"},{"name":"run_experiment_sweep","verb":"compose","line":"Variations in one call: any recipe copied per value at a JSON Pointer, one folder of variants; or a mechanics experiment with its plot.","pack":"pack_research","ring":"workflows"},{"name":"enter_research_mode","verb":"orient","line":"The light research discipline (the legacy book). Only when the user asks to research.","pack":"pack_research","ring":"workflows"},{"name":"start_research","verb":"create","line":"A research book; bind items with `bind_research_item`.","pack":"pack_research","ring":"workflows"},{"name":"bind_research_item","verb":"maintain","line":"Add a link, note, quote, summary or sketch to a research book.","pack":"pack_research","ring":"workflows"},{"name":"synthesize_abstract","verb":"compose","line":"Distill a research book into a thesis, with a hub-and-spoke diagram.","pack":"pack_research","ring":"workflows"},{"name":"sketch_research","verb":"observe","line":"Preview a research book as a diagram without synthesizing.","pack":"pack_research","ring":"workflows"},{"name":"get_research","verb":"maintain","line":"A research book in full.","pack":"pack_research","ring":"workflows"},{"name":"list_research","verb":"maintain","line":"Research books, most recently active first.","pack":"pack_research","ring":"workflows"},{"name":"get_image_render_packet","verb":"maintain","line":"The render packet for an image-outcome, comic or character-sheet sketch: instructions, scaffold, style lock, references.","pack":"pack_image_render","ring":"workflows"},{"name":"bind_character_sheet","verb":"maintain","line":"Save a character sheet PNG onto its sketch so every comic casting it gets it as a reference.","pack":"pack_image_render","ring":"workflows"},{"name":"bind_image_render","verb":"maintain","line":"Save a painted page or panel PNG onto its sketch; once all targets are bound the page composites.","pack":"pack_image_render","ring":"workflows"},{"name":"render_handoff","verb":"maintain","line":"The external worker loop, `medium` image or mesh: request → pull → submit → accept | reject (the eyes gate).","pack":"pack_image_render","ring":"workflows"}],"packs":[{"id":"pack_character","ring":"characters","title":"Characters: heroes, creatures & animals","members":["create_character","update_character"],"shared":["get_solid_vocab"],"body":null},{"id":"pack_object","ring":"solids","title":"3D solids, figures & objects","members":["mint_solid","edit_solid","get_solid_vocab","measure_solid","fabricate_solid","verify_machina"],"shared":[],"body":null},{"id":"pack_world","ring":"worlds","title":"Worlds (traversable)","members":["compose_world","list_world_themes","export_model","bind_mesh_render","translate_modeler_lingo"],"shared":[],"body":null},{"id":"pack_building","ring":"solids","title":"Buildings (houses)","members":["mint_building"],"shared":["update_sketch","get_sketch_vocab","export_model"],"body":null},{"id":"pack_game","ring":"games","title":"Game","members":["design_game","tune_ground","create_game","create_pixelizer_game","create_sprite_sheet","bake_sprite_sheet","create_game_project","get_game_project","update_game_project","bind_to_game_project","list_game_projects","get_game_vocab","get_play_vocab","export_game"],"shared":[],"body":null},{"id":"pack_view","ring":"read","title":"Study views (science / math / bio)","members":["create_view","get_view_vocab","measure_view","save_recipe"],"shared":[],"body":null},{"id":"pack_motion","ring":"kernel","title":"Motion, film & motion-comic","members":["forge_motion","stitch_motion","get_motion_vocab"],"shared":["update_sketch","get_sketch_vocab"],"body":null},{"id":"pack_audio","ring":"audio","title":"Audio — Mojulo Beats","members":["create_beats","get_beats","update_beats","annotate_beats","diff_beats","export_beats","get_beats_vocab"],"shared":[],"body":null},{"id":"pack_voice","ring":"audio","title":"Voice — Mojulo Voice","members":["create_voice","get_voice","bind_voice_sample","get_voice_vocab"],"shared":[],"body":null},{"id":"pack_illustration","ring":"read","title":"Scene & figure illustration","members":["sketch_what_possible","create_cover"],"shared":["create_sketch","update_sketch"],"body":null},{"id":"pack_reference","ring":"read","title":"Visual reference (from a photo)","members":["reference_protocol","capture_reference"],"shared":[],"body":null},{"id":"pack_image_render","ring":"workflows","title":"AI-image render pipeline","members":["get_image_render_packet","render_handoff","bind_image_render","bind_character_sheet"],"shared":["create_sketch"],"body":null},{"id":"pack_diagram","ring":"read","title":"Diagrams & charts","members":["create_sketch","update_sketch","get_sketch_vocab","get_style_vocab","diff_sketches"],"shared":[],"body":null},{"id":"pack_plan","ring":"workflows","title":"Plan mode (Ring 8)","members":["enter_plan_mode","forge_plan","get_plan","list_plans","revise_plan","compile_plan","execute_plan","sketch_plan"],"shared":[],"body":"Plans are the PROPOSED layer; contextmap is sealed reality. A plan compiles to a manifest of tool calls that executes through the exact same handler path as operator-typed calls. A step takes an earlier step's result as `{ $step: n, path: '/ref' }`, so a chain is written once."},{"id":"pack_research","ring":"workflows","title":"Research mode (Ring 9)","members":["enter_research_mode","start_research","bind_research_item","get_research","list_research","synthesize_abstract","sketch_research","run_experiment_sweep"],"shared":[],"body":"The exploratory drawer upstream of plans. A synthesized abstract can hand a distilled thesis to plan mode via the research→plan bridge; new gatherings should generally prefer the typed-intake stash path (pack_stash)."},{"id":"pack_stash","ring":"workflows","title":"Gather / stash / cook / publish","members":["gather","mint_stash","mint_drawer","get_stash","list_stashes","rename_stash","update_item","archive_item","bind_stash","unbind_stash","list_stash_bindings","sketch_stash","recommend_kind","cook","get_cook","list_cooks","archive_cook","forge_publications","sign_asset","verify_asset"],"shared":[],"body":"The typed-intake collection layer (seven item types, required-per-type metadata validated at the gate) and the multi-input collider on top of it. Cook files the report the AGENT authors — no server-side LLM call; outcomes land under data/outcomes/<cook_ref>/."},{"id":"pack_catalysts","ring":"workflows","title":"Catalysts, workers & connected MCPs","members":["get_catalyst","list_catalysts","recommend_catalysts","mint_catalyst","custom_catalyst","get_adapter","list_adapters","meta_context_declare_inventory","record_mcp_capabilities","get_mcp_capabilities","pull_agent_task","submit_envelope_inference","cancel_agent_task"],"shared":[],"body":"A catalyst is a curated workflow recipe the host adapter synthesizes into a Skill, which runs in the host beside the operator's other MCPs, so a flow across mojulo and another MCP lives there. The inventory and capability reads tell it what those MCPs can do. The agent-task queue parks work for an outside fulfiller (the long-poll pull_agent_task waits up to ~25s and does not block other calls)."}],"retired":[{"id":"pack_runtime","title":"Apps, daemons & agent tasks","members":["install_scaffold","start_app","stop_app","status_app","list_runners","list_running","list_env","set_env","delete_env","list_daemons","start_daemon","stop_daemon","restart_daemon","status_daemon"]},{"id":"pack_connected_services","title":"Connected services — MCP deliberation & binding","members":["get_deliberation_overview","meta_context_brief","meta_context_commit","meta_context_analyze","declare_skills","list_mcp_orbit_components","get_mcp_orbit_component","recommend_mcp_orbit_compositions","bind_primitives","bind_trigger","unbind_trigger","get_trigger","list_triggers","get_meta_catalyst"]}],"spine":["forward_context","semantic_search","get_tool_index","get_register_kit","get_worked_example","get_ui_map","get_substrate","get_tool_ledger","version","check_for_updates","mint_diagram"],"cosmos":{"seed":1,"n":500,"density":0.2,"roll":"fair","verdicts":{"makeable":337,"gaps":89,"blocked":74},"godotOk":56,"facets":[{"id":"reality","name":"Reality","asks":"how does it look, and how are its assets made?","settings":6,"counts":{"built":28,"local":0,"partial":1,"absent":1},"lifts":96,"makeable":89,"touches":105,"owner":"7th-gen agent: the rungs","stage":"mapped","next":"The 6.5 / 7.0 / 7.5 rungs are the 7th-gen agent’s. Structure here stays shared."},{"id":"space","name":"Space","asks":"where?","settings":6,"counts":{"built":29,"local":0,"partial":1,"absent":0},"lifts":17,"makeable":17,"touches":26,"owner":"Claude: gap filling","stage":"designing","next":"Top-down camera is third in the build order (M). First person is now partial: it already plays."},{"id":"power","name":"Power","asks":"what can be done?","settings":9,"counts":{"built":70,"local":0,"partial":0,"absent":0},"lifts":0,"makeable":0,"touches":0,"owner":"Claude: gap filling","stage":"designing","next":"Dodge, tackle, loadout cycling and boost inertia are engine verbs now (MX2b). Turn-based combat remains the one absent value."},{"id":"soul","name":"Soul","asks":"who?","settings":7,"counts":{"built":310,"local":0,"partial":0,"absent":0},"lifts":0,"makeable":0,"touches":0,"owner":"Claude: gap filling","stage":"mapped","next":"Party play in a level (M) ranks low; it waits."},{"id":"mind","name":"Mind","asks":"how do the others decide?","settings":9,"counts":{"built":36,"local":0,"partial":1,"absent":0},"lifts":18,"makeable":18,"touches":25,"owner":"","stage":"","next":""},{"id":"time","name":"Time","asks":"when, and what moves it on?","settings":6,"counts":{"built":26,"local":0,"partial":0,"absent":1},"lifts":23,"makeable":20,"touches":28,"owner":"Operator + agent, own branch","stage":"designing","next":"Its own branch: you and another agent, seeded by the tutorial step director."}],"fixtures":[{"id":"dungeon-crawler","name":"Third-person dungeon crawler","anchor":true,"why":"room to room, reach the exit, loot and hazards; the kit gates the campaign itself","verdict":"makeable","godot":true,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"collectathon","name":"3D collectathon","anchor":true,"why":"gather the loot, reach the exit; non-lethal, a linear set of stages","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"top-down-adventure","name":"Top-down action-adventure","anchor":false,"why":"a ¾ overhead camera, a sword, a hub of dungeons opened by found items","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"shooter","name":"First-person shooter","anchor":false,"why":"a first-person camera, ranged combat, enemies that see, take cover and duel (at today's fidelity: the game is the rules, not the resolution)","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"jrpg","name":"Party role-playing game","anchor":false,"why":"a party, turn-based fights, a town hub, quests that move the world on","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"metroidvania","name":"Metroidvania","anchor":false,"why":"a side camera, one interconnected map, abilities that open the way back","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"survival-horror","name":"Survival horror","anchor":false,"why":"fixed cameras through a mapped house, scarce resources, a pursuer, the house changing as it goes","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"story-adventure","name":"Story adventure","anchor":false,"why":"one town that changes chapter by chapter; people give quests, talk face to face, and the camera directs the turns","verdict":"makeable","godot":false,"touched":["reality","space","soul","mind","time"],"issues":[]},{"id":"arena-brawler","name":"Arena brawler","anchor":false,"why":"one arena, free-for-all bots, the last one standing","verdict":"makeable","godot":true,"touched":["reality","space","power","soul","mind"],"issues":[]},{"id":"pixel-puzzle","name":"Arcade puzzle in pixels","anchor":false,"why":"a pixel screen seen from above, collect everything, reach the exit","verdict":"makeable","godot":false,"touched":["reality","space","power","time"],"issues":[]},{"id":"stealth","name":"Stealth infiltration","anchor":false,"why":"guards who see and remember, a house of rooms to cross, and being seen is the failure","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"racing","name":"Time-trial racing","anchor":false,"why":"the hero is a car on a trail, checkpoints in order, laps against the clock and a best time","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","time"],"issues":[]},{"id":"kart-racer","name":"Kart racer","anchor":false,"why":"cars round a loop against rival drivers, laps and a place to finish in","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","time"],"issues":[]},{"id":"rhythm","name":"Rhythm runner","anchor":false,"why":"a side-on run where the jumps land on the music's beat, scored","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","time"],"issues":[]},{"id":"roguelike","name":"Roguelike dungeon","anchor":false,"why":"rooms rolled from the run's seed, a death ends the run, levels and loot carry the next one further","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"farming","name":"Farming life sim","anchor":false,"why":"plant on a plot, crops grow while time passes, sell the harvest; townsfolk keep their own day","verdict":"makeable","godot":false,"touched":["reality","space","power","soul","mind","time"],"issues":[]},{"id":"tower-defense","name":"Tower defence","anchor":false,"why":"waves march on the base, the player places towers paid from what the waves drop","verdict":"makeable","godot":false,"touched":["reality","space","power","mind","time"],"issues":[]},{"id":"block-puzzle","name":"Block-pushing puzzle","anchor":false,"why":"push blocks onto plates in a room seen from above, the door opens when every plate is held","verdict":"makeable","godot":false,"touched":["reality","space","power","time"],"issues":[]}],"packages":[{"id":"mind.commander=agent","name":"mind.commander=agent","effort":"M","needs":[],"cost":3,"lifts":18,"makeable":18,"touches":25,"perEffort":6},{"id":"time.passage=eras","name":"time.passage=eras","effort":"L","needs":[],"cost":8,"lifts":23,"makeable":20,"touches":28,"perEffort":2.88},{"id":"space.topology=open","name":"space.topology=open","effort":"L","needs":[],"cost":8,"lifts":17,"makeable":17,"touches":26,"perEffort":2.13},{"id":"reality.cast=gen-7","name":"reality.cast=gen-7","effort":null,"needs":[],"cost":null,"lifts":50,"makeable":50,"touches":59,"perEffort":null},{"id":"reality.era=gen-7","name":"reality.era=gen-7","effort":null,"needs":[],"cost":null,"lifts":46,"makeable":35,"touches":51,"perEffort":null}],"values":[{"key":"reality.cast=gen-7","status":"partial","lifts":50,"makeable":50,"touches":59},{"key":"reality.era=gen-7","status":"absent","lifts":46,"makeable":35,"touches":51},{"key":"time.passage=eras","status":"absent","lifts":23,"makeable":20,"touches":28},{"key":"mind.commander=agent","status":"partial","lifts":18,"makeable":18,"touches":25},{"key":"space.topology=open","status":"partial","lifts":17,"makeable":17,"touches":26}],"now":"","next":"","board":"https://claude.ai/artifact/RkWXXYpscsGfk2ZERofwQS","log":[{"at":"2026-10-11T15:30:00Z","facet":"mind","milestone":true,"text":"MX11 (a795157c): animals live in packs and herds. Wolves fan out and ring their prey, two biting at a time; herds graze together and scatter as one. Plus 3aeb28bd: rules now read the world clock (memory, regrowth and shared sight were reading 0)."},{"at":"2026-10-11T14:30:00Z","facet":"mind","milestone":true,"text":"MX10 (7cc8c56e): groups. N minds share a target, sight and spacing; traversal patterns (column, line, wedge, fan-out, encircle, pincer, close, scatter) chain into plans; attack tokens let K press in at once."},{"at":"2026-10-11T13:30:00Z","facet":"mind","milestone":true,"text":"Operator played the Mind demo: 'it works … every creature reacted differently.' MX9 (f8163b2d): predators hunt with a natural bite that lunges; prey flee any hunter."},{"at":"2026-10-11T11:40:00Z","facet":"mind","milestone":true,"text":"MX8 landed (2a30c94c): idle minds wander, graze food, escort a ward, and warn intruders before attacking. Every Mind motivation now resolves built. Makeable 46 → 61, blocked 269 → 215 of 500."},{"at":"2026-10-11T11:00:00Z","facet":"mind","milestone":true,"text":"MX7 landed (59d0ee7c): minds can be limited to what they see (range, facing cone, line of sight), and remember where they last saw you: they go there, search, then give up."},{"at":"2026-10-11T09:50:00Z","facet":"mind","milestone":true,"text":"MX5 landed (b560dcbe): minds find their way round walls. A* over a walk grid baked from the colliders; a hunter stuck behind a wall now walks out and round. Blocked games 297 → 269 of 500. Next context: competition and racing (plan drafted)."},{"at":"2026-10-11T09:20:00Z","facet":"mind","milestone":true,"text":"MX6 landed (3434b88e): bosses cross health phases (bolder under 2/3, relentless and closing to the blade under 1/3, with a short invincible beat) and adapt by benching the fighting mode that lost the trade. Minibosses adapt when asked."},{"at":"2026-10-11T08:10:00Z","facet":"mind","milestone":true,"text":"MX4 landed (99af1dc6): the arena's commander is an engine module. A body marked rule.commanded is driven at strategy rate by the built-in commander, a page hook or an HTTP endpoint. The arena's 29 behaviour tests moved beside the engine. Kite and the built-in commander are built; makeable 40 → 45 of 500. The mobile-suit branch leaves the merge plan."},{"at":"2026-10-11T07:40:00Z","facet":"mind","milestone":true,"text":"MX3 landed (9c150c0c): a guard engages only near its post and walks back to it; prey flees inside its fear radius. Animals' minds run on the engine. The top-down adventure is now blocked only by its camera."},{"at":"2026-10-11T07:05:00Z","facet":"power","milestone":true,"text":"MX2b landed (a2671ff1): the suit maneuvers became engine verbs. The mobile-suit pack tracks nothing; the arena is fully absorbed and its traces are byte-identical."},{"at":"2026-10-11T06:40:00Z","facet":"mind","milestone":true,"text":"MX2 landed (76bd23d0): ms-ai.js retired. Per-character tuning over the class tier; passive and defensive temperaments. Makeable games 11 → 40 of 500; the arena brawler is fully makeable."},{"at":"2026-10-11T06:20:00Z","facet":"mind","milestone":false,"text":"The arena's ai rule moved into the engine as the mind. All four controllable traces byte-identical, the three arena bouts included; 13 page pins re-pinned after proving only the embedded engine source changed."},{"at":"2026-10-11T05:55:00Z","facet":"mind","milestone":true,"text":"MX1 landed (a380c626): the mind matrix, a generated table for every named mind and species, and the Mind facet on the new axes. A miniboss rotates; a boss also shifts at health phases and adapts."},{"at":"2026-10-11T05:50:00Z","facet":null,"milestone":false,"text":"Moved to my own worktree and branch, 1010-mind-matrix, from 9c2c1e50; the other session keeps 1010-cosmos-sweep."},{"at":"2026-10-11T05:40:00Z","facet":null,"milestone":false,"text":"Paused: another session is editing the 1010-cosmos-sweep worktree (Time facet, fixtures, and core sweep files). MX1 parked outside it; nothing of theirs touched."},{"at":"2026-10-11T05:35:00Z","facet":"mind","milestone":true,"text":"MX1: the arena's easy, medium and max tiers equal novice×wary, regular×bold and ace×opportunist exactly. Deer flee from their prey tag; wolves cannot hunt yet (no animal holds an attack verb)."},{"at":"2026-10-11T05:20:00Z","facet":"mind","milestone":false,"text":"Skill is a base for a class of minds, tuned per character. Duelling is a rank: minibosses and bosses hold a repertoire and switch through it."},{"at":"2026-10-11T05:00:00Z","facet":"mind","milestone":true,"text":"Mind becomes a matrix like fauna behavior: motivation × actions × capability × aggressiveness. The arena is absorbed as a preset and then retired. Fauna tags (predator, prey) give every species a mind for free."},{"at":"2026-10-11T04:45:00Z","facet":null,"milestone":true,"text":"Committed S1–S2 (9c2c1e50). From here each step commits when its machine gates pass; nothing is pushed."},{"at":"2026-10-11T04:40:00Z","facet":null,"milestone":true,"text":"S1–S2: every gap carries an effort and a work package; the sweep ranks packages by lifts per unit of work. The general mind leads."},{"at":"2026-10-11T04:37:00Z","facet":"space","milestone":false,"text":"First person already plays (a heroless walker); the registry said absent. Corrected to partial."},{"at":"2026-10-11T04:35:00Z","facet":null,"milestone":false,"text":"Sized the gaps with three read-only sweeps: Mind's lift is moderate extraction under existing traces; pathfinding needs the walk grid shipped to the page; turn-based combat is the largest build."},{"at":"2026-10-11T04:25:00Z","facet":null,"milestone":true,"text":"Split the work: a separate agent takes 7th-gen scaling (Reality's rungs); Claude takes the cosmos structure and the gaps in Space, Power, Soul and Mind."},{"at":"2026-10-11T04:14:17.853Z","facet":null,"milestone":false,"text":"This board went live."},{"at":"2026-10-11T04:10:00Z","facet":null,"milestone":true,"text":"Rebased onto 1d797412 (the 3.1.0 fold). test:critical fully green."},{"at":"2026-10-11T03:55:00Z","facet":null,"milestone":false,"text":"Sweep draw density set to 0.2 and ranking by lifts, so the map says something."},{"at":"2026-10-11T03:50:00Z","facet":null,"milestone":true,"text":"P3–P4: fixtures, the seeded sweep, the unlock ranking and the CLI."},{"at":"2026-10-10T23:12:00Z","facet":"mind","milestone":false,"text":"Mind exists only inside the mobile-suit arena: recorded as local, a mine to lift."},{"at":"2026-10-10T23:10:00Z","facet":"time","milestone":false,"text":"Time goes to its own branch, built by you with another agent; time.js ships as an honest stub."},{"at":"2026-10-10T23:00:00Z","facet":null,"milestone":true,"text":"P0–P2: the facet schema, a generated capability registry, depth and the dry run (ea1f464c)."},{"at":"2026-10-10T20:00:00Z","facet":null,"milestone":true,"text":"Named the cosmos cube and its six facets; the Reality facet is the geocube."}]},"head":{"sha":"d706e78a","branch":"1012-painted-face","date":"2026-10-13"}};
+const VERB_DESC = {
+  create:'makes a new thing at a ref', update:'revises one in place', compose:'puts made things together into a bigger one',
+  observe:'measures, compares or records', maintain:'keeps, lists, organizes or hands over work', orient:'reads a map or a manual'
+};
+const RING_ORDER = Object.keys(DATA.RING_TITLES);
+const RING_SHORT = {orientation:'Orientation',characters:'Characters',solids:'Solids',worlds:'Worlds',games:'Games',read:'Read',audio:'Audio',kernel:'Observe',workflows:'Workflows'};
+const byName = Object.fromEntries(DATA.tools.map(t=>[t.name,t]));
+const vc = v => `var(--v-${v})`;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtLine = s => esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
+const activeVerbs = new Set(DATA.VERBS);
+
+function chip(name,{shared=false}={}){
+  const t = byName[name]; const v = t ? t.verb : 'maintain';
+  return `<button class="chip${shared?' shared':''}" data-tool="${name}" data-verb="${v}"><span class="dot" style="background:${vc(v)}"></span>${name}</button>`;
+}
+
+/* ---- tabs ---- */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function selectTab(id){tabs.forEach(b=>{const on=b.id===id;b.setAttribute('aria-selected',on);document.getElementById(b.getAttribute('aria-controls')).hidden=!on});
+  try{localStorage.setItem('mj-tab',id)}catch(e){}}
+tabs.forEach(b=>b.addEventListener('click',()=>selectTab(b.id)));
+const hashTab = {'#rails':'tab-rails','#matrix':'tab-matrix','#cosmos':'tab-cosmos'}[location.hash]||null;
+document.getElementById('head').textContent=[DATA.head.branch,DATA.head.sha,DATA.head.date].filter(Boolean).join(' · ');
+let saved=null;try{saved=localStorage.getItem('mj-tab')}catch(e){}
+selectTab(hashTab||saved||'tab-matrix');
+
+/* ---- matrix ---- */
+const grid={};RING_ORDER.forEach(r=>{grid[r]={};DATA.VERBS.forEach(v=>grid[r][v]=[])});
+DATA.tools.forEach(t=>grid[t.ring][t.verb].push(t.name));
+const maxCell=Math.max(...RING_ORDER.flatMap(r=>DATA.VERBS.map(v=>grid[r][v].length)));
+const packsByRing={};DATA.packs.forEach(p=>(packsByRing[p.ring]??=[]).push(p.id));
+
+document.getElementById('stats').innerHTML=[
+  [DATA.tools.length,'listed tools'],[DATA.packs.length,'packs'],[RING_ORDER.length,'rings'],[DATA.VERBS.length,'verbs'],
+  [DATA.retired.reduce((a,p)=>a+p.members.length,0),'retired, callable by name']
+].map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+
+document.getElementById('legend').innerHTML=DATA.VERBS.map(v=>`<button aria-pressed="true" data-v="${v}"><span class="dot" style="background:${vc(v)}"></span>${v}</button>`).join('');
+
+function renderMatrix(){
+  const vs=DATA.VERBS;
+  let h='<thead><tr><th>Ring</th>'+vs.map(v=>`<th><span class="dot" style="background:${vc(v)}"></span> ${v}<span class="vdesc">${VERB_DESC[v]}</span></th>`).join('')+'<th class="tot">Σ</th></tr></thead><tbody>';
+  RING_ORDER.forEach(r=>{
+    const title=DATA.RING_TITLES[r]; const [main,...rest]=title.split(' — ');
+    const tot=vs.reduce((a,v)=>a+grid[r][v].length,0);
+    h+=`<tr><th><span class="rt">${esc(RING_SHORT[r])}</span><span class="rs">${esc(rest.join(' — ')||main)}</span><span class="rp">${(packsByRing[r]||['spine']).join(' · ')}</span></th>`;
+    vs.forEach(v=>{const list=grid[r][v];const a=list.length?0.05+0.30*list.length/maxCell:0;
+      h+=`<td class="cell" style="--h:${a.toFixed(3)}"><div class="chips">${list.map(n=>chip(n)).join('')}</div></td>`});
+    h+=`<td class="tot">${tot}</td></tr>`;
+  });
+  h+='</tbody><tfoot><tr><th>Σ</th>'+vs.map(v=>`<td>${RING_ORDER.reduce((a,r)=>a+grid[r][v].length,0)}</td>`).join('')+`<td class="tot">${DATA.tools.length}</td></tr></tfoot>`;
+  document.getElementById('matrix').innerHTML=h;
+}
+renderMatrix();
+
+function bars(el,rows,color){const m=Math.max(...rows.map(r=>r[1]));
+  document.getElementById(el).innerHTML=rows.map(([k,n,c])=>`<div class="bar"><span>${k}</span><i style="width:${(100*n/m).toFixed(1)}%;background:${c||color}"></i><span>${n}</span></div>`).join('');}
+bars('vbars',DATA.VERBS.map(v=>[v,DATA.tools.filter(t=>t.verb===v).length,vc(v)]).sort((a,b)=>b[1]-a[1]));
+bars('rbars',RING_ORDER.map(r=>[RING_SHORT[r],DATA.tools.filter(t=>t.ring===r).length]),'var(--accent)');
+
+function applyFilter(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  document.querySelectorAll('#view-matrix .chip').forEach(c=>{
+    const t=byName[c.dataset.tool];const okV=activeVerbs.has(c.dataset.verb);
+    const okQ=!q||c.dataset.tool.includes(q)||(t&&t.line.toLowerCase().includes(q));
+    c.classList.toggle('dim',!(okV&&okQ));c.classList.toggle('hit',!!q&&okV&&okQ);
+  });
+}
+document.getElementById('q').addEventListener('input',applyFilter);
+document.getElementById('legend').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  const v=b.dataset.v;activeVerbs.has(v)?activeVerbs.delete(v):activeVerbs.add(v);b.setAttribute('aria-pressed',activeVerbs.has(v));applyFilter();});
+
+/* ---- detail ---- */
+function showDetail(panelId,name){
+  const t=byName[name];const d=document.getElementById(panelId);
+  if(!t){d.hidden=false;d.innerHTML=`<code>${esc(name)}</code><p class="dl">Retired office tool: registered and callable by name from the CLI and plan steps, not listed to the agent.</p>`;return;}
+  const sharedIn=DATA.packs.filter(p=>p.shared.includes(name)).map(p=>p.id);
+  d.hidden=false;
+  d.innerHTML=`<code>${esc(name)}</code> <span class="eyebrow" style="margin-left:8px"><span class="dot" style="background:${vc(t.verb)}"></span> ${t.verb}</span>
+    <p class="dl">${fmtLine(t.line)}</p>
+    <div class="dm">ring ${RING_SHORT[t.ring]} · home ${t.pack}${sharedIn.length?' · also dispatched by '+sharedIn.join(', '):''}</div>`;
+}
+document.addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;
+  showDetail(c.closest('#view-rails')?'detail-r':'detail-m',c.dataset.tool);});
+
+/* ---- clusters ---- */
+function vstrip(members){const n=members.length;const counts=DATA.VERBS.map(v=>[v,members.filter(m=>byName[m]?.verb===v).length]).filter(x=>x[1]);
+  return `<div class="vstrip" title="${counts.map(([v,c])=>c+' '+v).join(', ')}">${counts.map(([v,c])=>`<i style="width:${100*c/n}%;background:${vc(v)}"></i>`).join('')}</div>`;}
+document.getElementById('spine').innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline"><h3>Spine · always listed with full schemas</h3><span class="eyebrow">${DATA.spine.length+1} tools · orientation ring</span></div>
+  <p class="pbody" style="font-size:12.5px;color:var(--muted);margin:4px 0 8px">Not a pack. <code>forward_context</code> is the default first read; <code>mint_diagram</code> sits here so a diagram is possible even without the creative pack. <code>get_creative_toolset</code> is folded: listed in flat mode, dropped in packs mode.</p>
+  <div class="chips">${DATA.spine.map(n=>chip(n)).join('')}${chip('get_creative_toolset',{shared:true})}</div>`;
+
+document.getElementById('rings').innerHTML=RING_ORDER.filter(r=>r!=='orientation').map(r=>{
+  const ps=DATA.packs.filter(p=>p.ring===r);const n=ps.reduce((a,p)=>a+p.members.length,0);
+  return `<article class="ring"><header><h3>${RING_SHORT[r]}</h3><span class="cnt">${ps.length} pack${ps.length>1?'s':''} · ${n} tools</span></header>
+  ${ps.map(p=>`<div class="pack"><div class="pid">${p.id}</div><div class="ptitle">${esc(p.title)}</div>${vstrip(p.members)}
+    ${p.body?`<p class="pbody">${fmtLine(p.body)}</p>`:''}
+    <div class="chips">${p.members.map(m=>chip(m)).join('')}${p.shared.map(m=>chip(m,{shared:true})).join('')}</div></div>`).join('')}
+  </article>`;}).join('');
+
+document.getElementById('retired').innerHTML=DATA.retired.map(p=>`<article class="ring"><header><h3>${esc(p.title)}</h3><span class="cnt">${p.members.length} tools</span></header>
+  <div class="pid" style="font:500 12px var(--mono);color:var(--muted)">${p.id} · retired 3.1.0</div>
+  <div class="chips">${p.members.map(m=>`<button class="chip shared" data-tool="${m}">${m}</button>`).join('')}</div></article>`).join('');
+
+/* ---- rails ---- */
+// station: [tool or label, note, flags]  flags: g = gate, o = track into this station is optional/repeated
+const S=(t,note='',f='')=>({t,note,f});
+const RAILS=[
+ {name:'Plan rail',sig:'forge_plan → compile_plan → execute_plan',
+  note:'A chain written once. Each step can take an earlier step\'s result as { $step: n, path: \'/ref\' }, a JSON Pointer into it, so mint → vary → measure → export runs from one manifest through the same handler path as typed calls.',
+  line:[S('enter_plan_mode','opt in','o'),S('forge_plan','seal goal + manifest; executes nothing'),S('revise_plan','note; back to draft','o'),S('compile_plan','check vs live registry'),S('execute_plan','confirm: true; stops at first failure','g')],
+  branches:[{label:'Observe the plan',line:[S('get_plan'),S('list_plans'),S('sketch_plan','plan as a diagram')]},
+            {label:'Research feeds plans',line:[S('enter_research_mode'),S('start_research'),S('bind_research_item','link, note, quote…','o'),S('synthesize_abstract','thesis + hub diagram'),S('forge_plan','research → plan bridge')]}]},
+ {name:'Variation rail',sig:'run_experiment_sweep({ ref, path, values })',
+  note:'Copies a stored recipe once per value at a JSON Pointer and mints each copy through create_sketch\'s gates into one new folder. The mechanics form (research_ref, base, param) binds SI-honest experiments into a research book with a plot.',
+  line:[S('create_sketch','or any minted recipe'),S('run_experiment_sweep','one call, N values'),S('create_sketch','each copy through its gates','g'),S('measure_view','read back, optional','o')],
+  branches:[{label:'Mechanics form',line:[S('start_research'),S('run_experiment_sweep','research_ref + param'),S('get_research','plot bound in the book')]}]},
+ {name:'Stash → cook rail',sig:'cook({ items, aim, report_md })',
+  note:'Typed intake into a stash, then one publication the agent authors. No server-side LLM call; outcomes land under data/outcomes/<cook_ref>/. The one-shot form gathers and cooks in a single call.',
+  line:[S('cook','items + aim in one call','g')],
+  branches:[{label:'Collected over many turns',line:[S('sketch_stash','proposed script','o'),S('mint_stash'),S('mint_drawer','chapters','o'),S('gather','intake check per type','g'),S('recommend_kind','rank kinds','o'),S('cook','{ slices }, one aim'),S('get_cook')]},
+            {label:'Compare candidates',line:[S('forge_publications','2–4 kinds at once'),S('archive_cook','drop the losers','o')]}]},
+ {name:'Game rail',sig:'design_game',
+  note:'Designs a game top down (hero, powers, gear, systems) and answers each stamp with next step ids. run: true makes each ready step through create_sketch and the creative doors. readout: \'changed\' returns only what moved; a no-op writes nothing.',
+  line:[S('design_game','stamps + next step ids'),S('design_game','run: true','o'),S('create_game','shell + levels'),S('update_sketch','patch, readout: changed','o'),S('forge_motion','walk to the exit: beatable?','o'),S('export_game','self-contained folder')],
+  branches:[{label:'Doors the rail calls',line:[S('create_character','hero / creature'),S('compose_world','levels are worlds'),S('create_beats','score + stings'),S('create_sprite_sheet','2D')]},
+            {label:'Project home',line:[S('create_game_project'),S('bind_to_game_project','rules, levels, art','o'),S('get_game_project')]}]},
+ {name:'Worker handoff rail',sig:'render_handoff({ medium: image | mesh, op })',
+  note:'The durable loop for an external generator: an image model or a mesh sculptor (Meshy, Tripo, Hunyuan3D). Accept/reject is the eyes gate. The ten per-op names stay registered for worker scripts, unlisted.',
+  line:[S('create_sketch','image-outcome / comic / sheet'),S('get_image_render_packet','instructions, style lock'),S('render_handoff','op: request'),S('render_handoff','op: pull (worker)'),S('render_handoff','op: submit (worker)'),S('render_handoff','op: accept | reject','g'),S('bind_image_render','page composites when all bound')],
+  branches:[{label:'Character sheets and meshes',line:[S('bind_character_sheet','reference for every comic'),S('bind_mesh_render','refined mesh back onto a world')]}]},
+ {name:'Catalyst rail',sig:'get_catalyst → host Skill',
+  note:'Reaches past mojulo. A catalyst is a curated recipe the host adapter synthesizes into a Skill that runs beside the operator\'s other MCPs (Blender MCP first, mojulo\'s blender-bake as fallback). Mojulo is the anchor and audit trail, not the runtime.',
+  line:[S('get_adapter','read once'),S('recommend_catalysts','or list_catalysts','o'),S('get_catalyst','recipe bound to adapter'),S('host Skill','synthesized, runs in host')],
+  branches:[{label:'Know the other MCPs',line:[S('meta_context_declare_inventory'),S('record_mcp_capabilities'),S('get_mcp_capabilities')]},
+            {label:'Author a new one',line:[S('custom_catalyst','the guide'),S('mint_catalyst','local shelf, revisions')]},
+            {label:'Agent-task queue (outside fulfiller)',line:[S('pull_agent_task','long-poll ~25 s'),S('submit_envelope_inference','validated','g'),S('cancel_agent_task','or cancel','o')]}]},
+ {name:'Building rail',sig:'mint_building → next by outcome',
+  note:'A house, apartment or furnished room. Its page is the structure book, and next names what is still open by outcome: concept, layout, drawings, build. An edifice is an institutional block for a world, not a building to draw.',
+  line:[S('mint_building','the structure book'),S('update_sketch','storeys, framing, roof, fixtures','o'),S('get_sketch_vocab','the card next names','o'),S('export_model','sheets · schedules · ifc')]},
+ {name:'Iterate in place',sig:'mint → update_sketch',
+  note:'Not a Workflows tool, but the loop under every rail: recipes are starters, so a change is a patch on the same ref, never a re-mint. Renders regenerate on every read.',
+  line:[S('mint_solid','or any create door'),S('update_sketch','patch by id or JSON Pointer','o'),S('measure_solid','observe','o'),S('export_model','STL / 3MF / GLB / IFC')]}
+];
+function station(s){const isTool=!!byName[s.t];
+  return `<div class="st${s.f.includes('g')?' gate':''}"><span class="pin"></span>${isTool?chip(s.t):`<span class="chip shared" style="cursor:default">${esc(s.t)}</span>`}${s.note?`<span class="lbl">${esc(s.note)}</span>`:''}</div>`;}
+function line(stations){return `<div class="line"><div class="stations">${stations.map((s,i)=>(i?`<span class="track${s.f.includes('o')?' dash':''}"></span>`:'')+station(s)).join('')}</div></div>`;}
+document.getElementById('rails').innerHTML=RAILS.map(r=>`<article class="rail"><div class="rhead"><h3>${r.name}</h3><code style="font:12px var(--mono);color:var(--muted)">${esc(r.sig)}</code></div>
+  <p class="rnote">${esc(r.note)}</p>${line(r.line)}
+  ${(r.branches||[]).map(b=>`<div class="branch"><span class="eyebrow">${esc(b.label)}</span>${line(b.line)}</div>`).join('')}</article>`).join('');
+
+/* ---- cosmos ---- */
+(function(){
+  const C=DATA.cosmos, ST=['built','local','partial','absent'], WORST={absent:3,local:2,partial:1};
+  const ORDER=['reality','space','power','soul','mind','time'];
+  const fmt=iso=>{const d=new Date(iso);return isNaN(d)?esc(iso):d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const pct=k=>Math.round(100*k/C.n);
+  document.getElementById('cmeta').innerHTML=`<span>sweep <b>n ${C.n}</b></span><span>seed <b>${C.seed}</b></span><span>density <b>${C.density}</b></span><span>roll <b>${esc(C.roll)}</b></span>`+
+    (C.board?`<span><a href="${esc(C.board)}" style="color:var(--accent)">live board</a></span>`:'');
+  document.getElementById('net').innerHTML=C.facets.map(f=>{
+    const tot=ST.reduce((a,s)=>a+f.counts[s],0)||1;
+    return `<article class="face" style="grid-area:${f.id}" data-stage="${esc(f.stage)}">
+      <div class="fh"><h3>${esc(f.name)}</h3>${f.stage?`<span class="stage">${esc(f.stage)}</span>`:''}</div>
+      <p class="asks">${esc(f.asks)}</p>${f.owner?`<div class="owner">${esc(f.owner)}</div>`:''}
+      <div class="lifts"><b>${f.lifts}</b>lifts · ${f.makeable} to makeable</div>
+      <div class="foot">${f.next?`<p class="nx">${esc(f.next)}</p>`:''}
+        <div class="sbar">${ST.filter(s=>f.counts[s]).map(s=>`<span class="s-${s}" style="width:${100*f.counts[s]/tot}%" title="${s}: ${f.counts[s]}"></span>`).join('')}</div>
+        <div class="scount">${ST.filter(s=>f.counts[s]).map(s=>`<span><i class="s-${s}"></i>${f.counts[s]} ${s}</span>`).join('')}<span>· ${f.settings} settings</span></div></div></article>`;}).join('');
+  const v=C.verdicts;
+  document.getElementById('sweep-cap').textContent=`${C.n} rolled cubes: ${v.makeable} makeable (${pct(v.makeable)}%), ${v.gaps} with gaps, ${v.blocked} blocked. ${C.godotOk} (${pct(C.godotOk)}%) survive a Godot export.`;
+  document.getElementById('vbar').innerHTML=['makeable','gaps','blocked'].map(k=>`<span class="v-${k}" style="width:${100*v[k]/C.n}%" title="${k}: ${v[k]} of ${C.n}">${k} ${v[k]}</span>`).join('');
+  document.getElementById('fixtures').innerHTML='<thead><tr><th>Game type</th><th>Verdict</th>'+ORDER.map(f=>`<th class="c">${f}</th>`).join('')+'<th class="c">Godot</th></tr></thead><tbody>'+
+    C.fixtures.map(f=>`<tr><td><div style="font-weight:600">${esc(f.name)}${f.anchor?'<span class="anchor">anchor</span>':''}</div><div class="fwhy">${esc(f.why)}</div></td>
+      <td><span class="verdict ${f.verdict}">${f.verdict}</span></td>`+ORDER.map(id=>{
+        const mine=f.issues.filter(([k])=>k.startsWith(id+'.'));let w=null;for(const[,s]of mine)if(!w||WORST[s]>WORST[w])w=s;
+        const touched=f.touched.includes(id);const cls=w?'s-'+w:touched?'s-built':'none';
+        const tip=mine.length?mine.map(([k,s])=>`${k} (${s})`).join('\n'):touched?`${id}: every value built`:`${id}: not set`;
+        return `<td class="c"><span class="sq ${cls}" title="${esc(tip)}"></span></td>`;}).join('')+
+      `<td class="c" style="font:12px var(--mono);color:${f.godot?'var(--built)':'var(--muted)'}">${f.godot?'yes':'no'}</td></tr>`).join('')+'</tbody>';
+  const priced=C.packages.filter(p=>p.perEffort!=null), unsized=C.packages.filter(p=>p.perEffort==null);
+  const pmax=Math.max(1,...priced.map(p=>p.perEffort));
+  document.getElementById('packages').innerHTML=priced.slice(0,15).map(p=>`<div class="rrow"><span class="k" title="${esc(p.name)}: lifts ${p.lifts}, makeable ${p.makeable}, cost ${p.cost}${p.needs.length?', needs '+esc(p.needs.join(', ')):''}">${p.effort} · ${esc(p.name)}</span><div class="t"><span style="width:${100*p.perEffort/pmax}%;background:var(--accent)"></span></div><span class="n">${p.perEffort}</span></div>`).join('')+
+    (unsized.length?`<p class="fwhy" style="margin:8px 0 0">Unsized: ${unsized.slice(0,8).map(p=>`<code>${esc(p.name)}</code> (${p.lifts})`).join(', ')}${unsized.length>8?` and ${unsized.length-8} more`:''}.</p>`:'');
+  const vmax=Math.max(1,...C.values.map(x=>x.lifts));
+  document.getElementById('values').innerHTML=C.values.map(x=>`<div class="rrow"><span class="k" title="${esc(x.key)} (${x.status}) · makeable ${x.makeable} · touches ${x.touches}">${esc(x.key)}</span><div class="t"><span class="s-${x.status}" style="width:${100*x.lifts/vmax}%"></span></div><span class="n">${x.lifts}</span></div>`).join('');
+  document.getElementById('log').innerHTML=C.log.length?C.log.map(e=>`<li class="${e.milestone?'ms':''}"><time datetime="${esc(e.at)}">${fmt(e.at)}</time><div>${e.facet?`<span class="tag">${esc(e.facet)}</span>`:''}${esc(e.text)}</div></li>`).join(''):'<li><span></span><span class="fwhy">No entries yet.</span></li>';
+})();
+</script>

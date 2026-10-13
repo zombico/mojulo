@@ -15,6 +15,8 @@ success-terminal rule; always pair it with `reach-exit` or `survive`.
 
 - `startHp` — the in-level starting hp (default 100). If `hazard-damage` also sets `startHp`, the
   values must MATCH (they share the `hp` var; a conflict is a resolve error).
+- `hits` — the hp each hit on the player takes (the cast's `hit:<player>`: a round, a blade, a splash from the
+  world's combat). The player must be hittable (`body.hittable`). With it, hp shows on the HUD.
 
 ## Lowers to
 
@@ -23,6 +25,7 @@ success-terminal rule; always pair it with `reach-exit` or `survive`.
 
 ## Composition
 
+- With `hits` and foes that shoot (`rule.mind.motivation: 'hunt'` with a `weapon`): a firefight you can lose.
 - With `hazard-damage`: hazards drain hp, hp≤0 → fail. A lethal dungeon.
 - With `survive`: outlast the clock without dying — a lethal arena.
 - The **fall** policy's respawn floors hp at 1, so falling NEVER trips this — fall damage can never

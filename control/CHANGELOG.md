@@ -484,6 +484,603 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The routing card is `character-fidelity`. The hero card, the studio index and `create_character` now point at it.
     The flat tools/list pin was re-pinned for the new tool.
 
+### The hero door: builds, a child's body, and the child guard on the resolved cast
+
+A design trial built one hero at 11 and at 16 through the hero door and found four gaps.
+
+- **A pole with a build.** `cast: { pole: 'female', build: 'brute' }` puts a figure-cast preset on a hero pole. The
+  preset's dials go over the pole's (lengths and spans multiply, the shoulder drop adds) and its radii are percentages of
+  the pole's (`HERO_BUILDS` in `hero-form.js`). A broad young woman keeps her girdles, her head and her silhouette;
+  before, she was a male preset or `tune.shoulders` past its range. A pole, a build or a key the door does not know is
+  refused by name.
+- **A child's body.** The `child` and `chibi` builds carry a child's radii: a chest about 0.7 of the adult's across, a
+  waist that tapers less, thin limbs, a larger head, and shoulders narrower for the height. Hip joints sit inside the adult
+  female's; the bare `child` preset sat 60 % wider than hers. The bare words `child` and `chibi` keep their old meaning
+  (the joints on adult radii), so rows minted with them render byte for byte as before. The build is the opt-in.
+- **`scale` on a worn head is refused.** The landmark and anime heads never read it; the refusal points at
+  `tune.stature`. The blank trunk and a baked include still honour it. A world's inline hero, re-recorded on every
+  render, tolerates it as before, so a stored world keeps rendering.
+- **The child guard reads the resolved cast.** A build, a list or a dial map that comes to `child` or `chibi` (by name,
+  or by its dials) is child-coded: it takes no bust at mint or on an edit, and a swimsuit puts it in the rash vest. This
+  moves one kind of stored row on purpose: a hero on a list or dial-map child cast that carried a bust or wore a
+  swimsuit bare-chested.
+  Every other hero form re-renders byte for byte (172 cast, head, dress and proportion combinations compared against HEAD).
+
+### City rails: a city planned first, tuned on rails, played as levels
+
+- **A city as a plan before a render.** `compose_world({ base: 'city', overrides: { plan } })` mints kind `city`
+  (`lib/graph/city/plan/`).
+  - The recipe is laid on a board of named cells ('C4', 'C4:H9', 'A5>P5') in layers, each reading only the
+    layers before it: main streets (`spine`), what each part is for (`districts`), ground reserved before
+    anything grows (`sites`), the street grid, the lots cut from each block's frontage, `transit`, and the walk.
+  - Anything off the card is refused by name (`readCityPlan`). What the recipe leaves out (play, board, a spine
+    clear of every site) is filled at mint and recorded in `notes.inferred`, and a seed is drawn and written when
+    none is given. A legacy city (no `plan`) is untouched.
+- **Each layer on its own dice.** The grid rolls per gap between fixed lines, the lots per block, the skin per
+  lattice square.
+  - A site moves only the streets its edges land on.
+  - A lot by hand (`lots: { <id>: { use, storeys } }`) changes that lot alone.
+  - Streets are named by where they run (`x340`), so nothing renames when a line is added elsewhere.
+- **Grammars read from the legacy metro city.** Every `CITY_FLAVORS` entry is a grammar in metres (block pitch,
+  right-of-way, lot cut, height field, tower rules, skin mix and its district lean, facade affectations),
+  derived from `METRO` and the flavour, never copied.
+  - `play: 'game' | 'real'`: game compresses what a walker covers (block pitch, right-of-way, lot depth, the
+    field's reach, the walk's rhythm) and never a storey, a frontage or a tower. It is timed at a player's run
+    (5 m/s), where real uses a person's walk (1.4 m/s).
+- **Walk laws.** Nine data rows (`CITY_LAWS`), advisory and waivable by `'<law>'` or `'<law>:<subject>'`:
+  - spine-first, reserved, fronts, connected;
+  - a crossing every so many metres;
+  - something to meet every so many metres (a shopfront, a place, a stop, a corner);
+  - transit reach, lines on streets;
+  - slender towers.
+
+  The plan builds a walk graph to judge them, with each lot's door on its street. A lot left behind the scrap a
+  diagonal cuts off goes green with it.
+- **One read model.** `readCity` feeds the mint's reply (census, every law, `next` by outcome: Layout, Walk,
+  Look, Play), the plan book at `/bible` (the plan sheet on its board, the laws, the lots by id, what is open),
+  and the walkable massing at `/world`.
+  - The `city-plan` card is generated from the same tables.
+  - The legacy `city` card now points to it.
+- **The reconstruction gate (machine).** On the legacy city's own census, every grammar lands within the legacy
+  city's seed spread: north-american, new-york, paris, tokyo.
+  - Measures: walk share, crossings, median and p90 height, lot frontage, skin mix.
+  - Block pitch is the loosest, about 120 m against 100–119 m, quantised by the board.
+  - Legacy `fractal-city` is frozen: its rows keep their bytes, and it retires once the metro view moves here.
+- **Facades.** Every lot wears a facade in the world (`city/plan/facades.js`), laid over the plan and never into
+  it: one stream per lot, so a facade or a grammar's look reworded moves no street, lot or storey.
+  - A lot's skin is the legacy metro city's (a material's family and shade, a stone rhythm, a roof).
+  - Its grammar's affectations go on through the legacy city's own `flavorFacade`, now exported and otherwise
+    unchanged.
+  - Then the grammar's `wear` (every lot), then the lot's own `facade` (`lots: { <id>: { facade } }`, the building
+    generator's descriptor, refused field by field).
+  - The plan's beats decide the shopfronts.
+  - The masses go to the legacy facade pipeline (`assembleBoxCityScene`) in city units (`metersPerUnit` 3.66), so
+    a Paris street here and there is one Paris street.
+  - `fidelity: 'massing'` keeps the plain massing.
+- **Grammars as documents.** `grammar: { from: <id>, …changes }` rewrites any field of the grammar it starts from;
+  objects merge, lists replace.
+  - It is held to `GRAMMAR_SCHEMA` and refused by name, and documents chain through `from`.
+  - New fields Earth grammars never use: `wear` (a facade every lot wears), `shapes` (box, setback, podium,
+    cylinder weights for a lot's mass), and `maglev` among the transit modes (an elevated guideway on pylons,
+    raised platforms).
+- **World grammars, written as documents over Earth ones:**
+  - `neon-sprawl` (cyberpunk, from tokyo): dark glass, neon blades and signs, slender towers, maglev.
+  - `xeno-garden` (alien, from mediterranean): ceramic skins, round masses, guideways.
+
+  Vehicles on the guideways are not in the vocabulary yet.
+- **Organic masses** (`city/plan/organic.js`): the shapes a box cannot stand as, built from facade-carded strips
+  so the windows follow the curve, as the legacy cylinder is.
+  - `undulate` (Casa Milà's register): street walls ripple inward in a slow wave, never past the lot line, so
+    party walls stay straight. The roofline swells and dips, and the roof is crowned with sculpted chimneys.
+  - `spindle` (a Sagrada Família spire's): a revolved tower that swells and tapers to a finial, its windows on
+    bands of floors. A grammar may raise its towers as spindles (`tower.spindle`), rolled only when it says so.
+  - Both are mass `shapes` a grammar weighs. The xeno garden now ripples and spires.
+- **A city in a world's look and paint.** The world-wide `look` channel now reaches the city.
+  - The city lights itself by the look's sun, or with none by a moon, its ambient never black, because its
+    facades are cards a bake cannot relight.
+  - The channel lays the look's air and sky. Two additive keys on `applyLook`, absent and byte-identical
+    elsewhere: `lookLit` (no "ignored the light" note) and `lookHaze` (the air thinned for a kind seen across a
+    kilometre).
+  - `paint: { geocube, amount }` lays a geocube's colours over the ground, water, parks and walks, and leans
+    every skin toward its stone, trim and accent. Without a look, the cube's own look lights it.
+  - The same city is the same streets, lots and facades in another place and hour.
+- **A city played as a map game.** `segments: true | { across, levels }` cuts the city along its spine and avenues
+  (`city/plan/segments.js`), dice-free.
+  - Pieces are sized to a level's span: game 180–360 m a side, real 300–600 m. The spine always cuts.
+  - Each pair of neighbours is joined by a portal on the most important street crossing their edge.
+  - A segment is played as a building on the rail is: `level: { segment }` is lowered on every read
+    (`city/plan/level.js`, registered with `structure/level.js registerLevelKind`). It gets a named reach-exit per
+    neighbour at its portal, arrivals from each neighbour's level clear of the way back, a first-person walker at
+    its middle crossing, and walls at every built mass and along its edges, open only at its portals. A segment
+    with no neighbours is played to its farthest crossing.
+  - A level is `{ kind: 'city', city: <ref>, level: { segment } }`. It reads its city by ref (`city/plan/ref.js`,
+    merged in world-scene and game-resolve), so an edit to the city moves every level.
+  - `segments.levels: true` mints a level per segment beside the city (`<ref>-<segment id>`). The mint returns
+    `game.create_game`: the map from the segment holding the core, each exit answered from the other side, a
+    progression slice.
+  - The book draws the segments and portals and lists them. `next` leads to `create_game`.
+  - A four-segment Paris passed `create_game`'s headless auto-audit: every level reached its exit.
+- **Two ways into a city's buildings** (`city/plan/doors.js`).
+  - `walk`: the ground storey is a lobby, part of the map. A glazed front with a door gap, a counter, a stair
+    rising to the ceiling, the facade standing on it from its ceiling up. The level walls the lobby, not the lot.
+  - `door`: a marked door (a lit surround, a canopy) whose zone on the walk changes the scene. The inside is a
+    level of its own, minted through the building door: an office for an office or a tower, a store or
+    restaurant for a shop, or the lot's own `inside`.
+  - Structure buildings now take `level: { door }` as stages do (`structure/level.js`): a door zone just inside
+    the entry, the walker arriving two strides past it, the goal room still the end. `create_game` links each
+    lot's door to its inside's `out`.
+  - Chosen by hand (`lots: { <id>: { enter, inside? } }`) or per segment (`segments.enter`, default two
+    walk-ins and one door with levels), nearest the segment's middle, dice-free.
+  - A four-segment Paris with its four insides (two stores, two restaurants) passed the headless auto-audit: all
+    eight levels completable.
+- **A city's game exports.** `export_game` ships a city's plan recipe once beside its segment levels, which read
+  it by ref, as a map's recipe ships beside its mode variants. A map game's level with nothing to pick (a street,
+  a door's inside) is entered straight from the level list, with no empty setup screen and no "start battle".
+  - Spot-checked in the browser: a four-segment Paris exported to a folder; the street played, a door led into
+    its café and `out` led back to the walk.
+- **The city at night** (`city/plan/night.js`). Under a look with no sun, a share of every wall's windows is lit
+  (the grammar's `night: { windows, shops, palette }`, leant by the lot's use), laid on the wall's own window grid
+  between the recessed glass and the mullions, in colours no light shades. A storey's lit rooms run together, a
+  shop's ground storey is lit along its front, and blade signs burn in their own colours. Each lot rolls its own
+  dice. By day nothing is added.
+  - Neon sprawl lights its rooms in screen colours; xeno garden lights them in bioluminescent ones, its organic
+    walls included.
+  - The city no longer takes the legacy moonlight pass on top of the look's moon, which double-lit its ground and
+    roofs. The moonlit ambient is lower, so a lit window reads against it.
+  - `bladeSignBoxes` tags a sign with its tint only for a box that asks (`neon`); the legacy city keeps its bytes.
+- **Traffic** (`city/plan/traffic.js`). The city's straight streets become car lanes: a lane each way on a road
+  wide enough, a one-way lane alternating street by street on a narrower one, on the grammar's side. Every place
+  two streets meet becomes a signalled junction as wide as its carriageways.
+  - The world path fills them through the legacy city's car bank and signalled traffic model (`attachCityCars`):
+    real-size cars, exclusive phases, no two cars touching.
+  - A segment's level drives only its own crop.
+  - `cars: false` empties the streets; a massing city has none.
+  - London and Tokyo grammars now drive on the left. The legacy flavours never recorded a side.
+  - A four-segment Paris with cars, and its four insides, passed the headless auto-audit: all eight levels
+    completable.
+- **A world bible's level can be a city** (`levels.<id>.city`, in place of `walk`). A planned city is built in its
+  civilization's language and painted by the level's geocube.
+  - **Played by its segments.** In a line of levels it is the route along the fewest portals from its way in
+    (`from`, the core's segment by default) to its way out (`to`, the farthest). Each segment opens only toward the
+    one before and after it, its walker starts at the portal it came in by, and the line's gates chain them. In a map
+    world every segment is a level joined to its neighbours at their portals, with the world's links at the way in
+    and way out.
+  - Segment levels take `level.route: { from?, to? }` and `level.ways: [{ id, to, at: 'start' | 'end' }]` for this.
+  - **A civilization at city scale** (`city/plan/civilization.js`). Its building language becomes a grammar
+    document: a hipped roof in its covering's colours where it caps with a gable or a hip, flat where it has no cap.
+    Arched, lensed or banded lights set the wall rhythm, and coursed walls bring brick. A shell language swells into
+    rippling masses and spires; a tiered one steps back as it rises. A level that names a grammar has the language
+    spoken over that grammar; a level that writes a grammar document keeps its own.
+  - Its buildings are walked into (lobbies) by default: a door's inside is not a level of a world bible yet.
+  - The world bible draws the city's plan sheet; the graph and the story binder know the new section.
+  - A city level made through `create_sketch` and promoted by `create_game` passed the headless auto-audit, in a
+    line and in a map.
+- **Landmarks on a city's sites** (`city/plan/landmarks.js`). A site names what stands on it, inside the site with
+  a forecourt round it, rolling no dice.
+  - `landmark: '<id>'` on a landmark site: one of the landmark library's (the Eiffel Tower, Big Ben, the
+    Colosseum…), at its real size from the legacy metro city's own tables (`LANDMARK_REAL`, now exported). One too big
+    for its site is scaled down to fit, and the new `landmark-fits` law says by how much.
+  - `building: 'church' | 'mosque' | 'temple' | 'rotunda'` on a civic site, `variant?`: the library's sacred and civic
+    builders (`refacade`), at their own heights.
+  - `from: '<ref>'`: an edifice of the operator's own (`mint_solid({ kind: 'edifice' })`), stood at its true scale.
+    It is read by ref wherever the city is resolved (`withCityRef` lays it in under `edifices`), so an edit to the
+    edifice moves the city. `compose_world` refuses a missing ref or one that is not an edifice, and `export_game`
+    ships the edifice's recipe beside the city's.
+  - A city's ground is laid first in its face list. A landmark's plinth at ground level had made the World's
+    coplanar lift (`decollideFaces`) raise the whole ground over the streets.
+  - The `city-plan` card lists the landmarks, buildings and variants; the `edifice` card says how to stand one in a
+    city.
+- **A city's green** (`city/plan/green.js`). Trees and shrubs are grown on the laid city as an interceptor, the way
+  the room stage grows its moss and the town its dress.
+  - Each kind finds its own sites:
+    - street trees about a metre in from the kerb of every walk wide enough, at the grammar's stride, kept off
+      carriageways and clear of crossings, doors, driveways, lobbies and stops;
+    - parks grown loose, thinning toward a lawn in the middle;
+    - a ring of trees round each plaza;
+    - courts in the green the lots leave behind.
+  - `green: 0…1 | { street, park, plaza, court }` sets how many sites each kind takes, over its grammar's own (`green`
+    in the grammar schema: defaults, stride, the least walk a tree stands in, and its species). Each street and site
+    rolls its own dice, counts are capped, and none of it collides.
+  - The trees are the vegetation library's species, grown once and stamped through the World's repeats, each at the
+    level of detail the cameras see it at, under one budget. Paris has beech and flowering cherry, Tokyo cherry and
+    pine, the Gulf date palms and schefflera, Southeast Asia coconut palms, and the xeno garden tree ferns and
+    stranglers. The default species are the quick growers; oak, banyan and washingtonia are named when wanted.
+  - Shrubs are the legacy plant box at the world's scale. The legacy street tree is not used: sized for the old,
+    smaller city, it reads as a stick among real storeys.
+  - The book's plan sheet draws a dot per plant; the readout counts each kind.
+  - The street camera stands in the near lane, so a tree-lined walk does not put a trunk in the frame.
+- **The green, finished out** (`city/plan/green.js`, `foliage.js`):
+  - Each street tree stands in its pit under a grate. A walk too narrow for a tree takes planters instead: a shrub in
+    a concrete box at the kerb.
+  - `median`: a planted central reservation down an avenue wide enough (the spine's and the major streets', 14 m of
+    carriageway or more). It is a raised lawn with kerbs and trees down its middle, broken short of every crossing
+    street. Paris and the Gulf plant most of theirs, Tokyo few.
+  - `season: 'spring' | 'summer' | 'autumn' | 'winter'`. Spring is as grown (the cherries in bloom). Summer turns the
+    blossom to leaf, autumn turns the deciduous crowns (beech, oak, cherry), winter leaves them bare. Evergreens keep
+    their leaves. A leaf is told from bark by its colour, so the vegetation pool's other readers keep their bytes.
+  - A paint leans every leaf toward its geocube's foliage.
+  - In a segment's level a street tree's trunk and a planter stop the walker. A shrub, a crown, a park's trees and a
+    median's do not: the walk graph and the audit run down the middle line. A level draws its trees under a lighter
+    budget (60k faces, at most L1), because at full detail the headless audit timed out.
+- **Traffic you can watch: signal heads, and cars that turn.** In place of the planned human-motivations layer
+  (P5), the operator chose a simpler demo.
+  - Every junction shows its signal heads, a post and lamp per axis at its corners, lit green, amber or red by the
+    phase the cars obey. One axis runs, a clearance holds every signal red, then the other axis runs.
+  - Cars turn: a share of the junctions a car passes (`cars: { turn: 0…1 }`, 0.35 by default), only onto the near
+    side (right in right-hand traffic, left in left-hand), so a turn crosses neither the oncoming lane nor the far
+    one. A car turns only on its own green, only into room (the lane under its capacity, no car within a footprint
+    and a gap), cutting the corner so its rear clears its old line at once. The page eases its heading round.
+  - `traffic-model.js` gains `laneTurns`, `armTurns`, `turnTick` and `stepTrafficTurning`. They are embedded beside
+    the model only when a lane carries turns, so the legacy city's pages keep their bytes; the channel's output for
+    a page without turns was compared byte for byte.
+  - Machine gate: two minutes of a Paris and a London city, every step. No two cars' footprints touched, about 130
+    turns each, every turn inside the box its old lane was green through, no lane over capacity, no car left
+    standing, and the same clock replays the same cars.
+- **People on the walks** (`city/plan/pedestrians.js`), to close the traffic demo's plausibility.
+  - `people: 0…1` (0.5 by default when the streets are driven). Most walk round their block on its sidewalk. Some
+    walk round two neighbouring blocks and cross the street between at both ends.
+  - At a signalled crossing a walker waits at the kerb until the street it crosses is red (its cars held) and the
+    street it walks along has green enough left to cross on.
+  - The walkers are the legacy city's clothed rigs (`attachCityWalkers` now passes a planned walker's pace, start and
+    holds through). A held walker is stepped from clock zero by `heldWalk` (`traffic-model.js`, embedded beside
+    `phaseAt`), so the page and the tests run one code and a replay is the same people.
+  - Walkers without holds keep their bytes; the channel's output was compared. A level keeps a dozen walkers in its
+    reach: with more, the headless audit timed out drawing their rigs. A four-segment Paris with people and turning
+    cars, and its insides, passed the audit: all eight levels completable.
+  - Machine gate: three minutes of a New York city. Every crossing was entered on its walker's green, walkers waited
+    at kerbs, nobody stood for good, and replay was deterministic.
+- **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
+  and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
+  The measured gap is at most 0.07.
+- Pins moved on purpose: `WALK_KINDS` gains `city`; the `compose_world` card count gains the generated
+  `city-plan` card.
+
+### Rig clips keep the palette
+
+- **A rigged solid's clips are coloured like its rest pose.** The World page's clip preview and the skinned GLB used
+  to colour each face of the packed rig figure by its part's `tint` alone. Every group coloured only by the recipe
+  `palette` (a detailed head's cranium and jaw, horns, pinned fur or scale tiles, belts and satchels) turned grey the
+  moment a clip played. `packLayeredRig` now takes the recipe `palette` and resolves a face as the static solid does:
+  its group's palette entry, else its part's tint, else neutral grey. Animals and bugs get the same fix. A recipe
+  with tinted parts and no palette packs byte for byte as before. Rigged recipes with a palette re-pin their figures
+  and exports, among them the dragon body and the landmark hero.
+
+### The play shell: quick games end to end, and a playtest for the big loop
+
+- **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →
+  level → result: no setup screen (consumed slices ride whole, a pick takes the first members), a pause with
+  resume, restart, the level's own controls and sound, and a result in plain words (cleared, failed, what was
+  gained, the stats table when the level sends one) with next, again and home. The store, params and envelopes
+  live in a debug drawer only. Same wire and same store kernel as the arena shell, so levels and saves behave the
+  same under either.
+- **`shell: 'play'` picks it.** A game manifest may say `shell: 'play'` (create_game takes it); without it a game
+  gets the arena shell, emitted exactly as before. The `/game` route and `export_game` choose through one
+  `emitShellFor`. A play-shell game carries no menu, music, setup or difficulty, and validation says so.
+- **design_game's games ship in it.** A run, quick or from the whole book, makes its game with `shell: 'play'`;
+  remaking the game in place now keeps its theme and shell. A game made before is remade on its next run.
+- **Playtest any game.** `GET /api/sketches/<game>/playtest[?level=<ref>]` plays a world/level game in the play
+  shell with every level open, nothing saved and the debug drawer open; `level` opens straight into one level.
+  design_game's `play` step and create_game's answer carry the link.
+
+### World gear: starter items that fill a world
+
+- Under way. Every functional model in a game is technology. A world that sets `equipment.populate` fills its
+  starter gear from what it already says:
+  - the hero's items;
+  - each civilization's crafted held weapons that the equipment kernel can build;
+  - mirrors, contrasts and keys.
+
+  Each entry is dressed in the language of the civilization that makes it. Absent, a world adds nothing.
+- **One direction, every scale** (`gameworld/world-gear.js` `gearStyle`). A civilization's gear speaks its
+  technology's language: its motif picks the base style card, its setting picks the metals, its element picks the
+  stone, and its team colour marks the grip and the shield's board. Each choice says where it came from.
+- **Transforms, not models.**
+  - A MIRROR is a rival's answer to an item: same class, slot and tiers, in the rival's language.
+  - A CONTRAST is an item's shadow: the opposite motif, the same maker.
+  - An AUGMENT grows tiers by rule for gear the hero's page did not tier.
+
+  Every derived entry says what it came from.
+- **Wired in.**
+  - The character bible's equipment section shows the starter gear.
+  - `gearOrders` plans its mints, which wait on the game's stats as the equipment table's do.
+  - `node scripts/gear-sheet.mjs` draws the stock shaded.
+  - The `populate-world-gear` catalyst walks it.
+- A held weapon the kernel has no class for (a carbine, a lance) is listed as a task.
+
+### The mechanism kit: technology that reads at person scale
+
+- Under way. Crafted technology is designed for first- and third-person play first. RTS scale is derived from it
+  later, at the far camera, and is not designed for its own sake.
+- **Watched, held or driven.** Every crafted thing has a `use`, next to its interest rank:
+  - `watched`: set pieces, structures, emplacements, machines and siege engines you observe or escort.
+  - `held`: a weapon in the hand.
+  - `driven`: a vehicle you ride.
+
+  The default comes from what the thing is, so a cart or a siege engine is watched, not driven. A world may say
+  `{ intent, use }`, and the ledger records it when that differs from the default.
+- **Designed at its use's distance** (`gameworld/tech-eras.js`):
+  - A held weapon in first person is designed at the view model's 0.55 m, the nearest camera there is.
+  - A driven vehicle in first person is designed at the cockpit's view of its own hull.
+  - A watched thing is designed at its tier's meet distance.
+- **A budget by use, not a share capped under the hero.** At person scale few units are on screen, so each spends
+  more:
+  - A driven vehicle may spend up to one and a half heroes.
+  - A held weapon may spend half a hero.
+  - A watched focus may spend one hero.
+  - A typical person-scale scene (`PERSON_SCENE`) adds these up against one scene budget.
+- **Measured where it is read.** Facets are measured at the use's distance. Silhouette segments are measured at the
+  distance a thing is watched from, because a cockpit sees its own bonnet, not its outline. A smooth or organic
+  section takes its points by its real outline, not by the circle of its half-sides. A round may take up to
+  `FIT_MAX` points. The resolution dial now moves in small steps.
+- **Smoothing groups: pixels, not polygons** (`gameworld/tech-shading.js`). A crafted thing's rounds are shaded
+  smooth. Inside a piece, an edge whose faces turn less than the style's crease (40°) shares its normals, and a
+  chamfer stays hard. Each face carries `cornerNormals`. `faceListToMesh` writes them as the GLB's per-vertex
+  normals when they are present (absent, zero bytes), and `bakeCorners` bakes light per corner into
+  `cornerFills` for the unlit path.
+- **On a smooth round, the facets law is outline error.** It measures how far the outline strays from the true
+  curve, in pixels on today's screen, not how wide a facet reads. A facet's band no longer shows once it is shaded
+  smooth, so the round spends points only where its curve is tight. Each round's points are sized to that error.
+  Flat-shaded faces keep the width law.
+- Across 17 briefs × 6 motifs × 3 cameras, every case now holds, the organic walkers driven in first person
+  included. They spend fewer triangles than they did flat.
+- **One wheel, one track, many dresses** (`gameworld/mech-kit.js`). A mechanism is one topology with named parts
+  and sockets:
+  - A wheel has a hub on its axle and a rim at its contact.
+  - A track has a drive sprocket at the rear, a raised idler at the front, at least three road wheels on the
+    ground and return rollers when its road wheels are small, all wrapped in one belt.
+
+  A DRESS restyles it by what it is made of and how it is driven, never by a date:
+  - Wheels: spoked (timber or iron, muscle to steam), disc (iron or steel), road (steel and rubber), pad (field
+    or arcane: it lifts, and does not roll).
+  - Tracks: link (iron and steel, with grousers) and band (rubber, with large interleaved road wheels).
+
+  `resolveMechanism` picks a dress by the setting and says why it refused the others. Each mechanism gives its
+  CAGE, the triangles that ship, and its DETAIL (bolts, lugs, grousers, tread), geometry kept for the bake. A
+  detail piece that stands in the silhouette moves into the cage once the design camera can resolve it.
+- The body plans' wheels and tracks are built by the kit. A technology direction carries a `setting`
+  (`{ made, driven }`); until the setting read lands, it defaults from the civilization's finish.
+- **Asymmetry: the Warcraft lean.** A technology direction says how lopsided its civilization's technology is
+  (`asymmetry`, 0–1, or a word: symmetric, balanced, asymmetric, lopsided, ramshackle). The style supplies it
+  otherwise: 0.4 for wc3.
+  - A thing leans to one side: away from a weapon on its flank (the weapon is the counterweight), else the side its
+    words fall to, always the same.
+  - Its lead flank's pieces grow and the other's shrink, what stands on top steps toward the lead, and a weapon
+    steps the other way.
+  - Past half, its armour goes to the lead flank alone.
+  - Its team colour is designed into the surface, never flown: a livery decal wrapped from the core's own section.
+    When it leans, it is a sash over the back and down the open flank, so armour and colour balance each other;
+    when even, a band all round.
+  - Held gear takes the lean from the vocabulary it already has, with no new kernel shapes:
+    - It is exaggerated as the style draws held things (wc3 ×1.35): wider and thicker blades, bigger pommels,
+      broader guards, a stubbier length, more mass, more stylization.
+    - A lopsided civilization's blades take their motif's one-sided shape (`ONE_SIDED`): cleaver for spiked and
+      riveted, tanto for faceted, sabre otherwise. They get a spine, and barbs down one edge as far as they lean
+      when the motif bites.
+  - The bible's direction card shows the asymmetry and where it came from.
+- **The `design-tech-family` catalyst, and a shaded contact sheet to judge by.**
+  - **The catalyst** codifies how the combined machines were grown: read the brief, pick the cheapest entry (a
+    dress, a variant, a row, and only then a part kind in code), depict first, then hold it to the laws, sweep it,
+    and confirm it in a bible. When a law fights a good depiction, fix the principle for everything it touches,
+    never the one machine. `design-vehicle-family` points to it for a civilization's technology.
+  - **The sheet.** `gameworld/tech-sheet.js` draws crafted technology shaded as the engine shades it (smooth
+    rounds, hard chamfers), where the bible's plates paint each face flat. `node scripts/tech-sheet.mjs
+    "kind|words[|motif|camera|made|driven]" …` prints each thing's form, variant, rank and use, triangles, dresses
+    and laws. It writes a PNG with sharp, or a PPM when sharp is absent.
+- **Readout and solver rules the combined machines found.**
+  - Read how it is seen:
+    - A row of wheels, the running gear the kit builds, reads as one band in the silhouette, not a segment
+      each. Legs still count.
+    - The rails a thing stands on are ground: drawn and counted, never its silhouette.
+  - Grow it within bounds:
+    - The solver grows a lead at most ×1.5 (`LEAD_GROW`): a proportion is pushed, never broken.
+    - A lead may be several pieces that read as one body (a locomotive's boiler and cab).
+    - A row's `optional` parts are its own secondary detail: dropped, last first, when the thing says too much.
+  - Adorn it for what it is:
+    - A turret needs a deck that is large and deep; a thing without one carries its weapons in a `rack` on
+      its flank.
+    - A thing pulled or pedalled (every mechanism driven by muscle) gets no machine face and no vents.
+    - A thing with windows or lamps already has its face.
+  - Masses are placed relative to the core: they can sit from its nose or tail, and taper at both ends (a
+    raked glasshouse).
+  - Wheels can prefer a dress (`prefer`), and a wheel's drive can override the setting (`driven`).
+  - Drawn vehicles are watched, not driven: a cart is a prop; a wagon, coach or chariot is boarded or escorted.
+- **Rings where the curve is.** Shaded smooth, a lathe takes the fewest rings that land on its profile's corners,
+  and a loft spends rings along its length by how much it bows (`fitArc`), not by how long it is. A straight run
+  between two corners spends nothing. The iron tank in third person drops from 4.0k to 3.2k triangles with no
+  visible change.
+- **Combined machines: wheeled, railed and two-wheeled transport.** Built as body-plan rows with variants picked
+  by the brief's words, from generic parts placed by data: masses with a glass band, tubes, open beds, wheel
+  arches, lamps, rails with sleepers, and bogies. The variants:
+  - Wheeled: car, truck, bus, armoured car.
+  - Railed: steam locomotive, carriage or tram.
+  - Drawn: cart, wagon, chariot, coach.
+  - Two-wheeled (a new `cycle` form): bicycle, motorcycle.
+
+  The kit learns rail wheels: flanged, or a maglev pad when the setting is driven by field or arcane, lifting
+  over its rail. It also learns inline wheels (one per axle), and steering front axles: a steer joint about the
+  vertical carries the wheel's spin.
+- **Rules that track wheels exposed in the adornment's solver.**
+  - Hoses go only to joints with a limited range: a hose cannot feed a wheel that spins free.
+  - When a thing shows too many silhouette segments and has no legs to draw in, the solver drops its
+    lowest-priority adornment that keeps no promise.
+  - A conflict proposes the next rank up.
+
+### Technology design loop: chassis, adornment, skin
+
+- Under way, nothing ships yet. A civilization's crafted vehicles, tech-structures and weapons get a design loop like
+  the hero's: direction, chassis (low-poly masses on a rigid rig), adornment (shells, plates, spikes and emitters on
+  sockets, each serving a function), skin (values, a painted atlas, a team-colour mask), effects (the glow is the
+  accent) and motion with tiers. Each page is reviewed in the bible. Built on the workbench, so crafted tech exports
+  to GLB and Godot. This section fills as phases land.
+- **Style apart from density** (`gameworld/tech-eras.js`). The style is Warcraft 3's: chunky masses, exaggeration where
+  small things must read, the detail in the paint. Density follows the world's camera, not the style. Each camera
+  (third person by default, first person, side, top-down) sets where the hero is seen and where each tier of tech is
+  met, so a walker beside a third-person hero rounds its masses more than the same walker seen top-down. The hero leads
+  in count: each interest rank is capped at a share of the hero's triangles. Atlas pages follow surface area and
+  distance on a 2560×1440 screen.
+- **The readout** (`gameworld/tech-readout.js`): the widest facet on a curve, read on today's screen at the meet
+  distance against the style's band (chunky reads, crude does not; too narrow is wasted); triangles under the rank's
+  ceiling; silhouette segments at the meet distance; whether the main mass is shaded in; render groups; the atlas page.
+- **The direction page** (`gameworld/tech-direction.js`): `technology.direction` gives a civilization's crafted things
+  a style, a motif (smooth, faceted, riveted, spiked, organic, ornate: the shape language their adornment will speak),
+  elements (the glow and the stones; the hero's when left out), a tone and a team colour. Every default says where it
+  came from (a motif from its words, its builds or its finish), and what is said over a default is ledgered. The team
+  colour is a marker a placement may pass; the civilization's place sets the default. A crafted thing may name its
+  interest rank (`{ intent, rank }`); otherwise what it does and how big it is decide it. Each civilization's direction
+  is a review part in the bible, the graph carries ranks, and autonomous mode reads a motif and elements from the prompt.
+- **The chassis, solved from a body plan** (`gameworld/tech-chassis.js`, `gameworld/tech-bodyplan.js`). A form is a row of
+  data: a core and its parts (limbs, tracks, wheels, a skirt, pods, a cabin, a fin, a plinth, a deck, a mast, piers, a
+  pedestal, barrels, a sail, a stack, oars), solved by one solver that names no form. Rows exist for the walker, tank,
+  hovercraft, ship, tower, gate, turret and cannon; other forms keep their blocks. Joints and sockets are derived from
+  the masses, never listed. A crafted thing's main masses are
+  built as workbench geometry (lofts, lathes, sweeps, extrudes) in values, on a rigid rig of named joints (a walker's
+  hips and knees, a tower's turning crown), with named sockets where the adornment will hang. The motif shapes the
+  sections. Each rounded piece gets just enough sides for where the world's camera meets it, so the same walker spends
+  about 3,800 triangles beside a third-person hero and about 1,400 seen top-down. What the words claim that the masses
+  cannot show (an armoured walker's plates) is promised to the adornment rather than failed. The bible draws these
+  things as their chassis and adornment, painted in the civilization's finish.
+- **The adornment** (`gameworld/tech-adornment.js`), whose rules read sockets by face and mass, never by name. Plates, panels, a visor, an eye,
+  vents, hoses, antennas, spikes, fins, rivets, a turret, a dish, a lantern room, bands: each piece serves something
+  and says why it is there. What the words promised comes first (an armoured walker's plates serve guard), then the
+  face a machine is read by, then the motif's own (rivets on riveted plates, spikes on a spiked hull, fins on a smooth
+  one), then whatever stands past the outline until the interest rank's silhouette floor is met. A lighthouse is
+  crowned by its lantern room and cap. Every thing carries its one status light. The solver loops until every law
+  holds; when two laws cannot both hold for a brief (a walker met at arm's length rounding its masses under the hero's
+  triangle ceiling), it names the conflict and what would settle it.
+  The object measures take an optional meet distance; without one they read as before.
+
+### World bible: technology, crafted
+
+- **A civilization's technology grows three lists.** `civilizations.<id>.technology` takes `vehicles`, `structures`
+  and `weapons` beside `things` (its machines), each `{ <id>: words | { intent, seed? } }`. The building tunnel makes
+  what a civilization lives in; the technology crafter (`gameworld/tech-crafter.js`) makes what it goes in, what it
+  raises to be seen and what it fights with. Every crafted block joins the civilization's library, so an id names one
+  thing across the lists. A world without them reads, resolves, graphs and draws byte-identically.
+- **The crafter.** One tunnel loop per kind (`craftTech(kind, intent)`): an intent is read into a form and its
+  variant, the functions it shows and how it looks doing them. A grammar per form lays a part for every read, the laws
+  assess it, and a tweak thickens what was lost, leads what should lead and lets the runner-up give way.
+  - A word that names a kind in general (a tower, a gun) gives way to one that names it. Of two that name it, the
+    last named is the thing ("a forcefield gate" is a gate with a field across it).
+  - **Vehicles**: wheeled, tracked, walkers, rail, hover, rotorcraft, winged craft, airships, ships (rowed unless under
+    sail or steam), drawn carts; armoured, armed, carrying cargo; a `vessel` tier for building-scale craft. A ship's
+    hull is 16 m and a boat's 6.5 m, at the hero's scale.
+  - **Tech-structures**: towers (and what they carry at the top: a beacon, a lantern, a dish, a gun, collectors),
+    gates and portals, bridges and aqueducts, windmills and watermills, cooling and furnace stacks, great dishes,
+    barriers and launch gantries. A `landmark` tier and a `stands-out` law: 8 m or more, the signature geometry at the
+    far ring.
+  - **Weapons**: blades, polearms, axes and hammers, bows and crossbows, staves, rifles and pistols, shields;
+    cannon and mortars, trebuchets and catapults, ballistae, launchers, turrets; energy, twin and many barrels,
+    sentries.
+  - A hand weapon takes the new `held` tier, judged at arm's length (at six metres a blade is a line). One a character
+    can carry names its equipment class (`carries`: sword, dagger, greatsword, bow, staff, shield). Crewed and
+    emplaced weapons are judged at near.
+- **Blocks** (`era/blocks.js`): the functions `strike`, `guard` and `pass`; the tiers `held` (a `reach` in metres in
+  place of a ring), `vessel` and `landmark`; the mounts `hand` and `water`. Existing blocks build byte-identically.
+- **In the world.** The graph gains `vehicle`, `tech-structure` and `weapon` nodes, reached by `drives`, `erects` and
+  `wields`. The bible draws each list in the civilization's finish, with its tunnel's log. Autonomous mode sends a
+  clause that names no machine but a crafted form ("war galleys", "a stargate") to the crafter. Halden Reach fields
+  crawlers, a hover skimmer, a cargo lifter, a relay mast, a dish and a launch gantry, carbines, sentries and shields.
+  The technology index (`out-sheet.mjs tech`) gains a card per kind.
+
+### Asset receipts: a creator's signed proof for an exported file
+
+- **`sign_asset` / `verify_asset` (pack_stash).** `sign_asset({ path })` hashes an exported file, signs the hash with
+  a per-install Ed25519 creator key (`$MOJULO_HOME/creator.key`, made on first sign, mode 0600) and writes
+  `<file>.proof.json` beside it: the file's sha256, its ref, a canonical hash of its recipe, its mint date, the signing
+  time and a pseudonymous creator id (`mjc_…`, the public key's fingerprint). A copy is kept under
+  `$MOJULO_HOME/receipts/`. The exported file is never changed, so byte-identical re-export holds. `verify_asset`
+  reports each check (bytes, signature, creator id), the fields the receipt names, and `yours` when this install signed
+  it. Opt-in by use: nothing signs unless asked. What a receipt does and does not prove: docs/asset-receipts.md.
+- **TERMS §6a.** The maintainer claims no rights in anything mojulo outputs, and mojulo's own built-in assets are
+  dedicated under CC0 1.0.
+### World bible: a level's ground, authored in its own space
+
+- **The trail's ground as dials.** A trail recipe takes `ground` (`era/out-ground.js`): `amplitude` (metres the
+  heartbeat climbs to its crests), `depth` (metres it falls into its dips), `grade`, `drift`, `bump` `{ height,
+  scale, walk }`, each beat's `shapes` `{ share, reach }`, and the far `cliff` `{ height, face }`. These were the
+  trail card's fixed numbers (`OUT_TRAIL.rise` 7 m, the 0.45 and 0.6 dips, the bump octaves). A dial left out is the
+  card's own, and a trail without `ground` is byte-identical.
+- **The ground shaped by hand.** `ground.edits` holds raise, lower, flatten (at a place), and cliff, gorge, ridge
+  (along a path), summed over the ground after the heartbeat's field. By default the walk follows an edit it crosses:
+  it climbs onto a raise, steps down a cliff, drops through a gorge, and the stairs sites and the grade law answer it.
+  `walk: 'keep'` holds the walk at the heartbeat's height instead.
+- **A level's own grid.** A level (`level/graph.js`) and a gameworld level take `ground: { cell?, tune?, edits? }`
+  (`level/ground.js`).
+  - The grid is a top-down board over the level's frame: columns A… across from the kit's far cliff, rows 1… along
+    the walk through every trail, 6 m cells by default.
+  - Edits name cells: `at: 'H7'` or a block `'C4:E6'`, `path: 'B3>F3'`, and a cliff's `high: 'D1'`.
+  - Laying the level compiles each edit into every trail it reaches, in that trail's own metres, so an edit across a
+    seam is whole on both sides. `tune` is the dials every trail takes, under a trail's own.
+  - The frame is found without building a site (`outTrailSpan`). A climb takes no edits yet: its tiers are its ground.
+- **The ground survey.** `surveyLevelGround` (`level/ground-survey.js`) reads a level's ground back from above:
+  - a map of the grid, each cell's height as a digit and what stands in it as a mark (beats, stairs, the walk)
+  - each trail's dials in effect, and the laws the ground now breaks
+  - hotspots (summits, hollows, open flat ground, dull stretches of walk), each with edits ready to paste
+  - `groundDiff`: the cells a change moved, and the laws it broke or mended
+- **The heartbeat: a level's land as its own document, a sibling of the geocube.** The geocube says what the land
+  is made of and how it is lit; a heartbeat (`era/heartbeat.js`) says how it moves. It holds:
+  - `pulse`: the dials
+  - `rise`: the walk's long swell from trailhead to end
+  - `marks`: cliffs, gorges, raises and the rest, placed in the level's relative frame (u across, v along) with
+    heights and widths in metres
+  - `why`: its principles
+
+  It holds no colour and no kit. Laid on a longer level, another kit or another seed, it is not the same bytes but
+  it is the same ground to walk. There are presets (`meadow-breath`, `ascent`, `broken-ground`, `cliffside`), and
+  `{ from, …changes }` makes a variant.
+  - A level takes one as `ground.heartbeat`: its pulse goes under the level's `tune`, and its rise and marks go
+    before the level's edits. A level also takes its own `rise` by row.
+  - The `heartbeat` world kind (`level/heartbeat-scene.js`) shows a heartbeat as a walkable greybox on a reference
+    level: the land in values, the walk a shade lighter, faces too steep to walk a shade darker, plus its map.
+  - A generated `heartbeat` card sits beside the geocube's, and the geocube card points to it.
+- **A geocube paints a level, on one of its terrains.**
+  - A geocube's outside can carry `terrains` (`{ <name>: { reads?, base?, land?, colour? } }`), named variants of its
+    land; the cube's own outside is one terrain too (`outside.terrain`, `'default'` unless named).
+  - A level (and a gameworld level's `style`) takes `geocube` and `terrain`. The cube paints every section that names
+    no kit of its own, once: trails take its outside's look, climbs take its land. A section's own kit wins; the
+    paint is a start, not a lock.
+  - The terrain is picked two ways (`pickTerrain`): the level's ask; else the terrain its heartbeat was made for,
+    when the cube has it; else the cube's own, keeping the heartbeat's wish as `wanted`.
+  - Every painted stage answers `painted`: `{ geocube, terrain, from: level | heartbeat | cube, offered, wanted? }`,
+    and the survey and `tune_ground` say the same for the level. An exported heartbeat remembers the terrain it was
+    made on.
+  - A stage recipe's `geocube` now takes `trail` as well as `meru`, and a `terrain`. A climb painted after a trail
+    stands on the trail rather than the cube's island, and keeps its own preset or tiers. Stages on a geocube without
+    a trail or `terrain` are as before.
+- **Edits laid after the seam.** A trail lays its ground edits after it eases into the trail it follows, then lays
+  the walk again from the ground as it was plus the edits the walk follows. Previously the seam blend smeared an edit
+  that sat across a join (a 6 m gorge came out 3.6 m deep), and a second pass moved the walk's soft edges. A trail
+  without edits is byte-identical.
+- **`tune_ground`, a new tool in the game pack.** It authors a gameworld level's ground (dials, edits by cell,
+  removal by label) and answers with the survey. It previews unless `apply: true`, which writes `levels.<id>.ground`.
+  It is separate from the geocube (a level's look) and from `design_game`'s patch. `heartbeat` lays a preset, a
+  document or a saved heartbeat sketch on the level (copied in, its source noted); `rise` sets the swell by row;
+  `export: { id, save? }` turns the level's whole ground into one heartbeat, its places made relative, saved as a
+  `heartbeat` sketch for other levels to clone from. It has a routing card
+  (`level-ground`), and the gameworld guide names the key. The tools/list payload pin moved for it
+  (`tool-descriptions.test.js`).
+
+### Teardown: exploded views, disassembly and construction, in order
+
+- **A piece's teardown, read off what it already knows.** `teardownPlan` / `teardownTracks`
+  (`playscape/destruct/teardown.js`) turn a workbench `frames` entry into ordered steps: its instruction manual's
+  steps, each with the parts that move and the way they seat. They then turn the steps into per-part offset tracks:
+  `exploded` (held open), `disassemble`, and `assemble` (the same tracks reversed in time). The defaults need nothing
+  authored: the order is the manual's, the distance is 12% of the piece's largest side, and each step is 0.6 s with a
+  0.25 s hold. Pure, with the same bytes for the same piece.
+- **`teardown` on a workbench frame.** A `frames` entry (a buildable furniture piece's included) takes
+  `teardown: true | 'exploded' | 'assemble' | 'disassemble' | { show, at?, seconds?, distance? }`.
+  - The exploded still and any `at` move the faces: what `export_model` and the World show.
+  - `assemble` and `disassemble` play in the World on the mover channel, one mover per face group, so `forge_motion`
+    records them. The cameras and floor are framed to hold the piece apart as well as together.
+  - The frame validator names the shows. A teardown supersedes `explode`, and refuses a `kit` layout.
+  - Absent or `false`: byte-identical.
+- **A moved group carries its texture.** In the World page, a mover on a textured group now moves the group's
+  texture sub-meshes with it: the wood goes with the part, and a labelled lid swings with its label. This is emitted
+  only when a mover moves a textured group; every other page is byte-identical.
+- **One explode law.** A frame's static `explode` and the teardown's exploded pose are now the same function
+  (`explodeParts` in `construction/frame.js`), so the two agree to 1e-9. `explode` renders byte-for-byte as before.
+
 ### Geocube: one style for a level's inside and outside, and the front door for building one
 
 - **`geocube`, a world kind.** A cube is a level's core look as data: its light (a sixth-gen reference, the moon for a night outside, the outside's fog), its key colours (each a ramp), its register, its surfaces' patterns, the bones of its inside, the base of its outside and its principles, one line each. `{ kind: 'geocube', cube, show: 'room' | 'land' }` shows one of its two specimens: a bare room (the bones, an accent wall) or an island landform. `cube` is a preset (`gothic-night`, `island-noon`, `jungle-haze`) or a whole document; a document is checked key by key.
@@ -656,6 +1253,289 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The two anchors stay makeable; the crawler's melee and the collectathon's glide are named as what Godot loses.
   - The portability check's bus and store exemptions apply to Godot only; Unity and Unreal keep their warnings.
 
+- **Three more cameras: first person, top-down and side.** A gameworld (or a quick game) names its `camera`:
+  `third-person`, `first-person`, `top-down` or `side`. Left out, nothing changes.
+  - **First person** rides the hero's eye (the `eye` camera). The mouse looks up, down and around, A and D step
+    aside, and the hero's body is hidden so the view is not inside its head. With no hero, the walker looks and
+    pitches the same way.
+  - **Top-down** is a ¾ overhead camera (`overhead`) with north up the screen, 60° below the horizon and never
+    straight down. W walks up the screen whichever way the hero faces; the hero turns to face where it runs
+    (`platform` `move: 'world'`). It needs a hero to watch, and says so.
+  - **Side** is a side-scroller on the trail's own line (`side`, `platform` `move: 'lane'`): A and D run along it, and
+    the hero is held on the line round every bend while the camera swings with it, square on. The goal's pickups move
+    onto the line. A climb has no line to run, so a side game is trails only, and it says so.
+  - Each piece is opt-in on its own key, so existing worlds play exactly as before: the controllable trace pins hold.
+  - The cosmos marks `space.camera` first-person, top-down and side as built. Top-down and side are marked lost on a
+    Godot export, because Godot has no camera modes yet.
+
+- **Levels that join both ways: an interconnected world.** A gameworld with `topology: 'interconnected'` plays as a
+  map, not a list.
+  - Every link between its levels runs both ways, and so do the stages inside a level.
+  - A level is left by one of its exits: the trail's end, a side pocket, or the way back behind the spawn. The game
+    travels straight to the level that exit leads to, arriving at the matching end.
+  - A link can be locked by a key, an item laid as a pickup in another level and carried in the bag, so a door found
+    early is opened by going back.
+  - Underneath:
+    - a level exit names itself (`reach-exit` `exit`, `on` `{ end, exit }`, the envelope's `exit`);
+    - a level lists `exits` and their gates;
+    - a gate can be `{ has: <item> }`;
+    - the shell travels and arrives (`arrive`).
+  - A list game, and a gameworld without the setting, are unchanged.
+- **Powers that open the way: a hero's power can be a key.** In a map world, a link's `key` can name one of the hero's
+  powers. The power lies in another level; picking it up opens the door and gives the hero the move.
+  - A power can name its move: `double-jump`, `glide` or `high-jump`. The move works from the moment it is picked up,
+    and in every level after.
+  - The platform rule gains `airJumps` (jumps in the air, reset on landing) and `glideFall` (a held jump slows the
+    fall). Without them it moves as before.
+  - Underneath: a level's `game.powers` names the slice, the hero and each power's rule change; the game applies the
+    ones held at start and the one picked up.
+  - Item keys, and worlds without power keys, are unchanged.
+  - Godot still plays a list from its menu, so the cosmos marks the value lost on a Godot export.
+
+### Genre snipe: stealth, racing, rhythm and the car, from the parts already there
+
+- **Seven more genres on the map.** Stealth, time-trial racing, a rhythm runner, a roguelike, a farming life sim,
+  tower defence and a block-pushing puzzle are cosmos genre probes. A sourced registry setting can name `planned`
+  values its table does not hold yet, so the sweep counts the gap; the random sweep rolls them too.
+- **The bus decides on state.** A reaction may carry `if`, a watch predicate (`{ var, eq | gte | … }`, a count, an
+  entity field): it fires only while that holds. Absent, a reaction fires as before.
+- **The bus hears more.** A character with sight (`rule.mind.perception`) that newly sees its target says `seen`
+  (its id, and the target) through the cast's facts; a cue can wait on it. A guard's `scan` (radians) sweeps its gaze
+  at its post over `scanPeriod` seconds. A level's music can say its beat: `audio.beat` puts `{ type: 'beat', n }` on
+  the bus from the music's own clock, `lead` seconds early (a quarter, a dotted quarter in 6/8). A key input may be
+  `once` (a held key does not repeat).
+- **Four mechanics.** Each lowers to zones, vars, guarded reactions, sequences and watches:
+  - `unseen`: a sighting (or the `alarms`-th) ends the level in fail.
+  - `laps`: checkpoints passed in order, `laps` times, against the clock; its time is kept.
+  - `on-beat`: a press inside a beat's window is `beat:hit`, outside it `beat:miss`; `misses` can end it.
+  - `score`: points from bus events, shown and kept.
+- **A level keeps a number.** `game.keep` names the vars a level reports at its end (a time, a score), sent as
+  `stats.kept`; the level's end card shows them, and the play shell shows each beside the best this save has seen
+  (a low best counts only a cleared run).
+- **Quick games: race, sneak, rhythm, and the ride.** `goal: 'race'` runs the trail's beats as checkpoints to its end;
+  `goal: 'sneak'` stands `guards` (3) with sight on the trail's beats, sweeping, and a sighting ends it (the guard's
+  looks: `guard`, minted once); `goal: 'rhythm'` runs to a field score (`music`) and scores the beats hit. `ride: 'car'
+  | 'coupe' | 'van'` makes the hero a vehicle: the run mints its build (vehicle designer parts, seated by the garage)
+  and every stage drives it on the `drive` rule, its feel derived from the build. All web only.
+- **Cues decide.** A cue may carry `if` (a comparison on a var, or a list of them), read as it happens, and `else`
+  (the effects when one does not hold); `add: '<var>', by` counts a var up or down. A pad that builds for gold is a
+  cue: `use`, `if: { var: 'gold', gte: 5 }`, `then: [{ add: 'gold', by: -5 }, { spawn: 'tower-1' }]`.
+- **A sentry.** The mind's `sentry` motivation never moves: it turns to the nearest live, hittable body on the team
+  `rule.foes` inside `range` and fires its weapon.
+- **Waves and boulders.** `waves`: foes minted asleep wake in waves and walk a path to the base; one through costs a
+  life, one felled pays a bounty into a purse; all accounted for wins, no lives loses. `push`: a grid with boulders
+  and plates, a boulder pushed a cell when walked into from a side (else the walker is put back), every plate held
+  wins; all on the bus, a cell's height from the land.
+- **Quick games: defend and puzzle.** `goal: 'defend'` sends `waves` of foes down the trail to its start and stands a
+  sleeping archer's tower on each of `pads` beside it, built with E for gold. `goal: 'puzzle'` lays a 5 × 5 grid on
+  level land by the trail with `boulders` (2), each two pushes from its plate.
+- **A level played in Node.** `game/level-sim.js` steps a level's world and bus together as the page does, without
+  rendering, so a law can play a defence or a puzzle through.
+- **The world dial: a clock.** The `clock` mechanic puts the time of day on the bus (`minute`, `hour`, `day`, `dawn`,
+  `dusk`, and a `season` every few days). A level with one has a sky that turns with it: night darkens the light and
+  the air from 20:00 to 05:00, with two hours of dusk and dawn, and a season's turn swaps the weather's climate. A level
+  that names no weather takes clear air.
+- **Routines and crops.** `play.routines` walks each character to its place hour by hour on the clock (the cosmos's
+  schedule). The `crops` mechanic gives plots to plant for gold, a stage grown each dawn, a harvest that pays.
+- **Quick games: farm.** `goal: 'farm'` tills `plots` (6) on level land beside the trail, starts the clock at dawn, and
+  sets `target` gold (40) to make by day `days` (6); `folk` farmhands (2) walk out to the field at seven and home at six.
+- **The pixel look.** A world's `pixel` (true, or 2 to 8; a gameworld's `style.pixel` puts it on every level) draws the
+  page at that fraction of its size and blows it up without smoothing. Absent, the page is as it was.
+- **Fixed cameras.** The `fixed` camera rule stands at one of its stations, the one whose focus is nearest the target,
+  and cuts (never pans) when another is nearer by its `hold`; its look leans toward the target. A gameworld's
+  `camera: 'fixed'` lays a station over each place of the way, high off its side (needs a hero).
+- **Runs.** A game's `run: { length }` (the light shell) makes its levels a pool: each run draws `length` of them in an
+  order rolled from the run's number, a clear goes straight on, a death ends the run, the store carries over, and the
+  title keeps the deepest run. `create_game` takes it; a quick game's `run: n` lays a pool of n + 2 trails, each its
+  own seed.
+- **Aftermath.** The `aftermath` mechanic keeps each block that breaks as a flag (`broke:<id>`) in a flags slice the game
+  carries, and a level entered again takes those blocks away at the start, with no shatter. A game's emitted store event
+  may name itself (`key: '{event}'`). A gameworld whose `mechanics.destruction` lets things break gives every level this.
+- **Turn-based battles.** `play.battle` composes a fight from what the play block has: walking up to a foe opens its
+  battle (a talk menu with its hp and yours: Attack, Guard, Flee; the world held while it is up), a pick is the hero's
+  turn, the foe answers a beat later (a cue on the pick's end), and at no hp it falls. `goal: 'battle'` stands `foes`
+  (3) on the trail, tougher as they go, the hero's hp carried from fight to fight.
+- **The shooter.** `goal: 'shoot'` puts armed foes on the trail's beats, each just past the end of a wall taller than a
+  person (its cover a sidestep away) with a crate stack on its other side, and walls half way between for the player. The player plays first person (or third) with a
+  rifle (click to fire), a magazine and spare rounds, and can be hit. Ammo and health lie between the posts. A hit costs
+  the player hp (`fail-on-death`'s `hits`), and the level is won when every foe is down (`defeat-all`'s `who` counts the
+  cast's own falls). It is built from parts any world can use:
+  - **Cover.** A mind with `rule.cover` that is hurt or reloading breaks for the nearest spot the walls hide from its
+    foe: eye, head and both flanks. Once whole and loaded it comes back out after the foe; a hit tells it where the
+    fire came from.
+  - **Shots land where they hit.** A shot at a body with a hit volume is checked against the walls up to where it
+    enters the body, so a head over a wall can be hit and the legs behind it cannot (before, the line ran to the
+    feet).
+  - **Ammo runs out.** A weapon's `reserve` is the spare rounds a reload draws on; with none left the weapon is dry. The
+    cast's `rearm` op (and the cue effect `rearm`) adds rounds.
+  - **Supplies.** The `supplies` mechanic: health or ammo pickups, each taken once, drawn as a heart or an orb.
+  - **Blocks.** A level's `blocks` stands playscape terrain forms (walls, crates, pillars) solid and drawn, so a stage
+    can carry cover.
+  - **Paths round corners.** A walker pressed against a wall steps out to open ground before walking its path, and a
+    rule's `navCell` sets a finer path grid.
+  - The shooter probe on the cosmos chart is asked at today's fidelity (`gen-6.0`), so every genre probe is now
+    makeable on the web; seventh-generation rendering is a separate rung.
+
+### Kart racer: a loop, rival drivers and a place to finish in
+
+- **A loop.** The cosmos cube's `space.levelForm` has `circuit`, and its concern `loop` lays one: an oval on the first
+  trail's land, the land flattened under it and the walk's heartbeat laid flat, a low wall down its middle, its start
+  the finish (`gameworld/lay-concerns.js` `loopSite`). Nothing grows on the track: the stage reserves it as it does a
+  building's ground (`_keepOut`), and its trail is laid without a landmark, pit or stream. Its laws: the line on the
+  land (its walk included), no steeper than 1 in 4, nothing standing on it (boxes or rock), the finish at the start.
+  Every trail kit holds them on the seeds swept.
+  - A stage whose reserved ground took the sakura's hero tree lays without that camera instead of failing.
+- **Rival drivers.** The `racer` rule is the drive rule with its stick moved by the road: it aims a few points along a
+  line, a lane off it, brakes into sharp bends at speed, and backs off when stuck. A rival drives the player's own car.
+- **A place.** `laps` takes `rivals` and `win`: each rival's passes counted on the bus by its own zones, a lead per
+  rival moving the place at every pass (a tie to whoever passed first), `Place n / N` on the HUD, the finish
+  `race:won` or `race:lost`, the best place kept beside the best time.
+- **The quick path.** `race` takes `track: 'trail' | 'loop'`, `laps` and `rivals` (with a ride). Rivals race round a
+  loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
+  new `kart-racer` genre.
+
+### Menus: inventory, and the actions on what you hold
+
+- **Holders, transfers, views.** Every inventory action is a transfer of items between holders, guarded so it never
+  overdraws; every inventory menu is a view of a holder whose rows carry a verb (`playscape/ui/items.js`).
+  - A holder's counts are bus vars, `held:<holder>:<item>`: the bag, a chest's, or a counted shop's. A cue's `if`, a
+    menu's `{var}` and the HUD read the same numbers.
+  - `play.items` names items (`name`, `form`, `kind`, `about`, `use` effects, `value`). Any word is still an item,
+    with its name and glyph derived.
+- **The views.** `shop`, `chest` and the new `inventory` kind draw live rows: a row whose holder holds none is not
+  drawn, and the one in focus shows its words and its verb. Accept does the verb and the menu stays up:
+  - `buy` pays the price from the currency var, the item's value when the stock names none; a stock row's `count`
+    makes it run out.
+  - `take` moves one from the chest into the bag.
+  - `use` spends one and does the item's effects.
+  - A guard that fails says why in a toast (not enough gold, none left) and emits `denied:<item>`. Before, a shop's
+    buy and a chest's take only closed the menu.
+- **Cue effects** `give` (items into the bag) and `use`.
+- **Collecting counts.** A collect's pickups count into the bag on the bus and show on the HUD by name. The web now
+  shows what is carried, as Godot already did.
+- **The world freezes.** While a menu or the quest journal is up, the world and the bus's clock stand still, and
+  timers and walks wait. A scene still only holds input, because its cast walks on.
+- A quick collect game has a bag on I.
+- **The bag carried, level to level.** The `bag` mechanic (`{ kind: 'bag', slice? }`) consumes an inventory slice
+  and declares its grants and consumes (`game.bag: { slice }`).
+  - At the start the page fills the bag from the slice.
+  - Every item into or out of the bag (a buy, a take, a give, a use) is said on the bus, and the game channel sends each
+    one as a store `grant` / `consume`, so the next level starts with what this one ended with.
+  - A quick collect game carries its bag; in a run, the coins of one stretch are in the bag of the next.
+  - Two mechanics producing the same event into the same slice now declare it once (unbounded when either is). Before,
+    a collect and the bag into one inventory failed the game's verification gate.
+- **Equipment.** An item may be worn: `equip: { slot, on?, off? }` (`kind: 'equipment'`).
+  - Equipping moves it from the bag to the `worn` holder and does its `on` effects (`add atk 2`). Whatever wore that
+    slot goes back to the bag first, with its `off` effects.
+  - The bag's view lists what is worn first, with its slot, to unequip, and equipment in the bag to equip. Cue effects
+    `equip` / `unequip` do the same.
+- **What is worn and what chests hold, carried.** The bag mechanic takes `worn: '<inventory slice>'` and
+  `holders: '<flags slice>'`.
+  - Worn items go to their own slice. As a level starts they are worn again and their `on` effects done again.
+  - Each chest's and counted shop's holdings are kept as a flag `<levelRef>|<holder>:<item>` = what it holds now, so a
+    chest emptied stays empty when the level is entered again.
+  - Every holder a move touches says `in:<holder>:<item>:<n>` / `out:…` (this was `bag:in` / `bag:out`).
+- **A view layer for items.** `shop`, `chest` and `inventory` draw a grid by default (`layout: 'list'` keeps rows;
+  `cols` 3 to 8):
+  - tabs by the kinds held (All, Use, Gear, Keys, Things), cycled with `[` / `]`, the pad's shoulders, or a click;
+  - what is worn first, a strip of slots, to unequip;
+  - tiles with an icon and a quantity badge (a shop's: its price), empty cells keeping the bag's shape;
+  - the focused item's card: a large icon, its name, kind and count, its words, the keys for its verb.
+
+  Arrows move the focus in two dimensions. The pointer focuses a tile on hover and does its verb on a click of the
+  focused one. `viewLive` is the one source of the focus order for the drawing and the keys. Icons
+  (`playscape/ui/item-icons.js`) are flat SVG placeholders in `currentColor`: `play.items[…].icon`, else guessed from
+  the item's words, else its glyph form. Every size and colour is a CSS token (`--moj-tile`, `--moj-kind-<kind>`…)
+  over the UI guide's own, so a guide restyles it.
+- **A list menu drew as an item view** (the status page on I showed nameless rows) since items arrived: a `list` has
+  rows too. Fixed, with a law.
+- **The result screen** lists each item's net change a slice (a sword taken and worn is "+1 sword · gear"), a flag by
+  its own name (it said "flag set" for every flag: it read `ev.flag`, the store's field is `key`), and keeps the
+  world's memory (a chest's count, a broken block) quiet.
+
+### Game intent: the cube as a gameworld's design contract
+
+- **Concerns keyed by cube value.** A gameworld can say what game it is (`intent: { cube, from? }`); each value of
+  its cube says what it asks of the world, lays it in the level before any goal reads it, and checks it. A genre is
+  a preset cube (the cosmos probes), never a lock: a world's concerns are the union over its cube's values.
+- **Saying it.** `intent: { from?: '<genre>', cube?, why? }` on a gameworld (`gameworld/intent.js`). `from` starts
+  from a genre's cube and `cube` overrides it value by value. A world that writes no intent is read from what it
+  already says (its quick goal's genre, its camera, topology, ride, runs, pixel look). `suggestGenres(text)` reads a
+  brief's words and names the genres they point at. It is a word heuristic, it only suggests and refuses nothing, and
+  the agent reading the brief makes the choice.
+- **Seeing it.** `design_game`'s readout carries `intent` (genre, verdict, the concerns raised and whether each is laid
+  or checked yet, and the brief's suggestions while none is written), and a world without one gets the next step
+  `intent`. A written intent is the book's first review part. The bible shows "What game it is", with each concern's
+  words. The `gameworld-intent` card lists the genres and concerns, and the guide's loop starts at it.
+- **What it asks** (`gameworld/concerns.js`): one row per concern, each raised by the values it names, with words for
+  the creator. Every genre probe raises at least one.
+- **Laid by the world** (`gameworld/lay-concerns.js`), at two layers:
+  - **The ground**, in `resolveLevel`, so the bible, the survey and the run all see the same land. A field is flattened
+    beside the start, on the walk's open side (`fields`: crops or growth). A vehicle's ground is eased
+    (`drivable`). Intent edits are named `intent-<concern>` and go after the creator's; intent dials go under the
+    level's own `tune`.
+  - **The stage**, in `stageLevelOrder`, before any goal reads it. The farm's plots go on that field. A race's
+    checkpoints are spaced (`circuit`: none nearer the last than 12 m). Cover stands by the fighting posts, the goal's
+    own or else the trail's beats (`cover`: any ranged world, not only the shooter).
+  - **Stealth** (`watchers`: minds with sight, or `unseen`): a wall on each watcher's approach, 8 m out and off the
+    line, with a place behind it out of the watcher's sight where a sneak can wait for the sweep. A shooter's foes
+    see too, so their approaches get one as well.
+  - **The defence's road** (`road-to-base`): the tower pads stand 4 to 6 m beside the road where the land is level with
+    it (the other side when this one will not do).
+  - **The puzzle board** (`board`): its ground is flattened further on (rows 5 to 7, three cells across), and the grid
+    is laid on it.
+  - **Jump reach** (`reachable`): with a hero that jumps (the platform rule), every other pickup stands on crate steps,
+    each rise three quarters of the jump, and is collected by height (`collect`'s pickups take `planar: false`).
+    A walker that cannot jump gets none.
+  - The quick farm, race, shooter, sneak, defence, puzzle and collect now read these instead of placing their own.
+- **Checked.** Each laid concern has a law measured on the laid stage: cover by every post, checkpoints spaced, plots
+  level, a drivable grade, a blind spot on every watcher's approach, a road long enough with its pads beside it and
+  level, a level board, every raised pickup within a jump. A law that does not hold is listed under the level's `advises` in the run. It advises and
+  never refuses.
+
+### Scene layer: a shot that takes the camera, and two characters talking
+
+- **A directing camera.** A camera rule `shot` frames named subjects by a word (`wide`, `low`, `profile`, `corner`,
+  `overhead`, `two`, `close`) and can hold, push in, orbit or track. A scene takes the camera from the player and
+  hands it back with an ease.
+- **`play.scenes`.** A scene starts on a happening or a bus event, as a cue does, and plays its beats in order: a
+  shot, the cast's walks and other cue effects, a wait, a line in the text box, or a banter. While it plays, the
+  player's input is held and letterbox bars show. A click or key advances a line; holding it, or Esc, skips to the
+  scene's end state.
+- **Banter.** Two characters talk: the camera cuts to whoever speaks, the box names them and types the line on.
+  The words are a slot: without `say`, a line shows as a placeholder (`[Mayor: greeting]`).
+- **Conditions and flags.** A scene's `if` says when it may play: a flag set or not, a chapter turned, a value
+  crossing a line. Its `sets` writes flags as it ends. With `play.carry`, flags travel between levels in the game
+  store as chapters do, so a later level's scenes can depend on an earlier one.
+- **A shot can frame a place** (a spot), not only a character.
+- **In design_game.** A gameworld level takes `scenes`. Its places (`start`, `exit`, its pockets and landmarks) are
+  ready to frame and walk to, and a world whose scenes use flags gets a `story` slice that every level carries.
+- A world without scenes is byte-identical.
+
+### Story cascade: a story written first, bound to whatever world it meets
+
+- **The cast.** A gameworld's character book takes `cast`: the other people (a mayor, a guard), each with looks and
+  motion like the hero's, styled by the same direction. design_game makes each one, after the hero.
+- **`story`.** A gameworld can carry its story apart from its levels. Each moment names who is in it, where it
+  happens (a level, a stage, a kind of place) and when, with conditions and the flags it sets. When the world is
+  built, each moment binds to the level and place it names, its people are placed there, and it plays as a scene.
+- **Reshape freely.** The story names the world, never its coordinates, so a world can change without breaking it. A
+  moment that can no longer find its place is reported as unplaced, with what is missing; the rest of the world builds.
+- **Conditions on the store.** A scene's `if` can also ask for an item held (`has`) or a level completed (`done`).
+- **In the bibles.** The cast has its page in the character bible, and the story its page in the world bible, each with
+  a stamp to approve before it is built.
+- **Choices.** A scene beat `choose` lets the player answer (two to four options under the question): the answer sets
+  its flags at once and plays its own beats, then the scene goes on. Arrows or a number pick, Space or a click takes
+  it; a skip stops at a choice, since the answer is the player's.
+- **Quests.** `play.quests` keeps a level's errands: steps in order, each done by a flag. J opens a journal, and a word
+  shows at the top as a quest begins, a step is done and a quest ends. A gameworld's `quests` reach every level, and a
+  step can name its moments, which wait for the step before. design_game lists a step whose flag nothing in the story
+  sets.
+- **Companions.** A cast member with `joins: '<flag>'` joins the hero once that flag is set (an answer: "Come with
+  me."): from then on they follow, in that level and every level after, on the escort behaviour (they keep near, and
+  fight what is hittable and not their own). Before it, they stand where the story puts them, or are not there.
+- A world without cast or story is byte-identical, and its levels are not remade.
+
 ### Chapters: the same world at a later point
 
 - **`play.chapters`.** Each chapter is a difference against the base world (spawn, vanish, set, weather, or any cue
@@ -759,6 +1639,82 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   arrives one unit off, enough to flip a timer. `kernel/json_exact.gd` reads each number back to the double the web
   held, using the shortest-form spelling both engines print. The bus keeps JS's `undefined` apart from `null`, so a
   var set from a missing field compares the same on both sides.
+
+### Godot plays the fight: combat, the systems, beams and explosions travel
+
+- **The sweep measures what Godot would gain.** `sweep()` returns `unlock.godot`: for each value a Godot export
+  loses, and for each setting as a group, how many of the rolled cubes would survive the export if it travelled. A
+  ladder adds a facet's settings one at a time, largest gain first. `cosmos-sweep.mjs` prints both.
+- **A beam striking is named as lost on Godot.** `struck` has its own bus row. Before, it counted as one of the cast
+  facts the Godot kernel performs, so a level whose cue waits on a beam reported as covered and never fired. The
+  ledger and the portability flags now name `fact:struck`.
+- **Hits reach the bus.** Every hit a character takes (a blade, a round, a splash, a tackle) is a `hit:<id>` fact,
+  carrying who dealt it. That is the event `hp-pool` counts, so a level's health pools and `defeat-all` now run on
+  the hits its combat deals; before, nothing in the runtime produced them. A page reads its characters' facts when a
+  reaction listens for a hit, as it already did when a cue reaches the cast.
+- **Melee's contact test stands on its own.** `meleeContacts` says who a swing meets this step (an ally, a clash, a
+  hit) before anything is done to them; `stepMelee` applies it in the same order, so play is unchanged. An engine
+  kernel holds its own adjudication equal to it.
+- **The fight travels to Godot (kernel 0.17.0).** A platform hero's fight rides `bus.json` as `combat`: its five
+  swings, its weapon, the world's cover and every hittable body. `kernel/combat.gd` runs it over the cast:
+  - the strike: the fire press, the cut the held keys pick, the cooldown and the two-hit combo;
+  - the trigger: semi, automatic, burst, charge, magazine and reload, heat; the ray against eggs and spheres, cover,
+    frontal shields; lobbed rounds swept along their flight, the proximity fuze and the splash;
+  - what a hit does: a reacting body staggers, topples, lies flat, gets up untouchable (with its wake guard), and a
+    killing blow floors it; its fall blasts a stagger around it.
+
+  Each hit is a `hit:<id>` fact, so `hp-pool` and `defeat-all` travel too. A level shows a stagger and a topple as
+  a lean and draws the rounds in flight. It is held equal to the web frame by frame
+  (`scripts/godot-combat-conformance.mjs`, its Godot leg when `MOJULO_GODOT` is set): every number is equal but a
+  round's flight, which is held to 1e-9 because the two engines' sine and cosine can differ in the last bit. What
+  stays on the web: the combo's stun, scaling and juggle, the clash, tackle and shove-down set pieces, the deferred
+  wreck finisher, a loadout's other slots and every AI's attack. The portability flags say so, and so does the Godot
+  pack's own ledger, which now lists `hp-pool` and `defeat-all` as running on the bus (`bus_mechanics`) instead of
+  as outside the kernel's vocabulary.
+- **A game's systems travel to Godot (kernel 0.18.0).** Resource, stamina, unlock, transform and equip already
+  lowered to stats, cues, HUD rows and a status page, which the Godot kernel runs; what it lacked was their keys.
+  `bus.json` now carries `events.inputs` bound to a key or a click, and `level.gd` feeds them to the bus as the page
+  does (a key by the character it types, as `KeyboardEvent.key` names it): a power fires on its number, the status
+  page opens on `i`. A pick or a shot on what the pointer is over stays the page's; the bus contract names it
+  (`fact:aim`).
+- **Beams and explosions travel to Godot.** A cue's beam and blast are moments on the cast's clock in
+  `kernel/cast.gd`, as on the web:
+  - a beam leaves the hand (or rises over the head for a charge) toward a character or a place, lands after its
+    distance by the web's land rule, sets off its impact and shake there, and its target hears `struck`;
+  - an explosion puffs at a place or a character's feet; a chain scatters its blasts by the web's own dice and
+    staggers them, with a shake.
+
+  Held equal to the web by the combat corpus (every kind of each). `level.gd` draws them simpler than the page: a
+  bolt that grows to where it lands, a glowing ball that swells and fades, in the spec's colour. The cast rows carry
+  where each character stands below its position (`foot`). `fact:struck` is performed in Godot.
+- **Numbers read and print exactly in Godot.** `kernel/json_exact.gd` reads a small number's late digits (Godot's
+  own reader dropped them, so about one double in two hundred arrived as its neighbour) and `js_number` prints a
+  double as JS does: the fewest digits, the even one on a tie, the exponent forms and the subnormals included. The
+  bus prints with it, so a var a HUD shows and the state the conformance corpus compares read the same on both sides.
+
+### Destruction: every blow breaks things its own way
+
+- **The cut.** `playscape/destruct/cuts.js` names how a blow breaks what it breaks: a pattern (cleave's slice, grid or
+  voronoi, or dismantle's severed joints) and a style (blade, laser, anime, impact), as presets (slash, cleave, chip,
+  shatter, blast, burn, dice, sever). A blow's cut is the thing's own (glass shatters whatever hits it), else the
+  blow's, else its element's (fire burns, ice shatters, wind slashes, shock cleaves, dusty severs), else its source's
+  (a swing slashes, a round chips, a burst blasts, a beam by its kind). Tables, not code.
+- **What breaks is a game's convention, by degree.** Nothing breaks by default. A level says how much does with
+  `destruction`: `none`, `objects` (the action-game default: crates, barrels, amphorae, pots, glass, planks, bones,
+  a lid; buildings and fixtures hold), `cover` (furniture, doors, boulders and coffins too) or `world` (walls,
+  pilasters and set pieces as well); a thing's own `breakable` wins over it. A thing's class is the name it already
+  has. Each breakable solid thing becomes a block the runtime breaks (a swing in reach, a round that stops on it, a
+  burst over it), its faces their own render group, and the World page hides it when it breaks. Today the gothic and
+  catacomb kits' props carry what this needs; a thing not yet named on its faces (a pooled rock) or blocking nothing
+  (planks, bones) stays as it is. Absent, a page is byte-identical. A game says it once, in its gameworld's
+  `mechanics.destruction`, and `design_game` copies it onto every level it makes; the gameworld's own stages place no
+  named things yet, so for now nothing on them breaks. An engine export holds what breaks whole: each breakable
+  travels back as a solid collider, and the ledger says so (`breakables_held`).
+- **A broken thing comes apart.** Each breakable is cut ahead of time, once for each cut it can take (a swing slashes
+  it in two, a round or a fall chips it, a burst blasts it; its own `cut` wins), and when it breaks on the World page
+  a flash and a ring cover the swap to those pieces. They part the cut's way, carry the thing's own texture with a
+  darker inside, fall, tumble, bounce off the walls, settle on the floor it stood on, then sink away. The box is what is
+  cut, so a barrel breaks as a box would; a severing cut plays the chip for now.
 
 ### Structure rails: the structure book
 
@@ -883,6 +1839,158 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - A livability check, `fixture-clearance`, checks each clearance (21 in before the WC and basin, 15 in each side of
     the WC, room to step into the tub, 24 in before the shower) and says when a bathroom holds no basin or no tub or
     shower.
+
+### Structure rails, broadened: the structure book for a store, a restaurant, a mall and a school
+
+- **`mint_building` is getting more than houses.** A store, a restaurant and a mall (one or two levels) mint through
+  it with the manifests `create_sketch` takes, and each gets the structure book, sheets and schedules a house has.
+- **Each is read as the building it is, not as a home.** Rooms are named by what they are for (sales floor, stock
+  room, dining room, kitchen, concourse, tenant bay), and the building carries its occupancy (mercantile or
+  assembly).
+  - Its grade is its program's rules: front and back of house kept apart, storefronts on the concourse, upper levels
+    reached by escalator, the store card's own assessment.
+  - Bedroom egress, "a home" and the bathroom fixture checks no longer apply to it.
+- **Fit-outs become schedules.** Fixtures, racks, displays, booths, tables and kitchen blocks are tagged objects in
+  the FF&E schedule, on the plan sheets and in the room cards.
+- **A school campus joins the rail** (`kind: 'school-complex'`, the recipe `compose_world`'s school takes). It is
+  read by its own plan, not the floor kernel:
+  - Its rooms, as the school draws them, reach the wall they stand 2 ft off and meet their neighbour mid-gap. The
+    corridor is what is left, each upper floor is a shell the book names as not planned, and each building's core is
+    a stair core through its floors.
+  - It is graded by the school's own assessors (egress, daylight, proportion, the walk from the bus loop, the site),
+    said by room tag and building name. It is drawn as a plan per level at a campus scale.
+- **Framing and trades stay house-only for now**, and a non-house book says so. Houses read and render as before,
+  and store, restaurant and mall worlds are unchanged byte for byte.
+
+### Buildings as game levels: any building on the rail, played at game depth
+
+- **A building is a level with one field.** `level: { goal }` on any `mint_building` recipe (a house, store,
+  restaurant, mall, school or office) makes it playable; `create_game` promotes it with `auto_audit`.
+  - Read from the building: a first-person walker just inside the entry door, a goal in a room, box colliders on
+    every wall with the doors open, and the stair route the audit walks.
+  - The goal is `'top'` (the deepest room on the highest storey a stair reaches), a room tag from the book, or a
+    role.
+  - Lowered on every read, never stored: edit the building and its level follows. No frame, trades or IFC is asked
+    of a level.
+- **An office is a building on the rail** (`kind: 'office'`): a concierge lobby and open-plan office floors (bench
+  desks, task chairs, a meeting table) stacked over one lift-and-stair core, from the existing floor-plate stack and
+  office assets. It gets the structure book like the others. Three storeys is `{ kind: 'office', storeys: 3 }`.
+- `reach-exit` takes an optional `via` route, which the completability audit walks before the goal. Without it,
+  the audit is unchanged.
+- The game itself reads the level the same way: `/game`, game updates and `export_game` lower a building's `level`
+  when they resolve their levels, as `create_game` does.
+
+### Game buildings: connected rooms as levels, in levels, and in towns
+
+- **A room-kit stage is a level with the same field.** `level: { goal }` on a `stage` of rooms and links (a crypt, a
+  nave, a lab) makes it playable, as on a building.
+  - The walker starts in the first room, or in the room `from` names.
+  - The goal is `'deepest'` (the room most doorways from the start) or a room id.
+  - The audit walks through each doorway on the way.
+  - The stage keeps its own colliders: walls, pilasters and set pieces.
+- **The walls stop the walker.** The `walk` rule takes an opt-in body (`collideRadius`, `collideHeight`, `step`) and
+  stops at the world's colliders, sliding along them; without it, it walks through as before. A building or stage
+  level's walker has one.
+- **A building level's route goes round the walls.** On each floor, from the door to the stair, between stairs and
+  from the stair to the goal room, the route follows the walkers' own pathfinder. A stair's approach stays inside a
+  room on its floor.
+- **A game building from its use.** `program: { use }` on a room-kit `stage` lays a building's rooms and doorways
+  from its use, with no livability pass.
+  - **Uses:** the town's six (dwelling, shop, workshop, barn, hall, tower), so a town lot's use is also its inside,
+    plus tavern, keep, temple, crypt, guardhouse, library and lab.
+  - Each has rooms by role, which opens off which, and a goal room (the tavern's cellar, the keep's treasury, the
+    crypt's tomb), packed on the kit's grid from a seed.
+  - **Your changes:** `program.rooms` resizes or drops a room, `program.add` adds one, and writing `rooms` and
+    `links` overrides the plan.
+  - **Findings** are advisory, never refusals: a room that could not be seated, a way in with no outside wall, a use
+    the cube would not build.
+- **A civilization's language sets the heights.** A program speaks an anchor (`program.civilization`: `timber-hall`,
+  `shell`, `tiered` or an anchor's elements). Its storey height, lifted for a game, sets each room's height, and a
+  tall use's main room (a hall, a nave, a work floor) takes the town's taller storey. Absent, the cube's builders or
+  the kit's own anchor speak.
+- **The goal room is where the walk ends.** Its doorway is the walk's last, so the kit's set piece (a tomb, an altar)
+  stands in the goal room, and goal rooms are 6 m or more across so it and the walker fit.
+  - A stage level's goal now stands a step through that doorway, not at the room's middle, where the set piece
+    stands.
+  - A stage with a program plays to the program's goal room.
+- **A geocube recommends its world's buildings.** `buildings: { anchor, uses: [{ use, enter: 'door' | 'walk' }] }`
+  on a cube. Each preset's seeds sit beside the preset, so a preset's own document is unchanged. A program on a cube
+  is laid in the cube's bones and speaks its builders' anchor.
+- `create_sketch` and `update_sketch` on a program stage say what was laid: the use, rooms, way in, goal, language
+  and findings. Card `game-building`; the geocube and stage cards point at it.
+- **The game designer takes a building as a level.** A gameworld level may be `building: { use, seed?, goal?,
+  civilization?, kit? | geocube? }` in place of its `walk`.
+  - It is laid in that level's civilization's language (its anchor, else the kit's own), on a room kit (a lab's for a
+    shell language, else stone) or a cube.
+  - The runner makes it like a stage, the hero piloting from the way in when the world has one.
+  - `building: { ref }` plays a building already made, with no step.
+  - The bible draws its plan, and the graph gives it one section, built by its civilization.
+  - A quick game takes `quick.building`: its pickups lie in the rooms between the way in and the goal, and the end is
+    its goal room.
+  - A level's `level.mechanics` adds its own mechanics beside the goal; `level.exit: false` leaves the goal out. A
+    stage level with its own pilot keeps it, and only the game channel is added.
+- **Buildings in open ground, walked into as terrain.** An outdoor stage takes `buildings: [{ use, at?, goal?,
+  civilization?, kit? }]`; the game designer's walk levels take `places: { buildings }`.
+  - **Where it stands:** on the flattest land beside the trail, its door to the trail. The places it looks at are
+    the trail's beats and pockets, scored against slope, cliff, the trail itself and the stage's bounds. It also
+    stands in a pocket it names, or at a point facing a way.
+  - **The inside:** the program's rooms on a room kit, with a way out through the entry's front wall (a stage's new
+    `ways`).
+  - **The outside:** outer walls, a plinth, and a roof per room in the language's cap and the kit's structure paint,
+    over the room's vault. A stoop runs down to the land.
+  - **Its place on the land:** its floor level with the land at its door. It is cut into its slope, so you walk in
+    level, never up a ramp onto a raised floor. The land (cliffs too), trees, rocks and grass inside its footprint
+    are cleared. Its colliders and lights join the stage's, and a building cut more than 2.5 m into its slope says
+    so.
+  - **Its anchor** names its door, rooms, goal room and the route in. `goal: true` ends the level in its goal room,
+    walked in at the door.
+- **A town's street stands along the trail.** An outdoor stage's `town: { houses?, enter?, goal? }` (the game
+  designer's `places.street`, beside `places.town`) designs the civilization's town on the kit and stands its first
+  houses in the town's own order: the hall, then the near ring, a counter before a dwelling.
+  - The first `enter` are walked into (their use's program inside); `goal: true` ends the level in the first.
+  - The rest stand as the town draws them, shells with a plinth and a collider.
+  - Each stands on the flattest land beside the trail, never on a beat of the trail or another building.
+  - A level ending in a building is routed up the trail's beats to the one nearest its door, then round the houses
+    to it.
+- **A building can change the scene at its door.** `enter: 'door'` stands a building's outside only (walls, roofs, a
+  stoop, its door shut), and its inside is a level of its own.
+  - **A door mechanic:** walking into its zone posts `game-door` with what the session gathered (result `transit`,
+    applied to the store). The game shell loads the level the game's new `links` pair it with, entered at the paired
+    door's spawn (`game-init` `params.__entry`).
+  - **Game links:** `create_game` takes `links: [{ from: { ref, door }, to: { ref, door } }]`, both ways, checked
+    against each level's doors.
+  - **An inside level:** a stage with `level: { door: 'out' }` gets a door in its way in's front wall, and you arrive a
+    few steps in.
+  - **In the game designer:** `places.buildings[].enter: 'door'` makes the inside a level after the walk's stages,
+    linked and ungated. On a street, households and shops change the scene at their doors.
+  - A game without links is unchanged.
+- **Buildings are planned before anything grows.** A stage's buildings and street are seated first, by a planning
+  pass over the land alone. Their footprints come back to the open-ground builders (nature, isekai, jungle) as
+  reserved ground, a crown's reach round each.
+  - Trees, flower arrangements and live grass are placed on the rest of the site; rocks, bamboo and the jungle's
+    giants are kept off it.
+  - Nothing stands half in a wall or hangs its crown through a roof.
+  - A stage without buildings lays exactly as before.
+- **Buildings have storeys.** A stage room's `storey` stands it over rooms of the storey below, and a link between
+  neighbouring storeys is a stair.
+  - **The floors:** a storey's floor is the tallest room it stands over, plus a half-metre slab. A room with a room
+    over it has a flat, beamed ceiling.
+  - **The stair:** a straight, steep flight (treads 0.3 m) laid in the lower room against a wall, clear of every
+    doorway. It is balustraded and climbs through a hole in the upper floor, railed on three sides. A stair that
+    finds no wall to climb along says how much floor it needs.
+  - **How it is built:** each storey is a stage of its own, dressed and lit by its own torches and lifted to its
+    floor. Its ids are tagged with the storey (`torch-1@1`), and only the storey the walk ends on holds the set piece.
+    The answer carries `storeys` and a `stair` anchor.
+  - **Programs:** the tower stands three storeys to its lookout, and the keep's solar and treasury are up a stair. A
+    room upstairs is its twin over a room below (`over`), and the plan plate draws each storey beside the one below.
+  - **The level:** the route climbs each stair and goes round the flights and rails. The goal stands on its storey,
+    and `goal: 'top'` is the deepest room on the highest storey.
+  - **The walk rule:** a new opt-in, `probe`, looks for ground that high over the feet instead of from the eye. A
+    storeyed level's walker climbs treads, never onto a bench or the floor above. The page's controllable runtime
+    gained it, so 13 emission pins were re-pinned.
+  - **In open ground:** a storeyed building's walls rise storey on storey (a door building's shell is shut to its
+    top), and its rooms, goal and the trail walker's probe follow.
+  - A stage without `storey` plans and builds as before.
 
 ### Solid powerscale: solids routed by what they are for
 

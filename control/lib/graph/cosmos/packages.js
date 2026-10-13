@@ -8,6 +8,6 @@ export const EFFORT_WEIGHT = Object.freeze({ S: 1, M: 3, L: 8 });
 
 export const PACKAGES = Object.freeze({
   'mind-lift': { name: 'Lift the arena brain into a general mind', effort: 'M' },
-  quests: { name: 'Quests: ordered steps bound to a giver and a log', effort: 'M' },
-  shot: { name: 'The 3D shot: a directed camera, subjects, a text box', effort: 'L' },
+  quests: { name: 'Quests and choices: ordered steps, a giver, a journal, the player\'s answers', effort: 'M' },
+  shot: { name: 'The 3D shot and banter: a directed camera, subjects, a text box, two speakers', effort: 'L' },
 });

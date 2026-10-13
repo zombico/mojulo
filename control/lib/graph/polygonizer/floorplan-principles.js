@@ -113,8 +113,11 @@ export const PROGRAMS = {
         const concourse = new Set(model.spaces.filter((s) => s.role === 'concourse').map((s) => s.id));
         if (!concourse.size) return null;
         const units = ['tenant', 'anchor', 'foodCourt', 'restroom'];
+        // a carded bay is a shop with its own back rooms: a restroom that opens off a sales floor is the shop's, not a unit
+        const sales = new Set(model.spaces.filter((s) => s.role === 'salesFloor').map((s) => s.id));
         const orphans = model.spaces
           .filter((s) => units.includes(s.role))
+          .filter((s) => !(s.role === 'restroom' && (s.connects || []).some((id) => sales.has(id))))
           .filter((s) => !(s.connects || []).some((id) => concourse.has(id)));
         return orphans.length
           ? { id: 'storefront-on-concourse', register: 'flow', severity: 'invariant',

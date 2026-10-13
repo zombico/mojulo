@@ -6,6 +6,8 @@
  *   doors      the leaf at 90° and its swing arc, into the room the door serves
  *   windows    the jambs and two glass lines across the wall
  *   stairs     the flight under the void it rises through (UP), the void above it on the next storey (DN)
+ *   verticals  a commercial stack's escalators (UP / DN by direction) and lift shafts (a crossed shaft), and the
+ *              atrium void on the level it opens (OPEN TO BELOW); each tagged (ES1, EL2, AT1)
  *   objects    projected outlines (a rug hidden), tagged by FF&E type
  *   tags       room (name, number, area), door (101A), window type (A), wall type (1)
  *   dimensions three strings a side: the openings at their centrelines, the partitions, the overall
@@ -53,6 +55,9 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
   const R = (r, cls) => `<rect class="${cls}" x="${n2(view.x(r.x))}" y="${n2(view.y(r.y))}" width="${n2(view.len(r.w))}" height="${n2(view.len(r.h))}"/>`;
   const L = (x1, y1, x2, y2, cls) => `<line class="${cls}" x1="${n2(view.x(x1))}" y1="${n2(view.y(y1))}" x2="${n2(view.x(x2))}" y2="${n2(view.y(y2))}"/>`;
   const out = { walls: [], openings: [], stairs: [], objects: [], tags: [], dims: [] };
+  // a commercial plan drawn at a campus scale (1/16" and smaller) keeps its window marks off: the window schedule
+  // lists them, and at that scale a tag per pane is noise; its opening strings likewise
+  const small = !!read.occupancy && view.mmPerFt <= 304.8 / 192 + 1e-9;
 
   // ── stairs: the flight below its void (UP), the void on the storey it reaches (DN) ──
   for (const st of read.elements.stairs) {
@@ -70,6 +75,35 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
     const c = [view.x(s.x + s.w / 2), view.y(s.y + s.h / 2)];
     out.stairs.push(`<g class="s-stair" data-tag="${esc(st.tag)}">${R(s, up ? 's-proj' : 's-hid')}${treads.join('')}`
       + `<text class="s-tb" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">${up ? 'UP' : 'DN'}</text></g>`);
+  }
+
+  // ── a commercial stack's escalators, lifts and atrium ──
+  for (const v of read.elements.verticals || []) {
+    if (!v.rects || storeyIndex < v.from || storeyIndex > v.to) continue;
+    const top = v.to === storeyIndex;
+    const marks = v.rects.map((r) => {
+      const c = [view.x(r.x + r.w / 2), view.y(r.y + r.h / 2)];
+      if (v.kind === 'elevator') return `${R(r, 's-proj')}${L(r.x, r.y, r.x + r.w, r.y + r.h, 's-hid')}${L(r.x + r.w, r.y, r.x, r.y + r.h, 's-hid')}`;
+      const along = r.h >= r.w, n = Math.max(4, Math.round((along ? r.h : r.w) / 1.4));
+      const steps = Array.from({ length: n - 1 }, (_, i) => { const f = (i + 1) / n; return along ? L(r.x, r.y + f * r.h, r.x + r.w, r.y + f * r.h, top ? 's-hid' : 's-proj') : L(r.x + f * r.w, r.y, r.x + f * r.w, r.y + r.h, top ? 's-hid' : 's-proj'); });
+      return `${R(r, top ? 's-hid' : 's-proj')}${steps.join('')}<text class="s-tb" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">${r.dir === 'down' ? 'DN' : r.dir === 'up' ? 'UP' : ''}</text>`;
+    });
+    const r0 = v.rects[0];
+    out.stairs.push(`<g class="s-vertical" data-tag="${esc(v.tag)}">${marks.join('')}<text class="s-tb" text-anchor="middle" x="${n2(view.x(r0.x + r0.w / 2))}" y="${n2(view.y(r0.y) - 1.2)}">${esc(v.tag)}</text></g>`);
+  }
+  // a campus's covered walks between its buildings, on the ground floor: dashed, under their roof
+  const walks = storeyIndex === 0 ? read.campus?.walks || [] : [];
+  // one label per walk, on its largest stretch
+  const named = new Map();
+  for (const k of walks) { const cur = named.get(k.id); if (!cur || k.rect.w * k.rect.h > cur.rect.w * cur.rect.h) named.set(k.id, k); }
+  for (const k of walks) {
+    const r = k.rect, c = [view.x(r.x + r.w / 2), view.y(r.y + r.h / 2)];
+    out.stairs.push(`<g class="s-walk" data-tag="${esc(k.id)}">${R(r, 's-hid')}${named.get(k.id) === k ? `<text class="s-t" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">COVERED WALK</text>` : ''}</g>`);
+  }
+  for (const a of read.elements.voids || []) {
+    if (a.to !== storeyIndex) continue;
+    const r = a.rect, c = [view.x(r.x + r.w / 2), view.y(r.y + r.h / 2)];
+    out.stairs.push(`<g class="s-void" data-tag="${esc(a.tag)}">${R(r, 's-hid')}${L(r.x, r.y, r.x + r.w, r.y + r.h, 's-hid')}${L(r.x + r.w, r.y, r.x, r.y + r.h, 's-hid')}<text class="s-tb" text-anchor="middle" x="${n2(c[0])}" y="${n2(c[1] + 0.9)}">${esc(a.tag)} OPEN TO BELOW</text></g>`);
   }
 
   // ── objects: their outlines, a rug hidden ──
@@ -99,6 +133,12 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
         const g = [jamb(sp.a), jamb(sp.b), R(rectAlong(w, sp.a, sp.b, t), 's-proj'),
           ...[-0.08, 0.08].map((d) => (w.orientation === 'h' ? L(sp.a, w.at + d, sp.b, w.at + d, 's-dim') : L(w.at + d, sp.a, w.at + d, sp.b, 's-dim')))];
         out.openings.push(`<g class="s-window" data-mark="${esc(o.mark)}" data-tag="${esc(o.tag)}">${g.join('')}</g>`);
+        continue;
+      }
+      // a cased opening (a storefront, a pass): the jambs and the head above it, dashed, and no leaf
+      if (o.cased) {
+        const head = w.orientation === 'h' ? L(sp.a, w.at, sp.b, w.at, 's-hid') : L(w.at, sp.a, w.at, sp.b, 's-hid');
+        out.openings.push(`<g class="s-door s-cased" data-tag="${esc(o.tag)}">${jamb(sp.a)}${jamb(sp.b)}${head}</g>`);
         continue;
       }
       // a door: the leaf open at 90° into the room it serves, hinged at its start, and the swing arc
@@ -145,16 +185,19 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
     const tagBox = (c, r) => { const w = Math.max(String(r.name).length * 1.75, 16) / view.mmPerFt, h = 7 / view.mmPerFt; return { x: c[0] - w / 2, y: c[1] - h / 2 - 1 / view.mmPerFt, w, h }; };
     const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
     const roomTagAt = new Map();
-    const stairRects = read.elements.stairs.filter((st) => st.slot && (st.from === storeyIndex || st.to === storeyIndex)).map((st) => st.slot);
+    const stairRects = [...read.elements.stairs.filter((st) => st.slot && (st.from === storeyIndex || st.to === storeyIndex)).map((st) => st.slot),
+      ...(read.elements.verticals || []).filter((v) => v.rects && storeyIndex >= v.from && storeyIndex <= v.to).flatMap((v) => v.rects)];
     for (const r of rooms) {
       const { x, y, w, h } = r.rect;
       const spots = [[0.5, 0.5], [0.5, 0.3], [0.5, 0.7], [0.3, 0.5], [0.7, 0.5], [0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7], [0.5, 0.15], [0.5, 0.85]];
       const free = spots.map(([u, v]) => [x + u * w, y + v * h]).find((c) => !pieces.some((p) => p.room === r.tag && hits(tagBox(c, r), p.rect)) && !doorBoxes.some((b) => hits(tagBox(c, r), b)) && !stairRects.some((b) => hits(tagBox(c, r), b)));
       const c = free || [x + w / 2, y + h / 2];
       roomTagAt.set(r.tag, tagBox(c, r));
-      out.tags.push(roomTag([view.x(c[0]), view.y(c[1])], { name: r.name, number: r.tag, area: r.area, units }));
+      // a commercial plan at a campus or mall scale: a name wider than its room gives way to the number
+      const roomMm = view.len(w) * 0.92, tight = !!read.occupancy && String(r.name).length * 1.75 > roomMm;
+      out.tags.push(roomTag([view.x(c[0]), view.y(c[1])], { name: tight ? '' : r.name, number: r.tag, area: tight && `${Math.round(r.area)} SF`.length * 1.3 > roomMm ? null : r.area, units }));
     }
-    for (const w of windows) {
+    for (const w of small ? [] : windows) {
       const host = walls.find((x) => x.tag === w.host);
       const outSide = host && host.exteriorSide ? host.exteriorSide : -1;
       const off = 5;
@@ -205,7 +248,7 @@ export function planDrawing(read, storeyIndex, view, opts = {}) {
       const toSheet = (s) => (sd.h ? [view.x(s), view.y(sd.face)] : [view.x(sd.face), view.y(s)]);
       const onSide = (w) => !w.interior && w.orientation === (sd.h ? 'h' : 'v') && Math.abs(w.at - sd.at) < 0.5;
       const sideWalls = walls.filter(onSide);
-      const centres = [...doors, ...windows].filter((o) => sideWalls.some((w) => w.tag === o.host)).map((o) => (sd.h ? o.at.x : o.at.y));
+      const centres = small ? [] : [...doors, ...windows].filter((o) => sideWalls.some((w) => w.tag === o.host)).map((o) => (sd.h ? o.at.x : o.at.y));
       const parts = walls.filter((w) => w.interior && w.orientation === (sd.h ? 'v' : 'h') && Math.abs((sd.h ? (sd.name === 'N' ? w.along[0] : w.along[1]) : (sd.name === 'W' ? w.along[0] : w.along[1])) - sd.at) < 0.6).map((w) => w.at);
       // offset sign: the kit's offset is to the left of a→b; for N (a→b left to right) left is up (outside) → +;
       // for S, outside is down → −; for W (a→b top to bottom) left is east (inside) → so outside is −; E → +
@@ -235,7 +278,9 @@ export function planSheet(read, storeyIndex, { units = 'imperial', project, size
   const storey = read.storeys.find((s) => s.index === storeyIndex);
   if (!storey || !read.footprint) return null;
   const id = planSheetId(storeyIndex);
-  const title = STOREY_TITLE(storey);
+  // a storey the kernel stands but does not plan (a school's upper floors) says so in its title
+  const shell = read.rooms.some((r) => r.storey === storey.index) && read.rooms.filter((r) => r.storey === storey.index).every((r) => r.role === 'unplanned');
+  const title = `${STOREY_TITLE(storey)}${shell ? ' (shell, not planned)' : ''}`;
   const probe = titleBlock({ size });
   const [dx, dy, dw, dh] = probe.drawing;
   const fp = read.footprint;
@@ -248,7 +293,7 @@ export function planSheet(read, storeyIndex, { units = 'imperial', project, size
   const wMm = (ext.x1 - ext.x0) * view0.mmPerFt, hMm = (ext.y1 - ext.y0) * view0.mmPerFt;
   const at = [dx + (dw - wMm) / 2, dy + Math.max(0, (dh - titleRoom - hMm) / 2)];
   const view = makeView({ scale, origin: [ext.x0, ext.y0], at });
-  const block = titleBlock({ size, project: project || read.title || 'mojulo house', title, id, scale, revision, sheetOf });
+  const block = titleBlock({ size, project: project || read.title || `mojulo ${read.occupancy?.label ?? 'house'}`, title, id, scale, revision, sheetOf });
   const body = [
     planDrawing(read, storeyIndex, view, { units }),
     drawingTitle([dx + 4, dy + dh - 8], { detail: '1', title, scale, sheet: id }),

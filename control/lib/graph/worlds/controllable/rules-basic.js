@@ -12,7 +12,7 @@
  */
 
 export function buildRulesBasic(E) {
-  const { add, sub, scl, clamp, smooth, fwdXY, rightXY, fwd3, TAU, HALF_PI, RULES } = E;
+  const { add, sub, scl, clamp, smooth, fwdXY, rightXY, fwd3, laneNear, TAU, HALF_PI, RULES } = E;
 
   // ── the RULE shelf: each mutates entity.transform from (entity, input, dt, world) ──
 
@@ -46,12 +46,25 @@ export function buildRulesBasic(E) {
     const speed = r.speed ?? 6, turn = r.turn ?? 2.2, stride = r.stride ?? 2.4, strafe = r.strafe ?? 0;
     const t = e.transform;
     if ((r.turnMode ?? 'tank') === 'tank') t.heading = (t.heading - input.turn * turn * dt) % TAU;   // A=left, D=right (heading+ is a LEFT turn)
-    else t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
+    else {
+      t.heading = (t.heading + input.lookDX * (r.lookSens ?? 0.0025)) % TAU;
+      // `keyTurn`: a mouse-look walker that still turns on A/D and the arrows (a building level: the mouse looks
+      // once captured, the keys turn without it, and the audit steers it by turning). Absent ⇒ unchanged.
+      if (r.keyTurn) t.heading = (t.heading - input.turn * turn * dt) % TAU;
+    }
+    // `lookPitch` (look mode, opt-in): the mouse's Y pitches the walker too, for an `eye` camera to look up and down.
+    // Pitch steers only the view; the walk stays on the ground plane.
+    if (r.lookPitch && (r.turnMode ?? 'tank') !== 'tank') t.pitch = clamp((t.pitch || 0) + input.lookDY * (r.lookSens ?? 0.0025), -HALF_PI + 0.05, HALF_PI - 0.05);
     const f = fwdXY(t.heading), rt = rightXY(t.heading);
     const moveF = input.forward * speed * dt;
     const moveS = input.strafe * strafe * speed * dt;
     t.pos = add(t.pos, add(scl(f, moveF), scl(rt, moveS)));
-    const ground = world && world.ground ? world.ground(t.pos) : null;   // renderer hook (raycast)
+    // `collideRadius`: the walker stops at the world's colliders and slides along them (a level's walls), its body
+    // `collideHeight` tall from its feet, stepping onto anything `step` high. Absent ⇒ it walks through, as before.
+    if (r.collideRadius > 0 && world && world.colliders) E.resolveBlocking(t.pos, t.pos[2] - (r.eye ?? 0), r.collideHeight ?? (r.eye ?? 1.7), r.collideRadius, world.colliders, r.step ?? 0.35);
+    // `probe`: the ground is looked for from that high over the feet, not from the eye: a stair's treads are stepped
+    // up, a bench, a shelf or the floor of the storey above are not stood on. Absent ⇒ from the eye, as before.
+    const ground = world && world.ground ? world.ground(r.probe > 0 ? [t.pos[0], t.pos[1], t.pos[2] - (r.eye ?? 0) + r.probe] : t.pos) : null;   // renderer hook (raycast)
     if (ground != null) t.pos[2] = ground + (r.eye ?? 0);
     const dist = Math.hypot(moveF, moveS);
     e.gaitPhase = ((e.gaitPhase || 0) + (moveF < 0 ? -dist : dist) / stride);
@@ -139,6 +152,168 @@ export function buildRulesBasic(E) {
     }
   }
 
+  // eye — the first-person camera: it rides the target `height` above its position (a person's eye over a hero whose
+  // position is its feet; 0 over a walker already held at the eye) and looks down the target's own heading and pitch.
+  // `lookAt` stays null, so the page aims along heading and pitch. No easing: the view never lags the head. The page
+  // hides the target's body when the camera says `hideTarget`.
+  function eye(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target];
+    if (!tgt) return;
+    const p = tgt.transform.pos;
+    e.transform.pos = [p[0], p[1], p[2] + (r.height ?? 0)];
+    e.transform.heading = tgt.transform.heading;
+    e.transform.pitch = tgt.transform.pitch || 0;
+    e.lookAt = null;
+  }
+
+  // overhead — the ¾ top-down camera: it eases to a pose `dist` back from the target along a FIXED `yaw` (the way the
+  // screen's up points; π/2 is north, +y) and raised by `tilt` (radians below the horizon, 60° by default), looking at
+  // the target `lookH` above its position. The yaw never follows the target, so north stays up the screen, and the
+  // tilt stays short of straight down, where a +Z up vector has no meaning. A pilot moving with `move: 'world'` and the
+  // same `moveYaw` reads W as up the screen.
+  function overhead(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target];
+    if (!tgt) return;
+    const yaw = r.yaw ?? HALF_PI, tilt = clamp(r.tilt ?? Math.PI / 3, 0.2, 1.45), dist = r.dist ?? 14, lookH = r.lookH ?? 1;
+    const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt), p = tgt.transform.pos;
+    const want = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, p[2] + lookH + dist * s];
+    e.transform.pos = add(e.transform.pos, scl(sub(want, e.transform.pos), smooth(r.lerp ?? 8, dt)));
+    e.transform.heading = yaw;
+    e.lookAt = [p[0], p[1], p[2] + lookH];
+  }
+
+  // side — the side-scroller's camera: it stands `dist` off the target's lane, square to it on the right of the way the
+  // lane was drawn, so running forward along the lane (D) runs right across the screen. Raised by `tilt` (radians,
+  // 0.2 by default) and looking at the target `lookH` above its position. On a bending lane it swings round with the
+  // bend at `turnLerp`/s, never snapping; a target with no lane is watched from a fixed `yaw`.
+  function side(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target];
+    if (!tgt) return;
+    const p = tgt.transform.pos, lane = tgt.rule && tgt.rule.lane;
+    let want = r.yaw ?? HALF_PI;
+    if (Array.isArray(lane) && lane.length >= 2) { const L = laneNear(lane, p[0], p[1]); want = Math.atan2(L.ty, L.tx) + HALF_PI; }
+    if (e._sideYaw == null) e._sideYaw = want;   // start square on: no swing on load
+    const d = ((want - e._sideYaw + Math.PI) % TAU + TAU) % TAU - Math.PI;
+    e._sideYaw += d * smooth(r.turnLerp ?? 2.5, dt);
+    const yaw = e._sideYaw, tilt = clamp(r.tilt ?? 0.2, 0, 1.2), dist = r.dist ?? 11, lookH = r.lookH ?? 1.2;
+    const f = fwdXY(yaw), c = Math.cos(tilt), s = Math.sin(tilt);
+    const pos = [p[0] - f[0] * dist * c, p[1] - f[1] * dist * c, p[2] + lookH + dist * s];
+    e.transform.pos = add(e.transform.pos, scl(sub(pos, e.transform.pos), smooth(r.lerp ?? 8, dt)));
+    e.transform.heading = yaw;
+    e.lookAt = [p[0], p[1], p[2] + lookH];
+  }
+
+  // fixed — the survival-horror camera: STATIONS, each a camera standing `at` and watching the floor round its `focus`.
+  // The station whose focus is nearest the target holds the shot, kept until another is nearer by `hold` (1.5 m), so
+  // a figure on the line between two does not flicker them; the change is a CUT, never a pan. Its look leans from the
+  // focus toward the target by `track` (0.6; 0: a locked frame) at `lookH` above it.
+  function fixed(e, input, dt, world) {
+    const r = e.rule, tgt = world.byId[r.target], S = r.stations;
+    if (!tgt || !Array.isArray(S) || !S.length) return;
+    const p = tgt.transform.pos, d = (s) => Math.hypot(s.focus[0] - p[0], s.focus[1] - p[1]);
+    let k = e._fixedAt != null && S[e._fixedAt] ? e._fixedAt : 0;
+    for (let i = 0; i < S.length; i++) if (d(S[i]) < d(S[k]) - (i === k ? 0 : r.hold ?? 1.5)) k = i;
+    if (e._fixedAt == null) { k = 0; for (let i = 1; i < S.length; i++) if (d(S[i]) < d(S[k])) k = i; }
+    e._fixedAt = k;
+    const st = S[k], u = r.track ?? 0.6, lookH = r.lookH ?? 1, f = st.focus;
+    const fz = Number.isFinite(f[2]) ? f[2] : p[2];
+    e.lookAt = [f[0] + (p[0] - f[0]) * u, f[1] + (p[1] - f[1]) * u, fz + (p[2] - fz) * u + lookH];
+    e.transform.pos = st.at.slice();
+    e.transform.heading = Math.atan2(e.lookAt[1] - st.at[1], e.lookAt[0] - st.at[0]);
+  }
+
+  // shot — the DIRECTING camera (the scene layer): a scene sets the player's camera rule aside for this one (the cast op
+  // `shot`) and hands it back (`unshot`). It frames the entities `on`, and the places `at` (points), by a word, `frame`:
+  // wide | low | profile | corner | overhead | two | close (FRAMES: room round the subjects in metres, height over the
+  // look point, yaw off the facing in quarter turns), or over (the first seen past the second's shoulder). The facing is
+  // across the line of two subjects (`side` ±1 picks the side; else the side the camera stands on as it cuts), else in
+  // front of the one; a lone place is the pilot's
+  // view of it, from just behind and above them. The distance opens until the spread and the room fill a `fov`
+  // (degrees, 50), and the camera never goes under the ground. `move`: hold (stands where it cut, turning with them),
+  // track (keeps its place beside them), push (closes in over `for` seconds), orbit (circles at `rate` rad/s). A new
+  // shot cuts; `cut: false` eases in at `lerp`.
+  const FRAMES = { wide: [5, 2.2, 0], low: [1.6, -0.8, 0], profile: [1.2, 0.2, 1], corner: [3, 3.5, 0.5], overhead: [2.5, 0, 0], two: [0.8, 0.35, 0], close: [0.35, 0.1, 0.25] };
+  // a place as a subject: a point (`at`), on the ground under it when it gives no height
+  const placeOf = (p, world) => {
+    let z = p[2];
+    if (z == null) { const g = world.ground ? world.ground([p[0], p[1], 1e4]) : null; z = g == null ? 0 : g; }
+    return { transform: { pos: [p[0], p[1], z], heading: null }, place: true };
+  };
+  function shot(e, input, dt, world) {
+    const r = e.rule, subs = (r.on || []).map((id) => world.byId[id]).filter((s) => s && !s.gone);
+    for (const p of r.at || []) subs.push(placeOf(p, world));
+    if (!subs.length) return;
+    let cx = 0, cy = 0, cz = 0, spread = 0;
+    for (const s of subs) { cx += s.transform.pos[0]; cy += s.transform.pos[1]; cz += s.transform.pos[2]; }
+    cx /= subs.length; cy /= subs.length; cz = cz / subs.length + (r.lookH ?? 1.4);
+    for (const s of subs) spread = Math.max(spread, Math.hypot(s.transform.pos[0] - cx, s.transform.pos[1] - cy));
+    e._shotT = (e._shotT || 0) + dt;
+    // over the shoulder: the first framed past the second's shoulder (the listener's back to the camera, a little aside)
+    if (r.frame === 'over' && subs.length >= 2) {
+      const A = subs[0].transform.pos, B = subs[1].transform.pos, side = r.side ?? 1, lh = r.lookH ?? 1.4;
+      const yaw = Math.atan2(B[1] - A[1], B[0] - A[0]), f = fwdXY(yaw), rt = rightXY(yaw);
+      const at = [B[0] + f[0] * 1.1 + rt[0] * 0.45 * side, B[1] + f[1] * 1.1 + rt[1] * 0.45 * side, B[2] + lh + 0.15];
+      if (e._shotCut || !e._shotAt) { e.transform.pos = at.slice(); e._shotCut = false; }
+      else e.transform.pos = add(e.transform.pos, scl(sub(at, e.transform.pos), smooth(r.lerp ?? 3, dt)));
+      e._shotAt = at;
+      e.transform.heading = yaw + Math.PI;
+      e.lookAt = [A[0], A[1], A[2] + lh];
+      return;
+    }
+    const [room, rise, off] = FRAMES[r.frame] || FRAMES.wide;
+    // the side of the line: the one asked, else (as a cut is made) the one nearer where the camera stands, so a cut
+    // keeps the player's side of the action; kept for the shot
+    if (r.side == null && e._shotSide == null && subs.length >= 2) {
+      const a = subs[0].transform.pos, b = subs[1].transform.pos, u = Math.atan2(b[1] - a[1], b[0] - a[0]) - HALF_PI;
+      const toCam = (e.transform.pos[0] - cx) * Math.cos(u) + (e.transform.pos[1] - cy) * Math.sin(u);
+      e._shotSide = toCam >= 0 ? 1 : -1;
+    }
+    const side = r.side ?? e._shotSide ?? 1;
+    let face;
+    if (subs.length >= 2) { const a = subs[0].transform.pos, b = subs[1].transform.pos; face = Math.atan2(b[1] - a[1], b[0] - a[0]) - HALF_PI * side; }
+    else if (subs[0].place) {
+      // a lone place: the pilot's view of it, from just behind and above the pilot (the pilot stands where a camera can)
+      const P = world.byId[world.pilotId], a = subs[0].transform.pos;
+      if (P && r.frame !== 'overhead') {
+        const p = P.transform.pos, yaw = Math.atan2(a[1] - p[1], a[0] - p[0]), f = fwdXY(yaw);
+        const at = [p[0] - f[0] * 3, p[1] - f[1] * 3, p[2] + 2.4];
+        if (e._shotCut || !e._shotAt) { e.transform.pos = at.slice(); e._shotCut = false; }
+        else e.transform.pos = add(e.transform.pos, scl(sub(at, e.transform.pos), smooth(r.lerp ?? 3, dt)));
+        e._shotAt = at;
+        e.transform.heading = yaw;
+        e.lookAt = [a[0], a[1], a[2] + (r.lookH ?? 1.4)];
+        return;
+      }
+      face = 0;
+    } else face = subs[0].transform.heading || 0;
+    let yaw = (r.yaw ?? face) + off * HALF_PI * side;
+    if (r.move === 'orbit') yaw += (r.rate ?? 0.25) * e._shotT;
+    let dist = Math.max(1.2, (spread + room) / Math.tan(((r.fov ?? 50) * Math.PI) / 360));
+    if (r.move === 'push') dist *= 1 + 0.35 * (1 - Math.min(1, e._shotT / (r.for ?? 3)));
+    const place = (y, lift) => {
+      const f = fwdXY(y);
+      const at = r.frame === 'overhead' ? [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] : [cx + f[0] * dist, cy + f[1] * dist, cz + rise + lift];
+      // never under the ground: a framing that lands in a hillside is lifted onto it
+      if (world.ground) { const g = world.ground([at[0], at[1], 1e4]); if (g != null && at[2] < g + 0.8) at[2] = g + 0.8; }
+      return at;
+    };
+    // a CLEAR view: as the shot cuts, the ground (rocks, a bank) sampled along the line to the subjects must stay under
+    // it; else the next of a few places round the framing, a little aside and then higher, kept for the shot
+    if (e._shotTry == null) {
+      e._shotTry = [0, 0];
+      if (world.ground) {
+        const clear = (at) => { for (let k = 1; k < 8; k++) { const u = k / 8, x = at[0] + (cx - at[0]) * u, y = at[1] + (cy - at[1]) * u, z = at[2] + (cz - at[2]) * u, g = world.ground([x, y, 1e4]); if (g != null && g > z - 0.3) return false; } return true; };
+        search: for (const lift of [0, 1.5, 3.5]) for (const dy of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) if (clear(place(yaw + dy, lift))) { e._shotTry = [dy, lift]; break search; }
+      }
+    }
+    const at = place(yaw + e._shotTry[0], e._shotTry[1]);
+    if (!e._shotAt || (r.move && r.move !== 'hold')) e._shotAt = at;
+    if (e._shotCut) { e.transform.pos = e._shotAt.slice(); e._shotCut = false; }
+    else e.transform.pos = add(e.transform.pos, scl(sub(e._shotAt, e.transform.pos), smooth(r.lerp ?? 3, dt)));
+    e.transform.heading = Math.atan2(cy - e.transform.pos[1], cx - e.transform.pos[0]);
+    e.lookAt = [cx, cy, cz];
+  }
+
   // clock — autonomous frame playback: advance the gait/anim phase by time, no input. Turns a
   // figure-frames body into a self-playing loop (a turntable / ambient walker). `rate` = cycles/sec.
   function clock(e, input, dt) {
@@ -213,7 +388,7 @@ export function buildRulesBasic(E) {
     const reload = e.rule.reload ?? 0.6;
     e._arm = e._cool > 0 ? Math.min(1, (reload - e._cool) / 0.08, e._cool / Math.max(1e-6, reload - 0.08)) : 0;
   }
-  Object.assign(RULES, { glide, walk, follow, clock, mover, launcher });
+  Object.assign(RULES, { glide, walk, follow, eye, overhead, side, fixed, shot, clock, mover, launcher });
 
   // the launch: each rider's last tick (where it stood, how fast it fell) is kept on the pad, so a rider arriving this
   // tick is read by its approach: its run across the ground and its fall. Fixed throws one arc whatever the approach;
@@ -425,6 +600,8 @@ export function buildRulesBasic(E) {
   }
   // break (or chip) a block by id: a trigger, a script, a test
   E.breakBlock = (state, id, dmg = 1, by = null) => { const b = state.breakables && state.breakables.find((q) => q.id === id); return b ? hitBlock(state, b, dmg, by, 'call') : false; };
+  // a block that broke on an earlier visit (an aftermath carried in): gone from the start, how 'restore' (no shatter)
+  E.restoreBlock = (state, id) => { const b = state.breakables && state.breakables.find((q) => q.id === id); return b ? hitBlock(state, b, Infinity, null, 'restore') : false; };
   E.registerWorldPass('break', (state, input, dt) => {
     const live = state.breakables && state.breakables.filter((b) => !b.broken);
     if (!live || !live.length) return;

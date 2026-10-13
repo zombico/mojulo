@@ -43,7 +43,7 @@ The substrate stores ONLY the monomer recipe (`manifest.kind === 'workbench'`, n
   shells?:   [ { solid, radius, center?, orient?, frequency?, tint?, material?,
                  group?, open?, ops? } ],
   frames?:   [ { members[], joints?, unit?, species?, finish?, tint?, cut?, figure?, seed?,
-                 load?, explode? } ],
+                 load?, explode?, teardown? } ],
   assembly?: { parts: [ { kind, height, profile | stations | terms, id?, on?, gap?, offset?,
                           radial?, mirror?, ...passthrough } ] },
   units?:    'cm',
@@ -351,7 +351,7 @@ A `frames` entry is carpentry: members laid on centrelines the way a frame is dr
   - `bolted` (end plate and four catalog M20s sized to the grip, washers and nuts), `welded` (trimmed to b's face), `base-plate` (a column's foot and anchors; `b` optional).
   - furniture joints: see "Frames — furniture" below.
   Joints are cut by the exact kernel; without it the members draw as plain boxes and the mint says so.
-- **the report** — `stats.frames[i]` gives each member's log, cut and **movement** (how much it shrinks, which face cups, whether a boxed heart checks), each joint's sizes (tenon, relish past the peg), a **span** check on level members (deflection against span/300, stress against a third of the clear-wood strength, `load` kN/m live; braces not counted), and the **assembly** order in which the members slide together, or the member that locks and by how many degrees. All advisory: a braced Western bent reports a 45° lock because framers seat it by flexing it; a kigumi bent slides together. `explode` (a distance) pulls every member and pin back along the way it seats.
+- **the report** — `stats.frames[i]` gives each member's log, cut and **movement** (how much it shrinks, which face cups, whether a boxed heart checks), each joint's sizes (tenon, relish past the peg), a **span** check on level members (deflection against span/300, stress against a third of the clear-wood strength, `load` kN/m live; braces not counted), and the **assembly** order in which the members slide together, or the member that locks and by how many degrees. All advisory: a braced Western bent reports a 45° lock because framers seat it by flexing it; a kigumi bent slides together. `explode` (a distance) pulls every member and pin back along the way it seats. `teardown` takes the piece apart in its manual's order: `true` (or `'exploded'`) is the exploded still at 12% of the piece's largest side; `'assemble'` / `'disassemble'` play it in the World step by step (0.6 s each), so `forge_motion` records it; `{ show, at?, seconds?, distance? }` overrides a default (`at`: a still after that many steps undone). It supersedes `explode`.
 
 ```
 units: 'cm', frames: [{ species: 'hinoki', members: [

@@ -20,6 +20,7 @@ import { pluginProfileActive, pluginProfileNotice, PLUGIN_PROFILE_HIDDEN_SKETCH_
 import { isBeatsKind } from '@/lib/graph/beats/beats-manifest';
 import { isVoiceRegisterKind } from '@/lib/graph/voice/voice-register';
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
+import { withProgram } from '@/lib/graph/era/programs';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
@@ -62,7 +63,7 @@ import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
-import { buildingNext, buildingRead, buildingClearance } from '@/lib/mcp/tools/building-next';
+import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
 import { expandPartManifest } from '@/lib/mcp/tools/scad-part';
 import { houseStyleOpts, houseStyleKey } from '@/lib/graph/polygonizer/floorplan-styles.js';
@@ -474,12 +475,26 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     ok: true,
     ref: sketch.ref,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
-    // a room (one space) or a house, said in every reply; a house says what it lacks to be a home
-    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
+    // a room (one space) or a house, said in every reply; a house says what it lacks to be a home; a store, restaurant
+    // or mall says its occupancy and its program's grade
+    ...buildingSays(read),
+    ...programSays(sketch.manifest),
     ...(design ? { design } : {}),
     ...(inferred?.length ? { inferred } : {}),
     ...(next ? { next } : {}),
   };
+}
+
+/**
+ * A stage laid from a program (era/programs.js) says what it laid: the use, its rooms, the way in, the goal, the
+ * language that set the heights, and its findings (advisory). Any other recipe says nothing. Never throws.
+ */
+function programSays(m) {
+  if (m?.kind !== 'stage' || m.program === undefined) return {};
+  try {
+    const P = withProgram(m)._program;
+    return { program: { use: P.use, rooms: P.rooms, ...(P.storeys ? { storeys: P.storeys } : {}), entry: P.entry, goal: P.goal, language: `${P.language.id} (storey ${P.language.storeyH} m)`, ...(P.findings.length ? { findings: P.findings.map((f) => f.says) } : {}) } };
+  } catch { return {}; }
 }
 
 /**
@@ -1050,7 +1065,8 @@ export async function updateSketchHandler(input) {
     ok: true,
     ref: updated.ref,
     url: `/sketches/${encodeURIComponent(updated.ref)}`,
-    ...(read ? { subject: read.subject, ...(read.dwelling?.missing.length ? { notAHome: `no ${read.dwelling.missing.join(', no ')}` } : {}) } : {}),
+    ...buildingSays(read),
+    ...programSays(updated.manifest),
     ...(design ? { design } : {}),
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),

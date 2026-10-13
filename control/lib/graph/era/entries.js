@@ -19,6 +19,8 @@ import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOKS, SIXTH_GEN_LOOK_IDS } 
 import { LAYERS, LAWS, PRINCIPLE_LAWS, lawLedger, statedPrinciples } from './laws.js';
 import { TILE_RAILS, PROPORTION_RAILS } from './tile-specs.js';
 import { GEOCUBE_PRESETS } from './geocube.js';
+import { HEARTBEAT_PRESETS } from './heartbeat.js';
+import { GROUND_EDITS } from './out-ground.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
 import { JUNGLE_MGS3 } from './style/jungle-mgs3.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
@@ -114,7 +116,7 @@ export function kitCard(kitId) {
   const kit = STAGE_KITS[kitId], S = styleOf(kit), ref = refFor(kitId), opts = kitOptions(kit);
   const lines = [
     `# ${title(kitId)} (stage kit)`, '', kitSummary(kitId, kit), '',
-    `SHELL      ${isRooms(kit) ? `rooms: axis-aligned boxes on a ${kit.grid} m grid, bays every ${kit.bay} m, a doorway where two rooms share a wall` : 'open ground: no rooms, the builder lays the site (trail, cliff, planting) from its style card'}`,
+    `SHELL      ${isRooms(kit) ? `rooms: axis-aligned boxes on a ${kit.grid} m grid, bays every ${kit.bay} m, a doorway where two rooms share a wall${kit.shell === 'plaza' ? '' : '; "storey" stacks a room over the storey below, a link across two a stair (card game-building)'}` : 'open ground: no rooms, the builder lays the site (trail, cliff, planting) from its style card'}`,
     `LOOK       ${ref ? `pairs with '${ref}' (card 'look/${ref}'); any look can be set with "reference"` : isRooms(kit) ? `none pairs with it; "reference" sets the look (default gothic-night)` : 'its own: the style card carries the light and air'}`,
     `OPTIONS    ${opts.length ? opts.join(' · ') : 'none beyond the kit'}`,
     ...(ART_KITS.includes(kitId) ? ['ART        "art": "propose" (a board to approve, item by item) or "auto" (hands off); card \'stage\''] : []),
@@ -165,8 +167,8 @@ export function stageHubCard() {
   const lines = [
     '# Stage: a level built the sixth-gen way', '',
     `Kit pieces on a grid, small painted tiles multiplied by baked vertex light, lights placed by hand. ${kits.length} kits dress it; ${looks.length} looks light it. Open the kit or look card the ask names; the laws every kit was built on are on card 'sixth-gen-laws'.`, '',
-    'GEOCUBE FIRST  forge the level\'s look as a cube (card geocube), then build here with "geocube".', '',
-    'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], … } — rooms only for a room kit; an open-ground kit takes none',
+    'GEOCUBE FIRST  forge the look as a cube (card geocube), then build here on it ("geocube").', '',
+    'RECIPE     { "kind": "stage", "kit", "reference"?, "rooms": [{ "id", "x", "y", "w", "d", "h", "open"? }], "links"?: [{ "from", "to" }], "program"?: { "use" }, "level"?: {} (card game-building), … }; rooms: room kits',
     '', `ART FIRST (room kits ${ART_KITS.join(', ')})  "art": "propose" mints with a direction (palette, materials, architecture, motifs, plan) and answers with its board as an image: show it, then per item update_sketch patch /art/status/<item> "approved", or /art/<item> "reroll". "art": "auto" is hands off.`,
     '', `OUT-TRAIL (open ground: ${kits.filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')})  "trail": true or { run, heartbeat, bumpiness, beats } builds the trail from principles: a spine run in "run" seconds (12, the meadow\'s 72 m, by default), beats along it, its height by "heartbeat", its ground by "bumpiness". The answer carries outTrail (its laws, measured) and anchors (every beat and hazard); the landform board shows the land in black and white before anything grows on it.`,
     '', 'KITS (card stage/<id>)', ...kits.map((k) => `  - ${k}: ${isRooms(STAGE_KITS[k]) ? 'rooms' : 'open ground'}. ${clip(kitSummary(k, STAGE_KITS[k]))}`),
@@ -233,20 +235,18 @@ export function geocubeCard() {
     '           room: the bare bones in the cube\'s light, its accent wall. land: an island (a cliff side and a beach side) lit by polygons, no texture on the rock.',
     'UPDATE     update_sketch the cube; both specimens re-lower from it. Show the other with "show".',
     'BUILD ON   a stage recipe with "geocube": the same cube. Without "meru": the inside (the cube\'s bones, reference, tone and tiles; your rooms, the kit\'s dress). With "meru": the outside (its look card, land ramps, light, air and polygon land; your tiers over the cube\'s). Your keys win: vary the cube, never restyle it. A level copies its cube: a changed or new cube rebuilds nothing; re-create the level from it by hand.', '',
+    'BUILDINGS  a cube recommends its buildings: "buildings": { anchor, uses: [{ use, enter: "door" | "walk" }] }. A stage on the cube with "program": { "use" } lays one in its bones, its anchor setting the heights (card game-building).', '',
     'THE CUBE',
     '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (the stage\'s, below) }',
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
     '  register  { steps (0 continuous … 8 bands), key (the median value, 0..1) }',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
     '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
-    '  outside   { base (an isekai card), tiers? (local meru), island?, land? { smooth, crevice, ridge, blend } or false }',
-    '  why       [principles, one line each]: carried into the outside\'s look card for whatever builds next',
-    '  era       the look\'s generation: gen-6 (default; baked vertex light, drawn at today\'s resolution) | gen-7 (planned conventions)',
-    '  target    what the level is drawn for: { resolution: 720p … 4k, framing: close | third-person | wide | top-down, error: px } (1080p third-person); the specimen\'s readout says what it asks of texels and shadow cells', '',
-    'THE CAST   a hero lit by the cube: update_character { ref, geocube: <the same cube> }. Its key, its tinted shade and a rim from its air are baked into the figure; its rings are set by the cube\'s target unless the hero names its own.', '',
-    'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
+     'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
     'LAND RULES polygon only, from the land\'s shape: crevice darkens what is concave toward the cube\'s shade colour (never black); ridge lifts a convex lip; blend carries a neighbouring surface\'s colour over a seam. Rock takes no pixels.', '',
-    'PRESETS', ...Object.values(P).map((c) => `  - ${c.id}: ${c.reads}; ${c.light.reference} light, ${c.inside.bones} bones, ${c.outside.base} land`),
+    'PRESETS', ...Object.values(P).map((c) => `  - ${c.id}: ${c.reads}; ${c.light.reference} light, ${c.inside.bones} bones, ${c.outside.base} land`), '',
+    'PAINT A LEVEL a level\'s geocube (a gameworld level\'s style.geocube) paints every section once, trails and climbs, on one terrain: the level\'s terrain if it names one, else its heartbeat\'s if the cube has it, else the cube\'s own. Each stage answers `painted` (the terrain, from whom, what was offered). A section\'s own kit wins: a start, not a lock.',
+    'THE LAND\'S FLOW is not the cube\'s: how the ground climbs, dips and breaks is a heartbeat (card heartbeat), a greybox the cube paints.',
   ];
   return {
     id: 'geocube', name: 'Geocube (a level\'s look, forged first)', family: 'world', entry: 'create_sketch', generated: true,
@@ -256,7 +256,33 @@ export function geocubeCard() {
   };
 }
 
+/** The heartbeat: the ripples and flow of a level's land, apart from its look; a greybox shared between levels. */
+export function heartbeatCard() {
+  const lines = [
+    '# Heartbeat: the flow of a level\'s land, as a greybox', '',
+    'A heartbeat is how a level\'s ground moves, apart from what it looks like: how hard the walk climbs and drops, the long swell from trailhead to end, and the few marks that make the place (a cliff, a gorge, a knoll). It holds no colour and no kit; it is seen in values, and a level paints it with its kit, style or geocube. Its places are relative to the level and its heights are metres, so one heartbeat on a longer level, another kit or seed is the same ground to walk, never the same bytes.', '',
+    'FORGE      create_sketch { "kind": "heartbeat", "heartbeat": <preset id | document | { "from": <preset>, …changes }>, "on"?: { kit?, runs?: [16, 16], seed? } }',
+    '           the greybox on a reference level, walkable: the walk a shade lighter, a face too steep to walk a shade darker; the answer carries its map.',
+    'LAY        a gameworld level\'s ground.heartbeat (tune_ground { ref, heartbeat: <preset | document | a heartbeat sketch\'s ref> }): its pulse under the level\'s tune, its rise and marks before the level\'s edits.',
+    'SHARE      tune_ground { ref, export: { id, title?, reads?, save?: <ref> } }: the level\'s ground (its heartbeat, tune, rise and edits) as one heartbeat, saved as a sketch to clone from.', '',
+    'THE HEARTBEAT',
+    '  pulse     the dials every trail takes: amplitude, depth (metres), grade, drift, bump { height, scale, walk }, shapes { reveal | landmark | pinch | crossing: { share, reach } }, cliff { height, face }',
+    '  rise      [[v, metres], …]: the swell along the walk, v 0 (the trailhead) … 1 (the end); the walk rises with it',
+    '  marks     edits at [u, v] (u 0 the far side … 1 the open side) or along [[u, v], …]; a cliff\'s high side by high: [u, v]. Heights and widths in metres.',
+    ...Object.entries(GROUND_EDITS).filter(([k]) => k !== 'rise').map(([k, v]) => `            ${k.padEnd(8)} ${v}`),
+    '  why       [principles, one line each]',
+    '  terrain   the geocube terrain it was made for: a painted level gets it when its cube has it and the level names none; an export remembers the terrain it was made on', '',
+    'PRESETS', ...Object.values(HEARTBEAT_PRESETS).map((h) => `  - ${h.id}: ${h.reads}`),
+  ];
+  return {
+    id: 'heartbeat', name: 'Heartbeat (the flow of a level\'s land, a greybox)', family: 'world', entry: 'create_sketch', generated: true,
+    summary: 'How a level\'s ground climbs, dips and breaks, apart from its look: forge it as a greybox, lay it on levels, share and clone it.',
+    when: '"heartbeat", "the shape of my level\'s land", "greybox the terrain", "the same terrain feel on another level", "clone this level\'s ground", "a level that climbs the whole way", "share my terrain"',
+    body: lines.join('\n'),
+  };
+}
+
 /** Every generated card: the hub, the geocube, the laws, the rails, each kit, each look. */
 export function stageEntryCards() {
-  return [stageHubCard(), geocubeCard(), lawsCard(), railsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
+  return [stageHubCard(), geocubeCard(), heartbeatCard(), lawsCard(), railsCard(), ...Object.keys(STAGE_KITS).map(kitCard), ...SIXTH_GEN_LOOK_IDS.map(lookCard)];
 }

@@ -17,10 +17,14 @@
  * the level's `game.on` maps it to a `setFlag`, and the store opens the gate that waits on it. Godot runs the cues on its
  * bus (kernel/bus.gd; scene/bus-abi.js says what it feeds and draws) and carries the store (kernel/store.gd): flag gates
  * and chapters travel. Quests, shots, banter and passage stay web-only until they are built.
+ *
+ * Built 10-12 (the story cascade's step 3): choices (a scene's `choose` beat sets flags and branches) and quests
+ * (playscape/ui/quests.js: ordered steps done by flags, a journal, a word as one moves on; gameworld `quests` gate the
+ * story's moments step by step, so the giver is a moment's cast member). Web only.
  */
 const CUES = 'lib/graph/playscape/ui/cues.js';
-const MENUS = 'lib/graph/playscape/ui/menus.js';
-const COMIC = 'lib/graph/motion-comic/motion-comic-manifest.js';
+const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
+const SCENES = 'lib/graph/playscape/ui/scenes.js';
 const WEB = { godot: false };
 // one change per package: quests (steps bound to a giver), the 3D shot
 const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests', ...WEB };
@@ -37,6 +41,9 @@ export const TIME = Object.freeze({
         none: { status: 'built', note: 'one level' },
         linear: { status: 'built', lowers: 'lib/graph/game/game-manifest.js', note: 'levels in play order; the shell records each completed' },
         gated: { status: 'built', lowers: 'lib/graph/game/store-kernel.js', note: 'a gate on a completed level, or on a flag a cue sets through game.on; Godot carries the store (kernel/store.gd)' },
+        // built 10-12: a game's `run` (the light shell): each run draws its levels from the pool in an order rolled from its
+        // number, a death ends it, the store carries over, the deepest is kept; a quick game's run lays a pool of trails
+        runs: { status: 'built', ...WEB, lowers: 'lib/graph/game/play-shell.js', note: 'a pool of made levels (a quick game\'s run: trails each its own seed), drawn anew each run; a level is not rolled at play time' },
       },
     },
     chapters: {
@@ -48,29 +55,36 @@ export const TIME = Object.freeze({
     passage: {
       values: {
         none: { status: 'built' },
-        'day-night': { status: 'absent', effort: 'M', ...AGED, note: 'no time of day anywhere: the sky has weather, not hours' },
-        seasons: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/weather/weather.js', note: 'autumn and spring-blossom are climates of their own; nothing turns one world through them (snow seasoning is on the unmerged city-eras branch)' },
-        growth: { status: 'partial', effort: 'S', ...AGED, lowers: 'lib/graph/vegetation/grow.js', note: 'a tree grows by `years`; no world ages its planting' },
-        aftermath: { status: 'partial', effort: 'M', ...AGED, lowers: 'lib/graph/playscape/destruct/collapse.js', note: 'destruction happens live in play; no recipe records a world\'s damage as a state' },
-        eras: { status: 'absent', effort: 'M', ...AGED, note: 'city eras live on the unmerged 1003-city-eras branch' },
+        // built 10-12 (the world dial): a level's clock (game mechanic `clock`: minute, hour, day, season on the bus) is the
+        // one number they read: the weather channel darkens the sky at night and swaps its climate by season; crops grow a
+        // stage each dawn. A world's baked night (manifest.time) and a planting's age between chapters stay as they were.
+        'day-night': { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'a level\'s clock: night darkens the sky and its air from 20:00 to 05:00, dusk and dawn two hours each (the weather channel); cues read hour' },
+        seasons: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'the clock\'s seasons (days each): season on the bus, the sky\'s climate swapped (spring-blossom, temperate, autumn, alpine, or its own four)' },
+        growth: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'crops grow a stage each dawn on the clock (planted, grown, ripe); a tree\'s planting age between chapters is still the bake\'s (grow.js years)' },
+        // built 10-12: the aftermath mechanic keeps each break as a flag the game carries and restores it on entry
+        aftermath: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'what broke stays broken: each break a flag (broke:<id>) the game carries, taken away at the start on entry (a gameworld with destruction); a chapter turning a whole level to ruin is not built' },
+        eras: { status: 'absent', effort: 'L', ...AGED, note: 'no era dial: city eras are only a changelog plan on 1003-city-eras; lib/graph/era is art styles, historic one period per culture (priced 10-12)' },
       },
     },
     advance: {
       values: {
         none: { status: 'built' },
         cues: { status: 'built', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line; Godot runs them on its bus (kernel/bus.gd): zones, use, menus, the cast and the stats in; the HUD, menus, the cast and a forced sky out' },
-        steps: { ...QUESTS, status: 'local', lowers: 'lib/graph/worlds/controllable/tutorial.js', note: 'the tutorial director orders steps, but its facts are arena maneuvers; playscape cues have no order' },
-        quests: { ...QUESTS, requires: ['mind.social=talk'], lowers: MENUS, note: 'a giver (a talk menu), a log (a list menu) and a reward (cue effects) exist apart; nothing binds them to a character' },
+        steps: { ...QUESTS, status: 'built', lowers: QUEST_LOG, note: 'a quest\'s steps in order, each done by a flag; the story\'s moments wait step by step (gameworld quests)' },
+        quests: { ...QUESTS, status: 'built', requires: ['mind.social=talk'], lowers: QUEST_LOG, note: 'a giver (a moment\'s cast member; the player\'s answer begins it), a journal (J) and a word as it moves on; a reward is a cue on its flag' },
       },
     },
+    // built 10-11 (the scene layer): playscape/ui/scenes.js plays a level's scenes, the camera's `shot` rule directs, the
+    // page's runner paces lines and hands the camera back. Web only: Godot's bus carries no scenes yet.
     shots: {
       multi: true,
       values: {
-        'in-world': { ...SHOT, lowers: 'lib/graph/playscape/ui/cast.js', note: 'the cast walks to its marks and poses; the camera cannot be taken over' },
-        staged: { ...SHOT, lowers: 'lib/graph/pixelizer/cutscene.js', note: 'the grammar exists twice, neither in 3D: the pixel cutscene (cuts, a camera track, captions) and the click-gated motion comic' },
-        banter: { status: 'partial', effort: 'S', ...WEB, lowers: COMIC, note: 'the motion comic steps a screen by the click with type-on subtitles, and a talk menu names who speaks; no two-up portrait screen in a game, no expression set' },
+        'in-world': { ...SHOT, status: 'built', lowers: SCENES, note: 'a scene takes the camera (the shot rule), moves the cast and hands the camera back' },
+        staged: { ...SHOT, status: 'built', lowers: SCENES, note: 'beats in order: shots, the cast, waits, lines; letterboxed, input held, skippable to its end state' },
+        // banter rides the shot (10-11: the sweep paired them in worlds neither made alone): one package, one build
+        banter: { ...SHOT, status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; no portraits or face set yet' },
       },
     },
-    framing: { multi: true, source: { module: 'lib/graph/era/floormap-cameras.js', table: 'SHOTS', ...SHOT, note: 'the floormap places these per region as fixed cameras; no shot directs them' } },
+    framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, status: 'built', note: 'the shot rule frames its subjects by these words' } },
   },
 });

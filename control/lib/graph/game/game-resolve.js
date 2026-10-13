@@ -16,6 +16,9 @@ import { validateGameManifest, normalizeGameManifest } from './game-manifest.js'
 import { validateLevelContract, normalizeLevelContract } from './level-contract.js';
 import { synthesizeLevel } from './level-synth.js';
 import { isBeatsKind } from '../beats/beats-manifest.js';
+import { asksLevel, withBuildingLevel } from '../structure/level.js';
+import { withCityRef } from '../city/plan/ref.js';
+import '../city/plan/level.js';   // registers the city's level lowering
 
 // The generated default about/credits page (menu.attribution; see game-manifest.js).
 // Plain data in the same shape an operator would author — nothing special downstream.
@@ -67,8 +70,20 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
   const errors = [];
   const levels = [];
   for (const lv of norm.levels) {
-    const sketch = getSketch(lv.ref);
-    if (!sketch || !sketch.manifest) { errors.push(`level '${lv.ref}': no sketch with that ref`); continue; }
+    const row = getSketch(lv.ref);
+    if (!row || !row.manifest) { errors.push(`level '${lv.ref}': no sketch with that ref`); continue; }
+    // a building or room stage that asks to be a level (`level: { goal }`, structure/level.js) carries its game
+    // channel only once lowered: lowered here, so the mint, the /game route and the export read the same level
+    let sketch = row;
+    // a city segment's level reads its city by ref (city/plan/ref.js), merged before it is lowered
+    if (row.manifest.kind === 'city' && (typeof row.manifest.city === 'string' || (row.manifest.sites || []).some((x) => x && typeof x.from === 'string'))) {
+      try { sketch = { ...row, manifest: withCityRef(row.manifest, (r) => getSketch(r)?.manifest) }; }
+      catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
+    }
+    if (asksLevel(sketch.manifest)) {
+      try { sketch = { ...sketch, manifest: withBuildingLevel(sketch.manifest, row.ref ?? lv.ref) }; }
+      catch (err) { errors.push(`level '${lv.ref}': ${err.message}`); continue; }
+    }
     if (!sketch.manifest.game || typeof sketch.manifest.game !== 'object') {
       errors.push(`level '${lv.ref}': its sketch carries no \`game\` channel — a level is a world minted WITH a level contract or mechanics (compose_world … { game: { levelRef, mechanics|produces, … } })`);
       continue;
@@ -81,6 +96,13 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
     const cv = validateLevelContract(game, norm.store);
     if (!cv.ok) { errors.push(`level '${lv.ref}' contract (against this game's store): ${cv.errors.join('; ')}`); continue; }
     levels.push({ ref: lv.ref, title: lv.title, contract: normalizeLevelContract(game), src: levelSrc(lv.ref) });
+  }
+  // a door link's ends must be doors its levels have (each level's `door` mechanics)
+  for (const [i, lk] of (norm.links || []).entries()) {
+    for (const side of ['from', 'to']) {
+      const e = lk[side], L = levels.find((x) => x.ref === e.ref);
+      if (L && !(L.contract.doors || []).some((d) => d.id === e.door)) errors.push(`links[${i}].${side}: level '${e.ref}' has no door '${e.door}' (its doors: ${(L.contract.doors || []).map((d) => d.id).join(', ') || 'none'})`);
+    }
   }
   // menu entries (Start → Menu presentation), resolved depth-first so a nested submenu ('menu') is
   // walked too: a 'world' entry's viewed world must exist as a sketch (its src resolves here like a

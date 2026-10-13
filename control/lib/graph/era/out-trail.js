@@ -12,6 +12,8 @@
  *   heartbeat  the trail's height along its length, each beat its own shape (a climb into a reveal, a drop into a
  *              pinch, a dip to a ford, flat at a rest); `heartbeat` 0…1 is how hard it rises and falls
  *   bumpiness  mounds and hollows over the ground, low on the walk and full toward the edges; `bumpiness` 0…1
+ *   ground     the card's numbers tuned for this trail (amplitude, depth, grade, the beats' shapes…) and the ground
+ *              shaped by hand (raise, lower, flatten, cliff, gorge, ridge): out-ground.js
  *
  * The ground is built in PASSES, each on the one before, and each kept so the board can show it:
  *   1 rough    the heartbeat and the beats' edges and the bumps: the raw elevation
@@ -28,6 +30,7 @@ import { hash3, vnoise } from './dirt.js';
 import { r5 } from './geom.js';
 import { landformGrid, bakeGrid, applyLandform, gridSample, gridX, gridY } from '../polygonizer/landform.js';
 import { readBounds, boundSegments, boundAnchors, boundColliders, boundLaw } from './out-bounds.js';
+import { readGround, groundOf, editsField, applyEdits } from './out-ground.js';
 
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
@@ -71,8 +74,8 @@ const C = OUT_TRAIL;
 /** Read a recipe's `trail` and say what is wrong. → { run, heartbeat, bumpiness, beats: [kind] | null, id }. */
 export function readOutTrail(t, depth = 0) {
   if (t === true) t = {};
-  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, after? } (or true)');
-  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'after', 'bounds'];
+  if (!t || typeof t !== 'object' || Array.isArray(t)) throw new Error('stage: trail is { run?, heartbeat?, bumpiness?, beats?, ground?, after? } (or true)');
+  const known = ['id', 'run', 'heartbeat', 'bumpiness', 'beats', 'ground', 'after', 'bounds'];
   for (const k of Object.keys(t)) if (!known.includes(k)) throw new Error(`stage: trail.${k} is not a trail setting (settings: ${known.join(', ')})`);
   const num = (k, lo, hi, d, words) => {
     if (t[k] === undefined) return d;
@@ -102,7 +105,8 @@ export function readOutTrail(t, depth = 0) {
     if (rest.id === undefined || prev.id === id) throw new Error('stage: trail.after names the trail it follows by an id of its own (trail.after.id), not this trail\'s');
     after = { seed: aSeed ?? 1, recipe: rest, id: prev.id };
   }
-  return { id, run, heartbeat, bumpiness, beats, ...(after ? { after } : {}), bounds: readBounds(t.bounds) };
+  const ground = readGround(t.ground);
+  return { id, run, heartbeat, bumpiness, beats, ...(ground ? { ground } : {}), ...(after ? { after } : {}), bounds: readBounds(t.bounds) };
 }
 
 /** The beats in walking order, drawn by dice when the recipe names none: a reveal, a landmark and a pocket always (a
@@ -169,16 +173,17 @@ export function planOutTrail(st, T, seed = 1, beatCount = null, join = null) {
   for (const [i, b] of beats.entries()) b.side = b.kind === 'pocket' && hash3(i, 5, S + 919) < 0.25 ? -1 : 1;
 
   // the HEARTBEAT: the height along the spine, from the beats' shapes over a slow drift
-  const A = T.heartbeat * C.rise, ds = 0.5, n = Math.ceil(L / ds) + 1;
+  // (the crests take the amplitude, the dips the depth: out-ground.js; the card's own when the trail tunes neither)
+  const G = groundOf(T, C), A = G.A, Dp = G.Dp, sh = G.shapes, ds = 0.5, n = Math.ceil(L / ds) + 1;
   const rough = new Float64Array(n);
   for (let k = 0; k < n; k++) {
-    const s = k * ds; let h = A * 0.3 * (2 * vnoise(s * 0.035, 2.5, S + 921) - 1);
+    const s = k * ds; let h = A * G.drift * (2 * vnoise(s * 0.035, 2.5, S + 921) - 1);
     for (const b of beats) {
       const u = s - b.s;
-      if (b.kind === 'reveal') h += A * (u < 0 ? smooth(-20, 0, u) : 1 - 0.7 * smooth(0, 18, u));
-      else if (b.kind === 'landmark') h += 0.3 * A * gauss(u, 6);
-      else if (b.kind === 'pinch') h -= 0.45 * A * gauss(u, 6);
-      else if (b.kind === 'crossing') h -= 0.6 * A * gauss(u, 7);
+      if (b.kind === 'reveal') h += sh.reveal.share * A * (u < 0 ? smooth(-sh.reveal.reach, 0, u) : 1 - 0.7 * smooth(0, sh.reveal.fall, u));
+      else if (b.kind === 'landmark') h += sh.landmark.share * A * gauss(u, sh.landmark.reach);
+      else if (b.kind === 'pinch') h -= sh.pinch.share * Dp * gauss(u, sh.pinch.reach);
+      else if (b.kind === 'crossing') h -= sh.crossing.share * Dp * gauss(u, sh.crossing.reach);
     }
     rough[k] = h;
   }
@@ -188,18 +193,26 @@ export function planOutTrail(st, T, seed = 1, beatCount = null, join = null) {
   }
   // pass 2 on the profile: averaged twice over 6 m (a box of 13 samples), then the stairs where it is still too steep
   const box = (a, w) => { const o = new Float64Array(a.length); for (let k = 0; k < a.length; k++) { let t = 0, c = 0; for (let j = k - w; j <= k + w; j++) if (j >= 0 && j < a.length) { t += a[j]; c++; } o[k] = t / c; } return o; };
-  const smoothed = box(box(rough, 6), 6);
+  // the EDITS the walk follows ride on the heartbeat: the walk's own profile is the heartbeat and them, the ground's
+  // field is drawn from the heartbeat alone (the edits are laid over the ground whole, siteOf). None: one profile
+  const onWalk = editsField(G.edits, { walkOnly: true });
+  const roughWalk = onWalk ? rough.map((h, k) => { const y = yOf(k * ds); return h + onWalk(trailX(y), y); }) : rough;
+  const smoothed = box(box(roughWalk, 6), 6), base = onWalk ? box(box(rough, 6), 6) : smoothed;
   // a pit is jumped from level ground, a ford is waded level: the smoothed walk is laid flat about each, and eased back
-  for (const b of beats.filter((q) => q.kind === 'pit' || q.kind === 'crossing')) {
-    const hb = smoothed[Math.round(b.s / ds)];
-    for (let k = 0; k < n; k++) smoothed[k] = mix(smoothed[k], hb, 1 - smooth(C.level, C.level + 7, Math.abs(k * ds - b.s)));
+  for (const b of beats.filter((q) => q.kind === 'pit' || q.kind === 'crossing')) for (const a of onWalk ? [smoothed, base] : [smoothed]) {
+    const hb = a[Math.round(b.s / ds)];
+    for (let k = 0; k < n; k++) a[k] = mix(a[k], hb, 1 - smooth(C.level, C.level + 7, Math.abs(k * ds - b.s)));
   }
   // joined, the whole heartbeat stands at the followed trail's height where it leaves
-  if (join) { const dz = join.z - smoothed[0]; for (let k = 0; k < n; k++) { rough[k] += dz; smoothed[k] += dz; } }
+  if (join) {
+    const dz = join.z - smoothed[0];
+    for (let k = 0; k < n; k++) { rough[k] += dz; smoothed[k] += dz; }
+    if (onWalk) for (let k = 0; k < n; k++) { roughWalk[k] += dz; base[k] += dz; }
+  }
   const stairs = [];
   for (let k = 1; k < n; k++) {
     const g = Math.abs(smoothed[k] - smoothed[k - 1]) / ds, s = (k - 0.5) * ds, last = stairs[stairs.length - 1];
-    if (g <= C.grade) continue;
+    if (g <= G.grade) continue;
     if (last && s - last.s1 < 2) last.s1 = s; else stairs.push({ s0: s, s1: s });
   }
   // a run is at least a metre of steps, centred on the steep stretch it was found on
@@ -208,7 +221,18 @@ export function planOutTrail(st, T, seed = 1, beatCount = null, join = null) {
     return { id: `stairs-${i + 1}`, s0: r5(r.s0), s1: r5(r.s1), y0: r5(yOf(r.s0)), y1: r5(yOf(r.s1)), rise: r5(h1 - h0) };
   });
   const at = (a) => (s) => { const k = Math.max(0, Math.min(n - 1, s / ds)), i = Math.floor(k), t = k - i; return i + 1 < n ? mix(a[i], a[i + 1], t) : a[n - 1]; };
-  return { id: T.id, T, S, W, D, L, trailX, trailSlope, sOf, yOf, beats, order, profile: { ds, rough, smoothed }, roughAt: at(rough), smoothAt: at(smoothed), stairs: runs, join };
+  // `profile`, `roughAt` and `smoothAt` are the walk's; `baseAt` and `baseRoughAt` the heartbeat's alone (the field's)
+  return { id: T.id, T, G, S, W, D, L, trailX, trailSlope, sOf, yOf, beats, order, profile: { ds, rough: roughWalk, smoothed }, roughAt: at(roughWalk), smoothAt: at(smoothed),
+    baseAt: onWalk ? at(base) : at(smoothed), baseRoughAt: onWalk ? at(rough) : at(roughWalk), stairs: runs, join };
+}
+
+/** A trail's footprint without building its ground: how deep its site runs (`D`, metres along y), its line (`trailX`)
+ *  and where that line leaves (`x`, `slope` at D), for a level to lay its frame cheaply (level/ground.js). `join` is the
+ *  followed trail's span, or null. The ground does not move the spine, so the span is the built site's. */
+export function outTrailSpan(st, recipe, seed = 1, join = null) {
+  const { after: _a, ground: _g, ...own } = recipe === true ? {} : recipe;
+  const P = planOutTrail(st, readOutTrail(own), seed, 3, join ? { x: join.x, slope: join.slope, z: 0 } : null);
+  return { D: P.D, x: P.trailX(P.D), slope: P.trailSlope(P.D), trailX: P.trailX };
 }
 
 /** How many beats a spine of `len` metres holds at the least spacing (3 to 7). */
@@ -234,12 +258,12 @@ export function outTrailSite(st, recipe, seed = 1) {
  *  ground, its cliff, and where the follower's site sits in the section (`origin`, metres along y). */
 function joinOf(prev) {
   const D = prev.D, P = prev.out.plan;
-  return { from: P.id, x: prev.trailX(D), slope: P.trailSlope(D), z: P.smoothAt(P.L), cliff: prev.cliffX(D), ground: (x) => prev.ground(x, D), origin: r5(prev.origin + D) };
+  return { from: P.id, x: prev.trailX(D), slope: P.trailSlope(D), z: P.smoothAt(P.L), cliff: prev.cliffX(D), ground: (x) => prev.groundBase(x, D), whole: (x) => prev.ground(x, D), origin: r5(prev.origin + D) };
 }
 const JOIN = 24, SEAM = 12;
 
 function siteOf(st, plan) {
-  const { T, S, W, D, trailX, trailSlope, sOf, beats } = plan;
+  const { T, G, S, W, D, trailX, trailSlope, sOf, beats } = plan;
   const Lf = st.landform, halfW = st.trail.width / 2;
   const at = (kind) => beats.filter((b) => b.kind === kind);
   const near = (b, y, w) => gauss(sOf(y) - b.s, w);
@@ -282,13 +306,13 @@ function siteOf(st, plan) {
   const streams = at('crossing').map((b) => ({ b, y: b.y }));
 
   // ── pass 1: ROUGH — the heartbeat under the trail, the beats' edges, the bumps ──
-  const B = T.bumpiness * C.bump.m;
-  const bump = (x, y) => C.bump.octaves.reduce((a, [share, f], i) => a + B * share * (2 * vnoise(x * f, y * f, S + 951 + i) - 1), 0);
+  const B = G.B, fk = G.bumpScale;
+  const bump = (x, y) => C.bump.octaves.reduce((a, [share, f], i) => a + B * share * (2 * vnoise(x * f * fk, y * f * fk, S + 951 + i) - 1), 0);
   const field = (hAt) => (x, y) => {
     const side = x < trailX(y) ? -1 : 1, d = lineDist(x, y), e = edge(y), out = Math.max(0, d - e);
     let z = hAt(sOf(y)) + (side > 0 ? 0.05 : 0.03) * out;
-    for (const b of at('pinch')) if (side > 0) z += (1.6 + 2.4 * T.heartbeat) * gauss(d - e - 2.2, 1.6) * near(b, y, 5);
-    for (const b of at('reveal')) if (side > 0) z -= (2 + 4 * T.heartbeat) * smooth(e + 1, e + 14, d) * near(b, y, 9);
+    for (const b of at('pinch')) if (side > 0) z += (1.6 + 2.4 * G.up) * gauss(d - e - 2.2, 1.6) * near(b, y, 5);
+    for (const b of at('reveal')) if (side > 0) z -= (2 + 4 * G.down) * smooth(e + 1, e + 14, d) * near(b, y, 9);
     for (const s of streams) z -= C.stream.depth * gauss(y - s.y, C.stream.w);
     for (const p of pockets) {
       const r = Math.hypot(x - p.cx, y - p.cy), floor = hAt(sOf(p.mouth[1])) + 0.1;
@@ -296,13 +320,15 @@ function siteOf(st, plan) {
       z += C.pocket.berm * gauss(r - p.r - 2.4, 1.1) * smooth(0.55, 0.85, -mouthward + 1.0);
       z = mix(z, floor, Math.max(1 - smooth(p.r, p.r + 3, r), 1 - smooth(1.6, 3.6, spurDist(p, x, y))));
     }
-    return z + bump(x, y) * (C.bump.walk + (1 - C.bump.walk) * smooth(e, e + 5, d));
+    return z + bump(x, y) * (G.bumpWalk + (1 - G.bumpWalk) * smooth(e, e + 5, d));
   };
   const grid = () => landformGrid({ x0: -Lf.back, x1: W, y0: 0, y1: D, res: Math.round(D / Lf.cell) + 1 });
-  const rough = bakeGrid(grid(), field(plan.roughAt));
+  const rough = bakeGrid(grid(), field(plan.baseRoughAt));
+  const edited = G.edits.length > 0, editOpts = { gridX, gridY, walkAt: (y) => plan.smoothAt(sOf(y)) };
+  if (edited) applyEdits(rough, G.edits, editOpts);
 
   // ── pass 2: SMOOTH — the profile averaged, the ground eased, the walk laid level across, the geology, the pits ──
-  const g = bakeGrid(grid(), field(plan.smoothAt));
+  const g = bakeGrid(grid(), field(plan.baseAt));
   for (let it = 0; it < 2; it++) {
     const z = g.z.slice();
     for (let j = 1; j + 1 < g.ny; j++) for (let i = 1; i + 1 < g.nx; i++) {
@@ -310,16 +336,18 @@ function siteOf(st, plan) {
       g.z[j * g.nx + i] = t / 9;
     }
   }
+  // the walk laid on the heartbeat's own profile while the ground is the heartbeat's (the edits come after the seam)
+  const walkAt = edited ? plan.baseAt : plan.smoothAt;
   const walkLevel = (x, y) => { const d = lineDist(x, y), e = edge(y); return 1 - smooth(e + 0.5, e + 3.5, d); };
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
     const x = gridX(g, i), y = gridY(g, j), q = j * g.nx + i;
-    g.z[q] = mix(g.z[q], plan.smoothAt(sOf(y)), walkLevel(x, y));
+    g.z[q] = mix(g.z[q], walkAt(sOf(y)), walkLevel(x, y));
   }
   const eased = g.z.slice();
   const valley = (x, y) => gridSample({ ...g, z: eased }, x, y);
   const path = []; for (let y = -8; y <= D + 8; y += 2) path.push([cliffX(y), y]);
   applyLandform(g, [
-    { op: 'scarp', path, throw: Lf.throw, face: Lf.face, side: 'left', rough: 0.02, taper: 0 },
+    { op: 'scarp', path, throw: G.cliff.height ?? Lf.throw, face: G.cliff.face ?? Lf.face, side: 'left', rough: 0.02, taper: 0 },
     { op: 'strata', thickness: Lf.bed, contrast: 0.85, hardShare: 0.5, jitter: 0.4 },
     { op: 'joints', rock: 'granite', spacing: Lf.joint, steep: 40 },
     { op: 'talus', angle: 34, cliff: 50, retreat: Lf.retreat, scree: Lf.scree, rmin: 0.25, rmax: 1.3 },
@@ -331,12 +359,24 @@ function siteOf(st, plan) {
   // the walk laid again over the geology: no talus rolls onto it, no scarp lifts it (a pinch brings the cliff close)
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
     const x = gridX(g, i), y = gridY(g, j), w = walkLevel(x, y); if (w <= 0) continue;
-    const q = j * g.nx + i; g.z[q] = mix(g.z[q], plan.smoothAt(sOf(y)), w); g.apron[q] *= 1 - w;
+    const q = j * g.nx + i; g.z[q] = mix(g.z[q], walkAt(sOf(y)), w); g.apron[q] *= 1 - w;
   }
   // the SEAM: a followed trail's last row of ground is this one's first, eased into over `SEAM` metres
   if (J) for (let j = 0; j < g.ny; j++) {
     const y = gridY(g, j), w = seamW(y); if (w <= 0) continue;
     for (let i = 0; i < g.nx; i++) { const q = j * g.nx + i; g.z[q] = mix(g.z[q], J.ground(gridX(g, i)), w); g.apron[q] *= 1 - w; g.hard[q] *= 1 - w; }
+  }
+  // the EDITS (out-ground.js), laid after the seam: an edit is the same on both sides of it (the level hands each trail
+  // its own share in its own metres), so laid on both after the seam it is whole across it. Then the walk is laid again:
+  // the ground as it was before the edits, moved by the edits the walk follows (from its own profile), so it holds its
+  // height through the ones it keeps and nothing beside it moves twice
+  const baseZ = edited ? g.z.slice() : null;
+  if (edited) {
+    applyEdits(g, G.edits, editOpts);
+    for (let j = 0; j < g.ny; j++) {
+      const y = gridY(g, j), s = sOf(y), lift = plan.smoothAt(s) - plan.baseAt(s);
+      for (let i = 0; i < g.nx; i++) { const w = walkLevel(gridX(g, i), y); if (w <= 0) continue; const q = j * g.nx + i; g.z[q] = mix(g.z[q], baseZ[q] + lift, w); }
+    }
   }
   // the PITS, cut last so nothing fills them: across the walk and a little wider, the ground whole beyond (the way round)
   for (const p of pits) for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
@@ -345,6 +385,8 @@ function siteOf(st, plan) {
     if (k > 0) g.z[j * g.nx + i] -= p.depth * k;
   }
   const ground = (x, y) => gridSample(g, x, y), apronAt = (x, y) => gridSample(g, x, y, g.apron);
+  // the ground before the edits, for a trail that follows this one to seam onto (it lays the same edits itself)
+  const groundBase = baseZ ? (x, y) => gridSample(g, x, y, baseZ) : ground;
   const scree = g.scree.filter((r) => r.x - cliffX(r.y) < Lf.keep[0]).map((r) => ({ ...r, z0: ground(r.x, r.y) }));
 
   // the site's reading of the trail: a pit is no trail (the ribbon breaks, the ground under it stays)
@@ -373,7 +415,7 @@ function siteOf(st, plan) {
   const rocks = marks.map((m, i) => ({ x: m.x, y: m.y, size: m.size, detail: 1, v: i, role: 'landmark', node: m.b.id, tall: C.landmark.tall }));
   const out = annotate(plan, { pockets, marks, pits, streams, ground, trailX, edge });
   const origin = J ? J.origin : 0;
-  const site = { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius,
+  const site = { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, groundBase, valley, apronAt, grid: g, scree, foci, inRadius,
     clear, gapAt, rocks, passes: { rough, smooth: g }, out, origin };
   // the BOUNDARY (out-bounds.js): the site's edge as walls with faces; every segment an anchor on this trail
   site.bounds = boundSegments(site, T.bounds, { after: !!J, cliff: !!st.cliff });
@@ -439,7 +481,7 @@ export function outTrailPayload(site) {
     anchors: site.out.anchors,
     colliders: boundColliders(site, site.bounds, `out-trail:${P.id}`),
     outTrail: { id: `out-trail:${P.id}`, length: r5(P.L - 2 * C.ends), run: r5((P.L - 2 * C.ends) / C.speed), explore: exploreSeconds(site),
-      heartbeat: P.T.heartbeat, bumpiness: P.T.bumpiness, beats: P.beats.map((b) => ({ id: b.id, beat: b.kind, s: b.s })),
+      heartbeat: P.T.heartbeat, bumpiness: P.T.bumpiness, ...(P.T.ground ? { ground: P.T.ground } : {}), beats: P.beats.map((b) => ({ id: b.id, beat: b.kind, s: b.s })),
       stairs: P.stairs, laws: outTrailLaws(site).map(({ law, ok, value }) => ({ law, ok, value })),
       // a trail that follows another: which, and where its site sits beside it (the followed one's frame, metres)
       ...(P.join ? { after: `out-trail:${P.join.from}`, origin: [0, site.origin, 0] } : {}) },
@@ -484,16 +526,16 @@ export function outTrailLaws(site) {
     const s = (k - 0.5) * profile.ds, g = Math.abs(profile.smoothed[k] - profile.smoothed[k - 1]) / profile.ds;
     if (!onStairs(s)) steep = Math.max(steep, g);
   }
-  law('grade', steep <= C.grade + 1e-9, r5(steep), `the walk off the stairs no steeper than ${C.grade}`);
+  law('grade', steep <= P.G.grade + 1e-9, r5(steep), `the walk off the stairs no steeper than ${P.G.grade}`);
   const hz = beats.filter((b) => b.kind === 'pit' || b.kind === 'crossing'), onHazard = hz.filter((b) => stairs.some((r) => r.s1 > b.s - C.level && r.s0 < b.s + C.level));
   law('level', onHazard.length === 0, onHazard.map((b) => b.id).join(', ') || hz.length, `a pit or a ford on level ground, no stairs within ${C.level} m`);
   const reveal = beats.filter((b) => b.kind === 'reveal');
-  law('crest', reveal.every((b) => P.smoothAt(b.s) >= P.smoothAt(b.s - 12) + 0.25 * P.T.heartbeat * C.rise - 0.05), reveal.length, 'every reveal at the top of a climb');
+  law('crest', reveal.every((b) => P.smoothAt(b.s) >= P.smoothAt(b.s - 12) + 0.25 * P.G.A - 0.05), reveal.length, 'every reveal at the top of a climb');
   law('hazards', site.out.hazards.every((h) => h.respawn && h.severity && (h.hazard !== 'pit' || h.around)), site.out.hazards.length, 'every hazard with a severity, a way round and a respawn');
   const J = P.join;
   if (J) {
     let gap = Math.abs(site.trailX(0) - J.x) + Math.abs(P.trailSlope(0) - J.slope) + Math.abs(P.smoothAt(0) - J.z);
-    for (let x = site.grid.x0; x <= site.W; x += 1) gap = Math.max(gap, Math.abs(site.ground(x, 0) - J.ground(x)));
+    for (let x = site.grid.x0; x <= site.W; x += 1) gap = Math.max(gap, Math.abs(site.ground(x, 0) - J.whole(x)));
     law('seam', gap < 0.01, r5(gap), `starts where out-trail:${J.from} leaves: its line, heading, height and ground`);
   }
   const bf = boundLaw(site, site.bounds);

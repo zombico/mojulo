@@ -21,6 +21,7 @@
  * Lit by the stage bake with a sun (cast shadows per vertex, trees included; a card casts only where it is painted) and
  * a sky fill. Deterministic.
  */
+import { reserveSite, kept } from './reserve.js';
 import { NATURE_TRAIL } from './style/nature-trail.js';
 import { hash3, vnoise } from './dirt.js';
 import { P, hexRgb, rgbHex, r5, quad, box, card, crossed } from './geom.js';
@@ -678,8 +679,10 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
   if (!st) throw new Error(`stage: unknown nature style '${manifest.style}' (known: ${Object.keys(NATURE_STYLES).join(', ')})`);
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
-  const site = manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), trees = treeItems(st, site, seed);
-  const rocks = rockItems(st, site, seed);
+  // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
+  const keep = manifest._keepOut ?? null;
+  const site = reserveSite(manifest.trail !== undefined ? outTrailSite(st, manifest.trail, seed) : natureSite(st, seed), keep), trees = treeItems(st, site, seed);
+  const rocks = keep ? rockItems(st, site, seed).filter((r) => kept(keep, r.x, r.y, 1.5)) : rockItems(st, site, seed);
   const puddles = puddleSpots(st, site);
   let ground = groundFaces(st, site), ribbon = trailFaces(st, site);
   if (st.trail.dice > 1) ribbon = ribbon.flatMap((f) => dice(f, st.trail.dice));

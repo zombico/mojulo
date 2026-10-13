@@ -525,7 +525,9 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
   // one — so every other consumer (World/three, STL, rigs) and every normal-free scene stays
   // byte-identical. Buffer runs parallel to `positions`; faces without an authored normal fall
   // back to the winding-derived geometric normal so the buffer never has a hole.
-  const anyNormal = withNormals && src.some((f) => f && Array.isArray(f.outNormal) && !(typeof f.texture === 'string' && Array.isArray(f.uv)));
+  // A face may carry SMOOTHING too: `cornerNormals`, one unit normal per corner (gameworld/tech-shading.js), written per
+  // vertex in place of the flat one, so a low-poly round is shaded smooth in the engine. Absent → as before.
+  const anyNormal = withNormals && src.some((f) => f && (Array.isArray(f.outNormal) || Array.isArray(f.cornerNormals)) && !(typeof f.texture === 'string' && Array.isArray(f.uv)));
   const normals = anyNormal ? [] : null;
   for (const f of src) {
     const c = f && f.corners;
@@ -616,7 +618,9 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       pushSpec(f, tris.length * 3);
       pushCry(f, tris.length * 3);
       pushMet(f, tris.length * 3, tris.flat());
-      pushNormal(tris.length * 3);
+      const cn = normals && Array.isArray(f.cornerNormals) && f.cornerNormals.length === c.length ? f.cornerNormals : null;
+      if (cn) for (const tri of tris) for (const idx of tri) normals.push(cn[idx][0], cn[idx][1], cn[idx][2]);
+      else pushNormal(tris.length * 3);
     }
     for (let i = 0; i < c.length && i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
   }

@@ -63,7 +63,7 @@ export const TOOL_LINES = {
   fabricate_solid: L('compose', 'Make an object buildable: what each part must do → standard parts, a bill of materials and the cuts or joints that take them. Plan, then mint.'),
   verify_machina: L('observe', 'A checked feasibility verdict for a materials-handling problem: can this mechanism move this load within these limits?'),
   get_solid_vocab: L('orient', 'A `mint_solid` kind or `edit_solid` op manual (long ones open to `sections`). Omit `id` to list; find one with `semantic_search` kind solid_vocab.'),
-  mint_building: L('create', 'A walkable house, apartment or furnished room with its structure book; `next` names what is open by outcome and its card. Revise: `update_sketch`.'),
+  mint_building: L('create', 'A walkable house, apartment, room, store, restaurant, mall, office or school with its structure book, or as a game level; `next` names what is open by outcome and its card. Revise: `update_sketch`.'),
 
   // ── worlds ────────────────────────────────────────────────────────────────
   compose_world: L('create', 'A traversable world: a BASE (city, transport-hub, controllable, action, dungeon, …) × a theme. Manual: `get_view_vocab`; themes: `list_world_themes`.'),
@@ -74,6 +74,7 @@ export const TOOL_LINES = {
 
   // ── games ─────────────────────────────────────────────────────────────────
   design_game: L('compose', 'THE GAME RAIL: design a game top down (hero, powers, gear, systems); `run: true` makes each ready step through `create_sketch` and the doors.'),
+  tune_ground: L('update', "A gameworld level's ground on a top-down grid: amplitude and depth dials, cliffs, gorges, raises by cell; a map and hotspots back."),
   create_game: L('compose', 'A playable game: a shell with a typed store and levels that are worlds. Store design: `get_game_vocab`; revise: `update_sketch`.'),
   create_pixelizer_game: L('create', 'A self-contained 2D reducer game (brickster and kin) for the Arcade; no levels, unlike `create_game`.'),
   create_sprite_sheet: L('create', 'A 2D sprite sheet as a director recipe: frames on a grid, each painted through the image-render handoff.'),
@@ -164,6 +165,8 @@ export const TOOL_LINES = {
   get_cook: L('maintain', 'A cook row and its outcome folder.'),
   list_cooks: L('maintain', 'Cooks, most recent first.'),
   archive_cook: L('maintain', 'Hide a cook from the inbox; its folder stays.'),
+  sign_asset: L('maintain', "Sign an exported file with the install's creator key: a `.proof.json` receipt beside it, the file unchanged. Opt-in, for licensing what you made."),
+  verify_asset: L('observe', 'Check a file against its creator receipt: bytes, signature, creator id, ref and dates.'),
 
   // ── workflows: sweeps and the research book ───────────────────────────────
   run_experiment_sweep: L('compose', 'Variations in one call: any recipe copied per value at a JSON Pointer, one folder of variants; or a mechanics experiment with its plot.'),

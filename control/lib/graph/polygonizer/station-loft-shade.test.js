@@ -521,6 +521,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // (world-kinds.js, STUDIO_SMOOTH_CREASE: a hero off the anime head carries the key at its corners); the unshaded
     // export (FLAT_LIGHT) unchanged. The landmark pins, all three, re-pinned for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis), then for
     // the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull)
+    // Re-pinned for the recipe PALETTE on the plain rig pack (station-loft-rig packLayeredRig `palette`): a face colours by its group's palette entry, else its part's tint, as the static faces do; every hero here, its plain and toon pins and its pack (the unshaded export too: its pack's colours moved).
     landmarkMale: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), ['05a75898275cf314', '5169832fc322f0e2', 'b0e4bcab7010485b']],
     landmarkFemaleLowpoly: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', register: 'lowpoly', core: 'streamlined' }) }), ['a0d0b61ae03d1329', 'd81d789c4d7e5adc', '14f7d7276b284cf1']],
     headNone: [() => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'none', core: 'streamlined' }) }), ['d9dccbb353860437', '3acb7a0ba5e77a17', 'b1b8dbffa9754849']],
@@ -614,6 +615,7 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     // formWave puts back is that one now, so untimed each payload hashes the values that re-pin gave (480bf3bb44f1d27c /
     // 12773edda172d343), still; the anime hero's own payloads never move with it (ANIME_WAVE replaces the form's).
     // (on the streamlined core: the chain above predates the structured core, DEFAULT_CORE, pinned below)
+    // Re-pinned for the recipe PALETTE on the plain rig pack (station-loft-rig packLayeredRig `palette`): a face colours by its group's palette entry, else its part's tint, as the static faces do: every pin here moved, the earlier values in the chain above with them.
     const spec = { cast: 'female', head: 'anime', gesture: 'rest', sculpt: false, core: 'streamlined' };
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
     const plainBake = await world(m, { unshaded: true });

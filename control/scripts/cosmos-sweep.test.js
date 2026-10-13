@@ -21,12 +21,17 @@ describe('cosmos-sweep CLI', () => {
     expect(text).toMatch(/unlock by facet/);
     expect(text).toMatch(/build order: work packages/);
     expect(text).toMatch(/unlock by value: the top 5/);
+    expect(text).toMatch(/godot ladder, power: .*\n  now\s+\d+\n  \+ power\./);
+    expect(text).toMatch(/godot by value: /);
   });
 
   it('prints one fixture row by row, with what each value lowers to', () => {
-    const f = fixture('jrpg');
-    const text = formatFixture(f, dryRun(f.cube));
+    const f = fixture('shooter');
+    expect(formatFixture(f, dryRun(f.cube))).toMatch(/verdict makeable/);
+    // the same shooter asked at seventh-generation fidelity waits on the era
+    const hd = { ...f, cube: { ...f.cube, reality: { ...f.cube.reality, era: 'gen-7' } } };
+    const text = formatFixture(hd, dryRun(hd.cube));
     expect(text).toMatch(/verdict blocked/);
-    expect(text).toMatch(/combat=turn-based\s+absent/);
+    expect(text).toMatch(/era=gen-7\s+absent/);
   });
 });

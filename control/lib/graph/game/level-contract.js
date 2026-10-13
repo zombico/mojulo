@@ -42,6 +42,11 @@ export const RESULTS = ['success', 'fail', 'abort'];
 export const MSG_READY = 'game-ready';
 export const MSG_INIT = 'game-init';
 export const MSG_OUTCOME = 'game-outcome';
+// a DOOR crossed (non-terminal): the level leaves through one of its door ends, carrying what its session has
+// gathered so far (an envelope whose result is 'transit'); the shell applies it, then loads the level the door
+// links to, entered at the door it pairs with (game-init params.__entry: { door }).
+//   level → shell  { moj: MSG_DOOR, levelRef, door, envelope }
+export const MSG_DOOR = 'game-door';
 // presentation-only sidecars (unversioned, safe to ignore):
 //   shell → level  { moj: MSG_AUDIO, on, volume }        — settings panel audio prefs → beats channel
 //   shell → level  { moj: MSG_PAUSE, on }                — pause menu freezes / resumes the sim
@@ -118,14 +123,70 @@ export function validateLevelContract(game, schema) {
     }
   }
 
+  // POWERS: what a power key gives its holder in a map game. { slice, target, grants: { <power>: { <rule knob>: number } } }:
+  // the held ones apply at start, one picked up applies when the bus hears pickup:<power>.
+  if (game.powers !== undefined) {
+    const p = game.powers, num = (o) => o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).length && Object.values(o).every((v) => typeof v === 'number' && Number.isFinite(v));
+    if (!p || typeof p !== 'object' || typeof p.slice !== 'string' || !p.slice || typeof p.target !== 'string' || !p.target || !p.grants || typeof p.grants !== 'object' || Array.isArray(p.grants)) {
+      errors.push('game.powers is { slice, target, grants: { <power>: { <rule knob>: number } } }: the slice the powers are held in, the entity they move, and what each changes');
+    } else {
+      for (const [id, g] of Object.entries(p.grants)) if (!num(g)) errors.push(`game.powers.grants.${id} is { <rule knob>: number } (airJumps, glideFall, jumpSpeed…)`);
+      if (!(game.consumes || []).some((c) => c && c.slice === p.slice)) errors.push(`game.powers.slice '${p.slice}' is not consumed: add { slice: '${p.slice}' } to game.consumes, or the level never hears what is held`);
+    }
+  }
+
+  // FLAGS: the store flags a level's scenes read and set (playscape/ui/scenes.js), pushed onto the bus at start.
+  if (game.flags !== undefined) {
+    const f = game.flags;
+    const consumed = (sl) => (game.consumes || []).some((c) => c && c.slice === sl);
+    if (!f || typeof f !== 'object' || !Array.isArray(f.names) || !f.names.every((n) => typeof n === 'string' && n) || (f.names.length && !(typeof f.slice === 'string' && f.slice))) errors.push('game.flags is { slice, names: [flag], items?, done? }: the flags slice and the flags the level reads');
+    else {
+      for (const sl of [f.slice, ...(f.items ? f.items.slices || [] : []), ...(f.done ? [f.done.slice] : [])]) if (sl && !consumed(sl)) errors.push(`game.flags reads the slice '${sl}', which is not consumed: add { slice: '${sl}' } to game.consumes`);
+      if (f.items !== undefined && !(f.items && Array.isArray(f.items.slices) && Array.isArray(f.items.names))) errors.push('game.flags.items is { slices: [inventory slice], names: [item] }');
+      if (f.done !== undefined && !(f.done && typeof f.done.slice === 'string' && f.done.levels && typeof f.done.levels === 'object')) errors.push('game.flags.done is { slice, levels: { <name>: <level ref> } }');
+    }
+  }
+
+  // ARRIVE: the levels a map game travels in from. The shell's `arrive` param names one, the level hears `arrive:<ref>`
+  // on its first frame, and its own events move the pilot to that end of the level.
+  if (game.arrive !== undefined && !(Array.isArray(game.arrive) && game.arrive.length && game.arrive.every((r) => typeof r === 'string' && r))) {
+    errors.push('game.arrive is [<level ref>, …]: the levels a map game travels in from (each heard as arrive:<ref> on the first frame)');
+  }
+
+  // the level's door ends (the `door` mechanic): where each is, and where a walker entering by it stands
+  if (game.doors !== undefined) {
+    if (!Array.isArray(game.doors)) errors.push('game.doors must be [{ id, at, spawn, heading }]');
+    else game.doors.forEach((d, i) => { if (!d || typeof d.id !== 'string' || !Array.isArray(d.spawn)) errors.push(`game.doors[${i}] must be { id, at, spawn: [x, y, z], heading }`); });
+  }
+
+  // BAG: the inventory slice the player's bag is carried in (the bag mechanic): filled at the start, kept as it changes
+  const consumed = (sl) => (game.consumes || []).some((c) => c && c.slice === sl);
+  if (game.bag !== undefined && !(game.bag && typeof game.bag.slice === 'string' && consumed(game.bag.slice) && ['worn', 'holders'].every((k) => game.bag[k] === undefined || (typeof game.bag[k] === 'string' && consumed(game.bag[k]))))) {
+    errors.push('game.bag is { slice, worn?, holders? }: slices the level consumes (the bag and what is worn carried in, what its chests hold kept), each kept as it changes');
+  }
+  // AFTERMATH: the flags slice the level keeps its broken blocks in (the aftermath mechanic), restored on entry
+  if (game.aftermath !== undefined && !(game.aftermath && typeof game.aftermath.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.aftermath.slice))) {
+    errors.push('game.aftermath is { slice }: a flags slice the level consumes (its broken blocks, kept and restored)');
+  }
+
+  // KEEP: the numbers a level reports at its end (a score, a time), each kept best by the shell: { var, label, best:
+  // 'high' | 'low', scale?, unit? } (the laps and score mechanics write them)
+  if (game.keep !== undefined) {
+    if (!Array.isArray(game.keep) || !game.keep.length) errors.push('game.keep is [{ var, label, best: high | low, scale?, unit? }]');
+    else game.keep.forEach((k, i) => { if (!k || typeof k.var !== 'string' || typeof k.label !== 'string' || (k.best !== 'high' && k.best !== 'low') || (k.scale !== undefined && !Number.isFinite(k.scale)) || (k.unit !== undefined && typeof k.unit !== 'string')) errors.push(`game.keep[${i}] is { var, label, best: 'high' | 'low', scale?, unit? }`); });
+  }
+
   if (game.on !== undefined) {
     if (!game.on || typeof game.on !== 'object' || Array.isArray(game.on)) errors.push('game.on must be { "<busEventPattern>": { emit: <typed event> } | { end: result } }');
     else for (const [pat, action] of Object.entries(game.on)) {
       const where = `game.on["${pat}"]`;
       if (!action || typeof action !== 'object') { errors.push(`${where} must be { emit } or { end }`); continue; }
-      const keys = ['emit', 'end'].filter((k) => action[k] !== undefined);
-      if (keys.length !== 1) { errors.push(`${where} needs exactly one of emit | end`); continue; }
+      const keys = ['emit', 'end', 'door'].filter((k) => action[k] !== undefined);
+      if (keys.length !== 1) { errors.push(`${where} needs exactly one of emit | end | door`); continue; }
+      if (action.door !== undefined && !(Array.isArray(game.doors) && game.doors.some((d) => d && d.id === action.door))) errors.push(`${where}.door '${action.door}' names no door in game.doors`);
       if (action.end !== undefined && !RESULTS.includes(action.end)) errors.push(`${where}.end must be one of: ${RESULTS.join(', ')}`);
+      // a level left by one of several ways names it: the envelope carries `exit`, and a map game travels by it
+      if (action.exit !== undefined && (action.end === undefined || typeof action.exit !== 'string' || !/^[a-z0-9][a-z0-9:_-]{0,63}$/.test(action.exit))) errors.push(`${where}.exit names the way the level was left (a short lower-case id), beside end`);
       if (action.emit !== undefined) {
         // an emitted event must itself be allowed by produces — check the pair here so the
         // authoring error surfaces at mint time, not as a rejected envelope at play time.

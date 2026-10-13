@@ -34,6 +34,7 @@ import { scadExport } from '@/lib/graph/scene/scene-scad';
 import { renderScad2d, SCAD_2D_FORMATS } from '@/lib/graph/scad/scad-render';
 import { manifestToIfc } from '@/lib/graph/construction/ifc';
 import { readStructure } from '@/lib/graph/structure/read';
+import { occupancyOf } from '@/lib/graph/structure/programs';
 import { scheduleFiles, sheetFiles, allTables } from '@/lib/graph/structure/tables';
 import { buildBlenderPack } from '@/lib/graph/scene/blender-pack';
 import { meshFileToFaces } from '@/lib/graph/scene/mesh-read';
@@ -245,10 +246,10 @@ async function ifcExport(input, context) {
   return result;
 }
 
-// ── formats: 'sheets' and 'schedules' — a house as its drawing set and its schedules (lib/graph/structure) ─────────
+// ── formats: 'sheets' and 'schedules' — a building as its drawing set and its schedules (lib/graph/structure) ──────
 // The 2D legs of the building: the set an architect hands on (sheets/<id>.svg per sheet, in NCS order, and an index)
 // and the tables a spreadsheet or a takeoff reads (schedules/<id>.csv per table and schedules.json). Any floorplan row,
-// one floor or a stack; framed, the S-, E- and P-sheets and the trades' tables join. Same recipe, same bytes. SVG only:
+// one floor or a stack, or a store, restaurant or mall; framed, the S-, E- and P-sheets and the trades' tables join. Same recipe, same bytes. SVG only:
 // nothing in the export stack writes PDF.
 async function structureExport(input, context, format) {
   const { ref, write = true } = input;
@@ -256,11 +257,11 @@ async function structureExport(input, context, format) {
   if (!sketch) throw new Error(`No sketch exists at ref '${ref}'`);
   if (!sketch.manifest) throw new Error(`Sketch '${ref}' has no manifest`);
   const kind = sketch.manifest.kind;
-  const read = kind === 'floorplan' ? readStructure(sketch.manifest) : null;
+  const read = occupancyOf(sketch.manifest) ? readStructure(sketch.manifest) : null;
   if (!read || !read.footprint) {
     return {
       ok: false, eligible: false, ref, kind: kind ?? null, format,
-      reason: `The ${format === 'sheets' ? 'drawing set' : 'schedules'} cover houses (the floorplan kind, minted by mint_building); '${kind}' is not one. For a mesh, \`format: 'glb'\`.`,
+      reason: `The ${format === 'sheets' ? 'drawing set' : 'schedules'} cover buildings minted by mint_building (a house, store, restaurant or mall); '${kind}' is not one. For a mesh, \`format: 'glb'\`.`,
     };
   }
   const title = sketch.title || sketch.manifest.title || ref;
@@ -271,7 +272,7 @@ async function structureExport(input, context, format) {
     files = set.files;
     result = {
       ok: true, ref, kind, format, sheets: set.index, framed: !!read.construction,
-      note: `${set.index.length} sheets as SVG at ANSI B (17 x 11 in), NCS sheet ids, bound civil, structural, architectural, plumbing, electrical; sheets/INDEX.md lists them. A sheet appears when the recipe has what it draws (framing adds S-, wiring E-, drainage P-sheets). Print at 100%. PDF is not written.`,
+      note: `${set.index.length} sheets as SVG at ANSI B (17 x 11 in), NCS sheet ids, bound by discipline (${[['C', 'civil'], ['S', 'structural'], ['A', 'architectural'], ['P', 'plumbing'], ['E', 'electrical']].filter(([d]) => set.index.some((x) => x.id.startsWith(`${d}-`))).map(([, w]) => w).join(', ')}); sheets/INDEX.md lists them. A sheet appears when the recipe has what it draws (framing adds S-, wiring E-, drainage P-sheets). Print at 100%. PDF is not written.`,
     };
   } else {
     files = scheduleFiles(named);

@@ -2,6 +2,10 @@
 { "id": "store", "name": "store / mall — shops fit out from retail concept cards", "summary": "a walkable shop (kind 'store') or a mall whose bays are shops (kind 'mall'), each fit out from a concept card: pure JSON naming cells, zones and fixtures, graded by a retail assessor and scaled down to small units with every change stamped", "when": "making a shop, store, boutique, cafe, bar, wine bar, bookstore, showroom, food counter, department store or shopping mall interior — or authoring a new kind of store as a card rather than placing fixtures by hand", "tier": "recipe" }
 ---
 
+Mint a store or a mall with `mint_building` (or `create_sketch`; both store the same row). Its page is its
+structure book: plans, rooms by role, the fit-out as an FF&E schedule, the program's grade (card
+`building-commercial`).
+
 A store is a **concept card**: plain JSON the interpreter reads. A new kind of
 store is a new card, never new code. One interpreter fits any card into any unit
 (a standalone shop, a narrow mall bay, a wide anchor). One assessor grades the

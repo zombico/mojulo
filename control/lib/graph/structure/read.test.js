@@ -22,8 +22,8 @@ const HOUSES = {
 const reads = Object.fromEntries(Object.entries(HOUSES).map(([k, m]) => [k, readStructure(m)]));
 
 describe('readStructure — the recipe read as a building', () => {
-  it('is null for a manifest that is not a floorplan', () => {
-    expect(readStructure({ kind: 'store' })).toBeNull();
+  it('is null for a manifest that is not a building', () => {
+    expect(readStructure({ kind: 'condo-complex' })).toBeNull();
     expect(readStructure(null)).toBeNull();
   });
 

@@ -25,6 +25,7 @@
 import { geometry as G, eyeSpot, STRUCTURE_RINGS, STRUCTURE_RING_IDS } from './out-structures.js';
 import { structurePaint } from './out-structures-paint.js';
 import { madeRamp } from './style/swatches.js';
+import { EYE_SPOT_PX, metresPerPixel } from '../playscape/objects/laws.js';
 
 const { face, basis, add3, sub, cross, unit, dot, dice, subSeed, r3 } = G;
 
@@ -41,6 +42,10 @@ export const FUNCTIONS = Object.freeze({
   keep: { reads: [['shell'], ['seal', 'door']], read: 'a shell and the way through it' },
   grow: { reads: [['bed'], ['water', 'lamp']], read: 'a bed and what feeds it: water or light' },
   light: { reads: [['lamp']], read: 'a lamp' },
+  // what the technology crafter (gameworld/tech-crafter.js) adds: what fights, what takes the blow, what lets you through
+  strike: { reads: [['weapon'], ['grip', 'mount']], read: 'what strikes (a blade, a head, a limb, a barrel, a throwing arm) and what holds or aims it (a grip, a stock, a carriage, a mount)' },
+  guard: { reads: [['armour']], read: 'plate or a shield: something that takes the blow' },
+  pass: { reads: [['span'], ['pier']], read: 'a way across or through (a deck, a lintel, a ring) and what holds it up' },
 });
 export const FUNCTION_IDS = Object.freeze(Object.keys(FUNCTIONS));
 /** Roles a part may take: every role a function reads, and the ones that only carry or dress. */
@@ -52,9 +57,13 @@ export const TIERS = Object.freeze({
   machine: { ring: 'mid', budget: 1, read: 'body scale, 1.5–6 m' },
   installation: { ring: 'mid', budget: 2, read: 'building scale: on or beside a building' },
   automation: { ring: 'mid', budget: 1.5, read: 'a machine and its cycle: the track or rail it runs, its joints posed' },
+  // the crafter's: a hand weapon is judged where it is seen, at arm's length (`reach`, m), not at a ring's distance
+  held: { ring: 'near', reach: 1, budget: 0.5, read: 'in the hand: a weapon or a tool held, judged at arm\'s length' },
+  vessel: { ring: 'mid', budget: 2, read: 'building scale, and it goes: a ship, an airship, a land train' },
+  landmark: { ring: 'mid', budget: 2.5, read: 'a tech-structure seen across the level: a tower, a gate, a span, a stack' },
 });
 export const TIER_IDS = Object.freeze(Object.keys(TIERS));
-export const MOUNTS = Object.freeze(['ground', 'wall', 'roof', 'socket']);
+export const MOUNTS = Object.freeze(['ground', 'wall', 'roof', 'socket', 'hand', 'water']);
 /** The technology's surface groups (a finish points each at one of the kit's ramps); `str:accent` is the status light. */
 export const TECH_GROUPS = Object.freeze({
   'tech:body': 'the body of a thing', 'tech:frame': 'frames, masts, booms, chassis', 'tech:skin': 'cladding and panels',
@@ -305,7 +314,9 @@ const place = (f, at, yaw) => ({ ...f, corners: f.corners.map((p) => add3(yawed(
 export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many, at = [0, 0, 0], yaw = 0, depth = 0 } = {}) {
   readBlock(B, library);
   if (depth > 6) throw new Error(`blocks: '${B.id}' nests blocks more than six deep`);
-  const P = blockParams(B, params, seed, many), rg = ring ?? B.ring ?? TIERS[B.tier].ring, eye = eyeSpot(rg), faces = [], parts = [];
+  // a held block is judged at arm's length unless a ring is asked for
+  const reach = ring === undefined && B.ring === undefined ? TIERS[B.tier].reach : undefined;
+  const P = blockParams(B, params, seed, many), rg = ring ?? B.ring ?? TIERS[B.tier].ring, eye = reach ? r3(EYE_SPOT_PX * metresPerPixel(reach)) : eyeSpot(rg), faces = [], parts = [];
   for (const p of B.parts) {
     const shown = p.many === undefined || P.many >= p.many - 1e-9;
     const rep = p.repeat ? { n: Math.max(0, Math.round(expr(p.repeat.n, P))), step: vec(p.repeat.step, P), around: p.repeat.around !== undefined ? expr(p.repeat.around, P) : null } : { n: 1, step: [0, 0, 0], around: null };
@@ -341,7 +352,7 @@ export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many,
   let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const f of out) for (const c of f.corners) { lo = lo.map((v, i) => Math.min(v, c[i])); hi = hi.map((v, i) => Math.max(v, c[i])); }
   if (!out.length) lo = hi = [0, 0, 0];
-  return { id: B.id, faces: out, parts, params: P, box: { lo: lo.map(r3), hi: hi.map(r3), size: hi.map((v, i) => r3(v - lo[i])) }, ring: rg, eye, counted: out.filter((f) => !f.tile).length };
+  return { id: B.id, faces: out, parts, params: P, box: { lo: lo.map(r3), hi: hi.map(r3), size: hi.map((v, i) => r3(v - lo[i])) }, ring: rg, ...(reach ? { reach } : {}), eye, counted: out.filter((f) => !f.tile).length };
 }
 
 // ── the laws ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -364,7 +375,7 @@ export function blockLaws(B, built) {
   law('one-leads', 'one piece leads: it takes ≥ 1.5 × the picture any other piece does', !!lead && (!next || lead[1] >= 1.5 * next[1] - 1e-9), lead ? `${lead[0]} ${r3(lead[1])} m²${next ? ` over ${next[0]} ${r3(next[1])} m²` : ''}` : 'nothing shown');
   // the function reads at its ring: its signature pieces are geometry there
   const lost = (B.sig ?? []).filter((id) => built.parts.find((p) => p.id === id)?.shown !== 'geometry');
-  law('reads-at-ring', `the signature (${(B.sig ?? []).join(', ') || 'none named'}) is geometry at ${built.ring} (eye spot ${built.eye} m)`, !lost.length, lost.length ? `lost: ${lost.join(', ')}` : 'all shown');
+  law('reads-at-ring', `the signature (${(B.sig ?? []).join(', ') || 'none named'}) is geometry at ${built.reach ? `arm's length, ${built.reach} m` : built.ring} (eye spot ${built.eye} m)`, !lost.length, lost.length ? `lost: ${lost.join(', ')}` : 'all shown');
   // what it is for shows: each function's reads find a shown piece in one of their roles
   const roles = new Set(rolesOf(built.parts)), missing = [];
   for (const f of B.functions ?? []) for (const any of FUNCTIONS[f].reads) if (!any.some((r) => roles.has(r))) missing.push(`${f}: ${any.join(' or ')}`);

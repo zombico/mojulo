@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mulberry32 } from '../vegetation/grow.js';
-import { rollCube, nudgeCube, sweep } from './sweep.js';
+import { rollCube, nudgeCube, sweep, closure } from './sweep.js';
 import { capabilityRegistry } from './registry.js';
 import { EFFORT_WEIGHT } from './packages.js';
 import { validateCube, dryRun } from './cosmos.js';
@@ -122,16 +122,22 @@ describe('sweep', () => {
   });
 
   it('builds what a value requires with it, and prices the closure', () => {
-    // quests need a character who talks: the package carries talk with it, priced at both (Mind owns talk's size)
-    const reg = capabilityRegistry(), talk = reg.mind.social.values.talk;
-    const q = sweep({ n: 300, seed: 1, around: 'story-adventure' }).unlock.packages.find((p) => p.id === 'quests');
-    expect(q).toMatchObject({ needs: ['mind.social=talk'], cost: 3 + EFFORT_WEIGHT[talk.effort] });
-    // a passage requires chapters, which are built: a built prerequisite is neither needed nor priced
-    expect(reg.time.passage.values.seasons.requires).toEqual(['time.chapters=overlays']);
+    // quests need a character who talks: an unbuilt prerequisite comes with it (both built 10-12, so a copy of the
+    // registry with talk unbuilt stands in), a built one does not
+    const reg = capabilityRegistry();
+    expect(reg.time.advance.values.quests.requires).toEqual(['mind.social=talk']);
+    expect([...closure(reg, ['time.advance=quests'])]).toEqual(['time.advance=quests']);
+    const unbuilt = JSON.parse(JSON.stringify(reg));
+    unbuilt.mind.social.values.talk = { status: 'partial', effort: 'M' };
+    expect([...closure(unbuilt, ['time.advance=quests'])].sort()).toEqual(['mind.social=talk', 'time.advance=quests']);
+    expect(EFFORT_WEIGHT.M).toBe(3);
+    expect(sweep({ n: 300, seed: 1, around: 'story-adventure' }).unlock.packages.find((p) => p.id === 'quests')).toBeUndefined();
+    // eras require chapters, which are built: a built prerequisite is neither needed nor priced
+    expect(reg.time.passage.values.eras.requires).toEqual(['time.chapters=overlays']);
     expect(reg.time.chapters.values.overlays.status).toBe('built');
     const r2 = sweep({ n: 300, seed: 1, around: 'story-adventure' });
-    const seasons = r2.unlock.packages.find((p) => p.id === 'time.passage=seasons');
-    expect(seasons).toMatchObject({ needs: [], cost: 1 });
+    const eras = r2.unlock.packages.find((p) => p.id === 'time.passage=eras');
+    expect(eras).toMatchObject({ needs: [], cost: 8 });
   });
 
   it('sweeps near the probes, deterministically, and names its draw', () => {
@@ -140,5 +146,33 @@ describe('sweep', () => {
     expect(JSON.stringify(sweep({ n: 100, seed: 2, around: 'probes' }))).toBe(JSON.stringify(a));
     expect(a.verdicts.makeable + a.verdicts.gaps + a.verdicts.blocked).toBe(100);
     expect(() => sweep({ n: 1, around: 'mmo' })).toThrow(/no fixture 'mmo'/);
+  });
+
+  it('recounts the Godot counterfactual by hand: a value, a setting, a ladder that climbs to its facet', () => {
+    for (const [args, roll] of [[{ n: 200, seed: 3 }, (rand) => rollCube(rand)], [{ n: 200, seed: 3, around: 'probes' }, null]]) {
+      const s = sweep(args), g = s.unlock.godot, lost = [];
+      if (roll) {
+        const rand = mulberry32(3);
+        for (let i = 0; i < 200; i++) { const d = dryRun(roll(rand)); if (!d.godot.ok) lost.push(d.godot.lost); }
+      } else {
+        const bases = FIXTURES.filter((f) => !f.anchor).map((f) => f.cube), rand = mulberry32(3);
+        for (let i = 0; i < 200; i++) { const d = dryRun(nudgeCube(rand, bases[i % bases.length])); if (!d.godot.ok) lost.push(d.godot.lost); }
+      }
+      expect(lost.length).toBe(200 - s.godotOk);
+      const key = (x) => `${x.facet}.${x.setting}=${x.value}`, set = (x) => `${x.facet}.${x.setting}`;
+      // the top setting: the cubes whose every loss is in it
+      const top = g.settings[0];
+      expect(top.survives).toBe(lost.filter((l) => l.every((x) => set(x) === top.setting)).length);
+      // the top value: the cubes that lose it and nothing else
+      const v = g.values[0];
+      expect(v.survives).toBe(lost.filter((l) => l.some((x) => key(x) === v.key) && l.every((x) => key(x) === v.key)).length);
+      for (const row of [...g.values, ...g.settings]) expect(row.survives).toBeLessThanOrEqual(row.touches);
+      for (const [facet, ladder] of Object.entries(g.ladders)) {
+        expect(ladder[0].survives - ladder[0].gain).toBe(s.godotOk);
+        for (let i = 1; i < ladder.length; i++) expect(ladder[i].survives).toBe(ladder[i - 1].survives + ladder[i].gain);
+        // the top of a facet's ladder: every cube whose losses are all in that facet
+        expect(ladder.at(-1).survives, facet).toBe(s.godotOk + lost.filter((l) => l.every((x) => x.facet === facet)).length);
+      }
+    }
   });
 });

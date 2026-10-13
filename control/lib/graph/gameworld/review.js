@@ -15,6 +15,9 @@
 import { readGameworld, resolveLevel } from './world.js';
 import { landFor } from './nature.js';
 import { CHARACTER_PART_IDS } from './characters.js';
+import { resolveTechDirection } from './tech-direction.js';
+import { cubeOfWorld } from './intent.js';
+import { concernsOf } from './concerns.js';
 
 export const MODES = Object.freeze({
   gated: 'every part waits for the creator\'s approval before the next step builds on it',
@@ -40,12 +43,23 @@ export function fingerprint(v) {
 /** The parts a world is reviewed in, in order, each with what it resolves to. */
 export function reviewParts(world) {
   const G = readGameworld(world), parts = [];
+  // what game it is, first: the cube the world is laid for (written only; a world that writes none has no such part)
+  if (world.intent !== undefined) { const I = cubeOfWorld(world); parts.push({ id: 'intent', name: 'What game it is', content: { from: I.from, cube: I.cube, concerns: concernsOf(I.cube).map((c) => c.id) } }); }
   parts.push({ id: 'world', name: 'The world', content: { id: G.id, name: G.name, seed: G.seed, levels: G.ids, links: G.links, start: G.start } });
   const levels = G.ids.map((id) => resolveLevel(G, id)), kits = [...new Set([G.style.kit, ...levels.map((R) => R.style.kit)])];
   parts.push({ id: 'nature', name: 'Natural world', content: { style: { kit: G.style.kit, trail: G.style.trail, meru: G.style.meru }, land: Object.fromEntries(kits.map((k) => [k, landFor(k, (levels.find((R) => R.style.kit === k)?.style.land) ?? G.style.land ?? {})])) } });
   parts.push({ id: 'civilizations', name: 'Civilizations', content: G.civilizations });
+  // each civilization's technology design loop, once it crafts anything or gives its technology a direction
+  for (const cid of G.civIds) {
+    const D = resolveTechDirection(G, cid);
+    if (D) parts.push({ id: `tech:${cid}`, name: `${G.civilizations[cid].name}: its technology`, content: { direction: D } });
+  }
   parts.push({ id: 'key', name: 'Color key', content: kits });
-  for (const R of levels) parts.push({ id: `level:${R.id}`, name: R.name, content: { style: R.style, built: R.built, level: R.level, town: R.town } });
+  for (const R of levels) parts.push({ id: `level:${R.id}`, name: R.name, content: { style: R.style, built: R.built, level: R.level, town: R.town, ...(R.building ? { building: R.building } : {}) } });
+  // the cast and the story (story.js), reviewed as the world's other pages; a world without them has neither part
+  if (G.characters?.cast) parts.push({ id: 'cast', name: 'The cast', content: G.characters.cast });
+  if (G.story) parts.push({ id: 'story', name: 'The story', content: G.story });
+  if (G.quests) parts.push({ id: 'quests', name: 'The quests', content: G.quests });
   return parts.map((p) => ({ ...p, print: fingerprint(p.content) }));
 }
 

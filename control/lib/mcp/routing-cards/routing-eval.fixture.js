@@ -36,6 +36,8 @@ export const FIXTURE = [
   // geocube: a level's look forged first, its room and island checked, then the level built on it
   ['I want a moody castle level where the halls and the grounds outside feel like the same game', 'create_sketch'],
   ['before we build the level, lock down its lighting and colours so the inside and outside match', 'create_sketch'],
+  // game buildings: a building's rooms laid from its use, in a cube's look
+  ['a spooky tavern for my game where you have to find your way down to the cellar', 'create_sketch'],
   ['help my kid understand black holes with something animated', 'create_view'],
   ['background music for the forest level', 'create_beats'],
   ['a live-sounding drum kit and grand piano for my band demo', 'create_beats'],
@@ -50,6 +52,9 @@ export const FIXTURE = [
   ['check the player can actually get from the door to the goal', 'forge_motion'],
   ['merge those short clips into a single movie file', 'stitch_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
+  // level ground: a gameworld level's land shaped on its grid, apart from its look
+  ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
+  ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
   ['turn my notes into a picture book for kids', 'mint_stash'],
   ['lay out a comic page of my hero fighting the dragon', 'create_sketch'],
   ['an AI-painted portrait I will render with an image model', 'create_sketch'],
@@ -62,6 +67,11 @@ export const FIXTURE = [
   // the structure book's outcomes: drawings and a build, asked for without the word "house" leading
   ['draw me the floor plans, elevations and a section of a two-bedroom cottage', 'mint_building'],
   ['a cut list and lumber takeoff for framing my bungalow', 'mint_building'],
+  // a commercial program on the same rail: its drawing set and its fit-out schedule
+  ['floor plans and an FF&E schedule for a corner café', 'mint_building'],
+  ['a two-level shopping mall with an atrium I can walk through', 'mint_building'],
+  // a building as a game level: designed as a building, played as a level
+  ['a game level that is a three storey office building you climb to the top floor', 'mint_building'],
   ['pixelize this portrait into a 32-bit sprite', 'get_catalyst'],
   // Orientation-containment C1: the FORM recognizer rows moved into the studio
   // body (forward_context mode:'studio'); these rows pin that an agent that

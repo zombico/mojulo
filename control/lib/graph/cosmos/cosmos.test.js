@@ -46,9 +46,9 @@ describe('dryRun', () => {
     expect(r.facets.reality.depth).toBe(1);
   });
   it('names the facet and setting that block', () => {
-    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['turn-based'] } });
+    const r = dryRun({ ...CRAWLER, time: { ...CRAWLER.time, passage: 'eras' } });
     expect(r.verdict).toBe('blocked');
-    expect(r.blocked).toEqual([{ facet: 'power', setting: 'combat', value: 'turn-based', status: 'absent', note: expect.any(String) }]);
+    expect(r.blocked).toEqual([{ facet: 'time', setting: 'passage', value: 'eras', status: 'absent', note: expect.any(String) }]);
   });
   it('counts a mind that fights, and its built-in commander, as built; an untried transport as a gap', () => {
     expect(dryRun({ ...CRAWLER, mind: { motivation: 'hunt', aggressiveness: 'bold' } }).verdict).toBe('makeable');
@@ -58,10 +58,12 @@ describe('dryRun', () => {
     expect(r.gaps.map((g) => `${g.facet}.${g.setting}=${g.status}`)).toEqual(['mind.commander=partial']);
   });
   it('says what would not survive a Godot export', () => {
-    // win-when travels since the Godot kernel runs the bus; defeat-all waits on hits only the web's combat deals
-    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, mechanics: ['reach-exit', 'win-when', 'defeat-all'] } });
+    // win-when travels since the Godot kernel runs the bus, defeat-all with the fight whose hits it counts (kernel
+    // 0.17.0), the systems with their keys and a cue's beams and blasts (0.18.0); a glide stays on the web
+    expect(dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['melee', 'ranged'], systems: ['stamina'], beams: ['orb'], explosions: ['chain'], mechanics: ['reach-exit', 'win-when', 'defeat-all'] } }).godot).toEqual({ ok: true, lost: [] });
+    const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, rules: ['walk', 'glide'] } });
     expect(r.godot.ok).toBe(false);
-    expect(r.godot.lost).toEqual([{ facet: 'power', setting: 'mechanics', value: 'defeat-all' }, { facet: 'power', setting: 'combat', value: 'melee' }]);
+    expect(r.godot.lost).toEqual([{ facet: 'power', setting: 'rules', value: 'glide' }]);
   });
   it('checks only what is set: an empty cube is makeable at depth 0', () => {
     const r = dryRun({});

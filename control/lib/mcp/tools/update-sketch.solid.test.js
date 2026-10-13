@@ -464,6 +464,13 @@ describe('update_sketch on a hero minted through the hero door', () => {
     // a figure-cast word is a cast too
     const chibi = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-chibi', spec: { cast: 'chibi', headScale: 1.3, tune: { limbs: 1.2 } } });
     expect(chibi.hero.moved).toEqual({ upperArm: 1.2, forearm: 1.2, thigh: 1.2, calf: 1.2 }); expect(chibi.stats.closed).toBe(true);
+    // a pole with a build (hero-form.js HERO_BUILDS): the female's landmarks with the brute's dials and radii
+    const built = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-built', spec: { cast: { pole: 'female', build: 'brute' } } });
+    expect(built.stats.closed).toBe(true); expect(SketchRepository.getByRef('hero-built').title).toBe('hero · female·brute');
+    expect(SketchRepository.getByRef('hero-built').manifest.hero.cast).toEqual({ pole: 'female', build: 'brute' });
+    // a worn head never read `scale`: refused at the door and on an edit, pointing at tune.stature
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', scale: 0.8 } })).rejects.toThrow(/scale: the landmark head's figure takes its height from tune\.stature/);
+    await expect(updateSketchHandler({ ref: 'hero-built', patch: [{ op: 'set', path: '/hero/scale', value: 0.8 }] })).rejects.toThrow(/tune\.stature/);
   });
   // the child-coded casts guard: a child or chibi figure cast, or the anime 'kid' look, takes no bust, at mint and on an
   // edit; the adult casts take one up to the ceiling every cast has
@@ -476,6 +483,10 @@ describe('update_sketch on a hero minted through the hero door', () => {
     const adult = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'hero-bust', spec: { cast: 'female', register: 'lowpoly', body: { bust: 0.05 } } });
     expect(adult.ok).toBe(true);
     await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/cast', value: 'child' }] })).rejects.toThrow(/body\.bust: the 'child' cast is a child-coded figure/);
+    // the guard reads the RESOLVED cast: a build, a list or a dial map that comes to a child is child-coded too
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: { pole: 'female', build: 'child' }, body: { bust: 0.02 } } })).rejects.toThrow(/body\.bust: the 'child' build is a child-coded figure/);
+    await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/cast', value: { pole: 'female', build: 'child' } }] })).rejects.toThrow(/body\.bust: the 'child' build is a child-coded figure/);
+    await expect(updateSketchHandler({ ref: 'hero-bust', patch: [{ op: 'set', path: '/hero/cast', value: ['child', { forearm: 1.1 }] }] })).rejects.toThrow(/body\.bust: the cast on 'child' is a child-coded figure/);
     expect(SketchRepository.getByRef('hero-bust').manifest.hero.cast).toBe('female');   // the refused edit stored nothing
     // every cast: a bust past 0.4 × the chest radius is a runaway number, refused by name at mint and on an edit
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', body: { bust: 5 } } })).rejects.toThrow(/body\.bust 5 is past its ceiling: at most 0\.4 × the chest radius, 0\.078 m/);

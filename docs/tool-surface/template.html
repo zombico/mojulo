@@ -1,0 +1,428 @@
+<title>Mojulo Tool Surface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,400..800&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a workshop ledger. Tab 1 is a ring × verb grid; tab 2 is pack clusters by ring, then the Workflows rails drawn as station lines. */
+:root{
+  --bg:#eceee9; --panel:#f8f9f6; --ink:#1b2022; --muted:#5d666a; --rule:#c9cfca; --accent:#2346a8;
+  --display:"Archivo",ui-sans-serif,system-ui,sans-serif; --body:"Figtree",ui-sans-serif,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --v-create:#1f7a4d; --v-update:#b0681a; --v-compose:#7a3fb0; --v-observe:#1f6fa8; --v-maintain:#6b6f5a; --v-orient:#b03a55;
+  --heat:35,70,168;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141719; --panel:#1c2023; --ink:#e4e8e6; --muted:#97a1a4; --rule:#343b3f; --accent:#8aa6ff;
+  --v-create:#5cc38f; --v-update:#e7a457; --v-compose:#b991ec; --v-observe:#6fb6ea; --v-maintain:#b4b79e; --v-orient:#ec7f97;
+  --heat:138,166,255; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141719; --panel:#1c2023; --ink:#e4e8e6; --muted:#97a1a4; --rule:#343b3f; --accent:#8aa6ff;
+  --v-create:#5cc38f; --v-update:#e7a457; --v-compose:#b991ec; --v-observe:#6fb6ea; --v-maintain:#b4b79e; --v-orient:#ec7f97;
+  --heat:138,166,255; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto;padding-inline:20px;padding-block:28px 64px}
+header h1{font-family:var(--display);font-stretch:78%;font-weight:800;font-size:clamp(28px,4vw,44px);letter-spacing:-.01em;margin:0;text-wrap:balance;line-height:1.05}
+header p{color:var(--muted);max-width:70ch;margin:.5em 0 0}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:10px}
+.tabs{display:flex;gap:4px;margin:26px 0 18px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.tabs button{font:600 14px var(--body);background:none;border:0;color:var(--muted);padding:10px 14px;border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs button:focus-visible,.chip:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-family:var(--display);font-stretch:85%;font-weight:700;font-size:22px;margin:0 0 4px;text-wrap:balance}
+h3{font-family:var(--display);font-stretch:85%;font-weight:700;font-size:16px;margin:0}
+.lede{color:var(--muted);max-width:75ch;margin:0 0 16px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.toolbar input{font:14px var(--body);padding:8px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink);min-width:0;width:260px;max-width:100%}
+.legend{display:flex;gap:10px;flex-wrap:wrap}
+.legend button{font:500 12px var(--mono);display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:4px 9px;border-radius:999px;cursor:pointer}
+.legend button[aria-pressed="false"]{opacity:.4}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.scroll{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--panel)}
+table.matrix{border-collapse:collapse;width:100%;min-width:980px;font-variant-numeric:tabular-nums}
+.matrix th,.matrix td{border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);vertical-align:top;padding:8px}
+.matrix thead th{position:sticky;top:0;background:var(--panel);text-align:left;font:600 12px var(--mono);z-index:1}
+.matrix thead th .vdesc{display:block;font:400 11px var(--body);color:var(--muted);margin-top:3px;max-width:22ch}
+.matrix tbody th{text-align:left;width:210px;background:var(--panel)}
+.matrix tbody th .rt{font-family:var(--display);font-stretch:85%;font-weight:700;font-size:15px;display:block}
+.matrix tbody th .rs{font-size:12px;color:var(--muted);display:block;margin-top:2px}
+.matrix tbody th .rp{font:11px var(--mono);color:var(--muted);display:block;margin-top:6px}
+.matrix td.cell{background:rgba(var(--heat),var(--h,0))}
+.matrix .tot{font:600 12px var(--mono);color:var(--muted);text-align:right;width:52px}
+.matrix tfoot td,.matrix tfoot th{font:600 12px var(--mono);color:var(--muted);text-align:left;background:var(--panel)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:12px/1.2 var(--mono);border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:3px 6px;border-radius:4px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;text-align:left;max-width:100%;overflow-wrap:anywhere}
+.chip .dot{width:7px;height:7px}
+.chip.shared{border-style:dashed;color:var(--muted)}
+.chip.dim{opacity:.18}
+.chip.hit{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.detail{position:sticky;bottom:12px;margin-top:14px;background:var(--panel);border:1px solid var(--rule);border-left:4px solid var(--accent);border-radius:8px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.08);max-width:760px}
+.detail code{font-family:var(--mono);font-size:13px;font-weight:500}
+.detail .dl{margin:4px 0 0;color:var(--ink)}
+.detail .dm{font:11px var(--mono);color:var(--muted);margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.stat{border-top:2px solid var(--ink);padding-top:6px}
+.stat b{font-family:var(--display);font-stretch:80%;font-size:28px;font-weight:800;display:block;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.bars{display:grid;gap:6px;margin:6px 0 22px;max-width:760px}
+.bar{display:grid;grid-template-columns:90px 1fr 36px;align-items:center;gap:10px;font:12px var(--mono)}
+.bar i{display:block;height:10px;border-radius:2px}
+/* clusters */
+.spine{border:1px dashed var(--rule);border-radius:8px;padding:12px;margin-bottom:22px;background:var(--panel)}
+.rings{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:14px;margin-bottom:34px}
+.ring{border:1px solid var(--rule);border-radius:8px;padding:14px;background:var(--panel);display:flex;flex-direction:column;gap:12px;min-width:0}
+.ring>header{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.ring .cnt{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+.pack{border-top:1px solid var(--rule);padding-top:10px;min-width:0}
+.pack .pid{font:500 12px var(--mono);color:var(--accent)}
+.pack .ptitle{font-weight:600;font-size:14px}
+.pack .pbody{font-size:12.5px;color:var(--muted);margin:4px 0 8px;max-width:70ch}
+.vstrip{display:flex;height:6px;border-radius:3px;overflow:hidden;margin:6px 0 8px;max-width:240px}
+.vstrip i{display:block;height:100%}
+.retired{opacity:.75}
+/* rails */
+.rails{display:grid;gap:16px}
+.rail{border:1px solid var(--rule);border-radius:8px;background:var(--panel);padding:16px;min-width:0}
+.rail .rhead{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin-bottom:4px}
+.rail .rnote{font-size:13px;color:var(--muted);max-width:80ch;margin:0 0 12px}
+.line{overflow-x:auto;padding-bottom:4px}
+.stations{display:flex;align-items:stretch;gap:0;min-width:max-content}
+.st{display:flex;flex-direction:column;align-items:flex-start;gap:5px;padding:0 6px;max-width:220px}
+.st .pin{width:14px;height:14px;border-radius:50%;border:3px solid var(--accent);background:var(--panel)}
+.st.gate .pin{border-radius:3px;background:var(--accent)}
+.st .lbl{font-size:12px;color:var(--muted);max-width:24ch}
+.track{flex:1;min-width:28px;height:3px;background:var(--accent);margin-top:6px;align-self:flex-start;position:relative}
+.track.dash{background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 10px)}
+.track em{position:absolute;top:6px;left:2px;font:10px var(--mono);color:var(--muted);font-style:normal;white-space:nowrap}
+.branch{margin-top:12px;padding-left:14px;border-left:3px dashed var(--rule)}
+.branch .eyebrow{display:block;margin-bottom:6px}
+.keyrow{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:4px 0 16px}
+.keyrow span{display:inline-flex;align-items:center;gap:6px}
+.keyrow .pin{width:12px;height:12px;border-radius:50%;border:3px solid var(--accent);display:inline-block}
+.keyrow .gpin{width:12px;height:12px;border-radius:3px;background:var(--accent);display:inline-block}
+/* cosmos */
+:root{--built:#2f8a5b;--local:#b9791b;--partial:#d1a63a;--absent:#c2453d}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--built:#4fbf86;--local:#e0a24a;--partial:#e6c565;--absent:#ef6b62}}
+:root[data-theme="dark"]{--built:#4fbf86;--local:#e0a24a;--partial:#e6c565;--absent:#ef6b62}
+.s-built{background:var(--built)}.s-local{background:var(--local)}.s-partial{background:var(--partial)}.s-absent{background:var(--absent)}
+.cmeta{display:flex;flex-wrap:wrap;gap:6px 18px;font:12px var(--mono);color:var(--muted);margin-bottom:10px}
+.cmeta b{color:var(--ink);font-weight:500}
+.gap{margin-top:30px}
+.net{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-areas:". space . ." "reality power soul mind" ". time . .";gap:6px;max-width:980px}
+.face{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:12px;display:flex;flex-direction:column;gap:7px;min-width:0;min-height:13rem}
+.face[data-stage="building"],.face[data-stage="designing"]{border-color:var(--accent)}
+.face .fh{display:flex;justify-content:space-between;align-items:baseline;gap:6px;flex-wrap:wrap}
+.face .asks{margin:0;color:var(--muted);font-size:12.5px;line-height:1.35}
+.face .lifts{font:12px var(--mono);color:var(--muted)}
+.face .lifts b{font-family:var(--display);font-stretch:80%;font-size:24px;color:var(--ink);font-weight:800;margin-right:4px}
+.face .owner{font:11px var(--mono);color:var(--accent)}
+.face .nx{font-size:12px;margin:0}
+.face .foot{margin-top:auto;display:grid;gap:5px}
+.stage{font:10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:1px 7px;border-radius:999px;border:1px solid var(--rule);color:var(--muted)}
+.sbar{display:flex;height:7px;border-radius:2px;overflow:hidden;background:var(--rule)}
+.sbar span{display:block;height:100%}
+.scount{display:flex;flex-wrap:wrap;gap:2px 9px;font:11px var(--mono);color:var(--muted)}
+.scount i,.slegend i{display:inline-block;width:8px;height:8px;border-radius:1px;margin-right:4px}
+.slegend{display:flex;flex-wrap:wrap;gap:6px 16px;font:12px var(--mono);color:var(--muted);margin-top:8px}
+.vbar{display:flex;height:28px;border-radius:3px;overflow:hidden;font:12px var(--mono);max-width:980px}
+.vbar span{display:flex;align-items:center;padding-inline:8px;white-space:nowrap;overflow:hidden;color:var(--bg)}
+.v-makeable{background:var(--built)}.v-gaps{background:var(--partial)}.v-blocked{background:var(--absent)}
+table.ftable{border-collapse:collapse;width:100%;min-width:720px;font-size:13.5px}
+.ftable th,.ftable td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+.ftable th{font:500 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.ftable td.c{text-align:center;width:8%}
+.sq{display:inline-block;width:14px;height:14px;border-radius:3px}
+.sq.none{border:1px dashed var(--rule)}
+.verdict{font:12px var(--mono);padding:1px 8px;border-radius:999px;white-space:nowrap;border:1px solid currentColor}
+.verdict.makeable{color:var(--built)}.verdict.gaps{color:var(--local)}.verdict.blocked{color:var(--absent)}
+.fwhy{color:var(--muted);font-size:12px}
+.anchor{color:var(--accent);font:11px var(--mono);margin-left:6px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:28px}
+.two>div{min-width:0}
+.rank{display:grid;gap:6px}
+.rrow{display:grid;grid-template-columns:minmax(0,17rem) 1fr 3rem;gap:10px;align-items:center;font-size:12.5px}
+.rrow .k{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rrow .t{height:9px;background:var(--rule);border-radius:2px;overflow:hidden}
+.rrow .t span{display:block;height:100%}
+.rrow .n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.log{list-style:none;margin:0;padding:0;border-left:2px solid var(--rule);max-width:900px}
+.log li{display:grid;grid-template-columns:8rem 1fr;gap:12px;padding:7px 0 7px 16px;position:relative}
+.log li::before{content:"";position:absolute;left:-6px;top:12px;width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--muted)}
+.log li.ms::before{background:var(--accent);border-color:var(--accent)}
+.log time{font:12px var(--mono);color:var(--muted)}
+.log .tag{font:11px var(--mono);color:var(--accent);text-transform:uppercase;letter-spacing:.06em;margin-right:8px}
+@media (max-width:760px){.net{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"space time" "reality power" "soul mind"}.rrow{grid-template-columns:minmax(0,1fr) 4rem 2.5rem}.log li{grid-template-columns:1fr;gap:2px}}
+@media (max-width:600px){.wrap{padding-inline:16px}.matrix tbody th{width:150px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">mojulo · <span id="head"></span></div>
+  <h1>Mojulo tool surface</h1>
+  <p>Every listed MCP tool, placed by what it makes (its ring) and what it does to a thing (its verb). The second view groups the same tools into the packs an agent opens and traces the Workflows rails that chain them. The third is the cosmos cube board: which kinds of game the builder can make today, and which facet holds the rest back.</p>
+  <div class="meta">Built by <code>control/scripts/tool-surface.mjs</code> from tool-lines.js · packs.js · cosmos registry + sweep · docs/tool-surface/board-notes.json</div>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button role="tab" id="tab-matrix" aria-controls="view-matrix" aria-selected="true">Capability matrix</button>
+  <button role="tab" id="tab-rails" aria-controls="view-rails" aria-selected="false">Clusters &amp; rails</button>
+  <button role="tab" id="tab-cosmos" aria-controls="view-cosmos" aria-selected="false">Cosmos cube</button>
+</nav>
+
+<section id="view-matrix" role="tabpanel" aria-labelledby="tab-matrix">
+  <div class="stats" id="stats"></div>
+  <h2>Rings × verbs</h2>
+  <p class="lede">Rows are rings, in tools/list order. Columns are the six verbs from <code>VERBS</code>. Cell shading scales with tool count. Click a tool to read its one-line manual.</p>
+  <div class="toolbar">
+    <input id="q" type="search" placeholder="Filter tools, e.g. stash or export" aria-label="Filter tools">
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="scroll"><table class="matrix" id="matrix"></table></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:24px;margin-top:24px">
+    <div><h3>Tools per verb</h3><div class="bars" id="vbars"></div></div>
+    <div><h3>Tools per ring</h3><div class="bars" id="rbars"></div></div>
+  </div>
+  <div class="detail" id="detail-m" hidden></div>
+</section>
+
+<section id="view-rails" role="tabpanel" aria-labelledby="tab-rails" hidden>
+  <h2>Tool-call clusters</h2>
+  <p class="lede">A pack is the unit the agent opens: one dispatcher tool whose members run as <code>pack_x({ tool, args })</code>. Solid chips are the pack's own members, coloured by verb. Dashed chips are <code>shared</code> tools homed in another pack that this pack also dispatches. The strip under each title is the pack's verb mix.</p>
+  <div class="spine" id="spine"></div>
+  <div class="rings" id="rings"></div>
+
+  <h2>Orchestration rails</h2>
+  <p class="lede">The Workflows ring exists so the agent hands over a list once. Each rail below is a chain of calls the server knows how to run end to end; branches show the alternate paths into or out of the same line.</p>
+  <div class="keyrow">
+    <span><i class="pin"></i> tool call</span>
+    <span><i class="gpin"></i> gate (confirm, accept/reject, intake check)</span>
+    <span><i style="width:28px;height:3px;background:var(--accent);display:inline-block"></i> always next</span>
+    <span><i style="width:28px;height:3px;display:inline-block;background:repeating-linear-gradient(90deg,var(--accent) 0 6px,transparent 6px 10px)"></i> optional or repeated</span>
+  </div>
+  <div class="rails" id="rails"></div>
+
+  <h2 style="margin-top:34px">Retired office packs</h2>
+  <p class="lede">Left the surface in 3.1.0. Still registered and callable by name from the CLI and plan steps (with a deprecation warning), never listed or routed to the agent.</p>
+  <div class="rings retired" id="retired"></div>
+  <div class="detail" id="detail-r" hidden></div>
+</section>
+
+<section id="view-cosmos" role="tabpanel" aria-labelledby="tab-cosmos" hidden>
+  <div class="cmeta" id="cmeta"></div>
+  <p class="lede">A cosmos cube describes a game as six facets. The sweep dry-runs the fixtures, then rolls random cubes against the capability registry, and counts which would be makeable. It builds nothing. It runs as a script (<code>node scripts/cosmos-sweep.mjs</code>), not as an MCP tool, so it does not appear in the matrix.</p>
+
+  <h2>The six facets</h2>
+  <p class="lede">Each face shows what the registry holds for that facet and how many rolled games would step up if the whole facet were built.</p>
+  <div class="net" id="net"></div>
+  <div class="slegend"><span><i class="s-built"></i>built</span><span><i class="s-local"></i>local to one game</span><span><i class="s-partial"></i>partial</span><span><i class="s-absent"></i>absent</span></div>
+
+  <h2 class="gap">The sweep</h2>
+  <p class="lede" id="sweep-cap"></p>
+  <div class="vbar" id="vbar"></div>
+
+  <h2 class="gap">Game types × facets</h2>
+  <p class="lede">Each cell is the worst status that fixture hits in that facet. Anchors are games the tree makes today and must stay makeable.</p>
+  <div class="scroll"><table class="ftable" id="fixtures"></table></div>
+
+  <div class="two gap">
+    <div><h2>Build order</h2><p class="lede">Work packages ranked by lifts per unit of work (effort S = 1, M = 3, L = 8). Unsized packages are listed last.</p><div class="rank" id="packages"></div></div>
+    <div><h2>Single values</h2><p class="lede">Rolled games whose verdict steps up if that one value were built.</p><div class="rank" id="values"></div></div>
+  </div>
+
+  <h2 class="gap">Work log</h2>
+  <p class="lede">Newest first. Filled dots are milestones. Kept in <code>docs/tool-surface/board-notes.json</code>.</p>
+  <ol class="log" id="log"></ol>
+</section>
+</div>
+
+<script>
+const DATA = /*DATA*/;
+const VERB_DESC = {
+  create:'makes a new thing at a ref', update:'revises one in place', compose:'puts made things together into a bigger one',
+  observe:'measures, compares or records', maintain:'keeps, lists, organizes or hands over work', orient:'reads a map or a manual'
+};
+const RING_ORDER = Object.keys(DATA.RING_TITLES);
+const RING_SHORT = {orientation:'Orientation',characters:'Characters',solids:'Solids',worlds:'Worlds',games:'Games',read:'Read',audio:'Audio',kernel:'Observe',workflows:'Workflows'};
+const byName = Object.fromEntries(DATA.tools.map(t=>[t.name,t]));
+const vc = v => `var(--v-${v})`;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtLine = s => esc(s).replace(/`([^`]+)`/g,'<code>$1</code>');
+const activeVerbs = new Set(DATA.VERBS);
+
+function chip(name,{shared=false}={}){
+  const t = byName[name]; const v = t ? t.verb : 'maintain';
+  return `<button class="chip${shared?' shared':''}" data-tool="${name}" data-verb="${v}"><span class="dot" style="background:${vc(v)}"></span>${name}</button>`;
+}
+
+/* ---- tabs ---- */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+function selectTab(id){tabs.forEach(b=>{const on=b.id===id;b.setAttribute('aria-selected',on);document.getElementById(b.getAttribute('aria-controls')).hidden=!on});
+  try{localStorage.setItem('mj-tab',id)}catch(e){}}
+tabs.forEach(b=>b.addEventListener('click',()=>selectTab(b.id)));
+const hashTab = {'#rails':'tab-rails','#matrix':'tab-matrix','#cosmos':'tab-cosmos'}[location.hash]||null;
+document.getElementById('head').textContent=[DATA.head.branch,DATA.head.sha,DATA.head.date].filter(Boolean).join(' · ');
+let saved=null;try{saved=localStorage.getItem('mj-tab')}catch(e){}
+selectTab(hashTab||saved||'tab-matrix');
+
+/* ---- matrix ---- */
+const grid={};RING_ORDER.forEach(r=>{grid[r]={};DATA.VERBS.forEach(v=>grid[r][v]=[])});
+DATA.tools.forEach(t=>grid[t.ring][t.verb].push(t.name));
+const maxCell=Math.max(...RING_ORDER.flatMap(r=>DATA.VERBS.map(v=>grid[r][v].length)));
+const packsByRing={};DATA.packs.forEach(p=>(packsByRing[p.ring]??=[]).push(p.id));
+
+document.getElementById('stats').innerHTML=[
+  [DATA.tools.length,'listed tools'],[DATA.packs.length,'packs'],[RING_ORDER.length,'rings'],[DATA.VERBS.length,'verbs'],
+  [DATA.retired.reduce((a,p)=>a+p.members.length,0),'retired, callable by name']
+].map(([n,l])=>`<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+
+document.getElementById('legend').innerHTML=DATA.VERBS.map(v=>`<button aria-pressed="true" data-v="${v}"><span class="dot" style="background:${vc(v)}"></span>${v}</button>`).join('');
+
+function renderMatrix(){
+  const vs=DATA.VERBS;
+  let h='<thead><tr><th>Ring</th>'+vs.map(v=>`<th><span class="dot" style="background:${vc(v)}"></span> ${v}<span class="vdesc">${VERB_DESC[v]}</span></th>`).join('')+'<th class="tot">Σ</th></tr></thead><tbody>';
+  RING_ORDER.forEach(r=>{
+    const title=DATA.RING_TITLES[r]; const [main,...rest]=title.split(' — ');
+    const tot=vs.reduce((a,v)=>a+grid[r][v].length,0);
+    h+=`<tr><th><span class="rt">${esc(RING_SHORT[r])}</span><span class="rs">${esc(rest.join(' — ')||main)}</span><span class="rp">${(packsByRing[r]||['spine']).join(' · ')}</span></th>`;
+    vs.forEach(v=>{const list=grid[r][v];const a=list.length?0.05+0.30*list.length/maxCell:0;
+      h+=`<td class="cell" style="--h:${a.toFixed(3)}"><div class="chips">${list.map(n=>chip(n)).join('')}</div></td>`});
+    h+=`<td class="tot">${tot}</td></tr>`;
+  });
+  h+='</tbody><tfoot><tr><th>Σ</th>'+vs.map(v=>`<td>${RING_ORDER.reduce((a,r)=>a+grid[r][v].length,0)}</td>`).join('')+`<td class="tot">${DATA.tools.length}</td></tr></tfoot>`;
+  document.getElementById('matrix').innerHTML=h;
+}
+renderMatrix();
+
+function bars(el,rows,color){const m=Math.max(...rows.map(r=>r[1]));
+  document.getElementById(el).innerHTML=rows.map(([k,n,c])=>`<div class="bar"><span>${k}</span><i style="width:${(100*n/m).toFixed(1)}%;background:${c||color}"></i><span>${n}</span></div>`).join('');}
+bars('vbars',DATA.VERBS.map(v=>[v,DATA.tools.filter(t=>t.verb===v).length,vc(v)]).sort((a,b)=>b[1]-a[1]));
+bars('rbars',RING_ORDER.map(r=>[RING_SHORT[r],DATA.tools.filter(t=>t.ring===r).length]),'var(--accent)');
+
+function applyFilter(){
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  document.querySelectorAll('#view-matrix .chip').forEach(c=>{
+    const t=byName[c.dataset.tool];const okV=activeVerbs.has(c.dataset.verb);
+    const okQ=!q||c.dataset.tool.includes(q)||(t&&t.line.toLowerCase().includes(q));
+    c.classList.toggle('dim',!(okV&&okQ));c.classList.toggle('hit',!!q&&okV&&okQ);
+  });
+}
+document.getElementById('q').addEventListener('input',applyFilter);
+document.getElementById('legend').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  const v=b.dataset.v;activeVerbs.has(v)?activeVerbs.delete(v):activeVerbs.add(v);b.setAttribute('aria-pressed',activeVerbs.has(v));applyFilter();});
+
+/* ---- detail ---- */
+function showDetail(panelId,name){
+  const t=byName[name];const d=document.getElementById(panelId);
+  if(!t){d.hidden=false;d.innerHTML=`<code>${esc(name)}</code><p class="dl">Retired office tool: registered and callable by name from the CLI and plan steps, not listed to the agent.</p>`;return;}
+  const sharedIn=DATA.packs.filter(p=>p.shared.includes(name)).map(p=>p.id);
+  d.hidden=false;
+  d.innerHTML=`<code>${esc(name)}</code> <span class="eyebrow" style="margin-left:8px"><span class="dot" style="background:${vc(t.verb)}"></span> ${t.verb}</span>
+    <p class="dl">${fmtLine(t.line)}</p>
+    <div class="dm">ring ${RING_SHORT[t.ring]} · home ${t.pack}${sharedIn.length?' · also dispatched by '+sharedIn.join(', '):''}</div>`;
+}
+document.addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;
+  showDetail(c.closest('#view-rails')?'detail-r':'detail-m',c.dataset.tool);});
+
+/* ---- clusters ---- */
+function vstrip(members){const n=members.length;const counts=DATA.VERBS.map(v=>[v,members.filter(m=>byName[m]?.verb===v).length]).filter(x=>x[1]);
+  return `<div class="vstrip" title="${counts.map(([v,c])=>c+' '+v).join(', ')}">${counts.map(([v,c])=>`<i style="width:${100*c/n}%;background:${vc(v)}"></i>`).join('')}</div>`;}
+document.getElementById('spine').innerHTML=`<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline"><h3>Spine · always listed with full schemas</h3><span class="eyebrow">${DATA.spine.length+1} tools · orientation ring</span></div>
+  <p class="pbody" style="font-size:12.5px;color:var(--muted);margin:4px 0 8px">Not a pack. <code>forward_context</code> is the default first read; <code>mint_diagram</code> sits here so a diagram is possible even without the creative pack. <code>get_creative_toolset</code> is folded: listed in flat mode, dropped in packs mode.</p>
+  <div class="chips">${DATA.spine.map(n=>chip(n)).join('')}${chip('get_creative_toolset',{shared:true})}</div>`;
+
+document.getElementById('rings').innerHTML=RING_ORDER.filter(r=>r!=='orientation').map(r=>{
+  const ps=DATA.packs.filter(p=>p.ring===r);const n=ps.reduce((a,p)=>a+p.members.length,0);
+  return `<article class="ring"><header><h3>${RING_SHORT[r]}</h3><span class="cnt">${ps.length} pack${ps.length>1?'s':''} · ${n} tools</span></header>
+  ${ps.map(p=>`<div class="pack"><div class="pid">${p.id}</div><div class="ptitle">${esc(p.title)}</div>${vstrip(p.members)}
+    ${p.body?`<p class="pbody">${fmtLine(p.body)}</p>`:''}
+    <div class="chips">${p.members.map(m=>chip(m)).join('')}${p.shared.map(m=>chip(m,{shared:true})).join('')}</div></div>`).join('')}
+  </article>`;}).join('');
+
+document.getElementById('retired').innerHTML=DATA.retired.map(p=>`<article class="ring"><header><h3>${esc(p.title)}</h3><span class="cnt">${p.members.length} tools</span></header>
+  <div class="pid" style="font:500 12px var(--mono);color:var(--muted)">${p.id} · retired 3.1.0</div>
+  <div class="chips">${p.members.map(m=>`<button class="chip shared" data-tool="${m}">${m}</button>`).join('')}</div></article>`).join('');
+
+/* ---- rails ---- */
+// station: [tool or label, note, flags]  flags: g = gate, o = track into this station is optional/repeated
+const S=(t,note='',f='')=>({t,note,f});
+const RAILS=[
+ {name:'Plan rail',sig:'forge_plan → compile_plan → execute_plan',
+  note:'A chain written once. Each step can take an earlier step\'s result as { $step: n, path: \'/ref\' }, a JSON Pointer into it, so mint → vary → measure → export runs from one manifest through the same handler path as typed calls.',
+  line:[S('enter_plan_mode','opt in','o'),S('forge_plan','seal goal + manifest; executes nothing'),S('revise_plan','note; back to draft','o'),S('compile_plan','check vs live registry'),S('execute_plan','confirm: true; stops at first failure','g')],
+  branches:[{label:'Observe the plan',line:[S('get_plan'),S('list_plans'),S('sketch_plan','plan as a diagram')]},
+            {label:'Research feeds plans',line:[S('enter_research_mode'),S('start_research'),S('bind_research_item','link, note, quote…','o'),S('synthesize_abstract','thesis + hub diagram'),S('forge_plan','research → plan bridge')]}]},
+ {name:'Variation rail',sig:'run_experiment_sweep({ ref, path, values })',
+  note:'Copies a stored recipe once per value at a JSON Pointer and mints each copy through create_sketch\'s gates into one new folder. The mechanics form (research_ref, base, param) binds SI-honest experiments into a research book with a plot.',
+  line:[S('create_sketch','or any minted recipe'),S('run_experiment_sweep','one call, N values'),S('create_sketch','each copy through its gates','g'),S('measure_view','read back, optional','o')],
+  branches:[{label:'Mechanics form',line:[S('start_research'),S('run_experiment_sweep','research_ref + param'),S('get_research','plot bound in the book')]}]},
+ {name:'Stash → cook rail',sig:'cook({ items, aim, report_md })',
+  note:'Typed intake into a stash, then one publication the agent authors. No server-side LLM call; outcomes land under data/outcomes/<cook_ref>/. The one-shot form gathers and cooks in a single call.',
+  line:[S('cook','items + aim in one call','g')],
+  branches:[{label:'Collected over many turns',line:[S('sketch_stash','proposed script','o'),S('mint_stash'),S('mint_drawer','chapters','o'),S('gather','intake check per type','g'),S('recommend_kind','rank kinds','o'),S('cook','{ slices }, one aim'),S('get_cook')]},
+            {label:'Compare candidates',line:[S('forge_publications','2–4 kinds at once'),S('archive_cook','drop the losers','o')]}]},
+ {name:'Game rail',sig:'design_game',
+  note:'Designs a game top down (hero, powers, gear, systems) and answers each stamp with next step ids. run: true makes each ready step through create_sketch and the creative doors. readout: \'changed\' returns only what moved; a no-op writes nothing.',
+  line:[S('design_game','stamps + next step ids'),S('design_game','run: true','o'),S('create_game','shell + levels'),S('update_sketch','patch, readout: changed','o'),S('forge_motion','walk to the exit: beatable?','o'),S('export_game','self-contained folder')],
+  branches:[{label:'Doors the rail calls',line:[S('create_character','hero / creature'),S('compose_world','levels are worlds'),S('create_beats','score + stings'),S('create_sprite_sheet','2D')]},
+            {label:'Project home',line:[S('create_game_project'),S('bind_to_game_project','rules, levels, art','o'),S('get_game_project')]}]},
+ {name:'Worker handoff rail',sig:'render_handoff({ medium: image | mesh, op })',
+  note:'The durable loop for an external generator: an image model or a mesh sculptor (Meshy, Tripo, Hunyuan3D). Accept/reject is the eyes gate. The ten per-op names stay registered for worker scripts, unlisted.',
+  line:[S('create_sketch','image-outcome / comic / sheet'),S('get_image_render_packet','instructions, style lock'),S('render_handoff','op: request'),S('render_handoff','op: pull (worker)'),S('render_handoff','op: submit (worker)'),S('render_handoff','op: accept | reject','g'),S('bind_image_render','page composites when all bound')],
+  branches:[{label:'Character sheets and meshes',line:[S('bind_character_sheet','reference for every comic'),S('bind_mesh_render','refined mesh back onto a world')]}]},
+ {name:'Catalyst rail',sig:'get_catalyst → host Skill',
+  note:'Reaches past mojulo. A catalyst is a curated recipe the host adapter synthesizes into a Skill that runs beside the operator\'s other MCPs (Blender MCP first, mojulo\'s blender-bake as fallback). Mojulo is the anchor and audit trail, not the runtime.',
+  line:[S('get_adapter','read once'),S('recommend_catalysts','or list_catalysts','o'),S('get_catalyst','recipe bound to adapter'),S('host Skill','synthesized, runs in host')],
+  branches:[{label:'Know the other MCPs',line:[S('meta_context_declare_inventory'),S('record_mcp_capabilities'),S('get_mcp_capabilities')]},
+            {label:'Author a new one',line:[S('custom_catalyst','the guide'),S('mint_catalyst','local shelf, revisions')]},
+            {label:'Agent-task queue (outside fulfiller)',line:[S('pull_agent_task','long-poll ~25 s'),S('submit_envelope_inference','validated','g'),S('cancel_agent_task','or cancel','o')]}]},
+ {name:'Building rail',sig:'mint_building → next by outcome',
+  note:'A house, apartment or furnished room. Its page is the structure book, and next names what is still open by outcome: concept, layout, drawings, build. An edifice is an institutional block for a world, not a building to draw.',
+  line:[S('mint_building','the structure book'),S('update_sketch','storeys, framing, roof, fixtures','o'),S('get_sketch_vocab','the card next names','o'),S('export_model','sheets · schedules · ifc')]},
+ {name:'Iterate in place',sig:'mint → update_sketch',
+  note:'Not a Workflows tool, but the loop under every rail: recipes are starters, so a change is a patch on the same ref, never a re-mint. Renders regenerate on every read.',
+  line:[S('mint_solid','or any create door'),S('update_sketch','patch by id or JSON Pointer','o'),S('measure_solid','observe','o'),S('export_model','STL / 3MF / GLB / IFC')]}
+];
+function station(s){const isTool=!!byName[s.t];
+  return `<div class="st${s.f.includes('g')?' gate':''}"><span class="pin"></span>${isTool?chip(s.t):`<span class="chip shared" style="cursor:default">${esc(s.t)}</span>`}${s.note?`<span class="lbl">${esc(s.note)}</span>`:''}</div>`;}
+function line(stations){return `<div class="line"><div class="stations">${stations.map((s,i)=>(i?`<span class="track${s.f.includes('o')?' dash':''}"></span>`:'')+station(s)).join('')}</div></div>`;}
+document.getElementById('rails').innerHTML=RAILS.map(r=>`<article class="rail"><div class="rhead"><h3>${r.name}</h3><code style="font:12px var(--mono);color:var(--muted)">${esc(r.sig)}</code></div>
+  <p class="rnote">${esc(r.note)}</p>${line(r.line)}
+  ${(r.branches||[]).map(b=>`<div class="branch"><span class="eyebrow">${esc(b.label)}</span>${line(b.line)}</div>`).join('')}</article>`).join('');
+
+/* ---- cosmos ---- */
+(function(){
+  const C=DATA.cosmos, ST=['built','local','partial','absent'], WORST={absent:3,local:2,partial:1};
+  const ORDER=['reality','space','power','soul','mind','time'];
+  const fmt=iso=>{const d=new Date(iso);return isNaN(d)?esc(iso):d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const pct=k=>Math.round(100*k/C.n);
+  document.getElementById('cmeta').innerHTML=`<span>sweep <b>n ${C.n}</b></span><span>seed <b>${C.seed}</b></span><span>density <b>${C.density}</b></span><span>roll <b>${esc(C.roll)}</b></span>`+
+    (C.board?`<span><a href="${esc(C.board)}" style="color:var(--accent)">live board</a></span>`:'');
+  document.getElementById('net').innerHTML=C.facets.map(f=>{
+    const tot=ST.reduce((a,s)=>a+f.counts[s],0)||1;
+    return `<article class="face" style="grid-area:${f.id}" data-stage="${esc(f.stage)}">
+      <div class="fh"><h3>${esc(f.name)}</h3>${f.stage?`<span class="stage">${esc(f.stage)}</span>`:''}</div>
+      <p class="asks">${esc(f.asks)}</p>${f.owner?`<div class="owner">${esc(f.owner)}</div>`:''}
+      <div class="lifts"><b>${f.lifts}</b>lifts · ${f.makeable} to makeable</div>
+      <div class="foot">${f.next?`<p class="nx">${esc(f.next)}</p>`:''}
+        <div class="sbar">${ST.filter(s=>f.counts[s]).map(s=>`<span class="s-${s}" style="width:${100*f.counts[s]/tot}%" title="${s}: ${f.counts[s]}"></span>`).join('')}</div>
+        <div class="scount">${ST.filter(s=>f.counts[s]).map(s=>`<span><i class="s-${s}"></i>${f.counts[s]} ${s}</span>`).join('')}<span>· ${f.settings} settings</span></div></div></article>`;}).join('');
+  const v=C.verdicts;
+  document.getElementById('sweep-cap').textContent=`${C.n} rolled cubes: ${v.makeable} makeable (${pct(v.makeable)}%), ${v.gaps} with gaps, ${v.blocked} blocked. ${C.godotOk} (${pct(C.godotOk)}%) survive a Godot export.`;
+  document.getElementById('vbar').innerHTML=['makeable','gaps','blocked'].map(k=>`<span class="v-${k}" style="width:${100*v[k]/C.n}%" title="${k}: ${v[k]} of ${C.n}">${k} ${v[k]}</span>`).join('');
+  document.getElementById('fixtures').innerHTML='<thead><tr><th>Game type</th><th>Verdict</th>'+ORDER.map(f=>`<th class="c">${f}</th>`).join('')+'<th class="c">Godot</th></tr></thead><tbody>'+
+    C.fixtures.map(f=>`<tr><td><div style="font-weight:600">${esc(f.name)}${f.anchor?'<span class="anchor">anchor</span>':''}</div><div class="fwhy">${esc(f.why)}</div></td>
+      <td><span class="verdict ${f.verdict}">${f.verdict}</span></td>`+ORDER.map(id=>{
+        const mine=f.issues.filter(([k])=>k.startsWith(id+'.'));let w=null;for(const[,s]of mine)if(!w||WORST[s]>WORST[w])w=s;
+        const touched=f.touched.includes(id);const cls=w?'s-'+w:touched?'s-built':'none';
+        const tip=mine.length?mine.map(([k,s])=>`${k} (${s})`).join('\n'):touched?`${id}: every value built`:`${id}: not set`;
+        return `<td class="c"><span class="sq ${cls}" title="${esc(tip)}"></span></td>`;}).join('')+
+      `<td class="c" style="font:12px var(--mono);color:${f.godot?'var(--built)':'var(--muted)'}">${f.godot?'yes':'no'}</td></tr>`).join('')+'</tbody>';
+  const priced=C.packages.filter(p=>p.perEffort!=null), unsized=C.packages.filter(p=>p.perEffort==null);
+  const pmax=Math.max(1,...priced.map(p=>p.perEffort));
+  document.getElementById('packages').innerHTML=priced.slice(0,15).map(p=>`<div class="rrow"><span class="k" title="${esc(p.name)}: lifts ${p.lifts}, makeable ${p.makeable}, cost ${p.cost}${p.needs.length?', needs '+esc(p.needs.join(', ')):''}">${p.effort} · ${esc(p.name)}</span><div class="t"><span style="width:${100*p.perEffort/pmax}%;background:var(--accent)"></span></div><span class="n">${p.perEffort}</span></div>`).join('')+
+    (unsized.length?`<p class="fwhy" style="margin:8px 0 0">Unsized: ${unsized.slice(0,8).map(p=>`<code>${esc(p.name)}</code> (${p.lifts})`).join(', ')}${unsized.length>8?` and ${unsized.length-8} more`:''}.</p>`:'');
+  const vmax=Math.max(1,...C.values.map(x=>x.lifts));
+  document.getElementById('values').innerHTML=C.values.map(x=>`<div class="rrow"><span class="k" title="${esc(x.key)} (${x.status}) · makeable ${x.makeable} · touches ${x.touches}">${esc(x.key)}</span><div class="t"><span class="s-${x.status}" style="width:${100*x.lifts/vmax}%"></span></div><span class="n">${x.lifts}</span></div>`).join('');
+  document.getElementById('log').innerHTML=C.log.length?C.log.map(e=>`<li class="${e.milestone?'ms':''}"><time datetime="${esc(e.at)}">${fmt(e.at)}</time><div>${e.facet?`<span class="tag">${esc(e.facet)}</span>`:''}${esc(e.text)}</div></li>`).join(''):'<li><span></span><span class="fwhy">No entries yet.</span></li>';
+})();
+</script>

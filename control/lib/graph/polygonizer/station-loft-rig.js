@@ -601,6 +601,10 @@ function faceRowOf(face) {
  * `hullShade: true | { quantum?, cell?, except? }` (default null → byte-identical output) bakes the COLOR
  * shade from `hullShadeNormals` per corner instead of the flat face normal; a null field entry keeps the
  * flat shade, so an excepted part or an unanswerable vertex shades exactly as today.
+ * `palette` (the recipe's, group → hex; default null → byte-identical output) colours the plain path as the static faces
+ * do (station-loft-faces.js layeredFaces): a face's group in the palette, else its part's tint, else neutral grey — so a
+ * group coloured by the palette alone (a detailed head's cranium, horns, a pinned tile, an adornment) keeps its colour
+ * in every clip frame instead of falling to grey.
  * `character` (default null → byte-identical output): the CHARACTER LIGHT's parts instead (characterRigParts
  * above — the palette, the step and the split; `light` and `hullShade` do not apply), each part carrying
  * `inkFaces`, and `ranges` where it holds faces with a draw layer.
@@ -634,11 +638,12 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   // the recipe's emissive groups (a lens, a visor slit, a reactor) keep their full colour on the plain path, as the
   // static solid does (layeredFaces); under the character light they ride the pieces. Absent ⇒ byte-identical.
   const glow = new Set(Array.isArray(emissive) ? emissive : []);
+  const pal = palette && typeof palette === 'object' ? palette : {}, colOf = new Map();
   if (character) characterRigParts(mesh, skin, parts, character, dz, face, paint);
   else mesh.faces.forEach((tri, fi) => {
     const votes = {}; for (const vi of tri) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
     const bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
-    const part = mesh.parts[mesh.provenance[tri[0]].part]; const base = faceColorLinear({ fill: palette?.[mesh.groups[fi]] || part.tint || '#8a8f96' });
+    const part = mesh.parts[mesh.provenance[tri[0]].part]; const hex = pal[mesh.groups[fi]] || part.tint || '#8a8f96'; let base = colOf.get(hex); if (!base) colOf.set(hex, base = faceColorLinear({ fill: hex }));
     const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const lit = glow.has(mesh.groups[fi]); const shade = lit ? 1 : 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
     // THE PAINTED FACE on the plain path (a hero under a level's cast light): a painted face's corners carry the texture
     // and the light alone (white under it), and one over a region its shells, as characterRigParts does. Absent ⇒ as before.

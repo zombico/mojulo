@@ -20,6 +20,10 @@ import { readIntent } from './tunnel.js';
 import { landDomain } from './tunnel-land.js';
 import { buildingDomain } from './tunnel-buildings.js';
 import { techDomain, TECH_TRAITS } from './tunnel-tech.js';
+import { craftDomain, craftKindOf, CRAFT_TRAITS } from './tech-crafter.js';
+import { motifOf } from './tech-direction.js';
+import { ELEMENT_WORDS } from './element-words.js';
+import { CRAFTED } from './world.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -114,15 +118,32 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (tunnels.look.length) style.look = prompt;
   if (tunnels.builds.length) civilizations[civIds[0]].builds = prompt;
   // a machine is a clause of its own ("tracked haulers", "solar arrays") that names a function and no building
-  const techRead = readIntent(techDomain(), prompt).traits, things = {};
+  const techRead = readIntent(techDomain(), prompt).traits, things = {}, crafted = {};
   for (const clause of prompt.split(/[,;:]|\band\b/i).map((c) => c.trim()).filter(Boolean)) {
-    const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
     // (a clause about buildings is the building tunnel's; its fittings, a mast or wings, do not make it one)
-    if (!fn.length || readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
-    const id = slug(fn.at(-1).word.replace(/s$/, ''));
-    if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
+    if (readIntent(buildingDomain(), clause).traits.some((t) => !['solar', 'mast'].includes(t.id))) continue;
+    const fn = readIntent(techDomain(), clause).traits.filter((t) => TECH_TRAITS[t.id].fn);
+    if (fn.length) {
+      const id = slug(fn.at(-1).word.replace(/s$/, ''));
+      if (!things[id]) things[id] = clause.replace(/^(an?|the)\s+/i, '');
+      continue;
+    }
+    // no machine: a clause that names a vehicle, a tech-structure or a weapon ("war galleys", "a stargate") is the crafter's
+    const kind = craftKindOf(clause);
+    if (!kind) continue;
+    const list = Object.keys(CRAFTED).find((k) => CRAFTED[k] === kind), form = readIntent(craftDomain(kind), clause).traits.filter((t) => CRAFT_TRAITS[kind][t.id].form);
+    const id = slug(form.at(-1).word.replace(/s$/, ''));
+    crafted[list] ??= {};
+    if (!crafted[list][id]) crafted[list][id] = clause.replace(/^(an?|the)\s+/i, '');
   }
   if (Object.keys(things).length) { civilizations[civIds[0]].technology = { things }; tunnels.things = Object.keys(things); }
+  for (const [list, made] of Object.entries(crafted)) { civilizations[civIds[0]].technology = { ...(civilizations[civIds[0]].technology ?? {}), [list]: made }; tunnels[list] = Object.keys(made); }
+  // what the crafted things share: a motif and the elements the prompt names, when it crafts anything
+  if (Object.keys(crafted).length) {
+    const motif = motifOf(prompt), els = prompt.toLowerCase().split(/[^a-z0-9-]+/).filter((w) => ELEMENT_WORDS[w]).filter((w, i, a) => a.indexOf(w) === i);
+    const direction = { ...(motif ? { motif } : {}), ...(els.length ? { elements: { primary: els[0], ...(els[1] ? { secondary: els[1] } : {}) } } : {}) };
+    if (Object.keys(direction).length) { civilizations[civIds[0]].technology.direction = direction; tunnels.direction = Object.keys(direction); }
+  }
   // a civilization whose buildings are tunnelled from the prompt is named for what it builds
   if (tunnels.builds.length && !P.read.some((r) => r.decides.includes('anchor'))) {
     const said = readIntent(buildingDomain(), prompt).traits.map((t) => t.word), word = ['habitat', 'outpost', 'bunker', 'module', 'tower'].find((w) => said.includes(w)) ?? 'builder';
@@ -136,7 +157,7 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   const landscape = style.land.landscape?.variant ?? 'meadow';
   // a word a tunnel read is read, whatever the lexicon made of it
   // a word is unread when neither the lexicon nor any tunnel read it
-  const unreadBy = [landDomain(), buildingDomain(), techDomain()].map((d) => new Set(readIntent(d, prompt).unread)), tunnelled = { has: (w) => !unreadBy.every((u) => u.has(w)) };
+  const unreadBy = [landDomain(), buildingDomain(), techDomain(), ...Object.values(CRAFTED).map((k) => craftDomain(k))].map((d) => new Set(readIntent(d, prompt).unread)), tunnelled = { has: (w) => !unreadBy.every((u) => u.has(w)) };
   const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w)), tunnels }, style, civilizations, levels: {}, links: [] };
   const decided = [];
   for (let i = 0; i < n; i++) {

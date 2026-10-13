@@ -342,10 +342,31 @@ const DESCRIPTION_ALLOWLIST = {
 // book (export_model's `sheets` and `schedules` formats; mint_building's description led on the book and its outcome
 // `next`) and the solid ladder (mint_solid names `spec.ask`, look | fit | function | engineered, which caps `next`,
 // with its kinds grouped by purpose). No new tool.
+// Re-pinned 2026-10-11 (202_800 -> 203_000; measured 202,872) for the structure book broadened: mint_building's
+// description and its manifest's schema line name the store, restaurant and mall it now mints (kind and the one field
+// each needs). No new tool.
+// Re-pinned 2026-10-11 (203_000 -> 203_300; measured 203,145) for buildings as game levels: mint_building names the
+// office kind and `level: { goal }` (any building played as a level), create_game's levels say a building with
+// `level` is one. No new tool.
+// Re-pinned 2026-10-12 (203_300 -> 203_500; measured 203,368) for game buildings' doors: create_game takes `links`,
+// door links between levels (a building whose scene changes at its door). No new tool.
+// Re-pinned 2026-10-12 (202_800 -> 204_300; measured 204,250) for asset receipts: two new tools, sign_asset and
+// verify_asset (pack_stash), the creator's signed receipt for an exported file.
+// Re-pinned 2026-10-12 (204_300 -> 204_500; measured 204,367) for create_game's `shell: 'play'`, the light play shell design_game's
+// games ship in (play-shell.js). No new tool.
+// Re-pinned 2026-10-12 (204_500 -> 205_200; measured 205,013) for the merge of the two lines above (1011-structure-rails-broaden
+// into the play shell's line): both sets of additions together. No new tool.
+// Re-pinned 2026-10-12 (202_800 -> 204_200; measured 204,082) for one new tool, tune_ground: a gameworld level's ground
+// authored in its own space (dials and edits on a top-down grid, a heartbeat laid or exported), apart from the geocube
+// and from design_game's patch.
+// Re-pinned 2026-10-12 (205_200 -> 206_600; measured 206,373) for the merge of the worldbible line (tune_ground) into the consolidated line above:
+// both sets of additions together. One new tool (tune_ground).
 // Re-pinned 2026-10-11 (202_800 -> 204_400; measured 204,282) for character harmonization: one new tool,
 // update_character (the Characters ring's revise door over update_sketch: a hero's words, its target resolution, the geocube
 // whose light bakes it), its description at routing grade; the density rule and the cube stay off-payload.
-const PAYLOAD_CEILING = 204_400;
+// Re-pinned 2026-10-13 (206_600 -> 208_300; measured 208,152) for the merge of 1012-consolidate into the character line: update_character
+// (above) and tune_ground together. No new tool beyond those two.
+const PAYLOAD_CEILING = 208_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

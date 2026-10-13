@@ -48,7 +48,7 @@
  */
 
 import { buildGameStoreKernel } from './store-kernel.js';
-import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI } from './level-contract.js';
+import { CONTRACT_VERSION, MSG_READY, MSG_INIT, MSG_OUTCOME, MSG_DOOR, MSG_AUDIO, MSG_PAUSE, MSG_CONTROLS, MSG_GAMEPAD, MSG_AI } from './level-contract.js';
 import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
@@ -77,7 +77,7 @@ export function emitGameShell(manifest, levels = [], menu = null, music = null, 
   }
   const levelTable = manifest.levels.map((lv) => {
     const l = byRef.get(lv.ref);
-    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract };
+    return { ref: lv.ref, title: lv.title || l.title || lv.ref, gate: lv.gate || null, src: l.src || `levels/${lv.ref}.html`, contract: l.contract, ...(Array.isArray(lv.exits) ? { exits: lv.exits } : {}) };
   });
 
   // theme (pure presentation): sanitize the accents into the CSS var block; `hud` style adds the
@@ -399,7 +399,9 @@ ${art ? `  body,body.hud{background:#04070d url("${art}") center/cover no-repeat
 // ---- the store kernel, generated reducers included (single source of truth) ----
 const K = (${buildGameStoreKernel.toString()})();
 const MANIFEST = ${JSON.stringify(manifest)};
-const LEVELS = ${JSON.stringify(levelTable)};
+const LEVELS = ${JSON.stringify(levelTable)};${manifest.links && manifest.links.length ? `
+// DOOR LINKS (game-manifest.js links): a door end of one level → the level and door it opens into, both ways
+const LINKS = ${JSON.stringify(manifest.links.reduce((m, lk) => { (m[lk.from.ref] = m[lk.from.ref] || {})[lk.from.door] = lk.to; (m[lk.to.ref] = m[lk.to.ref] || {})[lk.to.door] = lk.from; return m; }, {}))};` : ''}
 const MENU = ${JSON.stringify(menu)};   // resolved menu entries (Start → Menu frame) or null
 const LEVELS_ENTRY = MENU && MENU.find((en) => en.kind === 'levels');
 const LEVEL_BY_REF = {};   // ref → level entry, so a menu 'mode' resolves its variant refs to launchable levels
@@ -1059,14 +1061,22 @@ function renderLevels(back) {
   closeFrame();
   const heading = LEVELS_ENTRY ? LEVELS_ENTRY.title : 'levels';
   main.innerHTML = '<h2 style="font-size:14px;color:#9cc4ff">' + heading + '</h2>';
+  // a MAP game (levels with exits): a level is open once found through an open exit, and each row says where its exits
+  // lead and what locks them; a list game reads its gates alone, as before
+  const MAP = K.isMap(LEVELS), reach = MAP ? K.reachable(SCHEMA, state, LEVELS) : null;
+  const lastAt = MAP && runLog.length ? runLog[runLog.length - 1].levelRef : null;
+  const titleOf = (ref) => { const l = LEVELS.find((x) => x.ref === ref); return l ? l.title : ref; };
+  const needs = (g) => g.completed ? 'complete ' + g.completed : g.has ? 'needs ' + g.has : 'needs ' + g.flag;
   for (const lv of LEVELS) {
-    const open = K.evalGate(SCHEMA, state, lv.gate);
+    const open = MAP ? reach[lv.ref] : K.evalGate(SCHEMA, state, lv.gate);
     const row = document.createElement('div');
     row.className = 'level';
     const done = completedResult(lv.ref);
     row.innerHTML = '<span class="name">' + lv.title + '</span>'
+      + (lastAt === lv.ref ? '<span class="done">last here</span>' : '')
       + (done ? '<span class="done">' + done + '</span>' : '')
-      + (open ? '' : '<span class="lock">locked — ' + (lv.gate.completed ? 'complete ' + lv.gate.completed : 'needs ' + lv.gate.flag) + '</span>');
+      + (open ? '' : '<span class="lock">' + (MAP && !(lv.gate && !K.evalGate(SCHEMA, state, lv.gate)) ? 'not found yet' : 'locked — ' + needs(lv.gate)) + '</span>')
+      + (MAP && open && Array.isArray(lv.exits) ? '<div style="font-size:12px;color:#8fa5c8;flex-basis:100%">' + lv.exits.map((x) => '→ ' + titleOf(x.to) + (x.gate && !K.evalGate(SCHEMA, state, x.gate) ? ' (locked: ' + needs(x.gate) + ')' : '')).join(' · ') + '</div>' : '');
     const btn = document.createElement('button');
     btn.textContent = 'play';
     btn.disabled = !open;
@@ -1562,6 +1572,8 @@ function renderSetup(lv, opts) {
   main.appendChild(bar);
   const launch = () => startLevel(variants[variantIdx].lv, pickers, difficulty);
   const leave = opts.back || (() => renderLevels());
+  // a map game's level with nothing to pick (a city's street, a door's inside) has no setup: it is entered, not fought
+  if (K.isMap(LEVELS) && !pickers.length && !mapPane && !diffCard) { launch(); return; }
   function showPickStep() {
     heading.textContent = title + ' — setup';
     pickPane.style.display = '';
@@ -1583,8 +1595,12 @@ function renderSetup(lv, opts) {
   showPickStep();
 }
 
-function startLevel(lv, pickers, difficulty) {
-  const params = {};
+function startLevel(lv, pickers, difficulty, arrive, carry) {
+  // carry: the params a door brings in (the session's, and the door it enters by), in place of the pickers'
+  const params = carry ? carry : {};
+  if (carry) pickers = [];
+  // a map game's travel: the level this one was entered from (the level moves the pilot to that end)
+  if (arrive) params.arrive = arrive;
   // the difficulty pick rides beside the slice params as a plain string — the level's params
   // seam maps it to the engine tuning tier; a level that never looks stays byte-identical.
   if (difficulty) params.difficulty = difficulty;
@@ -1649,7 +1665,22 @@ window.addEventListener('message', (e) => {
       battleTimer = setTimeout(() => { battleReady = true; if (screen === 'level') syncMusic(); }, 5000);
     }
   }
-  if (d.moj === ${JSON.stringify(MSG_OUTCOME)}) {
+${manifest.links && manifest.links.length ? `  if (d.moj === ${JSON.stringify(MSG_DOOR)}) {
+    // a door crossed: apply what the session gathered, then load the level it opens into, entered by its door
+    const r = K.applyTransit(SCHEMA, state, session.level.contract, d.envelope);
+    if (!r.ok) { toast('door refused (store untouched): ' + r.errors.join('; '), true); return; }
+    state = r.state;
+    if ((d.envelope.events || []).length) runLog.push(d.envelope);
+    persist();
+    const to = (LINKS[session.level.ref] || {})[d.door], lv = to && LEVELS.find((l) => l.ref === to.ref);
+    if (!lv) { toast('the door ' + d.door + ' leads nowhere', true); return; }
+    if (!K.evalGate(SCHEMA, state, lv.gate)) { toast(lv.title + ' is locked', true); return; }
+    const carry = JSON.parse(JSON.stringify(session.params || {}));
+    carry.__entry = { door: to.door, from: session.level.ref };
+    startLevel(lv, [], carry.difficulty, undefined, carry);
+    return;
+  }
+` : ''}  if (d.moj === ${JSON.stringify(MSG_OUTCOME)}) {
     const r = K.applyOutcome(SCHEMA, state, session.level.contract, d.envelope);
     if (!r.ok) { toast('outcome rejected (store untouched): ' + r.errors.join('; '), true); return; }
     state = r.state;
@@ -1664,6 +1695,16 @@ window.addEventListener('message', (e) => {
     }
     runLog.push(d.envelope);
     persist();
+    // TRAVEL (a map game): a success through an open exit goes straight on to the level it leads to, arriving at the
+    // matching end; its consumed slices go in whole (no setup screen between rooms)
+    const to = d.envelope.result === 'success' && d.envelope.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, d.envelope.exit) : null;
+    const next = to && LEVELS.find((l) => l.ref === to);
+    if (next) {
+      const from = session.level.ref;
+      toast(session.level.title + ' → ' + next.title);
+      startLevel(next, (next.contract.consumes || []).map((c) => ({ c })), undefined, from);
+      return;
+    }
     const stats = d.envelope.stats;
     if (stats && Array.isArray(stats.rows) && stats.rows.length) {
       // linger on the in-world result tableau (banner + final topple), then the score screen.

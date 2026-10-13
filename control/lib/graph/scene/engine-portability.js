@@ -9,10 +9,12 @@
  */
 
 export const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
+// the mechanics that wait on hits (hit:<id>): they travel when combat does (the cosmos sweep credits them together)
+export const HIT_MECHANICS = ['hp-pool', 'defeat-all'];
 // what a Godot export keeps: the kernel's own mechanics, and those whose lowered events its bus runs whole (win-when is a
-// watch and the contract's end). hp-pool and defeat-all run on the bus too, but wait on hit:<id>, which only the web's
-// combat deals. The cosmos registry reads this list (power.mechanics).
-export const GODOT_MECHANICS = [...MECHANICS_VOCAB, 'win-when'];
+// watch and the contract's end; hp-pool and defeat-all count the hits kernel/combat.gd deals, since kernel 0.17.0). The
+// cosmos registry reads this list (power.mechanics).
+export const GODOT_MECHANICS = [...MECHANICS_VOCAB, 'win-when', ...HIT_MECHANICS];
 // the motion rules a Godot export keeps: kernel/walker.gd walks the pilot (and jumps it, the platform rule), and a suit
 // follows it on a spring arm (the follow camera); the controllable runtime's other rules (glide, fly, drive, patrol,
 // movers…) do not travel. The cosmos registry reads it.
@@ -39,6 +41,8 @@ export function assessPortability({ manifest, levels, engine = null }) {
     // the behaviour travels as the bus (bus-abi.js): a row the kernel does not perform is named, the logic still runs
     const bus = score.ledger?.bus_carried?.godot;
     if (bus?.absent?.length) lf.push(`behaviour the Godot kernel does not perform yet: ${bus.absent.join(', ')} (the bus runs; nothing feeds or draws these)`);
+    // the fight travels as its adjudication (combat-score.js): what stays the web's is named
+    if (godot && score.ledger?.combat_carried) lf.push('the hero\'s fight travels (its swings and rounds, and the reactions of what they hit): the combo\'s stun, scaling and juggle, the clash, tackle and shove-down set pieces, the deferred wreck finisher, a loadout\'s other slots and every AI\'s attack stay on the web');
     // world-contract-tiers W5: the T1 advisory — an enclosed volume with nothing to light it.
     // Reported, never gated: the operator adds fixtures, opens the roof, or exports unlit.
     if (score.ledger?.contract?.advisories?.includes('imports_dark')) {

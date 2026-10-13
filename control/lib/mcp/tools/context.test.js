@@ -568,7 +568,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
-    'design_game', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
+    'design_game', 'tune_ground', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
     // game projects (game-developer.plan.md GP1) — the project layer's tools
     // live in the game form drawer beside the mint.
     'create_game_project', 'get_game_project', 'update_game_project', 'bind_to_game_project', 'list_game_projects',
@@ -794,7 +794,10 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // FORM heading the mint dispatch (create_character), the one case that legitimately grows this body.
   // Lowered 2026-10-10 (9_000 -> 8_600; measured 8,450 widest cell): the commitment floor's table moved to
   // get_register_kit, leaving one standing line; the disclosure directive stays (the operator's setting).
-  const MODE_CEILINGS = { studio: 8_600 };
+  // Grown 2026-10-13 (8_600 -> 8_650; measured 8,607 widest cell, studio+plain+pedagogical): the merge of the character
+  // line (the CHARACTER row's update_character) with the consolidated line (the GAME row's tune_ground), each under the
+  // ceiling alone.
+  const MODE_CEILINGS = { studio: 8_650 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

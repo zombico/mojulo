@@ -209,7 +209,7 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -443,6 +443,10 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
+  // a textured group a mover moves carries its texture sub-meshes as children, so the wood goes with the part (a
+  // teardown's members, a labelled lid on a hinge); no mover on a textured group → not emitted, byte-identical
+  const movedGroups = new Set((movers || []).map((mv) => mv && mv.group).filter((g) => typeof g === 'string'));
+  const movedTex = groups.some((g) => g.tex.length && movedGroups.has(g.name));
   // Any single-sided (bound-mesh) group? Only then does the render script reference
   // grp.singleSide — so a world without one emits the exact prior `side: THREE.DoubleSide`
   // string and stays byte-identical (the emit char-net holds; the feature is opt-in).
@@ -748,7 +752,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     ...(Number.isFinite(castShadows.bias) && castShadows.bias > 0 ? { bias: castShadows.bias } : {}),
     ...(Number.isFinite(castShadows.fitMin) && castShadows.fitMin > 0 ? { fitMin: castShadows.fitMin } : {}),
   }) : '';
-  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: !!castShadows }) : '';
+  // walkers that wait at signalled crossings (the planned city's) read the cars' signals; any other walks as before
+  const walkersBlock = walkerList.length ? walkersChannelScript(walkerList, walkerBank, { cast: !!castShadows, ...(walkerList.some((w) => Array.isArray(w.holds)) ? { signals: Array.isArray(signals) ? signals : [] } : {}) }) : '';
   // rig preview channel (rig-preview plan): a packed figure carrying `preview` plays its clips in place
   // on this page (the eyes gate for a rigged layered solid). The bank carries the figure once, without
   // its preview key. Absent ⇒ zero bytes.
@@ -830,7 +835,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     const dir = [-tx / horiz, -ty / horiz];
     return { dir, rot: Math.atan2(dir[1], dir[0]), stretch: Math.min(4.5, horiz / tz) };
   })();
-  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0)), pilot, spectate, ai, colliders, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg }) : '';
+  const controllableBlock = hasControllable ? controllableChannelScript(entityList, camera, packedFigures, { exposeBodies: !!fxNorm || (hasEvents && events.cast === true && (statusElements(events).length > 0 || transitKinds(events).length > 0)), pilot, spectate, ai, colliders, breakables, breakPieces, hangar, match, shadows, smoke, wreckExplodes, tutorial, aiDifficulty, lock, commander, key: shadowKey, toonInk: toonInkCfg }) : '';
   // bespoke channels hand their finished blocks into the registry-ordered runtime section
   chBlocks.physics = physicsBlock;
   chBlocks.actions = actionsBlock;
@@ -950,7 +955,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const GROUPS = ${safeJson(groups)};
 const CAMS = ${safeJson(cams)};
 const BG = ${safeJson(bg)};
-const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
+const TEXTURES = ${hasTextures ? safeJson(textures) : '{}'};${movedTex ? `\nconst __MOVED = ${safeJson(Object.fromEntries([...movedGroups].map((g) => [g, 1])))};` : ''}${cutKeys.length ? `\nconst __CUT = ${safeJson(Object.fromEntries(cutKeys.map((k) => [k, 1])))};` : ''}${softKeys.length ? `\nconst __SOFT = ${safeJson(Object.fromEntries(softKeys.map((k) => [k, 1])))};` : ''}
 const WIREFRAME0 = ${wireframe ? 'true' : 'false'};   // start in construction-wireframe mode?
 function decodeF32(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new Float32Array(u.buffer); }
 function decodeU8(s){ const bin=atob(s); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }${pack ? "\nconst __SRGB_LIN = Float32Array.from({ length: 256 }, (_, i) => { const c = i / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); });" : ''}
@@ -961,8 +966,10 @@ const wrap = document.getElementById('wrap'), canvas = document.getElementById('
 // sit only a few cm in front of their wall. A linear depth buffer starves that gap of
 // precision and the decals z-fight (shimmer). The log buffer restores precision across
 // the range so the proud faces win cleanly from any orbit distance.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: ${pixel ? 'false' : 'true'}, logarithmicDepthBuffer: true${backdropUrl ? ', alpha: true' : ''}${layered ? ', stencil: true' : ''} });
+${pixel ? `// THE PIXEL LOOK (cosmos reality.medium=pixel): drawn at a ${Math.round(Number(pixel.scale))}th of the page's size and blown up
+// without smoothing, so each drawn pixel is a block on screen
+renderer.setPixelRatio(1 / ${Math.round(Number(pixel.scale))}); canvas.style.imageRendering = 'pixelated';` : 'renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));'}
 
 const scene = new THREE.Scene();
 ${backdropUrl ? `scene.background = null; renderer.setClearColor(0x000000, 0);   // backdrop: the page's image shows through` : `scene.background = new THREE.Color(BG);`}
@@ -1007,7 +1014,7 @@ for (const grp of GROUPS) {
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow
-    ${swayBlock || grassBlock || toneBlock || previewPainted ? 'tm.userData.g = grp.name; ' : ''}scene.add(tm); ${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewPainted ? 'tm.userData.g = grp.name; ' : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 

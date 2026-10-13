@@ -89,3 +89,5 @@ livery/preset should appear in the apron fleet (re-roll the seed a few times —
   (the streetcar bakes its 2.5× length into the net, not `size`).
 - **No new families here** — this catalyst adds ENTRIES within the three existing families. A new
   family (watercraft, rail) needs a new net builder + a `VEHICLE_FAMILIES` entry first.
+- **A civilization's technology is not this** — vehicles, tech-structures and weapons a world bible crafts from
+  words are grown in the technology solver: `design-tech-family`.

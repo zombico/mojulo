@@ -12,13 +12,15 @@
 
 import { composeMechanics } from './mechanics.js';
 import { chapterContract } from '../playscape/ui/chapters.js';
+import { sceneContract } from '../playscape/ui/scenes.js';
 
 const EV_ARRAY_CHANNELS = ['entities', 'timers', 'reactions', 'watches', 'inputs', 'hud', 'sources', 'sequences', 'initial'];
 
 // the level's player = its walk/platform controllable entity; spawn = that entity's initial pos.
 export function deriveLevelPlayer(manifest) {
   const ents = Array.isArray(manifest.entities) ? manifest.entities : [];
-  const p = ents.find((e) => e && e.rule && (e.rule.type === 'walk' || e.rule.type === 'platform'));
+  // the pilot: the first walker or platformer, else a driven vehicle (a ride)
+  const p = ents.find((e) => e && e.rule && (e.rule.type === 'walk' || e.rule.type === 'platform')) || ents.find((e) => e && e.pilotable && e.rule && e.rule.type === 'drive');
   const player = (p && p.id) || 'player';
   const spawn = (p && p.transform && Array.isArray(p.transform.pos)) ? p.transform.pos.slice() : [0, 0, 2];
   return { player, spawn };
@@ -39,6 +41,10 @@ export function mergeContract(game, composed) {
     on: { ...(composed.on || {}), ...(game.on || {}) },
     consumes: [...(game.consumes || []), ...(composed.consumes || [])],
     audits: [...(game.audits || []), ...(composed.audits || [])],
+    ...(composed.doors ? { doors: [...(game.doors || []), ...composed.doors] } : {}),
+    ...(composed.keep ? { keep: [...(game.keep || []), ...composed.keep] } : {}),
+    ...(composed.aftermath ? { aftermath: composed.aftermath } : {}),
+    ...(composed.bag ? { bag: composed.bag } : {}),
   };
 }
 
@@ -67,9 +73,9 @@ export function mergeEventManifests(a, b) {
 export function synthesizeLevel(manifest) {
   const game = manifest && manifest.game;
   if (!game || typeof game !== 'object') return { game: game || null, mechEvents: null };
-  // chapters that carry between levels add their setFlag rows (playscape/ui/chapters.js); none ⇒ the same object
+  // chapters and scenes that carry between levels add their setFlag rows (playscape/ui/chapters.js, scenes.js); none ⇒ the same object
   const play = manifest.play;
-  if (!Array.isArray(game.mechanics) || !game.mechanics.length) return { game: chapterContract(game, play), mechEvents: null };
+  if (!Array.isArray(game.mechanics) || !game.mechanics.length) return { game: sceneContract(chapterContract(game, play), play), mechEvents: null };
   const { player, spawn } = deriveLevelPlayer(manifest);
   let composed;
   try {
@@ -77,5 +83,5 @@ export function synthesizeLevel(manifest) {
   } catch (err) {
     throw new Error(`game mechanics are invalid:\n${err.message}`);
   }
-  return { game: chapterContract(mergeContract(game, composed), play), mechEvents: composed.events };
+  return { game: sceneContract(chapterContract(mergeContract(game, composed), play), play), mechEvents: composed.events };
 }

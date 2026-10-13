@@ -162,6 +162,9 @@ export const TOOL_ANNOTATIONS = {
   archive_cook: ['Archive a cook outcome', DESTRUCTIVE_IDEMPOTENT],
   forge_publications: ['Forge publications', ADDITIVE],
   recommend_kind: ['Recommend a publication kind', READ],
+  // the receipt lands beside a file that may sit outside $MOJULO_HOME
+  sign_asset: ['Sign an exported file', hints(false, false, false, true)],
+  verify_asset: ['Verify a creator receipt', READ_EXTERNAL],
 
   // ── visual reference (visual-reference.js) ─────────────────────────────────
   reference_protocol: ['Photo-reading protocol', READ],
@@ -230,6 +233,8 @@ export const TOOL_ANNOTATIONS = {
   // ── games (create-game.js, game-projects.js, pixelizer, sprites, export) ───
   // writes and runs a gameworld: a run remakes what it made in place when the book moved (never a hand edit unless forced)
   design_game: ['Design and make a game', DESTRUCTIVE],
+  // previews unless `apply`; applied, it sets one level's ground (the same call again changes nothing)
+  tune_ground: ['Tune a level\'s ground', DESTRUCTIVE_IDEMPOTENT],
   create_game: ['Create a game', ADDITIVE],
   get_game_vocab: ['Game vocabulary cards', READ],
   get_play_vocab: ['Play vocabulary cards', READ],

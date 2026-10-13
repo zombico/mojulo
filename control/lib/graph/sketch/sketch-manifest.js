@@ -116,6 +116,14 @@ export function validateSketchManifest(manifest) {
     }
     return { ok: errors.length === 0, errors };
   }
+  // The office: a stack of floor plates over one core (polygonizer/floorplan-building.js); the shape here, the uses
+  // and sizes at mint (validateOfficeManifest).
+  if (manifest.kind === 'office') {
+    const errors = [];
+    if (!manifest.title || typeof manifest.title !== 'string') errors.push('manifest.title is required (string)');
+    if (manifest.storeys !== undefined && !(Number.isInteger(manifest.storeys) && manifest.storeys >= 1)) errors.push('office.storeys: an integer >= 1');
+    return { ok: errors.length === 0, errors };
+  }
   // Everything else is a box-and-arrow / chart diagram — the kernel core.
   return validateDiagramManifest(manifest);
 }
@@ -301,7 +309,7 @@ export const EDUCATION_VIEW_KINDS = [
 // 'controllable' carries no registry walk flag (locomotion is per-entity, from
 // the manifest's rules) but is a LIVE moved-through stage — action worlds and
 // game levels — so it belongs to the world concern.
-export const WALKABLE_WORLD_KINDS = ['fractal-city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'geocube', 'restaurant', 'store', 'mall', 'edifice', 'dungeon', 'stage', 'historic', 'math-structure', 'koenigsberg', 'controllable', 'terrain'];
+export const WALKABLE_WORLD_KINDS = ['fractal-city', 'city', 'condo-complex', 'school-complex', 'transportation-hub', 'subway-building', 'floorplan', 'geocube', 'heartbeat', 'restaurant', 'store', 'mall', 'office', 'edifice', 'dungeon', 'stage', 'historic', 'math-structure', 'koenigsberg', 'controllable', 'terrain'];
 // Orbit-only single artifacts and studies — the /maker/objects concern. The
 // polygomer manji-tree joins via isPolygomerManjiTree (its 2D/structural form
 // stays an illustration SVG).

@@ -21,6 +21,7 @@ import { statusElements, transitKinds } from './channels/status-channel.js';
 import { lookRGB } from '../playscape/elements/elements.js';
 import { weatherScore } from './weather-score.js';
 import { busCoverage } from './bus-abi.js';
+import { extractCombat } from './combat-score.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -133,25 +134,36 @@ function locomotionFor(figures, figKey, unitScale = 1) {
 export const BUS_VERSION = 'bus/1';
 const BUS_CHANNELS = ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap'];
 
+const playerOf = (payload) => (payload?.entities ?? []).find((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform')?.id ?? null;
+
 export function extractBus(payload) {
-  const ev = payload && payload.events;
-  if (!ev || !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
+  const ev = (payload && payload.events) || {};
+  // the fight (combat-score.js): a melee hero and what it can hit ride beside the cast, which they need; a level with
+  // a fight and no other behaviour carries an empty fragment
+  const combat = payload ? extractCombat(payload, playerOf(payload)) : null;
+  if (!combat && !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
   const fragment = Object.fromEntries(BUS_CHANNELS.filter((k) => ev[k] !== undefined).map((k) => [k, ev[k]]));
   const mpu = Number(payload.metersPerUnit);
   // the characters the behaviour moves (its cues reach the cast: events.cast), in the bus's own units: where each
   // stands, its heading, asleep or not, its hp and pace. An engine kernel's cast adapter (Godot: kernel/cast.gd)
   // starts from these. Absent cast ⇒ no rows.
-  const cast = ev.cast === true ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
+  const cast = ev.cast === true || combat ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
     id: e.id, pos: Array.isArray(e.transform?.pos) ? e.transform.pos : [0, 0, 0],
     ...(Number.isFinite(e.transform?.heading) ? { heading: e.transform.heading } : {}),
     ...(e.dormant ? { dormant: true } : {}),
     ...(Number.isFinite(e.body?.hp) ? { hp: e.body.hp } : {}),
     ...(Number.isFinite(e.rule?.speed) ? { speed: e.rule.speed } : {}),
+    // where it stands below its pos (the web's feet: its rule's eye, else half its box, else its radius): a beam
+    // leaves its hand and lands at its feet
+    ...((f) => (f ? { foot: f } : {}))(Number.isFinite(e.rule?.eye) ? e.rule.eye : Array.isArray(e.body?.size) ? e.body.size[2] / 2 : Number.isFinite(e.body?.radius) ? e.body.radius : 0),
   })) : null;
   // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint
   // (Godot: kernel/stats.gd, held equal by the same corpus); their vars start in the fragment's. Absent ⇒ no key.
   const stats = ev.stats && typeof ev.stats === 'object' ? ev.stats : null;
-  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}) };
+  // the keys and clicks bound to events (events.inputs: a power's key, the status page's): what an engine kernel feeds
+  // the bus as the page does. A pick or a shot (on what the pointer is over) stays the page's. Absent ⇒ no key.
+  const inputs = (Array.isArray(ev.inputs) ? ev.inputs : []).filter((i) => i && i.emit && (i.on === 'key' || i.on === 'pointer'));
+  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}), ...(inputs.length ? { inputs } : {}) };
 }
 
 // A primitive body (`mesh`: a box or a sphere, centred on the entity) bakes no geometry into the GLB: its node is an
@@ -209,6 +221,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   if (weatherScoreRow) ledger.weather_partial = { note: 'the sky\'s fog, colour and light are played by the engine kernels from score.weather (its schedule and each state in the style\'s air); falling rain, snow, dust and petals, their landings and the lightning stay the web build\'s, and Blender and a bare GLB carry the row as data only' };
   const sv = (v) => (unitScale && Array.isArray(v) ? v.map((x) => (Number.isFinite(x) ? x * unitScale : x)) : v);
   const sn = (x) => (unitScale && Number.isFinite(x) ? x * unitScale : x);
+  // what the game lets break (playscape/destruct/breakability.js) left the collider list for the web runtime's blocks;
+  // an engine holds it whole, as the solid it was. Absent ⇒ no row, byte-identical.
+  const breakables = Array.isArray(payload.breakables) ? payload.breakables : [];
+  if (breakables.length) ledger.breakables_held = { count: breakables.length, note: 'what the game lets break (destruction) travels as solid colliders: engines hold it whole; breaking it, its pieces and its flash stay the web build\'s' };
   // Positioned lights (pot lights) ride the GLB as KHR_lights_punctual; the score carries
   // them too so an importer that brings none in (Interchange) can spawn them itself.
   const lights = (Array.isArray(payload.lights) ? payload.lights : [])
@@ -281,6 +297,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   const walkable = Boolean(payload.walk) || (payload.entities ?? []).some((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform');
   ledger.contract = contractLedgerEntry(assessWorldTier(payload, { walkable }));
   const bus = extractBus(payload);
+  if (bus?.combat) {
+    ledger.combat_carried = { hero: bus.combat.hero, bodies: Object.keys(bus.combat.bodies).length, version: bus.combat.version, note: 'the hero\'s fight rides bus.json `combat`: its five swings (reach, cone, contact window, damage), its weapon (the trigger, the rounds, their splash), the cover, and every hittable body with its reaction and shield; an engine kernel adjudicates them in recipe units (Godot: kernel/combat.gd, held equal to the web frame by frame) and each hit is a hit:<id> fact. The combo\'s stun, scaling and juggle, the clash and the other set pieces, the deferred wreck finisher, a loadout\'s other slots and every AI\'s attack stay the web\'s' };
+  }
   if (bus) {
     const n = (k) => (Array.isArray(bus.fragment[k]) ? bus.fragment[k].length : 0);
     // what the behaviour takes and gives, and what the Godot kernel performs of it (bus-abi.js)
@@ -315,7 +334,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // them — the ledger states it. Absent textures ⇒ no key, byte-identical.
     ...(payload.textures && Object.keys(payload.textures).length
       ? { textures: Object.keys(payload.textures).sort() } : {}),
-    colliders: (payload.colliders ?? []).map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
+    colliders: [...(payload.colliders ?? []), ...breakables.map((b) => ({ min: b.min, max: b.max, of: b.id }))].map((c) => (unitScale && c && Array.isArray(c.min) && Array.isArray(c.max) ? { ...c, min: sv(c.min), max: sv(c.max) } : c)),
     ...addr,
     ...(payload.tone && Array.isArray(payload.tone.ramps) ? { tone: payload.tone } : {}),
     cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),
@@ -353,7 +372,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // The runtime's player seat (level-synth deriveLevelPlayer): first entity
     // with a walk/platform rule. Emitters hide its exported body — the
     // operator IS the walker; leaving it renders a body double at spawn.
-    player: (payload.entities ?? []).find((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform')?.id ?? null,
+    player: playerOf(payload),
     game: extras['moj:game'] ?? null,
     soundtrack: payload.audio?.soundtrack?.beatsRef ?? manifest.audio?.soundtrack?.beatsRef ?? null,
     ledger,

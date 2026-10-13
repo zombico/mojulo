@@ -194,6 +194,15 @@ export function buildGameStoreKernel() {
     return errors.length ? { ok: false, errors: errors } : { ok: true };
   }
 
+  /** A door crossed: what the session gathered so far (an envelope whose result is 'transit') validated against the
+   *  contract's produces like any envelope, then applied atomically; the session goes on in the next level. */
+  function applyTransit(schema, state, contract, envelope) {
+    if (!envelope || envelope.result !== 'transit') return { ok: false, errors: ["a door's envelope has result 'transit'"] };
+    const v = validateEnvelope({ ...contract, produces: { ...(contract && contract.produces), results: ['transit'] } }, envelope);
+    if (!v.ok) return { ok: false, errors: v.errors };
+    return applyEvents(schema, state, envelope.events || []);
+  }
+
   /** The one write per session: validate the envelope against the contract, then apply atomically. */
   function applyOutcome(schema, state, contract, envelope) {
     const v = validateEnvelope(contract, envelope);
@@ -202,9 +211,15 @@ export function buildGameStoreKernel() {
   }
 
   // ── gates — declarative unlock predicates on the game manifest's level list ──
-  // gate: { flag: key, equals?, slice? } | { completed: ref, slice? }. No gate → open.
+  // gate: { flag: key, equals?, slice? } | { completed: ref, slice? } | { has: item, count?, slice? }. No gate → open.
   function evalGate(schema, state, gate) {
     if (!gate) return true;
+    if (gate.has !== undefined) {
+      // an item carried in an inventory slice (a key found in another level), at least `count` of it
+      const name = gate.slice || firstSliceOfKind(schema, 'inventory');
+      const s = name && state[name];
+      return !!s && (s.items[gate.has] || 0) >= (gate.count != null ? gate.count : 1);
+    }
     if (gate.flag !== undefined) {
       const name = gate.slice || firstSliceOfKind(schema, 'flags');
       const s = name && state[name];
@@ -237,6 +252,34 @@ export function buildGameStoreKernel() {
     return errors.length ? { ok: false, errors: errors } : { ok: true, save: save };
   }
 
+  // ── the map — a game whose levels list `exits` is played as a map, not a list ──
+  // A level is open when its own gate holds and it is found: the first level, or a level an open exit of a level already
+  // completed leads to. A game with no exits is a list: every level is open on its own gate alone, as before.
+  // levels: [{ ref, gate?, exits?: [{ id, to, gate? }] }] → { [ref]: true | false }
+  function isMap(levels) {
+    return (levels || []).some(function (lv) { return lv && Array.isArray(lv.exits) && lv.exits.length > 0; });
+  }
+  function reachable(schema, state, levels) {
+    const open = {};
+    if (!isMap(levels)) { levels.forEach(function (lv) { open[lv.ref] = evalGate(schema, state, lv.gate); }); return open; }
+    const prog = firstSliceOfKind(schema, 'progression');
+    const done = (prog && state[prog] && state[prog].completed) || {};
+    const found = {};
+    if (levels.length) found[levels[0].ref] = true;
+    levels.forEach(function (lv) {
+      if (done[lv.ref] !== 'success') return;
+      (lv.exits || []).forEach(function (x) { if (evalGate(schema, state, x.gate)) found[x.to] = true; });
+    });
+    levels.forEach(function (lv) { open[lv.ref] = !!found[lv.ref] && evalGate(schema, state, lv.gate); });
+    return open;
+  }
+  /** Where a level's exit leads, when that exit is open: the level ref, or null (a list game, an unknown or a locked exit). */
+  function travel(schema, state, levels, from, exit) {
+    const lv = (levels || []).find(function (l) { return l && l.ref === from; });
+    const x = lv && (lv.exits || []).find(function (e) { return e.id === exit; });
+    return x && evalGate(schema, state, x.gate) ? x.to : null;
+  }
+
   return {
     CONTRACT_VERSION: CONTRACT_VERSION,
     SLICE_KINDS: SLICE_KINDS,
@@ -246,7 +289,11 @@ export function buildGameStoreKernel() {
     applyEvents: applyEvents,
     validateEnvelope: validateEnvelope,
     applyOutcome: applyOutcome,
+    applyTransit: applyTransit,
     evalGate: evalGate,
+    isMap: isMap,
+    reachable: reachable,
+    travel: travel,
     makeSave: makeSave,
     parseSave: parseSave,
   };

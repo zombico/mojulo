@@ -2,7 +2,8 @@
  * Gameworlds: a world above its levels (world.js), its graph (graph.js), its style guide (style-guide.js) and its
  * bible (bible-html.js).
  */
-export { readGameworld, resolveLevel, resolveWorld, levelSeed, WORLD_STYLE, CIVILIZATION, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
+export { readGameworld, resolveLevel, resolveWorld, levelSeed, WORLD_STYLE, CIVILIZATION, CRAFTED, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
+export { craftTech, craftKindOf, craftDomain, CRAFT_KINDS, CRAFT_KIND_IDS, CRAFT_TRAITS } from './tech-crafter.js';
 export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
 export { resolveBook, characterParts, characterState, approveCharacter, characterReady } from './character-review.js';
 export { readActions, resolveActions, IDIOMS, SYSTEM_KINDS, STAGES } from './actions.js';
@@ -10,8 +11,9 @@ export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT
 export { readAdornment, resolveAdornment, readGearBuild, applyDiff, buildAt } from './adornment.js';
 export { suggestKit, RAILS, ELEMENT_GEM } from './adornment-kit.js';
 export { readEquipment, resolveEquipment, equipmentOrders, equippedHero, HOLD_STAND, CLASS_SLOTS } from './equipment.js';
+export { gearStyle, mirrorEntry, contrastEntry, augmentTiers, populateGear, gearOrders, gearFaces, GEAR_MOTIFS, MADE_ROLES, CONTRAST_OF } from './world-gear.js';
 export { GAMEWORLD_KIND, isGameworldKind, gameworldOf, normalizeGameworldManifest } from './gameworld-kind.js';
-export { runSteps, decide, childRef } from './runner.js';
+export { runSteps, decide, childRef, storyReport } from './runner.js';
 export { readMade, MADE_KEY } from './made.js';
 export { readMechanics, resolveMechanics, mechanicsOrders, SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 export { ELEMENT_WORDS } from './element-words.js';
