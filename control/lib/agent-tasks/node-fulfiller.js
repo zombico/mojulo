@@ -35,6 +35,7 @@ import {
 import { recordInferenceOutcome } from '@/lib/mcp/agent-tasks/audit';
 import { resolveConfiguredAdapter } from '@/lib/runtime-adapters';
 import { AgentRuntimeError } from '@/lib/runtime-adapters/errors';
+import { normalizeTier } from '@/lib/agent-tasks/tiers';
 
 const DEFAULT_INVOKE_TIMEOUT_MS = 60_000;
 const DEFAULT_PULL_WAIT_MS = 25_000;
@@ -78,6 +79,7 @@ async function loopOnce({ adapter, invokeTimeoutMs, pullWaitMs }) {
       kind: 'node-driven-runtime',
       runtime: adapter.id,
       model: model || undefined,
+      tier: normalizeTier(payload.tier) || undefined,
     };
     const durationMs = Date.now() - entry.parkedAt;
 

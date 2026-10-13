@@ -32,6 +32,7 @@ import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 import { PACKS, SPINE, RETIRED_OFFICE_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
+import { TOOL_TIERS } from '@/lib/mcp/tool-tiers';
 // Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
 // and flags ride the execution context, minted in api/mcp/route.js.
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
@@ -172,19 +173,30 @@ export function clientDefersSchemas(clientInfo) {
   return hostCapabilities(resolveAdapterId({ clientName: clientInfo.name })).defersToolSchemas === true;
 }
 
+/** True when the connecting host's profile declares `capabilities.modelTiers`: it can hand light work to
+ * a lighter model, so each listed tool carries its tier (tool-tiers.js) as `_meta["mojulo/tier"]`.
+ * Declared per host like `defersToolSchemas`; every other host's tools/list stays byte-identical. */
+export function clientTakesModelTiers(clientInfo) {
+  if (!clientInfo?.name) return false;
+  return hostCapabilities(resolveAdapterId({ clientName: clientInfo.name })).modelTiers === true;
+}
+
 export function listTools({ clientInfo, context } = {}) {
   // The Claude plugin profile (plugin-profile.js) drops its hidden tools and packs and shows a
   // tool's profile face where it has one. Outside the profile both are no-ops.
   const profile = pluginProfileActive();
+  const tiersOn = clientTakesModelTiers(clientInfo);
   const toEntry = (t) => {
     const face = toolFace(t);
+    const tier = tiersOn ? TOOL_TIERS[t.name] : undefined;
+    const meta = tier ? { ...(t._meta || {}), 'mojulo/tier': tier } : t._meta;
     return withAnnotations(
       {
         name: t.name,
         description: face.description || '',
         inputSchema: face.inputSchema || { type: 'object', properties: {} },
         ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
-        ...(t._meta ? { _meta: t._meta } : {}),
+        ...(meta ? { _meta: meta } : {}),
       },
       t.aliasOf,
     );

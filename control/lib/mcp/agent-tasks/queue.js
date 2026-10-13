@@ -29,6 +29,7 @@
 import { randomUUID } from 'node:crypto';
 import { ENVELOPE_SCHEMA } from '@/lib/envelope-schema';
 import { rolesEnabled } from '@/lib/roles/keys';
+import { normalizeTier } from '@/lib/agent-tasks/tiers';
 
 export class AgentTaskError extends Error {
   constructor(message, { code, status = 500 } = {}) {
@@ -176,7 +177,7 @@ function notifyWaitingPullers() {
   // skipped without losing their place in line.
   for (let i = 0; i < waitingPullers.length; ) {
     const puller = waitingPullers[i];
-    const next = nextPendingEntry(puller.kindsFilter, puller.laneUserId);
+    const next = nextPendingEntry(puller.kindsFilter, puller.laneUserId, puller.tiersFilter);
     if (!next) {
       i += 1;
       continue;
@@ -188,10 +189,14 @@ function notifyWaitingPullers() {
   }
 }
 
-function nextPendingEntry(kindsFilter, laneUserId) {
+function nextPendingEntry(kindsFilter, laneUserId, tiersFilter = null) {
   for (const entry of pending.values()) {
     if (entry.status !== STATUS.PENDING) continue;
     if (kindsFilter && !kindsFilter.includes(entryTaskKind(entry))) continue;
+    // Tier match: a worker on a lighter model claims only the tiers it should answer, so a heavier task waits
+    // for a stronger worker instead of being answered below its tier. An untiered task matches any worker.
+    const tier = normalizeTier(entry.payload?.tier);
+    if (tiersFilter && tier && !tiersFilter.includes(tier)) continue;
     // Lane match (1:1 inference rule): a null lane means roles are off —
     // single-operator, no lanes. Otherwise strict equality, no fallback.
     if (laneUserId !== null && entry.userId !== laneUserId) continue;
@@ -269,17 +274,21 @@ export function parkRequestForTrigger(payload, opts = {}) {
  * @param {string[]} [opts.kindsFilter] — restrict to specific task_kinds.
  *   Used by the Node fulfiller to claim only kinds its runtime adapter
  *   advertises support for; the MCP /loop puller doesn't pass this.
+ * @param {string[]} [opts.tiersFilter] — claim only tasks of these tiers
+ *   (lib/agent-tasks/tiers.js); an untiered task matches any filter.
  * @param {string} [opts.forUserId] — the puller's account lane. With the roles
  *   pack enabled, a puller claims ONLY its own lane (default 'local'); with
  *   roles off, lanes don't exist and every puller sees every task, exactly as
  *   before.
  */
-export async function pullNext({ waitMs, kindsFilter, forUserId } = {}) {
+export async function pullNext({ waitMs, kindsFilter, tiersFilter, forUserId } = {}) {
   const ceiling = resolvePullCeiling();
   const wait = Math.max(0, Math.min(waitMs ?? DEFAULT_PULL_WAIT_MS, ceiling));
   const filter = Array.isArray(kindsFilter) && kindsFilter.length > 0 ? kindsFilter : null;
+  const tiers = Array.isArray(tiersFilter) ? tiersFilter.map(normalizeTier).filter(Boolean) : [];
+  const tierFilter = tiers.length > 0 ? tiers : null;
   const lane = rolesEnabled() ? forUserId || 'local' : null;
-  const immediate = nextPendingEntry(filter, lane);
+  const immediate = nextPendingEntry(filter, lane, tierFilter);
   if (immediate) {
     markPulled(immediate);
     return immediate;
@@ -289,6 +298,7 @@ export async function pullNext({ waitMs, kindsFilter, forUserId } = {}) {
     const waiter = {
       resolve,
       kindsFilter: filter,
+      tiersFilter: tierFilter,
       laneUserId: lane,
       timeoutHandle: setTimeout(() => {
         const idx = waitingPullers.indexOf(waiter);
@@ -301,7 +311,7 @@ export async function pullNext({ waitMs, kindsFilter, forUserId } = {}) {
 }
 
 /**
- * MCP `submit_inference_result` entry point. Resolves the parked HTTP
+ * MCP `submit_envelope_inference` entry point. Resolves the parked HTTP
  * response with the agent's envelope. `meta` accepts optional audit fields
  * the agent chose to include (model name, etc).
  *
@@ -402,7 +412,7 @@ export function cancel(requestId, reason) {
 }
 
 /**
- * Read the payload of an in-flight request. Used by `submit_inference_result`
+ * Read the payload of an in-flight request. Used by `submit_envelope_inference`
  * to resolve caller_ref against the parked payload before unblocking the
  * HTTP response — keeps audit recording in the synchronous path so the
  * principle is durable before the app sees its answer.

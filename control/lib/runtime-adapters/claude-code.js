@@ -16,11 +16,31 @@
  * — the prompt-embedding fallback works on the spike, and we'll revisit if
  * a cleaner channel ships.)
  *
+ * Tiers: a task's `tier` (../agent-tasks/tiers.js) picks the model and effort
+ * for its subprocess (`--model` / `--effort`, aliases so a new model ships with
+ * no mojulo release). The model names live here and nowhere in core. A task
+ * without a tier spawns the same command as before tiers existed.
+ *
  * See AGENT_TASKS_NODE_DRIVEN_PLAN.md.
  */
 
 import { execFile } from 'node:child_process';
 import { AgentRuntimeError } from './errors.js';
+import { normalizeTier } from '../agent-tasks/tiers.js';
+
+// tier → Claude Code model alias + effort level. `ride` work rarely reaches a
+// model at all; when an answer is still needed it takes the lightest one.
+const TIER_RUNTIME = Object.freeze({
+  ride: { model: 'haiku', effort: 'low' },
+  fill: { model: 'haiku', effort: 'low' },
+  judge: { model: 'sonnet', effort: 'medium' },
+  design: { model: 'opus', effort: 'high' },
+});
+
+function tierArgs(tier) {
+  const t = TIER_RUNTIME[normalizeTier(tier)];
+  return t ? ['--model', t.model, '--effort', t.effort] : [];
+}
 
 const SYSTEM_PROMPT = `You are mojulo's headless inference worker. A control plane task is described below; produce a JSON envelope satisfying the embedded schema.
 
@@ -62,14 +82,19 @@ function buildUserPrompt({ taskPayload, envelope_schema }) {
   return parts.join('\n\n');
 }
 
-function spawnClaudePrint({ systemPrompt, userPrompt, timeoutMs, signal }) {
+function buildArgs({ systemPrompt, userPrompt, tier }) {
+  return [
+    '--print',
+    '--output-format', 'json',
+    ...tierArgs(tier),
+    '--system-prompt', systemPrompt,
+    userPrompt,
+  ];
+}
+
+function spawnClaudePrint({ systemPrompt, userPrompt, tier, timeoutMs, signal }) {
   return new Promise((resolve, reject) => {
-    const args = [
-      '--print',
-      '--output-format', 'json',
-      '--system-prompt', systemPrompt,
-      userPrompt,
-    ];
+    const args = buildArgs({ systemPrompt, userPrompt, tier });
     const child = execFile('claude', args, {
       timeout: timeoutMs,
       killSignal: 'SIGKILL',
@@ -102,6 +127,23 @@ function spawnClaudePrint({ systemPrompt, userPrompt, timeoutMs, signal }) {
   });
 }
 
+// `claude --print --output-format json` (2.1.x) reports the model only as a
+// key of `modelUsage` ({ "<model id>": { outputTokens, ... } }). With several
+// (a subagent ran), the one that wrote the most output is the answer's model.
+function modelFromUsage(modelUsage) {
+  if (!modelUsage || typeof modelUsage !== 'object') return null;
+  let best = null;
+  let bestOut = -1;
+  for (const [id, u] of Object.entries(modelUsage)) {
+    const out = Number(u?.outputTokens) || 0;
+    if (out > bestOut) {
+      best = id;
+      bestOut = out;
+    }
+  }
+  return best;
+}
+
 function parseClaudeOutput(stdout) {
   // `claude --print --output-format json` returns one JSON object whose
   // shape includes a `result` (string) field carrying the model's reply
@@ -122,7 +164,7 @@ function parseClaudeOutput(stdout) {
       { code: 'RUNTIME_OUTPUT_INVALID' },
     );
   }
-  const model = outer?.model || outer?.modelId || null;
+  const model = outer?.model || outer?.modelId || modelFromUsage(outer?.modelUsage);
   // The model may wrap its JSON in a code fence even with the explicit
   // instructions. Strip a single layer of fence before attempting parse.
   const stripped = inner.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '');
@@ -154,7 +196,7 @@ export const claudeCodeHeadlessAdapter = {
   /**
    * @param {object} args
    * @param {object} args.taskPayload — the parked task payload
-   *   ({ inputs, protocol_context, caller_ref, ... }).
+   *   ({ inputs, protocol_context, caller_ref, tier?, ... }).
    * @param {object} args.envelope_schema — schema the response must satisfy.
    * @param {number} args.timeoutMs — hard wall-clock budget for the
    *   subprocess; exceeded → SIGKILL → AgentRuntimeError(RUNTIME_TIMEOUT).
@@ -166,6 +208,7 @@ export const claudeCodeHeadlessAdapter = {
     const { stdout } = await spawnClaudePrint({
       systemPrompt: SYSTEM_PROMPT,
       userPrompt: buildUserPrompt({ taskPayload, envelope_schema }),
+      tier: taskPayload?.tier,
       timeoutMs,
       signal,
     });
@@ -175,6 +218,8 @@ export const claudeCodeHeadlessAdapter = {
 
 export const _internals = {
   SYSTEM_PROMPT,
+  TIER_RUNTIME,
+  buildArgs,
   buildUserPrompt,
   parseClaudeOutput,
 };

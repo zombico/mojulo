@@ -114,6 +114,9 @@ const CAPABILITY_DEFAULTS = {
   scheduler: null,
   skillsDir: null,
   headlessRuntime: null,
+  // Each listed tool carries its tier as `_meta["mojulo/tier"]` (tool-tiers.js) for a host that can route
+  // light work to a lighter model.
+  modelTiers: false,
 };
 
 let _catalog = null;

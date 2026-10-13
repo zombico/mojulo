@@ -361,7 +361,9 @@ const DESCRIPTION_ALLOWLIST = {
 // and from design_game's patch.
 // Re-pinned 2026-10-12 (205_200 -> 206_600; measured 206,373) for the merge of the worldbible line (tune_ground) into the consolidated line above:
 // both sets of additions together. One new tool (tune_ground).
-const PAYLOAD_CEILING = 206_600;
+// Re-pinned 2026-10-13 (206_600 -> 206_900; measured 206,733) for the merge of 1012-model-tiering into the consolidated
+// line: pull_agent_task's optional `tiers` filter on top of the line's own additions. No new tool.
+const PAYLOAD_CEILING = 206_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

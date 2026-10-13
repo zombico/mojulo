@@ -2,7 +2,7 @@
 {
   "id": "run-inference-worker",
   "name": "Run the mojulo inference worker loop",
-  "summary": "Long-poll mojulo's `pull_pending_inference` MCP tool, generate envelope-shaped responses to incoming app inference requests, and submit them via `submit_inference_result`. Run inside `/loop` so the operator's apps have a worker present whenever they need inference.",
+  "summary": "Long-poll mojulo's `pull_agent_task` MCP tool, generate envelope-shaped responses to incoming app inference requests, and submit them via `submit_envelope_inference`. Run inside `/loop` so the operator's apps have a worker present whenever they need inference.",
   "valueHook": "Be the inference engine your locally-running mojulo apps need — no API keys held anywhere, no external provider on the call path.",
   "version": 1,
   "category": "substrate",
@@ -29,6 +29,8 @@ Run this loop until the operator stops you. The operator typically wraps you in 
    - The `kinds` filter means you only claim envelope_inference tasks, so you
      never cancel a task of another kind meant for a different worker. Omit
      `kinds` only if you intend to handle every kind.
+   - On a light model (Haiku), also pass `tiers: ['ride', 'fill']` so you only
+     claim tasks that weight should answer (see "Tiers" below).
    - If `request: null`, the wait window expired with no work. Loop.
    - Otherwise you get a content array: a JSON manifest text block,
      optionally followed by a native MCP image block.
@@ -45,6 +47,8 @@ Run this loop until the operator stops you. The operator typically wraps you in 
    - envelope_schema   — JSON Schema the response must satisfy.
    - protocol_context  — optional app-supplied guidance; treat as system-prompt-style hints.
    - caller_ref        — informational; identifies the calling app.
+   - tier              — how much judgment the answer needs: ride, fill, judge
+                         or design (null when the app did not say).
    - inputs.text       — the user prompt (may be null if the request is image-only).
    - inputs.image_present — boolean; if true, the next content block is the image to reason over.
 
@@ -72,6 +76,13 @@ Run this loop until the operator stops you. The operator typically wraps you in 
 
 5. Loop back to step 1.
 ```
+
+## Tiers
+
+A task may say how much judgment its answer needs (`tier`: ride, fill, judge, design). Answer every task you claim at
+full quality: never give a heavier task a lighter answer to save usage. The tier only decides who claims it. A worker on
+a light model pulls with `tiers: ['ride', 'fill']`, and `judge` and `design` tasks wait for a stronger worker. A worker on
+the operator's main model pulls with no tier filter. Changing which model you run on is the operator's call, never yours.
 
 ## When to call cancel_agent_task
 
