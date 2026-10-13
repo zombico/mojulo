@@ -122,17 +122,18 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (!audioSpec || typeof audioSpec !== 'object') return null;
   const out = {};
   // the score identity a field soundtrack plays in (its game, else its cue's own seed): sfx 'auto' takes its key
-  let identity = null;
+  let identity = null, clubStyle = false;
 
   if (audioSpec.soundtrack) {
     let recipe = audioSpec.soundtrack;
     // a generated field cue: the stored seed, else the world's own ref (unique per world, stable per render).
     const field = parseFieldSpec(recipe);
-    if (field && SCORE_MOODS[field.mood].stinger) {
+    if (field && SCORE_MOODS[field.mood]?.stinger && field.style !== 'club') {
       throw new Error(`audio.soundtrack '${field.mood}' is a stinger: it plays once at an outcome (create_beats({ score: { mood: '${field.mood}' } }), then create_game music.${field.mood}), not under a level`);
     }
     if (field) {
       identity = field.game ?? field.seed ?? (ctx.ref ? seedOfRef(ctx.ref) : 0);
+      clubStyle = field.style === 'club';
       recipe = normalizeBeatsManifest(fieldCue(field, { fallbackSeed: ctx.ref ? seedOfRef(ctx.ref) : 0 }));
     } else if (typeof recipe === 'string') {
       throw new Error(`audio.soundtrack '${recipe}' — use 'field:<mood>', an inline beats recipe or { beatsRef }`);
@@ -176,7 +177,8 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (auto) {
     const pal = typeof auto.auto === 'string' ? auto.auto : undefined;
     if (pal !== undefined && !SFX_PALETTES[pal]) throw new Error(`audio.sfx.auto '${pal}' — the palettes: ${SFX_PALETTE_NAMES.join(', ')} (or true: the soundtrack's)`);
-    const L = levelSfx({ palette: pal, identity, mechanics: Array.isArray(ctx.mechanics) ? ctx.mechanics : [] });
+    // an electronic score takes the synth palette; a field score the one its band implies
+    const L = levelSfx({ palette: pal ?? (clubStyle ? 'synth' : undefined), identity, mechanics: Array.isArray(ctx.mechanics) ? ctx.mechanics : [] });
     const stored = auto.beatsRef ? resolveBeatsRef(auto.beatsRef, ['beats-sfx']).cues : {};
     const own = auto.on && typeof auto.on === 'object' ? auto.on : {};
     const on = { ...own };

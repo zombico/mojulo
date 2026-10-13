@@ -24,6 +24,8 @@ audio: {
   they sound like one score. The moods are the field-score moods (plains, forest, desert, town, tavern, chapel,
   night, tension, triumph, battle, boss …); `create_beats({ score })` lists them. `victory` and `defeat` are
   stingers that play once when a level ends (a game's `music.victory` / `music.defeat`), refused here.
+- `'club:<mood>'` or `{ score: { style: 'club', mood } }`: generated electronic music (drift, deep, drive, rave, peak;
+  card `beats-club`), on the same game identity.
 - `{ beatsRef: '<ref>' }`: a stored beats row (ambient, composition or pattern), inlined at resolve time.
 - An inline beats recipe (`beats-ambient`, `beats-composition`, `beats-pattern`).
 - Which mood: `compose_world` and `create_game` suggest one from the place (base, theme, kit, title, time) and the

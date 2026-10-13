@@ -39,7 +39,7 @@ import { getSfxVocabCatalog } from '@/lib/graph/game/sfx-cards/loader';
 import { getHudVocabCatalog } from '@/lib/graph/game/hud-cards/loader';
 import { getIdiomVocabCatalog } from '@/lib/graph/game/idiom-cards/loader';
 import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscape/ui/cards';
-import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
+import { suggestScore, levelScoreContext, sceneStyle } from '@/lib/graph/beats/score-suggest';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 
 // The field score each level calls for (beats/score-suggest.js), for the levels with no soundtrack of their own, and
@@ -49,17 +49,22 @@ import { seedOfRef } from '@/lib/graph/beats/field-cue';
 function suggestLevelMusic(levelRefs, gameRef) {
   const game = seedOfRef(gameRef);
   const out = [];
-  levelRefs.forEach((ref, i) => {
-    const row = SketchRepository.getByRef(ref), m = row?.manifest;
-    if (!m || m.audio?.soundtrack) return;
-    // the row's title stands in for a manifest that carries none (its place words often live there)
-    const s = suggestScore(levelScoreContext({ ...m, title: m.title ?? row.title }, { final: levelRefs.length > 1 && i === levelRefs.length - 1 }));
+  // the row's title stands in for a manifest that carries none (its place words often live there)
+  const rows = levelRefs.map((ref) => { const row = SketchRepository.getByRef(ref), m = row?.manifest; return m ? { ref, m, ctx: { ...m, title: m.title ?? row.title } } : null; });
+  // one style for the game (one score): electronic when most of its levels read so (score-suggest sceneStyle)
+  const club = rows.filter((r) => r && sceneStyle(levelScoreContext(r.ctx)) === 'club').length * 2 > rows.filter(Boolean).length;
+  const style = club ? 'club' : 'field';
+  rows.forEach((r, i) => {
+    if (!r || r.m.audio?.soundtrack) return;
+    const { ref, m } = r;
+    const s = suggestScore({ ...levelScoreContext(r.ctx, { final: levelRefs.length > 1 && i === levelRefs.length - 1 }), style });
     if (!s) return;
     // and its action sounds, when it has none: the palette the score implies, wired to its mechanics (sfx-palettes.js)
-    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: { score: { mood: s.mood, game } }, ...(m.audio?.sfx ? {} : { sfx: 'auto' }) };
+    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: { score: { mood: s.mood, ...(club ? { style } : {}), game } }, ...(m.audio?.sfx ? {} : { sfx: 'auto' }) };
     out.push({ level: ref, mood: s.mood, why: s.why, also: s.also, brief: s.brief, apply: { ref, patch: [{ op: 'set', path: '/audio', value: audio }] } });
   });
   return out.length ? {
+    style,
     suggest: out,
     how: "each level's `apply` is an update_sketch call (its score, and sfx 'auto' where it has no sounds); the shared `game` seed keeps one score identity across the levels. "
       + "Name another mood in score.mood to override, and cast its instruments for the brief's feeling in score.cast "

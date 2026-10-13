@@ -50,6 +50,7 @@ import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites } from './lay-concerns.js';
 import { SCORE_MOODS } from '../beats/field-score.js';
+import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 
@@ -138,7 +139,7 @@ export function readQuick(Q) {
   if (Q.goal !== 'rhythm' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm goal');
   if (Q.goal === 'rhythm' && Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
   if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
-  if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its field score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}`);
+  if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
   if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot') throw fail('.foe belongs to the defend, battle and shoot goals');
@@ -487,8 +488,10 @@ export function goalAudio(quick, { manifest = {}, final = false, game } = {}) {
   const withSfx = (a) => (sfx ? { ...(a || {}), sfx } : a);
   if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });
   if (quick.music === undefined) return withSfx(null);
-  const mood = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final }))?.mood : quick.music;
-  return withSfx(mood ? { soundtrack: { score: { mood, ...(Number.isInteger(game) ? { game } : {}) } } } : null);
+  const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;
+  const mood = quick.music === 'auto' ? s?.mood : quick.music;
+  const club = s?.style === 'club' || Object.prototype.hasOwnProperty.call(CLUB_MOODS, mood ?? '');
+  return withSfx(mood ? { soundtrack: { score: { mood, ...(club ? { style: 'club' } : {}), ...(Number.isInteger(game) ? { game } : {}) } } } : null);
 }
 
 /** The store the goal needs (create_game's `store`): a campaign always; a bag to collect into; the hero's hp to lose. */

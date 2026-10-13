@@ -90,6 +90,25 @@ score its scene and its play call for.
   - The suggestions in `compose_world` and `create_game` now carry a `brief`: the feeling in words and on the
     valence/arousal plane, the tempo band the generator will use, and the jobs to cast.
   - Without a cast, every cue is byte for byte as before.
+- **Electronic game music: the club score.** `club:<mood>` (or `{ score: { style: 'club', mood } }`) generates a
+  32-bar electronic loop (`lib/graph/beats/club-score.js`).
+  - The form builds and drops: intro, build, drop A, a break without the kick (pad, arp, a riser), drop B with the
+    lead riff, and out.
+  - The kick has its own row, with the bass, stabs and pad ducked under it. Hats sit on the off-beats, the bass riff
+    repeats bar by bar, and the chart is hypnotic and never closes V–i.
+  - Five moods on an energy ladder: `drift` (92–104, half-time), `deep` (house), `drive` (acid techno), `rave` and
+    `peak` (145–150).
+  - It shares the game's score identity (its tonic and hall) with the field score, so one game keeps one key. Its
+    voices are cast by the same jobs.
+  - It passes its own gates over every seed (four on the floor in the drops, no kick in the break, the pump keyed to
+    a real row, an open seam, the tempo band) and is byte-pinned.
+  - The suggestions read the scene's style. Sci-fi, neon, cyber, lab, alien, space or robot words score it
+    electronic (the `research-lab` and `alien-night` kits among them), and the point the place and play reached
+    picks the club mood: a fight a rave, the last fight the peak, a race a drive.
+  - `create_game` scores a whole game in one style, electronic when most of its levels read so.
+    `design_game`'s quick `music` takes a club mood by name.
+  - A club soundtrack's `sfx: 'auto'` takes the synth palette. Card `beats-club`.
+  - Rendered offline, a club loop is 50–78 s and takes about two minutes per minute of audio to export.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

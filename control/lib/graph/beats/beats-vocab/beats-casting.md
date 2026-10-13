@@ -78,7 +78,8 @@ The mood already sets the mode, tempo and density; the cast sets the colour. Rul
 - **Alien, sci-fi, 80s**: `fm-bell` or `trance-pluck` colour, `poly-strings` pad, `fm-bass` ground,
   `drum-machine-88`.
 - **Electronic dance**: the voices alone do not make it; the writing does. A field score cast with a 909 and a
-  supersaw is still an orchestral form. Ask for the club style for four-on-the-floor, riffs and builds.
+  supersaw is still an orchestral form. Use the club style (`club:<mood>`, card `beats-club`) for four-on-the-floor,
+  riffs, the pump and the drop; cast its jobs the same way.
 
 Two leads that answer should differ in colour (a flute answered by an oboe, a horn by a clarinet). The ground and
 the pad should not both be low strings in a calm cue: it reads as an organ.

@@ -38,6 +38,16 @@ const contract = (levelRef) => ({
 });
 
 describe('create_game — mint + promotion discipline', () => {
+  it('scores the whole game in one style: electronic when most of its levels read so', async () => {
+    for (const ref of ['lab-1', 'lab-2', 'crypt-9']) SketchRepository.create({ ref, title: ref === 'crypt-9' ? 'the old crypt' : 'neon research lab', manifest: { kind: 'orbit-view', scenario: 'circular', game: contract(ref) } });
+    const out = await mintGame({ title: 'Neon Labs', store: STORE, levels: [{ ref: 'lab-1' }, { ref: 'lab-2' }, { ref: 'crypt-9' }], ref: 'neon-labs', allowUnaudited: true });
+    expect(out.music.style).toBe('club');
+    for (const s of out.music.suggest) {
+      expect(s.apply.patch[0].value.soundtrack.score.style, s.level).toBe('club');
+      expect(s.brief.style).toBe('club');
+    }
+  });
+
   it('suggests a field score for each level with no soundtrack, one identity across the game; a scored level is left alone', async () => {
     mintLevel('crypt-1', contract('crypt-1'));
     SketchRepository.create({ ref: 'crypt-2', title: 'crypt-2', manifest: { kind: 'orbit-view', scenario: 'circular', game: contract('crypt-2'), audio: { soundtrack: 'field:chapel' } } });

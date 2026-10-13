@@ -10,6 +10,7 @@
  */
 import { SCORE_MOODS, moodTempo } from './field-score.js';
 import { ROLE_JOBS } from './casting.js';
+import { CLUB_MOODS } from './club-score.js';
 import { suggestFieldScore } from './field-cue.js';
 
 // [valence, arousal] per mood: valence −1 (dark) … 1 (bright), arousal 0 (still) … 1 (driving).
@@ -53,7 +54,19 @@ const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 // a stage kit's place in words, for the kits whose name carries none (the rest read as they are: trail-valley,
 // jungle-trail, isekai-meadow, island-plaza …).
-const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-nave': 'cathedral', 'isekai-bamboo': 'bamboo grove', 'isekai-sakura': 'garden', 'alien-night': 'alien planet', 'research-lab': 'abandoned colony' };
+const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-nave': 'cathedral', 'isekai-bamboo': 'bamboo grove', 'isekai-sakura': 'garden', 'alien-night': 'alien planet', 'research-lab': 'abandoned research lab' };
+
+// ── the style: the orchestra (field) or electronic (club) ─────────────────────
+// A scene whose words say the future, a machine, a screen or a dance floor is scored electronic. The point the place
+// and play reached on the plane says the energy; the nearest club mood takes it (a fight is a rave, the last fight the
+// peak, a race a drive, exploring a drift or a deep groove).
+const CLUB_WORDS = /sci-?fi|neon|cyber|futur|robot|android|\bmech|space|station|alien|planet|\blab\b|laborator|reactor|synth|\bclub|\brave|disco|arcade|hacker|matrix|digital|virtual|\bgrid|tron\b/;
+export const CLUB_PLANE = { drift: [0.1, 0.25], deep: [0.4, 0.45], drive: [0, 0.7], rave: [-0.3, 0.85], peak: [-0.5, 0.95] };
+const placeText = (c) => [c.base, c.kind, c.theme, c.title].filter((x) => typeof x === 'string').join(' ').toLowerCase();
+/** 'club' when the scene's words say electronic, else 'field'. */
+export function sceneStyle(context = {}) {
+  return CLUB_WORDS.test(placeText(context)) ? 'club' : 'field';
+}
 
 /**
  * The scoring context a level manifest carries: its place words (base, kind, theme, a stage's kit, title), its time and weather,
@@ -78,21 +91,51 @@ const feelingOf = ([v, a]) => `${v > 0.35 ? 'bright' : v > 0 ? 'warm' : v > -0.4
  * The brief for the agent who casts the cue: what it should feel like (valence, arousal, in words), its tempo band,
  * and the jobs to cast (score.cast; card beats-casting). The music is written either way; the cast is a choice.
  */
-export function scoreBrief(mood) {
-  const at = MOOD_PLANE[mood];
+export function scoreBrief(mood, style = 'field') {
+  const club = style === 'club';
+  const at = club ? CLUB_PLANE[mood] : MOOD_PLANE[mood];
   if (!at) return null;
   return {
-    feeling: feelingOf(at), valence: at[0], arousal: at[1], tempo: moodTempo(mood), energy: SCORE_MOODS[mood].energy,
-    cast: { jobs: Object.keys(ROLE_JOBS), how: "optional: score.cast = { <job>: '<instrument>' } for the feeling wanted; get_beats_vocab({ id: 'beats-casting' })" },
+    feeling: feelingOf(at), valence: at[0], arousal: at[1], style,
+    tempo: club ? CLUB_MOODS[mood].tempo.slice() : moodTempo(mood), energy: club ? 'club' : SCORE_MOODS[mood].energy,
+    ...(club ? { says: CLUB_MOODS[mood].says } : {}),
+    cast: {
+      jobs: club ? ['ground (the bass)', 'lead (the riff)', 'colour (the stabs)', 'motion (the arp)', 'pad', 'kit'] : Object.keys(ROLE_JOBS),
+      how: "optional: score.cast = { <job>: '<instrument>' } for the feeling wanted; get_beats_vocab({ id: 'beats-casting' })",
+    },
   };
 }
 
 /**
- * suggestScore(context) → { mood, energy, role, why, also, audio, place, brief } | null. `context` is levelScoreContext's
+ * suggestScore(context) → { mood, energy, role, why, also, audio, place, brief, style? } | null. `context.style` is
+ * 'field', 'club' or 'auto' (the default: read from the scene's words, sceneStyle). `context` is levelScoreContext's
  * shape (any part may be absent). `place` is the mood the place alone asked for, so a caller can say what the play
  * changed. Null when the place calls for no field music (a city block, a math structure).
  */
 export function suggestScore(context = {}) {
+  const f = suggestFieldOnly(context);
+  if (!f) return null;
+  // the style: asked for, or read from the scene ('auto', the default)
+  const style = context.style === 'field' || context.style === 'club' ? context.style : sceneStyle(context);
+  if (style !== 'club') return f.result;
+  // the club ladder from the point the place and play reached: a fight is a rave (the last one the peak); otherwise
+  // the nearest of drift, deep and drive (the peak too on the last level)
+  const reach = f.fight ? [f.final ? 'peak' : 'rave'] : ['drift', 'deep', 'drive', ...(f.final ? ['peak'] : [])];
+  // energy carries a club cue more than brightness does: valence counts half
+  const near = (m) => Math.hypot((CLUB_PLANE[m][0] - f.target[0]) * 0.5, CLUB_PLANE[m][1] - f.target[1]);
+  const ranked = reach.slice().sort((a, b) => near(a) - near(b));
+  const mood = ranked[0];
+  const also = f.fight ? (f.final ? ['rave', 'drive'] : ['drive', 'peak']) : ranked.slice(1, 3);
+  return {
+    mood, style: 'club', energy: 'club', role: f.result.role, place: f.result.place, field: f.result.mood,
+    why: `${f.result.why}; electronic for the scene: ${mood} (${CLUB_MOODS[mood].says})`,
+    also, audio: { soundtrack: `club:${mood}` }, brief: scoreBrief(mood, 'club'),
+  };
+}
+
+// the orchestral answer (the place's mood, a fight's battle cue, or the place moved by its play), with the point on
+// the plane it reached, for the club ladder
+function suggestFieldOnly(context) {
   const place = suggestFieldScore(context);
   if (!place) return null;
   const c = { mechanics: [], climate: '', ...context };
@@ -100,11 +143,11 @@ export function suggestScore(context = {}) {
   if (isFight(c)) {
     const mood = c.final ? 'boss' : 'battle', { energy, role } = SCORE_MOODS[mood];
     const why = `${place.mood} for the place; ${c.final ? 'the last fight: the boss, darker and faster' : 'a fight: battle music, the orchestra played as a band'}`;
-    return { mood, energy, role, why, also: c.final ? ['battle', 'tension'] : ['tension', 'expedition'], audio: { soundtrack: `field:${mood}` }, place: place.mood, brief: scoreBrief(mood) };
+    return { fight: true, final: c.final, target: MOOD_PLANE[mood], result: { mood, energy, role, why, also: c.final ? ['battle', 'tension'] : ['tension', 'expedition'], audio: { soundtrack: `field:${mood}` }, place: place.mood, brief: scoreBrief(mood) } };
   }
   const pushes = [...PLAY, ...WEATHER].filter((p) => p.when(c));
-  if (!pushes.length) return { ...place, place: place.mood, brief: scoreBrief(place.mood) };
   const at = MOOD_PLANE[place.mood];
+  if (!pushes.length) return { final: c.final, target: at, result: { ...place, place: place.mood, brief: scoreBrief(place.mood) } };
   const target = pushes.reduce((p, x) => [p[0] + x.d[0], p[1] + x.d[1]], at);
   const cost = (m) => dist(MOOD_PLANE[m], target) + (CROSS.has(m) || SCORE_MOODS[m].role === place.role ? 0 : ROLE_STEP);
   const reach = [...new Set([place.mood, ...MOVES, ...(c.final ? ['triumph'] : [])])];
@@ -112,5 +155,5 @@ export function suggestScore(context = {}) {
   const mood = ranked[0];
   const { energy, role } = SCORE_MOODS[mood];
   const why = [mood === place.mood ? place.why : `${place.mood} for the place, moved to ${mood}`, ...pushes.map((p) => p.why)].join('; ');
-  return { mood, energy, role, why, also: ranked.slice(1, 3), audio: { soundtrack: `field:${mood}` }, place: place.mood, brief: scoreBrief(mood) };
+  return { final: c.final, target, result: { mood, energy, role, why, also: ranked.slice(1, 3), audio: { soundtrack: `field:${mood}` }, place: place.mood, brief: scoreBrief(mood) } };
 }
