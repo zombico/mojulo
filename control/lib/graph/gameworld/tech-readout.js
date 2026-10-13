@@ -73,6 +73,13 @@ export function facets(faces) {
   });
   return out;
 }
+// a convex hull in a plane, counter-clockwise
+function hull2(pts) {
+  const p = [...pts].sort((a, b) => a[0] - b[0] || a[1] - b[1]), cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], hi = [];
+  for (const q of p) { while (lo.length >= 2 && cr(lo.at(-2), lo.at(-1), q) <= 0) lo.pop(); lo.push(q); }
+  for (const q of [...p].reverse()) { while (hi.length >= 2 && cr(hi.at(-2), hi.at(-1), q) <= 0) hi.pop(); hi.push(q); }
+  return [...lo.slice(0, -1), ...hi.slice(0, -1)];
+}
 const pct = (xs, p) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
 
 export function techReadout(faces, { tier, rank = 'interactable', use = 'watched', camera = DEFAULT_TECH_CAMERA, style = DEFAULT_TECH_STYLE, U = [1, 0, 0] } = {}) {
@@ -90,7 +97,13 @@ export function techReadout(faces, { tier, rank = 'interactable', use = 'watched
   // a silhouette is read from outside: at the distance it is watched from, even when its use brings the camera nearer
   // (a cockpit sees its own bonnet, not its outline)
   const outside = meetDistance(camera, tier);
-  const m = objectMeasures(solid.map((f) => ({ corners: f.corners, part: 'body', value: valueOf(f) })), { U, distance: outside }, rank);
+  // a row of wheels reads as one band, not a segment each (repetition groups): the running gear a mechanism kit built
+  // (`gear` faces) is read by its hull in the silhouette, so the cusps between its wheels are not breaks
+  const gear = solid.filter((f) => f.gear && !f.ground), gearBand = gear.length ? hull2(gear.flatMap((f) => f.corners.map((p) => [p[0] * U[0] + p[1] * U[1] + p[2] * U[2], p[2]]))) : null;
+  const sil = [...solid.filter((f) => !f.ground), ...(gearBand && gearBand.length >= 3 ? [{ corners: gearBand.map(([a, z]) => [a * U[0], a * U[1], z]), value: 0.5 }] : [])];
+  const asBody = (fs) => fs.map((f) => ({ corners: f.corners, part: 'body', value: valueOf(f) }));
+  const m = objectMeasures(asBody(solid), { U, distance: outside }, rank);
+  if (gear.length || solid.some((f) => f.ground)) m.segments = objectMeasures(asBody(sil), { U, distance: outside }, rank).segments;
   const groups = new Set(solid.map((f) => f.texture ?? f.material?.id ?? f.material ?? 'vertex')), atlases = new Set(solid.map((f) => f.texture).filter(Boolean));
   const out = { camera, style, tier, rank, use, distance, outside, triangles, ceiling, facetPx, facetLaw, segments: m.segments, segmentBand: INTEREST[rank].segments, emboss: m.emboss, renderGroups: groups.size, atlases: atlases.size, atlas: atlasPage(solid, distance), advice: [] };
   const say = (law, line) => out.advice.push({ law, line });

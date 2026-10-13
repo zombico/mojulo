@@ -13,7 +13,7 @@
  * plates, a tower's dish) is PROMISED to the next page, never failed here.
  *
  *   CHASSIS_FORMS                       the forms with a body plan (tech-bodyplan.js BODY_PLANS)
- *   chassisManifest(thing, opts)        → { manifest, joints, sockets, pieces, lead, functions, promised }
+ *   chassisManifest(thing, opts)        → { manifest, detail, mechanisms, joints, sockets, pieces, lead, functions, promised }
  *   lowerChassis(manifest)              → faces, each tagged { piece, role } (lowered monomer by monomer)
  *   chassisLaws(faces, built, opts)     → [{ law, ok, value }]
  *   buildChassis(thing, { direction, rank, use, seed, passes }) → { …chassisManifest, faces, readout, laws, passes, held }
@@ -35,6 +35,12 @@ export const GROUP_VALUE = Object.freeze({ 'tech:body': 0.72, 'tech:frame': 0.4,
 /** A section in its plane (u across, v up), by motif: `w` wide, `h` high, `n` points round (the resolution dial). */
 export function section(motif, w, h, n = 12) {
   const a = w / 2, b = h / 2;
+  // an arch: a flat floor and a round over it (a wagon's cover, a vaulted roof)
+  if (motif === 'arch') {
+    const q = Math.max(4, n - 1), pts = [[r3(-a), r3(-b)]];
+    for (let i = 0; i < q; i++) { const t = (Math.PI * i) / q; pts.push([r3(a * Math.cos(t)), r3(-b + 2 * b * Math.sin(t))]); }
+    return pts;
+  }
   if (['smooth', 'organic'].includes(motif)) {
     // a superellipse, its points spaced evenly along its outline (evenly by angle they bunch at the corners and leave
     // the flanks one wide facet each)
@@ -75,14 +81,23 @@ export function fitter(pxPerM, limit, res = 1, outline = null) {
   const round = outline
     ? (r) => { const e = (outline * 0.85) / (r * pxPerM); return e >= 1 ? 6 : Math.ceil((res * Math.PI) / Math.acos(1 - e)); }
     : (r) => Math.ceil((2 * Math.PI * r * pxPerM * res) / lim);
-  return { fit: (r) => Math.max(6, Math.min(FIT_MAX, round(r))), fitLen: (len) => Math.max(2, Math.min(FIT_MAX, Math.ceil((len * pxPerM * res) / lim))) };
+  const fitLen = (len) => Math.max(2, Math.min(FIT_MAX, Math.ceil((len * pxPerM * res) / lim)));
+  // rings along a run of `chord` that bows `bulge` off its chord: shaded smooth, as many as keep the bow's outline
+  // within the limit (a straight run needs none between its ends); shaded flat, as many as its width asks
+  const fitArc = (chord, bulge) => {
+    if (!outline) return fitLen(chord);
+    if (bulge <= 1e-4) return 2;
+    const R = (chord * chord) / 4 / (2 * bulge) + bulge / 2, th = 2 * Math.asin(Math.min(1, chord / (2 * R))), e = (outline * 0.85) / (R * pxPerM);
+    return Math.max(2, Math.min(FIT_MAX, e >= 1 ? 2 : Math.ceil((res * th) / (2 * Math.acos(1 - e)))));
+  };
+  return { fit: (r) => Math.max(6, Math.min(FIT_MAX, round(r))), fitLen, fitArc, smooth: !!outline };
 }
-export function chassisManifest(t, { kind, motif = 'smooth', style = 'wc3', camera = 'third-person', use = 'watched', res = 1, thick = {}, tuck = 1 } = {}) {
+export function chassisManifest(t, { kind, motif = 'smooth', style = 'wc3', camera = 'third-person', use = 'watched', setting, res = 1, thick = {}, tuck = 1, drop = [] } = {}) {
   const row = BODY_PLANS[`${kind}/${t.form}`];
   if (!row) throw new Error(`chassis: no body plan for a ${kind} ${t.form} yet (${Object.keys(BODY_PLANS).join(', ')})`);
   const dials = t.dials ?? {}, scale = r3((dials.scale ?? 1) * (TECH_STYLES[style].exaggeration[t.block.tier] ?? 1));
-  const S = TECH_STYLES[style], { fit, fitLen } = fitter(pxPerMetre(meetDistance(camera, t.block.tier, use)), S.facetPx[1], res, S.outlinePx);
-  const out = solveBodyPlan(row, t, { motif, scale, fit, fitLen, thick, tuck });
+  const S = TECH_STYLES[style], pxPerM = pxPerMetre(meetDistance(camera, t.block.tier, use)), { fit, fitLen, fitArc, smooth } = fitter(pxPerM, S.facetPx[1], res, S.outlinePx);
+  const out = solveBodyPlan(row, t, { motif, scale, fit, fitLen, fitArc, smooth, thick, tuck, pxPerM, drop, ...(setting ? { setting } : {}) });
   // what the words claimed that this chassis cannot show is the adornment's to show
   const promised = t.block.functions.filter((f) => !out.functions.includes(f));
   return { ...out, functions: out.functions, promised, scale };
@@ -93,7 +108,7 @@ export function chassisManifest(t, { kind, motif = 'smooth', style = 'wc3', came
 export function lowerChassis(manifest, pieces, { crease = TECH_STYLES.wc3.crease } = {}) {
   const faces = [];
   for (const key of ['lofts', 'lathes', 'sweeps', 'extrudes']) for (const spec of manifest[key] ?? []) {
-    for (const f of lowerObjectFaces({ kind: 'workbench', units: manifest.units, [key]: [spec] })) faces.push({ ...f, piece: pieces[spec.id].piece, role: pieces[spec.id].role, monomer: spec.id, value: pieces[spec.id].value ?? GROUP_VALUE[spec.group] ?? 0.6 });
+    for (const f of lowerObjectFaces({ kind: 'workbench', units: manifest.units, [key]: [spec] })) faces.push({ ...f, piece: pieces[spec.id].piece, role: pieces[spec.id].role, ...(pieces[spec.id].gear ? { gear: true } : {}), ...(pieces[spec.id].ground ? { ground: true } : {}), monomer: spec.id, value: pieces[spec.id].value ?? GROUP_VALUE[spec.group] ?? 0.6 });
   }
   return smoothCorners(faces, { crease });
 }
@@ -114,10 +129,16 @@ function pictureByPiece(faces) {
 /** The chassis laws: one piece leads, it stands, every function it carries shows; the readout's facets, ceiling and segments. */
 export function chassisLaws(faces, c, readout) {
   const out = [], law = (id, ok, value) => out.push({ law: id, ok, value });
-  const area = pictureByPiece(faces), ranked = Object.entries(area).sort((a, b) => b[1] - a[1]), lead = ranked.find(([p]) => p === c.lead), next = ranked.find(([p]) => p !== c.lead);
+  // the lead may be several pieces that read as one body (a boiler and its cab): their picture together
+  const leads = [].concat(c.lead), area = pictureByPiece(faces), ranked = Object.entries(area).sort((a, b) => b[1] - a[1]);
+  const sum = leads.reduce((s, p) => s + (area[p] ?? 0), 0), lead = leads.some((p) => area[p]) ? [leads.join('+'), sum] : null, next = ranked.find(([p]) => !leads.includes(p));
   law('one-leads', !!lead && (!next || lead[1] >= 1.5 * next[1]), lead ? `${lead[0]} ${r3(lead[1])} m²${next ? ` over ${next[0]} ${r3(next[1])} m²` : ''}` : 'the lead is not drawn');
   const zMin = Math.min(...faces.flatMap((f) => f.corners.map((p) => p[2])));
-  if (!(c.mounts ?? ['ground']).includes('water')) law('stands', Math.abs(zMin) <= 0.05, `foot at ${r3(zMin)} m`);
+  // a thing that lifts (its mechanisms say so) stands on its gap, not on the ground: off it, but not by more than meant
+  const lift = (c.mechanisms ?? []).find((m) => m.lift)?.lift;
+  // (one that rides over a rail stands on its rails)
+  if (lift && lift.over === undefined) law('stands', zMin >= lift.gap * 0.5 && zMin <= lift.gap * 1.5 + 0.05, `held ${r3(zMin)} m off the ground on its ${lift.cue} (gap ${lift.gap} m)`);
+  else if (!(c.mounts ?? ['ground']).includes('water')) law('stands', Math.abs(zMin) <= 0.05, `foot at ${r3(zMin)} m`);
   const roles = new Set(faces.map((f) => f.role)), missing = [];
   for (const f of c.functions) for (const any of FUNCTIONS[f].reads) if (!any.some((r) => roles.has(r))) missing.push(`${f}: ${any.join(' or ')}`);
   law('functions-read', !missing.length, missing.length ? `missing ${missing.join('; ')}` : c.functions.join(', '));
@@ -128,6 +149,10 @@ export function chassisLaws(faces, c, readout) {
   law('inverse-interest', readout.segments <= hi, readout.segments < lo ? `${readout.segments} segments: ${lo - readout.segments} more promised to the adornment` : `${readout.segments} segments`);
   return out;
 }
+
+/** The most the solver grows a lead to make it lead: a proportion may be pushed, not broken. Past it, the law advises. */
+export const LEAD_GROW = 1.5;
+export const leadOf = (c) => [].concat(c.lead)[0];
 
 /** How far the resolution moves for a facet law over its limit: a facet's width falls as 1/n, an outline's error as 1/n². */
 export const stepOf = ({ measure, value, limit }) => (measure === 'outline' ? Math.sqrt(value / limit) : value / limit);
@@ -142,7 +167,7 @@ export function buildChassis(t, { kind, direction = {}, rank = 'interactable', u
   let res = 1, thick = {}, last;
   const log = [];
   for (let p = 0; p < passes; p++) {
-    const c = chassisManifest(t, { kind, motif, style, camera, use, res, thick }), faces = lowerChassis(c.manifest, c.pieces);
+    const c = chassisManifest(t, { kind, motif, style, camera, use, setting: direction.setting, res, thick }), faces = lowerChassis(c.manifest, c.pieces);
     const readout = techReadout(faces, { tier: t.block.tier, rank, use, camera, style }), laws = chassisLaws(faces, c, readout), failed = laws.filter((l) => !l.ok);
     last = { ...c, faces, readout, laws, res, thick };
     const entry = { pass: p + 1, res, triangles: readout.triangles, facetPx: readout.facetLaw.value, failed: failed.map((l) => l.law) };
@@ -153,7 +178,7 @@ export function buildChassis(t, { kind, direction = {}, rank = 'interactable', u
       if (l.law === 'facets' && readout.facetLaw.value > readout.facetLaw.limit && res < 4) { res = r3(Math.min(4, res * Math.max(1.05, stepOf(readout.facetLaw)))); changed.push(`res ${res} (${readout.facetLaw.measure} ${readout.facetLaw.value} px)`); }
       else if (l.law === 'facets' && readout.facetPx.median < readout.facetPx.band[0] && res > 0.5) { res = r3(Math.max(0.5, res * 0.75)); changed.push(`res ${res} (facets wasted)`); }
       else if (l.law === 'budget' && res > 0.5) { res = r3(Math.max(0.5, res * 0.8)); changed.push(`res ${res} (over budget)`); }
-      else if (l.law === 'one-leads') { thick = { ...thick, [c.lead]: r3((thick[c.lead] ?? 1) * 1.12) }; changed.push(`${c.lead} × ${thick[c.lead]} (one leads)`); }
+      else if (l.law === 'one-leads' && (thick[leadOf(c)] ?? 1) < LEAD_GROW) { const p0 = leadOf(c); thick = { ...thick, [p0]: r3(Math.min(LEAD_GROW, (thick[p0] ?? 1) * 1.12)) }; changed.push(`${p0} × ${thick[p0]} (one leads)`); }
     }
     entry.changed = changed;
     if (!changed.length) break;

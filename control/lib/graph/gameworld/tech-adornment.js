@@ -17,7 +17,7 @@
  *
  * Pure; no dice.
  */
-import { chassisManifest, lowerChassis, chassisLaws, fitter, buildChassis, stepOf } from './tech-chassis.js';
+import { chassisManifest, lowerChassis, chassisLaws, fitter, buildChassis, stepOf, LEAD_GROW, leadOf } from './tech-chassis.js';
 import { techReadout } from './tech-readout.js';
 import { TECH_STYLES, pxPerMetre, meetDistance } from './tech-eras.js';
 
@@ -52,6 +52,7 @@ export const ADORNMENT_PIECES = Object.freeze({
   fins: { read: 'swept fins on its back (smooth)', serves: [], role: 'trim', stands: true },
   rivets: { read: 'a strip of rivets along a plate (riveted)', serves: [], role: 'trim' },
   turret: { read: 'a gun on a ring: it fights', serves: ['strike'], role: 'weapon', stands: true },
+  rack: { read: 'weapons stood in a rack on its flank: it fights, with no deck for a gun', serves: ['strike'], role: 'weapon', stands: true },
   dish: { read: 'a dish on an arm: it listens', serves: ['sense'], role: 'sensor', stands: true },
   lantern: { read: 'a lantern room under its cap: it lights', serves: ['light'], role: 'lamp' },
   bands: { read: 'bands round a shaft: its height read in steps', serves: [], role: 'trim' },
@@ -79,13 +80,21 @@ function crownMass(c) {
  */
 export function suggestAdornment(c, t, { motif = 'smooth', rank = 'interactable' } = {}) {
   const picks = [], add1 = (piece, s, why) => { if (s && !picks.some((p) => p.piece === piece && p.socket === s.id)) picks.push({ piece, socket: s.id, serves: ADORNMENT_PIECES[piece].serves, why }); };
-  const many = { filler: 0, prop: 1, interactable: 2, focus: 3 }[rank], moves = c.functions.includes('move'), landmark = ['landmark', 'installation'].includes(t.block.tier) && !moves;
+  // a thing pulled or pedalled (every mechanism it runs on driven by muscle) is no machine: it has no face, and it does
+  // not breathe
+  const pulled = (c.mechanisms ?? []).length > 0 && c.mechanisms.every((m) => m.driven === 'muscle');
+  const many = { filler: 0, prop: 1, interactable: 2, focus: 3 }[rank], moves = c.functions.includes('move') && !pulled, landmark = ['landmark', 'installation'].includes(t.block.tier) && !moves;
   const topmost = [...c.sockets].filter((x) => x.face === 'top').sort((a, b) => b.at[2] - a.at[2])[0];
   for (const f of c.promised) {
     if (f === 'guard') {
       for (const s of onCore(c, 'side')) add1('plate', s, 'guard: promised by its words, on the core\'s flanks');
       if (many >= 2) for (const s of c.sockets.filter((x) => x.face === 'outer')) add1('plate', s, 'guard: promised by its words, on its limbs');
-    } else if (f === 'strike') add1('turret', onCore(c, 'top')[0] ?? onCore(c, 'front')[0], 'strike: promised by its words, on the core\'s back');
+    } else if (f === 'strike') {
+      // a gun on a ring needs a deck to turn on; a thing with none carries its weapons racked on its flank
+      const deck = onCore(c, 'top').find((x) => { const M = c.masses.find((m) => m.id === x.on); return x.size === 'large' && M?.box && M.box.hi[2] - M.box.lo[2] >= 0.5; });
+      if (deck) add1('turret', deck, 'strike: promised by its words, on the core\'s back');
+      else add1('rack', onCore(c, 'side')[0] ?? onCore(c, 'top')[0], 'strike: promised by its words; no deck for a turret, its weapons racked');
+    }
     else if (f === 'sense') add1(moves ? 'eye' : 'dish', moves ? onCore(c, 'front')[0] : crownMass(c)[0] ?? onCore(c, 'top')[0], 'sense: promised by its words');
     else if (f === 'light') add1('lantern', topmost, 'light: promised by its words, at its crown');
     else if (f === 'signal') add1('antenna', onCore(c, 'top')[0] ?? topmost, 'signal: promised by its words');
@@ -93,7 +102,9 @@ export function suggestAdornment(c, t, { motif = 'smooth', rank = 'interactable'
     else if (f === 'power') add1('vents', onCore(c, 'top')[0] ?? onCore(c, 'rear')[0], 'power: promised by its words, it breathes');
   }
   // the face a thing that moves is read by: a visor and an eye on the core's front
-  if (moves) { const f = onCore(c, 'front')[0]; add1('visor', f, 'its face: what the eye finds first'); if (!picks.some((p) => p.piece === 'eye')) add1('eye', f, 'its face: what it looks with'); }
+  // (a thing with windows or lamps already has its face)
+  const faced = Object.values(c.pieces).some((x) => x.role === 'lamp') || ['lofts', 'lathes', 'extrudes', 'sweeps'].some((key) => (c.manifest[key] ?? []).some((m) => m.group === 'tech:glass'));
+  if (moves && !faced) { const f = onCore(c, 'front')[0]; add1('visor', f, 'its face: what the eye finds first'); if (!picks.some((p) => p.piece === 'eye')) add1('eye', f, 'its face: what it looks with'); }
   // its back breathes; a busier rank carries hoses to the joints at its rear
   if (moves && many >= 1 && !picks.some((p) => p.piece === 'turret' || p.piece === 'crates')) add1('vents', onCore(c, 'top')[0], 'its back: it breathes');
   if (moves && many >= 2 && rearJoints(c).length) add1('pipes', onCore(c, 'rear')[0], 'hoses to its rear joints: what powers them shows');
@@ -107,7 +118,10 @@ export function suggestAdornment(c, t, { motif = 'smooth', rank = 'interactable'
   return picks;
 }
 /** The joints at a thing's rear that hang off its core: where hoses run to. */
-const rearJoints = (c) => c.joints.filter((j) => j.parent === 'core' && j.pivot[0] < -0.01 && !/^(pitch|crown)/.test(j.id));
+// the joints a hose would power: behind the middle, on the core, with a limited range (a hose cannot feed what spins free)
+// the next rank up, which a conflict proposes
+const LOUDER = Object.freeze({ filler: 'prop', prop: 'interactable', interactable: 'focus' });
+const rearJoints = (c) => c.joints.filter((j) => j.parent === 'core' && j.pivot[0] < -0.01 && !/^(pitch|crown)/.test(j.id) && j.range[1] - j.range[0] < 360);
 
 /** The pieces as monomers, each in its socket's frame. */
 export function adornManifest(c, picks, { motif = 'smooth', fit = () => 8 } = {}) {
@@ -149,6 +163,10 @@ export function adornManifest(c, picks, { motif = 'smooth', fit = () => 8 } = {}
       const b = onPlane([0, 0], 0);
       mono(lathes, { id: id('turret'), axisFrom: P(b), axisTo: P(add(b, F.n, 0.55 * k)), profile: [{ t: 0, radius: r3(0.75 * k) }, { t: 1, radius: r3(0.6 * k) }], samples: fit(0.75 * k), crossSections: 2 }, 'turret', 'mount', 'turret');
       mono(lathes, { id: id('barrel'), axisFrom: P(add(b, F.n, 0.3 * k)), axisTo: P(add(add(b, F.n, 0.35 * k), [1, 0, 0], 2 * k)), profile: [{ t: 0, radius: r3(0.14 * k) }, { t: 0.9, radius: r3(0.12 * k) }, { t: 1, radius: r3(0.17 * k) }], samples: fit(0.14 * k), crossSections: 3 }, 'turret', 'weapon', 'barrel');
+    } else if (p.piece === 'rack') {
+      // three hafts leaning back from a bracket on the flank, their heads past the outline
+      mono(extrudes, { id: id('rack'), profile: { points: toProfile([[-0.35 * k, -0.06 * k], [0.35 * k, -0.06 * k], [0.35 * k, 0.06 * k], [-0.35 * k, 0.06 * k]]) }, axisFrom: P(onPlane([0, 0.1 * k], 0)), axisTo: P(onPlane([0, 0.1 * k], 0.1 * k)) }, 'rack', 'mount', 'plate');
+      for (const j of [-1, 0, 1]) mono(sweeps, { id: id('rack'), path: [onPlane([j * 0.25 * k, -0.2 * k], 0.08 * k), add(onPlane([j * 0.25 * k - 0.35 * k, 0.2 * k], 0.12 * k), [0, 0, 1], 1.1 * k)].map((q) => q.map(r3)), radius: r3(0.035 * k), sides: 5 }, 'rack', 'weapon', 'barrel');
     } else if (p.piece === 'dish') {
       // a dish no wider than the face it is hung from
       k = Math.min(k, Math.max(...(s.extent ?? [2, 2])) * 0.45);
@@ -185,17 +203,19 @@ export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', u
   const motif = direction.motif ?? 'smooth', style = direction.style ?? 'wc3', camera = direction.camera ?? 'third-person';
   const pxm = pxPerMetre(meetDistance(camera, t.block.tier, use)), limit = TECH_STYLES[style].facetPx;
   const base = buildChassis(t, { kind, direction, rank, use });
-  let res = base.res, thick = { ...base.thick }, tuck = 1, extra = [], out;
+  let res = base.res, thick = { ...base.thick }, tuck = 1, extra = [], trim = 0, drop = [], out;
   const log = [];
   for (let p = 0; p < passes; p++) {
-    const c = chassisManifest(t, { kind, motif, style, camera, use, res, thick, tuck }), { fit } = fitter(pxm, limit[1], res, TECH_STYLES[style].outlinePx);
+    const c = chassisManifest(t, { kind, motif, style, camera, use, setting: direction.setting, res, thick, tuck, drop }), { fit } = fitter(pxm, limit[1], res, TECH_STYLES[style].outlinePx);
     const read = (picks) => {
       const A = adornManifest(c, picks, { motif, fit });
       const manifest = { ...c.manifest, extrudes: [...(c.manifest.extrudes ?? []), ...A.extrudes], lathes: [...(c.manifest.lathes ?? []), ...A.lathes], sweeps: [...(c.manifest.sweeps ?? []), ...A.sweeps] };
       const pieces = { ...c.pieces, ...A.pieces }, faces = lowerChassis(manifest, pieces);
       return { manifest, pieces, faces, readout: techReadout(faces, { tier: t.block.tier, rank, use, camera, style }) };
     };
-    let picks = given ?? [...suggestAdornment(c, t, { motif, rank }), ...extra.filter((e) => c.sockets.some((x) => x.id === e.socket))], r = read(picks);
+    // the proposal, less the `trim` it was asked to drop: the last suggested first, never what a promise asked for
+    const suggested = given ? null : suggestAdornment(c, t, { motif, rank }), keep = (list) => { let n = trim; return [...list].reverse().filter((x) => (n > 0 && !x.serves.some((f) => c.promised.includes(f)) ? (n--, false) : true)).reverse(); };
+    let picks = given ?? [...keep(suggested), ...extra.filter((e) => c.sockets.some((x) => x.id === e.socket))], r = read(picks);
     // under its rank's silhouette floor: what stands past the outline, by motif, until the floor is met
     const topmost = [...c.sockets].filter((x) => x.face === 'top').sort((a, b) => b.at[2] - a.at[2])[0];
     if (!given) for (const [piece, face] of STANDERS[motif] ?? STANDERS.smooth) {
@@ -218,19 +238,21 @@ export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', u
     if (!failed.length || p === passes - 1) break;
     const changed = [], F = readout.facetPx, FL = readout.facetLaw;
     const bothWays = failed.some((l) => l.law === 'facets') && FL.value > FL.limit && failed.some((l) => l.law === 'budget');
-    if (bothWays) { out.conflict = { laws: ['facets', 'budget'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot hold its rounds within ${FL.limit} px (${FL.measure}) and spend under ${readout.ceiling} triangles (a ${use} ${rank})`, proposal: `a louder rank (${rank === 'prop' ? 'interactable' : 'focus'}), a nearer use, fewer rounds in its body plan, or a further camera` }; entry.changed = ['conflict named']; break; }
+    if (bothWays) { out.conflict = { laws: ['facets', 'budget'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot hold its rounds within ${FL.limit} px (${FL.measure}) and spend under ${readout.ceiling} triangles (a ${use} ${rank})`, proposal: `a louder rank (${LOUDER[rank] ?? rank}), a nearer use, fewer rounds in its body plan, or a further camera` }; entry.changed = ['conflict named']; break; }
     if (failed.some((l) => l.law === 'facets') && FL.value > FL.limit && res < 4) { res = Math.round(Math.min(4, res * Math.max(1.05, stepOf(FL))) * 1000) / 1000; changed.push(`res ${res} (${FL.measure} ${FL.value} px)`); }
     else if ((failed.some((l) => l.law === 'facets') && F.median < limit[0] && F.wasted > 0.25) || failed.some((l) => l.law === 'budget')) { if (res > 0.4) { res = Math.round(Math.max(0.4, res * 0.8) * 1000) / 1000; changed.push(`res ${res} (${F.median < limit[0] ? 'facets wasted' : 'over budget'})`); } }
-    if (failed.some((l) => l.law === 'one-leads')) { thick = { ...thick, [c.lead]: Math.round((thick[c.lead] ?? 1) * 1.12 * 1000) / 1000 }; changed.push(`${c.lead} × ${thick[c.lead]} (one leads)`); }
+    if (failed.some((l) => l.law === 'one-leads') && (thick[leadOf(c)] ?? 1) < LEAD_GROW) { const p0 = leadOf(c); thick = { ...thick, [p0]: Math.round(Math.min(LEAD_GROW, (thick[p0] ?? 1) * 1.12) * 1000) / 1000 }; changed.push(`${p0} × ${thick[p0]} (one leads)`); }
     if (readout.segments > readout.segmentBand[1]) {
       if (extra.length) { extra = extra.slice(0, -1); changed.push('one stander fewer (too many segments)'); }
-      else if (tuck > 0.5) { tuck = Math.round(Math.max(0.5, tuck * 0.8) * 1000) / 1000; changed.push(`limbs drawn in, × ${tuck} (too many segments)`); }
+      else if (tuck > 0.5 && c.masses.some((x) => x.seg && x.role === 'running')) { tuck = Math.round(Math.max(0.5, tuck * 0.8) * 1000) / 1000; changed.push(`limbs drawn in, × ${tuck} (too many segments)`); }
+      else if (!given && trim < suggested.filter((x) => !x.serves.some((f) => c.promised.includes(f))).length) { trim++; changed.push(`one adornment fewer (too many segments)`); }
+      else if (drop.length < c.optional.length) { drop = c.optional.slice(c.optional.length - drop.length - 1); changed.push(`its ${drop[0]} dropped (too many segments)`); }
     }
     entry.changed = changed;
     // two laws that pull the resolution against each other (facets up, the hero's lead down) cannot both hold for this
     // brief: the solver names it, and what would settle it, rather than swing between them
     const swing = log.length >= 3 && log.slice(-3).every((e) => e.failed.includes('facets') || e.failed.includes('budget')) && log.at(-1).failed.includes('budget') !== log.at(-2).failed.includes('budget');
-    if (swing) { out.conflict = { laws: ['facets', 'budget'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot hold its rounds within ${FL.limit} px (${FL.measure}) and spend under ${readout.ceiling} triangles (a ${use} ${rank})`, proposal: `a louder rank (${rank === 'prop' ? 'interactable' : 'focus'}), a nearer use, fewer rounds in its body plan, or a further camera` }; break; }
+    if (swing) { out.conflict = { laws: ['facets', 'budget'], why: `a ${rank} of this size, met at ${readout.distance} m, cannot hold its rounds within ${FL.limit} px (${FL.measure}) and spend under ${readout.ceiling} triangles (a ${use} ${rank})`, proposal: `a louder rank (${LOUDER[rank] ?? rank}), a nearer use, fewer rounds in its body plan, or a further camera` }; break; }
     if (!changed.length) break;
   }
   return { ...out, passes: log };

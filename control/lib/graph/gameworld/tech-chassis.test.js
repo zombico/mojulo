@@ -15,13 +15,13 @@ describe('the body-plan solver: a form is a row', () => {
     const src = readFileSync(new URL('./tech-bodyplan.js', import.meta.url), 'utf8'), solver = src.slice(src.indexOf('export function solveBodyPlan'));
     for (const form of ['walker', 'tower', 'tracked', 'hover', 'ship', 'gate', 'turret', 'cannon']) expect(solver, form).not.toMatch(new RegExp(`'${form}'`));
     expect(solver).not.toMatch(/t\.form/);
-    for (const [id, row] of Object.entries(BODY_PLANS)) for (const p of row.parts) expect(PART_KINDS[p.kind], `${id}: ${p.kind}`).toBeTruthy();
+    for (const [id, row] of Object.entries(BODY_PLANS)) for (const v of row.variants ?? [row]) for (const p of v.parts) expect(PART_KINDS[p.kind], `${id}${v.name ? `/${v.name}` : ''}: ${p.kind}`).toBeTruthy();
     expect(CHASSIS_FORMS).toBe(BODY_PLANS);
   });
 
   it('every row solves to a chassis that holds its laws, in every camera', () => {
     for (const id of Object.keys(BODY_PLANS)) {
-      const [kind, form] = id.split('/'), intent = { 'vehicle/walker': 'an armoured walker', 'vehicle/tracked': 'a battle tank', 'vehicle/hover': 'a hovercraft', 'vehicle/ship': 'a war galley', 'structure/tower': 'a lighthouse', 'structure/gate': 'a city gate', 'weapon/turret': 'a turret', 'weapon/cannon': 'a field cannon' }[id];
+      const [kind, form] = id.split('/'), intent = { 'vehicle/walker': 'an armoured walker', 'vehicle/tracked': 'a battle tank', 'vehicle/hover': 'a hovercraft', 'vehicle/ship': 'a war galley', 'structure/tower': 'a lighthouse', 'structure/gate': 'a city gate', 'weapon/turret': 'a turret', 'weapon/cannon': 'a field cannon', 'vehicle/wheeled': 'a car', 'vehicle/rail': 'a passenger train', 'vehicle/drawn': 'a covered wagon', 'vehicle/cycle': 'a bicycle' }[id];
       const t = thing(kind, intent);
       expect(t.form, id).toBe(form);
       for (const camera of ['third-person', 'top-down']) {

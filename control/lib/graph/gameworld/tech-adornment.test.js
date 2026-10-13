@@ -49,10 +49,11 @@ describe('the adornment', () => {
   }, 60000);
 
   it('a brief that cannot hold names its conflict and what would settle it, rather than swing', () => {
-    const a = buildAdorned(thing('vehicle', 'a cargo walker'), { kind: 'vehicle', direction: { motif: 'smooth', camera: 'first-person' }, rank: 'interactable' });
+    // a walker watched as a prop, met at arm's length: its rounds cannot hold under a prop's budget
+    const a = buildAdorned(thing('vehicle', 'a cargo walker'), { kind: 'vehicle', direction: { motif: 'smooth', camera: 'first-person' }, rank: 'prop', use: 'watched' });
     expect(a.held).toBe(false);
     expect(a.conflict).toMatchObject({ laws: ['facets', 'budget'] });
-    expect(a.conflict.proposal).toMatch(/a louder rank \(focus\)/);
+    expect(a.conflict.proposal).toMatch(/a louder rank \(interactable\)/);
   }, 30000);
 
   it('given picks are hung as given, and the same every time', () => {

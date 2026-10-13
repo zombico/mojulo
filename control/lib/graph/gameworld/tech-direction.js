@@ -17,7 +17,7 @@
  * Every default says where it came from; every value the creator sets over a default is ledgered beside it.
  *
  *   readTechDirection(D, at)           → the page, checked (throws naming what is wrong)
- *   resolveTechDirection(G, cid)       → { style, camera, motif, elements, tone, team, ranks, from, ledger } | null
+ *   resolveTechDirection(G, cid)       → { style, camera, motif, elements, tone, team, setting, ranks, from, ledger } | null
  *   teamColour(direction, override?)   → the team colour a placement shows (a passed marker wins)
  *   rankOf(kind, thing)                → { rank, why }: the default interest of a crafted thing
  *   useOf(kind, thing)                 → { use, why }: how the player meets it by default
@@ -30,6 +30,7 @@ export { TECH_USES, TECH_USE_IDS } from './tech-eras.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { TONE_PRESETS, TONE_IDS } from '../era/tone.js';
 import { INTEREST } from '../playscape/objects/laws.js';
+import { SETTING_BY_FINISH, DEFAULT_SETTING } from './mech-kit.js';
 
 /** The shape languages adornment speaks: how edges are finished and what is hung on a mass. Read by words. */
 export const MOTIFS = Object.freeze({
@@ -91,7 +92,7 @@ export function rankOf(kind, t) {
   if (kind === 'vehicles') {
     if (B.tier === 'vessel') return { rank: 'focus', why: 'a vessel: building scale, and it goes' };
     if (fns.includes('strike') || fns.includes('guard')) return { rank: 'focus', why: 'armed or armoured: it is what the moment is about' };
-    if (t.form === 'drawn') return { rank: 'prop', why: 'a cart: it is drawn, not ridden' };
+    if (t.form === 'drawn') return t.variant === 'cart' || t.variant === 'drawn' ? { rank: 'prop', why: 'a cart: it is drawn, not ridden' } : { rank: 'interactable', why: `a ${t.variant}: it is boarded, or escorted` };
     return { rank: 'interactable', why: 'it can be ridden' };
   }
   if (['tower', 'gate', 'portal', 'launch'].includes(t.form)) return { rank: 'focus', why: `a ${t.variant}: the level is read by it` };
@@ -141,7 +142,9 @@ export function resolveTechDirection(G, cid) {
     if (t.use && t.use !== u.use) ledger.push({ scope: 'thing', at: here, key: 'use', world: u.use, local: t.use });
     ranks[`${list}/${id}`] = { ...(t.rank ? { rank: t.rank, why: 'said' } : r), ...(t.use ? { use: t.use, useWhy: 'said' } : { use: u.use, useWhy: u.why }) };
   }
-  return { style, camera: techCamera(G), motif, motifRead: MOTIFS[motif].read, elements, tone, team, ranks, from, ledger };
+  // what it is made of and what drives it (mech-kit.js): its finish's, until the world says its own
+  const setting = set('setting', SETTING_BY_FINISH[T.finish ?? 'alloy'] ?? DEFAULT_SETTING, `its finish (${T.finish ?? 'alloy'})`);
+  return { style, camera: techCamera(G), motif, motifRead: MOTIFS[motif].read, elements, tone, team, setting, ranks, from, ledger };
 }
 
 /** The team colour a placement shows: a passed marker wins over the civilization's. */

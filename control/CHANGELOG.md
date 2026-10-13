@@ -13,6 +13,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Rig clips keep the palette
+
+- **A rigged solid's clips are coloured like its rest pose.** The World page's clip preview and the skinned GLB used
+  to colour each face of the packed rig figure by its part's `tint` alone. Every group coloured only by the recipe
+  `palette` (a detailed head's cranium and jaw, horns, pinned fur or scale tiles, belts and satchels) turned grey the
+  moment a clip played. `packLayeredRig` now takes the recipe `palette` and resolves a face as the static solid does:
+  its group's palette entry, else its part's tint, else neutral grey. Animals and bugs get the same fix. A recipe
+  with tinted parts and no palette packs byte for byte as before. Rigged recipes with a palette re-pin their figures
+  and exports, among them the dragon body and the landmark hero.
+
 ### The play shell: quick games end to end, and a playtest for the big loop
 
 - **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →
@@ -66,6 +76,69 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   Flat-shaded faces keep the width law.
 - Across 17 briefs × 6 motifs × 3 cameras, every case now holds, the organic walkers driven in first person
   included. They spend fewer triangles than they did flat.
+- **One wheel, one track, many dresses** (`gameworld/mech-kit.js`). A mechanism is one topology with named parts
+  and sockets:
+  - A wheel has a hub on its axle and a rim at its contact.
+  - A track has a drive sprocket at the rear, a raised idler at the front, at least three road wheels on the
+    ground and return rollers when its road wheels are small, all wrapped in one belt.
+
+  A DRESS restyles it by what it is made of and how it is driven, never by a date:
+  - Wheels: spoked (timber or iron, muscle to steam), disc (iron or steel), road (steel and rubber), pad (field
+    or arcane: it lifts, and does not roll).
+  - Tracks: link (iron and steel, with grousers) and band (rubber, with large interleaved road wheels).
+
+  `resolveMechanism` picks a dress by the setting and says why it refused the others. Each mechanism gives its
+  CAGE, the triangles that ship, and its DETAIL (bolts, lugs, grousers, tread), geometry kept for the bake. A
+  detail piece that stands in the silhouette moves into the cage once the design camera can resolve it.
+- The body plans' wheels and tracks are built by the kit. A technology direction carries a `setting`
+  (`{ made, driven }`); until the setting read lands, it defaults from the civilization's finish.
+- **The `design-tech-family` catalyst, and a shaded contact sheet to judge by.**
+  - **The catalyst** codifies how the combined machines were grown: read the brief, pick the cheapest entry (a
+    dress, a variant, a row, and only then a part kind in code), depict first, then hold it to the laws, sweep it,
+    and confirm it in a bible. When a law fights a good depiction, fix the principle for everything it touches,
+    never the one machine. `design-vehicle-family` points to it for a civilization's technology.
+  - **The sheet.** `gameworld/tech-sheet.js` draws crafted technology shaded as the engine shades it (smooth
+    rounds, hard chamfers), where the bible's plates paint each face flat. `node scripts/tech-sheet.mjs
+    "kind|words[|motif|camera|made|driven]" …` prints each thing's form, variant, rank and use, triangles, dresses
+    and laws. It writes a PNG with sharp, or a PPM when sharp is absent.
+- **Readout and solver rules the combined machines found.**
+  - Read how it is seen:
+    - A row of wheels, the running gear the kit builds, reads as one band in the silhouette, not a segment
+      each. Legs still count.
+    - The rails a thing stands on are ground: drawn and counted, never its silhouette.
+  - Grow it within bounds:
+    - The solver grows a lead at most ×1.5 (`LEAD_GROW`): a proportion is pushed, never broken.
+    - A lead may be several pieces that read as one body (a locomotive's boiler and cab).
+    - A row's `optional` parts are its own secondary detail: dropped, last first, when the thing says too much.
+  - Adorn it for what it is:
+    - A turret needs a deck that is large and deep; a thing without one carries its weapons in a `rack` on
+      its flank.
+    - A thing pulled or pedalled (every mechanism driven by muscle) gets no machine face and no vents.
+    - A thing with windows or lamps already has its face.
+  - Masses are placed relative to the core: they can sit from its nose or tail, and taper at both ends (a
+    raked glasshouse).
+  - Wheels can prefer a dress (`prefer`), and a wheel's drive can override the setting (`driven`).
+  - Drawn vehicles are watched, not driven: a cart is a prop; a wagon, coach or chariot is boarded or escorted.
+- **Rings where the curve is.** Shaded smooth, a lathe takes the fewest rings that land on its profile's corners,
+  and a loft spends rings along its length by how much it bows (`fitArc`), not by how long it is. A straight run
+  between two corners spends nothing. The iron tank in third person drops from 4.0k to 3.2k triangles with no
+  visible change.
+- **Combined machines: wheeled, railed and two-wheeled transport.** Built as body-plan rows with variants picked
+  by the brief's words, from generic parts placed by data: masses with a glass band, tubes, open beds, wheel
+  arches, lamps, rails with sleepers, and bogies. The variants:
+  - Wheeled: car, truck, bus, armoured car.
+  - Railed: steam locomotive, carriage or tram.
+  - Drawn: cart, wagon, chariot, coach.
+  - Two-wheeled (a new `cycle` form): bicycle, motorcycle.
+
+  The kit learns rail wheels: flanged, or a maglev pad when the setting is driven by field or arcane, lifting
+  over its rail. It also learns inline wheels (one per axle), and steering front axles: a steer joint about the
+  vertical carries the wheel's spin.
+- **Rules that track wheels exposed in the adornment's solver.**
+  - Hoses go only to joints with a limited range: a hose cannot feed a wheel that spins free.
+  - When a thing shows too many silhouette segments and has no legs to draw in, the solver drops its
+    lowest-priority adornment that keeps no promise.
+  - A conflict proposes the next rank up.
 
 ### Technology design loop: chassis, adornment, skin
 

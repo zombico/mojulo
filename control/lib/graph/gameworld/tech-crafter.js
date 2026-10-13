@@ -4,7 +4,7 @@
  * what it RAISES to be seen and what it FIGHTS with:
  *
  *   vehicle     what carries its people and goods: wheeled, tracked, walkers, rail, hover, rotorcraft, winged craft,
- *               airships, ships, drawn carts; armoured, armed, carrying cargo, under sail or steam
+ *               airships, ships, drawn carts, cycles; armoured, armed, carrying cargo, under sail or steam
  *   structure   its conspicuous tech-structures, the static works a level is read by: towers, gates and portals,
  *               spans, wind and water wheels, cooling stacks and furnace stacks, great dishes, barriers, launch gantries
  *   weapon      what it fights with: in the hand (blades, polearms, axes, bows, staves, guns, shields), crewed (cannon,
@@ -45,7 +45,7 @@ const BUSY = M(['busy', 'detailed', 'greebled', 'worn', 'ornate', 'ceremonial', 
 
 // ── the kinds ───────────────────────────────────────────────────────────────────────────────────────────────────────
 export const CRAFT_KINDS = Object.freeze({
-  vehicle: { read: 'what carries its people and goods', judged: 'at mid: it goes by', forms: ['wheeled', 'tracked', 'walker', 'rail', 'hover', 'rotor', 'winged', 'airship', 'ship', 'drawn'] },
+  vehicle: { read: 'what carries its people and goods', judged: 'at mid: it goes by', forms: ['wheeled', 'tracked', 'walker', 'rail', 'hover', 'rotor', 'winged', 'airship', 'ship', 'drawn', 'cycle'] },
   structure: { read: 'its conspicuous tech-structures: the works a level is read by', judged: 'at mid, and its signature at far: it stands out', forms: ['tower', 'gate', 'portal', 'bridge', 'windmill', 'waterwheel', 'stack', 'dish', 'barrier', 'launch'] },
   weapon: { read: 'what it fights with, in the hand, crewed and emplaced', judged: 'in the hand at arm\'s length; crewed and emplaced at near, where it is met', forms: ['blade', 'polearm', 'axe', 'bow', 'staff', 'gun', 'shield', 'cannon', 'siege', 'ballista', 'launcher', 'turret'] },
 });
@@ -53,17 +53,26 @@ export const CRAFT_KIND_IDS = Object.freeze(Object.keys(CRAFT_KINDS));
 
 export const CRAFT_TRAITS = Object.freeze({
   vehicle: Object.freeze({
-    car: X('wheeled', 'car', ['car', 'truck', 'jeep', 'van', 'bus', 'lorry', 'automobile', 'motorcar', 'wheeled', 'apc'], 'a body and its cab on wheels', true),
+    car: X('wheeled', 'car', ['car', 'jeep', 'automobile', 'motorcar', 'wheeled', 'sedan', 'buggy', 'taxi', 'roadster'], 'a body and its cabin on wheels', true),
+    truck: X('wheeled', 'truck', ['truck', 'trucks', 'lorry', 'van', 'pickup'], 'a cab and its bed on three axles'),
+    bus: X('wheeled', 'bus', ['bus', 'omnibus', 'minibus', 'trolleybus'], 'a long body with a row of windows on its wheels'),
+    apc: X('wheeled', 'apc', ['apc', 'armoured-car', 'armored-car', 'humvee'], 'an armoured hull on four axles'),
     tracked: X('tracked', 'tracked', ['tracked', 'tank', 'crawler', 'treads', 'halftrack', 'bulldozer'], 'a hull on a track pair'),
     walker: X('walker', 'walker', ['walker', 'mech', 'strider', 'legged', 'spider', 'stomper'], 'a body raised on jointed legs'),
-    train: X('rail', 'train', ['train', 'locomotive', 'tram', 'railcar', 'monorail', 'rail', 'railway'], 'a long body on bogies, on its rails'),
+    train: X('rail', 'train', ['train', 'tram', 'railcar', 'monorail', 'rail', 'railway', 'streetcar'], 'a long body on bogies, on its rails'),
+    locomotive: X('rail', 'locomotive', ['locomotive', 'loco', 'steam-engine'], 'a boiler and its cab on driving wheels, on its rails'),
     hover: X('hover', 'hover', ['hover', 'hovercraft', 'skimmer', 'hoverbike', 'speeder', 'grav', 'antigrav'], 'a body over its cushion skirt, fans behind'),
     rotor: X('rotor', 'rotor', ['helicopter', 'gyrocopter', 'rotorcraft', 'copter', 'gunship', 'chopper'], 'a cabin under a rotor, a tail boom, skids'),
     winged: X('winged', 'winged', ['plane', 'aircraft', 'airplane', 'aeroplane', 'glider', 'jet', 'fighter', 'biplane', 'ornithopter', 'flyer'], 'a fuselage and its wings, a tail, wheels under'),
     airship: X('airship', 'airship', ['airship', 'zeppelin', 'dirigible', 'balloon', 'blimp'], 'an envelope that lifts a gondola'),
     ship: X('ship', 'ship', ['ship', 'barge', 'galley', 'longship', 'frigate', 'galleon', 'junk', 'ferry', 'steamer', 'steamship', 'warship', 'sloop', 'schooner', 'clipper', 'dhow'], 'a hull on the water'),
     boat: X('ship', 'boat', ['boat', 'canoe', 'raft', 'dinghy', 'skiff', 'rowboat'], 'a small hull, rowed'),
-    drawn: X('drawn', 'drawn', ['cart', 'wagon', 'chariot', 'carriage', 'coach', 'rickshaw', 'sledge', 'caravan'], 'a body on two wheels and the shafts it is drawn by'),
+    cart: X('drawn', 'cart', ['cart', 'rickshaw', 'handcart', 'barrow', 'sledge'], 'a bed on two wheels and the shafts it is drawn by'),
+    wagon: X('drawn', 'wagon', ['wagon', 'waggon', 'caravan'], 'a covered bed on four wheels, a pole to draw it'),
+    chariot: X('drawn', 'chariot', ['chariot'], 'a platform and its guard on two wheels, a pole to its yoke'),
+    coach: X('drawn', 'coach', ['coach', 'carriage', 'stagecoach'], 'a cabin on four wheels, its driver\'s bench before it'),
+    bicycle: X('cycle', 'bicycle', ['bicycle', 'bike', 'cycle', 'velocipede', 'pushbike', 'penny-farthing'], 'a frame between two wheels in line, pedalled'),
+    motorcycle: X('cycle', 'motorcycle', ['motorcycle', 'motorbike', 'moped', 'scooter', 'dirtbike'], 'an engine and its seat between two wheels in line'),
     sail: M(['sail', 'sails', 'sailing', 'frigate', 'galleon', 'sloop', 'schooner', 'clipper', 'junk', 'dhow', 'yacht'], 'under sail: a mast and its sail', { sail: true }),
     steam: M(['steam', 'steam-powered', 'coal', 'steamer', 'steamship', 'locomotive', 'diesel', 'smoke'], 'a stack: it burns to go', { stack: true }),
     armoured: M(['armoured', 'armored', 'armour', 'armor', 'plated', 'ironclad', 'tank', 'war', 'apc', 'battle'], 'armoured: plates hung on its sides', { armour: true }),
@@ -137,7 +146,7 @@ export const CRAFT_TRAITS = Object.freeze({
 const FORM = {
   // vehicles
   wheeled: { fns: ['move'] }, tracked: { fns: ['move'] }, walker: { fns: ['move'] }, rail: { fns: ['move'] }, hover: { fns: ['move'] },
-  rotor: { fns: ['move'] }, winged: { fns: ['move'] }, airship: { fns: ['move'] }, ship: { fns: ['move'], mounts: ['water'] }, drawn: { fns: ['move'] },
+  rotor: { fns: ['move'] }, winged: { fns: ['move'] }, airship: { fns: ['move'] }, ship: { fns: ['move'], mounts: ['water'] }, drawn: { fns: ['move'] }, cycle: { fns: ['move'] },
   // structures
   tower: { fns: [] }, gate: { fns: ['pass'] }, portal: { fns: ['pass'] }, bridge: { fns: ['pass'] }, windmill: { fns: ['power'] }, waterwheel: { fns: ['power'] },
   stack: { fns: [], variants: { cooling: ['power'], stacks: ['make'] } }, dish: { fns: ['sense'] }, barrier: { fns: ['guard'] }, launch: { fns: ['lift'] },
@@ -281,6 +290,15 @@ function composeVehicle(c) {
       // a ship with nothing else to go by is rowed
       if (!c.sail && !c.stack) add({ id: 'oars', prim: 'tube', role: 'running', r: r2(0.1 * hs), sides: 4, from: [0, r2(-D / 2), r2(H * 0.8)], to: [r2(-0.6 * hs), r2(-D / 2 - 3.4 * hs), 0], at: [r2(-L * 0.25), 0, 0], repeat: { n: c.many > 0.6 ? 7 : 5, step: [r2(1.6 * hs), 0, 0] }, group: 'tech:frame', value: 0.4 });
       if (!c.sail && !c.stack) add({ id: 'oars-r', prim: 'tube', role: 'running', r: r2(0.1 * hs), sides: 4, from: [0, r2(D / 2), r2(H * 0.8)], to: [r2(-0.6 * hs), r2(D / 2 + 3.4 * hs), 0], at: [r2(-L * 0.25), 0, 0], repeat: { n: c.many > 0.6 ? 7 : 5, step: [r2(1.6 * hs), 0, 0] }, group: 'tech:frame', value: 0.4 });
+      break;
+    }
+    case 'cycle': {
+      L = 1.9 * u * k('body'); D = 0.36 * u * k('body'); H = 0.35 * u * k('body');
+      const r = 0.34 * u * k('wheels');
+      z0 = r2(r * 1.6);
+      add({ id: 'wheels', prim: 'wheel', role: 'running', r: r2(r), w: r2(0.12 * u), sides: ws, at: [r2(-L / 2 + r), 0, 0], repeat: { n: 2, step: [r2(L - 2 * r), 0, 0] }, group: 'tech:frame', value: 0.22 }, true);
+      box('body', 'body', [L * 0.55, D, H], [0, 0, z0], 'tech:body', 0.72, { sig: true });
+      top = z0 + H; front = [L * 0.28, top]; screen = false;
       break;
     }
     case 'drawn': {
