@@ -324,16 +324,18 @@ describe('the anime hero: the rig pack and the ink take the character light by d
 // (`sel.className = 'rig-preview'`, capture-contract WORLD_HIDE_SELECTORS). The landmark hero's was re-pinned for the
 // hero's `wave` clip keeping its elbow at the shoulder line (hero-form.js). Both page pins were re-pinned for the pause
 // legend read off the live bindings (`__ctlLegend`, controls/schemes.js): the page's legend function, in every page,
-// is the only hunk that moved.
+// is the only hunk that moved. Every pin here was re-pinned for the recipe palette reaching the plain pack (packLayeredRig
+// `palette`, station-loft-rig.palette.test.js): a face's colour is its group's palette entry, else its part's tint, as the
+// static solid's — the dragon's head, horns and tiles and the streamlined hero's every group had played their clips grey.
 const DRAGON_BODY = path.resolve(process.cwd(), '../docs/examples/dragon-body/recipe.json');
 describe('absent ⇒ byte-identical: the rig packs, pages and exports of every non-anime rigged recipe', () => {
   const world = async (manifest) => (await resolveWorldScene({ ref: 'x', title: 't', manifest }, {})).payload;
   it.skipIf(!existsSync(DRAGON_BODY))('the dragon body: the pack, plain and with hullShade + rim; the inked page', async () => {
     const m = { kind: 'layered', recipe: JSON.parse(readFileSync(DRAGON_BODY, 'utf8')) };
-    expect(h((await world(m)).figures)).toBe('a111baa05193a10d');
-    expect(h((await world({ ...m, hullShade: true, rim: [0.4, 0.6, 1, 0.5, 3] })).figures)).toBe('73694e6795405771');
+    expect(h((await world(m)).figures)).toBe('0cf311a1b36fb58c');
+    expect(h((await world({ ...m, hullShade: true, rim: [0.4, 0.6, 1, 0.5, 3] })).figures)).toBe('53e044e1da845818');
     const { emitThreeWorld } = await import('../scene/scene-three.js');
-    expect(h(emitThreeWorld(await world({ ...m, toon: { ink: true } })))).toBe('c50b945673ec963c');
+    expect(h(emitThreeWorld(await world({ ...m, toon: { ink: true } })))).toBe('94d40c793d4aa83b');
   });
   it('a landmark hero: the inked page; the skinned GLB with the baked ink', async () => {
     const { emitThreeWorld } = await import('../scene/scene-three.js');
@@ -341,8 +343,8 @@ describe('absent ⇒ byte-identical: the rig packs, pages and exports of every n
     // re-pinned for the landmark head's forehead: upright, the brow's end on its own landmark; then for the ear, head-ear.js;
     // then for smooth shading under the studio light, STUDIO_SMOOTH_CREASE: the faces' and the pack's corners;
     // then for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis); then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull))
-    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('3a7dc775cf557ddf');
+    expect(h(emitThreeWorld(await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', core: 'streamlined' }) }), toon: { ink: true } })))).toBe('da20c72d68975300');
     const f = await world({ ...expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', core: 'streamlined' }) }), toon: { ink: { crease: 50 }, bake: true } });
-    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('4621195f5c88c92a');
+    expect(createHash('sha256').update(facesToGlb(f, { generator: 't', clips: '_all', skinned: true }).bytes).digest('hex').slice(0, 16)).toBe('500925b1d448a3d9');
   });
 });

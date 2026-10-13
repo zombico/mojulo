@@ -685,7 +685,10 @@ export const WORLD_KINDS = {
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
         if (face?.meta) Object.assign(face.meta, heroFaceTracks(m.hero, m.recipe.clips, seconds, face.authored));
-        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
+        // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
+        // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
+        const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;
+        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && palette ? { palette } : {}) });
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {
@@ -695,7 +698,7 @@ export const WORLD_KINDS = {
         // (a bug's motion carries its bauplan: bugs/rig.js derives the skeleton and clips from it, packed the same way)
         const bugMotion = !!m.recipe.motion.bug;
         const B = bugMotion ? bugBones(m.recipe.motion) : faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
-        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}) });
+        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}) });
         scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It

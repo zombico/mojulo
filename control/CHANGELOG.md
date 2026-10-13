@@ -13,6 +13,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Rig clips keep the palette
+
+- **A rigged solid's clips are coloured like its rest pose.** The World page's clip preview and the skinned GLB used
+  to colour each face of the packed rig figure by its part's `tint` alone. Every group coloured only by the recipe
+  `palette` (a detailed head's cranium and jaw, horns, pinned fur or scale tiles, belts and satchels) turned grey the
+  moment a clip played. `packLayeredRig` now takes the recipe `palette` and resolves a face as the static solid does:
+  its group's palette entry, else its part's tint, else neutral grey. Animals and bugs get the same fix. A recipe
+  with tinted parts and no palette packs byte for byte as before. Rigged recipes with a palette re-pin their figures
+  and exports, among them the dragon body and the landmark hero.
+
 ### The play shell: quick games end to end, and a playtest for the big loop
 
 - **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →
