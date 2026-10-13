@@ -22,6 +22,7 @@ import { face, faceOut, texFace, boxFaces } from './road-faces.js';
 import { roadwayCourse, selfClearance, DECK } from './course.js';
 import { designClass } from './classes.js';
 import { trackContract } from './contract.js';
+import { mulberry32 } from '../vegetation/grow.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const TILE = 2.5, GRASS_TILE = 4;
@@ -78,7 +79,7 @@ export function trackCourse(m) {
 
 /**
  * planTrack(manifest) → { course, alignment, X, stations, faces, sections, terrain, deck, crossings, cameras, … }
- * Manifest: { form: 'circuit' | 'stage', course: <preset name | spec>, seed? }.
+ * Manifest: { form: 'circuit' | 'stage', course: <preset name | spec>, dress?: true | { trees?, rocks?, clear? }, seed? }.
  */
 export function planTrack(m = {}) {
   if (!TRACK_FORMS.includes(m.form)) throw new Error(`roadway: form '${m.form}' is not one of ${TRACK_FORMS.join(', ')} (or corridor)`);
@@ -94,7 +95,7 @@ export function planTrack(m = {}) {
   const baseGrade = (s) => { const h = 0.25; return (baseZ(Math.min(L, s + h)) - baseZ(Math.max(0, s - h))) / (Math.min(L, s + h) - Math.max(0, s - h)); };
   const deck = course.crossingDeck ?? null;
   const onDeck = (s) => !!deck && s >= deck.s0 - 1e-6 && s <= deck.s1 + 1e-6;
-  const faces = [], sections = [];
+  const faces = [], sections = [], colliders = [];
 
   // the ground: built first, so the skirts know where it is
   const terrain = buildTerrain({ a, X, bank, baseZ, baseGrade });
@@ -122,6 +123,13 @@ export function planTrack(m = {}) {
         faces.push(faceOut([f0a, f0b, up(f0b), up(f0a)], b.hex, mid));
         faces.push(faceOut([f1b, f1a, up(f1a), up(f1b)], b.hex, mid));
         faces.push(face([up(f0a), up(f0b), up(f1b), up(f1a)], b.hex));
+        // its walls for the drive rule: boxes round pieces of 2 m or less (a long diagonal box would reach the road)
+        const k = Math.max(1, Math.ceil(Math.hypot(f0b[0] - f0a[0], f0b[1] - f0a[1]) / 2)), lerp = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
+        for (let u = 0; u < k; u++) {
+          const c = [lerp(f0a, f0b, u / k), lerp(f0a, f0b, (u + 1) / k), lerp(f1a, f1b, u / k), lerp(f1a, f1b, (u + 1) / k)];
+          const xs = c.map((q) => q[0]), ys = c.map((q) => q[1]), zs = c.map((q) => q[2]);
+          colliders.push({ min: [r3(Math.min(...xs)), r3(Math.min(...ys)), r3(Math.min(...zs))], max: [r3(Math.max(...xs)), r3(Math.max(...ys)), r3(Math.max(...zs) + b.h)], of: 'roadway:barrier' });
+        }
       }
       // the outer edge: a deck's fascia over a crossing, else a wall down to the ground wherever the road stands on it
       const ea = P(A, side * X.outer), eb = P(B, side * X.outer);
@@ -156,8 +164,11 @@ export function planTrack(m = {}) {
   faces.push(...terrainFaces(terrain));
   faces.push(...farGround(terrain));
   const crossings = selfClearance(a, { width: X.outer * 2, margin: 1 }).crossings;
+  // the land dressed (`dress`): trees and rocks on the track's own ground, clear of every footprint
+  const props = m.dress ? dressProps({ a, X, terrain, dress: m.dress, seed: Number.isInteger(m.seed) ? m.seed : 1 }) : [];
+  for (const q of props) faces.push(...propFaces(q));
   const cameras = trackCameras({ a, X, P, course, deck, crossings });
-  return { form: m.form, course, alignment: a, X, stations: st, faces, sections, terrain, groundAt, lines, deck, crossings, cameras, advisories: course.advisories, length: L };
+  return { form: m.form, course, alignment: a, X, stations: st, faces, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L };
 }
 
 // ── the ground ───────────────────────────────────────────────────────────────────────────────────
@@ -237,6 +248,40 @@ function farGround(T) {
   return out;
 }
 
+// ── the land dressed ─────────────────────────────────────────────────────────────────────────────
+/** What `dress` stands on the land: `true`, or { trees?, rocks? } as shares of a full stand (0–1; true is 0.5 and
+ *  0.15), `clear` metres off every footprint (8). Seeded points on a jittered grid over the terrain, none nearer the
+ *  line than its footprint and `clear`. → [{ kind: 'tree' | 'rock', at, size, seed }] */
+export const DRESS = Object.freeze({ trees: 0.5, rocks: 0.15, clear: 8, pitch: 14 });
+function dressProps({ a, X, terrain: T, dress, seed }) {
+  const D = { ...DRESS, ...(dress === true ? {} : dress) }, rnd = mulberry32((seed * 2246822519) >>> 0), out = [];
+  const keep = X.outer + D.clear, near = trackNear(a, keep);
+  const x1 = T.x0 + T.nx * T.cell, y1 = T.y0 + T.ny * T.cell;
+  for (let x = T.x0 + D.pitch / 2; x < x1; x += D.pitch) for (let y = T.y0 + D.pitch / 2; y < y1; y += D.pitch) {
+    const r = rnd(), px = x + (rnd() - 0.5) * D.pitch * 0.8, py = y + (rnd() - 0.5) * D.pitch * 0.8, size = 0.7 + 0.6 * rnd(), s2 = (rnd() * 1e9) >>> 0;
+    const kind = r < D.trees ? 'tree' : r < D.trees + D.rocks ? 'rock' : null;
+    if (!kind || near(px, py)) continue;
+    out.push({ kind, at: [r3(px), r3(py), r3(terrainAt(T, px, py))], size: r3(size), seed: s2 });
+  }
+  return out;
+}
+// is a point within `d` of the line (in plan)?
+function trackNear(a, d) {
+  const L = a.length, n = Math.max(8, Math.round(L / 2)), P = Array.from({ length: n + 1 }, (_, i) => a.at((i * L) / n)), H = Math.max(8, d), hash = new Map();
+  P.forEach((p, i) => { const k = `${Math.floor(p.x / H)},${Math.floor(p.y / H)}`; if (!hash.has(k)) hash.set(k, []); hash.get(k).push(i); });
+  return (x, y) => { const hx = Math.floor(x / H), hy = Math.floor(y / H); for (let u = hx - 1; u <= hx + 1; u++) for (let v = hy - 1; v <= hy + 1; v++) for (const i of hash.get(`${u},${v}`) ?? []) if (Math.hypot(P[i].x - x, P[i].y - y) < d) return true; return false; };
+}
+// a low tree (a trunk and two tiers of crown) or a rock, yawed by its seed
+function propFaces(q) {
+  const yaw = (q.seed % 628) / 100, [x, y, z] = q.at, s = q.size;
+  if (q.kind === 'rock') return boxFaces([x, y, z - 0.2], [2.2 * s, 1.6 * s, 1.1 * s + 0.2], yaw, '#a9a294');
+  return [
+    ...boxFaces([x, y, z - 0.1], [0.45 * s, 0.45 * s, 2.4 * s + 0.1], yaw, '#6e5a43'),
+    ...boxFaces([x, y, z + 2.0 * s], [3.4 * s, 3.4 * s, 2.6 * s], yaw + 0.4, '#58733c'),
+    ...boxFaces([x, y, z + 4.4 * s], [2.2 * s, 2.2 * s, 2.0 * s], yaw + 1.1, '#4f6a36'),
+  ];
+}
+
 // ── shots ────────────────────────────────────────────────────────────────────────────────────────
 function trackCameras({ a, X, P, course, deck, crossings }) {
   const pc = [560, 390], L = a.length, s0 = a.closed ? L - 12 : STAGE_START - 12;
@@ -311,6 +356,9 @@ export function trackCensus(plan) {
     terrainOverRoad: { max: r3(over), at },
     crossings: clearances,
     ramps: course.ramps.map((r) => ({ kind: r.kind, s0: r.s0, band: r.band })),
+    // what stands nearest the line (a prop's footprint): never within the track's own footprint
+    propsClear: plan.props.length ? r3(Math.min(...plan.props.map((q) => { let d = Infinity; for (const p of stations) d = Math.min(d, Math.hypot(p.x - q.at[0], p.y - q.at[1])); return d - 1.7 * q.size; })) - X.outer) : null,
+    colliders: plan.colliders.length,
     faces: plan.faces.length,
   };
 }
@@ -327,6 +375,7 @@ export function trackLaws(c) {
     ...(c.closed ? [L('closes', c.closure.residual < 0.01, `the lap closes to ${(c.closure.residual * 1000).toFixed(1)} mm`)] : []),
     L('on-its-ground', c.terrainOverRoad.max < -0.02, c.terrainOverRoad.max < -0.02 ? 'the ground stands under every point of the track' : `the ground stands ${c.terrainOverRoad.max} m over the track at ${JSON.stringify(c.terrainOverRoad.at)}`),
     ...c.crossings.map((x) => L('clearance', x.clearance >= C.clearance - 0.01, `the deck clears the lower road by ${x.clearance} m (${C.clearance} m)`)),
+    ...(c.propsClear != null ? [L('nothing-on-the-track', c.propsClear > 0, `what the land is dressed in stands ${c.propsClear} m clear of the track at nearest`)] : []),
     ...c.ramps.filter((r) => r.kind === 'gap' || r.kind === 'tabletop').map((r) => L('ramp-lands', !!r.band, r.band ? `the ${r.kind} at ${r.s0} m lands at ${(r.band.lo * 3.6).toFixed(0)}–${(r.band.hi * 3.6).toFixed(0)} km/h` : `the ${r.kind} at ${r.s0} m lands at no speed`)),
   ];
 }
@@ -346,6 +395,8 @@ export function assembleTrackScene(m = {}, opts = {}) {
     sky: { preset: 'day', zenith: [96, 138, 190], horizon: [198, 207, 218], day: 1, stars: 0, seed: 7 },
     haze: { color: '#c6cfda', density: 1.98 / V },
     metersPerUnit: 1,
+    // the barriers' walls (the drive rule's colliders); a level's own entities ride on them
+    ...(plan.colliders.length ? { colliders: plan.colliders } : {}),
     // what the track tells a game (contract.js): its stations, lines, checkpoints, grid, racing line, bands, ramps
     roadway: { ...trackContract(plan), ...(plan.course.preset ? { course: plan.course.preset } : {}), advisories: plan.advisories },
   };

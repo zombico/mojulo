@@ -14,6 +14,8 @@
  *     pickup?: '<word>',                    // collect: what lies along the way (its word picks the glyph: coin, key, star…)
  *     seconds?: n,                          // survive: how long
  *     track?: 'trail' | 'loop',             // race: run the trail end to end, or go round a loop laid on its land
+ *     roadway?: '<preset>' | { … },          // race: on a roadway built for driving (roads/course.js COURSE_PRESETS,
+ *                                           // or a course spec), its land dressed: a lap or a stage, as the course is
  *     laps?: n,                             // race: times round (1 to 9; 3 on a loop, 1 on a trail)
  *     rivals?: n,                           // race: rival drivers in the same car (1 to 7; a ride's), racing for a place
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
@@ -40,6 +42,7 @@
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
 import { STAGE_KITS } from '../era/stage.js';
+import { COURSE_PRESETS } from '../roads/course.js';
 import { CAMERAS } from './cameras.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
@@ -76,8 +79,9 @@ export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a55
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
 // line, each row's after it, the cars' distance off the middle), the rivals' lane off the line and their pace (the
-// pole's, the last's), and their lane off a roadway's racing line (narrower: that line already runs near the edges)
-export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72], roadLane: 0.8 });
+// pole's, the last's), and their lane off a roadway's racing line (narrower: that line already runs near the edges),
+// and a car's body on a roadway (its radius: the barriers stop it; the ride's own rule carries none)
+export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72], roadLane: 0.8, body: 0.9 });
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
@@ -90,7 +94,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'track', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
+const KEYS = ['goal', 'hero', 'ride', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -118,6 +122,11 @@ export function readQuick(Q) {
   if (Q.goal !== 'survive' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive goal');
   for (const k of ['track', 'laps', 'rivals']) if (Q.goal !== 'race' && Q[k] !== undefined) throw fail(`.${k} belongs to the race goal`);
   if (Q.track !== undefined && !['trail', 'loop'].includes(Q.track)) throw fail('.track is trail (end to end) or loop (round a loop laid on the trail\'s land)');
+  if (Q.roadway !== undefined) {
+    if (Q.goal !== 'race') throw fail('.roadway belongs to the race goal');
+    if (!(isObj(Q.roadway) || COURSE_PRESETS[Q.roadway])) throw fail(`.roadway is a course preset (${Object.keys(COURSE_PRESETS).join(', ')}) or a course spec`);
+    if (Q.track !== undefined || Q.climb || Q.building !== undefined || Q.run !== undefined) throw fail('.roadway is the race\'s whole ground: no track, climb, building or run');
+  }
   if (Q.laps !== undefined && !(Number.isInteger(Q.laps) && Q.laps >= 1 && Q.laps <= 9)) throw fail('.laps is how many times round, 1 to 9');
   if (Q.rivals !== undefined && !(Number.isInteger(Q.rivals) && Q.rivals >= 1 && Q.rivals <= 7)) throw fail('.rivals is how many rival drivers, 1 to 7');
   if (Q.rivals !== undefined && !Q.ride) throw fail('.rivals drive the same car as you: name a ride');
@@ -174,7 +183,8 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const nodes = { path: { trail: loop ? { run: RACE.run, beats: RACE.beats } : {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
   // a run's pool: trails each laid from its own seed, two more than a run draws
   const s0 = Number.isInteger(seed) ? seed : 1;
-  const levels = quick.run
+  // a race on a roadway: the level is the roadway itself (a lap, or a stage when its course runs end to end), dressed
+  const levels = quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } };
   return {
@@ -302,10 +312,10 @@ function roadwayCast(rivals, T, ride) {
   rivals.forEach((id, k) => {
     figures[id] = { vehicleRef: ride.ref, targetH: RIDE_H };
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
-    const rule = { ...ride.rule, type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace };
+    const rule = { ...ride.rule, type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: RACE.body };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });
   });
-  return { figures, entities, pilot: { transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };
+  return { figures, entities, pilot: { rule: { collideRadius: RACE.body }, transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };
 }
 
 export function guardPosts(quick, ends) {

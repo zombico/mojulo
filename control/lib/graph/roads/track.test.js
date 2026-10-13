@@ -108,6 +108,27 @@ describe('the ground', () => {
   });
 });
 
+describe('the land dressed', () => {
+  it('stands trees and rocks on the track\'s own ground, clear of every footprint, seeded; none undressed', () => {
+    const p = planTrack({ form: 'circuit', course: 'figure-eight', dress: true, seed: 3 }), c = trackCensus(p);
+    expect(p.props.filter((q) => q.kind === 'tree').length).toBeGreaterThan(50);
+    expect(p.props.some((q) => q.kind === 'rock')).toBe(true);
+    expect(c.propsClear).toBeGreaterThan(0);
+    for (const q of p.props) expect(q.at[2]).toBeCloseTo(terrainAt(p.terrain, q.at[0], q.at[1]), 2);
+    expect(trackLaws(c).find((l) => l.law === 'nothing-on-the-track')).toMatchObject({ holds: true });
+    expect(JSON.stringify(planTrack({ form: 'circuit', course: 'figure-eight', dress: true, seed: 3 }).props)).toBe(JSON.stringify(p.props));
+    expect(JSON.stringify(planTrack({ form: 'circuit', course: 'figure-eight', dress: true, seed: 4 }).props)).not.toBe(JSON.stringify(p.props));
+    expect(planTrack({ form: 'circuit', course: 'figure-eight', dress: { trees: 0, rocks: 0 } }).props).toEqual([]);
+    expect(plans['figure-eight'].props).toEqual([]);
+  });
+  it('the barriers are the drive rule\'s colliders, boxes no longer than 2 m round their pieces; a rally road has none', () => {
+    const p = plans['kart-oval'];
+    expect(p.colliders.length).toBeGreaterThan(300);
+    for (const b of p.colliders) { expect(b.of).toBe('roadway:barrier'); expect(Math.hypot(b.max[0] - b.min[0], b.max[1] - b.min[1])).toBeLessThan(2 + 0.9 * 2); }
+    expect(plans['rally-stage'].colliders).toEqual([]);
+  });
+});
+
 describe('determinism', () => {
   it('the same manifest draws byte-identical faces', () => {
     const h = (m) => createHash('sha256').update(JSON.stringify(planTrack(m).faces)).digest('hex');

@@ -135,6 +135,20 @@ describe('design_game quick', () => {
     expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
     expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
   }, 240_000);
+  it('a race on a roadway: the level is the track itself, rivals on its grid and racing line, its barriers solid', async () => {
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', rivals: 3, roadway: 'kart-sprint', world: { id: 'sprint', style: { kit: 'trail-valley' } } }, ref: 'rw' });
+    expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);
+    expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
+    const L = stored('rw-level-run-0');
+    expect(L).toMatchObject({ kind: 'roadway', form: 'circuit', course: 'kart-sprint', dress: true });
+    expect(L.entities.map((e) => e.id)).toEqual(['car', 'rival-1', 'rival-2', 'rival-3']);
+    expect(L.entities[1]).toMatchObject({ team: 'rivals', rule: { type: 'racer', closed: true, collideRadius: 0.9 } });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rw-level-run-0'));
+    expect(payload.roadway).toMatchObject({ form: 'circuit', class: 'kart', closed: true });
+    expect(payload.colliders.length).toBeGreaterThan(300);
+    expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
+    expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
+  }, 240_000);
   it('defend: foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
     const out = await designGameHandler({ quick: { goal: 'defend', waves: 1, pads: 2, world: { id: 'hold', style: { kit: 'trail-valley' } } }, ref: 'd' });
     expect(out.ran.map((r) => r.key)).toEqual(['foe', 'tower', 'level-run-0', 'game']);

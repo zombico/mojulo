@@ -1013,10 +1013,14 @@ Built so far: the roadway itself, a divided freeway at true scale (Highway 401's
   lets it, its tightest bend wider than the road's own. A race on a roadway takes its checkpoints, grid and line from
   it: rivals race every preset on its drawn surface.
 
+- **A gameworld level can be a roadway** (`levels.<id>.roadway: { form?, course?, dress? }`), as one can be a city: one
+  stage, started on its grid's pole and ended at its finish line, its laws the track's own. A race on it takes its
+  checkpoints, grid and racing line; its barriers are walls the cars hit. The quick race names one (`roadway: '<preset>'`
+  or a course spec), its land dressed with trees and rocks kept clear of the track.
+
 Planned:
 
 - **Cars fly** off a roadway's ramps and crests ballistically and land.
-- **A gameworld level can be a roadway** (`levels.<id>.roadway`), as one can be a city, and the quick race can name one.
 - **Vehicles bound by physics.** Classes from kart and dirt bike to a loaded tractor-trailer, each a row of numbers
   (mass, power, drag, wheelbase, centre of gravity); what it can do follows from them: launch and braking capped by
   grip, top speed where power meets drag, cornering and rollover from its track and height. Grip by surface (off the

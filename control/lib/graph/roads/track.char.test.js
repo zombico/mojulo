@@ -2,6 +2,7 @@
 // changes what a circuit or stage emits re-pins here with a comment saying why.
 // re-pinned 2026-10-13 (driving primitives D3): the payload carries the contract (stations, lines, checkpoints, grid,
 // racing line, bands), and a stage's start line moved in to 30 m so a grid of eight stands behind it.
+// re-pinned 2026-10-13 (driving primitives D4): the payload carries the barriers' colliders (the drive rule's walls).
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { assembleRoadwayScene } from './roadway.js';
