@@ -119,6 +119,21 @@ score its scene and its play call for.
       A calm bed sits a little calmer than the orchestra's point.
     - The five driving moods are byte for byte as before, and the soft moods have their own pin.
   - Rendered offline, a club loop is 50–78 s and takes about two minutes per minute of audio to export.
+- **Tested by laws, not catalogues.** The game-audio tests now check principles over generated spaces, and the
+  worked examples move to characterization pins (`score-suggest.char.test.js`).
+  - The suggestion is checked over a grid of every mood word and every registered stage kit, crossed with goals,
+    mechanics, the last level, time and weather. The laws are determinism, closure (a style's moods only, never a
+    stinger), fight music exactly for fights, play reaching only energy moods, direction (danger, a race, the clock
+    or the last level never calm it; stealth never brightens it), reachability of every mood, and the brief's tempo
+    band holding every generated cue.
+  - The sound wiring is checked against each mechanic card's own example, composed for real: every wired event is
+    one its mechanic can raise, and every outcome a mechanic's contract ends on is heard. That second law found five
+    silent outcomes, now wired: `win:met`, `laps:done`, `offbeat`, `crops:late` and `broke:*`. The registry-driven
+    kit law found `catacomb` levels getting no music; catacombs now read as expedition ground.
+  - Casting laws run over the whole shelf: an instrument's jobs follow from its kind, refusals happen exactly for
+    kit/pitched mix-ups, and advice appears exactly when an instrument doesn't fit its job.
+  - A deep tier (`game-audio.deep.test.js`) renders every cue of every palette (audible, unclipped) and measures a
+    driving club loop's break against its drops.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

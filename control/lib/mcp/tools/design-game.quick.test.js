@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
+import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
 import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
@@ -113,7 +114,8 @@ describe('design_game quick', () => {
   it('music: auto scores each level from its place and play, under the game\'s one identity; quiet without it', async () => {
     await designGameHandler({ quick: { goal: 'sneak', music: 'auto', sfx: 'auto', world: { id: 'hush', style: { kit: 'trail-valley' } } }, ref: 'h' });
     const L = stored('h-level-run-0');
-    expect(L.audio.soundtrack.score).toMatchObject({ mood: 'expedition' });   // a valley's plains, moved darker and tenser by the sneak
+    // what is written is the suggestion for this level, its place and its goal (the suggestion's own laws live beside it)
+    expect(L.audio.soundtrack.score.mood).toBe(suggestScore(levelScoreContext(L, { goal: 'sneak' })).mood);
     expect(Number.isInteger(L.audio.soundtrack.score.game)).toBe(true);
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('h-level-run-0'));
     expect(payload.audio.soundtrack).toMatchObject({ kind: 'beats-composition', loop: true });

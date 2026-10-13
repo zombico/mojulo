@@ -106,16 +106,6 @@ describe('the soft end: lo-fi house, lo-fi beats, ambient', () => {
     expect(h.digest('hex')).toBe('393fffbc9f743380dc6efd03a1b004003c502dafc0d9c08c056c2f570f42622b');
   });
 
-  it('the scene picks them: a cafe or rain is lo-fi, underwater or the cosmos ambient, a lab at rest drifts', () => {
-    const at = (manifest, opts) => suggestScore(levelScoreContext(manifest, opts)).mood;
-    expect(at({ base: 'floorplan-world', title: 'corner cafe' })).toBe('chill');
-    expect(at({ base: 'floorplan-world', title: 'rainy apartment' })).toBe('chill');
-    expect(at({ base: 'terrain', title: 'cozy town' }, { goal: 'race' })).toBe('drive');
-    expect(at({ base: 'terrain', title: 'underwater reef' })).toBe('ambient');
-    expect(at({ base: 'controllable', title: 'the cosmos' })).toBe('ambient');
-    expect(at({ kind: 'stage', kit: 'research-lab', title: 'x' })).toBe('drift');
-    expect(at({ base: 'controllable', title: 'space station' })).toBe('ambient');
-  });
 });
 
 describe('club: reached as a score style', () => {
@@ -134,16 +124,4 @@ describe('club: reached as a score style', () => {
     expect(a.palette).toBe('synth');
   });
 
-  it('the scene picks the style; asked for, it wins', () => {
-    expect(sceneStyle({ kind: 'stage', theme: 'abandoned research lab' })).toBe('club');
-    expect(sceneStyle({ base: 'terrain', theme: 'forest' })).toBe('field');
-    const lab = levelScoreContext({ kind: 'stage', kit: 'research-lab', title: 'x' });
-    expect(suggestScore(lab)).toMatchObject({ style: 'club', audio: { soundtrack: expect.stringMatching(/^club:/) } });
-    expect(suggestScore({ ...lab, goal: 'battle' }).mood).toBe('rave');
-    expect(suggestScore({ ...lab, goal: 'battle', final: true }).mood).toBe('peak');
-    expect(suggestScore({ ...lab, goal: 'race' }).mood).toBe('drive');
-    expect(suggestScore({ ...lab, style: 'field' }).style).toBeUndefined();
-    expect(suggestScore({ base: 'terrain', theme: 'forest', style: 'club' }).mood).toBe('chill');
-    expect(suggestScore(lab).brief).toMatchObject({ style: 'club', energy: 'club', tempo: CLUB_MOODS[suggestScore(lab).mood].tempo });
-  });
 });

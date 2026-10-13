@@ -4,7 +4,44 @@ import { validateBeatsManifest } from './beats-manifest.js';
 import { scoreIdentity } from './field-score.js';
 import { midiOf } from './beats-authoring.js';
 import { resolveWorldAudio } from './beats-world.js';
-import { MECHANIC_KINDS } from '../game/mechanics.js';
+import { MECHANIC_KINDS, composeMechanics } from '../game/mechanics.js';
+import { getMechanicVocabCatalog } from '../game/mechanic-cards/loader.js';
+import { PALETTES } from './field-score.js';
+
+// ── a mechanic's events, from the real thing: each mechanic card's own example, composed into a winnable level ───
+// (a reach-exit beside it; the producers a mechanic needs; the parameter that turns a race's rivals on). A mechanic
+// whose card carries no example uses FIXTURE until it gains one.
+const FIXTURE = { push: { kind: 'push', origin: [0, 0, 0], cols: 4, rows: 4, blocks: [[1, 1]], plates: [[2, 2]] } };
+const EXAMPLES = (() => {
+  const out = { ...FIXTURE };
+  for (const c of getMechanicVocabCatalog().values()) {
+    const m = /```json\n([\s\S]*?)```/.exec(c.body);
+    if (!m) continue;
+    let parsed; try { parsed = JSON.parse(m[1]); } catch { continue; }
+    for (const x of Array.isArray(parsed) ? parsed : [parsed]) if (x && MECHANIC_KINDS.includes(x.kind)) out[x.kind] = x;
+  }
+  return out;
+})();
+const WITH = { crops: ['clock'], 'defeat-all': ['hp-pool'] };
+const TURN_ON = { laps: { rivals: ['rival-1'] } };
+// what a level with this mechanic can hear: the events it emits (reactions, watches, timers, sequences), the events
+// its reactions listen for (facts such as hit:<id>), and the outcomes its contract ends on
+function surfaced(kind) {
+  const exit = { kind: 'reach-exit', at: [30, 0, 0] };
+  const list = [{ ...EXAMPLES[kind], ...(TURN_ON[kind] || {}) }, ...(WITH[kind] || []).map((k) => EXAMPLES[k]), ...(kind === 'reach-exit' ? [] : [exit])];
+  const r = composeMechanics(list);
+  const out = new Set(Object.keys(r.on || {}));
+  const walk = (o, key) => {
+    if (Array.isArray(o)) return o.forEach((x) => walk(x, key));
+    if (!o || typeof o !== 'object' || key === 'sources' || key === 'hud' || key === 'entities') return;
+    if (typeof o.type === 'string' && (o.do === 'emit' || key === 'watches' || key === 'timers' || key === 'sequences')) out.add(o.type);
+    if (typeof o.on === 'string' && key === 'reactions') out.add(o.on);
+    for (const [k, v] of Object.entries(o)) walk(v, k);
+  };
+  walk(r.events, 'events');
+  return { events: [...out].filter((t) => !t.startsWith('__')), outcomes: Object.keys(r.on || {}) };
+}
+const globMatch = (pat, t) => (pat === '*' ? true : pat.includes('*') ? new RegExp(`^${pat.split('*').map((x) => x.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')}$`).test(t) : pat === t);
 
 describe('sfx palettes', () => {
   it('every palette names the same cues, each valid and warning-free in any key', () => {
@@ -27,10 +64,9 @@ describe('sfx palettes', () => {
     for (let seed = 0; seed < 40; seed++) { const t = scoreIdentity(seed).tonic, kk = ((t + 5) % 12) - 5; expect(kk).toBeGreaterThanOrEqual(-5); expect(kk).toBeLessThanOrEqual(6); }
   });
 
-  it('a score identity implies a palette by its band; none is arcade', () => {
+  it('every band a score identity can roll implies a palette that exists; no identity is arcade', () => {
     expect(paletteForIdentity(null)).toBe('arcade');
-    const seen = new Set(Array.from({ length: 60 }, (_, s) => paletteForIdentity(scoreIdentity(s))));
-    expect([...seen].sort()).toEqual(['foley', 'orchestral', 'synth']);
+    for (const flavour of Object.keys(PALETTES)) expect(SFX_PALETTE_NAMES, flavour).toContain(paletteForIdentity({ flavour }));
   });
 
   it('every wired mechanic is a mechanic, and every cue it names is in the palettes', () => {
@@ -39,14 +75,36 @@ describe('sfx palettes', () => {
       for (const cue of Object.values(rows)) expect(SFX_CUE_IDS, `${kind} → ${cue}`).toContain(cue);
     }
   });
+
+  it('every mechanic has an example to hear (its card, or the fixture until its card carries one)', () => {
+    expect(MECHANIC_KINDS.filter((k) => !EXAMPLES[k])).toEqual([]);
+  });
+
+  it('every row is an event its mechanic can surface: nothing is wired to a sound that never fires', () => {
+    for (const [kind, rows] of Object.entries(MECHANIC_SFX)) {
+      const { events } = surfaced(kind);
+      for (const glob of Object.keys(rows)) expect(events.some((t) => globMatch(glob, t)), `${kind}: '${glob}' among ${events.join(', ')}`).toBe(true);
+    }
+  });
+
+  it("every outcome a mechanic's contract ends on is heard: no level is won or lost in silence", () => {
+    for (const kind of MECHANIC_KINDS) {
+      const { outcomes } = surfaced(kind);
+      const on = levelSfx({ mechanics: [kind, 'reach-exit'] }).on;
+      for (const t of outcomes) expect(Object.keys(on).some((g) => globMatch(g, t)), `${kind}: outcome '${t}' has no cue`).toBe(true);
+    }
+  });
 });
 
 describe('levelSfx', () => {
-  it("wires only the events the level's mechanics emit", () => {
-    const L = levelSfx({ mechanics: ['collect', 'reach-exit'] });
-    expect(L.on).toEqual({ 'pickup:*': 'pickup', 'goal:reached*': 'goal' });
+  it("wires exactly the rows of the level's own mechanics, first row first, and nothing for a mechanic it lacks", () => {
     expect(levelSfx({ mechanics: [] }).on).toEqual({});
-    expect(levelSfx({ mechanics: ['hp-pool', 'fail-on-death', 'waves'] }).on).toEqual({ 'hit:*': 'hit', 'enemy:down': 'down', dead: 'death', wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' });
+    for (const a of MECHANIC_KINDS) for (const b of MECHANIC_KINDS) {
+      const on = levelSfx({ mechanics: [a, b] }).on;
+      const expected = {};
+      for (const k of [a, b]) for (const [g, c] of Object.entries(MECHANIC_SFX[k] || {})) if (!(g in expected)) expected[g] = c;
+      expect(on, `${a} + ${b}`).toEqual(expected);
+    }
   });
 
   it('the gait, weapon, melee and dodge sounds come from the same palette', () => {

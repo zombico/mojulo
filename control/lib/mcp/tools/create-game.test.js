@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createGameHandler, getGameVocabHandler, mintGame } from './create-game.js';
+import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
 
 beforeEach(() => {
@@ -55,9 +56,10 @@ describe('create_game — mint + promotion discipline', () => {
     const out = await mintGame({ title: 'Scored Crypt', store: STORE, levels: [{ ref: 'crypt-1' }, { ref: 'crypt-2' }, { ref: 'crypt-3' }], ref: 'scored-crypt', allowUnaudited: true });
     expect(out.music.suggest.map((s) => s.level)).toEqual(['crypt-1', 'crypt-3']);
     const [a, b] = out.music.suggest;
-    expect(a.mood).toBe('expedition');   // a crypt: unknown ground, a quiet minor march
-    expect(a.why).toMatch(/unknown ground/);
-    expect(b.why).toMatch(/last level/);
+    // each is the suggestion for that level (its row's words, the last one as the last level)
+    const ctx = (ref, final) => ({ ...levelScoreContext({ ...SketchRepository.getByRef(ref).manifest, title: SketchRepository.getByRef(ref).title }, { final }), style: out.music.style });
+    expect([a.mood, a.why]).toEqual((({ mood, why }) => [mood, why])(suggestScore(ctx('crypt-1', false))));
+    expect([b.mood, b.why]).toEqual((({ mood, why }) => [mood, why])(suggestScore(ctx('crypt-3', true))));
     // the apply is an update_sketch patch; both levels share the game's identity seed
     expect(a.apply).toEqual({ ref: 'crypt-1', patch: [{ op: 'set', path: '/audio', value: { soundtrack: { score: { mood: a.mood, game: a.apply.patch[0].value.soundtrack.score.game } }, sfx: 'auto' } }] });
     expect(b.apply.patch[0].value.soundtrack.score.game).toBe(a.apply.patch[0].value.soundtrack.score.game);

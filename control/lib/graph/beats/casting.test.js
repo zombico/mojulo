@@ -21,32 +21,40 @@ describe('the casting table', () => {
     for (const name of Object.keys(CASTING)) expect(card, name).toContain(`\`${name}\``);
   });
 
-  it('a kit plays only the kit; the bass needs the low end; a pad a sustain', () => {
-    expect(rolesFor('drum-machine-909')).toEqual(['kit']);
-    expect(rolesFor('contrabass-3')).toContain('ground');
-    expect(rolesFor('acid-bass')).toContain('ground');
-    expect(rolesFor('flute-3')).not.toContain('ground');
-    expect(rolesFor('organ')).toContain('pad');
-    expect(rolesFor('harp-2')).not.toContain('pad');
+  it('every instrument\'s jobs follow from what it is: a kit only the kit, the bass from D2 down, a pad from a sustain', () => {
+    for (const [name, c] of Object.entries(CASTING)) {
+      const roles = rolesFor(name);
+      if (c.env === 'kit') { expect(roles, name).toEqual(['kit']); continue; }
+      expect(roles.includes('ground'), name).toBe(!!c.low && midiOf(c.low) <= 38);
+      expect(roles.includes('pad'), name).toBe(c.env === 'sustain');
+      for (const r of ['colour', 'lead', 'brass', 'motion']) expect(roles, name).toContain(r);
+    }
   });
 });
 
 describe('readCast and castAdvice', () => {
-  it('refuses what cannot work, by name', () => {
+  it('refuses exactly what cannot work: a kit on a pitched job, a pitched voice as the kit, a job or name that is not', () => {
+    for (const [name, c] of Object.entries(CASTING)) for (const job of CAST_ROLES) {
+      const fits = job === 'kit' ? c.env === 'kit' : c.env !== 'kit';
+      const read = () => readCast({ [job]: job === 'lead' ? [name, name] : name });
+      if (fits) expect(read, `${job} ${name}`).not.toThrow();
+      else expect(read, `${job} ${name}`).toThrow(new RegExp(name));
+    }
     expect(() => readCast({ drums: 'drum-kit' })).toThrow(new RegExp(`the jobs: ${CAST_ROLES.join(', ')}`));
-    expect(() => readCast({ lead: 'kazoo' })).toThrow(/'kazoo' is not on the shelf/);
-    expect(() => readCast({ kit: 'flute-3' })).toThrow(/not a kit/);
-    expect(() => readCast({ ground: 'drum-machine-909' })).toThrow(/is a kit/);
-    expect(() => readCast({ lead: ['flute-3', 'oboe-3', 'erhu'] })).toThrow(/one instrument or \[first, second\]/);
+    expect(() => readCast({ lead: 'kazoo' })).toThrow(/'kazoo'/);
+    expect(() => readCast({ lead: ['flute-3', 'oboe-3', 'erhu'] })).toThrow(/lead/);
     expect(readCast({ lead: 'erhu' })).toEqual({ lead: ['erhu', 'erhu'] });
   });
 
-  it('advises what will sound wrong', () => {
-    expect(castAdvice({ ground: 'contrabass-3', pad: 'viola-3', lead: ['flute-3', 'oboe-3'] })).toEqual([]);
-    const a = castAdvice({ ground: 'flute-3', pad: 'harp-2', lead: 'erhu' });
-    expect(a.join('\n')).toMatch(/ground 'flute-3' reaches down only to C4/);
-    expect(a.join('\n')).toMatch(/pad 'harp-2' does not hold a note/);
-    expect(a.join('\n')).toMatch(/both leads are 'erhu'/);
+  it('advises exactly the castings that do not fit their job, naming the job and the instrument', () => {
+    const other = (n) => (n === 'oboe-3' ? 'flute-3' : 'oboe-3');   // two different leads, so only the fit is advised
+    for (const [name, c] of Object.entries(CASTING)) for (const job of CAST_ROLES) {
+      if (job === 'kit' || c.env === 'kit') continue;
+      const advice = castAdvice({ [job]: job === 'lead' ? [name, other(name)] : name });
+      expect(advice.length === 0, `${job} ${name}`).toBe(rolesFor(name).includes(job));
+      for (const line of advice) { expect(line).toContain(job); expect(line).toContain(name); }
+    }
+    expect(castAdvice({ lead: 'erhu' }).join()).toContain('erhu');   // one voice answering itself is named
   });
 });
 

@@ -25,7 +25,7 @@ export const MOOD_PLANE = {
 // is kept when the place asks for it and never reached from another; story moods that mark one moment (prayer,
 // sorrow, betrayal, ceremony) are never reached at all. Tension crosses any role (a fight happens anywhere); triumph
 // is only for the run's last level (CROSS).
-const MOVES = ['highlands', 'expedition', 'wayfarer', 'night', 'tension'];
+export const MOVES = ['highlands', 'expedition', 'wayfarer', 'night', 'tension'];
 const CROSS = new Set(['tension', 'triumph']);
 const ROLE_STEP = 0.25; // the cost of leaving the place's role (a field level stays field music unless pushed hard)
 
@@ -66,7 +66,7 @@ const KIT_PLACES = { 'gothic-stone': 'dungeon crypt', 'gothic-nave': 'cathedral'
 const TECH_WORDS = /sci-?fi|neon|cyber|futur|robot|android|\bmech|space|station|alien|planet|\blab\b|laborator|reactor|synth|\bclub|\brave|disco|arcade|hacker|matrix|digital|virtual|\bgrid|tron\b/;
 const COZY_WORDS = /\bcaf[eé]|coffee|apartment|bedroom|rooftop|lo-?fi|chill|\bcozy|\bcosy|\bstudy|vinyl|record shop|rainy/;
 const DRIFT_WORDS = /underwater|ocean|\breef|abyss|\bvoid\b|cosmos|nebula|\bzen\b|meditat|dreamscape|ambient|limbo/;
-const REACH = {
+export const REACH = {
   tech: ['drift', 'deep', 'drive', 'ambient'],
   cozy: ['chill', 'lofi', 'ambient', 'deep', 'drive'],
   drift: ['ambient', 'drift', 'chill'],

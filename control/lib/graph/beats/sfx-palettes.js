@@ -129,7 +129,9 @@ export function paletteForIdentity(id) {
   return id ? BY_FLAVOUR[id.flavour] ?? 'arcade' : 'arcade';
 }
 
-// the events each mechanic emits (game/mechanics.js), and the cue each one sounds. First match wins in `on`.
+// the events each mechanic surfaces (game/mechanics.js), and the cue each one sounds. First match wins in `on`. Two
+// laws hold it (sfx-palettes.test.js): every row matches an event its mechanic can surface, and every outcome a
+// mechanic's contract reacts to (its `on`) is heard.
 export const MECHANIC_SFX = {
   'reach-exit': { 'goal:reached*': 'goal' },
   door: { 'door:*': 'door' },
@@ -137,15 +139,17 @@ export const MECHANIC_SFX = {
   collect: { 'pickup:*': 'pickup' },
   'fail-on-death': { dead: 'death' },
   'hp-pool': { 'hit:*': 'hit', 'enemy:down': 'down' },
+  'win-when': { 'win:met': 'goal' },
   'defeat-all': { 'all:defeated': 'goal' },
   supplies: { 'supply:*': 'pickup' },
   unseen: { spotted: 'alarm' },
-  laps: { checkpoint: 'checkpoint', lap: 'chime', 'race:won': 'goal', 'race:lost': 'lose' },
-  'on-beat': { 'beat:hit': 'beat-hit', 'beat:miss': 'beat-miss' },
+  laps: { checkpoint: 'checkpoint', lap: 'chime', 'race:won': 'goal', 'race:lost': 'lose', 'laps:done': 'goal' },
+  'on-beat': { 'beat:hit': 'beat-hit', 'beat:miss': 'beat-miss', offbeat: 'lose' },
   waves: { wave: 'wave', leak: 'hit', 'base:fallen': 'lose', 'waves:cleared': 'goal' },
   push: { pushed: 'thud', 'plates:held': 'goal' },
   clock: { dawn: 'chime', dusk: 'chime' },
-  crops: { planted: 'thud', harvested: 'pickup' },
+  crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },
+  aftermath: { 'broke:*': 'thud' },
 };
 
 // shift every pitched gesture by `k` semitones (note names only; Hz, materials sized in metres and noise stay put)

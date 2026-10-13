@@ -104,7 +104,7 @@ const LEANINGS = [
   { mood: 'town', words: /town|plaza|square|market|harbo|port town|bazaar/, why: 'a busy square: a walking bass and a light kit' },
   { mood: 'village', words: /village|hamlet|farm|historic|cottage|homestead/, why: 'people live here: a homely chart over a walking bass' },
   { mood: 'highlands', words: /mountain|peak|highland|cliff|ridge|alpine|glacier|snow|crag|summit|volcan/, why: 'height and weather: a brass call over moving strings' },
-  { mood: 'expedition', words: /ruin|cave|dungeon|crypt|tomb|expedition|frontier|wild|colony|planet|moon|asteroid|abandoned/, why: 'unknown ground: a minor march, kept quiet enough to explore over' },
+  { mood: 'expedition', words: /ruin|cave|dungeon|crypt|catacomb|tomb|expedition|frontier|wild|colony|planet|moon|asteroid|abandoned/, why: 'unknown ground: a minor march, kept quiet enough to explore over' },
   { mood: 'wayfarer', words: /road|journey|travel|caravan|port|ship|sail|river|coast|bridge|train|railway/, why: 'on the move: a bright walking tune' },
   { mood: 'plains', words: /plain|meadow|field|grass|hill|valley|prairie|countryside|pasture|landscape|terrain|island|lake/, why: 'open country: one colour alone, a drone, a lead answered' },
 ];

@@ -133,15 +133,17 @@ describe('field score: stingers', () => {
     }
   });
 
-  it('victory is the brass in major alone, then the band, a cymbal; defeat is a low line in the minor, a tam-tam', () => {
+  it('victory is the brass in major alone, then the band; defeat a low line in the minor; both on the game\'s tonic', () => {
     for (const seed of SEEDS.slice(0, 12)) {
       const id = scoreIdentity(seed);
       const v = fieldScore('victory', { seed, identity: id }), d = fieldScore('defeat', { seed, identity: id });
       expect(v.key).not.toMatch(/m$/);
       expect(v.parts[0]).toMatchObject({ name: 'leadA', instrument: id.brass });
-      expect(v.parts.find((p) => p.name === 'perc').events.map((e) => e[1])).toContain('C#3');   // the suspended cymbal
+      // the percussion lands where the stinger turns: as the band enters (bar 2) in victory, under the last bar in defeat
+      const barQ = (m) => (m.meter === '3/4' ? 3 : 4);
+      expect(v.parts.find((p) => p.name === 'perc').events.every((e) => e[0] === 2 * barQ(v))).toBe(true);
       expect(d.key).toMatch(/m$/);
-      expect(d.parts.find((p) => p.name === 'perc').events.map((e) => e[1])).toEqual(['E3']);    // the tam-tam
+      expect(d.parts.find((p) => p.name === 'perc').events.every((e) => e[0] === 3 * barQ(d))).toBe(true);
       for (const m of [v, d]) expect(m.key.replace(/m$/, '')).toBe(['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'][id.tonic]);
     }
   });
