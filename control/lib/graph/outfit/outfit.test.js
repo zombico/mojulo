@@ -1,7 +1,7 @@
 // outfit.test.js — OUTFIT BUILDS (outfit/expand.js): the cards, the laws, the dials and the passes, on the hero door.
 import { describe, it, expect } from 'vitest';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
-import { expandOutfit, validateOutfitBuild, OUTFIT_LAWS_VERSION, GARMENT_ROLES } from './expand.js';
+import { expandOutfit, validateOutfitBuild, OUTFIT_LAWS_VERSION, GARMENT_ROLES, MOTIF_NAMES } from './expand.js';
 import { stepLength, outfitProportion } from './principles.js';
 import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
@@ -167,5 +167,24 @@ describe('the outer layer, fit by zone, and the detail on the garment\'s roles',
     expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'binding', role: 'chest' }] })[0]).toMatch(/sits on an edge role; 'chest' is a field/);
     expect(Object.values(GARMENT_ROLES).every((k) => ['edge', 'field'].includes(k))).toBe(true);
     expect(validateOutfitBuild({ ...coat, style: { ...coat.style, language: { ...coat.style.language, outer: { ...coat.style.language.outer, fit: 'skin' } } } })[0]).toMatch(/outer.fit/);
+  });
+  it('embroidery: a motif worked in thread on a role, a border on an edge and an emblem on a field, on both sleeves', () => {
+    const emb = { ...coat, detail: [{ prim: 'embroidery', role: 'hem', motif: 'vine' }, { prim: 'embroidery', role: 'cuffs', motif: 'key' }, { prim: 'embroidery', role: 'chest', motif: 'star', group: 'Accent' }, { prim: 'embroidery', role: 'opening', motif: 'chevron' }] };
+    expect(validateOutfitBuild(emb)).toEqual([]);
+    const out = expandOutfit(emb, ctx), K = Object.fromEntries(out.kit.map((A) => [A.id, A]));
+    // a ghost carrier in share windows, the thread its signature
+    for (const A of out.kit.filter((A) => A.id.startsWith('emb'))) { expect(A.ghost).toBe(true); expect(A.share).toBe(true); expect(A.signature.kind).toBe('motif'); }
+    expect(K.emb0hem.part).toBe('outerSkirt_skirt');
+    expect([K.emb1cuffsR.part, K.emb1cuffsL.part]).toEqual(['outerCuff_foreArmR', 'outerCuff_foreArmL']);   // a limb's work on both sides
+    expect(K.emb2chest.signature).toMatchObject({ mode: 'emblem', at: 'front', name: 'star', group: 'Accent' });
+    expect([K.emb3openingR.side, K.emb3openingL.side]).toEqual(['R', 'L']);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'embroidery', role: 'hem', motif: 'paisley' }] })[0]).toMatch(/motif: one of vine/);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'binding', role: 'hem', motif: 'vine' }] })[0]).toMatch(/an embroidery's/);
+    expect(MOTIF_NAMES).toEqual(expect.arrayContaining(['vine', 'knot', 'key', 'wave', 'chevron', 'diamond', 'dots', 'star']));
+  });
+  it('embroidery builds on the hero: the thread in its group, no carrier plate drawn', () => {
+    const { mesh } = wear({ cast: 'female', outfit: { ...coat, detail: [{ prim: 'embroidery', role: 'hem', motif: 'wave' }, { prim: 'embroidery', role: 'back', motif: 'knot', group: 'Accent' }] } });
+    expect(groupsOf(mesh).has('Accent')).toBe(true);
+    expect(Object.keys(mesh.parts || {}).some((n) => /^adorn\.emb\d+hem$/.test(n))).toBe(false);
   });
 });

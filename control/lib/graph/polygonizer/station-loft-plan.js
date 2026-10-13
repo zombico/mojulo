@@ -387,7 +387,7 @@ export function expandPlan(plan) {
     if (errs.length) fail(errs.join('; '));
     const source = JSON.parse(JSON.stringify(recipe)); let fig;
     try {
-      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts }; }
+      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts, anchors: built.anchors }; }
       else fig = { mesh: compileLayered(recipe, {}), parts: {} };
       if (plan.adorn?.length) bakeAdorn(recipe, fig, plan.adorn, { source });
     } catch (err) { fail(`${plan.body && plan.adorn ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }

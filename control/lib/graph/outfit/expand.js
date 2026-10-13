@@ -25,6 +25,7 @@
 // belt (an adornment) are built like any other. Pure and deterministic: no dice, fixed order.
 import { OUTFIT_LAWS_VERSION, FAMILIES, SKIRT_CUTS, outfitProportion, stepLength } from './principles.js';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
+import { MOTIFS } from '../polygonizer/station-loft-adorn.js';
 
 export { OUTFIT_LAWS_VERSION };
 /** THE GARMENT'S ROLES: where a detail sits. EDGE roles are lines (a hem, a cuff, an opening), FIELD roles areas, each
@@ -32,7 +33,11 @@ export { OUTFIT_LAWS_VERSION };
 export const GARMENT_ROLES = Object.freeze({ collar: 'edge', opening: 'edge', placket: 'edge', hem: 'edge', cuffs: 'edge', waist: 'edge', legHem: 'edge', skirtHem: 'edge',
   yoke: 'field', chest: 'field', back: 'field', sleeveBand: 'field', skirtField: 'field' });
 /** THE DETAIL PRIMITIVES (phase 1: binding): each names the kinds of role it can sit on */
-export const DETAIL_PRIMS = Object.freeze({ binding: { on: ['edge'], group: 'Trim', what: 'a band of another cloth bound over an edge (piping, a bound hem, a cuff band)' } });
+export const DETAIL_PRIMS = Object.freeze({
+  binding: { on: ['edge'], group: 'Trim', what: 'a band of another cloth bound over an edge (piping, a bound hem, a cuff band)' },
+  embroidery: { on: ['edge', 'field'], group: 'Trim', what: 'a motif worked in thread: a border along an edge or a band, an emblem on the chest or the back' },
+});
+export const MOTIF_NAMES = Object.freeze(Object.keys(MOTIFS));
 export const isOutfitBuild = (o) => !!(o && typeof o === 'object' && !Array.isArray(o) && o.type === 'outfit');
 const cardOf = (style) => (typeof style === 'string' ? SEEDED_OUTFITS[style] : style);
 const DIALS = ['stylize', 'fit', 'coverage', 'ornament'];
@@ -55,7 +60,9 @@ export function validateOutfitBuild(build) {
       if (!D || typeof D !== 'object' || !DETAIL_PRIMS[D.prim]) { errs.push(`${at}.prim: one of ${Object.keys(DETAIL_PRIMS).join(', ')}`); return; }
       if (!GARMENT_ROLES[D.role]) errs.push(`${at}.role: one of ${Object.keys(GARMENT_ROLES).join(', ')}`);
       else if (!DETAIL_PRIMS[D.prim].on.includes(GARMENT_ROLES[D.role])) errs.push(`${at}: a ${D.prim} sits on an ${DETAIL_PRIMS[D.prim].on.join(' or ')} role; '${D.role}' is a ${GARMENT_ROLES[D.role]}`);
-      if (D.group !== undefined && !(typeof D.group === 'string' && /^[A-Za-z][A-Za-z0-9]*$/.test(D.group))) errs.push(`${at}.group: a palette group name`); }); }
+      if (D.group !== undefined && !(typeof D.group === 'string' && /^[A-Za-z][A-Za-z0-9]*$/.test(D.group))) errs.push(`${at}.group: a palette group name`);
+      if (D.motif !== undefined && !MOTIFS[D.motif]) errs.push(`${at}.motif: one of ${MOTIF_NAMES.join(', ')}`);
+      if (D.motif !== undefined && D.prim !== 'embroidery') errs.push(`${at}.motif: an embroidery's`); }); }
   for (const k of Object.keys(build)) if (!['type', 'style', 'dials', 'language', 'laws', 'detail'].includes(k)) errs.push(`outfit.${k}: not a build field (type, style, dials, language, laws, detail)`);
   if (build.laws !== undefined && build.laws !== OUTFIT_LAWS_VERSION) errs.push(`outfit.laws: ${build.laws} is unknown — this kernel carries outfit laws ${OUTFIT_LAWS_VERSION}`);
   return errs;
@@ -123,8 +130,11 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
     outs.push({ id: 'outer', part: 'torso', ...(hem === 'waist' ? { u: [1.4, 4] } : {}), ease: e, over: ['pectoral', 'bust', 'navel'], drape: r6(0.3 / law.hang), ...(hem === 'waist' ? { rings: { u: [1.4 + EDGE.hem] } } : {}), group: 'Outer' });
     if (structured && (hem === 'hip' || hem === 'tunic')) outs.push({ id: 'outerTail', part: 'pelvis', u: [hem === 'tunic' ? 1.5 : 4, 6], ease: e * 1.25, flare: [h, 0], rings: { u: [(hem === 'tunic' ? 1.5 : 4) + EDGE.hem] }, group: 'Outer' });
     const to = { knee: { part: 'thigh', run: 1 }, midi: { part: 'shank', run: 0.5 }, maxi: { part: 'shank', run: 0.9 } }[hem];
+    // over a skirt, the coat's skirt clears it: its flare at least the skirt's and its ease beyond the skirt's (two hulls
+    // that coincide shimmer through each other)
+    const under = bottoms.find((E) => E.fit === 'skirt'), coatFlare = SKIRT_CUTS[outer.cut ?? 'aline'] * (1 + 0.5 * dials.stylize);
     if (to) outs.push({ id: 'outerSkirt', fit: 'skirt', part: ['pelvis', 'thigh', ...(to.part === 'shank' ? ['shank'] : [])], from: structured ? { part: 'pelvis', u: 6 } : { part: 'thigh', u: 0 }, to,
-      ease: r6(e * 1.3), flare: [0, r6(SKIRT_CUTS[outer.cut ?? 'aline'] * (1 + 0.5 * dials.stylize))], group: 'Outer' });
+      ease: r6(e * 1.3 + (under ? under.ease * 2 + 0.012 * k : 0)), flare: [0, r6(under ? Math.max(coatFlare, under.flare[1]) * 1.15 : coatFlare)], group: 'Outer' });
     const arm = { cap: [0, 0.25], short: [0, 0.5], elbow: [0, 1], threeQuarter: [0, 1], long: [0, 1] }[sleeve];
     const fore = sleeve === 'threeQuarter' || sleeve === 'long' ? [0, sleeve === 'long' ? 0.9 : 0.5] : null;
     if (arm) outs.push({ id: 'outerSleeve', part: 'upperArm', run: arm, ease: e, ...(arm[1] < 1 ? { flare: [0, h] } : {}), ...(fore ? {} : { rings: { run: [arm[1] - EDGE.cuff] } }), group: 'Outer' });
@@ -212,11 +222,34 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
     sleeveBand: sleeveTop ? { part: sleeveTop, run: [0.18, 0.32] } : null,
     skirtField: worn.has('outerSkirt') ? { part: 'outerSkirt_skirt', u: [4, 9] } : worn.has('skirt') ? { part: 'skirt_skirt', u: [4, 9] } : null,
   }).filter(([, v]) => v));
+  // the WORKED seat of each role (embroidery's): a window as shares of the garment part (the shell's `share` measure,
+  // alike on every body), the band an edge's motif runs in and the way it runs, or a field's emblem
+  const SH = 6, ST = 4, idOf = (part) => part.replace(/_[^_]+$/, ''), groupOf = (part) => garments.find((E) => E.id === idOf(part))?.group ?? 'Top';
+  const lowBand = (seat) => { if (seat.run) return [0.8, 0.97]; const u0 = seat.u[0], n = /_pelvis$/.test(seat.part) ? SH : /_skirt$/.test(seat.part) ? 11 : ST;
+    return u0 <= 0.05 ? [0.02, Math.min(0.3, 0.6 / n)] : [r6(Math.max(0, u0 / n)), r6(Math.min(1, (u0 + 0.6) / n))]; };
+  const worked = (role) => { const seat = roles[role]; if (!seat) return null;
+    if (role === 'opening' || role === 'placket') return { part: seat.part, s: [0.06, 0.94], t: [0, 0.1], sides: ['R', 'L'], mode: 'border' };
+    if (role === 'collar' || role === 'cuffs' || role === 'legHem') return { part: seat.part, s: role === 'collar' ? [0.4, 0.95] : [0.72, 0.97], t: 'wrap', mode: 'border' };
+    if (role === 'hem' || role === 'skirtHem') return { part: seat.part, s: /_skirt$/.test(seat.part) ? [0.82, 0.97] : lowBand(seat), t: 'wrap', mode: 'border' };
+    if (role === 'waist') return { part: seat.part, s: /_skirt$/.test(seat.part) ? [0.01, 0.07] : [0.82, 0.97], t: 'wrap', mode: 'border' };
+    if (role === 'chest' || role === 'back') return { part: seat.part, s: [0.5, 0.85], t: 'wrap', mode: 'emblem', at: role === 'chest' ? 'front' : 'back' };
+    if (role === 'yoke') return { part: seat.part, s: [0.8, 0.92], t: 'wrap', mode: 'border' };
+    if (role === 'sleeveBand') return { part: seat.part, s: [0.18, 0.32], t: 'wrap', mode: 'border' };
+    if (role === 'skirtField') return { part: seat.part, s: [0.5, 0.6], t: 'wrap', mode: 'border' };
+    return null; };
   const detailed = Array.isArray(build.detail), seatedDetail = [];
-  for (const D of build.detail || []) { const seat = roles[D.role];
-    if (!seat) { warnings.push(`detail: no ${D.role} on this outfit for the ${D.prim}`); continue; }
+  build.detail?.forEach((D, i) => { const seat = roles[D.role];
+    if (!seat) { warnings.push(`detail: no ${D.role} on this outfit for the ${D.prim}`); return; }
     if (D.prim === 'binding') paint.push({ ...seat, group: D.group ?? DETAIL_PRIMS.binding.group });
-    seatedDetail.push(`${D.prim}@${D.role}`); }
+    if (D.prim === 'embroidery') { const W = worked(D.role);
+      // a limb's garment is a part a side (`…_upperArmR`, `…_upperArmL`): the work goes on both
+      const parts = /_(upperArm|foreArm|thigh|shank|shin|meta)$/.test(W.part) ? [`${W.part}R`, `${W.part}L`] : [W.part];
+      // the ground a near-flush shell of the garment's own cloth; the motif on it in thread
+      for (const part of parts) for (const side of W.sides ?? ['R']) kit.push({ id: `emb${i}${D.role}${W.sides ? side : ''}${parts.length > 1 ? part.slice(-1) : ''}`, mode: 'shell', part, share: true, side, s: W.s, t: W.t, nt: W.t === 'wrap' ? 16 : 3, ns: W.mode === 'emblem' ? 6 : W.sides ? 10 : 2,
+        mugen: 0, thick: r6(0.001 * k), rad: r6(0.01 * k), group: groupOf(W.part), stack: false, ghost: true,
+        // the thread drawn to read: two pixels wide at a third-person 1080p figure (≈ 5 mm a pixel), lying just proud of the cloth
+        signature: { kind: 'motif', name: D.motif ?? 'vine', mode: W.mode, ...(W.at ? { at: W.at } : {}), size: r6(0.1 * k), w: r6(0.006 * k), lift: r6(0.003 * k), group: D.group ?? DETAIL_PRIMS.embroidery.group } }); }
+    seatedDetail.push(`${D.prim}${D.motif ? `(${D.motif})` : ''}@${D.role}`); });
   // with a detail list, the bindings are its own: the budget's trim edges stand down (the collar keeps its rib)
   const BINDINGS = new Set(['cuffs', 'hem', 'legHem', 'skirtHem', 'outerHem', 'outerCuffs']);
   if (detailed) { const rib = edges.collar; edges.collar = () => (worn.has('topCollar') || worn.has('outerCollar') ? false : rib()); for (const b of BINDINGS) edges[b] = () => false; }

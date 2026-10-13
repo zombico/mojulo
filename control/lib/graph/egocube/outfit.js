@@ -187,7 +187,10 @@ export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
   // fit and length from age and build; the drawn style a little stylized; the dress notes' derives on top
   const fit = Math.max(0, Math.min(1, (lithe ? 0.3 : heavy ? 0.65 : 0.5) + (elder ? 0.1 : youth ? -0.1 : 0) + (hasDerive(sheet, 'outfit.fit +') ? 0.15 : 0)));
   const dials = { stylize: 0.35, fit: Math.round(fit * 100) / 100, coverage: 1, ornament: Math.min(3, 1 + (F >= 0.5 ? 1 : 0) + (hasDerive(sheet, 'armor.ornament +') ? 1 : 0)) };
-  const focal = top.collar ? 'collar' : top.family === 'woven' && bound ? 'placket' : 'belt';
+  // the focal edge on what is WORN and seen: a collar only on cloth (a second skin has none), a placket only where the top
+  // shows (no closed outer layer over it); the belt otherwise
+  const topCloth = top && top.fit !== 'skin', topSeen = topCloth && !(outer && !outer.open);
+  const focal = (topCloth && top.collar) || outer?.collar ? 'collar' : topSeen && top.family === 'woven' && bound ? 'placket' : 'belt';
   // the feet: a creature's claws read bare; a person is shod, booted for the road and the fight, in shoes at court
   const human = sheet.ancestry?.door !== 'creature', feet = human ? (M >= 0.5 || ['explorer', 'outlaw', 'hero'].includes(a) ? 'boots' : 'shoes') : 'none';
   const language = { top, bottom, ...(outer ? { outer } : {}), feet, tuck: bound, focal };
@@ -246,6 +249,94 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [] });
   return { outfit, laws };
 }
+/** THE FRAME ADORNED: a beast is not clothed. Its body (the silhouette, the fur, the scales, the plates) is the costume,
+ * and what it wears accents the frame on its own landmarks: straps, bands, metal, a plate where it fights, what it
+ * carries. The same principles read the sheet as for a person's cut, with no cloth:
+ *   role       the gear the work asks (a frontline's plates, a flanker's baldric, a ranger's quiver and bow-arm bracer,
+ *              a support's harness to carry by, a caster's wrapped hands, a controller's arm rings)
+ *   station    metal grows with formality (a torc or a chain at court, arm rings between)
+ *   archetype  the one focal (BEAST_FOCAL)
+ *   order      symmetry: bound pairs, free one-sided notes
+ *   anatomy    a ruff takes no torc (it would vanish in the fur); a winged back carries nothing; a tail that must read
+ *              wears a ring at its root rather than nothing over it; chitin's straps are riveted
+ *   the frame  the law that keeps the body the show: the adornment's area at most a frame's budget */
+export const BEAST_FOCAL = Object.freeze({ ruler: 'chain', sage: 'medallion', magician: 'torc', hero: 'pauldron', outlaw: 'baldric', caregiver: 'medallion', innocent: 'medallion', lover: 'torc', explorer: 'harness', everyman: 'medallion', jester: 'armRings', creator: 'bracers' });
+const BEAST_GEAR = Object.freeze({
+  frontline: [{ kind: 'pauldron', why: 'the frontline takes the blow on the shoulder' }, { kind: 'bracers', why: 'the frontline guards with the forearms' }],
+  flanker: [{ kind: 'baldric', why: 'a flanker carries the blade across the back, light' }, { kind: 'wraps', why: 'a flanker binds the wrists for grip' }],
+  ranged: [{ kind: 'quiver', why: 'the ranger carries the arrows' }, { kind: 'bracers', why: 'the bow arm\'s guard', colour: 'leather' }],
+  support: [{ kind: 'harness', why: 'a harness to carry by: what the support hands out rides on it' }, { kind: 'satchel', why: 'what the support hands out is kept at the hip' }],
+  controller: [{ kind: 'armRings', why: 'the controller\'s bands of office on the arms' }],
+  caster: [{ kind: 'wraps', why: 'the caster binds the hands that cast', colour: 'secondary' }],
+  'non-combatant': [],
+});
+
+/** WARP AND DISTORT, the design phase's fantasy proportions: how far an archetype exaggerates (its ENERGY), and how a
+ * lineage distorts (heavy frames CHUNK, sleek ones FLARE) */
+export const ENERGY = Object.freeze({ jester: 1, hero: 0.85, outlaw: 0.85, magician: 0.75, explorer: 0.6, ruler: 0.6, lover: 0.55, creator: 0.5, sage: 0.45, innocent: 0.4, caregiver: 0.3, everyman: 0.25 });
+export const DISTORT = Object.freeze({ ursine: { chunk: 1.8, flare: 1.1 }, draconic: { chunk: 1.5, flare: 1.5 }, lupine: { chunk: 1.2, flare: 1.4 }, feline: { chunk: 1, flare: 1.6 }, avian: { chunk: 1, flare: 1.7 }, insectoid: { chunk: 1.1, flare: 1.8 } });
+export function distortOf(sheet) {
+  const f = sheet.facets, a = Math.max(0, Math.min(1, (ENERGY[f.archetype] ?? 0.4) + (['child', 'youth'].includes(f.age) ? 0.1 : 0) + (f.order >= 0.6 ? 0.1 : f.order < 0.3 ? -0.1 : 0)));
+  return { amount: Math.round(a * 100) / 100, side: 'R', ...(DISTORT[f.ancestry] ?? { chunk: 1.3, flare: 1.3 }) };
+}
+
+export function adornFromSheet(sheet, { coat } = {}) {
+  const f = sheet.facets, a = f.archetype, A = anatomyOf(sheet), free = f.order >= 0.5, side = 'R';
+  const tail = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan?.tail : null, tailSeen = SEEN_TAILS.has(tail);
+  const elder = ['seasoned', 'elder'].includes(f.age), youth = ['child', 'youth'].includes(f.age), heavy = ['stout', 'brute'].includes(f.build);
+  const F = Math.max(0, Math.min(1, (STATION[a] ?? 0.4) + (elder ? 0.15 : youth ? -0.15 : 0)));
+  const said = deriveOf(sheet, 'silhouette ='), silhouette = said && (ARCHETYPE_SHAPES[a] || []).includes(said) ? said : SHAPE[a] ?? 'column';
+  const pieces = [], has = (k) => pieces.some((p) => p.kind === k);
+  // the role's gear; a winged back carries nothing (the quiver moves to a hip satchel)
+  for (const g of BEAST_GEAR[f.role] ?? []) { if (A.wings && ['quiver', 'pack'].includes(g.kind)) { if (!has('satchel')) pieces.push({ kind: 'satchel', why: 'carried at the hip: the back is the wings\'' }); continue; } pieces.push({ ...g }); }
+  // a plate armours what the body does not: fur is the frame's display, scales all over and chitin its own armour
+  if (f.role === 'frontline' && (F >= 0.5 || heavy) && !A.fur && !A.scales && !A.chitin) pieces.push({ kind: 'chestPlate', why: `a plate over the breast: the ${heavy ? 'heavy frame' : `${a}'s station`} fights in the front` });
+  // station: metal on the frame (a torc or a chain at court, arm rings between); a ruff would swallow a torc
+  if (F >= 0.7 && !has('chain')) pieces.push(A.ruff ? { kind: 'chain', why: 'a chain over the ruff: the station a torc would lose in the fur' } : { kind: 'torc', why: `the ${a}'s station in metal at the throat` });
+  else if (F >= 0.45 && !has('armRings')) pieces.push({ kind: 'armRings', why: `bands of metal on the arms: the ${a}'s standing` });
+  // WHAT THE FRAME OFFERS: the body's own features are where adornment belongs. A tail that must read wears a ring near its
+  // root; scaled shins on a bird's legs are banded; bare digitigrade ankles under fur take anklets; chitin is strapped
+  // and riveted between its plates; scales all over take metal bands on the arms
+  const P = sheet.ancestry?.plan || {};
+  if (tailSeen && (free || F >= 0.5)) pieces.push({ kind: 'tailRing', why: 'the tail adorned, not hidden: a ring near its root' });
+  if (A.cover === 'scales' && A.where.has('shin') && !A.where.has('belly') && !has('anklets')) pieces.push({ kind: 'anklets', why: 'the scaled shins banded, as a bird\'s legs are ringed' });
+  else if (A.fur && P.tail === 'thin' && !has('anklets')) pieces.push({ kind: 'anklets', why: 'the bare ankles of a cat\'s legs belled with metal' });
+  if (A.chitin && !has('harness')) pieces.push({ kind: 'harness', why: 'straps between the plates, the shell showing through' });
+  if (A.scales && !has('armRings')) pieces.push({ kind: 'armRings', why: 'metal bands on scaled arms' });
+  // the archetype's one focal
+  const want = BEAST_FOCAL[a] === 'pauldron' && !has('pauldron') ? 'torc' : BEAST_FOCAL[a];
+  const focalKind = want === 'torc' && A.ruff ? 'chain' : want;
+  const own = pieces.find((p) => p.kind === focalKind);
+  if (own) Object.assign(own, { role: 'focal', ...(['pauldron', 'baldric', 'harness'].includes(focalKind) ? { colour: own.colour ?? 'secondary' } : {}) });
+  else pieces.push({ kind: focalKind, role: 'focal', why: focalKind === 'chain' ? 'the chain of office, near the face' : `the ${a}'s emblem${['torc', 'medallion'].includes(focalKind) ? ', near the face' : ''}` });
+  // one focal metal: a torc and a chain or medallion both at the throat, the focal keeps it
+  const throat = pieces.filter((p) => ['torc', 'chain', 'medallion'].includes(p.kind)); if (throat.length > 1) for (const p of throat) if (p.role !== 'focal') pieces.splice(pieces.indexOf(p), 1);
+  // a medallion where a harness crosses is mounted there, the harness's boss (a pendant on the straps, not on a chain)
+  { const h = pieces.find((p) => p.kind === 'harness'), m = pieces.find((p) => p.kind === 'medallion'); if (h && m) { m.mount = 'harness'; h.mounted = true; m.why = `${m.why}: mounted where the harness crosses`; } }
+  // chitin's straps riveted
+  if (A.chitin) for (const p of pieces) if (['harness', 'baldric'].includes(p.kind)) Object.assign(p, { studs: 5, why: `${p.why}, riveted across the plates` });
+  // order: bound pairs, free one asymmetric note
+  const asym = (p) => ['satchel', 'baldric'].includes(p.kind) || (['pauldron', 'armRings'].includes(p.kind) && !p.pair);
+  if (free && !pieces.some(asym)) { const r = pieces.find((p) => ['pauldron', 'armRings'].includes(p.kind)); if (r) r.why = `${r.why}, on one side: the free order's asymmetric note`; else pieces.push({ kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' }); }
+  if (!free) for (const p of pieces) if (['pauldron', 'armRings'].includes(p.kind)) p.pair = true;
+  // (no broadened shoulder line: a beast's own shoulders carry its silhouette, and its plates lie close on them)
+  // restraint: five pieces at most, so the frame shows (the focal, the role's first need, the station, the asymmetric note)
+  const rank = (p) => (p.role === 'focal' ? 0 : (BEAST_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 1 : ['tailRing', 'anklets'].includes(p.kind) || (p.kind === 'harness' && A.chitin) ? 1.5 : ['chestPlate', 'torc', 'chain', 'armRings'].includes(p.kind) ? 2 : asym(p) ? 3 : 5);
+  if (pieces.length > 5) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, 5)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
+  // repetition: the metal twice at least (a ring, studs, a band takes it)
+  const trims = () => pieces.filter((p) => (p.colour ?? DEFAULT[p.kind] ?? 'base') === 'trim').length + pieces.filter((p) => p.cordColour === 'trim').length + pieces.filter((p) => ['bracers', 'chestPlate', 'harness', 'baldric'].includes(p.kind) || (p.kind === 'pauldron' && p.role !== 'focal')).length;
+  if (trims() < 2) { const m = pieces.find((p) => ['medallion', 'chain'].includes(p.kind)); if (m) m.cordColour = 'trim'; }
+  if (trims() < 2 && pieces.length < 5 && !has('armRings')) pieces.push({ kind: 'armRings', colour: 'trim', role: 'detail', pair: !free, why: 'the metal repeated small on the arms, tying the adornment together' });
+  else if (trims() < 2) { const r = pieces.find((p) => p.role !== 'focal' && ['bracers', 'wraps', 'armRings', 'tailRing'].includes(p.kind)); if (r) r.colour = 'trim'; }
+  // WARP AND DISTORT: the focal exaggerated, the rest kept smaller (contrast of scale); the dominant side's pairs grow
+  // against the other's (the compile's asymmetry), heavy frames chunked, sleek ones flared
+  const distort = distortOf(sheet);
+  for (const p of pieces) p.scale = Math.round((p.role === 'focal' ? 1 + 0.9 * distort.amount : p.role === 'detail' ? 1 - 0.2 * distort.amount : 1 - 0.1 * distort.amount) * 100) / 100;
+  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin), distort }, pieces };
+  const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [], frame: true });
+  return { outfit, laws };
+}
+
 /** THE CUT FOR THE HERO DOOR: the same derived cut as an inline outfit card for a person's record (`spec.outfit`), its
  * cloth coloured by the palette's roles, its trims, buttons and buckles in the trim's metal, its leather the palette's */
 export function heroOutfitOf(outfit) {
@@ -253,5 +344,5 @@ export function heroOutfitOf(outfit) {
   const tones = { Top: P[C.Top ?? 'base'], Bottom: P[C.Bottom ?? 'secondary'], ...(L.outer ? { Outer: P[C.Outer ?? 'base'] } : {}), Trim: P.trim, Button: P.trim, Buckle: P.trim, Leather: P.leather, Shoes: P.leather };
   return { type: 'outfit', style: { id: 'designed', dials: outfit.cut.dials, language: L, tones: Object.fromEntries(Object.entries(tones).filter(([, v]) => v)) }, ...(outfit.cut.detail ? { detail: outfit.cut.detail } : {}) };
 }
-const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', sash: 'trim', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'secondary', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
+const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', harness: 'leather', torc: 'trim', armRings: 'trim', anklets: 'trim', tailRing: 'trim', chestPlate: 'secondary', sash: 'trim', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'secondary', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
 const defaultColour = (kind) => DEFAULT[kind] ?? 'base';

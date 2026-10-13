@@ -143,6 +143,49 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     changes.
   - Refusals name the primitive, the role, or a binding on a field. A role nothing covers is skipped with a word, and
     the trace lists the roles and the seated details.
+  - `embroidery`: a motif worked in thread on a role.
+    - The motifs (`MOTIFS`): vine, knot, key, wave, chevron, diamond, dots and star, each stroke data.
+    - On an edge it is a border, repeated at most a dozen times round a hem, cuff, collar or waist, or down both
+      sides of an opening. On the chest or back it is an emblem; on the yoke, sleeve band or skirt, a band.
+    - The thread is about two pixels at a third-person 1080p figure and lies on the cloth. Its carrier is a ghost
+      (no plate drawn), on both sleeves and legs.
+    - Shells take `share` windows (s and t as shares of the part, the paint's measure) and `ghost: true`. Both are
+      opt-in.
+  - The designer picks the focal edge from what is worn and seen. A long coat over a skirt clears it.
+- **A beast adorned, not clothed** (`egocube/outfit.js` `adornFromSheet`). A creature's frame is its costume, and the
+  Egocube adorns it on its own landmarks instead of dressing it. People keep the cut. An author can still give a
+  creature a cut.
+  - New catalogue pieces:
+    - a harness: one band each way, from the hip up the back, over the shoulder by the neck and down the front;
+    - a torc;
+    - arm rings;
+    - anklets: on the tarsus below a digitigrade hock;
+    - a tail ring;
+    - a split chest plate.
+  - A medallion or chain of office is a necklace hung from the nape. It is one loop in a tilted plane, laid on the
+    shoulders and chest and smoothed, beaded and linked, with the pendant at its lowest point. It is drawn through two
+    new data-driven signatures, `polyline` (a tube through computed points) and `disc`. With a harness worn, the
+    medallion is mounted where its straps cross.
+  - Read by principle: the role's gear, metal by station, the archetype's one focal (`BEAST_FOCAL`), and symmetry
+    from order. What the frame offers:
+    - a seen tail is ringed;
+    - a bird's scaled shins and a cat's bare ankles are banded;
+    - chitin is strapped and riveted;
+    - scales all over take metal bands;
+    - a ruff takes a chain, never a torc;
+    - a winged back carries nothing;
+    - a plate goes only where the body does not armour itself.
+  - A new law, "the frame shows", bounds the adornment's area. The value law counts the frame as the ground, and the
+    trim's repetition counts metal fittings. 48 rolls pass the laws, in 27 sets.
+  - On top (`onTop`, opt-in, set on every designed piece): an adornment clears the body detail pinned to its carrier
+    (fur tiles, locks, scales), so collars, belts and straps ride over the cover instead of folding into it. Stock and
+    authored kits are unchanged.
+  - Warp and distort (`intent.distort`, `ENERGY`, `DISTORT`), the design phase's fantasy proportions:
+    - the focal exaggerated up to 1.9×, the rest kept smaller;
+    - on the dominant side a pair grows and the other shrinks;
+    - heavy frames chunk and sleek ones flare.
+    How far comes from the archetype's energy, the order, the age and the lineage. A law checks that the focal is the
+    largest piece.
 - **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
   that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
   1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's

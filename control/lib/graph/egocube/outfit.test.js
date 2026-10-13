@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { outfitFromSheet, outfitPalette } from './outfit.js';
+import { outfitFromSheet, adornFromSheet, outfitPalette } from './outfit.js';
 import { planFromSheet } from './plan.js';
 import { compileOutfit, outfitLaws, OUTFIT_KIND_NAMES } from '../polygonizer/outfit-plan.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
@@ -51,9 +51,30 @@ describe('the outfit, designed from the sheet', () => {
     }
   });
 
-  it('compiles the cut onto the creature in layer order: second skin painted, cloth fitted, the worn pieces over it', () => {
-    const sheet = rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), call = planFromSheet(sheet, { dress: 'designed' });
-    const plan = call.create.spec.plan, built = compileOutfit(plan), L = plan.outfit.cut.language;
+  it('a beast is adorned, not clothed: its frame shows, the laws hold, and the frame offers its own places', () => {
+    const CLOTH = ['gown', 'robe', 'tunic', 'mantle', 'cloak', 'collar', 'sash'];
+    const sets = new Set();
+    for (const a of LINEAGES) for (let seed = 1; seed <= 8; seed++) {
+      const sheet = rollEgocube({ seed, facets: { ancestry: a } }); if (sheet.ancestry.door !== 'creature') continue;
+      const { outfit, laws } = adornFromSheet(sheet);
+      expect(laws.filter((l) => !l.ok).map((l) => `${a} ${seed}: ${l.law}: ${l.why}`)).toEqual([]);
+      expect(outfit.cut).toBeUndefined();
+      expect(outfit.pieces.filter((p) => CLOTH.includes(p.kind))).toEqual([]);
+      expect(laws.find((l) => l.law === 'the frame shows').ok).toBe(true);
+      sets.add(outfit.pieces.map((p) => p.kind).sort().join('+'));
+    }
+    expect(sets.size).toBeGreaterThan(15);
+    // the bird's scaled shins banded on the tarsus; chitin strapped between its plates; a planned beast is adorned
+    expect(adornFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } })).outfit.pieces.map((p) => p.kind)).toContain('anklets');
+    expect(adornFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'insectoid' } })).outfit.pieces.map((p) => p.kind)).toContain('harness');
+    const call = planFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), { dress: 'designed' }), plan = call.create.spec.plan;
+    expect(plan.outfit.cut).toBeUndefined();
+    expect(() => expandPlan(compileOutfit(plan))).not.toThrow();
+  });
+
+  it('a cut still compiles onto a creature when an author asks: second skin painted, cloth fitted, the worn pieces over it', () => {
+    const sheet = rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), base = planFromSheet(sheet, { dress: 'designed' }).create.spec.plan;
+    const plan = { ...base, outfit: outfitFromSheet(sheet).outfit }, built = compileOutfit(plan), L = plan.outfit.cut.language;
     expect(plan.style.drawn).toBe(true);
     expect(plan.adorn).toEqual([]);
     const ids = built.garments.map((g) => g.id);
