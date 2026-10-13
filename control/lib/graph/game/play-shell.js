@@ -297,7 +297,7 @@ export function playShellRuntime(cfg, K) {
     const deep = num(DEEP_KEY), won = run.at >= run.order.length;
     if (run.at > deep) keep(DEEP_KEY, run.at);
     if (env.result === 'success' && !won) { toast('cleared ' + run.at + ' of ' + run.order.length); launch(run.order[run.at]); return; }
-    const r = run, gains = applied ? (env.events || []).map(eventWords).filter(Boolean) : [];
+    const r = run, gains = applied ? gainsOf(env.events || []) : [];
     run = null; session = null;
     show('result');
     app.textContent = '';
@@ -498,13 +498,40 @@ export function playShellRuntime(cfg, K) {
   })();
 
   // ---- result ----
+  // what a level's envelope gained, in words: each item's net change a slice (a sword taken and then worn is +1 in the
+  // gear, nothing in the bag), the slice named when several are touched; the world's own memory (a chest's count, a
+  // broken block: flags keyed <level>|… or broke:…) kept quietly
+  function gainsOf(events) {
+    const net = {}, order = [], out = [];
+    for (const ev of events) {
+      if (ev.type !== 'grant' && ev.type !== 'consume') continue;
+      const k = ev.slice + '\u0001' + ev.item;
+      if (!(k in net)) { net[k] = 0; order.push(k); }
+      net[k] += (ev.type === 'grant' ? 1 : -1) * (ev.count === undefined ? 1 : ev.count);
+    }
+    const slices = {};
+    for (const k of order) if (net[k]) slices[k.split('\u0001')[0]] = 1;
+    const named = Object.keys(slices).length > 1;
+    for (const k of order) {
+      if (!net[k]) continue;
+      const [sl, item] = k.split('\u0001');
+      out.push((net[k] > 0 ? '+' : '−') + Math.abs(net[k]) + ' ' + item + (named ? ' · ' + sl : ''));
+    }
+    for (const ev of events) {
+      if (ev.type === 'grant' || ev.type === 'consume') continue;
+      if (ev.type === 'setFlag' && typeof ev.key === 'string' && (ev.key.indexOf('|') >= 0 || ev.key.indexOf('broke:') === 0)) continue;
+      const w = eventWords(ev);
+      if (w) out.push(w);
+    }
+    return out;
+  }
   function eventWords(ev) {
     const n = ev.count === undefined ? 1 : ev.count;
     if (ev.type === 'grant') return '+' + n + ' ' + ev.item;
     if (ev.type === 'consume') return '−' + n + ' ' + ev.item;
     if (ev.type === 'setStat') return ev.stat + (ev.delta !== undefined ? (ev.delta >= 0 ? ' +' : ' ') + ev.delta : ' ' + ev.value);
     if (ev.type === 'levelUp') return 'level up';
-    if (ev.type === 'setFlag') return ev.flag || 'flag set';
+    if (ev.type === 'setFlag') return typeof ev.key === 'string' ? ev.key.replace(/[-_:]+/g, ' ') : 'flag set';
     if (ev.type === 'recruit') return ((ev.member && ev.member.name) || ev.id || 'someone') + ' joined';
     if (ev.type === 'dismiss') return (ev.id || 'someone') + ' left';
     return null;   // promote: the result already says it
@@ -542,7 +569,7 @@ export function playShellRuntime(cfg, K) {
     const res = env.result === 'success' ? 'cleared' : env.result === 'fail' ? 'failed' : 'left';
     const idx = LEVELS.indexOf(lv), next = MAP ? null : LEVELS[idx + 1];   // a map goes on by its exits, not by order
     const shut = MAP && env.result === 'success' && env.exit ? (lv.exits || []).find((x) => x.id === env.exit) : null;
-    const gains = applied ? (env.events || []).map(eventWords).filter(Boolean) : [];
+    const gains = applied ? gainsOf(env.events || []) : [];
     const kids = [
       el('div', { cls: 'result-mark' + (env.result === 'success' ? '' : ' fail'), text: res }),
       el('h1', { text: lv.title }),

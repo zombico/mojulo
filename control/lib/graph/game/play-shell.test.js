@@ -141,3 +141,18 @@ describe('runs: the levels a pool each run draws from', () => {
     expect(script(emitPlayShell(GAME, LEVELS))).not.toContain('"run":');
   });
 });
+
+describe('the result screen\'s gains', () => {
+  // the shell's own function, out of its runtime source
+  const src = playShellRuntime.toString(), at = src.indexOf('function gainsOf'), end = src.indexOf('function statsTable');
+  const words = src.slice(src.indexOf('function eventWords'), end);
+  const gainsOf = new Function(`${words}\n${src.slice(at, src.indexOf('function eventWords'))}\nreturn gainsOf;`)();
+  it('each item\'s net change a slice, the slice named when several are touched; a flag by its own name; the world\'s memory quiet', () => {
+    expect(gainsOf([{ type: 'grant', slice: 'bag', item: 'coin', count: 3 }])).toEqual(['+3 coin']);
+    expect(gainsOf([
+      { type: 'grant', slice: 'bag', item: 'sword' }, { type: 'setFlag', slice: 'world', key: 'cellar|trunk:sword', value: 0 },
+      { type: 'grant', slice: 'gear', item: 'sword' }, { type: 'consume', slice: 'bag', item: 'sword' },
+      { type: 'grant', slice: 'bag', item: 'candle' }, { type: 'setFlag', slice: 'story', key: 'met-keeper', value: true },
+    ])).toEqual(['+1 sword · gear', '+1 candle · bag', 'met keeper']);
+  });
+});

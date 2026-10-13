@@ -33,12 +33,13 @@
  *   shop       buy: the currency var pays the price (the item's value when the stock names none) into the bag; a stock
  *              row with a count is a holder too (the shop's: `held:<menu>:<item>`), and runs out
  *   chest      take: one of the item from the chest (`held:<menu>:<item>`, filled with its holds) into the bag
- *   inventory  use: one of the item from the bag spent, and its use effects (play.items) done; a row with no use reads
+ *   inventory  use: one of the item from the bag spent, and its use effects (play.items) done; equip: worn in its slot
+ *              (what wore it back to the bag), unequip on a worn row (listed first, its slot named); a row with neither reads
  *   Each says why when its guard fails (a toast): too poor, none left.
  *   viewRows(play, menu)   → [{ item, name, form, count?, price?, verb?, about? }] a view's rows
  */
 import { readEffect, effectContext, lowerEffects, emptyFrag, tidy, menuVar, readCues } from './cues.js';
-import { readItems, itemOf, itemKey, heldVar, lowerMove, NOWHERE } from './items.js';
+import { readItems, itemOf, itemKey, heldVar, lowerMove, lowerEquips, NOWHERE, WORN } from './items.js';
 
 export const MENU_KINDS = Object.freeze({
   read: { about: 'words to read: a sign, a note, a plaque, a book (pages turn)', fields: 'text | pages', example: { id: 'plaque', kind: 'read', title: 'Brass plaque', text: 'Here the east wing burned, and was built again.' } },
@@ -125,10 +126,12 @@ export function readMenus(play) {
 export function lowerMenus(play, { places = [] } = {}) {
   const menus = readMenus(play), ctx = effectContext(play);
   // the items' uses: a use (a view's, or a cue's `use`) says used:<item>, and the item's effects follow
-  const items = readItems(play, (t, w) => readEffect(t, w, ctx)), uses = Object.values(items).filter((it) => it.use);
-  if (!menus.length && !uses.length) return null;
+  const items = readItems(play, (t, w) => readEffect(t, w, ctx)), uses = Object.values(items).filter((it) => it.use), gear = Object.values(items).some((it) => it.equip);
+  if (!menus.length && !uses.length && !gear) return null;
   const { phases, menuIds } = ctx, frag = emptyFrag();
   for (const it of uses) lowerEffects(it.use, `used:${it.key}`, frag, { phases, menuIds, places });
+  // the equipment's wearing: equip:<item> / unequip:<item> (items.js), its on and off effects
+  if (gear) lowerEquips(items, frag, (ts, on) => lowerEffects(ts, on, frag, { phases, menuIds, places }));
   for (const m of menus) {
     frag.vars[menuVar(m.id)] = 0;
     frag.reactions.push({ on: `menu-close:${m.id}`, do: 'set', var: menuVar(m.id), to: 0 });   // the page's back / escape
@@ -136,6 +139,7 @@ export function lowerMenus(play, { places = [] } = {}) {
     if (VIEWS.includes(m.kind)) viewRows(play, m).forEach((r, k) => {
       const on = `menu-act:${m.id}:${k}`;
       if (r.verb === 'take') lowerMove({ item: r.item, from: m.id, to: 'bag', on, deny: 'None left' }, frag);
+      else if (r.verb === 'equip' || r.verb === 'unequip') frag.reactions.push({ on, do: 'emit', type: `${r.verb}:${r.item}` });
       else if (r.verb === 'use') { const { ok } = lowerMove({ item: r.item, from: m.from, to: NOWHERE, on, deny: `No ${r.name} left` }, frag); frag.reactions.push({ on: ok, do: 'emit', type: `used:${r.item}` }); }
       else if (r.verb === 'buy') {
         const { ok } = lowerMove({ item: r.item, from: r.count ? m.id : NOWHERE, to: 'bag', on, also: [{ var: m.currency, gte: r.price }], deny: r.count ? `Not enough ${m.currency}, or sold out` : `Not enough ${m.currency}` }, frag);
@@ -173,7 +177,9 @@ export function viewRows(play, m) {
   const items = readItems(play), row = (id) => { const it = itemOf(items, id); return { item: it.key, name: it.name, form: it.form, ...(it.about ? { about: it.about } : {}) }; };
   if (m.kind === 'shop') return m.stock.map((s) => ({ ...row(s.item), price: s.price, ...(s.count ? { count: heldVar(m.id, s.item) } : {}), verb: 'buy' }));
   if (m.kind === 'chest') return m.holds.map((h) => ({ ...row(h.item), count: heldVar(m.id, h.item), verb: 'take' }));
-  return itemsNamed(play).map((k) => ({ ...row(k), count: heldVar(m.from, k), ...(itemOf(items, k).use ? { verb: 'use' } : {}) }));
+  // the bag's view: what it wears first (from the bag's own view only), then what it carries
+  const keys = itemsNamed(play), worn = m.from === 'bag' ? keys.filter((k) => itemOf(items, k).equip).map((k) => ({ ...row(k), name: `${itemOf(items, k).name} (${itemOf(items, k).equip.slot})`, count: heldVar(WORN, k), verb: 'unequip', worn: true })) : [];
+  return [...worn, ...keys.map((k) => { const it = itemOf(items, k); return { ...row(k), count: heldVar(m.from, k), ...(it.use ? { verb: 'use' } : it.equip && m.from === 'bag' ? { verb: 'equip' } : {}) }; })];
 }
 
 /** What opens each menu: the cues and the other menus' picks that name it. */

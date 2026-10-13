@@ -114,10 +114,10 @@ describe('collecting counts into the bag', () => {
 });
 
 describe('the bag carried, level to level', () => {
-  it('a move into or out of the bag says so, with the item and how many: bag:in:<item>:<n> / bag:out:<item>:<n>', () => {
+  it('a move says each holder it touches, with the item and how many: in:<holder>:<item>:<n> / out:…', () => {
     const { s, go } = bus(play, { gold: 20 });
-    go('menu-act:counter:0', 'gift', 'quaff');
-    expect(s.log.map((r) => r.type).filter((t) => t.startsWith('bag:'))).toEqual(['bag:in:tonic:1', 'bag:in:tonic:2', 'bag:out:tonic:1']);
+    go('menu-act:counter:0', 'gift', 'quaff', 'menu-act:trunk:1');
+    expect(s.log.map((r) => r.type).filter((t) => /^(in|out):/.test(t))).toEqual(['in:bag:tonic:1', 'in:bag:tonic:2', 'out:bag:tonic:1', 'in:bag:candle:1', 'out:trunk:candle:1']);
   });
   it('the bag mechanic consumes the slice, may give back grants and consumes, and marks the contract', () => {
     const store = { slices: [{ name: 'bag', kind: 'inventory' }] };
@@ -130,11 +130,12 @@ describe('the bag carried, level to level', () => {
   it('the page fills the bag from the slice at the start, and sends each bag:in / bag:out to the store', async () => {
     const { gameChannelScript } = await import('../../scene/channels/game.js');
     const s = gameChannelScript({ levelRef: 'x', consumes: [{ slice: 'bag' }], bag: { slice: 'bag' }, on: { 'goal:reached': { end: 'success' } } });
-    expect(s).toContain("B.state.vars['held:bag:' + k] = items[k]");
-    expect(s).toContain("emit({ type: m[1] === 'in' ? 'grant' : 'consume', slice: __GAME.bag.slice, item: m[2], count: Number(m[3]) })");
+    expect(s).toContain("B.state.vars['held:bag:' + k] = bag[k]");
+    expect(s).toContain("emit({ type: m[1] === 'in' ? 'grant' : 'consume', slice: into, item: m[3], count: Number(m[4]) })");
     // the page's own reading of the name, run
-    const re = new RegExp(s.match(/\/\^bag:\(in\|out\)[^/]*\//)[0].slice(1, -1));
-    expect(re.exec('bag:out:lamp-oil:2').slice(1)).toEqual(['out', 'lamp-oil', '2']);
+    const re = new RegExp(s.match(/\/\^\(in\|out\)[^/]*\//)[0].slice(1, -1));
+    expect(re.exec('out:bag:lamp-oil:2').slice(1)).toEqual(['out', 'bag', 'lamp-oil', '2']);
+    expect(re.exec('in:trunk:crest-key:1').slice(1)).toEqual(['in', 'trunk', 'crest-key', '1']);
     expect(gameChannelScript({ levelRef: 'x', on: { 'goal:reached': { end: 'success' } } })).not.toContain('held:bag:');
   });
   it('the store takes the envelope: what one level gained and spent is what the next starts with', async () => {
@@ -151,5 +152,61 @@ describe('one declaration a produced event', () => {
     const store = { slices: [{ name: 'bag', kind: 'inventory' }] };
     const c = composeMechanics([{ kind: 'collect', into: 'bag', pickups: [{ item: 'coin', at: [3, 0, 0] }] }, { kind: 'bag' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero', storeSchema: store });
     expect(c.produces).toEqual([{ type: 'grant', slice: 'bag' }, { type: 'consume', slice: 'bag' }]);
+  });
+});
+
+describe('equipment', () => {
+  const kit = {
+    items: {
+      sword: { equip: { slot: 'hand', on: { add: 'atk', by: 2 }, off: { add: 'atk', by: -2 } } },
+      axe: { equip: { slot: 'hand', on: { add: 'atk', by: 3 }, off: { add: 'atk', by: -3 } } },
+      cloak: { equip: { slot: 'back' } },
+    },
+    menus: [{ id: 'bag', kind: 'inventory' }],
+    cues: [{ id: 'arm', when: { on: 'arm' }, then: [{ give: 'sword' }, { give: 'axe' }, { give: 'cloak' }] }, { id: 'draw', when: { on: 'draw' }, then: { equip: 'sword' } }],
+  };
+  it('equip wears it in its slot and does its on effects; another in the slot sends the first back, its off effects done', () => {
+    const { s, go, held } = bus(kit, { atk: 1 });
+    go('arm', 'draw');
+    expect([held('bag', 'sword'), held('worn', 'sword'), s.vars.atk]).toEqual([0, 1, 3]);
+    go('equip:axe');
+    expect([held('worn', 'sword'), held('bag', 'sword'), held('worn', 'axe'), s.vars.atk]).toEqual([0, 1, 1, 4]);
+    go('equip:cloak');
+    expect([held('worn', 'axe'), held('worn', 'cloak')]).toEqual([1, 1]);
+    go('unequip:axe');
+    expect([held('worn', 'axe'), held('bag', 'axe'), s.vars.atk]).toEqual([0, 1, 1]);
+  });
+  it('the bag\'s view lists what is worn first, by slot, to unequip; equipment in the bag to equip', () => {
+    const rows = viewRows(kit, { kind: 'inventory', id: 'bag', from: 'bag' });
+    expect(rows.slice(0, 3).map((r) => [r.name, r.verb])).toEqual([['sword (hand)', 'unequip'], ['axe (hand)', 'unequip'], ['cloak (back)', 'unequip']]);
+    expect(rows.find((r) => !r.worn && r.item === 'axe').verb).toBe('equip');
+    const { go, held } = bus(kit, { atk: 0 });
+    go('arm', 'menu-act:bag:3');   // the bag's sword row
+    expect(held('worn', 'sword')).toBe(1);
+  });
+  it('says what is wrong', () => {
+    expect(() => readItems({ items: { sword: { equip: 'hand' } } })).toThrow(/equip is \{ slot/);
+    expect(() => readItems({ items: { sword: { equip: { slot: 'hand', grip: 2 } } } })).toThrow(/grip is not part of equipping/);
+    expect(() => readItems({ items: { tonic: { use: { say: 'x' }, equip: { slot: 'hand' } } } })).toThrow(/used up or worn, not both/);
+  });
+  it('the bag mechanic carries what is worn and what the chests hold; the page restores both', async () => {
+    const store = { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'gear', kind: 'inventory' }, { name: 'world', kind: 'flags' }] };
+    const c = composeMechanics([{ kind: 'bag', worn: 'gear', holders: 'world' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero', storeSchema: store });
+    expect(c.bag).toEqual({ slice: 'bag', worn: 'gear', holders: 'world' });
+    expect(c.consumes).toEqual([{ slice: 'bag' }, { slice: 'gear' }, { slice: 'world' }]);
+    expect(c.produces.map((e) => `${e.type}→${e.slice}`)).toEqual(['grant→bag', 'consume→bag', 'grant→gear', 'consume→gear', 'setFlag→world']);
+    expect(() => composeMechanics([{ kind: 'bag', worn: 'bag' }, { kind: 'reach-exit', at: [9, 0, 0] }], { player: 'hero', storeSchema: store })).toThrow(/worn is its own inventory slice/);
+    const { gameChannelScript } = await import('../../scene/channels/game.js');
+    const p = gameChannelScript({ levelRef: 'cellar', consumes: [{ slice: 'bag' }, { slice: 'gear' }, { slice: 'world' }], bag: c.bag, on: { 'goal:reached': { end: 'success' } } });
+    expect(p).toContain("on.push({ type: 'equipped:' + k })");
+    expect(p).toContain("B.state.vars['held:' + k.slice(pre.length)] = fl[k]");
+    expect(p).toContain("emit({ type: 'setFlag', slice: __GAME.bag.holders, key: __hk(h, m[3]), value: Number(state.vars['held:' + h + ':' + m[3]]) || 0 })");
+  });
+  it('the store keeps a chest\'s count as a flag by level and holder, and what is worn in its own slice', async () => {
+    const { buildGameStoreKernel } = await import('../../game/store-kernel.js');
+    const K = buildGameStoreKernel(), schema = { slices: [{ name: 'gear', kind: 'inventory' }, { name: 'world', kind: 'flags' }] };
+    const r = K.applyEvents(schema, K.createStore(schema), [{ type: 'grant', slice: 'gear', item: 'sword', count: 1 }, { type: 'setFlag', slice: 'world', key: 'cellar|trunk:candle', value: 0 }]);
+    expect(r.ok).toBe(true);
+    expect([r.state.gear.items, r.state.world.flags]).toEqual([{ sword: 1 }, { 'cellar|trunk:candle': 0 }]);
   });
 });

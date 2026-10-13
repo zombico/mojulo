@@ -623,14 +623,20 @@ const MECHANICS = {
   // slice's items in its bag (held:bag:<item>, playscape/ui/items.js), and every item that comes into or leaves the
   // bag on the bus (`bag:in` / `bag:out`: a buy, a take, a give, a use) goes back to the slice as grant / consume. A
   // collect into the same slice grants its own pickups (its bag counts are the same numbers).
+  // `worn`: an inventory slice what the player wears is carried in (playscape/ui/items.js equip; its on effects done
+  // again as a level starts); `holders`: a flags slice what each chest and counted shop of the level still holds is kept
+  // in, so a chest emptied stays empty
   bag: {
     role: 'emitter', requires: ['inventory'],
     lower(p, ctx) {
       const slice = ctx.resolve('inventory', p.slice, `bag[${ctx.i}]`);
+      const worn = p.worn === undefined ? null : ctx.resolve('inventory', p.worn, `bag[${ctx.i}].worn`);
+      const holders = p.holders === undefined ? null : ctx.resolve('flags', p.holders, `bag[${ctx.i}].holders`);
+      if (worn && worn === slice) throw new Error(`bag[${ctx.i}]: worn is its own inventory slice, not the bag's`);
       return {
-        produces: [{ type: 'grant', slice }, { type: 'consume', slice }],
-        consumes: [{ slice }],
-        bag: { slice },
+        produces: [{ type: 'grant', slice }, { type: 'consume', slice }, ...(worn ? [{ type: 'grant', slice: worn }, { type: 'consume', slice: worn }] : []), ...(holders ? [{ type: 'setFlag', slice: holders }] : [])],
+        consumes: [{ slice }, ...(worn ? [{ slice: worn }] : []), ...(holders ? [{ slice: holders }] : [])],
+        bag: { slice, ...(worn ? { worn } : {}), ...(holders ? { holders } : {}) },
       };
     },
   },

@@ -160,8 +160,9 @@ export function validateLevelContract(game, schema) {
   }
 
   // BAG: the inventory slice the player's bag is carried in (the bag mechanic): filled at the start, kept as it changes
-  if (game.bag !== undefined && !(game.bag && typeof game.bag.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.bag.slice))) {
-    errors.push('game.bag is { slice }: an inventory slice the level consumes (the bag carried in, and kept as it changes)');
+  const consumed = (sl) => (game.consumes || []).some((c) => c && c.slice === sl);
+  if (game.bag !== undefined && !(game.bag && typeof game.bag.slice === 'string' && consumed(game.bag.slice) && ['worn', 'holders'].every((k) => game.bag[k] === undefined || (typeof game.bag[k] === 'string' && consumed(game.bag[k]))))) {
+    errors.push('game.bag is { slice, worn?, holders? }: slices the level consumes (the bag and what is worn carried in, what its chests hold kept), each kept as it changes');
   }
   // AFTERMATH: the flags slice the level keeps its broken blocks in (the aftermath mechanic), restored on entry
   if (game.aftermath !== undefined && !(game.aftermath && typeof game.aftermath.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.aftermath.slice))) {

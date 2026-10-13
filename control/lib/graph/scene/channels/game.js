@@ -181,14 +181,22 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
     setTimeout(function () { try { __inputQueue.push.apply(__inputQueue, evs); } catch (e) { console.error('flags carried', e); } }, 0);
   });
 ` : ''}${game.bag ? `  // the BAG carried (the bag mechanic): the level starts with the slice's items in its bag (the bus's held:bag:<item>
-  // vars, set as the bus comes up), and each bag:in:<item>:<n> / bag:out:<item>:<n> the bus says goes back as a grant /
-  // consume
+  // vars, set as the bus comes up), what is worn in its worn slice (held:worn:<item>, and each one's equipped:<item> said
+  // so its on effects are done again), what its chests hold as the holders' flags left them; and each in:<holder>:<item>:<n>
+  // / out:… the bus says goes back: the bag's and the worn's as grant / consume, a chest's as its count now (setFlag)
+  const __hk = (h, item) => __GAME.levelRef + '|' + h + ':' + item;
   st.onStart.push(function (params) {
-    const s = params && params[__GAME.bag.slice], items = (s && s.items) || {};
+    const sl = (n) => (n && params && params[n]) || {};
+    const bag = sl(__GAME.bag.slice).items || {}, worn = sl(__GAME.bag.worn).items || {}, fl = sl(__GAME.bag.holders).flags || {};
     (function fill(n) {
       const B = window.__mojBus;
       if (!B) { if (n < 100) setTimeout(function () { fill(n + 1); }, 50); return; }
-      for (const k in items) if (items[k] > 0) B.state.vars['held:bag:' + k] = items[k];
+      for (const k in bag) if (bag[k] > 0) B.state.vars['held:bag:' + k] = bag[k];
+      const on = [];
+      for (const k in worn) if (worn[k] > 0) { B.state.vars['held:worn:' + k] = worn[k]; on.push({ type: 'equipped:' + k }); }
+      const pre = __GAME.levelRef + '|';
+      for (const k in fl) if (k.indexOf(pre) === 0 && typeof fl[k] === 'number') B.state.vars['held:' + k.slice(pre.length)] = fl[k];
+      if (on.length) try { __inputQueue.push.apply(__inputQueue, on); } catch (e) { console.error('worn', e); }
     })(0);
   });
   if (typeof __BUS !== 'undefined') {
@@ -197,8 +205,12 @@ ${game.chapters ? `  // CHAPTERS carried in (playscape/ui/chapters.js): a chapte
       const n0 = state.log.length, out = prevB(state, events);
       for (let i = n0; i < state.log.length; i++) {
         const ev = state.log[i];
-        const m = ev && typeof ev.type === 'string' ? /^bag:(in|out):([a-z0-9-]+):(\\d+)$/.exec(ev.type) : null;
-        if (m) emit({ type: m[1] === 'in' ? 'grant' : 'consume', slice: __GAME.bag.slice, item: m[2], count: Number(m[3]) });
+        const m = ev && typeof ev.type === 'string' ? /^(in|out):([a-z][a-z0-9-]*):([a-z0-9-]+):(\\d+)$/.exec(ev.type) : null;
+        if (!m) continue;
+        const h = m[2], into = h === 'bag' ? __GAME.bag.slice : h === 'worn' ? __GAME.bag.worn : null;
+        if (h === 'worn' && !into) continue;   // worn, and the game keeps no worn slice: this level's alone
+        if (into) emit({ type: m[1] === 'in' ? 'grant' : 'consume', slice: into, item: m[3], count: Number(m[4]) });
+        else if (__GAME.bag.holders) emit({ type: 'setFlag', slice: __GAME.bag.holders, key: __hk(h, m[3]), value: Number(state.vars['held:' + h + ':' + m[3]]) || 0 });
       }
       return out;
     };

@@ -83,6 +83,8 @@ export const CUE_THEN = Object.freeze({
   emit: 'a bus event, for the game\'s rules to react to',
   give: 'items into the bag: { give: item | { item, n? } } (play.items names them; any word is an item)',
   use: 'spend one of an item from the bag and do its use effects (play.items[item].use); when the bag has none it says so',
+  equip: 'wear an item from the bag in its slot (play.items[item].equip): what wore the slot goes back to the bag',
+  unequip: 'take a worn item off, back into the bag',
   weather: `the sky takes a state (${STATE_NAMES.join(', ')}) for \`for\` seconds, or until the cue ends: { is, for?, blend? } (blend: seconds the change takes, else the climate's)`,
   ...CAST_THEN,
   ...STAT_THEN,
@@ -228,6 +230,10 @@ export function readEffect(t, where, ctx = {}) {
     if (!isStr(t.use)) throw new Error(`${where}.use is an item`);
     return { kind: 'use', item: itemKey(t.use), page: true };
   }
+  if (k === 'equip' || k === 'unequip') {
+    if (!isStr(t[k])) throw new Error(`${where}.${k} is an item`);
+    return { kind: 'wear', verb: k, item: itemKey(t[k]), page: true };
+  }
   if (k === 'phase') {
     if (!phases.includes(t.phase)) throw new Error(`${where}.phase '${t.phase}' is not a phase of this play (${phases.join(', ')})`);
     return { kind: 'phase', phase: t.phase, page: false };
@@ -361,6 +367,7 @@ export function lowerEffects(ts, on, frag, { phases = ['playing'], menuIds = new
     if (t.kind === 'set') { frag.reactions.push({ on, do: 'set', var: t.var, to: t.to }); continue; }
     if (t.kind === 'add') { frag.reactions.push({ on, do: 'inc', var: t.var, by: t.by, ...(t.min !== undefined ? { min: t.min } : {}), ...(t.max !== undefined ? { max: t.max } : {}) }); continue; }
     if (t.kind === 'emit') { frag.reactions.push({ on, do: 'emit', type: t.event }); continue; }
+    if (t.kind === 'wear') { frag.reactions.push({ on, do: 'emit', type: `${t.verb}:${t.item}` }); continue; }
     if (t.kind === 'give') { lowerMove({ item: t.item, n: t.n, from: NOWHERE, to: 'bag', on }, frag); continue; }
     if (t.kind === 'use') { const { ok } = lowerMove({ item: t.item, from: 'bag', to: NOWHERE, on, deny: `No ${t.item.replace(/-/g, ' ')} left` }, frag); frag.reactions.push({ on: ok, do: 'emit', type: `used:${t.item}` }); continue; }
     if (t.kind === 'weather') {

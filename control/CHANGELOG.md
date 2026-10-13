@@ -449,12 +449,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **The bag carried, level to level.** The `bag` mechanic (`{ kind: 'bag', slice? }`) consumes an inventory slice
   and declares its grants and consumes (`game.bag: { slice }`).
   - At the start the page fills the bag from the slice.
-  - Every item into or out of the bag (a buy, a take, a give, a use) is said on the bus as `bag:in:<item>:<n>` /
-    `bag:out:<item>:<n>`. The game channel sends each one as a store `grant` / `consume`, so the next level starts
-    with what this one ended with.
+  - Every item into or out of the bag (a buy, a take, a give, a use) is said on the bus, and the game channel sends each
+    one as a store `grant` / `consume`, so the next level starts with what this one ended with.
   - A quick collect game carries its bag; in a run, the coins of one stretch are in the bag of the next.
   - Two mechanics producing the same event into the same slice now declare it once (unbounded when either is). Before,
     a collect and the bag into one inventory failed the game's verification gate.
+- **Equipment.** An item may be worn: `equip: { slot, on?, off? }` (`kind: 'equipment'`).
+  - Equipping moves it from the bag to the `worn` holder and does its `on` effects (`add atk 2`). Whatever wore that
+    slot goes back to the bag first, with its `off` effects.
+  - The bag's view lists what is worn first, with its slot, to unequip, and equipment in the bag to equip. Cue effects
+    `equip` / `unequip` do the same.
+- **What is worn and what chests hold, carried.** The bag mechanic takes `worn: '<inventory slice>'` and
+  `holders: '<flags slice>'`.
+  - Worn items go to their own slice. As a level starts they are worn again and their `on` effects done again.
+  - Each chest's and counted shop's holdings are kept as a flag `<levelRef>|<holder>:<item>` = what it holds now, so a
+    chest emptied stays empty when the level is entered again.
+  - Every holder a move touches says `in:<holder>:<item>:<n>` / `out:…` (this was `bag:in` / `bag:out`).
+- **The result screen** lists each item's net change a slice (a sword taken and worn is "+1 sword · gear"), a flag by
+  its own name (it said "flag set" for every flag: it read `ev.flag`, the store's field is `key`), and keeps the
+  world's memory (a chest's count, a broken block) quiet.
 
 ### Game intent: the cube as a gameworld's design contract
 
