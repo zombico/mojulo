@@ -80,10 +80,11 @@ describe("furnishing: 'composed' in a house", () => {
   });
 
   it('is deterministic, and a different house seed refurnishes it', () => {
-    const at = (seed) => JSON.stringify(composedAssets(structurizeFloorplan({ ...ONE, seed }, { furnish: true, style: 'brick', furnishing: 'composed' }).faces));
-    expect(at(3)).toBe(at(3));
-    const variants = new Set([1, 2, 3, 4, 5, 6].map(at));
-    expect(variants.size).toBeGreaterThan(1);
+    // modern: its sofas are plain frames (a tufted chesterfield costs seconds and adds nothing to the concept)
+    const at = (seed) => JSON.stringify(composedAssets(structurizeFloorplan({ ...ONE, seed }, { furnish: true, style: 'modern', furnishing: 'composed' }).faces));
+    const one = at(1);
+    expect(at(1)).toBe(one);
+    expect(at(2)).not.toBe(one);
   });
 
   it('seats one table with one chair, and names what stands', () => {
@@ -102,8 +103,9 @@ describe("furnishing: 'composed' in a house", () => {
       { furnish: true, style: 'modern', furnishing: 'composed', ...(furniture ? { furniture } : {}) });
     const base = composedAssets(withSofa(null, null).faces).length;
     expect(composedAssets(withSofa({ sofa: 'omit', 'easy-chair': 'omit', 'coffee-table': 'omit', bookcase: 'omit', media: 'omit' }, null).faces)).toEqual([]);
-    expect(composedAssets(withSofa({ sofa: 'omit' }, { sofa: { like: 'chesterfield' } }).faces).length).toBeGreaterThan(0);
-    expect(composedAssets(withSofa(null, { sofa: { like: 'chesterfield', finish: { fabric: 'tartan' } } }).faces).length).not.toBe(base);
+    // a tuxedo, not the modern house's own settee, so the room's pick shows in the count
+    expect(composedAssets(withSofa({ sofa: 'omit' }, { sofa: { like: 'tuxedo' } }).faces).length).toBeGreaterThan(0);
+    expect(composedAssets(withSofa(null, { sofa: { like: 'tuxedo', finish: { fabric: 'tartan' } } }).faces).length).not.toBe(base);
   });
 
   it('refuses a bad language or override, naming what is valid', () => {

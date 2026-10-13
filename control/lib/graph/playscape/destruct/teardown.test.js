@@ -15,15 +15,17 @@ const PIECES = {
   cabinet: { id: 'cabinet', unit: 'mm', build: { type: 'carcass', w: 800, h: 1800, d: 400, doors: 2, shelves: 3 } },
   sofa: { id: 'sofa', unit: 'mm', build: { type: 'sofa', seats: 3 } },
 };
+// one piece per builder: the teardown reads the manual the same way whatever the builder, so a second carcass adds nothing
+const NAMES = Object.keys(PIECES).filter((k, i, all) => all.findIndex((x) => PIECES[x].build.type === PIECES[k].build.type) === i);
 const plans = {};
 
 describe('teardown: a frame taken apart in its manual\'s order', () => {
   beforeAll(async () => {
     await ensureExactKernel();
-    for (const [k, spec] of Object.entries(PIECES)) plans[k] = teardownPlan(spec);
+    for (const k of NAMES) plans[k] = teardownPlan(PIECES[k]);
   });
 
-  for (const name of Object.keys(PIECES)) {
+  for (const name of NAMES) {
     describe(name, () => {
       it('steps are the manual\'s fit and join steps, in its order, adding the same parts', () => {
         const m = manualPlan(PIECES[name]).steps.filter((s) => s.kind !== 'anchor');
@@ -132,10 +134,11 @@ describe('teardown: the word on a workbench frames entry', () => {
   });
 
   it('a played show rests in place and moves every part\'s face groups on one clock', () => {
+    const piece = (fs) => fs.filter((f) => !f.studio);   // the floor grid grows to hold the piece apart
+    const rest = sha(piece(faces([sofa]))), played = {};
     for (const show of ['assemble', 'disassemble']) {
-      const s = W.assembleWorkbenchScene({ frames: [{ ...sofa, teardown: show }] });
-      const piece = (fs) => fs.filter((f) => !f.studio);   // the floor grid grows to hold the piece apart
-      expect(sha(piece(s.faces))).toBe(sha(piece(faces([sofa]))));
+      const s = played[show] = W.assembleWorkbenchScene({ frames: [{ ...sofa, teardown: show }] });
+      expect(sha(piece(s.faces))).toBe(rest);
       const groups = new Set(s.faces.map((f) => f.group));
       expect(s.movers.length).toBeGreaterThan(10);
       for (const mv of s.movers) {
@@ -148,7 +151,7 @@ describe('teardown: the word on a workbench frames entry', () => {
       expect(s.movers.every((mv) => (show === 'assemble' ? mv.path.at(-1) : mv.path[0]).every((x) => x === 0))).toBe(true);
     }
     // the cushions' extras (cord, buttons) ride with their cushion
-    const s = W.assembleWorkbenchScene({ frames: [{ ...sofa, teardown: 'assemble' }] }), p = teardownPlan(sofa);
+    const s = played.assemble, p = teardownPlan(sofa);
     for (const [g, owner] of Object.entries(p.owners)) {
       const a = s.movers.find((m) => m.group === g), b = s.movers.find((m) => m.group === owner);
       if (a && b) expect(a.path).toEqual(b.path);

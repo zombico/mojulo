@@ -9,9 +9,14 @@ import { atlasField } from '../terrain/terrain-atlas.js';
 import { assembleTerrainWorld } from '../terrain/terrain-world.js';
 import { terrainChannelScript } from '../scene/channels/terrain-lod.js';
 
+// the tuft's code paths are its head (spike, panicle, awn, plume, none: the turf): one kind of each, from the table
+const BY_HEAD = new Map();
+for (const [kind, G] of Object.entries(GRASSES)) if (!BY_HEAD.has(G.head ?? null)) BY_HEAD.set(G.head ?? null, kind);
+const SAMPLED = [...BY_HEAD.values()];
+
 describe('the tuft', () => {
-  it('every kind grows a ladder that thins level by level, at unit height, the same bytes twice', () => {
-    for (const kind of Object.keys(GRASSES)) {
+  it('a kind of each head grows a ladder that thins level by level, at unit height, the same bytes twice', () => {
+    for (const kind of SAMPLED) {
       const lad = grassLadder(kind, { seed: 3 });
       expect(lad.L2.length).toBeGreaterThan(lad.L1.length); expect(lad.L1.length).toBeGreaterThan(lad.L0.length); expect(lad.LF.length).toBe(3);
       const top = Math.max(...lad.L2.flatMap((t) => t.p.map((p) => p[2]))); expect(top).toBeGreaterThan(0.7); expect(top).toBeLessThan(1.35);
@@ -43,7 +48,7 @@ describe('short grass and the stylized style', () => {
     let n = 0; for (let x = -600; x < 600; x += 80) n += P.plantsIn(x, 40, 16).length / 9; expect(n).toBeGreaterThan(50);
   });
   it('stylized: any kind, blades lit as the ground (normals up), more saturated, no heads unless a plume', () => {
-    for (const kind of Object.keys(GRASSES)) {
+    for (const kind of SAMPLED) {
       const lad = grassLadder(kind, { seed: 2, style: 'stylized' }); for (const t of lad.L2) expect(t.n[2]).toBeCloseTo(1, 6);
       const S = stylize(GRASSES[kind]); if (GRASSES[kind].head !== 'plume') expect(S.culms).toBe(0);
       const spread = (c) => Math.max(...c) - Math.min(...c); expect(spread(S.colors.tip)).toBeGreaterThanOrEqual(spread(GRASSES[kind].colors.tip));
@@ -71,11 +76,12 @@ describe('the grass kernel', () => {
   it('a clump shares its tint and leans; lean stays small', () => {
     for (const a of sample(P, temperate, 30)) for (let q = 0; q < a.length; q += 9) { expect(a[q + 6]).toBeGreaterThanOrEqual(0); expect(a[q + 6]).toBeLessThanOrEqual(9); expect(a[q + 7]).toBeLessThan(20); }
   });
-  it('the climate picks the kinds: a tropical lowland grows tall grass, arid country needlegrass', () => {
-    const kinds = (world) => { const f = atlasField({ world }); const Vf = grassConfig(f, TERRAIN_GRASS_DEFAULTS); const got = new Set(); for (const a of sample(grassKernelOf(f, Vf), f)) for (let q = 0; q < a.length; q += 9) if (a[q + 2] < 500) got.add(Vf.species[a[q + 4]].name); return got; };
-    expect(kinds({ features: [{ feature: 'volcano' }], climate: 'tropical', seed: 'kinabalu' }).has('elephant')).toBe(true);
-    expect(kinds({ features: [{ feature: 'river' }], climate: 'arid', seed: 'nile' }).has('needlegrass')).toBe(true);
-  }, 120_000);   // composes two worlds: about 9 s alone
+  it('the climate picks the kinds: arid country grows needlegrass, the temperate river valley none', () => {
+    const kinds = (f) => { const Vf = grassConfig(f, TERRAIN_GRASS_DEFAULTS); const got = new Set(); for (const a of sample(grassKernelOf(f, Vf), f)) for (let q = 0; q < a.length; q += 9) if (a[q + 2] < 500) got.add(Vf.species[a[q + 4]].name); return got; };
+    expect(kinds(atlasField({ world: { features: [{ feature: 'river' }], climate: 'arid', seed: 'nile' } })).has('needlegrass')).toBe(true);
+    expect(kinds(temperate).has('needlegrass')).toBe(false);   // not a temperate row
+    expect(kinds(temperate).size).toBeGreaterThan(0);
+  }, 60_000);   // composes one world
 });
 
 describe('terrain: grass is opt-in', () => {

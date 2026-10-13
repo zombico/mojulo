@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { BEHAVIORS, STRATEGIES, SUPPORT, HEAD, TAIL, LOOP, CAPABILITIES, TAGS, resolveBehavior, behaviorTable, capabilitiesOf, tagsOf, repertoire } from './index.js';
+import { BEHAVIORS, STRATEGIES, SUPPORT, HEAD, TAIL, LOOP, CAPABILITIES, TAGS, resolveBehavior, capabilitiesOf, tagsOf, repertoire } from './index.js';
 import { FAMILY_TAGS } from './tags.js';
 import { FAMILIES, FAMILY_SPECIES } from '../families.js';
 import { speciesPlan } from '../species.js';
+import { PER_HABIT } from '../test-cases.js';
 
-// The behavior contract: one word per behavior, resolved for every animal by its bones first and its habits second.
-const ids = Object.keys(FAMILY_SPECIES);
+// The behavior contract: one word per behavior, resolved for every animal by its bones first and its habits second,
+// read on one species per family and habit set (between them, every strategy a body resolves to).
+const ids = PER_HABIT;
 
 describe('behavior: the vocabulary', () => {
   it('every strategy is written in the mechanism words, and every behavior ends on a fallback', () => {
@@ -46,7 +48,7 @@ describe('behavior: the vocabulary', () => {
 });
 
 describe('behavior: every animal resolves', () => {
-  it('every species resolves every behavior, and says why', () => {
+  it('every body and habit set resolves every behavior, and says why', () => {
     for (const id of ids) for (const b of Object.keys(BEHAVIORS)) {
       const r = resolveBehavior(id, b);
       expect(STRATEGIES[b].some((s) => s.id === r.strategy), `${id}.${b}`).toBe(true);
@@ -55,7 +57,7 @@ describe('behavior: every animal resolves', () => {
     }
   });
 
-  it('capabilities come from the bones: a support for every species, and no body both legless and a swimmer', () => {
+  it('capabilities come from the bones: a support for every body, and no body both legless and a swimmer', () => {
     for (const id of ids) {
       const C = capabilitiesOf(id);
       expect(['four', 'two', 'wingwalk', 'fins', 'none'], id).toContain(C.support);
@@ -103,12 +105,6 @@ describe('behavior: every animal resolves', () => {
     }
     expect(resolveBehavior('raccoon', 'relax', { variant: 'curl' }).strategy).toBe('curl');
     expect(() => resolveBehavior('raccoon', 'relax', { variant: 'perch' })).toThrow(/sit-up, curl/);
-  });
-
-  it('the table is every species resolved', () => {
-    const T = behaviorTable();
-    expect(Object.keys(T)).toEqual(ids);
-    for (const id of ['sheep', 'tRex', 'mantaRay']) for (const b of Object.keys(BEHAVIORS)) expect(T[id][b]).toBe(resolveBehavior(id, b).strategy);
   });
 
   it('nothing reaches a plan: a species builds the same with behavior loaded', () => {

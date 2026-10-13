@@ -16,9 +16,9 @@ import { buildRestaurant } from '../polygonizer/floorplan-restaurant.js';
 import { buildMallTwoLevel } from '../polygonizer/floorplan-mall.js';
 import { planFractalSchoolComplex } from '../architecture/fractal-school.js';
 
+// one building per builder (a store's card is data its builder reads; a two-level mall is the mall builder's other path)
 const BUILDINGS = {
   store: { kind: 'store', title: 'Pages', card: 'bookstore' },
-  apparel: { kind: 'store', title: 'Threads', card: 'apparel', width: 30, depth: 50 },
   restaurant: { kind: 'restaurant', title: 'Corner café' },
   mall: { kind: 'mall', title: 'Arcade' },
   mall2: { kind: 'mall', title: 'Atrium', levels: 2 },
@@ -214,7 +214,7 @@ describe('Open and next: what the program adds, taught by one card', () => {
     expect(nextSteps(BUILDINGS.mall2, reads.mall2).map((s) => s.id)).toEqual(['program-rules', 'sheets']);
     const bare = { ...BUILDINGS.mall, cards: false };
     expect(openConcerns(bare, readStructure(bare)).map((c) => c.id)).toContain('fit-out');
-    const noCast = { ...BUILDINGS.apparel, cast: false };
+    const noCast = { kind: 'store', title: 'Threads', card: 'apparel', width: 30, depth: 50, cast: false };
     expect(openConcerns(noCast, readStructure(noCast)).map((c) => c.id)).toContain('cast');
     for (const s of nextSteps(BUILDINGS.store, reads.store)) expect(s.card).toBe(COMMERCIAL_CARD);
   });
@@ -232,7 +232,7 @@ describe('reading changes nothing a kernel builds', () => {
     expect(held.objects.length).toBeGreaterThan(0);
   });
   it("a two-level mall's structure rides beside the same faces", () => {
-    const b = buildMallTwoLevel({}, {});
+    const b = buildMallTwoLevel({}, { cards: false });   // the shell alone: the slab and its holes are the structure's, not the fit-out's
     expect(b.levels.map((l) => l.index)).toEqual([0, 1]);
     expect(b.levels[1].structure.slabHoles.length).toBe(3);   // the atrium void and the two lift shafts
   });

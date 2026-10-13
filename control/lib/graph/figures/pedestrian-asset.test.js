@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
-import { pedestrianFaces, CLOAKS, HEADWEAR } from './pedestrian-asset.js';
+import { pedestrianFaces, CLOAKS, HEADWEAR, POSES } from './pedestrian-asset.js';
 
 const hash = (x) => createHash('sha1').update(JSON.stringify(x)).digest('hex');
 const pal = { skin: '#c08a64', shirt: '#d8cdb4', skirt: '#d8cdb4', forearm: '#c08a64', thigh: '#c08a64', shin: '#c08a64', pants: '#c08a64', shoe: '#4a3220', cloak: '#6a5a48', headwear: '#1c1a18' };
@@ -29,8 +29,10 @@ describe('pedestrian wraps: a cloak from the shoulders, a covering for the head'
     }
   });
 
-  it('bakes the same wrap the same each time, in every pose', () => {
-    for (const pose of ['idleL', 'strollR', 'stoop', 'hoe', 'carry']) {
+  it('bakes the same wrap finite in an upright pose and one hinged at the hip', () => {
+    const poses = Object.keys(POSES).filter((k, i, all) => all.findIndex((x) => !POSES[x].hinge === !POSES[k].hinge) === i);
+    expect(poses).toHaveLength(2);
+    for (const pose of poses) {
       const a = pedestrianFaces({ lod: 'mini', cut: 'ankle', pose, palette: pal, cloak: 'hip', headwear: 'veil' });
       expect(a.every((f) => f.corners.every((c) => c.every(Number.isFinite))), pose).toBe(true);
     }

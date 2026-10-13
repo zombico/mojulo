@@ -133,7 +133,7 @@ describe('historic city: the Forum Romanum at 79 CE (placeholders, measured)', (
     expect(w.repeats.length).toBe(plan.repeats.length);
     expect(w.repeats.every((r) => r.template.length > 0 && r.transforms.length > 0)).toBe(true);
     expect(w.cameras[0].name).toBe('forum');
-    const css = assembleHistoricCityScene({ culture: 'forum' });
+    const css = assembleHistoricCityScene({ culture: 'forum', shade: false });   // the stand-ins are the claim: no shade map baked
     expect(css.repeats).toBeUndefined();
     // the stand-ins: a column's drum on the CSS page, the full column only in the World's template
     const lows = plan.repeats.filter((r) => !r.world).reduce((n, r) => n + r.transforms.length * r.low.length, 0);

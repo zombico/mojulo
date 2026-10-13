@@ -5,6 +5,7 @@ import { assembleCityScene } from './scene.js';
 import { segmentLevel } from './level.js';
 import { designCity } from './design.js';
 import { cityGreen } from './green.js';
+import { resolveGrammar } from './grammars.js';
 import { hexToRgb } from '../../polygonizer/vexar.js';
 
 const leaf = { corners: [], fill: '#4f7a3a' }, petal = { corners: [], fill: '#e8b8c8' }, shadePetal = { corners: [], fill: '#736468' }, bark = { corners: [], fill: '#5a4a3c' }, tile = { corners: [], fill: '#ffffff', texture: 'bark-oak' };
@@ -37,7 +38,9 @@ describe('foliage through the year', () => {
   });
   it('a winter city stamps bare deciduous crowns: fewer faces than its summer', () => {
     const sum = (s) => s.repeats.reduce((a, r) => a + r.template.length, 0);
-    expect(sum(assembleCityScene(recipe({ season: 'winter' })))).toBeLessThan(sum(assembleCityScene(recipe({ season: 'summer' }))));
+    // a few streets of one deciduous species (Paris's first) are enough to bare: each species grown is a fixed cost
+    const small = { board: { cols: 3, rows: 2 }, grammar: { from: 'paris', green: { trees: resolveGrammar('paris').green.trees.slice(0, 1) } } };
+    expect(sum(assembleCityScene(recipe({ season: 'winter', ...small })))).toBeLessThan(sum(assembleCityScene(recipe({ season: 'summer', ...small }))));
   });
 });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { inferCity } from './card.js';
 import { designCity } from './design.js';
+import { GRAMMAR_IDS, resolveGrammar } from './grammars.js';
 import { cityTraffic } from './traffic.js';
 import { TRAFFIC, buildSignals, pairLanes, laneCapacity, deriveClearance, createTrafficModel, laneTurns, armTurns, stepTrafficTurning, phaseAt, carFootprint, rectsTouch } from '../../scene/channels/traffic-model.js';
 
@@ -17,8 +18,11 @@ function cityModel(grammar, share = 0.5) {
   return { d, T, lanes, signals, withTurns, model, cars };
 }
 
+// one city per side of the road a grammar drives on (the near side flips with it), the first grammar of each
+const BY_SIDE = Object.values(GRAMMAR_IDS.reduce((o, g) => { const side = resolveGrammar(g).traffic; o[side] ??= g; return o; }, {}));
+
 describe('cars turn at a junction\'s near side, on their own green, and never touch', () => {
-  for (const grammar of ['paris', 'london']) {
+  for (const grammar of BY_SIDE) {
     it(`${grammar}: two minutes, every step`, () => {
       const w = cityModel(grammar), M = w.model, T = w.T;
       // every turn is onto a perpendicular lane that crosses the car's own inside one of its junction boxes
@@ -41,7 +45,10 @@ describe('cars turn at a junction\'s near side, on their own green, and never to
         });
         if (step % 6) continue;
         const fps = M.cars.map((c) => carFootprint(w.lanes[c.lane], c.s, c.len, T.CAR_WID, T));
-        for (let i = 0; i < fps.length; i++) for (let j = i + 1; j < fps.length; j++) expect(rectsTouch(fps[i], fps[j]), `t ${t.toFixed(2)}: cars ${i} (lane ${M.cars[i].lane}) and ${j} (lane ${M.cars[j].lane})`).toBe(false);
+        // gathered, then held at once: an expect per pair is most of the run's time
+        const touching = [];
+        for (let i = 0; i < fps.length; i++) for (let j = i + 1; j < fps.length; j++) if (rectsTouch(fps[i], fps[j])) touching.push(`t ${t.toFixed(2)}: cars ${i} (lane ${M.cars[i].lane}) and ${j} (lane ${M.cars[j].lane})`);
+        expect(touching).toEqual([]);
       }
       expect(turned).toBeGreaterThan(5);
       // and the city keeps moving: no lane locks (every car covers ground over the last half minute)
@@ -50,10 +57,10 @@ describe('cars turn at a junction\'s near side, on their own green, and never to
       const still = M.cars.filter((c, i) => c.lane === s0[i][0] && Math.abs(c.s - s0[i][1]) < 0.5).length;
       expect(still / M.cars.length).toBeLessThan(0.15);
       process.stdout.write(`TURNS ${grammar} ${turned} turns, ${M.cars.length} cars, ${still} still\n`);
-    }, 120000);
+    });
   }
   it('replays: the same clock, the same cars, after a capture went back to zero', () => {
-    const w = cityModel('paris'), M = w.model;
+    const w = cityModel(BY_SIDE[0]), M = w.model;
     stepTrafficTurning(M, 60);
     const at60 = M.cars.map((c) => [c.lane, +c.s.toFixed(6)]);
     stepTrafficTurning(M, 5);   // backwards: restarts

@@ -50,8 +50,14 @@ describe('character-sheet body channel (C1)', () => {
     const svg = renderBase();
     // 2 outfits × 4 views of a fleshed protoform = thousands of lit polygons.
     expect(polyCount(svg)).toBeGreaterThan(1000);
-    // control mode (the paint scaffold) also renders the figures.
-    expect(polyCount(renderScaffoldSvg(sheet(), { control: true }))).toBeGreaterThan(1000);
+    // control mode (the paint scaffold) also renders the figures: one outfit row is enough to show it.
+    const oneRow = sheet({
+      character: {
+        id: 'mechanic', description: 'stocky mature female harbor mechanic, short hair', rig: { proto: BODY },
+        outfits: [{ id: 'work', description: 'jacket over tank, baggy trousers', garment: ['tank', 'trousersBaggy'] }],
+      },
+    });
+    expect(polyCount(renderScaffoldSvg(oneRow, { control: true }))).toBeGreaterThan(1000);
   });
 
   it('per-outfit garment changes the row while the body stays the same', () => {

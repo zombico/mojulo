@@ -108,10 +108,16 @@ describe('proportions: the rails over a room kit', () => {
 
 describe('proportions: each kit offers only what it draws', () => {
   const sig = (p) => JSON.stringify([p.faces.length, (p.lights || []).length, p.faces.map((f) => f.corners)]);
+  // each part once, in the first kit that offers it; a kit whose parts are all taken still checks its first
+  const seen = new Set(), PARTS = Object.fromEntries(Object.keys(ROOMS).map((kitId) => {
+    const own = STAGE_KIT_PROPORTIONS[kitId].filter((q) => !seen.has(q));
+    own.forEach((q) => seen.add(q));
+    return [kitId, own.length ? own : STAGE_KIT_PROPORTIONS[kitId].slice(0, 1)];
+  }));
   for (const kitId of Object.keys(ROOMS)) {
-    it(`${kitId}: every part it offers changes what it builds`, () => {
+    it(`${kitId}: each part it is first to offer changes what it builds (${PARTS[kitId].join(', ')})`, () => {
       const base = sig(assembleStageScene({ kind: 'stage', kit: kitId, ...ROOMS[kitId] }));
-      for (const part of STAGE_KIT_PROPORTIONS[kitId]) {
+      for (const part of PARTS[kitId]) {
         const rail = PROPORTION_RAILS[part];
         const moved = ['lo', 'hi'].some((end) => sig(assembleStageScene({ kind: 'stage', kit: kitId, ...ROOMS[kitId], proportions: { [part]: rail.lo !== undefined ? rail[end] : Object.fromEntries(Object.entries(rail).map(([q, r]) => [q, r[end]])) } })) !== base);
         expect(moved, `${kitId}.${part}`).toBe(true);

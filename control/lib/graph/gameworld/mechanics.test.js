@@ -33,9 +33,10 @@ describe('the game\'s systems', () => {
     const { mechanics, ...without } = MEADOWMARK_HERO;
     expect(book(without).mechanics).toBeNull();
     expect(characterParts(without).find((p) => p.id === 'mechanics:stats').content).toBeNull();
-    expect(gameworldBibleHtml({ ...MEADOWMARK, mechanics: null })).toBe(gameworldBibleHtml(MEADOWMARK));
+    const page = gameworldBibleHtml(MEADOWMARK);   // made once, read by both laws
+    expect(gameworldBibleHtml({ ...MEADOWMARK, mechanics: null })).toBe(page);
     // with mechanics, the world bible's open Mechanics card is dropped
-    expect(gameworldBibleHtml(MEADOWMARK)).toMatch(/<h3>Mechanics<\/h3>/);
+    expect(page).toMatch(/<h3>Mechanics<\/h3>/);
     expect(gameworldBibleHtml({ ...MEADOWMARK, mechanics: {} })).not.toMatch(/<h3>Mechanics<\/h3>/);
   });
 

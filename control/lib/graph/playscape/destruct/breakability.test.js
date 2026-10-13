@@ -76,20 +76,19 @@ describe('a level that lets things break, end to end', () => {
     const plain = (await resolveWorldScene(level({}))).payload;
     expect(plain.breakables).toBeUndefined();
     expect(emitThreeWorld(plain)).not.toContain('__updateBreaks');
-    for (const extra of [{ destruction: 'objects' }, { destruction: 'cover' }]) {
-      const { payload } = await resolveWorldScene(level(extra));
-      expect(payload.breakables.length, JSON.stringify(extra)).toBeGreaterThan(0);
-      const html = emitThreeWorld(payload);
-      expect(html).toContain('breakables: [{"id":"');
-      expect(html).toContain('__updateBreaks(dt);');
-      expect(html).toContain(`const __breakPieces = {"`);
-      expect(Object.keys(payload.breakPieces).sort()).toEqual(payload.breakables.map((b) => b.id).sort());
-      expect(html).toMatch(/"name":"break:crate-1"/);
-    }
+    // the page's channel is one path whatever the degree: objects stands for cover and world (what each degree picks is
+    // breakablesOf's, tested above on the stage)
+    const { payload } = await resolveWorldScene(level({ destruction: 'objects' }));
+    expect(payload.breakables.length).toBeGreaterThan(0);
+    const html = emitThreeWorld(payload);
+    expect(html).toContain('breakables: [{"id":"');
+    expect(html).toContain('__updateBreaks(dt);');
+    expect(html).toContain(`const __breakPieces = {"`);
+    expect(Object.keys(payload.breakPieces).sort()).toEqual(payload.breakables.map((b) => b.id).sort());
+    expect(html).toMatch(/"name":"break:crate-1"/);
     expect((await resolveWorldScene(level({ destruction: 'none' }))).payload.breakables).toBeUndefined();
     // an engine holds what breaks whole: the score carries each breakable back as a solid collider, and says so
     const { extractEngineScore } = await import('../../scene/engine-score.js');
-    const { payload } = await resolveWorldScene(level({ destruction: 'objects' }));
     const s = extractEngineScore({ ref: 'crypt', manifest: {} }, payload), s0 = extractEngineScore({ ref: 'crypt', manifest: {} }, plain);
     expect(s.colliders.length).toBe(s0.colliders.length);
     for (const b of payload.breakables) expect(s.colliders.some((c) => c.of === b.id && c.min.join() === b.min.join())).toBe(true);

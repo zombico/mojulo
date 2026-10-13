@@ -16,6 +16,15 @@ const hasFaces = (faces) => Array.isArray(faces) && faces.length > 0
     && (typeof f.fill === 'string' || f.decal === 'shadow' || f.card));   // shadow decals carry `bg`; facade walls carry a `card`
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
+// one default seed per distinct layout procedure (pattern × program) the seeds reach, picked in code
+const firstSeedPer = (key) => {
+  const by = new Map();
+  for (const seed of SEEDS) { const k = key(planFractalSchoolComplex({ seed })); if (!by.has(k)) by.set(k, seed); }
+  return [...by.values()];
+};
+// the courtyard high school most face tests read, built once
+let court;
+const courtFaces = () => (court ||= buildFractalSchoolFaces({ seed: 3, pattern: 'courtyard', program: 'high-school' }).faces);
 
 test('labelled sub-streams are independent and stable', () => {
   assert.equal(schoolStream(7, 'rooms')(), schoolStream(7, 'rooms')());
@@ -116,7 +125,7 @@ test('facade styles and structure flag change the baked geometry', () => {
   const base = { seed: 3, pattern: 'spine', program: 'middle', floors: 2 };
   const counts = SCHOOL_FACADES.map((facade) => buildFractalSchoolFaces({ ...base, facade }).faces.length);
   assert.ok(new Set(counts).size >= 2, `facades should differ, got ${counts.join(', ')}`);
-  const skinned = buildFractalSchoolFaces({ ...base, facade: 'brick-civic' }).faces.length;
+  const skinned = counts[SCHOOL_FACADES.indexOf('brick-civic')];
   const open = buildFractalSchoolFaces({ ...base, facade: 'brick-civic', structure: false }).faces.length;
   assert.ok(skinned > open, `structure skin should add faces (${skinned} > ${open})`);
 });
@@ -162,14 +171,13 @@ test('doorways are open at eye height — entrance and classrooms are walkable',
   assert.equal(blocked(cls.rect.x0 + ROOM_DOOR_OFF, cls.rect.y1, 3), false, 'the classroom door is an opening, not a solid partition');
 });
 
-test('every occupiable room is walkable from the entrance across seeds and patterns', () => {
-  for (const pattern of SCHOOL_PATTERNS) {
-    for (const seed of SEEDS) {
-      const w = assessSchoolWalkability({ seed, pattern, program: 'high-school' });
-      assert.equal(w.ok, true, `${pattern} seed ${seed}: ${w.necessary.map((n) => n.detail).join('; ')}`);
-      assert.ok(w.rooms >= 3 && w.reached === w.rooms);
-    }
-  }
+test('every occupiable room is walkable from the entrance, in every pattern', () => {
+  SCHOOL_PATTERNS.forEach((pattern, i) => {
+    const seed = SEEDS[i];
+    const w = assessSchoolWalkability({ seed, pattern, program: 'high-school' });
+    assert.equal(w.ok, true, `${pattern} seed ${seed}: ${w.necessary.map((n) => n.detail).join('; ')}`);
+    assert.ok(w.rooms >= 3 && w.reached === w.rooms);
+  });
 });
 
 test('walkability has teeth: bricking up the entrance strands rooms', () => {
@@ -181,7 +189,7 @@ test('walkability has teeth: bricking up the entrance strands rooms', () => {
 });
 
 test('classrooms carry a teaching board and a desk+chair fit-out', () => {
-  const { faces } = buildFractalSchoolFaces({ seed: 3, pattern: 'courtyard', program: 'high-school' });
+  const faces = courtFaces();
   const board = faces.some((f) => f.fill === '#2f4b3a' || f.fill === '#eef1ee');   // chalk/whiteboard panel
   const chair = faces.some((f) => f.fill === '#7f8a93');                            // chair seat pan
   assert.ok(board, 'a teaching board is baked');
@@ -206,7 +214,7 @@ test('parking lots carry stalls and registry vehicles at car scale', () => {
   const plan = planFractalSchoolComplex({ seed: 3, pattern: 'courtyard', program: 'high-school' });
   const lots = plan.outdoor.filter((o) => o.kind === 'parking-lot');
   assert.equal(lots.length, 2, 'two parking lots');
-  const { faces } = buildFractalSchoolFaces({ seed: 3, pattern: 'courtyard', program: 'high-school' });
+  const faces = courtFaces();
   assert.ok(faces.some((f) => f.fill === '#42474e'), 'parking / driveway asphalt');
   // vehicles from the registry populate the lots (each swept car is hundreds of faces)
   assert.ok(faces.length > 20000, `registry vehicles fill the scene (${faces.length})`);
@@ -219,34 +227,33 @@ test('parking lots carry stalls and registry vehicles at car scale', () => {
 });
 
 test('vehicles keep doorway + entry clearance (aprons stay open at eye height)', () => {
-  for (const pattern of SCHOOL_PATTERNS) {
-    for (const seed of [1, 3, 6]) {
-      const plan = planFractalSchoolComplex({ seed, pattern, program: 'high-school' });
-      const { faces } = buildFractalSchoolFaces({ seed, pattern, program: 'high-school' });
-      const b = plan.bounds, cell = 0.5, EYE = plan.baseZ + 3;
-      const cols = Math.ceil((b.x1 - b.x0) / cell), rows = Math.ceil((b.y1 - b.y0) / cell);
-      const ci = (x) => Math.min(cols - 1, Math.max(0, Math.floor((x - b.x0) / cell)));
-      const ri = (y) => Math.min(rows - 1, Math.max(0, Math.floor((y - b.y0) / cell)));
-      const blocked = new Uint8Array(cols * rows);
-      for (const f of faces) {
-        const zs = f.corners.map((c) => c[2]);
-        if (Math.min(...zs) > EYE || Math.max(...zs) < EYE || Math.max(...zs) - Math.min(...zs) < 0.3) continue;
-        const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]);
-        for (let cx = ci(Math.min(...xs)); cx <= ci(Math.max(...xs)); cx += 1) {
-          for (let cy = ri(Math.min(...ys)); cy <= ri(Math.max(...ys)); cy += 1) blocked[cy * cols + cx] = 1;
-        }
+  SCHOOL_PATTERNS.forEach((pattern, i) => {
+    const seed = [1, 3, 6][i % 3];
+    const plan = planFractalSchoolComplex({ seed, pattern, program: 'high-school' });
+    const { faces } = buildFractalSchoolFaces({ seed, pattern, program: 'high-school' });
+    const b = plan.bounds, cell = 0.5, EYE = plan.baseZ + 3;
+    const cols = Math.ceil((b.x1 - b.x0) / cell), rows = Math.ceil((b.y1 - b.y0) / cell);
+    const ci = (x) => Math.min(cols - 1, Math.max(0, Math.floor((x - b.x0) / cell)));
+    const ri = (y) => Math.min(rows - 1, Math.max(0, Math.floor((y - b.y0) / cell)));
+    const blocked = new Uint8Array(cols * rows);
+    for (const f of faces) {
+      const zs = f.corners.map((c) => c[2]);
+      if (Math.min(...zs) > EYE || Math.max(...zs) < EYE || Math.max(...zs) - Math.min(...zs) < 0.3) continue;
+      const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]);
+      for (let cx = ci(Math.min(...xs)); cx <= ci(Math.max(...xs)); cx += 1) {
+        for (let cy = ri(Math.min(...ys)); cy <= ri(Math.max(...ys)); cy += 1) blocked[cy * cols + cx] = 1;
       }
-      const cell0 = (x, y) => blocked[ri(y) * cols + ci(x)];
-      const ent = plan.buildings.find((bd) => bd.id === plan.entranceId);
-      const op = ent.openings.find((o) => o.wall === 'S');
-      assert.equal(cell0(op.center, ent.rect.y0 - 5), 0, `${pattern} s${seed}: a vehicle blocks the entrance apron`);
-      assert.equal(cell0(plan.spawn[0], plan.spawn[1] - 4), 0, `${pattern} s${seed}: a vehicle blocks the entry corridor`);
     }
-  }
+    const cell0 = (x, y) => blocked[ri(y) * cols + ci(x)];
+    const ent = plan.buildings.find((bd) => bd.id === plan.entranceId);
+    const op = ent.openings.find((o) => o.wall === 'S');
+    assert.equal(cell0(op.center, ent.rect.y0 - 5), 0, `${pattern} s${seed}: a vehicle blocks the entrance apron`);
+    assert.equal(cell0(plan.spawn[0], plan.spawn[1] - 4), 0, `${pattern} s${seed}: a vehicle blocks the entry corridor`);
+  });
 });
 
 test('campus carries reusable tree assets and paved paths', () => {
-  const { faces } = buildFractalSchoolFaces({ seed: 3, pattern: 'courtyard', program: 'high-school' });
+  const faces = courtFaces();
   assert.ok(faces.some((f) => f.fill === '#b3ada0'), 'paved walkways / perimeter path');
   // the shared plant primitive (plantBoxToFaces) meshes each tree into many small foliage/trunk
   // faces — a bare campus is a few thousand faces; the tree ring pushes it well past that
@@ -254,7 +261,7 @@ test('campus carries reusable tree assets and paved paths', () => {
 });
 
 test('buildings and objects carry baked contact/cast shadow decals', () => {
-  const { faces } = buildFractalSchoolFaces({ seed: 3, pattern: 'courtyard', program: 'high-school' });
+  const faces = courtFaces();
   const shadows = faces.filter((f) => f.decal === 'shadow');
   const plan = planFractalSchoolComplex({ seed: 3, pattern: 'courtyard', program: 'high-school' });
   // at least one cast shadow per building, plus outdoor object blobs on top
@@ -280,7 +287,7 @@ test('the athletics precinct rings the campus with real fields and equipment', (
       assert.ok(!over(z.rect, bd.rect), `${z.id} overlaps ${bd.id} in ${pattern}`);
     }
   }
-  const { faces } = buildFractalSchoolFaces({ seed: 3, pattern: 'courtyard', program: 'high-school' });
+  const faces = courtFaces();
   assert.ok(faces.some((f) => f.fill === '#d1662f'), 'outdoor basketball rims');
   assert.ok(faces.some((f) => f.fill === '#b98a5e'), 'baseball infield dirt');
   assert.ok(faces.some((f) => f.fill === '#5aa0c0'), 'a playground slide');
@@ -293,7 +300,7 @@ test('gymnasiums bake a court, hoops, and bleachers', () => {
 });
 
 test('feng-shui, livability, and principles come back clean for default seeds', () => {
-  for (const seed of SEEDS) {
+  for (const seed of firstSeedPer((p) => `${p.pattern}/${p.program}`)) {
     const plan = planFractalSchoolComplex({ seed });
     const label = `seed ${seed} (${plan.pattern}, ${plan.program})`;
     const feng = assessSchoolFengShui(plan);

@@ -97,8 +97,14 @@ entry points `chdir` there and `getServerVersion` reads `package.json` from cwd.
 
 Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
 folder and `test:deep:changed`, plus `test:e2e` when the change touches the gameworld, city, game or structure
-kernels; the whole suite once before merging into the release candidate (CI runs it and `test:deep`). An
-exhaustive sweep (every word at its range ends, every preset built) goes in a `*.deep.test.js` beside the law
+kernels; the whole suite once before merging into the release candidate (CI runs it and `test:deep`).
+
+Test the concept, not the catalog. Species, presets, cultures, landmarks and climates are inputs to procedures:
+a test picks one case per distinct procedure (a rig topology, a family, a code path), chosen in code from the
+catalog rather than a hand list, and asserts the concept (rig, motion, chirality, growth, determinism, absence
+adds nothing) on it. No test iterates a whole catalog, in any tier; a new entry is covered by the procedure it
+runs through. Build the smallest input that still exercises the concept (a small board, a short run, one city).
+An exhaustive sweep over a word's range ends goes in a `*.deep.test.js` beside the law
 tests, importing only the modules it sweeps, so `--changed` can select it. A suite that makes whole worlds or
 mints with `autoAudit: true` goes on the `E2E` list in `vitest.e2e.config.js`, never in critical (guarded by
 `lib/mcp/test-tiers.test.js`); test the audit gate itself with a stub `runTraversal`.

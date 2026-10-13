@@ -211,11 +211,14 @@ describe('the anime hero: the rig pack and the ink take the character light by d
   });
   it('palette colours, two tones on Skin and Hair, no grey; weights valid everywhere', () => {
     const cols = new Set(); let grey = 0;
+    // every corner's weights sum to 1 and none is negative; every joint a bone (counted, one expect each, not one per corner)
+    let badSum = 0, negative = 0, badJoint = 0;
     for (const part of fig.parts) {
       if (!part) continue; const c = u8(part.col), w = f32(part.wgt), j = u8(part.jnt);
       for (let i = 0; i < c.length; i += 3) { const k = `${c[i]},${c[i + 1]},${c[i + 2]}`; cols.add(k); if (k === lin8('#8a8f96')) grey++; }
-      for (let i = 0; i < w.length; i += 4) { expect(Math.abs(w[i] + w[i + 1] + w[i + 2] + w[i + 3] - 1)).toBeLessThan(1e-6); for (let k = 0; k < 4; k++) { expect(w[i + k]).toBeGreaterThanOrEqual(0); expect(j[i + k]).toBeLessThan(fig.bones.length); } }
+      for (let i = 0; i < w.length; i += 4) { if (!(Math.abs(w[i] + w[i + 1] + w[i + 2] + w[i + 3] - 1) < 1e-6)) badSum++; for (let k = 0; k < 4; k++) { if (!(w[i + k] >= 0)) negative++; if (!(j[i + k] < fig.bones.length)) badJoint++; } }
     }
+    expect({ badSum, negative, badJoint }).toEqual({ badSum: 0, negative: 0, badJoint: 0 });
     expect(grey).toBe(0);
     const staticFills = new Set(lit.faces.filter((f) => f.group === 'body').map((f) => lin8(f.fill)));
     expect(cols).toEqual(staticFills);

@@ -19,6 +19,8 @@ const UP = litFactor([0, 0, 1], SCENE_LIGHT);
 const toSun = (() => { const d = SCENE_LIGHT.dir, h = Math.hypot(d[0], d[1]); return [-d[0] / h, -d[1] / h]; })();
 
 const plan = planHistoricCity({ culture: 'lindos', seed: 7 });
+let lit7 = null;
+const litPlan = () => (lit7 ||= planHistoricCity({ culture: 'lindos', seed: 7, fire: true }));   // the same town with fire, built once
 const S = HISTORIC_STYLES.lindos, P = LINDOS.palette;
 
 describe('historic city: Hellenistic Lindos — the kit', () => {
@@ -87,7 +89,7 @@ describe('historic city: Hellenistic Lindos — the plan', () => {
   });
   it('fire is opt-in: the plan hands over its hearths and kilns only when asked', () => {
     expect(plan.fireSources).toBeUndefined();
-    const lit = planHistoricCity({ culture: 'lindos', seed: 7, fire: true });
+    const lit = litPlan();
     expect(lit.fireSources.length).toBeGreaterThan(5);
     expect(new Set(lit.fireSources.map((f) => f.kind))).toEqual(new Set(['brazier', 'campfire']));
   });
@@ -149,7 +151,7 @@ describe('Lindos — the style card\'s principles, measured', () => {
     expect(sky.zenith[2] - sky.zenith[0]).toBeGreaterThan(sky.horizon[2] - sky.horizon[0] + 20);
   });
   it('principle 6 — fire where the town lives, never on Athena\'s altar or the summit', () => {
-    const lit = planHistoricCity({ culture: 'lindos', seed: 7, fire: true }), a = lit.altar;
+    const lit = litPlan(), a = lit.altar;
     for (const f of lit.fireSources) {
       expect(Math.hypot(f.at[0] - (a.x + a.w / 2), f.at[1] - (a.y + a.d / 2))).toBeGreaterThan(20);
       expect(inPoly(lit.summitPoly, f.at[0], f.at[1])).toBe(false);
@@ -164,8 +166,9 @@ describe('Lindos — the style card\'s principles, measured', () => {
 
 describe('Lindos and the generic polis — scenes', () => {
   it('builds a scene opening on any of its views', () => {
-    for (const view of Object.keys(plan.views)) expect(assembleHistoricCityScene({ culture: 'lindos', seed: 7, view, shade: false }).cameras[0].name).toBe(view);
-  }, 300000);
+    const views = Object.keys(plan.views);   // the view list's two ends: the camera is picked the same way for each
+    for (const view of [views[0], views[views.length - 1]]) expect(assembleHistoricCityScene({ culture: 'lindos', seed: 7, view, shade: false }).cameras[0].name).toBe(view);
+  }, 60000);
   it('the polis is the same plan on a gentle hill: no sheer cliff, no ship relief, its sanctuary still on top', () => {
     const p = planHistoricCity({ culture: 'polis', seed: 7 });
     expect(p.stats.cliff).toBe(false);
@@ -173,8 +176,8 @@ describe('Lindos and the generic polis — scenes', () => {
     const temple = p.slots.find((q) => q.asset === 'ln-temple');
     for (const q of p.slots) expect(q.z ?? 0).toBeLessThanOrEqual(temple.z);
     expect(Math.max(...p.boxes.filter((b) => b.kind === 'cliff').map((b) => b.z1 - b.z0), 0)).toBeLessThan(25);
-    expect(assembleHistoricCityScene({ culture: 'polis', seed: 7, view: 'town' }).cameras[0].name).toBe('town');
-  }, 120000);
+    expect(assembleHistoricCityScene({ culture: 'polis', seed: 7, view: 'town', shade: false }).cameras[0].name).toBe('town');
+  }, 60000);
 });
 
 describe('Lindos on the World page — the water', () => {

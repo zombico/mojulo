@@ -1,10 +1,11 @@
-// equipment — the laws as tests: every sample builds closed and deterministic, the focal grows with `stylize` on every
+// equipment — the laws as tests: each builder builds closed and deterministic, the focal grows with `stylize` on every
 // archetype, a face-item's stone spans 6 % → 34 % of the face, a setting touches its stone, the readability floor
 // holds on grown branches, inline cards work and typos name the choices.
 import { describe, expect, it } from 'vitest';
 import { expandEquipment, validateBuild, withEquipment, hasEquipment, EQUIPMENT_ITEMS, LAWS_VERSION } from './expand.js';
 import { SEEDED_STYLES, validateStyleCard } from './styles.js';
 import { proportion } from './principles.js';
+import { SWORDS } from './sword.js';
 import { planWorkbench, lowerObjectFaces, persistedLedger, WORKBENCH_LIGHT } from '../worlds/workbench.js';
 import { validateGear } from '../polygonizer/hero-gear.js';
 import { solidComponentsStable } from '../polygonizer/solid-components.js';
@@ -12,8 +13,14 @@ import { solidComponentsStable } from '../polygonizer/solid-components.js';
 const build = (item, style, extra = {}) => ({ type: 'equipment', item, style, seed: 3, ...extra });
 const at = (item, style, stylize) => expandEquipment(build(item, style, { dials: { stylize } }));
 
-describe('every seeded style × item', () => {
-  for (const style of Object.keys(SEEDED_STYLES)) for (const item of EQUIPMENT_ITEMS) {
+// one item per builder (the sword builder takes every blade; staff, bow and shield each their own), each on its own
+// seeded style: a new style or blade is covered by the builder it runs through
+const builderOf = (item) => (SWORDS[item] ? 'sword' : item);
+const BUILDERS = EQUIPMENT_ITEMS.filter((item, i) => EQUIPMENT_ITEMS.findIndex((x) => builderOf(x) === builderOf(item)) === i);
+describe('one build per builder, each on a seeded style', () => {
+  const styles = Object.keys(SEEDED_STYLES);
+  for (const [i, item] of BUILDERS.entries()) {
+    const style = styles[i % styles.length];
     it(`${style} ${item} builds closed and deterministic`, () => {
       const a = expandEquipment(build(item, style)), b = expandEquipment(build(item, style));
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));

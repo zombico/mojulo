@@ -1,6 +1,7 @@
 // humanoid-head.test.js — the FACE: the face proportion lab's checker transposed onto the fitted landmark head. Identity,
-// composition, exact bilateral symmetry, closure at every control's limits and at both combined extremes on both heads,
-// what each new control means, and the frozen fits' byte pins. The reference-camera gates live with the docs (test-humanoid.mjs).
+// composition, exact bilateral symmetry, closure as fit, at every move and at both combined extremes (the heads
+// alternating), what each new control means, and the frozen fits' byte pins. Every control at each of its own range ends
+// is the deep tier's sweep (humanoid-head.deep.test.js). The reference-camera gates live with the docs (test-humanoid.mjs).
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -74,10 +75,12 @@ describe('the face resolves like the body tune', () => {
   });
 });
 
-describe('every control at its limits, and both combined extremes: symmetric, finite, closed, the eyes still read', () => {
+describe('as fit, every move, and both combined extremes: symmetric, finite, closed, the eyes still read', () => {
   const lo = Object.fromEntries(FACE_KEYS.map((k) => [k, FACE_RANGES[k][0]])), hi = Object.fromEntries(FACE_KEYS.map((k) => [k, FACE_RANGES[k][1]]));
-  const cases = [['as fit', {}], ...FACE_KEYS.flatMap((k) => FACE_RANGES[k].map((v) => [`${k} ${v}`, { [k]: v }])), ...FACE_MOVE_NAMES.map((m) => { const { from: _f, ...shape } = resolveFace(m); return [m, shape]; }), ['all low', lo], ['all high', hi]];
-  for (const preset of PRESETS) for (const [label, shape] of cases) {
+  const cases = [['as fit', {}], ['all low', lo], ['all high', hi], ...FACE_MOVE_NAMES.map((m) => { const { from: _f, ...shape } = resolveFace(m); return [m, shape]; })];
+  // each case once, the head alternating; the hero test below closes both extremes on both heads
+  cases.forEach(([label, shape], i) => {
+    const preset = PRESETS[i % 2];
     it(`${preset} · ${label}`, () => {
       const h = head(preset, shape);
       for (const part of ['cranium', 'jaw']) for (const [slot, p] of pts(h, part)) {
@@ -89,7 +92,7 @@ describe('every control at its limits, and both combined extremes: symmetric, fi
       const ex = layeredExposure(compileLayered(h), { res: 256 });
       for (const eye of ['eyeR', 'eyeL']) expect(ex.parts[eye].flag).toBe('reads');
     });
-  }
+  });
   it('the hero wearing a face at both extremes closes and stands', () => {
     for (const preset of PRESETS) for (const face of [lo, hi]) { const recipe = expandPlan(humanoidPlan({ preset, face })); expect(closed(recipe)).toEqual([]); }
   });

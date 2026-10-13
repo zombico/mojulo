@@ -140,7 +140,7 @@ describe('a mountain jungle: tropical high ground is forested to its treeline', 
     expect(Math.max(...high)).toBeGreaterThanOrEqual(2000);
     for (const z of high) expect(bands[z].n).toBeGreaterThan(0);
     for (const z of high.filter((z) => z >= 1000 && z < 2250)) expect(bands[z].sp.size).toBeGreaterThanOrEqual(2);
-  });
+  }, 60_000);   // composes a world
   it('grows its two new species as pools the page can carry, each in its own surface', () => {
     for (const [species, key] of [['schefflera', /^bark-beech$/], ['treefern', /^trunk-treefern-/]]) {
       const pool = plantPool({ species, variants: 1, seed: 's', maxLevel: 'L1' });
@@ -172,14 +172,14 @@ describe('the page plants (P2)', async () => {
   const { plantPool } = await import('../vegetation/pool.js');
   const dec = (v) => { const u = Buffer.from(v.__b64, 'base64'); return new globalThis[v.t](u.buffer, u.byteOffset, u.byteLength / globalThis[v.t].BYTES_PER_ELEMENT); };
   it('packs a template to within half a quantum of its faces, and a far level of fourteen triangles', async () => {
-    const pool = plantPool({ species: 'oak', variants: 1, seed: 's', maxLevel: 'L1' }); const faces = pool.variants[0].levels.L1;
+    const pool = plantPool({ species: 'oak', variants: 1, seed: 's', maxLevel: 'L2' }); const faces = pool.variants[0].levels.L1;   // one bake: its L1, and its L2 with bark
     const t = packTemplate(faces), q = dec(t.q); const unq = (i) => t.lo[i % 3] + (q[i] + 32768) * t.sc[i % 3];
     const { faceListToMesh } = await import('../figures/face-mesh.js'); const P = faceListToMesh(faces).positions;
     expect(q.length).toBe(P.length); let worst = 0; for (let i = 0; i < q.length; i++) worst = Math.max(worst, Math.abs(unq(i) - P[i]) / t.sc[i % 3]);
     expect(worst).toBeLessThanOrEqual(0.5 + 1e-6);                                             // within half a quantum on every axis
     expect(t.tris).toBeGreaterThan(1000); expect(dec(t.col).length).toBe(q.length);
     const far = farTemplate(pool.variants[0].levels.L0); expect(far).toHaveLength(14);
-    const withBark = packTemplate(plantPool({ species: 'oak', variants: 1, seed: 's', maxLevel: 'L2' }).variants[0].levels.L2);
+    const withBark = packTemplate(pool.variants[0].levels.L2);
     expect(withBark.tex[0].key).toBe('bark-oak'); expect(dec(withBark.tex[0].uv).length).toBe((dec(withBark.tex[0].q).length / 3) * 2);
   });
   it('gives every variant a far level and each level up to the cap, and the textures its templates wear', () => {
@@ -210,11 +210,13 @@ describe('the page plants (P2)', async () => {
 describe('a region grows its own conifers', () => {
   const around = (f, V, r = 3) => { const P = plantsKernel(f, V), [sx, sy] = f.views.spawn, got = []; for (let a = -r; a < r; a++) for (let b = -r; b < r; b++) got.push(...plants(P.plantsIn(sx + a * 128, sy + b * 128, 128))); return got; };
   it('absent, a climate keeps exactly its own rows', () => {
-    const f = atlasField({ world: { features: [{ feature: 'lake' }], climate: 'boreal', seed: 'taiga' } });
-    expect(JSON.stringify(plantsConfig(f, { region: null }))).toBe(JSON.stringify(plantsConfig(f)));
-    const trop = atlasField({ world: { features: [{ feature: 'river' }], climate: 'tropical', seed: 'tropic' } });
-    expect(JSON.stringify(plantsConfig(trop, { region: 'eurasia' }))).toBe(JSON.stringify(plantsConfig(trop)));   // a climate the region does not name
-  }, 120_000);   // composes two worlds: about 9 s alone
+    // plantsConfig reads only the field's zones, sea and climate: a climate the region names, and one it does not
+    const field = (climate) => ({ K: { zones: { tree: 1900, snow: 3100 }, seaLevel: null }, atlas: { climate } });
+    const named = Object.keys(PLANT_REGIONS.eurasia)[0], unnamed = Object.keys(PLANT_CLIMATES).find((c) => !PLANT_REGIONS.eurasia[c]);
+    expect(JSON.stringify(plantsConfig(field(named), { region: null }))).toBe(JSON.stringify(plantsConfig(field(named))));
+    expect(JSON.stringify(plantsConfig(field(named), { region: 'eurasia' }))).not.toBe(JSON.stringify(plantsConfig(field(named))));   // (the region is not a no-op)
+    expect(JSON.stringify(plantsConfig(field(unnamed), { region: 'eurasia' }))).toBe(JSON.stringify(plantsConfig(field(unnamed))));   // a climate the region does not name
+  });
   it('northern Eurasia: spruce throughout, pine on the ground away from water', () => {
     const f = atlasField({ world: { features: [{ feature: 'lake' }, { feature: 'river' }], climate: 'boreal', seed: 'taiga' } }); const V = plantsConfig(f, { region: 'eurasia' });
     expect(V.species.map((s) => s.name)).toEqual(['spruce', 'pine', 'reed']);

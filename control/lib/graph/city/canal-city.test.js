@@ -12,7 +12,8 @@ const planOf = (seed, layout = 'ring') => {
 };
 const overlaps = (a, b, e = 1e-3) => a.x < b.x + b.w - e && b.x < a.x + a.w - e && a.y < b.y + b.d - e && b.y < a.y + a.d - e;
 const inside = (g, x, y) => x >= g.x - 1e-6 && x <= g.x + g.w + 1e-6 && y >= g.y - 1e-6 && y <= g.y + g.d + 1e-6;
-const CASES = [[1, 'ring'], [7, 'ring'], [42, 'parallel']];
+// one town per canal layout (a second ring seed only re-ran the ring's planner)
+const CASES = [[7, 'ring'], [42, 'parallel']];
 
 describe('canal city: the gate', () => {
   it('a recipe without the profile never reaches the canal planner (canals alone is ignored)', () => {

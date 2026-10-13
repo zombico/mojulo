@@ -166,11 +166,12 @@ describe('construction — a sofa', () => {
     expect(frameStamps(lowerFrame({ id: 'v', unit: 'mm', build: { type: 'sofa', seats: 1, arms: 'none' }, fabric: 'velvet' }).report, 'v').join('\n')).toMatch(/has a nap: cut every piece the same way up/);
   });
   it('writes a manual: sections as parts, cushions in last, hatched soft forms, and the cloth', () => {
-    const { plan, pages } = manualPages(sofa);
-    expect(plan.parts.map((p) => [p.material, p.count])).toEqual([['section', 1], ['section', 2], ['section', 1], ['timber', 6], ['soft', 3], ['soft', 3]]);
+    // a two-seater: the fewest seats whose cushions still number (a book is drawn page by page, so seats cost seconds)
+    const { plan, pages } = manualPages({ ...sofa, build: { type: 'sofa', seats: 2 } });
+    expect(plan.parts.map((p) => [p.material, p.count])).toEqual([['section', 1], ['section', 2], ['section', 1], ['timber', 4], ['soft', 2], ['soft', 2]]);
     expect(plan.hardware.map((h) => h.code)).toEqual(['hanger-bolt-M8x70', 'washer-M8', 'M8x40-socket', 'M8x30-socket']);
-    expect(plan.steps.at(-2).adds).toEqual(['seat-1', 'seat-2', 'seat-3']);
-    expect(plan.steps.at(-1).adds).toEqual(['back-1', 'back-2', 'back-3']);
+    expect(plan.steps.at(-2).adds).toEqual(['seat-1', 'seat-2']);
+    expect(plan.steps.at(-1).adds).toEqual(['back-1', 'back-2']);
     expect(pages.map((p) => p.name)).toEqual(expect.arrayContaining(['cover', 'inventory', 'cloth', 'cut-01']));
     // the hatch: thin round-capped strokes on the cover
     expect(pages[0].svg).toMatch(/stroke-width="0.12" stroke-linecap="round" stroke-linejoin="round"/);

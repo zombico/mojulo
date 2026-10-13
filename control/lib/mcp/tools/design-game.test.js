@@ -2,7 +2,7 @@
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
@@ -12,7 +12,6 @@ import { MEADOWMARK, MEADOWMARK_HERO, gameworldOf } from '@/lib/graph/gameworld/
 
 // The rail's door: write the gameworld, take the verdicts, run what is ready through the real handlers, and say what
 // to do next. A run with nothing changed makes nothing; a hand edit is left unless forced.
-beforeEach(() => { closeDb(); });
 
 const stored = (ref) => SketchRepository.getByRef(ref)?.manifest;
 const action = (out, key) => out.ran.find((r) => r.key === key)?.action;
@@ -22,6 +21,8 @@ const GATED = { ...MEADOWMARK_HERO, mode: 'gated' };
 const AUTO = { ...MEADOWMARK_HERO, mode: 'autonomous' };
 
 describe('design_game', () => {
+  beforeEach(() => { closeDb(); });
+
   it('starts a gameworld from a recipe and reads it: every part proposed, the steps waiting, the next moves said', async () => {
     const out = await designGameHandler({ world: GATED, ref: 'gw' });
     expect(out).toMatchObject({ ok: true, ref: 'gw', bible: '/api/sketches/gw/bible', mode: 'gated', steps: { adornment: 'waiting', systems: 'waiting', equipment: 'waiting' } });
@@ -82,44 +83,6 @@ describe('design_game', () => {
     expect(stored('gw-hero').hero.gear).toBeUndefined();
   }, 240_000);
 
-  it('autonomous: one run makes everything that settles on its own', async () => {
-    const out = await designGameHandler({ world: AUTO, ref: 'gw', run: true });
-    expect(out.ran.map((r) => r.action)).toEqual(Array(15).fill('make'));
-    // the levels and the game: each stage a level the equipped hero pilots, the game over them, unaudited and said so
-    expect(out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.key)).toEqual(['level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1']);
-    expect(stored('gw-level-meadow-ascent-0')).toMatchObject({ kind: 'stage', game: { levelRef: 'gw-level-meadow-ascent-0' }, figures: { hero: { heroRef: 'gw-hero-equipped' } } });
-    expect(stored('gw-game')).toMatchObject({ kind: 'game', store: { slices: expect.arrayContaining([expect.objectContaining({ kind: 'character' })]) } });
-    expect(stored('gw-game').levels.map((l) => l.ref)).toHaveLength(5);
-    expect(stored('gw-game').shell).toBe('play');
-    expect(step(out, 'play')).toEqual({ step: 'play', url: '/api/sketches/gw-game/game', playtest: '/api/sketches/gw-game/playtest', gate: 'eyes', card: 'gameworld-next' });
-    // the numbers, readable without the bible
-    expect(out.numbers.stats).toMatchObject({ hp: 100, power: 10, guard: 5 });
-    expect(out.numbers.powers.map((p) => p.key)).toEqual(['1', '2', '3']);
-    expect(out.steps).toEqual({ adornment: 'ready', systems: 'ready', equipment: 'ready' });
-  }, 240_000);
-
-  it('a change remakes only what it moved, in place; a hand edit is left as it is unless forced', async () => {
-    await designGameHandler({ world: AUTO, ref: 'gw', run: true });
-    const heroRev = stored('gw-hero');
-    // the colour page moves: the hero is remade in place, the systems world and the gear are kept
-    const moved = await designGameHandler({ ref: 'gw', patch: [{ op: 'set', path: '/characters/hero/looks/colour', value: { palette: { Hair: '#2a2a2a' } } }], run: true });
-    expect(action(moved, 'hero')).toBe('remake');
-    expect(action(moved, 'hero-equipped')).toBe('remake');   // she wears the same colours
-    expect(moved.ran.filter((r) => !r.key.startsWith('hero')).every((r) => r.action === 'keep')).toBe(true);
-    expect(stored('gw-hero').hero.palette.Hair).toBe('#2a2a2a');
-    expect(stored('gw-hero')).not.toEqual(heroRev);
-    // the creator edits the sword by hand, then the world's gear language moves: the sword is left, the rest remade
-    await updateSketchHandler({ ref: 'gw-gear-sword', patch: [{ op: 'set', path: '/build/dials', value: { mass: 1.6 } }] });
-    const card = stored('gw').equipment.style;
-    const restyled = await designGameHandler({ ref: 'gw', patch: [{ op: 'set', path: '/equipment/style', value: { ...card, roles: { ...card.roles, blade: ['satin', '#7a2f8e'] } } }], run: true });
-    expect(action(restyled, 'gear-sword')).toBe('edited');
-    expect(action(restyled, 'gear-dagger')).toBe('remake');
-    expect(stored('gw-gear-sword').build.dials).toEqual({ mass: 1.6 });
-    const forced = await designGameHandler({ ref: 'gw', run: true, force: true });
-    expect(action(forced, 'gear-sword')).toBe('remake');
-    expect(stored('gw-gear-sword').build.dials).toBeUndefined();
-  }, 300_000);
-
   it('the advice rides every readout: how much is the creator\'s, and a world that reads as the fixture is told so', async () => {
     const out = await designGameHandler({ world: { ...GATED, id: 'copy' }, ref: 'gw' });
     expect(out.advice.authorship).toMatch(/pages written/);
@@ -160,4 +123,49 @@ describe('design_game', () => {
     await expect(designGameHandler({ ref: 'nope' })).rejects.toThrow(/no sketch at 'nope'/);
     await expect(designGameHandler({ ref: 'gw', world: GATED, patch: [] })).rejects.toThrow(/one or the other/);
   });
+});
+
+// The autonomous world is made once: the first test reads that run, the second changes the world it left.
+describe('design_game, autonomous', () => {
+  let out;
+  beforeAll(async () => {
+    closeDb();
+    out = await designGameHandler({ world: AUTO, ref: 'gw', run: true });
+  }, 240_000);
+
+  it('autonomous: one run makes everything that settles on its own', () => {
+    expect(out.ran.map((r) => r.action)).toEqual(Array(15).fill('make'));
+    // the levels and the game: each stage a level the equipped hero pilots, the game over them, unaudited and said so
+    expect(out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.key)).toEqual(['level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1']);
+    expect(stored('gw-level-meadow-ascent-0')).toMatchObject({ kind: 'stage', game: { levelRef: 'gw-level-meadow-ascent-0' }, figures: { hero: { heroRef: 'gw-hero-equipped' } } });
+    expect(stored('gw-game')).toMatchObject({ kind: 'game', store: { slices: expect.arrayContaining([expect.objectContaining({ kind: 'character' })]) } });
+    expect(stored('gw-game').levels.map((l) => l.ref)).toHaveLength(5);
+    expect(stored('gw-game').shell).toBe('play');
+    expect(step(out, 'play')).toEqual({ step: 'play', url: '/api/sketches/gw-game/game', playtest: '/api/sketches/gw-game/playtest', gate: 'eyes', card: 'gameworld-next' });
+    // the numbers, readable without the bible
+    expect(out.numbers.stats).toMatchObject({ hp: 100, power: 10, guard: 5 });
+    expect(out.numbers.powers.map((p) => p.key)).toEqual(['1', '2', '3']);
+    expect(out.steps).toEqual({ adornment: 'ready', systems: 'ready', equipment: 'ready' });
+  });
+
+  it('a change remakes only what it moved, in place; a hand edit is left as it is unless forced', async () => {
+    const heroRev = stored('gw-hero');
+    // the colour page moves: the hero is remade in place, the systems world and the gear are kept
+    const moved = await designGameHandler({ ref: 'gw', patch: [{ op: 'set', path: '/characters/hero/looks/colour', value: { palette: { Hair: '#2a2a2a' } } }], run: true });
+    expect(action(moved, 'hero')).toBe('remake');
+    expect(action(moved, 'hero-equipped')).toBe('remake');   // she wears the same colours
+    expect(moved.ran.filter((r) => !r.key.startsWith('hero')).every((r) => r.action === 'keep')).toBe(true);
+    expect(stored('gw-hero').hero.palette.Hair).toBe('#2a2a2a');
+    expect(stored('gw-hero')).not.toEqual(heroRev);
+    // the creator edits the sword by hand, then the world's gear language moves: the sword is left, the rest remade
+    await updateSketchHandler({ ref: 'gw-gear-sword', patch: [{ op: 'set', path: '/build/dials', value: { mass: 1.6 } }] });
+    const card = stored('gw').equipment.style;
+    const restyled = await designGameHandler({ ref: 'gw', patch: [{ op: 'set', path: '/equipment/style', value: { ...card, roles: { ...card.roles, blade: ['satin', '#7a2f8e'] } } }], run: true });
+    expect(action(restyled, 'gear-sword')).toBe('edited');
+    expect(action(restyled, 'gear-dagger')).toBe('remake');
+    expect(stored('gw-gear-sword').build.dials).toEqual({ mass: 1.6 });
+    const forced = await designGameHandler({ ref: 'gw', run: true, force: true });
+    expect(action(forced, 'gear-sword')).toBe('remake');
+    expect(stored('gw-gear-sword').build.dials).toBeUndefined();
+  }, 300_000);
 });

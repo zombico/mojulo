@@ -2,9 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { groundTile, groundTileFace, groundTileCss, GROUND_SURFACES } from './ground.js';
 import { planHistoricCity, renderHistoricCityToHtml } from './historic-city.js';
 
+// every tile and skin bakes through one pipeline (bake → turn → PNG): the table's first and last entries sample it
+const ends = (o) => { const k = Object.keys(o); return [k[0], k[k.length - 1]]; };
+// the seed-7 town and its street page, built once for the tests that read them
+let plan7 = null, page7 = null;
+const town = () => (plan7 ||= planHistoricCity({ seed: 7 }));
+const page = () => (page7 ||= renderHistoricCityToHtml({ seed: 7, view: 'street' }));
+
 describe('historic ground: what the town stands on', () => {
   it('every surface bakes a deterministic tile in the given colour', () => {
-    for (const s of Object.keys(GROUND_SURFACES)) {
+    for (const s of ends(GROUND_SURFACES)) {
       const a = groundTile(s, '#c9b48c');
       expect(a.startsWith('data:image/png;base64,')).toBe(true);
       expect(groundTile(s, '#c9b48c')).toBe(a);
@@ -19,7 +26,7 @@ describe('historic ground: what the town stands on', () => {
     expect(groundTileCss([f(0), f(4)]).match(/data:image\/png/g).length).toBe(1);
   });
   it('the main streets are rubble, the quays and the precinct brick, alleys mud, outside dry earth', () => {
-    const p = planHistoricCity({ seed: 7 });
+    const p = town();
     const by = (s) => p.grounds.filter((g) => g.surface === s);
     expect(by('rubble').length).toBeGreaterThan(20);
     expect(by('brick').some((g) => g.kind === 'precinct-floor')).toBe(true);
@@ -29,19 +36,19 @@ describe('historic ground: what the town stands on', () => {
     expect(p.grounds.filter((g) => g.kind === 'lane' && !g.surface)).toEqual([]);
   });
   it('the street view stands in a lane at eye height, south of the precinct, looking toward it', () => {
-    const p = planHistoricCity({ seed: 7 }), { eye, at } = p.views.street, { cols, cell, data, codes } = p.grid;
+    const p = town(), { eye, at } = p.views.street, { cols, cell, data, codes } = p.grid;
     expect(eye[2]).toBeCloseTo(1.7);
     expect(data[Math.floor(eye[1] / cell) * cols + Math.floor(eye[0] / cell)]).toBe(codes.LANE);
     expect(eye[1]).toBeGreaterThan(p.stats.precinct.y + p.stats.precinct.d);
     expect(at[1]).toBeLessThan(eye[1]);
   });
   it('the page carries each ground tile once, however many faces use it', () => {
-    const html = renderHistoricCityToHtml({ seed: 7, view: 'street' });
+    const html = page();
     const vars = html.match(/--historic-[a-z-]+-[0-9a-f]{6}:url/g);
     expect(vars.length).toBe(new Set(vars).size);
     expect(vars.length).toBeGreaterThanOrEqual(4);
     expect((html.match(/var\(--historic-/g) || []).length).toBeGreaterThan(200);
-  }, 120000);
+  }, 60000);
 });
 
 import { skinTile, skinFace, WALL_SKINS } from './ground.js';
@@ -49,7 +56,7 @@ import { skinFor } from './assets/kit.js';
 import { SUMER } from './cultures/sumer.js';
 describe('historic wall skins: what a wall is made of', () => {
   it('each skin bakes a deterministic transparent overlay, in four turns', () => {
-    for (const s of Object.keys(WALL_SKINS)) {
+    for (const s of ends(WALL_SKINS)) {
       const a = skinTile(s, 0);
       expect(a.startsWith('data:image/png;base64,')).toBe(true);
       expect(skinTile(s, 0)).toBe(a);
@@ -93,7 +100,7 @@ describe('historic wall skins: what a wall is made of', () => {
     expect(skinFor(SUMER, { kind: 'door', tint: '#3a2a1a' })).toBe(null);
   });
   it('the page carries each skin once', () => {
-    const html = renderHistoricCityToHtml({ seed: 7 });
+    const html = page();
     for (const m of html.match(/--historic-skin-[a-z-]+-\d:url/g) || []) expect(html.split(m).length).toBe(2);
     expect(html).toMatch(/var\(--historic-skin-mud-plaster-\d\)/);
   });

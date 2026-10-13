@@ -5,6 +5,9 @@ import { EGYPT_ASSETS } from './assets/egypt.js';
 import { THEBES } from './cultures/thebes.js';
 import { PATTERNS } from './patterns.js';
 
+// a whole town, built once and shared: its geometry is the claim, so no shade bake (that only paints the ground)
+const scenes = new Map();
+const sceneOf = (culture, view) => { const k = `${culture}:${view}`; if (!scenes.has(k)) scenes.set(k, assembleHistoricCityScene({ seed: 7, culture, view, shade: false })); return scenes.get(k); };
 const gap = (a, b) => Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w), b.y - (a.y + a.d), a.y - (b.y + b.d));
 
 describe('historic city: New Kingdom Thebes', () => {
@@ -40,7 +43,7 @@ describe('historic city: New Kingdom Thebes', () => {
     expect(p.grounds.filter((g) => g.kind === 'water').every((g) => g.z < -2)).toBe(true);
   });
   it('builds a scene, opening on any of its views', () => {
-    const s = assembleHistoricCityScene({ seed: 7, culture: 'thebes', view: 'avenue' });
+    const s = sceneOf('thebes', 'avenue');
     expect(s.cameras[0].name).toBe('avenue');
     expect(s.faces.length).toBeGreaterThan(5000);
   });
@@ -50,8 +53,9 @@ import { decollideFaces } from '../figures/face-mesh.js';
 import { assembleRegionScene } from './historic-region.js';
 describe('historic city: the ground stays on the ground in the World', () => {
   it('the de-overlap pass lifts no ground face more than a hair (overlapping strips must not chain)', () => {
-    for (const culture of ['sumer', 'thebes', 'giza']) {
-      const s = assembleHistoricCityScene({ seed: 7, culture });
+    // the view only sets the page's pixel scale, never where a ground face lies: Thebes's avenue scene stands for its town
+    for (const [culture, view] of [['sumer', 'aerial'], ['thebes', 'avenue'], ['giza', 'aerial']]) {
+      const s = sceneOf(culture, view);
       const ground = s.faces.filter((f) => f.corners.length === 4 && f.corners.every((c) => Math.abs(c[2]) < 0.05));
       const lifted = decollideFaces(ground).map((f) => Math.max(...f.corners.map((c) => c[2])));
       expect(Math.max(...lifted), culture).toBeLessThan(0.06);
@@ -64,5 +68,5 @@ describe('historic city: the ground stays on the ground in the World', () => {
       const lifted = decollideFaces(ground).map((f) => Math.max(...f.corners.map((c) => c[2])));
       expect(Math.max(...lifted), culture).toBeLessThan(0.06);
     }
-  }, 60000);
+  });
 });

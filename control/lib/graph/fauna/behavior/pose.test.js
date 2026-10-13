@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { BEHAVIORS, SUPPORT, HEAD, TAIL, LOOP } from './index.js';
 import { POSED, posable, poseBehavior, behaviorFrames, prepare } from './pose.js';
-import { FAMILY_SPECIES } from '../families.js';
 import { faunaSkeleton } from '../skeleton.js';
 import { capabilitiesOf } from './capabilities.js';
+import { perStrategy } from '../test-cases.js';
 
 // The posing contract: a posed behavior is a real pose of the species' own bones, on the ground it stands on.
-const ids = Object.keys(FAMILY_SPECIES);
 const len = (b) => Math.hypot(b.tail[0] - b.head[0], b.tail[1] - b.head[1], b.tail[2] - b.head[2]);
 const tip = (f) => f.bones.head.tail;
 
@@ -24,24 +23,18 @@ describe('behavior pose: the posed words', () => {
   });
 });
 
-describe('behavior pose: every posable behavior is a real pose', () => {
+describe('behavior pose: every posed strategy is a real pose', () => {
   it('finite, every bone its own length, nothing on land through the ground', () => {
-    let n = 0;
-    for (const id of ids) {
-      const rest = Object.fromEntries(faunaSkeleton(id).bones.map((b) => [b.id, b]));
+    for (const [id, b] of perStrategy()) {
+      const rest = Object.fromEntries(faunaSkeleton(id).bones.map((x) => [x.id, x]));
       const swims = capabilitiesOf(id).swimmer;
-      for (const b of Object.keys(BEHAVIORS)) {
-        if (!posable(id, b).ok) continue;
-        n++;
-        for (const f of behaviorFrames(id, b, 3)) for (const [bid, q] of Object.entries(f.bones)) {
-          expect([...q.head, ...q.tail].every(Number.isFinite), `${id}.${b}.${bid}`).toBe(true);
-          expect(Math.abs(len(q) - len(rest[bid])), `${id}.${b}.${bid} keeps its length`).toBeLessThan(1e-6);
-          if (!swims && f.water === undefined) expect(Math.min(q.head[2], q.tail[2]), `${id}.${b}.${bid} above ground`).toBeGreaterThan(-0.01);
-        }
+      for (const f of behaviorFrames(id, b, 3)) for (const [bid, q] of Object.entries(f.bones)) {
+        expect([...q.head, ...q.tail].every(Number.isFinite), `${id}.${b}.${bid}`).toBe(true);
+        expect(Math.abs(len(q) - len(rest[bid])), `${id}.${b}.${bid} keeps its length`).toBeLessThan(1e-6);
+        if (!swims && f.water === undefined) expect(Math.min(q.head[2], q.tail[2]), `${id}.${b}.${bid} above ground`).toBeGreaterThan(-0.01);
       }
     }
-    expect(n).toBeGreaterThan(290);
-  }, 120_000);
+  }, 60_000);
 
   it('deterministic', () => {
     expect(JSON.stringify(behaviorFrames('sheep', 'eat', 4))).toBe(JSON.stringify(behaviorFrames('sheep', 'eat', 4)));

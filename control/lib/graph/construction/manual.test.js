@@ -22,9 +22,16 @@ const bookcase = {
     ...['side-l', 'side-r', 'top', 'bottom'].map((b) => ({ type: 'groove', a: 'back', b })),
   ],
 };
+// the smallest frame that still makes a book: two sides and a top on cams (the name tests need a cover, not a bookcase)
+const stool = {
+  id: 'stool', unit: 'mm',
+  members: bookcase.members.filter((m) => ['side-l', 'side-r', 'top'].includes(m.id)),
+  joints: [{ type: 'cam-lock', a: 'top', b: 'side-l' }, { type: 'cam-lock', a: 'top', b: 'side-r' }],
+};
 
 describe('construction/manual — a frame writes its own instructions', () => {
-  beforeAll(async () => { await ensureExactKernel(); });
+  let book;                                                                    // the bookcase's book, drawn once
+  beforeAll(async () => { await ensureExactKernel(); book = manualPages(bookcase); });
 
   it('plans fit steps, then the parts in the order they seat, then fixing it to the wall', () => {
     const plan = manualPlan(bookcase);
@@ -48,7 +55,7 @@ describe('construction/manual — a frame writes its own instructions', () => {
     expect(plan.parts.map((p) => [p.n, p.count])).toEqual([[1, 2], [2, 2], [3, 1], [4, 1], [5, 1], [6, 1]]);
   });
   it('draws A4 pages in black ink on white, wordless, the same every time', () => {
-    const a = manualPages(bookcase), b = manualPages(bookcase);
+    const a = manualPages(bookcase), b = manualPages(bookcase);   // two fresh draws: the claim is the same every time
     expect(a.pages.map((p) => p.svg)).toEqual(b.pages.map((p) => p.svg));
     expect(a.pages.map((p) => p.name)).toEqual(['cover', 'inventory', ...a.plan.steps.map((s) => `step-${String(s.n).padStart(2, '0')}`)]);
     for (const p of a.pages) {
@@ -61,15 +68,15 @@ describe('construction/manual — a frame writes its own instructions', () => {
     }
   });
   it('escapes the piece\'s name on the cover and the book (a sketch title stands in for a frame id), and takes a number', () => {
-    const { plan, pages } = manualPages({ ...bookcase, id: 'Tables & Chairs <img src=x onerror=alert(1)>' });
+    const { plan, pages } = manualPages({ ...stool, id: 'Tables & Chairs <img src=x onerror=alert(1)>' });
     const cover = pages.find((p) => p.name === 'cover').svg;
     expect(cover).toContain('>TABLES &amp; CHAIRS &lt;IMG SRC=X ONERROR=ALERT(1)&gt;</text>');
     expect(cover).not.toMatch(/<IMG/i);
-    const book = manualHtml({ plan, pages });
-    expect(book).toContain('<title>Tables &amp; Chairs &lt;img src=x onerror=alert(1)&gt;</title>');
-    expect(book).not.toMatch(/<img/i);
+    const html = manualHtml({ plan, pages });
+    expect(html).toContain('<title>Tables &amp; Chairs &lt;img src=x onerror=alert(1)&gt;</title>');
+    expect(html).not.toMatch(/<img/i);
     // a numeric id (a frame minted before ids were checked) draws its number instead of failing the cook
-    expect(manualPages({ ...bookcase, id: 7 }).pages[0].svg).toContain('>7</text>');
+    expect(manualPages({ ...stool, id: 7 }).pages[0].svg).toContain('>7</text>');
     expect(validateFrames([{ ...bookcase, id: 7 }]).join('\n')).toMatch(/frames\[0\]\.id: a non-empty string/);
     expect(validateFrames([{ ...bookcase, id: '' }]).join('\n')).toMatch(/frames\[0\]\.id/);
     expect(validateFrames([bookcase])).toEqual([]);
@@ -79,7 +86,7 @@ describe('construction/manual — a frame writes its own instructions', () => {
     const d = hardwareGlyph(P, 0, 0);
     const xs = [...d.matchAll(/([ML]|^|L)(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g)].map((m) => +m[2]);
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(30, 1);
-    const inv = manualPages(bookcase).pages.find((p) => p.name === 'inventory').svg;
+    const inv = book.pages.find((p) => p.name === 'inventory').svg;
     expect(inv).toMatch(/10 mm · 1:1/);
     expect(inv).toMatch(/<line x1="18" y1="\d+" x2="28"/);                   // the check bar is 10 units = 10 mm
   });

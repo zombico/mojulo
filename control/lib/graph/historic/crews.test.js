@@ -16,6 +16,7 @@ import { POMPEII_ASSETS } from './assets/pompeii.js';
 import { QIN_ASSETS } from './assets/qin.js';
 import { POMPEII_FARM_ASSETS } from './assets/pompeii-land.js';
 import { METRES_PER_UNIT, planHistoricCity } from './historic-city.js';
+import { HISTORIC_CULTURES } from './cultures/index.js';
 
 const s = 1 / METRES_PER_UNIT;
 const hash = (x) => createHash('sha1').update(JSON.stringify(x)).digest('hex');
@@ -62,15 +63,22 @@ describe('historic crews: the people and beasts at the farm\'s and the works\' w
     expect(on.stats.people.beasts).toBeGreaterThan(2);
   }, 180000);
 
+  // one city per planner: the built-in ring-canal and the layout modules (./layouts/) — the crew pass is the same over both
+  const PLANNERS = new Map();
+  for (const [culture, K] of Object.entries(HISTORIC_CULTURES)) {
+    const planner = !K.layout || K.layout === 'ring-canal' ? 'ring-canal' : 'layout';
+    if (!PLANNERS.has(planner) && Object.keys(K.assets || {}).some((a) => CREWS[a])) PLANNERS.set(planner, culture);
+  }
   it('every city with slots stands crews at its work places, after its own town pass', () => {
-    for (const culture of ['sumer', 'thebes', 'giza', 'lindos', 'pompeii', 'qin']) {
+    expect([...PLANNERS.keys()].sort()).toEqual(['layout', 'ring-canal']);
+    for (const culture of PLANNERS.values()) {
       const plan = planHistoricCity({ culture }), F = sceneFolk(plan, true, s, 1);
       const named = (plan.slots || []).filter((sl) => CREWS[sl.asset]).length;
       expect(named, culture).toBeGreaterThan(0);
       expect(F.stats.crew, culture).toBeGreaterThan(0);
       expect(sceneFolk(plan, { crews: false, beasts: false }, s, 1).stats.crew, culture).toBe(0);
     }
-  }, 300000);
+  }, 120000);
 
   it('the historic kind takes people in every scene', () => {
     for (const scene of ['city', 'region', 'farm', 'works']) expect(historicOptions({ culture: 'sumer', scene, people: true }).opts.people).toBe(true);

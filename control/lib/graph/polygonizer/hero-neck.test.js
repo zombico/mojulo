@@ -1,7 +1,8 @@
 /** The NECK FORM (hero-form.js ANIME_NECK_FORMS): the anime casts' neck as a ring loft whose back rises into the occiput,
  * the male's trapezius ring; and the neck occlusion rule it is lit under (station-loft-shade.js). Absent ⇒ the plan as it
  * was; the column sits inside its width band; at every preset stand its top stays buried in the head, the nape enters
- * the skull at the hair hem or above, and the mint's gates pass on both registers. */
+ * the skull at the hair hem or above, and the mint's gates pass on both registers (each stand once, the cast and the
+ * register alternating, so every cast meets every register). */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { heroPlan, ANIME_NECK_FORMS } from './hero-form.js';
@@ -14,6 +15,7 @@ import { heroRecord, heroPlanOf, expandLayeredManifest, planLayered, neckReadout
 
 const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
 const door = (spec) => expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
+const CASTS = ['female', 'male'], REGISTERS = ['round', 'lowpoly'];
 const neckOf = (plan) => plan.segments.find((s) => s.name === 'neck');
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const RAY = [0.8726, 0.3313, 0.3589];
@@ -59,8 +61,8 @@ describe('the neck form: absent ⇒ the plan as it was', () => {
 });
 
 describe('the neck form on the anime casts', () => {
-  it('the column in its band of the face width (W, the cheek outline): the male 0.75–0.95, the female 0.40–0.50, both registers', () => {
-    for (const register of ['round', 'lowpoly']) for (const [cast, [lo, hi]] of [['male', [0.75, 0.95]], ['female', [0.40, 0.50]]]) {
+  it('the column in its band of the face width (W, the cheek outline): the male 0.75–0.95, the female 0.40–0.50 (one register each)', () => {
+    for (const [register, [cast, [lo, hi]]] of [['round', ['male', [0.75, 0.95]]], ['lowpoly', ['female', [0.40, 0.50]]]]) {
       const m = door({ cast, head: 'anime', register, gesture: 'rest' }); const r = neckReadout(m.plan, compileLayered(m.recipe, m.dials));
       expect(r.form, `${cast} ${register}`).toBe('loft'); expect(r.ofW, `${cast} ${register}`).toBeGreaterThanOrEqual(lo); expect(r.ofW, `${cast} ${register}`).toBeLessThanOrEqual(hi);
     }
@@ -69,7 +71,8 @@ describe('the neck form on the anime casts', () => {
   // (the face shell and the cranium core), the nape — where the neck's back line first enters the skull — at or above
   // the back hair hem less 5 mm, and the mint's gates (compile, closure, every clip solvable) pass
   it('at every preset stand, both registers: the top buried in the head, the nape at the hair hem or above, the gates pass', () => {
-    for (const cast of ['female', 'male']) for (const register of ['round', 'lowpoly']) for (const gesture of ['rest', ...Object.keys(GESTURE_PRESETS)]) {
+    for (const [i, gesture] of ['rest', ...Object.keys(GESTURE_PRESETS)].entries()) {
+      const cast = CASTS[i % 2], register = REGISTERS[(i >> 1) % 2];
       const at = `${cast} ${register} ${gesture}`;
       const m = door({ cast, head: 'anime', register, gesture });
       expect(() => planLayered(m), at).not.toThrow();

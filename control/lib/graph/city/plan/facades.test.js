@@ -8,6 +8,8 @@ import { cityBoxes, assembleCityScene } from './scene.js';
 import { organicFaces, ORGANIC_SHAPES } from './organic.js';
 
 const city = (rec = {}) => designCity(inferCity({ seed: 3, ...rec }).recipe);
+// a scene's facade claims need no street trees: growing their variants is most of a first scene's time
+const BARE = { green: 0 };
 const skins = (d) => d.lots.filter((l) => l.use !== 'parking').map((l) => skinLot(l, d.grammar, d.plan.seed));
 
 describe('a grammar is an id or a document over one', () => {
@@ -84,7 +86,7 @@ describe('the world hands the lots to the legacy facade pipeline', () => {
     expect(b.front).toBe({ n: '-y', s: '+y', w: '-x', e: '+x' }[lot.face]);
   });
   it('draws facades by default, the massing on asking', () => {
-    const m = { kind: 'city', ...inferCity({ seed: 2, grammar: 'paris' }).recipe };
+    const m = { kind: 'city', ...inferCity({ seed: 2, grammar: 'paris', ...BARE }).recipe };
     const facade = assembleCityScene(m), massing = assembleCityScene({ ...m, fidelity: 'massing' });
     expect(facade.faces.length).toBeGreaterThan(massing.faces.length * 3);
     expect(facade.city.fidelity).toBe('facade');
@@ -122,7 +124,7 @@ describe('organic masses: walls that ripple, spires that swell, inside their lot
     expect(Math.max(...streetYs)).toBeLessThanOrEqual(b.y + b.d + 1e-3);
   });
   it('the scene grows the organic masses beside the pipeline\'s boxes', () => {
-    const m = { kind: 'city', ...inferCity({ seed: 3, grammar: 'xeno-garden' }).recipe };
+    const m = { kind: 'city', ...inferCity({ seed: 3, grammar: 'xeno-garden', ...BARE }).recipe };
     const s = assembleCityScene(m);
     expect(s.faces.filter((f) => f.card).length).toBeGreaterThan(500);
   });

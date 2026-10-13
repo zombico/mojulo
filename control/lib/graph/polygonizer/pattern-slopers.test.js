@@ -13,6 +13,9 @@ import { articulate } from './figure-vajra.js';
 import { renderFigureToSvg, figurePatternReport } from './figure-render.js';
 
 const body = (proto = {}) => buildProtoform(articulate({}), proto);
+// the book's shift dress on each pole's body at its own stature, built once for the tests that only read it
+const SHIFT_ON = {};
+const shiftOn = (sex) => (SHIFT_ON[sex] ??= buildPatternGarment(body({ sex }), PATTERN_GARMENTS.shiftDress));
 const area = (o) => o.reduce((a, [x, y], i) => { const [qx, qy] = o[(i + 1) % o.length]; return a + x * qy - qx * y; }, 0) / 2;
 
 describe('draftSloper', () => {
@@ -106,8 +109,8 @@ describe('the book\'s pattern garments (fixtures) — whole garments as dials ov
       // the drafted front differs between the poles (it is the body's own tape)
       expect(report.pieces[0].area_cm2).toBeGreaterThan(500);
     }
-    const f = buildPatternGarment(body({ sex: 'female' }), PATTERN_GARMENTS.shiftDress).report.pieces[0].area_cm2;
-    const m = buildPatternGarment(body({ sex: 'male' }), PATTERN_GARMENTS.shiftDress).report.pieces[0].area_cm2;
+    const f = shiftOn('female').report.pieces[0].area_cm2;
+    const m = shiftOn('male').report.pieces[0].area_cm2;
     expect(f).not.toBe(m);
   });
 
@@ -254,7 +257,7 @@ describe('the shoulder line — a bodice drafts to the crest and its seam is sti
     for (const sex of ['female', 'male']) {
       const b = body({ sex });
       const yokeTop = Math.max(...b.find((s) => s.id === 'shoulderYoke').rings.flatMap((rg) => rg.polyline.map((p) => p.z)));
-      const { stacks, report } = buildPatternGarment(b, PATTERN_GARMENTS.shiftDress);
+      const { stacks, report } = shiftOn(sex);
       const over = report.seams.filter((s) => s.over);
       expect(over.length).toBe(2);
       for (const s of over) {
@@ -350,7 +353,7 @@ describe('wardrobe-variety — the padded form, the set-in sleeve, the split fro
     expect(s.edges.capFront[1]).toBe(s.edges.capBack[0]);   // they meet at the apex
     const apex = s.outline[s.edges.capFront[1]];
     expect(apex[0]).toBeCloseTo(0, 6); expect(apex[1]).toBeGreaterThan(Math.max(...s.outline.map(([, y]) => y)) - 1);   // the cap curve peaks a hair above its end point
-    const { report } = buildPatternGarment(body({ sex: 'female' }), PATTERN_GARMENTS.shiftDress);
+    const { report } = shiftOn('female');
     const caps = report.seams.filter((x) => /^cap/.test(x.b.edge));
     expect(caps.length).toBe(4);
     for (const c of caps) { expect(c.ease_to).toBe('a'); expect(c.gap_cm).toBeLessThan(16); }

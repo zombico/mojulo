@@ -1,30 +1,57 @@
 import { describe, it, expect } from 'vitest';
 import { gaitFrames, prepare, poseGait } from './gait.js';
 import { faunaSkeleton } from './skeleton.js';
-import { SPECIES } from './species.js';
-import { locomotionFor, PATTERNS } from './locomotion/index.js';
+import { PATTERNS } from './locomotion/index.js';
+import { PER_PATTERN } from './test-cases.js';
 
-// The gait machine gate: every gait of every animal poses, bones stay rigid, and a planted foot stays planted for
-// the gait's duty factor. How it LOOKS is the eyes gate (scripts/fauna-gait-strip.mjs), never claimed here.
+// The gait machine gate, on one gait per footfall or body-wave pattern: it poses, bones stay rigid, left and right
+// mirror as the pattern says, and a planted foot stays planted for the gait's duty factor. How it LOOKS is the eyes gate (scripts/fauna-gait-strip.mjs), never claimed here.
 const len = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const N = 24;
 
 describe('fauna gaits', () => {
-  for (const id of Object.keys(SPECIES)) {
-    const L = locomotionFor(SPECIES[id].family, id);
-    it(`${id}: every gait poses every bone, finite and rigid (${Object.keys(L.gaits).join(', ')})`, () => {
+  for (const [id, g, pattern] of PER_PATTERN) {
+    it(`${pattern} (${id} ${g}): poses every bone, finite and rigid`, () => {
       const S = faunaSkeleton(id);
-      for (const g of Object.keys(L.gaits)) {
-        for (const f of gaitFrames(id, g, 8)) {
-          for (const b of S.bones) {
-            const p = f.bones[b.id];
-            expect(p.head.concat(p.tail).every(Number.isFinite), `${id}.${g}.${b.id}`).toBe(true);
-            expect(Math.abs(len(p.head, p.tail) - len(b.head, b.tail)), `${id}.${g}.${b.id} keeps its length`).toBeLessThan(1e-6);
-          }
+      for (const f of gaitFrames(id, g, 8)) {
+        for (const b of S.bones) {
+          const p = f.bones[b.id];
+          expect(p.head.concat(p.tail).every(Number.isFinite), `${id}.${g}.${b.id}`).toBe(true);
+          expect(Math.abs(len(p.head, p.tail) - len(b.head, b.tail)), `${id}.${g}.${b.id} keeps its length`).toBeLessThan(1e-6);
         }
       }
     });
   }
+
+  it('chirality: the mirror of a gait is itself half a stride on, or at once, or, with a lead, never', () => {
+    // the body is mirror-symmetric about x = 0, so the mirror of a pose (x negated, left and right swapped) is a pose
+    // of the same gait at the phase the pattern offsets its sides by: half a stride (a walk, a trot, a lateral wave),
+    // none (a bound, a hop, a vertical wave). A gait with a lead (a gallop, a canter) is its own other-lead mirror at no
+    // phase. A stroke names no offset: its mirror is read at either.
+    const side = (b) => (/[a-z]R$/i.test(b) ? `${b.slice(0, -1)}L` : /[a-z]L$/i.test(b) ? `${b.slice(0, -1)}R` : b);
+    const offset = (P) => {
+      if (P.kind === 'wave') return P.plane === 'lateral' ? 0.5 : 0;
+      if (P.kind !== 'feet') return undefined;
+      const o = [['LH', 'RH'], ['LF', 'RF'], ['L', 'R']].filter(([l, r]) => l in P.feet && r in P.feet).map(([l, r]) => (((P.feet[r] - P.feet[l]) % 1) + 1) % 1);
+      return o.every((x) => x === o[0]) && (o[0] === 0 || o[0] === 0.5) ? o[0] : null;
+    };
+    const n = 12;   // even: half a stride lands on a frame
+    for (const [id, g, pattern] of PER_PATTERN) {
+      if (pattern === 'mobuliform') continue;   // the manta's wing flight does not mirror at any phase: an open question
+      const F = gaitFrames(id, g, n), at = (k) => {   // the worst gap between pose t mirrored and pose t + k/N
+        let e = 0;
+        for (let i = 0; i < n; i++) for (const [b, q] of Object.entries(F[i].bones)) {
+          const o = F[(i + k) % n].bones[side(b)];
+          for (const p of ['head', 'tail']) e = Math.max(e, Math.abs(q[p][0] + o[p][0]), Math.abs(q[p][1] - o[p][1]), Math.abs(q[p][2] - o[p][2]));
+        }
+        return e;
+      };
+      const s = offset(PATTERNS[pattern]), what = `${id} ${g} (${pattern})`;
+      if (s === null) expect(Math.min(...Array.from({ length: n }, (_, k) => at(k))), `${what} has a lead`).toBeGreaterThan(0.01);
+      else if (s === undefined) expect(Math.min(at(0), at(n / 2)), what).toBeLessThan(1e-9);
+      else expect(at(s * n), what).toBeLessThan(1e-9);
+    }
+  });
 
   it('a planted foot stays planted, for the duty factor of its gait', () => {
     const cases = [['wolf', 'walk'], ['wolf', 'trot'], ['horse', 'walk'], ['elephant', 'walk'], ['brownBear', 'walk'], ['crocodile', 'walk'], ['chicken', 'walk']];

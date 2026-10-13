@@ -8,10 +8,23 @@ import { compileLayered, auditLayered } from '../polygonizer/station-loft.js';
 const mesh = (plan) => compileLayered(expandPlan(plan));
 const signedVolume = (p) => { let v = 0; for (const f of Object.values(p.faces)) { const [a, b, c] = f.map((k) => p.points[k]);
   v += a[0] * (b[1] * c[2] - b[2] * c[1]) - a[1] * (b[0] * c[2] - b[2] * c[0]) + a[2] * (b[0] * c[1] - b[1] * c[0]); } return v / 6; };
+// the fewest entries whose keys reach every key the catalog has (greedy, in code): each part form is its own builder
+const cover = (ids, keysOf) => {
+  const left = new Set(ids.flatMap(keysOf)), picked = [];
+  while (left.size) {
+    const gain = (id) => keysOf(id).filter((k) => left.has(k)).length;
+    const best = ids.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+    picked.push(best); for (const k of keysOf(best)) left.delete(k);
+  }
+  return picked;
+};
+const formsOf = (id) => Object.entries(traitsOf(BUG_SPECIES[id])).flatMap(([k, v]) => [v].flat().map((f) => `${k}:${f}`));
+// an order's prior that wears a part over its basis, one per trait worn (the rest resolve to a worked bug as it is)
+const wornTraits = (order) => (resolveBug({ order }).worn || []).map((w) => w.split(':')[0]);
 
 describe('bug builder', () => {
-  it('every worked bug is deterministic, closed, wound outward, grounded, its feet planted and its length exact', () => {
-    for (const id of Object.keys(BUG_SPECIES)) {
+  it('a bug of every part form is deterministic, closed, wound outward, grounded, its feet planted and its length exact', () => {
+    for (const id of cover(Object.keys(BUG_SPECIES), formsOf)) {
       expect(JSON.stringify(bugPlan(id))).toBe(JSON.stringify(bugPlan(id)));   // recipes, not renders
       const { plan, readout } = assembleBug(bugParams(id)), M = mesh(plan), L = readout.length;
       expect(Object.entries(auditLayered(M)).filter(([, r]) => !r.pass).map(([n]) => n), id).toEqual([]);
@@ -58,7 +71,7 @@ describe('bug builder', () => {
     expect(crayfish.basis).toBe('greenCrab'); expect(crayfish.bauplan.trunk).toBe('cylinder'); expect(crayfish.bauplan.extras.map((x) => x.kind)).toEqual(['fan']);
     expect(resolveBug({ order: 'Coleoptera', traits: { hindLegs: 'jumper' } }).bauplan.legs.hind.form).toBe('jumper');
     expect(resolveBug({ like: 'grasshopper', traits: { antennae: 'whip' } }).basis).toBe('grasshopper');
-    for (const order of Object.keys(ORDER_PRIORS)) { const r = resolveBug({ order }); const M = mesh(buildBug(r.bauplan));
+    for (const order of cover(Object.keys(ORDER_PRIORS), wornTraits)) { const r = resolveBug({ order }); const M = mesh(buildBug(r.bauplan));
       expect(Object.values(auditLayered(M)).every((x) => x.pass), order).toBe(true); }
     expect(() => resolveBug({ order: 'Dragons' })).toThrow(/order 'Dragons'/);
     expect(() => resolveBug({ like: 'unicorn' })).toThrow(/not a worked bug/);

@@ -10,7 +10,7 @@
  *   4. dimorphism is monotone: the male jaw is wider, the brow projects more, the female chin is
  *      sharper, the female neck thinner;
  *   5. the jaw and the mouth move what they say they move, and nothing else does;
- *   6. hair and hats still seat on the skull (every wig / hat key builds on both poles, above the crown);
+ *   6. hair and hats still seat on the skull (one wig / hat per builder kind, both poles, above the crown);
  *   7. the head-study camera: crop + elev render, and are absent by default;
  *   8. the tape: head rows in cm;
  *   9. the FEATURES — the ear stands proud and spans the canon band, the side wall of the face
@@ -28,6 +28,18 @@ import { WIGS } from './wig.js';
 import { HATS, buildHat } from './hat.js';
 import { bodyGirths } from './body-chart.js';
 
+// ONE build per distinct argument list, shared by every assertion that only reads it (deterministic by
+// construction). The determinism test below still builds fresh.
+const BUILT = new Map();
+const built = (...args) => {
+  const k = JSON.stringify(args);
+  if (!BUILT.has(k)) BUILT.set(k, buildPosedFigure(...args));
+  return BUILT.get(k);
+};
+const SEXES = ['male', 'female'];
+// The wig and hat catalogs are data on a few builders: one entry per builder `kind`, the first of each
+// in catalog order, rather than every entry. A new wig or hat is covered by the builder it runs through.
+const firstOfEachKind = (catalog) => Object.values(Object.groupBy(Object.keys(catalog), (k) => catalog[k].kind)).map((g) => g[0]);
 const head = (stacks) => stacks.find((s) => s.id === 'headEgg');
 const pts = (st) => st.rings.flatMap((r) => r.polyline);
 const ringR = (r) => r.polyline.reduce((m, q) => m + Math.hypot(q.x - r.center.x, q.y - r.center.y, q.z - r.center.z), 0) / r.polyline.length;
@@ -37,7 +49,7 @@ const newell = (P) => { let x = 0, y = 0, z = 0; for (let i = 0; i < P.length; i
 describe('one closed head', () => {
   for (const sex of ['male', 'female']) {
     it(`${sex}: latitude rings, closed poles, no bound hit, no degenerate quad, mesher-consistent normals`, () => {
-      const stacks = buildPosedFigure({}, { sex });
+      const stacks = built({}, { sex });
       const h = head(stacks);
       expect(h).toBeTruthy();
       expect(stacks.find((s) => s.id === 'faceMask')).toBeUndefined();          // the second tube is gone
@@ -104,8 +116,10 @@ describe('the canon (Loomis)', () => {
     });
   }
   it('the built skull is about two-thirds as wide as it is tall, at three headScales', () => {
-    for (const sex of ['male', 'female']) for (const headScale of [1, 1.4, 1.8]) {
-      const h = head(buildPosedFigure({}, { sex, headScale }));
+    // each headScale once, the pole alternating
+    for (const [i, headScale] of [1, 1.4, 1.8].entries()) {
+      const sex = SEXES[i % 2];
+      const h = head(built({}, { sex, headScale }));
       const ratio = extent(h, 'x') / extent(h, 'z');
       expect(ratio, `${sex} @${headScale}`).toBeGreaterThan(0.58);
       expect(ratio, `${sex} @${headScale}`).toBeLessThan(0.80);
@@ -121,8 +135,8 @@ describe('dimorphism is monotone', () => {
     expect(Math.abs(M.gonionL.x) / M.s).toBeGreaterThan(Math.abs(F.gonionL.x) / F.s);
     expect(DIMORPH.female.head.chinPoint).toBeGreaterThan(DIMORPH.male.head.chinPoint);
     expect(DIMORPH.female.head.brow).toBeLessThan(DIMORPH.male.head.brow);
-    const nm = buildPosedFigure({}, { sex: 'male' }).find((s) => s.id === 'neck');
-    const nf = buildPosedFigure({}, { sex: 'female' }).find((s) => s.id === 'neck');
+    const nm = built({}, { sex: 'male' }).find((s) => s.id === 'neck');
+    const nf = built({}, { sex: 'female' }).find((s) => s.id === 'neck');
     expect(ringR(nf.rings[10])).toBeLessThan(ringR(nm.rings[10]));
   });
   it('the brow projects further on the male pole (the field, not the table)', () => {
@@ -130,9 +144,9 @@ describe('dimorphism is monotone', () => {
     expect(probe(DIMORPH.male.head)).toBeGreaterThan(probe(DIMORPH.female.head));
   });
   it('the head knobs move their region', () => {
-    const wide = head(buildPosedFigure({}, { jawWidth: 1.4 })), base = head(buildPosedFigure({}, {}));
+    const wide = head(built({}, { jawWidth: 1.4 })), base = head(built({}, {}));
     expect(extent(wide, 'x')).toBeGreaterThanOrEqual(extent(base, 'x'));
-    const nose = head(buildPosedFigure({}, { noseSize: 1.6 }));
+    const nose = head(built({}, { noseSize: 1.6 }));
     expect(extent(nose, 'y')).toBeGreaterThan(extent(base, 'y'));
     // the soft cheek fills the hollow under the cheekbone: the field at the cheek landmark goes deeper inside
     const L = headLandmarks();
@@ -148,7 +162,7 @@ describe('dimorphism is monotone', () => {
 
 describe('the jaw and the mouth', () => {
   it('opening the jaw drops the chin and nothing above the hinge', () => {
-    const rest = head(buildPosedFigure({}, {})), open = head(buildPosedFigure({ face: { jaw: 25 } }, {}));
+    const rest = head(built({}, {})), open = head(built({ face: { jaw: 25 } }, {}));
     // the chin swings down AND back, so read the front HALF (it leaves the front quarter); not the throat stub
     expect(chinZOf(open, 0.5)).toBeLessThan(chinZOf(rest, 0.5) - 0.05);
     // crown untouched: the first (crown) ring is identical
@@ -171,23 +185,25 @@ describe('the jaw and the mouth', () => {
 });
 
 describe('the scalp readers still seat on the skull', () => {
-  for (const sex of ['male', 'female']) {
-    it(`${sex}: every wig and hat builds and rises to the crown`, () => {   // hats via hat.js directly (not a manifest channel)
-      const crownZ = Math.max(...pts(head(buildPosedFigure({}, { sex }))).map((q) => q.z));
-      for (const style of Object.keys(WIGS)) {
-        const stacks = buildPosedFigure({}, { sex }, null, { hair: style });
-        const hair = stacks.filter((s) => !s.flesh && s.rings);
-        expect(hair.length, `${sex} wig ${style}`).toBeGreaterThan(0);
-        expect(Math.max(...hair.flatMap(pts).map((q) => q.z)), `${sex} wig ${style} above the crown`).toBeGreaterThan(crownZ - 0.3);
-      }
-      const body = buildPosedFigure({}, { sex });
-      for (const kind of Object.keys(HATS)) {
-        const hat = buildHat(body, HATS[kind]);
-        expect(hat.length, `${sex} hat ${kind}`).toBeGreaterThan(0);
-        expect(Math.max(...hat.flatMap(pts).map((q) => q.z)), `${sex} hat ${kind} seats on the skull`).toBeGreaterThan(crownZ - 1.0);   // a beanie's crown sits just under the skull's; it reads as a hat by its brim
-      }
+  // one wig and one hat per builder kind, the pole alternating by index so both poles wear both
+  const crownZ = (sex) => Math.max(...pts(head(built({}, { sex }))).map((q) => q.z));
+  it('a wig of every kind builds and rises to the crown', () => {
+    firstOfEachKind(WIGS).forEach((style, i) => {
+      const sex = SEXES[i % 2];
+      const stacks = buildPosedFigure({}, { sex }, null, { hair: style });
+      const hair = stacks.filter((s) => !s.flesh && s.rings);
+      expect(hair.length, `${sex} wig ${style}`).toBeGreaterThan(0);
+      expect(Math.max(...hair.flatMap(pts).map((q) => q.z)), `${sex} wig ${style} above the crown`).toBeGreaterThan(crownZ(sex) - 0.3);
     });
-  }
+  });
+  it('a hat of every kind builds and seats on the skull', () => {   // hats via hat.js directly (not a manifest channel)
+    firstOfEachKind(HATS).forEach((kind, i) => {
+      const sex = SEXES[i % 2];
+      const hat = buildHat(built({}, { sex }), HATS[kind]);
+      expect(hat.length, `${sex} hat ${kind}`).toBeGreaterThan(0);
+      expect(Math.max(...hat.flatMap(pts).map((q) => q.z)), `${sex} hat ${kind} seats on the skull`).toBeGreaterThan(crownZ(sex) - 1.0);   // a beanie's crown sits just under the skull's; it reads as a hat by its brim
+    });
+  });
 });
 
 describe('the head-study camera', () => {
@@ -206,7 +222,7 @@ describe('the head-study camera', () => {
 describe('the tape', () => {
   it('reports head girth, height and width in cm, in human ranges at 170 cm', () => {
     for (const sex of ['male', 'female']) {
-      const g = bodyGirths(buildPosedFigure({}, { sex }), { stature_cm: 170 });
+      const g = bodyGirths(built({}, { sex }), { stature_cm: 170 });
       expect(g.head, sex).toBeGreaterThan(50); expect(g.head, sex).toBeLessThan(66);      // hat sizes 50–66 cm
       expect(g.head_height, sex).toBeGreaterThan(19); expect(g.head_height, sex).toBeLessThan(27);
       expect(g.head_width, sex).toBeGreaterThan(13); expect(g.head_width, sex).toBeLessThan(19);

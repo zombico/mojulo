@@ -15,7 +15,9 @@ beforeEach(() => { closeDb(); });
 const floor = (els) => els.filter((e) => !(e.surface && e.surface !== 'floor') && Array.isArray(e.anchor) && e.w != null);
 // a layout's shape: what stands where, to a tenth of the room
 const signature = (els) => floor(els).map((e) => `${e.type}@${e.anchor.map((x) => x.toFixed(1)).join(',')}:${e.facing || ''}`).sort().join('|');
-const varied = (glyph, seed, w, h) => furnishElements(glyph, seed, { w, h, scale: 'share', varied: true });
+// one draw per (room, seed) across the file: the living room's seeds are read by two tests
+const VARIED = new Map();
+const varied = (glyph, seed, w, h) => { const k = `${glyph}|${seed}|${w}|${h}`; if (!VARIED.has(k)) VARIED.set(k, furnishElements(glyph, seed, { w, h, scale: 'share', varied: true })); return VARIED.get(k); };
 
 describe("layout: 'varied' — the arrangers", () => {
   it('draws many layouts of one room across seeds, every piece inside the room', () => {
@@ -68,7 +70,7 @@ describe("layout: 'varied' — the arrangers", () => {
 
 describe("layout: 'varied' — a house", () => {
   const room = { width: 22, height: 20, rooms: [{ x: 1, y: 1, w: 20, h: 18, glyph: 'L' }], furnish: true, furnishScale: 'share', style: 'modern' };
-  const furniture = (m) => structurizeFloorplan(m, m).faces.filter((f) => /^(asset|item):|furniture/.test(f.group || '') || f.asset).length;
+  const furniture = (faces) => faces.filter((f) => /^(asset|item):|furniture/.test(f.group || '') || f.asset).length;
   const groups = (m) => [...new Set(structurizeFloorplan(m, m).faces.map((f) => f.group).filter(Boolean))].sort().join('|');
 
   it('one room, re-seeded, rearranges; the same seed draws the same room', () => {
@@ -81,8 +83,8 @@ describe("layout: 'varied' — a house", () => {
     const a = structurizeFloorplan({ ...room, seed: 4 }, { ...room, seed: 4 }).faces;
     const b = structurizeFloorplan({ ...room, seed: 4, layout: null }, { ...room, seed: 4, layout: null }).faces;
     expect(b).toEqual(a);
-    expect(furniture({ ...room, seed: 4 })).toBeGreaterThan(0);
-  }, 120_000);
+    expect(furniture(a)).toBeGreaterThan(0);
+  });
 });
 
 describe('a new house at mint', () => {
@@ -99,7 +101,8 @@ describe('a new house at mint', () => {
     expect(c.furnishing).toBeNull();
   });
 
-  const HOUSE = { width: 30, height: 20, rooms: [{ x: 1, y: 1, w: 16, h: 18, glyph: 'L' }, { x: 17, y: 1, w: 12, h: 18, glyph: 'D' }], furnish: true, view: 'cutaway' };
+  // one furnished room: the smallest house whose composed furniture reaches the World
+  const HOUSE = { width: 18, height: 17, rooms: [{ x: 1, y: 1, w: 16, h: 15, glyph: 'L' }], furnish: true, view: 'cutaway' };
   it('a named ref draws its seed from the ref, and the stored recipe renders the same twice', async () => {
     const r = mintBuilding({ title: 'v', ref: 'house_variety_a', manifest: HOUSE });
     const m = SketchRepository.getByRef(r.ref).manifest;
