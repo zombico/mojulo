@@ -13,6 +13,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
+
+- **The budget reads a creature** (`cast-spend.js`). A creature is read by its own part names: the shin and the
+  metatarsal, the tail's links, the paw's fingers, pads and claws, and the muzzle's parts that hang below the head's
+  base (whiskers, teeth, the tongue, the eye's surround), which its height alone filed as clothing. With `cover: true`
+  its tiles (fur, scale, feather, plate) are their own COVER region, reserved from nothing up to the hair's share. A
+  hero's tiles are a garment's, so its readout is unchanged.
+- **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
+  silhouette:
+  - a silhouette gate every pass must keep;
+  - bridges at the joints its bind chains name;
+  - triangles spent by what reads at the target, the freed ones going to the masses;
+  - smooth, proxy-normal shading, the body and face tint, the light and the outline;
+  - the motion library retargeted onto its skeleton.
+  The Pale Warden is the first case.
+
 ### Body shade: the western face's painted light on the whole figure, read off the body
 
 - **Planned.** The face's form shading (normals toward a simple form round each segment) and its painted tint (the
