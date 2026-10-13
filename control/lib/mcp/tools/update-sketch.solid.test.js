@@ -798,12 +798,13 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
     const row = () => SketchRepository.getByRef('anime-clips');
     const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'anime-clips', spec: { cast: 'male', head: 'anime', register: 'lowpoly', clips: { cheer: { seconds: 1.5, keys: K } } } });
     expect(minted.ok).toBe(true); expect('blink' in row().manifest.hero).toBe(false);
-    expect(minted.hero.clips).toEqual({ plays: ['gesture', 'idle', 'walk', 'wave', 'cheer'], authored: ['cheer'], seconds: { gesture: 1, idle: 4, walk: 1, wave: 2, cheer: 1.5 }, face: ['cheer'] });
-    expect(minted.next.reason).toMatch(/On the anime head a key may carry face \(an expression word, \{ blink, smile, open, brow \} or a list\), a clip may be \{ seconds, keys \} \(its designed duration; the clips play idle 4 s, walk 1 s, wave 2 s, cheer 1\.5 s\), and \/hero\/blink false turns the ambient blink off\./);
+    // a new hero walks with the calibrated gait (motion-stamp.js withDefaultWalk), whose stride takes 1.1 s
+    expect(minted.hero.clips).toEqual({ plays: ['gesture', 'idle', 'walk', 'wave', 'cheer'], authored: ['cheer'], seconds: { gesture: 1, idle: 4, walk: 1.1, wave: 2, cheer: 1.5 }, face: ['cheer'] });
+    expect(minted.next.reason).toMatch(/On the anime head a key may carry face \(an expression word, \{ blink, smile, open, brow \} or a list\), a clip may be \{ seconds, keys \} \(its designed duration; the clips play idle 4 s, walk 1\.1 s, wave 2 s, cheer 1\.5 s\), and \/hero\/blink false turns the ambient blink off\./);
     expect(row().manifest.hero.clips).toEqual({ cheer: { seconds: 1.5, keys: K } });
     expect(row().manifest.recipe.clips.cheer).toEqual(K.map(({ face: _f, ...pose }) => pose));
     const clipsOf = async () => (await resolveWorldScene({ ref: 'anime-clips', title: 't', manifest: row().manifest })).payload.figures.body.clips;
-    expect(Object.fromEntries(Object.entries(await clipsOf()).map(([c, v]) => [c, v.s]))).toEqual({ gesture: 1, idle: 4, walk: 1, wave: 2, cheer: 1.5 });
+    expect(Object.fromEntries(Object.entries(await clipsOf()).map(([c, v]) => [c, v.s]))).toEqual({ gesture: 1, idle: 4, walk: 1.1, wave: 2, cheer: 1.5 });
     // an unrelated /hero edit regenerates the plan from the record: the clip, its duration and its faces ride along
     const legs = await updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/tune/legs', value: 1.05 }] });
     expect(legs.ok).toBe(true); expect(row().manifest.hero.clips).toEqual({ cheer: { seconds: 1.5, keys: K } }); expect(legs.stats.hero.clips.seconds.cheer).toBe(1.5);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
-import { stampAuthoredMotion, stampHero } from './motion-stamp.js';
+import { stampAuthoredMotion, stampHero, withDefaultWalk } from './motion-stamp.js';
 
 const PHASES = Array.from({ length: 12 }, (_, i) => i / 12);
 const same = (a, b) => PHASES.every((u) => JSON.stringify(a(u)) === JSON.stringify(b(u)));
@@ -86,7 +86,7 @@ describe('stampAuthoredMotion — what is written, and what an edit leaves alone
     const m = stampAuthoredMotion(next, prev);
     expect(m.figures.old).toBe(next.figures.old);
     expect(m.figures.fresh.motion).toEqual({ walk: { ...WALK_MINT } });
-    expect(m.figures.hero.hero.motion.walk).toMatchObject(WALK_MINT);
+    expect(m.figures.hero.hero.motion.walk).toMatchObject({ ...WALK_MINT });
   });
 
   it("stamps a layered hero's motion, and leaves a hero without one alone", () => {
@@ -94,5 +94,19 @@ describe('stampAuthoredMotion — what is written, and what an edit leaves alone
     expect(m.hero.motion.sprint).toMatchObject(MOTION_GAITS.sprint.base);
     const bare = { cast: 'male' };
     expect(stampHero(bare)).toBe(bare);
+  });
+});
+
+describe('withDefaultWalk — a new hero walks with the calibrated gait', () => {
+  it('a hero that says nothing of its walk gets one; its other gaits stay', () => {
+    expect(withDefaultWalk({ cast: 'female' }).motion).toEqual({ walk: true });
+    expect(withDefaultWalk({ cast: 'male', motion: { sprint: true } }).motion).toEqual({ sprint: true, walk: true });
+    expect(stampHero(withDefaultWalk({ cast: 'male' })).motion.walk).toMatchObject({ ...WALK_MINT });
+  });
+
+  it('a creator\'s own walk, a door clip named walk, and a statue are left as they are', () => {
+    for (const spec of [{ cast: 'male', motion: { walk: { lean: 0.1 } } }, { cast: 'male', clips: { walk: [{}, {}] } }, { cast: 'male', statue: 'roman' }]) {
+      expect(withDefaultWalk(spec)).toBe(spec);
+    }
   });
 });

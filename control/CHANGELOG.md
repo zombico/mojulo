@@ -728,6 +728,13 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   measured sprint (59° forward, 42° back; a dash 59 / 40). `keyframeMotion` takes `beats` (each segment's share of the
   loop; absent, even), and an emote passes its stamped `beats`: the bow is minted at 1.25 / 0.7 / 1.65 / 0.6 s, which
   measures 0.78 s down, 1.17 s held and 1.06 s up (people 0.8 / 1.1 / 1.07), rising slower than it bows.
+- **New heroes walk with it.** The hero door gives a hero that brings no walk of its own (no `motion.walk`, no door clip
+  named `walk`, not a statue) `motion.walk: true`, stamped by value: the calibrated gait baked on its rig replaces the
+  stock four-key walk in place, which slid its planted feet and never moved. A creator's walk, and every hero minted
+  before, keep theirs. The vibe page's motion patch carries that walk when it sets the other gaits. The hero readout's
+  clip `seconds` now say a door gait's own duration (the walk 1.1 s), where it said the replaced clip's.
+  On the hero rig the walk keeps its studied stride (about 0.7 m/s): scaled to the leg, the rig's own grounding sinks
+  the hips 10 cm into a lunge, so a full-length stride waits on knee and heel rocking in that solver.
 - **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
   takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an

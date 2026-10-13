@@ -87,7 +87,7 @@ import { drawnPlan } from '../../graph/polygonizer/creature-drawn.js';
 import { compileOutfit } from '../../graph/polygonizer/outfit-plan.js';
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
-import { stampHero } from '../../graph/polygonizer/motion-stamp.js';
+import { stampHero, withDefaultWalk } from '../../graph/polygonizer/motion-stamp.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
 export function planLayered(manifest) {
@@ -607,6 +607,15 @@ function gestureWarnings(g, dials) {
   return out;
 }
 
+/** Clip durations with the door's gaits over the hero's own: a gait (hero-motion.js motionPlan, `recipe.locomotion`)
+ * replaces the clip of its name, so it plays at the gait's seconds. Only where durations are said (`seconds` non-empty). */
+function locoSeconds(seconds, locomotion) {
+  if (!seconds || !Object.keys(seconds).length || !locomotion) return seconds;
+  const out = { ...seconds };
+  for (const [name, g] of Object.entries(locomotion)) if (name in out && Number.isFinite(g?.seconds)) out[name] = g.seconds;
+  return out;
+}
+
 /** The door's CLIPS as the readout says them (only on a hero that authored some): every clip the figure plays, in
  * order (the stand first when it stands), the door's own (new or replacing the hero's of that name), and the hero's own
  * it removed; on the anime head each played clip's designed duration (`seconds`) and the door clips carrying a facial
@@ -614,7 +623,7 @@ function gestureWarnings(g, dials) {
 function clipsReadout(hero, recipe) {
   if (!hero.clips) return null;
   const names = Object.keys(hero.clips), removed = names.filter((n) => hero.clips[n] === false);
-  const seconds = heroClipSeconds(hero, recipe?.clips) ?? {};
+  const seconds = locoSeconds(heroClipSeconds(hero, recipe?.clips) ?? {}, recipe?.locomotion);
   const face = hero.head === 'anime' || (hero.head ?? 'landmark') === 'landmark' ? names.filter((n) => hero.clips[n] !== false && (Array.isArray(hero.clips[n]) ? hero.clips[n] : hero.clips[n]?.keys || []).some((k) => k?.face !== undefined && k.face !== null)) : [];
   return { plays: Object.keys(recipe?.clips || {}), authored: names.filter((n) => hero.clips[n] !== false), ...(removed.length ? { removed } : {}), ...(Object.keys(seconds).length ? { seconds } : {}), ...(face.length ? { face } : {}) };
 }
@@ -687,8 +696,9 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
 export async function createLayeredHeroHandler(input) {
   if (!input || typeof input !== 'object') throw new Error("The hero door takes spec { cast?, register?, tune?, face?, hair?, expression?, sculpt?, detail?, adorn?, body?, palette?, head?, gesture?, clips?: { <name>: [keys] | { seconds, keys } | false } (a key's face on the anime or the landmark head), blink?: false, title? }. Read get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections: get_solid_vocab({ id: 'layered', section: 'hero-looks' }) …).");
   const heroSpec = Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]]));
-  // the door's gaits are stored by value as they are minted now (motion-stamp.js), so a later mint table never moves them
-  const hero = heroRecord(stampHero(heroSpec));
+  // a new hero walks with the calibrated gait unless it brings its own walk (withDefaultWalk), and the door's gaits are
+  // stored by value as they are minted now (motion-stamp.js), so a later mint table never moves them
+  const hero = heroRecord(stampHero(withDefaultWalk(heroSpec)));
   let plan;
   try { plan = heroPlanOf(hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections by name).`); }
@@ -696,7 +706,7 @@ export async function createLayeredHeroHandler(input) {
   let planned = null;   // the mint's own compiled figure: the readout's stand and budget read it
   const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${castLabel(hero.cast)}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` }, { onPlanned: (p) => { planned = p; } });
   const face = hero.head === 'anime' ? ` The anime head by word: /hero/face/<control> (${ANIME_FACE_KEYS.join(', ')}; 1 = the base, tilt an offset); the hair: /hero/hair/style (${ANIME_HAIR_STYLES.join(', ')}), /hero/hair/<control> (${ANIME_HAIR_KEYS.join(', ')}) and /hero/hair/locks/<clump> ({ cx, cy, cz, tx, ty, tz }: fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-±1-0…2 on short); the hair's form /hero/hair/<word> (${ANIME_HAIR_FORM_WORDS.join(', ')}; lift { crown, temple, fringe, nape } in construction units; false the studio's construction, null back to the base's); the hair base (the cut worn while no family is named: ${Object.entries(ANIME_HAIR_BASE).map(([pole, b]) => `${b.cut} on the ${pole}`).join(', ')}, its form under every family); /hero/expression (${Object.keys(ANIME_POSES).join(', ')} or { blink, smile, open, brow }). The graphic face: /hero/sculpt (an object of ${ANIME_SCULPT_KEYS.join(', ')}, ${Object.keys(SCULPT_SHAPE_KEYS).join(', ')}; 1 = the base, positions and angles offsets; moves ${ANIME_SCULPT.MOVE_NAMES.join(', ')}; false for the studio's face), then /hero/sculpt/<word>. A LOOK composes presets by word: set /hero/look to a list (archetypes ${LOOK_TABLES.archetype.join(', ')}; face traits ${LOOK_TABLES.face.join(', ')}; graphic-face traits ${LOOK_TABLES.sculpt.join(', ')}; hair traits and families ${LOOK_TABLES.hair.join(', ')}; poses); the controls above apply on top of it.` : hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
-  const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}), /hero/outfit (garments that follow the body: an outfit build { type: 'outfit', style, dials }, restyled by /hero/outfit/dials/<stylize | fit | coverage | ornament> and /hero/outfit/style; or ${Object.keys(OUTFIT_WORDS).join(', ')}, or a list), /hero/paint (second skin: ${Object.keys(PAINT_WORDS).join(', ')}, or a list) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials, theme? }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament>, /hero/adorn/style and /hero/adorn/theme. The stand: /hero/gesture (${GESTURE_WORDS.join(', ')}, or pose words ${GESTURE_KEYS.join(', ')}). Clips: set /hero/clips to { <name>: [keys] } (each key an object of the stand's pose words; the head and neck may aim; heelL, heelR, lift, support: 'none'${jawedHead(hero) ? ', jaw' : ''}), then /hero/clips/<name> (remove drops a door clip); a name the figure plays (${Object.keys(plan.clips || {}).filter((c) => c !== GESTURE_CLIP).join(', ')}) replaces that clip, false removes one of the hero's own.${hero.head === 'anime' ? ` On the anime head a key may carry face (an expression word, { blink, smile, open, brow } or a list), a clip may be { seconds, keys } (its designed duration; the clips play ${Object.entries(heroClipSeconds(hero, plan.clips) || {}).filter(([c]) => c !== GESTURE_CLIP).map(([c, s]) => `${c} ${s} s`).join(', ')}), and /hero/blink false turns the ambient blink off.` : (hero.head ?? 'landmark') === 'landmark' ? ` A key may carry face (an expression word, or { word?, browRaise, browTilt, mouthCorner, aperture, blink }: the face's blend shapes in an export), and /hero/blink false turns the ambient blink off.` : ''} A statue: /hero/statue (a period card: ${STATUE_STYLES.join(', ')}; or { type: 'statue', style, material: ${STATUE_MATERIAL_WORDS.join(' | ')}, crop: ${STATUE_CROP_WORDS.join(' | ')}, lose: [head, armR, forearmL, …], base: ${STATUE_BASE_WORDS.join(' | ')}, dials: { wear } }).`;
+  const dressNext = ` Detail and adornment: /hero/detail (${DETAIL_WORDS.join(', ')}), /hero/outfit (garments that follow the body: an outfit build { type: 'outfit', style, dials }, restyled by /hero/outfit/dials/<stylize | fit | coverage | ornament> and /hero/outfit/style; or ${Object.keys(OUTFIT_WORDS).join(', ')}, or a list), /hero/paint (second skin: ${Object.keys(PAINT_WORDS).join(', ')}, or a list) and /hero/adorn (${KIT_WORDS.join(', ')}); or an armour build /hero/adorn { type: 'armor', style, dials, theme? }, restyled by /hero/adorn/dials/<stylize | coverage | mass | ornament>, /hero/adorn/style and /hero/adorn/theme. The stand: /hero/gesture (${GESTURE_WORDS.join(', ')}, or pose words ${GESTURE_KEYS.join(', ')}). Clips: set /hero/clips to { <name>: [keys] } (each key an object of the stand's pose words; the head and neck may aim; heelL, heelR, lift, support: 'none'${jawedHead(hero) ? ', jaw' : ''}), then /hero/clips/<name> (remove drops a door clip); a name the figure plays (${Object.keys(plan.clips || {}).filter((c) => c !== GESTURE_CLIP).join(', ')}) replaces that clip, false removes one of the hero's own.${hero.head === 'anime' ? ` On the anime head a key may carry face (an expression word, { blink, smile, open, brow } or a list), a clip may be { seconds, keys } (its designed duration; the clips play ${Object.entries(locoSeconds(heroClipSeconds(hero, plan.clips) || {}, plan.locomotion)).filter(([c]) => c !== GESTURE_CLIP).map(([c, s]) => `${c} ${s} s`).join(', ')}), and /hero/blink false turns the ambient blink off.` : (hero.head ?? 'landmark') === 'landmark' ? ` A key may carry face (an expression word, or { word?, browRaise, browTilt, mouthCorner, aperture, blink }: the face's blend shapes in an export), and /hero/blink false turns the ambient blink off.` : ''} A statue: /hero/statue (a period card: ${STATUE_STYLES.join(', ')}; or { type: 'statue', style, material: ${STATUE_MATERIAL_WORDS.join(' | ')}, crop: ${STATUE_CROP_WORDS.join(' | ')}, lose: [head, armR, forearmL, …], base: ${STATUE_BASE_WORDS.join(' | ')}, dials: { wear } }).`;
   // the dress ledgers read the figure at REST (every dial at its rest, no channels), as the door always measured them;
   // the mint's own mesh is that figure unless the mint turned a dial or carried a channel
   const dressed = hero.detail !== undefined || hero.adorn !== undefined;

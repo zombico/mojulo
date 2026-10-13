@@ -41,6 +41,13 @@ describe('gaits are stored by value where they are authored', () => {
     expect(after.motion).toBe('walk');
   }, 120_000);
 
+  it('the hero door gives a new hero the calibrated walk when it brings none, stored by value', async () => {
+    expect((await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'ms-hero-bare', spec: { cast: 'female' } })).ok).toBe(true);
+    const stored = SketchRepository.getByRef('ms-hero-bare').manifest;
+    expect(stored.hero.motion.walk).toEqual({ ...WALK_MINT, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt });
+    expect(stored.recipe.locomotion.walk.spec.walk).toMatchObject({ stepWidth: WALK_MINT.stepWidth, heelRise: WALK_MINT.heelRise });
+  }, 120_000);
+
   it('the hero door stores its gaits with the mint table, the gait base, seconds and tilt', async () => {
     const out = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'ms-hero', spec: { cast: 'male', motion: { walk: true, jog: { tilt: 12 } } } });
     expect(out.ok).toBe(true);

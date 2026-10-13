@@ -147,7 +147,8 @@ export function readMotion(M) {
  */
 export function motionOrders(R, ref = '<ref of the mint>') {
   const patch = [
-    ...(R.motion ? [{ op: 'set', path: '/hero/motion', value: R.motion }] : []),
+    // the patch sets the whole motion page, so it carries the walk the hero was minted with when the vibe left it alone
+    ...(R.motion ? [{ op: 'set', path: '/hero/motion', value: 'walk' in R.motion ? R.motion : { walk: true, ...R.motion } }] : []),
     ...(R.gesture ? [{ op: 'set', path: '/hero/gesture', value: R.gesture }] : []),
     ...(R.clips ? [{ op: 'set', path: '/hero/clips', value: R.clips }] : []),
   ];
