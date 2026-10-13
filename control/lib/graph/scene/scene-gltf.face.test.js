@@ -126,7 +126,8 @@ describe('the skinned GLB carries the anime face', () => {
     // the brow's end on its own landmark), then for the ear (head-ear.js); the head-none pin unchanged. Both re-pinned
     // for smooth shading under the studio light (the pack's corners shaded from the welded normals, STUDIO_SMOOTH_CREASE). The landmark pin
     // re-pinned again for the jaw seam (hero-form.js: the jaw bone's frame the head's, `aux` its axis), then for the hair cap's outward diagonals (station-loft-detail.js loftParts `convex`: no chord sinks into the skull).
-    const PIN = { landmark: '1b56e397719b4acb', none: '6bb9c78313af5912' };
+    // Re-pinned for the recipe PALETTE on the plain rig pack (station-loft-rig packLayeredRig `palette`): a face colours by its group's palette entry, else its part's tint, as the static faces do: both pins.
+    const PIN = { landmark: 'd0656344712b7f92', none: '2ac4fe6120c0ab4e' };
     // (on the streamlined core: the pins predate the structured core, DEFAULT_CORE, which moves both exports alike)
     for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer, core: 'streamlined' }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer, core: 'streamlined' }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
