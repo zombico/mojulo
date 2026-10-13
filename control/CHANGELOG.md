@@ -55,8 +55,8 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   clip carries it as its designed duration (`s`); a motion without it keeps the 30-frame loop and the runtime's one
   cycle a second. The mint tables: a walk at 1.1 s a stride (110 steps a minute, the bare walk's GIF paced 72), a run
   at 0.7 s, the wave at 3.2 s with 2.8 even sweeps 50° each way (`{ wave: { seconds, waves, swing } }`, about 1.9
-  sweeps a second and 17 cm wide, where the bare wave flutters 4.5 a second, 6 cm), and the bow at 4.2 s (0.65 s down,
-  1.35 s held, 0.65 s up; the bare bow goes down in 0.28 s). `emote_figure`'s side GIF plays the emote as minted now.
+  sweeps a second and 17 cm wide, where the bare wave flutters 4.5 a second, 6 cm), and the bow at 4.2 s (timed by beat,
+  below; the bare bow goes down in 0.28 s). `emote_figure`'s side GIF plays the emote as minted now.
   The bare wave and bow are pinned byte for byte (`gait-frozen.char.test.js`); `motion-timing.test.js` holds the bands.
 
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
