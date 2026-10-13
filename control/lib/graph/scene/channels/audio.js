@@ -108,7 +108,7 @@ if (__AUDIO.on && typeof __BUS !== 'undefined') {
     if (pat.indexOf('*') < 0) return String(str) === pat;
     return new RegExp('^' + pat.split('*').map((s) => s.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$').test(String(str));
   };
-  const __beatsPE = __BUS.processEvents;
+  const __beatsPE = __BUS.processEvents, __beatsLast = {};
   __BUS.processEvents = function (state, events) {
     const n0 = state.log.length;
     const out = __beatsPE(state, events);
@@ -116,7 +116,11 @@ if (__AUDIO.on && typeof __BUS !== 'undefined') {
       const ev = state.log[i];
       if (!ev || !ev.type) continue;   // cap/noop markers carry no type
       for (const pat in __AUDIO.on) {
-        if (__beatsGlob(ev.type, pat)) { __beatsCue(__AUDIO.cues && __AUDIO.cues[__AUDIO.on[pat]]); break; }
+        if (!__beatsGlob(ev.type, pat)) continue;
+        // one cue at most every 60 ms: a burst of the same event (ten pickups in one tick) is one sound, not a pile-up
+        const id = __AUDIO.on[pat], now = performance.now();
+        if (!(now - (__beatsLast[id] || -1e9) < 60)) { __beatsLast[id] = now; __beatsCue(__AUDIO.cues && __AUDIO.cues[id]); }
+        break;
       }
     }
     return out;

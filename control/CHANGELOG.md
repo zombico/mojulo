@@ -64,6 +64,19 @@ score its scene and its play call for.
   - `suggestScore` gives a level with a fight (hp foes, defeat-all, waves, or a battle, shoot or defend goal) the
     battle cue, and the boss on the run's last level. Hazards alone still only darken.
   - The seven pinned field moods are byte for byte as before.
+- **A level's action sounds from one word.** `audio: { sfx: 'auto' }` (or `{ auto: '<palette>' }`) resolves to a
+  palette of named cues (`lib/graph/beats/sfx-palettes.js`) built only from the existing beats-sfx gestures.
+  - Four voices with the same cue ids: `arcade`, `foley`, `orchestral` and `synth`.
+  - `'auto'` picks the palette the soundtrack's score identity implies (its band), and the game's tonic transposes
+    every pitched gesture into the music's key. With no field score it is arcade in C.
+  - Cues are wired only to the events the level's own mechanics emit (`MECHANIC_SFX`: pickup, door, goal, hit,
+    enemy down, death, spotted, checkpoint, lap, wave, beat hit and miss …). The gait, weapon, melee and dodge
+    channels take the same palette unless the spec names its own. What the spec writes wins.
+  - Every cue of every palette renders audibly, peaks 0.06–0.42 at the export.
+  - `design_game({ quick: { sfx: 'auto' | '<palette>' } })` writes it at mint. `create_game`'s suggested `apply`
+    adds `sfx: 'auto'` to a level with no sounds.
+  - Bus stingers fire a cue at most once every 60 ms, so a burst of one event is one sound. The `audio` and
+    `kitchen-sink` emit pins move again for these lines.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

@@ -49,7 +49,7 @@ describe('create_game — mint + promotion discipline', () => {
     expect(a.why).toMatch(/unknown ground/);
     expect(b.why).toMatch(/last level/);
     // the apply is an update_sketch patch; both levels share the game's identity seed
-    expect(a.apply).toEqual({ ref: 'crypt-1', patch: [{ op: 'set', path: '/audio', value: { soundtrack: { score: { mood: a.mood, game: a.apply.patch[0].value.soundtrack.score.game } } } }] });
+    expect(a.apply).toEqual({ ref: 'crypt-1', patch: [{ op: 'set', path: '/audio', value: { soundtrack: { score: { mood: a.mood, game: a.apply.patch[0].value.soundtrack.score.game } }, sfx: 'auto' } }] });
     expect(b.apply.patch[0].value.soundtrack.score.game).toBe(a.apply.patch[0].value.soundtrack.score.game);
     // create_game wrote no level
     expect(SketchRepository.getByRef('crypt-1').manifest.audio).toBeUndefined();

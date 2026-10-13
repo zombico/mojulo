@@ -44,6 +44,7 @@ import { audioFeatures, pagePatches } from './beats-features.js';
 import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
+import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx } from './sfx-palettes.js';
 import { SURFACES } from '../weather/weather.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
@@ -120,6 +121,8 @@ function resolveBeatsRef(beatsRef, expectKinds) {
 export function resolveWorldAudio(audioSpec, ctx = {}) {
   if (!audioSpec || typeof audioSpec !== 'object') return null;
   const out = {};
+  // the score identity a field soundtrack plays in (its game, else its cue's own seed): sfx 'auto' takes its key
+  let identity = null;
 
   if (audioSpec.soundtrack) {
     let recipe = audioSpec.soundtrack;
@@ -129,11 +132,14 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
       throw new Error(`audio.soundtrack '${field.mood}' is a stinger: it plays once at an outcome (create_beats({ score: { mood: '${field.mood}' } }), then create_game music.${field.mood}), not under a level`);
     }
     if (field) {
+      identity = field.game ?? field.seed ?? (ctx.ref ? seedOfRef(ctx.ref) : 0);
       recipe = normalizeBeatsManifest(fieldCue(field, { fallbackSeed: ctx.ref ? seedOfRef(ctx.ref) : 0 }));
     } else if (typeof recipe === 'string') {
       throw new Error(`audio.soundtrack '${recipe}' — use 'field:<mood>', an inline beats recipe or { beatsRef }`);
     } else if (recipe.beatsRef) {
       recipe = resolveBeatsRef(recipe.beatsRef, ['beats-ambient', 'beats-composition', 'beats-pattern']);
+      // a stored field cue (create_beats({ score })) keeps the identity it was minted in
+      if (recipe.score && Number.isInteger(recipe.score.game)) identity = recipe.score.game;
     } else {
       const { ok, errors } = validateBeatsManifest(recipe);
       if (!ok) throw new Error(`audio.soundtrack: invalid recipe:\n - ${errors.join('\n - ')}`);
@@ -162,8 +168,30 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     out.bindings = resolveBindings(audioSpec.bindings, out.soundtrack);
   }
 
+  // sfx 'auto' | { auto: '<palette>' | true, cues?, on?, beatsRef?, vary? } (sfx-palettes.js): a palette's cues in the
+  // soundtrack's key, wired to the events this level's mechanics emit (ctx.mechanics), and the gait, weapon, melee and
+  // dodge sounds from the same palette where the spec names none. What the spec writes wins: its rows first, its cues
+  // over a stored pack's over the palette's. `vary` is on unless the spec says false.
+  const auto = audioSpec.sfx === 'auto' ? {} : audioSpec.sfx && typeof audioSpec.sfx === 'object' && audioSpec.sfx.auto ? audioSpec.sfx : null;
+  if (auto) {
+    const pal = typeof auto.auto === 'string' ? auto.auto : undefined;
+    if (pal !== undefined && !SFX_PALETTES[pal]) throw new Error(`audio.sfx.auto '${pal}' — the palettes: ${SFX_PALETTE_NAMES.join(', ')} (or true: the soundtrack's)`);
+    const L = levelSfx({ palette: pal, identity, mechanics: Array.isArray(ctx.mechanics) ? ctx.mechanics : [] });
+    const stored = auto.beatsRef ? resolveBeatsRef(auto.beatsRef, ['beats-sfx']).cues : {};
+    const own = auto.on && typeof auto.on === 'object' ? auto.on : {};
+    const on = { ...own };
+    for (const [g, c] of Object.entries(L.on)) if (!(g in on)) on[g] = c;
+    audioSpec = {
+      ...audioSpec,
+      sfx: { cues: { ...L.cues, ...stored, ...(auto.cues || {}) }, ...(Object.keys(on).length ? { on } : {}), vary: auto.vary !== false },
+      footsteps: audioSpec.footsteps ?? L.footsteps, weapon: audioSpec.weapon ?? L.weapon, strike: audioSpec.strike ?? L.strike, dodge: audioSpec.dodge ?? L.dodge,
+    };
+    out.palette = L.palette;
+  }
+
   if (audioSpec.sfx) {
     const sfx = audioSpec.sfx;
+    if (typeof sfx !== 'object') throw new Error(`audio.sfx is 'auto' or { cues?, on?, beatsRef?, vary?, auto? } (got ${JSON.stringify(sfx)})`);
     let cues = sfx.cues && typeof sfx.cues === 'object' ? sfx.cues : {};
     if (sfx.beatsRef) {
       cues = { ...resolveBeatsRef(sfx.beatsRef, ['beats-sfx']).cues, ...cues };

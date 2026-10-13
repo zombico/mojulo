@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { resolveWorldAudio, emitSceneSoundtrackScript } from './beats-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -188,8 +188,21 @@ describe('audio.sfx.on', () => {
     expect(stingers({ 'pickup:*': 'ding', 'goal:reached': 'step' }, reactions, [{ type: 'enter', a: 'player', b: 'gem' }])).toEqual(['ding', 'step']);
   });
 
-  it('still fires on incoming facts, once per event', () => {
-    expect(stingers({ enter: 'step' }, [], [{ type: 'enter', a: 'player', b: 'gem' }, { type: 'enter', a: 'player', b: 'door' }])).toEqual(['step', 'step']);
+  it('still fires on incoming facts; a burst of one cue inside 60 ms is one sound, spaced events each sound', () => {
+    expect(stingers({ enter: 'step' }, [], [{ type: 'enter', a: 'player', b: 'gem' }, { type: 'enter', a: 'player', b: 'door' }])).toEqual(['step']);
+    let t = 1000;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => t);
+    try {
+      const script = audioChannelScript({ cues: { step: [{ type: 'thump' }] }, on: { enter: 'step' } });
+      const block = script.slice(script.indexOf('// bus stingers'), script.indexOf('// footsteps'));
+      const bus = buildBus(), heard = [];
+      new Function('__AUDIO', '__BUS', '__beatsCue', block)({ cues: { step: 'step' }, on: { enter: 'step' } }, bus, (c) => heard.push(c));
+      const state = bus.createBusState({ reactions: [] }, []);
+      bus.processEvents(state, [{ type: 'enter', a: 'p', b: 'x' }]);
+      t += 30; bus.processEvents(state, [{ type: 'enter', a: 'p', b: 'x' }]);
+      t += 100; bus.processEvents(state, [{ type: 'enter', a: 'p', b: 'x' }]);
+      expect(heard).toEqual(['step', 'step']);
+    } finally { clock.mockRestore(); }
   });
 });
 

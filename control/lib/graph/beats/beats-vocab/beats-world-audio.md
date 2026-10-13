@@ -35,6 +35,19 @@ audio: {
 
 ## sfx
 
+`sfx: 'auto'` (or `{ auto: 'arcade' | 'foley' | 'orchestral' | 'synth', cues?, on?, beatsRef?, vary? }`) gives a level
+its action sounds from one word:
+- a palette of the same named cues in four voices (jump, land, step, pickup, door, goal, lose, hit, down, death,
+  alarm, checkpoint, beat-hit, beat-miss, wave, chime, thud, shoot, reload, swing, strike, dodge). `'auto'` picks
+  the one the soundtrack's identity implies (an orchestra, a folk band, a synth; arcade with no field score).
+- in the score's key: the game's tonic transposes every pitched gesture.
+- wired only to the events the level's mechanics emit (`collect` → `pickup:*`, `door` → `door:*`, `hp-pool` →
+  `hit:*` and `enemy:down`, `unseen` → `spotted`, `laps`, `waves`, `on-beat` …).
+- with footsteps, weapon, melee and dodge sounds from the same palette, unless the spec names its own.
+- what the spec writes wins: its `on` rows first, its cues over a stored pack's over the palette's. `vary` is on
+  unless `false`. The same cue fires at most once every 60 ms.
+
+Written by hand instead:
 `cues` (inline, the `beats-sfx` shape) and/or `beatsRef` (a stored `beats-sfx` row; inline cues win on a clash).
 `on` maps a bus event glob to a cue id: it hears every event the level's bus drains, the incoming facts and the
 events reactions emit (`pickup:*`, `door:*`, `goal:reached`, `checkpoint`, `lap`, `hit:*`, `enemy:down`, `wave`,

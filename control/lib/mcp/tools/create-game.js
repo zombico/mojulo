@@ -42,7 +42,8 @@ import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscap
 import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 
-// The field score each level calls for (beats/score-suggest.js), for the levels with no soundtrack of their own: one
+// The field score each level calls for (beats/score-suggest.js), for the levels with no soundtrack of their own, and
+// their action sounds ('auto') where they have none: one
 // identity across the game (its ref seeds `game`), each level's own ref its cue's seed. Advice: create_game never
 // writes a level; the reply carries the update_sketch call that does.
 function suggestLevelMusic(levelRefs, gameRef) {
@@ -54,12 +55,13 @@ function suggestLevelMusic(levelRefs, gameRef) {
     // the row's title stands in for a manifest that carries none (its place words often live there)
     const s = suggestScore(levelScoreContext({ ...m, title: m.title ?? row.title }, { final: levelRefs.length > 1 && i === levelRefs.length - 1 }));
     if (!s) return;
-    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: { score: { mood: s.mood, game } } };
+    // and its action sounds, when it has none: the palette the score implies, wired to its mechanics (sfx-palettes.js)
+    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: { score: { mood: s.mood, game } }, ...(m.audio?.sfx ? {} : { sfx: 'auto' }) };
     out.push({ level: ref, mood: s.mood, why: s.why, also: s.also, apply: { ref, patch: [{ op: 'set', path: '/audio', value: audio }] } });
   });
   return out.length ? {
     suggest: out,
-    how: "each level's `apply` is an update_sketch call; the shared `game` seed keeps one score identity across the levels. "
+    how: "each level's `apply` is an update_sketch call (its score, and sfx 'auto' where it has no sounds); the shared `game` seed keeps one score identity across the levels. "
       + "Name another mood in score.mood to override. Manual: get_beats_vocab({ id: 'beats-world-audio' }).",
   } : null;
 }
