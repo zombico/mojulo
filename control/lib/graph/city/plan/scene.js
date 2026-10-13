@@ -24,6 +24,7 @@ import { readSeason, seasonFaces, seasonPool } from './foliage.js';
 import { plantBoxToFaces } from '../../polygonizer/plant-faces.js';
 import { plantPool, plantRepeats } from '../../vegetation/pool.js';
 import { cityTraffic, readCars } from './traffic.js';
+import { cityPedestrians, readPeople } from './pedestrians.js';
 import { buildSignals } from '../../scene/channels/traffic-model.js';
 import './level.js';   // registers the city's level lowering (structure/level.js registerLevelKind)
 import { readCityLook, readPaint, lookLight, paintGround, paintSkin, CITY_HAZE } from './look.js';
@@ -255,9 +256,13 @@ function assembleIn(d, G, W, D, { paint, spec, lit, own, ox, oy, crop }, { title
     carLanes: T.carLanes, junctions: T.junctions, trafficSeed: d.plan.seed, trafficRegion: { x: 0, y: 0, w: r3(d.frame.W / U), d: r3(d.frame.D / U) },
     signals: buildSignals(T.junctions, d.plan.seed, { w: d.frame.W, d: d.frame.D }), cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight },
   } : {};
+  // the people (pedestrians.js): round their blocks, some across a street at its signals; their rigs baked by the world
+  const people = d.plan.fidelity !== 'massing' ? readPeople(d.plan.people, !!C) : 0;
+  const walkers = people > 0 ? cityPedestrians(d, T ? T.junctions : [], { people, crop }) : [];
   return {
     ...scene,
     ...traffic,
+    ...(walkers.length ? { walkerLoops: walkers, cityCues: { figure: METRO.figure, car: METRO.car, pedHeight: METRO.pedHeight } } : {}),
     bg: '#cfd6dc',
     // a look's air and sky: the world-wide channel lays them for a recipe's own look (thinned by lookHaze, the city lit
     // by it: lookLit); a paint's cube's look is laid here

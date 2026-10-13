@@ -236,7 +236,10 @@ async function attachCityWalkers(scene) {
   if (!Array.isArray(loops) || !loops.length) return scene;
   const rigs = await walkerRigVariants();
   const scale = (scene.cityCues?.pedHeight ?? CITY_PED_HEIGHT) / (rigs[0].figH || 1.85);   // a metro city walks real-size people (fractal-city METRO)
-  scene.walkers = loops.map((L, i) => ({ figure: 'ped' + (i % rigs.length), path: L.path, style: L.style || 'bumble', scale, speed: 0.7 }));
+  // a planned city's walker (city/plan/pedestrians.js) carries its own pace, its start along its loop and the crossings it
+  // waits at (`holds`); a legacy loop carries none of them and walks as before
+  scene.walkers = loops.map((L, i) => ({ figure: 'ped' + (i % rigs.length), path: L.path, style: L.style || 'bumble', scale, speed: L.speed > 0 ? L.speed : 0.7,
+    ...(Number.isFinite(L.start) ? { startFrac: L.start } : {}), ...(Array.isArray(L.holds) ? { holds: L.holds } : {}) }));
   // embed only the outfits actually walking this city (a 2-loop city ships 2 rigs, not all six).
   const used = new Set(scene.walkers.map((w) => w.figure));
   scene.figures = { ...(scene.figures || {}) };
@@ -421,7 +424,7 @@ export const WORLD_KINDS = {
     title: 'mojulo city plan',
     walk: true,
     // its streets driven by the legacy city's car bank and signalled traffic (city/plan/traffic.js lays the lanes)
-    resolve: async (m, ctx) => attachCityCars(assembleCityScene(m, { title: ctx.title })),
+    resolve: async (m, ctx) => attachCityCars(await attachCityWalkers(assembleCityScene(m, { title: ctx.title }))),
   },
   // a finite group as a walkable town: plazas are elements, generators are street types, and a
   // walk that spells a relation returns to its start plaza (math-worlds.plan.md, Phase 1).

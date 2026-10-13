@@ -223,6 +223,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Machine gate: two minutes of a Paris and a London city, every step. No two cars' footprints touched, about 130
     turns each, every turn inside the box its old lane was green through, no lane over capacity, no car left
     standing, and the same clock replays the same cars.
+- **People on the walks** (`city/plan/pedestrians.js`), to close the traffic demo's plausibility.
+  - `people: 0…1` (0.5 by default when the streets are driven). Most walk round their block on its sidewalk. Some
+    walk round two neighbouring blocks and cross the street between at both ends.
+  - At a signalled crossing a walker waits at the kerb until the street it crosses is red (its cars held) and the
+    street it walks along has green enough left to cross on.
+  - The walkers are the legacy city's clothed rigs (`attachCityWalkers` now passes a planned walker's pace, start and
+    holds through). A held walker is stepped from clock zero by `heldWalk` (`traffic-model.js`, embedded beside
+    `phaseAt`), so the page and the tests run one code and a replay is the same people.
+  - Walkers without holds keep their bytes; the channel's output was compared. A level keeps a dozen walkers in its
+    reach: with more, the headless audit timed out drawing their rigs. A four-segment Paris with people and turning
+    cars, and its insides, passed the audit: all eight levels completable.
+  - Machine gate: three minutes of a New York city. Every crossing was entered on its walker's green, walkers waited
+    at kerbs, nobody stood for good, and replay was deterministic.
 - **The reconstruction gate covers facades.** Roof caps, balconies, fire escapes on brick, rooftop kit, awnings
   and blade signs land within 0.1 of the legacy flavour's rate on new-york, paris, tokyo, london and mediterranean.
   The measured gap is at most 0.07.

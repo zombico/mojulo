@@ -1,4 +1,5 @@
 import { safeJson } from '../emit-util.js';
+import { HELD_WALK_SOURCE } from './traffic-model.js';
 
 // The WALKERS channel (city/walkers.plan.md P0): ambient human rig figures that walk a LOOPED path
 // forever. Deliberately NOT the entity/AI `controllable` stack (that is the mobile-suit combat actor:
@@ -28,14 +29,22 @@ import { safeJson } from '../emit-util.js';
 // Emitted only when the caller passes a non-empty `walkers`; a walker-free world is byte-identical.
 // `cast` (the world runs the cast-shadow channel): walker bone meshes flag themselves as casters
 // at construction so ambient figures throw real silhouettes; false ⇒ byte-identical template.
-export function walkersChannelScript(walkers, bank, { cast = false } = {}) {
+// `holds` (a planned city's walkers, with the cars' `signals`): a held walker is STEPPED from clock zero at a fixed dt,
+// waiting at each crossing's kerb until the street it crosses is red and the one it walks along has green enough left to
+// cross on (the cars' own phaseAt); a replay is the same people. Absent ⇒ the closed-form loop, byte-identical.
+export function walkersChannelScript(walkers, bank, { cast = false, signals = null } = {}) {
+  const held = walkers.some((w) => Array.isArray(w.holds));
   return `
 // ---- walkers channel (ambient rig figures on looped paths) ----
 let stepWalkers = () => {};
 {
 const WALKERS = ${safeJson(walkers)};
 const WBANK = ${safeJson(bank)};
-const __wONE = new THREE.Vector3(1, 1, 1);
+const __wONE = new THREE.Vector3(1, 1, 1);${held ? `
+// the crossings' signals, read as the cars read them, and a held walker's stepping (traffic-model.js heldWalk)
+const WSIGNALS = ${safeJson(signals || [])};
+${HELD_WALK_SOURCE}
+const __wStep = (r, sec) => heldWalk(r.w.holds, r.w.speed, r.held, r.total, sec, WSIGNALS);` : ''}
 // build one rig group per walker from its referenced bake — a compact __makeRigGroup (bone meshes
 // only; no muzzle / thruster / weapon locators, since ambient walkers never fight).
 function __buildWalkerRig(fig) {
@@ -112,7 +121,8 @@ const __walkerRigs = WALKERS.map((w) => {
     yaw: w.yaw != null ? w.yaw : -Math.PI / 2,   // rig faces +y → subtract 90° so heading 0 aims +x
     // world units advanced per full gait cycle (2 steps). Defaults off the baked figure height (times
     // the group scale, so the scaled foot swing matches the ground it passes over); overridable (P3 tune).
-    stride: w.stride > 0 ? w.stride : Math.max(0.05, (fig.figH || 1.8) * 0.72 * scale) };
+    stride: w.stride > 0 ? w.stride : Math.max(0.05, (fig.figH || 1.8) * 0.72 * scale)${held ? `,
+    held: Array.isArray(w.holds) ? { s0: ((w.startFrac || 0) % 1) * at.total, s: ((w.startFrac || 0) % 1) * at.total, t: 0 } : null` : ''} };
 });
 // probe/debug seam (a traversal audit surface, like __mojCtrl entities): the live pose of every walker.
 window.__mojWalkers = __walkerRigs.map((r) => ({ figure: r.w.figure, style: r.w.style || null, pos: [0, 0, 0], heading: 0, phase: 0 }));
@@ -122,7 +132,7 @@ stepWalkers = (t) => {
     const r = __walkerRigs[wi], w = r.w, fig = r.rig.fig, g = r.rig.group;
     // ground distance travelled. loop (bumble) wraps the arc length; open (pacman) clamps at the end
     // until it laps, at which point the wrap relands it at the far edge.
-    const s = w.loop === false
+    const s = ${held ? 'r.held ? __wStep(r, sec) : ' : ''}w.loop === false
       ? Math.min(r.total, (sec / r.period) * r.total)
       : ((sec / r.period) % 1) * r.total;
     const at = __atArc(w.path, r.cum, s), p = at.pos, tan = at.tan;

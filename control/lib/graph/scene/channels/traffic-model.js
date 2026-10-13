@@ -385,3 +385,25 @@ function stepTrafficTurning(model, t) {
 export { armTurns, unturn, turnTick, stepTrafficTurning };
 // the source the cars channel embeds beside the model's when a lane carries turns
 export const TRAFFIC_TURN_SOURCE = [armTurns, unturn, turnTick, stepTrafficTurning].map((f) => f.toString()).join('\n');
+
+// ── PEDESTRIANS AT SIGNALS (opt-in: a walker carrying `holds`, the planned city's) ─────────────────────────────────
+// A walker's arc length along its closed loop, stepped from clock zero at a fixed dt: it walks at its pace and waits at
+// each hold (a crossing's kerb) until the crossing may be walked: the axis it walks along green (the street it crosses
+// red, its cars held) with time enough left to reach the far kerb. `H` is its state { s0, s, t }; `total` its loop's
+// length. The walkers channel embeds it beside phaseAt, so the page and the tests run one code.
+export function heldWalk(holds, speed, H, total, sec, signals) {
+  const DT = 1 / 30, v = speed > 0 ? speed : 0.7;
+  const open = (h, t) => { const ph = phaseAt(signals[h.sig], t); return ph.axis === h.go && ph.remaining >= h.len / v + 0.5; };
+  if (sec < H.t - 1e-9) { H.t = 0; H.s = H.s0; }
+  for (let n = 0; H.t + DT <= sec + 1e-9 && n < 6000; n++) {
+    let ns = H.s + v * DT;
+    for (const h of holds) {
+      const ahead = ((h.s - H.s) % total + total) % total;
+      // at the kerb, or about to reach it this step: cross only when it is open, else stand at it
+      if (ahead <= v * DT && !open(h, H.t)) { ns = ahead <= 1e-6 ? H.s : H.s + ahead - 1e-6; break; }
+    }
+    H.s = ns % total; H.t += DT;
+  }
+  return H.s;
+}
+export const HELD_WALK_SOURCE = [phaseAt, heldWalk].map((f) => f.toString()).join('\n');
