@@ -6,6 +6,7 @@
   "valueHook": "Dream a mech or worker-bot and rebuild it as a real turnable hardware character — armored, articulated, skinnable, drops straight into a world — instead of a paragraph of description and a one-off picture.",
   "version": 2,
   "category": "substrate",
+  "tier": "design",
   "requires": {
     "protocols": [],
     "writeTarget": "none"

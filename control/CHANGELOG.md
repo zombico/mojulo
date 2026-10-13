@@ -306,6 +306,19 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 - **The model that ran is recorded again.** `claude --print --output-format json` (2.1.x) names the model only as a
   key of `modelUsage`, so the runtime recorded no model. It now reads that key (the one with the most output when a
   subagent ran too), so the principle shows the requested tier beside the model that answered.
+- **Tiers for the work the consolidated line added.** `compose_world` is `judge` now: it authors a city plan
+  (`overrides.plan`) and grows the technology crafter, not only a world from a settled spec, so it moves from
+  `mojulo-runner` to `mojulo-maker`. In packs mode a `pack_*` tool wears the ceiling of its members' tiers; the table
+  test checks every tool listed flat or in packs mode, not only the tool lines.
+- **A tier on every catalyst.** A catalyst's frontmatter names `tier`, how much judgment running the workflow takes
+  (`design-tech-family` design, `populate-world-gear` fill, `print-object` ride, …); every curated one names it, a
+  minted one may, and an unknown tier is refused. `list_catalysts`, `get_catalyst`, `recommend_catalysts` and a
+  catalyst row from `semantic_search` show it to a host that declares `modelTiers`; every other host's answer is unchanged.
+- **A tier on every routing card.** A card found by `semantic_search({ kinds: ['routing'] })` carries its entry
+  tool's tier (a card may name its own), for a `modelTiers` host only, so the agent knows where a route's work goes
+  before it reads the tool. The plugin skill's block says how to hand each tier on.
+- **A trigger can carry a tier.** `bind_trigger` refuses a `payload_template.tier` the queue would drop; a valid one
+  rides each fired task to the worker, as on an app's envelope.
 
 ### The play shell: quick games end to end, and a playtest for the big loop
 

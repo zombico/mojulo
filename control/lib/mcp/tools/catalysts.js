@@ -41,7 +41,7 @@ import { getAdapter, listAdapters, resolveCallAdapterId } from '@/lib/mcp/adapte
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { BOT_FACTORY_MOVED } from '@/lib/mcp/bot-factory-moved';
 import { MetaContextRepository } from '@/lib/db/repositories/meta-context';
-import { registerTool } from '@/lib/mcp/server';
+import { registerTool, clientTakesModelTiers } from '@/lib/mcp/server';
 
 // Builds the operator-anchor block for recommend_catalysts responses. When the
 // operator node exists, expose the locked-in constraints to the agent so it
@@ -127,9 +127,18 @@ function composeBody(catalystBody, adapter) {
 // catalyst that names one is served without that line (lib/mcp/plugin-profile-cards.js).
 const served = (catalyst) => !hiddenRowInPluginProfile('catalyst', catalyst.id);
 
-export async function listCatalystsHandler(input, _ctx) {
+// A catalyst's `tier` (how much judgment running it takes) is shown only to a host that routes light work to a lighter
+// model (capabilities.modelTiers). Every other host's answer is unchanged.
+const tiersShown = (ctx) => clientTakesModelTiers(ctx?.mcpSessionId ? getClientInfo(ctx.mcpSessionId) : null);
+function withTier(row, shown) {
+  const { tier, ...rest } = row;
+  return shown && tier ? { ...rest, tier } : rest;
+}
+
+export async function listCatalystsHandler(input, ctx) {
   const { category, kind } = input || {};
-  const catalysts = listMergedCatalysts({ category, kind }).filter(served).map((c) => profiledCard('catalyst', c));
+  const shown = tiersShown(ctx);
+  const catalysts = listMergedCatalysts({ category, kind }).filter(served).map((c) => withTier(profiledCard('catalyst', c), shown));
   return { total: catalysts.length, catalysts };
 }
 
@@ -146,7 +155,8 @@ export async function getCatalystHandler(input, ctx) {
   if (hiddenRowInPluginProfile('catalyst', id)) throw new Error(pluginProfileNotice(`The '${id}' catalyst`));
   const found = getMergedCatalyst(id, rev === undefined ? {} : { rev });
   // A local catalyst is the operator's own text: only a curated one carries profile edits.
-  const catalyst = found?.origin === 'curated' ? profiledCard('catalyst', found) : found;
+  const profiled = found?.origin === 'curated' ? profiledCard('catalyst', found) : found;
+  const catalyst = profiled && withTier(profiled, tiersShown(ctx));
   if (!catalyst) {
     const local = LocalCatalystRepository.get(id);
     if (local?.status === 'archived') {
@@ -166,7 +176,7 @@ export async function getCatalystHandler(input, ctx) {
   // graduate as (local-catalysts.plan.md, D7) plus its revision index.
   const localExtras =
     catalyst.origin === 'local'
-      ? { fileText: serializeCatalystFile(catalyst), revisions: LocalCatalystRepository.listRevisions(id) }
+      ? { fileText: serializeCatalystFile(profiled), revisions: LocalCatalystRepository.listRevisions(id) }
       : {};
 
   // Technique catalysts bound a runtime primitive directly (bind_primitives + meta_context_commit, both off the
@@ -360,6 +370,7 @@ Draft the same two parts a shelf file has — the frontmatter fields and a markd
 
 - \`version\` (number, default 1)
 - \`category\` (string — see Step 2.4)
+- \`tier\` (\`ride\` | \`fill\` | \`judge\` | \`design\`) — how much judgment running the workflow takes, so a host that routes light work to a lighter model knows who should run it. Every shipped catalyst names one.
 - \`requires.destinationMcpCategory\` (one of the categories from Step 2.3)
 - (\`requires.protocols\` named chatbot capabilities on the 2.x line; leave it out. A catalyst that lists one is not recommended.)
 - \`requires.destinationExamples\` — **required if \`destinationMcpCategory\` is set.** Array of 3-5 named MCPs that satisfy the category (e.g., for \`dcc-like\`: \`["Blender MCP", "Houdini MCP", "Maya MCP"]\`). The \`recommend_catalysts\` tool surfaces these as consultation suggestions ("you could connect a Blender MCP to unlock this") — missing or empty is a hole in the consultation posture.
@@ -492,7 +503,7 @@ export async function customCatalystHandler(_input, _ctx) {
   return { content: [{ type: 'text', text: CUSTOM_CATALYST_GUIDE }] };
 }
 
-function buildRecommendation(catalyst) {
+function buildRecommendation(catalyst, shown = false) {
   // Ring 6 enrichment — surface prior materializations of this same catalyst
   // so the agent can triage overlap (same artifact → likely duplicate, confirm
   // intent), synergy (align with prior binding choices unless intentionally
@@ -505,6 +516,7 @@ function buildRecommendation(catalyst) {
     valueHook: catalyst.valueHook,
     summary: catalyst.summary,
     category: catalyst.category,
+    ...(shown && catalyst.tier ? { tier: catalyst.tier } : {}),
     // 'local' = the operator minted this via mint_catalyst — phrase it as
     // "your catalyst", not as something mojulo ships.
     origin: catalyst.origin || 'curated',
@@ -531,6 +543,7 @@ export async function recommendCatalystsHandler(input, ctx) {
   }
 
   const applicable = [];
+  const shown = tiersShown(ctx);
   for (const catalyst of getMergedCatalog().values()) {
     // Technique catalysts bind runtime primitives — they are discovered via
     // `list_catalysts({ kind: 'technique' })`, not recommended as workflows.
@@ -542,7 +555,7 @@ export async function recommendCatalystsHandler(input, ctx) {
     // still shows it.
     const required = Array.isArray(catalyst.requires?.protocols) ? catalyst.requires.protocols : [];
     if (required.length) continue;
-    applicable.push(buildRecommendation(catalyst));
+    applicable.push(buildRecommendation(catalyst, shown));
   }
 
   return {

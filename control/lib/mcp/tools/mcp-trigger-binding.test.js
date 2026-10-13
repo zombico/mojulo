@@ -117,6 +117,12 @@ describe('bind_trigger — payload_template validation', () => {
       bindTriggerHandler(validBindInput({ payload_template: 'string' })),
     ).rejects.toThrow(/payload_template must be an object/);
   });
+
+  it('rejects a tier the queue would drop', async () => {
+    await expect(
+      bindTriggerHandler(validBindInput({ payload_template: { task_kind: 'envelope_inference', tier: 'cheap' } })),
+    ).rejects.toThrow(/payload_template\.tier must be one of: ride, fill, judge, design/);
+  });
 });
 
 describe('bind_trigger — artifact_ref requirement', () => {

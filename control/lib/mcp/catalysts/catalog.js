@@ -56,6 +56,7 @@ export function listMergedCatalysts({ category, kind } = {}) {
       valueHook: catalyst.valueHook,
       kind: catalyst.kind,
       category: catalyst.category,
+      tier: catalyst.tier || null,
       requires: catalyst.requires,
       outputContract: catalyst.outputContract,
       origin: catalyst.origin || 'curated',

@@ -22,6 +22,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { CREATIVE_FORMS } from '../creative-forms.js';
+import { TIERS, normalizeTier } from '../../agent-tasks/tiers.js';
 
 const CARDS_DIR = moduleDir(import.meta.url, 'lib/mcp/routing-cards');
 const REQUIRED_FIELDS = ['id', 'name', 'summary', 'when', 'entry'];
@@ -79,7 +80,11 @@ export function parseRoutingCard(filePath, raw) {
         'Move parameter detail into the entry tool description or a vocab card.',
     );
   }
-  return { id: meta.id, name: meta.name, summary: meta.summary, when: meta.when, entry: meta.entry, form: meta.form ?? null, wing: meta.wing ?? 'studio', body };
+  // `tier` is optional: a card's tier is its entry tool's (tool-tiers.js routingCardTier) unless it names its own.
+  if (meta.tier !== undefined && !normalizeTier(meta.tier)) {
+    throw new Error(`Routing card ${filePath} has tier '${meta.tier}' — must be one of: ${TIERS.join(', ')} (or omitted).`);
+  }
+  return { id: meta.id, name: meta.name, summary: meta.summary, when: meta.when, entry: meta.entry, form: meta.form ?? null, wing: meta.wing ?? 'studio', ...(meta.tier ? { tier: normalizeTier(meta.tier) } : {}), body };
 }
 
 function loadCatalog() {

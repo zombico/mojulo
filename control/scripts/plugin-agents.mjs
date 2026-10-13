@@ -69,7 +69,7 @@ export function runnerAgent() {
     description:
       "Runs mojulo's light work on a fast model. Use proactively for batches of mojulo calls that need no authoring: "
       + 'exports in several formats, measuring or diffing made things, listing and fetching refs, gathering items into a '
-      + 'stash, filing a world or view whose spec is already decided. Not for writing recipes, games, plans or publications.',
+      + 'stash, filing a view whose spec is already decided. Not for writing recipes, worlds, games, plans or publications.',
     model: 'haiku',
     effort: 'low',
     tiers: ['ride', 'fill'],
@@ -88,7 +88,7 @@ export function makerAgent() {
     name: 'mojulo-maker',
     description:
       'Authors and revises one mojulo recipe from a clear brief: a sketch or diagram, a score, a motion clip, a cover, a '
-      + 'solid, a fabrication. Use proactively when the design is settled and one artifact needs writing or revising. '
+      + 'solid, a fabrication, a world or a city plan, a level\'s ground. Use proactively when the design is settled and one artifact needs writing or revising. '
       + 'Not for designing games, plans, publications or research theses.',
     model: 'sonnet',
     effort: 'medium',
@@ -112,7 +112,10 @@ export function skillBlock() {
     '',
     `- Keep design with you: ${code(design)}.`,
     '- Hand one artifact to write or revise, with a clear brief, to the `mojulo-maker` subagent.',
-    '- Hand a batch of decided calls (exports, measures, lists, gathers, a world from a settled spec) to the `mojulo-runner` subagent.',
+    '- Hand a batch of decided calls (exports, measures, lists, gathers) to the `mojulo-runner` subagent.',
+    '- A routing card or catalyst found by `semantic_search`, and every catalyst `list_catalysts`, `get_catalyst` and',
+    '  `recommend_catalysts` return, carries a `tier`: `design` stays with you, `judge` goes to `mojulo-maker`, `ride` and',
+    '  `fill` to `mojulo-runner`. A skill you materialize from a catalyst runs where its tier says.',
     '- Read a manual yourself when you are about to author with it: what a subagent reads stays in its context.',
     '- Make a single quick call yourself: starting a subagent costs more than one light call.',
     SKILL_END,

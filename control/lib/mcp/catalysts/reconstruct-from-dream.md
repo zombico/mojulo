@@ -6,6 +6,7 @@
   "valueHook": "Point the dream loop at a complex real object — dream it, decompose it along its natural seams, rebuild each segment as a workbench part, and assemble a real 3D model that drops straight into a world.",
   "version": 3,
   "category": "substrate",
+  "tier": "design",
   "requires": {
     "protocols": [],
     "writeTarget": "none"

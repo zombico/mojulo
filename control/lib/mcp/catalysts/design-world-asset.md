@@ -6,6 +6,7 @@
   "valueHook": "Design a custom fountain or monument once and slot it straight into a generated city — it lights and scales with the world.",
   "version": 1,
   "category": "world-building",
+  "tier": "judge",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "assetIntent", "prompt": "What world asset are you designing? (e.g. 'a plaza fountain', 'a wrought-iron lamppost', 'an obelisk monument')" },

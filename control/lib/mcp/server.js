@@ -32,7 +32,7 @@ import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 import { PACKS, SPINE, RETIRED_OFFICE_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
-import { TOOL_TIERS } from '@/lib/mcp/tool-tiers';
+import { toolTier } from '@/lib/mcp/tool-tiers';
 // Authorization axis (roles-pack.plan.md Phase 2). authNotice is pure — grants
 // and flags ride the execution context, minted in api/mcp/route.js.
 import { authNotice, packGranted, toolListedForContext, ROLES_ADMIN_TOOLS } from '@/lib/roles/enforce';
@@ -188,7 +188,7 @@ export function listTools({ clientInfo, context } = {}) {
   const tiersOn = clientTakesModelTiers(clientInfo);
   const toEntry = (t) => {
     const face = toolFace(t);
-    const tier = tiersOn ? TOOL_TIERS[t.name] : undefined;
+    const tier = tiersOn ? toolTier(t.name) : undefined;
     const meta = tier ? { ...(t._meta || {}), 'mojulo/tier': tier } : t._meta;
     return withAnnotations(
       {

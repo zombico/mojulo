@@ -6,6 +6,7 @@
   "valueHook": "Turn a dreamed building into a real walkable edifice recipe — masses you can re-place, re-skin, re-roof, connect, walk, and export — instead of a paragraph of description and a one-off elevation.",
   "version": 2,
   "category": "substrate",
+  "tier": "design",
   "requires": {
     "protocols": [],
     "writeTarget": "none"
