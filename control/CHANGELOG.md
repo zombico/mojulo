@@ -13,6 +13,50 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Egocube: a character's design notes, rolled from its archetype
+
+- **One Egocube** (`lib/graph/egocube/`; design in [docs/egocube.md](../docs/egocube.md)). The soul facet's deep
+  cube, as the geocube is the reality facet's: a character as age, frame, role, archetype, motivation and order,
+  rolled on seeded dice from a brief, and written out as **design notes for the visual outcome** per expressive
+  channel (frame, face structure, colouring, face at rest, eyes, stance, silhouette, dress, hair, palette, wear).
+  Each note names the dials that can carry it (`derives`: the western expression channels, the anime sculpt, the
+  motion axes, the gesture, tune, cast and palette words) and never sets them; the character loop decides. The
+  archetypes are the twelve of the pop-Jungian wheel, each with a light and a shadow reading; motivation (0
+  selfless … 1 self-serving) blends between them, so a hero at 0.6 is a dark knight without a dark-knight entry. Age
+  scales how much of the life shows in the face. Brief words fix facets (`paladin`, `rogue`, `emperor`, `old` …),
+  explicit facets win over words, the seed decides the rest, and an incoherent roll is drawn again; an explicit ask
+  never is. `scripts/egocube-roll.mjs` prints sheets. No tool and no door change: nothing else emits a byte
+  differently.
+- **Ancestry** (`egocube/ancestry.js`), born and never scaled by age, and always a range, never one look. Human
+  ancestries are broad regional groups, each a span of Monk Skin Tone swatches, undertones, hair textures, hair and
+  eye colours; they write colouring and hair, never the face's structure. Lineages are non-human peoples built on the
+  creature loop's vocabulary (the dragon body and the creature-from-plan catalyst's thesis and detail passes): a band
+  of humanity and cues shown at or below it, a slot keeping only the deepest (the long dragon snout replaces the
+  short), new `cover` and `ornament` channels, and a `door` (hero or creature) the sheet names. Built: draconic,
+  sylvan, dwarven, orcish, infernal, undead, feline, lupine, ursine, avian, insectoid. A people established once is
+  the same data passed in (`lineages`, `--lineages`), so rolling it again gives more of the same people. A blind roll
+  is human; a lineage comes by ask (`dragon warrior`, `elf`, `lich` …). Gaps a sheet names: coily hair and protective
+  styles; horns, tails and patches on the hero door.
+- **From a sheet to a character** (`egocube/plan.js` `planFromSheet`). A sheet compiles to a first `create_character`
+  call through the door it names, with the creature loop's five-trait thesis, `after` patches (the lean) and a ledger
+  of every note, landed or pending with the reason. The creature door gets a ring plan: a library head scaled to the
+  body, a biped scaled from the first original built this way (the Pale Warden, a wolf-kin), cover from the lineages'
+  new plan hints (tail, claws, fur / scales / chitin windows), a dress kit by role, reading and order with one focal
+  metal piece, the sheet's colours, and the face derives as the head's expression controls. The hero door gets cast,
+  tune, the western expression channels, gesture, hair and swatches. `scripts/egocube-roll.mjs --plan [--out]`. Every
+  people over ten seeds expands (creature) or validates (hero) (`plan.deep.test.js`); a spread minted through the CLI
+  door with its rig gates.
+- **The method, not a template.** The `creature-from-sheet` catalyst carries the loop from a sheet to a non-human
+  character, the head derivation (the wolf from the bear), and the lessons learned building the first forms. The
+  audit (`egocube/audit.js` `auditPlan`, `--audit`) reads a plan someone wrote against its sheet: a ledger of every
+  note (carried, missing, for the eyes), the lesson checks, whether it expands, and a sameness flag for a body that is
+  the served biped rescaled. Contrast pairs (`contrastPair`, `--contrast`) show how one facet moves the choices;
+  `planFromSheet` is the first reading behind them, not the authoring path.
+- **The creature head library** (`lib/graph/creature-heads/`): detailed heads as plan data, `headPlan(id, { palette })`,
+  `headFor(lineage)`. The dragon and the bear moved in from `docs/examples/head-detail/heads/` (the example and the
+  dragon body read them from here; the dragon body's recipe regenerates byte for byte), and the wolf is new. A head
+  authored in metres scales with its 'world' sweeps, so horns stay on a scaled skull.
+
 ### The motion library on the door: showcase poses, ready stances, strikes, and sitting down and getting up
 
 - **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a

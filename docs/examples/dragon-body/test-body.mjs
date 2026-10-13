@@ -106,7 +106,7 @@ test('the seed reproduces recipe.json byte for byte', () => {
 });
 
 test('the head is worn by name and sealed: nape on neckTop, rig joints read from the head, and the neck buried in the skull at every dial extreme', () => {
-  const plan = JSON.parse(readFileSync(new URL('../head-detail/heads/dragon.head.json', import.meta.url), 'utf8'));
+  const plan = JSON.parse(readFileSync(new URL('../../../control/lib/graph/creature-heads/heads/dragon.head.json', import.meta.url), 'utf8'));
   const cap = recipe.parts.cranium.caps.tip; assert.deepEqual(recipe.rig.joints.headTop.at, cap);
   const J = recipe.parts.jaw.stations.find((s) => s.id === 'st0').points.gum; assert.deepEqual(recipe.rig.joints.jawHinge.at, J);
   assert.deepEqual(recipe.rig.joints.jawTip.at, recipe.parts.jaw.caps.tip);
