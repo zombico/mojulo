@@ -4,7 +4,8 @@ import { chassisManifest } from './tech-chassis.js';
 import { craftTech } from './tech-crafter.js';
 import { readTechDirection, resolveTechDirection, ASYMMETRY_WORDS } from './tech-direction.js';
 import { TECH_STYLES } from './tech-eras.js';
-import { gearStyle } from './world-gear.js';
+import { gearStyle, ONE_SIDED } from './world-gear.js';
+import { validateStyleCard } from '../equipment/styles.js';
 import { readGameworld } from './index.js';
 
 const thing = (kind, intent) => ({ ...craftTech(kind, intent).plan, intent });
@@ -52,5 +53,21 @@ describe('asymmetry: one flank carries more, the other its colours', () => {
     expect(gearStyle(G(0.6), 'folk').card.edge.single).toBe(true);
     expect(gearStyle(G(0.1), 'folk').card.edge.single).toBeUndefined();
     expect(resolveTechDirection(G(0.6), 'folk').ledger).toContainEqual(expect.objectContaining({ key: 'asymmetry', local: 0.6 }));
+  });
+
+  it('held gear is exaggerated as its style draws held things, and a lopsided one takes its motif\'s one-sided blade, from the vocabulary it has', () => {
+    const G = (a, motif) => readGameworld(W({ direction: { asymmetry: a, motif }, weapons: { blade: 'a sword' } }));
+    const even = gearStyle(G(0.1, 'riveted'), 'folk');
+    expect(even.card.lean.W).toBeCloseTo(1 * TECH_STYLES.wc3.exaggeration.held, 2);
+    expect(even.card.dials.mass).toBeGreaterThan(1.3);
+    expect(even.card.language.blade).toBe('broad');
+    expect(even.from.proportion).toMatch(/exaggerated ×1.35/);
+    for (const [motif, blade] of Object.entries(ONE_SIDED)) {
+      const S = gearStyle(G(0.8, motif), 'folk');
+      expect(S.card.language.blade, motif).toBe(blade);
+      expect(validateStyleCard(S.card), motif).toEqual([]);
+    }
+    expect(gearStyle(G(0.8, 'spiked'), 'folk').card.edge.barbs).toBe(5);
+    expect(gearStyle(G(0.8, 'smooth'), 'folk').card.edge.barbs).toBeUndefined();
   });
 });

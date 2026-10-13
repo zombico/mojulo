@@ -38,6 +38,7 @@ import { CRYSTAL_GEMS } from '../polygonizer/crystal-optics.js';
 import { validateGear } from '../polygonizer/hero-gear.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { resolveTechDirection } from './tech-direction.js';
+import { TECH_STYLES } from './tech-eras.js';
 import { resolveEquipment, CLASS_SLOTS } from './equipment.js';
 import { applyDiff } from './adornment.js';
 import { STAGES } from './actions.js';
@@ -57,6 +58,8 @@ export const MADE_ROLES = Object.freeze({
   'stone-and-rune': { blade: { metal: 'bronze', finish: 'polished' }, fittings: ['stone', '#8a8478'], accent: { metal: 'gold', finish: 'polished' } },
   'chitin-and-sinew': { blade: ['plastic', '#d8cfb0'], fittings: ['matte', '#5b4a3a'], accent: ['satin', '#7a5a8a'] },
 });
+/** The one-sided blade each motif's vocabulary leans to (equipment/styles.js VARIANTS): all single-edged. */
+export const ONE_SIDED = Object.freeze({ spiked: 'cleaver', riveted: 'cleaver', faceted: 'tanto', smooth: 'sabre', organic: 'sabre', ornate: 'sabre' });
 /** The opposite of a motif: what an item's shadow is shaped in. */
 export const CONTRAST_OF = Object.freeze({ smooth: 'spiked', spiked: 'smooth', faceted: 'organic', organic: 'faceted', riveted: 'ornate', ornate: 'riveted' });
 const MOTIF_OF_CARD = Object.freeze({ ...Object.fromEntries(Object.entries(GEAR_MOTIFS).map(([m, c]) => [c, m])), historical: 'riveted', celestial: 'ornate' });
@@ -72,13 +75,24 @@ export function gearStyle(G, cid, { motif } = {}) {
   card.id = `${cid}-${m}`;
   card.roles = { ...card.roles, ...(MADE_ROLES[D.setting.made] ?? {}), wrap: ['matte', D.team] };
   card.language = { ...card.language, shield: { ...(card.language.shield ?? {}), board: ['matte', D.team] } };
-  // a lopsided civilization's blades are single-edged, a spine on one side; its spiked ones barbed
-  if (D.asymmetry >= 0.35) card.edge = { ...(card.edge ?? {}), single: true, ...(D.asymmetry >= 0.7 && m === 'spiked' ? { barbs: 3 } : {}) };
+  // exaggerated as its style draws held things (wc3: a hand weapon reads a third larger): wider, chunkier, stubbier,
+  // heavier, more stylized; every number inside the card's own bounds
+  const e = TECH_STYLES[D.style]?.exaggeration?.held ?? 1, lean = card.lean ?? {}, dials = card.dials ?? {}, clamp = (v, lo, hi) => Math.round(Math.min(hi, Math.max(lo, v)) * 100) / 100;
+  if (e !== 1) {
+    card.lean = { ...lean, W: clamp((lean.W ?? 1) * e, 0.25, 4), T: clamp((lean.T ?? 1) * (1 + (e - 1) / 2), 0.25, 4), pommel: clamp((lean.pommel ?? 1) * e, 0.25, 4), span: clamp((lean.span ?? 1) * (1 + (e - 1) * 0.6), 0.25, 4), L: clamp((lean.L ?? 1) / (1 + (e - 1) * 0.3), 0.25, 4) };
+    card.dials = { ...dials, mass: clamp((dials.mass ?? 1) * e, 0.5, 2), stylize: clamp(Math.max(dials.stylize ?? 0, 0.6), 0, 1) };
+  }
+  // a lopsided civilization's blades take the one-sided shapes its vocabulary has, a spine on the back; barbed down
+  // one edge as far as it leans, when its motif bites
+  if (D.asymmetry >= 0.35) {
+    card.language = { ...card.language, blade: ONE_SIDED[m], ...(m === 'faceted' ? { dagger: { ...(card.language.dagger ?? {}), blade: 'tanto' } } : {}) };
+    card.edge = { ...(card.edge ?? {}), single: true, ...(['spiked', 'riveted'].includes(m) ? { barbs: Math.min(12, Math.round(D.asymmetry * 6)) } : {}) };
+  }
   const stone = ELEMENT_WORDS[D.elements.primary]?.gem;
   if (stone && CRYSTAL_GEMS.includes(stone)) card.gem = { gem: stone, cut: card.gem?.cut ?? 'brilliant', glow: Math.max(card.gem?.glow ?? 0, 0.35) };
   const errs = validateStyleCard(card, card.id);
   if (errs.length) throw new Error(`world gear: ${cid}'s card breaks the equipment kernel: ${errs.join('; ')}`);
-  return { card, from: { base: `${base} (its motif, ${m}${motif ? ', turned' : ''})`, roles: `its setting (${D.setting.made})`, gem: stone ? `its element (${D.elements.primary})` : 'none', team: `its team colour (${D.team})`, edge: D.asymmetry >= 0.35 ? `single-edged: its asymmetry (${D.asymmetry})` : 'its card\'s' } };
+  return { card, from: { base: `${base} (its motif, ${m}${motif ? ', turned' : ''})`, roles: `its setting (${D.setting.made})`, gem: stone ? `its element (${D.elements.primary})` : 'none', team: `its team colour (${D.team})`, edge: D.asymmetry >= 0.35 ? `one-sided (${ONE_SIDED[m]}): its asymmetry (${D.asymmetry})` : 'its card\'s', proportion: e !== 1 ? `exaggerated ×${e}: its style (${D.style}) draws held things so` : 'true' } };
 }
 
 const motifOfBuild = (b) => (typeof b.style === 'string' ? MOTIF_OF_CARD[b.style] : MOTIF_OF_CARD[b.style?.id?.split('-').pop()] ?? b.style?.id?.split('-').pop()) ?? 'riveted';

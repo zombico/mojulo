@@ -118,7 +118,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Its team colour is designed into the surface, never flown: a livery decal wrapped from the core's own section.
     When it leans, it is a sash over the back and down the open flank, so armour and colour balance each other;
     when even, a band all round.
-  - A lopsided civilization's blades are single-edged.
+  - Held gear takes the lean from the vocabulary it already has, with no new kernel shapes:
+    - It is exaggerated as the style draws held things (wc3 ×1.35): wider and thicker blades, bigger pommels,
+      broader guards, a stubbier length, more mass, more stylization.
+    - A lopsided civilization's blades take their motif's one-sided shape (`ONE_SIDED`): cleaver for spiked and
+      riveted, tanto for faceted, sabre otherwise. They get a spine, and barbs down one edge as far as they lean
+      when the motif bites.
   - The bible's direction card shows the asymmetry and where it came from.
 - **The `design-tech-family` catalyst, and a shaded contact sheet to judge by.**
   - **The catalyst** codifies how the combined machines were grown: read the brief, pick the cheapest entry (a
