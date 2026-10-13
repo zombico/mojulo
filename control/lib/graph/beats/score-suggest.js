@@ -8,7 +8,8 @@
  * linearly (Eerola, Friberg & Bresin 2013), so a sum of offsets is a fair model. The music itself is still
  * fieldScore's; only the choice is made here. With no play in the context the answer is the place's, unchanged.
  */
-import { SCORE_MOODS } from './field-score.js';
+import { SCORE_MOODS, moodTempo } from './field-score.js';
+import { ROLE_JOBS } from './casting.js';
 import { suggestFieldScore } from './field-cue.js';
 
 // [valence, arousal] per mood: valence −1 (dark) … 1 (bright), arousal 0 (still) … 1 (driving).
@@ -70,8 +71,24 @@ export function levelScoreContext(manifest = {}, { goal = null, final = false } 
   };
 }
 
+// a point on the plane in words, for a brief
+const feelingOf = ([v, a]) => `${v > 0.35 ? 'bright' : v > 0 ? 'warm' : v > -0.4 ? 'shadowed' : 'dark'}, ${a > 0.7 ? 'driving' : a > 0.45 ? 'moving' : a > 0.2 ? 'easy' : 'still'}`;
+
 /**
- * suggestScore(context) → { mood, energy, role, why, also, audio, place } | null. `context` is levelScoreContext's
+ * The brief for the agent who casts the cue: what it should feel like (valence, arousal, in words), its tempo band,
+ * and the jobs to cast (score.cast; card beats-casting). The music is written either way; the cast is a choice.
+ */
+export function scoreBrief(mood) {
+  const at = MOOD_PLANE[mood];
+  if (!at) return null;
+  return {
+    feeling: feelingOf(at), valence: at[0], arousal: at[1], tempo: moodTempo(mood), energy: SCORE_MOODS[mood].energy,
+    cast: { jobs: Object.keys(ROLE_JOBS), how: "optional: score.cast = { <job>: '<instrument>' } for the feeling wanted; get_beats_vocab({ id: 'beats-casting' })" },
+  };
+}
+
+/**
+ * suggestScore(context) → { mood, energy, role, why, also, audio, place, brief } | null. `context` is levelScoreContext's
  * shape (any part may be absent). `place` is the mood the place alone asked for, so a caller can say what the play
  * changed. Null when the place calls for no field music (a city block, a math structure).
  */
@@ -83,10 +100,10 @@ export function suggestScore(context = {}) {
   if (isFight(c)) {
     const mood = c.final ? 'boss' : 'battle', { energy, role } = SCORE_MOODS[mood];
     const why = `${place.mood} for the place; ${c.final ? 'the last fight: the boss, darker and faster' : 'a fight: battle music, the orchestra played as a band'}`;
-    return { mood, energy, role, why, also: c.final ? ['battle', 'tension'] : ['tension', 'expedition'], audio: { soundtrack: `field:${mood}` }, place: place.mood };
+    return { mood, energy, role, why, also: c.final ? ['battle', 'tension'] : ['tension', 'expedition'], audio: { soundtrack: `field:${mood}` }, place: place.mood, brief: scoreBrief(mood) };
   }
   const pushes = [...PLAY, ...WEATHER].filter((p) => p.when(c));
-  if (!pushes.length) return { ...place, place: place.mood };
+  if (!pushes.length) return { ...place, place: place.mood, brief: scoreBrief(place.mood) };
   const at = MOOD_PLANE[place.mood];
   const target = pushes.reduce((p, x) => [p[0] + x.d[0], p[1] + x.d[1]], at);
   const cost = (m) => dist(MOOD_PLANE[m], target) + (CROSS.has(m) || SCORE_MOODS[m].role === place.role ? 0 : ROLE_STEP);
@@ -95,5 +112,5 @@ export function suggestScore(context = {}) {
   const mood = ranked[0];
   const { energy, role } = SCORE_MOODS[mood];
   const why = [mood === place.mood ? place.why : `${place.mood} for the place, moved to ${mood}`, ...pushes.map((p) => p.why)].join('; ');
-  return { mood, energy, role, why, also: ranked.slice(1, 3), audio: { soundtrack: `field:${mood}` }, place: place.mood };
+  return { mood, energy, role, why, also: ranked.slice(1, 3), audio: { soundtrack: `field:${mood}` }, place: place.mood, brief: scoreBrief(mood) };
 }

@@ -57,12 +57,13 @@ function suggestLevelMusic(levelRefs, gameRef) {
     if (!s) return;
     // and its action sounds, when it has none: the palette the score implies, wired to its mechanics (sfx-palettes.js)
     const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: { score: { mood: s.mood, game } }, ...(m.audio?.sfx ? {} : { sfx: 'auto' }) };
-    out.push({ level: ref, mood: s.mood, why: s.why, also: s.also, apply: { ref, patch: [{ op: 'set', path: '/audio', value: audio }] } });
+    out.push({ level: ref, mood: s.mood, why: s.why, also: s.also, brief: s.brief, apply: { ref, patch: [{ op: 'set', path: '/audio', value: audio }] } });
   });
   return out.length ? {
     suggest: out,
     how: "each level's `apply` is an update_sketch call (its score, and sfx 'auto' where it has no sounds); the shared `game` seed keeps one score identity across the levels. "
-      + "Name another mood in score.mood to override. Manual: get_beats_vocab({ id: 'beats-world-audio' }).",
+      + "Name another mood in score.mood to override, and cast its instruments for the brief's feeling in score.cast "
+      + "(one cast on every level keeps one sound). Manuals: get_beats_vocab({ id: 'beats-world-audio' }), get_beats_vocab({ id: 'beats-casting' }).",
   } : null;
 }
 

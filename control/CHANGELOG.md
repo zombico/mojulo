@@ -77,6 +77,19 @@ score its scene and its play call for.
     adds `sfx: 'auto'` to a level with no sounds.
   - Bus stingers fire a cue at most once every 60 ms, so a burst of one event is one sound. The `audio` and
     `kitchen-sink` emit pins move again for these lines.
+- **The agent casts the score.** `score.cast = { colour?, ground?, lead?, brass?, pad?, motion?, kit? }` chooses who
+  plays each job of a generated field cue or stinger, over the dice of the game's band.
+  - The dice roll as without it: same key, tempo, chart and tune, new voices. A job left out keeps the band's player.
+  - `casting.js` describes every instrument on the shelf: its family, envelope, range (filled in for the unranged
+    synths), the jobs it can take, and what it conveys. A cast synth bass sits in the bass; the band's own unranged
+    voices keep their pinned register.
+  - An unknown job or instrument, or a kit in a pitched job (or the reverse), is refused by name.
+  - `create_beats` returns `cast_advice` for what will sound wrong: a bass without the low end, a pad that doesn't
+    hold.
+  - The new `beats-casting` card has the jobs, the shelf by family and how to cast for a feeling.
+  - The suggestions in `compose_world` and `create_game` now carry a `brief`: the feeling in words and on the
+    valence/arousal plane, the tempo band the generator will use, and the jobs to cast.
+  - Without a cast, every cue is byte for byte as before.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

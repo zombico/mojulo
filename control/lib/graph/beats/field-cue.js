@@ -4,15 +4,18 @@
  *
  *   audio.soundtrack: 'field:plains'                                  // a world; the seed comes from its ref
  *   audio.soundtrack: { score: { mood: 'plains', seed: 81723, game: 4410 } }
+ *   audio.soundtrack: { score: { mood: 'expedition', game: 4410, cast: { lead: ['erhu', 'flute-3'], ground: 'contrabass-3' } } }
  *   create_beats({ kind: 'beats-composition', title, score: { mood: 'highlands', game: 4410 } })
  *
  * `seed` picks the cue, `game` picks the identity (key, palette, hall, motif). Share one `game` across a game's
  * cues so they sound like one score; leave `seed` out and a fresh one is rolled, so no two games sound alike.
+ * `cast` names who plays each job (casting.js): the agent's choice of instruments for the feeling wanted.
  * `role` is the cue's dramatic job. `battle` and `boss` are looped fights; `victory` and `defeat` are stingers that play
  * once at an outcome (a game's music.victory / music.defeat), never under a level.
  */
 import { randomInt } from 'node:crypto';
 import { SCORE_MOODS, fieldScore } from './field-score.js';
+import { readCast } from './casting.js';
 
 export const FIELD_ROLES = ['field', 'travel', 'town', 'interior', 'story', 'battle', 'stinger'];
 const FIELD_RE = /^field:([a-z-]+)$/;
@@ -48,6 +51,7 @@ export function parseFieldSpec(spec) {
   if (s.seed !== undefined) out.seed = s.seed;
   if (s.game !== undefined) out.game = s.game;
   if (s.role !== undefined) out.role = s.role;
+  if (s.cast !== undefined) out.cast = readCast(s.cast);
   return out;
 }
 
@@ -76,7 +80,7 @@ export function seedOfRef(ref) {
 export function fieldCue(parsed, { fallbackSeed } = {}) {
   const seed = parsed.seed !== undefined ? parsed.seed : fallbackSeed;
   if (!isSeed(seed)) throw new Error(`field score '${parsed.mood}' needs a seed — give score.seed, or let compose_world / create_beats roll one`);
-  return fieldScore(parsed.mood, { seed, identity: parsed.game });
+  return fieldScore(parsed.mood, { seed, identity: parsed.game, ...(parsed.cast ? { cast: parsed.cast } : {}) });
 }
 
 // ── the suggestion: read a world and name the mood that fits it ────────────────

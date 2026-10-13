@@ -14,7 +14,11 @@ describe('suggestScore: the place first', () => {
     ];
     for (const p of places) {
       const place = suggestFieldScore(p);
-      expect(suggestScore(p)).toEqual(place ? { ...place, place: place.mood } : null);
+      const s = suggestScore(p);
+      if (!place) { expect(s).toBeNull(); continue; }
+      const { brief, ...rest } = s;
+      expect(rest).toEqual({ ...place, place: place.mood });
+      expect(brief.tempo).toEqual(expect.any(Array));
     }
   });
 

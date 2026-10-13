@@ -223,6 +223,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
         mood: suggestion.mood,
         why: suggestion.why,
         also: suggestion.also,
+        brief: suggestion.brief,
         how: `add overrides.audio = ${JSON.stringify(suggestion.audio)} (a fresh seed is stored, so it never repeats another world's score); `
           + "share one score.game seed across a game's worlds to keep one identity. Manual: get_beats_vocab({ id: 'beats-field-orchestra' }).",
       },

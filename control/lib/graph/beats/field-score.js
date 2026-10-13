@@ -19,6 +19,9 @@
  */
 import { INSTRUMENTS } from './instruments.js';
 import { parseChord, midiOf, nameOf } from './beats-authoring.js';
+import { readCast, castVoices, CASTING } from './casting.js';
+
+const castSet = (C) => (C ? new Set(Object.values(C).flat()) : null);
 
 // ── seeded dice ───────────────────────────────────────────────────────────────
 function rngOf(...parts) {
@@ -115,6 +118,14 @@ export const SCORE_MOODS = {
   victory: { energy: 'processional', role: 'stinger', stinger: true, families: ['victory'], meters: ['4/4'], kit: 'orchestral-perc', tempo: { '4/4': [100, 124] } },
   defeat: { energy: 'idyllic', role: 'stinger', stinger: true, families: ['defeat'], meters: ['4/4', '3/4'], tempo: { '4/4': [60, 76], '3/4': [60, 76] } },
 };
+/** A mood's tempo band [lo, hi] in bpm, over its meters (what a brief tells the agent who casts it). */
+export function moodTempo(mood) {
+  const M = SCORE_MOODS[mood];
+  if (!M) return null;
+  // fieldScore rolls a slow mood at the foot of its band (t0 − 6 … t0 + 8), the rest across it
+  const bands = M.meters.map((m) => (M.tempo && M.tempo[m]) || TEMPO[M.energy][m]).filter(Boolean).map(([t0, t1]) => (M.slow ? [t0 - 6, t0 + 8] : [t0, t1]));
+  return [Math.min(...bands.map((b) => b[0])), Math.max(...bands.map((b) => b[1]))];
+}
 const TEMPO = { idyllic: { '4/4': [76, 100], '3/4': [84, 108], '6/8': [78, 96] }, adventurous: { '4/4': [100, 124], '6/8': [104, 128] }, processional: { '4/4': [80, 96] }, battle: { '4/4': [132, 152] } };
 const BAR_Q = { '4/4': 4, '3/4': 3, '6/8': 3 };
 const STEPS = { '4/4': 16, '3/4': 12, '6/8': 12 };
@@ -128,13 +139,16 @@ const CELLS = {
 };
 
 // ── ranges: where a part may sit (sounding MIDI) ─────────────────────────────
-function rangeOf(inst) {
-  const r = INSTRUMENTS[inst] && INSTRUMENTS[inst].range;
+// `cast`: the instruments the agent cast; one without a range on the shelf (a synth bass) takes casting.js's, so it
+// sits where it lives. The identity's own unranged voices keep the old default (their notes are pinned).
+function rangeOf(inst, cast) {
+  const own = INSTRUMENTS[inst] && INSTRUMENTS[inst].range;
+  const r = own || (cast && cast.has(inst) && CASTING[inst] && CASTING[inst].low ? [CASTING[inst].low, CASTING[inst].high] : null);
   return r ? [midiOf(r[0]), midiOf(r[1])] : [48, 84];
 }
 // a melody's working register: inside the range, off its extremes, about a twelfth wide.
-function tessitura(inst) {
-  const [lo, hi] = rangeOf(inst);
+function tessitura(inst, cast) {
+  const [lo, hi] = rangeOf(inst, cast);
   const a = Math.max(lo + 4, Math.min(60, hi - 22)), b = Math.min(hi - 5, a + 19);
   return [a, b];
 }
@@ -210,14 +224,19 @@ function voicesOf(id, M) {
  *             tension, betrayal, triumph)
  *   seed      the cue's seed (a non-negative integer; fresh per cue)
  *   identity  the game's scoreIdentity (or its seed); omitted, the cue takes one from its own seed
+ *   cast      who plays each job ({ colour?, ground?, lead?, brass?, pad?, motion?, kit? }, casting.js): the agent's
+ *             choice for the feeling wanted, over the identity's. The dice roll exactly as without it, so a cast
+ *             changes the instruments and nothing else; a job it leaves out keeps the identity's player.
  */
-export function fieldScore(mood, { seed, identity } = {}) {
+export function fieldScore(mood, { seed, identity, cast } = {}) {
   const M = SCORE_MOODS[mood];
   if (!M) throw new Error(`fieldScore: no mood '${mood}' — the moods: ${Object.keys(SCORE_MOODS).join(', ')}`);
   if (!Number.isInteger(seed) || seed < 0) throw new Error('fieldScore: seed must be a non-negative integer (pick a fresh one per cue)');
   const id = identity == null ? scoreIdentity(seed) : Number.isInteger(identity) ? scoreIdentity(identity) : identity;
-  if (M.stinger) return fieldStinger(mood, M, seed, id);
-  const I = voicesOf(id, M);
+  const C = readCast(cast);
+  if (M.stinger) return fieldStinger(mood, M, seed, id, C);
+  const CS = castSet(C);
+  const I = castVoices(voicesOf(id, M), C);
   const R = rngOf('cue', mood, seed, id.seed);
   const battle = M.energy === 'battle';
   const adv = M.energy === 'adventurous' || M.energy === 'processional' || battle;
@@ -244,7 +263,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
   // the instruments (the identity's palette; a mood swaps in what it needs)
   const P = PALETTES[I.flavour];
   let colour = I.colour;
-  if (mood === 'desert' && !PLUCKED.test(colour)) colour = P.colour.find((x) => PLUCKED.test(x)) || colour;
+  if (mood === 'desert' && !PLUCKED.test(colour) && !C?.colour) colour = P.colour.find((x) => PLUCKED.test(x)) || colour;
   const [leadA0, leadB0] = I.leads;
   const leadA = adv && (R.chance(0.5) || M.brassLead) ? I.brass : leadA0;
   const leadB = leadA === I.brass ? leadA0 : leadB0;
@@ -269,9 +288,10 @@ export function fieldScore(mood, { seed, identity } = {}) {
   const gStyle = R.pick(M.ground);
   // a walking bass needs a bass (a cello cannot reach its low fifths); low brass may take an adventurous root.
   const BASS = { folk: 'upright-bass', 'synth-era': 'fm-bass' };
-  const gInst = gStyle === 'root-fifth' ? BASS[I.flavour] || 'contrabass-3'
+  const rolled = gStyle === 'root-fifth' ? BASS[I.flavour] || 'contrabass-3'
     : battle ? BASS[I.flavour] || 'tuba-3'
     : adv && gStyle === 'root' && !BASS[I.flavour] && R.chance(0.5) ? 'tuba-3' : I.ground;
+  const gInst = C?.ground ?? rolled;   // rolled first either way: a cast never moves the dice
   const ground = { name: 'ground', instrument: gInst, bars: [2, bars] };
   if (gStyle === 'drone' || gStyle === 'pedal') Object.assign(ground, { chordVoice: SUSTAIN_GROUND.test(gInst) ? 'pedal' : gStyle, hold: 1, vel: 0.32, octave: /contrabass|upright|fm-bass/.test(gInst) ? 1 : 2 });
   else if (gStyle === 'root-fifth') Object.assign(ground, { chordVoice: 'root-fifth', art: /contrabass|upright|cello/.test(gInst) ? 'pizz' : undefined, vel: 0.5, ...(meter === '4/4' ? {} : { rhythm: steps === 12 ? [0.85, 0, 0, 0, 0, 0, 0.7, 0, 0, 0, 0, 0] : 'half' }) });
@@ -279,7 +299,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
   if (ground.art === undefined) delete ground.art;
   // keep the ground's notes inside its range (the gear change moves them up)
   {
-    const [lo] = rangeOf(gInst);
+    const [lo] = rangeOf(gInst, CS);
     const oct = ground.octave ?? 2, lowest = Math.min(...chart.map((s, b) => { const c = chordAt(b); return c ? (oct + 1) * 12 + c.root : 99; }));
     if (lowest < lo) ground.octave = oct + 1;
     if (ground.chordVoice === 'pedal' || ground.chordVoice === 'drone') { const t = ((ground.octave ?? 2) + 1) * 12 + id.tonic; if (t < lo) ground.octave = (ground.octave ?? 2) + 1; }
@@ -295,7 +315,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
   const leadEvents = { A: [], B: [] };
   const strongEvery = meter === '4/4' ? 2 : 1.5;
   function phrase(inst, startBar, pr, velBase, shift) {
-    const [lo, hi0] = tessitura(inst), hi = hi0 - shift;
+    const [lo, hi0] = tessitura(inst, CS), hi = hi0 - shift;
     let prev = Math.round((lo + hi) / 2);
     const out = [];
     for (let k = 0; k < 4; k++) {
@@ -323,7 +343,7 @@ export function fieldScore(mood, { seed, identity } = {}) {
   if (adv) {
     const last = (groups.length - 1) * 4 * barQ;
     const dInst = leadA === I.brass ? leadA0 : I.brass;
-    const [dlo, dhi] = rangeOf(dInst);
+    const [dlo, dhi] = rangeOf(dInst, CS);
     const final = leadEvents.A.filter((e) => e[0] >= last - 1e-9);
     for (const off of [-12, 0]) {
       const notes = final.map((e) => midiOf(e[1]) + off);
@@ -396,8 +416,8 @@ export function fieldScore(mood, { seed, identity } = {}) {
  * timpani roll and a cymbal. Defeat: a low line alone falling in the minor, then a drone and a distant chord, a
  * tam-tam under the last bar. Not a loop: no `loop`, and it ends home.
  */
-function fieldStinger(mood, M, seed, id) {
-  const I = voicesOf(id, M);
+function fieldStinger(mood, M, seed, id, C) {
+  const I = castVoices(voicesOf(id, M), C), CS = castSet(C);
   const R = rngOf('stinger', mood, seed, id.seed);
   const win = mood === 'victory';
   const family = FAMILIES[M.families[0]], mode = MODE[family.mode];
@@ -412,8 +432,8 @@ function fieldStinger(mood, M, seed, id) {
   const strongEvery = meter === '4/4' ? 2 : 1.5;
 
   // the line: the identity's motif rhythm in bar 0, a rolled cell in bar 1, then home held (bar 2 to the end)
-  const inst = win ? I.brass : /cello|bassoon|contrabass/.test(I.ground) ? I.ground : 'cello-3';
-  const [lo, hi] = tessitura(inst);
+  const inst = C?.lead ? C.lead[0] : win ? I.brass : /cello|bassoon|contrabass/.test(I.ground) ? I.ground : 'cello-3';
+  const [lo, hi] = tessitura(inst, CS);
   const MR = rngOf('motif', id.seed, id.motif);
   const motifCell = MR.pick(CELLS[meter][win ? 'busy' : 'calm']);
   const events = [];
@@ -435,7 +455,7 @@ function fieldStinger(mood, M, seed, id) {
 
   const parts = [{ name: 'leadA', instrument: inst, events, shape: 'phrase' }];
   // the band joins at bar 2: the ground on the chords, a held chord above
-  const gInst = win ? ({ folk: 'upright-bass', 'synth-era': 'fm-bass' }[I.flavour] || 'tuba-3') : 'contrabass-3';
+  const gInst = C?.ground ?? (win ? ({ folk: 'upright-bass', 'synth-era': 'fm-bass' }[I.flavour] || 'tuba-3') : 'contrabass-3');
   parts.push({ name: 'ground', instrument: gInst, chordVoice: win ? 'root' : 'drone', ...(win ? { rhythm: steps === 16 ? 'half' : [0.85, 0, 0, 0, 0, 0, 0.7, 0, 0, 0, 0, 0] } : { hold: 1 }), vel: win ? 0.6 : 0.34, octave: 2, bars: [2, 4] });
   parts.push({ name: 'pad', instrument: I.pad, chordVoice: 'upper', rhythm: 'whole', hold: 0.9, vel: win ? 0.55 : 0.36, octave: 4, bars: [2, 4] });
   if (win) {
@@ -443,8 +463,9 @@ function fieldStinger(mood, M, seed, id) {
     const [tlo, thi] = rangeOf('timpani');
     let tonic = 36 + id.tonic; while (tonic < tlo) tonic += 12;
     if (tonic <= thi) parts.push({ name: 'timp', instrument: 'timpani', events: [0, 0.25, 0.5, 0.75].map((q, i) => [r3(3 * barQ - 1 + q), nameOf(tonic), 0.25, r3(0.4 + i * 0.06)]).concat([[r3(3 * barQ), nameOf(tonic), 1, 0.66]]) });
-    parts.push({ name: 'perc', instrument: 'orchestral-perc', events: [[r3(2 * barQ), 'C#3', 2, 0.7], [r3(2 * barQ), 'C2', 1, 0.6]] });
-  } else {
+    parts.push({ name: 'perc', instrument: C?.kit ?? 'orchestral-perc', events: [[r3(2 * barQ), 'C#3', 2, 0.7], [r3(2 * barQ), 'C2', 1, 0.6]] });
+  } else if (!C?.kit) {
+    // the tam-tam is the orchestral kit's own; a cast kit has none, so a cast defeat ends without it
     parts.push({ name: 'perc', instrument: 'orchestral-perc', events: [[r3(3 * barQ), 'E3', 2, 0.45]] });
   }
 
