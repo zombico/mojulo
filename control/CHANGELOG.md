@@ -1649,6 +1649,34 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
   loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
   new `kart-racer` genre.
 
+### Car designer: a realistic vehicle, or a racer and their machine
+
+Built so far: the language.
+
+- **The vehicle sheet** (`lib/graph/car-designer/`): one vehicle as its pole, class, silhouette (wedge, bubble, brick,
+  needle, barrel, tub, bell), stance, cockpit, engine, era, motif, drive, wear, livery and exaggeration, each value a
+  reading with notes and derives on ten channels (frame, stance, cockpit, engine, handling, silhouette, surface,
+  livery, ornament, wear). Rolled from a brief and a seed the Egocube's way: every facet throws its die, an asked one
+  is never re-drawn, an incoherent roll is drawn again unless asked (then held), each dial claimed once by its highest
+  source (the class first). A realistic sheet takes its shape from its class and is never exaggerated; a racer's rolls
+  its own at kart scale. Every derive names a live dial: the vehicle designer's families, the technology builder's
+  wheeled plans, motifs and adornment, and the driving primitives' classes and physics. `scripts/vehicle-roll.mjs`
+  prints sheets.
+
+Planned:
+
+- **`create_vehicle`**, beside `create_character`: `as: 'realistic'` or `as: 'racer'`.
+- **One language for vehicles:** a sheet of facets (silhouette, proportion, cockpit, engine, motif, livery, era, wear),
+  each reading with its reason, rolled from a brief and a seed, every note naming a setting that exists.
+- **A realistic vehicle** starts from a class and holds to its true dimensions and its physics.
+- **A racer's machine is read off the racer:** the Egocube rolls the driver, and the machine takes its silhouette from
+  the archetype, its size and weight from the build, its lean from the motivation and role, one focal piece, and the
+  outfit's own colours, so the pair reads as one. Cartoon proportions are dials, like the hero's chibi build. How it
+  handles is derived from what it is made of, never stated, and across a roster every machine is best at something
+  and none at everything.
+- **The driver in the seat:** seated, hands on the wheel, riding the machine in a game; a quick race of a roster, each
+  rival in their own machine.
+
 ### Driving primitives: the roadway, a world that driving games call on
 
 Built so far: the roadway itself, a divided freeway at true scale (Highway 401's collector–express stretch by Pearson).
