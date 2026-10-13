@@ -76,8 +76,8 @@ export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a55
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
 // line, each row's after it, the cars' distance off the middle), the rivals' lane off the line and their pace (the
-// pole's, the last's)
-export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72] });
+// pole's, the last's), and their lane off a roadway's racing line (narrower: that line already runs near the edges)
+export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72], roadLane: 0.8 });
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
@@ -204,6 +204,11 @@ export function goalMechanics(quick, ends) {
       const kept = [];
       for (const b of along) { const last = kept.length ? kept[kept.length - 1].at : ends.spawn; if (!ends.spacing || Math.hypot(b.at[0] - last[0], b.at[1] - last[1]) >= ends.spacing) kept.push(b); }
       const rivals = raceRivals(quick), race = rivals.length ? { rivals, win: raceWin(rivals.length) } : {};
+      // on a roadway (roads/contract.js): its own checkpoints, the last its finish; a lap goes round `laps` times
+      if (ends.roadway) {
+        const T = ends.roadway;
+        return [{ kind: 'laps', checkpoints: T.checkpoints, ...(T.closed ? { laps: quick.laps ?? RACE.laps } : {}), ...race }];
+      }
       // round a loop (lay-concerns.js loopSite): checkpoints about every RACE.leg metres of its line, the last its start
       const loop = ends.loop;
       if (loop) {
@@ -268,6 +273,7 @@ const raceWin = (n) => Math.min(3, Math.ceil((n + 1) / 2));
  * → { figures, entities, pilot: { transform } } (stageLevelOrder's extra); nothing for a race alone on a trail */
 export function raceCast(quick, ends, ride) {
   const rivals = raceRivals(quick), loop = ends.loop;
+  if (ends.roadway) return roadwayCast(rivals, ends.roadway, ride);
   if (!loop && !rivals.length) return {};
   const start = loop ? loop.start : ends.spawn, h = loop ? loop.heading : ends.heading;
   const u = [Math.cos(h), Math.sin(h)], l = [-u[1], u[0]];
@@ -286,6 +292,20 @@ export function raceCast(quick, ends, ride) {
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k), heading: h } });
   });
   return { figures, entities, pilot: { transform: { pos: slot(rivals.length), heading: h } } };
+}
+
+/** A race's cast on a roadway: every car on the contract's grid (the player behind the rivals), each rival on the racer
+ * rule along the racing line, a lane either side of it by turns, its pace falling off down the grid. */
+function roadwayCast(rivals, T, ride) {
+  const line = T.line.map((q) => [q[0], q[1]]), slot = (k) => T.grid[Math.min(k, T.grid.length - 1)];
+  const figures = {}, entities = [];
+  rivals.forEach((id, k) => {
+    figures[id] = { vehicleRef: ride.ref, targetH: RIDE_H };
+    const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
+    const rule = { ...ride.rule, type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace };
+    entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });
+  });
+  return { figures, entities, pilot: { transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };
 }
 
 export function guardPosts(quick, ends) {

@@ -17,6 +17,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
+import { assembleRoadwayScene } from '@/lib/graph/roads/roadway';
 import { pairLanes, laneCapacity, laneTurns, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
@@ -780,6 +781,10 @@ export const WORLD_KINDS = {
   // clouds: the deck rides over the terrain (no boxes to clip; the band clears the mesh's tallest
   // vertex). The ?render=raymarch backend returns before the channel layer, so it carries no deck.
   'painted-landscape': { walk: true, clouds: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
+  // a road built for driving, authored in metres (roads/roadway.js): alignment + cross-section kernel, markings,
+  // barriers; the payload carries the lane graph a driving game reads. `?view=` picks the opening shot: a preset
+  // name, or `s<station>[-<lane id>]` (the map's deep link).
+  roadway: { walk: true, title: 'mojulo roadway', resolve: (m, ctx) => assembleRoadwayScene(m, { title: ctx.title, view: ctx.view }) },
   // a painted scene made ground at real scale: the live page meshes it around the camera (the
   // terrain channel's LOD), everything else (exports, stills) gets the baked world. `from: { ref }` resolves to the
   // stored painted-landscape, so a promoted painting follows its source's edits.
