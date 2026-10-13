@@ -6,6 +6,10 @@
 //     dials     { stylize 0–1, fit 0–1, coverage 0–1, ornament 0–3 } over the card's own
 //     language  over the card's: { top: {…}, bottom: {…}, outer?: {…}, feet, tuck, focal } (a slot object merges over the card's)
 //     laws      the version of principles.js the build was minted under (stamped by the hero record; absent → current)
+//     detail    [{ prim, role, group? }]: DETAIL PRIMITIVES seated on the garment's ROLES (GARMENT_ROLES: where a detail can
+//               sit on what is worn, the outermost layer first). Given, the list owns the bindings (the trims on hems,
+//               cuffs and the collar) and the ornament budget spends the construction alone; absent, the budget spends
+//               both, as before
 //
 //   1 CUT           the language and `coverage` → the pieces and their windows, lengths on landmarks (law 3)
 //   2 FIT           each piece's ease from its family × fit × stylize, the hang flaring toward its free hem (laws 1, 2, 8)
@@ -23,6 +27,12 @@ import { OUTFIT_LAWS_VERSION, FAMILIES, SKIRT_CUTS, outfitProportion, stepLength
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
 
 export { OUTFIT_LAWS_VERSION };
+/** THE GARMENT'S ROLES: where a detail sits. EDGE roles are lines (a hem, a cuff, an opening), FIELD roles areas, each
+ * seated on the outermost layer that covers that place; a role nothing worn covers is absent */
+export const GARMENT_ROLES = Object.freeze({ collar: 'edge', opening: 'edge', placket: 'edge', hem: 'edge', cuffs: 'edge', waist: 'edge', legHem: 'edge', skirtHem: 'edge',
+  yoke: 'field', chest: 'field', back: 'field', sleeveBand: 'field', skirtField: 'field' });
+/** THE DETAIL PRIMITIVES (phase 1: binding): each names the kinds of role it can sit on */
+export const DETAIL_PRIMS = Object.freeze({ binding: { on: ['edge'], group: 'Trim', what: 'a band of another cloth bound over an edge (piping, a bound hem, a cuff band)' } });
 export const isOutfitBuild = (o) => !!(o && typeof o === 'object' && !Array.isArray(o) && o.type === 'outfit');
 const cardOf = (style) => (typeof style === 'string' ? SEEDED_OUTFITS[style] : style);
 const DIALS = ['stylize', 'fit', 'coverage', 'ornament'];
@@ -40,7 +50,13 @@ export function validateOutfitBuild(build) {
   if (d.ornament !== undefined && !(Number.isInteger(d.ornament) && d.ornament >= 0 && d.ornament <= 3)) errs.push('outfit.dials.ornament: an integer 0–3');
   const card = cardOf(style);
   if (build.language !== undefined && card && !validateOutfitCard(card).length) errs.push(...validateOutfitCard({ language: languageOf(card, build.language) }, 'outfit').filter((e) => e.includes('language')));
-  for (const k of Object.keys(build)) if (!['type', 'style', 'dials', 'language', 'laws'].includes(k)) errs.push(`outfit.${k}: not a build field (type, style, dials, language, laws)`);
+  if (build.detail !== undefined) { if (!Array.isArray(build.detail)) errs.push('outfit.detail: a list of { prim, role, group? }');
+    else build.detail.forEach((D, i) => { const at = `outfit.detail[${i}]`;
+      if (!D || typeof D !== 'object' || !DETAIL_PRIMS[D.prim]) { errs.push(`${at}.prim: one of ${Object.keys(DETAIL_PRIMS).join(', ')}`); return; }
+      if (!GARMENT_ROLES[D.role]) errs.push(`${at}.role: one of ${Object.keys(GARMENT_ROLES).join(', ')}`);
+      else if (!DETAIL_PRIMS[D.prim].on.includes(GARMENT_ROLES[D.role])) errs.push(`${at}: a ${D.prim} sits on an ${DETAIL_PRIMS[D.prim].on.join(' or ')} role; '${D.role}' is a ${GARMENT_ROLES[D.role]}`);
+      if (D.group !== undefined && !(typeof D.group === 'string' && /^[A-Za-z][A-Za-z0-9]*$/.test(D.group))) errs.push(`${at}.group: a palette group name`); }); }
+  for (const k of Object.keys(build)) if (!['type', 'style', 'dials', 'language', 'laws', 'detail'].includes(k)) errs.push(`outfit.${k}: not a build field (type, style, dials, language, laws, detail)`);
   if (build.laws !== undefined && build.laws !== OUTFIT_LAWS_VERSION) errs.push(`outfit.laws: ${build.laws} is unknown — this kernel carries outfit laws ${OUTFIT_LAWS_VERSION}`);
   return errs;
 }
@@ -175,6 +191,35 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
     outerCuffs: () => { const end = worn.has('outerCuff') ? on('outerCuff', 'foreArm') : worn.has('outerSleeve') ? on('outerSleeve', 'upperArm') : null; if (!end) return false; paint.push({ part: end, run: [0.998, 1], group: 'Trim' }); return true; },
     seams: () => { if (!worn.has('top')) return false; paint.push({ part: on('top', 'torso'), t: [0.4, 0.6], u: [0.3, 3.4], group: 'Seam' }); return true; },
   };
+  // ── 5b THE ROLES and the DETAIL seated on them: each role on the outermost layer that covers its place
+  const torsoTop = worn.has('outer') ? on('outer', 'torso') : worn.has('top') ? on('top', 'torso') : null;
+  const sleeveTop = worn.has('outerSleeve') ? on('outerSleeve', 'upperArm') : worn.has('topSleeve') ? on('topSleeve', 'upperArm') : null;
+  const outerEnd = worn.has('outerCuff') ? on('outerCuff', 'foreArm') : worn.has('outerSleeve') ? on('outerSleeve', 'upperArm') : null;
+  const outerHemSeat = worn.has('outerSkirt') ? { part: 'outerSkirt_skirt', u: [10.6, 11] } : worn.has('outerTail') ? { part: on('outerTail', 'pelvis'), u: lengths.outerHem === 'tunic' ? [1.5, 1.5 + EDGE.hem] : [4, 4 + EDGE.hem] }
+    : worn.has('outer') ? { part: on('outer', 'torso'), u: lengths.outerHem === 'waist' ? [1.4, 1.4 + EDGE.hem] : [0, EDGE.hem] } : null;
+  const roles = Object.fromEntries(Object.entries({
+    collar: worn.has('outerCollar') ? { part: on('outerCollar', 'neck'), run: [0.75, 1] } : worn.has('topCollar') ? { part: on('topCollar', 'neck'), run: [0.75, 1] } : null,
+    opening: outer?.open && worn.has('outer') ? { part: on('outer', 'torso'), t: [0, 0.08] } : null,
+    placket: wovenTop && !dress && worn.has('top') && !(worn.has('outer') && !outer?.open) ? { part: on('top', 'torso'), t: [0, 0.09] } : null,
+    hem: outerHemSeat ?? (hemPiece && !dress ? hemPiece : null),
+    cuffs: outerEnd ? { part: outerEnd, run: [0.998, 1] } : sleeveEnd ? { part: sleeveEnd, run: [0.998, 1] } : null,
+    waist: worn.has('skirt') && !dress ? { part: 'skirt_skirt', u: [0, 0.6] } : worn.has('bottomSeat') ? { part: on('bottomSeat', 'pelvis'), u: [6 - EDGE.waistband, 6] } : null,
+    legHem: legEnd ? { part: legEnd, run: [0.998, 1] } : null,
+    skirtHem: worn.has('skirt') ? { part: 'skirt_skirt', u: [10.6, 11] } : null,
+    yoke: torsoTop ? { part: torsoTop, u: [3.2, 4] } : null,
+    chest: torsoTop ? { part: torsoTop, u: [2.2, 3.3], t: [0, 0.45] } : null,
+    back: torsoTop ? { part: torsoTop, u: [1.2, 3.3], t: [0.6, 1] } : null,
+    sleeveBand: sleeveTop ? { part: sleeveTop, run: [0.18, 0.32] } : null,
+    skirtField: worn.has('outerSkirt') ? { part: 'outerSkirt_skirt', u: [4, 9] } : worn.has('skirt') ? { part: 'skirt_skirt', u: [4, 9] } : null,
+  }).filter(([, v]) => v));
+  const detailed = Array.isArray(build.detail), seatedDetail = [];
+  for (const D of build.detail || []) { const seat = roles[D.role];
+    if (!seat) { warnings.push(`detail: no ${D.role} on this outfit for the ${D.prim}`); continue; }
+    if (D.prim === 'binding') paint.push({ ...seat, group: D.group ?? DETAIL_PRIMS.binding.group });
+    seatedDetail.push(`${D.prim}@${D.role}`); }
+  // with a detail list, the bindings are its own: the budget's trim edges stand down (the collar keeps its rib)
+  const BINDINGS = new Set(['cuffs', 'hem', 'legHem', 'skirtHem', 'outerHem', 'outerCuffs']);
+  if (detailed) { const rib = edges.collar; edges.collar = () => (worn.has('topCollar') || worn.has('outerCollar') ? false : rib()); for (const b of BINDINGS) edges[b] = () => false; }
   const focalEdge = focal === 'collar' ? 'collar' : focal === 'placket' ? 'buttons' : 'belt';
   // the budget's tiers: the focal (1), every other edge (2), the seams (3); an edge with nothing to sit on is skipped.
   // An open outer layer's opening is its construction, spent with the focal (an open coat is open at any budget)
@@ -192,7 +237,7 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
 
   // ── 7 LEDGER
   const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'casual' : card.id || 'inline', dials, lengths, tuck, feet, focal, ...(dress ? { dress } : {}), ...(outer ? { outer: { open: !!outer.open } } : {}),
-    pieces: garments.map((E) => E.id), edges: spent, laws: build.laws ?? OUTFIT_LAWS_VERSION, ...(warnings.length ? { warnings } : {}) };
+    pieces: garments.map((E) => E.id), edges: spent, laws: build.laws ?? OUTFIT_LAWS_VERSION, ...(detailed ? { roles: Object.keys(roles), detail: seatedDetail } : {}), ...(warnings.length ? { warnings } : {}) };
   return { garments, paint, rows, kit, tones, trace };
 }
 

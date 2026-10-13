@@ -71,6 +71,12 @@ describe('the outfit, designed from the sheet', () => {
     expect(gown.garments.map((g) => g.id)).toContain('gownBodice');
     expect(skirt.caps.tip[2]).toBe(skirt.stations[skirt.stations.length - 1].at[2]);
     expect(Object.keys(skirt.bind.blend).some((k) => /^st3\.sideR$/.test(k) && skirt.bind.blend[k].thighR > 0)).toBe(true);
+    // the detail list rides the cut onto the creature: a binding on the hem lands on the outermost hem, by share
+    const detailed = compileOutfit({ ...plan, outfit: { ...plan.outfit, cut: { ...plan.outfit.cut, detail: [{ prim: 'binding', role: 'hem', group: 'OutfitAccent' }] } } });
+    const hem = detailed.paint.find((P) => P.group === 'OutfitAccent');
+    expect(hem).toBeTruthy();
+    if (/_pelvis$/.test(hem.part)) expect(Math.max(...hem.u)).toBeLessThanOrEqual(plan.segments.find((x) => x.name === 'pelvis').stations.length - 1);
+    expect(detailed.paint.filter((P) => P.group === 'Trim').length).toBeLessThan(built.paint.filter((P) => P.group === 'Trim').length + 1);
     // without `dress`, the stock kit as before
     expect(planFromSheet(sheet).create.spec.plan.outfit).toBeUndefined();
     expect(compileOutfit({ segments: [] })).toEqual({ segments: [] });

@@ -132,6 +132,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
     - undead: loose off a thin frame, long and faded.
     Each combines with archetype, role and order. People's rolls: 39 sets (21 before). An open coat's skirt hangs
     closed: its painted opening stairstepped across the hull's turning bands.
+- **Detail on the garment's roles** (`outfit/expand.js`). The garment names where a detail can sit
+  (`GARMENT_ROLES`).
+  - Edges: collar, opening, placket, hem, cuffs, waist, leg hem and skirt hem. Fields: yoke, chest, back, sleeve band
+    and skirt.
+  - Each role is seated on the outermost layer worn there (a coat's hem, not the shirt's under it).
+  - An outfit build's `detail` list (`[{ prim, role, group? }]`) seats primitives on them. The first is `binding`, a
+    band over an edge.
+  - Given a list, the bindings are the list's and the ornament budget spends the construction alone. Absent, nothing
+    changes.
+  - Refusals name the primitive, the role, or a binding on a field. A role nothing covers is skipped with a word, and
+    the trace lists the roles and the seated details.
 - **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
   that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
   1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's

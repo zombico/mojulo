@@ -1,7 +1,7 @@
 // outfit.test.js — OUTFIT BUILDS (outfit/expand.js): the cards, the laws, the dials and the passes, on the hero door.
 import { describe, it, expect } from 'vitest';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
-import { expandOutfit, validateOutfitBuild, OUTFIT_LAWS_VERSION } from './expand.js';
+import { expandOutfit, validateOutfitBuild, OUTFIT_LAWS_VERSION, GARMENT_ROLES } from './expand.js';
 import { stepLength, outfitProportion } from './principles.js';
 import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
@@ -132,5 +132,40 @@ describe('the passes', () => {
   it('deterministic: the same words, the same recipe', () => {
     const a = JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe);
     expect(JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe)).toBe(a);
+  });
+});
+
+describe('the outer layer, fit by zone, and the detail on the garment\'s roles', () => {
+  const ctx = { have: STRUCT, scale: 1 };
+  const coat = { type: 'outfit', style: { id: 'x', dials: { ornament: 2 }, language: { top: { family: 'woven', sleeve: 'long', hem: 'hip', fit: 'skin' }, bottom: { family: 'woven', leg: 'long', fit: 'fitted' }, outer: { family: 'woven', sleeve: 'long', hem: 'knee', open: true }, feet: 'boots', tuck: true, focal: 'belt' } } };
+  it('an outer layer over a second skin: the coat its skirt and sleeves, the undershirt paint, the trousers fitted without a hang', () => {
+    const out = expandOutfit(coat, ctx), ids = out.garments.map((E) => E.id);
+    expect(ids).toEqual(expect.arrayContaining(['outer', 'outerSkirt', 'outerSleeve', 'outerCuff', 'bottomLeg']));
+    expect(ids).not.toContain('top');                                                    // a second skin is not cloth
+    expect(out.paint.some((P) => [P.part].flat().includes('torso') && P.group === 'Top')).toBe(true);
+    expect(out.garments.find((E) => E.id === 'bottomShin').flare).toBeUndefined();        // fitted: no hang at the hem
+    expect(out.trace.outer).toEqual({ open: true });
+  });
+  it('the roles sit on the outermost layer; the detail list owns the bindings and the budget keeps the construction', () => {
+    const bare = expandOutfit({ ...coat, detail: [] }, ctx);
+    expect(bare.trace.roles).toEqual(expect.arrayContaining(['opening', 'hem', 'cuffs', 'waist', 'yoke', 'chest', 'back', 'sleeveBand', 'skirtField']));
+    expect(bare.paint.filter((P) => P.group === 'Trim')).toEqual([]);                    // no bindings asked: none drawn
+    expect(bare.kit.map((A) => A.id)).toContain('belt');                                  // the focal's construction stays
+    const bound = expandOutfit({ ...coat, detail: [{ prim: 'binding', role: 'hem' }, { prim: 'binding', role: 'cuffs', group: 'Accent' }] }, ctx);
+    expect(bound.paint).toContainEqual({ part: 'outerSkirt_skirt', u: [10.6, 11], group: 'Trim' });   // the coat's hem, not the shirt's
+    expect(bound.paint).toContainEqual({ part: 'outerCuff_foreArm', run: [0.998, 1], group: 'Accent' });
+    expect(bound.trace.detail).toEqual(['binding@hem', 'binding@cuffs']);
+    // a role nothing worn covers is skipped with a word, never forced
+    expect(expandOutfit({ ...coat, detail: [{ prim: 'binding', role: 'skirtHem' }] }, ctx).trace.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/no skirtHem/)]));
+    // absent, the budget spends the bindings as before
+    expect(expandOutfit(coat, ctx).paint.filter((P) => P.group === 'Trim').length).toBeGreaterThan(0);
+    expect(expandOutfit(coat, ctx).trace.roles).toBeUndefined();
+  });
+  it('refuses a detail by name: an unknown primitive or role, a binding on a field', () => {
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'sequins', role: 'hem' }] })[0]).toMatch(/prim: one of binding/);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'binding', role: 'pocket' }] })[0]).toMatch(/role: one of/);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'binding', role: 'chest' }] })[0]).toMatch(/sits on an edge role; 'chest' is a field/);
+    expect(Object.values(GARMENT_ROLES).every((k) => ['edge', 'field'].includes(k))).toBe(true);
+    expect(validateOutfitBuild({ ...coat, style: { ...coat.style, language: { ...coat.style.language, outer: { ...coat.style.language.outer, fit: 'skin' } } } })[0]).toMatch(/outer.fit/);
   });
 });

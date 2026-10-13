@@ -251,7 +251,7 @@ export function outfitFromSheet(sheet, { coat } = {}) {
 export function heroOutfitOf(outfit) {
   const P = outfit.intent.palette, C = outfit.cut.colours || {}, L = outfit.cut.language;
   const tones = { Top: P[C.Top ?? 'base'], Bottom: P[C.Bottom ?? 'secondary'], ...(L.outer ? { Outer: P[C.Outer ?? 'base'] } : {}), Trim: P.trim, Button: P.trim, Buckle: P.trim, Leather: P.leather, Shoes: P.leather };
-  return { type: 'outfit', style: { id: 'designed', dials: outfit.cut.dials, language: L, tones: Object.fromEntries(Object.entries(tones).filter(([, v]) => v)) } };
+  return { type: 'outfit', style: { id: 'designed', dials: outfit.cut.dials, language: L, tones: Object.fromEntries(Object.entries(tones).filter(([, v]) => v)) }, ...(outfit.cut.detail ? { detail: outfit.cut.detail } : {}) };
 }
 const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', sash: 'trim', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'secondary', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
 const defaultColour = (kind) => DEFAULT[kind] ?? 'base';

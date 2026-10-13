@@ -145,7 +145,7 @@ function cutOnCreature(cut, plan, B, pal) {
   const have = new Set([...names, ...(names.has('shin') ? ['shank'] : [])]);
   const role = (g, d) => pal[cut.colours?.[g] ?? d];
   const cloth = { Top: role('Top', 'base'), Bottom: role('Bottom', 'secondary'), ...(cut.language.outer ? { Outer: role('Outer', 'base') } : {}) };
-  const out = expandOutfit({ type: 'outfit', style: { id: 'designed', language: cut.language, dials: cut.dials || {} } }, { have, scale: B.k }, cloth);
+  const out = expandOutfit({ type: 'outfit', style: { id: 'designed', language: cut.language, dials: cut.dials || {} }, ...(cut.detail ? { detail: cut.detail } : {}) }, { have, scale: B.k }, cloth);
   const pu = (B.pelvis.stations.length - 1) / 6, isPel = (n) => n === 'pelvis' || /_pelvis$/.test(n), ren = (n) => (n === 'shank' ? 'shin' : n.replace(/_shank$/, '_shin'));
   const su = (w) => w.map((x) => Math.round(x * pu * 1e6) / 1e6);
   const garments = out.garments.map((E) => { const parts = (Array.isArray(E.part) ? E.part : [E.part]).map(ren), pel = parts.length === 1 && parts[0] === 'pelvis';
