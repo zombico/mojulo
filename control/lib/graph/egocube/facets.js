@@ -39,6 +39,33 @@ export const AGES = Object.freeze({
 /** Body-type poles (body categorization only, never identity): the hero door's cast poles. */
 export const POLES = Object.freeze(['male', 'female']);
 
+/**
+ * What the body pole reads as, past childhood: the silhouette cues that keep a body reading as its pole whatever its
+ * build (a brute woman still has a waist and a hip line; a lithe man still has the shoulder's V). Body-type cues and how
+ * garments fall on them, nothing about character. Before puberty bodies differ little: the child band takes none, the
+ * youth band takes them as arriving (thread.js names the growth).
+ */
+export const POLE_READS = Object.freeze({
+  female: {
+    notes: {
+      frame: 'the waist sits above a wider hip line, and the shoulders are no wider than the hips unless the build says so',
+      structure: 'a longer neck; a finer jaw and brow',
+      silhouette: 'the waist reads in the outline even under dress, whatever the build: broad shoulders over a defined waist, not a box',
+      dress: 'garments fall from the shoulder\'s slope and the chest and are taken in at the natural waist; a square yoke or a stood-off shoulder reads as padding',
+    },
+    derives: { frame: ['tune.waist -', 'tune.hips +'], structure: ['tune.neck +'], dress: ['outfit.fit +'] },
+  },
+  male: {
+    notes: {
+      frame: 'the shoulders wider than the hips: a V from the shoulder to the waist',
+      structure: 'a heavier jaw and brow; a thicker neck',
+      silhouette: 'a straight drop from the ribs to the hip; the width is at the shoulder',
+      dress: 'garments hang from a square shoulder line and drop straight past the waist',
+    },
+    derives: { frame: ['tune.shoulders +'], structure: ['face.jaw +'] },
+  },
+});
+
 /** Builds, lightest mass first (the order distance is measured on). Each is a figure-cast preset by name. */
 export const BUILDS = Object.freeze({
   lithe:     { reads: 'lithe: long and light', notes: { frame: 'long limbs, a narrow trunk, the weight high and quick' }, derives: { frame: ['cast = lithe'] } },

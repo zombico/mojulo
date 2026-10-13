@@ -318,6 +318,28 @@ drawn from the nearest one.
 
 ## Ageing: the fate thread (an optional extension)
 
+Built: the TIME chapter ([control/lib/graph/egocube/thread.js](../control/lib/graph/egocube/thread.js), `rollThread`;
+`node scripts/egocube-roll.mjs --brief hero --seed 7 --years 11 --skip 5`). A roll may carry an age in `years`, which
+sets the band. The canonical node is the first roll; every later node is derived from it: the born facets (pole,
+ancestry and its swatches, humanity, the build the child grows into, the role and the archetype) are held; motivation
+and order drift by seeded dice and by the chapter's words (`war`, `loss`, `training`, `exile`, `fame`, `hardship`,
+`kindness`); a chapter's wear is on every later node; one kept marker, a seeded keepsake (with where it is worn and how
+big), is on every node. Turn and return are design still.
+
+**Growth is not identity.** The first time-skip trial held the face identical to keep the person recognisable, and the
+head stayed the same size while the body grew. Under 18 the born channels move by rule (`GROWTH`, first readings from
+growth charts that a stylized head may exaggerate but never reverse): height by a curve per body pole, the head only a
+little (11 → 16: +3 % against +12 % of height, so about 9 % more heads tall in whatever style the figure is drawn), the face down and forward (the lower face +10 %, the nose
++14 %, the chin), the eyes held (so they read smaller), the neck longer, and puberty when the chapter spans it. Each is a
+note on the later node with the dials it moves, and the rule beside them: hold the eye shape, the brow's line, the
+colouring, the hair and the kept marker; grow the proportions around them.
+
+**The body pole reads past childhood.** A sheet past the child band carries the pole's silhouette cues, whatever the
+build: for a female body, the waist above a wider hip line, a longer neck, and garments falling from the shoulder's
+slope and the chest, taken in at the waist (a square yoke or a stood-off shoulder reads as padding); for a male body,
+the shoulder's V and a straight drop to the hip. Body type and how cloth falls on it, never character. A child takes
+none; growth names their arrival.
+
 Most games have one hero in one timeline, and the main dice are enough. The fate thread is a separate function on
 top of them, used only when a game asks for it: one character across time, as a sequence of nodes (`hero@17`,
 `hero@40`), each its own Egocube sheet keyed by path and node, so its notes can be worked on in isolation. It is how

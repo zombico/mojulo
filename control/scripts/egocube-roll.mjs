@@ -15,6 +15,10 @@
  *   --dials  with --audit: the stored dial values once minted, as JSON ('{"lean":18}')
  *   --contrast <facet>=<value>: the sheet twice, the second with one facet changed, and the first-reading choices that
  *            moved (a contrast pair: the mapping from a note to a choice, not a body to copy)
+ *   --years  an age in years (it sets the age band)
+ *   --skip   with --years: a fate thread, one node per skip: `--skip 5` or `--skip 5:war,training` (years, then chapter
+ *            words); prints every node's sheet and what moved (lib/graph/egocube/thread.js); with --audit, `--node <i>`
+ *            audits against that node's sheet (0 the canonical one)
  *   --lineages  a JSON file of your own peoples ({ id: lineage }, the shape of ancestry.js LINEAGES); roll one with
  *               --set ancestry=<id> and --n for variations of the same people
  */
@@ -23,15 +27,19 @@ import { fileURLToPath } from 'node:url';
 import { rollEgocube } from '../lib/graph/egocube/egocube.js';
 import { planFromSheet, contrastPair } from '../lib/graph/egocube/plan.js';
 import { auditPlan } from '../lib/graph/egocube/audit.js';
+import { rollThread } from '../lib/graph/egocube/thread.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { CHANNELS } from '../lib/graph/egocube/channels.js';
 
 export function parseArgs(argv) {
-  const opts = { brief: '', seed: 1, n: 1, facets: {}, lineages: {}, json: false, plan: false, out: null, audit: null, dials: null, contrast: null };
+  const opts = { brief: '', seed: 1, n: 1, facets: {}, lineages: {}, json: false, plan: false, out: null, audit: null, dials: null, contrast: null, years: null, skips: [] };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--json') opts.json = true;
     else if (a === '--plan') opts.plan = true;
+    else if (a === '--years') opts.years = Number(argv[++i]);
+    else if (a === '--node') opts.node = Number(argv[++i]);
+    else if (a === '--skip') { const [y, w] = String(argv[++i] ?? '').split(':'); opts.skips.push({ chapter: 'time', years: Number(y), ...(w ? { words: w.split(',') } : {}) }); }
     else if (a === '--audit') opts.audit = argv[++i];
     else if (a === '--dials') opts.dials = JSON.parse(argv[++i]);
     else if (a === '--contrast') { const [k, v] = String(argv[++i] ?? '').split('='); opts.contrast = { [k]: ['motivation', 'order', 'humanity'].includes(k) ? Number(v) : v }; }
@@ -72,15 +80,30 @@ export function printSheet(sheet) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const opts = parseArgs(process.argv.slice(2));
-  const sheets = Array.from({ length: opts.n }, (_, i) => rollEgocube({ brief: opts.brief, facets: opts.facets, lineages: opts.lineages, seed: opts.seed + i }));
+  if (opts.skips.length) {
+    const t = rollThread({ brief: opts.brief, facets: opts.facets, lineages: opts.lineages, seed: opts.seed, years: opts.years, chapters: opts.skips });
+    if (opts.audit) opts.thread = t;
+  }
+  if (opts.skips.length && !opts.audit) {
+    const t = opts.thread || rollThread({ brief: opts.brief, facets: opts.facets, lineages: opts.lineages, seed: opts.seed, years: opts.years, chapters: opts.skips });
+    if (opts.json) { console.log(JSON.stringify(t, null, 2)); process.exit(0); }
+    console.log(`══ fate thread · seed ${opts.seed} · kept marker: ${t.keep} ══`);
+    for (const n of t.nodes) {
+      console.log(`\n▶ age ${n.years} (${n.band})${n.chapter ? ` after ${n.chapter.years} years${n.chapter.words ? ` of ${n.chapter.words.join(', ')}` : ''}` : ' — the canonical node'}`);
+      for (const c of n.changes) console.log(`  ${c.facet ? `${c.facet}: ${c.from} → ${c.to}` : c.came ? `+ ${c.came}` : `− ${c.went}`}`);
+      console.log(printSheet(n.sheet));
+    }
+    process.exit(0);
+  }
+  const sheets = Array.from({ length: opts.n }, (_, i) => rollEgocube({ brief: opts.brief, facets: opts.facets, lineages: opts.lineages, seed: opts.seed + i, ...(opts.years != null ? { years: opts.years } : {}) }));
   if (opts.audit) {
-    const sheet = sheets[0], r = auditPlan(sheet, JSON.parse(readFile(opts.audit, 'utf8')), { dials: opts.dials || undefined });
+    const sheet = opts.thread ? opts.thread.nodes[opts.node ?? 0].sheet : sheets[0], r = auditPlan(sheet, JSON.parse(readFile(opts.audit, 'utf8')), { dials: opts.dials || undefined });
     if (opts.json) { console.log(JSON.stringify(r, null, 2)); process.exit(0); }
     console.log(`── audit · seed ${sheet.seed} · ${r.door} · ${r.expands ? 'expands' : `REFUSED: ${r.error}`} ──`);
     console.log(`  ledger: ${r.summary.carried} carried · ${r.summary.missing} missing · ${r.summary.eyes} for the eyes`);
     for (const row of r.ledger.filter((x) => x.verdict === 'missing')) console.log(`  missing ${row.channel}: ${row.line} — ${row.evidence}`);
     for (const l of r.lessons.filter((x) => !x.ok)) console.log(`  lesson ${l.id}: ${l.note}`);
-    console.log(`  sameness: ${r.sameness.flagged ? r.sameness.note : r.sameness.checked === false ? `NOT CHECKED (${r.sameness.against.map((x) => `${x.template}: ${x.unchecked}`).join(', ')})` : `designed (${r.sameness.against.map((x) => (x.worst != null ? `${x.template} worst ${x.worst}` : `${x.template} ${x.unchecked}`)).join(', ')})`}`);
+    console.log(`  sameness: ${r.door === 'hero' ? 'n/a (the hero door has no joint table)' : r.sameness.flagged ? r.sameness.note : r.sameness.checked === false ? `NOT CHECKED (${r.sameness.against.map((x) => `${x.template}: ${x.unchecked}`).join(', ')})` : `designed (${r.sameness.against.map((x) => (x.worst != null ? `${x.template} worst ${x.worst}` : `${x.template} ${x.unchecked}`)).join(', ')})`}`);
     console.log(`  ${r.summary.note || ''}`);
     process.exit(0);
   }

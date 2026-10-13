@@ -52,6 +52,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   note (carried, missing, for the eyes), the lesson checks, whether it expands, and a sameness flag for a body that is
   the served biped rescaled. Contrast pairs (`contrastPair`, `--contrast`) show how one facet moves the choices;
   `planFromSheet` is the first reading behind them, not the authoring path.
+- **The fate thread's time chapter** (`egocube/thread.js` `rollThread`, `--years`, `--skip 5[:words]`). A roll may
+  carry an age in years (it sets the band). A thread is a canonical node and nodes derived from it by time chapters:
+  born facets and swatches held (the child grows into the build it was rolled with), motivation and order drifting by
+  seeded dice and chapter words, wear accumulating, one kept marker on every node, and GROWTH under 18 (height, the
+  head a little, the face down and forward, the neck, puberty when a chapter spans it) as notes with their dials.
+  Absent `years`, a sheet is unchanged.
+- **The body pole reads past childhood** (`facets.js` `POLE_READS`): silhouette and drape cues per body pole (a waist
+  over a hip line and cloth taken in at the waist; the shoulder's V), on every sheet past the child band; a new `face`
+  dial family (both heads' face keys) for the growth notes.
 - **The creature head library** (`lib/graph/creature-heads/`): detailed heads as plan data, `headPlan(id, { palette })`,
   `headFor(lineage)`. The dragon and the bear moved in from `docs/examples/head-detail/heads/` (the example and the
   dragon body read them from here; the dragon body's recipe regenerates byte for byte), and the wolf is new. A head

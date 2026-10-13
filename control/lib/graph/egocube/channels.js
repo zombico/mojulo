@@ -48,6 +48,7 @@ export const DIALS = Object.freeze({
   trait:      { kind: 'word', keys: ['soft', 'sharp', 'youthful', 'mature', 'narrow-eyes', 'large-eyes'], door: 'face traits (anime head)' },
   silhouette: { kind: 'word', keys: ['needle', 'bell', 'barrel', 'column'], door: 'the THESIS silhouette word (create-hero)' },
   hair:       { kind: 'dir', keys: ['volume', 'length', 'fringe', 'wave'], door: 'hair controls (landmark head)' },
+  face:       { kind: 'dir', keys: ['lower', 'chin', 'chinHeight', 'nose', 'jaw', 'eyeHeight', 'eyeWidth', 'iris', 'faceLength', 'noseSize', 'jawWidth', 'eyeSize', 'browRidge', 'chinProjection'], door: 'face (anime head: lower, chin, nose, jaw, eye…; landmark head: faceLength, noseSize, jawWidth, eyeSize, browRidge…)' },
   palette:    { kind: 'dir', keys: ['Skin', 'Top', 'Bottom', 'Shoes', 'Hair', 'HairHighlight', 'Ink', 'Trim', 'Glove'], door: 'palette (a group; + lighter or more saturated, - darker or muted)' },
   armor:      { kind: 'dir', keys: ['mass', 'coverage', 'ornament'], door: 'armour card dials' },
   outfit:     { kind: 'dir', keys: ['fit', 'coverage', 'ornament', 'stylize'], door: 'outfit card dials' },

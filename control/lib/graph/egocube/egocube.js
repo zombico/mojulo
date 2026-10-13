@@ -19,7 +19,7 @@
  */
 import { mulberry32 } from '../vegetation/grow.js';
 import { CHANNEL_IDS, FACE_OF_LIFE, readDerive, dialKey } from './channels.js';
-import { AGES, POLES, BUILDS, ROLES, ARCHETYPES, ARCHETYPE_IDS, MOTIVES, ORDERS } from './facets.js';
+import { AGES, POLES, POLE_READS, BUILDS, ROLES, ARCHETYPES, ARCHETYPE_IDS, MOTIVES, ORDERS } from './facets.js';
 import { readBrief } from './lexicon.js';
 import { HUMAN_IDS, LINEAGES, ancestryIds, readLineage, resolveAncestry } from './ancestry.js';
 
@@ -120,6 +120,7 @@ function sources(f, anc) {
   out.push({ from: `role.${f.role}`, ...ROLES[f.role] });
   if (f.order < 1 / 3) out.push({ from: 'order.bound', ...ORDERS.bound });
   else if (f.order > 2 / 3) out.push({ from: 'order.free', ...ORDERS.free });
+  if (f.age !== 'child') out.push({ from: `pole.${f.pole}`, ...POLE_READS[f.pole] });   // the body pole's reads arrive with puberty
   out.push({ from: `age.${f.age}`, ...AGES[f.age] });
   out.push({ from: `ancestry.${f.ancestry}`, notes: anc.notes, derives: anc.derives });
   if (f.age !== 'child') out.push({ from: `build.${f.build}`, ...BUILDS[f.build] });   // the child cast replaces the build
@@ -160,8 +161,15 @@ function summary(f, anc) {
 }
 
 /** Roll one Egocube. `path` names it in a cast (the anchor is 'hero' by default); it keys the seed. */
-export function rollEgocube({ brief = '', facets = {}, seed = 1, path = 'hero', lineages = {} } = {}) {
+/** An age in years, as its band: the bands are what the notes read; the years are what a fate thread counts. */
+export function bandOfYears(years) {
+  if (!(Number.isFinite(years) && years >= 0)) throw new Error(`egocube: years is a number ≥ 0 (got ${JSON.stringify(years)})`);
+  return years <= 12 ? 'child' : years <= 19 ? 'youth' : years < 40 ? 'adult' : years < 60 ? 'seasoned' : 'elder';
+}
+
+export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 'hero', lineages = {}, years } = {}) {
   for (const [id, lin] of Object.entries(lineages)) readLineage(id, lin);
+  const facets = years == null ? asked0 : { ...asked0, age: bandOfYears(years) };   // years decide the band
   readEgocube(facets, lineages);
   const fromBrief = readBrief(brief);
   readEgocube(fromBrief.facets);
@@ -178,7 +186,7 @@ export function rollEgocube({ brief = '', facets = {}, seed = 1, path = 'hero', 
   const anc = resolveAncestry(f.ancestry, mulberry32(hashSeed(`${seed}::egocube::${path}::${attempt}::ancestry`)), f.humanity, lineages);
   const reading = archetypeReading(f.motivation);
   const { notes, derives } = compose(f, anc);
-  const facetsOut = Object.fromEntries(SPEC_KEYS.map((k) => [k, f[k]]));
+  const facetsOut = { ...Object.fromEntries(SPEC_KEYS.map((k) => [k, f[k]])), ...(years == null ? {} : { years }) };
   return {
     path, seed, attempt,
     facets: facetsOut,

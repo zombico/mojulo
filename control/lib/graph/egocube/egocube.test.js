@@ -5,7 +5,8 @@ import { AGES, BUILDS, ROLES, ARCHETYPES, ARCHETYPE_IDS, QUADRANTS, MOTIVES, ORD
 import { LEXICON, readBrief } from './lexicon.js';
 import { WESTERN_CHANNELS } from '../polygonizer/humanoid-head.js';
 import { ANIME_SCULPT_KEYS } from '../polygonizer/anime-sculpt.js';
-import { ANIME_FACE_MOVES } from '../polygonizer/anime-head.js';
+import { ANIME_FACE_MOVES, ANIME_FACE_KEYS } from '../polygonizer/anime-head.js';
+import { FACE_KEYS } from '../polygonizer/humanoid-head.js';
 import { HAIR_KEYS } from '../polygonizer/humanoid-hair.js';
 import { TUNE_KEYS, HERO_CASTS } from '../polygonizer/hero-form.js';
 import { GESTURE_WORDS } from '../polygonizer/hero-gesture.js';
@@ -40,7 +41,7 @@ describe('the dial register', () => {
     const live = {
       expression: WESTERN_CHANNELS, sculpt: ANIME_SCULPT_KEYS, axes: Object.keys(AXES), tune: TUNE_KEYS,
       gesture: GESTURE_WORDS, cast: Object.keys(CAST_PRESETS), trait: Object.keys(ANIME_FACE_MOVES), hair: HAIR_KEYS,
-      armor: Object.keys(ARMOR_DIALS), outfit: Object.keys(OUTFIT_DIALS),
+      armor: Object.keys(ARMOR_DIALS), outfit: Object.keys(OUTFIT_DIALS), face: [...ANIME_FACE_KEYS, ...FACE_KEYS],
     };
     for (const [family, keys] of Object.entries(live)) for (const k of DIALS[family].keys) expect(keys, `${family}.${k}`).toContain(k);
     expect(POLES).toEqual(Object.keys(HERO_CASTS));
@@ -60,7 +61,7 @@ describe('the dial register', () => {
   });
   it('refuses a malformed or unknown derive by name', () => {
     expect(() => readDerive('expression.mouthCorner')).toThrow(/family.key/);
-    expect(() => readDerive('face.jaw +')).toThrow(/unknown dial family 'face'/);
+    expect(() => readDerive('aura.glow +')).toThrow(/unknown dial family 'aura'/);
     expect(() => readDerive('cast = giant')).toThrow(/unknown cast 'giant'.*brute/);
     expect(() => readDerive('gesture.guard +')).toThrow(/takes a word/);
   });
@@ -269,5 +270,16 @@ describe('ancestry: lineages, from the creature loop', () => {
   });
   it('reads the dragon warrior as a draconic frontline hero', () => {
     expect(readBrief('a dragon warrior').facets).toMatchObject({ ancestry: 'draconic', role: 'frontline', archetype: 'hero' });
+  });
+});
+
+describe('the body pole', () => {
+  it('reads past childhood, never on a child', () => {
+    const child = rollEgocube({ facets: { age: 'child', pole: 'female' } }), youth = rollEgocube({ facets: { age: 'youth', pole: 'female' } });
+    expect(Object.values(child.notes).flat().some((n) => n.from.startsWith('pole.'))).toBe(false);
+    expect(youth.notes.silhouette.some((n) => n.from === 'pole.female' && /waist/.test(n.line))).toBe(true);
+    expect(youth.notes.dress.some((n) => /padding/.test(n.line))).toBe(true);
+    const man = rollEgocube({ facets: { age: 'adult', pole: 'male' } });
+    expect(man.notes.frame.some((n) => n.from === 'pole.male')).toBe(true);
   });
 });

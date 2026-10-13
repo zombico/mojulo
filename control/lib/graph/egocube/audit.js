@@ -162,10 +162,12 @@ function samenessOf(plan) {
 }
 
 function heroLedger(sheet, spec) {
-  const at = { colouring: () => spec.palette?.Skin, rest: () => spec.expression, eyes: () => spec.expression, stance: () => spec.gesture, frame: () => spec.cast || spec.tune, hair: () => spec.hair, dress: () => spec.detail || spec.adorn || spec.outfit, palette: () => spec.palette };
+  const at = { colouring: () => spec.palette?.Skin && 'palette', rest: () => spec.expression && 'expression', eyes: () => (spec.expression || spec.sculpt || spec.face) && 'expression, sculpt, face',
+    structure: () => (spec.face || spec.look || spec.headPreset || spec.sculpt) && 'face, look, headPreset, sculpt', stance: () => spec.gesture && 'gesture', frame: () => (spec.cast || spec.tune || spec.body) && 'cast, tune, body',
+    hair: () => spec.hair && 'hair', dress: () => (spec.detail || spec.adorn || spec.outfit || spec.paint) && 'detail, adorn, outfit, paint', palette: () => spec.palette && 'palette', silhouette: () => (spec.tune || spec.gear || spec.adorn) && 'tune, gear, adorn' };
   return Object.entries(sheet.notes).flatMap(([ch, notes]) => notes.map((n) => {
     const v = at[ch]?.();
-    return { channel: ch, line: n.line, from: n.from, verdict: v ? (['rest', 'colouring', 'hair'].includes(ch) ? 'carried' : 'eyes') : (['cover', 'ornament', 'wear', 'structure'].includes(ch) ? 'missing' : 'eyes'), evidence: v ? `spec.${ch === 'eyes' ? 'expression' : ch}` : 'not in the hero spec' };
+    return { channel: ch, line: n.line, from: n.from, verdict: v ? (['rest', 'colouring', 'hair'].includes(ch) ? 'carried' : 'eyes') : (['cover', 'ornament', 'wear', 'structure'].includes(ch) ? 'missing' : 'eyes'), evidence: v ? `spec.${v}` : 'not in the hero spec' };
   }));
 }
 
