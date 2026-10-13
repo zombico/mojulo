@@ -20,6 +20,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   base (whiskers, teeth, the tongue, the eye's surround), which its height alone filed as clothing. With `cover: true`
   its tiles (fur, scale, feather, plate) are their own COVER region, reserved from nothing up to the hair's share. A
   hero's tiles are a garment's, so its readout is unchanged.
+- **Two silhouette gates** (`silhouette-gates.js`). A figure's outline from the front, three-quarter and side, drawn
+  orthographically. `keepsSilhouette` is the test gate: a pass over an authored figure keeps its outline in its own
+  metres (0.95 overlap, the worst view named). `distinctSilhouettes` is the production gate: composed figures, each
+  framed by its own height so it reads shape, must differ (mean overlap at most 0.75, the most alike pair named). Today
+  the Egocube's rolled lineages read 0.76–0.84 (one body under six heads) and a brief that moved no facet 1.0.
 - **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
   silhouette:
   - a silhouette gate every pass must keep;
