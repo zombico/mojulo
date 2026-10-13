@@ -166,7 +166,9 @@ export function emoteMotion(spec, { frames = 30, intensity, perform } = {}) {
   if (!def) throw new Error(`figure-emotes: unknown emote '${name}' (use ${EMOTE_NAMES.join('/')})`);
   const push = intensity ?? (typeof spec === 'object' ? spec.intensity : undefined);
   const over = perform ?? (typeof spec === 'object' ? spec.perform : undefined);
-  const move = keyframeMotion(def.keyframes, { loop: def.loop !== false });
+  // `beats` (a stamped emote's: figure-posing.js EMOTE_MINT): the seconds of each beat, so the beats need not be even
+  const beats = typeof spec === 'object' && Array.isArray(spec.beats) ? spec.beats : null;
+  const move = keyframeMotion(def.keyframes, { loop: def.loop !== false, ...(beats ? { beats } : {}) });
   if (over === false) return move;
   return performance(move, {
     frames,

@@ -25,7 +25,7 @@ describe('stampMotion — a gait stored by value', () => {
     expect(stampMotion('wave')).toEqual({ wave: { ...WAVE_MINT } });
     expect(stampMotion({ wave: { waves: 4 } }).wave).toEqual({ ...WAVE_MINT, waves: 4 });
     expect(stampMotion('bow')).toEqual({ emote: 'bow', ...EMOTE_MINT.bow });
-    expect(stampMotion({ emote: 'bow', intensity: 1.3, seconds: 5 })).toEqual({ emote: 'bow', intensity: 1.3, seconds: 5 });
+    expect(stampMotion({ emote: 'bow', intensity: 1.3, seconds: 5 })).toEqual({ emote: 'bow', intensity: 1.3, seconds: 5, beats: EMOTE_MINT.bow.beats });
   });
 
   it('passes every other motion through untouched', () => {

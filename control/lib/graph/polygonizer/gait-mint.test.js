@@ -1,7 +1,7 @@
 // The walk as minted now (WALK_MINT) against measured human gait: the machine gate for the calibration. Distances are
 // read in cm at an 85 cm standing hip height (the vajra figure's hip joint stands 0.61 STAND over its soles).
 import { describe, it, expect } from 'vitest';
-import { WALK_DEFAULTS, WALK_MINT } from './figure-posing.js';
+import { WALK_DEFAULTS, WALK_MINT, SPRINT_DEFAULTS, SPRINT_MINT } from './figure-posing.js';
 import { balancedArmature, sampleMotionPose } from './figure-render.js';
 import { basePositions } from './figure-vajra.js';
 import { heroLocomotion, validateHeroMotion } from './hero-motion.js';
@@ -54,6 +54,25 @@ describe('heelRise — the foot rolls onto its toes in late stance', () => {
     const A = frames(WALK_MINT);
     const fwd = pct(A.map((a) => Math.atan2(a.kneeL.y - a.hipL.y, a.hipL.z - a.kneeL.z) * 180 / Math.PI), 0.97);
     expect(fwd).toBeGreaterThan(25); expect(fwd).toBeLessThan(35);
+  });
+});
+
+describe('the run as minted now', () => {
+  const twist = (spec) => {
+    const A = Array.from({ length: N }, (_, i) => balancedArmature(sampleMotionPose({ sprint: spec }, i / N, N)));
+    const yaw = (l, r) => A.map((a) => Math.atan2(a[r].y - a[l].y, a[r].x - a[l].x) * 180 / Math.PI);
+    const pel = yaw('hipL', 'hipR'), sh = yaw('shoulderL', 'shoulderR');
+    const arm = A.map((a) => Math.atan2(a.elbowL.y - a.shoulderL.y, a.shoulderL.z - a.elbowL.z) * 180 / Math.PI);
+    const mp = mean(pel), ms = mean(sh); let c = 0; pel.forEach((v, i) => { c += (v - mp) * (sh[i] - ms); });
+    return { pelvis: p2p(pel), shoulders: p2p(sh), contra: c < 0, arm: p2p(arm) };
+  };
+  it('the girdles twist against each other and the arms pump inside the measured band; the frozen run is square', () => {
+    const now = twist(SPRINT_MINT), was = twist(SPRINT_DEFAULTS);
+    expect(was.pelvis).toBeLessThan(1);
+    expect(now.pelvis).toBeGreaterThan(12); expect(now.pelvis).toBeLessThan(22);         // people: 15 … 18°
+    expect(now.shoulders).toBeGreaterThan(20); expect(now.shoulders).toBeLessThan(38);   // people: 23 … 36°
+    expect(now.contra).toBe(true);
+    expect(now.arm).toBeGreaterThan(60); expect(now.arm).toBeLessThan(110);              // people: 64 … 105° (frozen 124)
   });
 });
 

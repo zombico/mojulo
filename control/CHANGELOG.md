@@ -41,6 +41,13 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   walk 6.4) and the leg reaches about 28° forward (people 31°, frozen 40°). Not yet matched: the trailing thigh swings
   about 26° back where a person's stays near 10° with the knee bent; that needs the stance re-timed. Heroes lift their
   own heels (the rig's heel words) and ignore the channel.
+- **The run twists; the bow rises slower.** Two new sprint dials, `pelvisRot` and `shoulderRot` (degrees), turn the
+  girdles against each other as the walk's do; absent, the trunk stays square. `SPRINT_MINT` takes 8 and 14 (the hip
+  line turns about 16°, the shoulders about 29° the other way; people 15 … 18° and 23 … 36°) and `armSwing` 40 (the
+  arms pump about 100°, people 64 jogging … 105 sprinting, the frozen run 124). The run's hip angles already matched a
+  measured sprint (59° forward, 42° back; a dash 59 / 40). `keyframeMotion` takes `beats` (each segment's share of the
+  loop; absent, even), and an emote passes its stamped `beats`: the bow is minted at 1.25 / 0.7 / 1.65 / 0.6 s, which
+  measures 0.78 s down, 1.17 s held and 1.06 s up (people 0.8 / 1.1 / 1.07), rising slower than it bows.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
   emote. The GIF plays it in real time (18 fps; a short loop keeps 16 frames and plays them faster) and the exported
   clip carries it as its designed duration (`s`); a motion without it keeps the 30-frame loop and the runtime's one

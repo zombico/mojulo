@@ -221,12 +221,22 @@ function blendDof(items) {
  * @param {{loop?: boolean}} [opts]
  * @returns {(phase:number)=>object}  phase ∈ [0,1) → dof
  */
-export function keyframeMotion(keyposes, { loop = true } = {}) {
+export function keyframeMotion(keyposes, { loop = true, beats = null } = {}) {
   const poses = keyposes.map((k) => resolvePose(k));
   const n = poses.length;
   const segs = loop ? n : Math.max(1, n - 1);
+  // `beats`: each segment's share of the loop (any positive numbers, normalized), so a bow can take longer coming up
+  // than going down. Absent (or not one positive number per segment) ⇒ even segments, as always.
+  const timed = Array.isArray(beats) && beats.length === segs && beats.every((b) => Number.isFinite(b) && b > 0);
+  const edges = timed ? beats.reduce((acc, b) => [...acc, acc[acc.length - 1] + b], [0]).map((e, _, all) => e / all[all.length - 1]) : null;
   return (phase) => {
     if (n <= 1) return poses[0] || {};
+    if (timed) {
+      const u = ((phase % 1) + 1) % 1;
+      let i = 0; while (i < segs - 1 && u >= edges[i + 1]) i++;
+      const t = smooth((u - edges[i]) / (edges[i + 1] - edges[i]));
+      return blendDof([[poses[i], 1 - t], [poses[(i + 1) % n], t]]);
+    }
     const x = (((phase % 1) + 1) % 1) * segs;
     const i = Math.min(segs - 1, Math.floor(x));
     const t = smooth(x - i);
@@ -500,6 +510,10 @@ export function sprint(params = {}, base = null) {
         sagittal: p.lean + p.spineGive * SM.cos(2 * TAU_G * (phase - 0.25)),
       },
       head: { yaw: -p.headLevel * sway },
+      // PELVIS / SHOULDER TWIST (mint dials, degrees; absent ⇒ a square trunk, the frozen run): the pelvis turns with
+      // the driving thigh and the shoulder girdle contra-rotates with the arm pump, as the walk's girdles do.
+      ...(Number.isFinite(p.pelvisRot) ? { pelvis: -p.pelvisRot * cyc } : {}),
+      ...(Number.isFinite(p.shoulderRot) ? { shoulders: p.shoulderRot * cyc } : {}),
       support,
       lift,
       // brief forefoot contact each stride (pin the foot to the floor; footFlat 0 = stay on the ball).
@@ -634,17 +648,20 @@ export function performance(move, { frames = 30, loop = true, exaggerate = 1, an
 //   A walk's stride takes about 1.1 s (110 steps a minute), a run's about 0.7 s; a bare gait plays one stride per
 //   GIF loop (1.67 s at 30 frames, 18 fps), a sad walk's pace.
 export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05, heelRise: 30, seconds: 1.1 });
-export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS, seconds: 0.7 });
+// The run as minted now: the girdles twist against each other (pelvisRot 8, shoulderRot 14: the hip line turns about
+// 16° and the shoulder line about 29° the other way, people 15 … 18° and 23 … 36°; the frozen run keeps a square
+// trunk), and the arms pump about 100° (armSwing 40; people 64 jogging … 105 sprinting, the frozen run 124).
+export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS, pelvisRot: 8, shoulderRot: 14, armSwing: 40, seconds: 0.7 });
 // The wave (figure-render.js waveMotion) as minted now: one loop of `seconds` (hand from the hip, waving, back), the
 // hand swept side to side `waves` times at an even pace (about 1.9 a second inside the wave, people wave at 0.8 … 2;
 // the frozen wave flutters 5.4 times in 1.67 s, accelerating, 6 cm wide), `swing` degrees each way at the shoulder
 // (the hand travels about 17 cm, a normal wave about 18).
 export const WAVE_MINT = Object.freeze({ seconds: 3.2, waves: 2.8, swing: 50 });
-// Emotes as minted now: the loop length in seconds. The bow's four even beats (down, hold, up, rest) then take about
-// 1 s each: 0.65 s going down and coming up, 1.35 s held (people: 0.5 … 1.4 s down, 0.5 … 1.3 s held; the frozen bow
-// is down and up in 0.28 s). Its beats are even, so it rises as fast as it bows, where people rise a little slower.
-// An emote not listed keeps the GIF loop.
-export const EMOTE_MINT = Object.freeze({ bow: Object.freeze({ seconds: 4.2 }) });
+// Emotes as minted now: the loop length in seconds and, where it matters, each beat's seconds (`beats`, one per
+// keyframe segment). The bow: 1.25 s going down, 0.7 s held (it reads about 1.2 s with the eases), 1.65 s coming up,
+// 0.6 s at rest, which measures 0.78 s down, 1.17 s held and 1.06 s up (people: 0.8, 1.1, 1.07; the frozen bow is down
+// and up in 0.28 s). An emote not listed keeps the GIF loop and even beats.
+export const EMOTE_MINT = Object.freeze({ bow: Object.freeze({ seconds: 4.2, beats: Object.freeze([1.25, 0.7, 1.65, 0.6]) }) });
 
 /**
  * A motion spec as it is STORED when authored: a gait by name or a partial gait gets every dial of its mint table

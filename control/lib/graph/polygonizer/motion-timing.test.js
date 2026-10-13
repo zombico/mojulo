@@ -54,14 +54,17 @@ describe('the wave and the bow as minted now, against measured people', () => {
     expect(width).toBeGreaterThan(12); expect(width).toBeLessThan(24);
   });
 
-  it('the bow goes down and comes up in about 0.5 … 0.9 s and holds 1 … 1.6 s (the frozen bow: 0.28 s, 0.5 s held)', () => {
+  it('the bow goes down in about 0.8 s, holds about 1.1 s and comes up slower, about 1.05 s (the frozen bow: 0.28 s, 0.5 s held)', () => {
     const { A, dt } = run(stampMotion('bow'));
     const trunk = A.map((a) => Math.atan2(a.neckHub.y - a.pelvisHub.y, a.neckHub.z - a.pelvisHub.z));
     const f = trunk.map((x) => x - trunk[0]); const pk = f.reduce((b, x, i) => (x > f[b] ? i : b), 0);
     const st = f.findIndex((x) => x > 0.1 * f[pk]), en = f.length - 1 - [...f].reverse().findIndex((x) => x > 0.1 * f[pk]);
     const hs = f.findIndex((x) => x > 0.9 * f[pk]), he = f.length - 1 - [...f].reverse().findIndex((x) => x > 0.9 * f[pk]);
-    for (const s of [(hs - st) * dt, (en - he) * dt]) { expect(s).toBeGreaterThan(0.5); expect(s).toBeLessThan(0.9); }
-    expect((he - hs) * dt).toBeGreaterThan(1); expect((he - hs) * dt).toBeLessThan(1.6);
+    const down = (hs - st) * dt, hold = (he - hs) * dt, up = (en - he) * dt;
+    expect(down).toBeGreaterThan(0.6); expect(down).toBeLessThan(0.95);    // people: 0.5 … 1.4 s, normal 0.8
+    expect(hold).toBeGreaterThan(0.9); expect(hold).toBeLessThan(1.4);     // people: 0.5 … 1.3 s, normal 1.1
+    expect(up).toBeGreaterThan(0.9); expect(up).toBeLessThan(1.25);        // people: normal 1.07
+    expect(up).toBeGreaterThan(down);                                      // rising slower than bowing
   });
 });
 
@@ -71,5 +74,19 @@ describe('the exported clip', () => {
     expect(timed.s).toBe(WALK_MINT.seconds);
     const bare = assembleFigureScene({ kind: 'figure', motion: 'walk' }).figures.figure.clips.forward;
     expect(bare.s).toBeUndefined();
+  });
+});
+
+describe('keyframe beats', () => {
+  it('even beats without `beats`; with them, each segment takes its share', async () => {
+    const { keyframeMotion } = await import('./figure-posing.js');
+    const keys = [{ kneeL: 0 }, { kneeL: 90 }, { kneeL: 90 }, { kneeL: 0 }];
+    const even = keyframeMotion(keys), timed = keyframeMotion(keys, { beats: [1, 1, 1, 1] });
+    for (let i = 0; i < 16; i++) expect(timed(i / 16).kneeL).toBeCloseTo(even(i / 16).kneeL, 9);
+    const slow = keyframeMotion(keys, { beats: [1, 1, 2, 1] });   // the third segment (90 → 0) twice as long: 0.4 … 0.8
+    expect(slow(0.4).kneeL).toBeCloseTo(90, 6);
+    expect(slow(0.8).kneeL).toBeCloseTo(0, 6);
+    expect(slow(0.6).kneeL).toBeGreaterThan(1); expect(slow(0.6).kneeL).toBeLessThan(89);
+    expect(keyframeMotion(keys, { beats: [1, 2] })(0.3).kneeL).toBeCloseTo(even(0.3).kneeL, 9);   // malformed ⇒ even
   });
 });
