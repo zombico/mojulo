@@ -7,9 +7,11 @@
  *     fields     a field flattened beside the start, on the open side of the walk (the first trail's rows 2 to 3)
  *     board      a puzzle's board flattened further on (rows 5 to 7, three cells across)
  *     drivable   the heartbeat eased: a lower climb and fall, the bumps all but gone
+ *     loop       a track that comes round: the land flattened under an oval about the first trail's walk (loopSite)
  *   STAGE    (levels.js stageLevelOrder) what stands on the laid stage, on its anchors (`ends`)
  *     fields     the field's centre, where the plots go (ends.field); board likewise (ends.board), the grid's centre
  *     circuit    checkpoints spaced (ends.spacing): a beat nearer the last kept than SPACING metres is no checkpoint
+ *     loop       the oval's line, its start and a low wall down its middle (ends.loop, loopBlocks): a race goes round it
  *     cover      cover at the fighting posts: the goal's own posts, else the trail's beats (coverBlocks)
  *     road       a defence's pads beside its road, on land level with it (padSites)
  *     reachable  with a hero that jumps, every other pickup on crate steps, each rise within its jump (raisePickups)
@@ -19,6 +21,9 @@
  *   LAID                                 { <concern id>: ['ground' | 'stage'] } what is laid where
  *   groundLays(ids, level, frame)        → { tune?, edits, laid: [concern id] } for a level (layLevel's recipe)
  *   fieldSite(frame) / boardSite(frame)  → { at: '<cells>', centre: [x, y] } the field, the board, in the level's frame
+ *   loopSite(frame)                      → { at: '<cells>', line: [[x, y]], start, heading, median, width, keep } the
+ *                                          oval (`keep`: the ground nothing grows on, a stage's `_keepOut`)
+ *   loopOn(loop, ends) / loopBlocks(loop, ends)   the oval on a stage's land (its line's heights); the wall down it
  *   beatPosts(ends, n?)                  → [{ id, at, heading, from, back }] posts on the beats (n: spread to n)
  *   coverBlocks(posts, ends)             → playscape terrain asks: a wall by each post, a crate stack, a wall between
  *   jumpHeight(rule) / raisePickups(mechanics, ends, jump)   how high a pilot jumps; pickups raised within it
@@ -29,11 +34,15 @@
  */
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-export const LAID = Object.freeze({ fields: ['ground', 'stage'], drivable: ['ground'], circuit: ['stage'], cover: ['stage'], watchers: ['stage'], 'road-to-base': ['stage'], board: ['ground', 'stage'], reachable: ['stage'] });
+export const LAID = Object.freeze({ fields: ['ground', 'stage'], drivable: ['ground'], loop: ['ground', 'stage'], circuit: ['stage'], cover: ['stage'], watchers: ['stage'], 'road-to-base': ['stage'], board: ['ground', 'stage'], reachable: ['stage'] });
 export const SIGHT = 14;             // metres a watcher's sight is measured over (a sneak guard's sightRange)
 export const EYE = 1.275;            // a person's eye over its feet (the minds' collideHeight 1.7 × 0.75)
 export const SPACING = 12;           // metres a checkpoint keeps from the last
 export const DRIVABLE = Object.freeze({ amplitude: 3, depth: 2, bump: { height: 0.2 } });
+// the oval a race goes round (metres): its turns' radius, the track's width, the room kept at the trail's ends, the
+// spacing of its line's points, and how far past the turn the start line stands (the grid stands behind it)
+export const LOOP_TUNE = Object.freeze({ amplitude: 0, depth: 0, bump: { height: 0 } });
+export const LOOP = Object.freeze({ radius: 9, width: 8, margin: 3, step: 2, start: 12 });
 
 // a block of cells beside the walk on its open side (toward the site's open edge): `cols` across from 4 m off the walk,
 // rows r0 to r1 of the first trail; → { at: '<cells>', centre: [x, y] } in the level's frame
@@ -49,6 +58,46 @@ export const fieldSite = (F) => sideSite(F, 2, 3, 2);
 /** The puzzle's board further on: three cells by three (its grid's 12.5 m and room round it), rows 5 to 7. */
 export const boardSite = (F) => sideSite(F, 5, 7, 3);
 
+/** The loop on the first trail's land: an oval (two straights along the walk, a half circle at each end) about the
+ * walk's mean line, held on the site, from LOOP.margin past the trailhead to as far before the trail's end. Gone round
+ * anticlockwise: up the straight on the open side, back down the other. Its line is points LOOP.step apart, the first
+ * the start line, LOOP.start metres up the open straight. The land under it, and a margin, is flattened. → null when
+ * the trail is too short to hold it. */
+export function loopSite(F) {
+  const root = F.spans.find((s) => s.section === 'trail');
+  const R = LOOP.radius, half = LOOP.width / 2;
+  if (!root) return null;
+  const y0 = root.origin + R + LOOP.margin, y1 = root.origin + root.D - R - LOOP.margin;
+  if (y1 - y0 < LOOP.start + 2 * half) return null;
+  const xs = Array.from({ length: 9 }, (_, i) => root.trailX(y0 + ((y1 - y0) * i) / 8)), mean = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const cx = Math.max(F.x0 + R + half + 1, Math.min(F.x1 - R - half - 1, mean));
+  // the oval by its length along: up the open straight, the far turn, down the other, the near turn
+  const S = y1 - y0, arc = Math.PI * R, L = 2 * S + 2 * arc;
+  const at = (u) => {
+    u = ((u % L) + L) % L;
+    if (u < S) return [cx + R, y0 + u];
+    if (u < S + arc) { const a = (u - S) / R; return [cx + R * Math.cos(a), y1 + R * Math.sin(a)]; }
+    if (u < 2 * S + arc) return [cx - R, y1 - (u - S - arc)];
+    const a = Math.PI + (u - 2 * S - arc) / R; return [cx + R * Math.cos(a), y0 + R * Math.sin(a)];
+  };
+  const n = Math.round(L / LOOP.step), line = Array.from({ length: n }, (_, i) => at(LOOP.start + (i * L) / n).map(r3));
+  const a = F.cellOf(cx - R - half - 2, y0 - R - half), b = F.cellOf(cx + R + half + 2, y1 + R + half);
+  // the ground kept clear of what grows (era/reserve.js `_keepOut`): the straights' bands and a box over each turn
+  const o = half + 1, keep = [[cx + R - o, y0, cx + R + o, y1], [cx - R - o, y0, cx - R + o, y1], [cx - R - o, y1, cx + R + o, y1 + R + o], [cx - R - o, y0 - R - o, cx + R + o, y0]].map((q) => q.map(r3));
+  return { at: `${a}:${b}`, line, start: line[0], heading: r3(Math.PI / 2), length: r3(L), width: LOOP.width, median: { at: [r3(cx), r3((y0 + y1) / 2)], length: r3(S) }, keep };
+}
+
+/** The loop on a stage's land: its line's points at the land's height there, its walk included (null off the land). */
+export function loopOn(loop, ends) {
+  const at = ends.surface ?? ends.ground, z = (x, y) => (at ? at(x, y) : null);
+  return { ...loop, line: loop.line.map(([x, y]) => [x, y, z(x, y)]), start: [loop.start[0], loop.start[1], z(loop.start[0], loop.start[1]) ?? ends.spawn[2]] };
+}
+/** A low wall down the oval's middle, between its straights: the infield is not a way round. */
+export function loopBlocks(loop, ends) {
+  const [x, y] = loop.median.at, z = ends.ground ? ends.ground(x, y) : null;
+  return [{ form: 'wall', at: [x, y, z ?? ends.spawn[2]], N: [1, 0], length: loop.median.length, height: 1, thick: 0.6, value: 0.55 }];
+}
+
 export function groundLays(ids, level, F) {
   const out = { edits: [], laid: [] };
   if (!F) return out;
@@ -61,6 +110,11 @@ export function groundLays(ids, level, F) {
     if (site) { out.edits.push({ op: 'flatten', at: site.at, id: 'intent-board' }); out.laid.push('board'); }
   }
   if (ids.includes('drivable')) { out.tune = { ...DRIVABLE }; out.laid.push('drivable'); }
+  if (ids.includes('loop')) {
+    // the walk crosses the oval at its turns: its heartbeat laid flat, so the walk lies at the flattened land's height
+    const site = loopSite(F);
+    if (site) { out.tune = { ...(out.tune ?? {}), ...LOOP_TUNE }; out.edits.push({ op: 'flatten', at: site.at, id: 'intent-loop' }); out.laid.push('loop'); }
+  }
   return out;
 }
 
@@ -162,6 +216,11 @@ export function askBoxes(blocks) {
     return [];
   });
 }
+// is a box's footprint within r of the point p (in plan)?
+function boxNear(c, p, r) {
+  const dx = Math.max(c.min[0] - p[0], 0, p[0] - c.max[0]), dy = Math.max(c.min[1] - p[1], 0, p[1] - c.max[1]);
+  return Math.hypot(dx, dy) < r;
+}
 // does a box stand across the segment a → b (strictly between them)?
 function blocked(a, b, boxes) {
   const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
@@ -218,8 +277,10 @@ function nearestOn(q, line) {
  *   reachable  every raised pickup's rises within the pilot's jump, the pickup within 1.2 m over the top
  *   fields     the plots lie level: their heights within half a metre
  *   board      the puzzle's cells lie level: within half a metre
- *   drivable   the way, start to beats to exit, climbs no steeper than 1 in 4 between places */
-export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [], pads = [], raised = [], jump = 0, mechanics = [] }) {
+ *   drivable   the way, start to beats to exit, climbs no steeper than 1 in 4 between places
+ *   loop       the oval lies on the land, climbs no steeper than 1 in 4, nothing stands on it (but its own wall), and
+ *              its checkpoints come round to the start */
+export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [], pads = [], raised = [], jump = 0, mechanics = [], loop = null }) {
   const out = [], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
   const waves = mechanics.find((m) => m.kind === 'waves');
   if (ids.includes('road-to-base') && waves) {
@@ -263,6 +324,24 @@ export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [],
     let steep = 0;
     for (let i = 1; i < way.length; i++) { const run = d2(way[i], way[i - 1]); if (run > 1) steep = Math.max(steep, Math.abs((way[i][2] ?? 0) - (way[i - 1][2] ?? 0)) / run); }
     out.push({ concern: 'drivable', law: 'grade-drivable', holds: steep <= 0.25, says: `the steepest leg climbs ${(steep * 100).toFixed(0)}% (25% at most)` });
+  }
+  if (ids.includes('loop') && loop) {
+    const L = loop.line, off = L.filter((p) => p[2] == null).length;
+    out.push({ concern: 'loop', law: 'loop-on-the-land', holds: !off, says: off ? `${off} of ${L.length} points of the line are off the land` : `all ${L.length} points of the line on the land` });
+    let steep = 0;
+    L.forEach((p, i) => { const q = L[(i + 1) % L.length], run = d2(p, q); if (p[2] != null && q[2] != null && run > 0.5) steep = Math.max(steep, Math.abs(q[2] - p[2]) / run); });
+    out.push({ concern: 'loop', law: 'loop-grade', holds: steep <= 0.25, says: `the line climbs ${(steep * 100).toFixed(0)}% at its steepest (25% at most)` });
+    const own = (b) => b.form === 'wall' && b.at[0] === loop.median.at[0] && b.at[1] === loop.median.at[1];
+    const boxes = askBoxes(blocks.filter((b) => !own(b))), half = loop.width / 2;
+    const hit = (ends.colliders ?? []).concat(boxes).filter((c) => L.some((p) => boxNear(c, p, half - 1))).length;
+    // rock a wheel would climb: its top over the line's height, across the track
+    const rocky = ends.rocks ? L.filter((p) => p[2] != null && [-1, 0, 1].some((k) => { const i = L.indexOf(p), q = L[(i + 1) % L.length], d = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, x = p[0] - ((q[1] - p[1]) / d) * k * (half - 1), y = p[1] + ((q[0] - p[0]) / d) * k * (half - 1), z = ends.rocks(x, y); return z != null && z > p[2] + 0.4; })).length : 0;
+    const says = [hit ? `${hit} thing${hit > 1 ? 's' : ''} stand on the track` : '', rocky ? `rock stands on ${rocky} of ${L.length} points of the line` : ''].filter(Boolean).join('; ');
+    out.push({ concern: 'loop', law: 'loop-clear', holds: !hit && !rocky, says: says || 'nothing stands on the track' });
+    if (laps) {
+      const last = laps.checkpoints[laps.checkpoints.length - 1].at, home = d2(last, loop.start);
+      out.push({ concern: 'loop', law: 'finish-at-the-start', holds: home <= 1, says: `the finish is ${home.toFixed(1)} m from the start line` });
+    }
   }
   return out;
 }

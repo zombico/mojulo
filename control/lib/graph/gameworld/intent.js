@@ -41,6 +41,7 @@ const WORDS = Object.freeze({
   'pixel-puzzle': ['pixel', 'retro', 'puzzle'],
   stealth: ['stealth', 'sneak', 'guards', 'unseen', 'spotted', 'infiltrate'],
   racing: ['race', 'racing', 'car', 'cars', 'drive', 'driving', 'laps', 'time trial', 'checkpoints'],
+  'kart-racer': ['kart', 'karts', 'kart racer', 'go-kart', 'rivals', 'circuit', 'track', 'grand prix', 'podium'],
   rhythm: ['rhythm', 'beat', 'music', 'dance', 'tempo'],
   roguelike: ['roguelike', 'roguelite', 'runs', 'permadeath', 'procedural', 'run'],
   farming: ['farm', 'farming', 'crops', 'harvest', 'plant', 'village life', 'life sim', 'seasons'],
@@ -85,12 +86,14 @@ const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
 
 export function cubeOfWorld(world) {
   const I = readIntent(world?.intent), Q = world?.quick;
-  const from = I?.from ?? (Q && QUICK_GENRE[Q.goal]) ?? null;
+  // a race against rivals is a kart race (its cube a loop's); alone, a time trial
+  const from = I?.from ?? (Q && (Q.goal === 'race' && Q.rivals ? 'kart-racer' : QUICK_GENRE[Q.goal])) ?? null;
   const cube = clone(from ? CUBES[from] : {});
   // what the world's own settings imply
   if (world?.camera) put(cube, 'space', 'camera', world.camera);
   if (world?.topology) put(cube, 'space', 'topology', world.topology);
   if (Q?.ride) put(cube, 'soul', 'hero', 'vehicle');
+  if (Q?.track) put(cube, 'space', 'levelForm', Q.track === 'loop' ? 'circuit' : 'trail');
   if (Q?.run) put(cube, 'time', 'progression', 'runs');
   if (world?.style?.pixel) put(cube, 'reality', 'medium', 'pixel');
   // the intent's own values, last

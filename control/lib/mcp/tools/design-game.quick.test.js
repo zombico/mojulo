@@ -122,6 +122,19 @@ describe('design_game quick', () => {
     expect(payload.events.sources.find((z) => z.zone === 'cp_0_0').watch).toBe('car');
   }, 240_000);
 
+  it('kart race: rivals in the same car round a loop on the trail\'s land, the place on the HUD, a podium to win', async () => {
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', rivals: 3, world: { id: 'karts', style: { kit: 'trail-valley' } } }, ref: 'k' });
+    expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);
+    expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
+    const L = stored('k-level-run-0');
+    expect(L.entities.map((e) => e.id)).toEqual(['car', 'rival-1', 'rival-2', 'rival-3']);
+    expect(L.entities[1]).toMatchObject({ team: 'rivals', rule: { type: 'racer', closed: true, horsepower: 160 }, body: { type: 'figure-rig', figure: 'rival-1' } });
+    expect(L.figures['rival-1']).toEqual({ vehicleRef: 'k-ride', targetH: 1.5 });
+    expect(L.game.mechanics[0]).toMatchObject({ kind: 'laps', laps: 3, rivals: ['rival-1', 'rival-2', 'rival-3'], win: 2 });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('k-level-run-0'));
+    expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
+    expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
+  }, 240_000);
   it('defend: foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
     const out = await designGameHandler({ quick: { goal: 'defend', waves: 1, pads: 2, world: { id: 'hold', style: { kit: 'trail-valley' } } }, ref: 'd' });
     expect(out.ran.map((r) => r.key)).toEqual(['foe', 'tower', 'level-run-0', 'game']);
@@ -285,6 +298,12 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'rhythm', music: 'chapel' })).toThrow(/steady beat/);
     expect(() => readQuick({ goal: 'race', ride: 'tank' })).toThrow(/ride is one of car/);
     expect(() => readQuick({ goal: 'race', ride: 'car', hero: { cast: 'male' } })).toThrow(/the ride is the hero/);
+    expect(() => readQuick({ goal: 'reach', rivals: 2 })).toThrow(/rivals belongs to the race goal/);
+    expect(() => readQuick({ goal: 'race', rivals: 3 })).toThrow(/name a ride/);
+    expect(() => readQuick({ goal: 'race', ride: 'car', rivals: 9 })).toThrow(/1 to 7/);
+    expect(() => readQuick({ goal: 'race', track: 'oval' })).toThrow(/trail \(end to end\) or loop/);
+    expect(() => readQuick({ goal: 'race', track: 'trail', laps: 3 })).toThrow(/run once/);
+    expect(() => readQuick({ goal: 'race', ride: 'car', rivals: 2, climb: true })).toThrow(/no climb/);
     expect(() => readQuick({ goal: 'shoot', camera: 'top-down' })).toThrow(/first-person or third-person/);
     expect(() => readQuick({ goal: 'shoot', foes: 9 })).toThrow(/foes is 1 to 8/);
     expect(() => readQuick({ goal: 'reach', foes: 2 })).toThrow(/battle and shoot goals/);

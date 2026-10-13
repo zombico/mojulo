@@ -13,6 +13,9 @@
  *                                           // entered at its way in, its goal room the end, pickups in its other rooms
  *     pickup?: '<word>',                    // collect: what lies along the way (its word picks the glyph: coin, key, star…)
  *     seconds?: n,                          // survive: how long
+ *     track?: 'trail' | 'loop',             // race: run the trail end to end, or go round a loop laid on its land
+ *     laps?: n,                             // race: times round (1 to 9; 3 on a loop, 1 on a trail)
+ *     rivals?: n,                           // race: rival drivers in the same car (1 to 7; a ride's), racing for a place
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (a plain one by default)
  *     alarms?: n,                           // sneak: how many sightings end it (1: the first)
@@ -38,7 +41,7 @@
  */
 import { STAGE_KITS } from '../era/stage.js';
 import { CAMERAS } from './cameras.js';
-import { RIDES } from './ride.js';
+import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites } from './lay-concerns.js';
@@ -50,7 +53,7 @@ export const QUICK_GOALS = Object.freeze({
   collect: 'collect what lies along the way (on the trail\'s beats), and reach the end',
   survive: 'stay on the stage until the clock runs out',
   avoid: 'reach the end past its hazards (the water a trail crosses), with hp to spare',
-  race: 'run the trail\'s checkpoints in order (its beats) to the finish (its end), against the clock; the best time is kept',
+  race: 'run the trail\'s checkpoints in order (its beats) to the finish (its end), against the clock; the best time is kept. On a loop (track), laps round it; with rivals, finish on the podium',
   sneak: 'reach the end past guards who keep the trail, sweeping their gaze: seen, and it is over',
   rhythm: 'run the trail to the music: jump on its beat for points (off the beat is a miss); the best score is kept',
   defend: 'foes walk the trail in waves to your base (its start); build archers\' towers on the pads beside it (E, for gold) and hold',
@@ -70,6 +73,11 @@ export const SHOOT = Object.freeze({
 const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
 export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a5530' }, gear: { right: { item: 'bow' } } });
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
+// a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
+// stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
+// line, each row's after it, the cars' distance off the middle), the rivals' lane off the line and their pace (the
+// pole's, the last's)
+export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72] });
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
@@ -82,7 +90,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
+const KEYS = ['goal', 'hero', 'ride', 'track', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -108,6 +116,13 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive goal');
+  for (const k of ['track', 'laps', 'rivals']) if (Q.goal !== 'race' && Q[k] !== undefined) throw fail(`.${k} belongs to the race goal`);
+  if (Q.track !== undefined && !['trail', 'loop'].includes(Q.track)) throw fail('.track is trail (end to end) or loop (round a loop laid on the trail\'s land)');
+  if (Q.laps !== undefined && !(Number.isInteger(Q.laps) && Q.laps >= 1 && Q.laps <= 9)) throw fail('.laps is how many times round, 1 to 9');
+  if (Q.rivals !== undefined && !(Number.isInteger(Q.rivals) && Q.rivals >= 1 && Q.rivals <= 7)) throw fail('.rivals is how many rival drivers, 1 to 7');
+  if (Q.rivals !== undefined && !Q.ride) throw fail('.rivals drive the same car as you: name a ride');
+  if (Q.track === 'trail' && Q.laps > 1) throw fail('.laps: a trail is run once, end to end (track loop goes round)');
+  if ((Q.track === 'loop' || Q.rivals) && (Q.climb || Q.building !== undefined)) throw fail('.track loop is laid on a trail\'s land: no climb, no building');
   for (const k of ['guards', 'guard', 'alarms']) if (Q.goal !== 'sneak' && Q[k] !== undefined) throw fail(`.${k} belongs to the sneak goal`);
   if (Q.guards !== undefined && !(Number.isInteger(Q.guards) && Q.guards >= 1 && Q.guards <= 8)) throw fail('.guards is how many guards keep the trail, 1 to 8');
   if (Q.alarms !== undefined && !(Number.isInteger(Q.alarms) && Q.alarms >= 1 && Q.alarms <= 9)) throw fail('.alarms is how many sightings end the run, 1 to 9');
@@ -154,7 +169,9 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
-  const nodes = { path: { trail: {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
+  // a loop is laid on the trail's land: the longest trail, so a lap is a stretch worth driving
+  const loop = quick.goal === 'race' && (quick.track === 'loop' || (quick.rivals && quick.track !== 'trail'));
+  const nodes = { path: { trail: loop ? { run: RACE.run, beats: RACE.beats } : {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
   // a run's pool: trails each laid from its own seed, two more than a run draws
   const s0 = Number.isInteger(seed) ? seed : 1;
   const levels = quick.run
@@ -186,8 +203,16 @@ export function goalMechanics(quick, ends) {
       // the last kept, or the start, than `ends.spacing` is passed by)
       const kept = [];
       for (const b of along) { const last = kept.length ? kept[kept.length - 1].at : ends.spawn; if (!ends.spacing || Math.hypot(b.at[0] - last[0], b.at[1] - last[1]) >= ends.spacing) kept.push(b); }
+      const rivals = raceRivals(quick), race = rivals.length ? { rivals, win: raceWin(rivals.length) } : {};
+      // round a loop (lay-concerns.js loopSite): checkpoints about every RACE.leg metres of its line, the last its start
+      const loop = ends.loop;
+      if (loop) {
+        const L = loop.line, n = L.length, K = Math.max(4, Math.round(loop.length / RACE.leg));
+        const checkpoints = Array.from({ length: K }, (_, j) => { const q = L[Math.round(((j + 1) * n) / K) % n]; return { at: [q[0], q[1], q[2] ?? ends.spawn[2]], radius: loop.width / 2 + 1 }; });
+        return [{ kind: 'laps', checkpoints, laps: quick.laps ?? RACE.laps, ...race }];
+      }
       const checkpoints = [...kept.map((b) => ({ at: b.at, radius: 3.5 })), { at: ends.exit, radius: 3, ...(ends.planar ? {} : { planar: false }) }];
-      return [{ kind: 'laps', checkpoints }];
+      return [{ kind: 'laps', checkpoints, ...race }];
     }
     case 'rhythm':
       return [{ kind: 'on-beat', ...(quick.misses ? { misses: quick.misses } : {}) }, { kind: 'score', label: 'Beats', points: [{ on: 'beat:hit' }] }, exit];
@@ -232,6 +257,37 @@ export function goalMechanics(quick, ends) {
 
 /** A sneak's guards on a stage: `count` posts on the trail's beats (spread from start to end, never the first few
  * metres), each facing back down the trail toward the start, its gaze sweeping. [{ id, at, heading }]. */
+/** A race's rivals' ids (quick.rivals of them). */
+export const raceRivals = (quick) => Array.from({ length: quick.rivals ?? 0 }, (_, k) => `rival-${k + 1}`);
+// the place a race against n rivals is won at: the top half of the field, the podium at most
+const raceWin = (n) => Math.min(3, Math.ceil((n + 1) / 2));
+
+/** A race's grid and its rivals (quick.rivals): every car in the ride's build, two abreast behind the start line (a
+ * loop's, else the spawn), the player last; each rival on the racer rule along the way (the loop's line, closed, or
+ * the trail's beats to its end), a lane off it by turns and a pace that falls off down the grid.
+ * → { figures, entities, pilot: { transform } } (stageLevelOrder's extra); nothing for a race alone on a trail */
+export function raceCast(quick, ends, ride) {
+  const rivals = raceRivals(quick), loop = ends.loop;
+  if (!loop && !rivals.length) return {};
+  const start = loop ? loop.start : ends.spawn, h = loop ? loop.heading : ends.heading;
+  const u = [Math.cos(h), Math.sin(h)], l = [-u[1], u[0]];
+  const slot = (k) => {
+    const row = Math.floor(k / 2), side = k % 2 ? -1 : 1, back = RACE.gridFront + RACE.gridRow * row;
+    const x = start[0] - u[0] * back + l[0] * RACE.gridSide * side, y = start[1] - u[1] * back + l[1] * RACE.gridSide * side;
+    const z = ends.ground ? ends.ground(x, y) : null;
+    return [r3(x), r3(y), z ?? start[2]];
+  };
+  const line = loop ? loop.line.map((q) => [q[0], q[1]]) : [...(ends.beats ?? []).filter((b) => b.beat !== 'trailhead').map((b) => [b.at[0], b.at[1]])];
+  const figures = {}, entities = [];
+  rivals.forEach((id, k) => {
+    figures[id] = { vehicleRef: ride.ref, targetH: RIDE_H };
+    const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
+    const rule = { ...ride.rule, type: 'racer', line, closed: !!loop, lane: k % 2 ? -RACE.lane : RACE.lane, pace };
+    entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k), heading: h } });
+  });
+  return { figures, entities, pilot: { transform: { pos: slot(rivals.length), heading: h } } };
+}
+
 export function guardPosts(quick, ends) {
   return beatPosts(ends, quick.guards ?? 3).map((p, k) => ({ ...p, id: `guard-${k + 1}` }));
 }

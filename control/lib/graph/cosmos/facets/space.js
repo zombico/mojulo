@@ -39,6 +39,8 @@ export const SPACE = Object.freeze({
         trail: { status: 'built', lowers: 'lib/graph/era/out-trail.js' },
         meru: { status: 'built', lowers: 'lib/graph/local-meru/plan.js' },
         arena: { status: 'built', lowers: 'lib/graph/worlds/match-modes.js' },
+        // built 10-12 (kart racer): a loop laid on a trail's land, gone round lap after lap
+        circuit: { status: 'built', lowers: 'lib/graph/gameworld/lay-concerns.js', godot: false, note: 'an oval laid on the first trail\'s land (flattened, a low wall down its middle), its start the finish; a race goes round it' },
         // merged 10-12 (structure rails, broadened): a level that is a building, laid from its use
         building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: false, note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
       },

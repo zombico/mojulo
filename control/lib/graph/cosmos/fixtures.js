@@ -177,6 +177,19 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'kart-racer',
+    name: 'Kart racer',
+    anchor: false,
+    why: 'cars round a loop against rival drivers, laps and a place to finish in',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'circuit' },
+      power: { rules: ['drive', 'racer', 'follow'], mechanics: ['laps', 'score'] },
+      soul: { hero: 'vehicle' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'rhythm',
     name: 'Rhythm runner',
     anchor: false,

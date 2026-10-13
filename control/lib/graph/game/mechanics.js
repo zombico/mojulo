@@ -316,8 +316,12 @@ const MECHANICS = {
   // pass the checkpoints in order, `laps` times → success, against the clock (a terminal). The last checkpoint is the
   // finish line; one out of order does nothing. The run's time (tenths of a second) is the level's kept number: the
   // shell remembers the lowest.
+  // RIVALS (`rivals: [entity id]`): each passes the same checkpoints, counted on the bus by its own zones. Per rival a
+  // lead (the player's passes less its own) and an ahead flag; the place is one more than the rivals ahead (a tie goes
+  // to whoever passed first). The finish is `race:won` at a place of `win` or better (1 by default), else `race:lost`;
+  // the best place is kept too.
   laps: {
-    role: 'terminal', ends: ['success'], requires: [],
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
       const cps = Array.isArray(p.checkpoints) ? p.checkpoints : [];
       if (!cps.length || !cps.every((c) => c && Array.isArray(c.at))) throw new Error(`laps[${ctx.i}]: needs checkpoints: [{ at, radius? }, …] in order, the last the finish`);
@@ -333,6 +337,11 @@ const MECHANICS = {
         watches: [{ type: 'laps:done', when: { var: lap, gte: laps } }],
         hud: [{ var: ts, label: 'Time', as: 'clock' }, ...(laps > 1 ? [{ var: lap, label: 'Lap', as: 'counter', max: laps }] : []), { on: 'checkpoint', text: 'checkpoint', as: 'toast', ttl: 1 }],
       };
+      const rivals = Array.isArray(p.rivals) ? p.rivals.filter((r) => typeof r === 'string' && r) : [];
+      const pass = `__pass_${i}`;
+      // the rivals' zones watch what their ids share (rival-1, rival-2 … → rival-*)
+      let share = rivals[0] ?? '';
+      for (const r of rivals) while (!r.startsWith(share)) share = share.slice(0, -1);
       cps.forEach((c, j) => {
         const zone = `cp_${i}_${j}`;
         world.sources.push({ type: 'zone', zone, at: c.at, radius: Number.isFinite(c.radius) ? c.radius : 3, planar: c.planar !== false, watch: ctx.player });
@@ -340,9 +349,21 @@ const MECHANICS = {
         if (j < last) {
           // the emit first: the set after it moves the guard on
           world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: 'checkpoint', at: j });
+          if (rivals.length) world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: pass });
           world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'set', var: next, to: j + 1 });
         } else {
+          if (rivals.length) world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: pass });
           world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: 'lap' });
+        }
+        // the rivals' passes: one zone for them all, each rival its own next checkpoint
+        if (rivals.length) {
+          const rz = `rcp_${i}_${j}`;
+          world.sources.push({ type: 'zone', zone: rz, at: c.at, radius: Number.isFinite(c.radius) ? c.radius : 3, planar: c.planar !== false, watch: `${share}*` });
+          rivals.forEach((r) => {
+            const rnext = `__cp_${i}_${r}`, rdue = { var: rnext, eq: j };
+            world.reactions.push({ on: 'enter', match: { zone: rz, entity: r }, if: rdue, do: 'emit', type: `__rpass_${i}_${r}` });
+            world.reactions.push({ on: 'enter', match: { zone: rz, entity: r }, if: rdue, do: 'set', var: rnext, to: j < last ? j + 1 : 0 });
+          });
         }
       });
       world.reactions.push(
@@ -352,6 +373,36 @@ const MECHANICS = {
         { on: `__race_sec_${i}`, do: 'inc', var: ts, by: 1 },
         { on: 'laps:done', do: 'set', var: over, to: 1 },
       );
+      if (rivals.length) {
+        // the place: the lead over each rival moves at every pass; crossing zero flips its ahead flag and the place
+        const place = `__place_${i}`, win = Number.isInteger(p.win) && p.win >= 1 ? p.win : 1;
+        world.vars[place] = 1;
+        rivals.forEach((r) => {
+          const lead = `__lead_${i}_${r}`, ahead = `__ahead_${i}_${r}`, gets = `__gets_${i}_${r}`, falls = `__falls_${i}_${r}`;
+          Object.assign(world.vars, { [`__cp_${i}_${r}`]: 0, [lead]: 0, [ahead]: 0 });
+          world.reactions.push(
+            { on: `__rpass_${i}_${r}`, do: 'inc', var: lead, by: -1 },
+            { on: `__rpass_${i}_${r}`, if: { var: lead, lt: 0 }, do: 'emit', type: gets },
+            { on: gets, if: { var: ahead, eq: 0 }, do: 'inc', var: place, by: 1 },
+            { on: gets, if: { var: ahead, eq: 0 }, do: 'set', var: ahead, to: 1 },
+            { on: pass, do: 'inc', var: lead, by: 1 },
+            { on: pass, if: { var: lead, gt: 0 }, do: 'emit', type: falls },
+            { on: falls, if: { var: ahead, eq: 1 }, do: 'inc', var: place, by: -1 },
+            { on: falls, if: { var: ahead, eq: 1 }, do: 'set', var: ahead, to: 0 },
+          );
+        });
+        world.hud.push({ var: place, label: 'Place', as: 'counter', max: rivals.length + 1 });
+        world.reactions.push(
+          { on: 'laps:done', if: { var: place, lte: win }, do: 'emit', type: 'race:won' },
+          { on: 'laps:done', if: { var: place, gt: win }, do: 'emit', type: 'race:lost' },
+        );
+        return {
+          world,
+          on: { 'race:won': { end: 'success' }, 'race:lost': { end: 'fail' } },
+          keep: [{ var: t, label: typeof p.label === 'string' && p.label ? p.label : 'Time', best: 'low', scale: 0.1, unit: 's' }, { var: place, label: 'Place', best: 'low' }],
+          audit: { kind: 'walkto', target: cps[last].at, ...(last ? { via: cps.slice(0, last).map((c) => c.at) } : {}) },
+        };
+      }
       return {
         world,
         on: { 'laps:done': { end: 'success' } },

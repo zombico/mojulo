@@ -263,6 +263,7 @@ function quickCard() {
     '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { <hero-door words> }',
     '  shoot: foes: n (4), foe: { <hero-door words> }   first person by default (or third-person); walls to take cover behind',
     `  ride: ${Object.keys(RIDES).join(' | ')}   the hero is a vehicle, driven (W / S / A / D); no hero, climb or building with it`,
+    '  race: track: trail | loop (a loop laid on the trail\'s land), laps: n (3 round a loop), rivals: n (1-7, with a ride: a place to finish in)',
     `  hero: { <hero-door words> } the hero's looks, hair, outfit, gear in hand, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
     '                     absent or false: first person, you are the camera',
     `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: third person with a hero, first person without; top-down (¾, north up) and side (A / D run the trail's line, no climb) need a hero`,
@@ -344,7 +345,7 @@ function intentCard() {
 
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
-  ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid, race, sneak, rhythm, defend, puzzle, farm, battle, shoot', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a quick game', quickCard],
+  ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid, race, sneak, rhythm, defend, puzzle, farm, battle, shoot', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],

@@ -30,7 +30,7 @@ import { RIDE_H } from './ride.js';
 import { fixedStations } from './cameras.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
-import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups } from './lay-concerns.js';
+import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
@@ -60,10 +60,12 @@ export function gameStages(world) {
       const here = (R.buildings ?? []).filter((b) => home(b) === s.node).map(({ node: _n, ...b }) => b);
       // the town's street stands on the first trail
       const street = R.street && s.node === laid.stages.find((x) => x.section === 'trail')?.node ? { ...R.street, seed: R.seed } : null;
-      const manifest = here.length || street ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}) } : s.manifest;
       // the field its intent laid (lay-concerns.js), on the first trail it was flattened on
       const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
-      const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}) };
+      // a loop's track: nothing grows on it (era/reserve.js)
+      const keep = R.loop && first ? { _keepOut: R.loop.keep } : {};
+      const manifest = here.length || street || keep._keepOut ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep } : s.manifest;
+      const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });
     // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
@@ -140,17 +142,23 @@ function readEnds(manifest) {
   // the land's height at a point (its top and ground faces, the highest there), for a goal laying things on it (a
   // puzzle's grid); not data: a reader of the ends never sees it
   Object.defineProperty(out, 'ground', { value: groundSampler(P.faces ?? []), enumerable: false });
+  // the land with its walk (a kit whose trail is its own surface, not laid on the ground): what a vehicle drives on
+  Object.defineProperty(out, 'surface', { value: groundSampler(P.faces ?? [], /:(top|ground|trail)$/), enumerable: false });
+  // the rocks' tops over the land (a landmark, scree): what a wheel would climb
+  Object.defineProperty(out, 'rocks', { value: groundSampler(P.faces ?? [], /:rock$/), enumerable: false });
+  // what stands solid on it (boxes), for a law to keep a track clear; not data either
+  Object.defineProperty(out, 'colliders', { value: P.colliders ?? [], enumerable: false });
   return out;
 }
 
 // the stage's land as a height lookup: its walkable top faces bucketed by a 2 m grid, a point's height the highest face
 // over it (two triangles a quad), or null off the land
-function groundSampler(faces) {
+function groundSampler(faces, groups = /:(top|ground)$/) {
   let grid = null;
   const build = () => {
     grid = new Map();
     for (const f of faces) {
-      if (!/:(top|ground)$/.test(f.group || '') || !Array.isArray(f.corners) || f.corners.length < 3) continue;
+      if (!groups.test(f.group || '') || !Array.isArray(f.corners) || f.corners.length < 3) continue;
       const xs = f.corners.map((c) => c[0]), ys = f.corners.map((c) => c[1]);
       for (let gx = Math.floor(Math.min(...xs) / 2); gx <= Math.floor(Math.max(...xs) / 2); gx++) for (let gy = Math.floor(Math.min(...ys) / 2); gy <= Math.floor(Math.max(...ys) / 2); gy++) {
         const k = `${gx},${gy}`; if (!grid.has(k)) grid.set(k, []); grid.get(k).push(f.corners);
@@ -189,6 +197,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   Object.defineProperty(ends, 'field', { value: stage.field ?? null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'board', { value: stage.board ?? null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'spacing', { value: concerns.includes('circuit') ? SPACING : null, enumerable: false, configurable: true });
+  Object.defineProperty(ends, 'loop', { value: stage.loop ? loopOn(stage.loop, ends) : null, enumerable: false, configurable: true });
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
   // fingerprints hold: third person with a hero, the old first-person walker without one.
@@ -271,6 +280,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
     if (X.inputs?.length) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), inputs: [...(pilotPart.events?.inputs ?? []), ...X.inputs] } };
     pads = X.pads ?? null;
   }
+  // LOOP (the intent's `loop` concern): a low wall down the oval's middle
+  if (ends.loop) blocks = [...(blocks ?? []), ...loopBlocks(ends.loop, ends)];
   // COVER (the intent's `cover` concern): by the goal's fighting posts, else by the trail's beats
   if (concerns.includes('cover') && stage.section === 'trail') {
     posts ??= beatPosts(ends);
@@ -304,7 +315,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? { ...(mechanics?.play ?? {}), ...extraPlay } : mechanics?.play ?? null, { story, carryFrom, party }));
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
-  const laws = concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics }) : [];
+  const laws = concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 

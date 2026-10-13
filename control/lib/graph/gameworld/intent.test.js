@@ -54,6 +54,14 @@ describe('the cube a world is', () => {
     const R = cubeOfWorld(world({ quick: { goal: 'race', ride: 'car', run: 3 } }));
     expect([R.from, R.cube.soul.hero, R.cube.time.progression]).toEqual(['racing', 'vehicle', 'runs']);
   });
+  it('a race against rivals is a kart race, on a loop; a track named is the level\'s form', () => {
+    const K = cubeOfWorld(world({ quick: { goal: 'race', ride: 'coupe', rivals: 3 } }));
+    expect([K.from, K.cube.space.levelForm, K.cube.power.rules]).toEqual(['kart-racer', 'circuit', ['drive', 'racer', 'follow']]);
+    expect(cubeOfWorld(world({ quick: { goal: 'race', ride: 'coupe', rivals: 3, track: 'trail' } })).cube.space.levelForm).toBe('trail');
+    expect(cubeOfWorld(world({ quick: { goal: 'race', track: 'loop' } })).cube.space.levelForm).toBe('circuit');
+    expect(concernsOf(K.cube).map((c) => c.id)).toEqual(expect.arrayContaining(['circuit', 'loop', 'drivable']));
+    expect(suggestGenres('a kart racer against rivals round a track')[0].id).toBe('kart-racer');
+  });
   it('a world that says nothing is the cube its settings imply (possibly none)', () => {
     expect(cubeOfWorld(world()).cube).toEqual({});
     expect(cubeOfWorld(world({ topology: 'interconnected' })).cube).toEqual({ space: { topology: 'interconnected' } });

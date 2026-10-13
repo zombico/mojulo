@@ -53,6 +53,11 @@ export const CONCERNS = Object.freeze([
     asks: 'racing needs a line: checkpoints spaced so each leg is a stretch worth taking (twelve metres or more), a way wide enough to take at speed, the finish in sight of the last bend',
   },
   {
+    id: 'loop', name: 'A track that comes round',
+    when: ['space.levelForm=circuit'],
+    asks: 'going round needs a track that comes back to its start: a closed line on level land, wide enough to pass on, nothing standing on it, the infield closed so the way round is the way',
+  },
+  {
     id: 'drivable', name: 'Ground a vehicle can take',
     when: ['soul.hero=vehicle', 'power.rules=drive'],
     asks: 'a vehicle needs ground it can take: gentle grades, wide turns, no stairs, ladders or narrow gaps on its line',

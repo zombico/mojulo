@@ -424,6 +424,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - The shooter probe on the cosmos chart is asked at today's fidelity (`gen-6.0`), so every genre probe is now
     makeable on the web; seventh-generation rendering is a separate rung.
 
+### Kart racer: a loop, rival drivers and a place to finish in
+
+- **A loop.** The cosmos cube's `space.levelForm` has `circuit`, and its concern `loop` lays one: an oval on the first
+  trail's land, the land flattened under it and the walk's heartbeat laid flat, a low wall down its middle, its start
+  the finish (`gameworld/lay-concerns.js` `loopSite`). Nothing grows on the track: the stage reserves it as it does a
+  building's ground (`_keepOut`), and its trail is laid without a landmark, pit or stream. Its laws: the line on the
+  land (its walk included), no steeper than 1 in 4, nothing standing on it (boxes or rock), the finish at the start.
+  Every trail kit holds them on the seeds swept.
+  - A stage whose reserved ground took the sakura's hero tree lays without that camera instead of failing.
+- **Rival drivers.** The `racer` rule is the drive rule with its stick moved by the road: it aims a few points along a
+  line, a lane off it, brakes into sharp bends at speed, and backs off when stuck. A rival drives the player's own car.
+- **A place.** `laps` takes `rivals` and `win`: each rival's passes counted on the bus by its own zones, a lead per
+  rival moving the place at every pass (a tie to whoever passed first), `Place n / N` on the HUD, the finish
+  `race:won` or `race:lost`, the best place kept beside the best time.
+- **The quick path.** `race` takes `track: 'trail' | 'loop'`, `laps` and `rivals` (with a ride). Rivals race round a
+  loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
+  new `kart-racer` genre.
+
 ### Menus: inventory, and the actions on what you hold
 
 - **Holders, transfers, views.** Every inventory action is a transfer of items between holders, guarded so it never

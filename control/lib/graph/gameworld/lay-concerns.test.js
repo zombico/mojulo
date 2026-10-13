@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { quickWorld, goalMechanics, farmCast, shootCast } from './quick.js';
+import { quickWorld, goalMechanics, farmCast, shootCast, raceCast, RACE } from './quick.js';
 import { resolveLevel, readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
-import { concernLaws, SPACING, DRIVABLE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight } from './lay-concerns.js';
+import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight } from './lay-concerns.js';
 import { guardPosts, defendCast, QUICK_GUARD } from './quick.js';
 import { stageEnds } from './levels.js';
 import { standBlocks } from '../playscape/terrain.js';
 import { composeLive } from '../worlds/controllable/compose.js';
+import { simLevel } from '../game/level-sim.js';
+import { composeMechanics } from '../game/mechanics.js';
+import { rideRule } from './ride.js';
 
 // THE CONCERNS LAID: the world is laid for what game it is, before any goal reads it. The ground first (a field made
 // level beside the start; a vehicle's ground eased), then the stage (the field where the plots go; a race's checkpoints
@@ -35,6 +38,19 @@ describe('the ground laid for the game', () => {
     W.levels.run.ground = { tune: { amplitude: 5 } };
     expect(resolveLevel(W, 'run').level.ground.tune.amplitude).toBe(5);
   });
+  it('a race against rivals lays a loop on the longest trail: the land flattened under it, its walk laid flat', () => {
+    const W = quick({ goal: 'race', ride: 'coupe', rivals: 3 }), R = resolveLevel(W, 'run');
+    expect(W.levels.run.walk.nodes.path.trail).toEqual({ run: RACE.run, beats: RACE.beats });
+    expect(R.laid).toEqual(['drivable', 'loop']);
+    expect(R.level.ground.tune).toEqual({ ...DRIVABLE, ...LOOP_TUNE });
+    expect(R.level.ground.edits).toEqual([{ op: 'flatten', at: expect.stringMatching(/^[A-Z]1:[A-Z]\d+$/), id: 'intent-loop' }]);
+    expect(R.loop.line[0]).toEqual(R.loop.start);
+    expect(R.loop.length).toBeGreaterThan(250);
+    expect(gameStages(W)[0].loop).toEqual(R.loop);
+    // a trail race, or a loop asked for by name
+    expect(resolveLevel(quick({ goal: 'race', ride: 'coupe', rivals: 3, track: 'trail' }), 'run').laid).toEqual(['drivable']);
+    expect(resolveLevel(quick({ goal: 'race', track: 'loop' }), 'run').laid).toEqual(['drivable', 'loop']);
+  });
   it('a world whose game lays nothing on the ground is as it was', () => {
     for (const W of [quick({ goal: 'reach' }), quick({ goal: 'shoot' }), quickWorld({ id: 'w', quick: { goal: 'collect' } })]) {
       const R = resolveLevel(W, 'run');
@@ -56,6 +72,34 @@ describe('the stage laid for the game, and its laws', () => {
     const q = { goal: 'race', ride: 'car' }, L = order(quick(q), q);
     const laws = Object.fromEntries(L.laws.map((l) => [l.law, l.holds]));
     expect(laws).toEqual({ 'checkpoints-spaced': true, 'grade-drivable': true });
+  });
+  it('a race round a loop: checkpoints come round to its start, the rivals on the grid ahead, the laws hold', () => {
+    const q = { goal: 'race', ride: 'coupe', rivals: 3 }, ride = { ref: 'r', rule: rideRule('coupe', 1) };
+    const L = order(quick(q), q, (ends) => raceCast(q, ends, ride), { ride });
+    expect(L.laws.filter((l) => !l.holds)).toEqual([]);
+    expect(L.laws.filter((l) => l.concern === 'loop').map((l) => l.law)).toEqual(['loop-on-the-land', 'loop-grade', 'loop-clear', 'finish-at-the-start']);
+    const m = L.args.manifest, laps = m.game.mechanics[0];
+    expect(laps).toMatchObject({ kind: 'laps', laps: RACE.laps, rivals: ['rival-1', 'rival-2', 'rival-3'], win: 2 });
+    expect(laps.checkpoints.length).toBeGreaterThanOrEqual(8);
+    expect(m.entities.map((e) => [e.id, e.rule.type])).toEqual([['car', 'drive'], ['rival-1', 'racer'], ['rival-2', 'racer'], ['rival-3', 'racer']]);
+    // the player last on the grid; the wall down the middle
+    const start = L.ends.loop.start, back = (e) => start[1] - e.transform.pos[1];
+    expect(back(m.entities[0])).toBeGreaterThan(Math.max(...m.entities.slice(1).map(back)) - 1e-9);
+    expect(m.blocks).toEqual([expect.objectContaining({ form: 'wall', length: L.ends.loop.median.length })]);
+    expect(LOOP.width).toBe(8);
+  });
+  it('the rivals drive the loop on the stage\'s own land, lap after lap, and the race is placed', () => {
+    const q = { goal: 'race', ride: 'coupe', rivals: 2, laps: 1 }, ride = { ref: 'r', rule: rideRule('coupe', 1) };
+    const W = quick(q), st = gameStages(W)[0], ends = stageEnds(st.manifest);
+    const L = stageLevelOrder(readGameworld(W), st, { ref: 'x', goal: (e) => goalMechanics(q, e), ride, extra: (e) => raceCast(q, e, ride) });
+    const m = L.args.manifest, mech = composeMechanics(m.game.mechanics, { player: 'car' });
+    const S = simLevel({ entities: m.entities.map((e) => ({ ...e, body: { type: 'none' } })), events: mech.events, colliders: [...ends.colliders, ...standBlocks(m.blocks).colliders] }, { ground: (p) => ends.surface(p[0], p[1]) ?? 0 });
+    S.run(30);
+    // the player sat still: both rivals over the line, round, and over it again; the player third
+    expect(S.world.byId['rival-1'].laps).toBeGreaterThanOrEqual(2);
+    expect(S.world.byId['rival-2'].laps).toBeGreaterThanOrEqual(2);
+    expect(S.bus.vars.__place_0).toBe(3);
+    expect(S.bus.log.some((r) => r.type === 'laps:done')).toBe(false);
   });
   it('a shooter\'s foes each have cover by them, from the world\'s cover concern', () => {
     const q = { goal: 'shoot', foes: 3 }, L = order(quick(q), q, (ends) => shootCast(q, ends, 'fig'));

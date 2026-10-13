@@ -330,6 +330,32 @@ describe('unseen, laps and score on the bus', () => {
     expect(s.vars.__race_over_0).toBe(1);
   });
 
+  it('laps against rivals: each rival\'s passes counted, the place moved at every pass, the finish won or lost by it', () => {
+    const cps = [{ at: [10, 0, 0] }, { at: [20, 0, 0] }, { at: [0, 0, 0] }];
+    const c = composeMechanics([{ kind: 'laps', checkpoints: cps, laps: 1, rivals: ['rival-1', 'rival-2'], win: 2 }], ctx());
+    expect(c.on).toEqual({ 'race:won': { end: 'success' }, 'race:lost': { end: 'fail' } });
+    expect(c.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
+    expect(c.events.sources.filter((z) => z.zone.startsWith('rcp_')).map((z) => z.watch)).toEqual(['rival-*', 'rival-*', 'rival-*']);
+    const me = (j) => ({ type: 'enter', zone: `cp_0_${j}`, entity: 'hero' }), them = (r, j) => ({ type: 'enter', zone: `rcp_0_${j}`, entity: `rival-${r}` });
+    // rival 1 takes the first checkpoint: it leads; the player passes it at the second; a tie goes to who passed first
+    let s = run(c, [them(1, 0)]);
+    expect(s.vars.__place_0).toBe(2);
+    s = run(c, [them(1, 0), me(0)]);
+    expect(s.vars.__place_0).toBe(2);
+    s = run(c, [them(1, 0), me(0), me(1)]);
+    expect(s.vars.__place_0).toBe(1);
+    // out of order counts for no rival either
+    s = run(c, [them(2, 1), them(2, 2)]);
+    expect(s.vars.__place_0).toBe(1);
+    // both rivals home first: third, and lost; one ahead: second, and won
+    s = run(c, [them(1, 0), them(1, 1), them(1, 2), them(2, 0), them(2, 1), them(2, 2), me(0), me(1), me(2)]);
+    expect([s.vars.__place_0, types(s).includes('race:lost'), types(s).includes('race:won')]).toEqual([3, true, false]);
+    s = run(c, [them(1, 0), them(1, 1), them(1, 2), them(2, 0), me(0), me(1), me(2)]);
+    expect([s.vars.__place_0, types(s).includes('race:won')]).toEqual([2, true]);
+    // alone, a race lowers as it did
+    expect(composeMechanics([{ kind: 'laps', checkpoints: cps }], ctx()).on).toEqual({ 'laps:done': { end: 'success' } });
+  });
+
   it('unseen ends on the first sighting, or counts to its alarms', () => {
     const one = composeMechanics([{ kind: 'unseen' }, { kind: 'reach-exit', at: [9, 0, 0] }], ctx());
     expect(one.on.spotted).toEqual({ end: 'fail' });
