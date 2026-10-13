@@ -2034,6 +2034,21 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
   detail is the move, not a bigger print. Any solid row takes `ask` by an `update_sketch` patch at `/ask`, a
   character included.
 
+### Test tiers: the critical tier quick again
+
+`npm run test:critical` had taken in the game and world suites as they landed under `lib/mcp/tools`, and the
+slowest of them walk every level of a generated world in headless Chrome, so one file set the tier's floor at
+several minutes. They move to an e2e tier of their own.
+
+- **`npm run test:e2e`** (`vitest.e2e.config.js`): whole worlds made through the real handlers (`design_game`,
+  its quick genres) and games minted with `autoAudit: true` (a world bible's city level, buildings as levels).
+  Its `E2E` list is what the critical tier excludes. The suites stay in `npm test`, which CI runs. Run it before a
+  commit that touches the gameworld, city, game or structure kernels.
+- **The audit gate stays in critical** through its stubbed runner (`lib/graph/game/mechanics-audit.test.js`, with
+  `game-audit.test.js`): the orchestration is checked in milliseconds, the real walk in the e2e tier.
+- **A guard** (`lib/mcp/test-tiers.test.js`): the e2e suites stay in `npm test`, and no critical-tier suite mints
+  with `autoAudit: true` without injecting a stub `runTraversal`.
+
 ## [3.1.0] - 2026-10-10
 
 ### Drawer alignment: the agent supplies the words, the server the rest
