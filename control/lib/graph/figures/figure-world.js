@@ -30,6 +30,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { figureRigSamples, figureWorldCamera, animalWorldFaces, animalWorldCamera } from '../polygonizer/figure-render.js';
+import { motionSeconds } from '../polygonizer/figure-posing.js';
 import { atlasLayout, remapFacesToAtlas } from '../polygonizer/skin-atlas.js';
 import { facesToSplats } from '../polygonizer/field-splats.js';
 import { skinDir } from '../polygonizer/skin-store.js';
@@ -90,6 +91,10 @@ export function assembleFigureScene(manifest = {}, ctx = {}) {
     targetH: null,                       // figure-render output is already world-scaled
   });
   rig.embodies = 'body';                 // the static face group below IS this body at rest
+  // a motion that names its loop in seconds (a stamped recipe) exports its clip at that designed duration (scene-gltf `s`);
+  // a bare motion keeps the runtime's one cycle a second
+  const secs = motionSeconds(manifest.motion);
+  if (secs && rig.clips && rig.clips.forward) rig.clips.forward = { ...rig.clips.forward, s: secs };
   if (ctx.tpose) rig.tpose = { rebuilt: true };   // rested in the T-pose already (the export's mold skips it)
   // backdrop follows the /svg setup resolution (renderFigureWorldFrames' convention:
   // a transparent still falls back to the dark world stage).

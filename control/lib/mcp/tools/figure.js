@@ -16,7 +16,7 @@ import path from 'node:path';
 import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
-import { renderFigureToSvg, renderFigureFrames, figureIsAnimated, figurePatternReport, FIGURE_VIEWS } from '@/lib/graph/polygonizer/figure-render';
+import { renderFigureToSvg, renderFigureFrames, figureIsAnimated, figurePatternReport, FIGURE_VIEWS, motionTiming } from '@/lib/graph/polygonizer/figure-render';
 import { stampMotion } from '@/lib/graph/polygonizer/figure-posing';
 import { EMOTE_NAMES } from '@/lib/graph/polygonizer/figure-emotes';
 import { GARMENTS, validateGarmentSpec } from '@/lib/graph/polygonizer/figure-garments';
@@ -119,8 +119,9 @@ export async function createFigureHandler(input) {
     const okSpec = motion && typeof motion === 'object'
       && (typeof motion.walk === 'object' || typeof motion.gait === 'object'
         || typeof motion.sprint === 'object' || typeof motion.run === 'object' || Array.isArray(motion.keyframes)
+        || (typeof motion.wave === 'object' && motion.wave !== null)
         || (typeof motion.emote === 'string' && EMOTE_NAMES.includes(motion.emote)));
-    if (!okString && !okSpec) throw new Error(`\`motion\` must be 'walk' | 'sprint' | 'wave', an emote name (${EMOTE_NAMES.join('/')}), { walk: {…dials} }, { sprint: {…dials} }, { emote, intensity? }, or { keyframes: [pose, …] } (or null)`);
+    if (!okString && !okSpec) throw new Error(`\`motion\` must be 'walk' | 'sprint' | 'wave', an emote name (${EMOTE_NAMES.join('/')}), { walk: {…dials} }, { sprint: {…dials} }, { wave: { seconds, waves, swing } }, { emote, intensity? }, or { keyframes: [pose, …] } (or null)`);
     // a gait is stored BY VALUE, every dial of the walk (or run) as it is minted now (figure-posing.js stampMotion), so
     // tuning the mint table later never moves this figure; a cast preset resolves the same way above
     motion = stampMotion(motion);
@@ -163,8 +164,8 @@ export async function createFigureHandler(input) {
   const wantGif = animate === undefined ? figureIsAnimated(manifest) : (animate !== false && figureIsAnimated(manifest));
   if (wantGif) {
     try {
-      const frames = (typeof animate === 'object' && animate.frames) || 30;
-      const fps = (typeof animate === 'object' && animate.fps) || 18;
+      // a stamped motion plays its loop in real seconds; an explicit animate { frames, fps } wins (motionTiming)
+      const { frames, fps } = motionTiming(manifest.motion, animate);
       const dir = outcomeDirFor(sketch.ref);
       await fs.mkdir(dir, { recursive: true });
       // GIF backdrop follows the setup (transparent GIFs aren't supported, so a
@@ -245,12 +246,13 @@ export async function emoteFigureHandler(input) {
     });
   }
 
-  const frames = (typeof animate === 'object' && animate.frames) || 30;
-  const fps = (typeof animate === 'object' && animate.fps) || 18;
+  // the side GIF is made now, so it plays the emote as minted now (its loop in real seconds: figure-posing.js EMOTE_MINT)
+  const timed = stampMotion(motion);
+  const { frames, fps } = motionTiming(timed, animate);
   const dir = outcomeDirFor(src.ref);
   await fs.mkdir(dir, { recursive: true });
   const gifBg = (m.setup && FIGURE_SETUPS[m.setup]?.bg) || '#eef1f4';
-  const gifManifest = { ...m, motion, ...(view !== undefined && view !== null ? { view } : {}) };
+  const gifManifest = { ...m, motion: timed, ...(view !== undefined && view !== null ? { view } : {}) };
   await encodeGif(renderFigureFrames(gifManifest, frames), path.join(dir, `emote-${emote}.gif`), { width: 480, fps, bg: gifBg, loop: 0 });
   return {
     ok: true,

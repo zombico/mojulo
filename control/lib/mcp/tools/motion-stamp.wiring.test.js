@@ -10,7 +10,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createFigureHandler } from './figure.js';
 import { updateSketchHandler } from './sketches.js';
 import { mintSolidHandler } from './mint-solid.js';
-import { WALK_MINT } from '@/lib/graph/polygonizer/figure-posing.js';
+import { WALK_MINT, WAVE_MINT, EMOTE_MINT } from '@/lib/graph/polygonizer/figure-posing.js';
 import { MOTION_GAITS } from '@/lib/graph/polygonizer/hero-motion.js';
 
 beforeEach(() => { closeDb(); });
@@ -19,6 +19,13 @@ describe('gaits are stored by value where they are authored', () => {
   it('create_figure stores a walk with every dial of the mint table', async () => {
     await createFigureHandler({ title: 'Walker', ref: 'ms-walk', motion: { walk: { lean: 0.1 } }, animate: false });
     expect(SketchRepository.getByRef('ms-walk').manifest.motion).toEqual({ walk: { ...WALK_MINT, lean: 0.1 } });
+  });
+
+  it('create_figure stores the wave and the bow with their loop in seconds', async () => {
+    await createFigureHandler({ title: 'Waver', ref: 'ms-wave', motion: 'wave', animate: false });
+    expect(SketchRepository.getByRef('ms-wave').manifest.motion).toEqual({ wave: { ...WAVE_MINT } });
+    await createFigureHandler({ title: 'Bower', ref: 'ms-bow', motion: 'bow', animate: false });
+    expect(SketchRepository.getByRef('ms-bow').manifest.motion).toEqual({ emote: 'bow', ...EMOTE_MINT.bow });
   });
 
   it('update_sketch stamps a walk an edit gives a figure, and leaves a walk an edit did not touch as stored', async () => {

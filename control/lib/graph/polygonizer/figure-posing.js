@@ -613,8 +613,21 @@ export function performance(move, { frames = 30, loop = true, exaggerate = 1, an
 // local motion-capture comparison cross-checks them):
 // - stepWidth 0.05 — the feet land about 8 cm apart, not hip-width (23 cm): the body then shifts about 8 cm side to
 //   side over each stance foot (it shifted 29 cm), the waddle gone with no change to the balance solve.
-export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05 });
-export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS });
+// - seconds — one stride in real time (a gait dial the pose ignores; the GIF and the exported clip play at it).
+//   A walk's stride takes about 1.1 s (110 steps a minute), a run's about 0.7 s; a bare gait plays one stride per
+//   GIF loop (1.67 s at 30 frames, 18 fps), a sad walk's pace.
+export const WALK_MINT = Object.freeze({ ...WALK_DEFAULTS, stepWidth: 0.05, seconds: 1.1 });
+export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS, seconds: 0.7 });
+// The wave (figure-render.js waveMotion) as minted now: one loop of `seconds` (hand from the hip, waving, back), the
+// hand swept side to side `waves` times at an even pace (about 1.9 a second inside the wave, people wave at 0.8 … 2;
+// the frozen wave flutters 5.4 times in 1.67 s, accelerating, 6 cm wide), `swing` degrees each way at the shoulder
+// (the hand travels about 17 cm, a normal wave about 18).
+export const WAVE_MINT = Object.freeze({ seconds: 3.2, waves: 2.8, swing: 50 });
+// Emotes as minted now: the loop length in seconds. The bow's four even beats (down, hold, up, rest) then take about
+// 1 s each: 0.65 s going down and coming up, 1.35 s held (people: 0.5 … 1.4 s down, 0.5 … 1.3 s held; the frozen bow
+// is down and up in 0.28 s). Its beats are even, so it rises as fast as it bows, where people rise a little slower.
+// An emote not listed keeps the GIF loop.
+export const EMOTE_MINT = Object.freeze({ bow: Object.freeze({ seconds: 4.2 }) });
 
 /**
  * A motion spec as it is STORED when authored: a gait by name or a partial gait gets every dial of its mint table
@@ -625,12 +638,29 @@ export const SPRINT_MINT = Object.freeze({ ...SPRINT_DEFAULTS });
 export function stampMotion(spec) {
   if (spec === 'walk') return { walk: { ...WALK_MINT } };
   if (spec === 'sprint' || spec === 'run') return { sprint: { ...SPRINT_MINT } };
+  if (spec === 'wave') return { wave: { ...WAVE_MINT } };
+  if (typeof spec === 'string' && EMOTE_MINT[spec]) return { emote: spec, ...EMOTE_MINT[spec] };
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return spec;
+  if (spec.wave && typeof spec.wave === 'object') return { ...spec, wave: { ...WAVE_MINT, ...spec.wave } };
+  if (typeof spec.emote === 'string' && EMOTE_MINT[spec.emote]) return { ...EMOTE_MINT[spec.emote], ...spec };
   const walkKey = spec.walk ? 'walk' : spec.gait ? 'gait' : null;
   if (walkKey && typeof spec[walkKey] === 'object') return { ...spec, [walkKey]: { ...WALK_MINT, ...spec[walkKey] } };
   const runKey = spec.sprint ? 'sprint' : spec.run ? 'run' : null;
   if (runKey && typeof spec[runKey] === 'object') return { ...spec, [runKey]: { ...SPRINT_MINT, ...spec[runKey] } };
   return spec;
+}
+
+/**
+ * How long one loop of a STAMPED motion takes, in real seconds, or null for a motion that names no time (a bare gait,
+ * a bare wave, an emote with no `seconds`: those keep the GIF's loop). A gait loop is `cadence` strides.
+ */
+export function motionSeconds(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const g = [spec.walk, spec.gait, spec.sprint, spec.run].find((x) => x && typeof x === 'object');
+  if (g) return Number.isFinite(g.seconds) && g.seconds > 0 ? g.seconds * (Number.isFinite(g.cadence) && g.cadence > 0 ? g.cadence : 1) : null;
+  if (spec.wave && typeof spec.wave === 'object') return Number.isFinite(spec.wave.seconds) && spec.wave.seconds > 0 ? spec.wave.seconds : null;
+  if (typeof spec.emote === 'string') return Number.isFinite(spec.seconds) && spec.seconds > 0 ? spec.seconds : null;
+  return null;
 }
 
 const isMotionSpec = (s) => s === 'walk' || s === 'sprint' || s === 'run' || typeof s === 'function'

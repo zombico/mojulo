@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT } from './figure-posing.js';
+import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
 import { stampAuthoredMotion, stampHero } from './motion-stamp.js';
 
@@ -21,9 +21,16 @@ describe('stampMotion — a gait stored by value', () => {
     expect(stampMotion({ run: { lean: 0.4 } }).run).toEqual({ ...SPRINT_MINT, lean: 0.4 });
   });
 
+  it('stamps the wave and a timed emote, keeping what the author set', () => {
+    expect(stampMotion('wave')).toEqual({ wave: { ...WAVE_MINT } });
+    expect(stampMotion({ wave: { waves: 4 } }).wave).toEqual({ ...WAVE_MINT, waves: 4 });
+    expect(stampMotion('bow')).toEqual({ emote: 'bow', ...EMOTE_MINT.bow });
+    expect(stampMotion({ emote: 'bow', intensity: 1.3, seconds: 5 })).toEqual({ emote: 'bow', intensity: 1.3, seconds: 5 });
+  });
+
   it('passes every other motion through untouched', () => {
     const keys = { keyframes: [{}, { kneeL: 20 }] };
-    for (const m of ['wave', 'bow', { emote: 'nod' }, keys, null, undefined]) expect(stampMotion(m)).toBe(m);
+    for (const m of ['nod', 'stretch', { emote: 'nod' }, keys, null, undefined]) expect(stampMotion(m)).toBe(m);
   });
 
   it('a stamped walk renders the mint table; a bare one renders the frozen defaults', () => {
