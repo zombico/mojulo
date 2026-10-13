@@ -8,6 +8,7 @@
  *     elements?: { primary?, secondary? } | '<word>' | ['<word>', '<word>'],   // element words (element-words.js):
  *                                      // the glow and the stones; the world's hero direction's when left out
  *     tone?,                           // a tone preset (era/tone.js) its values are coloured by; the kit's ramps if none
+ *     asymmetry?,                      // how lopsided its adornment is, 0–1 or a word (ASYMMETRY_WORDS); the style's if none
  *     team?,                           // the team colour, '#rrggbb': a MARKER, painted as a mask so a placement or an
  *                                      // engine may pass its own; the civilization's place in TEAM_COLOURS if none
  *   }
@@ -50,7 +51,9 @@ export const TEAM_COLOURS = Object.freeze(['#c8322b', '#2d5fc4', '#2a9d8f', '#7b
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const KEYS = ['style', 'motif', 'elements', 'tone', 'team'];
+const KEYS = ['style', 'motif', 'elements', 'tone', 'team', 'asymmetry'];
+/** Words for how lopsided a civilization's technology is. */
+export const ASYMMETRY_WORDS = Object.freeze({ symmetric: 0, symmetrical: 0, balanced: 0.15, asymmetric: 0.7, asymmetrical: 0.7, lopsided: 0.85, ramshackle: 0.9 });
 const wordsOf = (s) => String(s).toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean);
 /** The motif a few words name: the first word any motif knows. */
 export function motifOf(words) {
@@ -81,6 +84,11 @@ export function readTechDirection(D, at = 'technology.direction') {
   }
   if (D.tone !== undefined) { if (!TONE_PRESETS[D.tone]) throw new Error(`gameworld: ${at}.tone '${D.tone}' is not a tone (${TONE_IDS.join(', ')})`); out.tone = D.tone; }
   if (D.team !== undefined) { if (typeof D.team !== 'string' || !HEX.test(D.team)) throw new Error(`gameworld: ${at}.team is a colour, '#rrggbb'`); out.team = D.team.toLowerCase(); }
+  if (D.asymmetry !== undefined) {
+    const a = typeof D.asymmetry === 'string' ? ASYMMETRY_WORDS[D.asymmetry] : D.asymmetry;
+    if (!(Number.isFinite(a) && a >= 0 && a <= 1)) throw new Error(`gameworld: ${at}.asymmetry is 0–1, or a word (${Object.keys(ASYMMETRY_WORDS).join(', ')})`);
+    out.asymmetry = a;
+  }
   return out;
 }
 
@@ -134,6 +142,7 @@ export function resolveTechDirection(G, cid) {
   const tone = D.tone ? set('tone', D.tone, 'said') : set('tone', null, 'the kit\'s ramps');
   const civTeam = TEAM_COLOURS[G.civIds.indexOf(cid) % TEAM_COLOURS.length];
   const team = D.team ? set('team', D.team, 'said', civTeam) : set('team', civTeam, `the civilization's place (${G.civIds.indexOf(cid) + 1} of ${G.civIds.length})`);
+  const asymmetry = D.asymmetry !== undefined ? set('asymmetry', D.asymmetry, 'said', TECH_STYLES[style].asymmetry) : set('asymmetry', TECH_STYLES[style].asymmetry ?? 0, `its style (${style})`);
   const ranks = {};
   for (const list of LISTS) for (const [id, t] of Object.entries(T[list] ?? {})) {
     if (!t.block) continue;
@@ -144,7 +153,7 @@ export function resolveTechDirection(G, cid) {
   }
   // what it is made of and what drives it (mech-kit.js): its finish's, until the world says its own
   const setting = set('setting', SETTING_BY_FINISH[T.finish ?? 'alloy'] ?? DEFAULT_SETTING, `its finish (${T.finish ?? 'alloy'})`);
-  return { style, camera: techCamera(G), motif, motifRead: MOTIFS[motif].read, elements, tone, team, setting, ranks, from, ledger };
+  return { style, camera: techCamera(G), motif, motifRead: MOTIFS[motif].read, elements, tone, team, asymmetry, setting, ranks, from, ledger };
 }
 
 /** The team colour a placement shows: a passed marker wins over the civilization's. */

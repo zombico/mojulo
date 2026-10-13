@@ -72,11 +72,13 @@ export function gearStyle(G, cid, { motif } = {}) {
   card.id = `${cid}-${m}`;
   card.roles = { ...card.roles, ...(MADE_ROLES[D.setting.made] ?? {}), wrap: ['matte', D.team] };
   card.language = { ...card.language, shield: { ...(card.language.shield ?? {}), board: ['matte', D.team] } };
+  // a lopsided civilization's blades are single-edged, a spine on one side; its spiked ones barbed
+  if (D.asymmetry >= 0.35) card.edge = { ...(card.edge ?? {}), single: true, ...(D.asymmetry >= 0.7 && m === 'spiked' ? { barbs: 3 } : {}) };
   const stone = ELEMENT_WORDS[D.elements.primary]?.gem;
   if (stone && CRYSTAL_GEMS.includes(stone)) card.gem = { gem: stone, cut: card.gem?.cut ?? 'brilliant', glow: Math.max(card.gem?.glow ?? 0, 0.35) };
   const errs = validateStyleCard(card, card.id);
   if (errs.length) throw new Error(`world gear: ${cid}'s card breaks the equipment kernel: ${errs.join('; ')}`);
-  return { card, from: { base: `${base} (its motif, ${m}${motif ? ', turned' : ''})`, roles: `its setting (${D.setting.made})`, gem: stone ? `its element (${D.elements.primary})` : 'none', team: `its team colour (${D.team})` } };
+  return { card, from: { base: `${base} (its motif, ${m}${motif ? ', turned' : ''})`, roles: `its setting (${D.setting.made})`, gem: stone ? `its element (${D.elements.primary})` : 'none', team: `its team colour (${D.team})`, edge: D.asymmetry >= 0.35 ? `single-edged: its asymmetry (${D.asymmetry})` : 'its card\'s' } };
 }
 
 const motifOfBuild = (b) => (typeof b.style === 'string' ? MOTIF_OF_CARD[b.style] : MOTIF_OF_CARD[b.style?.id?.split('-').pop()] ?? b.style?.id?.split('-').pop()) ?? 'riveted';

@@ -81,6 +81,7 @@ function craftHtml(G, cid, kit, seed, stamp = () => '') {
 <dt>motif</dt><dd>${esc(D.motif)}: ${esc(MOTIFS[D.motif].read)} <span class="muted">(${esc(D.from.motif)})</span></dd>
 <dt>elements</dt><dd>${D.elements.primary || D.elements.secondary ? [D.elements.primary, D.elements.secondary].filter(Boolean).map(el).join(' · ') : '—'} <span class="muted">(${esc(D.from.elements)})</span></dd>
 <dt>tone</dt><dd>${esc(D.tone ?? '—')} <span class="muted">(${esc(D.from.tone)})</span></dd>
+<dt>asymmetry</dt><dd>${esc(D.asymmetry)} <span class="muted">(${esc(D.from.asymmetry)}: one flank carries more, its weapon the counterweight)</span></dd>
 <dt>team</dt><dd><span style="display:inline-block;width:.9em;height:.9em;border-radius:2px;vertical-align:-1px;margin-right:4px;border:1px solid var(--rule);background:${esc(D.team)}"></span>${esc(D.team)} <span class="muted">(${esc(D.from.team)}; a placement may pass its own)</span></dd>
 </dl>${D.ledger.length ? `<ul class="ledger">${D.ledger.map((o) => `<li><b>${esc(o.key)}</b> ${show(o.local)} <span>default: ${show(o.world)}</span></li>`).join('')}</ul>` : ''}</div>` : '';
   return dir + Object.entries(CRAFT_HEADS).filter(([k]) => T[k] && Object.keys(T[k]).length).map(([k, head]) => `<div class="tech craft-${k}"><h4>${head} · ${esc(T.finish)}</h4><div class="things">${Object.entries(T[k]).map(([id, t]) => {

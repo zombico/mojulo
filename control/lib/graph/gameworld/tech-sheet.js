@@ -16,7 +16,7 @@ import { bakeCorners } from './tech-shading.js';
 /** Viewpoints, as a direction from the thing toward the eye (z up, the thing's nose along +x). */
 export const SHEET_EYES = Object.freeze({ front: [1, -0.85, 0.5], rear: [-1, -0.9, 0.62], side: [0.15, -1, 0.12] });
 /** The tint a group is drawn in (its value scales it): a neutral grey, the glass dark blue, the accent warm. */
-export const GROUP_TINT = Object.freeze({ 'str:accent': [255, 200, 90], 'tech:glass': [70, 110, 140], 'tech:light': [240, 230, 200] });
+export const GROUP_TINT = Object.freeze({ 'tech:team': [200, 50, 43], 'str:accent': [255, 200, 90], 'tech:glass': [70, 110, 140], 'tech:light': [240, 230, 200] });
 const NEUTRAL = [176, 168, 150], BACK = 236;
 
 const hex = (rgb) => '#' + rgb.map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join('');

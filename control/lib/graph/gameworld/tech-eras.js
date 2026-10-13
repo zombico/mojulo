@@ -43,6 +43,9 @@ export const TECH_STYLES = Object.freeze({
     // held to how far its outline strays from the true curve (px), the only place its polygons still show
     crease: 40,
     outlinePx: 1.5,
+    // how lopsided its adornment is (0 symmetric … 1 one flank carries it all): Warcraft's units lean to one side, a big
+    // plate here and a weapon there, and read the livelier for it
+    asymmetry: 0.4,
   }),
 });
 export const TECH_STYLE_IDS = Object.freeze(Object.keys(TECH_STYLES));

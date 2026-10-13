@@ -13,16 +13,6 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### Rig clips keep the palette
-
-- **A rigged solid's clips are coloured like its rest pose.** The World page's clip preview and the skinned GLB used
-  to colour each face of the packed rig figure by its part's `tint` alone. Every group coloured only by the recipe
-  `palette` (a detailed head's cranium and jaw, horns, pinned fur or scale tiles, belts and satchels) turned grey the
-  moment a clip played. `packLayeredRig` now takes the recipe `palette` and resolves a face as the static solid does:
-  its group's palette entry, else its part's tint, else neutral grey. Animals and bugs get the same fix. A recipe
-  with tinted parts and no palette packs byte for byte as before. Rigged recipes with a palette re-pin their figures
-  and exports, among them the dragon body and the landmark hero.
-
 ### The play shell: quick games end to end, and a playtest for the big loop
 
 - **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →
@@ -117,6 +107,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   detail piece that stands in the silhouette moves into the cage once the design camera can resolve it.
 - The body plans' wheels and tracks are built by the kit. A technology direction carries a `setting`
   (`{ made, driven }`); until the setting read lands, it defaults from the civilization's finish.
+- **Asymmetry: the Warcraft lean.** A technology direction says how lopsided its civilization's technology is
+  (`asymmetry`, 0–1, or a word: symmetric, balanced, asymmetric, lopsided, ramshackle). The style supplies it
+  otherwise: 0.4 for wc3.
+  - A thing leans to one side: away from a weapon on its flank (the weapon is the counterweight), else the side its
+    words fall to, always the same.
+  - Its lead flank's pieces grow and the other's shrink, what stands on top steps toward the lead, and a weapon
+    steps the other way.
+  - Past half, its armour goes to the lead flank alone.
+  - Its team colour is designed into the surface, never flown: a livery decal wrapped from the core's own section.
+    When it leans, it is a sash over the back and down the open flank, so armour and colour balance each other;
+    when even, a band all round.
+  - A lopsided civilization's blades are single-edged.
+  - The bible's direction card shows the asymmetry and where it came from.
 - **The `design-tech-family` catalyst, and a shaded contact sheet to judge by.**
   - **The catalyst** codifies how the combined machines were grown: read the brief, pick the cheapest entry (a
     dress, a variant, a row, and only then a part kind in code), depict first, then hold it to the laws, sweep it,

@@ -53,6 +53,7 @@ export const ADORNMENT_PIECES = Object.freeze({
   rivets: { read: 'a strip of rivets along a plate (riveted)', serves: [], role: 'trim' },
   turret: { read: 'a gun on a ring: it fights', serves: ['strike'], role: 'weapon', stands: true },
   rack: { read: 'weapons stood in a rack on its flank: it fights, with no deck for a gun', serves: ['strike'], role: 'weapon', stands: true },
+  livery: { read: 'its team colour painted into its surface: a sash wrapped over its back and down its open flank, the one its armour leaves (a band all round when it is even), or a panel on that face', serves: [], role: 'trim' },
   dish: { read: 'a dish on an arm: it listens', serves: ['sense'], role: 'sensor', stands: true },
   lantern: { read: 'a lantern room under its cap: it lights', serves: ['light'], role: 'lamp' },
   bands: { read: 'bands round a shaft: its height read in steps', serves: [], role: 'trim' },
@@ -61,7 +62,7 @@ export const ADORNMENT_PIECES = Object.freeze({
 });
 
 // the values a piece takes on its group: a plate a band off the body, glass dark, the status light the accent
-const LOOK = { plate: ['tech:trim', 0.5], visor: ['tech:glass', 0.12], eye: ['tech:glass', 0.15], 'eye-ring': ['tech:frame', 0.38], vents: ['tech:frame', 0.3], pipes: ['tech:cable', 0.3], antenna: ['tech:frame', 0.42], tip: ['str:accent', 0.9], spikes: ['tech:trim', 0.62], fins: ['tech:skin', 0.82], rivets: ['tech:frame', 0.35], turret: ['tech:body', 0.66], barrel: ['tech:frame', 0.4], dish: ['tech:skin', 0.86], crates: ['tech:skin', 0.7], lantern: ['tech:light', 0.9], cap: ['tech:skin', 0.82], gallery: ['tech:trim', 0.5], bands: ['tech:trim', 0.5] };
+const LOOK = { livery: ['tech:team', 0.6], plate: ['tech:trim', 0.5], visor: ['tech:glass', 0.12], eye: ['tech:glass', 0.15], 'eye-ring': ['tech:frame', 0.38], vents: ['tech:frame', 0.3], pipes: ['tech:cable', 0.3], antenna: ['tech:frame', 0.42], tip: ['str:accent', 0.9], spikes: ['tech:trim', 0.62], fins: ['tech:skin', 0.82], rivets: ['tech:frame', 0.35], turret: ['tech:body', 0.66], barrel: ['tech:frame', 0.4], dish: ['tech:skin', 0.86], crates: ['tech:skin', 0.7], lantern: ['tech:light', 0.9], cap: ['tech:skin', 0.82], gallery: ['tech:trim', 0.5], bands: ['tech:trim', 0.5] };
 const GREY = (v) => { const g = Math.round(v * 255).toString(16).padStart(2, '0'); return `#${g}${g}${g}`; };
 
 // sockets by what they are, never by name: the face they are on and the mass they are on
@@ -78,16 +79,19 @@ function crownMass(c) {
  * back, then a landmark's dressing, then the motif's own. Rules read sockets by their face and their mass, functions,
  * the rank and the motif: no form is named.
  */
-export function suggestAdornment(c, t, { motif = 'smooth', rank = 'interactable' } = {}) {
+const pulledOf = (c) => (c.mechanisms ?? []).length > 0 && c.mechanisms.every((m) => m.driven === 'muscle');
+export function suggestAdornment(c, t, { motif = 'smooth', rank = 'interactable', asymmetry = 0, lead = 1 } = {}) {
   const picks = [], add1 = (piece, s, why) => { if (s && !picks.some((p) => p.piece === piece && p.socket === s.id)) picks.push({ piece, socket: s.id, serves: ADORNMENT_PIECES[piece].serves, why }); };
   // a thing pulled or pedalled (every mechanism it runs on driven by muscle) is no machine: it has no face, and it does
   // not breathe
-  const pulled = (c.mechanisms ?? []).length > 0 && c.mechanisms.every((m) => m.driven === 'muscle');
+  const pulled = pulledOf(c);
   const many = { filler: 0, prop: 1, interactable: 2, focus: 3 }[rank], moves = c.functions.includes('move') && !pulled, landmark = ['landmark', 'installation'].includes(t.block.tier) && !moves;
   const topmost = [...c.sockets].filter((x) => x.face === 'top').sort((a, b) => b.at[2] - a.at[2])[0];
   for (const f of c.promised) {
     if (f === 'guard') {
-      for (const s of onCore(c, 'side')) add1('plate', s, 'guard: promised by its words, on the core\'s flanks');
+      // lopsided past half: one flank's armour, the lead's; the promise is kept by it alone
+      const flanks = onCore(c, 'side'), near = flanks.filter((s) => Math.sign(s.normal[1]) === lead);
+      for (const s of asymmetry >= 0.5 && near.length ? near : flanks) add1('plate', s, asymmetry >= 0.5 && near.length ? 'guard: promised by its words, on its lead flank (lopsided)' : 'guard: promised by its words, on the core\'s flanks');
       if (many >= 2) for (const s of c.sockets.filter((x) => x.face === 'outer')) add1('plate', s, 'guard: promised by its words, on its limbs');
     } else if (f === 'strike') {
       // a gun on a ring needs a deck to turn on; a thing with none carries its weapons racked on its flank
@@ -115,6 +119,8 @@ export function suggestAdornment(c, t, { motif = 'smooth', rank = 'interactable'
     if (many >= 1 && c.dims?.w0 !== undefined && !c.dims.lattice) add1('bands', topmost, 'its shaft: bands that read its height in steps');
   }
   if (motif === 'riveted') for (const p of picks.filter((x) => x.piece === 'plate' && /side/.test(x.socket))) picks.push({ piece: 'rivets', socket: p.socket, serves: [], why: 'riveted: its plates are bolted on' });
+  // whose it is, painted into it: the team colour on a large zone that reads from above, lopsided when it leans
+  if (many >= 1 && !pulledOf(c)) add1('livery', onCore(c, 'top')[0] ?? topmost, asymmetry >= 0.3 ? `its team colour: a sash over its back and down its open flank, balancing its armour (asymmetry ${asymmetry})` : 'its team colour: a band all round');
   return picks;
 }
 /** The joints at a thing's rear that hang off its core: where hoses run to. */
@@ -123,14 +129,31 @@ export function suggestAdornment(c, t, { motif = 'smooth', rank = 'interactable'
 const LOUDER = Object.freeze({ filler: 'prop', prop: 'interactable', interactable: 'focus' });
 const rearJoints = (c) => c.joints.filter((j) => j.parent === 'core' && j.pivot[0] < -0.01 && !/^(pitch|crown)/.test(j.id) && j.range[1] - j.range[0] < 360);
 
-/** The pieces as monomers, each in its socket's frame. */
-export function adornManifest(c, picks, { motif = 'smooth', fit = () => 8 } = {}) {
+/**
+ * The side a thing leans to (y's sign: −1 left, +1 right). A weapon hung on a flank is the counterweight, so the thing
+ * leans away from it; else the side its words fall to (a stable choice, the same thing always the same way).
+ */
+export function leadSide(c, picks, words = '') {
+  const S = Object.fromEntries(c.sockets.map((s) => [s.id, s]));
+  const armed = picks.find((p) => ADORNMENT_PIECES[p.piece]?.role === 'weapon' && Math.abs(S[p.socket]?.normal?.[1] ?? 0) > 0.5);
+  if (armed) return { lead: -Math.sign(S[armed.socket].normal[1]), why: 'away from its weapon: the weapon is the counterweight' };
+  let h = 0;
+  for (const ch of String(words)) h = (h * 31 + ch.charCodeAt(0)) % 1000003;
+  return { lead: h % 2 ? 1 : -1, why: 'the side its words fall to' };
+}
+
+/** The pieces as monomers, each in its socket's frame. With `asymmetry` (0–1), the flank toward `lead` carries more
+ * (its pieces grown, the other flank's shrunk) and what stands on top steps toward it; a weapon steps the other way,
+ * to balance it. */
+export function adornManifest(c, picks, { motif = 'smooth', fit = () => 8, asymmetry = 0, lead = 1 } = {}) {
   const extrudes = [], lathes = [], sweeps = [], pieces = {}, n = { };
   const mono = (arr, spec, piece, role, look) => { const [group, value] = LOOK[look]; arr.push({ ...spec, group, tint: GREY(value) }); pieces[spec.id] = { piece, role, value }; };
   const S = Object.fromEntries(c.sockets.map((s) => [s.id, s])), scale = c.scale ?? 1;
   for (const p of picks) {
-    const s = S[p.socket], F = frame(s.normal), at = s.at;
-    let k = { small: 0.55, medium: 1, large: 1.3 }[s.size] * scale;
+    const s = S[p.socket], F = frame(s.normal), weapon = ADORNMENT_PIECES[p.piece]?.role === 'weapon', side = Math.abs(s.normal[1]) > 0.5 ? Math.sign(s.normal[1]) : 0;
+    // the lean: a flank grown or shrunk, a top piece stepped toward the lead (a weapon away from it)
+    const at = s.face === 'top' && asymmetry ? add(s.at, [0, (weapon ? -lead : lead) * asymmetry * (s.extent?.[0] ?? 1) * 0.35, 0]) : s.at;
+    let k = { small: 0.55, medium: 1, large: 1.3 }[s.size] * scale * (side && !weapon && asymmetry ? (side === lead ? 1 + 0.5 * asymmetry : 1 - 0.45 * asymmetry) : 1);
     const id = (x) => { n[x] = (n[x] ?? 0) + 1; return `${x}-${p.socket}${n[x] > 1 ? `-${n[x]}` : ''}`; };
     const onPlane = (pt, out = 0) => add(add(add(at, F.u, pt[0]), F.v, pt[1]), F.n, out);
     if (p.piece === 'plate' || p.piece === 'panel') {
@@ -163,6 +186,29 @@ export function adornManifest(c, picks, { motif = 'smooth', fit = () => 8 } = {}
       const b = onPlane([0, 0], 0);
       mono(lathes, { id: id('turret'), axisFrom: P(b), axisTo: P(add(b, F.n, 0.55 * k)), profile: [{ t: 0, radius: r3(0.75 * k) }, { t: 1, radius: r3(0.6 * k) }], samples: fit(0.75 * k), crossSections: 2 }, 'turret', 'mount', 'turret');
       mono(lathes, { id: id('barrel'), axisFrom: P(add(b, F.n, 0.3 * k)), axisTo: P(add(add(b, F.n, 0.35 * k), [1, 0, 0], 2 * k)), profile: [{ t: 0, radius: r3(0.14 * k) }, { t: 0.9, radius: r3(0.12 * k) }, { t: 1, radius: r3(0.17 * k) }], samples: fit(0.14 * k), crossSections: 3 }, 'turret', 'weapon', 'barrel');
+    } else if (p.piece === 'livery') {
+      // a decal wrapped round the core's own section, standing a hair off it: over the back and down the lead flank
+      // (`lead`), or all round when even; a panel on the lead face when the core is no loft along x
+      const core = c.manifest.lofts?.find((l) => l.id === 'core'), ax = core && [core.axisFrom, core.axisTo].map((q) => [q.x, q.y, q.z]);
+      if (core && Math.abs(ax[1][0] - ax[0][0]) > Math.abs(ax[1][2] - ax[0][2])) {
+        const mid = core.stations.reduce((a, b) => (Math.abs(b.t - 0.5) < Math.abs(a.t - 0.5) ? b : a)).profile.points, W = Math.max(...mid.map((q) => Math.abs(q[0])));
+        const L = ax[1][0] - ax[0][0], x0 = ax[0][0] + L * 0.28, x1 = x0 + L * 0.2;
+        // the run of the section the decal covers, contiguous round the outline
+        // the armour leans to the lead flank; the colour goes to the open one, so each balances the other
+        const on = mid.map(([u]) => asymmetry < 0.3 || u * -lead >= -0.12 * W);
+        let start = on.findIndex((v, i) => v && !on[(i - 1 + on.length) % on.length]);
+        const run = [];
+        if (start < 0) for (const q of mid) run.push(q);
+        else for (let i = 0; i < mid.length && on[(start + i) % mid.length]; i++) run.push(mid[(start + i) % mid.length]);
+        const grow = (q, f) => [r3(q[0] * f), r3(q[1] * f)];
+        // a sash is a thin crescent of the outline; a band all round, the outline itself grown a hair (its inside is the core's)
+        const ring = start < 0 ? run.map((q) => grow(q, 1.025)) : [...run.map((q) => grow(q, 1.025)), ...[...run].reverse().map((q) => grow(q, 1.004))];
+        mono(extrudes, { id: id('livery'), profile: { points: ring }, axisFrom: P([x0, ax[0][1], ax[0][2]]), axisTo: P([x1, ax[0][1], ax[0][2]]) }, 'livery', 'trim', 'livery');
+      } else {
+        const face = c.sockets.find((x) => x.face === 'side' && Math.sign(x.normal[1]) === -lead) ?? s, G2 = frame(face.normal), [ew, eh] = face.extent ?? [1, 1];
+        const pts = [[-ew * 0.25, -eh * 0.175], [ew * 0.25, -eh * 0.175], [ew * 0.25, eh * 0.175], [-ew * 0.25, eh * 0.175]], on2 = (pt, out) => add(add(add(face.at, G2.u, pt[0]), G2.v, pt[1]), G2.n, out);
+        mono(extrudes, { id: id('livery'), profile: { points: toProfile(pts) }, axisFrom: P(on2([0, 0], 0)), axisTo: P(on2([0, 0], 0.012)) }, 'livery', 'trim', 'livery');
+      }
     } else if (p.piece === 'rack') {
       // three hafts leaning back from a bracket on the flank, their heads past the outline
       mono(extrudes, { id: id('rack'), profile: { points: toProfile([[-0.35 * k, -0.06 * k], [0.35 * k, -0.06 * k], [0.35 * k, 0.06 * k], [-0.35 * k, 0.06 * k]]) }, axisFrom: P(onPlane([0, 0.1 * k], 0)), axisTo: P(onPlane([0, 0.1 * k], 0.1 * k)) }, 'rack', 'mount', 'plate');
@@ -201,20 +247,21 @@ export function adornManifest(c, picks, { motif = 'smooth', fit = () => 8 } = {}
  */
 export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', use = 'watched', picks: given, passes = 8 } = {}) {
   const motif = direction.motif ?? 'smooth', style = direction.style ?? 'wc3', camera = direction.camera ?? 'third-person';
-  const pxm = pxPerMetre(meetDistance(camera, t.block.tier, use)), limit = TECH_STYLES[style].facetPx;
+  const pxm = pxPerMetre(meetDistance(camera, t.block.tier, use)), limit = TECH_STYLES[style].facetPx, asymmetry = direction.asymmetry ?? TECH_STYLES[style].asymmetry ?? 0;
   const base = buildChassis(t, { kind, direction, rank, use });
-  let res = base.res, thick = { ...base.thick }, tuck = 1, extra = [], trim = 0, drop = [], out;
+  let res = base.res, thick = { ...base.thick }, tuck = 1, extra = [], trim = 0, drop = [], lean = null, out;
   const log = [];
   for (let p = 0; p < passes; p++) {
     const c = chassisManifest(t, { kind, motif, style, camera, use, setting: direction.setting, res, thick, tuck, drop }), { fit } = fitter(pxm, limit[1], res, TECH_STYLES[style].outlinePx);
     const read = (picks) => {
-      const A = adornManifest(c, picks, { motif, fit });
+      const A = adornManifest(c, picks, { motif, fit, asymmetry, lead: L0.lead });
+      lean = { amount: asymmetry, lead: L0.lead < 0 ? 'left' : 'right', why: L0.why };
       const manifest = { ...c.manifest, extrudes: [...(c.manifest.extrudes ?? []), ...A.extrudes], lathes: [...(c.manifest.lathes ?? []), ...A.lathes], sweeps: [...(c.manifest.sweeps ?? []), ...A.sweeps] };
       const pieces = { ...c.pieces, ...A.pieces }, faces = lowerChassis(manifest, pieces);
       return { manifest, pieces, faces, readout: techReadout(faces, { tier: t.block.tier, rank, use, camera, style }) };
     };
     // the proposal, less the `trim` it was asked to drop: the last suggested first, never what a promise asked for
-    const suggested = given ? null : suggestAdornment(c, t, { motif, rank }), keep = (list) => { let n = trim; return [...list].reverse().filter((x) => (n > 0 && !x.serves.some((f) => c.promised.includes(f)) ? (n--, false) : true)).reverse(); };
+    const L0 = leadSide(c, suggestAdornment(c, t, { motif, rank }), t.intent ?? t.variant), suggested = given ? null : suggestAdornment(c, t, { motif, rank, asymmetry, lead: L0.lead }), keep = (list) => { let n = trim; return [...list].reverse().filter((x) => (n > 0 && !x.serves.some((f) => c.promised.includes(f)) ? (n--, false) : true)).reverse(); };
     let picks = given ?? [...keep(suggested), ...extra.filter((e) => c.sockets.some((x) => x.id === e.socket))], r = read(picks);
     // under its rank's silhouette floor: what stands past the outline, by motif, until the floor is met
     const topmost = [...c.sockets].filter((x) => x.face === 'top').sort((a, b) => b.at[2] - a.at[2])[0];
@@ -232,7 +279,7 @@ export function buildAdorned(t, { kind, direction = {}, rank = 'interactable', u
     const laws = chassisLaws(r.faces, { ...c, functions }, readout).map((l) => (l.law === 'inverse-interest' ? { ...l, ok: readout.segments >= readout.segmentBand[0] && readout.segments <= readout.segmentBand[1], value: `${readout.segments} segments (${readout.segmentBand.join('–')})` } : l));
     const unshown = t.block.functions.filter((f) => !functions.includes(f));
     laws.push(unshown.length ? { law: 'promises-kept', ok: false, value: `promised and not shown: ${unshown.join(', ')}` } : { law: 'promises-kept', ok: true, value: c.promised.length ? `kept: ${c.promised.join(', ')}` : 'nothing promised' });
-    out = { ...c, ...r, picks, added: extra.map((e) => `${e.piece}@${e.socket}`), functions, laws, res, thick, tuck, held: laws.every((l) => l.ok) };
+    out = { ...c, ...r, picks, added: extra.map((e) => `${e.piece}@${e.socket}`), functions, laws, res, thick, tuck, asymmetry: lean, held: laws.every((l) => l.ok) };
     const failed = laws.filter((l) => !l.ok), entry = { pass: p + 1, res, tuck, triangles: readout.triangles, facetPx: readout.facetLaw.value, segments: readout.segments, failed: failed.map((l) => l.law) };
     log.push(entry);
     if (!failed.length || p === passes - 1) break;
