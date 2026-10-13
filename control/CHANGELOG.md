@@ -954,6 +954,52 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
   with tinted parts and no palette packs byte for byte as before. Rigged recipes with a palette re-pin their figures
   and exports, among them the dragon body and the landmark hero.
 
+### Model tiering: the cheapest model that does the work well
+
+- **A tier on an agent task.** An inference task may carry `tier`: `ride`, `fill`, `judge` or `design`
+  (`lib/agent-tasks/tiers.js`), how much judgment the answer needs. The core names tiers only, never a model. The
+  `pull_agent_task` manifest echoes it, and the `app_inference` principle records it beside the model that ran. An
+  unknown tier is dropped; a task without one behaves exactly as before.
+- **The Claude worker honours it.** The `claude-code-headless` runtime passes `--model` and `--effort` per tier
+  (`fill` haiku/low, `judge` sonnet/medium, `design` opus/high; `ride` haiku/low), so a subscriber's usage goes to
+  design and the rest runs light. An untiered task spawns the same command as before.
+- **A tier on every tool.** `lib/mcp/tool-tiers.js` gives each listed tool the tier its use needs (reads, lists and
+  exports ride; enum-and-card makers fill; recipe authors judge; `design_game`, `create_game`, `forge_plan`, `cook`,
+  `forge_publications`, `synthesize_abstract`, `verify_machina` and `mint_catalyst` design). A host whose profile
+  declares `capabilities.modelTiers` (Claude Code) sees it as `_meta["mojulo/tier"]` in tools/list; every other
+  host's list is byte-identical. Character tools are not tiered yet (`TIER_DEFERRED`).
+- **A worker claims only the tiers it should answer.** `pull_agent_task` takes `tiers`: a worker on a light model
+  pulls `["ride","fill"]` and heavier tasks wait for a stronger worker, so no task is answered below its tier to save
+  usage. An untiered task matches any worker. The inference-worker catalyst says so, and its summary names the real
+  tools (`pull_agent_task`, `submit_envelope_inference`; the old names were left over from before the rename).
+- **A light inference worker in the Claude plugin.** `/loop /mojulo:inference-worker` runs one pull → submit per tick
+  in the `mojulo-runner` subagent (Haiku), claiming `ride` and `fill` tasks only. Only the user starts it.
+- **What a plan saves.** For a host that declares `modelTiers`, `compile_plan` answers with the plan's steps by tier
+  (`tiers`, and a line in its message): `execute_plan` runs every one of them with no model in the loop, so one design
+  act replaces that many agent calls and a light model can start the run. Other hosts' compile answer is unchanged.
+- **Two subagents in the Claude plugin.** `plugins/mojulo/agents/`: `mojulo-runner` (Haiku, low effort) runs decided
+  `ride` and `fill` calls in batches; `mojulo-maker` (Sonnet, medium) authors or revises one recipe. Each one's `tools`
+  list is exact (with `ToolSearch`, without which a subagent cannot load Claude Code's deferred MCP tools and has
+  none), so neither can call a tool above its tier, and the `design` tools stay with the main session. The
+  skill gains a block saying when to hand work to each. All three are generated from `tool-tiers.js` by
+  `scripts/plugin-agents.mjs`, and a test fails when they are stale.
+- **The model that ran is recorded again.** `claude --print --output-format json` (2.1.x) names the model only as a
+  key of `modelUsage`, so the runtime recorded no model. It now reads that key (the one with the most output when a
+  subagent ran too), so the principle shows the requested tier beside the model that answered.
+- **Tiers for the work the consolidated line added.** `compose_world` is `judge` now: it authors a city plan
+  (`overrides.plan`) and grows the technology crafter, not only a world from a settled spec, so it moves from
+  `mojulo-runner` to `mojulo-maker`. In packs mode a `pack_*` tool wears the ceiling of its members' tiers; the table
+  test checks every tool listed flat or in packs mode, not only the tool lines.
+- **A tier on every catalyst.** A catalyst's frontmatter names `tier`, how much judgment running the workflow takes
+  (`design-tech-family` design, `populate-world-gear` fill, `print-object` ride, …); every curated one names it, a
+  minted one may, and an unknown tier is refused. `list_catalysts`, `get_catalyst`, `recommend_catalysts` and a
+  catalyst row from `semantic_search` show it to a host that declares `modelTiers`; every other host's answer is unchanged.
+- **A tier on every routing card.** A card found by `semantic_search({ kinds: ['routing'] })` carries its entry
+  tool's tier (a card may name its own), for a `modelTiers` host only, so the agent knows where a route's work goes
+  before it reads the tool. The plugin skill's block says how to hand each tier on.
+- **A trigger can carry a tier.** `bind_trigger` refuses a `payload_template.tier` the queue would drop; a valid one
+  rides each fired task to the worker, as on an app's envelope.
+
 ### The play shell: quick games end to end, and a playtest for the big loop
 
 - **A light shell beside the arena's.** `play-shell.js` plays a game as title → levels (when there are several) →

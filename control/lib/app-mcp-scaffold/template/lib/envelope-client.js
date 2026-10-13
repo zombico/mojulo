@@ -52,7 +52,7 @@
 // Operator UX: before using inference-dependent apps, run
 //   /loop /get_catalyst run-inference-worker
 // in your Claude Code session. The catalyst tells the agent how to long-poll
-// `pull_pending_inference` and submit envelopes via `submit_inference_result`.
+// `pull_agent_task` and submit envelopes via `submit_envelope_inference`.
 
 export class NoAgentWorkerError extends Error {
   constructor(message = 'No mojulo agent worker is polling. Run `/loop /run-inference-worker` in your Claude Code session.') {

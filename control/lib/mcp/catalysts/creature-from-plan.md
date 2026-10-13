@@ -6,6 +6,7 @@
   "valueHook": "Turn a sentence into a rigged, watertight creature — a dragon, a monster, an invented animal — that plays its clips on the World page and exports to the engines, by having a worker print a numeric ring plan mojulo draws, instead of a paragraph and a one-off picture.",
   "version": 1,
   "category": "substrate",
+  "tier": "judge",
   "requires": {
     "protocols": [],
     "writeTarget": "none"

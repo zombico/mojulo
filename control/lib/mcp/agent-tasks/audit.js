@@ -47,6 +47,7 @@ function composeFulfillerLines(fulfiller) {
   if (fulfiller.kind) lines.push(`- **kind:** \`${fulfiller.kind}\``);
   if (fulfiller.runtime) lines.push(`- **runtime:** \`${fulfiller.runtime}\``);
   if (fulfiller.model) lines.push(`- **model:** \`${fulfiller.model}\``);
+  if (fulfiller.tier) lines.push(`- **tier:** \`${fulfiller.tier}\``);
   return lines;
 }
 
@@ -107,7 +108,7 @@ function recordInferencePrinciple({ artifactNode, body }) {
  * @param {object} args.envelope
  * @param {number} args.durationMs
  * @param {string} [args.model] — the model the worker reported using.
- * @param {object} [args.fulfiller] — { kind, runtime?, model? }; identifies
+ * @param {object} [args.fulfiller] — { kind, runtime?, model?, tier? }; identifies
  *   which fulfiller produced the envelope (agent-mcp vs node-driven-runtime).
  * @returns {{ principle: object|null, artifactNode: object|null }}
  */

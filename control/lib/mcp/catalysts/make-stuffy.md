@@ -6,6 +6,7 @@
   "valueHook": "A cuddly toy you can see and keep working on: the body is an editable recipe you revise by word, and the fur is a real Blender pile rendered from three angles, with the .blend handed over for the next pass.",
   "version": 1,
   "category": "object-design",
+  "tier": "judge",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "intent", "prompt": "The stuffy in words (e.g. 'a little boy doll in a blue jumper', 'a honey teddy bear', 'a round green dragon plushie')." },

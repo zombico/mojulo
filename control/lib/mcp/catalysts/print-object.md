@@ -6,6 +6,7 @@
   "valueHook": "'Is this printable?' answered by measurement, not opinion — the closure audit, a Manifold union with a volume, measured overhang and sampled walls against YOUR process, and a headless slice stamped beside the 3MF; the handoff is the same file opened in your slicer.",
   "version": 1,
   "category": "object-design",
+  "tier": "ride",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "ref", "prompt": "Which stored sketch? (an `sk_…` ref — a workbench / assembler part prints at true scale; worlds and figures print as a maquette fit to `target_mm`)" },

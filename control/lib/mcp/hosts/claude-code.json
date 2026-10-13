@@ -21,7 +21,8 @@
     "nativeImageGen": false,
     "scheduler": "/schedule",
     "skillsDir": "~/.claude/skills",
-    "headlessRuntime": "claude-code-headless"
+    "headlessRuntime": "claude-code-headless",
+    "modelTiers": true
   },
   "handoff": {
     "verified": "field",

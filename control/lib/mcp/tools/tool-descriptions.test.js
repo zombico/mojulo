@@ -366,7 +366,11 @@ const DESCRIPTION_ALLOWLIST = {
 // whose light bakes it), its description at routing grade; the density rule and the cube stay off-payload.
 // Re-pinned 2026-10-13 (206_600 -> 208_300; measured 208,152) for the merge of 1012-consolidate into the character line: update_character
 // (above) and tune_ground together. No new tool beyond those two.
-const PAYLOAD_CEILING = 208_300;
+// Re-pinned 2026-10-13 (206_600 -> 206_900; measured 206,733) for the merge of 1012-model-tiering into the consolidated
+// line: pull_agent_task's optional `tiers` filter on top of the line's own additions. No new tool.
+// Re-pinned 2026-10-13 (208_300 -> 208_700; measured 208,401) for the merge of 1012-consolidate (the model tiering) into
+// the character line: update_character, tune_ground and pull_agent_task's `tiers` together. No new tool.
+const PAYLOAD_CEILING = 208_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

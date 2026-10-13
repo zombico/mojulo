@@ -6,6 +6,7 @@
   "valueHook": "Turn 'what happens to X as I vary Y?' into a lab notebook: every run reproducible from its recipe, every number in real units, the whole book deterministically re-verifiable at synthesis.",
   "version": 1,
   "category": "research-science",
+  "tier": "design",
   "parameters": [
     {
       "name": "question",

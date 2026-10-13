@@ -6,6 +6,7 @@
   "valueHook": "Name your civilizations and your hero's gear once, and the world fills itself with equipment that belongs to it: each faction's weapons in its own language and colours, the enemy's answer to every item you carry, and a shadowed twin of each, ready to mint when the stats are set.",
   "version": 1,
   "category": "world-building",
+  "tier": "fill",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "world", "prompt": "Which gameworld? (an example, a stored one, or a prompt to compose one)" },

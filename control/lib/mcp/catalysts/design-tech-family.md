@@ -6,6 +6,7 @@
   "valueHook": "Describe a stagecoach, a tram or a motorcycle once and every world that says those words gets one: designed to read at the hero's scale, dressed for its setting, rigged and exportable, with no machine modelled by hand.",
   "version": 1,
   "category": "world-building",
+  "tier": "design",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "intent", "prompt": "What should the crafter learn to make? (e.g. 'a stagecoach', 'a maglev tram', 'a steam traction engine', 'a hand cart pulled by its owner')" },

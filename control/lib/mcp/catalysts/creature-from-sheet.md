@@ -6,6 +6,7 @@
   "valueHook": "Make a people nobody has drawn yet (a cat-kin, a beaked avian, a four-armed insectoid, a serpent-bodied naga) from a rolled sheet, by applying the principles learned building the first ones instead of re-skinning them.",
   "version": 1,
   "category": "substrate",
+  "tier": "design",
   "requires": {
     "protocols": [],
     "writeTarget": "none"

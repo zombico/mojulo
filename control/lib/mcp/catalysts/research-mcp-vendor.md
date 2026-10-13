@@ -6,6 +6,7 @@
   "valueHook": "Replace stale curated vendor docs with first-hand agent research, timestamped at the moment it's true and re-runnable when the surface drifts.",
   "version": 1,
   "category": "substrate",
+  "tier": "judge",
   "requires": {
     "protocols": [],
     "writeTarget": "mojulo:meta_mcp_capabilities"

@@ -144,6 +144,43 @@ describe('pull → submit happy path', () => {
     expect(principles[0].bodyMd).toMatch(/agent-mcp/);
   });
 
+  it('a task tier rides the manifest and lands in the principle', async () => {
+    const artifact = seedAppArtifact({ ref: 'claude-code:/tmp/app-tier', name: 'tier-app' });
+    const httpPromise = parkRequest({
+      inputs: { text: 'name this colour' },
+      caller_ref: 'claude-code:/tmp/app-tier',
+      tier: 'fill',
+    });
+    const manifest = JSON.parse((await callTool('pull_agent_task', { wait_ms: 100 })).content[0].text);
+    expect(manifest.tier).toBe('fill');
+    await callTool('submit_envelope_inference', {
+      request_id: manifest.request_id,
+      envelope: { answer: 'Teal.' },
+      model: 'haiku-test',
+    }, 5);
+    await httpPromise;
+    const [principle] = MetaPrincipleRepository.listForScope('node', artifact.id);
+    expect(principle.bodyMd).toMatch(/\*\*tier:\*\* `fill`/);
+  });
+
+  it('an untiered or unknown tier reads as null and records no tier line', async () => {
+    const artifact = seedAppArtifact({ ref: 'claude-code:/tmp/app-notier', name: 'notier-app' });
+    const httpPromise = parkRequest({
+      inputs: { text: 'no tier' },
+      caller_ref: 'claude-code:/tmp/app-notier',
+      tier: 'opus',
+    });
+    const manifest = JSON.parse((await callTool('pull_agent_task', { wait_ms: 100 })).content[0].text);
+    expect(manifest.tier).toBeNull();
+    await callTool('submit_envelope_inference', {
+      request_id: manifest.request_id,
+      envelope: { answer: 'ok' },
+    }, 6);
+    await httpPromise;
+    const [principle] = MetaPrincipleRepository.listForScope('node', artifact.id);
+    expect(principle.bodyMd).not.toMatch(/tier:/);
+  });
+
   it('image input is delivered as a native MCP image content block', async () => {
     const httpPromise = parkRequest({
       inputs: {

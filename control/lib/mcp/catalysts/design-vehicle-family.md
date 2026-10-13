@@ -6,6 +6,7 @@
   "valueHook": "Design a new airline livery or a regional-jet preset once and the airport starts spawning it — the fleet derives from the registry, so a new entry needs no populator edit.",
   "version": 1,
   "category": "world-building",
+  "tier": "judge",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "intent", "prompt": "What are you adding to the fleet libraries? (e.g. 'a teal-and-gold widebody livery', 'a forest-green taxi paint', 'a stubby regional-jet preset')" },

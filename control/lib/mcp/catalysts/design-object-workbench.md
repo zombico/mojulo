@@ -6,6 +6,7 @@
   "valueHook": "Turn 'a coffee mug' or 'a soda can with this label' into a real, orbitable 3D object study at literal scale — and a print-ready STL the slicer's mesh repair finishes.",
   "version": 1,
   "category": "object-design",
+  "tier": "judge",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "objectIntent", "prompt": "What object are you designing? (e.g. 'a brass candlestick', 'a coffee mug', 'a 355mL soda can with a red label')" },

@@ -6,6 +6,7 @@
   "valueHook": "Turn 'explain the internet' into a six-slide animated deck where you watch the packets move — packets hop router to router, DNS asks and answers, TCP shakes hands — instead of staring at a static box-and-arrow diagram.",
   "version": 1,
   "category": "explainer",
+  "tier": "design",
   "requires": { "protocols": [] },
   "parameters": [
     { "name": "topic", "prompt": "What should the explainer cover? (default: how the internet works end to end. Also fits: 'how HTTPS works', 'what DNS does', 'how a CDN serves a page', 'how two services talk over a queue')", "default": "how the internet works, end to end" },

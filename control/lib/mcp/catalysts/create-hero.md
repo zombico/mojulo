@@ -6,6 +6,7 @@
   "valueHook": "Turn a sentence into a rigged, watertight human character that reads at thumbnail size in one consistent art style — low-poly, round, chamfered or boxy — with an expressive face and a hairstyle, that plays its clips on the World page and exports skinned, by editing numbers instead of sculpting.",
   "version": 1,
   "category": "substrate",
+  "tier": "judge",
   "requires": {
     "protocols": [],
     "writeTarget": "none"
