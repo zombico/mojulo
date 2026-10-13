@@ -4,7 +4,7 @@
 //   outfit: { type: 'outfit', style, dials?, language?, laws? }
 //     style     a seeded sample name (styles.js) or an inline card
 //     dials     { stylize 0–1, fit 0–1, coverage 0–1, ornament 0–3 } over the card's own
-//     language  over the card's: { top: {…}, bottom: {…}, feet, tuck, focal } (a slot object merges over the card's)
+//     language  over the card's: { top: {…}, bottom: {…}, outer?: {…}, feet, tuck, focal } (a slot object merges over the card's)
 //     laws      the version of principles.js the build was minted under (stamped by the hero record; absent → current)
 //
 //   1 CUT           the language and `coverage` → the pieces and their windows, lengths on landmarks (law 3)
@@ -45,7 +45,8 @@ export function validateOutfitBuild(build) {
   return errs;
 }
 const slot = (a, b) => (b === false ? false : b === undefined ? a : { ...(a || {}), ...b });
-function languageOf(card, own = {}) { const L = card.language || {}; return { ...L, ...own, top: slot(L.top, own.top), bottom: slot(L.bottom, own.bottom) }; }
+function languageOf(card, own = {}) { const L = card.language || {}, out = { ...L, ...own, top: slot(L.top, own.top), bottom: slot(L.bottom, own.bottom) };
+  if (L.outer !== undefined || own.outer !== undefined) out.outer = slot(L.outer, own.outer); return out; }
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -97,16 +98,45 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
     if (thigh) bottoms.push({ id: 'bottomLeg', part: 'thigh', run: thigh, ease: e, ...(thigh[1] < 1 && leg !== 'brief' ? { flare: [0, h] } : {}), ...(shin ? {} : { rings: { run: [thigh[1] - EDGE.cuff] } }), group: 'Bottom' });
     if (shin) bottoms.push({ id: 'bottomShin', part: 'shank', run: shin, ease: e, flare: [0, h * (leg === 'long' ? 0.5 : 1)], rings: { run: [shin[1] - EDGE.cuff] }, group: 'Bottom' });
   }
+  // an OUTER layer over both (law 4): more ease than what it covers; to the hip or the tunic's length it is a body and a
+  // tail, longer a coat whose skirt is one hull round the legs; open, the opening and its edges are painted (below)
+  const outer = lang.outer || null, outs = [];
+  if (outer) {
+    const fam = outer.family ?? 'woven', e = easeOf(fam) * 1.5 + (top && top.fit !== 'skin' ? easeOf(top.family ?? 'knit') : 0), h = hangOf(fam);   // over a second skin, nothing to clear
+    const sleeve = lengths.outerSleeve = stepLength('sleeve', outer.sleeve ?? 'none', dials.coverage), hem = lengths.outerHem = stepLength('coat', outer.hem ?? 'hip', dials.coverage);
+    outs.push({ id: 'outer', part: 'torso', ...(hem === 'waist' ? { u: [1.4, 4] } : {}), ease: e, over: ['pectoral', 'bust', 'navel'], drape: r6(0.3 / law.hang), ...(hem === 'waist' ? { rings: { u: [1.4 + EDGE.hem] } } : {}), group: 'Outer' });
+    if (structured && (hem === 'hip' || hem === 'tunic')) outs.push({ id: 'outerTail', part: 'pelvis', u: [hem === 'tunic' ? 1.5 : 4, 6], ease: e * 1.25, flare: [h, 0], rings: { u: [(hem === 'tunic' ? 1.5 : 4) + EDGE.hem] }, group: 'Outer' });
+    const to = { knee: { part: 'thigh', run: 1 }, midi: { part: 'shank', run: 0.5 }, maxi: { part: 'shank', run: 0.9 } }[hem];
+    if (to) outs.push({ id: 'outerSkirt', fit: 'skirt', part: ['pelvis', 'thigh', ...(to.part === 'shank' ? ['shank'] : [])], from: structured ? { part: 'pelvis', u: 6 } : { part: 'thigh', u: 0 }, to,
+      ease: r6(e * 1.3), flare: [0, r6(SKIRT_CUTS[outer.cut ?? 'aline'] * (1 + 0.5 * dials.stylize))], group: 'Outer' });
+    const arm = { cap: [0, 0.25], short: [0, 0.5], elbow: [0, 1], threeQuarter: [0, 1], long: [0, 1] }[sleeve];
+    const fore = sleeve === 'threeQuarter' || sleeve === 'long' ? [0, sleeve === 'long' ? 0.9 : 0.5] : null;
+    if (arm) outs.push({ id: 'outerSleeve', part: 'upperArm', run: arm, ease: e, ...(arm[1] < 1 ? { flare: [0, h] } : {}), ...(fore ? {} : { rings: { run: [arm[1] - EDGE.cuff] } }), group: 'Outer' });
+    if (fore) outs.push({ id: 'outerCuff', part: 'foreArm', run: fore, ease: e, flare: [0, h * 0.6], rings: { run: [fore[1] - EDGE.cuff] }, group: 'Outer' });
+    if (outer.collar) outs.push({ id: 'outerCollar', part: 'neck', run: [0, 0.4], ease: e * 1.5, flare: [0, e], rings: { run: [0.3] }, group: 'Outer' });
+  }
+  // ── 2b FIT BY ZONE (law 2): a slot's own `fit` word over the dials. SKIN is a second skin, painted on the body's own
+  // faces (body-paint.js: leggings, tights, a close undershirt), no thickness and no flare; FITTED follows the body in at
+  // the waist (no drape) with a little ease and no hang at its hems; EASED keeps the dials' ease but still comes in to
+  // the waist (a drape four times as steep: it never bridges chest to hip); LOOSE stands off more and falls straight
+  // from the chest. A skirt and a coat's skirt keep their cut's flare: they hang by their nature
+  const skinPaint = [], fitSlot = (list, f) => { if (!f) return list;
+    if (f === 'eased') return list.map((E) => (E.drape ? { ...E, drape: r6(E.drape * 4) } : E));
+    if (f === 'skin') { for (const E of list) if (!E.fit && E.part !== 'neck') skinPaint.push({ part: [E.part, ...(E.over || [])].flat(), ...(E.u ? { u: E.u } : {}), ...(E.run ? { run: E.run } : {}), group: E.group }); return list.filter((E) => E.fit || E.part === 'neck'); }
+    return list.map((E) => { if (E.fit === 'skirt') return E; const { drape, flare, ...rest } = E;
+      return f === 'fitted' ? { ...rest, ease: r6(E.ease * 0.45) } : { ...rest, ease: r6(E.ease * 1.5), ...(drape ? { drape: r6(drape * 0.6) } : {}), ...(flare ? { flare: flare.map((x) => r6(x * 1.5)) } : {}) }; }); };
+  const tops2 = fitSlot(tops, top?.fit), bottoms2 = skirt ? bottoms : fitSlot(bottoms, bottom?.fit), outs2 = fitSlot(outs, outer?.fit === 'skin' ? 'fitted' : outer?.fit);
+  tops.splice(0, tops.length, ...tops2); bottoms.splice(0, bottoms.length, ...bottoms2); outs.splice(0, outs.length, ...outs2);
   const toes = ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
   if (feet === 'boots') shoes.push({ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' }, { id: 'boot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: toes, group: 'Shoes' });
   else if (feet === 'shoes') shoes.push({ id: 'shoe', part: 'foot', fit: 'shoe', ease: 0.005 * k, toe: 0.9, over: toes, group: 'Shoes' });
   // ── 3 LAYER: tucked, the top first and the bottom over its tail; worn out, the bottom first; shoes over both
   const keep = (E) => { const ps = (Array.isArray(E.part) ? E.part : [E.part]).filter((n) => have.has(n)); return ps.length ? [{ ...E, part: ps, ...(E.over ? { over: E.over.filter((n) => have.has(n)) } : {}) }] : []; };
-  const garments = [...(tuck ? [...tops, ...bottoms] : [...bottoms, ...tops]), ...shoes].flatMap(keep).map((E) => ({ ...E, ease: r6(E.ease), ...(E.flare ? { flare: E.flare.map(r6) } : {}) }));
+  const garments = [...(tuck ? [...tops, ...bottoms] : [...bottoms, ...tops]), ...outs, ...shoes].flatMap(keep).map((E) => ({ ...E, ease: r6(E.ease), ...(E.flare ? { flare: E.flare.map(r6) } : {}) }));
   const worn = new Set(garments.map((E) => E.id)), on = (id, part) => `${id}_${part}`;
 
   // ── 4 CONSTRUCTION + 5 ORNAMENT: the edges, spent from the focal out
-  const paint = [], rows = [], kit = [], spent = [];
+  const paint = [...skinPaint.flatMap((P) => { const ps = (Array.isArray(P.part) ? P.part : [P.part]).filter((n) => have.has(n)); return ps.length ? [{ ...P, part: ps }] : []; })], rows = [], kit = [], spent = [];
   const wovenTop = top && (top.family ?? 'knit') === 'woven', knitTop = top && !wovenTop;
   const hemPiece = worn.has('topTail') ? { part: on('topTail', 'pelvis'), u: lengths.hem === 'tunic' ? [1.5, 1.5 + EDGE.hem] : [4, 4 + EDGE.hem] } : worn.has('top') ? { part: on('top', 'torso'), u: lengths.hem === 'crop' ? [1.4, 1.4 + EDGE.hem] : [0, EDGE.hem] } : null;
   const sleeveEnd = worn.has('topCuff') ? on('topCuff', 'foreArm') : worn.has('topSleeve') ? on('topSleeve', 'upperArm') : null;
@@ -123,20 +153,32 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
     belt: () => { if (!bottom || ((bottom.family ?? 'woven') !== 'woven' && focal !== 'belt')) return false;   // law 7: a knit waist is elastic, no loops
       if (worn.has('skirt')) { kit.push({ id: 'belt', mode: 'band', part: 'skirt_skirt', s: [0.15, dress ? 0.75 : 0.9], t: 'wrap', nt: 16, ns: 2, mugen: r6(0.002 * k), thick: r6(0.006 * k * law.trim), rad: r6(0.05 * k), group: 'Leather',
         signature: { kind: 'buckle', k: 0, j: 1, w: r6(0.026 * k * law.trim), h: r6(0.02 * k * law.trim), bar: r6(0.005 * k), standoff: r6(0.004 * k), group: 'Buckle' } }); return true; }
-      if (!worn.has('bottomSeat')) { if (bottom) warnings.push('belt: the streamlined core has no pelvis to belt'); return false; }
+      const seat = worn.has('bottomSeat') ? on('bottomSeat', 'pelvis') : structured && bottom?.fit === 'skin' ? 'pelvis' : null;   // over second-skin legs, on the body
+      if (!seat) { if (bottom) warnings.push('belt: the streamlined core has no pelvis to belt'); return false; }
       const over = !tuck && worn.has('topTail') ? [on('topTail', 'pelvis')] : [];
-      kit.push({ id: 'belt', mode: 'band', part: on('bottomSeat', 'pelvis'), over, s: [5.2, 5.85], t: 'wrap', nt: 12, ns: 2, mugen: r6(0.003 * k), thick: r6(0.008 * k * law.trim), rad: r6(0.05 * k), group: 'Leather',
+      kit.push({ id: 'belt', mode: 'band', part: seat, over, s: [5.2, 5.85], t: 'wrap', nt: 12, ns: 2, mugen: r6(0.003 * k), thick: r6(0.008 * k * law.trim), rad: r6(0.05 * k), group: 'Leather',
         signature: { kind: 'buckle', k: 0, j: 1, w: r6(0.03 * k * law.trim), h: r6(0.024 * k * law.trim), bar: r6(0.006 * k), standoff: r6(0.005 * k), group: 'Buckle' } }); return true; },
     cuffs: () => { if (!sleeveEnd) return false; paint.push({ part: sleeveEnd, run: [0.998, 1], group: 'Trim' }); return true; },   // the last band: from the cuff's own ring to the end
     hem: () => { if (!hemPiece || dress) return false; paint.push({ ...hemPiece, group: 'Trim' }); return true; },
     waistband: () => { if (worn.has('skirt') && !dress) { paint.push({ part: 'skirt_skirt', u: [0, 0.6], group: 'Waistband' }); return true; } if (!worn.has('bottomSeat')) return false; paint.push({ part: on('bottomSeat', 'pelvis'), u: [6 - EDGE.waistband, 6], group: 'Waistband' }); return true; },
     legHem: () => { if (!legEnd || (bottom.family ?? 'woven') !== 'knit') return false; paint.push({ part: legEnd, run: [0.998, 1], group: 'Trim' }); return true; },
     skirtHem: () => { if (!worn.has('skirt')) return false; paint.push({ part: 'skirt_skirt', u: [10.6, 11], group: 'Trim' }); return true; },
+    // the outer layer's own edges: open, the opening down the front shows what is beneath; its hem and cuffs
+    outerOpen: () => { if (!outer?.open || !worn.has('outer')) return false; const under = top ? 'Top' : 'Skin', legs = bottom && !skirt ? 'Bottom' : skirt ? 'Bottom' : under;
+      paint.push({ part: on('outer', 'torso'), t: [0, 0.08], group: under });
+      if (worn.has('outerTail')) paint.push({ part: on('outerTail', 'pelvis'), t: [0, 0.08], group: legs });
+      if (worn.has('outerSkirt')) paint.push({ part: 'outerSkirt_skirt', t: [0, 0.08], group: bottom ? 'Bottom' : 'Skin' });
+      return true; },
+    outerHem: () => { if (worn.has('outerSkirt')) { paint.push({ part: 'outerSkirt_skirt', u: [10.6, 11], group: 'Trim' }); return true; }
+      if (worn.has('outerTail')) { const u0 = lengths.outerHem === 'tunic' ? 1.5 : 4; paint.push({ part: on('outerTail', 'pelvis'), u: [u0, u0 + EDGE.hem], group: 'Trim' }); return true; }
+      if (worn.has('outer')) { paint.push({ part: on('outer', 'torso'), u: lengths.outerHem === 'waist' ? [1.4, 1.4 + EDGE.hem] : [0, EDGE.hem], group: 'Trim' }); return true; } return false; },
+    outerCuffs: () => { const end = worn.has('outerCuff') ? on('outerCuff', 'foreArm') : worn.has('outerSleeve') ? on('outerSleeve', 'upperArm') : null; if (!end) return false; paint.push({ part: end, run: [0.998, 1], group: 'Trim' }); return true; },
     seams: () => { if (!worn.has('top')) return false; paint.push({ part: on('top', 'torso'), t: [0.4, 0.6], u: [0.3, 3.4], group: 'Seam' }); return true; },
   };
   const focalEdge = focal === 'collar' ? 'collar' : focal === 'placket' ? 'buttons' : 'belt';
-  // the budget's tiers: the focal (1), every other edge (2), the seams (3); an edge with nothing to sit on is skipped
-  const budget = [[focalEdge], ['collar', 'buttons', 'belt', 'cuffs', 'hem', 'waistband', 'legHem', 'skirtHem'].filter((e) => e !== focalEdge), ['seams']];
+  // the budget's tiers: the focal (1), every other edge (2), the seams (3); an edge with nothing to sit on is skipped.
+  // An open outer layer's opening is its construction, spent with the focal (an open coat is open at any budget)
+  const budget = [[focalEdge, ...(outer?.open ? ['outerOpen'] : [])], ['collar', 'buttons', 'belt', 'cuffs', 'hem', 'waistband', 'legHem', 'skirtHem', ...(outer ? ['outerHem', 'outerCuffs'] : [])].filter((e) => e !== focalEdge), ['seams']];
   for (let tier = 0; tier < Math.min(orn, 3); tier++) for (const e of budget[tier]) if (edges[e]()) spent.push(e);
   if (orn >= 1 && !spent.includes(focalEdge)) warnings.push(`focal: '${focal}' could not be set on this body or outfit (law 5)`);
 
@@ -145,9 +187,11 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
   const tones = { Trim: shade(T.Top ?? '#888888', knitTop ? 0.8 : 0.86), Placket: shade(T.Top ?? '#888888', 0.93), Button: '#efe9dc', Seam: shade(T.Top ?? '#888888', 0.78), Collar: shade(T.Top ?? '#888888', 1.06),
     Waistband: shade(T.Bottom ?? '#555555', 0.84), Leather: '#5a3a22', Buckle: '#b8b2a6', ...(card.tones || {}) };
   if (top && bottom && T.Top && T.Bottom && Math.abs(lightness(T.Top) - lightness(T.Bottom)) < 12) warnings.push(`value step: Top and Bottom differ by under 12 L* (law 4) — the layers may read as one`);
+  if (outer && top && T.Outer && T.Top && Math.abs(lightness(T.Outer) - lightness(T.Top)) < 12) warnings.push(`value step: Outer and Top differ by under 12 L* (law 4) — the layers may read as one`);
+  if (outer) tones.Outer = T.Outer ?? shade(T.Top ?? '#888888', 0.62);
 
   // ── 7 LEDGER
-  const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'casual' : card.id || 'inline', dials, lengths, tuck, feet, focal, ...(dress ? { dress } : {}),
+  const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'casual' : card.id || 'inline', dials, lengths, tuck, feet, focal, ...(dress ? { dress } : {}), ...(outer ? { outer: { open: !!outer.open } } : {}),
     pieces: garments.map((E) => E.id), edges: spent, laws: build.laws ?? OUTFIT_LAWS_VERSION, ...(warnings.length ? { warnings } : {}) };
   return { garments, paint, rows, kit, tones, trace };
 }

@@ -92,6 +92,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Across 48 rolls every outfit passes the laws, in 19 piece sets.
   - A 12-character A/B at 1080p: body share 26% → 40%, mean triangles 9,393 → 8,915. Outline distinctness is unmoved
     (0.52), because a seed rolls the same facets for every lineage over one body template; that is upstream of dress.
+- **The cut, by principles** (`outfit/expand.js`, `outfit-plan.js`, `egocube/outfit.js`). The cloth a creature wears is
+  the outfit grammar the hero wears, derived from its sheet instead of picked from a list of outfits.
+  - The grammar gains an OUTER layer (`language.outer`: a vest, jerkin, jacket or coat, with family, sleeve, hem from
+    the waist to the ankle, open or closed, and a cut). Open, its opening shows what is beneath; its hem and cuffs take
+    the trim.
+  - FIT BY ZONE (`fit` on the top, the trousers and the outer). `skin` is a second skin painted on the body (no
+    thickness, no flare), `fitted` follows the body in at the waist, `eased` stands off but still comes in, and `loose`
+    falls straight from the chest. A hero build without these fields is byte-identical.
+  - On a creature (`outfit.cut`), the hero's shank is the creature's shin, and pelvis windows carry across by share.
+    Fur tiles and locks on a part the cloth covers end to end are not drawn; a ruff on the neck still spills over.
+  - `cutFromSheet` reads the sheet by principle:
+    - mobility: what the role moves stays free;
+    - station: the archetype's formality sets the outer layer's length and the count of layers;
+    - order: bound is closed and tucked, free is open and worn out;
+    - age and build set fit and length;
+    - anatomy: a tail keeps skirts off and coats to the hip; fur on the forearms and thighs ends sleeves at the elbow
+      and legs at the knee; scales all over add a layer; chitin means no shirt, a kilt and an open vest; feathered
+      wings leave the arms bare; clawed feet go bare;
+    - silhouette: shapes the layer that carries it;
+    - fit: tight against loose, with one full zone at most.
+  - New catalogue pieces: a CLOAK down the back, stopping above a tail that must read, and a standing COLLAR. A
+    wedge's pauldrons stand out to its broad shoulder line.
+  - The laws count the cut's cloth by area and its trimmed edges as trim uses.
+  - Across 48 rolls every outfit passes the laws, in 40 sets (19 before), and same-seed lineages now dress apart.
 - **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
   that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
   1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's

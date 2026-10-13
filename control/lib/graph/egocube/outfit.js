@@ -10,9 +10,25 @@
  * The readings, each a table below:
  *   SHAPE      the archetype's silhouette: a ruler's bell, a hero's wedge, an outlaw's needle (the sheet's own
  *              `silhouette = …` derive wins)
- *   GARMENT    the silhouette as its core garment: a bell is a gown (a robe on a male or an elder), a column a robe, a
- *              wedge, a needle or a barrel a tunic; a lineage whose tail is a must-see takes the tunic, which leaves
- *              the tail free
+ *   THE CUT    the cloth itself, in the outfit grammar the hero wears (outfit/principles.js: a top, a bottom, an outer
+ *              layer, their families, lengths on landmarks, closure and fit), DERIVED by principles, never picked from
+ *              a list of outfits (cutFromSheet):
+ *                mobility   what the role moves stays free: a flanker's or a ranger's legs in trousers, a draw arm in
+ *                           a short sleeve, a frontline's arms sleeved under its armour
+ *                station    the archetype's formality: how long the outer layer falls and how many layers (a ruler's
+ *                           long coat over a gown, an outlaw's open jerkin)
+ *                order      closure: bound is closed, tucked and woven (a placket); free is open, worn out, knit
+ *                age, build fit and length: a youth shorter and closer, an elder longer and looser; a heavy build
+ *                           eased, its mass broken by an opening
+ *                anatomy    the lineage's must-see stays seen: over a tail the skirt gives way to trousers and the coat
+ *                           stops at the hip; clawed feet go bare. And cloth goes where the body does not already
+ *                           show itself: fur on the forearms and thighs ends the sleeve at the elbow and the leg at the
+ *                           knee, in light cloth, with no collar over a ruff; scales are cold, so one layer more,
+ *                           sleeved; chitin plates are the armour, so no shirt: a kilt and an open vest between the
+ *                           plates; feathered wings leave the arms bare and the back uncloaked
+ *                silhouette the word shapes the layer that carries it: a bell's full skirt, a column's long straight
+ *                           coat, a needle's narrow coat and collar, a wedge's short layer under broad shoulders, a
+ *                           barrel's layers at the middle
  *   ROLE_GEAR  what the role needs, no more: a frontline's armour, a ranger's quiver and bracer, a support's one
  *              satchel, a caster's focus
  *   FOCAL      the archetype's one focal piece: a ruler's chain of office, a sage's or magician's medallion, a hero's
@@ -78,18 +94,94 @@ export function outfitPalette(sheet, coat = '#8a5a38') {
   return { base, secondary, trim, accent, leather: shadow ? '#5e4d3e' : '#6e4a2e' };
 }
 
+/** the archetype's FORMALITY (0 everyday … 1 court) and the role's MOBILITY (0 still … 1 always moving) */
+export const STATION = Object.freeze({ ruler: 0.9, sage: 0.8, magician: 0.75, caregiver: 0.55, lover: 0.55, hero: 0.5, innocent: 0.45, creator: 0.4, explorer: 0.3, jester: 0.3, everyman: 0.25, outlaw: 0.15 });
+export const MOBILITY = Object.freeze({ flanker: 1, ranged: 0.9, frontline: 0.8, support: 0.5, controller: 0.4, caster: 0.3, 'non-combatant': 0.2 });
+
+/** THE CUT from the sheet by principles → { language, dials, colours, notes: [the reason for each choice] } */
+/** what the lineage's body already shows: its cover (fur, scales, chitin) and where, its wings */
+export function anatomyOf(sheet) {
+  const P = sheet.ancestry?.plan || {}, kind = P.cover?.kind ?? null, where = new Set(P.cover?.where || []);
+  // scales are cold only when they are the body's cover, not patches (all over: the belly scaled)
+  return { cover: kind, where, fur: kind === 'fur', scales: kind === 'scales' && where.has('belly'), chitin: kind === 'chitin', wings: hasDerive(sheet, 'wings = feather'), ruff: kind === 'fur' && where.has('ruff') };
+}
+
+export function cutFromSheet(sheet, { silhouette, tailSeen } = {}) {
+  const f = sheet.facets, a = f.archetype, notes = [], note = (n) => notes.push(n), A = anatomyOf(sheet);
+  const bound = f.order < 0.4, free = f.order >= 0.6, youth = ['child', 'youth'].includes(f.age), elder = ['seasoned', 'elder'].includes(f.age);
+  // scales are cold: the formality of the layering climbs a step (one layer more)
+  const F = Math.max(0, Math.min(1, (STATION[a] ?? 0.4) + (elder ? 0.15 : youth ? -0.15 : 0) + (A.scales ? 0.2 : 0))), M = MOBILITY[f.role] ?? 0.5;
+  const heavy = ['stout', 'brute'].includes(f.build), lithe = f.build === 'lithe';
+  // the BOTTOM: a skirt only where nothing must move fast and no tail must read; else trousers, the knees free on the
+  // quickest
+  let bottom;
+  if (A.chitin) { bottom = { kind: 'skirt', family: 'woven', leg: 'knee', cut: 'aline' }; note('a kilt to the knee, the plated legs moving free under it'); }
+  else if (!tailSeen && M < 0.5 && (silhouette === 'bell' || F >= 0.6)) {
+    const leg = F >= 0.75 ? 'maxi' : F >= 0.55 ? 'midi' : 'knee', cut = silhouette === 'bell' ? 'full' : ['column', 'needle'].includes(silhouette) ? 'pencil' : 'aline';
+    bottom = { kind: 'skirt', family: 'woven', leg, cut }; note(`a ${cut === 'full' ? 'full' : cut === 'pencil' ? 'straight' : 'flared'} skirt to the ${leg === 'maxi' ? 'ankle' : leg === 'midi' ? 'calf' : 'knee'}: the ${a}'s ${silhouette}, and a role that need not run`);
+  } else {
+    const furred = A.fur && A.where.has('thigh'), leg = furred || (M >= 0.9 && F < 0.5) ? 'knee' : 'long';
+    bottom = { family: 'woven', leg }; note(furred ? 'breeches to the knee: the furred legs show below' : tailSeen && M < 0.5 && F >= 0.6 ? `trousers, not a skirt: the tail must read` : leg === 'knee' ? `breeches to the knee: the ${f.role} moves fast` : `trousers: the ${f.role}'s legs free`);
+  }
+  // the TOP, always: woven and tucked when bound (a placket, tidy), knit and worn out when free; its sleeve by the work
+  let sleeve = f.role === 'caster' ? 'long' : f.role === 'ranged' ? 'short' : f.role === 'frontline' ? 'long' : F >= 0.6 ? 'long' : youth || M >= 0.9 ? 'short' : 'elbow';
+  const SL = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], cap = (w, most) => (SL.indexOf(w) > SL.indexOf(most) ? most : w);
+  let why = f.role === 'ranged' ? ' (the draw arm free)' : f.role === 'caster' ? ' (the casting hands framed)' : '';
+  if (A.wings) { sleeve = 'none'; why = ' (the wings on the arms)'; } else if (A.fur && A.where.has('forearm') && SL.indexOf(sleeve) > SL.indexOf('elbow')) { sleeve = 'elbow'; why = ' (the furred forearm shows)'; }
+  const top = A.chitin ? false : { family: (bound || F >= 0.6) && !A.fur ? 'woven' : 'knit', sleeve, hem: bound ? 'hip' : 'tunic', ...(F >= 0.6 && bound && !A.ruff ? { collar: true } : {}) };
+  if (top) note(`a ${top.family === 'knit' && A.fur ? 'light knit' : top.family} top, ${sleeve === 'none' ? 'sleeveless' : sleeve === 'long' ? 'long-sleeved' : sleeve === 'short' ? 'short-sleeved' : 'sleeved to the elbow'}${why}, ${bound ? 'tucked: a bound order' : 'worn out: a free order'}`);
+  else note('no shirt: the chitin plates are the ground');
+  // the OUTER layer by station and silhouette: a coat at court, a jacket or jerkin between, a vest or nothing everyday
+  let outer = null;
+  const maxHem = tailSeen ? 'hip' : null, opened = free || heavy || (!bound && F >= 0.6);
+  if (F >= 0.7) outer = { family: 'woven', sleeve: f.role === 'ranged' ? 'none' : 'long', hem: maxHem ?? (bottom.kind === 'skirt' ? 'maxi' : 'knee'), open: opened, cut: silhouette === 'bell' ? 'full' : ['column', 'needle'].includes(silhouette) ? 'pencil' : 'aline', ...(silhouette === 'needle' ? { collar: true } : {}) };
+  else if (F >= 0.4 || silhouette === 'wedge' || silhouette === 'barrel') outer = { family: 'woven', sleeve: M >= 0.8 || silhouette === 'barrel' ? 'none' : 'elbow', hem: silhouette === 'wedge' ? 'hip' : maxHem ?? (silhouette === 'barrel' ? 'tunic' : F >= 0.55 ? 'knee' : 'tunic'), open: opened, cut: 'aline' };
+  else if (bound) outer = { family: 'woven', sleeve: 'none', hem: 'waist', open: false };
+  if (outer && ['column', 'needle'].includes(silhouette) && !tailSeen && F >= 0.4) Object.assign(outer, { hem: bottom.kind === 'skirt' ? 'maxi' : 'midi', cut: 'pencil', open: free });
+  // between the plates: an open vest, the cloth a harness over the shell
+  if (A.chitin) outer = { family: 'woven', sleeve: 'none', hem: F >= 0.5 ? 'tunic' : 'hip', open: true, cut: 'aline' };
+  if (outer) { if (A.wings) outer.sleeve = 'none'; else if (A.fur && A.where.has('forearm')) outer.sleeve = cap(outer.sleeve, 'short');
+    if (A.ruff) delete outer.collar; if (!top) outer.open = true; }
+  if (outer) { const kind = outer.sleeve === 'none' ? (['waist', 'hip'].includes(outer.hem) ? 'vest' : 'jerkin') : ['knee', 'midi', 'maxi'].includes(outer.hem) ? 'coat' : 'jacket';
+    const len = { waist: 'the waist', hip: 'the hip', tunic: 'mid-thigh', knee: 'the knee', midi: 'the calf', maxi: 'the ankle' }[outer.hem];
+    note(`${outer.open ? 'an open' : 'a closed'} ${outer.cut === 'pencil' ? 'straight ' : outer.cut === 'full' ? 'full ' : ''}${kind} to ${len}: ${F >= 0.7 ? `the ${a}'s station` : silhouette === 'wedge' ? 'the wedge kept short under the shoulders' : silhouette === 'barrel' ? 'the barrel layered at the middle' : `the ${a}'s second layer`}${tailSeen && outer.hem === 'hip' ? ', short over the tail' : ''}${outer.open && heavy && !free ? ', open to break the mass' : ''}${A.scales ? ' (scales are cold: a layer more)' : ''}`); }
+  // FIT BY ZONE: tight against loose (the contrast of fit is visual interest, and one full zone at most, the one the
+  // silhouette lives in). Next to the skin under an outer layer, a second skin; fast legs in hose; the outline's
+  // carrier the only full zone; everything else follows the body in
+  const carrier = silhouette === 'barrel' ? 'outer' : ['bell', 'column'].includes(silhouette) ? 'outer' : null;
+  if (top) top.fit = outer ? 'skin' : f.role === 'caster' ? 'eased' : heavy && !lithe ? 'eased' : 'fitted';
+  if (bottom.kind !== 'skirt') bottom.fit = M >= 0.8 && !heavy && bottom.leg === 'long' ? 'skin' : 'fitted';
+  // the full zone is EASED, not loose: a barrel is round (full at the middle, in at the hem), never a box
+  if (outer) outer.fit = A.chitin ? 'fitted' : carrier === 'outer' || heavy ? 'eased' : 'fitted';
+  if (![top?.fit, bottom.fit, outer?.fit].some((x) => x === 'skin' || x === 'fitted') && bottom.kind !== 'skirt') bottom.fit = 'fitted';
+  note(`fit: ${[top && `the ${outer ? 'undershirt' : 'top'} ${top.fit === 'skin' ? 'a second skin' : top.fit}`, bottom.kind !== 'skirt' && `the ${bottom.leg === 'knee' ? 'breeches' : bottom.fit === 'skin' ? 'hose' : 'trousers'} ${bottom.fit === 'skin' ? 'skintight' : bottom.fit}`, outer && `the ${outer.sleeve === 'none' ? 'vest' : 'coat'} ${outer.fit}`].filter(Boolean).join(', ')}: tight against ${carrier ? `the ${silhouette}'s full ${silhouette === 'barrel' ? 'middle' : 'fall'}` : 'the shoulders'}`);
+  // fit and length from age and build; the drawn style a little stylized; the dress notes' derives on top
+  const fit = Math.max(0, Math.min(1, (lithe ? 0.3 : heavy ? 0.65 : 0.5) + (elder ? 0.1 : youth ? -0.1 : 0) + (hasDerive(sheet, 'outfit.fit +') ? 0.15 : 0)));
+  const dials = { stylize: 0.35, fit: Math.round(fit * 100) / 100, coverage: 1, ornament: Math.min(3, 1 + (F >= 0.5 ? 1 : 0) + (hasDerive(sheet, 'armor.ornament +') ? 1 : 0)) };
+  const focal = top.collar ? 'collar' : top.family === 'woven' && bound ? 'placket' : 'belt';
+  const language = { top, bottom, ...(outer ? { outer } : {}), feet: 'none', tuck: bound, focal };
+  note('bare feet: the claws read');
+  // the cloth's colour roles (60 / 30 / 10): the largest field the base. Under a short outer layer the legs wear its
+  // colour too (one suit, the shirt the secondary showing at the front and the sleeves); under a long coat they barely
+  // show, in leather. Without an outer layer the longer of top and bottom is the base
+  const longOuter = outer && ['knee', 'midi', 'maxi'].includes(outer.hem), skirtBig = bottom.kind === 'skirt' && bottom.leg !== 'knee';
+  const colours = !top ? { Outer: 'base', Bottom: 'base' } : outer ? { Outer: 'base', Top: 'secondary', Bottom: longOuter ? 'leather' : bottom.kind === 'skirt' ? 'secondary' : 'base' } : skirtBig ? { Top: 'secondary', Bottom: 'base' } : { Top: 'base', Bottom: 'secondary' };
+  return { language, dials, colours, notes };
+}
+
 export function outfitFromSheet(sheet, { coat } = {}) {
   const f = sheet.facets, a = f.archetype, free = f.order >= 0.5, side = 'R';
   const tail = sheet.ancestry?.plan?.tail, tailSeen = SEEN_TAILS.has(tail);
   // the sheet's own silhouette word when the archetype reads that way; the archetype's otherwise
   const said = deriveOf(sheet, 'silhouette ='), silhouette = said && (ARCHETYPE_SHAPES[a] || []).includes(said) ? said : SHAPE[a] ?? 'column';
-  const pieces = [];
-  // the core garment by the silhouette; a must-see tail keeps the skirt short
-  const elder = ['seasoned', 'elder'].includes(f.age), female = f.pole === 'female';
-  const core = tailSeen ? 'tunic' : silhouette === 'bell' ? (female && !elder ? 'gown' : 'robe') : silhouette === 'column' ? 'robe' : 'tunic';
-  pieces.push({ kind: core, ...(hasDerive(sheet, 'outfit.fit +') ? { ease: 0.012 } : {}), why: core === 'tunic' && tailSeen ? `the ${a}'s ${silhouette} kept short, so the tail reads` : `the ${a}'s ${silhouette}: ${core === 'gown' ? 'falls from the shoulders, taken in at the waist' : core === 'robe' ? 'one long line from the shoulders' : 'a short garment, the legs free'}` });
-  if (OFFICE.mantle.includes(a)) pieces.push({ kind: 'mantle', clasp: false, why: `the ${a}'s station on the shoulder line` });
-  if (OFFICE.sash.includes(a) && core !== 'tunic') pieces.push({ kind: 'sash', why: 'marks the natural waist', ...(FOCAL[a] === 'sash' ? { role: 'focal', knotColour: 'accent' } : {}) });
+  const pieces = [], cut = cutFromSheet(sheet, { silhouette, tailSeen });
+  const long = ['knee', 'midi', 'maxi'].includes(cut.language.outer?.hem);
+  // the station on the shoulders when no long coat already carries it; a sash where the cloth meets at the waist
+  if (OFFICE.mantle.includes(a) && !long) pieces.push({ kind: 'mantle', clasp: false, why: `the ${a}'s station on the shoulder line` });
+  if (OFFICE.sash.includes(a) && !(cut.language.outer && !cut.language.outer.open)) pieces.push({ kind: 'sash', why: 'marks the natural waist', ...(FOCAL[a] === 'sash' ? { role: 'focal', knotColour: 'accent' } : {}) });
+  // a traveller's cloak, where no tail must read; a needle's rise
+  if (['explorer', 'outlaw'].includes(a) && !tailSeen && !anatomyOf(sheet).wings) pieces.push({ kind: 'cloak', why: `the ${a} travels: a cloak from the shoulders` });
+  if (silhouette === 'needle' && !cut.language.outer?.collar) pieces.push({ kind: 'collar', why: 'the needle\'s height: a collar standing behind the nape' });
   // what the role needs
   for (const g of ROLE_GEAR[f.role] ?? []) if (!pieces.some((p) => p.kind === g.kind)) pieces.push({ ...g });
   // the one focal piece: the archetype's, unless armour is the hero's and the role brought none
@@ -102,6 +194,7 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   const asym = (p) => ['satchel', 'baldric'].includes(p.kind) || (p.kind === 'pauldron' && !p.pair);
   if (free && !pieces.some(asym)) pieces.push(OFFICE.mantle.includes(a) ? { kind: 'baldric', colour: 'trim', why: `the sash of office worn across the chest: the free ${a}'s one asymmetric note` } : { kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' });
   if (!free) for (const p of pieces) if (p.kind === 'pauldron') p.pair = true;
+  if (silhouette === 'wedge') for (const p of pieces) if (p.kind === 'pauldron') p.shoulder = 1.25;   // the wedge's broad shoulder line
   // repetition: the trim on two pieces at least (the mantle's clasp takes it when only one wears it)
   const trims = () => pieces.filter((p) => (p.colour ?? defaultColour(p.kind)) === 'trim').length + pieces.filter((p) => p.kind === 'mantle' && p.clasp !== false).length;
   if (trims() < 2) { const m = pieces.find((p) => p.kind === 'mantle'); if (m) Object.assign(m, { clasp: true, claspColour: 'trim' }); }
@@ -109,11 +202,13 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   if (trims() < 2) { const w = pieces.find((p) => p.kind === 'wraps'); if (w) w.colour = 'trim'; else pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' }); }
   // restraint: six pieces at most, kept by what each is for (the garment, the focal, the station, the role's first
   // need, the asymmetric note, the waist, the role's second need, the detail)
-  const rank = (p) => (p.kind === core ? 0 : p.role === 'focal' ? 1 : p.kind === 'mantle' ? 2 : p.why?.includes('asymmetric') ? 4 : p.kind === 'sash' ? 5 : p.role === 'detail' ? 7 : (ROLE_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 3 : 6);
-  if (pieces.length > 6) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, 6)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
-  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin) }, pieces };
+  const rank = (p) => (p.role === 'focal' ? 1 : p.kind === 'mantle' ? 2 : p.why?.includes('asymmetric') ? 4 : p.kind === 'sash' ? 5 : p.role === 'detail' ? 7 : (ROLE_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 3 : 6);
+  const room = 5 - (cut.language.outer ? 1 : 0);   // the cloth (its base and its outer layer) counts toward the whole's six
+  if (pieces.length > room) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, room)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
+  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin) },
+    cut: { language: cut.language, dials: cut.dials, colours: cut.colours, notes: cut.notes }, pieces };
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [] });
   return { outfit, laws };
 }
-const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', sash: 'trim', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'secondary', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
+const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', sash: 'trim', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'secondary', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
 const defaultColour = (kind) => DEFAULT[kind] ?? 'base';

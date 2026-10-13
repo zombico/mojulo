@@ -21,18 +21,26 @@ describe('the outfit, designed from the sheet', () => {
     expect(sets.size).toBeGreaterThan(12);
   });
 
-  it('reads the character: a ruler wears a gown and a chain of office, not a porter\'s kit; a frontline wears armour', () => {
+  it('reads the character: the cut by principles, a ruler\'s chain of office, a frontline\'s armour, the body\'s own cover', () => {
     const ruler = outfitFromSheet(rollEgocube({ seed: 3, facets: { ancestry: 'ursine' } })).outfit;
-    // her sheet says a column, which a ruler allows: the long garment is a robe (a bell would be a gown)
-    expect(['gown', 'robe']).toContain(ruler.pieces[0].kind);
-    expect(ruler.pieces.map((p) => p.kind)).toEqual(expect.arrayContaining(['mantle', 'chain']));
+    // her station: a long coat; her fur: breeches to the knee and sleeves to the elbow; the chain of office leads
+    expect(['knee', 'midi', 'maxi']).toContain(ruler.cut.language.outer.hem);
+    expect(ruler.cut.language.bottom.leg).toBe('knee');
     expect(ruler.pieces.find((p) => p.kind === 'chain').role).toBe('focal');
     expect(ruler.pieces.filter((p) => ['pack', 'satchel'].includes(p.kind)).length).toBeLessThanOrEqual(1);
     const front = outfitFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'ursine', role: 'frontline', archetype: 'hero' } })).outfit;
     expect(front.pieces.map((p) => p.kind)).toEqual(expect.arrayContaining(['pauldron', 'bracers']));
-    // a tail that reads keeps its skirt short
+    expect(front.pieces.find((p) => p.kind === 'pauldron').shoulder).toBeGreaterThan(1);   // the wedge's broad shoulder line
+    // a tail that reads: no skirt, and the outer layer stops at the hip
     const wolf = outfitFromSheet(rollEgocube({ seed: 3, facets: { ancestry: 'lupine', archetype: 'ruler' } })).outfit;
-    expect(wolf.pieces[0].kind).toBe('tunic');
+    expect(wolf.cut.language.bottom.kind).not.toBe('skirt');
+    expect(['waist', 'hip']).toContain(wolf.cut.language.outer.hem);
+    // chitin is the ground: no shirt, a kilt; feathered wings: no sleeves; fit by zone, tight against full
+    const bug = outfitFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'insectoid' } })).outfit.cut.language;
+    expect(bug.top).toBe(false); expect(bug.bottom.kind).toBe('skirt');
+    const bird = outfitFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'avian' } })).outfit.cut.language;
+    expect(bird.top.sleeve).toBe('none'); expect(bird.top.fit).toBe('skin');
+    expect([bird.top.fit, bird.bottom.fit, bird.outer?.fit]).toEqual(expect.arrayContaining(['fitted']));
   });
 
   it('the palette steps: garment, secondary, trim and accent each a clear value from the others and from the coat', () => {
@@ -43,19 +51,26 @@ describe('the outfit, designed from the sheet', () => {
     }
   });
 
-  it('compiles onto the body in layer order: a fitted bodice, a skirt with a flat hem riding the thighs, the worn pieces', () => {
-    const sheet = rollEgocube({ seed: 3, facets: { ancestry: 'ursine' } }), call = planFromSheet(sheet, { dress: 'designed' });
-    const plan = call.create.spec.plan, built = compileOutfit(plan);
+  it('compiles the cut onto the creature in layer order: second skin painted, cloth fitted, the worn pieces over it', () => {
+    const sheet = rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), call = planFromSheet(sheet, { dress: 'designed' });
+    const plan = call.create.spec.plan, built = compileOutfit(plan), L = plan.outfit.cut.language;
     expect(plan.style.drawn).toBe(true);
     expect(plan.adorn).toEqual([]);
-    const core = plan.outfit.pieces[0].kind;
-    expect(built.garments.map((g) => g.id)).toContain(`${core}Bodice`);
-    const skirt = built.segments.find((s) => s.name === `${core}Skirt`);
-    expect(skirt.caps.tip[2]).toBe(skirt.stations[skirt.stations.length - 1].at[2]);   // the hem flat, not a point
-    expect(Object.keys(skirt.bind.blend).some((k) => /^st3\.sideR$/.test(k) && skirt.bind.blend[k].thighR > 0)).toBe(true);
-    expect(built.adorn.map((a) => a.id)).toEqual(expect.arrayContaining(['mantle', 'sash', 'chain']));
-    expect(built.palette.OutfitBase).toBe(plan.outfit.intent.palette.base);
+    const ids = built.garments.map((g) => g.id);
+    expect(ids).toEqual(expect.arrayContaining(['outer', 'bottomSeat', 'bottomLeg']));
+    // the hero's shank is the creature's shin, and its pelvis windows are carried across by share
+    expect(built.garments.some((g) => [g.part].flat().includes('shank'))).toBe(false);
+    for (const g of built.garments) if ([g.part].flat()[0] === 'pelvis' && g.u) expect(Math.max(...g.u)).toBeLessThanOrEqual(plan.segments.find((x) => x.name === 'pelvis').stations.length - 1);
+    // a second-skin undershirt is paint, not cloth
+    if (L.top?.fit === 'skin') { expect(ids).not.toContain('top'); expect(built.paint.some((P) => [P.part].flat().includes('torso') && P.group === 'Top')).toBe(true); }
+    expect(built.palette.Outer).toBe(plan.outfit.intent.palette[plan.outfit.cut.colours.Outer]);
     expect(() => expandPlan(built)).not.toThrow();
+    // the catalogue's tailored gown still compiles: a fitted bodice, a skirt with a flat hem riding the thighs
+    const gown = compileOutfit({ ...plan, outfit: { intent: plan.outfit.intent, pieces: [{ kind: 'gown', why: 'x' }] } });
+    const skirt = gown.segments.find((x) => x.name === 'gownSkirt');
+    expect(gown.garments.map((g) => g.id)).toContain('gownBodice');
+    expect(skirt.caps.tip[2]).toBe(skirt.stations[skirt.stations.length - 1].at[2]);
+    expect(Object.keys(skirt.bind.blend).some((k) => /^st3\.sideR$/.test(k) && skirt.bind.blend[k].thighR > 0)).toBe(true);
     // without `dress`, the stock kit as before
     expect(planFromSheet(sheet).create.spec.plan.outfit).toBeUndefined();
     expect(compileOutfit({ segments: [] })).toEqual({ segments: [] });
