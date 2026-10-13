@@ -2,9 +2,11 @@
  * ITEMS — what can be held, and where it is. Every inventory action is a TRANSFER of items between HOLDERS, guarded so
  * it never overdraws; every inventory menu is a VIEW of a holder whose rows carry a verb (menus.js).
  *
- *   play.items: { <id>: { name?, form?, kind?, about?, use?: effects, equip?: { slot, on?, off? }, value? } }
+ *   play.items: { <id>: { name?, form?, icon?, kind?, about?, use?: effects, equip?: { slot, on?, off? }, value? } }
  *     name    what the player reads (the id's words when left out)
- *     form    its glyph (game/glyph-forms.js: gem, coin, key, heart, star, orb, flag, skull; guessed from the id)
+ *     form    its glyph in the world (game/glyph-forms.js: gem, coin, key, heart, star, orb, flag, skull; guessed from the id)
+ *     icon    its icon in a menu (item-icons.js ICON_IDS: potion, sword, shield, scroll, candle, food, ring …; guessed from
+ *             its words, else its form)
  *     kind    thing | consumable | key | currency (thing)
  *     about   a line the menu shows under it
  *     use     effects a use has (a cue's effects: heal, add, set, say, emit …): an item with them is consumable
@@ -33,6 +35,7 @@
  */
 import { formForItem } from '../../game/mechanic-decor.js';
 import { GLYPH_IDS } from '../../game/glyph-forms.js';
+import { ICON_IDS } from './item-icons.js';
 
 export const ITEM_KINDS = Object.freeze({
   thing: 'kept: a token, a trinket, a quest piece',
@@ -64,7 +67,8 @@ export function readItems(play, readEffects = null) {
     if (!/^[a-z][a-z0-9-]*$/.test(key)) throw new Error(`${at}: an item's id is words (letters, digits, spaces or hyphens)`);
     if (out[key]) throw new Error(`play.items: '${id}' names the same item as another (${key})`);
     if (!isObj(it)) throw new Error(`${at} is { name?, form?, kind?, about?, use?, value? }`);
-    for (const k of Object.keys(it)) if (!['name', 'form', 'kind', 'about', 'use', 'equip', 'value'].includes(k)) throw new Error(`${at}.${k} is not part of an item (name, form, kind, about, use, equip, value)`);
+    for (const k of Object.keys(it)) if (!['name', 'form', 'icon', 'kind', 'about', 'use', 'equip', 'value'].includes(k)) throw new Error(`${at}.${k} is not part of an item (name, form, icon, kind, about, use, equip, value)`);
+    if (it.icon !== undefined && !ICON_IDS.includes(it.icon)) throw new Error(`${at}.icon is one of ${ICON_IDS.join(', ')}`);
     if (it.name !== undefined && !isStr(it.name)) throw new Error(`${at}.name is the words the player reads`);
     if (it.form !== undefined && !ITEM_FORMS.includes(it.form)) throw new Error(`${at}.form is a glyph: ${ITEM_FORMS.join(', ')}`);
     if (it.kind !== undefined && !ITEM_KINDS[it.kind]) throw new Error(`${at}.kind is one of ${Object.keys(ITEM_KINDS).join(', ')}`);
@@ -86,7 +90,7 @@ export function readItems(play, readEffects = null) {
       equip = { slot: E.slot, on: fx(E.on, `${at}.equip.on`), off: fx(E.off, `${at}.equip.off`) };
     }
     out[key] = {
-      key, name: it.name ?? words(key), form: it.form ?? formForItem(key),
+      key, name: it.name ?? words(key), form: it.form ?? formForItem(key), ...(it.icon ? { icon: it.icon } : {}),
       kind: it.kind ?? (use ? 'consumable' : equip ? 'equipment' : 'thing'), about: it.about ?? null, use, equip, value: it.value ?? null,
     };
   }

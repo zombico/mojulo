@@ -40,6 +40,7 @@
  */
 import { readEffect, effectContext, lowerEffects, emptyFrag, tidy, menuVar, readCues } from './cues.js';
 import { readItems, itemOf, itemKey, heldVar, lowerMove, lowerEquips, NOWHERE, WORN } from './items.js';
+import { iconFor, iconSvg } from './item-icons.js';
 
 export const MENU_KINDS = Object.freeze({
   read: { about: 'words to read: a sign, a note, a plaque, a book (pages turn)', fields: 'text | pages', example: { id: 'plaque', kind: 'read', title: 'Brass plaque', text: 'Here the east wing burned, and was built again.' } },
@@ -111,7 +112,14 @@ export function readMenus(play) {
     } else if (m.kind === 'save') {
       if (m.slots !== undefined && !(Number.isInteger(m.slots) && m.slots >= 1 && m.slots <= 12)) throw new Error(`${where}.slots is 1 to 12`);
       out.slots = m.slots ?? 3;
-    } else if (m.kind === 'inventory') {
+    }
+    if (VIEWS.includes(m.kind)) {
+      if (m.layout !== undefined && !['grid', 'list'].includes(m.layout)) throw new Error(`${where}.layout is grid (tiles with icons; the default) or list (rows)`);
+      if (m.cols !== undefined && !(Number.isInteger(m.cols) && m.cols >= 3 && m.cols <= 8)) throw new Error(`${where}.cols is how many tiles a row, 3 to 8`);
+      out.layout = m.layout ?? 'grid';
+      if (m.cols !== undefined) out.cols = m.cols;
+    }
+    if (m.kind === 'inventory') {
       if (m.from !== undefined && !(isStr(m.from) && ID.test(m.from))) throw new Error(`${where}.from is the holder it shows (bag, or a chest's or a shop's menu id)`);
       out.from = m.from ?? 'bag';
     } else if (m.kind === 'list') {
@@ -160,7 +168,29 @@ export function lowerMenus(play, { places = [] } = {}) {
 
 /** What the page draws for each menu: its words and its picks' labels (the effects are on the bus, keyed by pick). */
 export function menuPages(play) {
-  return readMenus(play).map(({ picks, ...m }) => ({ ...m, var: menuVar(m.id), ...(picks.length ? { picks: picks.map((p) => p.say) } : {}), ...(VIEWS.includes(m.kind) ? { rows: viewRows(play, m) } : {}) }));
+  return readMenus(play).map(({ picks, ...m }) => {
+    if (!VIEWS.includes(m.kind)) return { ...m, var: menuVar(m.id), ...(picks.length ? { picks: picks.map((p) => p.say) } : {}) };
+    // a grid's tabs: All, then each kind its rows carry (worn ones aside), in the kinds' order
+    const rows = viewRows(play, m), kinds = TAB_ORDER.filter((k) => rows.some((r) => !r.worn && r.kind === k));
+    const tabs = m.layout === 'grid' && kinds.length > 1 ? [{ id: 'all', label: 'All' }, ...kinds.map((k) => ({ id: k, label: TAB_LABEL[k] }))] : [];
+    return { ...m, var: menuVar(m.id), rows, ...(tabs.length ? { tabs } : {}) };
+  });
+}
+const TAB_ORDER = ['consumable', 'equipment', 'key', 'thing', 'currency'];
+const TAB_LABEL = { consumable: 'Use', equipment: 'Gear', key: 'Keys', thing: 'Things', currency: 'Coin' };
+
+/**
+ * What a view lets the focus land on, in order, as [row index, row]: a list, its live rows; a grid, what is worn first
+ * (its strip), then the open tab's live tiles. ONE source for the drawing and the page's keys (shipped into the page
+ * with toString(): it references nothing outside itself).
+ */
+export function viewLive(m, vars = {}, tab = 0) {
+  const has = (r) => !r.count || (vars[r.count] || 0) > 0, out = [];
+  if (m.layout !== 'grid') { m.rows.forEach((r, k) => { if (has(r)) out.push([k, r]); }); return out; }
+  const tabs = m.tabs || [], tk = tabs.length ? tabs[Math.min(tab, tabs.length - 1)] : null;
+  m.rows.forEach((r, k) => { if (r.worn && has(r)) out.push([k, r]); });
+  m.rows.forEach((r, k) => { if (!r.worn && has(r) && (!tk || tk.id === 'all' || r.kind === tk.id)) out.push([k, r]); });
+  return out;
 }
 
 export const VIEWS = Object.freeze(['shop', 'chest', 'inventory']);
@@ -174,11 +204,11 @@ function itemsNamed(play) {
 /** A view's rows: its items, each with the var counting what its holder holds (none for an endless stock), its price
  * (a shop's), the verb accept does on it, and its words. */
 export function viewRows(play, m) {
-  const items = readItems(play), row = (id) => { const it = itemOf(items, id); return { item: it.key, name: it.name, form: it.form, ...(it.about ? { about: it.about } : {}) }; };
+  const items = readItems(play), row = (id) => { const it = itemOf(items, id); return { item: it.key, name: it.name, form: it.form, kind: it.kind, icon: iconSvg(iconFor(it)), ...(it.about ? { about: it.about } : {}) }; };
   if (m.kind === 'shop') return m.stock.map((s) => ({ ...row(s.item), price: s.price, ...(s.count ? { count: heldVar(m.id, s.item) } : {}), verb: 'buy' }));
   if (m.kind === 'chest') return m.holds.map((h) => ({ ...row(h.item), count: heldVar(m.id, h.item), verb: 'take' }));
   // the bag's view: what it wears first (from the bag's own view only), then what it carries
-  const keys = itemsNamed(play), worn = m.from === 'bag' ? keys.filter((k) => itemOf(items, k).equip).map((k) => ({ ...row(k), name: `${itemOf(items, k).name} (${itemOf(items, k).equip.slot})`, count: heldVar(WORN, k), verb: 'unequip', worn: true })) : [];
+  const keys = itemsNamed(play), worn = m.from === 'bag' ? keys.filter((k) => itemOf(items, k).equip).map((k) => ({ ...row(k), name: `${itemOf(items, k).name} (${itemOf(items, k).equip.slot})`, slot: itemOf(items, k).equip.slot, count: heldVar(WORN, k), verb: 'unequip', worn: true })) : [];
   return [...worn, ...keys.map((k) => { const it = itemOf(items, k); return { ...row(k), count: heldVar(m.from, k), ...(it.use ? { verb: 'use' } : it.equip && m.from === 'bag' ? { verb: 'equip' } : {}) }; })];
 }
 
@@ -195,7 +225,7 @@ export function openers(play) {
  * A menu's markup at a focus and a page: ONE source for the board's specimens and the page's overlay (shipped into the
  * page with toString(), so it references nothing outside itself). `m` is a menuPages row; picks carry data-pick.
  */
-export function menuHtml(m, focus = 0, page = 0, vars = {}) {
+export function menuHtml(m, focus = 0, page = 0, vars = {}, tab = 0) {
   const e = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const ch = (say, i) => `<span class="pu-ch${i === focus ? ' on' : ''}" data-pick="${i}">${e(say)}</span>`;
   const head = m.title ? `<span class="pu-mt">${e(m.title)}</span>` : '';
@@ -205,7 +235,28 @@ export function menuHtml(m, focus = 0, page = 0, vars = {}) {
   if (m.kind === 'read') { const n = m.pages.length, p = Math.min(page, n - 1); body = `<span>${e(m.pages[p])}</span><span class="pu-foot"><span>${n > 1 ? `${p + 1} / ${n} · ${p + 1 < n ? 'next ▸' : 'close'}` : 'close'}</span></span>`; }
   else if (m.kind === 'talk') body = `${m.lines.slice(0, 3).map((l) => `<span>${l.who ? `<span class="pu-who">${e(l.who)}</span> ` : ''}${e(l.say)}</span>`).join('')}${picks}`;
   else if (m.kind === 'confirm') body = `<span>${e(m.ask)}</span>${picks}`;
-  else if (m.rows) {
+  // (a view is a shop, a chest or an inventory: a list has rows too, over vars)
+  else if (m.rows && m.kind !== 'list' && m.layout === 'grid') {
+    // a view as a GRID: the tabs (by kind, the open one marked), what is worn (a strip of slots, focused first), tiles
+    // with icon and count badge (empty cells keep the bag's shape), and the focused one's card: its icon large, name,
+    // kind and count, its words; the keys under them
+    const L = viewLive(m, vars, tab), tabs = m.tabs || [], tk = tabs[Math.min(tab, tabs.length - 1)] || null;
+    const worn = L.filter(([, r]) => r.worn), live = L.filter(([, r]) => !r.worn), nw = worn.length;
+    const cols = m.cols || 5, cells = Math.max(cols * 3, Math.ceil(live.length / cols) * cols);
+    const fr = L[Math.min(focus, L.length - 1)], f = fr ? fr[1] : null, n = (r) => (r.count ? vars[r.count] || 0 : null);
+    const tile = (r, i) => `<span class="pu-tile${i === focus ? ' on' : ''} k-${e(r.kind || 'thing')}" data-pick="${i}" title="${e(r.name)}">${r.icon || ''}${m.kind === 'shop' ? `<b class="pu-price">${e(r.price)}</b>` : n(r) > 1 ? `<b class="pu-qty">${n(r)}</b>` : ''}</span>`;
+    const grid = `<span class="pu-grid" style="--moj-inv-cols:${cols}">${Array.from({ length: cells }, (_, i) => (live[i] ? tile(live[i][1], nw + i) : '<span class="pu-tile empty"></span>')).join('')}</span>`;
+    const tabRow = tabs.length ? `<span class="pu-tabs">${tabs.map((t, i) => `<span class="pu-tabx${t === tk ? ' on' : ''}" data-tab="${i}">${e(t.label)}</span>`).join('')}</span>` : '';
+    const wornRow = nw ? `<span class="pu-worn">${worn.map(([, r], i) => `<span class="pu-slot${i === focus ? ' on' : ''} k-${e(r.kind || 'equipment')}" data-pick="${i}" title="${e(r.name)}">${r.icon || ''}<i>${e(r.slot || '')}</i></span>`).join('')}</span>` : '';
+    const purse = m.kind === 'shop' ? `<span class="pu-purse">${e(m.currency)} <b>${vars[m.currency] || 0}</b></span>` : '';
+    const name = f ? (f.worn ? f.name.replace(/ \([^)]*\)$/, '') : f.name) : '';
+    const card = f
+      ? `<span class="pu-card k-${e(f.kind || 'thing')}"><span class="pu-big">${f.icon || ''}</span><span class="pu-name">${e(name)}</span><span class="pu-kind">${f.worn ? `worn · ${e(f.slot || '')}` : e(f.kind || 'thing')}${!f.worn && n(f) !== null ? ` · ×${n(f)}` : ''}${m.kind === 'shop' ? ` · ${e(f.price)} ${e(m.currency)}${f.count ? ` · ${vars[f.count] || 0} left` : ''}` : ''}</span>${f.about ? `<span class="pu-about">${e(f.about)}</span>` : ''}</span>`
+      : `<span class="pu-card"><span class="pu-muted">${m.kind === 'chest' ? 'Empty.' : m.kind === 'shop' ? 'Sold out.' : 'Nothing carried.'}</span></span>`;
+    const keys = `<span class="pu-foot">${f && f.verb ? `<span><b>enter</b> ${e(f.verb)}</span>` : ''}${tabs.length ? '<span><b>[ ]</b> tabs</span>' : ''}<span><b>esc</b> close</span></span>`;
+    return `<div class="moj-w moj-w-menu moj-w-inv" data-menu="${e(m.id)}"><span class="pu-head">${head}${purse}</span>${tabRow}${wornRow}<span class="pu-body">${grid}${card}</span>${keys}</div>`;
+  }
+  else if (m.rows && m.kind !== 'list') {
     // a view: its live rows (a holder holding none is not drawn), the one in focus marked and its words under them
     const live = m.rows.filter((r) => !r.count || (vars[r.count] || 0) > 0), f = live[Math.min(focus, live.length - 1)];
     const num = (r) => (m.kind === 'shop' ? `${r.price}${r.count ? ` · ${vars[r.count] || 0} left` : ''}` : `×${vars[r.count] || 0}`);

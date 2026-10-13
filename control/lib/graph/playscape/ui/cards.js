@@ -201,6 +201,9 @@ function menusCard() {
     '  own), so a cue\'s if, a {var} and the HUD read it. shop, chest and inventory are VIEWS: live rows (none held, not',
     '  drawn), accept does the row\'s verb (buy, take, use) and the menu stays up; a guard that fails says why (a toast).',
     '  A collect\'s pickups count into the bag. Cue effects give and use move items too.',
+    '  A view is a GRID by default (layout: \'list\' for rows; cols: 3 to 8): tabs by kind ([ ] or a click), what is worn',
+    '  first, tiles with icons (play.items[…].icon, else from its words) and counts, the focused one\'s card. Restyled by',
+    '  tokens: --moj-tile, --moj-tile-gap, --moj-tile-radius, --moj-tile-bg, --moj-qty-bg, --moj-kind-<kind>, --moj-card-w.',
     `example: ${JSON.stringify([MENU_KINDS.talk.example, MENU_KINDS.shop.example])}`,
   );
 }

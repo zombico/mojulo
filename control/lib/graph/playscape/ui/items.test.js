@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { buildBus } from '../../worlds/event-bus.js';
 import { readItems, itemKey, heldVar, ITEM_FORMS } from './items.js';
-import { lowerMenus, menuPages, menuHtml, viewRows } from './menus.js';
+import { lowerMenus, menuPages, menuHtml, viewRows, viewLive } from './menus.js';
+import { ICON_IDS, iconFor } from './item-icons.js';
 import { lowerCues } from './cues.js';
 import { mergeEventManifests } from '../../game/level-synth.js';
 import { composeMechanics } from '../../game/mechanics.js';
@@ -84,8 +85,8 @@ describe('the verbs, on the bus', () => {
 });
 
 describe('the views, drawn', () => {
-  const page = (id) => menuPages(play).find((m) => m.id === id);
-  it('a row whose holder holds none is not drawn; the one in focus shows its words and its verb', () => {
+  const page = (id) => ({ ...menuPages(play).find((m) => m.id === id), layout: 'list' });
+  it('a row whose holder holds none is not drawn; the one in focus shows its words and its verb (layout: list)', () => {
     const bag = page('bag');
     expect(menuHtml(bag, 0, 0, {})).toContain('Nothing carried.');
     const html = menuHtml(bag, 0, 0, { [heldVar('bag', 'tonic')]: 2, [heldVar('bag', 'candle')]: 1 });
@@ -208,5 +209,57 @@ describe('equipment', () => {
     const r = K.applyEvents(schema, K.createStore(schema), [{ type: 'grant', slice: 'gear', item: 'sword', count: 1 }, { type: 'setFlag', slice: 'world', key: 'cellar|trunk:candle', value: 0 }]);
     expect(r.ok).toBe(true);
     expect([r.state.gear.items, r.state.world.flags]).toEqual([{ sword: 1 }, { 'cellar|trunk:candle': 0 }]);
+  });
+});
+
+describe('a list is not a view', () => {
+  it('a status list draws its rows over vars, as it did', () => {
+    const [m] = menuPages({ menus: [{ id: 'status', kind: 'list', title: 'Status', rows: [{ label: 'Health', var: 'hp' }] }] });
+    const html = menuHtml(m, 0, 0, { hp: 7 });
+    expect(html).toContain('Health');
+    expect(html).toContain('{hp}');
+    expect(html).not.toContain('Nothing carried');
+  });
+});
+
+describe('the grid', () => {
+  const items = { tonic: { about: 'Heals.', use: { add: 'hp', by: 5 } }, sword: { equip: { slot: 'hand' } }, 'crest key': { kind: 'key' }, apple: {} };
+  const P = { items, menus: [{ id: 'bag', kind: 'inventory', title: 'Bag' }, { id: 'stall', kind: 'shop', currency: 'gold', stock: [{ item: 'apple', price: 2 }] }] };
+  const bag = () => menuPages(P).find((m) => m.id === 'bag');
+  const vars = { [heldVar('bag', 'tonic')]: 3, [heldVar('bag', 'apple')]: 1, [heldVar('bag', 'crest-key')]: 1, [heldVar('worn', 'sword')]: 1 };
+  it('a view is a grid by default: tabs by the kinds it holds, icons by the items\' words', () => {
+    const m = bag();
+    expect(m.layout).toBe('grid');
+    expect(m.tabs.map((t) => t.label)).toEqual(['All', 'Use', 'Gear', 'Keys', 'Things']);
+    expect(iconFor({ key: 'tonic' })).toBe('potion');
+    expect(iconFor({ key: 'apple' })).toBe('food');
+    expect(iconFor({ key: 'widget', form: 'gem' })).toBe('gem');
+    expect(m.rows.every((r) => r.icon.startsWith('<svg'))).toBe(true);
+  });
+  it('the focus runs over what is worn first, then the open tab\'s tiles; the drawing marks the same one', () => {
+    const m = bag();
+    expect(viewLive(m, vars, 0).map(([, r]) => r.item)).toEqual(['sword', 'tonic', 'crest-key', 'apple']);
+    expect(viewLive(m, vars, 1).map(([, r]) => r.item)).toEqual(['sword', 'tonic']);   // Use: the worn strip, then the tonic
+    const html = menuHtml(m, 1, 0, vars, 0);
+    expect(html).toMatch(/<span class="pu-tile on k-consumable" data-pick="1" title="tonic"><svg/);
+    expect(html).toContain('<b class="pu-qty">3</b>');
+    expect(html).toMatch(/<span class="pu-slot k-equipment" data-pick="0" title="sword \(hand\)"><svg[\s\S]*?<i>hand<\/i>/);
+    expect(html).toContain('<span class="pu-name">tonic</span>');
+    expect(html).toContain('<b>enter</b> use');
+    expect((html.match(/pu-tile empty/g) || []).length).toBe(15 - 3);
+  });
+  it('a worn slot in focus reads as worn, to unequip; a shop\'s tiles carry their prices and the purse', () => {
+    const html = menuHtml(bag(), 0, 0, vars, 0);
+    expect(html).toContain('<span class="pu-kind">worn · hand</span>');
+    expect(html).toContain('<b>enter</b> unequip');
+    const shop = menuHtml(menuPages(P).find((m) => m.id === 'stall'), 0, 0, { gold: 5 }, 0);
+    expect(shop).toContain('<b class="pu-price">2</b>');
+    expect(shop).toContain('<span class="pu-purse">gold <b>5</b></span>');
+  });
+  it('says what is wrong', () => {
+    expect(() => readItems({ items: { tonic: { icon: 'teapot' } } })).toThrow(/icon is one of item, gem/);
+    expect(() => menuPages({ menus: [{ id: 'b', kind: 'inventory', layout: 'tiles' }] })).toThrow(/layout is grid/);
+    expect(() => menuPages({ menus: [{ id: 'b', kind: 'inventory', cols: 12 }] })).toThrow(/cols is how many tiles/);
+    expect(ICON_IDS).toContain('potion');
   });
 });

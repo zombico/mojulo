@@ -465,6 +465,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   - Each chest's and counted shop's holdings are kept as a flag `<levelRef>|<holder>:<item>` = what it holds now, so a
     chest emptied stays empty when the level is entered again.
   - Every holder a move touches says `in:<holder>:<item>:<n>` / `out:…` (this was `bag:in` / `bag:out`).
+- **A view layer for items.** `shop`, `chest` and `inventory` draw a grid by default (`layout: 'list'` keeps rows;
+  `cols` 3 to 8):
+  - tabs by the kinds held (All, Use, Gear, Keys, Things), cycled with `[` / `]`, the pad's shoulders, or a click;
+  - what is worn first, a strip of slots, to unequip;
+  - tiles with an icon and a quantity badge (a shop's: its price), empty cells keeping the bag's shape;
+  - the focused item's card: a large icon, its name, kind and count, its words, the keys for its verb.
+
+  Arrows move the focus in two dimensions. The pointer focuses a tile on hover and does its verb on a click of the
+  focused one. `viewLive` is the one source of the focus order for the drawing and the keys. Icons
+  (`playscape/ui/item-icons.js`) are flat SVG placeholders in `currentColor`: `play.items[…].icon`, else guessed from
+  the item's words, else its glyph form. Every size and colour is a CSS token (`--moj-tile`, `--moj-kind-<kind>`…)
+  over the UI guide's own, so a guide restyles it.
+- **A list menu drew as an item view** (the status page on I showed nameless rows) since items arrived: a `list` has
+  rows too. Fixed, with a law.
 - **The result screen** lists each item's net change a slice (a sword taken and worn is "+1 sword · gear"), a flag by
   its own name (it said "flag set" for every flag: it read `ev.flag`, the store's field is `key`), and keeps the
   world's memory (a chest's count, a broken block) quiet.
