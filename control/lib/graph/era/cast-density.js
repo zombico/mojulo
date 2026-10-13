@@ -8,8 +8,10 @@
  * The parts are the body's: trunk, neck, limbs, feet. The head, the hands and the fingers carry features, not
  * outline, and keep their own budget.
  *
- *   castDensity(plan, target)   per part: radius in pixels, sides, the error, whether it is split; the refine to add
- *   densityPlan(plan, target)   the plan with that refine after the dress's (a part is split once)
+ *   castDensity(plan, target, { parts?, joints? })   per part: radius in pixels, sides, the error, whether it is split;
+ *                               the refine to add (`parts` the hero's DENSITY_PARTS, `joints` its bridges, by default;
+ *                               a creature passes its own, creature-drawn.js)
+ *   densityPlan(plan, target, { parts?, joints? })   the plan with that refine after the dress's (a part is split once)
  */
 import { SLOT_FAMILIES } from '../polygonizer/station-loft-plan.js';
 import { bridgedChains } from '../polygonizer/tiered-form.js';
@@ -40,11 +42,11 @@ export const planHeight = (plan) => Math.max(...Object.values(plan.joints || {})
  * Per body part under `target`: { part, radiusPx, sides, errorPx, split } as the plan stands, and `refine`, the entries
  * that split each part still over the error (a part the dress gave stations only takes the split without new stations).
  */
-export function castDensity(plan, targetSpec) {
+export function castDensity(plan, targetSpec, { parts: names = DENSITY_PARTS, joints } = {}) {
   const target = readTarget(targetSpec), heightM = planHeight(plan), ppm = pxPerMetre(target, heightM);
   const how = refinedHow(plan), byName = Object.fromEntries((plan.segments || []).map((g) => [g.name, g]));
   const parts = [], fresh = [], splitOnly = [];
-  for (const name of DENSITY_PARTS) {
+  for (const name of names) {
     const g = byName[name], base = g && sidesOf(g, plan.style); if (!g || !base) continue;
     const rPx = radiusOf(g) * ppm, split = how.get(name) === 'split', sides = split ? base * 2 : base, errorPx = outlineError(rPx, sides);
     parts.push({ part: name, radiusPx: r2(rPx), sides, wants: Math.ceil(sidesFor(rPx, target.error)), errorPx: r2(errorPx), split });
@@ -52,14 +54,14 @@ export function castDensity(plan, targetSpec) {
   }
   // a bridged limb (tiered-form.js) splits as one chain: its limbs, its hand and its bridges share their seam rings
   const split = (p) => how.get(p) === 'split' || fresh.includes(p) || splitOnly.includes(p);
-  for (const chain of new Set(bridgedChains(plan).values())) if (chain.some(split)) for (const p of chain) if (!split(p)) (how.get(p) === 'stations' ? splitOnly : fresh).push(...twin(p));
+  for (const chain of new Set(bridgedChains(plan, joints).values())) if (chain.some(split)) for (const p of chain) if (!split(p)) (how.get(p) === 'stations' ? splitOnly : fresh).push(...twin(p));
   const refine = [...(fresh.length ? [{ parts: fresh, slots: 'halve' }] : []), ...(splitOnly.length ? [{ parts: splitOnly, stations: false, slots: 'halve' }] : [])];
   return { target, heightM: r2(heightM), pxPerMetre: r2(ppm), parts, refine };
 }
 
 /** The plan with its target's split after the dress's refine; nothing to split ⇒ the plan as it was. */
-export function densityPlan(plan, target) {
-  const { refine } = castDensity(plan, target);
+export function densityPlan(plan, target, opts) {
+  const { refine } = castDensity(plan, target, opts);
   return refine.length ? { ...plan, body: { ...(plan.body || {}), refine: [...(plan.body?.refine || []), ...refine] } } : plan;
 }
 

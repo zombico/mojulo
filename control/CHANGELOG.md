@@ -25,6 +25,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   metres (0.95 overlap, the worst view named). `distinctSilhouettes` is the production gate: composed figures, each
   framed by its own height so it reads shape, must differ (mean overlap at most 0.75, the most alike pair named). Today
   the Egocube's rolled lineages read 0.76–0.84 (one body under six heads) and a brief that moved no facet 1.0.
+- **A creature drawn for its target** (`creature-drawn.js`, the plan's `style.drawn: true | { target }`). The
+  creature keeps its own body; what changes is how it is built for the target, in one step, never coarse first:
+  - a bridge over every joint its bind chains name (the hero's elbow and knee bridge, `tieredJoints`, now taking any
+    joint list), where the smaller of the two rings meeting there reads at least 4 px at the target, so a claw's
+    knuckle keeps its shared ring;
+  - every body part's rings set by the target's outline rule (`castDensity`, now taking any part list);
+  - each bridge wears its upper limb's tint.
+  On the Pale Warden at 1080p third-person: bridges at the shin, metatarsal, toes, forearm and hand, the torso, pelvis
+  and neck split, and the outline kept (0.976 overlap at worst, the three-quarter view). Without `style.drawn` a plan
+  expands byte for byte as before, and the hero's bridges and density are unchanged.
 - **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
   silhouette:
   - a silhouette gate every pass must keep;

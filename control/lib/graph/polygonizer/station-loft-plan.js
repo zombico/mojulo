@@ -11,7 +11,7 @@
  *   schema: 'layered-plan-v1',
  *   frame: { up: '+z', front: '+y', note? },  symmetry?: { plane, policy },
  *   slotFamilies?: { <name>: [slots] },                       // over the built-ins: ring6, ring8, ring10, ring12, limb6
- *   style?: { slots?, limbSlots?, e? },                        // the ART STYLE: the ring family of every trunk (`slots`),
+ *   style?: { slots?, limbSlots?, e?, drawn? },                // the ART STYLE: the ring family of every trunk (`slots`),
  *                                                              //   of every segment and chain (`limbSlots`), and the superellipse
  *                                                              //   exponent of every ring that names none (2 round … 12 box)
  *   joints: { <name>: [x, y, z] },                             // authored on the RIGHT (or the midline)
@@ -77,7 +77,7 @@ export const SLOT_FAMILIES = {
   // a fine ring for a form sampled point by point (a `rings` part: the breast's lens)
   ring20: ['front', 'a1R', 'a2R', 'a3R', 'a4R', 'sideR', 'b4R', 'b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'b4L', 'sideL', 'a4L', 'a3L', 'a2L', 'a1L'],
 };
-const STYLE_KEYS = ['slots', 'limbSlots', 'e'];
+const STYLE_KEYS = ['slots', 'limbSlots', 'e', 'drawn'];
 export const PLAN_SCHEMA = 'layered-plan-v1';
 const SEGMENT_KINDS = ['trunk', 'segment', 'chain', 'loft', 'rings'];
 const DETAIL_KINDS = ['claw'];
@@ -236,6 +236,9 @@ export function validatePlan(plan) {
     for (const k of Object.keys(plan.style)) if (!STYLE_KEYS.includes(k)) fail(`style.${k} is not a style key (have ${STYLE_KEYS.join(', ')})`);
     for (const k of ['slots', 'limbSlots']) if (plan.style[k] != null && !families[plan.style[k]]) fail(`style.${k} names slot family '${plan.style[k]}', which is not defined (have ${Object.keys(families).join(', ')})`);
     if (plan.style.e != null && !(Number.isFinite(plan.style.e) && plan.style.e >= 1)) fail('style.e must be a number ≥ 1 (2 is round, 12 reads as a box)');
+    // `drawn` (creature-drawn.js, applied by the door before expansion): the body built for its target, bridged at its joints
+    const d = plan.style.drawn;
+    if (d != null && d !== true && !(d && typeof d === 'object' && !Array.isArray(d) && Object.keys(d).every((k) => k === 'target'))) fail("style.drawn is true or { target } (the creature drawn for its target: bridged joints, rings by its outline rule)");
   }
   const joints = plan.joints || {};
   for (const [k, v] of Object.entries(joints)) if (!isVec(v)) fail(`joint '${k}' must be [x, y, z]`);

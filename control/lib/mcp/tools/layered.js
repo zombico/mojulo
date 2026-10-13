@@ -83,6 +83,7 @@ import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
 import { lookReadout } from '../../graph/era/looks.js';
 import { noseDialErrors, NOSE_DEFAULTS } from '../../graph/polygonizer/anime-nose.js';
 import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, tieredGarments, tieredKit, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
+import { drawnPlan } from '../../graph/polygonizer/creature-drawn.js';
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 
@@ -169,7 +170,8 @@ function statueRecipeOf(recipe, plan, hero) {
   return { ...carved, statue: trace };
 }
 function expandAware(plan, hero) {
-  try { return expandPlan(plan); } catch (err) {
+  // a creature drawn for its target (creature-drawn.js: `style.drawn`): bridged and densified first; absent, the plan itself
+  try { return expandPlan(drawnPlan(plan)); } catch (err) {
     if (hero?.head === 'anime' && isArmorBuild(hero.adorn) && /off cranium/.test(err.message)) {
       throw new Error("hero refused: adorn: this armour's head piece (a helm, a kabuto, or a theme's helm) is not fitted to the anime head yet; wear it with head 'landmark' or 'none', or choose a plate style with no head piece");
     }

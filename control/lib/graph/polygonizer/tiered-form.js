@@ -167,18 +167,20 @@ function chainsOf(joints) {
   for (const J of joints) { const c = [...new Set([...(of.get(J.upper) ?? [J.upper]), ...(of.get(J.lower) ?? [J.lower]), J.bridge])]; for (const p of c) of.set(p, c); }
   return of;
 }
-/** The bridged joints a plan carries, and each part's chain (right-hand names); cast-density.js splits a chain as one. */
-export function bridgedChains(plan) {
+/** The bridged joints a plan carries, and each part's chain (right-hand names); cast-density.js splits a chain as one.
+ * `list`: the joints to look for (the hero's by default; a creature's from its own chains, creature-drawn.js). */
+export function bridgedChains(plan, list = TIERED_JOINTS) {
   const names = new Set((plan.segments || []).map((s) => s.name));
-  return chainsOf(TIERED_JOINTS.filter((J) => names.has(J.bridge)));
+  return chainsOf(list.filter((J) => names.has(J.bridge)));
 }
 
-/** The plan with its elbows, knees and wrists bridged; a joint whose parts are missing or of a kind it cannot meet, as it was. */
-export function tieredJoints(plan) {
+/** The plan with its elbows, knees and wrists bridged; a joint whose parts are missing or of a kind it cannot meet, as it was.
+ * `list`: the joints (TIERED_JOINTS, the hero's; a creature's own, creature-drawn.js creatureJoints). */
+export function tieredJoints(plan, list = TIERED_JOINTS) {
   const segments = plan.segments.map((s) => ({ ...s, ...(s.stations ? { stations: s.stations.map((st) => ({ ...st })) } : {}) }));
   const byName = (n) => segments.find((s) => s.name === n);
   const folds = plan.rig?.folds || {}, families = { ...SLOT_FAMILIES, ...(plan.slotFamilies || {}) };
-  const joints = TIERED_JOINTS.filter((J) => { const U = byName(J.upper), D = byName(J.lower); return U && D && ['segment', 'loft'].includes(U.kind) && ['segment', 'rings'].includes(D.kind); });
+  const joints = list.filter((J) => { const U = byName(J.upper), D = byName(J.lower); return U && D && ['segment', 'loft'].includes(U.kind) && ['segment', 'rings'].includes(D.kind); });
   if (!joints.length) return plan;
   // one ring family per chain: a part given point by point (the palm) or a loft (the thigh) sets it; the segments take it
   for (const chain of new Set(chainsOf(joints).values())) {
@@ -211,7 +213,7 @@ export function tieredJoints(plan) {
       bind: { bone: fold ?? J.upper, blend: { back: { [J.upper]: 1 }, st0: { [J.upper]: 1 }, ...Object.fromEntries(BRIDGE_RUN.map(([, ws], i) => [`st${i + 1}`, w(ws)])), [`st${rings.length - 1}`]: { [J.lower]: 1 }, tip: { [J.lower]: 1 } } } });
   }
   // each bridge after its lower part
-  for (const g of added) { const J = TIERED_JOINTS.find((x) => x.bridge === g.name), i = segments.findIndex((s) => s.name === J.lower); segments.splice(i + 1, 0, g); }
+  for (const g of added) { const J = list.find((x) => x.bridge === g.name), i = segments.findIndex((s) => s.name === J.lower); segments.splice(i + 1, 0, g); }
   // a bridge takes every dial its limbs take; a split (slots refined) takes the whole chain, so its seams stay shut
   const chains = chainsOf(joints), sideOf = (n) => (n.endsWith('$S') ? '$S' : n.endsWith('L') ? 'L' : 'R'), asSide = (r, S) => r.replace(/R$/, S);
   const withChain = (parts, all) => { const out = [...parts]; for (const p of parts) { const S = sideOf(p), r = p.replace(/(\$S|[RL])$/, 'R'), c = chains.get(r); if (!c) continue;
