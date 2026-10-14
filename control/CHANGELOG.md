@@ -13,6 +13,67 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Shoot plan: a keyframed camera you can see in the world
+
+A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
+lens in millimetres, Easy Ease and hold keys) and a cut list of shots. The World page draws each camera as an
+object, with its frustum, its line to the point of interest and its motion path, one dot per frame so the spacing
+shows the ease, and can look through it. `node scripts/shoot-plan-demo.mjs --out <file>` emits a worked example
+(`lib/graph/shoot/example.js`: a crane down, a street dolly with a lens change, a held one-node reveal, and a
+camera that pans with a car, then eases onto its tail and rides along).
+
+- **The recipe is `manifest.shoot`** on any world, an opt-in like `marks`; `update_sketch` edits it in place. The
+  kernel is `lib/graph/shoot/`: `lens.js` (focal length ↔ field of view on a 36 mm film), `plan.js` (normalize the
+  AE words, a readout of duration, path length and peak speed), `sample.js` (the camera at a time, frames at a
+  rate, the drawable path). A sampled frame is the `worldFraming` every camera consumer already reads.
+- **A camera can follow what moves.** A key's `pos` or `poi` may name a walker, a car or a mover
+  (`{ follow: 'car:3', offset, frame: 'subject' }`) instead of a point: the AE move of linking the point of interest to a
+  layer, or parenting the camera to a null. Everything a world moves on a schedule is a pure function of its clock,
+  signalised traffic included (`lib/graph/shoot/subjects.js` runs the same traffic and crossing code the page embeds),
+  so a following camera is still sampled ahead and its path, and the route of what it follows, are drawn. A fixed key
+  eases onto a moving subject and off it.
+- **Key times are the world's clock.** A shot shows the world over its span, so two shots of the same span are
+  coverage of one action from two cameras. The page plays it that way: while a plan is on the page, it sets the
+  clock every channel steps to.
+- **`create_shoot_plan` / `update_shoot_plan`**, in the motion form. The first writes a plan onto a world (or, with
+  no plan, lists what a key can follow and where); the second edits it op by op in camera-operator and AE words
+  (`set_key` by time, `ease` one, some or every key, `retime`, `set_camera` with a one-node ↔ two-node flip that keeps
+  the view, shots added, renamed, reordered). Both write through `update_sketch`'s patch path, so the world pays its
+  own gate, and answer with the readout: timings, path length and speed in metres, what each camera follows, the
+  frames where a camera jumps (a followed car wrapping its lane), and the places a move passes through the world's
+  faces (`lib/graph/shoot/clearance.js`) or runs into a moving car or walker while its shot plays (each subject's
+  box measured off its mesh or figure, on the route it is scheduled to take). Advisory, like every gate. The manual is `get_motion_vocab({ id: 'shoot' })`,
+  an AE → plan table; a routing card sends "set up a camera", "35mm", "easy ease", "follow the car" there.
+- **`forge_motion` renders a plan**: `shot.motion: 'plan'` on a world captures each frame from its shot's camera with
+  the world stepped to that frame's own clock (`params.shot` for one shot). Roll is not applied to captures yet.
+- **Set pieces and transitions.** A plan may carry `pieces`: walls, floors, ceilings, pipes and frames (a panel
+  whose hole irises) that ride a camera (placed in its frame, banked with its roll: a layer parented to the camera)
+  or stand in the world, keyed like cameras and shown only in their shots. They are picture: the page and
+  `forge_motion` renders draw them, no mesh export carries them. A shot's `in` (`fade`, `wipe`, `iris`, `pipe`)
+  expands into pieces on the outgoing and incoming cameras, sized to the lens (`lib/graph/shoot/transitions.js`).
+  A pipe can be laid `along` a camera's path instead: world geometry swept along the route it travels, round or a
+  box (`sides` from floor, ceiling, left, right, kept level as the path turns), so a wall, a floor or a ceiling along a
+  path is the same piece with one side; the camera flies through it, and the pipe transition now lays its tube this
+  way when the camera travels. A frame with a `portal` is a window into another camera: its hole shows that camera's
+  view rendered from where the viewer stands relative to the frame (a render target sampled in screen space, behind a
+  clipping plane at the far camera), so flying through it arrives exactly in the other picture; `in: 'portal'` stands
+  such a door where the outgoing camera will be at the cut. Captures now apply the plan's roll. `update_shoot_plan` gains `add_piece`, `set_piece`, `piece_key`,
+  `remove_piece` and `set_shot { in }`.
+- **Live worlds.** In a world that plays live (controllable entities, physics) the plan runs on the world's own clock
+  instead of rewinding it, and a key may follow a live entity (`entity:<id>`): the page evaluates that camera's keys
+  each frame against where the entity is (the same timing curves; its path drawn as a trail), and the tools note
+  what a live world cannot do. A shot with `on: 'goal:*'` is cued instead of timed: when the world's event bus logs a
+  matching event (reaction-emitted ones included), the plan cuts to it for its length, timed from the event, then
+  returns to the running order. Plans in worlds that do not play live emit the same page as before.
+- **Exports.** A world GLB carries its plan as animated cameras: one per plan camera and `shot:program`, the edit
+  with STEP cuts (`shootCameraDefs` in `scene-gltf-level.js`; a plan-less GLB is byte for byte as before), which
+  Godot imports as Camera3D nodes on its AnimationPlayer. The Blender film takes a plan as one shot file per plan
+  shot, so `film_shots.py` cuts between a Blender camera per shot at markers (`planFilmShots`, the frames the
+  render captures).
+- **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
+  LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
+  without a plan is byte for byte as before.
+
 ### Character stitch: one hero mint, the hero's own walk in play, the Egocube as a kind
 
 A sweep of the character loop after its streams met found the core converged (one hero door, one cast resolver, the

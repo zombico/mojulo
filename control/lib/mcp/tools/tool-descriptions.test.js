@@ -379,7 +379,11 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-14 (203_900 -> 204_200; measured 203,928) for the character stitch merged over UI on rails:
 // create_character's `egocube` and `years` (a character made from a stored Egocube sheet, at an age on its thread),
 // update_character's merge said in its description. No new tool.
-const PAYLOAD_CEILING = 204_200;
+// Re-pinned 2026-10-14 (204_200 -> 207_600; measured 207,398) for the shoot plan merged over the character stitch: two NEW tools,
+// create_shoot_plan and update_shoot_plan (a world's cameras as visible keyed objects in After Effects terms, its set
+// pieces, transitions, portals and event cuts; on its branch they measured +3,564 over its base), and forge_motion's
+// 'plan' motion.
+const PAYLOAD_CEILING = 207_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

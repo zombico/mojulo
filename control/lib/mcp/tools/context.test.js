@@ -568,6 +568,8 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'mint_building',
     'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
+    // the shoot plan (1014): cameras as visible keyed objects in a world, the motion form's authored sibling
+    'create_shoot_plan', 'update_shoot_plan',
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
     'design_game', 'tune_ground', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',

@@ -1,0 +1,89 @@
+---
+{
+  "id": "shoot",
+  "name": "Shoot plan (cameras as objects in a world, in After Effects terms)",
+  "family": "motion",
+  "entry": "create_shoot_plan",
+  "summary": "Keyed cameras placed in a 3D world as visible objects — two-node or one-node, a lens in mm, Easy Ease / hold keys, a cut list; a key may follow a moving car, walker or mover. Drawn on the World page with its path; rendered by forge_motion.",
+  "when": "Reach for this on 'set up a camera / plan the shots / a two-node camera / point of interest / 35mm / easy ease the key / show me the camera path / follow the car / chase cam / look through the camera'."
+}
+---
+
+A shoot plan lives on a world's recipe (`manifest.shoot`). `create_shoot_plan { ref, plan }` writes it, `update_shoot_plan { ref, ops }` edits it, and the World page (`/api/sketches/<ref>/world`) draws every camera as an object: its frustum at the lens's field of view, the line to its point of interest, its motion path with a dot per frame (the spacing is the ease, as in an AE motion path), a diamond per key (white for hold), and a panel with the shots, a scrubber and LOOK THROUGH.
+
+## After Effects → plan
+
+| After Effects | Plan |
+|---|---|
+| Camera layer | `cameras[]` entry, `id` |
+| Two-node camera (auto-orient toward point of interest) | `type: 'two-node'`, each key has `pos` + `poi` |
+| One-node camera | `type: 'one-node'`, each key has `pos` + `yaw` / `pitch` (degrees; yaw 0 looks along +x, counter-clockwise; pitch + looks up) |
+| Z rotation | `roll` (degrees; + banks the camera clockwise) |
+| Preset (35mm, 50mm …) / focal length | `lens: '35mm'` or `focal_mm: 35` (film 36 mm wide, `film_mm` to change); `hfov` in degrees also reads |
+| Keyframe at a time | a key `{ t, … }`, `t` in seconds of the world clock |
+| Linear keyframe | `ease: 'linear'` (the default, as in AE) |
+| Easy Ease (F9) | `ease: 'easy ease'` — speed 0, influence 33% on both sides of the key |
+| Easy Ease In / Out | `ease: 'easy ease in'` (arrival) / `'easy ease out'` (departure) |
+| Hold keyframe | `ease: 'hold'` — holds until the next key, then cuts to it |
+| Spatial auto-bezier / linear | `path: 'smooth'` (default; curve through the keys at constant speed) / `'linear'` |
+| Parent camera to a null / link POI to a layer | `pos` / `poi: { follow: 'car:2', offset: [x,y,z], frame: 'subject' }` |
+| Cut between camera layers | `shots: [{ name, camera, span: [t0, t1] }]` |
+
+A key missing `poi`, `lens` or `roll` keeps the previous key's. Coordinates are the world's own units, z up (the readout gives metres).
+
+## Time
+
+Key times and shot spans are the WORLD's clock. A shot shows the world over its span: shots in sequence cut a continuous action, and two shots over the same span are coverage of one action from two cameras. On the World page the plan drives the clock, so a cut replays the action, as in an edit.
+
+## Following what moves
+
+`create_shoot_plan { ref }` with no `plan` lists what a key can follow (`subjects_at: <seconds>` gives where each one is): `walker:<i>`, `car:<i>` (signalised traffic included: it stops at lights), `mover:<group>`. A followed key is read at the instant being shown; a segment between a fixed key and a followed one eases from the place onto the subject (a pickup) or off it. `frame: 'subject'` turns the offset with the subject's heading — x forward, y left, z up — so `[-3.5, 0, 1.3]` rides behind and above. A world's controllable entities (the player, AI, scripted movers, physics) move LIVE: follow one as `entity:<id>`. Its place is not known until it plays, so the plan's readout assumes it at its spawn, and the World page evaluates that camera's keys each frame against where the entity really is (its path drawn as a trail behind it).
+
+## Live worlds
+
+A world that plays live (it has entities or physics) cannot rewind, so its plan runs on the world's own clock: the shot whose span holds the clock plays (the last one begun), a shot that starts before the one before it ends cuts in when that one ends, the panel has no scrubber, and a shot chip pins that camera until clicked again. The tools say so in `live.notes`.
+
+**Event cuts.** A shot with `on: 'goal:*'` (or a list of patterns; `*` matches any run) is CUED: it has no place in the running order, and in a live world it cuts in when the world's event bus logs a matching event — a reaction's `goal:reached`, a `door:*`, a `pickup:*` — plays its span's length with its keys and pieces timed from the event, then hands back to the running order. `set_shot { shot, on }` cues a shot; `on: null` puts it back. Its `in` transition plays its incoming half. If every shot is cued, the first camera holds the running order until one fires. `forge_motion` does not render a live world's plan yet (record a `traversal`).
+
+## Set pieces (`pieces`)
+
+Flats and shapes placed for the camera, not for the world: they render (in the page and in `forge_motion`) but are not world geometry. `kind`: `wall` (faces back toward a camera behind it), `floor`, `ceiling`, `pipe` (an open tube along its x; `radius`, `length`, `rings` banding in `color` / `color2`, `cap: 'far' | 'near'`), `frame` (a panel with a hole; `shape: 'round' | 'square'`, `border`; the key's `open` 0..1 is the aperture: an iris). `size: [a, b]` for walls, floors, ceilings, frames.
+
+`attach: '<camera id>'` rides that camera: a key's `at` is in the camera's frame — x down the lens, y to frame left, z up, banked with its roll — as an AE layer parented to the camera. `attach: 'world'` (default) places it at world coordinates. Keys `{ t, at, rot: [yaw, pitch, roll], scale, opacity, open, ease }` time like camera keys. It shows during its `shots` (default: its camera's shots, or every shot for a world piece), within `visible: [t0, t1]` when given.
+
+**Along a path.** A `pipe` with `along: '<camera id>'` is swept along the path that camera travels over `span: [t0, t1]` (default its keys), carried straight on by `extend: [before, after]` and capped (`cap: 'near' | 'far' | 'both'`): a tunnel the camera really flies through, bending where it bends, standing in the world for every camera to see. `profile: 'round'` (default; `radius`) or `'box'` (`size: [width, height]`, `sides` from floor, ceiling, left, right; it stays level as the path turns and climbs). A `wall` (`side: 'left' | 'right' | 'both'`), `floor` or `ceiling` given `along` is that box with that side: walls, floors and ceilings along a path and the tube are one piece. `rings` bands it along its length (default: about one band per one-and-a-half radii).
+
+**Portals.** A `frame` with `portal` is a window into another camera: its hole shows what that camera sees, rendered from where the viewer stands relative to the frame, so the view through it shifts like a doorway's and a camera that flies through the hole arrives exactly in the other camera's picture. `portal: '<shot>'` (or `{ shot }`) looks out of that shot's camera at its first instant; `{ camera, t }` out of a camera at a fixed time; `{ camera }` live. Anything behind the far camera is clipped away. The far view shows the world, not the far shot's own set pieces, at the world time showing (a cut that jumps the clock moves what moves). Match the two lenses for a seamless crossing.
+
+Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 'pipe', along, profile: 'box', sides: ['floor', 'left', 'right'] }`; a road-side set = `{ kind: 'wall', along, side: 'both' }`; a corridor riding the camera instead = a `floor` at `[6, 0, -1]` and a `ceiling` at `[6, 0, 1]` attached to it; stage doors = two `wall`s at `[1, ±0.3, 0]` keyed apart to `[1, ±1.6, 0]`; a portal frame placed in the world that the camera flies through.
+
+## Transitions (a shot's `in`)
+
+`in: 'fade' | 'wipe' | 'iris' | 'pipe'` or `{ type, duration, color, dir }` is how the cut into that shot plays. It expands into pieces on the outgoing camera's last half and the incoming camera's first half, sized to the lens: `fade` (to `color`, black by default), `wipe` (`dir`: 'left' enters from frame left, 'right', 'up', 'down'), `iris` (a round frame closing and opening), `portal` (a door stood where the outgoing camera will be at the cut, its hole a window into the incoming camera: the camera flies through into the next shot; the whole `duration` is the approach; a camera that barely moves gets the window as an iris opening from the middle), `pipe` (fly into a ringed tube laid along the camera's own path and out of another; `radius`, `profile: 'box'` for a corridor; a camera that barely moves gets a straight tube slid over its lens). The first shot's `in` plays only its incoming half. Write the pieces yourself to bend one.
+
+## Edits (`update_shoot_plan` ops)
+
+`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
+
+## Exports
+
+- **Video:** `forge_motion { subject: { world_ref }, shot: { motion: 'plan' } }` (GIF / MP4; `params.shot` for one shot). Set pieces, transitions and roll render; gizmos never do.
+- **Blender:** `export: 'blender'` on that forge (or `node scripts/export-blender-film.mjs --motion <mo_…>`) writes one shot file per plan shot under `shots/`; `film_shots.py` lays them out as cuts, a Blender camera and a timeline marker each, keyed on exactly the frames the render captured. The world is frozen at its export pose; roll is not carried (the film cameras track a target).
+- **glTF / Godot / Unity / Unreal:** a world GLB carries the plan as animated cameras — `shot:<camera>` (its keyed range, world-clock seconds) and `shot:program` (the edit from 0, STEP so cuts are cuts), roll included; field of view is the first frame's (core glTF cannot animate it). Godot's importer brings them in as Camera3D nodes with their animations on the imported AnimationPlayer.
+
+## Readout (the machine gate)
+
+`duration_s`; per camera `path_m`, `peak_speed_mps`, `lens_mm`, `follows`; `jumps` (frames where the camera teleports: a followed car wrapping its lane); `clearance.passes_through` (where a move crosses the world's faces) and `clearance.runs_into` (where a camera's eye is inside a moving car or walker — measured boxes on their scheduled routes — while its shot plays: `{ camera, t, subject, at }`, the first frame of each run). All advisory. Whether the shot reads is the operator's eyes gate on the World page.
+
+## Example
+
+```
+{ cameras: [
+    { id: 'crane', type: 'two-node', lens: '24mm', keys: [
+      { t: 0, pos: [-16, -20, 24], poi: [20, 14, 0], ease: 'easy ease' },
+      { t: 4, pos: [6, -7, 4], poi: [20, 12, 2], ease: 'easy ease' } ] },
+    { id: 'chase', lens: '28mm', keys: [
+      { t: 0, pos: [19, 9, 3.5], poi: { follow: 'car:3' }, ease: 'easy ease out' },
+      { t: 3, pos: { follow: 'car:3', offset: [-3.5, 0, 1.3], frame: 'subject' }, poi: { follow: 'car:3', offset: [4, 0, 0], frame: 'subject' } } ] } ],
+  shots: [ { name: 'Establishing', camera: 'crane', span: [0, 4] }, { name: 'Pick up the car', camera: 'chase', span: [0, 6] } ] }
+```
