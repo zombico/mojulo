@@ -84,7 +84,7 @@ import { lookReadout } from '../../graph/era/looks.js';
 import { noseDialErrors, NOSE_DEFAULTS } from '../../graph/polygonizer/anime-nose.js';
 import { tieredChest, tieredJoints, tieredSockets, tieredFace, tieredPole, tieredGarments, tieredKit, TIERED_FACE } from '../../graph/polygonizer/tiered-form.js';
 import { drawnPlan } from '../../graph/polygonizer/creature-drawn.js';
-import { compileOutfit } from '../../graph/polygonizer/outfit-plan.js';
+import { compileOutfit, OUTFIT_KIND_NAMES, uOfStation } from '../../graph/polygonizer/outfit-plan.js';
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 import { stampHero, withDefaultWalk } from '../../graph/polygonizer/motion-stamp.js';
@@ -354,6 +354,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   errs.push(...validateDress({ detail: spec.detail, adorn: spec.adorn }));
   errs.push(...validateDressPaint(spec.paint));
   errs.push(...validateOutfit(spec.outfit));
+  if (isOutfitBuild(spec.outfit) && Array.isArray(spec.outfit.pieces)) for (const [i, P] of spec.outfit.pieces.entries()) if (P && typeof P.kind === 'string' && !OUTFIT_KIND_NAMES.includes(P.kind)) errs.push(`outfit.pieces[${i}].kind: '${P.kind}' is not a piece (${OUTFIT_KIND_NAMES.join(', ')})`);
   // the hand's words (wrist, fingers) on a hero whose hand has them: the structured core
   const hands = (spec.core ?? DEFAULT_CORE) === 'structured';
   errs.push(...validateGesture(spec.gesture, 'gesture', { hands }));
@@ -459,7 +460,7 @@ export function heroPlanOf(hero) {
   // clip listed first; the anime hero's default is read here, so a /hero/head switch takes it on or drops it; neither ⇒
   // the plan as it was
   // a swing word (hero-swing.js): the stand is the swing's ready key and the swing rides as its own looping clip after it
-  const own = withHeroClips(targetPlan(heroFormPlan(hero), hero), hero.clips);
+  const own = withHeroClips(targetPlan(designedPieces(heroFormPlan(hero), hero), hero), hero.clips);
   let swing = heroSwing(hero, { expand: expandEquipment, gearBuild });
   // the structured core's legs converge at rest, so a swing's planted feet take a base of their own (STRUCTURED_SWING_BASE):
   // narrower than the guard's, because a swing's keys crouch little and a straight leg cannot reach a wide foot; every key
@@ -468,6 +469,33 @@ export function heroPlanOf(hero) {
   if (swing) { const p = withGestureClip(own, swing.keys[0]); return withLocomotion(hero, gripHands(p.rig ? { ...p, clips: { [GESTURE_CLIP]: p.clips[GESTURE_CLIP], [swing.word]: swing.keys, ...Object.fromEntries(Object.entries(p.clips).filter(([k]) => k !== GESTURE_CLIP)) } } : p, hero)); }
   // genki moves the resolved stand (the stance, the chest, the chin); a swing's keys are its own and stay as they are
   return withLocomotion(hero, gripHands(withGestureClip(own, genkiStand(resolveGesture(heroGesture(hero), gestureCast(hero.cast), { core: hero.core ?? DEFAULT_CORE }), hero)), hero));
+}
+/** The DESIGNED pieces an outfit build carries (`outfit.pieces`, an Egocube's designed dress: mantle, pauldron, sash,
+ * bracers …), worn over the cut on the hero's own landmarks (outfit-plan.js compileOutfit, as a creature wears them), in
+ * the intent's palette roles; before the target, so a tiered kit tiers them. No pieces ⇒ the plan as it was. */
+function designedPieces(plan, hero) {
+  const O = isOutfitBuild(hero.outfit) && Array.isArray(hero.outfit.pieces) && hero.outfit.pieces.length ? hero.outfit : null;
+  if (!O) return plan;
+  const { worn } = sortPieces(plan, O);
+  return worn.length ? compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: worn } }) : plan;
+}
+/** Which designed pieces sit on this body: each compiled alone, kept when every place it reads is a number on its part
+ * (a piece built for a creature's landmarks may find none on a person's: a necklace's pin on a layered chest); the
+ * rest are said (heroReadout), never dropped without a word. → { worn, unworn: [{ kind, why }] } */
+export function sortPieces(plan, O) {
+  const worn = [], unworn = [], before = plan.adorn?.length ?? 0;
+  const finite = (v) => (typeof v === 'number' ? Number.isFinite(v) : Array.isArray(v) ? v.every(finite) : v && typeof v === 'object' ? Object.values(v).every(finite) : true);
+  const segOf = (n) => plan.segments.find((g) => g.name === n);
+  for (const piece of O.pieces) {
+    let c;
+    try { c = compileOutfit({ ...plan, outfit: { intent: O.intent ?? {}, pieces: [piece] } }); } catch (e) { unworn.push({ kind: piece.kind, why: e.message }); continue; }
+    const added = c.adorn.slice(before), grown = c.segments.slice(plan.segments.length);
+    const off = added.find((A) => !finite(A) || (A.mode === 'shell' && Array.isArray(A.s) && segOf(A.part)?.stations && A.s[1] > uOfStation(segOf(A.part).stations.at(-1), segOf(A.part).stations.length - 1)))
+      ?? grown.map((g) => ({ id: g.name, g })).find(({ g }) => !finite(g) || (Array.isArray(g.stations) && g.stations.some((st) => !Array.isArray(st.at) || st.at.length !== 3 || st.r === undefined)));
+    if (off) unworn.push({ kind: piece.kind, why: `no place on this body for its ${off.id} yet (it was designed on a creature's landmarks)` });
+    else worn.push(piece);
+  }
+  return { worn, unworn };
 }
 /** The hero's target on its plan (era/cast-density.js): each body part whose outline misses by more than the target's
  * error takes one split, after the dress's refine. No target ⇒ the plan as it was. */
@@ -697,6 +725,8 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const coreM = coreMeasures(plan, mesh), coreBody = castOf(hero.cast, hero.proportions ?? (anime ? 'anime' : 'hero'))?.silhouette === 'female' ? 'female' : 'male';
   const core = coreM ? { core: hero.core ?? DEFAULT_CORE, body: coreBody, ...coreM, advice: coreAdvice(coreM, coreBody) } : null;
   if (core && core.core === 'structured') warnings.push(...core.advice);
+  // a designed piece with no place on this body is said, never dropped without a word (sortPieces)
+  if (isOutfitBuild(hero.outfit) && hero.outfit.pieces?.length) for (const u of sortPieces(plan, hero.outfit).unworn) warnings.push(`outfit.pieces: the ${u.kind} is not worn: ${u.why}`);
   const clips = clipsReadout(hero, recipe);
   const budget = heroBudget(plan, mesh, recipe);
   const unjustified = (dress?.adornments || []).filter((a) => a.verdict !== 'justified').map((a) => `adornment ${a.id}: its ${a.signature} ${a.verdict === 'unjustified' ? 'does not read' : 'reads but is a small share of its picture'} (exposed ${a.exposed}, share ${a.share}; wants ≥ 0.25 and ≥ 0.08) — make the element bolder or ask whether the adornment is wanted`);

@@ -33,6 +33,15 @@ describe('rollThread', () => {
     expect(validateHeroSpec(planFromSheet(t.nodes[0].sheet).create.spec)).toEqual([]);
     expect(planFromSheet(t.nodes[1].sheet).create.spec.cast).toBe(t.nodes[0].sheet.facets.pole);
   });
+  it('lowers growth as amounts: a youth its share of adult height, an adult none of it (no step stacked per chapter)', () => {
+    const t = rollThread({ seed: 3, years: 11, facets: { pole: 'female' }, chapters: [{ chapter: 'time', years: 2 }, { chapter: 'time', years: 18 }] });
+    const tune = (i) => planFromSheet(t.nodes[i].sheet).create.spec.tune ?? {};
+    expect(t.nodes[1].sheet.growth).toMatchObject({ from: 11, years: 13, stature: 0.96 });
+    expect(tune(1).stature).toBe(0.96);
+    expect(tune(1).head).toBeGreaterThan(1);   // the head outgrown by the body less than the body: larger for its height
+    expect(tune(2).stature).toBeUndefined();
+    expect(tune(2).head).toBeUndefined();
+  });
   it('carries one kept marker on every node', () => {
     const t = thread([{ chapter: 'time', years: 5 }, { chapter: 'time', years: 10 }]);
     for (const n of t.nodes) expect(n.sheet.notes.dress.filter((x) => x.from === 'thread.keep').map((x) => x.line).join()).toContain(t.keep);

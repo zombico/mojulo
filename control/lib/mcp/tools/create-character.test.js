@@ -2,10 +2,11 @@ process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
-import { createCharacterHandler, updateCharacterHandler, CHARACTER_KINDS } from './create-character.js';
+import { createCharacterHandler, updateCharacterHandler, CHARACTER_DOORS } from './create-character.js';
 import { updateSketchHandler } from './sketch-mint.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { createSketchHandler } from './sketches.js';
 
 // create_character is a door, not a kind: a character minted through it is the same stored recipe mint_solid makes
 // from the same spec. Each pair mints under two refs and compares the stored manifests byte for byte.
@@ -35,9 +36,9 @@ describe('create_character mints what mint_solid mints', () => {
   }, 180_000);
 
   it('routes a creature without a plan to the layered recipe, and names every door', () => {
-    expect(CHARACTER_KINDS.creature.route({})).toEqual({ kind: 'layered' });
-    expect(CHARACTER_KINDS.creature.route({ plan: RING_PLAN })).toEqual({ kind: 'layered', via: 'plan' });
-    expect(Object.keys(CHARACTER_KINDS)).toEqual(['hero', 'creature', 'animal']);
+    expect(CHARACTER_DOORS.creature.route({})).toEqual({ kind: 'layered' });
+    expect(CHARACTER_DOORS.creature.route({ plan: RING_PLAN })).toEqual({ kind: 'layered', via: 'plan' });
+    expect(Object.keys(CHARACTER_DOORS)).toEqual(['hero', 'creature', 'animal']);
   });
 
   it('an unknown `as` refuses by name and points at both manuals', async () => {
@@ -152,4 +153,27 @@ describe('update_character revises what update_sketch revises', () => {
     await expect(updateCharacterHandler({ ref: 'uc_empty_door' })).rejects.toThrow(/at least one of spec, target, geocube, patch, title/);
     await expect(updateCharacterHandler({ ref: 'uc_empty_door', target: '8k' })).rejects.toThrow(/resolution is a word/);
   }, 120_000);
+});
+
+describe('create_character from an egocube: one sheet, many games', () => {
+  it('makes the sheet\'s character at an age, records the sheet, and says when the sheet has moved since', async () => {
+    await createSketchHandler({ title: 'Wren', ref: 'cc_ego', manifest: { kind: 'egocube', roll: { seed: 3, years: 11, facets: { pole: 'female' }, chapters: [{ chapter: 'time', years: 15 }] } } });
+    const r = await createCharacterHandler({ egocube: 'cc_ego', years: 26, ref: 'cc_wren26' });
+    expect(r.ok).toBe(true);
+    expect(r.egocube).toMatchObject({ ref: 'cc_ego', years: 26, node: { years: 26, band: 'adult' } });
+    const m = SketchRepository.getByRef('cc_wren26').manifest;
+    expect(m.egocube).toMatchObject({ ref: 'cc_ego', rev: 1, years: 26 });
+    expect(m.hero.outfit.pieces?.length ?? 0).toBeGreaterThanOrEqual(0);
+    // the same sheet, the girl at 11: the female pole's child build
+    await createCharacterHandler({ egocube: 'cc_ego', ref: 'cc_wren11' });
+    expect(SketchRepository.getByRef('cc_wren11').manifest.hero.cast).toEqual({ pole: 'female', build: 'child' });
+    // a hero's words lay over the sheet's
+    await createCharacterHandler({ egocube: 'cc_ego', years: 26, spec: { palette: { Top: '#334455' } }, ref: 'cc_wren_own' });
+    expect(SketchRepository.getByRef('cc_wren_own').manifest.hero.palette.Top).toBe('#334455');
+    await expect(createCharacterHandler({ egocube: 'cc_ego', as: 'animal' })).rejects.toThrow(/makes a person \(as: hero\); leave `as` out/);
+    // the sheet re-rolled: the character keeps what it was made with, and an edit says so
+    await updateSketchHandler({ ref: 'cc_ego', patch: [{ op: 'set', path: '/roll/seed', value: 4 }] });
+    const u = await updateCharacterHandler({ ref: 'cc_wren26', spec: { hair: 'bob' } });
+    expect(u.egocube.moved).toMatch(/has moved since this character was made from it/);
+  }, 600_000);
 });

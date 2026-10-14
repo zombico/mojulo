@@ -21,22 +21,45 @@ import { mintSolidHandler } from '@/lib/mcp/tools/mint-solid';
 import { updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { HERO_FIELDS, heroKeyHint, lowerVibe } from '@/lib/mcp/tools/layered';
+import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
+import { egocubeCreate, egocubePrint } from '@/lib/graph/egocube/kind.js';
 
 // as → the mint_solid call it makes, and the card that is its manual.
-export const CHARACTER_KINDS = {
+export const CHARACTER_DOORS = {
   hero: { card: 'layered', route: () => ({ kind: 'layered', via: 'hero' }) },
   creature: { card: 'layered', route: (spec) => ({ kind: 'layered', ...(spec && spec.plan ? { via: 'plan' } : {}) }) },
   animal: { card: 'animal', route: () => ({ kind: 'animal' }) },
 };
 
-const AS_LIST = Object.keys(CHARACTER_KINDS);
+const AS_LIST = Object.keys(CHARACTER_DOORS);
+
+/**
+ * A character from a stored EGOCUBE (egocube/kind.js): the sheet's node at `years` (the canonical one when none is named)
+ * lowered through the door its people take (a person the hero door, a lineage below it the creature door), dressed as the
+ * cube says unless `dress` says otherwise; a hero's `spec` words lay over the sheet's. The character records the sheet it
+ * was made from ({ ref, rev, print, years }), so an edit to the sheet moves nothing already made and is said on an edit.
+ */
+async function createFromEgocube({ egocube, years, dress, as, spec, title, ref, folder_ref: folderRef }) {
+  const row = SketchRepository.getByRef(egocube);
+  if (!row || row.manifest?.kind !== 'egocube') throw new Error(`create_character: '${egocube}' is not an egocube (make one with create_sketch { kind: 'egocube', roll })`);
+  const C = egocubeCreate(row.manifest, { years, dress });
+  if (as !== undefined && as !== C.create.as) throw new Error(`create_character: the egocube '${egocube}' makes ${C.create.as === 'hero' ? 'a person (as: hero)' : 'a body below the hero door (as: creature)'}; leave \`as\` out`);
+  if (spec !== undefined && C.create.as !== 'hero') throw new Error('create_character: `spec` lays a hero\'s words over the sheet; a creature from an egocube is revised after, with update_character patch ops');
+  const lean = (C.after || []).find((op) => op.path === '/dials/lean')?.value;
+  const own = { ...C.create.spec, ...(spec || {}), ...(lean !== undefined ? { dials: { lean } } : {}) };
+  const made = { ref: egocube, rev: (SketchRevisionRepository.head(egocube)?.rev ?? 0) + 1, print: egocubePrint(row.manifest), ...(C.node.years !== undefined ? { years: C.node.years } : {}) };
+  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, egocube: made }, title: title ?? C.create.title, ref, folder_ref: folderRef }));
+  const landed = (C.ledger || []).filter((r) => r.at).length;
+  return { ...out, egocube: { ...made, node: C.node, notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
+}
 
 export async function createCharacterHandler(input) {
+  if (input && typeof input === 'object' && input.egocube !== undefined) return createFromEgocube(input);
   if (!input || typeof input !== 'object') {
     throw new Error(`create_character requires an object: { as: ${AS_LIST.map((a) => `'${a}'`).join(' | ')}, spec, title?, ref?, folder_ref? }`);
   }
   const { as, spec, title, ref, folder_ref: folderRef } = input;
-  const entry = CHARACTER_KINDS[as];
+  const entry = CHARACTER_DOORS[as];
   if (!entry) {
     throw new Error(
       `create_character: unknown as '${as}'. Known: ${AS_LIST.join(', ')} (a person, an invented body, a real species). `
@@ -116,7 +139,11 @@ export async function updateCharacterHandler(input) {
   const ops = [...characterPatch(row, { spec, target, geocube }), ...(Array.isArray(patch) ? patch : [])];
   if (patch !== undefined && !Array.isArray(patch)) throw new Error('update_character: `patch` is an array of update_sketch ops');
   if (!ops.length && title === undefined && folderRef === undefined) throw new Error('update_character: give at least one of spec, target, geocube, patch, title, folder_ref');
-  return updateSketchHandler({ ref, ...(ops.length ? { patch: ops } : {}), ...(title !== undefined ? { title } : {}), ...(note !== undefined ? { note } : {}), ...(readout !== undefined ? { readout } : {}), ...(folderRef !== undefined ? { folder_ref: folderRef } : {}) });
+  const out = await updateSketchHandler({ ref, ...(ops.length ? { patch: ops } : {}), ...(title !== undefined ? { title } : {}), ...(note !== undefined ? { note } : {}), ...(readout !== undefined ? { readout } : {}), ...(folderRef !== undefined ? { folder_ref: folderRef } : {}) });
+  // a character made from an egocube says when its sheet has moved since (the character keeps what it was made with)
+  const from = row.manifest.egocube, cube = from?.ref ? SketchRepository.getByRef(from.ref) : null;
+  const moved = from && (!cube ? `the egocube '${from.ref}' is gone` : cube.manifest?.kind === 'egocube' && egocubePrint(cube.manifest) !== from.print ? `the egocube '${from.ref}' has moved since this character was made from it: it keeps what it was made with; create_character { egocube: '${from.ref}' } makes it anew` : null);
+  return moved ? { ...out, egocube: { ...from, moved } } : out;
 }
 
 export function registerCreateCharacterTools() {
@@ -134,12 +161,13 @@ export function registerCreateCharacterTools() {
       type: 'object',
       properties: {
         as: { type: 'string', enum: AS_LIST, description: 'hero (a person) | creature (an invented body) | animal (a real species).' },
+        egocube: { type: 'string', description: "An egocube's ref (create_sketch kind 'egocube'): its character, at `years` on its thread." },
+        years: { type: 'number' },
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
       },
-      required: ['as'],
     },
     handler: createCharacterHandler,
   });

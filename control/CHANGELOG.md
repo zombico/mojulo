@@ -70,6 +70,29 @@ taught `mint_solid`. This theme stitches them.
   made: a stored game plays as it did. An adopted hero with no jog is told, and the library's plays.
 - **Clip lengths said as they are.** The Godot README and `export_model` said every clip runs one second; each runs its
   own length (a calibrated walk 1.1 s).
+- **The Egocube, a kind.** `create_sketch { kind: 'egocube', roll: { brief?, facets?, seed?, years?, chapters? },
+  dress? }` rolls a character's design sheet (with `years` and `chapters`, its fate thread) where it is written and
+  keeps it by value, as a geocube keeps a level's look: the same person can be made in many games, and a later change
+  to the Egocube's tables never moves a stored sheet. Its preview is the character at each age of its thread, side by
+  side, every camera backed off to hold the lineup. No new tool.
+- **A character from a stored sheet.** `create_character { egocube: '<ref>', years? }` makes the sheet's character at
+  that age through the door its people take (a person the hero door, a lineage below it the creature door), dressed as
+  the cube says; a hero's `spec` lays over the sheet's words. The character records the sheet it was made from, and an
+  `update_character` says when the sheet has moved since (the character keeps what it was made with). A game takes it
+  by ref like any hero made on its own (`characters.hero.ref`).
+- **Designed dress keeps its pieces.** A person dressed from the sheet wore only the cut: the mantle, the pauldron, the
+  sash and the bracers the design chose (and its laws checked) were dropped. The hero's outfit build now carries them
+  (`outfit.pieces`, in its intent's palette) and the hero wears them over the cut on its own landmarks, as a creature
+  wears them; a piece with no place on a person's body yet (the collar, the medallion) is said, never dropped without a
+  word. The archer's `ranger` kit no longer rides a designed dress, and its ledger rows name the outfit.
+- **Fixed: rings addressed by their ids.** A designed piece read a refined part's rings by index, so on the hero's dense
+  torso a mantle sat above the collar; a ring's address is its id (`st1_st2_50` lies halfway). An unrefined creature's
+  ids are its indices: it wears as before.
+- **Fixed: the fate thread grows a character instead of inflating it.** Each growth note added a flat 6 % per dial over
+  the adult cast, at every later node: a girl at 16 stood 6 % taller than a grown woman, and so did she at 31. A
+  youth is now its share of adult height with its head larger for that height, and an adult carries no growth.
+- **The book and a designed underlayer.** A creator's underlayer that names its own tones keeps them, its ledger names
+  an inline card by its id (not the whole card), and the base's ornament 0 over one that asked for more is ledgered.
 - Not yet: the hero skinned with its face in Unity, Unreal and Godot's game levels (their runtimes find and drive the
   rigid figure's nodes by name; Unreal cannot be checked here); a western hero's stock clips at their designed
   seconds (it moves stored rows: it waits for hero laws 2); the guards, the cast and the party walk the library's walk

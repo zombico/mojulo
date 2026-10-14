@@ -373,7 +373,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-13 (208_700 -> 209_300; measured 209,092) for the game menus line merged onto 1012-consolidate: create_cover's `format` (a game's key art,
 // capsule, box, icon) and `art` (an uploaded stash picture as the illustration, the plugin profile's way to real art),
 // and create_game's `front` (the light shell's title over a cover, start menu, credits, end). No new tool.
-const PAYLOAD_CEILING = 209_300;
+// Re-pinned 2026-10-14 (209_300 -> 209_600; measured 209,435) for the character stitch: create_character's `egocube` and
+// `years` (a character made from a stored Egocube sheet, at an age on its thread), update_character's merge said in its
+// description. No new tool.
+const PAYLOAD_CEILING = 209_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
