@@ -112,7 +112,7 @@ export const PAGE_MARKS = Object.freeze({
   breakPieces: m(A, 'break pieces are not carried'), wreckExplodes: m(A, 'wreck finishers are not carried'),
   shadows: m(A, 'the controllable shadow keys are not drawn'), smoke: m(A, 'smoke is not drawn'),
   tutorial: m(A, 'the tutorial step director does not travel'),
-  figures: m(P, 'rigid per-bone parts (scene-gltf addRigFigure): no painted or blend-shape face, no ink on a game pack'),
+  figures: m(B, 'a rigged figure ships skinned in world and game packs alike (one mesh, its clips, its painted or blend-shape face, its ink; since 0.24.0)'),
   events: m(B, 'bus.json and score.json carry what the kernel runs; the keys they drop are named by EVENT_MARKS'),
   fog: m(A, 'the page\'s fog rides only on weather (weather-score.js)'),
   haze: m(P, 'score.haze: exponential fog in the horizon colour, the background with it, the sky clear of it; Godot\'s exponential curve is not three\'s squared one, so the falloff differs'),

@@ -232,7 +232,7 @@ const EVIDENCE = {
     entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter', scenes: 'scenes', quests: 'scenes',
   },
   page: {
-    bg: 'look', tone: 'look', pixel: 'look', faces: 'matrix', cameras: 'matrix', textures: 'matrix', soft: 'matrix', repeats: 'matrix', ao: 'matrix', light: 'matrix', entities: 'matrix',
+    bg: 'look', tone: 'look', pixel: 'look', figures: 'matrix', faces: 'matrix', cameras: 'matrix', textures: 'matrix', soft: 'matrix', repeats: 'matrix', ao: 'matrix', light: 'matrix', entities: 'matrix',
     camera: 'matrix', pilot: 'matrix', colliders: 'matrix', events: 'matrix', game: 'matrix',
   },
 };

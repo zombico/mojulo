@@ -1265,6 +1265,36 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
         if (im.positions.length) inkSoups.push({ name: sname, positions: im.positions, normals: im.normals || inkGeoNormals(im.positions, inkCentroid(im.positions)), ...(hair ? { hair: name } : {}) });
       }
     }
+    // BLEND faces (the two-tile vertex blend, channels/blend-layer.js): a group of them is a second tile faded in over the
+    // ground, so it exports as the page draws it: per texture key one node, its texel × the baked corner colour, the corner
+    // weight (`cornerAlpha`) as COLOR_0's alpha under a BLEND material (a `cut` layer alpha-MASKED at ½). Before this they
+    // left as opaque tiles over the ground. A world without blend faces never reaches here.
+    if (fs.length && fs.every((f) => f && f.blend)) {
+      const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+      const hexLin = (h) => [1, 3, 5].map((i) => lin(parseInt(String(h).slice(i, i + 2), 16) / 255));
+      const byKey = new Map();
+      for (const f of fs) {
+        if (!Array.isArray(f.corners) || f.corners.length < 4) continue;
+        const key = typeof f.texture === 'string' ? f.texture : '';
+        const g = byKey.get(key) || byKey.set(key, { pos: [], uv: [], col: [], cut: false }).get(key);
+        if (f.blend === 'cut') g.cut = true;
+        const cols = (Array.isArray(f.cornerFills) && f.cornerFills.length >= 4 ? f.cornerFills : [0, 1, 2, 3].map(() => f.fill || '#ffffff')).map(hexLin);
+        const al = Array.isArray(f.cornerAlpha) && f.cornerAlpha.length >= 4 ? f.cornerAlpha : [1, 1, 1, 1];
+        const uvAt = (k) => (f.uvScale > 0 ? [f.corners[k][0] / f.uvScale, f.corners[k][1] / f.uvScale] : Array.isArray(f.uv) ? f.uv[k] : [0, 0]);
+        for (const k of [0, 1, 2, 0, 2, 3]) {
+          g.pos.push(f.corners[k][0], f.corners[k][1], f.corners[k][2]);
+          const u = uvAt(k); g.uv.push(u[0], u[1]);
+          g.col.push(cols[k][0], cols[k][1], cols[k][2], Math.max(0, Math.min(1, al[k])));
+        }
+      }
+      for (const [key, g] of [...byKey].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) {
+        const texIdx = key ? b.imageFromDataUrl(textures[key]) : null;
+        const mat = b.unlitMaterial({ alpha: 1, ...(texIdx != null ? { baseColorTexture: texIdx } : {}), name: `${name}:${key || 'blend'}` });
+        if (g.cut) { b.json.materials[mat].alphaMode = 'MASK'; b.json.materials[mat].alphaCutoff = 0.5; }
+        tally(b.addNode(`${name}:${key || 'blend'}`, Float32Array.from(g.pos), Float32Array.from(g.col), 4, mat, texIdx != null ? Float32Array.from(g.uv) : undefined));
+      }
+      continue;
+    }
     // Faces tagged `pbr: [metallic, roughness]` (a named material from the shelf) split into
     // their own node with a REAL pbrMetallicRoughness material, one node per distinct factor
     // pair; everything else keeps the unlit path. No pbr faces → identical export to today.
