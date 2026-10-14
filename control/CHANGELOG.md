@@ -22,6 +22,21 @@ plan's landmark is. The solver lays a town in its land, the town, or a slice of 
 comes with a field guide: what was chosen, the source behind it, and the knob that changes it. The hand-written
 town layouts and the diorama views go.
 
+- **The ledger** (`historic/ledger/`). Every cited record is read as one table, each row keyed `<record>/<id>`
+  (Egypt's "travertine" is calcite, Italy's is not). `availableAt({ region, year, record?, draws? })` returns what a
+  builder had in reach: the place's own record, what its lineage relations carry, and the materials and methods of
+  the other records in its region, each row saying which reach brought it. A culture card names its record from
+  `RECORDS`, one line per record with its region.
+- **What can be built.** `buildableAt` turns what is in reach into the wall surfaces a scene may show (every skin the
+  renderer draws, each made by named ledger rows), the roof forms it may carry, and the storeys its houses rise to,
+  read from the house types' own `dims.storeys` (added where a type's notes state it: the Deir el-Medina house, the
+  Amarna villa, the Lindos house). Where the record does not say, it says so.
+- **The anachronism check.** `ledgerFindings` names anything a scene uses that nothing in reach makes, with the
+  earliest row that would. It advises, never refuses. Over the shipped cards it found Sumer whitewashing in lime a
+  few centuries before its own record has lime: Sumer now whitewashes in gypsum, as its record says (the two skins
+  draw alike). Two findings stand as gaps in their records: Qin's hall walls in lime plaster and Lindos's kilns in mud
+  render, neither material yet recorded for its place.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

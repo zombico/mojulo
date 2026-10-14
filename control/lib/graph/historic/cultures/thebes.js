@@ -11,8 +11,7 @@
  * Ramesses II; the ram-sphinx avenue before it is Karnak's.
  */
 import { EGYPT_ASSETS } from '../assets/egypt.js';
-import { EGYPT_RECORD, EGYPT_SOURCES } from '../record/egypt.js';
-import { EGYPT_INDUSTRY_RECORD } from '../record/egypt-industry.js';
+import { RECORDS } from '../ledger/records.js';
 
 export const THEBES = {
   label: 'New Kingdom Thebes',
@@ -27,7 +26,7 @@ export const THEBES = {
   aliases: ['waset', 'luxor', 'karnak', 'ramesside', 'ramesses', 'pharaoh', 'temple of amun'],   // what people call it (search)
   soundtrack: 'egypt',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   // what its town, land, farm and works stand on (the encyclopedia entry's basis)
-  record: { id: 'egypt', entries: [...EGYPT_RECORD, ...EGYPT_INDUSTRY_RECORD], sources: EGYPT_SOURCES },
+  record: RECORDS.egypt,
   layout: 'river-axis',
   palette: {
     ground: '#c9b48e',            // the desert-edge earth under the town

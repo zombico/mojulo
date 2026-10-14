@@ -9,7 +9,7 @@
  * the Sphinx in its quarry.
  */
 import { GIZA_ASSETS } from '../assets/giza.js';
-import { GIZA_RECORD, GIZA_SOURCES } from '../record/giza.js';
+import { RECORDS } from '../ledger/records.js';
 
 export const GIZA = {
   label: 'Old Kingdom Giza',
@@ -20,7 +20,7 @@ export const GIZA = {
   region: 'egypt',
   aliases: ['pyramid', 'pyramids', 'great pyramid', 'sphinx', 'khufu', 'khafre', 'menkaure', 'pharaoh'],   // what people call it (search)
   soundtrack: 'egypt',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
-  record: { id: 'giza', entries: GIZA_RECORD, sources: GIZA_SOURCES },   // the encyclopedia entry's basis
+  record: RECORDS.giza,   // the encyclopedia entry's basis
   layout: 'plateau',
   palette: {
     ground: '#d6bf92',            // the plateau: desert gravel and sand over limestone

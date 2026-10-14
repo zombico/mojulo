@@ -10,7 +10,8 @@
  * generic Hellenistic polis (`polis` below): a town under a gentle acropolis hill.
  */
 import { LINDOS_ASSETS } from '../assets/lindos.js';
-import { LINDOS_YEAR, LINDOS_RECORD, LINDOS_SOURCES } from '../record/lindos.js';
+import { LINDOS_YEAR } from '../record/lindos.js';
+import { RECORDS } from '../ledger/records.js';
 
 const PALETTE = {
   ground: '#b9a684',            // the hillside: thin stony soil over limestone, garrigue
@@ -47,7 +48,7 @@ export const LINDOS = {
   region: 'greece',
   aliases: ['rhodes', 'acropolis', 'athena lindia', 'aegean town'],   // what people call it (search)
   soundtrack: 'greek',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
-  record: { id: 'lindos', entries: LINDOS_RECORD, sources: LINDOS_SOURCES },   // the encyclopedia entry's basis
+  record: RECORDS.lindos,   // the encyclopedia entry's basis
   layout: 'acropolis',
   palette: PALETTE,
   skins: {

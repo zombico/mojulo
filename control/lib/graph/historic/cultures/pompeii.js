@@ -10,7 +10,8 @@
  */
 import { POMPEII_ASSETS } from '../assets/pompeii.js';
 import { POMPEII_STYLE } from '../style/pompeii.js';
-import { POMPEII_READ_AT, POMPEII_RECORD, POMPEII_SOURCES } from '../record/pompeii.js';
+import { POMPEII_READ_AT } from '../record/pompeii.js';
+import { RECORDS } from '../ledger/records.js';
 
 const S = POMPEII_STYLE.palette;
 
@@ -25,7 +26,7 @@ export const POMPEII = {
   draws: [{ from: 'lindos', kind: 'inherits', parts: ['patterns', 'dress'], note: 'the Hellenistic orders, colonnade, peristyle, theatre and tile roof; the Greek dress, for the years before its Roman record starts' }],
   aliases: ['pompeian', 'roman town', 'vesuvius', 'campania', 'herculaneum', 'eruption'],   // what people call it (search)
   soundtrack: 'roman',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
-  record: { id: 'pompeii', entries: POMPEII_RECORD, sources: POMPEII_SOURCES },   // the encyclopedia entry's basis
+  record: RECORDS.pompeii,   // the encyclopedia entry's basis
   layout: 'lava-spur',
   palette: {
     ground: '#a99b7c',             // the spur's beaten earth and ash soil

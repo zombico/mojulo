@@ -92,9 +92,9 @@ describe('historic wall skins: what a wall is made of', () => {
     // undirected skins never mirror
     expect(skinFace(wall(0, 6), 'sandstone', { us: 10, mpu: 1, toward: [-100, 0] }).skin).toBe('historic-skin-sandstone-0');
   });
-  it('Sumer: houses in mud render, the wall in bare brick, the ziggurat cased in baked brick, the pale whitewashed', () => {
+  it('Sumer: houses in mud render, the wall in bare brick, the ziggurat cased in baked brick, the pale whitewashed in gypsum', () => {
     expect(skinFor(SUMER, { kind: 'house', tint: '#b49b76' })).toBe('mud-plaster');
-    expect(skinFor(SUMER, { kind: 'house', tint: '#ece6d8' })).toBe('lime-plaster');
+    expect(skinFor(SUMER, { kind: 'house', tint: '#ece6d8' })).toBe('gypsum-wash');
     expect(skinFor(SUMER, { kind: 'city-wall', tint: '#8f7553' })).toBe('mudbrick');
     expect(skinFor(SUMER, { kind: 'platform', tint: '#a4896a', asset: 'ziggurat' })).toBe('baked-brick');
     expect(skinFor(SUMER, { kind: 'door', tint: '#3a2a1a' })).toBe(null);

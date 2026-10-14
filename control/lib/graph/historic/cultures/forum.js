@@ -5,7 +5,8 @@
  * ('forum') at measured positions, not generated. Colours from the style card (../style/forum.js).
  */
 import { FORUM_STYLE } from '../style/forum.js';
-import { FORUM_READ_AT, FORUM_RECORD, FORUM_SOURCES } from '../record/forum.js';
+import { FORUM_READ_AT } from '../record/forum.js';
+import { RECORDS } from '../ledger/records.js';
 
 const S = FORUM_STYLE.palette;
 
@@ -23,7 +24,7 @@ export const FORUM = {
   ],
   aliases: ['roman forum', 'imperial rome', 'senate house', 'curia', 'temple of saturn', 'vestal'],   // what people call it (search)
   soundtrack: 'roman',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
-  record: { id: 'forum', entries: FORUM_RECORD, sources: FORUM_SOURCES },   // the encyclopedia entry's basis
+  record: RECORDS.forum,   // the encyclopedia entry's basis
   layout: 'forum',
   palette: {
     ground: '#b9ad92',             // the beaten ground behind the buildings

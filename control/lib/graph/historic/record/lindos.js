@@ -341,6 +341,7 @@ const TYPES = [
     id: 'lindos-house', kind: 'type', name: 'Hellenistic courtyard house (peristyle for the rich) on terraces below the acropolis', confidence: 'unverified',
     built: { from: -350, to: null, approx: true }, materials: ['mudbrick-socle', 'lindian-limestone', 'lime-stucco', 'timber', 'terracotta-tile', 'pebble-mosaic'], methods: ['mudbrick-on-socle', 'tiled-timber-roof', 'terracing-analemmata'],
     notes: 'No excavated Hellenistic house at Lindos in any source in hand. By analogy with Rhodes city and Ialysos: compact peristyle with an emphasised rear portico (the "Rhodian peristyle"), often two storeys, mud-brick upper walls on stone footings, plastered in plain colours, pebble mosaics in the andron (search summary). Ordinary houses: a court with rooms on one or two sides. Plaster colours and sizes are conjecture. Hearths, braziers and lamps go here.',
+    dims: { storeys: [1, 2] },   // "often two storeys" (the notes)
     sources: [S.rhodesHouses],
   },
   {
