@@ -40,7 +40,7 @@
                                          // civilization's language, painted by the level's geocube, played by its
                                          // segments from `from` (the core's) to `to` (the farthest): a line of them
                                          // along the way in a linear world, all of them joined at their portals in a map
-       roadway?: { form?: 'circuit' | 'stage', course?, dress? },
+       roadway?: { form?: 'circuit' | 'stage', course?, dress?, kit?: true | '<kit id>' },
                                          // in place of `walk`: the level is a roadway built for driving (roads/track.js)
                                          // — a lap or a stage, by preset name or course spec, on its own ground; a
                                          // race on it reads its contract (its checkpoints, grid and racing line)
@@ -143,8 +143,9 @@ const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway'];
-// a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed
-const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress'];
+// a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
+// kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; absent, the roadway's own tiles
+const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to'];
 const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref'];
@@ -355,6 +356,7 @@ export function readGameworld(W) {
       if (Rw.form !== undefined && !TRACK_FORMS.includes(Rw.form)) throw new Error(`gameworld: ${at}.roadway.form is ${TRACK_FORMS.join(' or ')} (a lap, or end to end)`);
       if (Rw.course !== undefined && !(isObj(Rw.course) || COURSE_PRESETS[Rw.course])) throw new Error(`gameworld: ${at}.roadway.course is a preset (${Object.keys(COURSE_PRESETS).join(', ')}) or a course spec ({ pis, … } or { class, length, … })`);
       if (Rw.dress !== undefined && Rw.dress !== true && Rw.dress !== false && !isObj(Rw.dress)) throw new Error(`gameworld: ${at}.roadway.dress is true, false or { trees?, rocks?, clear? }`);
+      if (Rw.kit !== undefined && Rw.kit !== true && Rw.kit !== false && typeof Rw.kit !== 'string') throw new Error(`gameworld: ${at}.roadway.kit is true (the world's look) or a kit's id`);
     } else if (L.city !== undefined) {
       // a city level: a planned city (city/plan/), built in its civilization's language, played by its segments
       if (L.walk !== undefined || L.building !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building or a city, one of them`);
@@ -479,9 +481,11 @@ export function resolveLevel(world, id) {
 
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {
-    const { course = 'kart-oval', dress, form } = L.roadway;
+    const { course = 'kart-oval', dress, form, kit } = L.roadway;
     const open = form === undefined && (course === 'rally-stage' || (isObj(course) && course.closed === false));
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, roadway: { form: form ?? (open ? 'stage' : 'circuit'), course, ...(dress ? { dress } : {}) } };
+    // the kit: the look's words (composed again wherever the track is drawn) or the kit's id
+    const drawn = kit === true ? (style.look ? { look: style.look.intent, base: style.look.base, ...(Number.isInteger(style.look.seed) ? { seed: style.look.seed } : Number.isInteger(G.seed) ? { seed: G.seed } : {}) } : style.kit) : kit || null;
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, roadway: { form: form ?? (open ? 'stage' : 'circuit'), course, ...(dress ? { dress } : {}), ...(drawn ? { kit: drawn } : {}) } };
   }
 
   // a city level: its plan, built in its civilization's language (unless it names a grammar document of its own), painted

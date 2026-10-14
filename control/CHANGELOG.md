@@ -1649,6 +1649,43 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
   loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
   new `kart-racer` genre.
 
+### Trackscape: scapeshift's eye, for a driver
+
+Built so far: the eye, where it needs something, and the track in its world's look.
+
+- **The driver's eye** (`lib/graph/roads/eye.js`): the racing line driven on a speed plan bound by the vehicle's own
+  envelope (its cornering grip, launch, braking, top speed), looked along from the seat with the gaze 1.5 s down the
+  line. Scapeshift's eye spot and interest, read in seconds: a thing reads when it spans the eye spot where it is, its
+  ring is the time to reach it (near under 0.6 s, mid to 3 s, far beyond), and only a prop or more holds the gaze (a
+  wood of filler is rhythm, never a focus). Per second it says whether there was something to look at, per corner
+  whether the gaze held something before turn-in, whether a landmark was seen (a far sight line marched over the
+  land), and how many things pass a second. Today's dressing measured: every second of every lap blank, no corner
+  focused, no landmark.
+- **Where the eye needs something** (`roads/trackscape.js`): a plan of slots, each a place, a ring, the least span that
+  reads there, an interest and a beat, filled by a kit later. A corner is the pocket (boards counting down to the
+  braking point, a focus where the gaze lands beyond the outside at turn-in, a reveal down the next straight), a
+  straight carries rhythm and a set piece every few seconds (a span across a long one), the lines are gantries, a crest
+  is a reveal, and the lap has one landmark, searched round the track and scored by the lap's own eye. The inside of
+  every corner is kept clear to its apex. Laws (advisory): every corner focused, no blank run over 3 s, the landmark
+  seen from the grid and again, no two corners framed alike in a row, slots off the road and out of the sight lines.
+
+- **The track in its world's look** (`roads/track-kit.js`): a kit has no asphalt, so the track's materials are derived
+  from what it has, each the kit's own ramp of its kind (its hue, its cool shadow) taken to the material's values:
+  asphalt, a rubbered line, repairs, concrete, steel, tyre walls and gravel from its rock (and soil), earth and grass
+  its own; kerb red from its paint, white from its light, the ramp lip in its accent. Each is a pixel tile of its
+  material, drawn by the kit's pole: a realistic look multiplies the tile by baked light, a banded one paints the
+  tile in its light band's stops. The racing line is laid dark through every corner (on the banked road's own
+  height) and the asphalt is repaired here and there. `planTrack({ …, kit })` takes a kit's id or a look in words
+  (composed again wherever the track is drawn); a gameworld roadway level takes its world's look with `kit: true`.
+  Absent, the roadway's own tiles, byte for byte.
+
+Planned:
+
+- **The track's set pieces as blocks**, and a placer walking the track's sides.
+- **One orchestration, two modes:** the track first and the world dressed round it, or a world with a roadway section
+  threaded through its land. Its measures: a realistic GT circuit with the car designer's cars, and a kart level from
+  the same tool with a different intent and course.
+
 ### Car designer: a realistic vehicle, or a racer and their machine
 
 Built so far: the language.

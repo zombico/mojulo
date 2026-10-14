@@ -25,6 +25,8 @@ import { trackContract } from './contract.js';
 import { driveSurfaceTable } from './surface.js';
 import { SURFACES } from './surfaces.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { trackKit } from './track-kit.js';
+import { racingLine } from './contract.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const TILE = 2.5, GRASS_TILE = 4;
@@ -91,6 +93,13 @@ export function planTrack(m = {}) {
   const deck = course.crossingDeck ?? null;
   const onDeck = (s) => !!deck && s >= deck.s0 - 1e-6 && s <= deck.s1 + 1e-6;
   const faces = [], sections = [], colliders = [];
+  // the kit (`kit`, track-kit.js): every surface in its world's look; absent, the roadway's own tiles and colours
+  const K = m.kit ? trackKit(m.kit) : null;
+  const KIT_OF = { asphalt: 'asphalt', gravel: 'gravel', grass: 'grass', dirt: 'earth', sand: 'earth' };
+  const BARRIER_OF = { tyres: 'tyre', armco: 'steel' };
+  const surf = (name, c, uvs) => (K ? K.surface(KIT_OF[name] ?? name, c, uvs) : texFace(c, SURFACES[name].hex, SURFACES[name].texture, uvs));
+  const paint = (name, c, hex) => (K ? K.paint(name, c) : face(c, hex));
+  const wall = (mat, c, hex, inside) => (K ? K.wall(mat, c, inside) : faceOut(c, hex, inside));
 
   // the ground: built first, so the skirts know where it is
   const terrain = buildTerrain({ a, X, bank, baseZ, baseGrade });
@@ -103,21 +112,21 @@ export function planTrack(m = {}) {
     for (const side of [1, -1]) {
       const quad = (o0, o1, dz = 0) => [P(A, side * o0, dz), P(A, side * o1, dz), P(B, side * o1, dz), P(B, side * o0, dz)];
       const uv = (o0, o1, t = TILE) => [[sA / t, (side * o0) / t], [sA / t, (side * o1) / t], [sB / t, (side * o1) / t], [sB / t, (side * o0) / t]];
-      const road = SURFACES[T.road];
-      faces.push(texFace(quad(0, X.road), road.hex, road.texture, uv(0, X.road)));
-      if (T.edgeLine) faces.push(face(quad(X.road - 0.35 - T.edgeLine, X.road - 0.35, 0.012), COLOR.line));
+      faces.push(surf(T.road, quad(0, X.road), uv(0, X.road)));
+      if (T.edgeLine) faces.push(paint('line', quad(X.road - 0.35 - T.edgeLine, X.road - 0.35, 0.012), COLOR.line));
       if (T.kerb) {
-        if (corner) faces.push(face(quad(X.road, X.kerb, 0.02), Math.floor((sA + sB) / 4) % 2 ? COLOR.kerbWhite : COLOR.kerbRed));
-        else { const g = SURFACES[T.runoffSurface]; faces.push(texFace(quad(X.road, X.kerb), g.hex, g.texture, uv(X.road, X.kerb, GRASS_TILE))); }
+        if (corner) { const white = Math.floor((sA + sB) / 4) % 2; faces.push(paint(white ? 'kerbWhite' : 'kerbRed', quad(X.road, X.kerb, 0.02), white ? COLOR.kerbWhite : COLOR.kerbRed)); }
+        else faces.push(surf(T.runoffSurface, quad(X.road, X.kerb), uv(X.road, X.kerb, GRASS_TILE)));
       }
-      const outside = corner && Math.sign(kMid) * side < 0, run = SURFACES[outside ? T.outside : T.runoffSurface];
-      faces.push(texFace(quad(X.kerb, X.runoff), run.hex, run.texture, uv(X.kerb, X.runoff, GRASS_TILE)));
+      const outside = corner && Math.sign(kMid) * side < 0;
+      faces.push(surf(outside ? T.outside : T.runoffSurface, quad(X.kerb, X.runoff), uv(X.kerb, X.runoff, GRASS_TILE)));
       if (T.barrier) {
         const b = T.barrier, f0a = P(A, side * X.runoff), f0b = P(B, side * X.runoff), f1a = P(A, side * X.outer), f1b = P(B, side * X.outer);
         const up = (p) => [p[0], p[1], p[2] + b.h], mid = [(f0a[0] + f1b[0]) / 2, (f0a[1] + f1b[1]) / 2];
-        faces.push(faceOut([f0a, f0b, up(f0b), up(f0a)], b.hex, mid));
-        faces.push(faceOut([f1b, f1a, up(f1a), up(f1b)], b.hex, mid));
-        faces.push(face([up(f0a), up(f0b), up(f1b), up(f1a)], b.hex));
+        const bm = BARRIER_OF[b.kind] ?? 'concrete';
+        faces.push(wall(bm, [f0a, f0b, up(f0b), up(f0a)], b.hex, mid));
+        faces.push(wall(bm, [f1b, f1a, up(f1a), up(f1b)], b.hex, mid));
+        faces.push(K ? K.surface(bm, [up(f0a), up(f0b), up(f1b), up(f1a)], [[sA / TILE, 0], [sB / TILE, 0], [sB / TILE, b.w / TILE], [sA / TILE, b.w / TILE]]) : face([up(f0a), up(f0b), up(f1b), up(f1a)], b.hex));
         // its walls for the drive rule: boxes round pieces of 2 m or less (a long diagonal box would reach the road)
         const k = Math.max(1, Math.ceil(Math.hypot(f0b[0] - f0a[0], f0b[1] - f0a[1]) / 2)), lerp = (p, q, t) => p.map((v, i) => v + (q[i] - v) * t);
         for (let u = 0; u < k; u++) {
@@ -129,17 +138,17 @@ export function planTrack(m = {}) {
       // the outer edge: a deck's fascia over a crossing, else a wall down to the ground wherever the road stands on it
       const ea = P(A, side * X.outer), eb = P(B, side * X.outer);
       if (onDeck(sA) && onDeck(B.s)) {
-        faces.push(faceOut([ea, eb, [eb[0], eb[1], eb[2] - DECK], [ea[0], ea[1], ea[2] - DECK]], COLOR.concrete, [A.x, A.y]));
+        faces.push(wall('concrete', [ea, eb, [eb[0], eb[1], eb[2] - DECK], [ea[0], ea[1], ea[2] - DECK]], COLOR.concrete, [A.x, A.y]));
       } else {
         const ga = groundAt(ea[0], ea[1]), gb = groundAt(eb[0], eb[1]);
         // the ground sits SINK under every edge by design: a wall stands only where the road is higher than that
-        if (ea[2] - ga > SINK + 0.1 || eb[2] - gb > SINK + 0.1) faces.push(faceOut([ea, eb, [eb[0], eb[1], Math.min(gb, eb[2])], [ea[0], ea[1], Math.min(ga, ea[2])]], COLOR.fill, [A.x, A.y]));
+        if (ea[2] - ga > SINK + 0.1 || eb[2] - gb > SINK + 0.1) faces.push(wall('earth', [ea, eb, [eb[0], eb[1], Math.min(gb, eb[2])], [ea[0], ea[1], Math.min(ga, ea[2])]], COLOR.fill, [A.x, A.y]));
       }
     }
     // a crossing's deck: its soffit under the whole footprint
     if (onDeck(sA) && onDeck(B.s)) {
       const d = [P(A, X.outer, -DECK), P(B, X.outer, -DECK), P(B, -X.outer, -DECK), P(A, -X.outer, -DECK)];
-      faces.push(face(d, COLOR.concrete, { keepWinding: true }));
+      faces.push(face(d, K ? K.flat('concrete', 1) : COLOR.concrete, { keepWinding: true }));
     }
   }
   // markings: a lap's start line (a stage's start and finish), a band before every ramp's lip
@@ -149,15 +158,17 @@ export function planTrack(m = {}) {
       if (cells > 1 && (c + r) % 2) continue;
       const q0 = a.at(s + (len / 2) * r), q1 = a.at(s + (len / 2) * (r + 1)), o0 = -X.road + c * w, o1 = o0 + w;
       const A2 = cells > 1 ? q0 : p0, B2 = cells > 1 ? q1 : p1;
-      faces.push(face([P(A2, o0, 0.015), P(A2, o1, 0.015), P(B2, o1, 0.015), P(B2, o0, 0.015)], hex));
+      faces.push(paint(hex === COLOR.check ? 'check' : 'lip', [P(A2, o0, 0.015), P(A2, o1, 0.015), P(B2, o1, 0.015), P(B2, o0, 0.015)], hex));
     }
   };
   const lines = { start: a.closed ? 0 : STAGE_START, finish: a.closed ? 0 : L - STAGE_FINISH };
   for (const s of a.closed ? [0] : [lines.start, lines.finish]) across(s, 1, COLOR.check, Math.round((2 * X.road) / 0.5));
   for (const r of course.ramps) if (r.lip) across(r.lip.s - 0.6, 0.5, COLOR.lip);
 
-  faces.push(...terrainFaces(terrain));
-  faces.push(...farGround(terrain));
+  // the kit's wear on the road: the racing line rubbered dark through every corner, and repairs
+  if (K) faces.push(...roadWear({ a, X, K, P, seed: Number.isInteger(m.seed) ? m.seed : 1 }));
+  faces.push(...terrainFaces(terrain, K));
+  faces.push(...farGround(terrain, K));
   const crossings = selfClearance(a, { width: X.outer * 2, margin: 1 }).crossings;
   // the land dressed (`dress`): trees and rocks on the track's own ground, clear of every footprint
   const props = m.dress ? dressProps({ a, X, terrain, dress: m.dress, seed: Number.isInteger(m.seed) ? m.seed : 1 }) : [];
@@ -218,21 +229,55 @@ export function terrainAt(T, x, y) {
   return fx >= fy ? z00 + fx * (z10 - z00) + fy * (z11 - z10) : z00 + fy * (z01 - z00) + fx * (z11 - z01);
 }
 
-function terrainFaces(T) {
+function terrainFaces(T, K = null) {
   const out = [], W = T.nx + 1;
   for (let j = 0; j < T.ny; j++) for (let i = 0; i < T.nx; i++) {
     const k = [j * W + i, j * W + i + 1, (j + 1) * W + i + 1, (j + 1) * W + i];
     if (k.every((q) => T.foot[q])) continue;            // under the road: never seen
     const c = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]].map(([u, v], q) => [T.x0 + u * T.cell, T.y0 + v * T.cell, T.z[k[q]]]);
-    out.push(texFace(c, SURFACES.grass.hex, 'grass-dry', c.map((p) => [p[0] / GRASS_TILE, p[1] / GRASS_TILE])));
+    const uvs = c.map((p) => [p[0] / GRASS_TILE, p[1] / GRASS_TILE]);
+    out.push(K ? K.surface('grass', c, uvs) : texFace(c, SURFACES.grass.hex, 'grass-dry', uvs));
+  }
+  return out;
+}
+
+// the road's wear in a kit: the racing line laid dark through each corner (its stations under KERB_K's curvature and
+// 25 m either side), and a repair every so often (seeded), each just over the asphalt
+function roadWear({ a, X, K, P, seed }) {
+  const out = [], L = a.length, line = racingLine({ alignment: a, X }), n = line.length, rnd = mulberry32((seed * 3266489917) >>> 0);
+  const near = new Uint8Array(n);
+  line.forEach((q, i) => { if (Math.abs(a.at(Math.min(L, (i * L) / (a.closed ? n : n - 1))).k) > KERB_K) for (let d = -8; d <= 8; d++) { const j = a.closed ? (i + d + n) % n : i + d; if (j >= 0 && j < n) near[j] = 1; } });
+  // the road's own height under a point (banked through a corner), just over it
+  const C = Array.from({ length: Math.max(16, Math.round(L)) + 1 }, (_, i) => a.at(Math.min(L, (i * L) / Math.max(16, Math.round(L)))));
+  const onRoad = (x, y) => {
+    let st = C[0], d = Infinity; for (const c of C) { const e = (c.x - x) ** 2 + (c.y - y) ** 2; if (e < d) { d = e; st = c; } }
+    return P(st, -(x - st.x) * Math.sin(st.heading) + (y - st.y) * Math.cos(st.heading), 0.008)[2];
+  };
+  // each point's own across (its neighbours' chord), so the strip's quads share their edges
+  const w = 0.6, across = line.map((p, i) => {
+    const b = line[a.closed ? (i - 1 + n) % n : Math.max(0, i - 1)], f = line[a.closed ? (i + 1) % n : Math.min(n - 1, i + 1)];
+    const dx = f.x - b.x, dy = f.y - b.y, l = Math.hypot(dx, dy) || 1; return [(-dy / l) * w, (dx / l) * w];
+  });
+  for (let i = 0; i < (a.closed ? n : n - 1); i++) {
+    const j = (i + 1) % n; if (!near[i] || !near[j]) continue;
+    const p = line[i], q = line[j], [px, py] = across[i], [qx, qy] = across[j];
+    const c = [[p.x - px, p.y - py], [q.x - qx, q.y - qy], [q.x + qx, q.y + qy], [p.x + px, p.y + py]].map(([x, y]) => [x, y, onRoad(x, y)]);
+    out.push(K.surface('rubber', c, c.map((v) => [v[0] / TILE, v[1] / TILE])));
+  }
+  for (let s = 20; s < L - 10; s += 45) {
+    if (rnd() > 0.35) continue;
+    const len = 2 + rnd() * 5, off = (rnd() - 0.5) * (X.road * 1.2), wd = 0.8 + rnd() * 1.6;
+    const A = a.at(s), B = a.at(Math.min(L, s + len));
+    const c = [P(A, off - wd / 2, 0.004), P(B, off - wd / 2, 0.004), P(B, off + wd / 2, 0.004), P(A, off + wd / 2, 0.004)];
+    out.push(K.surface('patch', c, c.map((v) => [v[0] / TILE, v[1] / TILE])));
   }
   return out;
 }
 
 // the far ground: 500 m tiles to FAR each way, cut round the terrain grid (never under it)
-function farGround(T) {
+function farGround(T, K = null) {
   const out = [], bx0 = T.x0, by0 = T.y0, bx1 = T.x0 + T.nx * T.cell, by1 = T.y0 + T.ny * T.cell, cx = (bx0 + bx1) / 2, cy = (by0 + by1) / 2, cell = 500;
-  const rect = (x0, y0, x1, y1) => { if (x1 - x0 < 1e-6 || y1 - y0 < 1e-6) return; const c = [[x0, y0, T.zFar], [x1, y0, T.zFar], [x1, y1, T.zFar], [x0, y1, T.zFar]]; out.push(texFace(c, SURFACES.grass.hex, 'grass-dry', c.map((p) => [p[0] / GRASS_TILE, p[1] / GRASS_TILE]))); };   // the terrain's own grass: no seam at the grid's edge
+  const rect = (x0, y0, x1, y1) => { if (x1 - x0 < 1e-6 || y1 - y0 < 1e-6) return; const c = [[x0, y0, T.zFar], [x1, y0, T.zFar], [x1, y1, T.zFar], [x0, y1, T.zFar]], uvs = c.map((p) => [p[0] / GRASS_TILE, p[1] / GRASS_TILE]); out.push(K ? K.surface('grass', c, uvs) : texFace(c, SURFACES.grass.hex, 'grass-dry', uvs)); };   // the terrain's own grass: no seam at the grid's edge
   for (let gx = cx - FAR; gx < cx + FAR; gx += cell) for (let gy = cy - FAR; gy < cy + FAR; gy += cell) {
     const x0 = gx, y0 = gy, x1 = gx + cell, y1 = gy + cell;
     if (x1 <= bx0 || x0 >= bx1 || y1 <= by0 || y0 >= by1) { rect(x0, y0, x1, y1); continue; }

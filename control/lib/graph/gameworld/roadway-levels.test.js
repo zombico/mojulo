@@ -21,10 +21,11 @@ const ride = { ref: 'r', rule: rideRule('coupe', 1) };
 describe('a roadway level reads like any level', () => {
   it('its settings held to the roadway\'s, never a walk, a building or a city beside it', () => {
     expect(() => readGameworld(withRoadway(MEADOWMARK))).not.toThrow();
-    expect(() => readGameworld(withRoadway(MEADOWMARK, { course: 'kart-oval', lanes: 2 }))).toThrow(/roadway.lanes is not a roadway level setting \(form, course, dress\)/);
+    expect(() => readGameworld(withRoadway(MEADOWMARK, { course: 'kart-oval', lanes: 2 }))).toThrow(/roadway.lanes is not a roadway level setting \(form, course, dress, kit\)/);
     expect(() => readGameworld(withRoadway(MEADOWMARK, { form: 'oval' }))).toThrow(/roadway.form is circuit or stage/);
     expect(() => readGameworld(withRoadway(MEADOWMARK, { course: 'monaco' }))).toThrow(/roadway.course is a preset \(kart-oval/);
     expect(() => readGameworld(withRoadway(MEADOWMARK, { dress: 'lots' }))).toThrow(/roadway.dress is true, false or/);
+    expect(() => readGameworld(withRoadway(MEADOWMARK, { kit: 3 }))).toThrow(/roadway.kit is true \(the world's look\) or a kit's id/);
     const both = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, x: { roadway: {}, walk: { nodes: { a: { trail: true } } } } } };
     expect(() => readGameworld(both)).toThrow(/a walk, a building, a city or a roadway, one of them/);
     const ground = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, x: { roadway: {}, ground: { edits: [] } } } };
@@ -132,4 +133,17 @@ describe('the book knows it', () => {
     const g = gameworldGraph(W);
     expect(g.nodes.some((n) => n.id === 'section:track/roadway' && n.section === 'roadway')).toBe(true);
   });
+});
+
+describe('a roadway level drawn in its world\'s look', () => {
+  it('kit: true takes the world\'s look (its words, composed wherever the track is drawn); absent, the roadway\'s own tiles', () => {
+    const W = { ...withRoadway(MEADOWMARK, { course: 'kart-oval', kit: true }), style: { ...(MEADOWMARK.style ?? {}), look: 'realistic green grassland' } };
+    const st = gameStages(W).find((x) => x.section === 'roadway');
+    expect(st.manifest.kit).toMatchObject({ look: 'realistic green grassland' });
+    const plan = planTrack(st.manifest);
+    expect(plan.faces.some((f) => typeof f.texture === 'string' && f.texture.startsWith('track:'))).toBe(true);
+    expect(roadwayEnds(st.manifest).roadway).toBeTruthy();
+    const plain = gameStages(withRoadway(MEADOWMARK)).find((x) => x.section === 'roadway');
+    expect(plain.manifest.kit).toBeUndefined();
+  }, 60000);
 });
