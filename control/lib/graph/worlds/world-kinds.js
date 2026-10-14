@@ -76,6 +76,7 @@ import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/sc
 import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
 import { resolveTerrainCities } from '@/lib/graph/terrain/terrain-city';
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
+import { assembleInteriorWorldScene } from '@/lib/graph/interior/scene';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleStoreWorldScene } from '../retail/store-world.js';
 import { assembleMallWorldScene } from '../polygonizer/floorplan-mall.js';
@@ -538,6 +539,21 @@ export const WORLD_KINDS = {
       const stack = storeyLevels(m);
       if (stack) return assembleHouseWorldScene({ ...m, ...stack }, opts);
       return assembleFloorWorldScene(m, opts);
+    },
+  },
+  // a room of a house, fitted out (lib/graph/interior/): the house is read from its own row (`house`, a ref; an exported
+  // interior may carry it inline), the room's program solved and skinned, and the house built with that room fitted out.
+  // The house row is never written; an edit to the house flows into every interior over it.
+  interior: {
+    title: 'mojulo interior',
+    walk: true,
+    ownsWalk: true,   // the resolver places the walker in the room
+    ao: true,
+    resolve: (m, ctx) => {
+      const house = typeof m.house === 'string' ? SketchRepository.getByRef(m.house)?.manifest : m.house;
+      if (!house) throw new Error(`interior: no house '${m.house}' — mint_building makes one; an interior decorates a room of a house`);
+      if (house.kind !== 'floorplan') throw new Error(`interior: '${m.house}' is a ${house.kind}, not a house (kind 'floorplan')`);
+      return assembleInteriorWorldScene(m, house, { title: ctx.title, view: ctx.view });
     },
   },
   restaurant: {

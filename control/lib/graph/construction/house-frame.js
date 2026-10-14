@@ -23,6 +23,7 @@
 //     roof in timber on the ring beam.
 // The roof follows the house's roof style: gable-family forms frame as a gable, hip-family as a hip (commons, hips,
 // jacks), shed and butterfly as mono-pitches, flat forms as joists; no roof, just ceiling joists.
+import { finishKnobErrors } from '../finishes/index.js';
 import { lowerFrame, FRAME_DETAILS } from './frame.js';
 import { TRADITION_KEYS, TRADITION_OF, TRADITIONS, CATALOG } from './catalog.js';
 import { planLinings, STAGES } from './linings.js';
@@ -86,6 +87,8 @@ export function validateHouseConstruction(m) {
     e.push(`furnishing: 'constructed' (the pieces built on the workbench), or leave it out`);
   }
   if (m.kind === 'floorplan') e.push(...tierErrors(m.tier));
+  // the house's doors, windows, floors and walls (finishes/index.js), checked by field as the render reads them leniently
+  if (m.kind === 'floorplan') e.push(...finishKnobErrors(m));
   if (m.kind === 'floorplan' && m.layout != null && m.layout !== false && m.layout !== 'varied') {
     e.push(`layout: 'varied' (each room's arrangement drawn from the house seed), or leave it out`);
   }

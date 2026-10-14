@@ -10,6 +10,9 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { draftSection } from '@/lib/graph/interior/section';
+import { compileInterior } from '@/lib/graph/interior/compile';
+import { readStructure } from '@/lib/graph/structure/read';
 import { resolveArt } from '../../graph/era/art-direction.js';
 import { resolvePlayUi } from '../../graph/playscape/ui/direction.js';
 import path from 'node:path';
@@ -425,6 +428,9 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
     if (finalized.layout === undefined) finalized = { ...finalized, layout: 'varied' };
     if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
+    // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
+    // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out
+    if (finalized.finishes === undefined && finalized.style != null && finalized.style !== false) finalized = { ...finalized, finishes: 'auto' };
     // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
     const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
     for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
@@ -550,7 +556,23 @@ function isWorldRecipe(manifest) {
 
 // Creation from an exported world recipe pays the same gates as a whole-manifest edit.
 // This does not reinterpret it as authoring knobs or import assets from another filesystem.
+// An interior over a room described in words: the floor plan first. Its house section is drafted (interior/section.js),
+// the interior compiled against the draft (so a bad recipe mints nothing), the house minted as a house row of its own,
+// and the interior pointed at it and at its room.
+function mintInteriorSection(manifest, title) {
+  const drafted = draftSection(manifest.house.section);
+  compileInterior({ ...manifest, house: drafted.house, room: manifest.room ?? drafted.glyph }, drafted.house);
+  const minted = mintSketch({ title: `${title || 'room'} · house`, manifest: drafted.house });
+  const stored = SketchRepository.getByRef(minted.ref)?.manifest || drafted.house;
+  const r = drafted.rect;
+  const card = readStructure(stored).rooms.find((x) => Math.abs(x.rect.x - r.x) < 0.05 && Math.abs(x.rect.y - r.y) < 0.05 && Math.abs(x.rect.w - r.w) < 0.05 && Math.abs(x.rect.h - r.h) < 0.05);
+  return { ...manifest, house: minted.ref, room: card ? card.tag : (manifest.room ?? drafted.glyph) };
+}
+
 async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full', restore = false, solveOps = [] }) {
+  if (manifest.kind === 'interior' && manifest.house && typeof manifest.house === 'object' && manifest.house.section) {
+    try { manifest = mintInteriorSection(manifest, title ?? existingSketch?.title); } catch (err) { throw new Error(`Invalid world manifest (kind 'interior'): ${err.message}`); }
+  }
   // a room stage's art direction (era/art-direction.js): 'propose' / 'auto' and any item sent back ('reroll') are
   // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
   manifest = resolveArt(manifest);
