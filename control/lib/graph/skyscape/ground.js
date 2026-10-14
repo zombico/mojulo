@@ -293,7 +293,7 @@ export function mapGround(map, ask = {}) {
   return {
     K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     // the highest surface: the ground, or a city's roof over it (what a course and a pilot keep clear of)
-    topAt: town.topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [],
+    topAt: town.topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [], roofs: town.roofs ?? [],
     bounds,
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,

@@ -135,6 +135,10 @@ import { emitThreeWorld } from './scene-three.js';
 // follow camera about its view axis when it carries a roll (never set without rollFollow). On the `controllable`
 // fixture 11 lines are replaced (the fly rule's own, each now reading its dial) and 25 added; nothing else moves. A page
 // with a flying body also gets the flight HUD; no fixture flies. The same 13, and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: landing, crashes, assist): the fly rule's opt-in `assist` ('arcade' never stalls and
+// levels the wings faster, 'sim' holds the bank). On the `controllable` fixture 2 lines are replaced and 5 added, all
+// the rule's own; nothing else moves (the flight block's touchdown, roofs and respawn are emitted only with a flying
+// body, which no fixture holds). The same 13, and shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

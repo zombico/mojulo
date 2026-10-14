@@ -128,7 +128,16 @@ export function seatCities(preps, graded) {
     { group: 'city:walls', template: unitBox(graded.K.light, 'walls'), transforms: walls },
     { group: 'city:roofs', template: unitBox(graded.K.light, 'roof'), transforms: tops },
   ] : [];
-  return { faces, repeats, formed, cities, topAt };
+  return { faces, repeats, formed, cities, topAt, roofs: roofs.map(packRoofs) };
+}
+
+/** A roof grid for the page: its origin and cell, and each cell's roof as decimetres over `base` (Uint16, base64; 0 is
+ *  no roof). The page's flight block counts it as ground, so a tower is something a craft can hit. */
+function packRoofs(r) {
+  let lo = Infinity; for (const t of r.top) if (t > -Infinity && t < lo) lo = t;
+  const base = Number.isFinite(lo) ? Math.floor(lo) - 1 : 0, q = new Uint16Array(r.top.length);
+  for (let k = 0; k < q.length; k++) q[k] = r.top[k] > -Infinity ? Math.min(65535, Math.max(1, Math.round((r.top[k] - base) * 10))) : 0;
+  return { x0: r2(r.x0), y0: r2(r.y0), cell: ROOF_CELL, nx: r.nx, ny: r.ny, base, q: Buffer.from(q.buffer).toString('base64') };
 }
 
 // sRGB hex → linear rgb: an instance's tint multiplies the template's (linear) vertex colour on the page

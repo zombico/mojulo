@@ -154,7 +154,7 @@ const ID = /^[a-z][a-z0-9-]{0,47}$/;
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', 'front', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'airspace'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'course'];
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and

@@ -10,11 +10,13 @@
  *               between two gates would stand in the way. A craft with no engine cannot climb: its course is flown
  *               once, downhill, each gate no lower under the next than its glide ratio allows, from where it is
  *               launched to the runway
- *   the finish  a touchdown zone on the runway: after the last gate, land
+ *   the finish  the runway's touchdown box: after the last gate, land on it (flightLaps: a touchdown off a pad or harder
+ *               than the gear takes is a crash, and the craft comes back at the last gate it passed)
  *   the look    a ring gate is a scapeshift block (era/blocks.js `ring`): a hoop and a lit inner band, built at its ring
  *
  *   planCourse(map, field, { gates?, laps?, land?, seed? }) → { gates, finish, line, laps, laws, faces }
  *   courseLaws(course, map, field) → [{ law, ok, note }]
+ *   flightLaps(course, map, field, seat) → the laps mechanic's { checkpoints, laps, land, respawn }
  *
  * Pure, deterministic.
  */
@@ -89,9 +91,12 @@ export function planCourse(map, field, { gates: nAsk, laps = 1, land = true, see
     // downhill: from the last gate back, each gate the higher of its own clearance and the next one's plus the height
     // the glide between them spends (with a fifth in hand)
     const z = ring.map(() => 0), n2 = ring.length;
+    // the last gate high enough to glide on to the landing's approach fix and turn onto it (half a turn circle round)
+    const app = land && pad ? approachTo(map, pad) : null, last = ring[n2 - 1];
+    const toFix = app ? app.faf[2] + 1.25 * (dmath.hypot(app.faf[0] - last[0], app.faf[1] - last[1]) + Math.PI * map.eye.turn.cruise) / c.glide : -Infinity;
     for (let i = n2 - 1; i >= 0; i--) {
       const need = topAt(field)(ring[i][0], ring[i][1]) + 2 * low;
-      if (i === n2 - 1) { z[i] = need; continue; }
+      if (i === n2 - 1) { z[i] = Math.max(need, toFix); continue; }
       const d = dmath.hypot(ring[i + 1][0] - ring[i][0], ring[i + 1][1] - ring[i][1]), top = legTop(field, ring[i], ring[i + 1], cell) + clear;
       z[i + 1] = Math.max(z[i + 1], top);   // both ends over the leg's highest ground (a later gate higher only gives more height to spend)
       z[i] = Math.max(need, top, z[i + 1] + 1.2 * d / c.glide);
@@ -128,7 +133,9 @@ function finishCourse(map, field, ring, z, { laps, land, seed, open }) {
     const heading = dmath.atan2(q[1] - o[1], q[0] - o[0]);
     return { id: `gate-${i + 1}`, at: [r2(p[0]), r2(p[1]), r2(z[i])], heading: r2(heading), radius };
   });
-  const finish = land && pad ? { at: [pad.center[0], pad.center[1], r2(pad.datum + 1.5)], radius: r2(Math.max(pad.width, pad.length * 0.35)), pad: pad.id } : null;
+  // the finish: the runway's own rectangle, a touchdown box TOUCHDOWN_H high over its datum (the craft is in it only on
+  // the way down or on the wheels); `radius` is the box's reach in plan, for a reader that wants one number
+  const finish = land && pad ? { at: [pad.center[0], pad.center[1], r2(pad.datum + TOUCHDOWN_H / 2)], half: padHalf(pad), radius: r2(Math.max(pad.x1 - pad.x0, pad.y1 - pad.y0) / 2), pad: pad.id } : null;
   // the look: each gate a ring-gate block, its hoop facing along the line
   const faces = [];
   gates.forEach((g, i) => {
@@ -140,9 +147,47 @@ function finishCourse(map, field, ring, z, { laps, land, seed, open }) {
   return course;
 }
 
-/** The checkpoints the `laps` mechanic takes: each gate (in three dimensions), then the finish on the runway. */
+/** A landing's approach (flown by the autopilot, budgeted by a glider's course): its slope (rise over run, ~4°), its
+ *  speed over the stall, the final's length in seconds at that
+ *  speed (at least FINAL_TURNS turn circles), the aim point (m in from the end it crosses), and the flare: its height
+ *  (m) and the sink it settles to there, as a share of what the gear takes. */
+export const GLIDE = 0.07, APPROACH = 1.3, FINAL_S = 25, FINAL_TURNS = 2.5, AIM = 150, FLARE = Object.freeze({ agl: 6, sink: 0.4 });
+
+/** The landing on a pad: its heading (against the departure), the aim point AIM in from the end it crosses, the
+ *  final approach fix and the intercept out along the extended centreline, their heights on the glide slope. */
+export function approachTo(map, pad) {
+  const c = map.craft, vApp = APPROACH * c.stall, rTurn = map.eye.turn.cruise;
+  const ax = pad.along === 'x' ? [1, 0] : [0, 1], dir = -(pad.depart ?? 1);
+  const half = pad.length / 2, heading = Math.atan2(ax[1] * dir, ax[0] * dir);
+  const at = (s) => [pad.center[0] - ax[0] * dir * s, pad.center[1] - ax[1] * dir * s];   // s metres short of the centre
+  const a = half - Math.min(AIM, half / 2), final = Math.max(FINAL_S * vApp, FINAL_TURNS * rTurn), fafS = a + final, ifS = fafS + 2 * rTurn;
+  const z = (s) => pad.datum + (s - a) * GLIDE;
+  return { heading, vApp, aim: [...at(a), pad.datum], faf: [...at(fafS), z(fafS)], intercept: [...at(ifS), z(ifS)], axis: [ax[0] * dir, ax[1] * dir] };
+}
+
+/** A touchdown box's height (m): from the datum to well over the wheels, so the craft is in it from the flare. */
+export const TOUCHDOWN_H = 30;
+/** A pad's touchdown box's half-extents [hx, hy, hz]. */
+const padHalf = (p) => [r2((p.x1 - p.x0) / 2), r2((p.y1 - p.y0) / 2), TOUCHDOWN_H / 2];
+
+/** The checkpoints the `laps` mechanic takes: each gate (in three dimensions), then the finish on the runway, landed on. */
 export function courseCheckpoints(course) {
-  return [...course.gates.map((g) => ({ at: g.at, radius: g.radius, planar: false })), ...(course.finish ? [{ at: course.finish.at, radius: course.finish.radius, planar: false }] : [])];
+  return [...course.gates.map((g) => ({ at: g.at, radius: g.radius, planar: false })), ...(course.finish ? [{ at: course.finish.at, half: course.finish.half, planar: false, land: true }] : [])];
+}
+
+/**
+ * The `laps` mechanic's parameters for a flight: the checkpoints, the laps, and two things a flight adds to a race —
+ *   land     every pad's touchdown box: a touchdown inside one with a sink rate the craft's gear takes is a landing (the
+ *            finish needs one); a touchdown anywhere else (a field, a hillside, a roof) or a harder one is a crash
+ *   respawn  where a crash puts the craft back: before the first gate, its seat on the runway; after a gate, that gate,
+ *            at cruise, heading for the next one
+ */
+export function flightLaps(course, map, field, seat) {
+  const G = course.gates, cps = courseCheckpoints(course);
+  const toward = (a, b) => r2(dmath.atan2(b[1] - a[1], b[0] - a[0]));
+  const respawn = [{ spot: seat.transform.pos.map(r2), heading: r2(seat.transform.heading), aloft: seat.rule.engine === false ? 1 : 0 }];
+  for (let j = 0; j + 1 < cps.length; j++) respawn.push({ spot: G[j % G.length].at, heading: toward(cps[j].at, cps[j + 1].at), aloft: 1 });
+  return { kind: 'laps', checkpoints: cps, laps: course.laps ?? 1, land: { pads: field.pads.map((p) => ({ at: [p.center[0], p.center[1], r2(p.datum + TOUCHDOWN_H / 2)], half: padHalf(p) })) }, respawn };
 }
 
 /**

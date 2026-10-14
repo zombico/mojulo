@@ -199,9 +199,56 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   el.style.cssText = 'position:absolute;left:16px;bottom:16px;min-width:210px;padding:8px 12px;border-radius:8px;background:rgba(8,14,22,0.5);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.22);pointer-events:none;z-index:9;font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe3ff;white-space:pre';
   document.body.appendChild(el);
   var pad = function (v, n) { v = String(v); while (v.length < n) v = ' ' + v; return v; };
+  // a flight's game (the laps mechanic's land / respawn): each touchdown told to the bus with whether it sank harder
+  // than the gear takes (rule.sinkMax), and its respawn carried out; a city's roofs (rule.roofs) counted as ground, so a
+  // tower is hit, not flown through
+  // a touchdown counts once the craft has flown (over ARM m above the ground): not the first frames' settling on the pad
+  var roofs = null, wasAir = null, lastVs = 0, hooked = false, armed = false, ARM = 3;
+  function roofAt(x, y) {
+    for (var k = 0; k < roofs.length; k++) {
+      var r = roofs[k], i = Math.floor((x - r.x0) / r.cell), j = Math.floor((y - r.y0) / r.cell);
+      if (i >= 0 && j >= 0 && i < r.nx && j < r.ny) { var v = r.h[j * r.nx + i]; if (v) return r.base + v / 10; }
+    }
+    return null;
+  }
+  function hook(p) {
+    if (p.rule.roofs && !roofs) {
+      roofs = p.rule.roofs.map(function (r) { var b = atob(r.q), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return { x0: r.x0, y0: r.y0, cell: r.cell, nx: r.nx, ny: r.ny, base: r.base, h: new Uint16Array(u.buffer) }; });
+      var g0 = __ground;
+      __ground = function (pos) { var g = g0(pos), t = roofAt(pos[0], pos[1]); return t !== null && (g === null || t > g) ? t : g; };   // eslint-disable-line no-func-assign
+    }
+    var B = window.__mojBus; if (hooked || !B || !B.bus) return; hooked = true;
+    var prev = B.bus.processEvents;
+    B.bus.processEvents = function (state, events) {
+      var n0 = state.log.length, out = prev(state, events);
+      for (var i = n0; i < state.log.length; i++) {
+        var ev = state.log[i]; if (!ev || typeof ev.type !== 'string' || ev.type.indexOf('respawn:') !== 0) continue;
+        // the point rides on the reaction that emitted it (the log keeps the type)
+        var R = (state.reactions || []).find(function (r) { return r.do === 'emit' && r.type === ev.type; });
+        var c = __world.byId[__world.pilotId]; if (!c || !R || !Array.isArray(R.spot)) continue;
+        ev = R;
+        c.transform.pos = ev.spot.slice(); c.transform.heading = ev.heading || 0; c.transform.pitch = 0; c.bank = 0;
+        c.airborne = !!ev.aloft; c.stalled = false; c.airspeed = ev.aloft ? (c.rule.cruise || c.rule.launchSpeed || c.rule.stallSpeed * 1.6) : 0;
+        if (c.rule.lever) c.lever = ev.aloft ? 0.75 : 0;
+        wasAir = !!ev.aloft; lastVs = 0; armed = !!ev.aloft;
+      }
+      return out;
+    };
+  }
   function tick() {
     var p = __world.pilotId && __world.byId[__world.pilotId];
     if (p && p.rule && p.rule.type === 'fly') {
+      hook(p);
+      var q0 = p.transform.pos, g0 = __ground([q0[0], q0[1], q0[2]]);
+      if (p.airborne && g0 !== null && q0[2] - g0 > ARM) armed = true;
+      if (wasAir === null) wasAir = !!p.airborne;
+      if (p.airborne) lastVs = p.climbRate || 0;
+      else if (wasAir && armed && window.__mojBus && window.__mojBus.bus) {
+        armed = false;
+        var sink = Math.max(0, -lastVs), B = window.__mojBus;
+        B.bus.processEvents(B.state, [{ type: 'touchdown', entity: p.id, hard: sink > (p.rule.sinkMax || 3) ? 1 : 0, sink: Math.round(sink * 10) / 10 }]);
+      }
+      wasAir = !!p.airborne;
       var q = p.transform.pos, g = __ground([q[0], q[1], q[2]]), agl = g === null ? null : q[2] - g;
       var brg = ((90 - p.transform.heading * 180 / Math.PI) % 360 + 360) % 360;
       var warn = p.stalled ? '\\n<span style="color:#ff6b6b">STALL</span>' : p.outOfBounds ? '\\n<span style="color:#ffb347">LEAVING THE AREA · turn back</span>' : '';

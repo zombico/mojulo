@@ -4,7 +4,7 @@
  * a roadway.
  *
  * manifest: { kind: 'airspace', map?: { form?, field?, craft?, ceiling?, lands? }, ground?: { land?, heartbeat?, scale?,
- *             pads?, cities?, geocube?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? },
+ *             pads?, cities?, geocube?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? }, assist?: 'arcade' | 'sim',
  *             course?: true | { gates?, laps?, land? } }
  *
  * `course` plans a gate course on the map (course.js): its ring gates drawn, its gates, finish and laws in `meta.course`
@@ -44,6 +44,7 @@ export function validateAirspace(m) {
   if (m.ground !== undefined) e.push(...readGroundAsk(m.ground));
   if (m.spawn !== undefined && !(Array.isArray(m.spawn) && m.spawn.length === 3 && m.spawn.every(Number.isFinite))) e.push('airspace.spawn must be [x, y, z] in metres');
   if (m.fly !== undefined && m.fly !== true && !(m.fly && typeof m.fly === 'object')) e.push('airspace.fly must be true or { craft? }: seat a craft to fly the map');
+  if (m.assist !== undefined && !['arcade', 'sim'].includes(m.assist)) e.push("airspace.assist must be 'arcade' (never stalls, the wings level quickly) or 'sim' (the bank holds where it is put)");
   if (m.course !== undefined && m.course !== true && !(m.course && typeof m.course === 'object')) e.push('airspace.course must be true or { gates?, laps?, land? }: plan a gate course on the map');
   if (m.fly && typeof m.fly === 'object' && m.fly.craft !== undefined) { try { craftOf(m.fly.craft); } catch (err) { e.push(`airspace.fly: ${err.message}`); } }
   return e;
@@ -72,7 +73,7 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   const F = map.rings.field;
   const course = manifest.course ? planCourse(map, field, { ...(manifest.course === true ? {} : manifest.course), seed: manifest.seed ?? 1 }) : null;
   // the departure threshold of the first pad, looking down it (craft.js seatCraft); else the field's south edge
-  const seat = seatCraft(map, field, course), look = seat.end;
+  const seat = seatCraft(map, field, course, { assist: manifest.assist }), look = seat.end;
   const spawn = Array.isArray(manifest.spawn) ? manifest.spawn : [seat.transform.pos[0], seat.transform.pos[1], seat.ground + 2];
   const low = map.craft.lowPass, top = map.ceiling, fieldR = dmath.hypot(F.hx, F.hy);
   // a bookmark over the land stands clear of it: at its height, or two low passes over the ground under it

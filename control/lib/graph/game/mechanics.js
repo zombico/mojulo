@@ -320,6 +320,12 @@ const MECHANICS = {
   // lead (the player's passes less its own) and an ahead flag; the place is one more than the rivals ahead (a tie goes
   // to whoever passed first). The finish is `race:won` at a place of `win` or better (1 by default), else `race:lost`;
   // the best place is kept too.
+  // A FLIGHT (`land`, `respawn`; absent, nothing below changes): a checkpoint may be a box (`half: [hx, hy, hz]`) and the
+  // last one `land: true`, passed only by a `touchdown` (the page's: a craft's wheels meet the ground, `hard: 1` when it
+  // sank faster than its gear takes) while inside it. `land.pads` are the boxes a craft may set down in; a touchdown
+  // outside them all, or a hard one, is a `crash`. `respawn` (one per checkpoint, in order: where a craft comes back
+  // when it crashes having last passed the one before — the first is its start) answers a crash with `respawn:<k>`, its
+  // reaction carrying the point's `spot`, `heading` and `aloft`, which the page carries out.
   laps: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
@@ -342,10 +348,51 @@ const MECHANICS = {
       // the rivals' zones watch what their ids share (rival-1, rival-2 … → rival-*)
       let share = rivals[0] ?? '';
       for (const r of rivals) while (!r.startsWith(share)) share = share.slice(0, -1);
+      const zoneOf = (c) => (Array.isArray(c.half) && c.half.length === 3 ? { half: c.half } : { radius: Number.isFinite(c.radius) ? c.radius : 3 });
+      // a flight: in a pad's box or not (the bus has no conjunctions, so each box keeps its own flag and a touchdown is
+      // judged against each), what a touchdown is, and where a crash comes back
+      const land = p.land && Array.isArray(p.land.pads) ? p.land.pads.filter((q) => q && Array.isArray(q.at) && Array.isArray(q.half)) : null;
+      if (land) {
+        // off every pad: the count of the pads' boxes it is not in equals their number
+        const landed = `__landed_${i}`, offs = `__off_${i}`;
+        world.vars[offs] = land.length;
+        land.forEach((q, k) => {
+          const zone = `pad_${i}_${k}`;
+          world.sources.push({ type: 'zone', zone, at: q.at, half: q.half, planar: false, watch: ctx.player });
+          world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: offs, by: -1 }, { on: 'exit', match: { zone }, do: 'inc', var: offs, by: 1 });
+        });
+        world.reactions.push(
+          { on: 'touchdown', match: { hard: 1 }, do: 'emit', type: 'crash', why: 'hard' },
+          { on: 'touchdown', match: { hard: 0 }, if: { var: offs, eq: land.length }, do: 'emit', type: 'crash', why: 'off' },
+          { on: 'touchdown', match: { hard: 0 }, if: { var: offs, lt: land.length }, do: 'emit', type: landed },
+        );
+        world.hud.push({ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }, { on: landed, text: 'landed', as: 'toast', ttl: 1.2 });
+      }
+      const respawn = Array.isArray(p.respawn) && p.respawn.length === cps.length ? p.respawn : null;
+      const resp = `__resp_${i}`;
+      if (respawn) {
+        world.vars[resp] = 0;
+        // `respawn:<k>`, carrying its point (the log keeps an event's type, so the page reads the point off this reaction)
+        respawn.forEach((r, k) => world.reactions.push({ on: 'crash', if: { var: resp, eq: k }, do: 'emit', type: `respawn:${k}`, spot: r.spot, heading: r.heading ?? 0, aloft: r.aloft ? 1 : 0 }));
+      }
       cps.forEach((c, j) => {
         const zone = `cp_${i}_${j}`;
-        world.sources.push({ type: 'zone', zone, at: c.at, radius: Number.isFinite(c.radius) ? c.radius : 3, planar: c.planar !== false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at: c.at, ...zoneOf(c), planar: c.planar !== false, watch: ctx.player });
         const due = { var: next, eq: j };
+        if (respawn && j < last) world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'set', var: resp, to: j + 1 });
+        if (land && c.land && j === last) {
+          // landed on: inside this box when the wheels touch (its flag), and due
+          const inBox = `__inbox_${i}`, touched = `__touched_${i}`;
+          world.vars[inBox] = 0;
+          world.reactions.push(
+            { on: 'enter', match: { zone }, do: 'set', var: inBox, to: 1 },
+            { on: 'exit', match: { zone }, do: 'set', var: inBox, to: 0 },
+            { on: `__landed_${i}`, if: { var: inBox, eq: 1 }, do: 'emit', type: touched },
+          );
+          if (rivals.length) world.reactions.push({ on: touched, if: due, do: 'emit', type: pass });
+          world.reactions.push({ on: touched, if: due, do: 'emit', type: 'lap' });
+          return;
+        }
         if (j < last) {
           // the emit first: the set after it moves the guard on
           world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: 'checkpoint', at: j });
@@ -358,7 +405,7 @@ const MECHANICS = {
         // the rivals' passes: one zone for them all, each rival its own next checkpoint
         if (rivals.length) {
           const rz = `rcp_${i}_${j}`;
-          world.sources.push({ type: 'zone', zone: rz, at: c.at, radius: Number.isFinite(c.radius) ? c.radius : 3, planar: c.planar !== false, watch: `${share}*` });
+          world.sources.push({ type: 'zone', zone: rz, at: c.at, ...zoneOf(c), planar: c.planar !== false, watch: `${share}*` });
           rivals.forEach((r) => {
             const rnext = `__cp_${i}_${r}`, rdue = { var: rnext, eq: j };
             world.reactions.push({ on: 'enter', match: { zone: rz, entity: r }, if: rdue, do: 'emit', type: `__rpass_${i}_${r}` });

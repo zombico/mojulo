@@ -330,6 +330,38 @@ describe('unseen, laps and score on the bus', () => {
     expect(s.vars.__race_over_0).toBe(1);
   });
 
+  it('laps for a flight: the finish is a landing in its box; a hard or off-pad touchdown is a crash, answered by a respawn at the last gate', () => {
+    const box = { at: [100, 0, 15], half: [450, 15, 15] };
+    const respawn = [{ spot: [0, 0, 2], heading: 0, aloft: 0 }, { spot: [10, 0, 80], heading: 1.5, aloft: 1 }, { spot: [20, 0, 90], heading: 3, aloft: 1 }];
+    const c = composeMechanics([{ kind: 'laps', checkpoints: [{ at: [10, 0, 80], radius: 20, planar: false }, { at: [20, 0, 90], radius: 20, planar: false }, { ...box, planar: false, land: true }], land: { pads: [box] }, respawn }], ctx());
+    const src = c.events.sources.find((q) => q.zone === 'cp_0_2');
+    expect(src.half).toEqual(box.half);
+    const enter = (zone) => ({ type: 'enter', zone, entity: 'hero' }), exit = (zone) => ({ type: 'exit', zone, entity: 'hero' });
+    const td = (hard) => ({ type: 'touchdown', entity: 'hero', hard, sink: hard ? 5 : 1 });
+    // the point a respawn carries: its reaction's (the page reads it there; the log keeps the type)
+    const respawns = (s) => s.log.filter((r) => r.type.startsWith('respawn:')).map((r) => s.reactions.find((q) => q.do === 'emit' && q.type === r.type));
+    // flying through the finish's box without touching down does not finish
+    let s = run(c, [enter('cp_0_0'), enter('cp_0_1'), enter('pad_0_0'), enter('cp_0_2'), exit('cp_0_2'), exit('pad_0_0')]);
+    expect(types(s)).not.toContain('laps:done');
+    // a soft touchdown in the box, the gates passed: landed, done
+    s = run(c, [enter('cp_0_0'), enter('cp_0_1'), enter('pad_0_0'), enter('cp_0_2'), td(0)]);
+    expect(types(s)).toContain('laps:done');
+    expect(types(s)).not.toContain('crash');
+    // landing before the gates are passed counts as a landing, not the finish
+    s = run(c, [enter('pad_0_0'), enter('cp_0_2'), td(0)]);
+    expect(types(s)).not.toContain('laps:done');
+    // a hard touchdown on the runway after the first gate: a crash, back at that gate, flying on toward the next
+    s = run(c, [enter('cp_0_0'), enter('pad_0_0'), td(1)]);
+    expect(types(s)).toContain('crash');
+    expect(respawns(s).map((r) => [r.spot, r.heading, r.aloft])).toEqual([[[10, 0, 80], 1.5, 1]]);
+    // a soft touchdown off every pad before any gate: a crash, back on the runway
+    s = run(c, [td(0)]);
+    expect(respawns(s).map((r) => r.spot)).toEqual([[0, 0, 2]]);
+    // and no flight keys, no flight events: a race lowers as it did
+    const race = composeMechanics([{ kind: 'laps', checkpoints: [{ at: [10, 0, 0] }, { at: [20, 0, 0] }] }], ctx());
+    expect(JSON.stringify(race.events)).not.toMatch(/touchdown|respawn|pad_/);
+  });
+
   it('laps against rivals: each rival\'s passes counted, the place moved at every pass, the finish won or lost by it', () => {
     const cps = [{ at: [10, 0, 0] }, { at: [20, 0, 0] }, { at: [0, 0, 0] }];
     const c = composeMechanics([{ kind: 'laps', checkpoints: cps, laps: 1, rivals: ['rival-1', 'rival-2'], win: 2 }], ctx());

@@ -24,7 +24,7 @@
  * Rule params (tuned defaults, real-ish units like drive — kg / N / m/s):
  * { mass, thrust?, drag?, brakeDrag?, wheelBrake?, stallSpeed?, takeoffSpeed?, maxSpeed?,
  *   bankMax?, bankRate?, levelRate?, pitchMax?, pitchRate?, lookSens?, taxiTurn?, stallDrop?,
- *   sinkRate?, propRate?, eye?, engine?, lever?, leverRate?, gravity?, lift?, turnRate? }
+ *   sinkRate?, propRate?, eye?, engine?, lever?, leverRate?, gravity?, lift?, turnRate?, assist? }
  *
  * The flight dials (skyscape: one flight model under every flight game). Each is absent by default and every number
  * above is then as it was:
@@ -36,6 +36,9 @@
  *   • lift: false — the craft is held up by nothing: no stall (speed does not keep it up, nothing to lose), and it
  *     turns at `turnRate` rad/s at full bank instead of by the coordinated-turn law (there is no lift to bank).
  *   • launchSpeed — the airspeed it starts at (m/s): a craft set down in the air already flying, as a glider is.
+ *   • assist: 'arcade' | 'sim' — how much the craft flies itself. 'arcade' never stalls: slow, the nose will not
+ *     come up and eases down until the speed is back, and the wings level twice as fast. 'sim' leaves the bank where it
+ *     is put (no self-levelling). Absent, between the two, as it was.
  *   • bound: { hx, hy, cx?, cy?, warn? } — the map's reach (skyscape/map.js): outside it the `outOfBounds` fact is up,
  *     and after `warn` s (5) the stick is taken and the craft is turned back toward the centre, wings and nose
  *     levelling, until it is inside again.
@@ -105,6 +108,10 @@ export function buildRulesFly(E) {
         liftIn = clamp(-3 * (t.pitch || 0), -1, 1);             // and the nose comes level
       }
     }
+    // ── the assist: slow, an arcade craft's nose will not come up (it is eased down below, and it never stalls) ──
+    const assist = r.assist === 'arcade' || r.assist === 'sim' ? r.assist : null;
+    const guarded = assist === 'arcade' && !onGround && lifts && grav && v < vStall * 1.2;
+    if (guarded && liftIn > 0) liftIn = 0;
     // ── attitude ──
     let stalled = false;
     if (onGround && v < vTakeoff) {
@@ -114,11 +121,12 @@ export function buildRulesFly(E) {
       t.pitch = (t.pitch || 0) - clamp(t.pitch || 0, -pitchRate * dt, pitchRate * dt);
     } else {
       e.bank = clamp((e.bank || 0) + bankIn * bankRate * dt, -bankMax, bankMax);
-      if (bankIn === 0) e.bank -= clamp(e.bank, -levelRate * dt, levelRate * dt);   // self-leveling
+      if (bankIn === 0 && assist !== 'sim') { const lr = levelRate * (assist === 'arcade' ? 2 : 1); e.bank -= clamp(e.bank, -lr * dt, lr * dt); }   // self-leveling
       t.heading = (t.heading - (lifts ? (G / Math.max(v, vStall)) * Math.tan(e.bank) : (r.turnRate ?? 1.2) * e.bank / bankMax) * dt) % TAU;   // coordinated: bank right → turn right
       t.pitch = clamp((t.pitch || 0) + (e.boundT > ((r.bound && r.bound.warn) ?? 5) ? 0 : input.lookDY * lookSens) + liftIn * pitchRate * dt, -pitchMax, pitchMax);
+      if (guarded && t.pitch > -0.05) t.pitch -= Math.min(0.5 * pitchRate * dt, t.pitch + 0.05);   // the arcade nose, down for speed
       // STALL: the elevator loses the nose below stall speed — it drops until airspeed returns.
-      if (!onGround && lifts && grav && v < vStall) {   // lift only matters against weight
+      if (!onGround && lifts && grav && v < vStall && assist !== 'arcade') {   // lift only matters against weight
         stalled = true;
         t.pitch = Math.max(-pitchMax, t.pitch - (r.stallDrop ?? 0.8) * dt);
       }

@@ -82,6 +82,22 @@ genre on the quick path.
   On the live page each mass is one instance of a lit unit box (the World page's `repeats` now take a per-axis
   `scale: [sx, sy, sz]`, emitted only when one is asked); exports take the seated faces. The roofs are obstacles:
   `topAt` is the ground or the roof over it, and the course and the autopilot keep clear of it. A `city` bookmark.
+- **Landing, crashes and the respawn.** The finish is a landing: the runway's own rectangle as a touchdown box, passed
+  only by a touchdown inside it no harder than the craft's gear takes (`CRAFT.sink`: 2 m/s a glider, 3 a trainer, 3.6
+  a jet). A touchdown off every pad (a field, a hillside, a roof) or a harder one is a crash, and the craft comes back
+  at the last gate it passed, flying on toward the next at cruise (before the first, on the runway). The `laps`
+  mechanic takes it as opt-in keys (a box checkpoint's `half`, `land: { pads }`, `respawn`), so a race lowers as it
+  did; the page's flight block reports each touchdown with its sink rate, counts a city's roofs as ground (a tower is
+  hit, not flown through) and carries the respawn out. `flightLaps` gives a flight's laps all three.
+- **The autopilot lands.** Against the departure, over the climb-out kept clear: an intercept and a final approach fix
+  on the extended centreline, a 4° glide slope at 1.3 × the stall (the throttle, or the brakes when fast), a flare to a
+  sink the gear takes easily, the brakes to a stop. A glider's course keeps the height to glide to that fix. Every form
+  and craft tried flies its gates and lands at 0.8–1.4 m/s; `flown` says so.
+- **Gates count on the page.** The seated craft is `player`, as every level's pilotable is: the gate and pad zones
+  watch that id, and on the craft's old id no gate counted in play.
+- **The assist.** The fly rule's opt-in `assist`: 'arcade' never stalls (slow, the nose will not come up and eases
+  down for speed) and levels the wings twice as fast; 'sim' leaves the bank where it is put. Quick `assist`, an
+  airspace's `assist`. The `gameworld-quick` card names it (two phrases tightened to fit).
 
 ### Sheet-metal bend lines that mark without cutting
 

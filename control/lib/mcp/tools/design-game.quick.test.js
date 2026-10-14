@@ -55,9 +55,9 @@ describe('design_game quick', () => {
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
     const L = stored('f-level-run-0');
     expect(L.kind).toBe('airspace');
-    expect(L.entities[0]).toMatchObject({ id: 'craft', pilotable: true, rule: { type: 'fly', lever: true } });
+    expect(L.entities[0]).toMatchObject({ id: 'player', pilotable: true, rule: { type: 'fly', lever: true } });
     expect(L.entities[0].rule.bound.hx).toBeGreaterThan(1200);   // the map's reach
-    expect(L.camera).toMatchObject({ rule: 'follow', target: 'craft', rollFollow: 1 });
+    expect(L.camera).toMatchObject({ rule: 'follow', target: 'player', rollFollow: 1 });
     const laps = L.game.mechanics.find((m) => m.kind === 'laps');
     expect(laps.checkpoints.length).toBeGreaterThan(3);
     expect(laps.checkpoints.every((c) => c.planar === false)).toBe(true);
@@ -65,7 +65,13 @@ describe('design_game quick', () => {
     expect(laps.checkpoints[0].at[2]).toBeGreaterThan(laps.checkpoints.at(-1).at[2]);
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('f-level-run-0'), { live: true });
     expect(payload.terrain.hazeHeight).toBeGreaterThan(0);
-    expect(payload.entities[0].id).toBe('craft');
+    expect(payload.entities[0].id).toBe('player');
+    // the gates' and the pads' zones watch the pilot itself (else no gate counts on the page), and the finish is a landing
+    const zones = payload.events.sources.filter((q) => q.type === 'zone');
+    expect(zones.length).toBeGreaterThan(laps.checkpoints.length);
+    expect(zones.every((q) => q.watch === payload.entities[0].id)).toBe(true);
+    expect(laps.checkpoints.at(-1).land).toBe(true);
+    expect(laps.respawn).toHaveLength(laps.checkpoints.length);
     expect(emitThreeWorld({ ...payload, inline: true })).toContain('LEAVING THE AREA');   // the flight HUD
   }, 240_000);
 

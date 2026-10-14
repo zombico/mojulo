@@ -187,10 +187,27 @@ describe('rule: fly — the flight dials', () => {
     expect(Math.abs(p.transform.heading)).toBeGreaterThan(0.5);
   });
 
+  it('assist arcade never stalls: hauling back slow, the nose will not come up and comes down for speed', () => {
+    const w = aloft({ assist: 'arcade' }), p = w.byId.p;
+    let stalled = false;
+    for (let i = 0; i < 1800; i++) { stepWorld(w, { forward: 0, lift: 1 }, DT, flat); if (p.stalled) stalled = true; }
+    expect(stalled).toBe(false);
+    expect(p.transform.pitch).toBeLessThanOrEqual(0);            // the nose held down, not hauled up
+    expect(p.airspeed).toBeGreaterThan(18 * 1.1);               // and the speed kept round the guard
+  });
+
+  it('assist sim leaves the bank where it is put; the default and arcade level it, arcade faster', () => {
+    const bankAfter = (assist) => { const w = aloft(assist ? { assist } : {}), p = run(w, { forward: 0.6, turn: 1 }, 30); const b0 = p.bank; run(w, { forward: 0.6, turn: 0 }, 30); return [b0, p.bank]; };
+    const [s0, s1] = bankAfter('sim'), [d0, d1] = bankAfter(null), [a0, a1] = bankAfter('arcade');
+    expect(s1).toBeCloseTo(s0, 6);
+    expect(Math.abs(d1)).toBeLessThan(Math.abs(d0));
+    expect(Math.abs(a0 - a1)).toBeGreaterThan(Math.abs(d0 - d1));
+  });
+
   it('every dial absent is the fly rule as it was', () => {
     const script = (i) => ({ forward: 1, lift: i > 200 ? 1 : 0, turn: i > 500 ? 0.6 : 0 });
     const go = (extra) => { const w = plane(extra); for (let i = 0; i < 700; i++) stepWorld(w, script(i), DT, flat); return w.byId.p; };
-    const a = go({}), b = go({ engine: undefined, lever: undefined, gravity: undefined, lift: undefined });
+    const a = go({}), b = go({ engine: undefined, lever: undefined, gravity: undefined, lift: undefined, assist: undefined });
     expect(a.transform.pos).toEqual(b.transform.pos);
   });
 });
