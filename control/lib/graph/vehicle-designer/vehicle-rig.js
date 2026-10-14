@@ -132,6 +132,25 @@ export function bakeVehicleRig(manifest = {}, { keys = 12, targetH = null } = {}
   });
 
   const bones = rig.bones.map((b) => ({ id: b.id, head: N(b.head).map(r4) }));
+  return {
+    ...packVehicleFigure(bones, buckets, { keys }),
+    figH: r4((mxz - mnz) * s),
+    // drivetrain-facing geometry, in the BAKE's (post-scale) units — deriveDrivetrain (D3)
+    // reads these for the drive rule's wheelbase/wheelRadius.
+    wheelbase: r4(rig.wheelbase * s),
+    wheelRadius: rig.wheels.length && Number.isFinite(rig.wheels[0].radius) ? r4(rig.wheels[0].radius * s) : null,
+    warnings: rig.warnings,
+  };
+}
+
+/**
+ * packVehicleFigure(bones, buckets, { keys }) — the browser's rig-figure format for a vehicle: per bone (`root` holds
+ * still, every other bone a wheel) its packed faces, and the `roll` clip turning each wheel −2π·phase about vehicle +x.
+ * `bones`: [{ id, head }] in vehicle space (+y forward, +z up), already normalized; `buckets`: Map bone id → faces;
+ * `rolls`: the bones the clip turns (absent: every bone but the root), so a rig can carry bones that live otherwise.
+ * Shared by the assembler bake above and the car designer's lofted vehicles (car-designer/realistic.js).
+ */
+export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null } = {}) {
   const parts = bones.map((b) => {
     const fs = buckets.get(b.id) || [];
     if (!fs.length) return null;
@@ -147,7 +166,8 @@ export function bakeVehicleRig(manifest = {}, { keys = 12, targetH = null } = {}
     const th = -2 * Math.PI * (k / keys);
     const qx = r4(Math.sin(th / 2)), qw = r4(Math.cos(th / 2));
     for (const b of bones) {
-      if (b.id === 'root') flat.push(0, 0, 0, 1, ...b.head);
+      // (`rolls`: the bones that turn with the road; absent, every bone but the root, as before)
+      if (b.id === 'root' || (rolls && !rolls.includes(b.id))) flat.push(0, 0, 0, 1, ...b.head);
       else flat.push(qx, 0, 0, qw, ...b.head);
     }
   }
@@ -160,11 +180,5 @@ export function bakeVehicleRig(manifest = {}, { keys = 12, targetH = null } = {}
     bones,
     parts,
     clips: { roll: { k: keys, b: flat } },
-    figH: r4((mxz - mnz) * s),
-    // drivetrain-facing geometry, in the BAKE's (post-scale) units — deriveDrivetrain (D3)
-    // reads these for the drive rule's wheelbase/wheelRadius.
-    wheelbase: r4(rig.wheelbase * s),
-    wheelRadius: rig.wheels.length && Number.isFinite(rig.wheels[0].radius) ? r4(rig.wheels[0].radius * s) : null,
-    warnings: rig.warnings,
   };
 }

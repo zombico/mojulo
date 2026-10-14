@@ -9,8 +9,8 @@
  * download buttons. Three lanes over what already exists, no new data model.
  *
  * Two rules this page holds to:
- *   · Nothing here mutates. Every action is a copy-prompt for the operator's
- *     agent — the dashboard golden rule, made visible rather than merely obeyed.
+ *   · Nothing here mutates and nothing is handed over: the page is view only,
+ *     and every action is the operator's agent's.
  *   · The machine gate and the eyes gate are never conflated (docs/bicycles.md).
  *     A submitted render is its own stage because that is precisely where the
  *     machine is finished and nobody has looked yet.
@@ -35,13 +35,10 @@ import {
   QUEUE_STAGES,
   RENDER_LANES,
   bakeGates,
-  bakePrompt,
   collapseByRef,
   formatBytes,
   groupQueueByStage,
   isStalled,
-  queueGroupPrompt,
-  queuePrompt,
   queueStatusMeta,
   tallyOutputKinds,
 } from '@/lib/render-bay/lanes';
@@ -63,38 +60,6 @@ function isoStamp(value) {
   if (!value) return '—';
   const ms = Date.parse(value);
   return Number.isFinite(ms) ? new Date(ms).toISOString().replace('T', ' ').slice(0, 16) : '—';
-}
-
-/** Agent-directed prompt text, handed over rather than executed. */
-function CopyPrompt({ value }) {
-  const t = useTranslations('renderBay');
-  const [state, setState] = useState('idle'); // idle | copied | failed
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setState('copied');
-    } catch {
-      // Clipboard access can be blocked (insecure context, denied permission) —
-      // say so instead of leaving the button silently inert.
-      setState('failed');
-    }
-    setTimeout(() => setState('idle'), 1500);
-  }, [value]);
-  if (!value) return null;
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      title={value}
-      className={`shrink-0 rounded-[var(--radius-control)] border px-2 py-0.5 font-mono text-[10px] transition-colors duration-100 ${
-        state === 'failed'
-          ? 'border-[color:var(--fault)] text-[color:var(--fault)]'
-          : 'border-[color:var(--forge-idle)] text-[color:var(--forge)] hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10'
-      }`}
-    >
-      {state === 'copied' ? t('copied') : state === 'failed' ? t('copyFailed') : t('copyPrompt')}
-    </button>
-  );
 }
 
 function Dot({ signal }) {
@@ -192,7 +157,6 @@ function QueueRow({ request, now }) {
         <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">
           {stamp(request.updatedAt)}
         </span>
-        <CopyPrompt value={queuePrompt(request)} />
       </span>
     </li>
   );
@@ -243,7 +207,6 @@ function QueueGroupRow({ group, now }) {
         <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">
           {stamp(group.updatedAt)}
         </span>
-        <CopyPrompt value={queueGroupPrompt(group)} />
       </span>
     </li>
   );
@@ -327,7 +290,6 @@ function BakeRow({ bake }) {
           <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">
             {isoStamp(bake.bakedAt)}
           </span>
-          <CopyPrompt value={bakePrompt(bake)} />
         </span>
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 pl-4 font-mono text-[10px] text-[color:var(--ink-muted)]">
@@ -527,7 +489,6 @@ function RenderBayLanes() {
         <p className="mt-2 max-w-3xl text-[14px] leading-relaxed text-[color:var(--ink-secondary)]">
           {t('subtitle')}
         </p>
-        <p className="mt-2 max-w-3xl text-[12px] leading-relaxed text-[color:var(--ink-muted)]">{t('readOnly')}</p>
       </header>
 
       <div className="mb-4 flex items-center gap-3">

@@ -82,7 +82,7 @@ export const species = {
     jawCaps: { back: family.jawCaps.back, tip: [0, snout(family.jawCaps.tip[1]), family.jawCaps.tip[2] * 1.12] },
     headOrnaments: [
       // the frill: a broad flat plate rising back and up off the back of the skull, solid (no fenestrae)
-      { kind: 'sweep', name: 'frill', at: [0.3, 0.0001], side: 'R', space: 'head', spine: [[0, -0.28, 0.16], [0, -0.44, 0.24], [0, -0.60, 0.38], [0, -0.73, 0.52], [0, -0.80, 0.61]], radii: [0.14, 0.90, 1.25, 1.20, 0.70], m: 10, squash: [1, 0.14], group: 'Skull' },
+      { kind: 'sweep', name: 'frill', at: [0.3, 0.0001], side: 'R', space: 'head', spine: [[0, -0.14, 0.10], [0, -0.34, 0.20], [0, -0.52, 0.31], [0, -0.66, 0.40], [0, -0.74, 0.45]], radii: [0.30, 0.85, 1.08, 1.02, 0.62], m: 10, squash: [1, 0.14], group: 'Skull' },
       // two long brow horns over the eyes, swept up then forward
       { kind: 'sweep', name: 'browHorn', at: [1.2, 1.6], space: 'head', spine: [[0.09, -0.16, 0.1], [0.106, -0.113, 0.225], [0.113, -0.02, 0.334], [0.113, 0.097, 0.412], [0.106, 0.214, 0.443]], radii: [0.075, 0.06, 0.045, 0.025, 0.006], m: 8, group: 'Horn' },
       // a short nose horn over the nostrils

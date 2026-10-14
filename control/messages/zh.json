@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "服务地图",
-    "back": "返回"
-  },
-  "actions": {
-    "start": "启动"
-  },
   "settings": {
     "title": "设置",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "应用",
-    "subtitle": "代理通过应用范式实体化的应用。生命周期、环境变量和实时 MCP 内省——从上下文图与本地运行器读取。",
-    "loading": "加载中…",
-    "refresh": "刷新",
-    "empty": "暂无应用——让你的 Claude Code 代理搭建一个吧。",
-    "backToList": "返回应用列表",
-    "notFound": "未找到该应用。",
-    "openPreview": "打开预览",
-    "openMcp": "打开 MCP",
-    "actions": {
-      "start": "启动",
-      "stop": "停止",
-      "starting": "启动中…",
-      "stopping": "停止中…"
-    },
-    "status": {
-      "running": "运行中",
-      "stopped": "已停止",
-      "crashed": "已崩溃",
-      "unknown": "未知"
-    },
-    "table": {
-      "headers": {
-        "name": "名称",
-        "materialized": "已实体化",
-        "runner": "运行器",
-        "status": "状态",
-        "actions": "操作"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "这个 app 的创建地图 — 使它成形的每一次工具调用，如同一条线上的站点。"
-      },
-      "metadata": "元数据",
-      "artifactPath": "产物路径",
-      "materializationRef": "实体化引用",
-      "adapter": "适配器",
-      "appName": "应用名称",
-      "host": "主机",
-      "materializedAt": "实体化时间",
-      "viewGraph": "查看图谱",
-      "bindings": "绑定",
-      "binding": {
-        "runner": "运行器",
-        "durability": "持久性",
-        "inference": "推理",
-        "mcpSelf": "MCP 自身"
-      },
-      "mcpPanel": {
-        "title": "应用 MCP",
-        "url": "MCP URL",
-        "offline": "MCP 离线——启动应用以查看其工具列表。",
-        "loading": "正在加载工具…",
-        "error": "无法连接到应用 MCP：{error}",
-        "registeredTools": "已注册工具",
-        "noTools": "尚未注册任何工具。",
-        "declaredPurpose": "声明用途"
-      },
-      "envPanel": {
-        "title": "环境变量",
-        "explainer": "值会直接写入构件的 .env 文件，不会被记录日志、不会存储在控制平面数据库中，也不会回显到此视图。",
-        "addKey": "键",
-        "addValue": "值",
-        "add": "添加",
-        "delete": "删除",
-        "deleteConfirm": "删除环境变量 “{key}”？",
-        "noKeys": "尚未设置任何环境变量。",
-        "valueHidden": "•••••",
-        "edit": "编辑",
-        "save": "保存",
-        "cancel": "取消",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "值"
-      },
-      "provenance": {
-        "title": "溯源",
-        "subtitle": "附加在此应用实体化提交上的原则。",
-        "none": "未记录任何原则。"
-      }
-    }
-  },
-  "graph": {
-    "title": "应用创建图",
-    "subtitle": "应用是如何组装起来的。每个方框是一个组成部分，每条箭头表示因果关系。",
-    "subtitleTechnical": "应用在 mojulo 范式中的组成方式。节点是各个组成部分，连线是将它们拼接起来的 MCP 工具。每次刷新都会针对实时 MCP 注册表和上下文图模式进行校验。",
-    "technicalToggle": "技术视图",
-    "loading": "加载中…",
-    "refresh": "刷新",
-    "overlay": {
-      "appCount": "{count, plural, =0 {尚未创建任何应用} =1 {已创建 1 个应用} other {已创建 # 个应用}}",
-      "lastMaterialized": "最近创建的一个",
-      "viewApps": "查看运行中的应用"
-    },
-    "validation": {
-      "ok": "一切仍然正常。",
-      "okTechnical": "清单有效：{tools} 个工具、{nodeKinds} 种节点类型、{edgeKinds} 种边类型、{sourceEvents} 个源事件均已解析。",
-      "failed": "{count, plural, =1 {图中有 1 项内容已与实际不符} other {图中有 # 项内容已与实际不符}}"
-    },
-    "legend": {
-      "input": "你所决定的内容",
-      "inputTechnical": "输入",
-      "mcpTool": "代理调用的工具",
-      "mcpToolTechnical": "MCP 工具",
-      "filesystem": "磁盘上的文件",
-      "filesystemTechnical": "文件系统",
-      "dbRow": "内存中的条目",
-      "dbRowTechnical": "数据库行"
-    }
-  },
   "login": {
     "subtitle": "登录以继续",
     "username": "用户名",
@@ -178,7 +60,6 @@
     "title": "计划",
     "subtitle": "提议的工作——已转化为 spike 的会话。由你的主机代理生成并运行。",
     "navLabel": "计划",
-    "newPlan": "新建计划",
     "total": "{count} 个计划",
     "count": "{count} 个计划",
     "filteredCount": "{total} 中的 {count}",
@@ -221,13 +102,6 @@
     "executionEmpty": "尚未执行。",
     "stepOk": "成功",
     "stepFailed": "失败",
-    "newPlanTitle": "新建计划",
-    "newPlanIntro": "计划在主机代理中编制（Claude Code / Codex）。描述意图，复制启动提示，并将其粘贴到新代理会话中——代理进入计划模式并推进工作。此页面随着计划的编制和修订而更新。",
-    "intentLabel": "你想计划什么？（可选）",
-    "intentPlaceholder": "例如，一个用于编程器的 webhook 触发运行时",
-    "promptLabel": "启动提示",
-    "copyPrompt": "复制提示",
-    "copied": "已复制",
     "close": "关闭"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "片段",
     "kindSketch": "草图",
     "viewSketch": "查看图表",
-    "composerHeading": "添加到笔记本",
-    "composerStub": "仅预览——绑定目前通过主机代理进行。",
-    "composerPlaceholder": "粘贴链接、拖放文件或记笔记…",
-    "newBook": "新书",
-    "newBookTitle": "新研究书籍",
-    "newBookIntro": "Books are started in your host agent (Claude Code / Codex). Describe the topic, copy the starter prompt, and paste it into a new agent session — the agent enters research mode and drives the work. This page updates as the book accretes.",
-    "intentLabel": "你想研究什么？（可选）",
-    "intentPlaceholder": "例如，其他人如何隧道本地 MCP 服务器",
-    "promptLabel": "启动提示",
-    "copyPrompt": "复制提示",
-    "copied": "已复制",
     "close": "关闭"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "研讨会主页",
     "groups": {
-      "ideate": "构思",
-      "operate": "操作",
-      "studio": "工作室"
+      "make": "创作",
+      "media": "媒体",
+      "play": "游玩",
+      "ideate": "构思"
     },
     "drawer": {
       "open": "打开导航",
       "close": "关闭导航"
     },
     "tiles": {
-      "mcpSkills": "连接的服务",
-      "apps": "应用",
-      "sketch": "草图",
       "plan": "计划",
       "outputs": "输出",
       "research": "研究",
       "stash": "储存",
-      "illustrations": "插图",
       "worlds": "世界",
       "objects": "物件",
       "motion": "动作",
       "beats": "节拍",
       "voice": "语音",
-      "games": "游戏开发者",
-      "arcade": "街机厅",
-      "settings": "设置",
       "library": "作品库",
       "renderBay": "渲染区",
-      "dashboard": "仪表板"
+      "dashboard": "仪表板",
+      "places": "场所",
+      "characters": "角色",
+      "images": "图像",
+      "play": "游玩",
+      "elements": "元素"
     },
     "agentStatus": {
       "liveLabel": "实时",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "仪表板",
       "open": "进入车间 →"
-    },
-    "ask": {
-      "title": "让 agent 来做",
-      "body": "创作发生在你的 MCP agent 里。"
     }
-  },
-  "breadcrumbs": {
-    "home": "主页"
   },
   "sketches": {
     "notFoundTitle": "未找到草图",
@@ -398,10 +253,6 @@
     "refresh": "刷新",
     "statusOpen": "打开",
     "statusResolved": "在版本 {rev} 处解决",
-    "annotateHint": "Marks are written from your agent (annotate_beats — anchored to a bar, track, or cue); this panel renders them. Copy the revision prompt to have the agent mark or act on them.",
-    "copyRevisionPrompt": "复制修订提示",
-    "copied": "已复制 ✓",
-    "copyFailed": "无法复制到剪贴板。",
     "exportWav": "导出 .wav",
     "exportMidi": "导出 .mid",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "游戏开发者",
-    "gallerySubtitle": "每个游戏一个项目 — 其规则、关卡、角色、音频和美术都在同一个货架上。",
-    "galleryEmpty": "暂无游戏项目。从你的主机代理调用 create_game_project 来创建一个。",
-    "copyStarterPrompt": "复制启动提示",
     "loading": "正在加载项目…",
-    "noMembersYet": "暂无成员",
     "notFound": "该项目不存在 — 它可能已被归档，或 ref 有误。",
     "backToProjects": "返回游戏开发者",
-    "copyWorkPrompt": "复制工作提示词",
-    "copyAddPrompt": "添加",
-    "copyMintPrompt": "铸造游戏",
-    "copied": "已复制",
-    "playable": "可游玩",
     "missing": "缺失",
     "missingBody": "该成员的产物已不存在。项目保留此槽位；请从你的主机代理重新绑定或移除它。",
     "noRules": "尚未铸造游戏 — 项目处于前期制作阶段。",
@@ -468,13 +310,6 @@
     "emptyFolder": "这里还什么都没有。"
   },
   "arcade": {
-    "title": "Mojulo 街机厅",
-    "subtitle": "可游玩的独立游戏，从工作坊铸造而来。选择一台机台开始游玩。",
-    "loading": "正在加载机台…",
-    "emptyState": "场内暂无游戏。从你的主机代理调用 create_game 来铸造第一台机台。",
-    "copyStarterPrompt": "复制启动提示",
-    "copied": "已复制",
-    "play": "游玩",
     "levelCount": "{count, plural, other {# 个关卡}}",
     "shipped": "已发布"
   },
@@ -484,7 +319,7 @@
     "subtitle": "agent 铸造的所有作品 — 场景、模型、角色、材质、图像、图表。每种观看方式一个货架；底下是同一个配方库。",
     "shelves": {
       "recent": "最近",
-      "scenes": "世界",
+      "scenes": "场景",
       "turntables": "转台",
       "models": "模型",
       "views": "视图",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo 制作器",
-      "subtitle": "工作室：插画、可行走世界、3D 物件、动态、节拍、语音和成品输出。一个经过调校的创作界面，与 Sketches（为图表调校）互为姊妹。每件作品都是同一个 sketch 原语 — 无论如何都可以暂存、引用和比对。"
-    },
     "beats": {
       "title": "节拍",
       "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
@@ -546,11 +377,7 @@
       "tuned": "已调整（配方未更改）",
       "reset": "重置",
       "playingAt": "在信心 {c} / 深度 {d} 处采样",
-      "noSamples": "No rendered samples yet — copy the speak command and have your agent bind a few points (edges included).",
-      "copyBlend": "复制混合",
-      "copyCommand": "复制说话命令",
-      "copyPrompt": "复制启动提示",
-      "copied": "已复制！",
+      "noSamples": "尚无渲染样本。",
       "loading": "正在加载语音寄存器…",
       "empty": "尚无语音寄存器。要求代理用 create_voice 铸造一个。",
       "unresolvable": "此寄存器不再解决——其库可能已更改。通过 create_voice 重新铸造它。"
@@ -602,10 +429,6 @@
     "kindNovel": "中篇小说",
     "kindVisualGuide": "视觉指南",
     "kindUnknown": "未知",
-    "actions": {
-      "archive": "存档",
-      "unarchive": "取消存档"
-    },
     "sourceLabel": "从",
     "sourceUnknown": "（储存已移除）",
     "lensLabel": "透镜",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "储存",
-    "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
+    "subtitle": "代理收集的分类素材桶。",
     "total": "{count, plural, =0 {无储存} =1 {1 个储存} other {# 个储存}}",
     "count": "{count, plural, =0 {无匹配} =1 {1 个储存} other {# 个储存}}",
     "filteredCount": "显示 {count} 个共 {total} 个",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {无抽屉} =1 {1 个抽屉} other {# 个抽屉}}",
     "createdAt": "创建 {timestamp}",
     "updatedAt": "更新于 {timestamp}",
-    "actions": {
-      "rename": "重命名",
-      "edit": "编辑",
-      "archive": "存档",
-      "unarchive": "取消存档",
-      "save": "保存",
-      "cancel": "取消",
-      "titleEmpty": "标题不能为空",
-      "renameFailed": "重命名失败",
-      "statusChangeFailed": "无法更改状态"
-    },
     "detail": {
       "loading": "正在加载储存…",
       "notFoundTitle": "未找到储存",
@@ -673,66 +485,7 @@
         "sketch": "草图"
       },
       "sketchFailed": "草图加载失败。",
-      "openSketch": "打开草图",
-      "newDrawer": "新抽屉",
-      "newDrawerPlaceholder": "抽屉名称",
-      "drawerSaveError": "无法保存抽屉",
-      "drawerRenameError": "无法重命名抽屉",
-      "renameDrawerLabel": "重命名抽屉",
-      "moveError": "无法移动项目",
-      "archive": "存档",
-      "archiveError": "无法存档项目",
-      "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
-      "archiveProceed": "仍然存档",
-      "archiveCancel": "取消",
-      "addItem": "+ 添加",
-      "agentTypesFooter": "脚本和上下文地图指针由代理添加。",
-      "picker": {
-        "text": "新文本块",
-        "image": "上传图像",
-        "svg": "添加 SVG",
-        "link": "粘贴链接",
-        "sketch": "选择草图"
-      },
-      "panel": {
-        "save": "保存",
-        "cancel": "取消",
-        "saving": "保存中…",
-        "saveError": "无法保存",
-        "titleLabel": "标题（可选）",
-        "titlePlaceholder": "短标签",
-        "sourceUrlLabel": "源 URL（可选）",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "格式",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "纯文本",
-        "bodyLabel": "正文",
-        "bodyPlaceholder": "输入或粘贴…",
-        "preview": "预览",
-        "previewEmpty": "输入以预览。",
-        "tooLong": "内容超过 {limit, number} 个字符的限制。",
-        "imagePick": "选择图像",
-        "imageDrop": "或在此拖放文件",
-        "imageTooLarge": "图像超过 {limit, number} MB 的限制。",
-        "imageBadMime": "不是图像文件 ({mime})。",
-        "imageBadDimensions": "无法读取图像尺寸。",
-        "altLabel": "替代文本（可选）",
-        "altPlaceholder": "图像中是什么？",
-        "svgPaste": "粘贴 SVG",
-        "svgUpload": "或上传 .svg",
-        "svgBadShape": "SVG 正文必须以 <?xml 或 <svg 开头。",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL 无法解析。",
-        "urlTitleRequired": "链接项目需要标题。",
-        "descriptionLabel": "描述（可选）",
-        "descriptionPlaceholder": "为什么这很重要…",
-        "sketchSearchPlaceholder": "搜索草图…",
-        "sketchEmpty": "尚无草图。要求代理用 create_sketch 铸造一个。",
-        "sketchNoMatch": "无草图匹配此搜索。",
-        "sketchPicked": "已选择"
-      }
+      "openSketch": "打开草图"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "下载 PNG",
     "invalidManifest": "Rendrant 无法解析此草图。",
     "frameFailed": "此视图未能加载。",
-    "renameLabel": "重命名草图",
-    "renamePlaceholder": "草图标题",
-    "renameSave": "保存",
-    "renameSaveNew": "另存为新草图",
-    "renameCancel": "取消",
-    "renameEmpty": "标题不能为空",
     "associationTags": {
       "plan": "计划",
       "research": "研究"
@@ -771,45 +518,21 @@
       "selectPrompt": "在左边选择轨道以播放。",
       "invalidManifest": "此配方无法解析。",
       "openNewTab": "打开工作室",
-      "renameLabel": "重命名轨道",
-      "renamePlaceholder": "轨道标题",
-      "renameSaveNew": "另存为新轨道",
       "exportWav": "导出 .wav",
       "exportMidi": "导出 .mid"
     },
     "folder": {
-      "newFolderButton": "新建文件夹",
-      "newFolderTitle": "新建文件夹",
-      "namePlaceholder": "文件夹名称",
       "create": "创建",
       "cancel": "取消",
-      "rename": "重命名文件夹",
-      "renameSave": "保存",
       "delete": "删除文件夹",
-      "deleteConfirm": "删除此文件夹？其中的草图将移回根。",
       "rootCrumb": "所有草图",
       "back": "返回",
       "sketchCount": "{count, plural, =0 {空} =1 {1 个草图} other {# 个草图}}",
       "foldersHeader": "文件夹",
       "rootHeader": "草图",
-      "inFolderHint": "你在查看此文件夹时铸造的新草图将自动放在此处。",
-      "emptyFolder": "此文件夹为空。铸造草图或从根移动一个到此处。",
+      "emptyFolder": "此文件夹为空。",
       "moveSourceFolder": "在 {name}",
       "moveSourceRoot": "在根"
-    },
-    "select": {
-      "enter": "选择",
-      "exit": "完成",
-      "count": "{count, plural, =0 {未选择} =1 {1 个已选择} other {# 个已选择}}",
-      "moveTo": "移动到…",
-      "moveToRoot": "移动到根",
-      "moveSuccess": "{count, plural, =1 {1 个草图已移动} other {# 个草图已移动}}",
-      "moveError": "移动失败：{error}",
-      "selectAll": "全选",
-      "clear": "清除",
-      "delete": "删除",
-      "deleteConfirm": "{count, plural, =1 {删除 1 个草图？} other {删除 # 个草图？}}无法撤销。",
-      "deleteError": "删除失败：{error}"
     },
     "viewToggle": {
       "split": "分割视图",
@@ -820,72 +543,6 @@
       "move": "移动",
       "delete": "删除",
       "deleteOneConfirm": "删除 \"{title}\"？无法撤销。"
-    }
-  },
-  "map": {
-    "title": "地图",
-    "subtitle": "The whole fleet on two planes — apps on the ground, MCP servers and connected services on air, with service-to-MCP wiring.",
-    "loading": "加载中…",
-    "refresh": "刷新",
-    "error": "加载舰队地图失败",
-    "empty": "Nothing on the map yet — scaffold an app or declare your MCP inventory.",
-    "counts": {
-      "apps": "应用",
-      "servers": "MCP 服务器",
-      "services": "连接的服务"
-    },
-    "legend": {
-      "air": "空气",
-      "ground": "地面",
-      "servers": "MCP 服务器",
-      "services": "连接的服务",
-      "apps": "应用"
-    }
-  },
-  "mcpSkills": {
-    "title": "连接的服务",
-    "subtitle": "Connected services: host skills and materialized MCP-orbit workflows, shown against the MCP servers they call.",
-    "loading": "正在加载...",
-    "refresh": "刷新",
-    "error": "加载连接的服务失败",
-    "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "backToList": "返回连接的服务",
-    "backToService": "返回连接的服务",
-    "notFound": "未找到连接的服务。",
-    "viewGraph": "查看图谱",
-    "present": "存在",
-    "missing": "缺失",
-    "counts": {
-      "servers": "MCP 服务器",
-      "services": "连接的服务"
-    },
-    "table": {
-      "name": "名称",
-      "form": "表单",
-      "calls": "调用",
-      "updated": "已更新"
-    },
-    "forms": {
-      "catalyst": "催化剂技能",
-      "manual": "手动技能",
-      "orbit": "MCP 轨道"
-    },
-    "detail": {
-      "metadata": "元数据",
-      "name": "名称",
-      "ref": "参考",
-      "kind": "类型",
-      "form": "表单",
-      "updated": "已更新",
-      "hostPath": "主机路径",
-      "catalyst": "催化剂",
-      "composition": "组成",
-      "calls": "调用",
-      "noCalls": "无声明的 MCP 调用。",
-      "needs": "需求",
-      "components": "组件",
-      "knobs": "按钮",
-      "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "渲染区",
     "subtitle": "mojulo 正在产出的一切，集中在一处：持久化的图像渲染队列、GI 烘焙，以及磁盘上的出品与导出。四种“有东西正在被制造”的说法，过去没有共同的家。",
-    "readOnly": "渲染区只渲染状态。这里的每个操作都是一段供你复制到 agent 的提示 — 接受渲染、重新烘焙世界、铸造导出，全都通过 MCP 工具完成，绝不通过本页面。",
     "refresh": "刷新",
     "loading": "加载中…",
     "allLanes": "全部通道",
-    "copyPrompt": "复制提示",
-    "copied": "已复制",
-    "copyFailed": "无法复制 — 请选中文本手动复制",
     "showing": "显示 {shown} / 共 {total}",
     "queue": {
       "title": "渲染队列",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "打开作品 →",
-    "copied": "已复制",
-    "copyFailed": "无法复制 — 请选中文本手动复制",
     "shelves": "作品库",
     "bays": "工坊",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "三角面数：export_model"
     },
     "inspector": {
-      "askTitle": "让 agent 来做",
-      "askBody": "仪表盘只渲染状态，从不改动。修改这个配方要在你的宿主 agent 里进行。",
-      "askCopy": "复制提示",
       "bound": "绑定的作品",
       "boundEmpty": "尚无绑定 — 磁盘上没有这个配方的渲染、网格或导出。",
       "openFolder": "打开成果文件夹 · {size}",
@@ -1110,8 +758,6 @@
     "empty": "没有匹配此分面或搜索的内容。",
     "emptyShelf": "{shelf} 中还没有铸造任何内容。",
     "emptyShelfHint": "让你的 agent 做一个 — get_sketch_vocab 里有词汇表。",
-    "copied": "已复制",
-    "copyFailed": "无法复制 — 请手动选择",
     "notExportable": "无网格导出 — 此作品渲染为图表，而非可行走的模型。",
     "stack": "×{n}",
     "seed": "种子 {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "已绘制 · 外部工作机 · 脚手架配方仍是本体",
-    "mintMissing": "让 agent 铸造 {piece}",
-    "mintPrompt": "为 mojulo 角色“{name}”（见作品 {ref}）铸造缺失的 {piece}。使用对应的工具（create_sprite_sheet / bind_character_sheet / figure 工具）— 先读 get_sketch_vocab。",
     "facets": {
       "scenes": {
         "walkable": "可行走",

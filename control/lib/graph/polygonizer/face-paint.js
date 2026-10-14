@@ -24,7 +24,7 @@
  */
 import { encodePng } from '../landscape/surface-textures.js';
 import { readTarget, DEFAULT_TARGET } from '../era/target.js';
-import { tierOf } from '../era/cast-spend.js';
+import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
 
 /** the face's front plane the texture covers (studio units: the lattice's u spans about ±0.8, its y about −1.05…1.2) */
 export const FACE_PAINT_WINDOW = Object.freeze({ x: Object.freeze([-1.1, 1.1]), y: Object.freeze([-1.2, 1.0]) });
@@ -32,7 +32,7 @@ export const FACE_PAINT_WINDOW = Object.freeze({ x: Object.freeze([-1.1, 1.1]), 
 export const FACE_PAINT_SIZE = 512;
 /** the tiers (era/cast-spend.js) a painted face keeps the full lattice at: a close-up, 4K; below them the face's skin is
  * the thinned lattice (anime-form.js `paint`), its features being paint */
-export const FACE_PAINT_DENSE_TIERS = Object.freeze(['T3', 'T4']);
+export const FACE_PAINT_DENSE_TIERS = DENSE_TIERS;
 /** whether a hero drawn for `target` (a target spec, or none: the default, 1080p third-person) wears the dense lattice */
 export const facePaintDense = (target) => FACE_PAINT_DENSE_TIERS.includes(tierOf(readTarget(target ?? DEFAULT_TARGET).figurePx).id);
 /** the layers' quantum (texture units × Q, integers) */

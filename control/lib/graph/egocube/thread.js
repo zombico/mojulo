@@ -14,7 +14,8 @@
  *   wear     only accumulates: a chapter's wear is on every later node
  *   keep     one KEPT MARKER on every node (the recognition law): a keepsake, seeded, named on the dress channel
  *   growth   between two ages under 18, the born channels move by rule (GROWTH): height, the head (a little), the face
- *            down and forward, the neck, and puberty when the chapter spans it; growth is not identity
+ *            down and forward, the neck, and puberty when the chapter spans it; growth is not identity. The node's
+ *            `growth` says it as amounts: the dials it moved (`keys`) and, under 18, the share of adult height and head
  * Pure and deterministic: the same arguments, the same thread.
  */
 import { mulberry32 } from '../vegetation/grow.js';
@@ -33,6 +34,7 @@ export const GROWTH = Object.freeze({
   puberty: { female: [10, 14], male: [12, 16] },
 });
 const curve = (pts, y) => { if (y <= pts[0][0]) return pts[0][1]; for (let i = 1; i < pts.length; i++) if (y <= pts[i][0]) { const [a, va] = pts[i - 1], [b, vb] = pts[i]; return va + (vb - va) * (y - a) / (b - a); } return pts[pts.length - 1][1]; };
+const r3 = (x) => Math.round(x * 1000) / 1000;
 const pct = (x) => `${x >= 0 ? '+' : ''}${Math.round(x * 100)}%`;
 
 /** what growing from y0 to y1 does to a body of this pole: notes by channel, each with the dials it moves */
@@ -108,11 +110,14 @@ export function rollThread({ chapters = [], years, seed = 1, path = 'hero', ...r
     if (sheet.notes.colouring && first.notes.colouring) sheet.notes.colouring = first.notes.colouring.map((n) => ({ ...n }));
     for (const a of added) if (a.ch === 'wear') wear.push(a);
     for (const a of [...added.filter((x) => x.ch !== 'wear'), ...wear]) (sheet.notes[a.ch] ||= []).push({ line: a.line, from: a.from });
-    const claimed = new Set(Object.values(sheet.derives).flat().map((d) => dialKey(readDerive(d))));
+    const claimed = new Set(Object.values(sheet.derives).flat().map((d) => dialKey(readDerive(d)))), grown = [];
     for (const g of growthBetween(y - ch.years, y, first.facets.pole).reverse()) {   // unshifted: first stays first
       (sheet.notes[g.ch] ||= []).unshift({ line: g.line, from: `growth.${y - ch.years}→${y}` });
-      for (const d of g.derives) { const k = dialKey(readDerive(d)); if (!claimed.has(k)) { claimed.add(k); (sheet.derives[g.ch] ||= []).push(d); } }
+      for (const d of g.derives) { const k = dialKey(readDerive(d)); if (!claimed.has(k)) { claimed.add(k); grown.push(k); (sheet.derives[g.ch] ||= []).push(d); } }
     }
+    // growth as amounts (plan.js lowers it): the dials it names are a change from the node before, said in the notes; the
+    // body at this age is its share of the adult's (GROWTH), never the change stacked on an adult cast
+    if (grown.length) sheet.growth = { from: y - ch.years, years: y, keys: grown, ...(y < 18 ? { stature: r3(curve(GROWTH.stature[first.facets.pole], y)), head: r3(curve(GROWTH.head, y)) } : {}) };
     mark(sheet, y);
     const prev = nodes[nodes.length - 1].sheet;
     nodes.push({ years: y, band: bandOfYears(y), chapter: { ...ch, ...(unread.length ? { unread } : {}) }, sheet, changes: changesOf(prev, sheet) });

@@ -179,7 +179,7 @@ export const ROOM_FACETS = {
     { key: 'walkable', kinds: ['controllable'] },
     { key: 'cities', kinds: ['fractal-city'] },
     { key: 'hubs', kinds: ['transportation-hub', 'subway-building'] },
-    { key: 'interiors', kinds: ['dungeon', 'floorplan'] },
+    { key: 'interiors', kinds: ['dungeon', 'floorplan', 'interior'] },
   ],
   models: [
     { key: 'workbench', kinds: ['workbench'] },

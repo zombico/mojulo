@@ -39,7 +39,8 @@ const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/solid-vocab');
 // prose does.
 const REQUIRED_FIELDS = ['id', 'name', 'family', 'entry', 'summary', 'when'];
 const VALID_FAMILIES = new Set(['figure', 'creature', 'object', 'structure', 'vehicle', 'edit']);
-const VALID_ENTRIES = new Set(['mint_solid', 'edit_solid', 'fabricate_solid']);
+// create_character: a character's manual (layered, animal) names the Characters ring's door, which mints the same recipes
+const VALID_ENTRIES = new Set(['mint_solid', 'edit_solid', 'fabricate_solid', 'create_character']);
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
 let cache = null;

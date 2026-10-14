@@ -13,7 +13,7 @@ describe('create_pixelizer_game', () => {
     expect(res.ok).toBe(true);
     expect(res.reducer).toBe('brickster');
     expect(res.playUrl).toBe(`/api/sketches/${res.ref}/game`);
-    expect(res.arcadeUrl).toBe(`/arcade/${res.ref}`);
+    expect(res.arcadeUrl).toBe('/play');
     const row = SketchRepository.getByRef(res.ref);
     expect(row.bucket).toBe('game'); // → arcade feed + Maker gallery
     expect(row.manifest).toMatchObject({ kind: 'game', engine: 'pixelizer', reducer: 'brickster', music: true });

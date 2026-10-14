@@ -4,7 +4,7 @@ import { isekaiGround, boulderFaces, layerFaces, cumulusFaces } from './isekai.j
 import { isekaiTexels, isekaiKey, ISEKAI_STYLES } from './isekai-tiles.js';
 import { rampDistance } from './palette.js';
 import { natureSite, rockItems, trailRims } from './nature.js';
-import { hexRgb } from './geom.js';
+import { hexRgb, rgbHex } from './geom.js';
 import { CURRENT_GEN_REFERENCES, CURRENT_GEN_REFERENCE_IDS } from './current-gen.js';
 import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -199,6 +199,69 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(LG.wind.grass.length).toBe(1);
     expect(LG.taker.phi).toBeGreaterThan(0);
     expect(LG.wind.debris).toBeUndefined();   // no leaves blowing through a pixel-locked palette
+  });
+
+  it('touches: the walker lays the grass and its landings ring out (contact); `grass.contact: false` carries none of it', () => {
+    const page = (q) => emitThreeWorld({ ...q, textures: collectFaceTextures(q.faces), inline: true });
+    expect(LG.contact.eye).toBe(W.walk.minEye);
+    expect(LG.contact.recover).toBeGreaterThan(0);
+    const on = page(W);
+    expect(on).toContain('mojContact'); expect(on).toContain('function grassContact');
+    const off = assembleStageScene({ ...M, wind: true, grass: { contact: false } });
+    expect('contact' in off.liveGrass).toBe(false);
+    const html = page(off);
+    expect(html).toContain('stage live grass'); expect(html).not.toContain('mojContact'); expect(html).not.toContain('grassContact');
+    // the recipe's dials reach the page
+    const g = assembleStageScene({ ...M, wind: true, grass: { density: 8, height: [0.3, 0.5], contact: { recover: 40, wave: { speed: 3 } } } }).liveGrass;
+    expect(g.density).toBe(8); expect(g.height).toEqual([0.3, 0.5]); expect(g.contact.recover).toBe(40); expect(g.contact.wave.speed).toBe(3);
+    // grass alone stands the live field in the default wind
+    expect(assembleStageScene({ ...M, grass: true }).liveGrass.wind.grass).toHaveLength(1);
+    expect(() => assembleStageScene({ ...M, grass: { contact: { press: 3 } } })).toThrow(/press/);
+    expect(() => assembleStageScene({ ...M, grass: { look: 'oil' } })).toThrow(/look/);
+  });
+
+  it('flowers, opt-in: a share of the tufts carries wildflowers, each part windowed into the flowers\' ramp', () => {
+    expect('flowers' in LG).toBe(false);
+    const page = (q) => emitThreeWorld({ ...q, textures: collectFaceTextures(q.faces), inline: true });
+    expect(page(W)).not.toContain('live-flowers');
+    const F = assembleStageScene({ ...M, wind: true, grass: { flowers: true } }).liveGrass.flowers;
+    expect(F.share).toBe(st.live.flowers.share);
+    // the grass's stops come first, so a stem's window is the blade's
+    expect(F.ramp.slice(0, st.palette.grass.length)).toEqual(st.palette.grass);
+    for (const K of F.kinds) for (const w of [K.petal.lit, K.petal.shade, K.eye.lit, K.eye.shade]) { expect(w[0]).toBeGreaterThanOrEqual(st.palette.grass.length); expect(w[1]).toBeLessThan(F.ramp.length); expect(w[1]).toBeGreaterThan(w[0]); }
+    for (const t of F.templates) expect(Buffer.from(t.seg.__b64, 'base64').length).toBe(Buffer.from(t.v.__b64, 'base64').length);
+    const only = assembleStageScene({ ...M, wind: true, grass: { flowers: { share: 0.3, mix: { poppy: 1 } } } }).liveGrass.flowers;
+    expect(only.kinds.map((k) => k.kind)).toEqual(['poppy']); expect(only.share).toBe(0.3);
+    expect(page(assembleStageScene({ ...M, wind: true, grass: { flowers: true } }))).toContain('live-flowers');
+    expect(() => assembleStageScene({ ...M, grass: { flowers: { mix: { rose: 1 } } } })).toThrow(/mix/);
+  });
+
+  it('shrubs, opt-in: bushes in flower and in fruit join the stage, lit with it, colliders and anchors for an engine', () => {
+    expect(p.faces.some((f) => f.group === 'flora:bush')).toBe(false);
+    const s = assembleStageScene({ ...M, shrubs: true }), bush = s.faces.filter((f) => f.group === 'flora:bush');
+    expect(bush.length).toBeGreaterThan(0);
+    const A = s.anchors.filter((a) => a.kind === 'shrub');
+    expect(A.length).toBeGreaterThan(0); expect(A.some((a) => a.state === 'fruit')).toBe(true);
+    // the berries are on the fruit ramp
+    expect(bush.some((f) => st.palette.fruit.some((c) => f.fill === rgbHex(c.map((v) => v / 255))))).toBe(true);
+    // the rest of the stage stands where it did; only the blade cards step off the bushes' feet
+    // (where they stand, not how they are lit: a bush casts its shadow on the ground round it)
+    const rest = (q) => q.faces.filter((f) => f.group !== 'flora:bush' && f.group !== 'isekai:grass').map((f) => f.corners);
+    expect(JSON.stringify(rest(s))).toBe(JSON.stringify(rest(p)));
+    expect(s.faces.filter((f) => f.group === 'isekai:grass').length).toBeLessThan(p.faces.filter((f) => f.group === 'isekai:grass').length);
+    expect(() => assembleStageScene({ ...M, shrubs: { bloom: 2 } })).toThrow(/bloom/);
+  });
+
+  it('draws by the pole: a banded look keeps the lock; asked for (or on a realistic look) the grass is a material under light', () => {
+    expect('real' in LG).toBe(false);
+    const page = (q) => emitThreeWorld({ ...q, textures: collectFaceTextures(q.faces), inline: true });
+    expect(page(W)).not.toContain('uReal');
+    const m = assembleStageScene({ ...M, wind: true, grass: { look: 'material' } }), R = m.liveGrass.real;
+    expect(R.ao).toBeGreaterThan(0); expect(R.ao).toBeLessThan(1); expect(R.back).toBeGreaterThan(0);
+    expect(Math.hypot(...R.sun)).toBeCloseTo(1, 3); expect(R.sunColor.every((v) => Number.isInteger(v) && v >= 0 && v <= 255)).toBe(true);
+    expect(page(m)).toContain('uReal');
+    // the static floor is the same whatever the grass is drawn as
+    expect(JSON.stringify(m.faces)).toBe(JSON.stringify(p.faces));
   });
 });
 

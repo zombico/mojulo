@@ -55,6 +55,7 @@ import { buildPerimeter, buildSplitMirrorPerimeter } from './floorplan-perimeter
 import { AUTHORING_UNITS, metersPerUnitFor } from '../scene/world-units.js';
 import { SM } from '../../util/math-scope.js';
 import { planToWorld } from './floorplan-world.js';
+import { DOOR_STYLES, patternFace, ROOM_KIND } from '../finishes/index.js';
 
 // ── structural glyph alphabet (the wall graph that relates rooms) ────────────
 // The sibling of floorplan-glyphs' ARCHETYPES: those say what's IN a room, these
@@ -871,7 +872,8 @@ function roomElementFaces(elements, { x0, x1, y0, y1 }, baseZ, o) {
   const height = o.wallHeight;
   const out = extractRoomSceneFaces({
     // a house style's furnishing palette rides each piece to the mesh makers (room-assets)
-    elements: o.furnishFinish ? elements.map((e) => ({ ...e, finish: o.furnishFinish })) : elements,
+    // (a placed item may carry its own palette, an interior's piece in its scheme: it keeps it)
+    elements: o.furnishFinish ? elements.map((e) => ({ ...e, finish: e.finish || o.furnishFinish })) : elements,
     roomBasis: {
       worldExtent: { width: x1 - x0, depth: y1 - y0, height },
       xRange: [x0, x1], yRange: [y0, y1], zRange: [baseZ, baseZ + height],
@@ -929,7 +931,10 @@ export function roomItemPlacements(room, baseZ = 0, o = FLOORPLAN_DEFAULTS) {
   list.forEach((item, i) => {
     if (!item || typeof item !== 'object') return;
     const ref = typeof item.ref === 'string' && item.ref ? item.ref : null;
-    const named = !ref && typeof item.type === 'string' && item.type ? item.type : null;
+    // `compose: { like, forms?, finish? }` (furnishings/forms.js) locks a composed piece at the item's own size; its
+    // `type` (optional) names the roster piece it stands for, whose mesh stands in if no build takes the footprint
+    const compose = !ref && item.compose && typeof item.compose === 'object' ? item.compose : null;
+    const named = !ref && typeof item.type === 'string' && item.type ? item.type : (compose ? 'composed' : null);
     const type = named ? (ASSET_TYPE[named] || named) : null;
     if (!ref && !type) return;
     const wall = isEdge(item.wall) ? item.wall : null;
@@ -959,7 +964,8 @@ export function roomItemPlacements(room, baseZ = 0, o = FLOORPLAN_DEFAULTS) {
       out.push({ ...base, ref: { ref, name, center: [cx, cy], z: baseZ, size: [w, d], ...(height ? { height } : {}), facing, ...(Number.isFinite(item.turn) ? { turn: item.turn } : {}) } });
       return;
     }
-    const asset = ASSET_TYPE[named] ? named : (SHARE_ASSETS[type] || (getRoomFurnitureAsset(type) ? type : null));
+    const meshOf = ASSET_TYPE[named] ? named : (SHARE_ASSETS[type] || (getRoomFurnitureAsset(type) ? type : null));
+    const asset = compose ? 'composed-furniture' : meshOf;
     // preset heights are metres; the house is feet, like every arranger's heightWorld
     const presetH = ROOM_SCENE_ELEMENT_PRESETS[type]?.height;
     const heightWorld = height ?? (presetH ? presetH / FLOORPLAN_METERS_PER_UNIT : ITEM_HEIGHT_FT);
@@ -970,6 +976,9 @@ export function roomItemPlacements(room, baseZ = 0, o = FLOORPLAN_DEFAULTS) {
         type, anchor: [(cx - x0) / IW, (cy - y0) / IH], w: ex / IW, h: ey / IH,
         facing: RENDER_FACING[facing], instance: name,
         heightWorld, ...(asset ? { asset } : {}),
+        ...(compose ? { compose, composeFallback: meshOf || 'sideboard-cabinet' } : {}),
+        // `finish: { upholstery?, wood?, cabinet?, bedding?, rug? }` recolours a mesh piece by family (room-assets recolorManifest)
+        ...(item.finish && typeof item.finish === 'object' ? { finish: item.finish } : {}),
       },
     });
   });
@@ -1251,10 +1260,14 @@ function openingAssemblyFaces(run, op, baseZ, o) {
   const z0 = baseZ + op.sill, z1 = baseZ + op.top;
   const isWindow = op.sill > eps;
   const faces = [];
+  // a window's divided-light style, and its frame (crittall's own is black steel)
+  const winStyle = isWindow ? (op.style || o.windowStyle
+    || ({ siding: 'colonial', brick: 'double-hung', tofu: 'picture', metal: 'picture' }[o.facadeStyle]) || 'plain') : null;
+  const frameTint = isWindow ? (o.windowFrameTint || (winStyle === 'crittall' ? '#22252a' : null)) : null;
   const bar = (s0, s1, bz0, bz1) => {
     if (s1 - s0 < Q || bz1 - bz0 < Q) return;
     const r = spanRect(run, s0, s1, frameDepth);
-    faces.push(...boxFaces(r.x0, r.x1, r.y0, r.y1, bz0, bz1, trim, light));
+    faces.push(...boxFaces(r.x0, r.x1, r.y0, r.y1, bz0, bz1, frameTint || trim, light));
   };
   bar(a, a + fw, z0, z1);                 // jambs
   bar(b - fw, b, z0, z1);
@@ -1267,9 +1280,8 @@ function openingAssemblyFaces(run, op, baseZ, o) {
     // MUNTINS — the divided-light pattern (a window 'concept'), proud of the glass. Style is
     // explicit (op.style / o.windowStyle) or defaulted from the facade: siding→colonial grid,
     // brick→2-over-2 double-hung, tofu→clean picture pane.
-    const style = op.style || o.windowStyle
-      || ({ siding: 'colonial', brick: 'double-hung', tofu: 'picture', metal: 'picture' }[o.facadeStyle]) || 'plain';
-    const W = gb - ga, Hh = gz1 - gz0, mt = fw * 0.8;
+    const style = winStyle;
+    const W = gb - ga, Hh = gz1 - gz0, mt = fw * (style === 'crittall' ? 0.45 : 0.8);
     const vbar = (x) => bar(x - mt / 2, x + mt / 2, gz0, gz1);
     const hbar = (z) => bar(ga, gb, z - mt / 2, z + mt / 2);
     if (style === 'casement' || (style === 'plain' && W > (o.windowMullionAt ?? FLOORPLAN_DEFAULTS.windowMullionAt))) {
@@ -1289,6 +1301,22 @@ function openingAssemblyFaces(run, op, baseZ, o) {
     } else if (style === 'german') {
       hbar(gz1 - Math.min(1.3, Hh * 0.26));                            // european tilt-turn: a top transom (Oberlicht)...
       vbar((ga + gb) / 2);                                            // ...over two large clean sashes
+    } else if (style === 'crittall') {
+      const cols = Math.max(2, Math.round(W / 0.9)), rows = Math.max(3, Math.round(Hh / 0.75));
+      for (let i = 1; i < cols; i += 1) vbar(ga + (i * W) / cols);      // a fine steel grid of small lights
+      for (let j = 1; j < rows; j += 1) hbar(gz0 + (j * Hh) / rows);
+    } else if (style === 'prairie') {
+      const m = Math.min(0.45, W * 0.15, Hh * 0.15);                    // narrow border lights round a clear centre
+      vbar(ga + m); vbar(gb - m); hbar(gz0 + m); hbar(gz1 - m);
+    } else if (style === 'cottage') {
+      const split = gz0 + Hh * 0.66;                                    // the top third divided, the lower sash clear
+      hbar(split);
+      const cols = Math.max(2, Math.round(W / 1.1));
+      for (let i = 1; i < cols; i += 1) bar(ga + (i * W) / cols - mt / 2, ga + (i * W) / cols + mt / 2, split, gz1);
+    } else if (style === 'six-over-six') {
+      hbar((gz0 + gz1) / 2);                                            // two sashes, each three across and two up
+      for (let i = 1; i < 3; i += 1) vbar(ga + (i * W) / 3);
+      hbar(gz0 + Hh / 4); hbar(gz0 + (3 * Hh) / 4);
     }
     // 'picture' → no muntins (a single clean pane)
   } else {
@@ -1332,6 +1360,7 @@ function doorLeafFaces(run, op, baseZ, o, fw) {
   const tint = op.entry
     ? (o.entryDoorTint || FLOORPLAN_DEFAULTS.entryDoorTint)
     : (o.doorLeafTint || FLOORPLAN_DEFAULTS.doorLeafTint);
+  const doorStyle = o.doorStyle && DOOR_STYLES[o.doorStyle] ? DOOR_STYLES[o.doorStyle] : null;
   const z0 = baseZ, z1 = baseZ + op.top - fw;
   const faces = [];
   if (op.park) {
@@ -1343,8 +1372,14 @@ function doorLeafFaces(run, op, baseZ, o, fw) {
     faces.push(...boxFaces(...along(p.s0, p.s1, p.face, p.back), z0, z1, tint, o.light));
     const panelT = 0.012, inset = Math.min(0.35, (p.s1 - p.s0) * 0.16), hL = z1 - z0;
     const panel = scaleHex(tint, 0.86);
-    for (const [pz0, pz1] of [[z0 + hL * 0.1, z0 + hL * 0.43], [z0 + hL * 0.52, z0 + hL * 0.92]]) {
-      faces.push(...boxFaces(...along(p.s0 + inset, p.s1 - inset, p.back, p.back + p.dir * panelT), pz0, pz1, panel, o.light));
+    if (doorStyle) {
+      // the house's door style: its parts on the leaf's exposed face (finishes/index.js DOOR_STYLES)
+      const L = p.s1 - p.s0;
+      for (const part of doorStyle.parts) faces.push(...leafPart(part, (a0, a1, d0, d1, pz0, pz1, hex) => boxFaces(...along(p.s0 + a0 * L, p.s0 + a1 * L, p.back + p.dir * d0, p.back + p.dir * d1), z0 + pz0 * hL, z0 + pz1 * hL, hex, o.light), tint, o));
+    } else {
+      for (const [pz0, pz1] of [[z0 + hL * 0.1, z0 + hL * 0.43], [z0 + hL * 0.52, z0 + hL * 0.92]]) {
+        faces.push(...boxFaces(...along(p.s0 + inset, p.s1 - inset, p.back, p.back + p.dir * panelT), pz0, pz1, panel, o.light));
+      }
     }
     const free = p.hinge === 'a' ? p.s0 : p.s1;                          // the swinging edge, where the handle is
     const hs0 = p.hinge === 'a' ? free + 0.22 : free - 0.62, hs1 = hs0 + 0.4;
@@ -1361,10 +1396,32 @@ function doorLeafFaces(run, op, baseZ, o, fw) {
       const y = run.at, y0 = Math.min(y, y + dir * len), y1 = Math.max(y, y + dir * len);
       faces.push(...boxFaces(hinge, hinge + leafD, y0, y1, z0, z1, tint, o.light));
     }
+    if (!doorStyle) return;
+    // a swung leaf shows both faces: the style's parts on each, across the leaf from its hinge
+    const hL = z1 - z0;
+    for (const sideF of [-1, 1]) {
+      const plane = sideF < 0 ? hinge : hinge + leafD;
+      const at = (a0, a1, d0, d1, pz0, pz1, hex) => {
+        const w0 = run.at + dir * a0 * len, w1 = run.at + dir * a1 * len, f0 = plane + sideF * d0, f1 = plane + sideF * d1;
+        const [A, B, C, D] = [Math.min(w0, w1), Math.max(w0, w1), Math.min(f0, f1), Math.max(f0, f1)];
+        return run.orientation === 'v' ? boxFaces(A, B, C, D, z0 + pz0 * hL, z0 + pz1 * hL, hex, o.light) : boxFaces(C, D, A, B, z0 + pz0 * hL, z0 + pz1 * hL, hex, o.light);
+      };
+      for (const part of doorStyle.parts) faces.push(...leafPart(part, at, tint, o));
+    }
   };
   if (op.double) { const h = span / 2; leaf(op.a + fw, h); leaf(op.b - fw - leafD, h); }
   else leaf(op.a + fw, span);
   return faces;
+}
+
+// One part of a door style on a leaf's face: `box(a0, a1, d0, d1, z0, z1, hex)` takes fractions across and up the
+// leaf and a depth off its face (feet). A panel is recessed and darker, glass a pale pane, a groove a dark line, a
+// reed or rail proud and lighter.
+function leafPart([a0, a1, pz0, pz1, kind], box, tint, o) {
+  if (kind === 'glass') return box(a0, a1, 0, 0.006, pz0, pz1, '#9fb6c2');
+  if (kind === 'groove') return box(a0, a1, 0, 0.006, pz0, pz1, scaleHex(tint, 0.6));
+  if (kind === 'reed' || kind === 'rail') return box(a0, a1, 0, 0.03, pz0, pz1, scaleHex(tint, 1.08));
+  return box(a0, a1, 0, 0.012, pz0, pz1, scaleHex(tint, 0.86));
 }
 
 /** Exterior entry extras: a stone threshold, shallow stoop, and small transom pane. */
@@ -1428,11 +1485,13 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
   const kindRoll = hashf(key, (s0 + s1) * 0.5, side * 1.3);
   // `interiorWallStyle` forces one finish on every interior face (e.g. exposed BRICK,
   // the inside face of a brick building); otherwise the finish is chosen by geometry.
-  const kind = o.interiorWallStyle || (kindRoll < 0.6 ? 'paint' : kindRoll < 0.8 ? 'wainscot' : 'wallpaper');
+  const treatment = o.wallTreatment || 'wainscot';
+  const kind = o.interiorWallStyle || (kindRoll < 0.6 ? 'paint' : kindRoll < 0.8 ? treatment : 'wallpaper');
+  const paper = o.wallpaper || null;
   const paint = palettePick(o.wallPaints || WALL_PAINTS, key, side, 7.1);   // a house style brings its own paints
   // `swath` marks the painted field: with `wallMaterial` set it carries the procedural material
   // (lit:false — the room's own shade is kept; the World adds the ramp + mottle per vertex)
-  const rect = (a0, a1, lo, hi, color, lift, swath = false) => {
+  const rect = (a0, a1, lo, hi, color, lift, swath = false, tex = null) => {
     const A0 = Math.max(s0, a0), A1 = Math.min(s1, a1), L = Math.max(zb, lo), Hi = Math.min(zt, hi);
     if (A1 - A0 < 0.02 || Hi - L < 0.02) return;
     const off = side * (tHalf + lift);
@@ -1440,7 +1499,9 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
       ? [[A0, run.at + off, L], [A1, run.at + off, L], [A1, run.at + off, Hi], [A0, run.at + off, Hi]]
       : [[run.at + off, A0, L], [run.at + off, A1, L], [run.at + off, A1, Hi], [run.at + off, A0, Hi]];
     const material = swath && o.wallMaterial ? { material: { kind: o.wallMaterial, lit: false } } : {};
-    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, ...material });
+    // a paper's tile mapped by the wall's own length and height, so it is the same size on every wall
+    const textured = tex ? { texture: tex.texture, textureLit: true, uv: [[A0 / tex.tileFt, (L - baseZ) / tex.tileFt], [A1 / tex.tileFt, (L - baseZ) / tex.tileFt], [A1 / tex.tileFt, (Hi - baseZ) / tex.tileFt], [A0 / tex.tileFt, (Hi - baseZ) / tex.tileFt]] } : {};
+    faces.push({ corners, fill: shadeHex(color, N, light), doubleSided: true, outNormal: N, ...material, ...textured });
   };
   // EXPOSED BRICK — a brick field + a recessed running-bond mortar grid (coarser unit than
   // the facade so the interior face doesn't explode in count). Same material inside and out.
@@ -1458,7 +1519,7 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
     return faces;
   }
   const baseTop = baseZ + 0.5;
-  rect(s0, s1, baseZ, baseTop, WOOD_FINISH.base, 0.013);                 // baseboard (all finishes)
+  rect(s0, s1, baseZ, baseTop, o.baseboardTint || WOOD_FINISH.base, 0.013);   // baseboard (all finishes)
   if (kind === 'paint') {
     rect(s0, s1, baseTop, baseZ + H, paint, 0.012, true);
   } else if (kind === 'wainscot') {
@@ -1468,6 +1529,36 @@ function interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o = {}
     for (let i = 0; i <= nP; i += 1) { const u = s0 + i * step; rect(u - 0.06, u + 0.06, baseTop, dadoTop, WOOD_FINISH.stile, 0.028); }  // stiles
     rect(s0, s1, dadoTop, chairTop, WOOD_FINISH.rail, 0.018);            // chair rail
     rect(s0, s1, chairTop, baseZ + H, paint, 0.012, true);               // paint above
+  } else if (kind === 'wallpaper' && paper && patternFace(paper)) {        // the house's `wallpaper`
+    rect(s0, s1, baseTop, baseZ + H, PATTERN_GROUND, 0.012, false, patternFace(paper));
+  } else if (kind === 'board-and-batten') {
+    const top = baseZ + Math.min(H * 0.62, 5.5), step = 1.33;
+    rect(s0, s1, baseTop, top, scaleHex(paint, 1.04), 0.012);
+    for (let u = s0 + step; u < s1 - 0.1; u += step) rect(u - 0.1, u + 0.1, baseTop, top, scaleHex(paint, 1.02), 0.03);   // battens
+    rect(s0, s1, top - 0.15, top, scaleHex(paint, 1.0), 0.04);                                                          // cap rail
+    rect(s0, s1, top, baseZ + H, paint, 0.012, true);
+  } else if (kind === 'shiplap') {
+    rect(s0, s1, baseTop, baseZ + H, scaleHex(paint, 1.03), 0.012);
+    for (let z = baseTop + 0.6; z < baseZ + H - 0.1; z += 0.6) rect(s0, s1, z - 0.02, z + 0.02, scaleHex(paint, 0.72), 0.016);   // the shadow gaps
+  } else if (kind === 'picture-frame') {
+    rect(s0, s1, baseTop, baseZ + H, paint, 0.012, true);
+    const chair = baseZ + 3.0, m = 0.09, span = s1 - s0, n = Math.max(1, Math.round(span / 3.2)), w = span / n;
+    rect(s0, s1, chair - 0.07, chair + 0.07, scaleHex(paint, 1.05), 0.03);
+    for (let i = 0; i < n; i += 1) {
+      const a = s0 + i * w + 0.35, b = s0 + (i + 1) * w - 0.35;
+      for (const [lo, hi] of [[baseTop + 0.45, chair - 0.4], [chair + 0.5, baseZ + H - 1.0]]) {
+        if (b - a < 0.6 || hi - lo < 0.6) continue;
+        const mould = scaleHex(paint, 1.06);
+        rect(a, b, lo, lo + m, mould, 0.026); rect(a, b, hi - m, hi, mould, 0.026);
+        rect(a, a + m, lo, hi, mould, 0.026); rect(b - m, b, lo, hi, mould, 0.026);
+      }
+    }
+  } else if (kind === 'beadboard') {
+    const top = baseZ + 3.2;
+    rect(s0, s1, baseTop, top, scaleHex(paint, 1.06), 0.012);
+    for (let u = s0 + 0.3; u < s1; u += 0.3) rect(u - 0.012, u + 0.012, baseTop, top, scaleHex(paint, 0.82), 0.02);
+    rect(s0, s1, top - 0.08, top + 0.06, scaleHex(paint, 1.0), 0.035);
+    rect(s0, s1, top + 0.06, baseZ + H, paint, 0.012, true);
   } else {                                                              // wallpaper
     const base = palettePick(WALLPAPER_BASE, key, side, 3.3), ink = palettePick(WALLPAPER_INK, key, side, 9.7);
     rect(s0, s1, baseTop, baseZ + H, base, 0.012);
@@ -1561,11 +1652,16 @@ export function wallRunFaces(run, opts = {}) {
   }
   // interior finishes go on the room-facing side(s), AFTER x-ray tagging so they stay
   // solid (the finish reads even when the structural envelope is a wireframe cage).
-  if (o.wallDecor) {
+  const fit = fitOutOf(o);
+  if (o.wallDecor || fit) {
     const sides = run.interior ? [1, -1] : [-run.exteriorSide];
     for (const [s0, s1, z0, z1] of subs) {
       if (s1 - s0 < Q || z1 - z0 < Q) continue;
-      for (const side of sides) if (side) faces.push(...interiorWallDecor(run, side, s0, s1, baseZ + z0, baseZ + z1, baseZ, H, t, light, o));
+      for (const side of sides) {
+        if (!side) continue;
+        faces.push(...(fit ? fitWallDecor(run, side, s0, s1, baseZ + z0, baseZ + z1, baseZ, H, t, light, o, fit)
+          : interiorWallDecor(run, side, s0, s1, baseZ + z0, baseZ + z1, baseZ, H, t, light, o)));
+      }
     }
   }
   if (o.facadeDecor && !run.interior) {
@@ -1786,6 +1882,66 @@ export function extrudeWalls(graph, opts = {}) {
   return faces;
 }
 
+// ── FINISHES: the house's doors, windows, floors and walls (lib/graph/finishes/) ───────
+// Knobs like any other, drawn by the house style's roll for a house minted with `finishes: 'auto'`
+// (floorplan-styles.js) or named in the manifest: `doorStyle`, `doorLeafTint`, `windowStyle`, `windowFrameTint`,
+// `livingFloor` / `bedroomFloor` / `wetFloor` ({ pattern, colours }), `wallTreatment`, `wallpaper`. Absent, the
+// house builds as it always did.
+const FLOOR_KNOB = { living: 'livingFloor', sleeping: 'bedroomFloor', wet: 'wetFloor' };
+// a textured face's lit ground: near white, so the tile brings the colour
+const PATTERN_GROUND = '#efebe3';
+function floorPatternFaces(rect, spec, baseZ, o, holes = []) {
+  const pf = patternFace(spec);
+  if (!pf) return [];
+  let rects = [{ x0: rect.x, x1: rect.x + rect.w, y0: rect.y, y1: rect.y + rect.h }];
+  for (const h of holes) rects = rects.flatMap((r) => subtractRect(r, h));
+  const N = [0, 0, 1], z = baseZ + 0.015, t = pf.tileFt;
+  return rects.filter((r) => r.x1 - r.x0 > Q && r.y1 - r.y0 > Q).map((r) => {
+    const c = [[r.x0, r.y0], [r.x1, r.y0], [r.x1, r.y1], [r.x0, r.y1]];
+    return { corners: c.map(([x, y]) => [x, y, z]), fill: shadeHex(PATTERN_GROUND, N, o.light), outNormal: N, group: 'floor:skin', texture: pf.texture, textureLit: true, uv: c.map(([x, y]) => [x / t, y / t]) };
+  });
+}
+
+// ── FIT-OUT: one room dressed by an interior row (lib/graph/interior/) ───────
+// `fitOut: { level?, rect: { x, y, w, h }, items?, walls?, floor?, faces? }` names a room of the storey `level` (0 the
+// ground; a stack's index) by its plan rect, in feet. That room takes no generated furniture; its `items` replace the
+// room's own; `walls` ({ all?, N?, S?, E?, W? } of { style, paint, material? }) dress its own wall faces and nothing
+// past its corners; `floor` ({ style, tint?, texture? }) is its floor finish; `faces` (plan frame, z from its floor)
+// are its fixed features. Every other room is built as the house builds it, and absent, nothing here runs.
+function fitOutOf(o) {
+  const f = o.fitOut;
+  if (!f || typeof f !== 'object' || !f.rect) return null;
+  return (f.level ?? 0) === (o._levelIndex ?? 0) ? f : null;
+}
+const FIT_TOL = 0.05;
+const isFitRoom = (fit, room) => !!fit && Math.abs(room.x - fit.rect.x) < FIT_TOL && Math.abs(room.y - fit.rect.y) < FIT_TOL
+  && Math.abs(room.w - fit.rect.w) < FIT_TOL && Math.abs(room.h - fit.rect.h) < FIT_TOL;
+// The stretch of a run's `side` face that bounds the fit-out room, and the room's wall letter there, or null.
+function fitWallSpan(run, side, R) {
+  if (run.orientation === 'h') {
+    const edge = Math.abs(run.at - R.y) < FIT_TOL && side > 0 ? 'N' : Math.abs(run.at - (R.y + R.h)) < FIT_TOL && side < 0 ? 'S' : null;
+    return edge ? { edge, lo: R.x, hi: R.x + R.w } : null;
+  }
+  const edge = Math.abs(run.at - R.x) < FIT_TOL && side > 0 ? 'W' : Math.abs(run.at - (R.x + R.w)) < FIT_TOL && side < 0 ? 'E' : null;
+  return edge ? { edge, lo: R.y, hi: R.y + R.h } : null;
+}
+// A wall segment's decor with the fit-out room's own finish on the part that bounds it; the rest as the house dresses it.
+function fitWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o, fit) {
+  const span = fitWallSpan(run, side, fit.rect);
+  const finish = span && fit.walls ? (fit.walls[span.edge] || fit.walls.all) : null;
+  const dressed = !!o.wallDecor;
+  if (!finish) return dressed ? interiorWallDecor(run, side, s0, s1, zb, zt, baseZ, H, t, light, o) : [];
+  const lo = Math.max(s0, span.lo), hi = Math.min(s1, span.hi);
+  const faces = [];
+  if (dressed && lo > s0 + Q) faces.push(...interiorWallDecor(run, side, s0, Math.min(s1, lo), zb, zt, baseZ, H, t, light, o));
+  if (hi - lo > Q) {
+    const fo = { ...o, interiorWallStyle: finish.style || 'paint', wallpaper: finish.wallpaper || null, ...(finish.paint ? { wallPaints: [finish.paint] } : {}), wallMaterial: finish.material === undefined ? (o.wallMaterial || 'plaster') : finish.material, ...(finish.base ? { baseboardTint: finish.base } : {}) };
+    faces.push(...interiorWallDecor(run, side, lo, hi, zb, zt, baseZ, H, t, light, fo));
+  }
+  if (dressed && hi < s1 - Q) faces.push(...interiorWallDecor(run, side, Math.max(s0, hi), s1, zb, zt, baseZ, H, t, light, o));
+  return faces;
+}
+
 // ── full structurize + scene assembly ────────────────────────────────────────
 /**
  * Floorplan (seed/footprint, or explicit {rooms,halls,doors}) → structurized
@@ -1795,7 +1951,7 @@ export function extrudeWalls(graph, opts = {}) {
 export function structurizeFloorplan(input = {}, opts = {}) {
   // a house style (floorplan-styles.js) supplies defaults under the manifest's own keys; the
   // stacked house resolves it once and passes `_styled`, so a level never re-draws it
-  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input.seed != null ? input : { ...input, seed: opts.seed }), opts.view);
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input.seed != null ? input : { ...input, seed: opts.seed }), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto' });
   const given = { ...styled, ...opts };
   const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...given };
   const plan = Array.isArray(input.rooms)
@@ -1875,14 +2031,38 @@ export function structurizeFloorplan(input = {}, opts = {}) {
   }
   // FLOOR FINISH over the slab (floorboards / marble / auto), per room + halls, minus the
   // stair voids. 'auto' tiles wet rooms (kitchen/bath/laundry) in marble, the rest in boards.
+  // a fit-out room (fitOutOf) lays its own floor in place of the house's
+  const fit = fitOutOf(o);
+  const fitFloor = fit && fit.floor && typeof fit.floor === 'object' ? fit.floor : null;
+  // a floor pattern per room kind (livingFloor, bedroomFloor, wetFloor): a room whose kind has one is laid in it
+  const patternFor = (g) => { const k = FLOOR_KNOB[ROOM_KIND[g] || 'living']; return o[k] && typeof o[k] === 'object' ? o[k] : null; };
+  const patterned = !o._framed && (o.livingFloor || o.bedroomFloor || o.wetFloor);
+  if (patterned) {
+    for (const room of plan.rooms) if (!(fitFloor && isFitRoom(fit, room)) && patternFor(room.glyph)) faces.push(...floorPatternFaces(room, patternFor(room.glyph), baseZ, o, slabHoles));
+    for (const h of (plan.halls || [])) if (patternFor('H')) faces.push(...floorPatternFaces({ x: h.x, y: h.y, w: h.w, h: h.h }, patternFor('H'), baseZ, o, slabHoles));
+  }
   if (!o._framed && o.floorStyle && o.floorStyle !== 'plain') {
     const wet = (g) => g === 'K' || g === 'W' || g === 'Y';
     const styleFor = (g) => (o.floorStyle === 'auto' ? (wet(g) ? 'marble' : 'floorboards') : o.floorStyle);
-    for (const room of plan.rooms) faces.push(...floorFinishFaces(room, styleFor(room.glyph), baseZ, o, slabHoles));
-    for (const h of (plan.halls || [])) faces.push(...floorFinishFaces({ x: h.x, y: h.y, w: h.w, h: h.h }, styleFor('H'), baseZ, o, slabHoles));
+    for (const room of plan.rooms) if (!(fitFloor && isFitRoom(fit, room)) && !(patterned && patternFor(room.glyph))) faces.push(...floorFinishFaces(room, styleFor(room.glyph), baseZ, o, slabHoles));
+    for (const h of (plan.halls || [])) if (!(patterned && patternFor('H'))) faces.push(...floorFinishFaces({ x: h.x, y: h.y, w: h.w, h: h.h }, styleFor('H'), baseZ, o, slabHoles));
   }
-  // the operator's placed items (rooms[i].items) claim their footprints first
-  const placed = plan.rooms.flatMap((room) => roomItemPlacements(room, baseZ, o));
+  if (!o._framed && fitFloor) {
+    const room = plan.rooms.find((r) => isFitRoom(fit, r));
+    if (room) {
+      if (fitFloor.pattern) faces.push(...floorPatternFaces(room, fitFloor, baseZ, o, slabHoles));
+      else {
+        const fo = { ...o, floorTexture: fitFloor.texture ?? null, ...(fitFloor.tint ? { floorboardTint: fitFloor.tint, marbleTint: fitFloor.tint } : {}) };
+        faces.push(...floorFinishFaces(room, fitFloor.style || 'floorboards', baseZ, fo, slabHoles));
+      }
+    }
+  }
+  // the fit-out room's fixed features (a fireplace, a radiator), authored from its floor
+  if (fit && Array.isArray(fit.faces) && plan.rooms.some((r) => isFitRoom(fit, r))) {
+    for (const f of fit.faces) faces.push({ ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + baseZ]) });
+  }
+  // the operator's placed items (rooms[i].items) claim their footprints first; a fit-out room's are its own
+  const placed = plan.rooms.flatMap((room) => roomItemPlacements(isFitRoom(fit, room) ? { ...room, items: fit.items || [] } : room, baseZ, o));
   if (o._objects && placed.length) o._objects.push({ source: 'item', baseZ, placed });   // the reader's collector, as above
   // populate each registered room with its archetype furniture (the open core is
   // split into its program zones so living/kitchen/dining each read as themselves).
@@ -1947,7 +2127,7 @@ export function structurizeFloorplan(input = {}, opts = {}) {
       }
       return out;
     };
-    plan.rooms.forEach((room, i) => faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i), doorWallsFor(i), windowWallsFor(i))));
+    plan.rooms.forEach((room, i) => { if (!isFitRoom(fit, room)) faces.push(...furnishRoom(room, baseZ, fo, doorEdgeFor(i), doorWallsFor(i), windowWallsFor(i))); });
   }
   // placed items render whether or not the room is furnished: a `type` bakes here, a `ref`
   // rides out as a placement record for the World to resolve (world-scene.js)
@@ -2538,7 +2718,7 @@ function chooseStairCore(plan, fp, { width, runLength, margin, t }) {
  * @returns {{ meru, levels:[{ index, role, baseZ, structure }], faces, footprint }}
  */
 export function structurizeHouse(input = {}, opts = {}) {
-  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input), opts.view);
+  const styled = opts._styled ? {} : houseStyleOpts(opts.style ?? input.style, houseStyleKey(input), opts.view, { finishes: (opts.finishes ?? input.finishes) === 'auto' });
   const o = { ...FLOORPLAN_DEFAULTS, light: makeLight({ direction: [0.34, 0.42, -0.84], ambient: 0.54, diffuse: 0.5 }), ...styled, ...opts, _styled: true };
   // tofu is a HIGH-CEILING modern read — raise the storey heights for that style (the meru
   // stacks the taller floors, stairs scale their rise to match) unless the caller set heights.
@@ -2691,6 +2871,7 @@ export function structurizeHouse(input = {}, opts = {}) {
         // the slab above); the per-level call's own exterior-cap is suppressed via _envelope.
         ceilings: (exterior && index === maxIndex) ? true : (r.ceilings ?? o.ceilings),
         ...(framedView ? { _framed: true } : {}),
+        ...(o.fitOut ? { _levelIndex: index } : {}),   // the storey a fit-out names (fitOutOf)
       },
     );
     faces.push(...s.faces);

@@ -18,11 +18,11 @@ import { auditLayered } from './station-loft.js';
 import { seatPanels, clipCells } from './seat-panels.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import * as dmath from '../../util/dmath.js';
+import { faceHex } from './face-hex.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = dmath.hypot(a[0], a[1], a[2]); return l > 1e-300 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 1]; };
-const FALLBACK = '#8a8f96';
 
 /** The seat shift: −(lowest z) when seating, else 0. */
 export function layeredSeat(mesh, seat = true) { if (!seat) return 0; let mn = Infinity; for (const v of mesh.vertices) if (v[2] < mn) mn = v[2]; return Number.isFinite(mn) ? -mn : 0; }
@@ -64,7 +64,7 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
   const groupOf = [];   // each face's palette group, for its surface
   mesh.faces.forEach((tri, i) => {
     const partName = mesh.provenance[tri[0]].part; const part = mesh.parts[partName]; const g = mesh.groups[i];
-    const hex = palette[g] || part?.tint || FALLBACK;
+    const hex = faceHex(palette, g, part);
     const corners = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; });
     const n = cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])); const l = dmath.hypot(n[0], n[1], n[2]);
     if (!(l > 1e-14)) return;   // a degenerate triangle has no face

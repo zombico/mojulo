@@ -19,6 +19,7 @@
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
 import { inferCity } from '../city/plan/card.js';
+import { trackCourse } from '../roads/track.js';
 import { designCity } from '../city/plan/design.js';
 import { cityPlanSvg } from '../city/plan/book-html.js';
 import { cubeOfWorld, intentReport, GENRES } from './intent.js';
@@ -104,7 +105,7 @@ function craftHtml(G, cid, kit, seed, stamp = () => '') {
   }).join('')}</div></div>`).join('');
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
-const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building' };
+const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building', roadway: 'roadway' };
 
 // the plates a world's parts are drawn as
 function castleAxon(c, paint, w = 1000, h = 700) {
@@ -134,6 +135,14 @@ function buildLevel(G, id) {
   if (R.city) {
     const d = designCity(inferCity(R.city.plan).recipe);
     return { R, laid: { stages: [{ node: 'city', section: 'city' }], order: ['city'] }, town: null, paint, walk: [{ node: 'city', section: 'city', svg: cityPlanSvg(d, { width: 460 }) }] };
+  }
+  // a roadway level: its course in plan, its line and its corners (the track's own map comes later)
+  if (R.roadway) {
+    const c = trackCourse({ form: R.roadway.form, course: R.roadway.course }), pts = c.alignment.stations({ fine: 6, coarse: 12 });
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0 || 1, h = Math.max(...ys) - y0 || 1, k = 280 / Math.max(w, h);
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${(10 + (p.x - x0) * k).toFixed(1)} ${(10 + (y0 + h - p.y) * k).toFixed(1)}`).join(' ') + (c.closed ? ' Z' : '');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(20 + w * k).toFixed(0)} ${(20 + h * k).toFixed(0)}" width="300"><path d="${d}" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
+    return { R, laid: { stages: [{ node: 'roadway', section: 'roadway' }], order: ['roadway'] }, town: null, paint, walk: [{ node: 'roadway', section: 'roadway', svg }] };
   }
   const laid = layLevel(R.level), st = structureStyle(R.style.kit, R.seed);
   const town = R.town ? designTown(st, R.seed, R.town) : null;
@@ -282,7 +291,7 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
     const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''} ${stamp(`level:${id}`)}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
-<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
+<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
   // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not

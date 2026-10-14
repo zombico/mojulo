@@ -22,5 +22,4 @@ For a MULTI-POSE SPRITE SHEET (idle/walk/jump per direction), skip the manual
 plumbing: `create_sprite_sheet` mints a director recipe whose frames become
 per-frame targets on the shared image-render handoff; `bake_sprite_sheet` then
 quantizes the accepted renders under one shared palette back onto the manifest
-as `baked.sprites`. `project_ref` binds the sheet as a game project's graphic
-art.
+as `baked.sprites`.

@@ -1,8 +1,8 @@
 /**
- * GET /api/sketches/[ref]/bible — serve a stored gameworld as its bible: the character bible when the world has a
- * character book, else the world bible. Resolved from the recipe on every read (nothing derived is stored), without
- * the colour plates (those need the optional Chromium worker and are drawn by the game book's door). `?download=1`
- * flips the Content-Disposition.
+ * GET /api/sketches/[ref]/bible[?book=world|characters] — serve a stored gameworld as its bible: the world bible (its
+ * map, its land, its civilizations' towns and castles, each level) by default, the character bible with
+ * `book=characters` when the world has a character book. Both are drawn from the recipe and kept in memory per
+ * revision (lib/sheet-cache.js), never stored. `?download=1` flips the Content-Disposition.
  *
  * A building (a house, kind 'floorplan', or a store, restaurant or mall) is served as its structure book (lib/graph/structure/book-html.js): the sheets, the
  * schedules and the checks read from the recipe, the row's World framed in its Walk tab. A downloaded book leaves the
@@ -19,6 +19,7 @@ import { structureBookHtml } from '@/lib/graph/structure/book-html';
 import { occupancyOf } from '@/lib/graph/structure/programs';
 import { cityBookHtml } from '@/lib/graph/city/plan/book-html';
 import { withSiteEdifices } from '@/lib/graph/city/plan/ref';
+import { cachedPage } from '@/lib/sheet-cache';
 
 export async function GET(request, { params }) {
   try {
@@ -42,8 +43,13 @@ export async function GET(request, { params }) {
       base = (sketch.title || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'city-plan';
     } else if (isGameworldKind(sketch.manifest?.kind)) {
       const world = gameworldOf(sketch.manifest);
-      html = world.characters ? characterBibleHtml(world) : gameworldBibleHtml(world);
-      base = (sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld';
+      const book = request.nextUrl.searchParams.get('book') ?? 'world';
+      if (book !== 'world' && book !== 'characters') return NextResponse.json({ error: "book is 'world' or 'characters'" }, { status: 400 });
+      if (book === 'characters' && !world.characters) {
+        return NextResponse.json({ eligible: false, reason: 'this world has no character book (characters: { direction, hero? })' }, { status: 422 });
+      }
+      html = await cachedPage(`bible:${ref}:${sketch.updatedAt}:${book}`, () => (book === 'characters' ? characterBibleHtml(world) : gameworldBibleHtml(world)));
+      base = `${(sketch.title || world.name || ref).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'gameworld'}${book === 'characters' ? '-characters' : ''}`;
     } else {
       return NextResponse.json({
         eligible: false,

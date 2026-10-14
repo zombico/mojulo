@@ -58,6 +58,17 @@ export const HOUSE_STYLES = {
       floorboardTint: ['#8f7d64', '#7f6d56', '#9e8c71'],
       finish: ['warm', 'honey'],
     },
+    finishes: {
+      doorStyle: ['plank', 'five-panel', 'two-panel'],
+      doorLeafTint: ['#e8e2d4', '#7d5a36', '#5d7a73'],
+      windowStyle: ['six-over-six', 'cottage', 'colonial', 'double-hung'],
+      windowFrameTint: [null],
+      livingFloor: [{ pattern: 'wide-plank', colours: ['#c29a64', '#9a7444'] }, { pattern: 'straight-plank', colours: ['#b08a5e', '#8a6a48'] }, { pattern: 'basketweave', colours: ['#b08a5e', '#8a6a48'] }],
+      bedroomFloor: [{ pattern: 'wide-plank', colours: ['#c29a64', '#9a7444'] }, { pattern: 'straight-plank', colours: ['#d2bc96', '#b49c76'] }],
+      wetFloor: [{ pattern: 'checkerboard', colours: ['#efeae0', '#3a4a42'] }, { pattern: 'hex-tile', colours: ['#efeae0', '#8a8f86', '#5d7a73'] }],
+      wallTreatment: ['beadboard', 'board-and-batten', 'wainscot'],
+      wallpaper: [{ pattern: 'botanical', colours: ['#efe6d6', '#5d7a5a', '#c99a6a'] }, { pattern: 'gingham', colours: ['#f2ede2', '#9fb4ad'] }, { pattern: 'scallop', colours: ['#f1ebdd', '#c99a96', '#9fb4ad'] }],
+    },
   },
   brick: {
     fixed: { facadeStyle: 'brick', interiorWallStyle: null },
@@ -70,6 +81,17 @@ export const HOUSE_STYLES = {
       wallPaints: [['#d5cabb', '#cabdac', '#d9cdbb', '#c8c2b4'], ['#cfc6b4', '#c4c9bd', '#d2c7b3', '#bfc3b8']],
       floorboardTint: ['#6f5d4b', '#604f3f', '#7a6851'],
       finish: ['walnut', 'forest'],
+    },
+    finishes: {
+      doorStyle: ['six-panel', 'two-panel', 'glazed'],
+      doorLeafTint: ['#2e3b55', '#5a3a24', '#e7e2d4'],
+      windowStyle: ['six-over-six', 'colonial', 'double-hung', 'casement'],
+      windowFrameTint: [null],
+      livingFloor: [{ pattern: 'herringbone', colours: ['#6b4a32', '#4a3020'] }, { pattern: 'straight-plank', colours: ['#b08a5e', '#8a6a48'] }, { pattern: 'herringbone', colours: ['#b08a5e', '#8a6a48'] }],
+      bedroomFloor: [{ pattern: 'straight-plank', colours: ['#6b4a32', '#4a3020'] }, { pattern: 'wide-plank', colours: ['#b08a5e', '#8a6a48'] }],
+      wetFloor: [{ pattern: 'checkerboard', colours: ['#efeae0', '#1f1f1f'] }, { pattern: 'hex-tile', colours: ['#f2f0ea', '#9a9a96', '#2e3b55'] }],
+      wallTreatment: ['wainscot', 'picture-frame'],
+      wallpaper: [{ pattern: 'damask', colours: ['#e8e0cf', '#7a5a3a', '#6b1e1e'] }, { pattern: 'stripe', colours: ['#e9e2d2', '#2f4b3a'] }, { pattern: 'trellis', colours: ['#efe8d8', '#2e3b55', '#b8913f'] }],
     },
   },
   modern: {
@@ -84,6 +106,18 @@ export const HOUSE_STYLES = {
       floorboardTint: ['#ae9c82', '#9c8c74', '#b9a88d'],
       finish: ['ash', 'ink'],
     },
+    finishes: {
+      doorStyle: ['flush', 'shaker', 'fluted'],
+      doorLeafTint: ['#e8e4dc', '#2b2b2b', '#b08a5e'],
+      windowStyle: ['crittall', 'picture', 'casement'],
+      windowFrameTint: ['#22252a', null],
+      livingFloor: [{ pattern: 'chevron', colours: ['#b08a5e', '#8a6a48'] }, { pattern: 'wide-plank', colours: ['#7a6450', '#5a4636'] }, { pattern: 'herringbone', colours: ['#d2bc96', '#b49c76'] }],
+      bedroomFloor: [{ pattern: 'wide-plank', colours: ['#b08a5e', '#8a6a48'] }, { pattern: 'straight-plank', colours: ['#d2bc96', '#b49c76'] }],
+      wetFloor: [{ pattern: 'terrazzo', colours: ['#e6e0d6', '#8c867c', '#b9876a'] }, { pattern: 'large-format', colours: ['#d9d6cf', '#a8a49c'] }],
+      wallTreatment: ['shiplap', 'picture-frame'],
+      wallpaper: [{ pattern: 'grasscloth', colours: ['#cfc4ae', '#a89a80'] }, { pattern: 'trellis', colours: ['#f2efe8', '#2b2b2b'] }, { pattern: 'pinstripe', colours: ['#efece6', '#7c7f5c'] }],
+      interiorWallStyle: [null],
+    },
   },
   tofu: {
     fixed: { facadeStyle: 'tofu', interiorWallStyle: 'paint' },
@@ -97,6 +131,18 @@ export const HOUSE_STYLES = {
       floorboardTint: ['#c2b298', '#cebea5', '#b6a48a'],
       finish: ['oat', 'sand'],
     },
+    finishes: {
+      doorStyle: ['flush', 'shaker'],
+      doorLeafTint: ['#efece6', '#d2bc96'],
+      windowStyle: ['picture', 'german', 'crittall'],
+      windowFrameTint: [null, '#22252a'],
+      livingFloor: [{ pattern: 'wide-plank', colours: ['#d2bc96', '#b49c76'] }, { pattern: 'straight-plank', colours: ['#d2bc96', '#b49c76'] }],
+      bedroomFloor: [{ pattern: 'wide-plank', colours: ['#d2bc96', '#b49c76'] }],
+      wetFloor: [{ pattern: 'large-format', colours: ['#e8e5de', '#b8b2a6'] }, { pattern: 'terrazzo', colours: ['#efece6', '#a39382', '#7c7f5c'] }],
+      wallTreatment: ['shiplap'],
+      wallpaper: [{ pattern: 'grasscloth', colours: ['#ded5c4', '#b8a99a'] }, { pattern: 'polka', colours: ['#f2efe8', '#b8a99a'] }],
+      interiorWallStyle: [null],
+    },
   },
   mission: {
     fixed: { facadeStyle: 'tofu', interiorWallStyle: 'paint', marbleTint: '#b5704f' },   // stucco, terracotta tile in the wet rooms
@@ -109,6 +155,18 @@ export const HOUSE_STYLES = {
       wallPaints: [['#e8d9bf', '#ead8c0', '#e2cfb2'], ['#efe3cc', '#e4d4b8', '#dcc8a8']],
       floorboardTint: ['#6c5646', '#5e4a3c'],
       finish: ['terracotta', 'indigo'],
+    },
+    finishes: {
+      doorStyle: ['plank', 'five-panel', 'glazed'],
+      doorLeafTint: ['#6b4a32', '#3a2a20'],
+      windowStyle: ['prairie', 'casement', 'french'],
+      windowFrameTint: [null, '#3a2a20'],
+      livingFloor: [{ pattern: 'straight-plank', colours: ['#6b4a32', '#4a3020'] }, { pattern: 'herringbone', colours: ['#6b4a32', '#4a3020'] }],
+      bedroomFloor: [{ pattern: 'wide-plank', colours: ['#7a6450', '#5a4636'] }],
+      wetFloor: [{ pattern: 'hex-tile', colours: ['#d9c9ae', '#7a5a3a', '#c66b3d'] }, { pattern: 'checkerboard', colours: ['#d9c9ae', '#8a4b36'] }],
+      wallTreatment: ['board-and-batten', 'wainscot'],
+      wallpaper: [{ pattern: 'trellis', colours: ['#e6dcc8', '#6b4a32', '#c66b3d'] }, { pattern: 'stripe', colours: ['#e2d6c0', '#8a4b36'] }],
+      interiorWallStyle: [null],
     },
   },
 };
@@ -125,8 +183,13 @@ export function houseStyleKey(input = {}) {
  * `style` (a family name, 'auto', or absent) → the finish knobs it supplies, plus the resolved
  * `styleName`. Absent ⇒ {} (the house is untouched). An unknown name fails loudly, naming the
  * families. `view` gates the roof: only the exterior view is roofed by a style.
+ *
+ * `finishes: true` (a house carrying `finishes: 'auto'`, stamped at mint since 3.1) draws the family's
+ * `finishes` knobs in the same roll, each from its own stream like every pick: its doors, the wider window
+ * list, the window frames, a floor per room kind, a wall treatment and a wallpaper (lib/graph/finishes/).
+ * A house without it draws exactly what it always did.
  */
-export function houseStyleOpts(style, key, view) {
+export function houseStyleOpts(style, key, view, { finishes = false } = {}) {
   if (style == null || style === false) return {};
   if (style !== 'auto' && !HOUSE_STYLES[style]) {
     throw new Error(`unknown house style '${style}' — styles: auto, ${HOUSE_STYLE_NAMES.join(', ')}`);
@@ -144,6 +207,7 @@ export function houseStyleOpts(style, key, view) {
     const v = pick(key, `${name}|${knob}`, list);
     out[knob] = knob === 'finish' ? FINISHES[v] : v;
   }
+  if (finishes && def.finishes) for (const [knob, list] of Object.entries(def.finishes)) out[knob] = pick(key, `${name}|${knob}`, list);
   out.furnishFinish = out.finish;
   delete out.finish;
   return out;
