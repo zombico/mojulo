@@ -13,6 +13,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Instruction manuals: a drawer slide on the inventory page
+
+- **The fittings row no longer falls off the page.** A drawer slide has no diameter and no head, so the inventory
+  read its glyph size as NaN, and every fitting after it in the row (a chest of drawers' confirmats and screws
+  included) was drawn at `y="NaN"` and clipped away. A slide is now drawn like any part longer than the page: both
+  ends at true scale, broken in the middle, its length written over the break. A fitting whose catalog entry still
+  can't be sized is drawn as a small not-to-scale sketch, like a joint's own piece, so one bad entry can't carry
+  down the row. The 10 mm check bar shows only when some fitting really is at 1:1.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
