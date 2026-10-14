@@ -77,12 +77,12 @@ describe('the bus contract', () => {
 });
 
 describe('the genre snipe rows', () => {
-  it('a sighting and the beat are web facts Godot does not feed yet; a guarded reaction it runs (since 0.19.0)', () => {
+  it('a sighting is a web fact Godot does not feed yet; the beat it feeds (since 0.22.0), a guarded reaction it runs (since 0.19.0)', () => {
     const c = composeMechanics([{ kind: 'laps', checkpoints: [{ at: [1, 0, 0] }, { at: [2, 0, 0] }] }, { kind: 'unseen' }, { kind: 'on-beat' }], { player: 'hero' });
     const { used, godot } = busCoverage(c.events);
     expect(used).toEqual(expect.arrayContaining(['fact:seen', 'fact:beat', 'effect:guarded']));
-    expect(godot.absent).toEqual(expect.arrayContaining(['fact:seen', 'fact:beat']));
-    expect(godot.built).toContain('effect:guarded');
+    expect(godot.absent).toEqual(['fact:seen']);
+    expect(godot.built).toEqual(expect.arrayContaining(['effect:guarded', 'fact:beat']));
     expect(used).not.toContain('fact:cast');
   });
 });

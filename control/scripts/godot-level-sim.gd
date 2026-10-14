@@ -28,7 +28,9 @@ func _process(_delta: float) -> void:
 		return
 	if not started:
 		started = true
-		get_node("/root/Game").start_level(String(sim["ref"]))
+		# a game pack starts the level through Game; a world pack's main scene is the level already
+		if get_node_or_null("/root/Game") != null:
+			get_node("/root/Game").start_level(String(sim["ref"]))
 		return
 	var lv = get_tree().current_scene
 	if lv == null or not ("sim_frame" in lv):

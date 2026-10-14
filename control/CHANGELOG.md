@@ -1198,6 +1198,13 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   Godot leg and the matrix, and fails without `MOJULO_GODOT`.
 - **The scoreboard.** `docs/tool-surface/hillclimb.md` gains a Godot section: the fixtures' lost lists, the ladders
   and the values that would free the most worlds.
+- **The beat travels** (kernel 0.22.0). A level's `audio.beat` rides `score.beat`, and the kernel says each beat on
+  the bus from its music player's clock as the page does from its AudioContext: one function, `beats/beat-clock.js`,
+  held equal at seeded jumpy clock readings, and an on-beat level is equal on its bus frame by frame. On-beat travels.
+  The web's `level-sim.js` keeps the beat too, and the harness's input frames press keys.
+- **The bus corpus plays every mechanic that travels** (`bus-conformance.js` `mechanic-<kind>`), held equal in Godot;
+  the ratchet asks for each by id. **The harness has planted bugs**: `godot-harness.js` `mutate` edits a copy of the
+  kernel, and each plant must break an equality.
 - **The honest baseline.** The sweep's Godot survivors fall from 56 to 8 of 500 (21 to 0 near the probes): the mind,
   the gaits, the story and the cameras were counted as travelling and do not. The walker's ground is a flat plane
   under a hilly trail (marked approximated, found by the matrix).

@@ -35,7 +35,7 @@ export const BUS_ABI = Object.freeze({
     stats: { about: 'the stats\' happenings: levelled, bought, denied, epoch, opened', web: B, godot: B, how: 'kernel/stats.gd, conformance-tested equal to the web\'s stats kernel' },
     menu: { about: 'a menu\'s pick or close (menu-pick:<menu>:<n>, menu-close:<menu>)', web: B, godot: B, how: 'level.gd: arrows or W / S, Enter / Space / E, Esc' },
     seen: { about: 'a character with sight newly sees its target (seen: what unseen ends on)', web: B, godot: A, how: 'the web mind counts sightings (perceive) and castFacts says them; Godot has no mind\'s perception yet' },
-    beat: { about: 'the music\'s beat, said early by its own clock (beat: what on-beat judges)', web: B, godot: A, how: 'the page reads the AudioContext against the soundtrack\'s bpm; Godot\'s player position is the twin' },
+    beat: { about: 'the music\'s beat, said early by its own clock (beat: what on-beat judges)', web: B, godot: B, how: 'kernel/level.gd _beat_tick from the music player\'s position and score.beat, the page\'s clock as one function (beats/beat-clock.js); equal on the bus at the harness\'s fixed step' },
   }),
   effects: Object.freeze({
     logic: { about: 'emit, set, inc, toggle, spawn, move on the bus\'s own entities and vars', web: B, godot: B, how: 'the reducer itself, conformance-tested equal' },

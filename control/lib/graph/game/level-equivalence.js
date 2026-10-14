@@ -82,7 +82,16 @@ export function faceGround(faces = []) {
 }
 
 export function levelSim(payload) {
-  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders }, { ground: faceGround(payload.faces) });
+  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders }, { ground: faceGround(payload.faces), beat: payload.audio?.beat || null });
+}
+
+// an input frame's `keys` ([the key as the page names it]) are what the page's key listener turns into bus events:
+// every events.inputs on 'key' bound to it (or to any key) emits, in the frame it was pressed (kernel/level.gd press_key)
+export function keyEvents(payload, keys = []) {
+  const inputs = (payload.events && payload.events.inputs) || [];
+  const out = [];
+  for (const key of keys) for (const i of inputs) if (i && i.on === 'key' && i.emit && (typeof i.key !== 'string' || i.key === '' || i.key === key)) out.push(JSON.parse(JSON.stringify(i.emit)));
+  return out;
 }
 
 // ── the key ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -152,12 +161,12 @@ export function steer(e, p) {
 
 const AXES = ['forward', 'strafe', 'turn', 'lookDX', 'lookDY', 'jump', 'jumpHeld', 'boost', 'fire', 'kneel'];
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
-/** An input as recorded: its axes rounded to 1e-4 (the JSON both engines read), zeros left out. */
-const clean = (inp) => Object.fromEntries(AXES.filter((k) => inp[k]).map((k) => [k, r4(inp[k])]).filter(([, v]) => v));
+/** An input as recorded: its axes rounded to 1e-4 (the JSON both engines read), zeros left out; its keys as pressed. */
+const clean = (inp) => ({ ...Object.fromEntries(AXES.filter((k) => inp[k]).map((k) => [k, r4(inp[k])]).filter(([, v]) => v)), ...(inp.keys && inp.keys.length ? { keys: inp.keys } : {}) });
 
 function setInput(sim, inp) {
   for (const k of AXES) sim.input[k] = 0;
-  Object.assign(sim.input, inp);
+  for (const k of AXES) if (inp[k] !== undefined) sim.input[k] = inp[k];
 }
 
 /** The waypoints the contract's audits name, in order: a walkto's via then its target; none for an idle. */
@@ -193,7 +202,7 @@ export function winScript(payload, { seconds = 120 } = {}) {
     const rec = clean(inp);
     setInput(sim, rec);
     const n0 = sim.bus.log.length;
-    sim.frame(SIM_DT);
+    sim.frame(SIM_DT, keyEvents(payload, rec.keys));
     frames.push(rec);
     keys.push(frameKey(sim, ids));
     outcome = outcomeIn(contract, sim.bus.log, n0);
@@ -210,7 +219,7 @@ export function playScript(payload, frames) {
   for (let i = 0; i < frames.length; i++) {
     setInput(sim, frames[i] || {});
     const n0 = sim.bus.log.length;
-    sim.frame(SIM_DT);
+    sim.frame(SIM_DT, keyEvents(payload, (frames[i] || {}).keys));
     keys.push(frameKey(sim, ids));
     const o = outcomeIn(contract, sim.bus.log, n0);
     if (o && !outcome) { outcome = o; at = i; }

@@ -4,7 +4,9 @@
  * timers and sagas run, the character intents it queued reach the world, then the world steps. For laws that play a
  * level through (a defence held, a race run) where the page would take minutes and a hidden tab barely ticks.
  *
- *   simLevel({ entities, events, colliders? }, { ground?, surface? }) → { world, bus, input, frame(dt, events?), run(seconds, at?) }
+ *   simLevel({ entities, events, colliders? }, { ground?, surface?, beat? }) → { world, bus, input, frame(dt, events?), run(seconds, at?) }
+ *     `beat`: { every, lead } (audio.beat): the music's pulse on the bus from the level's own clock, as the page says it
+ *     from its music's (beats/beat-clock.js); absent, no beat
  *     `at`: { <second>: [events] } pushed into the frame that reaches that time (an interact press: { type: 'use-<id>' })
  *     `input`: the pilot's held input every frame (set its fields: { fire: 1, … }), as the page's keys and mouse give it
  *
@@ -12,16 +14,18 @@
  */
 import { composeLive } from '../worlds/controllable/compose.js';
 import { buildBus } from '../worlds/event-bus.js';
+import { beatsDue } from '../beats/beat-clock.js';
 
 let E = null;
 const B = buildBus();
 
-export function simLevel({ entities = [], events = {}, colliders } = {}, { ground = () => 0, surface = null } = {}) {
+export function simLevel({ entities = [], events = {}, colliders } = {}, { ground = () => 0, surface = null, beat = null } = {}) {
   E ??= composeLive();
   const world = E.createWorld({ entities, ...(colliders ? { colliders } : {}) });
   const bus = B.createBusState(events, events.entities);
   const hooks = { ground, ...(surface ? { surface } : {}) };
   let zonePrev, castPrev, t = 0;
+  const pulse = beat && beat.every > 0 ? { n: 0 } : null;
   const input = {};
   const pump = (list) => {
     if (list.length) B.processEvents(bus, list);
@@ -30,7 +34,7 @@ export function simLevel({ entities = [], events = {}, colliders } = {}, { groun
   };
   pump(events.initial || []);
   const frame = (dt, extra = []) => {
-    const incoming = [...extra];
+    const incoming = [...extra, ...(pulse ? beatsDue(pulse, t + (beat.lead || 0), beat.every) : [])];
     const z = B.deriveZoneEvents(world.entities, zonePrev, events.sources); zonePrev = z.prev; incoming.push(...z.events);
     const c = E.castFacts(world, castPrev); castPrev = c.prev; incoming.push(...c.events);
     pump(incoming);

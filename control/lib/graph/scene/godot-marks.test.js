@@ -85,7 +85,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     for (const k of MECHANIC_KINDS) expect(marked(MECHANIC_MARKS[k]), k).toBe(true);
     // a mark comes from coverage, not from a list: each lost one names the bus row or shell part it lacks
     expect(MECHANIC_MARKS.unseen).toMatchObject({ godot: 'absent', rows: ['fact:seen'] });
-    expect(MECHANIC_MARKS['on-beat']).toMatchObject({ godot: 'absent', rows: ['fact:beat'] });
+    expect(MECHANIC_MARKS['on-beat'].godot).toBe('built');   // since the beat travels (II2)
     expect(MECHANIC_MARKS.push.rows).toContain('effect:entities');
     expect(MECHANIC_MARKS.supplies.rows).toContain('effect:rearm');
     expect(MECHANIC_MARKS.laps.godot).toBe('approximated');   // pure bus: only its kept best is the web's
@@ -184,11 +184,12 @@ const PROOF = {
   beam: [BUS_LEVEL, 'a headless Godot fires a beam and a chain'],
   storm: [BUS_LEVEL, 'a headless Godot eases to the forced storm'],
   matrix: [MATRIX, 'makes, exports, imports and plays every fixture'],
+  beat: ['lib/graph/scene/godot-beat.test.js', 'a headless Godot keeps the beat'],
 };
 const EVIDENCE = {
   bus: {
     'fact:zone': 'chapter', 'fact:use': 'chapter', 'fact:start': 'corpus', 'fact:timer': 'corpus', 'fact:input': 'key', 'fact:cast': 'cast',
-    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter',
+    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat',
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },

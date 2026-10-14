@@ -1037,6 +1037,42 @@ func _body_distance(target: Vector3) -> float:
 	return target.distance_to(Vector3(feet.x, y, feet.z))
 
 
+# THE BEAT (score.beat: { every, lead }, since 0.22.0): the music's pulse said on the bus as the page says it from its
+# AudioContext (beats/beat-clock.js beatsDue): at the music player's position plus lead, each beat not said yet, a
+# period-stale one passed over, four at most. No music playing, no beat. The harness passes its own clock (`at`, the
+# level's fixed step), the reading the web's level-sim takes too.
+var beat_n := 0
+func _beat_tick(at: float) -> void:
+	var b = score.get("beat")
+	if not (b is Dictionary) or bus == null or state != "playing":
+		return
+	var t := at
+	if t < 0.0:
+		var music: AudioStreamPlayer = get_node_or_null("Music")
+		if music == null or not music.playing:
+			return
+		t = music.get_playback_position() + AudioServer.get_time_since_last_mix()
+	t += float(b.get("lead", 0.0))
+	var every := float(b.get("every", 0.0))
+	if every <= 0.0:
+		return
+	var due := beats_due(beat_n, t, every)
+	bus_pending.append_array(due[0])
+	beat_n = int(due[1])
+
+
+# beats/beat-clock.js beatsDue, line for line: [events, the next beat] at clock reading t
+static func beats_due(n: int, t: float, every: float) -> Array:
+	var out: Array = []
+	var k := 0
+	while n * every <= t and k < 4:
+		k += 1
+		if t - n * every < every:
+			out.append({"type": "beat", "n": n})
+		n += 1
+	return [out, n]
+
+
 func _start_music() -> void:
 	if music_path == "":
 		return
@@ -1176,6 +1212,10 @@ func _process(delta: float) -> void:
 	var sim := sim_frame >= 0 and sim_frame < sim_frames.size()
 	if sim and walker != null:
 		walker.sim_input = sim_frames[sim_frame]
+	if sim and sim_frames[sim_frame] is Dictionary:
+		for k in (sim_frames[sim_frame] as Dictionary).get("keys", []):
+			press_key(String(k))
+	_beat_tick(float(sim_frame) * delta if sim else -1.0)
 	_play(delta)
 	if sim:
 		if state == "playing" and walker != null:

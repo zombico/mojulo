@@ -429,6 +429,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     soundtrack: levelSoundtrack(sketch, payload)?.id ?? null,
     // the level's action sounds and fight score (engine-sound.js): absent ⇒ no key, byte-identical
     ...(sound ? { audio: sound.score } : {}),
+    // the music's pulse on the bus (audio.beat: { every, lead }; beats/beat-clock.js), which kernel/level.gd says from
+    // its music player's clock as the page does from its AudioContext. Absent ⇒ no key.
+    ...(payload.audio?.beat && payload.audio.beat.every > 0 ? { beat: { every: payload.audio.beat.every, lead: payload.audio.beat.lead ?? 0 } } : {}),
     ledger,
   };
 }
