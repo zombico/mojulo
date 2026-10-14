@@ -70,6 +70,15 @@ The agent drives; the dashboard shows. Every affordance that wrote or handed the
   `create_game` alone). A game a world made links to the world's page; a project's shelf stays at `/games/<ref>`.
   `/arcade` and `/maker/games` redirect to it, and `create_pixelizer_game`'s `arcadeUrl` is `/play`.
 - `get_ui_map` describes the dashboard by these modes, the project page and its marks.
+- **Game projects retire** (`RETIRED_PACKS`' `pack_game_projects`): `create_game_project`, `get_game_project`,
+  `update_game_project`, `bind_to_game_project` and `list_game_projects` leave the tool surface. A game's home is its
+  gameworld (`design_game`, quick or full).
+  - The five tools stay registered and callable by name, so a stored project, a seed script or a plan step that names
+    one keeps working.
+  - `create_game`, `create_pixelizer_game` and `create_sprite_sheet` still take a legacy `project_ref`, described as
+    such. Pixelizer games and sprite sheets stay on the surface.
+  - The studio index, the game form, the pixel-art card and the tool-surface page no longer point at them.
+  - The flat `tools/list` payload pin falls from 208,700 to 203,000 bytes.
 
 ### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
 

@@ -35,7 +35,7 @@ export async function createPixelizerGameHandler(input) {
   if (projectRef !== undefined && projectRef !== null) {
     if (typeof projectRef !== 'string' || !projectRef) throw new Error('`project_ref` must be a non-empty gp_ ref if provided');
     if (!GameProjectRepository.getByRef(projectRef)) {
-      throw new Error(`Game project '${projectRef}' not found — create_game_project first, or list_game_projects to find it`);
+      throw new Error(`Game project '${projectRef}' not found (game projects are retired: leave project_ref out, or name one made before)`);
     }
   }
 
@@ -68,7 +68,7 @@ export function registerPixelizerGameTools() {
       + "landed as a `kind:'game'` sketch so it joins Play (`/play`) and plays at "
       + '`/api/sketches/<ref>/game`. No world / store / level audits. Pass `reducer` (a built reducer: '
       + PIXELIZER_REDUCER_IDS.join(' / ')
-      + ') + optional title/tagline/theme/music/register; `project_ref` binds it to a game project. Reach for '
+      + ') + optional title/tagline/theme/music/register. Reach for '
       + '"add brickster to the arcade", "mint the falling-blocks game".',
     inputSchema: {
       type: 'object',
@@ -80,7 +80,7 @@ export function registerPixelizerGameTools() {
         music: { type: 'boolean', description: 'Beats soundtrack + SFX. Default true.' },
         register: { type: 'string', enum: ['8bit', '16bit', '32bit'], description: "Optional era label; default the reducer's own." },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        project_ref: { type: 'string', description: "Optional gp_… ref: binds as the project's active rules member." },
+        project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the game to.' },
       },
       required: ['reducer'],
     },

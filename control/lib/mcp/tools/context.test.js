@@ -571,9 +571,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
     'design_game', 'tune_ground', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
-    // game projects (game-developer.plan.md GP1) — the project layer's tools
-    // live in the game form drawer beside the mint.
-    'create_game_project', 'get_game_project', 'update_game_project', 'bind_to_game_project', 'list_game_projects',
+    // game projects retired in 3.1.0 (RETIRED_PACKS): a game's home is its gameworld
   ];
 
   it('FORM_TOOLSETS keys are the shared CREATIVE_FORMS enum, in order (single source of truth)', () => {
@@ -841,10 +839,10 @@ describe('the one body (3.1.0): no office wing, no bot, every FORM and entry too
   ];
 
   it('routes to no retired office tool and no chatbot-factory tool, even for a retired office read', async () => {
-    const { RETIRED_OFFICE_TOOLS } = await import('@/lib/mcp/packs');
+    const { RETIRED_TOOLS } = await import('@/lib/mcp/packs');
     for (const mode of [undefined, 'office']) {
       const body = buildForwardContextBody({ mode });
-      for (const name of RETIRED_OFFICE_TOOLS) expect(body, name).not.toContain(`\`${name}\``);
+      for (const name of RETIRED_TOOLS) expect(body, name).not.toContain(`\`${name}\``);
       for (const name of REMOVED_BOT_TOOLS) expect(body, name).not.toContain(`\`${name}`);
       expect(body).not.toContain("forward_context({mode:'office'})");
     }

@@ -370,7 +370,9 @@ const DESCRIPTION_ALLOWLIST = {
 // line: pull_agent_task's optional `tiers` filter on top of the line's own additions. No new tool.
 // Re-pinned 2026-10-13 (208_300 -> 208_700; measured 208,401) for the merge of 1012-consolidate (the model tiering) into
 // the character line: update_character, tune_ground and pull_agent_task's `tiers` together. No new tool.
-const PAYLOAD_CEILING = 208_700;
+// Re-pinned 2026-10-14 (208_700 -> 203_000; measured 202,855) for UI on rails: the five game-project tools retired
+// (RETIRED_PACKS' pack_game_projects, still callable by name), and project_ref's descriptions cut to a legacy line.
+const PAYLOAD_CEILING = 203_000;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
