@@ -477,12 +477,12 @@ const figureLedger = (f) => (f.anime ? {
       note: `the anime face as blend shapes on the neutral head (the expression channels and the lid correctives; their names in the mesh extras); figure_face.gd restores the authored face on ready from the mesh extras (Godot ignores mesh.weights), each clip's face is a STEP blend-shape track (the eyes only ever at a drawn closure), and ${f.ambientOver?.length ? `face:ambientBlink is layered over ${f.ambientOver.map((c) => `'${c}'`).join(', ')} (the clips whose eyes hold the authored face) through an AnimationTree whose Blend2 passes only the eye shapes` : 'no clip takes the face-only ambient blink'}`,
     },
   } : {}),
-  figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
+  figure_normals: { note: 'the default export travels as its baked look, unlit, with no NORMAL; under --lit the skinned mesh carries smooth rest normals (area-weighted from its triangles, no TANGENT), so an engine light shades it' },
 } : {
   figure_skinned: {
     note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, each at its own length — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
   },
-  figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
+  figure_normals: { note: 'the default export travels as its baked look, unlit, with no NORMAL; under --lit the skinned mesh carries smooth rest normals (area-weighted from its triangles, no TANGENT), so an engine light shades it' },
 });
 
 // the designed durations, as a list: `idle 4 s, walk 1 s, …`

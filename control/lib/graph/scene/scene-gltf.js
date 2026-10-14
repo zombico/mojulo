@@ -117,6 +117,24 @@ const b64ToF32 = (s) => new Float32Array(b64ToBytes(s).buffer);
 const b64ToU16 = (s) => new Uint16Array(b64ToBytes(s).buffer);
 const b64ToU32 = (s) => new Uint32Array(b64ToBytes(s).buffer);
 
+// smooth vertex normals for an indexed mesh: each triangle's (area-weighted) normal summed into its corners, normalized;
+// a vertex no triangle touches points up the figure (+z, the rig's frame)
+function restNormals(pos, idx) {
+  const n = new Float32Array(pos.length);
+  for (let t = 0; t + 2 < idx.length; t += 3) {
+    const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+    const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2];
+    const vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (const k of [a, b, c]) { n[k] += nx; n[k + 1] += ny; n[k + 2] += nz; }
+  }
+  for (let i = 0; i < n.length; i += 3) {
+    const l = Math.hypot(n[i], n[i + 1], n[i + 2]);
+    if (l > 1e-12) { n[i] /= l; n[i + 1] /= l; n[i + 2] /= l; } else { n[i] = 0; n[i + 1] = 0; n[i + 2] = 1; }
+  }
+  return n;
+}
+
 // Decode one packed rig part (rig-bake.js) into GLB-ready arrays, with every vertex re-expressed
 // relative to the bone's REST HEAD — the runtime poses parts as M = T(head)·R(q)·T(-restHead)
 // (channels/controllable __syncRigEntity), which decomposes exactly into glTF node TRS once the
@@ -804,6 +822,9 @@ class GlbBuilder {
       JOINTS_0: this.jointAccessor(Uint16Array.from(jnt)),
       WEIGHTS_0: this.floatAccessor(Float32Array.from(wgt), 4),
       ...(uvs ? { TEXCOORD_0: this.floatAccessor(Float32Array.from(uvs), 2) } : {}),
+      // under the LIT handoff an engine light shades the figure: smooth normals from its rest triangles (area-weighted
+      // face normals summed per vertex); the default unlit export carries its baked look and stays byte-identical
+      ...(this.lit ? { NORMAL: this.floatAccessor(restNormals(positions, idx), 3) } : {}),
     };
     const IndexArr = vertices > 65535 ? Uint32Array : Uint16Array;
     const prim = { attributes, mode: MODE_TRIANGLES, material, indices: this.indexAccessor(IndexArr.from(idx)) };

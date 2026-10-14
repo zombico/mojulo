@@ -1282,7 +1282,8 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   plain studio sky. A blend tile (the two-tile vertex blend) leaves the GLB as the page draws it, faded in per corner
   (COLOR_0 RGBA under a BLEND material, a cut layer masked) instead of an opaque tile over the ground. The figures,
   the background, the tone and the pixel medium are built; the dome and the haze are approximated (hashed stars, an unphased moon, Godot's fog curve); the backdrop image stays the
-  web's. Machine-held by `godot-look.test.js`; how it looks is the eyes gate.
+  web's. Under `--lit` a skinned figure carries smooth rest normals, so an engine light shades it (the default unlit
+  export is byte-identical). Machine-held by `godot-look.test.js`; how it looks is the eyes gate.
 - **The export's ground is the page's.** The GLB de-collided its blend tiles together with the ground they lie on,
   lifting the ground itself a fraction of a millimetre where the page leaves it; blend faces now go last (the page
   draws them in their own pass), and `score.blendNodes` names their nodes so the kernel's land leaves them out. The

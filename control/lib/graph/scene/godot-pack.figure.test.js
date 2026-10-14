@@ -136,6 +136,12 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
     const j = glbJson(read('sk_gf_lit', 'model.glb'));
     expect(j.skins).toHaveLength(1);
     expect(j.materials.find((m) => m.name === 'fig:body')?.extensions?.KHR_materials_unlit).toBeUndefined();
+    // under --lit the skinned mesh carries smooth rest normals, one unit vector per vertex (the default export has none)
+    const skinPrim = j.meshes.flatMap((m) => m.primitives).find((p) => p.attributes.JOINTS_0 !== undefined);
+    expect(skinPrim.attributes.NORMAL).toBeDefined();
+    expect(j.accessors[skinPrim.attributes.NORMAL].count).toBe(j.accessors[skinPrim.attributes.POSITION].count);
+    const unlitPrim = glbJson(read('sk_gf_hero', 'model.glb')).meshes.flatMap((m) => m.primitives).find((p) => p.attributes.JOINTS_0 !== undefined);
+    expect(unlitPrim.attributes.NORMAL).toBeUndefined();
     expect(pack.figure?.clip).toBe('idle');
     for (const f of ['model.glb.import', 'figure.gd']) expect(existsSync(path.join(outDir('sk_gf_lit'), f)), f).toBe(true);
   }, 60000);
