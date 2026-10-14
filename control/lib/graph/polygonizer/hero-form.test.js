@@ -219,3 +219,15 @@ describe('every move on every hero cast in every register closes at rest and at 
     expect(heroPlan({ cast: 'male' }).frame.note).not.toMatch(/tune/);
   });
 });
+
+describe('tune armLength', () => {
+  it('shortens the upper arm and forearm alone; 1 is the cast as it was', () => {
+    const base = heroPlan({ cast: 'male' }), one = heroPlan({ cast: 'male', tune: { armLength: 1 } });
+    expect(one).toEqual(base);
+    const J = (p) => p.joints, d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+    const short = heroPlan({ cast: 'male', tune: { armLength: 0.9 } });
+    const arm = (p) => d(J(p).shoulder, J(p).elbow) + d(J(p).elbow, J(p).wrist), leg = (p) => d(J(p).hip, J(p).knee) + d(J(p).knee, J(p).ankle);   // the plan's joints: the right side, authored
+    expect(arm(short) / arm(base)).toBeGreaterThan(0.88); expect(arm(short) / arm(base)).toBeLessThan(0.92);
+    expect(leg(short)).toBeCloseTo(leg(base), 9);
+  });
+});
