@@ -87,7 +87,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(MECHANIC_MARKS.unseen).toMatchObject({ godot: 'absent', rows: ['fact:seen'] });
     expect(MECHANIC_MARKS['on-beat'].godot).toBe('built');   // since the beat travels (II2)
     expect(MECHANIC_MARKS.push.rows).toContain('effect:entities');
-    expect(MECHANIC_MARKS.supplies.rows).toContain('effect:rearm');
+    expect(MECHANIC_MARKS.supplies.rows).toContain('effect:entities');   // its drops are markers; its rearm travels (II3)
     expect(MECHANIC_MARKS.laps.godot).toBe('approximated');   // pure bus: only its kept best is the web's
     expect(MECHANIC_MARKS.score.godot).toBe('approximated');
     expect(GODOT_MECHANICS).toEqual(MECHANIC_KINDS.filter((k) => MECHANIC_MARKS[k].godot !== 'absent'));
@@ -185,11 +185,12 @@ const PROOF = {
   storm: [BUS_LEVEL, 'a headless Godot eases to the forced storm'],
   matrix: [MATRIX, 'makes, exports, imports and plays every fixture'],
   beat: ['lib/graph/scene/godot-beat.test.js', 'a headless Godot keeps the beat'],
+  combat: ['lib/graph/scene/combat-conformance.test.js', 'the Godot kernel is equal to the web, frame by frame'],
 };
 const EVIDENCE = {
   bus: {
     'fact:zone': 'chapter', 'fact:use': 'chapter', 'fact:start': 'corpus', 'fact:timer': 'corpus', 'fact:input': 'key', 'fact:cast': 'cast',
-    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat',
+    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat', 'effect:rearm': 'combat',
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },

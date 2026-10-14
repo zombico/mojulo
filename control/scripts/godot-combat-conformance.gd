@@ -45,7 +45,7 @@ static func _nano(x) -> float:
 	return floor(float(x) * 1e9 + 0.5) / 1e9
 
 
-const WEAPON_STATE := ["ammo", "cooldownT", "reloading", "reloadT", "burstLeft", "shots", "prevFire", "charging", "chargeT", "chargeReady", "energy", "energyLock"]
+const WEAPON_STATE := ["ammo", "reserve", "cooldownT", "reloading", "reloadT", "burstLeft", "shots", "prevFire", "charging", "chargeT", "chargeReady", "energy", "energyLock"]
 
 
 func _snapshot(st: Dictionary, K, ids: Array, events: Array) -> String:

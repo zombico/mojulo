@@ -124,6 +124,16 @@ func ops(st: Dictionary, list: Array) -> void:
 					continue
 				var mx: float = e.get("hpMax", e["hp"])
 				e["hp"] = minf(mx, e["hp"] + float(o["by"])) if Bus.finite(o.get("by")) else mx
+			"rearm":
+				# rounds for the weapon in its hand (since 0.22.0, worlds/controllable/cast.js): `by` more in its reserve, or
+				# with no reserve or no by, the magazine full
+				var w = e.get("weapon")
+				if e["downed"] or not (w is Dictionary):
+					continue
+				if w.get("reserve") != null and Bus.finite(o.get("by")):
+					w["reserve"] = float(w["reserve"]) + maxf(0.0, float(o["by"]))
+				else:
+					w["ammo"] = w["magazine"]; w["reloading"] = false; w["reloadT"] = 0.0
 			"walk":
 				if e["downed"] or e["gone"] or not (o.get("points") is Array) or (o["points"] as Array).is_empty():
 					continue

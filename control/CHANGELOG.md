@@ -1202,6 +1202,11 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   the bus from its music player's clock as the page does from its AudioContext: one function, `beats/beat-clock.js`,
   held equal at seeded jumpy clock readings, and an on-beat level is equal on its bus frame by frame. On-beat travels.
   The web's `level-sim.js` keeps the beat too, and the harness's input frames press keys.
+- **Rounds and their reserve travel** (kernel 0.22.0): `kernel/cast.gd` performs `rearm` and `kernel/combat.gd`'s
+  reload draws from the weapon's reserve, dry when both are out, held equal by the combat corpus.
+- **Planted bugs are a standing test** (`godot-plants.test.js`): mutants per kernel script (a flipped comparison, a
+  reserved key dropped, a timer a tick late, a reserve ignored …), each of which must make its corpus fail. Three
+  found holes in the corpus (an emit carrying reserved words, a heal past hpMax, a level past its max), now closed.
 - **The bus corpus plays every mechanic that travels** (`bus-conformance.js` `mechanic-<kind>`), held equal in Godot;
   the ratchet asks for each by id. **The harness has planted bugs**: `godot-harness.js` `mutate` edits a copy of the
   kernel, and each plant must break an equality.

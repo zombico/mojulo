@@ -31,12 +31,19 @@ export function firstDifference(a, b) {
   return { at: i, web: a.slice(Math.max(0, i - 60), i + 80), godot: b.slice(Math.max(0, i - 60), i + 80) };
 }
 
-export function runGodotBus(scenarios, godot) {
+// `mutate`: [{ file, from, to }] plants a bug in this run's copy of the kernel (godot-plants.test.js); a plant that
+// no longer applies throws
+export function runGodotBus(scenarios, godot, { mutate = [] } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'mojulo-bus-'));
   try {
     mkdirSync(path.join(dir, 'kernel'));
     writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="bus-conformance"\n');
     for (const f of ['bus.gd', 'json_exact.gd', 'store.gd', 'stats.gd']) copyFileSync(path.join(CONTROL, 'lib/graph/scene/godot-kernel', f), path.join(dir, 'kernel', f));
+    for (const { file, from, to } of mutate) {
+      const p = path.join(dir, 'kernel', file), src = readFileSync(p, 'utf8');
+      if (!src.includes(from)) throw new Error(`plant does not apply: kernel/${file} has no '${from}'`);
+      writeFileSync(p, src.replace(from, to));
+    }
     copyFileSync(path.join(HERE, 'godot-bus-conformance.gd'), path.join(dir, 'conformance.gd'));
     const inFile = path.join(dir, 'corpus.json'), outFile = path.join(dir, 'out.json');
     writeFileSync(inFile, JSON.stringify(scenarios));

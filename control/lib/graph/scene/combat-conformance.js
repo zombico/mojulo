@@ -86,6 +86,15 @@ export const SCENARIOS = [
     frames: frames(press(), idle(20), press(), idle(20), [10, { turn: 1 }], press(), idle(20), press(), idle(20), press(), idle(20), press(), idle(20), [20, { turn: -1 }], press(), idle(20), press(), idle(60)),
   },
   {
+    id: 'reserve-and-rearm',
+    about: 'a reserve the reloads draw from runs dry and the weapon stops; a rearm by n adds to the reserve, a rearm with no by fills the magazine; a heal is held to hpMax',
+    entities: [gunner({ fireClass: 'sight', damage: 1, cooldown: 0.1, magazine: 3, reserve: 4, reload: 0.3, eye: 0, range: 40 }), foe('a', [6, 0, 0], { hp: 500 })],
+    // a pull every 0.15 s: 20 pulls run the 3 + 4 rounds dry; the rearm by 5 (frame 125) reloads again; the full
+    // magazine (frame 215) fires without a reload
+    // and a heal far past the body's hp is held to its hpMax (frame 300)
+    frames: withOps(withOps(withOps(frames(...Array.from({ length: 20 }, () => [press(), idle(7)]).flat(), ...Array.from({ length: 10 }, () => [press(), idle(7)]).flat(), ...Array.from({ length: 10 }, () => [press(), idle(7)]).flat(), idle(20)), 125, [{ op: 'rearm', who: 'hero', by: 5 }]), 215, [{ op: 'rearm', who: 'hero' }]), 300, [{ op: 'heal', who: 'a', by: 1000 }]),
+  },
+  {
     id: 'auto-and-assist',
     about: 'an automatic streams while held, its assist ring catches a body just off the line, and the cooldown paces the rounds',
     entities: [gunner({ fireClass: 'area', rof: 9, damage: 1, magazine: 12, reload: 0.5, eye: 0, assistAngle: 9 }), foe('off', [5, 0.5, 0], { hp: 50, radius: 0.2 }), foe('egg', [7, -0.9, 0], { hp: 50, radius: undefined, egg: { a: 0.4, c: 1, cz: 0 } })],
@@ -194,7 +203,7 @@ function canon(v) {
 }
 
 const nano = (x) => Math.floor(x * 1e9 + 0.5) / 1e9;
-const WEAPON_STATE = ['ammo', 'cooldownT', 'reloading', 'reloadT', 'burstLeft', 'shots', 'prevFire', 'charging', 'chargeT', 'chargeReady', 'energy', 'energyLock'];
+const WEAPON_STATE = ['ammo', 'reserve', 'cooldownT', 'reloading', 'reloadT', 'burstLeft', 'shots', 'prevFire', 'charging', 'chargeT', 'chargeReady', 'energy', 'energyLock'];
 
 function snapshot(world, ids, events) {
   const h = world.byId.hero;

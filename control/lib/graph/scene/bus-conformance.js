@@ -196,6 +196,8 @@ const statsRun = () => ({
     { events: [{ type: 'sober' }, { type: 'hit' }, { type: 'ding' }, { type: 'buy-train' }, { type: 'buy-train' }, { type: 'buy-train' }] },
     // might past its soft cap (the curve's default slope), and strength held at its max
     { events: [{ type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'hit' }] },
+    // the level held at its max (10): ten dings past it level no further (a hole the planted-bug test found)
+    { events: Array.from({ length: 12 }, () => ({ type: 'ding' })) },
   ],
 });
 /** Seeded runs over the stats play: random events per frame, so the transactions meet in orders no hand wrote. */
@@ -338,7 +340,26 @@ const GUARDED = {
   ],
 };
 
-export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED];
+// an emit carries its own fields onto the event, never the verb's reserved words (do, var, by, if, target, to …): a
+// reaction that reads them back off the event finds nothing (a hole the planted-bug test found: no scenario emitted one)
+const RESERVED = {
+  id: 'reserved',
+  about: 'an emit with reserved words beside its own fields: only its own reach the event',
+  config: {
+    reactions: [
+      { on: 'go', do: 'emit', type: 'went', by: 3, var: 'q', to: 9, target: 'bot', at: [1, 2, 3], gain: 2, mine: 7 },
+      { on: 'went', do: 'set', var: 'by', to: 'event.by' },
+      { on: 'went', do: 'set', var: 'to', to: 'event.to' },
+      { on: 'went', do: 'set', var: 'target', to: 'event.target' },
+      { on: 'went', do: 'set', var: 'at', to: 'event.at' },
+      { on: 'went', do: 'set', var: 'mine', to: 'event.mine' },
+    ],
+  },
+  entities: [],
+  frames: [{ events: [{ type: 'go' }] }],
+};
+
+export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED, RESERVED];
 
 // ── seeded scenarios over a small vocabulary ──────────────────────────────────────────────────────────────────────
 export function randomScenarios(n = 24, seed = 7) {

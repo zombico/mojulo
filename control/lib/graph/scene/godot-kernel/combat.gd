@@ -433,16 +433,26 @@ static func tick_weapon(w: Dictionary, dt: float) -> void:
 		if Bus.truthy(w["energyLock"]) and float(w["energy"]) >= float(w["energyMax"]) * maxf(0.0, minf(1.0, float(w["energyUnlockFrac"]))):
 			w["energy"] = minf(float(w["energyMax"]), float(w["energy"]))
 			w["energyLock"] = false
-	if float(w["ammo"]) <= 0.0 and not Bus.truthy(w["reloading"]):
+	if float(w["ammo"]) <= 0.0 and not Bus.truthy(w["reloading"]) and not dry(w):
 		w["reloading"] = true
 		w["reloadT"] = float(w["reload"])
 		w["burstLeft"] = 0
 	if Bus.truthy(w["reloading"]):
 		w["reloadT"] = float(w["reloadT"]) - dt
 		if float(w["reloadT"]) <= 0.0:
-			w["ammo"] = w["magazine"]
+			# a reload draws from the reserve (since 0.22.0, combat-ranged.js): all of it when it is less than a magazine;
+			# no reserve (null) is the endless reload it always was
+			var take: float = float(w["magazine"]) if w.get("reserve") == null else minf(float(w["magazine"]), float(w["reserve"]))
+			w["ammo"] = take
 			w["reloading"] = false
 			w["reloadT"] = 0.0
+			if w.get("reserve") != null:
+				w["reserve"] = float(w["reserve"]) - take
+
+
+# out of rounds in the magazine and the reserve both: the weapon is dry and does not reload (the web's reserve !== 0)
+static func dry(w: Dictionary) -> bool:
+	return w.get("reserve") != null and float(w["reserve"]) == 0.0
 
 
 static func _cancel_charge(w: Dictionary) -> void:
@@ -506,7 +516,7 @@ func step_weapon(e: Dictionary, input: Dictionary, dt: float, st: Dictionary) ->
 	var want: bool = energy_ready and float(w["ammo"]) > 0.0 and float(w["cooldownT"]) <= 0.0 and (forced or (fire_held if Bus.truthy(w["auto"]) else float(w["burstLeft"]) > 0.0))
 	if want:
 		_shoot(e, w, st, charged, forced, impact, shot_range, damage)
-	if float(w["ammo"]) <= 0.0 and not Bus.truthy(w["reloading"]):
+	if float(w["ammo"]) <= 0.0 and not Bus.truthy(w["reloading"]) and not dry(w):
 		w["reloading"] = true
 		w["reloadT"] = float(w["reload"])
 
