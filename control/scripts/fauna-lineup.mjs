@@ -11,7 +11,8 @@
  *   node scripts/fauna-lineup.mjs --out <dir> [<species|family> ...]   one sheet per family (rows of five), or per species
  *   node scripts/fauna-lineup.mjs --out <dir> --one cats lion tiger     every named row on one sheet, cats.png
  *   node scripts/fauna-lineup.mjs --measure [<species|family> ...]       the readout only (no names: every species)
- *   options: --parts (each face coloured by its part, to tell which part makes a lump), --size 300 (a view's pixels)
+ *   options: --parts (each face coloured by its part, to tell which part makes a lump), --head (each view cropped to the
+ *            head: the skull, jaw, eyes, ears and nose), --size 300 (a view's pixels)
  * Orthographic, each view fitted to its own frame: compare proportions within a row, not sizes between rows.
  */
 import fs from 'node:fs';
@@ -20,7 +21,7 @@ import { parseArgs } from 'node:util';
 import { register } from 'node:module';
 
 const { values: args, positionals: names } = parseArgs({ allowPositionals: true, options: {
-  out: { type: 'string' }, one: { type: 'string' }, measure: { type: 'boolean' }, parts: { type: 'boolean' }, size: { type: 'string', default: '300' },
+  out: { type: 'string' }, one: { type: 'string' }, measure: { type: 'boolean' }, parts: { type: 'boolean' }, head: { type: 'boolean' }, size: { type: 'string', default: '300' },
 } });
 if (!args.out && !args.measure) { console.error('need --out <dir> (sheets) or --measure (the readout)'); process.exit(1); }
 
@@ -63,11 +64,11 @@ const hex = (h) => { h = h.replace('#', ''); if (h.length === 3) h = [...h].map(
 const hashColour = (s) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return [90 + (h % 140), 80 + ((h >> 8) % 140), 80 + ((h >> 16) % 140)]; };
 const colourOf = (g, pal) => (typeof pal[g] === 'string' && pal[g].startsWith('#') ? hex(pal[g]) : hashColour(g));
 
-function view(mesh, groupOf, pal, [az, el]) {
+function view(mesh, groupOf, pal, [az, el], frameIdx = null) {
   const a = az * Math.PI / 180, e = el * Math.PI / 180;
   const eye = [Math.sin(a) * Math.cos(e), -Math.cos(a) * Math.cos(e), Math.sin(e)];
   const right = unit(cross([0, 0, 1], eye)), up = cross(eye, right);
-  const V = mesh.vertices.map((v) => [dot(v, right), dot(v, up), dot(v, eye)]), b = box(V);
+  const V = mesh.vertices.map((v) => [dot(v, right), dot(v, up), dot(v, eye)]), b = box(frameIdx ? frameIdx.map((i) => V[i]) : V);
   const k = (S * 0.9) / Math.max(b.hi[0] - b.lo[0], b.hi[1] - b.lo[1]), ox = S / 2 - k * (b.lo[0] + b.hi[0]) / 2, oy = S / 2 + k * (b.lo[1] + b.hi[1]) / 2;
   const P = V.map((p) => [ox + p[0] * k, oy - p[1] * k, p[2]]);
   const img = new Uint8Array(S * S * 3).fill(238), zb = new Float32Array(S * S).fill(-Infinity), light = unit([0.4, -0.3, 0.85]);
@@ -96,7 +97,9 @@ async function sheet(ids, file) {
     const plan = speciesPlan(id), mesh = meshOf(id);
     const pal = Object.assign({}, ...(plan.heads || []).map((h) => h.plan?.palette || {}), plan.palette || {});
     const groupOf = args.parts ? (i) => mesh.faceIds[i].split('/')[0].replace(/[LR]$/, '') : (i) => mesh.groups[i];
-    VIEWS.forEach((v, col) => { const img = view(mesh, groupOf, args.parts ? {} : pal, v);
+    // --head: frame each view on the head's own vertices (the faces of the skull, jaw, eyes, ears, nose)
+    const frameIdx = args.head ? [...new Set(mesh.faces.flatMap((f, i) => (/^(cranium|jaw|head|eye|catch|brow|lid|orbit|ear|nose|nostril|whisker)/i.test(mesh.faceIds[i]) ? f : [])))] : null;
+    VIEWS.forEach((v, col) => { const img = view(mesh, groupOf, args.parts ? {} : pal, v, frameIdx?.length ? frameIdx : null);
       for (let y = 0; y < S; y++) buf.set(img.subarray(y * S * 3, (y + 1) * S * 3), ((row * S + y) * W + col * S) * 3); });
     labels.push(`<text x="6" y="${row * S + 18}" font-size="16" font-family="sans-serif" fill="#222">${id}</text>`);
   });

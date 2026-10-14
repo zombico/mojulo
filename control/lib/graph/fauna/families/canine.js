@@ -157,7 +157,7 @@ export const species = {
     tip: [[0, -1.09, 0.465, 0.09], [0, -1.16, 0.45, 0.065], [0, -1.21, 0.44, 0.03]],
     tipCaps: { back: [0, -1.06, 0.47], tip: [0, -1.24, 0.435] },
     headScale: 1.25, muzzleW: 0.78, muzzleLen: 1.15,
-    earH: 0.85, earR: [0.05, 0.046, 0.028, 0.008],
+    earH: 0.68, earR: [0.05, 0.046, 0.028, 0.008],
     bulk: 0.9, legBulk: 0.8, tailBush: 1.2,
   },
   // COYOTE (Canis latrans). Thesis: a smaller, LEANER wolf on long slender legs, a narrow chest · a narrow POINTED
@@ -186,7 +186,7 @@ export const species = {
     tipCaps: { back: [0, -0.70, 0.38], tip: [0, -0.705, 0.15] },
     legScale: 1.1,
     headScale: 1.3, muzzleW: 0.82, muzzleLen: 1.12,
-    earH: 0.95, earR: [0.054, 0.05, 0.03, 0.008],
+    earH: 0.78, earR: [0.054, 0.05, 0.03, 0.008],
     bulk: 0.95, legBulk: 1.0, tailBush: 1.2,
   },
   // SPOTTED HYENA (Crocuta crocuta). Thesis: the SLOPING BACK: high heavy shoulders and a thick neck, the back falling

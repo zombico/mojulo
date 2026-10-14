@@ -127,7 +127,7 @@ export const species = {
   // Authored in the family's beaver-size units, `scale` 0.36 brings it to size.
   squirrel: {
     family: 'rodent', name: 'an eastern grey squirrel', scale: 0.36,
-    colors: { coat: '#85837d', sock: '#76736c', ash: '#b9b5ab', ashAlt: '#a9a59b', ears: '#8a8680', belly: '#e6e2d8',
+    colors: { coat: '#85837d', sclera: '#120d0a', iris: '#120d0a', sock: '#76736c', ash: '#b9b5ab', ashAlt: '#a9a59b', ears: '#8a8680', belly: '#e6e2d8',
       mane: '#8f8b84', tip: '#cfcac0', snout: '#8a877f', teeth: '#d9b46a', brow: '#5e5a54', mouth: '#5e5a54' },
     joints: {
       neckBase: [0, 0.17, 0.26], neckTop: [0, 0.25, 0.34],
@@ -155,7 +155,7 @@ export const species = {
       ['hindPawR', 'hindPaw', 'hindToe', [0.018, 0.012], [0.02, 0.008], 'Sock', [0.5, 0.4], null, { up: [0, 0, 1] }],
     ],
     headScale: 0.6, muzzleLen: 0.55, muzzleW: 1.1,
-    headRelative: 0.52, eyeAt: [2.3, 2.2], eyeR: 0.03, nose: false, headOrnaments: [], headPitch: 8,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.2], eyeR: 0.026, irisAngle: 64, eyeStyle: 'set', nose: false, headOrnaments: [], headPitch: 8,
     earAt: [1.2, 1.5], earH: 0.5, earR: [0.046, 0.048, 0.04, 0.024],
     extraSegments: [
       // the bushy tail: out of the rump, back and up, over the back, its tip curling back (an S)
@@ -173,7 +173,7 @@ export const species = {
     eyeStyle: 'set',
     family: 'rodent', name: 'a house mouse', scale: 0.094,
     colors: { coat: '#7d7368', sock: '#d9a9a0', ash: '#b3a99c', ashAlt: '#a39a8d', ears: '#c99a92', belly: '#cfc6b8',
-      mane: '#d4a49b', tip: '#c99a92', snout: '#7d7368', teeth: '#e8d6a8', brow: '#5e554b', mouth: '#5e554b', nose: '#d08f8a', iris: '#050404', sclera: '#050404' },
+      mane: '#d4a49b', tip: '#c99a92', snout: '#7d7368', teeth: '#e8d6a8', brow: '#5e554b', mouth: '#5e554b', nose: '#d08f8a', iris: '#050404', sclera: '#7d7368' },
     joints: {
       neckBase: [0, 0.17, 0.20], neckTop: [0, 0.26, 0.24],
       shoulder: [0.08, 0.12, 0.16], elbow: [0.09, 0.08, 0.09], carpus: [0.085, 0.14, 0.035], forePaw: [0.085, 0.145, 0.012], foreToe: [0.085, 0.20, 0.008],
@@ -201,7 +201,7 @@ export const species = {
     ],
     // a big head for the body, the muzzle drawn out narrow and pointed
     headScale: 0.62, muzzleLen: 1.05, muzzleW: 0.8,
-    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.2], eyeR: 0.034, nose: false, headOrnaments: [], headPitch: 2,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.2], eyeR: 0.034, irisAngle: 64, nose: false, headOrnaments: [], headPitch: 2,
     // the ears: big, round, thin, standing up and out off the back of the crown
     earAt: [1.0, 1.9], earSpine: [[0, 0, -0.012], [0, -0.01, 0.03], [0, -0.03, 0.07], [0, -0.05, 0.11], [0, -0.06, 0.14]], earH: 0.8, earR: [0.05, 0.10, 0.12, 0.10], earSquash: [1, 0.2],
     extraSegments: [
@@ -220,7 +220,7 @@ export const species = {
     eyeStyle: 'set',
     family: 'rodent', name: 'a brown rat', scale: 0.227,
     colors: { coat: '#6e5d4a', sock: '#c99e95', ash: '#a39582', ashAlt: '#948671', ears: '#b48c84', belly: '#b9b1a3',
-      mane: '#a88c86', tip: '#9a7f79', snout: '#6e5d4a', teeth: '#e0b85a', brow: '#4c3f31', mouth: '#4c3f31', nose: '#c08a86', iris: '#050404', sclera: '#050404' },
+      mane: '#a88c86', tip: '#9a7f79', snout: '#6e5d4a', teeth: '#e0b85a', brow: '#4c3f31', mouth: '#4c3f31', nose: '#c08a86', iris: '#050404', sclera: '#6e5d4a' },
     joints: {
       neckBase: [0, 0.22, 0.20], neckTop: [0, 0.31, 0.235],
       shoulder: [0.08, 0.15, 0.16], elbow: [0.09, 0.11, 0.09], carpus: [0.085, 0.17, 0.035], forePaw: [0.085, 0.175, 0.012], foreToe: [0.085, 0.23, 0.008],
@@ -248,7 +248,7 @@ export const species = {
     ],
     // a long head, the muzzle long and blunt-tipped
     headScale: 0.56, muzzleLen: 1.2, muzzleW: 0.95,
-    headRelative: 0.52, relBrow: true, eyeAt: [2.4, 2.2], eyeR: 0.026, nose: false, headOrnaments: [], headPitch: 0,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.4, 2.2], eyeR: 0.026, irisAngle: 64, nose: false, headOrnaments: [], headPitch: 0,
     // the ears: smaller than the mouse's, rounded, set low and back
     earAt: [0.9, 1.9], earSpine: [[0, 0, -0.012], [0, -0.01, 0.03], [0, -0.025, 0.065], [0, -0.04, 0.10], [0, -0.05, 0.12]], earH: 0.6, earR: [0.045, 0.075, 0.08, 0.06], earSquash: [1, 0.22],
     extraSegments: [
@@ -265,7 +265,7 @@ export const species = {
     eyeStyle: 'set',
     family: 'rodent', name: 'a Syrian hamster', scale: 0.19,
     colors: { coat: '#c58a4c', sock: '#e8c9b6', ash: '#e9dcc6', ashAlt: '#dccdb4', ears: '#c99a8a', belly: '#f1e8d8',
-      mane: '#c58a4c', tip: '#e8c9b6', snout: '#d9a56c', teeth: '#e8d6a8', brow: '#8a5a30', mouth: '#6a4428', nose: '#c88f8a', iris: '#050404', sclera: '#050404' },
+      mane: '#c58a4c', tip: '#e8c9b6', snout: '#d9a56c', teeth: '#e8d6a8', brow: '#8a5a30', mouth: '#6a4428', nose: '#c88f8a', iris: '#050404', sclera: '#c58a4c' },
     joints: {
       neckBase: [0, 0.14, 0.25], neckTop: [0, 0.23, 0.31],
       shoulder: [0.10, 0.10, 0.14], elbow: [0.11, 0.08, 0.08], carpus: [0.105, 0.13, 0.03], forePaw: [0.105, 0.135, 0.012], foreToe: [0.105, 0.18, 0.008],
@@ -294,7 +294,7 @@ export const species = {
     ],
     // a big round head, the muzzle short and blunt, the cheeks puffed wide (the pouches)
     headScale: 0.78, muzzleLen: 0.6, muzzleW: 1.45,
-    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.1], eyeR: 0.032, nose: false, headOrnaments: [], headPitch: 4,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.3, 2.1], eyeR: 0.032, irisAngle: 64, nose: false, headOrnaments: [], headPitch: 4,
     // small round ears, upright on the crown
     earAt: [1.2, 1.9], earSpine: [[0, 0, -0.012], [0.004, -0.008, 0.03], [0.006, -0.018, 0.06], [0.006, -0.028, 0.09], [0.006, -0.032, 0.105]], earH: 0.9, earR: [0.04, 0.055, 0.056, 0.04], earSquash: [1, 0.25],
     // the tail: a tiny stub, barely out of the fur
@@ -312,7 +312,7 @@ export const species = {
     eyeStyle: 'set',
     family: 'rodent', name: 'a domestic guinea pig', scale: 0.26,
     colors: { coat: '#b8743a', sock: '#e3c8b8', ash: '#efe6da', ashAlt: '#e2d8ca', ears: '#9a6a52', belly: '#f2ece2',
-      mane: '#2c2420', tip: '#2c2420', snout: '#b8743a', teeth: '#e8d6a8', brow: '#6a4428', mouth: '#5a3a22', nose: '#b88a80', iris: '#0a0606', sclera: '#0a0606' },
+      mane: '#2c2420', tip: '#2c2420', snout: '#b8743a', teeth: '#e8d6a8', brow: '#6a4428', mouth: '#5a3a22', nose: '#b88a80', iris: '#0a0606', sclera: '#b8743a' },
     joints: {
       neckBase: [0, 0.16, 0.20], neckTop: [0, 0.22, 0.23],
       shoulder: [0.09, 0.10, 0.11], elbow: [0.10, 0.09, 0.06], carpus: [0.095, 0.12, 0.025], forePaw: [0.095, 0.125, 0.01], foreToe: [0.095, 0.16, 0.007],
@@ -341,7 +341,7 @@ export const species = {
     ],
     // a big deep head, the muzzle blunt and deep (the Roman nose), not pointed
     headScale: 0.8, muzzleLen: 0.75, muzzleW: 1.2,
-    headRelative: 0.52, relBrow: true, eyeAt: [2.2, 2.0], eyeR: 0.03, nose: false, headOrnaments: [], headPitch: -6,
+    headRelative: 0.52, relBrow: true, eyeAt: [2.2, 2.0], eyeR: 0.03, irisAngle: 64, nose: false, headOrnaments: [], headPitch: -6,
     // small petal ears, low on the side of the crown, drooping out and down
     earAt: [1.1, 2.4], earDrop: 70, earH: 0.6, earR: [0.04, 0.06, 0.06, 0.04], earSquash: [1, 0.2],
     extraSegments: [],
