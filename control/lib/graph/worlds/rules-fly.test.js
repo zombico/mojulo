@@ -204,6 +204,14 @@ describe('rule: fly — the flight dials', () => {
     expect(Math.abs(a0 - a1)).toBeGreaterThan(Math.abs(d0 - d1));
   });
 
+  it('a space craft still meets the ground it flies into (gravity off); without the dial, gravity off reads none', () => {
+    const into = (extra) => { const w = createWorld({ entities: [{ id: 'p', rule: { type: 'fly', mass: 1200, thrust: 7200, stallSpeed: 18, maxSpeed: 80, eye: 0.6, gravity: false, lift: false, pitchMax: 1.2, ...extra }, transform: { pos: [0, 0, 20], heading: 0, pitch: -0.8 } }] }); w.byId.p.airspeed = 30; w.byId.p.airborne = true; return run(w, { forward: 0 }, 120); };
+    const s = into({ space: true }), n = into({});
+    expect(s.airborne).toBe(false);
+    expect(s.transform.pos[2]).toBeCloseTo(0.6, 3);
+    expect(n.transform.pos[2]).toBeLessThan(0);
+  });
+
   it('leverStart sets the lever before it is first moved, and the lever holds there', () => {
     const w = aloft({ lever: true, leverStart: 0.5 }), p = run(w, { forward: 0 }, 60);
     expect(p.lever).toBe(0.5);
@@ -213,7 +221,7 @@ describe('rule: fly — the flight dials', () => {
   it('every dial absent is the fly rule as it was', () => {
     const script = (i) => ({ forward: 1, lift: i > 200 ? 1 : 0, turn: i > 500 ? 0.6 : 0 });
     const go = (extra) => { const w = plane(extra); for (let i = 0; i < 700; i++) stepWorld(w, script(i), DT, flat); return w.byId.p; };
-    const a = go({}), b = go({ engine: undefined, lever: undefined, gravity: undefined, lift: undefined, assist: undefined, leverStart: undefined });
+    const a = go({}), b = go({ engine: undefined, lever: undefined, gravity: undefined, lift: undefined, assist: undefined, leverStart: undefined, space: undefined });
     expect(a.transform.pos).toEqual(b.transform.pos);
   });
 });

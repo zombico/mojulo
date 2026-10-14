@@ -46,6 +46,8 @@ export function validateSpace(m = {}, s = {}) {
   const f = m.field;
   if (f !== undefined && !(Number.isFinite(f) && f >= 1000 && f <= 40000) && !(Array.isArray(f) && f.length === 2 && f.every((v) => Number.isFinite(v) && v >= 1000 && v <= 40000))) e.push('map.field must be metres 1000–40000, or [width, depth]');
   if (s.asteroids !== undefined && !ASTEROIDS.densities[s.asteroids] && ASTEROIDS.densities[s.asteroids] !== 0) e.push(`space.asteroids must be one of ${Object.keys(ASTEROIDS.densities).join(', ')}`);
+  if (s.trench !== undefined && typeof s.trench !== 'boolean') e.push('space.trench must be true (a battle station\'s trench to run, trench.js) or false');
+  if (s.trench && s.asteroids !== undefined && s.asteroids !== 'none') e.push('space.trench: a station\'s surface has no asteroids over it');
   return e;
 }
 

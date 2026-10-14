@@ -16,11 +16,14 @@ takes, `fail-on-death`.
 - `at` — where a crash comes back: `{ spot, heading?, aloft? }` (or a bare `[x, y, z]`); absent, the level's spawn.
   `aloft: 1` comes back flying at cruise (a space craft, a glider), else on the ground at rest.
 - `hurt` — hp a crash costs (fail-on-death's `hp`); absent, a crash costs nothing but the time.
+- `touchdown` — `'land'` lets the craft set down; absent, a touchdown after flying (the page's) is a crash too: in a
+  fight there is nothing to land on.
 
 ## Lowers to
 
 - world: on `crash`, emit `respawn:0` carrying `spot`, `heading` and `aloft` (the page's flight block reads them off
-  that reaction and puts the craft back); with `hurt`, `hp` less that much; a `crashed` toast.
+  that reaction and puts the craft back); with `hurt`, `hp` less that much; a `touchdown` re-emitted as a `crash`
+  (unless `touchdown: 'land'`); a `crashed` toast.
 
 ## Composition
 

@@ -122,6 +122,15 @@ genre on the quick path.
   new `respawn` mechanic (with its card) carries that crash for a flight that is not a race. An armed craft flies by
   the mouse (pointer-locked: the mouse pitches the nose, a click fires) and fires on F too; a level's goal cast may
   lay a camera setting over the pilot's (`extra().camera`). `airspace.course: false` is a map with no course.
+  The same goal with an atmosphere craft (`craft: 'jet'`) is air combat over the map: the wing stood three low passes
+  over the ground, a touchdown after flying a crash (`respawn` re-emits it, unless `touchdown: 'land'`).
+- **The trench run** (`skyscape/trench.js`). `airspace.space.trench: true`: a battle station's surface (a plate to
+  the stars, greebled with the city's instanced boxes: fine along the trench, coarse past it) with a trench cut down
+  the field (its width and depth in the craft's size, a run-in before the field), turrets on its rims (space minds
+  that do not move) and the exhaust port at its end, the one target (`defeat-all` on `foe-port`). Its ground is a roof
+  grid the page and the autopilot both stand on; the fly rule now reads its ground without gravity when `space` is set,
+  and in space every touchdown is a crash, so a trench wall is a wall. The autopilot proves the run down the middle.
+  Quick: `shoot` with `craft: 'fighter'` and `airspace: { space: { trench: true } }`.
 
 ### Sheet-metal bend lines that mark without cutting
 

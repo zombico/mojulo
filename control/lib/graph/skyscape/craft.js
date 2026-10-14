@@ -55,9 +55,9 @@ export function seatCraft(map, field, course = null, { assist = null } = {}) {
   if (map.form === 'void') {
     // in space (space.js): behind the first gate, flying at cruise, the lever where cruise holds it; the rocks its
     // obstacles (spheres the page counts as a crash), the course its guidance
-    const t = course || field.loop ? spaceSeat(map, course || field.loop) : { pos: [0, -map.rings.field.hy, 0], heading: Math.PI / 2, pitch: 0 };
+    const t = field.start ? { ...field.start, pos: [...field.start.pos] } : course || field.loop ? spaceSeat(map, course || field.loop) : { pos: [0, -map.rings.field.hy, 0], heading: Math.PI / 2, pitch: 0 };
     const guide = course ? { gates: course.gates.map((g) => [...g.at, g.radius, g.heading]) } : null;
-    const rule = { ...base, launchSpeed: c.cruise, leverStart: r2((c.cruise / c.max) ** 2), ...(field.asteroids?.length ? { obstacles: field.asteroids.flat() } : {}), ...(guide ? { course: guide } : {}) };
+    const rule = { ...base, launchSpeed: c.cruise, leverStart: r2((c.cruise / c.max) ** 2), ...(field.asteroids?.length ? { obstacles: field.asteroids.flat() } : {}), ...(field.roofs?.length ? { roofs: field.roofs } : {}), ...(guide ? { course: guide } : {}) };
     return { rule, transform: t, ground: t.pos[2], end: course ? course.gates[0].at : [0, 0, 0] };
   }
   const pad = field.pads[0] ?? null, F = map.rings.field;

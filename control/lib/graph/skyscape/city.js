@@ -133,7 +133,7 @@ export function seatCities(preps, graded) {
 
 /** A roof grid for the page: its origin and cell, and each cell's roof as decimetres over `base` (Uint16, base64; 0 is
  *  no roof). The page's flight block counts it as ground, so a tower is something a craft can hit. */
-function packRoofs(r) {
+export function packRoofs(r) {
   let lo = Infinity; for (const t of r.top) if (t > -Infinity && t < lo) lo = t;
   const base = Number.isFinite(lo) ? Math.floor(lo) - 1 : 0, q = new Uint16Array(r.top.length);
   for (let k = 0; k < q.length; k++) q[k] = r.top[k] > -Infinity ? Math.min(65535, Math.max(1, Math.round((r.top[k] - base) * 10))) : 0;
@@ -153,7 +153,7 @@ function massColours(b) {
 }
 /** The unit box (x, y −½…½, z 0…1): its four walls or its roof, each face grey at the sun's light on it (ambient and
  *  diffuse as the city's), so an instance's tint is its colour lit. */
-function unitBox(sun, part) {
+export function unitBox(sun, part) {
   const L = Math.hypot(...sun), l = sun.map((v) => v / L);
   const grey = (n) => { const k = Math.round(255 * Math.min(1, 0.5 + 0.5 * Math.max(0, n[0] * l[0] + n[1] * l[1] + n[2] * l[2]))); const h = k.toString(16).padStart(2, '0'); return `#${h}${h}${h}`; };
   if (part === 'roof') return [{ corners: [[-0.5, -0.5, 1], [0.5, -0.5, 1], [0.5, 0.5, 1], [-0.5, 0.5, 1]], fill: grey([0, 0, 1]) }];

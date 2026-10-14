@@ -153,12 +153,14 @@ export function airspaceEnds(manifest) {
   try { ({ map, field } = airspaceOf(manifest)); } catch (e) { throw new Error(`levels: ${e.message}`); }
   const course = manifest.course ? planCourse(map, field, { ...(manifest.course === true ? {} : manifest.course), seed: manifest.seed ?? 1 }) : null;
   const F = map.rings.field, seat = seatCraft(map, field, course, { assist: manifest.assist }), [sx, sy] = seat.transform.pos;
-  const exit = course?.finish?.at ?? course?.gates.at(-1).at ?? [0, F.hy, field.groundAt(0, F.hy)];
+  const exit = field.port ?? course?.finish?.at ?? course?.gates.at(-1).at ?? [0, F.hy, field.groundAt(0, F.hy)];
   const out = { spawn: [sx, sy, seat.ground], heading: seat.transform.heading, exit, exitFrom: course?.finish ? 'the runway' : 'the last gate', planar: false, beats: [], hazards: [] };
   // and the course flown by its own craft (skyscape/autopilot.js): the flight's walkability, a machine gate
-  const flown = course ? flyCourse(map, field, course, { rule: seat.rule }) : null;
+  // (a trench run's proof is its line: down the middle, waypoints a little narrower than the trench, trench.js)
+  const run = course ?? (field.line?.length ? { gates: field.line.map((at) => ({ at, radius: field.trench.w / 2 - 5 })), laps: 1, finish: null } : null);
+  const flown = run ? flyCourse(map, field, run, { rule: seat.rule }) : null;
   // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
-  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every gate in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
+  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
     .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
   for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);

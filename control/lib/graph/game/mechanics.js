@@ -172,7 +172,12 @@ const MECHANICS = {
       const hurt = Number.isFinite(p.hurt) && p.hurt > 0 ? p.hurt : 0;
       return {
         world: {
-          reactions: [{ on: 'crash', do: 'emit', type: 'respawn:0', spot: R.spot, heading: R.heading ?? 0, aloft: R.aloft ? 1 : 0 }, ...(hurt ? [{ on: 'crash', do: 'inc', var: 'hp', by: -hurt, min: 0 }] : [])],
+          reactions: [
+            { on: 'crash', do: 'emit', type: 'respawn:0', spot: R.spot, heading: R.heading ?? 0, aloft: R.aloft ? 1 : 0 },
+            ...(hurt ? [{ on: 'crash', do: 'inc', var: 'hp', by: -hurt, min: 0 }] : []),
+            // nothing to land on in a fight: a touchdown after flying (the page's) is a crash too, unless declined
+            ...(p.touchdown === 'land' ? [] : [{ on: 'touchdown', do: 'emit', type: 'crash', why: 'ground' }]),
+          ],
           hud: [{ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }],
         },
       };

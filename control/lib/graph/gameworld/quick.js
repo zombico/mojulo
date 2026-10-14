@@ -331,7 +331,8 @@ export function goalMechanics(quick, ends) {
         return [
           { kind: 'fail-on-death', startHp: SHOOT.hp, hits: DOGFIGHT.hit },
           { kind: 'respawn', at: { spot: p.pos, heading: p.heading, aloft: 1 }, hurt: DOGFIGHT.crash },
-          { kind: 'defeat-all', who: 'foe-*', count: Math.max(1, Math.min(WING.max, quick.foes ?? WING.n)), label: 'Down' },
+          // a trench run (a station's trench: skyscape/trench.js) is won by its port alone; a dogfight by the wing
+          { kind: 'defeat-all', who: 'foe-*', count: ends.airField.port ? 1 : Math.max(1, Math.min(WING.max, quick.foes ?? WING.n)), label: ends.airField.port ? 'Port' : 'Down' },
         ];
       }
       // every foe down; each hit on you costs hp; the supplies between the posts

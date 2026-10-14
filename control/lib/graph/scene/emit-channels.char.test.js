@@ -142,6 +142,9 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-14 (skyscape: space): the fly rule's bound takes `hz` (above and below, the turn-back's nose toward
 // the centre's height) and the lever a `leverStart`; on the `controllable` fixture 3 lines are replaced and 2 added, all
 // the rule's own, every one reading an absent key the old way. The same 13, and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: the trench): the fly rule reads its ground without gravity when `space` is set (a
+// station's surface, a trench's walls); on the `controllable` fixture 1 line is replaced, the rule's own. The same 13,
+// and shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

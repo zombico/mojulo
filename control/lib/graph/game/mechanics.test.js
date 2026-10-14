@@ -368,6 +368,10 @@ describe('unseen, laps and score on the bus', () => {
     expect(types(s)).toContain('respawn:0');
     expect(s.reactions.find((r) => r.type === 'respawn:0')).toMatchObject({ spot: [1, 2, 3], heading: 0.5, aloft: 1 });
     expect(s.vars.hp).toBe(75);
+    // a touchdown in a fight is a crash too (nothing to land on), unless the level lets the craft land
+    expect(types(run(c, [{ type: 'touchdown', entity: 'hero', hard: 0 }]))).toContain('respawn:0');
+    const landing = composeMechanics([{ kind: 'respawn', at: [0, 0, 1], touchdown: 'land' }, { kind: 'survive', seconds: 10 }], ctx());
+    expect(types(run(landing, [{ type: 'touchdown', entity: 'hero', hard: 0 }]))).not.toContain('respawn:0');
     expect(() => composeMechanics([{ kind: 'respawn', at: { spot: 'there' } }], ctx())).toThrow(/at is \{ spot/);
   });
 

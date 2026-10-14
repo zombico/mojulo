@@ -34,6 +34,13 @@ describe('the dogfight', () => {
     expect(dogfightCast(map, field, seat, { foes: 99 }).entities).toHaveLength(WING.max);
   });
 
+  it('in an atmosphere (air combat) stands the wing over the ground, three low passes clear of it', () => {
+    const air = Object.keys(CRAFT).filter((k) => !CRAFT[k].space && CRAFT[k].engine !== false).sort((a, b) => CRAFT[b].max - CRAFT[a].max)[0];
+    const A = airspaceOf({ kind: 'airspace', map: { craft: air }, ground: { pads: [{ at: [0.5, 0.25] }] }, course: false });
+    const X = dogfightCast(A.map, A.field, seatCraft(A.map, A.field, null), { foes: 5 });
+    for (const e of X.entities) { const [x, y, z] = e.transform.pos; expect(z - A.field.groundAt(x, y)).toBeGreaterThanOrEqual(3 * A.map.craft.lowPass - 0.01); }   // (positions kept to the cm)
+  });
+
   it('is deterministic', () => {
     expect(JSON.stringify(dogfightCast(map, field, seat))).toBe(JSON.stringify(dogfightCast(map, field, seat)));
   });

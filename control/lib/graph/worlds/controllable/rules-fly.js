@@ -24,7 +24,7 @@
  * Rule params (tuned defaults, real-ish units like drive — kg / N / m/s):
  * { mass, thrust?, drag?, brakeDrag?, wheelBrake?, stallSpeed?, takeoffSpeed?, maxSpeed?,
  *   bankMax?, bankRate?, levelRate?, pitchMax?, pitchRate?, lookSens?, taxiTurn?, stallDrop?,
- *   sinkRate?, propRate?, eye?, engine?, lever?, leverRate?, gravity?, lift?, turnRate?, assist? }
+ *   sinkRate?, propRate?, eye?, engine?, lever?, leverRate?, gravity?, lift?, turnRate?, assist?, space? }
  *
  * The flight dials (skyscape: one flight model under every flight game). Each is absent by default and every number
  * above is then as it was:
@@ -36,6 +36,8 @@
  *     ground to roll on.
  *   • lift: false — the craft is held up by nothing: no stall (speed does not keep it up, nothing to lose), and it
  *     turns at `turnRate` rad/s at full bank instead of by the coordinated-turn law (there is no lift to bank).
+ *   • space: true — a craft in space still meets what it flies into (a station's surface, a trench's walls): its
+ *     ground is read without gravity, and a touchdown there is the page's to judge (a crash).
  *   • launchSpeed — the airspeed it starts at (m/s): a craft set down in the air already flying, as a glider is.
  *   • assist: 'arcade' | 'sim' — how much the craft flies itself. 'arcade' never stalls: slow, the nose will not
  *     come up and eases down until the speed is back, and the wings level twice as fast. 'sim' leaves the bank where it
@@ -84,7 +86,7 @@ export function buildRulesFly(E) {
     }
 
     // ground read from body height (the rising-terrain-safe cast the ai/drive use)
-    const gz = grav && world && world.ground ? world.ground([t.pos[0], t.pos[1], (t.pos[2] - eye) + (r.collideHeight ?? 3)]) : null;
+    const gz = (grav || r.space) && world && world.ground ? world.ground([t.pos[0], t.pos[1], (t.pos[2] - eye) + (r.collideHeight ?? 3)]) : null;
     const onGround = gz != null && t.pos[2] - eye <= gz + 0.05;
     const wasAirborne = !!e.airborne;
 

@@ -29,7 +29,30 @@ export function guns(c) {
   return { fireClass: 'sight', auto: true, rof: 8, damage: 1, impact: 0, range: r2(RANGE_S * c.cruise), coreAngle: 2, assistAngle: 7, eye: 0 };
 }
 
+/** A trench run's targets (trench.js): the port (one hit to win, a small egg) and the rim turrets (space minds that do
+ *  not move, firing down into the trench). */
+export function trenchCast(map, field) {
+  const c = map.craft, P = field.port, s = 6;
+  const entities = [{
+    id: 'foe-port', team: 'foes', rule: { type: 'static' },
+    body: { type: 'mesh', shape: 'box', size: [s, s, 1.2], color: '#ff7a1a', hittable: true, hp: 1, poise: 99, radius: s / 2, egg: { a: s / 2, c: s / 2, cz: 0 } },
+    transform: { pos: P, heading: 0 },
+  }];
+  field.turrets.forEach((t, i) => entities.push({
+    id: `turret-${i + 1}`, team: 'foes',
+    rule: { type: 'ai', space: true, speed: 0, turn: 2.5, standoff: 0, fireArc: 10, burst: 0.4, pause: 1.2, sightRange: r2(4 * c.cruise), eye: 0 },
+    weapon: { ...guns(c), rof: 2, range: r2(3 * c.cruise), assistAngle: 2 },
+    body: { type: 'mesh', shape: 'box', size: [5, 5, 6], color: '#9aa3ad', hittable: true, hp: 2, poise: 99, radius: 4, egg: { a: 3, c: 3, cz: 0 } },
+    transform: { pos: t, heading: 0 },
+  }));
+  return entities;
+}
+
 export function dogfightCast(map, field, seat, { foes = WING.n } = {}) {
+  if (field.port) {
+    const sz = r2(Math.max(4, map.craft.max / 25));
+    return { entities: trenchCast(map, field), pilot: { weapon: guns(map.craft), body: { hittable: true, radius: sz, egg: { a: sz, c: r2(sz * 0.5), cz: 0 } } }, camera: { mouseLook: true } };
+  }
   const c = map.craft, F = map.rings.field, n = Math.max(1, Math.min(WING.max, foes | 0 || WING.n));
   const [sx, sy, sz] = seat.transform.pos, h = seat.transform.heading, ax = Math.cos(h), ay = Math.sin(h);
   const size = r2(Math.max(4, c.max / 25)), egg = { a: size, c: r2(size * 0.6), cz: 0 };
@@ -42,6 +65,8 @@ export function dogfightCast(map, field, seat, { foes = WING.n } = {}) {
     // never inside a rock: stepped out along +z until clear
     for (let k = 0; field.hitAt && field.hitAt(x, y, z, size * 3) && k < 40; k++) z += size * 4;
     x = Math.max(-F.hx, Math.min(F.hx, x)); y = Math.max(-F.hy, Math.min(F.hy, y));
+    // over ground (air combat): three low passes clear of it (or of a roof), whatever the start's height
+    if (map.form !== 'void') z = Math.max(z, (field.topAt ?? field.groundAt)(x, y) + 3 * c.lowPass);
     const speed = r2(WING.speed * c.cruise);
     entities.push({
       id: `foe-${i + 1}`, team: 'foes',

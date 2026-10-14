@@ -32,6 +32,7 @@ import { seatCraft, craftPilot } from './craft.js';
 import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace } from './space.js';
+import { trenchField } from './trench.js';
 
 /** A space manifest: its map's form is 'void', or its craft is a space craft (the fighter), whose map is space. */
 export function isSpace(m) {
@@ -75,6 +76,8 @@ export function airspaceOf(manifest) {
   if (isSpace(manifest)) {
     // space: the course is planned on the empty field first, so the rocks keep clear of it (and of the start)
     const map = planSpace({ field: manifest.map?.field, craft: craft || 'fighter', seed });
+    // a battle station's trench (trench.js): its own ground and its own run, no rocks
+    if (manifest.space?.trench) return { map, field: trenchField(map, { seed }) };
     const course = planCourse(map, spaceField(map, { asteroids: 'none' }), { ...(manifest.course && manifest.course !== true ? manifest.course : {}), seed });
     const field = spaceField(map, { asteroids: manifest.space?.asteroids ?? 'field', seed, keep: courseTubes(map, course, spaceSeat(map, course)) });
     field.loop = course;   // the lanes kept open: a level with no course still starts on its run-in (craft.js)
@@ -152,14 +155,14 @@ function assembleSpace(manifest, { title }) {
   ];
   const laws = [...spaceLaws(map, field, course, seat.transform), ...(course ? course.laws : [])];
   return {
-    faces: course ? course.faces : [], repeats: field.repeats, cameras, title,
+    faces: [...(field.faces || []), ...(course ? course.faces : [])], repeats: field.repeats, cameras, title,
     sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000 }, bg: '#03040a',
     ...(pilot ? {} : { walk: { speed: 20, spawn: p, radius: 0.4, minEye: 1.7, gravity: 0, jump: 0 } }),
     viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
     ...(pilot || {}),
     meta: {
       map: { form: 'void', craft: map.craft.key, rings: map.rings },
-      laws, space: field.report,
+      laws, space: field.report, ...(field.trench ? { trench: { ...field.trench, port: field.port, turrets: field.turrets.length } } : {}),
       ...(course ? { course: { gates: course.gates, finish: null, laps: course.laps, laws: course.laws } } : {}),
     },
   };

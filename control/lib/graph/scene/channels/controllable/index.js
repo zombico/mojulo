@@ -323,7 +323,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
       else if (wasAir && armed && window.__mojBus && window.__mojBus.bus) {
         armed = false;
         var sink = Math.max(0, -lastVs), B = window.__mojBus;
-        B.bus.processEvents(B.state, [{ type: 'touchdown', entity: p.id, hard: sink > (p.rule.sinkMax || 3) ? 1 : 0, sink: Math.round(sink * 10) / 10 }]);
+        // in space there is nothing to land on: a station's surface or a trench wall met is a crash
+        B.bus.processEvents(B.state, [p.rule.space ? { type: 'crash', entity: p.id, why: 'surface' } : { type: 'touchdown', entity: p.id, hard: sink > (p.rule.sinkMax || 3) ? 1 : 0, sink: Math.round(sink * 10) / 10 }]);
       }
       wasAir = !!p.airborne;
       var q = p.transform.pos, g = __ground([q[0], q[1], q[2]]), agl = g === null ? null : q[2] - g;

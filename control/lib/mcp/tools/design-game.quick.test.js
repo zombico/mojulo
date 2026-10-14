@@ -105,6 +105,15 @@ describe('design_game quick', () => {
     expect(L.game.mechanics.find((m) => m.kind === 'laps')).toBeUndefined();
   }, 240_000);
 
+  it('shoot with a craft in a trench: the station its ground, the port its goal, turrets on the rims', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', airspace: { space: { trench: true } }, world: { id: 'tr' } }, ref: 'tr' });
+    const L = stored('tr-level-run-0');
+    expect(L.entities.map((e) => e.id).filter((id) => /^foe-/.test(id))).toEqual(['foe-port']);
+    expect(L.entities.some((e) => /^turret-/.test(e.id))).toBe(true);
+    expect(L.game.mechanics.find((m) => m.kind === 'defeat-all')).toMatchObject({ who: 'foe-*', count: 1 });
+    expect(L.entities[0].rule.roofs).toHaveLength(1);
+  }, 240_000);
+
   it('survive and avoid: a countdown; hazards on the water the trail crosses, and hp to lose', async () => {
     await designGameHandler({ quick: { goal: 'survive', seconds: 30, world: { id: 'hold' } }, ref: 'h' });
     expect(mechanicsOf('h-level-run-0')).toEqual(['survive']);
