@@ -30,7 +30,7 @@ export const DOES_TABLE = Object.freeze({
   "dairyCow": Object.freeze({"relax":"cud","alert":"prey-freeze","eat":"graze","sleep":"flank-sleep"}),
   "deer": Object.freeze({"relax":"cud","alert":"flag","eat":"browse","sleep":"flank-sleep"}),
   "diplodocus": Object.freeze({"relax":"lie","alert":"watch","eat":"browse","sleep":"fold-sleep"}),
-  "dog": Object.freeze({"relax":"curl","alert":"fix","eat":"gnaw","sleep":"curl-sleep"}),
+  "dog": Object.freeze({"relax":"sphinx","alert":"fix","eat":"gnaw","sleep":"fold-sleep"}),
   "donkey": Object.freeze({"relax":"doze-standing","alert":"prey-freeze","eat":"graze","sleep":"stand-sleep"}),
   "elasmosaurus": Object.freeze({"relax":"hover","alert":"stall","eat":"bite","sleep":"drift"}),
   "elephant": Object.freeze({"relax":"doze-standing","alert":"watch","eat":"browse","sleep":"stand-sleep"}),
