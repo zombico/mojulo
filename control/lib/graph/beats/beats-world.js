@@ -45,6 +45,7 @@ import { safeJson } from '../scene/emit-util.js';
 import { parseFieldSpec, fieldCue, seedOfRef } from './field-cue.js';
 import { SCORE_MOODS } from './field-score.js';
 import { SFX_PALETTES, SFX_PALETTE_NAMES, levelSfx } from './sfx-palettes.js';
+import { resolveTension } from './adaptive-music.js';
 import { SURFACES } from '../weather/weather.js';
 
 // chiptune foley defaults for the gait bindings — overridable per world.
@@ -54,7 +55,7 @@ const DEFAULT_FOOTSTEPS = {
   land: [{ type: 'thump', from: 'A2', to: 'G1', decay: 0.18, vol: 0.5 }],
 };
 
-const BINDING_SOURCES = new Set(['depth', 'height', 'speed', 'proximity']);
+const BINDING_SOURCES = new Set(['depth', 'height', 'speed', 'proximity', 'tension']);
 const BINDING_MACROS = new Set(['tone', 'level', 'transpose']);
 
 // B5.3: validate + normalize audio.bindings against the resolved soundtrack —
@@ -112,6 +113,36 @@ function resolveBeatsRef(beatsRef, expectKinds) {
   return sketch.manifest;
 }
 
+// one score spec ('field:<mood>', 'club:<mood>', { score }, { beatsRef }, an inline recipe) to the expanded recipe a
+// page plays, looped; and the score identity it plays in (sfx 'auto' and a combat score take its key)
+function resolveTrack(spec, ctx, where) {
+  let recipe = spec, identity = null, club = false;
+  // a generated cue: the stored seed, else the world's own ref (unique per world, stable per render)
+  const field = parseFieldSpec(recipe);
+  if (field && SCORE_MOODS[field.mood]?.stinger && field.style !== 'club') {
+    throw new Error(`${where} '${field.mood}' is a stinger: it plays once at an outcome (create_beats({ score: { mood: '${field.mood}' } }), then create_game music.${field.mood}), not under a level`);
+  }
+  if (field) {
+    const f = field.game === undefined && Number.isInteger(ctx.game) ? { ...field, game: ctx.game } : field;
+    identity = f.game ?? f.seed ?? (ctx.ref ? seedOfRef(ctx.ref) : 0);
+    club = f.style === 'club';
+    recipe = normalizeBeatsManifest(fieldCue(f, { fallbackSeed: ctx.ref ? seedOfRef(ctx.ref) : 0 }));
+  } else if (typeof recipe === 'string') {
+    throw new Error(`${where} '${recipe}' — use 'field:<mood>', 'club:<mood>', an inline beats recipe or { beatsRef }`);
+  } else if (recipe.beatsRef) {
+    recipe = resolveBeatsRef(recipe.beatsRef, ['beats-ambient', 'beats-composition', 'beats-pattern']);
+    // a stored field cue (create_beats({ score })) keeps the identity it was minted in
+    if (recipe.score && Number.isInteger(recipe.score.game)) identity = recipe.score.game;
+  } else {
+    const { ok, errors } = validateBeatsManifest(recipe);
+    if (!ok) throw new Error(`${where}: invalid recipe:\n - ${errors.join('\n - ')}`);
+    recipe = normalizeBeatsManifest(recipe);
+  }
+  // a level's music loops even when authored as a one-shot score (ambient and pattern kinds loop by construction)
+  if (recipe.kind === 'beats-composition') recipe = { ...recipe, loop: true };
+  return { recipe: expandBeatsManifest(recipe), identity, club };
+}
+
 /**
  * resolveWorldAudio(audioSpec, ctx) → payload.audio | null
  * ctx carries the manifest's declarative lighting mood ({ time }) so wind
@@ -125,31 +156,18 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
   let identity = null, clubStyle = false;
 
   if (audioSpec.soundtrack) {
-    let recipe = audioSpec.soundtrack;
-    // a generated field cue: the stored seed, else the world's own ref (unique per world, stable per render).
-    const field = parseFieldSpec(recipe);
-    if (field && SCORE_MOODS[field.mood]?.stinger && field.style !== 'club') {
-      throw new Error(`audio.soundtrack '${field.mood}' is a stinger: it plays once at an outcome (create_beats({ score: { mood: '${field.mood}' } }), then create_game music.${field.mood}), not under a level`);
-    }
-    if (field) {
-      identity = field.game ?? field.seed ?? (ctx.ref ? seedOfRef(ctx.ref) : 0);
-      clubStyle = field.style === 'club';
-      recipe = normalizeBeatsManifest(fieldCue(field, { fallbackSeed: ctx.ref ? seedOfRef(ctx.ref) : 0 }));
-    } else if (typeof recipe === 'string') {
-      throw new Error(`audio.soundtrack '${recipe}' — use 'field:<mood>', an inline beats recipe or { beatsRef }`);
-    } else if (recipe.beatsRef) {
-      recipe = resolveBeatsRef(recipe.beatsRef, ['beats-ambient', 'beats-composition', 'beats-pattern']);
-      // a stored field cue (create_beats({ score })) keeps the identity it was minted in
-      if (recipe.score && Number.isInteger(recipe.score.game)) identity = recipe.score.game;
-    } else {
-      const { ok, errors } = validateBeatsManifest(recipe);
-      if (!ok) throw new Error(`audio.soundtrack: invalid recipe:\n - ${errors.join('\n - ')}`);
-      recipe = normalizeBeatsManifest(recipe);
-    }
-    // a world soundtrack should loop even when authored as a one-shot score
-    // (ambient and pattern kinds loop by construction).
-    if (recipe.kind === 'beats-composition') recipe = { ...recipe, loop: true };
-    out.soundtrack = expandBeatsManifest(recipe);
+    const st = resolveTrack(audioSpec.soundtrack, ctx, 'audio.soundtrack');
+    identity = st.identity; clubStyle = st.club;
+    out.soundtrack = st.recipe;
+  }
+
+  // COMBAT (adaptive-music.js): a second score the level changes to when its tension rises, on the bar line, and back
+  // when it has settled. It plays in the soundtrack's identity unless it names its own.
+  if (audioSpec.combat !== undefined) {
+    if (!out.soundtrack) throw new Error('audio.combat is the score a level changes to in a fight: add audio.soundtrack (the explore score) first');
+    if (audioSpec.beat !== undefined) throw new Error('audio.beat runs on one steady soundtrack: a level with audio.combat changes its music, so it cannot keep a beat');
+    out.combat = resolveTrack(audioSpec.combat, { ...ctx, game: identity }, 'audio.combat').recipe;
+    out.tension = resolveTension(audioSpec.tension, Array.isArray(ctx.mechanics) ? ctx.mechanics : []);
   }
 
   // THE BEAT (audio.beat: { lead? }): the soundtrack's pulse said on the bus, `lead` (0.15 s) before each beat. A beat
@@ -168,6 +186,9 @@ export function resolveWorldAudio(audioSpec, ctx = {}) {
     }
     out.bindings = resolveBindings(audioSpec.bindings, out.soundtrack);
   }
+  // the meter without a combat score: a tension binding fades the soundtrack's own layers by it (vertical layering)
+  if (!out.tension && out.bindings && out.bindings.some((b) => b.source === 'tension')) out.tension = resolveTension(audioSpec.tension, Array.isArray(ctx.mechanics) ? ctx.mechanics : []);
+  if (audioSpec.tension !== undefined && !out.tension) throw new Error('audio.tension drives audio.combat or a tension binding: add audio.combat (the fight score) or a binding with source: \'tension\'');
 
   // sfx 'auto' | { auto: '<palette>' | true, cues?, on?, beatsRef?, vary? } (sfx-palettes.js): a palette's cues in the
   // soundtrack's key, wired to the events this level's mechanics emit (ctx.mechanics), and the gait, weapon, melee and

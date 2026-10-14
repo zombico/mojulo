@@ -155,6 +155,7 @@ export function audioFeatures(audio) {
   const set = new Set();
   if (!audio || typeof audio !== 'object') return [];
   collect(expandBeatsManifest(audio.soundtrack), set);
+  if (audio.combat) collect(expandBeatsManifest(audio.combat), set);
   for (const list of Object.values(audio.cues || {})) addGestures(set, list);
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);
   addGestures(set, audio.jump && audio.jump.land);

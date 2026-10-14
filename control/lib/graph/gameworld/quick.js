@@ -491,7 +491,9 @@ export function goalAudio(quick, { manifest = {}, final = false, game } = {}) {
   const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;
   const mood = quick.music === 'auto' ? s?.mood : quick.music;
   const club = s?.style === 'club' || Object.prototype.hasOwnProperty.call(CLUB_MOODS, mood ?? '');
-  return withSfx(mood ? { soundtrack: { score: { mood, ...(club ? { style: 'club' } : {}), ...(Number.isInteger(game) ? { game } : {}) } } } : null);
+  const score = (m) => ({ score: { mood: m, ...(club ? { style: 'club' } : {}), ...(Number.isInteger(game) ? { game } : {}) } });
+  // auto on a fight: the scene's own music, the fight's coming in with the tension (adaptive-music.js)
+  return withSfx(mood ? { soundtrack: score(s?.explore ?? mood), ...(s?.explore ? { combat: score(mood) } : {}) } : null);
 }
 
 /** The store the goal needs (create_game's `store`): a campaign always; a bag to collect into; the hero's hp to lose. */

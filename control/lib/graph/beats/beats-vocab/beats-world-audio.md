@@ -73,8 +73,18 @@ These read the controllable entity's state and never write back.
 
 ## music that follows play
 
+- `combat`: a second score (any soundtrack form: `'field:battle'`, `'club:rave'`, `{ score }`, `{ beatsRef }`) the level
+  changes to when its tension rises, and back when it settles. The change waits for the playing piece's bar line and
+  crossfades over one bar; both pieces play in the soundtrack's identity, so the key carries across. The cues,
+  footsteps and wind stay at a steady level throughout. Needs `soundtrack`; can't be combined with `beat`.
+- `tension`: `{ on?: { '<event glob>': weight 0..1 }, enter? (0.6), exit? (0.25), hold? (2 bars), decay? (6 s) }`. The
+  meter rises with the level's own events (by default the dangers its mechanics raise: hits and enemies falling,
+  being spotted, a wave, a leak) and leaks back toward calm. Combat comes in at `enter`; it leaves only after the
+  meter has stayed under `exit` for `hold` bars, so it never flaps.
+- The suggestions write it for a fight: the scene's own score as `soundtrack`, battle (the boss on the last level;
+  rave or peak when electronic) as `combat`.
 - `bindings`: `[{ source, range: [from, to], target: { channel, macro, range: [from, to] }, entity?, point? }]`.
-  `source` is depth, height, speed or proximity (proximity needs `entity` or `point`); `macro` is tone, level or
-  transpose on a soundtrack row.
+  `source` is depth, height, speed, proximity (needs `entity` or `point`) or `tension` (the meter, 0..1: fade a layer
+  in as the danger rises); `macro` is tone, level or transpose on a soundtrack row.
 - `beat`: `true` or `{ lead }` puts `{ type: 'beat', n }` on the bus `lead` seconds (default 0.15) before each beat
   of a steady-tempo soundtrack: the clock a rhythm level plays to.

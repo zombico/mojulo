@@ -134,6 +134,23 @@ score its scene and its play call for.
     kit/pitched mix-ups, and advice appears exactly when an instrument doesn't fit its job.
   - A deep tier (`game-audio.deep.test.js`) renders every cue of every palette (audible, unclipped) and measures a
     driving club loop's break against its drops.
+- **Music that follows play.** `audio.combat` is a second score (any soundtrack form) that a level changes to when its
+  tension rises (`lib/graph/beats/adaptive-music.js`).
+  - The meter rises with the level's own events: by default the dangers its mechanics raise (hits, enemies falling,
+    being spotted, a wave, a leak), or the weights in `audio.tension.on`. It leaks back toward calm with a `decay`
+    time constant.
+  - Combat comes in at `enter` (0.6) on the playing piece's next bar line, crossfading over one bar in the same key.
+    It leaves only after the meter has stayed under `exit` (0.25) for `hold` (2) bars, so it never flaps.
+  - The scores play on two engines of their own; the cues, footsteps and wind keep a steady level. `tension` is also
+    a binding source, so a soundtrack's layers can fade in with the danger without a combat score.
+  - The logic is one self-contained closure: the tests hold its laws (the meter stays in [0, 1], changes land on bar
+    lines, combat only at `enter` and out only after `hold` bars at `exit`, a quiet level never leaves explore), and
+    the page runs that same function. A test runs the emitted page code on a real bus with stand-in engines: hits
+    bring combat in on the bar line, and calm takes it back out.
+  - Pages without `combat` or a tension binding emit byte for byte as before.
+  - Suggestions give a fight level its scene's own score as `soundtrack` and the fight's (battle, the boss; rave or
+    peak) as `combat`. `create_game`'s patch and `design_game`'s `music: 'auto'` write both.
+  - Engine exports carry the explore score only; Godot's combat change is phase 6.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

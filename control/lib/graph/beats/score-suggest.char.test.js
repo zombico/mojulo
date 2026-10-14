@@ -19,7 +19,9 @@ describe('suggestScore: the play moves it', () => {
     expect(mood({ base: 'dungeon', title: 'tavern brawl', mechanics: ['hp-pool'] })).toBe('battle');
     for (const goal of ['battle', 'shoot', 'defend']) expect(mood({ ...forest, goal })).toBe('battle');
     expect(mood({ ...forest, mechanics: ['waves'], final: true })).toBe('boss');
-    expect(suggestScore({ ...forest, goal: 'battle' }).why).toMatch(/forest for the place; a fight/);
+    // a fight level explores to the forest's music and changes to battle (retuned with adaptive music: the explore reason first)
+    expect(suggestScore({ ...forest, goal: 'battle' })).toMatchObject({ explore: 'forest', audio: { soundtrack: 'field:forest', combat: 'field:battle' } });
+    expect(suggestScore({ ...forest, goal: 'battle' }).why).toMatch(/under a canopy.*; a fight: battle music/);
     expect(mood({ base: 'dungeon', mechanics: ['hazard-damage', 'fail-on-death'] })).toBe('tension');
     expect(mood({ ...forest, goal: 'sneak' })).toBe('tension');
     expect(mood({ base: 'terrain', theme: 'meadow', goal: 'race' })).toBe('highlands');

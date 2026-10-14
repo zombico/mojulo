@@ -48,9 +48,10 @@ describe('suggestScore: laws over the grid', () => {
         expect(SCORE_MOODS[f.mood]).toBeTruthy();
         expect(SCORE_MOODS[f.mood].stinger).toBeFalsy();
         expect(MOMENTS).not.toContain(f.mood);
-        expect(f.audio.soundtrack).toBe(`field:${f.mood}`);
+        // a fight plays the scene's own music and changes to the fight's (audio.combat); anything else plays its mood
+        expect(f.audio).toEqual(f.explore ? { soundtrack: `field:${f.explore}`, combat: `field:${f.mood}` } : { soundtrack: `field:${f.mood}` });
       }
-      if (k) { expect(CLUB_MOODS[k.mood]).toBeTruthy(); expect(k.audio.soundtrack).toBe(`club:${k.mood}`); }
+      if (k) { expect(CLUB_MOODS[k.mood]).toBeTruthy(); expect(k.audio).toEqual(k.explore ? { soundtrack: `club:${k.explore}`, combat: `club:${k.mood}` } : { soundtrack: `club:${k.mood}` }); }
     });
   });
 
@@ -61,6 +62,19 @@ describe('suggestScore: laws over the grid', () => {
       expect(['battle', 'boss'].includes(f.mood), JSON.stringify(c)).toBe(isFight(c));
       expect(['rave', 'peak'].includes(k.mood) && !(k.mood === 'peak' && !isFight(c)), JSON.stringify(c)).toBe(isFight(c));
       if (isFight(c)) { expect(f.mood).toBe(c.final ? 'boss' : 'battle'); expect(k.mood).toBe(c.final ? 'peak' : 'rave'); }
+    });
+  });
+
+  it('a fight\'s explore score is the same scene\'s answer without the fight, and never fight music itself', () => {
+    grid((c) => {
+      if (!isFight(c)) return;
+      for (const style of ['field', 'club']) {
+        const s = suggestScore({ ...c, style });
+        if (!s || !s.explore) continue;
+        const calm = suggestScore({ ...c, style, goal: FIGHT_GOALS.includes(c.goal) ? undefined : c.goal, mechanics: c.mechanics.filter((k) => !['hp-pool', 'defeat-all', 'waves'].includes(k)) });
+        expect(s.explore, JSON.stringify(c)).toBe(calm.mood);
+        expect(['battle', 'boss', 'rave', 'peak']).not.toContain(s.explore);
+      }
     });
   });
 

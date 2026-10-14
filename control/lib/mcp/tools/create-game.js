@@ -60,7 +60,9 @@ function suggestLevelMusic(levelRefs, gameRef) {
     const s = suggestScore({ ...levelScoreContext(r.ctx, { final: levelRefs.length > 1 && i === levelRefs.length - 1 }), style });
     if (!s) return;
     // and its action sounds, when it has none: the palette the score implies, wired to its mechanics (sfx-palettes.js)
-    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: { score: { mood: s.mood, ...(club ? { style } : {}), game } }, ...(m.audio?.sfx ? {} : { sfx: 'auto' }) };
+    // a fight level plays its scene's music and changes to the fight's when the tension rises (adaptive-music.js)
+    const score = (mood) => ({ score: { mood, ...(club ? { style } : {}), game } });
+    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: score(s.explore ?? s.mood), ...(s.explore ? { combat: score(s.mood) } : {}), ...(m.audio?.sfx ? {} : { sfx: 'auto' }) };
     out.push({ level: ref, mood: s.mood, why: s.why, also: s.also, brief: s.brief, apply: { ref, patch: [{ op: 'set', path: '/audio', value: audio }] } });
   });
   return out.length ? {

@@ -32,7 +32,7 @@ const ROLE_STEP = 0.25; // the cost of leaving the place's role (a field level s
 // A FIGHT (foes with hp, defeat-all, waves, or a battle / shoot / defend goal) is scored as battle music, the boss on
 // the run's last level: the place still says the identity, the fight says the cue. Everything else moves the point.
 const FIGHT = new Set(['hp-pool', 'defeat-all', 'waves']);
-const isFight = (c) => c.mechanics.some((k) => FIGHT.has(k)) || c.goal === 'battle' || c.goal === 'shoot' || c.goal === 'defend';
+const isFight = (c) => (c.mechanics || []).some((k) => FIGHT.has(k)) || ['battle', 'shoot', 'defend'].includes(c.goal);
 // what the play does to the point: [valence, arousal, why]
 const DANGER = new Set(['hazard-damage', 'fail-on-death']);
 const PLAY = [
@@ -129,6 +129,18 @@ export function scoreBrief(mood, style = 'field') {
  * changed. Null when the place calls for no field music (a city block, a math structure).
  */
 export function suggestScore(context = {}) {
+  const s = suggestOne(context);
+  if (!s || !isFight({ mechanics: [], ...context })) return s;
+  // A FIGHT LEVEL plays the scene's own music until the fight comes to it (adaptive-music.js): the explore score is the
+  // answer for the same scene without the fight, the fight score comes in when the tension rises
+  const calm = suggestOne({ ...context, goal: FIGHT_GOALS.includes(context.goal) ? undefined : context.goal, mechanics: (context.mechanics || []).filter((k) => !FIGHT.has(k)) });
+  if (!calm) return s;
+  const prefix = s.style === 'club' ? 'club' : 'field';
+  return { ...s, explore: calm.mood, why: `${calm.why}; ${s.why.slice(s.why.indexOf('; ') + 2)}`, audio: { soundtrack: `${prefix}:${calm.mood}`, combat: `${prefix}:${s.mood}` } };
+}
+const FIGHT_GOALS = ['battle', 'shoot', 'defend'];
+
+function suggestOne(context) {
   // the style: asked for, or read from the scene ('auto', the default)
   const style = context.style === 'field' || context.style === 'club' ? context.style : sceneStyle(context);
   // an electronic scene the orchestra has no place for (a cafe, an apartment, a void) starts from a calm, warm point
