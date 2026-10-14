@@ -53,8 +53,8 @@ export const MECHANIC_SAMPLES = Object.freeze({
 });
 // what a lowered mechanic hands the SHELL beside its world (the bus carries the world): its mark in Godot
 export const MECHANIC_EXTRAS = Object.freeze({
-  doors: { godot: 'absent', how: 'a door between levels: kernel/game.gd plays a list, with no travel' },
-  keep: { godot: 'approximated', how: 'the kept best (a time, a score) is the web shell\'s: kernel/game.gd keeps no bests' },
+  doors: { godot: 'built', how: 'a door between levels: kernel/game.gd applies the transit and enters the linked level by its own door (godot-game-shell.test.js)' },
+  keep: { godot: 'built', how: 'the kept numbers ride the envelope and kernel/game.gd keeps their bests in user://bests.json' },
   aftermath: { godot: 'absent', how: 'what broke is the web\'s: nothing breaks in Godot (breakables_held)' },
   bag: { godot: 'approximated', how: 'the store carries the inventory between levels; the web shell\'s fill of the level\'s bag from it at start is not ported' },
 });
@@ -118,8 +118,8 @@ export const SHELL_MARKS = Object.freeze({
   setup: { godot: 'absent', flag: 'the pre-level setup screen does not travel' },
   difficulty: { godot: 'absent', flag: 'the difficulty pick does not travel' },
   front: { godot: 'absent', flag: 'the title and credits do not travel' },
-  run: { godot: 'absent', flag: 'runs do not travel: no rolled draw, the deepest is not kept', core: true },
-  links: { godot: 'absent', flag: 'door links between levels do not travel', core: true },
+  run: { godot: 'built', flag: 'a run draws its order with the web shell\'s roll and keeps the deepest (kernel/game.gd)' },
+  links: { godot: 'built', flag: 'door links travel: a door applies what the session gathered and enters the linked level (kernel/game.gd)' },
   shell: { godot: 'approximated', flag: 'the light play shell is played as the kernel\'s level list' },
 });
 
@@ -226,7 +226,7 @@ export function assessPortability({ manifest, levels, engine = null }) {
       }
     } else {
       for (const [k, mk] of Object.entries(SHELL_MARKS)) {
-        if (manifest[k] == null || mk.info) continue;
+        if (manifest[k] == null || mk.info || mk.godot === 'built') continue;
         flags.push(`game: ${mk.flag}`);
         lost.push({ level: null, godot: mk.godot, text: mk.flag, core: !!mk.core });
       }

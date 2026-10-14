@@ -17,7 +17,7 @@ export const POWER = Object.freeze({
       multi: true,
       source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', godot: { module: PORT, read: 'mechanicMarks' } },
       // a mechanic's mark is found by lowering it (engine-portability.js MECHANIC_MARKS): unseen waits on `seen`, on-beat
-      // on `beat`, push and crops draw bus entities, supplies rearms; laps and score keep a best the kernel does not
+      // on `beat`, push and crops draw bus entities, supplies rearms; laps and score keep their bests in kernel/game.gd
     },
     kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS', godot: { module: PORT, read: 'kitMarks' } } },
     rules: {

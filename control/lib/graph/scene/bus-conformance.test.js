@@ -25,7 +25,7 @@ describe('the bus conformance corpus', () => {
   });
 
   it('holds the store to its words: refusals, atomic writes, gates', () => {
-    expect(STORE_SCENARIOS.map((s) => s.id)).toEqual(['store-campaign']);
+    expect(STORE_SCENARIOS.map((s) => s.id)).toEqual(['store-campaign', 'store-travel']);   // the map's travel and a door's transit since 0.23.0
     expect(randomStoreScenarios(3, 1).every((s) => s.store && s.ops.length)).toBe(true);
     const snaps = runStoreScenario(STORE_SCENARIOS[0]);
     expect(snaps.slice(0, 3)).toEqual(['false', 'false', 'true']);

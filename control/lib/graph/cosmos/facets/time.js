@@ -43,7 +43,8 @@ export const TIME = Object.freeze({
         gated: { status: 'built', godot: 'built', lowers: 'lib/graph/game/store-kernel.js', note: 'a gate on a completed level, or on a flag a cue sets through game.on; Godot carries the store (kernel/store.gd)' },
         // built 10-12: a game's `run` (the light shell): each run draws its levels from the pool in an order rolled from its
         // number, a death ends it, the store carries over, the deepest is kept; a quick game's run lays a pool of trails
-        runs: { status: 'built', ...WEB, lowers: 'lib/graph/game/play-shell.js', note: 'a pool of made levels (a quick game\'s run: trails each its own seed), drawn anew each run; a level is not rolled at play time' },
+        // Godot: kernel/game.gd draws a run with the web shell's own roll and keeps the deepest (III-c)
+        runs: { status: 'built', godot: 'built', lowers: 'lib/graph/game/play-shell.js', note: 'a pool of made levels (a quick game\'s run: trails each its own seed), drawn anew each run; a level is not rolled at play time' },
       },
     },
     chapters: {

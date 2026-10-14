@@ -35,7 +35,7 @@ export const SPACE = Object.freeze({
         open: { status: 'partial', godot: 'absent', effort: 'L', lowers: 'lib/graph/scene/channels/stream.js', note: 'terrain LOD and city tile streaming exist on world pages only; no game level is a streamed region, nothing loads content by region' },
         // built 10-11: a gameworld's topology: 'interconnected' plays as a map (exits, travel, arrival, keyed doors). Godot's
         // game.gd still plays a list from its menu, with no exits or arrival.
-        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives); trails only', godot: 'absent' },
+        interconnected: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', note: 'a map: two-way links, levels left by named exits, the game travelling on and arriving at the matching end, doors opened by keys found elsewhere, an item or one of the hero\'s powers (whose move it then gives); trails only', godot: 'built' },
       },
     },
     levelForm: {
@@ -48,7 +48,7 @@ export const SPACE = Object.freeze({
         // built 10-12 (kart racer): a loop laid on a trail's land, gone round lap after lap
         circuit: { status: 'built', lowers: 'lib/graph/gameworld/lay-concerns.js', godot: 'absent', note: 'an oval laid on the first trail\'s land (flattened, a low wall down its middle), its start the finish; a race goes round it' },
         // merged 10-12 (structure rails, broadened): a level that is a building, laid from its use
-        building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: 'absent', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
+        building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: 'built', note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
         // built 10-14 (skyscape): a flight map, its ground meshed round the camera, its edge hidden in haze
         airspace: { status: 'built', lowers: 'lib/graph/skyscape/airspace.js', godot: 'absent', note: 'a flight map: a field, a reach to turn back in, a backdrop and a haze that hides the edge (island, basin, canyon, plain); scapeshift\'s ground, a runway and a gate course' },
       },
@@ -57,8 +57,8 @@ export const SPACE = Object.freeze({
     places: {
       values: {
         none: { status: 'built', godot: 'built' },
-        buildings: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'absent', note: 'buildings stood on the flattest land beside the trail, cut into their slope, walked into (or a door that changes the scene to their inside)' },
-        street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'absent', note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
+        buildings: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', note: 'buildings stood on the flattest land beside the trail, cut into their slope, walked into (or a door that changes the scene to their inside)' },
+        street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
       },
     },
     links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS', godot: { module: MARKS, read: 'linkMarks' } } },

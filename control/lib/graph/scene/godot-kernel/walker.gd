@@ -176,6 +176,7 @@ func use_rule(r: Dictionary, pos: Array, heading: float, w: Dictionary, metres_p
 
 # one step of the pilot's rule (a menu up steps it at no time, as the page's frozen world: a look still turns it)
 func rule_step(input: Dictionary, delta: float) -> void:
+	_adopt()
 	var before := position
 	var dt := 0.0 if frozen else delta
 	RulesScript.step(ent, rule, input, dt, world, halt)
@@ -231,11 +232,27 @@ func _show_camera(dt: float, drive := true) -> void:
 		cam_node.look_at(to, up)
 
 
+var _shown := Vector3.INF   # where the pose last put the node: a node moved since (a script, a probe) moves the pose
+var _shown_yaw := INF       # and how it last turned it: a node turned since turns the pose
+
+
+func _adopt() -> void:
+	if _shown != Vector3.INF and position.distance_to(_shown) > 1e-6:
+		var eye := float(rule.get("eye", 0.0))
+		ent["pos"] = [position.x / units, -position.z / units, position.y / units + eye]
+		_shown = position
+	if _shown_yaw != INF and absf(rotation.y - _shown_yaw) > 1e-9:
+		ent["heading"] = rotation.y + PI / 2.0
+		_shown_yaw = rotation.y
+
+
 func _show_pose(before: Vector3, delta: float) -> void:
 	var p: Array = ent["pos"]
 	var eye := float(rule.get("eye", 0.0)) if rule is Dictionary else 0.0
 	position = Vector3(float(p[0]), float(p[2]) - eye, -float(p[1])) * units
+	_shown = position
 	rotation.y = float(ent["heading"]) - PI / 2.0
+	_shown_yaw = rotation.y
 	if pitch_node != null and String(rule.get("turnMode", "tank")) != "tank":
 		pitch_node.rotation.x = float(ent.get("pitch", 0.0))
 	velocity = (position - before) / delta if delta > 0.0 else Vector3.ZERO
@@ -261,6 +278,7 @@ func _key_input() -> Dictionary:
 
 # the pose in the recipe's frame, for the level's bus and the harness's key
 func recipe_pos() -> Array:
+	_adopt()
 	return (ent["pos"] as Array).duplicate()
 
 

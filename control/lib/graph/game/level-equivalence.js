@@ -24,8 +24,10 @@
  *   keyEntities(payload)              → [id]   the entities a key carries: the pilot first, then every one with a rule
  *   frameKey(sim, ids)                → string
  *   winScript(payload, { seconds })   → { frames: [input], keys: [key], outcome, at }   steered and recorded
- *   playScript(payload, frames, { onFrame? }) → { keys, outcome, at }                      replayed (stay-put: frames of {});
- *                                       onFrame(sim, i) reads the world after each frame (its camera, say)
+ *   playScript(payload, frames, { onFrame?, params? }) → { keys, outcome, at, envelope, door }   replayed (stay-put:
+ *                                       frames of {}); onFrame(sim, i) reads the world after each frame (its camera, say);
+ *                                       params: the session's (a door's __entry, an arrive, carried chapters)
+ *   gameChannel(contract, params)     → the page's game channel over a run (the envelope it would send, the door taken)
  *   outcomeIn(contract, log, from)    → 'success' | 'fail' | null   the contract's `on` over the bus log's delta, as
  *                                       the page's game channel reads it
  *   compareKeys(a, b)                 → { equal, frames, first: { frame, web, godot, field } | null }
@@ -139,6 +141,50 @@ export function outcomeIn(contract, log, from = 0) {
   return null;
 }
 
+// ── the game channel, as the page runs it (channels/game.js) ────────────────────────────────────────────────────────
+/** The level's side of the game shell over a run: at start, the door it was entered by (the pilot at that door's spawn,
+ * facing in), the chapters carried in and the level arrived from (heard on the first frame); each frame, the contract's
+ * `on` over the bus log's delta (an emit gathered, with `{event}` named; an end with its exit; a door left by, once),
+ * nothing more once it has ended. → { start(sim) → [events], hear(log, from), envelope, door } */
+export function gameChannel(contract = {}, params = {}) {
+  const on = contract.on || {};
+  const named = Object.values(on).some((a) => a && a.emit && Object.values(a.emit).includes('{event}'));
+  const st = { events: [], ended: false, leaving: false, result: null, exit: null, door: null };
+  return {
+    start(sim) {
+      const e = params.__entry, d = e && (contract.doors || []).find((x) => x.id === e.door);
+      const P = sim.world.byId[sim.world.pilotId];
+      if (d && P) { P.transform.pos = [d.spawn[0], d.spawn[1], d.spawn[2] + ((P.rule && P.rule.eye) || 0)]; P.transform.heading = d.heading; }
+      const out = [];
+      if (contract.chapters) { const s = params[contract.chapters.slice], flags = (s && s.flags) || {}; for (const c of contract.chapters.carried || []) if (flags[c.key]) out.push({ type: c.event }); }
+      if (typeof params.arrive === 'string' && Array.isArray(contract.arrive) && contract.arrive.includes(params.arrive)) out.push({ type: `arrive:${params.arrive}` });
+      return out;
+    },
+    hear(log, from = 0) {
+      for (let i = from; i < log.length; i++) {
+        const ev = log[i];
+        if (!ev || !ev.type) continue;
+        for (const pat of Object.keys(on)) {
+          if (!glob(ev.type, pat)) continue;
+          const act = on[pat];
+          // as the page's: an emit and an end wait on nothing but the end; a door is left once
+          if (act.emit) { if (!st.ended) { const o = JSON.parse(JSON.stringify(act.emit)); if (named) for (const k in o) if (o[k] === '{event}') o[k] = ev.type; st.events.push(o); } }
+          else if (act.end) { if (!st.ended) { st.ended = true; st.result = act.end; if (typeof act.exit === 'string' && act.exit) st.exit = act.exit; } }
+          else if (act.door) { if (!st.ended && !st.leaving) { st.leaving = true; st.door = act.door; } }
+          break;
+        }
+      }
+    },
+    envelope(vars = {}) {
+      if (!st.result) return null;
+      const env = { result: st.result, events: st.events.slice(), ...(st.exit ? { exit: st.exit } : {}) };
+      if (Array.isArray(contract.keep) && contract.keep.length) env.stats = { kept: contract.keep.map((k) => ({ label: k.label, value: Math.round((Number(vars[k.var]) || 0) * (k.scale || 1) * 1000) / 1000, best: k.best, ...(k.unit ? { unit: k.unit } : {}) })) };
+      return env;
+    },
+    get door() { return st.door ? { door: st.door, events: st.events.slice() } : null; },
+  };
+}
+
 // ── the win script: steer toward the audit's points, record the input ───────────────────────────────────────────────
 const fwd = (h) => [Math.cos(h), Math.sin(h)];
 const right = (h) => [Math.sin(h), -Math.cos(h)];
@@ -213,22 +259,27 @@ export function winScript(payload, { seconds = 120 } = {}) {
   return { frames, keys, outcome, at, waypoints: points.length, idle };
 }
 
-export function playScript(payload, frames, { onFrame = null } = {}) {
+export function playScript(payload, frames, { onFrame = null, params = null } = {}) {
   const contract = payload.game || {};
   const sim = levelSim(payload), ids = keyEntities(payload);
+  const ch = gameChannel(contract, params || {});
+  let first = ch.start(sim);
   const keys = [];
   let outcome = null, at = null;
   for (let i = 0; i < frames.length; i++) {
     setInput(sim, frames[i] || {});
     const n0 = sim.bus.log.length;
-    // a frame's keys, then its raw events (a menu pick as the page's menu sends it: menu-pick:<menu>:<n>)
-    sim.frame(SIM_DT, [...keyEvents(payload, (frames[i] || {}).keys), ...JSON.parse(JSON.stringify((frames[i] || {}).events || []))]);
+    // the carried-in events on the first frame, a frame's keys, then its raw events (a menu pick as the page's menu sends
+    // it: menu-pick:<menu>:<n>)
+    sim.frame(SIM_DT, [...first, ...keyEvents(payload, (frames[i] || {}).keys), ...JSON.parse(JSON.stringify((frames[i] || {}).events || []))]);
+    first = [];
+    ch.hear(sim.bus.log, n0);
     keys.push(frameKey(sim, ids));
     if (onFrame) onFrame(sim, i);
     const o = outcomeIn(contract, sim.bus.log, n0);
     if (o && !outcome) { outcome = o; at = i; }
   }
-  return { keys, outcome, at };
+  return { keys, outcome, at, envelope: ch.envelope(sim.bus.vars), door: ch.door };
 }
 
 /** How far two engines' keys drift over a run: the frames whose bus differs, and the largest gap of any entity's field in

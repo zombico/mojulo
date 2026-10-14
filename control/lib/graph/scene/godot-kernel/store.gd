@@ -254,12 +254,20 @@ func apply_outcome(schema, state: Dictionary, contract, envelope) -> Dictionary:
 		return {"ok": false, "errors": v["errors"]}
 	return apply_events(schema, state, envelope["events"] if typeof(envelope.get("events")) == TYPE_ARRAY else [])
 
-# a gate on the level list: { flag, equals?, slice? } | { completed: ref, slice? }; none is open
+# a gate on the level list: { has, count?, slice? } | { flag, equals?, slice? } | { completed: ref, slice? }; none is open
 func eval_gate(schema, state: Dictionary, gate) -> bool:
 	if not Bus.truthy(gate):
 		return true
 	if typeof(gate) != TYPE_DICTIONARY:
 		return false
+	# an item carried in an inventory slice (a key found in another level), at least `count` of it (since 0.23.0)
+	if not _undef(_at(gate, "has")):
+		var iname = gate["slice"] if Bus.truthy(gate.get("slice")) else first_slice_of_kind(schema, "inventory")
+		if not Bus.truthy(iname) or not state.has(iname):
+			return false
+		var n = _at(state[iname]["items"], _s(gate["has"]))
+		var have: float = float(n) if Bus.is_num(n) and Bus.truthy(n) else 0.0
+		return have >= (float(gate["count"]) if gate.get("count") != null else 1.0)
 	if not _undef(_at(gate, "flag")):
 		var name = gate["slice"] if Bus.truthy(gate.get("slice")) else first_slice_of_kind(schema, "flags")
 		if not Bus.truthy(name) or not state.has(name):
@@ -272,3 +280,62 @@ func eval_gate(schema, state: Dictionary, gate) -> bool:
 			return false
 		return Bus.strict_eq(_at(state[name]["completed"], _s(gate["completed"])), "success")
 	return false
+
+
+# ── travel (since 0.23.0): a door's transit, and a map game's levels found, open and led to (store-kernel.js) ────────
+# A door crossed: what the session gathered (an envelope whose result is 'transit') validated against the contract's
+# produces like any envelope, then applied atomically; the session goes on in the next level.
+func apply_transit(schema, state: Dictionary, contract, envelope) -> Dictionary:
+	if typeof(envelope) != TYPE_DICTIONARY or not Bus.strict_eq(_at(envelope, "result"), "transit"):
+		return {"ok": false, "errors": ["a door's envelope has result 'transit'"]}
+	var c: Dictionary = (contract as Dictionary).duplicate() if typeof(contract) == TYPE_DICTIONARY else {}
+	var pr: Dictionary = (c["produces"] as Dictionary).duplicate() if typeof(c.get("produces")) == TYPE_DICTIONARY else {}
+	pr["results"] = ["transit"]
+	c["produces"] = pr
+	var v := validate_envelope(c, envelope)
+	if not v["ok"]:
+		return {"ok": false, "errors": v["errors"]}
+	return apply_events(schema, state, envelope["events"] if typeof(envelope.get("events")) == TYPE_ARRAY else [])
+
+
+# a game whose levels list `exits` is played as a map, not a list
+static func is_map(levels) -> bool:
+	for lv in (levels if levels is Array else []):
+		if lv is Dictionary and lv.get("exits") is Array and not (lv["exits"] as Array).is_empty():
+			return true
+	return false
+
+
+# { ref: open } — a list game reads each gate; a map opens the first level and those an open exit of a completed level
+# leads to, each under its own gate
+func reachable(schema, state: Dictionary, levels: Array) -> Dictionary:
+	var open := {}
+	if not is_map(levels):
+		for lv in levels:
+			open[_s(lv["ref"])] = eval_gate(schema, state, lv.get("gate"))
+		return open
+	var prog = first_slice_of_kind(schema, "progression")
+	var done: Dictionary = state[prog]["completed"] if Bus.truthy(prog) and state.has(prog) and state[prog].get("completed") is Dictionary else {}
+	var found := {}
+	if not levels.is_empty():
+		found[_s(levels[0]["ref"])] = true
+	for lv in levels:
+		if not Bus.strict_eq(_at(done, _s(lv["ref"])), "success"):
+			continue
+		for x in (lv.get("exits") if lv.get("exits") is Array else []):
+			if eval_gate(schema, state, x.get("gate")):
+				found[_s(x["to"])] = true
+	for lv in levels:
+		open[_s(lv["ref"])] = found.has(_s(lv["ref"])) and eval_gate(schema, state, lv.get("gate"))
+	return open
+
+
+# where a level's exit leads, when that exit is open: the level ref, or null
+func travel(schema, state: Dictionary, levels: Array, from: String, exit: String):
+	for lv in levels:
+		if lv is Dictionary and _s(lv.get("ref")) == from:
+			for x in (lv.get("exits") if lv.get("exits") is Array else []):
+				if x is Dictionary and _s(x.get("id")) == exit:
+					return x["to"] if eval_gate(schema, state, x.get("gate")) else null
+			return null
+	return null

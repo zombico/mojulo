@@ -7,7 +7,8 @@
  *   writeHarnessPack(dir, payload, { ref })  → the pack: score.json, bus.json, contract.json, model.glb, the kernel,
  *                                               and the harness autoload; imported once
  *   playInGodot(dir, payload, frames, godot) → { keys: [key], states: [state], error }
- *   playBoth(payload, frames, { godot, dir?, mutate? })→ { web, godot, compare }   (compare: level-equivalence.js compareKeys)
+ *   playBoth(payload, frames, { godot, dir?, mutate?, params? })→ { web, godot, compare }   (compare: level-equivalence.js compareKeys)
+ *                                            params: the session's (game-init's) params, both engines start with them
  *
  * PLANTED BUGS: `mutate: [{ file, from, to }]` edits the pack's copy of the kernel (never the source) before it runs,
  * so a test can hold that each plant (a flipped comparison, a dropped key, an off-by-one tick) breaks the equality.
@@ -55,11 +56,11 @@ export function writeHarnessPack(dir, payload, { ref = 'harness', godot, mutate 
   return { score, bus };
 }
 
-export function playInGodot(dir, payload, frames, godot) {
+export function playInGodot(dir, payload, frames, godot, { params = null } = {}) {
   const ids = keyEntities(payload);
   const feet = Object.fromEntries((payload.entities || []).filter((e) => ids.includes(e.id) && Number.isFinite(e.rule?.eye)).map((e) => [e.id, e.rule.eye]));
   const file = path.join(dir, 'sim', `run-${process.pid}.json`);
-  fs.writeFileSync(file, JSON.stringify({ ref: 'harness', frames, ids, feet }));
+  fs.writeFileSync(file, JSON.stringify({ ref: 'harness', frames, ids, feet, ...(params ? { params } : {}) }));
   const r = spawnSync(godot, ['--headless', '--fixed-fps', '30', '--path', dir, '--', `--mojulo-sim=${file}`], { encoding: 'utf8', timeout: 600000, maxBuffer: 1 << 28 });
   const text = `${r.stdout || ''}${r.stderr || ''}`, keys = [], states = [];
   for (const l of text.split('\n')) {
@@ -70,11 +71,11 @@ export function playInGodot(dir, payload, frames, godot) {
   return { keys, states, error: err ? `${err[0]}: ${text.split('\n').find((l) => SCRIPT_ERR.test(l))}` : r.status !== 0 ? `exit ${r.status}` : null, text };
 }
 
-export function playBoth(payload, frames, { godot, dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-harness-')), keep = false, mutate = [] } = {}) {
+export function playBoth(payload, frames, { godot, dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-harness-')), keep = false, mutate = [], params = null } = {}) {
   try {
     writeHarnessPack(dir, payload, { godot, mutate });
-    const web = playScript(payload, frames);
-    const gd = playInGodot(dir, payload, frames, godot);
+    const web = playScript(payload, frames, { params });
+    const gd = playInGodot(dir, payload, frames, godot, { params });
     return { web, godot: gd, compare: compareKeys(web.keys, gd.keys) };
   } finally {
     if (!keep && !process.env.MOJULO_KEEP_PACK) fs.rmSync(dir, { recursive: true, force: true });

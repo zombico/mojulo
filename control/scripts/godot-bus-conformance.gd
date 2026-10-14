@@ -53,7 +53,19 @@ func _run_store(K, Bus, sc: Dictionary) -> Array:
 		if op.has("gate"):
 			out.append(Bus.ss(K.eval_gate(schema, state, op["gate"])))
 			continue
-		var r: Dictionary = K.apply_events(schema, state, op["events"]) if op.has("events") else K.apply_outcome(schema, state, op["outcome"]["contract"], op["outcome"]["envelope"])
+		if op.has("reachable"):
+			out.append(Bus.ss(K.reachable(schema, state, op["reachable"])))
+			continue
+		if op.has("travel"):
+			out.append(Bus.ss(K.travel(schema, state, op["travel"]["levels"], op["travel"]["from"], op["travel"]["exit"])))
+			continue
+		var r: Dictionary
+		if op.has("transit"):
+			r = K.apply_transit(schema, state, op["transit"]["contract"], op["transit"]["envelope"])
+		elif op.has("events"):
+			r = K.apply_events(schema, state, op["events"])
+		else:
+			r = K.apply_outcome(schema, state, op["outcome"]["contract"], op["outcome"]["envelope"])
 		if r["ok"]:
 			state = r["state"]
 		var snap := {"ok": r["ok"], "state": state}

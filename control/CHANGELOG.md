@@ -1242,6 +1242,16 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   The score carries the page's camera (`score.camera`). A camera that watches anything but a pilot the kernel walks,
   and a follow camera's lock tracking, are flagged. The page pulls its chase camera in by its 3-unit stand-off even
   with no wall between (a twin bug, named by a failing test in `godot-rules.test.js`); Godot matches it.
+- **Travel travels** (kernel 0.23.0). `store.gd` gains the web store's item gate, a door's transit, and a map's
+  reachable levels and exits (held equal by the store corpus). `game.gd` goes on through the exit a level was won by
+  (telling the next where it came from), takes a door into the linked level by its own door with the session carried,
+  draws a run with the web shell's own roll (lifted from `play-shell.js` and held equal) and keeps the deepest, and
+  keeps each kept number's best in `user://`; the menu shows a run's title and a map's found levels. A level ends
+  through its named exit, leaves by a door once, hears `arrive:<ref>`, stands at the door it came in by, and sends its
+  kept numbers, as the page's game channel does (`level-equivalence.js gameChannel` models it for the harness;
+  `godot-travel.test.js`, `godot-game-shell.test.js`, each with plants). A level with no faces stands on the score's
+  implicit plane; a script that moves the walker's node moves its rule's pose. Interconnected, building, buildings,
+  street, runs, doors, links and kept bests are built.
 - **The export's ground is the page's.** The GLB de-collided its blend tiles together with the ground they lie on,
   lifting the ground itself a fraction of a millimetre where the page leaves it; blend faces now go last (the page
   draws them in their own pass), and `score.blendNodes` names their nodes so the kernel's land leaves them out. The

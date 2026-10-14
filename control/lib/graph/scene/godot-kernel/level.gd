@@ -85,6 +85,10 @@ var bus_prompt: Label = null
 var contract: Dictionary = {}
 var outcome_events: Array = []
 var bus_pending: Array = []          # events for the bus's first frame (chapters carried in)
+var params: Dictionary = {}          # the session's params (Game.session_params, the shell's game-init; a sim's own)
+var end_exit := ""                   # the way the level was left, when its contract names several (envelope.exit)
+var door_leaving := false            # a door crossed: the level leaves by it once (the page's st.leaving)
+var door_tried := ""                 # a door crossed with no game to load the next level (the page's st.doorTried)
 var bus_frag: Dictionary = {}
 # MENUS (since 0.10.0): score.menus, the pages a world's play declares. The open one is the last whose bus var
 # (ui-menu-<id>) is 1, as on the web; arrows or W / S move the focus, Enter / Space / E accept (a read turns its pages,
@@ -981,7 +985,7 @@ func _spawn_walker() -> void:
 		for c in colliders:
 			if c is Dictionary and c.get("min") is Array and c.get("max") is Array:
 				boxes.append({"min": (c["min"] as Array).map(func(v): return float(v) / mpu), "max": (c["max"] as Array).map(func(v): return float(v) / mpu)})
-		walker.use_rule(pilot["rule"], pilot.get("pos", [0, 0, 0]), float(pilot.get("heading", 0.0)), {"ground": RulesScript.make_ground(_land_triangles(mpu)), "colliders": boxes}, mpu)
+		walker.use_rule(pilot["rule"], pilot.get("pos", [0, 0, 0]), float(pilot.get("heading", 0.0)), {"ground": RulesScript.make_ground(_land_triangles(mpu), float(score.get("ground", 0.0)) / mpu), "colliders": boxes}, mpu)
 
 
 # The page's camera (score.camera) when it watches the pilot the kernel walks by its rule: follow, eye, overhead, side
@@ -1229,6 +1233,13 @@ var sim_frames: Array = []
 var sim_frame := -1
 var sim_ids: Array = []          # the key's entities: the pilot (the walker) first, then every ruled entity, by id
 var sim_feet: Dictionary = {}    # id -> how far above its feet its pos stands (the web walk rule's eye)
+# the params a harness run starts the level with (the sim file's `params`: a world pack has no Game to ask), else null
+func _sim_params():
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--mojulo-sim="):
+			var doc = JsonExact.parse(FileAccess.get_file_as_string(a.substr(13)))
+			return doc.get("params") if doc is Dictionary and doc.get("params") is Dictionary else null
+	return null
 
 
 func sim_start(frames: Array, ids: Array, feet: Dictionary) -> void:
@@ -1422,20 +1433,31 @@ func _build_bus() -> void:
 
 
 func _start_bus() -> void:
+	if _game() != null:
+		params = _game().session_params(contract)
+	elif _sim_params() is Dictionary:
+		params = _sim_params()
+	elif contract.get("presets") is Dictionary and contract["presets"].get("default") is Dictionary:
+		params = (contract["presets"]["default"] as Dictionary).duplicate(true)
+	_enter_by_door()
 	if bus_frag.get("initial") is Array and not (bus_frag["initial"] as Array).is_empty():
 		bus.process_events(bus_state, bus_frag["initial"])
 	# a chapter the store already holds is applied at once, with no presentation (the web's game channel does the same)
 	var ch = contract.get("chapters")
-	if ch is Dictionary and _game() != null:
-		var slice = (_game().params_for(contract) as Dictionary).get(ch.get("slice"), {})
+	if ch is Dictionary:
+		var slice = params.get(ch.get("slice"), {})
 		var flags: Dictionary = slice.get("flags", {}) if slice is Dictionary else {}
 		for c in ch.get("carried", []):
 			if c is Dictionary and bus.truthy(flags.get(c.get("key"))):
 				bus_pending.append({"type": c["event"]})
+	# ARRIVAL (a map game): the level travelled in from, heard as arrive:<ref> on the first frame, after the chapters
+	var from = params.get("arrive")
+	if from is String and contract.get("arrive") is Array and from in contract["arrive"]:
+		bus_pending.append({"type": "arrive:" + from})
 	# the powers the consumed slice holds apply at start (the web's game channel does the same)
 	var pw = contract.get("powers")
-	if pw is Dictionary and _game() != null:
-		var held = (_game().params_for(contract) as Dictionary).get(pw.get("slice"), {})
+	if pw is Dictionary:
+		var held = params.get(pw.get("slice"), {})
 		var items: Dictionary = held.get("items", {}) if held is Dictionary and held.get("items") is Dictionary else {}
 		for id in items:
 			if float(items[id]) > 0.0:
@@ -1833,11 +1855,22 @@ func _drain_bus(_delta: float) -> void:
 			if not bus.glob(e["type"], pat):
 				continue
 			var act = on[pat]
+			# once the level has ended in this drain, nothing more is gathered (the page's st.ended); a door is left once
+			var over: bool = state != "playing" or end_with != ""
 			if act is Dictionary and act.get("emit") is Dictionary:
-				if state == "playing":
-					outcome_events.append((act["emit"] as Dictionary).duplicate(true))
-			elif act is Dictionary and act.has("end") and end_with == "":
-				end_with = String(act["end"])
+				if not over:
+					var o: Dictionary = (act["emit"] as Dictionary).duplicate(true)
+					for k in o:
+						if o[k] is String and o[k] == "{event}":
+							o[k] = e["type"]
+					outcome_events.append(o)
+			elif act is Dictionary and act.has("end"):
+				if not over:
+					end_with = String(act["end"])
+					end_exit = String(act["exit"]) if act.get("exit") is String else ""
+			elif act is Dictionary and act.get("door") is String:
+				if not over and not door_leaving:
+					_door(String(act["door"]))
 			break
 	bus_seen = log.size()
 	if end_with != "" and state == "playing":
@@ -2181,9 +2214,58 @@ func _game() -> Node:
 	return get_node_or_null("/root/Game")
 
 
-# the level's one outcome: what its bus mapped (contract.on), with the result (level-contract.js, the envelope)
+# the level's one outcome: what its bus mapped (contract.on), with the result (level-contract.js, the envelope), the
+# way it was left when it names one, and its kept numbers (game.keep: each var off the bus, scaled, to 1e-3)
 func outcome_envelope(result: String) -> Dictionary:
-	return {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": 1, "result": result, "events": outcome_events.duplicate(true)}
+	var env := {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": _game().session_seed() if _game() != null else 1, "result": result, "events": outcome_events.duplicate(true)}
+	if end_exit != "":
+		env["exit"] = end_exit
+	if contract.get("keep") is Array and bus != null:
+		var kept := []
+		for k in contract["keep"]:
+			var v = bus_state["vars"].get(k["var"])
+			var x := (float(v) if bus.is_num(v) else 0.0) * (float(k["scale"]) if k.get("scale") != null else 1.0)
+			var row := {"label": k["label"], "value": floor(x * 1000.0 + 0.5) / 1000.0, "best": k["best"]}
+			if k.get("unit") is String:
+				row["unit"] = k["unit"]
+			kept.append(row)
+		env["stats"] = {"kept": kept}
+	if sim_frame >= 0:
+		print("[mojulo-envelope] " + BusScript.ss(env))
+	return env
+
+
+# a DOOR crossed (the door mechanic): the level leaves by it once, carrying what the session gathered (result
+# 'transit'); the game loads the level it links to. With no game, the door stays shut and says so (the page's door()).
+func _door(id: String) -> void:
+	if state != "playing" or door_leaving:
+		return
+	var env := {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": _game().session_seed() if _game() != null else 1, "result": "transit", "events": outcome_events.duplicate(true)}
+	if sim_frame >= 0:
+		print("[mojulo-door] %s %s" % [id, BusScript.ss(env)])
+	if _game() != null:
+		door_leaving = true
+		_game().level_transit(id, env, contract)
+	else:
+		door_tried = id
+
+
+# entered BY a door (params.__entry): the pilot stands at that door's spawn, facing in
+func _enter_by_door() -> void:
+	var e = params.get("__entry")
+	if not (e is Dictionary) or walker == null:
+		return
+	for d in (contract.get("doors") if contract.get("doors") is Array else []):
+		if d is Dictionary and d.get("id") == e.get("door"):
+			var sp: Array = d["spawn"]
+			if walker.rule != null:
+				walker.warp_to([float(sp[0]), float(sp[1]), float(sp[2]) + float(walker.rule.get("eye", 0.0))])
+				walker.ent["heading"] = float(d.get("heading", 0.0))
+				walker.warp_to(walker.recipe_pos())
+			else:
+				walker.global_position = to_yup(sp) * bus_units
+				walker.rotation.y = float(d.get("heading", 0.0)) - PI / 2.0
+			return
 
 
 func _complete() -> void:
@@ -2194,9 +2276,10 @@ func _complete() -> void:
 	if sound != null:
 		sound.finish("victory")
 	_banner("LEVEL COMPLETE", Color(1, 1, 1))
+	var env := outcome_envelope("success")
 	var game := _game()
 	if game != null:
-		game.level_finish(outcome_envelope("success"), contract)
+		game.level_finish(env, contract)
 
 
 func _fail(result: String = "fail") -> void:
@@ -2207,9 +2290,10 @@ func _fail(result: String = "fail") -> void:
 	if sound != null:
 		sound.finish("defeat")
 	_banner("FAILED", Color(1, 0.35, 0.3))
+	var env := outcome_envelope(result)
 	var game := _game()
 	if game != null:
-		game.level_finish(outcome_envelope(result), contract)
+		game.level_finish(env, contract)
 	else:
 		await get_tree().create_timer(1.5).timeout
 		_reset()

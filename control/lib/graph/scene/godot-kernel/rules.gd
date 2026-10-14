@@ -19,7 +19,10 @@ const CELL := 4.0
 
 
 # ── the ground: the page's raycast straight down, over the level's triangles (level-equivalence.js faceGround) ───────
-static func make_ground(tris: Array) -> Dictionary:
+# a level with no faces at all stands on the score's implicit plane (`flat`: its height), as level-sim.js's default
+static func make_ground(tris: Array, flat = null) -> Dictionary:
+	if tris.is_empty() and flat != null:
+		return {"flat": float(flat), "grid": {}, "tris": []}
 	var grid := {}
 	var kept := []
 	for t in tris:
@@ -60,6 +63,8 @@ static func _height_in(t: Array, x: float, y: float) -> float:
 static func ground_at(g, pos: Array) -> float:
 	if not (g is Dictionary):
 		return NAN
+	if g.has("flat"):
+		return g["flat"] if g["flat"] <= float(pos[2]) + 0.05 else NAN
 	var x := float(pos[0])
 	var y := float(pos[1])
 	var top := float(pos[2]) + 0.05

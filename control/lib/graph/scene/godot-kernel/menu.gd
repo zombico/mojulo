@@ -1,6 +1,7 @@
 extends Control
 # mojulo-godot kernel — the menu. Builds the level list from the Game
-# autoload's table (game.json); locked entries show their gate state.
+# autoload's table (game.json); locked entries show their gate state (a map
+# game's: found through an open exit). A run game shows its run title instead.
 
 
 func _ready() -> void:
@@ -28,6 +29,20 @@ func _ready() -> void:
 	heading.text = game.title
 	heading.add_theme_font_size_override("font_size", 40)
 	vbox.add_child(heading)
+	# a RUN game (manifest.run): its length, the deepest run kept, and a new run (the web shell's run title)
+	if game.run_cfg is Dictionary:
+		var line := Label.new()
+		line.text = "a run: %d of %d levels, drawn anew each time; fall, and it ends" % [int(game.run_cfg.get("length", game.levels.size())), game.levels.size()]
+		vbox.add_child(line)
+		if game.runs_so_far() > 0:
+			var deep := Label.new()
+			deep.text = "deepest: %d of %d · %d run%s" % [game.deepest(), int(game.run_cfg.get("length", game.levels.size())), game.runs_so_far(), "" if game.runs_so_far() == 1 else "s"]
+			vbox.add_child(deep)
+		var go := Button.new()
+		go.text = "new run" if game.runs_so_far() > 0 else "start a run"
+		go.pressed.connect(func() -> void: game.start_run())
+		vbox.add_child(go)
+		return
 	for i in range(game.levels.size()):
 		var lv: Dictionary = game.levels[i]
 		var btn := Button.new()

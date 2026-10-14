@@ -408,6 +408,12 @@ const SCHEMA = { slices: [
   { name: 'world', kind: 'flags' },
 ] };
 const CONTRACT = { produces: { results: ['success', 'fail'], events: [{ type: 'setFlag', slice: 'world' }, { type: 'grant', slice: 'bag', max: 2 }, { type: 'promote', slice: 'campaign', max: 1 }] } };
+// a map: levels whose exits lead on, one shut by an item, one by a flag
+const MAP = [
+  { ref: 'town', exits: [{ id: 'east', to: 'fields' }, { id: 'gate', to: 'keep', gate: { has: 'key' } }] },
+  { ref: 'fields', exits: [{ id: 'west', to: 'town' }, { id: 'up', to: 'tower', gate: { flag: 'chapter:siege' } }] },
+  { ref: 'keep', gate: { completed: 'town' } }, { ref: 'tower' },
+];
 const env = (events, result = 'success', extra = {}) => ({ contractVersion: 1, levelRef: 'town', seed: 1, result, events, ...extra });
 
 export const STORE_SCENARIOS = [{
@@ -429,6 +435,22 @@ export const STORE_SCENARIOS = [{
     { outcome: { contract: CONTRACT, envelope: { ...env([]), contractVersion: 2, events: 'none' } } },
     { outcome: { contract: { produces: { events: [] } }, envelope: env([], 'abort') } },
     { gate: { flag: 'k', slice: 'missing' } },
+  ],
+}, {
+  id: 'store-travel', store: true,
+  about: 'a map game: what is found and open, where an exit leads and when it is shut, an item gate, a door\'s transit applied or refused',
+  schema: SCHEMA,
+  ops: [
+    { reachable: MAP }, { reachable: [{ ref: 'a' }, { ref: 'b', gate: { completed: 'a' } }] }, { travel: { levels: MAP, from: 'town', exit: 'east' } },
+    { travel: { levels: MAP, from: 'town', exit: 'gate' } }, { travel: { levels: MAP, from: 'nowhere', exit: 'east' } }, { travel: { levels: MAP, from: 'town', exit: 'up' } },
+    { gate: { has: 'key' } }, { gate: { has: 'coin', count: 2 } }, { gate: { has: 'coin', count: 3 } },
+    { transit: { contract: CONTRACT, envelope: env([{ type: 'grant', slice: 'bag', item: 'key' }], 'transit') } },
+    { gate: { has: 'key' } }, { travel: { levels: MAP, from: 'town', exit: 'gate' } },
+    { events: [{ type: 'promote', slice: 'campaign', ref: 'town' }] }, { reachable: MAP },
+    { events: [{ type: 'promote', slice: 'campaign', ref: 'fields' }] }, { reachable: MAP },
+    { transit: { contract: CONTRACT, envelope: env([{ type: 'grant', slice: 'bag', item: 'x' }], 'success') } },
+    { transit: { contract: CONTRACT, envelope: env([{ type: 'setStat', slice: 'hero', stat: 'hp', value: 1 }], 'transit') } },
+    { transit: { contract: CONTRACT, envelope: null } },
   ],
 }];
 
@@ -462,7 +484,9 @@ export function runStoreScenario(sc) {
   let state = K.createStore(clone(sc.schema));
   return sc.ops.map((op) => {
     if ('gate' in op) return JSON.stringify(K.evalGate(sc.schema, state, clone(op.gate)));
-    const r = 'events' in op ? K.applyEvents(sc.schema, state, clone(op.events)) : K.applyOutcome(sc.schema, state, clone(op.outcome.contract), clone(op.outcome.envelope));
+    if ('reachable' in op) return JSON.stringify(sortedKeys(K.reachable(sc.schema, state, clone(op.reachable))));
+    if ('travel' in op) return JSON.stringify(K.travel(sc.schema, state, clone(op.travel.levels), op.travel.from, op.travel.exit));
+    const r = 'transit' in op ? K.applyTransit(sc.schema, state, clone(op.transit.contract), clone(op.transit.envelope)) : 'events' in op ? K.applyEvents(sc.schema, state, clone(op.events)) : K.applyOutcome(sc.schema, state, clone(op.outcome.contract), clone(op.outcome.envelope));
     if (r.ok) state = r.state;
     return JSON.stringify(sortedKeys({ ok: r.ok, ...(r.ok ? {} : { errors: r.errors }), state }));
   });

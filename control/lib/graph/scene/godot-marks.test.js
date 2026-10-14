@@ -114,8 +114,8 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(MECHANIC_MARKS['on-beat'].godot).toBe('built');   // since the beat travels (II2)
     expect(MECHANIC_MARKS.push.godot).toBe('built');       // its boulders are markers (II4)
     expect(MECHANIC_MARKS.supplies.godot).toBe('built');   // its drops are markers, its rearm travels (II3, II4)
-    expect(MECHANIC_MARKS.laps.godot).toBe('approximated');   // pure bus: only its kept best is the web's
-    expect(MECHANIC_MARKS.score.godot).toBe('approximated');
+    expect(MECHANIC_MARKS.laps.godot).toBe('built');    // pure bus, its kept best in kernel/game.gd (III-c)
+    expect(MECHANIC_MARKS.score.godot).toBe('built');
     expect(GODOT_MECHANICS).toEqual(MECHANIC_KINDS.filter((k) => MECHANIC_MARKS[k].godot !== 'absent'));
     // every mechanic that travels is played by the bus corpus Godot is held equal on (bus-conformance.js)
     const ids = corpus({ random: 0 }).map((s) => s.id);

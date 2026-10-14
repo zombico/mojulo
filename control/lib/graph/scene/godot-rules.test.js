@@ -165,7 +165,7 @@ describe('the motion rules the Godot kernel runs', () => {
   }, 600000);
 
   it.skipIf(!GODOT)('a level whose ground is not read from its faces parts from the web (MOJULO_GODOT)', () => {
-    const { compare: cmp } = playBoth(ledgeLevel(), climb(), { godot: GODOT, mutate: [{ file: 'level.gd', from: 'RulesScript.make_ground(_land_triangles(mpu))', to: 'RulesScript.make_ground([])' }] });
+    const { compare: cmp } = playBoth(ledgeLevel(), climb(), { godot: GODOT, mutate: [{ file: 'level.gd', from: 'RulesScript.make_ground(_land_triangles(mpu), float(score.get("ground", 0.0)) / mpu)', to: 'RulesScript.make_ground([], 0.0)' }] });
     expect(cmp.equal).toBe(false);
   }, 300000);
 });
