@@ -6,8 +6,8 @@
  *   frame      the ground each view plans on: the town, the region round it (`slice` crops the region)
  *   site       the lie of the land: flat, a river plain, a bluff (high ground on one side), a hill (terraced toward
  *              its top), a plateau (a high shelf over a valley); where the high ground is and how high
- *   water      none, a canal through the town, a river along a side, the sea on a side; its width and how far it lies
- *              below the town
+ *   water      none, a canal through the town, a river along a side, the sea on a side; its width, how far it lies
+ *              below the town, and which way it `flows` (upstream and downstream are where the crafts go)
  *   armature   what the town is organised round: its MONUMENT at the heart, at the end of an axis from the water, on
  *              the summit above the town, or at the head of a forum square; the approach to it and the precinct round it
  *              (`at`: where the monument (or the square) stands, as fractions of the town, x from the west, y from the north)
@@ -76,7 +76,7 @@ export const FORM_SCHEMA = Object.freeze({
   label: str,
   frame: { town: pair(80, 1200), region: pair(200, 2400) },
   site: { landform: word(LANDFORMS), high: word(SIDES), relief: num(0, 150), edge: num(0.05, 0.95), terraces: num(0, 20), cliff: bool, rock: num(0, 150), town: word(['high', 'low', 'both']) },
-  water: { kind: word(WATERS), side: word(SIDES), width: num(0, 400), sink: num(0, 20), bank: num(0, 40), bridge: asset },
+  water: { kind: word(WATERS), side: word(SIDES), width: num(0, 400), sink: num(0, 20), bank: num(0, 40), bridge: asset, flows: word(SIDES) },
   armature: {
     kind: word(ARMATURES), monument: asset, square: pair(10, 300), at: pair(0.05, 0.95),
     approach: { width: num(0, 60), flank: asset, flankDepth: num(1, 20), quay: asset, quaySize: size, way: num(0, 30) },

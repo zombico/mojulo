@@ -45,7 +45,7 @@ const THEBES = {
   label: 'a New Kingdom temple town on the Nile',
   frame: { town: [440, 330], region: [900, 680] },
   site: { landform: 'flat' },
-  water: { kind: 'river', side: 'w', width: 70, sink: 2.6, bank: 9 },
+  water: { kind: 'river', side: 'w', width: 70, sink: 2.6, bank: 9, flows: 'n' },   // the Nile runs north: upstream is south
   armature: {
     kind: 'axis', monument: 'luxor-temple', at: [0.56, 0.5],
     approach: { width: 12, flank: 'eg-sphinx-row', flankDepth: 6, quay: 'eg-quay', quaySize: [26, 16], way: 12 },

@@ -121,6 +121,18 @@ describe('the scenes', () => {
     expect(region.stats.activities.length).toBeGreaterThan(0);
     for (const a of region.stats.activities) expect(region.slots.filter((s) => s.activity === a.id).length).toBeGreaterThan(1);
   });
+  it('the crafts that need the water stand by it, upstream or downstream of the town as the water flows', () => {
+    const wid = using((f) => (f.activities || []).some((a) => a.where === 'upstream') && f.water.flows);
+    const p = solveHistoric({ culture: wid, scene: 'region' }), F = FORMS[wid], cy = p.frame.d / 2, cx = p.frame.w / 2;
+    const water = (x, y) => { const g = p.grid, i = Math.floor(y / g.cell) * g.cols + Math.floor(x / g.cell); return g.data[i] === g.codes.WATER; };
+    for (const a of F.activities.filter((x) => x.where === 'upstream' || x.where === 'downstream')) {
+      const r = p.stats.activities.find((x) => x.id === a.id).rect;
+      let near = false; for (let d = 0; d <= 40 && !near; d += 3) near = [[r.x - d, r.y + r.d / 2], [r.x + r.w + d, r.y + r.d / 2], [r.x + r.w / 2, r.y - d], [r.x + r.w / 2, r.y + r.d + d]].some(([x, y]) => water(x, y));
+      expect(near, `${a.id} by the water`).toBe(true);
+      const down = { n: r.y + r.d / 2 < cy, s: r.y + r.d / 2 > cy, w: r.x + r.w / 2 < cx, e: r.x + r.w / 2 > cx }[F.water.flows];
+      expect(down, `${a.id} ${a.where}`).toBe(a.where === 'downstream');
+    }
+  });
   it('a slice of life: the region cut round its focus, at its own origin, with an eye on it', () => {
     const focus = sliceFoci(id).find((f) => !['street', 'monument'].includes(f)) ?? 'street';
     const s = solveHistoric({ culture: id, scene: 'slice', focus });

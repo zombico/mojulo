@@ -38,14 +38,14 @@ export function waterOf(W, town, rng) {
   if (W.kind === 'canal') {
     const y0 = town.y + town.d * (0.6 + rng() * 0.06), amp = town.d * 0.04, ph = rng() * 6.283;
     const centre = (px) => y0 + amp * Math.sin(((px - town.x) / town.w) * 6.283 * 0.8 + ph);
-    return { kind: 'canal', z, width, centre, isWater: (px, py) => Math.abs(py - centre(px)) < width / 2, upstream: 'w' };
+    return { kind: 'canal', z, width, centre, isWater: (px, py) => Math.abs(py - centre(px)) < width / 2, upstream: W.flows ? opposite(W.flows) : 'w' };
   }
   const side = W.side ?? 'w', axes = sideAxes(side, town), amp = W.kind === 'river' ? 7 : 10, ph = rng() * 6.283, period = axes.span[1] - axes.span[0];
   const edge = (a) => width + amp * Math.sin(((a - axes.span[0]) / period) * 6.283 * 0.7 + ph);
   const isWater = W.kind === 'river'
     ? (px, py) => { const a = axes.along(px, py), c = axes.across(px, py); return c < edge(a) && c > edge(a) - width; }
     : (px, py) => axes.across(px, py) < edge(axes.along(px, py));
-  return { kind: W.kind, z, width, side, axes, edge, isWater, upstream: side === 'n' || side === 's' ? 'w' : 'n' };
+  return { kind: W.kind, z, width, side, axes, edge, isWater, upstream: W.flows ? opposite(W.flows) : side === 'n' || side === 's' ? 'w' : 'n' };
 }
 
 const smooth = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));

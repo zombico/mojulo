@@ -625,8 +625,8 @@ export function solveHistoric({ culture = 'sumer', seed = 1, scene = 'city', foc
         if (a.where === 'fields') return -Math.abs(dTown - Math.max(tw, td) * 0.75);
         if (a.where === 'outside') return -dTown;
         // by the water, upstream (west or north of the town) or downstream
-        const nearW = [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => water.isWater(x + dx * (yd / 2 + 8), y + dy * (yd / 2 + 8))) ? 0 : 400;
-        const up = water.upstream === 'w' ? x < townCentre[0] : y < townCentre[1];
+        const nearW = [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([dx, dy]) => water.isWater(x + dx * (yw / 2 + 10), y + dy * (yd / 2 + 10))) ? 0 : 400;   // the water just past the yard's edge, its width across, its depth along
+        const up = { w: x < townCentre[0], e: x > townCentre[0], n: y < townCentre[1], s: y > townCentre[1] }[water.upstream];   // the upstream side of the town
         return -(nearW + (up === (a.where === 'upstream') ? 0 : 300) + Math.abs(dTown - Math.max(tw, td) * 0.6) * 0.3);
       };
       let best = null;
