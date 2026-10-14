@@ -24,7 +24,21 @@
  * Rule params (tuned defaults, real-ish units like drive — kg / N / m/s):
  * { mass, thrust?, drag?, brakeDrag?, wheelBrake?, stallSpeed?, takeoffSpeed?, maxSpeed?,
  *   bankMax?, bankRate?, levelRate?, pitchMax?, pitchRate?, lookSens?, taxiTurn?, stallDrop?,
- *   sinkRate?, propRate?, eye? }
+ *   sinkRate?, propRate?, eye?, engine?, lever?, leverRate?, gravity?, lift?, turnRate? }
+ *
+ * The flight dials (skyscape: one flight model under every flight game). Each is absent by default and every number
+ * above is then as it was:
+ *   • engine: false — a glider: no thrust at all; W / S do nothing in the air (S still brakes on the ground).
+ *   • lever: true — the throttle is a LEVER that W / S move (`leverRate`/s) and that holds where it is left, the way a
+ *     cockpit's does; S at idle on the ground is the wheel brakes. Absent, W is the throttle while held.
+ *   • gravity: false — space: no energy exchange along the path, no stall (lift only matters against weight), no
+ *     ground to roll on.
+ *   • lift: false — the craft is held up by nothing: no stall (speed does not keep it up, nothing to lose), and it
+ *     turns at `turnRate` rad/s at full bank instead of by the coordinated-turn law (there is no lift to bank).
+ *   • launchSpeed — the airspeed it starts at (m/s): a craft set down in the air already flying, as a glider is.
+ *   • bound: { hx, hy, cx?, cy?, warn? } — the map's reach (skyscape/map.js): outside it the `outOfBounds` fact is up,
+ *     and after `warn` s (5) the stick is taken and the craft is turned back toward the centre, wings and nose
+ *     levelling, until it is inside again.
  *
  * AFFORDANCE FACTS (the D5 doctrine): locomotion 'fly'|'taxi', airspeed, throttle, bank,
  * climbRate, stalled (+stallStart), airborne, takeoff/touchdown edges, gaitPhase as the prop
@@ -43,7 +57,8 @@ export function buildRulesFly(E) {
     const r = e.rule;
     const t = e.transform;
     const mass = r.mass > 0 ? r.mass : 1200;
-    const maxThrust = r.thrust > 0 ? r.thrust : mass * 6;     // N — thrust/weight ≈ 0.6, sporty prop
+    const maxThrust = r.engine === false ? 0 : r.thrust > 0 ? r.thrust : mass * 6;     // N — thrust/weight ≈ 0.6, sporty prop
+    const grav = r.gravity !== false, lifts = r.lift !== false;
     const dragK = r.drag ?? 0.6;
     const vStall = r.stallSpeed > 0 ? r.stallSpeed : 18;
     const vTakeoff = r.takeoffSpeed > 0 ? r.takeoffSpeed : Math.round(vStall * 1.25);
@@ -51,13 +66,20 @@ export function buildRulesFly(E) {
     const bankMax = r.bankMax ?? 1.0, bankRate = r.bankRate ?? 1.8, levelRate = r.levelRate ?? 0.9;
     const pitchMax = r.pitchMax ?? 0.6, pitchRate = r.pitchRate ?? 1.1, lookSens = r.lookSens ?? 0.0025;
     const eye = r.eye ?? 0;
-    let v = e.airspeed || 0;
+    let v = e.airspeed ?? (r.launchSpeed || 0);              // launchSpeed: a craft that starts flying (a glider aloft)
 
-    const throttle = clamp(input.forward, 0, 1);
-    const brakeIn = clamp(-input.forward, 0, 1);
+    let throttle = clamp(input.forward, 0, 1);
+    let brakeIn = clamp(-input.forward, 0, 1);
+    if (r.lever) {
+      // the lever: W / S move it and it stays; S held at idle is the brakes (on the ground, the wheels)
+      const was = e.lever || 0;
+      e.lever = clamp(was + input.forward * (r.leverRate ?? 0.6) * dt, 0, 1);
+      throttle = e.lever;
+      brakeIn = was <= 0 && input.forward < 0 ? clamp(-input.forward, 0, 1) : 0;
+    }
 
     // ground read from body height (the rising-terrain-safe cast the ai/drive use)
-    const gz = world && world.ground ? world.ground([t.pos[0], t.pos[1], (t.pos[2] - eye) + (r.collideHeight ?? 3)]) : null;
+    const gz = grav && world && world.ground ? world.ground([t.pos[0], t.pos[1], (t.pos[2] - eye) + (r.collideHeight ?? 3)]) : null;
     const onGround = gz != null && t.pos[2] - eye <= gz + 0.05;
     const wasAirborne = !!e.airborne;
 
@@ -65,12 +87,25 @@ export function buildRulesFly(E) {
     let force = maxThrust * throttle - dragK * v * v;
     if (brakeIn > 0) force -= ((r.brakeDrag ?? dragK * 5) * v * v + (onGround ? (r.wheelBrake ?? mass * G * 0.5) : 0)) * brakeIn;
     let a = force / mass;
-    if (!onGround) a -= G * Math.sin(t.pitch || 0);           // the energy exchange: climb bleeds, dive buys back
+    if (!onGround && grav) a -= G * Math.sin(t.pitch || 0);   // the energy exchange: climb bleeds, dive buys back
     v = clamp(v + a * dt, 0, vMax);
     if (onGround && throttle === 0 && brakeIn === 0 && v < 0.4) v = 0;   // parked stays parked
 
+    // ── the bound: warned outside the reach, then turned back toward its centre ──
+    let bankIn = clamp(input.turn, -1, 1);                    // D = +1 = bank right
+    let liftIn = input.lift || 0;
+    if (r.bound) {
+      const B = r.bound, cx = B.cx || 0, cy = B.cy || 0, out = Math.abs(t.pos[0] - cx) > B.hx || Math.abs(t.pos[1] - cy) > B.hy;
+      e.boundT = out ? (e.boundT || 0) + dt : 0;
+      e.outOfBounds = out;
+      if (out && e.boundT > (B.warn ?? 5)) {
+        let d = Math.atan2(cy - t.pos[1], cx - t.pos[0]) - t.heading;
+        d = ((d % TAU) + TAU + Math.PI) % TAU - Math.PI;       // the turn back, the short way round
+        bankIn = clamp(-2 * d, -1, 1);                          // heading grows with a left bank (−)
+        liftIn = clamp(-3 * (t.pitch || 0), -1, 1);             // and the nose comes level
+      }
+    }
     // ── attitude ──
-    const bankIn = clamp(input.turn, -1, 1);                  // D = +1 = bank right
     let stalled = false;
     if (onGround && v < vTakeoff) {
       // TAXI: nosewheel steer (authority grows with rolling speed), wings level, nose down.
@@ -80,10 +115,10 @@ export function buildRulesFly(E) {
     } else {
       e.bank = clamp((e.bank || 0) + bankIn * bankRate * dt, -bankMax, bankMax);
       if (bankIn === 0) e.bank -= clamp(e.bank, -levelRate * dt, levelRate * dt);   // self-leveling
-      t.heading = (t.heading - (G / Math.max(v, vStall)) * Math.tan(e.bank) * dt) % TAU;   // coordinated: bank right → turn right
-      t.pitch = clamp((t.pitch || 0) + input.lookDY * lookSens + (input.lift || 0) * pitchRate * dt, -pitchMax, pitchMax);
+      t.heading = (t.heading - (lifts ? (G / Math.max(v, vStall)) * Math.tan(e.bank) : (r.turnRate ?? 1.2) * e.bank / bankMax) * dt) % TAU;   // coordinated: bank right → turn right
+      t.pitch = clamp((t.pitch || 0) + (e.boundT > ((r.bound && r.bound.warn) ?? 5) ? 0 : input.lookDY * lookSens) + liftIn * pitchRate * dt, -pitchMax, pitchMax);
       // STALL: the elevator loses the nose below stall speed — it drops until airspeed returns.
-      if (!onGround && v < vStall) {
+      if (!onGround && lifts && grav && v < vStall) {   // lift only matters against weight
         stalled = true;
         t.pitch = Math.max(-pitchMax, t.pitch - (r.stallDrop ?? 0.8) * dt);
       }
@@ -96,7 +131,7 @@ export function buildRulesFly(E) {
     t.pos[0] += dir[0] * v * dt;
     t.pos[1] += dir[1] * v * dt;
     let vz = onGround && pathPitch <= 0 ? 0 : dir[2] * v;     // a grounded nose-down path stays rolling
-    if (!onGround && stalled) vz -= (r.sinkRate ?? 6) * (1 - v / vStall);   // the mush: sink by the deficit
+    if (!onGround && stalled && grav) vz -= (r.sinkRate ?? 6) * (1 - v / vStall);   // the mush: sink by the deficit
     t.pos[2] += vz * dt;
 
     // ── ground contact: clamp + the takeoff / touchdown edges (0.1 hysteresis) ──

@@ -42,6 +42,7 @@ const WORDS = Object.freeze({
   stealth: ['stealth', 'sneak', 'guards', 'unseen', 'spotted', 'infiltrate'],
   racing: ['race', 'racing', 'car', 'cars', 'drive', 'driving', 'laps', 'time trial', 'checkpoints'],
   'kart-racer': ['kart', 'karts', 'kart racer', 'go-kart', 'rivals', 'circuit', 'track', 'grand prix', 'podium'],
+  'flight-sim': ['fly', 'flying', 'flight', 'flight sim', 'plane', 'airplane', 'aircraft', 'pilot', 'glider', 'runway', 'take off', 'landing', 'ring gates', 'rings in the sky'],
   rhythm: ['rhythm', 'beat', 'music', 'dance', 'tempo'],
   roguelike: ['roguelike', 'roguelite', 'runs', 'permadeath', 'procedural', 'run'],
   farming: ['farm', 'farming', 'crops', 'harvest', 'plant', 'village life', 'life sim', 'seasons'],
@@ -52,7 +53,7 @@ export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id
 const CUBES = Object.fromEntries(FIXTURES.map((f) => [f.id, f.cube]));
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
-  puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter',
+  puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', fly: 'flight-sim',
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

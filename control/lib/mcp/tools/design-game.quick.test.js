@@ -50,6 +50,25 @@ describe('design_game quick', () => {
     expect(stored('s-game').theme).toMatchObject({ accent: '#7a2f8e' });
   }, 240_000);
 
+  it('fly: an airspace flown by its craft, the course\'s gates as laps in three dimensions, the runway the finish', async () => {
+    const out = await designGameHandler({ quick: { goal: 'fly', craft: 'trainer', airspace: { map: { form: 'island', field: 2400 } }, world: { id: 'skies' } }, ref: 'f' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('f-level-run-0');
+    expect(L.kind).toBe('airspace');
+    expect(L.entities[0]).toMatchObject({ id: 'craft', pilotable: true, rule: { type: 'fly', lever: true } });
+    expect(L.entities[0].rule.bound.hx).toBeGreaterThan(1200);   // the map's reach
+    expect(L.camera).toMatchObject({ rule: 'follow', target: 'craft', rollFollow: 1 });
+    const laps = L.game.mechanics.find((m) => m.kind === 'laps');
+    expect(laps.checkpoints.length).toBeGreaterThan(3);
+    expect(laps.checkpoints.every((c) => c.planar === false)).toBe(true);
+    // the gates stand in the air, the finish on the runway
+    expect(laps.checkpoints[0].at[2]).toBeGreaterThan(laps.checkpoints.at(-1).at[2]);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('f-level-run-0'), { live: true });
+    expect(payload.terrain.hazeHeight).toBeGreaterThan(0);
+    expect(payload.entities[0].id).toBe('craft');
+    expect(emitThreeWorld({ ...payload, inline: true })).toContain('LEAVING THE AREA');   // the flight HUD
+  }, 240_000);
+
   it('survive and avoid: a countdown; hazards on the water the trail crosses, and hp to lose', async () => {
     await designGameHandler({ quick: { goal: 'survive', seconds: 30, world: { id: 'hold' } }, ref: 'h' });
     expect(mechanicsOf('h-level-run-0')).toEqual(['survive']);

@@ -13,6 +13,68 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Skyscape: flight games, and what a map is for a pilot
+
+Flight as a game type: one flight model with two dials (lift, gravity) under three genres (a flight sim, air combat,
+a space shooter), built on the racing primitives, its worlds made by scapeshift and tuned by a pilot's eye. Built so
+far: the pilot's eye, the map, its ground, the `airspace` kind, flight in play, the gate course and the `flight-sim`
+genre on the quick path.
+
+- **The pilot's eye** (`lib/graph/skyscape/eye.js`). Scapeshift's eye spot read from the air: rings in seconds at the
+  craft's speeds, the slant range to where the eye lands, the finest ground spacing that reads there, and the terrain
+  quadtree's numbers that follow (its split from the frame alone, its finest leaf from the flare or the low pass, the
+  chunks a frame the ground must build down low at top speed). A craft is a class's envelope (`CRAFT`: a training
+  glider, a piston trainer, a jet trainer, each from its type's published figures) or a custom one.
+- **What a map is** (`skyscape/map.js`). A field the game happens in, a reach round it with room to turn back at top
+  speed, a backdrop that is only ever seen, and a sky. The haze is the cheat that hides the edge: it is clear enough at
+  the low pass to see the field across and opaque before the quadtree's root from anywhere in the reach at the ceiling,
+  and the root is sized so. Forms: an island in its sea, a basin ringed by mountains, a canyon open at its ends, a plain
+  into the haze. `mapLaws` reads the edge unseen, the field seen, room to turn, a flyable ceiling and the ground keeping
+  up. No globe.
+- **The map's ground from scapeshift** (`skyscape/ground.js`). A land's relief from the surrounds, its high country
+  where a slow mask puts it and rising toward the reach as the form rings it; an island's coast a rounded, wobbled shore
+  that stands clear of its sea. A heartbeat (a preset or a document) laid on the field at `scale`: read and checked at
+  its own scale, then its metres multiplied, its paths meandering so a cliff is not a ruler line kilometres long.
+  Runways and pads sited where they need the least earthwork, graded flat to their datum and painted with marks bold
+  enough to read. Painted by a geocube's ramps. Carried by the terrain kernel, so the page and the server stand on the
+  same ground (`relief: SHAPES` is now exported from `roads/surrounds.js` for it).
+- **The `airspace` world kind** (`skyscape/airspace.js`). A map and its ground on the World page, meshed round the
+  camera by the terrain channel with the LOD and haze the eye planned; bookmarks at the threshold, a low pass and the
+  ceiling; `meta` carries the rings, the haze, the laws and the ground's report. `fly: true | { craft }` seats the
+  map's craft on the runway (a glider aloft) with a chase camera that banks with it. A game level carries its own
+  pilot as on any kind.
+- **Flight in play.** The fly rule takes opt-in dials, each absent by default: `engine: false` (a glider), `lever` (a
+  cockpit throttle W and S move and that stays put), `gravity: false` (no energy exchange, no stall), `lift: false` (no
+  stall, the craft's own turn rate), `launchSpeed` (a craft that starts flying) and `bound` (the map's reach: warned
+  outside it, then turned back). `skyscape/craft.js` `flyRule` gives a class its numbers (thrust balancing drag at top
+  speed, a glider's drag from its glide ratio, a gentle nose on a light craft). The follow camera takes `rollFollow`;
+  a page with a flying body shows the instruments (airspeed in knots, altitude over the ground and the datum, climb,
+  heading, throttle, STALL, the bound). On a terrain page a controllable body's ground is the terrain kernel's
+  wherever the drawn chunk under it is still coarse, so a fast craft never falls through.
+- **Runways a craft can fly out of.** A runway is sited on either axis and takes off toward the end whose ground ahead
+  rises least: its departure must clear the terrain at a gentle gradient (`DEPARTURE`, an airport's clearance surface
+  in small), and a blocked one costs far more than earthwork. `seatCraft` puts the craft on that threshold, nose out;
+  a craft with no engine is launched high enough to glide to its first gate.
+- **The gate course** (`skyscape/course.js`). Ring gates planned the way a trackscape plans a lap: a loop through the
+  field, gates `GATE_S` seconds apart at cruise, each facing along the line, their heights weaving between a low pass
+  and a high one, never steeper than the craft climbs and always over the ground between them (settled until nothing
+  moves, under the ceiling); the first gate the one most nearly ahead of the departure; the finish a touchdown zone on
+  the runway. A craft with no engine flies it once, downhill, within its glide ratio. A ring gate is a scapeshift block
+  (the `ring` primitive: a hoop and a lit band). The gates are the `laps` mechanic's checkpoints in three dimensions
+  (`courseCheckpoints`), so order, laps and the clock are the race's own. Laws: spacing, turns inside the turn circle,
+  clearance, climb, in the field. `airspace` takes `course: true | { gates?, laps?, land? }`.
+- **The autopilot** (`skyscape/autopilot.js`). A course flown by its own craft on the fly rule the page runs, as a
+  student flies: throttle to cruise, the nose for the next gate (and up when the ground a few seconds ahead comes
+  within a low pass), a bank toward it damped by the heading's rate, straight out and back round when the gate is
+  inside the turn circle. It proves a course can be flown; an airspace level's laws carry it as `flown`.
+- **The `flight-sim` genre.** A cosmos fixture (an aircraft over a map: take off, ring gates in order, land, against
+  the clock), the facet values `soul.hero: aircraft` and `space.levelForm: airspace`, its brief words, and the quick
+  goal `fly` (`craft: glider | trainer | jet`, `laps`, `airspace: { map, ground, course }`). A gameworld level takes
+  `airspace` in place of `walk` (a runway and a course by default); its pilot is the craft on its class's rule, its
+  laws the map's, the course's and `flown`; the world bible draws it in plan (the field, the course's line and gates,
+  the runway). The `gameworld-quick` card names the flight's levers; its prose was
+  tightened to stay under the card ceiling. The registry page (`docs/tool-surface/`) is regenerated.
+
 ### Sheet-metal bend lines that mark without cutting
 
 - **A flat pattern with `bend_lines = true` stays one piece.** Each bend line was a slot run past both edges, so

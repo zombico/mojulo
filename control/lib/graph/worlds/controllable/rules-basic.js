@@ -146,6 +146,9 @@ export function buildRulesBasic(E) {
       tgt.transform.pos[1] + f[1] * lead * cp,
       tgt.transform.pos[2] + lookH + lead * sp,
     ];
+    // ROLL (skyscape, opt-in `rollFollow` 0..1): the chase banks with a target that rolls (the fly rule's tilt.roll),
+    // eased on the same lerp, so a turn reads as a bank and the horizon tilts. Absent, `e.roll` is never set.
+    if (r.rollFollow) { const want = ((tgt.tilt && tgt.tilt.roll) || 0) * r.rollFollow; e.roll = (e.roll || 0) + (want - (e.roll || 0)) * k; }
     if (lkMix) {   // blend the look point toward the locked target (its own lookH above its pos)
       const m = e._lkLook * lkMix, tp = lkTgt.transform.pos;
       e.lookAt = [e.lookAt[0] + (tp[0] - e.lookAt[0]) * m, e.lookAt[1] + (tp[1] - e.lookAt[1]) * m, e.lookAt[2] + (tp[2] + lookH - e.lookAt[2]) * m];

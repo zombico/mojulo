@@ -130,6 +130,11 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-14 (merge of 1012-consolidate into the racer line): the drive rule's engine source (D5) meets the
 // shoot plan's and game audio's fixtures; with the engine source set aside, all 68 fixtures are byte-identical to
 // 1012-consolidate's. The same 13, and the shoot plan's shoot-live.
+// Re-pinned 2026-10-14 (skyscape: flight in play): the fly rule's opt-in dials (engine, lever, gravity, lift,
+// launchSpeed, bound), the follow rule's opt-in `rollFollow`, and one line in the page's camera drive that rolls a
+// follow camera about its view axis when it carries a roll (never set without rollFollow). On the `controllable`
+// fixture 11 lines are replaced (the fly rule's own, each now reading its dial) and 25 added; nothing else moves. A page
+// with a flying body also gets the flight HUD; no fixture flies. The same 13, and shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

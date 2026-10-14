@@ -5,7 +5,7 @@
  * game's own decoration (glyph forms chosen by the pickup's word, sparkles, the exit's marker) and the shell's theme.
  *
  *   gameworld.quick: {
- *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle',
+ *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
  *     climb?: true,                         // a climb after the trail, the exit at its top
@@ -38,6 +38,8 @@
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (plain ones by default)
  *     boulders?: n,                         // puzzle: how many boulders to push onto their plates (2, at most 4)
+ *     craft?: 'glider' | 'trainer' | 'jet', // fly: the aircraft (skyscape/eye.js CRAFT); the map and the course are its
+ *     airspace?: { map?, ground?, course? }, // fly: the flight map (an island by default), as an airspace level takes it
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
@@ -67,6 +69,8 @@ import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
+import { CRAFT } from '../skyscape/eye.js';
+import { courseCheckpoints } from '../skyscape/course.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -83,6 +87,7 @@ export const QUICK_GOALS = Object.freeze({
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
+  fly: 'fly the ring gates in order and land; best time kept',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given)
@@ -113,7 +118,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
+const KEYS = ['goal', 'craft', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -155,7 +160,17 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive goal');
-  for (const k of ['track', 'laps', 'rivals']) if (Q.goal !== 'race' && Q[k] !== undefined) throw fail(`.${k} belongs to the race goal`);
+  for (const k of ['track', 'rivals']) if (Q.goal !== 'race' && Q[k] !== undefined) throw fail(`.${k} belongs to the race goal`);
+  if (Q.laps !== undefined && Q.goal !== 'race' && Q.goal !== 'fly') throw fail('.laps belongs to the race and fly goals');
+  for (const k of ['craft', 'airspace']) if (Q.goal !== 'fly' && Q[k] !== undefined) throw fail(`.${k} belongs to the fly goal`);
+  if (Q.goal === 'fly') {
+    if (Q.craft !== undefined && !CRAFT[Q.craft]) throw fail(`.craft is one of ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join('; ')}`);
+    if (Q.airspace !== undefined && !(isObj(Q.airspace) && Object.keys(Q.airspace).every((k) => ['map', 'ground', 'course'].includes(k)))) throw fail('.airspace is { map?, ground?, course? }: the flight map as an airspace level takes it');
+    if (Q.airspace?.map?.craft !== undefined) throw fail('.airspace.map.craft: name the aircraft once, as .craft');
+    for (const k of ['hero', 'ride', 'racers', 'climb', 'building', 'run', 'roadway']) if (Q[k] !== undefined && Q[k] !== false) throw fail(`.${k}: a flight is flown in its aircraft over its own map (no ${k})`);
+    if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.fly is followed from behind (camera third-person)');
+    if (Q.laps !== undefined && Q.craft === 'glider') throw fail('.laps: a glider cannot climb back round, its course is flown once, downhill');
+  }
   if (Q.track !== undefined && !['trail', 'loop'].includes(Q.track)) throw fail('.track is trail (end to end) or loop (round a loop laid on the trail\'s land)');
   if (Q.roadway !== undefined) {
     if (Q.goal !== 'race') throw fail('.roadway belongs to the race goal');
@@ -225,10 +240,12 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // (in words, `{ intent }`: trackscape's door, roads/trackscape-compose.js — the course designed, drawn in the words'
   // look and dressed where a driver looks)
   const worded = isObj(quick.roadway) && typeof quick.roadway.intent === 'string' ? composeTrack(quick.roadway.intent, { seed: s0 }) : null;
-  const levels = worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
+  // a flight: the level is an airspace (skyscape/), its map flown by the craft, its course its laps
+  const flight = quick.goal === 'fly' ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? 'trainer' }, ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
+  const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
-    : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } };
+    : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } });
   return {
     id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },
@@ -250,6 +267,11 @@ export function goalMechanics(quick, ends) {
     }
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
+    case 'fly': {
+      // the course's gates in three dimensions, then the runway's touchdown zone (skyscape/course.js), round `laps` times
+      if (!ends.course) throw new Error('gameworld: quick.fly needs a course on its airspace (course: true)');
+      return [{ kind: 'laps', checkpoints: courseCheckpoints(ends.course), laps: ends.course.laps ?? 1 }];
+    }
     case 'race': {
       // the trail's beats in order are the checkpoints, its end the finish; spaced when the intent asks (a beat nearer
       // the last kept, or the start, than `ends.spacing` is passed by)

@@ -191,10 +191,34 @@ ${commanderSource()}
 window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + current notes
 ` : '';
   const commanderStep = commandedIds.length ? '__mojCmd.step(__world);\n    ' : '';
+  // FLIGHT HUD (skyscape): a body on the fly rule gets the instruments a pilot reads (airspeed in knots, height over the
+  // ground and over the datum, climb, heading, the throttle) and the warnings (STALL, the map's bound). Read off the
+  // piloted body's facts each frame. No flying body ⇒ '' (byte-identical).
+  const flyHudBlock = (entities || []).some((e) => e && e.rule && e.rule.type === 'fly') ? `(function () {
+  var el = document.createElement('div');
+  el.style.cssText = 'position:absolute;left:16px;bottom:16px;min-width:210px;padding:8px 12px;border-radius:8px;background:rgba(8,14,22,0.5);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.22);pointer-events:none;z-index:9;font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe3ff;white-space:pre';
+  document.body.appendChild(el);
+  var pad = function (v, n) { v = String(v); while (v.length < n) v = ' ' + v; return v; };
+  function tick() {
+    var p = __world.pilotId && __world.byId[__world.pilotId];
+    if (p && p.rule && p.rule.type === 'fly') {
+      var q = p.transform.pos, g = __ground([q[0], q[1], q[2]]), agl = g === null ? null : q[2] - g;
+      var brg = ((90 - p.transform.heading * 180 / Math.PI) % 360 + 360) % 360;
+      var warn = p.stalled ? '\\n<span style="color:#ff6b6b">STALL</span>' : p.outOfBounds ? '\\n<span style="color:#ffb347">LEAVING THE AREA · turn back</span>' : '';
+      el.style.display = '';
+      el.innerHTML = 'SPD ' + pad(Math.round((p.airspeed || 0) * 1.94384), 4) + ' kt   HDG ' + pad(Math.round(brg), 3) + '\\n'
+        + 'ALT ' + pad(Math.round(q[2]), 5) + ' m    AGL ' + (agl === null ? '   --' : pad(Math.round(agl), 5)) + ' m\\n'
+        + 'V/S ' + pad((p.climbRate || 0).toFixed(1), 5) + ' m/s  THR ' + pad(Math.round((p.throttle || 0) * 100), 3) + '%' + warn;
+    } else el.style.display = 'none';
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+` : '';
   return `
 const __CW = ${emissionSource()};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
-${commanderBlock}${(() => {
+${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
@@ -1144,6 +1168,7 @@ function __driveCamera(dt) {
   }
   camera.position.set(px, py, pz);
   camera.lookAt(look[0], look[1], look[2]);
+  if (c.roll) camera.rotateZ(-c.roll);   // a follow camera banking with its target (rollFollow): about the view axis
 }
 ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on, for the vehicle classes' rule
 const __surfaceT = ${safeJson(driveSurface)};

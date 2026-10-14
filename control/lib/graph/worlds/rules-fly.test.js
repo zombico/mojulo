@@ -144,3 +144,65 @@ describe('rule: fly — the affordance facts', () => {
     expect(p.tilt.pitch).not.toBe(0);
   });
 });
+
+// ── the flight dials (skyscape): engine, lever, gravity, lift — each absent by default ───────────────
+describe('rule: fly — the flight dials', () => {
+  // already flying: 400 m up at `v` (the world starts every body at rest, so the airspeed is set once it is made)
+  const aloft = (rule, v = 30) => {
+    const w = createWorld({ entities: [{ id: 'p', rule: { type: 'fly', mass: 1200, thrust: 7200, stallSpeed: 18, takeoffSpeed: 23, maxSpeed: 80, eye: 0.6, ...rule }, transform: { pos: [0, 0, 400], heading: 0, pitch: 0 } }] });
+    w.byId.p.airspeed = v; w.byId.p.airborne = true;
+    return w;
+  };
+
+  it('a glider (engine: false) has no thrust: full throttle level flight only bleeds speed', () => {
+    const g = run(aloft({ engine: false }), { forward: 1 }, 120), p = run(aloft({}), { forward: 1 }, 120);
+    expect(g.airspeed).toBeLessThan(30);
+    expect(p.airspeed).toBeGreaterThan(g.airspeed);
+  });
+
+  it('a lever holds the throttle where W left it, and idles only by S', () => {
+    const w = aloft({ lever: true });
+    run(w, { forward: 1 }, 60);                                  // a second of W: the lever moves
+    const set = w.byId.p.throttle;
+    expect(set).toBeGreaterThan(0.3);
+    run(w, { forward: 0 }, 60);                                  // let go: it stays
+    expect(w.byId.p.throttle).toBe(set);
+    run(w, { forward: -1 }, 600);                                // S pulls it back to idle
+    expect(w.byId.p.throttle).toBe(0);
+  });
+
+  it('without gravity a climb costs no speed and a slow craft does not sink', () => {
+    const w = aloft({ gravity: false }, 10);                    // under the stall speed, nose up
+    w.byId.p.transform.pitch = 0.4;
+    const z0 = w.byId.p.transform.pos[2];
+    const p = run(w, { forward: 0 }, 60);
+    expect(p.transform.pos[2]).toBeGreaterThan(z0);              // no sink, no stall drop
+    expect(p.stalled).toBe(false);
+  });
+
+  it('without lift there is no stall, and the turn is the craft\'s own rate, not the coordinated law', () => {
+    const w = aloft({ lift: false, turnRate: 1, bankMax: 1 }, 10);
+    const p = run(w, { forward: 0, turn: 1 }, 120);
+    expect(p.stalled).toBe(false);
+    expect(Math.abs(p.transform.heading)).toBeGreaterThan(0.5);
+  });
+
+  it('every dial absent is the fly rule as it was', () => {
+    const script = (i) => ({ forward: 1, lift: i > 200 ? 1 : 0, turn: i > 500 ? 0.6 : 0 });
+    const go = (extra) => { const w = plane(extra); for (let i = 0; i < 700; i++) stepWorld(w, script(i), DT, flat); return w.byId.p; };
+    const a = go({}), b = go({ engine: undefined, lever: undefined, gravity: undefined, lift: undefined });
+    expect(a.transform.pos).toEqual(b.transform.pos);
+  });
+});
+
+describe('rule: fly — the bound (the map\'s reach)', () => {
+  it('warns outside the reach, then turns the craft back toward the centre', () => {
+    const w = createWorld({ entities: [{ id: 'p', rule: { type: 'fly', mass: 1200, thrust: 7200, stallSpeed: 18, maxSpeed: 80, eye: 0.6, bound: { hx: 200, hy: 200, warn: 1 } }, transform: { pos: [190, 0, 400], heading: 0, pitch: 0 } }] });
+    w.byId.p.airspeed = 40; w.byId.p.airborne = true;
+    let warned = false;
+    for (let i = 0; i < 60 * 30; i++) { stepWorld(w, { forward: 0.6 }, DT, flat); if (w.byId.p.outOfBounds) warned = true; }
+    const p = w.byId.p;
+    expect(warned).toBe(true);
+    expect(Math.abs(p.transform.pos[0])).toBeLessThan(260);    // it came back, not off to the east
+  });
+});

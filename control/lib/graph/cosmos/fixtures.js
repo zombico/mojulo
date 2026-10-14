@@ -190,6 +190,19 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'flight-sim',
+    name: 'Flight sim',
+    anchor: false,
+    why: 'the hero is an aircraft over a map: take off, fly ring gates in the air in order, land, against the clock',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['fly', 'follow'], mechanics: ['laps'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'rhythm',
     name: 'Rhythm runner',
     anchor: false,

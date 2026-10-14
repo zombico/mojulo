@@ -56,7 +56,7 @@ const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 const smooth = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const fbm = (x, y, s, oct = 4) => { let a = 1, f = 1, t = 0, n = 0; for (let o = 0; o < oct; o++) { t += a * gnoise(x * f, y * f, s + o); n += a; a *= 0.5; f *= 2.03; } return t / n; };
 /** The relief's shapes, 0 (the plain) … 1 (the land's full height). */
-const SHAPES = {
+export const SHAPES = {
   rolling: (x, y, s) => clamp01(0.5 + 1.1 * fbm(x, y, s, 4)),
   ridged: (x, y, s) => { let a = 1, f = 1, t = 0, n = 0, w = 1; for (let o = 0; o < 5; o++) { const r = (1 - Math.abs(gnoise(x * f, y * f, s + o))) ** 2 * w; t += a * r; n += a; w = clamp01(r * 1.8); a *= 0.5; f *= 2.1; } return clamp01((t / n) * 1.6 - 0.2); },
   terraced: (x, y, s, L) => { const v = clamp01(0.5 + 1.2 * fbm(x, y, s, 3)), t = v * L.steps, f = Math.floor(t); return (f + smooth(0.72, 0.9, t - f)) / L.steps; },

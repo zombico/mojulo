@@ -40,6 +40,8 @@ import { TUNE_KEYS, HERO_MOVE_NAMES, PALETTE as HERO_PALETTE, HERO_CASTS, PROPOR
 import { LOOK_TABLES } from '../polygonizer/anime-looks.js';
 import { HAIR_STYLE_NAMES } from '../polygonizer/humanoid-hair.js';
 import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.js';
+import { CRAFT } from '../skyscape/eye.js';
+import { MAP_FORMS } from '../skyscape/map.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -257,26 +259,26 @@ function quickCard() {
     '',
     `goal: ${Object.entries(QUICK_GOALS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'levers, all optional:',
-    `  climb: true        a climb after the trail (reach: the exit is its top); pickup: '<word>' for collect (coin, key, star…); seconds: n for survive`,
-    `  sneak: guards: n (3), guard: { <hero-door words> }, alarms: n (1)   rhythm: music: ${RHYTHM_MOODS.join(' | ')}, misses: n`,
-    '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { <hero-door words> }   puzzle: boulders: n (2)',
-    '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { <hero-door words> }   (a clock: night falls)',
-    '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { <hero-door words> }',
-    '  shoot: foes: n (4), foe: { <hero-door words> }   first person by default (or third-person); walls to take cover behind',
+    `  climb: true   a climb after the trail (reach: the exit is its top); pickup: '<word>' for collect (coin, key, star…); seconds: n for survive`,
+    `  sneak: guards: n (3), guard: { … as hero }, alarms: n (1)   rhythm: music: ${RHYTHM_MOODS.join(' | ')}, misses: n`,
+    '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { … as hero }   puzzle: boulders: n (2)',
+    '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { … as hero }   (a clock: night falls)',
+    '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { … as hero }',
+    '  shoot: foes: n (4), foe: { … as hero }   first person by default (or third-person); walls to take cover behind',
     `  ride: ${Object.keys(RIDES).join(' | ')}   the hero is a vehicle, driven (W / S / A / D); no hero, climb or building with it`,
     '  race: track: trail | loop (a loop laid on the trail\'s land), laps: n (3 round a loop), rivals: n (1-7, with a ride: a place to finish in)',
-    `  hero: { <hero-door words> } the hero's looks, hair, outfit, gear in hand, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
-    '                     absent or false: first person, you are the camera',
+    `  fly: craft: ${Object.keys(CRAFT).join(' | ')}, laps, airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} } }`,
+    `  hero: { <hero-door words> } looks, hair, outfit, gear in hand, the motion's feel (get_solid_vocab({ id: 'layered' })); absent or false: first person`,
     `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: third person with a hero, first person without; top-down (¾, north up) and side (A / D run the trail's line, no climb) need a hero`,
     `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
     "  music: 'auto' | '<mood>', sfx: 'auto' | '<palette>'   a score per level, the goal's sounds, one key",
     `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world says what each takes)`,
     '',
-    'THE ANSWER: the readout of the one-level gameworld that was written and run: its stage as a level with the goal placed on',
-    'the stage\'s own anchors, the store the goal needs, and the game in the light play shell (title, level, result), with its play link. Walkable by construction; whether it',
-    'can be beaten is the creator\'s to judge in play, and nothing proved it.',
-    'GROWING: it is an ordinary gameworld. Patch in the hero\'s pages (design_game({ ref, patch })) and the same sketch becomes',
-    'the book, with every page, review and gate (gameworld-guide). Levels composed by hand stay create_game\'s.',
+    'THE ANSWER: the one-level gameworld written and run: its stage as a level, the goal on the stage\'s own anchors, the store it',
+    'needs, the game in the light play shell (title, level, result), its play link. Walkable by construction; whether it can be',
+    'beaten is the creator\'s to judge in play: nothing proved it.',
+    'GROWING: an ordinary gameworld. Patch in the hero\'s pages (design_game({ ref, patch })) and the sketch becomes the book,',
+    'every page, review and gate (gameworld-guide). Hand-composed levels stay create_game\'s.',
   );
 }
 
