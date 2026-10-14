@@ -60,7 +60,7 @@ export const PALETTE_KEYS = Object.freeze({ high: 'light and airy', mid: 'a full
 // are light ramps (zenith to horizon); `far` is not solved but laid between the ground and the sky (aerial
 // perspective); `accent` is placed in value against the ground so it reads in grey.
 const ROLES = Object.freeze({
-  sky: { L: [0.64, 0.93], c: 0.42, slot: 'B', airy: true },
+  sky: { L: [0.64, 0.93], c: 0.62, slot: 'B', airy: true },
   cloud: { L: [0.74, 0.97], c: 0.14, slot: 'B', airy: true },
   far: { derived: true },
   ground: { L: [0.32, 0.84], c: 0.72, slot: 'A' },
@@ -213,15 +213,28 @@ export function readPaletteSpec(v, at = 'palette') {
 function readAxes(spec) {
   const seed = spec.seed ?? 1, R = streamOf(seed, 'axes'), roll = () => r3(R() * 2 - 1);
   const heat = spec.heat ?? roll(), weight = spec.weight ?? roll(), activity = spec.activity ?? roll();
-  const sch = R(), scheme = spec.scheme ?? PALETTE_SCHEME_IDS[Math.floor(sch * PALETTE_SCHEME_IDS.length)];
+  // the scheme: rolled; an activity the agent READ leans it (calm toward the quiet schemes, active toward the loud)
+  const sch = R(), scheme = spec.scheme ?? (spec.activity !== undefined ? schemeLeaning(sch, activity) : PALETTE_SCHEME_IDS[Math.floor(sch * PALETTE_SCHEME_IDS.length)]);
   const key = spec.key ?? (weight > 0.35 ? 'low' : weight < -0.35 ? 'high' : 'mid');
-  // the world's hue: named, or rolled in the band its heat leans to (warm 20–100°, cool 160–290°, anywhere between)
+  // the world's hue: named; or rolled in the band its heat leans to — a heat the agent READ narrows the band round warm
+  // (50°) or cool (235°) the surer it is (the whole wheel at 0, 50° at ±1), so an intent owns its hues and its seeds vary
+  // them; a heat rolled with the seed keeps the old wide bands (warm 20–100°, cool 160–290°, anywhere between)
   const hr = R(), named = spec.hue !== undefined ? hueOf(spec.hue) : null;
-  const hue = named ?? (heat > 0.25 ? 20 + hr * 80 : heat < -0.25 ? 160 + hr * 130 : hr * 360);
+  const band = Math.max(50, 360 * (1 - Math.abs(heat)) ** 1.5);
+  const hue = named ?? (spec.heat !== undefined ? (heat >= 0 ? 50 : 235) + (hr - 0.5) * band : heat > 0.25 ? 20 + hr * 80 : heat < -0.25 ? 160 + hr * 130 : hr * 360);
   return { seed, heat, weight, activity, scheme, key, hue: r3(wrapHue(hue)), named: named !== null, air: spec.air ?? 'full' };
 }
 
 const KEY_SHIFT = { high: [0.1, 0.04], mid: [0, 0], low: [-0.08, -0.14] };
+// how each scheme leans with activity: + toward the active end, − toward the calm
+const SCHEME_LEAN = Object.freeze({ analogous: -1.5, complementary: 1.2, 'split-complementary': 1.2, triad: 1.4, tetrad: 1.2, 'mono-accent': -1.5, duotone: -0.8 });
+/** A scheme from a roll, weighted by activity: at 0 all alike; at ±1 the leaning schemes several times as likely. */
+function schemeLeaning(u, activity) {
+  const w = PALETTE_SCHEME_IDS.map((id) => Math.max(0.15, 1 + SCHEME_LEAN[id] * activity)), T = w.reduce((a, b) => a + b, 0);
+  let acc = 0;
+  for (let i = 0; i < w.length; i += 1) { acc += w[i] / T; if (u < acc) return PALETTE_SCHEME_IDS[i]; }
+  return PALETTE_SCHEME_IDS.at(-1);
+}
 
 /** One candidate's role parameters: { <role>: { L: [lo, hi], C, h, airy?, exact? } } + its light and shadow hues. */
 function candidate(spec, A, k) {
@@ -245,11 +258,15 @@ function candidate(spec, A, k) {
   }
   // the sky stays the brightest thing (by day its light end above the ground's); in vacuum the void stays the darkest
   if (!vac) P.sky.L[1] = r3(Math.max(P.sky.L[1], Math.min(0.97, P.ground.L[1] + 0.05)));
+  // a teal sky saturated is half of the teal-and-orange cliché: in that band the sky stays under its line
+  if (P.sky.h >= 180 && P.sky.h <= 240) P.sky.C = r3(Math.min(P.sky.C, 0.078));
   // the accent: set in value against the ground (to read in grey), spending the ceiling (never under 0.12)
   const gMid = (P.ground.L[0] + P.ground.L[1]) / 2, aMid = A.key === 'low' ? clamp(gMid + 0.24, 0.62, 0.86) : gMid <= 0.7 ? gMid + 0.18 : gMid - 0.2;
-  P.accent = { L: [r3(clamp(aMid - 0.24, 0.22, 0.7)), r3(clamp(aMid + 0.22, 0.5, 0.95))], C: r3(Math.max(0.12, cmax)), h: r3(spec.hues?.accent !== undefined ? hueOf(spec.hues.accent) : slot.C) };
+  // the accent spends the ceiling, and past half activity it goes past it, toward neon (the land stays under it)
+  const neon = 0.1 * Math.max(0, A.activity - 0.2) / 0.8;
+  P.accent = { L: [r3(clamp(aMid - 0.24, 0.22, 0.7)), r3(clamp(aMid + 0.22, 0.5, 0.95))], C: r3(Math.max(0.12, cmax + neon)), h: r3(spec.hues?.accent !== undefined ? hueOf(spec.hues.accent) : slot.C) };
   const D2 = RL.accent2;
-  P.accent2 = { L: [r3(D2.L[0] + dlo / 2), r3(clamp(D2.L[1] + dhi / 2, 0.6, 0.95))], C: r3(Math.max(0.1, cmax * D2.c)), h: r3(spec.hues?.accent2 !== undefined ? hueOf(spec.hues.accent2) : slot.C2) };
+  P.accent2 = { L: [r3(D2.L[0] + dlo / 2), r3(clamp(D2.L[1] + dhi / 2, 0.6, 0.95))], C: r3(Math.max(0.1, cmax * D2.c + neon)), h: r3(spec.hues?.accent2 !== undefined ? hueOf(spec.hues.accent2) : slot.C2) };
   // a locked role: its middle stop is the colour given, exactly; the band slides to centre on it
   for (const [role, hex] of Object.entries(spec.lock ?? {})) {
     const [L, C, h] = lchOf(hexToRgb(hex)), half = (P[role].L[1] - P[role].L[0]) / 2, mid = clamp(L, 0.22 + half * 0.5, 0.97 - half * 0.5);

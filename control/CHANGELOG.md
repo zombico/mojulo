@@ -94,6 +94,12 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
     (`color-theorist/contact.js`): ten intents at five seeds, the auto default, and a stream through the ledger,
     with the spread measured (nearest neighbours, hue bins, keys, schemes). A deep test holds 50 auto palettes to
     that spread.
+  - **Tuned by the sheet.** A heat the agent reads now narrows the world's hue band (the whole wheel at 0, 50° round
+    warm or cool at ±1), and a read activity leans the scheme (calm toward analogous, mono-accent and duotone; active
+    toward complementary, split, triad and tetrad), so an intent owns its colours: of ten intents at five seeds, 44 of
+    50 palettes now sit nearest one of their own intent's (27 before). Skies carry more colour (fewer warm greys),
+    short of a saturated teal; accents climb toward neon as activity passes the middle. Rolled axes keep the old wide
+    bands, so a palette from its seed alone stays as varied. Every palette solves anew (the char pins moved).
 - **Air, and palettes for space.** The solver assumed a world with air: the sky the brightest thing, distance fading
   into haze, shade filled by the sky. A spec's `air` says otherwise:
   - `air: 'thin'` (Mars, Titan): the sky takes the dust's hue, pale and quiet, and distance hazes half as much.
