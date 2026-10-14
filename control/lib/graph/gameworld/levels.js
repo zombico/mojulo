@@ -231,10 +231,10 @@ function groundSampler(faces, groups = /:(top|ground)$/) {
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, cityRefs = {} } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
   const ends = stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -277,7 +277,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   } else if (heroRef) {
     // first person rides the hero's eye in look mode, its body hidden; top-down moves it in the screen's frame
     const rule = look ? { turnMode: 'look' } : top ? { move: 'world', moveYaw: OVERHEAD.yaw } : lane ? { move: 'lane', lane: lane.line } : undefined;
-    const P = playerWorld({ heroRef, id: 'hero', title: name, controls, ...(rule ? { rule } : {}) });
+    const P = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), id: 'hero', title: name, controls, ...(rule ? { rule } : {}) });
     const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
     const camera = look ? { rule: 'eye', target: 'hero', height: HERO_EYE, mouseLook: true, hideTarget: true }
       : top ? { rule: 'overhead', target: 'hero', ...OVERHEAD }
@@ -618,7 +618,7 @@ export function buildingStage(B) {
  * (the stage is metres, as the hero is); without one, the level's own first-person walker. A building by ref is not
  * made here: the game plays it as it was made.
  */
-function buildingLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, goal = null, story = null, carryFrom = null, party = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mechanics = null, title, goal = null, story = null, carryFrom = null, party = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
@@ -636,7 +636,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, mechanics = null, title, g
   }
   if (!heroRef) return { tool: 'create_sketch', args: { title: name, manifest: base }, ends };
   const controls = `W / S  run · A / D  turn · Space  jump${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
-  const P = playerWorld({ heroRef, id: 'hero', title: name, controls });
+  const P = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), id: 'hero', title: name, controls });
   const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
   const pilot0 = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }], camera: P.camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's

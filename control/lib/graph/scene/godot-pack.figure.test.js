@@ -122,7 +122,7 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
     expect(readme).toContain('`idle` on a loop under the authored three-quarter view');
     expect(readme).not.toContain('WASD');
     expect(Object.keys(pack.ledger)).toEqual(expect.arrayContaining(['figure_skinned', 'figure_normals']));
-    expect(readme).toContain('- `figure_skinned` — one skinned mesh (57 joints) carrying its 3 clips, one second each');   // (+ the hip, knee and elbow folds)
+    expect(readme).toContain('- `figure_skinned` — one skinned mesh (57 joints) carrying its 3 clips, each at its own length');   // (+ the hip, knee and elbow folds)
     // the hero stands at rest (no stand), so its idle is not said against a stand
     expect(readme).not.toContain('not the stand');
   }, 60000);
@@ -233,7 +233,7 @@ describe('the emitter with a figure that stands', () => {
     const figure = { name: 'body', clip: 'idle', clips: ['gesture', 'idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 18 };
     const readme = emitGodotProject({ ref: 'w', score, manifestHash: 'h', kernelVersion: '0.2.3', figure }).files.find((f) => f.file === 'README.md').text;
     expect(readme).toContain("`idle` is the figure's own loop, not the stand the World page opens on\n(the clip `gesture`).");
-    expect(readme).toContain('one second each (the World\npage plays a clip over three)');
+    expect(readme).toContain('each at its own length (the World\npage plays a clip over three seconds)');
     expect(readme).toContain('which frames it at\nrest (a clip that reaches overhead can leave the frame)');
   });
 });

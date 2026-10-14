@@ -61,6 +61,19 @@ taught `mint_solid`. This theme stitches them.
 - **A hero made on its own joins a game.** `characters.hero.ref` (and a quick game's `hero: { ref }`) names a hero made
   with `create_character`: the run pins it and makes none, the levels pilot it, its own looks and motion play (the
   motion page says it is not applied), and a missing ref is said.
+- **The game plays the hero's own run.** A hero a game plays (the book's, a quick game's) is minted with the calibrated
+  jog beside its walk, and the motion page keeps it. The player plays the hero's own door gaits over the library's
+  (its jog forward and sideways, its walk turning) and the library fills the rest (the idle, the jump); before, the
+  library's clips covered every state it named, so a hero's calibrated walk never played. The pilot's stride is the
+  jog's own metres per cycle (`HERO_GAIT_STRIDE`, measured on the canonical heroes), so its feet keep pace at the
+  game's run speed; the jog plays about half again faster than its own clock there. Written into a level when it is
+  made: a stored game plays as it did. An adopted hero with no jog is told, and the library's plays.
+- **Clip lengths said as they are.** The Godot README and `export_model` said every clip runs one second; each runs its
+  own length (a calibrated walk 1.1 s).
+- Not yet: the hero skinned with its face in Unity, Unreal and Godot's game levels (their runtimes find and drive the
+  rigid figure's nodes by name; Unreal cannot be checked here); a western hero's stock clips at their designed
+  seconds (it moves stored rows: it waits for hero laws 2); the guards, the cast and the party walk the library's walk
+  at the speeds tuned to it.
 
 ### Game audio: scene-scored soundtracks and action SFX
 
