@@ -30,4 +30,6 @@ const { plan, warnings } = normalizeShoot(EXAMPLE_SHOOT, { subjects });
 const html = emitThreeWorld({ ...payload, title: 'Shoot plan — worked example', inline: true });
 const out = path.resolve(args.out || 'shoot-plan-demo.html');
 await fs.writeFile(out, html);
-process.stdout.write(`${JSON.stringify({ ok: true, out, bytes: html.length, warnings, readout: shootReadout(plan, { subjects }) }, null, 2)}\n`);
+const { shootClearance, shootTraffic } = await import('@/lib/graph/shoot/clearance');
+const clearance = { passes_through: shootClearance(plan, payload.faces, { subjects }), runs_into: shootTraffic(plan, subjects) };
+process.stdout.write(`${JSON.stringify({ ok: true, out, bytes: html.length, warnings, readout: shootReadout(plan, { subjects, metersPerUnit: payload.metersPerUnit ?? 1 }), clearance }, null, 2)}\n`);

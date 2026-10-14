@@ -41,7 +41,8 @@ camera that pans with a car, then eases onto its tail and rides along).
   the view, shots added, renamed, reordered). Both write through `update_sketch`'s patch path, so the world pays its
   own gate, and answer with the readout: timings, path length and speed in metres, what each camera follows, the
   frames where a camera jumps (a followed car wrapping its lane), and the places a move passes through the world's
-  faces (`lib/graph/shoot/clearance.js`). Advisory, like every gate. The manual is `get_motion_vocab({ id: 'shoot' })`,
+  faces (`lib/graph/shoot/clearance.js`) or runs into a moving car or walker while its shot plays (each subject's
+  box measured off its mesh or figure, on the route it is scheduled to take). Advisory, like every gate. The manual is `get_motion_vocab({ id: 'shoot' })`,
   an AE → plan table; a routing card sends "set up a camera", "35mm", "easy ease", "follow the car" there.
 - **`forge_motion` renders a plan**: `shot.motion: 'plan'` on a world captures each frame from its shot's camera with
   the world stepped to that frame's own clock (`params.shot` for one shot). Roll is not applied to captures yet.

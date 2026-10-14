@@ -15,6 +15,10 @@
  *
  * Things that move live (physics bodies, player- or AI-driven entities) have no position before they are played, so
  * they are not subjects here.
+ *
+ * Each subject also carries its `box` where it can be measured — `{ len, wid, hgt }`, along its heading, across it
+ * and up from its ground point: a car's from its baked mesh, a walker's from its figure's height — so the clearance
+ * gate can ask whether a camera passes through it (clearance.js `shootTraffic`).
  */
 import { createTrafficModel, stepTraffic, armTurns, stepTrafficTurning, heldWalk, TRAFFIC } from '../scene/channels/traffic-model.js';
 
@@ -45,6 +49,18 @@ function stepTo(model, sec, step) {
   }
 }
 
+// a baked car's box: its footprint as measured at bake, its height off the mesh's own vertices (z kept as authored)
+function carBox(mesh, scale) {
+  const k = scale > 0 ? scale : 1;
+  let hgt = 0;
+  if (typeof mesh.pos === 'string' && mesh.pos) {
+    const b = Buffer.from(mesh.pos, 'base64'), f = new Float32Array(b.buffer, b.byteOffset, Math.floor(b.byteLength / 4));
+    for (let i = 2; i < f.length; i += 3) if (f[i] > hgt) hgt = f[i];
+  }
+  const len = (mesh.len || 1.55) * k, wid = (mesh.wid || 0.72) * k;
+  return { len, wid, hgt: (hgt || len * 0.35) * k };
+}
+
 function walkerSubjects(payload) {
   const figs = payload.figures || {};
   const list = (Array.isArray(payload.walkers) ? payload.walkers : []).filter((w) =>
@@ -57,7 +73,8 @@ function walkerSubjects(payload) {
     const held = Array.isArray(w.holds) ? { s0, s: s0, t: 0 } : null;
     const arcAt = (sec) => (held ? heldWalk(w.holds, w.speed, held, total, sec, signals)
       : w.loop === false ? Math.min(total, (sec / period) * total) : ((sec / period) % 1) * total);
-    return { id: `walker:${i}`, kind: 'walker', at: (sec) => atArc(w.path, cum, arcAt(Math.max(0, sec))) };
+    const h = (figs[w.figure].figH || 1.85) * (w.scale > 0 ? w.scale : 1);
+    return { id: `walker:${i}`, kind: 'walker', box: { len: h * 0.36, wid: h * 0.36, hgt: h }, at: (sec) => atArc(w.path, cum, arcAt(Math.max(0, sec))) };
   });
 }
 
@@ -90,7 +107,7 @@ function carSubjects(payload) {
       if (lanePaths) { const lp = lanePaths[mc.lane]; return atArc(lp.path, lp.cum, mc.s); }
       return atArc(c.path, cum, mc.s);
     };
-    return { id: `car:${i}`, kind: 'car', at };
+    return { id: `car:${i}`, kind: 'car', box: carBox(meshes[c.car], c.scale), at };
   });
 }
 
@@ -122,7 +139,7 @@ export function shootSubjects(payload) {
   if (!payload || typeof payload !== 'object') return out;
   for (const s of [...walkerSubjects(payload), ...carSubjects(payload), ...moverSubjects(payload)]) {
     const cache = new Map();
-    out.set(s.id, { id: s.id, kind: s.kind, at: (sec) => {
+    out.set(s.id, { id: s.id, kind: s.kind, ...(s.box ? { box: s.box } : {}), at: (sec) => {
       const k = Math.round(sec * 1e4);
       if (!cache.has(k)) { const v = s.at(sec); cache.set(k, { pos: v.pos, heading: v.heading }); }
       return cache.get(k);

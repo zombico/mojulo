@@ -41,17 +41,22 @@ function subjectsSays(subjects, at) {
 
 async function commit({ ref, raw, world, note, notes = [] }) {
   const { normalizeShoot, shootReadout } = await import('@/lib/graph/shoot/plan');
-  const { shootClearance } = await import('@/lib/graph/shoot/clearance');
+  const { shootClearance, shootTraffic } = await import('@/lib/graph/shoot/clearance');
   const { plan, warnings } = normalizeShoot(raw, { subjects: world.subjects });
   if (!plan) throw new Error(`Nothing in the plan is a camera with a keyed position: ${warnings.join('; ')} — manual: get_motion_vocab({ id: 'shoot' })`);
   await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/shoot', value: plan }], ...(note ? { note } : {}) });
   const clearance = shootClearance(plan, world.payload.faces, { subjects: world.subjects });
+  const traffic = shootTraffic(plan, world.subjects);
   return {
     ok: true,
     ref,
     world_url: `/api/sketches/${encodeURIComponent(ref)}/world`,
     readout: shootReadout(plan, { subjects: world.subjects, metersPerUnit: world.payload.metersPerUnit ?? 1 }),
-    ...(clearance.length ? { clearance: { passes_through: clearance, note: 'a camera crosses world geometry at these times (static faces only; advisory)' } } : {}),
+    ...(clearance.length || traffic.length ? { clearance: {
+      ...(clearance.length ? { passes_through: clearance } : {}),
+      ...(traffic.length ? { runs_into: traffic } : {}),
+      note: 'advisory: passes_through = a move crosses the world\'s faces; runs_into = an eye inside a moving car or walker while its shot plays',
+    } } : {}),
     ...(notes.length ? { did: notes } : {}),
     ...(warnings.length ? { warnings } : {}),
     plan,

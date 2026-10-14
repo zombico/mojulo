@@ -61,7 +61,7 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 ## Readout (the machine gate)
 
-`duration_s`; per camera `path_m`, `peak_speed_mps`, `lens_mm`, `follows`; `jumps` (frames where the camera teleports: a followed car wrapping its lane); `clearance.passes_through` (where a move crosses world geometry: static faces only). All advisory. Whether the shot reads is the operator's eyes gate on the World page.
+`duration_s`; per camera `path_m`, `peak_speed_mps`, `lens_mm`, `follows`; `jumps` (frames where the camera teleports: a followed car wrapping its lane); `clearance.passes_through` (where a move crosses the world's faces) and `clearance.runs_into` (where a camera's eye is inside a moving car or walker — measured boxes on their scheduled routes — while its shot plays: `{ camera, t, subject, at }`, the first frame of each run). All advisory. Whether the shot reads is the operator's eyes gate on the World page.
 
 ## Example
 

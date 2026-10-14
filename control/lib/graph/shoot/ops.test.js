@@ -108,3 +108,30 @@ describe('pieces and transitions by op', () => {
     expect(p.pieces).toBeUndefined();
   });
 });
+
+describe('clearance against what moves', async () => {
+  const { shootTraffic } = await import('./clearance.js');
+  // a car 2 long, 1 wide, 1 high (its mesh: two vertices, the top one at z = 1) driving +x at 2/s along y = 0
+  const f = new Float32Array([0, 0, 0, 0, 0, 1]);
+  const mesh = { pos: Buffer.from(f.buffer).toString('base64'), len: 2, wid: 1 };
+  const subjects = shootSubjects({ cars: [{ car: 'm', path: [[0, 0, 0], [40, 0, 0]], speed: 2 }], carMeshes: { m: mesh } });
+  // a camera standing in the lane, low, looking down it: the car reaches it at 5 s
+  const STAND = (z, span = [0, 8]) => normalizeShoot({ fps: 10, cameras: [{ id: 'cam', keys: [{ t: 0, pos: [10, 0, z], poi: [20, 0, z] }, { t: 8, pos: [10, 0, z], poi: [20, 0, z] }] }],
+    shots: [{ camera: 'cam', span }] }, { subjects }).plan;
+
+  it('measures the car off its mesh', () => {
+    expect(subjects.get('car:0').box).toEqual({ len: 2, wid: 1, hgt: 1 });
+  });
+
+  it('a camera the car drives through is reported once, when the car reaches it', () => {
+    const hits = shootTraffic(STAND(0.5), subjects);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toMatchObject({ camera: 'cam', subject: 'car:0' });
+    expect(hits[0].t).toBeCloseTo(4.5, 6);   // the first frame (10 fps) after its front (x = 2t + 1) reaches x = 10 − margin (4.44 s)
+  });
+
+  it('a camera above the car, or not on screen then, is clear', () => {
+    expect(shootTraffic(STAND(1.5), subjects)).toEqual([]);
+    expect(shootTraffic(STAND(0.5, [0, 3]), subjects)).toEqual([]);   // its shot ends before the car arrives
+  });
+});

@@ -88,3 +88,40 @@ export function shootClearance(plan, faces, { subjects = null, max = 12 } = {}) 
   }
   return hits;
 }
+
+/**
+ * The moving half of clearance: the frames a camera's eye passes inside something the world moves on a schedule (a
+ * car, a walker), within `margin` (the lens's near reach; a camera that close sees inside it). Only frames a camera
+ * is on screen count (inside one of its shots). `[{ camera, t, subject, at }]`, the first frame of each run per
+ * camera and subject, in world-clock seconds, at most `max`.
+ */
+export function shootTraffic(plan, subjects, { margin = 0.12, max = 12 } = {}) {
+  const boxed = [...(subjects ? subjects.values() : [])].filter((s) => s.box);
+  if (!boxed.length) return [];
+  const hits = [];
+  const r2 = (v) => Math.round(v * 100) / 100;
+  for (const cam of plan.cameras) {
+    const spans = plan.shots.filter((s) => s.camera === cam.id).map((s) => s.span);
+    if (!spans.length) continue;
+    const tr = sampleCameraTrack(cam, plan.fps, { subjects });
+    const inside = new Map();   // subject → was the previous on-screen frame inside it
+    for (let j = 0; j < tr.n && hits.length < max; j++) {
+      const t = tr.t0 + j / tr.fps;
+      if (!spans.some(([a, b]) => t >= a - 1e-9 && t <= b + 1e-9)) { inside.clear(); continue; }
+      const e = tr.pos.slice(j * 3, j * 3 + 3);
+      for (const s of boxed) {
+        const { pos, heading } = s.at(t), b = s.box;
+        const d = [e[0] - pos[0], e[1] - pos[1], e[2] - pos[2]];
+        let hit = false;
+        if (Math.abs(d[0]) + Math.abs(d[1]) <= b.len + b.wid + 2 * margin) {
+          const c = Math.cos(heading), n = Math.sin(heading);
+          const x = d[0] * c + d[1] * n, y = -d[0] * n + d[1] * c;
+          hit = Math.abs(x) <= b.len / 2 + margin && Math.abs(y) <= b.wid / 2 + margin && d[2] >= -margin && d[2] <= b.hgt + margin;
+        }
+        if (hit && !inside.get(s.id) && hits.length < max) hits.push({ camera: cam.id, t: r2(t), subject: s.id, at: e.map(r2) });
+        inside.set(s.id, hit);
+      }
+    }
+  }
+  return hits;
+}

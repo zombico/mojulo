@@ -25,10 +25,12 @@ export const EXAMPLE_SHOOT = {
       ],
     },
     {
+      // 2.3 units up (≈ 8.4 m): lower, the clearance gates find it passing through a signal's wires and the
+      // southbound truck (car:17) at 3.7 s
       id: 'dolly', name: 'Up the avenue', type: 'two-node', lens: '35mm',
       keys: [
-        { t: 0, pos: [13.5, -4, 0.9], poi: [13.5, 8, 1.5], ease: 'easy ease out' },
-        { t: 3, pos: [13.5, 12, 0.9], poi: [16.5, 24, 2.5] },
+        { t: 0, pos: [13.5, -4, 2.3], poi: [13.5, 8, 1.5], ease: 'easy ease out' },
+        { t: 3, pos: [13.5, 12, 2.3], poi: [16.5, 24, 2.5] },
         { t: 5, pos: [14.5, 30, 1.4], poi: [24, 36, 4], lens: '50mm', ease: 'easy ease in' },
       ],
     },
