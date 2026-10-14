@@ -19,6 +19,8 @@
  * the `worldFraming` cameraPosition/lookAt values flow through without remapping.
  */
 
+import { earClipRing, isConvexRing } from '../polygonizer/ring-cap.js';
+
 const HEX_RE = /#([0-9a-f]{3}|[0-9a-f]{6})\b/i;
 // `rgb(r,g,b)` / `rgba(r,g,b,a)` — box-world faces are baked as #hex, but the
 // painted-landscape terrain bakes per-cell Lambert as rgb() strings; without this
@@ -121,9 +123,42 @@ export function collectShadowDecals(faces = []) {
 }
 
 const TRIS = [[0, 1, 2], [0, 2, 3]]; // quad → two triangles
-const TRIS_REV = [[0, 2, 1], [0, 3, 2]]; // reversed winding (both tris flipped)
-const TRI = [[0, 1, 2]]; // a 3-corner face → one triangle
-const TRI_REV = [[0, 2, 1]];
+
+// Fan triangulation of a convex n-corner face: corner 0 to each consecutive pair, [0,i,i+1] (or [0,i+1,i] for the
+// reversed winding). For n = 3 and n = 4 this IS the one-triangle and two-triangle split every face has always baked,
+// so faces with ≤ 4 corners emit the same bytes; an n-gon (a 12-gon wheel cap, an octagonal lamp) is drawn whole
+// instead of as the quad of its first four corners. Cached per (n, winding): the lists are shared and never mutated.
+const FANS = new Map();
+function fan(n, rev = false) {
+  const key = rev ? -n : n;
+  let tris = FANS.get(key);
+  if (!tris) {
+    tris = [];
+    for (let i = 1; i < n - 1; i++) tris.push(rev ? [0, i + 1, i] : [0, i, i + 1]);
+    FANS.set(key, tris);
+  }
+  return tris;
+}
+
+// Corner-index triangles for a face. Up to four corners: the fan, as always. A convex n-gon: the fan too. A CONCAVE
+// n-gon (the fluid view's cambered airfoil and sail caps) would fan across its own hollow, so it is ear-clipped in its
+// plane instead — the rule ring-cap.js already applies to extrude and loft caps. Triangles keep the corners' winding.
+function faceTris(c, rev = false) {
+  const k = c.length;
+  if (k <= 4) return fan(k, rev);
+  const nw = [0, 0, 0];   // Newell normal: robust where corners 0, 1, 2 (or 3) are collinear or reflex
+  for (let i = 0; i < k; i++) {
+    const a = c[i], b = c[(i + 1) % k];
+    nw[0] += (a[1] - b[1]) * (a[2] + b[2]); nw[1] += (a[2] - b[2]) * (a[0] + b[0]); nw[2] += (a[0] - b[0]) * (a[1] + b[1]);
+  }
+  const L = Math.hypot(nw[0], nw[1], nw[2]);
+  if (L < 1e-12) return fan(k, rev);
+  const [u, v] = planeBasis([nw[0] / L, nw[1] / L, nw[2] / L]);
+  const ring = c.map((p) => ({ u: p[0] * u[0] + p[1] * u[1] + p[2] * u[2], v: p[0] * v[0] + p[1] * v[1] + p[2] * v[2] }));
+  if (isConvexRing(ring)) return fan(k, rev);
+  const tris = earClipRing(ring);
+  return rev ? tris.map(([a, b, d]) => [a, d, b]) : tris;
+}
 
 // Raw winding normal of the FIRST emitted triangle (corners 0,1,2) — sign follows winding,
 // NOT canonicalized like faceNormal. Export-path only: used to decide whether a face's triangle
@@ -310,15 +345,16 @@ function faceNormal(c) {
   return [nx, ny, nz];
 }
 
-// Mean edge length of a quad — the local scale that sizes the lift, so a small post and a
+// Mean edge length of a face (quad or n-gon) — the local scale that sizes the lift, so a small post and a
 // city block each get a proportional (sub-pixel) nudge.
 function faceScale(c) {
+  const k = c.length;
   let s = 0;
-  for (let i = 0; i < 4; i++) {
-    const a = c[i], b = c[(i + 1) % 4];
+  for (let i = 0; i < k; i++) {
+    const a = c[i], b = c[(i + 1) % k];
     s += Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
   }
-  return s / 4;
+  return s / k;
 }
 
 // Stable key for the plane a face lives on: quantized normal direction + quantized signed
@@ -343,10 +379,10 @@ function planeBasis(n) {
   return [[ux, uy, uz], [n[1] * uz - n[2] * uy, n[2] * ux - n[0] * uz, n[0] * uy - n[1] * ux]];
 }
 
-// Axis-aligned bounds of a quad's footprint in a plane basis (u,v) → [umin,umax,vmin,vmax].
+// Axis-aligned bounds of a face's footprint (every corner) in a plane basis (u,v) → [umin,umax,vmin,vmax].
 function planeAABB(c, u, v) {
   let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < c.length; i++) {
     const p = c[i], a = p[0] * u[0] + p[1] * u[1] + p[2] * u[2], b = p[0] * v[0] + p[1] * v[1] + p[2] * v[2];
     if (a < u0) u0 = a; if (a > u1) u1 = a; if (b < v0) v0 = b; if (b > v1) v1 = b;
   }
@@ -380,7 +416,7 @@ export function decollideFaces(faces = [], { eps = STAGGER_EPS } = {}) {
   for (const f of faces) {
     const c = f && f.corners;
     if (!c || c.length < 4) continue;
-    for (let i = 0; i < 4; i++) for (let k = 0; k < 3; k++) { const a = Math.abs(c[i][k]); if (a > coordMax) coordMax = a; }
+    for (let i = 0; i < c.length; i++) for (let k = 0; k < 3; k++) { const a = Math.abs(c[i][k]); if (a > coordMax) coordMax = a; }
   }
   const distQ = Math.max(1e-4, coordMax * 5e-6); // scene-scaled "same plane" tolerance
   const tol = distQ;                               // edge-touch tolerance for the overlap test
@@ -532,25 +568,33 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
   for (const f of src) {
     const c = f && f.corners;
     // A 3-corner face is a TRIANGLE and bakes as one (relief caps are ear-clipped triangles; before this
-    // they were dropped here, so every emboss rendered as bevel walls around a hole). Quads and the
-    // textured / clip-mapped paths below keep their four-corner contract.
+    // they were dropped here, so every emboss rendered as bevel walls around a hole). A face with more than
+    // four corners is a CONVEX n-gon (a prism cap, a wheel disc) and bakes as a fan from corner 0. The
+    // clip / radius paths below keep their four-corner contract (they address the quad's (u,v) frame).
     if (!c || c.length < 3) continue;
     const isTri = c.length === 3;
     // Baked per-corner ambient occlusion (effects/ao-bake.js): `vao` multiplies the face's
     // baked colour per corner, and the GPU interpolates the gradient across the face. Absent
     // (every pre-AO scene) → factor 1 everywhere, byte-identical output.
     const vao = Array.isArray(f.vao) && f.vao.length >= 4 ? f.vao : null;
+    // The AO bake samples four corners whatever the face's size, so an n-gon's later corners may have no
+    // factor: they take the mean of the ones it has (a quad or triangle always has its own, so is unchanged).
+    const vaoMean = vao && vao.length < c.length ? vao.reduce((s, x) => s + x, 0) / vao.length : 1;
+    const aoOf = (k) => (k < vao.length ? vao[k] : vaoMean);
     // Per-corner GRADIENT colour: a face carrying `cornerFills: [hex,hex,hex,hex]` gives each of its
     // four corners its own baked colour and the GPU interpolates the gradient across the face
     // (Gouraud) — the era-authentic "gradient per polygon" look, no texture needed. Parallel to `vao`
     // (which multiplies per corner) and composes with it. Absent → the single `fill` is used for all
     // corners, byte-identical to every existing scene.
-    // (a triangle's three: the soft edge's graded pieces, station-loft-shade.js)
+    // (a triangle's three: the soft edge's graded pieces, station-loft-shade.js). An n-gon's corner past the end of a
+    // shorter `cornerFills` takes the face's own `fill`.
     const cornerCols = Array.isArray(f.cornerFills) && f.cornerFills.length >= (isTri ? 3 : 4)
       ? f.cornerFills.map((h) => faceColorLinear({ fill: h }))
       : null;
     // a textured TRIANGLE (the painted face's pieces) takes its three corners' uv; a quad its four
     if (typeof f.texture === 'string' && Array.isArray(f.uv) && f.uv.length >= (isTri ? 3 : 4)) {
+      // a textured n-gon fans over every corner when it carries a uv for each; else its first four, as before
+      const tt = f.uv.length >= c.length ? faceTris(c) : TRIS;
       const grp = textureGroups[f.texture] || (textureGroups[f.texture] = { positions: [], uvs: [], colors: [], lit: false, specs: specs ? [] : null, hasSpec: false });
       // `textureLit` opts a textured face into MULTIPLY-lit rendering: the baked per-face
       // colour rides into the group so emitThreeWorld can do texel × bakedLight (vertexColors).
@@ -559,10 +603,10 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       const [tr, tg, tb] = faceColorLinear(f);
       const fs = Array.isArray(f.spec) && f.spec.length >= 2 ? f.spec : null;
       if (fs) grp.hasSpec = true;
-      for (const tri of isTri ? TRI : TRIS) {
+      for (const tri of tt) {
         for (const idx of tri) {
-          const p = c[idx], uv = f.uv[idx], a = vao ? vao[idx] : 1;
-          const cc = cornerCols ? cornerCols[idx] : [tr, tg, tb];
+          const p = c[idx], uv = f.uv[idx], a = vao ? aoOf(idx) : 1;
+          const cc = (cornerCols && cornerCols[idx]) || [tr, tg, tb];
           grp.positions.push(p[0], p[1], p[2]);
           grp.uvs.push(uv[0], uv[1]);
           grp.colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
@@ -578,8 +622,9 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     // aligned with `positions`). Textured faces `continue` above, so they never reach here.
     const fn = normals ? (Array.isArray(f.outNormal) ? f.outNormal : faceNormal(c)) : null;
     const pushNormal = (count) => { if (!normals) return; for (let i = 0; i < count; i++) normals.push(fn[0], fn[1], fn[2]); };
-    const clipPts = isTri ? null : parseClipPolygon(f.clip);
-    const radPts = clipPts || isTri ? null : parseBorderRadius(f.radius);
+    const isQuad = c.length === 4;   // clip / radius address a quad's (u,v) frame; an n-gon has none
+    const clipPts = isQuad ? parseClipPolygon(f.clip) : null;
+    const radPts = clipPts || !isQuad ? null : parseBorderRadius(f.radius);
     if (clipPts || radPts) {
       // `radiusSeg` (segments per quarter arc, default 8): a round cap drawn over an n-sided lathe asks for n / 4, so the
       // mesh cap meets the ring corner for corner instead of spending ~30 triangles on a circle the ring cannot show
@@ -601,16 +646,16 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
     } else {
       // Export path (normals active): reverse the triangle order when the face's winding opposes
       // its authored outward normal, so the emitted GLB winds consistently outward (bake-correct).
-      // Purely export-only — `fn` is null unless withNormals, so the World/STL paths keep TRIS
-      // and stay byte-identical. Per-vertex colour/vao stay aligned (indexed by `idx`); the flat
-      // per-face normal is unchanged.
+      // Purely export-only — `fn` is null unless withNormals, so the World/STL paths keep the forward
+      // fan and stay byte-identical. Per-vertex colour/vao/cornerNormals stay aligned (indexed by `idx`,
+      // the corner each fan vertex came from); the flat per-face normal is unchanged.
       const wn = fn ? windingNormal(c) : null;
       const rev = wn && (wn[0] * fn[0] + wn[1] * fn[1] + wn[2] * fn[2]) < 0;
-      const tris = isTri ? (rev ? TRI_REV : TRI) : (rev ? TRIS_REV : TRIS);
+      const tris = faceTris(c, !!rev);
       for (const tri of tris) {
         for (const idx of tri) {
-          const p = c[idx], a = vao ? vao[idx] : 1;
-          const cc = cornerCols ? cornerCols[idx] : [lr, lg, lb];
+          const p = c[idx], a = vao ? aoOf(idx) : 1;
+          const cc = (cornerCols && cornerCols[idx]) || [lr, lg, lb];
           positions.push(p[0], p[1], p[2]);
           colors.push(cc[0] * a, cc[1] * a, cc[2] * a);
         }
@@ -622,7 +667,7 @@ export function faceListToMesh(faces = [], { decollide = true, withNormals = fal
       if (cn) for (const tri of tris) for (const idx of tri) normals.push(cn[idx][0], cn[idx][1], cn[idx][2]);
       else pushNormal(tris.length * 3);
     }
-    for (let i = 0; i < c.length && i < 4; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
+    for (let i = 0; i < c.length; i++) { cx += c[i][0]; cy += c[i][1]; cz += c[i][2]; n++; }
   }
   const center = n ? [cx / n, cy / n, cz / n] : [0, 0, 0];
   let radius = 0;

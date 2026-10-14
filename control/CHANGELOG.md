@@ -1010,6 +1010,23 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 - Pins moved on purpose: `WALK_KINDS` gains `city`; the `compose_world` card count gains the generated
   `city-plan` card.
 
+### Faces with more than four corners are drawn whole
+
+- **The mesher triangulates every corner of an n-gon.** `faceListToMesh` (the World, GLB, USD and STL path) used
+  a fixed two-triangle split, so a face with more than four corners was drawn as the quad of its first four. The
+  roadway fleet's 12-sided tyre caps and hub discs, the cars' six-sided end caps and the cab prisms showed between 13 %
+  and 37 % of their area: a straight cut through every wheel. A convex n-gon now fans from corner 0, and a concave one
+  (the fluid view's airfoil and sail caps) is ear-clipped in its plane, the rule `ring-cap.js` already applies to
+  extrude and loft caps. Per-corner `cornerFills`, `vao` and `cornerNormals` follow the corner each vertex came from.
+  An n-gon corner past a four-entry `vao` takes the mean of the four, and one past a shorter `cornerFills` takes the
+  face's `fill`. `clip` and `radius` stay quad-only. Faces with up to four corners emit byte for byte as before
+  (12,000 fuzzed meshes over every channel compared against HEAD). A producer that split its own polygons into
+  quads to work around the limit can keep doing so.
+- **The stage page budget is 10 MB.** The dungeon rubble's polytope faces are drawn whole now, which took the heaviest
+  rolls (every element on, lifted to the top of the rail) to about 7.6 MB, just past the old 7 MB. `STAGE_PAGE_BUDGET`
+  is a test-only tripwire for our own generators bloating a page; nothing reads it at run time, and it never limits
+  what a world may hold.
+
 ### Rig clips keep the palette
 
 - **A rigged solid's clips are coloured like its rest pose.** The World page's clip preview and the skinned GLB used
