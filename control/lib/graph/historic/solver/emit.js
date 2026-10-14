@@ -13,6 +13,8 @@ import { scaleHex } from '../../polygonizer/vexar.js';
 import { r2, centre, grow, meets } from './context.js';
 
 const SURF = { mud: 'mud', rubble: 'rubble', brick: 'brick', flagstone: 'flagstone', 'dry-earth': 'dry-earth' };
+/** How much an asset that can say more or less (an inventory building) says, by the scene: a slice is seen close. */
+const RING = { slice: 'near', city: 'mid', region: 'far' };
 
 /** Build what was laid, lay the ground, and move it all into the window. */
 export function emitPlan(X) {
@@ -26,7 +28,7 @@ export function emitPlan(X) {
     if (!A2) { notes.push(`no asset '${slot.asset}' in the ${culture} kit`); return; }
     // a borrowed asset is built in its lender's colours: its builder reads the lender's palette as it was written
     const pal = borrowed[slot.asset] ? { ...P, ...HISTORIC_CULTURES[borrowed[slot.asset]].palette } : P;
-    const out = placeAsset(A2, slot, { palette: pal, culture: K, rng: stream(seed, `asset|${slot.asset}|${i}`) });
+    const out = placeAsset(A2, slot, { palette: pal, culture: K, rng: stream(seed, `asset|${slot.asset}|${i}`), ring: RING[view] });
     boxes.push(...out.boxes.map((b) => (slot.monument ? { ...b, monument: slot.monument } : b))); grounds.push(...out.grounds);
   });
   for (const a of activities) {

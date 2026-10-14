@@ -23,6 +23,13 @@ place and year, and its buildings composed from an inventory of styles and struc
   the form's own words: a new armature, enclosure, street pattern, placement or tree is one entry, and the form's
   schema reads its words from those tables. Every shipped culture solves byte-identical to before. The placement
   `water-edge`, which the schema took but no rule laid, is refused until one does.
+- **Buildings from the inventory** (`historic/inventory/`). A style (a building language as data: walls storey by
+  storey, the cap's form, pitch and covering, the lights and their rhythm, the door, the ornaments) spoken as a use
+  (dwelling, shop, workshop, barn, hall, tower) on a lot is a kit asset: `inventoryAsset({ id, style, use })` builds
+  it through the era library's `speak` as lit panels, fronting its slot, painted from the culture's palette (each
+  surface group, plaster, stone, timber, thatch, tile, slate, openings, to a palette key or a neutral default, a face's
+  value moving it lighter or darker). A culture's kit holds inventory assets beside hand-built ones and the solver lays
+  them like any house. It says as much as the scene can show: the fine at a slice, the masses and caps over a region.
 
 ### Sheet-metal bend lines that mark without cutting
 
