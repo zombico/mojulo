@@ -25,6 +25,7 @@ const CastScript := preload("res://kernel/cast.gd")
 const CombatScript := preload("res://kernel/combat.gd")
 const HudScript := preload("res://kernel/hud.gd")
 const StatsScript := preload("res://kernel/stats.gd")
+const SoundScript := preload("res://kernel/sound.gd")
 const JsonExact := preload("res://kernel/json_exact.gd")
 const HAZARD_COOLDOWN := 0.8
 
@@ -131,6 +132,7 @@ var figure_players: Array = []       # [{node, player, anim}] — ambient idles,
 var probe_frames := -1               # --mojulo-frames=N: dump at frame N and quit
 var probe_frame := 0
 var _marker_res: Dictionary = {}     # marker kind -> the one shared Mesh (material on it)
+var sound = null                     # kernel/sound.gd when the score carries `audio` (0.19.0): action sounds, the fight score
 var looks: Node3D = null             # kernel/looks.gd when the score carries looks: looks.wear(node, name) / lift / transit
 
 
@@ -171,6 +173,7 @@ func _ready() -> void:
 	_build_contract()
 	_build_bus()
 	_start_music()
+	_build_sound()
 	_build_hud()
 	_attach_hooks()
 	_read_probe_args()
@@ -1044,11 +1047,31 @@ func _start_music() -> void:
 	music.name = "Music"
 	music.stream = stream
 	music.volume_db = music_db
+	if AudioServer.get_bus_index("Music") >= 0:
+		music.bus = "Music"
 	add_child(music)
 	if stream is AudioStreamWAV:
 		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		stream.loop_end = int(stream.get_length() * stream.mix_rate)
 	music.play()
+
+
+# the level's sound (score.json `audio`, since 0.19.0): kernel/sound.gd as the child "Sound", hearing the bus and the
+# hero; absent ⇒ no node, the level as before
+func _build_sound() -> void:
+	if not score.get("audio") is Dictionary:
+		return
+	sound = SoundScript.new()
+	sound.name = "Sound"
+	add_child(sound)
+	sound.setup(self, score["audio"], get_node_or_null("Music"))
+
+
+func _sound_hero():
+	if cast == null or not cast_state.get("byId") is Dictionary:
+		return null
+	var who := s_(score.get("player"))
+	return cast_state["byId"].get(who if who != "" else "player")
 
 
 func _build_hud() -> void:
@@ -1094,6 +1117,8 @@ func _zone_hit(zone: Dictionary, pos: Vector3) -> bool:
 
 func _process(delta: float) -> void:
 	_follow_suit()
+	if sound != null:
+		sound.step(delta, walker if state == "playing" else null, _sound_hero() if state == "playing" else null)
 	if state != "playing" or walker == null:
 		return
 	var pos := walker.global_position
@@ -1426,6 +1451,8 @@ func _drain_bus(_delta: float) -> void:
 		if not e.has("type"):
 			continue
 		bus_event.emit(String(e["type"]), e)
+		if sound != null:
+			sound.hear(String(e["type"]))
 		_announce(String(e["type"]), e)
 		# the contract's on: the first pattern that matches maps the event (scene/channels/game.js, the same rule)
 		for pat in on:
@@ -1788,6 +1815,8 @@ func _complete() -> void:
 		return
 	state = "complete"
 	print("moj: level complete")
+	if sound != null:
+		sound.finish("victory")
 	_banner("LEVEL COMPLETE", Color(1, 1, 1))
 	var game := _game()
 	if game != null:
@@ -1799,6 +1828,8 @@ func _fail(result: String = "fail") -> void:
 		return
 	state = "failed"
 	print("moj: level failed")
+	if sound != null:
+		sound.finish("defeat")
 	_banner("FAILED", Color(1, 0.35, 0.3))
 	var game := _game()
 	if game != null:

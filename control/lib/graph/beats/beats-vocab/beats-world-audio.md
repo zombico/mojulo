@@ -33,7 +33,7 @@ audio: {
   `create_game`'s reply carries each unscored level's update_sketch call; `design_game({ quick: { music: 'auto' } })`
   writes it at mint.
 - A composition always loops here, at the next bar line. Engine exports (Godot, Unity, Unreal) render the same
-  soundtrack as a looped WAV bed.
+  soundtrack as a looped WAV bed. Godot also plays the level's sounds and its `combat` change (see the end).
 
 ## sfx
 
@@ -88,3 +88,11 @@ These read the controllable entity's state and never write back.
   in as the danger rises); `macro` is tone, level or transpose on a soundtrack row.
 - `beat`: `true` or `{ lead }` puts `{ type: 'beat', n }` on the bus `lead` seconds (default 0.15) before each beat
   of a steady-tempo soundtrack: the clock a rhythm level plays to.
+
+## in Godot
+
+`export_game({ target: 'godot' })` carries the level's sound as data its kernel plays: every cue the level sounds
+renders to `audio/sfx/` (three takes each when `vary`, never the same twice in a row), fired by the same bus events
+and hero moves as the page; `combat` renders beside the soundtrack and changes on the bar line by the page's own
+meter; the game's `music.victory` / `music.defeat` play once as a level ends. The pack's buses are Music, SFX and
+UI, and the sounds duck the music. Unity and Unreal carry the explore score only.

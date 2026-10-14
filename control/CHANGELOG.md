@@ -150,7 +150,21 @@ score its scene and its play call for.
   - Pages without `combat` or a tension binding emit byte for byte as before.
   - Suggestions give a fight level its scene's own score as `soundtrack` and the fight's (battle, the boss; rave or
     peak) as `combat`. `create_game`'s patch and `design_game`'s `music: 'auto'` write both.
-  - Engine exports carry the explore score only; Godot's combat change is phase 6.
+  - Unity and Unreal exports carry the explore score only; Godot plays the change (below).
+- **Godot plays the level's sound.** A level's world audio travels to the Godot pack as data the kernel performs
+  (kernel 0.19.0, `kernel/sound.gd`; `engine-sound.js` names each sound for what it plays).
+  - Its action sounds render to `audio/sfx/<id>_<n>.wav`, three takes each when the level's sounds vary. Each
+    plays through an `AudioStreamRandomizer` that never repeats a take, fired by the same bus events (first matching
+    glob, 60 ms apart) and the same hero moves (footsteps, shots, swings, dodges) as the page.
+  - `audio.combat` renders beside the soundtrack and the level changes to it on the bar line, crossfading over one
+    bar, by the page's own meter ported to GDScript. `scripts/godot-sound-conformance.mjs` holds the two equal over
+    seeded traces; with `MOJULO_GODOT` set, the test runs it and a real level whose hits bring the fight score in and
+    whose calm takes it out.
+  - The game's `music.victory` / `music.defeat` stingers render once and play when a level ends; the level's music
+    fades for them and the menu's waits.
+  - A pack with sound ships `default_bus_layout.tres`: Music, SFX and UI under Master, with a compressor on Music
+    keyed from SFX so the sounds duck the music. `score.json` gains an `audio` key only for a level with sounds or a
+    fight score; packs without either are byte-identical apart from the kernel.
 - **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names

@@ -22,6 +22,7 @@ import { lookRGB } from '../playscape/elements/elements.js';
 import { weatherScore } from './weather-score.js';
 import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
+import { levelSound } from './engine-sound.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -213,6 +214,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   ledger.skipped_runtime = {
     note: 'game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build',
   };
+  const sound = levelSound(payload.audio, sketch?.ref);
+  if (sound?.sounds.length) ledger.sfx_carried = { count: sound.sounds.length, note: `action sounds ride score.json \`audio\` (bus events, footsteps, shots, swings) as one-shot WAVs${sound.score.variants > 1 ? `, ${sound.score.variants} takes each` : ''}; the Godot kernel plays them (kernel/sound.gd, an AudioStreamRandomizer per sound on the SFX bus, which ducks the music); Unity and Unreal carry the data` };
+  if (sound?.combat) ledger.combat_music_carried = { note: 'the fight score ships beside the soundtrack and the Godot kernel changes to it on the bar line when the tension the level\'s events raise reaches its threshold, and back after the hold (kernel/sound.gd, the page\'s meter); Unity and Unreal play the explore score only' };
   const hudWidgets = normalizeHud(payload.events?.hud).widgets;
   if (hudWidgets.length) {
     ledger.hud_declared = { count: hudWidgets.length, note: 'HUD widgets (slot / kind / banner / legend) ride score.json `hud` as data; when the world has a bus, the Godot kernel draws them as the page does (kernel/hud.gd: slots, text / counter / bar / clock, banners, stacking toasts, legends, a part\'s show / hide / state and its phases) in the guide\'s tokens, font and frame and plate dials (`hudStyle`); the register\'s motion, sound, cursor and light stay the web\'s; without a bus the kernels paint their own readout from `mechanics`' };
@@ -388,6 +392,8 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     player: playerOf(payload),
     game: extras['moj:game'] ?? null,
     soundtrack: levelSoundtrack(sketch, payload)?.id ?? null,
+    // the level's action sounds and fight score (engine-sound.js): absent ⇒ no key, byte-identical
+    ...(sound ? { audio: sound.score } : {}),
     ledger,
   };
 }
