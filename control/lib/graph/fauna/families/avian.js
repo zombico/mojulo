@@ -1027,7 +1027,7 @@ export const species = {
     bodyTiles: [],
     // the grey wing with TWO BLACK BARS (the greater and lesser covert tips), dark primaries
     wings: { coreFit: true, pitch: 10,
-      wing: roundWing([0.035, 0.05, 0.04], 0.08, 0.12, { secondaries: 10, width: 0.025, primReach: 0.03, slotFrom: 0.95, slotBy: 0.1 }),
+      wing: roundWing([0.035, 0.05, 0.04], 0.08, 0.12, { secondaries: 10, width: 0.025, primReach: 0.03, slotFrom: 0.95, slotBy: 0.1, fit: true }),
       palette: wingPalette({ bone: '#8d93a0', flight: ['#4a4d56', '#555862', '#40434c'], under: '#c4c8d0', covert: ['#9aa0ac', '#a2a8b4', '#949aa6'], covertTip: '#1e1e24',
         lesser: ['#a4aab5', '#acb2bd', '#9ea4af'], lesserTip: '#1e1e24' }) },
   },
@@ -1222,7 +1222,7 @@ export const species = {
     bodyTiles: [],
     // LONG narrow pointed wings: a short arm, few secondaries, long primaries
     wings: { coreFit: true, pitch: 40,
-      wing: featherWing({ arm: [0.04, 0.05, 0.07], tertials: 2, secondaries: 6, secLen: 0.06, primLen: 0.2, primReach: 0.02, slotFrom: 1, width: 0.03,
+      wing: featherWing({ fit: true, arm: [0.04, 0.05, 0.07], tertials: 2, secondaries: 6, secLen: 0.06, primLen: 0.2, primReach: 0.02, slotFrom: 1, width: 0.03,
         tertialLen: 0.2, tertialWidth: 0.35, boneR: 0.35 }),
       palette: wingPalette({ bone: '#3f8a4a', flight: ['#3a3a40', '#424248', '#34343a'], under: '#5a5a60', covert: ['#3f8a4a', '#4a9a56', '#3a7e44'], lesser: '#3f8a4a' }) },
   },

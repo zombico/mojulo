@@ -73,6 +73,11 @@ redraws with the new numbers on its next read.
   its back at about a third of its old size (it towered over the animal); the moray tapers from a deep head end to a
   thin tail instead of a cucumber's even girth.
 - The rabbit's head is larger (it was about a quarter small), the pig's legs fuller, the llama's barrel narrower.
+- **Folded wings** lie against a small bird's flank: `featherWing({ fit: true })` scales the wing's fixed sizes (the
+  tertials, the feather layers' stacking, the vanes' bow, the bones' girth, authored at a griffon's 0.69 m arm) by
+  the wing's own arm, so the pigeon's wing no longer stands off its body as a griffon-thick stack (it reached past
+  the trunk's width by half again), and the hummingbird's long blades fold along its back. Absent, a wing is built as
+  before; the other birds keep theirs (on a plump chicken or owl the fitted wing sinks out of sight).
 - `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
   to NaN). A four-legged species builds exactly as before.
 - `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,
