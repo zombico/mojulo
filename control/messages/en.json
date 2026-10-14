@@ -198,7 +198,8 @@
       "places": "Places",
       "characters": "Characters",
       "images": "Images",
-      "play": "Play"
+      "play": "Play",
+      "elements": "Elements"
     },
     "agentStatus": {
       "liveLabel": "Live",

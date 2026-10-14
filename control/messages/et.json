@@ -198,7 +198,8 @@
       "places": "Kohad",
       "characters": "Tegelased",
       "images": "Pildid",
-      "play": "Mängi"
+      "play": "Mängi",
+      "elements": "Elemendid"
     },
     "agentStatus": {
       "liveLabel": "Otsesidemeis",

@@ -198,7 +198,8 @@
       "places": "장소",
       "characters": "캐릭터",
       "images": "이미지",
-      "play": "플레이"
+      "play": "플레이",
+      "elements": "요소"
     },
     "agentStatus": {
       "liveLabel": "실시간",

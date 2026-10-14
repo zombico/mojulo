@@ -198,7 +198,8 @@
       "places": "場所",
       "characters": "キャラクター",
       "images": "画像",
-      "play": "プレイ"
+      "play": "プレイ",
+      "elements": "エレメント"
     },
     "agentStatus": {
       "liveLabel": "ライブ",

@@ -198,7 +198,8 @@
       "places": "Miejsca",
       "characters": "Postacie",
       "images": "Obrazy",
-      "play": "Graj"
+      "play": "Graj",
+      "elements": "Elementy"
     },
     "agentStatus": {
       "liveLabel": "Na żywo",

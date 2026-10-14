@@ -198,7 +198,8 @@
       "places": "Plaatsen",
       "characters": "Personages",
       "images": "Afbeeldingen",
-      "play": "Speel"
+      "play": "Speel",
+      "elements": "Elementen"
     },
     "agentStatus": {
       "liveLabel": "Live",

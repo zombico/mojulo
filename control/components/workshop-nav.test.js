@@ -14,9 +14,9 @@ const tileKeys = (key) => WORKSHOP_GROUPS.find((g) => g.key === key)?.tiles.map(
 const APP = path.resolve(__dirname, '..', 'app');
 
 describe('workshop nav — by rail type', () => {
-  it('make leads, and its doors are what is made: worlds, places, characters, objects, then the whole library', () => {
+  it('make leads, and its doors are what is made: worlds, places, characters, objects, what they are styled from, then the whole library', () => {
     expect(keysOf(WORKSHOP_GROUPS)).toEqual(['make', 'media', 'play', 'ideate']);
-    expect(tileKeys('make')).toEqual(['worlds', 'places', 'characters', 'objects', 'library']);
+    expect(tileKeys('make')).toEqual(['worlds', 'places', 'characters', 'objects', 'elements', 'library']);
     expect(tileKeys('play')[0]).toBe('play');
   });
 

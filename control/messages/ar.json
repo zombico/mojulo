@@ -198,7 +198,8 @@
       "places": "أماكن",
       "characters": "الشخصيات",
       "images": "الصور",
-      "play": "اللعب"
+      "play": "اللعب",
+      "elements": "العناصر"
     },
     "agentStatus": {
       "liveLabel": "مباشر",

@@ -198,7 +198,8 @@
       "places": "สถานที่",
       "characters": "ตัวละคร",
       "images": "ภาพ",
-      "play": "เล่น"
+      "play": "เล่น",
+      "elements": "องค์ประกอบ"
     },
     "agentStatus": {
       "liveLabel": "สด",

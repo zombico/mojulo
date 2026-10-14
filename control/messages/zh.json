@@ -198,7 +198,8 @@
       "places": "场所",
       "characters": "角色",
       "images": "图像",
-      "play": "游玩"
+      "play": "游玩",
+      "elements": "元素"
     },
     "agentStatus": {
       "liveLabel": "实时",

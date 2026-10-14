@@ -10,7 +10,6 @@ import useSWR from 'swr';
 
 import WorkshopShell from '@/components/WorkshopShell';
 import { ProjectGrid } from '@/components/rail/ProjectCards';
-import Repertoire from '@/components/rail/Repertoire';
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -25,8 +24,6 @@ export default function ProjectShelf({ group, authEnabled = false }) {
           <h1 className="text-[18px] font-semibold tracking-tight text-[color:var(--ink-primary)]">{t(group)}</h1>
           {data && <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">{projects.length}</span>}
         </div>
-        {/* worlds lead with what a world can be built from, drawable in any kit without asking */}
-        {group === 'worlds' && <Repertoire />}
         <ProjectGrid projects={projects} />
       </div>
     </WorkshopShell>

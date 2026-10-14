@@ -20,6 +20,7 @@ const SHELL_PATHS = new Set([
   '/play',
   '/worlds',
   '/places',
+  '/elements',
   '/render-bay',
   '/outputs',
   '/research',
@@ -30,7 +31,7 @@ const SHELL_PATHS = new Set([
 ]);
 
 // Detail readings of shell surfaces (refs and their sub-views).
-const SHELL_PREFIXES = ['/stashes/', '/beats/', '/games/'];
+const SHELL_PREFIXES = ['/stashes/', '/beats/', '/games/', '/elements/'];
 
 export function isShellPath(pathname) {
   if (!pathname) return false;

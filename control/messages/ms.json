@@ -198,7 +198,8 @@
       "places": "Tempat",
       "characters": "Watak",
       "images": "Imej",
-      "play": "Main"
+      "play": "Main",
+      "elements": "Elemen"
     },
     "agentStatus": {
       "liveLabel": "Langsung",

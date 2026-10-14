@@ -198,7 +198,8 @@
       "places": "Mekânlar",
       "characters": "Karakterler",
       "images": "Görseller",
-      "play": "Oyna"
+      "play": "Oyna",
+      "elements": "Öğeler"
     },
     "agentStatus": {
       "liveLabel": "Canlı",

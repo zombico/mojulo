@@ -198,7 +198,8 @@
       "places": "Місця",
       "characters": "Персонажі",
       "images": "Зображення",
-      "play": "Грати"
+      "play": "Грати",
+      "elements": "Елементи"
     },
     "agentStatus": {
       "liveLabel": "В мережі",

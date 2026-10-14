@@ -218,6 +218,18 @@ export function ImagesIcon({ className = 'h-10 w-10' }) {
   );
 }
 
+export function ElementsIcon({ className = 'h-10 w-10' }) {
+  // A swatch card: three colour chips and a dot, the styles a world is drawn in.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8" rx="1.5" />
+      <rect x="13" y="3" width="8" height="8" rx="1.5" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" />
+      <circle cx="17" cy="17" r="4" />
+    </svg>
+  );
+}
+
 export function FloorIcon({ className = 'h-10 w-10' }) {
   // The splayed floor: shelf strips receding on a floor plane — the dashboard's
   // own shape, so the row that opens it is drawn as the thing it opens.
@@ -301,6 +313,7 @@ export const DOOR_ICONS = {
   BeatsIcon,
   CharacterIcon,
   CookIcon,
+  ElementsIcon,
   FloorIcon,
   ImagesIcon,
   LibraryIcon,
@@ -338,6 +351,8 @@ export const WORKSHOP_GROUPS = [
       { key: 'places', href: '/places', icon: 'PlacesIcon' },
       { key: 'characters', href: '/library?shelf=characters', icon: 'CharacterIcon' },
       { key: 'objects', href: '/library?shelf=models', icon: 'ObjectsIcon' },
+      // what all of it is styled from: the repertoire of sheets, the geocubes, kits and city grammars
+      { key: 'elements', href: '/elements', icon: 'ElementsIcon' },
       { key: 'library', href: '/library', icon: 'LibraryIcon' },
     ],
   },

@@ -198,7 +198,8 @@
       "places": "Места",
       "characters": "Персонажи",
       "images": "Изображения",
-      "play": "Играть"
+      "play": "Играть",
+      "elements": "Элементы"
     },
     "agentStatus": {
       "liveLabel": "Работает",

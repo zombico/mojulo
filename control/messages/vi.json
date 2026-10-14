@@ -198,7 +198,8 @@
       "places": "Địa điểm",
       "characters": "Nhân vật",
       "images": "Hình ảnh",
-      "play": "Chơi"
+      "play": "Chơi",
+      "elements": "Phần tử"
     },
     "agentStatus": {
       "liveLabel": "Trực tiếp",

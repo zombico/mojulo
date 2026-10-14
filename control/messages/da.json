@@ -198,7 +198,8 @@
       "places": "Steder",
       "characters": "Karakterer",
       "images": "Billeder",
-      "play": "Spil"
+      "play": "Spil",
+      "elements": "Elementer"
     },
     "agentStatus": {
       "liveLabel": "Direkte",

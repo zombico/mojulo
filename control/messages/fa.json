@@ -198,7 +198,8 @@
       "places": "مکان‌ها",
       "characters": "شخصیت‌ها",
       "images": "تصویرها",
-      "play": "بازی"
+      "play": "بازی",
+      "elements": "عنصرها"
     },
     "agentStatus": {
       "liveLabel": "زنده",

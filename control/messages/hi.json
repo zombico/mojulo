@@ -198,7 +198,8 @@
       "places": "स्थान",
       "characters": "किरदार",
       "images": "इमेज",
-      "play": "खेलें"
+      "play": "खेलें",
+      "elements": "एलिमेंट"
     },
     "agentStatus": {
       "liveLabel": "Live",

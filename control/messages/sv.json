@@ -198,7 +198,8 @@
       "places": "Platser",
       "characters": "Karaktärer",
       "images": "Bilder",
-      "play": "Spela"
+      "play": "Spela",
+      "elements": "Element"
     },
     "agentStatus": {
       "liveLabel": "Live",

@@ -198,7 +198,8 @@
       "places": "Tempat",
       "characters": "Karakter",
       "images": "Gambar",
-      "play": "Mainkan"
+      "play": "Mainkan",
+      "elements": "Elemen"
     },
     "agentStatus": {
       "liveLabel": "Langsung",

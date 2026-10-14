@@ -198,7 +198,8 @@
       "places": "Orte",
       "characters": "Charaktere",
       "images": "Bilder",
-      "play": "Spielen"
+      "play": "Spielen",
+      "elements": "Elemente"
     },
     "agentStatus": {
       "liveLabel": "Live",

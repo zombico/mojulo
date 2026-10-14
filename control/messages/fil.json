@@ -198,7 +198,8 @@
       "places": "Mga lugar",
       "characters": "Mga Karakter",
       "images": "Mga Larawan",
-      "play": "Maglaro"
+      "play": "Maglaro",
+      "elements": "Mga Elemento"
     },
     "agentStatus": {
       "liveLabel": "Live",

@@ -100,6 +100,15 @@ The agent drives; the dashboard shows. Every affordance that wrote or handed the
     the kits each draws in are its builder's (any kit's land; an isekai kit's civil sheets).
   - **Drawn once per revision.** A world bible is ~16 MB and two seconds to draw, a flora sheet up to eight; pages are
     kept in memory by what keys them (`lib/sheet-cache.js`), so a second look is immediate. Nothing is stored.
+- **Elements: what a world is styled from, each seen as itself** (`/elements`, `lib/graph/elements/registry.js`).
+  - **A door of its own** in Make, between Objects and the Library. It leads with the repertoire (moved from Worlds),
+    then every geocube, kit and city grammar mojulo holds, each a card of its own colours: a geocube's ramps, a kit's
+    land swatches, a grammar's skins.
+  - **One element live** (`/elements/<family>/<id>`): a geocube's room and land, a kit's bare stage (a room kit in one
+    room), a grammar's small city as massing or with its look. Each is drawn from a recipe built there and never
+    stored, through the same seam a stored sketch's World is (`/api/elements/<family>/<id>/world`), and kept in memory
+    once drawn. Beside it, its colour ramps and the recipes that name it (a stage or a world on a geocube, a world in a
+    kit, a city by a grammar, `{ from }` included); below, its document.
 - **Game projects retire** (`RETIRED_PACKS`' `pack_game_projects`): `create_game_project`, `get_game_project`,
   `update_game_project`, `bind_to_game_project` and `list_game_projects` leave the tool surface. A game's home is its
   gameworld (`design_game`, quick or full).
