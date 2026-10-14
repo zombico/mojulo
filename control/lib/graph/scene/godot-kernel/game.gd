@@ -21,6 +21,8 @@ var store = null
 var schema: Dictionary = {}
 var state: Dictionary = {}
 var run_log: Array = []
+var stinger: AudioStreamPlayer = null   # since 0.20.0: audio/stinger-<victory|defeat>.wav, played once as a level ends
+var stinger_until := 0                  # when it ends (msec): the menu's music waits for it
 
 
 func _ready() -> void:
@@ -77,9 +79,36 @@ func params_for(contract: Dictionary) -> Dictionary:
 	return params
 
 
+func _stinger_path(result: String) -> String:
+	return "res://audio/stinger-%s.wav" % result
+
+
+func has_stinger(result: String) -> bool:
+	return ResourceLoader.exists(_stinger_path(result))
+
+
+# the game's stinger for how a level ended, on the Music bus; it outlives the level's scene (the autoload holds it)
+func play_stinger(result: String) -> void:
+	if not has_stinger(result):
+		return
+	var s = load(_stinger_path(result))
+	if s == null:
+		return
+	if stinger == null:
+		stinger = AudioStreamPlayer.new()
+		stinger.name = "Stinger"
+		add_child(stinger)
+	if AudioServer.get_bus_index("Music") >= 0:
+		stinger.bus = "Music"
+	stinger.stream = s
+	stinger.play()
+	stinger_until = Time.get_ticks_msec() + int(s.get_length() * 1000.0)
+
+
 # the one write per level: the envelope against the level's contract, then completion recorded on success
 func level_finish(envelope: Dictionary, contract: Dictionary) -> void:
 	var success: bool = envelope.get("result") == "success"
+	play_stinger("victory" if success else "defeat")
 	if store != null:
 		var r: Dictionary = store.apply_outcome(schema, state, contract, envelope)
 		if not r["ok"]:

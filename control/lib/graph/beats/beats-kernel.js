@@ -72,6 +72,10 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 //           effect. The v3
 //           sections and phrase `shape` are shelf data and authoring
 //           expansions: no kernel bytes.
+// Game audio added one more:
+//   loop    a looped composition's live transport: it wraps at the next bar
+//           line (loopPeriod, the seam the offline export folds at) and
+//           schedules the piece again, where 2.1 went silent after one pass.
 // Regions nest: a region inside another region's new lines is resolved
 // first (innermost out), so a hook for a newer feature can sit inside an
 // older feature's lines. A nested feature implies its host (IMPLIES).
@@ -81,7 +85,7 @@ import { buildBeatsKernel as buildBeatsKernel21 } from './beats-kernel-2.1.js';
 // same transform a 2.1 page's did. A slice is syntax-checked once; if a
 // transform disturbed the markers (a minifier drops comments), the page gets
 // this whole function, whose markers are inert.
-export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre'];
+export const BEATS_KERNEL_FEATURES = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop'];
 export const IMPLIES = { ev: ['voice'], score: ['voice', 'ev'], orch: ['voice'], perc: ['voice', 'ev'], va: ['voice', 'ev'], fx: ['voice', 'ev', 'mix'], anthem: ['voice', 'ev', 'mix'], timbre: ['voice', 'ev', 'orch', 'mix'] };
 // an innermost region: no region marker inside either half.
 const REGION = /\/\*@(\w+)\{\*\/\n((?:(?!\/\*@)[\s\S])*?)\/\*\|\n((?:(?!\/\*@)[\s\S])*?)@\*\/\n/g;
@@ -256,6 +260,27 @@ export function buildBeatsKernel() {
 @*/
   }
 
+/*@loop{*/
+  // a looped composition's period: the music up to the next BAR LINE, not the
+  // last note's end. A scored composition reads its own clock (meters, tempo
+  // map), a plain one counts 4/4 bars. The live transport wraps here and the
+  // offline export (beats-render loopSeconds) folds at the same seam.
+  function loopPeriod(recipe, duration) {
+    const eps = 1e-6;
+/*@score{*/
+    if (scored(recipe)) {
+      const clock = scoreClock(recipe);
+      for (let n = 1; n < 10000; n++) { const t = clock.sec(clock.bar(n)[0]); if (t >= duration - eps) return t; }
+      return duration;
+    }
+/*|
+@*/
+    const bar = barSeconds(recipe.bpm);
+    return Math.max(1, Math.ceil(duration / bar - eps)) * bar;
+  }
+
+/*|
+@*/
 /*@score{*/
   // ── score substrate (orchestra and era): meter, tempo map, phrases + form,
   // object events, dynamics and hairpins, lowered to plain events. Pure in
@@ -3119,7 +3144,11 @@ export function buildBeatsKernel() {
 /*|
 @*/
       const bar = barSeconds(recipe.bpm);
+/*@loop{*/
+      let t0 = ctx.currentTime + 0.08; // a looped composition moves it on one period per pass
+/*|
       const t0 = ctx.currentTime + 0.08;
+@*/
 /*@anthem{*/
       startSweeps(recipe, t0);
 /*|
@@ -3210,7 +3239,14 @@ export function buildBeatsKernel() {
 @*/
             });
           }
+/*@loop{*/
+          // the last event is scheduled: a loop starts the next pass one period on
+          // (scheduled as the horizon reaches it), anything else stops.
+          if (cursor >= flat.events.length && recipe.loop && flat.events.length) { t0 += loopPeriod(recipe, flat.duration); cursor = 0; }
+          else if (cursor >= flat.events.length) stopTransport();
+/*|
           if (cursor >= flat.events.length && !recipe.loop) stopTransport();
+@*/
           return;
         }
         while (cursor * bar <= horizon) {
@@ -3325,6 +3361,10 @@ export function buildBeatsKernel() {
     ambientBarEvents,
     compositionEvents,
     noteFeel,
+/*@loop{*/
+    loopPeriod,
+/*|
+@*/
 /*@va{*/
     stepKeep,
 /*|

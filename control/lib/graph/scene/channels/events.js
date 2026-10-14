@@ -4,6 +4,7 @@ import { safeJson } from '../emit-util.js';
 import { registerCss, cleanDials, dialsAt } from '../../playscape/ui/register.js';
 import { UI_STATES } from '../../playscape/ui/parts.js';
 import { borderCss, cleanBorder } from '../../playscape/ui/borders.js';
+import { inventoryCss } from '../../playscape/ui/inventory-dress.js';
 import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
 import { sceneScript } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
@@ -76,7 +77,7 @@ const __hudEls = [], __hudBanners = [], __hudTimed = [], __hudToasts = [], __hud
 const __hudGated = [], __UI_STATES = ${JSON.stringify(UI_STATES)};` : ''}
 const __TOAST_CAP = 8, __TOAST_RISE = 28;
 (function () {
-  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${gated ? GATE_CSS : ''}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}`)}; document.head.appendChild(st);
+  const st = document.createElement('style'); st.textContent = ${JSON.stringify(`:root{${styleVars(style)}}${HUD_CSS}${gated ? GATE_CSS : ''}${menus ? MENU_CSS : ''}${register ? registerCss(cleanDials(register)) + borderCss({ ...cleanBorder(register), plate: { ...dialsAt(0), ...cleanDials(register) }.plate }) : ''}${menus && register && register.inventory ? inventoryCss(register.inventory) : ''}`)}; document.head.appendChild(st);
   const layer = document.createElement('div'); layer.className = 'moj-hud';
   const cols = __hudCols;
   const col = (slot) => { if (!cols[slot]) { const c = document.createElement('div'); c.className = 'moj-hud-col moj-hud-' + slot; layer.appendChild(c); cols[slot] = c; } return cols[slot]; };

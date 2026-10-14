@@ -7,10 +7,10 @@
  *   play: {
  *     parts:  [ … ],                         // parts.js
  *     phases: ['title', 'playing', …],       // at most 8; drawn as wireframes (the phase machine lands with rung 0)
- *     ui:     'propose' | 'auto' | { register?, pin?, border?, pixel?, pace?, seed? }   // authoring input
+ *     ui:     'propose' | 'auto' | { register?, pin?, border?, pixel?, pace?, inventory?, seed? }   // authoring input
  *           → { ask, seed, guide, motion, status }                    // stored, as numbers and words
  *   }
- *   play_hints: { fiction?, register?, border?, pixel?, pace?, motifs? }   // optional, high level; scapeshift may write it
+ *   play_hints: { fiction?, register?, border?, pixel?, pace?, inventory?, motifs? }   // optional, high level; scapeshift may write it
  *
  *   resolvePlayUi(manifest)  → AUTHORING TIME ONLY (create_sketch / update_sketch): fills the guide and the motion,
  *                              rolls any item set to 'reroll', keeps the others and their approval
@@ -27,6 +27,7 @@ import { readTone } from '../../era/tone.js';
 import { readRegister, stopOf, dialsAt, validatePins, fontOfType, DIAL_IDS } from './register.js';
 import { rollMotion } from './motion.js';
 import { readBorder, readPixel, BORDER_FLAVORS } from './borders.js';
+import { readDress, ANY_FLAVOR } from './inventory-dress.js';
 import { PACES } from './regions.js';
 import { lowerParts, readPart } from './parts.js';
 import { lowerCues, readCues } from './cues.js';
@@ -81,7 +82,8 @@ function guideRegister(ask, hints, R, nudge) {
 }
 
 /**
- * The guide: register, stop, dials, font, tokens, the stylized border and the pixel tuning, each with its source.
+ * The guide: register, stop, dials, font, tokens, the stylized border, the pixel tuning and (when asked) the
+ * inventory's dress (inventory-dress.js), each with its source.
  * Precedence, per value: the operator's words (play.ui) > the hints (play_hints) > a border flavor's own face, dials
  * and tint > the register's dials and the world's tone > the dice > the default.
  */
@@ -102,17 +104,28 @@ export function rollGuide(manifest, ask, seed, nudge = false) {
   const pace = paceSource ? readPace(paceSource === 'operator' ? ask.pace : hints.pace) : 'scan';
   const fontBy = pins.type !== undefined ? 'operator' : pixel ? 'pixel' : F ? 'flavor' : 'register';
   const font = fontBy === 'pixel' ? 'mono' : fontBy === 'flavor' ? F.font : fontOfType(dials.type, hints);
+  const dress = dressOf(manifest, ask, border && border.flavor), inventory = dress ? dress.inventory : null, dressSource = dress ? dress.source : null;
   return {
     register, stop: stopOf(register), dials, font, tokens,
     border: border ? { flavor: border.flavor, elements: border.elements } : null,
     pixel, pace,
+    ...(inventory ? { inventory } : {}),
     sources: {
       register: source, tokens: tokenSource,
       dials: Object.fromEntries(DIAL_IDS.map((d) => [d, dialSource(d)])),
       font: fontBy,
       border: borderSource || 'default', pixel: pixelSource || 'default', pace: paceSource || 'default',
+      ...(inventory ? { inventory: dressSource } : {}),
     },
   };
+}
+
+// the inventory's dress: only when the operator or the hints ask for one (absent, the guide is as it was)
+function dressOf(manifest, ask, flavor) {
+  const hints = isObj(manifest.play_hints) ? manifest.play_hints : null;
+  const source = ask.inventory !== undefined ? 'operator' : hints && hints.inventory !== undefined ? 'hints' : null;
+  if (!source) return null;
+  return { inventory: readDress(source === 'operator' ? ask.inventory : hints.inventory, flavor || null, `${source === 'operator' ? 'play.ui' : 'play_hints'}.inventory`), source };
 }
 
 function statusOf(ui, fill) {
@@ -134,6 +147,8 @@ function readAsk(u) {
   if (u.border !== undefined) { readBorder(u.border); ask.border = u.border; }
   if (u.pixel !== undefined) ask.pixel = readPixel(u.pixel);
   if (u.pace !== undefined) ask.pace = readPace(u.pace);
+  // the dress is read against the border's flavor when the guide rolls (a 'flavor' look needs it): here, its shape only
+  if (u.inventory !== undefined) { readDress(u.inventory, ANY_FLAVOR); ask.inventory = u.inventory; }
   return ask;
 }
 
@@ -170,8 +185,22 @@ export function resolvePlayUi(manifest, fresh = freshUiSeed) {
   }
   for (const k of ['parts', 'layout', 'wireframes']) if (u[k] === 'reroll') throw new Error(`play.ui.${k} is drawn from play.parts and play.phases: edit those to change it (only guide and motion roll)`);
   const redo = ROLLED.filter((k) => u[k] === 'reroll'), ask = isObj(u.ask) ? readAsk(u.ask) : {};
+  // the dress asked of a stored guide: redrawn on its own (nothing else rolls), the guide proposed again unless auto
+  let kept = u.guide, dressed = false;
+  if (!redo.includes('guide') && isObj(u.guide)) {
+    const was = u.guide.inventory || null, now = dressOf(manifest, ask, u.guide.border && u.guide.border.flavor);
+    if (JSON.stringify(was) !== JSON.stringify(now ? now.inventory : null)) {
+      const { inventory: _i, ...rest } = u.guide, { inventory: _s, ...sources } = rest.sources || {};
+      const guide = now ? { ...rest, inventory: now.inventory, sources: { ...sources, inventory: now.source } } : { ...rest, sources };
+      const status = statusOf(u, 'proposed');
+      if (status.guide !== 'auto') status.guide = 'proposed';
+      if (!redo.length) return { ...manifest, play: { ...play, ui: { ...u, ask, guide, status } } };
+      kept = guide; dressed = true;
+    }
+  }
   if (!redo.length) return manifest;
-  const seed = fresh(), status = statusOf(u, 'proposed'), next = { ...u, ask };
+  const seed = fresh(), status = statusOf(u, 'proposed'), next = { ...u, ask, ...(kept ? { guide: kept } : {}) };
+  if (dressed && status.guide !== 'auto') status.guide = 'proposed';
   if (redo.includes('guide')) next.guide = rollGuide(manifest, ask, seed, true);
   if (redo.includes('motion')) next.motion = rollMotion(mulberry32(subSeed(seed, 'motion')));
   for (const k of redo) status[k] = 'proposed';
@@ -228,7 +257,7 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   if (isObj(u) && isObj(u.guide)) {
     if (uiSettled(u)) {
       out.style = { ...pick(u.guide.tokens), font: u.guide.font };
-      out.register = { ...u.guide.dials, ...(u.guide.border ? { border: [...u.guide.border.elements] } : {}), ...(u.guide.pixel ? { pixel: u.guide.pixel } : {}) };
+      out.register = { ...u.guide.dials, ...(u.guide.border ? { border: [...u.guide.border.elements] } : {}), ...(u.guide.pixel ? { pixel: u.guide.pixel } : {}), ...(u.guide.inventory ? { inventory: { ...u.guide.inventory } } : {}) };
     }
     else out.style = { ...GREYBOX_TOKENS, font: 'system' };
   }

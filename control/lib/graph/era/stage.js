@@ -809,9 +809,11 @@ function nightSky(N, air) {
     moon: { u: +((az + Math.PI / 2) / Math.PI + 0.5).toFixed(4), h: +(N.moon.elevation / 90).toFixed(4), phase: N.moon.phase, size: N.moon.size } };
 }
 
-/** A stage's World page, every element on, stays under this (bytes, inline three.js included): what a level may cost to
- *  open, checked by stage-budget.test.js. */
-export const STAGE_PAGE_BUDGET = 7 * 1024 * 1024;
+/** A stage's World page, every element on, stays under this (bytes, inline three.js included), checked by
+ *  stage-budget.test.js. A tripwire for our own generators bloating a page, never a limit on what a world may hold:
+ *  nothing reads it at run time. 10 MB since n-gon faces are drawn whole (the rubble's polytope faces used to drop all
+ *  but four corners), which took the heaviest dungeon rolls just past the old 7 MB. */
+export const STAGE_PAGE_BUDGET = 10 * 1024 * 1024;
 
 /** A card cut into nu × nv cells (corners and uv interpolated), so a page can bend it down its length. */
 function splitCard(f, nu, nv) {

@@ -27,10 +27,11 @@ describe('parseFieldSpec', () => {
     expect(parseFieldSpec(undefined)).toBeNull();
   });
 
-  it('teaches on a bad mood, seed or role, and sends battle roles elsewhere', () => {
+  it('teaches on a bad mood, seed or role; battle is a mood like any other', () => {
     expect(() => parseFieldSpec('field:swamp')).toThrow(/the moods: plains/);
     expect(() => parseFieldSpec({ score: { mood: 'plains', seed: -1 } })).toThrow(/non-negative integer/);
-    expect(() => parseFieldSpec({ score: { mood: 'plains', role: 'boss' } })).toThrow(/battle music/);
+    expect(() => parseFieldSpec({ score: { mood: 'plains', role: 'boss' } })).toThrow(new RegExp(FIELD_ROLES.join(', ')));   // boss is a mood, not a role
+    expect(parseFieldSpec('field:battle')).toEqual({ mood: 'battle' });
     expect(() => parseFieldSpec({ score: { mood: 'plains', role: 'lobby' } })).toThrow(new RegExp(FIELD_ROLES.join(', ')));
   });
 });

@@ -6,7 +6,7 @@
     "head": "anime",
     "look": ["kid", "youthful", "large-eyes", "button-nose", "messy"],
     "expression": ["smile", { "open": 0.6 }],
-    "tune": { "head": 1.1, "legs": 0.85, "torso": 0.93, "shoulders": 0.9 },
+    "tune": { "head": 1.1, "legs": 0.85, "torso": 0.93, "shoulders": 0.9, "armLength": 0.9 },
     "face": { "eyeHeight": 1.08, "eyeWidth": 1.04 },
     "sculpt": {
       "browAngle": -20,

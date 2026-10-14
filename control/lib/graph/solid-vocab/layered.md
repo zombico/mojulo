@@ -153,8 +153,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as
   percentages of hers, so a broad young woman is a build, not a tune past its range; `{ build: 'child' }` (pole `male`
   unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
-  body proportion lab's contract. Thirteen controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
-  `neck`, `legs` (joints move, the soles stay on the ground); widths `shoulders` (the arm chain rides out, the yoke widens),
+  body proportion lab's contract. Controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
+  `neck`, `legs` (joints move, the soles stay on the ground), `armLength` (the upper arm and forearm, so a body shortened
+  by `legs` and `torso` does not keep a grown arm that hangs to its knees); widths `shoulders` (the arm chain rides out, the yoke widens),
   `waist`, `hips` (the pelvis, not the stance), `depth` (front-to-back of the trunk and pelvis); `head` (uniform about the
   atlas); thicknesses `upperArm`, `forearm`, `thigh`, `calf` (rings scale about their own centres; joints, the yoke and the
   wrist ring stay). Group words expand first (`lengths`, `widths`, `limbs`, `arms`) and an explicit key in the same object

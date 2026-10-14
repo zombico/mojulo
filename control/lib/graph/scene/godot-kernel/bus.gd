@@ -19,7 +19,7 @@ extends RefCounted
 
 const JsonExact := preload("res://kernel/json_exact.gd")
 const UNDEF := "\uE000undef"   # a private-use mark no score spells
-const RESERVED := {"do": 1, "type": 1, "source": 1, "scope": 1, "on": 1, "match": 1, "await": 1, "target": 1, "template": 1, "at": 1, "to": 1, "vector": 1, "dir": 1, "gain": 1, "var": 1, "by": 1}
+const RESERVED := {"do": 1, "type": 1, "source": 1, "scope": 1, "on": 1, "match": 1, "await": 1, "target": 1, "template": 1, "at": 1, "to": 1, "vector": 1, "dir": 1, "gain": 1, "var": 1, "by": 1, "if": 1}
 const DIRS := {"up": [0, 0, 1], "down": [0, 0, -1], "left": [-1, 0, 0], "right": [1, 0, 0], "forward": [0, 1, 0], "back": [0, -1, 0]}
 
 var _rx_cache := {}
@@ -467,8 +467,10 @@ static func _sagas_sorted(state: Dictionary) -> Array:
 	list.sort_custom(func(a, b): return a["key"] < b["key"])
 	return list
 
-func _reaction_match(ev: Dictionary, r: Dictionary) -> bool:
-	return strict_eq(ev.get("type"), r.get("on", UNDEF)) and matches(ev, r["match"] if typeof(r.get("match")) == TYPE_DICTIONARY else {})
+# a reaction's `if`: it matches only while its predicate holds, read against the state the reactions before it left
+func _reaction_match(state: Dictionary, ev: Dictionary, r: Dictionary) -> bool:
+	return strict_eq(ev.get("type"), r.get("on", UNDEF)) and matches(ev, r["match"] if typeof(r.get("match")) == TYPE_DICTIONARY else {}) \
+		and (not truthy(r.get("if", UNDEF)) or eval_predicate(state, r["if"]))
 
 func _trigger_match(ev: Dictionary, s: Dictionary) -> bool:
 	var tr = s.get("trigger")
@@ -606,7 +608,7 @@ func process_events(state: Dictionary, incoming: Array) -> Dictionary:
 			state["metrics"]["processed"] += 1
 			state["log"].append({"type": ev["type"], "source": stored(ev.get("source", UNDEF)), "scope": stored(ev.get("scope", UNDEF)), "depth": depth})
 			for r in state["reactions"]:
-				if _reaction_match(ev, r):
+				if _reaction_match(state, ev, r):
 					next.append_array(apply_verb(state, r, ev))
 			for s in state["seqDefs"]:
 				if _trigger_match(ev, s):
