@@ -10,6 +10,7 @@ extends Node
 var sim: Dictionary = {}
 var started := false
 var handed := false
+var waited := 0
 
 
 func _ready() -> void:
@@ -33,7 +34,12 @@ func _process(_delta: float) -> void:
 			get_node("/root/Game").start_level(String(sim["ref"]))
 		return
 	var lv = get_tree().current_scene
+	waited += 1
 	if lv == null or not ("sim_frame" in lv):
+		# a level that never comes (a script error, a missing scene) fails the run, never hangs it
+		if waited > 300:
+			print("[mojulo-sim] error no level after 300 frames")
+			get_tree().quit(1)
 		return
 	if not handed:
 		handed = true
@@ -42,6 +48,15 @@ func _process(_delta: float) -> void:
 		return
 	if lv.sim_frame >= (sim["frames"] as Array).size() or lv.state != "playing":
 		print("[mojulo-sim] done state=%s frame=%d" % [lv.state, lv.sim_frame])
+		# the markers as drawn (the bus's entities, kernel 0.22.0): id, shown, where (recipe units, in 5 cm quanta)
+		if "marker_nodes" in lv:
+			var rows := []
+			for id in lv.marker_nodes:
+				var m: MeshInstance3D = lv.marker_nodes[id]
+				var p: Vector3 = m.position / lv.bus_units
+				rows.append("%s:%s:%d,%d,%d" % [id, "on" if m.visible else "off", lv._sim_q(p.x, 0.05), lv._sim_q(-p.z, 0.05), lv._sim_q(p.y, 0.05)])
+			rows.sort()
+			print("[mojulo-markers] " + " ".join(rows))
 		for p in ["user://store.json", "user://progress.cfg"]:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 		get_tree().quit(0)

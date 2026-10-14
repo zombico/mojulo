@@ -80,4 +80,13 @@ describe('the JS twin: known bugs', () => {
     // today: 2 (the zone fires on every entry; its toggle hides the coin but guards nothing)
     expect(sim.bus.vars['held:bag:coin']).toBe(1);
   });
+
+  // AMBIGUOUS: channels/events.js says a spawn makes "a marker appear", but a spawn with no template (do: 'spawn', type,
+  // at) is minted off (spawnEntity: on = !!template.on), so the page draws it hidden until a toggle shows it
+  it.fails('a spawn with no template appears (its marker shown)', async () => {
+    const { buildBus } = await import('../worlds/event-bus.js');
+    const B = buildBus(), st = B.createBusState({ reactions: [{ on: 'drop', do: 'spawn', type: 'crate', at: [1, 1, 0] }] }, []);
+    B.processEvents(st, [{ type: 'drop' }]);
+    expect(st.entities[0].on).toBe(true);
+  });
 });

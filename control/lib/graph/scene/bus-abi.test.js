@@ -48,14 +48,15 @@ describe('the bus contract', () => {
 
   it('rides the ledger and the portability flags', () => {
     const events = lowered({ menus: [{ id: 'sign', kind: 'read', text: 'hello' }], parts: [{ part: 'readout', id: 'gauge', bind: { var: 'hp' } }], cues: [{ id: 'a', when: { use: { at: [1, 0], r: 1 } }, then: [{ open: 'sign' }, { hide: 'gauge' }] }] });
-    // a pick on what the pointer is over is what the kernel does not feed in (keys travel since 0.18.0; the parts a cue
-    // hides are drawn since 0.14.0)
+    // a pick on what the pointer is over the kernel feeds in part (since 0.22.0: against the bus's markers and the box
+    // colliders, not the GLB's meshes); keys travel since 0.18.0, the parts a cue hides are drawn since 0.14.0
     const score = extractEngineScore({ ref: 'r', manifest: {} }, { entities, events: { ...events, inputs: [{ on: 'pick', emit: { type: 'flare' } }] } });
-    expect(score.ledger.bus_carried.godot.absent).toEqual(['fact:aim']);
+    expect(score.ledger.bus_carried.godot.absent).toEqual([]);
+    expect(score.ledger.bus_carried.godot.partial).toEqual(['fact:aim']);
     expect(score.ledger.bus_carried.godot.built).toEqual(expect.arrayContaining(['effect:menus', 'effect:parts']));
     expect(score.menus.map((m) => m.id)).toEqual(['sign']);
-    const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score }] });
-    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel does not perform yet: fact:aim/);
+    const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score }], engine: 'godot' });
+    expect(p.flags.join('\n')).toMatch(/behaviour the Godot kernel performs in part: fact:aim/);
     expect(busCoverage(null)).toEqual({ used: [], godot: { built: [], partial: [], absent: [] } });
   });
 

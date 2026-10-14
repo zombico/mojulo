@@ -67,9 +67,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     // a stat cue is heard as the stats kernel's event (statFire): a level-up cue counts as the stats fact
     expect(busCoverage({ reactions: [{ on: 'level-up', do: 'emit', type: 'x' }] }).used).toContain('fact:stats');
     expect(busCoverage({ reactions: [{ on: 'go', do: 'ctrl', op: 'shot', shot: {} }] }).godot.absent).toEqual(['effect:shot']);
-    expect(busCoverage({ entities: [{ id: 'boulder', on: true }] }).godot.absent).toEqual(['effect:entities']);
-    // a collect's pickups are drawn by the kernel's own mechanic, not as markers
-    expect(busCoverage({ entities: [{ id: 'pk_0_0', on: true }] }).used).not.toContain('effect:entities');
+    expect(busCoverage({ entities: [{ id: 'boulder', on: true }] }).godot.built).toEqual(['effect:entities']);
   });
 
   it('every ledger row engine-score.js writes is read (a row nobody reads is a silent drop by another name)', () => {
@@ -86,8 +84,8 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     // a mark comes from coverage, not from a list: each lost one names the bus row or shell part it lacks
     expect(MECHANIC_MARKS.unseen).toMatchObject({ godot: 'absent', rows: ['fact:seen'] });
     expect(MECHANIC_MARKS['on-beat'].godot).toBe('built');   // since the beat travels (II2)
-    expect(MECHANIC_MARKS.push.rows).toContain('effect:entities');
-    expect(MECHANIC_MARKS.supplies.rows).toContain('effect:entities');   // its drops are markers; its rearm travels (II3)
+    expect(MECHANIC_MARKS.push.godot).toBe('built');       // its boulders are markers (II4)
+    expect(MECHANIC_MARKS.supplies.godot).toBe('built');   // its drops are markers, its rearm travels (II3, II4)
     expect(MECHANIC_MARKS.laps.godot).toBe('approximated');   // pure bus: only its kept best is the web's
     expect(MECHANIC_MARKS.score.godot).toBe('approximated');
     expect(GODOT_MECHANICS).toEqual(MECHANIC_KINDS.filter((k) => MECHANIC_MARKS[k].godot !== 'absent'));
@@ -186,11 +184,12 @@ const PROOF = {
   matrix: [MATRIX, 'makes, exports, imports and plays every fixture'],
   beat: ['lib/graph/scene/godot-beat.test.js', 'a headless Godot keeps the beat'],
   combat: ['lib/graph/scene/combat-conformance.test.js', 'the Godot kernel is equal to the web, frame by frame'],
+  markers: ['lib/graph/scene/godot-markers.test.js', 'a headless Godot draws them where its bus puts them'],
 };
 const EVIDENCE = {
   bus: {
     'fact:zone': 'chapter', 'fact:use': 'chapter', 'fact:start': 'corpus', 'fact:timer': 'corpus', 'fact:input': 'key', 'fact:cast': 'cast',
-    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat', 'effect:rearm': 'combat',
+    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat', 'effect:rearm': 'combat', 'effect:entities': 'markers',
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },

@@ -28,7 +28,7 @@ export const BUS_ABI = Object.freeze({
     timer: { about: 'heartbeats and a sequence\'s timed waits', web: B, godot: B },
     contact: { about: 'physics contact and rest', web: B, godot: A, how: 'Godot runs its own physics; no body reports to the bus yet' },
     input: { about: 'a key or a click bound to an event (events.inputs on key / pointer: a power\'s key, the status page)', web: B, godot: B, how: 'level.gd: a key by the character it types (as the page\'s KeyboardEvent.key), a click anywhere' },
-    aim: { about: 'a pick or a shot naming what the pointer is over (events.inputs on pick / fire)', web: B, godot: A, how: 'the page raycasts its markers; the Godot kernel has no markers to pick' },
+    aim: { about: 'a pick or a shot naming what the pointer is over (events.inputs on pick / fire)', web: B, godot: P, how: 'kernel/level.gd aim_input: the ray meets the bus\'s markers and the level\'s box colliders (since 0.22.0); the page\'s also meets the GLB\'s meshes, so a shot through a mesh with no collider hits on Godot' },
     cast: { about: 'a character\'s happenings: down, gone, spawned, arrive, stuck, faded', web: B, godot: B, how: 'kernel/cast.gd castFacts' },
     hit: { about: 'a character takes a hit: a blade, a round, a splash (hit:<id>, what hp-pool counts)', web: B, godot: B, how: 'kernel/combat.gd deals the hero\'s hits (its blade, its rounds, their splash; a fall\'s blast hits nobody) and kernel/cast.gd tells the bus' },
     struck: { about: 'a beam reaches a character (struck)', web: B, godot: B, how: 'kernel/cast.gd: a beam is a moment that lands after its distance (the web\'s land rule), and its target hears struck' },
@@ -50,7 +50,7 @@ export const BUS_ABI = Object.freeze({
     cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk has no collider push-out or ground snap; transits stay on the web' },
     rearm: { about: 'rounds for the weapon in a character\'s hand (the cast\'s rearm: a supply\'s ammo)', web: B, godot: B, how: 'kernel/cast.gd rearm into the weapon\'s reserve, which kernel/combat.gd\'s reload draws from (since 0.22.0), held equal by the combat corpus' },
     stats: { about: 'stats: raise, grant, xp, level, buy, buff, unbuff; a scaling on a cast op', web: B, godot: B, how: 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace' },
-    entities: { about: 'the bus\'s own entities drawn as markers (a spawn appears, a toggle shows or hides, a move places it)', web: B, godot: A, how: 'the page draws them (events.js __markerMeshes); kernel/level.gd builds their state and draws nothing' },
+    entities: { about: 'the bus\'s own entities drawn as markers (a spawn appears, a toggle shows or hides, a move places it)', web: B, godot: B, how: 'kernel/level.gd _sync_markers draws each as the page does (an unlit sphere, its radius and colour, where the bus puts it, shown while on; since 0.22.0)' },
     shot: { about: 'a directed shot on the camera: shot, unshot, finish (a scene\'s camera and its skip)', web: B, godot: A, how: 'worlds/controllable cast.js sets the shot rule aside the camera\'s own; the Godot kernel has no camera rule to set aside' },
   }),
 });
@@ -107,9 +107,8 @@ function usedRows(ev) {
     cast: rows.has('cast'),
     rearm: rows.has('rearm'),
     stats: rows.has('stats') || !!ev.stats,
-    // a bus entity is drawn as a marker on the page: one the world declares, or one a reaction spawns. A collect
-    // pickup's (pk_<i>_<j>, mechanics.js) is drawn by the kernel's own mechanic (level.gd _build_mechanics), not here
-    entities: (ev.entities || []).some((e) => e && !/^pk_\d+_\d+$/.test(String(e.id))) || doers.some((r) => r.do === 'spawn'),
+    // a bus entity is drawn as a marker: one the world declares, or one a reaction spawns
+    entities: has(ev.entities) || doers.some((r) => r.do === 'spawn'),
     shot: rows.has('shot'),
   };
   return [...Object.keys(facts).filter((k) => facts[k]).map((k) => `fact:${k}`), ...Object.keys(effects).filter((k) => effects[k]).map((k) => `effect:${k}`)];

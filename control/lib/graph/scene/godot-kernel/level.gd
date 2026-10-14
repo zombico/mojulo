@@ -1406,7 +1406,121 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	_drain_bus(delta)
 	_sync_menus()
 	_draw_cast()
+	_sync_markers()
 	_sync_weather()
+
+
+# THE BUS'S OWN ENTITIES as markers (since 0.22.0), as the page draws them (channels/events.js __ensureMarker,
+# __syncBus): an unlit sphere each, its radius (0.4) and colour (#7ad1ff) unless the entity says, where the bus puts it,
+# shown while it is on. The bus decides what is true; this shows it. A boulder pushed, a crop grown, a drop taken.
+const MARKER_COLOR := Color("#7ad1ff")
+var marker_nodes: Dictionary = {}    # bus entity id -> MeshInstance3D
+func _sync_markers() -> void:
+	if bus == null:
+		return
+	for e in bus_state["entities"]:
+		var id := String(e["id"])
+		var m: MeshInstance3D = marker_nodes.get(id)
+		if m == null:
+			m = MeshInstance3D.new()
+			m.name = "Marker_" + id.validate_node_name()
+			var sphere := SphereMesh.new()
+			var r := float(e["radius"]) if Bus_finite(e.get("radius")) else 0.4
+			sphere.radius = r * bus_units
+			sphere.height = 2.0 * r * bus_units
+			sphere.radial_segments = 18
+			sphere.rings = 12
+			var mat := StandardMaterial3D.new()
+			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mat.albedo_color = Color(String(e["color"])) if e.get("color") is String else MARKER_COLOR
+			sphere.material = mat
+			m.mesh = sphere
+			m.set_meta("bus_id", id)
+			m.set_meta("radius", r * bus_units)
+			add_child(m)
+			marker_nodes[id] = m
+		var p: Array = e.get("position", [0, 0, 0])
+		m.position = to_yup(p) * bus_units
+		m.visible = not (e.get("on") is bool and e["on"] == false)
+
+
+static func Bus_finite(v) -> bool:
+	return (typeof(v) == TYPE_FLOAT or typeof(v) == TYPE_INT) and is_finite(float(v))
+
+
+# the visible marker nearest along a ray (origin, unit dir), within reach: its bus id, or "" (a ray against each
+# marker's sphere, as the page raycasts its marker meshes)
+func marker_on_ray(origin: Vector3, dir: Vector3, reach: float = 1e9) -> String:
+	var best := ""
+	var best_t := reach
+	for id in marker_nodes:
+		var m: MeshInstance3D = marker_nodes[id]
+		if not m.visible:
+			continue
+		var r := float(m.get_meta("radius"))
+		var oc := origin - m.global_position
+		var b := oc.dot(dir)
+		var c := oc.dot(oc) - r * r
+		var disc := b * b - c
+		if disc < 0.0:
+			continue
+		var t := -b - sqrt(disc)
+		if t < 0.0:
+			t = -b + sqrt(disc)
+		if t >= 0.0 and t < best_t:
+			best_t = t
+			best = String(id)
+	return best
+
+
+# THE AIM (since 0.22.0): a pick names the marker under the pointer, a shot the marker on the line of sight (the camera's,
+# or a character's own: inputs on 'fire' with `from`), stamped into the input's event (`into`, 'target'); a miss is no
+# deed. The ray meets the markers and the level's box colliders; the page's also meets the GLB's meshes (fact:aim partial).
+func aim_input(on: String, screen = null) -> void:
+	if bus == null:
+		return
+	var cam := get_viewport().get_camera_3d()
+	for inp in bus_inputs:
+		if not (inp is Dictionary) or inp.get("on") != on or not (inp.get("emit") is Dictionary):
+			continue
+		var origin: Vector3
+		var dir: Vector3
+		if on == "fire" and inp.get("from") is String and cast != null and cast_state["byId"].has(inp["from"]):
+			var e = cast_state["byId"][inp["from"]]
+			var h := float(e.get("heading", 0.0))
+			var pit := 0.0 if BusScript.truthy(inp.get("level")) else float(e.get("pitch", 0.0))
+			var eye := float(inp["eye"]) if Bus_finite(inp.get("eye")) else 1.4
+			origin = to_yup([e["pos"][0], e["pos"][1], float(e["pos"][2]) + eye]) * bus_units
+			dir = to_yup([cos(pit) * cos(h), cos(pit) * sin(h), sin(pit)]).normalized()
+		elif cam != null:
+			var at: Vector2 = screen if screen is Vector2 else get_viewport().get_visible_rect().size / 2.0
+			if on == "fire":
+				at = get_viewport().get_visible_rect().size / 2.0
+			origin = cam.project_ray_origin(at)
+			dir = cam.project_ray_normal(at)
+		else:
+			continue
+		var start := origin + dir * (0.6 if on == "fire" else 0.0)
+		var wall := _wall_on_ray(start, dir) if on == "fire" else 1e9
+		var id := marker_on_ray(start, dir, wall)
+		if id == "":
+			continue
+		var ev: Dictionary = (inp["emit"] as Dictionary).duplicate(true)
+		ev[String(inp["into"]) if inp.get("into") is String else "target"] = id
+		bus_pending.append(ev)
+
+
+# the nearest of the level's box colliders along a ray (the slab test), or a long way off
+func _wall_on_ray(origin: Vector3, dir: Vector3) -> float:
+	var best := 1e9
+	for c in score.get("colliders", []):
+		if not (c is Dictionary and c.get("min") is Array and c.get("max") is Array):
+			continue
+		var box := _yup_box(c)
+		var hit = box.intersects_ray(origin, dir)
+		if hit is Vector3:
+			best = minf(best, origin.distance_to(hit))
+	return best
 
 
 # the rounds in flight (kernel/combat.gd's lob projectiles), a small sphere each
@@ -1981,6 +2095,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		for inp in bus_inputs:
 			if inp.get("on") == "pointer":
 				bus_pending.append((inp["emit"] as Dictionary).duplicate(true))
+		aim_input("pick", event.position)
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			aim_input("fire")
 	if menu_open == null:
 		return
 	var act := ""

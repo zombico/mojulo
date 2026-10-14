@@ -1204,6 +1204,10 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   The web's `level-sim.js` keeps the beat too, and the harness's input frames press keys.
 - **Rounds and their reserve travel** (kernel 0.22.0): `kernel/cast.gd` performs `rearm` and `kernel/combat.gd`'s
   reload draws from the weapon's reserve, dry when both are out, held equal by the combat corpus.
+- **The bus's own entities are drawn** (kernel 0.22.0): `level.gd` draws each as the page does (an unlit sphere, its
+  radius and colour, where the bus puts it, shown while on), so a pushed boulder, a growing crop and a supply travel;
+  a pick or a shot (`inputs` on `pick` / `fire`) names the marker its ray meets (`fact:aim`, approximated: the ray
+  meets the markers and the box colliders, not the GLB's meshes). Push, crops and supplies travel.
 - **Planted bugs are a standing test** (`godot-plants.test.js`): mutants per kernel script (a flipped comparison, a
   reserved key dropped, a timer a tick late, a reserve ignored …), each of which must make its corpus fail. Three
   found holes in the corpus (an emit carrying reserved words, a heal past hpMax, a level past its max), now closed.

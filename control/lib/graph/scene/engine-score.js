@@ -190,9 +190,10 @@ export function extractBus(payload) {
   // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint
   // (Godot: kernel/stats.gd, held equal by the same corpus); their vars start in the fragment's. Absent ⇒ no key.
   const stats = ev.stats && typeof ev.stats === 'object' ? ev.stats : null;
-  // the keys and clicks bound to events (events.inputs: a power's key, the status page's): what an engine kernel feeds
-  // the bus as the page does. A pick or a shot (on what the pointer is over) stays the page's. Absent ⇒ no key.
-  const inputs = (Array.isArray(ev.inputs) ? ev.inputs : []).filter((i) => i && i.emit && (i.on === 'key' || i.on === 'pointer'));
+  // the keys, clicks, picks and shots bound to events (events.inputs: a power's key, the status page's, a marker picked
+  // or shot): what an engine kernel feeds the bus as the page does (Godot: picks and shots since kernel 0.22.0, against
+  // the bus's markers). Absent ⇒ no key.
+  const inputs = (Array.isArray(ev.inputs) ? ev.inputs : []).filter((i) => i && i.emit && ['key', 'pointer', 'pick', 'fire'].includes(i.on));
   return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}), ...(inputs.length ? { inputs } : {}) };
 }
 

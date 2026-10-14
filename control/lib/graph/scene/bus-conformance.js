@@ -237,7 +237,7 @@ const crawler = () => {
 // absent to be here by id (mechanic-<kind>).
 const MECH_STORE = { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }, { name: 'flags', kind: 'flags' }] };
 // a mechanic that composes only beside another (defeat-all counts an hp-pool's downs)
-const COMPANIONS = { 'defeat-all': [{ kind: 'hp-pool', entities: [{ id: 'foe', hp: 2 }] }] };
+const COMPANIONS = { 'defeat-all': [{ kind: 'hp-pool', entities: [{ id: 'foe', hp: 2 }] }], crops: [{ kind: 'clock', rate: 60 }] };
 function mechanicScenario(kind) {
   const out = composeMechanics([{ kind, ...MECHANIC_SAMPLES[kind] }, ...(COMPANIONS[kind] || []), ...(kind === 'reach-exit' ? [] : [{ kind: 'reach-exit', at: [99, 99, 0] }])], { storeSchema: MECH_STORE, player: 'hero', spawn: [0, 0, 0] });
   const ev = out.events, zones = (ev.sources || []).filter((x) => x && x.type === 'zone' && Array.isArray(x.at) && x.watch === 'hero' && x.at[0] !== 99);
