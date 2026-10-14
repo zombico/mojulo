@@ -13,7 +13,9 @@
 import crypto from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { balancedArmature, sampleMotionPose, renderFigureFrames } from './figure-render.js';
-import { motionPlan } from './hero-motion.js';
+import { motionPlan, heroLocomotion } from './hero-motion.js';
+import { validateRig } from './station-loft-rig.js';
+import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { resolveMotion } from './figure-posing.js';
 
 const hash = (x) => crypto.createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
@@ -44,4 +46,11 @@ describe('frozen gaits — a bare gait renders as it did before the mint tables'
     const plan = motionPlan({ walk: true, jog: true, sprint: true });
     expect(hash(Object.entries(plan).map(([g, P]) => [g, P.seconds, P.tilt, dofs(P.spec, 12)]))).toBe('612558927f6f982e');
   });
+  it("a hero's studied walk and jog on its rig (heroLocomotion: travel and the grounded pose; hashes from 713ef32e)", () => {
+    const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', head: 'anime' }) }).recipe.rig);
+    const r6 = (x) => (typeof x === 'number' ? Math.round(x * 1e6) / 1e6 : x);
+    const deep = (v) => (Array.isArray(v) ? v.map(deep) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, deep(x)])) : r6(v));
+    const out = Object.entries(motionPlan({ walk: true, jog: true })).map(([g, P]) => { const lo = heroLocomotion(P.spec, R, { tilt: P.tilt }); return [g, r6(lo.travel), Array.from({ length: 12 }, (_, i) => deep(lo.fn(i / 12)))]; });
+    expect(hash(out)).toBe('7833f58a379d4311');
+  }, 120_000);
 });

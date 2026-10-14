@@ -733,8 +733,16 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   stock four-key walk in place, which slid its planted feet and never moved. A creator's walk, and every hero minted
   before, keep theirs. The vibe page's motion patch carries that walk when it sets the other gaits. The hero readout's
   clip `seconds` now say a door gait's own duration (the walk 1.1 s), where it said the replaced clip's.
-  On the hero rig the walk keeps its studied stride (about 0.7 m/s): scaled to the leg, the rig's own grounding sinks
-  the hips 10 cm into a lunge, so a full-length stride waits on knee and heel rocking in that solver.
+- **The hero's feet, solved for a walking pace.** The rig's grounding (`heroLocomotion`) planned the trailing heel for the
+  lift-off alone and took the stance from the toe's own extremes (67 % of the cycle), so through late stance the planted
+  leg fell short and the body sank for it every step: the hips never less than 5.5 cm down, the stance knee about 35°,
+  and a longer stride only sank it further (10 cm, a lunge). Three hero walk dials, read only when present: `duty` (the
+  stance's share of the cycle), `heelMax` (the heel's cap at push-off) and `heelRoll` (the heel rolled up through the
+  stance by each phase's need, never falling back). `HERO_WALK` (`hero-gaits.js`: stride 0.55 m, duty 0.55, heel 70°,
+  rolled) is stamped over the walk's mint table on every new hero: about 1.05 m/s (was 0.70), a 2 … 4.5 cm bob, a 58 %
+  stance, the head under 1.2 g. A hero walk without the dials solves byte for byte as before (pinned). More sink
+  harmonics were tried and dropped: the root chases the peaks and the head jolts at 2 … 4 g. Still to do: the stride is
+  in metres, so a child takes nearly an adult's.
 - **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
   takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an

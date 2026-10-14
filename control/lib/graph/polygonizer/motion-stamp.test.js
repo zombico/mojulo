@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { gait, sprint, resolveMotion, stampMotion, WALK_DEFAULTS, SPRINT_DEFAULTS, WALK_MINT, SPRINT_MINT, WAVE_MINT, EMOTE_MINT } from './figure-posing.js';
 import { stampHeroMotion, motionPlan, validateHeroMotion, MOTION_GAITS } from './hero-motion.js';
+import { HERO_WALK } from './hero-gaits.js';
 import { stampAuthoredMotion, stampHero, withDefaultWalk } from './motion-stamp.js';
 
 const PHASES = Array.from({ length: 12 }, (_, i) => i / 12);
@@ -44,7 +45,7 @@ describe('stampMotion — a gait stored by value', () => {
 describe('stampHeroMotion — a hero door gait stored by value', () => {
   it('writes the mint table, the gait base, its seconds and tilt under what the creator set', () => {
     const s = stampHeroMotion({ walk: true, jog: { tilt: 12 }, sprint: { armSwing: 60 } });
-    expect(s.walk).toEqual({ ...WALK_MINT, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt });
+    expect(s.walk).toEqual({ ...WALK_MINT, ...HERO_WALK, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt });
     expect(s.jog).toEqual({ ...SPRINT_MINT, ...MOTION_GAITS.jog.base, seconds: MOTION_GAITS.jog.seconds, tilt: 12 });
     expect(s.sprint.armSwing).toBe(60);
     expect(s.sprint.hipDrive).toBe(MOTION_GAITS.sprint.base.hipDrive);
@@ -59,7 +60,7 @@ describe('stampHeroMotion — a hero door gait stored by value', () => {
 
   it('a stamped gait plans to the mint table', () => {
     const P = motionPlan(stampHeroMotion({ walk: true, jog: true }));
-    expect(same(resolveMotion(P.walk.spec), gait(WALK_MINT))).toBe(true);
+    expect(same(resolveMotion(P.walk.spec), gait({ ...WALK_MINT, ...HERO_WALK }))).toBe(true);
     expect(same(resolveMotion(P.jog.spec), sprint({ ...SPRINT_MINT, ...MOTION_GAITS.jog.base }))).toBe(true);
   });
 });
@@ -86,7 +87,7 @@ describe('stampAuthoredMotion — what is written, and what an edit leaves alone
     const m = stampAuthoredMotion(next, prev);
     expect(m.figures.old).toBe(next.figures.old);
     expect(m.figures.fresh.motion).toEqual({ walk: { ...WALK_MINT } });
-    expect(m.figures.hero.hero.motion.walk).toMatchObject({ ...WALK_MINT });
+    expect(m.figures.hero.hero.motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
   });
 
   it("stamps a layered hero's motion, and leaves a hero without one alone", () => {
@@ -101,7 +102,7 @@ describe('withDefaultWalk — a new hero walks with the calibrated gait', () => 
   it('a hero that says nothing of its walk gets one; its other gaits stay', () => {
     expect(withDefaultWalk({ cast: 'female' }).motion).toEqual({ walk: true });
     expect(withDefaultWalk({ cast: 'male', motion: { sprint: true } }).motion).toEqual({ sprint: true, walk: true });
-    expect(stampHero(withDefaultWalk({ cast: 'male' })).motion.walk).toMatchObject({ ...WALK_MINT });
+    expect(stampHero(withDefaultWalk({ cast: 'male' })).motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
   });
 
   it('a creator\'s own walk, a door clip named walk, and a statue are left as they are', () => {

@@ -21,7 +21,7 @@
  */
 import { WALK_MINT, SPRINT_MINT } from '../polygonizer/figure-posing.js';
 import { validateHeroMotion } from '../polygonizer/hero-motion.js';
-import { GAITS as MOTION_GAITS } from '../polygonizer/hero-gaits.js';   // (the gaits alone: the motion library loads after)
+import { GAITS as MOTION_GAITS, HERO_WALK } from '../polygonizer/hero-gaits.js';   // (the gaits alone: the motion library loads after)
 
 /** The scales people say about a walk, each −1 … +1. */
 export const AXES = Object.freeze({
@@ -98,7 +98,7 @@ export const AXIS_SPANS = Object.freeze({
 /** Each gait's dials as a hero is minted with it now (the mint tables, figure-posing.js): the walk's, and the run's with
  * the gait's own base over them. The resolved motion is stamped with the rest of the table when it is written. */
 export const GAIT_BASE = Object.freeze({
-  walk: { ...WALK_MINT, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt },
+  walk: { ...WALK_MINT, ...HERO_WALK, seconds: MOTION_GAITS.walk.seconds, tilt: MOTION_GAITS.walk.tilt },
   jog: { ...SPRINT_MINT, ...MOTION_GAITS.jog.base, seconds: MOTION_GAITS.jog.seconds, tilt: MOTION_GAITS.jog.tilt },
   sprint: { ...SPRINT_MINT, ...MOTION_GAITS.sprint.base, seconds: MOTION_GAITS.sprint.seconds, tilt: MOTION_GAITS.sprint.tilt },
 });
