@@ -3,28 +3,35 @@
  * records (../record/*.js, registered in ./records.js) stay the source; a ledger row is an entry with its record and
  * region, keyed `<record>/<id>` (two records may use one id for different things: Egypt's "travertine" is calcite).
  *
- * What is in reach at { region, year, record?, draws? }, nearest first (a row is taken once, by its nearest reach):
+ * What is in reach at { region, year, record?, draws?, styles? }, nearest first (a row is taken once, by its nearest
+ * reach):
  *   home     the place's own record: every kind in use that year
  *   draws    a relation on the card (../lineage.js): what its kind carries (RECORD_KINDS: a tradition travels as its
  *            materials and methods; types and forms only to the same ground or a version of the same town)
- *   region   the other records of the same region: their materials and methods
- * In use means attested by that year and not ended before it.
+ *   style    a tradition record the card builds in (its `styles`, ./records.js TRADITIONS): every kind, since a place
+ *            that took up a way of building took its houses with it
+ *   region   the other place records of the same region: their materials and methods
+ * In use means attested by that year and not ended before it; a tradition's row is dated for the place by its `spread`
+ * for the nearest region in the place's chain (../regions.js `regionChain`), else by its own span.
  *
  * From what is in reach: the SURFACES a wall can show and the ROOFS a building can carry (./building.js), and the
  * storeys its houses rise to (the `dims.storeys` of the house types in reach). `ledgerFindings` is the anachronism
  * check: anything a scene uses that nothing in reach makes. It advises, never refuses. Pure.
  */
-import { RECORDS } from './records.js';
+import { RECORDS, TRADITIONS } from './records.js';
+import { regionChain } from '../regions.js';
 import { SURFACES, ROOFS } from './building.js';
 import { HISTORIC_CULTURES } from '../cultures/index.js';
 import { RECORD_KINDS, yearOf } from '../lineage.js';
 import { fmtYear } from '../record.js';
 
-export { RECORDS, SURFACES, ROOFS };
-export const REACHES = Object.freeze(['home', 'draws', 'region']);
+export { RECORDS, TRADITIONS, SURFACES, ROOFS };
+export const REACHES = Object.freeze(['home', 'draws', 'style', 'region']);
 
 const spanOf = (e) => (e.kind === 'type' ? e.built : e.attested);
-const inUse = (e, year) => { const s = spanOf(e); return !!s && s.from <= year && (s.to === null || s.to === undefined || year <= s.to); };
+/** A row's span at a place: its `spread` for the nearest region of the chain that names one, else its own. */
+const spanAt = (e, chain) => { for (const r of chain) if (e.spread?.[r]) return e.spread[r]; return spanOf(e); };
+const inUse = (e, year, chain = []) => { const s = spanAt(e, chain); return !!s && s.from <= year && (s.to === null || s.to === undefined || year <= s.to); };
 const TRADITION = ['material', 'method'];
 
 export const keyOf = (record, id) => `${record}/${id}`;
@@ -38,21 +45,23 @@ export const ledgerRow = (key) => BY_KEY.get(key) ?? null;
 export function placeOf(cultureId) {
   const K = HISTORIC_CULTURES[cultureId];
   if (!K) throw new Error(`ledger: no culture '${cultureId}' (${Object.keys(HISTORIC_CULTURES).join(', ')})`);
-  return { region: K.region, year: yearOf(K), record: K.record?.id ?? null, draws: K.draws ?? [] };
+  return { region: K.region, year: yearOf(K), record: K.record?.id ?? null, draws: K.draws ?? [], ...(K.styles?.length ? { styles: K.styles } : {}) };
 }
 
 /** The rows in reach at a place and year: [{ key, record, region, entry, via: { reach, from?, kind? } }], nearest first. */
-export function availableAt({ region, year, record = null, draws = [] }) {
+export function availableAt({ region, year, record = null, draws = [], styles = [] }) {
   if (!Number.isInteger(year) || year === 0) throw new Error('ledger: year is a whole year, BCE negative, never 0');
   if (record !== null && !RECORDS[record]) throw new Error(`ledger: no record '${record}' (${Object.keys(RECORDS).join(', ')})`);
-  const out = new Map();
-  const take = (rows, via) => { for (const r of rows) if (!out.has(r.key) && inUse(r.entry, year)) out.set(r.key, { ...r, via }); };
+  for (const s of styles) if (!TRADITIONS.includes(s)) throw new Error(`ledger: style '${s}' is not a tradition record (${TRADITIONS.join(', ')})`);
+  const out = new Map(), chain = regionChain(region);
+  const take = (rows, via) => { for (const r of rows) if (!out.has(r.key) && inUse(r.entry, year, chain)) out.set(r.key, { ...r, via }); };
   if (record) take(LEDGER.filter((r) => r.record === record), { reach: 'home' });
   for (const d of draws) {
     const from = HISTORIC_CULTURES[d.from]?.record?.id, kinds = RECORD_KINDS[d.kind] ?? TRADITION;
     if (from) take(LEDGER.filter((r) => r.record === from && kinds.includes(r.entry.kind)), { reach: 'draws', from: d.from, kind: d.kind });
   }
-  take(LEDGER.filter((r) => r.region === region && r.record !== record && TRADITION.includes(r.entry.kind)), { reach: 'region' });
+  for (const s of styles) take(LEDGER.filter((r) => r.record === s), { reach: 'style', from: s });
+  take(LEDGER.filter((r) => r.region === region && r.record !== record && !RECORDS[r.record].tradition && TRADITION.includes(r.entry.kind)), { reach: 'region' });
   return [...out.values()];
 }
 

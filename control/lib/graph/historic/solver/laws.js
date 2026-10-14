@@ -6,13 +6,16 @@
 import { CELL, C } from '../layout-kit.js';
 import { MONUMENTS } from '../monuments/index.js';
 import { placeOf, buildableAt, ledgerFindings, cardSurfaces } from '../ledger/index.js';
+import { STYLES } from '../inventory/index.js';
 
-/** The ledger at this place and year: what was buildable, and what the scene uses that nothing in reach makes. */
+/** The ledger at this place and year: what was buildable, and what the scene uses that nothing in reach makes (the
+ *  monuments' rows, the form's, and those of every inventory style its buildings were spoken in). */
 export function ledgerOf(X) {
-  const { culture, K, F, monuments } = X, place = placeOf(culture);
+  const { culture, K, F, monuments, slots, kit } = X, place = placeOf(culture);
+  const styles = [...new Set(slots.map((s) => kit[s.asset]?.inventory?.style).filter(Boolean))];
   return {
     place, buildable: buildableAt(place),
-    findings: ledgerFindings(place, { surfaces: cardSurfaces(K), rows: [...new Set([...monuments.flatMap((m) => MONUMENTS[m.id].cites), ...Object.values(F.cites || {}).flat()])] }),
+    findings: ledgerFindings(place, { surfaces: cardSurfaces(K), rows: [...new Set([...monuments.flatMap((m) => MONUMENTS[m.id].cites), ...Object.values(F.cites || {}).flat(), ...styles.flatMap((s) => STYLES[s]?.cites ?? [])])] }),
   };
 }
 

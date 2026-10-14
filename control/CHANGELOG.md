@@ -30,6 +30,16 @@ place and year, and its buildings composed from an inventory of styles and struc
   surface group, plaster, stone, timber, thatch, tile, slate, openings, to a palette key or a neutral default, a face's
   value moving it lighter or darker). A culture's kit holds inventory assets beside hand-built ones and the solver lays
   them like any house. It says as much as the scene can show: the fine at a slice, the masses and caps over a region.
+- **Styles: traditions the ledger can date.** A tradition record is keyed by a way of building, not a place
+  (`record/timber-frame.js`: oak framing, wattle and daub, lime render, plain tile, thatch, jettying, the town house
+  and the hall house, each cited and marked unverified), its rows dated for the tradition at large and, where it
+  arrived later or ended earlier, region by region (`spread`). Regions lie `within` larger ones (the German lands
+  within Europe), and a row is dated by the nearest region that names it. A card names the traditions it builds in
+  (`styles`, or `--styles` on `new-culture.mjs`); the ledger reaches them at its region and year as their own reach,
+  house types and forms included, and never by region alone. The inventory's first historic style, `fachwerk` (a
+  Franconian timber-framed town house: a rubble-stone ground storey, rendered framed storeys, a steep plain-tiled
+  gable), cites its rows, and the anachronism check reads them wherever a town builds in it. The roofs the ledger
+  knows gain thatch.
 
 ### Sheet-metal bend lines that mark without cutting
 

@@ -23,9 +23,11 @@ import { decompileAnchor, speak } from '../../era/out-anchor-structure.js';
 import { structureStyle, STRUCTURE_USES, STRUCTURE_USE_IDS, STRUCTURE_RING_IDS } from '../../era/out-structures.js';
 import { ELEMENT_SETS } from '../../era/out-anchor-elements.js';
 import { scaleHex } from '../../polygonizer/vexar.js';
+import { HISTORIC_STYLES } from './styles.js';
 
-/** The styles the inventory speaks, by id: element sets (the era library's own, and later the ledger's). */
-export const STYLES = Object.freeze({ ...ELEMENT_SETS });
+/** The styles the inventory speaks, by id: the historic ones (./styles.js: each with its tradition record and the
+ *  ledger rows it stands on), then the era library's own element sets (uncited: a fantasy town's). */
+export const STYLES = Object.freeze({ ...HISTORIC_STYLES, ...ELEMENT_SETS });
 export const STYLE_IDS = Object.freeze(Object.keys(STYLES));
 export const USE_IDS = STRUCTURE_USE_IDS;
 
