@@ -13,6 +13,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Sheet-metal bend lines that mark without cutting
+
+- **A flat pattern with `bend_lines = true` stays one piece.** Each bend line was a slot run past both edges, so
+  the DXF and SVG drew the strip as separate outlines, one per flange, and a laser would have cut the part apart.
+  The slot now stops a tab short of each edge (2 mm, or a quarter of the width on a narrow strip): the drawing is
+  one outer outline with the holes and bend marks inside it. OpenSCAD's DXF has one layer, so a mark is a closed
+  inner loop: cut it as a slit or move it to an etch pass. Mech library v5; `bend_lines = false` draws
+  byte-identical.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

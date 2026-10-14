@@ -20,7 +20,7 @@
  * one) swept on a sheared grid, so the flanks are exact planes between rows and the seam closes.
  */
 
-export const MECH_LIB_VERSION = 4;
+export const MECH_LIB_VERSION = 5;
 
 /** Does a (comment-stripped) source call the library? An identifier starting `mj_` is the trigger. */
 export const usesMechLib = (bare) => /(^|[^A-Za-z0-9_])mj_[A-Za-z0-9_]/.test(String(bare));
@@ -546,13 +546,15 @@ module mj__sheet_chain(t, r, w, f, i) {
   }
 }
 module mj_sheet(t, r, w, flanges, k = 0.44) mj__sheet_chain(t, r, w, flanges, 0);
-// The flat pattern (2D, for DXF): a strip of the flat length; bend_lines = true scores each bend's centre line
-// as a 0.2 mm slot, for a laser to etch or a brake operator to read.
+// The flat pattern (2D, for DXF): a strip of the flat length; bend_lines = true marks each bend's centre line
+// as a 0.2 mm slot that stops a tab short of both edges (2 mm, or a quarter of w on a narrow strip), so the
+// outline stays one piece and each mark is a closed inner loop: a laser cuts it as a slit the tabs hold, or
+// etches it on its own pass; a brake operator reads it. OpenSCAD's DXF has one layer, so a mark is geometry.
 module mj_sheet_flat(t, r, w, flanges, k = 0.44, bend_lines = false) {
-  n = len(flanges);
+  n = len(flanges); tab = min(2, w / 4);
   difference() { square([mj_sheet_flat_length(t, r, k, flanges), w]);
     if (bend_lines) for (i = [0 : n - 2]) let(x = mj__sum([for (j = [0 : i]) flanges[j][0]]) + mj__sum([for (j = [0 : i]) j < i ? mj_sheet_ba(t, r, k, flanges[j][1]) : mj_sheet_ba(t, r, k, flanges[j][1]) / 2]))
-      translate([x - 0.1, -1]) square([0.2, w + 2]); }
+      translate([x - 0.1, tab]) square([0.2, w - 2 * tab]); }
 }
 
 // A fit-test coupon: one plate of holes and a strip of pins of nominal diameter d, one per fit, marked by
