@@ -234,12 +234,26 @@ describe('law 2: the cut, the panels and the dressed silhouette', () => {
     expect(X.paint.filter((Q) => /_panel$/.test(Q.part)).length).toBe(4); expect(X.tones.Panel).toMatch(/^#/);
     expect(validateOutfitBuild(build('casual', { language: { panels: [{ at: 'up', length: 'knee' }] } }))[0]).toMatch(/panels\[0\]\.at/);
   });
-  it('the dressed silhouette: the default cut keeps the waist and the taper; a loose top and a wide leg are said, never refused', () => {
+  it('the dressed silhouette: the dials\' own cut keeps the waist and the taper; a loose top and a wide leg are said, never refused', () => {
     const read = (lang) => wear({ cast: 'female', head: 'anime', outfit: build('casual', lang ? { language: lang } : {}) }).recipe;
-    const fine = dressSilhouette(read()), loose = dressSilhouette(read({ top: { fit: 'loose' }, bottom: { cut: 'wide' } }));
+    const fine = dressSilhouette(read({ top: { fit: 'eased' } })), loose = dressSilhouette(read({ top: { fit: 'loose' }, bottom: { cut: 'wide' } }));
     expect(fine.advice).toEqual([]); expect(fine.waist.cloth).toBeLessThan(fine.waist.body + SILHOUETTE_BANDS.waist);
     expect(Math.abs(fine.taper.cloth - fine.taper.body)).toBeLessThan(SILHOUETTE_BANDS.taper);
     expect(loose.advice.map((a) => a.split(':')[0]).sort()).toEqual(['taper', 'waist']);
     expect(dressSilhouette({ parts: {} })).toBeNull();
+  });
+});
+
+describe('law 10: the drawn figure', () => {
+  it('on an anime hero a top or trousers with no fit of their own lie close (knit a second skin, woven fitted); a fit word, the outer layer and a skirt keep theirs; elsewhere as before', () => {
+    const X = (style, lang, drawn = 'anime') => expandOutfit(build(style, lang ? { language: lang } : {}), { have: STRUCT, scale: 1, drawn });
+    expect(X('casual').trace.fits).toEqual({ top: 'skin', bottom: 'fitted' });
+    expect(X('casual').garments.some((E) => E.id === 'top')).toBe(false);   // painted, no shell
+    expect(X('casual', { top: { fit: 'loose' } }).trace.fits.top).toBe('loose');
+    expect(X('casual', { bottom: { cut: 'wide' } }).trace.fits.bottom).toBe('eased');   // a cut to fall away keeps it
+    expect(X('traveler').trace.fits.outer).toBe('fitted');   // its card's own word
+    expect(X('sundress').garments.find((E) => E.id === 'skirt').fit).toBe('skirt');
+    expect(X('casual', null, null)).toEqual(expandOutfit(build('casual'), { have: STRUCT, scale: 1 }));
+    expect(X('casual', null, null).trace.fits).toBeUndefined();
   });
 });

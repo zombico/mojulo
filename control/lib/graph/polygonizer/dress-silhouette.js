@@ -3,7 +3,8 @@
  * hero-style-critic.js reads the bare body's proportions against a canon. This reads the dress over it: at the body's
  * landmarks (the waist, the hips, the thigh, the knee, the calf, the ankle) the girth of the outermost copy garment
  * against the girth of the skin under it, ring for ring (a garment ring carries its body ring's station id:
- * body-garment.js). Two ratios carry the read a figure is drawn by:
+ * body-garment.js), the skin's read by TAPE (the convex hull round the ring and, on the torso, the navel and chest layers over
+ * it: what a tape measure reads). Two ratios carry the read a figure is drawn by:
  *   waist    the cloth's waist over its hips against the body's: a waist the cloth fills reads as a box
  *   taper    the cloth's ankle over its calf against the body's: a leg whose taper the cloth erases reads as a tube
  * Skirts and drape panels are left out: they hang by design (principles law 2), and their flare is their cut.
@@ -15,6 +16,16 @@
 const girth = (part, st) => { const p = part.slots.map((s) => st.points[s]); let g = 0;
   for (let i = 0; i < p.length; i++) { const q = p[(i + 1) % p.length]; g += Math.hypot(q[0] - p[i][0], q[1] - p[i][1], q[2] - p[i][2]); } return g; };
 const r3 = (x) => Math.round(x * 1000) / 1000;
+/** A TAPE MEASURE: the perimeter of the convex hull of points seen from above (what a tape round them reads) */
+function tape(pts) {
+  const P = pts.map((p) => [p[0], p[1]]).sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (P.length < 3) return 0;
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]), lo = [], hi = [];
+  for (const p of P) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (const p of [...P].reverse()) { while (hi.length >= 2 && cross(hi[hi.length - 2], hi[hi.length - 1], p) <= 0) hi.pop(); hi.push(p); }
+  const H = [...lo.slice(0, -1), ...hi.slice(0, -1)]; let g = 0; for (let i = 0; i < H.length; i++) { const q = H[(i + 1) % H.length]; g += Math.hypot(q[0] - H[i][0], q[1] - H[i][1]); } return g;
+}
+/** the layers that lie over a trunk part (its tape includes them): the chest's and the navel's over the torso */
+const LAYERS = { torso: /^(navel|bust|pectoral)[RL]?$/ };
 const cm = (x) => Math.round(x * 1000) / 10;
 
 /** The bands the advice reads: how much more the cloth's ratio may be than the body's */
@@ -25,9 +36,12 @@ export const SILHOUETTE_BANDS = Object.freeze({ waist: 0.08, taper: 0.06 });
 function covered(parts, src) {
   const B = parts[src]; if (!B?.stations) return [];
   const over = Object.keys(parts).filter((n) => parts[n].garment && n.endsWith(`_${src}`) && !/_(skirt|panel)$/.test(n));
+  // the body by tape: the part's ring and, on a trunk, the points of the layers over it within a slab about the ring
+  const layer = LAYERS[src] ? Object.keys(parts).filter((n) => LAYERS[src].test(n) && parts[n].stations).flatMap((n) => parts[n].stations.flatMap((s) => Object.values(s.points))) : [];
   return B.stations.flatMap((st) => { let best = 0;
     for (const n of over) { const G = parts[n].stations.find((s) => s.id === st.id); if (G) best = Math.max(best, girth(parts[n], G)); }
-    return best ? [{ id: st.id, body: girth(B, st), cloth: best }] : []; });
+    const ring = Object.values(st.points), z = ring.reduce((a, p) => a + p[2], 0) / ring.length;
+    return best ? [{ id: st.id, body: Math.max(girth(B, st), tape([...ring, ...layer.filter((p) => Math.abs(p[2] - z) < 0.02)])), cloth: best }] : []; });
 }
 
 /** The dressed silhouette of a recipe → { landmarks, waist?, taper?, advice } (null with no copy garment) */

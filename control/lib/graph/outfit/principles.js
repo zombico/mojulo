@@ -20,6 +20,9 @@
 //      buttons, cuffs, a waistband and a side seam.
 //   8. STYLIZE IS ONE CURVE: toward 1 more ease and flare, fewer and bigger buttons, broader trims.
 //   9. CLOTH NEVER LOCKS A JOINT: every piece skins as the skin under it (body-garment.js).
+//  10. THE DRAWN FIGURE. On a hero drawn anime a top or trousers with no `fit` of their own lie close: a knit is a
+//      second skin, a woven fitted (trousers cut `straight` or `wide` keep their fall). The silhouette's flair is the
+//      outer layer, the skirt and the panels.
 //
 // Pure arithmetic; no dice.
 //

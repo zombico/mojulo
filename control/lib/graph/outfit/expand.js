@@ -83,11 +83,16 @@ const lightness = (h) => { const [r, g, b] = hex(h).map((c) => { c /= 255; retur
 /** Expand a (valid) build → { garments, paint, rows, kit, tones, trace }. `ctx`: { have: Set of body part base names,
  * scale } (hero-dress.lowerOutfit's), `palette`: the colours the derived tones read (the figure's, the card's, the
  * operator's over them). */
-export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
+export function expandOutfit(build, { have, scale: k = 1, drawn = null }, palette = {}) {
   const errs = validateOutfitBuild(build); if (errs.length) throw new Error(`Invalid outfit build:\n- ${errs.join('\n- ')}`);
   const card = cardOf(build.style ?? 'casual');
   const dials = { stylize: 0, fit: 0.5, coverage: 1, ornament: 1, ...card.dials, ...build.dials };
   const lang = languageOf(card, build.language), law = outfitProportion(dials), structured = have.has('pelvis');
+  // law 10: on a figure DRAWN anime, a top or trousers with no `fit` word of their own lie close: knit a second skin,
+  // woven fitted (the outer layer, a skirt and trousers cut `straight` or `wide` keep their own: they are cut to stand
+  // off and hang)
+  const drawnFit = (S) => (S && typeof S === 'object' && S.kind !== 'skirt' && S.fit === undefined && !['straight', 'wide'].includes(S.cut) && drawn === 'anime' ? { ...S, fit: (S.family ?? 'knit') === 'knit' ? 'skin' : 'fitted' } : S);
+  if (lang.top) lang.top = drawnFit(lang.top); if (lang.bottom) lang.bottom = drawnFit({ family: 'woven', ...lang.bottom });
   const top = lang.top || null, bottom = lang.bottom || null, feet = lang.feet ?? 'none', tuck = !!lang.tuck;
   const focal = lang.focal ?? (top?.family === 'woven' ? 'placket' : 'belt'), orn = dials.ornament, warnings = [];
   // law 6 + 8: the finished edges' depth (torso and pelvis stations; a cuff a share of its piece), broader with stylize
@@ -172,6 +177,10 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
       return f === 'fitted' ? { ...rest, ease: r6(E.ease * 0.45) } : { ...rest, ease: r6(E.ease * 1.5), ...(drape ? { drape: r6(drape * 0.3) } : {}), ...(flare ? { flare: flare.map((x) => r6(x * 1.5)) } : {}) }; }); };
   const tops2 = fitSlot(tops, top?.fit), bottoms2 = skirt ? bottoms : fitSlot(bottoms, bottom?.fit), outs2 = fitSlot(outs, outer?.fit === 'skin' ? 'fitted' : outer?.fit);
   tops.splice(0, tops.length, ...tops2); bottoms.splice(0, bottoms.length, ...bottoms2); outs.splice(0, outs.length, ...outs2);
+  // GIRTH TARGETS: a slot's `girth` (cm of girth over the body at its landmarks, at scale 1) on each copy piece of it; the
+  // kernel finds each landmark on the body's own rings and ignores those a piece's part has not (body-garment.js)
+  const withGirth = (list, S) => (S?.girth ? list.map((E) => (E.fit ? E : { ...E, girth: Object.fromEntries(Object.entries(S.girth).map(([w, c]) => [w, r6(c / 100 * k)])) })) : list);
+  tops.splice(0, tops.length, ...withGirth(tops, top)); if (!skirt) bottoms.splice(0, bottoms.length, ...withGirth(bottoms, bottom)); outs.splice(0, outs.length, ...withGirth(outs, outer));
   const toes = ['toes', 'hallux', 'toe2', 'toe3', 'toe4', 'toe5'];
   if (feet === 'boots') shoes.push({ id: 'bootShaft', part: 'shank', run: [0.45, 1], ease: 0.008 * k, flare: [0.004 * k, 0], group: 'Shoes' }, { id: 'boot', part: 'foot', fit: 'shoe', ease: 0.006 * k, over: toes, group: 'Shoes' });
   else if (feet === 'shoes') shoes.push({ id: 'shoe', part: 'foot', fit: 'shoe', ease: 0.005 * k, toe: 0.9, over: toes, group: 'Shoes' });
@@ -292,7 +301,7 @@ export function expandOutfit(build, { have, scale: k = 1 }, palette = {}) {
 
   // ── 7 LEDGER
   const trace = { style: typeof build.style === 'string' || build.style === undefined ? build.style ?? 'casual' : card.id || 'inline', dials, lengths, tuck, feet, focal, ...(dress ? { dress } : {}), ...(outer ? { outer: { open: !!outer.open } } : {}),
-    pieces: garments.map((E) => E.id), ...(panels.length ? { panels: panels.map((Q) => Q.id) } : {}), edges: spent, laws: build.laws ?? OUTFIT_LAWS_VERSION, ...(detailed ? { roles: Object.keys(roles), detail: seatedDetail } : {}), ...(warnings.length ? { warnings } : {}) };
+    ...(drawn ? { drawn, fits: Object.fromEntries(['top', 'bottom', 'outer'].filter((s) => lang[s] && lang[s].kind !== 'skirt').map((s) => [s, lang[s].fit ?? 'eased'])) } : {}), pieces: garments.map((E) => E.id), ...(panels.length ? { panels: panels.map((Q) => Q.id) } : {}), edges: spent, laws: build.laws ?? OUTFIT_LAWS_VERSION, ...(detailed ? { roles: Object.keys(roles), detail: seatedDetail } : {}), ...(warnings.length ? { warnings } : {}) };
   return { garments, paint, rows, kit, tones, trace };
 }
 
@@ -301,7 +310,7 @@ export const outfitTones = (build) => { const c = isOutfitBuild(build) ? cardOf(
 
 /** The readout for the hero's dress: the trace of the build as this body wears it (style, dials, lengths, focal,
  * pieces, the edges spent, any warnings). `plan`: the hero's plan (its parts and scale are read as the dress read them). */
-export function outfitReadout(build, plan) {
+export function outfitReadout(build, plan, { drawn = null } = {}) {
   const have = new Set((plan?.segments || []).map((s) => s.name.replace(/[RL]$/, '')));
-  return expandOutfit(build, { have, scale: 1 }, plan?.palette || {}).trace;   // the trace reads no metres
+  return expandOutfit(build, { have, scale: 1, drawn }, plan?.palette || {}).trace;   // the trace reads no metres
 }

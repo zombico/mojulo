@@ -13,7 +13,8 @@
  * in the rig), and again for its shoulder girdle (collarbones that rise with a raised arm), and again for its hard limbs
  * (hip, knee and elbow fold bones; each bone's rings rigid out of its joint's zone). And every draped case when the
  * drapery's garment kernel moved (outfit laws v1 rewritten before release: the ease kept in the body's ratios on a dense
- * ring, a hem falling away only where it is cut to, the lift smoothed round the ring only).
+ * ring, a hem falling away only where it is cut to, the lift smoothed round the ring only), and again
+ * for its slab lift and clearance between rings.
  */
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
@@ -24,21 +25,21 @@ import { STATUE_STYLES } from './styles.js';
 
 const PINS = {
   'archaic·male': '791a7daf759e52dd:05b63fb01f9e999e',
-  'archaic·female': '2b1873752e73acd8:e287146adb233719',
+  'archaic·female': 'adf18fe7313c28e3:915d11dd10b3c8cb',
   'classical·male': 'a0bd16b586b00e94:0a663ef7441a4a60',
-  'classical·female': '4756e1c454f1a9f3:3f2275c1373dd17d',
+  'classical·female': 'b65e3fe5050012a1:19688ace907c75ca',
   'hellenistic·male': '40237f2b7e10fb22:04f2d836eface569',
   'hellenistic·female': 'f733ad0519398b45:67d41a1e765e1e08',
-  'roman·male': 'ee14db57ed6b812f:c70636e9bdd49a29',
-  'roman·female': '46499e50c6746c01:bbd567ed369db298',
-  'roman-bust·male': '6e6c0679e59b042f:f394381d8bad5edd',
-  'roman-bust·female': 'fb4a2b82fbe2b822:18accb1037ba536e',
+  'roman·male': '2fe19e47971c9b26:54bccc8d5841f3d2',
+  'roman·female': '6df0f8ff61f6f5dd:1ae6be1de9850b99',
+  'roman-bust·male': '273be1829882d693:74cd63e1bb800933',
+  'roman-bust·female': 'edf35d3832bd83d7:ce8ec8041c9d57d7',
   'egyptian·male': '78c7781df96542b4:4b115d3f8c7513b9',
-  'egyptian·female': '0fb40f44c66243ed:60b6a520cf12b7eb',
+  'egyptian·female': '29f01f899fcb8772:60de16591d91cb83',
   'sumerian·male': '327beab97b2872ef:d565540a14836045',
-  'sumerian·female': 'c8779c0520e19c54:524650c6c7c8523a',
+  'sumerian·female': '1e5255cfaf373b76:0019a85e5379e11d',
   'renaissance·male': '7557a174d439e1aa:eb4ca4044a4cbfad',
-  'renaissance·female': 'c2de3cfba6d95a52:c16bc78bd7b06a1c',
+  'renaissance·female': '68c3025d1ce70018:072f24505068c8bb',
   'classical:bust': '577dc080dc8dfbd0:a034cb7a70043ed9',
   'classical:herm': '76015f972d4f091d:2787c16d8cc2ba22',
   'classical:torso': '2cd10a211cb3daf9:b7ea49c992e93a7d',
@@ -50,7 +51,7 @@ const PINS = {
   'classical:gilt': '83e4e1270327875c:9025464e3d382f9d',
   'classical:painted': '5f960cc3ce177d67:75fdca366cfe0c92',
   'classical:worn': '4a0c54bf3db4c519:d95f9477d0bbbe75',
-  'roman:broken': '673b330184a596be:efe5bb6b8c05d2bb',
+  'roman:broken': 'fc313f6a63c8537b:1c32872179bc0986',
 };
 
 const CASES = [

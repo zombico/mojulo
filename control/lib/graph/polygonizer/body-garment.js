@@ -44,18 +44,19 @@
  * twelve points (densePart), so a six-sided limb is not a six-sided sleeve. Both are absent → as before (the kernel only
  * grows: outfit/principles.js, the update law). Pure, deterministic.
  */
-import { hullHeight } from './station-loft-adorn.js';
 import { SLOT_FAMILIES } from './station-loft-plan.js';
 import * as dmath from '../../util/dmath.js';
 import { rigidityErrors } from './rigidity.js';
 
-const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around'];
+const GARMENT_FIELDS = ['id', 'part', 'u', 'run', 'ease', 'flare', 'over', 'group', 'fit', 'toe', 'heel', 'rings', 'from', 'to', 'drape', 'thick', 'rigidity', 'proportional', 'dense', 'around', 'girth'];
 const both = (v) => (Array.isArray(v) ? v : [v]);
 const isWin = (w) => Array.isArray(w) && w.length === 2 && w.every(Number.isFinite) && w[0] <= w[1];
 const r6 = (x) => Math.round(x * 1e6) / 1e6;
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k], lerp3 = (a, b, f) => add(a, mul(sub(b, a), f));
 const unit = (a) => { const l = dmath.hypot(...a) || 1; return mul(a, 1 / l); };
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const mean = (ps) => mul(ps.reduce(add, [0, 0, 0]), 1 / ps.length);
 
 /** Error strings for a plan's `garments` (form only; names are judged against the parts by `garmentParts`). */
@@ -84,6 +85,7 @@ export function validateGarments(G) {
     if (P.toe !== undefined && !(Number.isFinite(P.toe) && P.toe > 0)) errs.push(`${at}.toe: the toe box's height as a share of the foot's (> 0)`);
     if (P.heel !== undefined && !(Number.isFinite(P.heel) && P.heel >= 0)) errs.push(`${at}.heel: metres added over the heel cup (≥ 0)`);
     if (P.proportional !== undefined && !(Number.isFinite(P.proportional) && P.proportional > 0)) errs.push(`${at}.proportional: the radius (m) at which the ease is as given; each ring's ease scales with its own radius, so the body's taper survives (> 0)`);
+    if (P.girth !== undefined && !(P.girth && typeof P.girth === 'object' && !Array.isArray(P.girth) && Object.entries(P.girth).every(([k, v]) => GIRTH_LANDMARKS.includes(k) && Number.isFinite(v) && v >= 0))) errs.push(`${at}.girth: { landmark: metres of girth over the body (≥ 0) } — landmarks ${GIRTH_LANDMARKS.join(', ')}`);
     if (P.dense !== undefined && typeof P.dense !== 'boolean') errs.push(`${at}.dense: true (the cloth's rings resampled to at least twelve points, rounded) or false`);
     for (const k of Object.keys(P)) if (!GARMENT_FIELDS.includes(k)) errs.push(`${at}.${k}: not a garment field (${GARMENT_FIELDS.join(', ')})`);
     if (P.thick !== undefined && !(Number.isFinite(P.thick) && P.thick > 0)) errs.push(`${at}.thick: a skirt's cloth thickness at the hem (m, > 0)`);
@@ -120,6 +122,24 @@ function densePart(part) {
   return { part: { ...part, slots, slotT, stations: part.stations.map((st) => ({ ...st, points: ring(st.points) })) }, src };
 }
 
+/** GIRTH TARGETS: a piece's `girth` names how much girth (m) the cloth adds over the body at the body's own LANDMARKS,
+ * found on the part's rings by measure (a part's widest ring, and its narrowest below that, its last): the torso's
+ * `chest` and `waist`, the pelvis's `hip`, the thigh's `thigh` and `knee`, the shank's `calf` and `ankle`, the upper arm's
+ * `bicep` and `elbow`, the forearm's `forearm` and `wrist`. The girth counts from the body's surface WITH its layers
+ * (a tape round the navel and the chest, not the torso ring under them). 0 is the cloth on the skin (mugen 0, a hair off).
+ * Between two targets the ease runs as a share of what the piece would give there; outside them it holds the nearest's. */
+export const GIRTH_LANDMARKS = ['chest', 'waist', 'hip', 'thigh', 'knee', 'calf', 'ankle', 'bicep', 'elbow', 'forearm', 'wrist'];
+const LANDMARKS_OF = { torso: ['chest', 'waist'], pelvis: ['hip'], thigh: ['thigh', 'knee'], shank: ['calf', 'ankle'], upperArm: ['bicep', 'elbow'], foreArm: ['forearm', 'wrist'] };
+const SKIN_HAIR = 0.002;
+/** the ring index of each landmark of `base` among `girths` (the window's rings' body girths, in order root → end) */
+function landmarkRings(base, girths) {
+  const L = LANDMARKS_OF[base]; if (!L || girths.length < 2) return {};
+  const wide = girths.indexOf(Math.max(...girths)), out = { [L[0]]: wide };
+  if (base === 'torso') { if (wide > 0) { const below = girths.slice(0, wide); out.waist = below.indexOf(Math.min(...below)); } }   // the torso runs hem → collar
+  else if (L[1]) out[L[1]] = girths.length - 1;
+  return out;
+}
+
 /** the window's rings on a part: every station inside it, and a ring interpolated at each end that falls between two */
 function windowRings(part, P) {
   const st = part.stations, U = st.map((s, k) => s.u ?? k), u0 = U[0], u1 = U[U.length - 1];
@@ -130,7 +150,9 @@ function windowRings(part, P) {
     return { id: `${st[i - 1].id}_${st[i].id}_g${Math.round(f * 1000)}`, u, points: Object.fromEntries(part.slots.map((sl) => [sl, lerp3(st[i - 1].points[sl], st[i].points[sl], f)])), mix: [st[i - 1].id, st[i].id, f] }; };
   // the rings a piece asks for inside its window (`rings`: u values and shares of the span), where its edges are
   // finished: a hem, a cuff or a rib is then a band of its own, as narrow as it is drawn
-  const extra = [...(P.rings?.u || []), ...(P.rings?.run || []).map((r) => u0 + r * (u1 - u0))].filter((u) => u > a + 1e-6 && u < b - 1e-6 && !U.some((x) => Math.abs(x - u) < 1e-6));
+  // DENSE (densePart's other half): a ring halfway between each two stations, so the cloth bends over a form between them
+  const mids = P.dense ? U.slice(0, -1).map((x, k) => (x + U[k + 1]) / 2) : [];
+  const extra = [...(P.rings?.u || []), ...(P.rings?.run || []).map((r) => u0 + r * (u1 - u0)), ...mids].filter((u) => u > a + 1e-6 && u < b - 1e-6 && !U.some((x) => Math.abs(x - u) < 1e-6));
   const inner = [...st.map((s, k) => ({ ...s, u: U[k], k })).filter((s) => s.u > a + 1e-9 && s.u < b - 1e-9), ...[...new Set(extra.map((u) => Math.round(u * 1e6) / 1e6))].map(at)].sort((x, y) => x.u - y.u);
   return [at(a), ...inner, at(b)];
 }
@@ -157,30 +179,75 @@ export function garmentParts(parts, garments, dials = {}) {
       const overs = (P.over || []).flatMap((n) => partsNamed(parts, n)).filter((n) => n !== src);
       const beneath = [...overs, ...(worn[src] || [])].flatMap((n) => parts[n].stations.flatMap((s) => Object.values(s.points)));
       const n = rings.length, ua = rings[0].u, span = rings[n - 1].u - ua || 1;
-      // the lift over what lies beneath: per point along its outward normal (the hull within a hand's breadth), then
-      // smoothed round the ring and along it (a max, then a mean: adornment's min-shield), so a shirt bridges the cleft
       const C = rings.map((r) => mean(part.slots.map((sl) => r.points[sl])));
       const N = rings.map((r, j) => part.slots.map((sl) => unit(sub(r.points[sl], C[j]))));
-      let H = rings.map((r, j) => part.slots.map((sl, k) => (beneath.length ? hullHeight(beneath, r.points[sl], N[j][k], 0.06) : 0)));
+      // the lift over what lies beneath: per point along its outward normal, over what lies within a hand's breadth round
+      // the ring and within the ring's own SLAB along the part (halfway to the rings either side), so a ring is never
+      // lifted by a layer that lies over its neighbour (the waist by the underside of the bust); then smoothed round the
+      // ring (a max, then a mean: adornment's min-shield), so a shirt bridges the cleft
+      const axisAt = (j) => unit(sub(C[Math.min(n - 1, j + 1)], C[Math.max(0, j - 1)]));
+      const slab = rings.map((_, j) => { const a = axisAt(j), d = (i) => dmath.hypot(...sub(C[i], C[j]));
+        return [j > 0 ? d(j - 1) / 2 : 0.03, j < n - 1 ? d(j + 1) / 2 : 0.03, a]; });
+      const liftOver = (p, nrm, [lo, hi, a]) => { let h = 0; for (const v of beneath) { const d = sub(v, p), up = dot3(d, nrm); if (up <= h) continue;
+        const al = dot3(d, a); if (al < -lo || al > hi) continue; const lat = dmath.hypot(...sub(d, add(mul(nrm, up), mul(a, al)))); if (lat < 0.06) h = up; } return h; };
+      let H = rings.map((r, j) => part.slots.map((sl, k) => (beneath.length ? liftOver(r.points[sl], N[j][k], slab[j]) : 0)));
       // the smoothing runs round each ring only: along the stack it would carry a ring's lift onto its neighbours and
       // fill the body's concavities (the waist between the ribs and the hips)
       if (beneath.length) {
         const m = part.slots.length, nb = (j, k) => [[j, k], [j, (k + 1) % m], [j, (k + m - 1) % m]];
         H = H.map((row, j) => row.map((_, k) => Math.max(...nb(j, k).map(([a, b]) => H[a][b])))); H = H.map((row, j) => row.map((_, k) => mean(nb(j, k).map(([a, b]) => [H[a][b], 0, 0]))[0]));
       }
-      const fl = P.flare ?? [0, 0];
       // PROPORTIONAL: the ease at each ring scales with its radius (`proportional` the radius at which it is `ease`), so
       // the cloth keeps the body's ratios (the calf over the ankle, the ribs over the waist) instead of adding one girth
       // everywhere, and a thin limb is not swallowed by the ease a torso needs
       const radii = rings.map((r, j) => mean(part.slots.map((sl) => [dmath.hypot(...sub(r.points[sl], C[j])), 0, 0]))[0]);
-      const easeAt = (j) => (P.proportional ? P.ease * radii[j] / P.proportional : P.ease);
+      const easeOf = (j) => (P.proportional ? P.ease * radii[j] / P.proportional : P.ease);
+      let easeAt = easeOf;
+      // CLEARANCE BETWEEN RINGS: the cloth runs straight from ring to ring and from slot to slot, so a layer bulging
+      // between them (the bust) is met there: each point of it outside that patch raises its four corners (two rings,
+      // the two slots either side of it) by the least that clears it (each corner's share by its nearness), twice over
+      if (beneath.length) for (let pass = 0; pass < 2; pass++) {
+        const m = part.slots.length, R = (j, k) => dmath.hypot(...sub(add(rings[j].points[part.slots[k]], mul(N[j][k], easeOf(j) + H[j][k])), C[j]));
+        const ang = (j, v) => { const a = N[j][0], b = cross3(sub(C[Math.min(n - 1, j + 1)], C[Math.max(0, j - 1)]), a); return Math.atan2(dot3(v, unit(b)), dot3(v, a)); };
+        const A = rings.map((_, j) => part.slots.map((_, k) => ang(j, N[j][k])));
+        const need = rings.map(() => part.slots.map(() => 0));
+        for (const v of beneath) for (let j = 0; j < n - 1; j++) {
+          const ax = sub(C[j + 1], C[j]), L2 = dot3(ax, ax); if (L2 < 1e-12) continue; const f = dot3(sub(v, C[j]), ax) / L2; if (f <= 0 || f >= 1) continue;
+          const c = add(C[j], mul(ax, f)), d = sub(v, c), w = sub(d, mul(ax, dot3(d, ax) / L2)), r = dmath.hypot(...w); if (r < 1e-9) continue;
+          // the two slots either side of it by angle round ring j, its share between them, and how far the chord between them
+          // sags inside their arc (1 / cos of half their angle)
+          const th = ang(j, w); let k0 = 0, g = 0, chord = 1;
+          for (let q = 0; q < m; q++) { const a0 = A[j][q], a1 = A[j][(q + 1) % m]; let span = a1 - a0; while (span <= -Math.PI) span += 2 * Math.PI; while (span > Math.PI) span -= 2 * Math.PI;
+            let t = th - a0; while (t <= -Math.PI) t += 2 * Math.PI; while (t > Math.PI) t -= 2 * Math.PI; const gg = span ? t / span : -1; if (gg >= 0 && gg <= 1) { k0 = q; g = gg; chord = 1 / Math.cos(Math.min(1.2, Math.abs(span) / 2)); break; } }
+          const k1 = (k0 + 1) % m, W = [[j, k0, (1 - f) * (1 - g)], [j, k1, (1 - f) * g], [j + 1, k0, f * (1 - g)], [j + 1, k1, f * g]];
+          const dl = (r + SKIN_HAIR) * chord - W.reduce((t, [jj, kk, ww]) => t + ww * R(jj, kk), 0); if (dl <= 0) continue;
+          const z = W.reduce((t, [, , ww]) => t + ww * ww, 0); for (const [jj, kk, ww] of W) need[jj][kk] = Math.max(need[jj][kk], dl * ww / z);
+        }
+        H = H.map((row, j) => row.map((h, k) => h + need[j][k]));
+      }
+      const fl = P.flare ?? [0, 0];
+      // GIRTH TARGETS: the landmark rings, found on the body's own rings before the drape (a pinned ring is cinched there)
+      const ringG = (pts) => pts.reduce((g, p, k) => g + dmath.hypot(...sub(pts[(k + 1) % pts.length], p)), 0);
+      const bodyG = P.girth ? rings.map((r) => ringG(part.slots.map((sl) => r.points[sl]))) : null;
+      const at = P.girth ? landmarkRings(src.replace(/[RL]$/, ''), bodyG) : {}, pinned = new Set(Object.keys(P.girth || {}).filter((w) => at[w] !== undefined).map((w) => at[w]));
+      const H0 = H.map((row) => [...row]);   // the lift over the layers beneath alone
       // DRAPE: cloth held out above (by the bust, the shoulder blades) falls from there instead of hugging back in under
       // it: from the top ring down, each point stands at least as far out as the one above it, less `drape` per metre
       // it falls
       if (P.drape !== undefined) for (let j = n - 2; j >= 0; j--) { const dz = Math.abs(C[j + 1][2] - C[j][2]);
         for (let k = 0; k < part.slots.length; k++) { const sl = part.slots[k], f = (rings[j].u - ua) / span, e = easeAt(j) + fl[0] * (1 - f) + fl[1] * f, fa = (rings[j + 1].u - ua) / span, ea = easeAt(j + 1) + fl[0] * (1 - fa) + fl[1] * fa;
           const above = dmath.hypot(...sub(add(rings[j + 1].points[sl], mul(N[j + 1][k], ea + H[j + 1][k])), C[j + 1]).slice(0, 2)), here = dmath.hypot(...sub(rings[j].points[sl], C[j]).slice(0, 2));
-          H[j][k] = Math.max(H[j][k], above - P.drape * dz - here - e); } }
+          H[j][k] = Math.max(H[j][k], above - P.drape * dz - here - e); }
+        if (pinned.has(j)) H[j] = [...H0[j]]; }   // a girth target cinches its ring: the cloth below falls from there
+      // GIRTH TARGETS (landmarkRings): at each named landmark the ease that, with the lift already there (the layers
+      // beneath, the drape), gives that girth over the body's ring; between them a share of the piece's own ease
+      if (P.girth) {
+        // (the girth counts from the body's surface with its layers, a tape round them: a pinned ring's lift is that alone)
+        const S = Object.entries(P.girth).filter(([w]) => at[w] !== undefined).map(([w, g]) => { const j = at[w]; return [j, Math.max(SKIN_HAIR, g / (2 * Math.PI)) / (easeOf(j) || 1e-9)]; }).sort((a, b) => a[0] - b[0]);
+        if (S.length) { const shareAt = (j) => { if (j <= S[0][0]) return S[0][1]; if (j >= S[S.length - 1][0]) return S[S.length - 1][1];
+            const q = S.findIndex(([i]) => i >= j); const [i0, s0] = S[q - 1], [i1, s1] = S[q]; return s0 + (s1 - s0) * (j - i0) / (i1 - i0); };
+          easeAt = (j) => easeOf(j) * shareAt(j); }
+      }
       const stations = rings.map((r, j) => { const f = (r.u - ua) / span, e = easeAt(j) + fl[0] * (1 - f) + fl[1] * f;
         return { id: r.id, u: r6(r.u), points: Object.fromEntries(part.slots.map((sl, k) => [sl, add(r.points[sl], mul(N[j][k], e + H[j][k])).map(r6)])) }; });
       const name = `${P.id}_${src}`;

@@ -12,6 +12,8 @@
 //             panels: [{ at: back | front | sides | sideR | sideL, length: micro … maxi, width?: 0–1 (a share of the half
 //             turn, default 0.33), split?: 1 | 2 (two tails side by side), cut?, family?, rigidity? (default 'soft') }]: DRAPE
 //             PANELS hung from the waist over everything else (coattails, a tabard's apron, tassets, a loincloth)
+//             girth:  on top, trousers and outer: { chest | waist | hip | thigh | knee | calf | ankle | bicep | elbow | forearm |
+//             wrist: cm } — the girth the cloth adds over the body at that landmark (0 on the skin), the rest in proportion
 //             fit:    on top, trousers and outer: 'skin' (painted second skin; not the outer) | 'fitted' | 'eased' (the
 //             dials' cut, the default) | 'loose': law 2 zone by zone, so an outfit can be tight in one place and full in another
 //             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
@@ -23,6 +25,7 @@
 //             Leather, Buckle), suggested beneath the operator's own palette; the rest derive from Top and Bottom
 
 import { rigidityErrors } from '../polygonizer/rigidity.js';
+import { GIRTH_LANDMARKS } from '../polygonizer/body-garment.js';
 export const SEEDED_OUTFITS = Object.freeze({
   casual: {
     "id": "casual",
@@ -113,6 +116,8 @@ export function validateOutfitCard(card, at = 'outfit.style') {
       if (Q.width !== undefined && !(Number.isFinite(Q.width) && Q.width > 0 && Q.width <= 1)) errs.push(`${w}.width: a share of the half turn, 0 < width ≤ 1`);
       if (Q.split !== undefined && ![1, 2].includes(Q.split)) errs.push(`${w}.split: 1 or 2 (two tails side by side)`);
       for (const k of Object.keys(Q)) if (!['at', 'length', 'width', 'split', 'cut', 'family', 'rigidity'].includes(k)) errs.push(`${w}.${k}: not a panel field (at, length, width, split, cut, family, rigidity)`); }); }
+  for (const k of ['top', 'bottom', 'outer']) { const G = L[k] && typeof L[k] === 'object' ? L[k].girth : undefined; if (G === undefined) continue;
+    if (!(G && typeof G === 'object' && !Array.isArray(G) && Object.entries(G).every(([w, c]) => GIRTH_LANDMARKS.includes(w) && Number.isFinite(c) && c >= 0))) errs.push(`${at}.language.${k}.girth: { landmark: cm of girth over the body (≥ 0; 0 on the skin) } — landmarks ${GIRTH_LANDMARKS.join(', ')}`); }
   for (const [k, list] of [['top', FITS], ['bottom', FITS], ['outer', FITS.slice(1)]]) if (L[k] && typeof L[k] === 'object') errs.push(...one(L[k].fit, L[k].kind === 'skirt' ? [] : list, `${at}.language.${k}.fit`));
   if (L.dress !== undefined && typeof L.dress !== 'boolean') errs.push(`${at}.language.dress: true or false`);
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);

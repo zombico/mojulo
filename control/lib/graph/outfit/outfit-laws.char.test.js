@@ -19,11 +19,11 @@ import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 
 const PINS = {
   1: {
-    'out': { laws: '265ded3657d405cc', rings: '6d0db386e7c0b75e' },
-    'tucked': { laws: 'b76e277c3f91d9e7', rings: '6830faeee5c848d9' },
-    'dress': { laws: 'ab5993a5be6a4df7', rings: '8b33bdb55034602a' },
-    'outer': { laws: '5ca7c23fe61ab573', rings: 'f951886934855ebf' },
-    'panels': { laws: '08e10bad4e472308', rings: '3f1a63101148d55e' },
+    'out': { laws: '265ded3657d405cc', rings: '3c678a82448ca4d5' },
+    'tucked': { laws: 'b76e277c3f91d9e7', rings: 'fecb44a1eb8e501f' },
+    'dress': { laws: 'ab5993a5be6a4df7', rings: '158bf9c812c037f4' },
+    'outer': { laws: '5ca7c23fe61ab573', rings: 'd2ca892bf250dd6c' },
+    'panels': { laws: '08e10bad4e472308', rings: 'f10fb149e4ba7dea' },
   },
 };
 
