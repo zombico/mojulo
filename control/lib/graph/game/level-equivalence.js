@@ -24,10 +24,12 @@
  *   keyEntities(payload)              → [id]   the entities a key carries: the pilot first, then every one with a rule
  *   frameKey(sim, ids)                → string
  *   winScript(payload, { seconds })   → { frames: [input], keys: [key], outcome, at }   steered and recorded
- *   playScript(payload, frames)       → { keys, outcome, at }                            replayed (stay-put: frames of {})
+ *   playScript(payload, frames, { onFrame? }) → { keys, outcome, at }                      replayed (stay-put: frames of {});
+ *                                       onFrame(sim, i) reads the world after each frame (its camera, say)
  *   outcomeIn(contract, log, from)    → 'success' | 'fail' | null   the contract's `on` over the bus log's delta, as
  *                                       the page's game channel reads it
  *   compareKeys(a, b)                 → { equal, frames, first: { frame, web, godot, field } | null }
+ *   keyDrift(a, b)                    → { busFrames, maxQ, at }   how far apart, at worst, over the whole run
  *
  * Deterministic: a fixed step, the bus's own order, the world's seeded rules, the steering a pure function of state.
  */
@@ -82,7 +84,7 @@ export function faceGround(faces = []) {
 }
 
 export function levelSim(payload) {
-  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders }, { ground: faceGround(payload.faces), beat: payload.audio?.beat || null });
+  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders, camera: payload.camera }, { ground: faceGround(payload.faces), beat: payload.audio?.beat || null, powers: payload.game?.powers || null });
 }
 
 // an input frame's `keys` ([the key as the page names it]) are what the page's key listener turns into bus events:
@@ -211,7 +213,7 @@ export function winScript(payload, { seconds = 120 } = {}) {
   return { frames, keys, outcome, at, waypoints: points.length, idle };
 }
 
-export function playScript(payload, frames) {
+export function playScript(payload, frames, { onFrame = null } = {}) {
   const contract = payload.game || {};
   const sim = levelSim(payload), ids = keyEntities(payload);
   const keys = [];
@@ -222,10 +224,37 @@ export function playScript(payload, frames) {
     // a frame's keys, then its raw events (a menu pick as the page's menu sends it: menu-pick:<menu>:<n>)
     sim.frame(SIM_DT, [...keyEvents(payload, (frames[i] || {}).keys), ...JSON.parse(JSON.stringify((frames[i] || {}).events || []))]);
     keys.push(frameKey(sim, ids));
+    if (onFrame) onFrame(sim, i);
     const o = outcomeIn(contract, sim.bus.log, n0);
     if (o && !outcome) { outcome = o; at = i; }
   }
   return { keys, outcome, at };
+}
+
+/** How far two engines' keys drift over a run: the frames whose bus differs, and the largest gap of any entity's field in
+ * quanta (positions in POS_Q, headings in HEAD_Q, a heading's wrap counted short). A run whose bus never parts and whose
+ * entities stay within one quantum is equal but for a quantum's edge (the GLB's float32 faces under a float64 ground). */
+export function keyDrift(web, godot) {
+  const n = Math.min(web.length, godot.length);
+  let busFrames = 0, maxQ = 0, at = null;
+  const turn = Math.round((2 * Math.PI) / HEAD_Q);
+  for (let i = 0; i < n; i++) {
+    if (web[i] === godot[i]) continue;
+    const a = web[i].split('|'), b = godot[i].split('|');
+    if (a[0] !== b[0]) busFrames++;
+    for (let j = 1; j < Math.max(a.length, b.length); j++) {
+      const x = (a[j] || '').split(':'), y = (b[j] || '').split(':');
+      if (x[1] === y[1]) continue;
+      const u = (x[1] || '').split(',').map(Number), v = (y[1] || '').split(',').map(Number);
+      if (u.length !== 4 || v.length !== 4 || ![...u, ...v].every(Number.isFinite)) { maxQ = Infinity; at ??= i; continue; }
+      for (let k = 0; k < 4; k++) {
+        let d = Math.abs(u[k] - v[k]);
+        if (k === 3) d = Math.min(d, Math.abs(turn - d));
+        if (d > maxQ) { maxQ = d; at = i; }
+      }
+    }
+  }
+  return { busFrames, maxQ, at };
 }
 
 /** Two engines' keys, frame by frame: equal over the shorter run, and the first frame they part with the field. */

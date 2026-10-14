@@ -19,6 +19,7 @@ extends Node3D
 @export var music_db: float = 0.0
 
 const WalkerScript := preload("res://kernel/walker.gd")
+const RulesScript := preload("res://kernel/rules.gd")
 const WeatherScript := preload("res://kernel/weather.gd")
 const BusScript := preload("res://kernel/bus.gd")
 const CastScript := preload("res://kernel/cast.gd")
@@ -168,6 +169,7 @@ func _ready() -> void:
 	_build_cameras()
 	_spawn_walker()
 	_build_rigs()
+	_build_camera_rule()
 	_build_looks()
 	_build_mechanics()
 	_build_contract()
@@ -971,6 +973,75 @@ func _spawn_walker() -> void:
 	walker.kill_y = kill_y
 	add_child(walker)
 	walker.build_body(eye, eye_scale)
+	# a pilot on the web's walk or platform rule walks by kernel/rules.gd on the level's own faces (since 0.23.0)
+	var pilot = score.get("pilot")
+	if pilot is Dictionary and pilot.get("rule") is Dictionary and String(pilot["rule"].get("type", "")) in ["walk", "platform"]:
+		var mpu := float(score.get("metersPerUnit", 1.0))
+		var boxes := []
+		for c in colliders:
+			if c is Dictionary and c.get("min") is Array and c.get("max") is Array:
+				boxes.append({"min": (c["min"] as Array).map(func(v): return float(v) / mpu), "max": (c["max"] as Array).map(func(v): return float(v) / mpu)})
+		walker.use_rule(pilot["rule"], pilot.get("pos", [0, 0, 0]), float(pilot.get("heading", 0.0)), {"ground": RulesScript.make_ground(_land_triangles(mpu)), "colliders": boxes}, mpu)
+
+
+# The page's camera (score.camera) when it watches the pilot the kernel walks by its rule: follow, eye, overhead, side
+# and fixed run in kernel/rules.gd as the page runs them (since 0.23.0), in place of the walker's own Head and arm.
+const CAMERA_RULES := ["follow", "eye", "overhead", "side", "fixed"]
+func _build_camera_rule() -> void:
+	var c = score.get("camera")
+	var pilot = score.get("pilot")
+	if not (c is Dictionary and pilot is Dictionary) or walker == null or walker.rule == null:
+		return
+	if not (String(c.get("rule", "")) in CAMERA_RULES) or s_(c.get("target")) != s_(pilot.get("id")):
+		return
+	var r: Dictionary = (c as Dictionary).duplicate(true)
+	r["type"] = r["rule"]
+	walker.use_camera(r)
+
+
+# The land the pilot stands on, as the page's ground raycast meets it: every mesh of the level but the entities' bodies
+# (the page's __ground skips them) and the blend tiles laid over the ground, as triangles in the recipe's frame (z up,
+# recipe units).
+func _land_triangles(mpu: float) -> Array:
+	var skip := {}
+	# the blend tiles over the ground: the page draws them at the ground's height in their own pass (score.blendNodes)
+	var blend := []
+	for n in score.get("blendNodes", []):
+		blend.append(gd_name(String(n)))
+	for e in score.get("entities", []):
+		if e is Dictionary:
+			skip[gd_name("entity:" + s_(e.get("id")))] = true
+			if s_(e.get("figure")) != "":
+				skip[gd_name(s_(e.get("figure")))] = true
+	var tris := []
+	var inv := global_transform.affine_inverse()
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var n: Node = mi
+		var body := false
+		while n != null and n != self and not body:
+			var nm := String(n.name)
+			body = skip.has(nm) or blend.any(func(b): return nm == b or nm.begins_with(b + "_"))
+			n = n.get_parent()
+		if body or mi.mesh == null:
+			continue
+		var xf: Transform3D = inv * mi.global_transform
+		for si in mi.mesh.get_surface_count():
+			if mi.mesh.surface_get_primitive_type(si) != Mesh.PRIMITIVE_TRIANGLES:
+				continue
+			var arr: Array = mi.mesh.surface_get_arrays(si)
+			var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var idx = arr[Mesh.ARRAY_INDEX]
+			var pts := []
+			for v in vs:
+				var w: Vector3 = xf * v
+				pts.append([w.x / mpu, -w.z / mpu, w.y / mpu])
+			if idx is PackedInt32Array and idx.size() > 0:
+				for i in range(0, idx.size() - 2, 3):
+					tris.append([pts[idx[i]], pts[idx[i + 1]], pts[idx[i + 2]]])
+			else:
+				for i in range(0, pts.size() - 2, 3):
+					tris.append([pts[i], pts[i + 1], pts[i + 2]])
+	return tris
 
 
 func _build_mechanics() -> void:
@@ -1185,6 +1256,9 @@ func sim_key() -> String:
 	var parts: Array = [bus.hash_state(bus_state) if bus != null else BusScript.new().hash_state(BusScript.new().create_bus_state({}, []))]
 	for i in sim_ids.size():
 		var id := String(sim_ids[i])
+		if i == 0 and walker != null and walker.rule != null:
+			parts.append(_sim_ent(id, walker.recipe_pos(), walker.recipe_heading()))
+			continue
 		if i == 0 and walker != null:
 			var bz := walker.global_transform.basis.z
 			# the walker stands on its feet: its eye goes on, and _sim_ent takes it off again, as for every entity
@@ -1201,6 +1275,13 @@ func sim_key() -> String:
 		var tr: Array = row.get("translation", [0, 0, 0])
 		parts.append(_sim_ent(id, [float(tr[0]) / bus_units, float(tr[1]) / bus_units, float(tr[2]) / bus_units], float(row.get("heading", 0.0))))
 	return "|".join(parts)
+
+
+# the pilot's footing: its rule's (a walker is always on the ground), else the stock body's floor
+func _pilot_grounded() -> bool:
+	if walker.rule != null:
+		return walker.rule.get("type") == "walk" or walker.ent.get("grounded") == true
+	return walker.is_on_floor()
 
 
 # the walker's feet, raised by the pilot's eye so _sim_ent takes it off again (its key is its feet)
@@ -1223,11 +1304,19 @@ func _process(delta: float) -> void:
 		for ev in (sim_frames[sim_frame] as Dictionary).get("events", []):
 			bus_pending.append((ev as Dictionary).duplicate(true))
 	_beat_tick(float(sim_frame) * delta if sim else -1.0)
+	# the world steps in the frame its level ends, as the page's steps after the events that end it
+	var was_playing := state == "playing"
 	_play(delta)
 	if sim:
-		if state == "playing" and walker != null:
+		if was_playing and walker != null:
 			walker.sim_step(delta)
 		print("[mojulo-sim] %d %s %s" % [sim_frame, state, sim_key()])
+		if walker != null and walker.cam_rule != null:
+			# the page's camera as the rule left it, and the node as drawn, in the recipe's frame (godot-rules.test.js)
+			var cp: Array = walker.cam["pos"]
+			var cl = walker.cam["lookAt"]
+			var np := _bus_pos(walker.cam_node.global_position)
+			print("[mojulo-cam] %d %.4f,%.4f,%.4f %s %.4f,%.4f,%.4f" % [sim_frame, cp[0], cp[1], cp[2], ("%.4f,%.4f,%.4f" % [cl[0], cl[1], cl[2]]) if cl is Array else "null", np[0], np[1], np[2]])
 		sim_frame += 1
 
 
@@ -1343,7 +1432,43 @@ func _start_bus() -> void:
 		for c in ch.get("carried", []):
 			if c is Dictionary and bus.truthy(flags.get(c.get("key"))):
 				bus_pending.append({"type": c["event"]})
+	# the powers the consumed slice holds apply at start (the web's game channel does the same)
+	var pw = contract.get("powers")
+	if pw is Dictionary and _game() != null:
+		var held = (_game().params_for(contract) as Dictionary).get(pw.get("slice"), {})
+		var items: Dictionary = held.get("items", {}) if held is Dictionary and held.get("items") is Dictionary else {}
+		for id in items:
+			if float(items[id]) > 0.0:
+				_grant_power(String(id))
 	_drain_bus(0.0)
+
+
+# POWERS (a map game's power keys, contract.powers): a power gives its holder a move, a change to its rule, merged into
+# the pilot's rule once, the moment the bus hears pickup:<power> (the web's game channel __grant). Since 0.23.0.
+var powers_on := {}
+func _grant_power(id: String) -> void:
+	var pw = contract.get("powers")
+	if not (pw is Dictionary) or walker == null or walker.rule == null or powers_on.has(id):
+		return
+	var pilot = score.get("pilot")
+	if not (pilot is Dictionary and s_(pilot.get("id")) == s_(pw.get("target"))):
+		return
+	var g = (pw.get("grants", {}) as Dictionary).get(id)
+	if not (g is Dictionary):
+		return
+	powers_on[id] = true
+	for k in g:
+		walker.rule[k] = g[k]
+
+
+func _grants_heard(from: int) -> void:
+	if not (contract.get("powers") is Dictionary):
+		return
+	var log: Array = bus_state["log"]
+	for i in range(from, log.size()):
+		var t = log[i].get("type") if log[i] is Dictionary else null
+		if t is String and t.begins_with("pickup:"):
+			_grant_power(t.substr(7))
 
 
 func _build_contract() -> void:
@@ -1363,7 +1488,9 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	if bus == null:
 		return
 	var who := s_(score.get("player"))
-	var z: Dictionary = bus.derive_zone_events([{"id": who if who != "" else "player", "position": _bus_pos(pos)}], bus_zone_prev, bus_sources)
+	# a pilot on a rule stands where the web's does (its pos at the eye); the stock walker at its feet
+	var here: Array = walker.recipe_pos() if walker != null and walker.rule != null else _bus_pos(pos)
+	var z: Dictionary = bus.derive_zone_events([{"id": who if who != "" else "player", "position": here}], bus_zone_prev, bus_sources)
 	bus_zone_prev = z["prev"]
 	var incoming: Array = bus_pending + z["events"]
 	bus_pending = []
@@ -1376,15 +1503,18 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	if cast != null:
 		var me = cast_state["byId"].get(who if who != "" else "player")
 		if me != null:
-			me["pos"] = _bus_pos(pos)
-			if combat_doc is Dictionary:
+			me["pos"] = here.duplicate()
+			if combat_doc is Dictionary and walker.rule == null:
 				me["pos"][2] += float(combat_doc.get("eye", 0.0))   # where the web's platform rule stands its hero
 			# the walker faces -Z: its heading in the bus's frame (x, -z)
 			var bz := walker.global_transform.basis.z
-			me["heading"] = atan2(bz.z, -bz.x)
+			me["heading"] = walker.recipe_heading() if walker.rule != null else atan2(bz.z, -bz.x)
 			# a mouse-look rule aims with the look's pitch; a tank-turning one aims level
 			if combat != null:
-				me["pitch"] = walker.pitch_node.rotation.x if combat.look and walker.pitch_node != null else 0.0
+				if walker.rule != null:
+					me["pitch"] = float(walker.ent.get("pitch", 0.0)) if combat.look else 0.0
+				else:
+					me["pitch"] = walker.pitch_node.rotation.x if combat.look and walker.pitch_node != null else 0.0
 		# the facts of the cast as the last frame's step left it (the page reads castFacts before the bus); the cast and
 		# the fight step after the bus's ops (below), as the page's controllable step runs after its events (since 0.22.0)
 		var facts: Array = cast.facts(cast_state)
@@ -1403,20 +1533,26 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	bus_prompt.visible = top != null and menu_open == null
 	if top != null:
 		bus_prompt.text = "[E] " + (String(top["prompt"]) if String(top["prompt"]) != "" else "use")
+	var n0: int = (bus_state["log"] as Array).size()
 	bus.frame(bus_state, incoming, minf(delta, 0.05))
+	_grants_heard(n0)
 	if bus.stats != null:
 		_stat_bodies()
 	var ctrl: Dictionary = bus.take_ctrl(bus_state)
 	if cast != null and not (ctrl["ops"] as Array).is_empty():
 		cast.ops(cast_state, ctrl["ops"])
 	var warp = ctrl["warps"].get(who)
-	if warp is Array:
+	if warp is Array and walker.rule != null:
+		walker.warp_to(warp)
+	elif warp is Array:
 		walker.global_position = to_yup(warp) * bus_units
 	if cast != null:
 		var me2 = cast_state["byId"].get(who if who != "" else "player")
 		cast.step(cast_state, minf(delta, 0.05))
 		if combat != null and me2 != null:
-			combat.step(cast_state, me2, _combat_input(), minf(delta, 0.05), walker.is_on_floor())
+			combat.step(cast_state, me2, _combat_input(), minf(delta, 0.05), _pilot_grounded())
+			# a swing roots the body, as the web's platform rule halts its drive while one runs
+			walker.halt = 0.0 if me2.get("swingT") != null else 1.0
 			_draw_swing(me2)
 	_drain_bus(delta)
 	_sync_menus()

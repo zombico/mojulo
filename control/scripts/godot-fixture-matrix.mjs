@@ -136,6 +136,10 @@ export async function fixtureRow(id, ctx) {
   const cc = ctx.L.compareKeys(control.keys, gc.keys);
   row.equal = cw.equal && cc.equal;
   row.diverge = cw.first ? { run: 'win', ...cw.first } : cc.first ? { run: 'control', ...cc.first } : null;
+  // how far apart at worst: one quantum and an equal bus is a quantum's edge, more is a divergence
+  // both engines' keys beside the pack, to read a divergence frame by frame
+  if (row.diverge) await fs.writeFile(path.join(packDir, 'sim', 'keys.json'), JSON.stringify({ win: { web: upto(win.keys), godot: upto(gw.keys), frames: win.frames }, control: { web: control.keys, godot: gc.keys } }));
+  if (row.diverge) row.drift = ctx.L.keyDrift(...(cw.first ? [upto(win.keys), upto(gw.keys)] : [control.keys, gc.keys]));
   if (!ctx.keep) await fs.rm(path.join(packDir, '.godot'), { recursive: true, force: true });
   return row;
 }
@@ -143,7 +147,7 @@ export async function fixtureRow(id, ctx) {
 const yes = (v) => (v === true ? 'yes' : v === false ? 'NO' : v == null ? '—' : String(v));
 export function formatMatrix(rows) {
   const head = ['fixture', 'minted', 'exports', 'verdict', 'imports', 'win web', 'win godot', 'ctl web', 'ctl godot', 'web-equal'];
-  const lines = rows.map((r) => [r.id, yes(r.minted), yes(r.exports), r.verdict ?? '—', yes(r.imports), yes(r.win.web), yes(r.win.godot), yes(r.control.web), yes(r.control.godot), r.equal === true ? 'yes' : r.equal === false ? `NO (${r.diverge?.run} f${r.diverge?.frame} ${r.diverge?.field})` : yes(r.equal)]);
+  const lines = rows.map((r) => [r.id, yes(r.minted), yes(r.exports), r.verdict ?? '—', yes(r.imports), yes(r.win.web), yes(r.win.godot), yes(r.control.web), yes(r.control.godot), r.equal === true ? 'yes' : r.equal === false ? `NO (${r.diverge?.run} f${r.diverge?.frame} ${r.diverge?.field}${r.drift ? `; ${r.drift.maxQ === Infinity ? 'apart' : `≤${r.drift.maxQ}q`}${r.drift.busFrames ? `, bus ${r.drift.busFrames}f` : ''}` : ''})` : yes(r.equal)]);
   const w = head.map((h, i) => Math.max(h.length, ...lines.map((l) => String(l[i]).length)));
   const fmt = (l) => l.map((c, i) => String(c).padEnd(w[i])).join('  ');
   const notes = rows.filter((r) => r.note || r.importError || r.godotError).map((r) => `  ${r.id}: ${[r.note, r.importError && `import: ${r.importError}`, r.godotError && `godot: ${r.godotError}`].filter(Boolean).join('; ')}`);

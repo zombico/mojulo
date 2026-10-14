@@ -23,18 +23,21 @@ const B = 'built', P = 'approximated', A = 'absent';
 const m = (godot, how) => Object.freeze({ godot, ...(how ? { how } : {}) });
 
 // ── the controllable runtime's rules (worlds/controllable/compose.js RULES) ──────────────────────────────────────────
-// kernel/walker.gd walks the pilot (walk), a spring arm follows a suit (follow), and first person is the walker's own
-// camera (eye). The platform rule jumps with fixed numbers: its dash, charged leap, climb and the moves a power unlocks
-// (double jump, glide, high jump: gameworld/actions.js TRAVERSAL_MOVES) are the web's.
+// The pilot's walk and platform rules run in kernel/rules.gd (since 0.23.0), held equal to the web's frame by frame (the
+// rules conformance corpus), standing on the level's own faces; a power's move merges into the rule as the page grants
+// it. Only the pilot runs its rule: another walker stands (engine-portability.js flags it). The page's camera rules
+// (follow, eye, overhead, side, fixed) run there too, after the pilot, held equal by the same corpus, when the camera
+// watches the pilot the kernel walks (else engine-portability.js flags it). The platform rule's opt-in moves the kernel
+// does not run are PLATFORM_KEYS.lost, named per level.
 export const RULE_MARKS = Object.freeze({
-  walk: m(B, 'kernel/walker.gd'),
-  follow: m(B, 'kernel/walker.gd on a SpringArm3D behind the suit'),
-  eye: m(B, 'kernel/walker.gd first person, mouse look'),
-  platform: m(P, 'the walker jumps with fixed numbers (walker.gd jump, speed); the rule\'s own jump, run, air control, dash, charged leap, climb and unlocked moves are the web\'s'),
+  walk: m(B, 'kernel/rules.gd: the web walk rule on the level\'s faces (turn, look, strafe, probe, colliders)'),
+  follow: m(B, 'kernel/rules.gd: the web chase camera (its ease, shoulder, lead, reverse swing and pitch), pulled in before the land as the page pulls it in; a level whose camera is not the page\'s rides kernel/walker.gd\'s spring arm behind the suit'),
+  eye: m(B, 'kernel/rules.gd: first person at the target\'s eye, its heading and pitch'),
+  platform: m(B, 'kernel/rules.gd: the web platform rule\'s run, turn (tank, look, world, lane), jump with its cut, buffer, coyote, wind-up, air jumps and glide, boost and its gauge, on the level\'s faces and colliders; its opt-in moves the kernel does not run are named per level (PLATFORM_LOST)'),
   glide: m(A, 'no glide in kernel/walker.gd'),
-  overhead: m(A, 'no overhead camera: the walker stays first person or on its spring arm'),
-  side: m(A, 'no side camera, no lane pilot held to a spine'),
-  fixed: m(A, 'no fixed stations, no cut'),
+  overhead: m(B, 'kernel/rules.gd: the ¾ overhead, north up the screen'),
+  side: m(B, 'kernel/rules.gd: square to the pilot\'s lane, swinging round its bends (the lane pilot is the platform rule\'s)'),
+  fixed: m(B, 'kernel/rules.gd: the stations, cut by the nearest focus, held against flicker'),
   shot: m(A, 'no directed shot: scenes do not travel'),
   clock: m(P, 'a figure-frames body\'s self-playing loop (a glyph, a turntable): the body stands, its frames do not play'),
   mover: m(A, 'movers do not travel (skipped_movers): a moving platform or lift stands at rest'),
@@ -45,6 +48,32 @@ export const RULE_MARKS = Object.freeze({
   patrol: m(A, 'no patrol: a guard stands where it was placed'),
   ai: m(A, 'no mind: an AI character stands where it was placed (the cast\'s bus ops still move it)'),
 });
+
+// the platform rule's keys (worlds/controllable rules-platform.js, maneuvers.js, combat-melee.js read them), each where
+// the kernel runs it: in kernel/rules.gd (ported), in the fight (kernel/combat.gd: the combat_carried row says what of
+// it), or not at all (lost: an opt-in move the web runs and the export names). godot-marks.test.js holds this closed.
+export const PLATFORM_KEYS = Object.freeze({
+  ported: ['type', 'speed', 'turn', 'strafe', 'eye', 'gravity', 'fallGravity', 'jumpSpeed', 'maxFall', 'snap', 'step', 'coyote', 'buffer', 'jumpCut', 'airControl',
+    'turnMode', 'lookSens', 'move', 'moveYaw', 'faceRate', 'lane', 'jumpWindup', 'airJumps', 'airJumpMult', 'glideFall', 'collideRadius', 'collideHeight', 'stride',
+    'turnStepMin', 'turnStride', 'boostSpeed', 'boostMax', 'boostRegen', 'overheatRegen', 'boostUnlockFrac', 'boostTurnCost', 'jumpBoostCost'],
+  fight: ['strike', 'strikeCone', 'strikeContact', 'strikeCooldown', 'strikeDamage', 'strikeDur', 'strikeFx', 'strikeImpact', 'strikeLaunch', 'strikeReach', 'combo', 'comboCooldown', 'comboWindow'],
+  lost: {
+    space: 'space mode (6DoF drift)', liftAccel: 'space mode', spaceAccel: 'space mode', spaceBoostAccel: 'space mode', spaceBoostMax: 'space mode', spaceDamping: 'space mode', spaceMaxSpeed: 'space mode',
+    boostHover: 'the boost hover', hoverRise: 'the boost hover', hoverCoyote: 'the boost hover', boostInertia: 'the boost\'s slide', boostInertiaSpeed: 'the boost\'s slide',
+    chargeMax: 'the charged jump', chargeMult: 'the charged jump', chargeDash: 'the charged jump', kneel: 'the kneel',
+    dodge: 'the dodge', dodgeBoostCost: 'the dodge', dodgeDur: 'the dodge', dodgeOverheat: 'the dodge', dodgeSpeed: 'the dodge', dodgeTurns: 'the dodge', doubleTapWindow: 'the dodge',
+    tackle: 'the tackle', tackleDur: 'the tackle', tackleSpeed: 'the tackle', tackleCone: 'the tackle', tackleDamage: 'the tackle', tackleReach: 'the tackle',
+    loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
+  },
+});
+// a camera rule's keys the kernel does not run (opt-in): the follow camera's lock tracking (the lock is the web's)
+export const CAMERA_LOST = Object.freeze({ lockTrack: 'the lock tracking' });
+
+/** The opt-in moves a platform rule asks for that the kernel does not run, by name (each once). */
+export function platformLost(rule) {
+  if (!rule || rule.type !== 'platform') return [];
+  return [...new Set(Object.keys(rule).filter((k) => rule[k] != null && rule[k] !== false && PLATFORM_KEYS.lost[k]).map((k) => PLATFORM_KEYS.lost[k]))].sort();
+}
 
 // space.camera's values, by the camera rule each lowers to (gameworld/cameras.js)
 export const CAMERA_RULE = Object.freeze({ 'third-person': 'follow', 'first-person': 'eye', 'top-down': 'overhead', side: 'side', fixed: 'fixed' });
@@ -66,7 +95,7 @@ export const PAGE_MARKS = Object.freeze({
   soft: m(B, 'soft groups carry no colliders, as on the page'),
   repeats: m(B, 'baked into the GLB, one mesh per template'),
   ao: m(B, 'baked into the vertex colours'),
-  walk: m(P, 'kernel/walker.gd walks it, standing on a flat plane at score.ground and the box colliders: the page casts its ground onto the land\'s faces (a hill is walked through, a hollow floated over)'),
+  walk: m(P, 'kernel/walker.gd walks it, standing on a flat plane at score.ground and the box colliders: the page casts its ground onto the land\'s faces (a hill is walked through, a hollow floated over); a level\'s pilot on the walk or platform rule stands on the faces (RULE_MARKS)'),
   picks: m(A, 'pick popups are the page\'s'),
   tracers: m(A, 'tracers are not drawn'), planets: m(A, 'planets do not orbit'), movers: m(A, 'movers do not travel'), comets: m(A, 'comets are not drawn'),
   fields: m(A, 'field lines are not drawn'), surfaces: m(A, 'animated surfaces are not stepped'), heatSpheres: m(A, 'heat spheres are not drawn'),
@@ -147,7 +176,7 @@ export function gaitMark(name, row) {
 export const SYSTEM_MARKS = Object.freeze({
   resource: m(B, 'a stat resource, its keys and its HUD (kernel/stats.gd, hud.gd)'),
   stamina: m(B, 'one stat pool spent by every action (kernel/stats.gd)'),
-  unlock: m(A, 'a power\'s traversal move changes the platform rule, which the walker does not read (RULE_MARKS.platform)'),
+  unlock: m(B, 'a power\'s move merges into the pilot\'s platform rule the moment the bus hears it picked up (kernel/level.gd, rules.gd)'),
   transform: m(P, 'a form is a stat tier and a transfigure (kernel/cast.gd, drawn simpler)'),
   equip: m(B, 'powers from carried gear: stats and cues'),
   place: m(A, 'a pad wakes what stands asleep there through the cast, but the towers it wakes fire through a mind'),
@@ -175,7 +204,7 @@ export const LINK_MARKS = Object.freeze({
   open: m(B, 'an opening in the geometry'),
   door: m(P, 'a doorway is a trigger; its leaf does not swing'),
   stair: m(B, 'treads as faces over solid blocks'),
-  gap: m(P, 'jumped with the walker\'s fixed jump (RULE_MARKS.platform)'),
+  gap: m(B, 'jumped with the pilot\'s own rule (kernel/rules.gd)'),
 });
 
 // ── the mind (cosmos facet mind): the kernel has no mind. A value that asks nothing of one travels ─────────────────

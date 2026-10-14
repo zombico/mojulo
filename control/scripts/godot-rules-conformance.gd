@@ -1,0 +1,58 @@
+extends SceneTree
+# The Godot side of the rules conformance corpus (lib/graph/scene/rules-conformance.js): each scenario's pilot stepped by
+# kernel/rules.gd over its triangles and colliders with its held input, one canonical snapshot a frame.
+# scripts/godot-rules-conformance.mjs copies this beside the kernel in a scratch project, runs it headless and compares.
+#
+#   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>
+
+
+func _init() -> void:
+	var args := OS.get_cmdline_user_args()
+	var corpus = load("res://kernel/json_exact.gd").parse(FileAccess.get_file_as_string(args[0]))
+	var Bus = load("res://kernel/bus.gd")
+	var Rules = load("res://kernel/rules.gd")
+	var results := {}
+	for sc in corpus:
+		var r: Dictionary = sc["rule"]
+		var e: Dictionary = Rules.entity(sc["pos"], float(sc["heading"]))
+		var world := {"ground": Rules.make_ground(sc["tris"]), "colliders": sc["colliders"]}
+		var snaps := []
+		var cam = Rules.camera(sc["cameraAt"], 0.0) if sc.get("camera") is Dictionary else null
+		for inp in sc["input"]:
+			Rules.step(e, r, inp, float(sc["dt"]), world)
+			var snap: String = Bus.ss(_snapshot(e, r))
+			if cam != null:
+				Rules.camera_step(cam, sc["camera"], e, r, float(sc["dt"]), world)
+				snap += "|" + Bus.ss(_cam(cam))
+			snaps.append(snap)
+		results[sc["id"]] = snaps
+	var out := FileAccess.open(args[1], FileAccess.WRITE)
+	out.store_string(JSON.stringify(results))
+	out.close()
+	quit(0)
+
+
+static func _nano(x) -> float:
+	return floor(float(x) * 1e9 + 0.5) / 1e9
+
+
+func _cam(c: Dictionary) -> Dictionary:
+	return {"pos": (c["pos"] as Array).map(_nano), "heading": _nano(c["heading"]), "pitch": _nano(c.get("pitch", 0.0)), "lookAt": (c["lookAt"] as Array).map(_nano) if c["lookAt"] is Array else null}
+
+
+func _snapshot(e: Dictionary, r: Dictionary) -> Dictionary:
+	var s := {"pos": (e["pos"] as Array).map(_nano), "heading": _nano(e["heading"]), "pitch": _nano(e.get("pitch", 0.0)), "vz": _nano(e["vel"][2]),
+		"gait": _nano(e.get("gaitPhase", 0.0)), "moving": bool(e.get("moving", false))}
+	if r.get("type") == "platform":
+		s["grounded"] = bool(e.get("grounded", false))
+		s["coyote"] = _nano(e.get("coyote", 0.0))
+		s["buf"] = _nano(e.get("jumpBuf", 0.0))
+		s["wind"] = _nano(e.get("jumpWind", 0.0))
+		s["air"] = e.get("airJumpsUsed", 0)
+		s["loco"] = e.get("locomotion")
+		s["jumped"] = bool(e.get("jumped", false))
+		s["landed"] = bool(e.get("landed", false))
+		s["boosting"] = bool(e.get("boosting", false))
+		s["boost"] = null if e.get("boost") == null else _nano(e["boost"])
+		s["lock"] = bool(e.get("boostLock", false))
+	return s

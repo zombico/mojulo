@@ -61,6 +61,18 @@ exports[`extractEngineScore — the greybox seam (skin-over-mesh.plan.md phase 0
     },
   },
   "mechanics": [],
+  "pilot": {
+    "heading": 0,
+    "id": "walker",
+    "pos": [
+      0,
+      0,
+      0,
+    ],
+    "rule": {
+      "type": "walk",
+    },
+  },
   "player": "walker",
   "ref": "sk_score_fixture",
   "soundtrack": null,

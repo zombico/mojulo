@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { GODOT_MARKS, worstMark, RULE_MARKS, CAMERA_RULE, PAGE_MARKS, EVENT_MARKS, EVENT_CARRIED, SYSTEM_MARKS, LINK_MARKS, gaitMark, traversalMark, mindMark } from './godot-marks.js';
+import { GODOT_MARKS, worstMark, PLATFORM_KEYS, platformLost, RULE_MARKS, CAMERA_RULE, PAGE_MARKS, EVENT_MARKS, EVENT_CARRIED, SYSTEM_MARKS, LINK_MARKS, gaitMark, traversalMark, mindMark } from './godot-marks.js';
 import { MECHANIC_MARKS, MECHANIC_SAMPLES, GODOT_MECHANICS, GODOT_RULES, LEDGER_MARKS, SHELL_MARKS, assessPortability, exportVerdict, kitMark } from './engine-portability.js';
 import { BUS_ABI, BUS_VERBS, CAST_OPS, VERB_ROW, ctrlRow, busCoverage } from './bus-abi.js';
 import { extractEngineScore, godotReading } from './engine-score.js';
@@ -41,6 +41,34 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(Object.keys(RULE_MARKS).filter((k) => !rules.includes(k))).toEqual([]);
     for (const [cam, rule] of Object.entries(CAMERA_RULE)) expect(marked(RULE_MARKS[rule]), cam).toBe(true);
     expect(Object.keys(CAMERA_RULE).sort()).toEqual(Object.keys(capabilityRegistry().space.camera.values).sort());
+  });
+
+  it('every key the platform rule reads is where the kernel runs it: ported, the fight\'s, or named lost', () => {
+    const keys = new Set(['type']);
+    for (const f of ['rules-platform', 'maneuvers', 'combat-melee']) for (const x of SRC(`lib/graph/worlds/controllable/${f}.js`).matchAll(/\br\.([A-Za-z]+)/g)) keys.add(x[1]);
+    // combat-melee reads the walk-shared eye and speed too: those are the rule's own, ported
+    const placed = new Set([...PLATFORM_KEYS.ported, ...PLATFORM_KEYS.fight, ...Object.keys(PLATFORM_KEYS.lost)]);
+    expect([...keys].filter((k) => !placed.has(k)), 'place each in godot-marks.js PLATFORM_KEYS').toEqual([]);
+    expect([...placed].filter((k) => !keys.has(k)), 'a key the rule no longer reads').toEqual([]);
+    // a ported key is one kernel/rules.gd reads, by name
+    const gd = SRC('lib/graph/scene/godot-kernel/rules.gd');
+    expect(PLATFORM_KEYS.ported.filter((k) => !gd.includes(`"${k}"`))).toEqual([]);
+    expect(platformLost({ type: 'platform', dodge: true, dodgeDur: 0.4, kneel: false, boostHover: 2 })).toEqual(['the boost hover', 'the dodge']);
+    expect(platformLost({ type: 'walk', dodge: true })).toEqual([]);
+    // the export names them, and another walker that stands
+    const payload = { entities: [{ id: 'hero', pilotable: true, rule: { type: 'platform', dodge: true }, transform: { pos: [0, 0, 1] } }, { id: 'npc', rule: { type: 'platform' } }] };
+    const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: extractEngineScore({ ref: 'r', manifest: {} }, payload) }], engine: 'godot' });
+    expect(p.flags.join('\n')).toMatch(/rule 'platform' \(the pilot\): the kernel runs it but for the dodge/);
+    expect(p.flags.join('\n')).toMatch(/1 character besides the pilot\): only the pilot runs its rule/);
+  });
+
+  it('every walk rule key kernel/rules.gd reads by name', () => {
+    const src = SRC('lib/graph/worlds/controllable/rules-basic.js');
+    const body = src.slice(src.indexOf('function walk('), src.indexOf('function follow('));
+    const keys = [...new Set([...body.matchAll(/\br\.([A-Za-z]+)/g)].map((x) => x[1]))];
+    expect(keys.length).toBeGreaterThan(8);
+    const gd = SRC('lib/graph/scene/godot-kernel/rules.gd');
+    expect(keys.filter((k) => !gd.includes(`"${k}"`))).toEqual([]);
   });
 
   it('every events key the export carries, and every one it drops is named', () => {
@@ -185,6 +213,8 @@ const PROOF = {
   beat: ['lib/graph/scene/godot-beat.test.js', 'a headless Godot keeps the beat'],
   combat: ['lib/graph/scene/combat-conformance.test.js', 'the Godot kernel is equal to the web, frame by frame'],
   markers: ['lib/graph/scene/godot-markers.test.js', 'a headless Godot draws them where its bus puts them'],
+  rules: ['lib/graph/scene/godot-rules.test.js', 'kernel/rules.gd is equal to the web'],
+  cameras: ['lib/graph/scene/godot-rules.test.js', 'drive the Godot camera as they drive the page'],
 };
 const EVIDENCE = {
   bus: {
@@ -193,7 +223,7 @@ const EVIDENCE = {
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },
-  rule: { walk: 'matrix', follow: 'matrix', eye: 'matrix' },
+  rule: { walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
   event: {
     reactions: 'corpus', watches: 'corpus', sequences: 'corpus', timers: 'corpus', vars: 'corpus', sources: 'chapter', initial: 'corpus',
     entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter',

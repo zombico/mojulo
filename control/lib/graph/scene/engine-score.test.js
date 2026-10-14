@@ -51,6 +51,7 @@ describe('extractEngineScore — the greybox seam (skin-over-mesh.plan.md phase 
     const score = extractEngineScore(sketch(), payload());
     expect('posture' in score).toBe(false);
     expect(score.ledger.greybox_declared).toBeUndefined();
+    // (re-pinned for the `pilot` row: the walker's rule as data, which kernel/rules.gd runs; godot-rules.test.js)
     // pin the whole unstamped shape so any future stamp leakage fails here first
     expect(score).toMatchSnapshot();
   });

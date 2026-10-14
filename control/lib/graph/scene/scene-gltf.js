@@ -1193,7 +1193,11 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // Water renders in its own translucent pass; pull it out before surface-card expansion
   // exactly as emitThreeWorld does (water quads carry no cards).
   const waterRaw = faceList.filter((f) => f && f.water);
-  const expanded0 = expandSurfaceCards(faceList.filter((f) => !(f && f.water)), { light });
+  // Blend faces (a second tile over the ground) go LAST: the page draws them in their own pass and de-collides the rest
+  // without them, so here they are lifted over the ground they lie on and the ground stays where the page stands its
+  // walkers (a lift goes to the later face). A world without blend faces keeps its order, byte-identical.
+  const opaque = faceList.filter((f) => !(f && f.water));
+  const expanded0 = expandSurfaceCards(opaque.some((f) => f && f.blend) ? [...opaque.filter((f) => !f.blend), ...opaque.filter((f) => f && f.blend)] : opaque, { light });
   // De-collide ONCE over the whole opaque face set, exactly where emitThreeWorld does it —
   // coincident faces that land in DIFFERENT render groups (separate glTF nodes, the worst
   // z-fight case in an importer) get lifted apart too. Groups below then mesh with

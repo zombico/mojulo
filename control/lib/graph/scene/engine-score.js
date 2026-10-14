@@ -23,7 +23,7 @@ import { weatherScore } from './weather-score.js';
 import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
 import { levelSound } from './engine-sound.js';
-import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS } from './godot-marks.js';
+import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS, CAMERA_LOST, platformLost } from './godot-marks.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -153,15 +153,47 @@ export function godotReading(payload) {
     const r = (by[t] ||= { count: 0 });
     r.count++;
     if (e.isCamera) r.camera = true;
-    if (player != null && e.id === player) r.pilot = true;
+    if (player != null && e.id === player) {
+      r.pilot = true;
+      const lost = platformLost(e.rule);
+      if (lost.length) r.lost = lost;
+    }
   }
   const channels = Object.keys(payload || {}).filter((k) => PAGE_MARKS[k] && !PAGE_MARKS[k].option && PAGE_MARKS[k].godot !== 'built' && !LEDGERED.has(k) && filled(payload[k])).sort();
   const ev = payload?.events && typeof payload.events === 'object' ? payload.events : {};
   const events = Object.keys(ev).filter((k) => filled(ev[k]) && EVENT_MARKS[k]?.godot !== 'built').sort();
   // the camera the page drives (payload.camera: { rule, target, … }), beside any camera entity
   const camRule = payload?.camera && typeof payload.camera.rule === 'string' ? payload.camera.rule : null;
-  if (camRule) { const r = (by[camRule] ||= { count: 0 }); r.count++; r.camera = true; }
+  if (camRule) {
+    const r = (by[camRule] ||= { count: 0 });
+    r.count++; r.camera = true;
+    // the kernel steps the page's camera when it watches the pilot it walks by its rule (kernel/level.gd _build_camera_rule)
+    const pe = (payload?.entities ?? []).find((e) => e?.id === player);
+    if (payload.camera.target !== player || !(pe?.rule?.type === 'walk' || pe?.rule?.type === 'platform')) r.unwatched = String(payload.camera.target ?? '');
+    const lost = Object.keys(CAMERA_LOST).filter((k) => payload.camera[k] != null && payload.camera[k] !== false).map((k) => CAMERA_LOST[k]);
+    if (lost.length) r.lost = [...(r.lost || []), ...lost];
+  }
   return { rules: by, channels, events };
+}
+
+// the GLB nodes (a face's `node`, else its `group`: scene-gltf.js) whose every face is a blend face
+function blendOnlyNodes(faces) {
+  const by = new Map();
+  for (const f of Array.isArray(faces) ? faces : []) {
+    if (!f || f.water || f.decal === 'shadow' || f.decal === 'ink') continue;
+    const k = typeof f.node === 'string' && f.node ? f.node : typeof f.group === 'string' ? f.group : 'static';
+    by.set(k, (by.get(k) ?? true) && !!f.blend);
+  }
+  return [...by].filter(([, all]) => all).map(([k]) => k).sort();
+}
+
+// the pilot the level-equivalence key names first (a pilotable entity, else the first walker), when it walks or runs
+function pilotRow(payload) {
+  const ents = Array.isArray(payload?.entities) ? payload.entities : [];
+  const e = ents.find((x) => x?.pilotable === true) ?? ents.find((x) => x?.rule?.type === 'walk' || x?.rule?.type === 'platform');
+  if (!e || (e.rule?.type !== 'walk' && e.rule?.type !== 'platform')) return null;
+  const t = e.transform && typeof e.transform === 'object' ? e.transform : {};
+  return { id: String(e.id), rule: JSON.parse(JSON.stringify(e.rule)), pos: Array.isArray(t.pos) && t.pos.length >= 3 ? t.pos.slice(0, 3) : [0, 0, 0], heading: Number.isFinite(t.heading) ? t.heading : 0 };
 }
 
 const playerOf = (payload) => (payload?.entities ?? []).find((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform')?.id ?? null;
@@ -339,8 +371,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   }
 
   const reading = godotReading(payload);
+  const pilot = pilotRow(payload);
+  const blendNodes = blendOnlyNodes(payload.faces);
   // only when some rule does not run whole: a world the kernel walks whole keeps its score byte-identical
-  if (Object.keys(reading.rules).some((t) => RULE_MARKS[t]?.godot !== 'built')) ledger.rules_carried = { by: reading.rules, note: 'the motion and camera rules the level\'s entities run, by type (pilot: the player\'s; camera: the camera\'s); kernel/walker.gd runs walk, follow, eye and the platform rule\'s jump (godot-marks.js RULE_MARKS)' };
+  if (Object.entries(reading.rules).some(([t, r]) => RULE_MARKS[t]?.godot !== 'built' || r.lost || r.unwatched != null || ((t === 'walk' || t === 'platform') && r.count > (r.pilot ? 1 : 0)))) ledger.rules_carried = { by: reading.rules, note: 'the motion and camera rules the level\'s entities run, by type (pilot: the player\'s; camera: the camera\'s; lost: the opt-in moves of the pilot\'s platform rule the kernel does not run); kernel/rules.gd runs the pilot\'s walk or platform rule, kernel/walker.gd follow and eye (godot-marks.js RULE_MARKS)' };
   if (reading.channels.length) ledger.channels_carried = { keys: reading.channels, note: 'the page channels the world fills that a Godot export does not carry whole (godot-marks.js PAGE_MARKS says what each loses)' };
   if (reading.events.length) ledger.events_carried = { keys: reading.events, note: 'the events keys bus.json and score.json drop or carry in part (godot-marks.js EVENT_MARKS)' };
 
@@ -426,6 +460,15 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // with a walk/platform rule. Emitters hide its exported body — the
     // operator IS the walker; leaving it renders a body double at spawn.
     player: playerOf(payload),
+    // the pilot's motion rule as data, in RECIPE units like bus.json (score.metersPerUnit is the mesh's scale over them):
+    // kernel/rules.gd runs a walk or a platform pilot as the web runs it, standing on the GLB's own faces. Absent ⇒ no key.
+    ...(pilot ? { pilot } : {}),
+    // the GLB nodes that are all blend faces (a second tile over the ground, which the page draws in its own pass at the
+    // ground's height): the kernel's land leaves them out, so its pilot stands where the page's does. Absent ⇒ no key.
+    ...(blendNodes.length ? { blendNodes } : {}),
+    // the camera the page drives (payload.camera: { rule, target, … }) as data, in recipe units: kernel/rules.gd steps
+    // follow, eye, overhead, side and fixed after the pilot, as the page's world steps its camera. Absent ⇒ no key.
+    ...(payload.camera && typeof payload.camera.rule === 'string' ? { camera: JSON.parse(JSON.stringify(payload.camera)) } : {}),
     game: extras['moj:game'] ?? null,
     soundtrack: levelSoundtrack(sketch, payload)?.id ?? null,
     // the level's action sounds and fight score (engine-sound.js): absent ⇒ no key, byte-identical

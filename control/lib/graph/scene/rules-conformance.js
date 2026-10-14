@@ -1,0 +1,160 @@
+/**
+ * THE RULES CONFORMANCE CORPUS — the motion rules the Godot kernel runs (kernel/rules.gd: walk, and the ground half of
+ * platform) against the web's own (worlds/controllable rules-basic.js, rules-platform.js), frame by frame. Each scenario
+ * is one pilot on a small piece of land (triangles, as the page's ground raycast meets them: level-equivalence.js
+ * faceGround), its colliders and its held input a frame; the web side steps it through the level runtime (level-sim.js,
+ * the harness's own web), the Godot side through rules.gd, and both print one canonical snapshot a frame: the pose to
+ * 1e-9 and the rule's state (grounded, coyote, the jump buffer, the gait).
+ *
+ *   SCENARIOS, randomScenarios(n, seed), corpus({ random, seed }), runRules(sc) → [snapshot], scenarioById(id, opts)
+ *
+ * The hand scenarios pick one case per path through the rules (a tank turn, a look, a strafe, a slope, a wall, a probe;
+ * a jump, its cut, its buffer, coyote time, a wind-up, an air jump, a glide, a ledge stepped up, a ledge fallen off, an
+ * embed climbed out of; world and lane movement; a boost, its gauge, its lock); the seeded ones throw random input at a random heightfield with boxes.
+ */
+import { simLevel } from '../game/level-sim.js';
+import { faceGround } from '../game/level-equivalence.js';
+import { mulberry32 } from '../vegetation/grow.js';
+
+export const DT = 1 / 30;
+const clone = (x) => JSON.parse(JSON.stringify(x));
+
+// ── land: quads as faces (corners), their triangles as faceGround fans them ─────────────────────────────────────────
+const quad = (x0, y0, x1, y1, z = 0) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]] });
+const ramp = (x0, x1, y0, y1, z0, z1) => ({ corners: [[x0, y0, z0], [x1, y0, z1], [x1, y1, z1], [x0, y1, z0]] });
+const box = (min, max) => ({ min, max });
+export const trianglesOf = (faces) => faces.flatMap((f) => f.corners.slice(1, -1).map((_, i) => [f.corners[0], f.corners[i + 1], f.corners[i + 2]]));
+
+const run = (...parts) => parts.flatMap(([n, input]) => Array.from({ length: n }, () => ({ ...input })));
+const pilot = (rule, pos = [0, 0, 1.7], heading = 0) => ({ id: 'hero', pilotable: true, rule, transform: { pos, heading }, body: { type: 'none' } });
+
+const FLAT = [quad(-40, -40, 40, 40)];
+const STEPPED = [quad(-40, -40, 4, 40), quad(4, -40, 8, 40, 0.3), quad(8, -40, 12, 40, 1.2), quad(12, -40, 40, 40, 1.2)];
+
+export const SCENARIOS = [
+  { id: 'walk-tank', about: 'a tank turn and a walk on flat land, eye above the feet',
+    entity: pilot({ type: 'walk', eye: 1.7 }), faces: FLAT, input: run([20, { forward: 1 }], [15, { forward: 1, turn: 0.6 }], [10, { turn: -1 }], [10, { forward: -1 }]) },
+  { id: 'walk-slope', about: 'up a ramp and down it, the feet on the faces under the eye',
+    entity: pilot({ type: 'walk', eye: 1.7, speed: 5 }), faces: [quad(-20, -10, 0, 10), ramp(0, 10, -10, 10, 0, 3), quad(10, -10, 30, 10, 3)], input: run([70, { forward: 1 }], [20, { turn: 1 }], [70, { forward: 1 }]) },
+  { id: 'walk-wall', about: 'into a box, the footprint stops and slides along it',
+    entity: pilot({ type: 'walk', eye: 1.7, collideRadius: 0.4, collideHeight: 1.8 }, [0, 0, 1.7], 0.3), faces: FLAT, colliders: [box([4, -6, 0], [6, 6, 3])], input: run([60, { forward: 1 }], [20, { forward: 1, turn: 0.5 }]) },
+  { id: 'walk-look', about: 'a look walker: the mouse turns and pitches it, A/D turns it (keyTurn), it strafes',
+    entity: pilot({ type: 'walk', eye: 1.6, turnMode: 'look', keyTurn: true, lookPitch: true, strafe: 0.8 }), faces: FLAT, input: run([10, { lookDX: 40, lookDY: -12 }], [20, { forward: 1, strafe: 1 }], [10, { turn: 1, forward: 0.5 }], [10, { lookDX: -300, lookDY: 900 }]) },
+  { id: 'walk-probe', about: 'a probe walker steps a tread, never the shelf above it (lower than its eye)',
+    entity: pilot({ type: 'walk', eye: 1.7, probe: 0.5 }), faces: [quad(-10, -10, 3, 10), quad(3, -10, 20, 10, 0.4), quad(6, -10, 20, 10, 1.2)], input: run([50, { forward: 1 }]) },
+  { id: 'walk-off-the-land', about: 'past the last face: no ground, the height kept',
+    entity: pilot({ type: 'walk', eye: 1.7 }), faces: [quad(-5, -5, 5, 5)], input: run([60, { forward: 1 }]) },
+  { id: 'platform-jump', about: 'a jump held to its height, a jump cut short, a buffered press landing',
+    entity: pilot({ type: 'platform', eye: 1.7, jumpCut: 2 }), faces: FLAT, input: run([5, {}], [2, { jump: 1, jumpHeld: 1 }], [20, { jumpHeld: 1, forward: 1 }], [30, {}], [2, { jump: 1, jumpHeld: 1 }], [40, { forward: 1 }], [1, { jump: 1, jumpHeld: 1 }], [30, {}]) },
+  { id: 'platform-ledges', about: 'a step up a low ledge, a high one in the way, a jump onto it, a fall off its end',
+    entity: pilot({ type: 'platform', eye: 1.7, collideRadius: 0.3 }), faces: STEPPED, colliders: [box([8, -40, 0], [12, 40, 1.2])], input: run([45, { forward: 1 }], [3, { forward: 1, jump: 1, jumpHeld: 1 }], [30, { forward: 1, jumpHeld: 1 }], [20, { turn: 1 }], [80, { forward: 1 }]) },
+  { id: 'platform-coyote', about: 'off a ledge and a press inside the grace still jumps',
+    entity: pilot({ type: 'platform', eye: 1.7, coyote: 0.2 }, [0, 0, 4.7]), faces: [quad(-10, -10, 2, 10, 3), quad(-10, -10, 40, 10)], input: run([12, { forward: 1 }], [2, { forward: 1, jump: 1, jumpHeld: 1 }], [40, { forward: 1, jumpHeld: 1 }]) },
+  { id: 'platform-windup-airjump-glide', about: 'a wind-up before the launch, an air jump, a glide down',
+    entity: pilot({ type: 'platform', eye: 1.7, jumpWindup: 0.15, airJumps: 1, glideFall: 2, airJumpMult: 0.8 }), faces: FLAT, input: run([3, { jump: 1, jumpHeld: 1 }], [18, { jumpHeld: 1 }], [2, { jump: 1, jumpHeld: 1 }], [80, { jumpHeld: 1, forward: 0.5 }]) },
+  { id: 'platform-embed', about: 'run into land rising faster than a step: climbed out of, never fallen through',
+    entity: pilot({ type: 'platform', eye: 1.7, speed: 9, collideHeight: 1.8 }), faces: [quad(-10, -10, 2, 10), ramp(2, 4, -10, 10, 0, 1.4), quad(4, -10, 20, 10, 1.4)], input: run([40, { forward: 1 }]) },
+  { id: 'platform-world', about: 'world movement: W up the screen whichever way the body faces, the body turning toward the run',
+    entity: pilot({ type: 'platform', eye: 1.7, move: 'world', moveYaw: Math.PI / 2, faceRate: 8 }), faces: FLAT, input: run([20, { forward: 1 }], [20, { turn: 1 }], [20, { forward: -1, strafe: -1 }]) },
+  { id: 'platform-lane', about: 'a side-scroller\'s lane bending at a corner, the body held on the line',
+    entity: pilot({ type: 'platform', eye: 1.7, move: 'lane', lane: [[0, 0], [10, 0], [14, 6]] }), faces: FLAT, input: run([60, { turn: 1 }], [20, { strafe: -1 }], [5, { jump: 1, jumpHeld: 1, turn: 1 }], [20, { turn: 1 }]) },
+  { id: 'platform-boost', about: 'F held: the dash at boost speed, plain F forward, a strafe dash, a boost in the air',
+    entity: pilot({ type: 'platform', eye: 1.7, boostSpeed: 14 }), faces: FLAT, input: run([10, { boost: 1 }], [10, { boost: 1, strafe: 1 }], [10, { boost: 1, forward: -1 }], [2, { boost: 1, jump: 1, jumpHeld: 1 }], [20, { boost: 1, forward: 1, jumpHeld: 1 }], [10, { forward: 1 }]) },
+  { id: 'platform-gauge', about: 'a boost gauge drained by thrust, a jump and each flip of the dash, locked empty, refilled cold',
+    entity: pilot({ type: 'platform', eye: 1.7, boostMax: 1.5, boostRegen: 0.6, overheatRegen: 1 }), faces: FLAT, input: run([10, { boost: 1, forward: 1 }], [6, { boost: 1, strafe: 1 }], [6, { boost: 1, strafe: -1 }], [2, { boost: 1, jump: 1, jumpHeld: 1 }], [40, { boost: 1, forward: 1 }], [20, { boost: 1, forward: 1 }], [60, {}], [15, { boost: 1, forward: 1 }]) },
+  { id: 'platform-look', about: 'a look platformer: the mouse turns and pitches it, A/D strafes it',
+    entity: pilot({ type: 'platform', eye: 1.7, turnMode: 'look', strafe: 0.7, airControl: 0.4 }), faces: FLAT, input: run([10, { lookDX: 80, lookDY: 30 }], [20, { forward: 1, turn: -1 }], [2, { jump: 1, jumpHeld: 1, forward: 1 }], [25, { forward: 1, jumpHeld: 1 }]) },
+];
+
+// the camera rules, each watching a pilot run a short course (follow, eye, overhead, side, fixed)
+const COURSE = run([10, {}], [30, { forward: 1, turn: 0.4 }], [2, { forward: 1, jump: 1, jumpHeld: 1 }], [20, { forward: 1, jumpHeld: 1 }], [20, { turn: -1 }], [30, { forward: 1 }]);
+const LOOK_COURSE = run([10, { lookDX: 60, lookDY: 25 }], [30, { forward: 1, lookDX: -10 }], [20, { lookDY: -60 }]);
+export const CAMERA_SCENARIOS = [
+  { id: 'camera-follow', about: 'a chase camera easing behind and above, looking ahead of the pilot',
+    entity: pilot({ type: 'platform', eye: 1.7 }), faces: STEPPED, input: COURSE, camera: { rule: 'follow', target: 'hero', dist: 7, height: 2.5, shoulder: 0.6, lead: 3, lookH: 1.2, lerp: 6 } },
+  { id: 'camera-follow-reverse-pitch', about: 'the reverse chase swinging round, pitched with a look pilot',
+    entity: pilot({ type: 'platform', eye: 1.7, turnMode: 'look' }), faces: FLAT, input: LOOK_COURSE, camera: { rule: 'follow', target: 'hero', reverse: true, pitchFollow: 0.7 }, at: [3, -8, 4] },
+  { id: 'camera-eye', about: 'first person: the eye above the target, its heading and pitch',
+    entity: pilot({ type: 'walk', eye: 1.6, turnMode: 'look', lookPitch: true }), faces: FLAT, input: LOOK_COURSE, camera: { rule: 'eye', target: 'hero', height: 0.1 } },
+  { id: 'camera-overhead', about: 'the ¾ overhead, north up the screen, a world-movement pilot under it',
+    entity: pilot({ type: 'platform', eye: 1.7, move: 'world' }), faces: STEPPED, input: run([40, { forward: 1, turn: 0.5 }], [30, { forward: -1 }]), camera: { rule: 'overhead', target: 'hero', tilt: 1.6, dist: 12 } },
+  { id: 'camera-side', about: 'the side camera square to a bending lane, swinging round the bend',
+    entity: pilot({ type: 'platform', eye: 1.7, move: 'lane', lane: [[0, 0], [10, 0], [14, 6], [14, 20]] }), faces: FLAT, input: run([120, { turn: 1 }]), camera: { rule: 'side', target: 'hero' } },
+  { id: 'camera-fixed', about: 'fixed stations cutting as the pilot passes, held against flicker',
+    entity: pilot({ type: 'walk', eye: 1.7, speed: 4 }), faces: FLAT, input: run([90, { forward: 1 }], [30, { turn: 1 }], [40, { forward: 1 }]),
+    camera: { rule: 'fixed', target: 'hero', hold: 1, stations: [{ at: [0, 8, 5], focus: [0, 0] }, { at: [6, -8, 5], focus: [6, 0, 0.5] }, { at: [12, 8, 5], focus: [12, 0] }] } },
+];
+
+// random input over a random heightfield (a grid of quads at seeded heights) with seeded boxes
+export function randomScenarios(n = 8, seed = 1) {
+  const rand = mulberry32(seed);
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const out = [];
+  for (let s = 0; s < n; s++) {
+    const faces = [];
+    for (let x = -4; x < 4; x++) for (let y = -4; y < 4; y++) {
+      const h = () => r2(rand() * 1.5);
+      faces.push({ corners: [[x * 4, y * 4, h()], [x * 4 + 4, y * 4, h()], [x * 4 + 4, y * 4 + 4, h()], [x * 4, y * 4 + 4, h()]] });
+    }
+    const colliders = Array.from({ length: 3 }, () => { const cx = r2(rand() * 20 - 10), cy = r2(rand() * 20 - 10); return box([cx, cy, 0], [r2(cx + 1 + rand() * 2), r2(cy + 1 + rand() * 2), r2(0.5 + rand() * 2)]); });
+    const platform = rand() < 0.6;
+    const rule = platform
+      ? { type: 'platform', eye: 1.7, collideRadius: 0.3, ...(rand() < 0.5 ? { turnMode: 'look' } : {}), ...(rand() < 0.3 ? { jumpCut: 3 } : {}), ...(rand() < 0.4 ? { boostMax: r2(0.5 + rand() * 2) } : {}) }
+      : { type: 'walk', eye: 1.7, collideRadius: 0.3, strafe: 0.5, ...(rand() < 0.4 ? { turnMode: 'look', keyTurn: true } : {}) };
+    const input = [];
+    for (let k = 0; k < 6; k++) {
+      const pressJump = platform && rand() < 0.4;
+      const one = { forward: r2(rand() * 2 - 0.6), turn: r2(rand() * 2 - 1), strafe: rand() < 0.3 ? r2(rand() * 2 - 1) : 0, lookDX: rand() < 0.3 ? r2(rand() * 60 - 30) : 0, ...(platform && rand() < 0.25 ? { boost: 1 } : {}) };
+      input.push(...run([2, pressJump ? { ...one, jump: 1, jumpHeld: 1 } : one], [8 + Math.floor(rand() * 20), { ...one, jumpHeld: pressJump && rand() < 0.5 ? 1 : 0 }]));
+    }
+    out.push({ id: `random-${seed}-${s}`, about: 'seeded input over a seeded heightfield with boxes', entity: pilot(rule, [r2(rand() * 4 - 2), r2(rand() * 4 - 2), 5], r2(rand() * 6)), faces, colliders, input });
+  }
+  return out;
+}
+
+// ── the snapshot: the same canonical string on both sides ────────────────────────────────────────────────────────
+function canon(v) {
+  if (v === null || v === undefined) return 'null';
+  if (Array.isArray(v)) return `[${v.map(canon).join(',')}]`;
+  if (typeof v === 'object') return `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}`;
+  return JSON.stringify(v);
+}
+// the pose to 1e-9: a step's sine and cosine agree between the engines' libraries to the last bit almost, not always
+const nano = (x) => Math.floor(x * 1e9 + 0.5) / 1e9;
+
+export function snapshot(e) {
+  const t = e.transform;
+  return canon({
+    pos: t.pos.map(nano), heading: nano(t.heading), pitch: nano(t.pitch || 0), vz: nano(e.vel[2]),
+    gait: nano(e.gaitPhase || 0), moving: !!e.moving,
+    ...(e.rule.type === 'platform' ? { grounded: !!e.grounded, coyote: nano(e.coyote ?? 0), buf: nano(e.jumpBuf ?? 0), wind: nano(e.jumpWind ?? 0), air: e.airJumpsUsed ?? 0, loco: e.locomotion, jumped: !!e.jumped, landed: !!e.landed, boosting: !!e.boosting, boost: e.boost == null ? null : nano(e.boost), lock: !!e.boostLock } : {}),
+  });
+}
+
+// a camera: its pose and its look point to 1e-9
+const camSnap = (c) => canon({ pos: c.transform.pos.map(nano), heading: nano(c.transform.heading), pitch: nano(c.transform.pitch || 0), lookAt: c.lookAt ? c.lookAt.map(nano) : null });
+
+export function runRules(sc) {
+  const camera = sc.camera ? { ...clone(sc.camera), ...(sc.at ? { transform: { pos: sc.at.slice(), heading: 0 } } : {}) } : undefined;
+  const sim = simLevel({ entities: [clone(sc.entity)], events: {}, ...(sc.colliders ? { colliders: clone(sc.colliders) } : {}), camera }, { ground: faceGround(sc.faces) });
+  const snaps = [];
+  for (const inp of sc.input) {
+    for (const k of Object.keys(sim.input)) delete sim.input[k];
+    Object.assign(sim.input, inp);
+    sim.frame(DT);
+    snaps.push(snapshot(sim.world.byId.hero) + (camera ? `|${camSnap(sim.world.camera)}` : ''));
+  }
+  return snaps;
+}
+
+// what the Godot side reads: the rule, the start pose, the triangles, the colliders, the input
+export function corpus({ random = 8, seed = 1 } = {}) {
+  return [...SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].map((sc) => clone({
+    id: sc.id, rule: sc.entity.rule, pos: sc.entity.transform.pos, heading: sc.entity.transform.heading,
+    tris: trianglesOf(sc.faces), colliders: sc.colliders || [], input: sc.input, dt: DT,
+    // the camera's rule as the controllable engine seats it (core.js createWorld: { type: camera.rule, ...camera })
+    ...(sc.camera ? { camera: { type: sc.camera.rule, ...sc.camera }, cameraAt: sc.at || [0, 0, 0] } : {}),
+  }));
+}
+
+export const scenarioById = (id, { random = 8, seed = 1 } = {}) => [...SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].find((s) => s.id === id);

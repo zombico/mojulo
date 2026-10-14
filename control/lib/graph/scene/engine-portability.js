@@ -140,6 +140,13 @@ function godotFlags(score) {
   for (const [type, row] of Object.entries(rules.by || {})) {
     const mk = RULE_MARKS[type];
     if (!mk) { out.push(flag('absent', `rule '${type}' is not marked (godot-marks.js RULE_MARKS)`, true)); continue; }
+    // the pilot's rule runs whole but for the opt-in moves the kernel does not (PLATFORM_LOST), each named
+    if (row.lost && row.lost.length) out.push(flag('approximated', `rule '${type}' (${row.camera && !row.pilot ? 'the camera' : 'the pilot'}): the kernel runs it but for ${row.lost.join(', ')} (godot-marks.js PLATFORM_KEYS, CAMERA_LOST)`, false));
+    // the page's camera runs in the kernel only when it watches the pilot the kernel walks by its rule
+    if (row.unwatched != null) out.push(flag('approximated', `rule '${type}' (the camera) watches '${row.unwatched}', not a pilot the kernel walks by its rule: the walker's own first-person or spring-arm view stands in`, false));
+    // only the pilot runs its walk or platform rule in the kernel: another walker stands where it was placed
+    const others = (type === 'walk' || type === 'platform') ? row.count - (row.pilot ? 1 : 0) : 0;
+    if (others > 0) out.push(flag('approximated', `rule '${type}' (${others} character${others > 1 ? 's' : ''} besides the pilot): only the pilot runs its rule in the kernel; ${others > 1 ? 'they stand' : 'it stands'} where placed`, false));
     if (mk.godot === 'built') continue;
     const who = row.pilot ? 'the pilot' : row.camera ? 'the camera' : `${row.count} character${row.count > 1 ? 's' : ''}`;
     out.push(flag(mk.godot, `rule '${type}' (${who}): ${mk.how}`, mk.godot === 'absent' && (row.pilot || !row.camera)));

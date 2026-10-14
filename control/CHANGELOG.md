@@ -1225,6 +1225,29 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
 - **The honest baseline.** The sweep's Godot survivors fall from 56 to 8 of 500 (21 to 0 near the probes): the mind,
   the gaits, the story and the cameras were counted as travelling and do not. The walker's ground is a flat plane
   under a hilly trail (marked approximated, found by the matrix).
+- **The pilot walks and runs by the web's own rules** (kernel 0.23.0). `kernel/rules.gd` ports the walk rule and the
+  ground half of the platform rule (run; tank, look, world and lane turning; the jump with its cut, buffer, coyote
+  time, wind-up, air jumps and glide; boost and its gauge; the colliders slid along), and the pilot stands on the
+  level's own faces (the GLB's triangles, as the page's ground raycast meets them), not on a flat plane. The score
+  carries the pilot's rule (`score.pilot`, recipe units). A rules corpus (`rules-conformance.js`,
+  `scripts/godot-rules-conformance.mjs`) holds it equal to the web's frame by frame, and a whole level climbs a ramp
+  and jumps a ledge key for key in both engines, the pilot included. A power's move (`game.powers`) merges into the
+  rule when the bus hears it picked up, as the page grants it (`level-sim.js` models it too). The platform rule's
+  opt-in moves the kernel does not run (space, the boost hover and slide, the charged jump, the kneel, the dodge, the
+  tackle, a loadout) are named per level (`PLATFORM_KEYS`), and a walker besides the pilot is flagged as standing.
+  Walk, platform, the platformer kit, unlock, the gap link and the metroidvania idiom are built.
+- **The page's cameras travel** (kernel 0.23.0): follow, eye, overhead, side and fixed run in `kernel/rules.gd` after
+  the pilot, held equal by the same corpus, and drive the level's own Camera3D as the page's `__driveCamera` drives
+  its camera (a whole level checks the pose every frame against the page's own driver, lifted out of its source).
+  The score carries the page's camera (`score.camera`). A camera that watches anything but a pilot the kernel walks,
+  and a follow camera's lock tracking, are flagged. The page pulls its chase camera in by its 3-unit stand-off even
+  with no wall between (a twin bug, named by a failing test in `godot-rules.test.js`); Godot matches it.
+- **The export's ground is the page's.** The GLB de-collided its blend tiles together with the ground they lie on,
+  lifting the ground itself a fraction of a millimetre where the page leaves it; blend faces now go last (the page
+  draws them in their own pass), and `score.blendNodes` names their nodes so the kernel's land leaves them out. The
+  harness steps the world in the frame a level ends, as the page does. The fixture matrix reports how far a run
+  drifts (`keyDrift`: the bus frames that part, the largest gap in quanta) and keeps both engines' keys beside the
+  pack.
 
 ### Mascot characters: a character read from a promise, not a life
 
