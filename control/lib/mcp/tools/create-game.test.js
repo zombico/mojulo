@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createGameHandler, getGameVocabHandler, mintGame } from './create-game.js';
+import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
 
 beforeEach(() => {
@@ -38,6 +39,34 @@ const contract = (levelRef) => ({
 });
 
 describe('create_game — mint + promotion discipline', () => {
+  it('scores the whole game in one style: electronic when most of its levels read so', async () => {
+    for (const ref of ['lab-1', 'lab-2', 'crypt-9']) SketchRepository.create({ ref, title: ref === 'crypt-9' ? 'the old crypt' : 'neon research lab', manifest: { kind: 'orbit-view', scenario: 'circular', game: contract(ref) } });
+    const out = await mintGame({ title: 'Neon Labs', store: STORE, levels: [{ ref: 'lab-1' }, { ref: 'lab-2' }, { ref: 'crypt-9' }], ref: 'neon-labs', allowUnaudited: true });
+    expect(out.music.style).toBe('club');
+    for (const s of out.music.suggest) {
+      expect(s.apply.patch[0].value.soundtrack.score.style, s.level).toBe('club');
+      expect(s.brief.style).toBe('club');
+    }
+  });
+
+  it('suggests a field score for each level with no soundtrack, one identity across the game; a scored level is left alone', async () => {
+    mintLevel('crypt-1', contract('crypt-1'));
+    SketchRepository.create({ ref: 'crypt-2', title: 'crypt-2', manifest: { kind: 'orbit-view', scenario: 'circular', game: contract('crypt-2'), audio: { soundtrack: 'field:chapel' } } });
+    mintLevel('crypt-3', contract('crypt-3'));
+    const out = await mintGame({ title: 'Scored Crypt', store: STORE, levels: [{ ref: 'crypt-1' }, { ref: 'crypt-2' }, { ref: 'crypt-3' }], ref: 'scored-crypt', allowUnaudited: true });
+    expect(out.music.suggest.map((s) => s.level)).toEqual(['crypt-1', 'crypt-3']);
+    const [a, b] = out.music.suggest;
+    // each is the suggestion for that level (its row's words, the last one as the last level)
+    const ctx = (ref, final) => ({ ...levelScoreContext({ ...SketchRepository.getByRef(ref).manifest, title: SketchRepository.getByRef(ref).title }, { final }), style: out.music.style });
+    expect([a.mood, a.why]).toEqual((({ mood, why }) => [mood, why])(suggestScore(ctx('crypt-1', false))));
+    expect([b.mood, b.why]).toEqual((({ mood, why }) => [mood, why])(suggestScore(ctx('crypt-3', true))));
+    // the apply is an update_sketch patch; both levels share the game's identity seed
+    expect(a.apply).toEqual({ ref: 'crypt-1', patch: [{ op: 'set', path: '/audio', value: { soundtrack: { score: { mood: a.mood, game: a.apply.patch[0].value.soundtrack.score.game } }, sfx: 'auto' } }] });
+    expect(b.apply.patch[0].value.soundtrack.score.game).toBe(a.apply.patch[0].value.soundtrack.score.game);
+    // create_game wrote no level
+    expect(SketchRepository.getByRef('crypt-1').manifest.audio).toBeUndefined();
+  });
+
   it('mints a game over validated levels and returns the play URL', async () => {
     mintLevel('crypt-1', contract('crypt-1'));
     mintLevel('crypt-2', contract('crypt-2'));

@@ -2,7 +2,7 @@
  * play-shell — the light game shell: one self-contained page that runs a game whose levels are worlds, for
  * quick games end to end and as the playtester of the big design loop (design_game's levels).
  *
- * `emitPlayShell(manifest, levels, { playtest?, startLevel? })` → one dependency-free html page. It speaks the
+ * `emitPlayShell(manifest, levels, { playtest?, startLevel?, stingers? })` → one dependency-free html page. It speaks the
  * same wire as the arena shell (level-contract.js) and inlines the same store kernel (store-kernel.js), so a
  * level and a save behave the same under either; what it leaves out is everything the arena grew for itself
  * (hangar picks, liveries, map carousels, difficulty, battle music, AI switches, menus).
@@ -42,7 +42,7 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const scriptJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const safeColor = (v, fallback) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : fallback);
 
-export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, frontArt = null } = {}) {
+export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null } = {}) {
   if (!manifest || manifest.kind !== 'game') throw new Error("emitPlayShell needs a validated game manifest (kind: 'game')");
   const byRef = new Map(levels.map((l) => [l.ref, l]));
   for (const lv of manifest.levels) {
@@ -86,6 +86,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     playtest: !!playtest,
     startLevel,
     ...(manifest.run ? { run: { length: manifest.run.length } } : {}),
+    // the result's stingers (music.victory / music.defeat, resolved to srcs): absent, no key
+    ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
     // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
@@ -393,7 +395,20 @@ export function playShellRuntime(cfg, K) {
   let veilCap = 0, ctlRows = null;
   // `arrive`: the level a map game's travel came from (the level moves the player to that end of itself); `carry`: the
   // params a door brings in (the session's, and the door it enters by), in place of the level's own
+  // outcome STINGERS (music.victory / music.defeat): played once when a level ends, the level's own sound muted under
+  // them; fetched once per session (the render is deterministic), cut short by the next launch
+  const STINGERS = cfg.stingers || null, stingerBlob = {};
+  let stingerEl = null;
+  const warmStinger = (src) => { if (src && !stingerBlob[src]) stingerBlob[src] = fetch(src).then((r) => r.blob()).then((b) => URL.createObjectURL(b)).catch(() => null); };
+  function playStinger(src) {
+    if (!src || !settings.sfxOn) return;
+    post({ moj: W.audio, on: false, volume: 1 });
+    warmStinger(src);
+    stingerBlob[src].then((url) => { if (!url) return; stingerEl = stingerEl || new Audio(); stingerEl.src = url; stingerEl.volume = 0.6; stingerEl.play().catch(() => {}); });
+  }
   function launch(lv, arrive, carry) {
+    if (stingerEl) stingerEl.pause();
+    if (STINGERS) { warmStinger(STINGERS.victory); warmStinger(STINGERS.defeat); }
     launches += 1;
     const params = carry || paramsFor(lv);
     if (arrive) params.arrive = arrive;
@@ -463,6 +478,7 @@ export function playShellRuntime(cfg, K) {
       const to = r.ok && env.result === 'success' && env.exit ? K.travel(SCHEMA, state, LEVELS, session.level.ref, env.exit) : null;
       const onward = to && LEVELS.find((l) => l.ref === to);
       if (onward) { toast(session.level.title + ' → ' + onward.title); launch(onward, session.level.ref); return; }
+      if (STINGERS && r.ok) playStinger(env.result === 'success' ? STINGERS.victory : env.result === 'fail' ? STINGERS.defeat : null);
       const sess = session;
       // the last level first cleared: the front's end (its card, then the roll) in place of the result
       const fin = front && !before && r.ok && env.result === 'success' && allCleared();

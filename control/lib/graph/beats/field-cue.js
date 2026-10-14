@@ -3,25 +3,33 @@
  * level-design suggestion). Pure except `mintFieldSpec`, which rolls fresh seeds at authoring time.
  *
  *   audio.soundtrack: 'field:plains'                                  // a world; the seed comes from its ref
+ *   audio.soundtrack: 'club:drive'                                    // the electronic style (club-score.js)
  *   audio.soundtrack: { score: { mood: 'plains', seed: 81723, game: 4410 } }
+ *   audio.soundtrack: { score: { mood: 'expedition', game: 4410, cast: { lead: ['erhu', 'flute-3'], ground: 'contrabass-3' } } }
  *   create_beats({ kind: 'beats-composition', title, score: { mood: 'highlands', game: 4410 } })
  *
  * `seed` picks the cue, `game` picks the identity (key, palette, hall, motif). Share one `game` across a game's
  * cues so they sound like one score; leave `seed` out and a fresh one is rolled, so no two games sound alike.
- * `role` is the cue's dramatic job. Battle roles belong to the battle generator, not this one.
+ * `cast` names who plays each job (casting.js): the agent's choice of instruments for the feeling wanted.
+ * `role` is the cue's dramatic job. `battle` and `boss` are looped fights; `victory` and `defeat` are stingers that play
+ * once at an outcome (a game's music.victory / music.defeat), never under a level.
  */
 import { randomInt } from 'node:crypto';
 import { SCORE_MOODS, fieldScore } from './field-score.js';
+import { readCast } from './casting.js';
+import { CLUB_MOODS, clubScore } from './club-score.js';
 
-export const FIELD_ROLES = ['field', 'travel', 'town', 'interior', 'story'];
-const BATTLE_ROLES = new Set(['battle', 'encounter', 'boss', 'victory']);
-const FIELD_RE = /^field:([a-z-]+)$/;
+export const FIELD_ROLES = ['field', 'travel', 'town', 'interior', 'story', 'battle', 'stinger'];
+const FIELD_RE = /^(field|club):([a-z-]+)$/;
 const isSeed = (n) => Number.isInteger(n) && n >= 0;
 const moodList = () => Object.keys(SCORE_MOODS).join(', ');
+const clubList = () => Object.keys(CLUB_MOODS).join(', ');
+export const SCORE_STYLES = ['field', 'club'];
 
 /**
- * Read a field-score request: `'field:<mood>'` or `{ score: { mood, seed?, game?, role? } }` (the bare inner
- * object is accepted too). Anything else → null, so callers fall through to their other soundtrack forms.
+ * Read a field-score request: `'field:<mood>'`, `'club:<mood>'` or `{ score: { mood, style?, seed?, game?, role?,
+ * cast? } }` (the bare inner object is accepted too). `style` is 'field' (the orchestra) or 'club' (electronic);
+ * a club mood implies it. Anything else → null, so callers fall through to their other soundtrack forms.
  * Throws a teaching error when it IS a field request but a field is wrong.
  */
 export function parseFieldSpec(spec) {
@@ -29,7 +37,7 @@ export function parseFieldSpec(spec) {
   if (typeof spec === 'string') {
     const m = FIELD_RE.exec(spec);
     if (!m) return null;
-    s = { mood: m[1] };
+    s = { mood: m[2], style: m[1] };
   } else if (spec && typeof spec === 'object' && !Array.isArray(spec) && spec.score && typeof spec.score === 'object') {
     s = spec.score;
   } else if (spec && typeof spec === 'object' && typeof spec.mood === 'string' && !spec.kind) {
@@ -37,18 +45,21 @@ export function parseFieldSpec(spec) {
   } else {
     return null;
   }
-  if (!SCORE_MOODS[s.mood]) throw new Error(`field score: no mood '${s.mood}' — the moods: ${moodList()}`);
+  if (s.style !== undefined && !SCORE_STYLES.includes(s.style)) throw new Error(`score: style '${s.style}' — the styles: ${SCORE_STYLES.join(', ')}`);
+  const club = s.style === 'club' || (s.style === undefined && !!CLUB_MOODS[s.mood]);
+  if (club && !CLUB_MOODS[s.mood]) throw new Error(`club score: no mood '${s.mood}' — the club moods: ${clubList()}`);
+  if (!club && !SCORE_MOODS[s.mood]) throw new Error(`field score: no mood '${s.mood}' — the moods: ${moodList()} (or the club moods: ${clubList()})`);
   for (const k of ['seed', 'game']) {
     if (s[k] !== undefined && !isSeed(s[k])) throw new Error(`field score: ${k} must be a non-negative integer (leave it out for a fresh one)`);
   }
   if (s.role !== undefined) {
-    if (BATTLE_ROLES.has(s.role)) throw new Error(`field score: role '${s.role}' is battle music, which the field score does not write — use an adventurous mood (highlands, expedition, wayfarer) until the battle score lands`);
     if (!FIELD_ROLES.includes(s.role)) throw new Error(`field score: role '${s.role}' — the roles: ${FIELD_ROLES.join(', ')}`);
   }
-  const out = { mood: s.mood };
+  const out = { mood: s.mood, ...(club ? { style: 'club' } : {}) };
   if (s.seed !== undefined) out.seed = s.seed;
   if (s.game !== undefined) out.game = s.game;
   if (s.role !== undefined) out.role = s.role;
+  if (s.cast !== undefined) out.cast = readCast(s.cast);
   return out;
 }
 
@@ -77,7 +88,8 @@ export function seedOfRef(ref) {
 export function fieldCue(parsed, { fallbackSeed } = {}) {
   const seed = parsed.seed !== undefined ? parsed.seed : fallbackSeed;
   if (!isSeed(seed)) throw new Error(`field score '${parsed.mood}' needs a seed — give score.seed, or let compose_world / create_beats roll one`);
-  return fieldScore(parsed.mood, { seed, identity: parsed.game });
+  const opts = { seed, identity: parsed.game, ...(parsed.cast ? { cast: parsed.cast } : {}) };
+  return parsed.style === 'club' ? clubScore(parsed.mood, opts) : fieldScore(parsed.mood, opts);
 }
 
 // ── the suggestion: read a world and name the mood that fits it ────────────────
@@ -92,7 +104,7 @@ const LEANINGS = [
   { mood: 'town', words: /town|plaza|square|market|harbo|port town|bazaar/, why: 'a busy square: a walking bass and a light kit' },
   { mood: 'village', words: /village|hamlet|farm|historic|cottage|homestead/, why: 'people live here: a homely chart over a walking bass' },
   { mood: 'highlands', words: /mountain|peak|highland|cliff|ridge|alpine|glacier|snow|crag|summit|volcan/, why: 'height and weather: a brass call over moving strings' },
-  { mood: 'expedition', words: /ruin|cave|dungeon|crypt|tomb|expedition|frontier|wild|colony|planet|moon|asteroid|abandoned/, why: 'unknown ground: a minor march, kept quiet enough to explore over' },
+  { mood: 'expedition', words: /ruin|cave|dungeon|crypt|catacomb|tomb|expedition|frontier|wild|colony|planet|moon|asteroid|abandoned/, why: 'unknown ground: a minor march, kept quiet enough to explore over' },
   { mood: 'wayfarer', words: /road|journey|travel|caravan|port|ship|sail|river|coast|bridge|train|railway/, why: 'on the move: a bright walking tune' },
   { mood: 'plains', words: /plain|meadow|field|grass|hill|valley|prairie|countryside|pasture|landscape|terrain|island|lake/, why: 'open country: one colour alone, a drone, a lead answered' },
 ];

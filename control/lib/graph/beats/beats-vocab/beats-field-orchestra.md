@@ -94,8 +94,8 @@ a mood (the field moods, the towns and interiors, the story cues below):
   `seed` and `game` it rolled.
 - A whole game: pass that one `game` to every cue and every world's
   `score`. The tunes differ; the key, palette, hall and motif stay.
-- `role` records the cue's job: field, travel, town, interior or story.
-  Battle is not a field role.
+- `role` records the cue's job: field, travel, town, interior, story, battle
+  or stinger.
 
 When `compose_world` mints a world with no music, its reply carries a
 `music` suggestion: the mood that fits the place, why, and the `audio` line
@@ -124,10 +124,16 @@ same.
 | tension | adventurous | story | before the fight: a low staccato cello ostinato, phrygian or tritone, no kit |
 | betrayal | adventurous | story | a phrygian shock that lifts a semitone mid-cue |
 | triumph | processional | story | a triumph outside battle: brass lead, processional drums, a lift and home |
+| battle | battle | battle | the ladder's battle step: 132–152, Phrygian or Aeolian, the orchestra as a band (low brass on the downbeats, string stabs on 2 and 4, a sixteenth ostinato), a march, the middle a third up |
+| boss | battle | battle | darker and faster (144–160): the shock or the Phrygian ridge, a brass lead, the middle a semitone or a third up |
+| victory | processional | stinger | four bars, once: the brass alone in major (the game's motif, up the triad), then the band, a held tonic, a timpani roll, a cymbal |
+| defeat | idyllic | stinger | four bars, once: a low line falling in the minor, a drone and a distant chord, a tam-tam |
 
 The `processional` energy has adventurous space (five parts, two leads,
-forte) without the motion floor: a procession walks. Battle itself is not
-here.
+forte) without the motion floor: a procession walks. The `battle` energy has
+six parts and two leads at forte, always moving. A stinger is not a loop:
+`create_beats({ score: { mood: 'victory' } })` mints it, and a game plays it
+from `music.victory` / `music.defeat` when a level ends (never under a level).
 
 ## A set, worked
 

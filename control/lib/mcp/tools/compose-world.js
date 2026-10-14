@@ -20,7 +20,8 @@
 import { registerTool } from '@/lib/mcp/server';
 import { resolveTheme, listThemes } from '@/lib/graph/theme-registry';
 import { resolveWorldAudio } from '@/lib/graph/beats/beats-world';
-import { parseFieldSpec, mintFieldSpec, suggestFieldScore } from '@/lib/graph/beats/field-cue';
+import { parseFieldSpec, mintFieldSpec } from '@/lib/graph/beats/field-cue';
+import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { validateFire } from '@/lib/graph/fire/fire';
 import { readWeather } from '@/lib/graph/weather/weather';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
@@ -119,7 +120,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     if (!slots.audio || typeof slots.audio !== 'object' || Array.isArray(slots.audio)) {
       throw new Error(
         `compose_world: overrides.audio must be an object ({ soundtrack?, sfx?, footsteps?, wind?, bindings? }); `
-          + `got ${JSON.stringify(slots.audio)}. Vocabulary: get_beats_vocab({ id: 'audio-beats' }).`,
+          + `got ${JSON.stringify(slots.audio)}. Vocabulary: get_beats_vocab({ id: 'beats-world-audio' }).`,
       );
     }
     // a field score with no seed gets a fresh one STORED on the recipe: every world sounds different by
@@ -211,8 +212,9 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
     }
     ignored.push(k);
   }
-  // no music asked for: suggest the field score that fits the world (quiet when none does).
-  const suggestion = audio ? null : suggestFieldScore({ base, theme, title: title ?? (recipe && recipe.title), time: slots.time });
+  // no music asked for: suggest the field score that fits the world (quiet when none does): its place, moved by its
+  // play and weather when the overrides carry them (score-suggest.js; with neither, the place's mood as before).
+  const suggestion = audio ? null : suggestScore(levelScoreContext({ base, theme, title: title ?? (recipe && recipe.title), time: slots.time, weather: slots.weather, kit: slots.kit, game: slots.game }));
   return {
     ...result, base, theme,
     ...(suggestion ? {
@@ -221,6 +223,7 @@ export function composeWorld({ base = 'city', theme = 'earth-temperate', seed, o
         mood: suggestion.mood,
         why: suggestion.why,
         also: suggestion.also,
+        brief: suggestion.brief,
         how: `add overrides.audio = ${JSON.stringify(suggestion.audio)} (a fresh seed is stored, so it never repeats another world's score); `
           + "share one score.game seed across a game's worlds to keep one identity. Manual: get_beats_vocab({ id: 'beats-field-orchestra' }).",
       },

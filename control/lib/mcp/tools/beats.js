@@ -31,6 +31,8 @@ import { diffBeatsManifests } from '@/lib/graph/beats/beats-diff';
 import { getBeatsVocabCatalog } from '@/lib/graph/beats/beats-vocab/loader';
 import { parseFieldSpec, mintFieldSpec, fieldCue, FIELD_ROLES } from '@/lib/graph/beats/field-cue';
 import { SCORE_MOODS } from '@/lib/graph/beats/field-score';
+import { castAdvice } from '@/lib/graph/beats/casting';
+import { CLUB_MOOD_NAMES } from '@/lib/graph/beats/club-score';
 import { exportsBaseDir } from './exports-dir';
 
 // Fetch a sketch row and insist it's a beats artifact — the shared entrance
@@ -121,17 +123,20 @@ function mintFieldScore({ kind, title, params, ref, folderRef, score }) {
   } catch (err) {
     throw new Error(`create_beats: ${err.message} — ${manual}`);
   }
-  if (!parsed) throw new Error(`create_beats: score must be { mood, seed?, game?, role? } (moods: ${Object.keys(SCORE_MOODS).join(', ')}) — ${manual}`);
+  if (!parsed) throw new Error(`create_beats: score must be { mood, style?, seed?, game?, role?, cast? } (moods: ${Object.keys(SCORE_MOODS).join(', ')}; club: ${CLUB_MOOD_NAMES.join(', ')}) — ${manual}`);
   const spec = mintFieldSpec(parsed, { game: true });
   const recipe = fieldCue(spec);
   const { kind: _k, title: _t, ...body } = recipe;
-  const minted = mintBeats({ kind: 'beats-composition', title: title || `${spec.mood} field`, params: { ...body, score: spec }, ref, folderRef });
+  const minted = mintBeats({ kind: 'beats-composition', title: title || `${spec.mood} ${spec.style ?? 'field'}`, params: { ...body, score: spec }, ref, folderRef });
+  const advice = spec.cast ? castAdvice(spec.cast) : [];
   return {
     ...minted,
     score: spec,
-    energy: SCORE_MOODS[spec.mood].energy,
+    energy: spec.style === 'club' ? 'club' : SCORE_MOODS[spec.mood].energy,
+    ...(advice.length ? { cast_advice: advice } : {}),
     next: `keep this game's sound: pass score.game = ${spec.game} to every cue of the game (and to its worlds' `
-      + "audio.soundtrack score). A new seed gives a new tune in the same identity; omit both for a whole new score.",
+      + "audio.soundtrack score). A new seed gives a new tune in the same identity; omit both for a whole new score."
+      + (SCORE_MOODS[spec.mood]?.stinger && spec.style !== 'club' ? ` This is a stinger (it plays once): put its ref in create_game's music.${spec.mood}, not under a level.` : ''),
   };
 }
 
@@ -508,7 +513,9 @@ export function registerBeatsTools() {
             mood: { type: 'string', description: 'plains, town, chapel, night, tension … (beats-field-orchestra)' },
             seed: { type: 'integer' },
             game: { type: 'integer' },
+            style: { type: 'string', enum: ['field', 'club'] },
             role: { type: 'string', enum: FIELD_ROLES },
+            cast: { type: 'object', description: 'Instrument per job (beats-casting).' },
           },
           required: ['mood'],
         },
