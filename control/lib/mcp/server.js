@@ -601,6 +601,7 @@ async function registerAllTools() {
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
   const { registerBuildingTools } = await import('@/lib/mcp/tools/building');
+  const { registerInteriorTools } = await import('@/lib/mcp/tools/interior');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerRenderDoorTools } = await import('@/lib/mcp/tools/render-door');
@@ -766,6 +767,9 @@ async function registerAllTools() {
   // mint_building — one door for the house (layout → dwelling → construction → BIM); mints
   // through the same mintSketch as create_sketch kind 'floorplan', so both store the same row.
   registerBuildingTools();
+  // design_interior — the interior designer's door: one room of a house fitted out (lib/graph/interior/), beside the
+  // building door whose house it decorates; mints through create_sketch's world-recipe path.
+  registerInteriorTools();
   // The render handoff (render-handoff.plan.md) — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).

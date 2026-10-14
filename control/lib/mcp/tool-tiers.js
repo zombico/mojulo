@@ -42,6 +42,7 @@ export const TOOL_TIERS = Object.freeze({
   get_solid_vocab: 'ride',
   measure_solid: 'ride',
   mint_building: 'fill',
+  design_interior: 'judge',
   edit_solid: 'fill',
   mint_solid: 'judge', // fill for furniture and gear; an `scad` program is authoring, so the ceiling wins
   fabricate_solid: 'judge',

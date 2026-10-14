@@ -119,8 +119,8 @@ export const PACKS = [
     form: 'building',
     title: 'Buildings (houses)',
     description:
-      "BUILDINGS — walkable houses, apartments and furnished rooms, built up in steps: mint_building, then furnishing / storeys, framing / roof / drainage, and IFC for BIM tools (export_model). Each result's `next` names the next steps' cards. Open for 'design me a two-storey house', 'a 20 by 24 living room', 'frame the house', 'the house as IFC for Revit'. An institutional one-off is pack_object (edifice).",
-    members: ['mint_building'],
+      "BUILDINGS — walkable houses, apartments and furnished rooms, built up in steps: mint_building, then furnishing / storeys, framing / roof / drainage, and IFC for BIM tools (export_model); design_interior fits out and styles one room of a house. Each result's `next` names the next steps' cards. Open for 'design me a two-storey house', 'a 20 by 24 living room', 'frame the house', 'the house as IFC for Revit', 'make my living room Japandi'. An institutional one-off is pack_object (edifice).",
+    members: ['mint_building', 'design_interior'],
     shared: ['update_sketch', 'get_sketch_vocab', 'export_model'],
   },
   {
