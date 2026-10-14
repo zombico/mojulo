@@ -21,6 +21,14 @@ height from the house, and it never draws a wall. The house row is never written
 house, and an edit to the house flows into every design over it.
 
 **Built so far:**
+- **The door: `design_interior`,** in the building pack beside `mint_building`.
+  - It mints over a house and room, or a `section` described in words (its house drafted and minted first), and
+    answers with the room as decorated: the pieces by id, what was refused and why, the gaps and the review.
+  - With `ref` it revises in place: a new style, brief or surface replaces the old, and pieces merge by id.
+  - Decorating intents route to it through the `interior` routing card, three routing-eval rows, and the HOUSE row of
+    the routing index. The house card's contrast points there too.
+  - The plugin's maker subagent may call it (a `judge` tool).
+  - Re-pinned: the `tools/list` payload pin and the packs payload pin, for the one new listed tool.
 - **The recipe:**
   `{ kind: 'interior', house, room, brief?, style?, focal?, surface?, pieces?, view? }`.
   - `room` is the room's tag on the house's set (`'101'`), its name (`'lounge'`), its role or its glyph; `level`
@@ -94,7 +102,9 @@ house, and an edit to the house flows into every design over it.
 - light-emitting pieces;
 - the browser look (tone, grades, ambient occlusion, bloom, depth of field, daylight by time of day);
 - millwork runs with elevations and cut lists;
-- the `design_interior` tool with variants and a scheme board;
+- variants and a scheme board on `design_interior`;
+- a screen beside the hearth when a fireplace is the focal point;
+- a drafted section's neighbours doored onto each other, not through the room;
 - the Blender hero still.
 
 ### House finishes: doors, windows, floors and wallpapers with more than one look
