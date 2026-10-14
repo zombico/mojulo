@@ -19,6 +19,7 @@ import { normalizeCoverManifest, coverRenderTargets, COVER_KIND } from './cover-
 import { layoutCover } from './cover-archetypes.js';
 import { hexToRgb, placeholderIllustrationSvg, overlaySvgDoc } from './cover-preview.js';
 import { boundRenderMap } from './render-store.js';
+import { uploadedArt } from './cover-upload.js';
 
 async function bufOf(src) {
   return Buffer.isBuffer(src) ? src : fs.readFile(src);
@@ -80,7 +81,7 @@ export async function compositeCover(manifestIn, renders = {}) {
 
 /**
  * Composite a stored cover sketch from its LATEST bound renders (illustration /
- * title), standing in placeholders for any target not yet bound. Unlike
+ * title), or its uploaded picture, standing in placeholders for any target not yet bound. Unlike
  * final.png this never 404s — a directed cover always renders (Phase B).
  * @param {{ ref: string, manifest: object }} sketch
  * @returns {Promise<Buffer>} cover.png
@@ -92,6 +93,8 @@ export async function compositeCoverForSketch(sketch) {
   const bound = boundRenderMap(sketch.ref, coverRenderTargets(manifest));
   const renders = {};
   if (bound.illustration) renders.illustration = bound.illustration.path;
+  // an uploaded picture (cover-upload.js) is the illustration as it is: no worker painted it
+  if (manifest.slots.illustration?.realizer === 'upload') renders.illustration = await uploadedArt(manifest.slots.illustration.from);
   if (bound.title) renders.title = bound.title.path;
   return compositeCover(manifest, renders);
 }

@@ -13,6 +13,60 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Game menus: the inventory's dress, a game's cover, its front menus and its credits
+
+- **The inventory's dress.** The world's UI guide now dresses a grid view (inventory, shop, chest) from closed words
+  (`playscape/ui/inventory-dress.js`). A menu still has no look of its own.
+  - `play.ui.inventory` (or `play_hints.inventory`) is a look, `'flavor'`, or `{ look?, tile, shape, slots, card,
+    badge, kinds, focus, backdrop }`.
+  - The looks are classic (the page's own grid), satchel, loadout, armory and tactical. `'flavor'` takes the border
+    flavor's look: cozy → satchel, covert → loadout, mech-cockpit → armory, futurepunk → tactical.
+  - Words named beside a look win over its own. Shapes include round, hex and diamond (a clipped tile draws its edge
+    as a filled stroke). The backdrop dims or blurs the play behind the menu.
+  - The guide records the dress with its source. The page draws it after the menu sheet. Classic, or no dress, adds
+    no bytes.
+  - On a guide already approved, setting `play.ui.ask.inventory` redraws the dress alone (nothing else rolls), and
+    the guide is proposed again.
+  - The board draws one grid view in every look, with the worn one marked, as a picking aid. Its Style guide card
+    lists the dress. Its menu specimens show sample counts (a bag showed "Nothing carried.").
+  - The board's ammo-pip rule no longer squashes an inventory's worn slots.
+  - New play card: `ui-inventory`.
+- **A game's cover.** `create_cover` takes `for_kind: 'game'` and a `format`:
+  - `key-art`, the default: 16:9, the title screen's backdrop.
+  - `capsule`: the store's 460 × 215.
+  - `box`: the box front.
+  - `icon`: square.
+
+  The archetypes are `logo-center`, `lower-third` (title set left) and `hero-side` (a column for the title and the
+  menu). Each reserves a **menu zone** where the title screen places its menu. Subtext role `tagline` and metadata
+  kind `studio` are drawn. A book's cover is as it was.
+- **Covers without an image worker.** An illustration is `painted`, `placeholder` or `upload`.
+  - Under the Claude plugin profile a cover starts as a `placeholder`, so it has no render target and never reaches
+    for a worker.
+  - The operator uploads the picture into a stash on the dashboard. The agent maps it with `create_cover … art: {
+    stash, item }`, or, on a cover already made, a patch to `/slots/illustration` = `{ realizer: 'upload', from: {
+    stash, item } }`. The compositor draws the picture as it is (`image-outcomes/cover-upload.js`).
+- **The front of a game.** The light shell gains `front` (`game/play-front.js`), opt-in: a game without it emits no
+  front CSS, code or config.
+  - **Title.** It is drawn over a cover (by ref: its own lockup, the menu in its zone) or an image, else laid out
+    center, lower-third, left or right.
+  - **Attract screen.** `press` puts one first.
+  - **Start menu.** Entries are continue, play (start / new game), levels, options (sound, reset progress) and
+    credits. It is driven by the keys and the pad. With a front, home is the title, and the levels list, the result
+    and the pause lead back to it.
+  - **Credits.** The roll lists each role and its names, the thanks and the closing words, then "made with mojulo"
+    unless `attribution: false`. It is reduced-motion aware and skippable.
+  - **End.** When the last level is first cleared, the end card shows, then the roll, then the title. A run's result
+    offers the roll.
+  - **Where it comes from.** A cover ref resolves to its composite. `export_game` writes it to `assets/cover.png` (a
+    bound `/outcomes/…` image is copied). A gameworld's `front` setting is read on the world and carried onto the
+    game its run makes.
+  - **Words.** `create_game` takes `front`. New game vocab card: `front`. The gameworld world card names it.
+  - Godot and Unity do not carry the front yet. Their ledgers list `front` among the shell UI that does not travel,
+    and Godot's main scene is still the level list.
+- **Pins.** The tools/list payload is re-pinned for create_cover's `format` and `art` and create_game's `front`. The
+  HUD card list gains `front`. create_cover's description stays under its allowlist snapshot.
+
 ### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
 
 - **The budget reads a creature** (`cast-spend.js`). A creature is read by its own part names: the shin and the

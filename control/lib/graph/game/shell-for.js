@@ -6,8 +6,8 @@
 import { emitGameShell } from './game-shell.js';
 import { emitPlayShell } from './play-shell.js';
 
-/** `manifest` and `menu` default to the resolved ones; export_game passes its copies with folder-relative art. */
-export function emitShellFor(resolved, { manifest = resolved.manifest, menu = resolved.menu } = {}) {
-  if (manifest.shell === 'play') return emitPlayShell(manifest, resolved.levels);
+/** `manifest`, `menu` and `frontArt` default to the resolved ones; export_game passes its copies with folder-relative art. */
+export function emitShellFor(resolved, { manifest = resolved.manifest, menu = resolved.menu, frontArt = resolved.frontArt || null } = {}) {
+  if (manifest.shell === 'play') return emitPlayShell(manifest, resolved.levels, frontArt ? { frontArt } : {});
   return emitGameShell(manifest, resolved.levels, menu, resolved.music, resolved.setup);
 }

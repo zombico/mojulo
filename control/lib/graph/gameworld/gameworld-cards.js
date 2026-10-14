@@ -118,6 +118,7 @@ function worldCard() {
     '  or city: { grammar?, civilization?, from?, to?, … } (card city-plan), played by its segments.',
     '  ground: the level\'s land on a grid of cells, its dials and edits (cliff, gorge, raise…): tune_ground.',
     `links: ${Object.entries(LINK_KINDS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
+    'front: the game\'s title, start menu and credits (card front).',
     `topology: ${Object.entries(TOPOLOGIES).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     '  in a map, a link may take key: \'<item>\' and keyAt: \'<level>\' (the item lies there, and opens the way from from to to); trails only.',
     '  a key that is a hero\'s power opens the door and gives the hero its move.',

@@ -297,7 +297,7 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     ref, title: manifest.title ?? ref, manifestHash: hashOf(manifest), levels,
     store: Array.isArray(manifest.store?.slices) && manifest.store.slices.length > 0,
     music: { menuFile, menuDb: toDb(music.menuVolume) },
-    shellExtras: ['menu', 'setup', 'difficulty', 'theme'].filter((k) => manifest[k] != null),
+    shellExtras: ['menu', 'setup', 'difficulty', 'theme', 'front'].filter((k) => manifest[k] != null),
     kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });

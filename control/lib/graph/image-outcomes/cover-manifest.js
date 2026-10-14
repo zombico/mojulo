@@ -15,9 +15,12 @@
  *
  * Pure — no fs, no sharp.
  */
-import { defaultsForKind, canvasFor } from './cover-archetypes.js';
+import { defaultsForKind, canvasFor, GAME_FORMATS, GAME_FORMAT_IDS } from './cover-archetypes.js';
 
 export const COVER_KIND = 'cover';
+
+// how the illustration becomes pixels: painted by the image worker, the palette placeholder, or an uploaded picture
+export const ILLUSTRATION_REALIZERS = Object.freeze(['painted', 'placeholder', 'upload']);
 
 const DEFAULT_PALETTE = { bg: '#1a1420', accent: '#e8c14a', ink: '#f5f0e6' };
 
@@ -29,10 +32,14 @@ export function normalizeCoverManifest(input = {}) {
   const forKind = input.for_kind || 'novel';
   const kd = defaultsForKind(forKind);
   const ad = input.artDirection || {};
+  // a game's cover has a format (key art, capsule, box, icon); a book's has none, and its manifest no key for it
+  if (input.format !== undefined && forKind !== 'game') throw new Error("format is a game cover's (for_kind: 'game')");
+  if (input.format !== undefined && !GAME_FORMATS[input.format]) throw new Error(`format is one of: ${GAME_FORMAT_IDS.join(', ')}`);
+  const format = forKind === 'game' ? input.format || 'key-art' : null;
 
   const canvas = input.canvas && input.canvas.w && input.canvas.h
     ? { w: Math.round(input.canvas.w), h: Math.round(input.canvas.h) }
-    : canvasFor(forKind, ad.composition?.aspect);
+    : canvasFor(forKind, ad.composition?.aspect, format);
 
   const composition = {
     archetype: ad.composition?.archetype || kd.archetypes[0],
@@ -50,12 +57,16 @@ export function normalizeCoverManifest(input = {}) {
   };
 
   const slotsIn = input.slots || {};
+  const ir = slotsIn.illustration?.realizer;
+  if (ir !== undefined && !ILLUSTRATION_REALIZERS.includes(ir)) throw new Error(`slots.illustration.realizer is one of: ${ILLUSTRATION_REALIZERS.join(', ')}`);
   const title = slotsIn.title || {};
   const slots = {
     illustration: {
       realizer: slotsIn.illustration?.realizer || 'painted',
       region: slotsIn.illustration?.region || 'full-bleed',
       brief: slotsIn.illustration?.brief || {},
+      // an uploaded picture (cover-upload.js): the stash item it is drawn from
+      ...(slotsIn.illustration?.realizer === 'upload' ? { from: { stash: slotsIn.illustration.from?.stash, item: slotsIn.illustration.from?.item } } : {}),
     },
     title: {
       text: title.text != null ? String(title.text) : 'Untitled',
@@ -74,7 +85,7 @@ export function normalizeCoverManifest(input = {}) {
     })),
   };
 
-  return { kind: COVER_KIND, for_kind: forKind, canvas, artDirection, slots };
+  return { kind: COVER_KIND, for_kind: forKind, ...(format ? { format } : {}), canvas, artDirection, slots };
 }
 
 /**
@@ -85,7 +96,9 @@ export function normalizeCoverManifest(input = {}) {
  */
 export function coverRenderTargets(manifest) {
   const m = manifest.kind === COVER_KIND ? manifest : normalizeCoverManifest(manifest);
-  const targets = ['illustration'];
+  // a placeholder (the palette stand-in, the plugin profile's start) or an uploaded picture is never painted
+  const r = m.slots.illustration?.realizer;
+  const targets = r === 'placeholder' || r === 'upload' ? [] : ['illustration'];
   if (m.slots.title?.realizer === 'painted') targets.push('title');
   return targets;
 }
