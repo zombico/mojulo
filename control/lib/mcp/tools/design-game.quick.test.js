@@ -93,6 +93,18 @@ describe('design_game quick', () => {
     expect(payload.meta.laws.filter((l) => !l.ok)).toEqual([]);
   }, 240_000);
 
+  it('shoot with a craft: a dogfight in space, the wing of fighters its foes, a crash coming back at the start', async () => {
+    const out = await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', foes: 3, world: { id: 'df' } }, ref: 'df' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('df-level-run-0');
+    expect(L.kind).toBe('airspace');
+    expect(mechanicsOf('df-level-run-0')).toEqual(['fail-on-death', 'respawn', 'defeat-all']);
+    expect(L.entities.filter((e) => /^foe-/.test(e.id))).toHaveLength(3);
+    expect(L.entities[0]).toMatchObject({ id: 'player', weapon: { fireClass: 'sight' }, rule: { type: 'fly', space: true } });
+    expect(L.camera.mouseLook).toBe(true);
+    expect(L.game.mechanics.find((m) => m.kind === 'laps')).toBeUndefined();
+  }, 240_000);
+
   it('survive and avoid: a countdown; hazards on the water the trail crosses, and hp to lose', async () => {
     await designGameHandler({ quick: { goal: 'survive', seconds: 30, world: { id: 'hold' } }, ref: 'h' });
     expect(mechanicsOf('h-level-run-0')).toEqual(['survive']);

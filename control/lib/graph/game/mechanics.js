@@ -160,6 +160,25 @@ const MECHANICS = {
 
   // hp ≤ 0 → fail (a lethality opt-in terminal, split from hazard-damage). Owns the hp var init so a
   // level can be lethal with or without hazards; the shared `hp` default dedupes with hazard-damage.
+  // A CRASH brought back (a flight that is not a race: skyscape/dogfight.js): each `crash` (the page's: a rock flown
+  // into, a touchdown off every pad) answered by `respawn:0` carrying the start's `spot`, `heading` and `aloft` (the
+  // page carries it out, as for laps' respawns), and with `hurt` that much off the player's hp (fail-on-death's).
+  respawn: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      // a point ([x, y, z]) or { spot, heading?, aloft? }; absent, the level's spawn
+      const R = Array.isArray(p.at) ? { spot: p.at } : p.at ?? (Array.isArray(ctx.spawn) ? { spot: ctx.spawn } : null);
+      if (!R || !Array.isArray(R.spot) || R.spot.length !== 3) throw new Error(`respawn[${ctx.i}]: at is { spot: [x, y, z], heading?, aloft? }: where a crash comes back`);
+      const hurt = Number.isFinite(p.hurt) && p.hurt > 0 ? p.hurt : 0;
+      return {
+        world: {
+          reactions: [{ on: 'crash', do: 'emit', type: 'respawn:0', spot: R.spot, heading: R.heading ?? 0, aloft: R.aloft ? 1 : 0 }, ...(hurt ? [{ on: 'crash', do: 'inc', var: 'hp', by: -hurt, min: 0 }] : [])],
+          hud: [{ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }],
+        },
+      };
+    },
+  },
+
   'fail-on-death': {
     role: 'terminal', ends: ['fail'], requires: ['character'],
     lower(p, ctx) {

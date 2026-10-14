@@ -362,6 +362,15 @@ describe('unseen, laps and score on the bus', () => {
     expect(JSON.stringify(race.events)).not.toMatch(/touchdown|respawn|pad_/);
   });
 
+  it('respawn: a crash comes back at its start, aloft, and hurts when asked', () => {
+    const c = composeMechanics([{ kind: 'fail-on-death', startHp: 100 }, { kind: 'respawn', at: { spot: [1, 2, 3], heading: 0.5, aloft: 1 }, hurt: 25 }, { kind: 'defeat-all', who: 'foe-*', count: 1 }], ctx());
+    const s = run(c, [{ type: 'crash', entity: 'hero', why: 'rock' }]);
+    expect(types(s)).toContain('respawn:0');
+    expect(s.reactions.find((r) => r.type === 'respawn:0')).toMatchObject({ spot: [1, 2, 3], heading: 0.5, aloft: 1 });
+    expect(s.vars.hp).toBe(75);
+    expect(() => composeMechanics([{ kind: 'respawn', at: { spot: 'there' } }], ctx())).toThrow(/at is \{ spot/);
+  });
+
   it('laps against rivals: each rival\'s passes counted, the place moved at every pass, the finish won or lost by it', () => {
     const cps = [{ at: [10, 0, 0] }, { at: [20, 0, 0] }, { at: [0, 0, 0] }];
     const c = composeMechanics([{ kind: 'laps', checkpoints: cps, laps: 1, rivals: ['rival-1', 'rival-2'], win: 2 }], ctx());

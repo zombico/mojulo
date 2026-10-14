@@ -114,6 +114,14 @@ genre on the quick path.
   turn room in three dimensions, the rocks clear of the course, everything in the reach; the autopilot flies it.
   The ring gate takes a wider radius (to 40 m; the `ring` primitive's rail to 60); an atmosphere's gates are as they
   were. `resolveLevel` now carries an airspace level's `assist` (it was dropped).
+- **The dogfight** (`skyscape/dogfight.js`). The quick `shoot` goal with a `craft`: guns on the craft (the weapon
+  system every controllable body has, hitscan along its heading and pitch, a range of seven seconds of cruise, a
+  wide assist ring), a wing of enemy fighters ahead of the start (the ai rule's space minds, a little slower than the
+  craft, their guns slower too, stood clear of the rocks), every one shot down to win (`defeat-all` on the cast's
+  downs), each hit on the craft costing hp (`fail-on-death`), a crash coming back at the start and costing more. A
+  new `respawn` mechanic (with its card) carries that crash for a flight that is not a race. An armed craft flies by
+  the mouse (pointer-locked: the mouse pitches the nose, a click fires) and fires on F too; a level's goal cast may
+  lay a camera setting over the pilot's (`extra().camera`). `airspace.course: false` is a map with no course.
 
 ### Sheet-metal bend lines that mark without cutting
 

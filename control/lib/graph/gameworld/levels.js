@@ -381,13 +381,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   }
   // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), the play it
   // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
-  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? }, posts?, pads?, inputs? }
+  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? }, camera?, posts?, pads?, inputs? }
+  // (`camera`: laid over the pilot's own: a dogfight's mouse look)
   let extraPlay = null, blocks = null, posts = null, pads = null;
   if (extra) {
     const X = extra(ends), p0 = pilotPart.entities[0];
     const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
     const figures = { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) };
-    pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])] };
+    pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])], ...(X.camera && pilotPart.camera ? { camera: { ...pilotPart.camera, ...X.camera } } : {}) };
     extraPlay = X.play ?? null;
     blocks = X.blocks?.length ? X.blocks : null;
     posts = X.posts ?? null;

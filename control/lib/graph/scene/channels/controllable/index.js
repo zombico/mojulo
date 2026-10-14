@@ -215,7 +215,14 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // rocks (rule.obstacles: x, y, z, r flat) a crash when flown into
   var spaced = false, rocks = null, clearOfRocks = true;
   function rockHit(q) { for (var k = 0; k < rocks.length; k += 4) { var dx = q[0] - rocks[k], dy = q[1] - rocks[k + 1], dz = q[2] - rocks[k + 2], r = rocks[k + 3] + 2; if (dx * dx + dy * dy + dz * dz <= r * r) return true; } return false; }
+  // an armed craft fires on F as well as the (pointer-locked) mouse
+  var fireKeyed = false;
   function hook(p) {
+    if (!fireKeyed) {
+      fireKeyed = true;
+      window.addEventListener('keydown', function (ev) { if (ev.code === 'KeyF') __fireDown = true; });
+      window.addEventListener('keyup', function (ev) { if (ev.code === 'KeyF') __fireDown = false; });
+    }
     if (p.rule.space && !spaced) {
       spaced = true; rocks = p.rule.obstacles || null;
       __ground = function (pos) { return roofs ? roofAt(pos[0], pos[1]) : null; };   // eslint-disable-line no-func-assign

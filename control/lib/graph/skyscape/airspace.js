@@ -61,7 +61,7 @@ export function validateAirspace(m) {
   if (m.spawn !== undefined && !(Array.isArray(m.spawn) && m.spawn.length === 3 && m.spawn.every(Number.isFinite))) e.push('airspace.spawn must be [x, y, z] in metres');
   if (m.fly !== undefined && m.fly !== true && !(m.fly && typeof m.fly === 'object')) e.push('airspace.fly must be true or { craft? }: seat a craft to fly the map');
   if (m.assist !== undefined && !['arcade', 'sim'].includes(m.assist)) e.push("airspace.assist must be 'arcade' (never stalls, the wings level quickly) or 'sim' (the bank holds where it is put)");
-  if (m.course !== undefined && m.course !== true && !(m.course && typeof m.course === 'object')) e.push('airspace.course must be true or { gates?, laps?, land? }: plan a gate course on the map');
+  if (m.course !== undefined && m.course !== true && m.course !== false && !(m.course && typeof m.course === 'object')) e.push('airspace.course must be true or { gates?, laps?, land? }: plan a gate course on the map (false: none)');
   if (m.fly && typeof m.fly === 'object' && m.fly.craft !== undefined) { try { craftOf(m.fly.craft); } catch (err) { e.push(`airspace.fly: ${err.message}`); } }
   return e;
 }
@@ -77,6 +77,7 @@ export function airspaceOf(manifest) {
     const map = planSpace({ field: manifest.map?.field, craft: craft || 'fighter', seed });
     const course = planCourse(map, spaceField(map, { asteroids: 'none' }), { ...(manifest.course && manifest.course !== true ? manifest.course : {}), seed });
     const field = spaceField(map, { asteroids: manifest.space?.asteroids ?? 'field', seed, keep: courseTubes(map, course, spaceSeat(map, course)) });
+    field.loop = course;   // the lanes kept open: a level with no course still starts on its run-in (craft.js)
     return { map, field };
   }
   const map = planMap({ ...(manifest.map || {}), ...(craft ? { craft } : {}), seed });

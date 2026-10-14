@@ -264,7 +264,7 @@ function quickCard() {
     '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { … as hero }   puzzle: boulders: n (2)',
     '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { … as hero }   (night falls)',
     '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { … as hero }',
-    '  shoot: foes: n (4), foe: { … as hero }   first person by default (or third-person); walls to take cover behind',
+    '  shoot: foes: n (4), foe: { … as hero }   first person (or third-person), walls for cover; craft: a dogfight',
     `  ride: ${Object.keys(RIDES).join(' | ')}   the hero is a vehicle (W/S/A/D); no hero, climb or building with it`,
     '  race: track: trail | loop (a loop laid on the trail\'s land), laps: n (3 round a loop), rivals: n (1-7, with a ride: a place to finish in)',
     `  fly: craft: ${Object.keys(CRAFT).join(' | ')}, assist: arcade | sim, laps, airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} } }`,
