@@ -1651,7 +1651,7 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 
 ### Trackscape: scapeshift's eye, for a driver
 
-Built so far: the eye, where it needs something, the track in its world's look, the track dressed, the track from words, and the arena plan.
+Built so far: the eye, where it needs something, the track in its world's look, the track dressed, the track from words, the arena plan, its local areas, and two looks for battle racers.
 
 - **The driver's eye** (`lib/graph/roads/eye.js`): the racing line driven on a speed plan bound by the vehicle's own
   envelope (its cornering grip, launch, braking, top speed), looked along from the seat with the gaze 1.5 s down the
@@ -1707,10 +1707,44 @@ Built so far: the eye, where it needs something, the track in its world's look, 
   (`arenaSheetSvg`) to review first; a trackscape slot inside a zone is the zone's to fill. `scripts/trackscape.mjs`
   writes the sheet beside the World page.
 
+- **Local areas** (`roads/local-area.js`): each zone of the arena built on its own, in passes, so a venue is never
+  one-shot. Ground: a graded pad paved by its use (a strip along the track level with it and never under its land, a
+  block of its own one level with retaining walls where the land falls away), a car park's rows painted. Massing: the
+  plain volumes (shown when an area stops there, to review them). Elements: the structure from blocks, in modules where
+  it runs long (the pit building a row of pit modules with garage doors, glass and a sign band; a stand in sections;
+  hospitality). Dressing: the pit wall and its catch fence, a stand's fence, the team trucks in the paddock, cars parked
+  in the car park's rows, lamp posts. The service roads are laid on the land, a spur stopped short where it goes under
+  the track, a tunnel's portals either side. Every area has its own seed: one zone is re-rolled, held (`skip`) or
+  stopped at a pass (`upTo`) with `scape.local: { <zone>: … }`, and nothing else moves. Its laws: graded within a
+  height, off the road. Each area has a review shot (`localCamera`). New blocks: a pit module, hospitality, a lamp post,
+  a bay of catch fence.
+
+- **Two looks for battle racers.** A kit can be drawn on two more poles beside banded and material. The **voxel** look
+  (`roads/voxel-look.js`): every set piece and building a shell of cubes on one chunky grid (a detail proud of a wall
+  winning its cube), only the exposed sides drawn and runs of them merged, each corner darkened by the cubes round it,
+  banded the isekai way (a lit stop warmed by the key, a top half a stop up, the shade a stop down and cooled) with the
+  sun's cast shadows; the track's surfaces flat colour, varying cell to cell. The **shaded** look
+  (`roads/shaded-look.js`): the sixth generation's (Super Mario Sunshine, Kingdom Hearts), the pieces' own polygons
+  lit per corner (Gouraud), normals smoothed across a round and kept at an edge, a sky-blue fill from above and a warm
+  bounce from below, a hard high sun with cast shadows, the shade a clean pale blue, saturated, no tiles. A kit asks with
+  `{ id | look, pole: 'voxel' | 'shaded' }`; in words, a kart track is voxel unless "cartoon" or "pixel" (banded) or
+  "shaded", "sunshine", "kingdom hearts", "gamecube", "ps2" (shaded) say otherwise.
+- **The surrounds** (`roads/surrounds.js`): the land beyond the venue shaped and stood on, so a track sits in a place and
+  not on a flat field. A land's relief (rolling hills, ridged mountains with snow, terraced mesas, a plain) rises past
+  the venue's ring, never steeper than its slope from what must stay flat (the road's footprint, the zones, the roads,
+  the sight lines, the slots: their ground is the plan's to the millimetre), low mounds in the infield and a lake where
+  it is widest; the far ground a graded grid easing back to the plain under the haze; steep ground rock, high ground
+  snow, fields round the farms (four new track materials: rock, snow, crop, water). Rock formations where the driver
+  looks, down each long straight past the ring (tors, crags, spires, buttes, natural arches; a kart track's hoodoo
+  stacks): faceted lumps with banded strata, painted by the kit like a set piece. A settlement where the lap sees most:
+  a village (a chapel, houses along a lane, red roofs), farmsteads (a house, a silo, a shed: new blocks), or a town's
+  tower blocks on the horizon. Woods: trees near, canopy masses far, groves in the infield. On the voxel pole, far things
+  in coarser cubes. In words: "mountains", "alpine"; "canyon", "desert", "mesas" (and a sandy look); "plains"; "village",
+  "farms", "countryside", "town", "city", "wilderness". A manifest asks with `scape: { surrounds: false | { land?,
+  settlement?, seed? } }`; a gameworld level's `scape` now also takes `landmark` and `surrounds`.
+
 Planned:
 
-- **Local areas:** each zone built on its own in passes (ground, massing, the structure's elements, dressing),
-  reviewable and re-rolled on its own seed without touching the rest.
 
 ### Car designer: a realistic vehicle, or a racer and their machine
 

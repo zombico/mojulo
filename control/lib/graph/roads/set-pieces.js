@@ -8,6 +8,8 @@
  *   kart   a kart track's: striped bumpers, chevron boards, a bleacher with flags, an arch, a castle tower, giant
  *          mushrooms, a castle for the landmark
  *
+ * and what stands beyond the venue (surrounds.js): a house, a chapel, a silo, a farm shed, a tower block.
+ *
  * A slot's beat (and a focus's form) picks the piece (SETS); the piece is sized so its least span reads where the slot
  * needs it (the slot's `span`), turned to face the road (or to span it), and built at the ring its read distance is.
  * Its faces are values on surface groups; `paintPiece` colours them in the track's kit (track-kit.js): concrete, steel,
@@ -18,12 +20,15 @@
  *   pieceFor(slot, set, { nth, toward, heading, block? }) → { block, params, yaw, at } (a slot's piece, sized and
  *                                            turned; `block` names one in place of the set's)
  *   buildPiece(piece, { seed })              → the block built (era/blocks.js buildBlock) at its slot
- *   paintPiece(faces, K)                     → World faces in the kit (four corners at most)
+ *   paintPiece(faces, K, { voxel? })         → World faces in the kit (four corners at most; `voxel` the cube's size on the
+ *                                            voxel pole, for a far thing)
  *
  * Pure, deterministic.
  */
 import { buildBlock } from '../era/blocks.js';
 import { STRUCTURE_RINGS } from '../era/out-structures.js';
+import { voxelize, voxelFaces, voxelSizeFor } from './voxel-look.js';
+import { shadeFaces } from './shaded-look.js';
 
 // ── the library ──
 const status = { id: 'lamps', prim: 'lamp', role: 'beacon', r: 0.18, group: 'str:accent' };
@@ -105,6 +110,37 @@ export const TRACK_BLOCKS = Object.freeze({
       { id: 'mast', prim: 'truss', role: 'frame', from: [0, 0, 0], to: [0, 0, 'h'], w: 'max(0.8, h * 0.05)', member: 0.1, group: 'tech:frame', value: 0.5 },
       { id: 'head', prim: 'panel', role: 'lamp', size: ['h * 0.22', 'h * 0.12'], t: 0.3, at: [0, -0.5, 'h + h * 0.06'], aim: [0, -1, 0.3], group: 'tech:light', value: 0.95 },
     ], sig: ['mast', 'head'], lead: 'mast' },
+  // ── a venue's buildings and furniture (the local areas: local-area.js) ──
+  'pit-module': { id: 'pit-module', read: 'a module of the pit building: a row of garage doors under a band of dark glass, a roof overhang and a sign band', tier: 'landmark', mounts: ['ground'], functions: ['keep'],
+    params: { len: [10, 50], depth: [6, 20], h: [4, 11] },
+    parts: [
+      { id: 'body', prim: 'box', role: 'shell', size: ['len', 'depth', 'h'], seams: 3, group: 'tech:body', value: 0.75 },
+      { id: 'doors', prim: 'panel', role: 'door', size: ['min(4.4, len / round(len / 5.5) * 0.8)', 'h * 0.42'], t: 0.08, at: ['-len / 2 + len / round(len / 5.5) / 2', '-depth / 2 - 0.05', 'h * 0.21'], aim: [0, -1, 0], repeat: { n: 'round(len / 5.5)', step: ['len / round(len / 5.5)', 0, 0] }, group: 'tech:frame', value: 0.4 },
+      { id: 'glass', prim: 'box', role: 'trim', size: ['len', 0.2, 'h * 0.22'], at: [0, '-depth / 2 - 0.1', 'h * 0.6'], group: 'tech:glass', value: 0.12 },
+      { id: 'overhang', prim: 'box', role: 'trim', size: ['len + 0.4', 2.4, 0.35], at: [0, '-depth / 2 - 1.1', 'h'], group: 'tech:frame', value: 0.7 },
+      { id: 'band', prim: 'box', role: 'trim', size: ['len * 0.9', 0.1, 0.8], at: [0, '-depth / 2 - 2.35', 'h - 0.5'], group: 'tech:trim', value: 0.55 },
+    ], sig: ['body', 'doors'], lead: 'body' },
+  hospitality: { id: 'hospitality', read: 'a hospitality building: a pale block, a glass storey on top, a roof terrace and a canopy over the door', tier: 'landmark', mounts: ['ground'], functions: ['keep'],
+    params: { w: [10, 50], d: [8, 30], h: [4, 10] },
+    parts: [
+      { id: 'body', prim: 'box', role: 'shell', size: ['w', 'd', 'h'], seams: 3, group: 'tech:body', value: 0.8 },
+      { id: 'glass', prim: 'box', role: 'shell', size: ['w * 0.75', 'd * 0.75', 'h * 0.45'], at: [0, 0, 'h'], group: 'tech:glass', value: 0.15 },
+      { id: 'roof', prim: 'box', role: 'trim', size: ['w * 0.8', 'd * 0.8', 0.4], at: [0, 0, 'h * 1.45'], group: 'tech:frame', value: 0.7 },
+      { id: 'canopy', prim: 'box', role: 'door', size: ['w * 0.3', 3, 0.3], at: [0, '-d / 2 - 1.5', 'h * 0.55'], group: 'tech:trim', value: 0.55 },
+    ], sig: ['body', 'glass'], lead: 'body' },
+  'lamp-post': { id: 'lamp-post', read: 'a lamp post: a pole and an arm over the road, a lamp at its end', tier: 'machine', ring: 'near', mounts: ['ground'], functions: ['light'],
+    params: { h: [5, 12] },
+    parts: [
+      { id: 'pole', prim: 'tube', role: 'frame', r: 0.1, from: [0, 0, 0], to: [0, 0, 'h'], group: 'tech:frame', value: 0.5 },
+      { id: 'arm', prim: 'tube', role: 'frame', r: 0.07, from: [0, 0, 'h'], to: [0, -1.4, 'h + 0.3'], group: 'tech:frame', value: 0.5 },
+      { id: 'lamp', prim: 'box', role: 'lamp', size: [0.6, 0.3, 0.15], at: [0, -1.5, 'h + 0.15'], group: 'tech:light', value: 0.95 },
+    ], sig: ['pole'], lead: 'pole' },
+  'catch-fence': { id: 'catch-fence', read: 'a bay of catch fence: posts and a mesh between them', tier: 'machine', mounts: ['ground'], functions: [],
+    params: { len: [2, 12], h: [2, 5] },
+    parts: [
+      { id: 'posts', prim: 'tube', role: 'frame', r: 0.07, from: ['-len / 2', 0, 0], to: ['-len / 2', 0, 'h'], repeat: { n: 2, step: ['len', 0, 0] }, group: 'tech:frame', value: 0.5 },
+      { id: 'mesh', prim: 'panel', role: 'body', size: ['len', 'h'], t: 0.02, seams: 0.5, at: [0, 0, 'h / 2'], aim: [0, -1, 0], group: 'tech:cable', value: 0.5 },
+    ], sig: ['mesh'], lead: 'mesh' },
   // ── kart ──
   bumper: { id: 'bumper', read: 'a striped bumper: a low padded wall, red and white', tier: 'machine', mounts: ['ground'], functions: [],
     params: { l: [1.6, 4], h: [0.6, 1.2] },
@@ -153,6 +189,48 @@ export const TRACK_BLOCKS = Object.freeze({
       { id: 'poles', prim: 'tube', role: 'frame', r: 0.07, from: ['-w / 2', 'rows * 0.85', 0], to: ['-w / 2', 'rows * 0.85', 'rows * 0.45 + 3'], repeat: { n: 'round(w / 5) + 1', step: ['w / round(w / 5)', 0, 0] }, group: 'tech:frame', value: 0.4 },
       { id: 'flags', prim: 'fin', role: 'trim', l: 1.6, h: 1, t: 0.03, at: ['-w / 2', 'rows * 0.85', 'rows * 0.45 + 2.2'], repeat: { n: 'round(w / 5) + 1', step: ['w / round(w / 5)', 0, 0] }, group: 'tech:trim', value: 0.55 },
     ], sig: ['tiers'], lead: 'tiers' },
+  // ── the surrounds (surrounds.js): what stands beyond the venue ──
+  house: { id: 'house', read: 'a house: plastered walls, windows and a door under a hipped roof', tier: 'installation', mounts: ['ground'], functions: ['keep'],
+    params: { w: [6, 12], h: [3, 7] },
+    parts: [
+      { id: 'walls', prim: 'box', role: 'shell', size: ['w', 'w * 0.8', 'h'], group: 'str:plaster', value: 0.8 },
+      { id: 'roof', prim: 'cone', role: 'shell', r: 'w * 0.78', r2: 0, h: 'w * 0.36', sides: 4, yaw: 45, at: [0, 0, 'h'], group: 'tech:trim', value: 0.5 },
+      { id: 'door', prim: 'panel', role: 'door', size: [1.1, 2.1], t: 0.06, at: [0, '-w * 0.4 - 0.03', 1.05], aim: [0, -1, 0], group: 'tech:glass', value: 0.3 },
+      { id: 'windows', prim: 'panel', role: 'trim', size: [1.1, 1.1], t: 0.05, at: ['-w * 0.3', '-w * 0.4 - 0.03', 'h * 0.62'], aim: [0, -1, 0], repeat: { n: 2, step: ['w * 0.6', 0, 0] }, group: 'tech:glass', value: 0.3 },
+    ], sig: ['walls', 'roof'], lead: 'walls' },
+  chapel: { id: 'chapel', read: 'a chapel: a long nave under hipped roofs, a tower at its front and the spire over it', tier: 'landmark', mounts: ['ground'], functions: ['keep'],
+    params: { w: [7, 14], h: [5, 10] },
+    parts: [
+      { id: 'nave', prim: 'box', role: 'shell', size: ['w', 'w * 1.8', 'h'], group: 'str:plaster', value: 0.85 },
+      { id: 'roof', prim: 'cone', role: 'shell', r: 'w * 0.74', r2: 0, h: 'w * 0.4', sides: 4, yaw: 45, at: [0, '-w * 0.45', 'h'], repeat: { n: 2, step: [0, 'w * 0.9', 0] }, group: 'tech:trim', value: 0.45 },
+      { id: 'tower', prim: 'box', role: 'shell', size: ['w * 0.46', 'w * 0.46', 'h * 2.1'], at: [0, '-w * 0.9 - w * 0.2', 0], group: 'str:plaster', value: 0.9 },
+      { id: 'spire', prim: 'cone', role: 'shell', r: 'w * 0.36', r2: 0, h: 'w * 1.2', sides: 4, yaw: 45, at: [0, '-w * 0.9 - w * 0.2', 'h * 2.1'], group: 'tech:trim', value: 0.4 },
+      { id: 'door', prim: 'panel', role: 'door', size: [1.4, 2.6], t: 0.06, at: [0, '-w * 0.9 - w * 0.43 - 0.03', 1.3], aim: [0, -1, 0], group: 'tech:glass', value: 0.3 },
+    ], sig: ['nave', 'spire'], lead: 'nave' },
+  silo: { id: 'silo', read: 'a silo: a tall steel drum under a low cone', tier: 'installation', mounts: ['ground'], functions: ['store'],
+    params: { r: [2, 4], h: [8, 18] },
+    parts: [
+      { id: 'drum', prim: 'drum', role: 'store', r: 'r', h: 'h', sides: 10, group: 'tech:frame', value: 0.7 },
+      { id: 'cap', prim: 'cone', role: 'trim', r: 'r * 1.05', r2: 'r * 0.15', h: 'r * 0.6', sides: 10, at: [0, 0, 'h'], group: 'tech:frame', value: 0.85 },
+    ], sig: ['drum'], lead: 'drum' },
+  shed: { id: 'shed', read: 'a farm shed: a long red barn under a pitched steel roof', tier: 'installation', mounts: ['ground'], functions: ['keep'],
+    params: { w: [10, 18], h: [6, 10] },
+    parts: [
+      { id: 'walls', prim: 'box', role: 'shell', size: ['w', 'w * 0.5', 'h'], group: 'tech:trim', value: 0.45 },
+      { id: 'roof', prim: 'panel', role: 'shell', size: ['w + 0.6', 'w * 0.29'], t: 0.15, at: [0, '-w * 0.125', 'h + w * 0.09'], aim: [0, -0.55, 0.84], repeat: { n: 2, step: [0, 'w * 0.25', 0] }, group: 'tech:frame', value: 0.62 },
+      { id: 'gables', prim: 'box', role: 'shell', size: ['w', 'w * 0.24', 'w * 0.1'], at: [0, 0, 'h'], group: 'tech:trim', value: 0.45 },
+      { id: 'doors', prim: 'panel', role: 'door', size: ['min(4, w * 0.3)', 'h * 0.75'], t: 0.06, at: [0, '-w * 0.25 - 0.03', 'h * 0.375'], aim: [0, -1, 0], group: 'tech:glass', value: 0.3 },
+    ], sig: ['walls'], lead: 'walls' },
+  'tower-block': { id: 'tower-block', read: 'a tower block: a tall slab banded with windows on every face, plant on its roof', tier: 'landmark', mounts: ['ground'], functions: ['keep'],
+    params: { w: [14, 30], h: [24, 60] },
+    parts: [
+      { id: 'slab', prim: 'box', role: 'shell', size: ['w', 'w * 0.7', 'h'], group: 'str:plaster', value: 0.78 },
+      { id: 'front', prim: 'panel', role: 'trim', size: ['w * 0.9', 1.6], t: 0.08, at: [0, '-w * 0.35 - 0.05', 3], aim: [0, -1, 0], repeat: { n: 'floor(h / 3.6) - 1', step: [0, 0, 3.6] }, group: 'tech:glass', value: 0.3 },
+      { id: 'back', prim: 'panel', role: 'trim', size: ['w * 0.9', 1.6], t: 0.08, at: [0, 'w * 0.35 + 0.05', 3], aim: [0, 1, 0], repeat: { n: 'floor(h / 3.6) - 1', step: [0, 0, 3.6] }, group: 'tech:glass', value: 0.3 },
+      { id: 'left', prim: 'panel', role: 'trim', size: ['w * 0.62', 1.6], t: 0.08, at: ['-w / 2 - 0.05', 0, 3], aim: [-1, 0, 0], repeat: { n: 'floor(h / 3.6) - 1', step: [0, 0, 3.6] }, group: 'tech:glass', value: 0.3 },
+      { id: 'right', prim: 'panel', role: 'trim', size: ['w * 0.62', 1.6], t: 0.08, at: ['w / 2 + 0.05', 0, 3], aim: [1, 0, 0], repeat: { n: 'floor(h / 3.6) - 1', step: [0, 0, 3.6] }, group: 'tech:glass', value: 0.3 },
+      { id: 'plant', prim: 'box', role: 'door', size: ['w * 0.4', 'w * 0.3', 3], at: [0, 0, 'h'], group: 'tech:frame', value: 0.55 },
+    ], sig: ['slab'], lead: 'slab' },
 });
 
 /** Beat (and a focus's form) → the piece, per set. A list cycles through the beat's slots. */
@@ -214,9 +292,21 @@ const GROUP_PAINT = Object.freeze({
   'str:stone': { material: 'stone' }, 'str:timber': { material: 'bark' }, 'str:motif': { material: 'foliage' },
 });
 
+/** Which surface group wins a cube it shares (voxel-look.js): the detail over the body it stands proud of. */
+const VOXEL_PRIORITY = Object.freeze({ 'tech:glass': 3, 'tech:trim': 3, 'tech:light': 3, 'str:accent': 3, 'tech:frame': 2, 'tech:cable': 1 });
+
 /** A built piece's faces in the kit (track-kit.js): each group its material or flat colour, its value a stop, lit by the
  *  roadway's light (the kit's pole decides: a tile × light, or the band's stop); polygons fanned to four corners. */
-export function paintPiece(faces, K) {
+export function paintPiece(faces, K, { voxel = null } = {}) {
+  // the voxel look: the piece a shell of cubes on its grid, under the isekai light (voxel-look.js); `voxel` a coarser
+  // grid for a far thing (the surrounds: a wood, a butte, a village)
+  if (K.pole === 'voxel' && faces.length) {
+    const box = { lo: [0, 1, 2].map((i) => Math.min(...faces.flatMap((f) => f.corners.map((p) => p[i])))), hi: [0, 1, 2].map((i) => Math.max(...faces.flatMap((f) => f.corners.map((p) => p[i])))) };
+    const vox = voxelize(faces, { size: voxel ?? voxelSizeFor(box), colourOf: (f) => K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile), priorityOf: (f) => VOXEL_PRIORITY[f.group] ?? (f.tile ? -1 : 0) });   // (a seam: a mark on a body, never over it)
+    return voxelFaces(vox, { light: K.light });
+  }
+  // the shaded look: the piece's own polygons, lit per corner the sixth generation's way (shaded-look.js)
+  if (K.pole === 'shaded') return shadeFaces(faces, { colourOf: (f) => K.colourOf(GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'], f.value ?? 0.6, !!f.tile).lit });
   const out = [];
   for (const f of faces) {
     const G = GROUP_PAINT[f.group] ?? GROUP_PAINT['tech:body'];

@@ -1,7 +1,7 @@
 /**
  * A track from words (roads/trackscape-compose.js → trackscape-dress.js), written as a self-contained World page:
- * the course designed, drawn in the words' look, dressed where a driver looks. Prints what each word decided, the
- * driver's eye over the dressed lap and the laws, and writes the arena plan's sheet beside the page (the venue's zones,
+ * the course designed, drawn in the words' look, dressed where a driver looks, set in its land. Prints what each word
+ * decided, the driver's eye over the dressed lap and the laws, the surrounds, and writes the arena plan's sheet beside the page (the venue's zones,
  * reviewed before anything in them is built). Tooling; output where you point it.
  *
  *   cd control && node scripts/trackscape.mjs "a realistic GT circuit in green hills" [out.html] [seed]
@@ -36,6 +36,7 @@ if (S.arena) {
   writeFileSync(sheet, arenaSheetSvg(plan, S.arena, { scape: S, title: intent }));
   console.log(`  wrote ${sheet}`);
 }
+if (S.surrounds) { const U = S.surrounds; console.log(`  the surrounds: ${U.land}, ${U.settlement}${U.lake ? `, a lake of ${Math.round(U.lake.r)} m` : ''}; formations ${U.formations.map((f) => f.kind).join(', ') || 'none'}; ${U.buildings} buildings, ${U.trees} trees, ${U.canopy} woods`); }
 const scene = assembleTrackScene(M, { title: intent }, plan);
 scene.textures = collectFaceTextures(scene.faces, {});
 writeFileSync(out, emitThreeWorld({ ...scene, inline: true }));

@@ -29,7 +29,8 @@ import { trackKit } from './track-kit.js';
 import { racingLine } from './contract.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
-const TILE = 2.5, GRASS_TILE = 4;
+const TILE = 2.5;
+export const GRASS_TILE = 4;      // m a grass tile covers (the surrounds, surrounds.js, tile the land they shape alike)
 const SINK = 0.12;                   // m the terrain sits under the road it carries
 const EASE = 50;                     // m over which the land beyond a footprint eases to the course's mean height
 const FAR = 6000;                    // m of far ground each way
@@ -167,14 +168,17 @@ export function planTrack(m = {}) {
 
   // the kit's wear on the road: the racing line rubbered dark through every corner, and repairs
   if (K) faces.push(...roadWear({ a, X, K, P, seed: Number.isInteger(m.seed) ? m.seed : 1 }));
+  // the ground (its range kept: the surrounds, surrounds.js, draw it again on the land they shape)
+  const g0 = faces.length;
   faces.push(...terrainFaces(terrain, K));
   faces.push(...farGround(terrain, K));
+  const ground = [g0, faces.length];
   const crossings = selfClearance(a, { width: X.outer * 2, margin: 1 }).crossings;
   // the land dressed (`dress`): trees and rocks on the track's own ground, clear of every footprint
   const props = m.dress ? dressProps({ a, X, terrain, dress: m.dress, seed: Number.isInteger(m.seed) ? m.seed : 1 }) : [];
   for (const q of props) faces.push(...propFaces(q));
   const cameras = trackCameras({ a, X, P, course, deck, crossings });
-  return { form: m.form, course, alignment: a, X, stations: st, faces, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L };
+  return { form: m.form, course, alignment: a, X, stations: st, faces, ground, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L };
 }
 
 // ── the ground ───────────────────────────────────────────────────────────────────────────────────

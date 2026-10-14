@@ -10,7 +10,12 @@ import { quickWorld } from '../gameworld/quick.js';
 describe('reading a track from words', () => {
   it('what is raced sets the class, the set, the car and the pole; a word can turn the pole', () => {
     const k = readTrackIntent('a kart track'), g = readTrackIntent('a GT circuit'), r = readTrackIntent('a realistic kart track');
-    expect([k.track.class, k.set, k.vehicle, k.pole]).toEqual(['kart', 'kart', 'kart', 'banded']);
+    expect([k.track.class, k.set, k.vehicle, k.pole]).toEqual(['kart', 'kart', 'kart', 'voxel']);
+    expect(readTrackIntent('a cartoon kart track').pole).toBe('banded');
+    expect(readTrackIntent('a battle racer arena').set).toBe('kart');
+    // a look word is the look's, wherever it stands: "battle racer" names what is raced, not how it is drawn
+    expect(readTrackIntent('a sunshine battle racer track').pole).toBe('shaded');
+    expect(readTrackIntent('a battle racer track').pole).toBe('voxel');
     expect([g.track.class, g.set, g.pole]).toEqual(['circuit', 'gt', 'material']);
     expect(r.pole).toBe('material');
     expect(readTrackIntent('a rally stage').track.form).toBe('stage');
@@ -22,6 +27,14 @@ describe('reading a track from words', () => {
     expect(R.landmark).toBe('castle');
     expect(R.look).toMatch(/\bhills\b/);
     expect(R.look).toMatch(/^realistic /);
+  });
+  it('the land round it and what stands there are the surrounds\'; a canyon is the look\'s too', () => {
+    expect(readTrackIntent('a GT circuit in green hills').surrounds).toEqual({ land: TRACK_LEXICON.hills.land });
+    const R = readTrackIntent('a GT circuit in a canyon by a city');
+    expect(R.surrounds).toEqual({ land: TRACK_LEXICON.canyon.land, settlement: TRACK_LEXICON.city.settlement });
+    expect(R.look).toContain(SCENE_WORDS.canyon);
+    expect(readTrackIntent('a kart track').surrounds).toBeUndefined();
+    expect(composeTrack('a rally stage in the mountains').scape.surrounds).toEqual({ land: 'mountains' });
   });
   it('a scene\'s common word is said in the land tunnel\'s own', () => {
     expect(readTrackIntent('an autumn kart track').look).toContain(SCENE_WORDS.autumn);

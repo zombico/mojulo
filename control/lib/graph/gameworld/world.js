@@ -40,7 +40,7 @@
                                          // civilization's language, painted by the level's geocube, played by its
                                          // segments from `from` (the core's) to `to` (the farthest): a line of them
                                          // along the way in a linear world, all of them joined at their portals in a map
-       roadway?: { form?: 'circuit' | 'stage', course?, dress?, kit?: true | '<kit id>', scape?: true | { set?, seed? } },
+       roadway?: { form?: 'circuit' | 'stage', course?, dress?, kit?: true | '<kit id>', scape?: true | { set?, seed?, landmark?, surrounds? } },
                                          // in place of `walk`: the level is a roadway built for driving (roads/track.js)
                                          // — a lap or a stage, by preset name or course spec, on its own ground; a
                                          // race on it reads its contract (its checkpoints, grid and racing line)
@@ -93,7 +93,8 @@ import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
 import { TRACK_FORMS } from '../roads/track.js';
 import { COURSE_PRESETS } from '../roads/course.js';
-import { SETS } from '../roads/set-pieces.js';
+import { SETS, TRACK_BLOCKS } from '../roads/set-pieces.js';
+import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -147,7 +148,8 @@ const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
-// its scape (roads/trackscape-dress.js): true, or { set?: 'gt' | 'kart', seed? }, the track dressed where a driver looks
+// its scape (roads/trackscape-dress.js): true, or { set?: 'gt' | 'kart', seed?, landmark?, surrounds? }, the track dressed
+// where a driver looks (its surrounds: the land beyond the venue, roads/surrounds.js)
 const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to'];
@@ -360,7 +362,8 @@ export function readGameworld(W) {
       if (Rw.course !== undefined && !(isObj(Rw.course) || COURSE_PRESETS[Rw.course])) throw new Error(`gameworld: ${at}.roadway.course is a preset (${Object.keys(COURSE_PRESETS).join(', ')}) or a course spec ({ pis, … } or { class, length, … })`);
       if (Rw.dress !== undefined && Rw.dress !== true && Rw.dress !== false && !isObj(Rw.dress)) throw new Error(`gameworld: ${at}.roadway.dress is true, false or { trees?, rocks?, clear? }`);
       if (Rw.kit !== undefined && Rw.kit !== true && Rw.kit !== false && typeof Rw.kit !== 'string' && !(isObj(Rw.kit) && typeof Rw.kit.look === 'string')) throw new Error(`gameworld: ${at}.roadway.kit is true (the world's look), a kit's id, or a look in words ({ look })`);
-      if (Rw.scape !== undefined && Rw.scape !== true && Rw.scape !== false && !(isObj(Rw.scape) && Object.keys(Rw.scape).every((k) => ['set', 'seed'].includes(k)) && (Rw.scape.set === undefined || SETS[Rw.scape.set]))) throw new Error(`gameworld: ${at}.roadway.scape is true or { set?: ${Object.keys(SETS).join(' | ')}, seed? }`);
+      const SU = Rw.scape?.surrounds, okSurrounds = SU === undefined || SU === true || SU === false || (isObj(SU) && Object.keys(SU).every((k) => ['land', 'settlement', 'seed'].includes(k)) && (SU.land === undefined || LANDS[SU.land]) && (SU.settlement === undefined || SETTLEMENTS.includes(SU.settlement)));
+      if (Rw.scape !== undefined && Rw.scape !== true && Rw.scape !== false && !(isObj(Rw.scape) && Object.keys(Rw.scape).every((k) => ['set', 'seed', 'landmark', 'surrounds'].includes(k)) && (Rw.scape.set === undefined || SETS[Rw.scape.set]) && (Rw.scape.landmark === undefined || TRACK_BLOCKS[Rw.scape.landmark]) && okSurrounds)) throw new Error(`gameworld: ${at}.roadway.scape is true or { set?: ${Object.keys(SETS).join(' | ')}, seed?, landmark?, surrounds?: false | { land?: ${Object.keys(LANDS).join(' | ')}, settlement?: ${SETTLEMENTS.join(' | ')}, seed? } }`);
     } else if (L.city !== undefined) {
       // a city level: a planned city (city/plan/), built in its civilization's language, played by its segments
       if (L.walk !== undefined || L.building !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building or a city, one of them`);
