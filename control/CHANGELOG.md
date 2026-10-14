@@ -444,6 +444,48 @@ redraws with the new numbers on its next read.
   front, top) with no database or browser, `--parts` to colour faces by part, and `--measure` for the proportion
   readout the pass steers by (trunk width over height, the legs' reach over the trunk's half-width, the head's length
   and carriage).
+### Wildflowers in the grass, and shrubs in flower and in fruit
+
+An isekai meadow can now be seeded with flowers in its grass and bushes through it. Both are opt-in, so a meadow
+already minted comes out as before.
+
+- **Wildflowers in the live grass (`grass.flowers`).** A share of the tufts carries flowers: oxeye daisy, buttercup,
+  red clover, lupine and corn poppy (`vegetation/wildflowers.js`). Each flower is a stem and a head grown in its tuft's
+  units and drawn on the tuft's root, at its scale. It bends with the tuft in the wind and under a foot. The parts take
+  their kind's ramps in the kit's palette, locked to the stops on a banded look and smooth on the material pole.
+  `grass.flowers: true | { share?, mix? }` (`mix` weighs the kinds). The meadow card draws them large and standing
+  clear (`size`, `lift`), as a stylized field reads them.
+- **Fruit on a bush.** The flora index's bush takes a `fruit` dial: clusters of berries hanging at the canopy's outer,
+  lower edge, on the new `fruit` part. Like the blooms, the berries roll their own dice, so a bush in fruit keeps the
+  shape of the same bush out of fruit.
+- **Shrubs (`shrubs`).** Bushes seeded within reach of the trail, clear of it, the rocks, the trees and each other
+  (`era/shrubs.js`). A `bloom` share is in flower, a `fruit` share in fruit, the rest green. They are drawn the
+  ikebana's way: the kit's flora skin, the same cel light, and the sun's shadow cast and taken. A bush taller than a
+  step is a collider; every bush is an anchor (`kind: 'shrub'`, its state). `shrubs: true | { count?, bloom?, fruit? }`.
+- **New ramps.** The isekai swatches gain `fruit`, `gold` and `violet` ramps (berries and poppies, buttercups, clover
+  and lupines), each starting from a cool dark stop like every other ramp.
+
+### Grass contact and the grass's two poles
+
+The isekai live grass (`wind` on an isekai stage) moved only in the wind. Its one touch, the old `part`, was an offset
+round the camera's footprint on the map: it bent grass under a camera 20 m up and stretched blades. Contact is now a
+load on the blade, and the grass can be drawn as a material.
+
+- **Contact is a load, through the wind's own bend.** A foot, a landing or a blast adds to the wind's load before the
+  elastica bend table (`vegetation/wind.js`), so a pressed blade keeps its length and a foot and a gust add up. The
+  kernel is `vegetation/grass-contact.js`, tested in Node and inlined into the page.
+  - A bed round the camera records how far each cell's blades lie and which way. Bodies stamp it: the walker (only
+    while its feet are in the grass), the page's walkers and its physics spheres. Blades lie away from a body and along
+    its way, so a walked line reads as a trail. They stand back up with a half-life (`recover`).
+  - A landing from a fall, or `__mojStageGrass.impact(x, y, e)`, sends a ring of load out through the field and leaves
+    a crater. The ring is a closed form of the clock, so a frame with a pinned clock reproduces.
+  - Laid grass turns a stop up the ramp when it lies away from the eye and down when it lies toward it (the mowing stripe).
+- **The material pole draws the grass as a material.** On a realistic look (or with `grass.look: 'material'`) the
+  ramp is read smoothly between its stops. Blades darken into the canopy at the root, a share of tufts goes to straw at
+  the tips, and the sun shows through a blade seen against it. Banded looks keep the pixel lock.
+- **`grass` on an isekai stage:** `{ look?, contact?: false | { body?, press?, recover?, wave?: { speed?, decay? },
+  land? }, density?, height? }`. It is validated, and on its own it stands the live field in the default wind.
+  `contact: false` emits none of the contact code.
 
 ### Game audio: scene-scored soundtracks and action SFX
 
