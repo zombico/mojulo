@@ -180,6 +180,7 @@ func _ready() -> void:
 	_apply_rim()
 	if _fix_lights() > 0:
 		_build_environment()
+	_build_look()
 	_build_weather()
 	_hide_player_double()
 	_mark_meshless_entities()
@@ -2689,3 +2690,197 @@ func toggle_journal(open: bool) -> void:
 
 func quest_view() -> Array:
 	return QuestsScript.view(quest_prog, bus_state["vars"]) if quest_prog != null else []
+
+
+
+# ── the look (since 0.23.0) ─────────────────────────────────────────────────────────────────────────────────────────
+# THE SKY AS THE PAGE DRAWS IT: its background colour (score.bg), its dome (score.skyDome: kernel/sky.gdshader, the
+# gradient, the stars, the moon and the sun), its distance haze (score.haze: exponential fog in the horizon colour, the
+# background with it, the dome clear of it); a metal surface reflects the sky (or a plain studio sky when the level has
+# none: the page's metal reads its own studio); the PIXEL medium (score.pixel) draws the 3D at 1/scale, blown up without
+# smoothing; a TONE (score.tone: kernel/tone.gdshader) colours each surface's lit value off its ramp. A level with none of
+# them builds nothing.
+const SkyShader := preload("res://kernel/sky.gdshader")
+const ToneShader := preload("res://kernel/tone.gdshader")
+var look_env: Environment = null
+
+
+static func _srgb_lin(c: float) -> float:
+	c /= 255.0
+	return c / 12.92 if c <= 0.04045 else pow((c + 0.055) / 1.055, 2.4)
+
+
+# a front-sky place { u, h } (the dome's projection, z up) as a y-up direction
+static func _front_sky(u: float, h: float) -> Vector3:
+	var el := clampf(h, 0.25, 0.95) * (PI / 2.0)
+	var az := -PI / 2.0 + (u - 0.5) * PI
+	var cr := cos(el)
+	return Vector3(cr * cos(az), sin(el), -cr * sin(az))
+
+
+func _metal_nodes() -> bool:
+	for n in find_children("*", "MeshInstance3D", true, false):
+		if String(n.name).contains("_metal") or String(n.get_parent().name).contains("_metal"):
+			return true
+	return false
+
+
+func _look_environment() -> Environment:
+	var env: Environment = get_viewport().world_3d.environment
+	if env == null:
+		env = Environment.new()
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = Color(0.055, 0.063, 0.078)
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = Color(0.9, 0.9, 1.0)
+		env.ambient_light_energy = 0.0
+		var we := WorldEnvironment.new()
+		we.name = "Environment"
+		we.environment = env
+		add_child(we)
+	return env
+
+
+func _build_look() -> void:
+	var bg = score.get("bg")
+	var dome = score.get("skyDome")
+	var haze = score.get("haze")
+	var metal := _metal_nodes()
+	if bg is String or dome is Dictionary or haze is Dictionary or metal:
+		var env := _look_environment()
+		look_env = env
+		if bg is String:
+			env.background_color = Color(bg)
+		if dome is Dictionary:
+			var mat := ShaderMaterial.new()
+			mat.shader = SkyShader
+			var z: Array = dome.get("zenith", [])
+			var h: Array = dome.get("horizon", [])
+			if z.size() >= 3 and h.size() >= 3:
+				mat.set_shader_parameter("zenith", Color(_srgb_lin(z[0]), _srgb_lin(z[1]), _srgb_lin(z[2])))
+				mat.set_shader_parameter("horizon", Color(_srgb_lin(h[0]), _srgb_lin(h[1]), _srgb_lin(h[2])))
+			var space: bool = dome.get("space", false) == true
+			mat.set_shader_parameter("space", space)
+			var day := float(dome.get("day", 0.0 if space else 1.0))
+			var stars := float(dome.get("stars", 1.0 if space else 0.0))
+			var night := 1.0 if space else clampf((0.5 - day) / 0.5, 0.0, 1.0)
+			mat.set_shader_parameter("stars", stars * night * (2.2 if space else 1.0) if (space or day < 0.5) else 0.0)
+			mat.set_shader_parameter("seed", float(dome.get("seed", 1)))
+			var moon = dome.get("moon")
+			if moon is Dictionary:
+				mat.set_shader_parameter("moon_dir", _front_sky(float(moon.get("u", 0.5)), float(moon.get("h", 0.5))))
+				mat.set_shader_parameter("moon_on", float(moon.get("nightFactor", 1.0)))
+			var sun = dome.get("sun")
+			if sun is Dictionary:
+				var sd: Vector3
+				if sun.get("dir") is Array:
+					sd = to_yup(sun["dir"]).normalized()
+				else:
+					sd = _front_sky(float(sun.get("u", 0.5)), float(sun.get("h", 0.5)))
+				mat.set_shader_parameter("sun_dir", sd)
+				mat.set_shader_parameter("sun_on", 1.0)
+			var sky := Sky.new()
+			sky.sky_material = mat
+			env.sky = sky
+			env.background_mode = Environment.BG_SKY
+		if haze is Dictionary:
+			env.fog_enabled = true
+			env.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+			env.fog_density = float(haze.get("density", 0.0))
+			env.fog_light_color = Color(String(haze.get("color", "#888888")))
+			env.fog_sky_affect = 0.0
+			if not (dome is Dictionary):
+				env.background_color = Color(String(haze.get("color", "#888888")))
+		if metal:
+			if env.sky == null:
+				var studio := ProceduralSkyMaterial.new()
+				studio.sky_top_color = Color(0.72, 0.74, 0.78)
+				studio.sky_horizon_color = Color(0.86, 0.86, 0.88)
+				studio.ground_bottom_color = Color(0.2, 0.2, 0.22)
+				studio.ground_horizon_color = Color(0.5, 0.5, 0.52)
+				var ss := Sky.new()
+				ss.sky_material = studio
+				env.sky = ss
+			env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	var px = score.get("pixel")
+	if px is Dictionary and float(px.get("scale", 1)) > 1.0:
+		var vp := get_viewport()
+		vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_NEAREST
+		vp.scaling_3d_scale = 1.0 / float(px["scale"])
+		vp.msaa_3d = Viewport.MSAA_DISABLED
+		vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	_apply_tone()
+	# the look as built, one line (the machine gate reads it; the eyes gate is the operator's)
+	if look_env != null or px is Dictionary:
+		var e := look_env
+		print("[mojulo-look] bg=%s mode=%s sky=%s fog=%s density=%.4f fogcolor=%s reflect=%s scale=%.3f filter=%s" % [
+			e.background_color.to_html(false) if e != null else "-", ("sky" if e.background_mode == Environment.BG_SKY else "color") if e != null else "-",
+			(e.sky.sky_material.get_class() if e.sky != null else "none") if e != null else "-", str(e.fog_enabled) if e != null else "-",
+			e.fog_density if e != null else 0.0, e.fog_light_color.to_html(false) if e != null else "-",
+			str(e.reflected_light_source == Environment.REFLECTION_SOURCE_SKY) if e != null else "-",
+			get_viewport().scaling_3d_scale, "nearest" if get_viewport().scaling_3d_mode == Viewport.SCALING_3D_MODE_NEAREST else "bilinear"])
+
+
+func _apply_tone() -> void:
+	var T = score.get("tone")
+	if not (T is Dictionary and T.get("ramps") is Array and not (T["ramps"] as Array).is_empty()):
+		return
+	var keep := {}
+	for g in (T.get("keep") if T.get("keep") is Array else []):
+		keep[gd_name(String(g))] = true
+	var groups := {}
+	var gm = T.get("groups")
+	if gm is Dictionary:
+		for g in gm:
+			groups[gd_name(String(g))] = int(gm[g])
+	var def := int(T.get("def", 0))
+	var mats := {}
+	var skip := {}
+	for e in score.get("entities", []):
+		if e is Dictionary:
+			skip[gd_name("entity:" + s_(e.get("id")))] = true
+			if s_(e.get("figure")) != "":
+				skip[gd_name(s_(e.get("figure")))] = true
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		var owner_name := String(mi.name)
+		var up: Node = mi
+		var body := false
+		while up != null and up != self:
+			if skip.has(String(up.name)):
+				body = true
+			owner_name = String(up.name) if up.get_parent() == self or up.get_parent() == null or String(up.get_parent().name) == "mojulo" else owner_name
+			up = up.get_parent()
+		if body or keep.has(String(mi.name)) or keep.has(owner_name):
+			continue
+		var k: int = groups.get(String(mi.name), groups.get(owner_name, def))
+		var tex: Texture2D = null
+		var m0 = mi.get_active_material(0)
+		if m0 is BaseMaterial3D:
+			tex = m0.albedo_texture
+		var key := "%d|%s" % [k, str(tex.get_rid()) if tex != null else ""]
+		if not mats.has(key):
+			var mat := ShaderMaterial.new()
+			mat.shader = ToneShader
+			var ramp: Array = T["ramps"][clampi(k, 0, (T["ramps"] as Array).size() - 1)]
+			var stops := PackedVector3Array()
+			for c in ramp:
+				stops.append(Vector3(float(c[0]), float(c[1]), float(c[2])))
+			mat.set_shader_parameter("ramp", stops)
+			mat.set_shader_parameter("steps", float(T.get("steps", 0)))
+			mat.set_shader_parameter("gain", float(T.get("gain", 1)))
+			mat.set_shader_parameter("mid", float(T.get("mid", 0.5)))
+			mat.set_shader_parameter("detail", float(T.get("detail", 0)))
+			mat.set_shader_parameter("has_map", tex != null)
+			if tex != null:
+				mat.set_shader_parameter("map", tex)
+			mats[key] = mat
+		mi.material_override = mats[key]
+	# the background and the fog take the default ramp's two darkest stops
+	var d: Array = T["ramps"][clampi(def, 0, (T["ramps"] as Array).size() - 1)]
+	var env := _look_environment()
+	look_env = env
+	if env.background_mode == Environment.BG_COLOR:
+		env.background_color = Color(float(d[0][0]), float(d[0][1]), float(d[0][2]))
+	if env.fog_enabled:
+		env.fog_light_color = Color(float(d[1][0]), float(d[1][1]), float(d[1][2]))
+	print("moj: tone over %d surface material(s)" % mats.size())

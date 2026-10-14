@@ -85,9 +85,9 @@ export const PAGE_MARKS = Object.freeze({
   faces: m(B, 'model.glb (scene-gltf.js), unlit with COLOR_0'),
   cameras: m(B, 'the GLB\'s cameras'),
   viewBox: OPTION, title: OPTION, inline: OPTION, cdn: OPTION, capture: OPTION, pack: OPTION, hud: OPTION, wireframe: OPTION, spin: OPTION, decollide: OPTION, metersPerUnit: OPTION,
-  bg: m(A, 'the page background: no WorldEnvironment reads it (sky_approximated)'),
-  backdrop: m(A, 'the backdrop is not carried (sky_approximated)'),
-  sky: m(A, 'score.sky.preset is emitted but level.gd never reads it; the dome is not carried'),
+  bg: m(B, 'score.bg: the WorldEnvironment\'s background (kernel/level.gd _build_look)'),
+  backdrop: m(A, 'the backdrop is an image the page loads by URL: a pack fetches nothing (sky_approximated)'),
+  sky: m(P, 'score.skyDome: kernel/sky.gdshader paints the dome\'s gradient, the moon and the sun; its stars are scattered by a hash, not where the page puts them, and the moon\'s phase is not carved'),
   light: m(B, 'baked into the vertex colours by scene-gltf.js, as the page bakes it'),
   glow: m(A, 'glow sprites (camera-facing additive cards) are not drawn'),
   textures: m(B, 'embedded in the GLB (TEXCOORD_0 + PNG)'),
@@ -115,7 +115,7 @@ export const PAGE_MARKS = Object.freeze({
   figures: m(P, 'rigid per-bone parts (scene-gltf addRigFigure): no painted or blend-shape face, no ink on a game pack'),
   events: m(B, 'bus.json and score.json carry what the kernel runs; the keys they drop are named by EVENT_MARKS'),
   fog: m(A, 'the page\'s fog rides only on weather (weather-score.js)'),
-  haze: m(A, 'haze is not carried'),
+  haze: m(P, 'score.haze: exponential fog in the horizon colour, the background with it, the sky clear of it; Godot\'s exponential curve is not three\'s squared one, so the falloff differs'),
   splats: m(A, 'fur and grass splats are not drawn'),
   audio: m(P, 'the soundtrack and one-shot sounds play (kernel/sound.gd); positional sound and weather beds are the web\'s'),
   fx: m(A, 'camera-facing fx are not drawn (skipped_fx)'), effects: m(A, 'screen effects are not drawn'),
@@ -136,9 +136,9 @@ export const PAGE_MARKS = Object.freeze({
   jets: m(A, 'jets are not drawn'), jetLight: m(A, 'jet light is not drawn'), sway: m(A, 'vegetation does not sway'),
   flicker: m(A, 'lights do not flicker'), motes: m(A, 'motes are not drawn'),
   weather: m(P, 'fog, colour and light (kernel/weather.gd); falls, landings and lightning are the web\'s'),
-  tone: m(A, 'the tone grade has no pass: a toned world arrives grey'),
+  tone: m(B, 'kernel/tone.gdshader on each surface, the page\'s ramp, bands and detail (score.tone); the background and the fog off the default ramp'),
   liveGrass: m(A, 'live grass is not drawn'),
-  pixel: m(A, 'the pixel medium has no SubViewport pass'),
+  pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),
 });
 
 // ── the events manifest's keys (the page reads the whole object; what travels rides bus.json or score.json) ──────────

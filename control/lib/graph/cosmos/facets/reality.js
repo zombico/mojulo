@@ -29,14 +29,14 @@ export const REALITY = Object.freeze({
     era: { values: Object.fromEntries(ERA_IDS.map((id) => [id, { ...ERAS[id].world, godot: eraGodot(ERAS[id].world) }])) },
     // the cast in the same era (era/cast-density.js): built where its body is, partial while conventions are planned
     cast: { values: Object.fromEntries(ERA_IDS.map((id) => [id, castStatus(id)])) },
-    // a look's bake and palette ride the GLB; its sky, haze and tone do not (godot-marks.js PAGE_MARKS)
+    // a look's bake and palette ride the GLB; its sky and haze travel approximated, its tone whole (godot-marks.js PAGE_MARKS)
     look: { source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' } } },
     kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', godot: { all: 'built' } } },
     medium: {
       values: {
         '3d': { status: 'built', godot: 'built', lowers: 'lib/graph/scene/scene-three.js' },
         // built 10-12: a world's `pixel` (a gameworld's style.pixel) draws the page small and blows it up unsmoothed
-        pixel: { status: 'built', godot: 'absent', lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
+        pixel: { status: 'built', godot: 'built', lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
       },
     },
     // the weather's fog, colour and light play (kernel/weather.gd); its falls and lightning are the web's

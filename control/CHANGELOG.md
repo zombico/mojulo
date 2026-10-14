@@ -1273,6 +1273,15 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   lip, the rival round its loop, the camera) is equal key for key. The ground's surface grip under a car stays the
   web's (`driveSurface`, approximated), and solid bodies that push walkers out on the web are named
   (`bodies_solid`). Drive, racer, fly, the vehicle hero and the circuit are built.
+- **The look travels further** (kernel 0.24.0). Game packs ship their rigged figures skinned, as world packs do (one
+  mesh, its clips, its face and ink: game-pack emission changes); the skinned suit follows the walker. The score
+  carries the page's background colour, its sky dome, its distance haze and its pixel medium (`bg`, `skyDome`,
+  `haze`, `pixel`), and `kernel/level.gd` builds them: a sky shader with the dome's gradient, stars, moon and sun
+  (`kernel/sky.gdshader`), exponential fog in the horizon colour, the 3D drawn at 1/scale with nearest scaling; a
+  toned stage is graded by `kernel/tone.gdshader` (the page's ramps, bands and detail); a metal reflects the sky, or a
+  plain studio sky. The background, the tone, the pixel medium and the circuit of reflections are built; the dome
+  and the haze are approximated (hashed stars, an unphased moon, Godot's fog curve); the backdrop image stays the
+  web's. Machine-held by `godot-look.test.js`; how it looks is the eyes gate.
 - **The export's ground is the page's.** The GLB de-collided its blend tiles together with the ground they lie on,
   lifting the ground itself a fraction of a millimetre where the page leaves it; blend faces now go last (the page
   draws them in their own pass), and `score.blendNodes` names their nodes so the kernel's land leaves them out. The

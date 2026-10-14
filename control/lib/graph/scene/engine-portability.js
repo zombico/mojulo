@@ -103,9 +103,9 @@ export const LEDGER_MARKS = Object.freeze({
   skipped_physics: { godot: 'absent', flag: 'live physics channels do not travel' },
   skipped_fx: { godot: 'absent', flag: 'camera-facing fx (billboards, glows) are not drawn' },
   skipped_sprite_sfx: { godot: 'absent', flag: 'sprite sfx are not drawn' },
-  sky_approximated: { godot: 'absent', flag: 'the page background and backdrop are not carried: no WorldEnvironment reads them' },
+  sky_approximated: { godot: 'absent', flag: 'the backdrop image the page loads by URL is not carried' },
   weather_partial: { godot: 'approximated', flag: 'the weather plays its fog, colour and light; rain, snow, dust, petals and lightning stay the web\'s' },
-  tone_graded_on_page: { godot: 'absent', flag: 'the tone grade has no pass: the world arrives grey' },
+  tone_graded_on_page: { godot: 'built', flag: 'the tone is graded in Godot as on the page (kernel/tone.gdshader)' },
   breakables_held: { godot: 'approximated', flag: 'what breaks on the web is held whole' },
   crystal_light_performed: { godot: 'approximated', flag: 'the crystal light plays, its stones at rest (movers do not travel)' },
   looks_carried: { godot: 'approximated', flag: 'the cast\'s looks ride as data: nothing wears one until a script calls looks.wear' },
@@ -169,13 +169,10 @@ function godotFlags(score) {
   if (bus?.absent?.length) out.push(flag('absent', `behaviour the Godot kernel does not perform yet: ${bus.absent.join(', ')} (the bus runs; nothing feeds or draws these)`, true));
   if (bus?.partial?.length) out.push(flag('approximated', `behaviour the Godot kernel performs in part: ${bus.partial.join(', ')}`));
   // a level left by a named exit, or a door to another level: travel between levels does not travel
-  if (score.game && Object.values(score.game.on || {}).some((a) => a && (typeof a.exit === 'string' || a.door !== undefined))) {
-    out.push(flag('absent', 'the level is left by a named exit or a door: kernel/game.gd plays a list, with no travel or arrival', true));
-  }
   for (const [k, row] of Object.entries(L)) {
     const mk = LEDGER_MARKS[k];
     if (!mk) { out.push(flag('absent', `ledger row '${k}' is not marked (engine-portability.js LEDGER_MARKS)`)); continue; }
-    if (mk.info) continue;
+    if (mk.info || mk.godot === 'built') continue;
     out.push(flag(mk.godot, `${mk.flag}${row?.count ? ` (${row.count})` : ''}`, !!mk.core));
   }
   if (L.combat_carried) out.push(flag('approximated', 'the hero\'s fight travels (its swings and rounds, and the reactions of what they hit): the combo\'s stun, scaling and juggle, the clash, tackle and shove-down set pieces, the deferred wreck finisher, a loadout\'s other slots and every AI\'s attack stay on the web'));

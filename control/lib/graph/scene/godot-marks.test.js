@@ -216,6 +216,7 @@ const PROOF = {
   markers: ['lib/graph/scene/godot-markers.test.js', 'a headless Godot draws them where its bus puts them'],
   rules: ['lib/graph/scene/godot-rules.test.js', 'kernel/rules.gd is equal to the web'],
   scenes: ['lib/graph/scene/godot-scenes.test.js', 'kernel/scenes.gd and quests.gd are equal to the web'],
+  look: ['lib/graph/scene/godot-look.test.js', 'a headless Godot builds the sky, the haze, the pixel scaling and the tone'],
   cameras: ['lib/graph/scene/godot-rules.test.js', 'drive the Godot camera as they drive the page'],
 };
 const EVIDENCE = {
@@ -231,7 +232,7 @@ const EVIDENCE = {
     entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter', scenes: 'scenes', quests: 'scenes',
   },
   page: {
-    faces: 'matrix', cameras: 'matrix', textures: 'matrix', soft: 'matrix', repeats: 'matrix', ao: 'matrix', light: 'matrix', entities: 'matrix',
+    bg: 'look', tone: 'look', pixel: 'look', faces: 'matrix', cameras: 'matrix', textures: 'matrix', soft: 'matrix', repeats: 'matrix', ao: 'matrix', light: 'matrix', entities: 'matrix',
     camera: 'matrix', pilot: 'matrix', colliders: 'matrix', events: 'matrix', game: 'matrix',
   },
 };
