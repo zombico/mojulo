@@ -135,12 +135,12 @@ status line in gate language. Tool names go on a single closing line in `code`, 
 - **Images:**
   - `docs/images/dresser-shop-sheet.png` (made): "Not a mesh. A cutting plan." The headline is the report's own
     finding that the chest tips with a child on the open top drawer, and says to fix it to the wall.
-  - `docs/images/dresser-manual-flow.png` + `dresser-manual-viewer.png` (made, held): the same chest through
-    `mint_stash → gather → cook { kind: 'instruction_manual' }`; the last page anchors it to the wall. Held until
-    the inventory page's NaN row is fixed, then re-cut with the inventory page in it.
-  - Sheet metal, "Cut it. Bend it." `[asset]`: the folded U-channel beside its dimensioned flat pattern, the
-    bend-allowance sum written out (119.048 mm, verified). Waits on the bend-line fix (bend lines currently cut
-    the DXF into three pieces).
+  - `docs/images/dresser-manual-flow.png` + `dresser-manual-viewer.png` (made): the same chest through
+    `mint_stash → gather → cook { kind: 'instruction_manual' }`: cover, inventory (fittings at 1:1), steps, and a
+    last page that anchors it to the wall.
+  - `docs/images/sheet-metal-sheet.png` (made): "Cut it. Bend it." The bent U-channel and its blank, the flat
+    pattern drawn from the exported DXF and dimensioned from it, the bend allowance worked out (119.048 mm, and the
+    DXF agrees). Bend marks are slits held by 2 mm tabs (one-layer DXF); say "slit or etch", not "etched".
 
 ### 2.3 Homes and rooms
 
@@ -294,11 +294,11 @@ Made, with sources in `docs/images/src/` (recipes, runners and templates; `READM
 
 1. `interior-demo.gif`: the hero (§0).
 2. `dresser-shop-sheet.png`: §2.2.
-3. `dresser-manual-flow.png`, `dresser-manual-viewer.png`: §2.2, held until the inventory fix.
+3. `dresser-manual-flow.png`, `dresser-manual-viewer.png`: §2.2.
+4. `sheet-metal-sheet.png`: §2.2.
 
 To make:
 
-4. Sheet metal, "Cut it. Bend it.": §2.2, after the bend-line fix.
 5. Three-layer diagram (SVG, light and dark): §1.
 6. Game screenshot: the play shell beside the Godot editor (§2.1).
 7. Keep `metro-new-york-aerial.jpg` until a city image from the plan-first `city` kind replaces it.

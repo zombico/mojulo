@@ -49,6 +49,7 @@ const pagePng = async (svgFile) => {
   return out;
 };
 const cover = await pagePng(readdirSync(dir).find((f) => f.endsWith('-cover.svg')));
+const inventory = await pagePng(readdirSync(dir).find((f) => f.endsWith('-inventory.svg')));
 const [pa, pb, plast] = [await pagePng(steps[0]), await pagePng(steps[8]), await pagePng(steps.at(-1))];
 
 // the last step in the cook's own viewer
@@ -62,7 +63,7 @@ writeFileSync(path.join(work, 'dresser-manual-viewer.png'), await viewer.screens
 await browser.close();
 
 const fill = { STASH: stash_ref, COOK: cooked.cook_ref, FILES: cooked.file_count, STEPS: steps.length,
-  P_COVER: pathToFileURL(cover).href, P_A: pathToFileURL(pa).href, P_B: pathToFileURL(pb).href, P_LAST: pathToFileURL(plast).href };
+  P_COVER: pathToFileURL(cover).href, P_INV: pathToFileURL(inventory).href, P_A: pathToFileURL(pa).href, P_B: pathToFileURL(pb).href, P_LAST: pathToFileURL(plast).href };
 const html = readFileSync(path.join(here, 'flow.html'), 'utf8').replace(/\{\{(\w+)\}\}/g, (_, k) => {
   if (!(k in fill)) throw new Error(`no value for {{${k}}}`);
   return fill[k];

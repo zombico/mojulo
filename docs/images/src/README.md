@@ -8,12 +8,14 @@ kernel change instead of patched by hand.
 |---|---|---|
 | `../interior-demo.gif` | `interior-demo/run.mjs` | about 3 min (three Cycles stills) |
 | `../dresser-shop-sheet.png` | `dresser-sheet/run.mjs` | about 30 s |
-| `../dresser-manual-flow.png`, `../dresser-manual-viewer.png` (not committed yet: waits on the inventory fix) | `dresser-manual/run.mjs` | about 30 s |
+| `../dresser-manual-flow.png`, `../dresser-manual-viewer.png` | `dresser-manual/run.mjs` | about 30 s |
+| `../sheet-metal-sheet.png` | `sheet-metal/run.mjs` | about 15 s |
 
 ```bash
 node docs/images/src/interior-demo/run.mjs /tmp/mj-interior
 node docs/images/src/dresser-sheet/run.mjs /tmp/mj-dresser
 node docs/images/src/dresser-manual/run.mjs /tmp/mj-manual
+node docs/images/src/sheet-metal/run.mjs /tmp/mj-sheet-metal
 ```
 
 Each writes its image into the work directory you give it; copy it into `docs/images/` once you have looked at it.
@@ -43,9 +45,15 @@ is the teardown's exploded pose. The headline ("It tips. Fix it to the wall.") a
 this piece, so the runner stops if the report no longer says it tips.
 
 **dresser-manual.** The same recipe through `mint_stash`, `gather` and `cook { publication: { kind:
-'instruction_manual' } }`, then the cover and three step pages beside the calls in `flow.html`, and the last step
-in the cook's own viewer. Steps 1 and 9 are captioned by hand; check them if the manual's order changes. The
+'instruction_manual' } }`, then the cover, the inventory and three step pages beside the calls in `flow.html`, and
+the last step in the cook's own viewer. Steps 1 and 9 are captioned by hand; check them if the manual's order changes. The
 runner stops if any page has a NaN coordinate.
+
+**sheet-metal.** `mint_solid` on `u-channel.scad` (the bent part and its blank, drilled through the same frame),
+`export_model { format: 'dxf', part: 'flat', slice_z: 1 }`, and the World page's view of both. The flat pattern on
+the sheet is drawn from the DXF's own polylines, and every dimension is read back from it. The runner stops if the
+DXF is not one outline with the holes and bend marks inside it, or if its length misses
+`30 + 50 + 30 + 2 × π/2 × (r + k·t)`.
 
 ## Helpers
 

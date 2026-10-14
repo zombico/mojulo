@@ -11,13 +11,13 @@ h1{font-size:40px;font-weight:700;color:#f1f4fa;letter-spacing:-.01em}
 .cap{position:absolute;left:44px;top:470px;width:560px;font-size:15px;line-height:1.55;color:#aab6cc}
 .cap b{color:#e9edf5;font-weight:600}
 .cap li{margin:6px 0 6px 18px}
-#pages{position:absolute;left:640px;top:150px;display:flex;gap:18px}
-.pg{width:264px}
-.pg img{width:264px;height:373px;display:block;border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
-.pg .l{margin-top:10px;font:500 13px ui-monospace,"SF Mono",Menlo,monospace;color:#aab6cc}
+#pages{position:absolute;left:640px;top:150px;display:flex;gap:16px}
+.pg{width:210px}
+.pg img{width:210px;height:297px;display:block;border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.pg .l{margin-top:10px;line-height:1.45;font:500 12.5px ui-monospace,"SF Mono",Menlo,monospace;color:#aab6cc}
 .pg .l b{color:#e9edf5}
 .pg.warn .l b{color:#f2b25c}
-.foot{position:absolute;left:640px;top:590px;right:44px;font-size:15px;line-height:1.6;color:#aab6cc}
+.foot{position:absolute;left:640px;top:520px;right:44px;font-size:15px;line-height:1.6;color:#aab6cc}
 .foot b{color:#e9edf5;font-weight:600}
 </style></head><body>
 <header><h1>From recipe to assembly manual.</h1>
@@ -33,10 +33,11 @@ h1{font-size:40px;font-weight:700;color:#f1f4fa;letter-spacing:-.01em}
 <li><b>The fittings</b>, lettered, with a call-out where each one goes.</li>
 <li><b>The tip-over finding</b>: the last page fixes it to the wall.</li></ul></div>
 <div id="pages">
-<div class="pg"><img src="{{P_COVER}}"><div class="l"><b>Cover</b> · carton, mass, tools</div></div>
-<div class="pg"><img src="{{P_A}}"><div class="l"><b>Step 1</b> · slides onto the sides</div></div>
-<div class="pg"><img src="{{P_B}}"><div class="l"><b>Step 9</b> · a drawer box</div></div>
-<div class="pg warn"><img src="{{P_LAST}}"><div class="l"><b>Step {{STEPS}}</b> · anchor it to the wall</div></div>
+<div class="pg"><img src="{{P_COVER}}"><div class="l"><b>Cover</b><br>carton, mass, tools</div></div>
+<div class="pg"><img src="{{P_INV}}"><div class="l"><b>Inventory</b><br>parts by size, fittings at 1:1</div></div>
+<div class="pg"><img src="{{P_A}}"><div class="l"><b>Step 1</b><br>slides onto the sides</div></div>
+<div class="pg"><img src="{{P_B}}"><div class="l"><b>Step 9</b><br>a drawer box</div></div>
+<div class="pg warn"><img src="{{P_LAST}}"><div class="l"><b>Step {{STEPS}}</b><br>anchor it to the wall</div></div>
 </div>
-<div class="foot">Pages are 210 × 297 mm, drawn to print at 100%.<br><b>From the same recipe:</b> .glb · .stl · .3mf · .scad · bom.csv, and the cutting plan in the report</div>
+<div class="foot">Pages are 210 × 297 mm, drawn to print at 100%; the fittings on the inventory are at 1:1, with a 10 mm check bar.<br><b>From the same recipe:</b> .glb · .stl · .3mf · .scad · bom.csv, and the cutting plan in the report</div>
 </body></html>
