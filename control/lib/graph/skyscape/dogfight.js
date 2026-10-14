@@ -70,7 +70,8 @@ export function dogfightCast(map, field, seat, { foes = WING.n } = {}) {
     const speed = r2(WING.speed * c.cruise);
     entities.push({
       id: `foe-${i + 1}`, team: 'foes',
-      rule: { type: 'ai', space: true, speed, turn: 1.4, standoff: r2(WING.standoffS * speed), fireArc: 6, burst: 0.5, pause: 1.6, sightRange: r2(RANGE_S * c.cruise * 2), eye: 0 },
+      // (over ground, air combat, it keeps two low passes clear of it: mind.js `clearance`)
+      rule: { type: 'ai', space: true, speed, turn: 1.4, standoff: r2(WING.standoffS * speed), fireArc: 6, burst: 0.5, pause: 1.6, sightRange: r2(RANGE_S * c.cruise * 2), eye: 0, ...(map.form !== 'void' ? { clearance: 2 * c.lowPass } : {}) },
       weapon: { ...guns(c), rof: 3, range: r2(0.7 * RANGE_S * c.cruise), assistAngle: 2 },
       body: { type: 'mesh', shape: 'box', size: [size, size * 0.8, size * 0.35], color: '#d8483c', hittable: true, hp: WING.hp, poise: 99, radius: size, egg },
       transform: { pos: [r2(x), r2(y), r2(z)], heading: r2(h + Math.PI), pitch: 0 },

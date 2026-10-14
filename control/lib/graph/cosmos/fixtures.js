@@ -203,6 +203,32 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'space-shooter',
+    name: 'Space shooter',
+    anchor: false,
+    why: 'the hero is a starfighter among the stars: an asteroid field, a wing of enemy fighters to shoot down, a trench run to its port',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['fly', 'follow', 'ai'], combat: ['ranged'], mechanics: ['defeat-all', 'fail-on-death', 'respawn'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
+    id: 'air-combat',
+    name: 'Air combat',
+    anchor: false,
+    why: 'the hero is a jet over a map: a dogfight with enemy fighters, guns and a crash that costs, the ground to keep clear of',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['fly', 'follow', 'ai'], combat: ['ranged'], mechanics: ['defeat-all', 'fail-on-death', 'respawn'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'rhythm',
     name: 'Rhythm runner',
     anchor: false,

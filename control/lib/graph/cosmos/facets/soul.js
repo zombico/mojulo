@@ -16,7 +16,7 @@ export const SOUL = Object.freeze({
         vehicle: { status: 'built', godot: false, lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only' },
         // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
         // Its body is a placeholder slab until the aircraft roster; Godot has no fly rule.
-        aircraft: { status: 'built', godot: false, lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet): its class on the fly rule (rules-fly.js), seated on its runway or launched aloft; its body a slab until the aircraft roster' },
+        aircraft: { status: 'built', godot: false, lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },
       },
     },
     cast: { source: { module: 'lib/graph/polygonizer/figure-cast.js', table: 'CAST_PRESETS' } },

@@ -145,6 +145,9 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-14 (skyscape: the trench): the fly rule reads its ground without gravity when `space` is set (a
 // station's surface, a trench's walls); on the `controllable` fixture 1 line is replaced, the rule's own. The same 13,
 // and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: air combat): the mind's space seek keeps `rule.clearance` over the ground (read under
+// it and ahead); on the `controllable` fixture 13 lines are added and none changed, gated on the key. The same 13, and
+// shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

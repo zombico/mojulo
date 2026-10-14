@@ -26,6 +26,7 @@
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { validateCube, dryRun } from '../cosmos/cosmos.js';
 import { concernsOf } from './concerns.js';
+import { CRAFT } from '../skyscape/eye.js';
 
 // the words a brief uses for each genre (lower case; a phrase is matched whole)
 const WORDS = Object.freeze({
@@ -43,6 +44,8 @@ const WORDS = Object.freeze({
   racing: ['race', 'racing', 'car', 'cars', 'drive', 'driving', 'laps', 'time trial', 'checkpoints'],
   'kart-racer': ['kart', 'karts', 'kart racer', 'go-kart', 'rivals', 'circuit', 'track', 'grand prix', 'podium'],
   'flight-sim': ['fly', 'flying', 'flight', 'flight sim', 'plane', 'airplane', 'aircraft', 'pilot', 'glider', 'runway', 'take off', 'landing', 'ring gates', 'rings in the sky'],
+  'space-shooter': ['space', 'spaceship', 'starfighter', 'star fighter', 'space shooter', 'space combat', 'asteroid', 'asteroids', 'trench run', 'trench', 'x-wing', 'battle station', 'exhaust port'],
+  'air-combat': ['dogfight', 'dogfights', 'dogfighting', 'air combat', 'ace combat', 'fighter jet', 'jet fighter', 'fighter jets', 'shoot down', 'enemy planes', 'top gun'],
   rhythm: ['rhythm', 'beat', 'music', 'dance', 'tempo'],
   roguelike: ['roguelike', 'roguelite', 'runs', 'permadeath', 'procedural', 'run'],
   farming: ['farm', 'farming', 'crops', 'harvest', 'plant', 'village life', 'life sim', 'seasons'],
@@ -88,7 +91,8 @@ const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
 export function cubeOfWorld(world) {
   const I = readIntent(world?.intent), Q = world?.quick;
   // a race against rivals is a kart race (its cube a loop's); alone, a time trial
-  const from = I?.from ?? (Q && (Q.goal === 'race' && Q.rivals ? 'kart-racer' : QUICK_GENRE[Q.goal])) ?? null;
+  // a shooter with a craft is a dogfight: a space craft's a space shooter, an atmosphere craft's air combat
+  const from = I?.from ?? (Q && (Q.goal === 'race' && Q.rivals ? 'kart-racer' : Q.goal === 'shoot' && Q.craft ? (CRAFT[Q.craft]?.space ? 'space-shooter' : 'air-combat') : QUICK_GENRE[Q.goal])) ?? null;
   const cube = clone(from ? CUBES[from] : {});
   // what the world's own settings imply
   if (world?.camera) put(cube, 'space', 'camera', world.camera);

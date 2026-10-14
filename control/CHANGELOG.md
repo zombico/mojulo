@@ -131,6 +131,13 @@ genre on the quick path.
   grid the page and the autopilot both stand on; the fly rule now reads its ground without gravity when `space` is set,
   and in space every touchdown is a crash, so a trench wall is a wall. The autopilot proves the run down the middle.
   Quick: `shoot` with `craft: 'fighter'` and `airspace: { space: { trench: true } }`.
+- **Two more genres.** `space-shooter` (a starfighter among the stars: asteroids, a wing to shoot down, a trench run)
+  and `air-combat` (a jet's dogfight over a map) join `flight-sim` in the cosmos, with their brief words (a trench run,
+  a starfighter, a battle station; a dogfight, fighter jets, shoot down); quick `shoot` with a craft takes the one its
+  craft names. The registry and the tool-surface pages are regenerated.
+- **Fighters keep clear of the ground.** The mind's space seek takes an opt-in `clearance`: the ground under it and two
+  seconds ahead read, a climb toward the higher at up to its speed, never under half of it. Air combat's wing keeps
+  two low passes; a space wing has no ground to read.
 
 ### Sheet-metal bend lines that mark without cutting
 
