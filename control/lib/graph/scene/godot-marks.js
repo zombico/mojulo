@@ -212,7 +212,8 @@ export const LINK_MARKS = Object.freeze({
 export const MIND_TRAVELS = Object.freeze({
   motivation: ['ambient'], aggressiveness: ['passive'], rank: [], skill: [], perception: [], pathing: [],
   // a routine is cues on the clock's hour and the cast's walk, which the kernel runs (II5): no mind needed
-  squad: ['none'], social: ['none', 'schedule'], commander: ['none'],
+  // talk is a scene with the cast (kernel/scenes.gd, III-d): it asks nothing of a mind either
+  squad: ['none'], social: ['none', 'schedule', 'talk'], commander: ['none'],
 });
 export const mindMark = (axis, value) => ((MIND_TRAVELS[axis] || []).includes(value)
   ? m(B, 'asks nothing of a mind: the character stands to be met')

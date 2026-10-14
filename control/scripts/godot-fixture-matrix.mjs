@@ -87,6 +87,8 @@ export async function fixtureRow(id, ctx) {
   row.exports = true;
   const stamp = ctx.exportVerdict(pack.portability);
   row.verdict = stamp.verdict;
+  // the level's figures that ship skinned (IV1: a game pack's rigged figures, as a world pack's)
+  row.skinned = pack.glbStats?.levels?.[levelRef]?.skinned ?? [];
   row.lost = stamp.lost;
 
   // the web: the win script steered and recorded, the control held still
@@ -138,7 +140,11 @@ export async function fixtureRow(id, ctx) {
   row.diverge = cw.first ? { run: 'win', ...cw.first } : cc.first ? { run: 'control', ...cc.first } : null;
   // how far apart at worst: one quantum and an equal bus is a quantum's edge, more is a divergence
   // both engines' keys beside the pack, to read a divergence frame by frame
-  if (row.diverge) await fs.writeFile(path.join(packDir, 'sim', 'keys.json'), JSON.stringify({ win: { web: upto(win.keys), godot: upto(gw.keys), frames: win.frames }, control: { web: control.keys, godot: gc.keys } }));
+  // (with --keep: a long run's keys run to hundreds of megabytes, so each run is written a key a line)
+  if (row.diverge && ctx.keep) {
+    for (const [name, keys] of [['win-web', upto(win.keys)], ['win-godot', upto(gw.keys)], ['control-web', control.keys], ['control-godot', gc.keys]]) await fs.writeFile(path.join(packDir, 'sim', `keys-${name}.txt`), keys.join('\n'));
+    await fs.writeFile(path.join(packDir, 'sim', 'frames-win.json'), JSON.stringify(win.frames));
+  }
   if (row.diverge) row.drift = ctx.L.keyDrift(...(cw.first ? [upto(win.keys), upto(gw.keys)] : [control.keys, gc.keys]));
   if (!ctx.keep) await fs.rm(path.join(packDir, '.godot'), { recursive: true, force: true });
   return row;

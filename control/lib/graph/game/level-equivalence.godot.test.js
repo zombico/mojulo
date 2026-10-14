@@ -39,6 +39,8 @@ describe.skipIf(!GODOT)('the fixture matrix (MOJULO_GODOT)', () => {
       expect({ id: r.id, minted: r.minted, exports: r.exports, imports: r.imports, error: r.godotError ?? null }).toEqual({ id: r.id, minted: true, exports: true, imports: true, error: null });
       expect(r.control.web, `${r.id}: stay-put ends nothing on the web`).toBe(true);
       expect(['plays', 'plays-partly', 'hollow'], r.id).toContain(r.verdict);
+      // a hero's figure ships skinned (IV1): one mesh, its clips, its face and its ink
+      if (FIXTURE_QUICK[r.id].hero) expect(r.skinned.length, `${r.id}: the hero ships skinned`).toBeGreaterThan(0);
       // what the export says plays must play the same: the hollow-game catcher
       if (r.verdict === 'plays') expect({ id: r.id, win: r.win, control: r.control, equal: r.equal }).toEqual({ id: r.id, win: { web: true, webAt: r.win.webAt, godot: true }, control: { web: true, godot: true }, equal: true });
     }

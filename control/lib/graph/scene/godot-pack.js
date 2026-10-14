@@ -294,7 +294,7 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     const spec = levelSpecs[i];
     const lvSketch = SketchRepository.getByRef(spec.ref);
     if (!lvSketch) throw new Error(`level '${spec.ref}' not found`);
-    const { exported, score, bus, soundtrack, sound } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit });
+    const { exported, score, bus, soundtrack, sound } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit, figure: true });
     log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}' — GLB ${exported.byteLength} bytes`);
     const own = score.soundtrack;
     const audioFile = own ? await bed(own, soundtrack?.recipe) : await bed(battle[i % Math.max(battle.length, 1)]);
@@ -308,7 +308,9 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     if (contract) binaries.push({ rel: `levels/${spec.ref}/contract.json`, bytes: JSON.stringify(contract) });
     binaries.push({ rel: `recipe/${spec.ref}.json`, bytes: JSON.stringify(lvSketch.manifest, null, 2) });
     levels.push({ ref: spec.ref, title: spec.title ?? spec.ref, gate: spec.gate ?? null, score, audioFile, audioDb: own ? null : battleDb });
-    glbStats.levels[spec.ref] = { bytes: exported.byteLength, triangles: exported.triangleCount, animations: exported.animationCount ?? 0 };
+    // a level's rigged figures ship SKINNED (one mesh each, its clips, its face and ink) as a world pack's figure does (since
+    // 0.23.0: game packs drew every figure as rigid parts)
+    glbStats.levels[spec.ref] = { bytes: exported.byteLength, triangles: exported.triangleCount, animations: exported.animationCount ?? 0, ...(exported.skinnedFigures ? { skinned: exported.skinnedFigures } : {}) };
     sceneChecks.push(`res://levels/${spec.ref}/level.tscn`);
   }
   const menuFile = await bed(music.menu);

@@ -104,14 +104,16 @@ describe('the motion rules the Godot kernel runs', () => {
     expect(drive(c, 1 / 30)).toEqual([0, -6, 3]);
   });
 
-  it.skipIf(!GODOT)('kernel/rules.gd is equal to the web\'s rules over the corpus, frame by frame (MOJULO_GODOT)', () => {
-    const sc = corpus();
-    const { out, errors } = runGodotRules(sc, GODOT);
-    expect(errors).toEqual([]);
-    const rows = compare(sc, out);
-    expect(rows.filter((r) => !r.equal)).toEqual([]);
-    expect(rows.reduce((n, r) => n + r.frames, 0)).toBeGreaterThan(1500);
-  }, 300000);
+  it.skipIf(!GODOT)('kernel/rules.gd is equal to the web\'s rules over the corpus, frame by frame, at the five seeds (MOJULO_GODOT)', () => {
+    for (const seed of [1, 2, 3, 11, 12]) {
+      const sc = corpus({ seed });
+      const { out, errors } = runGodotRules(sc, GODOT);
+      expect(errors, `seed ${seed}`).toEqual([]);
+      const rows = compare(sc, out, { seed });
+      expect(rows.filter((r) => !r.equal), `seed ${seed}`).toEqual([]);
+      expect(rows.reduce((n, r) => n + r.frames, 0)).toBeGreaterThan(1500);
+    }
+  }, 900000);
 
   const PLANTS = [
     { name: 'the probe from the eye', from: 'if probe > 0.0 else p', to: 'if probe < 0.0 else p' },

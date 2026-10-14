@@ -176,6 +176,17 @@ export function godotReading(payload) {
   return { rules: by, channels, events };
 }
 
+// the sky dome as the page draws it (scene-three.js skyDome): an atmosphere's gradient or space's void, its stars and lights
+function skyDomeRow(sky) {
+  if (!sky || !(sky.space || (Array.isArray(sky.zenith) && Array.isArray(sky.horizon)))) return null;
+  return {
+    space: !!sky.space, zenith: sky.zenith || [], horizon: sky.horizon || [],
+    day: Number.isFinite(sky.day) ? sky.day : (sky.space ? 0 : 1),
+    stars: Number.isFinite(sky.stars) ? sky.stars : (sky.space ? 1 : 0), seed: (sky.seed >>> 0) || 1,
+    ...(sky.moon && !sky.space ? { moon: sky.moon } : {}), ...(sky.sun ? { sun: sky.sun } : {}),
+  };
+}
+
 // the GLB nodes (a face's `node`, else its `group`: scene-gltf.js) whose every face is a blend face
 function blendOnlyNodes(faces) {
   const by = new Map();
@@ -282,8 +293,10 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   skip('skipped_fx', countOf(payload.fx), 'camera-facing/runtime fx (billboards, glows) — not geometry');
   skip('skipped_physics', countOf(payload.physics), 'live physics-body channels do not bake');
   skip('skipped_sprite_sfx', countOf(payload.spriteSfx), 'sprite sfx cues — re-orchestrate in-engine');
-  if (payload.bg || payload.backdrop) {
-    ledger.sky_approximated = { note: 'sky/backdrop dropped as mesh — approximate with the engine sky/fog' };
+  // the page's backdrop is an IMAGE it loads by URL behind a transparent canvas: a pack fetches nothing, so it is named
+  // (the background colour, the sky dome and the haze ride the score since 0.23.0: score.bg, score.skyDome, score.haze)
+  if (payload.backdrop) {
+    ledger.sky_approximated = { note: 'the backdrop image the page loads by URL is not carried; the engine draws the background colour and the sky dome' };
   }
   ledger.skipped_runtime = {
     note: 'game shell, AI, combat feel — re-orchestrate in-engine; reference performance is the web build',
@@ -446,6 +459,14 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // sun, sky and fog to what the recipe said — the mesh never carried the backdrop
     // (sky_approximated). Absent a preset ⇒ no row, byte-identical.
     ...(typeof payload.sky?.preset === 'string' ? { sky: { preset: payload.sky.preset } } : {}),
+    // the LOOK of the sky as the page draws it (since 0.23.0): its background colour, its dome (a horizon-to-zenith
+    // gradient in sRGB 0..255, night stars, the moon and sun; or the void of space) and its distance haze (exponential fog
+    // in the horizon colour, the background with it). Kernel/level.gd builds a WorldEnvironment from them. Absent ⇒ no key.
+    ...(typeof payload.bg === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(payload.bg) ? { bg: payload.bg } : {}),
+    // the PIXEL medium (reality.medium=pixel): the 3D drawn at 1/scale and blown up without smoothing. Absent ⇒ no key.
+    ...(payload.pixel && Number(payload.pixel.scale) > 1 ? { pixel: { scale: Math.round(Number(payload.pixel.scale)) } } : {}),
+    ...(skyDomeRow(payload.sky) ? { skyDome: skyDomeRow(payload.sky) } : {}),
+    ...(payload.haze && Number.isFinite(payload.haze.density) && payload.haze.density > 0 && typeof payload.haze.color === 'string' ? { haze: { color: payload.haze.color, density: payload.haze.density / (unitScale || 1) } } : {}),
     // the world's weather as data (weather-score.js): the schedule's first half hour and what each state is in the style's air,
     // for the kernels' fog, colour and light; falls and lightning stay the web build's (ledger.weather_partial). Absent ⇒ no row.
     ...(weatherScoreRow ? { weather: weatherScoreRow } : {}),

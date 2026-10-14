@@ -69,13 +69,15 @@ describe('scenes and quests in Godot', () => {
     for (let i = 0; i < 6; i++) { R.step(S, 1 / 40); expect(R.view(S).line.text).not.toMatch(/[\ud800-\udbff]$/); }
   });
 
-  it.skipIf(!GODOT)('kernel/scenes.gd and quests.gd are equal to the web\'s, step by step (MOJULO_GODOT)', () => {
-    const { out, errors } = runGodotScenes(corpus(), GODOT);
-    expect(errors).toEqual([]);
-    const rows = compare(out);
-    expect(rows.filter((r) => !r.equal)).toEqual([]);
-    expect(rows.length).toBeGreaterThan(8);
-  }, 300000);
+  it.skipIf(!GODOT)('kernel/scenes.gd and quests.gd are equal to the web\'s, step by step, at the five seeds (MOJULO_GODOT)', () => {
+    for (const seed of [1, 2, 3, 11, 12]) {
+      const { out, errors } = runGodotScenes(corpus({ seed }), GODOT);
+      expect(errors, `seed ${seed}`).toEqual([]);
+      const rows = compare(out, { seed });
+      expect(rows.filter((r) => !r.equal), `seed ${seed}`).toEqual([]);
+      expect(rows.length).toBeGreaterThan(8);
+    }
+  }, 900000);
 
   const PLANTS = [
     { file: 'scenes.gd', name: 'a line typed faster', from: 'const RATE := 40.0', to: 'const RATE := 41.0' },
