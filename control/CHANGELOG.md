@@ -13,6 +13,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Historic recipes: other eras by the same principles
+
+The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that
+place and year, and its buildings composed from an inventory of styles and structures rather than drawn by hand.
+
+- **The solver as rules.** `solveHistoric` is a context and one module per layer (`solver/armature.js`,
+  `enclosure.js`, `streets.js`, `placement.js`, `land.js`, `views.js`, `emit.js`, `laws.js`), each a table keyed by
+  the form's own words: a new armature, enclosure, street pattern, placement or tree is one entry, and the form's
+  schema reads its words from those tables. Every shipped culture solves byte-identical to before. The placement
+  `water-edge`, which the schema took but no rule laid, is refused until one does.
+
 ### Sheet-metal bend lines that mark without cutting
 
 - **A flat pattern with `bend_lines = true` stays one piece.** Each bend line was a slot run past both edges, so

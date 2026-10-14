@@ -15,6 +15,12 @@ reads what its builders had at its place and year from the LEDGER (`ledger/`: ev
 same form lays the town (`scene: 'city'`), the town in its land with its farms and crafts (`'region'`) and a slice of
 life cut from the region round a focus (`'slice'`).
 
+The solver is one module per layer, each a table keyed by the form's own words: `solver/armature.js` (`ARMATURES`),
+`solver/enclosure.js` (`ENCLOSURES`), `solver/streets.js` (`STREETS`), `solver/placement.js` (`WHERE`) and
+`solver/land.js` (`TREES`, `ACTIVITY_WHERE`). A town that needs a principle no culture has yet (a market place, a
+bastioned wall, a river through the town) gets it as one entry in its layer's table; the form's schema takes the new
+word from there.
+
 ## What a culture is made of
 
 All under `control/lib/graph/historic/`:

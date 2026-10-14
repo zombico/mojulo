@@ -26,31 +26,27 @@
  *
  * Pure: the reader rolls no dice.
  */
+import { ARMATURES as ARMATURE_RULES } from '../solver/armature.js';
+import { ENCLOSURES as ENCLOSURE_RULES } from '../solver/enclosure.js';
+import { STREETS } from '../solver/streets.js';
+import { WHERE as WHERE_RULES } from '../solver/placement.js';
+import { TREES as TREE_RULES, ACTIVITY_WHERE as ACTIVITY_RULES } from '../solver/land.js';
+
+const reads = (rules) => Object.freeze(Object.fromEntries(Object.entries(rules).map(([k, r]) => [k, r.read])));
+
 export const SIDES = Object.freeze(['n', 's', 'e', 'w']);
 export const LANDFORMS = Object.freeze(['flat', 'bluff', 'hill', 'plateau']);
 export const WATERS = Object.freeze(['none', 'canal', 'river', 'sea']);
-export const ARMATURES = Object.freeze(['heart', 'axis', 'summit', 'forum']);
-export const ENCLOSURES = Object.freeze(['none', 'ring', 'wards']);
-export const STREET_PATTERNS = Object.freeze(['meander', 'lattice', 'grid', 'contour']);
+// the words a solver layer has a rule for: one entry in its table (../solver/) is one more word here
+export const ARMATURES = Object.freeze(Object.keys(ARMATURE_RULES));
+export const ENCLOSURES = Object.freeze(Object.keys(ENCLOSURE_RULES));
+export const STREET_PATTERNS = Object.freeze(Object.keys(STREETS));
 export const SURFACES = Object.freeze(['mud', 'rubble', 'brick', 'flagstone', 'dry-earth']);
-export const TREES = Object.freeze(['palm', 'olive', 'poplar', 'round', 'none']);
-/** Where a placed thing stands: each a rule in ../solver/placement.js. */
-export const WHERE = Object.freeze({
-  crossing: 'where three or four streets meet, spread through the town',
-  'main-street': 'on the lots that front a main street (the asset replaces the house)',
-  'near-monument': 'on the large lots nearest the precinct (the asset replaces the house)',
-  'wall-strip': 'in the open strip inside the wall, on one stretch of it',
-  'precinct-gate': 'either side of the precinct gate',
-  'monument-front': 'before the monument, on its axis',
-  precinct: 'inside the precinct, beside the monument',
-  'square-edge': 'round the forum square, facing it',
-  approach: 'lining the approach to the monument',
-  water: 'afloat on the water',
-  bank: 'on the bank of the water, outside the town',
-  'water-edge': 'on the water\'s edge inside the town',
-  'town-edge': 'just outside the town, round its edge',
-});
-export const ACTIVITY_WHERE = Object.freeze({ fields: 'among the fields', upstream: 'by the water, upstream of the town', downstream: 'by the water, downstream', outside: 'outside the town, clear of it' });
+export const TREES = Object.freeze(Object.keys(TREE_RULES));
+/** Where a placed thing stands, and what that means: each a rule in ../solver/placement.js. */
+export const WHERE = reads(WHERE_RULES);
+/** Where an activity's yard goes: each a rule in ../solver/land.js. */
+export const ACTIVITY_WHERE = reads(ACTIVITY_RULES);
 export const FORM_KEYS = Object.freeze(['label', 'frame', 'site', 'water', 'armature', 'enclosure', 'streets', 'density', 'houses', 'walls', 'placement', 'hinterland', 'activities', 'borrow', 'cites']);
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

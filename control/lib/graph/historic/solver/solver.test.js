@@ -4,7 +4,12 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { solveHistoric, SCENES, SLICE, sliceFoci, formOf } from './index.js';
 import { FORMS } from '../form/towns.js';
-import { STREET_PATTERNS, ARMATURES, readForm } from '../form/schema.js';
+import { STREET_PATTERNS, ARMATURES, ENCLOSURES, TREES, WHERE, ACTIVITY_WHERE, readForm } from '../form/schema.js';
+import { ARMATURES as ARMATURE_RULES } from './armature.js';
+import { ENCLOSURES as ENCLOSURE_RULES } from './enclosure.js';
+import { STREETS } from './streets.js';
+import { WHERE as WHERE_RULES } from './placement.js';
+import { TREES as TREE_RULES, ACTIVITY_WHERE as ACTIVITY_RULES } from './land.js';
 import { MONUMENTS } from '../monuments/index.js';
 import { HISTORIC_CULTURES } from '../cultures/index.js';
 
@@ -173,6 +178,15 @@ describe('the form', () => {
     expect(() => readForm({ from: 'sumer', streets: { width: 4 } }, FORMS)).toThrow(/form.streets.width is not a setting/);
     expect(() => readForm({ from: 'sumer', density: { gap: 9 } }, FORMS)).toThrow(/form.density.gap is a number 0–3/);
     expect(() => formOf('sumer', { armature: { kind: 'spiral' } })).toThrow(/form.armature.kind is/);
+  });
+  it('takes the words its solver has a rule for, and only those: a layer\'s table is the schema\'s list', () => {
+    const tables = [[ARMATURES, ARMATURE_RULES], [ENCLOSURES, ENCLOSURE_RULES], [STREET_PATTERNS, STREETS], [Object.keys(WHERE), WHERE_RULES], [TREES, TREE_RULES], [Object.keys(ACTIVITY_WHERE), ACTIVITY_RULES]];
+    for (const [words, rules] of tables) {
+      expect(words).toEqual(Object.keys(rules));
+      for (const r of Object.values(rules)) expect(typeof r.read).toBe('string');
+    }
+    const id = Object.keys(FORMS)[0];
+    expect(() => formOf(id, { placement: [{ asset: 'well', where: 'rooftop' }] })).toThrow(/form.placement\[0\].where is 'crossing'/);
   });
   it('a variant is its base with its changes (the polis is Lindos on a gentle hill)', () => {
     const v = Object.keys(FORMS).find((k) => FORMS[k].site.cliff === false), base = 'lindos';
