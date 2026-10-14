@@ -1121,10 +1121,11 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // a mover), read off this payload. Absent, or nothing readable ⇒ payload untouched.
   if (payload && manifest.shoot && typeof manifest.shoot === 'object') {
     const { normalizeShoot, lowerShoot } = await import('@/lib/graph/shoot/plan');
-    const { shootSubjects } = await import('@/lib/graph/shoot/subjects');
+    const { shootSubjects, worldIsLive } = await import('@/lib/graph/shoot/subjects');
     const subjects = shootSubjects(payload);
     const { plan } = normalizeShoot(manifest.shoot, { subjects });
-    if (plan) payload.shoot = lowerShoot(plan, { subjects });
+    // a live world (entities, physics) plays as it goes: the page runs the plan on its clock instead of rewinding it
+    if (plan) payload.shoot = lowerShoot(plan, { subjects, live: worldIsLive(payload) });
   }
 
   return { payload, kind };

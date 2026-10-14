@@ -19,6 +19,7 @@
 import { FILM_MM, parseLens } from './lens.js';
 import { compileCamera, cameraAt, programOf, sampleCameraTrack, pathPolyline } from './sample.js';
 import { normalizePieces, lowerPieces } from './pieces.js';
+import { hfovForFocal } from './lens.js';
 import { normalizeTransition, transitionPieces } from './transitions.js';
 
 export const EASES = ['linear', 'easy_ease', 'easy_ease_in', 'easy_ease_out', 'hold'];
@@ -214,6 +215,40 @@ export function shootReadout(plan, { subjects = null, metersPerUnit = null } = {
   return { duration_s: Math.round(total * 1000) / 1000, fps: plan.fps, ...(mpu ? { meters_per_unit: mpu } : {}), shots: shots.map((s) => ({ name: s.name, camera: s.camera, start_s: s.start, length_s: s.length })), cameras };
 }
 
+// does a camera follow something that moves live (the page must read where it is)?
+function followsLive(cam, subjects) {
+  return !!subjects && followsOf(cam).some((id) => subjects.get(id)?.live);
+}
+
+// a live camera's keys as the World page evaluates them, each frame, against where its live entities really are; a
+// key on a scheduled subject (a car) stands where that subject is at the key's time
+function liveKeys(cam, subjects) {
+  const pin = (v, t) => {
+    if (!isFollow(v) || subjects.get(v.follow)?.live) return v;
+    const c = compileCamera({ ...cam, keys: [{ ...cam.keys[0], t, pos: v, ...(cam.type === 'two_node' ? { poi: v } : {}) }] }, { subjects });
+    return c.pos[0].map((x) => Math.round(x * 1e4) / 1e4);
+  };
+  return cam.keys.map((k) => ({
+    t: k.t, ease: k.ease, pos: pin(k.pos, k.t), ...(cam.type === 'two_node' ? { poi: pin(k.poi, k.t) } : { yaw: k.yaw, pitch: k.pitch }),
+    roll: k.roll, hfov: Math.round(hfovForFocal(k.focal_mm, cam.film_mm) * 1e4) / 1e4,
+  }));
+}
+
+/**
+ * What a LIVE world (one that plays as it goes: entities, physics) does to a plan, as notes for the readout: it runs on
+ * the world's own clock and cannot rewind, so a shot whose span starts before the one before it ends will not replay
+ * the action, and a camera following a live entity has no path until it plays.
+ */
+export function liveNotes(plan, subjects) {
+  const notes = [];
+  for (let i = 1; i < plan.shots.length; i++) {
+    const a = plan.shots[i - 1], b = plan.shots[i];
+    if (b.span[0] < a.span[1] - 1e-9) notes.push(`shot '${b.name}' starts at ${b.span[0]}s, before '${a.name}' ends at ${a.span[1]}s: a live world cannot rewind, so it cuts in at ${a.span[1]}s`);
+  }
+  for (const c of plan.cameras) if (followsLive(c, subjects)) notes.push(`camera '${c.id}' follows a live entity: its path is drawn as it plays (the readout's metres and clearance assume the entity at its spawn)`);
+  return notes;
+}
+
 // the subjects a camera's keys follow, in first-use order
 function followsOf(cam) {
   const ids = [];
@@ -227,7 +262,7 @@ function followsOf(cam) {
  * path when it moves, the route each followed subject takes over the camera's keys, and its per-frame track at the
  * plan's fps; plus the cut list on the program clock.
  */
-export function lowerShoot(plan, { subjects = null } = {}) {
+export function lowerShoot(plan, { subjects = null, live = false } = {}) {
   const program = programOf(plan);
   const chunk = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 3) out.push(flat.slice(i, i + 3)); return out; };
   return {
@@ -251,8 +286,10 @@ export function lowerShoot(plan, { subjects = null } = {}) {
           return { id, path };
         }) } : {}),
         track,
+        ...(followsLive(c, subjects) ? { live: liveKeys(c, subjects) } : {}),
       };
     }),
+    ...(live ? { live: true } : {}),
     shots: program.shots.map((s) => ({ name: s.name, camera: s.camera, start: s.start, length: s.length, span: s.span })),
     ...lowerSet(plan, subjects),
   };

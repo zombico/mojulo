@@ -59,6 +59,10 @@ camera that pans with a car, then eases onto its tail and rides along).
   clipping plane at the far camera), so flying through it arrives exactly in the other picture; `in: 'portal'` stands
   such a door where the outgoing camera will be at the cut. Captures now apply the plan's roll. `update_shoot_plan` gains `add_piece`, `set_piece`, `piece_key`,
   `remove_piece` and `set_shot { in }`.
+- **Live worlds.** In a world that plays live (controllable entities, physics) the plan runs on the world's own clock
+  instead of rewinding it, and a key may follow a live entity (`entity:<id>`): the page evaluates that camera's keys
+  each frame against where the entity is (the same timing curves; its path drawn as a trail), and the tools note
+  what a live world cannot do. Plans in worlds that do not play live emit the same page as before.
 - **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
   LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
   without a plan is byte for byte as before.

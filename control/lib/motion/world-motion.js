@@ -160,6 +160,10 @@ export async function renderWorldPlan({ sketch, params = {}, fps }) {
   }
   const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
   if (!payload) throw new Error(`sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no three.js World form to shoot.`);
+  const { worldIsLive } = await import('@/lib/graph/shoot/subjects');
+  if (worldIsLive(payload)) {
+    throw new Error(`'${sketch.ref}' plays live (entities / physics), so its shoot plan cannot be rendered frame by frame from a rewound clock yet — record it with a 'traversal' (shot.ticks), or watch it on the World page.`);
+  }
   const subjects = shootSubjects(payload);
   const { plan, warnings } = normalizeShoot(sketch.manifest.shoot, { subjects });
   if (!plan) throw new Error(`the shoot plan on '${sketch.ref}' does not read: ${warnings.join('; ')}`);

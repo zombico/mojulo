@@ -37,7 +37,11 @@ Key times and shot spans are the WORLD's clock. A shot shows the world over its 
 
 ## Following what moves
 
-`create_shoot_plan { ref }` with no `plan` lists what a key can follow (`subjects_at: <seconds>` gives where each one is): `walker:<i>`, `car:<i>` (signalised traffic included: it stops at lights), `mover:<group>`. A followed key is read at the instant being shown; a segment between a fixed key and a followed one eases from the place onto the subject (a pickup) or off it. `frame: 'subject'` turns the offset with the subject's heading — x forward, y left, z up — so `[-3.5, 0, 1.3]` rides behind and above. Physics bodies and player- or AI-driven entities move live and cannot be followed ahead of play.
+`create_shoot_plan { ref }` with no `plan` lists what a key can follow (`subjects_at: <seconds>` gives where each one is): `walker:<i>`, `car:<i>` (signalised traffic included: it stops at lights), `mover:<group>`. A followed key is read at the instant being shown; a segment between a fixed key and a followed one eases from the place onto the subject (a pickup) or off it. `frame: 'subject'` turns the offset with the subject's heading — x forward, y left, z up — so `[-3.5, 0, 1.3]` rides behind and above. A world's controllable entities (the player, AI, scripted movers, physics) move LIVE: follow one as `entity:<id>`. Its place is not known until it plays, so the plan's readout assumes it at its spawn, and the World page evaluates that camera's keys each frame against where the entity really is (its path drawn as a trail behind it).
+
+## Live worlds
+
+A world that plays live (it has entities or physics) cannot rewind, so its plan runs on the world's own clock: the shot whose span holds the clock plays (the last one begun), a shot that starts before the one before it ends cuts in when that one ends, the panel has no scrubber, and a shot chip pins that camera until clicked again. The tools say so in `live.notes`. `forge_motion` does not render a live world's plan yet (record a `traversal`).
 
 ## Set pieces (`pieces`)
 

@@ -40,7 +40,8 @@ function subjectsSays(subjects, at) {
 }
 
 async function commit({ ref, raw, world, note, notes = [] }) {
-  const { normalizeShoot, shootReadout } = await import('@/lib/graph/shoot/plan');
+  const { normalizeShoot, shootReadout, liveNotes } = await import('@/lib/graph/shoot/plan');
+  const { worldIsLive } = await import('@/lib/graph/shoot/subjects');
   const { shootClearance, shootTraffic } = await import('@/lib/graph/shoot/clearance');
   const { plan, warnings } = normalizeShoot(raw, { subjects: world.subjects });
   if (!plan) throw new Error(`Nothing in the plan is a camera with a keyed position: ${warnings.join('; ')} — manual: get_motion_vocab({ id: 'shoot' })`);
@@ -59,6 +60,7 @@ async function commit({ ref, raw, world, note, notes = [] }) {
     } } : {}),
     ...(notes.length ? { did: notes } : {}),
     ...(warnings.length ? { warnings } : {}),
+    ...(worldIsLive(world.payload) ? { live: { note: 'this world plays live (entities / physics): the plan runs on its clock and cannot rewind', notes: liveNotes(plan, world.subjects) } } : {}),
     plan,
   };
 }

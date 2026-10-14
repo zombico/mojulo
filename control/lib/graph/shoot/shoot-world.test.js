@@ -53,3 +53,31 @@ describe('forge_motion plan: what it refuses before it renders', async () => {
     await expect(renderWorldPlan({ sketch: { ref: 'w', manifest: { ...WORLD, shoot: SHOOT } }, params: { shot: 'nope' } })).rejects.toThrow(/shots: orbit/);
   });
 });
+
+describe('a plan in a world that plays live', async () => {
+  const { shootSubjects } = await import('./subjects.js');
+  const { liveNotes, normalizeShoot: norm } = await import('./plan.js');
+  const LIVE = { kind: 'controllable', entities: [{ id: 'hero', transform: { pos: [2, 0, 0], heading: 0 }, rule: { type: 'glide' }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.6] } }],
+    faces: [{ corners: [[-10, -10, 0], [10, -10, 0], [10, 10, 0], [-10, 10, 0]], fill: '#556655' }] };
+  const PLAN = { cameras: [
+    { id: 'chase', keys: [{ t: 0, pos: { follow: 'entity:hero', offset: [-3, 0, 1.5], frame: 'subject' }, poi: { follow: 'entity:hero' } }] },
+    { id: 'wide', keys: [{ t: 0, pos: [8, 8, 5], poi: [0, 0, 0] }] },
+  ], shots: [{ name: 'wide', camera: 'wide', span: [0, 2] }, { name: 'chase', camera: 'chase', span: [1, 4] }] };
+
+  it('marks the world and the camera that follows a live entity, and the page runs on the world clock', async () => {
+    const { payload } = await resolveWorldScene({ manifest: { ...LIVE, shoot: PLAN }, title: null });
+    expect(payload.shoot.live).toBe(true);
+    expect(payload.shoot.cameras.map((c) => !!c.live)).toEqual([true, false]);
+    expect(payload.shoot.cameras[0].live[0].pos).toEqual({ follow: 'entity:hero', offset: [-3, 0, 1.5], frame: 'subject' });
+    const page = emitThreeWorld(payload);
+    expect(page).toContain("' s (live)'");
+    expect(page).toContain('window.__mojCtrl && window.__mojCtrl.world');
+  });
+
+  it('notes what a live world cannot do: rewind into an overlapping shot, draw a live camera ahead', () => {
+    const subjects = shootSubjects(LIVE);
+    const notes = liveNotes(norm(PLAN, { subjects }).plan, subjects);
+    expect(notes.some((n) => /'chase' starts at 1s, before 'wide' ends at 2s/.test(n))).toBe(true);
+    expect(notes.some((n) => /camera 'chase' follows a live entity/.test(n))).toBe(true);
+  });
+});

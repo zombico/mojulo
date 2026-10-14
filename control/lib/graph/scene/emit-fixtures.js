@@ -15,6 +15,7 @@ import { resolveAquaLook } from '../materials/aqua-look.js';
 import { normalizeShallows } from '../materials/shallows.js';
 import { resolveWorldAudio } from '../beats/beats-world.js';
 import { normalizeShoot, lowerShoot } from '../shoot/plan.js';
+import { shootSubjects } from '../shoot/subjects.js';
 
 const quad = (fill = '#888888', extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
 const floor = (fill = '#445566', extra = {}) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill, ...extra });
@@ -292,6 +293,17 @@ export const EMIT_FIXTURES = [
     ] }).plan;
     const shoot = lowerShoot(plan);
     return [['shoot-set', { faces: [floor()], shoot }], ['shoot-set-capture', { faces: [floor()], shoot, capture: true }]];
+  })(),
+
+  // shoot-live: a plan in a world that plays live (a controllable entity): the plan runs on the world's clock, and a
+  // camera easing from a fixed place onto the entity 'd' is evaluated against where 'd' is, its path a trail
+  ...(() => {
+    const subjects = shootSubjects({ entities: ENTITIES });
+    const plan = normalizeShoot({ fps: 6, cameras: [
+      { id: 'chase', keys: [{ t: 0, pos: [-3, -3, 2], poi: { follow: 'entity:d' }, ease: 'easy ease out' }, { t: 1, pos: { follow: 'entity:d', offset: [-2, 0, 1], frame: 'subject' }, poi: { follow: 'entity:d' } }] },
+      { id: 'wide', keys: [{ t: 0, pos: [6, 6, 4], poi: [0, 0, 0] }] },
+    ], shots: [{ name: 'wide', camera: 'wide', span: [0, 1] }, { name: 'chase', camera: 'chase', span: [1, 3] }] }, { subjects }).plan;
+    return [['shoot-live', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shoot: lowerShoot(plan, { subjects, live: true }) }]];
   })(),
 
   ['repeats', { faces: [floor()], repeats: REPEATS }],

@@ -13,8 +13,9 @@
  *   - `mover:<group>` — channels/mover.js: a path mover's equal-time samples, looped or played-held-replayed.
  * Indices count the lists exactly as scene-three filters them, so `car:2` is the third car the page drives.
  *
- * Things that move live (physics bodies, player- or AI-driven entities) have no position before they are played, so
- * they are not subjects here.
+ * Things that move live (a world's controllable entities: the player, AI, physics-driven bodies) have no position
+ * before they are played. They are listed as `entity:<id>` subjects marked `live`, standing at their spawn: the
+ * kernel samples a camera following one from there, and the World page follows the entity where it really is.
  *
  * Each subject also carries its `box` where it can be measured — `{ len, wid, hgt }`, along its heading, across it
  * and up from its ground point: a car's from its baked mesh, a walker's from its figure's height — so the clearance
@@ -129,6 +130,21 @@ function moverSubjects(payload) {
   });
 }
 
+// a world's live entities: where they spawn (the page reads where they are)
+function entitySubjects(payload) {
+  return (Array.isArray(payload.entities) ? payload.entities : []).filter((e) => e && typeof e.id === 'string' && e.id).map((e) => {
+    const tr = e.transform || {};
+    const pos = Array.isArray(tr.pos) && tr.pos.length === 3 && tr.pos.every(Number.isFinite) ? tr.pos.slice() : [0, 0, 0];
+    const heading = Number.isFinite(tr.heading) ? tr.heading : 0;
+    return { id: `entity:${e.id}`, kind: 'entity', live: true, at: () => ({ pos, heading }) };
+  });
+}
+
+/** Whether a world moves live (its entities or its physics run as it plays), so a plan cannot rewind its clock. */
+export function worldIsLive(payload) {
+  return !!(payload && ((Array.isArray(payload.entities) && payload.entities.length) || (payload.physics && Array.isArray(payload.physics.bodies) && payload.physics.bodies.length)));
+}
+
 /**
  * The followable subjects of a resolved world payload, by id. Each `at(sec)` returns `{ pos, heading }` (heading in
  * radians, 0 = +x) and is cached per instant, so a camera that samples them at its frame rate steps each stepped
@@ -137,9 +153,9 @@ function moverSubjects(payload) {
 export function shootSubjects(payload) {
   const out = new Map();
   if (!payload || typeof payload !== 'object') return out;
-  for (const s of [...walkerSubjects(payload), ...carSubjects(payload), ...moverSubjects(payload)]) {
+  for (const s of [...walkerSubjects(payload), ...carSubjects(payload), ...moverSubjects(payload), ...entitySubjects(payload)]) {
     const cache = new Map();
-    out.set(s.id, { id: s.id, kind: s.kind, ...(s.box ? { box: s.box } : {}), at: (sec) => {
+    out.set(s.id, { id: s.id, kind: s.kind, ...(s.box ? { box: s.box } : {}), ...(s.live ? { live: true } : {}), at: (sec) => {
       const k = Math.round(sec * 1e4);
       if (!cache.has(k)) { const v = s.at(sec); cache.set(k, { pos: v.pos, heading: v.heading }); }
       return cache.get(k);
