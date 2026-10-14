@@ -126,6 +126,20 @@ export const FAMILIES = {
       humpbackWhale: { note: 'slow deep fluke beats, the long flippers banking and turning it' },
     },
   },
+  cephalopod: {
+    spine: { trunk: 4, neck: 1, tail: 0 },
+    gaits: {
+      // jet propulsion: the mantle fills and squeezes water out through the funnel, the body darting backwards
+      swim: { pattern: 'jet' },
+    },
+    axial: { flex: 0.3, lateral: 0, wave: 'standing', roll: 0, yaw: 0, head: 'steady', tail: 'none' },
+    note: 'jets along by squeezing water out of the mantle through its funnel, arms trailing (the arms are not yet posed)',
+    source: 'Anderson & Demont 2000 (squid jet propulsion); Huffard 2006 (octopus locomotion)',
+    species: {
+      octopus: { gaits: { crawl: { pattern: 'rectilinear' } }, note: 'crawls over the seabed on its arms, or jets off backwards (the arms are not yet posed)' },
+      cuttlefish: { note: 'hovers on its rippling fin skirt, jetting to dart' },
+    },
+  },
   pinniped: {
     spine: { trunk: 5, neck: 2, tail: 1 },
     gaits: {

@@ -30,6 +30,15 @@ names (`about`), the generated DOES, mind and cosmos tables regenerated with the
   The harbour seal (worked species, no external ears), the California sea lion (propped high on long fore flippers,
   small rolled ears, the bull's crest) and the walrus (a huge bulk, a broad whiskered muzzle, the tusks). They crawl
   on land by a vertical body wave and swim by sweeping the hind flippers; the sea lion flies on its fore flippers.
+- **Cephalopods** (`families/cephalopod.js`): no skeleton and no legs: a mantle, a short neck into a head that is
+  mostly two big eyes, a crown of arms (`arm`: walked out along a heading that bends and curls at the tip, each kept
+  on its own side of sideways so its ring frame never flips; `forwardArm`: a bundle reaching forward, a tentacle's
+  club), a funnel. The common octopus (worked species: the mantle rising behind, eight arms spread over the seabed),
+  the European squid (a torpedo mantle, rhombic fins, two clubbed tentacles), the common cuttlefish (a flat oval
+  mantle edged with a fin skirt, the zebra bands) and the chambered nautilus (the striped shell, a hood, many short
+  tentacles). They swim by a new `jet` pattern (the mantle pulsing); the octopus also crawls. The arms are not yet
+  posed by the rig.
+- The stance line says what a seal and an octopus stand on ("hauled out on its flippers", "resting on its arms").
 
 ### Wildlife improvements: the default animals' silhouettes and proportions
 

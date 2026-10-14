@@ -170,7 +170,7 @@ export const species = {
   // (NOAA Fisheries: adults 12–16 m, flippers up to ~4.6 m; Clapham 2009, Encyclopedia of Marine Mammals).
   humpbackWhale: {
     family: 'cetacean', name: 'a humpback whale', scale: 4.7,
-    colors: { coat: '#24272b', sock: '#24272b', ash: '#24272b', ashAlt: '#2c3034', brow: '#24272b', snout: '#24272b', belly: '#e8e8e3', tip: '#24272b', hoof: '#24272b', mouth: '#4a3a3a' },
+    colors: { coat: '#24272b', sock: '#24272b', ash: '#24272b', ashAlt: '#2c3034', brow: '#24272b', snout: '#24272b', belly: '#e8e8e3', tip: '#d9dad5', hoof: '#24272b', mouth: '#4a3a3a' },
     torso: trunk(1.2, 1.1, [
       { at: [0, -0.62, Z], r: [0.12, 0.17] }, { at: [0, -0.35, Z], r: [0.18, 0.23] }, { at: [0, 0.0, Z], r: [0.23, 0.27] },
       { at: [0, 0.3, Z], r: [0.24, 0.27] }, { at: [0, 0.55, Z], r: [0.22, 0.25] }, { at: [0, 0.72, Z], r: [0.2, 0.22] }]),
@@ -180,14 +180,13 @@ export const species = {
       // the LONG flippers, root low behind the head, sweeping back and down
       foreRoot: [0.22, 0.42, Z - 0.17], foreMid: [0.48, 0.2, Z - 0.3], foreTip: [0.72, -0.02, Z - 0.4], ...humpFins.joints },
     legs: [
-      ['foreFlipR', 'foreRoot', 'foreMid', [0.1, 0.022], [0.095, 0.018], 'Fin', [0.3, 0.2]],
-      ['foreTipR', 'foreMid', 'foreTip', [0.095, 0.018], [0.035, 0.008], 'Fin', [0.2, 0.4]],
+      ['foreFlipR', 'foreRoot', 'foreMid', [0.1, 0.022], [0.095, 0.018], 'Tip', [0.3, 0.2]],
+      ['foreTipR', 'foreMid', 'foreTip', [0.095, 0.018], [0.035, 0.008], 'Tip', [0.2, 0.4]],
     ],
     extraSegments: humpFins.segs,
     headScale: 1.9, muzzleW: 1.3, muzzleLen: 1.3,
     craniumRows: flatHead(HEAD, 0.075, 0.025),
-    headPalette: { Jowl: '#e8e8e3', Palate: '#e8e8e3', Jaw: '#e8e8e3', Cheek: '#24272b', Snout: '#24272b', Fin: '#d9dad5' },
-    palette: { Fin: '#d9dad5' },
+    headPalette: { Jowl: '#e8e8e3', Palate: '#e8e8e3', Jaw: '#e8e8e3', Cheek: '#24272b', Snout: '#24272b' },
     markings: [{ on: 'torso', kind: 'belly', group: 'Belly', from: 0.64 }],
   },
   // BELUGA (Delphinapterus leucas). Thesis: an ALL-WHITE small whale · a big round bulging MELON over a very short beak ·
