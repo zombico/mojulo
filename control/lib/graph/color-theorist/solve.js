@@ -338,7 +338,9 @@ function uiOf(roles, { Hl, Hs }, key, P) {
 // ── the laws: what a palette is checked by (advice, stamped on the contract; none refuses) ───────────────────────────
 const mid = (r) => r[Math.floor(r.length / 2)];
 const Lof = (c) => lchOf(c)[0];
-const STOCK = Object.entries(SWATCHES).filter(([, s]) => s.land?.grass && s.land?.sky && s.land?.foliage).map(([id, s]) => ({ id, ground: mid(s.land.grass), sky: s.land.sky.at(-1), foliage: mid(s.land.foliage) }));
+// the shelf a palette is measured against: the kits of its air (a vacuum palette against the airless kits, any other
+// against the kits with air)
+const STOCK = Object.entries(SWATCHES).filter(([, s]) => s.land?.grass && s.land?.sky && s.land?.foliage).map(([id, s]) => ({ id, vac: s.air === 'none', ground: mid(s.land.grass), sky: s.land.sky.at(-1), foliage: mid(s.land.foliage) }));
 const HUD_STOCK = { bg: hexToRgb(STYLE_DEFAULTS.bg), accent: hexToRgb(STYLE_DEFAULTS.accent) };
 const LAND_ROLES = ['sky', 'cloud', 'ground', 'foliage', 'soil', 'rock', 'bark', 'made', 'rope', 'far'];
 function hueFamilies(roles) {
@@ -372,7 +374,7 @@ export const PALETTE_LAWS = Object.freeze([
     return { ok: !hits.length, value: hits.join(', ') || 'none' };
   } },
   { law: 'off-the-shelf', want: 'not a stock kit again: the ground, sky and foliage sit away from every shipped kit\'s, the HUD from the stock HUD', test: (K) => {
-    const near = STOCK.map((s) => ({ id: s.id, d: (deltaE(mid(K.roles.ground), s.ground) + deltaE(K.roles.sky.at(-1), s.sky) + deltaE(mid(K.roles.foliage), s.foliage)) / 3 })).reduce((x, y) => (y.d < x.d ? y : x), { id: '', d: Infinity });
+    const near = STOCK.filter((s) => s.vac === (K.read.air === 'none')).map((s) => ({ id: s.id, d: (deltaE(mid(K.roles.ground), s.ground) + deltaE(K.roles.sky.at(-1), s.sky) + deltaE(mid(K.roles.foliage), s.foliage)) / 3 })).reduce((x, y) => (y.d < x.d ? y : x), { id: '', d: Infinity });
     const hud = Math.min(deltaE(hexToRgb(K.ui.bg), HUD_STOCK.bg) + deltaE(hexToRgb(K.ui.accent), HUD_STOCK.accent), 1);
     return { ok: near.d >= 0.05 && hud >= 0.06, value: `nearest kit ${near.id} at ${near.d.toFixed(3)} · HUD ${hud.toFixed(3)} from stock`, novelty: Math.min(near.d, 0.25) / 0.25 };
   } },

@@ -104,6 +104,16 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
     override.
   - On an isekai kit a vacuum palette draws a void sky with stars and a white sun, with no haze and a dark fill; the
     nature kits take the void's fog and dome. Without `air`, every palette solves as before.
+  - **An airless kit, `airless-plain`**: a moon, an asteroid, an icy body in the isekai look. Nothing grows (no grass,
+    no trees, no fringe on the rocks); the ground is cratered (a card's `craters`: bowls with raised rims, kept off the
+    trail, in `era/nature.js`) and strewn with boulders and pebbles; a low hard sun, almost no fill; the void with the
+    stars out and a blue world hanging low. Its ramps are neutral regolith greys whose shade leans blue. The words
+    airless, lunar, crater(ed), asteroid and vacuum compose a gameworld onto it. A vacuum palette on it keeps its world
+    and paints it the palette's planet colour; a palette with air gives it a sky and a haze.
+  - **A coloured world in the sky**: a sky-dome moon may carry its own colour (the void's hanging planet); a page
+    without one is byte-identical.
+  - Vacuum palettes are measured against the airless kits on the shelf, palettes with air against the rest, so a new
+    airless kit moves no palette with air.
 - **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
   only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
   gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the

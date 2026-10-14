@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { oklch, lchOf, hexToRgb, rgbToHex, rgbToOklab, oklabToRgb, contrast, deltaE, simulate, CVD_KINDS } from './oklab.js';
 import { readPaletteSpec, solvePalette, rampOf, scriptShift, PALETTE_SCHEME_IDS, PALETTE_ROLES, PALETTE_LAWS, PALETTE_SCRIPTS, PALETTE_PRESETS } from './solve.js';
 import { assembleStageScene } from '../era/stage.js';
+import { natureSite } from '../era/nature.js';
+import { ISEKAI_STYLES } from '../era/isekai-tiles.js';
+import { skyDomeScript } from '../scene/channels/sky-dome.js';
+import { composeGameworld } from '../gameworld/compose.js';
 import { novelSeed, nearestRecent, palettesIn, signatureOf, paletteDistance } from './ledger.js';
 import { thumbnail, contactSheet, sheetStats } from './contact.js';
 import { gameTheme, coverPalette, landSwatches, interiorPalette, lightOf } from './adapters.js';
@@ -501,5 +505,40 @@ describe('air: a world with thin air, or none', () => {
     expect(svg).toContain(V.shadow);
     expect((svg.match(/<circle/g) ?? []).length).toBeGreaterThan(30);
     expect(thumbnail(solvePalette({ seed: 3, air: 'thin' }))).not.toContain(`fill="${V.light}" opacity`);
+  });
+});
+
+describe('the airless kit', () => {
+  // the kit whose card has a void: chosen from the table
+  const kit = Object.keys(ISEKAI_STYLES).find((k) => ISEKAI_STYLES[k].void);
+  it('nothing grows; the ground is cratered off the trail; the sky is the void with the stars out and a coloured world hanging', () => {
+    const m = assembleStageScene({ kind: 'stage', kit, seed: 2 }), groups = new Set(m.faces.map((f) => f.group));
+    for (const g of ['isekai:grass', 'isekai:crown', 'isekai:lip', 'isekai:hat']) expect(groups.has(g), g).toBe(false);
+    expect(m.sky).toMatchObject({ day: 0, stars: 1 });
+    expect(m.sky.moon.color).toEqual(ISEKAI_STYLES[kit].void.companion.color);
+    const site = natureSite(ISEKAI_STYLES[kit], 2);
+    expect(site.craters.length).toBeGreaterThan(4);
+    for (const c of site.craters) {
+      expect(site.trailDist(c.x, c.y)).toBeGreaterThan(site.halfWAt(c.y) + c.r);
+      // a bowl: its floor under its rim
+      expect(site.valley(c.x, c.y)).toBeLessThan(site.valley(c.x + c.r, c.y));
+    }
+    // a card with no craters lays its ground as ever
+    expect(natureSite(ISEKAI_STYLES['isekai-meadow'], 2).craters).toBeUndefined();
+  });
+  it('a vacuum palette keeps the kit\'s world and paints it the palette\'s planet; a palette with air gives the sky back', () => {
+    const V = paletteLook({ preset: 'icy-moon', seed: 4 }, { base: kit, name: 'icy' }), card = lookOf(V.id).card;
+    expect(card.void.companion.color).toEqual(hexToRgb(V.contract.roles.accent2[2]));
+    const A = lookOf(paletteLook({ seed: 4 }, { base: kit, name: 'aired' }).id).card;
+    expect(A.void).toBeUndefined();
+    expect(A.air.fog.density).toBeGreaterThan(0.001);
+  });
+  it('the sky dome paints a moon in its own colour; without one, the page is as it was', () => {
+    const base = { space: false, zenith: [0, 0, 0], horizon: [9, 9, 9], day: 0, stars: 1, seed: 1, sun: null, center: [0, 0, 0], radius: 20, moon: { u: 0.5, h: 0.5, phase: 0.5, size: 4 } };
+    expect(skyDomeScript(base)).toContain("'rgb(234,236,245)'");
+    expect(skyDomeScript({ ...base, moon: { ...base.moon, color: [128, 168, 224] } })).toContain("'rgb(128,168,224)'");
+  });
+  it('the words for an airless world compose to it', () => {
+    expect(composeGameworld({ prompt: 'a lunar base among the craters', seed: 1 }).style.kit).toBe(kit);
   });
 });

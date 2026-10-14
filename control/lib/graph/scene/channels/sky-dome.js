@@ -10,6 +10,9 @@ import { safeJson } from '../emit-util.js';
 // pans across them. The luminaries ride the dome too: a phase-carved moon at night and a warm
 // sun by day, each world-positioned from its sky-still { u, h } so it stays put as the camera orbits.
 export function skyDomeScript(d) {
+  // a moon may carry its own colour (a world hanging in a void sky: a blue planet, a banded giant); absent, the pale
+  // moon as ever, the page's bytes unchanged
+  const mc = d.moon && Array.isArray(d.moon.color) && d.moon.color.length === 3 ? d.moon.color.map((v) => Math.max(0, Math.min(255, Math.round(v)))) : null;
   return `
 // --- world-fixed sky dome + night stars (emitThreeWorld sky option) ---
 const SKY = ${safeJson(d)};
@@ -62,10 +65,10 @@ const SKY = ${safeJson(d)};
     const cv = document.createElement('canvas'); cv.width = cv.height = 128;
     const x = cv.getContext('2d'), cx = 64, cy = 64, r = 42;
     const halo = x.createRadialGradient(cx, cy, r * 0.55, cx, cy, 64);
-    halo.addColorStop(0, 'rgba(226,229,240,' + (0.4 * (M.nightFactor ?? 1)).toFixed(2) + ')'); halo.addColorStop(1, 'rgba(226,229,240,0)');
+    halo.addColorStop(0, 'rgba(${mc ? mc.join(',') : '226,229,240'},' + (0.4 * (M.nightFactor ?? 1)).toFixed(2) + ')'); halo.addColorStop(1, 'rgba(${mc ? mc.join(',') : '226,229,240'},0)');
     x.fillStyle = halo; x.fillRect(0, 0, 128, 128);
     const ph = Math.max(0, Math.min(1, M.phase ?? 1)), tw = r * (2 * ph - 1);
-    x.fillStyle = 'rgb(234,236,245)';
+    x.fillStyle = 'rgb(${mc ? mc.join(',') : '234,236,245'})';
     x.beginPath();
     x.arc(cx, cy, r, -Math.PI / 2, Math.PI / 2, false);                       // lit right limb (semicircle)
     // terminator: bulge LEFT (gibbous, tw>0) or RIGHT (crescent, tw<0) of the lit half

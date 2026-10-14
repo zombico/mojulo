@@ -56,9 +56,10 @@ import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 import { ALIEN_NIGHT } from './style/alien-night.js';
+import { AIRLESS_PLAIN } from './style/airless-plain.js';
 import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 
-export const ISEKAI_STYLES = Object.freeze({ 'isekai-meadow': ISEKAI_MEADOW, 'isekai-bamboo': ISEKAI_BAMBOO, 'isekai-sakura': ISEKAI_SAKURA, 'alien-night': ALIEN_NIGHT, 'isekai-garden': ISEKAI_GARDEN });
+export const ISEKAI_STYLES = Object.freeze({ 'isekai-meadow': ISEKAI_MEADOW, 'isekai-bamboo': ISEKAI_BAMBOO, 'isekai-sakura': ISEKAI_SAKURA, 'alien-night': ALIEN_NIGHT, 'airless-plain': AIRLESS_PLAIN, 'isekai-garden': ISEKAI_GARDEN });
 const SIZE = 256;
 const GROUNDS = new Set(['dirt', 'scree', 'packed', 'stone', 'plaster']);
 // the realistic pole's PATCHES: a material whose alpha is a block noise (½…1), drawn alpha-tested against its weight

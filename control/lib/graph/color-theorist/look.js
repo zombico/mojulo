@@ -15,11 +15,12 @@ import { landDomain, composeLook } from '../gameworld/tunnel-land.js';
 import { registerLook, lookOf } from '../era/style/looks.js';
 import { solvePalette, fingerprint } from './solve.js';
 import { landSwatches, lightOf } from './adapters.js';
+import { hexToRgb } from './oklab.js';
 
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').slice(0, 3).join('-') || 'palette';
 const PASSES = 4;
-const VOID_HAZE = 0.0008;   // (in vacuum the far end of the view still fades, into the void)
+const VOID_HAZE = 0.0008, AIR_HAZE = 0.0015;   // (in vacuum the far end of the view still fades, into the void; with air, the meadow's)
 
 export function paletteLook(spec, { base = 'isekai-meadow', name } = {}) {
   const K = solvePalette(spec), D = landDomain();
@@ -37,9 +38,15 @@ export function paletteLook(spec, { base = 'isekai-meadow', name } = {}) {
   c.facets.sky.light = lightOf(K, c.facets.sky.light);
   if (K.read.air === 'none') {
     // vacuum: the void for a sky (stars, the sun a white disc), no clouds, the haze all but gone into the void
-    Object.assign(c.facets.sky, { cumulus: null, void: { stars: 1, glow: 0.5 } });
+    // (a kit's own void kept, its world hanging low in the palette's planet colour: accent2's middle)
+    const V0 = c.facets.sky.void ?? {};
+    Object.assign(c.facets.sky, { cumulus: null, void: { stars: 1, glow: 0.5, ...V0, ...(V0.companion ? { companion: { ...V0.companion, color: hexToRgb(K.roles.accent2[2]) } } : {}) } });
     c.facets.air.air = { ...c.facets.air.air, fog: { ...c.facets.air.air.fog, color: K.fog, density: VOID_HAZE } };
-  } else c.hazeFromFar = true;
+  } else {
+    c.hazeFromFar = true;
+    // a palette with air on an airless kit: the sky is a sky again, and the distance hazes
+    if (c.facets.sky.void) { delete c.facets.sky.void; c.facets.air.air = { ...c.facets.air.air, fog: { ...c.facets.air.air.fog, density: AIR_HAZE } }; }
+  }
   // the tunnel's laws, and its own fixes for what fails (a ramp sorted, a shade lifted, the far layers laid again)
   let L = D.build(c), laws = D.laws(L);
   const tweaks = [];

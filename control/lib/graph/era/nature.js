@@ -71,7 +71,9 @@ export function natureSite(st, seed = 1) {
   // trail, which wears down between them; absent, the ground is exactly the trail level's
   const Lu = st.lumps, oct = Lu ? Lu.octaves : [];
   const lumps = (x, y) => oct.reduce((a, [amp, f], i) => a + amp * 2 * (vnoise(x * f, y * f, S + 11 + i) - 0.5), 0);
-  const base = (x, y) => 1.4 * vnoise(x * 0.05, y * 0.05, S + 5) + 0.45 * vnoise(x * 0.14, y * 0.14, S + 7) + 0.07 * (x - cliffX(y)) + (Lu ? lumps(x, y) : 0);
+  // optional CRATERS (a style's `craters`, an airless world's): bowls with raised rims, kept off the trail; absent, nothing
+  const craters = st.craters ? placeCraters(st.craters, { W, D, trailDist, halfWAt, cliffX }, S) : null;
+  const base = (x, y) => 1.4 * vnoise(x * 0.05, y * 0.05, S + 5) + 0.45 * vnoise(x * 0.14, y * 0.14, S + 7) + 0.07 * (x - cliffX(y)) + (Lu ? lumps(x, y) : 0) + (craters ? craterAt(craters, x, y) : 0);
   const bank = (x, y) => {
     if (!Lu || !Lu.banks) return 0;
     const B = Lu.banks, e = halfWAt(y) + fringeAt(y), d = trailDist(x, y);
@@ -101,7 +103,32 @@ export function natureSite(st, seed = 1) {
   // the composition's focus radii, centred on the trail at each focus's station
   const foci = (st.focus || []).map((f) => ({ ...f, x: trailX(f.y) }));
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
-  return { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius };
+  return { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius, ...(craters ? { craters } : {}) };
+}
+
+/** CRATERS: `n` centres by rejection (apart from each other by their rims, clear of the trail by `clear` m past their
+ *  rims and of the cliff), radii between `radius`, the big ones first. → [{ x, y, r, depth, rim }] */
+export function placeCraters(C, { W, D, trailDist, halfWAt, cliffX }, S) {
+  const out = [];
+  for (let i = 0; i < 600 && out.length < C.n; i++) {
+    const t = out.length / Math.max(1, C.n - 1), r = mix(C.radius[1], C.radius[0], Math.sqrt(t)) * (0.85 + 0.3 * hash3(i, 3, S + 401));
+    const x = W * hash3(i, 1, S + 403), y = D * hash3(i, 2, S + 409);
+    if (trailDist(x, y) < halfWAt(y) + r * 1.3 + C.clear || x < cliffX(y) + 4 + r) continue;
+    if (out.some((c) => Math.hypot(c.x - x, c.y - y) < (c.r + r) * 1.15)) continue;
+    out.push({ x: r5(x), y: r5(y), r: r5(r), depth: r5(r * C.depth), rim: r5(r * C.rim) });
+  }
+  return out;
+}
+/** The craters' height at (x, y): inside, a bowl rising to its rim (−depth at the floor, +rim at the edge); outside,
+ *  the ejecta rim falling away over about a third of the radius. */
+export function craterAt(craters, x, y) {
+  let h = 0;
+  for (const c of craters) {
+    const d = Math.hypot(x - c.x, y - c.y) / c.r;
+    if (d > 2) continue;
+    h += d < 1 ? -c.depth * (1 - d * d) + c.rim * d ** 4 : c.rim * Math.exp(-(((d - 1) * 3) ** 2));
+  }
+  return h;
 }
 
 /** The ground as the landform grid's facets: rock where steep (mapped up the face, tinted by its bed), scree on the

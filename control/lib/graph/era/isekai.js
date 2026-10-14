@@ -322,7 +322,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     }
   }
   const Lp = st.lip;
-  for (const l of ground.lips) {
+  // (a card with no grass, an airless one's, drapes no fringe over its cliff lips and stands no blades)
+  for (const l of st.grass ? ground.lips : []) {
     drape(fringes, l.a, l.b, addv(l.a, mul(l.down, Lp.fringe * 2)), addv(l.b, mul(l.down, Lp.fringe * 2)), Lp.fringe, Lp.out, l.out, null, Lp.scale, 'isekai:lip');
     fringes[fringes.length - 1].lit = lit(mean([l.a, l.b]), [0, 0, 1]) && dot(l.out, dir) > -0.35;
   }
@@ -348,7 +349,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // the arrangements: each face its part's ramp in the kit's skin, a stop up where the sun reaches it
   for (const f of [...ikeRaw, ...shrRaw]) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
   // grass: crossed blade cards, the band by the shadow at the root
-  const tufts = grassTufts(st, site, near, rocks, sun, seed), G = st.grass.cards;
+  const tufts = st.grass ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
     crossed(raw, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * G.width, h, isekaiKeyOf(st, 'blades', t.lit), [1, 1, 1], 'isekai:grass', t.level === 'L1' ? 3 : 2);
@@ -356,7 +357,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   });
   // the FIELD: within `reach` of the trail the meadow stands as one sea of blades, a tuft on a jittered grid every
   // `every` metres (never on the ribbon, a rock or a trunk), the band by the shadow at its root
-  const F = st.grass.field;
+  const F = st.grass?.field;
   if (F) {
     let i = 0;
     for (let y = 0.2; y < site.D; y += F.every) for (let x = 0; x < site.W; x += F.every, i++) {
@@ -450,7 +451,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     sky: st.night ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) },
     glow: !!Gl,
     pack: true,
-    ...(manifest.wind || manifest.grass ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
+    ...((manifest.wind || manifest.grass) && st.grass ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
     walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     ...(site.out ? outTrailPayload(site) : {}),
   };
@@ -477,7 +478,7 @@ function domeAt({ azimuth, elevation, size = 4, phase = 0.6 }) {
 function voidSky(st, dir) {
   const V = st.void, sky = st.palette.sky;
   return { zenith: sky[0], horizon: sky[sky.length - 1], day: 0, stars: V.stars ?? 1, seed: 1,
-    sun: { dir: dir.map(r5), size: st.sun?.size ?? 1, glow: V.glow ?? 0.5 }, ...(V.companion ? { moon: domeAt(V.companion) } : {}) };
+    sun: { dir: dir.map(r5), size: st.sun?.size ?? 1, glow: V.glow ?? 0.5 }, ...(V.companion ? { moon: { ...domeAt(V.companion), ...(V.companion.color ? { color: V.companion.color } : {}) } } : {}) };
 }
 function nightSky(st, dir) {
   const N = st.night, sky = st.palette.sky, az = Math.atan2(dir[1], dir[0]), el = Math.asin(Math.max(-1, Math.min(1, dir[2])));
