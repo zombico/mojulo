@@ -73,6 +73,134 @@ camera that pans with a car, then eases onto its tail and rides along).
 - **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
   LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
   without a plan is byte for byte as before.
+### Interior designer: a room of a house, furnished, styled and composed
+
+A room can now be fitted out as a design of its own: the `interior` kind. A room is a section of a house, so the floor
+plan comes first. An interior decorates one room of a `floorplan` row. It reads that room's walls, doors, windows and
+height from the house, and it never draws a wall. The house row is never written, several schemes can sit over one
+house, and an edit to the house flows into every design over it.
+
+**Built so far:**
+- **The door: `design_interior`,** in the building pack beside `mint_building`.
+  - It mints over a house and room, or a `section` described in words (its house drafted and minted first), and
+    answers with the room as decorated: the pieces by id, what was refused and why, the gaps and the review.
+  - With `ref` it revises in place: a new style, brief or surface replaces the old, and pieces merge by id.
+  - Decorating intents route to it through the `interior` routing card, three routing-eval rows, and the HOUSE row of
+    the routing index. The house card's contrast points there too.
+  - The plugin's maker subagent may call it (a `judge` tool).
+  - Re-pinned: the `tools/list` payload pin and the packs payload pin, for the one new listed tool.
+- **The recipe:**
+  `{ kind: 'interior', house, room, brief?, style?, focal?, surface?, pieces?, view? }`.
+  - `room` is the room's tag on the house's set (`'101'`), its name (`'lounge'`), its role or its glyph; `level`
+    narrows a stack to one storey.
+  - A word that names no room is refused with the house's rooms listed.
+- **A room from scratch, floor plan first.** `house: { section: { room, size, windows, doors } }` drafts the
+  smallest honest house round the room (`interior/section.js`):
+  - the room itself;
+  - the hall or rooms its doors lead to;
+  - neighbours past its other inside walls;
+  - outside walls only where it has windows;
+  - a front door on the hall's outside wall.
+  - The section is minted as an ordinary house row, under the house's own laws and door rules. The interior is
+    compiled against the draft first, so a bad recipe mints nothing. The interior then points at the house and the
+    room.
+- **The functional solver graph** (`interior/strategies.js`, `interior/solve.js`), in the fabricator's shape:
+  - **Functions:** a room's jobs, one word each: converse, media, read, display, dine, store, sleep, dress, work,
+    drop, anchor and light-task. The room's glyph supplies them when the brief names none.
+  - **The walk:** each function tries its strategies in order. The first that qualifies and lays wins, its
+    suggestions join the program (a conversation group brings a rug and a reading light), and the refused say why.
+  - **Gaps:** a function nothing fills is a gap, said in the readout, never a faked piece.
+  - **Stable ids:** every solved piece has an id from its group (`conversation.sofa`, `sleep.nightstand-1`).
+    `pieces: [{ id, size?, at?, facing?, omit?, like?, forms?, finish? }]` resizes, moves, turns, restyles or leaves
+    out one piece. An unknown id with a `piece` adds an extra.
+  - **Resizing:** a size is asked before the group is laid, so the group lays round it. A size outside the piece's
+    band is clamped and said.
+- **The laws** (`interior/laws.js`): clearances, distances and proportions, each with its source and stamped with
+  `LAWS_VERSION`. Among them:
+  - 36 in walkways, and 36 in to pull out a dining chair;
+  - a coffee table two thirds the sofa's length, 14–18 in from it;
+  - the screen at 1–1.5 times its diagonal;
+  - the rug under the front legs of every seat;
+  - art two thirds the width of what it hangs over.
+- **Hard laws:**
+  - A piece never stands in a door's approach, in front of glass it is taller than the sill of, or in a fixed
+    feature's hearth.
+  - A group may not close a way the room had: a passage narrower than the law from the door to another door or to a
+    seat. An optional piece that would close one is left out, and the readout says so.
+  - The review measures the narrowest way to every seat, the open floor and the light sources. It advises and
+    stamps; it never refuses.
+- **Style cards** (`interior/styles.js`):
+  - **The shelf:** the styles decorators name today: Japandi, Scandinavian, mid-century modern, modern organic,
+    warm minimalism, wabi-sabi, industrial, contemporary, transitional, modern farmhouse, coastal, modern
+    Mediterranean, boho, maximalism, NeoDeco, quiet luxury, new brutalism, grandmillennial, dark academia, '70s
+    revival and soft modern.
+  - **What a card holds:** a 60-30-10 palette, a floor, a timber and its finish, a cloth and an accent cloth, forms
+    per furniture kind, and the worked styles it starts from.
+  - **How a card is worn:** it resolves down to the house's own furniture grammar (`furnishings/forms.js`), so a
+    composed piece locks at its own size and a longer sofa takes another seat. `style: { name, accent }` dresses the
+    chairs and the coffee table from a second card.
+- **Surfaces and fixed features:**
+  - `surface` paints the room's walls (one wall at a time with `N`/`E`/`S`/`W`) and sets its trim and floor.
+  - A fireplace (its breast, firebox, hearth and mantel), a chimney breast or a column stands on a wall. The placer
+    keeps clear of it, and a fireplace becomes the focal point.
+  - A wall-mounted screen and art over a sofa hang at their true heights, never over an opening.
+- **The World page:**
+  - `view: 'section'` (the default) shows the room cut out of its house with a step of each neighbour through its
+    doors; `view: 'house'` shows the whole house.
+  - The room's shots are the dollhouse (from the corner that hides the least), two corners at a standing eye
+    looking at the focal wall, the doorway, and the plan.
+- **On the house kernel, opt-in only** (absent, a house builds byte for byte as before):
+  - `fitOut` names one room: no generated furniture, its own items, walls clipped to its own corners, its own floor
+    and its fixed features.
+  - `rooms[].items[].compose` stands a composed piece at the item's size, and `items[].finish` recolours a mesh piece.
+  - A media console's `dress: false` leaves its own screen off.
+
+**Planned:**
+- placement scores (balance, rule of thirds, accent repetition) and a seeded search;
+- deeper piece forms (curved and channel-tufted seats, fluted and cane fronts, pedestal and plinth bases), lamps,
+  pendants, headboards, rugs, art and plants that are their own pieces;
+- light-emitting pieces;
+- the browser look (tone, grades, ambient occlusion, bloom, depth of field, daylight by time of day);
+- millwork runs with elevations and cut lists;
+- variants and a scheme board on `design_interior`;
+- a screen beside the hearth when a fireplace is the focal point;
+- a drafted section's neighbours doored onto each other, not through the room;
+- the Blender hero still.
+
+### House finishes: doors, windows, floors and wallpapers with more than one look
+
+Houses were all minted alike: the same two-panel door, the window its facade defaults to, plain boards or marble, and
+a dotted paper. A house's doors, windows, floors and walls are now knobs like `windowStyle` and `entryDoorTint`, and
+the house style's roll draws them with its siding, roof and paints. A new house is minted with `finishes: 'auto'`
+(stamped beside `style: 'auto'`, `layout: 'varied'` and `furnishing: 'composed'`), and each family
+(`polygonizer/floorplan-styles.js` `HOUSE_STYLES[family].finishes`) picks each knob from its own seeded list. Every
+house from scratch differs, and the same house always re-renders the same. A house minted before carries no
+`finishes`, so it draws exactly what it did. A knob the manifest names wins over the roll; `finishes: null` at mint
+opts out.
+
+- **Doors (`doorStyle`, `doorLeafTint`):** two-panel, Shaker, five-panel, six-panel, flush, half-glazed, French,
+  plank and fluted, on a parked leaf and on both faces of a swung one.
+- **Windows (`windowStyle`, `windowFrameTint`):** crittall (a fine black steel grid), prairie (border lights),
+  cottage (the top third divided) and six-over-six join the house's own divisions. A family rolls from its wider list
+  only under `finishes: 'auto'`.
+- **Floors (`livingFloor`, `bedroomFloor`, `wetFloor`, each `{ pattern, colours }`):** straight and wide plank,
+  herringbone at 45°, chevron, basketweave parquet, checkerboard, hexagon tile, terrazzo and large-format stone.
+  Each is procedural in any colours (`finishes/patterns.js`), keyed `finish:<pattern>:<colours>` and served through
+  the surface-texture path, so no image is committed.
+- **Walls (`wallTreatment`, `wallpaper`):** the house's interior walls are painted, dressed with its treatment
+  (wainscot, board-and-batten, shiplap, picture-frame, beadboard) or papered (stripe, pinstripe, gingham, trellis,
+  scallop, polka, grasscloth, botanical, damask). Papers are procedural in any colours, mapped at true size on every
+  wall. The modern, tofu and mission families, which forced paint on every wall, let their walls vary under
+  `finishes: 'auto'`.
+- **What each house style draws from:** for example,
+  - cottage: plank or five-panel doors, six-over-six or cottage windows, a checkerboard or hex-tile kitchen,
+    botanical paper;
+  - modern: flush or fluted doors, crittall windows, chevron or smoked plank, terrazzo, grasscloth.
+- **Checking:** the knobs are checked by field at mint and on edit (`validateHouseConstruction`
+  `finishKnobErrors`). The manual is the `house-finishes` card. An interior's `surface` and its style cards take the
+  same patterns and treatments: each card has a floor pattern and, where the style calls for one, an accent wall.
+- **Re-pinned:** the floorplan mint golden. A new house's stored manifest gains `finishes: 'auto'`, the one key this
+  step adds.
 
 ### Character stitch: one hero mint, the hero's own walk in play, the Egocube as a kind
 

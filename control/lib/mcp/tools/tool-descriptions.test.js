@@ -383,7 +383,10 @@ const DESCRIPTION_ALLOWLIST = {
 // create_shoot_plan and update_shoot_plan (a world's cameras as visible keyed objects in After Effects terms, its set
 // pieces, transitions, portals and event cuts; on its branch they measured +3,564 over its base), and forge_motion's
 // 'plan' motion.
-const PAYLOAD_CEILING = 207_600;
+// Re-pinned 2026-10-14 (207_600 -> 209_900; measured 209,677) for 1014-interior-designer merged over the shoot plan:
+// design_interior, the interior designer's door in the building pack (one new listed tool, its schema trimmed to names
+// and shapes; on its branch it measured +2,279 over its base).
+const PAYLOAD_CEILING = 209_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

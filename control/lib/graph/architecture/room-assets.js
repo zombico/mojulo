@@ -1372,7 +1372,8 @@ Object.assign(ROOM_FURNITURE_ASSETS, {
       const { w, d, h } = footprintDims(el);
       const { locked } = resolveFurniture({ ...el.compose, size: [w * unitMm, d * unitMm, h * unitMm] });
       // a room's media console carries its television and a nightstand its lamp, as the room's own pieces do
-      return lockedFurnitureFaces(locked, { unitMm, light, fit: true, dress: el.compose.like });
+      // (`dress: false` leaves it bare: an interior hangs the screen on the wall)
+      return lockedFurnitureFaces(locked, { unitMm, light, fit: true, dress: el.compose.dress === false ? null : el.compose.like });
     },
     buildManifest: (el) => (ROOM_FURNITURE_ASSETS[el.composeFallback] || ROOM_FURNITURE_ASSETS['sideboard-cabinet']).buildManifest(el),
   },

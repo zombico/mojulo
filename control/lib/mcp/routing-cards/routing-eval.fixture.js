@@ -64,6 +64,10 @@ export const FIXTURE = [
   ['stage the two drawn characters in one scene and cut between their rooms', 'create_sketch'],
   ['make a pixel-art cutscene of my hero character', 'get_catalyst'],
   ['design me a two-storey house with a porch', 'mint_building'],
+  // interior designer: a room of a house decorated, styled, its pieces placed
+  ['decorate the lounge in my house in a warm japandi look', 'design_interior'],
+  ['where should the couch and armchairs go in my 14 by 18 living room with one window', 'design_interior'],
+  ['show my bedroom as quiet luxury and then as coastal so I can compare', 'design_interior'],
   ['a furnished apartment I can walk through', 'mint_building'],
   ['frame the house and give me an IFC model for Revit', 'mint_building'],
   // the structure book's outcomes: drawings and a build, asked for without the word "house" leading

@@ -565,7 +565,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'render_handoff',
     'verify_machina',
     'compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
-    'mint_building',
+    'mint_building', 'design_interior',
     'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
     // the shoot plan (1014): cameras as visible keyed objects in a world, the motion form's authored sibling
@@ -799,7 +799,9 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // Grown 2026-10-13 (8_600 -> 8_650; measured 8,607 widest cell, studio+plain+pedagogical): the merge of the character
   // line (the CHARACTER row's update_character) with the consolidated line (the GAME row's tune_ground), each under the
   // ceiling alone.
-  const MODE_CEILINGS = { studio: 8_650 };
+  // Grown 2026-10-14 (8_650 -> 8_700; measured 8,651 widest cell, studio+plain+reflective): the merge of the shoot plan
+  // (create_shoot_plan, update_shoot_plan) with the interior designer (design_interior), each under the ceiling alone.
+  const MODE_CEILINGS = { studio: 8_700 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

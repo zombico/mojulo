@@ -61,7 +61,9 @@ import { join } from 'node:path';
 // Re-pinned 2026-10-10 (31_300 -> 32_400; measured 32,335) for the Characters ring: pack_character, listed first.
 // Re-pinned 2026-10-12 (32_400 -> 32_500; measured 32,463) for asset receipts: pack_stash's description names
 // sign_asset / verify_asset.
-const PACKS_PAYLOAD_CEILING = 32_500;
+// Re-pinned 2026-10-14 (32_500 -> 32_600; measured 32,557) for 1014-interior-designer: pack_building lists
+// design_interior beside mint_building and names it in its description.
+const PACKS_PAYLOAD_CEILING = 32_600;
 
 let server;
 let listTools;

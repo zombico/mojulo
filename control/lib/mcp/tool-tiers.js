@@ -43,6 +43,7 @@ export const TOOL_TIERS = Object.freeze({
   get_solid_vocab: 'ride',
   measure_solid: 'ride',
   mint_building: 'fill',
+  design_interior: 'judge',
   edit_solid: 'fill',
   // the Characters ring: a character is authored and revised (judge); a sheet's PNG is filed by ref (ride)
   create_character: 'judge',
