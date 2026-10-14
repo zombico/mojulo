@@ -70,6 +70,20 @@ The agent drives; the dashboard shows. Every affordance that wrote or handed the
   `create_game` alone). A game a world made links to the world's page; a project's shelf stays at `/games/<ref>`.
   `/arcade` and `/maker/games` redirect to it, and `create_pixelizer_game`'s `arcadeUrl` is `/play`.
 - `get_ui_map` describes the dashboard by these modes, the project page and its marks.
+- **What was made comes first.** The books and the exports are the product, and every one is now a link away:
+  - **A book on its own.** The view on a project page opens in a tab of its own, and a book (structure, city, world,
+    character) downloads as one self-contained file.
+  - **Everything shipped, folder by folder.** A project page lists what it and its parts were exported as, whole:
+    a building's `sheets/`, `schedules/` and IFC, a game's `game.html`, `levels/` and Godot pack, the game a world's
+    run made (`scanOutcomeTree`; the old top-level-only list missed every subfolder). A page opens in its own tab;
+    a long folder folds, with its true count.
+  - **A game is a project page** (the `game` rail): played and playtested in the middle, its levels as parts, its
+    export below. It has no outcome dots; whether its levels can be finished is answered when it is made.
+  - **Folders open.** `/outcomes/<ref>/` with no `index.html` of its own (and any folder inside one) is drawn as a
+    listing of its folders and files, so the Render Bay's and the bench's folder links no longer 404. Scripts,
+    styles, CSV, audio, images and IFC are served with their types.
+  - **Play shows what shipped:** each cabinet links to its game's page and marks the self-contained `game.html` and
+    the Godot project export_game left on disk.
 - **Game projects retire** (`RETIRED_PACKS`' `pack_game_projects`): `create_game_project`, `get_game_project`,
   `update_game_project`, `bind_to_game_project` and `list_game_projects` leave the tool surface. A game's home is its
   gameworld (`design_game`, quick or full).

@@ -91,7 +91,7 @@ export function readRail(manifest, { ref = null, row = () => null, depth = 1 } =
     if (depth < 1 || p.state === 'missing' || p.state === 'taken') return p;
     const r = row(p.ref);
     const sub = r && readRail(r.manifest, { ref: p.ref, row, depth: depth - 1 });
-    return { ...p, ...(r?.kind && !p.kind ? { kind: r.kind } : {}), ...(sub ? { rail: brief(sub.outcomes) } : {}) };
+    return { ...p, ...(r?.kind && !p.kind ? { kind: r.kind } : {}), ...(sub?.outcomes.length ? { rail: brief(sub.outcomes) } : {}) };
   });
   return {
     rail: rail.id,

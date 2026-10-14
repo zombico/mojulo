@@ -2,7 +2,9 @@
 
 /**
  * A recipe on a rail, as one page: what it is for and how far each part of that has come (left), the thing itself in
- * its book, its World or its game (centre), what it is made of (right), and what it has been taken out as (below).
+ * its book, its World or its game (centre), what it is made of (right), and everything it and its parts have been
+ * taken out as (below): each outcome folder whole, a page opening in its own tab. The view on screen opens on its own
+ * too, and a book downloads as one self-contained file.
  *
  * The page draws `/api/sketches/<ref>/rail` (lib/graph/rail) and nothing else, and it is view only: the agent makes and
  * changes everything; the page re-reads when it regains focus and every few seconds, so a change the agent makes shows
@@ -33,6 +35,9 @@ const EXIT_PATHS = {
   walk: 'M13 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM10 8l-2.5 4M10 8l3 1.5 2 3M10 8l-.5 5 2.5 3.5V21M9.5 13 7 21',
   play: 'M7 4.5v15l12-7.5z',
   playtest: 'M5 4.5v15l10-7.5zM18 5v14M21 5v14',
+  open: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
+  download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
+  folder: 'M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z',
 };
 
 function ExitIcon({ id, className = 'h-4 w-4' }) {
@@ -122,23 +127,57 @@ function Parts({ parts }) {
   );
 }
 
-function Files({ files }) {
-  if (!files.length) return null;
+/** What the project and its parts were taken out as: each owner's outcome folder, by its subfolders. A page opens in
+ *  its own tab; anything else is taken. A subfolder with many files starts folded. */
+function Shipped({ shipped }) {
+  if (!shipped.length) return null;
   return (
-    <ul className="flex flex-wrap gap-2 border-t border-[color:var(--bay-rail)] px-4 py-3">
-      {files.map((f) => (
-        <li key={f.name}>
-          <a
-            href={f.href}
-            download
-            className="inline-flex items-center gap-2 rounded-[var(--radius-control)] border border-[color:var(--bay-rail-lit)] px-2 py-1 font-mono text-[10px] text-[color:var(--ink-secondary)] hover:border-[color:var(--live)] hover:text-[color:var(--ink-primary)]"
-          >
-            <span>{f.name}</span>
-            <span className="tabular-nums text-[color:var(--ink-muted)]">{formatBytes(f.bytes)}</span>
-          </a>
-        </li>
+    <section className="max-h-[32vh] overflow-y-auto border-t border-[color:var(--bay-rail)] px-4 py-3">
+      {shipped.map((o) => (
+        <div key={o.ref} className="mb-3 last:mb-0">
+          <div className="mb-1.5 flex items-baseline gap-3 font-mono text-[10px] text-[color:var(--ink-muted)]">
+            <a href={o.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[color:var(--ink-secondary)] hover:text-[color:var(--live)]" title={o.url}>
+              <ExitIcon id="folder" className="h-3.5 w-3.5" />
+              {o.ref}
+            </a>
+            {o.role && <span className="uppercase tracking-[0.18em] text-[9px]">{o.role}</span>}
+            <span className="ml-auto tabular-nums">{o.total} · {formatBytes(o.bytes)}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            {o.groups.map((g) => {
+              const list = (
+                <ul className={`flex flex-wrap gap-1.5 ${g.dir ? 'mt-1 pl-3' : ''}`}>
+                  {g.files.map((f) => (
+                    <li key={f.path}>
+                      <a
+                        href={f.href}
+                        {...(f.page ? { target: '_blank', rel: 'noreferrer' } : { download: '' })}
+                        className={`inline-flex items-center gap-2 rounded-[var(--radius-control)] border px-2 py-0.5 font-mono text-[10px] hover:border-[color:var(--live)] hover:text-[color:var(--ink-primary)] ${
+                          f.page ? 'border-[color:var(--live-idle)] text-[color:var(--live)]' : 'border-[color:var(--bay-rail-lit)] text-[color:var(--ink-secondary)]'
+                        }`}
+                      >
+                        <span>{g.dir ? f.path.slice(g.dir.length + 1) : f.path}</span>
+                        <span className="tabular-nums text-[color:var(--ink-muted)]">{formatBytes(f.bytes)}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              );
+              // the folder's own files plainly; each subfolder folds, open while it is short
+              return g.dir ? (
+                <details key={g.dir} open={g.total <= 8} className="group">
+                  <summary className="cursor-pointer list-none font-mono text-[10px] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]">
+                    <span className="inline-block w-3 transition-transform group-open:rotate-90">›</span>{g.dir}/ <span className="tabular-nums">{g.total}</span>
+                  </summary>
+                  {list}
+                  {g.total > g.files.length && <span className="mt-1 block pl-3 font-mono text-[10px] text-[color:var(--ink-muted)]">+{g.total - g.files.length}</span>}
+                </details>
+              ) : <div key=".">{list}</div>;
+            })}
+          </div>
+        </div>
       ))}
-    </ul>
+    </section>
   );
 }
 
@@ -172,6 +211,20 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
           <Link href={`/sketches/${encodeURIComponent(data.parent)}`} className="font-mono text-[11px] text-[color:var(--live)] hover:underline">↑ {data.parent}</Link>
         )}
         <nav className="ml-auto flex items-center gap-1" aria-label="views">
+          {/* the view on screen, on its own: in a tab of its own, and the book as one self-contained file */}
+          {exit && (
+            <>
+              <a href={exit.href} target="_blank" rel="noreferrer" title={exit.href} aria-label={`${exit.id} ↗`} className="rounded-[var(--radius-control)] p-1.5 text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]">
+                <ExitIcon id="open" />
+              </a>
+              {exit.id === 'book' && (
+                <a href={`${exit.href}?download=1`} title={`${exit.href}?download=1`} aria-label={`${exit.id} ⤓`} className="rounded-[var(--radius-control)] p-1.5 text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]">
+                  <ExitIcon id="download" />
+                </a>
+              )}
+              <span aria-hidden className="mx-1 h-4 w-px bg-[color:var(--bay-rail)]" />
+            </>
+          )}
           {exits.map((e) => (
             <button
               key={e.id}
@@ -199,9 +252,12 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
       )}
 
       <div className="flex min-h-0 flex-1 flex-col max-lg:overflow-y-auto lg:flex-row">
-        <aside className="border-[color:var(--bay-rail)] max-lg:border-b lg:w-[240px] lg:shrink-0 lg:overflow-y-auto lg:border-r">
-          {data ? <Outcomes outcomes={data.outcomes} onConcern={onConcern} /> : <Loading />}
-        </aside>
+        {/* a project with no outcomes of its own (a game) has no column for them */}
+        {(!data || data.outcomes.length > 0) && (
+          <aside className="border-[color:var(--bay-rail)] max-lg:border-b lg:w-[240px] lg:shrink-0 lg:overflow-y-auto lg:border-r">
+            {data ? <Outcomes outcomes={data.outcomes} onConcern={onConcern} /> : <Loading />}
+          </aside>
+        )}
 
         <section className="relative min-h-[60vh] min-w-0 flex-1 bg-[color:var(--bay-void)] lg:min-h-0">
           {src ? (
@@ -215,7 +271,7 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
         </aside>
       </div>
 
-      {data && <Files files={data.files ?? []} />}
+      {data && <Shipped shipped={data.shipped ?? []} />}
     </WorkshopShell>
   );
 }

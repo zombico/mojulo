@@ -1,5 +1,14 @@
+import os from 'node:os';
+import path from 'node:path';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
+// what export_game left for one game: its page and its Godot project
+const OUT = mkdtempSync(path.join(os.tmpdir(), 'play-shipped-'));
+process.env.MOJULO_OUTCOMES_DIR = OUT;
+mkdirSync(path.join(OUT, 'gw-game', 'godot'), { recursive: true });
+writeFileSync(path.join(OUT, 'gw-game', 'game.html'), '<html></html>');
 
 /**
  * GET /api/projects: the projects on a rail, by what they are, last touched first; what a project made for itself is
@@ -52,5 +61,8 @@ describe('GET /api/arcade — where each game came from', () => {
     expect(by['quick-game']).toMatchObject({ source: 'quick', world: 'quick' });
     expect(by.brick).toMatchObject({ source: 'pixel', world: null });
     expect(by.plain).toMatchObject({ source: 'game', world: null });
+    // what each was shipped as: the page and the Godot pack, when they are on disk
+    expect(by['gw-game'].shipped).toEqual({ html: '/outcomes/gw-game/game.html', godot: '/outcomes/gw-game/godot' });
+    expect(by.plain.shipped).toEqual({ html: null, godot: null });
   });
 });

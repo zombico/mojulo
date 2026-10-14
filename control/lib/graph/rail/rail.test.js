@@ -26,7 +26,8 @@ const store = (rows) => (r) => (rows[r] ? { kind: rows[r].kind, manifest: rows[r
 
 describe('the rails', () => {
   it('each recipe finds its rail; a recipe on none has none', () => {
-    expect(railIds()).toEqual(['structure', 'city', 'gameworld', 'solid']);
+    expect(railIds()).toEqual(['structure', 'city', 'gameworld', 'solid', 'game']);
+    expect(railFor({ kind: 'game', levels: [] }).id).toBe('game');
     expect(railFor(HOUSE).id).toBe('structure');
     expect(railFor(CITY).id).toBe('city');
     expect(railFor(WORLD).id).toBe('gameworld');
@@ -142,3 +143,14 @@ describe('a broken recipe', () => {
     expect(rail.errors.length).toBeGreaterThan(0);
   });
 });
+
+describe('the game rail', () => {
+  it('has no outcomes of its own: its levels are its parts, played in its shell and playtested with every level open', () => {
+    const game = readRail({ kind: 'game', levels: [{ ref: 'lv-a' }, { ref: 'lv-b' }] }, { ref: 'g', row: store({ 'lv-a': { kind: 'controllable' } }) });
+    expect(game.outcomes).toEqual([]);
+    expect(game.parts.map((p) => [p.ref, p.state])).toEqual([['lv-a', 'fresh'], ['lv-b', 'missing']]);
+    expect(game.exits.map((e) => e.id)).toEqual(['play', 'playtest']);
+    expect(readRail({ kind: 'game', engine: 'pixelizer', reducer: 'brickster' }, { ref: 'p' }).exits.map((e) => e.id)).toEqual(['play']);
+  });
+});
+

@@ -39,6 +39,16 @@ function Cabinet({ cabinet }) {
           </span>
         </span>
       </a>
+      <span className="flex items-center gap-2 border-t border-[color:var(--bay-rail)] px-3 py-1.5 font-mono text-[10px]">
+        {/* the game's own page: its levels, and everything it was shipped as */}
+        <Link href={`/sketches/${encodeURIComponent(cabinet.ref)}`} className="truncate text-[color:var(--ink-muted)] hover:text-[color:var(--live)]">{cabinet.ref}</Link>
+        {cabinet.shipped?.html && (
+          <a href={cabinet.shipped.html} target="_blank" rel="noreferrer" title="game.html" className="rounded-[3px] border border-[color:var(--live-idle)] px-1 text-[9px] uppercase tracking-[0.14em] text-[color:var(--live)] hover:border-[color:var(--live)]">html</a>
+        )}
+        {cabinet.shipped?.godot && (
+          <a href={cabinet.shipped.godot} target="_blank" rel="noreferrer" title="godot" className="rounded-[3px] border border-[color:var(--live-idle)] px-1 text-[9px] uppercase tracking-[0.14em] text-[color:var(--live)] hover:border-[color:var(--live)]">godot</a>
+        )}
+      </span>
       {(cabinet.world || cabinet.project) && (
         <span className="flex items-center gap-2 border-t border-[color:var(--bay-rail)] px-3 py-1.5 font-mono text-[10px]">
           {cabinet.world && (
