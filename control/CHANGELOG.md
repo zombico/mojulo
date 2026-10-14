@@ -1746,6 +1746,34 @@ Built so far: the eye, where it needs something, the track in its world's look, 
 Planned:
 
 
+### Racer parts: the ODM library, its solver, and the racer's juice
+
+Built so far: R1, the library and the solver.
+
+- **The parts library** (`lib/graph/car-designer/parts.js`): the catalogue a cartoon racer is composed from, each part
+  data an agent can read and extend: its family (body, wheel, engine, exhaust, aero, nose, lamps, tail, seat, steering,
+  cockpit, fender, booster, hero), what it fits (weights over the vehicle sheet's facets and the driver's archetype and
+  order), the socket it mounts on, its size as expressions over the machine's frame (the rear wheel's diameter the
+  module), its effect anchors (an exhaust's tip, a wheel's contact, a lamp, a nozzle), how it moves, and its geometry
+  as a scapeshift block. Bodies are lofted profiles (a tub, a dart, a pencil, a carriage, a crate, a bean, a pod, a
+  slipper). Each archetype has one hero piece (a ruler's crown, an outlaw's horns, a jester's propeller …).
+- **The solver** (`car-designer/racer.js`): `racerFromSheet(egocubeSheet)` reads the machine off its driver (the
+  outfit's silhouette, palette and focal; cockpit, engine, era, motif, livery, wear, stance and exaggeration, each with
+  its reason); `solveRacer` sizes the frame to the seated driver (chibi proportion: big rear wheels, a short wheelbase,
+  a wide track), lofts the body clear of every wheel's sweep, scores each family's parts and keeps the runners-up as
+  suggestions, sizes and places each part at its socket, then holds the laws of visual plausibility (wheel-clear,
+  driver-seen from the chase camera, rear-reads, one-leads in the chase view, touches, budget), fixing each failure by
+  resizing, growing the body, moving a mast, or swapping to the next suggestion; every change kept with its reason.
+  A pin (`parts: { wheel: 'wire' }`) re-fits the rest round it. The output is a vehicle rig (root and four wheel
+  bones, the roll clip), its effect anchors, and a physics row derived from what was built.
+- **The juice and status tables** (`car-designer/juice.js`): what each game state looks like on a racer, as data: idle
+  puffs, throttle and boost flames, a boost trail, drift sparks by charge tier, skid smoke, surface dust, a landing
+  ring, damage smoke; brake lamps, a boost fill, a drift tier, a hit flash, damage tint, a shield, an invulnerable
+  cycle, an item pulse; and the motion (steer, lean, squat, dive, bounce, wobble), exaggerated past physics.
+
+Planned: R2 the live rig (steer and body bones read from the drive rule), R3 the juice in the page, R4 status shaders,
+R5 rivals in solved machines.
+
 ### Car designer: a realistic vehicle, or a racer and their machine
 
 Built so far: the language.
