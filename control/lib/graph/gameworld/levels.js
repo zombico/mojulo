@@ -13,6 +13,7 @@
  *
  *   gameStages(G)                          → [{ level, node, section, index, manifest }] every stage, the start level first
  *   stageEnds(manifest)                    → { spawn, heading, exit, exitFrom } read off the laid stage
+ *   roadwayEnds(manifest)                  → the same, read off a roadway's contract (roads/contract.js)
  *   stageLevelOrder(G, stage, { ref, heroRef, mechanics, title }) → the create_sketch call that makes it
  *   gameStore(G, book)                     → the create_game store: the hero, the gear, the campaign
  *
@@ -38,6 +39,9 @@ import { withProgram } from '../era/programs.js';
 import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
+import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
+import { planScapedTrack } from '../roads/trackscape-dress.js';
+import { trackContract, trackSurface } from '../roads/contract.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -57,6 +61,8 @@ export function gameStages(world) {
     if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : buildingStage(R.building) }); continue; }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
+    // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
+    if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
     const laid = layLevel(R.level);
     // the level's buildings stand on the section they name, or on its first trail
     const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;
@@ -123,6 +129,24 @@ function cityLevelOrder(G, stage, { title, map = null, cityRefs = {} } = {}) {
   const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
   const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}) } };
   return { tool: 'create_sketch', args: { title: name, manifest } };
+}
+
+/** A roadway stage's anchors, read off its contract (roads/contract.js): the pole of its grid to start on, facing the
+ * way on, its finish line to end at; its surface (the car's ground), its barriers (colliders), the contract itself and
+ * the track's laws (not data: a reader of the ends never sees them). Drawn once per manifest, as a stage's are. */
+const ROAD_ENDS = new Map();
+export function roadwayEnds(manifest) {
+  const key = JSON.stringify(manifest);
+  if (ROAD_ENDS.has(key)) return ROAD_ENDS.get(key);
+  if (ROAD_ENDS.size > 16) ROAD_ENDS.clear();
+  let plan;
+  try { plan = manifest.scape ? planScapedTrack(manifest) : planTrack(manifest); } catch (e) { throw new Error(`levels: ${e.message}`); }
+  const T = trackContract(plan), surface = trackSurface(plan), pole = T.grid[0];
+  const out = { spawn: pole.at, heading: pole.heading, exit: T.finish.at, exitFrom: 'the finish line', planar: true, beats: [], hazards: [] };
+  const at = (x, y) => surface([x, y, 1e4]);
+  for (const [k, v] of Object.entries({ ground: at, surface: at, rocks: null, colliders: plan.colliders, roadway: T, roadLaws: trackLaws(trackCensus(plan)) })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  ROAD_ENDS.set(key, out);
+  return out;
 }
 
 /** Where a stage spawns the hero and where it ends, read off the stage as it lays (drawn once per stage recipe: a
@@ -226,6 +250,9 @@ function groundSampler(faces, groups = /:(top|ground)$/) {
   };
 }
 
+// a racer's chase camera: close and low behind a kart-sized machine
+export const RACER_CAMERA = Object.freeze({ dist: 5.2, height: 2, lead: 1.5, lookH: 0.5 });
+
 /**
  * The call that makes one stage a game level: `create_sketch` of the stage with the hero as the pilot, the systems'
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
@@ -235,7 +262,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
-  const ends = stageEnds(stage.manifest);
+  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
   const concerns = concernIds(cubeOfWorld(G).cube);
@@ -265,13 +292,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
   let pilotPart;
-  if (ride?.ref) {
-    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind
+  if (ride?.ref || ride?.racer) {
+    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind; or a racer
+    // (quick.racers): the first of the field, in the machine its driver reads as, followed close (a kart is small)
     const P = playerWorld({ heroRef: 'none', id: 'car', title: name, controls: `W  throttle · S  brake, hold to reverse · A / D  steer${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = {
-      figures: { ride: { vehicleRef: ride.ref, targetH: RIDE_H } },
+      figures: { ride: ride.racer ? { racer: ride.racer } : { vehicleRef: ride.ref, targetH: RIDE_H } },
       entities: [{ id: 'car', pilotable: true, rule: ride.rule, body: { type: 'figure-rig', figure: 'ride' }, transform: { pos: ends.spawn, heading: ends.heading } }],
-      camera: { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
+      camera: ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
       events: P.events || {},
     };
   } else if (heroRef) {
@@ -361,7 +389,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? { ...(mechanics?.play ?? {}), ...extraPlay } : mechanics?.play ?? null, { story, carryFrom, party }));
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
-  const laws = concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop }) : [];
+  // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
+  const laws = stage.section === 'roadway' ? ends.roadLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 

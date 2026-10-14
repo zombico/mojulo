@@ -2489,6 +2489,289 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
   loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
   new `kart-racer` genre.
 
+### Trackscape: scapeshift's eye, for a driver
+
+Built so far: the eye, where it needs something, the track in its world's look, the track dressed, the track from words, the arena plan, its local areas, and two looks for battle racers.
+
+- **The driver's eye** (`lib/graph/roads/eye.js`): the racing line driven on a speed plan bound by the vehicle's own
+  envelope (its cornering grip, launch, braking, top speed), looked along from the seat with the gaze 1.5 s down the
+  line. Scapeshift's eye spot and interest, read in seconds: a thing reads when it spans the eye spot where it is, its
+  ring is the time to reach it (near under 0.6 s, mid to 3 s, far beyond), and only a prop or more holds the gaze (a
+  wood of filler is rhythm, never a focus). Per second it says whether there was something to look at, per corner
+  whether the gaze held something before turn-in, whether a landmark was seen (a far sight line marched over the
+  land), and how many things pass a second. Today's dressing measured: every second of every lap blank, no corner
+  focused, no landmark.
+- **Where the eye needs something** (`roads/trackscape.js`): a plan of slots, each a place, a ring, the least span that
+  reads there, an interest and a beat, filled by a kit later. A corner is the pocket (boards counting down to the
+  braking point, a focus where the gaze lands beyond the outside at turn-in, a reveal down the next straight), a
+  straight carries rhythm and a set piece every few seconds (a span across a long one), the lines are gantries, a crest
+  is a reveal, and the lap has one landmark, searched round the track and scored by the lap's own eye. The inside of
+  every corner is kept clear to its apex. Laws (advisory): every corner focused, no blank run over 3 s, the landmark
+  seen from the grid and again, no two corners framed alike in a row, slots off the road and out of the sight lines.
+
+- **The track in its world's look** (`roads/track-kit.js`): a kit has no asphalt, so the track's materials are derived
+  from what it has, each the kit's own ramp of its kind (its hue, its cool shadow) taken to the material's values:
+  asphalt, a rubbered line, repairs, concrete, steel, tyre walls and gravel from its rock (and soil), earth and grass
+  its own; kerb red from its paint, white from its light, the ramp lip in its accent. Each is a pixel tile of its
+  material, drawn by the kit's pole: a realistic look multiplies the tile by baked light, a banded one paints the
+  tile in its light band's stops. The racing line is laid dark through every corner (on the banked road's own
+  height) and the asphalt is repaired here and there. `planTrack({ …, kit })` takes a kit's id or a look in words
+  (composed again wherever the track is drawn); a gameworld roadway level takes its world's look with `kit: true`.
+  Absent, the roadway's own tiles, byte for byte.
+
+- **The track's set pieces** (`roads/set-pieces.js`), written as scapeshift blocks (primitives on rails, numbers as
+  expressions, the eye spot gating every part at its ring, the blocks' laws), so a piece is data an agent can read and
+  write more of. A GT set (braking boards, hoardings, a grandstand, the start gantry, the advert bridge, a control
+  tower, a billboard, a grove, a light tower) and a kart set (striped bumpers, a bleacher with flags, giant mushrooms, a
+  castle tower, an arch, a castle). A slot's beat (and its focus's form) picks the piece; it is sized up its rails until
+  it reads where the slot needs it, turned to face the road (a span across it), and painted in the track's kit.
+- **The track dressed** (`roads/trackscape-dress.js`): every slot filled, each piece stood on its land, pushed off the
+  road where its footprint reaches it, a collider wherever a car can reach it (a span's legs), and the dressed track
+  measured again by the lap's own eye on the pieces as built. A roadway manifest asks with `scape: true` (or `{ set,
+  seed }`); a gameworld roadway level the same. Absent, the track as it was.
+
+- **A track from words** (`roads/trackscape-compose.js`): an intent ("a realistic GT circuit in green hills", "a cartoon
+  kart track by a candy castle, with jumps") read into the track's blocking (its class, form, length, twist, hills or
+  mountains, ramps, a crossing, its landmark) and its look (the rest of the words, a scene's common words said in the
+  land tunnel's own), dressed by the set its class races in. Opinions, each a word from changed: a GT circuit
+  realistic, a kart track cartoon. Track first (`composeTrack`: a roadway manifest), or the world and the track together
+  (`composeTrackWorld`: a gameworld whose look is the words'); a quick race takes `roadway: { intent }`.
+  `scripts/trackscape.mjs "<words>"` writes the World page and says what each word decided and what the eye found.
+
+- **The arena plan** (`roads/arena-plan.js`): a structure is never one-shot, so the venue is laid out in plan before
+  anything is built: the pit lane, pit building and paddock along the main straight on the side with room, stands where
+  a spectator sees the most of the lap (a stand's eye over the land, the best sites taken apart from each other), the
+  car park and hospitality behind the paddock, the landmark's ground, and a service road round the venue (its hull,
+  never crossing the track) with a spur to every zone and a tunnel exactly where a spur must cross. Its laws: zones off
+  the road, apart, out of the sight lines, reached, each stand seeing its share of the lap. Drawn as a plan sheet
+  (`arenaSheetSvg`) to review first; a trackscape slot inside a zone is the zone's to fill. `scripts/trackscape.mjs`
+  writes the sheet beside the World page.
+
+- **Local areas** (`roads/local-area.js`): each zone of the arena built on its own, in passes, so a venue is never
+  one-shot. Ground: a graded pad paved by its use (a strip along the track level with it and never under its land, a
+  block of its own one level with retaining walls where the land falls away), a car park's rows painted. Massing: the
+  plain volumes (shown when an area stops there, to review them). Elements: the structure from blocks, in modules where
+  it runs long (the pit building a row of pit modules with garage doors, glass and a sign band; a stand in sections;
+  hospitality). Dressing: the pit wall and its catch fence, a stand's fence, the team trucks in the paddock, cars parked
+  in the car park's rows, lamp posts. The service roads are laid on the land, a spur stopped short where it goes under
+  the track, a tunnel's portals either side. Every area has its own seed: one zone is re-rolled, held (`skip`) or
+  stopped at a pass (`upTo`) with `scape.local: { <zone>: … }`, and nothing else moves. Its laws: graded within a
+  height, off the road. Each area has a review shot (`localCamera`). New blocks: a pit module, hospitality, a lamp post,
+  a bay of catch fence.
+
+- **Two looks for battle racers.** A kit can be drawn on two more poles beside banded and material. The **voxel** look
+  (`roads/voxel-look.js`): every set piece and building a shell of cubes on one chunky grid (a detail proud of a wall
+  winning its cube), only the exposed sides drawn and runs of them merged, each corner darkened by the cubes round it,
+  banded the isekai way (a lit stop warmed by the key, a top half a stop up, the shade a stop down and cooled) with the
+  sun's cast shadows; the track's surfaces flat colour, varying cell to cell. The **shaded** look
+  (`roads/shaded-look.js`): the sixth generation's (Super Mario Sunshine, Kingdom Hearts), the pieces' own polygons
+  lit per corner (Gouraud), normals smoothed across a round and kept at an edge, a sky-blue fill from above and a warm
+  bounce from below, a hard high sun with cast shadows, the shade a clean pale blue, saturated, no tiles. A kit asks with
+  `{ id | look, pole: 'voxel' | 'shaded' }`; in words, a kart track is voxel unless "cartoon" or "pixel" (banded) or
+  "shaded", "sunshine", "kingdom hearts", "gamecube", "ps2" (shaded) say otherwise.
+- **The surrounds** (`roads/surrounds.js`): the land beyond the venue shaped and stood on, so a track sits in a place and
+  not on a flat field. A land's relief (rolling hills, ridged mountains with snow, terraced mesas, a plain) rises past
+  the venue's ring, never steeper than its slope from what must stay flat (the road's footprint, the zones, the roads,
+  the sight lines, the slots: their ground is the plan's to the millimetre), low mounds in the infield and a lake where
+  it is widest; the far ground a graded grid easing back to the plain under the haze; steep ground rock, high ground
+  snow, fields round the farms (four new track materials: rock, snow, crop, water). Rock formations where the driver
+  looks, down each long straight past the ring (tors, crags, spires, buttes, natural arches; a kart track's hoodoo
+  stacks): faceted lumps with banded strata, painted by the kit like a set piece. A settlement where the lap sees most:
+  a village (a chapel, houses along a lane, red roofs), farmsteads (a house, a silo, a shed: new blocks), or a town's
+  tower blocks on the horizon. Woods: trees near, canopy masses far, groves in the infield. On the voxel pole, far things
+  in coarser cubes. In words: "mountains", "alpine"; "canyon", "desert", "mesas" (and a sandy look); "plains"; "village",
+  "farms", "countryside", "town", "city", "wilderness". A manifest asks with `scape: { surrounds: false | { land?,
+  settlement?, seed? } }`; a gameworld level's `scape` now also takes `landmark` and `surrounds`.
+
+Planned:
+
+
+### Racer parts: the ODM library, its solver, and the racer's juice
+
+Built so far: R1, the library and the solver; R2, the live rig; R3, the juice in the page; R4, status and the big
+effects; R5, a field of racers in the quick race.
+
+- **The parts library** (`lib/graph/car-designer/parts.js`): the catalogue a cartoon racer is composed from, each part
+  data an agent can read and extend: its family (body, wheel, engine, exhaust, aero, nose, lamps, tail, seat, steering,
+  cockpit, fender, booster, hero), what it fits (weights over the vehicle sheet's facets and the driver's archetype and
+  order), the socket it mounts on, its size as expressions over the machine's frame (the rear wheel's diameter the
+  module), its effect anchors (an exhaust's tip, a wheel's contact, a lamp, a nozzle), how it moves, and its geometry
+  as a scapeshift block. Bodies are lofted profiles (a tub, a dart, a pencil, a carriage, a crate, a bean, a pod, a
+  slipper). Each archetype has one hero piece (a ruler's crown, an outlaw's horns, a jester's propeller …).
+- **The solver** (`car-designer/racer.js`): `racerFromSheet(egocubeSheet)` reads the machine off its driver (the
+  outfit's silhouette, palette and focal; cockpit, engine, era, motif, livery, wear, stance and exaggeration, each with
+  its reason); `solveRacer` sizes the frame to the seated driver (chibi proportion: big rear wheels, a short wheelbase,
+  a wide track), lofts the body clear of every wheel's sweep, scores each family's parts and keeps the runners-up as
+  suggestions, sizes and places each part at its socket, then holds the laws of visual plausibility (wheel-clear,
+  driver-seen from the chase camera, rear-reads, one-leads in the chase view, touches, budget), fixing each failure by
+  resizing, growing the body, moving a mast, or swapping to the next suggestion; every change kept with its reason.
+  A pin (`parts: { wheel: 'wire' }`) re-fits the rest round it. The output is a vehicle rig (root and four wheel
+  bones, the roll clip), its effect anchors, and a physics row derived from what was built.
+- **The juice and status tables** (`car-designer/juice.js`): what each game state looks like on a racer, as data: idle
+  puffs, throttle and boost flames, a boost trail, drift sparks by charge tier, skid smoke, surface dust, a landing
+  ring, damage smoke; brake lamps, a boost fill, a drift tier, a hit flash, damage tint, a shield, an invulnerable
+  cycle, an item pulse; and the motion (steer, lean, squat, dive, bounce, wobble), exaggerated past physics.
+
+- **The live rig** (R2): a solved racer's figure carries `live`, and the page's controllable channel plays it from the
+  drive rule's facts each frame, exaggerated (juice.js MOTION): the front wheels (and their fenders) yaw into the turn
+  past physics while all four roll; the body, its parts and the driver lean out of a turn, squat on the throttle, dive
+  on the brake and bounce on landing (a damped spring) about the wheelbase's middle, with an engine's idle shiver; the
+  steering wheel turns; a mast whips back with speed and a jester's propeller spins. `packVehicleFigure` takes the
+  bones that roll (`rolls`; absent, as before). The overlay is emitted only when a figure lives, so every other page is
+  byte-identical. A frame trace in a real browser (`racer-live.test.js`, the e2e tier) holds it.
+
+- **The juice in the page** (R3): a solved racer's figure carries `juice` (its rows at the anchors it has, each trigger
+  compiled into a tree over the facts, never code), and the page plays it: puffs from the exhaust at idle, a short
+  flickering flame on the throttle, a long white-hot flame on a boost (a booster's nozzle the biggest on the machine),
+  speed trails, sparks off the rear tyres in a hard corner coloured by how long it has held (blue, orange, violet),
+  tyre smoke, dust off the tarmac, a ring of dust on landing, black smoke when damaged. A cartoon drift is a hard
+  corner, not a slide: the page keeps `corner` (the share of the tyres' grip a turn asks) and `cornerTime`. Flames ride
+  the body; particles are a pooled set of sprites in the world, jittered by a seeded generator. Emitted only when a
+  figure carries juice. Boosting and damage are a game's to set.
+
+- **Status and the big effects** (R4): the lamps and the hero piece are bones of their own (the status slots), and
+  every bone's material carries tint uniforms chained after any patch it has; STATUS rows play on them: head lamps lit
+  and brake lamps flaring red, each with a halo; the hero piece filling with a boost's charge and pulsing white when
+  full; a hard corner's tier in the lamps; a white flash on a hit or a bump; damage darkening and flickering the paint;
+  a star's colours cycling; an item held pulsing; a shield's bright-rimmed bubble round the machine. And FX, the
+  genre's big effects: a burst of cartoon stars from a bump (the page reads a bump as more speed lost in an instant
+  than any brake), stars circling the driver's head, motion lines streaming past at speed, manga speed lines rushing
+  in from the edges of the pilot's screen on a boost or a hard pull, and a ring of air thrown back as a boost starts.
+  A shader of the page's own carries the log-depth chunks (it draws with a logarithmic depth buffer). Hits, shields,
+  stars, items and a boost's charge are a game's to set.
+
+- **A field of racers** (R5): a quick race takes `racers` (2 to 8: a number drawn, or each an archetype, a brief in
+  words, or `{ archetype?, build?, age?, brief?, facets?, seed?, parts? }`), the first yours and the rest your rivals,
+  each in the machine its driver reads as, on its own physics, at arcade unless a tuning is named. The level keeps only
+  each racer's recipe; the world resolves it to the solved machine (its live rig and juice with it), and nothing is
+  minted. The pilot is followed close behind. A racer's physics now follow what was built: mass from its shell, engine,
+  tyres and driver; power from its engine at its size; drag from its silhouette at its size; sticky tyres that corner
+  and drag; a centre of gravity from its stance, so a high, narrow machine rolls sooner; a short wheelbase that turns in
+  quicker. `car-designer/roster.js` reads five measures off them (top speed, pull, cornering, turn-in, weight in a bump)
+  and holds **balance** over the field: none best at everything, none bettered by another on every measure. A field
+  that fails is leaned, an engine or tyre swapped (the solver's runners-up first) with its reason; a pinned part is
+  never swapped. The law is the level's, advisory like the track's. `roads/vehicles.js` gains `envelopeOf` and `ruleOf`
+  for a row that is not a class (its own classes play as before).
+
+Planned: the driver seated as the character the hero door draws.
+
+### Car designer: a realistic vehicle, or a racer and their machine
+
+Built so far: the language.
+
+- **The vehicle sheet** (`lib/graph/car-designer/`): one vehicle as its pole, class, silhouette (wedge, bubble, brick,
+  needle, barrel, tub, bell), stance, cockpit, engine, era, motif, drive, wear, livery and exaggeration, each value a
+  reading with notes and derives on ten channels (frame, stance, cockpit, engine, handling, silhouette, surface,
+  livery, ornament, wear). Rolled from a brief and a seed the Egocube's way: every facet throws its die, an asked one
+  is never re-drawn, an incoherent roll is drawn again unless asked (then held), each dial claimed once by its highest
+  source (the class first). A realistic sheet takes its shape from its class and is never exaggerated; a racer's rolls
+  its own at kart scale. Every derive names a live dial: the vehicle designer's families, the technology builder's
+  wheeled plans, motifs and adornment, and the driving primitives' classes and physics. `scripts/vehicle-roll.mjs`
+  prints sheets.
+- **A realistic vehicle compiled** (`car-designer/realistic.js`): its class's true length, width, height, wheelbase,
+  track and wheel radius, LOFTED (never stretched: the vehicle designer's parts have toy proportions), its sheet's words
+  read as style: the body family its side profile, the wheel family its hubs, the lights its lamps, a lift and bigger
+  tyres only when the stance is asked, the livery and wear its paint (a second colour above the belt, stripes, numbers,
+  a patched panel). Heavy classes keep the fleet's own builds. Each wheel is its own bone, turning in the roll clip, so
+  the world drives it; the census holds what was drawn within 3 % of its class. `scripts/render-vehicles.mjs` lines
+  them up.
+- **The era draws the body** (`roads/bodywork.js`): the fleet's loft was one language, the three-box of the 70s and
+  80s (slab sides, a flat roof, upright glass, flat ends). A modern sheet now draws in the road today's terms: the plan
+  rounded at nose and tail, a tucked sill under a high shoulder, the glass leaning in to a crowned roof that arcs along
+  its length, raked glass, a belt rising to the tail, a low body's fenders rising over its wheels, cladding round a
+  crossover's or pickup's sills and arches, slim lamps sweeping round the corners with their light a line, a grille
+  between them and a lower intake, spoked alloys in arches that hug the tyre. A future sheet goes further (a faster roof,
+  a closed nose, a light bar across each end); classic and vintage keep the three-box. Still within 3 % of the class.
+  The fleet's traffic is unchanged. A compact is now a two-box hatch (it was drawn as a sedan), and a vehicle's
+  many-sided faces (wheels, end caps, round lamps) are fanned into quads, because the World draws only a face's first
+  four corners.
+
+Planned:
+
+- **`create_vehicle`**, beside `create_character`: `as: 'realistic'` or `as: 'racer'`.
+- **One language for vehicles:** a sheet of facets (silhouette, proportion, cockpit, engine, motif, livery, era, wear),
+  each reading with its reason, rolled from a brief and a seed, every note naming a setting that exists.
+- **A realistic vehicle** starts from a class and holds to its true dimensions and its physics.
+- **A racer's machine is read off the racer:** the Egocube rolls the driver, and the machine takes its silhouette from
+  the archetype, its size and weight from the build, its lean from the motivation and role, one focal piece, and the
+  outfit's own colours, so the pair reads as one. Cartoon proportions are dials, like the hero's chibi build. How it
+  handles is derived from what it is made of, never stated, and across a roster every machine is best at something
+  and none at everything.
+- **The driver in the seat:** seated, hands on the wheel, riding the machine in a game; a quick race of a roster, each
+  rival in their own machine.
+
+### Driving primitives: the roadway, a world that driving games call on
+
+Built so far: the roadway itself, a divided freeway at true scale (Highway 401's collector–express stretch by Pearson).
+
+- **A `roadway` world kind, in metres** (`lib/graph/roads/`). Its alignment is tangents, clothoid spirals and arcs;
+  grades joined by K-sized vertical curves; superelevation following curvature up to 6 %. Its cross-section, per
+  direction: a median Tall Wall, 4 express lanes, a separation wall and 5 collector lanes, all 3.75 m, each roadway
+  banking on its own inner edge; 3 m dashes on a 9 m cycle measured along each line; luminaires, verge and ditch.
+- **Structures sized from clearance.** An overpass sets its soffit from a clearance target (5.0 m + 0.15 m by default)
+  and guide-sign gantries hang at 5.4 m; clearance is measured back from the drawn undersides, and a target under
+  5.0 m advises, never refuses.
+- **A fleet at real dimensions, instanced:** eight classes from compact to a 22.5 m tractor with a 53 ft trailer,
+  lofted from length, width, height, wheelbase, track and wheel radius, at free flow in the lanes.
+- **An inspectable map** at `/api/sketches/<ref>/world/map`: every lane, line, wall, structure and vehicle at its true
+  station, with a key map, the profile with measured clearances, and curvature and bank. A click inspects; every
+  thing opens the 3D world at that spot (`?view=s<station>-<lane>`).
+- **The payload carries a lane graph**: stationed 3D centrelines, width, speed, surface and the line to each neighbour,
+  and every structure's measured clearance.
+- **Design classes** (`roads/classes.js`): kart, circuit, rally and freeway, each with its design speed, tightest
+  corner, bank, grade and crest limits; the freeway's are the corridor's own, unchanged.
+- **Laps and stages from corner points** (`roads/course.js`): a closed polygon of points of intersection, each rounded
+  by a spiral–arc–spiral curve, closes on itself to under a centimetre; an open one is a stage. A corner too wide for
+  its legs is tightened toward the class's tightest and said so.
+- **Hills and ramps** (`roads/ramps.js`): an elevation dial (hills, amplitude, smooth or sharp crests that fly) held
+  inside the class's grade; kickers, tabletops, gaps and whoops laid on the straights, each with its lip, its landing,
+  and the band of speeds that lands it, predicted by a ballistic flight over the drawn road.
+- **A seeded designer and presets:** a lap of a given length and twist, or a figure of eight with a bridge over its
+  crossing, kept clear of itself; `kart-oval`, `kart-sprint`, `figure-eight`, `hillside`, `stunt-park`.
+
+- **Circuits and stages** (`roadway` `form: 'circuit' | 'stage'`, `course: <preset | spec>`; `roads/track.js`): one
+  carriageway banked about its line, kerbs on the corners, run-off (gravel outside a circuit's corners), tyre walls or
+  armco, per class; a stage designer and a `rally-stage` preset. No form, or `corridor`, is the freeway as before.
+- **The track owns its ground:** terrain carried just under every footprint (the lower pass's where two cross),
+  eased to the land around; ramps and bridge approaches stand on walls down to it; a figure of eight's upper pass is a
+  deck whose soffit clears the lower road by the class's clearance over its whole width, measured.
+- **A track census** measures what was drawn: road width and bank from its edges, radius, grade off the ramps,
+  closure, the ground under every footprint point, the deck's clearance, each ramp's landing band; as laws, in the
+  gameworld's shape.
+- **What a track tells a game** (`roads/contract.js`, on the payload as `roadway`): stations, start and finish, sectors,
+  checkpoints, a grid of eight, a racing line, its bands' surfaces, its ramps and crossings; and a ground hook that finds
+  the drawn surface under a car (the right deck at a crossing). The racing line spreads each bend as wide as the road
+  lets it, its tightest bend wider than the road's own. A race on a roadway takes its checkpoints, grid and line from
+  it: rivals race every preset on its drawn surface.
+
+- **A gameworld level can be a roadway** (`levels.<id>.roadway: { form?, course?, dress? }`), as one can be a city: one
+  stage, started on its grid's pole and ended at its finish line, its laws the track's own. A race on it takes its
+  checkpoints, grid and racing line; its barriers are walls the cars hit. The quick race names one (`roadway: '<preset>'`
+  or a course spec), its land dressed with trees and rocks kept clear of the track.
+
+- **Vehicles bound by physics** (`roads/vehicles.js`): sixteen classes from a rental kart and a motocross bike to a
+  tractor-trailer at 80,000 lb, each a row of numbers (mass, power, driven wheels, drag area, rolling, wheelbase,
+  centre of gravity). What each can do follows from them: a launch capped by grip on its driven wheels with the load
+  shifting rearward (and a bike's front wheel lifting), a top speed where power meets drag, braking and cornering
+  capped by grip, and whether it rolls before it slides. Held to real figures: a compact 0–100 km/h in 8.6 s, a sports
+  car in 4.3; a stop from 100 km/h in 42 m dry, 68 wet, 143 in snow; a loaded truck still well under merge speed at the
+  end of a 365 m acceleration lane. The quick ride plays one (`vehicle`), at a `tuning` (sim, or arcade's lifted grip
+  and softer landings) and in `conditions` (dry, wet, snow, ice).
+- **Cars fly** off a roadway's ramps and crests: they leave the ground where it falls away faster than gravity takes
+  them, fly ballistically as far as the ramps' own landing bands predict, and land keeping the speed along the ground.
+- **Grip by surface:** gravel, grass and sand slip and drag, a kerb a little; the page knows what the tyres are on.
+- **Rivals drive to grip:** a speed plan from the bends ahead and the ground under them, and each ramp taken in the
+  middle of its landing band.
+
+Planned:
+
+- **A map and a minimap.** An inspect page for any roadway (plan, profile with ramps, sectors), and a `map` HUD that
+  draws the outline with every car on it.
+- **The kart racer moves onto a roadway, and the loop laid on a trail's land retires.** Trails become rally raid:
+  point to point across open land, its humps and crests the course, off-road surfaces, waypoints some of them hidden.
+- **Laws, measured from what was drawn:** width, radius, grade, bank, closure, clearance, every ramp's landing,
+  nothing standing on the road. They advise; none refuse.
+
 ### Menus: inventory, and the actions on what you hold
 
 - **Holders, transfers, views.** Every inventory action is a transfer of items between holders, guarded so it never

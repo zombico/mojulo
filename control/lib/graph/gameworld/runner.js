@@ -33,7 +33,7 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, bagPlay, raceCast, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
+import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, bagPlay, raceCast, quickRideRule, quickRacers, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
 import { rideBuild, rideRule } from './ride.js';
 import { seedOfRef } from '../beats/field-cue.js';
 
@@ -175,7 +175,13 @@ function quickSteps(world, G, ref, lookup) {
     const seed = Number.isInteger(G.seed) ? G.seed : 1, build = rideBuild(Q.ride, seed);
     steps.push({ key: 'ride', ref: rideRef, ready: true, order: { title: build.title, manifest: build }, print: fingerprint({ ride: Q.ride, seed }) });
   }
-  const ride = rideRef ? { ref: rideRef, rule: rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1) } : null;
+  // a field of racers (quick.racers): solved here, each a recipe its figure resolves through (nothing to mint); yours first
+  const racers = Q.racers !== undefined ? quickRacers(Q, Number.isInteger(G.seed) ? G.seed : 1) : null;
+  const ride = rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
+    : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field } : null;
+  // (the field's balance as a level law, in the concerns' shape: advice in the run's readout, never a refusal)
+  const B = racers?.balance, nameOf = (i) => racers.field[i].archetype;
+  const balance = racers ? { concern: 'racers', law: 'balance', holds: B.holds, says: B.holds ? `each of the ${racers.field.length} machines has something over every rival, none best at everything${racers.changes.length ? ` (leaned: ${racers.changes.map((c) => `the ${c.archetype}'s ${c.family} ${c.from} → ${c.to}`).join('; ')})` : ''}` : [...B.bettered.map((x) => `the ${nameOf(x.i)}'s machine bettered everywhere by the ${nameOf(x.by)}'s`), ...B.everything.map((i) => `the ${nameOf(i)}'s machine best at everything`)].join('; ') } : null;
   // a defence's foe and tower archer: one figure each, minted as a hero is
   const figRefs = {};
   if (Q.goal === 'defend' || Q.goal === 'battle' || Q.goal === 'shoot') {
@@ -205,7 +211,8 @@ function quickSteps(world, G, ref, lookup) {
     const audio = scoreOf(s, i);
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef }), legend: 'click  fire' } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
-    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
+    const laws = balance ? [...(L.laws ?? []), balance] : L.laws;
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(laws ? { laws } : {}) });
   });
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
