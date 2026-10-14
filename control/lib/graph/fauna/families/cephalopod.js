@@ -129,7 +129,7 @@ export const species = {
   // clubbed ends · translucent pinkish, flecked · swims level · mantle ~0.3 m, ~0.6 m with the tentacles (FAO species
   // catalogue, Jereb & Roper 2010: mantle commonly 0.15–0.3 m, to 0.42 m).
   squid: (() => { const Z = SWIM_Z, F = finPair([0.03, -0.25, Z], [0.11, -0.31, Z - 0.004], 0.07, 0.018); return {
-    family: 'cephalopod', name: 'a European squid', pose: 'swim', scale: 1,
+    family: 'cephalopod', name: 'a European squid', pose: 'swim', scale: 0.8,
     colors: { coat: '#d39a8a', sock: '#dca596', tip: '#e2b2a4', ash: '#e6b8a8', ashAlt: '#dbab9b', brow: '#a46a5a', belly: '#ecd0c4', sclera: '#2a3440', iris: '#3a4c5c' },
     joints: { neckBase: [0, 0.0, Z], neckTop: [0, 0.03, Z], siphonA: [0, 0.0, Z - 0.035], siphonB: [0, 0.035, Z - 0.045], ...F.joints },
     torsoUp: false,

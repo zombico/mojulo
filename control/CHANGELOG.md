@@ -38,6 +38,10 @@ names (`about`), the generated DOES, mind and cosmos tables regenerated with the
   mantle edged with a fin skirt, the zebra bands) and the chambered nautilus (the striped shell, a hood, many short
   tentacles). They swim by a new `jet` pattern (the mantle pulsing); the octopus also crawls. The arms are not yet
   posed by the rig.
+- **More fish** on the fish maker: the swordfish (the flat sword a third of its length, a tall crescent dorsal, a deep
+  lunate tail), the humpback anglerfish of the deep (a round black body, an upturned mouth, a pale lure arching off
+  its forehead to a glowing bulb) and the whale shark (a wide flat head with the mouth across its front, a speckled
+  blue-grey back over a white belly; a filter feeder in its tags).
 - The stance line says what a seal and an octopus stand on ("hauled out on its flippers", "resting on its arms").
 
 ### Wildlife improvements: the default animals' silhouettes and proportions

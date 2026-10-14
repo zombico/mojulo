@@ -28,7 +28,7 @@ const FAMILY = Object.freeze({
 const SPECIES_SOCIAL = Object.freeze({
   fox: 'solitary', lion: 'pack', moose: 'solitary', meerkat: 'herd', velociraptor: 'pack',
   baldEagle: 'solitary', greatHornedOwl: 'solitary', vulture: 'solitary', hummingbird: 'solitary', peacock: 'solitary',
-  morayEel: 'solitary', pufferfish: 'solitary', orangutan: 'solitary', sloth: 'solitary', hammerhead: 'school', orca: 'pack', humpbackWhale: 'solitary', squid: 'school',
+  morayEel: 'solitary', pufferfish: 'solitary', orangutan: 'solitary', sloth: 'solitary', hammerhead: 'school', orca: 'pack', humpbackWhale: 'solitary', squid: 'school', swordfish: 'solitary', anglerfish: 'solitary',
 });
 
 export function socialOf(species, family) {

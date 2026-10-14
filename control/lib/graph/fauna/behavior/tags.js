@@ -92,8 +92,8 @@ export const FAMILY_TAGS = Object.freeze({
     kingCobra: { add: ['hoods'] }, rattlesnake: { add: ['rattles'] }, seaSerpent: { drop: ['basks'] } } },
   anuran:     { tags: ['predator', 'freezes'] },
   chiropteran: { tags: ['roosts-hanging', 'handles-food'] },   // a fruit bat holds fruit with its thumbs
-  chondrichthyan: { tags: ['predator', 'keeps-swimming'], species: { mantaRay: { add: ['filter'], drop: ['predator'] } } },
-  teleost:    { tags: [], species: { morayEel: { add: ['predator'] }, salmon: { add: ['predator'] } } },
+  chondrichthyan: { tags: ['predator', 'keeps-swimming'], species: { mantaRay: { add: ['filter'], drop: ['predator'] }, whaleShark: { add: ['filter'], drop: ['predator'] } } },
+  teleost:    { tags: [], species: { morayEel: { add: ['predator'] }, salmon: { add: ['predator'] }, swordfish: { add: ['predator'] }, anglerfish: { add: ['predator'] } } },
   theropod:   { tags: ['predator'] },
   ceratopsian: { tags: ['browser'] },
   hadrosaur:  { tags: ['browser', 'prey'] },
