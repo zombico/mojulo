@@ -22,16 +22,14 @@
 import { HISTORIC_CULTURES, planHistoricCity } from './historic-city.js';
 import { statueSlots } from './statues.js';
 import { HISTORIC_SCENES } from './historic-kind.js';
-import { REGION_CULTURES } from './historic-region.js';
-import { FARM_CULTURES } from './farmstead.js';
 import { HISTORIC_STYLES } from './style/index.js';
 import { describeHistoric, fmtSpan, periodText } from '../depiction.js';
 import { REGIONS } from './regions.js';
 import { depthText } from './depth.js';
 import { relationsOf, lineageTree, KINDS } from './lineage.js';
 import { historicSoundtrack, soundtrackMood } from './soundtrack.js';
-import { landOf } from './cultures/index.js';
 import { SLOT_TABLE } from './slot-table.js';
+import { sliceFoci, SLICE_FOCI } from './solver/index.js';
 
 export { REGIONS };
 
@@ -47,8 +45,6 @@ export const RECORD_BODY_CEILING = 9000;
 const dedupe = (a) => [...new Set(a)];
 const words = (id) => id.replace(/^[a-z]{2}-/, '').replace(/-/g, ' ');   // eg-sphinx-row → sphinx row
 const scenesOf = (id) => Object.keys(HISTORIC_SCENES).filter((s) => HISTORIC_SCENES[s].cultures.includes(id));
-const seasonsOf = (id, scene) => (scene === 'region' ? Object.keys(REGION_CULTURES[id]?.crops || {})
-  : scene === 'farm' ? Object.keys(FARM_CULTURES[landOf(id)]?.seasons || { harvest: 1, sowing: 1 }) : []);
 
 /** The record's share by basis: `{ read: n, secondary: n, unverified: n }`. */
 function basisCounts(entries) {
@@ -57,15 +53,13 @@ function basisCounts(entries) {
   return n;
 }
 
-/** The starters: `historic` manifests to copy and change, one per scene the culture has (the land in its last season). */
+/** The starters: `historic` manifests to copy and change: the town, its land, a slice of life, the town re-formed. */
 function starters(id) {
-  const out = [[`the town`, { kind: 'historic', culture: id, scene: 'city' }], [`the town from its approach`, { kind: 'historic', culture: id, scene: 'city', view: 'approach' }]];
+  const foci = sliceFoci(id), act = foci.find((f) => !SLICE_FOCI.includes(f));
+  const out = [[`the town`, { kind: 'historic', culture: id }]];
   if (soundtrackMood(id)) out.push(['the town with its period music', { kind: 'historic', culture: id, scene: 'city', audio: { soundtrack: 'default' } }]);
-  for (const scene of scenesOf(id).filter((s) => s !== 'city')) {
-    const seasons = seasonsOf(id, scene), season = seasons.length > 2 ? seasons[seasons.length - 1] : undefined;
-    const label = scene === 'region' ? `its land${season ? ` in ${season}` : ''}` : scene === 'farm' ? 'a farmstead' : 'the works';
-    out.push([label, { kind: 'historic', culture: id, scene, ...(season ? { season } : {}) }]);
-  }
+  out.push(['its land', { kind: 'historic', culture: id, scene: 'region' }], ['a slice of life', { kind: 'historic', culture: id, scene: 'slice', focus: act ?? 'street' }]);
+  out.push(['re-formed', { kind: 'historic', culture: id, form: { streets: { jog: 0 } } }]);
   return out;
 }
 
@@ -100,11 +94,11 @@ export function lineageCard() {
 }
 
 /** A city's statue slots for its card (historic/statues.js), planned live: each id, with its figure count where it stands
- * several and `equestrian` where a mounted statue (horse and rider) goes, an asset's numbered slots as a range. A ring-canal
- * town has none. Planning every city costs ~0.5 s, so the catalog reads SLOT_TABLE (generated from this by
+ * several and `equestrian` where a mounted statue (horse and rider) goes, an asset's numbered slots as a range. A town
+ * whose kit stands no figures has none. Planning every city costs ~0.5 s, so the catalog reads SLOT_TABLE (generated from this by
  * `node scripts/gen-historic-slots.mjs`, held equal by slot-table.deep.test.js) and plans live only a culture not in it. */
 export function liveSlotText(id) {
-  const K = HISTORIC_CULTURES[id], S = K.layout && K.layout !== 'ring-canal' ? statueSlots(planHistoricCity({ culture: id, seed: 1 })) : {};
+  const S = statueSlots(planHistoricCity({ culture: id, seed: 1 }));
   // a slot a library form fits (statue/forms.js) says so: the agent need mint nothing
   const FORM_AT = { 'gz-sphinx': 'sphinx', 'eg-sphinx-row': 'criosphinx', guardians: 'bull' };
   const named = Object.entries(S).filter(([k]) => !k.includes(':')).map(([k, v]) => `${k}${v.figures.some((f) => f.equestrian) ? ' (equestrian)' : v.figures.length > 1 ? ` (${v.figures.length})` : ''}`);
@@ -120,7 +114,7 @@ export function entryCard(id) {
   const K = HISTORIC_CULTURES[id], d = describeHistoric({ culture: id }), R = K.record || null;
   const n = R ? basisCounts(R.entries) : null, style = HISTORIC_STYLES[id];
   const skins = dedupe(Object.values(K.skins?.kinds || {}));
-  const scenes = scenesOf(id).map((s) => { const se = seasonsOf(id, s); return se.length ? `${s} (season ${se.join(' | ')})` : s; });
+  const scenes = scenesOf(id).map((s) => (s === 'slice' ? `slice (focus ${sliceFoci(id).join(' | ')})` : s));
   const lines = [
     `# ${d.subject}`, '', d.caption, '',
     `SUBJECT    ${d.subject}`,
@@ -141,13 +135,14 @@ export function entryCard(id) {
     ...(Object.keys(K.assets || {}).length ? [`  assets    ${Object.keys(K.assets).join(', ')}`] : []),
     '',
     `SCENES     ${scenes.join(' · ')}`,
+    `FORM       "form": { site, water, armature, streets, density … } re-forms its town (refused by name).`,
     ...(statueSlotText(id) ? [`STATUES    World opt-in: "statues": "carved" (each slot its period's statue) or [{ "ref"|"form"|"hero", "at", "figure"? }]: ${statueSlotText(id)}.`] : []),
     ...(soundtrackMood(id) ? [`SOUND      opt-in: "audio": { "soundtrack": "default" } plays "${historicSoundtrack(id).title}" (the seed varies it). Instruments ATTESTED, pitches CONJECTURAL.`] : []),
     '',
     'STARTERS (manifests: copy one, change it, mint it)',
     ...starters(id).map(([label, m]) => `  ${label}: ${JSON.stringify(m)}`),
     '',
-    `RIFF  A seed, a scene, a season or a view (an unknown one is refused with the list) keeps it this entry. A level, a fantasy town or an ${K.region || 'era'}-inspired scene built in another kind after these parts is a derived work: caption it "inspired by ${d.subject}", never as the place itself.`,
+    `RIFF  A seed, a scene, a focus, a view or a form change (an unknown one is refused with the list) keeps it this entry. A level, a fantasy town or an ${K.region || 'era'}-inspired scene built in another kind after these parts is a derived work: caption it "inspired by ${d.subject}", never as the place itself.`,
   ];
   return {
     id, name: d.subject, family: 'entry', entry: 'create_sketch', generated: true,

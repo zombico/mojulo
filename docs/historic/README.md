@@ -1,13 +1,19 @@
 # Historic cultures: how a civilization is added and deepened
 
 A historic culture is a real place at its period, drawn from a cited record and held to a style card. Each one
-reaches the agent as a `historic` world (`create_sketch({ manifest: { kind: 'historic', culture, scene } })`) and as
-an encyclopedia entry (`get_view_vocab({ id })`, found through `semantic_search`). This page is the method; each
+reaches the agent as a `historic` world (`create_sketch({ manifest: { kind: 'historic', culture, scene, focus?, form? } })`),
+with a field guide (the mint's `guideUrl`), and as an encyclopedia entry (`get_view_vocab({ id })`, found through `semantic_search`). This page is the method; each
 culture's own design language is in its folder here (`qin/`, `pompeii/`, `forum/`).
 
 Every culture is a **general depiction** of its period, not one year's town: anachronisms are expected, and each
 entry says so. The big read comes first: a culture is a palette plus a choice of shared visual patterns, so the
 vocabulary stays composable across cultures.
+
+Nothing about a town is laid by hand. The SOLVER (`solver/`) lays every culture's town from its FORM (`form/`: the
+principles its town is laid out by, as data), seats its MONUMENT (`monuments/`: the one hand-authored building) and
+reads what its builders had at its place and year from the LEDGER (`ledger/`: every cited record as one table). The
+same form lays the town (`scene: 'city'`), the town in its land with its farms and crafts (`'region'`) and a slice of
+life cut from the region round a focus (`'slice'`).
 
 ## What a culture is made of
 
@@ -19,12 +25,13 @@ All under `control/lib/graph/historic/`:
 | The record: materials, methods, types, forms, each cited with a confidence | `record/<id>.js` | the card's `record` |
 | The style card: principles, each with a machine check in `style.test.js` | `style/<id>.js` | `style/index.js` |
 | The assets: the culture's forms, built in a canonical frame from shared parts | `assets/<id>.js` | the card's `assets` |
-| The layout: the plan that claims ground and emits slots | `layouts/<id>.js` | `layouts/index.js` |
+| The form: site, water, armature, enclosure, streets, density, placement, hinterland, activities, each citing its record | `form/towns.js` | a row per culture (or the card's `form`) |
+| The monument: one building, at the record's size, in its own frame | `monuments/index.js` | the form's `armature.monument` |
 | Its region: a label and the words people search with | `regions.js` | a row per region |
-| Farm and works scenes: an estate, the industries | `farmstead.js`, `workshops.js` | the card's `land` |
+| The land's kits: the farm's and the works' assets, laid as the form's activities | `land-kits.js` | the card's `land` |
 | Its period music: a synthesized mood, opt-in on a world (`audio.soundtrack: 'default'`) | `soundtrack.js` (`MOODS`) | the card's `soundtrack` |
 
-Each registry is one line per culture, layout or region, so two cultures built at once merge with a "keep both".
+Each registry is one line per culture, form, monument or region, so two cultures built at once merge with a "keep both".
 
 ## Lineage: start from what history carried into it
 
@@ -39,7 +46,7 @@ carries (`lineage.js`); the encyclopedia shows it on each entry (LINEAGE) and as
 | `contemporary` | the same culture at the same time, elsewhere (the Forum ↔ Pompeii) | materials and methods |
 | `variant` | a generic or sibling version (the polis ← Lindos) | everything |
 
-A relation's `parts` are what it carries: `palette`, `skins`, `patterns`, `assets`, `layout`, `record`. Before
+A relation's `parts` are what it carries: `palette`, `skins`, `patterns`, `assets`, `form`, `record`. Before
 scaffolding a culture, name its relations: `--draws thebes:continues,lindos:contact` writes them on the card, joins
 the patterns they carry, and writes a BRIEF into its README: from each source, the patterns, skins, assets and the
 record entries in use at the new culture's year. Those record entries are the source's own: a PARALLEL to verify,
@@ -47,19 +54,19 @@ never the new culture's basis until its own record cites them.
 
 Relations are history, held to it by `lineage.test.js`: a source is registered, never the culture itself, never an
 ancestor of itself; it begins before the culture drawing on it ends; a continuation begins earlier; a variant shares
-its layout. What a culture shares in code is its depth, a separate thing.
+its form. What a culture shares in code is its depth, a separate thing.
 
 ## Depth: enter shallow, deepen in order
 
 | Depth | It has | It borrows | Its entry says |
 |---|---|---|---|
-| 0 | a card in its own colours | another culture's kit and layout | "no record yet: read every part as CONJECTURAL" |
-| 1 | + its record and style card | the kit and layout | the record's share: ATTESTED / RECONSTRUCTED / CONJECTURAL |
-| 2 | + its own assets | the layout | |
-| 3 | + its own layout (terrain, World page) | nothing | |
+| 0 | a card in its own colours | another culture's kit and form | "no record yet: read every part as CONJECTURAL" |
+| 1 | + its record and style card | the kit and form | the record's share: ATTESTED / RECONSTRUCTED / CONJECTURAL |
+| 2 | + its own assets | the form | |
+| 3 | + its own form and monument | nothing | |
 
 Depth is found, never claimed (`depth.js`): what a culture shares with one registered before it, by identity. The
-entry's DEPTH line says it ("0 of 3: its card only; assets and layout from thebes"). A generic variant (the `polis`,
+entry's DEPTH line says it ("0 of 3: its card only; assets and form from thebes"). A generic variant (the `polis`,
 spread from Lindos) may keep its parent's record; a new culture never inherits another's record as its basis.
 
 ### Depth 0: scaffold it
@@ -71,19 +78,20 @@ node scripts/new-culture.mjs <id> --like <culture> --label "<label>" --years <fr
   [--draws <culture>:<kind>[:<part>+<part>],…] [--dry]
 ```
 
-Pick `--like` by the SHAPE of the town (its layout), not its look. The palette is what changes first:
+Pick `--like` by the SHAPE of the town (its form), not its look. The palette is what changes first:
 
-| Layout | Culture | Shape |
-|---|---|---|
-| `ring-canal` | sumer | a walled ring cut by a canal, the precinct at the heart |
-| `river-axis` | thebes | a river along the town, a temple on an axis from its quay |
-| `plateau` | giza | a monument plateau over the floodplain (an exhibit, no town) |
-| `acropolis` | lindos, polis | a sanctuary on a rock over a terraced town |
-| `wei-wards` | qin | walled wards on an axis from a palace to a river |
-| `lava-spur` | pompeii | a gridded town round a forum on a spur |
-| `forum` | forum | one civic space at measured positions |
+| Culture | Site and water | Armature | Streets |
+|---|---|---|---|
+| sumer | flat, a canal through a ring-walled town | the ziggurat at the heart | a meander from the gates |
+| thebes | a river along the town | the temple at the end of an axis from its quay | a lattice |
+| giza | a plateau over the floodplain, a canal below | the pyramid on the high ground, a causeway down | a grid of workers' blocks |
+| lindos, polis | a hill in terraces, the sea | the temple on the summit rock, the climb | streets along the contours, stairs |
+| qin | a bluff over a river | the palace on the tableland, an avenue to the bridge | walled wards on a grid |
+| pompeii | a spur, a ring wall on its lip | the temple at a forum's head | a grid |
+| forum | flat | the temple at a forum's head | a grid |
 
-The scaffold writes the card, its registry line and `docs/historic/<id>/README.md`. On the first run the culture
+The scaffold writes the card (with `form: '<like>'`: the form its town is laid out by until its own), its registry
+line and `docs/historic/<id>/README.md`. On the first run the culture
 renders, mints and is an entry. Then set its `palette` (and `skins`) from reference images: at depth 0 it is still
 its parent's town in its parent's colours, and the DEPTH line says so.
 
@@ -99,9 +107,9 @@ its parent's town in its parent's colours, and the DEPTH line says so.
 
 ### Depth 2: its own forms (the asset loop)
 
-Do not one-shot the town. For each asset the layout calls for:
+Do not one-shot the town. For each asset the solver calls for:
 
-1. LAYOUT emits slots (`{ asset, rect, facing }`), not geometry. `assetCall(plan)` lists the distinct assets
+1. The SOLVER emits slots (`{ asset, rect, facing }`), not geometry. `assetCall(plan)` lists the distinct assets
    with counts and size envelopes: the design brief.
 2. DESIGN: a reference sheet per asset (a clay massing sheet from the optional local image worker, or the
    operator's drawings, indexed in this folder). A sheet is a reasoning aid, never the artifact.
@@ -114,22 +122,34 @@ Do not one-shot the town. For each asset the layout calls for:
 Art (statuary, stelae, reliefs) stands at thresholds and on the sacred axis; street structures (wells, kilns,
 granaries, boats) where they are needed. Placement is by meaning, never scatter.
 
-### Depth 3: its own place
+### Depth 3: its own form and monument
 
-`layouts/<id>.js` on `layout-kit.js` (claim grid, split seeded streams so a dressing dial never moves a street),
-registered in `layouts/index.js`; terrain and water on the World page where the site needs them. Views the layout
-names render at eye level unless the scale table in `historic-city.js` says otherwise.
+A row in `form/towns.js`, held to `form/schema.js` (`{ from: '<culture>', …changes }` to start from another's):
 
-## Scenes beyond the town
+- `site` (landform, which side is high, how high), `water` (none, canal, river, sea), `armature` (heart, axis,
+  summit, forum: where the monument stands and how it is approached, its precinct), `enclosure` (ring, wards, none),
+  `streets` (meander, lattice, grid, contour; widths, block spacing, jog), `density`, `houses`, `walls`, `placement`
+  (by meaning: crossings, the precinct's gate, before the monument, the wall's strip, the water …), `hinterland`,
+  `activities` (the farm's and the works' assets, by need), `borrow` (another culture's kit where this has none).
+- `cites`: the record's rows each principle stands on. The field guide shows them, with their dates and basis.
+- Its monument in `monuments/index.js`: one building, its parts in its own frame (front −y) from the kit, at the
+  record's size, citing what it stands on. Everything round it is the solver's.
 
-`historic-kind.js` serves `city` for every culture; `region` (the town in its land) for the cultures in
-`historic-region.js`; `farm` and `works` for a culture whose card names a `land` in `farmstead.js` /
-`workshops.js` (none for a scaffolded culture until its own). A new scene is a row in `HISTORIC_SCENES`.
+Then drop `form` from the card. The anachronism check (`ledger/`) runs on every solve: a skin, a monument or a
+principle whose rows are not in reach at the town's year is a finding, and an activity whose `cites` are not yet in
+reach is left out (Sumer at 3175 BCE has no kar). The walk laws (`fronts`, `connected`, `monument-fits`) advise.
+
+## Scenes and the field guide
+
+`historic-kind.js` serves `city`, `region` and `slice` for every culture: one solve at three frames. A slice is cut
+round a `focus` (an activity's id, or `street`, `monument`, `water`, `gate`, `market`; `sliceFoci` lists them). A
+manifest's `form` rewrites any part of the culture's form, refused by name. `/api/sketches/<ref>/bible` serves the
+scene's field guide (`field-guide.js`): every choice, the knob that changes it, the record behind it.
 
 ## Statues on a city's slots
 
-A city's statue slots are the places its layout already set a statue: a Forum monument built with the forum asset's
-`figure()` (its masses carry `building: <id>`), or a statue asset's slot (`ln-statue`, `pp-statue`, Sumer's `votive-row`: one figure
+A city's statue slots are the places the solver already set a statue: a monument built outside a kit with the forum
+asset's `figure()` (its masses carry `building: <monument id>`, so the slot is the monument's id), or a statue asset's slot (`ln-statue`, `pp-statue`, Sumer's `votive-row`: one figure
 per plinth; Thebes's `eg-colossus`: a seated king, his throne coming down with him), addressed `<asset>:<n>`. A `historic` manifest's `statues: [{ ref, at, figure?, height? }]` stands a stored statue (a hero carved
 with `/hero/statue`, `lib/graph/statue/`) on a slot in the World: the stand-in figure's masses come down, its base
 stays, and the World resolver fits the statue's own faces there at the stand-in's height and facing, baked under the
@@ -159,7 +179,7 @@ npx vitest run lib/graph/historic/cultures.test.js lib/graph/historic/entries.te
 
 - The card contract (`entries.test.js`) lists any line a card still needs: `years`, `period`, `readAt` (or
   null), `place` (or null when invented), `region`, `aliases`, `record` (or null).
-- The checklist (`cultures.test.js`): layout registered, style card owned, depth on the entry.
+- The checklist (`cultures.test.js`): a form (its own or its card's), style card owned, depth on the entry.
 - The lineage (`lineage.test.js`): relations registered, in time, without cycles.
 - Every other culture's pages byte-identical before and after (CSS and World): a shared change is a promise
   over already-minted recipes.

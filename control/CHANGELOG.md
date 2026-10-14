@@ -31,6 +31,64 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   can't be sized is drawn as a small not-to-scale sketch, like a joint's own piece, so one bad entry can't carry
   down the row. The 10 mm check bar shows only when some fitting really is at 1:1.
 
+### Historic solver: towns from the era's technology, monuments as buildings, a field guide
+
+A historic scene is solved rather than hand-laid: what a town is built of, how dense it is and how it is walked come
+from what people had at that place in that year, read from one cited ledger of materials, methods, building types
+and urban forms. Monuments stay hand-authored, one building each, seated on a site the way a city plan's landmark
+is. The solver lays the town, the town in its land, or a slice of life at eye level, and every scene comes with a
+field guide: what was chosen, the source behind it, and the knob that changes it. The hand-written town layouts and
+the diorama views are gone.
+
+- **The form** (`historic/form/`). Each culture's town is a document of principles: its site (flat, a bluff, a
+  terraced hill, a plateau), its water (a canal, a river, the sea), its armature (the monument at the heart, at the
+  end of an axis from the water, on the summit, at a forum's head), its enclosure (a ring wall, walled wards), its
+  streets (meander, lattice, grid, contour), its density, its houses, what stands where by meaning (wells at
+  crossings, kilns under the wall, art before the monument and at the precinct's gate), its hinterland and the work
+  done in its land. Each principle cites the record rows it stands on. A manifest's `form` rewrites any part of it,
+  checked and refused by name: `{ kind: 'historic', culture: 'thebes', form: { streets: { jog: 0 } } }`.
+- **The monuments** (`historic/monuments/`): the Anu ziggurat, the temple of Amun at Luxor, Khufu's pyramid and the
+  Great Sphinx, the temple of Athena Lindia, Xianyang Palace No. 1, the Capitolium, the temple of Castor and the Curia
+  Julia, each one building at the record's size, laid in its own frame from its culture's kit. Everything round a
+  monument (its precinct and walls, its approach, the town) is the solver's.
+- **The solver** (`historic/solver/`). One layered designer for every culture, each layer on its own dice: the
+  site, the armature, the enclosure, the streets, what stands by meaning, the lots and houses, the land and its
+  activities, the ground (through the shared terrain mesher), the views. It emits the plan every historic emitter
+  already read, so the kits, skins, light, statues, people and the World page are unchanged. It reads the ledger as
+  it solves: an activity whose record rows are not yet in reach at the town's year is left out and the plan says
+  why (Sumer at 3175 BCE has no harbour quarter: its kar is attested from 2500 BCE). Walkability laws (every house on
+  a lane, one lane network, the monument whole on its site) advise.
+- **Scenes.** The `historic` kind's `scene` is `city`, `region` or `slice`, for every culture: the region lays the
+  farms and crafts of the culture's land kits (`land-kits.js`) where each needs to be (the farm among the fields,
+  potters upstream, the stone landed downstream); a slice is cut from the region round a `focus` (an activity, the
+  street, the monument, the water, a gate, the market). The `farm` and `works` scenes and their `season` are gone:
+  their kits are the region's activities.
+- **The field guide.** `/api/sketches/<ref>/bible` serves a historic scene as its field guide: the plan from above,
+  every principle with its `form` path, its value and what it takes, the record rows it stands on with their dates,
+  basis and sources, the monuments, the surfaces, roofs and storeys its builders had, any anachronism, the laws, and
+  the views and slices on offer. The mint's reply carries its `guideUrl`.
+- **Depth** is found off the form: a culture at depth 3 has its own form; a scaffold names the culture whose form
+  its town is laid out by (`form: '<culture>'` on its card, written by `new-culture.mjs`). Lineage carries `form`
+  where it carried `layout`.
+- **Removed:** `historic/layouts/`, the ring-canal layout in `historic-city.js`, `historic-region.js`,
+  `farmstead.js` and `workshops.js` (their kits now in `land-kits.js`), and the Forum's measured diorama. The tests
+  that pinned those layouts went with them; the solver's concepts are tested one case per procedure.
+
+- **The ledger** (`historic/ledger/`). Every cited record is read as one table, each row keyed `<record>/<id>`
+  (Egypt's "travertine" is calcite, Italy's is not). `availableAt({ region, year, record?, draws? })` returns what a
+  builder had in reach: the place's own record, what its lineage relations carry, and the materials and methods of
+  the other records in its region, each row saying which reach brought it. A culture card names its record from
+  `RECORDS`, one line per record with its region.
+- **What can be built.** `buildableAt` turns what is in reach into the wall surfaces a scene may show (every skin the
+  renderer draws, each made by named ledger rows), the roof forms it may carry, and the storeys its houses rise to,
+  read from the house types' own `dims.storeys` (added where a type's notes state it: the Deir el-Medina house, the
+  Amarna villa, the Lindos house). Where the record does not say, it says so.
+- **The anachronism check.** `ledgerFindings` names anything a scene uses that nothing in reach makes, with the
+  earliest row that would. It advises, never refuses. Over the shipped cards it found Sumer whitewashing in lime a
+  few centuries before its own record has lime: Sumer now whitewashes in gypsum, as its record says (the two skins
+  draw alike). Two findings stand as gaps in their records: Qin's hall walls in lime plaster and Lindos's kilns in mud
+  render, neither material yet recorded for its place.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

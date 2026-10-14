@@ -1,7 +1,7 @@
 /**
  * New Kingdom Egypt's countryside and works (read at c. 1250 BCE, the Thebes town's date): the Thebes
- * culture (./thebes.js) with what the town lacks, the colours of the farm (../farmstead.js) and the works
- * (../workshops.js) and the skins of their buildings. The town's own colours and skins win where both
+ * culture (./thebes.js) with what the town lacks, the colours of the farm and the works
+ * (../land-kits.js) and the skins of their buildings. The town's own colours and skins win where both
  * name a thing, so a farm and the town beside it are the same Nile mud and the same gypsum wash.
  *
  * Kept to what the period had: Nile mud brick, sun-dried and never fired (fired brick is Roman in

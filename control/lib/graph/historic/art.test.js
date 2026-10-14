@@ -2,46 +2,45 @@ import { describe, it, expect } from 'vitest';
 import { planHistoricCity } from './historic-city.js';
 import { PATTERNS } from './patterns.js';
 import { SUMER_ASSETS } from './assets/sumer.js';
+import { FORMS } from './form/towns.js';
+import { WHERE } from './form/schema.js';
 
 const within = (r, P, pad = 0) => r.x >= P.x - pad && r.y >= P.y - pad && r.x + r.w <= P.x + P.w + pad && r.y + r.d <= P.y + P.d + pad;
 
 describe('historic art and street structures: placed by meaning', () => {
-  const p = planHistoricCity({ seed: 7 }), P = p.stats.precinct, { cols, cell, data, codes } = p.grid;
-  const cellAt = (x, y) => data[Math.floor(y / cell) * cols + Math.floor(x / cell)];
-  const of = (a) => p.slots.filter((q) => q.asset === a);
   it('every art and street asset is built from the shared art / street families', () => {
     for (const id of ['door-posts', 'stele', 'votive-row', 'pillar-hall', 'guardians', 'ritual-vase', 'altar', 'well', 'pottery-kiln', 'granary', 'reed-boat']) {
       const fams = SUMER_ASSETS[id].patterns.map((k) => PATTERNS[k].family);
       expect(fams.some((f) => f === 'art' || f === 'street'), id).toBe(true);
     }
   });
-  it('the sacred art gathers on the axis: vases, bulls and the altar at the stair foot, stelae within the gate, the worshippers and the pillar hall in the court', () => {
-    const zig = of('ziggurat')[0].rect, ax = zig.x + zig.w / 2;
-    for (const a of ['ritual-vase', 'guardians', 'altar']) {
-      const [q] = of(a);
-      expect(Math.abs(q.rect.x + q.rect.w / 2 - ax), a).toBeLessThan(0.01);   // centred on the axis
-      expect(q.rect.y, a).toBeGreaterThan(zig.y + zig.d);                       // in front of the ziggurat
-      expect(within(q.rect, P), a).toBe(true);
-    }
-    expect(of('stele').length).toBe(2);
-    for (const a of ['stele', 'votive-row', 'pillar-hall']) for (const q of of(a)) expect(within(q.rect, P), a).toBe(true);
-    // the goddess's posts: one pair outside the precinct gate, one at the white temple's door
-    const posts = of('door-posts');
-    expect(posts.length).toBe(2);
-    expect(posts.some((q) => q.rect.y >= P.y + P.d)).toBe(true);
-  });
-  it('street structures go where they are needed: wells on lanes, kilns in the strip under the wall, boats on the water, granaries by the precinct', () => {
-    expect(of('well').length).toBeGreaterThan(2);
-    for (const q of of('well')) expect(cellAt(q.rect.x + q.rect.w / 2, q.rect.y + q.rect.d / 2)).toBe(codes.LANE);
-    expect(of('pottery-kiln').length).toBeGreaterThan(1);
-    for (const q of of('pottery-kiln')) expect(cellAt(q.rect.x + 1, q.rect.y + 1)).toBe(codes.OPEN);
-    expect(of('reed-boat').length).toBeGreaterThan(0);
-    for (const q of of('reed-boat')) expect(cellAt(q.rect.x + q.rect.w / 2, q.rect.y + q.rect.d / 2)).toBe(codes.WATER);
-    const gr = of('granary');
-    expect(gr.length).toBe(2);
-    const dist = (r) => Math.max(P.x - (r.x + r.w), r.x - (P.x + P.w), P.y - (r.y + r.d), r.y - (P.y + P.d), 0);
-    const courts = of('house-court').map((q) => dist(q.rect));
-    for (const q of gr) expect(dist(q.rect)).toBeLessThanOrEqual(Math.min(...courts));
+  // one case per placement rule (../form/schema.js WHERE), the culture whose form uses it chosen in code
+  const RULES = {
+    'monument-front': (q, p) => { const m = p.stats.monuments[0].rect, c = [q.rect.x + q.rect.w / 2, q.rect.y + q.rect.d / 2], f = p.stats.monuments[0].facing;
+      const onAxis = f === 'n' || f === 's' ? Math.abs(c[0] - (m.x + m.w / 2)) < 0.01 : Math.abs(c[1] - (m.y + m.d / 2)) < 0.01;
+      const before = { n: c[1] < m.y, s: c[1] > m.y + m.d, w: c[0] < m.x, e: c[0] > m.x + m.w }[f];
+      return onAxis && before && within(q.rect, p.stats.precinct, 1); },
+    precinct: (q, p) => within(q.rect, p.stats.precinct, 1),
+    'precinct-gate': (q, p) => within(q.rect, p.stats.precinct, 12),
+    crossing: (q, p) => code(p, q.rect) === p.grid.codes.LANE,
+    'wall-strip': (q, p) => code(p, q.rect, 1) === p.grid.codes.OPEN || code(p, q.rect, 1) === p.grid.codes.HOUSE,
+    water: (q, p) => code(p, q.rect) === p.grid.codes.WATER,
+    bank: (q, p) => code(p, q.rect) === p.grid.codes.REED,
+  };
+  const code = (p, r, at) => { const { cols, cell, data } = p.grid, [x, y] = at ? [r.x + at, r.y + at] : [r.x + r.w / 2, r.y + r.d / 2]; return data[Math.floor(y / cell) * cols + Math.floor(x / cell)]; };
+  for (const [where, holds] of Object.entries(RULES)) {
+    const id = Object.keys(FORMS).find((c) => (FORMS[c].placement || []).some((it) => it.where === where && it.asset));
+    if (!id) continue;
+    it(`${where} (${id}): ${WHERE[where]}`, () => {
+      const p = planHistoricCity({ culture: id, seed: 7 }), it = FORMS[id].placement.find((x) => x.where === where && x.asset);
+      const qs = p.slots.filter((q) => q.asset === it.asset && (where !== 'precinct' || within(q.rect, p.stats.precinct, 1)));
+      expect(qs.length).toBeGreaterThan(0);
+      for (const q of qs) expect(holds(q, p), `${it.asset} at ${JSON.stringify(q.rect)}`).toBe(true);
+    });
+  }
+  it('near-monument: the large lots nearest the precinct are given over', () => {
+    const id = Object.keys(FORMS).find((c) => (FORMS[c].placement || []).some((it) => it.where === 'near-monument')), it = FORMS[id].placement.find((x) => x.where === 'near-monument');
+    expect(planHistoricCity({ culture: id, seed: 7 }).slots.filter((q) => q.asset === it.asset).length).toBeGreaterThanOrEqual(it.max ?? 1);
   });
 });
 

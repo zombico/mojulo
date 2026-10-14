@@ -4,8 +4,9 @@ import { POMPEII_LAND_RECORD } from './record/pompeii-land.js';
 import { POMPEII_RECORD } from './record/pompeii.js';
 import { POMPEII_FARM_ASSETS } from './assets/pompeii-land.js';
 import { checkRecord, inUseAt } from './record.js';
-import { planFarmstead, assembleFarmsteadScene } from './farmstead.js';
-import { HISTORIC_SCENES, historicOptions } from './historic-kind.js';
+import { historicFoci } from './historic-kind.js';
+import { planHistoricCity, assembleHistoricCityScene } from './historic-city.js';
+import { FORMS } from './form/towns.js';
 import { CREWS } from './crews.js';
 
 const hash = (x) => createHash('sha1').update(JSON.stringify(x)).digest('hex');
@@ -19,25 +20,22 @@ describe('Pompeii\'s land: the villa farm, from its own record', () => {
     expect(POMPEII_LAND_RECORD.find((e) => e.id === 'pl-pistrinum').built.from).toBe(79);
   });
 
-  it('lays a villa at the vintage, every slot from its kit, every kit piece a placeholder until drawn', () => {
-    const p = planFarmstead({ culture: 'pompeii' });
-    expect(p.stats.season).toBe('vintage');
-    for (const s of p.slots) expect(POMPEII_FARM_ASSETS[s.asset], s.asset).toBeDefined();
+  const villa = FORMS.pompeii.activities.find((a) => a.kit === 'farm');
+  it('lays the villa farm in the region, every piece from its kit, every kit piece a placeholder until drawn', () => {
+    const p = planHistoricCity({ culture: 'pompeii', scene: 'region' }), pieces = p.slots.filter((q) => q.activity === villa.id);
+    expect(pieces.map((q) => q.asset).sort()).toEqual([...villa.pieces].sort());
+    for (const q of pieces) expect(POMPEII_FARM_ASSETS[q.asset], q.asset).toBeDefined();
     for (const a of Object.values(POMPEII_FARM_ASSETS)) expect(a.designed, a.id).toBe(false);
-    for (const id of ['pl-villa', 'pl-cella-vinaria', 'pl-press-room', 'pl-trapetum', 'pl-cart']) expect(p.slots.some((s) => s.asset === id), id).toBe(true);
-    expect(hash(planFarmstead({ culture: 'pompeii' }))).toBe(hash(p));
+    expect(hash(planHistoricCity({ culture: 'pompeii', scene: 'region' }).slots)).toBe(hash(p.slots));
   });
 
-  it('is a farm scene for Pompeii, with the vintage its one season', () => {
-    expect(HISTORIC_SCENES.farm.cultures).toContain('pompeii');
-    expect(historicOptions({ culture: 'pompeii', scene: 'farm', season: 'vintage' }).opts.season).toBe('vintage');
-    expect(() => historicOptions({ culture: 'pompeii', scene: 'farm', season: 'flood' })).toThrow(/vintage/);
+  it('is a slice of life for Pompeii', () => {
+    expect(historicFoci({ culture: 'pompeii' })).toContain(villa.id);
   });
 
-  it('puts the crews to the vintage and hitches the cart', () => {
+  it('puts the crews to work at the villa', () => {
     for (const id of Object.keys(POMPEII_FARM_ASSETS).filter((id) => id !== 'pl-cart')) expect(CREWS[id], id).toBeDefined();
-    const on = assembleFarmsteadScene({ culture: 'pompeii', world: true, people: true });
-    expect(on.stats.people.crew).toBeGreaterThan(40);
-    expect(on.stats.people.drivers).toBeGreaterThan(0);   // the carter at the hitched pair
+    const on = assembleHistoricCityScene({ culture: 'pompeii', scene: 'slice', focus: villa.id, world: true, people: true, shade: false });
+    expect(on.stats.people.crew).toBeGreaterThan(5);
   }, 300000);
 });
