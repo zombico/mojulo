@@ -274,7 +274,40 @@ const NUMBERS = {
   frames: Array.from({ length: 3 }, () => ({ events: [{ type: 'step' }] })),
 };
 
-export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS];
+// a reaction's `if` (buildBus reactionMatch): the race's checkpoints lower to guarded reactions, each counting only
+// after the one before it; a guard reads the state as the reactions before it in the same event left it
+const GUARDED = {
+  id: 'guarded',
+  about: 'checkpoints in order and out of order, a guard on an undefined var, a guard flipped by the reaction before it, count and entity guards',
+  config: {
+    vars: { cp: 0, laps: 0 },
+    reactions: [
+      ...[0, 1, 2].flatMap((i) => [
+        { on: 'enter', match: { zone: `cp-${i}` }, if: { var: 'cp', eq: i }, do: 'emit', type: 'checkpoint', at: i },
+        { on: 'enter', match: { zone: `cp-${i}` }, if: { var: 'cp', eq: i }, do: 'set', var: 'cp', to: i + 1 },
+      ]),
+      { on: 'enter', match: { zone: 'finish' }, if: { var: 'cp', eq: 3 }, do: 'emit', type: 'lap' },
+      { on: 'lap', do: 'inc', var: 'laps' },
+      { on: 'lap', do: 'set', var: 'cp', to: 0 },
+      { on: 'ping', if: { var: 'nope', eq: 0 }, do: 'inc', var: 'undef-eq' },
+      { on: 'ping', if: { var: 'nope', ne: 0 }, do: 'inc', var: 'undef-ne' },
+      { on: 'flip', do: 'set', var: 'armed', to: true },
+      { on: 'flip', if: { var: 'armed', eq: true }, do: 'inc', var: 'after-flip' },
+      { on: 'tally', if: { count: 'checkpoint', gte: 2 }, do: 'emit', type: 'two-seen' },
+      { on: 'tally', if: { entity: 'gate', field: 'on', eq: false }, do: 'toggle', target: 'gate' },
+    ],
+  },
+  entities: [{ id: 'gate', on: true }],
+  frames: [
+    { events: [{ type: 'enter', zone: 'finish' }, { type: 'enter', zone: 'cp-2' }, { type: 'ping' }] },
+    { events: [{ type: 'enter', zone: 'cp-0' }, { type: 'enter', zone: 'cp-0' }, { type: 'tally' }] },
+    { events: [{ type: 'enter', zone: 'cp-2' }, { type: 'enter', zone: 'cp-1' }, { type: 'flip' }] },
+    { events: [{ type: 'enter', zone: 'cp-2' }, { type: 'enter', zone: 'finish' }, { type: 'tally' }] },
+    { events: [{ type: 'enter', zone: 'finish' }, { type: 'flip' }] },
+  ],
+};
+
+export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED];
 
 // ── seeded scenarios over a small vocabulary ──────────────────────────────────────────────────────────────────────
 export function randomScenarios(n = 24, seed = 7) {
@@ -297,6 +330,9 @@ export function randomScenarios(n = 24, seed = 7) {
     const WHENS = [{ var: 'p', gte: 1 }, { var: 'q', lt: 0 }, { var: 'p', ne: 0 }, { var: 'q', lte: -1 }, { var: 'p', gt: 0.25 }, { var: 'r', eq: 'word' },
       { count: pick(TYPES), gte: 3 }, { count: pick(TYPES), lt: 2 }, { any: 'e*', field: 'on', eq: false }, { all: 'x-*', field: 'x', gt: 0 },
       { entity: 'e1', field: 'on', eq: true }, { entity: 'e2', field: 'pose', ne: 'pose-a' }];
+    // a reaction's `if`, from a second stream so the first's draws are the ones they were before guards joined
+    const grand = mulberry32(seed * 7919 + s);
+    for (const r of reactions) if (grand() < 0.35) r.if = WHENS[Math.floor(grand() * WHENS.length)];
     const watches = Array.from({ length: 1 + int(3) }, () => ({ type: pick(TYPES), when: pick(WHENS) }));
     const sequences = rand() < 0.6 ? [{ id: 'saga', trigger: { on: pick(TYPES) }, scope: 'event.who', steps: [{ do: 'emit', type: pick(TYPES) }, { await: { timer: 0.25 } }, { do: 'inc', var: 'q', by: -1 }, { await: { on: pick(TYPES) } }, { do: 'toggle', target: 'e1' }] }] : [];
     const timers = rand() < 0.5 ? [{ every: pick([0.3, 0.5, 1]), emit: { type: pick(TYPES), who: 'e2' }, ...(rand() < 0.5 ? { while: { var: 'p', lt: 4 } } : {}) }] : [];
