@@ -3,6 +3,7 @@ import RailPage from '@/components/rail/RailPage';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { hasBoundRender } from '@/lib/graph/image-outcomes/render-store';
 import { railFor } from '@/lib/graph/rail/index';
+import { recipeSheets } from '@/lib/graph/sheets/registry';
 import { isAuthEnabled } from '@/lib/auth/session';
 
 // The bare frame's own params: printing, a chosen display mode (the Render Bay's eyes-gate links), or asking for it.
@@ -13,9 +14,10 @@ export default async function SketchPage({ params, searchParams }) {
   const search = (await searchParams) ?? {};
   const sketch = SketchRepository.getByRef(ref);
 
-  // A recipe on a rail is a project: its outcomes, its book or World, its parts and its files, in the shell. The bare
-  // frame stays for everything else, and for a rail recipe asked for bare.
-  if (sketch && railFor(sketch.manifest) && !BARE_PARAMS.some((k) => search[k] !== undefined)) {
+  // A recipe on a rail, or one that draws sheets, is a project page: its outcomes, its books, sheets and World, its
+  // parts and its files, in the shell. The bare frame stays for everything else, and for one asked for bare.
+  const page = sketch && (railFor(sketch.manifest) || recipeSheets(sketch.manifest).length > 0);
+  if (page && !BARE_PARAMS.some((k) => search[k] !== undefined)) {
     return <RailPage refId={ref} initialTitle={sketch.title || null} authEnabled={isAuthEnabled()} />;
   }
 

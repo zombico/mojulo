@@ -1,7 +1,8 @@
 // The gameworld rail: a game designed top down (design_game). Its concerns are the book's reviewed parts, each in the
 // state its stamp puts it (gameworld/review.js, character-review.js), grouped into what a game asks of its maker: what
 // game it is, its world, its characters, its systems, its levels, its story, and play. Its parts are what a run made
-// (runner.js), each fresh or not by the runner's own `decide`; it is read in its bible and played as its game.
+// (runner.js), each fresh or not by the runner's own `decide`; it is read in its world bible and its character bible,
+// and played as its game.
 import { registerRail, sketchHref } from './rail.js';
 import { isGameworldKind, gameworldOf } from '../gameworld/gameworld-kind.js';
 import { reviewState, fingerprint } from '../gameworld/review.js';
@@ -45,15 +46,15 @@ export function stampState(s) {
   }
 }
 
-/** Where a part is in its bible: the character bible when the world has a character book (and only its parts are
- *  there), the world bible otherwise (bible route). */
-export function partAnchor(id, characters) {
-  const own = id === 'characters:direction' || id.startsWith('hero:') || id.startsWith('mechanics:') || id === 'equipment';
-  if (characters) return own ? id.replace(':', '-') : null;
-  if (own) return null;
-  if (id === 'world') return 'map';
-  if (id === 'cast' || id === 'quests') return 'story';
-  return id.replace(':', '-');
+/** Is this part the character book's (its own bible), rather than the world's? */
+export const isCharacterPart = (id) => id === 'characters:direction' || id.startsWith('hero:') || id.startsWith('mechanics:') || id === 'equipment';
+
+/** Where a part is drawn: its view (the world bible, `book`, or the character bible, `characters`) and its section. */
+export function partPlace(id) {
+  if (isCharacterPart(id)) return { view: 'characters', anchor: id.replace(':', '-') };
+  if (id === 'world') return { view: 'book', anchor: 'map' };
+  if (id === 'cast' || id === 'quests') return { view: 'book', anchor: 'story' };
+  return { view: 'book', anchor: id.replace(':', '-') };
 }
 
 // what a run's action says of the thing at a step's ref
@@ -69,10 +70,8 @@ export default registerRail({
     const stamps = [];
     try { stamps.push(...reviewState(world)); } catch (err) { errors.push(err.message); }
     try { if (world.characters) stamps.push(...characterState(world)); } catch (err) { errors.push(err.message); }
-    const anchorOf = (id) => partAnchor(id, !!world.characters);
     const concerns = stamps.filter((s) => partOutcome(s.id)).map((s) => ({
-      id: s.id, name: s.name, outcome: partOutcome(s.id), ...stampState(s), ...(s.note ? { note: s.note } : {}),
-      ...(anchorOf(s.id) ? { anchor: anchorOf(s.id) } : {}),
+      id: s.id, name: s.name, outcome: partOutcome(s.id), ...stampState(s), ...(s.note ? { note: s.note } : {}), ...partPlace(s.id),
     }));
     // a world that writes no intent is read from what it says; saying it is still open (a quick game's goal is its
     // intent, and design_game never asks it for one)
@@ -105,8 +104,10 @@ export default registerRail({
       state: !gamePart ? 'open' : gamePart.state === 'fresh' ? 'given' : ['missing', 'waiting'].includes(gamePart.state) ? 'open' : 'advised',
     });
 
+    // both bibles: the world's (its map, land, civilizations, levels) and, with a character book, the characters'
     const exits = [];
     if (ref) exits.push({ id: 'book', href: sketchHref(ref, 'bible') });
+    if (ref && world.characters) exits.push({ id: 'characters', href: `${sketchHref(ref, 'bible')}?book=characters` });
     const gameRef = made.game?.ref;
     if (gameRef && row(gameRef)) exits.push({ id: 'play', href: sketchHref(gameRef, 'game') }, { id: 'playtest', href: sketchHref(gameRef, 'playtest') });
     return { concerns, parts, exits };

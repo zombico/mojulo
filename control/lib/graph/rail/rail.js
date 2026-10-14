@@ -9,7 +9,8 @@
  *
  *   readRail(manifest, { ref, row }) → { rail, kind, outcomes: [{ id, name, concerns }], parts, exits, errors? } | null
  *
- *   concern  { id, outcome, state, name?, tab?, card?, anchor?, gate?, note? }   (`anchor`: its id in the book)
+ *   concern  { id, outcome, state, name?, tab?, card?, view?, anchor?, gate?, note? }   (`view`: the exit it is read in,
+ *            the book when absent; `anchor`: its id there)
  *     state  'given'    the recipe answers it
  *            'open'     nothing answers it yet: a field would
  *            'advised'  a law or a gate finds something
@@ -20,7 +21,7 @@
  *     state  'fresh' (there, as made) · 'stale' (the book moved since) · 'edited' (changed by hand since) ·
  *            'missing' (not made yet) · 'waiting' (waits on another part) · 'taken' (something else is at its ref)
  *     rail   the part's own outcomes in brief, when it is on a rail: [{ id, given, open, advised, waived }]
- *   exit     { id: 'book' | 'walk' | 'play' | 'playtest', href }
+ *   exit     { id: 'book' | 'characters' | 'walk' | 'play' | 'playtest', href }
  *
  * `row(ref)` is the store's read ({ kind, manifest } or null); it is how a part is found and read. Pure otherwise.
  */

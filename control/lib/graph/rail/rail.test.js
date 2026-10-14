@@ -98,6 +98,14 @@ describe('parts', () => {
 describe('the gameworld rail', () => {
   const world = readRail(WORLD, { ref: 'gw' });
 
+  it('is read in both its bibles: a world part in the world\'s, a character part in the characters\'', () => {
+    expect(world.exits.map((e) => e.id)).toEqual(['book', 'characters']);
+    expect(world.exits[1].href).toBe('/api/sketches/gw/bible?book=characters');
+    expect(flat(world).find((c) => c.id === 'nature')).toMatchObject({ view: 'book', anchor: 'nature' });
+    expect(flat(world).find((c) => c.id === 'world')).toMatchObject({ view: 'book', anchor: 'map' });
+    expect(flat(world).find((c) => c.id === 'hero:body')).toMatchObject({ view: 'characters', anchor: 'hero-body' });
+  });
+
   it('groups the book\'s parts into what a game asks of its maker; a world that writes no intent has it open', () => {
     expect(world.outcomes.map((o) => o.id)).toEqual(['intent', 'world', 'characters', 'systems', 'levels', 'story', 'play']);
     expect(stateOf(world, 'intent')).toBe('open');

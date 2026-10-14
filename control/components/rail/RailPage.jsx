@@ -35,6 +35,7 @@ const EXIT_PATHS = {
   walk: 'M13 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM10 8l-2.5 4M10 8l3 1.5 2 3M10 8l-.5 5 2.5 3.5V21M9.5 13 7 21',
   play: 'M7 4.5v15l12-7.5z',
   playtest: 'M5 4.5v15l10-7.5zM18 5v14M21 5v14',
+  characters: 'M9 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM20 7.5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0zM2.5 19v-2.5a4 4 0 0 1 8 0V19M13.5 19v-2.5a4 4 0 0 1 8 0V19',
   open: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
   download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
   folder: 'M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2h8.5A1.5 1.5 0 0 1 21 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z',
@@ -189,16 +190,23 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
     revalidateOnFocus: true,
   });
   const exits = data?.exits ?? [];
+  // the pages the recipe draws are views too: a world's own atlas, a stage's boards
+  const sheets = useMemo(() => (data?.sheets ?? []).map((x) => ({ id: `sheet:${x.id}`, name: x.name, href: x.href })), [data?.sheets]);
+  const views = useMemo(() => [...exits, ...sheets], [exits, sheets]);
   const [view, setView] = useState(null); // { id, hash? }
   // the book first when there is one, else the first way in
   useEffect(() => {
-    if (!view && exits.length) setView({ id: exits[0].id });
-  }, [exits, view]);
-  const exit = exits.find((e) => e.id === view?.id);
+    if (!view && views.length) setView({ id: views[0].id });
+  }, [views, view]);
+  const exit = views.find((e) => e.id === view?.id);
+  // a book or a sheet downloads as one self-contained page; a World or a game is played, not taken
+  const takes = exit && (exit.id === 'book' || exit.id === 'characters' || exit.id.startsWith('sheet:'));
   const src = exit ? `${exit.href}${view.hash ? `#${view.hash}` : ''}` : null;
 
+  // a concern opens where its part is drawn: the world bible, or the character bible
   const onConcern = (c) => {
-    if (exits.some((e) => e.id === 'book')) setView({ id: 'book', hash: c.anchor || '' });
+    const at = c.view || 'book';
+    if (exits.some((e) => e.id === at)) setView({ id: at, hash: c.anchor || '' });
   };
 
   return (
@@ -206,7 +214,7 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
       <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-[color:var(--bay-rail)] px-4 py-3">
         <h1 className="text-[18px] font-semibold tracking-tight text-[color:var(--ink-primary)]">{data?.title || initialTitle || ref}</h1>
         <span className="font-mono text-[11px] text-[color:var(--ink-muted)]">{ref}</span>
-        {data && <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[color:var(--ink-muted)]">{data.rail}{data.kind !== data.rail ? ` · ${data.kind}` : ''}</span>}
+        {data && <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-[color:var(--ink-muted)]">{[data.rail, data.kind !== data.rail && data.kind].filter(Boolean).join(' · ')}</span>}
         {data?.parent && (
           <Link href={`/sketches/${encodeURIComponent(data.parent)}`} className="font-mono text-[11px] text-[color:var(--live)] hover:underline">↑ {data.parent}</Link>
         )}
@@ -217,8 +225,8 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
               <a href={exit.href} target="_blank" rel="noreferrer" title={exit.href} aria-label={`${exit.id} ↗`} className="rounded-[var(--radius-control)] p-1.5 text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]">
                 <ExitIcon id="open" />
               </a>
-              {exit.id === 'book' && (
-                <a href={`${exit.href}?download=1`} title={`${exit.href}?download=1`} aria-label={`${exit.id} ⤓`} className="rounded-[var(--radius-control)] p-1.5 text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]">
+              {takes && (
+                <a href={`${exit.href}${exit.href.includes('?') ? '&' : '?'}download=1`} title={`${exit.href}?download=1`} aria-label={`${exit.id} ⤓`} className="rounded-[var(--radius-control)] p-1.5 text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]">
                   <ExitIcon id="download" />
                 </a>
               )}
@@ -243,6 +251,26 @@ export default function RailPage({ refId: ref, initialTitle = null, authEnabled 
             </button>
           ))}
         </nav>
+        {/* the pages it draws, by name: a world's land, flora, structures, castle; a stage's boards */}
+        {sheets.length > 0 && (
+          <nav className="flex w-full flex-wrap items-center gap-1.5 pt-1" aria-label="sheets">
+            {sheets.map((x) => (
+              <button
+                key={x.id}
+                type="button"
+                onClick={() => setView({ id: x.id })}
+                aria-pressed={view?.id === x.id}
+                className={`rounded-[var(--radius-control)] border px-2 py-0.5 font-mono text-[10px] transition-colors ${
+                  view?.id === x.id
+                    ? 'border-[color:var(--live)] text-[color:var(--live)]'
+                    : 'border-[color:var(--bay-rail)] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]'
+                }`}
+              >
+                {x.name}
+              </button>
+            ))}
+          </nav>
+        )}
       </header>
 
       {(error || data?.errors?.length) && (
