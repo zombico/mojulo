@@ -13,7 +13,7 @@ import { createSketchHandler, updateSketchHandler } from '@/lib/mcp/tools/sketch
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { compileInterior } from '@/lib/graph/interior/compile';
 
-const FIELDS = ['house', 'room', 'level', 'style', 'brief', 'focal', 'surface', 'pieces', 'view'];
+const FIELDS = ['house', 'room', 'level', 'style', 'palette', 'brief', 'focal', 'surface', 'pieces', 'view'];
 
 // the operator's pieces over the stored ones, by id: a piece named again is replaced, a new one joins
 function mergePieces(stored = [], given = []) {
@@ -30,7 +30,7 @@ export function interiorReadout(manifest) {
   return {
     house: typeof manifest.house === 'string' ? manifest.house : 'inline',
     room: { tag: r.room.tag, name: r.room.name, size: r.room.size, doors: r.room.doors, windows: r.room.windows.length },
-    style: r.style.id + (r.style.accent ? ` + ${r.style.accent}` : ''),
+    style: r.style.id + (r.style.accent ? ` + ${r.style.accent}` : '') + (r.style.solved ? ` in palette ${r.style.solved.id} (${r.style.solved.scheme}, ${r.style.solved.key} key)` : ''),
     focal: r.focal,
     pieces: r.pieces.map((p) => ({ id: p.id, piece: p.piece, size: p.size, ...(p.like ? { like: p.like } : {}) })),
     ...(r.resolved.some((x) => x.refused?.length) ? { refused: r.resolved.filter((x) => x.refused?.length).map((x) => ({ fn: x.fn, won: x.strategy, refused: x.refused })) } : {}),
@@ -82,6 +82,7 @@ export function registerInteriorTools() {
         level: { type: 'integer', description: 'On a stacked house, the storey (0 the ground).' },
         section: { type: 'object', additionalProperties: true, description: "A room from scratch: { room, size: [w, d], windows: ['S'], doors: [{ wall, to }] }." },
         style: { description: "A style card ('japandi') or { name, accent?, palette? }." },
+        palette: { description: "The room's colours solved for what it is (pick_palette's spec; the same spec as its world's gives the room the world's colours): the card's forms, these colours, style.palette's words over them. Left out with no style, one is rolled; false keeps the card's." },
         brief: { type: 'object', additionalProperties: true, description: '{ uses?, tags?, seats?, bed?, tv? }.' },
         focal: { type: 'string', description: "'fireplace', a window's mark, a wall letter or 'view'." },
         surface: { type: 'object', additionalProperties: true, description: '{ walls, N|E|S|W, floor, accentWall, features }.' },

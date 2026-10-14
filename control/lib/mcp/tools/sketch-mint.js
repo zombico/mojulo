@@ -65,6 +65,8 @@ import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polyg
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
+import './palette-ledger.js';
+import { stampWorldPalette, stampInteriorPalette, resolveArtPalette, resolveTonePalette, stampLookPalette, stampTerrainPalette, resolveStagePalette } from '@/lib/graph/color-theorist/stamp.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
@@ -337,8 +339,9 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   let finalized;
   if (isGameworldKind(manifest?.kind)) {
     // A gameworld (the game book's recipe) bypasses the diagram pipeline: the stored manifest is the recipe as
-    // written, read by the gameworld reader, whose teaching errors are the refusal.
-    finalized = gameworldManifest(manifest);
+    // written, read by the gameworld reader, whose teaching errors are the refusal. Its palette is settled here, at
+    // authoring time (color-theorist/stamp.js): a new world that names no kit or look gets one rolled for it.
+    finalized = gameworldManifest(stampWorldPalette(manifest));
   } else if (isMotionComicKind(manifest?.kind)) {
     // Motion comics (the click-gated presentation, motion-comic.plan.md)
     // bypass the diagram pipeline like image-outcomes kinds: the stored
@@ -578,7 +581,10 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   }
   // a room stage's art direction (era/art-direction.js): 'propose' / 'auto' and any item sent back ('reroll') are
   // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
-  manifest = resolveArt(manifest);
+  // (an art palette or a tone given a palette spec, `{ from }`, solved into their ramps first: color-theorist)
+  manifest = resolveArt(resolveArtPalette(resolveTonePalette(resolveStagePalette(manifest))));
+  // an interior's palette (color-theorist/stamp.js): rolled for a new room that names no style, kept by an edit
+  manifest = stampTerrainPalette(stampLookPalette(stampInteriorPalette(manifest, existingSketch?.manifest ?? null)));
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
   manifest = resolvePlayUi(manifest);
   // the gaits an edit authors (a figure's walk, a hero's, a world figure's) are stored by value as they are minted now;
@@ -1013,7 +1019,8 @@ export async function updateSketchHandler(input) {
       );
     }
   } else if (manifest !== undefined && isGameworldKind(manifest?.kind)) {
-    nextManifest = gameworldManifest(manifest);   // the same gate as at mint
+    // the same gate as at mint; an edit keeps the palette the world had (and never gives an old world one)
+    nextManifest = gameworldManifest(stampWorldPalette(manifest, existingSketch?.manifest ?? {}));
   } else if (manifest !== undefined && isMotionComicKind(manifest?.kind)) {
     // Same gate as mintSketch — update is the accrete-cheaply surface, so it
     // pays the same normalization + store checks.

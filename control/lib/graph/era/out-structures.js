@@ -114,6 +114,7 @@ export const STRUCTURE_RAILS = Object.freeze({
   'nature-trail': { chunk: [1, 1.15], anchor: 'timber-hall' },
   'jungle-mgs3': { chunk: [1, 1.1], anchor: 'timber-hall' },
   'alien-night': { chunk: [1.1, 1.3], anchor: 'shell' },
+  'airless-plain': { chunk: [1, 1.2], anchor: 'shell' },
 });
 export const STRUCTURE_KITS = Object.freeze(Object.keys(STRUCTURE_RAILS));
 /** Whether a kit's buildings are indexed (it, or the kit it varies), so it speaks a building language. */

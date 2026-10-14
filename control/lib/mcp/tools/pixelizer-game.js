@@ -20,9 +20,21 @@ import { registerTool } from '@/lib/mcp/server';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/repositories/game-projects';
 import { PIXELIZER_REDUCER_IDS, buildPixelizerGameManifest } from '@/lib/graph/pixelizer/pixelizer-games';
+import { readPaletteSpec, solvePalette } from '@/lib/graph/color-theorist/solve.js';
+import { freshPaletteSeed } from '@/lib/graph/color-theorist/stamp.js';
+
+/** The accents from a palette (color-theorist) under the theme's own; no palette, the theme as given. */
+export function pixelTheme(theme, palette) {
+  if (palette === undefined || palette === false) return theme;
+  let spec = readPaletteSpec(palette, 'palette');
+  if (spec === 'auto') spec = {};
+  if (spec.seed === undefined) spec = { ...spec, seed: freshPaletteSeed() };
+  const K = solvePalette(spec);
+  return { accent: K.ui.accent, accent2: K.ui.accent2, style: 'hud', ...(theme ?? {}) };
+}
 
 export async function createPixelizerGameHandler(input) {
-  const { reducer, title, tagline, theme, music, register, ref, project_ref: projectRef } =
+  const { reducer, title, tagline, theme: themeIn, palette, music, register, ref, project_ref: projectRef } =
     input && typeof input === 'object' ? input : {};
 
   if (!reducer || !PIXELIZER_REDUCER_IDS.includes(reducer)) {
@@ -39,6 +51,7 @@ export async function createPixelizerGameHandler(input) {
     }
   }
 
+  const theme = pixelTheme(themeIn, palette);
   const manifest = buildPixelizerGameManifest({ reducer, title, tagline, theme, music, register });
   const sketch = SketchRepository.create({ title: manifest.title, manifest, ref });
 
@@ -77,6 +90,7 @@ export function registerPixelizerGameTools() {
         title: { type: 'string', description: "Optional; defaults to the reducer's name." },
         tagline: { type: 'string', description: 'Optional arcade-cabinet tagline.' },
         theme: { type: 'object', description: "Optional accents { accent?, accent2?, style?: 'hud'|'clean' }." },
+        palette: { description: "Optional: the accents from a palette (pick_palette's spec, under `theme`'s own); pick_palette's `pixel` palettes fit the 8bit/16bit budgets." },
         music: { type: 'boolean', description: 'Beats soundtrack + SFX. Default true.' },
         register: { type: 'string', enum: ['8bit', '16bit', '32bit'], description: "Optional era label; default the reducer's own." },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },

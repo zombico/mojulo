@@ -28,6 +28,8 @@ import {
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
+import './palette-ledger.js';
+import { stampWorldPalette } from '@/lib/graph/color-theorist/stamp.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -87,7 +89,11 @@ async function realize(step, action) {
     // the game over the levels: create_game (the levels unaudited, recorded), its manifest whole in place
     const { title, store, levels, links, theme, shell } = order;
     if (action === 'make') await createGameHandler({ ...order, ref });
-    else await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(theme ? { theme } : {}), ...(shell ? { shell } : {}) } });
+    else {
+      // (a game made with no theme was given one at mint: a remake keeps it)
+      const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
+      await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}) } });
+    }
     return {};
   }
   if (key === 'systems') {
@@ -238,7 +244,8 @@ export async function designGameHandler(input) {
     if (exists) {
       if (!isGameworldKind(exists.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${exists.manifest?.kind}', not a gameworld`);
       // the runner's record stays with the recipe unless the new one brings its own; the same recipe again writes nothing
-      const next = world.made === undefined && exists.manifest.made ? { ...manifest, made: exists.manifest.made } : manifest;
+      // (and its palette: a recipe re-sent whole keeps the colours it was given, so the same recipe writes nothing)
+      const next = stampWorldPalette(world.made === undefined && exists.manifest.made ? { ...manifest, made: exists.manifest.made } : manifest, exists.manifest);
       if (JSON.stringify(next) !== JSON.stringify(exists.manifest) || (title && title !== exists.title)) {
         await updateSketchHandler({ ref, ...(title ? { title } : {}), manifest: next });
       }

@@ -40,6 +40,7 @@ import { axisChains, tubeTris, barkQuads } from '../vegetation/tree-mesh.js';
 import { barkTile } from '../vegetation/tiles.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
+import { recolourCard, recolourFaces } from '../color-theorist/recolour.js';
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -49,7 +50,8 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 /** A quad's facet normal (from its diagonals), turned to face `toward`. */
-const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
+// (a card recoloured by a palette wears its even twin: color-theorist/recolour.js)
+const isCard = (f) => typeof f.texture === 'string' && /^(even:)?card:/.test(f.texture);
 const facet = (c, toward) => { const n = unit(cross(sub(c[2], c[0]), sub(c[3], c[1]))); return n[0] * toward[0] + n[1] * toward[1] + n[2] * toward[2] < 0 ? n.map((v) => -v) : n; };
 
 /**
@@ -69,7 +71,9 @@ export function natureSite(st, seed = 1) {
   // trail, which wears down between them; absent, the ground is exactly the trail level's
   const Lu = st.lumps, oct = Lu ? Lu.octaves : [];
   const lumps = (x, y) => oct.reduce((a, [amp, f], i) => a + amp * 2 * (vnoise(x * f, y * f, S + 11 + i) - 0.5), 0);
-  const base = (x, y) => 1.4 * vnoise(x * 0.05, y * 0.05, S + 5) + 0.45 * vnoise(x * 0.14, y * 0.14, S + 7) + 0.07 * (x - cliffX(y)) + (Lu ? lumps(x, y) : 0);
+  // optional CRATERS (a style's `craters`, an airless world's): bowls with raised rims, kept off the trail; absent, nothing
+  const craters = st.craters ? placeCraters(st.craters, { W, D, trailDist, halfWAt, cliffX }, S) : null;
+  const base = (x, y) => 1.4 * vnoise(x * 0.05, y * 0.05, S + 5) + 0.45 * vnoise(x * 0.14, y * 0.14, S + 7) + 0.07 * (x - cliffX(y)) + (Lu ? lumps(x, y) : 0) + (craters ? craterAt(craters, x, y) : 0);
   const bank = (x, y) => {
     if (!Lu || !Lu.banks) return 0;
     const B = Lu.banks, e = halfWAt(y) + fringeAt(y), d = trailDist(x, y);
@@ -99,7 +103,32 @@ export function natureSite(st, seed = 1) {
   // the composition's focus radii, centred on the trail at each focus's station
   const foci = (st.focus || []).map((f) => ({ ...f, x: trailX(f.y) }));
   const inRadius = (x, y) => foci.some((f) => Math.hypot(x - f.x, y - f.y) < f.r);
-  return { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius };
+  return { W, D, halfW, halfWAt, fringeAt, trailX, trailDist, cliffX, ground, valley, apronAt, grid: g, scree, foci, inRadius, ...(craters ? { craters } : {}) };
+}
+
+/** CRATERS: `n` centres by rejection (apart from each other by their rims, clear of the trail by `clear` m past their
+ *  rims and of the cliff), radii between `radius`, the big ones first. → [{ x, y, r, depth, rim }] */
+export function placeCraters(C, { W, D, trailDist, halfWAt, cliffX }, S) {
+  const out = [];
+  for (let i = 0; i < 600 && out.length < C.n; i++) {
+    const t = out.length / Math.max(1, C.n - 1), r = mix(C.radius[1], C.radius[0], Math.sqrt(t)) * (0.85 + 0.3 * hash3(i, 3, S + 401));
+    const x = W * hash3(i, 1, S + 403), y = D * hash3(i, 2, S + 409);
+    if (trailDist(x, y) < halfWAt(y) + r * 1.3 + C.clear || x < cliffX(y) + 4 + r) continue;
+    if (out.some((c) => Math.hypot(c.x - x, c.y - y) < (c.r + r) * 1.15)) continue;
+    out.push({ x: r5(x), y: r5(y), r: r5(r), depth: r5(r * C.depth), rim: r5(r * C.rim) });
+  }
+  return out;
+}
+/** The craters' height at (x, y): inside, a bowl rising to its rim (−depth at the floor, +rim at the edge); outside,
+ *  the ejecta rim falling away over about a third of the radius. */
+export function craterAt(craters, x, y) {
+  let h = 0;
+  for (const c of craters) {
+    const d = Math.hypot(x - c.x, y - c.y) / c.r;
+    if (d > 2) continue;
+    h += d < 1 ? -c.depth * (1 - d * d) + c.rim * d ** 4 : c.rim * Math.exp(-(((d - 1) * 3) ** 2));
+  }
+  return h;
 }
 
 /** The ground as the landform grid's facets: rock where steep (mapped up the face, tinted by its bed), scree on the
@@ -675,8 +704,11 @@ export function puddleFaces(st, site, spots) {
 
 /** manifest → World payload, for a stage whose kit is a nature kit. */
 export function assembleNatureScene(manifest = {}, ctx = {}) {
-  const st = NATURE_STYLES[manifest.style || 'nature-trail'];
-  if (!st) throw new Error(`stage: unknown nature style '${manifest.style}' (known: ${Object.keys(NATURE_STYLES).join(', ')})`);
+  const st0 = NATURE_STYLES[manifest.style || 'nature-trail'];
+  if (!st0) throw new Error(`stage: unknown nature style '${manifest.style}' (known: ${Object.keys(NATURE_STYLES).join(', ')})`);
+  // a palette (color-theorist: the stage's `palette`, solved where it was written): the card's light and air, and every
+  // surface's colour at its own lightness. Absent ⇒ the card as written.
+  const P = manifest.palette && manifest.palette.roles ? manifest.palette : null, st = P ? recolourCard(st0, P) : st0;
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
@@ -701,13 +733,15 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
     const d = f.normal[0] * dir[0] + f.normal[1] * dir[1] + f.normal[2] * dir[2], n = d < 0 ? f.normal.map((v) => -v) : f.normal, lift = 1 + (st.light.leafLift || 0);
     return { ...f, normal: n, outNormal: n, tint: f.tint.map((v) => v * lift) };
   });
+  const worn = P ? recolourFaces(faced, P) : faced;
   const lit = ctx.unshaded
-    ? faced.map(({ tint, cls, ax, ...f }) => ({ ...f, fill: rgbHex(tint) }))
-    : bakeStageLight(faced, [], ambient, natureMarks(st, site, dir, seed, trees, puddles), sun).map(({ cls, detail, ax, ...f }) => f);
+    ? worn.map(({ tint, cls, ax, ...f }) => ({ ...f, fill: rgbHex(tint) }))
+    : bakeStageLight(worn, [], ambient, natureMarks(st, site, dir, seed, trees, puddles), sun).map(({ cls, detail, ax, ...f }) => f);
   const decals = contactShadows(st, site, trees, rocks);
   const y0 = 2.5, x0 = site.trailX(y0), y1 = 28, x1 = site.trailX(y1);
   const eye = [x0, y0, site.ground(x0, y0) + 1.7];
-  const faces = [...lit, ...decals, ...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...ridgeFaces(st, site)];
+  const after = [...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...ridgeFaces(st, site)];
+  const faces = [...lit, ...decals, ...(P ? recolourFaces(after, P) : after)];
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
   const cutouts = [...new Set(faces.filter(isCard).map((f) => f.texture))].sort();
@@ -724,7 +758,7 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || 'mojulo stage · nature trail',
     bg: rgbHex(st.air.dome.horizon.map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: { zenith: st.air.dome.zenith, horizon: st.air.dome.horizon, day: 1, stars: 0, seed: 1 },
+    sky: { zenith: st.air.dome.zenith, horizon: st.air.dome.horizon, day: st.air.void ? 0 : 1, stars: st.air.void ? 1 : 0, seed: 1 },   // (a palette in vacuum: the void, the stars out)
     glow: false,
     // the spawn is at EYE height: the trail ribbon floats over a cut-away ground, so a spawn at ground level would
     // cast its first floor ray from under the ribbon, find nothing, and fall through

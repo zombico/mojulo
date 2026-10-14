@@ -1,0 +1,77 @@
+/**
+ * A PALETTE ON A KIT — the stock kits are the starting point: a palette recolours a base kit (a written kit, or a look
+ * the world composed from words) and keeps everything else it is — its ramp lengths and tile windows, its grammar, its
+ * flora, its air. It goes through the land tunnel's own domain (gameworld/tunnel-land.js): the base taken apart into
+ * facets, the swatches swapped, the look built, the look laws read and the tunnel's own tweaks applied until they
+ * hold, and the result registered as a look (era/style/looks.js) under an id its content decides — so a world, a
+ * stage and a sheet name it as they name any kit.
+ *
+ *   paletteLook(spec, { base, name }) → { id, base, contract, laws, tweaks }
+ *   ensureLooks(chain)                  the looks a stored stage names, composed again where this process lacks them
+ *
+ * Pure but for the look registry, which is content-addressed: the same spec on the same base registers the same look.
+ */
+import { landDomain, composeLook } from '../gameworld/tunnel-land.js';
+import { registerLook, lookOf } from '../era/style/looks.js';
+import { solvePalette, fingerprint } from './solve.js';
+import { landSwatches, lightOf } from './adapters.js';
+import { hexToRgb } from './oklab.js';
+
+const clone = (v) => JSON.parse(JSON.stringify(v));
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').slice(0, 3).join('-') || 'palette';
+const PASSES = 4;
+const VOID_HAZE = 0.0008, AIR_HAZE = 0.0015;   // (in vacuum the far end of the view still fades, into the void; with air, the meadow's)
+
+export function paletteLook(spec, { base = 'isekai-meadow', name } = {}) {
+  const K = solvePalette(spec), D = landDomain();
+  let c;
+  try { c = D.start(K.spec.seed ?? 1, base); } catch (err) { throw new Error(`palette: ${err.message.replace(/^tunnel: land: /, '')}; a palette recolours a kit with land ramps`); }
+  c = clone(c);
+  c.swatches = landSwatches(K, c.swatches);
+  // the plain tints the ground's bake starts from (then locked onto its ramp): drawn from the ramp each group is locked
+  // to, a stop above its middle as the card's own are, so a recoloured ground is painted, not pulled, into its ramp
+  const T = c.facets.palette?.tint, lock = c.facets.palette?.lock ?? {};
+  if (T) for (const g of Object.keys(T)) {
+    const r = c.swatches.land[lock[`isekai:${g}`]];
+    if (r) T[g] = r[Math.round(0.7 * (r.length - 1))].map((v) => Math.round((v / 255) * 1000) / 1000);
+  }
+  c.facets.sky.light = lightOf(K, c.facets.sky.light);
+  if (K.read.air === 'none') {
+    // vacuum: the void for a sky (stars, the sun a white disc), no clouds, the haze all but gone into the void
+    // (a kit's own void kept, its world hanging low in the palette's planet colour: accent2's middle)
+    const V0 = c.facets.sky.void ?? {};
+    Object.assign(c.facets.sky, { cumulus: null, void: { stars: 1, glow: 0.5, ...V0, ...(V0.companion ? { companion: { ...V0.companion, color: hexToRgb(K.roles.accent2[2]) } } : {}) } });
+    c.facets.air.air = { ...c.facets.air.air, fog: { ...c.facets.air.air.fog, color: K.fog, density: VOID_HAZE } };
+  } else {
+    c.hazeFromFar = true;
+    // a palette with air on an airless kit: the sky is a sky again, and the distance hazes
+    if (c.facets.sky.void) { delete c.facets.sky.void; c.facets.air.air = { ...c.facets.air.air, fog: { ...c.facets.air.air.fog, density: AIR_HAZE } }; }
+  }
+  // the tunnel's laws, and its own fixes for what fails (a ramp sorted, a shade lifted, the far layers laid again)
+  let L = D.build(c), laws = D.laws(L);
+  const tweaks = [];
+  for (let i = 0; i < PASSES && laws.some((l) => !l.ok); i += 1) {
+    const t = D.tweak(c, { laws: laws.filter((l) => !l.ok) });
+    c = t.candidate; tweaks.push(...t.changed);
+    L = D.build(c); laws = D.laws(L);
+  }
+  const id = `${slug(name ?? K.spec.intent ?? 'palette')}-${fingerprint([c.base, K.id, L.card, L.swatches]).slice(0, 6)}`;
+  const principles = [...(L.card.principles ?? []), `Recoloured by the palette ${K.id}: ${K.read.scheme} (${K.read.says}), a ${K.read.key} key${K.spec.intent ? `, read from "${K.spec.intent}"` : ''}.`];
+  const look = registerLook({ id, base: c.base, read: K.spec.intent ?? `palette ${K.id}`, card: { ...L.card, principles }, swatches: L.swatches });
+  return { id: look.id, base: c.base, contract: K, laws: laws.map(({ law, ok, value }) => ({ law, ok, value })), tweaks };
+}
+
+/**
+ * The looks a stored stage is drawn in, composed again where they are missing: the registry is the process's own, so
+ * a stage minted from a world with a composed look (words, a palette, or both) carries the chain that makes its kit
+ * (`manifest.looks`, base first). Each must come back under the id it was stored with, or the stage says so rather
+ * than draw in some other colours.
+ */
+export function ensureLooks(chain) {
+  if (!Array.isArray(chain)) return;
+  for (const r of chain) {
+    if (!r || typeof r.id !== 'string' || lookOf(r.id)) continue;
+    const got = r.palette !== undefined ? paletteLook(r.palette, { base: r.base, name: r.name }).id : composeLook(r.look, { seed: r.seed, base: r.base, name: r.name }).id;
+    if (got !== r.id) throw new Error(`looks: '${r.id}' composes as '${got}' now: the look it was drawn in has changed`);
+  }
+}

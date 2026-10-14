@@ -131,6 +131,30 @@ export const SWATCHES = Object.freeze({
     },
     accent: ['glow', 2],
   },
+  // AN AIRLESS WORLD (style/airless-plain.js): neutral regolith greys whose shade leans blue (the planet's light, the
+  // only fill there is), the void for a sky, warm paint for what was made: a moon. A palette recolours it.
+  // `air: 'none'`: the color theorist's shelf for vacuum palettes (a palette with air is never measured against it)
+  'airless-plain': {
+    air: 'none',
+    land: {
+      grass: [[40, 43, 54], [78, 80, 88], [118, 119, 122], [160, 160, 160], [206, 205, 200]],
+      soil: [[52, 54, 64], [100, 101, 106], [148, 148, 148], [200, 198, 192]],
+      rock: [[30, 32, 44], [56, 58, 68], [86, 87, 94], [118, 118, 122], [152, 151, 150], [190, 188, 182]],
+      foliage: [[70, 82, 104], [108, 124, 146], [148, 166, 186], [190, 206, 220], [230, 238, 244]],
+      bark: [[34, 34, 40], [60, 59, 62], [96, 94, 92]],
+      far: [[70, 72, 80], [92, 93, 99], [112, 113, 117], [130, 130, 132]],
+      sky: [[20, 21, 40], [28, 30, 46], [40, 42, 58]],
+      cloud: [[46, 36, 70], [72, 58, 104], [104, 88, 138], [140, 126, 170]],
+      fruit: [[122, 93, 61], [163, 120, 76], [205, 148, 92], [231, 185, 139], [255, 222, 187]],
+    },
+    made: {
+      timber: [[46, 48, 58], [88, 90, 98], [134, 135, 140], [184, 184, 186], [228, 227, 224]],
+      stone: 'rock',
+      rope: [[52, 40, 30], [90, 78, 66], [132, 118, 102], [178, 164, 146]],
+      paint: [[141, 96, 67], [202, 128, 95], [250, 171, 138], [255, 234, 221]],
+    },
+    accent: ['paint', 1],
+  },
   // a spring garden: the meadow's land, and a blossom ramp so its flower beds bloom in two colours
   'isekai-garden': {
     land: {

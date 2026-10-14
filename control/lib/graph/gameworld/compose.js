@@ -36,6 +36,7 @@ export const LEXICON = Object.freeze({
   bamboo: { kit: 'isekai-bamboo' }, forest: { kit: 'isekai-bamboo' },
   blossom: { kit: 'isekai-sakura', weather: 'spring-blossom' }, sakura: { kit: 'isekai-sakura', weather: 'spring-blossom' }, spring: { kit: 'isekai-sakura', weather: 'spring-blossom' },
   night: { kit: 'alien-night', 'land.cloud': [null, 0] }, alien: { kit: 'alien-night' }, moon: { kit: 'alien-night' }, glowing: { kit: 'alien-night' },
+  airless: { kit: 'airless-plain' }, lunar: { kit: 'airless-plain' }, crater: { kit: 'airless-plain' }, cratered: { kit: 'airless-plain' }, asteroid: { kit: 'airless-plain' }, vacuum: { kit: 'airless-plain' },
   garden: { kit: 'isekai-garden' }, zen: { kit: 'isekai-garden', 'land.rock': ['balanced', 0.25] },
   // who builds: a building language and a fortification
   timber: { anchor: 'timber-hall' }, village: { anchor: 'timber-hall' }, medieval: { anchor: 'timber-hall', fort: 'crenellated' },

@@ -75,6 +75,7 @@ export const TOOL_LINES = {
 
   // ── games ─────────────────────────────────────────────────────────────────
   design_game: L('compose', 'THE GAME RAIL: design a game top down (hero, powers, gear, systems); `run: true` makes each ready step through `create_sketch` and the doors.'),
+  pick_palette: L('orient', "Colours solved for what a world is by colour theory (key, chroma, scheme, ramps, checks); pass the spec to design_game, create_game, create_cover."),
   tune_ground: L('update', "A gameworld level's ground on a top-down grid: amplitude and depth dials, cliffs, gorges, raises by cell; a map and hotspots back."),
   create_game: L('compose', 'A playable game: a shell with a typed store and levels that are worlds. Store design: `get_game_vocab`; revise: `update_sketch`.'),
   create_pixelizer_game: L('create', 'A self-contained 2D reducer game (brickster and kin) for the Arcade; no levels, unlike `create_game`.'),

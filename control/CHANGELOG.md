@@ -58,6 +58,120 @@ place and year, and its buildings composed from an inventory of styles and struc
   below it, not at its own level. Inventory assets gain `terrace` (wall to wall on the street line), `storeys` (the
   band a house rises in) and `crown`; seen close they draw a wall's bond.
 
+### Color theorist: a palette solved for what a world is
+
+Every unnamed world used to land on the same meadow and every game on the same navy HUD. A palette is now solved
+by colour theory from what a world is trying to be, and one solve colours the land, the game's HUD and a cover. The
+order is the art director's: value first (a key), then a chroma budget, then how the hues relate (a scheme), then
+ramps that lean toward a warm light and a cool shadow, then checks. Stock kits are where it starts: a palette
+recolours a kit (or a look composed from words) and keeps its ramp lengths, tiles, grammar, flora and air.
+
+- **`pick_palette`** (game pack): the agent reads the world's words into heat (cool … warm), weight (light … heavy)
+  and activity (calm … active), and may add a scheme (analogous, complementary, split-complementary, triad, tetrad,
+  mono-accent, duotone), a key, a hue, per-role hues or a locked colour. Anything left out is rolled from the seed.
+  It returns the spec to pass on, role ramps, light/shadow/fog, HUD tokens, cover colours and the checks. `variants`
+  returns several palettes from consecutive seeds to choose between. Nothing is stored.
+- **The kernel is `lib/graph/color-theorist/`**:
+  - `oklab.js`: OKLab/OKLCH, gamut mapping by chroma, WCAG 2 and APCA contrast, colour-vision simulation.
+  - `solve.js`: the spec, the solve and the laws (ramps climb, shade is a colour, the sky is brightest, the accent is
+    unique, it reads in grey, HUD contrast, colour-blind eyes, few hue families, no clichés, not a stock kit). Seeded
+    candidates are scored by the laws and their distance from the shipped kits.
+  - `adapters.js`: a game theme, cover colours, a kit's swatches at its own ramp lengths, the card's light.
+  - `look.js`: a palette on a kit, through the land tunnel's own domain and laws, registered as a look.
+  - `stamp.js`: settles the palette at authoring time.
+- **A gameworld's `style.palette`** (a level's too) recolours the kit or look, and its game's HUD comes from the same
+  palette. A new gameworld that names no kit, look or geocube (and isn't a quick game) gets a palette rolled when it
+  is written, the way a stage's `art` is. Re-sending the same recipe or editing it keeps that palette. A world made
+  before this change never gains one by being edited. `palette: false` keeps the kit's own colours.
+- **`create_game` takes `palette`**, and its HUD tokens sit under `theme`'s own. A game minted with neither gets a
+  palette solved from its ref, not the stock HUD. A design_game remake keeps the theme the game was minted with.
+- **`create_cover`'s `palette`** takes a spec beside `{ bg, accent, ink }`. Left out, one is solved for the cover;
+  `false` keeps the stock cover colours.
+- **The stored thing is the spec**, and the solver's output for a spec is a compatibility promise (pinned by
+  `color-theorist.char.test.js`). Recipes that name a kit, look, theme or cover palette render as before.
+- **Interiors**: `design_interior` takes `palette`. A room keeps its style card's furniture forms, timber and fabrics
+  and wears the palette's 60-30-10: walls in the world's hue (quiet and light, or dark in a low key), trim toward the
+  light, upholstery and rug off the made and foliage hues, the accent. A casework the card gives as a material (oak,
+  walnut, steel) stays that material. `style.palette`'s own words still win. The same spec as a world's gives a room
+  that world's colours. A new room that names no style gets a palette rolled, an edit keeps it, and `false` keeps the
+  card's.
+- **Room stages**: `art: { palette: { from: <spec> } }` solves the stage's art palette (stone, floor, vault, trim, wood,
+  accent and the torch) when the stage is written, and stores the ramps as numbers like any rolled palette, with what
+  they came from. The other art items roll as before, and the art board shows it.
+- **Tones, looks, buildings and pixels**:
+  - A stage's `tone: { preset?, from: <spec> }` solves the preset's own ramps (flat's when none is named) when the stage
+    is written. Its `key` follows the palette's unless the tone names one.
+  - A world's `look: { id, palette }` recolours the sixth-gen card's palette, light and air, keeping its placements
+    and contrast.
+  - A palette world's building levels on a room kit that takes art direction get an art direction rolled from the
+    palette and the stage (the same on every run), in the world's palette.
+  - `pick_palette` answers `pixel` palettes at the 8bit and 16bit budgets, and `create_pixelizer_game` takes a
+    `palette` for its accents.
+- **The ground**: the palette reaches the land's own colours, and the bake then lights them as before.
+  - A terrain world's `palette` gives a painted terrain its soil, stone, scree and every stratum.
+  - A composed world (`world: { features }`) takes its forest, lowland, highland, rock, snow (cool in shade, warm in
+    light), sand, silt, water, deep and sky from the palette. Its climate keeps the snowline and treeline.
+  - On an isekai kit the ground's starting tints (grass, trail, scree, crowns, wood) now come from the ramps the
+    palette made, so the ground is painted in them rather than pulled onto them.
+  - Heights are never touched, and a terrain world without a palette is byte-identical.
+- **Nature and jungle kits** (`trail-valley`, `jungle-trail`) take a palette. They colour by multiplying coloured
+  tiles and cards by tints, so ramps can't reach them. Instead, every surface keeps its own lightness (so the card's
+  value laws still hold) and takes the hue and chroma of the role it plays:
+  - the trail takes the soil, the meadow the ground, cliffs and scree the rock, boughs and leaves the foliage, wood the
+    bark, the blazes the accent, and the far ridges the far layers;
+  - a tiled face or card wears its new `even:` greyscale twin (its median at one level), so its tint lands on the colour
+    it names (`era/tone.js` `greyTwin`, `color-theorist/recolour.js`);
+  - the sun, fill, haze and sky are the palette's, and the jungle's warm-green grade goes neutral.
+
+  A stage's `palette` is solved into this data when the stage is written. A palette world on these kits keeps its kit
+  and hands its stages the palette. Without one, the kits are as they were.
+- **Variety at scale**:
+  - **A rolled seed looks away from recent palettes.** Where a palette's seed is rolled (a new world, room, stage, or
+    `pick_palette` with no seed), a few seeds are tried and the one farthest from the palettes of the most recently
+    written rows is kept (`color-theorist/ledger.js`). Only the seed is stored, so a row still re-renders the same;
+    the solver is unchanged for every spec.
+  - **Colour scripts.** A spec's `shift: { turn?, light?, chroma?, warm? }` moves a palette without changing its
+    identity (same seed, same hue relations): hues turned, values toward day or night, chroma scaled, light warm or
+    cool. A gameworld palette's `script` (dusk, dawn, descent, thaw, fever, journey, seasons) gives each level, in the
+    world's order, a shift along that arc. A level's `style.palette: { shift }` moves the world's palette for that
+    level alone. Levels drawn in a shifted palette carry it to their rooms and painted stages.
+  - **A contact sheet.** `node scripts/palette-contact-sheet.mjs` paints palettes side by side as small landscapes
+    (`color-theorist/contact.js`): ten intents at five seeds, the auto default, and a stream through the ledger,
+    with the spread measured (nearest neighbours, hue bins, keys, schemes). A deep test holds 50 auto palettes to
+    that spread.
+  - **Tuned by the sheet.** A heat the agent reads now narrows the world's hue band (the whole wheel at 0, 50° round
+    warm or cool at ±1), and a read activity leans the scheme (calm toward analogous, mono-accent and duotone; active
+    toward complementary, split, triad and tetrad), so an intent owns its colours: of ten intents at five seeds, 44 of
+    50 palettes now sit nearest one of their own intent's (27 before). Skies carry more colour (fewer warm greys),
+    short of a saturated teal; accents climb toward neon as activity passes the middle. Rolled axes keep the old wide
+    bands, so a palette from its seed alone stays as varied. Every palette solves anew (the char pins moved).
+- **Air, and palettes for space.** The solver assumed a world with air: the sky the brightest thing, distance fading
+  into haze, shade filled by the sky. A spec's `air` says otherwise:
+  - `air: 'thin'` (Mars, Titan): the sky takes the dust's hue, pale and quiet, and distance hazes half as much.
+  - `air: 'none'` (vacuum): the sky is the void (near-black, tinted, never black), distance stays sharp, the shade is
+    lit by the planet in the sky, the light is near white, and the land is regolith and ice while the colour lives in
+    hulls, cables, lights and engine glow. The checks read the air (in vacuum the sky is the darkest thing).
+  - `preset`: `moon`, `asteroid-belt`, `mars`, `icy-moon`, `station`, `deep-space`, a starting spec the spec's own fields
+    override.
+  - On an isekai kit a vacuum palette draws a void sky with stars and a white sun, with no haze and a dark fill; the
+    nature kits take the void's fog and dome. Without `air`, every palette solves as before.
+  - **An airless kit, `airless-plain`**: a moon, an asteroid, an icy body in the isekai look. Nothing grows (no grass,
+    no trees, no fringe on the rocks); the ground is cratered (a card's `craters`: bowls with raised rims, kept off the
+    trail, in `era/nature.js`) and strewn with boulders and pebbles; a low hard sun, almost no fill; the void with the
+    stars out and a blue world hanging low. Its ramps are neutral regolith greys whose shade leans blue. The words
+    airless, lunar, crater(ed), asteroid and vacuum compose a gameworld onto it. A vacuum palette on it keeps its world
+    and paints it the palette's planet colour; a palette with air gives it a sky and a haze.
+  - **A coloured world in the sky**: a sky-dome moon may carry its own colour (the void's hanging planet); a page
+    without one is byte-identical.
+  - Vacuum palettes are measured against the airless kits on the shelf, palettes with air against the rest, so a new
+    airless kit moves no palette with air.
+- **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
+  only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
+  gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the
+  scene composes them again before it reads the kit. This covers worlds with look words and no palette too. The level
+  rows of a stored world with `style.look` print differently, so its next `design_game` run remakes them once, in place
+  (a level edited by hand is left as it is, and stays without `looks` until `force`).
+
 ### Sheet-metal bend lines that mark without cutting
 
 - **A flat pattern with `bend_lines = true` stays one piece.** Each bend line was a slot run past both edges, so
