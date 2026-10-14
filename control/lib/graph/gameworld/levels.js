@@ -22,9 +22,9 @@
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
 import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
-import { artPalette } from '../color-theorist/adapters.js';
+import { artPalette, natureColours } from '../color-theorist/adapters.js';
 import { layLevel } from '../level/index.js';
-import { assembleStageScene, planStage } from '../era/stage.js';
+import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { withGeocube } from '../era/geocube.js';
 import { playerWorld, playerStates } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
@@ -79,7 +79,9 @@ export function gameStages(world) {
       const keep = R.loop && first ? { _keepOut: R.loop.keep } : {};
       // a stage drawn in a composed look carries the recipes that compose its kit (the look registry is the process's own)
       const looks = s.manifest?.kit ? looksOfKit(s.manifest.kit) : null;
-      const manifest = here.length || street || keep._keepOut || looks ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep, ...(looks ? { looks } : {}) } : s.manifest;
+      // a stage on a nature or jungle kit in a palette world carries the palette as its builder reads it
+      const painted = paintedPalette(s.manifest, R.style?.palette ?? G.style?.palette);
+      const manifest = here.length || street || keep._keepOut || looks || painted ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep, ...(looks ? { looks } : {}), ...(painted ? { palette: painted } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });
@@ -610,6 +612,14 @@ export function gameLevels(stages, refs, plan = null) {
   // an inside is entered by its door, never gated; the walk's stages unlock each other in order, skipping insides
   const prev = (i) => { for (let j = i - 1; j >= 0; j--) if (stages[j].section !== 'interior') return j; return -1; };
   return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(s.section !== 'interior' && prev(i) >= 0 ? { gate: { completed: refs[prev(i)] } } : {}) }));
+}
+
+/** A nature or jungle stage's palette data (color-theorist/recolour.js reads it), from the world's palette spec; null
+ * for any other kit, or no palette. */
+function paintedPalette(manifest, spec) {
+  if (!spec || !manifest?.kit || !['nature', 'jungle'].includes(stageKit(manifest.kit)?.shell)) return null;
+  const K = solvePalette(spec === 'auto' ? {} : spec);
+  return { from: K.spec, ...natureColours(K) };
 }
 
 /**

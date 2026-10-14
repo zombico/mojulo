@@ -11,7 +11,8 @@
  *   artPalette(contract)             → a room stage's `art.palette` ramps and torch (era/art-direction.js)
  *   toneRamps(contract, names)       → a stage tone's ramps by the preset's own names, and where its middle light sits (era/tone.js)
  *   pixelPalette(contract, budget)   → a pixelizer palette at a register's budget (3 / 15 / 61 colours, darkest roles first)
- *   lookCard(card, contract)         → a sixth-gen reference card (era/sixth-gen.js) in the palette: its palette, light and air
+  *   lookCard(card, contract)         → a sixth-gen reference card (era/sixth-gen.js) in the palette: its palette, light and air
+ *   natureColours(contract)          → a nature or jungle stage's `palette` data (color-theorist/recolour.js reads it)
  *
  * Pure.
  */
@@ -138,5 +139,18 @@ export function lookCard(card, K) {
     palette: { base: K.roles.ground[2], accent: K.roles.accent[2], warm: K.light },
     light: { ...card.light, ambient: rgbToHex(oklch(K.read.key === 'low' ? 0.32 : 0.62, 0.06, mixHue(skyH, sh, 0.5))), ...(card.light.key ? { key: { ...card.light.key, color: K.light } } : {}) },
     air: { ...card.air, fog: { ...card.air.fog, color: K.fog }, dome: { zenith: rgb(K.roles.sky[1]), horizon: rgb(K.roles.sky[4]) } },
+  };
+}
+
+/** A nature or jungle stage's palette, as the data its builder reads (color-theorist/recolour.js): each role's middle
+ * stop, the water the sky sunk, the light, the fill, the fog, the sky's zenith and horizon, the key. */
+export function natureColours(K) {
+  const [, , skyH] = lchOf(hexToRgb(K.roles.sky[2])), [, , sh] = lchOf(hexToRgb(K.shadow));
+  const mid = (r) => K.roles[r][2];
+  return {
+    palette: K.id, key: K.read.key,
+    roles: { ground: mid('ground'), soil: mid('soil'), rock: mid('rock'), foliage: mid('foliage'), bark: mid('bark'), accent: mid('accent'), far: mid('far'), water: rgbToHex(rampNear(K, 'sky', 5, 0, { dL: -0.3 })[2]) },
+    light: K.light, ambient: rgbToHex(oklch(K.read.key === 'low' ? 0.5 : 0.72, 0.07, mixHue(skyH, sh, 0.5))), fog: K.fog,
+    sky: { zenith: hexToRgb(K.roles.sky[1]), horizon: hexToRgb(K.roles.sky[4]) },
   };
 }

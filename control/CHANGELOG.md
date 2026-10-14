@@ -69,6 +69,17 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
   - On an isekai kit the ground's starting tints (grass, trail, scree, crowns, wood) now come from the ramps the
     palette made, so the ground is painted in them rather than pulled onto them.
   - Heights are never touched, and a terrain world without a palette is byte-identical.
+- **Nature and jungle kits** (`trail-valley`, `jungle-trail`) take a palette. They colour by multiplying coloured
+  tiles and cards by tints, so ramps can't reach them. Instead, every surface keeps its own lightness (so the card's
+  value laws still hold) and takes the hue and chroma of the role it plays:
+  - the trail takes the soil, the meadow the ground, cliffs and scree the rock, boughs and leaves the foliage, wood the
+    bark, the blazes the accent, and the far ridges the far layers;
+  - a tiled face or card wears its new `even:` greyscale twin (its median at one level), so its tint lands on the colour
+    it names (`era/tone.js` `greyTwin`, `color-theorist/recolour.js`);
+  - the sun, fill, haze and sky are the palette's, and the jungle's warm-green grade goes neutral.
+
+  A stage's `palette` is solved into this data when the stage is written. A palette world on these kits keeps its kit
+  and hands its stages the palette. Without one, the kits are as they were.
 - **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
   only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
   gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the

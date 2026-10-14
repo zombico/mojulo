@@ -7,7 +7,10 @@ import { stampWorldPalette, stampInteriorPalette, stampLookPalette } from './sta
 import { resolveLookSpec } from '../era/look.js';
 import { terrainField } from '../terrain/terrain-field.js';
 import { atlasField, ATLAS_CLIMATES } from '../terrain/terrain-atlas.js';
-import { stampTerrainPalette } from './stamp.js';
+import { stampTerrainPalette, resolveStagePalette } from './stamp.js';
+import { recolourFaces, recolourCard, roleOf } from './recolour.js';
+import { natureColours } from './adapters.js';
+import { assembleNatureScene } from '../era/nature.js';
 import { SIXTH_GEN_LOOK_IDS } from '../era/sixth-gen.js';
 import { compileInterior, interiorErrors } from '../interior/compile.js';
 import { STYLE_CARDS } from '../interior/styles.js';
@@ -282,5 +285,50 @@ describe('the ground in a palette', () => {
     expect(stampTerrainPalette({ kind: 'terrain', palette: 'auto' }, () => 5).palette).toEqual({ seed: 5 });
     const m = { kind: 'terrain', from: {} };
     expect(stampTerrainPalette(m, () => 5)).toBe(m);
+  });
+});
+
+describe('a nature kit in a palette', () => {
+  const P = { from: { seed: 7, key: 'mid' }, ...natureColours(solvePalette({ seed: 7, key: 'mid' })) };
+  it('a face keeps its lightness and takes its role\'s hue; a tiled face wears its even twin; a card stays a card', () => {
+    const faces = [
+      { group: 'trail:ground', texture: 'soil-dirt', tint: [1.4, 1.3, 1.06] },
+      { group: 'trail:rock', tint: [0.6, 0.55, 0.5] },
+      { group: 'trail:bough', texture: 'card:bough', tint: [0.9, 1, 0.9] },
+      { group: 'trail:shadow', tint: [0, 0, 0] },
+    ];
+    const [trail, rock, bough, shadow] = recolourFaces(faces, P);
+    expect(trail.texture).toBe('even:soil-dirt');
+    expect(bough.texture).toBe('even:card:bough');
+    expect(shadow).toBe(faces[3]);
+    expect(roleOf(trail)).toBe('soil'); expect(roleOf(bough)).toBe('foliage'); expect(roleOf(rock)).toBe('rock');
+    const L = (t) => lchOf(t.map((v) => v * 255))[0];
+    expect(Math.abs(L(rock.tint) - L(faces[1].tint))).toBeLessThan(0.02);
+    expect(Math.abs(((lchOf(rock.tint.map((v) => v * 255))[2] - lchOf(hexToRgb(P.roles.rock))[2] + 540) % 360) - 180)).toBeLessThan(12);
+  });
+  it('a trail-valley stage in a palette builds; its sky and sun are the palette\'s; without one it is as it was', () => {
+    const plain = assembleNatureScene({ style: 'nature-trail' }, { unshaded: true });
+    const worn = assembleNatureScene({ style: 'nature-trail', palette: P }, { unshaded: true });
+    expect(worn.faces.length).toBe(plain.faces.length);
+    expect(worn.sky.zenith).toEqual(P.sky.zenith);
+    expect(worn.faces.some((f) => typeof f.texture === 'string' && f.texture.startsWith('even:card:'))).toBe(true);
+    expect(worn.cutouts.every((k) => /^(even:)?card:/.test(k))).toBe(true);
+    expect(JSON.stringify(assembleNatureScene({ style: 'nature-trail' }, { unshaded: true }).faces.slice(0, 50))).toBe(JSON.stringify(plain.faces.slice(0, 50)));
+    expect(recolourCard({ light: { key: {} }, air: { fog: {}, dome: {} }, grade: { tint: [1.02, 1, 0.86], lift: [0.03, 0.04, 0.02] } }, P).grade.tint).toEqual([1, 1, 1]);
+  });
+  it('solved where it is written; a room kit refuses a stage palette and says where its palette goes', () => {
+    const m = resolveStagePalette({ kind: 'stage', kit: 'trail-valley', palette: { heat: 0.5 } }, () => 9);
+    expect(m.palette.from).toEqual({ heat: 0.5, seed: 9 });
+    expect(Object.keys(m.palette.roles)).toEqual(expect.arrayContaining(['ground', 'soil', 'rock', 'foliage', 'bark', 'accent']));
+    expect(resolveStagePalette(m, () => 1)).toBe(m);
+    expect(() => resolveStagePalette({ kind: 'stage', kit: 'gothic-stone', palette: { seed: 1 } })).toThrow(/art: \{ palette: \{ from \} \}/);
+  });
+  it('a palette world on trail-valley keeps its kit and hands its stages the palette', () => {
+    const W = { ...MEADOWMARK, style: { ...MEADOWMARK.style, kit: 'trail-valley', palette: { seed: 7, key: 'mid' } } };
+    const G = readGameworld(W);
+    expect(G.style.kit).toBe('trail-valley');
+    expect(G.style.colours).toMatchObject({ painted: true, base: 'trail-valley' });
+    const st = gameStages(W).find((s) => s.manifest?.kind === 'stage' && s.manifest.kit === 'trail-valley');
+    expect(st.manifest.palette).toEqual(P);
   });
 });

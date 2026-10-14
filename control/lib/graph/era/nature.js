@@ -40,6 +40,7 @@ import { axisChains, tubeTris, barkQuads } from '../vegetation/tree-mesh.js';
 import { barkTile } from '../vegetation/tiles.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
+import { recolourCard, recolourFaces } from '../color-theorist/recolour.js';
 
 export const NATURE_STYLES = Object.freeze({ 'nature-trail': NATURE_TRAIL });
 
@@ -49,7 +50,8 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 /** A quad's facet normal (from its diagonals), turned to face `toward`. */
-const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
+// (a card recoloured by a palette wears its even twin: color-theorist/recolour.js)
+const isCard = (f) => typeof f.texture === 'string' && /^(even:)?card:/.test(f.texture);
 const facet = (c, toward) => { const n = unit(cross(sub(c[2], c[0]), sub(c[3], c[1]))); return n[0] * toward[0] + n[1] * toward[1] + n[2] * toward[2] < 0 ? n.map((v) => -v) : n; };
 
 /**
@@ -675,8 +677,11 @@ export function puddleFaces(st, site, spots) {
 
 /** manifest → World payload, for a stage whose kit is a nature kit. */
 export function assembleNatureScene(manifest = {}, ctx = {}) {
-  const st = NATURE_STYLES[manifest.style || 'nature-trail'];
-  if (!st) throw new Error(`stage: unknown nature style '${manifest.style}' (known: ${Object.keys(NATURE_STYLES).join(', ')})`);
+  const st0 = NATURE_STYLES[manifest.style || 'nature-trail'];
+  if (!st0) throw new Error(`stage: unknown nature style '${manifest.style}' (known: ${Object.keys(NATURE_STYLES).join(', ')})`);
+  // a palette (color-theorist: the stage's `palette`, solved where it was written): the card's light and air, and every
+  // surface's colour at its own lightness. Absent ⇒ the card as written.
+  const P = manifest.palette && manifest.palette.roles ? manifest.palette : null, st = P ? recolourCard(st0, P) : st0;
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   // a recipe's `trail` (out-trail.js) builds the site from the trail grammar; absent, the style's own trail
   // ground a stage's buildings have claimed (`_keepOut`, era/reserve.js): planned before anything grows
@@ -701,13 +706,15 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
     const d = f.normal[0] * dir[0] + f.normal[1] * dir[1] + f.normal[2] * dir[2], n = d < 0 ? f.normal.map((v) => -v) : f.normal, lift = 1 + (st.light.leafLift || 0);
     return { ...f, normal: n, outNormal: n, tint: f.tint.map((v) => v * lift) };
   });
+  const worn = P ? recolourFaces(faced, P) : faced;
   const lit = ctx.unshaded
-    ? faced.map(({ tint, cls, ax, ...f }) => ({ ...f, fill: rgbHex(tint) }))
-    : bakeStageLight(faced, [], ambient, natureMarks(st, site, dir, seed, trees, puddles), sun).map(({ cls, detail, ax, ...f }) => f);
+    ? worn.map(({ tint, cls, ax, ...f }) => ({ ...f, fill: rgbHex(tint) }))
+    : bakeStageLight(worn, [], ambient, natureMarks(st, site, dir, seed, trees, puddles), sun).map(({ cls, detail, ax, ...f }) => f);
   const decals = contactShadows(st, site, trees, rocks);
   const y0 = 2.5, x0 = site.trailX(y0), y1 = 28, x1 = site.trailX(y1);
   const eye = [x0, y0, site.ground(x0, y0) + 1.7];
-  const faces = [...lit, ...decals, ...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...ridgeFaces(st, site)];
+  const after = [...puddleFaces(st, site, puddles), ...(site.out ? streamFaces(site, st) : []), ...ridgeFaces(st, site)];
+  const faces = [...lit, ...decals, ...(P ? recolourFaces(after, P) : after)];
   // the trail's boundary (out-bounds.js): a painted panel, a mirrored band
   if (site.out) faces.push(...boundFaces(site, site.bounds, faces, st, seed));
   const cutouts = [...new Set(faces.filter(isCard).map((f) => f.texture))].sort();

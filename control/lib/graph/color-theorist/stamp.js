@@ -14,13 +14,15 @@
  *   resolveTonePalette(manifest, fresh) → a stage whose `tone` is { preset?, from: spec } given the preset's ramps, solved
  *   stampLookPalette(manifest, fresh) → a world whose `look.palette` has no seed given one
  *   stampTerrainPalette(manifest, fresh) → a terrain world whose `palette` has no seed given one
+ *   resolveStagePalette(manifest, fresh) → a nature or jungle stage's `palette` spec solved into the data its builder reads
  *   freshPaletteSeed()
  *
  * `fresh` is injectable for tests.
  */
 import { randomInt } from 'node:crypto';
 import { readPaletteSpec, solvePalette } from './solve.js';
-import { artPalette, toneRamps } from './adapters.js';
+import { artPalette, toneRamps, natureColours } from './adapters.js';
+import { stageKit } from '../era/stage.js';
 import { TONE_PRESETS } from '../era/tone.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -91,4 +93,17 @@ export function stampTerrainPalette(manifest, fresh = freshPaletteSeed) {
   const p = manifest.palette;
   if (!(p === 'auto' || (isObj(p) && p.seed === undefined))) return manifest;
   return { ...manifest, palette: { ...(isObj(p) ? p : {}), seed: fresh() } };
+}
+
+/** A nature or jungle stage's `palette` (a pick_palette spec): solved here, at authoring time, into the data its builder
+ * reads (color-theorist/recolour.js), with what it came from. A palette already solved (it carries `roles`) is left. */
+export function resolveStagePalette(manifest, fresh = freshPaletteSeed) {
+  if (!isObj(manifest) || manifest.kind !== 'stage' || manifest.palette === undefined || manifest.palette === false) return manifest;
+  if (isObj(manifest.palette) && isObj(manifest.palette.roles)) return manifest;
+  if (!['nature', 'jungle'].includes(stageKit(manifest.kit)?.shell)) throw new Error(`stage: palette is for the open-ground kits painted by their cards (trail-valley, jungle-trail); a room kit takes art: { palette: { from } } or tone: { from }, an isekai kit a gameworld's style.palette`);
+  let spec = readPaletteSpec(isObj(manifest.palette) && manifest.palette.from !== undefined ? manifest.palette.from : manifest.palette, 'palette');
+  if (spec === 'auto') spec = {};
+  if (spec.seed === undefined) spec = { ...spec, seed: fresh() };
+  const K = solvePalette(spec);
+  return { ...manifest, palette: { from: K.spec, ...natureColours(K) } };
 }

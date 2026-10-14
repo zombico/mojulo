@@ -153,14 +153,20 @@ export function decodePng(url) {
   return { px, W, H, alpha: ch === 2 || ch === 4 };
 }
 
-/** A tile's greys: its luminance as is ('value'), or divided by its own light level so only what is darker than the
- *  tile's face stays ('shade': the joints, the shadow, the pits; the faces read flat). → a greyscale PNG data URL. */
+/** A tile's greys: its luminance as is ('value'); divided by its own light level so only what is darker than the
+ *  tile's face stays ('shade': the joints, the shadow, the pits; the faces read flat); or scaled so its median sits at
+ *  EVEN_LEVEL ('even': every tile one level, so a tint over it lands on the colour it names). → a greyscale PNG data URL. */
 export function greyTwin(url, mode) {
   const d = decodePng(url);
   if (!d) return null;
   const n = d.W * d.H, g = new Float32Array(n);
   for (let i = 0; i < n; i++) g[i] = lum([d.px[i * 4], d.px[i * 4 + 1], d.px[i * 4 + 2]]);
   let scale = 1;
+  if (mode === 'even') {
+    const vals = []; for (let i = 0; i < n; i++) if (d.px[i * 4 + 3] > 127) vals.push(g[i]);
+    vals.sort((a, b) => a - b);
+    scale = vals.length ? (EVEN_LEVEL * 255) / Math.max(1, vals[Math.floor(vals.length / 2)]) : 1;
+  }
   if (mode === 'shade') {
     // the face's level: the 70th percentile of the opaque texels (the joints and pits are the darker few)
     const vals = []; for (let i = 0; i < n; i++) if (d.px[i * 4 + 3] > 127) vals.push(g[i]);
@@ -173,8 +179,10 @@ export function greyTwin(url, mode) {
   return `data:image/png;base64,${encodePngGrey(out, d.W, d.H, alpha).toString('base64')}`;
 }
 
+/** Where an 'even' twin's median sits (0…1). */
+export const EVEN_LEVEL = 0.78;
 const twins = new Map();
-for (const mode of ['value', 'shade']) {
+for (const mode of ['value', 'shade', 'even']) {
   registerTextureResolver(`${mode}:`, (key) => {
     if (!twins.has(key)) twins.set(key, greyTwin(surfaceTexture(key.slice(mode.length + 1)), mode));
     return twins.get(key);

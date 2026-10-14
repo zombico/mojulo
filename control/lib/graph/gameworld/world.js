@@ -76,7 +76,7 @@ import { craftTech } from './tech-crafter.js';
 import { readTechDirection, USES_BY_LIST } from './tech-direction.js';
 import { INTEREST } from '../playscape/objects/laws.js';
 import { composeLook } from './tunnel-land.js';
-import { readPaletteSpec } from '../color-theorist/solve.js';
+import { readPaletteSpec, solvePalette } from '../color-theorist/solve.js';
 import { paletteLook } from '../color-theorist/look.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
@@ -267,6 +267,12 @@ const lookFor = (look, base, seed, name) => {
 };
 /** A palette on a kit (color-theorist/look.js): the kit id the recoloured look registers under, and what it read. */
 const paletteFor = (spec, base, name) => {
+  // a nature or jungle kit is painted by its card, not by ramps: its kit stays, and its stages carry the palette
+  // (levels.js; color-theorist/recolour.js)
+  if (['nature', 'jungle'].includes(stageKit(base)?.shell)) {
+    const K = solvePalette(spec === 'auto' ? {} : spec);
+    return { colours: { palette: K.id, base, scheme: K.read.scheme, key: K.read.key, painted: true } };
+  }
   const P = once(JSON.stringify(['p', spec, base, name]), () => {
     try { return paletteLook(spec === 'auto' ? {} : spec, { base, name }); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
   });
