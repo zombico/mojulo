@@ -13,6 +13,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Color theorist: a palette solved for what a world is
+
+Every unnamed world used to land on the same meadow and every game on the same navy HUD. A palette is now solved
+by colour theory from what a world is trying to be, and one solve colours the land, the game's HUD and a cover. The
+order is the art director's: value first (a key), then a chroma budget, then how the hues relate (a scheme), then
+ramps that lean toward a warm light and a cool shadow, then checks. Stock kits are where it starts: a palette
+recolours a kit (or a look composed from words) and keeps its ramp lengths, tiles, grammar, flora and air.
+
+- **`pick_palette`** (game pack): the agent reads the world's words into heat (cool … warm), weight (light … heavy)
+  and activity (calm … active), and may add a scheme (analogous, complementary, split-complementary, triad, tetrad,
+  mono-accent, duotone), a key, a hue, per-role hues or a locked colour. Anything left out is rolled from the seed.
+  It returns the spec to pass on, role ramps, light/shadow/fog, HUD tokens, cover colours and the checks. `variants`
+  returns several palettes from consecutive seeds to choose between. Nothing is stored.
+- **The kernel is `lib/graph/color-theorist/`**:
+  - `oklab.js`: OKLab/OKLCH, gamut mapping by chroma, WCAG 2 and APCA contrast, colour-vision simulation.
+  - `solve.js`: the spec, the solve and the laws (ramps climb, shade is a colour, the sky is brightest, the accent is
+    unique, it reads in grey, HUD contrast, colour-blind eyes, few hue families, no clichés, not a stock kit). Seeded
+    candidates are scored by the laws and their distance from the shipped kits.
+  - `adapters.js`: a game theme, cover colours, a kit's swatches at its own ramp lengths, the card's light.
+  - `look.js`: a palette on a kit, through the land tunnel's own domain and laws, registered as a look.
+  - `stamp.js`: settles the palette at authoring time.
+- **A gameworld's `style.palette`** (a level's too) recolours the kit or look, and its game's HUD comes from the same
+  palette. A new gameworld that names no kit, look or geocube (and isn't a quick game) gets a palette rolled when it
+  is written, the way a stage's `art` is. Re-sending the same recipe or editing it keeps that palette. A world made
+  before this change never gains one by being edited. `palette: false` keeps the kit's own colours.
+- **`create_game` takes `palette`**, and its HUD tokens sit under `theme`'s own. A game minted with neither gets a
+  palette solved from its ref, not the stock HUD. A design_game remake keeps the theme the game was minted with.
+- **`create_cover`'s `palette`** takes a spec beside `{ bg, accent, ink }`. Left out, one is solved for the cover;
+  `false` keeps the stock cover colours.
+- **The stored thing is the spec**, and the solver's output for a spec is a compatibility promise (pinned by
+  `color-theorist.char.test.js`). Recipes that name a kit, look, theme or cover palette render as before.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

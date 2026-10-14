@@ -238,6 +238,8 @@ export const TOOL_ANNOTATIONS = {
   design_game: ['Design and make a game', DESTRUCTIVE],
   // previews unless `apply`; applied, it sets one level's ground (the same call again changes nothing)
   tune_ground: ['Tune a level\'s ground', DESTRUCTIVE_IDEMPOTENT],
+  // solves and answers; stores nothing
+  pick_palette: ['Pick a palette', READ],
   create_game: ['Create a game', ADDITIVE],
   get_game_vocab: ['Game vocabulary cards', READ],
   get_play_vocab: ['Play vocabulary cards', READ],

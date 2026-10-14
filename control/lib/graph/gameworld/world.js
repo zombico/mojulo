@@ -76,6 +76,8 @@ import { craftTech } from './tech-crafter.js';
 import { readTechDirection, USES_BY_LIST } from './tech-direction.js';
 import { INTEREST } from '../playscape/objects/laws.js';
 import { composeLook } from './tunnel-land.js';
+import { readPaletteSpec } from '../color-theorist/solve.js';
+import { paletteLook } from '../color-theorist/look.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
@@ -107,10 +109,12 @@ export const WORLD_STYLE = Object.freeze({
   meru: 'how a climb is built: its preset',
   land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
   weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
-  geocube: 'a geocube that paints the level once (era/geocube.js): its look on every section naming no kit; the level\'s keys win',
+  geocube: 'a geocube that paints the level once: its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
+  // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
+  palette: 'pick_palette\'s spec, or false',
 });
 /** A civilization: what it builds, and how. */
 export const CIVILIZATION = Object.freeze({
@@ -186,6 +190,7 @@ function readStyle(s, at) {
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
+    else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
     else out[k] = v;
@@ -257,8 +262,24 @@ const once = (key, fn) => { if (!TUNNELS.has(key)) { if (TUNNELS.size > 256) TUN
 /** A look from words, on a base kit: the kit id it registers under, and what its tunnel did. */
 const lookFor = (look, base, seed, name) => {
   const L = once(JSON.stringify(['l', look, base, seed, name]), () => composeLook(look.intent, { seed: look.seed ?? seed, base, name }));
+  composedFrom(L.id, base, { look: look.intent, seed: look.seed ?? seed, base, name });
   return { kit: L.id, look: { ...look, base: L.base, id: L.id, tunnel: logOf(L.record) } };
 };
+/** A palette on a kit (color-theorist/look.js): the kit id the recoloured look registers under, and what it read. */
+const paletteFor = (spec, base, name) => {
+  const P = once(JSON.stringify(['p', spec, base, name]), () => {
+    try { return paletteLook(spec === 'auto' ? {} : spec, { base, name }); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
+  });
+  composedFrom(P.id, base, { palette: spec === 'auto' ? {} : spec, base, name });
+  return { kit: P.id, colours: { palette: P.contract.id, look: P.id, base: P.base, scheme: P.contract.read.scheme, key: P.contract.read.key, laws: P.laws.filter((l) => !l.ok).map((l) => l.law), tweaks: P.tweaks } };
+};
+// THE RECIPES of the looks a world composed, by the kit id each registers under: a stored stage names its kit by id, and
+// the look registry is the process's own, so a stage drawn in a palette carries the chain that composes its kit again
+// (`looks`, read by the scene: color-theorist/look.js ensureLooks). Content-addressed like the registry.
+const COMPOSED = new Map();
+function composedFrom(id, base, recipe) { if (!COMPOSED.has(id)) COMPOSED.set(id, [...(COMPOSED.get(base) ?? []), { id, ...recipe }]); }
+/** The recipes that compose a kit id, base first, when the world composed it with a palette (else null). */
+export const looksOfKit = (id) => { const chain = COMPOSED.get(id); return chain?.some((r) => r.palette !== undefined) ? chain : null; };
 /** What a tunnel did, for the bible and the graph: the traits it read, its passes, its gaps. */
 const logOf = (r) => ({ intent: r.intent, seed: r.seed, traits: r.read.traits.map((t) => t.id), unread: r.read.unread, passes: r.passes.length, tweaks: r.passes.flatMap((p) => p.changed ?? []), gaps: r.gaps.map(({ trait, why, proposal }) => ({ trait, why, proposal })), held: r.held, complete: r.complete });
 // a civilization's tunnels: its building language from its words, its things from theirs, in its library
@@ -345,6 +366,8 @@ export function readGameworld(W) {
   civ(style.civilization, 'style.civilization');
   // a look in words is tunnelled from the kit it names (or the meadow) into a look of its own, drawn as a kit is
   if (style.look) Object.assign(style, lookFor(style.look, style.kit, seed, W.id));
+  // a palette recolours the kit the world is drawn in (or the look its words composed): the stock kit is its start
+  if (style.palette) Object.assign(style, paletteFor(style.palette, style.kit, W.id));
   // what a civilization says in words is tunnelled through its blocks, on the world's kit
   for (const id of civIds) if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, style.kit, seed);
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
@@ -398,6 +421,7 @@ export function readGameworld(W) {
     if (L.seed !== undefined && !Number.isFinite(L.seed)) throw new Error(`gameworld: ${at}.seed is a number`);
     const st = readStyle(L.style, `${at}.style`);
     if (st.look) Object.assign(st, lookFor(st.look, st.kit ?? style.kit, seed, `${W.id}-${id}`));
+    if (st.palette) Object.assign(st, paletteFor(st.palette, st.kit ?? style.kit, `${W.id}-${id}`));
     if (st.civilization !== undefined) civ(st.civilization, `${at}.style.civilization`);
     if (L.places !== undefined) {
       if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle?, buildings? }`);

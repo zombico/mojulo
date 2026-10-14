@@ -19,7 +19,7 @@
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
-import { readGameworld, resolveLevel } from './world.js';
+import { readGameworld, resolveLevel, looksOfKit } from './world.js';
 import { layLevel } from '../level/index.js';
 import { assembleStageScene, planStage } from '../era/stage.js';
 import { withGeocube } from '../era/geocube.js';
@@ -74,7 +74,9 @@ export function gameStages(world) {
       const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
       // a loop's track: nothing grows on it (era/reserve.js)
       const keep = R.loop && first ? { _keepOut: R.loop.keep } : {};
-      const manifest = here.length || street || keep._keepOut ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep } : s.manifest;
+      // a stage drawn in a palette carries the recipes that compose its kit (the look registry is the process's own)
+      const looks = s.manifest?.kit ? looksOfKit(s.manifest.kit) : null;
+      const manifest = here.length || street || keep._keepOut || looks ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep, ...(looks ? { looks } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });

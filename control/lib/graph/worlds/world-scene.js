@@ -131,6 +131,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
   }
 
+  // a stage drawn in a composed look (a gameworld's palette) carries the recipes that make it: composed here, once per
+  // process, before anything reads its kit (color-theorist/look.js). Absent `looks` ⇒ byte-identical.
+  if (Array.isArray(sketch.manifest?.looks)) {
+    const { ensureLooks } = await import('@/lib/graph/color-theorist/look.js');
+    ensureLooks(sketch.manifest.looks);
+  }
+
   // a city segment's level reads its city by ref (city/plan/ref.js): merged before it is lowered as a level; and a city's
   // sites read the edifices they stand by ref the same way
   if (sketch.manifest?.kind === 'city' && (typeof sketch.manifest.city === 'string' || (sketch.manifest.sites || []).some((x) => x && typeof x.from === 'string'))) {

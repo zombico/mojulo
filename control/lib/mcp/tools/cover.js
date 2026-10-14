@@ -19,6 +19,22 @@ import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { normalizeCoverManifest, coverRenderTargets } from '@/lib/graph/image-outcomes/cover-manifest';
 import { renderCoverSvg } from '@/lib/graph/image-outcomes/cover-preview';
 import { checkUploadedArt, readUploadFrom } from '@/lib/graph/image-outcomes/cover-upload';
+import { readPaletteSpec, solvePalette } from '@/lib/graph/color-theorist/solve.js';
+import { coverPalette } from '@/lib/graph/color-theorist/adapters.js';
+import { freshPaletteSeed } from '@/lib/graph/color-theorist/stamp.js';
+import { seedOfRef } from '@/lib/graph/beats/field-cue';
+
+const COVER_TOKENS = ['bg', 'accent', 'ink'];
+/** The cover's colours: its own { bg, accent, ink } as given; else a palette solved (color-theorist) from the spec
+ * given, or rolled for this cover (its ref's when it has one); false keeps the stock cover colours. */
+function coverColours(palette, ref) {
+  if (palette === false) return null;
+  if (palette && typeof palette === 'object' && COVER_TOKENS.some((k) => k in palette)) return palette;
+  let spec = palette === undefined ? {} : readPaletteSpec(palette, 'palette');
+  if (spec === 'auto') spec = {};
+  if (spec.seed === undefined) spec = { ...spec, seed: ref ? (seedOfRef(ref) % 2147483646) + 1 : freshPaletteSeed() };
+  return coverPalette(solvePalette(spec));
+}
 
 export function createCoverHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_cover requires { title }');
@@ -55,9 +71,10 @@ export function createCoverHandler(input) {
     throw new Error("`title_realizer` must be 'painted', 'carved', or 'flat'");
   }
 
+  const colours = coverColours(palette, ref);
   const artDirection = {
     ...(renderBrief ? { renderBrief } : {}),
-    ...(palette ? { palette } : {}),
+    ...(colours ? { palette: colours } : {}),
     type: { ...(titleFont ? { titleFont } : {}), ...(textFont ? { textFont } : {}) },
     composition: { ...(archetype ? { archetype } : {}) },
     ...(relationship ? { relationship } : {}),
@@ -152,7 +169,7 @@ export function registerCoverTools() {
         metadata: { type: 'array', description: 'Explicit metadata [{ kind, value }] (kinds: barcode, note; a game: studio). Overrides isbn/note.', items: { type: 'object' } },
         illustration_brief: { description: 'The illustration subject/style — a string (subject) or an object { subject?, style?, camera? }.' },
         archetype: { type: 'string', description: 'Layout family: full-bleed-overlay | framed-below; a game: logo-center | lower-third | hero-side (else seeded by for_kind).' },
-        palette: { type: 'object', description: 'Cover palette { bg, accent, ink } (#hex).', properties: { bg: { type: 'string' }, accent: { type: 'string' }, ink: { type: 'string' } } },
+        palette: { description: "Cover palette: { bg, accent, ink } (#hex), or a palette spec solved for what the book or game is (pick_palette: { seed, heat?, weight?, activity?, scheme?, … }). Left out, one is rolled for the cover; false keeps the stock cover colours." },
         title_font: { type: 'string', description: 'Font-shelf key for the title (e.g. im-fell, archivo-black, great-vibes).' },
         text_font: { type: 'string', description: 'Font-shelf key for subtext (e.g. inter).' },
         title_realizer: { type: 'string', description: "How the title becomes pixels: 'painted' (default), 'carved', or 'flat'." },

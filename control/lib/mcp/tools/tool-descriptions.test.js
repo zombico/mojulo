@@ -386,7 +386,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-14 (207_600 -> 209_900; measured 209,677) for 1014-interior-designer merged over the shoot plan:
 // design_interior, the interior designer's door in the building pack (one new listed tool, its schema trimmed to names
 // and shapes; on its branch it measured +2,279 over its base).
-const PAYLOAD_CEILING = 209_900;
+// Re-pinned 2026-10-14 (209_900 -> 212_600; measured 212,339) for the color theorist: one new tool, pick_palette (a palette
+// solved for what a world is: key, chroma, scheme, ramps, checks), and a `palette` on create_game (the HUD solved
+// under the theme) and create_cover (a spec beside the { bg, accent, ink } it took).
+const PAYLOAD_CEILING = 212_600;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');
