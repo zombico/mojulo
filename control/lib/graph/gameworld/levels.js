@@ -77,7 +77,7 @@ export function gameStages(world) {
       const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
       // a loop's track: nothing grows on it (era/reserve.js)
       const keep = R.loop && first ? { _keepOut: R.loop.keep } : {};
-      // a stage drawn in a palette carries the recipes that compose its kit (the look registry is the process's own)
+      // a stage drawn in a composed look carries the recipes that compose its kit (the look registry is the process's own)
       const looks = s.manifest?.kit ? looksOfKit(s.manifest.kit) : null;
       const manifest = here.length || street || keep._keepOut || looks ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep, ...(looks ? { looks } : {}) } : s.manifest;
       const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}) };

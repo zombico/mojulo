@@ -62,6 +62,12 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
     palette and the stage (the same on every run), in the world's palette.
   - `pick_palette` answers `pixel` palettes at the 8bit and 16bit budgets, and `create_pixelizer_game` takes a
     `palette` for its accents.
+- **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
+  only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
+  gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the
+  scene composes them again before it reads the kit. This covers worlds with look words and no palette too. The level
+  rows of a stored world with `style.look` print differently, so its next `design_game` run remakes them once, in place
+  (a level edited by hand is left as it is, and stays without `looks` until `force`).
 
 ### Shoot plan: a keyframed camera you can see in the world
 

@@ -131,7 +131,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
   }
 
-  // a stage drawn in a composed look (a gameworld's palette) carries the recipes that make it: composed here, once per
+  // a stage drawn in a composed look (a gameworld's look words or palette) carries the recipes that make it: composed here, once per
   // process, before anything reads its kit (color-theorist/look.js). Absent `looks` ⇒ byte-identical.
   if (Array.isArray(sketch.manifest?.looks)) {
     const { ensureLooks } = await import('@/lib/graph/color-theorist/look.js');

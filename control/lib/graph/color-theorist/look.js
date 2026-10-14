@@ -44,8 +44,9 @@ export function paletteLook(spec, { base = 'isekai-meadow', name } = {}) {
 
 /**
  * The looks a stored stage is drawn in, composed again where they are missing: the registry is the process's own, so
- * a stage minted from a palette world carries the chain that makes its kit (`manifest.looks`, base first). Each must
- * come back under the id it was stored with, or the stage says so rather than draw in some other colours.
+ * a stage minted from a world with a composed look (words, a palette, or both) carries the chain that makes its kit
+ * (`manifest.looks`, base first). Each must come back under the id it was stored with, or the stage says so rather
+ * than draw in some other colours.
  */
 export function ensureLooks(chain) {
   if (!Array.isArray(chain)) return;

@@ -274,12 +274,13 @@ const paletteFor = (spec, base, name) => {
   return { kit: P.id, colours: { palette: P.contract.id, look: P.id, base: P.base, scheme: P.contract.read.scheme, key: P.contract.read.key, laws: P.laws.filter((l) => !l.ok).map((l) => l.law), tweaks: P.tweaks } };
 };
 // THE RECIPES of the looks a world composed, by the kit id each registers under: a stored stage names its kit by id, and
-// the look registry is the process's own, so a stage drawn in a palette carries the chain that composes its kit again
-// (`looks`, read by the scene: color-theorist/look.js ensureLooks). Content-addressed like the registry.
+// the look registry is the process's own, so a stage drawn in a composed look (from words, a palette, or both) carries
+// the chain that composes its kit again (`looks`, read by the scene: color-theorist/look.js ensureLooks).
+// Content-addressed like the registry.
 const COMPOSED = new Map();
 function composedFrom(id, base, recipe) { if (!COMPOSED.has(id)) COMPOSED.set(id, [...(COMPOSED.get(base) ?? []), { id, ...recipe }]); }
-/** The recipes that compose a kit id, base first, when the world composed it with a palette (else null). */
-export const looksOfKit = (id) => { const chain = COMPOSED.get(id); return chain?.some((r) => r.palette !== undefined) ? chain : null; };
+/** The recipes that compose a kit id, base first, when the world composed it (else null: a written kit). */
+export const looksOfKit = (id) => COMPOSED.get(id) ?? null;
 /** What a tunnel did, for the bible and the graph: the traits it read, its passes, its gaps. */
 const logOf = (r) => ({ intent: r.intent, seed: r.seed, traits: r.read.traits.map((t) => t.id), unread: r.read.unread, passes: r.passes.length, tweaks: r.passes.flatMap((p) => p.changed ?? []), gaps: r.gaps.map(({ trait, why, proposal }) => ({ trait, why, proposal })), held: r.held, complete: r.complete });
 // a civilization's tunnels: its building language from its words, its things from theirs, in its library
