@@ -160,6 +160,23 @@ describe('mech-lib v2 — outputs (skipped when the WASM is not installed)', () 
     expect(flat.mode).toBe('as-written');
     expect(flat.size.w).toBeCloseTo(77, 0);
   });
+  wasm('bend lines mark the flat pattern without cutting it apart: one outer outline, the rest inside it', async () => {
+    // a U channel with two holes, sliced as export_model slices a scad row; the marks stop a tab short of each edge
+    const row = { source: 'linear_extrude(2) difference() { mj_sheet_flat(2, 2, 40, [[30, 90], [50, 90], [30, 0]], bend_lines = true); translate([15, 20]) circle(d = 5); translate([104, 20]) circle(d = 5); }' };
+    const dxf = await renderScad2d(row, { format: 'dxf', slice_z: 1 });
+    const loops = dxf.bytes.toString('utf8').split(/^\s*0\s*\n\s*LWPOLYLINE\s*$/m).slice(1).map((e) => {
+      const n = [...e.matchAll(/^\s*(10|20)\s*\n\s*(-?[\d.e+-]+)\s*$/gm)].map((m) => Number(m[2]));
+      const xs = n.filter((_, i) => i % 2 === 0), ys = n.filter((_, i) => i % 2 === 1);
+      return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+    });
+    expect(dxf.entities).toBe(5); // the outline, two holes, two bend marks
+    const outer = loops.filter((l) => l.x0 === 0 && l.y0 === 0 && l.y1 === 40);
+    expect(outer).toHaveLength(1);
+    expect(outer[0].x1).toBeCloseTo(119.048, 3); // 30 + 50 + 30 + 2 × π/2 × (2 + 0.44 × 2)
+    for (const l of loops.filter((x) => x !== outer[0])) expect(l.x0 > 0 && l.x1 < outer[0].x1 && l.y0 > 0 && l.y1 < 40).toBe(true);
+    const marks = loops.filter((l) => l.x1 - l.x0 < 0.3);
+    expect(marks.map((l) => [l.y0, l.y1])).toEqual([[2, 38], [2, 38]]);
+  });
   wasm('a plate draws as a DXF: a slice keeps every hole, a missed plane says so, a parts row needs a part', async () => {
     const plate = { source: 'difference(){ translate([-25,-25,0]) cube([50,50,5]); translate([0,0,5]) mj_nema_mount(17, 6); }' };
     const cut = await renderScad2d(plate, { format: 'dxf', slice_z: 2.5 });
