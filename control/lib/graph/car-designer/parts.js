@@ -89,26 +89,26 @@ export const PARTS = Object.freeze({
     ], ['tyre'], 'tyre') }),
 
   // engines: on the deck behind the seat (or the bonnet), their origin the foot of the block, front +y
-  single: row({ family: 'engine', fits: { engine: { exposed: 2 }, era: { vintage: 1, classic: 1 }, archetype: { everyman: 1, caregiver: 0.5, innocent: 0.5 } }, mount: 'deck', power: 7, provides: { stacks: [[0, '-d * 0.5', 'h * 0.6']] }, size: { w: 'D * 0.5', d: 'D * 0.4', h: 'D * 0.38' },
+  single: row({ family: 'engine', fits: { engine: { exposed: 2 }, era: { vintage: 1, classic: 1 }, archetype: { everyman: 1, caregiver: 0.5, innocent: 0.5 } }, mount: 'deck', power: 7.5, provides: { stacks: [[0, '-d * 0.5', 'h * 0.6']] }, size: { w: 'D * 0.5', d: 'D * 0.4', h: 'D * 0.38' },
     block: B('single', 'a single: one finned cylinder on a crankcase', { w: [0.1, 1], d: [0.1, 1], h: [0.1, 1] }, [
       { id: 'case', prim: 'box', role: 'body', size: ['w', 'd', 'h * 0.45'], group: 'tech:skin', value: 0.55 },
       { id: 'barrel', prim: 'drum', role: 'body', r: 'w * 0.26', h: 'h * 0.6', sides: 10, at: [0, 0, 'h * 0.4'], group: 'tech:trim', value: 0.65 },
       { id: 'fins', prim: 'drum', role: 'trim', r: 'w * 0.34', h: 0.025, sides: 10, at: [0, 0, 'h * 0.55'], repeat: { n: 4, step: [0, 0, 'h * 0.1'] }, group: 'tech:trim', value: 0.75 },
     ], ['case', 'barrel'], 'case') }),
-  twin: row({ family: 'engine', fits: { engine: { exposed: 2, oversized: 1 }, archetype: { outlaw: 1, explorer: 1, hero: 0.5 }, motif: { riveted: 1, spiked: 0.5 } }, mount: 'deck', power: 9, provides: { stacks: [['-w * 0.3', '-d * 0.5', 'h * 0.5'], ['w * 0.3', '-d * 0.5', 'h * 0.5']] }, size: { w: 'D * 0.66', d: 'D * 0.44', h: 'D * 0.46' },
+  twin: row({ family: 'engine', fits: { engine: { exposed: 2, oversized: 1 }, archetype: { outlaw: 1, explorer: 1, hero: 0.5 }, motif: { riveted: 1, spiked: 0.5 } }, mount: 'deck', power: 8.5, provides: { stacks: [['-w * 0.3', '-d * 0.5', 'h * 0.5'], ['w * 0.3', '-d * 0.5', 'h * 0.5']] }, size: { w: 'D * 0.66', d: 'D * 0.44', h: 'D * 0.46' },
     block: B('twin', 'a V-twin: two cylinders splayed on one case', { w: [0.34, 1.2], d: [0.3, 1], h: [0.34, 1.2] }, [
       { id: 'case', prim: 'box', role: 'body', size: ['w * 0.7', 'd', 'h * 0.42'], group: 'tech:skin', value: 0.55 },
       { id: 'cyl', prim: 'drum', role: 'body', r: 'w * 0.17', h: 'h * 0.62', sides: 10, at: ['-w * 0.24', 0, 'h * 0.36'], repeat: { n: 2, step: ['w * 0.48', 0, 0] }, group: 'tech:trim', value: 0.68 },
       { id: 'heads', prim: 'box', role: 'trim', size: ['w * 0.4', 'd * 0.5', 'h * 0.12'], at: ['-w * 0.24', 0, 'h * 0.92'], repeat: { n: 2, step: ['w * 0.48', 0, 0] }, group: 'tech:frame', value: 0.3 },
     ], ['case', 'cyl'], 'case') }),
-  bigblock: row({ family: 'engine', fits: { engine: { oversized: 3 }, archetype: { ruler: 1, hero: 1, outlaw: 1 }, era: { classic: 1 } }, mount: 'deck', power: 13, provides: { stacks: [['-w * 0.42', '-d * 0.3', 'h * 0.5'], ['w * 0.42', '-d * 0.3', 'h * 0.5']] }, size: { w: 'D * 0.8', d: 'D * 0.7', h: 'D * 0.5' },
+  bigblock: row({ family: 'engine', fits: { engine: { oversized: 3 }, archetype: { ruler: 1, hero: 1, outlaw: 1 }, era: { classic: 1 } }, mount: 'deck', power: 10, provides: { stacks: [['-w * 0.42', '-d * 0.3', 'h * 0.5'], ['w * 0.42', '-d * 0.3', 'h * 0.5']] }, size: { w: 'D * 0.8', d: 'D * 0.7', h: 'D * 0.5' },
     block: B('bigblock', 'a big block: a V8 with a blower and its scoop standing through the deck', { w: [0.2, 1.6], d: [0.2, 1.6], h: [0.19, 1.4] }, [
       { id: 'block', prim: 'box', role: 'body', size: ['w * 0.8', 'd', 'h * 0.6'], group: 'tech:skin', value: 0.55 },
       { id: 'banks', prim: 'box', role: 'body', size: ['w * 0.3', 'd * 0.92', 'h * 0.22'], at: ['-w * 0.3', 0, 'h * 0.5'], repeat: { n: 2, step: ['w * 0.6', 0, 0] }, group: 'tech:trim', value: 0.7 },
       { id: 'blower', prim: 'box', role: 'intake', size: ['w * 0.42', 'd * 0.62', 'h * 0.34'], at: [0, 0, 'h * 0.6'], group: 'tech:trim', value: 0.78 },
       { id: 'scoop', prim: 'box', role: 'intake', size: ['w * 0.34', 'd * 0.4', 'h * 0.26'], at: [0, 'd * 0.12', 'h * 0.94'], group: 'tech:body', value: 0.6 },
     ], ['block', 'blower'], 'block') }),
-  turbine: row({ family: 'engine', fits: { engine: { exposed: 1, oversized: 2 }, era: { future: 3 }, archetype: { creator: 1, magician: 1 } }, mount: 'deck', power: 11, provides: { stacks: [[0, '-d * 0.5', 'h * 0.5']] }, size: { w: 'D * 0.56', d: 'D * 0.8', h: 'D * 0.56' },
+  turbine: row({ family: 'engine', fits: { engine: { exposed: 1, oversized: 2 }, era: { future: 3 }, archetype: { creator: 1, magician: 1 } }, mount: 'deck', power: 9.5, provides: { stacks: [[0, '-d * 0.5', 'h * 0.5']] }, size: { w: 'D * 0.56', d: 'D * 0.8', h: 'D * 0.56' },
     block: B('turbine', 'a turbine: a drum with an intake ring and a tail cone', { w: [0.34, 1.2], d: [0.42, 1.6], h: [0.34, 1.2] }, [
       { id: 'drum', prim: 'drum', role: 'body', axis: 'y', r: 'h * 0.42', h: 'd * 0.8', sides: 14, at: [0, '-d * 0.4', 'h * 0.5'], group: 'tech:trim', value: 0.72 },
       { id: 'intake', prim: 'ring', role: 'intake', axis: 'y', r: 'h * 0.44', tube: 'h * 0.06', sides: 14, at: [0, 'd * 0.42', 'h * 0.5'], group: 'tech:frame', value: 0.35 },

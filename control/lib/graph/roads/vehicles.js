@@ -73,8 +73,11 @@ export const wheelPower = (v) => v.power * 1000 * DRIVELINE * (v.band ?? 0.75);
 /** What a class can do, from its numbers: launch (m/s² at grip on its driven wheels), top speed (m/s, where wheel
  *  power meets drag and rolling, or its governor), braking (m/s²), cornering (m/s², lateral at grip), and whether it
  *  rolls before it slides (static stability factor track / 2h under its grip). At `mu` (dry 1). */
-export function envelope(id, { mu = 1 } = {}) {
-  const v = row(id), grip = v.grip * mu, P = wheelPower(v), drag = 0.5 * RHO * v.CdA, roll = v.Crr * v.mass * G;
+export function envelope(id, { mu = 1 } = {}) { return envelopeOf(row(id), { mu }); }
+/** The envelope of a row that is not in VEHICLES (a machine whose numbers were derived from what was built: the car
+ *  designer's racers), in VEHICLES' shape. */
+export function envelopeOf(v, { mu = 1 } = {}) {
+  const grip = v.grip * mu, P = wheelPower(v), drag = 0.5 * RHO * v.CdA, roll = v.Crr * v.mass * G;
   // top speed: P = drag·u³ + roll·u, solved by bisection
   let lo = 0, hi = 200;
   for (let k = 0; k < 80; k++) { const u = (lo + hi) / 2; if (drag * u ** 3 + roll * u < P) lo = u; else hi = u; }
@@ -86,8 +89,9 @@ export function envelope(id, { mu = 1 } = {}) {
 }
 
 /** The drive rule a class plays by, at a tuning and in conditions. */
-export function vehicleRule(id, { tuning = 'sim', conditions = 'dry' } = {}) {
-  const v = row(id);
+export function vehicleRule(id, opts = {}) { return ruleOf(row(id), { ...opts, vehicle: id }); }
+/** The drive rule of a row that is not in VEHICLES, in VEHICLES' shape (`vehicle` names it in the rule). */
+export function ruleOf(v, { tuning = 'sim', conditions = 'dry', vehicle: id } = {}) {
   if (!TUNINGS.includes(tuning)) throw new Error(`roadway: tuning '${tuning}' is not one of ${TUNINGS.join(', ')}`);
   if (!(conditions in CONDITIONS)) throw new Error(`roadway: conditions '${conditions}' is not one of ${Object.keys(CONDITIONS).join(', ')}`);
   const arcade = tuning === 'arcade';

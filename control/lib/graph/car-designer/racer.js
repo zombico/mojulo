@@ -433,8 +433,15 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
 
   // ── the readout: physics derived from what was built ──
   const K = VEHICLES.kart, eng = PARTS[ids.engine], bb = boxOf(body.faces), vol = (bb.hi[0] - bb.lo[0]) * (bb.hi[1] - bb.lo[1]) * (bb.hi[2] - bb.lo[2]);
-  const CDA = { needle: 0.32, wedge: 0.4, bubble: 0.44, tub: 0.5, barrel: 0.55, bell: 0.6, brick: 0.66 }, GRIP = { slick: 1.08, chunky: 0.96, wire: 0.9, disc: 1, star: 1.04 };
-  const physics = { ...K, mass: r4(70 + vol * 55 + R.driver.mass + (eng?.power ?? 8) * 3), power: r4((eng?.power ?? 8) * (1 + 0.3 * F.e)), CdA: CDA[v.silhouette] ?? 0.5, grip: r4(K.grip * (GRIP[ids.wheel] ?? 1)), wheelbase: r4(F.WB), track: r4(F.T), wheelRadius: r4(F.r), L: r4(bb.hi[1] - bb.lo[1]), W: r4(F.T + F.wR), H: figure.figH };
+  const CDA = { needle: 0.4, wedge: 0.44, bubble: 0.47, tub: 0.5, barrel: 0.53, bell: 0.56, brick: 0.6 }, GRIP = { slick: 1.08, chunky: 0.96, wire: 0.9, disc: 1, star: 1.04 };
+  // (a sticky tyre drags: grip bought with rolling resistance; a thin wire wheel rolls freest)
+  const CRR = { slick: 0.026, chunky: 0.028, wire: 0.012, disc: 0.018, star: 0.022 };
+  // (mass: a chassis, the shell by its bulk, the engine by its power, the tyres by their size, the driver; the centre
+  // of gravity between the seated driver's and the machine's, so a raised stance rolls sooner; the turning circle
+  // the kart's in wheelbases, so a short machine turns quicker)
+  const shell = vol * 140, engine = (eng?.power ?? 8) * 4 * (F.D / 0.5) ** 2, tyres = 2 * 30 * (F.D ** 2 * F.wR + F.D ** 2 * 0.78 ** 2 * F.wF) / 0.1 * (ids.wheel === 'chunky' ? 1.3 : 1);
+  const mass = 40 + shell + engine + tyres + R.driver.mass, cgH = (R.driver.mass * (F.seatZ + R.driver.torso * 0.4) + (mass - R.driver.mass) * V.deck * 0.6) / mass;
+  const physics = { ...K, mass: r4(mass), power: r4((eng?.power ?? 8) * (F.D / 0.5) ** 2), CdA: r4((CDA[v.silhouette] ?? 0.5) * (F.D / 0.5) ** 2), grip: r4(K.grip * (GRIP[ids.wheel] ?? 1)), Crr: CRR[ids.wheel] ?? K.Crr, cgH: r4(cgH), wheelbase: r4(F.WB), track: r4(F.T), wheelRadius: r4(F.r), turn: r4(F.WB * K.turn / K.wheelbase), L: r4(bb.hi[1] - bb.lo[1]), W: r4(F.T + F.wR), H: figure.figH, eye: r4(stand.head[2]) };
 
   const kinds = new Set(state.anchors.map((a) => a.kind.split('.')[0]));
   const juice = Object.entries(JUICE).filter(([, j]) => kinds.has(j.at.split('.')[0])).map(([id, j]) => ({ id, ...j }));

@@ -154,6 +154,27 @@ describe('design_game quick', () => {
     expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
     expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
   }, 240_000);
+  it('a field of racers: each in the machine its driver reads as, on its own physics, balanced; nothing to mint', async () => {
+    const racers = ['hero', 'a grumpy old wizard', { archetype: 'innocent', build: 'brute' }];
+    const out = await designGameHandler({ quick: { goal: 'race', racers, laps: 1, roadway: 'kart-oval', world: { id: 'cartoon', style: { kit: 'trail-valley' } } }, ref: 'cr' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
+    const L = stored('cr-level-run-0');
+    expect(L.entities.map((e) => e.id)).toEqual(['car', 'rival-1', 'rival-2']);
+    // the recipe, not the machine: each figure a racer's spec, the brief and the facets as given
+    expect(L.figures.ride.racer.facets).toEqual({ archetype: 'hero' });
+    expect(L.figures['rival-1'].racer.brief).toBe('a grumpy old wizard');
+    expect(L.figures['rival-2'].racer.facets).toEqual({ archetype: 'innocent', build: 'brute' });
+    // each on its own derived rule, arcade; the pilot followed close
+    expect(new Set(L.entities.map((e) => e.rule.mass)).size).toBe(3);
+    expect(L.entities[0].rule).toMatchObject({ type: 'drive', vehicle: 'racer', tuning: 'arcade' });
+    expect(L.entities[1].rule).toMatchObject({ type: 'racer', vehicle: 'racer', closed: true });
+    expect(L.camera.dist).toBeLessThan(6);
+    // the page resolves each recipe to its machine: a live vehicle rig with its juice
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('cr-level-run-0'));
+    for (const k of ['ride', 'rival-1', 'rival-2']) expect(payload.figures[k]).toMatchObject({ rig: true, live: expect.any(Object), juice: expect.any(Object) });
+    expect(emitThreeWorld({ ...payload })).toMatch(/__updateRacerJuice/);
+  }, 240_000);
   it('defend: foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
     const out = await designGameHandler({ quick: { goal: 'defend', waves: 1, pads: 2, world: { id: 'hold', style: { kit: 'trail-valley' } } }, ref: 'd' });
     expect(out.ran.map((r) => r.key)).toEqual(['foe', 'tower', 'level-run-0', 'game']);

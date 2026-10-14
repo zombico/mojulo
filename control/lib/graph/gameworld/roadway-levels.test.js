@@ -8,7 +8,7 @@ import { readGameworld, resolveLevel, MEADOWMARK } from './index.js';
 import { gameStages, stageLevelOrder, roadwayEnds } from './levels.js';
 import { gameworldBibleHtml } from './bible-html.js';
 import { gameworldGraph } from './graph.js';
-import { quickWorld, goalMechanics, raceCast, readQuick, quickRideRule } from './quick.js';
+import { quickWorld, goalMechanics, raceCast, readQuick, quickRideRule, quickRacers } from './quick.js';
 import { rideRule } from './ride.js';
 import { assembleRoadwayScene } from '../roads/roadway.js';
 import { planTrack, trackSection } from '../roads/track.js';
@@ -114,6 +114,31 @@ describe('the quick race names one', () => {
     S.run(40);
     expect(S.world.byId['rival-1'].laps).toBeGreaterThanOrEqual(2);
     expect(S.bus.vars.__place_0).toBe(3);
+  });
+});
+
+describe('a field of racers', () => {
+  it('is the whole field, yours first, refused beside a ride, rivals or a vehicle', () => {
+    expect(() => readQuick({ goal: 'race', racers: 3, roadway: 'kart-oval' })).not.toThrow();
+    expect(() => readQuick({ goal: 'race', racers: 1 })).toThrow(/racers is how many racers \(2 to 8\)/);
+    expect(() => readQuick({ goal: 'race', racers: 3, ride: 'car' })).toThrow(/your racer is the first of the field/);
+    expect(() => readQuick({ goal: 'race', racers: 3, rivals: 2 })).toThrow(/the whole field/);
+    expect(() => readQuick({ goal: 'race', racers: 3, vehicle: 'kart' })).toThrow(/its physics its own/);
+    expect(() => readQuick({ goal: 'race', racers: ['hero', 7] })).toThrow(/racers\[1\]: a racer is an archetype/);
+    expect(() => readQuick({ goal: 'reach', racers: 3 })).toThrow(/belongs to the race goal/);
+  });
+  it('races it, each rival in its own machine on its own rule', () => {
+    const q = { goal: 'race', racers: 3, laps: 1, roadway: 'kart-oval' }, W = quickWorld({ id: 'k', quick: q }), st = gameStages(W)[0];
+    const F = quickRacers(q), ride = { racer: F.field[0].spec, rule: F.field[0].rule, field: F.field };
+    expect(F.balance.holds).toBe(true);
+    const L = stageLevelOrder(readGameworld(W), st, { ref: 'x', goal: (e) => goalMechanics(q, e), ride, extra: (e) => raceCast(q, e, ride) });
+    const m = L.args.manifest, mech = composeMechanics(m.game.mechanics, { player: 'car' });
+    expect(m.figures).toEqual({ ride: { racer: F.field[0].spec }, 'rival-1': { racer: F.field[1].spec }, 'rival-2': { racer: F.field[2].spec } });
+    expect(m.entities[2].rule).toMatchObject({ type: 'racer', mass: F.field[2].rule.mass, collideRadius: F.field[2].rule.collideRadius });
+    const ground = L.ends.ground;
+    const S = simLevel({ entities: m.entities.map((e) => ({ ...e, body: { type: 'none' } })), events: mech.events, colliders: L.ends.colliders }, { ground: (p) => ground(p[0], p[1]) });
+    S.run(40);
+    for (const id of ['rival-1', 'rival-2']) expect(S.world.byId[id].laps, id).toBeGreaterThanOrEqual(2);
   });
 });
 

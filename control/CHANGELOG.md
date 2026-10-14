@@ -1749,7 +1749,7 @@ Planned:
 ### Racer parts: the ODM library, its solver, and the racer's juice
 
 Built so far: R1, the library and the solver; R2, the live rig; R3, the juice in the page; R4, status and the big
-effects.
+effects; R5, a field of racers in the quick race.
 
 - **The parts library** (`lib/graph/car-designer/parts.js`): the catalogue a cartoon racer is composed from, each part
   data an agent can read and extend: its family (body, wheel, engine, exhaust, aero, nose, lamps, tail, seat, steering,
@@ -1800,7 +1800,20 @@ effects.
   A shader of the page's own carries the log-depth chunks (it draws with a logarithmic depth buffer). Hits, shields,
   stars, items and a boost's charge are a game's to set.
 
-Planned: R5 rivals in solved machines.
+- **A field of racers** (R5): a quick race takes `racers` (2 to 8: a number drawn, or each an archetype, a brief in
+  words, or `{ archetype?, build?, age?, brief?, facets?, seed?, parts? }`), the first yours and the rest your rivals,
+  each in the machine its driver reads as, on its own physics, at arcade unless a tuning is named. The level keeps only
+  each racer's recipe; the world resolves it to the solved machine (its live rig and juice with it), and nothing is
+  minted. The pilot is followed close behind. A racer's physics now follow what was built: mass from its shell, engine,
+  tyres and driver; power from its engine at its size; drag from its silhouette at its size; sticky tyres that corner
+  and drag; a centre of gravity from its stance, so a high, narrow machine rolls sooner; a short wheelbase that turns in
+  quicker. `car-designer/roster.js` reads five measures off them (top speed, pull, cornering, turn-in, weight in a bump)
+  and holds **balance** over the field: none best at everything, none bettered by another on every measure. A field
+  that fails is leaned, an engine or tyre swapped (the solver's runners-up first) with its reason; a pinned part is
+  never swapped. The law is the level's, advisory like the track's. `roads/vehicles.js` gains `envelopeOf` and `ruleOf`
+  for a row that is not a class (its own classes play as before).
+
+Planned: the driver seated as the character the hero door draws.
 
 ### Car designer: a realistic vehicle, or a racer and their machine
 

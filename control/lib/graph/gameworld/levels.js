@@ -250,6 +250,9 @@ function groundSampler(faces, groups = /:(top|ground)$/) {
   };
 }
 
+// a racer's chase camera: close and low behind a kart-sized machine
+export const RACER_CAMERA = Object.freeze({ dist: 5.2, height: 2, lead: 1.5, lookH: 0.5 });
+
 /**
  * The call that makes one stage a game level: `create_sketch` of the stage with the hero as the pilot, the systems'
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
@@ -289,13 +292,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, mechanics = null, titl
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
   let pilotPart;
-  if (ride?.ref) {
-    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind
+  if (ride?.ref || ride?.racer) {
+    // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind; or a racer
+    // (quick.racers): the first of the field, in the machine its driver reads as, followed close (a kart is small)
     const P = playerWorld({ heroRef: 'none', id: 'car', title: name, controls: `W  throttle · S  brake, hold to reverse · A / D  steer${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = {
-      figures: { ride: { vehicleRef: ride.ref, targetH: RIDE_H } },
+      figures: { ride: ride.racer ? { racer: ride.racer } : { vehicleRef: ride.ref, targetH: RIDE_H } },
       entities: [{ id: 'car', pilotable: true, rule: ride.rule, body: { type: 'figure-rig', figure: 'ride' }, transform: { pos: ends.spawn, heading: ends.heading } }],
-      camera: { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
+      camera: ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
       events: P.events || {},
     };
   } else if (heroRef) {

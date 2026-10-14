@@ -22,6 +22,10 @@
  *                                           // or { intent: 'words' }: the track from words (roads/trackscape-compose.js)
  *     laps?: n,                             // race: times round (1 to 9; 3 on a loop, 1 on a trail)
  *     rivals?: n,                           // race: rival drivers in the same car (1 to 7; a ride's), racing for a place
+ *     racers?: n | [<racer>, …],            // race: a field of cartoon racers (2 to 8), each in the machine its driver
+ *                                           // reads as (car-designer/roster.js), the first yours, the rest your rivals:
+ *                                           // n drawn, or each an archetype, a brief in words, or { archetype?, build?,
+ *                                           // age?, brief?, facets?, seed?, parts? }; balanced, each on its own physics
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (a plain one by default)
  *     alarms?: n,                           // sneak: how many sightings end it (1: the first)
@@ -54,6 +58,7 @@ import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites } from './lay-concerns.js';
+import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -100,7 +105,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
+const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -117,7 +122,18 @@ export function readQuick(Q) {
     if (Q.climb || Q.building !== undefined) throw fail('.ride drives a trail: no climb, no building');
     if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.ride is followed from behind (camera third-person)');
   }
-  for (const k of ['vehicle', 'tuning', 'conditions']) if (Q[k] !== undefined && !Q.ride) throw fail(`.${k} is how the ride drives: name a ride`);
+  if (Q.racers !== undefined) {
+    if (Q.goal !== 'race') throw fail('.racers belongs to the race goal');
+    if (Q.ride !== undefined || Q.hero) throw fail('.racers and a ride or hero: your racer is the first of the field');
+    if (Q.rivals !== undefined) throw fail('.racers is the whole field (yours first): no rivals beside it');
+    if (Q.vehicle !== undefined) throw fail('.vehicle: a racer drives the machine it was built, its physics its own');
+    if (Q.climb || Q.building !== undefined || Q.run !== undefined) throw fail('.racers race a lap or a roadway: no climb, building or run');
+    if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.racers are followed from behind (camera third-person)');
+    const list = Number.isInteger(Q.racers) ? null : Q.racers;
+    if (list === null ? !(Q.racers >= 2 && Q.racers <= 8) : !(Array.isArray(list) && list.length >= 2 && list.length <= 8)) throw fail('.racers is how many racers (2 to 8), or a list of them: each an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }');
+    if (list) list.forEach((r, k) => { try { racerSpec(r, k); } catch (e) { throw fail(`.racers[${k}]: ${e.message.replace(/^car-designer: /, '')}`); } });
+  }
+  for (const k of ['vehicle', 'tuning', 'conditions']) if (Q[k] !== undefined && !Q.ride && !(Q.racers !== undefined && k !== 'vehicle')) throw fail(`.${k} is how the ride drives: name a ride`);
   if (Q.vehicle !== undefined && !VEHICLES[Q.vehicle]) throw fail(`.vehicle is one of ${Object.entries(VEHICLES).map(([k, v]) => `${k} (${v.words})`).join('; ')}`);
   if (Q.tuning !== undefined && !TUNINGS.includes(Q.tuning)) throw fail(`.tuning is ${TUNINGS.join(' or ')}`);
   if (Q.conditions !== undefined && !(Q.conditions in CONDITIONS)) throw fail(`.conditions is one of ${Object.keys(CONDITIONS).join(', ')}`);
@@ -190,7 +206,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
   // a loop is laid on the trail's land: the longest trail, so a lap is a stretch worth driving
-  const loop = quick.goal === 'race' && (quick.track === 'loop' || (quick.rivals && quick.track !== 'trail'));
+  const loop = quick.goal === 'race' && (quick.track === 'loop' || ((quick.rivals || quick.racers) && quick.track !== 'trail'));
   const nodes = { path: { trail: loop ? { run: RACE.run, beats: RACE.beats } : {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
   // a run's pool: trails each laid from its own seed, two more than a run draws
   const s0 = Number.isInteger(seed) ? seed : 1;
@@ -288,7 +304,16 @@ export function goalMechanics(quick, ends) {
 /** A sneak's guards on a stage: `count` posts on the trail's beats (spread from start to end, never the first few
  * metres), each facing back down the trail toward the start, its gaze sweeping. [{ id, at, heading }]. */
 /** A race's rivals' ids (quick.rivals of them). */
-export const raceRivals = (quick) => Array.from({ length: quick.rivals ?? 0 }, (_, k) => `rival-${k + 1}`);
+export const raceRivals = (quick) => Array.from({ length: quick.racers !== undefined ? (Array.isArray(quick.racers) ? quick.racers.length : quick.racers) - 1 : quick.rivals ?? 0 }, (_, k) => `rival-${k + 1}`);
+
+/** A field of racers (quick.racers): the roster solved and balanced (car-designer/roster.js), each racer's recipe (what
+ * its figure resolves through) and the drive rule its own machine plays by, at the race's tuning (arcade unless named)
+ * and conditions. → { field: [{ spec, archetype, rule }], balance, changes } */
+export function quickRacers(quick, seed = 1) {
+  const { racers, balance, changes } = solveRoster(quick.racers, { seed });
+  const field = racers.map((r) => ({ spec: r.spec, archetype: r.archetype, rule: { ...racerRule(r.S, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } }));
+  return { field, balance, changes };
+}
 // the place a race against n rivals is won at: the top half of the field, the podium at most
 const raceWin = (n) => Math.min(3, Math.ceil((n + 1) / 2));
 
@@ -311,9 +336,11 @@ export function raceCast(quick, ends, ride) {
   const line = loop ? loop.line.map((q) => [q[0], q[1]]) : [...(ends.beats ?? []).filter((b) => b.beat !== 'trailhead').map((b) => [b.at[0], b.at[1]])];
   const figures = {}, entities = [];
   rivals.forEach((id, k) => {
-    figures[id] = { vehicleRef: ride.ref, targetH: RIDE_H };
+    // (a field of racers: each rival in its own machine, on its own rule)
+    const mine = ride.field?.[k + 1];
+    figures[id] = mine ? { racer: mine.spec } : { vehicleRef: ride.ref, targetH: RIDE_H };
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
-    const rule = { ...ride.rule, type: 'racer', line, closed: !!loop, lane: k % 2 ? -RACE.lane : RACE.lane, pace };
+    const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: !!loop, lane: k % 2 ? -RACE.lane : RACE.lane, pace };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k), heading: h } });
   });
   return { figures, entities, pilot: { transform: { pos: slot(rivals.length), heading: h } } };
@@ -336,12 +363,13 @@ function roadwayCast(rivals, T, ride) {
   const ramps = T.ramps.filter((r) => r.lip && r.band).map((r) => ({ at: [r.lip.at[0], r.lip.at[1]], lo: r.band.lo, hi: r.band.hi }));
   const figures = {}, entities = [];
   rivals.forEach((id, k) => {
-    figures[id] = { vehicleRef: ride.ref, targetH: RIDE_H };
+    const mine = ride.field?.[k + 1];
+    figures[id] = mine ? { racer: mine.spec } : { vehicleRef: ride.ref, targetH: RIDE_H };
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
-    const rule = { ...ride.rule, type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: RACE.body, ...(ramps.length ? { ramps } : {}) };
+    const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: mine ? mine.rule.collideRadius : RACE.body, ...(ramps.length ? { ramps } : {}) };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });
   });
-  return { figures, entities, pilot: { rule: { collideRadius: RACE.body }, transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };
+  return { figures, entities, pilot: { rule: { collideRadius: ride.field ? ride.field[0].rule.collideRadius : RACE.body }, transform: { pos: slot(rivals.length).at, heading: slot(rivals.length).heading } } };
 }
 
 export function guardPosts(quick, ends) {
