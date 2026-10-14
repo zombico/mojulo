@@ -20,6 +20,9 @@
  * Pure (the stage is assembled to read its ends; nothing is stored).
  */
 import { readGameworld, resolveLevel, looksOfKit } from './world.js';
+import { rollArt, ART_KITS, ART_ITEMS } from '../era/art-direction.js';
+import { solvePalette, fingerprint as printOf } from '../color-theorist/solve.js';
+import { artPalette } from '../color-theorist/adapters.js';
 import { layLevel } from '../level/index.js';
 import { assembleStageScene, planStage } from '../era/stage.js';
 import { withGeocube } from '../era/geocube.js';
@@ -58,7 +61,7 @@ export function gameStages(world) {
   for (const level of order) {
     const R = resolveLevel(G, level);
     // a building level is one stage: its rooms laid from its program (or the building already made, by ref)
-    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : buildingStage(R.building) }); continue; }
+    if (R.building) { out.push({ level, node: 'building', section: 'building', index: 0, building: R.building, manifest: R.building.ref ? null : inPalette(buildingStage(R.building), G, `${level}/building`) }); continue; }
     // a city level is its segments: a line of them from its way in to its way out in a linear world, all of them in a map
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
@@ -85,7 +88,7 @@ export function gameStages(world) {
     let k = laid.stages.length;
     for (const st of out.filter((x) => x.level === level && (x.manifest?.buildings || x.manifest?.town))) {
       for (const d of stageEnds(st.manifest).doors ?? []) {
-        out.push({ level, node: `${st.node}-${d.id}`, section: 'interior', index: k++, outside: { node: st.node, index: st.index, door: d.id }, building: { use: d.inside.use }, manifest: interiorStage(d.inside) });
+        out.push({ level, node: `${st.node}-${d.id}`, section: 'interior', index: k++, outside: { node: st.node, index: st.index, door: d.id }, building: { use: d.inside.use }, manifest: inPalette(interiorStage(d.inside), G, `${level}/${st.node}-${d.id}`) });
       }
     }
   }
@@ -607,6 +610,20 @@ export function gameLevels(stages, refs, plan = null) {
   // an inside is entered by its door, never gated; the walk's stages unlock each other in order, skipping insides
   const prev = (i) => { for (let j = i - 1; j >= 0; j--) if (stages[j].section !== 'interior') return j; return -1; };
   return stages.map((s, i) => ({ ref: refs[i], title: `${s.level} · ${s.node}`, ...(s.section !== 'interior' && prev(i) >= 0 ? { gate: { completed: refs[prev(i)] } } : {}) }));
+}
+
+/**
+ * A building's rooms in the world's palette (color-theorist): a room kit that takes an art direction is given one,
+ * rolled from a seed the palette and the stage decide (so the same world lays the same rooms on every run), its
+ * palette the world's. A world with no palette, a kit with no art direction, or a stage with its own `art` or `tone`
+ * is left as it was.
+ */
+function inPalette(manifest, G, at) {
+  const P = G.style?.palette;
+  if (!P || !manifest || manifest.art !== undefined || manifest.tone !== undefined || !ART_KITS.includes(manifest.kit)) return manifest;
+  const K = solvePalette(P === 'auto' ? {} : P), seed = (parseInt(printOf([K.id, at]), 16) % 2147483646) + 1;
+  const status = Object.fromEntries(ART_ITEMS.map((k) => [k, 'auto']));
+  return { ...manifest, art: { seed, ...rollArt(manifest.kit, seed), palette: { seed: K.spec.seed, from: K.spec, ...artPalette(K) }, status } };
 }
 
 /** The inside of a building entered by its door: its program on its room kit, played from its door `out` (which

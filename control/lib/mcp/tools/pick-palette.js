@@ -7,7 +7,7 @@
  */
 import { registerTool } from '@/lib/mcp/server';
 import { readPaletteSpec, solvePalette, PALETTE_SCHEME_IDS, PALETTE_KEYS, PALETTE_ROLES } from '@/lib/graph/color-theorist/solve.js';
-import { coverPalette } from '@/lib/graph/color-theorist/adapters.js';
+import { coverPalette, pixelPalette } from '@/lib/graph/color-theorist/adapters.js';
 import { freshPaletteSeed } from '@/lib/graph/color-theorist/stamp.js';
 
 const SPEC_FIELDS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock'];
@@ -23,6 +23,7 @@ export function pickPaletteHandler(input = {}) {
     const K = solvePalette({ ...spec, seed: seed + i }), failing = K.checks.filter((c) => !c.ok);
     return {
       palette: K.spec, id: K.id, read: K.read, roles: K.roles, light: K.light, shadow: K.shadow, fog: K.fog, ui: K.ui, cover: coverPalette(K),
+      pixel: { '8bit': pixelPalette(K, 3), '16bit': pixelPalette(K, 15) },
       checks: `${K.checks.length - failing.length} of ${K.checks.length} laws hold`,
       ...(failing.length ? { failing: failing.map(({ law, want, value }) => ({ law, want, value })) } : {}),
     };
@@ -30,7 +31,7 @@ export function pickPaletteHandler(input = {}) {
   return {
     ok: true,
     palettes,
-    use: 'Pass a `palette` (the spec) on: design_game world.style.palette (recolours the land from its kit or look, and skins the game\'s HUD), create_game palette, create_cover palette, design_interior palette (the room\'s 60-30-10, its card\'s forms kept), a room stage\'s art: { palette: { from: spec } }. Change what it read (heat, weight, activity, scheme, key, hue, hues, lock) or the seed to move it; the same spec always solves the same.',
+    use: 'Pass a `palette` (the spec) on: design_game world.style.palette (recolours the land from its kit or look, and skins the game\'s HUD), create_game palette, create_cover palette, design_interior palette (the room\'s 60-30-10, its card\'s forms kept), a room stage\'s art: { palette: { from: spec } } or tone: { preset?, from: spec }, a world\'s look: { id, palette: spec }, create_pixelizer_game palette; `pixel` holds palettes at the 8bit and 16bit budgets. Change what it read (heat, weight, activity, scheme, key, hue, hues, lock) or the seed to move it; the same spec always solves the same.',
   };
 }
 

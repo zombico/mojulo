@@ -3,7 +3,9 @@ import { oklch, lchOf, hexToRgb, rgbToHex, rgbToOklab, oklabToRgb, contrast, del
 import { readPaletteSpec, solvePalette, rampOf, PALETTE_SCHEME_IDS, PALETTE_ROLES, PALETTE_LAWS } from './solve.js';
 import { gameTheme, coverPalette, landSwatches, interiorPalette } from './adapters.js';
 import { paletteLook } from './look.js';
-import { stampWorldPalette, stampInteriorPalette } from './stamp.js';
+import { stampWorldPalette, stampInteriorPalette, stampLookPalette } from './stamp.js';
+import { resolveLookSpec } from '../era/look.js';
+import { SIXTH_GEN_LOOK_IDS } from '../era/sixth-gen.js';
 import { compileInterior, interiorErrors } from '../interior/compile.js';
 import { STYLE_CARDS } from '../interior/styles.js';
 import { SWATCHES } from '../era/style/swatches.js';
@@ -208,5 +210,39 @@ describe('a room in a palette', () => {
     expect(stampInteriorPalette(room, { kind: 'interior' }, fresh)).toBe(room);
     expect(stampInteriorPalette(room, { palette: { seed: 4 } }, fresh).palette).toEqual({ seed: 4 });
     expect(stampInteriorPalette({ kind: 'stage' }, null, fresh)).toEqual({ kind: 'stage' });
+  });
+});
+
+describe('a palette world\'s buildings', () => {
+  const withInn = (W) => ({ ...W, levels: { ...W.levels, 'the-inn': { name: 'The inn', building: { use: 'tavern', seed: 2 } } } });
+  const inn = (W) => gameStages(W).find((s) => s.section === 'building').manifest;
+  it('a room kit that takes art direction gets one rolled from the palette and the stage, in the world\'s palette, the same every read', () => {
+    const W = withInn({ ...MEADOWMARK, style: { ...MEADOWMARK.style, palette: { seed: 42 } } }), a = inn(W), b = inn(JSON.parse(JSON.stringify(W)));
+    expect(a.art.palette.from).toEqual({ seed: 42 });
+    expect(a.art.palette.family).toBe(`palette ${solvePalette({ seed: 42 }).id}`);
+    expect(Object.values(a.art.status).every((s) => s === 'auto')).toBe(true);
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+  });
+  it('a world with no palette lays its buildings as it did', () => {
+    expect(inn(withInn(MEADOWMARK)).art).toBeUndefined();
+  });
+});
+
+describe('a sixth-gen look in a palette', () => {
+  it('the card\'s palette, light and air recoloured; its placements and contrast kept; absent, the card as written', () => {
+    const id = SIXTH_GEN_LOOK_IDS[0], plain = resolveLookSpec(id).ref, K = solvePalette({ seed: 14 });
+    const worn = resolveLookSpec({ id, palette: { seed: 14 } }).ref;
+    expect(worn.palette).toEqual({ base: K.roles.ground[2], accent: K.roles.accent[2], warm: K.light });
+    expect(worn.air.fog.color).toBe(K.fog);
+    expect(worn.air.fog.density).toBe(plain.air.fog.density);
+    expect(worn.light.placed).toEqual(plain.light.placed);
+    expect(worn.light.ambient).not.toBe(plain.light.ambient);
+    expect(resolveLookSpec(id).ref).toBe(plain);
+    expect(() => resolveLookSpec({ id, palette: { scheme: 'plaid' } })).toThrow(/look.palette.scheme is one of/);
+  });
+  it('stamped: a look palette with no seed gets one where it is written', () => {
+    expect(stampLookPalette({ kind: 'x', look: { id: 'gothic-night', palette: 'auto' } }, () => 6).look.palette).toEqual({ seed: 6 });
+    const m = { kind: 'x', look: { id: 'gothic-night', palette: { seed: 2 } } };
+    expect(stampLookPalette(m, () => 6)).toBe(m);
   });
 });

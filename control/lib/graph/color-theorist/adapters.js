@@ -9,6 +9,9 @@
  *   lightOf(contract, sky)           → the card's sky light { key.color, ambient } in the palette's temperature
  *   interiorPalette(contract, card)  → a room's 60-30-10 { walls, trim, upholstery, rug, casework, accent } (interior/styles.js)
  *   artPalette(contract)             → a room stage's `art.palette` ramps and torch (era/art-direction.js)
+ *   toneRamps(contract, names)       → a stage tone's ramps by the preset's own names, and where its middle light sits (era/tone.js)
+ *   pixelPalette(contract, budget)   → a pixelizer palette at a register's budget (3 / 15 / 61 colours, darkest roles first)
+ *   lookCard(card, contract)         → a sixth-gen reference card (era/sixth-gen.js) in the palette: its palette, light and air
  *
  * Pure.
  */
@@ -97,5 +100,43 @@ export function artPalette(K) {
     wood: rampOf(K, 'made', 5),
     accent: rampOf(K, 'accent', 5),
     light: oklch(0.74, 0.15, hL),
+  };
+}
+
+// a tone ramp's name → the role it is drawn from (a preset's names: noir's night, flat's wall/floor/trim/accent, isekai's
+// stone/floor/trim/green); a name the palette has no role for is drawn off the second accent, each turned further
+const TONE_ROLE = { night: 'rock', wall: 'rock', stone: 'rock', floor: 'soil', trim: 'ground', accent: 'accent', green: 'foliage', wood: 'made' };
+const TONE_KEY = { high: 0.62, mid: 0.5, low: 0.34 };
+/** A stage tone (era/tone.js) from the palette: its ramps, by the names the preset gives them, as five hex stops shadow
+ * to light; and the tone's `key` (where the middle light lands) from the palette's. → { ramps, key } */
+export function toneRamps(K, names) {
+  let extra = 0;
+  const ramps = Object.fromEntries(names.map((n) => [n, (TONE_ROLE[n] ? rampOf(K, TONE_ROLE[n], 5) : rampNear(K, 'accent2', 5, (extra++) * 40)).map(rgbToHex)]));
+  return { ramps, key: TONE_KEY[K.read.key] };
+}
+
+// a register's palette: which stops of which roles, by budget (8bit a dark, a middle and the accent; 16bit the land's
+// values and two of the accent's; 32bit every stop of every role and the light)
+const PIXEL_PICKS = {
+  3: [['ground', 0], ['ground', 3], ['accent', 2]],
+  15: [['ground', 0], ['ground', 2], ['ground', 4], ['foliage', 1], ['foliage', 3], ['sky', 2], ['sky', 4], ['rock', 1], ['rock', 3], ['soil', 1], ['soil', 3], ['made', 2], ['accent', 1], ['accent', 3], ['accent2', 2]],
+};
+/** A pixelizer palette (pixelizer/cutscene.js budgets) from the palette: '#rrggbb' × at most `budget`, no repeats. */
+export function pixelPalette(K, budget) {
+  const picks = PIXEL_PICKS[budget] ?? [...Object.keys(K.roles).flatMap((r) => [0, 1, 2, 3, 4].map((i) => [r, i])), ['light']];
+  const out = [...new Set(picks.map(([r, i]) => (r === 'light' ? K.light : K.roles[r][i])))];
+  return out.slice(0, budget);
+}
+
+/** A sixth-gen reference card recoloured: its palette (the ground, the accent, the light), its light (the fill a mix of
+ * the sky and the shadow, the key the palette's light where the card has a sun), its air (the fog the far layers', the
+ * dome the sky's). The card's placements, contrast and setting are kept. */
+export function lookCard(card, K) {
+  const rgb = (h) => hexToRgb(h), [, , skyH] = lchOf(rgb(K.roles.sky[2])), [, , sh] = lchOf(rgb(K.shadow));
+  return {
+    ...card,
+    palette: { base: K.roles.ground[2], accent: K.roles.accent[2], warm: K.light },
+    light: { ...card.light, ambient: rgbToHex(oklch(K.read.key === 'low' ? 0.32 : 0.62, 0.06, mixHue(skyH, sh, 0.5))), ...(card.light.key ? { key: { ...card.light.key, color: K.light } } : {}) },
+    air: { ...card.air, fog: { ...card.air.fog, color: K.fog }, dome: { zenith: rgb(K.roles.sky[1]), horizon: rgb(K.roles.sky[4]) } },
   };
 }

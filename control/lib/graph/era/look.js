@@ -1,5 +1,6 @@
 /**
- * LOOK — a sixth-gen look as a setting any world can carry (`look: 'gothic-night' | { id, cell? }` on the manifest).
+ * LOOK — a sixth-gen look as a setting any world can carry (`look: 'gothic-night' | { id, cell?, palette? }` on the
+ * manifest; `palette`, a pick_palette spec, recolours the card's palette, light and air: color-theorist).
  * The look-layer laws (laws.js) leave the stage kind here:
  *
  *  - baked-light      the world resolves unshaded (raw albedo) and its light is baked into the vertices by the
@@ -17,6 +18,8 @@ import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-g
 import { bakeStageLight, torchFaces, STAGE_KITS } from './stage.js';
 import { makeSunShadow, sunDir } from './sun.js';
 import { hexRgb, rgbHex, r5 } from './geom.js';
+import { readPaletteSpec, solvePalette } from '../color-theorist/solve.js';
+import { lookCard } from '../color-theorist/adapters.js';
 
 /** The cell a lit face is split to (metres), and the most faces a look may leave a world with. */
 export const LOOK_CELL = 2;
@@ -33,7 +36,9 @@ export function resolveLookSpec(look) {
   if (!refId) throw new Error(`look: unknown look '${o.id}' (known: ${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   const cell = o.cell == null ? LOOK_CELL : Number(o.cell);
   if (!(cell >= 0.5 && cell <= 16)) throw new Error('look: cell must be between 0.5 and 16 metres');
-  return { id: o.id, refId, ref: SIXTH_GEN_REFERENCES[refId], cell };
+  if (o.palette === undefined || o.palette === false) return { id: o.id, refId, ref: SIXTH_GEN_REFERENCES[refId], cell };
+  const spec = readPaletteSpec(o.palette, 'look.palette');
+  return { id: o.id, refId, ref: lookCard(SIXTH_GEN_REFERENCES[refId], solvePalette(spec === 'auto' ? {} : spec)), cell };
 }
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

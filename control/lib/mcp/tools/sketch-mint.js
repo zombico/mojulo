@@ -65,7 +65,7 @@ import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polyg
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
-import { stampWorldPalette, stampInteriorPalette, resolveArtPalette } from '@/lib/graph/color-theorist/stamp.js';
+import { stampWorldPalette, stampInteriorPalette, resolveArtPalette, resolveTonePalette, stampLookPalette } from '@/lib/graph/color-theorist/stamp.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
@@ -578,10 +578,10 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   }
   // a room stage's art direction (era/art-direction.js): 'propose' / 'auto' and any item sent back ('reroll') are
   // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
-  // (an art palette given as a palette spec, `art.palette: { from }`, solved into its ramps first: color-theorist)
-  manifest = resolveArt(resolveArtPalette(manifest));
+  // (an art palette or a tone given a palette spec, `{ from }`, solved into their ramps first: color-theorist)
+  manifest = resolveArt(resolveArtPalette(resolveTonePalette(manifest)));
   // an interior's palette (color-theorist/stamp.js): rolled for a new room that names no style, kept by an edit
-  manifest = stampInteriorPalette(manifest, existingSketch?.manifest ?? null);
+  manifest = stampLookPalette(stampInteriorPalette(manifest, existingSketch?.manifest ?? null));
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
   manifest = resolvePlayUi(manifest);
   // the gaits an edit authors (a figure's walk, a hero's, a world figure's) are stored by value as they are minted now;

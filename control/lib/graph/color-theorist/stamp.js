@@ -11,13 +11,16 @@
  *       an edit of a world made before   → left as it was (an old world never changes colour by being edited)
  *   stampInteriorPalette(manifest, prior, fresh) → an interior's `palette`, by the same rules (a style named is a name)
  *   resolveArtPalette(manifest, fresh) → a room stage whose `art.palette` is { from: spec } given its ramps, solved
+ *   resolveTonePalette(manifest, fresh) → a stage whose `tone` is { preset?, from: spec } given the preset's ramps, solved
+ *   stampLookPalette(manifest, fresh) → a world whose `look.palette` has no seed given one
  *   freshPaletteSeed()
  *
  * `fresh` is injectable for tests.
  */
 import { randomInt } from 'node:crypto';
 import { readPaletteSpec, solvePalette } from './solve.js';
-import { artPalette } from './adapters.js';
+import { artPalette, toneRamps } from './adapters.js';
+import { TONE_PRESETS } from '../era/tone.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 export const freshPaletteSeed = () => randomInt(1, 2 ** 31 - 1);
@@ -55,4 +58,27 @@ export function resolveArtPalette(manifest, fresh = freshPaletteSeed) {
   if (spec.seed === undefined) spec = { ...spec, seed: fresh() };
   const K = solvePalette(spec);
   return { ...manifest, art: { ...manifest.art, palette: { seed: spec.seed, from: K.spec, ...artPalette(K) } } };
+}
+
+/** A stage's tone from a palette spec (`tone: { preset?, from: spec, …its own fields }`): the preset's ramps (flat's when
+ * none is named) solved here, at authoring time, and stored as hex with the palette's id; its `key` from the palette's
+ * unless the tone names its own. A tone already solved (it carries `palette`) is left as stored. */
+export function resolveTonePalette(manifest, fresh = freshPaletteSeed) {
+  const T = isObj(manifest) && manifest.kind === 'stage' ? manifest.tone : undefined;
+  if (!isObj(T) || T.from === undefined || typeof T.palette === 'string') return manifest;
+  const preset = T.preset ?? 'flat';
+  if (!TONE_PRESETS[preset]) throw new Error(`stage: tone.preset is one of ${Object.keys(TONE_PRESETS).join(', ')}`);
+  let spec = readPaletteSpec(T.from, 'tone.from');
+  if (spec === false) throw new Error("stage: tone.from is a palette spec (pick_palette's), or 'auto'");
+  if (spec === 'auto') spec = {};
+  if (spec.seed === undefined) spec = { ...spec, seed: fresh() };
+  const K = solvePalette(spec), { ramps, key } = toneRamps(K, Object.keys(TONE_PRESETS[preset].ramps));
+  return { ...manifest, tone: { ...T, preset, from: K.spec, palette: K.id, ramps: { ...ramps, ...(T.ramps ?? {}) }, key: T.key ?? key } };
+}
+
+/** A world's sixth-gen look recoloured by a palette (`look: { id, palette }`): its seed rolled here when it has none. */
+export function stampLookPalette(manifest, fresh = freshPaletteSeed) {
+  const L = isObj(manifest) ? manifest.look : undefined, p = isObj(L) ? L.palette : undefined;
+  if (!(p === 'auto' || (isObj(p) && p.seed === undefined))) return manifest;
+  return { ...manifest, look: { ...L, palette: { ...(isObj(p) ? p : {}), seed: fresh() } } };
 }

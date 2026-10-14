@@ -11,6 +11,7 @@ import { themeOf } from './create-game.js';
 import { createCoverHandler } from './cover.js';
 import { designGameHandler } from './design-game.js';
 import { designInteriorHandler } from './interior.js';
+import { pixelTheme } from './pixelizer-game.js';
 import { MEADOWMARK } from '@/lib/graph/gameworld/examples.js';
 import { STYLE_DEFAULTS } from '@/lib/graph/game/hud-widgets.js';
 
@@ -118,5 +119,37 @@ describe('a room stage\'s art palette from a palette', () => {
     // an edit leaves it as stored
     await updateSketchHandler({ ref: 'st-pal', manifest: { ...SketchRepository.getByRef('st-pal').manifest, title: 'Crypt 2' } });
     expect(SketchRepository.getByRef('st-pal').manifest.art.palette).toEqual(A.palette);
+  });
+});
+
+describe('a stage\'s tone from a palette', () => {
+  it('tone { preset?, from } is solved where it is written into the preset\'s own ramps; the tone reads; its own fields win', async () => {
+    const { starter } = await import('@/lib/graph/era/entries.js');
+    const { readTone, TONE_PRESETS } = await import('@/lib/graph/era/tone.js');
+    const ROOMS = { ...starter('gothic-stone'), rooms: starter('gothic-stone').rooms.slice(0, 2), links: starter('gothic-stone').links.slice(0, 1) };
+    await createSketchHandler({ title: 'Toned', ref: 'st-tone', manifest: { ...ROOMS, tone: { preset: 'isekai', from: { seed: 12, key: 'low' }, steps: 3 } } });
+    const T = SketchRepository.getByRef('st-tone').manifest.tone;
+    expect(Object.keys(T.ramps).sort()).toEqual(Object.keys(TONE_PRESETS.isekai.ramps).sort());
+    expect(T.palette).toMatch(/^pal-/);
+    expect(T.key).toBe(0.34);
+    expect(T.steps).toBe(3);
+    expect(readTone(T).ramps.stone).toEqual(T.ramps.stone);
+    expect(T.ramps.stone).not.toEqual(TONE_PRESETS.isekai.ramps.stone);
+    // with no preset named, flat's ramps
+    await createSketchHandler({ title: 'Flat', ref: 'st-tone2', manifest: { ...ROOMS, tone: { from: { seed: 12 } } } });
+    expect(Object.keys(SketchRepository.getByRef('st-tone2').manifest.tone.ramps).sort()).toEqual(Object.keys(TONE_PRESETS.flat.ramps).sort());
+  });
+});
+
+describe('pixel palettes', () => {
+  it('pick_palette answers palettes at the 8bit and 16bit budgets; a pixelizer game takes its accents from a palette', () => {
+    const p = pickPaletteHandler({ seed: 8 }).palettes[0];
+    expect(p.pixel['8bit']).toHaveLength(3);
+    expect(p.pixel['16bit'].length).toBeLessThanOrEqual(15);
+    expect(p.pixel['16bit'].length).toBeGreaterThanOrEqual(12);
+    expect(p.pixel['8bit']).toContain(p.roles.accent[2]);
+    expect(pixelTheme(undefined, { seed: 8 })).toEqual({ accent: p.ui.accent, accent2: p.ui.accent2, style: 'hud' });
+    expect(pixelTheme({ accent: '#ffffff' }, { seed: 8 }).accent).toBe('#ffffff');
+    expect(pixelTheme({ accent: '#ffffff' }, undefined)).toEqual({ accent: '#ffffff' });
   });
 });

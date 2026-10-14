@@ -53,6 +53,15 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
 - **Room stages**: `art: { palette: { from: <spec> } }` solves the stage's art palette (stone, floor, vault, trim, wood,
   accent and the torch) when the stage is written, and stores the ramps as numbers like any rolled palette, with what
   they came from. The other art items roll as before, and the art board shows it.
+- **Tones, looks, buildings and pixels**:
+  - A stage's `tone: { preset?, from: <spec> }` solves the preset's own ramps (flat's when none is named) when the stage
+    is written. Its `key` follows the palette's unless the tone names one.
+  - A world's `look: { id, palette }` recolours the sixth-gen card's palette, light and air, keeping its placements
+    and contrast.
+  - A palette world's building levels on a room kit that takes art direction get an art direction rolled from the
+    palette and the stage (the same on every run), in the world's palette.
+  - `pick_palette` answers `pixel` palettes at the 8bit and 16bit budgets, and `create_pixelizer_game` takes a
+    `palette` for its accents.
 
 ### Shoot plan: a keyframed camera you can see in the world
 
