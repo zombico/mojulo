@@ -13,6 +13,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Historic solver: towns from the era's technology, monuments as buildings, a field guide
+
+In progress. A historic scene is solved rather than hand-laid: what a town is built of, how dense it is and how it
+is walked come from what people had at that place in that year, read from one cited ledger of materials, methods,
+building types and urban forms. Monuments stay hand-authored, one building each, seated on a site the way a city
+plan's landmark is. The solver lays a town in its land, the town, or a slice of life at eye level, and every scene
+comes with a field guide: what was chosen, the source behind it, and the knob that changes it. The hand-written
+town layouts and the diorama views go.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
