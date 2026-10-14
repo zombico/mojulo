@@ -102,8 +102,8 @@ export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a55
 // pole's, the last's), and their lane off a roadway's racing line (narrower: that line already runs near the edges),
 // and a car's body on a roadway (its radius: the barriers stop it; the ride's own rule carries none)
 export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72], roadLane: 0.8, body: 0.9 });
-// a deathmatch's numbers: bots in it, the frag limit, the seconds a fallen body lies
-export const DEATHMATCH = Object.freeze({ bots: 3, frags: 10, respawn: 3 });
+// a deathmatch's numbers: bots in it, the frag limit, the seconds a fallen body lies, its arena's words when it names none
+export const DEATHMATCH = Object.freeze({ bots: 3, frags: 10, respawn: 3, arena: 'a three-lane arena' });
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
@@ -116,7 +116,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags'];
+const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -158,7 +158,8 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
-  for (const k of ['bots', 'frags']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
+  for (const k of ['bots', 'frags', 'arena']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
+  if (Q.arena !== undefined && !(typeof Q.arena === 'string' && Q.arena.trim())) throw fail('.arena is the arena in a few words ("a tight three-lane arena with long sightlines")');
   if (Q.bots !== undefined && !(Number.isInteger(Q.bots) && Q.bots >= 1 && Q.bots <= 7)) throw fail('.bots is how many bots in the match with you, 1 to 7');
   if (Q.frags !== undefined && !(Number.isInteger(Q.frags) && Q.frags >= 1 && Q.frags <= 50)) throw fail('.frags is the frag limit that wins, 1 to 50');
   if (Q.goal === 'deathmatch' && Q.seconds !== undefined && Q.seconds < 10) throw fail('.seconds is a deathmatch\'s time limit, 10 to 600');
@@ -238,7 +239,9 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const levels = worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
-    : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } };
+    : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
+      // a deathmatch's arena: its words, a spawn for each in the match
+      ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? DEATHMATCH.arena, spawns: (quick.bots ?? DEATHMATCH.bots) + 1 } } : {}) } };
   return {
     id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },

@@ -88,6 +88,36 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - `.seconds` now belongs to the survive and deathmatch goals (its message says so). The quick card names the goal in
   the same byte budget: its camera, hero and answer lines say the same in fewer words.
 
+### Shooter: the arena tunnelled from words
+
+- **An arena is tunnelled, not authored.** The phase before laid one fixed arena from a hand list of pieces, tuned by
+  hand until its laws held. Now scapeshift's tunnel builds it (`gameworld/tunnel-arena.js`, a domain of
+  `gameworld/tunnel.js` beside buildings, technology and land). The words are read into settings of a layout grammar:
+  - size: `small` 26 m, `medium` 36 m, `large` 48 m;
+  - topology: `two`, `three` or `four lanes`, or a `ring` (a walled court whose doorways open on a loop round it);
+  - cover: `dense` or `sparse`;
+  - sightlines: `close quarters` or `long sightlines`.
+- **The grammar.** It stands a wall round the floor; lane dividers open at both ends and the middle, or the court; a
+  blocker across each lane's middle; and crates by seeded dice. All of it is the same turned half round the centre.
+- **The laws shape the result.** The arena's laws and each word's measure assess it, and what fails is tweaked, every
+  pass logged:
+  - a spawn in sight of another, or a line across the floor, gets a short wall across it where the floor is most open;
+  - a wall that then cuts a way is taken away and never stood there again;
+  - close quarters staggers the lanes (blockers at the quarters against alternate sides, the dividers' middle gaps
+    offset);
+  - a ring short of room shrinks its court;
+  - a sparse arena short of cover gets a wall where the floor is barest, not crates.
+- **Gaps are named.** A word the grammar cannot show (a figure of eight, a team map's mirror, floors and towers) is
+  named with what would close it, and said as the arena's `words-shown` law, never filled.
+- **Spawns for the match.** Spawns may stand in a pocket on the floor as well as round the wall, and the plan lays one
+  for each contender.
+- **Measured.** Eight intents over three seeds with four spawns: every one without a gap word completes in 1 to 5
+  passes (10 to 500 ms); the one with gap words holds and names them. With eight spawns, a small cluttered courtyard is
+  the one that does not settle in 12 passes, and its laws say so as advice.
+- **In the world.** A level's `arena` is its words, or `{ words, spawns }`, tunnelled when the world is read (seeded
+  by it). The site takes the plan's size, and the stage lays its pieces, spawns and supplies. The quick deathmatch
+  takes `arena: '<words>'` (default "a three-lane arena") and a spawn per contender.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

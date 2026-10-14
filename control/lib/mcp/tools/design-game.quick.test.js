@@ -356,7 +356,7 @@ describe('design_game quick', () => {
     expect(L.entities[1].rule.mind.motivation).toBe('frag');
     const frags = L.game.mechanics[0];
     expect(frags).toMatchObject({ rivals: ['bot-1', 'bot-2', 'bot-3'], frags: 3 });
-    expect(frags.spawns).toHaveLength(8);
+    expect(frags.spawns).toHaveLength(4);   // one for each in the match
     // the arena's walls are one collider each; the cover on the trail's beats stands aside for it
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('dm-level-run-0'));
     expect(payload.colliders.filter((c) => c.of.startsWith('block:')).length).toBe(L.blocks.length);
@@ -369,6 +369,20 @@ describe('design_game quick', () => {
     for (; t < 150 && !sim.bus.vars.__frags_over_0; t += 1 / 30) sim.frame(1 / 30);
     expect(sim.bus.log.filter((r) => r.type === 'kill').length).toBeGreaterThanOrEqual(3);
     expect(sim.bus.log.map((r) => r.type)).toContain('frags:lost');
+  }, 240_000);
+
+  it('deathmatch: the arena from its words (tunnel-arena.js), a word it cannot lay said as advice', async () => {
+    const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, arena: 'a small ring arena with towers', world: { id: 'ring', style: { kit: 'trail-valley' } } }, ref: 'rg' });
+    const L = stored('rg-level-run-0');
+    expect(stored('rg').levels.run.arena).toEqual({ words: 'a small ring arena with towers', spawns: 3 });
+    expect(L.game.mechanics[0].spawns).toHaveLength(3);
+    // a ring: the court's walls round the middle; 26 m across
+    const walls = L.blocks.filter((b) => b.form === 'wall');
+    expect(Math.max(...walls.map((b) => b.length))).toBeCloseTo(26.6, 1);
+    // towers are not laid yet: said, with what would close it; every other law holds
+    const advice = JSON.stringify(out).match(/arena: [^"]*/g) ?? [];
+    expect(advice).toHaveLength(1);
+    expect(advice[0]).toMatch(/'towers' is not laid yet/);
   }, 240_000);
 
   it('says what is wrong', () => {
@@ -400,5 +414,6 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'deathmatch', frags: 0 })).toThrow(/frag limit/);
     expect(() => readQuick({ goal: 'deathmatch', seconds: 5 })).toThrow(/10 to 600|5 to 600/);
     expect(() => readQuick({ goal: 'deathmatch', building: { use: 'tavern' } })).toThrow(/arena on a trail/);
+    expect(() => readQuick({ goal: 'shoot', arena: 'a ring' })).toThrow(/arena belongs to the deathmatch goal/);
   });
 });

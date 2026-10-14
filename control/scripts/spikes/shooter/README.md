@@ -210,6 +210,11 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   nav over storeys wait), one layout (lane counts, sizes and other topologies are parameters to come), supplies taken
   once.
 
+- **The arena tunnelled**: the hand-laid arena became a scapeshift tunnel domain (`gameworld/tunnel-arena.js`): words
+  into a layout grammar (size, lanes or a ring, cover, sightlines), assessed by the arena's laws, tweaked (break walls
+  where the floor is open, staggered lanes, a smaller court) until they hold; figure-eight, team mirror and floors are
+  named gaps. A level's `arena` and the quick deathmatch's `arena` take the words.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

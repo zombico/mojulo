@@ -258,9 +258,6 @@ export const RACER_CAMERA = Object.freeze({ dist: 5.2, height: 2, lead: 1.5, loo
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-// the spawns an arena lays: the most a match holds (the player and seven)
-const ARENA_SPAWNS = 8;
-
 export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
@@ -274,9 +271,9 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   Object.defineProperty(ends, 'board', { value: stage.board ?? null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'spacing', { value: concerns.includes('circuit') ? SPACING : null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'loop', { value: stage.loop ? loopOn(stage.loop, ends) : null, enumerable: false, configurable: true });
-  // the arena (the intent's `arena` concern): its square on the land, laid with its walls, cover, a pool of spawns (a
-  // match is eight at most) and supplies, before the goal reads them
-  Object.defineProperty(ends, 'arena', { value: stage.arena ? (() => { const A = arenaOn(stage.arena, ends); return { ...A, ...arenaLayout(A, ends, ARENA_SPAWNS) }; })() : null, enumerable: false, configurable: true });
+  // the arena (the intent's `arena` concern): its square on the land, laid from its plan (tunnel-arena.js) with its
+  // walls, cover, spawns and supplies, before the goal reads them
+  Object.defineProperty(ends, 'arena', { value: stage.arena ? (() => { const A = arenaOn(stage.arena, ends); return { ...A, ...arenaLayout(A) }; })() : null, enumerable: false, configurable: true });
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
   // fingerprints hold: third person with a hero, the old first-person walker without one.

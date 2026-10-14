@@ -13,9 +13,9 @@
  *     fields     the field's centre, where the plots go (ends.field); board likewise (ends.board), the grid's centre
  *     circuit    checkpoints spaced (ends.spacing): a beat nearer the last kept than SPACING metres is no checkpoint
  *     loop       the oval's line, its start and a low wall down its middle (ends.loop, loopBlocks): a race goes round it
- *     arena      the arena on its square (ends.arena, arenaLayout): a wall round it, three lanes joined at their ends and
- *                middles so every way loops, cover in each lane, all of it the same turned half round its centre, the
- *                spawns out of each other's sight and supplies in the lanes
+ *     arena      the arena on its square (ends.arena, arenaLayout): its plan, tunnelled from words (tunnel-arena.js): a
+ *                wall round it, lanes or a court whose ways all loop, cover, all of it the same turned half round its
+ *                centre, the spawns out of each other's sight and supplies on the floor
  *     cover      cover at the fighting posts: the goal's own posts, else the trail's beats (coverBlocks)
  *     road       a defence's pads beside its road, on land level with it (padSites)
  *     reachable  with a hero that jumps, every other pickup on crate steps, each rise within its jump (raisePickups)
@@ -28,9 +28,10 @@
  *   loopSite(frame)                      → { at: '<cells>', line: [[x, y]], start, heading, median, width, keep } the
  *                                          oval (`keep`: the ground nothing grows on, a stage's `_keepOut`)
  *   loopOn(loop, ends) / loopBlocks(loop, ends)   the oval on a stage's land (its line's heights); the wall down it
- *   arenaSite(frame)                     → { at: '<cells>', centre: [x, y], half, keep } the arena's square
- *   arenaOn(arena, ends) / arenaLayout(arena, ends, n?)   the square on a stage's land; its walls and cover (`blocks`),
- *                                          `spawns` (n of them, each out of the others' sight) and `drops`
+ *   arenaSite(frame, half?)              → { at: '<cells>', centre: [x, y], half, keep } the arena's square
+ *   arenaOn(arena, ends) / arenaLayout(arena)   the square on a stage's land; its plan's walls and cover (`blocks`),
+ *                                          `spawns` and `drops` there (the plan: gameworld/tunnel-arena.js)
+ *   arenaAsks(pieces, at) / arenaSpawns(pieces, half, n)   a plan's pieces as terrain asks; spawns out of each other's sight
  *   beatPosts(ends, n?)                  → [{ id, at, heading, from, back }] posts on the beats (n: spread to n)
  *   coverBlocks(posts, ends)             → playscape terrain asks: a wall by each post, a crate stack, a wall between
  *   jumpHeight(rule) / raisePickups(mechanics, ends, jump)   how high a pilot jumps; pickups raised within it
@@ -52,10 +53,10 @@ export const DRIVABLE = Object.freeze({ amplitude: 3, depth: 2, bump: { height: 
 // spacing of its line's points, and how far past the turn the start line stands (the grid stands behind it)
 export const LOOP_TUNE = Object.freeze({ amplitude: 0, depth: 0, bump: { height: 0 } });
 export const LOOP = Object.freeze({ radius: 9, width: 8, margin: 3, step: 2, start: 12 });
-// a match's arena (metres): half its side (a small infantry arena, 36 m across), how far up the first trail it starts,
-// its wall's height, how far a spawn stands in from the wall; its laws' numbers: the longest clear line it allows (no
-// corner sees the far corner), how near cover must be, the share of the floor it must be near
-export const ARENA = Object.freeze({ half: 18, start: 24, wall: 3, inset: 2.5, longest: 36, coverNear: 3.5, covered: 0.8 });
+// a match's arena (metres): half its side when its plan names none (36 m across), how far up the first trail it
+// starts, its wall's height, how far a spawn stands in from the wall; its laws' numbers: how near cover must be, the
+// share of the floor it must be near (the longest clear line is its plan's: its side, unless it asks for long lines)
+export const ARENA = Object.freeze({ half: 18, start: 24, wall: 3, inset: 2.5, coverNear: 3.5, covered: 0.8 });
 
 // a block of cells beside the walk on its open side (toward the site's open edge): `cols` across from 4 m off the walk,
 // rows r0 to r1 of the first trail; → { at: '<cells>', centre: [x, y] } in the level's frame
@@ -111,12 +112,12 @@ export function loopBlocks(loop, ends) {
   return [{ form: 'wall', at: [x, y, z ?? ends.spawn[2]], N: [1, 0], length: loop.median.length, height: 1, thick: 0.6, value: 0.55 }];
 }
 
-/** The arena on the first trail's land: a square ARENA.half either side of a centre on the walk's mean line,
- * ARENA.start up the trail, held on the site. The land under it, and a margin, is flattened; nothing grows on it. →
- * null when the trail is too short to hold it. */
-export function arenaSite(F) {
-  const root = F.spans.find((s) => s.section === 'trail'), H = ARENA.half;
-  if (!root) return null;
+/** The arena on the first trail's land: a square `half` (its plan's, else ARENA.half) either side of a centre on the
+ * walk's mean line, ARENA.start up the trail, held on the site. The land under it, and a margin, is flattened; nothing
+ * grows on it. → null when the trail is too short or too narrow to hold it. */
+export function arenaSite(F, half = ARENA.half) {
+  const root = F.spans.find((s) => s.section === 'trail'), H = half;
+  if (!root || F.x1 - F.x0 < 2 * H + 2) return null;
   const y0 = root.origin + ARENA.start, y1 = y0 + 2 * H;
   if (y1 + 3 > root.origin + root.D) return null;
   const xs = Array.from({ length: 5 }, (_, i) => root.trailX(y0 + ((y1 - y0) * i) / 4)), mean = xs.reduce((a, b) => a + b, 0) / xs.length;
@@ -129,43 +130,30 @@ export function arenaOn(arena, ends) {
   const [x, y] = arena.centre, z = ends.ground ? ends.ground(x, y) : null;
   return { ...arena, z: z ?? ends.spawn[2] };
 }
-// the arena's pieces in its own frame (u across, v along; the centre at 0, 0), one of each turned pair: a wall
-// [u, v, along: 'u' | 'v', length, height] or a crate [u, v, stack]. The other of each pair stands at (-u, -v).
-const ARENA_WALLS = [
-  [6, 8.75, 'v', 12.5, ARENA.wall], [6, -8.75, 'v', 12.5, ARENA.wall],   // the lanes' dividers, open at both ends and the middle
-  [13, 0, 'u', 6, 2.2],                                                 // a side lane's middle: round it either side
-  [0, 15.5, 'v', 4, 2.2],                                               // the middle lane's end: no line along the far wall
-  [0, 9, 'u', 3, 2.2],                                                  // the middle lane's quarter: no line across through it
-];
-const ARENA_CENTRE = [0, 0, 'u', 4, 2.2];                                // stands on its own turn
-const ARENA_CRATES = [[12, 8, 1], [12, -9, 2], [15.5, 8, 2], [2.5, -5, 2]];
-// where the spawns may stand: round the inside of the wall, a corner first, ARENA.inset from it
+/** An arena plan's pieces (gameworld/tunnel-arena.js: walls { form: 'wall', u, v, along: 'u' | 'v', length, height,
+ * thick? } and crates { form: 'crate', u, v, stack }, in the arena's own frame) as terrain asks, each one collider,
+ * placed by `at(u, v)`. */
+export function arenaAsks(pieces, at) {
+  return pieces.map((q) => (q.form === 'wall'
+    ? { form: 'wall', at: at(q.u, q.v), N: q.along === 'v' ? [1, 0] : [0, 1], length: q.length, height: q.height, thick: q.thick ?? 0.5, value: 0.55, whole: true }
+    : { form: 'crate', at: at(q.u, q.v), stack: q.stack ?? 1, value: 0.42, whole: true }));
+}
+// where the spawns may stand: round the inside of the wall, a corner first, ARENA.inset from it, every 3.5 m; then
+// the floor inside it every 3 m (a pocket behind a blocker hides a spawn as well as a corner does)
 function spawnRing(H) {
   const d = H - ARENA.inset, out = [[d, d]];
-  for (let k = 1; k <= 8; k++) { const t = d - k * 3.5; if (t > -d) out.push([d, t], [t, d]); }
+  for (let k = 1; k * 3.5 < 2 * d; k++) { const t = d - k * 3.5; out.push([d, r3(t)], [r3(t), d]); }
+  for (let u = -d + 3; u < d - 1; u += 3) for (let v = 1.5; v < d - 1; v += 3) out.push([r3(u), r3(v)]);
   return out;
 }
-
-/** The arena laid on its square: `blocks` (the wall round it, the dividers, the cover: each one collider, and each the
- * same turned half round the centre), `spawns` (n, from a corner: each a turned pair with its partner, none in sight of
- * another; when the floor holds no more unseen pairs, the rest are the farthest left, and the law says so) and
- * `drops` (health in the side lanes, rounds in the middle one). */
-export function arenaLayout(arena, ends, n = 4) {
-  const [cx, cy] = arena.centre, z = arena.z ?? 0, H = arena.half;
-  const at = (u, v) => [r3(cx + u), r3(cy + v), z];
-  const blocks = [];
-  const wall = (u, v, along, length, height, extra = {}) => blocks.push({ form: 'wall', at: at(u, v), N: along === 'v' ? [1, 0] : [0, 1], length, height, thick: extra.thick ?? 0.5, value: 0.55, whole: true });
-  // the wall round it
-  wall(0, H, 'u', 2 * H + 0.6, ARENA.wall, { thick: 0.6 }); wall(0, -H, 'u', 2 * H + 0.6, ARENA.wall, { thick: 0.6 });
-  wall(H, 0, 'v', 2 * H, ARENA.wall, { thick: 0.6 }); wall(-H, 0, 'v', 2 * H, ARENA.wall, { thick: 0.6 });
-  for (const [u, v, along, length, height] of ARENA_WALLS) { wall(u, v, along, length, height); wall(-u, -v, along, length, height); }
-  wall(...ARENA_CENTRE);
-  for (const [u, v, stack] of ARENA_CRATES) for (const k of [1, -1]) blocks.push({ form: 'crate', at: at(u * k, v * k), stack, value: 0.42, whole: true });
-  // the spawns: turned pairs off the ring, the farthest from those taken, each out of sight of all of them
-  const boxes = askBoxes(blocks), eye = (p) => [p[0], p[1], z + 1.6], chest = (p) => [p[0], p[1], z + 1.2];
+/** The spawns on an arena's floor (its own frame, the floor at 0): `n` of them, turned pairs off the ring inside its
+ * wall and the floor within it, a corner first, then the farthest from those taken, each pair out of sight of every spawn taken (eye to chest).
+ * When the floor holds no more pairs out of sight, the rest are the farthest left, and the law says so. → [[u, v]] */
+export function arenaSpawns(pieces, half, n) {
+  const boxes = askBoxes(arenaAsks(pieces, (u, v) => [u, v, 0])), eye = (p) => [p[0], p[1], 1.6], chest = (p) => [p[0], p[1], 1.2];
   const clear = (p) => !boxes.some((B) => p[0] > B.min[0] - 0.8 && p[0] < B.max[0] + 0.8 && p[1] > B.min[1] - 0.8 && p[1] < B.max[1] + 0.8);
   const unseen = (p, q) => blocked(eye(p), chest(q), boxes) && blocked(eye(q), chest(p), boxes);
-  const ring = spawnRing(H).map(([u, v]) => [at(u, v), at(-u, -v)]).filter(([p, q]) => clear(p) && clear(q));
+  const ring = spawnRing(half).map(([u, v]) => [[u, v], [-u, -v]]).filter(([p, q]) => clear(p) && clear(q));
   const spawns = [];
   const far = (p) => (spawns.length ? Math.min(...spawns.map((s) => Math.hypot(s[0] - p[0], s[1] - p[1]))) : 0);
   for (const strict of [true, false]) {
@@ -176,11 +164,19 @@ export function arenaLayout(arena, ends, n = 4) {
       spawns.push(p); if (spawns.length < n) spawns.push(q);
     }
   }
-  const drops = [[8.5, 0, 'health'], [-8.5, 0, 'health'], [0, 7, 'ammo'], [0, -7, 'ammo']].map(([u, v, gives]) => ({ at: at(u, v), gives }));
-  return { blocks, spawns, drops };
+  return spawns;
 }
 
-export function groundLays(ids, level, F) {
+/** The arena laid on its square from its plan (`arena.plan`: { half, pieces, spawns, drops, longest } in its own
+ * frame): `blocks` (each piece one collider), `spawns` and `drops` ({ at, gives }) on the land, and the longest clear
+ * line its plan allows. */
+export function arenaLayout(arena) {
+  const [cx, cy] = arena.centre, z = arena.z ?? 0, P = arena.plan;
+  const at = (u, v) => [r3(cx + u), r3(cy + v), z];
+  return { blocks: arenaAsks(P.pieces, at), spawns: P.spawns.map(([u, v]) => at(u, v)), drops: P.drops.map((d) => ({ at: at(d.u, d.v), gives: d.gives })), longest: P.longest };
+}
+
+export function groundLays(ids, level, F, { arena = null } = {}) {
   const out = { edits: [], laid: [] };
   if (!F) return out;
   if (ids.includes('fields')) {
@@ -198,7 +194,8 @@ export function groundLays(ids, level, F) {
     if (site) { out.tune = { ...(out.tune ?? {}), ...LOOP_TUNE }; out.edits.push({ op: 'flatten', at: site.at, id: 'intent-loop' }); out.laid.push('loop'); }
   }
   if (ids.includes('arena')) {
-    const site = arenaSite(F);
+    // its plan's size (gameworld/tunnel-arena.js), else the default square
+    const site = arenaSite(F, arena?.half ?? ARENA.half);
     if (site) { out.edits.push({ op: 'flatten', at: site.at, id: 'intent-arena' }); out.laid.push('arena'); }
   }
   return out;
@@ -366,12 +363,17 @@ function nearestOn(q, line) {
  *   drivable   the way, start to beats to exit, climbs no steeper than 1 in 4 between places
  *   arena      every spawn reaches every other, still with any one stretch of the way between them closed (no single
  *              chokepoint); no spawn sees another; cover within ARENA.coverNear of most of the floor; no clear line
- *              across the floor longer than ARENA.longest; nothing of the stage's own standing on the floor
+ *              across the floor longer than its plan allows (its side); nothing of the stage's own standing on the floor
  *   loop       the oval lies on the land, climbs no steeper than 1 in 4, nothing stands on it (but its own wall), and
  *              its checkpoints come round to the start */
 export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [], pads = [], raised = [], jump = 0, mechanics = [], loop = null, arena = null }) {
   const out = [], d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-  if (ids.includes('arena') && arena) out.push(...arenaLaws(arena, blocks, ends));
+  if (ids.includes('arena') && arena) {
+    out.push(...arenaLaws(arena, blocks, ends));
+    // what its words asked that the grammar cannot show (tunnel-arena.js gaps): said, never filled
+    const gaps = arena.tunnel?.gaps ?? [];
+    if (arena.tunnel) out.push({ concern: 'arena', law: 'words-shown', holds: !gaps.length, says: gaps.length ? gaps.map((g) => `'${g.word}' is not laid yet (${g.why}; ${g.proposal})`).join('; ') : `every word of '${arena.tunnel.words}' shown` });
+  }
   const waves = mechanics.find((m) => m.kind === 'waves');
   if (ids.includes('road-to-base') && waves) {
     const road = waves.path, long = road.slice(1).reduce((a, q, i) => a + d2(q, road[i]), 0);
@@ -436,6 +438,22 @@ export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [],
   return out;
 }
 
+/** The longest clear line across an arena's floor, eye to eye, between points of a 4 m grid inside its wall that no
+ * box stands on: { longest, from, to } (from and to null when nothing is clear). `boxes`: the arena's (askBoxes). */
+export function arenaLongest(arena, boxes) {
+  const [cx, cy] = arena.centre, z = arena.z ?? 0, H = arena.half, pts = [];
+  for (let u = -H + 1; u <= H - 1; u += 4) for (let v = -H + 1; v <= H - 1; v += 4) {
+    const p = [cx + u, cy + v, z + 1.6];
+    if (!boxes.some((B) => p[0] > B.min[0] - 0.3 && p[0] < B.max[0] + 0.3 && p[1] > B.min[1] - 0.3 && p[1] < B.max[1] + 0.3)) pts.push(p);
+  }
+  let longest = 0, from = null, to = null;
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
+    const a = pts[i], b = pts[j], d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    if (d > longest + 1e-9 && !blocked(a, b, boxes)) { longest = d; from = a; to = b; }
+  }
+  return { longest, from, to };
+}
+
 // the arena's laws over what was laid on it (concernLaws): measured on its floor, a 2 m grid inside its wall
 function arenaLaws(arena, blocks, ends) {
   const d2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -476,13 +494,9 @@ function arenaLaws(arena, blocks, ends) {
   const near = floor.filter((p) => boxes.some((B) => boxNear(B, p, ARENA.coverNear))).length;
   out.push({ concern: 'arena', law: 'cover-near', holds: near >= ARENA.covered * floor.length, says: `${Math.round((100 * near) / (floor.length || 1))}% of the floor has cover within ${ARENA.coverNear} m (${Math.round(ARENA.covered * 100)}% wanted)` });
   // the longest clear line across the floor, eye to eye
-  let longest = 0;
-  const grid4 = floor.filter((p) => Math.round(p[0] - cx + H - 1) % 4 === 0 && Math.round(p[1] - cy + H - 1) % 4 === 0);
-  for (let i = 0; i < grid4.length; i++) for (let j = i + 1; j < grid4.length; j++) {
-    const a = grid4[i], b = grid4[j], d = d2(a, b);
-    if (d > longest && !blocked([a[0], a[1], z + 1.6], [b[0], b[1], z + 1.6], boxes)) longest = d;
-  }
-  out.push({ concern: 'arena', law: 'no-line-across', holds: longest <= ARENA.longest, says: `the longest clear line on the floor is ${longest.toFixed(1)} m (${ARENA.longest} at most)` });
+  const { longest } = arenaLongest(arena, boxes);
+  const most = arena.longest ?? 2 * H;
+  out.push({ concern: 'arena', law: 'no-line-across', holds: longest <= most, says: `the longest clear line on the floor is ${longest.toFixed(1)} m (${most} at most)` });
   // nothing of the stage's own (rock, a stand of trees' trunks) standing on the floor
   const own = (ends.colliders ?? []).filter((c) => !String(c.of ?? '').startsWith('bound:') && !String(c.of ?? '').startsWith('block:') && floor.some((p) => boxNear(c, p, 0.5) && c.max[2] > z + 0.4)).length;
   const rocky = ends.rocks ? floor.filter((p) => { const r = ends.rocks(p[0], p[1]); return r != null && r > z + 0.4; }).length : 0;
