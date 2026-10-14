@@ -489,7 +489,28 @@ export async function exportGameHandler(input, context = {}) {
     shellMenu = await repointShots(shellMenu);
   }
 
-  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu }));
+  // front.cover (the light shell's title backdrop): a cover sketch's composite is written to assets/cover.png, a bound
+  // /outcomes/… image is copied; the shell's copy points at the folder path, the recipe keeps the ref or the URL
+  let frontArt = resolved.frontArt;
+  if (frontArt) {
+    const fc = norm.front.cover;
+    if (typeof fc === 'string') {
+      // loaded here, not at boot: the compositor needs sharp, which the stdio boot never loads
+      const { compositeCoverForSketch } = await import('@/lib/graph/image-outcomes/cover-compositor');
+      await write('assets/cover.png', await compositeCoverForSketch(getSketch(fc)));
+      frontArt = { ...frontArt, src: 'assets/cover.png' };
+    } else {
+      const m = frontArt.src.match(/^\/outcomes\/([^/]+)\/(.+)$/);
+      if (m) {
+        const srcAbs = path.join(outcomeDirFor(decodeURIComponent(m[1])), decodeURIComponent(m[2]));
+        const rel = `assets/front-art${path.extname(srcAbs) || '.png'}`;
+        await write(rel, await fs.readFile(srcAbs));
+        frontArt = { ...frontArt, src: rel };
+      }
+    }
+  }
+
+  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt }));
   await writeRecipe('recipe/game.json', norm);
 
   // levels — the ?walk=1&hud=0&download=1 bake, one page per level, figure bank hoisted shared.

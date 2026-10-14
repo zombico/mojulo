@@ -30,6 +30,13 @@ export const COVER_DEFAULTS_BY_KIND = {
     slots: ['title', 'author'],
     type: { titleFont: 'archivo-black', textFont: 'inter' },
   },
+  // a game's cover: key art by default (the title screen's backdrop); the store and box formats are GAME_FORMATS
+  game: {
+    aspect: [16, 9],
+    archetypes: ['logo-center', 'lower-third', 'hero-side'],
+    slots: ['title', 'tagline', 'studio'],
+    type: { titleFont: 'archivo-black', textFont: 'inter' },
+  },
   comic: {
     aspect: [13, 20], // ~US comic trim 6.625 × 10.25
     archetypes: ['comic-masthead'],
@@ -45,14 +52,26 @@ const FALLBACK_DEFAULTS = {
   type: { titleFont: 'archivo-black', textFont: 'inter' },
 };
 
+/**
+ * A game cover's formats → aspect [w, h]: the key art a title screen is drawn over, the store capsule, the box front
+ * and the square icon. Only `for_kind: 'game'` reads them.
+ */
+export const GAME_FORMATS = Object.freeze({
+  'key-art': { aspect: [16, 9], about: 'the title screen\'s backdrop and the store hero (16:9)' },
+  capsule: { aspect: [92, 43], about: 'the store capsule (460 × 215)' },
+  box: { aspect: [5, 7], about: 'the box front (portrait)' },
+  icon: { aspect: [1, 1], about: 'the square icon' },
+});
+export const GAME_FORMAT_IDS = Object.keys(GAME_FORMATS);
+
 /** Defaults for a publication kind (never throws — unknown kinds get a book default). */
 export function defaultsForKind(forKind) {
   return COVER_DEFAULTS_BY_KIND[forKind] || FALLBACK_DEFAULTS;
 }
 
 /** Portrait canvas {w,h} for a kind (or an explicit [w,h] aspect override). */
-export function canvasFor(forKind, aspectOverride) {
-  const aspect = aspectOverride || defaultsForKind(forKind).aspect;
+export function canvasFor(forKind, aspectOverride, format) {
+  const aspect = aspectOverride || (forKind === 'game' && GAME_FORMATS[format] ? GAME_FORMATS[format].aspect : defaultsForKind(forKind).aspect);
   const [aw, ah] = aspect;
   // Portrait: the taller side is the long edge.
   if (ah >= aw) return { w: Math.round((LONG_EDGE * aw) / ah), h: LONG_EDGE };
@@ -129,6 +148,57 @@ const ARCHETYPES = {
     };
   },
 };
+
+// ── a game's archetypes ──
+// Each also reserves a MENU ZONE: where a title screen drawn over this cover puts its menu (play-shell.js), so the art,
+// the title lockup and the menu are placed by one layout. A cover rendered on its own leaves the zone to the art.
+// `titleAlign` sets the lockup's alignment in its zone (centre when absent).
+Object.assign(ARCHETYPES, {
+  // the title centred over the art in the upper half, the tagline under it, the menu centred below
+  'logo-center': (canvas) => {
+    const m = Math.round(Math.min(canvas.w, canvas.h) * 0.06), wide = canvas.w >= canvas.h;
+    const tw = Math.round(canvas.w * (wide ? 0.62 : 0.84)), tx = Math.round((canvas.w - tw) / 2);
+    const ty = Math.round(canvas.h * (wide ? 0.14 : 0.1)), th = Math.round(canvas.h * (wide ? 0.26 : 0.2));
+    const mw = Math.round(canvas.w * (wide ? 0.3 : 0.6));
+    return {
+      illustrationRegion: { x: 0, y: 0, w: canvas.w, h: canvas.h },
+      titleZone: { x: tx, y: ty, w: tw, h: th },
+      subtextRegions: { tagline: { x: tx, y: ty + th + Math.round(canvas.h * 0.02), w: tw, h: Math.round(canvas.h * 0.045) } },
+      metadataRegions: { studio: { x: canvas.w - m - Math.round(canvas.w * 0.3), y: canvas.h - m - Math.round(canvas.h * 0.035), w: Math.round(canvas.w * 0.3), h: Math.round(canvas.h * 0.035) } },
+      menuZone: { x: Math.round((canvas.w - mw) / 2), y: Math.round(canvas.h * 0.56), w: mw, h: Math.round(canvas.h * 0.32) },
+      safe: { x: m, y: m, w: canvas.w - 2 * m, h: canvas.h - 2 * m },
+    };
+  },
+  // the title set low and to the left over the art, the tagline under it, the menu in the lower right
+  'lower-third': (canvas) => {
+    const m = Math.round(Math.min(canvas.w, canvas.h) * 0.07);
+    const tw = Math.round(canvas.w * 0.54), ty = Math.round(canvas.h * 0.6), th = Math.round(canvas.h * 0.18);
+    const mx = m + tw + Math.round(canvas.w * 0.06);
+    return {
+      illustrationRegion: { x: 0, y: 0, w: canvas.w, h: canvas.h },
+      titleZone: { x: m, y: ty, w: tw, h: th },
+      titleAlign: 'left',
+      subtextRegions: { tagline: { x: m, y: ty + th + Math.round(canvas.h * 0.015), w: tw, h: Math.round(canvas.h * 0.04) } },
+      metadataRegions: { studio: { x: canvas.w - m - Math.round(canvas.w * 0.26), y: m, w: Math.round(canvas.w * 0.26), h: Math.round(canvas.h * 0.035) } },
+      menuZone: { x: mx, y: Math.round(canvas.h * 0.56), w: canvas.w - m - mx, h: canvas.h - m - Math.round(canvas.h * 0.56) },
+      safe: { x: m, y: m, w: canvas.w - 2 * m, h: canvas.h - 2 * m },
+    };
+  },
+  // a solid column on the left carries the title, the tagline and the menu; the art (the hero) fills the rest
+  'hero-side': (canvas) => {
+    const m = Math.round(Math.min(canvas.w, canvas.h) * 0.06), col = Math.round(canvas.w * 0.4), cw = col - 2 * m;
+    return {
+      illustrationRegion: { x: col, y: 0, w: canvas.w - col, h: canvas.h },
+      band: { x: 0, y: 0, w: col, h: canvas.h },
+      titleZone: { x: m, y: Math.round(canvas.h * 0.12), w: cw, h: Math.round(canvas.h * 0.24) },
+      titleAlign: 'left',
+      subtextRegions: { tagline: { x: m, y: Math.round(canvas.h * 0.38), w: cw, h: Math.round(canvas.h * 0.04) } },
+      metadataRegions: { studio: { x: m, y: canvas.h - m - Math.round(canvas.h * 0.035), w: cw, h: Math.round(canvas.h * 0.035) } },
+      menuZone: { x: m, y: Math.round(canvas.h * 0.5), w: cw, h: Math.round(canvas.h * 0.36) },
+      safe: { x: m, y: m, w: canvas.w - 2 * m, h: canvas.h - 2 * m },
+    };
+  },
+});
 
 /** All archetype names (for recommend_cover / vocab). */
 export function archetypeNames() {
