@@ -2,10 +2,14 @@
 // register heightens monotonely, and that every choice is written down; then the silhouette solver on a dressed hero
 // (silhouette.js): each outline reached, read back without the arms, with a blockout.
 import { describe, expect, it } from 'vitest';
-import { validateStylism, styledHero, stylismLedger, resolveStylism, REGISTER_WORDS } from './index.js';
+import { validateStylism, styledHero, stylismLedger, resolveStylism, REGISTER_WORDS, warpOf } from './index.js';
 import { GENRES, GENRE_NAMES } from './genres.js';
 import { OUTLINES, TECHNIQUES, silhouetteMoves, readSilhouette, blockoutSvg, silhouetteAdvice, outlineOf, islandsOf, cohesionAdvice } from './silhouette.js';
 import { NAMED, NAMED_SILHOUETTES } from './silhouettes.js';
+import { MATERIAL_SWATCHES } from './value.js';
+import { detailMoves, DETAIL_ZONES, shownRoles } from './detail.js';
+import { outfitLaws, COLOUR_GROUPS } from '../polygonizer/outfit-plan.js';
+import { hexLch } from '../polygonizer/station-loft-shade.js';
 import { heroRecord, heroPlanOf, planLayered, expandLayeredManifest, heroReadout } from '../../mcp/tools/layered.js';
 
 const hero = (stylism, more = {}) => ({ cast: 'female', head: 'anime', stylism, ...more });
@@ -56,12 +60,18 @@ describe('what it resolves to', () => {
     expect(styledHero(word)).toBe(word);
     expect(stylismLedger(word).notes.some((n) => /word or a garment list/.test(n.why))).toBe(true);
   });
-  it('the register heightens together and monotonely: the outfit\'s stylize, the breakers\' size, an armour build\'s mass', () => {
+  it('the register heightens together and monotonely: the outfit\'s stylize, an armour build\'s mass, the warp after the design', () => {
     const at = (register) => styledHero(hero({ genre: 'fantasy', silhouette: 'wedge', register }, { adorn: { type: 'armor', style: 'knight' } }));
     const R = Object.keys(REGISTER_WORDS).map(at), up = (xs) => xs.every((x, i) => i === 0 || x >= xs[i - 1]);
     expect(up(R.map((h) => h.outfit.dials.stylize))).toBe(true);
     expect(up(R.map((h) => h.adorn.dials.mass))).toBe(true);
-    expect(up(Object.keys(REGISTER_WORDS).slice(1).map((w) => silhouetteMoves('fantasy', 'wedge', REGISTER_WORDS[w])[0].pieces[0].shoulder))).toBe(true);
+    // the silhouette's sizes are the BASELINE at every register: the warp heightens after the design, from storybook up
+    expect(new Set(Object.keys(REGISTER_WORDS).slice(1).map((w) => silhouetteMoves('fantasy', 'wedge', REGISTER_WORDS[w])[0].pieces[0].shoulder)).size).toBe(1);
+    const warp = Object.keys(REGISTER_WORDS).map((w) => warpOf(REGISTER_WORDS[w], GENRES.fantasy).amount);
+    expect(warp.slice(0, 2)).toEqual([0, 0]); expect(up(warp)).toBe(true); expect(warp[3]).toBe(1);
+    const flare = (register) => styledHero(hero({ genre: 'fantasy', silhouette: 'bell', register })).outfit.pieces.find((p) => p.kind === 'cloak').flare;
+    expect(flare('mythic')).toBeGreaterThan(flare('storybook')); expect(flare('mythic')).toBeLessThanOrEqual(flare('storybook') * GENRES.fantasy.warp.flare + 1e-9);
+    expect(at('mythic').outfit.intent.distort).toMatchObject({ amount: 1, lean: false });
     // grounded draws the shoulders with cloth, heightened with armour
     expect(silhouetteMoves('fantasy', 'wedge', 0)[0].technique).toBe('mantle');
     expect(silhouetteMoves('fantasy', 'wedge', 1)[0].technique).toBe('pauldrons');
@@ -73,6 +83,67 @@ describe('what it resolves to', () => {
     expect(L.notes[0].stage).toBe('register');
     expect(resolveStylism(h.stylism)).toEqual({ genre: 'scifi', r: 1, d: 0.7, silhouette: 'barrel' });
     expect(JSON.stringify(styledHero(h))).toBe(JSON.stringify(styledHero(JSON.parse(JSON.stringify(h)))));
+  });
+});
+
+describe('the value stage\'s stand-in', () => {
+  const hueGap = (a, b) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
+  it('local contrast and the complement: every role a clear step; the accent the dominant hue turned half the wheel', () => {
+    // one genre with a chromatic card, one whose base card leads with its own hue
+    for (const st of [{ genre: GENRE_NAMES[0], silhouette: OUTLINES[0] }, { genre: GENRE_NAMES[GENRE_NAMES.length - 1], silhouette: 'hourglass', register: 'mythic' }]) {
+      const o = styledHero(hero(st)).outfit, P = o.intent.palette;
+      expect(outfitLaws({ ...o, cut: undefined }).find((l) => l.law === 'clear value steps').ok, JSON.stringify(st)).toBe(true);
+      const L = stylismLedger(hero(st)), base = hexLch(P.base), acc = hexLch(P.accent);
+      expect(hueGap(base[2], acc[2]), 'the complement').toBeGreaterThan(150);
+      expect(L.notes.find((n) => n.stage === 'value' && n.technique === 'stand-in palette').why).toMatch(/style guide/);
+    }
+  });
+  it('the materials keep their own colour: the plate, the fittings and the straps are the genre\'s materials', () => {
+    const g = GENRE_NAMES.find((x) => GENRES[x].moves.wedge.some((m) => m.technique === 'pauldrons' && m.from === undefined)) ?? GENRE_NAMES[0], o = styledHero(hero({ genre: g, silhouette: 'wedge', register: 'mythic' })).outfit, M = GENRES[g].materials;
+    expect(o.intent.palette.metal).toBe(MATERIAL_SWATCHES[M.plate]); expect(o.intent.palette.leather).toBe(MATERIAL_SWATCHES[M.strap]);
+    expect(M.fitting.map((m) => MATERIAL_SWATCHES[m])).toContain(o.intent.palette.trim);
+    expect(o.pieces.find((p) => p.kind === 'pauldron').colour).toBe('metal');
+  });
+  it('what the hero says wins: its own roles and palette groups stand; no pieces, no palette', () => {
+    const o = styledHero(hero({ silhouette: 'wedge', register: 'heroic' }, { palette: { [COLOUR_GROUPS.metal]: '#112233' }, outfit: { type: 'outfit', style: 'traveler', intent: { palette: { accent: '#ff0000' } } } })).outfit;
+    expect(o.intent.palette.accent).toBe('#ff0000'); expect(o.intent.palette.metal).toBeUndefined();
+    expect(styledHero(hero({ genre: 'fantasy' })).outfit.intent).toBeUndefined();
+  });
+});
+
+describe('the detail solver', () => {
+  const at = (st, detail) => styledHero(hero({ ...st, detail }));
+  const L = (st, detail) => stylismLedger(hero({ ...st, detail }));
+  // one case per procedure: the cloth's own roles (a wedge over trousers), a covered focal (the robe the bell wears)
+  const cloth = { genre: GENRE_NAMES[0], silhouette: 'wedge', register: 'heroic' }, robed = { genre: GENRE_NAMES[0], silhouette: 'bell', register: 'heroic' };
+  it('plain spends nothing beyond the construction; more detail never spends less', () => {
+    const o = at(cloth, 'plain').outfit; expect(o.detail).toEqual([]); expect(o.dials.ornament).toBe(1);
+    expect(o.pieces.filter((p) => !silhouetteMoves(GENRE_NAMES[0], 'wedge', REGISTER_WORDS.heroic).some((m) => (m.pieces || []).some((q) => q.kind === p.kind)))).toEqual([]);
+    const spent = (w) => { const n = L(cloth, w).notes.find((x) => x.stage === 'detail' && /^budget/.test(x.technique)); return Number(/(\d+) spent/.exec(n.why)[1]); };
+    const S = ['plain', 'considered', 'rich', 'ornate'].map(spent); expect(S.every((x, i) => i === 0 || x >= S[i - 1])).toBe(true); expect(S[3]).toBeGreaterThan(S[0]);
+  });
+  it('the hierarchy: the focal outweighs every other zone, within the budget, in one motif family', () => {
+    for (const st of [cloth, robed]) for (const d of [0.35, 1]) {
+      const o = at(st, d).outfit, D = detailMoves({ G: GENRES[GENRE_NAMES[0]], r: 0.7, d, outline: st.silhouette, language: { ...o.language }, pieces: [] });
+      expect(D.spent.reduce((t, x) => t + x.cost, 0)).toBeLessThanOrEqual(D.budget);
+      for (const z of DETAIL_ZONES) if (z !== D.focal) expect(D.weight[z], `${st.silhouette} ${d} ${z}`).toBeLessThan(D.weight[D.focal] || 1);
+      const motifs = new Set([...o.detail.filter((x) => x.motif).map((x) => x.motif), ...o.pieces.filter((p) => p.trim?.motif).map((p) => p.trim.motif)]);
+      expect(motifs.size, `${st.silhouette} ${d}`).toBeLessThanOrEqual(1);
+    }
+  });
+  it('what shows: a robe buries the cloth\'s chest and hem, so the work goes on the robe\'s own trim; a second skin has no hem', () => {
+    expect(shownRoles({ top: { family: 'woven', sleeve: 'long', hem: 'hip' }, bottom: { family: 'woven', leg: 'long' } }, [{ kind: 'robe' }]).has('chest')).toBe(false);
+    expect(shownRoles({ top: { family: 'knit', sleeve: 'long', hem: 'hip' } }, [], 'anime').has('hem')).toBe(false);
+    const robe = at(robed, 'rich').outfit.pieces.find((p) => ['robe', 'wizardRobe'].includes(p.kind));
+    expect(Object.keys(robe.trim || {}).length, 'the robe carries the work').toBeGreaterThan(0);
+  });
+  it('the hero\'s own words win: its detail list, its ornament; focal and motif name the solver\'s picks', () => {
+    const own = at({ ...cloth, focal: 'hem', motif: 'key' }, 'rich').outfit;
+    expect(own.detail.every((x) => !x.motif || x.motif === 'key')).toBe(true);
+    expect(L({ ...cloth, focal: 'hem' }, 'rich').notes.find((n) => /^budget/.test(n.technique)).where).toBe('the hem');
+    const mine = styledHero(hero({ ...cloth, detail: 'ornate' }, { outfit: { type: 'outfit', style: 'traveler', detail: [], dials: { ornament: 0 } } })).outfit;
+    expect(mine.detail).toEqual([]); expect(mine.dials.ornament).toBe(0);
+    expect(validateStylism({ focal: 'knees' })[0]).toMatch(/stylism.focal/); expect(validateStylism({ motif: 'paisley' })[0]).toMatch(/stylism.motif/);
   });
 });
 
@@ -124,6 +195,8 @@ describe('the silhouette solver on a dressed hero', () => {
     const S = heroReadout(h, plan, null, [], { mesh, recipe }).dress.stylism;
     expect(S.silhouette.read.outline).toBe('wedge'); expect(S.notes.some((n) => n.technique === 'read')).toBe(false);
     expect(silhouetteAdvice('barrel', { outline: 'wedge', widths: { low: 0.2, mid: 0.3, high: 0.4 } })).toMatch(/the shoulders lead; for a barrel, more in the middle/);
+    // the detail lands on what is worn: no role it named is missing
+    expect((heroReadout(h, plan, null, [], { mesh, recipe }).dress.outfit?.warnings || []).filter((w) => /^detail: no/.test(w))).toEqual([]);
     const svg = blockoutSvg(readSilhouette(mesh));
     expect(svg.startsWith('<svg')).toBe(true); expect((svg.match(/<path /g) || []).length).toBe(3);
   });

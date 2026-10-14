@@ -77,7 +77,7 @@ export function validateOutfitBuild(build) {
 // a slot of another KIND (a skirt for trousers) replaces the card's, never merges with it: a trouser's fit or cut is no
 // skirt's word
 const slot = (a, b) => (b === false ? false : b === undefined ? a : a && b.kind !== undefined && (a.kind ?? 'trousers') !== b.kind ? { ...b } : { ...(a || {}), ...b });
-function languageOf(card, own = {}) { const L = card.language || {}, out = { ...L, ...own, top: slot(L.top, own.top), bottom: slot(L.bottom, own.bottom) };
+export function languageOf(card, own = {}) { const L = card.language || {}, out = { ...L, ...own, top: slot(L.top, own.top), bottom: slot(L.bottom, own.bottom) };
   if (L.outer !== undefined || own.outer !== undefined) out.outer = slot(L.outer, own.outer); return out; }
 
 const r6 = (x) => Math.round(x * 1e6) / 1e6;

@@ -22,28 +22,30 @@ export const OUTLINES = Object.freeze(['wedge', 'bell', 'column', 'needle', 'bar
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const lerp = (a, b, t) => a + (b - a) * t;
 
-/** each technique: how it lowers (the register r, 0 grounded … 1 mythic), and the principle it serves */
+/** each technique: how it lowers, and the principle it serves. The register (r, 0 grounded … 1 mythic) only CHOOSES
+ * among them (a mantle at grounded, pauldrons above): every size here is the believable BASELINE, and heightening is
+ * the WARP stage's (index.js), after the design, within its caps */
 export const TECHNIQUES = Object.freeze({
   // the shoulders broadened: a cape of cloth over them (grounded), armour standing off them (heightened)
   mantle: (r) => ({ pieces: [{ kind: 'mantle' }], note: 'a mantle over the shoulders: the line broadens without armour' }),
-  pauldrons: (r) => ({ pieces: [{ kind: 'pauldron', pair: true, shoulder: r3(lerp(1.15, 1.75, r)) }], note: `pauldrons standing out to ${r3(lerp(1.15, 1.75, r))} × the arm line: the shoulders carry the shape` }),
-  shoulderPlates: (r) => ({ pieces: [{ kind: 'pauldron', pair: true, shoulder: r3(lerp(1.1, 1.6, r)) }], note: `shoulder plates out to ${r3(lerp(1.1, 1.6, r))} × the arm line` }),
-  shoulderPads: (r) => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'base', shoulder: r3(lerp(1.05, 1.45, r)) }], note: `padded shoulders out to ${r3(lerp(1.05, 1.45, r))} × the arm line, in the jacket's own cloth` }),
+  pauldrons: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'metal', shoulder: 1.12 }], note: 'pauldrons out past the arm line (1.12 ×): the shoulders carry the shape' }),
+  shoulderPlates: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'metal', shoulder: 1.1 }], note: 'shoulder plates just past the arm line (1.1 ×)' }),
+  shoulderPads: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'base', shoulder: 1.06 }], note: 'padded shoulders (1.06 × the arm line), in the jacket\'s own cloth' }),
   boxyJacket: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: r < 0.5 ? 'hip' : 'waist', fit: 'loose', open: true } }, note: 'a boxy jacket, loose and short: width at the shoulders, none below' }),
   // the legs kept close, so the shoulders read against them
   closeLegs: () => ({ language: { bottom: { kind: 'trousers', cut: 'skinny' } }, note: 'the legs cut skinny: a narrow base under a broad top' }),
   closeFit: () => ({ language: { top: { fit: 'skin' }, bottom: { kind: 'trousers', fit: 'fitted', cut: 'skinny' } }, note: 'everything close: the body\'s own line, narrow for its height' }),
   // the weight low: cloth that falls and spreads
-  robe: (r) => ({ pieces: [{ kind: r >= 0.6 ? 'wizardRobe' : 'robe', flare: r3(lerp(0.12, 0.3, r)) }], note: `a ${r >= 0.6 ? 'wizard\'s robe' : 'robe'} to the ankle, flaring ${r3(lerp(0.12, 0.3, r))} m per m: the weight sits low` }),
+  robe: (r) => ({ pieces: [{ kind: r >= 0.6 ? 'wizardRobe' : 'robe', flare: 0.18 }], note: `a ${r >= 0.6 ? 'wizard\'s robe' : 'robe'} to the ankle, flaring as it falls: the weight sits low` }),
   straightRobe: () => ({ pieces: [{ kind: 'robe', flare: 0.02 }], note: 'a robe falling straight: one even mass from shoulder to hem' }),
   straightCloak: () => ({ pieces: [{ kind: 'cloak', flare: 0, wrap: 0.55 }], note: 'a cloak falling straight from the shoulders: their width carried to the hem' }),
-  cloak: (r) => ({ pieces: [{ kind: 'cloak', flare: r3(lerp(0.08, 0.24, r)) }], note: 'a cloak over it, spreading as it falls' }),
+  cloak: () => ({ pieces: [{ kind: 'cloak', flare: 0.14 }], note: 'a cloak over it, spreading as it falls' }),
   hoodedCloak: (r) => ({ pieces: [{ kind: 'cloak', hood: true, wrap: 0.5, flare: 0 }], note: 'a narrow hooded cloak hanging straight: the hood lifts the top, the hem stays close' }),
   longCoat: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: 'maxi', cut: r >= 0.5 ? 'full' : 'aline', open: true } }, note: `a long coat to the shin, cut ${r >= 0.5 ? 'full' : 'a-line'}: it spreads as it falls` }),
   straightCoat: () => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: 'midi', cut: 'pencil', fit: 'loose', open: true } }, note: 'a long straight coat, loose from the chest: one even mass from the shoulders to the hem' }),
   // the middle widened: a band of weight at the waist, plates or panels at the hips
   sash: () => ({ pieces: [{ kind: 'sash' }], note: 'a sash at the waist: a horizontal band where the eye lands' }),
-  tassets: (r) => ({ language: { panels: [{ at: 'sides', length: 'mini', width: r3(lerp(0.45, 0.65, r)), cut: 'full', rigidity: 'stiff' }] }, note: 'short full panels at the hips: the middle stands out, the legs below stay narrow' }),
+  tassets: () => ({ language: { panels: [{ at: 'sides', length: 'mini', width: 0.55, cut: 'full', rigidity: 'stiff' }] }, note: 'short full panels at the hips: the middle stands out, the legs below stay narrow' }),
   gambeson: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: 'tunic', fit: 'loose', cut: 'full' } }, note: 'a padded coat to the thigh, loose: the mass in the middle' }),
   parka: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: 'tunic', fit: 'loose', cut: 'full' } }, note: 'a loose parka to the thigh: the mass in the middle' }),
   oversizedTop: () => ({ language: { top: { fit: 'loose', hem: 'tunic' } }, note: 'an oversized top to the hip: the mass in the middle' }),
@@ -53,40 +55,43 @@ export const TECHNIQUES = Object.freeze({
   fittedCoat: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: r >= 0.5 ? 'midi' : 'knee', cut: 'pencil', fit: 'fitted', open: true, collar: true } }, note: 'a fitted long coat, open: one clean vertical over the suit' }),
   utilityBelt: () => ({ language: { focal: 'belt' }, pieces: [{ kind: 'satchel' }], note: 'a belt with a holster at the hip: the one functional break in the line' }),
   tallBoots: () => ({ language: { feet: 'boots' }, note: 'tall boots: the leg finished in one dark mass' }),
-  highCollar: (r) => ({ pieces: [{ kind: 'collar', rise: r3(lerp(0.06, 0.12, r)), flare: 1.6 }], note: '◐ a high collar (a standing collar behind the neck until the collar shapes)', approx: 'high collar' }),
+  highCollar: () => ({ pieces: [{ kind: 'collar', rise: 0.09, flare: 1.6 }], note: '◐ a high collar (a standing collar behind the neck until the collar shapes)', approx: 'high collar' }),
   shortFullSkirt: () => ({ language: { bottom: { kind: 'skirt', leg: 'mini', cut: 'full' } }, note: 'a short full skirt: the bell made small and lively' }),
-  shortFullDress: (r) => ({ pieces: [{ kind: 'gown', hem: 'thigh', flare: r3(lerp(0.4, 0.65, r)) }], note: 'a short dress flaring hard from the waist: the width at the hips, the legs bare below' }),
-  spaulder: (r) => ({ pieces: [{ kind: 'pauldron', shoulder: r3(lerp(1.2, 1.7, r)) }], note: 'one armoured shoulder: the line broken on one side, the fighter\'s lead' }),
+  shortFullDress: () => ({ pieces: [{ kind: 'gown', hem: 'thigh', flare: 0.5 }], note: 'a short dress flaring hard from the waist: the width at the hips, the legs bare below' }),
+  spaulder: () => ({ pieces: [{ kind: 'pauldron', colour: 'metal', shoulder: 1.14 }], note: 'one armoured shoulder: the line broken on one side, the fighter\'s lead' }),
   kneeFullSkirt: () => ({ language: { bottom: { kind: 'skirt', leg: 'knee', cut: 'full' } }, note: 'a full skirt to the knee, with volume under it' }),
   fullLongSkirt: () => ({ language: { bottom: { kind: 'skirt', leg: 'maxi', cut: 'full' } }, note: 'a full skirt to the ankle: the low half of the X' }),
+  longSkirt: () => ({ language: { bottom: { kind: 'skirt', leg: 'maxi', cut: 'aline' } }, note: 'an a-line skirt to the ankle: the low half of the X, as wide as the shoulders above it' }),
   pleatedSkirt: () => ({ language: { bottom: { kind: 'skirt', leg: 'knee', cut: 'full' } }, note: '◐ a pleated skirt (a full skirt to the knee until pleats: pleats spread it the same way)', approx: 'pleats' }),
   bows: (r, d) => { const at = d >= 0.7 ? ['back', 'collar', 'wrists'] : d >= 0.35 ? ['back', 'collar'] : ['back'];
-    return { pieces: at.map((a) => ({ kind: 'bow', at: a, tails: r3(a === 'wrists' ? lerp(0.08, 0.16, r) : lerp(0.18, 0.45, r)), width: r3(lerp(0.028, 0.045, r)) })), note: `bows at the ${at.join(', the ')}, their tails flowing: ${at.length} by the detail, their length by the register` }; },
+    return { pieces: at.map((a) => ({ kind: 'bow', at: a, tails: a === 'wrists' ? 0.11 : 0.28, width: 0.034 })), note: `bows at the ${at.join(', the ')}, their tails flowing: ${at.length} by the detail` }; },
   neckerchief: () => ({ pieces: [{ kind: 'bow', at: 'collar', tails: 0.14 }], note: 'a neckerchief bow at the collar: the focal under the face' }),
   sailorCollar: () => ({ pieces: [{ kind: 'mantle', clasp: false }], language: { top: { family: 'woven', collar: true } }, note: '◐ a sailor collar (a mantle over the shoulders until the square flap)', approx: 'sailor collar' }),
   cinchedBodice: () => ({ language: { top: { family: 'woven', fit: 'fitted' }, focal: 'belt' }, pieces: [{ kind: 'sash' }], note: 'a fitted bodice cinched at the waist: the narrow middle of the X' }),
-  puffShoulders: (r) => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'base', shoulder: r3(lerp(1.0, 1.3, r)) }], note: '◐ puffed shoulders (soft shoulder caps until puff sleeves)', approx: 'puff sleeves' }),
-  gown: (r) => ({ pieces: [{ kind: 'gown', hem: 'ankle', flare: r3(lerp(0.2, 0.45, r)) }], note: 'a gown: a fitted bodice over a skirt full to the ankle' }),
+  puffShoulders: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'base', shoulder: 1.15 }], note: '◐ puffed shoulders (soft shoulder caps until puff sleeves)', approx: 'puff sleeves' }),
+  gown: () => ({ pieces: [{ kind: 'gown', hem: 'ankle', flare: 0.3 }], note: 'a gown: a fitted bodice over a skirt full to the ankle' }),
   hakama: () => ({ language: { bottom: { kind: 'skirt', family: 'woven', leg: 'maxi', cut: 'aline' } }, note: '◐ a hakama (a full skirt to the ankle until divided, pleated trousers)', approx: 'hakama' }),
   wideTrousers: () => ({ language: { bottom: { kind: 'trousers', family: 'woven', leg: 'long', cut: 'wide' } }, note: 'wide trousers falling from the hip (◐ hakama pleats later)', approx: 'hakama pleats' }),
   wideSleevedTop: () => ({ pieces: [{ kind: 'tunic', sleeve: 'bell', bell: 0.1, hem: 'thigh', flare: 0.04 }], note: 'an over-robe with wide sleeves, to the thigh' }),
   ankleDress: () => ({ language: { top: { family: 'woven', fit: 'fitted' }, bottom: { kind: 'skirt', leg: 'maxi', cut: 'pencil' }, dress: true }, note: 'a fitted dress to the ankle, one cloth: the line unbroken (◐ side slits later)', approx: 'side slits' }),
   mandarinCollar: () => ({ pieces: [{ kind: 'collar', rise: 0.05, flare: 1.4 }], note: '◐ a mandarin collar (a low standing collar until the collar shapes)', approx: 'mandarin collar' }),
   sidePanels: () => ({ language: { panels: [{ at: 'sides', length: 'mini', width: 0.3, rigidity: 'soft' }] }, note: 'short panels at the hips, swinging' }),
-  scarf: (r) => ({ pieces: [{ kind: 'bow', id: 'scarf', at: 'collar', loops: false, tails: r3(lerp(0.4, 0.8, r)), colour: 'accent' }], note: 'a scarf at the throat, its tails long and flowing: the motion line' }),
+  scarf: () => ({ pieces: [{ kind: 'bow', id: 'scarf', at: 'collar', loops: false, tails: 0.55, colour: 'accent' }], note: 'a scarf at the throat, its tails long and flowing: the motion line' }),
   tabard: () => ({ language: { panels: [{ at: 'front', length: 'knee', width: 0.4 }, { at: 'back', length: 'knee', width: 0.4 }] }, note: 'a tabard front and back: the vertical of a knight' }),
-  chestPlate: () => ({ pieces: [{ kind: 'chestPlate' }], note: 'a breastplate: the chest a hard plane' }),
+  chestPlate: () => ({ pieces: [{ kind: 'chestPlate', cut: 'cuirass', colour: 'metal' }], note: 'a breastplate from the collarbone to the waist: the chest a hard plane' }),
   duster: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: 'maxi', cut: 'aline', open: true, collar: true } }, note: 'a duster to the shin, open: it swings behind the stride' }),
   sleeveless: () => ({ language: { top: { sleeve: 'none' } }, note: 'the arms bare: the shoulders are the body\'s own' }),
   wraps: () => ({ pieces: [{ kind: 'wraps' }], note: 'wraps at the wrists: the hands made the tools' }),
-  collarRing: (r) => ({ pieces: [{ kind: 'collar', rise: r3(lerp(0.08, 0.18, r)) }], note: 'a standing collar ring: the top of the column finished' }),
+  collarRing: () => ({ pieces: [{ kind: 'collar', rise: 0.11 }], note: 'a standing collar ring: the top of the column finished' }),
 });
 
 /** the moves that make `target` in `genre` at register `r` */
 export function silhouetteMoves(genre, target, r, d = 0.35) {
-  const N = NAMED[target]; if (N) return N.moves.filter((m) => (m.from === undefined || r >= m.from) && (m.until === undefined || r < m.until)).map((m) => ({ technique: m.technique, ...TECHNIQUES[m.technique](r, d) }));
+  // each piece carries its technique's note as its reason (outfit-plan.js `outfitLaws`: every piece has a reason)
+  const lower = (m) => { const T = TECHNIQUES[m.technique](r, d); return { technique: m.technique, ...T, ...(T.pieces ? { pieces: T.pieces.map((p) => ({ ...p, why: T.note })) } : {}) }; };
+  const N = NAMED[target]; if (N) return N.moves.filter((m) => (m.from === undefined || r >= m.from) && (m.until === undefined || r < m.until)).map(lower);
   const G = GENRES[genre]; if (!G || !G.moves[target]) return [];
-  return G.moves[target].filter((m) => (m.from === undefined || r >= m.from) && (m.until === undefined || r < m.until)).map((m) => ({ technique: m.technique, ...TECHNIQUES[m.technique](r, d) }));
+  return G.moves[target].filter((m) => (m.from === undefined || r >= m.from) && (m.until === undefined || r < m.until)).map(lower);
 }
 /** the outline a target reads as: an outline word itself, or a named silhouette's */
 export const outlineOf = (target) => (NAMED[target] ? NAMED[target].outline : target);

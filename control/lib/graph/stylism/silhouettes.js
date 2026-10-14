@@ -18,7 +18,7 @@ export const NAMED = Object.freeze({
     moves: [{ technique: 'shortFullDress' }, { technique: 'bows' }, { technique: 'puffShoulders', from: 1 }] },
   sailor: { outline: 'bell', base: 'blouse', reads: 'the sailor uniform: a square collar, a bow, a pleated skirt',
     moves: [{ technique: 'sailorCollar' }, { technique: 'neckerchief' }, { technique: 'pleatedSkirt' }] },
-  princess: { outline: 'hourglass', base: 'blouse', reads: 'the princess: a cinched bodice over a full gown',
+  princess: { outline: 'bell', base: 'blouse', reads: 'the princess: a cinched bodice over a full ball-gown skirt, the bell',
     moves: [{ technique: 'puffShoulders' }, { technique: 'cinchedBodice' }, { technique: 'fullLongSkirt' }, { technique: 'bows', from: 0.7 }] },
   valkyrie: { outline: 'hourglass', base: 'traveler', reads: 'the battle maiden: armoured shoulders, a cinched waist, a full skirt of panels',
     moves: [{ technique: 'pauldrons' }, { technique: 'chestPlate', from: 0.35 }, { technique: 'cinchedBodice' }, { technique: 'kneeFullSkirt' }, { technique: 'tallBoots' }] },

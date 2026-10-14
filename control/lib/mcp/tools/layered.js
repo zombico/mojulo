@@ -584,13 +584,16 @@ export function dressReadout(hero, plan, mesh, recipe) {
   const parts = Object.keys(mesh?.parts || {}); const count = (re) => parts.filter((n) => re.test(n)).length;
   const out = { detail: word(hero.detail), adorn: word(hero.adorn), ...(hero.paint !== undefined ? { paint: (Array.isArray(hero.paint) ? hero.paint : [hero.paint]).map((x) => (typeof x === 'string' ? x : 'data')) } : {}), ...(hero.outfit !== undefined ? { outfit: isOutfitBuild(hero.outfit) ? outfitReadout(hero.outfit, plan, { drawn: hero.head === 'anime' ? 'anime' : null }) : (Array.isArray(hero.outfit) ? hero.outfit : [hero.outfit]).map((x) => (typeof x === 'string' ? x : x.id)) } : {}), ...(mesh ? { parts: { detail: count(DRESS), adorn: count(/^adorn\./) } } : {}) };
   if (isArmorBuild(hero.adorn)) out.armor = armorReadout(hero.adorn, dressContext(plan.style));   // the style, dials, pieces worn, focal
-  if (mesh && plan.adorn?.length) out.adornments = justify(mesh, plan.adorn.map((A) => ({ id: A.id, signature: A.signature.kind }))).map((r) => ({ id: r.id, signature: r.signature, verdict: r.verdict, exposed: r.sigExposed, share: r.sigShare }));
+  // (a GHOST adornment is thread on cloth, no plate of its own: its legibility is the families' below, not a share of a plate)
+  if (mesh && plan.adorn?.some((A) => !A.ghost)) out.adornments = justify(mesh, plan.adorn.filter((A) => !A.ghost).map((A) => ({ id: A.id, signature: A.signature.kind }))).map((r) => ({ id: r.id, signature: r.signature, verdict: r.verdict, exposed: r.sigExposed, share: r.sigShare }));
   // the read at the viewing height: the character height from which each dress family reads (the face's is measure_solid's)
   if (mesh) { const L = layeredLegibility(mesh); out.legibility = { viewPx: L.viewPx, families: L.families.filter((f) => DRESS.test(`${f.family}.`) || f.family.startsWith('adorn.')) }; }
   // the dress stays OUT of the body at every dial extreme (station-loft-clearance.js); the worst configuration is named
   // the dressed silhouette (dress-silhouette.js): the cloth's waist and taper against the body's, advice when it fills them
   if (recipe && hero.outfit !== undefined) { const S = dressSilhouette(recipe); if (S) out.silhouette = S; }
-  if (recipe && plan.adorn?.length) { const C = layeredClearance(recipe); out.clearance = { sinking: C.sinking, worst: Object.fromEntries(Object.entries(C.adornments).map(([id, a]) => [id, { at: a.worst.dial ? `${a.worst.dial} ${a.worst.value}` : 'rest', share: a.worst.share, ...(a.worst.into?.length ? { into: a.worst.into } : {}) }])) }; }
+  // (GHOST thread lies in the cloth it is worked on: sinking into its own carrier alone is the stitch, not a fault)
+  const stitched = (id, a) => { const A = plan.adorn.find((x) => x.id === id); return !!A?.ghost && (a.worst.into || []).every((n) => n === A.part); };
+  if (recipe && plan.adorn?.length) { const C = layeredClearance(recipe); out.clearance = { sinking: C.sinking.filter((id) => !C.adornments[id] || !stitched(id, C.adornments[id])), worst: Object.fromEntries(Object.entries(C.adornments).map(([id, a]) => [id, { at: a.worst.dial ? `${a.worst.dial} ${a.worst.value}` : 'rest', share: a.worst.share, ...(a.worst.into?.length ? { into: a.worst.into } : {}) }])) }; }
   return out;
 }
 /** what the hero's form rests on: the worn head's fit (views observed, views inferred), whether the face moved off it

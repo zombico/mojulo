@@ -107,21 +107,30 @@ runs `grounded` → `storybook` → `heroic` → `mythic` in any genre (Frieren'
 `hero.dress.stylism`.
 
 - **The silhouette solver.** `silhouette: wedge | bell | column | needle | barrel` picks a genre's big masses for that
-  outline, sized by the register: pauldrons or a mantle, a robe and cloak, a straight robe under a straight cloak, a
+  outline at believable sizes, the register choosing among them: pauldrons or a mantle, a robe and cloak, a straight robe under a straight cloak, a
   close fit, a padded coat with hip panels; in modern, a boxy jacket with padded shoulders or a long coat; in sci-fi,
   shoulder plates, a collar ring, a harness. The readout reads the outline back off the dressed figure with the arms
-  left out (a hand at the hip is not the hip). Across the three genres, both casts and the register's two ends, it
-  reads as its target in 64 of 70 cases. The misses are said with what leads and what would move it: the modern male's
-  barrel, where nothing in modern dress out-masses his shoulders; the grounded female's wedge, where a mantle barely
-  broadens; the grounded male's bell, which his shoulders turn into an X; and a sci-fi column a hair under the needle line.
+  left out (a hand at the hip is not the hip). At heroic, across the four genres and both casts, it reads as its target
+  in 47 of 48 cases; the miss, a sci-fi column a hair under the needle line, is said with what leads and what would
+  move it.
 - **Named silhouettes and the hourglass.** `silhouette` also takes a character type, an outline letter with the
   signature that makes it read: `operative`, `ribbon`, `sailor`, `princess`, `valkyrie`, `miko`, `qipao`, `lolita`,
   `idol`, `kunoichi`, `knight`, `samurai`, `gunslinger`, `monk`, `rogue`, `brawler`. A signature not yet drawn with
   its own technique (a sailor collar, pleats, slits, puff sleeves) is drawn with a stand-in and listed in
   `silhouette.approximated`. The outline letters gain `hourglass` (X), read off the waist's narrowest row against the
-  shoulders and the hem. At heroic, all sixteen read as their outline on the anime female and twelve on the male: his
-  shoulders turn the gunslinger's, the miko's and the sailor's belted bell into an X and the valkyrie's X into a wedge,
-  and the readout says so. The hourglass is reached in all three genres on both casts.
+  shoulders and the hem; the genres draw its low half as an a-line skirt to the ankle, as wide as the shoulders above
+  it. A princess is a ball gown, a bell. At heroic, fifteen of the sixteen read as their outline on the anime female
+  (the gunslinger's belted duster reads as an X) and twelve on the male (his shoulders turn the gunslinger's, the
+  miko's, the sailor's and the princess's bell into an X), and the readout says so. The hourglass is reached in every
+  genre on both casts.
+- **Believable sizes; the register warps after the design.** The silhouette's pieces were sized by the register, so a
+  mythic wedge's pauldrons stood out to 1.75 × the arm line and, seated solid, rose over the head. Every technique now
+  draws at a fixed, believable size (pauldrons 1.12 × the arm line, a cloak's flare, a bow's tails), and the register
+  only chooses among them. Heightening is a WARP stage after the design: from storybook up, cloth flares and streamers
+  lengthen by the genre's `warp.flare`, rigid pieces thicken toward its `warp.chunk` (the outfit's distortion, a pair
+  kept a pair: `lean: false`), and the focal piece grows, each within its cap. The notes say what was warped.
+- **A knight's breastplate.** `chestPlate` takes `cut: 'cuirass'`, from under the collarbone to the belt and inside the
+  arms; the default chest plate (up to the shoulders) is unchanged.
 - **One shape, no floating bits.** A broad shoulder plate (a wedge's pauldrons, a knight's, a samurai's) stood off
   the shoulder by its whole width, so on the male it hovered: two islands beside his torso in the blockout. It is now
   seated: the same outer shape, filled solid down to the shoulder (the adornment shell's new `seat`). The readout
@@ -130,6 +139,29 @@ runs `grounded` → `storybook` → `heroic` → `mythic` in any genre (Frieren'
   apart; a thin tail's specks do not count). A figure that breaks gets a note and a warning saying what floats and what
   would bridge it. Across the four genres' outlines and the sixteen named silhouettes, both casts at heroic, every
   figure is one shape. A plain pauldron (`shoulder` 1 or under) is unchanged.
+- **The detail solver.** `detail` is now spent, in a designer's order, as units of technique. The FOCAL zone goes
+  first and stays the richest: an embroidered emblem on the chest or back, a border on an edge, or, where a gown or
+  robe covers the cloth, a fitting (a medallion at the neck, arm rings at the wrists, a sash at the waist). Then the
+  motif ECHOED at another zone at another scale, then quiet bindings on the remaining edges, then one metal fitting
+  near the focal at heroic and above (at grounded, metal only where it works). One motif family, the genre's. It
+  lowers to the outfit's `detail` list, its `ornament` dial, the catalogue's fittings and the designed pieces' own
+  trim, spending only on roles the outfit shows (a robe buries the shirt's chest; a drawn second skin has no hem). The
+  hierarchy is weighed in units: an emblem 3, a border or a broad fitting 2, a binding or a small ring of metal 1, and
+  a signature's own pieces (a ribbon's bows) are charged first. `plain` spends nothing beyond the garment's own construction. The focal comes from the outline (a
+  wedge's chest, a bell's waist, a needle's neck), or `stylism.focal`, and `stylism.motif` names the motif. Each
+  spend is a note under `stage: 'detail'` with its zone, its cost and the budget left.
+- **Trim on designed pieces.** A robe, gown, wizard's robe, tunic or cloak takes `trim: { hem?: 'binding' |
+  'embroidery', cuffs?: 'binding', chest?: 'emblem', motif? }`: a band of the secondary cloth, the motif worked along
+  the hem in the trim's thread, an emblem on the bodice. Thread work lies in the cloth it is worked on, so the readout
+  no longer calls it unread or sunk into its own carrier.
+- **A stand-in palette.** The tuner's designed pieces (a dress, plates, bows) rendered grey: nothing gave them colour
+  roles. The value stage now fills `outfit.intent.palette` with a stand-in, until a style guide's palette supplies it.
+  It decides only what a palette must answer locally. Each role is a clear value step from what it sits on: the base
+  from the cloth it covers, the secondary from the base and the fitting. The accent is the dominant hue's complement,
+  where the chroma is spent. What is metal or leather keeps its material's colour, outside the palette: each genre's
+  materials name its `plate`, its `fitting` (plain to precious by the register) and its `strap`, and plate pieces wear
+  a new `metal` role. The outfit's own roles and the hero's own palette groups stand over it, and the notes give each
+  role's reason under `stage: 'value'`.
 - **The alien genre.** `genre: 'alien'` is the one whose masses stand apart: its plates hover (a pauldron's new
   `float: true`), and the readout notes the gap as the genre's own instead of flagging it. Arrival at grounded,
   Evangelion's Angels at mythic; nacre and chitin, membrane and spun filament.
