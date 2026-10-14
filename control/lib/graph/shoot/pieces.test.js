@@ -134,3 +134,34 @@ describe('pieces swept along a camera path: the round pipe and the box', () => {
     expect(inn.attach).toBe('still');
   });
 });
+
+describe('portals: a frame whose hole looks out of another camera', () => {
+  it('a portal into a shot looks out of that shot\'s camera at its first instant, every frame', () => {
+    const { plan } = normalizeShoot({ ...TWO, pieces: [{ id: 'door', kind: 'frame', shape: 'square', size: [2, 1.6], border: 0.1, portal: 'two', shots: ['one'], keys: [{ t: 0, at: [5, -5, 2] }] }] });
+    expect(plan.pieces[0].portal).toEqual({ shot: 'two' });
+    const door = lowerShoot(plan).pieces[0];
+    const b = cameraBasis(cameraAt(compileCamera(plan.cameras[1]), 0));
+    expect(door.portal.pos.slice(0, 3)).toEqual(b.pos);
+    expect(door.portal.pos.slice(-3)).toEqual(b.pos);       // a fixed instant: the same far camera at every frame
+    expect(door.portal.pos).toHaveLength(door.track.n * 3);
+  });
+
+  it('a live portal follows its camera through time; one into nothing is dropped with a warning', () => {
+    const { plan } = normalizeShoot({ ...TWO, pieces: [{ id: 'live', kind: 'frame', portal: { camera: 'a' } }, { id: 'nowhere', kind: 'frame', portal: 'three' }] });
+    const [live, nowhere] = lowerShoot(plan).pieces;
+    expect(live.portal.pos.slice(0, 3)).not.toEqual(live.portal.pos.slice(-3));   // camera a moves
+    expect(nowhere.portal).toBeUndefined();
+    expect(normalizeShoot({ ...TWO, pieces: [{ kind: 'frame', portal: 'three' }] }).warnings.some((w) => /shot 'three'/.test(w))).toBe(true);
+  });
+
+  it('the portal transition stands a door where a travelling camera will be at the cut, looking into the next shot', () => {
+    const plan = normalizeShoot({ ...TWO, shots: [TWO.shots[0], { ...TWO.shots[1], in: { type: 'portal', duration: 2 } }] }).plan;
+    const pieces = normalizeShoot({ ...plan, pieces: transitionPieces(plan) }).plan.pieces;
+    expect(pieces).toHaveLength(1);                         // all on the outgoing side
+    const [door] = pieces;
+    expect([door.attach, door.kind, door.portal]).toEqual(['world', 'frame', { shot: 'two' }]);
+    expect(door.keys[0].t).toBe(2);                         // the whole duration before the cut
+    const cut = cameraAt(compileCamera(plan.cameras[0]), 4);
+    expect(dist(door.keys[0].at, cut.pos)).toBeCloseTo(0.25, 6);   // just past the lens at the cut
+  });
+});

@@ -288,6 +288,7 @@ export const EMIT_FIXTURES = [
       { id: 'flat', kind: 'wall', attach: 'world', size: [2, 1], color: '#c03030', keys: [{ t: 0, at: [0, 3, 0.5], rot: [90, 0, 0], opacity: 0.8 }] },
       { id: 'lane', kind: 'floor', along: 'a', size: [1, 1], extend: [0, 1] },
       { id: 'bore', kind: 'pipe', along: 'a', radius: 0.4, cap: 'both' },
+      { id: 'door', kind: 'frame', shape: 'square', size: [1.2, 1], border: 0.1, portal: { shot: 'two' }, keys: [{ t: 0, at: [1, 1, 1], rot: [45, 0, 0] }] },
     ] }).plan;
     const shoot = lowerShoot(plan);
     return [['shoot-set', { faces: [floor()], shoot }], ['shoot-set-capture', { faces: [floor()], shoot, capture: true }]];

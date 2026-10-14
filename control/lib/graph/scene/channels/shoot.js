@@ -171,7 +171,8 @@ export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = 
     __shPlayB.textContent = __shPlay ? 'Pause' : 'Play';
     __shChipEls.forEach((b, k) => { b.style.background = k === at.i ? '#3a4152' : '#232733'; });` : ''}
   };
-  window.__mojShoot = { cameras: __shRigs.length, shots: SH.shots.length, total: SH.total, now: () => __shNow,
+${set ? `  window.__mojShootGizmos = __shGizmos;   // the shoot set hides them while it renders a portal's far view
+` : ''}  window.__mojShoot = { cameras: __shRigs.length, shots: SH.shots.length, total: SH.total, now: () => __shNow,
     look: (on) => { __shSetLook(!!on); __shRedraw(); }, seek: (tau) => { __shPlay = false; __shSeek(+tau || 0); __shRedraw(); } };
 }`;
 }

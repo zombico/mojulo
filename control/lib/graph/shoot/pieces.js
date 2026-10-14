@@ -8,6 +8,7 @@
  *              size?: [a, b] (wall / frame: width, height; floor / ceiling: length, width),
  *              radius?, length?, rings? (pipe), shape?: 'round' | 'square', border? (frame),
  *              along?: '<camera id>', span?: [t0, t1], extend?: [before, after] (pipe: built along a camera's path),
+ *              portal?: '<shot>' | { shot } | { camera, t? } (frame: its hole looks out of that camera),
  *              color, color2? (pipe rings), opacity?,
  *              visible?: [t0, t1] (world seconds; default: whenever its shots play),
  *              keys: [{ t, at: [x,y,z], rot?: [yaw, pitch, roll], scale?, opacity?, open?, ease? }] }]
@@ -24,6 +25,12 @@
  * corridor `size: [width, height]` with the `sides` it has: floor, ceiling, left, right). A wall, a floor or a ceiling
  * given `along` is that box with one side (a wall: `side: 'left' | 'right' | 'both'`), so the flats along a path and
  * the tube are one piece.
+ *
+ * A frame with a `portal` is a window into another camera's view: its hole shows what that camera sees, rendered
+ * from where the viewer stands relative to the frame (move and the view through it shifts, as through a doorway),
+ * so a camera that flies through the hole arrives exactly in the other camera's frame. `{ shot }` looks out of that
+ * shot's camera at its first instant (the frame after the cut); `{ camera, t }` out of a camera at a fixed time;
+ * `{ camera }` out of it live, at the world time showing. Anything behind the far camera is clipped away.
  *
  * Visibility: a piece shows during its `shots`; by default a camera's piece during that camera's shots and a world
  * piece during every shot, so two cameras covering one span never see each other's flats.
@@ -108,6 +115,7 @@ export function normalizePieces(raw, plan, warn = () => {}) {
           } : {}) }
         : { size: pos2(p.size, d.size) }),
       ...(kind === 'frame' ? { shape: p.shape === 'square' ? 'square' : 'round', border: fin(p.border) && p.border > 0 ? p.border : 0 } : {}),
+      ...(kind === 'frame' && portalOf(p.portal, plan, id, warn) ? { portal: portalOf(p.portal, plan, id, () => {}) } : {}),
       color: hex(p.color, PALETTE_DARK),
       ...(kind === 'pipe' ? { color2: hex(p.color2, '#f5a524') } : {}),
       keys,
@@ -207,9 +215,19 @@ export function lowerPieces(plan, pieces, { subjects = null } = {}) {
       const s = posePiece(p, Math.min(t1, t0 + j / plan.fps), cam);
       pos.push(...s.pos.map(r4)); quat.push(...s.quat.map(r4)); scale.push(...s.scale.map(r4)); opacity.push(r4(s.opacity)); open.push(r4(s.open));
     }
-    const { keys, shots, attach, generated, visible, along, span, extend, ...look } = p;
+    const { keys, shots, attach, generated, visible, along, span, extend, portal, ...look } = p;
     const swept = along ? alongPath(p, camOf(along), plan.fps) : null;
-    return { ...look, ...(swept ? { path: swept.path, rings: p.rings ?? swept.rings, ...(swept.rails ? { rails: swept.rails } : {}) } : {}), shots: shotIdx, track: { t0, t1, fps: plan.fps, n, pos, quat, scale, opacity, open } };
+    let dest = null;
+    if (portal) {   // the far side: where the portal looks out from, per frame of the piece's track
+      const far = portal.shot ? plan.shots.find((x) => x.name === portal.shot) : null;
+      const fc = camOf(far ? far.camera : portal.camera), fixedT = far ? far.span[0] : portal.t;
+      dest = { pos: [], quat: [] };
+      for (let j = 0; j < n; j++) {
+        const b = cameraBasis(cameraAt(fc, Number.isFinite(fixedT) ? fixedT : Math.min(t1, t0 + j / plan.fps)));
+        dest.pos.push(...b.pos.map(r4)); dest.quat.push(...quatOf(b).map(r4));
+      }
+    }
+    return { ...look, ...(dest ? { portal: dest } : {}), ...(swept ? { path: swept.path, rings: p.rings ?? swept.rings, ...(swept.rails ? { rails: swept.rails } : {}) } : {}), shots: shotIdx, track: { t0, t1, fps: plan.fps, n, pos, quat, scale, opacity, open } };
   });
 }
 
@@ -256,4 +274,22 @@ function boxRails(path) {
     right.push(r.map(r4)); up.push(norm(cross(r, t)).map(r4));
   }
   return { right, up };
+}
+
+// a frame's `portal`: a shot name, { shot }, or { camera, t? }, checked against the plan; null when it names nothing
+function portalOf(v, plan, id, warn) {
+  if (v == null) return null;
+  const o = typeof v === 'string' ? { shot: v } : v;
+  if (o && typeof o.shot === 'string') {
+    if (plan.shots.some((x) => x.name === o.shot)) return { shot: o.shot };
+    warn(`piece ${id}: its portal looks into shot '${o.shot}', which is not in the cut; no portal`);
+    return null;
+  }
+  if (o && typeof o.camera === 'string') {
+    if (plan.cameras.some((c) => c.id === o.camera)) return { camera: o.camera, ...(fin(o.t) && o.t >= 0 ? { t: o.t } : {}) };
+    warn(`piece ${id}: its portal looks out of camera '${o.camera}', which is not in the plan; no portal`);
+    return null;
+  }
+  warn(`piece ${id}: a portal is a shot name, { shot } or { camera, t? }; no portal`);
+  return null;
 }

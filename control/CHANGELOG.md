@@ -53,7 +53,10 @@ camera that pans with a car, then eases onto its tail and rides along).
   A pipe can be laid `along` a camera's path instead: world geometry swept along the route it travels, round or a
   box (`sides` from floor, ceiling, left, right, kept level as the path turns), so a wall, a floor or a ceiling along a
   path is the same piece with one side; the camera flies through it, and the pipe transition now lays its tube this
-  way when the camera travels. Captures now apply the plan's roll. `update_shoot_plan` gains `add_piece`, `set_piece`, `piece_key`,
+  way when the camera travels. A frame with a `portal` is a window into another camera: its hole shows that camera's
+  view rendered from where the viewer stands relative to the frame (a render target sampled in screen space, behind a
+  clipping plane at the far camera), so flying through it arrives exactly in the other picture; `in: 'portal'` stands
+  such a door where the outgoing camera will be at the cut. Captures now apply the plan's roll. `update_shoot_plan` gains `add_piece`, `set_piece`, `piece_key`,
   `remove_piece` and `set_shot { in }`.
 - **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
   LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world

@@ -120,7 +120,7 @@ export function registerShootPlanTools() {
   registerTool({
     name: 'update_shoot_plan',
     description:
-      "Edit a world's shoot plan in place, op by op, in camera-operator and After Effects terms: add_key / set_key (by time; `to` moves it) / remove_key, ease (one key, some, all: AE's F9), retime, set_camera (lens, path, one-node ↔ two-node keeping the view), add_camera / remove_camera, add_shot / set_shot (`in`: fade, wipe, iris, pipe) / remove_shot / move_shot, add_piece / set_piece / piece_key / remove_piece (walls, floors, ceilings, pipes, frames riding a camera or in the world), set { fps }. Same readout and clearance as create_shoot_plan. Manual: get_motion_vocab({ id: 'shoot' }).",
+      "Edit a world's shoot plan in place, op by op, in camera-operator and After Effects terms: add_key / set_key (by time; `to` moves it) / remove_key, ease (one key, some, all: AE's F9), retime, set_camera (lens, path, one-node ↔ two-node keeping the view), add_camera / remove_camera, add_shot / set_shot (`in`: fade, wipe, iris, pipe, portal) / remove_shot / move_shot, add_piece / set_piece / piece_key / remove_piece (walls, floors, ceilings, pipes, frames riding a camera or in the world), set { fps }. Same readout and clearance as create_shoot_plan. Manual: get_motion_vocab({ id: 'shoot' }).",
     inputSchema: {
       type: 'object',
       properties: {
