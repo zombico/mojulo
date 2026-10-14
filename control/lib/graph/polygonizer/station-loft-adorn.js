@@ -41,7 +41,10 @@ export function beneathOf(fig, names, { pokes = /^(spur|spine)/, onTop = false }
   // ON TOP: also every body detail PINNED to a carrier (fur tiles, locks, scales: named for their pass, not their part), so
   // an adornment rides over the cover instead of sinking under it
   const pinned = (k, p) => onTop && names.includes(p.pin?.parent ?? fig.anchors?.[k]?.part);
+  // the part and every GARMENT worn on it (body-garment.js names a garment piece `<id>_<part>`): an adornment rides over
+  // the cloth, not under it
   for (const n of names) if (L1[n]) pts.push(...Object.values(L1[n].points));
+  for (const [k, P] of Object.entries(L1)) if (P.garment && names.some((n) => k.endsWith(`_${n}`))) pts.push(...Object.values(P.points));
   for (const [k, p] of Object.entries(fig.parts)) if (!pokes.test(k) && (names.some((n) => k.includes(n)) || pinned(k, p))) pts.push(...Object.values(p.points));
   return pts; }
 /** height of the beneath hull above an address, along its normal, within a lateral radius */
@@ -80,7 +83,10 @@ export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.
   const nb = (k, j) => [[k, j], [k - 1, j], [k + 1, j], [k, j - 1], [k, j + 1]].map(([a, b]) => [closed ? (a + H.length) % H.length : Math.min(H.length - 1, Math.max(0, a)), Math.min(S.length - 1, Math.max(0, b))]);
   H = H.map((row, k) => row.map((_, j) => Math.max(...nb(k, j).map(([a, b]) => H[a][b])))); H = H.map((row, k) => row.map((_, j) => mean(nb(k, j).map(([a, b]) => [H[a][b]]))[0]));   // min-shield: max, then mean
   const mug = (s) => A.mugen * (1 + (A.ramp ?? 0) * (A.support == null ? 0 : Math.abs(s - A.support) / Math.max(1e-9, Math.abs(A.s[1] - A.s[0]))));
-  const inner = F.map((row, k) => row.map((f, j) => add(f.origin, mul(f.normal, H[k][j] + mug(S[j]))))); const outer = inner.map((row, k) => row.map((p, j) => add(p, mul(F[k][j].normal, A.thick))));
+  // `seat`: the wall filled down to `seat` off the hull, solid from the body to the outer face (a plate standing out by
+  // its own mass, never on a gap)
+  const lift = (k, j) => (A.seat != null ? H[k][j] + A.seat : H[k][j] + mug(S[j]));
+  const inner = F.map((row, k) => row.map((f, j) => add(f.origin, mul(f.normal, lift(k, j))))); const outer = inner.map((row, k) => row.map((p, j) => (A.seat != null ? add(F[k][j].origin, mul(F[k][j].normal, H[k][j] + mug(S[j]) + A.thick)) : add(p, mul(F[k][j].normal, A.thick)))));
   const sections = inner.map((row, k) => [...row, ...[...outer[k]].reverse()]);
   const mesh = closed ? ringLoft(sections) : loftParts(sections, mean(sections[0]), mean(sections[sections.length - 1]));
   if (rim) { const J = S.length, m = 2 * J, K = sections.length, at = rim.at ?? 'both', G = [];
@@ -710,6 +716,7 @@ export function validateKit(kit, parts) {
     if (A.mode === 'strap') { if (!Array.isArray(A.path) || A.path.length < 2) errs.push(`${at}.path: two or more [s, t, side] addresses`); if (!Number.isFinite(A.width)) errs.push(`${at}.width: metres`); }
     else if (A.mode) { if (!Array.isArray(A.s) || A.s.length !== 2) errs.push(`${at}.s: [s0, s1]`); if (!(A.t === 'wrap' || (Array.isArray(A.t) && A.t.length === 2))) errs.push(`${at}.t: 'wrap' or [t0, t1]`); }
     for (const k of ['mugen', 'thick']) if (!Number.isFinite(A[k])) errs.push(`${at}.${k}: metres`);
+    if (A.seat !== undefined && (A.mode !== 'shell' || !Number.isFinite(A.seat) || A.seat < 0)) errs.push(`${at}.seat: metres ≥ 0 (a shell filled down to it off the body)`);
     if (A.rim !== undefined && (typeof A.rim !== 'object' || typeof A.rim.group !== 'string' || (A.rim.at !== undefined && !['low', 'high', 'both'].includes(A.rim.at)))) errs.push(`${at}.rim: { group, at?: 'low' | 'high' | 'both', w?, wt?, ends? } (a shell's painted edge)`);
     if (A.stack !== undefined && typeof A.stack !== 'boolean') errs.push(`${at}.stack: true | false (false: later adornments are not lifted over it)`);
     if (!A.signature || typeof A.signature !== 'object' || !SIGNATURES[A.signature.kind]) errs.push(`${at}.signature: { kind: ${Object.keys(SIGNATURES).join(' | ')}, group, …numbers } — every adornment names the one element that justifies it`);

@@ -98,9 +98,12 @@ export const OUTFIT_KINDS = Object.freeze({
   wraps: { layer: 1, cls: 'soft', colour: 'secondary', compile: (p, B, G) => ({ adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'wrap'}${S}`, mode: 'band', part: `foreArm${S}`, s: [1.25, 1.75], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.008 * B.k), thick: r3(0.006 * B.k), group: G(p),
     signature: { kind: 'ribbon', k: 0, j: 1, spine: [[0, 0, 0], [0.01 * B.k, -0.02 * B.k, -0.04 * B.k], [0.015 * B.k, -0.03 * B.k, -0.09 * B.k]], width: r3(0.022 * B.k), thick: r3(0.002 * B.k), tip: 'swallow', group: G(p) } })) }) },
   // L4: ARMOUR pieces (rigid; one bone each)
-  // a broad shoulder line (`shoulder` × the arm line, a wedge's) sets its standoff out past the arm
-  pauldron: { layer: 4, cls: 'rigid', colour: 'secondary', compile: (p, B, G, I) => { const th = 0.014 * B.k, out = (p.shoulder ?? 0) > 1 ? B.armX * p.shoulder - B.armX - th : 0, mugen = Math.max(0.014 * B.k, out);
-    return { adorn: (I.symmetry === 'symmetric' || p.pair ? ['R', 'L'] : [p.side ?? (I.side === 'R' ? 'L' : 'R')]).map((S) => ({ id: `${p.id ?? 'pauldron'}${S}`, mode: 'shell', part: 'torso', over: [`upperArm${S}`], side: S, s: [2.55, 3.5], t: [1.1, 2.9], nt: 10, mugen: r3(mugen), thick: r3(th), group: G(p), rigid: true, rad: r3(0.09 * B.k), support: 3.5, ramp: 1.2,
+  // a broad shoulder line (`shoulder` × the arm line, a wedge's) is carried out past the arm by the plate's own mass,
+  // seated on the shoulder: the outline stays one shape. `float: true` stands the plate off by that width instead (a
+  // hand's breadth at the least), a gap between it and the body (an alien's detached masses)
+  pauldron: { layer: 4, cls: 'rigid', colour: 'secondary', compile: (p, B, G, I) => { const th = 0.014 * B.k, out = (p.shoulder ?? 0) > 1 ? B.armX * p.shoulder - B.armX - th : 0, seat = 0.014 * B.k;
+    const mugen = p.float ? Math.max(0.045 * B.k, out) : Math.max(seat, out), seated = !p.float && out > seat;
+    return { adorn: (I.symmetry === 'symmetric' || p.pair ? ['R', 'L'] : [p.side ?? (I.side === 'R' ? 'L' : 'R')]).map((S) => ({ id: `${p.id ?? 'pauldron'}${S}`, mode: 'shell', part: 'torso', over: [`upperArm${S}`], side: S, s: [2.55, 3.5], t: [1.1, 2.9], nt: 10, mugen: r3(mugen), ...(seated ? { seat: r3(seat) } : {}), thick: r3(th), group: G(p), rigid: true, rad: r3(0.09 * B.k), support: 3.5, ramp: 1.2,
     signature: { kind: 'boss', side: S, t: 1.5, tol: 0.2, r: r3(0.05 * B.k), h: r3(0.03 * B.k), m: 12, rim: 0.55, group: G({ colour: p.role === 'focal' ? 'accent' : 'trim' }) } })) }; } },
   bracers: { layer: 4, cls: 'rigid', colour: 'leather', compile: (p, B, G, I) => ({ adorn: (I.symmetry === 'symmetric' ? ['R', 'L'] : [I.side ?? 'R']).map((S) => ({ id: `${p.id ?? 'bracer'}${S}`, mode: 'shell', part: `foreArm${S}`, s: [0.62, 1.2], t: 'wrap', mugen: r3(0.012 * B.k), thick: r3(0.01 * B.k), group: G(p), rigid: true,
     signature: { kind: 'studs', r: r3(0.008 * B.k), h: r3(0.004 * B.k), count: 3, m: 6, group: G({ colour: 'trim' }) } })) }) },

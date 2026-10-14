@@ -97,8 +97,72 @@ const ARM = /^(upperArm|foreArm|hand|thumb\d?|index\d?|middle\d?|ring\d?|little\
 const VIEWS = Object.freeze({ front: 180, three: 150, side: 90 });
 // an hourglass: its two ends alike (the lesser at least ENDS of the greater) and the waist under both by WAIST of the lesser
 const NEEDLE = 0.28, COLUMN = 0.2, WAIST = 0.15, ENDS = 0.68;
+// a GAP: a mass of the outline standing apart from the figure by more than two pixels of the mask (a belted panel
+// hanging a finger's width off the leg is one shape), at least ISLAND of the figure's own area (a speck under it is a thin
+// tail broken by the mask's resolution, not a shape)
+const ISLAND = 0.015;
+/** the masses of one mask apart from the largest, as shares of it (8-connected over the mask grown by a pixel, so a seam of two closes;
+ * specks under ISLAND left out) */
+export function islandsOf(rows) {
+  const H = rows.length, W = rows[0].length, seen = new Uint8Array(H * W), sizes = [];
+  const on = new Uint8Array(H * W);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) if (rows[j][i] === '1') for (let a = Math.max(0, j - 1); a <= Math.min(H - 1, j + 1); a++) for (let b = Math.max(0, i - 1); b <= Math.min(W - 1, i + 1); b++) on[a * W + b] = 1;
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    if (!on[j * W + i] || seen[j * W + i]) continue;
+    let n = 0; const st = [j * W + i]; seen[j * W + i] = 1;
+    while (st.length) { const q = st.pop(), a = (q / W) | 0, b = q % W; n++;
+      for (let da = -1; da <= 1; da++) for (let db = -1; db <= 1; db++) { const c = a + da, d = b + db;
+        if (c >= 0 && c < H && d >= 0 && d < W && on[c * W + d] && !seen[c * W + d]) { seen[c * W + d] = 1; st.push(c * W + d); } } }
+    sizes.push(n);
+  }
+  sizes.sort((a, b) => b - a);
+  return sizes.slice(1).filter((n) => n >= ISLAND * sizes[0]).map((n) => r3(n / sizes[0]));
+}
+// a FLOATING piece: a worn adornment (layer 3) no point of which comes within FLOAT (× the figure's scale) of the body,
+// its cloth or another worn piece: it hovers, a gap all round it (a plate seated on the shoulder stands a cloth's
+// clearance off it, never this). Hair and the face (layer 2) hold nothing up.
+const FLOAT = 0.03;
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+/** the distance from p to the triangle abc */
+function triDist(p, a, b, c) {
+  const ab = sub3(b, a), ac = sub3(c, a), ap = sub3(p, a), d1 = dot3(ab, ap), d2 = dot3(ac, ap);
+  const at = (q) => Math.hypot(...sub3(p, q)), on = (o, e, t) => at([o[0] + e[0] * t, o[1] + e[1] * t, o[2] + e[2] * t]);
+  if (d1 <= 0 && d2 <= 0) return at(a);
+  const bp = sub3(p, b), d3 = dot3(ab, bp), d4 = dot3(ac, bp); if (d3 >= 0 && d4 <= d3) return at(b);
+  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) return on(a, ab, d1 / (d1 - d3));
+  const cp = sub3(p, c), d5 = dot3(ab, cp), d6 = dot3(ac, cp); if (d6 >= 0 && d5 <= d6) return at(c);
+  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) return on(a, ac, d2 / (d2 - d6));
+  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) return on(b, sub3(c, b), (d4 - d3) / ((d4 - d3) + (d5 - d6)));
+  const den = 1 / (va + vb + vc), v = vb * den, w = vc * den;
+  return at([a[0] + ab[0] * v + ac[0] * w, a[1] + ab[1] * v + ac[1] * w, a[2] + ab[2] * v + ac[2] * w]);
+}
+/** the worn pieces that hover: [{ piece, gap }] (gap: its nearest approach to what could hold it, metres) */
+export function floatingOf(mesh) {
+  const V = mesh.vertices, P = mesh.provenance;
+  let lo = Infinity, hi = -Infinity; for (const v of V) { if (v[2] < lo) lo = v[2]; if (v[2] > hi) hi = v[2]; }
+  const lim = FLOAT * Math.max(0.5, (hi - lo) / 1.75);
+  // a piece is an adornment and what rides on it (`adorn.<id>`, its signatures `adorn.<id>.sig…`)
+  const pieceOf = (i) => { const m = /^adorn\.([^.]+)/.exec(P[i].part ?? ''); return m ? m[1] : null; };
+  const holds = (i) => P[i].layer !== 2;
+  const own = {}; V.forEach((_, i) => { const q = pieceOf(i); if (q) (own[q] ??= []).push(i); });
+  // the triangles that could hold a piece, with their boxes
+  const tris = []; for (const f of mesh.faces) { if (!holds(f[0])) continue; for (let t = 1; t + 1 < f.length; t++) { const T = [V[f[0]], V[f[t]], V[f[t + 1]]];
+    tris.push({ T, q: pieceOf(f[0]), min: [0, 1, 2].map((k) => Math.min(T[0][k], T[1][k], T[2][k])), max: [0, 1, 2].map((k) => Math.max(T[0][k], T[1][k], T[2][k])) }); } }
+  const out = [];
+  for (const [q, idx] of Object.entries(own)) {
+    let best = Infinity;
+    for (const i of idx) { const p = V[i];
+      for (const t of tris) { if (t.q === q || [0, 1, 2].some((k) => p[k] < t.min[k] - lim || p[k] > t.max[k] + lim)) continue;
+        const d = triDist(p, ...t.T); if (d < best) best = d; if (best <= lim) break; }
+      if (best <= lim) break; }
+    // a hovering piece: how far it stands off (every triangle, no box)
+    if (best > lim) { for (const i of idx) for (const t of tris) if (t.q !== q) best = Math.min(best, triDist(V[i], ...t.T)); out.push({ piece: q, gap: r3(best) }); }
+  }
+  return out;
+}
 /** the figure's outline, the arms left out: { outline, widths: { low, mid, high } (the widest row of each third, as a
- * share of the height), masks: { view: { res, rows } } } */
+ * share of the height), islands: { view: [share…] } (the masses standing apart in the outline), floating: [{ piece,
+ * gap }] (the worn pieces that hover), cohesive (neither: the figure is one shape), masks: { view: { res, rows } } } */
 export function readSilhouette(mesh, { res = 96 } = {}) {
   // (an adornment carried by an arm, a wrap or a bracelet, is the arm's: its anchor names the carrier)
   const armOf = (v) => { const P = mesh.provenance[v]; return ARM.test(P.part) || ARM.test(String(P.anchor ?? '').split('/')[0]); };
@@ -120,7 +184,9 @@ export function readSilhouette(mesh, { res = 96 } = {}) {
   const x = ends >= NEEDLE * span && ends >= ENDS * Math.max(shoulders, low) && waist < (1 - WAIST) * ends;
   // (read without the arms: narrow for its height under NEEDLE of it, even within COLUMN of its widest)
   const outline = widest / span < NEEDLE ? 'needle' : x ? 'hourglass' : widest - Math.min(low, mid, high) < COLUMN * widest ? 'column' : widest === mid ? 'barrel' : widest === low ? 'bell' : 'wedge';
-  return { outline, widths: { low: r3(low / span), mid: r3(mid / span), high: r3(high / span), waist: r3(waist / span) }, masks };
+  const islands = Object.fromEntries(Object.entries(masks).map(([v, m]) => [v, islandsOf(m.rows)])), floating = floatingOf(mesh);
+  return { outline, widths: { low: r3(low / span), mid: r3(mid / span), high: r3(high / span), waist: r3(waist / span) }, islands, floating,
+    cohesive: Object.values(islands).every((x) => !x.length) && !floating.length, masks };
 }
 
 /** what to do when the outline read misses its target: the third that leads, and what moves it (advice, never applied) */
@@ -132,6 +198,14 @@ export function silhouetteAdvice(target, read) {
     hourglass: 'the shoulders and the hem both out past a cinched middle (a breaker above, a full skirt below, a fitted bodice and a belt between)',
     barrel: 'more in the middle (a padded coat, panels at the hips, a sash) or less at the shoulders and the hem' };
   return `reads ${read.outline} (low ${w.low}, mid ${w.mid}, high ${w.high} of the height): ${lead} lead${lead === 'the hem' ? 's' : ''}; for a ${target}, ${MOVE[target]}`;
+}
+
+/** what to do when the outline breaks into islands: where they stand apart, and what bridges them (advice, never applied) */
+export function cohesionAdvice(read) {
+  const at = Object.entries(read.islands).filter(([, x]) => x.length), fl = read.floating || [];
+  const said = [...fl.map((f) => `${f.piece} hovers ${f.gap === null ? 'apart' : `${Math.round(f.gap * 100)} cm off the figure`}`),
+    ...at.map(([v, x]) => `the ${v} outline has ${x.length} mass${x.length > 1 ? 'es' : ''} apart (${x.map((n) => `${Math.round(n * 100)}%`).join(', ')} of the figure)`)];
+  return { where: [...fl.map((f) => f.piece), ...at.map(([v]) => `${v} outline`)].join(', '), why: `the figure is not one shape: ${said.join('; ')} — seat what floats on the body or bridge it (a mantle under plates, a belt over a panel), or name a detached genre (alien) for whom the gap is the point` };
 }
 
 /** the BLOCKOUT as one SVG sheet: each view's outline as flat runs, side by side, the ground line under them */

@@ -10,6 +10,8 @@
  *   materials  what its metal and cloth are (the detail and surface phases spend these)
  *   motifs     the embroidery / panel motif families it draws in (station-loft-adorn.js MOTIFS)
  *   register   the two ends of its heightening, named by the works that stand at them (for the notes)
+ *   detached   true: masses standing apart from the body are this genre's language (its plates hover, the outline may
+ *              break into islands); every other genre keeps the outline ONE shape (silhouette.js `cohesive`)
  */
 export const GENRES = Object.freeze({
   fantasy: Object.freeze({
@@ -53,6 +55,21 @@ export const GENRES = Object.freeze({
     materials: { metal: ['anodised alloy', 'chrome', 'gunmetal'], cloth: ['polymer', 'carbon weave', 'ballistic nylon'] },
     motifs: ['chevron', 'diamond', 'dots'],
     register: { grounded: 'The Expanse', mythic: 'Warhammer 40,000' },
+  }),
+  alien: Object.freeze({
+    base: { style: 'athlete', language: { top: { family: 'knit', sleeve: 'long', hem: 'hip', fit: 'skin' }, bottom: { family: 'knit', leg: 'long', fit: 'skin' } } },
+    moves: {
+      wedge: [{ technique: 'pauldrons' }, { technique: 'closeFit' }],
+      bell: [{ technique: 'robe' }, { technique: 'collarRing', from: 0.35 }],
+      column: [{ technique: 'straightRobe' }, { technique: 'straightCloak' }],
+      needle: [{ technique: 'closeFit' }, { technique: 'collarRing' }],
+      barrel: [{ technique: 'parka' }, { technique: 'tassets' }, { technique: 'harness' }],
+      hourglass: [{ technique: 'pauldrons' }, { technique: 'cinchedBodice' }, { technique: 'fullLongSkirt' }],
+    },
+    materials: { metal: ['nacre', 'chitin', 'iridescent alloy'], cloth: ['membrane', 'spun filament', 'resin weave'] },
+    motifs: ['wave', 'diamond', 'dots'],
+    register: { grounded: 'Arrival', mythic: "Evangelion's Angels" },
+    detached: true,
   }),
 });
 export const GENRE_NAMES = Object.freeze(Object.keys(GENRES));

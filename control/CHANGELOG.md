@@ -101,7 +101,7 @@ taper survives, and the flow is in pieces cut to hang. The research behind it is
 `hero.stylism: { genre, register, detail, silhouette }` dresses a hero the way a character designer works:
 silhouette first, then value, then detail. Each stage is a solver over principles that spends a budget, lowers to the
 build fields the garment kernels already compile, and writes down what it chose and why. `genre` is a vocabulary card
-(`fantasy`, `modern`, `scifi`): what draws an edge, a cuff, a closure or a breaker, from what material. `register`
+(`fantasy`, `modern`, `scifi`, `alien`): what draws an edge, a cuff, a closure or a breaker, from what material. `register`
 runs `grounded` → `storybook` → `heroic` → `mythic` in any genre (Frieren's cast to Warcraft; The Expanse to 40k).
 `detail` runs `plain` → `considered` → `rich` → `ornate`. Absent, the hero is as before. The notes are in
 `hero.dress.stylism`.
@@ -122,6 +122,21 @@ runs `grounded` → `storybook` → `heroic` → `mythic` in any genre (Frieren'
   shoulders and the hem. At heroic, all sixteen read as their outline on the anime female and twelve on the male: his
   shoulders turn the gunslinger's, the miko's and the sailor's belted bell into an X and the valkyrie's X into a wedge,
   and the readout says so. The hourglass is reached in all three genres on both casts.
+- **One shape, no floating bits.** A broad shoulder plate (a wedge's pauldrons, a knight's, a samurai's) stood off
+  the shoulder by its whole width, so on the male it hovered: two islands beside his torso in the blockout. It is now
+  seated: the same outer shape, filled solid down to the shoulder (the adornment shell's new `seat`). The readout
+  checks the figure is one shape: `read.cohesive`, with `floating` (a worn piece that comes nowhere within 3 cm of the
+  body, its cloth or another piece; hair holds nothing up) and `islands` (a mass of the outline more than two pixels
+  apart; a thin tail's specks do not count). A figure that breaks gets a note and a warning saying what floats and what
+  would bridge it. Across the four genres' outlines and the sixteen named silhouettes, both casts at heroic, every
+  figure is one shape. A plain pauldron (`shoulder` 1 or under) is unchanged.
+- **The alien genre.** `genre: 'alien'` is the one whose masses stand apart: its plates hover (a pauldron's new
+  `float: true`), and the readout notes the gap as the genre's own instead of flagging it. Arrival at grounded,
+  Evangelion's Angels at mythic; nacre and chitin, membrane and spun filament.
+- **Adornments ride over the cloth.** A kit piece (a bow, a sash, a breastplate, a belt) cleared only the body part it
+  sits on, not the garments worn over that part, so on a dressed hero it sank into the cloth: a bow on the back of a
+  dress 56 % at rest. It now clears every garment on its part as well. On the bow test model the warnings went from 12
+  to 6, none of them at rest.
 - **Bows.** A new catalogue piece, `bow` (`at`: back | collar | wrists; `tails`; `loops: false` for a scarf's knot): a
   knot, two loops and two tails flowing as strands. The ribbon signature's new `drape` lays each tail over what it
   hangs across (a seat, a bust, a hand) instead of along a fixed spine.

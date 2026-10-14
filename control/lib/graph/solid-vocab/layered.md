@@ -540,8 +540,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 
   STYLISM. `stylism: { genre?, register?, detail?, silhouette? }` dresses the hero the way a character designer works:
   the silhouette first, then detail, each a solver over principles that lowers to the outfit build above and writes down
-  why. `genre` is a vocabulary card: `fantasy` (default) | `modern` | `scifi` — what makes each big shape there (a
-  mantle or pauldrons, a boxy jacket and padded shoulders, shoulder plates and a collar ring). `register` is how heightened,
+  why. `genre` is a vocabulary card: `fantasy` (default) | `modern` | `scifi` | `alien` — what makes each big shape there (a
+  mantle or pauldrons, a boxy jacket and padded shoulders, shoulder plates and a collar ring); every genre but `alien`
+  keeps the figure ONE shape (a plate seated on the shoulder), `alien`'s plates hover (a pauldron's `float: true`). `register` is how heightened,
   in any genre: `grounded` | `storybook` (default) | `heroic` | `mythic` or 0–1 (Frieren's cast to Warcraft; The
   Expanse to 40k): the outfit's `stylize`, the breakers' size, an armour build's `mass`, together. `silhouette` is the
   target: an outline letter — `wedge` (T: the shoulders) | `bell` (A: the hem) | `column` (H: even) | `needle` (I:
@@ -553,7 +554,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   card is worn; with one, the hero's own language, dials and pieces stand over the solver's (it fills only what was left
   open); a word outfit is left as it is. The readout's `hero.dress.stylism` has the notes ({ stage, technique, where,
   principle, why }) and the outline READ back off the dressed figure without its arms, with advice when it misses the
-  target (advice, never applied: change the words or the outfit). Patch `/hero/stylism/<word>`.
+  target (advice, never applied: change the words or the outfit), and `read.cohesive`: false when a worn piece floats
+  (nowhere within 3 cm of the body, its cloth or another piece) or the outline breaks into islands, with a note saying
+  what floats and what would bridge it (none for `alien`, whose gaps are its own). Patch `/hero/stylism/<word>`.
 <!-- /section -->
 <!-- section: hero-statue | Statues | the hero as a period statue: card, material, crop, losses, base -->
   STATUE. `statue: '<card>'` or `{ type: 'statue', style, material?, crop?, lose?, base?, dials: { wear }? }` carves the

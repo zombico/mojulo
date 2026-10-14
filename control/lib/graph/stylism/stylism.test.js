@@ -4,7 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateStylism, styledHero, stylismLedger, resolveStylism, REGISTER_WORDS } from './index.js';
 import { GENRES, GENRE_NAMES } from './genres.js';
-import { OUTLINES, TECHNIQUES, silhouetteMoves, readSilhouette, blockoutSvg, silhouetteAdvice, outlineOf } from './silhouette.js';
+import { OUTLINES, TECHNIQUES, silhouetteMoves, readSilhouette, blockoutSvg, silhouetteAdvice, outlineOf, islandsOf, cohesionAdvice } from './silhouette.js';
 import { NAMED, NAMED_SILHOUETTES } from './silhouettes.js';
 import { heroRecord, heroPlanOf, planLayered, expandLayeredManifest, heroReadout } from '../../mcp/tools/layered.js';
 
@@ -93,6 +93,31 @@ describe('the silhouette solver on a dressed hero', () => {
     expect(styledHero(hero({ silhouette: 'sailor' })).outfit.style).toBe(NAMED.sailor.base);
     const bows = (detail) => styledHero(hero({ silhouette: 'idol', detail })).outfit.pieces.filter((p) => p.kind === 'bow').length;
     expect(bows('plain')).toBeLessThan(bows('ornate'));
+  });
+  it('the figure is ONE shape: a broad plate is seated on the shoulder; a detached genre\'s hovers, and says so', { timeout: 120000 }, () => {
+    // the male's shoulder plates out past a broad arm line: the widest stand-off there is
+    const seated = dressed({ cast: 'male', head: 'anime', stylism: { genre: 'fantasy', silhouette: 'wedge', register: 'mythic' } });
+    const R = readSilhouette(seated.mesh);
+    expect(R.floating).toEqual([]); expect(R.islands.front).toEqual([]); expect(R.cohesive).toBe(true);
+    const S = heroReadout(seated.h, seated.plan, null, [], { mesh: seated.mesh, recipe: seated.recipe }).dress.stylism;
+    expect(S.silhouette.read.cohesive).toBe(true); expect(S.notes.some((n) => n.technique === 'gaps')).toBe(false);
+    const alien = dressed({ cast: 'male', head: 'anime', stylism: { genre: 'alien', silhouette: 'wedge', register: 'mythic' } });
+    const A = readSilhouette(alien.mesh);
+    expect(A.cohesive).toBe(false); expect(A.floating.map((f) => f.piece).sort()).toEqual(['pauldronL', 'pauldronR']);
+    for (const f of A.floating) expect(f.gap).toBeGreaterThan(0.03);
+    const L = heroReadout(alien.h, alien.plan, null, [], { mesh: alien.mesh, recipe: alien.recipe }).dress.stylism;
+    expect(L.silhouette.detached).toBe(true); expect(L.notes.some((n) => n.technique === 'detached')).toBe(true);
+    expect(L.notes.some((n) => n.technique === 'gaps')).toBe(false);   // the genre's own gap is not a fault
+  });
+  it('a gap in the outline: a mass apart counts, a seam and a speck do not; the advice names it', () => {
+    // a figure the mask's size (96 rows, about a thousand pixels), a plate beside its shoulder
+    const grid = (draw) => Array.from({ length: 96 }, (_, j) => Array.from({ length: 96 }, (_, i) => (draw(i, j) ? '1' : '0')).join(''));
+    const body = (i, j) => i >= 40 && i <= 55 && j >= 4 && j <= 80, plate = (gap) => (i, j) => i >= 55 + gap + 1 && i <= 55 + gap + 8 && j >= 66 && j <= 74;
+    expect(islandsOf(grid(body))).toEqual([]);
+    expect(islandsOf(grid((i, j) => body(i, j) || plate(3)(i, j))).length).toBe(1);   // three pixels off
+    expect(islandsOf(grid((i, j) => body(i, j) || plate(2)(i, j)))).toEqual([]);      // two: a seam
+    expect(islandsOf(grid((i, j) => body(i, j) || (i === 70 && j === 20)))).toEqual([]);   // a speck
+    expect(cohesionAdvice({ islands: { front: [0.09], side: [] }, floating: [{ piece: 'pauldronR', gap: 0.09 }] }).why).toMatch(/pauldronR hovers 9 cm .*front outline has 1 mass apart .*seat what floats/);
   });
   it('the readout carries the notes and the read; a miss is advised, never forced; the blockout is a sheet', { timeout: 120000 }, () => {
     const { h, plan, mesh, recipe } = dressed(hero({ genre: 'fantasy', silhouette: 'wedge', register: 'heroic' }));

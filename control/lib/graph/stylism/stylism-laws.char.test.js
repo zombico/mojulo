@@ -18,6 +18,7 @@ const PINS = {
     'fantasy grounded': '1d4ef5532c867045', 'fantasy mythic': 'e1a9c4ffd5bed062',
     'modern grounded': 'ada3046c55d7847c', 'modern mythic': '5392b21db6eaaf16',
     'scifi grounded': '9bd2a486c215012f', 'scifi mythic': 'e562ba903f33fa7b',
+    'alien grounded': 'c8ce04bae562eb23', 'alien mythic': '7bba7556c72609ec',
     'named': 'a0c65f4429f21dfd',
   },
 };

@@ -5,7 +5,8 @@
  * every read into an ordinary outfit build (styledHero), and the notes are regenerated beside it (stylismLedger).
  *
  *   hero.stylism: { genre?, register?, detail?, silhouette?, laws? }
- *     genre       a vocabulary card (genres.js): fantasy | modern | scifi — what each big shape and each detail is made of
+ *     genre       a vocabulary card (genres.js): fantasy | modern | scifi | alien — what each big shape and each detail is
+ *                 made of; every genre but a DETACHED one (alien: its plates hover off the body) keeps the outline one shape
  *     register    HEIGHTENING, genre-free: grounded 0 · storybook 0.35 · heroic 0.7 · mythic 1, or 0 … 1 (Frieren's cast
  *                 to Warcraft; The Expanse to Warhammer 40,000): element scale, flare, the outfit's `stylize`, an armour
  *                 build's mass, together
@@ -73,7 +74,9 @@ function solve(hero) {
   const language = { ...lang };
   for (const [k, v] of Object.entries(ownLang)) language[k] = Array.isArray(v) || typeof v !== 'object' || v === false ? v : under(lang[k], v);
   const have = new Set((own?.pieces || []).map((p) => p.kind));
-  const pieces = [...(own?.pieces || []), ...moves.flatMap((m) => m.pieces || []).filter((p) => !have.has(p.kind))];
+  // a DETACHED genre stands its plates off the body (a piece's own `float` stands)
+  const pieces = [...(own?.pieces || []), ...moves.flatMap((m) => m.pieces || []).filter((p) => !have.has(p.kind))]
+    .map((p) => (G.detached && p.kind === 'pauldron' && p.float === undefined ? { ...p, float: true } : p));
   // the register: the outfit's stylize (bigger trims, fuller flare, fewer and bigger buttons), the hero's own over it
   const stylize = r3(lerp(0.1, 0.9, S.r));
   const outfit = { type: 'outfit', style: own?.style ?? named?.base ?? G.base.style, ...(own?.laws !== undefined ? { laws: own.laws } : {}),
@@ -102,7 +105,8 @@ export function stylismLedger(hero) {
   const named = NAMED[S.silhouette];
   if (named) notes.push({ stage: 'silhouette', technique: S.silhouette, where: `a ${outlineOf(S.silhouette)}`, principle: 'a type reads by its signature', why: named.reads });
   for (const m of moves) notes.push({ stage: 'silhouette', technique: m.technique, where: S.silhouette, principle: named ? 'the signature makes the type' : 'a few big masses make the outline', why: m.note });
+  if (G.detached && moves.some((m) => (m.pieces || []).some((p) => p.kind === 'pauldron'))) notes.push({ stage: 'silhouette', technique: 'detached', where: 'the shoulders', principle: 'a mass apart from the body reads as other', why: `${S.genre}: the plates hover off the shoulders, the gap between them and the body the genre's own` });
   if (hero.outfit !== undefined && !isOutfit(hero.outfit)) notes.push({ stage: 'silhouette', technique: 'none', where: 'the outfit', principle: 'what the hero says wins', why: 'the outfit is a word or a garment list: the stylism leaves it as it is' });
   const approx = moves.filter((m) => m.approx).map((m) => m.approx);
-  return { genre: S.genre, register: S.r, detail: S.d, silhouette: { target: S.silhouette, outline: S.silhouette ? outlineOf(S.silhouette) : null, moves: moves.map((m) => m.technique), ...(approx.length ? { approximated: approx } : {}) }, notes };
+  return { genre: S.genre, register: S.r, detail: S.d, silhouette: { target: S.silhouette, ...(G.detached ? { detached: true } : {}), outline: S.silhouette ? outlineOf(S.silhouette) : null, moves: moves.map((m) => m.technique), ...(approx.length ? { approximated: approx } : {}) }, notes };
 }

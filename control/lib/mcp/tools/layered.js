@@ -43,7 +43,7 @@ import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 import { coreMeasures, coreAdvice } from '@/lib/graph/polygonizer/hero-core-measures';
 import { dressSilhouette } from '@/lib/graph/polygonizer/dress-silhouette';
 import { validateStylism, styledHero, stylismLedger, STYLISM_LAWS_VERSION } from '@/lib/graph/stylism';
-import { readSilhouette, silhouetteAdvice } from '@/lib/graph/stylism/silhouette';
+import { readSilhouette, silhouetteAdvice, cohesionAdvice } from '@/lib/graph/stylism/silhouette';
 import { heroPlan, planScale, castOf, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, storedTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
@@ -733,8 +733,10 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
   const dress = dressReadout(styledHero(hero), plan, dressMesh, recipe);
   // the stylism's notes, and the outline read back off the dressed figure (the arms left out)
   if (dress && hero.stylism) { const L = stylismLedger(hero);
-    if (dressMesh?.faces) { const R = readSilhouette(dressMesh), advice = silhouetteAdvice(L.silhouette.outline, R); L.silhouette.read = { outline: R.outline, widths: R.widths };
-      if (advice) L.notes.push({ stage: 'silhouette', technique: 'read', where: 'the front outline', principle: 'the outline reads at a thumbnail', why: advice }); }
+    if (dressMesh?.faces) { const R = readSilhouette(dressMesh), advice = silhouetteAdvice(L.silhouette.outline, R); L.silhouette.read = { outline: R.outline, widths: R.widths, cohesive: R.cohesive, ...(R.cohesive ? {} : { islands: R.islands, floating: R.floating }) };
+      if (advice) L.notes.push({ stage: 'silhouette', technique: 'read', where: 'the front outline', principle: 'the outline reads at a thumbnail', why: advice });
+      // ONE SHAPE: a mass standing apart reads as a floating bit, unless the genre is a detached one
+      if (!R.cohesive && !L.silhouette.detached) { const gaps = cohesionAdvice(R); L.notes.push({ stage: 'silhouette', technique: 'gaps', where: gaps.where, principle: 'the outline is one shape', why: gaps.why }); warnings.push(`stylism: ${gaps.why}`); } }
     dress.stylism = L; }
   const stand = gestureReadout(hero, mesh, recipe); warnings.push(...gestureWarnings(stand, stats?.layered?.dials));
   // the midsection measured (hero-core-measures.js) for the design loop's critic; its advice joins the warnings on the
