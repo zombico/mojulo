@@ -13,8 +13,8 @@ const ROOT = mkdtempSync(path.join(os.tmpdir(), 'render-bay-scan-'));
 process.env.MOJULO_OUTCOMES_DIR = path.join(ROOT, 'outcomes');
 process.env.MOJULO_EXPORTS_DIR = path.join(ROOT, 'exports');
 
-import { beforeAll, describe, expect, it } from 'vitest';
-import { scanArtifactExports, scanBeatsExports } from './outputs-scan.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { scanArtifactExports, scanBeatsExports, scanOutcomeTree } from './outputs-scan.js';
 import { tallyOutputKinds } from './lanes.js';
 
 async function write(dir, name, bytes = 8) {
@@ -109,3 +109,43 @@ describe('scanBeatsExports', () => {
     }
   });
 });
+
+describe('scanOutcomeTree — the whole folder, by its subfolders', () => {
+  // its own root, so the lane's folder counts above are untouched
+  const TREE = mkdtempSync(path.join(os.tmpdir(), 'render-bay-tree-'));
+  const at = (...p) => path.join(TREE, ...p);
+  let before;
+  beforeAll(async () => {
+    before = process.env.MOJULO_OUTCOMES_DIR;
+    process.env.MOJULO_OUTCOMES_DIR = TREE;
+    // an export that writes into subfolders: a building's sheets and schedules, a game's page and Godot pack
+    await write(at('sk_house'), 'model.ifc', 70);
+    await write(at('sk_house'), '.DS_Store', 6);
+    await write(at('sk_house', 'sheets'), 'A-101.svg', 30);
+    await write(at('sk_house', 'sheets'), 'A-201.svg', 30);
+    await write(at('sk_house', 'schedules'), 'doors.csv', 9);
+    await write(at('sk_house', 'schedules'), 'doors.json', 9);
+    await write(at('sk_game'), 'game.html', 40);
+    await write(at('sk_game', 'godot', 'kernel'), 'arcade.gd', 12);
+  });
+  afterAll(() => { process.env.MOJULO_OUTCOMES_DIR = before; });
+
+  it('lists every file down the folders, grouped by the folder it sits in at the top, its own files first', async () => {
+    const t = await scanOutcomeTree('sk_house');
+    expect(t.url).toBe('/outcomes/sk_house/');
+    expect(t.groups.map((g) => g.dir)).toEqual(['', 'schedules', 'sheets']);
+    expect(t.groups.find((g) => g.dir === 'sheets').files.map((f) => f.path)).toEqual(['sheets/A-101.svg', 'sheets/A-201.svg']);
+    // a sidecar is a receipt, not an output
+    expect(t.groups.find((g) => g.dir === 'schedules').files.map((f) => f.path)).toEqual(['schedules/doors.csv']);
+    expect(t.total).toBe(4);
+    expect(t.bytes).toBe(70 + 30 + 30 + 9);
+  });
+
+  it('marks a page, reads nested folders, and is empty for a folder that is not there', async () => {
+    const g = await scanOutcomeTree('sk_game');
+    expect(g.groups[0].files[0]).toMatchObject({ path: 'game.html', page: true });
+    expect(g.groups.find((x) => x.dir === 'godot').files[0]).toMatchObject({ path: 'godot/kernel/arcade.gd', page: false });
+    expect(await scanOutcomeTree('sk_none')).toMatchObject({ total: 0, url: null, groups: [] });
+  });
+});
+

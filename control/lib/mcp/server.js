@@ -29,7 +29,7 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, RETIRED_OFFICE_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
+import { PACKS, SPINE, RETIRED_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 import { toolTier } from '@/lib/mcp/tool-tiers';
@@ -132,7 +132,7 @@ export function cliInstructionsAddendum({ hostIds, cmd = 'mojulo' } = {}) {
 }
 
 const registeredTools = new Map();
-const RETIRED_OFFICE = new Set(RETIRED_OFFICE_TOOLS);
+const RETIRED = new Set(RETIRED_TOOLS);
 
 export function registerTool(tool) {
   if (!tool || !tool.name || typeof tool.handler !== 'function') {
@@ -142,9 +142,9 @@ export function registerTool(tool) {
   // that legitimately run long (heavy render bakes, gif encodes). See the soft
   // timeout in lib/mcp/telemetry.js. Optional `aliasOf` names the tool a
   // deprecated alias forwards to; the alias takes that tool's annotations.
-  // The office wing's tools left the surface in 3.1.0 (RETIRED_PACKS in packs.js): still callable
-  // by name, never listed.
-  if (RETIRED_OFFICE.has(tool.name)) tool.listed = false;
+  // A retired pack's tools (RETIRED_PACKS in packs.js: the office wing, game projects) are still
+  // callable by name, never listed.
+  if (RETIRED.has(tool.name)) tool.listed = false;
   registeredTools.set(tool.name, tool);
 }
 

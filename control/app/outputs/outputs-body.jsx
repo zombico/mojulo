@@ -69,7 +69,6 @@ export default function CooksIndexBody({ authEnabled = false }) {
   const [query, setQuery] = useState('');
   const [kindFilter, setKindFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('open');
-  const [rowBusy, setRowBusy] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,25 +91,6 @@ export default function CooksIndexBody({ authEnabled = false }) {
   }, [kindFilter, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
-
-  const toggleArchive = useCallback(async (cookRef, currentlyArchived) => {
-    setRowBusy(cookRef);
-    try {
-      const res = await fetch(`/api/cooks/${encodeURIComponent(cookRef)}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archived: !currentlyArchived }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Failed to update');
-      // Refetch so row drops/appears according to the active status filter.
-      await load();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setRowBusy(null);
-    }
-  }, [load]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -251,8 +231,6 @@ export default function CooksIndexBody({ authEnabled = false }) {
                 cook={cook}
                 kindLabel={kindLabel(cook.publicationKind)}
                 t={t}
-                onToggleArchive={() => toggleArchive(cook.cookRef, !!cook.archivedAt)}
-                rowBusy={rowBusy === cook.cookRef}
               />
             ))
           )}
@@ -264,11 +242,11 @@ export default function CooksIndexBody({ authEnabled = false }) {
   );
 }
 
-function CookRow({ cook, kindLabel, t, onToggleArchive, rowBusy }) {
+function CookRow({ cook, kindLabel, t }) {
   const kindStyle = KIND_STYLES[cook.publicationKind] || KIND_STYLES.unknown;
   const archived = !!cook.archivedAt;
   return (
-    <div className={`group relative border rounded-lg transition p-4 ${
+    <div className={`border rounded-lg transition p-4 ${
       archived
         ? 'border-gray-800 bg-gray-800/40 hover:border-gray-700'
         : 'border-gray-700 bg-gray-800 hover:border-gray-600 hover:bg-gray-700/30'
@@ -319,16 +297,6 @@ function CookRow({ cook, kindLabel, t, onToggleArchive, rowBusy }) {
         <span className="text-xs text-gray-500 shrink-0 whitespace-nowrap">
           {formatTimestamp(cook.createdAt)}
         </span>
-      </div>
-      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition">
-        <button
-          type="button"
-          onClick={onToggleArchive}
-          disabled={rowBusy}
-          className="px-2 py-1 text-[11px] border border-gray-600 rounded bg-gray-900/80 text-gray-300 hover:border-teal-500 hover:text-teal-300 disabled:opacity-50"
-        >
-          {archived ? t('actions.unarchive') : t('actions.archive')}
-        </button>
       </div>
       <div className="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-gray-700/60">
         <p className="font-mono text-[11px] text-gray-500 truncate">{cook.cookRef}</p>

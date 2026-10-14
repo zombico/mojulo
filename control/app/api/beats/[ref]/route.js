@@ -4,8 +4,8 @@
  *
  * Two shapes ride one dynamic segment:
  *   /api/beats/<ref>          — the live player page. `?rev=N` plays any
- *                               revision; open annotations render as markers
- *                               and the annotate-here affordance POSTs back.
+ *                               revision; open annotations render as
+ *                               read-only markers.
  *   /api/beats/<ref>.wav      — deterministic WAV render (`?rev=`, plus the
  *                               beats-render options bars/loops/cue/variant/tail).
  *   /api/beats/<ref>.mid      — the score as a Standard MIDI File (`?rev=`,

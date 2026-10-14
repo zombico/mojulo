@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { rollThread, CHAPTER_WORDS, growthBetween } from './thread.js';
 import { rollEgocube, bandOfYears } from './egocube.js';
 import { planFromSheet } from './plan.js';
+import { validateHeroSpec } from '../../mcp/tools/layered.js';
 
 const thread = (chapters, seed = 7) => rollThread({ brief: 'hero', seed, years: 11, chapters });
 
@@ -27,8 +28,19 @@ describe('rollThread', () => {
     const t = thread([{ chapter: 'time', years: 5 }]);
     expect(t.nodes[0].sheet.derives.frame).toContain('cast = child');
     expect(t.nodes[1].sheet.notes.frame.some((n) => n.from === `build.${t.nodes[0].sheet.facets.build}`)).toBe(true);
-    expect(planFromSheet(t.nodes[0].sheet).create.spec.cast).toBe('child');
+    // the child is the pole's child build: a child's radii on its own pole's landmarks (a girl keeps the female head)
+    expect(planFromSheet(t.nodes[0].sheet).create.spec.cast).toEqual({ pole: t.nodes[0].sheet.facets.pole, build: 'child' });
+    expect(validateHeroSpec(planFromSheet(t.nodes[0].sheet).create.spec)).toEqual([]);
     expect(planFromSheet(t.nodes[1].sheet).create.spec.cast).toBe(t.nodes[0].sheet.facets.pole);
+  });
+  it('lowers growth as amounts: a youth its share of adult height, an adult none of it (no step stacked per chapter)', () => {
+    const t = rollThread({ seed: 3, years: 11, facets: { pole: 'female' }, chapters: [{ chapter: 'time', years: 2 }, { chapter: 'time', years: 18 }] });
+    const tune = (i) => planFromSheet(t.nodes[i].sheet).create.spec.tune ?? {};
+    expect(t.nodes[1].sheet.growth).toMatchObject({ from: 11, years: 13, stature: 0.96 });
+    expect(tune(1).stature).toBe(0.96);
+    expect(tune(1).head).toBeGreaterThan(1);   // the head outgrown by the body less than the body: larger for its height
+    expect(tune(2).stature).toBeUndefined();
+    expect(tune(2).head).toBeUndefined();
   });
   it('carries one kept marker on every node', () => {
     const t = thread([{ chapter: 'time', years: 5 }, { chapter: 'time', years: 10 }]);

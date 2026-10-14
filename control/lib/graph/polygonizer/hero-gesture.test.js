@@ -291,6 +291,12 @@ describe('the door: no gesture ⇒ byte-identical', () => {
       const old = heroPlanOf(heroRecord({ ...spec, core: 'streamlined' })); expect(h(old)).toBe(oldPlan); expect(h(expandPlan(old))).toBe(oldRecipe);
     });
   }
+  // a tune control added after these pins (hero-form.js SPARSE_TUNE_KEYS) stores nothing at 1, as a word or a list too:
+  // stored at 1 it moved every record above, and with it the face's seed (anime-face-tracks faceSeed)
+  it('a later tune control stores nothing at 1 and its value when moved', () => {
+    for (const tune of [undefined, { armLength: 1 }, 'athletic', ['athletic', { armLength: 1 }]]) expect(heroRecord({ cast: 'male', tune }).tune).not.toHaveProperty('armLength');
+    expect(heroRecord({ cast: 'male', tune: { armLength: 0.9 } }).tune.armLength).toBe(0.9);
+  });
   // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
   // `hands`, `handWidth`): the hand alone moved
   it("the anime hero at gesture: 'rest' keeps its plan and recipe", () => {

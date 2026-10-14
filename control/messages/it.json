@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Mappa dei Servizi",
-    "back": "Indietro"
-  },
-  "actions": {
-    "start": "Avvia"
-  },
   "settings": {
     "title": "Impostazioni",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "App",
-    "subtitle": "App materializzate dall'agente tramite il paradigma App. Ciclo di vita, variabili env e introspezione MCP live — lette dalla contextmap e dal runner locale.",
-    "loading": "Caricamento in corso…",
-    "refresh": "Aggiorna",
-    "empty": "Nessuna app ancora — chiedi al tuo agente Claude Code di crearne una.",
-    "backToList": "Torna alle app",
-    "notFound": "App non trovata.",
-    "openPreview": "Apri anteprima",
-    "openMcp": "Apri MCP",
-    "actions": {
-      "start": "Avvia",
-      "stop": "Ferma",
-      "starting": "Avvio in corso…",
-      "stopping": "Arresto in corso…"
-    },
-    "status": {
-      "running": "In esecuzione",
-      "stopped": "Interrotta",
-      "crashed": "Interrotto",
-      "unknown": "Sconosciuto"
-    },
-    "table": {
-      "headers": {
-        "name": "Nome",
-        "materialized": "Materializzato",
-        "runner": "Runner",
-        "status": "Stato",
-        "actions": "Azioni"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "La mappa di creazione di questa app — ogni chiamata di strumento che l'ha materializzata, come stazioni su un'unica linea."
-      },
-      "metadata": "Metadati",
-      "artifactPath": "Percorso artefatto",
-      "materializationRef": "Ref materializzazione",
-      "adapter": "Adattatore",
-      "appName": "Nome app",
-      "host": "Host",
-      "materializedAt": "Materializzato a",
-      "viewGraph": "Visualizza grafico",
-      "bindings": "Associazioni",
-      "binding": {
-        "runner": "Runner",
-        "durability": "Durabilità",
-        "inference": "Inferenza",
-        "mcpSelf": "MCP self"
-      },
-      "mcpPanel": {
-        "title": "App MCP",
-        "url": "URL MCP",
-        "offline": "MCP offline — avvia l'app per vedere il suo elenco di strumenti.",
-        "loading": "Caricamento strumenti…",
-        "error": "Impossibile raggiungere l'MCP dell'app: {error}",
-        "registeredTools": "Strumenti registrati",
-        "noTools": "Nessuno strumento registrato.",
-        "declaredPurpose": "Scopo dichiarato"
-      },
-      "envPanel": {
-        "title": "Variabili di ambiente",
-        "explainer": "I valori vengono scritti direttamente nel file .env dell'artefatto. Non vengono registrati, non vengono archiviati nel database del piano di controllo e non vengono ripetuti in questa vista.",
-        "addKey": "Chiave",
-        "addValue": "Valore",
-        "add": "Aggiungi",
-        "delete": "Elimina",
-        "deleteConfirm": "Eliminare la variabile env \"{key}\"?",
-        "noKeys": "Nessuna variabile env impostata ancora.",
-        "valueHidden": "•••••",
-        "edit": "Modifica",
-        "save": "Salva",
-        "cancel": "Annulla",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "valore"
-      },
-      "provenance": {
-        "title": "Provenienza",
-        "subtitle": "Principi allegati al commit di materializzazione di questa app.",
-        "none": "Nessun principio registrato."
-      }
-    }
-  },
-  "graph": {
-    "title": "Mappa creazione app",
-    "subtitle": "Come un'app si riunisce. Ogni casella è un pezzo; ogni freccia mostra cosa causa cosa.",
-    "subtitleTechnical": "Come un'app è composta nel paradigma mojulo. Le stazioni sono i pezzi; le linee sono gli strumenti MCP che li uniscono. Convalidati rispetto al registro MCP live e allo schema contextmap ad ogni aggiornamento.",
-    "technicalToggle": "Tecnico",
-    "loading": "Caricamento in corso…",
-    "refresh": "Aggiorna",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Nessuna app creata ancora} =1 {1 app creata} other {# app create}}",
-      "lastMaterialized": "L'ultimo creato",
-      "viewApps": "Visualizza app in esecuzione"
-    },
-    "validation": {
-      "ok": "Tutto è ancora corretto.",
-      "okTechnical": "Manifest valido: {tools} strumenti, {nodeKinds} tipi di nodo, {edgeKinds} tipi di arco, {sourceEvents} eventi sorgente tutti si risolvono.",
-      "failed": "{count, plural, =1 {1 cosa nella mappa non corrisponde più alla realtà} other {# cose nella mappa non corrispondono più alla realtà}}"
-    },
-    "legend": {
-      "input": "Quello che decidi",
-      "inputTechnical": "Input",
-      "mcpTool": "Uno strumento che l'agente chiama",
-      "mcpToolTechnical": "Strumento MCP",
-      "filesystem": "File su disco",
-      "filesystemTechnical": "File system",
-      "dbRow": "Voce in memoria",
-      "dbRowTechnical": "Riga DB"
-    }
-  },
   "login": {
     "subtitle": "Accedi per continuare",
     "username": "Nome utente",
@@ -178,7 +60,6 @@
     "title": "Piano",
     "subtitle": "Lavoro proposto — sessioni che sono diventate picchi. Forgiato e eseguito dal tuo agente host.",
     "navLabel": "Piano",
-    "newPlan": "Nuovo piano",
     "total": "{count} piani",
     "count": "{count} piani",
     "filteredCount": "{count} di {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Non eseguito ancora.",
     "stepOk": "ok",
     "stepFailed": "non riuscito",
-    "newPlanTitle": "Nuovo piano",
-    "newPlanIntro": "I piani vengono creati nel tuo agente host (Claude Code / Codex). Descrivi l'intento, copia il prompt iniziale e incollalo in una nuova sessione agente — l'agente entra in modalità piano e gestisce il lavoro. Questa pagina si aggiorna man mano che il piano viene creato e revisionato.",
-    "intentLabel": "Cosa vuoi pianificare? (opzionale)",
-    "intentPlaceholder": "es. un runtime trigger webhook per il compositore",
-    "promptLabel": "Prompt iniziale",
-    "copyPrompt": "Copia prompt",
-    "copied": "Copiato",
     "close": "Chiudi"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Frammento",
     "kindSketch": "Schizzo",
     "viewSketch": "Visualizza diagramma",
-    "composerHeading": "Aggiungi a notebook",
-    "composerStub": "Solo anteprima — l'associazione avviene attraverso il tuo agente host per ora.",
-    "composerPlaceholder": "Incolla un collegamento, rilascia un file o scrivi una nota…",
-    "newBook": "Nuovo libro",
-    "newBookTitle": "Nuovo libro di ricerca",
-    "newBookIntro": "I libri vengono iniziati nel tuo agente host (Claude Code / Codex). Descrivi l'argomento, copia il prompt iniziale e incollalo in una nuova sessione agente — l'agente entra in modalità ricerca e gestisce il lavoro. Questa pagina si aggiorna man mano che il libro si accumula.",
-    "intentLabel": "Cosa vuoi ricercare? (opzionale)",
-    "intentPlaceholder": "es. come altri fanno un tunnel dei server MCP locali",
-    "promptLabel": "Prompt iniziale",
-    "copyPrompt": "Copia prompt",
-    "copied": "Copiato",
     "close": "Chiudi"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "Home del Workshop",
     "groups": {
-      "ideate": "Ideazione",
-      "operate": "Operazione",
-      "studio": "Studio"
+      "make": "Crea",
+      "media": "Media",
+      "play": "Gioca",
+      "ideate": "Ideazione"
     },
     "drawer": {
       "open": "Apri navigazione",
       "close": "Chiudi navigazione"
     },
     "tiles": {
-      "mcpSkills": "Servizi Connessi",
-      "apps": "App",
-      "sketch": "Schizzi",
       "plan": "Piani",
       "outputs": "Output",
       "research": "Ricerca",
       "stash": "Archivi",
-      "illustrations": "Illustrazioni",
       "worlds": "Mondi",
       "objects": "Oggetti",
       "motion": "Movimento",
       "beats": "Ritmi",
       "voice": "Voce",
-      "games": "Sviluppatore di giochi",
-      "arcade": "Arcade",
-      "settings": "Impostazioni",
       "library": "Libreria",
       "renderBay": "Baia di Render",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Luoghi",
+      "characters": "Personaggi",
+      "images": "Immagini",
+      "play": "Gioca",
+      "elements": "Elementi"
     },
     "agentStatus": {
       "liveLabel": "In diretta",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "Dashboard",
       "open": "Apri il piano →"
-    },
-    "ask": {
-      "title": "Chiedi all'agente",
-      "body": "La creazione avviene nel tuo agente MCP."
     }
-  },
-  "breadcrumbs": {
-    "home": "Home"
   },
   "sketches": {
     "notFoundTitle": "Schizzo non trovato",
@@ -398,10 +253,6 @@
     "refresh": "aggiorna",
     "statusOpen": "apri",
     "statusResolved": "risolto @ rev {rev}",
-    "annotateHint": "I segni vengono scritti dal tuo agente (annotate_beats — ancorati a una battuta, traccia o cue); questo pannello li rende. Copia il prompt di revisione per far sì che l'agente li contrassegni o agisca su di essi.",
-    "copyRevisionPrompt": "Copia prompt di revisione",
-    "copied": "Copiato ✓",
-    "copyFailed": "Impossibile copiare negli appunti.",
     "exportWav": "Esporta .wav",
     "exportMidi": "Esporta .mid",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "Sviluppatore di giochi",
-    "gallerySubtitle": "Un progetto per gioco — regole, livelli, personaggi, audio e grafica su un unico ripiano.",
-    "galleryEmpty": "Ancora nessun progetto di gioco. Avvia create_game_project dal tuo agente host per crearne uno.",
-    "copyStarterPrompt": "Copia prompt iniziale",
     "loading": "Caricamento progetti…",
-    "noMembersYet": "Ancora nessun membro",
     "notFound": "Quel progetto non esiste — potrebbe essere stato archiviato o il ref è sbagliato.",
     "backToProjects": "Torna a Sviluppatore di giochi",
-    "copyWorkPrompt": "Copia prompt di lavoro",
-    "copyAddPrompt": "aggiungi",
-    "copyMintPrompt": "conia il gioco",
-    "copied": "Copiato",
-    "playable": "Giocabile",
     "missing": "Mancante",
     "missingBody": "L'artefatto di questo membro non esiste più. Il progetto mantiene lo slot; riassocialo o rimuovilo dal tuo agente host.",
     "noRules": "Ancora nessun gioco coniato — il progetto è in pre-produzione.",
@@ -468,13 +310,6 @@
     "emptyFolder": "Ancora niente qui."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Giochi standalone giocabili, coniati dal laboratorio. Scegli un cabinato e gioca.",
-    "loading": "Caricamento cabinati…",
-    "emptyState": "Ancora nessun gioco in sala. Avvia create_game dal tuo agente host per coniare il primo cabinato.",
-    "copyStarterPrompt": "Copia prompt iniziale",
-    "copied": "Copiato",
-    "play": "Gioca",
     "levelCount": "{count, plural, one {# livello} other {# livelli}}",
     "shipped": "Rilasciato"
   },
@@ -484,7 +319,7 @@
     "subtitle": "Ogni artefatto che l'agente ha creato — scene, modelli, personaggi, materiali, immagini, diagrammi. Uno scaffale per ogni modo di guardare; sotto, lo stesso archivio di ricette.",
     "shelves": {
       "recent": "Recenti",
-      "scenes": "Mondi",
+      "scenes": "Scene",
       "turntables": "Giradischi",
       "models": "Modelli",
       "views": "Viste",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "Lo studio: illustrazioni, mondi percorribili, oggetti 3D, motion, beat, voce e output finiti. Una superficie creativa calibrata, gemella di Sketches (calibrata per i diagrammi). Ogni pezzo è la stessa primitiva sketch — riponilo, referenzialo e confrontalo in entrambi i casi."
-    },
     "beats": {
       "title": "Ritmi",
       "subtitle": "Colonne sonore sintetizzate, composizioni ed effetti sonori — selezionane una e premi play. Creane di nuove dal tuo agente tramite create_beats."
@@ -546,11 +377,7 @@
       "tuned": "Sintonizzato (ricetta invariata)",
       "reset": "ripristina",
       "playingAt": "Campione a fiducia {c} / profondità {d}",
-      "noSamples": "Nessun campione renderizzato ancora — copia il comando speak e fai associare al tuo agente alcuni punti (bordi inclusi).",
-      "copyBlend": "Copia blend",
-      "copyCommand": "Copia comando speak",
-      "copyPrompt": "Copia prompt iniziale",
-      "copied": "Copiato!",
+      "noSamples": "Ancora nessun campione renderizzato.",
       "loading": "Caricamento registri vocali…",
       "empty": "Nessun registro vocale ancora. Chiedi al tuo agente di crearne uno con create_voice.",
       "unresolvable": "Questo registro non si risolve più — la sua banca potrebbe aver cambiato. Ricrealo tramite create_voice."
@@ -602,10 +429,6 @@
     "kindNovel": "Novella",
     "kindVisualGuide": "Guida visiva",
     "kindUnknown": "Sconosciuto",
-    "actions": {
-      "archive": "Archivio",
-      "unarchive": "Estrai da archivio"
-    },
     "sourceLabel": "Da",
     "sourceUnknown": "(archivio rimosso)",
     "lensLabel": "Lente",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "Archivi",
-    "subtitle": "Bucket rinominabili di materiale tipizzato che l'agente ha raccolto. Creati tramite lo strumento MCP mint_stash.",
+    "subtitle": "Contenitori di materiale tipizzato raccolto dall’agente.",
     "total": "{count, plural, =0 {Nessun archivio} =1 {1 archivio} other {# archivi}}",
     "count": "{count, plural, =0 {Nessuna corrispondenza} =1 {1 archivio} other {# archivi}}",
     "filteredCount": "{count} di {total} mostrati",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {nessun cassetto} =1 {1 cassetto} other {# cassetti}}",
     "createdAt": "Creato {timestamp}",
     "updatedAt": "Aggiornato {timestamp}",
-    "actions": {
-      "rename": "Rinomina",
-      "edit": "Modifica",
-      "archive": "Archivio",
-      "unarchive": "Estrai da archivio",
-      "save": "Salva",
-      "cancel": "Annulla",
-      "titleEmpty": "Il titolo non può essere vuoto",
-      "renameFailed": "Rinomina fallita",
-      "statusChangeFailed": "Impossibile cambiare lo stato"
-    },
     "detail": {
       "loading": "Caricamento archivio…",
       "notFoundTitle": "Archivio non trovato",
@@ -673,66 +485,7 @@
         "sketch": "Schizzo"
       },
       "sketchFailed": "Caricamento schizzo fallito.",
-      "openSketch": "Apri schizzo",
-      "newDrawer": "Nuovo cassetto",
-      "newDrawerPlaceholder": "Nome cassetto",
-      "drawerSaveError": "Impossibile salvare cassetto",
-      "drawerRenameError": "Impossibile rinominare cassetto",
-      "renameDrawerLabel": "Rinomina cassetto",
-      "moveError": "Impossibile spostare elemento",
-      "archive": "Archivio",
-      "archiveError": "Impossibile archiviare elemento",
-      "archiveWarning": "Questo elemento appare in {cookCount, plural, =1 {1 cook} other {# cook}}. Le citazioni si risolvono al contenuto archiviato. Procedere?",
-      "archiveProceed": "Archivia comunque",
-      "archiveCancel": "Annulla",
-      "addItem": "+ Aggiungi",
-      "agentTypesFooter": "Script e puntatori contextmap vengono aggiunti dal tuo agente.",
-      "picker": {
-        "text": "Nuovo blocco di testo",
-        "image": "Carica immagine",
-        "svg": "Aggiungi SVG",
-        "link": "Incolla collegamento",
-        "sketch": "Scegli schizzo"
-      },
-      "panel": {
-        "save": "Salva",
-        "cancel": "Annulla",
-        "saving": "Salvataggio in corso…",
-        "saveError": "Impossibile salvare",
-        "titleLabel": "Titolo (opzionale)",
-        "titlePlaceholder": "Etichetta breve",
-        "sourceUrlLabel": "URL sorgente (opzionale)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Formato",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Testo semplice",
-        "bodyLabel": "Corpo",
-        "bodyPlaceholder": "Digita o incolla…",
-        "preview": "Anteprima",
-        "previewEmpty": "Digita per anteprima.",
-        "tooLong": "Il contenuto supera il limite di {limit, number} caratteri.",
-        "imagePick": "Scegli un'immagine",
-        "imageDrop": "oppure rilascia un file qui",
-        "imageTooLarge": "L'immagine supera il limite di {limit, number} MB.",
-        "imageBadMime": "Non è un file immagine ({mime}).",
-        "imageBadDimensions": "Impossibile leggere le dimensioni dell'immagine.",
-        "altLabel": "Testo alternativo (opzionale)",
-        "altPlaceholder": "Cosa c'è nell'immagine?",
-        "svgPaste": "Incolla SVG",
-        "svgUpload": "oppure carica .svg",
-        "svgBadShape": "Il corpo SVG deve iniziare con <?xml o <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "L'URL non analizza correttamente.",
-        "urlTitleRequired": "Il titolo è obbligatorio per gli elementi di collegamento.",
-        "descriptionLabel": "Descrizione (opzionale)",
-        "descriptionPlaceholder": "Perché è importante…",
-        "sketchSearchPlaceholder": "Cerca schizzi…",
-        "sketchEmpty": "Nessuno schizzo ancora. Chiedi al tuo agente di crearne uno con create_sketch.",
-        "sketchNoMatch": "Nessuno schizzo corrisponde a questa ricerca.",
-        "sketchPicked": "Selezionato"
-      }
+      "openSketch": "Apri schizzo"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "Scarica PNG",
     "invalidManifest": "Rendrant non ha potuto analizzare questo schizzo.",
     "frameFailed": "Questa vista non si è caricata.",
-    "renameLabel": "Rinomina schizzo",
-    "renamePlaceholder": "Titolo schizzo",
-    "renameSave": "Salva",
-    "renameSaveNew": "Salva come nuovo schizzo",
-    "renameCancel": "Annulla",
-    "renameEmpty": "Il titolo non può essere vuoto",
     "associationTags": {
       "plan": "Piano",
       "research": "Ricerca"
@@ -771,45 +518,21 @@
       "selectPrompt": "Seleziona una traccia a sinistra per riprodurre.",
       "invalidManifest": "Questa ricetta non potrebbe essere analizzata.",
       "openNewTab": "Apri Studio",
-      "renameLabel": "Rinomina traccia",
-      "renamePlaceholder": "Titolo traccia",
-      "renameSaveNew": "Salva come nuova traccia",
       "exportWav": "Esporta .wav",
       "exportMidi": "Esporta .mid"
     },
     "folder": {
-      "newFolderButton": "Nuova cartella",
-      "newFolderTitle": "Nuova cartella",
-      "namePlaceholder": "Nome cartella",
       "create": "Crea",
       "cancel": "Annulla",
-      "rename": "Rinomina cartella",
-      "renameSave": "Salva",
       "delete": "Elimina cartella",
-      "deleteConfirm": "Eliminare questa cartella? Gli schizzi al suo interno torneranno alla root.",
       "rootCrumb": "Tutti gli schizzi",
       "back": "Indietro",
       "sketchCount": "{count, plural, =0 {vuoto} =1 {1 schizzo} other {# schizzi}}",
       "foldersHeader": "Cartelle",
       "rootHeader": "Schizzi",
-      "inFolderHint": "I nuovi schizzi che crei mentre visualizzi questa cartella arriveranno qui automaticamente.",
-      "emptyFolder": "Questa cartella è vuota. Crea uno schizzo o spostane uno qui dalla root.",
+      "emptyFolder": "Questa cartella è vuota.",
       "moveSourceFolder": "In {name}",
       "moveSourceRoot": "Al root"
-    },
-    "select": {
-      "enter": "Seleziona",
-      "exit": "Fatto",
-      "count": "{count, plural, =0 {Nessuno selezionato} =1 {1 selezionato} other {# selezionati}}",
-      "moveTo": "Sposta a…",
-      "moveToRoot": "Sposta in root",
-      "moveSuccess": "{count, plural, =1 {1 schizzo spostato} other {# schizzi spostati}}",
-      "moveError": "Spostamento fallito: {error}",
-      "selectAll": "Seleziona tutto",
-      "clear": "Cancella",
-      "delete": "Elimina",
-      "deleteConfirm": "{count, plural, =1 {Elimina 1 schizzo?} other {Elimina # schizzi?}} Questa operazione non può essere annullata.",
-      "deleteError": "Eliminazione fallita: {error}"
     },
     "viewToggle": {
       "split": "Visualizzazione divisa",
@@ -820,72 +543,6 @@
       "move": "Sposta",
       "delete": "Elimina",
       "deleteOneConfirm": "Eliminare \"{title}\"? Questa operazione non può essere annullata."
-    }
-  },
-  "map": {
-    "title": "Mappa",
-    "subtitle": "L'intera flotta su due piani — app a terra, server MCP e servizi connessi in aria, con wiring servizio-MCP.",
-    "loading": "Caricamento in corso…",
-    "refresh": "Aggiorna",
-    "error": "Impossibile caricare la mappa della flotta",
-    "empty": "Nulla sulla mappa ancora — crea lo scaffolding per un'app o dichiara il tuo inventario MCP.",
-    "counts": {
-      "apps": "App",
-      "servers": "Server MCP",
-      "services": "Servizi Connessi"
-    },
-    "legend": {
-      "air": "Aria",
-      "ground": "Terra",
-      "servers": "Server MCP",
-      "services": "Servizi Connessi",
-      "apps": "App"
-    }
-  },
-  "mcpSkills": {
-    "title": "Servizi Connessi",
-    "subtitle": "Servizi connessi: abilità host e flussi di lavoro MCP-orbit materializzati, mostrati rispetto ai server MCP che chiamano.",
-    "loading": "Caricamento...",
-    "refresh": "Aggiorna",
-    "error": "Impossibile caricare i servizi connessi",
-    "empty": "Nessun servizio connesso ancora. Dichiara le abilità host o materializza una composizione MCP-orbit.",
-    "backToList": "Torna ai Servizi Connessi",
-    "backToService": "Torna al servizio connesso",
-    "notFound": "Servizio connesso non trovato.",
-    "viewGraph": "Visualizza grafico",
-    "present": "Presente",
-    "missing": "Mancante",
-    "counts": {
-      "servers": "Server MCP",
-      "services": "Servizi Connessi"
-    },
-    "table": {
-      "name": "Nome",
-      "form": "Modulo",
-      "calls": "Chiamate",
-      "updated": "Aggiornato"
-    },
-    "forms": {
-      "catalyst": "Abilità del catalizzatore",
-      "manual": "Abilità manuale",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadati",
-      "name": "Nome",
-      "ref": "Ref",
-      "kind": "Genere",
-      "form": "Modulo",
-      "updated": "Aggiornato",
-      "hostPath": "Percorso host",
-      "catalyst": "Catalizzatore",
-      "composition": "Composizione",
-      "calls": "Chiamate",
-      "noCalls": "Nessuna chiamata MCP dichiarata.",
-      "needs": "Bisogni",
-      "components": "Componenti",
-      "knobs": "Manopole",
-      "graphSubtitle": "Derivato dalla mirror Servizi connessi, dalle composizioni materializzate e dall'inventario MCP corrente."
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "Baia di Render",
     "subtitle": "Tutto ciò che mojulo sta producendo, in un unico posto: la coda durevole dei render di immagini, i precalcoli GI, e le cotture ed esportazioni su disco. Quattro modi di dire \"qualcosa si sta facendo\" che prima non avevano una casa comune.",
-    "readOnly": "La baia mostra lo stato. Ogni azione qui è un prompt da copiare nel tuo agente — accettare un render, ricalcolare l'illuminazione di un mondo e creare un'esportazione avvengono tutti tramite gli strumenti MCP, mai da questa pagina.",
     "refresh": "Aggiorna",
     "loading": "Caricamento in corso…",
     "allLanes": "Tutte le corsie",
-    "copyPrompt": "Copia prompt",
-    "copied": "Copiato",
-    "copyFailed": "Copia non riuscita — seleziona il testo e copialo manualmente",
     "showing": "{shown} di {total} mostrati",
     "queue": {
       "title": "Coda di render",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "Apri artefatto →",
-    "copied": "Copiato",
-    "copyFailed": "Copia non riuscita — seleziona il testo e copialo manualmente",
     "shelves": "Libreria",
     "bays": "Workshop",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "conteggio triangoli: export_model"
     },
     "inspector": {
-      "askTitle": "Chiedi all'agente",
-      "askBody": "La dashboard mostra lo stato; non modifica mai nulla. Cambiare questa ricetta avviene nel tuo agente host.",
-      "askCopy": "Copia prompt",
       "bound": "Artefatti associati",
       "boundEmpty": "Niente di associato — nessun render, mesh o esportazione su disco per questa ricetta.",
       "openFolder": "Apri cartella outcome · {size}",
@@ -1110,8 +758,6 @@
     "empty": "Nessun risultato per questa faccetta o ricerca.",
     "emptyShelf": "Niente creato in {shelf} per ora.",
     "emptyShelfHint": "Chiedi al tuo agente di crearne uno — get_sketch_vocab contiene il vocabolario.",
-    "copied": "Copiato",
-    "copyFailed": "Copia non riuscita — seleziona manualmente",
     "notExportable": "Nessuna esportazione mesh — questo artefatto si renderizza come diagramma, non come modello percorribile.",
     "stack": "×{n}",
     "seed": "seed {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "dipinto · worker esterno · la ricetta impalcatura resta sovrana",
-    "mintMissing": "Chiedi all'agente: crea {piece}",
-    "mintPrompt": "Per il personaggio mojulo \"{name}\" (vedi artefatto {ref}), crea il {piece} mancante. Usa lo strumento corrispondente (create_sprite_sheet / bind_character_sheet / strumenti figure) — leggi prima get_sketch_vocab.",
     "facets": {
       "scenes": {
         "walkable": "Percorribili",

@@ -11,9 +11,10 @@
  *   LIBRARY_STATES          per library, runtime state → library clip (a jog, an idle, the jump's start and loop)
  *   PLAYER_CLIPS            the clips the move set adds, in the hero door's pose words (validated by the rig at mint)
  *   playerHero(spec)        the hero's spec with the move set's clips beside its own (its own win on a name clash)
- *   playerStates(clips, library?)  runtime state → clip: the library's where it has one, else the hero's own (forward
- *                           runs or walks, idle idles relaxed, leap and boost hold the jump's flight, squat winds up)
- *   playerWorld({ hero, id?, library?, level?, controls?, title? })
+ *   playerStates(clips, library?, gaits?)  runtime state → clip: the hero's own door gaits first (its calibrated jog
+ *                           forward, its walk turning), then the library's where it has one, else the hero's own clips
+ *                           (forward jogs, runs or walks, idle idles relaxed, leap and boost the jump's flight, squat)
+ *   playerWorld({ hero, heroRef, gaits?, id?, library?, level?, controls?, title? })
  *                           a controllable world manifest: the hero as the pilot (the platform rule: WASD and Space),
  *                           a follow camera, a test course, and the controls as a `legend` idiom on the HUD
  *
@@ -48,15 +49,27 @@ export const LIBRARY_STATES = Object.freeze({
 });
 // the run cycle's length at the run speed, per library: the stride that keeps the feet on the ground
 const LIBRARY_STRIDE = { 'quaternius-ual': { speed: 3.6, stride: 3.3 } };
+/** The hero door's own gaits a game plays (hero-motion.js), each its metres per cycle as calibrated, measured on the
+ *  canonical adult heroes (male and female, landmark and anime, within 2 cm; the child build's within 3): the stride the
+ *  platform rule needs to keep their feet planted. A jog is 2.45 m/s by its own clock; at a game's run speed it plays
+ *  faster, never sliding. */
+export const HERO_GAIT_STRIDE = Object.freeze({ jog: 1.72, walk: 1.14 });
 
-/** Which clip plays each runtime state: the library's where it names one, else the hero's own by the clips it has. */
-export function playerStates(clipNames, library = null) {
+/**
+ * Which clip plays each runtime state. Without a library, the hero's own by the clips it has (forward jogs, runs or
+ * walks, idle idles relaxed, leap and boost hold the jump's flight, squat winds up). With one, the library's where it
+ * names one, except where the hero carries its own door GAIT (`gaits`: its calibrated `jog` and `walk`, hero-motion.js):
+ * those play forward, strafe and turn, and the library fills the rest (the idle and the jump).
+ */
+export function playerStates(clipNames, library = null, gaits = []) {
   const has = new Set(clipNames), pick = (...xs) => xs.find((x) => has.has(x));
-  const forward = pick('run', 'walk'), idle = pick('idleRelaxed', 'idle'), leap = pick('leap');
+  const forward = pick('jog', 'run', 'walk'), idle = pick('idleRelaxed', 'idle'), leap = pick('leap');
   const own = Object.fromEntries(Object.entries({ forward, idle, leap, boost: leap, squat: pick('squat'), turn: pick('walk', 'run'), strafe: forward }).filter(([, v]) => v));
   if (!library) return own;
   if (!LIBRARY_STATES[library]) throw new Error(`player: no states for the library '${library}' (libraries: ${Object.keys(LIBRARY_STATES).join(', ')})`);
-  return { ...own, ...LIBRARY_STATES[library] };
+  const gait = new Set(gaits);
+  const ownGaits = { ...(gait.has('jog') ? { forward: 'jog', strafe: 'jog' } : {}), ...(gait.has('walk') ? { turn: 'walk' } : {}) };
+  return { ...own, ...LIBRARY_STATES[library], ...ownGaits };
 }
 
 const hex = (v) => '#' + [v, v, v].map((x) => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
@@ -90,11 +103,15 @@ export function testCourse() {
 }
 
 /** A controllable world with the hero as the pilot. */
-export function playerWorld({ hero, heroRef, id = 'hero', library = 'quaternius-ual', level, controls, title, clips, rule } = {}) {
+export function playerWorld({ hero, heroRef, gaits, id = 'hero', library = 'quaternius-ual', level, controls, title, clips, rule } = {}) {
   if (!hero && !heroRef) throw new Error('player: give a hero (inline, as the hero door takes it) or a heroRef');
   const spec = hero ? playerHero(hero) : null;
-  const states = clips || playerStates(spec ? [...Object.keys(spec.clips), 'idle', 'walk', 'wave'] : ['idle', 'walk'], library || null);
-  const pace = (library && LIBRARY_STRIDE[library]) || { speed: 4, stride: 3.2 };
+  // the hero's own door gaits: given for a stored hero (`gaits`, its `motion` keys), read off an inline one
+  const own = (gaits ?? (spec?.motion && typeof spec.motion === 'object' ? Object.keys(spec.motion) : [])).filter((g) => g in HERO_GAIT_STRIDE);
+  const states = clips || playerStates(spec ? [...Object.keys(spec.clips), ...own, 'idle', 'walk', 'wave'] : [...own, 'idle', 'walk'], library || null, own);
+  // the game's run speed stands; the stride is the clip forward plays, so its feet keep pace with the ground
+  const base = (library && LIBRARY_STRIDE[library]) || { speed: 4, stride: 3.2 };
+  const pace = HERO_GAIT_STRIDE[states.forward] ? { speed: base.speed, stride: HERO_GAIT_STRIDE[states.forward] } : base;
   const L = level || testCourse();
   const ground = { size: 40, cell: 2, colorA: '#8a8c90', colorB: '#94969a' };
   const floor = [];

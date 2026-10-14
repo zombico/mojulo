@@ -100,7 +100,7 @@ export const species = {
   // 6.5–7.5 cm, hind foot 8.5–9.5 cm, 1.2–2.5 kg — Animal Diversity Web, Oryctolagus cuniculus).
   rabbit: {
     eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
-    family: 'leporid', name: 'a European rabbit', scale: 1, muzzleLen: 0.85,
+    family: 'leporid', name: 'a European rabbit', scale: 1, muzzleLen: 0.85, headScale: 0.33,
   },  // EUROPEAN BROWN HARE (Lepus europaeus). Thesis: a bigger, LANKIER leporid than the rabbit: a longer body carried
   // higher on LONG legs (the forelegs straight and long, the hind feet very long) · a longer head with big amber eyes
   // set high · ONE signature: very LONG EARS, longer than the head, with BLACK TIPS · the tail black above, white

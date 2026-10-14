@@ -77,7 +77,6 @@ export default function PlanBody({ authEnabled = false }) {
   const [selectedRef, setSelectedRef] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [showNew, setShowNew] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
   const statusLabel = useCallback((s) => (STATUS_KEY[s] ? t(STATUS_KEY[s]) : s), [t]);
@@ -159,15 +158,6 @@ export default function PlanBody({ authEnabled = false }) {
           <span className="font-mono text-[11px] tabular-nums text-[color:var(--ink-muted)]">
             {t('total', { count: plans.length })}
           </span>
-          {/* The one amber affordance: forging a plan is the agent's act, and
-              this button only hands over the prompt. */}
-          <button
-            type="button"
-            onClick={() => setShowNew(true)}
-            className="rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
-          >
-            {t('newPlan')}
-          </button>
         </div>
       </header>
 
@@ -275,7 +265,6 @@ export default function PlanBody({ authEnabled = false }) {
         </div>
       </div>
 
-      {showNew && <NewPlanModal t={t} onClose={() => setShowNew(false)} />}
     </WorkshopShell>
   );
 }
@@ -396,21 +385,11 @@ function PlanDetail({ plan, t, statusLabel, lensLabel }) {
           <ul className="divide-y divide-[color:var(--bay-rail)]">
             {release.artifacts.map((a, i) => {
               const label = a.artifactLabel || a.artifactRef;
-              const isApp = a.commitType === 'app_materialization';
               return (
                 <li key={i} className="flex items-start justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <div className="truncate text-sm text-[color:var(--ink-primary)]">
-                      {isApp ? (
-                        <a
-                          href={`/apps/${encodeURIComponent(a.artifactRef)}`}
-                          className="text-[color:var(--live)] hover:underline"
-                        >
-                          {label}
-                        </a>
-                      ) : (
-                        label
-                      )}
+                      {label}
                     </div>
                     <p className="mt-0.5 break-all font-mono text-[11px] text-[color:var(--ink-muted)]">
                       {a.artifactRef}
@@ -534,93 +513,5 @@ function Section({ title, children }) {
       </h3>
       {children}
     </section>
-  );
-}
-
-function NewPlanModal({ t, onClose }) {
-  const [intent, setIntent] = useState('');
-  const [copied, setCopied] = useState(false);
-
-  const prompt = useMemo(() => {
-    const trimmed = intent.trim();
-    const intentLine = trimmed ? `Intent: ${trimmed}` : 'Intent: (describe what you want to plan)';
-    return `Call \`enter_plan_mode\` to load the plan-mode discipline, then help me forge a plan. Hold the four lenses loosely, draft a shadow manifest as we go, and present a frame for my approval before compiling. ${intentLine}`;
-  }, [intent]);
-
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(prompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable — the textarea is selectable as a fallback */
-    }
-  }, [prompt]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--bay-void)]/85 p-6"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('newPlanTitle')}
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-xl rounded-[var(--radius-bay)] border border-[color:var(--bay-rail-lit)] bg-[color:var(--bay-bench)] p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold text-[color:var(--ink-primary)]">{t('newPlanTitle')}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="font-mono text-[12px] text-[color:var(--ink-muted)] hover:text-[color:var(--ink-primary)]"
-            aria-label={t('close')}
-          >
-            ✕
-          </button>
-        </div>
-        <p className="mb-4 text-sm text-[color:var(--ink-secondary)]">{t('newPlanIntro')}</p>
-
-        <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
-          {t('intentLabel')}
-        </label>
-        <input
-          type="text"
-          value={intent}
-          onChange={(e) => setIntent(e.target.value)}
-          placeholder={t('intentPlaceholder')}
-          className="mb-4 w-full rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] px-3 py-2 text-sm text-[color:var(--ink-primary)] placeholder:text-[color:var(--ink-muted)] focus:border-[color:var(--live)] focus:outline-none"
-        />
-
-        <label className="mb-1 block font-mono text-[10px] uppercase tracking-[0.24em] text-[color:var(--ink-muted)]">
-          {t('promptLabel')}
-        </label>
-        <textarea
-          readOnly
-          value={prompt}
-          rows={5}
-          className="mb-4 w-full resize-none rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-void)] px-3 py-2 font-mono text-xs text-[color:var(--ink-secondary)] focus:outline-none"
-          onFocus={(e) => e.target.select()}
-        />
-
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[var(--radius-control)] border border-[color:var(--bay-rail-lit)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--ink-secondary)] transition-colors duration-100 hover:text-[color:var(--ink-primary)]"
-          >
-            {t('close')}
-          </button>
-          <button
-            type="button"
-            onClick={copy}
-            className="rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
-          >
-            {copied ? t('copied') : t('copyPrompt')}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }

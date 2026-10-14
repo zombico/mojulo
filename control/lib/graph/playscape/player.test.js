@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-import { playerHero, playerStates, playerWorld, testCourse, PLAYER_CLIPS, LIBRARY_STATES } from './player.js';
+import { playerHero, playerStates, playerWorld, testCourse, PLAYER_CLIPS, LIBRARY_STATES, HERO_GAIT_STRIDE } from './player.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
@@ -33,6 +33,18 @@ describe('the move set', () => {
     expect(s).toMatchObject({ forward: 'Jog_Fwd_Loop', idle: 'Idle_Loop', leap: 'Jump_Loop', squat: 'Jump_Start', turn: 'Walk_Loop' });
     expect(Object.keys(LIBRARY_STATES['quaternius-ual'])).not.toContain('climb');   // a gap the library leaves
     expect(() => playerStates(['idle'], 'mixamo')).toThrow(/no states for the library/);
+  });
+
+  it('the hero\'s own door gaits play over the library\'s: its calibrated jog forward, its walk turning; the library the rest', () => {
+    const s = playerStates(['idle', 'walk', 'jog'], 'quaternius-ual', ['walk', 'jog']);
+    expect(s).toMatchObject({ forward: 'jog', strafe: 'jog', turn: 'walk', idle: 'Idle_Loop', leap: 'Jump_Loop' });
+    // without the gaits named, a library plays as it always did (a stock walk is not a calibrated one)
+    expect(playerStates(['idle', 'walk', 'jog'], 'quaternius-ual')).toMatchObject({ forward: 'Jog_Fwd_Loop', turn: 'Walk_Loop' });
+    // the pilot's stride is the jog's metres per cycle at the game's run speed, so its feet keep pace
+    const W = playerWorld({ heroRef: 'sk_x', gaits: ['walk', 'jog'] });
+    expect(W.figures.hero.clips.forward).toBe('jog');
+    expect(W.entities[0].rule).toMatchObject({ speed: 3.6, stride: HERO_GAIT_STRIDE.jog });
+    expect(playerWorld({ heroRef: 'sk_x' }).entities[0].rule).toMatchObject({ speed: 3.6, stride: 3.3 });
   });
 });
 

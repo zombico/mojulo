@@ -116,7 +116,9 @@ export const species = {
   tRex: { // kept v6 (blind judges, both orders: v6 over v3 60%/60%, v6 over v1 65%/60%)
     family: 'theropod', name: 'a Tyrannosaurus rex',
     // the drumstick thigh (the caudofemoralis bulk) and a tail as deep as the hips at its root
-    legs: family.legs.map((l) => l[0] === 'thighR' ? ['thighR', 'hip', 'knee', [1.1, 1.4], [0.5, 0.58], 'Coat', [0.4, 0.4], [0.62, 0.8]] : l),
+    legs: family.legs.map((l) => l[0] === 'thighR' ? ['thighR', 'hip', 'knee', [0.52, 1.4], [0.4, 0.58], 'Coat', [0.12, 0.4], [0.48, 0.8]] : l),
+    joints: { hip: [0.4, 0.0, 3.9] },
+    headScale: 3.8,
     torso: [{ at: [0, -0.9, 3.9], r: [0.62, 0.7] }, ...family.torso.slice(1)],
     extraSegments: [tailLoft(
       [[-0.9, 3.9, [0.64, 0.72]], [-1.9, 3.92, [0.56, 0.66]], [-3.1, 3.85, [0.36, 0.47]], [-4.4, 3.72, [0.19, 0.26]], [-5.7, 3.55, [0.1, 0.14]], [-6.8, 3.4, [0.04, 0.06]]],
@@ -166,7 +168,7 @@ export const species = {
       ['toeBR', 'foot', 'toeB', 0.006, 0.004, 'Sock', [0.3, 0.3]],
       ['clawFR', 'toeF', 'clawF', 0.007, 0.002, 'Hoof', [0.3, 0.3]],
       ['clawOR', 'toeO', 'clawO', 0.007, 0.002, 'Hoof', [0.3, 0.3]],
-      ['sickleR', 'toeI', 'sickle', 0.013, 0.012, 'Hoof', [0.3, 0.3]],
+      ['sickleR', 'toeI', 'sickle', 0.009, 0.008, 'Hoof', [0.3, 0.3]],
       ['clawIR', 'sickle', 'clawI', 0.016, 0.002, 'Hoof', [0.3, 0.3]],
       ['clawBR', 'toeB', 'clawB', 0.004, 0.0015, 'Hoof', [0.3, 0.3]],
     ],
@@ -195,7 +197,7 @@ export const species = {
       { back: [0, -0.06, 0.51], tip: [0, -1.4, 0.556] })],
     // the feathers: a fringe of long tiles trailing off the folded arm, a ruff down the neck, a fan at the tail's end
     bodyTiles: [
-      { id: 'armFringe', parts: ['foreArmR', 'upperArmR'], s: [0.2, 1.4], t: [0, 6], grid: [5, 3], brick: true, sides: 3, coverage: 1.9, inset: 0.9, height: 0.12, lean: -1.2, edgeFade: 0.2, thin: 0.3, wobble: 0.2, jitter: 0.2, group: ['Mane', 'Coat'] },
+      { id: 'armFringe', parts: ['foreArmR', 'upperArmR', 'foreArmL', 'upperArmL'], s: [0.2, 1.4], t: [0, 6], grid: [5, 3], brick: true, sides: 3, coverage: 1.9, inset: 0.9, height: 0.12, lean: -1.2, edgeFade: 0.2, thin: 0.3, wobble: 0.2, jitter: 0.2, group: ['Mane', 'Coat'] },
       { id: 'ruff', parts: ['neck'], s: [0.1, 1.3], t: [0, 6], grid: [7, 4], brick: true, sides: 3, coverage: 1.4, inset: 0.9, height: 0.03, lean: -1.2, edgeFade: 0.2, thin: 0.3, wobble: 0.3, jitter: 0.3, group: ['Coat', 'Mane'] },
     ],
     markings: [{ on: 'torso', kind: 'belly', from: 0.6, group: 'Belly' }, { on: 'torso', kind: 'stripes', count: 6, width: 0.4, t: [0, 0.45], group: 'Mane' }],

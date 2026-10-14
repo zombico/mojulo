@@ -233,7 +233,7 @@ export const species = {
       ears: false,
       headOrnaments: [
         { kind: 'sweep', name: 'fanEar', at: [1.0, 2.0], space: 'head', spine: [[0.23, -0.10, 0.17], [0.40, -0.34, 0.20], [0.56, -0.46, -0.08], [0.60, -0.46, -0.42], [0.57, -0.36, -0.68]], radii: [0.08, 0.40, 0.48, 0.38, 0.10], m: 8, squash: [1, 0.12], group: 'Ears' },
-        { kind: 'sweep', name: 'trunk', at: [6.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.24, 0.0], [0, 0.34, -0.22], [0, 0.38, -0.55], [0, 0.38, -0.85], [0, 0.37, -1.10], [0, 0.41, -1.24]], radii: [0.14, 0.12, 0.095, 0.075, 0.06, 0.045], m: 10, group: 'Skull' },
+        { kind: 'sweep', name: 'trunk', at: [6.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.24, 0.0], [0, 0.34, -0.22], [0, 0.38, -0.55], [0, 0.38, -0.85], [0, 0.37, -1.10], [0, 0.41, -1.24]], radii: [0.2, 0.15, 0.11, 0.08, 0.06, 0.045], m: 10, group: 'Skull' },
         { kind: 'sweep', name: 'tusk', at: [4.5, 4.5], space: 'head', spine: [[0.10, 0.20, -0.22], [0.13, 0.32, -0.38], [0.14, 0.45, -0.45], [0.13, 0.56, -0.42]], radii: [0.05, 0.045, 0.035, 0.012], m: 8, group: 'Horn' },
       ],
       extraSegments: [['fore'], ['hind']].flatMap(([leg]) => [0, 1, 2, 3].map((i) => ({
@@ -285,7 +285,7 @@ species.mammoth = (() => {
     headOrnaments: [
       // SMALL ears, close to the head
       { kind: 'sweep', name: 'ear', at: [1.0, 2.0], space: 'head', spine: [[0.23, -0.10, 0.12], [0.30, -0.18, 0.10], [0.33, -0.22, -0.02], [0.32, -0.20, -0.14]], radii: [0.06, 0.14, 0.13, 0.04], m: 8, squash: [1, 0.2], group: 'Ears' },
-      { kind: 'sweep', name: 'trunk', at: [6.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.24, 0.0], [0, 0.34, -0.22], [0, 0.38, -0.55], [0, 0.38, -0.85], [0, 0.37, -1.10], [0, 0.41, -1.24]], radii: [0.14, 0.12, 0.095, 0.075, 0.06, 0.045], m: 10, group: 'Skull' },
+      { kind: 'sweep', name: 'trunk', at: [6.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0.24, 0.0], [0, 0.34, -0.22], [0, 0.38, -0.55], [0, 0.38, -0.85], [0, 0.37, -1.10], [0, 0.41, -1.24]], radii: [0.2, 0.15, 0.11, 0.08, 0.06, 0.045], m: 10, group: 'Skull' },
       // the LONG curved tusks: down and forward out of the lip, sweeping out and up, the tips turning in
       { kind: 'sweep', name: 'tusk', at: [4.5, 4.5], space: 'head', spine: [[0.11, 0.20, -0.22], [0.15, 0.36, -0.42], [0.24, 0.58, -0.54], [0.36, 0.82, -0.54], [0.46, 1.04, -0.42], [0.48, 1.20, -0.24], [0.38, 1.28, -0.10], [0.18, 1.26, -0.04]], radii: [0.105, 0.10, 0.093, 0.083, 0.07, 0.054, 0.036, 0.014], m: 10, group: 'Horn' },
     ],

@@ -553,7 +553,7 @@ export const species = {
   // length 81–96 cm, more than half of it tail (Wikipedia, "Scarlet macaw"); perched upright the head top stands
   // ~0.40 m (height target). Authored on the eagle's tables and scaled.
   macaw: {
-    family: 'avian', name: 'a scarlet macaw', torsoUp: true, scale: 0.45,
+    family: 'avian', legScale: 0.6, name: 'a scarlet macaw', torsoUp: true, scale: 0.45,
     colors: { coat: '#cf1f27', sock: '#8a8580', ash: '#cf1f27', ashAlt: '#cf1f27', belly: '#cf1f27', ears: '#cf1f27', snout: '#ece2c8',
       brow: '#cf1f27', iris: '#2a2018', sclera: '#e8e0c8', nose: '#ece2c8', tip: '#2a50b0', hoof: '#2a2624', mane: '#cf1f27',
       lids: '#f2eee6', pad: '#f2eee6', folds: '#f2eee6', skull: '#cf1f27' },
@@ -573,11 +573,11 @@ export const species = {
     torsoCaps: { back: [0, -0.35, 0.33], tip: [0, 0.19, 0.73] },
     neckRA: [0.1, 0.1], neckRB: [0.07, 0.07], neckRMid: [0.08, 0.08],
     // the LONG POINTED TAIL: flat (wide across, thin up-down), sloping from the rump back to the ground, blue at the tip
-    tail: [[0, -0.31, 0.35, [0.08, 0.03]], [0, -0.55, 0.24, [0.075, 0.025]], [0, -0.80, 0.13, [0.055, 0.02]]],
-    tip: [[0, -0.78, 0.14, [0.05, 0.018]], [0, -1.0, 0.06, [0.032, 0.012]], [0, -1.15, 0.02, [0.014, 0.006]]],
-    tipCaps: { back: [0, -0.76, 0.15], tip: [0, -1.2, 0.012] },
+    tail: [[0, -0.31, 0.35, [0.08, 0.03]], [0, -0.55, 0.299, [0.075, 0.025]], [0, -0.80, 0.247, [0.055, 0.02]]],
+    tip: [[0, -0.78, 0.252, [0.05, 0.018]], [0, -1.0, 0.214, [0.032, 0.012]], [0, -1.15, 0.196, [0.014, 0.006]]],
+    tipCaps: { back: [0, -0.76, 0.257], tip: [0, -1.2, 0.192] },
     legs: [
-      ['thighR', 'hip', 'knee', [0.08, 0.09], [0.06, 0.06], 'Coat', [0.4, 0.4]],
+      ['thighR', 'hip', 'knee', [0.06, 0.068], [0.045, 0.045], 'Coat', [0.4, 0.4]],
       ['tarsusR', 'knee', 'ankle', 0.035, 0.032, 'Sock', [0.4, 0.4]],
       ['toeFR', 'ankle', 'toeF', 0.026, 0.018, 'Sock', [0.4, 0.4]],
       ['toeIR', 'ankle', 'toeI', 0.024, 0.017, 'Sock', [0.4, 0.4]],
@@ -672,7 +672,7 @@ export const species = {
   // over the tail. Size: a large-fowl cock stands ~0.6 m to the top of the comb (poultry breed standards; cock
   // 3–4 kg, Wikipedia "Chicken"); height target 0.60 m. Authored on the chicken's tables and scaled.
   rooster: {
-    family: 'avian', name: 'a rooster', torsoUp: true, scale: 1.12,
+    family: 'avian', legScale: 0.82, name: 'a rooster', torsoUp: true, scale: 1.12,
     colors: { coat: '#8c2a12', sock: '#e0b23a', ash: '#b8501e', ashAlt: '#d9822b', belly: '#1d1b1a', ears: '#c8202a', snout: '#e0b23a',
       brow: '#8c2a12', iris: '#d98a1e', sclera: '#d98a1e', nose: '#e0b23a', tip: '#14261f', hoof: '#c9a14a', mane: '#d9822b',
       lids: '#c8202a', pad: '#c8202a', folds: '#c8202a', skull: '#d9822b' },
@@ -973,7 +973,7 @@ export const species = {
   // Size: published length 0.29–0.37 m, span 0.62–0.72 m (Wikipedia, "Rock dove"); standing ~0.23 m to the crown
   // (height target). Authored at size.
   pigeon: {
-    family: 'avian', name: 'a rock pigeon', torsoUp: true, scale: 1,
+    family: 'avian', legScale: 0.6, name: 'a rock pigeon', torsoUp: true, scale: 1,
     colors: { coat: '#8d93a0', sock: '#c4505a', ash: '#5f6470', ashAlt: '#5f6470', belly: '#7f8594', ears: '#5f6470', snout: '#2c2a2a',
       brow: '#5f6470', iris: '#e07a1a', sclera: '#e07a1a', nose: '#2c2a2a', tip: '#2e2f36', hoof: '#5a3a3a', mane: '#4f7a62',
       lids: '#5f6470', pad: '#5f6470', folds: '#5f6470', skull: '#5f6470' },
@@ -992,7 +992,7 @@ export const species = {
     tail: [[0, -0.09, 0.13, [0.025, 0.008]], [0, -0.14, 0.115, [0.032, 0.007]], [0, -0.18, 0.10, [0.035, 0.006]]],
     tip: [[0, -0.175, 0.102, [0.035, 0.006]], [0, -0.20, 0.094, [0.034, 0.005]], [0, -0.215, 0.088, [0.03, 0.004]]],
     tipCaps: { back: [0, -0.17, 0.104], tip: [0, -0.222, 0.086] },
-    legs: legRows([[0.018, 0.02], [0.012, 0.012]], [0.005, 0.0045], [0.003, 0.0025], [0.002, 0.001]),
+    legs: legRows([[0.014, 0.016], [0.01, 0.01]], [0.005, 0.0045], [0.003, 0.0025], [0.002, 0.001]),
     // a round skull (st0–st2) and a short SLIM bill (st3–st6)
     craniumRows: [
       ['st0', -0.05, 0.03, [0.02, 0.028], [0.032, 0.012], [0.034, -0.006], [0.028, -0.02], [0.018, -0.027], -0.03],
@@ -1027,7 +1027,7 @@ export const species = {
     bodyTiles: [],
     // the grey wing with TWO BLACK BARS (the greater and lesser covert tips), dark primaries
     wings: { coreFit: true, pitch: 10,
-      wing: roundWing([0.035, 0.05, 0.04], 0.08, 0.12, { secondaries: 10, width: 0.025, primReach: 0.03, slotFrom: 0.95, slotBy: 0.1 }),
+      wing: roundWing([0.035, 0.05, 0.04], 0.08, 0.12, { secondaries: 10, width: 0.025, primReach: 0.03, slotFrom: 0.95, slotBy: 0.1, fit: true }),
       palette: wingPalette({ bone: '#8d93a0', flight: ['#4a4d56', '#555862', '#40434c'], under: '#c4c8d0', covert: ['#9aa0ac', '#a2a8b4', '#949aa6'], covertTip: '#1e1e24',
         lesser: ['#a4aab5', '#acb2bd', '#9ea4af'], lesserTip: '#1e1e24' }) },
   },
@@ -1038,7 +1038,7 @@ export const species = {
   // (Wikipedia, "American crow"); perched ~0.36 m to the crown (height target). Authored on the eagle's tables and
   // scaled.
   crow: {
-    family: 'avian', name: 'an American crow', torsoUp: true, scale: 0.42,
+    family: 'avian', legScale: 0.6, name: 'an American crow', torsoUp: true, scale: 0.42,
     // GLOSSY BLACK: blue-black slate plumage (lit, it shows blue and violet), the bill and legs a flat neutral black a
     // value apart, a dark brown eye in a black lid
     colors: { coat: '#242939', sock: '#18181a', ash: '#292e3e', ashAlt: '#2f3446', belly: '#222634', ears: '#242939', snout: '#101012',
@@ -1057,15 +1057,15 @@ export const species = {
     torsoCaps: { back: [0, -0.35, 0.33], tip: [0, 0.19, 0.73] },
     neckRA: [0.1, 0.1], neckRB: [0.07, 0.07], neckRMid: [0.08, 0.08], neckGroup: 'Coat',
     // the TAIL: a fan widening past the wingtips, its end ROUNDED (the outer feathers a little shorter)
-    tail: [[0, -0.31, 0.35, [0.07, 0.03]], [0, -0.40, 0.25, [0.09, 0.025]], [0, -0.47, 0.16, [0.11, 0.02]]],
-    tip: [[0, -0.46, 0.17, [0.11, 0.02]], [0, -0.52, 0.09, [0.11, 0.018]], [0, -0.55, 0.05, [0.075, 0.014]]],
-    tipCaps: { back: [0, -0.44, 0.20], tip: [0, -0.575, 0.025] },
+    tail: [[0, -0.31, 0.35, [0.07, 0.03]], [0, -0.40, 0.301, [0.09, 0.025]], [0, -0.47, 0.256, [0.11, 0.02]]],
+    tip: [[0, -0.46, 0.261, [0.11, 0.02]], [0, -0.52, 0.222, [0.11, 0.018]], [0, -0.55, 0.202, [0.075, 0.014]]],
+    tipCaps: { back: [0, -0.44, 0.276], tip: [0, -0.575, 0.19] },
     // the GLOSS: a bluer, lighter sheen along the back and nape where the light falls
     markings: [
       { on: 'torso', kind: 'band', run: [0.15, 1], t: [0, 0.4], group: 'Gloss', color: '#313852' },
       { on: 'neck', kind: 'band', t: [0, 0.45], group: 'Gloss' },
     ],
-    legs: legRows([[0.08, 0.09], [0.055, 0.055]], [0.026, 0.024], [0.02, 0.014], [0.012, 0.004]),
+    legs: legRows([[0.062, 0.07], [0.045, 0.045]], [0.026, 0.024], [0.02, 0.014], [0.012, 0.004]),
     // a big skull (st0–st2) and a HEAVY STRAIGHT bill (st3–st6), the culmen curving down a little at the tip
     craniumRows: [
       ['st0', -0.05, 0.032, [0.018, 0.03], [0.032, 0.013], [0.034, -0.006], [0.028, -0.022], [0.02, -0.03], -0.033],
@@ -1102,7 +1102,7 @@ export const species = {
   // length 0.55–0.65 m, the bill 16–23 cm (Wikipedia, "Toco toucan"); perched ~0.40 m to the crown (height target).
   // Authored on the macaw's tables and scaled.
   toucan: {
-    family: 'avian', name: 'a toco toucan', torsoUp: true, scale: 0.45,
+    family: 'avian', legScale: 0.6, name: 'a toco toucan', torsoUp: true, scale: 0.45,
     colors: { coat: '#151313', sock: '#5a6a8a', ash: '#151313', ashAlt: '#1c1a1a', belly: '#151313', ears: '#151313', snout: '#151313',
       brow: '#151313', iris: '#1a2a3a', sclera: '#1a2a3a', nose: '#151313', tip: '#151313', hoof: '#2a2c34', mane: '#151313',
       lids: '#e8892a', pad: '#151313', folds: '#e8892a', skull: '#151313' },
@@ -1120,10 +1120,10 @@ export const species = {
     ],
     torsoCaps: { back: [0, -0.35, 0.33], tip: [0, 0.19, 0.73] },
     neckRA: [0.1, 0.1], neckRB: [0.08, 0.08], neckRMid: [0.085, 0.085],
-    tail: [[0, -0.31, 0.35, [0.07, 0.03]], [0, -0.45, 0.25, [0.08, 0.025]], [0, -0.56, 0.16, [0.08, 0.02]]],
-    tip: [[0, -0.55, 0.17, [0.08, 0.02]], [0, -0.64, 0.10, [0.075, 0.016]], [0, -0.70, 0.06, [0.06, 0.01]]],
-    tipCaps: { back: [0, -0.53, 0.19], tip: [0, -0.72, 0.05] },
-    legs: legRows([[0.08, 0.09], [0.06, 0.06]], [0.035, 0.032], [0.025, 0.017], [0.015, 0.005]),
+    tail: [[0, -0.31, 0.35, [0.07, 0.03]], [0, -0.45, 0.291, [0.08, 0.025]], [0, -0.56, 0.239, [0.08, 0.02]]],
+    tip: [[0, -0.55, 0.244, [0.08, 0.02]], [0, -0.64, 0.203, [0.075, 0.016]], [0, -0.70, 0.18, [0.06, 0.01]]],
+    tipCaps: { back: [0, -0.53, 0.256], tip: [0, -0.72, 0.174] },
+    legs: legRows([[0.06, 0.068], [0.045, 0.045]], [0.035, 0.032], [0.025, 0.017], [0.015, 0.005]),
     // a small skull (st0–st2) and the HUGE bill (st3–st6): tall at the base, laterally flat, curving down to the tip
     craniumRows: [
       ['st0', -0.05, 0.035, [0.02, 0.033], [0.035, 0.014], [0.037, -0.007], [0.031, -0.024], [0.022, -0.032], -0.035],
@@ -1165,7 +1165,7 @@ export const species = {
   // length 7–9 cm, mass ~3 g (Wikipedia, "Ruby-throated hummingbird"); length target 0.075 m (rump to bill tip, the
   // tail excluded). Authored at ~5× and scaled.
   hummingbird: {
-    family: 'avian', name: 'a ruby-throated hummingbird', torsoUp: true, scale: 0.2,
+    family: 'avian', legScale: 0.4, name: 'a ruby-throated hummingbird', torsoUp: true, scale: 0.2,
     colors: { coat: '#3f8a4a', sock: '#2a2624', ash: '#3f8a4a', ashAlt: '#4a9a56', belly: '#e4e2da', ears: '#3f8a4a', snout: '#1a1818',
       brow: '#3f8a4a', iris: '#141212', sclera: '#141212', nose: '#1a1818', tip: '#2a2a2e', hoof: '#1a1818', mane: '#3f8a4a',
       lids: '#3f8a4a', pad: '#3f8a4a', folds: '#3f8a4a', skull: '#3f8a4a' },
@@ -1173,11 +1173,11 @@ export const species = {
     joints: { neckBase: [0, 0.06, 0.255], neckTop: [0, 0.07, 0.285], wingRoot: [0.05, 0.02, 0.23],
       hip: [0.035, -0.01, 0.12], knee: [0.04, 0.02, 0.07], ankle: [0.035, 0.01, 0.025], ...feet(0.035, 0.01, 0.035) },
     torso: [
-      { at: [0, -0.09, 0.15], r: [0.045, 0.04] },
-      { at: [0, -0.055, 0.17], r: [0.075, 0.07] },
-      { at: [0, -0.01, 0.195], r: [0.085, 0.082] },
-      { at: [0, 0.035, 0.225], r: [0.075, 0.075] },
-      { at: [0, 0.06, 0.25], r: [0.05, 0.05] },
+      { at: [0, -0.09, 0.15], r: [0.036, 0.032] },
+      { at: [0, -0.055, 0.17], r: [0.06, 0.056] },
+      { at: [0, -0.01, 0.195], r: [0.068, 0.0656] },
+      { at: [0, 0.035, 0.225], r: [0.06, 0.06] },
+      { at: [0, 0.06, 0.25], r: [0.04, 0.04] },
     ],
     torsoCaps: { back: [0, -0.11, 0.14], tip: [0, 0.075, 0.27] },
     neckRA: [0.05, 0.05], neckRB: [0.042, 0.042], neckRMid: [0.045, 0.045], neckGroup: 'Coat',
@@ -1185,7 +1185,7 @@ export const species = {
     tail: [[0, -0.10, 0.15, [0.03, 0.01]], [0, -0.14, 0.11, [0.04, 0.009]], [0, -0.17, 0.08, [0.045, 0.008]]],
     tip: [[0, -0.165, 0.085, [0.045, 0.008]], [0, -0.19, 0.065, [0.045, 0.007]], [0, -0.205, 0.05, [0.04, 0.005]]],
     tipCaps: { back: [0, -0.16, 0.09], tip: [0, -0.21, 0.045] },
-    legs: legRows([[0.025, 0.028], [0.015, 0.015]], [0.007, 0.006], [0.004, 0.003], [0.003, 0.001]),
+    legs: legRows([[0.019, 0.021], [0.012, 0.012]], [0.007, 0.006], [0.004, 0.003], [0.003, 0.001]),
     // a round skull (st0–st2) and the NEEDLE bill (st3–st6), longer than the skull
     craniumRows: [
       ['st0', -0.05, 0.03, [0.018, 0.028], [0.032, 0.012], [0.034, -0.006], [0.028, -0.02], [0.018, -0.027], -0.03],
@@ -1222,7 +1222,7 @@ export const species = {
     bodyTiles: [],
     // LONG narrow pointed wings: a short arm, few secondaries, long primaries
     wings: { coreFit: true, pitch: 40,
-      wing: featherWing({ arm: [0.04, 0.05, 0.07], tertials: 2, secondaries: 6, secLen: 0.06, primLen: 0.2, primReach: 0.02, slotFrom: 1, width: 0.03,
+      wing: featherWing({ fit: true, arm: [0.04, 0.05, 0.07], tertials: 2, secondaries: 6, secLen: 0.06, primLen: 0.2, primReach: 0.02, slotFrom: 1, width: 0.03,
         tertialLen: 0.2, tertialWidth: 0.35, boneR: 0.35 }),
       palette: wingPalette({ bone: '#3f8a4a', flight: ['#3a3a40', '#424248', '#34343a'], under: '#5a5a60', covert: ['#3f8a4a', '#4a9a56', '#3a7e44'], lesser: '#3f8a4a' }) },
   },

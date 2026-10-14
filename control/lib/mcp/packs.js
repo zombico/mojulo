@@ -91,7 +91,7 @@ export const PACKS = [
     form: 'object',
     title: '3D solids, figures & objects',
     description:
-      "3D SOLIDS — figures, creatures, objects, buildings, wordmarks, vehicles, OpenSCAD: mint_solid (kinds figure / manji-tree / workbench / scad (an OpenSCAD program) / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), measure_solid, fabricate_solid (real parts to buy), verify_machina. Open for 'model a wine glass true to size', 'a woman mid-stride', 'our logo in shiny chrome', 'a 3D creature', 'a bracket with bolt holes in OpenSCAD', 'put the wheels and the chassis together', 'turn this concept art into a 3D model'. Placing solids IN an environment is pack_world. A house is pack_building; edifice is the institutional one-off.",
+      "3D SOLIDS — objects, posed figures, buildings, wordmarks, vehicles, OpenSCAD: mint_solid (kinds figure / manji-tree / workbench / scad (an OpenSCAD program) / assembler / carved-solid / solid-turntable / edifice / vehicle), edit_solid (skin / emote ops), measure_solid, fabricate_solid (real parts to buy), verify_machina. Open for 'model a wine glass true to size', 'a posed figure to print', 'our logo in shiny chrome', 'a bracket with bolt holes in OpenSCAD', 'put the wheels and the chassis together', 'turn this concept art into a 3D model'. Placing solids IN an environment is pack_world. A rigged character is pack_character. A house is pack_building; edifice is the institutional one-off.",
     members: ['mint_solid', 'edit_solid', 'get_solid_vocab', 'measure_solid', 'fabricate_solid', 'verify_machina'],
     // The Claude plugin profile leaves out the skin op and the concept-art dream loop
     // (lib/mcp/plugin-profile.js).
@@ -130,7 +130,7 @@ export const PACKS = [
     form: 'game',
     title: 'Game',
     description:
-      "GAMES — the game rail first: design_game designs a game top down (a hero, its powers, gear and systems) and makes it. Then the doors it calls and the rest: create_game (levels are worlds with a game contract), pixelizer 2D games, sprite sheets, game projects, the game and play drawers, export_game. Open for 'a game where my hero gains powers', 'a playable dungeon crawler I can walk around in', 'a roguelike where my gear persists', 'a pixel-art game with sprites', 'export my game so a friend can play it'.",
+      "GAMES — the game rail first: design_game designs a game top down (a hero, its powers, gear and systems) and makes it. Then the doors it calls and the rest: create_game (levels are worlds with a game contract), pixelizer 2D games, sprite sheets, the game and play drawers, export_game. Open for 'a game where my hero gains powers', 'a playable dungeon crawler I can walk around in', 'a roguelike where my gear persists', 'a pixel-art game with sprites', 'export my game so a friend can play it'.",
     members: [
       'design_game',
       'tune_ground',
@@ -138,11 +138,6 @@ export const PACKS = [
       'create_pixelizer_game',
       'create_sprite_sheet',
       'bake_sprite_sheet',
-      'create_game_project',
-      'get_game_project',
-      'update_game_project',
-      'bind_to_game_project',
-      'list_game_projects',
       'get_game_vocab',
       'get_play_vocab',
       'export_game',
@@ -412,10 +407,35 @@ export const RETIRED_PACKS = [
       'list_triggers',
       'get_meta_catalyst',
     ],
-  },];
+  },
+  // A game project tied a game's rules, levels, characters, audio and art into one home (/games/<ref>). A game is
+  // made on the game rail now (design_game, quick or full), whose gameworld is that home, and Play groups every game by
+  // where it came from. The tools stay callable by name, so a stored project, a seed script or a plan step that names
+  // one keeps working; create_game, create_pixelizer_game and create_sprite_sheet still take a legacy `project_ref`.
+  {
+    id: 'pack_game_projects',
+    ring: 'retired',
+    retired: '3.1.0',
+    title: 'Game projects',
+    description:
+      "GAME PROJECTS — one home per game tying its rules, levels, characters, audio and art: create, read, update, bind members, list. Retired: a game's home is its gameworld (design_game).",
+    body: 'Retired in 3.1.0 for the game rail. Callable by name for projects already made.',
+    members: [
+      'create_game_project',
+      'get_game_project',
+      'update_game_project',
+      'bind_to_game_project',
+      'list_game_projects',
+    ],
+  },
+];
 
-/** Every tool the office wing took off the surface: the retired packs' members. */
-export const RETIRED_OFFICE_TOOLS = Object.freeze(RETIRED_PACKS.flatMap((p) => p.members));
+/** The office wing's packs, which left the surface in 3.1.0. */
+const OFFICE_PACK_IDS = ['pack_runtime', 'pack_connected_services'];
+/** Every tool the office wing took off the surface. */
+export const RETIRED_OFFICE_TOOLS = Object.freeze(RETIRED_PACKS.filter((p) => OFFICE_PACK_IDS.includes(p.id)).flatMap((p) => p.members));
+/** Every retired tool: registered and callable by name, never listed, indexed or routed to. */
+export const RETIRED_TOOLS = Object.freeze(RETIRED_PACKS.flatMap((p) => p.members));
 
 // ── lookups ─────────────────────────────────────────────────────────────────
 

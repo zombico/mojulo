@@ -8,16 +8,15 @@
  * two axes are sliders, the blend/weights/speed recompute in the browser on
  * every drag (resolveVoiceRegister is pure math), and playback comes from
  * axis-stamped bound samples — the card plays the nearest rendered point,
- * chihaya edge to motoko edge. Tuning never edits the stored register;
- * the copy affordances hand the tuned point back to the host agent, which
- * is where authoring (and re-minting) lives.
+ * chihaya edge to motoko edge. Tuning is view state: it never edits the
+ * stored register, and authoring (and re-minting) lives with the host agent.
  *
  * Wears the workshop shell (AuthNav and the breadcrumb bar stand down here);
  * page.jsx resolves the auth flag server-side and hands it down for the
  * strip's sign-out.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import WorkshopShell from '@/components/WorkshopShell';
@@ -55,38 +54,6 @@ function AxisSlider({ label, leftPole, rightPole, value, onChange, marks }) {
       </div>
     </div>
   );
-}
-
-function CopyButton({ value, label }) {
-  const [copied, setCopied] = useState(false);
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable — leave the button inert */
-    }
-  }, [value]);
-  const t = useTranslations('maker.voice');
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-300 transition hover:border-neutral-500 hover:text-white"
-    >
-      {copied ? t('copied') : label}
-    </button>
-  );
-}
-
-function speakCommand(resolved) {
-  return `cd ~/mojulo-voicegen && venv/bin/python speak.py --text "<line>" --voice "${resolved.voiceArg}" --speed ${resolved.speed} --out line.wav`;
-}
-
-function starterPrompt(ref) {
-  // Agent-directed text (like the beats studio's prompt builders) — not UI chrome.
-  return `Read my mojulo voice register '${ref}' with get_voice and render a spoken line with it through the local voice backend (get_voice_vocab has the worker loop).`;
 }
 
 function nearestSample(samples, axes) {
@@ -201,11 +168,6 @@ function RegisterCard({ sketch }) {
           ) : (
             <p className="mt-3 text-xs text-neutral-500">{t('noSamples')}</p>
           )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <CopyButton value={resolved.voiceArg} label={t('copyBlend')} />
-            <CopyButton value={speakCommand(resolved)} label={t('copyCommand')} />
-            <CopyButton value={starterPrompt(sketch.ref)} label={t('copyPrompt')} />
-          </div>
         </>
       ) : (
         <p className="mt-3 text-xs text-amber-400">{t('unresolvable')}</p>
@@ -252,12 +214,6 @@ export default function MakerVoiceBody({ authEnabled = false }) {
       ) : sketches.length === 0 ? (
         <div className="mt-8 rounded-xl border border-dashed border-neutral-800 p-8 text-center">
           <p className="text-sm text-neutral-400">{t('empty')}</p>
-          <div className="mt-3 flex justify-center">
-            <CopyButton
-              value="Mint a voice register in mojulo with create_voice (read get_voice_vocab first) — start from the jp-female bank."
-              label={t('copyPrompt')}
-            />
-          </div>
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

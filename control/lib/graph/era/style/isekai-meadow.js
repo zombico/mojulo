@@ -76,10 +76,14 @@ export const ISEKAI_MEADOW = Object.freeze({
     hero: { y: 47, side: 1, off: 7, h: 14, masses: [8, 9] } },
   // LIVE GRASS (with `wind`, scene/channels/stage-grass.js): grown stylized blades round the walker to `radius` m, every
   // tuft within `near`, thinning past it; a gust above the mean steps a blade `sheen` stops up its ramp; the walker
-  // parts the grass within `part.r` m. The crowns sway: a pendulum push φ·u|u| (`phi`) over `reach`, a leaf `flutter`,
+  // lays the grass it walks through and the landings it makes ring out (`contact`: the card's over vegetation/grass-contact.js's
+  // defaults). The crowns sway: a pendulum push φ·u|u| (`phi`) over `reach`, a leaf `flutter`,
   // weighted from `from` to `full` m above the ground
-  live: { win: { lit: [1, 3], shade: [0, 2] }, kind: 'meadow', variants: 3, radius: 30, near: 7, tile: 8, density: 5, height: [0.45, 0.9], px: { L2: 55, L1: 16 }, drawTris: 700000, sheen: 1, part: { r: 1.1, k: 0.5 },
+  live: { win: { lit: [1, 3], shade: [0, 2] }, kind: 'meadow', variants: 3, radius: 30, near: 7, tile: 8, density: 5, height: [0.45, 0.9], px: { L2: 55, L1: 16 }, drawTris: 700000, sheen: 1, contact: {}, flowers: { share: 0.14, size: 2.6, lift: 1.15 },   // (wildflowers, opt-in: a recipe's grass.flowers)
     crowns: { phi: 0.5, reach: 1, flutter: 0.05, from: 1.2, full: 6 } },
+  // SHRUBS (opt-in, a recipe's `shrubs`, era/shrubs.js): `n` bushes within `band` m past the trail's fringe, `gap` apart,
+  // `height` m; a `bloom` share in flower (`blooms` posies), a `fruit` share in fruit (`fruits` clusters of berries)
+  shrubs: { n: 14, band: [1.2, 9], gap: 3, height: [1.0, 1.9], bloom: 0.4, fruit: 0.35, blooms: [10, 16], fruits: [9, 14] },
   contact: { rock: 0.35, tree: 0.3 },
   light: { key: { color: '#fff2d0', elevation: 42, azimuth: 60 }, ambient: '#86aede', fill: 0.62, bounce: [0.7, 0.8, 0.5], bounceGain: 0.12, sunGain: 1.15 },
   // the haze is thin (FogExp2: a layer 300 m out keeps four fifths of its own colour): the layers make the depth

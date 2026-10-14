@@ -81,11 +81,6 @@ export const TOOL_LINES = {
   bake_sprite_sheet: L('update', 'Quantize accepted sprite frames into pixel sprites under one palette, written back onto the sheet.'),
   get_game_vocab: L('orient', 'The GAME drawer: `gameworld-guide` and the page cards first, then store slices, level mechanics, kits, glyphs, sfx, hud. `samples` to browse a page.'),
   get_play_vocab: L('orient', 'The PLAY drawer: make a world interactive (a door, a lever, a HUD, a level) through a `play` block set with `update_sketch`.'),
-  create_game_project: L('maintain', "A game project: one home tying a game's rules, levels, characters, audio and art together, at `/games/<ref>`."),
-  get_game_project: L('maintain', 'One project in full: members by role, the active rules and play URL, level promotion, implied members.'),
-  update_game_project: L('maintain', 'Rename a project, revise its charter, or move its status (active → shipped → archived). Members: `bind_to_game_project`.'),
-  bind_to_game_project: L('maintain', 'Add or remove typed members (rules, level, character, audio, graphic, animation, reference) of a project.'),
-  list_game_projects: L('maintain', 'Every game project: title, status, member counts, playable.'),
   export_game: L('maintain', 'A stored game as a self-contained folder (game.html, levels, score, recipes, README); the sibling of `export_model` and `export_beats`.'),
 
   // ── read: pictures, diagrams, study views ─────────────────────────────────

@@ -2,6 +2,9 @@
  * Game-project tools (GP1, game-developer.plan.md) — the project layer over
  * the game composer substrate, and the ONLY write path to it.
  *
+ * RETIRED in 3.1.0 (RETIRED_PACKS in packs.js): registered and callable by name for projects already made, never
+ * listed or routed to. A game's home is its gameworld now (design_game).
+ *
  * A game project is a GROUPING object (its own tables, never a sketches row)
  * that corrals the artifacts of ONE game — rules / levels / characters /
  * audio / graphics / animation / references — so they read as a single
@@ -301,7 +304,7 @@ export function registerGameProjectTools() {
     description:
       'Index of game projects: ref, title, status, per-role member counts, `playable` (has a live rules '
       + 'member), newest-activity first. Optional `status` filter (active | shipped | archived). The '
-      + '/maker/games gallery renders this same shape. Read-only.',
+      + '/play page groups games by project the same way. Read-only.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -92,7 +92,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   if (projectRef !== null && projectRef !== undefined) {
     if (typeof projectRef !== 'string' || !projectRef) throw new Error('`project_ref` must be a non-empty gp_ ref if provided');
     if (!GameProjectRepository.getByRef(projectRef)) {
-      throw new Error(`Game project '${projectRef}' not found — create_game_project first, or list_game_projects to find it`);
+      throw new Error(`Game project '${projectRef}' not found (game projects are retired: leave project_ref out, or name one made before)`);
     }
   }
 
@@ -315,7 +315,7 @@ export function registerGameTools() {
         front: { type: 'object', description: "The light shell's title and credits: { cover?: <cover ref> | { art }, layout?, tagline?, press?, menu?: [continue|play|levels|options|credits], credits?: { roll: [{ role, names }], thanks? }, end? }. get_game_vocab({ id: 'front' })." },
         ref: { type: 'string', description: 'Optional stable sketch ref for the game.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-        project_ref: { type: 'string', description: 'Optional game-project ref (gp_… from create_game_project): binds the minted game as that project\'s ACTIVE rules member, so it appears in the /games/<ref> studio and its arcade cabinet carries the project chip. Levels/music are not copied — they surface as implied members.' },
+        project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the game to.' },
         audits: {
           type: 'object',
           description: "Completability evidence per level: { <levelRef>: { motion_ref } }. motion_ref is a forge_motion TRAVERSAL of that level (world_ref = the level) whose run reached the win condition — its final probe carries game.result:'success'. The gate verifies the stored probe. A level with no audit is refused unless allow_unaudited.",

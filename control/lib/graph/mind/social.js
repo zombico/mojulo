@@ -21,13 +21,14 @@ const FAMILY = Object.freeze({
   suid: 'herd', giraffid: 'herd', primate: 'herd', squamate: 'solitary', anuran: 'solitary', chiropteran: 'flock',
   chondrichthyan: 'solitary', teleost: 'school', theropod: 'solitary', ceratopsian: 'herd', hadrosaur: 'herd',
   sauropod: 'herd', thyreophoran: 'herd', pterosaur: 'flock', plesiosaur: 'solitary',
+  cetacean: 'school', pinniped: 'herd', cephalopod: 'solitary',
 });
 
 // where a species lives otherwise than its family
 const SPECIES_SOCIAL = Object.freeze({
   fox: 'solitary', lion: 'pack', moose: 'solitary', meerkat: 'herd', velociraptor: 'pack',
   baldEagle: 'solitary', greatHornedOwl: 'solitary', vulture: 'solitary', hummingbird: 'solitary', peacock: 'solitary',
-  morayEel: 'solitary', pufferfish: 'solitary', orangutan: 'solitary', sloth: 'solitary', hammerhead: 'school',
+  morayEel: 'solitary', pufferfish: 'solitary', orangutan: 'solitary', sloth: 'solitary', hammerhead: 'school', orca: 'pack', humpbackWhale: 'solitary', squid: 'school', swordfish: 'solitary', anglerfish: 'solitary',
 });
 
 export function socialOf(species, family) {
