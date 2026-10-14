@@ -41,7 +41,7 @@ import { warmScenePng } from '@/lib/graph/scene/scene-png-warm';
 import { compileLayered, resolveLayeredDials } from '@/lib/graph/polygonizer/station-loft';
 import { expandPlan } from '@/lib/graph/polygonizer/station-loft-plan';
 import { coreMeasures, coreAdvice } from '@/lib/graph/polygonizer/hero-core-measures';
-import { heroPlan, planScale, castOf, isBuiltCast, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
+import { heroPlan, planScale, castOf, isBuiltCast, HERO_LAWS_VERSION, readsHeroLaws, castPole, castLabel, validateBuiltCast, HERO_BUILD_NAMES, HERO_BUILDS, PROPORTION_WORDS, HERO_CASTS, HERO_CORES, DEFAULT_CORE, REGISTERS, BODY_DEFAULTS, PALETTE as HERO_PALETTE, TUNE_KEYS, TUNE_AGGREGATE_KEYS, HERO_MOVE_NAMES, resolveTune, validateTune, tuneWarnings } from '@/lib/graph/polygonizer/hero-form';
 import { humanoidPlan, PALETTE as HUMANOID_PALETTE } from '@/lib/graph/polygonizer/humanoid-plan';
 import { humanoidAnchors, EXPRESSIONS, westernExpressionErrors, HEAD_PRESETS, FACE_KEYS, FACE_AGGREGATE_KEYS, FACE_MOVE_NAMES, resolveFace, validateFace, faceWarnings } from '@/lib/graph/polygonizer/humanoid-head';
 import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } from '@/lib/graph/polygonizer/humanoid-hair';
@@ -335,6 +335,7 @@ export function validateHeroSpec(spec, { staleScale = false } = {}) {
   // what the hero is drawn for (era/target.js) and the level's look (era/geocube.js): a cube is checked as a stage checks one
   if (spec.target !== undefined && spec.target !== null && targetError(spec.target)) errs.push(`${targetError(spec.target)} — what the hero is drawn for: its rings hold the outline within \`error\` pixels there`);
   if (spec.geocube !== undefined && spec.geocube !== null) { try { readGeocube(spec.geocube); } catch (e) { errs.push(`${e.message} — the cube whose light the hero is baked in (a preset id, a document or { from, … })`); } }
+  if (spec.laws !== undefined && spec.laws !== HERO_LAWS_VERSION) errs.push(`laws: ${spec.laws} is unknown — this kernel carries hero laws ${HERO_LAWS_VERSION} (stamped at mint; leave it out)`);
   if (spec.form !== undefined && spec.form !== null && !HERO_FORMS.includes(spec.form)) errs.push(`form: ${HERO_FORMS.map((f) => `'${f}'`).join(' | ')} (the tiered base: triangles spent where the eye reads them, detail added by tier; absent is today's form)`);
   const wearsHead = spec.head === undefined || WORN.has(spec.head);
   // the worn heads (humanoid-plan.js) size the figure by the cast and tune.stature alone and never read `scale`
@@ -397,6 +398,10 @@ export function heroRecord(spec, { staleScale = false } = {}) {
   if (isOutfitBuild(hero.outfit) && hero.outfit.laws === undefined) hero.outfit = { ...hero.outfit, laws: OUTFIT_LAWS_VERSION };
   // a statue build (statue/expand.js): a style word stored as its build, stamped with the laws; the card's hair set at
   // mint when the hero names none (the hair is stored resolved, so a later card edit leaves it: patch /hero/hair)
+  // the hero laws (hero-form.js HERO_LAWS_VERSION): stamped at mint on a hero that reads their tables; a spec re-recorded
+  // on every render (a world's inline hero, staleScale) is never stamped here, so an absent stamp keeps reading laws 1
+  if (spec.laws !== undefined) hero.laws = spec.laws;
+  else if (!staleScale && readsHeroLaws(spec)) hero.laws = HERO_LAWS_VERSION;
   if (spec.statue !== undefined && spec.statue !== null) {
     const s = normalizeStatue(spec.statue); hero.statue = s.laws === undefined ? { ...s, laws: STATUE_LAWS_VERSION } : s;
     const hair = hero.head === 'landmark' && spec.hair === undefined ? statueHair(hero.statue, { female: femaleOf(hero) }) : undefined;

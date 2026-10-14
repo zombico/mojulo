@@ -32,6 +32,10 @@ taught `mint_solid`. This theme stitches them.
   by what it is when no title is given, as the hero and the creature are (it was refused).
 - **Fixed: the cast spend counts the anime face as the head.** It wraps below the head's base and was charged to
   clothing, so a bare anime hero read as over-dressed. Readout only.
+- **The hero laws.** A hero that reads the newer tables (a build, the tiered form, the painterly look, a geocube's cast
+  light) is stamped `laws: 1` at mint, as armour, outfit and statue builds already are, so an eyes-gate retune of
+  those tables lands as laws 2 beside them and never moves a row already minted. An absent stamp reads as laws 1; a
+  world's inline hero, re-recorded on every render, is never stamped there. An unknown `laws` is refused.
 
 ### Game audio: scene-scored soundtracks and action SFX
 

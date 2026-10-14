@@ -4,7 +4,7 @@
 // landmarks; `scale` on a worn head is refused with a pointer to tune.stature; the child-coded guard reads the RESOLVED
 // cast, so a list, a dial map or a build that comes to child takes no bust.
 import { describe, it, expect } from 'vitest';
-import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES } from './hero-form.js';
+import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION } from './hero-form.js';
 import { compileLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
@@ -136,5 +136,22 @@ describe('the child-coded guard reads the resolved cast', () => {
       expect(bustParts(m), JSON.stringify(spec)).toEqual([]); expect([...torso(m)], JSON.stringify(spec)).toEqual(['Swim']);
     }
     expect(torso(expand({ cast: 'male', detail: 'swimsuit' }))).toEqual(new Set(['Skin']));   // an adult's chest is bare
+  });
+});
+
+describe('the hero laws: a hero reading the newer tables is stamped at mint, and the stamp moves nothing', () => {
+  it('stamps a build, the tiered form, the painterly look and a cube; leaves the rest and the inline hero alone', () => {
+    for (const spec of [{ cast: { pole: 'female', build: 'brute' } }, { cast: 'male', form: 'tiered' }, { cast: 'female', head: 'anime', painterly: true }, { cast: 'male', geocube: 'island-noon' }]) {
+      expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
+      expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
+    }
+    expect(heroRecord({ cast: 'male' }).laws).toBeUndefined();
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1/)]);
+  });
+  it('a stamped hero builds what an unstamped one does: absent reads as laws 1', () => {
+    const spec = { cast: { pole: 'female', build: 'brute' } };
+    const stamped = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
+    const bare = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec, { staleScale: true }) });
+    expect(stamped.plan).toEqual(bare.plan); expect(stamped.recipe).toEqual(bare.recipe);
   });
 });
