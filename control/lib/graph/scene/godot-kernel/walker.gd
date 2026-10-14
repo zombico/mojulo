@@ -30,6 +30,9 @@ var rule = null          # the pilot's rule (score.pilot.rule) in rule mode, els
 var ent: Dictionary = {}  # its state in the recipe's frame (kernel/rules.gd entity)
 var world: Dictionary = {} # { ground, colliders } in recipe units
 var units := 1.0          # metres per recipe unit (score.metersPerUnit; the bus's)
+var input_held := false   # a scene plays: the pilot takes no input, the world steps on (the page's __mojMenuOpen)
+var subjects: Callable    # the characters a directing shot frames, by id (level.gd shot_subjects)
+var pilot_id := ""
 var halt := 1.0           # 0 while the fight roots the body (a melee swing), as the web's platform rule halts its drive
 var cam_rule = null       # the page's camera rule (score.camera, since 0.23.0), stepped after the pilot; null: the Head
 var cam: Dictionary = {}  # its state in the recipe's frame (kernel/rules.gd camera)
@@ -179,10 +182,10 @@ func rule_step(input: Dictionary, delta: float) -> void:
 	_adopt()
 	var before := position
 	var dt := 0.0 if frozen else delta
-	RulesScript.step(ent, rule, input, dt, world, halt)
+	RulesScript.step(ent, rule, {} if input_held else input, dt, world, halt)
 	_show_pose(before, delta)
 	if cam_rule != null:
-		RulesScript.camera_step(cam, cam_rule, ent, rule, dt, world)
+		RulesScript.camera_step(cam, cam_rule, ent, rule, dt, world, subjects.call() if subjects.is_valid() else {}, pilot_id)
 		_show_camera(dt)
 
 

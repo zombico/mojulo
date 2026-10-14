@@ -20,6 +20,8 @@ extends Node3D
 
 const WalkerScript := preload("res://kernel/walker.gd")
 const RulesScript := preload("res://kernel/rules.gd")
+const ScenesScript := preload("res://kernel/scenes.gd")
+const QuestsScript := preload("res://kernel/quests.gd")
 const WeatherScript := preload("res://kernel/weather.gd")
 const BusScript := preload("res://kernel/bus.gd")
 const CastScript := preload("res://kernel/cast.gd")
@@ -85,6 +87,20 @@ var bus_prompt: Label = null
 var contract: Dictionary = {}
 var outcome_events: Array = []
 var bus_pending: Array = []          # events for the bus's first frame (chapters carried in)
+# SCENES and QUESTS (since 0.23.0): bus.json's `scenes` played by kernel/scenes.gd as the page's runner plays them (after
+# the bus and its ops: the runner hears the log, its beats go back to the bus, its camera ops to the camera and the
+# cast; the pilot's input held while one plays), the bars and the text box drawn; `quests` kept as a journal (J) with a
+# word at the top as one begins, moves on, ends (kernel/quests.gd)
+var scenes = null
+var scn: Dictionary = {}
+var scn_seen := 0
+var scn_ui: Dictionary = {}
+var scn_keys := {}                   # the advance / skip / move / pick keys' last state (a press is an edge)
+var quest_prog = null
+var quest_seen := 0
+var quest_words: Array = []
+var quest_t := 0.0
+var journal_open := false
 var params: Dictionary = {}          # the session's params (Game.session_params, the shell's game-init; a sim's own)
 var end_exit := ""                   # the way the level was left, when its contract names several (envelope.exit)
 var door_leaving := false            # a door crossed: the level leaves by it once (the page's st.leaving)
@@ -1000,6 +1016,8 @@ func _build_camera_rule() -> void:
 		return
 	var r: Dictionary = (c as Dictionary).duplicate(true)
 	r["type"] = r["rule"]
+	walker.subjects = shot_subjects
+	walker.pilot_id = s_(pilot.get("id"))
 	walker.use_camera(r)
 
 
@@ -1380,6 +1398,13 @@ func _build_bus() -> void:
 		return
 	var frag: Dictionary = doc["fragment"]
 	bus_frag = frag
+	if doc.get("scenes") is Array and not (doc["scenes"] as Array).is_empty():
+		scenes = ScenesScript.new()
+		scn = scenes.create(doc["scenes"])
+		_build_scene_ui()
+	if doc.get("quests") is Array and not (doc["quests"] as Array).is_empty():
+		quest_prog = doc["quests"]
+		_build_quest_ui()
 	bus = BusScript.new()
 	# the stats (kernel/stats.gd) run inside the bus's watch fixpoint, as the page's do
 	if doc.get("stats") is Dictionary:
@@ -1519,7 +1544,7 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	bus_incoming = incoming
 	# a menu up freezes the world and its clock, as the page's (interact-channel.js __mojFreeze, since 0.22.0): the menu
 	# the last frame left open stops this frame's bus timers and sagas, the cast and the fight
-	if menu_open != null:
+	if menu_open != null or journal_open:
 		delta = 0.0
 	bus_clock += minf(delta, 0.05)
 	if cast != null:
@@ -1568,6 +1593,8 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 		walker.warp_to(warp)
 	elif warp is Array:
 		walker.global_position = to_yup(warp) * bus_units
+	_step_scenes(minf(delta, 0.05))
+	_step_quests(minf(delta, 0.05))
 	if cast != null:
 		var me2 = cast_state["byId"].get(who if who != "" else "player")
 		cast.step(cast_state, minf(delta, 0.05))
@@ -2026,7 +2053,7 @@ func _sync_menus() -> void:
 				var lines: Array = open.get("lines", [])
 				for i in lines.size():
 					line_requested.emit(s_(lines[i].get("who")), s_(lines[i].get("say")), s_(open["id"]), i)
-	walker.frozen = menu_open != null
+	walker.frozen = menu_open != null or journal_open
 	if menu_open != null and menu_mouse < 0:
 		menu_mouse = Input.mouse_mode
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -2328,6 +2355,14 @@ func _reset() -> void:
 # a gamepad on an open menu: the d-pad or the left stick moves, A (or start) accepts, B (or back) closes
 var menu_stick := 0
 func _unhandled_input(event: InputEvent) -> void:
+	# the journal (quests): J opens and closes it, Esc closes it
+	if quest_prog != null and event is InputEventKey and event.pressed and not event.echo:
+		if event.physical_keycode == KEY_J:
+			toggle_journal(not journal_open)
+			return
+		if journal_open and event.physical_keycode == KEY_ESCAPE:
+			toggle_journal(false)
+			return
 	if bus != null and event is InputEventMouseButton and event.pressed:
 		for inp in bus_inputs:
 			if inp.get("on") == "pointer":
@@ -2398,3 +2433,212 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if event.physical_keycode == KEY_E and bus != null:
 		bus_interact = true
+
+
+
+# ── scenes ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+func _build_scene_ui() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 30
+	var top := ColorRect.new()
+	top.color = Color.BLACK
+	var bot := ColorRect.new()
+	bot.color = Color.BLACK
+	var box := PanelContainer.new()
+	var col := VBoxContainer.new()
+	var who := Label.new()
+	who.add_theme_color_override("font_color", Color(0.56, 0.65, 0.78))
+	var say := Label.new()
+	say.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	say.custom_minimum_size = Vector2(640, 0)
+	var opts := Label.new()
+	var hint := Label.new()
+	hint.add_theme_font_size_override("font_size", 11)
+	for n in [who, say, opts]:
+		col.add_child(n)
+	box.add_child(col)
+	for n in [top, bot, box, hint]:
+		layer.add_child(n)
+	add_child(layer)
+	scn_ui = {"top": top, "bot": bot, "box": box, "who": who, "say": say, "opts": opts, "hint": hint}
+	_draw_scene({"on": false, "bars": 0.0, "line": null, "choice": null})
+
+
+# the frame's presses, as the page reads its keys: Space, Enter or E advance (held, they skip), Esc skips, the arrows
+# or W/S move a choice, 1-4 pick one; the harness's recorded `scene` presses in their place
+func _scene_ctl() -> Dictionary:
+	if sim_frame >= 0 and sim_frame < sim_frames.size():
+		var f = sim_frames[sim_frame]
+		return (f.get("scene", {}) as Dictionary).duplicate() if f is Dictionary and f.get("scene") is Dictionary else {}
+	var edge := func(k: int) -> bool:
+		var down := Input.is_physical_key_pressed(k)
+		var was: bool = scn_keys.get(k, false)
+		scn_keys[k] = down
+		return down and not was
+	var ctl := {}
+	var next := false
+	for k in [KEY_SPACE, KEY_ENTER, KEY_E]:
+		next = edge.call(k) or next
+	if next:
+		ctl["next"] = true
+	if Input.is_physical_key_pressed(KEY_SPACE) or Input.is_physical_key_pressed(KEY_ENTER) or Input.is_physical_key_pressed(KEY_E):
+		ctl["held"] = true
+	if edge.call(KEY_ESCAPE):
+		ctl["skip"] = true
+	if edge.call(KEY_UP) or edge.call(KEY_W):
+		ctl["move"] = -1
+	if edge.call(KEY_DOWN) or edge.call(KEY_S):
+		ctl["move"] = 1
+	for i in 4:
+		if edge.call(KEY_1 + i):
+			ctl["pick"] = i
+	return ctl
+
+
+func _step_scenes(dt: float) -> void:
+	if scenes == null:
+		return
+	var log: Array = bus_state["log"]
+	var types := []
+	for i in range(scn_seen, log.size()):
+		if log[i] is Dictionary and log[i].get("type") is String:
+			types.append(log[i]["type"])
+	scn_seen = log.size()
+	scenes.hear(scn, types)
+	var ctl := _scene_ctl()
+	ctl["vars"] = bus_state["vars"]
+	var o: Dictionary = scenes.step(scn, dt, ctl)
+	# the beats' events first, and the cast ops they queue handed down, so a skip's finish lands them too
+	if not (o["fire"] as Array).is_empty():
+		bus.process_events(bus_state, (o["fire"] as Array).map(func(t): return {"type": t}))
+		bus._watch_fix(bus_state)
+		var ctrl: Dictionary = bus.take_ctrl(bus_state)
+		if cast != null and not (ctrl["ops"] as Array).is_empty():
+			cast.ops(cast_state, ctrl["ops"])
+	if not (o["ops"] as Array).is_empty():
+		for op in o["ops"]:
+			if op.get("op") == "shot" and walker != null and walker.cam_rule != null:
+				walker.cam_rule = RulesScript.set_shot(walker.cam, walker.cam_rule, op["shot"])
+			elif op.get("op") == "unshot" and walker != null and walker.cam_rule != null:
+				walker.cam_rule = RulesScript.unshot(walker.cam, walker.cam_rule)
+		if cast != null:
+			cast.ops(cast_state, o["ops"])
+	var v: Dictionary = scenes.view(scn)
+	# the player's input is held while a scene plays (the menus' hold); the world steps on
+	if walker != null:
+		walker.input_held = v["on"]
+	if hud_ui != null and hud_ui.root != null:
+		hud_ui.root.visible = not v["on"]   # the level's HUD steps aside, as the page's does
+	_draw_scene(v)
+
+
+func _draw_scene(v: Dictionary) -> void:
+	if scn_ui.is_empty():
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var bar := float(v["bars"]) * 0.11 * vp.y
+	scn_ui["top"].position = Vector2.ZERO
+	scn_ui["top"].size = Vector2(vp.x, bar)
+	scn_ui["bot"].position = Vector2(0, vp.y - bar)
+	scn_ui["bot"].size = Vector2(vp.x, bar)
+	var line = v["line"]
+	var choice = v["choice"]
+	scn_ui["box"].visible = line != null or choice != null
+	scn_ui["who"].text = String(line["name"]) if line != null else ""
+	scn_ui["say"].text = String(line["text"]) if line != null else ""
+	var opts := []
+	if choice != null:
+		for k in (choice["options"] as Array).size():
+			opts.append(("▸ " if k == int(choice["sel"]) else "  ") + "%d  %s" % [k + 1, choice["options"][k]])
+	scn_ui["opts"].text = "\n".join(opts)
+	scn_ui["box"].position = Vector2(maxf(16.0, (vp.x - 720.0) / 2.0), vp.y - bar - 16.0 - scn_ui["box"].size.y)
+	scn_ui["hint"].visible = v["on"]
+	scn_ui["hint"].text = ("choose: up/down or 1-%d, then Space" % (choice["options"] as Array).size()) if choice != null else "hold Space or Esc to skip"
+	scn_ui["hint"].position = Vector2(vp.x - 220.0, bar + 8.0)
+
+
+# the characters a directing shot frames, by id ({ pos, heading, gone }, recipe units): the cast's, and the pilot
+func shot_subjects() -> Dictionary:
+	var out := {}
+	if cast != null:
+		for e in cast_state["entities"]:
+			out[e["id"]] = {"pos": e["pos"], "heading": e.get("heading", 0.0), "gone": e.get("gone", false)}
+	var pilot = score.get("pilot")
+	if walker != null and walker.rule != null and pilot is Dictionary:
+		out[s_(pilot.get("id"))] = {"pos": walker.ent["pos"], "heading": walker.ent["heading"], "gone": false}
+	return out
+
+
+# ── quests ───────────────────────────────────────────────────────────────────────────────────────────────────────────
+const QUEST_WORD := {"begun": "new quest", "step": "done", "done": "quest complete"}
+func _build_quest_ui() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 32
+	var toast := Label.new()
+	toast.visible = false
+	var book := PanelContainer.new()
+	var list := Label.new()
+	book.add_child(list)
+	book.visible = false
+	layer.add_child(toast)
+	layer.add_child(book)
+	add_child(layer)
+	scn_ui["toast"] = toast
+	scn_ui["book"] = book
+	scn_ui["list"] = list
+
+
+func _step_quests(dt: float) -> void:
+	if quest_prog == null:
+		return
+	var log: Array = bus_state["log"]
+	var set := []
+	for i in range(quest_seen, log.size()):
+		var t = log[i].get("type") if log[i] is Dictionary else null
+		if t is String and t.begins_with("flag:"):
+			set.append(t.substr(5))
+	quest_seen = log.size()
+	quest_words.append_array(QuestsScript.news(quest_prog, set))
+	var toast: Label = scn_ui["toast"]
+	if quest_t > 0.0:
+		quest_t -= dt
+		if quest_t <= 0.0:
+			toast.visible = false
+	elif not quest_words.is_empty():
+		var n: Dictionary = quest_words.pop_front()
+		toast.text = "%s  %s%s" % [String(QUEST_WORD[n["kind"]]).to_upper(), (String(n["name"]) + ": " + String(n["text"])) if n["kind"] == "step" else String(n["name"]), "   J journal" if n["kind"] == "begun" else ""]
+		toast.visible = true
+		toast.position = Vector2((get_viewport().get_visible_rect().size.x - toast.size.x) / 2.0, 16.0)
+		quest_t = 3.2
+	if journal_open and not set.is_empty():
+		_draw_journal()
+
+
+func _draw_journal() -> void:
+	var lines := []
+	var v := QuestsScript.view(quest_prog, bus_state["vars"])
+	if v.is_empty():
+		lines.append("nothing yet")
+	for q in v:
+		lines.append(String(q["name"]) + (" ✓" if q["state"] == "done" else ""))
+		for st in q["steps"]:
+			lines.append(("   ✔ " if st["done"] else "   · ") + String(st["text"]))
+	scn_ui["list"].text = "JOURNAL\n\n" + "\n".join(lines)
+	var vp := get_viewport().get_visible_rect().size
+	scn_ui["book"].position = (vp - scn_ui["book"].size) / 2.0
+
+
+# J opens the journal, not over a scene (Esc or J closes it); it holds the world as a menu does
+func toggle_journal(open: bool) -> void:
+	if quest_prog == null or (open and scenes != null and scenes.view(scn)["on"]):
+		return
+	journal_open = open
+	scn_ui["book"].visible = open
+	if open:
+		_draw_journal()
+	if walker != null:
+		walker.frozen = open or menu_open != null
+
+
+func quest_view() -> Array:
+	return QuestsScript.view(quest_prog, bus_state["vars"]) if quest_prog != null else []

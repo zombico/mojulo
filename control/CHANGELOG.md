@@ -1252,6 +1252,17 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   `godot-travel.test.js`, `godot-game-shell.test.js`, each with plants). A level with no faces stands on the score's
   implicit plane; a script that moves the walker's node moves its rule's pose. Interconnected, building, buildings,
   street, runs, doors, links and kept bests are built.
+- **Scenes and quests travel** (kernel 0.23.0). `bus.json` carries the scenes' program and the quests' journal;
+  `kernel/scenes.gd` ports the page's scene runner (beats, typed lines, presses, holds and skips, choices) and
+  `kernel/quests.gd` its journal and news, held equal step by step by a corpus (`scenes-conformance.js`,
+  `scripts/godot-scenes-conformance.mjs`, with plants). The level steps the runner where the page does (after the
+  bus's ops): its beats go back to the bus, its shots set `kernel/rules.gd`'s new shot rule (frames, moves, the side
+  of the line, the clear view) aside the page's camera, a skip lands the walks (`cast.gd finish`), the pilot's input
+  is held while one plays, and the bars, the text box and the choices are drawn; J opens the journal and a word shows
+  as a quest moves on. `level-sim.js` plays scenes too, so a whole level (a scene watched, answered and skipped) is
+  equal key for key with its directed camera. A twin quirk is named (`godot-scenes.test.js`): the page draws half of
+  an emoji for a frame as a line types on; Godot keeps the half back. Talk, the shots, framing, steps and quests are
+  built.
 - **The export's ground is the page's.** The GLB de-collided its blend tiles together with the ground they lie on,
   lifting the ground itself a fraction of a millimetre where the page leaves it; blend faces now go last (the page
   draws them in their own pass), and `score.blendNodes` names their nodes so the kernel's land leaves them out. The

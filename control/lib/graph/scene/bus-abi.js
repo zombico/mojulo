@@ -51,7 +51,7 @@ export const BUS_ABI = Object.freeze({
     rearm: { about: 'rounds for the weapon in a character\'s hand (the cast\'s rearm: a supply\'s ammo)', web: B, godot: B, how: 'kernel/cast.gd rearm into the weapon\'s reserve, which kernel/combat.gd\'s reload draws from (since 0.22.0), held equal by the combat corpus' },
     stats: { about: 'stats: raise, grant, xp, level, buy, buff, unbuff; a scaling on a cast op', web: B, godot: B, how: 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace' },
     entities: { about: 'the bus\'s own entities drawn as markers (a spawn appears, a toggle shows or hides, a move places it)', web: B, godot: B, how: 'kernel/level.gd _sync_markers draws each as the page does (an unlit sphere, its radius and colour, where the bus puts it, shown while on; since 0.22.0)' },
-    shot: { about: 'a directed shot on the camera: shot, unshot, finish (a scene\'s camera and its skip)', web: B, godot: A, how: 'worlds/controllable cast.js sets the shot rule aside the camera\'s own; the Godot kernel has no camera rule to set aside' },
+    shot: { about: 'a directed shot on the camera: shot, unshot, finish (a scene\'s camera and its skip)', web: B, godot: B, how: 'kernel/level.gd sets kernel/rules.gd\'s shot rule aside the page\'s camera rule (unshot hands it back) and kernel/cast.gd finishes the walks, as worlds/controllable cast.js does (since 0.23.0)' },
   }),
 });
 

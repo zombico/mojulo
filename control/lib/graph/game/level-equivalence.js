@@ -268,6 +268,8 @@ export function playScript(payload, frames, { onFrame = null, params = null } = 
   let outcome = null, at = null;
   for (let i = 0; i < frames.length; i++) {
     setInput(sim, frames[i] || {});
+    // a frame's presses to a scene playing (the page's Space, Esc, arrows, digits): { next, held, skip, move, pick }
+    if ((frames[i] || {}).scene) sim.scene(frames[i].scene);
     const n0 = sim.bus.log.length;
     // the carried-in events on the first frame, a frame's keys, then its raw events (a menu pick as the page's menu sends
     // it: menu-pick:<menu>:<n>)

@@ -457,8 +457,11 @@ static func camera(pos: Array, heading: float) -> Dictionary:
 	return {"pos": [float(pos[0]), float(pos[1]), float(pos[2])], "heading": heading, "pitch": 0.0, "lookAt": null}
 
 
-static func camera_step(c: Dictionary, r: Dictionary, tgt: Dictionary, tgt_rule: Dictionary, dt: float, world: Dictionary) -> void:
+# `by_id`: the level's characters ({ pos, heading, gone }) by id, the pilot among them, for a directing shot; `pilot` its id
+static func camera_step(c: Dictionary, r: Dictionary, tgt: Dictionary, tgt_rule: Dictionary, dt: float, world: Dictionary, by_id := {}, pilot := "") -> void:
 	match String(r.get("type", "")):
+		"shot":
+			_shot(c, r, dt, world, by_id, pilot)
 		"follow":
 			_follow(c, r, tgt, dt)
 		"eye":
@@ -593,3 +596,187 @@ static func ray_land(g, from: Array, dir: Array, far: float) -> float:
 			if hit is Vector3:
 				best = minf(best, o.distance_to(hit))
 	return best
+
+
+
+# ── shot — the DIRECTING camera (the scene layer, rules-basic.js shot): it frames the characters `on` and the places
+# `at` by a word (`frame`), opening until they fill a `fov`, never under the ground; `move` holds, tracks, pushes or
+# orbits; a new shot cuts (the cast op `shot` resets its state: kernel/walker.gd set_shot). Its clear-view search
+# samples the land along the line to the subjects, as the page's.
+const FRAMES := {"wide": [5.0, 2.2, 0.0], "low": [1.6, -0.8, 0.0], "profile": [1.2, 0.2, 1.0], "corner": [3.0, 3.5, 0.5], "overhead": [2.5, 0.0, 0.0], "two": [0.8, 0.35, 0.0], "close": [0.35, 0.1, 0.25]}
+
+
+static func _top(world: Dictionary, x: float, y: float) -> float:
+	return ground_at(world.get("ground"), [x, y, 1e4])
+
+
+static func _shot(c: Dictionary, r: Dictionary, dt: float, world: Dictionary, by_id: Dictionary, pilot: String) -> void:
+	var subs := []
+	for id in (r.get("on") if r.get("on") is Array else []):
+		var s = by_id.get(String(id))
+		if s is Dictionary and not s.get("gone", false):
+			subs.append({"pos": s["pos"], "heading": s.get("heading"), "place": false})
+	for p in (r.get("at") if r.get("at") is Array else []):
+		var z = p[2] if p.size() > 2 and p[2] != null else null
+		if z == null:
+			var g := _top(world, float(p[0]), float(p[1]))
+			z = 0.0 if is_nan(g) else g
+		subs.append({"pos": [float(p[0]), float(p[1]), float(z)], "heading": null, "place": true})
+	if subs.is_empty():
+		return
+	var cx := 0.0
+	var cy := 0.0
+	var cz := 0.0
+	for s in subs:
+		cx += float(s["pos"][0])
+		cy += float(s["pos"][1])
+		cz += float(s["pos"][2])
+	cx /= subs.size()
+	cy /= subs.size()
+	cz = cz / subs.size() + _num(r, "lookH", 1.4)
+	var spread := 0.0
+	for s in subs:
+		spread = maxf(spread, _hypot(float(s["pos"][0]) - cx, float(s["pos"][1]) - cy))
+	c["_shotT"] = float(c.get("_shotT", 0.0)) + dt
+	var lerp := _num(r, "lerp", 3.0)
+	if r.get("frame") == "over" and subs.size() >= 2:
+		var A: Array = subs[0]["pos"]
+		var B: Array = subs[1]["pos"]
+		var side := _num(r, "side", 1.0)
+		var lh := _num(r, "lookH", 1.4)
+		var yaw := atan2(float(B[1]) - float(A[1]), float(B[0]) - float(A[0]))
+		var f := fwd_xy(yaw)
+		var rt := right_xy(yaw)
+		var at := [float(B[0]) + f[0] * 1.1 + rt[0] * 0.45 * side, float(B[1]) + f[1] * 1.1 + rt[1] * 0.45 * side, float(B[2]) + lh + 0.15]
+		_shot_place(c, at, lerp, dt)
+		c["_shotAt"] = at
+		c["heading"] = yaw + PI
+		c["lookAt"] = [A[0], A[1], float(A[2]) + lh]
+		return
+	var fr: Array = FRAMES.get(String(r.get("frame", "")), FRAMES["wide"])
+	var room: float = fr[0]
+	var rise: float = fr[1]
+	var off: float = fr[2]
+	if r.get("side") == null and c.get("_shotSide") == null and subs.size() >= 2:
+		var a: Array = subs[0]["pos"]
+		var b: Array = subs[1]["pos"]
+		var u := atan2(float(b[1]) - float(a[1]), float(b[0]) - float(a[0])) - HALF_PI
+		var to_cam := (float(c["pos"][0]) - cx) * cos(u) + (float(c["pos"][1]) - cy) * sin(u)
+		c["_shotSide"] = 1.0 if to_cam >= 0.0 else -1.0
+	var side: float = _num(r, "side", float(c["_shotSide"]) if c.get("_shotSide") != null else 1.0)
+	var face := 0.0
+	if subs.size() >= 2:
+		var a: Array = subs[0]["pos"]
+		var b: Array = subs[1]["pos"]
+		face = atan2(float(b[1]) - float(a[1]), float(b[0]) - float(a[0])) - HALF_PI * side
+	elif subs[0]["place"]:
+		# a lone place: the pilot's view of it, from just behind and above the pilot
+		var P = by_id.get(pilot)
+		if P is Dictionary and r.get("frame") != "overhead":
+			var p: Array = P["pos"]
+			var a: Array = subs[0]["pos"]
+			var yaw := atan2(float(a[1]) - float(p[1]), float(a[0]) - float(p[0]))
+			var f := fwd_xy(yaw)
+			var at := [float(p[0]) - f[0] * 3.0, float(p[1]) - f[1] * 3.0, float(p[2]) + 2.4]
+			_shot_place(c, at, lerp, dt)
+			c["_shotAt"] = at
+			c["heading"] = yaw
+			c["lookAt"] = [a[0], a[1], float(a[2]) + _num(r, "lookH", 1.4)]
+			return
+		face = 0.0
+	else:
+		var h = subs[0]["heading"]
+		face = float(h) if (h is float or h is int) else 0.0
+	var yaw := _num(r, "yaw", face) + off * HALF_PI * side
+	if r.get("move") == "orbit":
+		yaw += _num(r, "rate", 0.25) * float(c["_shotT"])
+	var dist := maxf(1.2, (spread + room) / tan((_num(r, "fov", 50.0) * PI) / 360.0))
+	if r.get("move") == "push":
+		dist *= 1.0 + 0.35 * (1.0 - minf(1.0, float(c["_shotT"]) / _num(r, "for", 3.0)))
+	var overhead: bool = r.get("frame") == "overhead"
+	var place := func(y: float, lift: float) -> Array:
+		var f := fwd_xy(y)
+		var at := [cx + f[0] * dist * 0.3, cy + f[1] * dist * 0.3, cz + dist] if overhead else [cx + f[0] * dist, cy + f[1] * dist, cz + rise + lift]
+		var g := _top(world, at[0], at[1])
+		if not is_nan(g) and at[2] < g + 0.8:
+			at[2] = g + 0.8
+		return at
+	if c.get("_shotTry") == null:
+		c["_shotTry"] = [0.0, 0.0]
+		if world.get("ground") is Dictionary:
+			var found := false
+			for lift in [0.0, 1.5, 3.5]:
+				for dy in [0.0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]:
+					var at: Array = place.call(yaw + dy, lift)
+					var clear := true
+					for k in range(1, 8):
+						var u := k / 8.0
+						var x: float = at[0] + (cx - at[0]) * u
+						var y: float = at[1] + (cy - at[1]) * u
+						var z: float = at[2] + (cz - at[2]) * u
+						var g := _top(world, x, y)
+						if not is_nan(g) and g > z - 0.3:
+							clear = false
+							break
+					if clear:
+						c["_shotTry"] = [dy, lift]
+						found = true
+						break
+				if found:
+					break
+	var at: Array = place.call(yaw + float(c["_shotTry"][0]), float(c["_shotTry"][1]))
+	if c.get("_shotAt") == null or (_truthy(r.get("move")) and r.get("move") != "hold"):
+		c["_shotAt"] = at
+	if c.get("_shotCut", false):
+		c["pos"] = (c["_shotAt"] as Array).duplicate()
+		c["_shotCut"] = false
+	else:
+		_ease_to(c, c["_shotAt"], smooth(lerp, dt))
+	c["heading"] = atan2(cy - float(c["pos"][1]), cx - float(c["pos"][0]))
+	c["lookAt"] = [cx, cy, cz]
+
+
+static func _truthy(v) -> bool:
+	if v == null:
+		return false
+	if v is bool:
+		return v
+	if v is String:
+		return v != ""
+	if v is float:
+		return v != 0.0 and not is_nan(v)
+	if v is int:
+		return v != 0
+	return true
+
+
+# a cut lands at once; else the camera eases in at `lerp` (the over and lone-place shots set their own _shotAt after)
+static func _shot_place(c: Dictionary, at: Array, lerp: float, dt: float) -> void:
+	if c.get("_shotCut", false) or c.get("_shotAt") == null:
+		c["pos"] = at.duplicate()
+		c["_shotCut"] = false
+	else:
+		_ease_to(c, at, smooth(lerp, dt))
+
+
+# the cast op `shot`: the camera's rule held aside for a directing shot (its state reset; a cut unless `cut: false`);
+# `unshot` hands the held rule back. → the rule now in force
+static func set_shot(c: Dictionary, current: Dictionary, shot) -> Dictionary:
+	if not c.has("heldRule") or c["heldRule"] == null:
+		c["heldRule"] = current
+	c["_shotT"] = 0.0
+	c["_shotAt"] = null
+	c["_shotSide"] = null
+	c["_shotTry"] = null
+	c["_shotCut"] = not (shot is Dictionary and shot.get("cut") == false)
+	var r: Dictionary = (shot as Dictionary).duplicate(true)
+	r["type"] = "shot"
+	return r
+
+
+static func unshot(c: Dictionary, current: Dictionary) -> Dictionary:
+	var held = c.get("heldRule")
+	if held is Dictionary:
+		c["heldRule"] = null
+		return held
+	return current

@@ -49,7 +49,7 @@ export const MIND = Object.freeze({
     social: {
       values: marked('social', {
         none: { status: 'built' },
-        talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: 'absent', note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); web only' },
+        talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: 'built', note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); Godot plays it (kernel/scenes.gd)' },
         schedule: { status: 'built', lowers: 'lib/graph/playscape/ui/routines.js', note: 'play.routines: where each goes hour by hour on the level\'s clock (cues on hour, a walk and a pose); Godot keeps the day (the pose is said, not played)' },
       }),
     },

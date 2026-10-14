@@ -226,7 +226,12 @@ export function extractBus(payload) {
   // or shot): what an engine kernel feeds the bus as the page does (Godot: picks and shots since kernel 0.22.0, against
   // the bus's markers). Absent ⇒ no key.
   const inputs = (Array.isArray(ev.inputs) ? ev.inputs : []).filter((i) => i && i.emit && ['key', 'pointer', 'pick', 'fire'].includes(i.on));
-  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}), ...(inputs.length ? { inputs } : {}) };
+  // the scenes' program (scenes.js sceneProgram: what the page's runner plays) and the quests' journal (quests.js
+  // questProgram), which an engine kernel plays and keeps as the page does (Godot: kernel/scenes.gd, quests.gd, since
+  // 0.23.0, held equal by the scenes corpus). Absent ⇒ no key.
+  const scenes = Array.isArray(ev.scenes) && ev.scenes.length ? ev.scenes : null;
+  const quests = Array.isArray(ev.quests) && ev.quests.length ? ev.quests : null;
+  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}), ...(inputs.length ? { inputs } : {}), ...(scenes ? { scenes } : {}), ...(quests ? { quests } : {}) };
 }
 
 // A primitive body (`mesh`: a box or a sphere, centred on the entity) bakes no geometry into the GLB: its node is an

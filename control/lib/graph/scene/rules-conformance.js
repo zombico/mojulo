@@ -69,7 +69,23 @@ export const SCENARIOS = [
 // the camera rules, each watching a pilot run a short course (follow, eye, overhead, side, fixed)
 const COURSE = run([10, {}], [30, { forward: 1, turn: 0.4 }], [2, { forward: 1, jump: 1, jumpHeld: 1 }], [20, { forward: 1, jumpHeld: 1 }], [20, { turn: -1 }], [30, { forward: 1 }]);
 const LOOK_COURSE = run([10, { lookDX: 60, lookDY: 25 }], [30, { forward: 1, lookDX: -10 }], [20, { lookDY: -60 }]);
+const HILL = [quad(-40, -40, 40, 40), { corners: [[6, -4, 0], [12, -4, 3], [12, 4, 3], [6, 4, 0]] }, quad(12, -4, 16, 4, 3)];
+const shotCam = (shot, at = [0, -10, 3]) => ({ camera: { rule: 'shot', target: 'hero', ...shot }, at, faces: HILL });
 export const CAMERA_SCENARIOS = [
+  ...[['wide', {}], ['low', { move: 'track' }], ['profile', { move: 'push', for: 1.5 }], ['corner', { move: 'orbit', rate: 0.5 }], ['overhead', {}], ['close', { cut: true, lerp: 6 }], ['two', { side: -1 }]].map(([frame, extra]) => ({
+    id: `camera-shot-${frame}`, about: `a directing shot framing the pilot (${frame}${extra.move ? `, ${extra.move}` : ''})`,
+    entity: pilot({ type: 'platform', eye: 1.7 }), input: run([20, { forward: 1, turn: 0.3 }], [20, {}]), ...shotCam({ frame, on: ['hero'], ...extra }) })),
+  { id: 'camera-shot-two-places', about: 'the pilot and a place across a hill: the side of the line from where the camera stands, a clear view searched',
+    entity: pilot({ type: 'walk', eye: 1.7 }), input: run([30, { forward: 1 }]), ...shotCam({ frame: 'two', on: ['hero'], at: [[14, 0], [9, 2, 1]] }, [20, 2, 2]) },
+  { id: 'camera-shot-hillside', about: 'a framing that lands in a steep slope: lifted onto it, and a clear view searched round it',
+    entity: pilot({ type: 'walk', eye: 1.7 }, [4.5, 0, 1.7], 0), input: run([25, {}]), camera: { rule: 'shot', target: 'hero', frame: 'low', on: ['hero'] }, at: [0, -6, 3],
+    faces: [quad(-40, -40, 6, 40), { corners: [[6, -40, 0], [8, -40, 6], [8, 40, 6], [6, 40, 0]] }, quad(8, -40, 40, 40, 6)] },
+  { id: 'camera-shot-ridge', about: 'a ridge between the framing and the pilot: the clear view is searched round it',
+    entity: pilot({ type: 'walk', eye: 1.7 }, [4, 0, 1.7], 0), input: run([15, {}]), camera: { rule: 'shot', target: 'hero', frame: 'low', on: ['hero'] }, at: [0, -6, 3],
+    faces: [quad(-40, -40, 40, 40), quad(5.5, -1, 6, 1, 8)] },
+  { id: 'camera-shot-over', about: 'over the place\'s shoulder at the pilot', entity: pilot({ type: 'walk', eye: 1.7 }), input: run([20, { forward: 1 }]), ...shotCam({ frame: 'over', on: ['hero'], at: [[5, 3]] }) },
+  { id: 'camera-shot-lone-place', about: 'a lone place: the pilot\'s view of it from behind and above', entity: pilot({ type: 'walk', eye: 1.7 }), input: run([20, { turn: 1, forward: 0.5 }]), ...shotCam({ frame: 'wide', at: [[14, 0]] }) },
+
   { id: 'camera-follow', about: 'a chase camera easing behind and above, looking ahead of the pilot',
     entity: pilot({ type: 'platform', eye: 1.7 }), faces: STEPPED, input: COURSE, camera: { rule: 'follow', target: 'hero', dist: 7, height: 2.5, shoulder: 0.6, lead: 3, lookH: 1.2, lerp: 6 } },
   { id: 'camera-follow-reverse-pitch', about: 'the reverse chase swinging round, pitched with a look pilot',

@@ -22,7 +22,7 @@ func _init() -> void:
 			Rules.step(e, r, inp, float(sc["dt"]), world)
 			var snap: String = Bus.ss(_snapshot(e, r))
 			if cam != null:
-				Rules.camera_step(cam, sc["camera"], e, r, float(sc["dt"]), world)
+				Rules.camera_step(cam, sc["camera"], e, r, float(sc["dt"]), world, {"hero": {"pos": e["pos"], "heading": e["heading"]}}, "hero")
 				snap += "|" + Bus.ss(_cam(cam))
 			snaps.append(snap)
 		results[sc["id"]] = snaps

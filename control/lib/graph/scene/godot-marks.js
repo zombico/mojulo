@@ -38,7 +38,7 @@ export const RULE_MARKS = Object.freeze({
   overhead: m(B, 'kernel/rules.gd: the ¾ overhead, north up the screen'),
   side: m(B, 'kernel/rules.gd: square to the pilot\'s lane, swinging round its bends (the lane pilot is the platform rule\'s)'),
   fixed: m(B, 'kernel/rules.gd: the stations, cut by the nearest focus, held against flicker'),
-  shot: m(A, 'no directed shot: scenes do not travel'),
+  shot: m(B, 'kernel/rules.gd: the directing camera a scene sets aside the page\'s own (frames, moves, the side of the line, the clear view)'),
   clock: m(P, 'a figure-frames body\'s self-playing loop (a glyph, a turntable): the body stands, its frames do not play'),
   mover: m(A, 'movers do not travel (skipped_movers): a moving platform or lift stands at rest'),
   launcher: m(A, 'no launcher: a catapult stands still'),
@@ -152,11 +152,11 @@ export const EVENT_MARKS = Object.freeze({
   hud: m(B, 'score.json hud (kernel/hud.gd)'), style: m(B, 'score.json hudStyle'), register: m(P, 'score.json hudStyle.register: its motion, sound, cursor and light are the web\'s'),
   menus: m(B, 'score.json menus (level.gd)'),
   looks: m(P, 'score.json looks (kernel/looks.gd): nothing wears one until a script calls looks.wear'),
-  scenes: m(A, 'scenes do not travel: no runner, no shots, no text box, no choices'),
-  quests: m(A, 'quests do not travel: no journal, no toasts'),
+  scenes: m(B, 'bus.json scenes (kernel/scenes.gd, the page\'s runner ported): the beats, the bars, the text box and the choices; its shots direct the camera when the level has the page\'s camera, as on the page'),
+  quests: m(B, 'bus.json quests (kernel/quests.gd): the journal (J) and a word as one begins, moves on, ends'),
 });
 /** The events keys an export carries (bus.json or score.json), whatever their mark. */
-export const EVENT_CARRIED = Object.freeze(Object.keys(EVENT_MARKS).filter((k) => !['scenes', 'quests'].includes(k)));
+export const EVENT_CARRIED = Object.freeze(Object.keys(EVENT_MARKS));
 
 // ── a figure's gaits (polygonizer/hero-motion.js MOTION_GAITS), by the shape of the gait's row ───────────────────────
 // The suit plays its idle and its walk (the locomotion row's `walk`) and its swings; a jump is the walker's own (no

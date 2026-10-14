@@ -27,8 +27,9 @@ const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
 const SCENES = 'lib/graph/playscape/ui/scenes.js';
 const WEB = { godot: 'absent' };
 // one change per package: quests (steps bound to a giver), the 3D shot
-const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests', ...WEB };
-const SHOT = { status: 'partial', effort: 'L', pkg: 'shot', ...WEB };
+// Godot: the scenes and the journal travel (kernel/scenes.gd, quests.gd, the shot rule in kernel/rules.gd: III-d)
+const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests', godot: 'built' };
+const SHOT = { status: 'partial', effort: 'L', pkg: 'shot', godot: 'built' };
 // a passage ages the world between chapters, so it is built on them (built: playscape/ui/chapters.js)
 const AGED = { requires: ['time.chapters=overlays'], ...WEB };
 
@@ -89,6 +90,6 @@ export const TIME = Object.freeze({
         banter: { ...SHOT, status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; no portraits or face set yet' },
       },
     },
-    framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, godot: { all: 'absent' }, status: 'built', note: 'the shot rule frames its subjects by these words' } },
+    framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, godot: { all: 'built' }, status: 'built', note: 'the shot rule frames its subjects by these words' } },
   },
 });

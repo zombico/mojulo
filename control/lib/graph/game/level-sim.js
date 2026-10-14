@@ -13,6 +13,11 @@
  * POWERS (game.powers: { target, grants: { <power>: { <rule knob>: number } } }): a power the bus hears picked up
  * (pickup:<power>) merges its knobs into its holder's rule once, as the page's game channel grants it (__grant).
  *
+ * SCENES (events.scenes, scenes.js's program) play as the page plays them (channels/scene-channel.js): after the bus and
+ * its ops, the runner hears the log since the last frame and steps with the frame's presses (`scene`: { next, held,
+ * skip, move, pick }), its beats go to the bus and its camera ops to the cast; while one plays, the pilot's input is
+ * held (the world steps on).
+ *
  * A MENU UP FREEZES THE WORLD, as the page's does (channels/interact-channel.js __syncMenus: a menu whose var is 1 is
  * open, read after the frame; the next frame's clock is 0 for the bus's timers and sagas and for the world's step).
  *
@@ -21,6 +26,7 @@
 import { composeLive } from '../worlds/controllable/compose.js';
 import { buildBus } from '../worlds/event-bus.js';
 import { beatsDue } from '../beats/beat-clock.js';
+import { buildSceneRunner } from '../playscape/ui/scene-runner.js';
 
 let E = null;
 const B = buildBus();
@@ -36,6 +42,9 @@ export function simLevel({ entities = [], events = {}, colliders, camera } = {},
   const menuVars = (events.menus || []).map((m) => m && (m.var || `ui-menu-${m.id}`)).filter(Boolean);
   let frozen = false, mt = 0;
   const input = {};
+  const SR = Array.isArray(events.scenes) && events.scenes.length ? buildSceneRunner() : null;
+  const scn = SR ? SR.create(events.scenes) : null;
+  let scnSeen = 0, sceneCtl = {};
   const granted = {};
   const grant = (from) => {
     if (!powers || !powers.grants) return;
@@ -66,7 +75,17 @@ export function simLevel({ entities = [], events = {}, colliders, camera } = {},
     pump(B.tickTimers(bus, live));
     pump(B.stepTime(bus, live));
     B.syncToCtrl(bus, world.entities, (ops) => E.castOps(world, ops));
-    E.stepWorld(world, input, live, hooks);
+    let held = false;
+    if (scn) {
+      SR.hear(scn, bus.log.slice(scnSeen).map((x) => x && x.type).filter((t) => typeof t === 'string'));
+      scnSeen = bus.log.length;
+      const o = SR.step(scn, dt, { ...sceneCtl, vars: bus.vars });
+      sceneCtl = {};
+      if (o.fire.length) { pump(o.fire.map((type) => ({ type }))); B.syncToCtrl(bus, world.entities, (ops) => E.castOps(world, ops)); }
+      if (o.ops.length) E.castOps(world, o.ops);
+      held = SR.view(scn).on;
+    }
+    E.stepWorld(world, held ? {} : input, live, hooks);
     t += live;
     frozen = menuVars.some((v) => bus.vars[v] === 1);
   };
@@ -78,5 +97,5 @@ export function simLevel({ entities = [], events = {}, colliders, camera } = {},
       frame(1 / 30, now);
     }
   };
-  return { world, bus, input, frame, run, get time() { return t; } };
+  return { world, bus, input, frame, run, get time() { return t; }, scene: (ctl) => { sceneCtl = ctl || {}; }, get sceneView() { return scn ? SR.view(scn) : null; } };
 }

@@ -66,7 +66,7 @@ describe('battles and routines travel', () => {
   }, 600000);
 
   const PLANTS = [
-    { name: 'the world runs under a menu', level: battleLevel, frames: battleFrames, from: '	if menu_open != null:\n		delta = 0.0\n', to: '' },
+    { name: 'the world runs under a menu', level: battleLevel, frames: battleFrames, from: '	if menu_open != null or journal_open:\n		delta = 0.0\n', to: '' },
     { name: 'the cast stepped before the bus\'s ops', level: routineLevel, frames: () => Array.from({ length: 300 }, () => ({})), from: '		var facts: Array = cast.facts(cast_state)', to: '		cast.step(cast_state, minf(delta, 0.05))\n		var facts: Array = cast.facts(cast_state)' },
   ];
   it.skipIf(!GODOT)('every planted bug in the freeze and the step order is caught (MOJULO_GODOT)', () => {

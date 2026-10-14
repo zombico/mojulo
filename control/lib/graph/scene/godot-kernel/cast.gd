@@ -54,6 +54,22 @@ func ops(st: Dictionary, list: Array) -> void:
 		if op == "shake":
 			_moment(st, {"is": "shake", "at": [0.0, 0.0, 0.0], "k": float(o["k"]) if Bus.finite(o.get("k")) else 0.5, "for": float(o["for"]) if Bus.finite(o.get("for")) else 0.4})
 			continue
+		# a skipped scene (scene-runner.js): every walk lands where it was going, its last point, its face and pose, and
+		# the arrive fact; a looping walk keeps walking (since 0.23.0)
+		if op == "finish":
+			for w in st["entities"]:
+				var R = w["route"]
+				if R == null or R["then"] == "loop":
+					continue
+				if R["then"] == "back" and not R["back"]:
+					R["points"].reverse()
+					R["names"].reverse()
+					R["back"] = true
+				R["i"] = (R["points"] as Array).size() - 1
+				w["pos"][0] = float(R["points"][R["i"]][0])
+				w["pos"][1] = float(R["points"][R["i"]][1])
+				_step_route(w, 0.0)
+			continue
 		if op == "puff" and not Bus.truthy(o.get("who")) and o.get("at") is Array:
 			_puff(st, o, _pt3(o["at"], 0.0), st["time"])
 			continue

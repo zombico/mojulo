@@ -72,17 +72,16 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
   });
 
   it('every events key the export carries, and every one it drops is named', () => {
-    // what rides bus.json and score.json is carried; scenes and quests are dropped, and say so
+    // what rides bus.json and score.json is carried, scenes and quests among it (since 0.23.0)
     for (const k of ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap', 'cast', 'stats', 'inputs', 'hud', 'style', 'register', 'menus', 'looks']) expect(EVENT_CARRIED, k).toContain(k);
     for (const row of Object.values(EVENT_MARKS)) expect(marked(row)).toBe(true);
-    expect(EVENT_MARKS.scenes.godot).toBe('absent');
-    expect(EVENT_MARKS.quests.godot).toBe('absent');
+    expect(EVENT_MARKS.scenes.godot).toBe('built');
+    expect(EVENT_MARKS.quests.godot).toBe('built');
     // an events key nobody marked is not dropped silently: the ledger names it and the verdict reads it as lost
     const payload = { entities: [{ id: 'hero', rule: { type: 'walk' }, transform: { pos: [0, 0, 1] } }], events: { reactions: [{ on: 'a', do: 'emit', type: 'b' }], futureKey: [{ x: 1 }], scenes: [{ id: 's' }] } };
-    expect(godotReading(payload).events).toEqual(['futureKey', 'scenes']);
+    expect(godotReading(payload).events).toEqual(['futureKey']);
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: extractEngineScore({ ref: 'r', manifest: {} }, payload) }], engine: 'godot' });
     expect(p.flags.join('\n')).toMatch(/events 'futureKey' is not marked/);
-    expect(p.flags.join('\n')).toMatch(/events\.scenes: scenes do not travel/);
     expect(p.verdict).toBe('hollow');
   });
 
@@ -94,7 +93,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     for (const row of Object.values(VERB_ROW)) if (row) expect(BUS_ABI.effects[row]).toBeTruthy();
     // a stat cue is heard as the stats kernel's event (statFire): a level-up cue counts as the stats fact
     expect(busCoverage({ reactions: [{ on: 'level-up', do: 'emit', type: 'x' }] }).used).toContain('fact:stats');
-    expect(busCoverage({ reactions: [{ on: 'go', do: 'ctrl', op: 'shot', shot: {} }] }).godot.absent).toEqual(['effect:shot']);
+    expect(busCoverage({ reactions: [{ on: 'go', do: 'ctrl', op: 'shot', shot: {} }] }).godot.built).toEqual(['effect:shot']);
     expect(busCoverage({ entities: [{ id: 'boulder', on: true }] }).godot.built).toEqual(['effect:entities']);
   });
 
@@ -214,19 +213,20 @@ const PROOF = {
   combat: ['lib/graph/scene/combat-conformance.test.js', 'the Godot kernel is equal to the web, frame by frame'],
   markers: ['lib/graph/scene/godot-markers.test.js', 'a headless Godot draws them where its bus puts them'],
   rules: ['lib/graph/scene/godot-rules.test.js', 'kernel/rules.gd is equal to the web'],
+  scenes: ['lib/graph/scene/godot-scenes.test.js', 'kernel/scenes.gd and quests.gd are equal to the web'],
   cameras: ['lib/graph/scene/godot-rules.test.js', 'drive the Godot camera as they drive the page'],
 };
 const EVIDENCE = {
   bus: {
     'fact:zone': 'chapter', 'fact:use': 'chapter', 'fact:start': 'corpus', 'fact:timer': 'corpus', 'fact:input': 'key', 'fact:cast': 'cast',
-    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat', 'effect:rearm': 'combat', 'effect:entities': 'markers',
+    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat', 'effect:rearm': 'combat', 'effect:entities': 'markers', 'effect:shot': 'scenes',
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },
-  rule: { walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
+  rule: { shot: 'rules', walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
   event: {
     reactions: 'corpus', watches: 'corpus', sequences: 'corpus', timers: 'corpus', vars: 'corpus', sources: 'chapter', initial: 'corpus',
-    entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter',
+    entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter', scenes: 'scenes', quests: 'scenes',
   },
   page: {
     faces: 'matrix', cameras: 'matrix', textures: 'matrix', soft: 'matrix', repeats: 'matrix', ao: 'matrix', light: 'matrix', entities: 'matrix',

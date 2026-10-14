@@ -102,6 +102,10 @@ describe('the motion rules the Godot kernel runs', () => {
     { name: 'a lane corner the wrong way', from: 'if d2 < best - 1e-12 or (bias > 0.0', to: 'if d2 < best - 1e-12 or (bias < 0.0' },
     { name: 'no jump cut', from: 'and not e.get("launchedBy")', to: 'and false' },
     { name: 'a boost at the run\'s speed', from: '((bf / bn) * boost_speed * ctl * dt', to: '((bf / bn) * speed * ctl * dt' },
+    { name: 'a shot under the hillside', from: '		if not is_nan(g) and at[2] < g + 0.8:\n			at[2] = g + 0.8', to: '		pass' },
+    { name: 'a shot that never looks for a clear view', from: '						if not is_nan(g) and g > z - 0.3:', to: '						if false:' },
+    { name: 'a shot always on one side of the line', from: 'c["_shotSide"] = 1.0 if to_cam >= 0.0 else -1.0', to: 'c["_shotSide"] = 1.0' },
+    { name: 'a push that never closes in', from: 'dist *= 1.0 + 0.35 *', to: 'dist *= 1.0 + 0.0 *' },
     { name: 'a gauge that never unlocks', from: '			e["boostLock"] = false', to: '			pass' },
   ];
   it.skipIf(!GODOT)('every planted bug in the rules is caught by the corpus (MOJULO_GODOT)', () => {
