@@ -23,6 +23,12 @@ taught `mint_solid`. This theme stitches them.
 - **Fixed: a world that populates its gear finishes its run.** The run record had no key for a starter item
   (`stock-<id>`), so a `design_game` run with `equipment.populate` threw after every sketch was minted and left the
   world with no record and no pinned base.
+- **Fixed: the book's anime hero keeps its character light.** Its orders put `toon` beside the spec, where `mint_solid`
+  never reads it, so every anime hero a run made was lit by the studio. One helper now mints and remakes every hero a
+  run makes (`hero-mint.js`): the light rides in the spec, a remake sets it, and a figure remade with no motion page
+  keeps the walk it was stored with instead of the stock four keys. An order that carries a light prints anew, so the
+  next run remakes those heroes once, with their light; a hero edited by hand is still left alone. The four
+  near-identical hero branches of `design_game`'s runner are one.
 - **Refused at the door, not thrown downstream.** A list or a dial-map cast on a worn head (it builds only the blank
   trunk) and `form: 'tiered'` on the streamlined core are refused by name; both threw a stack trace before.
 - **Fixed: the Egocube's child is a child.** It wrote the bare `cast: 'child'`, which keeps adult radii and the male
@@ -36,6 +42,25 @@ taught `mint_solid`. This theme stitches them.
   light) is stamped `laws: 1` at mint, as armour, outfit and statue builds already are, so an eyes-gate retune of
   those tables lands as laws 2 beside them and never moves a row already minted. An absent stamp reads as laws 1; a
   world's inline hero, re-recorded on every render, is never stamped there. An unknown `laws` is refused.
+- **A word the hero door does not take is refused, with where it belongs.** `create_character` dropped it without a
+  word (`build`, `wings`) and `update_character` stored it where nothing read it. Both now refuse it by name and say
+  where it goes (`build` → `cast: { pole, build }`, `wings` → a creature, a typo → the word it is nearest). Only the
+  words in the call are checked: a row that already carries one keeps rendering and can still be revised, and a
+  world's inline hero is never refused.
+- **`update_character` merges at any depth.** `{ adorn: { dials: { stylize: 1 } } }` turns one dial and
+  `{ palette: { Top } }` one colour; before, each replaced its whole key (and a dial alone was refused for losing the
+  armour's type). An object naming `type`, `style`, `item` or `from` still replaces its key whole, a list or a word
+  replaces, and null removes at any depth.
+- **`vibe` on the door.** Words for how the hero moves (`['cocky', 'light']`) are lowered at mint, and on an edit, to the
+  gaits' dials and a stand, as the character book's motion page lowers them; the hero's own `motion` and `gesture` win.
+  The mint says what each word did; the words themselves are not stored.
+- **A hero new to a world walks as a minted hero does.** A world's inline hero, written now, gets the calibrated walk
+  and its hero laws where it is written; a figure the world already had is left as it was stored.
+- **A hand edit is seen, and it plays.** A hero edited since the run that made it is said on its base
+  (`hero:base`: it has moved past its pin), and the equipped hero is built over the edited one instead of the book's.
+- **A hero made on its own joins a game.** `characters.hero.ref` (and a quick game's `hero: { ref }`) names a hero made
+  with `create_character`: the run pins it and makes none, the levels pilot it, its own looks and motion play (the
+  motion page says it is not applied), and a missing ref is said.
 
 ### Game audio: scene-scored soundtracks and action SFX
 

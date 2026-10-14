@@ -88,6 +88,7 @@ import { compileOutfit } from '../../graph/polygonizer/outfit-plan.js';
 import { tierKit } from '../../graph/polygonizer/adorn-tier.js';
 import { styleMeasures, styleCritic, chestMeasures, chestCritic } from '../../graph/polygonizer/hero-style-critic.js';
 import { stampHero, withDefaultWalk } from '../../graph/polygonizer/motion-stamp.js';
+import { resolveMotion } from '../../graph/gameworld/hero-vibe.js';
 
 /** Compile + audit + lower + the workbench plan gate, for the mint and the readouts. Throws with a pointer. */
 export function planLayered(manifest) {
@@ -224,7 +225,45 @@ function resolveHeroWords(hero) {
 // ─── The hero door ────────────────────────────────────────────────────────
 /** the base forms a hero may name: 'tiered' (tiered-form.js) */
 export const HERO_FORMS = Object.freeze(['tiered']);
-export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'painterly'];
+export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'painterly', 'laws'];
+/** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
+export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'rim', 'strokes', 'vibe', 'egocube']);
+/** where a word the hero door does not take belongs: the words agents guess, then the nearest known word */
+const KEY_HOMES = Object.freeze({
+  build: "a build is the cast's: cast: { pole: 'female' | 'male', build: '<build>' }",
+  pole: "the pole is the cast's: cast: { pole: 'female' | 'male', build? }",
+  age: "a child is the cast's child build: cast: { pole, build: 'child' }",
+  height: 'height is a tune: tune: { stature: <ratio to the cast> }', stature: 'stature is a tune: tune: { stature }',
+  skin: 'colours are the palette: palette: { Skin, Top, Bottom, Shoes, Hair }', colour: 'colours are the palette: palette: { … }', color: 'colours are the palette: palette: { … }', colors: 'colours are the palette: palette: { … }', colours: 'colours are the palette: palette: { … }',
+  clothes: 'clothes are detail (a word) or outfit (garments that follow the body)', clothing: 'clothes are detail (a word) or outfit', dress: 'clothes are detail (a word) or outfit', armor: "armour is an adorn build: adorn: { type: 'armor', style }", armour: "armour is an adorn build: adorn: { type: 'armor', style }",
+  weapon: "held things are gear: gear: { right: { item: 'sword' } }", item: "held things are gear: gear: { right: { item } }", items: 'held things are gear: gear: { right, left, back, hip }',
+  pose: 'the stand is gesture', stance: 'the stand is gesture (or a ready stance in motion)', animation: 'moves are motion (gaits and moves by word) or clips (your own keys)', animations: 'moves are motion or clips', walk: 'a walk is motion: motion: { walk }',
+  wings: "a body beyond a person is a creature (create_character as: 'creature', a ring plan) or an animal (as: 'animal')", tail: "a body beyond a person is a creature (as: 'creature') or an animal (as: 'animal')", horns: "a body beyond a person is a creature (as: 'creature')",
+  plan: "a ring plan is a creature's (create_character as: 'creature'); the hero door makes its own", recipe: "a recipe is a creature's (as: 'creature', or mint_solid kind 'layered')", species: "a species is an animal (create_character as: 'animal')",
+});
+// the optimal-string-alignment distance: a swapped pair of letters ('hiar') is one edit, as people type it
+const editDistance = (a, b) => { const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]); for (let j = 1; j <= b.length; j++) d[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) { d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1); } return d[a.length][b.length]; };
+/** The refusal line for a word the hero door does not take. */
+export function heroKeyHint(k) {
+  const home = KEY_HOMES[k] ?? KEY_HOMES[k.toLowerCase()];
+  if (home) return `${k}: not a hero word; ${home}`;
+  const near = [...HERO_FIELDS, 'vibe'].map((w) => [w, editDistance(k.toLowerCase(), w.toLowerCase())]).sort((a, b) => a[1] - b[1])[0];
+  return `${k}: not a hero word${near && near[1] <= Math.max(2, Math.floor(k.length / 3)) ? ` (did you mean ${near[0]}?)` : ''}; the hero's words are ${HERO_FIELDS.filter((w) => w !== 'laws').join(', ')}, and vibe`;
+}
+/**
+ * `vibe` on the door: words for how the hero moves (hero-vibe.js VIBES), lowered at mint into the gaits' dials and a
+ * stand, as the character book's motion page lowers them; the hero's own `motion` gaits and `gesture` win. Stored as
+ * the motion it lowers to, never as the words. → { spec, vibe } (vibe: the readout's { read, unread, reasons }).
+ */
+export function lowerVibe(spec, vibe) {
+  if (vibe === undefined || vibe === null) return { spec, vibe: null };
+  const R = resolveMotion({ vibe });
+  const motion = R.motion ? { ...R.motion, ...(spec.motion && typeof spec.motion === 'object' ? spec.motion : {}) } : spec.motion;
+  return {
+    spec: { ...spec, ...(motion !== undefined ? { motion } : {}), ...(spec.gesture === undefined && R.gesture ? { gesture: R.gesture } : {}) },
+    vibe: { read: R.vibe, unread: R.unread, reasons: R.reasons },
+  };
+}
 const HEAD_WORDS = ['landmark', 'anime', 'none'];
 /** the heads that take face / hair / expression / headPreset words */
 const WORN = new Set(['landmark', 'anime']);
@@ -704,14 +743,17 @@ export function heroReadout(hero, plan, stats, extraWarnings = [], { mesh, recip
 /** The hero door: a cast word and a tune → the hero form's plan → the plan door, with `hero` stored beside the plan. */
 export async function createLayeredHeroHandler(input) {
   if (!input || typeof input !== 'object') throw new Error("The hero door takes spec { cast?, register?, tune?, face?, hair?, expression?, sculpt?, detail?, adorn?, body?, palette?, head?, gesture?, clips?: { <name>: [keys] | { seconds, keys } | false } (a key's face on the anime or the landmark head), blink?: false, title? }. Read get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections: get_solid_vocab({ id: 'layered', section: 'hero-looks' }) …).");
-  const heroSpec = Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]]));
+  // a word the door does not take is refused by name with where it belongs (it was dropped without a word)
+  const unknown = Object.keys(input).filter((k) => !HERO_FIELDS.includes(k) && !HERO_DOOR_KEYS.includes(k));
+  if (unknown.length) throw new Error(`hero refused:\n - ${unknown.map(heroKeyHint).join('\n - ')}\nThe hero door — manual: get_solid_vocab({ id: 'layered' }) (the Hero door).`);
+  const { spec: heroSpec, vibe } = lowerVibe(Object.fromEntries(HERO_FIELDS.filter((k) => input[k] !== undefined).map((k) => [k, input[k]])), input.vibe);
   // a new hero walks with the calibrated gait unless it brings its own walk (withDefaultWalk), and the door's gaits are
   // stored by value as they are minted now (motion-stamp.js), so a later mint table never moves them
   const hero = heroRecord(stampHero(withDefaultWalk(heroSpec)));
   let plan;
   try { plan = heroPlanOf(hero); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }) (the Hero door, and its hero-* sections by name).`); }
-  const rest = Object.fromEntries(Object.entries(input).filter(([k]) => !HERO_FIELDS.includes(k)));
+  const rest = Object.fromEntries(Object.entries(input).filter(([k]) => !HERO_FIELDS.includes(k) && k !== 'vibe'));
   let planned = null;   // the mint's own compiled figure: the readout's stand and budget read it
   const out = await createLayeredPlanHandler({ ...rest, plan, hero, title: input.title ?? `hero · ${castLabel(hero.cast)}${hero.head === 'anime' ? ` · anime${hero.look?.length ? ` · ${hero.look.join('+')}` : ''}` : ''}${hero.from ? ` · ${hero.from}` : ''}${hero.faceFrom ? ` · ${hero.faceFrom}` : ''}` }, { onPlanned: (p) => { planned = p; } });
   const face = hero.head === 'anime' ? ` The anime head by word: /hero/face/<control> (${ANIME_FACE_KEYS.join(', ')}; 1 = the base, tilt an offset); the hair: /hero/hair/style (${ANIME_HAIR_STYLES.join(', ')}), /hero/hair/<control> (${ANIME_HAIR_KEYS.join(', ')}) and /hero/hair/locks/<clump> ({ cx, cy, cz, tx, ty, tz }: fringe-1…7, left-temple-0…2, right-temple-0…2, back-1…11, crown-±1-0…2 on short); the hair's form /hero/hair/<word> (${ANIME_HAIR_FORM_WORDS.join(', ')}; lift { crown, temple, fringe, nape } in construction units; false the studio's construction, null back to the base's); the hair base (the cut worn while no family is named: ${Object.entries(ANIME_HAIR_BASE).map(([pole, b]) => `${b.cut} on the ${pole}`).join(', ')}, its form under every family); /hero/expression (${Object.keys(ANIME_POSES).join(', ')} or { blink, smile, open, brow }). The graphic face: /hero/sculpt (an object of ${ANIME_SCULPT_KEYS.join(', ')}, ${Object.keys(SCULPT_SHAPE_KEYS).join(', ')}; 1 = the base, positions and angles offsets; moves ${ANIME_SCULPT.MOVE_NAMES.join(', ')}; false for the studio's face), then /hero/sculpt/<word>. A LOOK composes presets by word: set /hero/look to a list (archetypes ${LOOK_TABLES.archetype.join(', ')}; face traits ${LOOK_TABLES.face.join(', ')}; graphic-face traits ${LOOK_TABLES.sculpt.join(', ')}; hair traits and families ${LOOK_TABLES.hair.join(', ')}; poses); the controls above apply on top of it.` : hero.head === 'landmark' ? ` The face by word too: /hero/face/<control> (${FACE_KEYS.join(', ')}; groups ${FACE_AGGREGATE_KEYS.join(', ')}; moves ${FACE_MOVE_NAMES.join(', ')}); the hair: /hero/hair/style (${HAIR_STYLE_NAMES.join(', ')}) and /hero/hair/<control> (${HAIR_KEYS.join(', ')}); /hero/expression.` : '';
@@ -724,6 +766,7 @@ export async function createLayeredHeroHandler(input) {
   return {
     ...out,
     hero: heroReadout(hero, plan, out.stats, [], { mesh: planned?.mesh, recipe: planned?.recipe, dressMesh }),
+    ...(vibe ? { vibe: { ...vibe, motion: hero.motion ?? null, gesture: hero.gesture ?? null } } : {}),
     next: { tool: 'update_sketch', args: { ref: out.ref, patch: [{ op: 'set', path: '/hero/tune/<control>', value: '<ratio to the cast, 1 = as cast>' }] }, reason: `Tune a proportion by word (${TUNE_KEYS.join(', ')}; groups ${TUNE_AGGREGATE_KEYS.join(', ')}; moves ${HERO_MOVE_NAMES.join(', ')}); the plan and the recipe regenerate in place.${face}${dressNext} Turn a live dial via /dials/<name>.` },
   };
 }

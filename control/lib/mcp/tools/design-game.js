@@ -17,11 +17,12 @@ import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { createGameHandler } from './create-game.js';
-import { heroRecord } from './layered.js';
+import { heroMintArgs, heroRemakeOps } from './hero-mint.js';
+import { HERO_FIELDS } from './layered.js';
 import { LAWS_VERSION } from '@/lib/graph/equipment/expand.js';
 import {
   GAMEWORLD_KIND, isGameworldKind, gameworldOf, readGameworld, resolveBook, reviewState, approve as approveWorldPart, reviewParts,
-  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, decide, childRef, storyReport,
+  characterState, characterReady, approveCharacter, CHARACTER_PART_IDS, fingerprint, pinBase, revisionLookup, runSteps, heroRefOf, decide, childRef, storyReport,
 } from '@/lib/graph/gameworld/index';
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
@@ -31,13 +32,19 @@ import { quickWorld } from '@/lib/graph/gameworld/quick.js';
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const list = (v) => (v === undefined ? [] : Array.isArray(v) ? v : [v]);
 
-/** The lookup a pinned base is verified with: the hero's row and its archive. */
+/** The lookup a pinned base is verified with: the hero's row and its archive. It also carries HEAD (`head`, the row's
+ * manifest, and `heroSpec`, its hero in the door's words), so a run can see a hero edited by hand since it was made. */
 function heroLookup(heroRef) {
   const row = SketchRepository.getByRef(heroRef);
   if (!row) return () => null;
   const headRev = (SketchRevisionRepository.head(heroRef)?.rev ?? 0) + 1;
-  return revisionLookup({ ref: heroRef, headRev, head: row.manifest, get: (r, rev) => SketchRevisionRepository.get(r, rev)?.manifest ?? null });
+  const lookup = revisionLookup({ ref: heroRef, headRev, head: row.manifest, get: (r, rev) => SketchRevisionRepository.get(r, rev)?.manifest ?? null });
+  const hero = isObj(row.manifest?.hero) ? row.manifest.hero : null;
+  return Object.assign(lookup, { head: row.manifest, headRev, heroSpec: hero ? Object.fromEntries(HERO_FIELDS.filter((k) => hero[k] !== undefined).map((k) => [k, hero[k]])) : null });
 }
+
+/** Has the hero a run made been edited by hand since? (Its row no longer prints as the run left it.) */
+const handEdited = (world, lookup) => !!(world.made?.hero && lookup?.head && fingerprint(lookup.head) !== world.made.hero.stored);
 
 const storedPrint = (ref) => { const row = SketchRepository.getByRef(ref); return row ? fingerprint(row.manifest) : null; };
 const headRev = (ref) => (SketchRevisionRepository.head(ref)?.rev ?? 0) + 1;
@@ -48,39 +55,25 @@ function withPin(world, pin) {
   return { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
 }
 
+/** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures */
+const HERO_STEP = /^(hero|hero-equipped|guard|foe|tower|farmhand|cast-.+)$/;
+const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
+
 /** Make or remake one step; → the record to keep. */
 async function realize(step, action) {
   const { key, ref, order } = step;
-  if (key === 'hero') {
-    if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
-    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: the book\'s base' });
-    // the base is the revision as made: pinned before the motion branches from it
-    const pin = pinBase({ ref, rev: headRev(ref), manifest: SketchRepository.getByRef(ref).manifest });
-    if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: 'design_game: the motion page' });
-    return { pin };
-  }
-  if (key.startsWith('cast-')) {
-    // a cast member: made as the hero is (the book's base, then its motion), without a pin
-    if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
-    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: a cast member' });
-    if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: 'design_game: a cast member\'s motion' });
-    return {};
+  if (HERO_STEP.test(key)) {
+    if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
+    else await updateSketchHandler({ ref, patch: heroRemakeOps(order, SketchRepository.getByRef(ref)?.manifest), note: `design_game: ${HERO_NOTE[key] ?? (key.startsWith('cast-') ? 'a cast member' : `the ${key}`)}` });
+    // the book's base is the revision as made: pinned before the motion branches from it
+    const pin = key === 'hero' ? pinBase({ ref, rev: headRev(ref), manifest: SketchRepository.getByRef(ref).manifest }) : null;
+    if (order.motion) await updateSketchHandler({ ref, patch: order.motion, note: `design_game: ${key === 'hero' ? 'the motion page' : 'a cast member\'s motion'}` });
+    return pin ? { pin } : {};
   }
   if (key === 'ride') {
     // a quick game's ride: the vehicle's build (an assembler sketch), its manifest whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
-    return {};
-  }
-  if (key === 'guard' || key === 'foe' || key === 'tower' || key === 'farmhand') {
-    // a quick game's figure every guard (or foe, or tower archer) wears, made as a hero is
-    if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
-    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: `design_game: the ${key}` });
-    return {};
-  }
-  if (key === 'hero-equipped') {
-    if (action === 'make') await mintSolidHandler({ ...order.mint, ref });
-    else await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/hero', value: heroRecord(order.spec) }], note: 'design_game: the hero equipped' });
     return {};
   }
   if (key.startsWith('level-')) {
@@ -112,6 +105,17 @@ async function runWorld(ref, world, { force = false } = {}) {
   let W = world;
   const made = { ...(W.made ?? {}) }, ran = [];
   const act = async (step, lookup) => {
+    // an adopted hero (characters.hero.ref, quick.hero.ref): pinned as it stands when the world first names it, never
+    // made or remade (it is the creator's own row); a ref with no row is said, and the steps that need it wait
+    if (step.adopt) {
+      const row = SketchRepository.getByRef(step.ref);
+      const action = !row ? 'missing' : made.hero?.ref === step.ref ? 'keep' : 'adopt';
+      ran.push({ key: step.key, ref: step.ref, action });
+      if (action !== 'adopt') return;
+      made.hero = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
+      if (W.characters) W = withPin(W, pinBase({ ref: step.ref, rev: headRev(step.ref), manifest: row.manifest }));
+      return;
+    }
     const action = decide(step, made[step.key], storedPrint(step.ref), { force });
     // a level's intent laws that do not hold (lay-concerns.js): advice, never a refusal
     const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
@@ -122,18 +126,29 @@ async function runWorld(ref, world, { force = false } = {}) {
     if (pin && W.characters) W = withPin(W, pin);   // a quick game's hero has no book to pin it in
   };
   // the hero first: the systems and the gear wait on its pinned base
-  const heroRef = childRef(ref, 'hero');
+  const heroRef = heroRefOf(W, ref);
   const first = runSteps(W, { ref, lookup: heroLookup(heroRef) });
   if (!first.length) return { world: W, ran };
   await act(first[0]);
-  for (const step of runSteps(W, { ref, lookup: heroLookup(heroRef) }).slice(1)) await act(step);
+  // the rest read the record as this run left the hero (a hero just made or remade is not an edit by hand)
+  for (const step of runSteps({ ...W, made }, { ref, lookup: heroLookup(heroRef) }).slice(1)) await act(step);
   return { world: Object.keys(made).length ? { ...W, made } : W, ran };
 }
 
 /** Each part's stamp, the steps, what was made, and what to do next. */
 function readout(ref, world) {
-  const lookup = world.characters ? heroLookup(childRef(ref, 'hero')) : undefined;
-  const stamps = [...reviewState(world), ...(world.characters ? characterState(world, { lookup }) : [])];
+  const lookup = world.characters ? heroLookup(heroRefOf(world, ref)) : undefined;
+  // a hero edited by hand since the run has moved past its pinned base: said on the base's part, never refused
+  const adopted = world.characters?.hero?.ref;
+  const edited = {
+    ...(handEdited(world, lookup) ? { 'hero:base': [adopted ? `the adopted hero '${adopted}' was edited since it was pinned (revision ${lookup.headRev}): it plays as edited` : `the hero was edited by hand since the run (revision ${lookup.headRev}): it plays as edited and has moved past its pinned base; a rerun leaves it as it is, and force remakes it from the book`] } : {}),
+    ...(adopted && lookup && !lookup.head ? { 'hero:base': [`no sketch '${adopted}': the adopted hero is made with create_character first`] } : {}),
+    ...(adopted && (world.characters.hero.motion || (lookup?.heroSpec && !('jog' in (lookup.heroSpec.motion ?? {})))) ? { 'hero:motion': [
+      ...(world.characters.hero.motion ? [`the hero is adopted ('${adopted}'): its own motion plays; this page is not applied to it (revise it with update_character)`] : []),
+      ...(lookup?.heroSpec && !('jog' in (lookup.heroSpec.motion ?? {})) ? [`the adopted hero has no jog of its own: the library's plays forward (update_character spec: { motion: { jog: true } } gives it the calibrated one)`] : []),
+    ] } : {}),
+  };
+  const stamps = [...reviewState(world), ...(world.characters ? characterState(world, { lookup, machine: edited }) : [])];
   const parts = stamps.map((s) => ({ id: s.id, status: s.status, ...(s.machine?.length ? { advises: s.machine } : {}), ...(s.note ? { note: s.note } : {}) }));
   const steps = world.characters ? characterReady(world, { state: stamps.filter((s) => CHARACTER_PART_IDS.includes(s.id)) }) : null;
   const made = Object.fromEntries(Object.entries(world.made ?? {}).map(([k, v]) => [k, v.ref]));

@@ -96,6 +96,41 @@ describe('update_character revises what update_sketch revises', () => {
     expect(read('uc_listed_edited')).toEqual(made);
   }, 240_000);
 
+  it('a word the door does not take is refused with where it belongs, on create and on update; a stored one keeps rendering', async () => {
+    await expect(createCharacterHandler({ as: 'hero', spec: { cast: 'female', build: 'brute' } })).rejects.toThrow(/build: not a hero word; a build is the cast's: cast: \{ pole/);
+    await expect(createCharacterHandler({ as: 'hero', spec: { cast: 'female', wings: true } })).rejects.toThrow(/wings: not a hero word; a body beyond a person is a creature/);
+    await expect(createCharacterHandler({ as: 'hero', spec: { cast: 'female', hiar: 'bob' } })).rejects.toThrow(/hiar: not a hero word \(did you mean hair\?\)/);
+    await twin('stray');
+    await expect(updateCharacterHandler({ ref: 'uc_stray_door', spec: { wings: true } })).rejects.toThrow(/update_character refused:\n - wings: not a hero word/);
+    // a row that already carries a stray key (stored by an edit before the refusal) is still revised by its other words
+    await updateSketchHandler({ ref: 'uc_stray_door', patch: [{ op: 'set', path: '/hero/wings', value: true }] });
+    const r = await updateCharacterHandler({ ref: 'uc_stray_door', spec: { hair: 'bob' } });
+    expect(r.ok).toBe(true);
+  }, 240_000);
+
+  it('spec merges at any depth: one dial turns, a style replaces, null removes a nested word', async () => {
+    await createCharacterHandler({ as: 'hero', spec: { cast: 'male', adorn: { type: 'armor', style: 'knight', dials: { stylize: 0.5, coverage: 0.7 } }, palette: { Top: '#334455', Bottom: '#222222' } }, title: 'deep', ref: 'uc_deep' });
+    await updateCharacterHandler({ ref: 'uc_deep', spec: { adorn: { dials: { stylize: 1 } }, palette: { Top: '#aa3311' } } });
+    const h1 = SketchRepository.getByRef('uc_deep').manifest.hero;
+    expect(h1.adorn).toMatchObject({ type: 'armor', style: 'knight', dials: { stylize: 1, coverage: 0.7 } });
+    expect(h1.palette).toEqual({ Top: '#aa3311', Bottom: '#222222' });
+    await updateCharacterHandler({ ref: 'uc_deep', spec: { palette: { Bottom: null } } });
+    expect(SketchRepository.getByRef('uc_deep').manifest.hero.palette).toEqual({ Top: '#aa3311' });
+    await updateCharacterHandler({ ref: 'uc_deep', spec: { adorn: { type: 'armor', style: 'grim-scifi' } } });
+    expect(SketchRepository.getByRef('uc_deep').manifest.hero.adorn.dials?.coverage).not.toBe(0.7);
+  }, 240_000);
+
+  it('vibe: words for how the hero moves, lowered to its gaits and its stand at mint and on an edit', async () => {
+    const r = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', vibe: ['cocky', 'light'] }, title: 'vibe', ref: 'uc_vibe' });
+    expect(r.vibe.read).toEqual(['cocky', 'light']);
+    const h = SketchRepository.getByRef('uc_vibe').manifest.hero;
+    expect(h.vibe).toBeUndefined();
+    expect(Object.keys(h.motion)).toContain('walk');
+    expect(h.gesture).toBeTruthy();
+    await updateCharacterHandler({ ref: 'uc_vibe', spec: { vibe: 'heavy' } });
+    expect(SketchRepository.getByRef('uc_vibe').manifest.hero.motion.walk).not.toEqual(h.motion.walk);
+  }, 240_000);
+
   it('a creature takes patch ops, and refuses a hero\'s words by name', async () => {
     await createCharacterHandler({ as: 'creature', spec: { plan: RING_PLAN }, title: 'beast', ref: 'uc_beast' });
     await expect(updateCharacterHandler({ ref: 'uc_beast', target: '1080p' })).rejects.toThrow(/'uc_beast' is a creature; spec, target and geocube are a hero's words today.*\/plan\//);
