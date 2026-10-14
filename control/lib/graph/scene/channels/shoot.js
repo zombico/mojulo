@@ -17,7 +17,7 @@ export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = 
   // a LIVE world (entities, physics) cannot rewind: the plan runs on its clock, a shot plays over its span of it, and a
   // camera following a live entity is evaluated each frame against where the entity really is (its path is a trail).
   // Plans in worlds that do not play live emit none of this.
-  const live = !!shoot.live, liveCams = shoot.cameras.some((c) => c.live);
+  const live = !!shoot.live, liveCams = shoot.cameras.some((c) => c.live), cues = live && Array.isArray(shoot.cues) && shoot.cues.length > 0;
   return `
 // --- shoot channel (a shoot plan's cameras and paths) ---
 {
@@ -200,15 +200,48 @@ ${liveCams ? `  // a live camera's keys against where its entities are now: the 
     return __shCur.at.t * 1000;
   };${live ? `
   // LIVE: the world's own clock; the shot whose span holds it plays (the last begun, or one chosen on the panel)
-  let __shForce = -1;
+  let __shForce = -1;${cues ? `
+  // CUES: a shot with \`on\` cuts in when the bus logs a matching event, plays its length timed from the event, then
+  // hands back to the running order. The bus's log is read (reactions emit inside the reducer; only the log has them).
+  const __shGlob = (s, p) => {
+    const parts = p.split('*');
+    if (parts.length === 1) return s === p;
+    if (!s.startsWith(parts[0])) return false;
+    let at = parts[0].length;
+    for (let k = 1; k < parts.length - 1; k++) { const j = s.indexOf(parts[k], at); if (j < 0) return false; at = j + parts[k].length; }
+    const last = parts[parts.length - 1];
+    return s.length - at >= last.length && s.endsWith(last);
+  };
+  let __shCue = null, __shCueQ = null;
+  if (typeof __BUS !== 'undefined' && __BUS) {
+    const __shPE = __BUS.processEvents;
+    __BUS.processEvents = function (state, events) {
+      const n0 = state && state.log ? state.log.length : 0, out = __shPE(state, events);
+      const seen = state && state.log ? state.log.slice(n0) : (events || []);
+      for (const ev of seen) {
+        if (!ev || typeof ev.type !== 'string') continue;
+        const c = SH.cues.find((q) => q.on.some((p) => __shGlob(ev.type, p)));
+        if (c) __shCueQ = c;
+      }
+      return out;
+    };
+  }` : ''}
   __shClock = (raw) => {
     __shLastT = raw || 0;
-    const sec = __shLastT / 1000;
+    const sec = __shLastT / 1000;${cues ? `
+    if (__shCueQ) { __shCue = { c: __shCueQ, t0: sec }; __shCueQ = null; }
+    if (__shCue && sec - __shCue.t0 > __shCue.c.length) __shCue = null;
+    if (__shCue && __shForce < 0) {
+      const c = __shCue.c;
+      __shCur = { tau: sec, at: { i: c.i, s: c, t: c.span[0] + (sec - __shCue.t0) } };${set ? `
+      __shSetShot = c.i; __shSetT = __shCur.at.t * 1000;   // the cued shot's pieces run on its own time` : ''}
+      return __shLastT;
+    }` : ''}
     let i = 0;
     for (let k = 0; k < SH.shots.length; k++) if (SH.shots[k].span[0] <= sec + 1e-9) i = k;
     if (__shForce >= 0) i = __shForce;
     __shCur = { tau: sec, at: { i, s: SH.shots[i], t: sec } };${set ? `
-    __shSetShot = i;` : ''}
+    __shSetShot = i; __shSetT = null;` : ''}
     return __shLastT;
   };` : ''}
   stepShoot = () => {
@@ -233,7 +266,8 @@ ${liveCams ? `  // a live camera's keys against where its entities are now: the 
     __shChipEls.forEach((b, k) => { b.style.background = k === at.i ? '#3a4152' : '#232733'; });` : ''}
   };
 ${set ? `  window.__mojShootGizmos = __shGizmos;   // the shoot set hides them while it renders a portal's far view
-` : ''}  window.__mojShoot = { cameras: __shRigs.length, shots: SH.shots.length, total: SH.total, now: () => __shNow,
+` : ''}  window.__mojShoot = { cameras: __shRigs.length, shots: SH.shots.length, total: SH.total, now: () => __shNow,${cues ? `
+    cue: (type) => { const c = SH.cues.find((q) => q.on.some((p) => __shGlob(type, p))); if (c) __shCueQ = c; return !!c; },` : ''}
     look: (on) => { __shSetLook(!!on); __shRedraw(); }, seek: (tau) => { __shPlay = false; __shSeek(+tau || 0); __shRedraw(); } };
 }`;
 }

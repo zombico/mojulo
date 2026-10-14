@@ -4,7 +4,8 @@ import { safeJson } from '../emit-util.js';
 // and frames placed for the camera, and the ones its transitions expand into. Unlike the shoot channel's gizmos these
 // are PICTURE: the channel is emitted on capture runs too, so a render carries them. Each piece is posed from the
 // per-frame track the kernel sampled, at the world clock __mojStep runs on, and shows only while one of its shots
-// plays (`__shSetShot`: the shoot channel sets it live, a capture frame's `spec.shot` sets it in a render). A frame
+// plays (`__shSetShot`: the shoot channel sets it live, a capture frame's `spec.shot` sets it in a render), at that
+// shot's own time (`__shSetT`, set by a live world's clock, where a cued shot's time runs from its event). A frame
 // rebuilds its hole when its aperture moves. A PORTAL frame's hole is a window into another camera: each frame the
 // scene is rendered into the hole's own target from that camera's place composed with where the viewer stands relative
 // to the frame (so the view through it shifts as through a doorway), behind a clipping plane at the far camera, with
@@ -158,7 +159,7 @@ export function shootSetScript(pieces) {
   };
   const __spQ = new THREE.Quaternion(), __spQ2 = new THREE.Quaternion();
   stepShootSet = (t) => {
-    const sec = (t || 0) / 1000;
+    const sec = (__shSetT != null ? __shSetT : (t || 0)) / 1000;
     for (const r of __sp) {
       const tr = r.p.track;
       const on = r.p.shots.includes(__shSetShot) && sec >= tr.t0 - 1e-6 && sec <= tr.t1 + 1e-6;

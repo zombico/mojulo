@@ -11,7 +11,8 @@
  *   remove_key { camera, t }
  *   ease { camera, t? | times?, ease }          every key when no time is given (AE: select all, F9)
  *   retime { camera?, scale?, shift? }          key times and that camera's shot spans; every camera when omitted
- *   add_shot { shot, at? }   set_shot { shot, name?, camera?, span?, in? }   remove_shot { shot }   move_shot { shot, to }
+ *   add_shot { shot, at? }   set_shot { shot, name?, camera?, span?, in?, on? }   remove_shot { shot }   move_shot { shot, to }
+ *     (`on` is the event pattern that cuts to the shot in a live world: 'goal:*'; null takes it back into the running order)
  *     (`in` is the transition into the shot: 'cut' | 'fade' | 'wipe' | 'iris' | 'pipe', or { type, duration, … })
  *   add_piece { piece }   set_piece { piece, …fields }   piece_key { piece, key }   remove_piece { piece }
  *   set { fps }
@@ -174,6 +175,7 @@ export function applyShootOp(plan, op) {
       if (op.camera !== undefined) { cameraOf(next, op.camera); s.camera = op.camera; }
       if (op.span !== undefined) s.span = op.span;
       if (op.in !== undefined) { if (op.in === null || op.in === 'cut') delete s.in; else s.in = op.in; }
+      if (op.on !== undefined) { if (op.on === null || (Array.isArray(op.on) && !op.on.length)) delete s.cue; else s.cue = op.on; }
       next.shots[i] = s;
       return { plan: next, note: `set shot ${s.name}` };
     }

@@ -139,7 +139,8 @@ export function cameraAt(compiled, t) {
 /** The edit's running order: each shot's start on the program clock, and the program's length. */
 export function programOf(plan) {
   let at = 0;
-  const shots = plan.shots.map((s) => {
+  // a cued shot (`cue`: it plays when an event fires, in a live world) has no place in the running order
+  const shots = plan.shots.filter((s) => !s.cue).map((s) => {
     const row = { ...s, start: at, length: s.span[1] - s.span[0] };
     at += row.length;
     return row;

@@ -140,9 +140,12 @@ function entitySubjects(payload) {
   });
 }
 
-/** Whether a world moves live (its entities or its physics run as it plays), so a plan cannot rewind its clock. */
+/** Whether a world moves live (its entities, its physics or its event bus run as it plays), so a plan cannot rewind
+ * its clock. */
 export function worldIsLive(payload) {
-  return !!(payload && ((Array.isArray(payload.entities) && payload.entities.length) || (payload.physics && Array.isArray(payload.physics.bodies) && payload.physics.bodies.length)));
+  return !!(payload && ((Array.isArray(payload.entities) && payload.entities.length)
+    || (payload.physics && Array.isArray(payload.physics.bodies) && payload.physics.bodies.length)
+    || (payload.events && typeof payload.events === 'object')));
 }
 
 /**

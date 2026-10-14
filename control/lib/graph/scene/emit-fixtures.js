@@ -302,8 +302,10 @@ export const EMIT_FIXTURES = [
     const plan = normalizeShoot({ fps: 6, cameras: [
       { id: 'chase', keys: [{ t: 0, pos: [-3, -3, 2], poi: { follow: 'entity:d' }, ease: 'easy ease out' }, { t: 1, pos: { follow: 'entity:d', offset: [-2, 0, 1], frame: 'subject' }, poi: { follow: 'entity:d' } }] },
       { id: 'wide', keys: [{ t: 0, pos: [6, 6, 4], poi: [0, 0, 0] }] },
-    ], shots: [{ name: 'wide', camera: 'wide', span: [0, 1] }, { name: 'chase', camera: 'chase', span: [1, 3] }] }, { subjects }).plan;
-    return [['shoot-live', { faces: [floor()], entities: ENTITIES, camera: CAMERA, shoot: lowerShoot(plan, { subjects, live: true }) }]];
+    ], shots: [{ name: 'wide', camera: 'wide', span: [0, 1] }, { name: 'chase', camera: 'chase', span: [1, 3] },
+      { name: 'goal', camera: 'wide', span: [0, 1], on: 'goal:*', in: 'fade' }] }, { subjects }).plan;
+    // the cued shot cuts in when the bus logs a goal (its fade on its own time); the events channel supplies the bus
+    return [['shoot-live', { faces: [floor()], entities: ENTITIES, camera: CAMERA, events: EVENTS, shoot: lowerShoot(plan, { subjects, live: true }) }]];
   })(),
 
   ['repeats', { faces: [floor()], repeats: REPEATS }],

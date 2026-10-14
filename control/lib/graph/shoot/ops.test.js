@@ -135,3 +135,12 @@ describe('clearance against what moves', async () => {
     expect(shootTraffic(STAND(0.5, [0, 3]), subjects)).toEqual([]);   // its shot ends before the car arrives
   });
 });
+
+describe('cueing a shot by op', () => {
+  it('set_shot { on } cues it; on: null puts it back in the running order', () => {
+    const two = run(PLAN, { op: 'add_shot', shot: { name: 'hit', camera: 'a', span: [0, 1] } });
+    const cued = run(two, { op: 'set_shot', shot: 'hit', on: 'goal:*' });
+    expect(cued.shots[1].cue).toEqual(['goal:*']);
+    expect(run(cued, { op: 'set_shot', shot: 'hit', on: null }).shots[1].cue).toBeUndefined();
+  });
+});

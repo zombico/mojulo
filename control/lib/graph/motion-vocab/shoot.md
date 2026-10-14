@@ -41,7 +41,9 @@ Key times and shot spans are the WORLD's clock. A shot shows the world over its 
 
 ## Live worlds
 
-A world that plays live (it has entities or physics) cannot rewind, so its plan runs on the world's own clock: the shot whose span holds the clock plays (the last one begun), a shot that starts before the one before it ends cuts in when that one ends, the panel has no scrubber, and a shot chip pins that camera until clicked again. The tools say so in `live.notes`. `forge_motion` does not render a live world's plan yet (record a `traversal`).
+A world that plays live (it has entities or physics) cannot rewind, so its plan runs on the world's own clock: the shot whose span holds the clock plays (the last one begun), a shot that starts before the one before it ends cuts in when that one ends, the panel has no scrubber, and a shot chip pins that camera until clicked again. The tools say so in `live.notes`.
+
+**Event cuts.** A shot with `on: 'goal:*'` (or a list of patterns; `*` matches any run) is CUED: it has no place in the running order, and in a live world it cuts in when the world's event bus logs a matching event — a reaction's `goal:reached`, a `door:*`, a `pickup:*` — plays its span's length with its keys and pieces timed from the event, then hands back to the running order. `set_shot { shot, on }` cues a shot; `on: null` puts it back. Its `in` transition plays its incoming half. If every shot is cued, the first camera holds the running order until one fires. `forge_motion` does not render a live world's plan yet (record a `traversal`).
 
 ## Set pieces (`pieces`)
 

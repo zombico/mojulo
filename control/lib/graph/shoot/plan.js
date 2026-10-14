@@ -162,11 +162,19 @@ export function normalizeShoot(raw, { subjects = null } = {}) {
       const span = Array.isArray(s.span) && s.span.length === 2 && s.span.every(fin) ? s.span.slice() : [a, b > a ? b : a + STATIC_SHOT_S];
       if (!(span[1] > span[0]) || span[0] < 0) { warn(`shot ${i}: span [${span}] is empty, shot dropped`); return; }
       const tr = normalizeTransition(s.in);
-      shots.push({ name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`, camera: cam.id, span, ...(tr ? { in: tr } : {}) });
+      // `on`: the event pattern(s) that cut to this shot in a live world (`*` matches any run: 'goal:*', 'door:*')
+      const on = [].concat(s.cue ?? s.on ?? []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 60)).slice(0, 8);
+      shots.push({ name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`, camera: cam.id, span, ...(tr ? { in: tr } : {}), ...(on.length ? { cue: on } : {}) });
     });
   }
   if (!shots.length) {
     shots = cameras.map((c) => { const [a, b] = range(c); return { name: label(c), camera: c.id, span: [a, b > a ? b : a + STATIC_SHOT_S] }; });
+  }
+  // every shot cued: nothing would play until an event fires, so the first camera holds the running order
+  if (shots.length && shots.every((s) => s.cue)) {
+    const c = cameras[0], [a, b] = range(c);
+    shots.unshift({ name: label(c), camera: c.id, span: [a, b > a ? b : a + STATIC_SHOT_S] });
+    warn(`every shot waits for an event: '${label(c)}' holds the running order until one fires`);
   }
   // shot names are how pieces and tools address shots: make them unique
   const seen = new Set();
@@ -241,6 +249,7 @@ function liveKeys(cam, subjects) {
  */
 export function liveNotes(plan, subjects) {
   const notes = [];
+  for (const s of plan.shots) if (s.cue) notes.push(`shot '${s.name}' plays when ${s.cue.join(' or ')} fires, for ${Math.round((s.span[1] - s.span[0]) * 100) / 100}s, timed from the event`);
   for (let i = 1; i < plan.shots.length; i++) {
     const a = plan.shots[i - 1], b = plan.shots[i];
     if (b.span[0] < a.span[1] - 1e-9) notes.push(`shot '${b.name}' starts at ${b.span[0]}s, before '${a.name}' ends at ${a.span[1]}s: a live world cannot rewind, so it cuts in at ${a.span[1]}s`);
@@ -263,7 +272,10 @@ function followsOf(cam) {
  * plan's fps; plus the cut list on the program clock.
  */
 export function lowerShoot(plan, { subjects = null, live = false } = {}) {
+  // the running order first, then the cued shots: one index space for the page (set pieces name shots by it)
+  plan = { ...plan, shots: [...plan.shots.filter((s) => !s.cue), ...plan.shots.filter((s) => s.cue)] };
   const program = programOf(plan);
+  const cued = plan.shots.map((s, i) => ({ s, i })).filter(({ s }) => s.cue);
   const chunk = (flat) => { const out = []; for (let i = 0; i < flat.length; i += 3) out.push(flat.slice(i, i + 3)); return out; };
   return {
     fps: plan.fps,
@@ -291,6 +303,7 @@ export function lowerShoot(plan, { subjects = null, live = false } = {}) {
     }),
     ...(live ? { live: true } : {}),
     shots: program.shots.map((s) => ({ name: s.name, camera: s.camera, start: s.start, length: s.length, span: s.span })),
+    ...(cued.length ? { cues: cued.map(({ s, i }) => ({ i, name: s.name, camera: s.camera, on: s.cue, length: s.span[1] - s.span[0], span: s.span })) } : {}),
     ...lowerSet(plan, subjects),
   };
 }

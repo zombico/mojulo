@@ -165,3 +165,28 @@ describe('portals: a frame whose hole looks out of another camera', () => {
     expect(dist(door.keys[0].at, cut.pos)).toBeCloseTo(0.25, 6);   // just past the lens at the cut
   });
 });
+
+describe('cued shots: a shot that plays when an event fires', () => {
+  const CUED = { ...TWO, shots: [...TWO.shots, { name: 'goal', camera: 'b', span: [0, 2], on: ['goal:*'], in: 'fade' }] };
+
+  it('reads `on` as the cue and leaves the shot out of the running order', () => {
+    const { plan } = normalizeShoot(CUED);
+    expect(plan.shots[2].cue).toEqual(['goal:*']);
+    expect(normalizeShoot(plan).plan).toEqual(plan);
+    const low = lowerShoot(plan);
+    expect(low.total).toBe(7);                                 // 4 + 3: the cued shot adds nothing
+    expect(low.shots.map((s) => s.name)).toEqual(['one', 'two']);
+    expect(low.cues).toEqual([{ i: 2, name: 'goal', camera: 'b', on: ['goal:*'], length: 2, span: [0, 2] }]);
+  });
+
+  it('its transition plays only its incoming half, scoped to it by its index after the running order', () => {
+    const low = lowerShoot(normalizeShoot(CUED).plan);
+    expect(low.pieces.map((p) => [p.kind, p.shots])).toEqual([['wall', [2]]]);
+  });
+
+  it('every shot cued: the first camera holds the running order until one fires', () => {
+    const { plan, warnings } = normalizeShoot({ ...TWO, shots: [{ name: 'only', camera: 'b', span: [0, 1], on: 'door:*' }] });
+    expect(plan.shots.map((s) => [s.name, !!s.cue])).toEqual([['a', false], ['only', true]]);
+    expect(warnings.some((w) => /waits for an event/.test(w))).toBe(true);
+  });
+});

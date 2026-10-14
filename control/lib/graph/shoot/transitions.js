@@ -105,7 +105,8 @@ export function transitionPieces(plan, { subjects = null } = {}) {
     if (!tr) return;
     const half = tr.duration / 2;
     const sides = [];
-    const A = i > 0 ? plan.shots[i - 1] : null;
+    // a cued shot comes in off whatever is playing: only its incoming half is planned
+    const A = i > 0 && !B.cue && !plan.shots[i - 1].cue ? plan.shots[i - 1] : null;
     // a portal plays all of its duration on the outgoing shot (the approach to the door); the rest split it at the cut
     const lead = tr.type === 'portal' ? tr.duration : half;
     if (A) sides.push({ id: `in${i}:out`, shot: A.name, shotIn: B.name, camera: A.camera, t0: Math.max(A.span[0], A.span[1] - lead), t1: A.span[1], closing: true });

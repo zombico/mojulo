@@ -62,7 +62,9 @@ camera that pans with a car, then eases onto its tail and rides along).
 - **Live worlds.** In a world that plays live (controllable entities, physics) the plan runs on the world's own clock
   instead of rewinding it, and a key may follow a live entity (`entity:<id>`): the page evaluates that camera's keys
   each frame against where the entity is (the same timing curves; its path drawn as a trail), and the tools note
-  what a live world cannot do. Plans in worlds that do not play live emit the same page as before.
+  what a live world cannot do. A shot with `on: 'goal:*'` is cued instead of timed: when the world's event bus logs a
+  matching event (reaction-emitted ones included), the plan cuts to it for its length, timed from the event, then
+  returns to the running order. Plans in worlds that do not play live emit the same page as before.
 - **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
   LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
   without a plan is byte for byte as before.
