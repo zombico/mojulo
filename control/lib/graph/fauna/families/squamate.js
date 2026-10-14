@@ -143,7 +143,7 @@ export const species = {
   rattlesnake: serpentMaker({ name: 'a western diamondback rattlesnake', n: 84, girth: [0.036, 0.03], profile: [[0, 0.45], [0.15, 0.9], [0.35, 1.05], [0.8, 0.9], [0.95, 0.45], [1, 0.32]],
     path: { kind: 'coil', height: 0.2, neck: [[-0.03, 0.16], [-0.04, 0.11], [-0.08, 0.05], [-0.1, 0.0]], centre: [0, -0.17], r: [0.07, 0.165], turns: 1.25,
       lift: [[-0.17, -0.12, 0.02], [-0.175, -0.1, 0.05]] },
-    head: { shape: 'viper', scale: 0.21, eyeR: 0.0065, eyeStyle: 'set' }, tail: { kind: 'rattle', beads: 7 },
+    head: { shape: 'viper', scale: 0.21, eyeR: 0.0065, eyeStyle: 'set' }, tail: { kind: 'rattle', beads: 5 },
     pattern: [
       { on: 'body', kind: 'patch', grid: [24, 1], run: [0.12, 0.86], t: [0.62, 1], size: [0.6, 1], group: 'Diamond', color: '#4b3b2a' },
       { on: 'body', kind: 'band', run: [0.86, 1], group: 'TailWhite', color: '#e4ddcb' },
@@ -224,7 +224,7 @@ export const species = {
     // the head: broad and flat-topped, the snout short and round
     craniumRows: flat(SKULL, 1.45, 0.8), jawRows: flatJaw(JAW, 1.45, 0.8),
     headScale: 1.0, muzzleW: 1.0, muzzleLen: 0.9,
-    eyeAt: [2.2, 2.1], eyeR: 0.015, eyeStyle: 'set', eyeSet: { sink: 0.35, open: [1.0, 0.95] }, pupil: 'slit',
+    eyeAt: [2.2, 2.1], eyeR: 0.015, eyeStyle: 'set', eyeSet: { sink: -0.05, open: [1.0, 0.95] }, pupil: 'slit',
     headPalette: { Nostrils: '#4a566c' },   // the family's hairline nostril slits, toned down to a darker grey
     extraSegments: [
       { name: 'tailWhip', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true,
@@ -264,7 +264,7 @@ export const species = {
     // the head: deep and blunt, the snout short
     craniumRows: flat(SKULL, 0.95, 1.05), jawRows: flatJaw(JAW, 0.95, 1.05),
     headScale: 0.72, muzzleW: 0.9, muzzleLen: 0.8,
-    eyeAt: [2.2, 2.1], eyeR: 0.0105, eyeStyle: 'set', eyeSet: { sink: 0.35, open: [1.0, 0.9] }, orbitFallback: true,
+    eyeAt: [2.2, 2.1], eyeR: 0.0105, eyeStyle: 'set', eyeSet: { sink: 0.1, open: [1.0, 0.9] }, orbitFallback: true,
     headPalette: { Nostrils: '#3e6a2a' },
     // the subtympanic SHIELD: a big round pale scale low on the cheek behind the mouth
     headOrnaments: [{ kind: 'sweep', name: 'shield', at: [1.1, 3.9], space: 'local', spine: [[0, 0, -0.004], [0, 0, 0.002]], radii: [0.013, 0.012], m: 10, squash: [1, 1], group: 'Horn' }],

@@ -89,6 +89,15 @@ redraws with the new numbers on its next read.
   shows in its lids. The squirrel takes the seated eye with a head-relative brow (its goggle eye's ball broke through
   the skull roof). Also: the camel's hump stands higher, the fox's and coyote's ears are smaller, the squirrel's tail
   is slimmer and curls lower. `fauna-lineup.mjs --head` crops each view to the head.
+- **Small eyes sit in their heads**: the set eye's few fixed lengths (the ball's lift off the skin, the cornea's step,
+  the pupil's dip, the catchlight, the lid's clearance) were millimetres tuned at the default eye; an eye smaller than
+  that now takes them in proportion, so a small head's eye is no longer lifted out of it (the hummingbird's and the
+  pigeon's stood off the head on stalks, the hedgehog's showed a second eye). An eye at or above the default, and the
+  goggle eye, build as before. Where a species had leaned on the lift to show its eye through a bulging brow, its
+  seat is shallower (the gecko, the iguana, the guinea pig, the hamster, the river otter).
+- The wild boar's and the warthog's crest sits on the back (it floated over it), the elephant's and the mammoth's trunk
+  tapers from a wider base, the pond turtle's neck is shorter and thicker, the rattle is smaller, and the hummingbird
+  slimmer.
 - `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
   to NaN). A four-legged species builds exactly as before.
 - `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,

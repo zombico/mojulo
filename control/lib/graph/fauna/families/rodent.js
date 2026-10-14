@@ -262,7 +262,7 @@ export const species = {
   // pouches) and a short blunt muzzle, dark bulging eyes, small round upright ears · golden-orange above, cream below ·
   // published: head-body 13–18 cm, tail ~1.2 cm, 100–150 g (Animal Diversity Web, Mesocricetus auratus).
   hamster: {
-    eyeStyle: 'set',
+    eyeStyle: 'set', eyeSet: { sink: 0.15 },
     family: 'rodent', name: 'a Syrian hamster', scale: 0.19,
     colors: { coat: '#c58a4c', sock: '#e8c9b6', ash: '#e9dcc6', ashAlt: '#dccdb4', ears: '#c99a8a', belly: '#f1e8d8',
       mane: '#c58a4c', tip: '#e8c9b6', snout: '#d9a56c', teeth: '#e8d6a8', brow: '#8a5a30', mouth: '#6a4428', nose: '#c88f8a', iris: '#050404', sclera: '#c58a4c' },
@@ -309,7 +309,7 @@ export const species = {
   // (ginger, white and dark) · published: head-body 20–25 cm, no external tail, 0.7–1.2 kg (Animal Diversity Web,
   // Cavia porcellus).
   guineaPig: {
-    eyeStyle: 'set',
+    eyeStyle: 'set', eyeSet: { sink: 0.1 },
     family: 'rodent', name: 'a domestic guinea pig', scale: 0.26,
     colors: { coat: '#b8743a', sock: '#e3c8b8', ash: '#efe6da', ashAlt: '#e2d8ca', ears: '#9a6a52', belly: '#f2ece2',
       mane: '#2c2420', tip: '#2c2420', snout: '#b8743a', teeth: '#e8d6a8', brow: '#6a4428', mouth: '#5a3a22', nose: '#b88a80', iris: '#0a0606', sclera: '#b8743a' },
