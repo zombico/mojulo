@@ -1064,7 +1064,9 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   thicknesses, so a body shortened by `legs` and `torso` kept a grown arm: the cast example `kid` hung its hands nearly
   to its knees (the arm 0.41 of its height, the adults' 0.37). `armLength` (0.8 … 1.15, in the lengths group) scales the
   upper arm and forearm as `legs` does the thigh and shank; absent or 1, the cast as before. `kid.json` takes 0.9: the
-  arm 0.37 of its height, the wrist at 0.44 of it.
+  arm 0.37 of its height, the wrist at 0.44 of it. The stored tune carries `armLength` only when it is moved off 1
+  (`SPARSE_TUNE_KEYS`): stored at 1 it changed every new hero's record, and through the record the seed of its face
+  tracks, so a hero that never names it keeps its record byte for byte.
 - **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
   takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
