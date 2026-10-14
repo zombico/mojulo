@@ -1,11 +1,13 @@
 // The ledger: every record as one table, what is in reach at a place and year, and the anachronism check. One case per
 // procedure, each chosen in code from the ledger and the cards, never a hand list of cultures.
 import { describe, it, expect } from 'vitest';
-import { LEDGER, RECORDS, SURFACES, ROOFS, REACHES, ledgerRow, availableAt, buildableAt, ledgerFindings, placeOf, cardSurfaces, cultureFindings } from './index.js';
+import { LEDGER, RECORDS, TRADITIONS, SURFACES, ROOFS, REACHES, ledgerRow, availableAt, buildableAt, ledgerFindings, placeOf, cardSurfaces, cultureFindings } from './index.js';
 import { HISTORIC_CULTURES } from '../cultures/index.js';
 import { WALL_SKINS } from '../ground.js';
 import { RECORD_KINDS } from '../lineage.js';
 import { checkRecord } from '../record.js';
+import { regionChain } from '../regions.js';
+import { STYLES } from '../inventory/index.js';
 
 const spanOf = (e) => (e.kind === 'type' ? e.built : e.attested);
 const keys = (rows) => new Set(rows.map((r) => r.key));
@@ -53,7 +55,7 @@ describe('what is in reach', () => {
     const rows = availableAt({ region, year: 100 });
     expect(rows.length).toBeGreaterThan(0);
     for (const x of rows) { expect(x.via.reach).toBe('region'); expect(['material', 'method']).toContain(x.entry.kind); }
-    expect(REACHES).toEqual(['home', 'draws', 'region']);
+    expect(REACHES).toEqual(['home', 'draws', 'style', 'region']);
   });
   it('refuses a year that is not one, and a record that is not registered', () => {
     expect(() => availableAt({ region: 'egypt', year: 0 })).toThrow(/never 0/);
@@ -95,5 +97,39 @@ describe('the anachronism check', () => {
     const id = Object.keys(HISTORIC_CULTURES).find((c) => HISTORIC_CULTURES[c].skins?.whitewash);
     expect(cardSurfaces(HISTORIC_CULTURES[id])).toContain(HISTORIC_CULTURES[id].skins.whitewash);
     for (const f of cultureFindings(id)) expect(f.level).toBe('warn');
+  });
+});
+
+describe('a style: a tradition record a card builds in', () => {
+  const style = TRADITIONS[0], R = RECORDS[style];
+  // a row that came to one land later than to the tradition at large, and one the tradition carries as a type
+  const late = R.entries.find((e) => Object.entries(e.spread ?? {}).some(([, s]) => s.from > spanOf(e).from));
+  const [land] = Object.entries(late.spread).find(([, s]) => s.from > spanOf(late).from), at = late.spread[land].from - 10;
+  const type = R.entries.find((e) => e.kind === 'type');
+  it('is reached only by naming it, with every kind it holds: a way of building brings its houses', () => {
+    expect(REACHES).toContain('style');
+    const year = Math.max(...R.entries.map((e) => spanOf(e).from)) + 5;
+    expect(keys(availableAt({ region: R.region, year })).has(`${style}/${type.id}`)).toBe(false);
+    const rows = availableAt({ region: R.region, year, styles: [style] });
+    expect(rows.find((r) => r.key === `${style}/${type.id}`)?.via).toEqual({ reach: 'style', from: style });
+  });
+  it('is dated for the place: a row reaches a land at that land\'s date, read up its region chain', () => {
+    expect(regionChain(land)).toContain(R.region);
+    expect(keys(availableAt({ region: R.region, year: at, styles: [style] })).has(`${style}/${late.id}`)).toBe(true);
+    expect(keys(availableAt({ region: land, year: at, styles: [style] })).has(`${style}/${late.id}`)).toBe(false);
+    expect(keys(availableAt({ region: land, year: late.spread[land].from, styles: [style] })).has(`${style}/${late.id}`)).toBe(true);
+  });
+  it('a style the ledger lacks is refused by name; a tradition never reaches a place by region alone', () => {
+    expect(() => availableAt({ region: R.region, year: 1500, styles: ['brutalism'] })).toThrow(/style 'brutalism' is not a tradition record/);
+    expect(availableAt({ region: R.region, year: 1500 }).some((r) => r.record === style)).toBe(false);
+  });
+  it('what it brings is buildable: its house types give the storeys', () => {
+    const b = buildableAt({ region: R.region, year: spanOf(type).from + 1, styles: [style] });
+    expect(b.storeys.by).toContain(`${style}/${type.id}`);
+  });
+  it('an inventory style built from it cites rows the ledger has, all reached through it', () => {
+    const [id, st] = Object.entries(STYLES).find(([, s]) => s.record === style);
+    const rows = keys(availableAt({ region: R.region, year: 1500, styles: [st.record] }));
+    for (const k of st.cites) { expect(ledgerRow(k), `${id}: ${k}`).not.toBe(null); expect(rows.has(k), k).toBe(true); }
   });
 });

@@ -6,5 +6,6 @@ import { QIN_STYLE } from './qin.js';
 import { LINDOS_STYLE, POLIS_STYLE } from './lindos.js';
 import { POMPEII_STYLE } from './pompeii.js';
 import { FORUM_STYLE } from './forum.js';
+import { ROTHENBURG_STYLE } from './rothenburg.js';
 
-export const HISTORIC_STYLES = Object.freeze({ sumer: SUMER_STYLE, thebes: THEBES_STYLE, giza: GIZA_STYLE, lindos: LINDOS_STYLE, polis: POLIS_STYLE, qin: QIN_STYLE, pompeii: POMPEII_STYLE, forum: FORUM_STYLE });
+export const HISTORIC_STYLES = Object.freeze({ sumer: SUMER_STYLE, thebes: THEBES_STYLE, giza: GIZA_STYLE, lindos: LINDOS_STYLE, polis: POLIS_STYLE, qin: QIN_STYLE, pompeii: POMPEII_STYLE, forum: FORUM_STYLE, rothenburg: ROTHENBURG_STYLE });

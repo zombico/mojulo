@@ -99,5 +99,19 @@ export const MONUMENTS = Object.freeze({
       return { builds: [{ id: 'curia', rect: { x: 0, y: 0, w: CU.w, d: CU.d }, facing: 'n', build: (f) => curia(f, { P: ctx.palette, h: CU.h }) }] };
     },
   },
+  // Rothenburg c. 1500: the town hall on its market place, the parish church a street off it (sizes the general accounts')
+  'rothenburg-rathaus': {
+    kit: 'rothenburg', label: 'the Gothic town hall of Rothenburg', read: 'a long stone hall on the market place under a steep roof, its tall tower over it',
+    cites: ['rothenburg/rathaus', 'rothenburg/ashlar', 'rothenburg/market-place'], size: [36, 16], apron: 0,
+    lay: () => ({ slots: [
+      { asset: 'rb-rathaus-hall', rect: { x: 0, y: 0, w: 36, d: 16 }, facing: 'n' },
+      { asset: 'rb-rathaus-tower', rect: { x: 3, y: 4, w: 8, d: 8 }, facing: 'n' },
+    ] }),
+  },
+  'st-jakob': {
+    kit: 'rothenburg', label: 'St. Jakob', read: 'the Gothic parish church: a tall nave over aisles, its towers and pointed choir (the library\'s Gothic church)',
+    cites: ['rothenburg/st-jakob', 'rothenburg/ashlar'], size: [24, 62], apron: 6,
+    lay: () => ({ slots: [{ asset: 'st-jakob', rect: { x: 0, y: 0, w: 24, d: 62 }, facing: 'n' }] }),
+  },
 });
 export const MONUMENT_IDS = Object.freeze(Object.keys(MONUMENTS));

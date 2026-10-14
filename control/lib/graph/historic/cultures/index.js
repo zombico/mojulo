@@ -13,6 +13,7 @@ import { LINDOS, POLIS } from './lindos.js';
 import { QIN } from './qin.js';
 import { POMPEII } from './pompeii.js';
 import { FORUM } from './forum.js';
+import { ROTHENBURG } from './rothenburg.js';
 
 /**
  * The land a culture's farm and works are drawn from (`land` on its card, an id in ../land-kits.js
@@ -32,4 +33,5 @@ export const HISTORIC_CULTURES = {
   qin: QIN,
   pompeii: POMPEII,
   forum: FORUM,
+  rothenburg: ROTHENBURG,
 };

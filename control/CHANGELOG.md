@@ -13,6 +13,51 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Historic recipes: other eras by the same principles
+
+The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that
+place and year, and its buildings composed from an inventory of styles and structures rather than drawn by hand.
+
+- **The solver as rules.** `solveHistoric` is a context and one module per layer (`solver/armature.js`,
+  `enclosure.js`, `streets.js`, `placement.js`, `land.js`, `views.js`, `emit.js`, `laws.js`), each a table keyed by
+  the form's own words: a new armature, enclosure, street pattern, placement or tree is one entry, and the form's
+  schema reads its words from those tables. Every shipped culture solves byte-identical to before. The placement
+  `water-edge`, which the schema took but no rule laid, is refused until one does.
+- **Buildings from the inventory** (`historic/inventory/`). A style (a building language as data: walls storey by
+  storey, the cap's form, pitch and covering, the lights and their rhythm, the door, the ornaments) spoken as a use
+  (dwelling, shop, workshop, barn, hall, tower) on a lot is a kit asset: `inventoryAsset({ id, style, use })` builds
+  it through the era library's `speak` as lit panels, fronting its slot, painted from the culture's palette (each
+  surface group, plaster, stone, timber, thatch, tile, slate, openings, to a palette key or a neutral default, a face's
+  value moving it lighter or darker). A culture's kit holds inventory assets beside hand-built ones and the solver lays
+  them like any house. It says as much as the scene can show: the fine at a slice, the masses and caps over a region.
+- **Styles: traditions the ledger can date.** A tradition record is keyed by a way of building, not a place
+  (`record/timber-frame.js`: oak framing, wattle and daub, lime render, plain tile, thatch, jettying, the town house
+  and the hall house, each cited and marked unverified), its rows dated for the tradition at large and, where it
+  arrived later or ended earlier, region by region (`spread`). Regions lie `within` larger ones (the German lands
+  within Europe), and a row is dated by the nearest region that names it. A card names the traditions it builds in
+  (`styles`, or `--styles` on `new-culture.mjs`); the ledger reaches them at its region and year as their own reach,
+  house types and forms included, and never by region alone. The inventory's first historic style, `fachwerk` (a
+  Franconian timber-framed town house: a rubble-stone ground storey, rendered framed storeys, a steep plain-tiled
+  gable), cites its rows, and the anachronism check reads them wherever a town builds in it. The roofs the ledger
+  knows gain thatch.
+- **Rothenburg ob der Tauber, c. 1500** (`culture: 'rothenburg'`): the first town composed from the inventory. A
+  free imperial city on a spur of the plateau, the Tauber in the valley below it on the west, its ring wall with a
+  roofed walk, towers and gate towers, its market place with the Gothic town hall and its tower, St. Jakob a street
+  off it. Its houses are spoken, not drawn: the Franconian timber-framed house as dwellings and shops, the council's
+  stone house on the main streets, in rows on the street line, two to four storeys as the record's house types give
+  them. Its church is the landmark library's Gothic church (`landmarkAsset`). Its record (`record/rothenburg.js`: the
+  shell limestone, the wall, the market place, the town hall, the church, the castle fallen in 1356, late medieval
+  dress) is cited and marked unverified; it builds in the `timber-frame` tradition, and the ledger finds nothing in the
+  town out of reach at 1500. A late-medieval mood (portative organ, lute, shawm, tabor, the church's bell) is its
+  opt-in soundtrack. Its towers are the library's church's, at the entrance front, not St. Jakob's at the choir.
+- **What a later town needs, as solver rules.** A `market` armature: the square at the heart, its hall on one side
+  facing in (`armature.facing`), the streets arriving at the square. An `off-square` placement: a second co-equal
+  anchor (a church, a hall) a lane off the square, facing it, its ground kept open. Frontage plots
+  (`density.plots: 'frontage'`, `front`, `deep`): narrow plots cut back from the streets, the main streets first, the
+  houses in rows on the street line and yards behind. A town on high ground over its water has the water in the valley
+  below it, not at its own level. Inventory assets gain `terrace` (wall to wall on the street line), `storeys` (the
+  band a house rises in) and `crown`; seen close they draw a wall's bond.
+
 ### Sheet-metal bend lines that mark without cutting
 
 - **A flat pattern with `bend_lines = true` stays one piece.** Each bend line was a slot run past both edges, so

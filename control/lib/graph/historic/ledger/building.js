@@ -42,7 +42,8 @@ export const SURFACES = Object.freeze({
 export const ROOFS = Object.freeze({
   flat: { read: 'beams under reed and mud: a flat roof to live on', by: ['sumer/flat-roof', 'egypt/flat-roof'] },
   'stone-slab': { read: 'stone slabs on architraves, lit by a clerestory', by: ['egypt/clerestory'] },
-  'tile-pitched': { read: 'a pitched timber roof under fired tiles', by: ['qin/grey-tile', 'lindos/tiled-timber-roof', 'pompeii/tile-roof', 'forum/roof-tile'] },
+  'tile-pitched': { read: 'a pitched timber roof under fired tiles', by: ['qin/grey-tile', 'lindos/tiled-timber-roof', 'pompeii/tile-roof', 'forum/roof-tile', 'timber-frame/plain-tile'] },
+  thatch: { read: 'a steep roof thatched in straw or reed', by: ['timber-frame/thatch'] },
   'brick-vault': { read: 'a mud-brick barrel vault', by: ['egypt/brick-vault'] },
   'concrete-vault': { read: 'a concrete vault or dome', by: ['pompeii/vault-and-dome', 'forum/opus-caementicium'] },
   corbel: { read: 'courses stepped in to close a roof', by: ['giza/corbelling'] },

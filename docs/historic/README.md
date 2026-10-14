@@ -15,6 +15,12 @@ reads what its builders had at its place and year from the LEDGER (`ledger/`: ev
 same form lays the town (`scene: 'city'`), the town in its land with its farms and crafts (`'region'`) and a slice of
 life cut from the region round a focus (`'slice'`).
 
+The solver is one module per layer, each a table keyed by the form's own words: `solver/armature.js` (`ARMATURES`),
+`solver/enclosure.js` (`ENCLOSURES`), `solver/streets.js` (`STREETS`), `solver/placement.js` (`WHERE`) and
+`solver/land.js` (`TREES`, `ACTIVITY_WHERE`). A town that needs a principle no culture has yet (a market place, a
+bastioned wall, a river through the town) gets it as one entry in its layer's table; the form's schema takes the new
+word from there.
+
 ## What a culture is made of
 
 All under `control/lib/graph/historic/`:
@@ -55,6 +61,27 @@ never the new culture's basis until its own record cites them.
 Relations are history, held to it by `lineage.test.js`: a source is registered, never the culture itself, never an
 ancestor of itself; it begins before the culture drawing on it ends; a continuation begins earlier; a variant shares
 its form. What a culture shares in code is its depth, a separate thing.
+
+## Styles: build in a tradition, compose from the inventory
+
+A way of building that spread over many places (timber framing, later brick gables or Baroque fronts) is a TRADITION
+record (`record/<tradition>.js`, registered in `ledger/records.js` with `tradition: true`): its materials, methods,
+house types and forms, each cited, each row dated for the tradition at large and, where it came later or ended
+earlier somewhere, by region (`spread: { germany: { from: 1300 } }`, read up `regions.js`'s `within` chain). A card
+names the traditions it builds in (`styles: ['timber-frame']`, or `--styles` on the scaffold); the ledger reaches
+their rows at the card's region and year, house types included.
+
+The buildings come from the INVENTORY (`inventory/`): a style is a building language as data (`inventory/styles.js`:
+walls storey by storey, the cap's form, pitch and covering, the lights, the door, the ornaments, in the era library's
+element-set shape) naming its tradition record and the rows it stands on; spoken as a use (dwelling, shop, workshop,
+barn, hall, tower) it is a kit asset (`inventoryKit({ house: { style: 'fachwerk', use: 'dwelling' } })`), painted from
+the card's palette. A culture in a tradition the inventory already speaks starts with houses, not boxes: its kit is
+inventory assets beside its own monuments, and the anachronism check reads the style's rows wherever it is built.
+
+Rothenburg (`cultures/rothenburg.js`, `assets/rothenburg.js`) is the worked example: a card that names `styles`, a
+kit whose houses are `inventoryKit` entries (`terrace: true`, `storeys` from the record's house types), a church from
+the landmark library (`landmarkAsset`), and hand-built pieces only where the town is its own (its wall, its town hall's
+tower). Its form uses the later-town rules: the `market` armature, an `off-square` second anchor, frontage plots.
 
 ## Depth: enter shallow, deepen in order
 
@@ -166,7 +193,8 @@ A stand-in inside an instanced template (a `place()`d building's repeated part) 
 ## Segments: new parts of the world
 
 A region (the Indus, Mesoamerica, medieval Europe, the steppe …) is a row in `regions.js`: its label and search
-words. Its first culture names it; a second makes it a hub that lists its entries in time order. Shared vocabulary
+words, and the larger region it lies `within`, if any. Its first culture names it; a second makes it a hub that lists
+its entries in time order. Shared vocabulary
 grows in `patterns.js` (a pattern seen across cultures, recorded once) and wall skins in `ground.js`.
 
 ## The gates

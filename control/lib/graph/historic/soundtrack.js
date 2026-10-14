@@ -191,6 +191,29 @@ function qin(seed) {
   };
 }
 
+// ── Late medieval Franconia: a portative organ's drone, a lute, a shawm from the town's waits, a tabor, and the
+// parish church's bell. D Dorian (the modal B natural, no leading tone); the cycle ends open on IV.
+const medieval = (seed) => ({
+  kind: 'beats-ambient', title: 'Market Morning, 1500', bpm: 76, swing: 0.03, seed,
+  progression: [
+    { chord: ['D3', 'A3', 'D4'], root: 'D2' }, { chord: ['C3', 'G3', 'C4'], root: 'C2' },
+    { chord: ['D3', 'A3', 'D4'], root: 'D2' }, { chord: ['A2', 'E3', 'A3'], root: 'A1' },
+    { chord: ['F3', 'C4', 'F4'], root: 'F2' }, { chord: ['C3', 'G3', 'C4'], root: 'C2' },
+    { chord: ['D3', 'A3', 'D4'], root: 'D2' }, { chord: ['G2', 'D3', 'B3'], root: 'G1' },   // closes on IV with its Dorian sixth
+  ],
+  room: { decay: 1.7, damp: 0.45, predelay: 0.02 },
+  channels: [
+    { name: 'portative', role: 'harmony', instrument: 'organ', tone: 0.35, send: 0.35, trim: -14 },
+    { name: 'lute', role: 'melody', instrument: 'harp', tone: 0.5, pan: -0.25, send: 0.3, trim: 4,
+      sequence: { table: ['D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5'], gate: 0.55 } },
+    { name: 'shawm', role: 'melody', instrument: 'oboe', tone: 0.55, pan: 0.3, send: 0.45, trim: 4,
+      sequence: { table: ['A4', 'C5', 'D5', 'E5', 'F5'], gate: 0.1 } },
+    { name: 'tabor', role: 'pulse', instrument: 'latin-perc', note: 'E4', steps: steps([0, 4, 8, 11], 0.4), dropout: 0.3, pan: -0.1, send: 0.3, trim: 6 },
+    { name: 'bell', role: 'pulse', patch: 'tubularBells', note: 'D4', steps: steps([0], 0.5), dropout: 0.75, tone: 0.5, pan: 0.5, send: 0.7, trim: -4 },
+  ],
+  export: NORMALIZE,
+});
+
 /**
  * Each mood and its base seed (the auditioned take). A culture names its mood on its card (`soundtrack`), so a
  * culture spread from another plays its parent's mood until it has its own; a new mood is a row here.
@@ -201,6 +224,7 @@ export const MOODS = {
   greek: { build: greek, base: 180 },
   qin: { build: qin, base: 212 },
   roman: { build: roman, base: 79 },
+  medieval: { build: medieval, base: 1500 },
 };
 
 /** The mood a culture plays (its card's `soundtrack`), or null. */

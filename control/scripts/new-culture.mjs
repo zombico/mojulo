@@ -7,7 +7,11 @@
  *
  *   node scripts/new-culture.mjs <id> --like <culture> --label "<label>" --years <from>,<to>
  *        --period "<name>" [--read-at <year>] (--place "<where>" | --invented) --region <region>
- *        --aliases "<word>,<word>,…" [--draws <culture>:<kind>[:<part>+<part>],…] [--dry]
+ *        --aliases "<word>,<word>,…" [--draws <culture>:<kind>[:<part>+<part>],…] [--styles <tradition>,…] [--dry]
+ *
+ * `--styles` names the building traditions it builds in (tradition records, lib/graph/historic/ledger/records.js
+ * TRADITIONS: timber framing …). They are written on the card (`styles`): the ledger reaches their rows at its region
+ * and year, and its kit may speak the inventory styles built from them (lib/graph/historic/inventory/).
  *
  * `--draws` names the cultures it draws on through history (kinds: continues, inherits, contact, contemporary,
  * variant; parts default by kind). They are written on the card (`draws`), the patterns they carry join the card's,
@@ -77,6 +81,15 @@ const draws = (args.draws ? String(args.draws).split(',') : []).map((d) => {
   return { from, kind, parts: p };
 });
 
+// the styles: tradition records, read through the ledger (the loader resolves its imports)
+let styles = [];
+if (args.styles) {
+  register(pathToFileURL(resolve('scripts/mcp-stdio-loader.mjs')));
+  const { TRADITIONS } = await import(pathToFileURL(resolve(HIST, 'ledger/records.js')).href);
+  styles = String(args.styles).split(',').map((x) => x.trim()).filter(Boolean);
+  for (const x of styles) if (!TRADITIONS.includes(x)) die(`--styles: '${x}' is not a tradition record (one of ${TRADITIONS.join(', ')})`);
+}
+
 const CONST = id.toUpperCase().replace(/-/g, '_'), base = reg[like];
 // one import per source file, each constant once (the base and the cultures drawn on)
 const byFile = new Map();
@@ -117,7 +130,9 @@ export const ${CONST} = {
   // history (../lineage.js): what it draws on; the brief of what each offers is in its README
   draws: [
 ${draws.map((d) => `    { from: ${q(d.from)}, kind: ${q(d.kind)}, parts: [${d.parts.map(q).join(', ')}] },`).join('\n')}
-  ],` : ''}${draws.some((d) => d.parts.includes('patterns')) ? `
+  ],` : ''}${styles.length ? `
+  // the building traditions it builds in (ledger/records.js TRADITIONS): reached at its region and year
+  styles: [${styles.map(q).join(', ')}],` : ''}${draws.some((d) => d.parts.includes('patterns')) ? `
   patterns: [...new Set([${patternSources.map((c) => `...${c}.patterns`).join(', ')}])],` : ''}
 };
 `;

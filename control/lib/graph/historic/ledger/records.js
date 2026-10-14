@@ -3,6 +3,10 @@
  * names its record from here (`record: RECORDS.egypt`), so a record has one home and two cards reading it share it
  * by identity (./depth.js counts that). The ledger (./index.js) reads them all as one table. Format and checks:
  * ../record.js.
+ *
+ * A TRADITION record (`tradition: true`) is keyed by a way of building, not a place: its region is the widest it
+ * spread over, and a card reaches it only by naming it among its `styles` (./index.js), at the dates its rows give
+ * for that card's region.
  */
 import { SUMER_RECORD, SUMER_SOURCES } from '../record/sumer.js';
 import { SUMER_FARM_RECORD } from '../record/sumer-farm.js';
@@ -14,8 +18,10 @@ import { LINDOS_RECORD, LINDOS_SOURCES } from '../record/lindos.js';
 import { QIN_RECORD, QIN_SOURCES } from '../record/qin.js';
 import { POMPEII_RECORD, POMPEII_SOURCES } from '../record/pompeii.js';
 import { FORUM_RECORD, FORUM_SOURCES } from '../record/forum.js';
+import { TIMBER_FRAME_RECORD, TIMBER_FRAME_SOURCES } from '../record/timber-frame.js';
+import { ROTHENBURG_RECORD, ROTHENBURG_SOURCES } from '../record/rothenburg.js';
 
-const rec = (id, region, entries, sources) => Object.freeze({ id, region, entries, sources });
+const rec = (id, region, entries, sources, { tradition = false } = {}) => Object.freeze({ id, region, entries, sources, ...(tradition ? { tradition } : {}) });
 
 export const RECORDS = Object.freeze({
   sumer: rec('sumer', 'mesopotamia', [...SUMER_RECORD, ...SUMER_FARM_RECORD, ...SUMER_WORKS_RECORD], SUMER_SOURCES),
@@ -25,4 +31,8 @@ export const RECORDS = Object.freeze({
   qin: rec('qin', 'china', QIN_RECORD, QIN_SOURCES),
   pompeii: rec('pompeii', 'italy', POMPEII_RECORD, POMPEII_SOURCES),
   forum: rec('forum', 'italy', FORUM_RECORD, FORUM_SOURCES),
+  rothenburg: rec('rothenburg', 'germany', ROTHENBURG_RECORD, ROTHENBURG_SOURCES),
+  'timber-frame': rec('timber-frame', 'europe', TIMBER_FRAME_RECORD, TIMBER_FRAME_SOURCES, { tradition: true }),
 });
+/** The tradition records: the styles a card may name. */
+export const TRADITIONS = Object.freeze(Object.keys(RECORDS).filter((id) => RECORDS[id].tradition));

@@ -65,9 +65,16 @@ const QIN = {
   woman: [garb('#6a3a34', 'ankle', { sleeve: true, shoe: '#1c1a18' }), garb('#3e3a44', 'ankle', { sleeve: true, shoe: '#1c1a18' })],
   hand: [garb('#a89a7a', 'knee', { sleeve: true, legs: '#8a7c60', shoe: '#2a2620' }), garb('#968a6c', 'knee', { legs: '#7a6e56' })],
 };
+const FRANCONIAN = {
+  skin: ['#e0b494', '#d4a482', '#ecc4a4'],
+  // the burgher's coat to the knee over hose; the gown to the ground; the workman's smock and hose
+  man: [garb('#5a3a2e', 'knee', { legs: '#3e3a36', shoe: '#2a2220' }), garb('#3e4a5a', 'knee', { legs: '#5a2e28', shoe: '#2a2220' })],
+  woman: [garb('#6a2e2a', 'ankle', { sleeve: true, shoe: '#2a2220' }), garb('#4a5462', 'ankle', { sleeve: true, shoe: '#2a2220' })],
+  hand: [garb('#8a7a5a', 'knee', { legs: '#5a5040', shoe: '#3a3028' }), garb('#6e6248', 'knee', { legs: '#4a4234' })],
+};
 // keyed by culture, and by the land the farm and works scenes name (`egypt`: the Theban country). The SKIN is read
 // here always; the garments only where no record dresses a wearer at the year (./dress.js `wardrobeAt`)
-export const DRESS = { pompeii: ROMAN, forum: ROMAN, lindos: GREEK, polis: GREEK, thebes: EGYPT, giza: EGYPT, egypt: EGYPT, sumer: SUMER, qin: QIN };
+export const DRESS = { pompeii: ROMAN, forum: ROMAN, lindos: GREEK, polis: GREEK, thebes: EGYPT, giza: EGYPT, egypt: EGYPT, sumer: SUMER, qin: QIN, rothenburg: FRANCONIAN };
 
 /** A garment on a skin → a pedestrian palette: the shirt and skirt, a sleeve or a bare forearm, legs or bare shins. */
 function palette(g, skin) {

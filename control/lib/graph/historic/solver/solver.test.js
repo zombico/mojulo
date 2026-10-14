@@ -4,7 +4,12 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { solveHistoric, SCENES, SLICE, sliceFoci, formOf } from './index.js';
 import { FORMS } from '../form/towns.js';
-import { STREET_PATTERNS, ARMATURES, readForm } from '../form/schema.js';
+import { STREET_PATTERNS, ARMATURES, ENCLOSURES, TREES, WHERE, ACTIVITY_WHERE, readForm } from '../form/schema.js';
+import { ARMATURES as ARMATURE_RULES } from './armature.js';
+import { ENCLOSURES as ENCLOSURE_RULES } from './enclosure.js';
+import { STREETS } from './streets.js';
+import { WHERE as WHERE_RULES } from './placement.js';
+import { TREES as TREE_RULES, ACTIVITY_WHERE as ACTIVITY_RULES } from './land.js';
 import { MONUMENTS } from '../monuments/index.js';
 import { HISTORIC_CULTURES } from '../cultures/index.js';
 
@@ -174,9 +179,81 @@ describe('the form', () => {
     expect(() => readForm({ from: 'sumer', density: { gap: 9 } }, FORMS)).toThrow(/form.density.gap is a number 0–3/);
     expect(() => formOf('sumer', { armature: { kind: 'spiral' } })).toThrow(/form.armature.kind is/);
   });
+  it('takes the words its solver has a rule for, and only those: a layer\'s table is the schema\'s list', () => {
+    const tables = [[ARMATURES, ARMATURE_RULES], [ENCLOSURES, ENCLOSURE_RULES], [STREET_PATTERNS, STREETS], [Object.keys(WHERE), WHERE_RULES], [TREES, TREE_RULES], [Object.keys(ACTIVITY_WHERE), ACTIVITY_RULES]];
+    for (const [words, rules] of tables) {
+      expect(words).toEqual(Object.keys(rules));
+      for (const r of Object.values(rules)) expect(typeof r.read).toBe('string');
+    }
+    const id = Object.keys(FORMS)[0];
+    expect(() => formOf(id, { placement: [{ asset: 'well', where: 'rooftop' }] })).toThrow(/form.placement\[0\].where is 'crossing'/);
+  });
   it('a variant is its base with its changes (the polis is Lindos on a gentle hill)', () => {
     const v = Object.keys(FORMS).find((k) => FORMS[k].site.cliff === false), base = 'lindos';
     expect(FORMS[v].streets).toEqual(FORMS[base].streets);
     expect(FORMS[v].site.rock).toBeLessThan(FORMS[base].site.rock);
+  });
+});
+
+describe('a market town: the square, its hall, a second anchor off it', () => {
+  const id = using((f) => f.armature.kind === 'market' && (f.placement || []).some((it) => it.where === 'off-square' && it.monument));
+  const p = solveHistoric({ culture: id }), sq = p.stats.square, [hall, second] = p.stats.monuments;
+  const inside = (r, [x, y]) => x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.d;
+  const mid = (r) => [r.x + r.w / 2, r.y + r.d / 2];
+  it(`the hall (${id}) stands on the square's edge, outside it, and the streets arrive at the square`, () => {
+    expect(inside(sq, mid(hall.rect))).toBe(false);
+    const gap = Math.min(...['x', 'y'].map((k) => (k === 'x' ? Math.max(sq.x - (hall.rect.x + hall.rect.w), hall.rect.x - (sq.x + sq.w)) : Math.max(sq.y - (hall.rect.y + hall.rect.d), hall.rect.y - (sq.y + sq.d)))).filter((v) => v >= -0.01));
+    expect(gap).toBeLessThan(0.5);
+    expect(law(p, 'connected').ok, law(p, 'connected').detail).toBe(true);
+  });
+  it('the second anchor stands off the square facing into it, with open ground and no house between', () => {
+    expect(second).toBeTruthy();
+    expect(inside(sq, mid(second.rect))).toBe(false);
+    const [cx, cy] = mid(second.rect), [sx, sy] = mid(sq), toward = Math.abs(sx - cx) > Math.abs(sy - cy) ? (sx > cx ? 'e' : 'w') : (sy > cy ? 's' : 'n');
+    expect(second.facing).toBe(toward);
+    const H = houses(p), between = p.slots.filter((s) => H.has(s.asset)).filter((s) => { const [x, y] = mid(s.rect); return x > Math.min(cx, sx) && x < Math.max(cx, sx) && y > Math.min(cy, sy) && y < Math.max(cy, sy) && Math.abs((toward === 'n' || toward === 's' ? x - cx : y - cy)) < 4; });
+    expect(between).toEqual([]);
+  });
+});
+
+describe('a town high over its water', () => {
+  it('the river runs in the valley below the town, never above the land beside it', () => {
+    const id = using((f) => f.site.town === 'high' && f.water.kind !== 'none' && (f.site.relief ?? 0) > 0), p = solveHistoric({ culture: id });
+    const g = p.grid, zs = [];
+    for (let i = 0; i < g.data.length; i += 7) if (g.data[i] === g.codes.WATER) zs.push(p.hAt((i % g.cols + 0.5) * g.cell, (Math.floor(i / g.cols) + 0.5) * g.cell));
+    expect(zs.length).toBeGreaterThan(0);
+    expect(Math.max(...zs)).toBeLessThan(-p.form.site.relief);
+  });
+});
+
+describe('a town composed from the inventory', () => {
+  const id = Object.keys(FORMS).find((c) => Object.values(HISTORIC_CULTURES[c].assets ?? {}).some((a) => a.inventory?.style) && HISTORIC_CULTURES[c].styles?.length);
+  it(`its houses (${id}) are spoken in the styles of the traditions it builds in, and the ledger finds nothing out of reach`, () => {
+    const p = solveHistoric({ culture: id }), K = HISTORIC_CULTURES[id], H = houses(p);
+    const spoken = p.slots.filter((s) => H.has(s.asset)).map((s) => K.assets[s.asset].inventory?.style);
+    expect(spoken.length).toBeGreaterThan(20);
+    expect(spoken.every(Boolean)).toBe(true);
+    expect(p.ledger.findings).toEqual([]);
+    expect(p.boxes.some((b) => b.solid === 'panel')).toBe(true);
+  });
+});
+
+describe('frontage plots: narrow and deep, cut back from the streets', () => {
+  const id = using((f) => f.density.plots === 'frontage');
+  it(`every house (${id}) fronts the lane its plot was cut from, most deeper than wide, the main streets built up`, () => {
+    const p = solveHistoric({ culture: id }), H = houses(p), g = p.grid, cell = (x, y) => g.data[Math.floor(y / g.cell) * g.cols + Math.floor(x / g.cell)];
+    const hs = p.slots.filter((s) => H.has(s.asset));
+    for (const q of hs.slice(0, 200)) {
+      const r = q.rect, [x, y] = { n: [r.x + r.w / 2, r.y - 1.5], s: [r.x + r.w / 2, r.y + r.d + 1.5], w: [r.x - 1.5, r.y + r.d / 2], e: [r.x + r.w + 1.5, r.y + r.d / 2] }[q.facing];
+      expect(cell(x, y), `${q.asset} facing ${q.facing}`).toBe(g.codes.LANE);
+    }
+    const deep = hs.filter((q) => { const across = q.facing === 'n' || q.facing === 's' ? q.rect.w : q.rect.d, back = q.facing === 'n' || q.facing === 's' ? q.rect.d : q.rect.w; return back > across; });
+    expect(deep.length / hs.length).toBeGreaterThan(0.6);
+    expect(law(p, 'fronts').ok).toBe(true);
+    expect(hs.some((q) => p.form.houses.some((h) => h.onMain && h.asset === q.asset))).toBe(true);
+  });
+  it('a town packed the old way is laid as before: plots are a word of the form, not a change to the packer', () => {
+    const old = using((f) => (f.density.plots ?? 'pack') === 'pack'), a = solveHistoric({ culture: old }), b = solveHistoric({ culture: old, form: { density: { plots: 'pack' } } });
+    expect(hash(b.slots)).toBe(hash(a.slots));
   });
 });
