@@ -23,7 +23,7 @@ export function flyCourse(map, field, course, { rule: given = null, seconds = 90
   E ??= composeLive();
   const c = map.craft, seat = seatCraft(map, field, course), rule = given ?? seat.rule;
   const world = E.createWorld({ entities: [{ id: 'craft', pilotable: true, rule, transform: { ...seat.transform, pos: [...seat.transform.pos] } }] });
-  const p = world.byId.craft, hooks = { ground: (q) => field.groundAt(q[0], q[1]) };
+  const p = world.byId.craft, top = field.topAt ?? field.groundAt, hooks = { ground: (q) => top(q[0], q[1]) };
   const targets = [...course.gates.map((g) => ({ at: g.at, r: g.radius, gate: true })), ...(course.finish ? [{ at: course.finish.at, r: course.finish.radius, gate: false }] : [])];
   const laps = course.laps ?? 1, order = [];
   for (let l = 0; l < laps; l++) order.push(...targets.filter((t) => t.gate || l === laps - 1));
@@ -42,13 +42,13 @@ export function flyCourse(map, field, course, { rule: given = null, seconds = 90
     if (!extend && p.airborne && dh < 2.2 * rTurn && Math.abs(err) > 0.9) extend = true;
     if (extend && dh > 3.5 * rTurn) extend = false;
     let want = clamp(Math.atan2(dz, Math.max(dh, 1)), -0.25, 0.3);
-    // terrain ahead (a ground-proximity warning): where the craft will be in a few seconds, the ground within a low
-    // pass of the path pulls the nose up, whatever the target asks
+    // terrain ahead (a ground-proximity warning): where the craft will be in a few seconds, the ground (or a city's
+    // roof) within a low pass of the path pulls the nose up, whatever the target asks
     if (p.airborne) {
       const v = p.airspeed ?? c.cruise, cosP = Math.cos(p.transform.pitch || 0);
       for (const s of [2, 4, 6]) {
         const ax = q[0] + Math.cos(p.transform.heading) * cosP * v * s, ay = q[1] + Math.sin(p.transform.heading) * cosP * v * s;
-        if (field.groundAt(ax, ay) + c.lowPass > q[2] + Math.sin(p.transform.pitch || 0) * v * s) { want = 0.3; break; }
+        if (top(ax, ay) + c.lowPass > q[2] + Math.sin(p.transform.pitch || 0) * v * s) { want = 0.3; break; }
       }
     }
     const input = {

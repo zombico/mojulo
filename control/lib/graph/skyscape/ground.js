@@ -13,6 +13,8 @@
  *              heartbeat's 5 m cliff is a 150 m escarpment from the air and the same ground to fly
  *   pads       runways and landing pads: graded ground (the kernel's `grade` layers, as a city sits on a terrain
  *              world), flat to the datum under the wheels whatever the detail around them, painted with their marks
+ *   cities     fractal cities (city.js, terrain-city.js's): sited clear of the pads' climb-outs, graded, seated as
+ *              plain metro masses; their roofs are obstacles (`topAt`)
  *   paint      a geocube's key colours as the kernel's ramps (grass the soil, stone the rock, sand the scree)
  *
  * The result is a terrain field (terrain-field.js's shape: the kernel bound to its grids, `pageConfig()` for the page)
@@ -31,6 +33,7 @@ import { landformGrid, gridX, gridY, hashSeed, gnoise } from '../polygonizer/lan
 import { LANDS, SHAPES } from '../roads/surrounds.js';
 import { terrainKernel } from '../terrain/terrain-kernel.js';
 import * as dmath from '../../util/dmath.js';
+import { readCityAsk, prepareCities, seatCities } from './city.js';
 
 /** The painting's width in its own units (terrain-field.js): the kernel's backdrop swell and fall are sized in them. */
 const PAINT_WIDTH = 24;
@@ -57,7 +60,8 @@ const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('b
 /** Errors (strings) for a ground ask; [] when it lays. */
 export function readGroundAsk(ask = {}) {
   const e = [];
-  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, geocube?, seed? }'];
+  if (!ask || typeof ask !== 'object') return ['ground must be { land?, heartbeat?, scale?, pads?, cities?, geocube?, seed? }'];
+  e.push(...readCityAsk(ask.cities));
   if (ask.land !== undefined && !LANDS[ask.land]) e.push(`ground.land must be one of ${Object.keys(LANDS).join(', ')}`);
   if (ask.scale !== undefined && !(Number.isFinite(ask.scale) && ask.scale >= 1 && ask.scale <= 100)) e.push('ground.scale must be 1–100: the heartbeat\'s metres are multiplied by it (its places stay relative)');
   if (ask.heartbeat !== undefined) { try { readHeartbeat(ask.heartbeat); } catch (err) { e.push(`ground.heartbeat: ${err.message}`); } }
@@ -224,7 +228,7 @@ function padLayer(p, datum) {
 }
 
 /**
- * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, geocube?, seed? }. → a terrain field (K, kernel, heightAt,
+ * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, cities?, geocube?, seed? }. → a terrain field (K, kernel, heightAt,
  * groundAt, normalAt, colorAt, bounds, meta, pageConfig) plus `pads` (each with its datum) and a `report`.
  */
 export function mapGround(map, ask = {}) {
@@ -278,15 +282,22 @@ export function mapGround(map, ask = {}) {
     taken.push(site);
     return site;
   });
-  if (pads.length) K.grade = pads.map((p) => padLayer(p, p.datum));
-  const kernel = pads.length ? terrainKernel(K) : natural;
+  // the cities (city.js): sited on the natural ground clear of the pads and their climb-outs, graded beside them
+  const bounds = { x: [g.x0, g.x0 + (g.nx - 1) * g.dx], y: [g.y0, g.y0 + (g.ny - 1) * g.dx], z: [lo, hi], cell: cellM };
+  const preps = prepareCities(map, { K, kernel: natural, heightAt: natural.heightAt, groundAt: natural.groundAt, bounds }, ask.cities, pads);
+  const layers = [...pads.map((p) => padLayer(p, p.datum)), ...preps.map((p) => p.grade.layer)];
+  if (layers.length) K.grade = layers;
+  const kernel = layers.length ? terrainKernel(K) : natural;
+  const town = seatCities(preps, { K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, bounds });
   const sky = { zenith: [96, 146, 206], horizon: [196, 214, 226], day: 1 };
   return {
     K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
-    bounds: { x: [g.x0, g.x0 + (g.nx - 1) * g.dx], y: [g.y0, g.y0 + (g.ny - 1) * g.dx], z: [lo, hi], cell: cellM },
+    // the highest surface: the ground, or a city's roof over it (what a course and a pilot keep clear of)
+    topAt: town.topAt, cityFaces: town.faces, cityRepeats: town.repeats, cityFormed: town.formed ?? [],
+    bounds,
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,
-    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), geocube: cube.id, scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })) },
+    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), geocube: cube.id, scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}) },
     pageConfig() {
       const { hq: q, hard: h, apron: a, grade, ...rest } = K;
       return { ...rest, grids: { hq: b64(q), hard: b64(h), apron: b64(a) }, ...(grade ? { grade: grade.map((L) => ({ ...L, dq: b64(L.dq), w: b64(L.w), ...(L.paint ? { paint: { ...L.paint, pc: b64(L.paint.pc) } } : {}) })) } : {}) };

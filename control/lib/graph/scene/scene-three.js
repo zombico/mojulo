@@ -337,7 +337,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
       pos: b64(gm.positions),
       col: b64(gm.colors),
       radius: gm.radius,
-      t: r.transforms.map((t) => [(t.pos || [0, 0, 0])[0], (t.pos || [0, 0, 0])[1], (t.pos || [0, 0, 0])[2], t.rotZ || 0, Number.isFinite(t.scale) ? t.scale : 1]),
+      // a per-axis scale ([sx, sy, sz]: a unit box stretched to a mass) rides as three more numbers; a uniform one as one
+      t: r.transforms.map((t) => [(t.pos || [0, 0, 0])[0], (t.pos || [0, 0, 0])[1], (t.pos || [0, 0, 0])[2], t.rotZ || 0, ...(Array.isArray(t.scale) && t.scale.length === 3 && t.scale.every(Number.isFinite) ? t.scale : [Number.isFinite(t.scale) ? t.scale : 1])]),
       tint: (hasTint || hasAmb)
         ? r.transforms.map((t, k) => {
           const base = Array.isArray(t.tint) ? t.tint : [1, 1, 1];
@@ -353,7 +354,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // widen the camera-framing bound so a mostly-instanced world still frames fully
   for (const r of packedRepeats) {
     for (const t of r.t) {
-      const d = Math.hypot(t[0] - mesh.center[0], t[1] - mesh.center[1], t[2] - mesh.center[2]) + r.radius * t[4];
+      const d = Math.hypot(t[0] - mesh.center[0], t[1] - mesh.center[1], t[2] - mesh.center[2]) + r.radius * (t.length > 5 ? Math.max(t[4], t[5], t[6]) : t[4]);
       if (d > mesh.radius) mesh.radius = d;
     }
   }
@@ -442,6 +443,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
     return { name, pos: b64(gm.positions), col: b64(gm.colors), center: gm.center, normal: nf ? nf.normal : null, hideable, wireframe, tex, alpha, ...(gm.specs ? { spec: b64(gm.specs) } : {}), ...(singleSide ? { singleSide: true } : {}), ...(ink ? { ink } : {}), ...(crystal ? { crystal } : {}), ...(layerOf.has(name) ? { layer: layerOf.get(name) } : {}), ...(metal ? { metal } : {}) };
   });
   const hasRepeatTextures = packedRepeats.some((r) => r.tex);
+  const hasAxisScale = packedRepeats.some((r) => r.t.some((t) => t.length > 5));   // absent: the uniform line, byte-identical
   const hasTextures = groups.some((g) => g.tex.length) || hasRepeatTextures || blendLayers.length > 0;
   // a textured group a mover moves carries its texture sub-meshes as children, so the wood goes with the part (a
   // teardown's members, a labelled lid on a hinge); no mover on a textured group → not emitted, byte-identical
@@ -1039,7 +1041,7 @@ for (const r of REPEATS) {
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), UP = new THREE.Vector3(0, 0, 1), P = new THREE.Vector3(), S = new THREE.Vector3();
   r.t.forEach((t, i) => {
     Q.setFromAxisAngle(UP, t[3]);
-    P.set(t[0], t[1], t[2]); S.set(t[4], t[4], t[4]);
+    P.set(t[0], t[1], t[2]); ${hasAxisScale ? 'S.set(t[4], t[5] ?? t[4], t[6] ?? t[4]);' : 'S.set(t[4], t[4], t[4]);'}
     M.compose(P, Q, S);
     im.setMatrixAt(i, M);
     if (r.tint) im.setColorAt(i, new THREE.Color(r.tint[i][0], r.tint[i][1], r.tint[i][2]));

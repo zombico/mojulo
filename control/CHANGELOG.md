@@ -74,6 +74,14 @@ genre on the quick path.
   laws the map's, the course's and `flown`; the world bible draws it in plan (the field, the course's line and gates,
   the runway). The `gameworld-quick` card names the flight's levers; its prose was
   tightened to stay under the card ceiling. The registry page (`docs/tool-surface/`) is regenerated.
+- **Cities on the map** (`skyscape/city.js`). `ground.cities: [{ at?: [u, v], size?, profile?, seed?, … }]` stands a
+  fractal city on the field as a terrain world does (`terrain/terrain-city.js`: sited, its unbuildable ground reserved
+  before its roads, graded, seated), metro by default, sized to the field, sited clear of the pads and each runway's
+  climb-out. A pilot reads blocks, not lamp posts, so the whole plan is pruned to massing: plain extrusions in their
+  facade and roof colours, the streets painted onto the graded ground, the terrain meshed fine over it so they read.
+  On the live page each mass is one instance of a lit unit box (the World page's `repeats` now take a per-axis
+  `scale: [sx, sy, sz]`, emitted only when one is asked); exports take the seated faces. The roofs are obstacles:
+  `topAt` is the ground or the roof over it, and the course and the autopilot keep clear of it. A `city` bookmark.
 
 ### Sheet-metal bend lines that mark without cutting
 

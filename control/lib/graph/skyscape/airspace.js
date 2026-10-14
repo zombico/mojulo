@@ -4,7 +4,7 @@
  * a roadway.
  *
  * manifest: { kind: 'airspace', map?: { form?, field?, craft?, ceiling?, lands? }, ground?: { land?, heartbeat?, scale?,
- *             pads?, geocube?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? },
+ *             pads?, cities?, geocube?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? },
  *             course?: true | { gates?, laps?, land? } }
  *
  * `course` plans a gate course on the map (course.js): its ring gates drawn, its gates, finish and laws in `meta.course`
@@ -14,6 +14,9 @@
  * threshold looking down it (a craft with no engine starts aloft, flying), followed by a chase camera that banks with
  * it. A game level seats its own pilot instead (its `entities`, `camera` and `game` ride the manifest as on any
  * level's kind), so only airspace's own keys are checked here.
+ *
+ * A city on the ground (`ground.cities`, city.js) comes as instanced boxes on the live page and as faces in exports: its
+ * masses do not mesh with the terrain.
  *
  * The payload carries no ground faces on the live page (it meshes them round the camera); exports and stills get the
  * ground baked at twice the map's grid cell. Bookmarks: the first pad's threshold looking down it, the field from a
@@ -30,6 +33,8 @@ import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 const r2 = (v) => Math.round(v * 100) / 100;
+/** The spacing (m) a city's ground is meshed at near it: a street's width, so the painted plan reads. */
+const CITY_PIN = 8;
 
 /** Errors (strings) for an airspace manifest; [] when it builds. */
 export function validateAirspace(m) {
@@ -58,6 +63,10 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   const { map, field } = airspaceOf(manifest);
   const channel = terrainPageChannel(field, { n: map.lod.n, split: map.lod.split, minSize: map.lod.minSize, horizonScale: map.lod.horizonScale });
   channel.hazeHeight = map.haze.hazeHeight;
+  // a city's painted streets read only where the mesh is finer than they are: over its footprint a node splits, while
+  // the eye is near enough to see them, down to CITY_PIN m between vertices (the terrain world's pin)
+  const towns = field.report.cities || [];
+  if (towns.length) channel.pins = towns.map((c) => ({ rect: [c.center[0] - c.size[0] / 2, c.center[0] + c.size[0] / 2, c.center[1] - c.size[1] / 2, c.center[1] + c.size[1] / 2], size: CITY_PIN * map.lod.n, split: map.lod.split }));
   // the free camera flies at the craft's speeds: its stall at the ground, faster with height
   channel.speeds = { walk: 4.5, flyMin: map.craft.stall, flyPerAlt: r2(map.craft.cruise / Math.max(1, map.ceiling / 4)) };
   const F = map.rings.field;
@@ -72,6 +81,8 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
     { name: 'threshold', worldFraming: { cameraPosition: [spawn[0], spawn[1], spawn[2] + 2], lookAt: [look[0], look[1], look[2] + 2], horizontalFov: 70 } },
     { name: 'low-pass', worldFraming: { cameraPosition: [-F.hx * 0.9, -F.hy * 0.9, field.groundAt(-F.hx * 0.9, -F.hy * 0.9) + 2 * low], lookAt: [0, 0, field.groundAt(0, 0)], horizontalFov: 65 } },
     { name: 'ceiling', worldFraming: { cameraPosition: over(0, -fieldR * 1.6, top), lookAt: [0, 0, field.groundAt(0, 0)], horizontalFov: 60 } },
+    // each city from a low pass off its corner, a little above its tallest roof
+    ...(field.report.cities || []).map((c, i) => { const [x, y] = c.center, R = dmath.hypot(c.size[0], c.size[1]), gz = field.groundAt(x, y); return { name: i ? `city-${i + 1}` : 'city', worldFraming: { cameraPosition: over(x - 0.7 * R, y - 0.7 * R, gz + c.tallest + 2 * low), lookAt: [x, y, gz + 0.3 * c.tallest], horizontalFov: 60 } }; }),
   ];
   // the craft, seated (`fly`): on the departure threshold, its nose down the pad; a craft with no engine launched aloft
   const pilot = manifest.fly ? craftPilot(map, seat) : null;
@@ -80,7 +91,9 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   const bg = rgbHex(s.horizon);
   const b = field.bounds;
   return {
-    faces: [...(live ? [] : bakeTerrainFaces(field, { spacing: 2 * map.grid.cell, patches: field.pads.map((p) => ({ x0: p.x0, y0: p.y0, w: p.x1 - p.x0, d: p.y1 - p.y0 })) })), ...(course ? course.faces : [])],
+    faces: [...(live ? [] : bakeTerrainFaces(field, { spacing: 2 * map.grid.cell, patches: field.pads.map((p) => ({ x0: p.x0, y0: p.y0, w: p.x1 - p.x0, d: p.y1 - p.y0 })) })), ...(live ? field.cityFormed : field.cityFaces), ...(course ? course.faces : [])],
+    // the live page's city masses: instanced unit boxes (city.js), a few numbers each
+    ...(live && field.cityRepeats.length ? { repeats: field.cityRepeats } : {}),
     terrain: channel, cameras, sky, bg, title,
     // the haze IS the map's edge cheat: the density the map planned, thinned with height by the channel's hazeHeight
     haze: { color: bg, density: map.haze.density },

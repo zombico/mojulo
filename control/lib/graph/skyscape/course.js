@@ -20,6 +20,7 @@
  */
 import { buildBlock } from '../era/blocks.js';
 import { gnoise } from '../polygonizer/landform.js';
+import { ROOF_CELL } from './city.js';
 import * as dmath from '../../util/dmath.js';
 
 /** s of cruise between gates; the least a gate may be apart (s); a light craft's steepest gate-to-gate climb. */
@@ -51,10 +52,14 @@ function loopLine(F, n, seed) {
   return out;
 }
 
-/** The ground's highest point along a leg (sampled every ~cell). */
+/** The highest surface at a point: the ground, or a city's roof (city.js). */
+const topAt = (field) => field.topAt ?? field.groundAt;
+/** The step a leg is read at: the ground's cell, or a roof's when the map has a city (a tower is a few roof cells). */
+const readStep = (field) => (field.cityFaces && field.cityFaces.length ? Math.min(field.bounds.cell, ROOF_CELL) : field.bounds.cell);
+/** The highest surface along a leg (sampled every ~step). */
 function legTop(field, p, q, step) {
   const L = dmath.hypot(q[0] - p[0], q[1] - p[1]), n = Math.max(2, Math.ceil(L / step));
-  let top = -Infinity; for (let i = 0; i <= n; i++) { const t = i / n; top = Math.max(top, field.groundAt(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t)); }
+  let top = -Infinity; for (let i = 0; i <= n; i++) { const t = i / n; top = Math.max(top, topAt(field)(p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t)); }
   return top;
 }
 
@@ -79,13 +84,13 @@ export function planCourse(map, field, { gates: nAsk, laps = 1, land = true, see
   let first = 0, best = -Infinity;
   pts.forEach((p, i) => { const dx = p[0] - dep[0], dy = p[1] - dep[1], d = dmath.hypot(dx, dy) || 1, ahead = (dx * depDir[0] + dy * depDir[1]) / d; const score = ahead - d / (4 * F.hx); if (score > best) { best = score; first = i; } });
   const ring = [...pts.slice(first), ...pts.slice(0, first)];
-  const low = c.lowPass, clear = 1.5 * low, cell = field.bounds.cell, glides = c.engine === false;
+  const low = c.lowPass, clear = 1.5 * low, cell = readStep(field), glides = c.engine === false;
   if (glides) {
     // downhill: from the last gate back, each gate the higher of its own clearance and the next one's plus the height
     // the glide between them spends (with a fifth in hand)
     const z = ring.map(() => 0), n2 = ring.length;
     for (let i = n2 - 1; i >= 0; i--) {
-      const need = field.groundAt(ring[i][0], ring[i][1]) + 2 * low;
+      const need = topAt(field)(ring[i][0], ring[i][1]) + 2 * low;
       if (i === n2 - 1) { z[i] = need; continue; }
       const d = dmath.hypot(ring[i + 1][0] - ring[i][0], ring[i + 1][1] - ring[i][1]), top = legTop(field, ring[i], ring[i + 1], cell) + clear;
       z[i + 1] = Math.max(z[i + 1], top);   // both ends over the leg's highest ground (a later gate higher only gives more height to spend)
@@ -94,7 +99,7 @@ export function planCourse(map, field, { gates: nAsk, laps = 1, land = true, see
     return finishCourse(map, field, ring, z, { laps: 1, land, seed, open: true });
   }
   // heights: a weave between the low pass and four, clamped to the climb a gate-to-gate leg allows, lifted over the ground
-  const z = ring.map((p, i) => field.groundAt(p[0], p[1]) + low * (2 + 1.5 * (0.5 + 0.5 * gnoise(i * 0.7, 3.3, seed + 31))));
+  const z = ring.map((p, i) => topAt(field)(p[0], p[1]) + low * (2 + 1.5 * (0.5 + 0.5 * gnoise(i * 0.7, 3.3, seed + 31))));
   const top = map.ceiling - (Math.min(RING_GATE.params.r[1], Math.max(RING_GATE.params.r[0], c.max * 0.3)));   // a gate's top under the ceiling
   // lifting a gate to ease one leg steepens the leg before it, round the loop: repeat until nothing moves (only ever
   // raising, under the ceiling, so it settles)
@@ -159,8 +164,8 @@ export function courseLaws(course, map, field) {
   const inner = course.open ? G.slice(1, -1).map((g, k) => k + 1) : G.map((g, i) => i);   // an open course turns only between its ends
   const tight = Math.min(Infinity, ...inner.map((i) => rTurn(G[(i - 1 + G.length) % G.length], G[i], G[(i + 1) % G.length])));
   out.push({ law: 'turns', ok: tight >= map.eye.turn.cruise - 1e-6, note: `the tightest turn is ${r2(tight)} m; the craft turns in ${map.eye.turn.cruise} m at cruise` });
-  const cell = field.bounds.cell, clear = Math.min(...legs.map(([a, b]) => { const L = dist(a, b), n = Math.max(2, Math.ceil(L / cell)); let m = Infinity; for (let i = 0; i <= n; i++) { const t = i / n, x = a.at[0] + (b.at[0] - a.at[0]) * t, y = a.at[1] + (b.at[1] - a.at[1]) * t, zz = a.at[2] + (b.at[2] - a.at[2]) * t; m = Math.min(m, zz - field.groundAt(x, y)); } return m; }));
-  out.push({ law: 'clear', ok: clear >= c.lowPass - 1e-6, note: `the lowest leg passes ${r2(clear)} m over the ground (at least the low pass, ${c.lowPass} m)` });
+  const cell = readStep(field), clear = Math.min(...legs.map(([a, b]) => { const L = dist(a, b), n = Math.max(2, Math.ceil(L / cell)); let m = Infinity; for (let i = 0; i <= n; i++) { const t = i / n, x = a.at[0] + (b.at[0] - a.at[0]) * t, y = a.at[1] + (b.at[1] - a.at[1]) * t, zz = a.at[2] + (b.at[2] - a.at[2]) * t; m = Math.min(m, zz - topAt(field)(x, y)); } return m; }));
+  out.push({ law: 'clear', ok: clear >= c.lowPass - 1e-6, note: `the lowest leg passes ${r2(clear)} m over the ground or a roof (at least the low pass, ${c.lowPass} m)` });
   // (gates are kept to the centimetre, so a leg at the limit may read a hair over it)
   if (c.engine === false) {
     const up = Math.max(...legs.map(([a, b]) => b.at[2] - a.at[2]));
