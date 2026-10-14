@@ -371,6 +371,37 @@ describe('design_game quick', () => {
     expect(sim.bus.log.map((r) => r.type)).toContain('frags:lost');
   }, 240_000);
 
+  it('deathmatch on the shooter pole: realistic walks and peeks with a killing gun; stylized jumps, dashes, mends and has a kit', async () => {
+    const out = {};
+    for (const pole of ['realistic', 'stylized']) {
+      await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, pole, world: { id: `pole-${pole}`, style: { kit: 'trail-valley' } } }, ref: `pl-${pole}` });
+      const L = stored(`pl-${pole}-level-run-0`), [player, bot] = L.entities;
+      out[pole] = { L, player, bot, mechs: mechanicsOf(`pl-${pole}-level-run-0`) };
+    }
+    const R = out.realistic, S = out.stylized;
+    expect(R.mechs).toEqual(['frags', 'supplies']);
+    expect(S.mechs).toEqual(['frags', 'supplies', 'regen', 'abilities']);
+    expect([R.player.rule.type, S.player.rule.type]).toEqual(['walk', 'platform']);
+    expect(S.player.rule).toMatchObject({ airJumps: 1, dodge: true });
+    expect(R.player.weapon.damage * 4).toBeGreaterThanOrEqual(R.bot.body.hp - 1);   // four rounds drop a body
+    expect(S.bot.body.hp).toBe(200);
+    expect([R.bot.rule.peek, S.bot.rule.peek]).toEqual([true, false]);
+    expect(R.L.game.mechanics[0]).toMatchObject({ damage: true, hp: 100 });
+    // played headless with the player aside: each reaches its limit, the realistic one on fewer rounds a kill
+    const rounds = {};
+    for (const pole of ['realistic', 'stylized']) {
+      const { payload } = await resolveWorldScene(SketchRepository.getByRef(`pl-${pole}-level-run-0`));
+      const land = stageEnds(out[pole].L).ground;
+      const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+      const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (x, y) => land(x, y) });
+      for (let t = 0; t < 180 && !sim.bus.vars.__frags_over_0; t += 1 / 30) sim.frame(1 / 30);
+      const kills = sim.bus.log.filter((r) => r.type === 'kill').length, hits = ['bot-1', 'bot-2', 'bot-3'].reduce((n, id) => n + sim.bus.log.filter((r) => r.type === `hit:${id}`).length, 0);
+      expect(kills, pole).toBeGreaterThanOrEqual(3);
+      rounds[pole] = hits / kills;
+    }
+    expect(rounds.realistic).toBeLessThan(rounds.stylized);
+  }, 300_000);
+
   it('deathmatch: the arena from its words (tunnel-arena.js), a word it cannot lay said as advice', async () => {
     const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, arena: 'a small ring arena with towers', world: { id: 'ring', style: { kit: 'trail-valley' } } }, ref: 'rg' });
     const L = stored('rg-level-run-0');
@@ -415,5 +446,7 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'deathmatch', seconds: 5 })).toThrow(/10 to 600|5 to 600/);
     expect(() => readQuick({ goal: 'deathmatch', building: { use: 'tavern' } })).toThrow(/arena on a trail/);
     expect(() => readQuick({ goal: 'shoot', arena: 'a ring' })).toThrow(/arena belongs to the deathmatch goal/);
+    expect(() => readQuick({ goal: 'deathmatch', pole: 'arcade' })).toThrow(/pole is 'realistic', 'stylized'/);
+    expect(() => readQuick({ goal: 'shoot', pole: 1 })).toThrow(/pole belongs to the deathmatch goal/);
   });
 });

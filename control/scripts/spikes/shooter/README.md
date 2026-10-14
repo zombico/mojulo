@@ -222,6 +222,11 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   `deathmatch.mjs`. Open: the third-person shoulder camera (the follow rule's `shoulder`) as the player's own eye, which
   makes the advantage far larger, and leaning.
 
+- **The pole**: `gameworld/shooter-pole.js`, one dial from realistic (TTK 0.3 s, head ×4, walk, no kit, peeks) to
+  stylized (TTK 1.25 s, head ×2, jump, double jump, dash, regen, a heal and an ultimate, strafe). Head zones, a hit's own
+  damage on the bus, overdrive, and the `regen` and `abilities` mechanics came with it. Open: bots that use the kit and
+  jump, recoil and spread (the realistic pole wants them), a third-person shoulder camera at the stylized end.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

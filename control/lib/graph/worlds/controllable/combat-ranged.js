@@ -35,6 +35,8 @@ export function buildCombatRanged(E) {
   // the gun at the shoulder of the hand that holds it: HAND.r off the eye's line to that side, HAND.f ahead, HAND.drop
   // under the eye
   const HAND = { f: 0.35, r: 0.28, drop: 0.15 };
+  // the head: the top of a body's egg above its centre by this share of its half-height; and an overdrive's multiplier
+  const HEAD_BAND = 0.55, OVERDRIVE = 1.5;
   const handMuzzle = (w) => ({ f: HAND.f, r: w.hand === 'left' ? -HAND.r : HAND.r, u: (w.eye ?? 0) - HAND.drop });
   // muzzleAt(e, w) — the world point a shot leaves from: the gun tip (its body-frame offset), else the eye
   function muzzleAt(e, w) {
@@ -98,6 +100,7 @@ export function buildCombatRanged(E) {
       // Uncharged shots always fire at plain `range` — a chargeTime:0 weapon never reads this.
       chargedRangeMul: Number.isFinite(w.chargedRangeMul) && w.chargedRangeMul > 0 ? w.chargedRangeMul : 1.2,
       eye: w.eye ?? 0,                    // fire-origin height above the entity's pos
+      headshot: Number.isFinite(w.headshot) && w.headshot > 1 ? w.headshot : null,   // a head hit's multiplier (opt-in)
       muzzleOffset: w.muzzleOffset || (w.hand === 'right' || w.hand === 'left' ? handMuzzle(w) : null),   // { f, r, u } body-frame gun tip (tracer/flash/launch origin; the cover check starts here)
       // HAND (opt-in `hand: 'right' | 'left'`): the gun held to that side of the body, its muzzle a shoulder's width off
       // the eye's line (handMuzzle) unless `muzzleOffset` says where. A shot clears a corner from the muzzle, so past an
@@ -266,7 +269,8 @@ export function buildCombatRanged(E) {
     w.prevFire = fireHeld;
     const shotImpact = chargedShot ? (w.chargedImpact ?? w.impact ?? 0) : (w.impact || 0);
     const shotRange = chargedShot ? w.range * (w.chargedRangeMul || 1) : w.range;   // the charged bolt reaches further
-    const shotDamage = chargedShot ? (w.chargedDamage ?? w.damage ?? 0) : (w.damage || 0);
+    // OVERDRIVE (a status, the cast's `status { is: 'overdrive' }`: an ultimate's): its rounds hit `OVERDRIVE` times as hard
+    const shotDamage = (chargedShot ? (w.chargedDamage ?? w.damage ?? 0) : (w.damage || 0)) * (e.statuses && e.statuses.overdrive ? OVERDRIVE : 1);
     // a semi trigger pull OPENS a burst of `burst` rounds; the pending rounds then fire
     // themselves at burstRof regardless of the trigger (a burst commits — see initWeapon).
     if (!w.auto && !forcedShot && edge && w.cooldownT <= 0 && w.burstLeft <= 0 && w.ammo > 0) w.burstLeft = w.burst;
@@ -369,16 +373,21 @@ export function buildCombatRanged(E) {
           e.lastShot = { mode: best.mode, targetId: best.id, t: state.time, from, to: hitPt, charged: chargedShot };
           tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1;
           tg.lastHitBy = e.id;   // match-layer attribution: the most recent hitter takes the kill credit
+          // HEADSHOT (opt-in `weapon.headshot`, a multiplier): a core hit that enters the egg in its top HEAD_BAND is to the
+          // head. What a hit dealt is kept for the cast's hit fact (`dmg`, `head`), so the bus can take it from an hp of its own
+          const egg = tg.body.egg, head = !!(w.headshot > 1 && egg && best.mode === 'core' && hitPt[2] >= tg.transform.pos[2] + (Number.isFinite(egg.cz) ? egg.cz : egg.c) + egg.c * HEAD_BAND);
+          const dealt = shotDamage * (head ? w.headshot : 1);
+          tg.lastHitDmg = dealt; tg.lastHitHead = head; tg.lastHitDmgN = tg.hits;   // whose hit it was: the count it was dealt at
           if (mst) mst.hits += 1;   // score screen: the round connected (a shield catch still counts on-target)
           // R19: a frontal shield EATS the shot (drains its HP by the shot's damage, no hp/poise; a
           // break staggers). Shield HP is in hp points, so a 100-hp shield takes ~5 damage-20 rifle hits.
-          if (absorbShield(tg, origin, shotDamage, state)) {
+          if (absorbShield(tg, origin, dealt, state)) {
             /* absorbed by the shield */
           } else {
           // damage is just numbers: chip hp (floored at 0; the target survives at 0 for this spike).
           if (tg.body && Number.isFinite(tg.body.hp)) {
             const hp0 = tg.body.hp;
-            tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, shotDamage));
+            tg.body.hp = Math.max(0, tg.body.hp - comboDamage(tg, dealt));
             if (mst) mst.dmg += hp0 - tg.body.hp;   // hull damage actually dealt (overkill clamped away)
           }
           // poise is the mechanic: chip it, and when it BREAKS (<=0) the target STAGGERS — a rooted
@@ -574,5 +583,5 @@ export function buildCombatRanged(E) {
     stepProjectiles(state, dt);
   }, 30);
 
-  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, HAND });
+  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, HAND, HEAD_BAND, OVERDRIVE });
 }

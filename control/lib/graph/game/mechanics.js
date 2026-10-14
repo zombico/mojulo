@@ -721,7 +721,8 @@ const MECHANICS = {
   // `frags:lost`); with `seconds`, the clock ends it too and the place decides (`win` or better wins). The place is the
   // laps rivals' lead: one more than the contenders strictly ahead, a tie to whoever got there first. Its frags and
   // place are kept. Lowers to vars, guarded reactions, watches, a timer, a sequence per contender and the cast's kill
-  // and spawn: every verb Godot's bus performs.
+  // and spawn: every verb Godot's bus performs. `damage: true`: the player's hp takes each round's own damage (a web
+  // round's: Godot's hits say none).
   frags: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
@@ -769,8 +770,13 @@ const MECHANICS = {
       // the others fall as the cast says (their hp ran out); the player when the level's hp does, held down by the cast
       who.forEach((c) => world.reactions.push({ on: 'down', match: { entity: c }, do: 'emit', type: fell(c) }));
       world.watches.push({ type: fell(P), when: { var: 'hp', lte: 0 } });
+      // the player's hp: a flat `hits` a hit, or (`damage: true`) what each round dealt (the hit fact's `harm`, a head
+      // hit's included: combat-ranged.js); a hit that says no damage then costs none
+      const harm = p.damage === true
+        ? ['0', '1'].map((h) => ({ on: `hit:${P}`, match: { head: h }, if: live, do: 'inc', var: 'hp', by: 'event.harm', min: 0 }))
+        : [{ on: `hit:${P}`, if: live, do: 'inc', var: 'hp', by: -hits, min: 0 }];
       world.reactions.push(
-        { on: `hit:${P}`, if: live, do: 'inc', var: 'hp', by: -hits, min: 0 },
+        ...harm,
         { on: fell(P), do: 'ctrl', op: 'kill', who: P },
         { on: fell(P), do: 'inc', var: deaths, by: 1 },
         { on: rise(P), do: 'set', var: 'hp', to: hp },
@@ -815,6 +821,75 @@ const MECHANICS = {
         on: { 'frags:won': { end: 'success' }, 'frags:lost': { end: 'fail' } },
         keep: [{ var: frag(P), label: 'Frags', best: 'high' }, { var: place, label: 'Place', best: 'low' }],
       };
+    },
+  },
+
+  // REGEN (an emitter): the player's hp comes back once it has gone `after` seconds unhurt, `rate` hp a second, to `max`.
+  // A body at 0 does not mend (a match's fall is its own).
+  regen: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, calm = `__calm_${i}`, tick = `__regen_tick_${i}`, step = 0.25;
+      const after = Number.isFinite(p.after) && p.after >= 0 ? p.after : 4, rate = Number.isFinite(p.rate) && p.rate > 0 ? p.rate : 20, max = Number.isFinite(p.max) && p.max > 0 ? p.max : 100;
+      return {
+        world: {
+          vars: { [calm]: 0 },
+          timers: [{ every: step, emit: { type: tick } }],
+          reactions: [
+            { on: tick, do: 'inc', var: calm, by: step },
+            { on: `hit:${ctx.player}`, do: 'set', var: calm, to: 0 },
+            // (a reaction's guard is one predicate: the second rides an event of its own)
+            { on: tick, if: { var: calm, gte: after }, do: 'emit', type: `__regen_due_${i}` },
+            { on: `__regen_due_${i}`, if: { var: 'hp', gt: 0 }, do: 'inc', var: 'hp', by: rate * step, max },
+          ],
+        },
+      };
+    },
+  },
+
+  // ABILITIES (an emitter): the player's kit on its keys, each on its cooldown, on the bus.
+  //   heal       { key ('q'), amount (50), cooldown (10), max (100) }   hp back, at once
+  //   ultimate   { key ('x'), per (5), rivals: [ids], for (6), max }    charged by every hit the player lands on a rival
+  //              (`per` a hit, to 100); spent, it puts the player in OVERDRIVE (the cast's status: its rounds hit harder,
+  //              combat-ranged.js) for `for` seconds and fills its hp
+  // Every key press is `ability:<name>`; a spent one is `ability:<name>:used`.
+  abilities: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, P = ctx.player, world = { vars: {}, reactions: [], timers: [], inputs: [], hud: [] };
+      const tick = `__ab_tick_${i}`, step = 0.5;
+      if (!p.heal && !p.ultimate) throw new Error(`abilities[${i}]: name a heal { key?, amount?, cooldown? } or an ultimate { key?, per?, rivals, for? }`);
+      world.timers.push({ every: step, emit: { type: tick } });
+      if (p.heal) {
+        const H = p.heal === true ? {} : p.heal, cd = `__cd_heal_${i}`, key = H.key ?? 'q', amount = H.amount ?? 50, cool = H.cooldown ?? 10, max = H.max ?? 100;
+        world.vars[cd] = 0;
+        world.inputs.push({ on: 'key', key, once: true, emit: { type: 'ability:heal' } });
+        world.reactions.push(
+          { on: 'ability:heal', if: { var: cd, lte: 0 }, do: 'emit', type: `__heal_ready_${i}` },
+          { on: `__heal_ready_${i}`, if: { var: 'hp', gt: 0 }, do: 'emit', type: 'ability:heal:used' },
+          { on: 'ability:heal:used', do: 'inc', var: 'hp', by: amount, max },
+          { on: 'ability:heal:used', do: 'set', var: cd, to: cool },
+          { on: tick, do: 'inc', var: cd, by: -step, min: 0 },
+        );
+        world.hud.push({ var: cd, label: `Heal (${key.toUpperCase()})`, as: 'counter' });
+      }
+      if (p.ultimate) {
+        const U = p.ultimate, ult = `__ult_${i}`, key = U.key ?? 'x', per = U.per ?? 5, dur = U.for ?? 6, max = U.max ?? 100;
+        const rivals = Array.isArray(U.rivals) ? U.rivals : [];
+        if (!rivals.length) throw new Error(`abilities[${i}].ultimate: rivals: ['<id>', …], whose hits charge it`);
+        world.vars[ult] = 0;
+        world.inputs.push({ on: 'key', key, once: true, emit: { type: 'ability:ultimate' } });
+        for (const r of rivals) world.reactions.push({ on: `hit:${r}`, match: { by: P }, do: 'inc', var: ult, by: per, max: 100 });
+        world.reactions.push(
+          { on: 'ability:ultimate', if: { var: ult, gte: 100 }, do: 'emit', type: `__ult_ready_${i}` },
+          { on: `__ult_ready_${i}`, if: { var: 'hp', gt: 0 }, do: 'emit', type: 'ability:ultimate:used' },
+          { on: 'ability:ultimate:used', do: 'set', var: ult, to: 0 },
+          { on: 'ability:ultimate:used', do: 'set', var: 'hp', to: max },
+          { on: 'ability:ultimate:used', do: 'ctrl', op: 'status', who: P, is: 'overdrive', for: dur },
+        );
+        world.hud.push({ var: ult, label: `Ultimate (${key.toUpperCase()})`, as: 'bar', max: 100 }, { on: 'ability:ultimate:used', text: 'Overdrive!', as: 'toast', ttl: 1.5 });
+      }
+      return { world };
     },
   },
 };

@@ -143,6 +143,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The page inlines the engine: its characterization hashes move (reverting only `combat-ranged.js`, `mind.js` and
   `cast.js` passes them all).
 
+### Shooter: the pole from realistic to stylized
+
+- **One dial, `pole`** (`gameworld/shooter-pole.js`): `'realistic'` (0) to `'stylized'` (1), resolved into the rules a
+  match plays by. The time to kill is its spine, 0.3 s to 1.25 s: the damage a round deals is derived from it, the hp
+  (100 to 200) and the fire rate, so a body takes the rounds the dial says.
+  - **Realistic** walks, has no kit, peeks, holds a head worth four rounds, and waits 5 s to respawn in a close-quarters
+    arena.
+  - **Stylized** runs faster on the platform rule (a jump, an air jump, a dash), mends hp after 4 s unhurt, has a heal
+    on Q and an ultimate on X, its minds strafe and roll, its head is worth two, and it respawns in 3 s in a large,
+    sparse ring with long sightlines.
+  - Between, the numbers move along the dial and each feature switches on where its pole wins (`THRESHOLDS`).
+- **The engine.** A weapon's `headshot` multiplies a core hit that enters the top of the egg (`HEAD_BAND`). The hit
+  fact carries what a round dealt (`dmg`, `harm`, `head`). The `overdrive` status makes rounds hit 1.5 times as hard.
+  Without them, every weapon and hit is as before.
+- **The bus.** `frags`' `damage: true` takes the player's hp by each round's own damage. Two new emitters: `regen` (hp
+  that mends after a calm spell) and `abilities` (a heal on a key with a cooldown; an ultimate charged by hits landed,
+  spent into overdrive and full hp). Their verbs travel to Godot; a round's own damage is the web's.
+- **The quick deathmatch** takes `pole`. Without it, it plays as before. Played headless between bots to a limit of 5:
+  realistic 82 s at 4.2 hits a kill, the middle 71 s at 8.4, stylized 40 s at 12. The open ring keeps stylized bots in
+  sight of each other, so its matches end sooner on longer duels. The bots do not use the kit or jump yet.
+- The page's characterization hashes move with the engine (reverting only `cast.js` and `combat-ranged.js` passes them
+  all).
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

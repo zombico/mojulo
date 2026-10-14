@@ -10,8 +10,9 @@
 
 export const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 // the mechanics that wait on hits (hit:<id>): they travel when combat does (the cosmos sweep credits them together);
-// frags also rides the cast's down, kill and spawn and a sequence per contender, all on Godot's bus
-export const HIT_MECHANICS = ['hp-pool', 'defeat-all', 'frags'];
+// frags also rides the cast's down, kill and spawn and a sequence per contender; regen and abilities timers, keys and
+// the cast's status: all on Godot's bus (a round's own damage, frags' damage: true, is the web's: Godot's hits say none)
+export const HIT_MECHANICS = ['hp-pool', 'defeat-all', 'frags', 'regen', 'abilities'];
 // what a Godot export keeps: the kernel's own mechanics, and those whose lowered events its bus runs whole (win-when is a
 // watch and the contract's end; hp-pool and defeat-all count the hits kernel/combat.gd deals, since kernel 0.17.0). The
 // cosmos registry reads this list (power.mechanics).

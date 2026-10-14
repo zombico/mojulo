@@ -36,8 +36,9 @@
  *                         distance of `land`), its impact and shake are moments then, and `struck` fires on a target
  *   castFacts(state, prev) → { events, prev }   edge-detected happenings, as bus events with `entity`:
  *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck · faded { is } (a status ran
- *     out, here, or was lifted) · struck { by, beam } (a beam reached it) · hit:<id> { by } once per hit it took (a
- *     blade, a round, a splash, a tackle: its `hits` count; `by` the last hitter), what hp-pool reads
+ *     out, here, or was lifted) · struck { by, beam } (a beam reached it) · hit:<id> { by, dmg?, harm?, head? } once per
+ *     hit it took (a blade, a round, a splash, a tackle: its `hits` count; `by` the last hitter; a round's damage, its
+ *     negative and 1 for the head), what hp-pool reads
  *     (the first read seeds; nothing a world was minted with fires)
  *
  * A walk is a BODY OWNER (the rule waits while it walks or holds); so is a cast fall. A second of walking that closes
@@ -237,7 +238,8 @@ export function buildCast(E) {
       if (cur.a > p.a) events.push({ type: 'arrive', entity: e.id, at: e.arrivedAt, last: e.arrivedLast ? 1 : 0, ...(e.arrivedLast && e.pose ? { pose: e.pose } : {}) });
       if (cur.s > p.s) events.push({ type: 'stuck', entity: e.id });
       if (cur.n > (p.n || 0)) events.push({ type: 'seen', entity: e.id, target: e.seenId || null });
-      for (let k = p.h || 0; k < cur.h; k++) events.push({ type: `hit:${e.id}`, entity: e.id, by: e.lastHitBy || null });
+      // a hit's damage (and whether it was to the head) when a round said it (combat-ranged.js): a bus hp takes it
+      for (let k = p.h || 0; k < cur.h; k++) events.push({ type: `hit:${e.id}`, entity: e.id, by: e.lastHitBy || null, ...(Number.isFinite(e.lastHitDmg) && e.lastHitDmgN === cur.h ? { dmg: e.lastHitDmg, harm: -e.lastHitDmg, head: e.lastHitHead ? 1 : 0 } : {}) });
       // statuses run out on the world clock; a lifted one was queued by the op
       if (e.statuses) for (const k of Object.keys(e.statuses)) { const u = e.statuses[k].until; if (u != null && (state.time || 0) >= u) { delete e.statuses[k]; (e.faded || (e.faded = [])).push(k); } }
       if (e.faded && e.faded.length) { for (const k of e.faded) events.push({ type: 'faded', entity: e.id, is: k }); e.faded.length = 0; }
