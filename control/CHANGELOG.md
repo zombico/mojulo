@@ -96,6 +96,44 @@ taper survives, and the flow is in pieces cut to hang. The research behind it is
   arm's own rings over the cut's, a bell widening from the elbow to an open mouth at the wrist. The new `wizardRobe` is
   a robe to the ankle, fuller, with bell sleeves.
 
+### Character stylism: a silhouette solver, a register and a detail budget
+
+`hero.stylism: { genre, register, detail, silhouette }` dresses a hero the way a character designer works:
+silhouette first, then value, then detail. Each stage is a solver over principles that spends a budget, lowers to the
+build fields the garment kernels already compile, and writes down what it chose and why. `genre` is a vocabulary card
+(`fantasy`, `modern`, `scifi`): what draws an edge, a cuff, a closure or a breaker, from what material. `register`
+runs `grounded` → `storybook` → `heroic` → `mythic` in any genre (Frieren's cast to Warcraft; The Expanse to 40k).
+`detail` runs `plain` → `considered` → `rich` → `ornate`. Absent, the hero is as before. The notes are in
+`hero.dress.stylism`.
+
+- **The silhouette solver.** `silhouette: wedge | bell | column | needle | barrel` picks a genre's big masses for that
+  outline, sized by the register: pauldrons or a mantle, a robe and cloak, a straight robe under a straight cloak, a
+  close fit, a padded coat with hip panels; in modern, a boxy jacket with padded shoulders or a long coat; in sci-fi,
+  shoulder plates, a collar ring, a harness. The readout reads the outline back off the dressed figure with the arms
+  left out (a hand at the hip is not the hip). Across the three genres, both casts and the register's two ends, it
+  reads as its target in 64 of 70 cases. The misses are said with what leads and what would move it: the modern male's
+  barrel, where nothing in modern dress out-masses his shoulders; the grounded female's wedge, where a mantle barely
+  broadens; the grounded male's bell, which his shoulders turn into an X; and a sci-fi column a hair under the needle line.
+- **Named silhouettes and the hourglass.** `silhouette` also takes a character type, an outline letter with the
+  signature that makes it read: `operative`, `ribbon`, `sailor`, `princess`, `valkyrie`, `miko`, `qipao`, `lolita`,
+  `idol`, `kunoichi`, `knight`, `samurai`, `gunslinger`, `monk`, `rogue`, `brawler`. A signature not yet drawn with
+  its own technique (a sailor collar, pleats, slits, puff sleeves) is drawn with a stand-in and listed in
+  `silhouette.approximated`. The outline letters gain `hourglass` (X), read off the waist's narrowest row against the
+  shoulders and the hem. At heroic, all sixteen read as their outline on the anime female and twelve on the male: his
+  shoulders turn the gunslinger's, the miko's and the sailor's belted bell into an X and the valkyrie's X into a wedge,
+  and the readout says so. The hourglass is reached in all three genres on both casts.
+- **Bows.** A new catalogue piece, `bow` (`at`: back | collar | wrists; `tails`; `loops: false` for a scarf's knot): a
+  knot, two loops and two tails flowing as strands. The ribbon signature's new `drape` lays each tail over what it
+  hangs across (a seat, a bust, a hand) instead of along a fixed spine.
+- **A skirt for trousers.** An outfit language slot of another kind (`bottom: { kind: 'skirt' }` over a card's
+  trousers) now replaces the card's slot instead of merging a trouser's `fit` or `cut` into a skirt.
+- **The blockout.** The outline without the arms, front, three-quarter and side, as flat shapes: the thumbnail a
+  designer draws first. The character bible draws it beside the hero (`out-sheet.mjs characters --render`).
+- **What the hero says wins.** With no outfit the genre's base card is worn. With one, its own language slots, dials and
+  pieces stand over the solver's, and a word outfit is left alone (the notes say so).
+- **The update law.** `stylism` is stamped `laws` at mint, and `stylism-laws.char.test.js` pins what each genre
+  resolves to at the register's two ends.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

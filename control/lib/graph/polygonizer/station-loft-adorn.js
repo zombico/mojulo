@@ -289,8 +289,19 @@ export const SIGNATURES = {
   /** RIBBONS from one grid point, tessellated as the anime hair's sections are (ribbonMesh): { spine: [[x,y,z]…] (x scaled
    * by each `spread`), spread?, width, thick, cols?, rows?, taper?, ridge?, flute?, twist?, tip?: 'square' | 'point' |
    * 'swallow', notch?, across? } — a bow's tails, a streamer, a hair ribbon */
-  ribbon: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
-    return (S.spread ?? [1]).map((x) => ({ ...ribbonMesh(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), { ...S, across: S.across ? [S.across[0] * x, S.across[1], S.across[2]] : null }), root: p.map((v) => +v.toFixed(6)) })); },
+  // `drape: { len, links?, clear?, apart? }` LAYS each ribbon over what lies beneath it instead of along `spine`: a chain
+  // falling from the grid point, each link pushed out along the knot's outward direction (level) until it stands `clear`
+  // off everything beneath within a hand's breadth of it, its links kept their length: a tail down a seat, over a bust
+  ribbon: (fig, g, beneath, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
+    const lay = (a, D) => { const n = D.links ?? 6, len = D.len / n, clear = D.clear ?? 0.02, nf = g.F[k][j].normal, out = unit([nf[0], nf[1], 0]);
+      let P = Array.from({ length: n + 1 }, (_, i) => add(a, [0, 0, -len * i]));
+      for (let it = 0; it < 10; it++) {
+        for (let i = 1; i <= n; i++) { let h = -Infinity; for (const v of beneath) { const d = sub(v, P[i]), up = dot(d, out); if (up <= h) continue; if (dmath.hypot(...sub(d, mul(out, up))) < 0.05) h = up; }
+          if (h > -clear) P[i] = add(P[i], mul(out, h + clear)); }
+        for (let i = 1; i <= n; i++) { const d = sub(P[i], P[i - 1]), l = dmath.hypot(...d) || 1; P[i] = add(P[i - 1], mul(d, len / l)); } }
+      return P; };
+    const spineOf = (x) => (S.drape ? lay(add(p, [x * (S.drape.apart ?? 0.012), 0, 0]), S.drape) : S.spine.map(([a, b, c]) => add(p, [a * x, b, c])));
+    return (S.spread ?? [1]).map((x) => ({ ...ribbonMesh(spineOf(x), { ...S, across: S.across ? [S.across[0] * x, S.across[1], S.across[2]] : null }), root: p.map((v) => +v.toFixed(6)) })); },
   /** a fan of flattened sweeps from one grid point: { spine: [[x,y,z]…] (x scaled by each `spread`), spread, r, m?, squash? } */
   plume: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
     return S.spread.map((x) => sweep(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), S.r, S.m ?? 6, { squash: S.squash ?? [1, 0.45] })); },

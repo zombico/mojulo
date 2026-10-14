@@ -155,7 +155,8 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   `hood`); a `wizardRobe` is a robe to the ankle, fuller, its sleeves belled wide at the wrist (`bell` m). A `cloak`
   hangs from the shoulders round the back and over the arms to the calf (`wrap` 0.2–0.95 of a turn, 0.6 by default;
   `hem`; `rigidity`, `soft` by default), round where a flat board was, and DRAPES ON THE ARMS: the cloth over an arm
-  goes with it, so a swing does not pass through it. `hood: true` (or `{ open }`, degrees each side of the face) raises
+  goes with it, so a swing does not pass through it. A `bow` (`at`: back | collar | wrists; `tails` m; `loops: false`
+  a scarf's knot) is a knot, two loops and two tails that lie over what they hang across and flow. `hood: true` (or `{ open }`, degrees each side of the face) raises
   a hood from the shoulders over the head, open at the face, turning with the head. A hero reading the newer tables (a build, `form: 'tiered'`, `painterly`, a `geocube`) is
   stamped `laws` at mint; leave it out. A hero made from an egocube (`create_character { egocube }`) records it.
 
@@ -536,6 +537,23 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the cloth against the body: the waist over the hips and the ankle over the calf, cloth beside skin, with advice when
   the cloth fills the waist or erases the taper (advice; the eyes gate is a person's). Patch
   `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/bottom/cut`, `/hero/outfit/language/panels`.
+
+  STYLISM. `stylism: { genre?, register?, detail?, silhouette? }` dresses the hero the way a character designer works:
+  the silhouette first, then detail, each a solver over principles that lowers to the outfit build above and writes down
+  why. `genre` is a vocabulary card: `fantasy` (default) | `modern` | `scifi` — what makes each big shape there (a
+  mantle or pauldrons, a boxy jacket and padded shoulders, shoulder plates and a collar ring). `register` is how heightened,
+  in any genre: `grounded` | `storybook` (default) | `heroic` | `mythic` or 0–1 (Frieren's cast to Warcraft; The
+  Expanse to 40k): the outfit's `stylize`, the breakers' size, an armour build's `mass`, together. `silhouette` is the
+  target: an outline letter — `wedge` (T: the shoulders) | `bell` (A: the hem) | `column` (H: even) | `needle` (I:
+  narrow) | `barrel` (O: the middle) | `hourglass` (X: shoulders and hem past a cinched waist) — or a NAMED silhouette,
+  an outline with its signature: `operative` (spy), `ribbon`, `sailor`, `princess`, `valkyrie`, `miko`, `qipao`,
+  `lolita`, `idol`, `kunoichi`, `knight`, `samurai`, `gunslinger`, `monk`, `rogue`, `brawler` (any cast wears any; a
+  signature still drawn with a stand-in — a sailor collar, pleats, slits, puff sleeves — is listed in
+  `silhouette.approximated`). `detail` (`plain` | `considered` | `rich` | `ornate`) is the detail budget. With no outfit the genre's base
+  card is worn; with one, the hero's own language, dials and pieces stand over the solver's (it fills only what was left
+  open); a word outfit is left as it is. The readout's `hero.dress.stylism` has the notes ({ stage, technique, where,
+  principle, why }) and the outline READ back off the dressed figure without its arms, with advice when it misses the
+  target (advice, never applied: change the words or the outfit). Patch `/hero/stylism/<word>`.
 <!-- /section -->
 <!-- section: hero-statue | Statues | the hero as a period statue: card, material, crop, losses, base -->
   STATUE. `statue: '<card>'` or `{ type: 'statue', style, material?, crop?, lose?, base?, dials: { wear }? }` carves the

@@ -104,6 +104,9 @@ export const OUTFIT_KINDS = Object.freeze({
     signature: { kind: 'boss', side: S, t: 1.5, tol: 0.2, r: r3(0.05 * B.k), h: r3(0.03 * B.k), m: 12, rim: 0.55, group: G({ colour: p.role === 'focal' ? 'accent' : 'trim' }) } })) }; } },
   bracers: { layer: 4, cls: 'rigid', colour: 'leather', compile: (p, B, G, I) => ({ adorn: (I.symmetry === 'symmetric' ? ['R', 'L'] : [I.side ?? 'R']).map((S) => ({ id: `${p.id ?? 'bracer'}${S}`, mode: 'shell', part: `foreArm${S}`, s: [0.62, 1.2], t: 'wrap', mugen: r3(0.012 * B.k), thick: r3(0.01 * B.k), group: G(p), rigid: true,
     signature: { kind: 'studs', r: r3(0.008 * B.k), h: r3(0.004 * B.k), count: 3, m: 6, group: G({ colour: 'trim' }) } })) }) },
+  // L7: a BOW (`at`: back | collar | wrists; `tails` m, `loops` false for a scarf's knot): a knot, two loops standing out
+  // of it, and two tails flowing from it as strands (hero-flow.js); `rigidity` the tails' (flowing by default)
+  bow: { layer: 7, cls: 'soft', colour: 'accent', compile: (p, B, G) => bowOf(p, B, G) },
   // L7: a CHAIN OF OFFICE or a MEDALLION on a cord: a disc hanging at the chest, under the face
   chain: { layer: 7, cls: 'loose', colour: 'accent', compile: (p, B, G) => necklaceOf(p, B, G, { r: 0.055, heavy: 1.6 }) },
   medallion: { layer: 7, cls: 'loose', colour: 'accent', compile: (p, B, G) => (p.mount === 'harness' ? mountedOf(p, B, G, { r: 0.05 }) : necklaceOf(p, B, G, { r: 0.05, heavy: 1 })) },
@@ -218,6 +221,31 @@ function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none' }) {
   };
 }
 
+/** A BOW: a small knot shell, its loops (two short ribbons doubling back on themselves, locked) and its tails (two
+ * ribbons hanging from it, flowing). Placed by `at` on the body's own landmarks: the BACK of the waist (the knot on the
+ * spine, the tails down the seat), the COLLAR (the front of the neck's root, the tails down the chest), or both WRISTS
+ * (the knot on the back of each forearm's end). `tails` the tails' length (m, at scale 1), `width`, `loops: false` a
+ * scarf's knot (tails only). */
+function bowOf(p, B, G) {
+  const at = p.at ?? 'back', k = B.k, L = (p.tails ?? 0.22) * k, w = r3((p.width ?? 0.032) * k), th = r3(0.003 * k), g = G(p);
+  const tail = (dir) => [[0, 0, 0], [0.012 * k, dir * 0.006 * k, -0.25 * L], [0.022 * k, dir * 0.01 * k, -0.6 * L], [0.03 * k, dir * 0.006 * k, -L]].map((q) => q.map(r3));
+  const loop = (dir) => [[0, 0, 0], [0.03 * k, dir * 0.008 * k, 0.018 * k], [0.06 * k, dir * 0.012 * k, 0.004 * k], [0.035 * k, dir * 0.006 * k, -0.01 * k]].map((q) => q.map(r3));
+  // the tails are LAID over what they hang across (station-loft-adorn.js ribbon `drape`): down a seat, over a bust, off a hand
+  // (`beneath`: what each placement's tails hang across, the garments on them found by name)
+  const ACROSS = { back: ['torso', 'pelvis', 'thighR', 'thighL', 'skirt', 'panel', 'outer', 'cape'], collar: ['torso', 'bustR', 'bustL', 'pectoralR', 'pectoralL', 'navel', 'pelvis', 'thighR', 'thighL', 'skirt', 'outer'] };
+  const drapeOf = (S) => ({ drape: { len: r3(L), links: 6, clear: r3(0.026 * k), apart: r3(0.014 * k) }, beneath: S ? [`foreArm${S}`, `hand${S}`, `thumb${S}`, `thigh${S}`, 'pelvis', 'skirt'] : ACROSS[at] });
+  let drape = drapeOf(null);
+  const ribbon = (spine, extra) => ({ kind: 'ribbon', spread: [-1, 1], spine, width: w, thick: th, tip: 'swallow', group: g, ...extra });
+  const knot = (id, place, dir, kj) => [
+    { id, ...place, nt: 2, ns: 2, mugen: r3(0.008 * k), thick: r3(0.012 * k), rad: r3(0.03 * k), group: g, signature: p.loops === false ? ribbon(tail(dir), { ...kj, ...drape, rigidity: p.rigidity ?? 'flowing' }) : ribbon(loop(dir), kj) },
+    ...(p.loops === false ? [] : [{ id: `${id}Tails`, ...place, nt: 2, ns: 2, mugen: r3(0.002 * k), thick: r3(0.004 * k), rad: r3(0.02 * k), group: g, signature: ribbon(tail(dir), { ...kj, ...drape, rigidity: p.rigidity ?? 'flowing' }) }])];
+  const id = p.id ?? `bow${at[0].toUpperCase()}${at.slice(1)}`;
+  if (at === 'wrists') return { adorn: ['R', 'L'].flatMap((S) => { drape = drapeOf(S); return knot(`${id}${S}`, { mode: 'band', part: `foreArm${S}`, share: true, s: [0.8, 0.88], t: 'wrap' }, -1, { k: 0, j: 1 }); }) };
+  if (at === 'collar') { const top = B.uTop(B.torso); return { adorn: knot(id, { mode: 'shell', part: 'torso', side: 'R', s: [r3(top - 0.35), r3(top - 0.12)], t: [0, 0.35] }, 1, { k: 0, j: 1 }) }; }
+  const s = B.ringAt(B.torso, B.waist).s;   // the back of the waist
+  return { adorn: knot(id, { mode: 'shell', part: 'torso', side: 'R', s: [r3(Math.max(0, s - 0.15)), r3(s + 0.1)], t: [3.65, 4] }, -1, { k: 2, j: 1 }) };
+}
+
 /** a HOOD on a piece (`hood: true` or `{ open }`): the garment kernel's `fit: 'hood'`, rising from the shoulders over the
  * head's volume (bodyMap `head`), its foot on `around`, open at the face, locked to the head; none without a head */
 function hoodOf(p, B, G, id, around, ease) {
@@ -306,7 +334,7 @@ export function compileOutfit(plan) {
 
 // ─── the laws of visual interest (the Dressing Bible's), advisory ───
 /** how much of the outfit's area a kind covers, roughly (a skirt and bodice far more than a buckle) */
-const AREA = { gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, pack: 2, quiver: 1 };
+const AREA = { bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, pack: 2, quiver: 1 };
 export const ARCHETYPE_SHAPES = { ruler: ['bell', 'column'], hero: ['wedge'], outlaw: ['wedge', 'needle'], caregiver: ['bell', 'barrel'], sage: ['bell', 'column'], magician: ['bell', 'needle'], explorer: ['wedge', 'column'], innocent: ['bell', 'barrel'], everyman: ['column', 'barrel'], jester: ['needle', 'wedge'], lover: ['needle', 'bell'], creator: ['column', 'barrel'] };
 
 /** the cut's cloth as the laws count it: each layer a piece of its area in its colour role (a coat over a shirt shows
