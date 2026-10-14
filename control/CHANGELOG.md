@@ -728,6 +728,26 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   measured sprint (59° forward, 42° back; a dash 59 / 40). `keyframeMotion` takes `beats` (each segment's share of the
   loop; absent, even), and an emote passes its stamped `beats`: the bow is minted at 1.25 / 0.7 / 1.65 / 0.6 s, which
   measures 0.78 s down, 1.17 s held and 1.06 s up (people 0.8 / 1.1 / 1.07), rising slower than it bows.
+- **New heroes walk with it.** The hero door gives a hero that brings no walk of its own (no `motion.walk`, no door clip
+  named `walk`, not a statue) `motion.walk: true`, stamped by value: the calibrated gait baked on its rig replaces the
+  stock four-key walk in place, which slid its planted feet and never moved. A creator's walk, and every hero minted
+  before, keep theirs. The vibe page's motion patch carries that walk when it sets the other gaits. The hero readout's
+  clip `seconds` now say a door gait's own duration (the walk 1.1 s), where it said the replaced clip's.
+- **The hero's feet, solved for a walking pace.** The rig's grounding (`heroLocomotion`) planned the trailing heel for the
+  lift-off alone and took the stance from the toe's own extremes (67 % of the cycle), so through late stance the planted
+  leg fell short and the body sank for it every step: the hips never less than 5.5 cm down, the stance knee about 35°,
+  and a longer stride only sank it further (10 cm, a lunge). Three hero walk dials, read only when present: `duty` (the
+  stance's share of the cycle), `heelMax` (the heel's cap at push-off) and `heelRoll` (the heel rolled up through the
+  stance by each phase's need, never falling back). `HERO_WALK` (`hero-gaits.js`: stride 0.55 m, duty 0.55, heel 70°,
+  rolled) is stamped over the walk's mint table on every new hero: about 1.05 m/s (was 0.70), a 2 … 4.5 cm bob, a 58 %
+  stance, the head under 1.2 g. A hero walk without the dials solves byte for byte as before (pinned). More sink
+  harmonics were tried and dropped: the root chases the peaks and the head jolts at 2 … 4 g. Still to do: the stride is
+  in metres, so a child takes nearly an adult's.
+- **A hero's arm length is a tune.** The tune had the torso's, the neck's and the legs' lengths but only the arms'
+  thicknesses, so a body shortened by `legs` and `torso` kept a grown arm: the cast example `kid` hung its hands nearly
+  to its knees (the arm 0.41 of its height, the adults' 0.37). `armLength` (0.8 … 1.15, in the lengths group) scales the
+  upper arm and forearm as `legs` does the thigh and shank; absent or 1, the cast as before. `kid.json` takes 0.9: the
+  arm 0.37 of its height, the wrist at 0.44 of it.
 - **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
   takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an

@@ -374,7 +374,8 @@ export const WAVE_TWIST = Object.freeze({ anime: Object.freeze([-90, -90, -90, -
 export const withWaveHand = (keys, twists) => keys.map((k, i) => (i && twists[i - 1] != null ? { ...k, wristR: { twist: twists[i - 1] }, fingersR: 'open' } : k));
 
 // ─── The tune ─────────────────────────────────────────────────────────────
-// the thirteen body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses),
+// the body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses, so the
+// arms' LENGTH is `armLength`, as the legs' is `legs`),
 // the lab's exploration limits (comfortable, not a wall) and its three MOVES. A move earns a slot by demonstrated need,
 // never by list; do not quote this list's length. One resolver with the face (ratio-controls.js).
 export const HERO_MOVES = Object.freeze({
@@ -384,10 +385,10 @@ export const HERO_MOVES = Object.freeze({
 });
 export const TUNE = ratioControls({
   label: 'tune',
-  groups: { scale: ['stature'], lengths: ['torso', 'neck', 'legs'], widths: ['shoulders', 'waist', 'hips', 'depth'], head: ['head'], limbs: ['upperArm', 'forearm', 'thigh', 'calf'] },
+  groups: { scale: ['stature'], lengths: ['torso', 'neck', 'legs', 'armLength'], widths: ['shoulders', 'waist', 'hips', 'depth'], head: ['head'], limbs: ['upperArm', 'forearm', 'thigh', 'calf'] },
   aggregates: { arms: ['upperArm', 'forearm'] },
   moves: HERO_MOVES,
-  ranges: { stature: [0.85, 1.15], torso: [0.85, 1.15], neck: [0.85, 1.15], legs: [0.85, 1.15], head: [0.85, 1.15],
+  ranges: { stature: [0.85, 1.15], torso: [0.85, 1.15], neck: [0.85, 1.15], legs: [0.85, 1.15], armLength: [0.8, 1.15], head: [0.85, 1.15],
     shoulders: [0.8, 1.25], waist: [0.8, 1.2], hips: [0.85, 1.2], depth: [0.85, 1.2],
     upperArm: [0.65, 1.5], forearm: [0.65, 1.5], thigh: [0.65, 1.5], calf: [0.65, 1.5] },
 });
@@ -439,7 +440,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the tune's lengths and shoulders multiply the cast's own dials (a unit ratio leaves the dial exactly as cast)
   const { from: _castFrom, ...castDials } = resolveCast(preset ? preset.dials : cast);
   const tuneDial = (k, f) => { if (f !== 1) castDials[k] = castDials[k] * f; };
-  tuneDial('lumbar', TN.torso); tuneDial('thoracic', TN.torso); tuneDial('neck', TN.neck); tuneDial('thigh', TN.legs); tuneDial('shank', TN.legs); tuneDial('shoulderSpan', TN.shoulders);
+  tuneDial('lumbar', TN.torso); tuneDial('thoracic', TN.torso); tuneDial('neck', TN.neck); tuneDial('thigh', TN.legs); tuneDial('shank', TN.legs); tuneDial('upperArm', TN.armLength); tuneDial('forearm', TN.armLength); tuneDial('shoulderSpan', TN.shoulders);
   const m = withMath(dmath, () => castArmature(castDials));   // the shared figure cast, on dmath (util/math-scope.js)
   const g0 = girth * (preset?.girth ?? 1);
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);

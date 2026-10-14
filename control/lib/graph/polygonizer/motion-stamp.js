@@ -21,6 +21,19 @@ export function stampHero(hero, prev = null) {
   return same(motion, hero.motion) ? hero : { ...hero, motion };
 }
 
+/**
+ * A hero being MINTED walks with the calibrated gait: a spec that says nothing of its walk (no `motion.walk`, no door
+ * clip named `walk`) gets `motion.walk: true`, which the hero door bakes in place of the stock four-key walk and
+ * stampHero then stores by value. A creator's own walk (a gait or a clip) and a statue are left as they are. Only the
+ * mint calls this: a hero stored before keeps the walk it was made with.
+ */
+export function withDefaultWalk(spec) {
+  if (!isObj(spec) || spec.statue != null) return spec;
+  if (isObj(spec.motion) && 'walk' in spec.motion) return spec;
+  if (isObj(spec.clips) && 'walk' in spec.clips) return spec;
+  return { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), walk: true } };
+}
+
 function stampFigureMotion(entry, prev) {
   if (entry.motion == null || (prev && same(entry.motion, prev.motion))) return entry;
   const motion = stampMotion(entry.motion);
