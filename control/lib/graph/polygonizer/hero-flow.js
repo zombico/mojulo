@@ -69,6 +69,7 @@ const FORM_PCT = 0.8;     // a capsule's radius: this share of its vertices lie 
 const LIMB_PCT = 0.95;    // a limb's: nearly all of it (a leg sweeps through a skirt; its knee must not poke out)
 const NODE_R = 0.012;     // a string's own thickness at a joint (m)
 const SHEET_R = 0.025;    // a curtain's at a joint: the cloth spans to its neighbours, so it keeps further off
+const REACH = 1.25;       // the far-side rule's exit must lie within this share of the joint's link from the joint before it
 const CLEAR = 0.004;      // the least gap a string keeps from the form, where its rest allows (m)
 const CURTAIN = { strings: 16, links: 4 };
 
@@ -245,7 +246,9 @@ export function flowSimulation(H, { substep = 1 / 240, iterations = 3, floor = n
         // target's side (off the axis at the joint's own place along it)
         const ax = sub(cap.b, cap.a), al = len(ax) || 1e-9, an = mul(ax, 1 / al), perp = (v) => sub(v, mul(an, dot(v, an)));
         let out = d > 1e-9 ? mul(sub(S[j].p, q), 1 / d) : null;
-        if (T) { const w = perp(sub(T[j], q)), wl = len(w); if (wl > 1e-6 && (!out || dot(out, w) < 0)) out = mul(w, 1 / wl); }
+        // (only where its link can reach it: an exit beyond the link's length is pulled back through the capsule by the
+        // lengths, so then the nearest way)
+        if (T) { const w = perp(sub(T[j], q)), wl = len(w); if (wl > 1e-6 && (!out || dot(out, w) < 0)) { const far = add(q, mul(w, r / wl)); if (len(sub(far, S[j - 1].p)) <= st.lengths[j - 1] * REACH) out = mul(w, 1 / wl); } }
         S[j].p = add(q, mul(out ?? [0, 0, 1], r));
       });
       for (let j = 1; j < S.length; j++) if (S[j].p[2] < ground) S[j].p = [S[j].p[0], S[j].p[1], ground];

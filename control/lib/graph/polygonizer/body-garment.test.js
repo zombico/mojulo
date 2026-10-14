@@ -117,3 +117,38 @@ describe('the outfit words follow the body', () => {
     expect(JSON.stringify(worn({ preset: 'female', outfit: ['trousers', 'tee', 'boots'] }).recipe)).toBe(a);
   });
 });
+
+// THE KERNEL GROWS (outfit/principles.js, the update law): `proportional` keeps the body's ratios, `dense` rounds a coarse
+// ring, `fit: 'panel'` hangs open cloth over an arc of the leg hull. Each is absent → the piece as before.
+describe('proportional, dense and panels', () => {
+  const ring = (P, part, id) => { const st = P[part].stations.find((s) => s.id === id); const pts = P[part].slots.map((sl) => st.points[sl]);
+    let g = 0; for (let i = 0; i < pts.length; i++) g += dist(pts[i], pts[(i + 1) % pts.length]); return g; };
+  const shin = (extra) => worn({ preset: 'female', outfit: [{ id: 'leg', part: 'shank', run: [0, 0.94], ease: 0.012, group: 'Bottom', ...extra }] }).recipe.parts;
+  it('proportional: the cloth keeps the body\'s calf-to-ankle ratio, where one ease everywhere does not', () => {
+    const plain = shin(), prop = shin({ proportional: 0.1 });
+    const body = (P, id) => ring(P, 'shankR', id), cloth = (P, id) => ring(P, 'leg_shankR', id);
+    const [calf, ankle] = ['st1', 'st1_st2_50'];
+    const r = (P) => cloth(P, ankle) / cloth(P, calf), rb = body(plain, ankle) / body(plain, calf);
+    expect(Math.abs(r(prop) - rb)).toBeLessThan(0.01);
+    expect(r(plain) - rb).toBeGreaterThan(0.03);
+  });
+  it('dense: a six-sided limb\'s cloth is resampled to twelve, the body\'s own points kept, t addressed as before', () => {
+    const P = shin({ dense: true });
+    expect(P.leg_shankR.slots).toHaveLength(12); expect(P.shankR.slots).toHaveLength(6);
+    expect(P.leg_shankR.slotT.back).toBe(3);   // the dense ring's back is the body family's back (t on ring6's half)
+    // the inserted points bow out past the chord between their neighbours (the ring is rounder, never inside the body)
+    const st = P.leg_shankR.stations[1], c = centre(st), sl = P.leg_shankR.slots;
+    for (let k = 1; k < 12; k += 2) { const a = st.points[sl[k - 1]], b = st.points[sl[(k + 1) % 12]], m = st.points[sl[k]];
+      expect(dist(m, c)).toBeGreaterThan(dist([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], c) - 1e-9); }
+  });
+  it('a panel hangs over its arc from the waist to its hem, closed and skinned, with a root to flow from', () => {
+    const { recipe, mesh } = worn({ preset: 'female', core: 'structured', outfit: [{ id: 'tail', fit: 'panel', part: ['pelvis', 'thigh'], from: { part: 'pelvis', u: 6 }, to: { part: 'thigh', run: 1 }, around: [160, 200], ease: 0.01, rigidity: 'soft', group: 'Outer' }] });
+    const P = recipe.parts.tail_panel; expect(P).toBeTruthy(); expect(failures(mesh).filter((n) => n.startsWith('tail'))).toEqual([]);
+    expect(P.rigidity).toBe('soft'); expect(P.root).toHaveLength(3);
+    const pts = P.stations.flatMap((st) => Object.values(st.points));
+    expect(pts.every((p) => p[1] < 0)).toBe(true);   // all of it behind the figure (the back arc; +y is the front)
+    expect(P.stations[0].points.p0[2]).toBeGreaterThan(P.stations[11].points.p0[2] + 0.2);   // it falls
+    expect(validateGarments([{ id: 'x', fit: 'panel', part: 'pelvis', from: { part: 'pelvis', u: 6 }, to: { part: 'thigh', run: 1 }, around: [200, 160], ease: 0, group: 'Top' }])[0]).toMatch(/around/);
+    expect(validateGarments([{ id: 'x', part: 'torso', ease: 0, group: 'Top', proportional: 0 }])[0]).toMatch(/proportional/);
+  });
+});

@@ -74,6 +74,8 @@ export const SLOT_FAMILIES = {
   ring10: ['front', 'frontR', 'sideFrontR', 'sideBackR', 'backR', 'back', 'backL', 'sideBackL', 'sideFrontL', 'frontL'],
   ring12: ['front', 'frontR', 'frontSideR', 'sideR', 'backSideR', 'backR', 'back', 'backL', 'backSideL', 'sideL', 'frontSideL', 'frontL'],
   limb6: ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'],
+  // a garment's dense ring over a ring8 part (body-garment.js `dense`): the body's slots at every other place
+  ring16: ['front', 'f1R', 'f2R', 'f3R', 'sideR', 'b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'sideL', 'f3L', 'f2L', 'f1L'],
   // a fine ring for a form sampled point by point (a `rings` part: the breast's lens)
   ring20: ['front', 'a1R', 'a2R', 'a3R', 'a4R', 'sideR', 'b4R', 'b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'b4L', 'sideL', 'a4L', 'a3L', 'a2L', 'a1L'],
 };

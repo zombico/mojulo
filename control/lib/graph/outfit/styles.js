@@ -5,10 +5,13 @@
 // A card:
 //   dials     { stylize, fit, coverage, ornament } — the defaults a build's own `dials` override
 //   language  top:    { family: 'knit' | 'woven', sleeve, hem, collar: true|false } | false (no top)
-//             bottom: { family, leg } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
+//             bottom: { family, leg, cut?: skinny | tapered (default) | straight | wide } | { kind: 'skirt', family, leg: micro | mini | knee | midi | maxi, cut: pencil | aline |
 //             full, rigidity?: shell | stiff | crisp | soft | flowing | 0 … 1 (how the skirt moves: rigidity.js) } | false
 //             outer:  { family, sleeve, hem: waist | hip | tunic | knee | midi | maxi, open: true|false, cut?: pencil | aline |
 //             full } | false: a layer over the top and the bottom (a vest or jerkin without sleeves, a jacket, a coat)
+//             panels: [{ at: back | front | sides | sideR | sideL, length: micro … maxi, width?: 0–1 (a share of the half
+//             turn, default 0.33), split?: 1 | 2 (two tails side by side), cut?, family?, rigidity? (default 'soft') }]: DRAPE
+//             PANELS hung from the waist over everything else (coattails, a tabard's apron, tassets, a loincloth)
 //             fit:    on top, trousers and outer: 'skin' (painted second skin; not the outer) | 'fitted' | 'eased' (the
 //             dials' cut, the default) | 'loose': law 2 zone by zone, so an outfit can be tight in one place and full in another
 //             dress:  true (the skirt is the top's own cloth: one garment, no waistband, the belt its focal) | false
@@ -58,6 +61,22 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "knit", "sleeve": "none", "hem": "crop" }, "bottom": { "family": "knit", "leg": "long" }, "feet": "shoes", "tuck": false, "focal": "collar" },
     "tones": { "Top": "#7fb8a4", "Bottom": "#2b2f3a", "Shoes": "#f0f0f0", "Trim": "#f0f0f0" }
   },
+  // the anime silhouette (principles law 2): a close body, the waist marked, the flow in panels cut to hang
+  traveler: {
+    "id": "traveler",
+    "dials": { "stylize": 0.5, "fit": 0.3, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "waist", "fit": "skin" }, "bottom": { "family": "woven", "leg": "long", "cut": "tapered", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "elbow", "hem": "waist", "open": true, "fit": "fitted" },
+      "panels": [{ "at": "back", "length": "knee", "width": 0.45, "split": 2, "rigidity": "soft" }], "feet": "boots", "tuck": true, "focal": "belt" },
+    "tones": { "Top": "#2b2d3a", "Bottom": "#3b3346", "Outer": "#e9e2d0", "Panel": "#e9e2d0", "Trim": "#c9a55a", "Shoes": "#3a2a1e", "Leather": "#4a3324", "Buckle": "#d8c27a" }
+  },
+  warden: {
+    "id": "warden",
+    "dials": { "stylize": 0.4, "fit": 0.35, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "skinny" },
+      "panels": [{ "at": "front", "length": "knee", "width": 0.3, "rigidity": "crisp" }, { "at": "back", "length": "knee", "width": 0.36, "rigidity": "crisp" }, { "at": "sides", "length": "mini", "width": 0.32, "rigidity": "stiff" }], "feet": "boots", "tuck": true, "focal": "belt" },
+    "tones": { "Top": "#d9d4c4", "Bottom": "#2e3440", "Panel": "#5b2a2a", "Trim": "#c9a55a", "Shoes": "#2a211b", "Leather": "#3d2a1d", "Buckle": "#c9b37a" }
+  },
   adventurer: {
     "id": "adventurer",
     "dials": { "stylize": 0.45, "fit": 0.7, "coverage": 1, "ornament": 2 },
@@ -68,7 +87,7 @@ export const SEEDED_OUTFITS = Object.freeze({
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];
 const COAT = ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'], FITS = ['skin', 'fitted', 'eased', 'loose'];
-const LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
+const PANEL_AT = ['back', 'front', 'sides', 'sideR', 'sideL'], TCUT = ['skinny', 'tapered', 'straight', 'wide'], LEG = ['brief', 'short', 'knee', 'capri', 'long'], SKIRT = ['micro', 'mini', 'knee', 'midi', 'maxi'], CUT = ['pencil', 'aline', 'full'], FEET = ['boots', 'shoes', 'none'], FOCAL = ['collar', 'placket', 'belt'];
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
 const one = (v, list, at) => (v === undefined || list.includes(v) ? [] : [`${at}: '${v}' — one of ${list.join(', ')}`]);
 
@@ -82,10 +101,18 @@ export function validateOutfitCard(card, at = 'outfit.style') {
   if (L.bottom !== undefined && L.bottom !== false) { if (typeof L.bottom !== 'object') errs.push(`${at}.language.bottom: { family, leg } or false`);
     else if (L.bottom.kind === 'skirt') errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, SKIRT, `${at}.language.bottom.leg`), ...one(L.bottom.cut, CUT, `${at}.language.bottom.cut`), ...rigidityErrors(L.bottom.rigidity, `${at}.language.bottom.rigidity`));
     else if (L.bottom.kind !== undefined && L.bottom.kind !== 'trousers') errs.push(`${at}.language.bottom.kind: 'trousers' (the default) or 'skirt'`);
-    else errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, LEG, `${at}.language.bottom.leg`)); }
+    else errs.push(...one(L.bottom.family, FAMILY, `${at}.language.bottom.family`), ...one(L.bottom.leg, LEG, `${at}.language.bottom.leg`), ...one(L.bottom.cut, TCUT, `${at}.language.bottom.cut`)); }
   if (L.outer !== undefined && L.outer !== false) { if (typeof L.outer !== 'object') errs.push(`${at}.language.outer: { family, sleeve, hem, open?, cut? } or false`);
     else { errs.push(...one(L.outer.family, FAMILY, `${at}.language.outer.family`), ...one(L.outer.sleeve, SLEEVE, `${at}.language.outer.sleeve`), ...one(L.outer.hem, COAT, `${at}.language.outer.hem`), ...one(L.outer.cut, CUT, `${at}.language.outer.cut`));
       if (L.outer.open !== undefined && typeof L.outer.open !== 'boolean') errs.push(`${at}.language.outer.open: true or false`); } }
+  if (L.panels !== undefined) { if (!Array.isArray(L.panels)) errs.push(`${at}.language.panels: a list of { at, length, width?, split?, cut?, family?, rigidity? }`);
+    else L.panels.forEach((Q, i) => { const w = `${at}.language.panels[${i}]`;
+      if (!Q || typeof Q !== 'object' || Array.isArray(Q)) { errs.push(`${w}: { at, length, width?, split?, cut?, family?, rigidity? }`); return; }
+      errs.push(...one(Q.at, PANEL_AT, `${w}.at`), ...one(Q.length, SKIRT, `${w}.length`), ...one(Q.cut, CUT, `${w}.cut`), ...one(Q.family, FAMILY, `${w}.family`), ...rigidityErrors(Q.rigidity, `${w}.rigidity`));
+      if (Q.at === undefined) errs.push(`${w}.at: one of ${PANEL_AT.join(', ')}`);
+      if (Q.width !== undefined && !(Number.isFinite(Q.width) && Q.width > 0 && Q.width <= 1)) errs.push(`${w}.width: a share of the half turn, 0 < width ≤ 1`);
+      if (Q.split !== undefined && ![1, 2].includes(Q.split)) errs.push(`${w}.split: 1 or 2 (two tails side by side)`);
+      for (const k of Object.keys(Q)) if (!['at', 'length', 'width', 'split', 'cut', 'family', 'rigidity'].includes(k)) errs.push(`${w}.${k}: not a panel field (at, length, width, split, cut, family, rigidity)`); }); }
   for (const [k, list] of [['top', FITS], ['bottom', FITS], ['outer', FITS.slice(1)]]) if (L[k] && typeof L[k] === 'object') errs.push(...one(L[k].fit, L[k].kind === 'skirt' ? [] : list, `${at}.language.${k}.fit`));
   if (L.dress !== undefined && typeof L.dress !== 'boolean') errs.push(`${at}.language.dress: true or false`);
   if (L.dress && L.bottom?.kind !== 'skirt') errs.push(`${at}.language.dress: a dress is a top and a skirt (bottom.kind 'skirt')`);

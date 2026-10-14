@@ -13,6 +13,49 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character clothing: the anime silhouette
+
+A hero's clothes bulked up and went boxy: measured on the rings, an anime female's `casual` tee added 23 cm to her
+waist girth and an `adventurer` tunic 37 cm to his, and every trouser leg lost the body's calf-to-ankle taper. The
+outfit build now dresses a hero the way Genshin-style and VTuber avatars are dressed: tight cloth is the body, the
+taper survives, and the flow is in pieces cut to hang. The research behind it is `docs/character-clothing-gap.md`.
+
+- **Cloth hugs and tapers (principles law 2, rewritten).** Every copy piece keeps the body's ratios: its ease scales
+  with each ring's radius, so a thin limb is not swallowed by the ease a torso needs. A top falls from the bust and
+  returns to the waist. A hem falls away only where it is cut to. The same `casual` now adds 9.7 cm at the waist and
+  keeps the leg's taper exactly (ankle over calf 0.72, cloth and body alike).
+- **Trousers by cut.** `language.bottom.cut`: `skinny`, `tapered` (the default), `straight` or `wide`. The old default
+  flared every hem; that look is `straight` now.
+- **Rounder cloth.** A garment over a six-point limb ring is resampled to twelve points (sixteen over an eight) by an
+  interpolating subdivision, addressed on the body's own ring by `slotT`, so a trouser leg is not a hexagonal tube.
+- **The layers no longer stack at the waist.** The lift a garment takes over what lies beneath it is smoothed round
+  each ring only, never along the body, so it no longer fills the waist between the ribs and the hips. A shirt worn
+  out adds no extra stand-off over the trousers' seat.
+- **Drape panels.** `language.panels: [{ at, length, width?, split?, cut?, rigidity? }]` hangs open cloth from the
+  waist over everything worn: coattails (`split: 2`), a tabard's apron, tassets, a loincloth. The belt lies over their
+  tops, their hems take the trim, the tone is `Panel`, and each flows as a strand (`soft` by default). The garment kernel's
+  `fit: 'panel'` with `around: [from, to]` degrees is the piece beneath.
+- **New cards.** `traveler` (a second-skin top, tapered trousers, an open jacket, split coattails) and `warden` (a
+  tabard front and back, side tassets, skinny trousers).
+- **The dressed silhouette in the readout.** `hero.dress.silhouette` measures the cloth against the skin at the
+  waist, hips, thigh, knee, calf and ankle, and advises when the cloth fills the waist or erases the taper. It is
+  advice and a machine read; whether the figure reads is still a person's call.
+- **The manual says how to dress tight.** The `layered` card's outfit section names `fit: 'skin' | 'fitted' |
+  'eased' | 'loose'`, the outer layer, the cuts and the panels, and says `detail: 'clothed'` adds bulk. The `hero`
+  routing card points at `outfit` instead of `detail: 'clothed'`.
+- **The update law.** `OUTFIT_LAWS_VERSION` now covers the whole chain an outfit's bytes pass through: the laws, the
+  expander and the garment kernel. The kernel only grows: a piece's fields never change meaning, and new behaviour is a
+  new field (`proportional`, `dense`, `fit: 'panel'`). The expander picks fields by laws version.
+  `outfit-laws.char.test.js` pins the laws and the rings for one card per procedure. A moved hash is a version bump
+  with the old one kept. Version 1 was rewritten in place, since 3.1.0 has not been released and no outfit has been
+  minted under it.
+- **Statue drapery moves with it.** A statue's drapery is an outfit build, so every draped statue's pins were re-pinned
+  for the new kernel (`statue.char.test.js`).
+- **A skirt keeps out of the legs without a padded waist.** The flow solver's far-side rule (cloth caught behind a leg goes back
+  over it toward its target) now takes that way out only when the joint's link can reach it. An unreachable exit was
+  pulled back through the leg by the lengths. A `flowing` midi skirt had cleared the shins in a jog only because a
+  bulky top widened the waist's collision capsule.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the

@@ -483,32 +483,41 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   so sleeves and legs bend at the elbow and the knee with the body, every dial that moves the part moves the garment,
   and a cast, tune or core re-fits it on every read. Worn in order: trousers then a tee is a shirt worn out, a tee then
   trousers a shirt tucked in. A piece of your own: `{ id, part, u?, run?, ease, flare?: [start, end], over?, group }`
-  (the part `<id>_<body part>`). Footwear is a piece of its own, `fit: 'shoe'` (the `boots` word's foot): two solids fitted
+  (the part `<id>_<body part>`); `proportional` (a radius in m: the ease scales with each ring's radius from there, so
+  the taper survives) and `dense: true` (the cloth's rings rounded to at least twelve points) are what the outfit build
+  wears; `fit: 'panel'` with `around: [from, to]` (degrees, 0 the front, 90 the right) and `from` / `to` hangs a drape
+  panel over that arc of the hips' hull (`<id>_panel`). Footwear is a piece of its own, `fit: 'shoe'` (the `boots` word's foot): two solids fitted
   to the foot and toes, a ROUND ELLIPSOID over the heel and a FLAT HALF-ELLIPSOID over the forefoot, each the smallest
   holding its share of their points with the ease, their sections superposed ring by ring and cut on one flat sole
   (`toe`: the toe box's height as a share, `heel`: metres over the heel cup). Best over `detail: 'swimsuit'`; paint and
   an outfit combine; under the studio light both shade smoothly as cloth (welded like the skin, a right angle kept
   sharp). Patch `/hero/outfit`.
   OUTFIT BUILD. `outfit: { type: 'outfit', style, dials?, language? }` is a styled look built the way an armour build is
-  (`lib/graph/outfit/`): a seeded card (`casual`, `office`, `athlete`, `adventurer`, or an inline card: plain JSON) over
-  laws (`principles.js`: silhouette by fit, cloth falling away to its free hems, hems on landmarks, layers nesting by
-  ease and by one value step, one focal, the edge the ornament field, honest construction for knit and woven, stylize one
-  curve), stamped with the laws version it was minted under. Dials `stylize`, `fit`, `coverage` (lengths step shorter by
-  thirds), `ornament` 0–3; language `top { family, sleeve, hem, collar }`, `bottom { family, leg }`, `feet`, `tuck`,
-  `focal`. Expanded on every read by its passes: CUT (pieces on landmarks), FIT (ease and hang), LAYER (tucked or worn
-  out), CONSTRUCTION (a woven placket), ORNAMENT (from the focal out: collar or rib, buttons, belt; cuffs, hems,
-  waistband; seams), TONE (the card's over derived Trim, Placket, Button, Seam, Waistband), LEDGER (the readout's
-  `hero.dress.outfit`: lengths, pieces, edges spent, and warnings for what this body could not wear). Skirts and dresses:
-  `bottom { kind: 'skirt', leg: micro | mini | knee | midi | maxi, cut: pencil | aline | full, rigidity? }` is one hull round the hips
-  and both legs (garment `fit: 'skirt'`): each ring the support of everything at its height, never narrowing below the
-  hips, flaring by its cut, two-faced (folded at the hem, so it is open beneath), each point skinned by nearness (the
-  cloth over a leg follows that leg; over the seat the cloth goes with the pelvis, below it the cloth between the legs
-  hangs from both thighs, so a hip hinge never swings it into them); `rigidity` (`shell` the default: locked; `stiff`, `crisp`,
-  `soft`, `flowing` or 0 … 1; any garment piece takes it too) says how it moves: below a shell it flows on control strings,
-  swinging with the stride, the stop and the wind against the locked body (the motion card's `--hair`, `--wind`); `dress: true` makes the skirt the
-  top's own cloth. Tops DRAPE from what holds them out (the bust, the shoulder blades) instead of hugging back in under it.
-  Seeded on the female cast: `sundress`, `blouse` (a pencil skirt), `athleisure`. Patch
-  `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/top/sleeve`.
+  (`lib/graph/outfit/`): a seeded card (`casual`, `office`, `athlete`, `adventurer`; on the female cast `sundress`,
+  `blouse`, `athleisure`; the anime silhouette `traveler` (a second-skin top, tapered trousers, an open jacket, split
+  coattails) and `warden` (a tabard and tassets); or an inline card: plain JSON) over laws (`principles.js`), stamped
+  with the laws version it was minted under. THE ANIME SILHOUETTE IS LAW 2: cloth HUGS AND TAPERS. Every piece keeps
+  the body's ratios (its ease scales with each ring's radius, on a rounded dense ring), so the calf still reads over
+  the ankle and the waist under the ribs; a top falls from the bust and returns to the waist; a hem falls away only
+  where it is CUT to. Reach for these, not `detail: 'clothed'` (which adds bulk): TIGHT is `fit: 'skin'` (a painted
+  second skin, mugen 0: leggings, a bodysuit, a fitted undershirt), close is `'fitted'`, the dials' cut `'eased'`,
+  standing off `'loose'` — per slot, so an outfit is tight in one place and full in another. Dials `stylize`, `fit`
+  (slim 0 … relaxed 1), `coverage` (lengths step shorter by thirds), `ornament` 0–3. Language: `top { family: knit |
+  woven, sleeve, hem, collar, fit }`; `bottom { family, leg, cut: skinny | tapered (default) | straight | wide, fit }`
+  or a skirt `{ kind: 'skirt', leg: micro … maxi, cut: pencil | aline | full, rigidity? }` (one hull round the hips and
+  both legs, never narrowing below them, open beneath, skinned by nearness), `dress: true` (the skirt the top's own
+  cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit }` over both; `panels: [{ at: back | front | sides
+  | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
+  open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
+  flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose
+  tubes; `feet`, `tuck`, `focal`. `rigidity` (`shell` locked; `stiff`, `crisp`, `soft`, `flowing` or 0 … 1) on a skirt
+  or a panel swings it with the stride and the wind against the locked body (the motion card's `--hair`, `--wind`).
+  Expanded on every read by its passes: CUT, FIT, LAYER, CONSTRUCTION, ORNAMENT (from the focal out: collar or rib,
+  buttons, belt; cuffs, hems, waistband, panel hems; seams), TONE (`Panel` with the rest), LEDGER (the readout's
+  `hero.dress.outfit`: lengths, pieces, panels, edges spent, warnings). The readout's `hero.dress.silhouette` measures
+  the cloth against the body: the waist over the hips and the ankle over the calf, cloth beside skin, with advice when
+  the cloth fills the waist or erases the taper (advice; the eyes gate is a person's). Patch
+  `/hero/outfit/dials/<dial>`, `/hero/outfit/style`, `/hero/outfit/language/bottom/cut`, `/hero/outfit/language/panels`.
 <!-- /section -->
 <!-- section: hero-statue | Statues | the hero as a period statue: card, material, crop, losses, base -->
   STATUE. `statue: '<card>'` or `{ type: 'statue', style, material?, crop?, lose?, base?, dials: { wear }? }` carves the

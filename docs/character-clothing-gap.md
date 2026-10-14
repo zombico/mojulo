@@ -196,6 +196,31 @@ Read them against anime and western bands, as advice. It would have flagged ever
 Kernel changes (proportional ease, waist-seeking drape, resampling) move the bytes of already-minted
 outfits. They go under a new `OUTFIT_LAWS_VERSION`, with `expandOutfit` keeping v1 for rows minted under it.
 
+### What was built (1014)
+
+3.1.0 is unreleased, so outfit laws v1 was rewritten in place, and the update law was set up for every change after
+it. The update law is in `outfit/principles.js`:
+- the kernel only grows;
+- the expander picks fields by laws version;
+- `outfit-laws.char.test.js` pins the laws and the rings for one card per procedure.
+
+| proposal | built as |
+|---|---|
+| L1 proportional ease | `proportional` (a reference radius) on every copy piece the outfit build makes. Waist +23 → +9.7 cm on the anime female's `casual`; ankle/calf 0.72 for cloth and body alike |
+| L1 hang opt-in | law 2 rewritten: trousers `cut: skinny \| tapered \| straight \| wide`, no hang by default; long sleeves taper |
+| L1 waist-seeking drape | a top's come-in slope ×3.4, so it returns to the waist under the bust |
+| L1 ring-only lift | the hull lift is smoothed round each ring only |
+| L1 resampling | `dense`: the four-point scheme to 12 or 16 points, addressed by `slotT`; stations not yet densified |
+| L2 drape panels | `fit: 'panel'` over an arc of the skirt's leg hull (not `drapeSheet`), flowing as a strand; `language.panels`; cards `traveler`, `warden` |
+| the silhouette gate | `dress-silhouette.js`, `hero.dress.silhouette` in the readout |
+| the card fixes | the `layered` outfit section and the `hero` routing card |
+
+Not built yet:
+- girth targets in cm from a hero body chart;
+- L0 as the anime register's automatic default (the `traveler` card shows it instead);
+- shoulder and cuff panels;
+- shading channels.
+
 ## 6. Sources
 
 - VRMC_springBone 1.0 spec: https://github.com/vrm-c/vrm-specification/blob/master/specification/VRMC_springBone-1.0/README.md
