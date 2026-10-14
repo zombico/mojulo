@@ -231,7 +231,9 @@ Three doors, in this order, then "ask: *make me a game*" (the current "what is t
 
 1. **Claude, from the plugin directory.** In the Claude app, Customize > Plugins, find Mojulo. It syncs to
    Claude Code on the same account as `mojulo@synced`. Lead with it: no terminal, and a listing in Claude's own
-   directory is a trust signal. `[verify]` that the listing is live before the README says so.
+   directory is a trust signal. Confirmed live: published Oct 1, listed in Claude Code, Cowork and the Claude
+   apps. Say where it runs, not just where it is listed: wherever a local process can start (Claude Code, Cowork on
+   your computer), not a plain claude.ai chat. No install or usage counts in the README: they date the day after.
    - The same plugin from the repo's own marketplace: `/plugin marketplace add zombico/mojulo`.
    - Say plainly what the plugin build leaves out: the AI image, voice and mesh handoffs, and every automatic
      download (renders use your installed Chrome, MP4 your ffmpeg). Blender renders run from a terminal
