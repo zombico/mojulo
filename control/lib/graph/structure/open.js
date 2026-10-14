@@ -123,6 +123,27 @@ export function nextSteps(m, read) {
   return open(m, read).filter((c) => !c.follows).map((c) => ({ id: c.id, outcome: c.outcome, ...(c.export ? { export: c.export } : { add: c.field }), card: c.card }));
 }
 
+// the concerns a law measures (a finding, not a field left out): open, they advise
+const LAW_CONCERNS = new Set(['livability', 'program', 'reachability', 'program-rules']);
+// a concern that is closed before it arises (the covering waits on a framed roof) is given only once its field is there
+const GIVEN_BY = { covering: (m) => !!(m.roof && typeof m.roof === 'object' && m.roof.covering) };
+
+/** Every concern the building can reach, open or given, for the rail (lib/graph/rail): { id, outcome, tab, card, state,
+ *  waived? }. `state` is 'open' (a field would add it), 'advised' (a law finds something), 'given', or 'waived' (given
+ *  only because the recipe waived what a law found). A call (an export) is a step, never a state, so it is left out. */
+export function concernStates(m, read) {
+  const waived = stairCrowding(read).filter((c) => isWaived(read, 'stair-clearance', c.room)).length
+    + (read.design?.findings || []).filter((f) => isWaived(read, 'walkway', /^([a-z]+):/.exec(String(f))?.[1] ?? '')).length;
+  return (read.occupancy ? COMMERCIAL : CONCERNS).filter((c) => !c.export && (read.subject !== 'room' || c.rooms))
+    .map((c) => {
+      const open = !!c.when(m, read);
+      const state = open ? (LAW_CONCERNS.has(c.id) ? 'advised' : 'open')
+        : GIVEN_BY[c.id] && !GIVEN_BY[c.id](m) ? 'open' : c.id === 'livability' && waived ? 'waived' : 'given';
+      return { id: c.id, outcome: c.outcome, tab: c.tab, card: cardOf(c.outcome, read), state, ...(state === 'waived' ? { waived } : {}) };
+    })
+    .sort((a, b) => ORDER.get(a.outcome) - ORDER.get(b.outcome));
+}
+
 /** The stair clearance as the readout carries it beside the walkway: ok, and each crowding piece in words. */
 export function clearanceReadout(read) {
   if (!read.stacked && !(read.elements.stairs || []).length) return null;

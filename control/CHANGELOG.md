@@ -26,6 +26,22 @@ The agent drives; the dashboard shows. Every affordance that wrote or handed the
 - **Kept on purpose:** sign-in, sign-out and Settings (the operator's keys and language), and the `/pose-lab`
   developer harness.
 - A test holds it: no page or component sends anything but a GET or touches the clipboard, outside those exceptions.
+- **The rail, read** (`lib/graph/rail/`, `GET /api/sketches/<ref>/rail`). One shape over every recipe on a rail, which
+  is all the dashboard will draw:
+  - **Outcomes and concerns.** Each concern is `given`, `open`, `advised` (a law or a gate finds something) or
+    `waived` (its law holds by the recipe's waiver). A building reads its outcome table and a city its plan table,
+    the same tables `next` reads, so the page and the readout never disagree; `next` and the books are unchanged.
+    A concern that has not arisen yet (a roof's covering before the frame, a level per segment before the segments)
+    is open, never given.
+  - **A gameworld's book, grouped by what a game asks:** intent, world, characters, systems, levels, story, play.
+    A reviewed part is given by the creator's approval (`gate: 'eyes'`) or by the agent's machine gate
+    (`gate: 'machine'`), never one shown as the other.
+  - **A solid's ladder:** look, fit, function, engineered, capped at the recipe's `ask`.
+  - **Parts**, each `fresh`, `stale`, `edited`, `missing`, `waiting` or `taken`: what a gameworld's run made (by the
+    runner's own `decide`), a city's segment levels, its doors' insides and its sites' edifices, a room's pieces by
+    ref. A part on a rail of its own carries its outcomes in brief. A segment's level is shown on its city's rail.
+  - **Exits**: the book, the World, and a gameworld's game and playtest once made.
+  - A broken recipe answers with what broke (`errors`) rather than failing the page.
 
 ### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
 
