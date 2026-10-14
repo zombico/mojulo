@@ -22,15 +22,15 @@ export const family = {
   joints: {
     neckBase: [0, 0.38, 0.27], neckTop: [0, 0.78, 0.32],
     // sprawling: the elbow and the knee out past the body, the feet set wide, the long toes splayed forward
-    shoulder: [0.12, 0.30, 0.24], elbow: [0.30, 0.27, 0.21], carpus: [0.32, 0.33, 0.045], forePaw: [0.32, 0.345, 0.02], foreToe: [0.37, 0.46, 0.008],
-    hip: [0.11, -0.36, 0.25], stifle: [0.33, -0.30, 0.22], hock: [0.35, -0.45, 0.05], hindPaw: [0.35, -0.44, 0.02], hindToe: [0.41, -0.31, 0.008],
+    shoulder: [0.12, 0.30, 0.24], elbow: [0.255, 0.27, 0.21], carpus: [0.27, 0.33, 0.045], forePaw: [0.27, 0.345, 0.02], foreToe: [0.307, 0.46, 0.008],
+    hip: [0.11, -0.36, 0.25], stifle: [0.275, -0.30, 0.22], hock: [0.29, -0.45, 0.05], hindPaw: [0.29, -0.44, 0.02], hindToe: [0.335, -0.31, 0.008],
   },
   torso: [
-    { at: [0, -0.48, 0.27], r: [0.11, 0.10] },
-    { at: [0, -0.28, 0.27], r: [0.17, 0.125] },
-    { at: [0, 0.0, 0.27], r: [0.19, 0.13] },
-    { at: [0, 0.24, 0.27], r: [0.16, 0.12] },
-    { at: [0, 0.42, 0.27], r: [0.10, 0.09] },
+    { at: [0, -0.48, 0.27], r: [0.11, 0.11] },
+    { at: [0, -0.28, 0.27], r: [0.17, 0.145] },
+    { at: [0, 0.0, 0.27], r: [0.19, 0.15] },
+    { at: [0, 0.24, 0.27], r: [0.16, 0.14] },
+    { at: [0, 0.42, 0.27], r: [0.10, 0.10] },
   ],
   torsoCaps: { back: [0, -0.55, 0.27], tip: [0, 0.50, 0.27] },
   neckRA: [0.095, 0.085], neckRB: [0.05, 0.05], neckRMid: [0.07, 0.065],
@@ -199,8 +199,8 @@ export const species = {
     family: 'squamate', name: 'a tokay gecko', scale: 0.12, orbitFallback: true,
     joints: {
       neckBase: [0, 0.40, 0.21], neckTop: [0, 0.58, 0.235],
-      shoulder: [0.12, 0.30, 0.20], elbow: [0.32, 0.30, 0.19], carpus: [0.36, 0.38, 0.04], forePaw: [0.37, 0.40, 0.02], foreToe: [0.44, 0.50, 0.008],
-      hip: [0.11, -0.34, 0.21], stifle: [0.36, -0.28, 0.20], hock: [0.40, -0.42, 0.04], hindPaw: [0.41, -0.43, 0.02], hindToe: [0.50, -0.34, 0.008],
+      shoulder: [0.12, 0.30, 0.20], elbow: [0.28, 0.30, 0.19], carpus: [0.312, 0.38, 0.04], forePaw: [0.32, 0.40, 0.02], foreToe: [0.376, 0.50, 0.008],
+      hip: [0.11, -0.34, 0.21], stifle: [0.31, -0.28, 0.20], hock: [0.342, -0.42, 0.04], hindPaw: [0.35, -0.43, 0.02], hindToe: [0.422, -0.34, 0.008],
     },
     torso: [
       { at: [0, -0.46, 0.22], r: [0.12, 0.08] },
@@ -248,8 +248,8 @@ export const species = {
     family: 'squamate', name: 'a green iguana', scale: 0.28,
     joints: {
       neckBase: [0, 0.40, 0.30], neckTop: [0, 0.64, 0.40],
-      shoulder: [0.10, 0.30, 0.25], elbow: [0.28, 0.27, 0.22], carpus: [0.30, 0.33, 0.045], forePaw: [0.30, 0.345, 0.02], foreToe: [0.35, 0.47, 0.008],
-      hip: [0.10, -0.36, 0.25], stifle: [0.31, -0.30, 0.22], hock: [0.33, -0.45, 0.05], hindPaw: [0.33, -0.44, 0.02], hindToe: [0.40, -0.28, 0.008],
+      shoulder: [0.10, 0.30, 0.25], elbow: [0.235, 0.27, 0.22], carpus: [0.25, 0.33, 0.045], forePaw: [0.25, 0.345, 0.02], foreToe: [0.287, 0.47, 0.008],
+      hip: [0.10, -0.36, 0.25], stifle: [0.258, -0.30, 0.22], hock: [0.273, -0.45, 0.05], hindPaw: [0.273, -0.44, 0.02], hindToe: [0.325, -0.28, 0.008],
     },
     // deeper than wide (a laterally flattened lizard)
     torso: [

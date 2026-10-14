@@ -32,7 +32,10 @@ redraws with the new numbers on its next read.
   across, the legs a little closer.
 - **Perching birds** crouch on short legs instead of standing tall on them: the macaw, the pigeon, the crow, the toucan
   and the hummingbird stand lower (`legScale`), their long tails swung up about the root so they clear the ground, and
-  their drumsticks (and the rooster's) slimmer; the rooster's legs are a little shorter.
+  their drumsticks slimmer; the rooster's legs are a little shorter.
+- **Crocodilians and lizards** sprawl less wide: the crocodile's and alligator's elbows and knees, and the monitor's,
+  the iguana's and the gecko's, come in toward the body (their feet stood out near twice the trunk's width), and the
+  crocodilian and monitor trunks are deeper, the armour rows and the crest lifted with them.
 - `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
   to NaN). A four-legged species builds exactly as before.
 - `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,
