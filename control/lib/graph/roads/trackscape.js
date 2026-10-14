@@ -17,7 +17,9 @@
  *                            the lap's own eye)
  *   the inside of a corner is kept clear   the sight line from turn-in to the apex (`keepClear`), for the dressing
  *
- *   planTrackscape(plan, { cls?, seed? }) → { slots, keepClear, corners, straights, landmark }
+ *   planTrackscape(plan, { cls?, seed?, landmarkMax? }) → { slots, keepClear, corners, straights, landmark }
+ *                                           (`landmarkMax`: the least extent, m, of the largest landmark the dressing
+ *                                           set can build; the search stays where it would read)
  *   slotThings(slots)                     → things for eye.js (each slot at its least span)
  *   trackscapeLaws(plan, scape, census)   → advisories: every corner focused, no long blank, the landmark seen twice,
  *                                           the rhythm in band, no two focuses framed alike in a row, slots off the
@@ -37,7 +39,7 @@ export const SCAPE = Object.freeze({
   rhythm: [0.15, 0.4],   // s between things passing on a straight
   longStraight: 5,       // s: a straight this long gains a span across it
   boards: 3,             // the countdown to a braking point
-  landmarkSpan: 4,       // eye spots across, far
+  landmarkSpan: 2,       // eye spots across, far (prominent, and within what a set can build)
   blankMax: 3,           // s: the longest run with nothing to look at
   pocket: 2.5,           // s between set pieces beside a straight
 });
@@ -46,7 +48,7 @@ export const FOCUS_FORMS = Object.freeze(['built', 'natural', 'crowd', 'sign']);
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-export function planTrackscape(plan, { cls = TRACK_VEHICLE[plan.course.class] ?? 'sports', seed = 1 } = {}) {
+export function planTrackscape(plan, { cls = TRACK_VEHICLE[plan.course.class] ?? 'sports', seed = 1, landmarkMax = Infinity } = {}) {
   const a = plan.alignment, X = plan.X, L = a.length, closed = a.closed;
   const line = speedPlan(plan, cls), n = line.length;
   const T = closed ? line[n - 1].t + Math.hypot(line[0].x - line[n - 1].x, line[0].y - line[n - 1].y) / Math.max(0.5, line[n - 1].v) : line[n - 1].t;
@@ -60,7 +62,13 @@ export function planTrackscape(plan, { cls = TRACK_VEHICLE[plan.course.class] ??
   const lineAt = (t) => { const tt = closed ? ((t % T) + T) % T : Math.max(0, Math.min(t, line[n - 1].t)); let i = 0; while (i < n - 1 && line[i + 1].t <= tt) i++; return line[i]; };
   const rnd = mulberry32((seed * 2654435761) >>> 0);
   const slots = [], keepClear = [];
-  const slot = (beat, ring, xy, interest, span, extra = {}) => slots.push({ beat, ring, at: [r3(xy[0]), r3(xy[1]), r3(ground(xy[0], xy[1]))], interest, span: r3(span), ...extra });
+  // a slot stands off every part of the road (a lap's other leg too, where it passes near: a figure eight); one that
+  // would stand on it is dropped (a span stands across it by design)
+  let dropped = 0;
+  const slot = (beat, ring, xy, interest, span, extra = {}) => {
+    if (beat !== 'span' && beat !== 'gantry' && !clearOfRoad(xy[0], xy[1], 0.5)) { dropped++; return; }
+    slots.push({ beat, ring, at: [r3(xy[0]), r3(xy[1]), r3(ground(xy[0], xy[1]))], interest, span: r3(span), ...extra });
+  };
 
   // corners and straights: where grip sets the speed, and the runs between (eye.js, the census's own)
   const { corners, straights } = cornersOf(line, cls, closed);
@@ -115,12 +123,21 @@ export function planTrackscape(plan, { cls = TRACK_VEHICLE[plan.course.class] ??
       const p = lineAt(t), st = nearest(p.x, p.y);
       slot('rhythm', 'near', side(st, out * (X.outer + SCAPE.near[0])), 'filler', eyeSpotAt(6), { straight: si });
     }
-    // pockets: a set piece beside the straight every `pocket` seconds, sides alternating, far enough off the road
-    // that the gaze along the straight holds it as it comes (within the gaze cone at under 3 s)
+    // pockets: a set piece every `pocket` seconds where the gaze will hold it as it comes. Where the line bends the gaze
+    // runs along a chord, and a chord carried on leaves the bend on its OUTSIDE: the piece stands on that ray just past
+    // the road (as a corner's focus does). Where the ray never leaves it (a straight), beside it, within 12° of the line
+    // two seconds out at that speed (a kart's close, a GT car's back), sides alternating
     let alt = out;
     for (let t = s.t0 + SCAPE.pocket; t < s.t1 - 1; t += SCAPE.pocket) {
-      const p = lineAt(t), st = nearest(p.x, p.y);
-      slot('pocket', 'mid', side(st, alt * (X.outer + SCAPE.mid[0])), 'prop', SCAPE.focusSpan * eyeSpotAt(Math.max(20, p.v * 2)), { straight: si });
+      const p = lineAt(t), st = nearest(p.x, p.y), before = lineAt(t - DRIVER.gazeAhead), span = SCAPE.focusSpan * eyeSpotAt(Math.max(20, before.v * 2));
+      // the gaze's ray first (the racing line bends where the centreline barely does); a ray that never leaves the road
+      // within a few seconds is a straight
+      const dx = p.x - before.x, dy = p.y - before.y, dl = Math.hypot(dx, dy) || 1;
+      let onRay = null;
+      for (let m = dl; m < dl + Math.min(200, 2 * before.v * DRIVER.gazeAhead); m += 2) { const x = before.x + (dx / dl) * m, y = before.y + (dy / dl) * m; if (clearOfRoad(x, y, SCAPE.near[1])) { onRay = [x, y]; break; } }
+      if (onRay) { slot('pocket', 'mid', onRay, 'prop', span, { straight: si }); continue; }
+      const lat = Math.max(X.outer + SCAPE.near[0], Math.min(X.outer + SCAPE.mid[0], Math.tan((12 * Math.PI) / 180) * before.v * 2));
+      slot('pocket', 'mid', side(st, alt * lat), 'prop', span, { straight: si });
       alt = -alt;
     }
     if (s.dur >= SCAPE.longStraight) {
@@ -150,21 +167,29 @@ export function planTrackscape(plan, { cls = TRACK_VEHICLE[plan.course.class] ??
   // ── the landmark: far and big, scored by the lap's own eye (seen from the grid, and in the most moments after) ──
   const xs = C.map((c) => c.x), ys = C.map((c) => c.y), cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
   const R = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) / 2;
+  // (taller, up to thrice, when the land hides every candidate from the grid: a tower over the hills)
   let landmark = null;
-  for (const k of [1.5, 2.5]) for (let i = 0; i < 24; i++) {
-    const ang = (i / 24) * 2 * Math.PI, x = cx + Math.cos(ang) * R * k, y = cy + Math.sin(ang) * R * k;
+  for (const tall of [1, 2, 3]) {
+  if (landmark?.fromGrid) break;
+  // candidates: rings round the track, and (where the driver first looks) ahead of the grid, off to either side
+  const h0 = Math.atan2(line[1].y - line[0].y, line[1].x - line[0].x), cands = [];
+  for (const k of [1.15, 1.5, 2.5]) for (let i = 0; i < 24; i++) { const ang = (i / 24) * 2 * Math.PI; cands.push([cx + Math.cos(ang) * R * k, cy + Math.sin(ang) * R * k]); }
+  for (const d of [150, 250, 400, 600]) for (const o of [-150, -60, 60, 150]) cands.push([line[0].x + Math.cos(h0) * d - Math.sin(h0) * o, line[0].y + Math.sin(h0) * d + Math.cos(h0) * o]);
+  for (const [x, y] of cands) {
     if (!clearOfRoad(x, y, SCAPE.mid[1])) continue;
-    const d = Math.hypot(x - line[0].x, y - line[0].y), span = SCAPE.landmarkSpan * eyeSpotAt(d);
+    const d = Math.hypot(x - line[0].x, y - line[0].y), span = SCAPE.landmarkSpan * eyeSpotAt(d) * tall;
+    if (span > landmarkMax) continue;                                // past what the set can build to read there
     const e = driverEye(plan, [{ kind: 'landmark', interest: 'focus', landmark: true, at: [x, y, ground(x, y) + span / 2], span }], { cls, dt: 0.5, line, ground: plan.terrain ? ground : null });
     const seen = e.samples.filter((sm) => sm.landmark), fromGrid = seen.some((sm) => sm.t < 2);
     const moments = new Set(seen.map((sm) => Math.floor(sm.t / 3))).size;
     const score = (fromGrid ? 100 : 0) + moments;
     if (!landmark || score > landmark.score) landmark = { at: [x, y], span, score, fromGrid, moments };
   }
+  }
   if (landmark) slot('landmark', 'far', landmark.at, 'focus', landmark.span, { landmark: true });
 
   return {
-    cls, lap: r3(T), slots, keepClear,
+    cls, lap: r3(T), slots, keepClear, dropped,
     corners: corners.map((c) => ({ t: r3(c.t0), dur: r3(c.dur), turn: c.turn, vMin: r3(c.vMin) })),
     straights: straights.map((s) => ({ t: r3(s.t0), dur: r3(s.dur) })),
     landmark: landmark && { at: landmark.at.map(r3), fromGrid: landmark.fromGrid, moments: landmark.moments },
@@ -187,7 +212,9 @@ export function trackscapeLaws(plan, scape, census) {
   for (const s of census.seconds) { run = s.looked ? 0 : run + 1; worst = Math.max(worst, run); }
   if (worst > SCAPE.blankMax) out.push({ law: 'no-long-blank', detail: `${worst} s in a row with nothing to look at (at most ${SCAPE.blankMax})` });
   const lm = census.samples.filter((s) => s.landmark);
-  if (!lm.some((s) => s.t < 2) || new Set(lm.map((s) => Math.floor(s.t / 3))).size < 2) out.push({ law: 'landmark-seen', detail: 'the landmark must be seen from the grid and again in the lap' });
+  // (a lap comes round to it again; a stage runs away from it: seen from the start is its whole law)
+  const again = plan.alignment.closed ? new Set(lm.map((s) => Math.floor(s.t / 3))).size >= 2 : true;
+  if (!lm.some((s) => s.t < 2) || !again) out.push({ law: 'landmark-seen', detail: plan.alignment.closed ? 'the landmark must be seen from the grid and again in the lap' : 'the landmark must be seen from the start' });
   const forms = scape.slots.filter((s) => s.beat === 'focus').map((s) => s.form);
   for (let i = 1; i < forms.length; i++) if (forms[i] === forms[i - 1]) out.push({ law: 'framed-alike', detail: `two corners in a row framed ${forms[i]}` });
   const across = (s) => s.beat === 'span' || s.beat === 'gantry';

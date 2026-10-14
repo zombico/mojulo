@@ -40,6 +40,7 @@ import { buildNav } from '../worlds/controllable/nav.js';
 import { inferCity } from '../city/plan/card.js';
 import { designCity } from '../city/plan/design.js';
 import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
+import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
 
 const EYE_FALLBACK = 1.7;
@@ -139,7 +140,7 @@ export function roadwayEnds(manifest) {
   if (ROAD_ENDS.has(key)) return ROAD_ENDS.get(key);
   if (ROAD_ENDS.size > 16) ROAD_ENDS.clear();
   let plan;
-  try { plan = planTrack(manifest); } catch (e) { throw new Error(`levels: ${e.message}`); }
+  try { plan = manifest.scape ? planScapedTrack(manifest) : planTrack(manifest); } catch (e) { throw new Error(`levels: ${e.message}`); }
   const T = trackContract(plan), surface = trackSurface(plan), pole = T.grid[0];
   const out = { spawn: pole.at, heading: pole.heading, exit: T.finish.at, exitFrom: 'the finish line', planar: true, beats: [], hazards: [] };
   const at = (x, y) => surface([x, y, 1e4]);

@@ -1651,7 +1651,7 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 
 ### Trackscape: scapeshift's eye, for a driver
 
-Built so far: the eye, where it needs something, and the track in its world's look.
+Built so far: the eye, where it needs something, the track in its world's look, the track dressed, the track from words, and the arena plan.
 
 - **The driver's eye** (`lib/graph/roads/eye.js`): the racing line driven on a speed plan bound by the vehicle's own
   envelope (its cornering grip, launch, braking, top speed), looked along from the seat with the gaze 1.5 s down the
@@ -1679,12 +1679,38 @@ Built so far: the eye, where it needs something, and the track in its world's lo
   (composed again wherever the track is drawn); a gameworld roadway level takes its world's look with `kit: true`.
   Absent, the roadway's own tiles, byte for byte.
 
+- **The track's set pieces** (`roads/set-pieces.js`), written as scapeshift blocks (primitives on rails, numbers as
+  expressions, the eye spot gating every part at its ring, the blocks' laws), so a piece is data an agent can read and
+  write more of. A GT set (braking boards, hoardings, a grandstand, the start gantry, the advert bridge, a control
+  tower, a billboard, a grove, a light tower) and a kart set (striped bumpers, a bleacher with flags, giant mushrooms, a
+  castle tower, an arch, a castle). A slot's beat (and its focus's form) picks the piece; it is sized up its rails until
+  it reads where the slot needs it, turned to face the road (a span across it), and painted in the track's kit.
+- **The track dressed** (`roads/trackscape-dress.js`): every slot filled, each piece stood on its land, pushed off the
+  road where its footprint reaches it, a collider wherever a car can reach it (a span's legs), and the dressed track
+  measured again by the lap's own eye on the pieces as built. A roadway manifest asks with `scape: true` (or `{ set,
+  seed }`); a gameworld roadway level the same. Absent, the track as it was.
+
+- **A track from words** (`roads/trackscape-compose.js`): an intent ("a realistic GT circuit in green hills", "a cartoon
+  kart track by a candy castle, with jumps") read into the track's blocking (its class, form, length, twist, hills or
+  mountains, ramps, a crossing, its landmark) and its look (the rest of the words, a scene's common words said in the
+  land tunnel's own), dressed by the set its class races in. Opinions, each a word from changed: a GT circuit
+  realistic, a kart track cartoon. Track first (`composeTrack`: a roadway manifest), or the world and the track together
+  (`composeTrackWorld`: a gameworld whose look is the words'); a quick race takes `roadway: { intent }`.
+  `scripts/trackscape.mjs "<words>"` writes the World page and says what each word decided and what the eye found.
+
+- **The arena plan** (`roads/arena-plan.js`): a structure is never one-shot, so the venue is laid out in plan before
+  anything is built: the pit lane, pit building and paddock along the main straight on the side with room, stands where
+  a spectator sees the most of the lap (a stand's eye over the land, the best sites taken apart from each other), the
+  car park and hospitality behind the paddock, the landmark's ground, and a service road round the venue (its hull,
+  never crossing the track) with a spur to every zone and a tunnel exactly where a spur must cross. Its laws: zones off
+  the road, apart, out of the sight lines, reached, each stand seeing its share of the lap. Drawn as a plan sheet
+  (`arenaSheetSvg`) to review first; a trackscape slot inside a zone is the zone's to fill. `scripts/trackscape.mjs`
+  writes the sheet beside the World page.
+
 Planned:
 
-- **The track's set pieces as blocks**, and a placer walking the track's sides.
-- **One orchestration, two modes:** the track first and the world dressed round it, or a world with a roadway section
-  threaded through its land. Its measures: a realistic GT circuit with the car designer's cars, and a kart level from
-  the same tool with a different intent and course.
+- **Local areas:** each zone built on its own in passes (ground, massing, the structure's elements, dressing),
+  reviewable and re-rolled on its own seed without touching the rest.
 
 ### Car designer: a realistic vehicle, or a racer and their machine
 

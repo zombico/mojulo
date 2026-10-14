@@ -21,7 +21,7 @@
  *   banded     the tile in the window of the face's light band (a stop up lit, a stop down in shade), drawn as it is
  *
  *   trackKit(kit) → { id, pole, ramps, paints, surface(name, corners, uv), paint(name, corners, extra?),
- *                     wall(name, corners, inside), flat(name, stop) }
+ *                     wall(name, corners, inside), flat(name, stop), piece(group paint, corners, value, normal, mark) }
  *     kit: a kit's id (a written kit, or a look already registered), or a look in words { look, base?, seed? } composed
  *     here (gameworld/tunnel-land.js composeLook: the same words, the same look, in any process)
  *
@@ -48,6 +48,8 @@ export const TRACK_MATERIALS = Object.freeze({
   grass:    { painter: 'dirt', from: ['grass'], lumas: null, keep: 1 },
 });
 export const TRACK_PAINTS = Object.freeze(['kerbRed', 'kerbWhite', 'line', 'check', 'lip']);
+/** The painters of the kit's own ramps a set piece is made of. */
+const PIECE_PAINTERS = Object.freeze({ stone: 'stone', bark: 'grain', foliage: 'leaf' });
 
 const luma = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 const clamp = (v) => Math.max(0, Math.min(255, Math.round(v)));
@@ -103,7 +105,10 @@ export function trackKit(kit) {
   const light = toned([rampOf('rock')[4]], [236], 0.12)[0];
   const accent = (() => { try { return accentOf(kitId); } catch { return null; } })() ?? [226, 182, 42];
   const paints = { kerbRed: hex(red), kerbWhite: hex(light), line: hex(light), check: hex(ramps.tyre[1]), lip: hex(accent) };
-  const keyOf = (m, stops) => `track:${TRACK_MATERIALS[m].painter}:${m}:${stops.map((c) => hex(c).slice(1)).join('-')}`;
+  const keyOf = (m, stops) => `track:${TRACK_MATERIALS[m]?.painter ?? PIECE_PAINTERS[m]}:${m}:${stops.map((c) => hex(c).slice(1)).join('-')}`;
+  // the kit's own ramps a set piece is also made of (set-pieces.js): its stone, bark, foliage and paint
+  const madeOr = (name, fallback) => { try { return resample(madeRamp(kitId, name)); } catch { return fallback; } };
+  const own = { stone: madeOr('stone', rampOf('rock')), bark: land.bark ? resample(land.bark) : ramps.earth, foliage: land.foliage ? resample(land.foliage) : ramps.grass, paint: resample(paintRamp.length > 1 ? paintRamp : [paintRamp[0], paintRamp[0]]) };
   // a window of five stops round stop i (the ends repeated)
   const windowAt = (stops, i) => [-2, -1, 0, 1, 2].map((d) => stops[Math.max(0, Math.min(stops.length - 1, i + d))]);
   const shadeOf = (n) => { const g = clamp(255 * Math.min(1, lam(n))); return hex([g, g, g]); };
@@ -118,6 +123,24 @@ export function trackKit(kit) {
     id: kitId, pole, ramps, paints,
     /** A face of a material, facing up (ground, road, a barrier's top). */
     surface(m, corners, uv) { const { c, n } = facingUp(corners); return tiled(m, c, c === corners ? uv : uv.slice().reverse(), n); },
+    /** A set piece's face (set-pieces.js): its group's material (tiled on the pole) or flat colour (glass, paint, a
+     *  lamp, the accent), its value the stop, lit by its own normal; turned to wind with that normal. A mark in the
+     *  tile (`mark`) is flat, a stop under its value. */
+    piece(G, corners, value, normal, mark = false) {
+      const wn = normalOf(corners), c = normal && wn[0] * normal[0] + wn[1] * normal[1] + wn[2] * normal[2] < 0 ? corners.slice().reverse() : corners;
+      const n = normal ?? wn, i = Math.max(0, Math.min(4, Math.round(value * 4) - (mark ? 1 : 0))), L = lam(n), isLit = L >= CEL;
+      if (G.flat || mark) {
+        const R = G.flat === 'paint' ? own.paint : G.flat === 'rubber' ? ramps.rubber : G.flat === 'light' ? [hexRgb(paints.line)] : G.flat === 'accent' ? [accent] : ramps[G.material] ?? own[G.material];
+        const col = R.length === 1 ? R[0] : R[Math.max(0, Math.min(R.length - 1, i - (pole === 'banded' && !isLit ? 1 : 0)))];
+        const k = G.flat === 'light' || G.flat === 'accent' ? 1 : pole === 'material' ? Math.min(1, L) : 1;
+        return { corners: c, fill: hex(col.map((v) => v * k)) };
+      }
+      const R = ramps[G.material] ?? own[G.material], ax = Math.abs(n[2]) > 0.7 ? [0, 1] : Math.abs(n[0]) > Math.abs(n[1]) ? [1, 2] : [0, 2];
+      const uv = c.map((p) => [p[ax[0]] / 2, p[ax[1]] / 2]);
+      if (pole === 'material') return { corners: c, fill: shadeOf(n), texture: keyOf(G.material, windowAt(R, i)), textureLit: true, uv };
+      const stops = windowAt(R, i + (isLit ? 0 : -1));
+      return { corners: c, fill: hex(stops[2]), texture: keyOf(G.material, stops), uv };
+    },
     /** A stop of a material's ramp, as a fill (an underside, a far thing). */
     flat(m, i = 2) { return hex(ramps[m][Math.max(0, Math.min(4, i))]); },
     /** A flat paint (a kerb, a line), lit as any face; never tiled. */

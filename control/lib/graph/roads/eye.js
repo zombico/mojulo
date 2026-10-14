@@ -80,7 +80,7 @@ export function trackThings(plan) {
 const rankOf = (th) => INTEREST[th.interest ?? 'filler']?.rank ?? 0;
 
 /** What the driver sees, lap long. `things`: [{ kind, interest (INTEREST's: filler … focus), at: [x, y, z] (its
- *  centre), span (m, its least extent), landmark? }]. `line`: a speed plan already driven (the racing line is the
+ *  centre), span (m, its least extent), top? (its highest point, for a far sight line), landmark? }]. `line`: a speed plan already driven (the racing line is the
  *  costly part; a search that asks the eye many times drives it once). `ground(x, y)`: the land's height, for far
  *  sight lines. */
 export function driverEye(plan, things, { cls = TRACK_VEHICLE[plan.course.class] ?? 'sports', dt = 0.25, line = speedPlan(plan, cls), ground = null } = {}) {
@@ -88,7 +88,7 @@ export function driverEye(plan, things, { cls = TRACK_VEHICLE[plan.course.class]
   // a far thing behind a hill is not seen: the sight line from the eye to its top, marched over the ground
   const sighted = (eye, th) => {
     if (!ground) return true;
-    const top = th.at[2] + th.span / 2;
+    const top = th.top ?? th.at[2] + th.span / 2;
     for (let i = 1; i < 24; i++) { const u = i / 24, x = eye[0] + (th.at[0] - eye[0]) * u, y = eye[1] + (th.at[1] - eye[1]) * u; if (ground(x, y) > eye[2] + (top - eye[2]) * u) return false; }
     return true;
   };

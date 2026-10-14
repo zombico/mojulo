@@ -18,7 +18,8 @@
  *     tuning?: 'sim' | 'arcade',            // ride: the derived envelope as is, or lifted (vehicles.js)
  *     conditions?: 'dry' | 'wet' | 'snow' | 'ice',   // ride: the road's grip in the weather
  *     roadway?: '<preset>' | { … },          // race: on a roadway built for driving (roads/course.js COURSE_PRESETS,
- *                                           // or a course spec), its land dressed: a lap or a stage, as the course is
+ *                                           // or a course spec), its land dressed: a lap or a stage, as the course is;
+ *                                           // or { intent: 'words' }: the track from words (roads/trackscape-compose.js)
  *     laps?: n,                             // race: times round (1 to 9; 3 on a loop, 1 on a trail)
  *     rivals?: n,                           // race: rival drivers in the same car (1 to 7; a ride's), racing for a place
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
@@ -46,6 +47,7 @@
  */
 import { STAGE_KITS } from '../era/stage.js';
 import { COURSE_PRESETS } from '../roads/course.js';
+import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
 import { RIDES, RIDE_H } from './ride.js';
@@ -132,7 +134,8 @@ export function readQuick(Q) {
   if (Q.track !== undefined && !['trail', 'loop'].includes(Q.track)) throw fail('.track is trail (end to end) or loop (round a loop laid on the trail\'s land)');
   if (Q.roadway !== undefined) {
     if (Q.goal !== 'race') throw fail('.roadway belongs to the race goal');
-    if (!(isObj(Q.roadway) || COURSE_PRESETS[Q.roadway])) throw fail(`.roadway is a course preset (${Object.keys(COURSE_PRESETS).join(', ')}) or a course spec`);
+    if (!(isObj(Q.roadway) || COURSE_PRESETS[Q.roadway])) throw fail(`.roadway is a course preset (${Object.keys(COURSE_PRESETS).join(', ')}), a course spec, or { intent: 'words' }`);
+    if (isObj(Q.roadway) && Q.roadway.intent !== undefined && (typeof Q.roadway.intent !== 'string' || !Q.roadway.intent.trim() || Object.keys(Q.roadway).length > 1)) throw fail('.roadway.intent is the track in words ("a GT circuit in green hills"), alone');
     if (Q.track !== undefined || Q.climb || Q.building !== undefined || Q.run !== undefined) throw fail('.roadway is the race\'s whole ground: no track, climb, building or run');
   }
   if (Q.laps !== undefined && !(Number.isInteger(Q.laps) && Q.laps >= 1 && Q.laps <= 9)) throw fail('.laps is how many times round, 1 to 9');
@@ -192,7 +195,11 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // a run's pool: trails each laid from its own seed, two more than a run draws
   const s0 = Number.isInteger(seed) ? seed : 1;
   // a race on a roadway: the level is the roadway itself (a lap, or a stage when its course runs end to end), dressed
-  const levels = quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
+  // (in words, `{ intent }`: trackscape's door, roads/trackscape-compose.js — the course designed, drawn in the words'
+  // look and dressed where a driver looks)
+  const worded = isObj(quick.roadway) && typeof quick.roadway.intent === 'string' ? composeTrack(quick.roadway.intent, { seed: s0 }) : null;
+  const levels = worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
+    : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } };
   return {

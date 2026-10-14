@@ -24,6 +24,7 @@ import { face, faceOut, texFace, boxFaces } from './road-faces.js';
 import { overpass, gantry, measureClearance } from './structures.js';
 import { FLEET, FLEET_MIX, PAINTS, TRAILER_PAINTS, buildVehicle, vehicleBounds } from './fleet.js';
 import { assembleTrackScene, TRACK_FORMS } from './track.js';
+import { planScapedTrack } from './trackscape-dress.js';
 
 export const ROADWAY_METERS_PER_UNIT = 1;
 export const NORMAL_CROWN = 0.02;
@@ -553,7 +554,8 @@ export function viewCamera(plan, view) {
 
 export function assembleRoadwayScene(m = {}, opts = {}) {
   // a circuit or a stage is a track (track.js); no form, or the corridor, is the freeway below
-  if (TRACK_FORMS.includes(m.form)) return assembleTrackScene(m, opts);
+  // (dressed by its trackscape when the manifest asks: `scape`, trackscape-dress.js)
+  if (TRACK_FORMS.includes(m.form)) return m.scape ? assembleTrackScene(m, opts, planScapedTrack(m)) : assembleTrackScene(m, opts);
   if (m.form !== undefined && m.form !== 'corridor') throw new Error(`roadway: form '${m.form}' is not one of ${[...TRACK_FORMS, 'corridor'].join(', ')}`);
   const plan = planRoadway(m);
   const first = viewCamera(plan, opts.view);

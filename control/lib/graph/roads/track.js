@@ -421,8 +421,9 @@ export function trackLaws(c) {
 }
 
 // ── the world payload ────────────────────────────────────────────────────────────────────────────
-export function assembleTrackScene(m = {}, opts = {}) {
-  const plan = planTrack(m);
+export function assembleTrackScene(m = {}, opts = {}, planned = null) {
+  // `planned`: a plan already made (trackscape-dress.js: a track dressed by its trackscape); else this manifest's
+  const plan = planned ?? planTrack(m);
   const first = trackViewCamera(plan, opts.view);
   const cameras = first ? [first, ...plan.cameras.filter((c) => c !== first)] : plan.cameras;
   const V = 3000;
