@@ -33,6 +33,7 @@ import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
 import { grassLadder } from '../vegetation/grass.js';
+import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-contact.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
 import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-place.js';
@@ -442,8 +443,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     sky: st.night ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) },
     glow: !!Gl,
     pack: true,
-    ...(manifest.wind ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind, seed) } : {}),
-    walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
+    ...(manifest.wind || manifest.grass ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
+    walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     ...(site.out ? outTrailPayload(site) : {}),
   };
   // the arrangements on the page: the soft group is walked through; what blocks is a collider and every arrangement an
@@ -536,6 +537,26 @@ export function layerFaces(st, site, dir = [0, 0, 1]) {
   return out;
 }
 
+const WALK_EYE = 1.7;
+// the material pole's grass: the root `ao` (its colour × this at the ground), the sun's `back` light through a blade seen
+// against it, the `dry` share of tufts gone to straw at the tips
+const REAL_GRASS = Object.freeze({ ao: 0.45, back: 0.7, dry: 0.22 });
+const GRASS_KEYS = ['look', 'contact', 'density', 'height'];
+/**
+ * `grass` on an isekai stage: the live field's own dials, beside `wind` (and standing it in the default wind without one).
+ * { look?: 'banded' | 'material' (default the kit's pole), contact?: true | false | { body?, press?, recover?, wave?,
+ * land? } (vegetation/grass-contact.js), density? (tufts a square metre), height?: [lo, hi] (metres) } → error strings.
+ */
+export function validateIsekaiGrass(g) {
+  if (g === undefined || g === null || g === true) return [];
+  if (typeof g !== 'object' || Array.isArray(g) || Object.keys(g).some((k) => !GRASS_KEYS.includes(k))) return ['grass must be true or { look?, contact?, density?, height? }'];
+  const e = [];
+  if (g.look !== undefined && !['banded', 'material'].includes(g.look)) e.push("grass.look must be 'banded' (the ramp's stops, locked) or 'material' (a material under light)");
+  if (g.density !== undefined && !(Number.isFinite(g.density) && g.density >= 0.5 && g.density <= 12)) e.push('grass.density must be 0.5–12 (tufts a square metre)');
+  if (g.height !== undefined && !(Array.isArray(g.height) && g.height.length === 2 && g.height.every((v) => Number.isFinite(v) && v >= 0.1 && v <= 2.5) && g.height[0] <= g.height[1])) e.push('grass.height must be [lo, hi], 0.1–2.5 m, lo ≤ hi');
+  return [...e, ...validateGrassContact(g.contact)];
+}
+
 const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
 /**
  * The LIVE GRASS the World page stands round the walker with `wind` (scene/channels/stage-grass.js): the ground as the
@@ -544,8 +565,9 @@ const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).t
  * only: the colour is the ramp's, by height), the grass ramp and its lit and shade windows, the wind and its grass taker,
  * and the crowns that sway.
  */
-export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1) {
-  const L = st.live, g = site.grid, nx = g.nx, ny = g.ny, x0 = gridX(g, 0), y0 = gridY(g, 0), cell = gridX(g, 1) - x0;
+export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, grass = undefined) {
+  const errs = validateIsekaiGrass(grass); if (errs.length) throw new Error(`isekai: ${errs.join('; ')}`);
+  const G = grass && grass !== true ? grass : {}, L = st.live, g = site.grid, nx = g.nx, ny = g.ny, x0 = gridX(g, 0), y0 = gridY(g, 0), cell = gridX(g, 1) - x0;
   let lo = Infinity, hi = -Infinity; for (const z of g.z) { lo = Math.min(lo, z); hi = Math.max(hi, z); }
   const zsc = Math.max(1e-6, (hi - lo) / 65535), zq = Int16Array.from(g.z, (z) => Math.round((z - lo) / zsc) - 32768);
   const m = new Uint8Array((nx - 1) * (ny - 1)), node = (i, j) => [gridX(g, i), gridY(g, j), g.z[j * nx + i]];
@@ -573,12 +595,16 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1) 
     variants.push(ids);
   }
   const spec = resolveTerrainWind(wind === true ? { debris: false } : { ...wind, debris: false });
-  const W = windPageChannel(spec, { grassKinds: [L.kind] }), T = st.tiles.blades;
+  const W = windPageChannel(spec, { grassKinds: [L.kind] }), T = st.tiles.blades, contact = resolveGrassContact(G.contact, L.contact);
   return {
     grid: { x0: r5(x0), y0: r5(y0), cell: r5(cell), nx, ny, zlo: r5(lo), zsc, z: b64(zq), m: b64(m) },
     ramp: st.palette.grass, win: L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] },
-    templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: L.density, height: L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
-    sheen: L.sheen, part: L.part, taker: W.grass[0],
+    templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: G.density ?? L.density, height: G.height ?? L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
+    sheen: L.sheen, taker: W.grass[0],
+    // CONTACT: what walks, lands or strikes in the grass lays it (vegetation/grass-contact.js); `contact: false` ⇒ none
+    ...(contact ? { contact: { ...contact, eye: WALK_EYE } } : {}),
+    // the MATERIAL pole draws the grass as a material under light: by the look's pole unless the recipe says
+    ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
     ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns } : null, wind: W,
   };

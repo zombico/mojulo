@@ -200,6 +200,37 @@ describe('the isekai meadow, live (`wind`)', () => {
     expect(LG.taker.phi).toBeGreaterThan(0);
     expect(LG.wind.debris).toBeUndefined();   // no leaves blowing through a pixel-locked palette
   });
+
+  it('touches: the walker lays the grass and its landings ring out (contact); `grass.contact: false` carries none of it', () => {
+    const page = (q) => emitThreeWorld({ ...q, textures: collectFaceTextures(q.faces), inline: true });
+    expect(LG.contact.eye).toBe(W.walk.minEye);
+    expect(LG.contact.recover).toBeGreaterThan(0);
+    const on = page(W);
+    expect(on).toContain('mojContact'); expect(on).toContain('function grassContact');
+    const off = assembleStageScene({ ...M, wind: true, grass: { contact: false } });
+    expect('contact' in off.liveGrass).toBe(false);
+    const html = page(off);
+    expect(html).toContain('stage live grass'); expect(html).not.toContain('mojContact'); expect(html).not.toContain('grassContact');
+    // the recipe's dials reach the page
+    const g = assembleStageScene({ ...M, wind: true, grass: { density: 8, height: [0.3, 0.5], contact: { recover: 40, wave: { speed: 3 } } } }).liveGrass;
+    expect(g.density).toBe(8); expect(g.height).toEqual([0.3, 0.5]); expect(g.contact.recover).toBe(40); expect(g.contact.wave.speed).toBe(3);
+    // grass alone stands the live field in the default wind
+    expect(assembleStageScene({ ...M, grass: true }).liveGrass.wind.grass).toHaveLength(1);
+    expect(() => assembleStageScene({ ...M, grass: { contact: { press: 3 } } })).toThrow(/press/);
+    expect(() => assembleStageScene({ ...M, grass: { look: 'oil' } })).toThrow(/look/);
+  });
+
+  it('draws by the pole: a banded look keeps the lock; asked for (or on a realistic look) the grass is a material under light', () => {
+    expect('real' in LG).toBe(false);
+    const page = (q) => emitThreeWorld({ ...q, textures: collectFaceTextures(q.faces), inline: true });
+    expect(page(W)).not.toContain('uReal');
+    const m = assembleStageScene({ ...M, wind: true, grass: { look: 'material' } }), R = m.liveGrass.real;
+    expect(R.ao).toBeGreaterThan(0); expect(R.ao).toBeLessThan(1); expect(R.back).toBeGreaterThan(0);
+    expect(Math.hypot(...R.sun)).toBeCloseTo(1, 3); expect(R.sunColor.every((v) => Number.isInteger(v) && v >= 0 && v <= 255)).toBe(true);
+    expect(page(m)).toContain('uReal');
+    // the static floor is the same whatever the grass is drawn as
+    expect(JSON.stringify(m.faces)).toBe(JSON.stringify(p.faces));
+  });
 });
 
 describe('the trail blend (nature.js trailRims, the isekai rim and creep)', () => {
