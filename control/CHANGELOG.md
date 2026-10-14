@@ -65,6 +65,11 @@ camera that pans with a car, then eases onto its tail and rides along).
   what a live world cannot do. A shot with `on: 'goal:*'` is cued instead of timed: when the world's event bus logs a
   matching event (reaction-emitted ones included), the plan cuts to it for its length, timed from the event, then
   returns to the running order. Plans in worlds that do not play live emit the same page as before.
+- **Exports.** A world GLB carries its plan as animated cameras: one per plan camera and `shot:program`, the edit
+  with STEP cuts (`shootCameraDefs` in `scene-gltf-level.js`; a plan-less GLB is byte for byte as before), which
+  Godot imports as Camera3D nodes on its AnimationPlayer. The Blender film takes a plan as one shot file per plan
+  shot, so `film_shots.py` cuts between a Blender camera per shot at markers (`planFilmShots`, the frames the
+  render captures).
 - **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
   LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
   without a plan is byte for byte as before.

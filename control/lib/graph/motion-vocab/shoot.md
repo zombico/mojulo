@@ -65,6 +65,12 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 `add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
 
+## Exports
+
+- **Video:** `forge_motion { subject: { world_ref }, shot: { motion: 'plan' } }` (GIF / MP4; `params.shot` for one shot). Set pieces, transitions and roll render; gizmos never do.
+- **Blender:** `export: 'blender'` on that forge (or `node scripts/export-blender-film.mjs --motion <mo_…>`) writes one shot file per plan shot under `shots/`; `film_shots.py` lays them out as cuts, a Blender camera and a timeline marker each, keyed on exactly the frames the render captured. The world is frozen at its export pose; roll is not carried (the film cameras track a target).
+- **glTF / Godot / Unity / Unreal:** a world GLB carries the plan as animated cameras — `shot:<camera>` (its keyed range, world-clock seconds) and `shot:program` (the edit from 0, STEP so cuts are cuts), roll included; field of view is the first frame's (core glTF cannot animate it). Godot's importer brings them in as Camera3D nodes with their animations on the imported AnimationPlayer.
+
 ## Readout (the machine gate)
 
 `duration_s`; per camera `path_m`, `peak_speed_mps`, `lens_mm`, `follows`; `jumps` (frames where the camera teleports: a followed car wrapping its lane); `clearance.passes_through` (where a move crosses the world's faces) and `clearance.runs_into` (where a camera's eye is inside a moving car or walker — measured boxes on their scheduled routes — while its shot plays: `{ camera, t, subject, at }`, the first frame of each run). All advisory. Whether the shot reads is the operator's eyes gate on the World page.

@@ -238,3 +238,60 @@ export function levelAddress(payload = {}, sv = (v) => v, sn = (x) => x) {
   const rooms = list(payload.rooms), anchors = list(payload.anchors);
   return { ...(rooms ? { rooms } : {}), ...(anchors ? { anchors } : {}) };
 }
+
+// q · r for [x, y, z, w] quaternions
+function qmul(a, b) {
+  return [
+    a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+    a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+    a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+    a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2],
+  ];
+}
+
+/**
+ * shootCameraDefs(shoot, viewBox) → animated camera nodes for a world's SHOOT PLAN (the lowered `payload.shoot`):
+ * one per plan camera (`shot:<id>`, its whole keyed range, LINEAR, in world-clock seconds) and one for the edit
+ * (`shot:program`, every frame of the cut from 0, STEP so cuts are cuts). Each frame's rotation is the lookAt solve
+ * banked by the camera's roll about its lens (+ clockwise from behind, as the World page). glTF cannot animate a
+ * camera's field of view in its core, so yfov is the first frame's. A plan-less payload → [].
+ */
+export function shootCameraDefs(shoot, viewBox) {
+  if (!shoot || !Array.isArray(shoot.cameras) || !shoot.cameras.length) return [];
+  const vb = viewBox && Number.isFinite(viewBox.width) && Number.isFinite(viewBox.height) ? viewBox : { width: 1120, height: 780 };
+  const aspect = vb.width / vb.height;
+  const yfov = (hfov) => 2 * Math.atan(Math.tan((hfov * Math.PI) / 360) / aspect);
+  const at = (tr, t) => {
+    const f = Math.max(0, Math.min(tr.n - 1, (t - tr.t0) * tr.fps));
+    const i = Math.min(Math.max(0, tr.n - 2), Math.floor(f)), j = Math.min(tr.n - 1, i + 1), a = tr.n > 1 ? f - i : 0;
+    const L = (arr, d, k) => arr[i * d + k] + (arr[j * d + k] - arr[i * d + k]) * a;
+    return { pos: [L(tr.pos, 3, 0), L(tr.pos, 3, 1), L(tr.pos, 3, 2)], look: [L(tr.look, 3, 0), L(tr.look, 3, 1), L(tr.look, 3, 2)], hfov: L(tr.hfov, 1, 0), roll: L(tr.roll, 1, 0) };
+  };
+  const pose = (v) => {
+    const r = (-(v.roll || 0) * Math.PI) / 360;
+    return { translation: v.pos, rotation: v.roll ? qmul(lookAtRotation(v.pos, v.look), [0, 0, Math.sin(r), Math.cos(r)]) : lookAtRotation(v.pos, v.look) };
+  };
+  const def = (name, frames, times, step) => ({
+    name, ...pose(frames[0]), yfov: yfov(frames[0].hfov), aspectRatio: aspect, znear: 0.1, zfar: 8000,
+    times, translations: frames.map((v) => pose(v).translation), rotations: frames.map((v) => pose(v).rotation), step,
+  });
+  const out = shoot.cameras.map((c) => {
+    const tr = c.track, frames = [], times = [];
+    for (let j = 0; j < tr.n; j++) { const t = tr.t0 + j / tr.fps; times.push(t); frames.push(at(tr, t)); }
+    return def(`shot:${c.id}`, frames, times, false);
+  });
+  const fps = shoot.fps || 24, total = shoot.total || 0, shots = Array.isArray(shoot.shots) ? shoot.shots : [];
+  if (shots.length && total > 0) {
+    const frames = [], times = [];
+    for (let j = 0; j <= Math.round(total * fps); j++) {
+      const tau = Math.min(total, j / fps);
+      let k = 0;
+      while (k + 1 < shots.length && shots[k + 1].start <= tau) k++;
+      const s = shots[k], cam = shoot.cameras.find((c) => c.id === s.camera);
+      if (!cam) continue;
+      times.push(tau); frames.push(at(cam.track, s.span[0] + Math.min(s.length, tau - s.start)));
+    }
+    if (frames.length) out.push(def('shot:program', frames, times, true));
+  }
+  return out;
+}

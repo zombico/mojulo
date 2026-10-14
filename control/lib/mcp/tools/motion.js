@@ -49,6 +49,7 @@ import {
   renderDeckMotion,
   renderWorldMotion,
   renderWorldPlan,
+  planFilmShots,
   renderWorldTraversalMotion,
   encodeGif,
   encodeGifBuffers,
@@ -586,7 +587,16 @@ export async function forgeMotionHandler(input) {
       motionRef: ref, worldRef: resolved.subjectRef, title, motion,
       fps: result.meta.fps, width: result.width, height: result.height, cameras: result.cameras,
     });
-    film = await writeBlenderFilm({ outDir: filmDir, shot: shotBody, title });
+    // a shoot plan: a Blender camera per plan shot, cut at markers — the same frames this render captured
+    let planShots = null;
+    if (motion === 'plan') {
+      const pf = await planFilmShots({ sketch: resolved.sketch, params: shot.params || {}, fps: shot.fps });
+      planShots = pf.shots.map((s, k) => filmShot({
+        motionRef: `${ref}-${String(k + 1).padStart(2, '0')}`, worldRef: resolved.subjectRef, title: s.name, motion,
+        fps: pf.fps, width: pf.width, height: pf.height, cameras: s.cameras,
+      }));
+    }
+    film = await writeBlenderFilm({ outDir: filmDir, shot: planShots ? planShots[0] : shotBody, shots: planShots, title });
   }
   // the traversal's full per-tick probe stream (entity transforms / HUD vars / physics bodies)
   // files beside the video — the deterministic record a caller can assert against.

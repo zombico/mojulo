@@ -152,31 +152,7 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
  * @returns {Promise<{ framePngs: Buffer[], width:number, height:number, viewBox:number[], cameras:object[], meta:object }>}
  */
 export async function renderWorldPlan({ sketch, params = {}, fps }) {
-  const { normalizeShoot } = await import('@/lib/graph/shoot/plan');
-  const { sampleProgram } = await import('@/lib/graph/shoot/sample');
-  const { shootSubjects } = await import('@/lib/graph/shoot/subjects');
-  if (!sketch?.manifest?.shoot) {
-    throw new Error(`'${sketch?.ref}' has no shoot plan — create_shoot_plan puts cameras in it first (get_motion_vocab({ id: 'shoot' })).`);
-  }
-  const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
-  if (!payload) throw new Error(`sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no three.js World form to shoot.`);
-  const { worldIsLive } = await import('@/lib/graph/shoot/subjects');
-  if (worldIsLive(payload)) {
-    throw new Error(`'${sketch.ref}' plays live (entities / physics), so its shoot plan cannot be rendered frame by frame from a rewound clock yet — record it with a 'traversal' (shot.ticks), or watch it on the World page.`);
-  }
-  const subjects = shootSubjects(payload);
-  const { plan, warnings } = normalizeShoot(sketch.manifest.shoot, { subjects });
-  if (!plan) throw new Error(`the shoot plan on '${sketch.ref}' does not read: ${warnings.join('; ')}`);
-  let shots = plan.shots;
-  if (params.shot !== undefined && params.shot !== null) {
-    const i = typeof params.shot === 'number' ? params.shot : shots.findIndex((s) => s.name === params.shot);
-    if (!(i >= 0 && i < shots.length)) throw new Error(`no shot '${params.shot}' in the plan (shots: ${shots.map((s) => s.name).join(', ')})`);
-    shots = [shots[i]];
-  }
-  const rate = Math.max(1, Math.min(60, Math.round(fps || plan.fps)));
-  const frames = sampleProgram({ ...plan, shots }, { fps: rate, subjects });
-  const width = Math.round(params.width || DEFAULT_W);
-  const height = Math.round(params.height || DEFAULT_H);
+  const { payload, plan, shots, frames, rate, width, height } = await planFrames({ sketch, params, fps });
   const aspect = width / height;
   const specs = frames.map((f) => ({
     pos: f.worldFraming.cameraPosition,
@@ -196,6 +172,48 @@ export async function renderWorldPlan({ sketch, params = {}, fps }) {
     cameras: frames.map((f) => f.worldFraming),
     shots: shots.map((s) => s.name),
     meta: { motion: 'plan', frames: frames.length, fps: rate, loop: params.loop ?? false, backend: 'three', shots: shots.map((s) => s.name) },
+  };
+}
+
+// a world's shoot plan read and sampled: the payload, the plan, the shots asked for (one by `params.shot`, else the
+// running order) and their frames at the rate — the one reading the render and the Blender film share
+async function planFrames({ sketch, params = {}, fps }) {
+  const { normalizeShoot } = await import('@/lib/graph/shoot/plan');
+  const { sampleProgram } = await import('@/lib/graph/shoot/sample');
+  const { shootSubjects, worldIsLive } = await import('@/lib/graph/shoot/subjects');
+  if (!sketch?.manifest?.shoot) {
+    throw new Error(`'${sketch?.ref}' has no shoot plan — create_shoot_plan puts cameras in it first (get_motion_vocab({ id: 'shoot' })).`);
+  }
+  const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
+  if (!payload) throw new Error(`sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no three.js World form to shoot.`);
+  if (worldIsLive(payload)) {
+    throw new Error(`'${sketch.ref}' plays live (entities / physics / events), so its shoot plan cannot be rendered frame by frame from a rewound clock yet — record it with a 'traversal' (shot.ticks), or watch it on the World page.`);
+  }
+  const subjects = shootSubjects(payload);
+  const { plan, warnings } = normalizeShoot(sketch.manifest.shoot, { subjects });
+  if (!plan) throw new Error(`the shoot plan on '${sketch.ref}' does not read: ${warnings.join('; ')}`);
+  let shots = plan.shots.filter((s) => !s.cue);
+  if (params.shot !== undefined && params.shot !== null) {
+    const i = typeof params.shot === 'number' ? params.shot : plan.shots.findIndex((s) => s.name === params.shot);
+    if (!(i >= 0 && i < plan.shots.length)) throw new Error(`no shot '${params.shot}' in the plan (shots: ${plan.shots.map((s) => s.name).join(', ')})`);
+    shots = [{ ...plan.shots[i], cue: undefined }];
+  }
+  const rate = Math.max(1, Math.min(60, Math.round(fps || plan.fps)));
+  const frames = sampleProgram({ ...plan, shots }, { fps: rate, subjects });
+  return { payload, plan, shots, frames, rate, width: Math.round(params.width || DEFAULT_W), height: Math.round(params.height || DEFAULT_H) };
+}
+
+/**
+ * A world's shoot plan as Blender film shots: each shot of the running order (or `params.shot` alone) its own run of
+ * per-frame cameras, sampled exactly as `renderWorldPlan` renders them, so film_shots.py lays one Blender camera per
+ * plan shot and binds a marker at each cut. The world is frozen in Blender (traffic stands at its export pose), and
+ * roll is not carried (the film's cameras track a target, upright).
+ */
+export async function planFilmShots({ sketch, params = {}, fps }) {
+  const { shots, frames, rate, width, height } = await planFrames({ sketch, params, fps });
+  return {
+    fps: rate, width, height,
+    shots: shots.map((s) => ({ name: s.name, cameras: frames.filter((f) => f.shot === s.name).map((f) => f.worldFraming) })).filter((s) => s.cameras.length),
   };
 }
 
