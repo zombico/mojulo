@@ -142,7 +142,7 @@ export const species = {
     craniumRows: BALL(0.05, 0.9), craniumCaps: { back: [0, -0.052, 0.0], tip: [0, 0.053, -0.003] },
     jawRows: BEAK(0.05), jawCaps: { back: [0, -0.024, -0.021], tip: [0, 0.033, -0.016] },
     eyeAt: [2.4, 2.4], eyeR: 0.018,
-    extraSegments: [...squidArms({ y0: 0.07, z0: Z, spread: 0.024, reach: 0.13, r0: 0.009, tentacle: 0.27 }),
+    extraSegments: [...squidArms({ y0: 0.07, z0: Z, spread: 0.04, reach: 0.17, r0: 0.011, tentacle: 0.3 }),
       { name: 'siphon', kind: 'segment', from: 'siphonA', to: 'siphonB', rA: [0.012, 0.011], rB: [0.008, 0.008], slots: 'ring12', group: 'Coat', mirror: 'plane', over: [0.3, 0.3] }, ...F.segs],
     markDensity: { torso: 3 },
     markings: [{ on: 'torso', kind: 'spots', count: 30, size: [0.03, 0.05], seed: 7, group: 'Spot', color: '#a8604c' }],

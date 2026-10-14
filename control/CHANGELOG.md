@@ -78,6 +78,11 @@ redraws with the new numbers on its next read.
   the wing's own arm, so the pigeon's wing no longer stands off its body as a griffon-thick stack (it reached past
   the trunk's width by half again), and the hummingbird's long blades fold along its back. Absent, a wing is built as
   before; the other birds keep theirs (on a plump chicken or owl the fitted wing sinks out of sight).
+- **Pass two** (a fresh read of the whole roster): the T. rex's hips come in and its thighs are slimmer across and no
+  longer rise over the back (from the front it was a box wider than the animal), its head larger; the velociraptor's
+  arm feathers grow on both arms (they grew on the right only); the elasmosaurus carries its neck in a swan's curve
+  with a larger head and flippers (the neck was a dead-level rod); the moose's palms lie out flat, broad from above
+  (they stood on edge like a spray of sticks); the squid's arms spread into a visible bundle.
 - `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
   to NaN). A four-legged species builds exactly as before.
 - `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,

@@ -166,7 +166,7 @@ export const species = {
       // a short beam straight out sideways from the poll; the PALM a broad flat plate (a squashed fat sweep) out and up,
       // tilted to face up-forward; its rim crowned with short points; all in head units
       { kind: 'sweep', name: 'antlerBeam', at: [1.0, 1.0], space: 'head', spine: [[0, 0, -0.005], [0.06, -0.01, 0.05], [0.12, -0.02, 0.08]], radii: [0.022, 0.02, 0.018], m: 6, group: 'Horn' },
-      { kind: 'sweep', name: 'antlerPalm', at: [1.0, 1.0], space: 'head', spine: [[0, 0, -0.005], [0.06, -0.01, 0.05], [0.14, -0.03, 0.09], [0.22, -0.05, 0.12], [0.30, -0.06, 0.15], [0.36, -0.06, 0.18]], radii: [0.022, 0.02, 0.10, 0.15, 0.14, 0.08], squash: [0.22, 1], m: 8, group: 'Horn' },
+      { kind: 'sweep', name: 'antlerPalm', at: [1.0, 1.0], space: 'head', spine: [[0, 0, -0.005], [0.06, -0.01, 0.05], [0.14, -0.03, 0.09], [0.22, -0.05, 0.12], [0.30, -0.06, 0.15], [0.36, -0.06, 0.18]], radii: [0.022, 0.02, 0.10, 0.15, 0.14, 0.08], squash: [1, 0.22], m: 8, group: 'Horn' },
       ...[[0.27, 0.07, 0.17], [0.34, 0.03, 0.22], [0.39, -0.03, 0.25], [0.41, -0.09, 0.25], [0.38, -0.15, 0.22], [0.31, -0.18, 0.17]].map(([x, y, z], i) => ({
         kind: 'sweep', name: `antlerPoint${i}`, at: [1.0, 1.0], space: 'head', spine: [[0, 0, -0.005], [0.06, -0.01, 0.05], [0.12, -0.02, 0.08], ...[0.6, 0.75, 0.9].map((f) => [0.24 + (x - 0.24) * f, -0.05 + (y + 0.05) * f, 0.13 + (z - 0.13) * f])], radii: [0.022, 0.02, 0.014, 0.02, 0.016, 0.004], m: 6, group: 'Horn' })),
       // the bulbous overhanging bell-nose: a heavy upper lip that droops over and past the lower jaw (one a side)
