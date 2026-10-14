@@ -23,7 +23,7 @@
  */
 
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
-import { GODOT_MECHANICS } from './engine-portability.js';
+import { GODOT_MECHANICS, exportVerdict } from './engine-portability.js';
 
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
@@ -85,6 +85,25 @@ func attach(l: Node) -> void:
 	l.character_event.connect(func(type: String, id: String, event: Dictionary): pass)     # down, gone, spawned, arrive, stuck, faded
 	l.bus_event.connect(func(type: String, event: Dictionary): pass)  # every event the bus processes
 `;
+
+// The export's verdict (engine-portability.js exportVerdict): what Godot plays of the web's game, stamped, never refused.
+// Absent an assessment (a caller that passes none) ⇒ no section, every file as before.
+const VERDICT_LINE = {
+  plays: 'everything the game asks of the kernel runs.',
+  'plays-partly': 'the game plays; what is drawn simpler or stays the web\'s is listed below.',
+  hollow: 'it imports and runs, but something the game turns on does not run (listed under lost): it is not yet the game.',
+};
+const portabilitySection = (p) => {
+  if (!p) return '';
+  const { verdict, lost, approximated } = exportVerdict(p);
+  const list = (xs) => xs.map((x) => `- ${x}`).join('\n');
+  return `## Portability
+
+Verdict: **${verdict}** — ${VERDICT_LINE[verdict]} Advisory: mojulo stamps the pack and never refuses it; the machine
+gate (\`node scripts/export-godot.mjs\`) and your eyes are the checks.
+${lost.length ? `\nLost (nothing in the kernel runs it):\n\n${list(lost)}\n` : ''}${approximated.length ? `\nSimpler (it runs, in part):\n\n${list(approximated)}\n` : ''}
+`;
+};
 
 const ownedSection = () => `## Yours: \`game/\`
 
@@ -515,7 +534,7 @@ play another. \`model.glb.import\` imports it with LOD generation off.`);
  * README and ledger say the designed durations, and with `face` the scene is
  * figure_face.gd (FIGURE_FACE_GD), written beside figure.gd.
  */
-export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, kernelVersion = '?', remint = null, figure = null }) {
+export function emitGodotProject({ ref, score, manifestHash, glbFile = 'model.glb', audioFile = null, kernelVersion = '?', remint = null, figure = null, portability = null }) {
   const title = score.title ?? ref;
   const ledger = figure ? { ...levelLedger(score), ...figureLedger(figure) } : levelLedger(score);
   const files = [
@@ -551,7 +570,7 @@ Your figure is a rigged body: it follows you as a third-person suit (walk
 cycle while moving, idle when still), and every other rigged figure breathes
 its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}`}
 
-${looksSection(score)}${busSection(score)}${soundSection(score.audio)}${ownedSection()}## What travelled, what didn't
+${portabilitySection(portability)}${looksSection(score)}${busSection(score)}${soundSection(score.audio)}${ownedSection()}## What travelled, what didn't
 
 ${ledgerLines(ledger)}
 `,
@@ -567,7 +586,7 @@ ${ledgerLines(ledger)}
  * The driver ships kernel/, game.json, per-level model.glb/score.json,
  * recipe/, audio/. levels: [{ ref, title, gate, score, audioFile, audioDb }].
  */
-export function emitGodotGame({ ref, title, manifestHash, levels, music = {}, shellExtras = [], kernelVersion = '?', remint = null, store = false }) {
+export function emitGodotGame({ ref, title, manifestHash, levels, music = {}, shellExtras = [], kernelVersion = '?', remint = null, store = false, portability = null }) {
   const files = [];
   // the store travels when the game declares one (kernel 0.9.0: kernel/store.gd, held equal to the web's store)
   const ledger = store
@@ -658,7 +677,7 @@ Levels whose player is a rigged figure show it as a third-person suit that
 follows you (walk cycle while moving, idle when still); other rigged figures
 breathe their idle.` : ''}
 
-${soundSection(null, stingers)}${ownedSection()}## What travelled, what didn't
+${portabilitySection(portability)}${soundSection(null, stingers)}${ownedSection()}## What travelled, what didn't
 
 ${ledgerLines({ ...(ledger.stingers_carried ? { stingers_carried: ledger.stingers_carried } : {}), ...(ledger.store_carried ? { store_carried: ledger.store_carried } : { skipped_store: ledger.skipped_store }), ...(ledger.skipped_shell ? { skipped_shell: ledger.skipped_shell } : {}), ...(ledger.gate_approximated ? { gate_approximated: ledger.gate_approximated } : {}) })}
 

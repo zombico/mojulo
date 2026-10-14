@@ -23,6 +23,7 @@ import { weatherScore } from './weather-score.js';
 import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
 import { levelSound } from './engine-sound.js';
+import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS } from './godot-marks.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -134,6 +135,34 @@ function locomotionFor(figures, figKey, unitScale = 1) {
 // (hud, menus, style) are read elsewhere. Absent behaviour (no reactions, watches, sequences or timers) ⇒ null, and no file.
 export const BUS_VERSION = 'bus/1';
 const BUS_CHANNELS = ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap'];
+
+// THE GODOT READING (godot-marks.js): what of a payload an engine kernel is asked to run beyond its geometry. The
+// rules its entities run (the pilot's, the camera's, the cast's), the page channels it fills that do not travel whole,
+// and the events keys an export drops or carries in part. Each is a ledger row only when something in it does not run
+// whole, so a world the kernel runs whole keeps its score byte-identical; engine-portability
+// reads them against the marks. A channel another ledger row already names (movers, physics, fx, sprite sfx, the sky,
+// the tone, the weather, breakables, the crystal light) is left to that row.
+const LEDGERED = new Set(['movers', 'physics', 'fx', 'spriteSfx', 'bg', 'backdrop', 'tone', 'weather', 'breakables', 'crystalLight']);
+const filled = (v) => v != null && v !== false && (Array.isArray(v) ? v.length > 0 : typeof v === 'object' ? Object.keys(v).length > 0 : true);
+export function godotReading(payload) {
+  // the pilot: the entity the level marks pilotable (a car on the drive rule is one), else the walker the score seats
+  const player = (payload?.entities ?? []).find((e) => e?.pilotable === true)?.id ?? playerOf(payload), by = {};
+  for (const e of payload?.entities ?? []) {
+    const t = e?.rule?.type;
+    if (typeof t !== 'string') continue;
+    const r = (by[t] ||= { count: 0 });
+    r.count++;
+    if (e.isCamera) r.camera = true;
+    if (player != null && e.id === player) r.pilot = true;
+  }
+  const channels = Object.keys(payload || {}).filter((k) => PAGE_MARKS[k] && !PAGE_MARKS[k].option && PAGE_MARKS[k].godot !== 'built' && !LEDGERED.has(k) && filled(payload[k])).sort();
+  const ev = payload?.events && typeof payload.events === 'object' ? payload.events : {};
+  const events = Object.keys(ev).filter((k) => filled(ev[k]) && EVENT_MARKS[k]?.godot !== 'built').sort();
+  // the camera the page drives (payload.camera: { rule, target, … }), beside any camera entity
+  const camRule = payload?.camera && typeof payload.camera.rule === 'string' ? payload.camera.rule : null;
+  if (camRule) { const r = (by[camRule] ||= { count: 0 }); r.count++; r.camera = true; }
+  return { rules: by, channels, events };
+}
 
 const playerOf = (payload) => (payload?.entities ?? []).find((e) => e?.rule?.type === 'walk' || e?.rule?.type === 'platform')?.id ?? null;
 
@@ -307,6 +336,12 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
       note: 'score.looks carries each status\'s look as data; kernel/looks.gd wears it (the coat as a material_overlay, waves and drift as billboards from the same closed forms) and plays transits as animation clips. The cues run on the bus, but no adapter wears a look yet: nothing wears one until a script calls $Level.looks.wear(node, name)',
     };
   }
+
+  const reading = godotReading(payload);
+  // only when some rule does not run whole: a world the kernel walks whole keeps its score byte-identical
+  if (Object.keys(reading.rules).some((t) => RULE_MARKS[t]?.godot !== 'built')) ledger.rules_carried = { by: reading.rules, note: 'the motion and camera rules the level\'s entities run, by type (pilot: the player\'s; camera: the camera\'s); kernel/walker.gd runs walk, follow, eye and the platform rule\'s jump (godot-marks.js RULE_MARKS)' };
+  if (reading.channels.length) ledger.channels_carried = { keys: reading.channels, note: 'the page channels the world fills that a Godot export does not carry whole (godot-marks.js PAGE_MARKS says what each loses)' };
+  if (reading.events.length) ledger.events_carried = { keys: reading.events, note: 'the events keys bus.json and score.json drop or carry in part (godot-marks.js EVENT_MARKS)' };
 
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in

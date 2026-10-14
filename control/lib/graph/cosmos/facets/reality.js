@@ -11,11 +11,14 @@
  */
 import { ERAS, ERA_IDS, eraCastConventions } from '../../era/eras.js';
 
+// Godot (scene/godot-marks.js): an era that is built rides the GLB as its bake, its fog only with weather; a figure in
+// a game pack rides as rigid parts (no painted or blend-shape face, no ink); a planned era travels no more than it plays
+const eraGodot = (row) => (row.status === 'built' ? 'approximated' : 'absent');
 function castStatus(id) {
   const planned = eraCastConventions(id).filter((c) => c.status === 'planned').map((c) => c.id);
   return planned.length
-    ? { status: 'partial', lowers: 'lib/graph/era/cast-density.js', note: `the body is built, its density set by the target; planned: ${planned.join(', ')}` }
-    : { status: 'built', lowers: 'lib/graph/era/cast-density.js', note: 'its density set by the target' };
+    ? { status: 'partial', godot: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: `the body is built, its density set by the target; planned: ${planned.join(', ')}` }
+    : { status: 'built', godot: 'approximated', lowers: 'lib/graph/era/cast-density.js', note: 'its density set by the target' };
 }
 
 export const REALITY = Object.freeze({
@@ -23,18 +26,20 @@ export const REALITY = Object.freeze({
   asks: 'how does it look, and how are its assets made?',
   settings: {
     // the look's generation (era/eras.js), drawn at the target's resolution; how dense is the target's, not the era's
-    era: { values: Object.fromEntries(ERA_IDS.map((id) => [id, ERAS[id].world])) },
+    era: { values: Object.fromEntries(ERA_IDS.map((id) => [id, { ...ERAS[id].world, godot: eraGodot(ERAS[id].world) }])) },
     // the cast in the same era (era/cast-density.js): built where its body is, partial while conventions are planned
     cast: { values: Object.fromEntries(ERA_IDS.map((id) => [id, castStatus(id)])) },
-    look: { source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS' } },
-    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS' } },
+    // a look's bake and palette ride the GLB; its sky, haze and tone do not (godot-marks.js PAGE_MARKS)
+    look: { source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS', godot: { all: 'approximated' } } },
+    kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS', godot: { all: 'built' } } },
     medium: {
       values: {
-        '3d': { status: 'built', lowers: 'lib/graph/scene/scene-three.js' },
+        '3d': { status: 'built', godot: 'built', lowers: 'lib/graph/scene/scene-three.js' },
         // built 10-12: a world's `pixel` (a gameworld's style.pixel) draws the page small and blows it up unsmoothed
-        pixel: { status: 'built', godot: false, lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
+        pixel: { status: 'built', godot: 'absent', lowers: 'lib/graph/scene/scene-three.js', note: 'the World page drawn at 1/2 to 1/8 of its size, blown up without smoothing (style.pixel); no palette snap yet, and true 2D sprite levels are another thing' },
       },
     },
-    climate: { source: { module: 'lib/graph/weather/weather.js', table: 'CLIMATES' } },
+    // the weather's fog, colour and light play (kernel/weather.gd); its falls and lightning are the web's
+    climate: { source: { module: 'lib/graph/weather/weather.js', table: 'CLIMATES', godot: { all: 'approximated' } } },
   },
 });

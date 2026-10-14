@@ -1115,7 +1115,76 @@ func _zone_hit(zone: Dictionary, pos: Vector3) -> bool:
 	return pos.distance_to(zp) <= r
 
 
+# THE LEVEL-EQUIVALENCE HARNESS (scripts/godot-level-sim.gd; lib/graph/game/level-equivalence.js is its web twin): a
+# recorded input played frame by frame at the harness's fixed step, the walker stepped AFTER the bus as the web's
+# level-sim steps its world, and one canonical key printed a frame. Off (sim_frame -1) unless the harness starts it.
+var sim_frames: Array = []
+var sim_frame := -1
+var sim_ids: Array = []          # the key's entities: the pilot (the walker) first, then every ruled entity, by id
+var sim_feet: Dictionary = {}    # id -> how far above its feet its pos stands (the web walk rule's eye)
+
+
+func sim_start(frames: Array, ids: Array, feet: Dictionary) -> void:
+	sim_frames = frames
+	sim_ids = ids
+	sim_feet = feet
+	sim_frame = 0
+	if walker != null:
+		walker.sim_input = {}
+		walker.set_physics_process(false)
+
+
+# positions in the recipe's z-up units, quantized to 5 cm, a heading to 0.05 rad (level-equivalence.js POS_Q, HEAD_Q);
+# half up, as the web's Math.floor(x + 0.5)
+static func _sim_q(v: float, k: float) -> int:
+	return int(floor(v / k + 0.5))
+
+
+func _sim_ent(id: String, pos: Array, heading: float) -> String:
+	var up := float(sim_feet.get(id, 0.0))
+	return "%s:%d,%d,%d,%d" % [id, _sim_q(float(pos[0]), 0.05), _sim_q(float(pos[1]), 0.05), _sim_q(float(pos[2]) - up, 0.05), _sim_q(fposmod(heading, TAU), 0.05)]
+
+
+func sim_key() -> String:
+	var parts: Array = [bus.hash_state(bus_state) if bus != null else BusScript.new().hash_state(BusScript.new().create_bus_state({}, []))]
+	for i in sim_ids.size():
+		var id := String(sim_ids[i])
+		if i == 0 and walker != null:
+			var bz := walker.global_transform.basis.z
+			# the walker stands on its feet: its eye goes on, and _sim_ent takes it off again, as for every entity
+			parts.append(_sim_ent(id, _sim_add_eye(id, _bus_pos(walker.global_position)), atan2(bz.z, -bz.x)))
+			continue
+		var ce = cast_state.get("byId", {}).get(id) if cast != null else null
+		if ce is Dictionary:
+			parts.append(_sim_ent(id, ce["pos"], float(ce.get("heading", 0.0))))
+			continue
+		var row := _entity(id)
+		if row.is_empty():
+			parts.append("%s:none" % id)
+			continue
+		var tr: Array = row.get("translation", [0, 0, 0])
+		parts.append(_sim_ent(id, [float(tr[0]) / bus_units, float(tr[1]) / bus_units, float(tr[2]) / bus_units], float(row.get("heading", 0.0))))
+	return "|".join(parts)
+
+
+# the walker's feet, raised by the pilot's eye so _sim_ent takes it off again (its key is its feet)
+func _sim_add_eye(id: String, p: Array) -> Array:
+	return [p[0], p[1], float(p[2]) + float(sim_feet.get(id, 0.0))]
+
+
 func _process(delta: float) -> void:
+	var sim := sim_frame >= 0 and sim_frame < sim_frames.size()
+	if sim and walker != null:
+		walker.sim_input = sim_frames[sim_frame]
+	_play(delta)
+	if sim:
+		if state == "playing" and walker != null:
+			walker.sim_step(delta)
+		print("[mojulo-sim] %d %s %s" % [sim_frame, state, sim_key()])
+		sim_frame += 1
+
+
+func _play(delta: float) -> void:
 	_follow_suit()
 	if sound != null:
 		sound.step(delta, walker if state == "playing" else null, _sound_hero() if state == "playing" else null)

@@ -10,51 +10,55 @@
  * The fighting strategies run in the engine's mind (worlds/controllable/mind.js), lifted whole from the arena.
  */
 import { mindAxisValues } from '../../mind/cosmos.js';
+import { mindMark } from '../../scene/godot-marks.js';
 
 const MIND_RULE = 'lib/graph/worlds/controllable/mind.js';
+// every value's Godot mark (scene/godot-marks.js mindMark): the kernel has no mind, so only a value that asks
+// nothing of one travels (an ambient, passive character that stands to be met; none)
+const marked = (axis, values) => Object.fromEntries(Object.entries(values).map(([v, row]) => [v, { ...row, godot: mindMark(axis, v).godot }]));
 const AXES = mindAxisValues();
 
 export const MIND = Object.freeze({
   id: 'mind',
   asks: 'how do the others decide?',
   settings: {
-    motivation: { values: AXES.motivation },
-    aggressiveness: { values: AXES.aggressiveness },
-    rank: { values: AXES.rank },
-    skill: { values: AXES.skill },
+    motivation: { values: marked('motivation', AXES.motivation) },
+    aggressiveness: { values: marked('aggressiveness', AXES.aggressiveness) },
+    rank: { values: marked('rank', AXES.rank) },
+    skill: { values: marked('skill', AXES.skill) },
     perception: {
-      values: {
+      values: marked('perception', {
         sight: { status: 'built', lowers: MIND_RULE, note: 'a facing cone for the counter and a line of sight to fire' },
         memory: { status: 'built', lowers: MIND_RULE, note: 'a last-seen record: it goes there, searches, then forgets' },
-      },
+      }),
     },
     pathing: {
-      values: {
+      values: marked('pathing', {
         direct: { status: 'built', lowers: MIND_RULE, note: 'straight at the target, sliding along colliders' },
         navmesh: { status: 'built', lowers: 'lib/graph/worlds/controllable/nav.js', note: 'A* over a walk grid baked from the colliders; one floor, ground only' },
-      },
+      }),
     },
     squad: {
-      values: {
+      values: marked('squad', {
         none: { status: 'built' },
         'free-for-all': { status: 'built', lowers: MIND_RULE, note: 'targets the nearest live body (`target: all`)' },
         'team-aware': { status: 'built', lowers: 'lib/graph/worlds/controllable/group.js', note: 'skips allies when targeting; a group shares focus, sight, spacing, patterns and attack tokens' },
         pack: { status: 'built', lowers: 'lib/graph/worlds/controllable/group.js', note: 'a group plan: fan-out, encircle, close; K attackers at a time' },
-      },
+      }),
     },
     social: {
-      values: {
+      values: marked('social', {
         none: { status: 'built' },
-        talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: false, note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); web only' },
-        schedule: { status: 'built', lowers: 'lib/graph/playscape/ui/routines.js', godot: false, note: 'play.routines: where each goes hour by hour on the level\'s clock (cues on hour, a walk and a pose); web only' },
-      },
+        talk: { status: 'built', lowers: 'lib/graph/playscape/ui/scenes.js', godot: 'absent', note: 'a moment with the cast (reach them, they talk), the player answering (choose: flags, branches); web only' },
+        schedule: { status: 'built', lowers: 'lib/graph/playscape/ui/routines.js', godot: 'absent', note: 'play.routines: where each goes hour by hour on the level\'s clock (cues on hour, a walk and a pose); web only' },
+      }),
     },
     commander: {
-      values: {
+      values: marked('commander', {
         none: { status: 'built' },
         builtin: { status: 'built', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'the reference commander, on rule.commanded' },
         agent: { status: 'partial', effort: 'M', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'hook and http ports wired, sketch manifests only; design_game never sets a commander, no live model bridge or test (priced 10-12)' },
-      },
+      }),
     },
   },
 });

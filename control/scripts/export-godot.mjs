@@ -58,6 +58,7 @@ const { buildGodotWorldPack, buildGodotGamePack, figureClip } = await import('@/
 const { compareShading, declaredShading, sumDeclared } = await import('@/lib/graph/scene/materials-gate.js');
 const { declaredFigure, parseFigureLine, compareFigure, godotName } = await import('@/lib/graph/scene/figure-gate.js');
 const { parseReplayLine, compareReplay, parsePerfLine } = await import('@/lib/graph/pixelizer/brickster-replay.js');
+const { exportVerdict } = await import('@/lib/graph/scene/engine-portability.js');
 
 const sketch = SketchRepository.getByRef(args.ref);
 if (!sketch) fail(`sketch '${args.ref}' not found`);
@@ -262,8 +263,13 @@ if (!args['no-gate'] && existsSync(godotBin)) {
   gate = { skipped: true, reason: `no Godot binary at ${godotBin} (set MOJULO_GODOT)` };
 }
 
+// the verdict stamps beside `ok` (ok says the pack was made and the machine gate passed; the verdict says whether it is
+// the game): plays | plays-partly | hollow, and the lost list it rests on. It never refuses.
+const stamp = exportVerdict(pack.portability);
 process.stdout.write(`${JSON.stringify({
   ok: true,
+  verdict: stamp.verdict,
+  lost: stamp.lost,
   ref: args.ref,
   scope: pack.scope,
   dir: outDir,
@@ -272,7 +278,7 @@ process.stdout.write(`${JSON.stringify({
   glb: pack.glbStats,
   files: pack.written.length,
   total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
-  portability: { portable: pack.portability.portable, flags: pack.portability.flags },
+  portability: { portable: pack.portability.portable, flags: pack.portability.flags, approximated: stamp.approximated },
   ledger: pack.ledger,
   gate,
   ...(webBuild ? { web_build: webBuild } : {}),

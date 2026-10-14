@@ -1170,6 +1170,37 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   (neither hangs to the floor as a third leg); wings on the arms are five flight feathers trailing from the hand and
   forearm; a second pair of arms is built, rigged and folded forward under the first. A drawn creature's joint bridges
   find a bone's own segment, not a feather riding it.
+### Godot plays what the web plays
+
+If Godot can run it, the export runs it; what Godot cannot run is named in the export, never dropped silently. The
+JS runtime is the truth, and the Godot export is held to it by playing both.
+
+- **One portability source.** `lib/graph/scene/godot-marks.js` marks every World page input, controllable rule,
+  events key, gait, system, traversal entry, link and mind value `built`, `approximated` or `absent`; the export
+  (`engine-portability.js`, the score's ledger) and the cosmos registry read the same marks, and a mechanic's mark is
+  found by lowering it and reading the bus rows it uses (`laps` and `score` travel, keeping no best; `unseen`,
+  `on-beat`, `push`, `crops` and `supplies` name the row they lack). Every cosmos value now carries a mark, and a
+  value the web builds that Godot loses is what fails a world.
+- **The ratchet** (`godot-marks.test.js`, no Godot needed): an unmarked page input, rule, events key, bus verb, cast
+  op, ledger row, mechanic or cosmos value fails; so does a cosmos mark that disagrees with the export's tables, and
+  a `built` mark that names no Godot leg proving it. `bus-abi.js` reads its verbs from the bus, the cast and the stats
+  kernel themselves (a stat cue now counts as `level-up`, which the hand list missed), and gains the `entities`
+  (markers) and `shot` rows.
+- **The export says what it is.** The score's ledger reads the rules a level runs (its camera's included), the page
+  channels and events keys that do not travel whole; `assessPortability` flags them, and `export-godot.mjs` and
+  `export_game` stamp `verdict: plays | plays-partly | hollow` with its lost list beside an unchanged `ok`. The pack
+  README gains a Portability section. It stamps; it never refuses. Unity and Unreal read as before.
+- **The level-equivalence harness.** `lib/graph/game/level-equivalence.js` plays a level in the web runtime from a
+  win script (steered toward the contract's audits, recorded as input) and a stay-put control; kernel 0.21.0's level
+  replays the same input at the same fixed step (`scripts/godot-level-sim.gd`) and both print one key a frame (the
+  bus's `hashState` and the entities, quantized to 5 cm). `scripts/godot-fixture-matrix.mjs` makes every cosmos
+  fixture a game through the quick path, exports, imports and plays it in both; `npm run test:godot` runs every
+  Godot leg and the matrix, and fails without `MOJULO_GODOT`.
+- **The scoreboard.** `docs/tool-surface/hillclimb.md` gains a Godot section: the fixtures' lost lists, the ladders
+  and the values that would free the most worlds.
+- **The honest baseline.** The sweep's Godot survivors fall from 56 to 8 of 500 (21 to 0 near the probes): the mind,
+  the gaits, the story and the cameras were counted as travelling and do not. The walker's ground is a flat plane
+  under a hilly trail (marked approximated, found by the matrix).
 
 ### Mascot characters: a character read from a promise, not a life
 

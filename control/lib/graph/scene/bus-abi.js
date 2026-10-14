@@ -13,9 +13,12 @@
  */
 import { CAST_WHEN } from '../playscape/ui/cast.js';
 import { PHASE_VAR, WEATHER_VAR } from '../playscape/ui/cues.js';
+import { buildBus } from '../worlds/event-bus.js';
+import { buildCast } from '../worlds/controllable/cast.js';
+import { STAT_OPS } from '../playscape/stats/kernel.js';
+import { STAT_WHEN, statFire } from '../playscape/stats/stats.js';
 
 const B = 'built', P = 'partial', A = 'absent';
-const STAT_WHEN = ['levelled', 'bought', 'denied', 'epoch', 'opened'];
 
 export const BUS_ABI = Object.freeze({
   facts: Object.freeze({
@@ -47,11 +50,24 @@ export const BUS_ABI = Object.freeze({
     cast: { about: 'a character op: spawn, vanish, walk, hurt, status, puff, shake (the ctrl verb)', web: B, godot: P, how: 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk has no collider push-out or ground snap; transits stay on the web' },
     rearm: { about: 'rounds for the weapon in a character\'s hand (the cast\'s rearm: a supply\'s ammo)', web: B, godot: A, how: 'worlds/controllable cast.js rearm into the weapon\'s reserve (combat-ranged.js); kernel/cast.gd has no rearm and Godot\'s weapon no reserve' },
     stats: { about: 'stats: raise, grant, xp, level, buy, buff, unbuff; a scaling on a cast op', web: B, godot: B, how: 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace' },
+    entities: { about: 'the bus\'s own entities drawn as markers (a spawn appears, a toggle shows or hides, a move places it)', web: B, godot: A, how: 'the page draws them (events.js __markerMeshes); kernel/level.gd builds their state and draws nothing' },
+    shot: { about: 'a directed shot on the camera: shot, unshot, finish (a scene\'s camera and its skip)', web: B, godot: A, how: 'worlds/controllable cast.js sets the shot rule aside the camera\'s own; the Godot kernel has no camera rule to set aside' },
   }),
 });
 
+// THE VERBS, read from the reducers themselves so a new one cannot go uncounted (bus-abi.test.js holds every verb to a
+// row): the bus's own (event-bus.js applyVerb: `verb === '<x>'`), the cast's (controllable cast.js castOps:
+// `op === '<x>'`) and the stats kernel's (STAT_OPS). Each verb's row:
+export const BUS_VERBS = Object.freeze([...new Set([...buildBus.toString().matchAll(/\bverb === '([a-z-]+)'/g)].map((x) => x[1]))]);
+export const CAST_OPS = Object.freeze([...new Set([...buildCast.toString().matchAll(/\bop === '([a-z-]+)'/g)].map((x) => x[1]))]);
+export const VERB_ROW = Object.freeze({ emit: 'logic', set: 'logic', inc: 'logic', toggle: 'logic', spawn: 'logic', move: 'logic', impulse: 'impulse', ctrl: null });
+// a ctrl op's row: a stat op is the stats', rearm is its own, a camera op is the shot's, every other the cast's
+const SHOT_OPS = new Set(['shot', 'unshot', 'finish']);
+export const ctrlRow = (op) => (STAT_OPS[op] ? 'stats' : op === 'rearm' ? 'rearm' : SHOT_OPS.has(op) ? 'shot' : 'cast');
+// the stats' happenings as the bus hears them (stats.js statFire: a `levelled` cue waits on `level-up`)
+const STAT_FIRES = new Set(Object.keys(STAT_WHEN).map((k) => statFire({ kind: k, of: 'player', id: 'x' }, 'x').on));
+
 const has = (list) => Array.isArray(list) && list.length > 0;
-const STAT_OP = new Set(['raise', 'grant', 'xp', 'level', 'buy', 'buff', 'unbuff']);
 
 // which rows the lowered events use, in contract order
 function usedRows(ev) {
@@ -59,7 +75,6 @@ function usedRows(ev) {
   const sets = new Set(reactions.filter((r) => r.do === 'set' || r.do === 'inc').map((r) => String(r.var)));
   const varUsed = (pred) => [...sets, ...Object.keys(vars)].some(pred);
   const on = reactions.map((r) => String(r.on));
-  const ctrl = reactions.filter((r) => r.do === 'ctrl');
   const facts = {
     zone: sources.some((s) => s && s.type === 'zone' && !s.use),
     use: sources.some((s) => s && s.type === 'zone' && s.use),
@@ -71,24 +86,31 @@ function usedRows(ev) {
     cast: on.some((t) => t in CAST_WHEN && t !== 'struck' && t !== 'seen'),
     hit: on.some((t) => t.startsWith('hit:')),
     struck: on.includes('struck'),
-    stats: on.some((t) => STAT_WHEN.includes(t)),
+    stats: on.some((t) => STAT_FIRES.has(t)),
     menu: on.some((t) => t.startsWith('menu-pick:') || t.startsWith('menu-close:')),
     seen: on.includes('seen'),
     beat: on.includes('beat') || (ev.sequences || []).some((q) => q && q.trigger && q.trigger.on === 'beat'),
   };
+  // every verb a reaction or a sequence's step performs, by its row
+  const doers = [...reactions, ...(ev.sequences || []).flatMap((q) => (q && Array.isArray(q.steps) ? q.steps : []))].filter((r) => r && r.do);
+  const rows = new Set(doers.map((r) => (r.do === 'ctrl' ? ctrlRow(r.op) : VERB_ROW[r.do])).filter(Boolean));
   const effects = {
-    logic: reactions.some((r) => ['emit', 'set', 'inc', 'toggle', 'spawn', 'move'].includes(r.do)) || has(ev.watches) || has(ev.sequences),
+    logic: rows.has('logic') || has(ev.watches) || has(ev.sequences),
     guarded: reactions.some((r) => r && r.if),
     warp: reactions.some((r) => r.do === 'move' && Array.isArray(r.to)),
-    impulse: reactions.some((r) => r.do === 'impulse'),
+    impulse: rows.has('impulse'),
     hud: has(ev.hud),
     menus: has(ev.menus) || varUsed((v) => v.startsWith('ui-menu-')),
     parts: varUsed((v) => v.startsWith('ui-') && !v.startsWith('ui-menu-')),
     phase: varUsed((v) => v === PHASE_VAR),
     weather: varUsed((v) => v.startsWith(`${WEATHER_VAR}:`)),
-    cast: ctrl.some((r) => !STAT_OP.has(r.op) && r.op !== 'rearm'),
-    rearm: ctrl.some((r) => r.op === 'rearm'),
-    stats: ctrl.some((r) => STAT_OP.has(r.op)) || !!ev.stats,
+    cast: rows.has('cast'),
+    rearm: rows.has('rearm'),
+    stats: rows.has('stats') || !!ev.stats,
+    // a bus entity is drawn as a marker on the page: one the world declares, or one a reaction spawns. A collect
+    // pickup's (pk_<i>_<j>, mechanics.js) is drawn by the kernel's own mechanic (level.gd _build_mechanics), not here
+    entities: (ev.entities || []).some((e) => e && !/^pk_\d+_\d+$/.test(String(e.id))) || doers.some((r) => r.do === 'spawn'),
+    shot: rows.has('shot'),
   };
   return [...Object.keys(facts).filter((k) => facts[k]).map((k) => `fact:${k}`), ...Object.keys(effects).filter((k) => effects[k]).map((k) => `effect:${k}`)];
 }

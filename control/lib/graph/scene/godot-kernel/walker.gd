@@ -17,6 +17,8 @@ var kill_y := -100.0
 var spawn := Vector3.ZERO
 var auto_walk := false
 var frozen := false  # a menu is up: the figure waits (level.gd), falling still but taking no steps
+var sim_input = null  # the level-equivalence harness's held input (scripts/godot-level-sim.gd): its axes in place of the keys
+var sim_turn := 2.2   # the tank turn the harness steers by (rad/s), the web walk rule's default
 var head: Camera3D = null
 var pitch_node: Node3D = null  # Head itself (first person) or the boom pivot (suit)
 
@@ -98,6 +100,29 @@ func _physics_process(delta: float) -> void:
 	if frozen:
 		dir = Vector3.ZERO
 	dir = dir.normalized()
+	velocity.x = dir.x * speed
+	velocity.z = dir.z * speed
+	move_and_slide()
+	if global_position.y < kill_y:
+		global_position = spawn
+		velocity = Vector3.ZERO
+
+
+# The harness's step (level.gd calls it after the bus, as the web's level-sim steps its world): the recorded input's
+# axes (the web rule's: forward, strafe, turn, lookDX, jump) in place of the keys and the mouse, at the frame's delta.
+# A heading change is the web's (heading+ is a left turn): a tank turn of turn × sim_turn, a look of lookDX × 0.0025.
+func sim_step(delta: float) -> void:
+	var i: Dictionary = sim_input if sim_input is Dictionary else {}
+	rotate_y(-float(i.get("turn", 0.0)) * sim_turn * delta + float(i.get("lookDX", 0.0)) * 0.0025)
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+	elif float(i.get("jump", 0.0)) > 0.0:
+		velocity.y = jump
+	var dir := -transform.basis.z * float(i.get("forward", 0.0)) + transform.basis.x * float(i.get("strafe", 0.0))
+	if dir.length() > 1.0:
+		dir = dir.normalized()
+	if frozen:
+		dir = Vector3.ZERO
 	velocity.x = dir.x * speed
 	velocity.z = dir.z * speed
 	move_and_slide()

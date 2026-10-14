@@ -11,7 +11,9 @@
  *                         makeable  every value built
  *                         gaps      some value local or partial (named)
  *                         blocked   some value absent (named)
- *                       plus `godot`: the values that would not survive a Godot export
+ *                       plus `godot`: { ok, lost, approximated }: the values the web builds (any status but absent)
+ *                       that a Godot export loses (marked absent, scene/godot-marks.js), and those it carries simpler;
+ *                       only a loss fails `ok`
  *
  * It builds nothing. Pure and deterministic: the same cube gives the same report.
  */
@@ -51,7 +53,7 @@ export function facetDepth(spec) {
 export function dryRun(cube) {
   validateCube(cube);
   const reg = capabilityRegistry();
-  const facets = {}, gaps = [], blocked = [], lost = [];
+  const facets = {}, gaps = [], blocked = [], lost = [], approximated = [];
   for (const { id } of FACETS) {
     const spec = cube[id] || null;
     const rows = [];
@@ -64,11 +66,14 @@ export function dryRun(cube) {
         const at = { facet: id, setting, value, status: r.status, ...(r.note ? { note: r.note } : {}) };
         if (r.status === 'absent') blocked.push(at);
         else if (r.status !== 'built') gaps.push(at);
-        if (r.godot === false) lost.push({ facet: id, setting, value });
+        // a value the web does not build is blocked, not lost on export: there is nothing for Godot to lose
+        if (r.status === 'absent') continue;
+        if (r.godot === 'absent') lost.push({ facet: id, setting, value });
+        else if (r.godot === 'approximated') approximated.push({ facet: id, setting, value });
       }
     }
     facets[id] = { depth: facetDepth(spec), rows };
   }
   const verdict = blocked.length ? 'blocked' : gaps.length ? 'gaps' : 'makeable';
-  return { verdict, blocked, gaps, godot: { ok: !lost.length, lost }, facets };
+  return { verdict, blocked, gaps, godot: { ok: !lost.length, lost, approximated }, facets };
 }

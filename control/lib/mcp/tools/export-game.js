@@ -280,8 +280,13 @@ export async function exportGameHandler(input, context = {}) {
     const { buildGodotGamePack } = await import('@/lib/graph/scene/godot-pack.js');
     const outDir = path.join(outcomeDirFor(ref), 'godot');
     const pack = await buildGodotGamePack({ ref, outDir, posture });
+    const { exportVerdict } = await import('@/lib/graph/scene/engine-portability.js');
+    const stamp = exportVerdict(pack.portability);
     return {
       ok: true,
+      // plays | plays-partly | hollow, and what it rests on: a stamp beside ok, never a refusal
+      verdict: stamp.verdict,
+      lost: stamp.lost,
       ref,
       target: 'godot',
       dir: outDir,

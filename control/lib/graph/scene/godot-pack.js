@@ -239,7 +239,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
   const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'godot' });
   const emitted = emitGodotProject({
     ref, score, manifestHash: hashOf(manifest), glbFile: 'model.glb', audioFile,
-    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, figure,
+    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, figure, portability,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
@@ -328,7 +328,7 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     store: Array.isArray(manifest.store?.slices) && manifest.store.slices.length > 0,
     music: { menuFile, menuDb: toDb(music.menuVolume), stingers },
     shellExtras: ['menu', 'setup', 'difficulty', 'theme', 'front'].filter((k) => manifest[k] != null),
-    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`,
+    kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, portability,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {

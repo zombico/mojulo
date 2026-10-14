@@ -20,6 +20,7 @@ import { FACETS, STATUSES } from '../lib/graph/cosmos/facets/index.js';
 import { capabilityRegistry } from '../lib/graph/cosmos/registry.js';
 import { FIXTURES } from '../lib/graph/cosmos/fixtures.js';
 import { sweep } from '../lib/graph/cosmos/sweep.js';
+import { dryRun } from '../lib/graph/cosmos/cosmos.js';
 import { composeCandidates } from '../lib/graph/cosmos/compose.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -168,6 +169,24 @@ export function hillclimbMd(opts) {
   L.push('| genre | verdict | plays in Godot | waits on |', '|---|---|---|---|');
   const cubes = Object.fromEntries(FIXTURES.map((x) => [x.id, x]));
   for (const x of r.fixtures) L.push(`| ${cubes[x.id]?.name || x.id}${x.anchor ? ' (anchor)' : ''} | ${x.verdict} | ${x.godot ? 'yes' : 'no'} | ${[...x.blocked, ...x.gaps].map(code).join(', ') || '–'} |`);
+  // THE GODOT SCOREBOARD: what an export plays, read from the one portability source (scene/godot-marks.js) through the
+  // registry. A value the web builds and a Godot export loses fails a world; one it carries simpler does not.
+  L.push('', '## Godot: what an export plays', '');
+  L.push('Marks: built, approximated (it runs, simpler) or absent (nothing in the kernel runs it), from');
+  L.push('`lib/graph/scene/godot-marks.js` and the export\'s own tables (a mechanic\'s by lowering it). A world survives');
+  L.push('the export when it asks for nothing the web builds and Godot loses. The fixture matrix (`npm run test:godot`)');
+  L.push('plays them in both engines.', '');
+  L.push('| genre | lost on Godot export | carried simpler |', '|---|---|---|');
+  for (const f of FIXTURES) {
+    const g = dryRun(f.cube).godot, k = (x) => code(`${x.facet}.${x.setting}=${x.value}`);
+    L.push(`| ${f.name}${f.anchor ? ' (anchor)' : ''} | ${g.lost.map(k).join(', ') || '–'} | ${g.approximated.length} |`);
+  }
+  L.push('', 'Each facet\'s settings made to travel one at a time, the largest gain first (worlds of ' + n + ' surviving):', '');
+  L.push('| facet | now | ladder |', '|---|---|---|');
+  for (const [facet, ladder] of Object.entries(r.unlock.godot.ladders)) L.push(`| ${facet} | ${r.godotOk} | ${ladder.filter((x) => x.gain).map((x) => `${code(x.setting)} +${x.gain}`).join(', ') || '–'} |`);
+  L.push('', 'The values whose travelling alone would free the most worlds:', '');
+  L.push('| value | worlds it alone would free | worlds that ask for it |', '|---|---|---|');
+  for (const x of r.unlock.godot.values.slice(0, 15)) L.push(`| ${code(x.key)} | ${x.survives} | ${x.touches} |`);
   L.push('', '## The matrix', '');
   L.push('Every setting of every facet, its values by status. Statuses: ' + STATUSES.join(', ') + '.', '');
   for (const { id, asks } of FACETS) {

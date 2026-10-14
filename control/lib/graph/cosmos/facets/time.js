@@ -25,7 +25,7 @@
 const CUES = 'lib/graph/playscape/ui/cues.js';
 const QUEST_LOG = 'lib/graph/playscape/ui/quests.js';
 const SCENES = 'lib/graph/playscape/ui/scenes.js';
-const WEB = { godot: false };
+const WEB = { godot: 'absent' };
 // one change per package: quests (steps bound to a giver), the 3D shot
 const QUESTS = { status: 'partial', effort: 'M', pkg: 'quests', ...WEB };
 const SHOT = { status: 'partial', effort: 'L', pkg: 'shot', ...WEB };
@@ -38,9 +38,9 @@ export const TIME = Object.freeze({
   settings: {
     progression: {
       values: {
-        none: { status: 'built', note: 'one level' },
-        linear: { status: 'built', lowers: 'lib/graph/game/game-manifest.js', note: 'levels in play order; the shell records each completed' },
-        gated: { status: 'built', lowers: 'lib/graph/game/store-kernel.js', note: 'a gate on a completed level, or on a flag a cue sets through game.on; Godot carries the store (kernel/store.gd)' },
+        none: { status: 'built', godot: 'built', note: 'one level' },
+        linear: { status: 'built', godot: 'built', lowers: 'lib/graph/game/game-manifest.js', note: 'levels in play order; the shell records each completed' },
+        gated: { status: 'built', godot: 'built', lowers: 'lib/graph/game/store-kernel.js', note: 'a gate on a completed level, or on a flag a cue sets through game.on; Godot carries the store (kernel/store.gd)' },
         // built 10-12: a game's `run` (the light shell): each run draws its levels from the pool in an order rolled from its
         // number, a death ends it, the store carries over, the deepest is kept; a quick game's run lays a pool of trails
         runs: { status: 'built', ...WEB, lowers: 'lib/graph/game/play-shell.js', note: 'a pool of made levels (a quick game\'s run: trails each its own seed), drawn anew each run; a level is not rolled at play time' },
@@ -48,13 +48,13 @@ export const TIME = Object.freeze({
     },
     chapters: {
       values: {
-        none: { status: 'built' },
-        overlays: { status: 'built', lowers: 'lib/graph/playscape/ui/chapters.js', note: 'play.chapters: a world difference turned by a happening, lowered to cues, carried between levels as a chapter flag; a menu presents the turn until shots exist' },
+        none: { status: 'built', godot: 'built' },
+        overlays: { status: 'built', godot: 'built', lowers: 'lib/graph/playscape/ui/chapters.js', note: 'play.chapters: a world difference turned by a happening, lowered to cues, carried between levels as a chapter flag; a menu presents the turn until shots exist' },
       },
     },
     passage: {
       values: {
-        none: { status: 'built' },
+        none: { status: 'built', godot: 'built' },
         // built 10-12 (the world dial): a level's clock (game mechanic `clock`: minute, hour, day, season on the bus) is the
         // one number they read: the weather channel darkens the sky at night and swaps its climate by season; crops grow a
         // stage each dawn. A world's baked night (manifest.time) and a planting's age between chapters stay as they were.
@@ -68,8 +68,9 @@ export const TIME = Object.freeze({
     },
     advance: {
       values: {
-        none: { status: 'built' },
-        cues: { status: 'built', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line; Godot runs them on its bus (kernel/bus.gd): zones, use, menus, the cast and the stats in; the HUD, menus, the cast and a forced sky out' },
+        none: { status: 'built', godot: 'built' },
+        // the cues run on the bus; what they do to the cast is drawn simpler (scene/bus-abi.js effect:cast, partial)
+        cues: { status: 'built', godot: 'approximated', lowers: CUES, note: 'a happening moves play on: use, take, arrive, down, a var crossing a line; Godot runs them on its bus (kernel/bus.gd): zones, use, menus, the cast and the stats in; the HUD, menus, the cast and a forced sky out' },
         steps: { ...QUESTS, status: 'built', lowers: QUEST_LOG, note: 'a quest\'s steps in order, each done by a flag; the story\'s moments wait step by step (gameworld quests)' },
         quests: { ...QUESTS, status: 'built', requires: ['mind.social=talk'], lowers: QUEST_LOG, note: 'a giver (a moment\'s cast member; the player\'s answer begins it), a journal (J) and a word as it moves on; a reward is a cue on its flag' },
       },
@@ -85,6 +86,6 @@ export const TIME = Object.freeze({
         banter: { ...SHOT, status: 'built', effort: 'S', lowers: SCENES, note: 'two talk: a two-shot, then a cut to whoever speaks, the line typed on; words are a slot; no portraits or face set yet' },
       },
     },
-    framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, status: 'built', note: 'the shot rule frames its subjects by these words' } },
+    framing: { multi: true, source: { module: SCENES, table: 'SHOT_FRAMES', ...SHOT, godot: { all: 'absent' }, status: 'built', note: 'the shot rule frames its subjects by these words' } },
   },
 });
