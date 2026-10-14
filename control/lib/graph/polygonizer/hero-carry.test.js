@@ -1,30 +1,36 @@
 // hero-carry — carrying laws on a real hero rig: the hands on their stations, the wrists in range, the thing clear of
 // the body (or touching only where it rests), a sighted gun on the eye's line to the mark, the body and its load over the
 // feet where the body alone stood; the effort read off the moments, rising with the mass, answered by the body (pulled
-// in, leaned, swayed, the free arm out) unless weightless; relax choosing the cheapest hold. (Every hold on both casts:
-// hero-carry.deep.test.js.)
+// in, leaned, swayed, the free arm out) unless weightless; relax choosing the cheapest hold. The laws run on one hold
+// per distinct procedure (how the thing is placed, its class, the hands), chosen from the catalog, the casts alternating.
 import { describe, expect, it } from 'vitest';
 import { validateRig, rigNodesAt } from './station-loft-rig.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
-import { heroHold, heroCarry, effortOf, endurance, carryTriangles, CARRIED_NAMES, HOLDS, HOLD_NAMES, STRENGTH } from './hero-carry.js';
+import { heroHold, heroCarry, effortOf, endurance, carryTriangles, CARRIED, CARRIED_NAMES, HOLDS, HOLD_NAMES, STRENGTH } from './hero-carry.js';
 
-const R = validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast: 'female', head: 'anime' }) }).recipe.rig);
+const rigOf = (cast) => validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast, head: 'anime' }) }).recipe.rig);
+const RIGS = { female: rigOf('female'), male: rigOf('male') }, R = RIGS.female;
 const allTrue = (laws) => Object.fromEntries(Object.keys(laws).map((k) => [k, true]));
+// the placement a hold's words select in hero-carry.js place(): hung, rested (on what), sighted (how), pointed, extended,
+// anchored (where)
+const placement = (H) => (H.hang ? 'hang' : H.rest ? `rest:${H.rest.on}` : H.sight ? `sight:${H.sight}` : H.point ? 'point' : H.extend ? 'extend' : `anchor:${H.anchor}`);
+const PROCEDURES = Object.values(Object.groupBy(HOLD_NAMES, (n) => `${placement(HOLDS[n])} ${CARRIED[HOLDS[n].item].class} ${HOLDS[n].hands}`)).map((g, i) => [g[0], i % 2 ? 'male' : 'female']);
+const held = new Map(), hold = (name, cast = 'female') => { const k = `${cast} ${name}`; if (!held.has(k)) held.set(k, heroHold(name, RIGS[cast])); return held.get(k); };
 
 describe('hero-carry', () => {
-  for (const name of ['pistolSide', 'pistolIsosceles', 'pistolOneHand', 'carbineAim', 'boxFront', 'suitcaseSide', 'lanternOut', 'greatswordPlanted']) {
-    it(`${name}: the hands on the thing, the wrists in range, clear, balanced over the feet`, () => {
-      const x = heroHold(name, R), c = x.checks;
+  for (const [name, cast] of PROCEDURES) {
+    it(`${cast} ${name}: the hands on the thing, the wrists in range, clear, balanced over the feet`, () => {
+      const c = hold(name, cast).checks;
       expect(c.laws, JSON.stringify(c)).toEqual(allTrue(c.laws));
       for (const h of Object.values(c.hands)) { expect(h.at).toBeLessThan(0.006); expect(h.inRange).toBe(true); }
     }, 60000);
   }
   it('a sighted gun lies on the dominant eye\'s line to the mark: the pistol at the arms\' reach, the carbine on the cheek', () => {
     for (const name of ['pistolIsosceles', 'carbineAim']) {
-      const a = heroHold(name, R).checks.aim.things[0];
+      const a = hold(name).checks.aim.things[0];
       expect(a.eye, name).toBeLessThan(0.005); expect(a.mark, name).toBeLessThan(1);
     }
-    const w = heroHold('carbineAim', R).answer.weld;
+    const w = hold('carbineAim').answer.weld;
     expect(w.neckPitch, 'the head comes down onto the stock').toBeLessThan(-10);
   }, 120000);
   it('the effort rises with the mass, and the body answers it: a heavier box is pulled in and leaned back from', () => {
@@ -66,7 +72,7 @@ describe('hero-carry', () => {
     expect(endurance(0.3)).toBeGreaterThan(endurance(0.5)); expect(endurance(0.5)).toBeGreaterThan(0);
   });
   it('draws the held thing as triangles, as held and as its hand\'s bone carries it', () => {
-    const x = heroHold('pistolSide', R), a = carryTriangles(x, R);
+    const x = hold('pistolSide'), a = carryTriangles(x, R);
     expect(a.length).toBeGreaterThan(12); expect(a[0].colour).toMatch(/^#/);
   }, 30000);
   it('names every thing and hold; refuses an unknown one', () => {

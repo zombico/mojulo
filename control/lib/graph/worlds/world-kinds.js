@@ -35,6 +35,10 @@ import { assembleSubwayStationScene, planSubwayStation } from '@/lib/graph/archi
 import { assembleSubwayBuildingScene } from '@/lib/graph/architecture/subway-building';
 import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/workbench';
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
+import { heroCastLight } from '@/lib/graph/era/cast-light';
+import { faceTint } from '@/lib/graph/polygonizer/face-tint';
+import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
+import { TIERED_SMOOTH_CREASE, TIERED_FACE_SMOOTH, TIERED_FACE_TINT, tieredPole } from '@/lib/graph/polygonizer/tiered-form';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
 import { withBands, resolveToon } from '@/lib/graph/polygonizer/vexar';
 import { layeredFaces, layeredSeat } from '@/lib/graph/polygonizer/station-loft-faces';
@@ -45,7 +49,10 @@ import { validateRig, bindLayered, packLayeredRig, rigNodesAt, boneFrames } from
 import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
+import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
+import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
+import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
 import { gearMounts, gearFaces, gearPackParts } from '@/lib/graph/polygonizer/hero-gear';
 import { statueBaseOf } from '@/lib/graph/statue/expand';
 import { statueBaseFaces } from '@/lib/graph/statue/base';
@@ -619,7 +626,14 @@ export const WORLD_KINDS = {
       // read the rest), except the parts riding the head bone, lit in the head's OWN frame (rigidParts → the rest
       // normals): a nodded or turned head keeps the shadow shapes it has at rest. The rig pack re-places those pieces on
       // the rest mesh it skins from (piecesAt), so its bind pose carries the same two tones.
-      const character = resolveCharacterLight(m, ctx);
+      // The CAST light (era/cast-light.js): a hero with a geocube is baked in the cube's light, its key, tinted ambient and
+      // ground bounce per channel, the cube's register banding the key, and wears the cube's rim. It takes the place of
+      // the studio key on the figure (the grid keeps the studio's) and of the anime head's read-time character light
+      // (a `toon.light` the manifest names still wins). An export's ctx.light wins over it. No cube ⇒ null, byte-identical.
+      const castLight0 = !ctx.light && m.hero?.geocube ? heroCastLight(m.hero) : null;
+      const castLight = castLight0 ? withBands(castLight0, resolveToon(ctx.toon)?.bands) : null;
+      const character = castLight && (m.toon ?? m.scene?.toon)?.light == null ? null : resolveCharacterLight(m, ctx);
+      const figLight = castLight && !character ? castLight : light;
       const normals = character ? layeredShadingNormals(shown, m.recipe, stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) : null;
       const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive }) : null;
       // SMOOTH under the studio light (a hero without the character light and the anime head: the landmark head, no head;
@@ -630,7 +644,16 @@ export const WORLD_KINDS = {
       // normals, as the character light does and as the pack carries them), so a tilted head keeps the shading it has at
       // rest. Any other layered row keeps one shade per face unless it opts in with `smooth: true` (a creature, a
       // sculpted animal); a flat (unshaded) export always does.
-      const smooth = !character && ((m.hero && m.hero.head !== 'anime') || m.smooth === true) && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
+      // the tiered form blends its body's own colour groups like the skin (tiered-form.js TIERED_SMOOTH_CREASE)
+      // a DRAWN creature (creature-drawn.js, the plan's `style.drawn`) welds its body and fur as one form, and wears its
+      // markings (creature-silhouette.js): its own, or countershading and points when its body is one colour
+      const drawn = !m.hero && !!m.plan?.style?.drawn;
+      const crease = m.hero?.form === 'tiered' ? TIERED_SMOOTH_CREASE : drawn ? drawnCrease(m.plan) : STUDIO_SMOOTH_CREASE;
+      // and its landmark head's normals toward the head's ellipsoid (tiered-form.js TIERED_FACE_SMOOTH)
+      const ellipsoid = m.hero?.form === 'tiered' && (m.hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0;
+      // and its skin's occlusion and blush (face-tint.js), read off the rest mesh: the same per corner in any pose
+      const tint = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
+      const smooth = !character && ((m.hero && (m.hero.head !== 'anime' || figLight !== light)) || m.smooth === true || drawn) && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease, proxy: false, ellipsoid, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
       // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
       // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
       // fields win. It rides the payload's own `toon` (world-scene keeps a resolver's toon over the manifest's).
@@ -641,14 +664,17 @@ export const WORLD_KINDS = {
       // 'hair' (a hair outline never draws over hair), so the World page splits the render group by layer and draws the
       // stencil rules (channels/draw-layers.js); the rig pack orders its parts the same way (`ranges`). A mesh with no
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
+      // the PAINTED FACE (face-paint.js): the anime head's features as a texture on its face; absent ⇒ null, byte-identical
+      // (under a level's cast light too: the studio-lit faces carry it the same way)
+      const facePaint = character || m.hero?.painterly ? facePaintOf(mesh, m.recipe?.palette) : null;
       const faces = character
-        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink })
-        : layeredFaces(shown, m.recipe, { light, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}) });
+        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
+        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
       const gear = rig && m.hero?.gear ? gearMounts(m.hero, rig.R) : null;
-      const gearShown = gear?.length ? gearFaces(gear, { frames: stand ? boneFrames(rig.R, rig.R.joints, rigNodesAt(rig.R, stand).nodes) : null, light, dz: restDz, group: 'body' }) : null;
+      const gearShown = gear?.length ? gearFaces(gear, { frames: stand ? boneFrames(rig.R, rig.R.joints, rigNodesAt(rig.R, stand).nodes) : null, light: figLight, dz: restDz, group: 'body' }) : null;
       if (gearShown) faces.push(...gearShown);
       // A STATUE's BASE (statue/base.js): a hero carrying a statue build stands on its base, built under the posed
       // figure from the footprint it stands on (the feet, or a bust's cut) in the base's stone, the figure lifted onto
@@ -670,6 +696,7 @@ export const WORLD_KINDS = {
       const scene = studioSceneFromFaces(faces, { units: m.units || 'm', facing: m.facing || '+y', ...(m.grid === false ? { grid: false } : {}), title: ctx.title, light });
       if (ink) { const { light: _light, ...dial } = toon || {}; scene.toon = { ...dial, ink }; }   // the light is baked in, never a page dial
       if (gearShown) { const textures = collectFaceTextures(gearShown, {}); if (Object.keys(textures).length) scene.textures = { ...(scene.textures || {}), ...textures }; }   // a barked staff's bark
+      if (facePaint) scene.textures = { ...(scene.textures || {}), [facePaint.key]: facePaint.url };
       // A rigged recipe with clips also carries its packed rig figure (station-loft-rig.js): the skinned
       // glTF export (`export_model { clips, skinned }`) reads it, `embodies: 'body'` drops the static solid
       // from that export, and `preview` lets the World page play the clips over the hidden solid.
@@ -685,12 +712,14 @@ export const WORLD_KINDS = {
         // Standing, the static solid IS the stand (skinned exactly), so the preview opens on it (`solid: 'stand'`) and
         // leaves the one-key clip out of its picker (played by rigidly moved parts it would only crack at the joints);
         // the clip stays in the pack for the skinned and engine exports.
-        const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : null;
+        const rim = Array.isArray(m.rim) && m.rim.length === 5 && m.rim.every(Number.isFinite) ? m.rim : figLight !== light ? figLight.rim : null;
         // THE FACE (anime-face-rig.js), only when the export asks (ctx.face: the skinned GLB, the Godot pack's figure): the
         // anime hero's expression channels as morph targets — its rows ride the pack's parts (`morph`), the targets, the
         // authored weights and every word's weights ride the figure (`face`); a row the guards refuse says why
         // (`faceSkipped`) and exports without it. The World page never asks, so its payload is the one before the face.
-        const face = ctx.face && rigged && m.hero?.head === 'anime' ? heroFaceRig(m, mesh) : null;
+        // (the PAINTED face, face-paint-rig.js: its drawings swapped on a texture atlas, the same targets' shape and tracks)
+        // the face's blend shapes: the anime head's (drawn, or painted), the landmark head's (western-face-rig.js)
+        const face = ctx.face && rigged && m.hero ? (m.hero.head === 'anime' ? (m.hero.painterly && facePaint ? paintFaceRig(m, mesh, facePaint) : heroFaceRig(m, mesh)) : (m.hero.head ?? 'landmark') === 'landmark' ? westernFaceRig(m, mesh) : null) : null;
         // CLIP TIMING (hero-gesture.js heroClipSeconds): the anime hero's clips each carry a designed duration (`s` on the
         // packed clip), which the World page's clip preview, the GLB and the Godot pack all play; every other row's clips
         // carry none (three seconds on the page, one in an export, as before). With the face, each clip's facial track
@@ -700,11 +729,15 @@ export const WORLD_KINDS = {
         // the hero's own of that name, with its seconds and its ground speed (`v` on the packed clip). Absent ⇒ as before.
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
-        if (face?.meta) Object.assign(face.meta, heroFaceTracks(m.hero, m.recipe.clips, seconds, face.authored));
+        // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
+        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : null);
+        // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
+        // authored face with its blinks)
+        if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));
         // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
         // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
         const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;
-        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease: STUDIO_SMOOTH_CREASE, proxy: false }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light, dz }) } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && palette ? { palette } : {}) });
+        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {

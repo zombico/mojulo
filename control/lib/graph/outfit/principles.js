@@ -9,7 +9,8 @@
 //      elbow, mid forearm or the wrist; a top at the ribs, the waist, the hip or mid-thigh; a leg at the crotch, mid
 //      thigh, the knee, mid calf or the ankle; a skirt at the upper thigh, mid thigh, the knee, mid calf or the ankle.
 //   4. LAYERS NEST. An outer layer carries more ease than the one under it, and the two part by one clear VALUE STEP
-//      (armour law 10): the readout warns when they do not.
+//      (armour law 10): the readout warns when they do not. An OUTER layer (a vest, a jerkin, a jacket, a coat) goes
+//      over the top and the bottom; worn OPEN, the opening shows what is under it, and its edges take the trim.
 //   5. ONE FOCAL PER OUTFIT: a collar, a placket or a belt. Contrast and ornament spend there first.
 //   6. THE EDGE IS THE ORNAMENT FIELD: hems, cuffs, collars, waistbands and plackets take the trims; `ornament` reaches
 //      the focal (1), then the cuffs, hems and waistband (2), then the seams (3).
@@ -36,6 +37,7 @@ export const LENGTHS = Object.freeze({
   hem: ['crop', 'waist', 'hip', 'tunic'],
   leg: ['brief', 'short', 'knee', 'capri', 'long'],
   skirt: ['micro', 'mini', 'knee', 'midi', 'maxi'],
+  coat: ['waist', 'hip', 'tunic', 'knee', 'midi', 'maxi'],
 });
 /** a skirt's cut: how far it widens per metre it falls below the hips (law 2), before stylize */
 export const SKIRT_CUTS = Object.freeze({ pencil: 0, aline: 0.1, full: 0.24 });

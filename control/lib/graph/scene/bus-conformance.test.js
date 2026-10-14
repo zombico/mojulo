@@ -36,10 +36,10 @@ describe('the bus conformance corpus', () => {
 
   it('exercises what the port has to get right', () => {
     const text = JSON.stringify(all);
-    for (const k of ['"ne":', '"lte":', '"gt":', '"entity":', '"all":', '"any":', '"count":', '"do":"spawn"', '"do":"impulse"', '"do":"ctrl"', '"await":{"timer"', '"while":', '"walkers":', '"budget":', '"depthCap":', 'event.missing']) {
+    for (const k of ['"ne":', '"lte":', '"gt":', '"entity":', '"all":', '"any":', '"count":', '"do":"spawn"', '"do":"impulse"', '"do":"ctrl"', '"await":{"timer"', '"while":', '"walkers":', '"if":', '"budget":', '"depthCap":', 'event.missing']) {
       expect(text, k).toContain(k);
     }
-    expect(SCENARIOS.map((s) => s.id)).toEqual(['billiards', 'vault', 'storm', 'verbs', 'floats', 'undefined', 'numbers']);
+    expect(SCENARIOS.map((s) => s.id)).toEqual(['billiards', 'vault', 'storm', 'verbs', 'floats', 'undefined', 'numbers', 'guarded']);
     // the corpus reaches the caps it names, prints a sum in full, and keeps an undefined as null
     const snap = (id) => runScenario(all.find((s) => s.id === id));
     expect(snap('numbers').join('')).toMatch(/e-324|e\+21|e-7/);

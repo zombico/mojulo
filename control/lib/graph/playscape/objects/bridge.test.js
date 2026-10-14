@@ -119,9 +119,18 @@ describe('dressed by a kit, and held to the outdoor index\'s laws (era/out-made.
 
   it('dressing is the 66\'s texture: it keeps the object laws wherever the plain bridge holds them', async () => {
     const { madeStyle, MADE_KITS } = await import('../../era/out-made.js');
-    for (const kit of MADE_KITS) for (const seed of [1, 2, 3]) for (const v of ['deck', 'rope', 'arch']) {
-      const plain = bridge({ variant: v }), dressed = bridge({ variant: v, dress: madeStyle(kit, seed).tokens });
-      if (objectAdvice(objectMeasures(plain.faces, plain.frame, plain.interest), plain.interest).length) continue;
+    // a dressing is drawn by its worded tokens (timber, joint, edge, bond, relief): keep each kit and seed that rolls a
+    // word none kept before rolled, so every word a kit can roll dresses a bridge once
+    const seen = new Set(), words = (st) => Object.entries(st.tokens).filter(([k, x]) => k !== 'bridge' && typeof x === 'string').map(([k, x]) => `${k}:${x}`);
+    const styles = MADE_KITS.flatMap((kit) => [1, 2, 3].map((seed) => madeStyle(kit, seed))).filter((st) => {
+      const fresh = words(st).filter((w) => !seen.has(w));
+      fresh.forEach((w) => seen.add(w));
+      return fresh.length > 0;
+    });
+    const holds = Object.fromEntries(['deck', 'rope', 'arch'].map((v) => { const p = bridge({ variant: v }); return [v, !objectAdvice(objectMeasures(p.faces, p.frame, p.interest), p.interest).length]; }));
+    for (const { kitId: kit, seed, tokens } of styles) for (const v of ['deck', 'rope', 'arch']) {
+      if (!holds[v]) continue;
+      const dressed = bridge({ variant: v, dress: tokens });
       expect(objectAdvice(objectMeasures(dressed.faces, dressed.frame, dressed.interest), dressed.interest), `${kit}/${seed} ${v}`).toEqual([]);
       // every dressing face on the fill, never darker than its band
       for (const f of dressed.faces.filter((q) => ['caps', 'hat', 'nodes', 'lashing', 'peg', 'notch', 'motif', 'courses'].includes(q.part))) {

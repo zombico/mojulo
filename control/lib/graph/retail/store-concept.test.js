@@ -16,6 +16,17 @@ const hash = (faces) => createHash('sha256').update(JSON.stringify(faces)).diges
 const inv = (r) => r.findings.filter((f) => f.severity === 'invariant').map((f) => f.id);
 // the mannequin is ~35k faces per figure: the behavioural tests use the cast-free cards
 const light = Object.keys(SEEDED_CARDS).filter((id) => !(SEEDED_CARDS[id].cast || []).length);
+// each cell and fixture archetype is its own placer: the fewest light cards that run every one (greedy cover, in code)
+const archetypes = (id) => new Set([...(SEEDED_CARDS[id].cells || []), ...SEEDED_CARDS[id].fixtures].map((f) => f.archetype));
+const placers = (() => {
+  const left = new Set(light.flatMap((id) => [...archetypes(id)])), picked = [];
+  while (left.size) {
+    const gain = (id) => [...archetypes(id)].filter((a) => left.has(a)).length;
+    const best = light.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+    picked.push(best); for (const a of archetypes(best)) left.delete(a);
+  }
+  return picked;
+})();
 
 describe('concept cards are data', () => {
   it('every seeded card round-trips through JSON and validates', () => {
@@ -43,7 +54,7 @@ describe('concept cards are data', () => {
 });
 
 describe('the interpreter', () => {
-  for (const id of light) {
+  for (const id of placers) {
     it(`${id}: deterministic, cells tile the unit, doors off the glass, zero invariant findings`, () => {
       const a = buildStandaloneStore(card(id), { ...size(id), seed: 3 });
       expect(hash(a.faces)).toBe(hash(buildStandaloneStore(card(id), { ...size(id), seed: 3 }).faces));
@@ -105,7 +116,8 @@ describe('the mall fits its bays from cards', () => {
   });
   it('cards: false leaves the bays bare; an override replaces one bay', () => {
     expect(buildMall({}, { cards: false }).bays).toEqual([]);
-    const m = buildMall({}, { cards: { cafe: 'wine-bar' } });
+    // the override is a plan swap: the degrade pass (the mall's seconds, the test above) adds nothing to it
+    const m = buildMall({}, { cards: { cafe: 'wine-bar' }, degrade: false });
     expect(m.bays.some((b) => b.card.id === 'wine-bar')).toBe(true);
     expect(m.bays.some((b) => b.card.id === 'cafe')).toBe(false);
   });
@@ -131,7 +143,8 @@ describe('the store and mall world kinds', () => {
     expect(validateSketchManifest({ kind: 'mall', title: 'M', cards: ['cafe'] }).ok).toBe(false);
   });
   it('mall resolves with a concourse walk and the per-bay stamps', () => {
-    const scene = WORLD_KINDS.mall.resolve({ kind: 'mall', title: 'Arcade' }, {});
+    // the walk and the stamps, not the degrade pass (the fits-its-bays test above holds that)
+    const scene = WORLD_KINDS.mall.resolve({ kind: 'mall', title: 'Arcade', degrade: false }, {});
     expect(scene.walk.spawn.length).toBe(2);
     expect(scene.mall.bays.length).toBeGreaterThan(10);
   });

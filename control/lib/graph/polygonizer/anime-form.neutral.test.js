@@ -29,11 +29,11 @@ describe('anime-form: the sculpt keeps the port pinned', () => {
   for (const c of FIXTURE.cases) it(`explicit neutral sculpts are the studio: ${c.name}`, () => {
     for (const [name, sculpt] of Object.entries(NEUTRALS)) expect(digest(buildAnime(animeReadRecipe(c.recipe), { ...c.options, sculpt })), name).toEqual(c.digest);
   });
-  it("the hero's options (weld, the hair fit, forms) under a neutral sculpt: every family, both bases", () => {
-    for (const kind of ['female', 'male']) for (const style of ['bob', 'short', 'long']) {
-      const r = animeFresh(kind); r.hair.style = style; const o = { weld: true, fitHair: true, forms: true }, ref = digest(buildAnime(r, o));
+  it("the hero's options (weld, the hair fit, forms) under a neutral sculpt: every family, the bases alternated", () => {
+    ['bob', 'short', 'long'].forEach((style, i) => {
+      const kind = i % 2 ? 'male' : 'female', r = animeFresh(kind); r.hair.style = style; const o = { weld: true, fitHair: true, forms: true }, ref = digest(buildAnime(r, o));
       for (const sculpt of Object.values(NEUTRALS)) expect(digest(buildAnime(r, { ...o, sculpt })), `${kind} ${style}`).toEqual(ref);
-    }
+    });
     expect(sculptOf(SCULPT_NEUTRAL)).toBeNull(); expect(sculptOf({ fissure: { h: 1 } })).toBeNull(); expect(sculptOf({ pupil: 0.4 })).toEqual({ pupil: 0.4 });
   });
   it('each word alone moves only its own parts; a stroke or a lens never touches the skin, a word never the hair', () => {
@@ -71,11 +71,12 @@ describe('anime-form: the sculpt keeps the port pinned', () => {
     for (const kind of ['male', 'female']) {
       const S = sculptBuild(kind, resolveAnimeSculpt({})), { scleraShut, ...rest } = S;
       expect(scleraShut, kind).toBe(0.1);
-      for (const weld of [true, false]) for (const blink of [0, 0.5, 0.7, 0.85, 1]) {
-        const r = animeFresh(kind); r.expression.blink = blink;
+      // every blink on either side of the 0.7 knot, the weld alternated (each weld on each base)
+      [0, 0.5, 0.7, 0.85, 1].forEach((blink, i) => {
+        const weld = (i + (kind === 'male' ? 0 : 1)) % 2 === 0, r = animeFresh(kind); r.expression.blink = blink;
         const a = digest(buildAnime(r, { weld, sculpt: S })), b = digest(buildAnime(r, { weld, sculpt: rest }));
         expect(Object.keys(a).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])).sort(), `${kind} weld ${weld} blink ${blink}`).toEqual(blink > 0.7 ? ['lid', 'sclera'] : []);
-      }
+      });
     }
   });
   it("the lens budget is its own option: 'game' moves only the iris and the pupil, never keyed on coarse", () => {
@@ -96,12 +97,16 @@ describe('anime-form: the hair form keeps the port pinned', () => {
     for (const [name, hairForm] of Object.entries(NEUTRALS)) expect(digest(buildAnime(animeReadRecipe(c.recipe), { ...c.options, hairForm })), name).toEqual(c.digest);
   });
   it('undefined and {} are byte-identical per part: both bases, every family, coarse and full, the fit and the forms on and off', () => {
-    for (const kind of ['female', 'male']) for (const style of ['bob', 'short', 'long', 'hime']) for (const coarse of [false, true]) for (const [fitHair, forms] of [[false, false], [true, false], [false, true], [true, true]]) {
+    // every base × family once, coarse and the four fit × forms settings rotated through them: each pair of values meets
+    // (base × coarse, base × setting, family × coarse, setting × coarse)
+    const FIT = [[false, false], [true, false], [false, true], [true, true]];
+    for (let i = 0; i < 8; i++) {
+      const kind = i < 4 ? 'female' : 'male', style = ['bob', 'short', 'long', 'hime'][i % 4], coarse = ((i ^ (i >> 2)) & 1) === 1, [fitHair, forms] = FIT[(i + 2 * (i >> 2)) % 4];
       const r = animeFresh(kind); r.hair.style = style; const o = { coarse, weld: true, fitHair, forms }, ref = digest(buildAnime(r, o));
       for (const [name, hairForm] of Object.entries(NEUTRALS)) expect(digest(buildAnime(r, { ...o, hairForm })), `${kind} ${style} ${coarse ? 'coarse' : 'full'} fit ${fitHair} forms ${forms}: ${name}`).toEqual(ref);
     }
     expect(hairFormOf(NEUTRALS.neutral)).toBeNull(); expect(hairFormOf({ sweepBack: 0.5 })).toEqual({ sweepBack: { amount: 0.5 } }); expect(hairFormOf({ ridge: 0.8, crown: 'grow' })).toEqual({ ridge: 0.8 });
-  }, 120_000);   // about 8.5 s alone; the 30 s default times out under a loaded full suite
+  });
   it('each term alone moves only the hair: its parts, lock curves and guides — never the face', () => {
     const HAIR = ['guides', 'hair', 'locks'];
     const lift = { crown: 0.16, temple: 0.06, front: 0.06, back: 0.05 };

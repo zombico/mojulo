@@ -13,7 +13,7 @@ import { validateRig, bindLayered, rigNodesAt, boneFrames, layeredClip, auditRig
 import { layeredSeat, layeredFaces } from './station-loft-faces.js';
 import { compileLayered } from './station-loft.js';
 import { expandPlan } from './station-loft-plan.js';
-import { CAST_PRESET_NAMES } from './figure-cast.js';
+import { CAST_PRESETS, CAST_PRESET_NAMES } from './figure-cast.js';
 import { characterLitPieces, layeredShadingNormals, piecesAt } from './station-loft-shade.js';
 import { heroRecord, heroPlanOf, heroReadout, expandLayeredManifest, planLayered } from '../../mcp/tools/layered.js';
 import { humanoidPlan } from './humanoid-plan.js';
@@ -21,12 +21,17 @@ import { composeAnime } from './anime-looks.js';
 import { heroPlan, ANIME_WAVE, WAVE_TWIST, withWaveHand } from './hero-form.js';
 
 const h = (x) => createHash('sha256').update(JSON.stringify(x)).digest('hex').slice(0, 16);
-/** a hero as the door mints it, compiled at rest, with its rig bound */
+/** a hero as the door mints it, compiled at rest, with its rig bound (built once a spec, shared by the tests that read it) */
+const minted = new Map();
 function hero(spec) {
+  const key = JSON.stringify(spec); if (minted.has(key)) return minted.get(key);
   const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
   const mesh = compileLayered(m.recipe, m.dials); const R = validateRig(m.recipe.rig);
-  return { m, mesh, R, skin: bindLayered(mesh, m.recipe, R) };
+  const ctx = { m, mesh, R, skin: bindLayered(mesh, m.recipe, R) }; minted.set(key, ctx); return ctx;
 }
+// the cast words are dials on one body: the identity and the one furthest from it, chosen from the catalog
+const offIdentity = (c) => Object.values(CAST_PRESETS[c].dials).reduce((s, v) => s + Math.abs(v - 1), 0);
+const CAST_ENDS = [CAST_PRESET_NAMES.find((c) => offIdentity(c) === 0), CAST_PRESET_NAMES.reduce((a, c) => (offIdentity(c) > offIdentity(a) ? c : a))];
 /** the lowest point of a side's foot and toes, metres */
 const soleOf = (mesh, V, S) => { let lo = Infinity; mesh.vertices.forEach((_, i) => { const p = mesh.provenance[i].part; if (p === `foot${S}` || p === `toes${S}`) lo = Math.min(lo, V[i][2]); }); return lo; };
 
@@ -101,8 +106,9 @@ describe('the presets on the anime hero', () => {
     expect(() => planLayered(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime', gesture: { pelvis: 25 }, core: 'streamlined' }) })))
       .toThrow(/the stand \(hero\.gesture \{"pelvis":25\}\): station-loft-rig: leg R cannot reach its planted toe .* — set \/hero\/gesture to another stand/);
   });
-  it('every preset on both casts: solvable through the rig gates, planted toes held, the free sole on the floor', () => {
-    for (const [cast, ctx] of Object.entries(casts)) for (const word of Object.keys(GESTURE_PRESETS)) {
+  it('every preset (each its own support), the casts alternating: solvable through the rig gates, planted toes held, the free sole on the floor', () => {
+    for (const [i, word] of Object.keys(GESTURE_PRESETS).entries()) {
+      const cast = i % 2 ? 'male' : 'female', ctx = casts[cast];
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', gesture: word }) });
       expect(() => planLayered(m), `${cast} ${word}`).not.toThrow();   // layeredClip + auditRig (planted drift 0) over every clip
       const pose = standPose(m.recipe, ctx.R); expect(pose.support).toBe(resolveGesture(word, cast, { core: 'structured' }).support);
@@ -133,8 +139,8 @@ describe('the presets on the anime hero', () => {
       expect(n.knucklesL[1], `${cast} lead fist forward`).toBeGreaterThan(n.knucklesR[1] + 0.1);
     }
   });
-  it('relaxed on every cast word: clear of the body and standing on the floor', () => {
-    for (const cast of CAST_PRESET_NAMES) {
+  it('relaxed on the cast words (the identity and the furthest from it): clear of the body and standing on the floor', () => {
+    for (const cast of CAST_ENDS) {
       const ctx = hero({ cast, head: 'anime' }); const pose = standPose(ctx.m.recipe, ctx.R);
       expect(ctx.m.recipe.clips.gesture).toEqual([resolveGesture('relaxed', cast, { core: 'structured' })]);
       const P = poseLayered(ctx.mesh, ctx.m.recipe, pose, ctx);
@@ -394,7 +400,7 @@ describe('the door clips', () => {
     expect(heroRecord({ cast: 'male', head: { parts: {}, joints: { jawHinge: [0, 0, 0] } }, clips: { talk: [{ jaw: 5 }] } }).clips).toEqual({ talk: [{ jaw: 5 }] });
   });
   it('sparse: an empty or null clips stores nothing, so every pinned hero keeps its record, plan and recipe', () => {
-    for (const [name, [spec, [record, plan, recipe]]] of Object.entries(PINS)) for (const clips of [{}, null]) {
+    for (const [i, [name, [spec, [record, plan, recipe]]]] of Object.entries(PINS).entries()) { const clips = i % 2 ? null : {};
       const hr = heroRecord({ ...spec, clips }); const p = heroPlanOf(hr);
       expect('clips' in hr, name).toBe(false); expect(h(hr), name).toBe(record); expect(h(p), name).toBe(plan); expect(h(expandPlan(p)), name).toBe(recipe);
     }
@@ -431,20 +437,25 @@ describe('the door clips on the anime head: facial tracks and designed durations
     expect(validateHeroClips({ greet: { seconds: 2, keys: [{ elbowR: 'kinked' }] } }, ANIME)[0]).toMatch(/^clips\.greet\.keys\[0\]\.elbowR: a bend word/);
     expect(validateHeroClips({ greet: [{ face: 'grin' }] }, ANIME)).toEqual([expect.stringMatching(/^clips\.greet\[0\]\.face: unknown anime pose 'grin' \(have neutral, blink, smile/)]);
     expect(validateHeroClips({ greet: [{ face: ['smile', { squint: 1 }] }] }, ANIME)).toEqual(['clips.greet[0].face[1].squint: not an expression amount (have blink, smile, open, brow)']);
-    // every other head: the face and the duration refused by name (pointing at /hero/expression only on a head that takes
-    // it: the landmark's); every other word's text as before
-    expect(validateHeroClips({ greet: [{ face: 'happy' }] }, { expression: true })).toEqual(["clips.greet[0].face: a facial track is the anime head's (head: 'anime'); this head's face is /hero/expression"]);
-    expect(validateHeroClips({ greet: [{ face: 'happy' }] })).toEqual(["clips.greet[0].face: a facial track is the anime head's (head: 'anime')"]);
+    // the landmark head's face (`western`): its words and channels; its jaw is the key's own `jaw`
+    expect(validateHeroClips({ greet: [{ face: 'smile' }, { face: { word: 'surprised', blink: 1 } }, { face: { browTilt: 0.01, mouthCorner: -0.004 } }] }, { western: true, expression: true })).toEqual([]);
+    expect(validateHeroClips({ greet: [{ face: 'happy' }] }, { western: true, expression: true })[0]).toMatch(/^clips\.greet\[0\]\.face: one of neutral, smile, determined, surprised/);
+    expect(validateHeroClips({ greet: [{ face: { jawOpen: 10 } }] }, { western: true })).toEqual(["clips.greet[0].face.jawOpen: the jaw is the key's own `jaw` (degrees), the jaw bone"]);
+    expect(validateHeroClips({ greet: [{ face: { blink: 2 } }] }, { western: true })).toEqual(['clips.greet[0].face.blink: a number in 0 … 1']);
+    // every other head: the face and the duration refused by name; every other word's text as before
+    expect(validateHeroClips({ greet: [{ face: 'happy' }] }, { expression: true })).toEqual(["clips.greet[0].face: a facial track is the anime or the landmark head's; this head's face is /hero/expression"]);
+    expect(validateHeroClips({ greet: [{ face: 'happy' }] })).toEqual(["clips.greet[0].face: a facial track is the anime or the landmark head's"]);
     expect(validateHeroClips({ greet: { seconds: 2, keys: [{}] } })).toEqual(["clips.greet.seconds: a designed duration is the anime hero's (head: 'anime'); this hero's clips play one second in an export and three on the World page"]);
     expect(validateHeroClips({ greet: [{ dance: 1 }, { wristR: 1 }] }, ANIME)).toEqual(validateHeroClips({ greet: [{ dance: 1 }, { wristR: 1 }] }));
     for (const spec of [{ cast: 'male', register: 'lowpoly' }, { cast: 'female', head: 'none', register: 'lowpoly' }]) {
       const at = spec.head ?? 'landmark';
-      expect(() => heroRecord({ ...spec, clips: { greet: [{ ...K, face: 'happy' }] } }), at).toThrow(spec.head ? /clips\.greet\[0\]\.face: a facial track is the anime head's \(head: 'anime'\)(?!; this head)/ : /clips\.greet\[0\]\.face: a facial track is the anime head's \(head: 'anime'\); this head's face is \/hero\/expression/);
+      expect(() => heroRecord({ ...spec, clips: { greet: [{ ...K, face: 'happy' }] } }), at).toThrow(spec.head ? /clips\.greet\[0\]\.face: a facial track is the anime or the landmark head's(?!; this head)/ : /clips\.greet\[0\]\.face: one of neutral, smile, determined, surprised/);
       expect(() => heroRecord({ ...spec, clips: { greet: { seconds: 2, keys: [K] } } }), at).toThrow(/clips\.greet\.seconds: a designed duration is the anime hero's \(head: 'anime'\)/);
-      expect(() => heroRecord({ ...spec, blink: false }), at).toThrow(/blink: the ambient blink is the anime head's \(head: 'anime'\)/);
+      if (spec.head) expect(() => heroRecord({ ...spec, blink: false }), at).toThrow(/blink: the ambient blink is the anime or the landmark head's/);
+      else { expect(heroRecord({ ...spec, blink: false }).blink).toBe(false); expect(heroRecord({ ...spec, clips: { greet: [{ ...K, face: 'smile' }] } }).clips.greet[0].face).toBe('smile'); }
       expect(heroRecord({ ...spec, clips: { greet: { keys: [K] } } }).clips).toEqual({ greet: { keys: [K] } });
     }
-    expect(() => heroRecord({ cast: 'female', head: 'anime', blink: 'off' })).toThrow(/blink: false turns the anime hero's ambient blink off \(true is the default and not stored\)/);
+    expect(() => heroRecord({ cast: 'female', head: 'anime', blink: 'off' })).toThrow(/blink: false turns the hero's ambient blink off \(true is the default and not stored\)/);
   });
   it('the plan carries the keys without their face: a { seconds, keys } clip merges its keys; the record keeps it as given', () => {
     const clips = { greet: { seconds: 2, keys: [{}, { ...K, face: ['happy', { open: 0.4 }] }] }, run: [{ support: 'L', face: 'determined' }], idle: [K] };

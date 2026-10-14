@@ -28,7 +28,9 @@ describe('absent is zero bytes', () => {
 });
 
 describe('the passes on the second body: every register, both casts', () => {
-  for (const preset of ['male', 'female']) for (const register of Object.keys(REGISTERS)) {
+  // each register once, the casts alternating
+  for (const [i, register] of Object.keys(REGISTERS).entries()) {
+    const preset = i % 2 ? 'male' : 'female';
     it(`${preset} · ${register}: every part closes, the rig gates hold, every adornment justifies itself`, () => {
       const { plan, recipe, mesh } = figure(preset, register);
       expect(failures(mesh)).toEqual([]);

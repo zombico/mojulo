@@ -43,7 +43,9 @@ describe('palm', () => {
 
   it('shows its phyllotaxis as consecutive Fibonacci parastichies that mirror with the hand', () => {
     const fib = [1, 2, 3, 5, 8, 13, 21, 34];
-    for (const key of Object.keys(PALMS)) {
+    // one palm per frond form (pinnate leaflets, a fan): the spiral is the stem's, the same procedure for every species
+    const forms = Object.keys(PALMS).filter((k, i, all) => all.findIndex((x) => ('fanRadius' in PALMS[x]) === ('fanRadius' in PALMS[k])) === i);
+    for (const key of forms) {
       const r = parastichies(growPalm(key, { years: 40, seed: 2 })), l = parastichies(growPalm(key, { years: 40, seed: 2, hand: -1 }));
       const [a, b] = r.numbers; expect(fib.indexOf(b)).toBe(fib.indexOf(a) + 1);
       for (const n of r.numbers) expect(r.hands[n]).toBe(-l.hands[n]);

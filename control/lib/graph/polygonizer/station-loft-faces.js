@@ -13,7 +13,7 @@
  * Pure, deterministic. The straight-loft lowering (station-loft-workbench.js) is no longer the kind's
  * render path; it stays as a library for a print-friendly monomer form.
  */
-import { shadeHex, DEFAULT_LIGHT } from './vexar.js';
+import { shadeHex, DEFAULT_LIGHT, hexToRgb, rgbToHex } from './vexar.js';
 import { auditLayered } from './station-loft.js';
 import { seatPanels, clipCells } from './seat-panels.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
@@ -50,8 +50,13 @@ export function swimCells(corners, pan) {
  * emissive face has none. Absent ⇒ byte-identical.
  * `recipe.surfaces` (group → a shelf material or a metal surface, `'*'` every other group; a statue's, statue/expand.js)
  * tags each face with its material's channel keys (`spec` / `pbr`, a metal's `metal`) for the World page and the
- * exporters (polygonizer/materials.js tagFacesWithMaterial); the fill stays the palette's. Absent ⇒ byte-identical. */
-export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh, normals = null } = {}) {
+ * exporters (polygonizer/materials.js tagFacesWithMaterial); the fill stays the palette's. Absent ⇒ byte-identical.
+ * `paint` (face-paint.js facePaintOf): the painted face under the studio or a cast light, as characterLitFaces carries
+ * it under the character light. Absent ⇒ byte-identical. */
+/** a colour times [r, g, b] */
+const tintHex = (hex, m) => { const [r, g, b] = hexToRgb(hex); return rgbToHex([r * m[0], g * m[1], b * m[2]].map((x) => Math.max(0, Math.min(255, x)))); };
+export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh, normals = null, tint = null, paint = null } = {}) {
+  // `tint` (face-tint.js): per face, its corners' colour multipliers (a face's occlusion and blush); absent ⇒ as before
   const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
   const glows = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []);   // emissive groups: full-bright, not shaded
   const faces = [], panels = seatPanels(rest);
@@ -77,8 +82,12 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
       }
       return;
     }
-    const cf = cn ? cn.map((n) => shadeHex(hex, n, light)) : null;
-    faces.push({ corners, fill: glows.has(g) ? hex : shadeHex(hex, outNormal, light), ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal }); groupOf.push(g);
+    const tt = tint?.[i], th = (k) => (tt ? tintHex(hex, tt[k]) : hex);
+    const cf = cn ? cn.map((n, k) => shadeHex(th(k), n, light)) : null;
+    const fill = glows.has(g) ? hex : shadeHex(tt ? tintHex(hex, [0, 1, 2].map((c) => (tt[0][c] + tt[1][c] + tt[2][c]) / 3)) : hex, outNormal, light);
+    // `paint` (face-paint.js facePaintOf): a face the painted face's texture covers carries it, its fill the light alone
+    if (paint?.painted(i)) { faces.push({ corners, fill: paint.light(fill), ...(cf ? { cornerFills: [...cf, cf[2]].map(paint.light) } : {}), group: group || partName, outNormal, texture: paint.key, uv: tri.map((vi) => paint.uvAt({ vi })), textureLit: true }); groupOf.push(g); return; }
+    faces.push({ corners, fill, ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal }); groupOf.push(g);
   });
   if (surfaces) faces.forEach((f, k) => { const m = surfaces[groupOf[k]] ?? surfaces['*']; if (m && !glows.has(groupOf[k])) tagFacesWithMaterial([f], m); });
   return faces;

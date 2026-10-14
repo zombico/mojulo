@@ -34,6 +34,7 @@ import { readCues } from './cues.js';
 import { withChapterCues } from './chapters.js';
 import { CAST_WHEN } from './cast.js';
 import { readMenus, openers, MENU_KINDS, menuPages, menuHtml } from './menus.js';
+import { inventoryCss, readDress, INVENTORY_LOOKS, LOOK_IDS, FLAVOR_LOOK, DRESS_DIALS } from './inventory-dress.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const STATUS = { proposed: '#e8b04a', approved: '#6cc070', auto: '#8a93a6' };
@@ -69,7 +70,7 @@ table{border-collapse:collapse;width:100%;font-size:12px}td{padding:2px 6px 2px 
 .grid9{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.grid9>div{background:#2b2d33;border-radius:2px;padding:6px;min-height:58px;font-size:11px}
 .grid9 b{display:block;color:#9a958c;font-weight:400;font-size:10px;text-transform:uppercase}.grid9 .over{outline:1.5px solid #e8b04a}
 .wfs{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.wf small{color:#9a958c;display:block;margin-bottom:3px}
-table.cues td{padding:3px 10px 3px 0}.mns{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}.mn-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}.mn-pair .pu-stage{align-items:flex-start;zoom:.8}table.cues small{color:#9a958c}
+table.cues td{padding:3px 10px 3px 0}.mns{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}.mn-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}.mn-pair .pu-stage{align-items:flex-start;zoom:.8}.dresses{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}.dress{margin:0;padding:6px;border:1px solid #2d2a26;border-radius:6px}.dress.worn{border-color:#e8b04a}.dress .pu-stage{zoom:.62;align-items:flex-start}.dresses+p,.dress code{overflow-wrap:anywhere}.dress figcaption{font-size:11px;color:#9a958c;max-width:300px;margin-top:4px}.dress figcaption b{color:#e9e4da}table.cues small{color:#9a958c}
 ul.adv{margin:6px 0 0;padding-left:16px;color:#e8b04a;font-size:12px}
 svg{display:block;width:100%;height:auto}
 [data-piece]{display:contents}
@@ -87,8 +88,8 @@ const PROPOSED_CSS = [
   '.moj-w-ledger,.moj-w-allocator,.moj-w-queue,.moj-w-alerts,.moj-w-scoreboard{white-space:nowrap;display:flex;flex-direction:column;gap:3px}',
   '.moj-w-forecast,.moj-w-trend{display:flex;align-items:center;gap:8px;font-size:13px}',
   '.moj-w .pu-step{display:inline-block;width:16px;border:1px solid var(--moj-line);text-align:center;line-height:14px}',
-  '.moj-w .pu-slots{display:flex;gap:3px}.moj-w .pu-slot{width:14px;height:14px;border:1px solid var(--moj-line)}',
-  '.moj-w .pu-slot.on{background:linear-gradient(90deg,currentColor 55%,transparent 55%)}.moj-w .pu-slot.next{background:var(--moj-line)}',
+  '.moj-w .pu-slots{display:flex;gap:3px}.moj-w .pu-slots .pu-slot{width:14px;height:14px;border:1px solid var(--moj-line)}',
+  '.moj-w .pu-slots .pu-slot.on{background:linear-gradient(90deg,currentColor 55%,transparent 55%)}.moj-w .pu-slots .pu-slot.next{background:var(--moj-line)}',
   '.moj-w .pu-mini{display:inline-block;width:60px;height:5px;background:rgba(255,255,255,.15);vertical-align:middle}.moj-w .pu-mini i{display:block;height:100%;background:currentColor}',
   '.moj-w-nameplate{display:flex;align-items:center;gap:5px;font-size:12px;padding:2px 6px}.moj-w .pu-mark{width:10px;height:10px;display:inline-block}',
   '.pu-pair{display:flex;gap:6px;align-items:center}',
@@ -114,7 +115,9 @@ export function pieceGuide(guide) {
   const face = `<p style="font:600 18px/1.2 ${FONTS[guide.font]};margin:6px 0 0">The quick brown fox · 0123456789</p><p class="note">face: ${esc(guide.font)} · set by ${src('font')}</p>`;
   const b = guide.border, border = `<table style="margin-top:6px"><tr><td><b>border</b></td><td>${b ? esc(b.flavor || 'custom') : 'none'}</td><td class="src">${src('border')}</td><td class="about">${b ? b.elements.map((e) => `${esc(e)}: ${esc(BORDER_ELEMENTS[e].about)}`).join(' · ') : 'no art over the frame'}</td></tr>`
     + `<tr><td><b>pace</b></td><td>${esc(guide.pace || 'scan')}</td><td class="src">${src('pace')}</td><td class="about">${{ glance: 'read in a glance: tight budgets, nothing standing in the centre', scan: 'read in a scan: the default budgets', study: 'read slowly, often paused: dense panels, the centre may hold one' }[guide.pace || 'scan']}</td></tr>`
-    + `<tr><td><b>pixel</b></td><td>${guide.pixel ? `${guide.pixel}px` : 'off'}</td><td class="src">${src('pixel')}</td><td class="about">${guide.pixel ? 'no smoothing, hard edges, stepped corners, the mono face' : 'smooth'}</td></tr></table>`;
+    + `<tr><td><b>pixel</b></td><td>${guide.pixel ? `${guide.pixel}px` : 'off'}</td><td class="src">${src('pixel')}</td><td class="about">${guide.pixel ? 'no smoothing, hard edges, stepped corners, the mono face' : 'smooth'}</td></tr>`
+    + (guide.inventory ? `<tr><td><b>inventory</b></td><td>${esc(guide.inventory.look)}</td><td class="src">${src('inventory')}</td><td class="about">${esc(INVENTORY_LOOKS[guide.inventory.look].about)} · ${DRESS_DIALS.filter((d) => guide.inventory[d] !== INVENTORY_LOOKS[guide.inventory.look][d]).map((d) => `${d} ${esc(guide.inventory[d])}`).join(' · ') || 'as the look'}</td></tr>` : '')
+    + '</table>';
   return piece('ui:guide', `<p class="note">register ${guide.register} · ${esc(guide.stop)} · set by ${esc(guide.sources.register)}</p>${slider}${dials}${border}<p class="note" style="margin-top:8px">tokens · from ${esc(guide.sources.tokens)}</p>${toks}${face}`);
 }
 
@@ -266,16 +269,33 @@ export function pieceCues(play) {
   return piece('ui:cues', `<table class="cues"><tr><td class="about">cue</td><td class="about">when the figure…</td><td></td><td class="about">the UI</td><td class="about"></td></tr>${rows}</table>`);
 }
 
-// a menu's specimen: the page's own markup (menus.js menuHtml), sample values for a list's vars
-const menuSpecimen = (m) => menuHtml(m).replace(/\{[^}]+\}/g, (_, i) => '62');
+// a menu's specimen: the page's own markup (menus.js menuHtml), sample values for a list's vars and a view's counts
+// (one to three of each, so a bag shows what it holds and a grid its badges)
+const sampleVars = (m) => Object.fromEntries((m.rows || []).filter((r) => r.count).map((r, i) => [r.count, (i % 3) + 1]));
+const menuSpecimen = (m) => menuHtml(m, 0, 0, sampleVars(m)).replace(/\{[^}]+\}/g, (_, i) => '62');
 const RAISE = { clear: 'solid', flat: 'solid', solid: 'solid', textured: 'textured' };
 
 /** ui:menu:<id> — a menu in values, then dressed by the world's guide, with what opens it. */
 export function pieceMenu(m, guide, by = []) {
   const id = `ui:menu:${m.id}`, k = id.replace(/[^a-z0-9]/gi, '-');
   // a menu reads over play: the guide's plate, raised to solid when it is clearer
-  const css = `<style>${stageCss(`.v-${k}`, GREYBOX_TOKENS, 'system', { plate: 'solid' }, true)}${guide ? stageCss(`.d-${k}`, guide.tokens, guide.font, { ...guide.dials, plate: RAISE[guide.dials.plate] || 'solid' }, false, guide) : ''}</style>`;
+  const css = `<style>${stageCss(`.v-${k}`, GREYBOX_TOKENS, 'system', { plate: 'solid' }, true)}${guide ? stageCss(`.d-${k}`, guide.tokens, guide.font, { ...guide.dials, plate: RAISE[guide.dials.plate] || 'solid' }, false, guide) : ''}${guide && guide.inventory && m.layout === 'grid' ? inventoryCss(guide.inventory, `.d-${k}`) : ''}</style>`;
   return piece(id, `${css}<div class="mn"><p class="note"><b style="color:#e9e4da">${esc(m.id)}</b> · ${esc(m.kind)} · ${esc(MENU_KINDS[m.kind].about)}<br>opened by ${by.length ? esc(by.join(', ')) : '<span style="color:#e8b04a">nothing yet</span>'}</p><div class="mn-pair"><div class="pu-stage v-${k}">${menuSpecimen(m)}</div>${guide ? `<div class="pu-stage d-${k}">${menuSpecimen(m)}</div>` : ''}</div></div>`);
+}
+
+/**
+ * ui:dress:<id> — the inventory's dress, a picking aid: one grid view drawn in every look (inventory-dress.js), in the
+ * world's guide when it has one, the look the guide wears marked, each with the words that choose it.
+ */
+export function pieceDress(m, guide) {
+  const id = `ui:dress:${m.id}`, k = id.replace(/[^a-z0-9]/gi, '-'), worn = guide && guide.inventory ? guide.inventory.look : 'classic';
+  const flavor = guide && guide.border && guide.border.flavor, fromFlavor = flavor ? FLAVOR_LOOK[flavor] : null;
+  const tokens = guide ? guide.tokens : GREYBOX_TOKENS, font = guide ? guide.font : 'system', dials = guide ? { ...guide.dials, plate: RAISE[guide.dials.plate] || 'solid' } : { plate: 'solid' };
+  const looks = LOOK_IDS.map((look) => {
+    const sc = `.${k}-${look}`;
+    return `<figure class="dress${look === worn ? ' worn' : ''}"><style>${stageCss(sc, tokens, font, dials, false, guide)}${inventoryCss(readDress(look), sc)}</style><div class="pu-stage ${sc.slice(1)}">${menuSpecimen(m)}</div><figcaption><b>${esc(look)}</b>${look === worn ? ' · worn' : ''}${look === fromFlavor ? ` · the ${esc(flavor)} border's ('flavor')` : ''}<br>${esc(INVENTORY_LOOKS[look].about)}<br><code>play.ui.inventory: '${esc(look)}'</code></figcaption></figure>`;
+  }).join('');
+  return piece(id, `<p class="note" style="overflow-wrap:anywhere">the inventory's dress (the guide's, never the menu's): a look, then any word over it: <code>{ look, tile, shape, slots, card, badge, kinds, focus, backdrop }</code> (card ui-inventory)</p><div class="dresses">${looks}</div>`);
 }
 
 // who sees a part from a view: a player sees all but the spectators' own overlays; a spectator sees what is shown to all
@@ -366,7 +386,7 @@ ${card('motion', status.motion, pieceMotion(ui.motion, g.dials.motion), 'the mov
 </div>
 <div class="row">${card('parts', status.parts, parts.length ? specs(parts.map((x) => piecePart(x.part, x.variant, g, x.p, x.of)).join('')) : '<p class="note">no parts yet: play.parts</p>', 'each part in every state: in values, then dressed by the guide · drawn at 78% (banners 42%, legends 64%, panels 56%) to fit a cell')}</div>
 ${play.cues && play.cues.length ? `<div class="row"><section class="card" data-item="cues"><header><h2>Cues</h2></header><p class="note">what the game does → what the UI does, until when · each fires the bus event cue:&lt;id&gt; · ◦ set on the bus, drawn on the board only · approved with the parts</p>${pieceCues(play)}</section></div>` : ''}
-${(play.menus || []).length ? (() => { const by = openers(play); return `<div class="row"><section class="card" data-item="menus"><header><h2>Menus</h2></header><p class="note">what comes up when the figure does something in the map · in values, then dressed by the world's guide (no look of its own) · drawn on the board; the page draws menus in a later step</p><div class="mns">${menuPages(play).map((m) => pieceMenu(m, g, by.get(m.id))).join('')}</div></section></div>`; })() : ''}
+${(play.menus || []).length ? (() => { const by = openers(play); return `<div class="row"><section class="card" data-item="menus"><header><h2>Menus</h2></header><p class="note">what comes up when the figure does something in the map · in values, then dressed by the world's guide (no look of its own) · drawn on the board as the page draws them</p><div class="mns">${menuPages(play).map((m) => pieceMenu(m, g, by.get(m.id))).join('')}</div>${(() => { const ms = menuPages(play).filter((m) => m.layout === 'grid'), v = ms.find((m) => m.kind === 'inventory') || ms[0]; return v ? pieceDress(v, g) : ''; })()}</section></div>`; })() : ''}
 <div class="row r3">
 ${card('layout', status.layout, pieceLayout(play, ui, Array.isArray(manifest.entities) ? manifest.entities : null), 'every phase at once; standing parts against the pace\'s budget (moments pass through); a region over it is outlined')}
 ${card('wireframes', status.wireframes, `<div class="wfs">${phases.flatMap((ph) => viewsOf(play).map((v) => pieceWireframe(ph, play, g.dials, v))).join('')}</div>`, 'black and white: structure apart from look · dashed: drawn on the board only')}

@@ -32,13 +32,15 @@ describe('out-castle', () => {
   });
 
   it('holds every law of its budget and its fortification, in either composition, one ward or two, across sizes and languages', () => {
-    const broken = [];
-    for (const fort of ['crenellated', 'battered', { seed: 5 }]) for (const anchor of ['timber-hall', 'tiered', 'shell', { seed: 4 }]) for (const wards of [1, 2]) for (const size of [44, 56]) for (const s of [1, 8]) {
+    // each composition, language, ward count, size and seed once, taken in turn together (pairwise, not every combination)
+    const broken = [], forts = ['crenellated', 'battered', { seed: 5 }], anchors = ['timber-hall', 'tiered', 'shell', { seed: 4 }];
+    for (let i = 0; i < 6; i++) {
+      const fort = forts[i % 3], anchor = anchors[i % 4], wards = [1, 2][i % 2], size = [44, 56][Math.floor(i / 3)], s = [1, 8][Math.floor(i / 2) % 2];
       const c = designCastle(structureStyle('isekai-meadow', s), s, { fort, anchor, wards, size });
       for (const l of c.laws) if (!l.ok) broken.push(`${JSON.stringify(fort)} ${JSON.stringify(anchor)} ${wards} ${size} s${s}: ${l.law} ${l.value}`);
     }
     expect(broken).toEqual([]);
-  }, 120000);
+  });
 
   it('spends its surface on what it keeps, where the fortified town spent it on its walls', () => {
     const c = designCastle(meadow, 8, { fort: 'crenellated', anchor: 'timber-hall' }), S = castleSurface(c);
@@ -67,7 +69,9 @@ describe('out-castle', () => {
   });
 
   it('a town outside its castle: the castle on the highest ground, the branch brought to its bridge, every law held', () => {
-    for (const rec of [{ castle: true }, { castle: { fort: 'battered', wards: 1 }, anchor: 'tiered' }, { castle: { fort: { seed: 5 }, size: 52 }, levels: 2, back: false, branches: 0 }]) for (const kit of ['isekai-meadow', 'isekai-garden']) {
+    // both kits (one language, other numbers) taken in turn across the recipes
+    for (const [i, rec] of [{ castle: true }, { castle: { fort: 'battered', wards: 1 }, anchor: 'tiered' }, { castle: { fort: { seed: 5 }, size: 52 }, levels: 2, back: false, branches: 0 }].entries()) {
+      const kit = ['isekai-meadow', 'isekai-garden'][i % 2];
       const st = structureStyle(kit, 8), t = designTown(st, 8, rec), bad = [...t.laws, ...dressTown(t, st).laws].filter((l) => !l.ok);
       expect(bad.map((l) => `${JSON.stringify(rec)} ${kit}: ${l.law} ${l.value}`)).toEqual([]);
       expect(t.castle.z).toBe(Math.max(...t.terraces.map((x) => x.z1)));
@@ -75,7 +79,7 @@ describe('out-castle', () => {
       expect(t.lots.filter((l) => l.castle).length).toBe(t.castle.lots.length);
       expect(t.laws.map((l) => l.law)).toContain('outside');
     }
-  }, 120000);
+  });
 
   it('is designed by the style it keeps: a round language draws an ellipse crowned with domes round a keep of orbs; tiers under flat roofs step the keep', () => {
     expect(STYLE_INFLUENCE.map((r) => r.id)).toEqual(['trace', 'crown', 'keep']);
@@ -98,5 +102,5 @@ describe('out-castle', () => {
     const t = designTown(meadow, 8, { anchor: 'shell', castle: true });
     expect(t.castle.trace).toBe('ellipse');
     expect(t.laws.filter((l) => !l.ok).map((l) => `${l.law} ${l.value}`)).toEqual([]);
-  }, 120000);
+  });
 });

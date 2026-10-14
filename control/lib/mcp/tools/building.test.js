@@ -55,7 +55,7 @@ describe('mint_building — a store, a restaurant, a mall', () => {
   const SHOPS = {
     store: { kind: 'store', title: 's', card: 'bookstore' },
     restaurant: { kind: 'restaurant', title: 'r', seed: 1 },
-    mall: { kind: 'mall', title: 'm', levels: 2 },
+    mall: { kind: 'mall', title: 'm', style: false },   // one undressed concourse: the door and its readout are the concept, not the fit-out faces
     school: { kind: 'school-complex', title: 'k', seed: 1 },
   };
   for (const [name, manifest] of Object.entries(SHOPS)) {
@@ -67,7 +67,7 @@ describe('mint_building — a store, a restaurant, a mall', () => {
       expect(res).toMatchObject({ ok: true, subject: 'building', occupancy: manifest.kind === 'school-complex' ? 'school' : manifest.kind, grade: { score: expect.any(Number) } });
       expect(res.notAHome).toBeUndefined();
       expect(res.next.at(-1)).toEqual({ id: 'sheets', outcome: 'drawings', export: 'sheets', card: 'building-commercial' });
-    }, 120_000);
+    });
   }
 });
 

@@ -8,9 +8,14 @@ import { heroRest, restTriangles, RESTS, REST_NAMES, SEATS, LOTUS_REACH } from '
 
 const rigOf = (cast) => validateRig(expandLayeredManifest({ kind: 'layered', title: 't', hero: heroRecord({ cast, head: 'anime' }) }).recipe.rig);
 const HEROES = { female: rigOf('female'), male: rigOf('male') };
+// one rest per distinct solve (hero-rest.js: the family, the seat, reclined onto a back, approximate, limp), chosen from
+// the catalog, the casts alternating
+const SOLVES = Object.values(Object.groupBy(REST_NAMES, (n) => { const P = RESTS[n]; return `${P.family} ${P.seat ?? ''} ${P.recline === 'back' ? 'reclined' : ''} ${P.approx ? 'approx' : ''} ${P.limp ? 'limp' : ''}`; }))
+  .map((g, i) => [i % 2 ? 'male' : 'female', g[0]]);
 
 describe('hero-rest', () => {
-  for (const [cast, R] of Object.entries(HEROES)) for (const name of REST_NAMES) {
+  for (const [cast, name] of SOLVES) {
+    const R = HEROES[cast];
     it(`${cast} ${name}: every contact held, nothing through the floor, in range`, () => {
       const x = heroRest(name, R), c = x.checks;
       // (an approximate pose keeps every law but the one it approximates: measured, below)

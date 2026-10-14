@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 
 import { bakeRigFigure, bakeMegaBoyRig, bakeProtoformRig, BIPED_BONES } from './rig-bake.js';
 
+// one mega-boy bake read by every test that reads it (a bake is pure; the determinism test bakes a second)
+let mega;
+const megaBoy = () => (mega ??= bakeMegaBoyRig({ keys: 8 }));
+
 describe('rig-bake — generic baker', () => {
   it('bakes mega-boy: all bones present, every part non-empty, curves per clip', async () => {
-    const rig = await bakeMegaBoyRig({ keys: 8 });
+    const rig = await megaBoy();
     expect(rig.rig).toBe(true);
     expect(rig.bones.length).toBe(BIPED_BONES.length);
     // helmet/torso/limbs all bind SOME geometry
@@ -16,13 +20,13 @@ describe('rig-bake — generic baker', () => {
   });
 
   it('is deterministic', async () => {
-    const a = await bakeMegaBoyRig({ keys: 4 });
-    const b = await bakeMegaBoyRig({ keys: 4 });
+    const a = await megaBoy();
+    const b = await bakeMegaBoyRig({ keys: 8 });
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
   it('phase 0 of the walk is near-rest: quaternions ≈ identity', async () => {
-    const rig = await bakeMegaBoyRig({ keys: 8 });
+    const rig = await megaBoy();
     const nb = rig.bones.length;
     for (let bi = 0; bi < nb; bi++) {
       const q = rig.clips.forward.b.slice(bi * 7, bi * 7 + 4);   // key 0 (sin(0)=0 → neutral dof)
@@ -31,7 +35,7 @@ describe('rig-bake — generic baker', () => {
   });
 
   it('mid-swing keys rotate the thighs in OPPOSITE directions (contralateral gait)', async () => {
-    const rig = await bakeMegaBoyRig({ keys: 8 });
+    const rig = await megaBoy();
     const nb = rig.bones.length;
     const key = 2;                                               // phase 0.25 → sin = 1, max swing
     const boneIdx = (id) => rig.bones.findIndex((b) => b.id === id);

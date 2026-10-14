@@ -66,6 +66,8 @@
  * its clump `tail`). Nothing here is written into the recipe.
  */
 import * as dmath from '../../util/dmath.js';
+import { noseDial } from './anime-nose.js';
+import { lockSpine, lockB, spineFor, coilOffsets, coilSteps } from './hair-spine.js';
 
 export const ANIME_SCHEMA = 'anime-form-studio-v3';
 export const ANIME_MALE_BASELINE = Object.freeze({ width: 0.99, lower: 1.03, jaw: 1, cheekVolume: 1.14, lowerCheekVolume: 1.17, chin: 1.3, depth: 1.14, backDepth: 1.14, occiput: 1.18, nape: 0.82, jawAngle: 0.79, jawDepth: 1.19, chinProjection: 1.21, chinHeight: 0.77, nose: 1.44, eyeWidth: 0.87, eyeHeight: 0.85, spacing: 0.98 });
@@ -149,13 +151,16 @@ export function buildAnime(r, options = {}) {
   if (S?.noseLine) parts.nose = [];
   const EYE = S && (S.fissure || S.lidWeight !== undefined || S.brow || S.lidCover !== undefined) ? eyeShapeOf(S, f) : null;
   const EYE_Y = S?.eyeLevel !== undefined ? S.eyeLevel : 0.055;
-  const LENS = options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };   // the lens resolution (a budget, never `coarse`)
+  // the lens resolution (a budget, never `coarse`); `paint`: the lenses are painted flat, so one ring holds their outline
+  const LENS = options.paint ? { seg: 40, rings: 1 } : options.budget === 'game' ? { seg: 24, rings: 2 } : { seg: 40, rings: 3 };
   function tri(part, a, b, c) { if (dmath.hypot(...cross(sub(b, a), sub(c, a))) < 1e-10) return; parts[part].push(...a, ...b, ...c); }
   function quad(part, a, b, c, d, edge = false) { if (options.coarse && capture && part === 'skin') headPolygons.push([a, b, c, d]); tri(part, a, b, c); tri(part, a, c, d); if (edge) cage.push(...a, ...b, ...b, ...c, ...c, ...d, ...d, ...a); }
   function width(y) { return profile(y, [[-1.02, 0.10 * f.chin], [-0.90, 0.27 * f.chin], [-0.64, 0.51 * f.jaw], [-0.30, 0.69 * (1 + 0.25 * (f.jaw - 1))], [0.12, 0.78], [0.45, 0.79], [0.78, 0.69], [1.04, 0.41], [1.16, 0.18], [1.19, 0.009]]) * f.width; }
   function fy(y) { return y < -0.2 ? -0.2 + (y + 0.2) * f.lower : y; }
   // Separate vault/occiput/nape and jaw-to-chin profiles, informed by the fitted head landmarks.
-  function surface(u, y, back = false) {
+  // under the nose dials the studio's own nose is off: the dials build theirs on a smooth face (anime-nose.js)
+  const NOSE_OFF = !!options.nose;
+  function surface0(u, y, back = false, noseOff = NOSE_OFF) {
     let x = u * width(y); const g = (v, c, w) => dmath.exp(-(((v - c) / w) ** 2)), arc = dmath.pow(Math.max(0, 1 - u * u), 0.45);
     const seam = profile(y, [[-1.02, -0.43], [-0.90, -0.36], [-0.74, -0.17], [-0.60, -0.035], [-0.30, 0.06], [1.19, 0.06]]);
     const front = profile(y, [[-1.02, 0.025], [-0.90, 0.12], [-0.74, 0.30], [-0.60, 0.45], [-0.30, 0.57], [0.22, 0.59], [0.62, 0.57], [0.92, 0.45], [1.16, 0.18], [1.19, 0.009]]);
@@ -166,10 +171,10 @@ export function buildAnime(r, options = {}) {
       // the nose placed: the tip (pronasale) at its height with its own projection and width, the dorsum a ridge that
       // starts below the brow (dorsumStart) and ramps down to the tip; the muzzle bump follows the lip line
       const N = S.nose, ramp = y > N.dorsumStart ? 0 : y > N.pronasale ? dmath.pow((N.dorsumStart - y) / (N.dorsumStart - N.pronasale), 1.3) : dmath.exp(-(((y - N.pronasale) / 0.05) ** 2));
-      z -= f.nose * (N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
+      if (!noseOff) z -= f.nose * (N.tip * 0.135 * g(x, 0, N.tipWidth[0]) * g(y, N.pronasale, N.tipWidth[1]) + N.dorsum * 0.072 * g(x, 0, N.dorsumWidth) * ramp);
       z -= 0.025 * g(x, 0, 0.18) * g(y, S.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12);
     }
-    else { z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
+    else { if (!noseOff) z -= f.nose * (0.135 * g(x, 0, 0.092) * g(y, -0.18, 0.085) + 0.072 * g(x, 0, 0.075) * g(y, 0.02, 0.20)); z -= 0.025 * g(x, 0, 0.18) * g(y, S?.stomion !== undefined ? S.stomion + 0.035 : -0.50, 0.12); }
     // canthusSetback: the lateral canthus set back along the globe (eye-local; faded to zero at the side seam)
     if (!back && S?.canthusSetback) { const cl = 0.455 * f.spacing + 0.285 * f.eyeWidth * 0.95; z += S.canthusSetback * g(Math.abs(u), cl, 0.13) * g(y, EYE_Y, 0.14) * (1 - dmath.pow(Math.abs(u), 8)); }
     // Independent forehead and supraorbital depth; blend to the temple seam.
@@ -193,13 +198,38 @@ export function buildAnime(r, options = {}) {
     const chinLift = -0.40 * ((f.chinHeight ?? 1) - 1) * chinWeight * chinWeight;
     return [x, fy(y) + lift + chinLift, z];
   }
+  // the NOSE DIALS (`nose`, anime-nose.js): the face's front drawn to a target side profile, the nose a wedge on it;
+  // absent, the studio's surface
+  // (the jaw rises to under the ear's lobe: the ear ellipsoid below, its centre and radii)
+  const EAR_C = [S?.ear ? fy(-0.24) + S.ear.lift : fy(-0.24), 0.045], EAR_R = [0.205, 0.14];
+  const ND = options.nose ? noseDial(surface0, options.nose, { anchorAt: (u, y) => surface0(u, y, false, false), widthAt: (y) => surface0(1, y)[0], pitch: (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, ear: { Y: EAR_C[0] - 0.8 * EAR_R[0], zFront: EAR_C[1] - EAR_R[1], zBack: EAR_C[1] + EAR_R[1] } }) : null;
+  // (the dials move the face back and lift the head's underside; every point's studio place is kept, so the head is
+  // registered by the studio's extent and the dials never rescale it: `nose.floorY`)
+  const STUDIO = [];
+  function surface(u, y, back = false) { if (!ND) return surface0(u, y, back); const p = surface0(u, y, back); STUDIO.push(p[1], p[2]); return ND.jaw(ND.apply(p, u, y, back)); }
+  // the underside's quad, for the painter (face-paint.js `noseUnder`): two triangles on the front plane
+  if (ND && options.paint) { const [a, b, c, d] = ND.under.map(([x, Y]) => [x, Y, ND.tip[1]]); parts.noseUnder = [...a, ...b, ...c, ...a, ...c, ...d]; }
 
-  const xs = options.coarse ? [-1, -0.8, -0.63, -0.46, -0.29, -0.26, -0.12, -0.06, 0, 0.06, 0.12, 0.26, 0.29, 0.46, 0.63, 0.8, 1] : [-1, -0.95, -0.9, -0.85, -0.8, -0.715, -0.63, -0.545, -0.46, -0.375, -0.29, -0.26, -0.205, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.205, 0.26, 0.29, 0.375, 0.46, 0.545, 0.63, 0.715, 0.8, 0.85, 0.9, 0.95, 1];
-  const ys = options.coarse ? [-1.02, -0.98, -0.90, -0.74, -0.66, -0.53, -0.40, -0.30, -0.22, -0.085, 0.05, 0.185, 0.32, 0.50, 0.65, 0.78, 0.92, 1.04, 1.10, 1.16, 1.19] : [-1.02, -0.98, -0.94, -0.90, -0.86, -0.82, -0.78, -0.74, -0.70, -0.66, -0.6275, -0.595, -0.5625, -0.53, -0.4975, -0.465, -0.4325, -0.40, -0.35, -0.30, -0.26, -0.22, -0.1525, -0.085, -0.0175, 0.05, 0.1175, 0.185, 0.2525, 0.32, 0.38, 0.44, 0.50, 0.56, 0.62, 0.68, 0.74, 0.80, 0.86, 0.92, 0.98, 1.04, 1.10, 1.13, 1.16, 1.18, 1.19];
+  const xs0 = options.coarse ? [-1, -0.8, -0.63, -0.46, -0.29, -0.26, -0.12, -0.06, 0, 0.06, 0.12, 0.26, 0.29, 0.46, 0.63, 0.8, 1] : [-1, -0.95, -0.9, -0.85, -0.8, -0.715, -0.63, -0.545, -0.46, -0.375, -0.29, -0.26, -0.205, -0.16, -0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12, 0.16, 0.205, 0.26, 0.29, 0.375, 0.46, 0.545, 0.63, 0.715, 0.8, 0.85, 0.9, 0.95, 1];
+  const ys0 = options.coarse ? [-1.02, -0.98, -0.90, -0.74, -0.66, -0.53, -0.40, -0.30, -0.22, -0.085, 0.05, 0.185, 0.32, 0.50, 0.65, 0.78, 0.92, 1.04, 1.10, 1.16, 1.19] : [-1.02, -0.98, -0.94, -0.90, -0.86, -0.82, -0.78, -0.74, -0.70, -0.66, -0.6275, -0.595, -0.5625, -0.53, -0.4975, -0.465, -0.4325, -0.40, -0.35, -0.30, -0.26, -0.22, -0.1525, -0.085, -0.0175, 0.05, 0.1175, 0.185, 0.2525, 0.32, 0.38, 0.44, 0.50, 0.56, 0.62, 0.68, 0.74, 0.80, 0.86, 0.92, 0.98, 1.04, 1.10, 1.13, 1.16, 1.18, 1.19];
+  // the painted face's lattice (`paint` without `dense`: below a close-up's tier): no aperture to align to, so every other
+  // column and row, keeping the nose's columns (|u| ≤ 0.16) and its rows (−0.35 ≤ y ≤ −0.05) whole, where its bump lives;
+  // symmetric about the middle column, the ends kept
+  const thin = options.paint && !options.paint.dense && !options.coarse;
+  const xs1 = thin ? xs0.filter((x, k) => k % 2 === 0 || Math.abs(x) <= 0.16) : xs0;
+  const ys1 = thin ? ys0.filter((y, k) => k % 2 === 0 || k === ys0.length - 1 || (y >= -0.35 && y <= -0.05)) : ys0;
+  // the nose dials' own rows and columns (the stop, the tip, the underside, the chin; the wedge's edges), merged in
+  // (an added ROW closer than `gap` to one kept is dropped: the strip between two near rows runs the whole face's width,
+  // folds its normals and inks as a crease line across the eyes and the cheeks; the wedge's columns stay, as they are)
+  const merge = (a, extra, lo, hi, gap = 0) => { const out = [...new Set(a)]; for (const v of extra.filter((x) => x > lo && x < hi).map((x) => Math.round(x * 1e4) / 1e4)) if (out.every((w) => (gap ? Math.abs(w - v) >= gap : w !== v))) out.push(v); return out.sort((p, q) => p - q); };
+  const xs = ND ? merge(xs1, ND.cols, -1, 1) : xs1, ys = ND ? merge(ys1, ND.rows, ys1[0], ys1.at(-1), 0.012) : ys1;
   // mouthWidth past the studio's aperture: the mouth box widens to the first lattice column that clears the smiling line
-  const MB = S?.mouthWidth > 1 ? xs.find((x) => x >= 0.175 * S.mouthWidth * 1.12 + 0.04) ?? 0.8 : null;
+  const MB = S?.mouthWidth > 1 ? xs0.find((x) => x >= 0.175 * S.mouthWidth * 1.12 + 0.04) ?? 0.8 : null;
   const holes = [{ kind: 'eye', side: -1, x0: -0.8, x1: -0.12, y0: -0.22, y1: 0.32 }, { kind: 'eye', side: 1, x0: 0.12, x1: 0.8, y0: -0.22, y1: 0.32 }, { kind: 'mouth', side: 0, x0: MB ? -MB : -0.26, x1: MB ? MB : 0.26, y0: -0.66, y1: -0.40 }];
-  for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) { const u = (xs[i] + xs[i + 1]) / 2, y = (ys[j] + ys[j + 1]) / 2; if (holes.some((q) => u > q.x0 && u < q.x1 && y > q.y0 && y < q.y1)) continue; quad('skin', surface(xs[i], ys[j]), surface(xs[i + 1], ys[j]), surface(xs[i + 1], ys[j + 1]), surface(xs[i], ys[j + 1]), true); }
+  // `paint` (the painted face, face-paint.js): the skin runs whole over the eyes and the mouth, and every feature below is
+  // still built, into its own part, for the painter to project; no aperture bridges are cut
+  const cut = options.paint ? [] : holes;
+  for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) { const u = (xs[i] + xs[i + 1]) / 2, y = (ys[j] + ys[j + 1]) / 2; if (cut.some((q) => u > q.x0 && u < q.x1 && y > q.y0 && y < q.y1)) continue; quad('skin', surface(xs[i], ys[j]), surface(xs[i + 1], ys[j]), surface(xs[i + 1], ys[j + 1]), surface(xs[i], ys[j + 1]), true); }
   // Rear shares the face's side seam. Caps close the top and bottom loops.
   for (let j = 0; j < ys.length - 1; j++) for (let i = 0; i < xs.length - 1; i++) quad('skin', surface(xs[i], ys[j], true), surface(xs[i], ys[j + 1], true), surface(xs[i + 1], ys[j + 1], true), surface(xs[i + 1], ys[j], true), j % 3 === 0 && i % 2 === 0);
   for (const y of [ys[0], ys.at(-1)]) for (let i = 0; i < xs.length - 1; i++) quad('skin', surface(xs[i], y), surface(xs[i], y, true), surface(xs[i + 1], y, true), surface(xs[i + 1], y));
@@ -216,10 +246,11 @@ export function buildAnime(r, options = {}) {
   }
   for (const hole of holes) {
     const { x0, x1, y0, y1, side } = hole;
-    const outer = [...xs.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
+    // (the full lattice's points, so a thinned painted lattice keeps the features' own outline sampling)
+    const outer = [...xs0.filter((x) => x >= x0 && x < x1).map((x) => [x, y0]), ...ys0.filter((y) => y >= y0 && y < y1).map((y) => [x1, y]), ...xs0.filter((x) => x > x0 && x <= x1).reverse().map((x) => [x, y1]), ...ys0.filter((y) => y > y0 && y <= y1).reverse().map((y) => [x0, y])];
     const ts = outer.map(([u, y]) => dmath.atan2((y - (y0 + y1) / 2) / ((y1 - y0) / 2), (u - (x0 + x1) / 2) / ((x1 - x0) / 2))), uv = (t) => (hole.kind === 'eye' ? eyeUV(side, t) : mouthUV(t)), inner = ts.map(uv), rings = [];
     for (let k = 0; k <= 3; k++) { const t = k / 3; rings.push(outer.map((p, i) => { const u = mix(inner[i][0], p[0], t), y = mix(inner[i][1], p[1], t), v = surface(u, y); v[2] -= 0.009 * dmath.sin(Math.PI * t); return v; })); }
-    for (let k = 0; k < 3; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
+    if (!options.paint) for (let k = 0; k < 3; k++) for (let i = 0; i < outer.length; i++) quad('skin', rings[k][i], rings[k + 1][i], rings[k + 1][(i + 1) % outer.length], rings[k][(i + 1) % outer.length], true);
     const centerUV = hole.kind === 'eye' ? eyeUV(side, 0, 0) : mouthUV(0, 0), center = surface(...centerUV); center[2] += hole.kind === 'eye' ? -0.025 : 0.035;
     for (let i = 0; i < outer.length; i++) {
       const n = (i + 1) % outer.length;
@@ -339,6 +370,10 @@ export function buildAnime(r, options = {}) {
   const vx = h.volume * f.width, vy = h.volume, depth = h.volume, short = h.style === 'short', hime = h.style === 'hime';
   // the HAIR FORM (see the header): a neutral word dropped first, so an absent, empty or all-neutral form runs the studio's
   const HF = hairFormOf(options.hairForm);
+  // the spine law (hair-spine.js, `spine`): each lock's centre line kept by name, for the still wind below
+  const SPINE = HF?.spine ?? null, SPINE_LINES = SPINE ? new Map() : null;
+  // a curled lock is built with rings enough to draw its coil (eight a turn); every other lock keeps its count
+  const ringsOf = (name, root, base) => (SPINE ? coilSteps(spineFor(SPINE, lockRegion(name, root, HAIR_CENTRE), name).curl, base) : base);
   const FIT = options.fitHair ? hairFit(surface, f, h, HF) : null;
   // lift on: a clump's root sinks into the lifted cap (its centre at ROOT_SINK of its seat, rising to the full seat by t
   // 0.35) and its thickness is pinched to ROOT_PINCH there (full by t 0.25), so the division lines emerge from the mass
@@ -385,7 +420,8 @@ export function buildAnime(r, options = {}) {
     const edit = r.locks?.[name]; if (edit) { control = add(control, [edit.cx, edit.cy, edit.cz]); tip = add(tip, [edit.tx, edit.ty, edit.tz]); }
     if (FIT && !cut) tip = FIT.drape(tip, 0.006);
     if (FORMS?.members.has(name)) { FORMS.curves[name] = { root, control, tip, width, normal, taperK }; return; }   // (a member is never a thick clump)   // a section's member: skinned below
-    const start = parts.hair.length; const rings = [], N = 14, S = 8;
+    const start = parts.hair.length; const rings = [], N = ringsOf(name, root, 14), S = 8;
+    if (SPINE_LINES) SPINE_LINES.set(name, { line: Array.from({ length: N + 1 }, (_, j) => { const t = j / N; return add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); }), depart: 0 });
     for (let j = 0; j < N; j++) { const t = j / N; let center = add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); const tangent = unit(add(mul(sub(control, root), 1 - t), mul(sub(tip, control), t))), across = unit(cross(tangent, normal)), thickDir = unit(cross(across, tangent)), taper = dmath.pow(Math.max(0.001, 1 - t), 0.60 * taperK) * (1 + 0.25 * dmath.sin(t * Math.PI)), w = width * h.clump * taper, th = (PINCH && !cut ? 0.040 * h.thickness * taper * PINCH(t) : 0.040 * h.thickness * taper) * thick; if (FIT && !cut) center = FIT.drape(center, SINK ? (th + 0.012 + w * w / 1.6) * SINK(t) : th + 0.012 + w * w / 1.6); rings.push(Array.from({ length: S }, (_, i) => { const a = i / S * 2 * Math.PI, q = SEC && !cut ? add(center, add(mul(across, SEC[i][0] * w), mul(thickDir, SEC[i][1] * th))) : add(center, add(mul(across, dmath.cos(a) * w), mul(thickDir, dmath.sin(a) * th))); return FIT && j > 0 && !cut ? FIT.drape(q, 0.004) : q; })); }
     for (let j = 0; j < N - 1; j++) for (let i = 0; i < S; i++) quad('hair', rings[j][i], rings[j + 1][i], rings[j + 1][(i + 1) % S], rings[j][(i + 1) % S]);
     for (let i = 0; i < S; i++) { tri('hair', root, rings[0][(i + 1) % S], rings[0][i]); tri('hair', rings.at(-1)[i], tip, rings.at(-1)[(i + 1) % S]); }
@@ -505,7 +541,7 @@ export function buildAnime(r, options = {}) {
     // `path` (a CAP lock: its centre line walked over the dome) replaces the C-curve: resampled evenly along its length,
     // its flat side facing out from the head at each ring
     const piece = (name, root, control, tip, width, depthRatio, normal, profile, path = null, thick = null, cup = 0) => {
-      const start = parts.hair.length, rings = [];
+      const start = parts.hair.length, rings = [], N = ringsOf(name, root, 16);
       let along = null;
       if (path) { const cum = [0]; for (let i = 1; i < path.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(path[i], path[i - 1])));
         along = Array.from({ length: N + 1 }, (_, j) => { const want = cum.at(-1) * j / N; let i = 1; while (i < path.length - 1 && cum[i] < want) i++; const t = clamp((want - cum[i - 1]) / (cum[i] - cum[i - 1] || 1)); return mix3(path[i - 1], path[i], t); });
@@ -524,6 +560,7 @@ export function buildAnime(r, options = {}) {
       let drape = [0, 0, 0];
       const centers = Array.from({ length: N + 1 }, (_, j) => { const t = j / N, c = add(along ? along[j] : add(add(mul(root, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)), drape); if (!j) return c; const k = BODY(c, width * profile(t) * depthRatio * (thick ? thick(t) : 1)); drape = add(drape, sub(k, c)); return k; });
       tip = centers[N];
+      if (SPINE_LINES) SPINE_LINES.set(name, { line: centers, depart: path?.depart ?? 0 });
       const tangentAt = (j) => { const d = sub(centers[Math.min(N, j + 1)], centers[Math.max(0, j - 1)]); return dmath.hypot(...d) < 1e-9 ? unit(sub(control, root)) : unit(d); };
       rings.push(ring(root, path ? unit(sub(centers[1], root)) : unit(sub(control, root)), width * profile(0), 0));   // the cut base at t 0
       for (let j = 1; j < N; j++) rings.push(ring(centers[j], tangentAt(j), Math.max(0.004, width * profile(j / N)), j / N));
@@ -573,8 +610,13 @@ export function buildAnime(r, options = {}) {
       // FLICK (a PETAL's end, −1 … 1): the last of the fall hooks OUT away from the head (> 0) or curls UNDER toward it
       // (< 0), rising a little as it turns — the one place a lock may leave its C; the main fall is shortened by the hook's
       // share so the hem stays where `length` put it
-      const fk = Ly.flick ?? 0, Lf = 0.32 * Math.abs(fk) * L, Lm = L - 0.15 * Lf;
-      const tip = add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), Lm)), control = add(add(s0, mul(d, 0.5 * Lm)), mul(out, bend * Lm));
+      const fk = Ly.flick ?? 0, Lf = 0.32 * Math.abs(fk) * L;
+      let Lm = L - 0.15 * Lf;
+      const fallTo = (Lm) => [add(s0, mul(unit(add(add(d, [0, -(Ly.droop ?? 0.6), 0]), mul(out, lift))), Lm)), add(add(s0, mul(d, 0.5 * Lm)), mul(out, bend * Lm))];
+      let [tip, control] = fallTo(Lm);
+      // the spine law: the fall is its LENGTH, not its chord (a bent C runs past its chord by up to a fifth): the curve is
+      // similar at every scale, so one rescale by length / arc makes the arc the length
+      if (SPINE) { let arc = 0, q = s0; for (let j = 1; j <= 32; j++) { const t = j / 32, p = add(add(mul(s0, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t)); arc += dmath.hypot(...sub(p, q)); q = p; } if (arc > 1e-9) { Lm *= Lm / arc; [tip, control] = fallTo(Lm); } }
       const all0 = (pts) => { let s = 0; for (let i = 1; i < pts.length; i++) s += dmath.hypot(...sub(pts[i], pts[i - 1])); return s; };
       let dome = all0(path);
       for (let j = 1; j <= 10; j++) { const t = j / 10; path.push(add(add(mul(s0, (1 - t) ** 2), mul(control, 2 * (1 - t) * t)), mul(tip, t * t))); }
@@ -681,8 +723,19 @@ export function buildAnime(r, options = {}) {
     for (let r = 0; r < R; r++) for (let c = 0; c < C - 1; c++) { quad('hair', O[r][c], O[r][c + 1], O[r + 1][c + 1], O[r + 1][c]); quad('hair', I[r][c], I[r + 1][c], I[r + 1][c + 1], I[r][c + 1]); }
     for (let r = 0; r < R; r++) { quad('hair', O[r][0], O[r + 1][0], I[r + 1][0], I[r][0]); quad('hair', O[r][C - 1], I[r][C - 1], I[r + 1][C - 1], O[r + 1][C - 1]); }
     for (let c = 0; c < C - 1; c++) { quad('hair', O[0][c], I[0][c], I[0][c + 1], O[0][c + 1]); quad('hair', O[R][c], O[R][c + 1], I[R][c + 1], I[R][c]); }
-    const first = members[0]; locks.push({ name: g.name, root: first.root, control: first.control, tip: first.tip, width: first.width, start, count: parts.hair.length - start, members: g.members });
+    const first = members[0];
+    if (SPINE_LINES) SPINE_LINES.set(g.name, { line: Array.from({ length: 15 }, (_, j) => { const t = j / 14; return add(add(mul(first.root, (1 - t) ** 2), mul(first.control, 2 * (1 - t) * t)), mul(first.tip, t * t)); }), depart: 0 });
+    locks.push({ name: g.name, root: first.root, control: first.control, tip: first.tip, width: first.width, start, count: parts.hair.length - start, members: g.members });
   }
+  // the spine law's STILL WIND (`spine.wind` { R, dir }): every lock's free length (past where it leaves the head) bent as
+  // the elastica bends under its weight with a drag of R weights beside it (a rotated load, hair-spine.js): the change
+  // from the still shape, read at each vertex's place along its lock's centre line, moves the vertex (the grass blade's
+  // bend table, per lock). Anime clumps are springy by default (`stiffness`, at the reference length of a head's
+  // height): they swing as a mass, keeping their drawn shape; 'stiff' holds a spike's silhouette; the drape keeps a moved lock off the head.
+  // CURL (`spine.curl`, a region's or a clump's): the lock wound about its own centre line, a corkscrew (the drill curl);
+  // a form shell waves in its plane instead (its members side by side would shear if they coiled)
+  const curled = SPINE && (SPINE.curl || Object.values(SPINE.regions ?? {}).some((o) => o?.curl) || Object.values(SPINE.locks ?? {}).some((o) => o?.curl));
+  if (SPINE && (SPINE.wind?.R > 0 || curled)) windLocks(parts.hair, locks, SPINE_LINES, SPINE, FIT);
   // Six-degree chin-up resting pose; upper neck follows while shoulders remain anchored.
   const pitch = (6 + 12 * ((f.headPitch ?? 1) - 1)) * Math.PI / 180, pivot = [0, fy(-0.38), 0.14];
   function pitched(p, weight = 1) { const a = pitch * weight, c = dmath.cos(a), s = dmath.sin(a), y = p[1] - pivot[1], z = p[2] - pivot[2]; return [p[0], pivot[1] + c * y - s * z, pivot[2] + s * y + c * z]; }
@@ -690,7 +743,7 @@ export function buildAnime(r, options = {}) {
   for (const array of [cage, guides]) for (let i = 0; i < array.length; i += 3) array.splice(i, 3, ...pitched(array.slice(i, i + 3)));
   for (let i = 0; i < headPolygons.length; i++) headPolygons[i] = headPolygons[i].map((p) => pitched(p));
   for (const lk of locks) for (const key of ['root', 'control', 'tip']) lk[key] = pitched(lk[key]);
-  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot };
+  return { headPolygons, parts, cage, guides, locks, ...(options.sideburnPatch ? { burns } : {}), recipe: structuredClone(r), neck: { start: neckStart, end: neckEnd }, ears: { start: earsStart, end: neckStart }, cap: { start: capStart, end: capEnd }, pitch, pivot, ...(ND ? { nose: { box: ND.box, width: ND.width, keep: ND.keep, floorY: STUDIO.reduce((m, Y, i) => (i % 2 ? m : Math.min(m, pitched([0, Y, STUDIO[i + 1]])[1])), Infinity) } } : {}) };
 }
 
 /** The SCULPT's neutral values (buildAnime's own units): a word equal to its neutral is dropped before the build, so an
@@ -842,6 +895,57 @@ const RIDGE_SECTION = Object.freeze([[1, 0], [0.5, 0.62], [0, 1], [-0.5, 0.62], 
 export const HAIR_FORM_NEUTRAL = Object.freeze({ section: 'round', ridge: 0, flute: 0, crown: 'grow' });
 /** the hair form a build reads: neutral, null and false words dropped (a sweep given as its amount becomes `{ amount }`);
  * null when nothing is left */
+// the studio's frame (y up, the face toward −z) ↔ the spine law's (z up, the face toward +y): a rotation, so a delta maps the same way
+const toSpine = (p) => [p[0], -p[2], p[1]], fromSpine = (q) => [q[0], q[2], -q[1]], mix3 = (a, b, t) => a.map((v, k) => v + (b[k] - v) * t);
+const SPINE_REF = 2.1;   // construction units: the head's height ≈ the spine law's 0.22 m reference length
+/** a lock's region for the spine's words: its clump name when it has one, else where its root sits on the head */
+const HAIR_CENTRE = [0, 0.25, 0.07];   // the head's centre for the hair (the shapes' own `C`)
+function lockRegion(name, root, centre) {
+  if (/^(fringe-|formFringe)/.test(name)) return 'front';
+  if (/temple|^formSide|sideburn/i.test(name)) return 'sides';
+  if (/^(back-|formBack)/.test(name)) return 'back';
+  if (/^crown-|^ahoge/.test(name)) return 'crown';
+  if (/^tail/.test(name)) return 'tail';
+  const az = Math.abs(dmath.atan2(root[0] - centre[0], -(root[2] - centre[2]))) * 180 / Math.PI;
+  if (root[1] > centre[1] + 0.55) return 'crown';
+  return az < 50 ? 'front' : az > 125 ? 'back' : 'sides';
+}
+function windLocks(hair, locks, lines, spine, FIT) {
+  const U = SPINE_REF / 0.22;   // construction units per metre
+  const centre = HAIR_CENTRE;
+  for (const lk of locks) {
+    const L0 = lines.get(lk.name); if (!L0 || L0.line.length < 2) continue;
+    const W = spineFor(spine, lockRegion(lk.name, L0.line[0], centre), lk.name), blowing = W.wind?.R > 0;
+    if (!blowing && !W.curl) continue;
+    const line = L0.line, cum = [0];
+    for (let i = 1; i < line.length; i++) cum.push(cum[i - 1] + dmath.hypot(...sub(line[i], line[i - 1])));
+    const total = cum.at(-1), sd = (L0.depart ?? 0) * total, Lf = total - sd;
+    if (!(Lf > 1e-4)) continue;
+    let i0 = 1; while (i0 < line.length - 1 && cum[i0] < sd) i0++;
+    const t0 = clamp((sd - cum[i0 - 1]) / (cum[i0] - cum[i0 - 1] || 1)), P0 = mix3(line[i0 - 1], line[i0], t0), d0 = unit(sub(line[i0], line[i0 - 1]));
+    const n = coilSteps(W.curl, 24), B = lockB(W.stiffness ?? 'springy', Lf / U);
+    const still = lockSpine({ root: toSpine(P0), aim: toSpine(d0), L: Lf, B, n }), blown = blowing ? lockSpine({ root: toSpine(P0), aim: toSpine(d0), L: Lf, B, wind: W.wind, n }) : still;
+    // the coil, in construction units, outward from the head at the lock's departure; a form shell waves in its plane
+    const out0 = toSpine(sub(P0, [centre[0], P0[1], centre[2]])), shell = /^form/.test(lk.name);
+    const coil = W.curl ? coilOffsets(blown, { ...W.curl, radius: W.curl.radius * U }, Lf, out0, shell).offsets : null;
+    const delta = still.map((q, j) => fromSpine(add(sub(blown[j], q), coil ? coil[j] : [0, 0, 0])));
+    for (let v = lk.start; v < lk.start + lk.count; v += 3) {
+      const p = [hair[v], hair[v + 1], hair[v + 2]];
+      // the vertex's place along the lock: its foot on the nearest SEGMENT of the centre line, continuous (a vertex
+      // snapped to the nearest sample jumps between neighbours, and a thick shell's two faces then cross)
+      let s = 0, bd = Infinity;
+      for (let i = 1; i < line.length; i++) {
+        const a = line[i - 1], e = sub(line[i], a), ee = dot(e, e), t = ee > 0 ? clamp(dot(sub(p, a), e) / ee) : 0, q = add(a, mul(e, t)), d = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2;
+        if (d < bd) { bd = d; s = cum[i - 1] + t * (cum[i] - cum[i - 1]); }
+      }
+      if (s <= sd) continue;
+      const u = (s - sd) / Lf * n, j = Math.min(n - 1, Math.floor(u)), f = u - j, dv = mix3(delta[j], delta[j + 1], f);
+      let q = add(p, dv); if (FIT) q = FIT.drape(q, 0.002);
+      hair[v] = q[0]; hair[v + 1] = q[1]; hair[v + 2] = q[2];
+    }
+  }
+}
+
 export function hairFormOf(hairForm) {
   if (!hairForm || typeof hairForm !== 'object') return null;
   const out = {};

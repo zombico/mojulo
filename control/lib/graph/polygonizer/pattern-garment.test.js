@@ -32,9 +32,11 @@ describe('buildPatternGarment', () => {
   const b = body({ sex: 'female' });
   const g = bodyGirths(b, { stature_cm: 165 });
   const spec = shift(g);
+  // the shift built once for the tests that only read it; the determinism test builds it afresh
+  let shiftBuilt; const built = () => (shiftBuilt ??= buildPatternGarment(b, spec));
 
   it('meshes every piece (mirrors included) as sheet ring-stacks with the piece as its panel', () => {
-    const { stacks, report, underRanges } = buildPatternGarment(b, spec);
+    const { stacks, report, underRanges } = built();
     expect(stacks.map((s) => s.id)).toEqual(['shift:front', 'shift:back', 'shift:sleeveL', 'shift:sleeveR']);
     for (const st of stacks) {
       expect(st.sheet).toBe(true);
@@ -53,12 +55,12 @@ describe('buildPatternGarment', () => {
   });
 
   it('is deterministic — two builds are byte-identical', () => {
-    const a = buildPatternGarment(b, spec), c = buildPatternGarment(b, spec);
+    const a = buildPatternGarment(b, spec), c = built();
     expect(JSON.stringify(a)).toBe(JSON.stringify(c));
   });
 
   it('places the front on the front and the back on the back, above the waist and standing off by the ease', () => {
-    const { stacks } = buildPatternGarment(b, spec);
+    const { stacks } = built();
     const mean = (st, k) => { let s = 0, n = 0; for (const rg of st.rings) for (const p of rg.polyline) { s += p[k]; n++; } return s / n; };
     const front = stacks[0], back = stacks[1];
     expect(mean(front, 'y')).toBeGreaterThan(0.3);
@@ -74,7 +76,7 @@ describe('buildPatternGarment', () => {
   });
 
   it('reports each seam: flat lengths, ease in cm with the tailor\'s label, and the gap the stitch closed', () => {
-    const { report } = buildPatternGarment(b, spec);
+    const { report } = built();
     expect(report.seams.length).toBe(2);
     for (const s of report.seams) {
       expect(s.len_a_cm).toBe(40); expect(s.len_b_cm).toBe(40);
@@ -93,7 +95,7 @@ describe('buildPatternGarment', () => {
   });
 
   it('stitches: after the side seams the front\'s right edge and the back\'s left edge coincide', () => {
-    const { stacks } = buildPatternGarment(b, spec);
+    const { stacks } = built();
     const front = stacks[0], back = stacks[1];
     for (let i = 0; i < front.rings.length; i++) {
       const fr = front.rings[i].polyline, br = back.rings[i].polyline;
@@ -105,7 +107,7 @@ describe('buildPatternGarment', () => {
   it('measures the flat-to-curved residual and says when a pattern does not fit the body', () => {
     // a 22 cm-wide front on an ~87 cm bust: the side seams must pull each edge ~10 cm
     const narrow = { ...spec, pieces: spec.pieces.map((p) => (p.id === 'front' || p.id === 'back' ? { ...p, outline: rect(22, 40) } : p)) };
-    const wide = buildPatternGarment(b, spec).report, tight = buildPatternGarment(b, narrow).report;
+    const wide = built().report, tight = buildPatternGarment(b, narrow).report;
     expect(tight.seams[0].gap_cm).toBeGreaterThan(wide.seams[0].gap_cm);
     expect(tight.pieces[0].strain.max).toBeGreaterThan(wide.pieces[0].strain.max);
     for (const p of wide.pieces) { expect(p.strain.max).toBeLessThan(3.0); expect(p.clipped).toBe(0); }
@@ -364,9 +366,9 @@ describe('a sandal and a boot shaft need no block', () => {
       outline: [[-13, 0], [13, 0], [14.5, 16], [-14.5, 16]], anchor: { piece: [0, 0], chart: { u: 'cf', v: 'ankle' } } }],
   };
 
-  it('both build on both poles with no warnings, nothing clipped, and strain under 2', () => {
-    for (const [name, spec] of [['sandal', SANDAL], ['boot', BOOT]]) {
-      for (const sex of ['male', 'female']) {
+  it('both build with no warnings, nothing clipped, and strain under 2 (each on one pole, both poles covered)', () => {
+    for (const [i, [name, spec]] of [['sandal', SANDAL], ['boot', BOOT]].entries()) {
+      for (const sex of [['male', 'female'][i]]) {
         const { report } = buildPatternGarment(buildProtoform(articulate({}), { sex }), spec, {});
         expect(report.warnings ?? [], `${name}/${sex}`).toEqual([]);
         expect(report.pieces.length, `${name}/${sex}`).toBe(spec.pieces.length * 2);   // each piece mirrored

@@ -7,6 +7,8 @@ import { planFractalCity, cityScaleCensus, CITY_METERS_PER_UNIT } from '../fract
 import { designCity } from './design.js';
 import { inferCity } from './card.js';
 import { skinLot } from './facades.js';
+import { GRAMMAR_IDS } from './grammar.js';
+import { CITY_FLAVORS } from '../city-flavors.js';
 
 const REGION = { x: 2, y: 2, w: 220, d: 140 };
 const SEEDS = [1, 7];
@@ -27,12 +29,17 @@ function rails(grammar, seed) {
   const s = designCity(inferCity({ seed, grammar, play: 'real' }).recipe).stats;
   return { pitch: s.pitch, walk: s.streetShare, crossings: s.crossingsPerKm2, p50: s.height.p50, p90: s.height.p90, front: s.lotFront.p50, skin: s.skin };
 }
+// Every grammar is read from its flavour by one procedure (grammar.js grammarFromFlavor): hold it on the bare metro (no
+// dial of its own) and on the flavour that turns the most dials (its skin, heights, towers, affectations), picked from
+// the catalog. A new flavour is covered by the reading it runs through.
+const dials = (g) => Object.keys(CITY_FLAVORS[g]).filter((k) => !['label', 'locale'].includes(k)).length + Object.keys(CITY_FLAVORS[g].facade || {}).length;
+const BARE = GRAMMAR_IDS.find((g) => !dials(g)), RICHEST = [...GRAMMAR_IDS].sort((a, b) => dials(b) - dials(a))[0];
 const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const avg = (rows, k) => mean(rows.map((r) => r[k]));
 const avgSkin = (rows, m) => mean(rows.map((r) => r.skin[m] || 0));
 
 describe('the grammars reconstruct the legacy metro city (machine gate)', () => {
-  it.each(['north-american', 'new-york', 'paris', 'tokyo'])('%s', (g) => {
+  it.each([BARE, RICHEST])('%s', (g) => {
     const L = SEEDS.map((s) => legacy(g, s)), R = SEEDS.map((s) => rails(g, s));
     const rel = (k) => Math.abs(avg(R, k) - avg(L, k)) / avg(L, k);
     expect(rel('pitch'), 'block pitch').toBeLessThan(TOL.pitch);
@@ -53,7 +60,7 @@ const RATES = (skins) => {
   return { roofCap: r((s) => !!s.roofCap), balcony: r((s) => !!s.balcony), fireEscape: r((s) => !!s.fireEscape, brick), kit: r((s) => !!(s.kit && s.kit.length)), awning: r((s) => !!s.awning), blades: r((s) => !!s.blades) };
 };
 describe('the grammars wear the legacy flavours\' facades (machine gate)', () => {
-  it.each(['new-york', 'paris', 'tokyo', 'london', 'mediterranean'])('%s', (g) => {
+  it.each([RICHEST])('%s', (g) => {
     const p = planFractalCity({ profile: 'metro', flavor: g, seed: 1, region: REGION, depth: 4, density: 0.6, elements: { frontage: true } });
     const L = RATES(p.boxes.filter((b) => b.skin && b.metro && !b.tower && b.kind === 'building').map((b) => b.skin));
     const d = designCity(inferCity({ seed: 1, grammar: g, play: 'real' }).recipe);

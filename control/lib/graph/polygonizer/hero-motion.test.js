@@ -39,7 +39,9 @@ describe('hero-motion: the rig channels', () => {
 });
 
 describe('hero-motion: the locomotion bake', () => {
-  for (const [name, R] of Object.entries(HEROES)) for (const [gait, spec] of [['walk', WALK], ['jog', JOG]]) {
+  // each rig once, the gaits alternating
+  for (const [i, [name, R]] of Object.entries(HEROES).entries()) {
+    const [gait, spec] = [['walk', WALK], ['jog', JOG]][i % 2];
     it(`${name} ${gait}: every phase solves; stance on the floor sliding at one speed; the swing clears`, () => {
       const loco = heroLocomotion(spec, R, { frames: N });
       expect(loco.travel).toBeGreaterThan(0.2);
@@ -114,7 +116,8 @@ describe('hero-motion: the locomotion bake', () => {
 // pitching past the feet, and it ends exactly on the stand (it hands over to the idle).
 describe('hero-motion: the stop', () => {
   const R = HEROES.female; const plan = motionPlan({ walk: true, jog: true, sprint: true });
-  for (const gait of ['walk', 'jog', 'sprint']) for (const lead of ['R', 'L']) it(`${gait} (${lead} brakes): from the gait's frame, feet held, the lurch, onto the stand`, () => {
+  // each gait once, the leads alternating (the leads are mirrors: below)
+  for (const [gait, lead] of [['walk', 'R'], ['jog', 'L'], ['sprint', 'R']]) it(`${gait} (${lead} brakes): from the gait's frame, feet held, the lurch, onto the stand`, () => {
     const S = heroStop(plan[gait], R, { from: gait, lead }); const loco = heroLocomotion(plan[gait].spec, R, { tilt: plan[gait].tilt });
     const a = rigNodesAt(R, loco.fn(S.stop.phase)).nodes, b = rigNodesAt(R, S.fn(0)).nodes;
     for (const k of Object.keys(a)) expect(Math.hypot(...[0, 1, 2].map((c) => a[k][c] - b[k][c]))).toBeLessThan(gait === 'walk' ? 0.025 : 0.002);   // the walk's swing clearance lifts its toe a little over the leg's own

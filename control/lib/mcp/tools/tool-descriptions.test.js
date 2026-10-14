@@ -361,9 +361,19 @@ const DESCRIPTION_ALLOWLIST = {
 // and from design_game's patch.
 // Re-pinned 2026-10-12 (205_200 -> 206_600; measured 206,373) for the merge of the worldbible line (tune_ground) into the consolidated line above:
 // both sets of additions together. One new tool (tune_ground).
+// Re-pinned 2026-10-11 (202_800 -> 204_400; measured 204,282) for character harmonization: one new tool,
+// update_character (the Characters ring's revise door over update_sketch: a hero's words, its target resolution, the geocube
+// whose light bakes it), its description at routing grade; the density rule and the cube stay off-payload.
+// Re-pinned 2026-10-13 (206_600 -> 208_300; measured 208,152) for the merge of 1012-consolidate into the character line: update_character
+// (above) and tune_ground together. No new tool beyond those two.
 // Re-pinned 2026-10-13 (206_600 -> 206_900; measured 206,733) for the merge of 1012-model-tiering into the consolidated
 // line: pull_agent_task's optional `tiers` filter on top of the line's own additions. No new tool.
-const PAYLOAD_CEILING = 206_900;
+// Re-pinned 2026-10-13 (208_300 -> 208_700; measured 208,401) for the merge of 1012-consolidate (the model tiering) into
+// the character line: update_character, tune_ground and pull_agent_task's `tiers` together. No new tool.
+// Re-pinned 2026-10-13 (208_700 -> 209_300; measured 209,092) for the game menus line merged onto 1012-consolidate: create_cover's `format` (a game's key art,
+// capsule, box, icon) and `art` (an uploaded stash picture as the illustration, the plugin profile's way to real art),
+// and create_game's `front` (the light shell's title over a cover, start menu, credits, end). No new tool.
+const PAYLOAD_CEILING = 209_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -88,7 +88,7 @@ describe('the pack', () => {
   const without = extractEngineScore({ ref: 'lv', manifest: {} }, { entities: [] });
 
   it('ships the bus layout and a Sound section only with sound; without it, every file as before', () => {
-    const files = (score) => emitGodotProject({ ref: 'lv', score, manifestHash: 'h', kernelVersion: '0.19.0' }).files;
+    const files = (score) => emitGodotProject({ ref: 'lv', score, manifestHash: 'h', kernelVersion: '0.20.0' }).files;
     const on = files(withSound), off = files(without);
     expect(on.find((f) => f.file === 'default_bus_layout.tres').text).toBe(BUS_LAYOUT_TRES);
     expect(off.map((f) => f.file)).not.toContain('default_bus_layout.tres');
@@ -107,7 +107,7 @@ describe('the pack', () => {
 
   it('a game with stingers ships the layout and says so; one without, as before', () => {
     const lv = { ref: 'a', title: 'A', gate: null, score: without };
-    const game = (music) => emitGodotGame({ ref: 'g', title: 'G', manifestHash: 'h', levels: [lv], music, kernelVersion: '0.19.0' });
+    const game = (music) => emitGodotGame({ ref: 'g', title: 'G', manifestHash: 'h', levels: [lv], music, kernelVersion: '0.20.0' });
     const on = game({ stingers: ['victory', 'defeat'] }), off = game({});
     expect(on.files.map((f) => f.file)).toContain('default_bus_layout.tres');
     expect(on.ledger.stingers_carried.kinds).toEqual(['victory', 'defeat']);

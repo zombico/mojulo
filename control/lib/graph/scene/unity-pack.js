@@ -170,7 +170,7 @@ export async function buildUnityGamePack({ ref, outDir, clips = '_all', posture 
   const portability = assessPortability({ manifest, levels: levels.map((l) => ({ ref: l.ref, score: l.score })) });
   const emitted = emitUnityGame({
     ref, title: manifest.title ?? ref, manifestHash, levels,
-    shellExtras: ['menu', 'setup', 'difficulty', 'theme'].filter((k) => manifest[k] != null),
+    shellExtras: ['menu', 'setup', 'difficulty', 'theme', 'front'].filter((k) => manifest[k] != null),
     remint: `node scripts/export-unity.mjs --ref ${ref}`,
   });
   const written = await writePack({ outDir, binaries, emitted, portability, manifestHash });

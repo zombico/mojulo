@@ -23,6 +23,8 @@
  *     setup?: { <sliceName>: <presentation> },
  *     difficulty?: { label?, default?, options: [{ id: 'easy'|'medium'|'max', name, sub? }] },
  *     shell?: 'play',                      // the light shell (play-shell.js); absent: the arena shell
+ *     front?: { cover?, layout?, tagline?, press?, menu?, credits?, end? }   // the light shell's title over a cover,
+ *                                          // its start menu, options, credits and end (play-front.js)
  *     run?: { length } }                   // RUNS (the play shell): each run draws `length` of the levels in a seeded
  *                                          // order; a clear goes on, a death ends the run; the store carries over
  *
@@ -78,6 +80,7 @@
 
 import { buildGameStoreKernel } from './store-kernel.js';
 import { validateHudStyle } from './hud-widgets.js';
+import { readFront } from './play-front.js';
 
 const K = buildGameStoreKernel();
 
@@ -285,6 +288,13 @@ export function validateGameManifest(manifest) {
       const arena = ['menu', 'music', 'setup', 'difficulty'].filter((k) => manifest[k] !== undefined && !(k === 'music' && stingersOnly));
       if (arena.length) errors.push(`shell 'play' has no ${arena.join(', ')}: drop ${arena.length === 1 ? 'it' : 'them'}, or drop shell for the arena shell`);
     }
+  }
+
+  // FRONT (play-front.js): the light shell's title screen over a cover, its start menu, options, credits and end. The
+  // arena shell's title is its `menu`, so a front there is pointed at it
+  if (manifest.front !== undefined) {
+    if (manifest.shell !== 'play') errors.push("front is the light shell's title screen, start menu and credits: add shell: 'play' (the arena shell's is menu)");
+    readFront(manifest.front, { levels: Array.isArray(manifest.levels) ? manifest.levels.length : 0, run: manifest.run !== undefined }).forEach((e) => errors.push(e));
   }
 
   if (manifest.theme !== undefined) {

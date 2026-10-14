@@ -1,6 +1,7 @@
 // remote-worker exports P2–P4 — `format: 'bundle'` (the one file every host door accepts),
 // the opt-in `cdn: true` on the html leg, and the `fits` + `handoff` every written export carries. The
-// seed-91 city is the same fixture export-model.html.test.js pins.
+// seed-91 city is export-model.html.test.js's fixture on a smaller region: these legs ask only that it is a city
+// (a maquette kind, no STL), and it is exported many times over.
 
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
@@ -23,7 +24,7 @@ const CITY = {
   base: 'city', seed: 91, ref: 'sk_bundle_city',
   overrides: {
     context: { depth: 3, density: 0.82, baseScale: 0.7, locale: 'north-america', time: 'day' },
-    region: { x: 0, y: 0, w: 36, d: 36 },
+    region: { x: 0, y: 0, w: 12, d: 12 },
   },
 };
 const CYLINDER = { id: 'body', axisFrom: { x: 0, y: 0, z: 0 }, axisTo: { x: 0, y: 0, z: 6 }, profile: [{ t: 0, radius: 2 }, { t: 1, radius: 2 }] };
@@ -84,7 +85,7 @@ describe('export_model format:bundle', () => {
     expect(a.handoff.next).toBe(`the file is at ${a.path}`);
     expect(a.handoff.caveats).toEqual(['/outcomes/sk_bundle_city/sk_bundle_city.zip is reachable only from the machine mojulo runs on']);
     expect(a._structured).toBe(true); // the whole body rides as structuredContent
-  }, 180_000);
+  });
 
   it('a literal kind ships model.stl and its print advisories in the README', async () => {
     SketchRepository.create({ ref: 'sk_bundle_cyl', title: 'cyl', manifest: { kind: 'workbench', units: 'cm', lathes: [CYLINDER] } });
@@ -95,7 +96,7 @@ describe('export_model format:bundle', () => {
     expect(Array.isArray(r.print.advisories)).toBe(true);
     const readme = new AdmZip(readFileSync(r.path)).readAsText('README.md');
     expect(readme).toMatch(/`model\.stl` is the print file at literal scale \(40 × 40 × 60 mm\)/);
-  }, 120_000);
+  });
 
   // muse-carpet P5: Meta Muse's Library shows only .html, so the courier is also the export's folder
   // page. The reader it embeds is run here on the zip it embeds: every file must come out byte for byte.
@@ -121,7 +122,7 @@ describe('export_model format:bundle', () => {
       const got = await zipRead(z, entries[f.name]);
       expect(Buffer.from(got).equals(readFileSync(path.join(r.dir, f.name))), f.name).toBe(true);
     }
-  }, 120_000);
+  });
 
   // the courier on Claude's Artifact door: the viewer's downloads prompt saves only its allowlist (no glb, no stl), so
   // those rows point at the zip instead of failing; the static notice (for viewers that block downloads) names no
@@ -145,7 +146,7 @@ describe('export_model format:bundle', () => {
     const plain = page(null);
     expect(plain.local).toBe(false);
     expect(Object.values(plain.rows).every((v) => v === 'Save')).toBe(true);
-  }, 120_000);
+  });
 
   it('MOJULO_HOST=muse: the zip rides the courier page, the one type the Library shows', async () => {
     process.env.MOJULO_HOST = 'muse';
@@ -164,7 +165,7 @@ describe('export_model format:bundle', () => {
     expect(mini.handoff.next).toMatch(/shows only \.html files, so model\.stl would not surface there/);
     expect(mini.handoff.caveats).toEqual([expect.stringMatching(/cannot carry a \.stl file, and no courier page carries it: .*recipe\.json beside it re-mints it/)]);
     expect(existsSync(path.join(mini.dir, 'recipe.json'))).toBe(true);
-  }, 120_000);
+  });
 
   it('ineligible kinds answer the same { ok:false, eligible:false } as every leg', async () => {
     SketchRepository.create({ ref: 'sk_bundle_flat', title: 'flat', manifest: { kind: 'flow', nodes: [], edges: [] } });
@@ -196,7 +197,7 @@ describe('export_model format:bundle', () => {
     // write:false writes nothing and so says nothing about doors
     const dry = await exportModelHandler({ ref: CITY.ref, format: 'glb', write: false }, ctx);
     expect(dry).not.toHaveProperty('handoff');
-  }, 180_000);
+  });
 
   it('MOJULO_HOST picks the door for a CLI call that never sent initialize (Grok chat)', async () => {
     process.env.MOJULO_HOST = 'grok-chat';
@@ -205,7 +206,7 @@ describe('export_model format:bundle', () => {
     expect(r.handoff.surface).toBe('box');
     expect(r.handoff.next).toMatch(/hand model\.glb \(.*\) back as a file card, ≤ 25\.0 MiB/);
     expect(r.fits.against).toBe("Grok chat's sandbox file limit");
-  }, 120_000);
+  });
 });
 
 describe('export_model format:html — the self-contained build is the default, the CDN build opt-in', () => {
@@ -234,5 +235,5 @@ describe('export_model format:html — the self-contained build is the default, 
     await expect(exportModelHandler({ ref: CITY.ref, format: 'glb', cdn: true })).rejects.toThrow(/`cdn` applies to/);
     await expect(exportModelHandler({ ref: CITY.ref, format: 'glb', cdn: false })).rejects.toThrow(/`cdn` applies to/);
     expect((await exportModelHandler({ ref: CITY.ref, format: 'glb' })).ok).toBe(true);
-  }, 180_000);
+  });
 });

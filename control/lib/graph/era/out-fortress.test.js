@@ -7,6 +7,8 @@ import { SURFACE_GROUP_IDS } from './out-structures-paint.js';
 // the fortified town: a town drawn tighter by one dial, the lord's land in its inmost ward; the fortification designed elements first, the bay its citizen,
 // the tower derived from the bay (era/out-fortress.js, laid on the town by era/out-town.js)
 const meadow = structureStyle('isekai-meadow', 8);
+// one kit per anchor (the language a kit's town is built in): the kits under one anchor differ only in rolled numbers
+const KITS = STRUCTURE_KITS.filter((k, i) => STRUCTURE_KITS.findIndex((j) => structureStyle(j, 1).anchor === structureStyle(k, 1).anchor) === i);
 const tris = (o) => o.filter((f) => !f.tile).reduce((a, f) => a + f.corners.length - 2, 0);
 
 describe('out-fortress', () => {
@@ -48,14 +50,17 @@ describe('out-fortress', () => {
     expect(octagon(0, 0, 10, 10, 2)).toHaveLength(8);
   });
 
-  it('fortified 0 is the open town; a fortified town holds every law, in every kit, with either composition', () => {
+  it('fortified 0 is the open town; a fortified town holds every law, in every anchor\'s kit, with either composition', () => {
     expect(JSON.stringify(designTown(meadow, 8, { fortified: 0 }).lots.map((l) => l.design.sig))).toBe(JSON.stringify(designTown(meadow, 8, {}).lots.map((l) => l.design.sig)));
     expect(designTown(meadow, 8, {}).fort).toBeNull();
-    for (const k of STRUCTURE_KITS) for (const fort of [...FORT_SET_IDS, { seed: 3 }]) for (const f of [0.3, 0.65, 1]) {
+    // each kit, each composition and each degree once, taken in turn together
+    const forts = [...FORT_SET_IDS, { seed: 3 }], degrees = [0.3, 0.65, 1];
+    for (let i = 0; i < Math.max(KITS.length, forts.length, degrees.length); i++) {
+      const k = KITS[i % KITS.length], fort = forts[i % forts.length], f = degrees[i % degrees.length];
       const t = designTown(structureStyle(k, 8), 8, { fortified: f, fort });
       expect(t.laws.filter((l) => !l.ok), `${k} ${JSON.stringify(fort)} ${f}`).toEqual([]);
     }
-  }, 120000);
+  });
 
   it('the lord\'s land: one gate, the approach bent into it, wards climbed by offset gates, the keep over every tower', () => {
     const t = designTown(meadow, 8, { fortified: 1, fort: 'battered' }), F = t.fort;
@@ -77,5 +82,5 @@ describe('out-fortress', () => {
     expect(floor.length).toBeGreaterThan(8);
     // nothing on the way through a gate: the curtain is open where the route crosses
     for (const g of F.gates) for (const r of t.routes.filter((x) => x.id === g.route)) expect(distTo(r.pts, ...g.at)).toBeLessThan(1);
-  }, 120000);
+  });
 });

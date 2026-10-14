@@ -6,7 +6,8 @@ import { assembleCityScene } from './scene.js';
 import { resolveWorldScene } from '../../worlds/world-scene.js';
 import { CITY_METERS_PER_UNIT as U } from '../fractal-city.js';
 
-const recipe = (rec = {}) => ({ kind: 'city', ...inferCity({ seed: 3, grammar: 'new-york', board: { cols: 8, rows: 6 }, ...rec }).recipe });
+// no street trees: the lanes never read them, and growing tree variants is most of a first world's time
+const recipe = (rec = {}) => ({ kind: 'city', ...inferCity({ seed: 3, grammar: 'new-york', board: { cols: 8, rows: 6 }, green: 0, ...rec }).recipe });
 
 describe('traffic: the streets as lanes and signalled junctions', () => {
   const d = designCity(recipe()), T = cityTraffic(d);

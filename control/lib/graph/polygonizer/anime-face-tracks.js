@@ -27,6 +27,7 @@
 import { FACE_FPS, faceKnots, faceState, drawEye, faceWeights } from './anime-face-rig.js';
 import { mulberry32 } from './floorplan-glyphs.js';
 import { heroClipFaces } from './hero-gesture.js';
+import { actionFace } from './hero-face-action.js';
 
 /** the ambient blink's placement: the gap between blink starts (s), the share that are doubles and the frames between
  * the two, where the first may start (s), and how long before the loop seam the last must have ended (s) */
@@ -79,31 +80,36 @@ export function blinkTrack(blinks) {
  * knots strictly between) */
 const inBetweens = (a, b) => (b > a ? [0.5].filter((k) => k > a && k < b) : b < a ? [0.5, 0.2].filter((k) => k < a && k > b) : []);
 const EYES = ['eyeL', 'eyeR'];
-const same = (a, b) => a.eyeL === b.eyeL && a.eyeR === b.eyeR && a.smile === b.smile && a.open === b.open && a.brow === b.brow;
+// (every channel of the state: the anime face's eyes, smile, open and brow; the western face's own, western-face-rig.js)
+const same = (a, b) => Object.keys(a).every((k) => a[k] === b[k]);
 /** the targets an eye drawing moves (the lids and their correctives): the ambient layer's filter */
 const eyeTargets = (targets) => targets.map((n, i) => (n.startsWith('blink') ? i : -1)).filter((i) => i >= 0);
 
 /**
  * One clip's facial track: `faces` its keys' channels (null: the authored face), `seconds` its designed duration,
- * `authored` the hero's expression channels, `seed` its blink seed, `blink` the ambient blink on. Returns `{ t, w, f,
+ * `authored` the hero's expression channels, `seed` its blink seed, `blink` the ambient blink on, `K` the hero's knots (the
+ * painted face's carry their own targets and `weigh`, face-paint-rig.js). Returns `{ t, w, f,
  * blinks, eyesHold }`: the key times (s), each key's weights (anime-face-rig faceWeights, the hero's targets), each key's
  * frame, the blinks baked in, and whether the eyes hold the authored face throughout with none baked (the ambient layer
  * may play over it).
  */
-export function clipFaceDrawings({ faces, seconds, authored, seed = 0, blink = true }) {
-  const n = faces.length, N = Math.max(1, Math.round(seconds * FACE_FPS)), K = faceKnots(authored);
-  const drawn = (F) => ({ ...F, eyeL: drawEye(F.eyeL, K.eyeKnots), eyeR: drawEye(F.eyeR, K.eyeKnots) });
-  const A = drawn(faceState(authored)), keyF = faces.map((c) => (c ? drawn(faceState(c)) : A)), at = faces.map((_, i) => Math.round((i * N) / n));
+export function clipFaceDrawings({ faces, acted = null, seconds, authored, seed = 0, blink = true, K = faceKnots(authored) }) {
+  const n = faces.length, N = Math.max(1, Math.round(seconds * FACE_FPS));
+  const drawn = (F) => ({ ...F, eyeL: drawEye(F.eyeL, K.eyeKnots), eyeR: drawEye(F.eyeR, K.eyeKnots) }), state = K.state ?? faceState;   // the western face's state (western-face-rig.js westernKnots)
+  const A = drawn(state(authored)), keyF = faces.map((c) => (c ? drawn(state(c)) : A)), at = faces.map((_, i) => Math.round((i * N) / n));
   // (1, 2) the base drawings, frames 0 … N − 1 (frame N is frame 0: the loop): each key held to the next, the eyes'
   // in-betweens right before it
   const base = new Array(N);
-  for (let i = 0; i < n; i++) {
+  // an ACTED clip (`acted`: a face per frame, the take hero-face-action draws or a pose's own timeline) is its base as
+  // given, each eye drawn at its knot; the keys' faces and in-betweens are the take's own
+  if (acted) for (let f = 0; f < N; f++) base[f] = drawn(state(acted[Math.min(f, acted.length - 1)]));
+  else for (let i = 0; i < n; i++) {
     const f0 = at[i], f1 = i + 1 < n ? at[i + 1] : N, F = keyF[i], G = keyF[(i + 1) % n];
     for (let f = f0; f < f1; f++) base[f] = F;
     const room = f1 - f0 - 1; if (room <= 0) continue;
     const lists = Object.fromEntries(EYES.map((e) => [e, inBetweens(F[e], G[e]).slice(0, room)])), len = Math.max(lists.eyeL.length, lists.eyeR.length);
     for (let j = 0; j < len; j++) {
-      const D = { ...F, smile: G.smile, open: G.open, brow: G.brow };
+      const D = { ...G, eyeL: F.eyeL, eyeR: F.eyeR };   // the mouth and brows already the next key's
       for (const e of EYES) { const k = j - (len - lists[e].length); if (k >= 0) D[e] = lists[e][k]; }
       base[f1 - len + j] = D;
     }
@@ -130,6 +136,19 @@ export function clipFaceDrawings({ faces, seconds, authored, seed = 0, blink = t
   };
 }
 
+/** An ACTED clip's face per frame (hero-motion.js `act`: a strike, a jump or a roll acted by hero-face-action, seeded
+ * per hero and clip; a showcase pose's own timeline, each face held to the next), in the hero's channels: the takes are
+ * the anime face's four, carried to the landmark head's by its knots (`K.fromAnime`, western-face-rig.js) */
+function actedFrames(act, seconds, authored, seed, K) {
+  const N = Math.max(1, Math.round(seconds * FACE_FPS)), toAnime = K.toAnime ?? ((c) => c), fromAnime = K.fromAnime ?? ((c) => c);
+  let anime;
+  if (act.family === 'aura') {
+    const at = act.faces.map((x) => Math.round(x.t * FACE_FPS));
+    anime = Array.from({ length: N }, (_, f) => { let i = 0; while (i + 1 < at.length && at[i + 1] <= f) i++; return act.faces[i].face; });
+  } else anime = actionFace(act.action, { seed, authored: toAnime(authored), ...(act.name ? { name: act.name } : {}) }).faces;
+  return anime.map(fromAnime);
+}
+
 /**
  * The anime hero's facial tracks, derived on read: `clips` the recipe's (the plan's, no `face`), `seconds` each one's
  * designed duration (heroClipSeconds), `authored` the hero's expression channels. Returns `{ tracks: { <name>: { t, w } },
@@ -138,17 +157,19 @@ export function clipFaceDrawings({ faces, seconds, authored, seed = 0, blink = t
  * blinks), the clips it plays over (the eyes hold, nothing baked) and the blinks placed per clip. `hero.blink: false`:
  * nothing baked and no layer.
  */
-export function heroFaceTracks(hero, clips, seconds, authored) {
+export function heroFaceTracks(hero, clips, seconds, authored, K = faceKnots(authored)) {
   const faces = heroClipFaces(hero, clips), on = hero?.blink !== false;
   const tracks = {}, blinks = {}, ambientOver = [];
   for (const name of Object.keys(clips || {})) {
-    const d = clipFaceDrawings({ faces: faces[name], seconds: seconds?.[name] > 0 ? seconds[name] : 1, authored, seed: faceSeed(hero, name), blink: on });
+    const T = seconds?.[name] > 0 ? seconds[name] : 1, act = typeof clips[name] === 'function' ? clips[name].act : null;
+    const acted = act ? actedFrames(act, T, authored, faceSeed(hero, name), K) : null;
+    const d = clipFaceDrawings({ faces: faces[name], acted, seconds: T, authored, seed: faceSeed(hero, name), blink: on && !acted, K });
     tracks[name] = { t: d.t, w: d.w };
     if (d.blinks.length) blinks[name] = d.blinks;
     if (on && d.eyesHold) ambientOver.push(name);
   }
   if (!on) return { tracks, ambientOver, blinks };
-  const a = clipFaceDrawings({ faces: [null], seconds: AMBIENT_BLINK.seconds, authored, seed: faceSeed(hero, AMBIENT_BLINK.name) });
+  const a = clipFaceDrawings({ faces: [null], seconds: AMBIENT_BLINK.seconds, authored, seed: faceSeed(hero, AMBIENT_BLINK.name), K });
   blinks[AMBIENT_BLINK.name] = a.blinks;
   return { tracks, ambient: { name: AMBIENT_BLINK.name, seconds: AMBIENT_BLINK.seconds, t: a.t, w: a.w }, ambientOver, blinks };
 }

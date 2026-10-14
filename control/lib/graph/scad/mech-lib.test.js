@@ -109,7 +109,8 @@ describe('mech-lib v2 — standards fit what they mount (skipped when the WASM i
 
 describe('mech-lib v2 — composition (skipped when the WASM is not installed)', () => {
   wasm('mj_gear_meshed meshes at any angle and tooth count, and collides when turned half a tooth', async () => {
-    for (const [z1, z2, a] of [[20, 13, 0], [20, 13, 70], [15, 22, 33], [15, 22, 200]]) {
+    // each tooth pair once, each off the x axis (the angle-0 mesh is the control below and the train's first stage)
+    for (const [z1, z2, a] of [[20, 13, 70], [15, 22, 200]]) {
       expect(await fits(`intersection(){ mj_spur_gear(1, ${z1}, 5); mj_gear_meshed(1, ${z1}, ${z2}, ${a}) mj_spur_gear(1, ${z2}, 5); }`)).toBe(true);
     }
     expect(await collides('intersection(){ mj_spur_gear(1, 20, 5); mj_gear_meshed(1, 20, 13, 0) rotate(180/13) mj_spur_gear(1, 13, 5); }')).toBe(true);

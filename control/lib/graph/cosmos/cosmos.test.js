@@ -3,7 +3,7 @@ import { validateCube, facetDepth, dryRun } from './cosmos.js';
 
 // today's dungeon crawler, said as a cube: every value is one the tree builds
 const CRAWLER = {
-  reality: { rung: 'gen-6.0', kit: 'gothic-stone', medium: '3d' },
+  reality: { era: 'gen-6', kit: 'gothic-stone', medium: '3d' },
   space: { camera: 'third-person', topology: 'linear', levelForm: 'rooms', links: 'door' },
   power: { kit: 'dungeon-crawler', mechanics: ['reach-exit', 'hp-pool'], combat: ['melee'] },
   soul: { hero: 'hero', cast: 'heroic' },
@@ -29,8 +29,8 @@ describe('validateCube', () => {
 describe('facetDepth', () => {
   it('is found from what the facet holds', () => {
     expect(facetDepth(undefined)).toBe(0);
-    expect(facetDepth({ extends: 'gen-6.0' })).toBe(0);
-    expect(facetDepth({ extends: 'gen-6.0', look: 'gothic-night' })).toBe(1);
+    expect(facetDepth({ extends: 'gen-6' })).toBe(0);
+    expect(facetDepth({ extends: 'gen-6', look: 'gothic-night' })).toBe(1);
     expect(facetDepth({ look: 'gothic-night', samples: [{ ref: 'a' }, { ref: 'b', approved: true }] })).toBe(2);
     expect(facetDepth({ samples: [{ ref: 'a', approved: true }] })).toBe(3);
   });

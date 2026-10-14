@@ -19,6 +19,8 @@ import { isBeatsKind } from '../beats/beats-manifest.js';
 import { asksLevel, withBuildingLevel } from '../structure/level.js';
 import { withCityRef } from '../city/plan/ref.js';
 import '../city/plan/level.js';   // registers the city's level lowering
+import { COVER_KIND, normalizeCoverManifest } from '../image-outcomes/cover-manifest.js';
+import { layoutCover } from '../image-outcomes/cover-archetypes.js';
 
 // The generated default about/credits page (menu.attribution; see game-manifest.js).
 // Plain data in the same shape an operator would author — nothing special downstream.
@@ -56,7 +58,9 @@ function defaultAboutEntry(norm) {
  *                                               (defaults to the served /png raster)
  * @param {(ref:string)=>string} [spinSrc]       ref → a self-rotating World URL for a setup card
  *                                               preview (defaults to /world?spin=1)
- * @returns {{ manifest, levels, menu, music, setup }}  normalized manifest + emitGameShell level
+ * @param {(ref:string)=>string} [coverSrc]      ref → the composited raster of a cover sketch (front.cover;
+ *                                               defaults to the served /cover.png)
+ * @returns {{ manifest, levels, menu, music, setup, frontArt }}  normalized manifest + emitGameShell level
  *          entries + resolved menu entries (world entries carry src; null when the manifest has no
  *          menu) + resolved music { menu: src|null, about: src|null, battle: [src,…] } (null without music) +
  *          resolved setup presentation (card refs mapped to srcs; null without setup)
@@ -65,7 +69,8 @@ function defaultAboutEntry(norm) {
 export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
   beatsSrc = (ref, kind, once = false) => `/api/sketches/${encodeURIComponent(ref)}/beats.wav${once || kind === 'beats-sfx' ? '' : '?loop=1'}`,
   portraitSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/png?inline=1`,
-  spinSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world?spin=1&hud=0`) {
+  spinSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world?spin=1&hud=0`,
+  coverSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/cover.png`) {
   const v = validateGameManifest(manifest);
   if (!v.ok) throw new Error(`game manifest is invalid:\n- ${v.errors.join('\n- ')}`);
   const norm = normalizeGameManifest(manifest);
@@ -184,6 +189,24 @@ export function resolveGame(manifest, getSketch, levelSrc, worldSrc = levelSrc,
     }
   }
 
+  // the front's cover (play-front.js): a cover sketch → its raster, its aspect, and the menu zone its archetype leaves
+  // (fractions of its canvas); an image → itself, the title drawn over it. The game row keeps the ref.
+  let frontArt = null;
+  const fc = norm.front && norm.front.cover;
+  if (typeof fc === 'string') {
+    const sketch = getSketch(fc);
+    if (!sketch || !sketch.manifest) errors.push(`front.cover: no sketch with ref '${fc}'`);
+    else if (sketch.manifest.kind !== COVER_KIND) errors.push(`front.cover: '${fc}' is kind '${sketch.manifest.kind}', not a cover (create_cover for_kind 'game')`);
+    else frontArt = coverArt(sketch.manifest, coverSrc(fc));
+  } else if (fc && typeof fc.art === 'string') frontArt = { src: fc.art, titled: false };
+
   if (errors.length) throw new Error(`cannot assemble game '${norm.title}':\n- ${errors.join('\n- ')}`);
-  return { manifest: norm, levels, menu, music, setup };
+  return { manifest: norm, levels, menu, music, setup, frontArt };
+}
+
+const frac = (v) => Math.round(v * 10000) / 10000;
+/** A cover as a title's backdrop: its src, its aspect, its menu zone as fractions (a book's cover has none). */
+export function coverArt(coverManifest, src) {
+  const m = normalizeCoverManifest(coverManifest), L = layoutCover(m), { w, h } = m.canvas, z = L.menuZone;
+  return { src, aspect: frac(w / h), titled: true, ...(z ? { zone: { x: frac(z.x / w), y: frac(z.y / h), w: frac(z.w / w), h: frac(z.h / h) } } : {}) };
 }

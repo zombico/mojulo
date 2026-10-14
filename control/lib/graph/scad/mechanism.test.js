@@ -176,6 +176,10 @@ const GEARS = (zb) => ({
   mechanism: { joints: { a: rev([0, 0, 0]), b: rev([23.5, 0, 0]) }, couplings: [{ type: 'gear', a: 'a', b: 'b', teeth: [17, zb] }], drive: { part: 'a', to: 60 }, steps: 8 },
 });
 
+// the clear slider-crank's sweep, measured once and read by the two tests that read it
+let clearSweep;
+const sweepClear = () => (clearSweep ??= measureScadMotion(SLIDER(false)));
+
 describe('mechanism — through OpenSCAD', () => {
   wasm('a manifest without `mechanism` is untouched: no stats.mechanism, movers as authored', async () => {
     const m = { kind: 'scad', source: 'module a() cube(4); module b() translate([6,0,0]) cube(4);', parts: { a: 'a();', b: 'b();' } };
@@ -193,7 +197,7 @@ describe('mechanism — through OpenSCAD', () => {
     await expect(planScad({ ...SLIDER(false), mechanism: { ...sliderCrank(), joints: { ...sliderCrank().joints, frame: rev([0, 0, 0]) } } })).rejects.toThrow(/'frame' is free/);
   }, 60000);
   wasm('the sweep: a clear slider-crank, and an end stop in the piston path caught at the angles it is hit', async () => {
-    const clear = await measureScadMotion(SLIDER(false));
+    const clear = await sweepClear();
     expect(clear.collisions.pairs.filter((p) => p.clear === false)).toEqual([]);
     const hit = await measureScadMotion(SLIDER(true));
     const bad = hit.collisions.pairs.filter((p) => p.clear === false);
@@ -204,7 +208,7 @@ describe('mechanism — through OpenSCAD', () => {
     expect(bad[0].worst.drive).toBe(180);
   }, 120000);
   wasm('dynamics only on request: no material, no `dynamics` key; with one, mass from the real meshes and the rod checked', async () => {
-    expect((await measureScadMotion(SLIDER(false))).dynamics).toBeUndefined();
+    expect((await sweepClear()).dynamics).toBeUndefined();
     const m = SLIDER(false);
     m.mechanism = { ...m.mechanism, material: 'petg', bodies: { frame: { mass: 0 } }, drive: { part: 'crank', speed: 300 }, loads: [{ part: 'piston', force: 80 }] };
     const d = (await measureScadMotion(m)).dynamics;

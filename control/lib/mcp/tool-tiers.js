@@ -21,7 +21,7 @@ import { TIERS, normalizeTier } from '../agent-tasks/tiers.js';
 import { getPack } from './packs.js';
 
 // Tools whose tier waits on their own branch (characters). Listed, untiered: no `_meta` for them.
-export const TIER_DEFERRED = Object.freeze(['create_character', 'bind_character_sheet']);
+export const TIER_DEFERRED = Object.freeze(['create_character', 'bind_character_sheet', 'update_character']);
 
 export const TOOL_TIERS = Object.freeze({
   // ── orientation ──

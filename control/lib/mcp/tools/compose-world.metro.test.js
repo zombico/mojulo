@@ -49,14 +49,18 @@ describe('compose_world: the metro flavour', () => {
     expect(composeWorld({ base: 'city', seed: 3, overrides: { profile: 'metro', flavor: 'tokyo', asset: { monument: 'colosseum' } } }).recipe.flavor).toBe('tokyo');
   });
   it('the dice: a region rolls among its own flavours, the same seed rolls the same, and the roll is stored', () => {
+    // the roll reads only the seed and the locale's region, so the smallest metro (a tiny frame, one level of
+    // recursion) carries it; the downtown frame and its depth are the first test's concept, not this one's
+    const tiny = { region: { x: 2, y: 2, w: 24, d: 16 } };
+    const mint = (seed, context = {}) => composeWorld({ base: 'city', seed, overrides: { profile: 'metro', ...tiny, context: { depth: 1, ...context } } });
     for (const seed of [1, 2, 3, 4, 5, 6]) {
-      const r = composeWorld({ base: 'city', seed, overrides: { profile: 'metro', context: { locale: 'europe' } } });
+      const r = mint(seed, { locale: 'europe' });
       expect(['paris', 'london', 'mediterranean']).toContain(r.recipe.flavor);
-      expect(composeWorld({ base: 'city', seed, overrides: { profile: 'metro', context: { locale: 'europe' } } }).recipe.flavor).toBe(r.recipe.flavor);
+      expect(mint(seed, { locale: 'europe' }).recipe.flavor).toBe(r.recipe.flavor);
     }
-    const open = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => composeWorld({ base: 'city', seed, overrides: { profile: 'metro' } }).recipe.flavor));
+    const open = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => mint(seed).recipe.flavor));
     expect(open.size).toBeGreaterThan(3);
-  }, 60_000);   // about 10 s on a laptop and up to 25 s on a loaded CI runner, against the 30 s default
+  });
   it('a stock city stores no flavour even when asked', () => {
     expect('flavor' in composeWorld({ base: 'city', seed: 3, overrides: { flavor: 'paris' } }).recipe).toBe(false);
   });

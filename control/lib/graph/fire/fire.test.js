@@ -251,10 +251,10 @@ describe('fire: in worlds', () => {
     expect(d.payload.fire.sources).toHaveLength(4);
     expect(d.payload.fireSources).toBeUndefined();
     const world = { features: [{ feature: 'river' }], climate: 'temperate', seed: 'campfire' };
-    const t = await resolveWorldScene({ ref: 'sk_fire_terrain', title: 'fire', manifest: { kind: 'terrain', world, grass: { kinds: ['meadow'] }, wind: { speed: 3 }, fire: { sources: [{ kind: 'campfire', at: [100, 200] }] } } }, { live: true });
+    // one live terrain carries a campfire and a grass fire at the same spot: both are set on the same ground
+    const t = await resolveWorldScene({ ref: 'sk_fire_terrain', title: 'fire', manifest: { kind: 'terrain', world, grass: { kinds: ['meadow'] }, wind: { speed: 3 }, fire: { sources: [{ kind: 'campfire', at: [100, 200] }], spread: [{ at: [100, 200] }] } } }, { live: true });
     const s = t.payload.fire.sources[0];
-    const t2 = await resolveWorldScene({ ref: 'sk_fire_terrain2', title: 'fire', manifest: { kind: 'terrain', world, grass: { kinds: ['meadow'] }, wind: { speed: 3 }, fire: { spread: [{ at: [100, 200] }] } } }, { live: true });
-    expect(t2.payload.fire.spread[0].at[2]).toBeCloseTo(s.at[2] - FIRE_KINDS.campfire.seat, 4);
+    expect(t.payload.fire.spread[0].at[2]).toBeCloseTo(s.at[2] - FIRE_KINDS.campfire.seat, 4);
     expect(t.payload.fire.terrainAir).toBe(true);
     expect(t.payload.fire.day).toBe(1);
     expect(Math.abs(s.at[2] - FIRE_KINDS.campfire.seat)).toBeGreaterThan(0.5);   // on the ground, not at sea level

@@ -9,18 +9,23 @@
  *   absent   nothing makes it yet
  * `lowers` names the module that makes a value. See ../cosmos.js for how a cosmos cube reads a facet.
  */
+import { ERAS, ERA_IDS, eraCastConventions } from '../../era/eras.js';
+
+function castStatus(id) {
+  const planned = eraCastConventions(id).filter((c) => c.status === 'planned').map((c) => c.id);
+  return planned.length
+    ? { status: 'partial', lowers: 'lib/graph/era/cast-density.js', note: `the body is built, its density set by the target; planned: ${planned.join(', ')}` }
+    : { status: 'built', lowers: 'lib/graph/era/cast-density.js', note: 'its density set by the target' };
+}
+
 export const REALITY = Object.freeze({
   id: 'reality',
   asks: 'how does it look, and how are its assets made?',
   settings: {
-    rung: {
-      values: {
-        'gen-6.0': { status: 'built', lowers: 'lib/graph/era/sixth-gen.js', note: "today's behaviour; the named preset arrives with the geocube" },
-        'gen-6.5': { status: 'absent', note: 'planned: an HD budget over sixth-gen principles' },
-        'gen-7.0': { status: 'absent', note: 'planned: normal maps, live sun, HDR' },
-        'gen-7.5': { status: 'absent', note: 'planned: SSAO, IBL, height fog, cover by direction' },
-      },
-    },
+    // the look's generation (era/eras.js), drawn at the target's resolution; how dense is the target's, not the era's
+    era: { values: Object.fromEntries(ERA_IDS.map((id) => [id, ERAS[id].world])) },
+    // the cast in the same era (era/cast-density.js): built where its body is, partial while conventions are planned
+    cast: { values: Object.fromEntries(ERA_IDS.map((id) => [id, castStatus(id)])) },
     look: { source: { module: 'lib/graph/era/sixth-gen.js', table: 'SIXTH_GEN_LOOKS' } },
     kit: { source: { module: 'lib/graph/era/stage.js', table: 'STAGE_KITS' } },
     medium: {

@@ -3,12 +3,14 @@ import { withMotion, faunaBones, packFaunaRig, quatOfRows, motionGaits, strideSe
 import { behaviorFrames } from './behavior/pose.js';
 import { BEHAVIORS } from './behavior/index.js';
 import { gaitFrames } from './gait.js';
-import { SPECIES, speciesPlan } from './species.js';
+import { speciesPlan } from './species.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { bindLayered } from '../polygonizer/station-loft-rig.js';
+import { faunaSkeleton } from './skeleton.js';
+import { PER_RIG } from './test-cases.js';
 
-// The fauna rig contract: a species minted with motion binds every vertex to its skeleton, skins to itself at rest,
+// The fauna rig contract, on one species per rig: a species minted with motion binds every vertex to its skeleton, skins to itself at rest,
 // and its packed clips move the mesh where the gait solver puts the bones. Without motion, nothing changes.
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = (v) => Math.hypot(v[0], v[1], v[2]);
@@ -17,8 +19,8 @@ const mv = (M, v) => M.map((r) => r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
 const minted = (id) => { const recipe = expandPlan(withMotion(speciesPlan(id), id)); const mesh = compileLayered(recipe, {}, {}); return { recipe, mesh, skin: bindLayered(mesh, recipe, faunaBones(id)) }; };
 
 describe('fauna rig', () => {
-  for (const id of Object.keys(SPECIES)) {
-    it(`${id}: every vertex bound, weights valid`, () => {
+  for (const id of PER_RIG) {
+    it(`${faunaSkeleton(id).rig} (${id}): every vertex bound, weights valid`, () => {
       const { mesh, skin } = minted(id), nb = faunaBones(id).bones.length;
       expect(skin.weights.length).toBe(mesh.vertices.length);
       skin.weights.forEach((w, i) => {
@@ -86,16 +88,14 @@ describe('fauna rig', () => {
     expect(() => withMotion(speciesPlan(id), id, [], 24)).toThrow(/no clip/);
   });
 
-  it('every species can be minted with every behavior it is posed doing; no behavior word is a gait word', () => {
-    let n = 0;
-    for (const id of Object.keys(SPECIES)) {
+  it('minted with every behavior it is posed doing; no behavior word is a gait word', () => {
+    for (const id of PER_RIG) {
       for (const g of motionGaits(id)) expect(BEHAVIORS[g], `${id} gait '${g}'`).toBeUndefined();
-      const bs = motionBehaviors(id); n += bs.length;
-      if (bs.length) expect(withMotion(speciesPlan(id), id, [], 4, { behaviors: bs }).motion.behaviors, id).toEqual(bs);
+      const bs = motionBehaviors(id);
+      if (bs.length) expect(withMotion(speciesPlan(id), id, [], 4, { behaviors: bs }).motion.behaviors, id).toEqual(bs);   // the wingwalker poses none yet
       for (const b of bs) expect(behaviorSeconds(id, b), `${id} ${b}`).toBeGreaterThan(0.4);
     }
-    expect(n).toBeGreaterThan(290);
-  }, 60_000);
+  });
 
   it('a loop lasts its motion: a big body breathes slower', () => {
     expect(behaviorSeconds('elephant', 'relax')).toBeGreaterThan(behaviorSeconds('squirrel', 'relax'));

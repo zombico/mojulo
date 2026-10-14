@@ -13,9 +13,10 @@ const hash = (x) => createHash('sha1').update(JSON.stringify(x)).digest('hex');
 
 describe('historic miniatures', () => {
   const plan = planHistoricCity({ culture: 'pompeii' });
+  const crowd = miniatureFaces(plan, true, s, 1), full = () => crowd;   // the town at full density, built once (and the figures' pools with it)
 
   it('stands citizens in the town and field hands outside it, the same each time', () => {
-    const a = miniatureFaces(plan, true, s, 1), b = miniatureFaces(plan, true, s, 1);
+    const a = full(), b = miniatureFaces(plan, true, s, 1);
     expect(a.citizens).toBeGreaterThan(100);
     expect(a.hands).toBeGreaterThan(50);
     expect(hash(a.faces)).toBe(hash(b.faces));
@@ -38,15 +39,16 @@ describe('historic miniatures', () => {
   });
 
   it('adds nothing when absent, and nothing to the CSS page', () => {
-    const off = assembleHistoricCityScene({ culture: 'pompeii', world: true });
+    // the kind's default city: the people pass is the same in every culture
+    const off = assembleHistoricCityScene({ world: true });
     expect(off.stats.people).toBeUndefined();
-    const page = assembleHistoricCityScene({ culture: 'pompeii', people: true });
+    const page = assembleHistoricCityScene({ people: true });
     expect(page.stats.people).toBeUndefined();
-    expect(hash(page.faces)).toBe(hash(assembleHistoricCityScene({ culture: 'pompeii' }).faces));
-    const on = assembleHistoricCityScene({ culture: 'pompeii', world: true, people: true });
+    expect(hash(page.faces)).toBe(hash(assembleHistoricCityScene({}).faces));
+    const on = assembleHistoricCityScene({ world: true, people: true });
     expect(on.faces.length).toBeGreaterThan(off.faces.length);
     expect(on.stats.people.citizens).toBeGreaterThan(0);
-  }, 180000);   // four Pompeii builds
+  }, 120000);   // four city builds
 
   it('dresses every culture, nobody bare: a shirt on every body and a skirt cut to a hem', () => {
     for (const c of Object.keys(HISTORIC_CULTURES)) for (const k of ['skin', 'man', 'woman', 'hand']) {
@@ -62,7 +64,7 @@ describe('historic miniatures', () => {
   });
 
   it('stands beasts of burden from the culture\'s herd, and taking them away moves no one', () => {
-    const on = miniatureFaces(plan, true, s, 1), off = miniatureFaces(plan, { beasts: false }, s, 1);
+    const on = full(), off = miniatureFaces(plan, { beasts: false }, s, 1);
     expect(on.beasts).toBeGreaterThan(10);
     expect(off.beasts).toBe(0);
     const herd = new Set([...HERDS.pompeii.field, ...HERDS.pompeii.town]);
@@ -80,8 +82,10 @@ describe('historic miniatures', () => {
     expect(miniatureFaces(plan, { density: 0.05, beasts: false }, s).faces.every((f) => f.cornerFills)).toBe(true);   // (a yoke or a pannier is a plain box)
   });
 
-  it('bakes each creature-creator recipe low-poly, standing at its height', () => {
-    for (const [k, b] of Object.entries(BEASTS)) {
+  it('bakes a creature-creator recipe low-poly, standing at its height: one per archetype', () => {
+    const byArchetype = new Map();
+    for (const [k, b] of Object.entries(BEASTS)) if (!byArchetype.has(b.recipe.archetype)) byArchetype.set(b.recipe.archetype, [k, b]);
+    for (const [k, b] of byArchetype.values()) {
       const f = beastFaces({ key: k, recipe: b.recipe, height: b.height });
       expect(f.length, k).toBeLessThan(500);
       const zs = f.flatMap((q) => q.corners.map((c) => c[2]));

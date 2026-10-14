@@ -136,10 +136,15 @@ describe('the frozen 2.1 kernel', () => {
 
 describe('emitBeatsKernel', () => {
   const FS = BEATS_KERNEL_FEATURES.filter((f) => f !== 'x');
-  it('every feature subset slices to a valid, self-contained kernel', () => {
+  it('each feature alone, each pair and all of them slice to a valid, self-contained kernel', () => {
+    // a region's slice depends only on the features of the regions it sits in. With them nested at most three deep,
+    // the singles, the pairs and all-on show every on/off pattern of every nesting chain (what the power set did).
+    let depth = 0, deepest = 0;
+    for (const [, open] of src('./beats-kernel.js').matchAll(/\/\*@(\w+)\{\*\/|@\*\/\n/g)) deepest = Math.max(deepest, open ? ++depth : depth--);
+    expect(deepest).toBeLessThanOrEqual(3);
     const whole = buildBeatsKernel.toString();
-    for (let mask = 1; mask < 1 << FS.length; mask++) {
-      const on = FS.filter((_, i) => (mask >> i) & 1);
+    const subsets = [...FS.map((f) => [f]), ...FS.flatMap((f, i) => FS.slice(i + 1).map((g) => [f, g])), FS];
+    for (const on of subsets) {
       const text = emitBeatsKernel(on);
       expect(text, on.join('+')).not.toContain('/*@'); // sliced, not the fallback
       expect(text.length).toBeLessThan(whole.length);

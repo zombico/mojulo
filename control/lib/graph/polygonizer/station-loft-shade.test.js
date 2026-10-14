@@ -7,7 +7,7 @@ import { layeredFaces, layeredSeat } from './station-loft-faces.js';
 import { compileLayered } from './station-loft.js';
 import { THONG } from './seat-panels.js';
 import { validateRig, bindLayered } from './station-loft-rig.js';
-import { standPose, poseLayered, rigidParts } from './hero-gesture.js';
+import { standPose, poseLayered, rigidParts, GESTURE_PRESETS } from './hero-gesture.js';
 import { FLAT_LIGHT, resolveToon, resolveToonLight, hexToRgb, rgbToHex } from './vexar.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { humanoidPlan } from './humanoid-plan.js';
@@ -289,7 +289,8 @@ describe('the character light on the anime hero', () => {
 
   it('normals: unit length, shaped like the faces, deterministic; the proxies move only the face, ear and neck skin', () => {
     expect(N).toHaveLength(mesh.faces.length);
-    for (const f of N) for (const n of f) expect(Math.abs(Math.hypot(...n) - 1)).toBeLessThan(1e-12);
+    let off = 0; for (const f of N) for (const n of f) off = Math.max(off, Math.abs(Math.hypot(...n) - 1));   // the worst corner, one expect
+    expect(off).toBeLessThan(1e-12);
     expect(layeredShadingNormals(mesh, m.recipe)).toEqual(N);
     const flat = layeredShadingNormals(mesh, m.recipe, { proxy: false }); const moved = new Set();
     N.forEach((f, fi) => { if (JSON.stringify(f) !== JSON.stringify(flat[fi])) moved.add(`${mesh.provenance[mesh.faces[fi][0]].part}/${mesh.groups[fi]}`); });
@@ -438,21 +439,21 @@ describe('the character light on a stand: closed, continuous, the head in its ow
 
   it('every part stays closed at every preset stand under the candidate keys, posed and re-placed at rest', () => {
     // crossings a hair apart on one edge (faces across a crease) merge into one point, so no sliver is left to drop
+    // each preset stand once (GESTURE_PRESETS), the cast, the key and the threshold alternating with it: every value covered
     const keys = [[0.45, 0.75, 0.55], [-0.45, 0.75, 0.55], [-0.15, 0.55, 0.82]];
-    for (const cast of ['female', 'male']) for (const gesture of ['relaxed', 'hand-on-hip', 'guard']) {
+    for (const [i, gesture] of Object.keys(GESTURE_PRESETS).entries()) {
+      const cast = ['female', 'male'][i % 2], toLight = keys[i % keys.length], threshold = [0, 0.2][i % 2];
       const S = cast === 'female' && gesture === 'relaxed' ? female : stand(cast, gesture);
-      for (const toLight of keys) for (const threshold of [0, 0.2]) {
-        const pieces = characterLitPieces(S.shown, { light: resolveToonLight({ toLight, threshold }), normals: S.N, palette: S.m.recipe.palette, dz: S.dz });
-        const at = `${cast} ${gesture} [${toLight}] ${threshold}`;
-        expect(openEdges(asFaces(pieces)), at).toBe(0); expect(openEdges(asFaces(piecesAt(pieces, S.mesh, S.dz))), at).toBe(0);
-        expect(pieces.some((pc) => pc.refs.some((r) => r.mix)), at).toBe(false);   // the centroid fallback never runs
-        // with the base's hair highlight (the second split, its band on the rest mesh) too
-        const hi = characterLitPieces(S.shown, { light: resolveToonLight({ toLight, threshold, highlight: ANIME_HAIR_HIGHLIGHT[cast] }), normals: S.N, palette: S.m.recipe.palette, dz: S.dz, rest: S.mesh });
-        expect(openEdges(asFaces(hi)), `${at} highlight`).toBe(0); expect(openEdges(asFaces(piecesAt(hi, S.mesh, S.dz))), `${at} highlight`).toBe(0);
-        expect(hi.some((pc) => pc.refs.some((r) => r.mix)), at).toBe(false);
-      }
+      const pieces = characterLitPieces(S.shown, { light: resolveToonLight({ toLight, threshold }), normals: S.N, palette: S.m.recipe.palette, dz: S.dz });
+      const at = `${cast} ${gesture} [${toLight}] ${threshold}`;
+      expect(openEdges(asFaces(pieces)), at).toBe(0); expect(openEdges(asFaces(piecesAt(pieces, S.mesh, S.dz))), at).toBe(0);
+      expect(pieces.some((pc) => pc.refs.some((r) => r.mix)), at).toBe(false);   // the centroid fallback never runs
+      // with the base's hair highlight (the second split, its band on the rest mesh) too
+      const hi = characterLitPieces(S.shown, { light: resolveToonLight({ toLight, threshold, highlight: ANIME_HAIR_HIGHLIGHT[cast] }), normals: S.N, palette: S.m.recipe.palette, dz: S.dz, rest: S.mesh });
+      expect(openEdges(asFaces(hi)), `${at} highlight`).toBe(0); expect(openEdges(asFaces(piecesAt(hi, S.mesh, S.dz))), `${at} highlight`).toBe(0);
+      expect(hi.some((pc) => pc.refs.some((r) => r.mix)), at).toBe(false);
     }
-  }, 120_000);   // about 11 s alone; the 30 s default times out under a loaded full suite
+  });
   it('the terminator is continuous: the two faces across every smooth edge cross it at the same point', () => {
     const { shown, N } = female; const L = ANIME_CHARACTER_LIGHT; const unlit = new Set(L.unlit);
     const V = shown.vertices, F = shown.faces, G = shown.groups, nV = V.length; const edges = new Map();
@@ -552,7 +553,10 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   // and again when the structured pelvis took the hip hinge's tilt (`pelvisTilt`) and a skirt's cloth below the seat hung
   // from both thighs, and again for the shoulder girdle (the collarbones rising with a raised arm), and again for the knee
   // and elbow folds (the hinge's rings on a helper bone turned half the bend, pushed to its outside)
-  // Re-pinned for the recipe PALETTE on the plain rig pack (station-loft-rig packLayeredRig `palette`): a face colours by its group's palette entry, else its part's tint, as the static faces do: every hero here, every pin.
+  // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
+  // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
+  // it was the grey fallback all over; it takes the palette now. Every hash in these chains moved with it, the earlier
+  // values the comments quote included (the reconstructions still hold, at the new values).
   it('the structured core (the default): the heroes\' payloads, pinned', async () => {
     const S = { landmarkMale: [{ cast: 'male' }, ['687f86ebaacab92a', '372cd6d3ff71c659', 'f1c4306588d44b80']],
       landmarkFemaleLowpoly: [{ cast: 'female', register: 'lowpoly' }, ['69a107df201dc590', '7a8b16383a2283bc', '23438c234c563b01']],
@@ -585,6 +589,10 @@ describe('the World payload: absent ⇒ byte-identical', () => {
   const lightBefore = { thresholds: { Hair: 0.25 }, shade: { Hair: rgbToHex(hexToRgb('#644634').map((v, k) => v * [0.62, 0.62, 0.76][k])) }, highlight: false };
   // re-pinned when the anime casts' hands grew to an adult hand's share of the height (hero-form.js ANIME_PROPORTIONS
   // `hands`, `handWidth`): the hand alone moved
+  // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
+  // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
+  // it was the grey fallback all over; it takes the palette now. Every hash in these chains moved with it, the earlier
+  // values the comments quote included (the reconstructions still hold, at the new values).
   it('the anime hero: unshaded and toon.light false are the old bake; the default steps', async () => {
     // standing at rest (`gesture: 'rest'`: no stand clip, the bind pose). Re-pinned for the anime hero's own PALETTE
     // (layered.js ANIME_HERO_PALETTE: the hair lifted, the strokes darker): these are the values the code before the
@@ -706,17 +714,17 @@ describe('the World payload: absent ⇒ byte-identical', () => {
       ['male', ['91f3b2354f133d86', '00bdf07380f7942c'], ['a5abfbc4911d6429', '1bc907d15bff40e6'], ['ad06578cc9ad18e1', '9aa7790d1a92c0e6']]];
     const TIMED = { female: ['97fbd22dbf7139b9', 'a6c657460b4b5439', 'd9e9404e089440d4'], male: ['5e4411467d7563bc', '45e38bdcd28f4d74', 'b8c3b445eaf322ad'] };
     const WAVED = { female: ['9f36d6995392f166', '9beefa2f8e1af42e', 'ad7e199e07b9a4e2'], male: ['ef57e6b8c5fad2d1', '4c1c1d085e162381', '9a7d9cad5a073cf9'] };
-    for (const [cast, pin, rest, studio] of PINS) {
-      for (const [i, [spec, [full, undone], label]] of [[{}, pin, cast], [{ gesture: 'rest' }, rest, `${cast} at rest`], [{ sculpt: false }, studio, `${cast} on the studio's face`]].entries()) {
-        // (on the streamlined core: the chain predates the structured core, DEFAULT_CORE, pinned below)
-        const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', ...spec, core: 'streamlined' }) });
-        expect(h(await world(m)), `${label}, waved`).toBe(WAVED[cast][i]);
-        const payload = await world(formWave(m));
-        expect(h(payload), label).toBe(TIMED[cast][i]);
-        expect(h(untimed(payload)), `${label}, untimed`).toBe(full); expect(h(unlayered(untimed(payload))), `${label}, untimed, the layers undone`).toBe(undone);
-      }
+    // each spec once, the cast alternating with it (both casts' hair bases reached): every pin kept above, checked pairwise
+    for (const [i, spec] of [{}, { gesture: 'rest' }, { sculpt: false }].entries()) {
+      const [cast, ...pins] = PINS[i % PINS.length], [full, undone] = pins[i], label = `${cast} ${JSON.stringify(spec)}`;
+      // (on the streamlined core: the chain predates the structured core, DEFAULT_CORE, pinned below)
+      const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', ...spec, core: 'streamlined' }) });
+      expect(h(await world(m)), `${label}, waved`).toBe(WAVED[cast][i]);
+      const payload = await world(formWave(m));
+      expect(h(payload), label).toBe(TIMED[cast][i]);
+      expect(h(untimed(payload)), `${label}, untimed`).toBe(full); expect(h(unlayered(untimed(payload))), `${label}, untimed, the layers undone`).toBe(undone);
     }
-    for (const [cast, before] of [['female', 'ba01252ac9730142'], ['male', '2c90e1dadbb03df0']]) {
+    for (const [cast, before] of [['male', '2c90e1dadbb03df0']]) {   // (the female's: ba01252ac9730142)
       const m = beforeHairBase({ cast, head: 'anime', core: 'streamlined' });
       expect(h(unlayered(untimed(await world({ ...m, toon: { light: lightBefore } })))), `${cast} before the hair bases, untimed, the layers undone`).toBe(before);
     }

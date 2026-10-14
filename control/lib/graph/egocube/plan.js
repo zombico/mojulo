@@ -1,0 +1,420 @@
+/**
+ * SHEET → PLAN: an Egocube sheet (egocube.js rollEgocube) compiled into a first `create_character` call, the way the
+ * Pale Warden was built by hand (docs/egocube.md). It is the loop's FIRST READING, a starter recipe: every amount here
+ * is a documented default the character loop iterates in place (`update_sketch`, `update_character`), never a verdict.
+ *
+ *   planFromSheet(sheet, { title? }) → { door, thesis, create, after, ledger }
+ *
+ *   door     'creature' (the creature door: a ring plan) or 'hero' (the hero door: a hero spec), as the sheet says
+ *   thesis   the creature loop's step 0, five traits: silhouette · stance · head · the iconic feature · scale
+ *   create   the create_character call ({ as, title, spec })
+ *   after    update_sketch patches to apply once minted (a dial the mint does not set)
+ *   ledger   one row per sheet note: where it landed in the call (`at`), or `pending` and why
+ *
+ * The creature door wears a library head (creature-heads; a people with none wears STAND_IN_HEAD, named pending), a biped body scaled from the Pale Warden's (digitigrade or
+ * plantigrade, a tail by kind, three or four fingers), cover from the lineage's plan hints (fur, scales, chitin as
+ * tiles, a ruff as a mass first), a dress kit from the role, the archetype's reading and the order, and its colours
+ * from the sheet. The hero door gets the cast, a tune for the build, the western expression channels, the gesture,
+ * the hair and the swatches. Pure and deterministic: the same sheet, the same call.
+ */
+import { readDerive } from './channels.js';
+import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
+import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
+import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
+import { outfitFromSheet, adornFromSheet, heroOutfitOf } from './outfit.js';
+
+const r3 = (x) => Math.round(x * 1000) / 1000;
+const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
+const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+const hasDerive = (sheet, d) => Object.values(sheet.derives).some((list) => list.includes(d));
+const derivesOf = (sheet, chs) => chs.flatMap((c) => sheet.derives[c] || []);
+
+/** a colour moved toward white (t > 0) or black (t < 0) */
+export function shade(hex, t) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const o = c.map((v) => Math.round(t >= 0 ? v + (255 - v) * t : v * (1 + t)));
+  return `#${o.map((v) => clamp(v, 0, 255).toString(16).padStart(2, '0')).join('')}`;
+}
+
+// ══════════ the readings: first defaults, each a table ══════════
+
+/** height in metres by build, scaled by age */
+export const HEIGHT = Object.freeze({ lithe: 1.95, canonical: 1.9, heroic: 2.0, stout: 1.6, brute: 2.15 });
+export const AGE_SCALE = Object.freeze({ child: 0.6, youth: 0.94, adult: 1, seasoned: 1, elder: 0.97 });
+/** girth (radii across) by build */
+export const GIRTH = Object.freeze({ lithe: 0.88, canonical: 1, heroic: 1.08, stout: 1.15, brute: 1.25 });
+/** tails: radii base → tip and a length factor; a tail hangs (a calm animal) */
+export const TAILS = Object.freeze({
+  thin: { r: [0.045, 0.04, 0.035, 0.028, 0.02, 0.01], len: 1.35 },
+  thick: { r: [0.13, 0.11, 0.09, 0.065, 0.042, 0.016], len: 1.25 },
+  brush: { r: [0.07, 0.12, 0.14, 0.13, 0.095, 0.035], len: 1 },
+  stub: { r: [0.08, 0.09, 0.08, 0.06, 0.04, 0.02], len: 0.3 },
+});
+export const FINGER_COUNT = Object.freeze({ draconic: 3, avian: 3, insectoid: 3 });
+/** a sheet's face derives, as the creature head's expression controls (species-neutral, station-loft-head.js) */
+export const HEAD_EXPRESSION = Object.freeze({
+  'expression.browRaise +': { browRaise: 0.35 }, 'expression.browRaise -': { browRaise: -0.2 },
+  'expression.browTilt +': { browFurrow: 0.3 }, 'expression.browTilt -': { browFurrow: 0.3, browRaise: 0.15 },
+  'sculpt.browAngle +': { browFurrow: 0.5, sneer: 0.25, earAttitude: -0.4 },
+  'expression.mouthCorner +': { cornerRetract: 0.3 }, 'expression.mouthCorner -': { cornerRetract: -0.25 },
+  'expression.aperture +': { lidClose: -0.2 }, 'expression.aperture -': { lidClose: 0.2 }, 'sculpt.lidWeight +': { lidClose: 0.2 },
+  'axes.confidence -': { earAttitude: -0.25 }, 'axes.confidence +': { earAttitude: 0.2 },
+});
+/** cover kinds, as tile parameters (the dragon's scales, the bear's tufts) */
+const COVER = Object.freeze({
+  fur: (h) => ({ sides: 3, coverage: 1.25, inset: 0.85, height: h, lean: -1.2, thin: 0.5, wobble: 0.3, jitter: 0.35, edgeFade: 0.25, group: ['Fur', 'FurAlt'] }),
+  scales: (h) => ({ sides: 6, coverage: 1.2, inset: 0.35, height: h * 0.35, lean: -0.8, thin: 0.4, wobble: 0.2, jitter: 0.3, edgeFade: 0.2, group: ['Scales', 'ScalesAlt'] }),
+  chitin: (h) => ({ sides: 4, coverage: 1.05, inset: 0.2, height: h * 0.4, lean: -0.3, wobble: 0.1, group: ['Chitin', 'ChitinAlt'] }),
+});
+/** the dress kit: pieces by role; the archetype's reading and the order add or mirror (one focal metal piece at most) */
+export const ROLE_KIT = Object.freeze({
+  frontline: ['pauldron', 'bracers'], flanker: ['wraps', 'baldric'], ranged: ['baldric', 'quiver'], support: ['satchels', 'pack'],
+  controller: ['medallion', 'satchel'], caster: ['medallion', 'wraps'], 'non-combatant': ['medallion'],
+});
+export const READING_KIT = Object.freeze({ 'caregiver/shadow': ['pack', 'satchels', 'wraps'], 'explorer/light': ['pack'], 'explorer/shadow': ['pack', 'wraps'], 'creator/light': ['satchels'], 'creator/shadow': ['satchels', 'bracers'], 'ruler/light': ['medallion'], 'ruler/shadow': ['medallion', 'pauldron'], 'hero/light': ['medallion'] });
+
+// ══════════ the creature door ══════════
+
+/** the head a people with no library head wears meanwhile, so the rig has a skull to anchor to; the ledger says so */
+export const STAND_IN_HEAD = 'dragon';
+
+function headOf(sheet) {
+  const named = derivesOf(sheet, ['structure']).map(readDerive).find((r) => r.family === 'head');
+  if (named) return { id: named.word, provisional: false };
+  return headFor(sheet.facets.ancestry) || { id: STAND_IN_HEAD, provisional: true, standIn: true };
+}
+
+function expressionOf(sheet) {
+  const x = {};
+  for (const d of derivesOf(sheet, ['rest', 'eyes', 'stance'])) for (const [k, v] of Object.entries(HEAD_EXPRESSION[d] || {})) x[k] = (x[k] || 0) + v;
+  return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, r3(clamp(v, -1, 1))]).filter(([, v]) => v !== 0));
+}
+
+function stanceOf(sheet) {
+  const d = derivesOf(sheet, ['stance', 'frame']);
+  const lean = clamp(4 + (d.includes('axes.confidence -') ? 8 : 0) + (d.includes('axes.energy -') ? 6 : 0) - (d.includes('axes.confidence +') ? 5 : 0), -5, 22);
+  return { lean, crouch: d.includes('axes.weight +') ? 0.12 : 0.04, guard: d.includes('gesture = guard') };
+}
+
+function kitOf(sheet) {
+  const f = sheet.facets, readings = sheet.reading.reads === 'turning' ? ['light', 'shadow'] : [sheet.reading.reads];   // turning: both show
+  const pieces = [...(ROLE_KIT[f.role] || []), ...readings.flatMap((r) => READING_KIT[`${f.archetype}/${r}`] || []), 'belt'];
+  const kit = [...new Set(pieces)];
+  if (kit.includes('pauldron') && kit.includes('medallion')) kit.splice(kit.indexOf('medallion'), 1);   // one focal metal piece
+  if (kit.includes('satchels') && kit.includes('satchel')) kit.splice(kit.indexOf('satchel'), 1);       // the pair holds the one
+  if (kit.includes('pack') && kit.includes('quiver')) kit.splice(kit.indexOf('quiver'), 1);              // one thing on the back
+  return { kit, mirrored: f.order < 1 / 3, mended: f.motivation > 1 / 3 && f.motivation < 0.85 };
+}
+
+/** the served biped's joints at 2.0 m (the Pale Warden's): the template the audit's sameness reads plans against */
+const UPPER = { shoulder: [0.37, 0.02, 1.56], elbow: [0.47, -0.04, 1.19], wrist: [0.45, 0.13, 0.87], knuckles: [0.45, 0.23, 0.78], neckBase: [0, 0.03, 1.63], neckTop: [0, 0.15, 1.86] };
+export const BIPED_TEMPLATE = Object.freeze({
+  digitigrade: Object.freeze({ hip: [0.17, 0, 0.92], knee: [0.2, 0.17, 0.56], hock: [0.21, -0.15, 0.3], toeBase: [0.21, 0.1, 0.06], toeTip: [0.21, 0.31, 0.03], ...UPPER }),
+  plantigrade: Object.freeze({ hip: [0.15, 0, 0.92], knee: [0.16, 0.04, 0.5], hock: [0.16, -0.02, 0.1], toeBase: [0.16, 0.12, 0.045], toeTip: [0.16, 0.24, 0.025], ...UPPER }),
+});
+
+/** the biped: the Pale Warden's body at height h, girth g, with its legs, tail, fingers and claws by kind */
+function biped({ k, g, legs, tail, fingers, claws, ruff }) {
+  const P = (p) => mul(p, k), R = (r) => (Array.isArray(r) ? r.map((x) => r3(x * k * g)) : r3(r * k * g));
+  const J = Object.fromEntries(Object.entries(BIPED_TEMPLATE[legs]).map(([n, p]) => [n, P(UPPER[n] && n !== 'neckBase' && n !== 'neckTop' ? [p[0] * g, p[1], p[2]] : p)]));
+  const T = tail && TAILS[tail];
+  if (T) J.tail = [[0, -0.17, 0.95], [0, -0.36, 0.83], [0, -0.52, 0.67], [0, -0.64, 0.5], [0, -0.72, 0.35], [0, -0.76, 0.22]]
+    .map((p, i, a) => P(i === 0 ? p : add(a[0], mul(add(p, mul(a[0], -1)), T.len))));
+  const FINGERS = ['A', 'B', 'C', 'D'].slice(0, fingers);
+  const FG = { spread: 0.04 * k * g, prox: 0.075 * k, dist: 0.06 * k, proxDir: [0, 0.7, -0.6], distDir: [0, 0.5, -0.85], clawDir: [0, 0.35, -0.95] };
+  const fingerJoints = (i) => { const kk = add(J.knuckles, [(i - (fingers - 1) / 2) * FG.spread, 0, 0]); const m = add(kk, mul(unit(FG.proxDir), FG.prox)); return { k: kk, m, e: add(m, mul(unit(FG.distDir), FG.dist)) }; };
+  const joints = { hip: J.hip, knee: J.knee, hock: J.hock, toeBase: J.toeBase, toeTip: J.toeTip, shoulder: J.shoulder, elbow: J.elbow, wrist: J.wrist, knuckles: J.knuckles, neckBase: J.neckBase, neckTop: J.neckTop };
+  if (T) J.tail.forEach((p, i) => { joints[`tail${i}`] = p; });
+  for (const [i, X] of FINGERS.entries()) { const { k: kk, m, e } = fingerJoints(i); joints[`finger${X}k`] = kk; joints[`finger${X}m`] = m; joints[`finger${X}e`] = e; }
+  const limb = (name, from, to, rA, rB, opts, group, prev, next) => ({ name, kind: 'segment', from, to, rA: R(rA), rB: R(rB), ...opts, group, tint: '#cccccc', mirror: 'name', bind: { bone: name, prev, next } });
+  const z = (v) => r3(v * k);
+  const segments = [
+    { name: 'pelvis', kind: 'trunk', stations: [{ z: z(0.8), r: R([0.2, 0.16]) }, { z: z(0.92), r: R([0.23, 0.17]) }, { z: z(1.04), r: R([0.24, 0.18]), yc: z(0.01) }],
+      caps: { back: P([0, 0, 0.74]), tip: P([0, 0, 1.1]) }, group: 'Pelvis', tint: '#cccccc', mirror: 'plane', bind: { bone: 'pelvis' } },
+    { name: 'torso', kind: 'trunk', stations: [
+      { z: z(0.92), r: R([0.24, 0.19]), yc: z(0.02) }, { z: z(1.16), r: R([0.28, 0.24]), yc: z(0.05), e: 2.2 }, { z: z(1.36), r: R([0.35, 0.29]), yc: z(0.05), e: 2.3 },
+      { z: z(1.54), r: R([0.4, 0.28]), yc: z(0.02), e: 2.4 }, { z: z(1.66), r: R(ruff ? [0.33, 0.24] : [0.27, 0.19]), yc: 0 },
+    ], caps: { back: P([0, 0.02, 0.86]), tip: P([0, 0, 1.72]) }, group: 'Torso', tint: '#cccccc', mirror: 'plane',
+      bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, torso: 0.5 }, st4: { torso: 0.6, neck: 0.4 }, tip: { neck: 1 } } } },
+    { name: 'neck', kind: 'segment', from: 'neckBase', to: 'neckTop', rA: R(ruff ? [0.23, 0.21] : [0.15, 0.14]), rB: R(ruff ? [0.13, 0.13] : [0.1, 0.1]), slots: 'ring8', over: [0.3, 0.4], group: 'Neck', tint: '#cccccc', mirror: 'plane',
+      bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } },
+    ...(T ? [{ name: 'tail', kind: 'chain', joints: [0, 1, 2, 3, 4, 5].map((i) => `tail${i}`), r: T.r.map((x) => r3(x * k * g)), over: { first: 0.4, last: 0.3, inner: 0.6 }, group: 'Tail', tint: '#cccccc', mirror: 'plane', bind: { root: 'pelvis' } }] : []),
+    limb('thighR', 'hip', 'knee', [0.12, 0.14], [0.085, 0.095], { e: 2.2, over: [0.5, 0.6] }, 'Legs', 'pelvis', 'shinR'),
+    limb('shinR', 'knee', 'hock', 0.085, 0.055, { over: [0.6, 0.6] }, 'Legs', 'thighR', 'metaR'),
+    limb('metaR', 'hock', 'toeBase', 0.055, [0.075, 0.05], { over: [0.6, 0.4] }, 'Legs', 'shinR', 'toesR'),
+    limb('toesR', 'toeBase', 'toeTip', [0.08, 0.045], [0.065, 0.028], { over: [0.3, 0.3] }, 'Feet', 'metaR', null),
+    limb('upperArmR', 'shoulder', 'elbow', 0.095, 0.075, { over: [0.6, 0.6] }, 'Arms', 'torso', 'foreArmR'),
+    limb('foreArmR', 'elbow', 'wrist', 0.075, 0.055, { over: [0.6, 0.6] }, 'Arms', 'upperArmR', 'handR'),
+    limb('handR', 'wrist', 'knuckles', [0.065, 0.055], [0.085, 0.035], { over: [0.4, 0.3] }, 'Hands', 'foreArmR', null),
+    ...FINGERS.flatMap((X) => [
+      limb(`finger${X}1R`, `finger${X}k`, `finger${X}m`, 0.021, 0.019, { over: [0.5, 0.5] }, 'Hands', 'handR', `finger${X}2R`),
+      limb(`finger${X}2R`, `finger${X}m`, `finger${X}e`, 0.019, 0.015, { over: [0.5, 0.5] }, 'Hands', `finger${X}1R`, null),
+    ]),
+  ];
+  // claws: three at each toe tip, one at each finger tip; blunt and short, or long
+  const W = 1 / 3, THIRDS = [W, W, W], c = claws === 'long' ? 1.9 : 1, FT = J.toeTip, footDir = [0, 0.9, -0.3];
+  const claw = (name, base, dir, length, radius, pin) => ({ name, kind: 'claw', base, dir, length: r3(length * k * c), radius: r3(radius * k), pin, group: 'Claws', tint: '#333333', stretch: 'clawLength' });
+  const details = !claws ? [] : [
+    claw('clawF0R', add(FT, P([-0.04, 0.015, -0.005])), footDir, 0.05, 0.012, { parent: 'toesR', face: 'toesR/st1-st2.k5.a', weights: THIRDS, tangentEdge: ['toesR/st1.frontL', 'toesR/st2.frontL'], handedness: 1 }),
+    claw('clawF1R', add(FT, P([0, 0.015, -0.005])), footDir, 0.055, 0.013, { parent: 'toesR', face: 'toesR/st1-st2.k0.b', weights: THIRDS, tangentEdge: ['toesR/st1.front', 'toesR/st2.front'], handedness: 1 }),
+    claw('clawF2R', add(FT, P([0.04, 0.015, -0.005])), footDir, 0.05, 0.012, { parent: 'toesR', face: 'toesR/st1-st2.k0.a', weights: THIRDS, tangentEdge: ['toesR/st1.frontR', 'toesR/st2.frontR'], handedness: 1 }),
+    ...FINGERS.map((X, i) => { const { e } = fingerJoints(i); const parent = `finger${X}2R`;
+      return claw(`clawH${i}R`, add(e, mul(unit(FG.distDir), 0.006 * k)), FG.clawDir, 0.035, 0.009, { parent, face: `${parent}/st1-st2.k0.b`, weights: THIRDS, tangentEdge: [`${parent}/st1.front`, `${parent}/st2.front`], handedness: 1 }); }),
+  ];
+  return { J, joints, segments, details, FINGERS, fingerJoints, hasTail: !!T };
+}
+
+function dialsAndRig({ J, FINGERS, fingerJoints, hasTail }, stance) {
+  const legParts = ['thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', 'toesR', 'toesL'];
+  const fingerParts = FINGERS.flatMap((X) => ['R', 'L'].flatMap((S) => [`finger${X}1${S}`, `finger${X}2${S}`]));
+  const armParts = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'handR', 'handL', ...fingerParts];
+  const all5 = { st0: 1, st1: 1, st2: 1, back: 1, tip: 1 };
+  const tailLinks = [1, 2, 3, 4].map((t) => ({ pivot: `tail${t}/back`, parts: [1, 2, 3, 4].filter((j) => j >= t).map((j) => `tail${j}`) }));
+  const dials = {
+    bulk: { min: 0.85, max: 1.3, rest: 1, doc: 'x scale of the torso and arms about the mirror plane', op: 'scale', axis: 'x', pivot: 0, parts: ['torso', ...armParts], blend: { ...all5, st3: 1, st4: 1 } },
+    gut: { min: 0, max: 0.15, rest: 0, doc: 'metres the belly front slots move forward at the waist', op: 'offset', axis: 'y', slots: ['front', 'frontR', 'frontL'], parts: ['torso', 'pelvis'], blend: { st0: 0.6, st1: 1, st2: 0.5 } },
+    stance: { min: 0.8, max: 1.35, rest: 1, doc: 'x scale of the legs about the mirror plane', op: 'scale', axis: 'x', pivot: 0, parts: legParts, blend: all5 },
+    clawLength: { min: 0.5, max: 1.8, rest: 1, doc: 'stretch of every claw along its own axis', op: 'stretch', parts: [] },
+    head: { op: 'include', name: 'head' },
+    lean: { min: -10, max: 25, rest: 0, doc: 'degrees the torso, arms, neck and head hinge forward about the pelvis tip; the legs stay planted', op: 'hinge', parts: ['torso', 'neck', 'cranium', 'jaw', ...armParts], pivot: 'pelvis/tip', axis: 'x', sign: -1 },
+    ...(hasTail ? {
+      tailCurl: { min: -20, max: 20, rest: 0, doc: 'degrees per tail joint about x (+ lifts the tip)', op: 'chain', axis: 'x', sign: -1, links: tailLinks },
+      tailSway: { min: -15, max: 15, rest: 0, doc: 'degrees per tail joint about z (+ swings the tip right)', op: 'chain', axis: 'z', sign: 1, links: tailLinks },
+    } : {}),
+    grip: { min: 0, max: 45, rest: 0, doc: 'degrees per finger joint, both hands, toward the palm', op: 'chain', axis: 'x', sign: -1,
+      links: ['R', 'L'].flatMap((S) => FINGERS.flatMap((X) => [{ pivot: `finger${X}1${S}/back`, parts: [`finger${X}1${S}`, `finger${X}2${S}`] }, { pivot: `finger${X}2${S}/back`, parts: [`finger${X}2${S}`] }])) },
+  };
+  const rigJoints = {
+    pelvisHub: { at: [0, 0, J.hip[2]] }, navel: { at: [0, J.hip[1] + 0.02, r3((J.hip[2] + J.neckBase[2]) / 2)] }, neckHub: { at: J.neckBase }, headBase: { at: J.neckTop }, headTop: { at: 'head.cranium.tip' },
+    jawHinge: { at: 'head.jawOpen.pivot', rides: 'head' }, jawTip: { at: 'head.jaw.tip', rides: 'head' },
+    hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.hock }, shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist },
+    knuckles$S: { at: J.knuckles, rides: 'foreArm$S' }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
+  };
+  for (const S of ['R', 'L']) for (const [i, X] of FINGERS.entries()) { const { k, m, e } = fingerJoints(i); const f = (p) => (S === 'R' ? p : [-p[0], p[1], p[2]]);
+    rigJoints[`finger${X}k${S}`] = { at: f(k), rides: `hand${S}` }; rigJoints[`finger${X}m${S}`] = { at: f(m), rides: `hand${S}` }; rigJoints[`finger${X}e${S}`] = { at: f(e), rides: `hand${S}` }; }
+  if (hasTail) J.tail.forEach((p, i) => { rigJoints[`tail${i}`] = { at: p, rides: 'pelvis' }; });
+  const downstream = (t) => [1, 2, 3, 4, 5].filter((j) => j > t).map((j) => `tail${j}`);
+  const tailChain = (axis, sign) => ({ axis, sign, links: [1, 2, 3, 4].map((t) => ({ pivot: `tail${t}`, joints: downstream(t) })) });
+  const rig = {
+    joints: rigJoints,
+    bones: [
+      { id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }, { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
+      { id: 'neck', head: 'neckHub', tail: 'headBase' }, { id: 'head', head: 'headBase', tail: 'headTop' }, { id: 'jaw', head: 'jawHinge', tail: 'jawTip' },
+      { perSide: [
+        { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S' },
+        ...FINGERS.flatMap((X) => [{ id: `finger${X}1$S`, head: `finger${X}k$S`, tail: `finger${X}m$S` }, { id: `finger${X}2$S`, head: `finger${X}m$S`, tail: `finger${X}e$S` }]),
+        { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shin$S', head: 'knee$S', tail: 'ankle$S' }, { id: 'meta$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
+      ] },
+      ...(hasTail ? [0, 1, 2, 3, 4].map((t) => ({ id: `tail${t}`, head: `tail${t}`, tail: `tail${t + 1}` })) : []),
+    ],
+    chains: {
+      ...(hasTail ? { tail: tailChain('x', -1), tailSway: tailChain('z', 1) } : {}),
+      grip: { axis: 'x', sign: -1, links: [{ perSide: FINGERS.flatMap((X) => [{ pivot: `finger${X}k$S`, joints: [`finger${X}m$S`, `finger${X}e$S`] }, { pivot: `finger${X}m$S`, joints: [`finger${X}e$S`] }]) }] },
+      jaw: { axis: 'x', sign: -1, links: [{ pivot: 'jawHinge', joints: ['jawTip'] }] },
+    },
+    legs: Object.fromEntries(['R', 'L'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
+    reach: 'reject',
+  };
+  const arms = stance.guard ? { armL: { x: -0.35, y: 0.8, z: -0.3 }, armR: { x: 0.35, y: 0.8, z: -0.3 }, elbowL: 'half', elbowR: 'half', grip: 30 }
+    : { armL: { x: -0.2, y: 0.28, z: -0.94 }, armR: { x: 0.2, y: 0.28, z: -0.94 }, elbowL: 'slight', elbowR: 'slight', grip: 4 };
+  const READY = { ...arms, jaw: 0, crouch: stance.crouch, ...(hasTail ? { tail: 0 } : {}) };
+  const clips = {
+    idle: hasTail ? [READY, { ...READY, tailSway: 6 }, READY, { ...READY, tailSway: -6 }] : [READY, { ...READY, crouch: stance.crouch + 0.03 }],
+    crouch: [READY, { ...READY, crouch: 0.55, heelL: 10, heelR: 10, elbowL: 'half', elbowR: 'half', armL: { x: -0.35, y: 0.8, z: -0.45 }, armR: { x: 0.35, y: 0.8, z: -0.45 }, head: { x: 0, y: 0.95, z: 0.25 }, grip: 25 }],
+  };
+  return { dials, rig, clips };
+}
+
+function coverOf(cover, k, hasTail) {
+  if (!cover) return { tiles: [], ruff: false };
+  const T = COVER[cover.kind] || COVER.fur, where = new Set(cover.where);
+  const tiles = [];
+  if (cover.kind === 'fur' && where.has('ruff')) tiles.push({ id: 'ruff', parts: ['torso'], s: [3.1, 4.0], t: [0, 4], grid: [2, 8], brick: true, ...T(0.09 * k), lean: -1.35 },
+    { id: 'ruffNeck', parts: ['neck'], s: [0.55, 1.45], t: [0, 4], grid: [2, 8], brick: true, ...T(0.08 * k), lean: -1.35 });
+  if (where.has('belly')) tiles.push({ id: 'belly', parts: ['torso'], s: [0.1, 3.9], t: [0, 0.95], grid: [10, 1], ...T(0.04 * k), sides: 4, coverage: 1.02, inset: 0.1, lean: -0.5 });
+  if (where.has('forearm')) tiles.push({ id: 'forearm', parts: ['foreArmR', 'foreArmL'], s: [0.2, 1.4], t: [1.0, 2.9], grid: [3, 3], brick: true, ...T(0.02 * k) });
+  if (where.has('thigh')) tiles.push({ id: 'thigh', parts: ['thighR', 'thighL'], s: [0.3, 1.6], t: [1.0, 2.6], grid: [3, 3], brick: true, ...T(0.022 * k) });
+  if (where.has('shin')) tiles.push({ id: 'shin', parts: ['shinR', 'shinL'], s: [0.2, 1.8], t: [0.6, 2.6], grid: [5, 3], brick: true, ...T(0.02 * k) });
+  if (where.has('tail') && hasTail) tiles.push({ id: 'tail', parts: [0, 1, 2, 3, 4].map((i) => `tail${i}`), s: [0.1, 1.9], t: [0, 2.9], grid: [3, 5], brick: true, ...T(0.045 * k) });
+  return { tiles: tiles.map((t) => ({ ...t, height: r3(t.height) })), ruff: cover.kind === 'fur' && where.has('ruff') };
+}
+
+function adornOf({ kit, mirrored, mended }, k, groups) {
+  const L = groups.leather, out = [];
+  const sides = (S) => (mirrored ? ['R', 'L'] : [S]);
+  for (const piece of kit) {
+    if (piece === 'belt') out.push({ id: 'belt', mode: 'shell', part: 'pelvis', s: [1.4, 1.85], t: 'wrap', nt: 14, ns: 2, mugen: r3(0.02 * k), thick: r3(0.014 * k), group: L,
+      signature: { kind: 'buckle', k: 0, j: 1, w: r3(0.06 * k), h: r3(0.05 * k), bar: r3(0.01 * k), standoff: r3(0.01 * k), group: L } });
+    if (piece === 'baldric') out.push({ id: 'baldric', mode: 'strap', part: 'torso', path: [[3.6, 2.2, 'R'], [3.2, 1.2, 'R'], [2.5, 0.45, 'R'], [1.9, 0.05, 'R'], [1.4, 0.5, 'L'], [0.8, 1.3, 'L'], [0.4, 2.0, 'L']], width: r3(0.06 * k), thick: r3(0.01 * k), mugen: r3(0.03 * k), group: L, rad: r3(0.05 * k),
+      signature: mended ? { kind: 'studs', r: r3(0.008 * k), h: r3(0.004 * k), count: 5, from: 2, m: 6, group: 'Stitch' } : { kind: 'ring', R: r3(0.04 * k), r: r3(0.009 * k), lean: [0, 0.4, 0], standoff: r3(0.02 * k), m: 12, rm: 6, group: L } });
+    if (piece === 'satchel' || piece === 'satchels') for (const [S, sz] of piece === 'satchels' ? [['R', 1], ['L', 0.8]] : [['R', 1]]) out.push({ id: `satchel${S}`, mode: 'shell', part: 'pelvis', side: S, s: [0.8, 1.3], t: [1.6, 2.2], nt: 4, ns: 2, mugen: r3(0.02 * k), thick: r3(0.008 * k), group: L,
+      signature: { kind: 'pack', w: r3(0.2 * k * sz), h: r3(0.2 * k * sz), d: r3(0.09 * k * sz), lift: 0, chamfer: r3(0.03 * k * sz), group: 'Satchel' } });
+    if (piece === 'pack' || piece === 'quiver') out.push({ id: piece, mode: 'shell', part: 'torso', s: [1.6, 2.6], t: [3.2, 4], nt: 4, ns: 2, mugen: r3(0.03 * k), thick: r3(0.01 * k), group: L,
+      signature: piece === 'pack' ? { kind: 'pack', w: r3(0.36 * k), h: r3(0.38 * k), d: r3(0.16 * k), lift: 0, chamfer: r3(0.06 * k), group: 'Satchel' } : { kind: 'pack', w: r3(0.12 * k), h: r3(0.45 * k), d: r3(0.1 * k), lift: 0, chamfer: r3(0.03 * k), group: 'Satchel' } });
+    if (piece === 'wraps') for (const S of ['R', 'L']) out.push({ id: `wrap${S}`, mode: 'band', part: `foreArm${S}`, s: [1.25, 1.75], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.008 * k), thick: r3(0.006 * k), group: 'Wrap',
+      signature: { kind: 'ribbon', k: 0, j: 1, spine: [[0, 0, 0], mul([0.01, -0.02, -0.04], k), mul([0.015, -0.03, -0.09], k)], width: r3(0.022 * k), thick: r3(0.002 * k), tip: 'swallow', group: 'Wrap' } });
+    if (piece === 'bracers') for (const S of sides('R')) out.push({ id: `bracer${S}`, mode: 'shell', part: `foreArm${S}`, s: [0.62, 1.2], t: 'wrap', mugen: r3(0.012 * k), thick: r3(0.01 * k), group: L, rigid: true,
+      signature: { kind: 'studs', r: r3(0.008 * k), h: r3(0.004 * k), count: 3, m: 6, group: L } });
+    if (piece === 'pauldron') for (const S of sides('L')) out.push({ id: `pauldron${S}`, mode: 'shell', part: 'torso', over: [`upperArm${S}`], side: S, s: [2.55, 3.5], t: [1.1, 2.9], nt: 10, mugen: r3(0.014 * k), thick: r3(0.014 * k), group: 'Metal', rigid: true, rad: r3(0.09 * k), support: 3.5, ramp: 1.2,
+      signature: { kind: 'boss', side: S, t: 1.5, tol: 0.2, r: r3(0.05 * k), h: r3(0.03 * k), m: 12, rim: 0.55, group: 'Emblem' } });
+    if (piece === 'medallion') out.push({ id: 'cord', mode: 'shell', part: 'neck', s: [0.05, 0.3], t: 'wrap', nt: 14, ns: 2, mugen: r3(0.012 * k), thick: r3(0.006 * k), group: L,
+      signature: { kind: 'medallion', k: 0, j: 0, anchor: [0, 0.01, -0.01], links: 5, len: r3(0.04 * k), clear: r3(0.05 * k), link: r3(0.005 * k), surfaces: ['torso'], out: [0, 1, 0], drop: r3(0.06 * k), dropClear: r3(0.06 * k), face: [0, 1, 0.15], r: r3(0.05 * k), h: r3(0.016 * k), m: 14, rim: 0.6, group: 'Emblem', beneath: ['torso'] } });
+  }
+  return out;
+}
+
+const HEAD_TONES = Object.freeze({ Skull: 0, Body: 0, Jowl: 0.04, Jaw: 0.1, Snout: 0.12, Lip: 0.08, Brow: -0.12, Pad: -0.05, Lids: -0.08, Ears: -0.06, Fur: 0.03, FurAlt: -0.05, Folds: 0.04, Web: 0.04, Wrinkles: -0.18, Scales: -0.04, ScalesAlt: 0.04 });
+
+function creature(sheet, title) {
+  const f = sheet.facets, hints = sheet.ancestry.plan || {};
+  const k = r3((HEIGHT[f.build] * AGE_SCALE[f.age]) / 2.0), g = GIRTH[f.build];
+  const legs = hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
+  const head = headOf(sheet);
+  const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail]);
+  const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff });
+  const stance = stanceOf(sheet);
+  const { dials, rig, clips } = dialsAndRig(body, stance);
+  const skin = sheet.ancestry.colours.Skin, reptile = head && HEAD_LIBRARY[head.id].family === 'reptile';
+  const shadowSide = sheet.reading.reads !== 'light';
+  const groups = { leather: 'Leather' };
+  const palette = {
+    Torso: skin, Pelvis: skin, Neck: skin, Tail: skin, Legs: shade(skin, -0.03), Feet: shade(skin, -0.06), Arms: shade(skin, -0.03),
+    Hands: reptile ? shade(skin, -0.08) : '#4a4440', Claws: reptile ? '#efe9d8' : '#3a3430',
+    Fur: shade(skin, 0.04), FurAlt: shade(skin, -0.06), Scales: shade(skin, -0.05), ScalesAlt: shade(skin, 0.05), Chitin: shade(skin, -0.05), ChitinAlt: shade(skin, 0.06),
+    Pad: '#4a4440', PadInner: '#3a3530', Crease: shade(skin, -0.25),
+    Leather: shadowSide ? '#6b5a4a' : '#6e4a2e', Satchel: shadowSide ? '#7a6a58' : '#7d5634', Stitch: '#d8d0bc', Wrap: '#d8d0bc', Metal: '#8e9196',
+    Emblem: f.archetype === 'ruler' ? '#d5aa3a' : '#b9a46a',
+  };
+  const heads = [{ name: 'head', plan: (() => {
+    const hp = headPlan(head.id, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(head.id).palette).map(([grp, t]) => [grp, shade(skin, t)])) });
+    // scale the head to the body: a head authored in metres (no units) has its 'world' sweeps in those same metres,
+    // so they become head-space and scale with it (else the dragon's horns float off a scaled skull)
+    if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
+    hp.units = { scale: r3((hp.units?.scale ?? 1) * k), offset: hp.units?.offset ?? [0, 0, 0] };
+    // a stand-in is a neutral skull: the species' own ornaments (horns, a crest) are not the people's
+    if (head.standIn) { hp.ornaments = hp.ornaments.filter((o) => o.kind !== 'sweep' || o.name === 'nose'); delete hp.midline; }
+    if (['seasoned', 'elder'].includes(f.age)) hp.regions.wrinkles = hp.regions.wrinkles.map((w) => (w.drive.cheekBunch || w.drive.browFurrow ? { ...w, rest: f.age === 'elder' ? 0.8 : 0.55 } : w));
+    return hp; })(), expression: expressionOf(sheet), on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
+  const plan = {
+    schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y', note: `metres; ${title}, soles on z = 0` },
+    symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed' },
+    joints: body.joints, segments: body.segments, heads, details: body.details, dials, rig, clips,
+    body: { refine: [{ parts: ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', ...(body.hasTail ? [0, 1, 2, 3, 4].map((i) => `tail${i}`) : [])] }, { parts: ['torso'], slots: false }],
+      volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)], ...['R', 'L'].map((S) => [`thigh${S}`, { front: 1, 'front*': 0.7 }, { st1: 1, st0: 0.3 }, r3(0.025 * k * g)])],
+      ...(cover.tiles.length ? { tiles: cover.tiles } : {}),
+      pads: ['R', 'L'].flatMap((S) => [{ part: `hand${S}`, s: 1.3, toward: { flex: [`hand${S}`, `fingerB1${S}`], drive: { grip: 45 } }, r: 0.5 }, { part: `toes${S}`, s: 1.0, toward: { world: [0, 0, -1] }, r: 0.55 }]) },
+    adorn: adornOf(kitOf(sheet), k, groups),
+    palette,
+  };
+  return { plan, k, legs, head, stance, cover, kit: kitOf(sheet) };
+}
+
+// ══════════ the hero door ══════════
+
+export const BUILD_TUNE = Object.freeze({ lithe: { shoulders: 0.92, waist: 0.92, hips: 0.95 }, canonical: {}, heroic: { shoulders: 1.12, legs: 1.05, depth: 1.05 }, stout: { stature: 0.92, waist: 1.12, depth: 1.1 }, brute: { shoulders: 1.2, waist: 1.1, depth: 1.15, upperArm: 1.2, forearm: 1.2, thigh: 1.15 } });
+const HAIR_STYLE = Object.freeze({ male: { bound: 'taper', mid: 'crop', free: 'swept' }, female: { bound: 'bun', mid: 'bob', free: 'long' } });
+const WAVE = Object.freeze({ straight: 0.6, wavy: 1.2, curly: 1.5, coily: 1.6 });
+
+function hero(sheet) {
+  const f = sheet.facets, d = Object.values(sheet.derives).flat();
+  const tune = { ...BUILD_TUNE[f.build] };
+  for (const x of d.map(readDerive).filter((r) => r.family === 'tune')) tune[x.key] = r3(clamp((tune[x.key] ?? 1) + (x.dir === '+' ? 0.06 : -0.06), 0.85, 1.15));
+  if (f.age === 'elder') tune.stature = r3((tune.stature ?? 1) * 0.97);
+  const expression = {};
+  for (const x of d.map(readDerive).filter((r) => r.family === 'expression')) {
+    const [lo, hi] = CHANNEL_RANGES[x.key], mid = x.key === 'aperture' ? 1 : 0;
+    expression[x.key] = r3(mid + (x.dir === '+' ? (hi - mid) : (lo - mid)) * 0.5);
+  }
+  const gesture = d.map(readDerive).find((r) => r.family === 'gesture')?.word;
+  const texture = (sheet.notes.hair || []).map((n) => n.line.match(/^(straight|wavy|curly|coily) hair$/)?.[1]).find(Boolean) || 'straight';
+  const style = HAIR_STYLE[f.pole][f.order < 1 / 3 ? 'bound' : f.order > 2 / 3 ? 'free' : 'mid'];
+  const spec = {
+    cast: f.age === 'child' ? 'child' : f.pole,
+    ...(Object.keys(tune).length ? { tune } : {}),
+    ...(Object.keys(expression).length ? { expression } : {}),
+    ...(gesture && gesture !== 'rest' ? { gesture } : {}),
+    hair: { style, wave: WAVE[texture], ...(f.age === 'elder' ? { length: 0.8 } : {}) },
+    palette: { Skin: sheet.ancestry.colours.Skin, ...(sheet.ancestry.colours.Hair ? { Hair: f.age === 'elder' ? shade(sheet.ancestry.colours.Hair, 0.45) : sheet.ancestry.colours.Hair } : {}) },
+    detail: 'clothed',
+    ...(['flanker', 'ranged', 'frontline'].includes(f.role) ? { adorn: 'ranger' } : {}),
+  };
+  return { spec, style, texture };
+}
+
+// ══════════ the ledger and the thesis ══════════
+
+const CREATURE_AT = { frame: 'plan.joints, plan.segments', structure: 'plan.heads[0] (a library head)', colouring: 'plan.palette, the head palette', cover: 'plan.body.tiles', ornament: 'plan.details (claws), the head ornaments',
+  rest: 'plan.heads[0].expression', eyes: 'plan.heads[0].expression', stance: 'the lean dial, the clips', silhouette: 'the form and the kit', dress: 'plan.adorn', hair: null, palette: 'plan.palette', wear: 'the head wrinkles at rest' };
+const HERO_AT = { frame: 'spec.cast, spec.tune', structure: null, colouring: 'spec.palette', cover: null, ornament: null, rest: 'spec.expression', eyes: 'spec.expression', stance: 'spec.gesture', silhouette: 'spec.tune, spec.adorn', dress: 'spec.detail, spec.adorn', hair: 'spec.hair', palette: 'spec.palette', wear: null };
+
+function ledgerOf(sheet, door, built) {
+  const rows = [];
+  for (const [ch, notes] of Object.entries(sheet.notes)) for (const n of notes) {
+    let at = (door === 'creature' ? CREATURE_AT : HERO_AT)[ch];
+    let pending = at ? null : door === 'hero' && ['cover', 'ornament'].includes(ch) ? 'the hero grammar has no pass for it' : ch === 'wear' ? 'no wear dials yet' : 'no landing in this door yet';
+    if (door === 'creature') {
+      if (ch === 'cover' && !built.cover.tiles.length) { at = null; pending = 'no cover hint for this people'; }
+      if (ch === 'wear' && !['seasoned', 'elder'].includes(sheet.facets.age)) { at = null; pending = 'no wear dials yet'; }
+      if (ch === 'structure' && built.head.standIn) { at = null; pending = `no library head for ${sheet.facets.ancestry} yet: the ${built.head.id} head stands in; draw one from the nearest (creature-heads)`; }
+      if (ch === 'ornament' && /horns|antennae|tusks|wings|crest|frill/.test(n.line) && !(built.head?.id === 'dragon' && /horns|crest/.test(n.line))) { at = null; pending = 'an ornament the library head and the body plan do not carry yet'; }
+      if (ch === 'silhouette' && /wings|crest|frill|a pair/.test(n.line)) { at = null; pending = 'not in the body plan yet (wings, a crest, a familiar)'; }
+    }
+    rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });
+  }
+  return rows;
+}
+
+function thesisOf(sheet, door, built) {
+  const sil = derivesOf(sheet, ['silhouette']).map(readDerive).find((r) => r.family === 'silhouette')?.word || 'column';
+  const iconic = (sheet.notes.cover || sheet.notes.ornament || sheet.notes.dress || [])[0]?.line || 'none named';
+  if (door === 'hero') return `${sil} · biped, ${sheet.facets.build} · a ${sheet.ancestry.kind === 'human' ? 'human' : 'near-human'} face · ${iconic} · ${Math.round(HEIGHT[sheet.facets.build] * AGE_SCALE[sheet.facets.age] * 100) / 100} m`;
+  const head = built.head.standIn ? `head pending (the ${built.head.id} stands in)` : `${HEAD_LIBRARY[built.head.id].head} (${built.head.id}${built.head.provisional ? ', provisional' : ''})`;
+  return `${sil} · ${built.legs} biped${built.stance.lean > 8 ? ', leaning forward' : ''} · ${head} · ${iconic} · ${Math.round(built.k * 200) / 100} m`;
+}
+
+/** the choices a first reading made, flat, for a contrast pair */
+function choicesOf(p) {
+  const c = { door: p.door, thesis: p.thesis };
+  if (p.door === 'creature') {
+    const plan = p.create.spec.plan, h = plan.heads[0];
+    Object.assign(c, { head: h?.plan.name, lean: p.after.find((x) => x.path === '/dials/lean')?.value, kit: plan.adorn.map((a) => a.id).join(', '),
+      cover: (plan.body.tiles || []).map((t) => t.id).join(', ') || 'none', tail: plan.segments.some((x) => x.name === 'tail') ? 'yes' : 'no',
+      expression: Object.entries(h?.expression || {}).map(([kk, v]) => `${kk} ${v}`).join(', ') || 'neutral', leather: plan.palette.Leather, emblem: plan.palette.Emblem });
+  } else {
+    const sp = p.create.spec;
+    Object.assign(c, { cast: sp.cast, tune: JSON.stringify(sp.tune || {}), expression: JSON.stringify(sp.expression || {}), gesture: sp.gesture || 'none', hair: JSON.stringify(sp.hair), adorn: sp.adorn || 'none' });
+  }
+  return c;
+}
+
+/**
+ * A CONTRAST PAIR: the same roll twice, the second with one facet changed, and the choices that moved. A pair teaches
+ * the mapping from a note to a choice; one example would teach a destination. `roll` is rollEgocube's arguments.
+ */
+export function contrastPair(roll, change, rollEgocube) {
+  const a = rollEgocube(roll), b = rollEgocube({ ...roll, facets: { ...(roll.facets || {}), ...change } });
+  const ca = choicesOf(planFromSheet(a)), cb = choicesOf(planFromSheet(b));
+  const moved = [...new Set([...Object.keys(ca), ...Object.keys(cb)])].filter((k) => ca[k] !== cb[k]).map((k) => ({ choice: k, a: ca[k], b: cb[k] }));
+  return { change, a: { facets: a.facets, reads: a.reads }, b: { facets: b.facets, reads: b.reads }, moved, note: 'A first reading of each sheet, side by side: how one facet moves the choices, not what to choose. Neither is a body to copy.' };
+}
+
+/** `dress: 'designed'`: the outfit DESIGNED from the sheet (outfit.js: its archetype, role, order, motivation, age and
+ * lineage, the visual-interest laws run over it) in place of the stock kit by role. A creature is ADORNED on a body
+ * DRAWN for its target (adornFromSheet, creature-drawn.js): its frame shows; a person wears the cut as the hero's outfit
+ * build. Absent, the kit as before. */
+export function planFromSheet(sheet, { title, dress } = {}) {
+  const door = sheet.ancestry.door;
+  const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
+  if (door === 'creature') {
+    const built = creature(sheet, name);
+    // a beast is adorned, not clothed: its frame shows (outfit.js adornFromSheet)
+    if (dress === 'designed') { const { outfit, laws } = adornFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: true } }; built.outfit = { outfit, laws }; }
+    return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
+      after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
+  }
+  const built = hero(sheet);
+  // a person, dressed by the same principles: the cut as the hero's outfit build, in place of the stock clothed body
+  if (dress === 'designed') { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
+  return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
+}
+

@@ -30,7 +30,7 @@ export async function GET(request, { params }) {
     let html;
     try {
       const resolved = resolveGame(sketch.manifest, (r) => SketchRepository.getByRef(r), levelSrc);
-      html = emitPlayShell(resolved.manifest, resolved.levels, { playtest: true, startLevel: level || null, stingers: resolved.music });
+      html = emitPlayShell(resolved.manifest, resolved.levels, { playtest: true, startLevel: level || null, stingers: resolved.music, frontArt: resolved.frontArt });
     } catch (err) {
       return NextResponse.json({ error: err.message }, { status: 422 });
     }

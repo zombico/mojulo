@@ -37,9 +37,12 @@ export const ADORN_MODES = ['shell', 'band', 'strap'];
 // ─── beneath: what an adornment stands off ───
 /** the points beneath an adornment: its carrier and `over` parts (L1) plus every detail/adornment part whose
  * name mentions one of them, minus the ones that declare they poke through */
-export function beneathOf(fig, names, { pokes = /^(spur|spine)/ } = {}) { const pts = []; const L1 = fig.mesh.parts;
+export function beneathOf(fig, names, { pokes = /^(spur|spine)/, onTop = false } = {}) { const pts = []; const L1 = fig.mesh.parts;
+  // ON TOP: also every body detail PINNED to a carrier (fur tiles, locks, scales: named for their pass, not their part), so
+  // an adornment rides over the cover instead of sinking under it
+  const pinned = (k, p) => onTop && names.includes(p.pin?.parent ?? fig.anchors?.[k]?.part);
   for (const n of names) if (L1[n]) pts.push(...Object.values(L1[n].points));
-  for (const [k, p] of Object.entries(fig.parts)) if (!pokes.test(k) && names.some((n) => k.includes(n))) pts.push(...Object.values(p.points));
+  for (const [k, p] of Object.entries(fig.parts)) if (!pokes.test(k) && (names.some((n) => k.includes(n)) || pinned(k, p))) pts.push(...Object.values(p.points));
   return pts; }
 /** height of the beneath hull above an address, along its normal, within a lateral radius */
 export function hullHeight(pts, p, n, rad) { let h = 0; for (const v of pts) { const d = sub(v, p), up = dot(d, n); if (up <= h) continue; const lat = dmath.hypot(...sub(d, mul(n, up))); if (lat < rad) h = up; } return h; }
@@ -49,9 +52,19 @@ function around(P, t, side, nt) { const H = P.slotT ? Math.max(...Object.values(
   return { list: Array.from({ length: nt + 1 }, (_, k) => [lerp(t[0], t[1], k / nt), side]), closed: false }; }
 
 // ─── modes ───
+/** `share: true`: an adornment's window as SHARES of its carrier, the paint's measure (s of its station span, t of the ring
+ * half, 0 the front → 1 the back), so one window reads alike on parts whose stations or slots differ → the window in the
+ * carrier's own units (every reader of `s` and `t` goes through here) */
+export function byShare(P, A) {
+  if (!A.share || !P) return A;
+  const U = P.stations.map((st, i) => st.u ?? i), H = P.slotT ? Math.max(...Object.values(P.slotT)) : P.slots.length / 2;
+  const { share: _s, ...rest } = A;
+  return { ...rest, s: A.s.map((x) => U[0] + x * (U[U.length - 1] - U[0])), ...(Array.isArray(A.t) ? { t: A.t.map((x) => x * H) } : {}) };
+}
 /** SHELL: the carrier's (s, t) window lifted by the smoothed beneath hull + mugen; a thick wall. Wrapped → a torus
  * (ringLoft); partial → a capped loft. The mugen field ramps away from the `support` station (snug where it hangs). */
-export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.part]; const beneath = beneathOf(fig, [A.part, ...(A.over || [])]);
+export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.part]; const beneath = beneathOf(fig, [A.part, ...(A.over || [])], { onTop: !!A.onTop });
+  A = byShare(P, A);
   let { list, closed } = around(P, A.t, side, A.nt ?? 12); let S = Array.from({ length: (A.ns ?? 4) + 1 }, (_, j) => lerp(A.s[0], A.s[1], j / (A.ns ?? 4)));
   // a RIM paints a band along the shell's own edges in another group (the low-poly trim: it IS the plate's edge, so it
   // follows every flare); its rows are inserted `w` (stations) in from the rimmed ends, and `wt` (a fraction) in from a
@@ -77,9 +90,9 @@ export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.
     for (let k = 0; k < bands; k++) for (let q = 0; q < m; q++) { const g = edge(q) || (ends && (k === 0 || k === bands - 1) && q >= J - 1) ? rim.group : A.group; G.push(g, g); }
     if (!closed) for (let q = 0; q < m; q++) G.push(ends ? rim.group : A.group, ends ? rim.group : A.group);
     mesh.faceGroups = G; }
-  return { mesh: { ...mesh, group: A.group }, grid: { inner, outer, F, S, list } }; }
+  return { mesh: { ...mesh, group: A.group }, grid: { inner, outer, F, S, list, closed } }; }
 /** STRAP: a path of addresses (each [s, t, side] on the carrier), lifted over the beneath hull, as a flat band */
-export function strap(fig, A) { const L1 = fig.mesh.parts; const beneath = beneathOf(fig, [A.part, ...(A.over || [])]); const pts = [], ns = [];
+export function strap(fig, A) { const L1 = fig.mesh.parts; const beneath = beneathOf(fig, [A.part, ...(A.over || [])], { onTop: !!A.onTop }); const pts = [], ns = [];
   for (let i = 0; i + 1 < A.path.length; i++) { const [a, b] = [A.path[i], A.path[i + 1]]; const n = a[2] === b[2] ? 4 : 1; for (let k = 0; k < n; k++) { const u = k / n; const at = a[2] === b[2] ? [lerp(a[0], b[0], u), lerp(a[1], b[1], u)] : [a[0], a[1]]; const f = frameAt(L1, A.part, at, a[2]); pts.push(add(f.origin, mul(f.normal, hullHeight(beneath, f.origin, f.normal, A.rad ?? 0.05) + A.mugen))); ns.push(f.normal); } }
   { const z = A.path[A.path.length - 1]; const f = frameAt(L1, A.part, [z[0], z[1]], z[2]); pts.push(add(f.origin, mul(f.normal, hullHeight(beneath, f.origin, f.normal, A.rad ?? 0.05) + A.mugen))); ns.push(f.normal); }
   const rings = pts.map((p, i) => { const along = unit(sub(pts[Math.min(i + 1, pts.length - 1)], pts[Math.max(i - 1, 0)])); const n = unit(sub(ns[i], mul(along, dot(ns[i], along)))); const lat = mul(unit(cross(n, along)), A.width / 2);
@@ -88,11 +101,12 @@ export function strap(fig, A) { const L1 = fig.mesh.parts; const beneath = benea
 /** HANG: a chain from an anchor under gravity, kept `clear` off the beneath points (a few relaxation passes that
  * keep link length), ending in a pendant; links alternate orientation */
 export function clearOf(p, surfaces, out, clear) { for (const S of surfaces) { let hit; try { hit = projectOnto(S, p, out); } catch { continue; } const d = dot(sub(p, hit), out); if (d < clear) p = add(p, mul(out, clear - d)); } return p; }
-export function hang(beneath, anchor, { links, len, clear, r, surfaces = [], out = [0, 1, 0] }) { let P = Array.from({ length: links + 1 }, (_, i) => add(anchor, [0, 0, -len * i]));
+// `sides`: each link's loop and wire (a drawn creature's by its target)
+export function hang(beneath, anchor, { links, len, clear, r, surfaces = [], out = [0, 1, 0], sides = [10, 5] }) { let P = Array.from({ length: links + 1 }, (_, i) => add(anchor, [0, 0, -len * i]));
   for (let it = 0; it < 12; it++) { for (let i = 1; i < P.length; i++) { for (const v of beneath) { const d = sub(P[i], v), l = dmath.hypot(...d); if (l < clear && l > 1e-9) P[i] = add(v, mul(d, clear / l)); } P[i] = clearOf(P[i], surfaces, out, clear); }
     for (let i = 1; i < P.length; i++) { const d = sub(P[i], P[i - 1]), l = dmath.hypot(...d); P[i] = add(P[i - 1], mul(d, len / l)); } }
   const meshes = P.slice(0, -1).map((p, i) => { const c = mean([p, P[i + 1]]), ax = unit(sub(P[i + 1], p)); const side = unit(cross(ax, i % 2 ? [1, 0, 0] : [0, 1, 0]));
-    return ringLoft(Array.from({ length: 10 }, (_, k) => { const a = 2 * Math.PI * k / 10; const q = add(c, add(mul(ax, dmath.cos(a) * len * 0.55), mul(side, dmath.sin(a) * len * 0.3))); const t = unit(add(mul(ax, -dmath.sin(a) * 0.55), mul(side, dmath.cos(a) * 0.3))); return ringAt(q, t, r, 5); })); });
+    return ringLoft(Array.from({ length: sides[0] }, (_, k) => { const a = 2 * Math.PI * k / sides[0]; const q = add(c, add(mul(ax, dmath.cos(a) * len * 0.55), mul(side, dmath.sin(a) * len * 0.3))); const t = unit(add(mul(ax, -dmath.sin(a) * 0.55), mul(side, dmath.cos(a) * 0.3))); return ringAt(q, t, r, sides[1]); })); });
   return { P, meshes }; }
 /** a flat disc (medallion, boss, buckle plate) facing n: two rings and a raised face */
 export function disc(c, n, r, h, m = 12, rim = 0.8) { const ring = (rr, z) => ringAt(add(c, mul(n, z)), n, rr, m); return loftParts([ring(r, 0), ring(r, h * 0.6), ring(r * rim, h)], sub(c, mul(n, 0.002)), add(c, mul(n, h * 1.15))); }
@@ -163,6 +177,19 @@ const cone = (p, dir, len, r, m = 5, minR = 0.0015) => sweep([sub(p, mul(dir, r 
 // the rune glyphs: strokes in a unit box (x across, y up), angular like carved runes
 const GLYPHS = [[[[0, -1], [0, 1]], [[0, 0.2], [0.6, 0.8]]], [[[0, -1], [0, 1]], [[0, 1], [0.6, 0.35]], [[0.6, 0.35], [0, -0.15]]], [[[-0.5, -1], [0, 1]], [[0, 1], [0.5, -1]]],
   [[[0, -1], [0, 1]], [[-0.5, 0.5], [0.5, -0.5]]], [[[0, -1], [0, 1]], [[0, 0.35], [0.5, 0.9]], [[0, 0.35], [-0.5, 0.9]]], [[[-0.4, 1], [0.4, 0.2]], [[0.4, 0.2], [-0.4, -0.55]], [[-0.4, -0.55], [0.4, -1]]]];
+/** THE MOTIFS: embroidery's library, each a set of strokes (polylines) in a unit cell, x across [−1, 1] and y up [−1, 1].
+ * A border repeats the cell edge to edge, so the strokes that leave a cell's side meet the next one's (a vine's stem, a
+ * key's run, a wave's line); a field places one, centred, as an emblem */
+export const MOTIFS = Object.freeze({
+  vine: [[[-1, 0], [-0.5, 0.35], [0, 0], [0.5, -0.35], [1, 0]], [[-0.5, 0.35], [-0.35, 0.8]], [[0.5, -0.35], [0.35, -0.8]], [[0, 0], [0.2, 0.45]]],
+  knot: [[[-1, 0], [-0.6, 0.5], [0, 0.6], [0.6, 0], [0, -0.6], [-0.6, -0.5], [-1, 0]], [[1, 0], [0.6, 0.5], [0, 0.6], [-0.6, 0], [0, -0.6], [0.6, -0.5], [1, 0]]],
+  key: [[[-1, -0.8], [-1, 0.8], [0.6, 0.8], [0.6, -0.4], [-0.4, -0.4], [-0.4, 0.3], [0.1, 0.3]], [[-1, -0.8], [1, -0.8]]],
+  wave: [[[-1, -0.3], [-0.5, -0.3], [-0.2, 0.2], [0.2, 0.6], [0.5, 0.4], [0.4, 0.05], [0.1, 0.1]], [[0.5, 0.4], [0.8, -0.1], [1, -0.3]]],
+  chevron: [[[-1, 0.6], [0, -0.6], [1, 0.6]]],
+  diamond: [[[0, 0.9], [0.9, 0], [0, -0.9], [-0.9, 0], [0, 0.9]], [[0, 0.3], [0.3, 0], [0, -0.3], [-0.3, 0], [0, 0.3]]],
+  dots: [[[-0.5, -0.1], [-0.5, 0.1]], [[0.5, -0.1], [0.5, 0.1]], [[0, 0.5], [0, 0.7]], [[0, -0.7], [0, -0.5]]],
+  star: [[[0, 1], [0, -1]], [[-0.85, 0.5], [0.85, -0.5]], [[-0.85, -0.5], [0.85, 0.5]]],
+});
 const PROFILES = { even: () => 1, crown: (q) => 0.55 + 0.45 * dmath.sin(Math.PI * q), rake: (q) => 0.45 + 0.55 * q, fan: (q) => 1 - 0.5 * Math.abs(2 * q - 1) };
 /** a low-poly SKULL facing out of the surface at `c` along `n` (its up the world's up off `n`), `r` its half-width:
  * a cranium and a jaw in `group`, eye sockets and the nose and teeth gap in `socketGroup` (dark, or a glow), and 0–2
@@ -257,7 +284,7 @@ export const SIGNATURES = {
     return ringLoft(Array.from({ length: m }, (_, k) => { const a = 2 * Math.PI * k / m; const u = unit(cross(f, [0, 0, 1])), v = cross(f, u); const q = add(add(c, mul(f, S.standoff ?? 0.02)), add(mul(u, dmath.cos(a) * S.R), mul(v, dmath.sin(a) * S.R))); return ringAt(q, unit(add(mul(u, -dmath.sin(a)), mul(v, dmath.cos(a)))), S.r, S.rm ?? 6); })); },
   /** a disc hanging on a chain in front of `surfaces`: { links, len, clear, link, drop, dropClear, face, r, h, m?, rim?, anchor?, out?, surfaces } */
   medallion: (fig, g, beneath, S) => { const [k, j] = gridAt(g, { k: 0, j: 0, ...S }, S.side); const a = g.outer[k][j]; const surfaces = (S.surfaces || []).map((n) => fig.mesh.parts[n]); const out = S.out ?? [0, 1, 0];
-    const { P, meshes } = hang(beneath, add(a, S.anchor ?? [0, 0.01, -0.01]), { links: S.links, len: S.len, clear: S.clear, r: S.link, surfaces, out }); const c = clearOf(add(P[P.length - 1], [0, 0, -S.drop]), surfaces, out, S.dropClear);
+    const { P, meshes } = hang(beneath, add(a, S.anchor ?? [0, 0.01, -0.01]), { links: S.links, len: S.len, clear: S.clear, r: S.link, surfaces, out, ...(S.linkSides ? { sides: S.linkSides } : {}) }); const c = clearOf(add(P[P.length - 1], [0, 0, -S.drop]), surfaces, out, S.dropClear);
     return { links: meshes, element: disc(c, unit(S.face ?? [0, 1, 0.15]), S.r, S.h, S.m ?? 14, S.rim ?? 0.6) }; },
   /** RIBBONS from one grid point, tessellated as the anime hair's sections are (ribbonMesh): { spine: [[x,y,z]…] (x scaled
    * by each `spread`), spread?, width, thick, cols?, rows?, taper?, ridge?, flute?, twist?, tip?: 'square' | 'point' |
@@ -268,7 +295,7 @@ export const SIGNATURES = {
   plume: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
     return S.spread.map((x) => sweep(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), S.r, S.m ?? 6, { squash: S.squash ?? [1, 0.45] })); },
   /** a bell on a short chain from the shell's rim: { after, side, links, len, clear, link, profile, r, top, step, m?, capTop, capBottom } */
-  bell: (fig, g, beneath, S) => { const [k] = gridAt(g, S, S.side); const a = g.outer[k][g.S.length - 1]; const { P, meshes } = hang(beneath, a, { links: S.links, len: S.len, clear: S.clear, r: S.link }); const e = P[P.length - 1];
+  bell: (fig, g, beneath, S) => { const [k] = gridAt(g, S, S.side); const a = g.outer[k][g.S.length - 1]; const { P, meshes } = hang(beneath, a, { links: S.links, len: S.len, clear: S.clear, r: S.link, ...(S.linkSides ? { sides: S.linkSides } : {}) }); const e = P[P.length - 1];
     return { links: meshes, element: loftParts(S.profile.map((q, i) => ringAt(add(e, [0, 0, -S.top - S.step * i]), [0, 0, 1], S.r * q, S.m ?? 10)), add(e, [0, 0, -S.capTop]), add(e, [0, 0, -S.capBottom])) }; },
   /** a disc set on the LIFTED outer skin where it faces `dir` (the eye's direction; x mirrors on the L side): { dir, r, h,
    * m?, rim? }. A shell's frame normal is its carrier's, so on a cap lifted over the arm every address still faces up;
@@ -548,6 +575,37 @@ export const SIGNATURES = {
       for (const [a, b] of GLYPHS[(k * 7 + j * 3 + q) % GLYPHS.length]) { const A = at(a), B = at(b), M = mean([A, B]);
         out.push(sweep([A, M, B, add(B, mul(unit(sub(B, A)), S.w * 0.3))], [S.w, S.w, S.w], 4, { squash: [1, 0.35] })); } }
     return out; },
+  /** a MOTIF worked into a shell's field as thread (embroidery): `name` from MOTIFS, as a BORDER (`mode: 'border'`, the cell
+   * repeated edge to edge along the grid's longer way: round a hem, down an opening) or an EMBLEM (`mode: 'emblem'`, one
+   * cell centred on the grid, `size` its height); `w` the thread's width, `lift` off the cloth: { name, mode?, size?, w?,
+   * lift? } */
+  motif: (fig, g, _b, S) => { const O = g.outer, K = O.length, J = O[0].length, cell = MOTIFS[S.name ?? 'vine'], lift = S.lift ?? 0.0015, w = S.w ?? 0.003, out = [];
+    // a closed ring samples round its seam (k wraps), an open grid clamps
+    const pt = (kf, jf) => { const kk = g.closed ? ((kf % K) + K) % K : Math.max(0, Math.min(K - 1, kf)), k0 = Math.floor(kk), k1 = g.closed ? (k0 + 1) % K : Math.min(K - 1, k0 + 1), j0 = Math.max(0, Math.min(J - 1, Math.floor(jf))), j1 = Math.min(J - 1, j0 + 1), a = Math.max(0, Math.min(1, kk - k0)), b = Math.max(0, Math.min(1, jf - j0));
+      const P = add(add(mul(O[k0][j0], (1 - a) * (1 - b)), mul(O[k1][j0], a * (1 - b))), add(mul(O[k0][j1], (1 - a) * b), mul(O[k1][j1], a * b)));
+      const n = unit(add(add(mul(g.F[k0][j0].normal, (1 - a) * (1 - b)), mul(g.F[k1][j0].normal, a * (1 - b))), add(mul(g.F[k0][j1].normal, (1 - a) * b), mul(g.F[k1][j1].normal, a * b))));
+      return add(P, mul(n, lift)); };
+    const len = (path) => path.slice(1).reduce((t, p, i) => t + dmath.hypot(...sub(p, path[i])), 0);
+    // a thread is three-sided (it reads as a line, never as a tube)
+    const stroke = (cellAt) => { for (const line of cell) { const P = line.map(([x, y]) => cellAt(x, y)); if (P.length > 1) out.push(sweep(P, P.slice(0, -1).map(() => w), 3, { squash: [1, 0.4] })); } };
+    if ((S.mode ?? 'border') === 'emblem') {   // one cell, `size` tall: centred, or on a closed ring's front (k 0) or back (k K/2)
+      const kc = S.at === 'front' && g.closed ? 0 : S.at === 'back' && g.closed ? K / 2 : (K - 1) / 2, jc = (J - 1) / 2, along = len(Array.from({ length: J }, (_, j) => O[Math.round(kc)][j])) / Math.max(1, J - 1), across = len(Array.from({ length: K }, (_, k) => O[k][Math.round(jc)])) / Math.max(1, K - 1);
+      const hj = (S.size ?? 0.08) / 2 / Math.max(1e-6, along), hk = (S.size ?? 0.08) / 2 / Math.max(1e-6, across);
+      stroke((x, y) => pt(kc + (S.at === 'back' ? -x : x) * hk, jc + y * hj)); return out; }
+    // a border: along k (round the part) when the grid wraps or is wider round than long, else along j (down an opening)
+    const roundK = g.closed || K >= J, n = roundK ? K : J, m = roundK ? J : K, mid = (m - 1) / 2;
+    // at most `cells` repeats (a dozen): past that round a hem, a motif reads as texture, not as a motif
+    const run = roundK ? Array.from({ length: K }, (_, k) => O[k][Math.round(mid)]) : Array.from({ length: J }, (_, j) => O[Math.round(mid)][j]);
+    const L = len(roundK && g.closed ? [...run, run[0]] : run), hgt = len(roundK ? O[0] : O.map((r) => r[0])), cells = Math.max(1, Math.min(S.cells ?? 12, Math.round(L / Math.max(1e-6, hgt * (S.aspect ?? 1.6))))), span = (roundK && g.closed ? n : n - 1) / cells;
+    for (let c = 0; c < cells; c++) stroke((x, y) => { const along2 = c * span + (x + 1) / 2 * span, acr = mid + y * mid * 0.8;
+      return roundK ? pt(along2, acr) : pt(acr, along2); });
+    return out; },
+  /** a POLYLINE: a tube through world points `pts` the caller computed off the body's own landmarks (a necklace's curve
+   * round the neck and over the chest, which the body's rings cannot address), `r` a radius per segment (beads and links
+   * alternating read as a chain): { pts, r, sides? } */
+  polyline: (fig, g, _b, S) => sweep(S.pts, Array.isArray(S.r) ? S.r : S.pts.slice(0, -1).map(() => S.r), S.sides ?? 6),
+  /** a DISC at a world point `c` facing `n` (a pendant, a mounted boss): { c, n, r, h, m?, rim? } */
+  disc: (fig, g, _b, S) => disc(S.c, unit(S.n), S.r, S.h, S.m ?? 14, S.rim ?? 0.55),
   /** a TABARD hung from a strap's path: a cloth board `len` long, standing `stand` off, its hem swung `tilt` out, `taper`ing to
    * the hem, `thick`; with `hemGroup`, a bar along the hem: { len, thick, tilt?, stand?, taper?, hem?, hemGroup? } */
   tabard: (fig, g, _b, S) => { const P = g.pts, N = g.ns, L = P.length, down = [0, 0, -1], Q = 9, secs = [];
@@ -569,6 +627,8 @@ export const SIGNATURES = {
 // ─── wear: build up the figure ───
 /** Wear a KIT over a figure `{ mesh, parts }` (the compiled mesh and its detail parts). Each adornment:
  * `{ id, mode: 'shell' | 'band' | 'strap', part, over?, side?, s, t | path, nt?, ns?, mugen, thick, rad?, support?, ramp?,
+ *    onTop? (clear every body detail pinned to the carrier too: fur, locks, scales), share? (the window as shares),
+ *    ghost? (carry the signature, draw no plate),
  *    width? (strap), group, rim? (shell), rigid?, signature: { kind, group, beneath?, …numbers } }`. STACKING: each adornment's beneath
  * includes the ones worn before it. `recipe` (the unrefined source) names the bone a rigid adornment rides. */
 export function wear(fig, kit, { recipe } = {}) { const out = {}; const record = []; const meta = {};
@@ -578,9 +638,10 @@ export function wear(fig, kit, { recipe } = {}) { const out = {}; const record =
       // carrier's axis, buried in the body, so no shell face shows past the volume's rounded ends
       if (A.signature?.kind === 'volume' && A.t === 'wrap') { const ax = axisOf(g), r = 0.25 * Math.min(...ax.map((x) => x.r));
         mesh = { ...loftParts(ax.map((x, j) => ringAt(x.c, sub(ax[Math.min(j + 1, ax.length - 1)].c, ax[Math.max(j - 1, 0)].c), r, 6)), ax[0].c, ax[ax.length - 1].c), group: A.group }; } } else if (mode === 'strap') { const r = strap(fig, A); mesh = r.mesh; g = r; } else throw new Error(`adorn: ${A.id} mode must be one of ${ADORN_MODES.join(' / ')}`);
-    out[`adorn.${A.id}`] = { ...mesh, layer: 3 };
+    // a GHOST carries its signature's grid and draws nothing of its own (embroidery lies on the cloth, not on a plate)
+    if (!A.ghost) out[`adorn.${A.id}`] = { ...mesh, layer: 3 };
     // the signature is built on the adornment (so it rides it); what it hangs past is its own beneath
-    const beneath = beneathOf({ mesh: fig.mesh, parts: { ...fig.parts, ...out } }, A.signature.beneath || [A.part]);
+    const beneath = beneathOf({ mesh: fig.mesh, parts: { ...fig.parts, ...out }, anchors: fig.anchors }, A.signature.beneath || [A.part], { onTop: !!A.onTop });
     const make = typeof A.signature.build === 'function' ? A.signature.build : SIGNATURES[A.signature.kind];
     if (!make) throw new Error(`adorn: ${A.id} signature kind '${A.signature.kind}' is not in the library (have ${Object.keys(SIGNATURES).join(', ')})`);
     const sig = make(fig, g, beneath, { side, carrier: A.part, ...A.signature });
@@ -590,7 +651,8 @@ export function wear(fig, kit, { recipe } = {}) { const out = {}; const record =
     const flows = A.signature.rigidity !== undefined ? { rigidity: A.signature.rigidity } : {};
     const el = sig.element ? sig.element : sig; (Array.isArray(el) ? el : [el]).forEach((m, i) => { const { root, ...mm } = m; out[`adorn.${A.id}.sig${i}`] = { ...mm, group: m.group ?? A.signature.group, layer: 3, ...flows, ...(flows.rigidity !== undefined && root ? { root } : {}) }; });
     (sig.links || []).forEach((m, i) => { out[`adorn.${A.id}.link${i}`] = { ...m, group: A.signature.group, layer: 3 }; });
-    const dom = A.rigid && recipe && A.s ? dominance(recipe.parts[A.part]) : null; const bones = dom ? A.s.map((s) => dom(s)) : null;   // a strap has no window: it rides its pin
+    const As = A.share ? byShare(fig.mesh.parts[A.part], A).s : A.s;
+    const dom = A.rigid && recipe && As ? dominance(recipe.parts[A.part]) : null; const bones = dom ? As.map((s) => dom(s)) : null;   // a strap has no window: it rides its pin
     record.push({ id: A.id, mode: A.mode, carrier: A.part, over: A.over || [], mugen: A.mugen, signature: A.signature.kind, rigid: !!A.rigid, bone: bones ? bones.map((b) => `${b.bone}@${b.w.toFixed(2)}`).join('..') : 'skin (inherits)' });
     meta[A.id] = { g, side };
     // STACKING: the next adornment's beneath includes this one — unless it declares `stack: false` (lamellar rows keep a
@@ -613,7 +675,7 @@ export function justify(src, record, { res = 384 } = {}) { const L = layeredExpo
 function pinAddress(L1, A) {
   if (A.pin) return address(L1, A.pin[3] ?? A.part, A.pin[0], A.pin[1], A.pin[2] ?? 'R');   // a pin may name another carrier: shaped on the arm, riding the torso
   if (A.path) { const z = A.path[Math.floor(A.path.length / 2)]; return address(L1, A.part, z[0], z[1], z[2]); }
-  const s = (A.s[0] + A.s[1]) / 2; const P = L1[A.part]; const H = P.slotT ? Math.max(...Object.values(P.slotT)) : P.slots.length / 2;
+  A = byShare(L1[A.part], A); const s = (A.s[0] + A.s[1]) / 2; const P = L1[A.part]; const H = P.slotT ? Math.max(...Object.values(P.slotT)) : P.slots.length / 2;
   return A.t === 'wrap' ? address(L1, A.part, s, H / 2, A.side || 'R') : address(L1, A.part, s, (A.t[0] + A.t[1]) / 2, A.side || 'R');
 }
 /** Wear a kit over a detailed figure and write every adornment part into the recipe as a pinned L3 part: the

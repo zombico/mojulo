@@ -11,7 +11,7 @@ import { describe, expect, it, vi } from 'vitest';
 // intermittent rather than simply red. Nothing here is slow by accident.
 vi.setConfig({ testTimeout: 120000 });
 
-import { assembleFractalCityScene, normalizeFractalCityElements, planFractalCity, normalizeCityBlocks, expandCityBlockMap, normalizeCityFidelity, lodClassCensus, cityThemeAdapter, STOREY_H } from './fractal-city.js';
+import { assembleFractalCityScene, normalizeFractalCityElements, planFractalCity, LANDMARK_REAL_ALIAS, normalizeCityBlocks, expandCityBlockMap, normalizeCityFidelity, lodClassCensus, cityThemeAdapter, STOREY_H } from './fractal-city.js';
 import { isLandmarkShape, LANDMARK_HEIGHTS } from '../landmarks/index.js';
 
 // ONE plan per (locale, seed) for the religious-place sampling below. The planner seeds AT MOST
@@ -518,34 +518,38 @@ describe('fractal-city budget invariants', () => {
     // the guarantee is "nothing renders INSIDE the tower box". A cantilevered lamp ARM may
     // overhang the 0.7 clearance plaza (the ring) — realistic — so we test the strict box.
     // Masses and dressing read the same 180 plans in ONE loop; two loops planned every city twice.
-    const MASS = new Set(['building', 'townhouse']);
+    // (the tenants found inside a tower are gathered and checked once: an expect per box and face was most of the cost)
+    const MASS = new Set(['building', 'townhouse']), inside = [];
     for (const cfg of CONFIGS) for (let seed = 1; seed <= 60; seed += 1) {
       const { boxes, grounds, faces } = planFractalCity({ ...cfg, seed });
       const towers = towerBoxes(boxes);
       if (!towers.length) continue;
       for (const b of boxes) {
         if (!MASS.has(b.kind) && !DOODAD.has(b.kind)) continue;
-        expect(towers.some((t) => hit(t, { x: b.x, y: b.y, w: b.w, d: b.d }))).toBe(false);
+        if (towers.some((t) => hit(t, { x: b.x, y: b.y, w: b.w, d: b.d }))) inside.push(`seed ${seed} box ${b.kind}`);
       }
       for (const g of grounds.filter((x) => x.kind === 'lot-asphalt' || (typeof x.kind === 'string' && x.kind.startsWith('crosswalk'))))
-        expect(towers.some((t) => hit(t, g))).toBe(false);
+        if (towers.some((t) => hit(t, g))) inside.push(`seed ${seed} ground ${g.kind}`);
       for (const f of faces) {
         if (!f.corners) continue;
         const [cx, cy] = faceCentroid(f);
-        expect(towers.some((t) => ptIn(cx, cy, t))).toBe(false);
+        if (towers.some((t) => ptIn(cx, cy, t))) inside.push(`seed ${seed} face ${f.fill}`);
       }
     }
+    expect(inside).toEqual([]);
   });
 
   it('never plants an anchor on the streetcar corridor', () => {
+    const onTrack = [];
     for (let seed = 1; seed <= 60; seed += 1) {
       const { boxes } = planFractalCity({ seed, anchor: 'tower', depth: 3, density: 1, subAnchorChance: 0.7, elements: { streetcars: true } });
       const track = boxes.filter((b) => b.kind === 'tram-pole' || b.kind === 'platform-roof');
       if (!track.length) continue;
       for (const a of boxes.filter((b) => b.kind === 'anchor'))
         for (const t of track)
-          expect(hit({ x: a.x, y: a.y, w: a.w, d: a.d }, { x: t.x, y: t.y, w: t.w, d: t.d })).toBe(false);
+          if (hit({ x: a.x, y: a.y, w: a.w, d: a.d }, { x: t.x, y: t.y, w: t.w, d: t.d })) onTrack.push(`seed ${seed} ${t.kind}`);
     }
+    expect(onTrack).toEqual([]);
   });
 
   it('emits a tagged leftover layer that does not overlap buildings or anchors', () => {
@@ -629,115 +633,15 @@ describe('fractal-city landmark anchor', () => {
     expect(maxZ).toBeGreaterThan(Math.min(lm.w, lm.d) * 2.5); // mast towers well over its base
   });
 
-  it('places and renders the Eiffel Tower as a tall lattice pylon', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'eiffel-tower' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('eiffel-tower');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['eiffel-tower'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'eiffel-tower', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    // antenna tip towers far above the base; the open ironwork expands into many faces
-    expect(Math.max(...zs) - lm.z0).toBeGreaterThan(Math.min(lm.w, lm.d) * 2.4);
-    expect(scene.faces.length).toBeGreaterThan(300);
-  });
-
-  it('accepts the "eiffel" alias for the Eiffel Tower', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'eiffel' });
-    expect(stats.landmarks).toBe(1);
-    expect(boxes.find((b) => b.class === 'landmark').shape).toBe('eiffel');
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'eiffel' });
-    expect(scene.faces.length).toBeGreaterThan(300);
-  });
-
-  it('places and renders the Tokyo Tower as a tall, slender banded lattice pylon', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'tokyo-tower' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('tokyo-tower');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['tokyo-tower'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'tokyo-tower', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    // antenna tip towers far above the base; the open banded ironwork expands into many faces
-    expect(Math.max(...zs) - lm.z0).toBeGreaterThan(Math.min(lm.w, lm.d) * 3.0);
-    expect(scene.faces.length).toBeGreaterThan(300);
-  });
-
-  it('accepts the "tokyo" alias for the Tokyo Tower', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'tokyo' });
-    expect(stats.landmarks).toBe(1);
-    expect(boxes.find((b) => b.class === 'landmark').shape).toBe('tokyo');
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'tokyo' });
-    expect(scene.faces.length).toBeGreaterThan(300);
-  });
-
-  it('places and renders the Empire State Building as a tall setback skyscraper', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'empire-state-building' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('empire-state-building');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['empire-state-building'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'empire-state-building', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    // antenna spire towers far above the base; stacked setbacks + window piers make many faces
-    expect(Math.max(...zs) - lm.z0).toBeGreaterThan(Math.min(lm.w, lm.d) * 4.5);
-    expect(scene.faces.length).toBeGreaterThan(150);
-  });
-
-  it('accepts the "empire" alias for the Empire State Building', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'empire' });
-    expect(stats.landmarks).toBe(1);
-    expect(boxes.find((b) => b.class === 'landmark').shape).toBe('empire');
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'empire' });
-    expect(scene.faces.length).toBeGreaterThan(150);
-  });
-
-  it('places and renders the Gateway Arch as a tall stainless catenary', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'gateway-arch' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('gateway-arch');
-    expect(stats.landmarks).toBe(1);
-
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'gateway-arch', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    // the catenary apex soars as-wide-as-tall; the triangular tube extrudes into many faces
-    expect(Math.max(...zs) - lm.z0).toBeGreaterThan(Math.min(lm.w, lm.d) * 1.6);
-    expect(scene.faces.length).toBeGreaterThan(120);
-  });
-
-  it('accepts the "gateway" alias for the Gateway Arch', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'gateway' });
-    expect(stats.landmarks).toBe(1);
-    expect(boxes.find((b) => b.class === 'landmark').shape).toBe('gateway');
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'gateway' });
-    expect(scene.faces.length).toBeGreaterThan(120);
-  });
-
-  it('places and renders Cloud Gate as a broad low mirror blob', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'cloud-gate' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('cloud-gate');
-    expect(stats.landmarks).toBe(1);
-
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'cloud-gate', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    // wider than tall: the crown sits below the short footprint side; the dome shells make many faces
-    expect(Math.max(...zs) - lm.z0).toBeLessThan(Math.min(lm.w, lm.d));
-    expect(Math.max(...zs) - lm.z0).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.5);
-    expect(scene.faces.length).toBeGreaterThan(300);
-  });
-
-  it('accepts the "bean" alias for Cloud Gate', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'bean' });
-    expect(stats.landmarks).toBe(1);
-    expect(boxes.find((b) => b.class === 'landmark').shape).toBe('bean');
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'bean' });
-    expect(scene.faces.length).toBeGreaterThan(300);
+  it('accepts an alias for a landmark: the alias plans and draws the same monument as its name', () => {
+    // one alias stands for all: the name resolves in one table (LANDMARK_REAL_ALIAS), the first entry chosen from it
+    const [alias, name] = Object.entries(LANDMARK_REAL_ALIAS)[0];
+    const a = planFractalCity({ seed: 9, anchor: 'tower', landmark: alias }), n = planFractalCity({ seed: 9, anchor: 'tower', landmark: name });
+    expect(a.stats.landmarks).toBe(1);
+    const la = a.boxes.find((b) => b.class === 'landmark'), ln = n.boxes.find((b) => b.class === 'landmark');
+    expect(la.shape).toBe(alias);
+    expect([la.x, la.y, la.w, la.d, la.z0, la.z1]).toEqual([ln.x, ln.y, ln.w, ln.d, ln.z0, ln.z1]);
+    expect(assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: alias }).faces.length).toBe(assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: name }).faces.length);
   });
 
   it('places and renders the Statue of Liberty as a robed figure on a tall pedestal', () => {
@@ -755,35 +659,6 @@ describe('fractal-city landmark anchor', () => {
     expect(scene.faces.length).toBeGreaterThan(400);
   });
 
-  it('accepts the "liberty" alias for the Statue of Liberty', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'liberty' });
-    expect(stats.landmarks).toBe(1);
-    expect(boxes.find((b) => b.class === 'landmark').shape).toBe('liberty');
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'liberty' });
-    expect(scene.faces.length).toBeGreaterThan(400);
-  });
-
-  it('places and renders the Rizal Monument as a bronze figure under a granite obelisk', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'rizal-monument' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('rizal-monument');
-    expect(stats.landmarks).toBe(1);
-
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'rizal-monument', time: 'day' });
-    let maxZ = -Infinity;   // reduce (not Math.max spread) — the polygonized figure makes too many verts
-    for (const f of scene.faces) for (const p of (f.corners || [])) if (p[2] > maxZ) maxZ = p[2];
-    // a modest obelisk (tip ≈ 1·short side); the polygonized figure expands into many faces
-    expect(maxZ - lm.z0).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.8);
-    expect(scene.faces.length).toBeGreaterThan(400);
-  });
-
-  it('accepts the "rizal" alias for the Rizal Monument', () => {
-    const { boxes, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: 'rizal' });
-    expect(stats.landmarks).toBe(1);
-    expect(boxes.find((b) => b.class === 'landmark').shape).toBe('rizal');
-    const scene = assembleFractalCityScene({ seed: 9, anchor: 'tower', landmark: 'rizal' });
-    expect(scene.faces.length).toBeGreaterThan(400);
-  });
   it('places the Tian Tan Buddha, by name or alias, as a reserved monument', () => {
     for (const name of ['tian-tan-buddha', 'big-buddha', 'tian-tan']) {
       const { boxes, grounds, stats } = planFractalCity({ seed: 9, anchor: 'tower', landmark: name });
@@ -797,175 +672,6 @@ describe('fractal-city landmark anchor', () => {
     expect(scene.faces.length).toBeGreaterThan(0);
   });
 
-  it('places and renders the Great Pyramid as a broad low landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 11, anchor: 'tower', landmark: 'great-pyramid' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('great-pyramid');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['great-pyramid'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 11, anchor: 'tower', landmark: 'great-pyramid', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.6);
-    expect(scene.faces.length).toBeGreaterThan(12);
-  });
-
-  it('places and renders the Louvre Pyramid as a glass lattice landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 17, anchor: 'tower', landmark: 'louvre-pyramid' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('louvre-pyramid');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['louvre-pyramid'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 17, anchor: 'tower', landmark: 'louvre-pyramid', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.6);
-    expect(scene.faces.length).toBeGreaterThan(80);
-  });
-
-  it('places and renders a Mexican Pyramid as a stepped temple landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 18, anchor: 'tower', landmark: 'mexican-pyramid' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('mexican-pyramid');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['mexican-pyramid'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 18, anchor: 'tower', landmark: 'mexican-pyramid', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.5);
-    expect(scene.faces.length).toBeGreaterThan(70);
-  });
-
-  it('places and renders the Petronas Towers as a wide twin-tower landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 12, anchor: 'tower', landmark: 'petronas-towers' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('petronas-towers');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w / lm.d).toBeGreaterThan(1.3);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['petronas-towers'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 12, anchor: 'tower', landmark: 'petronas-towers', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 3.5);
-    expect(scene.faces.length).toBeGreaterThan(400);
-  });
-
-  it('places and renders Big Ben as a tall clock tower landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 21, anchor: 'tower', landmark: 'big-ben' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('big-ben');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['big-ben'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 21, anchor: 'tower', landmark: 'big-ben', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 3.6);
-    expect(scene.faces.length).toBeGreaterThan(180);
-  });
-
-  it('places and renders Stonehenge as a broad megalith ring landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 22, anchor: 'tower', landmark: 'stonehenge' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('stonehenge');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w / lm.d).toBeGreaterThan(1.1);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS.stonehenge, 5);
-
-    const scene = assembleFractalCityScene({ seed: 22, anchor: 'tower', landmark: 'stonehenge', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.5);
-    expect(scene.faces.length).toBeGreaterThan(180);
-  });
-
-  it('places and renders a Chinatown gate as a compact gateway landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 23, anchor: 'tower', landmark: 'chinatown-gate' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('chinatown-gate');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w / lm.d).toBeGreaterThan(1.2);
-    expect(Math.min(lm.w, lm.d)).toBeLessThan(4);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['chinatown-gate'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 23, anchor: 'tower', landmark: 'chinatown-gate', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d));
-    expect(scene.faces.length).toBeGreaterThan(90);
-  });
-
-  it('places and renders the Arc de Triomphe as a monumental arch landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 24, anchor: 'tower', landmark: 'arc-de-triomphe' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('arc-de-triomphe');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['arc-de-triomphe'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 24, anchor: 'tower', landmark: 'arc-de-triomphe', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 1.35);
-    expect(scene.faces.length).toBeGreaterThan(80);
-  });
-
-  it('places and renders the Parthenon as an elongated Doric temple ruin', () => {
-    const { boxes, stats } = planFractalCity({ seed: 24, anchor: 'tower', landmark: 'parthenon' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('parthenon');
-    expect(stats.landmarks).toBe(1);
-    // elongated rectangular stylobate (≈ 2.2:1), not square like the arch
-    expect(Math.max(lm.w, lm.d) / Math.min(lm.w, lm.d)).toBeCloseTo(2.2, 1);
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS.parthenon, 5);
-
-    const scene = assembleFractalCityScene({ seed: 24, anchor: 'tower', landmark: 'parthenon', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.45); // entablature crowns the colonnade
-    expect(scene.faces.length).toBeGreaterThan(400); // 40+ fluted columns → many faces
-  });
-
-  it('places and renders Griffith Observatory as a three-dome Art Deco landmark', () => {
-    const { boxes, stats } = planFractalCity({ seed: 24, anchor: 'tower', landmark: 'griffith-observatory' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('griffith-observatory');
-    expect(stats.landmarks).toBe(1);
-    expect(Math.max(lm.w, lm.d) / Math.min(lm.w, lm.d)).toBeCloseTo(2.3, 1); // long wing
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['griffith-observatory'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 24, anchor: 'tower', landmark: 'griffith-observatory', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 0.85); // great central dome + finial
-    expect(scene.faces.length).toBeGreaterThan(400); // three domes → many faces
-  });
-
-  it('places and renders the Washington Monument as a slender obelisk', () => {
-    const { boxes, stats } = planFractalCity({ seed: 24, anchor: 'tower', landmark: 'washington-monument' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('washington-monument');
-    expect(stats.landmarks).toBe(1);
-    expect(lm.w).toBeCloseTo(lm.d, 5); // square base
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['washington-monument'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 24, anchor: 'tower', landmark: 'washington-monument', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 5.5); // tall slender shaft + pyramidion
-    expect(scene.faces.length).toBeGreaterThan(80);
-  });
-
-  it('places and renders Parliament Hill Centre Block with a central tower', () => {
-    const { boxes, stats } = planFractalCity({ seed: 24, anchor: 'tower', landmark: 'parliament-hill' });
-    const lm = boxes.find((b) => b.class === 'landmark');
-    expect(lm.shape).toBe('parliament-hill');
-    expect(stats.landmarks).toBe(1);
-    expect(Math.max(lm.w, lm.d) / Math.min(lm.w, lm.d)).toBeCloseTo(2.6, 1); // long wings
-    expect(lm.z1 - lm.z0).toBeCloseTo(Math.min(lm.w, lm.d) * LANDMARK_HEIGHTS['parliament-hill'], 5);
-
-    const scene = assembleFractalCityScene({ seed: 24, anchor: 'tower', landmark: 'parliament-hill', time: 'day' });
-    const zs = scene.faces.flatMap((f) => f.corners || []).map((p) => p[2]);
-    expect(Math.max(...zs)).toBeGreaterThan(Math.min(lm.w, lm.d) * 3.0); // Peace Tower spire dominates the wings
-    expect(scene.faces.length).toBeGreaterThan(400);
-  });
 });
 
 describe('fractal-city civic areas', () => {

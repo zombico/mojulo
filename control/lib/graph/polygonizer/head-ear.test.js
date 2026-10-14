@@ -28,6 +28,17 @@ describe('the ear', () => {
     expect(new Set(ear({ inner: 'EarInner' }).groups)).toEqual(new Set(['Skin', 'EarInner']));
   });
 
+  it('the lean ear: 80 triangles against 280, the same side shape, the rim proud, the bowl below it in the inner group', () => {
+    expect(ear().faces).toHaveLength(280);
+    const m = ear({ lean: true, tilt: 0, inner: 'EarInner' });
+    expect(m.faces).toHaveLength(80);
+    const span = (pts, i) => Math.max(...pts.map((p) => p[i])) - Math.min(...pts.map((p) => p[i]));
+    // (every other outline point: within 4% of the full ear's width and height)
+    for (const i of [1, 2]) expect(Math.abs(span(P(m), i) / span(P(ear({ tilt: 0 })), i) - 1)).toBeLessThan(0.04);
+    expect(m.points.bowl[0]).toBeLessThan(m.points.r2_2[0] - 0.05);
+    expect(m.groups.filter((g) => g === 'EarInner').length).toBeGreaterThan(0);
+  });
+
   it('the left ear is the right\'s mirror', () => {
     const R = ear(), L = ear({ side: -1 });
     for (const id of Object.keys(R.points)) expect(L.points[id]).toEqual([-R.points[id][0] + 0, R.points[id][1], R.points[id][2]]);

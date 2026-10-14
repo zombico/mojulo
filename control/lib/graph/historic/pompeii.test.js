@@ -92,7 +92,10 @@ describe('historic city: Pompeii, the western half (placeholders)', () => {
   });
 
   it('assembles for the page and the World on every view, with the card\'s sky and Vesuvius on the World\'s horizon', () => {
-    for (const view of ['forum', 'street', 'theatre', 'gate']) expect(assembleHistoricCityScene({ seed: 7, culture: 'pompeii', view, shade: false }).cameras[0].name).toBe(view);
+    // one build opens on the view it is asked for and carries a camera for every other (each view is the same choice)
+    const views = ['forum', 'street', 'theatre', 'gate'], page = assembleHistoricCityScene({ seed: 7, culture: 'pompeii', view: views[1], shade: false });
+    expect(page.cameras[0].name).toBe(views[1]);
+    expect(page.cameras.map((c) => c.name)).toEqual(expect.arrayContaining(views));
     const w = assembleHistoricWorld({ seed: 7, culture: 'pompeii', view: 'forum' });
     expect(w.sky).toBeTruthy();
     expect(plan.world.boxes.some((b) => b.kind === 'horizon' && b.y < -4000 && b.z1 > 500)).toBe(true);

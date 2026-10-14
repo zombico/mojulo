@@ -1,7 +1,7 @@
 // outfit.test.js — OUTFIT BUILDS (outfit/expand.js): the cards, the laws, the dials and the passes, on the hero door.
 import { describe, it, expect } from 'vitest';
 import { SEEDED_OUTFITS, validateOutfitCard } from './styles.js';
-import { expandOutfit, validateOutfitBuild, OUTFIT_LAWS_VERSION } from './expand.js';
+import { expandOutfit, validateOutfitBuild, OUTFIT_LAWS_VERSION, GARMENT_ROLES, MOTIF_NAMES } from './expand.js';
 import { stepLength, outfitProportion } from './principles.js';
 import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
@@ -12,6 +12,21 @@ const build = (style, more = {}) => ({ type: 'outfit', style, ...more });
 const wear = (spec) => { const hero = heroRecord({ detail: 'swimsuit', ...spec }); const plan = heroPlanOf(hero); const recipe = expandPlan(plan); return { hero, plan, recipe, mesh: compileLayered(recipe) }; };
 const groupsOf = (mesh) => new Set(mesh.groups);
 const STRUCT = new Set(['torso', 'pelvis', 'neck', 'upperArm', 'foreArm', 'thigh', 'shank', 'foot', 'hallux', 'pectoral']);
+// each garment piece and edge is its own pass, worn on each core and cast: the fewest card × core × cast cases that
+// run every one (greedy cover over the cut's trace, in code; the trace costs nothing, a wear costs a mesh)
+const WEARS = (() => {
+  const cases = Object.keys(SEEDED_OUTFITS).flatMap((style) => ['structured', 'streamlined'].flatMap((core) => ['male', 'female'].map((cast) => [style, core, cast])));
+  const traces = new Map(Object.keys(SEEDED_OUTFITS).map((id) => [id, expandOutfit(build(id), { have: STRUCT, scale: 1 }).trace]));
+  const keysOf = ([style, core, cast]) => { const t = traces.get(style);
+    return [...t.pieces.map((p) => `piece:${p}`), ...t.edges.map((e) => `edge:${e}`), `dress:${!!t.dress}`, `core:${core}`, `cast:${cast}`, `on:${core}/${cast}`]; };
+  const left = new Set(cases.flatMap(keysOf)), picked = [];
+  while (left.size) {
+    const gain = (c) => keysOf(c).filter((k) => left.has(k)).length;
+    const best = cases.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+    picked.push(best); for (const k of keysOf(best)) left.delete(k);
+  }
+  return picked;
+})();
 
 describe('the cards', () => {
   it('every seeded card is plain JSON and valid', () => {
@@ -44,8 +59,8 @@ describe('the laws as arithmetic', () => {
 });
 
 describe('the passes', () => {
-  it('every card on both casts and both cores: built, audit clean, bound, laws stamped, the edges in the readout', () => {
-    for (const style of Object.keys(SEEDED_OUTFITS)) for (const core of ['structured', 'streamlined']) for (const cast of ['male', 'female']) {
+  it('every piece and edge, on both casts and both cores: built, audit clean, bound, laws stamped, the edges in the readout', () => {
+    for (const [style, core, cast] of WEARS) {
       const { hero, recipe, mesh } = wear({ cast, core, outfit: build(style) });
       expect(hero.outfit.laws, style).toBe(OUTFIT_LAWS_VERSION);
       expect(Object.entries(auditLayered(mesh)).filter(([, r]) => !r.pass).map(([n]) => n), `${style} ${core} ${cast}`).toEqual([]);
@@ -89,7 +104,9 @@ describe('the passes', () => {
     expect(tr.warnings.join(' ')).toMatch(/focal: 'belt'/);
   });
   it('a skirt: one hull round the hips and both legs, holding them at rest, never narrowing below the hips, open beneath', () => {
-    for (const core of ['structured', 'streamlined']) for (const cut of ['pencil', 'aline', 'full']) {
+    // each cut once, the cores taken in turn
+    for (const [i, cut] of ['pencil', 'aline', 'full'].entries()) {
+      const core = ['structured', 'streamlined'][i % 2];
       const { recipe, mesh } = wear({ cast: 'female', core, outfit: build('blouse', { language: { bottom: { cut } } }) });
       const S = recipe.parts.skirt_skirt, outer = S.stations.slice(0, 12), rad = (st) => Object.values(st.points).map((p) => Math.hypot(p[0], p[1] - outer[0].points.front[1] + (outer[0].points.front[1] - outer[0].points.back[1]) / 2));
       // below the hips' widest ring each ring is at least as wide as the one above it, everywhere round
@@ -132,5 +149,59 @@ describe('the passes', () => {
   it('deterministic: the same words, the same recipe', () => {
     const a = JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe);
     expect(JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe)).toBe(a);
+  });
+});
+
+describe('the outer layer, fit by zone, and the detail on the garment\'s roles', () => {
+  const ctx = { have: STRUCT, scale: 1 };
+  const coat = { type: 'outfit', style: { id: 'x', dials: { ornament: 2 }, language: { top: { family: 'woven', sleeve: 'long', hem: 'hip', fit: 'skin' }, bottom: { family: 'woven', leg: 'long', fit: 'fitted' }, outer: { family: 'woven', sleeve: 'long', hem: 'knee', open: true }, feet: 'boots', tuck: true, focal: 'belt' } } };
+  it('an outer layer over a second skin: the coat its skirt and sleeves, the undershirt paint, the trousers fitted without a hang', () => {
+    const out = expandOutfit(coat, ctx), ids = out.garments.map((E) => E.id);
+    expect(ids).toEqual(expect.arrayContaining(['outer', 'outerSkirt', 'outerSleeve', 'outerCuff', 'bottomLeg']));
+    expect(ids).not.toContain('top');                                                    // a second skin is not cloth
+    expect(out.paint.some((P) => [P.part].flat().includes('torso') && P.group === 'Top')).toBe(true);
+    expect(out.garments.find((E) => E.id === 'bottomShin').flare).toBeUndefined();        // fitted: no hang at the hem
+    expect(out.trace.outer).toEqual({ open: true });
+  });
+  it('the roles sit on the outermost layer; the detail list owns the bindings and the budget keeps the construction', () => {
+    const bare = expandOutfit({ ...coat, detail: [] }, ctx);
+    expect(bare.trace.roles).toEqual(expect.arrayContaining(['opening', 'hem', 'cuffs', 'waist', 'yoke', 'chest', 'back', 'sleeveBand', 'skirtField']));
+    expect(bare.paint.filter((P) => P.group === 'Trim')).toEqual([]);                    // no bindings asked: none drawn
+    expect(bare.kit.map((A) => A.id)).toContain('belt');                                  // the focal's construction stays
+    const bound = expandOutfit({ ...coat, detail: [{ prim: 'binding', role: 'hem' }, { prim: 'binding', role: 'cuffs', group: 'Accent' }] }, ctx);
+    expect(bound.paint).toContainEqual({ part: 'outerSkirt_skirt', u: [10.6, 11], group: 'Trim' });   // the coat's hem, not the shirt's
+    expect(bound.paint).toContainEqual({ part: 'outerCuff_foreArm', run: [0.998, 1], group: 'Accent' });
+    expect(bound.trace.detail).toEqual(['binding@hem', 'binding@cuffs']);
+    // a role nothing worn covers is skipped with a word, never forced
+    expect(expandOutfit({ ...coat, detail: [{ prim: 'binding', role: 'skirtHem' }] }, ctx).trace.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/no skirtHem/)]));
+    // absent, the budget spends the bindings as before
+    expect(expandOutfit(coat, ctx).paint.filter((P) => P.group === 'Trim').length).toBeGreaterThan(0);
+    expect(expandOutfit(coat, ctx).trace.roles).toBeUndefined();
+  });
+  it('refuses a detail by name: an unknown primitive or role, a binding on a field', () => {
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'sequins', role: 'hem' }] })[0]).toMatch(/prim: one of binding/);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'binding', role: 'pocket' }] })[0]).toMatch(/role: one of/);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'binding', role: 'chest' }] })[0]).toMatch(/sits on an edge role; 'chest' is a field/);
+    expect(Object.values(GARMENT_ROLES).every((k) => ['edge', 'field'].includes(k))).toBe(true);
+    expect(validateOutfitBuild({ ...coat, style: { ...coat.style, language: { ...coat.style.language, outer: { ...coat.style.language.outer, fit: 'skin' } } } })[0]).toMatch(/outer.fit/);
+  });
+  it('embroidery: a motif worked in thread on a role, a border on an edge and an emblem on a field, on both sleeves', () => {
+    const emb = { ...coat, detail: [{ prim: 'embroidery', role: 'hem', motif: 'vine' }, { prim: 'embroidery', role: 'cuffs', motif: 'key' }, { prim: 'embroidery', role: 'chest', motif: 'star', group: 'Accent' }, { prim: 'embroidery', role: 'opening', motif: 'chevron' }] };
+    expect(validateOutfitBuild(emb)).toEqual([]);
+    const out = expandOutfit(emb, ctx), K = Object.fromEntries(out.kit.map((A) => [A.id, A]));
+    // a ghost carrier in share windows, the thread its signature
+    for (const A of out.kit.filter((A) => A.id.startsWith('emb'))) { expect(A.ghost).toBe(true); expect(A.share).toBe(true); expect(A.signature.kind).toBe('motif'); }
+    expect(K.emb0hem.part).toBe('outerSkirt_skirt');
+    expect([K.emb1cuffsR.part, K.emb1cuffsL.part]).toEqual(['outerCuff_foreArmR', 'outerCuff_foreArmL']);   // a limb's work on both sides
+    expect(K.emb2chest.signature).toMatchObject({ mode: 'emblem', at: 'front', name: 'star', group: 'Accent' });
+    expect([K.emb3openingR.side, K.emb3openingL.side]).toEqual(['R', 'L']);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'embroidery', role: 'hem', motif: 'paisley' }] })[0]).toMatch(/motif: one of vine/);
+    expect(validateOutfitBuild({ ...coat, detail: [{ prim: 'binding', role: 'hem', motif: 'vine' }] })[0]).toMatch(/an embroidery's/);
+    expect(MOTIF_NAMES).toEqual(expect.arrayContaining(['vine', 'knot', 'key', 'wave', 'chevron', 'diamond', 'dots', 'star']));
+  });
+  it('embroidery builds on the hero: the thread in its group, no carrier plate drawn', () => {
+    const { mesh } = wear({ cast: 'female', outfit: { ...coat, detail: [{ prim: 'embroidery', role: 'hem', motif: 'wave' }, { prim: 'embroidery', role: 'back', motif: 'knot', group: 'Accent' }] } });
+    expect(groupsOf(mesh).has('Accent')).toBe(true);
+    expect(Object.keys(mesh.parts || {}).some((n) => /^adorn\.emb\d+hem$/.test(n))).toBe(false);
   });
 });

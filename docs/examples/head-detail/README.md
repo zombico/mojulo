@@ -93,8 +93,8 @@ the gitignored `lite-template/integration/0924/spike-output/head-detail/`, or in
 
 ## A head is plan data
 
-Both heads are JSON: [`heads/dragon.head.json`](heads/dragon.head.json) (12 KB) and
-[`heads/bear.head.json`](heads/bear.head.json) (7 KB), schema `layered-head-v1`. The core's `headFromPlan`
+Both heads are JSON in the core's creature head library: [`dragon.head.json`](../../../control/lib/graph/creature-heads/heads/dragon.head.json) and
+[`bear.head.json`](../../../control/lib/graph/creature-heads/heads/bear.head.json), schema `layered-head-v1`. The core's `headFromPlan`
 (`station-loft-head.js`) interprets one into the head the operators build:
 
 - **Station tables:** right side authored, left mirrored by name, in head units through `units` or in metres.

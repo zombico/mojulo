@@ -4,7 +4,11 @@ import { grow, ARCHITECTURES } from './grow.js';
 import { SPECIES } from './species.js';
 
 const S = SPECIES.cherry;
-const cherry = () => grow({ ...ARCHITECTURES[S.arch], ...S.over, leafLife: S.leafLife }, { years: S.years, seed: 4242 });
+let grown;
+const cherry = () => (grown ??= grow({ ...ARCHITECTURES[S.arch], ...S.over, leafLife: S.leafLife }, { years: S.years, seed: 4242 }));
+// a pool is pure in its options: built once per option set and read by every test that asks for the same one
+const POOLS = new Map();
+const pooled = async (o) => { const k = JSON.stringify(o); if (!POOLS.has(k)) POOLS.set(k, (await import('./pool.js')).plantPool(o)); return POOLS.get(k); };
 
 describe('a cherry flower, from its parts', () => {
   it('the same bytes for the same seed, and finite', () => {
@@ -52,21 +56,19 @@ describe('a tree in bloom: flowers at the ends of its shoots', () => {
 
 describe('the disc level: a tree in bloom drawn flower by flower in a terrain world', () => {
   it('a pool carries flowers and bare wood only for a species in bloom, and only when asked', async () => {
-    const { plantPool } = await import('./pool.js');
-    const asked = plantPool({ species: 'cherry', variants: 1, discs: true }).variants[0], plain = plantPool({ species: 'cherry', variants: 1 }).variants[0];
+    const asked = (await pooled({ species: 'cherry', variants: 1, discs: true })).variants[0], plain = (await pooled({ species: 'cherry', variants: 1 })).variants[0];
     expect(asked.bloom.length % 7).toBe(0); expect(asked.bloom.length / 7).toBeGreaterThan(2000); expect(asked.bare.L2.length).toBeLessThan(asked.levels.L2.length);
     expect(plain.bloom).toBeUndefined(); expect(plain.bare).toBeUndefined();
-    const oak = (d) => JSON.stringify(plantPool({ species: 'oak', variants: 1, discs: d }).variants[0]);
-    expect(oak(true)).toBe(oak(false));
+    const oak = async (d) => JSON.stringify((await pooled({ species: 'oak', variants: 1, discs: d })).variants[0]);
+    expect(await oak(true)).toBe(await oak(false));
     for (let i = 0; i < asked.bloom.length; i += 7) { expect(asked.bloom[i + 3]).toBeGreaterThan(0); expect(asked.bloom[i + 2]).toBeLessThan(1.2); }
   }, 120_000);
   it('the page channel carries discs only where a species blooms; the page script parses with and without them', async () => {
     const { plantsPageChannel } = await import('../terrain/terrain-plants.js');
-    const { plantPool } = await import('./pool.js');
     const { terrainPlantsScript } = await import('../scene/channels/terrain-plants.js');
     const V = { species: [{ name: 'cherry' }] }, spec = { level: 'L2', radius: 600 };
-    const withBloom = plantsPageChannel(V, [plantPool({ species: 'cherry', variants: 1, discs: true })], spec);
-    const without = plantsPageChannel({ species: [{ name: 'oak' }] }, [plantPool({ species: 'oak', variants: 1, discs: true })], spec);
+    const withBloom = plantsPageChannel(V, [await pooled({ species: 'cherry', variants: 1, discs: true })], spec);
+    const without = plantsPageChannel({ species: [{ name: 'oak' }] }, [await pooled({ species: 'oak', variants: 1, discs: true })], spec);
     expect(withBloom.discs).toBeGreaterThan(0); expect(withBloom.species[0].variants[0].fl.n).toBeGreaterThan(2000);
     expect(withBloom.species[0].variants[0].t.B2).toBeDefined(); expect(withBloom.species[0].variants[0].t.B1).toBeDefined();
     expect(without.discs).toBeUndefined(); expect(without.species[0].variants[0].fl).toBeUndefined();
@@ -80,9 +82,9 @@ describe('the disc level: a tree in bloom drawn flower by flower in a terrain wo
 
 describe('a grove of many ages: trunks differ by growth, not by scale', () => {
   it('the cherry grows one variant an age: older is thicker, a stand lifts the crown', async () => {
-    const { plantPool, plantRepeats } = await import('./pool.js');
+    const { plantRepeats } = await import('./pool.js');
     const { grow: g, measure } = await import('./grow.js');
-    const pool = plantPool({ species: 'cherry', variants: 2 });
+    const pool = await pooled({ species: 'cherry', variants: 2 });
     expect(pool.variants.length).toBe(S.growth.length);
     expect(pool.variants.map((v) => v.years)).toEqual(S.growth.map((x) => x.years));
     const arch = { ...ARCHITECTURES[S.arch], ...S.over, leafLife: S.leafLife }, dbh = S.growth.map((x) => measure(g(arch, { years: x.years, seed: 777, ...(x.stand ? { stand: x.stand } : {}) })).dbh);
@@ -95,11 +97,10 @@ describe('a grove of many ages: trunks differ by growth, not by scale', () => {
   }, 180_000);
   it('the page picks by height only for a species grown at several ages', async () => {
     const { plantsPageChannel } = await import('../terrain/terrain-plants.js');
-    const { plantPool } = await import('./pool.js');
     const { terrainPlantsScript } = await import('../scene/channels/terrain-plants.js');
-    const spec = { level: 'L1', radius: 600 }, ch = plantsPageChannel({ species: [{ name: 'cherry' }] }, [plantPool({ species: 'cherry', variants: 2 })], spec);
+    const spec = { level: 'L1', radius: 600 }, ch = plantsPageChannel({ species: [{ name: 'cherry' }] }, [await pooled({ species: 'cherry', variants: 2 })], spec);
     expect(ch.species[0].byH).toEqual(S.heights); expect([...ch.species[0].rank].sort()).toEqual([...S.growth.keys()]);
-    const oak = plantsPageChannel({ species: [{ name: 'oak' }] }, [plantPool({ species: 'oak', variants: 2 })], spec);
+    const oak = plantsPageChannel({ species: [{ name: 'oak' }] }, [await pooled({ species: 'oak', variants: 1, discs: false })], spec);   // grown at one age
     expect(oak.species[0].byH).toBeUndefined();
     expect(terrainPlantsScript(ch).includes('sp.byH')).toBe(true); expect(terrainPlantsScript(oak).includes('sp.byH')).toBe(false);
   }, 180_000);

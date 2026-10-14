@@ -308,7 +308,7 @@ export function planStage(m = {}) {
   // IVY (`ivy: 0…1`): how much ivy has taken the bare walls (era/crypt.js ivyGrowth); a dressing without walls takes none
   if (m.ivy !== undefined && !(typeof m.ivy === 'number' && m.ivy >= 0 && m.ivy <= 1)) throw new Error('stage: ivy is a number from 0 (none) to 1 (overgrown)');
   if (m.ivy !== undefined && kitG.dress && kitG.dress.niches) kitG = { ...kitG, dress: { ...kitG.dress, ivy: { ...IVY, ...(kitG.dress.ivy || {}), amount: m.ivy } } };
-  // SHADOWS (`shadows: { torch, sun, cells }`, opt-in): the gen-6.0 shadow upgrades. `torch` 'hard' or 'soft' gives every
+  // SHADOWS (`shadows: { torch, sun, cells }`, opt-in): the gen-6 shadow upgrades. `torch` 'hard' or 'soft' gives every
   // placed light a shadow test (a torch no longer lights what a column hides from it); `sun` is the key's soft edge in
   // degrees (0 hard); `cells` the finest a surface is cut for light to land on (metres), so a shadow has corners to
   // fall on. Absent ⇒ today's bake: no torch shadows, a hard sun, the kit's cells.

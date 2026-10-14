@@ -46,7 +46,8 @@ describe('hero-vault', () => {
   it('the solver: a curb is run over, a bar hurdled, a rail speed-vaulted, a table konged, a wall from a jog step-vaulted', () => {
     expect(freeRun({ gait: 'jog', phase: 0.3 }, { h: 0.05, d: 0.2, distance: 3 }, R).move).toBe('stride');
     expect(freeRun({ gait: 'sprint', phase: 0.1 }, { h: 0.3, d: 0.1, distance: 6 }, R).move).toMatch(/^hurdle/);
-    expect(freeRun({ gait: 'sprint', phase: 0.5 }, { h: 0.6, d: 0.2, distance: 6 }, R).move).toMatch(/^speedVault/);
+    // (a rail at 0.5 m: 0.62 of this hero's hip, inside the speed vault's band since a seated leg's toes ride its own shin)
+    expect(freeRun({ gait: 'sprint', phase: 0.5 }, { h: 0.5, d: 0.2, distance: 6 }, R).move).toMatch(/^speedVault/);
     expect(freeRun({ gait: 'sprint', phase: 0.5 }, { h: 0.6, d: 0.8, distance: 7 }, R).move).toMatch(/^kongVault/);
     const x = freeRun({ gait: 'jog', phase: 0.7 }, { h: 0.7, d: 0.35, distance: 4 }, R);
     expect(x.move).toMatch(/^stepVault/); expect(Math.abs(x.approach.stretch - 1)).toBeLessThanOrEqual(0.2); expect(x.approach.steps).toBeGreaterThan(0);

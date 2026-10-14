@@ -53,7 +53,8 @@ export const TOOL_LINES = {
   mint_diagram: L('create', 'The kernel diagram maker (always installed): a flow chart or data chart from stations, edges and marks. `create_sketch` is the creative superset.'),
 
   // ── characters ────────────────────────────────────────────────────────────
-  create_character: L('create', 'A character `as` hero, creature or animal: the `mint_solid` layered and animal recipes, rigged. Revise with `update_sketch`; manuals `get_solid_vocab`.'),
+  create_character: L('create', 'A character `as` hero, creature or animal: the `mint_solid` layered and animal recipes, rigged. Revise with `update_character`; manuals `get_solid_vocab`.'),
+  update_character: L('update', 'Revise a character in its own words: a hero\'s spec merged key by key, the `target` it is drawn for (its rings), the `geocube` whose light bakes it; `patch` for the rest.'),
 
   // ── solids ────────────────────────────────────────────────────────────────
   mint_solid: L('create', "A 3D solid by `kind`: characters, equipment, furniture, scad parts, workbench objects, assemblies, vehicles and more. Manual: `get_solid_vocab`; revise: `update_sketch`."),

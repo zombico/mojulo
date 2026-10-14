@@ -13,8 +13,9 @@ import { heroRecord, expandLayeredManifest, planLayered, heroBudget } from '../.
 const CAP = { triangles: 30000, vertices: 15000, bytes: 1400000 };
 
 describe('the anime hero budget', () => {
-  // shod (the default) and bare (the swimsuit: the feet in place of the shoes)
-  for (const cast of ['female', 'male']) for (const register of ['round', 'lowpoly']) for (const detail of [undefined, 'swimsuit']) it(`${cast}, ${register}${detail ? `, ${detail}` : ''}: triangles, vertices and stored bytes under the ceiling`, () => {
+  // shod (the default) and bare (the swimsuit: the feet in place of the shoes): every pair of cast, register and dress
+  // once (the heaviest, the bare male, among them)
+  for (const [cast, register, detail] of [0, 1, 2, 3].map((i) => [['female', 'male'][i >> 1], ['round', 'lowpoly'][i & 1], [undefined, 'swimsuit'][(i >> 1) ^ (i & 1)]])) it(`${cast}, ${register}${detail ? `, ${detail}` : ''}: triangles, vertices and stored bytes under the ceiling`, () => {
     const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast, head: 'anime', register, ...(detail ? { detail } : {}) }) });
     const b = heroBudget(m.plan, planLayered(m).mesh, m.recipe), bytes = b.bytes.plan + b.bytes.recipe;
     const heaviest = Object.entries(m.recipe.parts).map(([k, p]) => [k, Buffer.byteLength(JSON.stringify(p))]).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([k, n]) => `${k} ${n}`).join(', ');

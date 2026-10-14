@@ -10,6 +10,7 @@ import { assembleStageScene, planStage } from './stage.js';
 const TRAIL = { kind: 'stage', kit: 'isekai-meadow', trail: true };
 const plain = assembleStageScene(TRAIL);
 const inn = assembleStageScene({ ...TRAIL, buildings: [{ use: 'tavern', seed: 2, goal: true }] });
+const street = assembleStageScene({ ...TRAIL, town: { houses: 5, enter: 1 } });
 const A = inn.anchors.find((a) => a.kind === 'building');
 const pocket = plain.anchors.find((a) => a.id === 'pocket-1');
 const within = (p, b) => p[0] >= b.min[0] - 1e-6 && p[0] <= b.max[0] + 1e-6 && p[1] >= b.min[1] - 1e-6 && p[1] <= b.max[1] + 1e-6;
@@ -80,7 +81,6 @@ describe('a way out of a room', () => {
 });
 
 describe("a town's street", () => {
-  const street = assembleStageScene({ ...TRAIL, town: { houses: 5, enter: 1 } });
   it("stands the town's first houses beside the trail: the focus walked into, the rest as the town draws them", () => {
     expect(street.buildings.map((b) => b.use)).toEqual(['hall', 'shop', 'shop', 'shop', 'shop']);
     expect(street.buildings[0]).toMatchObject({ entry: 'porch', goal: 'dais' });
@@ -111,9 +111,10 @@ describe('planned before anything grows', () => {
   // every footprint (a building's rooms, a house's box), and every corner of every tree, rock and arrangement face
   const feet = (p) => [...p.anchors.filter((a) => a.kind === 'building').flatMap((a) => a.rooms.map((r) => r.box)), ...p.anchors.filter((a) => a.kind === 'house').map((a) => a.box)];
   const growth = /:(wood|crown|rock|hat|tree|bough|ikebana)$/;
-  for (const [name, m] of [['the meadow tavern', { ...TRAIL, buildings: [{ use: 'tavern', seed: 2 }] }], ['the meadow street', { ...TRAIL, town: { houses: 5, enter: 1 } }], ['the valley inn', { kind: 'stage', kit: 'trail-valley', trail: true, buildings: [{ use: 'tavern', seed: 2 }] }]]) {
+  // the meadow's tavern and street are the ones built above; the valley is another kit's growth
+  for (const [name, build] of [['the meadow tavern', () => inn], ['the meadow street', () => street], ['the valley inn', () => assembleStageScene({ kind: 'stage', kit: 'trail-valley', trail: true, buildings: [{ use: 'tavern', seed: 2 }] })]]) {
     it(`${name}: no tree, rock or arrangement stands in a footprint, and the land round it still grows`, () => {
-      const p = assembleStageScene(m), F = feet(p);
+      const p = build(), F = feet(p);
       expect(F.length).toBeGreaterThan(0);
       const inside = p.faces.filter((f) => growth.test(f.group) && f.corners.some((c) => F.some((B) => within(c, B))));
       expect(inside.map((f) => f.group)).toEqual([]);

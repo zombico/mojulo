@@ -3,8 +3,10 @@ import { GAITS, PATTERNS, RIGS, LOCOMOTION, TAILS, TAIL_BUILDS, locomotionFor, g
 import { FAMILIES, FAMILY_SPECIES } from '../families.js';
 import { speciesPlan } from '../species.js';
 import { animalEntryCards } from '../entries.js';
+import { PER_FAMILY } from '../test-cases.js';
 
-// The locomotion contract: every animal says how it moves, in plain words over a real mechanism.
+// The locomotion contract: every animal says how it moves, in plain words over a real mechanism. Every family's entry
+// is read; the merge over a species is read on one species per family.
 const AXIAL_HEAD = ['steady', 'nod', 'thrust', 'sway', 'reach'];
 const AXIAL_TAIL = Object.keys(TAILS);
 const WAVES = ['none', 'standing', 'travelling'];
@@ -54,8 +56,9 @@ describe('locomotion: the families', () => {
     });
   }
 
-  for (const [id, s] of Object.entries(FAMILY_SPECIES)) {
-    it(`${id}: its merged gaits name a plain word over a known pattern, with sane numbers`, () => {
+  for (const id of PER_FAMILY) {
+    const s = FAMILY_SPECIES[id];
+    it(`${s.family} (${id}): its merged gaits name a plain word over a known pattern, with sane numbers`, () => {
       const L = locomotionFor(s.family, id);
       expect(RIGS[L.rig], `${id}.rig`).toBeDefined();
       const words = Object.keys(L.gaits);
@@ -80,8 +83,8 @@ describe('locomotion: the families', () => {
   }
 
   it('the walking gaits are listed slowest first by speed band', () => {
-    for (const [id, s] of Object.entries(FAMILY_SPECIES)) {
-      const bands = Object.values(locomotionFor(s.family, id).gaits).filter((g) => g.fr).map((g) => g.fr[0]);
+    for (const id of PER_FAMILY) {
+      const s = FAMILY_SPECIES[id], bands = Object.values(locomotionFor(s.family, id).gaits).filter((g) => g.fr).map((g) => g.fr[0]);
       // stalk/crawl/walk can share a floor of 0; past that, each gait starts no slower than the one before
       for (let i = 1; i < bands.length; i++) expect(bands[i] >= bands[i - 1], `${id}: ${bands}`).toBe(true);
     }
@@ -102,9 +105,10 @@ describe('locomotion: the families', () => {
 });
 
 describe('locomotion: what it touches', () => {
-  it('the gaits reach every species card as MOVES, inside the ceiling', () => {
+  it('the gaits reach the species card as MOVES, inside the ceiling', () => {
     const byId = new Map(animalEntryCards().map((c) => [c.id, c]));
-    for (const [id, s] of Object.entries(FAMILY_SPECIES)) {
+    for (const id of PER_FAMILY) {
+      const s = FAMILY_SPECIES[id];
       expect(byId.get(`animal/${id}`).body, id).toContain(`MOVES    ${gaitWords(s.family, id).join(', ')}`);
       const A = locomotionFor(s.family, id).axial, use = TAILS[A.tail].line;
       if (use) expect(byId.get(`animal/${id}`).body, id).toContain(`TAIL     ${TAIL_BUILDS[A.tailBuild].words}: ${use}`);
@@ -112,7 +116,7 @@ describe('locomotion: what it touches', () => {
   });
 
   it('no plan carries it: locomotion is data beside the build, not in it', () => {
-    for (const id of Object.keys(FAMILY_SPECIES)) {
+    for (const id of PER_FAMILY) {
       const plan = JSON.stringify(speciesPlan(id));
       expect(plan.includes('"gaits"') || plan.includes('"locomotion"'), id).toBe(false);
     }

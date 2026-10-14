@@ -69,12 +69,14 @@ const animePole = (hero) => { const cast = hero.cast && typeof hero.cast === 'ob
  * in one value group, about 10–13 CIE L* below its lit tone — skin shades warm (the hue moves toward red), anything else
  * a cool neutral. Hair derives its own by value (derivedShade). */
 export const DERIVED_SHADE = deepFreeze({ Skin: [0.90, 0.76, 0.76], other: [0.76, 0.76, 0.86] });
+/** the painterly look's soft edge (`light.soft`): the band between the shade and the base, in N·L */
+export const PAINTERLY_SOFT = 0.24;
 
 // ─── colour by value (CIE L*a*b* / LCh, D65, sRGB) ─────────────────────────
 const D65 = [0.95047, 1, 1.08883];
 const toLin = (c) => (c <= 0.04045 ? c / 12.92 : dmath.pow((c + 0.055) / 1.055, 2.4)), toGam = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * dmath.pow(c, 1 / 2.4) - 0.055);
 /** "#rrggbb" → [L*, C*, h°] */
-function hexLch(hex) {
+export function hexLch(hex) {
   const [r, g, b] = hexToRgb(hex).map((v) => toLin(v / 255));
   const X = (0.4124 * r + 0.3576 * g + 0.1805 * b) / D65[0], Y = 0.2126 * r + 0.7152 * g + 0.0722 * b, Z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / D65[2];
   const f = (t) => (t > 216 / 24389 ? dmath.cbrt(t) : (24389 / 27 * t + 16) / 116);
@@ -82,7 +84,7 @@ function hexLch(hex) {
   return [L, dmath.hypot(A, B), ((dmath.atan2(B, A) * 180 / Math.PI) + 360) % 360];
 }
 /** [L*, C*, h°] → "#rrggbb" (clamped into sRGB) */
-function lchHex(L, C, hDeg) {
+export function lchHex(L, C, hDeg) {
   const h = hDeg * Math.PI / 180, A = C * dmath.cos(h), B = C * dmath.sin(h);
   const fy = (L + 16) / 116, fx = fy + A / 500, fz = fy - B / 200, inv = (t) => (dmath.pow(t, 3) > 216 / 24389 ? dmath.pow(t, 3) : (116 * t - 16) / (24389 / 27));
   const X = inv(fx) * D65[0], Y = inv(fy) * D65[1], Z = inv(fz) * D65[2];
@@ -118,8 +120,12 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   const own = toon?.light;
   if (own === false) return null;
   const anime = manifest?.hero?.head === 'anime';
-  if (own) return anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own;
-  return anime ? ANIME_LIGHT_OF[animePole(manifest.hero)] : null;
+  // the painterly look (`hero.painterly`) steps over a soft edge (PAINTERLY_SOFT) unless the light names its own
+  const painterly = anime && !!manifest.hero.painterly;
+  // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
+  const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
+  if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
+  return anime ? (painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)]) : null;
 }
 
 // ─── shading normals ──────────────────────────────────────────────────────
@@ -223,6 +229,42 @@ function regionWeight(part, p, L) {
   return /^ear/.test(part) ? 0.3 : 0;   // the ears lean in a little; the neck, the hands and the core keep their weld
 }
 
+/** The landmark head's normals blended toward the ELLIPSOID round its cranium and jaw (`ellipsoid`: the weight, 0 none):
+ * the light falls across the face as one form instead of facet by facet, the way shipped faces edit their normals toward
+ * a sphere (the anime head's capsule proxy is the same idea on its own landmarks). The skin of the cranium and the jaw
+ * takes the full weight, the ears half, everything else none; the ellipsoid is the two parts' box at rest, and a posed
+ * face carries its rest direction by its own rotation, as the capsule does. No cranium or jaw ⇒ the weld as it was. */
+function headEllipsoidNormals(mesh, rest, out, w0, noseKeep = 1, browKeep = 1) {
+  const RV = rest.vertices, acc = [0, 0, 0], lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; let n = 0;
+  const head = (pt) => pt === 'cranium' || pt === 'jaw';
+  mesh.faces.forEach((t, fi) => { if (!head(partOf(mesh, fi))) return; for (const vi of t) { const p = RV[vi]; for (let k = 0; k < 3; k++) { acc[k] += p[k]; lo[k] = Math.min(lo[k], p[k]); hi[k] = Math.max(hi[k], p[k]); } n++; } });
+  if (!n) return out;
+  const C = acc.map((x) => x / n), R2 = [0, 1, 2].map((k) => ((hi[k] - lo[k]) / 2) ** 2), posed = rest !== mesh;
+  // the NOSE keeps its own normals (`noseKeep`: the weight's share there): round its nostrils and its tip the blend
+  // falls to that share, so the nose's sides and wings catch the light the face's sphere would smooth away
+  const nosePts = (re) => { const o = []; mesh.provenance.forEach((pv, vi) => { if (re.test(pv.part)) o.push(RV[vi]); }); return o; };
+  const nr = nosePts(/^nostrilR$/), nl = nosePts(/^nostrilL$/);
+  const nc = noseKeep < 1 && nr.length && nl.length ? [0, 1, 2].map((k) => (nr.reduce((t, p) => t + p[k], 0) / nr.length + nl.reduce((t, p) => t + p[k], 0) / nl.length) / 2) : null;
+  const nR = nc ? 1.6 * Math.abs(nr[0][0] - nl[0][0]) : 0;
+  // the BROW (`browKeep`, the same share round each eye up to its brow): the ridge over the eye and the socket under it
+  // (humanoid-head.js features.ridge) keep their own normals, so the brow shades over the eye
+  const eyeC = browKeep < 1 ? [nosePts(/^eyeR$/), nosePts(/^eyeL$/)].filter((a) => a.length).map((a) => [0, 1, 2].map((k) => a.reduce((t, p) => t + p[k], 0) / a.length + (k === 2 ? 0.01 : 0))) : [];
+  const ease = (d) => { const t = Math.min(1, Math.max(0, (d - 0.6) / 0.6)); return t * t * (3 - 2 * t); };
+  const browAt = (p) => { let k = 1; for (const c of eyeC) k = Math.min(k, browKeep + (1 - browKeep) * ease(Math.hypot((p[0] - c[0]) / 0.03, (p[1] - c[1]) / 0.04, (p[2] - c[2]) / 0.026))); return k; };
+  const keepAt = (p) => { const b = eyeC.length ? browAt(p) : 1; if (!nc) return b; const d = Math.hypot(p[0] - nc[0], (p[1] - nc[1]) * 0.7, (p[2] - nc[2]) * 0.6) / nR; return Math.min(b, noseKeep + (1 - noseKeep) * ease(d)); };
+  mesh.faces.forEach((t, fi) => {
+    const pt = partOf(mesh, fi), w = head(pt) && mesh.groups[fi] === 'Skin' ? w0 : /^ear/.test(pt) ? w0 / 2 : 0; if (!w) return;
+    let fr = null;
+    t.forEach((vi, k) => {
+      const p = RV[vi]; let s = unit([(p[0] - C[0]) / R2[0], (p[1] - C[1]) / R2[1], (p[2] - C[2]) / R2[2]]);
+      if (posed) { if (!fr) fr = [triFrame(RV, t), triFrame(mesh.vertices, t)]; const [R0, R1] = fr; if (!R0 || !R1) return;
+        const co = [dot(R0[0], s), dot(R0[1], s), dot(R0[2], s)]; s = [0, 1, 2].map((q) => co[0] * R1[0][q] + co[1] * R1[1][q] + co[2] * R1[2][q]); }
+      const wk = w * keepAt(p), nn = out[fi][k]; out[fi][k] = unit([nn[0] * (1 - wk) + s[0] * wk, nn[1] * (1 - wk) + s[1] * wk, nn[2] * (1 - wk) + s[2] * wk]);
+    });
+  });
+  return out;
+}
+
 /** The crease a hero under the STUDIO light is shaded smoothly at (world-kinds.js): the skin blends across edges up to
  * 70° (the face one form, the torso and the limbs muscle, not a grid), every other group at 35° (a hair lock, a cloth
  * edge and the swimsuit keep their edges), and CLOTH (`$cloth`: a garment part's faces, body-garment.js, and the faces a
@@ -258,9 +300,9 @@ function clothFaces(mesh, recipe) {
  * axis (NECK_WEIGHT), so its prism facets shade as one round column. A degenerate face takes its weld's unfiltered sum
  * (or +z when that is zero too), so every entry is unit length.
  */
-export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null } = {}) {
+export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum = 1e-4, proxy = wearsAnimeFace(recipe, mesh), rest = mesh, rigid = null, ellipsoid = 0 } = {}) {   // `ellipsoid`: a weight, or { w, nose } (headEllipsoidNormals)
   if (rigid && rigid.size && rest !== mesh) {
-    const own = layeredShadingNormals(mesh, recipe, { crease, quantum, proxy, rest }), still = layeredShadingNormals(rest, recipe, { crease, quantum, proxy });
+    const own = layeredShadingNormals(mesh, recipe, { crease, quantum, proxy, rest, ellipsoid }), still = layeredShadingNormals(rest, recipe, { crease, quantum, proxy, ellipsoid });
     return own.map((f, fi) => (rigid.has(partOf(mesh, fi)) ? still[fi] : f));
   }
   const V = mesh.vertices, F = mesh.faces, G = mesh.groups;
@@ -271,9 +313,14 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
   const CW = cloth ? { ...crease, ...Object.fromEntries([...new Set(GW.filter((g) => g.startsWith('$cloth:')))].map((g) => [g, crease.$cloth])) } : crease;
   // the weld is topology: keyed on the REST positions, so a posed mesh welds exactly the corners its rest welds
   const out = weldedNormals(V, F, GW, rest.vertices, CW, quantum);
+  const ew = typeof ellipsoid === 'object' && ellipsoid ? ellipsoid.w : ellipsoid;
+  if (!proxy && ew > 0) return headEllipsoidNormals(mesh, rest, out, ew, ellipsoid?.nose ?? 1, ellipsoid?.brow ?? 1);
   if (!proxy) return out;
   const L = headProxyLandmarks(rest); if (!L) return out;
   const C = L.centre, zLo = L.bottom; const wOf = new Map(); const RV = rest.vertices; const posed = rest !== mesh; const NA = L.neck && neckAxis(V, L.neck);
+  // the painted face's nose wedge (anime-nose.js, the face part's `paint.noseKeep` by vertex): it keeps its own normal by
+  // that much, so the nose's sides take the light and the shade; absent, the proxy as it was
+  const noseKeep = mesh.parts?.face?.paint?.noseKeep ?? null;
   F.forEach((t, fi) => {
     if (G[fi] !== 'Skin') return;
     const part = partOf(mesh, fi); let fr = null;
@@ -283,7 +330,7 @@ export function layeredShadingNormals(mesh, recipe = {}, { crease = 35, quantum 
         const s = unit(sub(p, [a[0] + d[0] * u, a[1] + d[1] * u, a[2] + d[2] * u])), n = out[fi][k], w = NECK_WEIGHT;
         out[fi][k] = unit([n[0] * (1 - w) + s[0] * w, n[1] * (1 - w) + s[1] * w, n[2] * (1 - w) + s[2] * w]); return;
       }
-      let w = wOf.get(vi); if (w === undefined) wOf.set(vi, w = regionWeight(part, RV[vi], L));
+      let w = wOf.get(vi); if (w === undefined) { w = regionWeight(part, RV[vi], L); const k = noseKeep && part === 'face' ? noseKeep[mesh.pointIds?.[vi]?.slice(5)] : 0; if (k) w *= 1 - k; wOf.set(vi, w); }
       if (!(w > 0)) return;
       const p = RV[vi]; let s = unit(sub(p, [C[0], C[1], p[2] > C[2] ? C[2] : p[2] < zLo ? zLo : p[2]]));   // off the capsule's axis, at rest
       if (posed) {   // carried onto the posed face by its own rest → posed rotation (exact for a face riding one bone)
@@ -424,11 +471,23 @@ const ringArea2 = (R, n) => { let s = 0; for (let i = 1; i + 1 < R.length; i++) 
  * notch, as the neck's front muscles carry the shade down to it (a band just under the chin hid behind the jaw: the
  * neck read lit); `k` the scalar's slope (per m), so the step's crossing falls on the line */
 const NECK_JAW_SHADOW = Object.freeze({ front: 0.06, side: 0.03, k: 40 });
+/** the soft edge's band, a fill no palette has (resolved to graded corners at emission) */
+const BAND = '#band';
+const linC = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4), srgbC = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
+/** `a` toward `b` by `k` in linear light, as hex */
+function mixLinear(a, b, k) {
+  const A = hexToRgb(a), B = hexToRgb(b);
+  return rgbToHex(A.map((x, i) => 255 * srgbC(linC(x / 255) + (linC(B[i] / 255) - linC(x / 255)) * k)));
+}
 export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
   const glow = new Set(Array.isArray(glows) ? glows : []);   // the recipe's emissive groups: full-bright, never split (still inked)
   const Lv = light.toLight; const unlit = new Set(light.unlit || []); const thresholds = light.thresholds || {}; const t0 = Number.isFinite(light.threshold) ? light.threshold : 0;
+  // THE SOFT EDGE (`light.soft`, the painterly look): a group with no highlight and no strands steps over a BAND of that
+  // width in N·L about its threshold instead of on one line: the band's two edges are cut as the highlight's line is
+  // (conforming), and its pieces carry their corners' colours graded from the shade to the base by N·L (`soft`)
+  const SOFT = Number.isFinite(light.soft) && light.soft > 0 ? light.soft : 0;
   const neckInShade = !!neckShade, top = hairTop ? HAIR_TOP_PLANES : 0;   // THE NECK OCCLUSION RULE, THE HAIR'S TOP PLANES (see above)
   // the jaw line on the structured core's neck (rest positions): the neck's axis, the chin (the face shell's lowest
   // point in front of it), each neck corner's height over the line
@@ -555,23 +614,28 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     // the top planes' term only where it applies: every other corner keeps N·L as it was (no `+ 0`, which would turn a −0 to +0)
     const topLift = top && g === 'Hair', d0 = N[fi].map((c) => (topLift && c[2] > 0 ? dot(c, Lv) + top * c[2] : dot(c, Lv)));
     // the structured neck: in the jaw's shadow above its line, by N·L under it
-    const d = jawNeck ? d0.map((x, j) => Math.min(x, t + NECK_JAW_SHADOW.k * jaw(tri[j]))) : d0; const lit = d.map((x) => x > t);
-    const H = HI.get(g); let hi = H && lit.some(Boolean) && !(H.parts && !H.parts.test(partName)) ? H : null, colour = null;
+    const St = ST.get(g), soft = SOFT && !HI.has(g) && !St && !jawNeck ? SOFT : 0;
+    const d = jawNeck ? d0.map((x, j) => Math.min(x, t + NECK_JAW_SHADOW.k * jaw(tri[j]))) : d0; const lit = d.map((x) => x > t - soft / 2);
+    // the soft band's upper edge rides the highlight's machinery as a `gloss` line at the band's top: below it the band, above it the base
+    const H = soft ? { R: { kind: 'gloss', threshold: t + soft / 2 } } : HI.get(g); let hi = H && lit.some(Boolean) && !(H.parts && !H.parts.test(partName)) ? H : null, colour = null;
     // the strands: on a face the step leaves whole (all lit or all shade) and the highlight does not light, a band in its
     // own tone darkened
-    const St = ST.get(g);
     if (St && lit[0] === lit[1] && lit[1] === lit[2] && !(hi && tri.some((vi, j) => hiOf(H, d[j], rest.vertices[vi]) > 0))) {
       const sets = strandSets(St, tri);
       if (sets) { const own = lit[0] ? hex : shade; return { fi, tri, outNormal, partName, panel: { kind: 'strand', sets }, fills: [own, darker(own, St.R.tone)] }; }
     }
-    if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
+    if (soft && hi) colour = hex;   // above the band: the base
+    else if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
+    // on a soft face the lit side of the step is the band (BAND, graded at emission) until the band's top line
+    const own = soft ? BAND : hex;
     let f;
-    if (lit[0] === lit[1] && lit[1] === lit[2]) f = { fi, tri, outNormal, partName, fill: lit[0] ? hex : shade };
+    if (lit[0] === lit[1] && lit[1] === lit[2]) f = { fi, tri, outNormal, partName, fill: lit[0] ? own : shade };
     else {
       const k = lit[0] === lit[1] ? 2 : lit[0] === lit[2] ? 1 : 0;   // the odd corner
-      const A = tri[k], B = tri[(k + 1) % 3], C = tri[(k + 2) % 3];
-      f = { fi, tri, outNormal, partName, k, lit, P: crossing(A, B, d[k], d[(k + 1) % 3], t), Q: crossing(A, C, d[k], d[(k + 2) % 3], t), fills: lit[k] ? [hex, shade] : [shade, hex] };
+      const A = tri[k], B = tri[(k + 1) % 3], C = tri[(k + 2) % 3], tl = t - soft / 2;
+      f = { fi, tri, outNormal, partName, k, lit, P: crossing(A, B, d[k], d[(k + 1) % 3], tl), Q: crossing(A, C, d[k], d[(k + 2) % 3], tl), fills: lit[k] ? [own, shade] : [shade, own] };
     }
+    if (soft) f.soft = { d, lo: t - soft / 2, w: soft, shade, base: hex };
     if (!hi) return f;
     // the highlight: its scalar at the corners (the rest position rides the head), its crossings on the lit part of each
     // edge, and the point where its line meets the step's chord
@@ -592,7 +656,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
         else { const w = wP.map((x, j) => x + (wQ[j] - x) * mu), bary = tri.map((vi, j) => [vi, w[j]]); X = { p: baryPoint(mesh.vertices, bary, dz), bary }; }
       }
     }
-    return { ...f, hi: { sv, E, X, colour, hex } };
+    return { ...f, hi: { sv, E, X, colour, hex: own } };
   });
   for (const list of edges.values()) list.sort((x, y) => x.s - y.s);
   // the boundary ring of a face from corner `start`: each corner, then the registered points on its outgoing edge
@@ -606,7 +670,16 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   };
   // pass 2: emit — the plain triangle when nothing touches it, else the conforming pieces
   const pieces = [];
-  const emit = (tris, fill, f) => { for (const T of tris) pieces.push({ fi: f.fi, refs: T, fill, outNormal: f.outNormal, part: f.partName, mark: f.mark === true }); };
+  // a BAND piece (the soft edge) is graded: each corner's colour from the shade to the base by its N·L across the band (in
+  // linear light), its `fill` the band's middle (what a consumer without corner colours, the rig pack, shows)
+  const dAt = (f, r) => { if (r.mix) return r.mix.reduce((a, x) => a + dAt(f, x), 0) / r.mix.length; const w = baryOf(f.tri, r); return w[0] * f.soft.d[0] + w[1] * f.soft.d[1] + w[2] * f.soft.d[2]; };
+  const graded = (f, k) => mixLinear(f.soft.shade, f.soft.base, Math.min(1, Math.max(0, k)));
+  const emit = (tris, fill, f) => {
+    for (const T of tris) {
+      if (fill === BAND) pieces.push({ fi: f.fi, refs: T, fill: graded(f, 0.5), soft: T.map((r) => graded(f, (dAt(f, r) - f.soft.lo) / f.soft.w)), outNormal: f.outNormal, part: f.partName, mark: f.mark === true });
+      else pieces.push({ fi: f.fi, refs: T, fill, outNormal: f.outNormal, part: f.partName, mark: f.mark === true });
+    }
+  };
   // a lit ring of a highlit face: split on the highlight's line at its two crossings on the ring (its edge points, the
   // chord point), the s > 0 side in the highlight; one side with no area, or a line that misses, fills the whole ring by
   // the sign of s at its vertex centroid (s is linear across the face)
@@ -702,9 +775,11 @@ export function piecesAt(pieces, mesh, dz = 0) {
  * `pieces`: characterLitPieces built at this mesh's seat (`layeredSeat(mesh, seat)`), shared with the rig pack;
  * built here when absent. `normals`: per-face-corner normals (layeredShadingNormals); computed when absent.
  */
-export function characterLitFaces(mesh, recipe = {}, { light = ANIME_CHARACTER_LIGHT, normals = null, seat = true, group = null, pieces = null, hairInk = false } = {}) {
+export function characterLitFaces(mesh, recipe = {}, { light = ANIME_CHARACTER_LIGHT, normals = null, seat = true, group = null, pieces = null, hairInk = false, paint = null } = {}) {
   const P = pieces || characterLitPieces(mesh, { light, normals: normals || layeredShadingNormals(mesh, recipe), palette: recipe.palette, dz: layeredSeat(mesh, seat), glows: recipe.emissive });
-  return P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: c.fill, group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}) }; });
+  // `paint` (face-paint.js facePaintOf): a piece of a painted face carries the texture, its corners' [s, t] and its fill as
+  // the light alone (texel × light on the page); absent ⇒ every face as before
+  return P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }), tex = paint?.painted(c.fi); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: tex ? paint.light(c.fill) : c.fill, ...(c.soft ? { cornerFills: tex ? c.soft.map(paint.light) : c.soft } : {}), group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}), ...(tex ? { texture: paint.key, uv: c.refs.map(paint.uvAt), textureLit: true } : {}) }; });
 }
 
 // ─── the draw layers ──────────────────────────────────────────────────────

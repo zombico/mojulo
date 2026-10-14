@@ -124,12 +124,12 @@ function pinned(L1, name, at, side, local, group, extra = {}) {
 }
 /** SURFACE STRIP: stations are (s,t) addresses; cross-sections live in each station's own surface frame.
  * Convention: profile point 0 is the edge FACING the region the strip bounds (brow: down; pad: up). */
-function strip(L1, name, addrs, side, profile, handle = () => [0, 0, 0]) {
+function strip(L1, name, addrs, side, profile, handle = () => [0, 0, 0], { end: endLen = 0.005 } = {}) {   // `end`: how far each cap reaches past its ring
   const F = addrs.map((a) => frameAt(L1, name, a, side)); const O = F.map((f) => f.origin);
   const rings = F.map((f, j) => { const n = f.normal; const raw = sub(O[Math.min(j + 1, O.length - 1)], O[Math.max(j - 1, 0)]); const d = unit(sub(raw, mul(n, dot(raw, n))));
     const e = mul(cross(n, d), side === 'L' ? -1 : 1); const [hd, he, hn] = handle(j); const o = add(f.origin, add(add(mul(d, hd), mul(e, he)), mul(n, hn)));
     return profile(j).map(([a, h]) => add(o, add(mul(e, a), mul(n, h)))); });
-  const end = (j, sgn) => { const c = mean(rings[j]); const other = mean(rings[j + (sgn < 0 ? 1 : -1)]); return add(c, mul(unit(sub(c, other)), 0.005)); };
+  const end = (j, sgn) => { const c = mean(rings[j]); const other = mean(rings[j + (sgn < 0 ? 1 : -1)]); return add(c, mul(unit(sub(c, other)), endLen)); };
   const mesh = loftParts(rings, end(0, -1), end(rings.length - 1, 1)); mesh.edge0 = rings.map((r) => r[0]); mesh.normal = F[Math.floor(F.length / 2)].normal;
   const mid = addrs[Math.floor(addrs.length / 2)]; mesh.pin = address(L1, name, mid[0], mid[1], side);   // the strip's carrier address, for a bake
   return mesh;
@@ -277,7 +277,7 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   // aperture, just off the ball) over a rim and a bowed middle to the skin — and on top the skin point is
   // held just UNDER the brow's lower edge, so the brow overhangs the lid. Upper half = lid, lower = pad.
   const hu = R * Math.max(0.05, orbit.open[0] - 0.55 * lidClose + 8 * lift), hl = R * Math.max(0.05, orbit.open[1] - 0.3 * lidClose - 0.28 * Math.max(0, bunch));
-  const N = 20, TH = orbit.thickness; const sections = [];
+  const N = orbit.sections ?? 20, TH = orbit.thickness; const sections = [];   // `sections` round the eye: a drawn creature sets them by its target (creature-drawn.js)
   // CLEARANCE RULE: no lid or pad vertex inside the eyeball. The ball's extent is measured on its drawn vertices
   // (iris disc included) about its centre, which gaze never moves. A lining vertex inside that radius plus
   // `clear` is lifted along the eye's axis onto it, a skin vertex onto it plus `minThick`: the lid drapes over

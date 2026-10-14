@@ -21,7 +21,7 @@ var store = null
 var schema: Dictionary = {}
 var state: Dictionary = {}
 var run_log: Array = []
-var stinger: AudioStreamPlayer = null   # since 0.19.0: audio/stinger-<victory|defeat>.wav, played once as a level ends
+var stinger: AudioStreamPlayer = null   # since 0.20.0: audio/stinger-<victory|defeat>.wav, played once as a level ends
 var stinger_until := 0                  # when it ends (msec): the menu's music waits for it
 
 

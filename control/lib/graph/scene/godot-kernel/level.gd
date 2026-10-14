@@ -132,7 +132,7 @@ var figure_players: Array = []       # [{node, player, anim}] — ambient idles,
 var probe_frames := -1               # --mojulo-frames=N: dump at frame N and quit
 var probe_frame := 0
 var _marker_res: Dictionary = {}     # marker kind -> the one shared Mesh (material on it)
-var sound = null                     # kernel/sound.gd when the score carries `audio` (0.19.0): action sounds, the fight score
+var sound = null                     # kernel/sound.gd when the score carries `audio` (0.20.0): action sounds, the fight score
 var looks: Node3D = null             # kernel/looks.gd when the score carries looks: looks.wear(node, name) / lift / transit
 
 
@@ -1056,7 +1056,7 @@ func _start_music() -> void:
 	music.play()
 
 
-# the level's sound (score.json `audio`, since 0.19.0): kernel/sound.gd as the child "Sound", hearing the bus and the
+# the level's sound (score.json `audio`, since 0.20.0): kernel/sound.gd as the child "Sound", hearing the bus and the
 # hero; absent ⇒ no node, the level as before
 func _build_sound() -> void:
 	if not score.get("audio") is Dictionary:

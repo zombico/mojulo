@@ -61,8 +61,10 @@ export const faceState = (c) => ({ eyeL: c.blink ?? 0, eyeR: c.blink ?? 0, smile
 const near = (a, b) => Math.abs(a - b) < 1e-9;
 /** the drawing an eye value is shown as: the nearest knot (of `knots`, a hero's faceKnots) */
 export const drawEye = (e, knots = EYE_KNOTS) => knots.reduce((best, k) => (Math.abs(k - e) < Math.abs(best - e) ? k : best), 0);
-/** a face state → its weights in the targets' order (each eye drawn at its nearest knot); `K` a hero's faceKnots */
+/** a face state → its weights in the targets' order (each eye drawn at its nearest knot); `K` a hero's faceKnots, or the
+ * painted face's (face-paint-rig.js: its own targets and `weigh`) */
 export function faceWeights(F, K = STANDARD) {
+  if (K.weigh) return K.weigh(F);   // the painted face's own drawings (face-paint-rig.js)
   const eL = drawEye(F.eyeL, K.eyeKnots), eR = drawEye(F.eyeR, K.eyeKnots), b = Math.min(eL, eR);
   const w = Object.fromEntries(K.targets.map((n) => [n, 0]));
   w.blink = b; w.blinkLeft = eL - b; w.blinkRight = eR - b;

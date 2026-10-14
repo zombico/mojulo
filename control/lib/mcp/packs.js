@@ -81,7 +81,7 @@ export const PACKS = [
     title: 'Characters: heroes, creatures & animals',
     description:
       "CHARACTERS — a body with a rig you can play, print or watch: create_character as a hero (a person by cast word, proportions, face, hair, clothes and armour), a creature (a dragon, a monster, a plush toy, any invented body) or an animal (a real species). Plays its clips on the World page and exports skinned. Open for 'a hero for my game', 'a low-poly knight I can rig', 'a cute plush bear', 'a dragon I can animate', 'a wolf I can 3D print', 'give her a ponytail and broader shoulders'.",
-    members: ['create_character'],
+    members: ['create_character', 'update_character'],
     shared: ['get_solid_vocab'],
   },
   {

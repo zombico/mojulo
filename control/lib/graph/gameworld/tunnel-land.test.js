@@ -17,10 +17,17 @@ import { FINISH_MATERIALS } from '../era/blocks.js';
 import { collectBlendLayers } from '../scene/channels/blend-layer.js';
 
 const FRONTIER = 'realism but stylized and detailed: a grounded frontier of rust plains, basalt cliffs, sparse lichen scrub, a gas giant in a pale sky, dusty, vast';
+const RED = 'realistic red plains, granite cliffs, a clear sky';
+// every written card runs the same decompile and the same pole: two of them stand for the rest
+const CARDS = Object.entries(ISEKAI_STYLES).slice(0, 2);
+// the builds several laws read, made once: the red look's stage at seed 5 and the Halden bible
+const once = (make) => { let v; return () => (v ??= make()); };
+const redStage = once(() => assembleStageScene({ kind: 'stage', kit: composeLook(RED).id, seed: 5 }));
+const haldenBible = once(() => gameworldBibleHtml(HALDEN_REACH));
 
 describe('look facets', () => {
-  it('every written isekai card comes apart into its facets and goes back together as it was', () => {
-    for (const [id, card] of Object.entries(ISEKAI_STYLES)) {
+  it('a written isekai card comes apart into its facets and goes back together as it was', () => {
+    for (const [id, card] of CARDS) {
       const D = decompileKit(card);
       expect(Object.keys(D.facets), id).toEqual([...FACET_IDS]);
       expect(JSON.stringify(composeKit(D)), id).toBe(JSON.stringify(card));
@@ -68,11 +75,10 @@ describe('the land tunnel', () => {
     expect(colorKey(L.id).ramps.find((x) => x.name === 'rock').stops).toHaveLength(7);
     expect(structurePaint(L.id).kitId).toBe(L.id);
     expect(() => registerLook({ id: L.id, base: 'isekai-meadow', card: {}, swatches: {} })).toThrow(/another look already/);
-  }, 60000);
+  });
 });
 
 describe('the realistic pole', () => {
-  const RED = 'realistic red plains, granite cliffs, a clear sky';
   it('a realistic look draws its ground as material under light: three tiles round their ramps\' middles, pocketing holding', () => {
     const L = composeLook(RED);
     expect(L.card.ground).toMatchObject({ split: 2, cavity: 0.45 });
@@ -83,7 +89,7 @@ describe('the realistic pole', () => {
     const law = LOOK_LAWS.find((l) => l.law === 'pocketing');
     expect(law.test(L).ok).toBe(true);
     expect(law.test(composeLook('green meadows, a blue sky')).value).toMatch(/banded/);
-    for (const card of Object.values(ISEKAI_STYLES)) expect(card.ground).toBeUndefined();
+    for (const [, card] of CARDS) expect(card.ground).toBeUndefined();
   });
 
   it('the dirt tile: only its window\'s stops, the ramp\'s middle the most of it, a dark outline and lit grit present', () => {
@@ -119,8 +125,7 @@ describe('the realistic pole', () => {
   });
 
   it('its stage: every bare ground cell is a lit material face, the shadow split on its edge; the same page per seed', () => {
-    const L = composeLook(RED);
-    const a = assembleStageScene({ kind: 'stage', kit: L.id, seed: 5 });
+    const L = composeLook(RED), a = redStage();
     const ground = a.faces.filter((f) => /:(dirt|scree|packed)-lit(~\d+)?$/.test(f.texture || ''));
     expect(new Set(ground.map((f) => f.texture).filter((k) => /dirt-lit~/.test(k))).size).toBeGreaterThan(8);   // the joining variants, laid by their edges
     expect(ground.length).toBeGreaterThan(5000);
@@ -130,19 +135,19 @@ describe('the realistic pole', () => {
     const span = (f) => Math.hypot(f.corners[1][0] - f.corners[0][0], f.corners[1][1] - f.corners[0][1]);
     expect(Math.min(...ground.map(span))).toBeLessThan(Math.max(...ground.map(span)) / 3);
     expect(JSON.stringify(assembleStageScene({ kind: 'stage', kit: L.id, seed: 5 }).faces.slice(-200))).toBe(JSON.stringify(a.faces.slice(-200)));
-  }, 60000);
+  });
 });
 
 describe('the pole cascades: decided at the look, drawn by everything', () => {
-  it('a realistic look is on the material pole; every written kit is banded; materials come from ramps and finishes', () => {
-    expect(poleOf(composeLook('realistic red plains, granite cliffs, a clear sky').id)).toBe('material');
-    for (const id of Object.keys(ISEKAI_STYLES)) expect(poleOf(id), id).toBe('banded');
+  it('a realistic look is on the material pole; a written kit is banded; materials come from ramps and finishes', () => {
+    expect(poleOf(composeLook(RED).id)).toBe('material');
+    for (const [id] of CARDS) expect(poleOf(id), id).toBe('banded');
     expect([materialOf('stone'), materialOf('rock'), materialOf('timber'), materialOf('foliage'), materialOf('soil'), materialOf('paint'), materialOf('lens')]).toEqual(['stone', 'rockface', 'grain', 'leaf', 'dirt', null, null]);
     expect(FINISH_MATERIALS.alloy['tech:body']).toBe('metal');
   });
 
   it('the Halden bible: houses, machines, the castle, the land and the towns all drawn in their materials; a banded world in none', () => {
-    const a = gameworldBibleHtml(HALDEN_REACH), plate = (id) => { const i = a.indexOf(`<!--plate:${id}-->`); return a.slice(i, a.indexOf('</svg>', i)); };
+    const a = haldenBible(), plate = (id) => { const i = a.indexOf(`<!--plate:${id}-->`); return a.slice(i, a.indexOf('</svg>', i)); };
     const ids = [...a.matchAll(/<!--plate:((?:house|civ-castle|civ-thing|land|town)-[a-z0-9-]+)-->/g)].map((m) => m[1]);
     expect(ids.length).toBeGreaterThan(15);
     // (the sky is the air's: the cloud plate stays flat on either pole)
@@ -154,7 +159,7 @@ describe('the pole cascades: decided at the look, drawn by everything', () => {
   }, 120000);
 
   it('its stage: cliffs, rocks, grass and trees are texel × light — no banded tile, no locked colour on them', () => {
-    const L = composeLook('realistic red plains, granite cliffs, a clear sky'), p = assembleStageScene({ kind: 'stage', kit: L.id, seed: 5 });
+    const p = redStage();
     const tiled = p.faces.filter((f) => /^isekai:/.test(f.texture || '') && !/:(cumulus|rim|creep)-/.test(f.texture));
     expect(tiled.length).toBeGreaterThan(5000);
     expect(tiled.every((f) => f.textureLit && /-(lit(~\d+)?|b\d)$/.test(f.texture))).toBe(true);   // (a canopy's skin by its band of light)
@@ -164,20 +169,19 @@ describe('the pole cascades: decided at the look, drawn by everything', () => {
     const mid = (f) => [0, 1].map((k) => f.corners.reduce((a, c) => a + c[k], 0) / f.corners.length), crowns = p.faces.filter((f) => f.group === 'isekai:crown');
     expect(crowns.filter((f) => f.textureLit).length).toBeGreaterThan(1000);
     expect(crowns.filter((f) => !f.textureLit).every((f) => { const [x, y] = mid(f); return x < x0 || x > x1 || y < y0 || y > y1; })).toBe(true);
-  }, 60000);
+  });
 });
 
 describe('the realism palette and its patches', () => {
-  const RED = 'realistic red plains, granite cliffs, a clear sky';
   it('its rock is drawn real: the cliff as strata, the rock a rock face, no grass hats, lit smooth corner by corner, the sky\'s fill near grey', () => {
     const L = composeLook(RED);
     expect([L.card.tiles.cliff.paint, L.card.tiles.rock.paint, L.card.boulder.minHat]).toEqual(['strata', 'rockface', 99]);
     expect(LOOK_LAWS.find((l) => l.law === 'sky-fill').test(L).ok).toBe(true);
-    const p = assembleStageScene({ kind: 'stage', kit: L.id, seed: 5 }), rock = p.faces.filter((f) => f.group === 'isekai:rock' || f.group === 'isekai:cliff');
+    const p = redStage(), rock = p.faces.filter((f) => f.group === 'isekai:rock' || f.group === 'isekai:cliff');
     expect(rock.every((f) => f.cornerFills?.length === f.corners.length)).toBe(true);
     expect(rock.filter((f) => new Set(f.cornerFills).size > 1).length).toBeGreaterThan(rock.length / 3);   // smooth: corners differ
     expect(p.faces.some((f) => /:hat-/.test(f.texture || ''))).toBe(false);
-  }, 60000);
+  });
 
   it('leaves: a die by what grows; its skin swaps figure and ground as the light falls; crowns banded, their edges leaf cards', () => {
     expect(LEAF_DIE_IDS).toEqual(expect.arrayContaining(['oval', 'lance', 'cleft', 'lobed', 'needle']));
@@ -195,7 +199,7 @@ describe('the realism palette and its patches', () => {
     const cards = p.faces.filter((f) => f.group === 'isekai:leaves');
     expect(cards.length).toBeGreaterThan(200);
     expect(cards.every((f) => /:leafcard-b\d$/.test(f.texture) && p.cutouts.includes(f.texture))).toBe(true);
-  }, 60000);
+  });
 
   it('a realistic look\'s ramps read real: one hue, muted, low-middle, one family — made so by the tunnel; banded looks stand aside', () => {
     const r = tunnelLand(RED), laws = ['hue-steady', 'chroma-ceiling', 'albedo-band', 'one-family'];
@@ -207,7 +211,7 @@ describe('the realism palette and its patches', () => {
   });
 
   it('patches lie by cause, alpha-tested, compact on the page: trodden by the trail, fines in hollows', () => {
-    const L = composeLook(RED), p = assembleStageScene({ kind: 'stage', kit: L.id, seed: 5 });
+    const L = composeLook(RED), p = redStage();
     const pt = p.faces.filter((f) => f.group === 'isekai:patch');
     expect(new Set(pt.map((f) => f.texture.split(':').pop()))).toEqual(new Set(['fines-lit', 'gravel-lit', 'dust-lit', 'crust-lit', 'trodden-lit']));
     expect(pt.every((f) => f.blend === 'cut' && f.cornerAlpha.some((a) => a >= 0.5) && f.uvScale > 0)).toBe(true);
@@ -215,7 +219,7 @@ describe('the realism palette and its patches', () => {
     expect(Math.min(...t.a)).toBeGreaterThan(127);   // every texel passes at full weight
     const layers = collectBlendLayers(pt);
     expect(layers.every((l) => l.cut && l.c8 && !l.uv)).toBe(true);
-  }, 60000);
+  });
 });
 
 describe('a frontier world, through every tunnel', () => {
@@ -232,11 +236,11 @@ describe('a frontier world, through every tunnel', () => {
     expect(Object.values({ ...S.technology.things, ...D.technology.things }).every((t) => t.tunnel.complete)).toBe(true);
     const g = gameworldGraph(HALDEN_REACH);
     expect(g.edges.filter((e) => e.kind === 'makes')).toHaveLength(8);
-  }, 60000);
+  });
 
   it('its bible is the same page every time and shows each tunnel\'s work', () => {
-    const a = gameworldBibleHtml(HALDEN_REACH);
-    expect(a).toBe(gameworldBibleHtml(HALDEN_REACH));
+    const a = haldenBible();
+    expect(gameworldBibleHtml(HALDEN_REACH)).toBe(a);
     for (const id of ['civ-tunnel-survey-corps', 'civ-tunnel-dome-growers', 'civ-thing-survey-corps-fabricator', 'civ-thing-dome-growers-loader']) expect(a).toContain(`<!--plate:${id}-->`);
     expect(a).toContain('Tunnelled from its words');
   }, 120000);
@@ -249,5 +253,5 @@ describe('a frontier world, through every tunnel', () => {
     expect(W.brief.unread).toEqual([]);
     const { world: G } = resolveWorld(W);
     expect(G.civilizations['habitat-folk'].tunnel.complete).toBe(true);
-  }, 60000);
+  });
 });

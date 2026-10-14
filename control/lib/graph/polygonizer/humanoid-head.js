@@ -4,7 +4,7 @@
  * Facial accents and hair are closed lofts pinned to that surface. Expressions are baked; jawOpen is live.
  */
 import { compileLayered, pinFrame } from './station-loft.js';
-import { address, frameAt, loftParts, strip, sweep, vec } from './station-loft-detail.js';
+import { address, frameAt, loftParts, refineSlot, strip, sweep, vec } from './station-loft-detail.js';
 import { surfaceLocalOffset } from './surface-pin.js';
 import { headLandmarks, HEAD_KNOB_DEFAULTS } from './figure-head.js';
 import { DIMORPH } from './figure-rig.js';
@@ -28,6 +28,30 @@ export const EXPRESSIONS = {
   determined: { browRaise: -0.002, browTilt: 0.009, mouthCorner: -0.001, aperture: 0.75, jawOpen: 0 },
   surprised: { browRaise: 0.009, browTilt: 0, mouthCorner: 0, aperture: 1.3, jawOpen: 9 },
 };
+/** the western face's CHANNELS: the words' five, and `blink` (0 open … 1 shut: the eye's stack closes, the lids meeting
+ * low) — the face in motion's (western-face rig) */
+export const WESTERN_CHANNELS = Object.freeze(['browRaise', 'browTilt', 'mouthCorner', 'aperture', 'jawOpen', 'blink']);
+export const CHANNEL_RANGES = Object.freeze({ browRaise: [-0.01, 0.015], browTilt: [-0.012, 0.012], mouthCorner: [-0.006, 0.01], aperture: [0.5, 1.4], jawOpen: [0, 25], blink: [0, 1] });
+/** An expression: a word (its channels, as before) or `{ word?, …channels }` (the word's, neutral's when absent, with
+ * the channels given over it). */
+export function resolveWesternExpression(spec = 'neutral') {
+  if (typeof spec === 'string') return EXPRESSIONS[spec];
+  const { word = 'neutral', ...ch } = spec;
+  return { ...EXPRESSIONS[word], ...ch };
+}
+/** Error lines for an expression (a word or a channel object). */
+export function westernExpressionErrors(spec, at = 'expression') {
+  if (spec === undefined) return [];
+  if (typeof spec === 'string') return EXPRESSIONS[spec] ? [] : [`${at}: one of ${Object.keys(EXPRESSIONS).join(', ')}, or { word?, ${WESTERN_CHANNELS.join(', ')} }`];
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) return [`${at}: a word (${Object.keys(EXPRESSIONS).join(', ')}) or { word?, ${WESTERN_CHANNELS.join(', ')} }`];
+  const errs = [];
+  for (const [k, v] of Object.entries(spec)) {
+    if (k === 'word') { if (!EXPRESSIONS[v]) errs.push(`${at}.word: one of ${Object.keys(EXPRESSIONS).join(', ')}`); continue; }
+    if (!WESTERN_CHANNELS.includes(k)) { errs.push(`${at}.${k}: not a channel (${WESTERN_CHANNELS.join(', ')})`); continue; }
+    const [lo, hi] = CHANNEL_RANGES[k]; if (!(Number.isFinite(v) && v >= lo && v <= hi)) errs.push(`${at}.${k}: a number in ${lo} … ${hi}`);
+  }
+  return errs;
+}
 /** the hair library's style words (humanoid-hair.js), `none` included; `hair` takes a word, `{ style, …controls }` or a list */
 export const HAIR_STYLES = HAIR_STYLE_NAMES;
 export const FACE_VERSION = 3;
@@ -100,6 +124,10 @@ function landmarkRows(a, pole, knobs) {
   ];
 }
 const tint = (hex, factor) => '#' + hex.slice(1).match(/../g).map(h => Math.min(255, Math.round(parseInt(h, 16) * factor)).toString(16).padStart(2, '0')).join('');
+/** a colour times a per-channel multiplier (the lips' tint of the skin: redder, a little darker) */
+/** a colour `t` of the way from `a` to `b` (the brows a shade softer than the hair, toward the skin) */
+const mixHex = (a, b, t) => `#${[1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('')}`;
+const tintRgb = (hex, k) => `#${[1, 3, 5].map((i, c) => Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * k[c]))).toString(16).padStart(2, '0')).join('')}`;
 export function headPalette(skin = '#d9a77e', hair = '#3b291e', overrides = {}) {
   return { Skin: skin, Lid: tint(skin, 0.68), Lip: tint(skin, 0.96), Mouth: '#6b4438', Brow: hair, Hair: hair,
     HairAlt: tint(hair, 1.13), Sclera: '#f5eee2', Iris: '#426479', Pupil: '#152532',
@@ -146,12 +174,14 @@ function detail(carrier, parent, at, side, mesh, group, labels) {
     ...(labels ? { groups: Object.fromEntries(labels.map((g, i) => [`f${i}`, g])) } : {}) };
 }
 // A shallow almond, embedded at its border. Width/height/depth are independent; no protruding eyeball.
-function oval(origin, rx, rz, depth, sides, normal = [0, 1, 0]) {
+function oval(origin, rx, rz, depth, sides, normal = [0, 1, 0], dome = 0) {
   const across = unit([normal[1], -normal[0], 0]);
   const ring = (scale, d) => Array.from({ length: sides }, (_, i) => {
     const a = i * 2 * Math.PI / sides;
     return add(add(origin, mul(normal, d)), add(mul(across, dmath.cos(a) * rx * scale), [0, 0, dmath.sin(a) * rz * scale]));
   });
+  // a DOME (`dome`, metres: the eyeball's bulge under the lids): two more rings rising to the crown, a sphere's cap
+  if (dome > 0) return loftParts([ring(0.88, -0.0015), ring(1, 0), ring(0.8, dome * 0.6), ring(0.45, dome * 0.92)], add(origin, mul(normal, -0.002)), add(origin, mul(normal, dome)));
   return loftParts([ring(0.88, -0.0015), ring(1, 0), ring(0.98, depth * 0.8)], add(origin, mul(normal, -0.002)), add(origin, mul(normal, depth)));
 }
 // A low triangular opening for the nostril seen from below. Unlike an oval
@@ -164,23 +194,34 @@ function nostrilFacet(origin, rx, rz, depth, normal) {
     add(origin, mul(normal, -0.0012)), add(origin, mul(normal, depth + 0.0004)));
 }
 export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly', hair = 'swept',
-  scale = 1, skin = '#d9a77e', hairColor = '#3b291e', palette = {}, expression = 'neutral' } = {}) {
+  scale = 1, skin = '#d9a77e', hairColor = '#3b291e', palette = {}, expression = 'neutral', features = null } = {}) {
+  // FEATURES (opt-in, the tiered form's: tiered-form.js TIERED_FACE): the eyes', brows' and ears' sizes, the ears set
+  // in, a lower lip and the lips' colour (`lipTint`: the skin times [r, g, b], so the lips follow any skin), the lean ear
+  // (`earLean`, head-ear.js). Absent ⇒ every feature as before, byte-identical.
+  const ft = features || {};
   if (!HEAD_PRESETS[preset]) throw new Error(`humanoid: unknown head preset '${preset}'`);
   if (!HEAD_REGISTERS[register]) throw new Error(`humanoid: unknown register '${register}'`);
   const hairErrors = validateHair(hair); if (hairErrors.length) throw new Error(`humanoid: ${hairErrors.join('; ').replace(/unknown style/g, 'unknown hair style')}`);
-  if (!EXPRESSIONS[expression]) throw new Error(`humanoid: unknown expression '${expression}'`);
+  { const errs = westernExpressionErrors(expression); if (errs.length) throw new Error(`humanoid: ${errs.join('; ')}`); }
   if (!(Number.isFinite(scale) && scale > 0)) throw new Error('humanoid: head scale must be positive');
   for (const [k, v] of Object.entries(shape)) if (!(k in HEAD_SHAPE_DEFAULTS) || !(Number.isFinite(v) && v > 0)) throw new Error(`humanoid: invalid head shape '${k}' (have ${Object.keys(HEAD_SHAPE_DEFAULTS).join(', ')})`);
-  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape }, pole = HEAD_PRESETS[preset];
+  const knobs = { ...HEAD_SHAPE_DEFAULTS, ...shape, ...(ft.bridge ? { noseBridge: ft.bridge } : {}) }, pole = HEAD_PRESETS[preset];
   const fit = HEAD_SOURCES[preset] === 'fit', anchors = humanoidAnchors(preset, knobs);
   const rows = fit ? null : landmarkRows(anchors, pole, knobs);
   const sh = { width: HEAD_WIDTH[preset], jaw: 1, nose: 1.05,
     ala: pole.noseWidth * knobs.noseWidth, eye: knobs.eyeSize, brow: Math.sqrt(pole.brow) * knobs.browRidge, mouth: knobs.mouthWidth };
-  const reg = HEAD_REGISTERS[register], ex = EXPRESSIONS[expression];
+  const reg = HEAD_REGISTERS[register], ex = resolveWesternExpression(expression);
   // A fitted head owns its planes: its rows are read off the fitted surface, so the register only sets the eye sides.
-  const cage = fit ? fittedCage(preset, knobs, SLOTS) : null;
+  // the EYE-AND-BROW column (features.ridge: { f, h, socket, temple }, humanoid-head-fit.js midColumn): a `mid` slot
+  // between inner and outer on the cranium and the jaw (refineSlot: every address keeps its meaning), the brow's ridge,
+  // the eye's socket and the temple sculpted on it; absent ⇒ the rings as before
+  const R = fit && ft.ridge ? ft.ridge : null;
+  const cage = fit ? fittedCage(preset, knobs, SLOTS, R ? { mid: R } : {}) : null;
   const rowZ = fit ? cage.rowsZ : rows.map((r) => r[0]);
   const cranium = fit ? fittedRings(cage.cranium, cage.rowsZ, cage.crown) : rings(rows, sh, reg);
+  const midColumn = (part, pts) => { part.slots = [...part.slots]; refineSlot({ parts: { [part.name]: part } }, part.name, 'inner', 'outerR', 'mid', R.f);
+    part.stations.forEach((st, i) => { if (!pts[i]) return; const p = pts[i]; st.points.midR = p.map(r6); st.points.midL = [r6(-p[0]), r6(p[1]), r6(p[2])]; }); };
+  if (R) { cranium.name = 'cranium'; midColumn(cranium, cage.mid.cranium); delete cranium.name; }
   // The skull/jaw boundary follows the mandibular angle up to the condyles. It is not a
   // horizontal puppet cut: the mouth opens at the front while the hinge remains by the ear.
   for (let i = 0; i < 4; i++) {
@@ -197,7 +238,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   for (const st of cranium.stations) for (const [slot, p] of Object.entries(st.points)) {
     const side = /R$|L$/.test(slot), ax = Math.abs(p[0]);
     const cheekWeight = Math.max(0, 1 - Math.abs(p[2] - anchors.cheekR[2]) / 0.065) * Math.min(1, ax / 0.045);
-    if (side && ['innerR', 'innerL', 'outerR', 'outerL'].includes(slot)) {
+    if (side && ['innerR', 'innerL', 'outerR', 'outerL', 'midR', 'midL'].includes(slot)) {
       p[2] += ex.mouthCorner * cheekWeight * 0.75;
       p[1] += Math.max(0, ex.mouthCorner) * cheekWeight * 0.35;
       const browWeight = Math.max(0, 1 - Math.abs(p[2] - anchors.glabella[2]) / 0.038);
@@ -228,6 +269,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
   }
   jaw.caps.back = [0, 0.025, anchors.menton[2] + 0.020];
   // Two coincident boundary rings hide the construction seam; both parts remain individually closed.
+  if (R) { jaw.name = 'jaw'; midColumn(jaw, cage.mid.jaw.slice(0, jaw.stations.length - 1)); delete jaw.name; }
   jaw.stations.at(-1).points = structuredClone(cranium.stations[0].points);
   jaw.caps.tip = [0, anchors.condyleR[1], anchors.condyleR[2]];
   cranium.capGroups = { back: 'Mouth', tip: 'Skin' }; jaw.capGroups = { back: 'Skin', tip: 'Mouth' };
@@ -254,38 +296,93 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
     const at = [4, eyeT], f = frameAt(carrier, 'cranium', at, side);
     const normal = unit([f.normal[0], f.normal[1], 0]);
     const origin = add(f.origin, mul(normal, 0.002));
-    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(origin, 0.018 * sh.eye, 0.0105 * ex.aperture * sh.eye, 0.0009, reg.eyeSides, normal), 'Sclera');
-    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0010)), 0.0085 * sh.eye, 0.0095 * ex.aperture * sh.eye, 0.001, reg.eyeSides, normal), 'Iris');
-    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(add(origin, mul(normal, 0.0021)), 0.0044 * sh.eye, 0.006 * ex.aperture * sh.eye, 0.0005, 8, normal), 'Pupil');
+    // the EYEBALL (features.eyeDome, metres): the white bulges as a dome under the lids and the iris and the pupil ride
+    // its crown, each its own shallow dome (absent ⇒ the flat stack)
+    // sunk (`ft.eyeSink` of the dome, default 0.75): the rim goes into the head and only the crown stands out of the
+    // skin, an eyeball in its socket (on the skin the dome stood proud of the face in profile)
+    const dome = ft.eyeDome ?? 0, sink = dome * (ft.eyeSink ?? 0.75), ride = (k) => (dome ? dome * k - sink : 0);
+    // the BLINK (`blink`, 0 … 1): the stack's height closes to a sliver under the lids and the stack lowers a third of the
+    // eye's half-height, so the lids meet low as an eye shuts; absent or 0 ⇒ as before
+    const shut = ex.blink ?? 0, apt = shut ? ex.aperture * (1 - shut) + 0.05 * shut : ex.aperture;
+    const eyeAt = shut ? (o) => add(o, [0, 0, -0.0035 * shut * sh.eye * (ft.eye ?? 1)]) : (o) => o;
+    parts[`eye${side}`] = detail(carrier, 'cranium', at, side, oval(eyeAt(add(origin, mul(normal, -sink))), 0.018 * sh.eye * (ft.eye ?? 1), 0.0105 * apt * sh.eye * (ft.eye ?? 1), 0.0009, reg.eyeSides, normal, dome), 'Sclera');
+    parts[`iris${side}`] = detail(carrier, 'cranium', at, side, oval(eyeAt(add(origin, mul(normal, 0.0010 + ride(0.78)))), 0.0085 * sh.eye * (ft.eye ?? 1), 0.0095 * apt * sh.eye * (ft.eye ?? 1), 0.001, reg.eyeSides, normal, dome ? dome * 0.3 : 0), 'Iris');
+    parts[`pupil${side}`] = detail(carrier, 'cranium', at, side, oval(eyeAt(add(origin, mul(normal, 0.0021 + ride(1.02)))), 0.0044 * sh.eye * (ft.eye ?? 1), 0.006 * apt * sh.eye * (ft.eye ?? 1), 0.0005, 8, normal), 'Pupil');
     const across = unit([normal[1], -normal[0], 0]);
-    const lidSpine = [[-0.018, 0], [-0.012, 0.0075], [0, 0.0105], [0.012, 0.0075], [0.018, 0]].map(([x, z]) =>
-      add(add(origin, mul(normal, 0.0015)), add(mul(across, x * sh.eye), [0, 0, z * ex.aperture * sh.eye])));
-    const lid = sweep(lidSpine, [0.0007, 0.0010, 0.0011, 0.0008], 4);
+    // the LID (features.lid: { drop, fold, lower }): the upper lid comes `drop` of the eye's height down over the iris's
+    // top and stands `fold` thick, out over the dome; `lower` draws the lower lid's line, that much of the upper's
+    const L = ft.lid ?? null, drop = L?.drop ?? 0, fold = L?.fold ?? 1, out = Math.max(0, dome * 0.75 - sink * 0.6);
+    const lidSpine = [[-0.018, 0], [-0.012, 0.0075 - drop * 0.006], [0, 0.0105 - drop * 0.0095], [0.012, 0.0075 - drop * 0.006], [0.018, 0]].map(([x, z], i) =>
+      eyeAt(add(add(origin, mul(normal, 0.0015 + (i % 4 ? out : out * 0.3))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * apt * sh.eye * (ft.eye ?? 1)]))));
+    const lid = sweep(lidSpine, [0.0007, 0.0010, 0.0011, 0.0008].map((r) => r * fold), 4);
     parts[`lid${side}`] = detail(carrier, 'cranium', at, side, lid, 'Lid');
+    if (L?.lower) {
+      const lowSpine = [[-0.016, -0.001], [-0.009, -0.0072], [0, -0.0092], [0.009, -0.0072], [0.016, -0.001]].map(([x, z], i) =>
+        eyeAt(add(add(origin, mul(normal, 0.0012 + (i % 4 ? out * 0.7 : out * 0.2))), add(mul(across, x * sh.eye * (ft.eye ?? 1)), [0, 0, z * apt * sh.eye * (ft.eye ?? 1)]))));
+      parts[`lidLow${side}`] = detail(carrier, 'cranium', at, side, sweep(lowSpine, [0.0005, 0.0008, 0.0008, 0.0005].map((r) => r * L.lower), 4), 'Lid');
+    }
     const addrs = [[5.12, 3.8], [5.24, 4.15], [5.20, 4.65], [5.08, 4.95]];
-    const brow = strip(carrier, 'cranium', addrs, side, j => {
-      const w = 0.0037 * sh.brow * [0.65, 1, 0.9, 0.35][j];
-      return [[-w, -0.0008], [-w, 0.0015], [w, 0.0015], [w, -0.0008]];
-    });
-    for (const p of Object.values(brow.points)) p[2] += ex.browRaise + ex.browTilt * (Math.abs(p[0]) / 0.065 - 0.6);
+    // the tiered face's BROWS (features.brows: { arch, head, tail, lift }): on seven stations, the middle raised by
+    // `arch` rows into an arch, the head (`head`, by the nose) the thickest and tapering to a fine `tail`, lying `lift`
+    // of the old height off the skin; absent ⇒ the four-station strip as before
+    const B = ft.brows ?? null;
+    // over the ridge (features.ridge) the brow halves its spans again, so it bends over the crest instead of the crest
+    // showing through it
+    const halve = (as) => as.flatMap((a, i) => (i ? [[(as[i - 1][0] + a[0]) / 2, (as[i - 1][1] + a[1]) / 2], a] : [a]));
+    const browAddrs = B ? (R ? halve(halve(addrs)) : halve(addrs)).map(([u, t], j, all) => [u + B.arch * Math.sin((Math.PI * j) / (all.length - 1)), t]) : addrs;
+    // the brow's lift and tilt (browRaise, browTilt: metres up at each point); over the ridge (features.ridge) the brow also
+    // stands forward by a share of each channel's move, so a brow dropped or raised over the curved crest never sinks into
+    // it (each channel's share its own and linear in it: the face rig's targets add up to any mix)
+    const browLift = (x) => ex.browRaise + ex.browTilt * (Math.abs(x) / 0.065 - 0.6);
+    const browW = (j) => (B ? (() => { const x = j / (browAddrs.length - 1); return x < 0.3 ? B.head + (1 - B.head) * (x / 0.3) : 1 + (B.tail - 1) * ((x - 0.3) / 0.7); })() : [0.65, 1, 0.9, 0.35][j]);
+    const browH = B ? B.lift : 1;
+    const brow = strip(carrier, 'cranium', browAddrs, side, j => {
+      const w = 0.0037 * sh.brow * (ft.brow ?? 1) * browW(j);
+      return [[-w, -0.0008 * browH], [-w, 0.0015 * browH], [w, 0.0015 * browH], [w, -0.0008 * browH]];
+    }, undefined, B ? { end: 0.001 } : undefined);
+    for (const p of Object.values(brow.points)) { p[2] += browLift(p[0]); if (R) p[1] += 0.3 * (Math.abs(ex.browRaise) + Math.abs(ex.browTilt * (Math.abs(p[0]) / 0.065 - 0.6))); }
     parts[`brow${side}`] = detail(carrier, 'cranium', [4.95, 2.2], side, brow, 'Brow');
     const earAt = [3.7, 6], ef = frameAt(carrier, 'cranium', earAt, side);
     // the ear (head-ear.js): its side shape and the volume inside, the bowl in the darker EarInner
-    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054, width: 0.97, style: 'western', lift: 0.2, inner: 'EarInner', sparse: register === 'lowpoly' });
+    const ear = earMesh({ origin: add(ef.origin, [0.003 * sign, 0.003, -0.004]), side: sign, height: 0.054 * (ft.ear ?? 1), width: 0.97, style: 'western', lift: ft.earLift ?? 0.2, inner: 'EarInner', sparse: register === 'lowpoly', lean: !!ft.earLean });
     parts[`ear${side}`] = detail(carrier, 'cranium', earAt, side, ear, 'Skin', ear.groups);
     // Tuck each nostril into the underside band between the flat tip and the ala.
     const nostrilAt = [1.38, 2.55], nf = frameAt(carrier, 'cranium', nostrilAt, side);
+    const ns = ft.nostril ?? 1;   // the tiered face's nostrils (features.nostril): the openings that much larger
     parts[`nostril${side}`] = detail(carrier, 'cranium', nostrilAt, side,
-      nostrilFacet(add(nf.origin, mul(nf.normal, 0.0008)), 0.0044, 0.0022, 0.0004, nf.normal), 'Nostrils');
+      nostrilFacet(add(nf.origin, mul(nf.normal, 0.0008)), 0.0044 * ns, 0.0022 * ns, 0.0004, nf.normal), 'Nostrils');
+    // the WING (features.wing: { r, dome, at }): the nostril's ala as a bulb on the nose's side, a dome sunk in the skin
+    // (its crown stands `dome` out), so the nose has a side with an edge to the cheek instead of one wedge plane
+    if (ft.wing) {
+      const wingAt = ft.wing.at ?? [1.55, 3], wf = frameAt(carrier, 'cranium', wingAt, side), wn = unit([wf.normal[0], wf.normal[1], wf.normal[2] * 0.4]);
+      parts[`wing${side}`] = detail(carrier, 'cranium', wingAt, side, oval(add(wf.origin, mul(wn, -ft.wing.dome * 0.55)), ft.wing.r, ft.wing.r * 0.8, 0.001, reg.eyeSides, wn, ft.wing.dome), 'Skin');
+    }
     const lipAddrs = [[0.18, 0.03], [0.31, cupidT], [0.24, 2.05], [0.17, mouthT]];
-    const upperLip = strip(carrier, 'cranium', lipAddrs, side,
-      j => { const w = [0.0014, 0.0023, 0.0021, 0.0013][j]; return [[-w, 0.0012], [-w, 0.0022], [w, 0.0022], [w, 0.0012]]; });
+    // the tiered face's lips (features.lowerLip): each strip sinks into the skin at the mouth's corner and its caps stop
+    // at its ends (the 5 mm caps crossed at the midline into a zigzag, and a full-height corner read as a sliver past the
+    // mouth in three-quarter); absent ⇒ the strips as before
+    // DENSE: a station between each pair (the four-station strip ran straight between its stations, under a curving
+    // face once it thinned), its widths and heights interpolated (`lipW(arr, j)` reads a four-entry array at station j)
+    const soft = !!ft.lowerLip, lipEnd = soft ? { end: 0.0008 } : undefined;
+    const lipAt = (addrs) => (soft ? addrs.flatMap((a, i) => (i ? [[(addrs[i - 1][0] + a[0]) / 2, (addrs[i - 1][1] + a[1]) / 2], a] : [a])) : addrs);
+    const lipW = (arr, j) => { if (!soft) return arr[j]; const x = j / 2, i = Math.min(arr.length - 2, Math.floor(x)), f = x - i; return arr[i] + (arr[i + 1] - arr[i]) * f; };
+    const lipSink = (j, h) => (soft ? h * lipW([1, 1, 0.8, 0.45], j) : h);
+    const upperLip = strip(carrier, 'cranium', lipAt(lipAddrs), side,
+      j => { const w = lipW([0.0014, 0.0023, 0.0021, 0.0013], j); return [[-w, lipSink(j, 0.0012)], [-w, lipSink(j, 0.0022)], [w, lipSink(j, 0.0022)], [w, lipSink(j, 0.0012)]]; }, undefined, lipEnd);
     for (const p of Object.values(upperLip.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / mouthHalf);
     parts[`upperLip${side}`] = detail(carrier, 'cranium', [0.22, 1.5], side, upperLip, 'Lip');
-    const mouth = strip(carrier, 'cranium', [[0.12, 0.03], [0.13, cupidT], [0.13, 2.05], [0.12, mouthT]], side,
-      j => [[-0.0008, 0.0013], [-0.0008, 0.0023], [0.0008, 0.0023], [0.0008, 0.0013]]);
+    const mouth = strip(carrier, 'cranium', lipAt([[0.12, 0.03], [0.13, cupidT], [0.13, 2.05], [0.12, mouthT]]), side,
+      j => [[-0.0008, lipSink(j, 0.0013)], [-0.0008, lipSink(j, 0.0023)], [0.0008, lipSink(j, 0.0023)], [0.0008, lipSink(j, 0.0013)]], undefined, lipEnd);
     for (const p of Object.values(mouth.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / 0.031);
     parts[`mouth${side}`] = detail(carrier, 'cranium', [0.18, 1.1], side, mouth, 'Mouth');
+    // the LOWER LIP (features.lowerLip, its fullness): a strip under the mouth line, fullest at the middle and thinning
+    // into the corner, in the lips' group; it follows the mouth's corners as the upper lip does
+    if (ft.lowerLip) {
+      const lower = strip(carrier, 'cranium', lipAt([[0.06, 0.03], [0.05, cupidT], [0.06, 2.05], [0.1, mouthT]]), side,
+        j => { const w = lipW([0.0026, 0.0024, 0.0017, 0.0008], j) * ft.lowerLip; return [[-w, lipSink(j, 0.0006)], [-w, lipSink(j, 0.0016)], [w, lipSink(j, 0.0016)], [w, lipSink(j, 0.0006)]]; }, undefined, lipEnd);
+      for (const p of Object.values(lower.points)) p[2] += ex.mouthCorner * Math.min(1, Math.abs(p[0]) / mouthHalf);
+      parts[`lowerLip${side}`] = detail(carrier, 'cranium', [0.08, 1.1], side, lower, 'Lip');
+    }
   }
   // hair: the library's closed masses (humanoid-hair.js), each pinned at the crown; the perimeter follows the skull by address
   const H = resolveHair(hair);
@@ -298,7 +395,7 @@ export function humanoidHead({ preset = 'male', shape = {}, register = 'lowpoly'
       for (const [k, v] of Object.entries(p.caps)) p.caps[k] = round(mul(v, scale));
     } else for (const [k, v] of Object.entries(p.offsets)) p.offsets[k] = round(mul(v, scale));
   }
-  return { name: 'head', parts, dials, creases: {}, palette: headPalette(skin, hairColor, palette),
+  return { name: 'head', parts, dials, creases: {}, palette: headPalette(skin, hairColor, { ...palette, ...(ft.lipTint && !palette.Lip ? { Lip: tintRgb(skin, ft.lipTint) } : {}), ...(ft.brows?.soft && !palette.Brow ? { Brow: mixHex(hairColor, skin, ft.brows.soft) } : {}) }),
     bind: { cranium: 'head', jaw: 'jaw' },
     joints: { jawHinge: [...jaw.caps.tip], jawTip: [...jaw.stations[0].points.front] },
     faceVersion: FACE_VERSION, expression, preset, register, hair: H, hairMeasures: grown.measures, scale, shape: knobs,

@@ -1,0 +1,1156 @@
+{
+ "schema": "layered-head-v1",
+ "name": "wolf",
+ "units": {
+  "scale": 0.74,
+  "offset": [
+   0,
+   0,
+   0
+  ]
+ },
+ "parts": {
+  "cranium": {
+   "slots": [
+    "top",
+    "crownR",
+    "browR",
+    "cheekR",
+    "jowlR",
+    "lipR",
+    "palate",
+    "lipL",
+    "jowlL",
+    "cheekL",
+    "browL",
+    "crownL"
+   ],
+   "rows": [
+    [
+     "st0",
+     -0.34,
+     {
+      "top": 0.12,
+      "crown": [
+       0.09,
+       0.1
+      ],
+      "brow": [
+       0.13,
+       0.04
+      ],
+      "cheek": [
+       0.15,
+       -0.06
+      ],
+      "jowl": [
+       0.13,
+       -0.15
+      ],
+      "lip": [
+       0.08,
+       -0.2
+      ],
+      "palate": -0.21
+     }
+    ],
+    [
+     "st1",
+     -0.22,
+     {
+      "top": 0.21,
+      "crown": [
+       0.12,
+       0.18
+      ],
+      "brow": [
+       0.18,
+       0.1
+      ],
+      "cheek": [
+       0.21,
+       -0.03
+      ],
+      "jowl": [
+       0.18,
+       -0.14
+      ],
+      "lip": [
+       0.12,
+       -0.2
+      ],
+      "palate": -0.21
+     }
+    ],
+    [
+     "st2",
+     -0.08,
+     {
+      "top": 0.21,
+      "crown": [
+       0.12,
+       0.18
+      ],
+      "brow": [
+       0.18,
+       0.12
+      ],
+      "cheek": [
+       0.215,
+       0
+      ],
+      "jowl": [
+       0.17,
+       -0.11
+      ],
+      "lip": [
+       0.11,
+       -0.16
+      ],
+      "palate": -0.17
+     }
+    ],
+    [
+     "st3",
+     0.05,
+     {
+      "top": 0.14,
+      "crown": [
+       0.09,
+       0.125
+      ],
+      "brow": [
+       0.13,
+       0.075
+      ],
+      "cheek": [
+       0.15,
+       -0.01
+      ],
+      "jowl": [
+       0.12,
+       -0.08
+      ],
+      "lip": [
+       0.09,
+       -0.12
+      ],
+      "palate": -0.13
+     }
+    ],
+    [
+     "st4",
+     0.16,
+     {
+      "top": 0.075,
+      "crown": [
+       0.062,
+       0.066
+      ],
+      "brow": [
+       0.082,
+       0.036
+      ],
+      "cheek": [
+       0.088,
+       -0.02
+      ],
+      "jowl": [
+       0.082,
+       -0.07
+      ],
+      "lip": [
+       0.066,
+       -0.105
+      ],
+      "palate": -0.11
+     }
+    ],
+    [
+     "st5",
+     0.31,
+     {
+      "top": 0.056,
+      "crown": [
+       0.05,
+       0.049
+      ],
+      "brow": [
+       0.066,
+       0.02
+      ],
+      "cheek": [
+       0.069,
+       -0.025
+      ],
+      "jowl": [
+       0.065,
+       -0.07
+      ],
+      "lip": [
+       0.056,
+       -0.1
+      ],
+      "palate": -0.1
+     }
+    ],
+    [
+     "st6",
+     0.43,
+     {
+      "top": 0.042,
+      "crown": [
+       0.038,
+       0.035
+      ],
+      "brow": [
+       0.05,
+       0.009
+      ],
+      "cheek": [
+       0.053,
+       -0.028
+      ],
+      "jowl": [
+       0.05,
+       -0.062
+      ],
+      "lip": [
+       0.043,
+       -0.088
+      ],
+      "palate": -0.09
+     }
+    ]
+   ],
+   "caps": {
+    "back": [
+     0,
+     -0.4,
+     -0.02
+    ],
+    "tip": [
+     0,
+     0.462,
+     -0.032
+    ]
+   },
+   "group": "Skull",
+   "bandGroups": {
+    "st0-st1": [
+     "Skull",
+     "Skull",
+     "Skull",
+     "Skull",
+     "Jowl",
+     "Palate"
+    ],
+    "st1-st2": [
+     "Skull",
+     "Skull",
+     "Skull",
+     "Skull",
+     "Jowl",
+     "Palate"
+    ],
+    "st2-st3": [
+     "Skull",
+     "Skull",
+     "Skull",
+     "Skull",
+     "Jowl",
+     "Palate"
+    ],
+    "st3-st4": [
+     "Snout",
+     "Snout",
+     "Snout",
+     "Snout",
+     "Jowl",
+     "Palate"
+    ],
+    "st4-st5": [
+     "Snout",
+     "Snout",
+     "Snout",
+     "Snout",
+     "Jowl",
+     "Palate"
+    ],
+    "st5-st6": [
+     "Snout",
+     "Snout",
+     "Snout",
+     "Snout",
+     "Jowl",
+     "Palate"
+    ]
+   },
+   "capGroups": {
+    "back": "Skull",
+    "tip": "Snout"
+   }
+  },
+  "jaw": {
+   "slots": [
+    "gum",
+    "gumR",
+    "jawR",
+    "bottom",
+    "jawL",
+    "gumL"
+   ],
+   "rows": [
+    [
+     "st0",
+     -0.18,
+     {
+      "gum": -0.17,
+      "gumR": [
+       0.09,
+       -0.17
+      ],
+      "jaw": [
+       0.1,
+       -0.22
+      ],
+      "bottom": -0.24
+     }
+    ],
+    [
+     "st1",
+     -0.03,
+     {
+      "gum": -0.15,
+      "gumR": [
+       0.075,
+       -0.15
+      ],
+      "jaw": [
+       0.08,
+       -0.19
+      ],
+      "bottom": -0.215
+     }
+    ],
+    [
+     "st2",
+     0.12,
+     {
+      "gum": -0.125,
+      "gumR": [
+       0.06,
+       -0.125
+      ],
+      "jaw": [
+       0.062,
+       -0.155
+      ],
+      "bottom": -0.175
+     }
+    ],
+    [
+     "st3",
+     0.27,
+     {
+      "gum": -0.11,
+      "gumR": [
+       0.048,
+       -0.11
+      ],
+      "jaw": [
+       0.05,
+       -0.135
+      ],
+      "bottom": -0.15
+     }
+    ],
+    [
+     "st4",
+     0.39,
+     {
+      "gum": -0.1,
+      "gumR": [
+       0.038,
+       -0.1
+      ],
+      "jaw": [
+       0.04,
+       -0.12
+      ],
+      "bottom": -0.13
+     }
+    ]
+   ],
+   "caps": {
+    "back": [
+     0,
+     -0.24,
+     -0.2
+    ],
+    "tip": [
+     0,
+     0.42,
+     -0.115
+    ]
+   },
+   "group": "Jaw",
+   "capGroups": {
+    "back": "Jaw",
+    "tip": "Jaw"
+   }
+  }
+ },
+ "dials": {
+  "jawOpen": {
+   "min": 0,
+   "max": 35,
+   "rest": 0,
+   "doc": "degrees the jaw part rotates about its hinge slot (front goes down)",
+   "op": "hinge",
+   "part": "jaw",
+   "pivot": "jaw/st0.gum",
+   "axis": "x",
+   "sign": -1
+  }
+ },
+ "creases": {},
+ "refine": [
+  {
+   "op": "slot",
+   "part": "jaw",
+   "a": "jaw",
+   "b": "bottom",
+   "name": "chin",
+   "f": 0.5
+  },
+  {
+   "op": "volumize",
+   "part": "jaw",
+   "slots": {
+    "chin*": 1,
+    "bottom": 0.55,
+    "jaw*": 0.35
+   },
+   "stations": {
+    "st0": 0.3,
+    "st1": 0.8,
+    "st2": 1,
+    "st3": 1,
+    "st4": 0.7,
+    "st5": 0.35
+   },
+   "amount": 0.022
+  },
+  {
+   "op": "station",
+   "part": "cranium",
+   "a": "st2",
+   "b": "st3"
+  },
+  {
+   "op": "station",
+   "part": "cranium",
+   "a": "st3",
+   "b": "st4"
+  },
+  {
+   "op": "station",
+   "part": "cranium",
+   "a": "st4",
+   "b": "st5"
+  },
+  {
+   "op": "station",
+   "part": "cranium",
+   "a": "st5",
+   "b": "st6"
+  },
+  {
+   "op": "slot",
+   "part": "cranium",
+   "a": "cheek",
+   "b": "jowlR",
+   "name": "flank"
+  },
+  {
+   "op": "slot",
+   "part": "cranium",
+   "a": "jowl",
+   "b": "lipR",
+   "name": "flew"
+  }
+ ],
+ "skin": {
+  "slots": [
+   "top",
+   "crownR",
+   "browR",
+   "cheekR",
+   "jowlR",
+   "lipR",
+   "palate"
+  ],
+  "radius": 0.09,
+  "controls": {
+   "browRaise": {
+    "amp": 0.02,
+    "map": [
+     [
+      "st2.brow",
+      0.8,
+      [
+       0,
+       0,
+       1
+      ]
+     ],
+     [
+      "st3.brow",
+      0.6,
+      [
+       0,
+       0,
+       1
+      ]
+     ]
+    ]
+   },
+   "browFurrow": {
+    "amp": 0.02,
+    "map": [
+     [
+      "st3.brow",
+      1,
+      [
+       -0.3,
+       0.2,
+       -1
+      ]
+     ],
+     [
+      "st2.brow",
+      0.4,
+      [
+       0,
+       0,
+       -1
+      ]
+     ]
+    ]
+   },
+   "browArch": {
+    "amp": 0.012,
+    "map": [
+     [
+      "st2.brow",
+      1,
+      [
+       0,
+       0,
+       1
+      ]
+     ]
+    ]
+   },
+   "sneer": {
+    "amp": 0.022,
+    "map": [
+     [
+      "st5.jowl",
+      1,
+      [
+       0.2,
+       0,
+       1
+      ]
+     ],
+     [
+      "st5.lip",
+      0.8,
+      [
+       0.2,
+       0,
+       1
+      ]
+     ],
+     [
+      "st6.jowl",
+      0.5,
+      [
+       0.2,
+       0,
+       1
+      ]
+     ],
+     [
+      "st4.crown",
+      0.3,
+      [
+       0,
+       -0.3,
+       1
+      ]
+     ]
+    ]
+   },
+   "cheekBunch": {
+    "amp": 0.018,
+    "map": [
+     [
+      "st3.cheek",
+      1,
+      [
+       0.5,
+       0,
+       0.8
+      ]
+     ],
+     [
+      "st2.cheek",
+      0.6,
+      [
+       0.5,
+       0,
+       0.8
+      ]
+     ]
+    ]
+   },
+   "cornerRetract": {
+    "amp": 0.025,
+    "map": [
+     [
+      "st3.lip",
+      0.8,
+      [
+       0.1,
+       -1,
+       0.3
+      ]
+     ],
+     [
+      "st4.lip",
+      0.5,
+      [
+       0.1,
+       -1,
+       0.3
+      ]
+     ]
+    ]
+   }
+  }
+ },
+ "eye": {
+  "mode": "iris",
+  "pupil": "round",
+  "irisAngle": 44,
+  "catchlight": true
+ },
+ "regions": {
+  "eye": {
+   "at": [
+    2.55,
+    2.45
+   ],
+   "R": 0.021
+  },
+  "orbit": {
+   "open": [
+    0.55,
+    0.45
+   ],
+   "reach": [
+    0.016,
+    0.02,
+    0.024
+   ],
+   "tuck": 0.004,
+   "bulk": [
+    0.003,
+    0.008
+   ],
+   "thickness": 0.006
+  },
+  "brow": {
+   "strip": [
+    [
+     1.9,
+     2.08
+    ],
+    [
+     2.2,
+     2.03
+    ],
+    [
+     2.55,
+     2.03
+    ],
+    [
+     2.85,
+     2.08
+    ],
+    [
+     3.15,
+     2.2
+    ]
+   ],
+   "w": 0.016,
+   "h": 0.011,
+   "taper": [
+    0.55,
+    0.9,
+    1,
+    0.9,
+    0.6
+   ],
+   "facing": "down"
+  },
+  "nostril": {
+   "at": [
+    5.92,
+    1.3
+   ],
+   "r": 0.01,
+   "squash": [
+    1.3,
+    1
+   ],
+   "slide": 0.4
+  },
+  "fold": {
+   "strip": [
+    [
+     5.5,
+     1.8
+    ],
+    [
+     5,
+     2.6
+    ],
+    [
+     4.4,
+     3.4
+    ],
+    [
+     3.85,
+     4.1
+    ],
+    [
+     3.4,
+     4.6
+    ]
+   ]
+  },
+  "web": {
+   "cranium": [
+    1.6,
+    3.2,
+    4.97
+   ],
+   "jaw": [
+    0.4,
+    2.1,
+    0.97
+   ]
+  },
+  "tiles": [
+   {
+    "part": "cranium",
+    "s": [
+     0.4,
+     2.1
+    ],
+    "t": [
+     3.05,
+     4.6
+    ],
+    "grid": [
+     7,
+     3
+    ],
+    "brick": true,
+    "sides": 3,
+    "coverage": 1.2,
+    "inset": 0.85,
+    "height": 0.04,
+    "lean": -1.1,
+    "edgeFade": 0.25,
+    "thin": 0.5,
+    "wobble": 0.3,
+    "jitter": 0.35,
+    "group": [
+     "Fur",
+     "FurAlt"
+    ]
+   },
+   {
+    "part": "cranium",
+    "s": [
+     0.2,
+     1.6
+    ],
+    "t": [
+     0.15,
+     1.5
+    ],
+    "grid": [
+     5,
+     3
+    ],
+    "brick": true,
+    "sides": 3,
+    "coverage": 1.2,
+    "inset": 0.85,
+    "height": 0.024,
+    "lean": -1.2,
+    "edgeFade": 0.25,
+    "thin": 0.5,
+    "wobble": 0.3,
+    "jitter": 0.35,
+    "group": [
+     "Fur",
+     "FurAlt"
+    ]
+   }
+  ],
+  "wrinkles": [
+   {
+    "strip": [
+     [
+      4.7,
+      0.1
+     ],
+     [
+      4.7,
+      0.6
+     ],
+     [
+      4.7,
+      1.2
+     ]
+    ],
+    "w": 0.004,
+    "h": 0.006,
+    "rest": 0.2,
+    "drive": {
+     "sneer": 1
+    }
+   },
+   {
+    "strip": [
+     [
+      5,
+      0.1
+     ],
+     [
+      5,
+      0.55
+     ],
+     [
+      5,
+      1.1
+     ]
+    ],
+    "w": 0.004,
+    "h": 0.006,
+    "rest": 0.2,
+    "drive": {
+     "sneer": 1
+    }
+   },
+   {
+    "strip": [
+     [
+      2.8,
+      1.1
+     ],
+     [
+      3.05,
+      1.05
+     ],
+     [
+      3.3,
+      1
+     ]
+    ],
+    "w": 0.004,
+    "h": 0.007,
+    "rest": 0.1,
+    "drive": {
+     "browFurrow": 1
+    }
+   },
+   {
+    "strip": [
+     [
+      1.95,
+      2.2
+     ],
+     [
+      1.87,
+      2.12
+     ],
+     [
+      1.79,
+      2.04
+     ]
+    ],
+    "w": 0.003,
+    "h": 0.005,
+    "rest": 0.1,
+    "drive": {
+     "cheekBunch": 1
+    }
+   },
+   {
+    "strip": [
+     [
+      1.93,
+      2.5
+     ],
+     [
+      1.85,
+      2.5
+     ],
+     [
+      1.77,
+      2.5
+     ]
+    ],
+    "w": 0.003,
+    "h": 0.005,
+    "rest": 0.1,
+    "drive": {
+     "cheekBunch": 1
+    }
+   },
+   {
+    "strip": [
+     [
+      1.95,
+      2.8
+     ],
+     [
+      1.87,
+      2.88
+     ],
+     [
+      1.79,
+      2.96
+     ]
+    ],
+    "w": 0.003,
+    "h": 0.005,
+    "rest": 0.1,
+    "drive": {
+     "cheekBunch": 1
+    }
+   }
+  ],
+  "whiskers": {
+   "roots": [
+    {
+     "at": [
+      5.3,
+      4.2
+     ]
+    },
+    {
+     "at": [
+      5.5,
+      4.25
+     ],
+     "dir": [
+      -0.1,
+      0.25,
+      1
+     ]
+    },
+    {
+     "at": [
+      5.4,
+      4.55
+     ],
+     "dir": [
+      -0.3,
+      -0.3,
+      1
+     ]
+    }
+   ],
+   "dir": [
+    -0.35,
+    0,
+    1
+   ],
+   "len": 0.05,
+   "r": 0.0016,
+   "droop": 0.3
+  },
+  "tongue": {
+   "at": [
+    0.6,
+    0.02
+   ],
+   "to": 3.2,
+   "slide": 0.05,
+   "width": 0.09,
+   "thickness": 0.03,
+   "lift": 0,
+   "seat": 0.003,
+   "groove": 0.3,
+   "tip": "round",
+   "curlMax": 1.8,
+   "swayMax": 0.8,
+   "droop": 1.3
+  }
+ },
+ "landmarks": {
+  "nape": [
+   0,
+   -0.26,
+   -0.12
+  ]
+ },
+ "ornaments": [
+  {
+   "kind": "leaf",
+   "name": "ear",
+   "at": [
+    1.2,
+    0.75
+   ],
+   "space": "local",
+   "length": 0.2,
+   "widths": [
+    0.05,
+    0.062,
+    0.058,
+    0.045,
+    0.026,
+    0.008
+   ],
+   "cup": 0.022,
+   "thick": 0.009,
+   "dir": [
+    0,
+    -0.18,
+    1
+   ],
+   "attitude": {
+    "control": "earAttitude",
+    "gain": 0.5
+   },
+   "group": "Ears",
+   "inner": {
+    "group": "EarInner",
+    "inset": 0.58,
+    "lift": 0.003,
+    "reach": 0.78
+   }
+  },
+  {
+   "kind": "sweep",
+   "name": "nose",
+   "at": [
+    5.75,
+    0.0001
+   ],
+   "side": "R",
+   "space": "local",
+   "spine": [
+    [
+     0,
+     0,
+     -0.012
+    ],
+    [
+     0,
+     0,
+     0.012
+    ],
+    [
+     0,
+     0,
+     0.022
+    ]
+   ],
+   "radii": [
+    0.026,
+    0.022
+   ],
+   "m": 8,
+   "squash": [
+    1.25,
+    1
+   ],
+   "group": "NosePad"
+  },
+  {
+   "kind": "teeth",
+   "part": "cranium",
+   "from": 4.3,
+   "to": 5.7,
+   "t": 5.2,
+   "sizes": [
+    0.036,
+    0.014,
+    0.012
+   ],
+   "down": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "kind": "teeth",
+   "part": "jaw",
+   "from": 2.7,
+   "to": 3.8,
+   "t": 0.88,
+   "sizes": [
+    0.03,
+    0.012,
+    0.011
+   ],
+   "down": [
+    0,
+    0,
+    1
+   ]
+  }
+ ],
+ "palette": {
+  "Skull": "#8a8780",
+  "Snout": "#b8b3a8",
+  "Jowl": "#a8a398",
+  "Palate": "#7d4a44",
+  "Jaw": "#b8b3a8",
+  "Body": "#8a8780",
+  "Brow": "#6f6c66",
+  "Pad": "#7d7a73",
+  "Lids": "#77736c",
+  "LidRim": "#2a2420",
+  "Ears": "#7a766f",
+  "EarInner": "#b5a596",
+  "Fur": "#8e8a83",
+  "FurAlt": "#7c7871",
+  "NosePad": "#1e1a18",
+  "Teeth": "#efe8d6",
+  "Nostrils": "#0e0a08",
+  "Folds": "#a29d92",
+  "Wrinkles": "#6e6a63",
+  "Whiskers": "#f6f2ea",
+  "Mouth": "#4a2a28",
+  "Web": "#a29d92",
+  "Tongue": "#c0626a",
+  "Sclera": "#efe9dc",
+  "Iris": "#c8862a",
+  "Limbus": "#3a2410",
+  "Pupil": "#0e0e0e",
+  "Catchlight": "#ffffff"
+ }
+}

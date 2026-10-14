@@ -29,7 +29,7 @@ describe('compose_world: a city plan', () => {
     expect(() => composeWorld({ base: 'city', overrides: { plan: { grammar: 'atlantis' } } })).toThrow(/grammar is one of .*get_view_vocab\(\{ id: 'city-plan' \}\)/);
   });
   it('a stored plan resolves as a walkable world, and reads as its book', async () => {
-    const r = await composeWorldHandler({ base: 'city', seed: 4, overrides: { plan: { grammar: 'paris', sites: [{ at: 'E3', use: 'plaza', name: 'the square' }], transit: [{ path: 'A3>J3' }] }, weather: 'rain' } });
+    const r = await composeWorldHandler({ base: 'city', seed: 4, overrides: { plan: { grammar: 'paris', board: { cols: 5, rows: 4 }, sites: [{ at: 'C2', use: 'plaza', name: 'the square' }], transit: [{ path: 'A2>E2' }] }, weather: 'rain' } });
     const row = SketchRepository.getByRef(r.ref);
     expect(row.manifest.weather).toBe('rain');
     const scene = await resolveWorldScene(row);
@@ -40,7 +40,8 @@ describe('compose_world: a city plan', () => {
   it('a world grammar written as a document, with a maglev, resolves as a walkable world', async () => {
     const r = await composeWorldHandler({ base: 'city', seed: 5, overrides: { plan: {
       grammar: { from: 'neon-sprawl', label: 'Night market', wear: { crown: 'parapet' } },
-      transit: [{ path: 'A3>J3', mode: 'maglev' }],
+      board: { cols: 5, rows: 4 },
+      transit: [{ path: 'A2>E2', mode: 'maglev' }],
     } } });
     expect(r.city.look).toBe('Night market');
     const row = SketchRepository.getByRef(r.ref);

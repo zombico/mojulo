@@ -6,7 +6,8 @@ import { resolveWorldScene } from '../../worlds/world-scene.js';
 import { heldWalk, phaseAt } from '../../scene/channels/traffic-model.js';
 import { CITY_METERS_PER_UNIT as U } from '../fractal-city.js';
 
-const recipe = (rec = {}) => ({ kind: 'city', ...inferCity({ seed: 6, grammar: 'new-york', board: { cols: 8, rows: 6 }, green: 0.3, people: 1, ...rec }).recipe });
+// no street trees: the walkers never read them, and growing tree variants is most of a first world's time
+const recipe = (rec = {}) => ({ kind: 'city', ...inferCity({ seed: 6, grammar: 'new-york', board: { cols: 8, rows: 6 }, green: 0, people: 1, ...rec }).recipe });
 const along = (path, s) => { let acc = 0; for (let i = 1; i < path.length; i++) { const a = path[i - 1], b = path[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]); if (acc + L >= s) { const t = (s - acc) / L; return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]; } acc += L; } return path[0]; };
 const lengthOf = (path) => path.slice(1).reduce((a, b, i) => a + Math.hypot(b[0] - path[i][0], b[1] - path[i][1]), 0);
 

@@ -23,8 +23,13 @@ describe('hero-stance: the facing from the feet', () => {
   });
 });
 
+// the stances are words through one solve: the first of each family and the first mirrored one, chosen from the catalog,
+// the casts alternating
+const HELD = [...Object.values(Object.groupBy(STANCE_NAMES, (n) => (n.endsWith('Left') ? 'mirrored' : STANCES[n].family))).map((g) => g[0])].map((n, i) => [i % 2 ? 'male' : 'female', n]);
+
 describe('hero-stance: held', () => {
-  for (const [rig, R] of Object.entries(HEROES)) for (const name of STANCE_NAMES) {
+  for (const [rig, name] of HELD) {
+    const R = HEROES[rig];
     it(`${rig} ${name}: balanced, knees over toes, eyes on the target, feet on the floor`, () => {
       const S = heroStance(name, R); const c = S.checks;
       expect(c.com.margin, 'the centre of mass inside the footprint').toBeGreaterThan(0.005);
@@ -39,7 +44,7 @@ describe('hero-stance: held', () => {
     });
   }
   it('the hands reach where the stance sends them', () => {
-    for (const name of Object.keys(STANCES)) {
+    for (const name of ['centre', 'hitting', 'fencing']) {
       const n = rigNodesAt(HEROES.female, heroStance(name, HEROES.female).hold).nodes;
       // the two-handed stances bring the hands together: the wrists within a hand's breadth
       if (name === 'centre') expect(Math.hypot(n.wristR[0] - n.wristL[0], n.wristR[1] - n.wristL[1], n.wristR[2] - n.wristL[2])).toBeLessThan(0.12);

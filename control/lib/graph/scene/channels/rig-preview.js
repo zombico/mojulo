@@ -108,6 +108,9 @@ function __rpInk(mesh, part, fig) {   // one part's outline, a child of its bone
   mesh.add(e.hull);${toonInk.lines === false ? '' : ' mesh.add(e.lines);'}
   mesh.material.polygonOffset = true; mesh.material.polygonOffsetFactor = 1; mesh.material.polygonOffsetUnits = 1; mesh.material.needsUpdate = true;
 }` : '';
+  // THE PAINTED FACE (face-paint-rig.js): a figure carrying `paintTex` draws its parts' `uv` on that texture (texel ×
+  // colour; an unpainted corner samples its white tile). No painted figure ⇒ none of this is emitted.
+  const painted = Object.values(bank || {}).some((f) => f?.paintTex);
   const layerBlock = layers ? `
 function __rpLayer(mesh, part, fig) {   // the draw layers on one part: its fill's rule; each span of its ranges a child mesh of the bone
   if (typeof __layerFill !== 'function') return;
@@ -117,7 +120,8 @@ function __rpLayer(mesh, part, fig) {   // the draw layers on one part: its fill
   const span = (a, b, layer) => {
     if (!(b > a)) return;
     const g = new THREE.BufferGeometry();
-    g.setAttribute('position', mesh.geometry.getAttribute('position')); g.setAttribute('color', mesh.geometry.getAttribute('color'));
+    g.setAttribute('position', mesh.geometry.getAttribute('position')); g.setAttribute('color', mesh.geometry.getAttribute('color'));${painted ? `
+    if (mesh.geometry.getAttribute('uv')) g.setAttribute('uv', mesh.geometry.getAttribute('uv'));` : ''}
     g.setDrawRange(a * 3, (b - a) * 3); g.boundingSphere = mesh.geometry.boundingSphere;
     const c = new THREE.Mesh(g, mesh.material.clone()); c.frustumCulled = false;
     const order = __layerFill(c.material, layer); if (order) c.renderOrder = order;${hasRim ? `
@@ -172,16 +176,22 @@ const RBANK = ${safeJson(bank)};${rimBlock}${inkBlock}${layerBlock}
 const __rpONE = new THREE.Vector3(1, 1, 1);
 const __rpq = new THREE.Quaternion(), __rph = new THREE.Vector3(), __rpv = new THREE.Vector3();
 const __rpHead = [0, 0, 0];
-function __rpBuild(fig) {
+${painted ? `function __rpTex(fig) {   // the painted face's atlas, once per figure
+  if (!fig.__tex) { fig.__tex = new THREE.TextureLoader().load(fig.paintTex.url); fig.__tex.colorSpace = THREE.SRGBColorSpace; }
+  return fig.__tex;
+}
+` : ''}function __rpBuild(fig) {
   const group = new THREE.Group();
   const boneMeshes = fig.bones.map((bn, bi) => {
     const part = fig.parts[bi];
     if (!part) return null;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));${painted ? `
+    const map = fig.paintTex && part.uv ? __rpTex(fig) : null;
+    if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rimHook}${inkHook}${layerHook}
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${painted ? ', ...(map ? { map } : {})' : ''} }));${rimHook}${inkHook}${layerHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;
     group.add(mesh);

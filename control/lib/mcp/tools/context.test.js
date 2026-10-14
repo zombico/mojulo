@@ -550,6 +550,8 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'sketch_what_possible', 'create_cover',
     // create_character (3.1.0) — the Characters ring's door, its own form drawer
     'create_character',
+    // update_character (1011) — the Characters ring's revise door, the same drawer
+    'update_character',
     'mint_solid', 'edit_solid', 'get_solid_vocab',
     // measure_solid (continuous-guardrails.plan.md G2) — the object drawer's read-back sibling
     'measure_solid',
@@ -792,7 +794,10 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // FORM heading the mint dispatch (create_character), the one case that legitimately grows this body.
   // Lowered 2026-10-10 (9_000 -> 8_600; measured 8,450 widest cell): the commitment floor's table moved to
   // get_register_kit, leaving one standing line; the disclosure directive stays (the operator's setting).
-  const MODE_CEILINGS = { studio: 8_600 };
+  // Grown 2026-10-13 (8_600 -> 8_650; measured 8,607 widest cell, studio+plain+pedagogical): the merge of the character
+  // line (the CHARACTER row's update_character) with the consolidated line (the GAME row's tune_ground), each under the
+  // ceiling alone.
+  const MODE_CEILINGS = { studio: 8_650 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

@@ -32,6 +32,7 @@ import { FONTS, FONT_IDS, STYLE_TOKENS, hexToRgba } from './hud-widgets.js';
 import { buildControlsKernel } from '../controls/controls-kernel.js';
 import { SCHEMES } from '../controls/schemes.js';
 import { DEVICES } from '../controls/devices.js';
+import { FRONT_CSS, frontConfig, playFrontRuntime } from './play-front.js';
 
 const CTL = buildControlsKernel();
 const PAUSE_BUTTONS = CTL.resolve(SCHEMES.shell, { gamepad: DEVICES.gamepad }).bind.gamepad.pause.map((c) => DEVICES.gamepad.buttons[c]);
@@ -41,7 +42,7 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 const scriptJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
 const safeColor = (v, fallback) => (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v) ? v : fallback);
 
-export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null } = {}) {
+export function emitPlayShell(manifest, levels = [], { playtest = false, startLevel = null, stingers = null, frontArt = null } = {}) {
   if (!manifest || manifest.kind !== 'game') throw new Error("emitPlayShell needs a validated game manifest (kind: 'game')");
   const byRef = new Map(levels.map((l) => [l.ref, l]));
   for (const lv of manifest.levels) {
@@ -89,7 +90,10 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
     ...(stingers && (stingers.victory || stingers.defeat) ? { stingers: { victory: stingers.victory || null, defeat: stingers.defeat || null } } : {}),
     wire: { version: CONTRACT_VERSION, ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, audio: MSG_AUDIO, pause: MSG_PAUSE, controls: MSG_CONTROLS, gamepad: MSG_GAMEPAD, ...(links ? { door: MSG_DOOR } : {}) },
     pauseButtons: PAUSE_BUTTONS,
+    // THE FRONT (play-front.js): a title over a cover, the start menu, options, credits, the end; absent, no key
+    ...(manifest.front ? { front: frontConfig(manifest.front, frontArt, { levels: levelTable.length, run: !!manifest.run }) } : {}),
   };
+  const front = !!cfg.front;
 
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -145,10 +149,12 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
   #debug summary{cursor:pointer;font-size:12px;color:var(--dim);text-align:right;list-style:none}
   #debug .body{margin-top:6px;max-height:56vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.4 ui-monospace,Menlo,monospace}
   #debug pre{margin:4px 0 10px;white-space:pre-wrap;word-break:break-word}
-  #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}
+  #debug h4{margin:0;font:600 11px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.1em;color:var(--dim)}${front ? `
+  ${FRONT_CSS}` : ''}
 </style></head>
 <body>
-<main id="app"></main>
+<main id="app"></main>${front ? `
+<div id="front"></div>` : ''}
 <iframe id="frame" title="level" allow="gamepad; fullscreen; autoplay"></iframe>
 <div id="veil"><div class="muted" id="veilText">loading</div><div class="bar"><i></i></div></div>
 <button id="pauseBtn" aria-label="pause">☰</button>
@@ -156,7 +162,8 @@ export function emitPlayShell(manifest, levels = [], { playtest = false, startLe
 <div id="playtag">playtest · nothing is saved</div>
 <details id="debug"><summary>debug</summary><div class="body" id="debugBody"></div></details>
 <div id="toast" role="status"></div>
-<script>
+<script>${front ? `
+const __mojFront = (${playFrontRuntime.toString()});` : ''}
 const K = (${buildGameStoreKernel.toString()})();
 (${playShellRuntime.toString()})(${scriptJson(cfg)}, K);
 </script>
@@ -256,10 +263,13 @@ export function playShellRuntime(cfg, K) {
     frame.style.display = playing ? 'block' : 'none';
     pauseBtn.style.display = playing ? 'block' : 'none';
     app.style.display = playing ? 'none' : 'flex';
+    if (front && s !== 'title') $('front').style.display = 'none';
     if (!playing) { setPaused(false); frame.removeAttribute('src'); veil.style.display = 'none'; }
     renderDebug();
   }
-  const home = () => (RUN ? renderRunTitle() : LEVELS.length > 1 ? renderLevels() : renderTitle());
+  const home = () => (front ? front.title() : RUN ? renderRunTitle() : LEVELS.length > 1 ? renderLevels() : renderTitle());
+  // where the result and the pause send the player back to: the front's title, else the levels or the title
+  const homeWord = () => (front ? 'title' : LEVELS.length > 1 ? 'levels' : 'title');
 
   // ---- RUNS (manifest.run): each run draws `length` of the levels in an order rolled from its number; a clear goes on
   // to the next, a death ends the run; the store carries over from run to run; the deepest run is kept ----
@@ -309,7 +319,7 @@ export function playShellRuntime(cfg, K) {
       el('div', { cls: 'muted', text: r.at > deep ? 'the deepest yet' : 'deepest: ' + Math.max(deep, r.at) }),
       gains.length ? el('ul', { cls: 'gains' }, gains.map((g) => el('li', { text: g }))) : null,
       env.stats && Array.isArray(env.stats.kept) && env.stats.kept.length ? keptList(r.order[Math.min(r.at, r.order.length - 1)], env) : null,
-      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: startRun }), el('button', { text: 'title', on: home })]),
+      el('div', { cls: 'row' }, [el('button', { cls: 'primary', text: 'new run', on: startRun }), el('button', { text: 'title', on: home }), front && cfg.front.credits ? el('button', { text: 'credits', on: () => front.rollFromRun() }) : null]),
     ]));
   }
 
@@ -358,6 +368,7 @@ export function playShellRuntime(cfg, K) {
       ]));
     });
     if (!PLAYTEST && runLog.length) s.appendChild(el('div', { cls: 'row' }, [resetLink()]));
+    if (front) s.appendChild(el('div', { cls: 'row' }, [el('button', { cls: 'link', text: 'title', on: home })]));
     app.textContent = '';
     app.appendChild(s);
   }
@@ -447,6 +458,7 @@ export function playShellRuntime(cfg, K) {
     }
     if (d.moj === W.outcome && !session.ended) {
       session.ended = true;
+      const before = front && allCleared();
       const env = d.envelope || {};
       lastEnvelope = env;
       const r = K.applyOutcome(SCHEMA, state, session.level.contract, env);
@@ -468,8 +480,10 @@ export function playShellRuntime(cfg, K) {
       if (onward) { toast(session.level.title + ' → ' + onward.title); launch(onward, session.level.ref); return; }
       if (STINGERS && r.ok) playStinger(env.result === 'success' ? STINGERS.victory : env.result === 'fail' ? STINGERS.defeat : null);
       const sess = session;
+      // the last level first cleared: the front's end (its card, then the roll) in place of the result
+      const fin = front && !before && r.ok && env.result === 'success' && allCleared();
       // the level shows its own end card first; the result follows it
-      setTimeout(() => { if (session === sess) renderResult(sess.level, env, r.ok); }, env.stats ? 2400 : 1600);
+      setTimeout(() => { if (session !== sess) return; if (fin && front.end()) { session = null; return; } renderResult(sess.level, env, r.ok); }, env.stats ? 2400 : 1600);
     }
   });
 
@@ -497,7 +511,7 @@ export function playShellRuntime(cfg, K) {
       s.appendChild(el('button', { text: 'restart', on: () => launch(session.level) }));
       s.appendChild(el('button', { text: 'controls', on: () => renderPause('controls') }));
       s.appendChild(el('button', { text: 'sound: ' + (settings.sfxOn ? 'on' : 'off'), on: () => { settings.sfxOn = !settings.sfxOn; saveSettings(); pushPrefs(); renderPause(); } }));
-      s.appendChild(el('button', { cls: 'link', text: 'quit to ' + (LEVELS.length > 1 ? 'levels' : 'title'), on: () => { session = null; home(); } }));
+      s.appendChild(el('button', { cls: 'link', text: 'quit to ' + homeWord(), on: () => { session = null; home(); } }));
     }
     pauseEl.appendChild(s);
   }
@@ -597,12 +611,22 @@ export function playShellRuntime(cfg, K) {
       el('div', { cls: 'row' }, [
         env.result === 'success' && next && isOpen(next) ? el('button', { cls: 'primary', text: 'next: ' + next.title, on: () => launch(next) }) : null,
         el('button', { cls: env.result === 'success' && next ? '' : 'primary', text: env.result === 'success' ? 'play again' : 'try again', on: () => launch(lv) }),
-        el('button', { text: LEVELS.length > 1 ? 'levels' : 'title', on: home }),
+        el('button', { text: homeWord(), on: home }),
       ]),
     ];
     app.textContent = '';
     app.appendChild(el('div', { cls: 'screen center' }, kids));
   }
+
+  // ---- the front (play-front.js), when the game has one: it reads the shell through this, and only this ----
+  const allCleared = () => !!progression && LEVELS.every((l) => cleared(l.ref));
+  const front = cfg.front && typeof __mojFront === 'function' ? __mojFront(cfg, {
+    el, app, show, home, launch, startRun, renderLevels, cleared, isOpen, saveSettings, pushPrefs,
+    levels: LEVELS, run: !!RUN, playtest: PLAYTEST, title: M.title,
+    progress: () => (runLog.length ? runLog[runLog.length - 1].levelRef || null : null),
+    settings: () => settings,
+    reset: () => { freshStore(); persist(); },
+  }) : null;
 
   // ---- go ----
   const start = cfg.startLevel ? LEVELS.find((l) => l.ref === cfg.startLevel) : null;

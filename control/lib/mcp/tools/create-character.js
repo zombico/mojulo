@@ -11,11 +11,15 @@
  *   as 'creature' → mint_solid kind 'layered' via 'plan' when spec.plan, else the layered recipe
  *   as 'animal'   → mint_solid kind 'animal'                (a species, or a bare archetype)
  *
- * Iteration is `update_sketch` on the stored recipe, as before. No kernel or recipe change.
+ * Iteration: `update_character` (below), the same door the other way round: a character's own words merged into the
+ * stored recipe, carried out by `update_sketch`'s patch path, so an edit through it equals the equivalent patch
+ * (create-character.test.js). `update_sketch` keeps every op for anything the words don't reach.
  */
 
 import { registerTool } from '@/lib/mcp/server';
 import { mintSolidHandler } from '@/lib/mcp/tools/mint-solid';
+import { updateSketchHandler } from '@/lib/mcp/tools/sketch-mint';
+import { SketchRepository } from '@/lib/db/repositories/sketches';
 
 // as → the mint_solid call it makes, and the card that is its manual.
 export const CHARACTER_KINDS = {
@@ -41,6 +45,40 @@ export async function createCharacterHandler(input) {
   return mintSolidHandler({ ...entry.route(spec), spec, title, ref, folder_ref: folderRef });
 }
 
+// ─── update_character ──────────────────────────────────────────────────────
+/** the stored kinds a character lives in: a hero or a creature is a layered row, an animal a layered or an animal row */
+const CHARACTER_ROW_KINDS = ['layered', 'animal'];
+/** what a stored row is, as the door names it */
+const asOf = (m) => (m.hero ? 'hero' : m.kind === 'animal' || m.fauna || m.species ? 'animal' : 'creature');
+
+/**
+ * A character's words → update_sketch patch ops on its stored recipe. `spec` (a hero's door words: cast, register, tune,
+ * face, hair, detail, adorn, …) merges into the stored hero key by key: a key replaces that key, a key set to null
+ * removes it. `target` and `geocube` are the same as spec keys, named on the door because they tie the hero to its level.
+ */
+export function characterPatch(row, { spec, target, geocube }) {
+  const as = asOf(row.manifest), words = { ...(spec || {}), ...(target !== undefined ? { target } : {}), ...(geocube !== undefined ? { geocube } : {}) };
+  if (!Object.keys(words).length) return [];
+  if (as !== 'hero') {
+    throw new Error(`update_character: '${row.ref}' is ${as === 'animal' ? 'an animal' : 'a creature'}; spec, target and geocube are a hero's words today. Edit its recipe with patch ops (${as === 'animal' ? "get_solid_vocab({ id: 'animal' })" : "get_solid_vocab({ id: 'layered' }): /plan/…, /dials/<name>"}).`);
+  }
+  return Object.entries(words).map(([k, v]) => (v === null ? { op: 'remove', path: `/hero/${k}` } : { op: 'set', path: `/hero/${k}`, value: v }));
+}
+
+export async function updateCharacterHandler(input) {
+  if (!input || typeof input !== 'object') throw new Error('update_character requires an object: { ref, spec?, target?, geocube?, patch?, title?, note? }');
+  const { ref, spec, target, geocube, patch, title, note, readout, folder_ref: folderRef } = input;
+  if (!ref || typeof ref !== 'string') throw new Error('update_character: `ref` is required (the character\'s sketch ref)');
+  if (spec !== undefined && (!spec || typeof spec !== 'object' || Array.isArray(spec))) throw new Error('update_character: `spec` is an object of the character\'s words (a key set to null removes it)');
+  const row = SketchRepository.getByRef(ref);
+  if (!row) throw new Error(`update_character: no sketch '${ref}'`);
+  if (!CHARACTER_ROW_KINDS.includes(row.manifest?.kind)) throw new Error(`update_character: '${ref}' is not a character (kind '${row.manifest?.kind}'); revise it with update_sketch`);
+  const ops = [...characterPatch(row, { spec, target, geocube }), ...(Array.isArray(patch) ? patch : [])];
+  if (patch !== undefined && !Array.isArray(patch)) throw new Error('update_character: `patch` is an array of update_sketch ops');
+  if (!ops.length && title === undefined && folderRef === undefined) throw new Error('update_character: give at least one of spec, target, geocube, patch, title, folder_ref');
+  return updateSketchHandler({ ref, ...(ops.length ? { patch: ops } : {}), ...(title !== undefined ? { title } : {}), ...(note !== undefined ? { note } : {}), ...(readout !== undefined ? { readout } : {}), ...(folderRef !== undefined ? { folder_ref: folderRef } : {}) });
+}
+
 export function registerCreateCharacterTools() {
   registerTool({
     name: 'create_character',
@@ -50,7 +88,7 @@ export function registerCreateCharacterTools() {
       + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan, a ring plan, or a full "
       + "layered recipe); `as: 'animal'`, a real species (spec { species } or a bare { archetype }). A tiny "
       + 'deterministic recipe served as a still, an orbitable World that plays its clips, and a skinned `.glb`. '
-      + "Iterate in place with `update_sketch`; never re-mint. Manual: get_solid_vocab({ id: 'layered' }) for a hero "
+      + "Iterate in place with `update_character`; never re-mint. Manual: get_solid_vocab({ id: 'layered' }) for a hero "
       + "or a creature, ({ id: 'animal' }) for an animal.",
     inputSchema: {
       type: 'object',
@@ -64,5 +102,30 @@ export function registerCreateCharacterTools() {
       required: ['as'],
     },
     handler: createCharacterHandler,
+  });
+  registerTool({
+    name: 'update_character',
+    description:
+      'Revise a CHARACTER in place, same ref: its own words, not JSON pointers. `spec` merges into a hero key by key '
+      + "(cast, register, tune, face, hair, detail, adorn, …; null removes one). `target` is what it is drawn for "
+      + "('720p' … '4k', or { resolution, framing: 'close' | 'third-person' | 'wide' | 'top-down', error }): each body "
+      + 'part gets the rings its outline needs there. `geocube` bakes it in a level\'s light (and lends its target). '
+      + "`patch` takes update_sketch ops for the rest. Archives a revision; the readout gives each part's outline error.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: { type: 'string', description: "The character's sketch ref (from create_character)." },
+        spec: { type: 'object', description: "A hero's door words to merge (a key set to null removes it)." },
+        target: { description: "What it is drawn for: a resolution word ('480p' | '720p' | '1080p' | '1440p' | '4k') or { resolution, framing?, error? } (null removes it)." },
+        geocube: { description: 'The cube whose light bakes the hero, and whose target it takes: a preset id, a document or { from, … } (null removes it).' },
+        patch: { type: 'array', items: { type: 'object' }, description: 'update_sketch ops, applied after the words.' },
+        title: { type: 'string' },
+        note: { type: 'string', description: 'A line for the archived revision.' },
+        readout: { type: 'string', enum: ['changed', 'summary', 'full'] },
+        folder_ref: { type: 'string' },
+      },
+      required: ['ref'],
+    },
+    handler: updateCharacterHandler,
   });
 }

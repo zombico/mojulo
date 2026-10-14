@@ -178,7 +178,7 @@ export const CHARACTER_LIGHT_UNLIT = Object.freeze(['Iris', 'Pupil', 'Sclera', '
 /** per-group thresholds by default: hair steps higher, so the locks read as a few lit shapes rather than one lit dome
  *  (at 0.40 about three quarters of the hair is lit at the three-quarter view, with shade shapes under the locks) */
 const CHARACTER_THRESHOLDS = Object.freeze({ Hair: 0.40 });
-const TOON_LIGHT_KEYS = ['toLight', 'threshold', 'thresholds', 'shade', 'unlit', 'highlight', 'strands'];
+const TOON_LIGHT_KEYS = ['toLight', 'threshold', 'thresholds', 'shade', 'unlit', 'highlight', 'strands', 'soft'];
 /** the STRANDS (station-loft-shade.js): lines drawn INSIDE a group's mass in its own tone darkened — never the ink's
  *  black — anchoring the shape: `count` lines about the head's vertical axis (spaced a little unevenly), each `width` (m)
  *  wide, rising from the group's lowest edge (a bob's hem) to a height staggered across `reach` (shares of the head's
@@ -214,6 +214,7 @@ export function toonLightErrors(l) {
     errs.push('toon.light.toLight: [x, y, z] pointing TOWARD the light in character space (+y front, +z up), not zero');
   }
   if (l.threshold !== undefined && !inStep(l.threshold)) errs.push('toon.light.threshold: the N·L step, a number in [-1, 1]');
+  if (l.soft !== undefined && !(Number.isFinite(l.soft) && l.soft >= 0 && l.soft <= 1)) errs.push('toon.light.soft: the width of the edge between the light and the shade, in N·L, a number in [0, 1] (0: the hard step)');
   if (l.thresholds !== undefined) {
     if (!isPlain(l.thresholds)) errs.push('toon.light.thresholds: { <palette group>: a number in [-1, 1] }');
     else for (const [g, v] of Object.entries(l.thresholds)) if (!inStep(v)) errs.push(`toon.light.thresholds.${g}: a number in [-1, 1]`);
@@ -274,6 +275,7 @@ export function resolveToonLight(l) {
     thresholds: { ...CHARACTER_THRESHOLDS, ...(o.thresholds || {}) },
     shade: { ...(o.shade || {}) },
     unlit: [...(o.unlit ?? CHARACTER_LIGHT_UNLIT)],
+    ...(o.soft ? { soft: o.soft } : {}),
     ...(o.highlight !== undefined ? { highlight: resolveHighlight(o.highlight) } : {}),
     ...(o.strands !== undefined && o.strands !== false ? { strands: Object.fromEntries(Object.entries(o.strands).filter(([, s]) => s !== false).map(([g, s]) => [g, { ...STRAND_DEFAULTS, ...(s === true ? {} : s), reach: [...((s === true ? null : s.reach) ?? STRAND_DEFAULTS.reach)] }])) } : {}),
   };
@@ -285,10 +287,27 @@ export function litFactor(normal, light = DEFAULT_LIGHT) {
   if (light.fillDiffuse) f += light.fillDiffuse * Math.max(0, dot3(normal, light.fillToLight));
   return light.bands ? bandFactor(f, light.ambient, light.diffuse + (light.fillDiffuse || 0), light.bands) : f;
 }
-/** Scale a flat fill by the Lambert factor — the per-cell shade. */
+/** Scale a flat fill by the Lambert factor — the per-cell shade. A CAST light (castLightFactor) shades per channel. */
 export function shadeHex(hex, normal, light = DEFAULT_LIGHT) {
   if (light.flat) return hex; // FLAT_LIGHT: raw albedo, no directional term
+  if (light.cast) { const f = castLightFactor(normal, light); return rgbToHex(hexToRgb(hex).map((v, k) => v * f[k])); }
   return scaleHex(hex, litFactor(normal, light));
+}
+
+// ---- the cast light: a figure lit by its level's light, per channel --------
+// A light carrying `cast: { key, ambient, bounce }` (each [r, g, b], 0..1; era/cast-light.js makes one from a geocube)
+// shades a figure the way the stage bakes a level: the tinted ambient (shade is a colour, never black), the key's
+// Lambert in its own colour, warm bounce off the ground on faces that look down, then the stage's shoulder (linear to
+// 0.75, rolling off toward 1) so a lit face never clips. `bands` steps the key's Lambert (a banded register). Its
+// `ambient` / `diffuse` scalars are the same light as grey, for readers of one number (the studio's grid).
+const CAST_KNEE = 0.75;
+const castShoulder = (v) => (v <= CAST_KNEE ? v : CAST_KNEE + (1 - CAST_KNEE) * (1 - Math.exp(-(v - CAST_KNEE) / (1 - CAST_KNEE))));
+/** The [r, g, b] factor a cast light gives an outward normal. */
+export function castLightFactor(normal, light) {
+  const c = light.cast; let lam = Math.max(0, dot3(normal, light.toLight));
+  if (light.bands) { const n = light.bands - 1; lam = Math.round(lam * n) / n; }
+  const down = Math.max(0, 0.5 - 0.5 * normal[2]);
+  return [0, 1, 2].map((k) => castShoulder(c.ambient[k] + c.key[k] * lam + c.bounce[k] * down));
 }
 /**
  * One-call surface shade: from a face's world `corners` + base `hex`, compute the

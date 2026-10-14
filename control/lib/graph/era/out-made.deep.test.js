@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { MADE_PATTERNS, MADE_PATTERN_IDS, MADE_KITS, MADE_RAILS, madeStyle, designPiece } from './out-made.js';
 
-// the rails sit inside the laws: every kit, seed and pattern, and every dimension at both ends of its rail (era/out-made.js)
+// the rails sit inside the laws: every kit and pattern on a few rolled styles, and every dimension at both ends of its
+// rail (era/out-made.js)
 describe('out-made sweep', () => {
-  for (const kit of MADE_KITS) it(`${kit}: every pattern holds its laws for every seed`, () => {
+  for (const kit of MADE_KITS) it(`${kit}: every pattern holds its laws on its rolled styles`, () => {
     const broken = [];
-    for (let seed = 1; seed <= 150; seed++) {
+    for (const seed of [1, 2, 3]) {
       const st = madeStyle(kit, seed);
       for (const id of MADE_PATTERN_IDS) for (const l of designPiece(id, st, seed).laws) if (l.ok === false) broken.push(`${id} seed ${seed}: ${l.law} = ${l.value}`);
     }

@@ -59,7 +59,8 @@ count?, width?, reach?, below?, tone? } | true | false }` (LINES INSIDE the grou
 the ink's black: `count` (22) lines about the head's vertical axis, each `width` (0.003 m), rising from the group's
 lowest edge to a top staggered across `reach` ([0.15, 0.5] of the head's height below the crown), none below `below`
 (1.15 head heights); the fill the face's lit or shade tone at `tone` (0.6) of its lightness, the hue kept and the
-saturation lifted a little; a face the step splits or the highlight lights keeps its tones; absent, nothing) `}`.
+saturation lifted a little; a face the step splits or the highlight lights keeps its tones; absent, nothing), `soft` (the width in N·L of a band where the light meets the shade, its corners graded from the shade to the
+base, on every group without a highlight or strands; absent or 0, the step on one line) `}`.
 The anime hero takes its base's hair highlight by default (the ring on the female, a fringe streak on the male) unless
 its light says `highlight`. Each face steps to its lit or shade swatch, and a face the terminator crosses is split
 along it (and its lit side again along the highlight's line), crisp in the World, the static GLB and the rig preview
@@ -145,15 +146,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   under `/dials` or `/recipe` edits as before. Refusals name the plan field.
 
 - **Hero door (a human by word and percentage).** `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune,
-  face?, hair?, expression?, sculpt?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
+  face?, hair?, expression?, sculpt?, painterly?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
   a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
   `lithe`, `stout`, `child`, `chibi`: its joints on the adult radii) — or a POLE WITH A BUILD, `{ pole: 'female', build:
   'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as
   percentages of hers, so a broad young woman is a build, not a tune past its range; `{ build: 'child' }` (pole `male`
   unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
-  body proportion lab's contract. Thirteen controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
-  `neck`, `legs` (joints move, the soles stay on the ground); widths `shoulders` (the arm chain rides out, the yoke widens),
+  body proportion lab's contract. Controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
+  `neck`, `legs` (joints move, the soles stay on the ground), `armLength` (the upper arm and forearm, so a body shortened
+  by `legs` and `torso` does not keep a grown arm that hangs to its knees); widths `shoulders` (the arm chain rides out, the yoke widens),
   `waist`, `hips` (the pelvis, not the stance), `depth` (front-to-back of the trunk and pelvis); `head` (uniform about the
   atlas); thicknesses `upperArm`, `forearm`, `thigh`, `calf` (rings scale about their own centres; joints, the yoke and the
   wrist ring stay). Group words expand first (`lengths`, `widths`, `limbs`, `arms`) and an explicit key in the same object
@@ -418,6 +420,29 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   stored hero until its list is edited. The readout says `look`, `lookFrom`, the effective head and tune, and the own
   layer apart. Every preset stays inside the studio's ranges on both bases.
 <!-- /section -->
+<!-- section: hero-painterly | The painterly look | painterly: true, the painted face and the soft edge -->
+  THE PAINTERLY LOOK (the anime head's). `painterly: true` draws the hero as a painterly toon: the face is PAINTED, its
+  eyes, lashes, lids, brows, nose line and mouth drawn into a texture on a smooth face in place of the feature slabs,
+  and the light meets the shade over a SOFT EDGE instead of on a line. The features are the graphic face's own: every
+  `sculpt`, `face` and `look` word and the expression move the paint as they move the slabs (the same builds, projected
+  onto the face's front plane), so the landmarks and the face's measures are the slab face's. The texture (512², the
+  palette's `Skin`, `Sclera`, `Iris`, `Pupil`, `Ink`, `Mouth` and `Hair`; the brow the hair taken toward the ink, or
+  `Brow`) is painted on read from the layers the row stores: a blush under each eye, the white shaded under its lid,
+  the iris dark at the top and light at the bottom. Below a close-up's tier the face's skin is a thinned lattice (a
+  `target` at T3 or T4, a close-up or 4K, keeps it whole). The soft edge is `toon.light.soft` (the band's width in N·L,
+  0.24 by default here; 0 the hard step), on every group without a highlight. The readout's `painterly` names the
+  look's built conventions and the planned ones still missing. THE NOSE DIALS, `painterly: { nose: { profile, width } }`
+  (each 0..1, 0.5 by default): `profile` draws the face's side between the CAT edge (0: a deep stop, a long bridge to a
+  sharp tip, the mouth a notch on one receding slope) and a ZELDA-like nose (1: a small distinct nose, a soft tip, the
+  lips a little forward); `width` takes the nose from a POINTER (0, a sliver underneath) to a TRAPEZOID underside (1,
+  painted dark). Under the dials the jaw rises from the chin's corner toward the ear (32° at the cat edge, 24° at the
+  Zelda-like), and the head keeps the slab head's size. In motion (the skinned GLB, Godot) the face is
+  DRAWINGS: each eye at every closure knot, each brow and the mouth at every drawing a word, the authored face or a clip
+  key needs, tiles of one atlas on copies of the face's triangles, swapped by 0-or-1 morph targets (`blinkDrawn<k><L|R>`,
+  `browDrawn<i><L|R>`, `mouthDrawn<i>`; `mesh.extras.face.about` and `drawings`) that the clips' face tracks and the
+  ambient blink drive; the clip preview draws the authored face. Under a geocube's cast light the painted face is worn
+  standing and moving alike.
+<!-- /section -->
 <!-- section: hero-genki | Genki | the shonen spirit as one amount over the look -->
   GENKI (the anime head only). `genki: 0 … 1` is the shonen spirit translated onto the character, one amount over the
   look and the own layer (`anime-genki.js`): broader shoulders, a narrower waist and stronger forearms and calves; on the
@@ -647,6 +672,23 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
 <!-- /section -->
   THE BUDGET. `hero.budget`, on every hero's readout: triangles and vertices per palette group, the plan and recipe in
   bytes.
+  THE TARGET. `target` (`'720p'` … `'4k'`, or `{ resolution, framing: close | third-person | wide | top-down, error }`)
+  is what the hero is drawn for: pixels per metre at that framing make each body part's radius a pixel radius, and a
+  ring of N sides misses its circle by r·(1 − cos π/N). A part (trunk, pelvis, neck, limbs, feet) missing by more than
+  `error` px (1) takes one split, twice the sides; a part the dress already split keeps it. Today's hero holds 720p
+  third-person within a pixel; 1080p splits its trunk and limbs. The head, hands and fingers carry features, not
+  outline, and are left as they are. `geocube` (a cube preset, document or `{ from, … }`) bakes the hero in the cube's
+  light: the key (its sun, or its moon), the shade in the cube's ambient colour, warm bounce off its floor, a rim from
+  its sky, the cube's bands; the cube's target when `target` is not named. Absent: today's studio light and mesh.
+  `hero.density` on the readout: each part's radius in pixels, sides, the sides it wants and its error, the worst, the
+  parts still over after a split, and the era's conventions still `planned`. Revise either with `update_character`.
+  THE TIERED DRESS (`form: 'tiered'`). What the hero wears and carries is drawn for its target too (the default target
+  when none is named), and only ever coarser than authored. An armour or kit shell takes the sides its radius wants,
+  never fewer than the skin's under it or than its standoff needs to clear it; a rolled edge or a lacing cord under 3 px
+  becomes painted rim, and a row of rivets under 2 px one rivet. A held item's lathes, sweeps and gems follow the pixels
+  it covers. Garments take their part's split, and a sleeve or trouser leg over both limbs of a joint covers the
+  bridge between them; a couter or poleyn rides its joint's bridge, and a torso or neck piece stands off the shoulder
+  balls. `hero.spend` charges what is worn to clothing wherever it sits and counts the carried gear as its own region.
 - **Armour (an armour build on `adorn`).** `adorn: { type: 'armor', style, dials?, language? }` names a suit by intent and
   direction; the laws in `control/lib/graph/armor/` compose it on every read. The hero stores the words, stamped
   `laws: 1`. Restyle in place with `set /hero/adorn/dials/coverage 0.8`, `set /hero/adorn/style 'aka'` or

@@ -9,10 +9,14 @@ import { sketchRenderMode, classifyBucket } from '../sketch/sketch-manifest.js';
 // starfield). These guard the assemble seam, the subject→axis-mundi/mandala wiring, and the
 // emitThreeWorld `space:true` sky extension.
 const EARTH = { kind: 'planetary', subject: 'earth' };
+// the plans and scenes are pure: each distinct recipe is built once per file and read by every test that asks for it
+// (the determinism test below builds its own twice).
+const memo = (build) => { const seen = new Map(); return (o) => { const k = JSON.stringify(o); if (!seen.has(k)) seen.set(k, build(o)); return seen.get(k); }; };
+const plan = memo(planPlanetaryScene), assembled = memo(assemblePlanetaryScene);
 
 describe('assemblePlanetaryScene', () => {
   it('returns a world payload of faces + a worldFraming camera + a space sky', () => {
-    const payload = assemblePlanetaryScene(EARTH);
+    const payload = assembled(EARTH);
     expect(payload.faces.length).toBeGreaterThan(0);
     expect(payload.cameras.length).toBeGreaterThan(0);
     const cam = payload.cameras[0];
@@ -24,7 +28,7 @@ describe('assemblePlanetaryScene', () => {
   });
 
   it('pins the sun on the star sphere at the real light direction (default on)', () => {
-    const { sky } = assemblePlanetaryScene(EARTH);
+    const { sky } = assembled(EARTH);
     expect(sky.sun).toBeTruthy();
     expect(Array.isArray(sky.sun.dir)).toBe(true);                  // a 3D world direction, not { u, h }
     expect(Math.hypot(...sky.sun.dir)).toBeCloseTo(1);             // unit vector
@@ -35,13 +39,13 @@ describe('assemblePlanetaryScene', () => {
   });
 
   it('sun:false renders a sun-lit body with no visible disc', () => {
-    expect(assemblePlanetaryScene({ ...EARTH, sun: false }).sky.sun).toBeNull();
+    expect(assembled({ ...EARTH, sun: false }).sky.sun).toBeNull();
     // the terminator (face shading) is unchanged — only the visible disc is dropped.
-    expect(assemblePlanetaryScene({ ...EARTH, sun: false }).faces.length).toBe(assemblePlanetaryScene(EARTH).faces.length);
+    expect(assembled({ ...EARTH, sun: false }).faces.length).toBe(assembled(EARTH).faces.length);
   });
 
   it('exposes a SOLID void bg (three.js cannot parse a CSS gradient)', () => {
-    const { bg } = assemblePlanetaryScene(EARTH);
+    const { bg } = assembled(EARTH);
     expect(bg).toMatch(/^#/);
     expect(bg).not.toContain('gradient');
   });
@@ -56,7 +60,7 @@ describe('every face is a renderable 4-corner quad', () => {
   // faceListToMesh DROPS faces with < 4 corners — the sphere's pole bands must self-degenerate
   // to quads, never ship as triangles, or the caps vanish.
   it('ships only quads (pole tris padded)', () => {
-    for (const f of planPlanetaryScene(EARTH).faces) {
+    for (const f of plan(EARTH).faces) {
       expect(f.corners.length).toBe(4);
     }
   });
@@ -64,34 +68,34 @@ describe('every face is a renderable 4-corner quad', () => {
 
 describe('mandala + axis mundi toggle', () => {
   it('mandala:false drops the graticule + axis faces', () => {
-    const withM = planPlanetaryScene({ subject: 'earth', mandala: true }).faces.length;
-    const without = planPlanetaryScene({ subject: 'earth', mandala: false }).faces.length;
+    const withM = plan({ subject: 'earth', mandala: true }).faces.length;
+    const without = plan({ subject: 'earth', mandala: false }).faces.length;
     expect(without).toBeLessThan(withM);
   });
 
   it('atmosphere:false drops the translucent shell (water-tagged faces)', () => {
     // clouds are also water-tagged, so disable them to isolate the atmosphere shell.
-    const on = planPlanetaryScene({ subject: 'earth', atmosphere: true, clouds: false });
-    const off = planPlanetaryScene({ subject: 'earth', atmosphere: false, clouds: false });
+    const on = plan({ subject: 'earth', atmosphere: true, clouds: false });
+    const off = plan({ subject: 'earth', atmosphere: false, clouds: false });
     expect(on.faces.some((f) => f.water)).toBe(true);
     expect(off.faces.some((f) => f.water)).toBe(false);
   });
 
   it('continents:false drops the coastline trace (thousands of ribbon faces)', () => {
-    const withC = planPlanetaryScene({ subject: 'earth', continents: true }).faces.length;
-    const without = planPlanetaryScene({ subject: 'earth', continents: false }).faces.length;
+    const withC = plan({ subject: 'earth', continents: true }).faces.length;
+    const without = plan({ subject: 'earth', continents: false }).faces.length;
     expect(withC - without).toBeGreaterThan(1000); // the 110m coastline adds ~5k segments
   });
 
   it('relief:false drops the golden-angle elevation spikes', () => {
-    const on = planPlanetaryScene({ subject: 'earth', blanket: false, relief: true }).faces.length;
-    const off = planPlanetaryScene({ subject: 'earth', blanket: false, relief: false }).faces.length;
+    const on = plan({ subject: 'earth', blanket: false, relief: true }).faces.length;
+    const off = plan({ subject: 'earth', blanket: false, relief: false }).faces.length;
     expect(on - off).toBeGreaterThan(1000); // ~1700 land spikes × 2 ribbons
   });
 
   it('blanket:true (the default) fills the land with thousands of hypso-coloured faces', () => {
-    const on = planPlanetaryScene({ subject: 'earth' }).faces.length;          // blanket default on
-    const off = planPlanetaryScene({ subject: 'earth', blanket: false }).faces.length;
+    const on = plan({ subject: 'earth' }).faces.length;          // blanket default on
+    const off = plan({ subject: 'earth', blanket: false }).faces.length;
     expect(on - off).toBeGreaterThan(5000); // ~9700 land cells
   });
 
@@ -103,13 +107,13 @@ describe('mandala + axis mundi toggle', () => {
   });
 
   it('the coastline border is transparent (off) by default — the blanket defines the land', () => {
-    const base = planPlanetaryScene({ subject: 'earth' }).faces.length;
-    const withCoast = planPlanetaryScene({ subject: 'earth', continents: true }).faces.length;
+    const base = plan({ subject: 'earth' }).faces.length;
+    const withCoast = plan({ subject: 'earth', continents: true }).faces.length;
     expect(withCoast).toBeGreaterThan(base); // the coast ribbon is only drawn when explicitly asked
   });
 
   it('polar caps are whited-out: many near-white blanket cells, all clustered to the poles', () => {
-    const faces = planPlanetaryScene({ subject: 'earth', mandala: false, continents: false, atmosphere: false, clouds: false }).faces;
+    const faces = plan({ subject: 'earth', mandala: false, continents: false, atmosphere: false, clouds: false }).faces;
     const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
     const whiteish = faces.filter((f) => { const [r, g, b] = rgb(f.fill || ''); return r > 200 && g > 200 && b > 200; });
     expect(whiteish.length).toBeGreaterThan(100); // the caps are big white fields
@@ -122,15 +126,15 @@ describe('mandala + axis mundi toggle', () => {
   });
 
   it('moon:true (the default) adds a real far body; moon:false drops it', () => {
-    const withMoon = planPlanetaryScene({ subject: 'earth' }).faces.length;          // moon default on
-    const without = planPlanetaryScene({ subject: 'earth', moon: false }).faces.length;
+    const withMoon = plan({ subject: 'earth' }).faces.length;          // moon default on
+    const without = plan({ subject: 'earth', moon: false }).faces.length;
     expect(withMoon - without).toBe(24 * 12);     // unitSphereFaces(24, 12) quads
   });
 
   it('the Moon sits at TRUE scale + TRUE distance (a small disc ~60 Earth radii out)', () => {
     const R0 = 6;                                  // world-unit Earth radius (scene-planetary)
-    const base = planPlanetaryScene({ subject: 'earth', moon: false }).faces;
-    const all = planPlanetaryScene({ subject: 'earth' }).faces;
+    const base = plan({ subject: 'earth', moon: false }).faces;
+    const all = plan({ subject: 'earth' }).faces;
     const moon = all.slice(base.length);           // the moon faces are appended last
     const cs = moon.flatMap((f) => f.corners);
     const dist = (c) => Math.hypot(c[0], c[1], c[2]);
@@ -147,38 +151,38 @@ describe('mandala + axis mundi toggle', () => {
   });
 
   it('moonScale grows the disc but not the face count or its distance', () => {
-    const a = planPlanetaryScene({ subject: 'earth', moonScale: 1 }).faces;
-    const b = planPlanetaryScene({ subject: 'earth', moonScale: 4 }).faces;
+    const a = plan({ subject: 'earth', moonScale: 1 }).faces;
+    const b = plan({ subject: 'earth', moonScale: 4 }).faces;
     expect(a.length).toBe(b.length);               // same sphere tessellation
   });
 
   it('datetime GEO-LOCKS the scene: a deterministic geoLock readout + the Moon at its true distance', () => {
-    const plan = planPlanetaryScene({ subject: 'earth', datetime: '2026-06-18T02:30:00Z' });
-    expect(plan.geoLock).toBeTruthy();
-    expect(plan.geoLock.datetime).toBe('2026-06-18T02:30:00.000Z');
+    const geo = plan({ subject: 'earth', datetime: '2026-06-18T02:30:00Z' });
+    expect(geo.geoLock).toBeTruthy();
+    expect(geo.geoLock.datetime).toBe('2026-06-18T02:30:00.000Z');
     // sub-solar point ≈ Pacific noon near the June solstice (≈ 143°E, +23.4°)
-    expect(plan.geoLock.subsolar.lat).toBeGreaterThan(23);
-    expect(plan.geoLock.subsolar.lon).toBeGreaterThan(130);
+    expect(geo.geoLock.subsolar.lat).toBeGreaterThan(23);
+    expect(geo.geoLock.subsolar.lon).toBeGreaterThan(130);
     // the Moon body (last 24×12 faces) sits at the resolved geocentric distance (Earth radii × R0=6)
-    const moon = plan.faces.slice(plan.faces.length - 24 * 12).flatMap((f) => f.corners);
+    const moon = geo.faces.slice(geo.faces.length - 24 * 12).flatMap((f) => f.corners);
     const c = moon.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0]).map((v) => v / moon.length);
-    expect(Math.hypot(...c) / 6).toBeCloseTo(plan.geoLock.moonDistEarthRadii, 0);
+    expect(Math.hypot(...c) / 6).toBeCloseTo(geo.geoLock.moonDistEarthRadii, 0);
   });
 
   it('manual mode leaves geoLock null (sunU/moonAngle still drive it)', () => {
-    expect(planPlanetaryScene({ subject: 'earth' }).geoLock).toBeNull();
-    expect(planPlanetaryScene({ subject: 'earth', datetime: 'not-a-date' }).geoLock).toBeNull();
+    expect(plan({ subject: 'earth' }).geoLock).toBeNull();
+    expect(plan({ subject: 'earth', datetime: 'not-a-date' }).geoLock).toBeNull();
   });
 
   it('a different instant moves the Sun + Moon (different shaded fills)', () => {
-    const a = planPlanetaryScene({ subject: 'earth', datetime: '2026-06-18T02:30:00Z' }).faces.map((f) => f.fill);
-    const b = planPlanetaryScene({ subject: 'earth', datetime: '2026-06-18T14:30:00Z' }).faces.map((f) => f.fill);
+    const a = plan({ subject: 'earth', datetime: '2026-06-18T02:30:00Z' }).faces.map((f) => f.fill);
+    const b = plan({ subject: 'earth', datetime: '2026-06-18T14:30:00Z' }).faces.map((f) => f.fill);
     expect(a).not.toEqual(b);   // half a day later → the lit hemisphere has rotated
   });
 
   it('reliefScale grows the relief height but not the cell count', () => {
-    const a = planPlanetaryScene({ subject: 'earth', mandala: false, continents: false, atmosphere: false, moon: false, reliefScale: 1 }).faces;
-    const b = planPlanetaryScene({ subject: 'earth', mandala: false, continents: false, atmosphere: false, moon: false, reliefScale: 4 }).faces;
+    const a = plan({ subject: 'earth', mandala: false, continents: false, atmosphere: false, moon: false, reliefScale: 1 }).faces;
+    const b = plan({ subject: 'earth', mandala: false, continents: false, atmosphere: false, moon: false, reliefScale: 4 }).faces;
     expect(a.length).toBe(b.length);               // same golden-angle samples → same face count
     // a taller spike pushes the highest corner further from the core (moon off → it isn't the farthest)
     const far = (faces) => Math.max(...faces.flatMap((f) => f.corners.map((c) => Math.hypot(c[0], c[1], c[2]))));
@@ -216,14 +220,14 @@ describe('baked day/night terminator', () => {
   // shading against a fixed sun must produce DISTINCT face fills (a lit hemisphere + a near-black
   // night side), not one flat colour.
   it('body faces carry a range of shaded fills', () => {
-    const body = planPlanetaryScene({ subject: 'earth', mandala: false, atmosphere: false }).faces;
+    const body = plan({ subject: 'earth', mandala: false, atmosphere: false }).faces;
     const fills = new Set(body.map((f) => f.fill));
     expect(fills.size).toBeGreaterThan(5);
   });
 
   it('sunU rotates the terminator (different sun → different fills)', () => {
-    const a = planPlanetaryScene({ subject: 'earth', mandala: false, atmosphere: false, sunU: 0 }).faces.map((f) => f.fill);
-    const b = planPlanetaryScene({ subject: 'earth', mandala: false, atmosphere: false, sunU: 0.5 }).faces.map((f) => f.fill);
+    const a = plan({ subject: 'earth', mandala: false, atmosphere: false, sunU: 0 }).faces.map((f) => f.fill);
+    const b = plan({ subject: 'earth', mandala: false, atmosphere: false, sunU: 0.5 }).faces.map((f) => f.fill);
     expect(a).not.toEqual(b);
   });
 });

@@ -1,5 +1,5 @@
 // The statue build on the hero door (statue/expand.js): the cards are data, the refusals name the choices, an absent
-// statue is zero bytes, and every card carves, cuts, surfaces and stands on its base.
+// statue is zero bytes, and a card of every word carves, cuts, surfaces and stands on its base.
 import { describe, it, expect } from 'vitest';
 import { heroRecord, heroPlanOf, expandLayeredManifest, validateHeroSpec } from '../../mcp/tools/layered.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
@@ -88,8 +88,23 @@ describe('passes 1 and 2: the card beneath the hero', () => {
   });
 });
 
-describe('every card carves, surfaces and stands on its base', () => {
-  for (const style of STATUE_STYLES) for (const cast of ['male', 'female']) {
+// each word a card sets runs its own pass (a metal or a stone, a crop, a base, a drape for the cast): the fewest
+// card × cast cases that carry every value of every word once (greedy cover, in code)
+const carvings = (() => {
+  const cases = STATUE_STYLES.flatMap((style) => ['male', 'female'].map((cast) => [style, cast]));
+  const keysOf = ([style, cast]) => { const w = statueWords(style);
+    return [`metal:${!!STATUE_MATERIALS[w.material].metal}`, `crop:${w.crop}`, `base:${w.base}`, `drape:${!!w.card.drape?.[cast]}`, `cast:${cast}`]; };
+  const left = new Set(cases.flatMap(keysOf)), picked = [];
+  while (left.size) {
+    const gain = (c) => keysOf(c).filter((k) => left.has(k)).length;
+    const best = cases.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+    picked.push(best); for (const k of keysOf(best)) left.delete(k);
+  }
+  return picked;
+})();
+
+describe('a card carves, surfaces and stands on its base, for every word a card sets', () => {
+  for (const [style, cast] of carvings) {
     it(`${style} · ${cast}`, async () => {
       const { m, faces } = await scene({ cast, statue: style });
       const words = statueWords(style), base = faces.filter((f) => f.group === 'base'), fig = faces.filter((f) => f.group !== 'base');

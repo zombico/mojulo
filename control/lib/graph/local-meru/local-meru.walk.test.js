@@ -6,11 +6,25 @@
 import { describe, expect, it } from 'vitest';
 
 import { assembleStageScene } from '../era/stage.js';
-import { planLocalMeru } from './plan.js';
+import { planLocalMeru, readLocalMeru } from './plan.js';
 import { LOCAL_MERU_PRESET_IDS } from './presets.js';
 
 const RECIPE = { kind: 'stage', kit: 'isekai-meadow', seed: 8, meru: { after: { trail: true } } };
 const DT = 1 / 60;
+// a preset is a composition of procedures: each tier's form, way up and plan (round or a polygon), and what stands on
+// what. The fewest presets that walk every one the default does not (greedy cover, in code).
+const proceduresOf = (r) => { const T = readLocalMeru(r).tiers;
+  return [...T.map((t) => `${t.form}:${t.up.via}:${t.sides ? 'polygon' : 'round'}`), ...T.slice(1).map((t, k) => `${T[k].form}>${t.form}`)]; };
+const PRESETS = (() => {
+  const keys = (id) => proceduresOf({ preset: id }), left = new Set(LOCAL_MERU_PRESET_IDS.flatMap(keys)), picked = [];
+  for (const k of proceduresOf(RECIPE.meru)) left.delete(k);
+  while (left.size) {
+    const gain = (id) => keys(id).filter((k) => left.has(k)).length;
+    const best = LOCAL_MERU_PRESET_IDS.reduce((a, b) => (gain(b) > gain(a) ? b : a));
+    picked.push(best); for (const k of keys(best)) left.delete(k);
+  }
+  return picked;
+})();
 
 // every opaque face as triangles in a 1 m xy hash (a cutout is walked through, as the World does)
 function worldOf(payload) {
@@ -128,7 +142,7 @@ describe('the local meru, walked on the World\'s own rules', () => {
     void m;
   }, 120000);
 
-  for (const id of LOCAL_MERU_PRESET_IDS) {
+  for (const id of PRESETS) {
     it(`${id}: walked and climbed from the seam to the top`, () => {
       const pay = assembleStageScene({ ...RECIPE, meru: { preset: id, after: { trail: true } } }), pl = planLocalMeru({ preset: id, after: { kit: 'isekai-meadow', seed: 8, trail: true } });
       const { me } = walkRoute(pay, pl);

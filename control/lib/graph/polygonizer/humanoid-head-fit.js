@@ -81,6 +81,9 @@ const KNOB_MOVES = {
   cheek: (k, P) => { P.cheek[0] *= k; },
   jawWidth: (k, P) => { for (const n of ['jawAngle', 'cheek']) P[n][0] *= k; P.jawFront[0] *= 1 + (k - 1) * 0.5; },
   chinPoint: (k, P) => { P.chinSide[0] /= k; P.jawFront[0] /= Math.sqrt(k); },
+  // the BRIDGE (no face word: the tiered face's `features.bridge`): the nasion and the nose's bridge forward, the
+  // glabella and the bridge's sides a share of it, so the nose stands off the eyes with volume at its root
+  noseBridge: (k, P) => { const d = (k - 1) * 0.045 * headHeight(P); for (const [n, w] of [['nasion', 1], ['bridge', 0.85], ['noseSide', 0.5], ['glabella', 0.45], ['browInner', 0.2]]) P[n][1] += d * w; },
 };
 /** Knobs with no fitted counterpart (the ear and eye are pinned details; the neck is the body's). */
 export const FIT_INERT_KNOBS = ['earSize', 'eyeSize', 'neckGirth'];
@@ -277,8 +280,27 @@ function earConnect(P, stack, cfg) {
   for (const row of stack.slice(0, CREST)) row.rear = [row.side[0] - 0.01, row.side[1] - cfg.ramus, row.side[2]];
 }
 
-/** A fitted head's cranium stations (row points on the landmark head's slots) and the jaw's two lower rings. */
-export function fittedCage(preset, knobs, slots) {
+/** The EYE-AND-BROW column (the tiered face's `features.ridge`, humanoid-head.js inserts it as a slot): the eye and
+ * glabella rows' front slots run [bridge, nose, ala, inner, outer], so from the inner brow to the outer, and across the
+ * eye, each was one chord, the brow flat above the iris and the socket flat round the eye. A slot `f` of the way from
+ * inner to outer on every row: on the glabella row read off the fitted surface (the fit's own brow) and forward `h`
+ * (metres: the ridge over the iris), its side in `temple` (the hollow behind the ridge's outer end); on the eye row the
+ * chord's point back `socket` (the eye, pinned there, sits back under the ridge; the fitted surface there is the fit's
+ * own eyeball, 4.5 mm proud of the chord, which the pinned eye already is). Every other row takes the chord's point, so
+ * the cheek planes and the jaw stay as built. Right-hand points, fit units. */
+function midColumn(F, V, stack, { f, h = 0, socket = 0, temple = 0 }) {
+  const toFit = (m) => m / F.S;
+  return stack.map((row, i) => {
+    const p = lerp(row.inner, row.outer, f);
+    if (i === EYE + 1) { p[1] = Math.max(p[1], castY(F, V, p[0], p[2], true)[1]) + toFit(h); row.side = [row.side[0] - toFit(temple), row.side[1], row.side[2]]; }
+    if (i === EYE) p[1] -= toFit(socket);
+    return p;
+  });
+}
+
+/** A fitted head's cranium stations (row points on the landmark head's slots) and the jaw's two lower rings; with `mid`
+ * (midColumn's { f, h, socket, temple }), each ring's eye-and-brow column too (`midR`, hero metres, rows bottom up). */
+export function fittedCage(preset, knobs, slots, { mid = null } = {}) {
   const F = fitOf(preset), cfg = cheekOf(preset), { P, V } = deformed(F, knobs, cfg.on ? cfg.jaw : 0);
   const halves = ROWS.map((row) => {
     const z = typeof row.z === 'function' ? row.z(P) : P[row.z][2];
@@ -322,8 +344,9 @@ export function fittedCage(preset, knobs, slots) {
   if (cfg.on) cheekPlanes(F, V, P, stack, cfg);
   if (cfg.on && cfg.ear) earConnect(P, stack, cfg);
   const rowsZ = halves.map((r) => F.toM([0, 0, r.z])[2]);
+  const midR = mid ? midColumn(F, V, stack, mid).map((p) => F.toM(p)) : null;
   return { cranium: stack.slice(3).map((h) => ring(F, h, slots)), jaw: stack.slice(0, 3).map((h) => ring(F, h, slots)), rowsZ, crown: F.toM(P.crown),
-    jawRows: 3, earConnected: cfg.on && cfg.ear };
+    jawRows: 3, earConnected: cfg.on && cfg.ear, ...(midR ? { mid: { f: mid.f, cranium: midR.slice(3), jaw: midR.slice(0, 3) } } : {}) };
 }
 
 /** The cheek planes of a built head (hero metres): each plane's flatness (largest distance, mm, of its corners and

@@ -2,8 +2,9 @@
 // on a lowpoly anime hero the body and ink primitives carry one sparse POSITION target per face target, POSITION is the
 // neutral head, mesh.weights the authored face and mesh.extras the words; the default weights put back the stored face;
 // every other attribute, the ink and the clips are the bytes of the export without the face; a hero whose own lid closure
-// sits between the knots carries its own corrective pair. A landmark hero and the head-none hero resolve to the same
-// bytes with the face asked for, the bytes they wrote before the face; export_model's skinned path reports the face.
+// sits between the knots carries its own corrective pair. Without the face a landmark hero and the head-none hero write
+// the bytes they wrote before it; with it, the head-none hero still does and the landmark hero carries the western face
+// (western-face-rig.js), its default weights putting back the stored face; export_model's skinned path reports the face.
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 
@@ -22,6 +23,7 @@ import { resolveWorldScene } from '../worlds/world-scene.js';
 import { facesToGlb } from './scene-gltf.js';
 import { FACE_TARGETS, faceWeights, faceState } from '../polygonizer/anime-face-rig.js';
 import { resolveAnimeExpression } from '../polygonizer/anime-head.js';
+import { WESTERN_FACE_TARGETS } from '../polygonizer/western-face-rig.js';
 
 const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 }, SZ = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 };
 const glbOf = (bytes) => { const jl = bytes.readUInt32LE(12); return { json: JSON.parse(bytes.subarray(20, 20 + jl).toString('utf8')), bin: bytes.subarray(28 + jl) }; };
@@ -117,7 +119,11 @@ describe('the skinned GLB carries the anime face', () => {
     expect(worst).toBeLessThan(0.0003);
   });
 
-  it('a landmark hero and the head-none hero resolve to the same skinned bytes with the face asked for, the bytes they wrote before the face', async () => {
+  // Re-pinned for the plain path's PALETTE (station-loft-rig packLayeredRig `palette`, world-kinds: a hero's packed rig on the
+  // plain path, studio or cast light): its moving figure took every part's `tint`, which a hero's parts never carry, so
+  // it was the grey fallback all over; it takes the palette now. Every hash in these chains moved with it, the earlier
+  // values the comments quote included (the reconstructions still hold, at the new values).
+  it('without the face, a landmark hero and the head-none hero write the bytes they wrote before it; with it, the head-none hero still does', async () => {
     const cheer = { cheer: [{ support: 'both', crouch: 0.1 }, { support: 'both', armR: { x: 0.3, y: 0.15, z: 0.94 }, elbowR: 'slight' }] };
     // sha256 (first 16 hex) of each skinned GLB as the tree wrote it before the face and the clip timing: pinned, so a
     // change that moved both exports alike still shows. Re-pinned for the hero's `wave` clip keeping its elbow at the
@@ -131,13 +137,40 @@ describe('the skinned GLB carries the anime face', () => {
     // (on the streamlined core: the pins predate the structured core, DEFAULT_CORE, which moves both exports alike)
     for (const spec of [{ cast: 'male', register: 'lowpoly', clips: cheer, core: 'streamlined' }, { cast: 'female', head: 'none', register: 'lowpoly', clips: cheer, core: 'streamlined' }]) {
       const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
-      const a = await skinnedGlb(m, { face: true }), b = await skinnedGlb(m);
-      expect(a.bytes.equals(b.bytes), spec.head ?? 'landmark').toBe(true);
+      const b = await skinnedGlb(m);
       expect(createHash('sha256').update(b.bytes).digest('hex').slice(0, 16), spec.head ?? 'landmark').toBe(PIN[spec.head ?? 'landmark']);
-      expect(a.faceFigures).toBeUndefined();
-      const { payload } = await resolveWorldScene({ ref: 'glb-face', title: 'glb face', manifest: m }, { face: true });
-      expect(payload.figures.body.face).toBeUndefined(); expect(payload.figures.body.faceSkipped).toBeUndefined();
+      if (spec.head) {   // the head-none hero has no face to carry
+        const a = await skinnedGlb(m, { face: true });
+        expect(a.bytes.equals(b.bytes)).toBe(true); expect(a.faceFigures).toBeUndefined();
+        const { payload } = await resolveWorldScene({ ref: 'glb-face', title: 'glb face', manifest: m }, { face: true });
+        expect(payload.figures.body.face).toBeUndefined(); expect(payload.figures.body.faceSkipped).toBeUndefined();
+      }
     }
+  });
+
+  it('the landmark hero carries the western face: its targets, its words, a key\'s face and the ambient blink; the default weights put back the stored face', async () => {
+    const W = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', form: 'tiered', register: 'lowpoly', expression: 'smile', clips: { cheer: [{ support: 'both', crouch: 0.1, face: 'surprised' }, { support: 'both', face: { blink: 1 } }] } }) });
+    const face = await skinnedGlb(W, { face: true }), plain = await skinnedGlb(W);
+    expect(face.faceFigures).toEqual(['body']);
+    const G = glbOf(face.bytes), N = glbOf(plain.bytes);
+    const mesh = G.json.meshes.find((m) => m.name === 'body:skinned'), [body] = mesh.primitives, [nBody] = N.json.meshes.find((m) => m.name === 'body:skinned').primitives;
+    expect(mesh.extras.targetNames).toEqual([...WESTERN_FACE_TARGETS]); expect(body.targets.length).toBe(WESTERN_FACE_TARGETS.length);
+    expect(body.targets.every((t) => G.json.accessors[t.POSITION].sparse)).toBe(true);   // every channel moves the head
+    expect(mesh.weights).toEqual(mesh.extras.face.words.authored); expect(mesh.extras.face.words.authored).toEqual(mesh.extras.face.words.smile);
+    expect(mesh.extras.face.brow).toMatch(/browAngry/); expect(mesh.extras.face.about).toMatch(/western head/);
+    // the default weights: POSITION (the neutral head) + Σ w · target on the stored face (the channels' near-linearity:
+    // 0.05 mm at a smile)
+    const P = floats(G, body.attributes.POSITION), P0 = floats(N, nBody.attributes.POSITION), T = body.targets.map((t) => floats(G, t.POSITION));
+    let worst = 0; for (let v = 0; v < P.length / 3; v++) worst = Math.max(worst, Math.hypot(...[0, 1, 2].map((c) => P[v * 3 + c] + mesh.weights.reduce((s, x, t) => s + x * T[t][v * 3 + c], 0) - P0[v * 3 + c])));
+    expect(worst).toBeLessThan(0.0003);
+    for (const k of ['COLOR_0', 'JOINTS_0', 'WEIGHTS_0']) expect(bytesOf(G, body.attributes[k]).equals(bytesOf(N, nBody.attributes[k])), k).toBe(true);
+    // the clips: each a weights channel more, and the ambient blink; the cheer's track draws its keys' faces
+    expect(G.json.animations.map((a) => a.name)).toEqual([...N.json.animations.map((a) => a.name), 'face:ambientBlink']);
+    const cheer = G.json.animations.find((a) => /:cheer$/.test(a.name)), ch = cheer.channels.find((c) => c.target.path === 'weights');
+    const out = floats(G, cheer.samplers[ch.sampler].output), n = WESTERN_FACE_TARGETS.length, keys = out.length / n;
+    const at = (k, name) => out[k * n + WESTERN_FACE_TARGETS.indexOf(name)];
+    expect(Array.from({ length: keys }, (_, k) => at(k, 'blink')).some((x) => x === 1)).toBe(true);   // the second key shuts the eyes
+    expect(Array.from({ length: keys }, (_, k) => at(k, 'eyeWide')).some((x) => x > 0.7)).toBe(true);   // surprised: the eyes wide
   });
 
   it("export_model's skinned path writes the face and says so; the World payload never carries it", async () => {

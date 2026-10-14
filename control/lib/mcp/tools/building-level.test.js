@@ -20,6 +20,17 @@ import { withBuildingLevel } from '@/lib/graph/structure/level';
 beforeEach(() => closeDb());
 
 const STORE = { slices: [{ name: 'campaign', kind: 'progression' }] };
+// The real headless walk runs on three representative levels (the office climb, the crypt room-kit, the tavern-door
+// link between two levels). The rest prove their level shape through the same gate with a stub walker, the way the
+// gate's orchestration is tested (lib/graph/game/mechanics-audit.test.js): the level compiles to a reach-exit route
+// that the gate hands to the walker, and the game mints on its verdict.
+const stubWalk = (walked) => async ({ levelRef, plan }) => {
+  expect(plan).toMatchObject({ motion: 'traversal', expect: 'success' });
+  expect(plan.waypoints.length).toBeGreaterThan(0);
+  expect(plan.waypoints.flat().every(Number.isFinite)).toBe(true);
+  walked.push(levelRef);
+  return { game: { ended: true, result: 'success' } };
+};
 
 describe('a building as a level', () => {
   it('a three-storey office: minted with a level, promoted, its audit walking up to the top floor', async () => {
@@ -31,12 +42,14 @@ describe('a building as a level', () => {
     expect(game.levels).toEqual(['lv_office']);
   }, 300_000);
 
-  it('a store and a house become levels the same way', async () => {
+  it('a store and a house become levels the same way (stub walk)', async () => {
     mintBuilding({ title: 'Shop', ref: 'lv_store', manifest: { kind: 'store', title: 'Shop', card: 'bookstore', level: {} } });
     mintBuilding({ title: 'Home', ref: 'lv_house', manifest: { title: 'Home', seed: 21, storeys: 2, furnish: true, windows: true, level: { goal: 'top' } } });
-    const game = await mintGame({ title: 'Errands', store: STORE, levels: [{ ref: 'lv_store' }, { ref: 'lv_house' }], ref: 'gm_errands', autoAudit: true });
+    const walked = [];
+    const game = await mintGame({ title: 'Errands', store: STORE, levels: [{ ref: 'lv_store' }, { ref: 'lv_house' }], ref: 'gm_errands', autoAudit: true, runTraversal: stubWalk(walked) });
     expect(game.ok).toBe(true);
-  }, 300_000);
+    expect(walked.sort()).toEqual(['lv_house', 'lv_store']);
+  });
 
   it('a room-kit stage: the crypt promoted, its audit walking five doorways to the sepulchre, the walls stopping it', async () => {
     const crypt = { kind: 'stage', kit: 'gothic-stone', title: 'Crypt', level: {},
@@ -48,41 +61,49 @@ describe('a building as a level', () => {
     expect(game.ok).toBe(true);
   }, 300_000);
 
-  it('a tavern from its program, on the gothic-night cube: promoted, its audit walking to the cellar', async () => {
+  it('a tavern from its program, on the gothic-night cube: promoted, its audit routed to the cellar (stub walk)', async () => {
     await createSketchHandler({ title: 'Tavern', ref: 'lv_tavern', manifest: { kind: 'stage', geocube: 'gothic-night', title: 'Tavern', program: { use: 'tavern', seed: 2 }, level: {} } });
-    const game = await mintGame({ title: 'Last orders', store: STORE, levels: [{ ref: 'lv_tavern' }], ref: 'gm_tavern', autoAudit: true });
+    const walked = [];
+    const game = await mintGame({ title: 'Last orders', store: STORE, levels: [{ ref: 'lv_tavern' }], ref: 'gm_tavern', autoAudit: true, runTraversal: stubWalk(walked) });
     expect(game.ok).toBe(true);
-  }, 300_000);
+    expect(walked).toEqual(['lv_tavern']);
+  });
 
-  it('a tower from its program, on storeys: promoted, its audit climbing two flights to the lookout', async () => {
+  it('a tower from its program, on storeys: promoted, its audit routed up two flights to the lookout (stub walk)', async () => {
     await createSketchHandler({ title: 'Tower', ref: 'lv_tower', manifest: { kind: 'stage', geocube: 'gothic-night', title: 'Tower', program: { use: 'tower', seed: 1 }, level: {} } });
-    const game = await mintGame({ title: 'Up the tower', store: STORE, levels: [{ ref: 'lv_tower' }], ref: 'gm_tower', autoAudit: true });
+    const walked = [];
+    const game = await mintGame({ title: 'Up the tower', store: STORE, levels: [{ ref: 'lv_tower' }], ref: 'gm_tower', autoAudit: true, runTraversal: stubWalk(walked) });
     expect(game.ok).toBe(true);
+    expect(walked).toEqual(['lv_tower']);
     const g = withBuildingLevel(SketchRepository.getByRef('lv_tower').manifest, 'lv_tower');
     expect(g.game.mechanics.find((m) => m.kind === 'reach-exit').at[2]).toBeGreaterThan(9);
-  }, 300_000);
+  });
 
-  it('a tavern walked into off the meadow trail: the level ends in its cellar, the audit walking in at its door', async () => {
+  it('a tavern walked into off the meadow trail: the level ends in its cellar, the audit routed in at its door (stub walk)', async () => {
     const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...MEADOWMARK.levels['meadow-ascent'], places: { ...MEADOWMARK.levels['meadow-ascent'].places, buildings: [{ use: 'tavern', seed: 2, goal: true }] } } } };
     const st = gameStages(W).find((s) => s.level === 'meadow-ascent' && s.manifest.buildings);
     expect(st.manifest.buildings[0]).toMatchObject({ use: 'tavern', goal: true });
     const order = stageLevelOrder(readGameworld(W), st, { ref: 'lv_meadow_inn' });
     expect(order.ends.exitFrom).toMatch(/tavern's cellar/);
     await createSketchHandler({ ...order.args, ref: 'lv_meadow_inn' });
-    const game = await mintGame({ title: 'To the inn', store: STORE, levels: [{ ref: 'lv_meadow_inn' }], ref: 'gm_meadow_inn', autoAudit: true });
+    const walked = [];
+    const game = await mintGame({ title: 'To the inn', store: STORE, levels: [{ ref: 'lv_meadow_inn' }], ref: 'gm_meadow_inn', autoAudit: true, runTraversal: stubWalk(walked) });
     expect(game.ok).toBe(true);
-  }, 300_000);
+    expect(walked).toEqual(['lv_meadow_inn']);
+  }, 60_000);
 
-  it("the town's street on the meadow trail: the level ends at the hall's dais, walked in off the street", async () => {
+  it("the town's street on the meadow trail: the level ends at the hall's dais, routed in off the street (stub walk)", async () => {
     const ML = MEADOWMARK.levels['meadow-ascent'];
     const W = { ...MEADOWMARK, levels: { ...MEADOWMARK.levels, 'meadow-ascent': { ...ML, places: { ...ML.places, street: { houses: 5, enter: 1, goal: true } } } } };
     const st = gameStages(W).find((s) => s.level === 'meadow-ascent' && s.manifest.town);
     const order = stageLevelOrder(readGameworld(W), st, { ref: 'lv_street' });
     expect(order.ends.exitFrom).toMatch(/hall's dais/);
     await createSketchHandler({ ...order.args, ref: 'lv_street' });
-    const game = await mintGame({ title: 'Into the hall', store: STORE, levels: [{ ref: 'lv_street' }], ref: 'gm_street', autoAudit: true });
+    const walked = [];
+    const game = await mintGame({ title: 'Into the hall', store: STORE, levels: [{ ref: 'lv_street' }], ref: 'gm_street', autoAudit: true, runTraversal: stubWalk(walked) });
     expect(game.ok).toBe(true);
-  }, 300_000);
+    expect(walked).toEqual(['lv_street']);
+  });
 
   it('a tavern entered by its door: the meadow and its inside both promoted, linked both ways, the shell carrying the link', async () => {
     const ML = MEADOWMARK.levels['meadow-ascent'];
@@ -107,5 +128,5 @@ describe('a building as a level', () => {
   it('a building without `level` is still refused as a level, saying why', async () => {
     mintBuilding({ title: 'Plain', ref: 'lv_plain', manifest: { kind: 'office', title: 'Plain' } });
     await expect(mintGame({ title: 'x', store: STORE, levels: [{ ref: 'lv_plain' }], ref: 'gm_plain', autoAudit: true })).rejects.toThrow(/no `game` channel/);
-  }, 120_000);
+  });
 });

@@ -116,6 +116,9 @@ export const FIXTURE = [
   // armor (layered hero adorn build): worn armour from a style and dials (armor)
   ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'create_character'],
   ['only armour the shoulders and chest for now, full plate later', 'create_character'],
+  // character fidelity (1011): a hero drawn for its target screen and in its level's light, revised by update_character
+  ['my hero looks faceted on a 4k screen, give him the polygons it needs', 'update_character'],
+  ['light my knight the way the gothic night level is lit so he fits in', 'update_character'],
   // world weather: a climate for any world's sky (weather)
   ['make it rain in my world and let a thunderstorm roll in now and then', 'compose_world'],
   ['a snowy pass where a blizzard starts when I walk in, with a dust storm world elsewhere', 'compose_world'],

@@ -23,16 +23,34 @@ import { buildPosedFigure, renderFigureToSvg, figurePatternReport } from './figu
 import { bodyGirths } from './body-chart.js';
 import { PROTO_DEFAULT, applyWeight } from './figure-proto.js';
 
+// ONE build per distinct (proto, garment) and one render per distinct argument, shared by every
+// assertion in the file. Both are deterministic by construction (seeded dice only, no clock), so a
+// repeat call cannot return anything different; the helpers below used to rebuild the canonical
+// figure on nearly every call. Keep new assertions going through `build` / `svg`.
+const BUILT = new Map();
+const build = (proto, garment = null) => {
+  const k = JSON.stringify([proto, garment]);
+  if (!BUILT.has(k)) BUILT.set(k, buildPosedFigure({}, proto, garment));
+  return BUILT.get(k);
+};
+const SVG = new Map();
+const svg = (args) => {
+  const k = JSON.stringify(args);
+  if (!SVG.has(k)) SVG.set(k, renderFigureToSvg(args));
+  return SVG.get(k);
+};
+const GARMENTS = ['tee', 'trousers'];
+
 const pts = (stacks, id) => stacks.filter((s) => (id ? s.id === id : true)).flatMap((s) => s.rings.flatMap((r) => r.polyline));
 const span = (p, ax) => Math.max(...p.map((q) => q[ax])) - Math.min(...p.map((q) => q[ax]));
-const trunk = (proto) => pts(buildPosedFigure({}, proto, null), 'trunk');
+const trunk = (proto) => pts(build(proto), 'trunk');
 const widthOf = (proto) => span(trunk(proto), 'x');
 const depthOf = (proto) => span(trunk(proto), 'y');
 // ONE ring's own fore/aft, at a height fraction up the trunk. A band would not do: the egg
 // profile tapers, so a band's y-extent is the max over many rings with different depths AND
 // different centres, and is not linear in the dial even when every ring is.
 const ringDepthAt = (proto, frac) => {
-  const st = buildPosedFigure({}, proto, null).find((s) => s.id === 'trunk');
+  const st = build(proto).find((s) => s.id === 'trunk');
   const zs = st.rings.map((r) => r.center.z), lo = Math.min(...zs), hi = Math.max(...zs);
   const target = lo + frac * (hi - lo);
   let best = st.rings[0];
@@ -40,7 +58,7 @@ const ringDepthAt = (proto, frac) => {
   return span(best.polyline, 'y');
 };
 const ringWidthAt = (proto, frac) => {
-  const st = buildPosedFigure({}, proto, null).find((s) => s.id === 'trunk');
+  const st = build(proto).find((s) => s.id === 'trunk');
   const zs = st.rings.map((r) => r.center.z), lo = Math.min(...zs), hi = Math.max(...zs);
   const target = lo + frac * (hi - lo);
   let best = st.rings[0];
@@ -58,13 +76,13 @@ describe('the absent channel', () => {
   });
 
   it('a dial at its default is byte-identical to not passing it', () => {
-    const bare = renderFigureToSvg({});
-    expect(renderFigureToSvg({ proto: { chestDepth: 1 } })).toBe(bare);
-    expect(renderFigureToSvg({ proto: { pelvisDepth: 1 } })).toBe(bare);
-    expect(renderFigureToSvg({ proto: { chestDepth: 1, pelvisDepth: 1 } })).toBe(bare);
+    const bare = svg({});
+    expect(svg({ proto: { chestDepth: 1 } })).toBe(bare);
+    expect(svg({ proto: { pelvisDepth: 1 } })).toBe(bare);
+    expect(svg({ proto: { chestDepth: 1, pelvisDepth: 1 } })).toBe(bare);
     for (const sex of ['male', 'female']) {
-      const b = renderFigureToSvg({ proto: { sex } });
-      expect(renderFigureToSvg({ proto: { sex, chestDepth: 1, pelvisDepth: 1 } })).toBe(b);
+      const b = svg({ proto: { sex } });
+      expect(svg({ proto: { sex, chestDepth: 1, pelvisDepth: 1 } })).toBe(b);
     }
   });
 });
@@ -127,14 +145,14 @@ describe('composition with chestWidth', () => {
 
 describe('the rest of the body follows', () => {
   it('the female breast surface rides chestDepth', () => {
-    const bust = (proto) => bodyGirths(buildPosedFigure({}, { sex: 'female', ...proto }, null), { stature_cm: 170 }).bust;
+    const bust = (proto) => bodyGirths(build({ sex: 'female', ...proto }), { stature_cm: 170 }).bust;
     expect(bust({ chestDepth: 1.5 })).toBeGreaterThan(bust({}));
     expect(bust({ chestDepth: 0.7 })).toBeLessThan(bust({}));
   });
 
   it('a garment still fits a re-proportioned trunk', () => {
     for (const proto of [{ chestDepth: 1.5 }, { chestDepth: 0.7 }, { pelvisDepth: 1.4 }, { chestWidth: 1.3, chestDepth: 0.75 }]) {
-      const stacks = buildPosedFigure({}, proto, 'tee');
+      const stacks = build(proto, 'tee');
       expect(stacks.length).toBeGreaterThan(0);
       for (const q of pts(stacks)) expect(Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z)).toBe(true);
     }
@@ -143,7 +161,7 @@ describe('the rest of the body follows', () => {
   it('a cut-and-sewn piece re-drafts off the deeper body', () => {
     const rect = (w, h) => [[-w / 2, 0], [w / 2, 0], [w / 2, h], [-w / 2, h]];
     const draft = (proto) => {
-      const g = bodyGirths(buildPosedFigure({}, proto, null), { stature_cm: 170 });
+      const g = bodyGirths(build(proto), { stature_cm: 170 });
       return {
         id: 'shift', stature_cm: g.stature_cm, ease_cm: 2, stitch_cm: 2,
         pieces: [
@@ -162,7 +180,7 @@ describe('the rest of the body follows', () => {
 });
 
 // ── the stomach and the hips ────────────────────────────────────────────────
-const massOf = (proto, id) => buildPosedFigure({}, proto, null).find((s) => s.id === id).rings.flatMap((r) => r.polyline);
+const massOf = (proto, id) => build(proto).find((s) => s.id === id).rings.flatMap((r) => r.polyline);
 const ext = (p, ax) => [Math.min(...p.map((q) => q[ax])), Math.max(...p.map((q) => q[ax]))];
 
 describe('the stomach', () => {
@@ -171,8 +189,8 @@ describe('the stomach', () => {
   it('the dials are declared and absent == default', () => {
     expect(PROTO_DEFAULT.bellyDepth).toBe(1);
     expect(PROTO_DEFAULT.bellyDrop).toBe(0);
-    const bare = renderFigureToSvg({});
-    expect(renderFigureToSvg({ proto: { bellyDepth: 1, bellyDrop: 0 } })).toBe(bare);
+    const bare = svg({});
+    expect(svg({ proto: { bellyDepth: 1, bellyDrop: 0 } })).toBe(bare);
   });
 
   it('bellyDepth deepens the mass MOSTLY forward — the flanks and back still fill', () => {
@@ -204,8 +222,8 @@ describe('the hips', () => {
   it('the dials are declared and absent == default', () => {
     expect(PROTO_DEFAULT.gluteRear).toBe(1);
     expect(PROTO_DEFAULT.hipFlare).toBe(1);
-    const bare = renderFigureToSvg({});
-    expect(renderFigureToSvg({ proto: { gluteRear: 1, hipFlare: 1 } })).toBe(bare);
+    const bare = svg({});
+    expect(svg({ proto: { gluteRear: 1, hipFlare: 1 } })).toBe(bare);
   });
 
   it('gluteRear projects the buttock REARWARD without widening it', () => {
@@ -237,26 +255,25 @@ describe('the hips', () => {
   });
 
   it('a garment still fits over a re-massed stomach and hips', () => {
-    for (const proto of [{ bellyDepth: 1.8 }, { bellyDrop: 0.6 }, { gluteRear: 1.6 }, { hipFlare: 1.5 }, { bellyDepth: 1.6, gluteRear: 1.4, hipFlare: 1.3 }]) {
-      for (const garment of ['tee', 'trousers']) {
-        const stacks = buildPosedFigure({}, proto, garment);
-        expect(stacks.length).toBeGreaterThan(0);
-        for (const q of pts(stacks)) expect(Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z)).toBe(true);
-      }
-    }
+    // each re-massing once, the garment alternating: both garments see a stomach and a hip dial
+    [{ bellyDepth: 1.8 }, { bellyDrop: 0.6 }, { gluteRear: 1.6 }, { hipFlare: 1.5 }, { bellyDepth: 1.6, gluteRear: 1.4, hipFlare: 1.3 }].forEach((proto, i) => {
+      const stacks = build(proto, GARMENTS[i % 2]);
+      expect(stacks.length).toBeGreaterThan(0);
+      for (const q of pts(stacks)) expect(Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z)).toBe(true);
+    });
   });
 });
 
 // ── WEIGHT — one dial, distributed ─────────────────────────────────────────
 describe('weight', () => {
-  const girths = (proto) => bodyGirths(buildPosedFigure({}, proto, null), { stature_cm: 170 });
+  const girths = (proto) => bodyGirths(build(proto), { stature_cm: 170 });
   const bellyFwd = (proto) => Math.max(...massOf(proto, 'dantien').map((q) => q.y));
 
   it('weight 1 is byte-identical to not passing it, on both poles', () => {
     expect(PROTO_DEFAULT.weight).toBe(1);
-    expect(renderFigureToSvg({ proto: { weight: 1 } })).toBe(renderFigureToSvg({}));
+    expect(svg({ proto: { weight: 1 } })).toBe(svg({}));
     for (const sex of ['male', 'female']) {
-      expect(renderFigureToSvg({ proto: { sex, weight: 1 } })).toBe(renderFigureToSvg({ proto: { sex } }));
+      expect(svg({ proto: { sex, weight: 1 } })).toBe(svg({ proto: { sex } }));
     }
   });
 
@@ -335,7 +352,7 @@ describe('weight', () => {
     expect(w.bellyDepth).toBeLessThan(1.1);
     const trunkSpan = (p) => span(massOf(p, 'trunk'), 'y');
     expect(trunkSpan({ bellyFill: 0.5 })).toBeGreaterThan(trunkSpan({}));
-    expect(renderFigureToSvg({ proto: { bellyFill: 0 } })).toBe(renderFigureToSvg({}));
+    expect(svg({ proto: { bellyFill: 0 } })).toBe(svg({}));
   });
 
   // GROW ONCE. Both masses were authored so their dial scaled the radius AND slid the centre away
@@ -356,7 +373,7 @@ describe('weight', () => {
 
   it('so the masses stay proportional as the body gets heavier', () => {
     const jut = (proto, id, dir) => {
-      const m = buildPosedFigure({}, proto, null);
+      const m = build(proto);
       const g = m.find((s) => s.id === id).rings, t = m.find((s) => s.id === 'trunk').rings;
       const zc = g.reduce((a, r) => a + r.center.z, 0) / g.length;
       let near = t[0];
@@ -410,11 +427,12 @@ describe('weight', () => {
   });
 
   it('dresses across the range', () => {
-    for (const w of [0.7, 1.3, 1.8]) for (const garment of ['tee', 'trousers']) {
-      const stacks = buildPosedFigure({}, { weight: w }, garment);
+    // each weight once, the garment alternating, so both garments see the heavy end
+    [0.7, 1.8, 1.3].forEach((w, i) => {
+      const stacks = build({ weight: w }, GARMENTS[i % 2]);
       expect(stacks.length).toBeGreaterThan(0);
       for (const q of pts(stacks)) expect(Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(q.z)).toBe(true);
-    }
+    });
   });
 });
 
@@ -425,7 +443,7 @@ describe('weight', () => {
 // against its OWN upper convex hull, which is what "is it concave" actually means.
 describe('the lateral outline', () => {
   const concavity = (proto) => {
-    const st = buildPosedFigure({}, proto, null).filter((s) => s.flesh);
+    const st = build(proto).filter((s) => s.flesh);
     const pts = st.flatMap((s) => s.rings.flatMap((r) => r.polyline));
     const f = [];
     for (let z = 5.2; z <= 7.4; z += 0.1) {

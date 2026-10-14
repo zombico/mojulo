@@ -4,7 +4,7 @@
  *
  *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), how
  *             thick the outside's air is against the reference's (`outsideFog`), and the inside's `shadows` (the
- *             stage's: torch, sun, cells; the gen-6.0 upgrades by default)
+ *             stage's: torch, sun, cells; the gen-6 upgrades by default)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
  *   register  the tone's bands (`steps`, 0 continuous) and its key
@@ -15,6 +15,10 @@
  *             the others, each a few changes to it ({ reads?, base?, land?, colour? }: a shore, a highland). A level
  *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
+ *   era       the look's generation (eras.js; gen-6 by default): its light and surface conventions, at any resolution
+ *   target    what the level is drawn for (target.js: resolution, framing, error; 1080p third-person by default): how
+ *             many pixels a metre covers, so how dense its cast's rings and its surfaces' texels need to be. A hero lit
+ *             by the cube takes its era and its target unless it names its own target
  *
  *   readGeocube(spec)          a preset id, a document, or { from: preset, …changes } → the cube, checked
  *   lowerGeocube(cube, side)   'inside' | 'outside' → a stage manifest
@@ -22,7 +26,7 @@
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
  */
-import { SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
+import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { rampFrom, resample } from './look-facets.js';
 import { ISEKAI_STYLES } from './isekai.js';
 import { SWATCHES } from './style/swatches.js';
@@ -30,6 +34,8 @@ import { registerLook } from './style/looks.js';
 import { STAGE_KITS } from './stage.js';
 import { tileFamilyOf } from './tile-specs.js';
 import { fingerprint } from '../gameworld/review.js';
+import { DEFAULT_ERA, eraError } from './eras.js';
+import { DEFAULT_TARGET, readTarget } from './target.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -37,7 +43,7 @@ const STONE = { gen: 'stone-brick', stone: [150, 150, 150], mortar: [88, 88, 88]
 const FLAGS = { gen: 'flagstone', stone: [140, 140, 140], mortar: [58, 58, 58], gravel: [96, 96, 96], cells: 5, mortarThick: 0.05, wobble: 2.2, vary: 22, grain: 12, lost: 0.04, cracked: 0.2, seed: 17 };
 const ROCK = { gen: 'rock', style: 'cave', base: [170, 170, 170], seed: 1 };
 const LAND = { smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 };
-// the gen-6.0 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
+// the gen-6 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
 // torch's own soft edge ('soft') costs about four times the bake for what the half-metre cells already blur.
 const SHADOWS = { torch: 'hard', sun: 1.5, cells: 0.5 };
 
@@ -111,7 +117,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, rung: 1, light: 1, colour: 1, register: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -133,7 +139,9 @@ export function readGeocube(spec) {
   const c = structuredClone(spec);
   for (const k of ['light', 'colour', 'register', 'surfaces', 'inside', 'outside', 'why']) if (c[k] === undefined) no(`${k} is missing`);
   if (typeof c.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(c.id)) no('id is a lowercase slug');
-  c.title ??= c.id; c.reads ??= ''; c.rung ??= 'gen-6.0';
+  c.title ??= c.id; c.reads ??= ''; c.era ??= DEFAULT_ERA; c.target ??= { ...DEFAULT_TARGET };
+  if (eraError(c.era)) no(eraError(c.era));
+  try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
   only(c.light, ['reference', 'moon', 'outsideFog', 'shadows'], 'light');
   c.light.shadows ??= SHADOWS;
@@ -345,6 +353,17 @@ function withIslandCamera(payload) {
   payload.cameras = [{ name: 'island', worldFraming: { ...wide.worldFraming, cameraPosition: back.map((v) => Math.round(v * 100) / 100), horizontalFov: 58 } }, ...payload.cameras];
 }
 
+/**
+ * What the cube's target asks of its level, near a standing figure (1.8 m): pixels per metre, the texels a metre of
+ * surface wants for one per pixel against what the sixth-gen tiles paint, and how many pixels a shadow cell spans.
+ * A readout: nothing is resized here.
+ */
+export function geocubeDensity(cube) {
+  const t = readTarget(cube.target), ppm = t.figurePx / 1.8, r1 = (v) => Math.round(v * 10) / 10;
+  return { target: { resolution: t.resolution, framing: t.framing, error: t.error }, pxPerMetre: r1(ppm),
+    texelsPerMetre: { wanted: r1(ppm), painted: [...SIXTH_GEN.texture.texelsPerMetre] }, shadowCellPx: r1(cube.light.shadows.cells * ppm) };
+}
+
 const SHOW = ['room', 'land'];
 /** The `geocube` world kind: { cube, show } → the specimen, built by the stage. `assemble` is assembleStageScene. */
 export function assembleGeocubeScene(manifest, ctx, assemble) {
@@ -356,6 +375,6 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   const payload = assemble({ ...low, ...(manifest.walk !== undefined ? { walk: manifest.walk } : {}) }, { ...ctx, title });
   if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
-  payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube) };
+  payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube) };
   return payload;
 }

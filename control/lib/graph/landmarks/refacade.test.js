@@ -5,7 +5,12 @@ import { createHash } from 'node:crypto';
 import { assembleBoxCityScene } from '../scene/scene-css3d.js';
 import { makeLight } from '../polygonizer/vexar.js';
 import { LANDMARK_HEIGHTS } from './index.js';
-import { hasRefacade } from './refacade.js';
+import { hasRefacade, refacadeKey } from './refacade.js';
+import { TOWERS } from './refacade-towers.js';
+import { VENUES } from './refacade-venues.js';
+import { MONUMENTS } from './refacade-monuments.js';
+import { SACRED } from './refacade-sacred.js';
+import { SHRINES } from './refacade-shrines.js';
 
 // footprints as landmarkAnchor lays them on the default frame (short side 18 × frac, along x)
 const LM = {
@@ -117,21 +122,31 @@ describe('metro refacade', () => {
     expect(hash(render(s.box))).toBe(want);
   });
 
-  const metro = SUBJECTS.filter((s) => hasRefacade(s.box.shape) || s.id === 'tian-tan-buddha');   // one builder for every city
+  // the metro contract is one procedure per builder family (refacade-*.js), plus tian-tan-buddha's own builder that
+  // carries its metro build for every city: the first subject of each family, chosen from the catalog
+  const FAMILIES = { towers: TOWERS, venues: VENUES, monuments: MONUMENTS, sacred: SACRED, shrines: SHRINES };
+  const familyOf = (s) => (s.id === 'tian-tan-buddha' ? 'tian-tan' : Object.keys(FAMILIES).find((k) => Object.hasOwn(FAMILIES[k], refacadeKey(s.box.shape))));
+  const firstOf = new Map();
+  for (const s of SUBJECTS) if ((hasRefacade(s.box.shape) || s.id === 'tian-tan-buddha') && !firstOf.has(familyOf(s))) firstOf.set(familyOf(s), s);
+  const metro = [...firstOf.values()];
+  it('samples every refacade family', () => { expect(new Set(metro.map(familyOf))).toEqual(new Set([...Object.keys(FAMILIES), 'tian-tan'])); });
   it.each(metro.map((s) => [s.id, s]))('%s: the metro build stays in its footprint and under its silhouette', (id, s) => {
     const b = { ...s.box, metro: true };
     const faces = render(b);
     expect(faces.length).toBeGreaterThan(0);
     expect(faces.length).toBeLessThanOrEqual(8000);   // the face budget: every face is a DOM plane on the CSS-3D page
     const tol = Math.min(b.w, b.d) * 0.02;
-    let top = -Infinity;
+    let top = -Infinity, finite = true, lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity];
     for (const f of faces) for (const c of drawn(f)) {
-      expect(c.every(Number.isFinite)).toBe(true);
-      expect(c[0]).toBeGreaterThanOrEqual(b.x - tol); expect(c[0]).toBeLessThanOrEqual(b.x + b.w + tol);
-      expect(c[1]).toBeGreaterThanOrEqual(b.y - tol); expect(c[1]).toBeLessThanOrEqual(b.y + b.d + tol);
-      expect(c[2]).toBeGreaterThanOrEqual(b.z0 - tol);
+      if (!c.every(Number.isFinite)) finite = false;
+      for (let k = 0; k < 3; k++) lo[k] = Math.min(lo[k], c[k]);
+      for (let k = 0; k < 2; k++) hi[k] = Math.max(hi[k], c[k]);
       top = Math.max(top, c[2]);
     }
+    expect(finite).toBe(true);
+    expect(lo[0]).toBeGreaterThanOrEqual(b.x - tol); expect(hi[0]).toBeLessThanOrEqual(b.x + b.w + tol);
+    expect(lo[1]).toBeGreaterThanOrEqual(b.y - tol); expect(hi[1]).toBeLessThanOrEqual(b.y + b.d + tol);
+    expect(lo[2]).toBeGreaterThanOrEqual(b.z0 - tol);
     expect(top).toBeLessThanOrEqual(b.z1 * 1.02 + tol);
     expect(hash(render({ ...b }))).toBe(hash(faces));   // deterministic
   });

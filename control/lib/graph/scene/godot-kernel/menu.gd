@@ -14,7 +14,7 @@ func _ready() -> void:
 			s.loop_end = int(s.get_length() * s.mix_rate)
 		if AudioServer.get_bus_index("Music") >= 0:
 			music.bus = "Music"
-		# a level's stinger still sounding: the menu's music waits for it (0.19.0)
+		# a level's stinger still sounding: the menu's music waits for it (0.20.0)
 		var wait := int(game.stinger_until) - Time.get_ticks_msec()
 		if wait > 0:
 			_play_later(music, wait / 1000.0)

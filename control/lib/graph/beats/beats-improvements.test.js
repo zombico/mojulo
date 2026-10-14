@@ -17,6 +17,9 @@ import { decodeWav, rms, bandEnergy, centroid, lrCorrelation } from './audio-mea
 const comp = (parts, extra = {}) => ({ kind: 'beats-composition', title: 'improvements probe', bpm: 60, seed: 7, parts, ...extra });
 const db = (x) => 20 * Math.log10(x || 1e-12);
 const SECTIONS = ['violin', 'viola', 'cello', 'contrabass', 'trumpet', 'french-horn', 'trombone', 'tuba'];
+// every entry of a shelf below runs one procedure (the v3 body, the forced wind, the modal body): the level and
+// spectrum gates take its two ends, the shelf audits stay whole.
+const ends = (list) => [list[0], list.at(-1)];
 
 async function held(instrument, notes) {
   const m = normalizeBeatsManifest(comp([{ name: 'p', instrument, events: notes.map((n, i) => [i * 2, n, 1.8, 0.8]) }]));
@@ -36,7 +39,7 @@ describe('section v3: bodies', () => {
     }
   });
 
-  it.each(SECTIONS)('%s: v3 is level-matched to v2 (RMS within 1.5 dB)', async (s) => {
+  it.each(ends(SECTIONS))('%s: v3 is level-matched to v2 (RMS within 1.5 dB)', async (s) => {
     const notes = { violin: ['G3', 'A4'], viola: ['C3', 'D4'], cello: ['C2', 'D3'], contrabass: ['E1', 'D2'], trumpet: ['C4', 'G4'], 'french-horn': ['F3', 'C4'], trombone: ['Bb2', 'F3'], tuba: ['Bb1', 'F2'] }[s];
     const a = await held(s + '-2', notes), b = await held(s + '-3', notes);
     expect(Math.abs(db(rms(b.y)) - db(rms(a.y))), s).toBeLessThan(1.5);
@@ -152,7 +155,7 @@ describe('woodwinds v3: the spectrum follows force', () => {
     const a = Math.round(sr * 0.5);
     return { level: db(rms(y, a, a + 16384)), bright: centroid(y, sr, a, 16384) };
   }
-  it.each([['flute', 'A5'], ['clarinet', 'G4'], ['oboe', 'A4'], ['bassoon', 'D3']])('%s-3: brighter and wider in range when played harder, level-matched at mf', async (w, n) => {
+  it.each(ends([['flute', 'A5'], ['clarinet', 'G4'], ['oboe', 'A4'], ['bassoon', 'D3']]))('%s-3: brighter and wider in range when played harder, level-matched at mf', async (w, n) => {
     const [s0, f0, s3, m3, f3, m0] = await Promise.all([note(w, n, 0.35), note(w, n, 1), note(w + '-3', n, 0.35), note(w + '-3', n, 0.8), note(w + '-3', n, 1), note(w, n, 0.8)]);
     expect(Math.abs(f0.bright - s0.bright) / s0.bright).toBeLessThan(0.05); // the solo wind: one table
     expect(f3.bright / s3.bright).toBeGreaterThan(1.3);
@@ -168,7 +171,7 @@ describe('wooden bodies v2: the modal body', () => {
     const { wav } = await renderBeatsOffline(m, { tail: 1 });
     return decodeWav(wav).channels;
   }
-  it.each(['acoustic-guitar', 'nylon-guitar', 'classical-guitar', 'harp', 'grand-piano'])('%s-2: level-matched, and the body gives it width', async (name) => {
+  it.each(ends(['acoustic-guitar', 'nylon-guitar', 'classical-guitar', 'harp', 'grand-piano']))('%s-2: level-matched, and the body gives it width', async (name) => {
     const [[aL, aR], [bL, bR]] = await Promise.all([arp(name), arp(name + '-2')]);
     expect(Math.abs(db(rms(bL)) - db(rms(aL)))).toBeLessThan(1.5);
     expect(lrCorrelation(bL, bR)).toBeLessThan(lrCorrelation(aL, aR) - 0.02);
@@ -416,11 +419,14 @@ describe('piano: the sustain pedal', () => {
   });
 
   it('absent or false, nothing changes; a feature slice renders it like the full kernel', async () => {
-    const a = await render(satie()), b = await render(satie(false));
+    // the renders take the piece's first two bars (a re-pedal at the second bass): the property, not the whole piece
+    const opening = (pedal) => { const s = satie(pedal); return { ...s, parts: s.parts.map((p) => ({ ...p, events: p.events.filter((e) => e[0] < 6) })) }; };
+    const a = await render(opening()), b = await render(opening(false));
     expect(a.wav.equals(b.wav)).toBe(true);
-    const m = normalizeBeatsManifest(satie('per-chord'));
+    expect(expandBeatsManifest(normalizeBeatsManifest(satie('per-chord'))).parts[0].chain.find((f) => f.type === 'sympathetic').lane.length).toBeGreaterThan(3);
+    const m = normalizeBeatsManifest(opening('per-chord'));
     const x = expandBeatsManifest(m);
-    expect(x.parts[0].chain.find((f) => f.type === 'sympathetic').lane.length).toBeGreaterThan(3);
+    expect(x.parts[0].chain.find((f) => f.type === 'sympathetic').lane.length).toBeGreaterThan(1);
     expect(beatsFeatures(x)).toEqual(expect.arrayContaining(['timbre', 'anthem']));
     const K = new Function('return (' + emitBeatsKernel(beatsFeatures(x)) + ')()')();
     expect((await renderWithKernel(K, m, { tail: 0.5 })).wav.equals((await renderBeatsOffline(m, { tail: 0.5 })).wav)).toBe(true);

@@ -1,5 +1,5 @@
 extends Node
-# mojulo-godot kernel — the level's sound (since 0.19.0): its action sounds and the music that follows play. Reads
+# mojulo-godot kernel — the level's sound (since 0.20.0): its action sounds and the music that follows play. Reads
 # score.json's `audio` (engine-sound.js): one-shot sounds rendered to audio/sfx/<id>_<n>.wav (n under `variants`), the
 # bus events that fire them (`on`: the first matching glob, one sound at most every 60 ms, the page's rule), the hero's
 # own moves (footsteps, weapon, strike, dodge: the same sim edges the page reads), and a fight score (`combat`) that

@@ -152,7 +152,7 @@ score its scene and its play call for.
     peak) as `combat`. `create_game`'s patch and `design_game`'s `music: 'auto'` write both.
   - Unity and Unreal exports carry the explore score only; Godot plays the change (below).
 - **Godot plays the level's sound.** A level's world audio travels to the Godot pack as data the kernel performs
-  (kernel 0.19.0, `kernel/sound.gd`; `engine-sound.js` names each sound for what it plays).
+  (kernel 0.20.0, `kernel/sound.gd`; `engine-sound.js` names each sound for what it plays).
   - Its action sounds render to `audio/sfx/<id>_<n>.wav`, three takes each when the level's sounds vary. Each
     plays through an `AudioStreamRandomizer` that never repeats a take, fired by the same bus events (first matching
     glob, 60 ms apart) and the same hero moves (footsteps, shots, swings, dodges) as the page.
@@ -169,6 +169,817 @@ score its scene and its play call for.
   key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
   `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names
   a real card.
+
+### Game menus: the inventory's dress, a game's cover, its front menus and its credits
+
+- **The inventory's dress.** The world's UI guide now dresses a grid view (inventory, shop, chest) from closed words
+  (`playscape/ui/inventory-dress.js`). A menu still has no look of its own.
+  - `play.ui.inventory` (or `play_hints.inventory`) is a look, `'flavor'`, or `{ look?, tile, shape, slots, card,
+    badge, kinds, focus, backdrop }`.
+  - The looks are classic (the page's own grid), satchel, loadout, armory and tactical. `'flavor'` takes the border
+    flavor's look: cozy → satchel, covert → loadout, mech-cockpit → armory, futurepunk → tactical.
+  - Words named beside a look win over its own. Shapes include round, hex and diamond (a clipped tile draws its edge
+    as a filled stroke). The backdrop dims or blurs the play behind the menu.
+  - The guide records the dress with its source. The page draws it after the menu sheet. Classic, or no dress, adds
+    no bytes.
+  - On a guide already approved, setting `play.ui.ask.inventory` redraws the dress alone (nothing else rolls), and
+    the guide is proposed again.
+  - The board draws one grid view in every look, with the worn one marked, as a picking aid. Its Style guide card
+    lists the dress. Its menu specimens show sample counts (a bag showed "Nothing carried.").
+  - The board's ammo-pip rule no longer squashes an inventory's worn slots.
+  - New play card: `ui-inventory`.
+- **A game's cover.** `create_cover` takes `for_kind: 'game'` and a `format`:
+  - `key-art`, the default: 16:9, the title screen's backdrop.
+  - `capsule`: the store's 460 × 215.
+  - `box`: the box front.
+  - `icon`: square.
+
+  The archetypes are `logo-center`, `lower-third` (title set left) and `hero-side` (a column for the title and the
+  menu). Each reserves a **menu zone** where the title screen places its menu. Subtext role `tagline` and metadata
+  kind `studio` are drawn. A book's cover is as it was.
+- **Covers without an image worker.** An illustration is `painted`, `placeholder` or `upload`.
+  - Under the Claude plugin profile a cover starts as a `placeholder`, so it has no render target and never reaches
+    for a worker.
+  - The operator uploads the picture into a stash on the dashboard. The agent maps it with `create_cover … art: {
+    stash, item }`, or, on a cover already made, a patch to `/slots/illustration` = `{ realizer: 'upload', from: {
+    stash, item } }`. The compositor draws the picture as it is (`image-outcomes/cover-upload.js`).
+- **The front of a game.** The light shell gains `front` (`game/play-front.js`), opt-in: a game without it emits no
+  front CSS, code or config.
+  - **Title.** It is drawn over a cover (by ref: its own lockup, the menu in its zone) or an image, else laid out
+    center, lower-third, left or right.
+  - **Attract screen.** `press` puts one first.
+  - **Start menu.** Entries are continue, play (start / new game), levels, options (sound, reset progress) and
+    credits. It is driven by the keys and the pad. With a front, home is the title, and the levels list, the result
+    and the pause lead back to it.
+  - **Credits.** The roll lists each role and its names, the thanks and the closing words, then "made with mojulo"
+    unless `attribution: false`. It is reduced-motion aware and skippable.
+  - **End.** When the last level is first cleared, the end card shows, then the roll, then the title. A run's result
+    offers the roll.
+  - **Where it comes from.** A cover ref resolves to its composite. `export_game` writes it to `assets/cover.png` (a
+    bound `/outcomes/…` image is copied). A gameworld's `front` setting is read on the world and carried onto the
+    game its run makes.
+  - **Words.** `create_game` takes `front`. New game vocab card: `front`. The gameworld world card names it.
+  - Godot and Unity do not carry the front yet. Their ledgers list `front` among the shell UI that does not travel,
+    and Godot's main scene is still the level list.
+- **Pins.** The tools/list payload is re-pinned for create_cover's `format` and `art` and create_game's `front`. The
+  HUD card list gains `front`. create_cover's description stays under its allowlist snapshot.
+
+### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
+
+- **The budget reads a creature** (`cast-spend.js`). A creature is read by its own part names: the shin and the
+  metatarsal, the tail's links, the paw's fingers, pads and claws, and the muzzle's parts that hang below the head's
+  base (whiskers, teeth, the tongue, the eye's surround), which its height alone filed as clothing. With `cover: true`
+  its tiles (fur, scale, feather, plate) are their own COVER region, reserved from nothing up to the hair's share. A
+  hero's tiles are a garment's, so its readout is unchanged.
+- **Two silhouette gates** (`silhouette-gates.js`). A figure's outline from the front, three-quarter and side, drawn
+  orthographically. `keepsSilhouette` is the test gate: a pass over an authored figure keeps its outline in its own
+  metres (0.95 overlap, the worst view named). `distinctSilhouettes` is the production gate: composed figures, each
+  framed by its own height so it reads shape, must differ (mean overlap at most 0.75, the most alike pair named). Today
+  the Egocube's rolled lineages read 0.76–0.84 (one body under six heads) and a brief that moved no facet 1.0.
+- **A creature drawn for its target** (`creature-drawn.js`, the plan's `style.drawn: true | { target }`). The
+  creature keeps its own body; what changes is how it is built for the target, in one step, never coarse first:
+  - a bridge over every joint its bind chains name (the hero's elbow and knee bridge, `tieredJoints`, now taking any
+    joint list), where the smaller of the two rings meeting there reads at least 4 px at the target, so a claw's
+    knuckle keeps its shared ring;
+  - every body part's rings set by the target's outline rule (`castDensity`, now taking any part list);
+  - each bridge wears its upper limb's tint.
+  On the Pale Warden at 1080p third-person: bridges at the shin, metatarsal, toes, forearm and hand, the torso, pelvis
+  and neck split, and the outline kept (0.976 overlap at worst, the three-quarter view). Without `style.drawn` a plan
+  expands byte for byte as before, and the hero's bridges and density are unchanged.
+- **Spent by what reads** (`creature-drawn.js`, the same `style.drawn`). A detail too small to read at the target buys
+  nothing, so the drawn creature builds only what reads:
+  - strokes under 1 px are dropped (whiskers by thickness, wrinkles by width);
+  - fur tufts under 6 px tall are dropped (the ruff and the tail's brush stay, the forearm's fuzz goes);
+  - teeth whose largest is under 3 px are dropped;
+  - the eye's surround gets the sides its outline asks (8–20; the head's `orbit.sections`);
+  - bridges keep their five rings without their stations halved;
+  - what it wears follows the outline rule: a ribbon's rows and columns by its length and width on screen, a chain's
+    link loops and wire by their size (`hang`'s new `sides`, `linkSides` on a medallion or bell), a medallion's sides by
+    its radius;
+  - density is the target's: a hand-written refine of a part the outline rule sets is dropped, and the rule splits what
+    the target asks.
+  A closer target keeps more (a close-up builds every whisker). On the Pale Warden at 1080p third-person:
+  - 13,880 → 10,268 triangles;
+  - the body at 36%, inside its reserve (21% before the work);
+  - head 20%, hands 9%, fur 8.5%, gear 25% (at its reserve's top);
+  - the outline kept (0.973 at worst).
+  He is still 158% of the 1080p budget. The rest is the body at the 1 px outline the rule holds. A 2 px tolerance
+  changes nothing: one joint splits its whole leg chain.
+- **Fur as shapes** (`station-loft-body.js` `body.locks`, any creature's). A few bold blades in shingled rows over a
+  surface window of any parts a plan names (a ruff, a mane, a tail's brush, the back of an elbow), in place of a carpet
+  of small tiles:
+  - each lock leaves the skin at `lift` and bends to lie along a growth direction (`flow`);
+  - it tapers to a point and flicks outward at its tip (`curl`, mirrored by side);
+  - row lengths are graded from first to last, seeded per lock, alternating the plan's fur groups;
+  - pinned and following the surface like the tiles.
+  A drawn creature drops a window whose longest lock reads under 6 px and gives each lock the segments its length on
+  screen asks. On the Pale Warden at 1080p, locks in place of his ruff, neck-ruff and tail-brush tiles cost what the
+  tiles did (10,788 triangles).
+- **Ears as leaves** (`station-loft-head.js` ornament `kind: 'leaf'`, any head plan's). An ear drawn as a shape, not a
+  cone:
+  - an outline of half-widths up its length;
+  - a cupped front (the edges stand forward of the middle);
+  - a thickness at the rim, an attitude driven by a head control;
+  - an optional inner patch in its own group.
+  It is built as a loft of closed rings with its winding checked outward. The library wolf's ears are now leaves (its
+  palette's `EarInner` inside); the bear keeps its round disc ear.
+- **The outfit, designed** (`outfit-plan.js`, `egocube/outfit.js`). What a creature wears is one plan for its whole
+  body, from who it is, instead of a stock kit by role (every support's satchels and pack).
+  - A plan's `outfit` (`{ intent: { silhouette, symmetry, palette: { base, secondary, trim, accent } }, pieces }`)
+    compiles in layer order from a catalogue of piece kinds (gown, robe, tunic, mantle, sash, belt, baldric, wraps,
+    pauldron, bracers, chain, medallion, satchel, pack, quiver). Each piece is placed off the body's own landmarks
+    (shoulders, natural waist, hips, knees).
+  - A gown's skirt is tailored: one loft round both legs from the natural waist, wide enough at the hips, a flat hem,
+    its sides blending toward each thigh down its length so it follows a stride.
+  - `outfitLaws` checks the Dressing Bible's laws of visual interest, advisory: one focal, the accent on the focal
+    alone, three values unequal, clear value steps, repetition with variation, symmetry from order, shape from the
+    archetype, the must-see kept seen, restraint (six pieces at most), every piece with a reason.
+  - `outfitFromSheet` designs the outfit from an Egocube sheet: the archetype's silhouette and core garment, a
+    must-see tail kept free, the role's needs (a frontline's armour, a ranger's quiver), the archetype's one focal (a
+    ruler's chain of office), an asymmetric note for a free order, and a palette whose roles step clearly from each
+    other and from the coat.
+  - `planFromSheet(sheet, { dress: 'designed' })` (and `egocube-roll --dress designed`) wears it on a body drawn for
+    its target. Absent, the kit as before.
+  - Across 48 rolls every outfit passes the laws, in 19 piece sets.
+  - A 12-character A/B at 1080p: body share 26% → 40%, mean triangles 9,393 → 8,915. Outline distinctness is unmoved
+    (0.52), because a seed rolls the same facets for every lineage over one body template; that is upstream of dress.
+- **The cut, by principles** (`outfit/expand.js`, `outfit-plan.js`, `egocube/outfit.js`). The cloth a creature wears is
+  the outfit grammar the hero wears, derived from its sheet instead of picked from a list of outfits.
+  - The grammar gains an OUTER layer (`language.outer`: a vest, jerkin, jacket or coat, with family, sleeve, hem from
+    the waist to the ankle, open or closed, and a cut). Open, its opening shows what is beneath; its hem and cuffs take
+    the trim.
+  - FIT BY ZONE (`fit` on the top, the trousers and the outer). `skin` is a second skin painted on the body (no
+    thickness, no flare), `fitted` follows the body in at the waist, `eased` stands off but still comes in, and `loose`
+    falls straight from the chest. A hero build without these fields is byte-identical.
+  - On a creature (`outfit.cut`), the hero's shank is the creature's shin, and pelvis windows carry across by share.
+    Fur tiles and locks on a part the cloth covers end to end are not drawn; a ruff on the neck still spills over.
+  - `cutFromSheet` reads the sheet by principle:
+    - mobility: what the role moves stays free;
+    - station: the archetype's formality sets the outer layer's length and the count of layers;
+    - order: bound is closed and tucked, free is open and worn out;
+    - age and build set fit and length;
+    - anatomy: a tail keeps skirts off and coats to the hip; fur on the forearms and thighs ends sleeves at the elbow
+      and legs at the knee; scales all over add a layer; chitin means no shirt, a kilt and an open vest; feathered
+      wings leave the arms bare; clawed feet go bare;
+    - silhouette: shapes the layer that carries it;
+    - fit: tight against loose, with one full zone at most.
+  - New catalogue pieces: a CLOAK down the back, stopping above a tail that must read, and a standing COLLAR. A
+    wedge's pauldrons stand out to its broad shoulder line.
+  - The laws count the cut's cloth by area and its trimmed edges as trim uses.
+  - Across 48 rolls every outfit passes the laws, in 40 sets (19 before), and same-seed lineages now dress apart.
+  - People too: `planFromSheet(sheet, { dress: 'designed' })` on the hero door wears the same derived cut as the
+    hero's outfit build (`heroOutfitOf`, an inline card coloured by the palette's roles) in place of the stock clothed
+    body. People are shod (boots for the road and the fight, shoes at court). Anatomy counts only what the door draws,
+    so a wolf-kin drawn as a person is not dressed for fur or a tail. A kit that already wears a belt keeps it, and
+    the outfit's is not added twice (`hero-dress.js`; the pair used to throw). A cloak and a standing collar take the
+    base; restraint runs before the trim's repetition, which recolours a worn piece when there is no room for one more.
+    40 people's rolls pass the laws, in 21 sets.
+  - Each people's own dress (`PEOPLE`): a lineage's body and life as tendencies on the grammar's axes, never an
+    outfit.
+    - sylvan: long, fitted and pale;
+    - dwarven: a layer more, sleeves to the elbow, hems short on a short body;
+    - orcish: sleeveless and open, eased over the bulk;
+    - infernal: closed, fitted and dark, with a standing collar;
+    - undead: loose off a thin frame, long and faded.
+    Each combines with archetype, role and order. People's rolls: 39 sets (21 before). An open coat's skirt hangs
+    closed: its painted opening stairstepped across the hull's turning bands.
+- **Detail on the garment's roles** (`outfit/expand.js`). The garment names where a detail can sit
+  (`GARMENT_ROLES`).
+  - Edges: collar, opening, placket, hem, cuffs, waist, leg hem and skirt hem. Fields: yoke, chest, back, sleeve band
+    and skirt.
+  - Each role is seated on the outermost layer worn there (a coat's hem, not the shirt's under it).
+  - An outfit build's `detail` list (`[{ prim, role, group? }]`) seats primitives on them. The first is `binding`, a
+    band over an edge.
+  - Given a list, the bindings are the list's and the ornament budget spends the construction alone. Absent, nothing
+    changes.
+  - Refusals name the primitive, the role, or a binding on a field. A role nothing covers is skipped with a word, and
+    the trace lists the roles and the seated details.
+  - `embroidery`: a motif worked in thread on a role.
+    - The motifs (`MOTIFS`): vine, knot, key, wave, chevron, diamond, dots and star, each stroke data.
+    - On an edge it is a border, repeated at most a dozen times round a hem, cuff, collar or waist, or down both
+      sides of an opening. On the chest or back it is an emblem; on the yoke, sleeve band or skirt, a band.
+    - The thread is about two pixels at a third-person 1080p figure and lies on the cloth. Its carrier is a ghost
+      (no plate drawn), on both sleeves and legs.
+    - Shells take `share` windows (s and t as shares of the part, the paint's measure) and `ghost: true`. Both are
+      opt-in.
+  - The designer picks the focal edge from what is worn and seen. A long coat over a skirt clears it.
+- **A beast adorned, not clothed** (`egocube/outfit.js` `adornFromSheet`). A creature's frame is its costume, and the
+  Egocube adorns it on its own landmarks instead of dressing it. People keep the cut. An author can still give a
+  creature a cut.
+  - New catalogue pieces:
+    - a harness: one band each way, from the hip up the back, over the shoulder by the neck and down the front;
+    - a torc;
+    - arm rings;
+    - anklets: on the tarsus below a digitigrade hock;
+    - a tail ring;
+    - a split chest plate.
+  - A medallion or chain of office is a necklace hung from the nape. It is one loop in a tilted plane, laid on the
+    shoulders and chest and smoothed, beaded and linked, with the pendant at its lowest point. It is drawn through two
+    new data-driven signatures, `polyline` (a tube through computed points) and `disc`. With a harness worn, the
+    medallion is mounted where its straps cross.
+  - Read by principle: the role's gear, metal by station, the archetype's one focal (`BEAST_FOCAL`), and symmetry
+    from order. What the frame offers:
+    - a seen tail is ringed;
+    - a bird's scaled shins and a cat's bare ankles are banded;
+    - chitin is strapped and riveted;
+    - scales all over take metal bands;
+    - a ruff takes a chain, never a torc;
+    - a winged back carries nothing;
+    - a plate goes only where the body does not armour itself.
+  - A new law, "the frame shows", bounds the adornment's area. The value law counts the frame as the ground, and the
+    trim's repetition counts metal fittings. 48 rolls pass the laws, in 27 sets.
+  - On top (`onTop`, opt-in, set on every designed piece): an adornment clears the body detail pinned to its carrier
+    (fur tiles, locks, scales), so collars, belts and straps ride over the cover instead of folding into it. Stock and
+    authored kits are unchanged.
+  - Warp and distort (`intent.distort`, `ENERGY`, `DISTORT`), the design phase's fantasy proportions:
+    - the focal exaggerated up to 1.9×, the rest kept smaller;
+    - on the dominant side a pair grows and the other shrinks;
+    - heavy frames chunk and sleek ones flare.
+    How far comes from the archetype's energy, the order, the age and the lineage. A law checks that the focal is the
+    largest piece.
+- **Eyes that read** (`creature-drawn.js`). A drawn creature's eye under 6 px in radius at its target grows toward
+  that floor, its socket with it (the radius, the orbit's reach, thickness, bulk and tuck by one factor), never past
+  1.6×. `style.drawn.eyes` (a ratio, 0.5–2) sets it instead, for small mean eyes or big bright ones. The Pale Warden's
+  eye grows to the cap at 1080p third-person; a close-up keeps the head's own.
+- **The base silhouette and its value split** (`creature-silhouette.js`, stage 1 of the dressing flow, with or
+  without a reference).
+  - `baseSilhouette(mesh, plan)` reads a body's record:
+    - each part family's share of the outline, front and side (what the outline loses without it);
+    - the must-see beyond the trunk and the paired limbs (a tail, a muzzle, ears);
+    - the landmarks as heights over the figure;
+    - the outline's character (barrel, bell, column, needle, wedge).
+  - A drawn creature (`style.drawn`) whose body is one colour (80% of its own surface within 12 L* of its main tone)
+    gets a SECOND TONE. It is 24 L* darker for a light coat or lighter for a dark one: a cool grey-blue on white or
+    grey fur, a warm grey on dark, the hue turned a little on a coloured coat.
+  - It is laid as markings:
+    - countershading: the dorsal side against the ventral; under the jaw and the inside of the limbs ventral;
+    - points: the ends of each limb chain, the tail's last links and the ears.
+  - Markings go per face by the rest normal, with a seeded jag on each face's threshold, so the border is crisp and
+    ragged along the mesh's own edges, a toon marking rather than a gradient.
+  - Only the body's main tone is marked: dark paws, claws, eyes and everything worn keep their colours.
+  - A plan may name its own markings (`style.drawn.markings: { pattern, colour }`, from a reference or a roll) or turn
+    them off.
+  - A drawn creature is also smoothed with its body and fur groups welded at 70°, like the hero's skin.
+  - The markings ride the World page and the rig pack as the face's tint does.
+  - On the Pale Warden: derived, a grey-blue back, head top and outer limbs, with points; from the painterly wolf as a
+    reference, an indigo back and head over white, red inside the ears.
+  - A creature without `style.drawn` renders as before.
+- **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
+  silhouette:
+  - a silhouette gate every pass must keep;
+  - bridges at the joints its bind chains name;
+  - triangles spent by what reads at the target, the freed ones going to the masses;
+  - smooth, proxy-normal shading, the body and face tint, the light and the outline;
+  - the motion library retargeted onto its skeleton.
+  The Pale Warden is the first case.
+
+### Body shade: the western face's painted light on the whole figure, read off the body
+
+- **Planned.** The face's form shading (normals toward a simple form round each segment) and its painted tint (the
+  occlusion in folds, warmth at the knuckles and joints, a contact shade at a garment's edge) on the neck, torso, limbs,
+  hands and what they wear, each placed and sized off the built body, so a character's dials change only its shape and
+  the shading follows; the numbers are per look, female and male. The eye socket's shadow (under the western face) is
+  its first piece.
+
+### Egocube: a character's design notes, rolled from its archetype
+
+- **One Egocube** (`lib/graph/egocube/`; design in [docs/egocube.md](../docs/egocube.md)). The soul facet's deep
+  cube, as the geocube is the reality facet's: a character as age, frame, role, archetype, motivation and order,
+  rolled on seeded dice from a brief, and written out as **design notes for the visual outcome** per expressive
+  channel (frame, face structure, colouring, face at rest, eyes, stance, silhouette, dress, hair, palette, wear).
+  Each note names the dials that can carry it (`derives`: the western expression channels, the anime sculpt, the
+  motion axes, the gesture, tune, cast and palette words) and never sets them; the character loop decides. The
+  archetypes are the twelve of the pop-Jungian wheel, each with a light and a shadow reading; motivation (0
+  selfless … 1 self-serving) blends between them, so a hero at 0.6 is a dark knight without a dark-knight entry. Age
+  scales how much of the life shows in the face. Brief words fix facets (`paladin`, `rogue`, `emperor`, `old` …),
+  explicit facets win over words, the seed decides the rest, and an incoherent roll is drawn again; an explicit ask
+  never is. `scripts/egocube-roll.mjs` prints sheets. No tool and no door change: nothing else emits a byte
+  differently.
+- **Ancestry** (`egocube/ancestry.js`), born and never scaled by age, and always a range, never one look. Human
+  ancestries are broad regional groups, each a span of Monk Skin Tone swatches, undertones, hair textures, hair and
+  eye colours; they write colouring and hair, never the face's structure. Lineages are non-human peoples built on the
+  creature loop's vocabulary (the dragon body and the creature-from-plan catalyst's thesis and detail passes): a band
+  of humanity and cues shown at or below it, a slot keeping only the deepest (the long dragon snout replaces the
+  short), new `cover` and `ornament` channels, and a `door` (hero or creature) the sheet names. Built: draconic,
+  sylvan, dwarven, orcish, infernal, undead, feline, lupine, ursine, avian, insectoid. A people established once is
+  the same data passed in (`lineages`, `--lineages`), so rolling it again gives more of the same people. A blind roll
+  is human; a lineage comes by ask (`dragon warrior`, `elf`, `lich` …). Gaps a sheet names: coily hair and protective
+  styles; horns, tails and patches on the hero door.
+- **From a sheet to a character** (`egocube/plan.js` `planFromSheet`). A sheet compiles to a first `create_character`
+  call through the door it names, with the creature loop's five-trait thesis, `after` patches (the lean) and a ledger
+  of every note, landed or pending with the reason. The creature door gets a ring plan: a library head scaled to the
+  body, a biped scaled from the first original built this way (the Pale Warden, a wolf-kin), cover from the lineages'
+  new plan hints (tail, claws, fur / scales / chitin windows), a dress kit by role, reading and order with one focal
+  metal piece, the sheet's colours, and the face derives as the head's expression controls. The hero door gets cast,
+  tune, the western expression channels, gesture, hair and swatches. `scripts/egocube-roll.mjs --plan [--out]`. Every
+  people over ten seeds expands (creature) or validates (hero) (`plan.deep.test.js`); a spread minted through the CLI
+  door with its rig gates.
+- **The method, not a template.** The `creature-from-sheet` catalyst carries the loop from a sheet to a non-human
+  character, the head derivation (the wolf from the bear), and the lessons learned building the first forms. The
+  audit (`egocube/audit.js` `auditPlan`, `--audit`) reads a plan someone wrote against its sheet: a ledger of every
+  note (carried, missing, for the eyes), the lesson checks, whether it expands, and a sameness flag for a body that is
+  the served biped rescaled. Contrast pairs (`contrastPair`, `--contrast`) show how one facet moves the choices;
+  `planFromSheet` is the first reading behind them, not the authoring path.
+- **The fate thread's time chapter** (`egocube/thread.js` `rollThread`, `--years`, `--skip 5[:words]`). A roll may
+  carry an age in years (it sets the band). A thread is a canonical node and nodes derived from it by time chapters:
+  born facets and swatches held (the child grows into the build it was rolled with), motivation and order drifting by
+  seeded dice and chapter words, wear accumulating, one kept marker on every node, and GROWTH under 18 (height, the
+  head a little, the face down and forward, the neck, puberty when a chapter spans it) as notes with their dials.
+  Absent `years`, a sheet is unchanged.
+- **The body pole reads past childhood** (`facets.js` `POLE_READS`): silhouette and drape cues per body pole (a waist
+  over a hip line and cloth taken in at the waist; the shoulder's V), on every sheet past the child band; a new `face`
+  dial family (both heads' face keys) for the growth notes.
+- **The creature head library** (`lib/graph/creature-heads/`): detailed heads as plan data, `headPlan(id, { palette })`,
+  `headFor(lineage)`. The dragon and the bear moved in from `docs/examples/head-detail/heads/` (the example and the
+  dragon body read them from here; the dragon body's recipe regenerates byte for byte), and the wolf is new. A head
+  authored in metres scales with its 'world' sweeps, so horns stay on a scaled skull.
+
+### The motion library on the door: showcase poses, ready stances, strikes, sitting down and getting up, vaults, the faces they act, and what they hold
+
+- **Moves on `motion`** (`hero-motion.js` MOVE_FAMILIES). The door's `motion` takes the library's moves by word, each a
+  one-shot clip compiled on the hero's own rig where its clips are packed (the World page, the GLB, the Godot pack): the
+  23 showcase poses (`hero-aura.js`: `hairToss`, `heroHips`, `jotaroPoint`, `fistToSky`, `henshin` …), the 6 ready
+  stances (`hero-stance.js`: `athletic`, `guard`, `fencing` …) and the 3 strikes (`hero-strike.js`: `jab`, `cross`,
+  `thrust`), and each one's mirror (`…Left`; a square stance is its own). `true` or `{ seconds }`; any other key and an
+  unknown word refuse by name, the words listed by family. A move ends on the pose to hold; the GLB carries it as
+  `moj:move` (its family, `hold`, whether the pose's own laws held, a strike's hand and contact time). The library's
+  machine gates advise: on the default western heroes 6 of the 23 poses fail a law of their own on the female and 3 on
+  the male (`crossedArms`, `giorno`, … arms through the body or a hand crossing it between beats); they still bake, and
+  `moj:move.laws` says so. `CANON_HEIGHT` moved to a leaf module (`hero-canon.js`, re-exported by `hero-gear.js`) so
+  the motion modules load without the gear's imports.
+- **Sitting down and getting up** (`hero-rest.js`, `hero-rise.js`). A rest word on `motion` (`chairUpright`,
+  `chairSlouch`, `couchSit`, `couchLounge`, `crossLegged`, `lotus`, `kneeUp`, `lieBack`, `lieSide`, `knockedOut`,
+  `yamcha`) is two one-shots, `<rest>Down` and `<rest>Up`, at the seconds the rise studies (a chair about 3 s each way,
+  lying down about 5). Each carries `moj:rest`: the rest, the phase, its beats (the seat taking or leaving the weight,
+  a fall's impact, seconds) and the props it needs, boxes in the figure's frame for an engine to place (a chair's
+  seat, legs and back; none on the floor); the prop itself is not in the export. A rest takes only `true`. Solved moves
+  and rests are kept by rig and word, so a chair's seconds of solving are paid once (a World page re-read: 9.7 s →
+  0.2 s). The gaits' numbers moved to a leaf module (`hero-gaits.js`) so the gameworld's vibes load without the motion
+  library. Godot figure gate on a tiered female with a chair and lying down: every check passes.
+- **Vaults** (`hero-vault.js`). `hurdle`, `stepVault`, `speedVault` and `kongVault` (and `…Left`, the right foot
+  taking off) on `motion`: `true`, or `{ h, d, w, from, seconds }`, the box in metres and the gait it is taken out of;
+  absent, the middle of the vault's own range at the hero's hip (on the default heroes every vault holds its laws
+  there). One-shot in place; `moj:vault` carries the gait, the box, the take-off and landing (the gait's phase and
+  foot, metres from the near face and past the far), the run it covers (the engine carries the character that far, 1.9
+  to 4.5 m) and its flights. The solver's refusal on the rig (too high, too near) names the motion. The vaults' table
+  moved to a leaf (`hero-vault-moves.js`) so the door lists them at load. Godot figure gate: every check passes.
+- **The face acts the move** (`anime-face-tracks.js`, `hero-face-action.js`). A strike's, a jump's and a roll's clip
+  carries its solved action (`act`), and its face track is that action acted: hero-face-action's take, seeded per hero
+  and clip — the set face leading the load, the shout or the clench on the contact, the "hup" on a take-off, the blink
+  after — on the 30-fps step grid, starting and ending on the authored face. A showcase pose plays its own faces (the
+  hero's hips: the confident smile). On the landmark head the take's four anime channels carry over (`western-face-rig`
+  `fromAnime`: the smile to the mouth corners, the brow to the tilt; the open mouth is the jaw bone's), so a western jab
+  grits its brow. An acted clip bakes no ambient blink of its own (the take has its blinks).
+- **Holds and guards, with what they hold** (`hero-carry.js`, `hero-grip.js`). The 21 carry holds (`pistolSide` …
+  `carbineAim`, `boxFront`, `lanternOut`, `sackShoulder`, `greatswordPlanted`) and the 12 sword guards with their
+  mirrors (`chudan`, `jodan`, `hasso`, `terza`, `niten`, `shield` …) on `motion`: `true` or `{ seconds }`. A hold eases
+  from the stand into its solved pose (the pose its effort answers), a guard plays its own (the stance entered, the
+  arms closing); `moj:held` carries what is held, the hands, a hold's mass and perceived effort, the laws. The THINGS
+  are props of their clips: each its own mesh on the figure's skin, wholly on its hand's bone, at rest (the gear's
+  seating; a carried box drawn at rest, its card's colours), named for its clip and item (a pair by its bones) with
+  `moj:prop` { item, clips } — an engine shows it with those clips; in Godot a MeshInstance3D of its own under the
+  skeleton. The words live in a leaf (`hero-held-words.js`, pinned to the tables) so the door lists them at load. A
+  hold's first solve is seconds (the cache keeps it). Godot figure gate: every check passes. To come: the guard's
+  sword at the hero's target tier (10,000 triangles today), the props on the World page's clip preview.
+- **A seated leg under a facing keeps its foot** (`station-loft-rig.js` rigNodesAt). An airborne leg turned further
+  forward by `seat<S>` (a vault's knee drive) moves its knee and hock after the stance's `facing` has turned the core,
+  but they stayed marked as the turned core's, so the shin's frame was read from their places before the seat and the
+  toes rode a shin the leg no longer had: the foot stretched from 8.7 to 14.5 cm, and the ankle's shared skin tore
+  between the shank and the foot (33.6 cm apart: the speed vault's shoes as spikes, its calves folded). The seated leg
+  leaves the turned core as a planted one does; the feet keep their length through every vault. The speed vault was
+  tuned against the misplaced toe (it cleared boxes the leg could not): its trailing knee now tucks to 75 in the gather
+  and on the hand, and its band tops out at 0.65 of the hip (0.8 before).
+- **Every clip the pack plays carries the face.** The face tracks ran over the recipe's own clips, so a `motion` clip
+  the hero did not already have (a jump, now a move) had none; they run over every packed clip now, a compiled clip
+  holding the authored face with its blinks. Godot figure gate (4.7.2) on a male with a walk and four moves: every
+  check passes, every clip a face track.
+- **A turned clip's export keeps its turn** (`station-loft-rig.js` packLayeredRig). Baking a clip's keys, the pack
+  copied the posed joints (raised by the floor offset) and kept only the body turn `rigNodesAt` records, dropping a
+  stance's `facing` and the legs' splay: each bone in the turned core then took its own shortest-arc spin instead of the
+  turn, and the jaw (framed by the head's axis) and the head came apart — the seam under the chin open, the dark mouth
+  showing, 3–4 cm at a jab. Every turn is carried now; through every key of every move the head and jaw skin agree
+  within 2e-4. Any clip with a facing or a splay exports differently (the stand's own clips included); no pinned export
+  carried one.
+- **Fists and grips in the ready stances and strikes** (`hero-stance.js`, `hero-strike.js`). The stances never set the
+  fingers, so a boxing guard held flat palms against the chin; each stance's hand now says its word (`hand`: the guard's
+  fists, a grip in fencing, centre and hitting), closing as the arms come up, and a strike holds its stance's hands
+  throughout, its ends the stance's held pose exactly.
+
+### The western face in motion: the expression as channels, a blink, and its blend shapes in engines
+
+- **Channels** (`humanoid-head.js`). A western hero's `expression` takes a word, as before, or `{ word?, …channels }`:
+  the word's channels (neutral's when absent) with the given ones over them — `browRaise`, `browTilt`, `mouthCorner`,
+  `aperture`, `jawOpen` and the new `blink`. Each is range-checked at the head and the hero door. A word builds the
+  same bytes as before.
+- **The blink** (`blink`, 0 open … 1 shut). The eye's stack (the white, the iris, the pupil, the lids) closes to a
+  sliver under the lid and lowers a third of the eye's half-height, so the lids meet low; the face around it never
+  moves and every part keeps its topology, so the face in motion can difference builds.
+- **The face as blend shapes** (`western-face-rig.js`). A landmark hero's skinned export and Godot pack now carry its face
+  as eleven morph targets: `blink`, `blinkLeft`, `blinkRight`, `eyeWide`, `eyeSquint`, `smile`, `frown`, `browRaise`,
+  `browLower`, `browAngry` and `browWorried`. Each is the head built with one channel at its range end, less the neutral
+  head (`landmarkHeadAt`, the head as the plan wears it), the skin included, since the western expressions move the cheeks
+  and the brow. The channels are linear in the head's points, so a word is a weighted sum (within 0.25 mm of its own build;
+  the blink and the aperture compose exactly) and no correctives are needed. The default weights are the authored face;
+  `jawOpen` stays the jaw bone. Guarded like the anime rig: a stored head the hero no longer builds is skipped by name.
+- **A key's face and the ambient blink on the landmark head.** A door clip's key may carry `face` (a word or the
+  channels; its `jawOpen` refuses, the jaw is the key's own `jaw`), drawn on the anime face's 30-fps step tracks
+  (`anime-face-tracks.js` now weighs through the rig's own state); `blink: false` turns the ambient blink off. The Godot
+  pack gives the landmark figure the face scene (`figure_face.gd`: the authored face on ready, the blink layered). Godot
+  figure gate (4.7.2) on a tiered female: every check passes, the 11 shapes by name, the authored face restored, a face
+  track per clip, the ambient layer. A landmark hero's export without the face writes the bytes it wrote before.
+- **Brows over the ridge in motion.** A brow lowered or tilted over the ridge's curved crest sank into it in pieces
+  (determined, on the tiered head); over the ridge the brow now also stands forward by 0.3 of each channel's move, its
+  own share per channel, so the face rig's targets still add up to any mix (0.24 mm worst). Heads without the ridge
+  build the same bytes.
+- **The brow ridge** (the tiered face's `features.ridge`, `humanoid-head-fit.js` `midColumn`). The fitted head's eye
+  and brow rows had no point between the inner and outer brow, so the brow was flat over the iris and the socket flat
+  round the eye. A column now runs between them on the cranium and the jaw (`refineSlot`: every pin keeps its
+  address): on the brow row it reads the fitted brow and stands forward (female 3 mm, male 5 mm), on the eye row it sits
+  back (2 mm, 3 mm) so the eye sits under the ridge, and the brow row's side comes in (the temple). The face's
+  ellipsoid shading leaves the band round each eye and brow most of its own normals (`TIERED_FACE_SMOOTH.brow`), so
+  the socket shades under the ridge. The brows halve their spans again over the crest so it never shows through them.
+  The new cheek points carry the blush at its full authored strength, so its amounts drop to keep its coverage
+  (female 0.9 → 0.77, male 0.5 → 0.45, matched by the blush's area integral). The tiered face counts are re-pinned
+  (+148: the column 52, the brows 96); a head without the feature builds the same bytes.
+- **The eye socket's shadow** (`face-tint.js` `socket`, `TIERED_FACE_TINT`). The tiered western face had almost no
+  shadow under the brow: the ridge's own normals shade only as far as the light turns them. The face tint now darkens
+  the skin from each eye's top up to its brow (the most just inside the eye's middle, toward the nose) and, at 0.4 of
+  that, the hollow under the lower lid: female up to 32%, male 40% on his heavier ridge, the red channel losing the
+  least so the socket reads warm-dark. It is placed and sized off each eye and its brow, in the eye's width and the
+  eye-to-brow gap, so it follows any face the dials make. A tint without `socket` paints the bytes it painted before.
+
+### The painted face in motion: its eyes, mouth and brows drawn per state on a texture sheet
+
+- **Drawings, swapped** (`polygonizer/face-paint-rig.js`). A painterly hero's skinned GLB (and so the Godot pack)
+  carries its face as DRAWINGS: each eye at every closure knot (anime-face-rig's), each brow and the mouth at every
+  drawing one of its words, its authored face or a clip key needs. Each is a head build at that expression, its layers
+  painted into a tile of one ATLAS (the authored face, the tiles, a white tile; `faceAtlas` in face-paint.js), every
+  picture taking its blush from the open eyes so a tile meets the face around it texel for texel.
+- **Shells.** The painted face's triangles over a region (an eye, a brow, the mouth) become a copy per drawing with its
+  UVs in that drawing's tile. The neutral copy stands on the face, the others are collapsed to a point inside the skull,
+  and one morph target per drawing opens its copy and closes the neutral one: `blinkDrawn<k><L|R>` (100 shut),
+  `browDrawn<i><L|R>`, `mouthDrawn<i>`, weights 0 or 1. A triangle under an eye and its brow both takes a copy per
+  pair of drawings, half from each target, so it opens only when both are on. The existing tracks drive them unchanged:
+  each clip's STEP weights, the ambient blink layer (its `blink*` filter included), the words in `mesh.extras.face`.
+  A row whose stored face the hero no longer paints exports without them, with its reason.
+- **The figure is textured.** The skinned figure carries `TEXCOORD_0` and one textured material (texel × `COLOR_0`; an
+  unpainted corner samples the white tile, so its colour is as before), and the soft edge's band is graded per corner
+  on the rig as on the static faces (it was a flat mid-tone there).
+- **The clip preview** draws the authored face on the playing figure (it was blank) and hides the static painted face
+  with the solid.
+- **The brows over the fringe.** The painted brow lived on the skin, so a fringe hid it (the slab face's brows draw
+  through it). The painted face now also carries the graphic face's brow block in the brow's colour (the `Brow` group,
+  unlit; `paintedBrow`), flagged `through` as the slab brows are, so on the page it draws over the fringe; the skinned
+  export leaves it out (its brows are the drawings, which an engine cannot stencil over hair).
+- **The painter** shows the iris, the pupil and the catchlight through the eye's opening only, as the slab's lens
+  behind the face does: a closing lid crops them, a shut eye shows none (they were painted over the lid).
+- **Size.** On the female at `smile` the painted GLB is 3.7 MB against the slab face's 4.1 MB (28 k sparse morph
+  entries against 91 k); the atlas, 1024 × 2048, is 68 KB of PNG.
+- **Not yet.** The preview plays no expressions (the page builds no drawings); the gloss line of the soft edge crosses
+  the painted eyes; the atlas's packing leaves room.
+
+### Nose dials: the painterly face's side, from the cat read to a Zelda-like nose
+
+- **`painterly: { nose: { profile, width } }`** (each 0..1, defaults 0.5 / 0.5; `painterly: true` takes the defaults).
+  Validated at the hero door; stored only as given. Without `painterly`, every hero is byte-identical.
+- **`profile`** (`polygonizer/anime-nose.js`) draws the face's midline to a target side profile between two edges, in
+  nose-to-chin units from the nose tip: 0 the CAT edge (a deep stop, a long bridge to a sharp tip, the underside cut
+  back, the mouth a notch on one receding slope), 1 the ZELDA-like edge (a shallow stop, a small distinct nose, the lips
+  a little forward, a rounder chin). The target splits in two: the face line (the profile without the nose), carried
+  across the whole lower face so the cheeks recede with it and fading to nothing at the shell's side seam; and the nose,
+  a wedge on that line. Under the dials the studio's soft nose is off; the anchor (tip, chin) is still the studio face's.
+- **`width`** sets the wedge's top and its underside: 0 a pointer (a sliver underneath), 1 a trapezoid, narrow at the
+  tip and wide at the face. The underside is painted (`noseUnder`), darker as it widens.
+- **No crease line across the face.** The dials' own lattice rows sat within a hair of the face's (as near as 0.0001), and
+  the strip between two such rows, the face's whole width, folded its normals: the ink drew it as a line through the
+  eyes and the cheeks, and the rig as a light streak. A dial row nearer than 0.012 to a kept row is dropped (the wedge's
+  columns all stay): the profiles hold their targets as before, the face 5,300 triangles instead of 6,116.
+- **The nose keeps its own normals.** The face shades from its capsule stand-in; inside the wedge it keeps its own
+  (`paint.noseKeep`), so the nose has a shade side and an underside at three-quarter.
+- **The jaw.** The studio's head ran flat underneath from the chin back to the neck (a narrow keel), so in profile there
+  was no jaw. Under the dials the jaw line is a floor rising back from the chin's front-bottom at the dial's angle
+  (`profile` 0: 32°, 1: 24°) to the keel's end, inside the neck; a point under it comes up onto it, a point over it
+  stays, both shells alike so their seam stays shut. The face line holds its last depth below the target's bottom, and
+  for the chin's lowest rows moves both shells, so the chin's corner stands behind the studio's without a crease.
+- **The head keeps its size.** A head is registered by its lowest point; under the dials that is the studio's surface
+  before any dial moves it, so the eyes, the mouth and the crown stand where the slab head's do. `head_m` reads to the
+  chin itself now (the keel no longer hangs below it).
+- **Both casts.** The female and the male take the same dials; the male's profile sits within 3 mm of the targets.
+- **Not yet.** The female's own jaw-corner crease under the ear (the studio's, in the plain head too) inks a little
+  darker where the new jaw meets the neck.
+
+### Painted face: the anime hero's painterly look, a painted face on a smooth head and a soft edge to its light
+
+- **`painterly: true`** on an anime hero (the hero door, `create_character` / `update_character`) draws it as a
+  painterly toon. It is stored only when on; absent, every hero is byte-identical.
+- **The painted face** (`polygonizer/face-paint.js`). The eyes, lashes, lids, brows, nose line and mouth are painted into
+  a texture on a smooth face, in place of the feature slabs.
+  - The features are the graphic face's own. buildAnime (`paint`) still builds every feature from the sculpt, face,
+    look and expression words, into its own part; each is projected onto the face's front plane (the head's pitch
+    undone) and stored on the `face` part as the painter's layers. So the paint sits where the slabs sit, and the
+    face's landmarks and measures are the slab face's (read off its slab twin).
+  - The texture (512²) is painted on read from those layers, never stored: the skin's base everywhere, a blush under
+    each eye, the white shaded under its lid, the iris dark at the top and light at the bottom with a darker rim, the
+    pupil, the catchlight, the lower rim, the lid, the brow in the hair's colour taken toward the ink (or `Brow`), the
+    nose line and the mouth. Pure JS, three samples a texel each way; the same layers and palette give the same bytes.
+  - The face's skin runs whole over the eyes and the mouth (no apertures). Below a close-up's tier it is the thinned
+    lattice: every other row and column, the nose's kept whole (`facePaintDense`: a target at T3 or T4 keeps the full
+    one). The female anime figure: 22,232 → 13,628 triangles (the face part 7,084 → 2,372).
+  - On the World page the face's forward-facing faces carry the texture and their corners' texture coordinates,
+    interpolated through the light's split; their colour is the light alone (the fill over the skin's base, in linear
+    light), so the painted face meets the unpainted skin with no seam. The page's mesh takes textured triangles and
+    triangles with per-corner colours (`face-mesh.js`).
+- **The soft edge** (`toon.light.soft`, station-loft-shade.js). The light meets the shade over a band of that width in
+  N·L instead of on one line: the band's two edges are cut conforming (the band's top rides the highlight's machinery as
+  a gloss line), and its pieces carry their corners' colours graded from the shade to the base. On every group without
+  a highlight or strands; 0 or absent is the hard step, byte-identical. The painterly hero takes `PAINTERLY_SOFT`
+  (0.24) unless its light names its own.
+- **The look as data** (`era/looks.js`). `painterly-toon`: its conventions one line each, `built` (painted face, soft
+  edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure, the painted face in
+  motion). The hero readout's `painterly` names both.
+- **Under a level's cast light** (a hero with `geocube`): the studio-lit faces (`layeredFaces` `paint`) carry the
+  texture as the character-lit ones do, the fill the light alone; the face was blank there. The moving figure under it
+  (the clip preview, the GLB) takes the painted face and its drawings on the rig's plain path too. (The painted face
+  on the rig: the theme above.)
+- The `layered` vocab card has the look's section and `soft` in the light's fields.
+
+### Adornment budget: what the tiered hero wears and carries, drawn for its target
+
+- **The spend counts what it missed.**
+  - `hero.spend` charges everything the hero wears to clothing, wherever it sits: an armour piece (`adorn.*`) and a
+    garment (`<id>_<part>`) alike. A helm above the head's base was read as head; the red lamellar's kabuto was
+    3,728 triangles of "head".
+  - What the hero carries (`gear`) is now counted as its own region, in the total and in the heaviest parts. It is
+    drawn beside the figure's mesh, so the spend never saw it: a historical sword and shield are 9,984 triangles, and a
+    celestial greatsword alone is 21,924. Its reserve starts at zero, since a hero may carry nothing.
+  - The hair test reads a part's name from its start, so an armour piece named like a lock or a bun is not hair.
+- **Armour and kits by their target** (`polygonizer/adorn-tier.js`, `form: 'tiered'`). A suit is authored once at its
+  finest, and each piece keeps only what the target shows. It only ever takes away.
+  - A shell's sides across its window are what an outline of its radius wants at the target's error. They are never
+    fewer than the skin's slots under it (one more for a partial window), nor than its standoff needs to clear the
+    skin: cos(π/N) ≥ r / (r + s). Its stations are never fewer than the carrier's it spans, the tiered chest's band
+    included.
+  - A disc takes the sides its pixel radius wants, and a row of rivets narrower than 2 px becomes one rivet.
+  - A rolled edge narrower than 3 px becomes its plate's painted rim. A lacing cord as narrow leaves its row in the
+    lacing's colour, with lacquer at its top edge, as densely laced rows read from afar.
+  - The knight's plate at 720p third-person drops from 12,612 triangles to 6,852, and to 10,268 at 4K. The red
+    lamellar drops from 21,344 to 10,968, and grim-scifi from 10,224 to 6,800. Ornament 0 and 3 at 720p now differ
+    by 232 triangles (6,788 and 7,020), not 3,728.
+  - The clearance ledger finds no piece sinking that the untiered suit does not.
+- **Gear by its target** (`equipment/tier.js`). A tiered hero's held items are thinned before lowering, by the same
+  outline rule:
+  - each lathe's samples and cross sections (it defaulted to 24 × 36 whatever its size, so a plain grip cost 1,800);
+  - each sweep's sides and path;
+  - each gem field's cells.
+  - Historical sword and shield: 9,984 → 1,908 at 720p. Elven sword: 16,254 → 2,068. Celestial greatsword:
+    21,924 → 4,206 at 720p, and 13,584 at 4K.
+- **Garments and armour on the tiered joints** (`tiered-form.js` `tieredGarments`, `tieredKit`).
+  - A garment covering both limbs of a joint covers its bridge with a piece of its own (`shirtSleeveElbow`,
+    `trousersLegKnee`). The bridge's skin showed between a sleeve and its cuff.
+  - Every garment joins the refine of its part, so the cloth has the skin's sides at every target. At 1080p the
+    trouser leg was 8 sides over a 16-sided thigh, and the shirt 12 over a 24-sided torso. Cloth that cannot be poked
+    through costs triangles: the outfit at 1080p goes from 2,232 to 5,584.
+  - A couter or a poleyn stands off its joint's bridge and is pinned at the bridge's middle, so it turns half the bend.
+  - A piece on the torso or the neck stands off the shoulder balls; the gorget sank into them.
+- Absent `form: 'tiered'`, every hero, kit, garment and item is as before.
+
+### Hair studies: the lock grown like a grass blade
+
+- **One spine law for hair** (`polygonizer/hair-spine.js`). A lock is the grass blade's elastica: a cantilever under its
+  own weight, clamped at the scalp along its comb, solved in the plane of the load and the aim, with positions
+  integrated along the arc so the lock is exactly its length. One number, B (wL³/EI of the clump), sets how it carries:
+  low B stands, high B hangs; B grows with L³, so on one head the long locks droop and the short ones stand. Wind is the
+  same solve under a rotated load (drag of R weights beside the weight: B·√(1+R²) at atan R), so a windswept lock keeps
+  its length too. Past the self-buckling load the shooting problem has several roots (upright, drooped, looped); the
+  law keeps the one with the least potential energy, the shape a real lock settles into.
+- **The western fall as guide locks** (`hair.spine`, opt-in on the landmark library). Each of the fall's sixteen
+  slots hangs as one guide lock from the hairline and the curtain is the same closed loft stretched over the guides;
+  the ponytail and the braid hang from the tie by the same law (limp by default: loose strands add no stiffness to
+  each other). The comb is gravity with a small lift, never the scalp's slope, so a still fall hangs where today's
+  does; a wind streams it. **Grown hair never passes into the head**: the guides and then every curtain face (its
+  edges, diagonals and centre) are kept 3 mm off the head's own skin, sampled by address over the cranium and the jaw,
+  and off a neck column, keeping their length; where the skin faces forward the lift goes sideways and back, so the
+  hair frames the face instead of covering it. (Today's falls cut into the cheeks and the skull: measured, and left as
+  minted.) Stiffness as a word (`stiff`, `springy`, `soft`, `limp`) or a number, a held root zone, a still wind
+  (`{ R, dir }`). Same parts and face counts; absent, every style is byte-identical.
+- **The anime head takes the same spine** (`hair.spine`, a hair form word). A still wind bends every lock, form shell
+  and shape piece past where it leaves the head, by the elastica's own change under the rotated load, read at each
+  vertex's place along its lock (the grass blade's bend table, per lock), and drapes it back off the head; clumps are
+  `springy` by default and `stiff` holds a spike's silhouette. A cap-lock fall is its length: a bent C ran past its
+  length word by up to a fifth (5.7% at bend 0.3), and the word rescales it so the arc is the length. Absent, every
+  anime head is the bytes it was.
+- **The spine by region, by clump, and curled** (both heads, one vocabulary). `regions` (`front`, `sides`, `back`,
+  `crown`, `tail`) override the head's stiffness, hold and curl, and on the landmark head scale that region's length
+  (a longer back, a shorter front); on the anime head `locks` override a named clump (`fringe-3`, `peel-4`); the most
+  specific word wins. `curl` (`radius`, `turns`, `hand`, `from`) winds a lock about its own centre line: the ponytail and
+  braid into ringlets, each anime lock or shape piece into a drill, a curled lock built with rings enough to draw its
+  coil; a western fall and an anime form shell, one surface over many guides, wave in their plane instead, each panel
+  out of step with the next. A lock's length is where it falls; a coil's own run is longer.
+
+### Character harmonization: characters drawn for their target screen, in the geocube's light, revised by their own words
+
+- **The look and the density are separate.**
+  - **The look is the era.** `era/eras.js` holds `gen-6` and `gen-7`: a console generation's light and surface
+    conventions, drawn at any resolution. gen-6 is the sixth generation's principles at today's resolution, not a
+    640×448 frame.
+  - **The density is the target** (`era/target.js`): the resolution a game is exported to (`480p` … `4k`, or a height
+    in pixels), how the camera frames a standing figure (`close`, `third-person`, `wide`, `top-down`, or a share of
+    the screen) and an outline error in pixels.
+  - **The geocube** carries both: `era` (gen-6) and `target` (1080p third-person). The specimen's `geocube.density`
+    readout names pixels per metre, the texels a metre wants against what the tiles paint, and the shadow cell in
+    pixels. The cosmos reality facet reads `era` for the world and `cast` for characters.
+- **A hero's rings come from its target** (`era/cast-density.js`). A ring of N sides misses a circle of r pixels by
+  r·(1 − cos π/N), so an outline within e pixels wants about π·√(r / 2e) sides.
+  - Each body part (trunk, pelvis, neck, limbs, feet) whose outline misses by more than the error takes one split
+    (twice the sides, a ring between each pair). A part the dress already split keeps its split.
+  - The head, hands and fingers carry features, not outline, and are left as they are.
+  - Today's hero holds 720p third-person within a pixel except its feet. At 1080p its trunk and limbs split
+    (5,196 → 7,724 triangles on the female cast); 4K third-person holds with the same split.
+  - `hero.density` on the readout gives each part's radius in pixels, sides, the sides it wants and its error, the
+    worst part, the parts one split cannot hold (a 4K close-up), and the era's conventions still planned. A target
+    that wants far fewer sides names the lighter register. It never refuses.
+- **A hero in its level's light.** `hero.geocube` (a cube preset, a document or `{ from, … }`) bakes the figure in the
+  cube's light (`era/cast-light.js`), the stage's daylight rules applied to a figure:
+  - the key is the cube's sun, or its moon;
+  - the shade takes the cube's ambient colour (the sky's fill of it under a sun), never black;
+  - faces that look down get warm bounce off the cube's floor;
+  - the rim comes from its sky;
+  - its register bands the key.
+  - The static faces, held gear and the packed rig all take it, and the World page's rim patch draws the rim.
+  - The packed rig takes the hero's palette (`packLayeredRig` `palette`): its plain path coloured each face by its
+    part's `tint`, which a hero's parts never carry, so the moving figure (the clip preview the World page shows, the
+    skinned GLB, Godot) was grey all over, in its level and in the studio alike, for every hero off the character
+    light (every western hero, and an anime hero's unshaded or `light: false` row). The World payload and rig pins of
+    those heroes are re-pinned for it.
+  - An anime hero on a cube is lit by the cube, not by its read-time cel light; a `toon.light` the manifest names
+    still wins.
+  - The hero takes the cube's target unless it names its own.
+  - Absent, nothing changes: every hero pin is byte-identical.
+- **The tiered base form, first piece: the chest.** `hero.form: 'tiered'` (opt-in, `polygonizer/tiered-form.js`) samples
+  the breast's own field (`breast-field.js`) onto the torso's rings in place of the two ring20 lens layers. Three rings
+  are added through the chest band, and every front slot takes the field's height at its place.
+  - It is placed as the unsupported chest: the apexes about as far apart as each is from the sternal notch, turned a
+    little out, low (about 0.72 of the height), the pair meeting in a low valley at the sternum. Today's default sets
+    them 0.6 of that apart, with a filled midline, a garment's shape.
+  - It deforms and refines with the torso, and its body's colour groups are shaded smooth like the skin
+    (`TIERED_SMOOTH_CREASE`), so the form reads as one.
+  - Of the field's gates, nine pass; `meridian` (the apex outward of the mound's middle) is the placement's, kept.
+- **The tiered base form, second piece: the joints.** Today a limb's two segments each run past the elbow or the knee
+  and cross there, so a bent joint scissors (the outside of the knee a beak, the elbow two crossed tubes) and even a
+  straight one shows a saw-toothed seam. In the tiered form (`tieredJoints`) each segment stops short of its joint on a
+  flat end, and a BRIDGE part (`elbowBridge`, `kneeBridge`) spans the gap: its end rings are the limbs' own, its rings
+  between them matched slot to slot, weighted from the upper bone through the joint's fold to the lower bone.
+  - The joint bends as one surface, with the elbow's and the kneecap's point on the outside.
+  - The shin takes the thigh's ring8 so the knee's rings match. A bridge takes every dial and every split its limbs
+    take: the dress's, and a target's, which now splits a bridged joint's two limbs and bridge together.
+  - The wrist is bridged too (`wristBridge`, no fold: the two bones' halves at its middle). The palm's rings are framed
+    from the back of the hand, so the bridge turns the forearm's slots to line up with them; the arm takes the palm's
+    ring8 throughout, and a split takes a whole chain (arm, bridges, hand). A segment that stops short keeps its shaping
+    rings at their addresses (a cuff at `st1_st2_50` still finds its ring).
+  - The SOCKETS (`tieredSockets`): a shoulder or a hip meets the trunk's surface, not a ring, so it takes no bridge. The
+    arm's root now turns whole with the arm (its blend with the collarbone left a raised arm on a thin stalk); a new
+    `shoulderFold` (turned half the arm's swing) carries a share of the torso's shoulder and a BALL, the vajra's
+    ball-in-socket: a sphere at the joint as wide as the arm's root, which fills between the shoulder's corner and the
+    arm at any angle. The hip's ring rides its fold whole; its head sits deep in the pelvis, so it has no ball.
+  - The bare tiered figure is 4,948 triangles against 5,196: the chest 3,988 (a quarter fewer than the domes), the
+    bridges, balls and ring8 limbs 752, the lips 208, the eyes' domes and lids 160, the brows 48, the nose's wings 192,
+    and the lean ears 400 fewer.
+- **The tiered base form, third piece: the face.** The landmark head was one face for both sexes: the same short cut,
+  eyes 36 mm wide (a real eye is about 30), a 2 mm upper lip the skin's colour, ears that stood out from a head they were
+  a third of, faceted cheeks and a hard crease down the forehead and nose. Measured on a spike board (each change alone,
+  then together, front, three-quarter and profile), the tiered form pins (`TIERED_FACE`, by the head's sex):
+  - FACE words under the operator's own (they compose by product): the female a narrower jaw and nose, a smaller
+    mouth, fuller cheekbones, the chin a little forward and a longer nose; the male a broader jaw, a heavier brow, the
+    chin forward. The female's default hair is `bob` (stored on the record; a named style wins).
+  - FEATURES (`humanoidHead({ features })`): eyes 0.85, lighter brows, smaller ears set in, a lower lip, and the lips a
+    tint of the skin (so they follow any skin; an operator's `Lip` wins).
+  - The EYE under a lid: the white a shallow dome sunk in its socket (`eyeDome`: on the skin it stood proud of the face in
+    profile), the iris and pupil on its crown, the upper lid down over the iris's top and a lower lid (`lid`); the male's
+    lid the heavier. The flat stack read as a sticker.
+  - The LIPS: each strip runs on twice the stations and sinks toward the skin at the mouth's corner, and its caps stop at
+    its ends (`strip(..., { end })`): the four-station strips stood a full 2 mm proud to the corner (a sliver past the
+    mouth in three-quarter) and their 5 mm caps crossed at the midline into a zigzag. The female's chin is rounder
+    (`chinPoint` 1.2): the flat shelf under it read as a box in three-quarter.
+  - The NOSE and the BROWS: the nose comes forward from a fuller root (`features.bridge`, a knob on the fitted head's
+    nasion and bridge with no face word; with a longer `noseSize`), so in profile the eye sits back from the nose's
+    front; the brows arch, thickest by the nose and tapering to a fine tail, on twice the stations, closer to the skin and
+    a shade softer than the hair (`features.brows`). The female's chin is less pointed (a sharper point read too
+    prominent in three-quarter and profile).
+  - The NOSE'S SIDE: the nostril's wing is a bulb on each side of the nose (`features.wing`), the crease round it into
+    the cheek is darkened (the tint's `groove`), and round the nose the head's normals keep three quarters of their own
+    (`ellipsoid: { w, nose }`): the nose was one wedge on a flat face, its sides smoothed away by the sphere.
+  - The FACE TINT (`face-tint.js`, `TIERED_FACE_TINT`): a per-corner colour on the head's skin, read off its geometry —
+    a soft occlusion where the skin turns in (the eyes' corners, the nostrils, the mouth's corners) and a warm blush on
+    the cheeks, the nose's tip and the ears, the female's warmer. The vertex colour a shipped face paints where a
+    texture would; `layeredFaces` and the rig pack take it as `tint` (absent ⇒ byte-identical).
+  - The head's normals lean 0.7 toward its ellipsoid (`layeredShadingNormals({ ellipsoid })`, the ears half), the way
+    shipped faces edit their normals toward a sphere: the face reads as one form. The rig pack bakes the same.
+  - Absent the tiered form every head is as before.
+  - Hands, ears, eyes and hair by tier are the next pieces. Absent, every hero is as before.
+- **Critics.**
+  - `hero.critic` on every hero with a head (`polygonizer/hero-style-critic.js`) measures its proportions in head
+    heights: heads tall, inseam, shoulders, hips over shoulders, wrist, hand, foot. It reads them against the
+    **western** and the **anime** canon for its body, with the hero's own style named and one advice line per measure
+    out of band. An adult female figure's chest is read too (`critic.chest`): spacing (apart over notch to apex, the
+    equilateral rule), the apex's height, and the gap at the sternum (a filled midline reads as a garment's cleavage).
+  - `hero.spend` with a target (`era/cast-spend.js`) picks the tier (T0 … T4 by the figure's pixel height), the
+    budget (about 0.05·H²) and each region's share (body, head, hair, hands, clothing) against the tier's reserve.
+  - The spend reads the jaw as the head's (it hangs below the head's base) and the tiered form's bridges and shoulder
+    balls as the body's: both fell to clothing, so a bare figure read 14% clothing and its body short.
+  - Both are advice, never refusals. Their bands are starting points to tune at the eyes gate.
+- **The ear by tier.** An ear was 280 triangles, more than the torso, and a few pixels tall at the default target. The
+  tiered head's ear is the LEAN one (`earMesh({ lean })`, `features.earLean`): the outline on every other point, the rim
+  and the bowl, 80 triangles, the fold and the antihelix inside the rim dropped. A target whose figure is a T3 or T4
+  (`TIERED_FULL_EAR_TIERS`: a close-up, 4K) keeps the full ear. The tiered head at the default target spends 400 fewer
+  triangles; absent the tiered form every ear is as before.
+- **`update_character`.** The Characters ring's revise door: a thin door over `update_sketch`, as `create_character`
+  is over `mint_solid`.
+  - A hero's `spec` merges key by key, and null removes a key. `target` and `geocube` are named on the door.
+  - `patch` takes update_sketch ops for a creature's plan or an animal.
+  - An edit through it stores exactly what the equivalent patch stores.
+  - A `face` or a `tune` given as a word or a list (on the door, or set at `/hero/face`, `/hero/tune`) is resolved as
+    the mint resolves it, move trail included. Before, the list was stored raw and the anime head drew its base face
+    and its base body without a warning. `hair`, `expression`, `gesture`, `look` and `sculpt` already drew as minted.
+  - It refuses a row that is not a character, and a hero's words on a creature by name.
+  - The routing card is `character-fidelity`. The hero card, the studio index and `create_character` now point at it.
+    The flat tools/list pin was re-pinned for the new tool.
+
+### Gait calibration: a walk stored by value
+
+The figure's walk is being recalibrated against measured human gait. This first step makes that safe: a new walk is
+stored with its numbers, so recalibrating changes what is made next and never what was made before.
+
+- **Mint tables.** `WALK_MINT` and `SPRINT_MINT` (`figure-posing.js`) are the gaits authored from now on.
+  `WALK_DEFAULTS` and `SPRINT_DEFAULTS` are frozen: they are what a dial left out of a stored recipe resolves to.
+- **Stored by value where authored.** `create_figure` with `'walk'`, `'sprint'` or a partial `{ walk }` stores every
+  dial of the mint table, as a cast preset resolves to its numbers at mint. So do `update_sketch` when an edit gives a
+  figure, a hero or a world figure a new or changed motion, and the hero door for its walk, jog and sprint (the gait's
+  base, seconds and tilt with them). An edit that leaves a motion as stored keeps it, and `create_sketch` restoring an
+  exported world stores it as exported. The hero vibe page and the first-person bob curve read the mint tables.
+- **Not stamped, by design:** a city's crowd walkers and a hero's studied fallbacks (a stop or vault out of a gait the
+  hero's door motion does not carry) are built at render, so they stay on the frozen tables and old worlds keep their bytes.
+- Every recipe stored before this renders byte for byte (`gait-frozen.char.test.js` pins the bare walk, the sprint,
+  the walk's frames and the hero's studied gaits from the base commit).
+- **The waddle, gone from new walks.** A new walk dial, `stepWidth` (the gap between the feet, STAND units), sets the
+  feet in from the hip joints by a constant thigh adduction; absent, the feet track under the hips as before.
+  `WALK_MINT` takes `stepWidth: 0.05`. The feet land about 8 cm apart instead of 23 cm, and the balance solve, unchanged,
+  then shifts the body about 8 cm side to side instead of 29 cm, the measured human band (`gait-mint.test.js`). New
+  heroes bring their feet in the same way, and the hero door takes the dial.
+- **The heel lifts.** A new walk dial, `heelRise` (degrees of plantarflexion at toe-off), peels the heel off through
+  late stance so the foot rolls onto its toes: the balance solve takes a `heelLift` per foot (the ankle off the floor,
+  the toe the pivot), so the pelvis drops less at double support and the trailing knee bends. Absent, every planted
+  ankle stays on the floor. `WALK_MINT` takes `heelRise: 30`: the hips bounce about 4 cm (people about 4, the frozen
+  walk 6.4) and the leg reaches about 28° forward (people 31°, frozen 40°). Not yet matched: the trailing thigh swings
+  about 26° back where a person's stays near 10° with the knee bent; that needs the stance re-timed. Heroes lift their
+  own heels (the rig's heel words) and ignore the channel.
+- **The run twists; the bow rises slower.** Two new sprint dials, `pelvisRot` and `shoulderRot` (degrees), turn the
+  girdles against each other as the walk's do; absent, the trunk stays square. `SPRINT_MINT` takes 8 and 14 (the hip
+  line turns about 16°, the shoulders about 29° the other way; people 15 … 18° and 23 … 36°) and `armSwing` 40 (the
+  arms pump about 100°, people 64 jogging … 105 sprinting, the frozen run 124). The run's hip angles already matched a
+  measured sprint (59° forward, 42° back; a dash 59 / 40). `keyframeMotion` takes `beats` (each segment's share of the
+  loop; absent, even), and an emote passes its stamped `beats`: the bow is minted at 1.25 / 0.7 / 1.65 / 0.6 s, which
+  measures 0.78 s down, 1.17 s held and 1.06 s up (people 0.8 / 1.1 / 1.07), rising slower than it bows.
+- **New heroes walk with it.** The hero door gives a hero that brings no walk of its own (no `motion.walk`, no door clip
+  named `walk`, not a statue) `motion.walk: true`, stamped by value: the calibrated gait baked on its rig replaces the
+  stock four-key walk in place, which slid its planted feet and never moved. A creator's walk, and every hero minted
+  before, keep theirs. The vibe page's motion patch carries that walk when it sets the other gaits. The hero readout's
+  clip `seconds` now say a door gait's own duration (the walk 1.1 s), where it said the replaced clip's.
+- **The hero's feet, solved for a walking pace.** The rig's grounding (`heroLocomotion`) planned the trailing heel for the
+  lift-off alone and took the stance from the toe's own extremes (67 % of the cycle), so through late stance the planted
+  leg fell short and the body sank for it every step: the hips never less than 5.5 cm down, the stance knee about 35°,
+  and a longer stride only sank it further (10 cm, a lunge). Three hero walk dials, read only when present: `duty` (the
+  stance's share of the cycle), `heelMax` (the heel's cap at push-off) and `heelRoll` (the heel rolled up through the
+  stance by each phase's need, never falling back). `HERO_WALK` (`hero-gaits.js`: stride 0.55 m, duty 0.55, heel 70°,
+  rolled) is stamped over the walk's mint table on every new hero: about 1.05 m/s (was 0.70), a 2 … 4.5 cm bob, a 58 %
+  stance, the head under 1.2 g. A hero walk without the dials solves byte for byte as before (pinned). More sink
+  harmonics were tried and dropped: the root chases the peaks and the head jolts at 2 … 4 g. Still to do: the stride is
+  in metres, so a child takes nearly an adult's.
+- **A hero's arm length is a tune.** The tune had the torso's, the neck's and the legs' lengths but only the arms'
+  thicknesses, so a body shortened by `legs` and `torso` kept a grown arm: the cast example `kid` hung its hands nearly
+  to its knees (the arm 0.41 of its height, the adults' 0.37). `armLength` (0.8 … 1.15, in the lengths group) scales the
+  upper arm and forearm as `legs` does the thigh and shank; absent or 1, the cast as before. `kid.json` takes 0.9: the
+  arm 0.37 of its height, the wrist at 0.44 of it.
+- **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
+  takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
+- **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
+  emote. The GIF plays it in real time (18 fps; a short loop keeps 16 frames and plays them faster) and the exported
+  clip carries it as its designed duration (`s`); a motion without it keeps the 30-frame loop and the runtime's one
+  cycle a second. The mint tables: a walk at 1.1 s a stride (110 steps a minute, the bare walk's GIF paced 72), a run
+  at 0.7 s, the wave at 3.2 s with 2.8 even sweeps 50° each way (`{ wave: { seconds, waves, swing } }`, about 1.9
+  sweeps a second and 17 cm wide, where the bare wave flutters 4.5 a second, 6 cm), and the bow at 4.2 s (timed by beat,
+  below; the bare bow goes down in 0.28 s). `emote_figure`'s side GIF plays the emote as minted now.
+  The bare wave and bow are pinned byte for byte (`gait-frozen.char.test.js`); `motion-timing.test.js` holds the bands.
+
+### Godot reads a reaction's guard
+
+A Godot export of every quick game found the Godot bus firing guarded reactions unguarded: a race was won by touching
+only its finish line. Seven of the twelve quick goals lower to guarded reactions (race, rhythm, defend, puzzle, farm,
+battle, shoot).
+
+- **The guard.** `kernel/bus.gd` matches a reaction only while its `if` holds, as the web's `reactionMatch` does
+  (kernel 0.19.0). `bus-abi` `effect:guarded` is built in Godot, so the portability flags stop naming it.
+- **Proof.** The conformance corpus gains `guarded` (checkpoints in order and out of order, a guard on an undefined
+  var, a guard flipped by the reaction before it in the same event) and guards on the seeded scenarios' reactions.
 
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
 
@@ -820,7 +1631,7 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 - **`meru.shading`: the land lit by polygons.** Cliffs and boulders are baked, not drawn as lit and shaded tiles; rock is lit once per facet; ground and sand are smoothed across the grid; the land keeps its continuous light instead of the card's bands; and three rules read from the land's own shape go into its corner colours: `crevice` darkens what is concave toward the cube's shade colour (never black), `ridge` lifts a convex lip, `blend` carries a neighbouring surface's colour over a seam. A cube's outside has it on. Absent, the land builds as before.
 - **Routing.** A level with its own look (rooms, open land, an island) starts from a geocube: the studio index, the world card and a new `geocube` card say so.
 - **A level copies its cube.** Building on a cube copies it into the level's recipe; a changed or new cube rebuilds nothing until the level is re-created from it, by hand.
-- **`shadows` on a stage: the gen-6.0 shadow upgrades.** `torch: 'hard' | 'soft'` gives every placed light and brazier a shadow test, so a torch no longer lights what a pilaster hides from it (`soft` spreads the flame over a small cross of taps, for about four times the bake); `sun` is the key's soft edge in degrees; `cells` cuts the surfaces finer (to 0.25 m) so a shadow has corners to land on. A cube's inside takes hard torch shadows, a 1.5° sun and half-metre cells. `meru.shading.sun` softens the land's sun the same way (1.5° by default). Absent, the bake is as before.
+- **`shadows` on a stage: the gen-6 shadow upgrades.** `torch: 'hard' | 'soft'` gives every placed light and brazier a shadow test, so a torch no longer lights what a pilaster hides from it (`soft` spreads the flame over a small cross of taps, for about four times the bake); `sun` is the key's soft edge in degrees; `cells` cuts the surfaces finer (to 0.25 m) so a shadow has corners to land on. A cube's inside takes hard torch shadows, a 1.5° sun and half-metre cells. `meru.shading.sun` softens the land's sun the same way (1.5° by default). Absent, the bake is as before.
 
 ### Geocube specimens: a room's bare bones and an island to check terrain on
 
@@ -1780,6 +2591,23 @@ several minutes. They move to an e2e tier of their own.
   `game-audit.test.js`): the orchestration is checked in milliseconds, the real walk in the e2e tier.
 - **A guard** (`lib/mcp/test-tiers.test.js`): the e2e suites stay in `npm test`, and no critical-tier suite mints
   with `autoAudit: true` without injecting a stub `runTraversal`.
+
+### Test the concept, not the catalog
+
+The suite's time was in tests that iterated whole catalogs (every species, preset, culture, landmark, kit) or built far
+more than the property needed, several past their own raised timeouts under a loaded run. A test now picks one case per
+distinct procedure, chosen in code, and asserts the concept on it (CLAUDE.md, test tiers).
+
+- **Fauna** reads its laws on one species per family, rig, footfall pattern and habit set (`fauna/test-cases.js`):
+  between them every gait pattern and behavior strategy is still posed. Two concepts are tested on their own now:
+  **chirality** (a gait's mirror is itself half a stride on, at once, or, with a lead, never) and **growth** (`scale`
+  grows every joint about the ground; `legScale` lifts the trunk whole on longer legs, the feet staying down).
+- **Polygonizer, era, gameworld, city, historic and the MCP suites** sample their presets, cultures, landmarks and kits
+  by procedure, build smaller inputs (a 5×5 city board, a 12×12 export city, a shorter traversal) and build shared
+  inputs once. Deep files that were only a catalog sweep are gone; range-end sweeps and the generated-table drift
+  pins stay exhaustive.
+- **`building-level`** walks three buildings in headless Chrome (the office, the crypt, the tavern-door link); the
+  others check their compiled route through a stub `runTraversal`.
 
 ## [3.1.0] - 2026-10-10
 

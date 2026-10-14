@@ -1,5 +1,5 @@
 /**
- * A stage's `shadows`: the gen-6.0 shadow upgrades, opt-in. Torch shadows (a placed light reaches only what it can
+ * A stage's `shadows`: the gen-6 shadow upgrades, opt-in. Torch shadows (a placed light reaches only what it can
  * see), a soft sun edge, and finer cells for a shadow to land on. Absent, the bake is today's.
  */
 import { describe, expect, it } from 'vitest';

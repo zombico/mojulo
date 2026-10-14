@@ -760,6 +760,9 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const previewList = Object.entries(packedFigures).filter(([, f]) => f && f.rig === true && f.preview && typeof f.preview === 'object').map(([name, f]) => ({ figure: name, ...f.preview }));
   const previewBank = {};
   for (const pv of previewList) { const { preview, ...fig } = packedFigures[pv.figure]; previewBank[pv.figure] = fig; }
+  // a previewed figure with the PAINTED face (face-paint-rig.js `paintTex`) hides its static textured face with the solid,
+  // so the textured meshes carry their group's name as the plain ones do (absent ⇒ the same bytes)
+  const previewPainted = previewList.some((pv) => pv.hide && previewBank[pv.figure]?.paintTex);
   // DRAW LAYERS (channels/draw-layers.js): a page whose render groups carry a face `layer`, or whose previewed figure's
   // parts carry `ranges` (the same layers on the rig pack), draws the stencil rules — the layers block, the stencil
   // buffer, the toon hulls' tests and the preview's layered parts. The hair rule is on when some face or part is hair.
@@ -1011,7 +1014,7 @@ for (const grp of GROUPS) {
     tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
     const tm = new THREE.Mesh(tg, new THREE.MeshBasicMaterial({ map: tex, vertexColors: !!t.lit, side: THREE.DoubleSide${cutOpt} }));
     tm.renderOrder = 0.6; // over the form, under additive glow
-    ${swayBlock || grassBlock || toneBlock ? 'tm.userData.g = grp.name; ' : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
+    ${swayBlock || grassBlock || toneBlock || previewPainted ? 'tm.userData.g = grp.name; ' : ''}${movedTex ? '(__MOVED[grp.name] ? m : scene).add(tm); ' : 'scene.add(tm); '}${cutKeys.length ? 'if (!__CUT[t.key]) ' : ''}solids.push(tm);${breakables ? " if (grp.name.indexOf('break:') === 0) (m.userData.tex || (m.userData.tex = [])).push(tm);   // a breakable's textured faces hide with it" : ''}${cutKeys.length ? ' // a cutout (leaves) is walked through, not into' : ''}
   }
 }
 

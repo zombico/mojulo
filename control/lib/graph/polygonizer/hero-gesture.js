@@ -35,6 +35,7 @@
  */
 import { validateRig, bindLayered, rigNodesAt, boneFrames, skinLayered, layeredClip } from './station-loft-rig.js';
 import { validateAnimeExpression, resolveAnimeExpression } from './anime-head.js';
+import { westernExpressionErrors, resolveWesternExpression } from './humanoid-head.js';
 import { SWING_WORDS, isSwing } from './hero-swing.js';
 import { HAND_POSES, DIGITS } from './hero-hand.js';
 import * as dmath from '../../util/dmath.js';
@@ -137,7 +138,14 @@ function gestureObjectErrors(g, label, clip = null, hands = false) {
   const errs = [], KEYS = [...(clip ? CLIP_KEYS : GESTURE_KEYS), ...(hands ? HAND_KEYS : [])], noun = clip ? 'clip' : 'gesture';
   for (const [k, v] of Object.entries(g)) {
     const at = `${label}.${k}`;
-    if (clip && k === 'face') { errs.push(...(clip.face ? validateAnimeExpression(v, at) : [`${at}: a facial track is the anime head's (head: 'anime')${clip.expression ? "; this head's face is /hero/expression" : ''}`])); continue; }
+    // a key's face: the anime head's expression, or the landmark head's (`western`: a word or its channels; its jaw is the
+    // key's own `jaw`, the bone)
+    if (clip && k === 'face') {
+      if (clip.face) errs.push(...validateAnimeExpression(v, at));
+      else if (clip.western) errs.push(...(v && typeof v === 'object' && 'jawOpen' in v ? [`${at}.jawOpen: the jaw is the key's own \`jaw\` (degrees), the jaw bone`] : westernExpressionErrors(v, at)));
+      else errs.push(`${at}: a facial track is the anime or the landmark head's${clip.expression ? "; this head's face is /hero/expression" : ''}`);
+      continue;
+    }
     if (!KEYS.includes(k)) { errs.push(`${at}: ${INERT[k] ? `${INERT[k]}, so the ${noun} refuses it` : `not a ${noun} word`} (have ${KEYS.join(', ')})`); continue; }
     if (k === 'support') { const S = clip ? ['both', 'L', 'R', 'none'] : ['both', 'L', 'R']; if (!S.includes(v)) errs.push(`${at}: ${S.map((s) => `'${s}'`).join(' | ')} (the planted foot or feet${clip ? '; none: both free' : ''})`); }
     else if (k === 'crouch') { if (!(fin(v) && v >= 0 && v <= 1)) errs.push(`${at}: 0 (standing) … 1 (a deep squat)`); }
@@ -196,13 +204,13 @@ const CLIP_SECONDS = [0.25, 60];
  * `face` and a clip its `seconds`, elsewhere both refuse by name (`expression`: the head takes /hero/expression, which the
  * refusal points at). `gesture` is the stand's and refuses here. Another head's refusals read as before the anime forms:
  * an object that names neither `keys` nor `seconds` is refused as a list. */
-export function validateHeroClips(clips, { jaw = false, face = false, expression = false, hands = false } = {}, label = 'clips') {
+export function validateHeroClips(clips, { jaw = false, face = false, western = false, expression = false, hands = false } = {}, label = 'clips') {
   if (clips === undefined || clips === null) return [];
   if (!isObj(clips)) return [`${label}: { <name>: [keys]${face ? ' | { seconds, keys }' : ''} | false } — each key an object of pose words (${CLIP_KEYS.join(', ')})`];
   const errs = [];
   const keyErrors = (keys, at, name, form) => {
     if (!Array.isArray(keys) || !keys.length) return [form ? `${at}: a list of keys, each an object of pose words` : `${at}: a list of keys, each an object of pose words — or false to remove the hero's own clip of that name (remove /hero/clips/${name} drops a door clip)`];
-    return keys.flatMap((k, i) => (isObj(k) ? gestureObjectErrors(k, `${at}[${i}]`, { jaw, face, expression }, hands) : [`${at}[${i}]: a key is an object of pose words (${CLIP_KEYS.join(', ')})`]));
+    return keys.flatMap((k, i) => (isObj(k) ? gestureObjectErrors(k, `${at}[${i}]`, { jaw, face, western, expression }, hands) : [`${at}[${i}]: a key is an object of pose words (${CLIP_KEYS.join(', ')})`]));
   };
   for (const [name, keys] of Object.entries(clips)) {
     const at = `${label}.${name}`;
@@ -315,7 +323,10 @@ export function heroClipSeconds(hero, clips) {
 export function heroClipFaces(hero, clips) {
   return Object.fromEntries(Object.entries(clips || {}).map(([name, keys]) => {
     const door = hero?.clips && Object.hasOwn(hero.clips, name) ? doorKeys(hero.clips[name]) : null;
-    return [name, keys.map((_, i) => { const f = door?.[i]?.face; return f === undefined || f === null ? null : resolveAnimeExpression(f); })];
+    const resolve = (hero?.head ?? 'landmark') === 'landmark' ? resolveWesternExpression : resolveAnimeExpression;   // the landmark head's channels (western-face-rig.js)
+    // (a compiled motion clip, hero-motion.js locomotionClips: a function, no keys; it holds the authored face)
+    if (!Array.isArray(keys)) return [name, [null]];
+    return [name, keys.map((_, i) => { const f = door?.[i]?.face; return f === undefined || f === null ? null : resolve(f); })];
   }));
 }
 

@@ -798,12 +798,13 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
     const row = () => SketchRepository.getByRef('anime-clips');
     const minted = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'anime-clips', spec: { cast: 'male', head: 'anime', register: 'lowpoly', clips: { cheer: { seconds: 1.5, keys: K } } } });
     expect(minted.ok).toBe(true); expect('blink' in row().manifest.hero).toBe(false);
-    expect(minted.hero.clips).toEqual({ plays: ['gesture', 'idle', 'walk', 'wave', 'cheer'], authored: ['cheer'], seconds: { gesture: 1, idle: 4, walk: 1, wave: 2, cheer: 1.5 }, face: ['cheer'] });
-    expect(minted.next.reason).toMatch(/On the anime head a key may carry face \(an expression word, \{ blink, smile, open, brow \} or a list\), a clip may be \{ seconds, keys \} \(its designed duration; the clips play idle 4 s, walk 1 s, wave 2 s, cheer 1\.5 s\), and \/hero\/blink false turns the ambient blink off\./);
+    // a new hero walks with the calibrated gait (motion-stamp.js withDefaultWalk), whose stride takes 1.1 s
+    expect(minted.hero.clips).toEqual({ plays: ['gesture', 'idle', 'walk', 'wave', 'cheer'], authored: ['cheer'], seconds: { gesture: 1, idle: 4, walk: 1.1, wave: 2, cheer: 1.5 }, face: ['cheer'] });
+    expect(minted.next.reason).toMatch(/On the anime head a key may carry face \(an expression word, \{ blink, smile, open, brow \} or a list\), a clip may be \{ seconds, keys \} \(its designed duration; the clips play idle 4 s, walk 1\.1 s, wave 2 s, cheer 1\.5 s\), and \/hero\/blink false turns the ambient blink off\./);
     expect(row().manifest.hero.clips).toEqual({ cheer: { seconds: 1.5, keys: K } });
     expect(row().manifest.recipe.clips.cheer).toEqual(K.map(({ face: _f, ...pose }) => pose));
     const clipsOf = async () => (await resolveWorldScene({ ref: 'anime-clips', title: 't', manifest: row().manifest })).payload.figures.body.clips;
-    expect(Object.fromEntries(Object.entries(await clipsOf()).map(([c, v]) => [c, v.s]))).toEqual({ gesture: 1, idle: 4, walk: 1, wave: 2, cheer: 1.5 });
+    expect(Object.fromEntries(Object.entries(await clipsOf()).map(([c, v]) => [c, v.s]))).toEqual({ gesture: 1, idle: 4, walk: 1.1, wave: 2, cheer: 1.5 });
     // an unrelated /hero edit regenerates the plan from the record: the clip, its duration and its faces ride along
     const legs = await updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/tune/legs', value: 1.05 }] });
     expect(legs.ok).toBe(true); expect(row().manifest.hero.clips).toEqual({ cheer: { seconds: 1.5, keys: K } }); expect(legs.stats.hero.clips.seconds.cheer).toBe(1.5);
@@ -818,16 +819,19 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
     expect('blink' in row().manifest.hero).toBe(false);
     // refused by name; the row untouched
     const before = JSON.stringify(row().manifest);
-    await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/blink', value: 'off' }] })).rejects.toThrow(/blink: false turns the anime hero's ambient blink off/);
+    await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/blink', value: 'off' }] })).rejects.toThrow(/blink: false turns the hero's ambient blink off/);
     await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/seconds', value: 100 }] })).rejects.toThrow(/clips\.cheer\.seconds: the clip's length in seconds, 0\.25 … 60/);
     await expect(updateSketchHandler({ ref: 'anime-clips', patch: [{ op: 'set', path: '/hero/clips/cheer/keys/1/face', value: 'grin' }] })).rejects.toThrow(/clips\.cheer\.keys\[1\]\.face: unknown anime pose 'grin'/);
     expect(JSON.stringify(row().manifest)).toBe(before);
   });
-  it('every other head refuses the face, the duration and the blink by name at the door', async () => {
+  it('the landmark head takes a key\'s face (its words) and the blink; every other head refuses them by name at the door', async () => {
     const cheer = [{ support: 'both', crouch: 0.1 }];
-    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: [{ ...cheer[0], face: 'happy' }] } } })).rejects.toThrow(/clips\.cheer\[0\]\.face: a facial track is the anime head's \(head: 'anime'\); this head's face is \/hero\/expression/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: [{ ...cheer[0], face: 'happy' }] } } })).rejects.toThrow(/clips\.cheer\[0\]\.face: one of neutral, smile, determined, surprised/);
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', head: 'none', register: 'lowpoly', clips: { cheer: { seconds: 2, keys: cheer } } } })).rejects.toThrow(/clips\.cheer\.seconds: a designed duration is the anime hero's/);
-    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'male', register: 'lowpoly', blink: false } })).rejects.toThrow(/blink: the ambient blink is the anime head's/);
+    await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { cast: 'female', head: 'none', register: 'lowpoly', blink: false } })).rejects.toThrow(/blink: the ambient blink is the anime or the landmark head's/);
+    const western = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'landmark-face', spec: { cast: 'male', register: 'lowpoly', blink: false, clips: { cheer: [{ ...cheer[0], face: 'smile' }] } } });
+    expect(western.ok).toBe(true); expect(western.hero.clips.face).toEqual(['cheer']);
+    expect(SketchRepository.getByRef('landmark-face').manifest.recipe.clips.cheer).toEqual(cheer);   // the plan's keys carry no face
     // a { keys } clip without a duration is a list on any head
     const ok = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: 'landmark-keys', spec: { cast: 'male', register: 'lowpoly', clips: { cheer: { keys: cheer } } } });
     expect(ok.ok).toBe(true); expect(ok.hero.clips).toEqual({ plays: ['idle', 'walk', 'wave', 'cheer'], authored: ['cheer'] });
@@ -839,7 +843,9 @@ describe("the anime hero's timed clips, facial tracks and ambient blink through 
 // rest whatever dial the mint turned, and the character light's toon fields — the anime hero's outline opt-out kept at
 // the door, an invalid light refused by field at the door and on a /toon edit.
 describe('the hero door: readouts and the character light fields', () => {
-  it('the non-anime readout keys: the old set plus `budget` and `core` (the midsection, hero-core-measures.js)', async () => {
+  // `critic` (1011): the style critics, the proportions against the western and the anime canon (hero-style-critic.js),
+  // measured in head heights: a hero with no head has none
+  it('the non-anime readout keys: the old set plus `budget`, `core` (the midsection, hero-core-measures.js) and `critic`', async () => {
     const keys = {
       landmark: [{ cast: 'male' }, ['cast', 'evidence', 'expression', 'face', 'faceMeasures', 'faceMoved', 'hair', 'hairMeasures', 'hairMoved', 'head', 'measures', 'moved', 'register', 'tune']],
       none: [{ cast: 'female', head: 'none' }, ['cast', 'evidence', 'head', 'measures', 'moved', 'register', 'tune']],
@@ -847,9 +853,9 @@ describe('the hero door: readouts and the character light fields', () => {
     };
     for (const [k, [spec, before]] of Object.entries(keys)) {
       const out = await mintSolidHandler({ kind: 'layered', via: 'hero', ref: `keys-${k}`, spec });
-      expect(Object.keys(out.hero).sort(), k).toEqual([...before, 'budget', 'core'].sort());
+      expect(Object.keys(out.hero).sort(), k).toEqual([...before, 'budget', 'core', ...(spec.head === 'none' ? [] : ['critic'])].sort());
       const ed = await updateSketchHandler({ ref: `keys-${k}`, patch: [{ op: 'set', path: '/hero/tune/limbs', value: 1.1 }] });
-      expect(Object.keys(ed.stats.hero).sort(), `${k} edit`).toEqual([...before, 'budget', 'core'].sort());
+      expect(Object.keys(ed.stats.hero).sort(), `${k} edit`).toEqual([...before, 'budget', 'core', ...(spec.head === 'none' ? [] : ['critic'])].sort());
     }
   });
   it('a dressed hero minted with a dial: the dress ledgers read the figure at rest, as without the dial', async () => {

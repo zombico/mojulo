@@ -29,6 +29,7 @@ const texelsOk = (key) => {
 
 describe('the bamboo grove', () => {
   const st = ISEKAI_BAMBOO, P = st.principles, M = { kind: 'stage', kit: 'isekai-bamboo' }, p = assembleStageScene(M), site = natureSite(st, 1);
+  const w = assembleStageScene({ ...M, wind: true });
   const items = bambooItems(st, site, 1);
 
   it(P[0], () => {
@@ -70,14 +71,16 @@ describe('the bamboo grove', () => {
   it('is a recipe and opens under the budget, still and live; live, the culms and sprays sway', () => {
     expect(JSON.stringify(assembleStageScene(M))).toBe(JSON.stringify(p));
     expect(page(p).length).toBeLessThan(STAGE_PAGE_BUDGET);
-    const w = assembleStageScene({ ...M, wind: true });
     expect(w.liveGrass.crowns.groups).toEqual(['isekai:culm', 'isekai:spray']);
     expect(page(w).length).toBeLessThan(STAGE_PAGE_BUDGET);
+    // the bamboo has no petals
+    expect('petals' in w.liveGrass).toBe(false);
   });
 });
 
 describe('the sakura grove', () => {
   const st = ISEKAI_SAKURA, P = st.principles, M = { kind: 'stage', kit: 'isekai-sakura' }, p = assembleStageScene(M), site = natureSite(st, 1);
+  const w = assembleStageScene({ ...M, wind: true });
   const trees = treeItems(st, site, 1), items = [{ ...trees[0] }, { x: trees[0].x, y: trees[0].y, h: st.trees.heroes[0].h, v: 0, cluster: -1, hero: true }];
   const grown = items.map((t) => sakuraFaces(st, site, [t]));
 
@@ -118,7 +121,7 @@ describe('the sakura grove', () => {
     expect(petals.length).toBeGreaterThan(300);
     expect(p.faces.filter((f) => f.group === 'isekai:petals').every((f) => p.cutouts.includes(f.texture))).toBe(true);
     // live: the carpet's grid is set only under and near the crowns, and the petals' windows are the tile's
-    const w = assembleStageScene({ ...M, wind: true }), Pt = w.liveGrass.petals, C = Pt.carpet, G = w.liveGrass.grid;
+    const Pt = w.liveGrass.petals, C = Pt.carpet, G = w.liveGrass.grid;
     const m = new Uint8Array(Buffer.from(C.m.__b64, 'base64'));
     const trunks = p.faces.filter((f) => f.group === 'isekai:wood' && f.corners.some((c) => c[2] < site.ground(c[0], c[1]))).map(centroid);
     const near = (q) => Math.min(...trunks.map((t) => Math.hypot(t[0] - q[0], t[1] - q[1])));
@@ -131,7 +134,7 @@ describe('the sakura grove', () => {
     expect(n).toBeGreaterThan(100);
     expect(Pt.win).toEqual({ lit: [2, 4], shade: [0, 2] });
     expect(Pt.ramp).toEqual(st.palette.blossom);
-    expect('carpet' in assembleStageScene({ kind: 'stage', kit: 'isekai-sakura' })).toBe(false);
+    expect('carpet' in p).toBe(false);
   });
 
   it(P[3], () => {
@@ -142,13 +145,10 @@ describe('the sakura grove', () => {
   it('is a recipe and opens under the budget, still and live; live, the blossom and wood sway and the petals fall', () => {
     expect(JSON.stringify(assembleStageScene(M))).toBe(JSON.stringify(p));
     expect(page(p).length).toBeLessThan(STAGE_PAGE_BUDGET);
-    const w = assembleStageScene({ ...M, wind: true });
     expect(w.liveGrass.crowns.groups).toEqual(['isekai:blossom', 'isekai:sprig', 'isekai:wood']);
     const on = page(w);
     expect(on.length).toBeLessThan(STAGE_PAGE_BUDGET);
     expect(w.liveGrass.petals.sources.length).toBeGreaterThan(5);
     expect(on).toContain('__mojStagePetals');
-    // the bamboo has no petals
-    expect('petals' in assembleStageScene({ kind: 'stage', kit: 'isekai-bamboo', wind: true }).liveGrass).toBe(false);
   });
 });

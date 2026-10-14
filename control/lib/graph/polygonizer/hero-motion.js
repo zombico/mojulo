@@ -19,9 +19,24 @@
  * Pure and deterministic; absent from every hero until a caller asks (no door field yet).
  */
 import { rigNodesAt, VAJRA_CORE } from './station-loft-rig.js';
-import { resolveMotion, WALK_DEFAULTS, SPRINT_DEFAULTS } from './figure-posing.js';
+import { resolveMotion, WALK_MINT, SPRINT_MINT } from './figure-posing.js';
 import { heroJump, JUMPS, keyedClip, mirrored } from './hero-jump.js';
 import { elbowsDown, elbowDownRoll } from './hero-elbow.js';
+import { AURAS, heroAura } from './hero-aura.js';
+import { STANCES, STANCE_NAMES, heroStance } from './hero-stance.js';
+import { STRIKES, heroStrike } from './hero-strike.js';
+import { RESTS } from './hero-rest.js';
+import { GAITS, HERO_WALK } from './hero-gaits.js';
+import { VAULTS } from './hero-vault-moves.js';
+import { heroVault } from './hero-vault.js';
+import { HOLD_WORDS, GUARD_WORDS } from './hero-held-words.js';
+import { heroHold, carryTriangles, carryMounts } from './hero-carry.js';
+import { heroGuard } from './hero-grip.js';
+import { gearPackParts } from './hero-gear.js';
+import { DEFAULT_LIGHT } from './vexar.js';
+import { faceColorLinear } from '../figures/face-mesh.js';
+import { boneFrames } from './station-loft-rig.js';
+import { heroRise } from './hero-rise.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const len = (a) => Math.hypot(a[0], a[1], a[2]);
@@ -62,7 +77,7 @@ function needAt(hip, toe, heelRest, heel, reach) {
  *   caller has planned them over the cycle (heroLocomotion), else found here for this phase alone
  */
 export function groundedPose(R, dof, { footY = {}, swing = {}, sink: sinkAt = null, heel: heelAt = null } = {}) {
-  const { plant, support, ...own } = dof || {};
+  const { plant, support, heelLift: _heel, ...own } = dof || {};   // the rig lifts its own heels (heelL / heelR, below)
   const free = rigNodesAt(R, { ...own, support: 'none' }).nodes;
   const sides = Object.keys(R.legs); const rest = R.joints; const legs = {};
   let sink = 0;
@@ -128,11 +143,23 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
   // is the run of the foot's plant weight ≥ ½, from its first to its last frame on the ground.
   const samples = Array.from({ length: fine }, (_, i) => move(i / fine));
   const walked = !samples.some((d) => Number.isFinite(d?.lift) && d.lift > 0);   // no flight: a walk
+  // A walk minted for the hero's rig (hero dials, absent ⇒ the stance and the heel as studied): `duty` is the stance's
+  // share of the cycle, landing where the toe is furthest forward and lifting off that share later (people: about 0.6;
+  // the toe's own extremes give about 0.67, a long double support that keeps the body sunk); `heelMax` the most the
+  // trailing heel may rise at push-off (degrees; studied HEEL_MAX).
+  const W = (spec && typeof spec === 'object' && (spec.walk || spec.gait)) || {};
+  const duty = walked && Number.isFinite(W.duty) && W.duty > 0.3 && W.duty < 0.9 ? W.duty : null;
+  const heelCap = Number.isFinite(W.heelMax) && W.heelMax > 0 ? W.heelMax : HEEL_MAX;
+  // `heelRoll` (a hero dial; absent ⇒ the heel planned for the lift-off alone): the heel rises through the stance by just
+  // what each phase needs for the planted leg to reach its foot (never falling back, capped at heelMax), the way a foot
+  // rolls onto its toes as it passes behind the body. Planned for the lift-off alone, the late stance is short of reach
+  // until the very end and the body sinks for it, every step.
+  const roll = W.heelRoll === true;
   const stance = {};
   for (const S of sides) {
     const ys = samples.map((d) => rigNodesAt(R, { ...d, plant: undefined, support: 'none' }).nodes[R.legs[S].toeBase][1]);
     let hi = 0, lo = 0;
-    if (walked) ys.forEach((y, i) => { if (y > ys[hi]) hi = i; if (y < ys[lo]) lo = i; });
+    if (walked) { ys.forEach((y, i) => { if (y > ys[hi]) hi = i; if (y < ys[lo]) lo = i; }); if (duty !== null) lo = (hi + Math.round(duty * fine)) % fine; }
     else {
       const on = samples.map((d) => plantOf(d, S) >= 0.5);
       if (on.every(Boolean) || !on.some(Boolean)) { stance[S] = null; continue; }
@@ -160,12 +187,32 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
     const reach = REACH * (len(sub(rest[L.knee], rest[L.hip])) + len(sub(rest[L.hock], rest[L.knee]))); const heelRest = sub(rest[L.hock], rest[L.toeBase]);
     const off = (st.t0 + st.span) % 1; const free = rigNodesAt(R, { ...move(off), plant: undefined, support: 'none' }).nodes;
     const toe = [free[L.toeBase][0], st.y1, rest[L.toeBase][2]];
-    let lo = 0, hi = HEEL_MAX; if (needAt(free[L.hip], toe, heelRest, 0, reach) > 0) { for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (needAt(free[L.hip], toe, heelRest, m, reach) > 0) lo = m; else hi = m; } } else hi = 0;
+    let lo = 0, hi = heelCap; if (needAt(free[L.hip], toe, heelRest, 0, reach) > 0) { for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (needAt(free[L.hip], toe, heelRest, m, reach) > 0) lo = m; else hi = m; } } else hi = 0;
     legOf[S] = { L, reach, heelRest, end: hi };
+  }
+  // the rolled heel (heelRoll): per stance sample, the least heel at which the planted leg reaches its foot, a running
+  // maximum from the landing on (it only rises), read back by phase; past the lift-off it lowers as the planned heel does
+  const rolled = {};
+  if (roll) for (const S of sides) {
+    const st = stance[S], g = legOf[S]; if (!st || !g) continue;
+    const n = Math.max(2, Math.round(st.span * fine)); const arr = new Array(n + 1).fill(0); let run = 0;
+    for (let k = 0; k <= n; k++) {
+      const ph = (st.t0 + (k / n) * st.span) % 1; const free = rigNodesAt(R, { ...move(ph), plant: undefined, support: 'none' }).nodes;
+      const toe = [free[g.L.toeBase][0], st.y0 + (st.y1 - st.y0) * (k / n), rest[g.L.toeBase][2]];
+      let lo = 0, hi = heelCap;
+      if (toe[1] < free[g.L.hip][1] && needAt(free[g.L.hip], toe, g.heelRest, 0, g.reach) > 0) { for (let it = 0; it < 24; it++) { const m = (lo + hi) / 2; if (needAt(free[g.L.hip], toe, g.heelRest, m, g.reach) > 0) lo = m; else hi = m; } } else hi = 0;
+      run = Math.max(run, hi); arr[k] = run;
+    }
+    rolled[S] = { arr, n, end: arr[n] };
   }
   const heelOf = (S, phase) => {
     const st = stance[S], g = legOf[S]; if (!st || !g) return 0;
     const u = (((phase - st.t0) % 1) + 1) % 1;
+    const r = rolled[S];
+    if (r) {
+      if (u <= st.span) { const x = (u / st.span) * r.n, i = Math.min(r.n - 1, Math.floor(x)), f = x - i; return r.arr[i] + (r.arr[i + 1] - r.arr[i]) * f; }
+      return r.end * (1 - smooth(0, 0.35, (u - st.span) / (1 - st.span)));
+    }
     return u <= st.span ? g.end * smooth(0.5, 1, u / st.span) : g.end * (1 - smooth(0, 0.35, (u - st.span) / (1 - st.span)));
   };
   // THE SINK, planned: each phase's need (the planted feet at their planned heels, nothing for a foot in the air), then
@@ -186,7 +233,7 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
   const fn = (phase) => groundedPose(R, move(phase), { ...timing(phase), sink: sinkOf(phase), heel: Object.fromEntries(sides.map((S) => [S, heelOf(S, phase)])) }).pose;
   const speeds = sides.map((S) => stance[S]).filter(Boolean).map((st) => (st.y0 - st.y1) / st.span);   // metres per cycle
   const travel = speeds.length ? Math.max(0, speeds.reduce((a, b) => a + b, 0) / speeds.length) : 0;
-  return { fn, travel, stance, v: (seconds) => (seconds > 0 ? travel / seconds : 0) };
+  return { fn, travel, stance, need, v: (seconds) => (seconds > 0 ? travel / seconds : 0) };
 }
 
 // ─── the hero door's `motion` ──────────────────────────────────────────────
@@ -197,17 +244,42 @@ export function heroLocomotion(spec, R, { frames = 24, fine = 240, tilt = 0 } = 
 // A name here REPLACES the hero's own clip of that name (the stock walk). Stored as given; compiled on the hero's rig
 // where its clips are packed.
 
+/** the MOVE families the door's `motion` takes by word: each word's table, its seconds when the word names none, whether
+ * a word has a mirror (`…Left`), and its solve on a rig → { fn, seconds, laws } (the family's own machine gate) */
+const MOVE_FAMILIES = Object.freeze({
+  aura: { table: AURAS, seconds: 2, mirrors: () => true, solve: (name, R, seconds) => { const A = heroAura(name, R, { seconds }); return { fn: A.clip.fn, seconds: A.seconds, laws: A.checks?.laws, act: { family: 'aura', faces: A.faces } }; } },
+  stance: { table: STANCES, seconds: 0.7, mirrors: (S, n) => STANCE_NAMES.includes(`${n}Left`), solve: (name, R, seconds) => { const S = heroStance(name, R, { seconds }); return { fn: S.clip.fn, seconds: S.clip.seconds ?? seconds, laws: S.checks?.laws }; } },
+  strike: { table: STRIKES, seconds: 0.5, mirrors: () => true, solve: (name, R, seconds) => { const K = heroStrike(name, R, { seconds }); return { fn: K.clip.fn, seconds: K.seconds, laws: K.checks?.laws, contact: K.contact, hand: K.hand, act: { family: 'strike', action: K } }; } },
+});
+/** solved moves and rests kept by their rig and word (a few dozen): a chair's getting down and up is seconds of solving,
+ * and the World page compiles its clips on every read */
+const SOLVED = new Map(), SOLVED_MAX = 48;
+const solvedOnce = (key, make) => { if (SOLVED.has(key)) return SOLVED.get(key); const v = make(); if (SOLVED.size >= SOLVED_MAX) SOLVED.delete(SOLVED.keys().next().value); SOLVED.set(key, v); return v; };
+const rigKey = (R) => JSON.stringify([R.joints, R.bones.map((b) => b.id)]);
 /** the gaits the door takes: the vajra motion each compiles to, the dials it starts from, its tilt and its seconds */
 export const MOTION_GAITS = Object.freeze({
-  walk: Object.freeze({ motion: 'walk', base: Object.freeze({}), tilt: 0, seconds: 1.1 }),
-  jog: Object.freeze({ motion: 'sprint', base: Object.freeze({ dutyFactor: 0.45, strideLength: 0.5, lean: 0.06, armSwing: 40, armBack: 1.15 }), tilt: 10, seconds: 0.7 }),
-  // effort: the knee driven higher and the heel tucked tighter, a bigger arm pump with the elbows driving back, a longer
-  // stride with less ground and more flight, a harder push off the forefoot
-  sprint: Object.freeze({ motion: 'sprint', base: Object.freeze({ strideLength: 0.72, hipDrive: 1.7, swingTuck: 130, armSwing: 56, armBack: 1.1, elbowBend: 84, lean: 0.08, dutyFactor: 0.32, flightLift: 0.09, spineGive: 0.06, anklePoint: 20, toeFlick: 30 }), tilt: 18, seconds: 0.55 }),
+  ...GAITS,
   // the jumps (hero-jump.js): one-shot clips in place, their air timed for an engine's physics
   ...Object.fromEntries(Object.entries(JUMPS).map(([k, J]) => [k, Object.freeze({ motion: 'jump', seconds: J.seconds })])),
   // the stops (heroStop): one-shot, out of a gait when forward is let go
   ...Object.fromEntries(Object.entries({ walk: 0.6, jog: 0.75, sprint: 0.9 }).map(([g, sec]) => [`${g}Stop`, Object.freeze({ motion: 'stop', from: g, seconds: sec })])),
+  // the MOVES (MOVE_FAMILIES): the showcase poses (hero-aura), the ready stances (hero-stance) and the strikes
+  // (hero-strike), each a one-shot ending on the pose to hold, and each mirror (`…Left`)
+  ...Object.fromEntries(Object.entries(MOVE_FAMILIES).flatMap(([family, F]) => Object.entries(F.table).flatMap(([n, P]) => {
+    const sec = P.seconds ?? F.seconds, entry = Object.freeze({ motion: 'move', family, word: n, seconds: sec });
+    return F.mirrors(P, n) ? [[n, entry], [`${n}Left`, Object.freeze({ ...entry, left: true })]] : [[n, entry]];
+  }))),
+  // the RESTS (hero-rest, hero-rise): a rest word is two one-shots, getting down into it (`<rest>Down`) and up out of it
+  // (`<rest>Up`), at the seconds the rise studies; the seat or the floor it needs rides the clips (`moj:rest`)
+  ...Object.fromEntries(Object.keys(RESTS).map((n) => [n, Object.freeze({ motion: 'rest' })])),
+  // the VAULTS (hero-vault): over a box out of a gait, one-shot in place (the engine carries the character along the
+  // run); `…Left` takes off from the right foot. The box and the gait are the door's (`{ h, d, w, from }`), else the
+  // middle of the vault's own range
+  ...Object.fromEntries(Object.keys(VAULTS).flatMap((n) => [[n, Object.freeze({ motion: 'vault', vault: n })], [`${n}Left`, Object.freeze({ motion: 'vault', vault: n, left: true })]])),
+  // the HELD THINGS (hero-carry's holds, hero-grip's guards): a one-shot into the hold or the guard, the thing held a prop
+  // of its clip (a skinned mesh of its own on the hand's bone, `moj:prop`), shown with that clip alone
+  ...Object.fromEntries(HOLD_WORDS.map((n) => [n, Object.freeze({ motion: 'hold', family: 'hold', seconds: 0.8 })])),
+  ...Object.fromEntries(GUARD_WORDS.map((n) => [n, Object.freeze({ motion: 'guard', family: 'guard', seconds: 0.9 })])),
 });
 
 // ─── the STOP: letting go of forward ───────────────────────────────────────
@@ -267,22 +339,47 @@ const GAZE_HOLD = 0.7;
 const TILT = [0, 35];
 const JUMP_SECONDS = [0.5, 3];
 const MOTION_SECONDS = [0.25, 10];
+const MOVE_SECONDS = [0.2, 6];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
+/** the door's motion words for a refusal: the gaits, jumps and stops by name, the moves by family (each with its mirror) */
+const MOTION_WORDS = (() => {
+  const plain = Object.entries(MOTION_GAITS).filter(([, g]) => g.motion !== 'move').map(([n]) => n);
+  const fam = (f) => Object.entries(MOTION_GAITS).filter(([n, g]) => g.motion === 'move' && g.family === f && !/Left$/.test(n)).map(([n]) => n).join(', ');
+  const plainNames = plain.filter((n) => !['rest', 'vault'].includes(MOTION_GAITS[n].motion)), rests = plain.filter((n) => MOTION_GAITS[n].motion === 'rest');
+  return `have ${plainNames.filter((n) => !['hold', 'guard'].includes(MOTION_GAITS[n].motion)).join(', ')}; the rests ${rests.join(', ')} (each its Down and Up); the vaults ${Object.keys(VAULTS).join(', ')}; the holds ${HOLD_WORDS.join(', ')}; the guards ${GUARD_WORDS.filter((n) => !/Left$/.test(n)).join(', ')}; the poses ${fam('aura')}; the stances ${fam('stance')}; the strikes ${fam('strike')}; a move with a lead or a side has its mirror, <name>Left (a square stance — athletic, low — is its own)`;
+})();
 /** the refusals for a door `motion`, as strings (empty when it is fine) */
-export function validateHeroMotion(motion, dials = { walk: WALK_DEFAULTS, sprint: SPRINT_DEFAULTS }) {
+export function validateHeroMotion(motion, dials = { walk: { ...WALK_MINT, ...HERO_WALK }, sprint: SPRINT_MINT }) {
   if (motion === undefined) return [];
-  if (!isObj(motion)) return [`motion: an object of gaits (${Object.keys(MOTION_GAITS).join(', ')}), each true or { <the gait's dials>, tilt, seconds }`];
+  if (!isObj(motion)) return [`motion: an object of gaits and moves (${MOTION_WORDS}), each true or { <the gait's dials>, tilt, seconds } ({ seconds } for a jump, stop or move)`];
   const errs = [];
   for (const [name, g] of Object.entries(motion)) {
     const G = MOTION_GAITS[name];
-    if (!G) { errs.push(`motion.${name}: not a gait (have ${Object.keys(MOTION_GAITS).join(', ')})`); continue; }
+    if (!G) { errs.push(`motion.${name}: not a gait or a move (${MOTION_WORDS})`); continue; }
     if (g === true) continue;
-    if (G.motion === 'jump' || G.motion === 'stop') {
+    if (G.motion === 'rest') { errs.push(`motion.${name}: true (a rest's getting down and up are studied, hero-rise.js; its clips are ${name}Down and ${name}Up)`); continue; }
+    if (G.motion === 'vault') {
+      // the box (metres: its top over the floor, its depth along the run, its width) and the gait it is taken out of; the
+      // solver says on the rig whether it can (too high, too near) when the clip is compiled
+      const V = VAULTS[G.vault];
+      if (!isObj(g)) { errs.push(`motion.${name}: true, or { h, d, w, from, seconds } (the box in metres and the gait: ${V.from.join(' or ')})`); continue; }
+      for (const [k, v] of Object.entries(g)) {
+        if (k === 'from') { if (!V.from.includes(v)) errs.push(`motion.${name}.from: ${V.from.join(' or ')} (the gait a ${G.vault} is taken out of)`); }
+        else if (k === 'h') { if (!(Number.isFinite(v) && v >= 0.1 && v <= 1.6)) errs.push(`motion.${name}.h: the box's top over the floor, 0.1 … 1.6 metres`); }
+        else if (k === 'd') { if (!(Number.isFinite(v) && v >= V.depth[0] && v <= V.depth[1])) errs.push(`motion.${name}.d: the box's depth along the run, ${V.depth[0]} … ${V.depth[1]} metres for a ${G.vault}`); }
+        else if (k === 'w') { if (!(Number.isFinite(v) && v >= 0.2 && v <= 6)) errs.push(`motion.${name}.w: the box's width, 0.2 … 6 metres`); }
+        else if (k === 'seconds') { if (!(Number.isFinite(v) && v >= MOVE_SECONDS[0] && v <= MOVE_SECONDS[1])) errs.push(`motion.${name}.seconds: ${MOVE_SECONDS.join(' … ')} seconds`); }
+        else errs.push(`motion.${name}.${k}: a vault takes h, d, w, from and seconds`);
+      }
+      continue;
+    }
+    if (G.motion === 'jump' || G.motion === 'stop' || G.motion === 'move' || G.motion === 'hold' || G.motion === 'guard') {
       if (!isObj(g)) { errs.push(`motion.${name}: true, or { seconds }`); continue; }
       for (const [k, v] of Object.entries(g)) {
-        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a ${G.motion} takes only seconds (its poses are studied; tune them in hero-${G.motion === 'stop' ? 'motion' : 'jump'}.js)`);
-        else if (!(Number.isFinite(v) && v >= JUMP_SECONDS[0] && v <= JUMP_SECONDS[1])) errs.push(`motion.${name}.seconds: ${JUMP_SECONDS[0]} … ${JUMP_SECONDS[1]} seconds`);
+        const fam = G.motion === 'move' ? G.family : G.motion, file = { stop: 'motion', move: G.family, hold: 'carry', guard: 'grip' }[G.motion] ?? 'jump', SEC = ['move', 'hold', 'guard'].includes(G.motion) ? MOVE_SECONDS : JUMP_SECONDS;
+        if (k !== 'seconds') errs.push(`motion.${name}.${k}: a ${fam} takes only seconds (its poses are studied; tune them in hero-${file}.js)`);
+        else if (!(Number.isFinite(v) && v >= SEC[0] && v <= SEC[1])) errs.push(`motion.${name}.seconds: ${SEC.join(' … ')} seconds`);
       }
       continue;
     }
@@ -305,8 +402,43 @@ export function motionPlan(motion) {
     const G = MOTION_GAITS[name];
     if (G.motion === 'jump') return [name, { jump: name, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
     if (G.motion === 'stop') return [name, { stop: G.from, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
+    if (G.motion === 'move') return [name, { move: G.family, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
+    if (G.motion === 'rest') return [name, { rest: name }];
+    if (G.motion === 'hold' || G.motion === 'guard') return [name, { [G.motion]: true, seconds: (g === true ? undefined : g.seconds) ?? G.seconds }];
+    if (G.motion === 'vault') return [name, { vault: G.vault, left: !!G.left, ...(g === true ? {} : g) }];
     const { seconds, tilt, ...own } = g === true ? {} : g;
     return [name, { spec: { [G.motion]: { ...G.base, ...own } }, seconds: seconds ?? G.seconds, tilt: tilt ?? G.tilt }];
+  }));
+}
+
+/** A one-shot from the stand into a held pose (a hold's: support 'none', each foot reaching its target): every number of
+ * the pose eased from 0 (the stand's), each foot's target from its rest toe, the fingers closing with the rest */
+function easeInto(pose, R) {
+  const flat = (o, pre = '', out = {}) => { for (const [k, v] of Object.entries(o)) { if (k === 'feet' || k === 'support') continue; const p = pre ? `${pre}.${k}` : k; if (typeof v === 'number') out[p] = v; else if (v && typeof v === 'object' && !Array.isArray(v)) flat(v, p, out); } return out; };
+  const F = flat(pose), sides = Object.keys(R.legs);
+  return (t) => {
+    const e = t * t * (3 - 2 * t), out = { support: 'none' };
+    for (const [p, v] of Object.entries(F)) { const ks = p.split('.'); let o = out; for (const k of ks.slice(0, -1)) o = o[k] ??= {}; o[ks.at(-1)] = v * e; }
+    out.feet = Object.fromEntries(sides.filter((S) => pose.feet?.[S]).map((S) => { const a = R.joints[R.legs[S].toeBase], b = pose.feet[S]; return [S, [0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * e)]; }));
+    return out;
+  };
+}
+
+/**
+ * A door `motion` as it is STORED when authored: each walk, jog or sprint gait gets every dial of its mint table
+ * (figure-posing.js WALK_MINT / SPRINT_MINT), the gait's own base, its seconds and its tilt written in, under what the
+ * creator set (`true` ⇒ the gait as studied, by value). Jumps and stops, and anything not an object, pass as given.
+ * Called where a hero is written (the hero door, an edit under /hero, a world's inline hero), never at render: a hero
+ * stored before the mint tables keeps resolving its left-out dials against the frozen defaults.
+ */
+export function stampHeroMotion(motion) {
+  if (!isObj(motion)) return motion;
+  return Object.fromEntries(Object.entries(motion).map(([name, g]) => {
+    const G = MOTION_GAITS[name];
+    if (!G || (G.motion !== 'walk' && G.motion !== 'sprint') || !(g === true || isObj(g))) return [name, g];
+    // a hero's walk is the figure's mint table with the hero's own dials over it (hero-gaits.js HERO_WALK)
+    const mint = G.motion === 'walk' ? { ...WALK_MINT, ...HERO_WALK } : SPRINT_MINT;
+    return [name, { ...mint, ...G.base, seconds: G.seconds, tilt: G.tilt, ...(g === true ? {} : g) }];
   }));
 }
 
@@ -316,7 +448,75 @@ export function motionPlan(motion) {
  */
 export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
   const clips = {}, seconds = {}, speeds = {};
-  for (const [name, { spec, seconds: s, tilt = 0, jump, stop }] of Object.entries(locomotion || {})) {
+  for (const [name, { spec, seconds: s, tilt = 0, jump, stop, move, rest, vault, left, h, d, w, from, hold, guard }] of Object.entries(locomotion || {})) {
+    if (hold || guard) {
+      // a held thing: a hold eases from the stand into the solved hold (hero-carry heroHold: the pose its effort answers),
+      // a guard plays its own clip (hero-grip heroGuard: the stance entered, the arms closing); one-shot. `held` rides the
+      // clip (what is held, the hands, a hold's mass and perceived effort, the laws) and `props(dz)` its things at rest on
+      // their hand's bone, for the pack (the gear's own seating: gearPackParts; a carried box, carryTriangles)
+      let X; try { X = solvedOnce(`${hold ? 'hold' : 'guard'}|${rigKey(R)}|${name}|${guard ? s : ''}`, () => (hold ? heroHold(name, R) : heroGuard(name, R, { seconds: s }))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const fn = hold ? easeInto(X.pose, R) : ((t) => X.clip.fn(t)), T = hold ? s : X.clip.seconds ?? s;
+      const K = Math.max(keys, Math.round(T * 30) + 1);
+      try { for (let k = 0; k < K; k++) rigNodesAt(R, fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const laws = X.checks?.laws ? Object.values(X.checks.laws).every(Boolean) : null;
+      const clip = (t) => fn(t); clip.keys = K; clip.once = true;
+      clip.held = hold ? { hold: name, item: X.item, hands: X.hands, kg: X.kg, ...(X.effort?.cr10 !== undefined ? { effort: X.effort.cr10 } : {}), ...(laws !== null ? { laws } : {}) }
+        : { guard: name, stance: X.stance, tradition: X.tradition, grip: X.grip, hands: X.hands, ...(laws !== null ? { laws } : {}) };
+      clip.props = (dz = 0, light = DEFAULT_LIGHT) => {
+        if (guard) return gearPackParts(X.mounts, { light, dz }).map((p, i) => ({ ...p, item: X.mounts[i].item }));
+        const rest = boneFrames(R, R.joints, R.joints), out = gearPackParts(carryMounts(X, R), { light, dz }).map((p) => ({ ...p, item: X.item }));
+        const byBone = new Map();
+        for (const t of X.things) { const bone = t.ride?.boneIndex; if (bone === undefined) continue; if (!byBone.has(bone)) byBone.set(bone, { bone, item: t.item, tris: [] }); }
+        // (carryTriangles draws every non-blade thing at rest; each triangle goes to the thing's hand by its nearest bone,
+        // its card's colour string made linear, as the gear's are)
+        const tris = carryTriangles(X, R, rest);
+        const heads = [...byBone.values()].map((b) => [b, rest[b.bone].head]);
+        for (const t of tris) { const c = [0, 1, 2].map((k) => (t.p[0][k] + t.p[1][k] + t.p[2][k]) / 3); let best = heads[0]; for (const hh of heads) if (Math.hypot(...[0, 1, 2].map((k) => c[k] - hh[1][k])) < Math.hypot(...[0, 1, 2].map((k) => c[k] - best[1][k]))) best = hh; if (best) best[0].tris.push({ p: t.p.map((q) => [q[0], q[1], q[2] + dz]), col: faceColorLinear({ fill: t.colour }) }); }
+        return [...out, ...[...byBone.values()].filter((b) => b.tris.length)];
+      };
+      clips[name] = clip; seconds[name] = T; continue;
+    }
+    if (vault) {
+      // a vault: one-shot in place over its box out of its gait (the box and the gait the door's, else the middle of the
+      // vault's own range at this hero's hip); `vault` rides the clip — the gait, the box, where it takes off and lands
+      // (the gait's phase and foot, metres from the near face and past the far), the run it covers, the flights, its laws
+      const V = VAULTS[vault], gait = from ?? V.from[0], band = V.band[gait], hip = R.joints.pelvisHub[2], r3 = (x) => Math.round(x * 1e3) / 1e3;
+      const box = { h: h ?? r3(((band[0] + band[1]) / 2) * hip), d: d ?? r3((V.depth[0] + V.depth[1]) / 2), w: w ?? 1.5 };
+      let X; try { X = solvedOnce(`vault|${rigKey(R)}|${name}|${JSON.stringify([box, gait, s])}`, () => heroVault(left ? `${vault}Left` : vault, R, { ...box, from: gait, seconds: s })); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const K = Math.max(keys, Math.round(X.seconds * 30) + 1);
+      try { for (let k = 0; k < K; k++) rigNodesAt(R, X.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const laws = X.checks?.laws ? Object.values(X.checks.laws).every(Boolean) : null;
+      const fn = (t) => X.fn(t); fn.keys = K; fn.once = true;
+      fn.vault = { vault, from: gait, box, entry: X.entry, exit: X.exit, travel: r3(X.root.y(1) - X.root.y(0)), air: X.air, ...(laws !== null ? { laws } : {}) };
+      clips[name] = fn; seconds[name] = X.seconds; continue;
+    }
+    if (rest) {
+      // a rest: getting down (`<name>Down`) and up (`<name>Up`), each one-shot at the rise's own seconds; `rest` rides each
+      // clip — the rest, which way, the beats (the seat taking or leaving the weight, a fall's impact; seconds), the props
+      // it needs (boxes in the figure's frame, z up, metres, the figure standing at the origin facing +y) and its laws
+      for (const down of [true, false]) {
+        const clip = `${name}${down ? 'Down' : 'Up'}`;
+        let U; try { U = solvedOnce(`rest|${rigKey(R)}|${clip}`, () => heroRise(name, R, { down })); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+        const K = Math.max(keys, Math.round(U.seconds * 30) + 1);
+        try { for (let k = 0; k < K; k++) rigNodesAt(R, U.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+        const laws = U.checks?.laws ? Object.values(U.checks.laws).every(Boolean) : null, r4 = (x) => Math.round(x * 1e4) / 1e4;
+        const fn = (t) => U.fn(t); fn.keys = K; fn.once = true;
+        fn.rest = { rest: name, phase: down ? 'down' : 'up', beats: Object.fromEntries(Object.entries(U.beats).filter(([k]) => k !== 'states')), props: U.props.map((p) => ({ lo: p.lo.map(r4), hi: p.hi.map(r4), colour: p.colour, ...(p.tilt ? { tilt: p.tilt } : {}) })), ...(laws !== null ? { laws } : {}) };
+        clips[clip] = fn; seconds[clip] = U.seconds;
+      }
+      continue;
+    }
+    if (move) {
+      // a move: one-shot (sampled 0 … 1 inclusive), ~30 keys a second, ending on the pose to hold; `move` rides the clip
+      // (its family, whether its own laws held, a strike's hand and contact time) for the GLB's `moj:move`
+      let M; try { M = solvedOnce(`move|${rigKey(R)}|${name}|${s}`, () => MOVE_FAMILIES[move].solve(name, R, s)); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const K = Math.max(keys, Math.round(M.seconds * 30) + 1);
+      try { for (let k = 0; k < K; k++) rigNodesAt(R, M.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
+      const laws = M.laws && typeof M.laws === 'object' ? Object.values(M.laws).every(Boolean) : null;
+      const fn = (t) => M.fn(t); fn.keys = K; fn.once = true; if (M.act) fn.act = M.act;   // (the face it acts: anime-face-tracks.js)
+      fn.move = { family: move, hold: true, ...(laws !== null ? { laws } : {}), ...(M.contact ? { hand: M.hand, contact: M.contact.t } : {}) };
+      clips[name] = fn; seconds[name] = M.seconds; continue;
+    }
     if (stop) {
       // a stop: two clips, the right foot braking (`<name>`) and the left (`<name>Left`), out of the hero's own gait (the
       // door's, else the gait as studied)
@@ -340,7 +540,7 @@ export function locomotionClips(locomotion, R, { keys = 24 } = {}) {
       let J; try { J = heroJump(jump, R, { seconds: s, ...(speed ? { speed } : {}) }); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
       const K = Math.max(keys, Math.round(J.seconds * 30) + 1);
       try { for (let k = 0; k < K; k++) rigNodesAt(R, J.fn(k / (K - 1))); } catch (err) { throw new Error(`motion.${name}: ${err.message}`); }
-      const fn = (t) => J.fn(t); fn.keys = K; fn.once = true; if (J.air) fn.air = J.air; if (J.roll) fn.roll = J.roll;
+      const fn = (t) => J.fn(t); fn.keys = K; fn.once = true; if (J.air) fn.air = J.air; if (J.roll) fn.roll = J.roll; fn.act = { family: 'jump', action: J, name: jump };   // (the face it acts: anime-face-tracks.js)
       clips[name] = fn; seconds[name] = J.seconds; continue;
     }
     let loco;
