@@ -78,7 +78,7 @@ export const species = {
   diplodocus: {
     family: 'sauropod', name: 'a diplodocus', scale: 1,
     joints: {
-      neckBase: [0, 3.0, 3.35], neckTop: [0, 9.6, 3.6],
+      neckBase: [0, 3.0, 3.45], neckTop: [0, 9.3, 5.4],
       shoulder: [0.70, 2.4, 2.9], elbow: [0.78, 2.5, 1.8], carpus: [0.75, 2.6, 0.7], forePaw: [0.75, 2.62, 0.25], foreToe: [0.75, 2.85, 0.22],
       hip: [0.70, -2.4, 3.2], stifle: [0.80, -2.1, 1.95], hock: [0.76, -2.5, 0.75], hindPaw: [0.76, -2.45, 0.25], hindToe: [0.76, -2.15, 0.22],
     },
@@ -96,7 +96,7 @@ export const species = {
       [-12.5, 2.1, [0.08, 0.09]], [-14.5, 1.75, [0.04, 0.045]], [-16.3, 1.45, [0.02, 0.02]]],
     tailCaps: { back: [0, -2.7, 3.5], tip: [0, -16.6, 1.4] },
     legs: legRows(0.34, 0.29, 0.26, 0.36),
-    headScale: 1.7, headPitch: -8, muzzleW: 0.9, muzzleLen: 1.5,
+    headScale: 2.0, headPitch: -16, muzzleW: 0.9, muzzleLen: 1.5,
   },
 };
 species.diplodocus.extraSegments = [

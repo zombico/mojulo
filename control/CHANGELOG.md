@@ -224,6 +224,97 @@ The agent drives; the dashboard shows. Every affordance that wrote or handed the
     such. Pixelizer games and sprite sheets stay on the surface.
   - The studio index, the game form, the pixel-art card and the tool-surface page no longer point at them.
   - The flat `tools/list` payload pin falls from 209,300 to 203,900 bytes.
+### Sea creatures: whales and dolphins, seals, cephalopods
+
+New families for the sea, each wired through the swim gaits, the behaviour tags, the social table and the search
+names (`about`), the generated DOES, mind and cosmos tables regenerated with them.
+
+- **Cetaceans** (`families/cetacean.js`): a fusiform trunk with no neck to speak of, a tail stock flattened side to
+  side, two HORIZONTAL flukes swept back to points, flat pectoral flippers, a raked dorsal (or a ridge), a melon over a
+  beak or a blunt front, a pale belly; `cetaceanFins` builds the fin set from a few numbers. The bottlenose dolphin
+  (worked species), the orca (the bull's tall dorsal, the eye patch, white chin, belly and flank lobe, the grey
+  saddle), the humpback (a flat broad head, the long pale flippers, a small hump), the beluga (all white, a round
+  melon, a ridge for a fin) and the narwhal (mottled, the tusk). They swim by a new `flukeStroke` pattern: the body
+  wave in the VERTICAL plane, the flukes beating up and down.
+- **Pinnipeds** (`families/pinniped.js`), hauled out on land: a smooth spindle resting on its belly, short fore
+  flippers, the hind flippers trailing back (a true seal) or turned forward under the rump; a round whiskered head.
+  The harbour seal (worked species, no external ears), the California sea lion (propped high on long fore flippers,
+  small rolled ears, the bull's crest) and the walrus (a huge bulk, a broad whiskered muzzle, the tusks). They crawl
+  on land by a vertical body wave and swim by sweeping the hind flippers; the sea lion flies on its fore flippers.
+- **Cephalopods** (`families/cephalopod.js`): no skeleton and no legs: a mantle, a short neck into a head that is
+  mostly two big eyes, a crown of arms (`arm`: walked out along a heading that bends and curls at the tip, each kept
+  on its own side of sideways so its ring frame never flips; `forwardArm`: a bundle reaching forward, a tentacle's
+  club), a funnel. The common octopus (worked species: the mantle rising behind, eight arms spread over the seabed),
+  the European squid (a torpedo mantle, rhombic fins, two clubbed tentacles), the common cuttlefish (a flat oval
+  mantle edged with a fin skirt, the zebra bands) and the chambered nautilus (the striped shell, a hood, many short
+  tentacles). They swim by a new `jet` pattern (the mantle pulsing); the octopus also crawls. The arms are not yet
+  posed by the rig.
+- **More fish** on the fish maker: the swordfish (the flat sword a third of its length, a tall crescent dorsal, a deep
+  lunate tail), the humpback anglerfish of the deep (a round black body, an upturned mouth, a pale lure arching off
+  its forehead to a glowing bulb) and the whale shark (a wide flat head with the mouth across its front, a speckled
+  blue-grey back over a white belly; a filter feeder in its tags).
+- The stance line says what a seal and an octopus stand on ("hauled out on its flippers", "resting on its arms").
+
+### Wildlife improvements: the default animals' silhouettes and proportions
+
+The species roster was built family by family in batches; this pass reads the whole roster at once, four views a
+species, and fixes what misreads in silhouette. Species are recipes: an `animal` sketch minted from a touched species
+redraws with the new numbers on its next read.
+
+- **Felines** stand on a deep narrow chest, not a slab: the trunk is about a fifth narrower across, the legs set under
+  it rather than at its edges, the upper arm and thigh slimmer across, and the paws near life size (they were about
+  twice it). The cheetah's waist is deep rather than pinched, its legs a little fuller.
+- **Canines** stand with their legs under the body (the coyote's stood out past its sides almost two to one), the
+  thigh and upper arm slimmer across, the loin deep instead of a wasp waist; the dog's otter tail tapers from a
+  thinner root and is carried level with a droop, and its legs are lighter.
+- **Bovids** are narrower across the barrel (the gazelle most), their legs set under it; the bull, the dairy cow and
+  the water buffalo carry their heads higher, the bull's larger with a longer muzzle raised off the chest, and the
+  dewlap hangs as a fold under the throat instead of a lobe in front of the forelegs.
+- **Cervids** set their legs under the trunk, the upper arm and thigh slimmer across; **bears** are a little narrower
+  across, the legs a little closer.
+- **Perching birds** crouch on short legs instead of standing tall on them: the macaw, the pigeon, the crow, the toucan
+  and the hummingbird stand lower (`legScale`), their long tails swung up about the root so they clear the ground, and
+  their drumsticks slimmer; the rooster's legs are a little shorter.
+- **Crocodilians and lizards** sprawl less wide: the crocodile's and alligator's elbows and knees, and the monitor's,
+  the iguana's and the gecko's, come in toward the body (their feet stood out near twice the trunk's width), and the
+  crocodilian and monitor trunks are deeper, the armour rows and the crest lifted with them.
+- **Single fixes** where one species failed to read: the triceratops' frill seats on the back of its skull and sweeps
+  back, where it stood as a sail over the neck; the diplodocus raises its neck so its head shows; the rattlesnake's
+  raised neck meets its coil (a piece of the body was missing, leaving the head afloat); the skunk's plume arches over
+  its back at about a third of its old size (it towered over the animal); the moray tapers from a deep head end to a
+  thin tail instead of a cucumber's even girth.
+- The rabbit's head is larger (it was about a quarter small), the pig's legs fuller, the llama's barrel narrower.
+- **Folded wings** lie against a small bird's flank: `featherWing({ fit: true })` scales the wing's fixed sizes (the
+  tertials, the feather layers' stacking, the vanes' bow, the bones' girth, authored at a griffon's 0.69 m arm) by
+  the wing's own arm, so the pigeon's wing no longer stands off its body as a griffon-thick stack (it reached past
+  the trunk's width by half again), and the hummingbird's long blades fold along its back. Absent, a wing is built as
+  before; the other birds keep theirs (on a plump chicken or owl the fitted wing sinks out of sight).
+- **Pass two** (a fresh read of the whole roster): the T. rex's hips come in and its thighs are slimmer across and no
+  longer rise over the back (from the front it was a box wider than the animal), its head larger; the velociraptor's
+  arm feathers grow on both arms (they grew on the right only); the elasmosaurus carries its neck in a swan's curve
+  with a larger head and flippers (the neck was a dead-level rod); the moose's palms lie out flat, broad from above
+  (they stood on edge like a spray of sticks); the squid's arms spread into a visible bundle.
+- **Rodent eyes**: the rat, the mouse, the hamster and the guinea pig each wore a second eye: their all-black eyeball
+  sits on a small, curved head, and its sides showed past the lid ring as a larger black disc beside the eye. The
+  ball's hidden sides now take the fur's colour and the black cornea cap is wider (`irisAngle`), so one dark bead
+  shows in its lids. The squirrel takes the seated eye with a head-relative brow (its goggle eye's ball broke through
+  the skull roof). Also: the camel's hump stands higher, the fox's and coyote's ears are smaller, the squirrel's tail
+  is slimmer and curls lower. `fauna-lineup.mjs --head` crops each view to the head.
+- **Small eyes sit in their heads**: the set eye's few fixed lengths (the ball's lift off the skin, the cornea's step,
+  the pupil's dip, the catchlight, the lid's clearance) were millimetres tuned at the default eye; an eye smaller than
+  that now takes them in proportion, so a small head's eye is no longer lifted out of it (the hummingbird's and the
+  pigeon's stood off the head on stalks, the hedgehog's showed a second eye). An eye at or above the default, and the
+  goggle eye, build as before. Where a species had leaned on the lift to show its eye through a bulging brow, its
+  seat is shallower (the gecko, the iguana, the guinea pig, the hamster, the river otter).
+- The wild boar's and the warthog's crest sits on the back (it floated over it), the elephant's and the mammoth's trunk
+  tapers from a wider base, the pond turtle's neck is shorter and thicker, the rattle is smaller, and the hummingbird
+  slimmer.
+- `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
+  to NaN). A four-legged species builds exactly as before.
+- `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,
+  front, top) with no database or browser, `--parts` to colour faces by part, and `--measure` for the proportion
+  readout the pass steers by (trunk width over height, the legs' reach over the trunk's half-width, the head's length
+  and carriage).
 
 ### Game audio: scene-scored soundtracks and action SFX
 

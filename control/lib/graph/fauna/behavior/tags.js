@@ -92,8 +92,8 @@ export const FAMILY_TAGS = Object.freeze({
     kingCobra: { add: ['hoods'] }, rattlesnake: { add: ['rattles'] }, seaSerpent: { drop: ['basks'] } } },
   anuran:     { tags: ['predator', 'freezes'] },
   chiropteran: { tags: ['roosts-hanging', 'handles-food'] },   // a fruit bat holds fruit with its thumbs
-  chondrichthyan: { tags: ['predator', 'keeps-swimming'], species: { mantaRay: { add: ['filter'], drop: ['predator'] } } },
-  teleost:    { tags: [], species: { morayEel: { add: ['predator'] }, salmon: { add: ['predator'] } } },
+  chondrichthyan: { tags: ['predator', 'keeps-swimming'], species: { mantaRay: { add: ['filter'], drop: ['predator'] }, whaleShark: { add: ['filter'], drop: ['predator'] } } },
+  teleost:    { tags: [], species: { morayEel: { add: ['predator'] }, salmon: { add: ['predator'] }, swordfish: { add: ['predator'] }, anglerfish: { add: ['predator'] } } },
   theropod:   { tags: ['predator'] },
   ceratopsian: { tags: ['browser'] },
   hadrosaur:  { tags: ['browser', 'prey'] },
@@ -101,6 +101,9 @@ export const FAMILY_TAGS = Object.freeze({
   thyreophoran: { tags: ['browser'] },
   pterosaur:  { tags: ['predator'] },
   plesiosaur: { tags: ['predator'] },
+  cephalopod: { tags: ['predator', 'freezes'] },
+  pinniped:   { tags: ['predator', 'basks'] },
+  cetacean:   { tags: ['predator', 'keeps-swimming'], species: { humpbackWhale: { add: ['filter'], drop: ['predator'] } } },
 });
 
 /** A species' tags: its family's, with its own added and dropped, in vocabulary order. */

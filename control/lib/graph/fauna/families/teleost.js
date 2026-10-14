@@ -200,10 +200,49 @@ export const species = {
   // head with a large terminal mouth, small eye high and forward, no visible gill cover (a small round gill opening) ·
   // uniform dark olive-green · ~1.8 m total length (Wikipedia / FishBase: commonly 1.8 m, up to 2.5 m).
   // kept v1; 1006 upgrade v4 (gaping jaw, blunter snout, low even fins, flatter body) vs v1 SPLIT (v4 80% order1, v1 70% order2) → tie, v1 kept
+  // SWORDFISH (Xiphias gladius). Thesis: a long powerful torpedo · ONE signature: the long flat SWORD of a bill, about a
+  // third of the body · a tall stiff crescent first dorsal set just behind the head · a deep LUNATE tail on a slim keeled
+  // stock · long sickle pectorals low behind the head, no pelvic fins · dark purple-brown back over a silvery belly ·
+  // ~3 m long with the bill (FAO species catalogue, Nakamura 1985: commonly 1.2–3 m, to 4.5 m).
+  swordfish: (() => { const F = fish({
+    skeleton: 'bony', name: 'a swordfish', length: 2.2, Z: 0.5,
+    body: [[-0.27, 0.006, 0.009], [-0.22, 0.018, 0.024], [-0.14, 0.042, 0.054], [-0.04, 0.058, 0.074], [0.06, 0.06, 0.077], [0.15, 0.052, 0.066], [0.2, 0.042, 0.054]],
+    head: { scale: 0.42, len: 0.12, taper: [1.2, 0.75], snout: 0.05, eye: { at: 0.42, h: 0.4, r: 0.24 }, mouth: 'pointed', gill: 0.82 },
+    caudal: { kind: 'lunate', from: -0.262, len: 0.12, spread: 0.16, w: 0.03 },
+    dorsal: [[0.15, 0.01], [0.13, 0.11], [0.1, 0.07], [0.07, 0.03], [0.04, 0.008]],
+    anal: [[-0.08, 0.008], [-0.1, 0.04], [-0.12, 0.02]],
+    pectoral: { y: 0.13, len: 0.12, w: [0.016, 0.005], drop: 0.45 }, pelvic: null,
+    pattern: { back: '#3a3044', belly: '#d4d6da', from: 0.58 },
+    colors: { iris: '#5a7090', sclera: '#141414', gill: '#3a3044', horn: '#3e3646' },
+    headPalette: { Skull: '#3a3044', Snout: '#3a3044', Brow: '#3a3044', Jaw: '#cfd2d6', Jowl: '#cfd2d6' },
+  });
+  // the SWORD: a long flat blade straight forward off the upper jaw (flattened top to bottom), in the head's frame
+  F.headOrnaments = [...(F.headOrnaments || []), { kind: 'sweep', name: 'sword', at: [7.8, 0.0001], side: 'R', space: 'head', spine: [[0, -0.02, 0.01], [0, 0.25, 0.0], [0, 0.55, -0.005], [0, 0.8, -0.01]], radii: [0.035, 0.026, 0.016, 0.003], m: 8, squash: [1, 0.35], group: 'Horn' }];
+  return F; })(),
+  // HUMPBACK ANGLERFISH, female (Melanocetus johnsonii), of the deep sea. Thesis: a round BLACK ball of a body with a
+  // short tail · ONE signature: a HUGE upturned gaping MOUTH lined with long needle TEETH · the LURE: a fishing-rod
+  // spine off the forehead ending in a glowing bulb · tiny eyes, small fins · ~0.18 m long (FishBase, Melanocetus
+  // johnsonii: females to 18 cm).
+  anglerfish: (() => { const F = fish({
+    skeleton: 'bony', name: 'a humpback anglerfish', length: 0.15, Z: 0.5,
+    body: [[-0.2, 0.012, 0.03], [-0.15, 0.04, 0.07], [-0.08, 0.07, 0.1], [0.0, 0.085, 0.11], [0.08, 0.085, 0.105], [0.13, 0.075, 0.09]],
+    head: { scale: 0.75, len: 0.1, taper: [2.2, 0.55], kx: 1.05, snout: 0.35, eye: { at: 0.55, h: 0.6, r: 0.09 }, mouth: 'upturned', gill: false },
+    caudal: { kind: 'rounded', from: -0.19, len: 0.06, spread: 0.05, w: 0.02 },
+    dorsal: [[-0.1, 0.008], [-0.12, 0.03], [-0.15, 0.02], [-0.17, 0.006]],
+    anal: [[-0.11, 0.008], [-0.13, 0.025], [-0.16, 0.006]],
+    pectoral: { y: 0.04, len: 0.04, w: [0.012, 0.016], drop: 0.2 }, pelvic: null,
+    pattern: { back: '#16151a', belly: '#24222a', from: 0.7 },
+    colors: { coat: '#16151a', sock: '#16151a', ash: '#24222a', ashAlt: '#1e1d23', tip: '#24222a', brow: '#16151a', iris: '#5a5a62', sclera: '#0c0c0e', gill: '#16151a', horn: '#e8ecd8', teeth: '#e8ecd8' },
+    headPalette: { Skull: '#16151a', Snout: '#16151a', Brow: '#16151a', Jaw: '#1e1d23', Jowl: '#1e1d23', Mouth: '#0a0a0c', Lure: '#f4f1a0' },
+  });
+  // the LURE: a pale rod arching forward off the forehead, swelling to a glowing bulb, in the head's frame
+  F.headOrnaments = [...(F.headOrnaments || []),
+    { kind: 'sweep', name: 'lure', at: [3.0, 0.0001], side: 'R', space: 'head', spine: [[0, 0, -0.01], [0, 0.04, 0.18], [0, 0.14, 0.27], [0, 0.225, 0.255], [0, 0.255, 0.242], [0, 0.28, 0.226]], radii: [0.009, 0.006, 0.005, 0.008, 0.014, 0.004], m: 8, group: 'Lure' }];
+  return F; })(),
   morayEel: fish({
     skeleton: 'bony', name: 'a green moray eel', length: 1.8, Z: 0.5,
-    body: [[-0.37, 0.008, 0.018], [-0.3, 0.014, 0.026], [-0.18, 0.019, 0.03], [-0.04, 0.022, 0.032], [0.08, 0.024, 0.032], [0.18, 0.024, 0.03], [0.24, 0.022, 0.027]],
-    head: { scale: 0.34, len: 0.085, taper: [1.5, 0.6], snout: 0.0, eye: { at: 0.22, h: 0.65, r: 0.16 }, mouth: 'terminal', gill: false },
+    body: [[-0.37, 0.004, 0.011], [-0.3, 0.008, 0.019], [-0.18, 0.013, 0.026], [-0.04, 0.017, 0.031], [0.08, 0.02, 0.034], [0.18, 0.022, 0.036], [0.24, 0.023, 0.036]],
+    head: { scale: 0.42, len: 0.1, taper: [1.5, 0.6], snout: 0.0, eye: { at: 0.22, h: 0.65, r: 0.16 }, mouth: 'terminal', gill: false },
     caudal: { kind: 'rounded', from: -0.36, len: 0.035, spread: 0.02, w: 0.012 },
     dorsal: [[0.2, 0.004], [0.17, 0.016], [0.0, 0.02], [-0.18, 0.02], [-0.3, 0.017], [-0.36, 0.01]],
     anal: [[-0.02, 0.004], [-0.05, 0.013], [-0.2, 0.015], [-0.32, 0.013], [-0.36, 0.008]],
@@ -223,6 +262,8 @@ export const about = {
   clownfish: { common: 'clownfish', aliases: ['clown fish', 'anemonefish'], sci: 'Amphiprion ocellaris', size: '~0.11 m long', source: 'Wikipedia, Amphiprion ocellaris' },
   goldfish: { common: 'goldfish', aliases: ['gold fish'], sci: 'Carassius auratus', size: '~0.20 m long', source: 'FishBase' },
   angelfish: { common: 'angelfish', aliases: ['angel fish'], sci: 'Pterophyllum scalare', size: '~0.15 m long, ~0.20 m tall', source: 'Wikipedia, Pterophyllum scalare' },
+  swordfish: { common: 'swordfish', aliases: ['broadbill'], sci: 'Xiphias gladius', size: '~3 m long with the bill', source: 'FAO species catalogue (Nakamura 1985)' },
+  anglerfish: { common: 'anglerfish', aliases: ['angler fish', 'humpback anglerfish', 'deep sea anglerfish', 'black seadevil'], sci: 'Melanocetus johnsonii', size: '~0.18 m long (female)', source: 'FishBase, Melanocetus johnsonii' },
   morayEel: { common: 'moray eel', aliases: ['moray', 'eel'], sci: 'Gymnothorax funebris', size: '~1.8 m long', source: 'FishBase' },
   tuna: { common: 'tuna', aliases: ['bluefin tuna', 'atlantic bluefin tuna', 'bluefin'], sci: 'Thunnus thynnus', size: '~2.0 m long', source: 'FAO species catalogue (Collette & Nauen 1983): common to 200 cm' },
   pufferfish: { common: 'pufferfish', aliases: ['puffer', 'blowfish', 'white-spotted puffer', 'puffer fish'], sci: 'Arothron hispidus', size: '~0.5 m long (built inflated)', source: 'FishBase, Arothron hispidus (max 50 cm TL)' },
