@@ -200,6 +200,9 @@ func _ready() -> void:
 	_build_hud()
 	_attach_hooks()
 	_read_probe_args()
+	_open_view()
+	if edit_print and not play_edit():
+		print("[mojulo-edit] none")
 
 
 # G0 material contract (Finding 1): Godot's glTF import does not set
@@ -784,6 +787,8 @@ func _read_probe_args() -> void:
 			walker.auto_walk = true
 		elif a.begins_with("--mojulo-frames="):
 			probe_frames = int(a.substr("--mojulo-frames=".length()))
+		elif a == "--mojulo-edit":
+			edit_print = true
 	if probe_frames > 0:
 		print("[mojulo-dump] level '%s' player '%s' suit=%s autowalk=%s frames=%d" % [
 			s_(score.get("title")), s_(score.get("player")),
@@ -1368,6 +1373,7 @@ const SIM_DT := 1.0 / 30.0   # the harness's step, the web level-sim's exactly (
 
 
 func _process(delta: float) -> void:
+	_step_edit(delta)
 	var sim := sim_frame >= 0 and sim_frame < sim_frames.size()
 	if sim:
 		delta = SIM_DT
@@ -2101,7 +2107,7 @@ func _sync_menus() -> void:
 				var lines: Array = open.get("lines", [])
 				for i in lines.size():
 					line_requested.emit(s_(lines[i].get("who")), s_(lines[i].get("say")), s_(open["id"]), i)
-	walker.frozen = menu_open != null or journal_open
+	walker.frozen = menu_open != null or journal_open or viewing
 	if menu_open != null and menu_mouse < 0:
 		menu_mouse = Input.mouse_mode
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -2467,6 +2473,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 				head.make_current()
 			else:
 				view.make_current()
+			viewing = viewing_opened and view.current
+			walker.frozen = menu_open != null or journal_open or viewing
+	if event.physical_keycode == KEY_P and score.get("shoot") is Dictionary:
+		if edit_t < 0.0:
+			play_edit()
+		else:
+			stop_edit()
 	if event.physical_keycode == KEY_M and _game() != null:
 		_game().to_menu()
 	if bus != null and not event.echo:
@@ -2685,7 +2698,7 @@ func toggle_journal(open: bool) -> void:
 	if open:
 		_draw_journal()
 	if walker != null:
-		walker.frozen = open or menu_open != null
+		walker.frozen = open or menu_open != null or viewing
 
 
 func quest_view() -> Array:
@@ -2884,3 +2897,101 @@ func _apply_tone() -> void:
 	if env.fog_enabled:
 		env.fog_light_color = Color(float(d[1][0]), float(d[1][1]), float(d[1][2]))
 	print("moj: tone over %d surface material(s)" % mats.size())
+
+
+# ── the authored view and the edit (since 0.25.0) ────────────────────────────────────────────────────────────────────
+# A WORLD WITH NO PLAYER (a world pack: no game, no seat, no pilot) opens on its authored view (View0), as the page opens
+# on its camera; the walker waits, frozen, until 0 hands the view to it (0 again gives the view back, the walker
+# waiting again). A probe that walks (--mojulo-autowalk, --mojulo-sim) starts on the walker as before.
+var viewing := false
+var viewing_opened := false
+
+
+func _open_view() -> void:
+	if walker == null or _game() != null or s_(score.get("player")) != "" or score.get("pilot") is Dictionary:
+		return
+	for arg in OS.get_cmdline_user_args():
+		if String(arg) == "--mojulo-autowalk" or String(arg).begins_with("--mojulo-sim="):
+			return
+	var view: Camera3D = get_node_or_null("View0")
+	if view == null:
+		return
+	view.make_current()
+	viewing = true
+	viewing_opened = true
+	walker.frozen = true
+	print("moj: opens on the authored view (0 walks)")
+
+
+# THE EDIT of a shoot plan (score.shoot, engine-score.js shootRow): P plays the program camera the GLB carries
+# (`cam:shot:program`, its STEP animation `shot:program`) from its first frame, and P again stops it. The kernel reads
+# the animation's tracks itself at each program frame (a cut is a cut: the frame the clock is in, never a blend), so
+# the imported AnimationPlayer keeps playing whatever it plays; a glTF camera keys no lens, so its field of view comes
+# from score.shoot.fov frame by frame. At the end the view goes back to the camera that was current. --mojulo-edit
+# plays it from the start and prints each frame: [mojulo-edit] <frame> <x,y,z> <qx,qy,qz,qw> <fov>.
+var edit_t := -1.0
+var edit_cam: Camera3D = null
+var edit_back: Camera3D = null
+var edit_anim: Animation = null
+var edit_tracks := [-1, -1]
+var edit_print := false
+var edit_frame := -1
+
+
+func play_edit() -> bool:
+	var sh = score.get("shoot")
+	var p := _imported_player()
+	if not (sh is Dictionary) or p == null:
+		return false
+	var name := _anim_name(p, "shot:program")
+	edit_cam = find_child(gd_name("cam:shot:program"), true, false) as Camera3D
+	if name == "" or edit_cam == null:
+		return false
+	edit_anim = p.get_animation(name)
+	edit_tracks = [-1, -1]
+	# the program camera's own tracks (Godot's import gives every clip a held track for each other camera too)
+	for t in edit_anim.get_track_count():
+		var np := edit_anim.track_get_path(t)
+		if np.get_name_count() == 0 or String(np.get_name(np.get_name_count() - 1)) != String(edit_cam.name):
+			continue
+		if edit_anim.track_get_type(t) == Animation.TYPE_POSITION_3D:
+			edit_tracks[0] = t
+		elif edit_anim.track_get_type(t) == Animation.TYPE_ROTATION_3D:
+			edit_tracks[1] = t
+	edit_back = get_viewport().get_camera_3d()
+	edit_t = 0.0
+	edit_frame = -1
+	edit_cam.make_current()
+	_step_edit(0.0)
+	return true
+
+
+func stop_edit() -> void:
+	edit_t = -1.0
+	if edit_back != null and is_instance_valid(edit_back):
+		edit_back.make_current()
+
+
+func _step_edit(delta: float) -> void:
+	if edit_t < 0.0:
+		return
+	var sh: Dictionary = score["shoot"]
+	var fps := float(sh.get("fps", 24))
+	var fov: Array = sh.get("fov", [])
+	var j := int(floor(edit_t * fps + 1e-6))
+	if j >= fov.size():
+		stop_edit()
+		return
+	if j != edit_frame:
+		edit_frame = j
+		var at := float(j) / fps
+		if edit_tracks[0] >= 0:
+			edit_cam.position = edit_anim.position_track_interpolate(edit_tracks[0], at)
+		if edit_tracks[1] >= 0:
+			edit_cam.quaternion = edit_anim.rotation_track_interpolate(edit_tracks[1], at)
+		edit_cam.fov = float(fov[j])
+		if edit_print:
+			var g := edit_cam.global_transform
+			var q := g.basis.get_rotation_quaternion()
+			print("[mojulo-edit] %d %.4f,%.4f,%.4f %.5f,%.5f,%.5f,%.5f %.4f" % [j, g.origin.x, g.origin.y, g.origin.z, q.x, q.y, q.z, q.w, edit_cam.fov])
+	edit_t += delta

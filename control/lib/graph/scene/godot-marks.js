@@ -121,7 +121,7 @@ export const PAGE_MARKS = Object.freeze({
   fx: m(A, 'camera-facing fx are not drawn (skipped_fx)'), effects: m(A, 'screen effects are not drawn'),
   spriteSfx: m(A, 'sprite sfx are not drawn (skipped_sprite_sfx)'), marks: m(A, 'strength marks are not drawn'),
   driveSurface: m(P, 'the drive rule runs in kernel/rules.gd; the grip and rolling of the ground under a car (`surfaceGrip`) are the web\'s: in Godot a car grips as on its own tarmac'),
-  shoot: m(A, 'a shoot plan\'s cameras ride the GLB, but nothing plays the edit'),
+  shoot: m(P, 'the edit plays on P (kernel/level.gd, since 0.25.0): the program camera cut for cut, its lens frame by frame; the set pieces and transitions are the page\'s picture, and the world\'s clock does not follow the shots'),
   game: m(B, 'contract.json: the level ends through its contract (kernel/game.gd)'),
   walkers: m(A, 'city walkers are not stepped'), cars: m(A, 'traffic is not stepped'), carMeshes: m(A, 'traffic is not stepped'),
   signals: m(A, 'traffic signals are not stepped'), trafficLanes: m(A, 'traffic is not stepped'), trafficConstants: m(A, 'traffic is not stepped'),

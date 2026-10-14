@@ -40,8 +40,10 @@ describe('parseFigureLine', () => {
     expect(parseFigureLine(`Godot Engine v4.7.2\n${LINE}\n`)).toEqual({
       skeletons: 1, bones: 18, players: 1,
       animations: ['body_gesture', 'body_greet', 'body_idle', 'body_idleRelaxed', 'body_run', 'body_victory', 'body_walk', 'body_wave'],
-      compressed: 0, lods: 0, playing: 'body_idle', loop: 1, camera: 'View1',
+      compressed: 0, lods: 0, playing: 'body_idle', loop: 1, camera: 'View1', general: null, hips: null,
     });
+    // a humanoid's BoneMap: the retargeter's skeleton name and the profile's Hips
+    expect(parseFigureLine(LINE.replace(' playing=', ' general=1 hips=1 playing='))).toMatchObject({ general: 1, hips: 1 });
   });
 
   it('an empty value reads empty; an error reads as the error; no line reads null', () => {
@@ -61,6 +63,13 @@ describe('compareFigure', () => {
     expect(cmp.ok).toBe(true);
     expect(Object.keys(cmp.checks)).toEqual(['skeleton', 'bones', 'animation_player', 'clips_listed', 'uncompressed', 'no_lods', 'clip_playing', 'clip_loops', 'view_current']);
     for (const [k, c] of Object.entries(cmp.checks)) expect(c.ok, k).toBe(true);
+  });
+
+  it('a humanoid pack adds the BoneMap check: GeneralSkeleton with its Hips', () => {
+    const H = { ...FIGURE, humanoid: ['hips'] };
+    expect(compareFigure({ declared: HEROINE, built: parseFigureLine(LINE.replace(' playing=', ' general=1 hips=1 playing=')), figure: H }).checks.bone_map.ok).toBe(true);
+    expect(compareFigure({ declared: HEROINE, built: parseFigureLine(LINE.replace(' playing=', ' general=0 hips=0 playing=')), figure: H }).ok).toBe(false);
+    expect(compareFigure({ declared: HEROINE, built: parseFigureLine(LINE), figure: FIGURE }).checks.bone_map).toBeUndefined();
   });
 
   it('each failure flips its own check', () => {

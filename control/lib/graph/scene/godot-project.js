@@ -24,6 +24,7 @@
 
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
 import { GODOT_MECHANICS, exportVerdict } from './engine-portability.js';
+import { godotBoneMapTres, godotBoneMapFile } from './godot-humanoid.js';
 
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 const COMPLETION_KINDS = ['reach-exit', 'survive'];
@@ -254,7 +255,7 @@ function levelStub({ resBase = '', glbFile = 'model.glb', musicPath = null, musi
   const props = [`score_path = "res://${resBase}score.json"`];
   if (musicPath) props.push(`music_path = "res://${musicPath}"`);
   if (musicDb != null) props.push(`music_db = ${fmt(musicDb)}`);
-  if (figure) props.push(`clip = ${gdStr(`${figure.name}:${figure.clip}`)}`, `view = ${figure.view}`);
+  if (figure) props.push(`clip = ${gdStr(`${figure.name}:${figure.clip}`)}`, `view = ${figure.view}`, ...(figure.humanoid ? [`turn = ${gdStr(figure.name)}`] : []));
   // a figure whose mesh carries the anime face plays under figure_face.gd (FIGURE_FACE_GD, which extends figure.gd)
   const script = figure?.face ? { path: `${resBase}figure_face.gd`, id: 'figure' } : figure ? { path: `${resBase}figure.gd`, id: 'figure' } : { path: 'kernel/level.gd', id: 'kernel' };
   return `[gd_scene load_steps=3 format=3]
@@ -321,6 +322,12 @@ function levelLedger(score, { gameMode = false } = {}) {
   if (unknown.length) {
     ledger.unknown_mechanics = { count: unknown.length, kinds: [...new Set(unknown)], note: 'outside the kernel vocabulary — do not travel' };
   }
+  // a shoot plan (score.shoot): the edit plays in the kernel; its picture-only parts stay the page's
+  if (score.shoot) {
+    ledger.shoot_edit = {
+      note: `the shoot plan's edit plays on P (kernel/level.gd): the program camera the GLB carries (cam:shot:program), cut for cut at its ${score.shoot.fps} fps, its lens frame by frame from score.json (a glTF camera keys no field of view); its cameras ${score.shoot.cameras.map((c) => `\`${c}\``).join(', ')} ride the GLB, each with its own clip. The set pieces and transitions are the page's picture (no mesh export carries them), and the world's clock does not follow the shots: what moves on a schedule stands as the GLB holds it`,
+    };
+  }
   if (gameMode && !kinds.some((k) => COMPLETION_KINDS.includes(k)) && !onBus) {
     ledger.no_completion_path = {
       note: 'no completion mechanic — the authored win condition lives in the runtime, which does not travel; the level is an explorable arena (M returns to the menu)',
@@ -328,6 +335,9 @@ function levelLedger(score, { gameMode = false } = {}) {
   }
   return ledger;
 }
+
+// a world with no one to play opens on its authored view (kernel/level.gd _open_view): no seat, no pilot, a camera
+const opensOnView = (score) => !score.player && !score.pilot && (score.cameras?.length ?? 0) > 0;
 
 /** The importer's settings for a rigged layered figure's skinned GLB (`<glb>.import`): no LOD generation (by default
  * Godot builds up to six LODs of the skinned surface), and mesh compression off — Godot never compresses a skinned
@@ -345,6 +355,18 @@ meshes/generate_lods=false
 meshes/force_disable_compression=true
 `;
 
+/** A HUMANOID figure's `<glb>.import` (figure.humanoid, the engine skeleton's VRM names): FIGURE_IMPORT, and its BoneMap
+ * (godot-humanoid.js, `<figure>.bonemap.tres` at the pack root) named on the figure's skeleton, so Godot's retargeter
+ * renames its bones to the humanoid profile and makes it %GeneralSkeleton on import. */
+export const figureImport = (figure) => (figure?.humanoid ? `${FIGURE_IMPORT}_subresources={
+"nodes": {
+"PATH:${figure.name}/Skeleton3D": {
+"retarget/bone_map": Resource("res://${godotBoneMapFile(figure.name)}")
+}
+}
+}
+` : FIGURE_IMPORT);
+
 /** A rigged layered figure's scene script (figure.gd at the pack root): the kernel's level — its material, rim and light
  * contracts — with no walker spawned over the figure, playing one clip on a loop under one authored view. It reaches
  * the kernel's _spawn_walker, _imported_player, _anim_name and _play_loop, so a kernel that renames them breaks it. */
@@ -352,10 +374,13 @@ export const FIGURE_VIEW_GD = `extends "res://kernel/level.gd"
 # mojulo figure view — emitted beside the kernel for a rigged layered figure's pack
 # (godot-project.js): the kernel's level, its material, rim and light contracts
 # kept, with no walker; the figure plays \`clip\` (the GLB's clip name) on a loop
-# and the authored view \`view\` (an index into score.json cameras) frames it.
+# and the authored view \`view\` (an index into score.json cameras) frames it. A
+# humanoid's engine skeleton (\`turn\`, the figure's node) faces the VRM way (+z):
+# half a turn about the world's up brings it back to the world's facing.
 
 @export var clip: String = ""
 @export var view: int = 0
+@export var turn: String = ""
 
 
 func _spawn_walker() -> void:
@@ -364,6 +389,9 @@ func _spawn_walker() -> void:
 
 func _ready() -> void:
 \tsuper()
+\tvar body := get_node_or_null("World/" + turn) as Node3D if turn != "" else null
+\tif body != null:
+\t\tbody.transform = Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO) * body.transform
 \tvar p := _imported_player()
 \tvar anim := _anim_name(p, clip) if p != null else ""
 \tif anim != "":
@@ -468,9 +496,19 @@ func _layer_ambient(p: AnimationPlayer, mi: MeshInstance3D, body: String, amb: S
 /** The figure's ledger rows: what the skinned figure carries and plays, and what it does not carry yet. The ANIME hero's
  * figure says its clips' designed durations and the view fitted over every clip, and with the face the figure_face
  * row; every other figure's rows as before. */
+const humanoidLedger = (f) => (f.humanoid ? {
+  figure_humanoid: {
+    note: `the skeleton is the engine humanoid's (--humanoid): re-rested in the VRM T-pose, its joints VRM-named and nested, every clip re-expressed on it (export_model { humanoid: true, rest: 'tpose' } writes the same): the page's pose at every key, each joint turning against its parent between keys (the page turns each in the world); figure.gd turns it from the VRM facing back to the world's; ${godotBoneMapFile(f.name)} maps Godot's humanoid profile onto it and model.glb.import names it on the skeleton, so on import Godot renames the bones to the profile and the skeleton becomes %GeneralSkeleton: any humanoid clip the project owns plays on the figure, and its clips on any humanoid`,
+  },
+} : f.humanoidRig ? {
+  figure_humanoid: {
+    note: 'the skeleton is the page\'s: flat, each joint at its rest and named for the figure\'s own bone, its clips exactly the page\'s; a humanoid clip a Godot project owns does not retarget onto it. Re-mint with --humanoid for the engine humanoid skeleton and Godot\'s BoneMap (the same motion at every key, each joint turning against its parent between keys)',
+  },
+} : {});
+
 const figureLedger = (f) => (f.anime ? {
   figure_skinned: {
-    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips at their designed durations (${clipSeconds(f)}) — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, re-placed so it frames the figure over all its clips, with no walker (${f.face ? 'figure_face.gd extends figure.gd, which extends' : 'figure.gd extends'} the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
+    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips at their designed durations (${clipSeconds(f)}) — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, re-placed so it frames the figure over all its clips, with no walker (${f.face ? 'figure_face.gd extends figure.gd, which extends' : 'figure.gd extends'} the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface) and, when Godot's default 30 fps would cut across the clips' keys, bakes them at the rate their keys land on (animation/fps)`,
   },
   ...(f.face ? {
     figure_face: {
@@ -478,11 +516,13 @@ const figureLedger = (f) => (f.anime ? {
     },
   } : {}),
   figure_normals: { note: 'the default export travels as its baked look, unlit, with no NORMAL; under --lit the skinned mesh carries smooth rest normals (area-weighted from its triangles, no TANGENT), so an engine light shades it' },
+  ...humanoidLedger(f),
 } : {
   figure_skinned: {
-    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, each at its own length — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
+    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, each at its own length — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface) and, when Godot's default 30 fps would cut across the clips' keys, bakes them at the rate their keys land on (animation/fps)`,
   },
   figure_normals: { note: 'the default export travels as its baked look, unlit, with no NORMAL; under --lit the skinned mesh carries smooth rest normals (area-weighted from its triangles, no TANGENT), so an engine light shades it' },
+  ...humanoidLedger(f),
 });
 
 // the designed durations, as a list: `idle 4 s, walk 1 s, …`
@@ -564,8 +604,12 @@ reference performance.
 
 ${greyboxSection(score.posture === 'greybox')}## Open and play
 
-${figure ? figurePlay(figure) : `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
-walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.${playerSuit(score) ? `
+${figure ? figurePlay(figure) : `${opensOnView(score) ? `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run: it opens on the authored
+view (\`${score.cameras[0].name}\`), as the page opens on its camera, and 0 hands the view to the walker (WASD/arrows to
+walk, mouse to look, Space jumps, Esc frees the mouse); 0 again gives the view back.` : `Open the folder in Godot ≥4.5 (or \`godot --path .\`) and run. WASD/arrows to
+walk, mouse to look, Space jumps, Esc frees the mouse${score.cameras?.length ? ', 0 toggles the authored camera framing' : ''}.`}${score.shoot ? `
+P plays the shoot plan's edit (${score.shoot.total} s) through its program camera, cut for cut with its lens;
+P again stops it.` : ''}${playerSuit(score) ? `
 Your figure is a rigged body: it follows you as a third-person suit (walk
 cycle while moving, idle when still), and every other rigged figure breathes
 its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}`}
@@ -576,7 +620,7 @@ ${ledgerLines(ledger)}
 `,
     },
     ...(score.audio ? [{ file: 'default_bus_layout.tres', text: BUS_LAYOUT_TRES }] : []),
-    ...(figure ? [{ file: `${glbFile}.import`, text: FIGURE_IMPORT }, { file: 'figure.gd', text: FIGURE_VIEW_GD }, ...(figure.face ? [{ file: 'figure_face.gd', text: FIGURE_FACE_GD }] : [])] : []),
+    ...(figure ? [{ file: `${glbFile}.import`, text: figureImport(figure) }, ...(figure.humanoid ? [{ file: godotBoneMapFile(figure.name), text: godotBoneMapTres(figure.name, figure.humanoid) }] : []), { file: 'figure.gd', text: FIGURE_VIEW_GD }, ...(figure.face ? [{ file: 'figure_face.gd', text: FIGURE_FACE_GD }] : [])] : []),
   ];
   return { files, ledger };
 }

@@ -21,6 +21,7 @@ import { spawnSync } from 'node:child_process';
 import { extractEngineScore, extractBus } from './engine-score.js';
 import { emitGodotProject } from './godot-project.js';
 import { facesToGlb } from './scene-gltf.js';
+import { bakeFps, bakeImport } from './godot-bake.js';
 import { normalizeLevelContract } from '../game/level-contract.js';
 import { playScript, keyEntities, compareKeys } from '../game/level-equivalence.js';
 
@@ -39,7 +40,10 @@ export function writeHarnessPack(dir, payload, { ref = 'harness', godot, mutate 
     fs.mkdirSync(path.dirname(path.join(dir, f.file)), { recursive: true });
     fs.writeFileSync(path.join(dir, f.file), text);
   }
-  fs.writeFileSync(path.join(dir, 'model.glb'), facesToGlb(payload, { generator: `mojulo ${ref}` }).bytes);
+  const glb = facesToGlb(payload, { generator: `mojulo ${ref}` }).bytes, fps = bakeFps(glb);
+  fs.writeFileSync(path.join(dir, 'model.glb'), glb);
+  // the bake rate the GLB's clips' keys land on, as a pack writes it (godot-pack.js writePack)
+  if (fps != null) fs.writeFileSync(path.join(dir, 'model.glb.import'), bakeImport(fps));
   fs.writeFileSync(path.join(dir, 'score.json'), JSON.stringify(score, null, 2));
   if (bus) fs.writeFileSync(path.join(dir, 'bus.json'), JSON.stringify(bus));
   // the level's contract as the shell reads it; a hand-made payload's own on and audits, with what a level produces

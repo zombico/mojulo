@@ -24,6 +24,9 @@ import { synthesizeLevel } from '../game/level-synth.js';
 import { normalizeLevelContract } from '../game/level-contract.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
+import { bakeFps, bakeImport } from './godot-bake.js';
+import { isHumanoidRig, humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
+import { tposeRig, withProfileJoints } from '../figures/rig-tpose.js';
 
 // cwd-anchored (the control process and the CLI both run from control/) —
 // lib files may be bundled, so import.meta-relative paths are not reliable.
@@ -113,7 +116,7 @@ export function frameFigure(cam, f, clipNames = [], mpu = 1) {
   return { ...cam, translation: [0, 1, 2].map((c) => C[c] + d * B[c]) };
 }
 
-async function resolveLevel(levelSketch, { clips, posture = null, lit = false, figure = false }) {
+async function resolveLevel(levelSketch, { clips, posture = null, lit = false, figure = false, humanoid = false }) {
   // `lit` (lit-handoff.plan.md): the UNSHADED payload + real PBR materials, so the engine lights it
   const { payload, kind } = await resolveWorldScene(levelSketch, { ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
   if (!payload) {
@@ -124,9 +127,14 @@ async function resolveLevel(levelSketch, { clips, posture = null, lit = false, f
   // every other payload as before
   const found = figure ? layeredFigure(payload) : null;
   const fig = found && figureClipNames(clips, found[1]).length ? found : null;
-  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(lit ? { lit: true } : {}) });
+  // a HUMANOID figure (`humanoid`, the world pack) ships the engine skeleton export_model { humanoid: true, rest: 'tpose' }
+  // writes: re-rested in the VRM T-pose, its joints VRM-named and nested, every clip re-expressed (the same motion), so
+  // the pack's BoneMap (godot-humanoid.js) can hand it to Godot's retargeter; `fig` stays the authored pack
+  const engine = fig && humanoid && Array.isArray(fig[1].bones) && isHumanoidRig(fig[1].bones) ? (fig[1].tpose ? fig[1] : tposeRig(fig[1])) : null;
+  const glbPayload = engine ? { ...payload, figures: { ...payload.figures, [fig[0]]: engine } } : payload;
+  const exported = facesToGlb(glbPayload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(engine ? { humanoid: true } : {}), ...(lit ? { lit: true } : {}) });
   const score = extractEngineScore(levelSketch, payload, { posture });
-  return { kind, exported, score, fig, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload), sound: levelSound(payload.audio, levelSketch.ref) };
+  return { kind, exported, score, fig, engine, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload), sound: levelSound(payload.audio, levelSketch.ref) };
 }
 
 /** A level's sound into the pack (engine-sound.js): every take of every one-shot to audio/sfx/<id>_<n>.wav and the fight
@@ -156,6 +164,7 @@ export function levelContract(manifest) {
 
 export const OWNED_DIR = 'game';
 
+
 /** Clean-emit a pack folder: binaries + emitted text + (optional) portability
  * + a kernel dir copied verbatim. Shared with the arcade leg (godot-arcade.js),
  * which brings its own kernel and no engine-score portability. */
@@ -167,6 +176,16 @@ export async function writePack({ outDir, binaries, emitted, portability = null,
   await fs.rm(outDir, { recursive: true, force: true });
   await fs.mkdir(outDir, { recursive: true });
   if (hasOwned) await fs.rename(kept, owned);
+  // every GLB whose clips' keys fall between Godot's default samples imports at its own bake rate (bakeFps)
+  const files = emitted.files.slice();
+  for (const b of binaries) {
+    if (!b.rel.endsWith('.glb')) continue;
+    const fps = bakeFps(b.bytes);
+    if (fps == null) continue;
+    const at = files.findIndex((f) => f.file === `${b.rel}.import`);
+    if (at >= 0) files[at] = { ...files[at], text: files[at].text.replace('\n[params]\n\n', `\n[params]\n\nanimation/fps=${fps}\n`) };
+    else files.push({ file: `${b.rel}.import`, text: bakeImport(fps) });
+  }
   const written = [];
   const writeOut = async (rel, data) => {
     const abs = path.join(outDir, rel);
@@ -175,7 +194,7 @@ export async function writePack({ outDir, binaries, emitted, portability = null,
     written.push({ file: rel, bytes: Buffer.byteLength(data) });
   };
   for (const b of binaries) await writeOut(b.rel, b.bytes);
-  for (const f of emitted.files) {
+  for (const f of files) {
     if (f.seed && await fs.stat(path.join(outDir, f.file)).then(() => true, () => false)) continue;   // the developer's copy wins
     await writeOut(f.file, f.text);
   }
@@ -195,13 +214,13 @@ export async function kernelVersion() {
 /** A standalone world → data + kernel pack at outDir. `posture` is the
  * per-handoff greybox/final declaration (engine-score.js); absent, the
  * world manifest's own `posture` still applies as the durable default. */
-export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
+export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, humanoid = false, log = () => {} }) {
   const sketch = SketchRepository.getByRef(ref);
   if (!sketch) throw new Error(`sketch '${ref}' not found`);
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score, fig, bus, soundtrack, sound } = await resolveLevel(sketch, { clips, posture, lit, figure: true });
+  const { kind, exported, score, fig, engine, bus, soundtrack, sound } = await resolveLevel(sketch, { clips, posture, lit, figure: true, humanoid });
   // the figure's scene (godot-project.js FIGURE_VIEW_GD): the clip it plays and the authored view that frames it (the
   // score's 'three-quarter' camera, else its first). The ANIME hero's figure adds its clips' designed durations (`s` on
   // the packed clip; hero-gesture heroClipSeconds) and whether its mesh carries the face (anime-face-rig.js; its scene is
@@ -215,6 +234,10 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
     if (anime && score.cameras?.[view]) score.cameras = score.cameras.map((c, i) => (i === view ? frameFigure(c, f, clipNames, score.metersPerUnit ?? 1) : c));
     return {
       name, clip: figureClip(manifest.recipe?.clips, clipNames), clips: clipNames, view, viewName: score.cameras?.[view]?.name ?? `view ${view}`, joints: f.bones.length,
+      // the humanoid's engine skeleton: its joints (the profile's inserted ones and the weightless wrist and ankle leaves
+      // among them) and the VRM names its BoneMap maps Godot's humanoid profile onto
+      ...(!engine && Array.isArray(f.bones) && isHumanoidRig(f.bones) ? { humanoidRig: true } : {}),
+      ...(engine ? (() => { const bones = withProfileJoints(engine).bones, { names, leaves } = humanoidBonesFor(bones); return { joints: bones.length + leaves.length, humanoid: [...names.values(), ...leaves.map((l) => l.vrm)] }; })() : {}),
       // `ambientOver`: the exported clips the face-only ambient blink layers over (the GLB's names; scene-gltf writes the same)
       ...(anime ? { anime: true, seconds: Object.fromEntries(clipNames.map((c) => [c, f.clips[c].s ?? 1])), face: !!f.face, ambientOver: f.face?.ambient ? clipNames.filter((c) => f.face.ambientOver?.includes(c)).map((c) => `${name}:${c}`) : [] } : {}),
       // the LANDMARK hero's face (western-face-rig.js): the same face scene (figure_face.gd: the authored face on ready, the

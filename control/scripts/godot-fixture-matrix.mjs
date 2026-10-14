@@ -82,7 +82,7 @@ export async function fixtureRow(id, ctx) {
   row.level = levelRef;
   const packDir = path.join(ctx.out, id);
   let pack;
-  try { pack = await ctx.buildGodotGamePack({ ref: `${ref}-game`, outDir: packDir, clips: null }); }
+  try { pack = await ctx.buildGodotGamePack({ ref: `${ref}-game`, outDir: packDir }); }
   catch (e) { row.exports = false; row.note = `export failed: ${e.message.split('\n')[0]}`; return row; }
   row.exports = true;
   const stamp = ctx.exportVerdict(pack.portability);

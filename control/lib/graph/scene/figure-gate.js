@@ -38,7 +38,7 @@ export function declaredFigure(buf) {
   };
 }
 
-const NUMERIC = ['skeletons', 'bones', 'players', 'compressed', 'lods', 'loop'];
+const NUMERIC = ['skeletons', 'bones', 'players', 'compressed', 'lods', 'loop', 'general', 'hips'];
 // `a:1,b:2` → { a: 1, b: 2 }
 const pairs = (v) => Object.fromEntries(String(v).split(',').filter(Boolean).map((p) => { const i = p.lastIndexOf(':'); return [p.slice(0, i), +p.slice(i + 1)]; }));
 
@@ -115,6 +115,8 @@ export function compareFigure({ declared, built, figure } = {}) {
     clip_loops: { expected: 1, got: b.loop ?? null, ok: has('loop') ? b.loop === 1 : null },
     // the authored view is the current camera (it frames the figure at rest; a clip may reach out of it)
     view_current: { expected: f.view != null ? `View${f.view}` : null, got: b.camera ?? null, ok: has('camera') && f.view != null ? b.camera === `View${f.view}` : null },
+    // a humanoid (the pack's BoneMap): Godot's retargeter made the skeleton %GeneralSkeleton with the profile's bone names
+    ...(f.humanoid ? { bone_map: { expected: 'GeneralSkeleton, Hips', got: has('general') ? `${b.general ? 'GeneralSkeleton' : 'unnamed'}, ${b.hips ? 'Hips' : 'no Hips'}` : null, ok: has('general') && has('hips') ? b.general === 1 && b.hips === 1 : null } } : {}),
     ...(d.face ? faceChecks(d.face, b, f, want) : {}),
   };
   const values = Object.values(checks).map((c) => c.ok).filter((v) => v !== null);

@@ -11,7 +11,7 @@
  * the y-up root. NOT an engine adapter: no engine names in here.
  */
 import { aquaWaterBodies, aquaScoreEntry } from '../materials/aqua-export.js';
-import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress } from './scene-gltf-level.js';
+import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress, shootCameraDefs } from './scene-gltf-level.js';
 import { assessWorldTier, contractLedgerEntry } from '@/lib/graph/worlds/world-contract';
 import { normalizeHud, styleTokens, STYLE_TOKENS, FONT_IDS } from '@/lib/graph/game/hud-widgets';
 import { cleanDials } from '@/lib/graph/playscape/ui/register';
@@ -174,6 +174,17 @@ export function godotReading(payload) {
     if (lost.length) r.lost = [...(r.lost || []), ...lost];
   }
   return { rules: by, channels, events };
+}
+
+// THE EDIT of a shoot plan (lib/graph/shoot/): its program camera rides the GLB (`cam:shot:program` and its STEP
+// animation `shot:program`, shootCameraDefs) and the kernel plays it (kernel/level.gd, key P); a glTF camera cannot key
+// its lens, so the score carries it: `fov` the program's vertical field of view (degrees) at each of its frames, `fps`
+// their rate, `total` the edit's length in seconds, `cameras` the plan's cameras. No program ⇒ no key.
+function shootRow(payload) {
+  const defs = shootCameraDefs(payload?.shoot, payload?.viewBox), program = defs.find((d) => d.name === 'shot:program');
+  if (!program) return {};
+  const r4 = (v) => Math.round(v * 1e4) / 1e4;
+  return { shoot: { fps: payload.shoot.fps || 24, total: payload.shoot.total, cameras: defs.filter((d) => d !== program).map((d) => d.name), fov: program.yfovs.map((y) => r4((y * 180) / Math.PI)) } };
 }
 
 // the sky dome as the page draws it (scene-three.js skyDome): an atmosphere's gradient or space's void, its stars and lights
@@ -454,6 +465,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     ...addr,
     ...(payload.tone && Array.isArray(payload.tone.ramps) ? { tone: payload.tone } : {}),
     cameras: (levelCameras(payload) ?? []).map((c) => (unitScale ? { ...c, translation: sv(c.translation), znear: sn(c.znear), zfar: sn(c.zfar) } : c)),
+    ...shootRow(payload),
     ...(lights.length ? { lights } : {}),
     // the sky DECLARATION (a preset name: day / night / dawn / dusk) so an engine rig can set its
     // sun, sky and fog to what the recipe said — the mesh never carried the backdrop

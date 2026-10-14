@@ -19,6 +19,7 @@
  *   node scripts/export-godot.mjs --ref crypt-of-the-rune-key      # game
  *   node scripts/export-godot.mjs --ref <ref> --web                # + web build
  *   node scripts/export-godot.mjs --ref <ref> --no-gate            # emit only
+ *   node scripts/export-godot.mjs --ref <ref> --humanoid           # a humanoid figure retargetable (BoneMap)
  * Env: MOJULO_GODOT (default /Applications/Godot.app/Contents/MacOS/Godot).
  */
 import { parseArgs } from 'node:util';
@@ -43,6 +44,7 @@ const { values: args } = parseArgs({ options: {
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
   lit: { type: 'boolean', default: false },   // the LIT handoff: PBR materials over an unshaded base (lit-handoff.plan.md)
+  humanoid: { type: 'boolean', default: false },   // a humanoid figure ships the engine skeleton and Godot's BoneMap
 } });
 
 function fail(msg) { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); }
@@ -72,7 +74,7 @@ let pack;
 try {
   pack = isGame
     ? await buildGodotGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log })
-    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log });
+    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, humanoid: args.humanoid, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

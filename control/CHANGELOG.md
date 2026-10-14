@@ -1290,6 +1290,21 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   harness steps the world in the frame a level ends, as the page does. The fixture matrix reports how far a run
   drifts (`keyDrift`: the bus frames that part, the largest gap in quanta) and keeps both engines' keys beside the
   pack.
+- **Clips play the page's keys.** Godot's scene importer bakes every clip at 30 fps, cutting across a key that falls
+  between two samples (a figure's keys come every twelfth of a second: at a key, the hand of the hero's wave sat
+  2.6 cm off the page's). A pack now writes, for each GLB whose keys miss that grid, the lowest rate from 30 up that lands on all of
+  them (`animation/fps` in its `.import`; `godot-bake.js`). Pack emission changes for those GLBs only.
+- **Worlds that are not games** (kernel 0.25.0). A world with no one to play (no seat, no pilot) opens on its
+  authored view, as the page opens on its camera; 0 hands the view to the walker and back. A world's shoot plan plays
+  its edit on P: the program camera the GLB carries, cut for cut, its lens frame by frame from `score.shoot` (a glTF
+  camera keys no field of view); the set pieces, the transitions and the world's clock stay the page's (`shoot`,
+  approximated; the `shoot_edit` ledger row). `--humanoid` (`export-godot.mjs`) ships a humanoid figure's world pack
+  on the engine humanoid skeleton (the T-pose rest, VRM names, nested) with Godot's BoneMap named on it, so the
+  importer makes it `%GeneralSkeleton` and any humanoid clip retargets onto it; the scene turns it from the VRM
+  facing back to the world's. It holds the page's pose at every key; between keys each joint turns against its
+  parent, so a fast move strays from the page's path (6 cm at the hand of the wave, between two keys), which is why it is opt-in and the
+  default pack's `figure_humanoid` row says how to ask for it. Machine-held by `godot-edit.test.js` and
+  `godot-humanoid-pack.test.js`.
 
 ### Mascot characters: a character read from a promise, not a life
 
