@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { oklch, lchOf, hexToRgb, rgbToHex, rgbToOklab, oklabToRgb, contrast, deltaE, simulate, CVD_KINDS } from './oklab.js';
-import { readPaletteSpec, solvePalette, rampOf, scriptShift, PALETTE_SCHEME_IDS, PALETTE_ROLES, PALETTE_LAWS, PALETTE_SCRIPTS } from './solve.js';
+import { readPaletteSpec, solvePalette, rampOf, scriptShift, PALETTE_SCHEME_IDS, PALETTE_ROLES, PALETTE_LAWS, PALETTE_SCRIPTS, PALETTE_PRESETS } from './solve.js';
+import { assembleStageScene } from '../era/stage.js';
 import { novelSeed, nearestRecent, palettesIn, signatureOf, paletteDistance } from './ledger.js';
 import { thumbnail, contactSheet, sheetStats } from './contact.js';
-import { gameTheme, coverPalette, landSwatches, interiorPalette } from './adapters.js';
+import { gameTheme, coverPalette, landSwatches, interiorPalette, lightOf } from './adapters.js';
 import { paletteLook } from './look.js';
 import { stampWorldPalette, stampInteriorPalette, stampLookPalette } from './stamp.js';
 import { resolveLookSpec } from '../era/look.js';
@@ -72,7 +73,7 @@ describe('the solve', () => {
       const K = solvePalette({ seed: 5, scheme });
       expect(K.read.scheme).toBe(scheme);
       expect(Object.keys(K.roles).sort()).toEqual([...PALETTE_ROLES].sort());
-      expect(K.checks.map((c) => c.law)).toEqual(PALETTE_LAWS.map((l) => l.law));
+      expect(K.checks.map((c) => c.law)).toEqual(PALETTE_LAWS.filter((l) => !l.air || l.air.includes('full')).map((l) => l.law));
       for (const law of ['ramps-climb', 'shade-is-colour', 'sky-brightest', 'ui-contrast']) expect(K.checks.find((c) => c.law === law), `${scheme} ${law}`).toMatchObject({ ok: true });
     }
   });
@@ -420,5 +421,85 @@ describe('the contact sheet', () => {
     expect(S.n).toBe(3);
     expect(S.ground.bins.reduce((a, b) => a + b, 0) + S.ground.grey).toBe(3);
     expect(S.nearest.least).toBeLessThanOrEqual(S.nearest.median);
+  });
+});
+
+describe('air: a world with thin air, or none', () => {
+  // a preset for each air, chosen from the table
+  const presetOf = (air) => Object.keys(PALETTE_PRESETS).find((p) => (PALETTE_PRESETS[p].spec.air ?? 'full') === air);
+  it('in vacuum the void is the darkest thing, the distance is not hazed, the light is near white, the laws read the air', () => {
+    const K = solvePalette({ preset: presetOf('none'), seed: 3 }), air = solvePalette({ seed: 3 });
+    expect(K.read).toMatchObject({ air: 'none', preset: presetOf('none') });
+    const laws = K.checks.map((c) => c.law);
+    expect(laws).toContain('sky-darkest');
+    expect(laws).not.toContain('sky-brightest');
+    expect(laws).toHaveLength(air.checks.length);
+    expect(L(K.roles.sky.at(-1))).toBeLessThan(L(mid(K.roles.ground)) - 0.15);
+    // the far layers the ground, a little darker: never the void's colour
+    expect(L(mid(K.roles.far))).toBeLessThanOrEqual(L(mid(K.roles.ground)) + 0.005);
+    expect(L(mid(K.roles.far))).toBeGreaterThan(L(K.roles.sky.at(-1)) + 0.1);
+    expect(lchOf(hexToRgb(K.light))[1]).toBeLessThan(0.02);
+    for (const law of ['ramps-climb', 'shade-is-colour', 'sky-darkest', 'ui-contrast', 'greyscale-read']) expect(K.checks.find((c) => c.law === law), law).toMatchObject({ ok: true });
+    // the void is the void in every key
+    const voidL = (key) => solvePalette({ preset: presetOf('none'), seed: 3, key }).roles.sky.map((c) => Math.round(L(c) * 50));
+    expect(voidL('high')).toEqual(voidL('low'));
+  });
+  it('thin air: the sky is still the brightest, in the dust\'s hue and quieter; the distance half as hazed', () => {
+    const K = solvePalette({ seed: 4, air: 'thin' }), F = solvePalette({ seed: 4 });
+    expect(K.checks.find((c) => c.law === 'sky-brightest').ok).toBe(true);
+    const gap = (a, b) => Math.abs(((a - b + 540) % 360) - 180), h = (C, r) => lchOf(hexToRgb(mid(C.roles[r])))[2];
+    expect(gap(h(K, 'sky'), h(K, 'soil'))).toBeLessThan(gap(h(F, 'sky'), h(F, 'soil')) + 1);
+    const toSky = (C) => deltaE(hexToRgb(mid(C.roles.far)), hexToRgb(C.roles.sky.at(-1)));
+    expect(toSky(K) / deltaE(hexToRgb(mid(K.roles.ground)), hexToRgb(K.roles.sky.at(-1)))).toBeGreaterThan(toSky(F) / deltaE(hexToRgb(mid(F.roles.ground)), hexToRgb(F.roles.sky.at(-1))));
+  });
+  it('a preset is a spec to start from: its own fields win; an unknown preset or air teaches', () => {
+    const id = presetOf('none'), K = solvePalette({ preset: id, seed: 2, key: 'high', scheme: 'triad' });
+    expect(K.read).toMatchObject({ key: 'high', scheme: 'triad', air: 'none' });
+    expect(K.spec).toEqual({ preset: id, seed: 2, key: 'high', scheme: 'triad' });
+    // its own hues over the preset's, role by role
+    const named = Object.keys(PALETTE_PRESETS).find((p) => PALETTE_PRESETS[p].spec.hues), [role] = Object.keys(PALETTE_PRESETS[named].spec.hues);
+    const over = solvePalette({ preset: named, seed: 2, hues: { accent: 30 } }), base = solvePalette({ preset: named, seed: 2 });
+    expect(over.params.P[role].h).toBe(base.params.P[role].h);
+    expect(over.params.P.accent.h).toBe(30);
+    expect(() => readPaletteSpec({ preset: 'pluto' })).toThrow(/preset is one of/);
+    expect(() => readPaletteSpec({ air: 'water' })).toThrow(/air is full/);
+  });
+  it('in vacuum the fill is the planet\'s light, dark; with air, as before', () => {
+    const V = solvePalette({ preset: presetOf('none'), seed: 3 }), light = { key: { color: '#ffffff' }, ambient: '#000000' };
+    expect(L(lightOf(V, light).ambient)).toBeLessThan(0.32);
+    expect(L(lightOf(solvePalette({ seed: 3 }), light).ambient)).toBeGreaterThan(0.6);
+    expect(natureColours(V)).toMatchObject({ air: 'none' });
+    expect(natureColours(solvePalette({ seed: 3 })).air).toBeUndefined();
+  });
+  it('an isekai kit in a vacuum palette: the void for a sky with the stars out, no cumulus, the haze all but gone; its land laws read the void', () => {
+    const P = paletteLook({ preset: presetOf('none'), seed: 5 }, { name: 'airless' });
+    for (const law of ['sky-brightest', 'aerial-perspective', 'shade-is-colour']) expect(P.laws.find((l) => l.law === law), law).toMatchObject({ ok: true });
+    const card = lookOf(P.id).card;
+    expect(card.void).toMatchObject({ stars: 1 });
+    expect(card.cumulus).toBeNull();
+    expect(card.air.fog.density).toBeLessThan(0.002);
+    const m = assembleStageScene({ kind: 'stage', kit: P.id, seed: 2 });
+    expect(m.sky).toMatchObject({ day: 0, stars: 1 });
+    expect(m.sky.sun.dir).toHaveLength(3);
+    expect(m.haze.density).toBeLessThan(0.002);
+    // with air: the day sky as ever
+    expect(assembleStageScene({ kind: 'stage', kit: paletteLook({ seed: 5 }, { name: 'aired' }).id, seed: 2 }).sky).toMatchObject({ day: 1, stars: 0 });
+  });
+  it('a nature card in a vacuum palette: no cloud deck, the void\'s fog and dome, the stars out', () => {
+    const st = { light: { key: { color: '#fff' } }, air: { fog: { color: '#bcc8d0', density: 0.011 }, dome: { zenith: [1, 2, 3], horizon: [4, 5, 6] } }, clouds: { mode: 'undershot' } };
+    const V = recolourCard(st, natureColours(solvePalette({ preset: presetOf('none'), seed: 3 })));
+    expect(V.clouds).toBeNull();
+    expect(V.air).toMatchObject({ void: true });
+    expect(V.air.fog.density).toBeLessThan(0.002);
+    const A = recolourCard(st, natureColours(solvePalette({ seed: 3 })));
+    expect(A.clouds).toEqual(st.clouds);
+    expect(A.air.void).toBeUndefined();
+  });
+  it('the contact sheet paints an airless palette into the cratered plain: the void, its stars, a planet in shadow', () => {
+    const V = solvePalette({ preset: presetOf('none'), seed: 3 }), svg = thumbnail(V);
+    expect(svg).toContain(V.roles.sky[0]);
+    expect(svg).toContain(V.shadow);
+    expect((svg.match(/<circle/g) ?? []).length).toBeGreaterThan(30);
+    expect(thumbnail(solvePalette({ seed: 3, air: 'thin' }))).not.toContain(`fill="${V.light}" opacity`);
   });
 });

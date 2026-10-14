@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { solvePalette, scriptShift, PALETTE_SCHEME_IDS, PALETTE_KEYS, PALETTE_SCRIPTS } from './solve.js';
+import { solvePalette, scriptShift, PALETTE_SCHEME_IDS, PALETTE_KEYS, PALETTE_SCRIPTS, PALETTE_PRESETS, PALETTE_AIRS } from './solve.js';
 import { sheetStats } from './contact.js';
 import { novelSeed, signatureOf, paletteDistance } from './ledger.js';
 
@@ -51,4 +51,24 @@ describe('the colour scripts over the range', () => {
       }
     });
   }
+});
+
+// Every air at every axis end in every key, and every preset at a few seeds in every key: the value laws hold (in
+// vacuum the void stands for the bright sky: sky-darkest).
+describe('the palette in every air', () => {
+  const skyLaw = (air) => (air === 'none' ? 'sky-darkest' : 'sky-brightest'), laws = (air) => ['ramps-climb', 'shade-is-colour', skyLaw(air), 'ui-contrast'];
+  for (const air of Object.keys(PALETTE_AIRS)) {
+    it(`air ${air}: the value laws hold in every key at every axis end`, () => {
+      for (const key of Object.keys(PALETTE_KEYS)) for (const heat of ENDS) for (const weight of ENDS) for (const activity of ENDS) {
+        const K = solvePalette({ seed: 31, air, key, heat, weight, activity });
+        for (const law of laws(air)) expect(K.checks.find((c) => c.law === law), `${air} ${key} h${heat} w${weight} a${activity}: ${law}`).toMatchObject({ ok: true });
+      }
+    });
+  }
+  it('every preset, three seeds, every key: the value laws hold', () => {
+    for (const preset of Object.keys(PALETTE_PRESETS)) for (const seed of [1, 2, 3]) for (const key of Object.keys(PALETTE_KEYS)) {
+      const K = solvePalette({ preset, seed, key }), air = PALETTE_PRESETS[preset].spec.air ?? 'full';
+      for (const law of laws(air)) expect(K.checks.find((c) => c.law === law), `${preset} ${seed} ${key}: ${law}`).toMatchObject({ ok: true });
+    }
+  });
 });

@@ -19,8 +19,48 @@ import { signatureOf, paletteDistance } from './ledger.js';
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const r1 = (v) => Math.round(v * 10) / 10;
 
-/** One palette painted into the sheet's landscape (200 × 130 by default; it scales). */
+const hud = (U, sx, sy) => `<rect x="${r1(4 * sx)}" y="${r1(4 * sy)}" width="${r1(58 * sx)}" height="${r1(12 * sy)}" rx="${r1(2 * sx)}" fill="${U.panel}" stroke="${U.line}" stroke-width="${r1(0.6 * sx)}"/>`
+  + `<text x="${r1(8 * sx)}" y="${r1(12.5 * sy)}" font-family="system-ui, sans-serif" font-size="${r1(7 * sy)}" font-weight="600" fill="${U.ink}">HP</text>`
+  + `<rect x="${r1(20 * sx)}" y="${r1(8 * sy)}" width="${r1(30 * sx)}" height="${r1(4 * sy)}" fill="${U.bg}"/><rect x="${r1(20 * sx)}" y="${r1(8 * sy)}" width="${r1(21 * sx)}" height="${r1(4 * sy)}" fill="${U.accent}"/>`
+  + `<circle cx="${r1(56 * sx)}" cy="${r1(10 * sy)}" r="${r1(2.2 * sx)}" fill="${U.accent2}"/>`;
+
+/** A palette with thin air or none, painted into the sheet's other place: a cratered plain, a crater rim far off, and a
+ *  lander. In vacuum the sky is the void (stars, a nebula, a planet whose dark side is the palette's shadow) and the
+ *  shadows are hard; in thin air the sky is the dust's and the distance a little hazed. */
+function spaceScape(K, { w, h }) {
+  const R = K.roles, U = K.ui, id = K.id.replace(/[^a-z0-9-]/gi, ''), vac = K.read.air === 'none';
+  const sx = w / 200, sy = h / 130, X = (v) => r1(v * sx), Y = (v) => r1(v * sy), P = (pts) => pts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' ');
+  let q = 7;
+  const rnd = () => { q = (q * 16807) % 2147483647; return q / 2147483647; };
+  const stars = vac ? Array.from({ length: 34 }, () => `<circle cx="${X(rnd() * 200)}" cy="${Y(rnd() * 64)}" r="${r1((0.3 + rnd() * 0.5) * sx)}" fill="${K.light}" opacity="${r1(0.4 + rnd() * 0.6)}"/>`).join('') : '';
+  const crater = (x, y, rx) => `<ellipse cx="${X(x)}" cy="${Y(y)}" rx="${X(rx)}" ry="${Y(rx * 0.3)}" fill="${R.ground[4]}"/><ellipse cx="${X(x)}" cy="${Y(y + rx * 0.04)}" rx="${X(rx * 0.86)}" ry="${Y(rx * 0.24)}" fill="${R.ground[1]}"/><ellipse cx="${X(x - rx * 0.2)}" cy="${Y(y + rx * 0.02)}" rx="${X(rx * 0.55)}" ry="${Y(rx * 0.17)}" fill="${R.ground[0]}"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(K.id)}">`
+    + `<defs><linearGradient id="s-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${R.sky[vac ? 0 : 1]}"/><stop offset="1" stop-color="${R.sky[vac ? 2 : 4]}"/></linearGradient>`
+    + `<radialGradient id="g-${id}"><stop offset="0" stop-color="${R.accent2[4]}"/><stop offset="0.4" stop-color="${R.accent2[3]}" stop-opacity="0.8"/><stop offset="1" stop-color="${R.accent2[3]}" stop-opacity="0"/></radialGradient>`
+    + `<filter id="b-${id}"><feGaussianBlur stdDeviation="${r1(6 * sx)}"/></filter></defs>`
+    + `<rect width="${w}" height="${h}" fill="url(#s-${id})"/>`
+    + (vac ? `<g filter="url(#b-${id})" opacity="0.85"><ellipse cx="${X(70)}" cy="${Y(28)}" rx="${X(46)}" ry="${Y(13)}" fill="${R.cloud[2]}"/><ellipse cx="${X(92)}" cy="${Y(22)}" rx="${X(26)}" ry="${Y(9)}" fill="${R.cloud[4]}"/></g>` : '')
+    + stars
+    + (vac ? `<circle cx="${X(42)}" cy="${Y(40)}" r="${X(15)}" fill="${R.accent2[2]}"/><circle cx="${X(36)}" cy="${Y(37)}" r="${X(15)}" fill="${R.accent2[3]}" opacity="0.6"/><path d="M${X(42)} ${Y(25)} A${X(15)} ${X(15)} 0 0 1 ${X(42)} ${Y(55)} A${X(9)} ${X(15)} 0 0 0 ${X(42)} ${Y(25)}Z" fill="${K.shadow}" opacity="0.85"/>` : '')
+    + `<circle cx="${X(166)}" cy="${Y(20)}" r="${X(vac ? 4.5 : 6)}" fill="${K.light}"/>`
+    + `<polygon points="${P([[0, 130], [0, 70], [18, 66], [30, 60], [44, 64], [58, 57], [70, 62], [92, 58], [108, 63], [126, 55], [142, 61], [160, 58], [178, 63], [200, 60], [200, 130]])}" fill="${R.far[vac ? 3 : 4]}"/>`
+    + `<polygon points="${P([[0, 130], [0, 76], [40, 72], [80, 75], [120, 71], [160, 74], [200, 72], [200, 130]])}" fill="${R.ground[3]}"/>`
+    + `<polygon points="${P([[0, 130], [0, 96], [60, 92], [130, 95], [200, 91], [200, 130]])}" fill="${R.ground[2]}"/>`
+    + crater(48, 84, 16) + crater(150, 104, 24) + crater(98, 80, 7)
+    + `<polygon points="${P([[14, 110], [20, 100], [30, 98], [36, 108]])}" fill="${R.rock[2]}"/><polygon points="${P([[20, 100], [30, 98], [27, 106], [17, 108]])}" fill="${R.rock[3]}"/><polygon points="${P([[36, 108], [14, 110], [48, 114]])}" fill="${vac ? R.rock[0] : R.rock[1]}"/>`
+    + `<polygon points="${P([[178, 92], [182, 76], [186, 92]])}" fill="${R.foliage[3]}"/><polygon points="${P([[184, 92], [189, 80], [192, 92]])}" fill="${R.foliage[2]}"/><polygon points="${P([[182, 76], [184, 84], [182, 92]])}" fill="${R.foliage[4]}"/>`
+    + `<line x1="${X(108)}" y1="${Y(88)}" x2="${X(102)}" y2="${Y(98)}" stroke="${R.rope[2]}" stroke-width="${X(1)}"/><line x1="${X(126)}" y1="${Y(88)}" x2="${X(132)}" y2="${Y(98)}" stroke="${R.rope[2]}" stroke-width="${X(1)}"/>`
+    + `<circle cx="${X(117)}" cy="${Y(94)}" r="${X(9)}" fill="url(#g-${id})"/>`
+    + `<polygon points="${P([[106, 88], [110, 76], [124, 76], [128, 88]])}" fill="${R.made[2]}"/><polygon points="${P([[110, 76], [124, 76], [121, 70], [113, 70]])}" fill="${R.made[3]}"/><polygon points="${P([[120, 76], [124, 76], [128, 88], [122, 88]])}" fill="${R.made[1]}"/>`
+    + `<rect x="${X(113)}" y="${Y(79)}" width="${X(5)}" height="${Y(3)}" fill="${R.accent2[3]}"/><circle cx="${X(110)}" cy="${Y(86)}" r="${X(1.2)}" fill="${R.accent[2]}"/><circle cx="${X(125)}" cy="${Y(86)}" r="${X(1.2)}" fill="${R.accent[2]}"/>`
+    + `<line x1="${X(117)}" y1="${Y(70)}" x2="${X(117)}" y2="${Y(61)}" stroke="${R.rope[1]}" stroke-width="${X(0.8)}"/><circle cx="${X(117)}" cy="${Y(61)}" r="${X(1.4)}" fill="${R.accent[3]}"/>`
+    + hud(U, sx, sy) + '</svg>';
+}
+
+/** One palette painted into the sheet's landscape (200 × 130 by default; it scales); a palette with thin air or none
+ *  into the cratered plain. */
 export function thumbnail(K, { w = 200, h = 130 } = {}) {
+  if (K.read.air && K.read.air !== 'full') return spaceScape(K, { w, h });
   const R = K.roles, U = K.ui, id = K.id.replace(/[^a-z0-9-]/gi, '');
   const sx = w / 200, sy = h / 130, P = (pts) => pts.map(([x, y]) => `${r1(x * sx)},${r1(y * sy)}`).join(' ');
   const ridge = (y0, amp, ph) => P([[0, 130], ...Array.from({ length: 11 }, (_, i) => [i * 20, y0 - amp * Math.abs(Math.sin(i * 0.9 + ph)) - (i % 3) * amp * 0.3]), [200, 130]]);
@@ -46,11 +86,7 @@ export function thumbnail(K, { w = 200, h = 130 } = {}) {
     + `<rect x="${r1(126 * sx)}" y="${r1(77 * sy)}" width="${r1(4 * sx)}" height="${r1(8 * sy)}" fill="${R.made[0]}"/><rect x="${r1(122 * sx)}" y="${r1(74 * sy)}" width="${r1(3 * sx)}" height="${r1(3 * sy)}" fill="${R.accent2[3]}"/>`
     + `<line x1="${r1(137 * sx)}" y1="${r1(72 * sy)}" x2="${r1(137 * sx)}" y2="${r1(54 * sy)}" stroke="${R.bark[2]}" stroke-width="${r1(1 * sx)}"/><polygon points="${P([[137, 54], [147, 57], [137, 60]])}" fill="${R.accent[2]}"/>`
     + `<polyline points="${P([[84, 90], [96, 87], [118, 86]])}" fill="none" stroke="${R.rope[2]}" stroke-width="${r1(0.9 * sx)}"/>`
-    + `<rect x="${r1(4 * sx)}" y="${r1(4 * sy)}" width="${r1(58 * sx)}" height="${r1(12 * sy)}" rx="${r1(2 * sx)}" fill="${U.panel}" stroke="${U.line}" stroke-width="${r1(0.6 * sx)}"/>`
-    + `<text x="${r1(8 * sx)}" y="${r1(12.5 * sy)}" font-family="system-ui, sans-serif" font-size="${r1(7 * sy)}" font-weight="600" fill="${U.ink}">HP</text>`
-    + `<rect x="${r1(20 * sx)}" y="${r1(8 * sy)}" width="${r1(30 * sx)}" height="${r1(4 * sy)}" fill="${U.bg}"/><rect x="${r1(20 * sx)}" y="${r1(8 * sy)}" width="${r1(21 * sx)}" height="${r1(4 * sy)}" fill="${U.accent}"/>`
-    + `<circle cx="${r1(56 * sx)}" cy="${r1(10 * sy)}" r="${r1(2.2 * sx)}" fill="${U.accent2}"/>`
-    + '</svg>';
+    + hud(U, sx, sy) + '</svg>';
 }
 
 // ── the spread ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -88,7 +124,7 @@ const statLine = (S) => `${S.n} palettes · nearest neighbour median ${S.nearest
 export function contactSheet(sections, { title = 'Palette contact sheet' } = {}) {
   const card = ({ label, contract: K }) => {
     const held = K.checks.filter((c) => c.ok).length;
-    return `<figure>${thumbnail(K)}<figcaption><b>${esc(label)}</b><span>${esc(K.id)} · ${esc(K.read.scheme)} · ${esc(K.read.key)}${K.read.shift ? ' · shifted' : ''}</span><span class="${held === K.checks.length ? '' : 'warn'}">${held}/${K.checks.length} laws</span></figcaption></figure>`;
+    return `<figure>${thumbnail(K)}<figcaption><b>${esc(label)}</b><span>${esc(K.id)} · ${esc(K.read.preset ?? K.read.scheme)} · ${esc(K.read.key)}${K.read.air ? ` · ${esc(K.read.air === 'none' ? 'vacuum' : 'thin air')}` : ''}${K.read.shift ? ' · shifted' : ''}</span><span class="${held === K.checks.length ? '' : 'warn'}">${held}/${K.checks.length} laws</span></figcaption></figure>`;
   };
   const body = sections.map((S) => `<section><h2>${esc(S.title)}</h2>${S.says ? `<p>${esc(S.says)}</p>` : ''}${S.stats === false ? '' : `<p class="stats">${esc(statLine(sheetStats(S.rows.map((r) => r.contract))))}</p>`}<div class="grid">${S.rows.map(card).join('')}</div></section>`).join('');
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><style>

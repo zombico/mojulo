@@ -6,7 +6,8 @@
  * soil, the meadow the ground, the cliff and scree the rock, boughs and leaves the foliage, wood the bark, the blazes
  * the accent, the far ridges the far layers. A tiled face swaps its tile for the tile's EVEN twin (era/tone.js: its
  * greys, its median at EVEN_LEVEL), so its tint lands on the colour it names; its detail is the tile's own value.
- * The card's sun, fill, haze and sky are the palette's.
+ * The card's sun, fill, haze and sky are the palette's; in vacuum (`air: 'none'`) the cloud deck goes, the haze all but
+ * goes, and the sky is the void with the stars out.
  *
  * It reads the palette as stored data (`palette`: the roles' middle stops, light, shadow, fog, sky, key, written at
  * authoring by color-theorist/adapters.js natureColours), never the solver, so the kits import nothing heavy.
@@ -22,6 +23,8 @@ import { decodePng, EVEN_LEVEL } from '../era/tone.js';
 import { surfaceTexture } from '../landscape/surface-textures.js';
 
 const KEY_SHIFT = { high: 0.05, mid: 0, low: -0.1 };
+// in vacuum the view still ends somewhere: a trace of haze into the void, so the far end of the stage fades to black
+const VOID_HAZE = 0.0008;
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 /** The palette role a face plays, by its group and its tile. */
@@ -94,7 +97,9 @@ export function recolourCard(st, P) {
   return {
     ...st,
     light: { ...st.light, key: { ...st.light.key, color: P.light }, ambient: P.ambient },
-    air: { ...st.air, fog: { ...st.air.fog, color: P.fog }, dome: { ...st.air.dome, zenith: P.sky.zenith, horizon: P.sky.horizon } },
+    air: { ...st.air, fog: { ...st.air.fog, color: P.fog, ...(P.air === 'none' ? { density: VOID_HAZE } : {}) }, dome: { ...st.air.dome, zenith: P.sky.zenith, horizon: P.sky.horizon }, ...(P.air === 'none' ? { void: true } : {}) },
+    // in vacuum: no cloud deck, no haze to speak of (the void at the far end of the view), the stars out
+    ...(P.air === 'none' ? { clouds: null } : {}),
     // a jungle's colour grade leans every colour warm-green: in a palette its tint is neutral (its lift kept, grey)
     ...(st.grade ? { grade: { ...st.grade, ...(st.grade.tint ? { tint: [1, 1, 1] } : {}), ...(st.grade.lift ? { lift: st.grade.lift.map(() => st.grade.lift.reduce((a, b) => a + b, 0) / st.grade.lift.length) } : {}) } } : {}),
   };

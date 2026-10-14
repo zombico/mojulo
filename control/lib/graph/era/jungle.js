@@ -617,7 +617,7 @@ export function assembleJungleScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || 'mojulo stage · jungle',
     bg: gradeHex(rgbHex(st.air.dome.horizon.map((v) => v / 255)), st.grade),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: { zenith: grade(st.air.dome.zenith), horizon: grade(st.air.dome.horizon), day: 1, stars: 0, seed: 1 },
+    sky: { zenith: grade(st.air.dome.zenith), horizon: grade(st.air.dome.horizon), day: st.air.void ? 0 : 1, stars: st.air.void ? 1 : 0, seed: 1 },   // (a palette in vacuum: the void, the stars out)
     glow: false,
     walk: manifest.walk === false ? false : { speed: 5, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
   };

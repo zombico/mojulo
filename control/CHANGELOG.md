@@ -94,6 +94,16 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
     (`color-theorist/contact.js`): ten intents at five seeds, the auto default, and a stream through the ledger,
     with the spread measured (nearest neighbours, hue bins, keys, schemes). A deep test holds 50 auto palettes to
     that spread.
+- **Air, and palettes for space.** The solver assumed a world with air: the sky the brightest thing, distance fading
+  into haze, shade filled by the sky. A spec's `air` says otherwise:
+  - `air: 'thin'` (Mars, Titan): the sky takes the dust's hue, pale and quiet, and distance hazes half as much.
+  - `air: 'none'` (vacuum): the sky is the void (near-black, tinted, never black), distance stays sharp, the shade is
+    lit by the planet in the sky, the light is near white, and the land is regolith and ice while the colour lives in
+    hulls, cables, lights and engine glow. The checks read the air (in vacuum the sky is the darkest thing).
+  - `preset`: `moon`, `asteroid-belt`, `mars`, `icy-moon`, `station`, `deep-space`, a starting spec the spec's own fields
+    override.
+  - On an isekai kit a vacuum palette draws a void sky with stars and a white sun, with no haze and a dark fill; the
+    nature kits take the void's fog and dome. Without `air`, every palette solves as before.
 - **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
   only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
   gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the

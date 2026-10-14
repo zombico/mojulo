@@ -447,7 +447,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: st.night ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) },
+    sky: st.night ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) },
     glow: !!Gl,
     pack: true,
     ...(manifest.wind || manifest.grass ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
@@ -471,6 +471,13 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
 function domeAt({ azimuth, elevation, size = 4, phase = 0.6 }) {
   const d = sunDir(elevation, azimuth), az = Math.atan2(d[1], d[0]), el = Math.asin(Math.max(-1, Math.min(1, d[2])));
   return { u: r5((az + Math.PI / 2) / Math.PI + 0.5), h: r5(el / (Math.PI / 2)), phase, size };
+}
+/** THE VOID (a card's `void`: a world with no air): the sky the palette's void, the stars out by day, the sun a white
+ *  disc where the key comes from, and a world hanging where the card puts it. */
+function voidSky(st, dir) {
+  const V = st.void, sky = st.palette.sky;
+  return { zenith: sky[0], horizon: sky[sky.length - 1], day: 0, stars: V.stars ?? 1, seed: 1,
+    sun: { dir: dir.map(r5), size: st.sun?.size ?? 1, glow: V.glow ?? 0.5 }, ...(V.companion ? { moon: domeAt(V.companion) } : {}) };
 }
 function nightSky(st, dir) {
   const N = st.night, sky = st.palette.sky, az = Math.atan2(dir[1], dir[0]), el = Math.asin(Math.max(-1, Math.min(1, dir[2])));

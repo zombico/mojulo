@@ -19,6 +19,7 @@ import { landSwatches, lightOf } from './adapters.js';
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').split('-').slice(0, 3).join('-') || 'palette';
 const PASSES = 4;
+const VOID_HAZE = 0.0008;   // (in vacuum the far end of the view still fades, into the void)
 
 export function paletteLook(spec, { base = 'isekai-meadow', name } = {}) {
   const K = solvePalette(spec), D = landDomain();
@@ -34,7 +35,11 @@ export function paletteLook(spec, { base = 'isekai-meadow', name } = {}) {
     if (r) T[g] = r[Math.round(0.7 * (r.length - 1))].map((v) => Math.round((v / 255) * 1000) / 1000);
   }
   c.facets.sky.light = lightOf(K, c.facets.sky.light);
-  c.hazeFromFar = true;
+  if (K.read.air === 'none') {
+    // vacuum: the void for a sky (stars, the sun a white disc), no clouds, the haze all but gone into the void
+    Object.assign(c.facets.sky, { cumulus: null, void: { stars: 1, glow: 0.5 } });
+    c.facets.air.air = { ...c.facets.air.air, fog: { ...c.facets.air.air.fog, color: K.fog, density: VOID_HAZE } };
+  } else c.hazeFromFar = true;
   // the tunnel's laws, and its own fixes for what fails (a ramp sorted, a shade lifted, the far layers laid again)
   let L = D.build(c), laws = D.laws(L);
   const tweaks = [];

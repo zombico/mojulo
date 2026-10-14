@@ -7,7 +7,7 @@
  *
  * Sections: the auto default (what a world naming nothing gets, 20 seeds); ten intents at five seeds each (the
  * agent's reading of each intent is written below, as the agent would pass it); 20 rolled through the novelty ledger,
- * each looking away from the ones before; and each colour script across one world's five levels. Writes one HTML page (to the
+ * each looking away from the ones before; each colour script across one world's five levels; and each space preset. Writes one HTML page (to the
  * system's temp folder unless --out) and prints each section's spread.
  */
 import { writeFileSync } from 'node:fs';
@@ -18,7 +18,7 @@ import path from 'node:path';
 register('./mcp-stdio-loader.mjs', import.meta.url);
 const args = process.argv.slice(2), flag = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : d; };
 const out = flag('--out', path.join(tmpdir(), 'palette-contact-sheet.html')), base = Number(flag('--seed', 1));
-const { solvePalette, scriptShift, PALETTE_SCRIPTS } = await import('../lib/graph/color-theorist/solve.js');
+const { solvePalette, scriptShift, PALETTE_SCRIPTS, PALETTE_PRESETS } = await import('../lib/graph/color-theorist/solve.js');
 const { novelSeed, signatureOf, paletteDistance } = await import('../lib/graph/color-theorist/ledger.js');
 const { contactSheet, sheetStats } = await import('../lib/graph/color-theorist/contact.js');
 
@@ -54,11 +54,15 @@ const scripts = Object.entries(PALETTE_SCRIPTS).map(([arc, S]) => {
   return { title: `Colour script: ${arc}`, says: `${S.says}. One world (seed ${world.seed}) across five levels; its widest two levels ${widest(rows).toFixed(3)} apart.`, rows, stats: false };
 });
 
+// space: each preset at four seeds (thin air and vacuum paint into the cratered plain)
+const space = Object.entries(PALETTE_PRESETS).map(([preset, P]) => ({ title: `Space: ${preset}`, says: P.says, rows: [1, 2, 3, 4].map((i) => ({ label: `${preset} · seed ${base + 200 + i}`, contract: solvePalette({ preset, seed: base + 200 + i }) })), stats: false }));
+
 const sections = [
   { title: 'The auto default', says: 'What a world that names no kit, look or palette gets from its seed alone (a new world\'s seed is rolled through the ledger below).', rows: auto },
   { title: 'Ten intents, five seeds each', says: 'The axes are the agent\'s reading of the words; the seed rolls the rest. One identity per intent, five variations?', rows: intents },
   { title: 'Through the novelty ledger', says: 'Twenty auto palettes rolled in order, each seed the farthest of eight from the ones before.', rows: ledger },
   ...scripts,
+  ...space,
 ];
 writeFileSync(out, contactSheet(sections, { title: 'Palette contact sheet' }));
 // across intents: each palette's nearest from ANOTHER intent (twins within an intent are its identity holding)

@@ -74,10 +74,56 @@ const ROLES = Object.freeze({
   accent2: { L: [0.44, 0.88], c: 0.9, slot: 'C2', accent: true },
 });
 export const PALETTE_ROLES = Object.freeze(Object.keys(ROLES));
+
+/** AIR: what the sky is made of. `full` is a world with air (the roles above). `thin` (Mars, Titan): the sky the dust's
+ * hue, pale and quiet; the far layers half as hazed. `none` (vacuum): the sky is the void, near-black and tinted, the
+ * same in every key (`fixed`); a nebula for the clouds; the land regolith and ice, low in chroma; the colour in the
+ * hulls (`made`), the cables and trim (`rope`), the lights (`accent`) and the engine glow or a planet (`accent2`). */
+export const PALETTE_AIRS = Object.freeze({ full: 'a world with air: the sky the brightest thing, distance hazed', thin: 'a thin, dusty air: a pale sky the dust\'s colour, a little haze', none: 'vacuum: the void for a sky, no haze, hard light, the shade lit by a planet' });
+const AIR_ROLES = Object.freeze({
+  full: ROLES,
+  thin: Object.freeze({ ...ROLES, sky: { L: [0.6, 0.9], c: 0.3, slot: 'E', airy: true }, cloud: { L: [0.72, 0.95], c: 0.12, slot: 'E', airy: true } }),
+  none: Object.freeze({
+    sky: { L: [0.18, 0.32], c: 0.12, slot: 'B', airy: true, fixed: true, floor: 0.16 },
+    cloud: { L: [0.26, 0.6], c: 0.8, slot: 'C2', airy: true, fixed: true, floor: 0.2 },
+    far: { derived: true },
+    ground: { L: [0.3, 0.88], c: 0.15, slot: 'A' },
+    foliage: { L: [0.42, 0.93], c: 0.5, slot: 'B' },
+    soil: { L: [0.34, 0.86], c: 0.18, slot: 'A' },
+    rock: { L: [0.24, 0.8], c: 0.12, slot: 'A' },
+    bark: { L: [0.22, 0.5], c: 0.18, slot: 'E' },
+    made: { L: [0.3, 0.9], c: 0.4, slot: 'B' },
+    rope: { L: [0.28, 0.72], c: 0.55, slot: 'C2' },
+    accent: ROLES.accent,
+    accent2: { L: [0.5, 0.92], c: 1, slot: 'C2', accent: true },
+  }),
+});
+// how far the far layers go toward the sky: [start, span] of the mix (vacuum: a little toward the void, the farthest
+// the darkest, so the ramp still climbs)
+const FAR_MIX = Object.freeze({ full: [0.45, 0.45], thin: [0.3, 0.3], none: [0.22, -0.16] });
+
+/** PRESETS: a starting spec for a kind of place (its own fields over it). Space first; the void is named blue-black to
+ * violet-black (a void rolled with the scheme can come out brown). */
+export const PALETTE_PRESETS = Object.freeze({
+  moon: { says: 'grey regolith under a black sky, a white sun, the shade lit by the planet', spec: { air: 'none', hues: { sky: 255 }, heat: -0.1, weight: 0.5, activity: -0.85, scheme: 'mono-accent', key: 'mid' } },
+  'asteroid-belt': { says: 'dark carbon rock, a warm hard sun, ice glints and running lights', spec: { air: 'none', hues: { sky: 240 }, heat: 0.15, weight: 0.75, activity: -0.4, scheme: 'complementary', key: 'low' } },
+  mars: { says: 'rust dust under a pale butterscotch sky', spec: { air: 'thin', heat: 0.75, weight: 0.1, activity: -0.1, scheme: 'analogous', hue: 'rust' } },
+  'icy-moon': { says: 'a bright ice crust, blue in its cracks, a banded giant overhead', spec: { air: 'none', hues: { sky: 228 }, heat: -0.8, weight: -0.4, activity: -0.3, scheme: 'analogous', key: 'high' } },
+  station: { says: 'painted hull, cable runs and warning stripes against the void', spec: { air: 'none', hues: { sky: 250 }, heat: -0.3, weight: 0.3, activity: 0.2, scheme: 'split-complementary', key: 'mid' } },
+  'deep-space': { says: 'a space sim: the void, a vivid nebula, neon on the HUD', spec: { air: 'none', hues: { sky: 275 }, heat: -0.5, weight: 0.9, activity: 0.75, scheme: 'triad', key: 'low' } },
+});
+export const PALETTE_PRESET_IDS = Object.freeze(Object.keys(PALETTE_PRESETS));
+/** A spec over its preset: its own fields win, its own hues over the preset's role by role. */
+const overPreset = (spec) => {
+  const P = spec.preset ? PALETTE_PRESETS[spec.preset].spec : null;
+  if (!P) return spec;
+  const hues = P.hues || spec.hues ? { ...(P.hues ?? {}), ...(spec.hues ?? {}) } : undefined;
+  return { ...P, ...spec, ...(hues ? { hues } : {}) };
+};
 const LOCKABLE = PALETTE_ROLES.filter((r) => !ROLES[r].derived);
 // how much of a world each role covers, roughly (for the hue-family count)
 const COVER = { sky: 3, cloud: 1, ground: 4, foliage: 2, soil: 1, rock: 1.5, bark: 0.4, made: 1, rope: 0.2 };
-const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script'];
+const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script', 'air', 'preset'];
 // a shift: the same palette moved (its seed, its candidate, its hue relations kept)
 const SHIFT_RANGE = Object.freeze({ turn: [-180, 180, 'degrees every hue turns'], light: [-1, 1, 'toward night (−1) or day (1)'], chroma: [0.25, 2, 'chroma scaled'], warm: [-1, 1, 'hues and the light pulled cool (−1) or warm (1)'] });
 const NEUTRAL = Object.freeze({ turn: 0, light: 0, chroma: 1, warm: 0 });
@@ -149,6 +195,8 @@ export function readPaletteSpec(v, at = 'palette') {
       if (!(typeof x === 'number' && x >= R[0] && x <= R[1])) throw new Error(`${at}.shift.${k} is ${R[0]} to ${R[1]} (${R[2]})`);
     }
   }
+  if (v.air !== undefined && !PALETTE_AIRS[v.air]) throw new Error(`${at}.air is ${Object.entries(PALETTE_AIRS).map(([k, d]) => `${k} (${d})`).join('; ')}`);
+  if (v.preset !== undefined && !PALETTE_PRESETS[v.preset]) throw new Error(`${at}.preset is one of ${PALETTE_PRESET_IDS.join(', ')}`);
   if (v.script !== undefined && !PALETTE_SCRIPTS[v.script]) throw new Error(`${at}.script is a world's colour script across its levels: ${PALETTE_SCRIPT_IDS.join(', ')}`);
   if (v.lock !== undefined) {
     if (!isObj(v.lock)) throw new Error(`${at}.lock is { <role>: '#hex' }: that role's middle stop, kept`);
@@ -170,7 +218,7 @@ function readAxes(spec) {
   // the world's hue: named, or rolled in the band its heat leans to (warm 20–100°, cool 160–290°, anywhere between)
   const hr = R(), named = spec.hue !== undefined ? hueOf(spec.hue) : null;
   const hue = named ?? (heat > 0.25 ? 20 + hr * 80 : heat < -0.25 ? 160 + hr * 130 : hr * 360);
-  return { seed, heat, weight, activity, scheme, key, hue: r3(wrapHue(hue)), named: named !== null };
+  return { seed, heat, weight, activity, scheme, key, hue: r3(wrapHue(hue)), named: named !== null, air: spec.air ?? 'full' };
 }
 
 const KEY_SHIFT = { high: [0.1, 0.04], mid: [0, 0], low: [-0.08, -0.14] };
@@ -185,28 +233,29 @@ function candidate(spec, A, k) {
   slot.E = mixHue(wrapHue(slot.A + j(30)), 55, 0.3);   // the earth leans warm, wherever the world sits
   const cmax = 0.06 + 0.12 * ((A.activity + 1) / 2);
   // light and shadow: a warm key and a cool fill; a cold low key inverts them (a cool moon, a warm dark)
-  const moon = A.key === 'low' && A.heat < -0.2;
-  const Hl = moon ? wrapHue(210 + j(15)) : wrapHue(80 + j(20) + A.heat * 10), Hs = moon ? wrapHue(50 + j(20)) : wrapHue(260 + j(30));
-  const [dlo, dhi] = KEY_SHIFT[A.key];
+  // (in vacuum the light is the sun's, near white, and the shade is lit by the planet in the sky: its hue, C2's)
+  const vac = A.air === 'none', moon = !vac && A.key === 'low' && A.heat < -0.2;
+  const Hl = moon ? wrapHue(210 + j(15)) : wrapHue(80 + j(20) + A.heat * 10), Hs = vac ? wrapHue(slot.C2 + j(10)) : moon ? wrapHue(50 + j(20)) : wrapHue(260 + j(30));
+  const [dlo, dhi] = KEY_SHIFT[A.key], RL = AIR_ROLES[A.air];
   const P = {};
-  for (const [role, D] of Object.entries(ROLES)) {
+  for (const [role, D] of Object.entries(RL)) {
     if (D.derived || D.accent) continue;
-    const lo = clamp(D.L[0] + dlo, 0.22, 0.9), hi = clamp(D.L[1] + dhi, lo + 0.18, 0.97);
+    const lo = clamp(D.L[0] + (D.fixed ? 0 : dlo), D.floor ?? 0.22, 0.9), hi = clamp(D.L[1] + (D.fixed ? 0 : dhi), lo + (D.fixed ? 0.12 : 0.18), 0.97);
     P[role] = { L: [r3(lo), r3(hi)], C: r3(cmax * D.c * mute), h: r3(spec.hues?.[role] !== undefined ? hueOf(spec.hues[role]) : slot[D.slot]), ...(D.airy ? { airy: true } : {}) };
   }
-  // the sky stays the brightest thing (by day its light end above the ground's)
-  P.sky.L[1] = r3(Math.max(P.sky.L[1], Math.min(0.97, P.ground.L[1] + 0.05)));
+  // the sky stays the brightest thing (by day its light end above the ground's); in vacuum the void stays the darkest
+  if (!vac) P.sky.L[1] = r3(Math.max(P.sky.L[1], Math.min(0.97, P.ground.L[1] + 0.05)));
   // the accent: set in value against the ground (to read in grey), spending the ceiling (never under 0.12)
   const gMid = (P.ground.L[0] + P.ground.L[1]) / 2, aMid = A.key === 'low' ? clamp(gMid + 0.24, 0.62, 0.86) : gMid <= 0.7 ? gMid + 0.18 : gMid - 0.2;
   P.accent = { L: [r3(clamp(aMid - 0.24, 0.22, 0.7)), r3(clamp(aMid + 0.22, 0.5, 0.95))], C: r3(Math.max(0.12, cmax)), h: r3(spec.hues?.accent !== undefined ? hueOf(spec.hues.accent) : slot.C) };
-  const D2 = ROLES.accent2;
+  const D2 = RL.accent2;
   P.accent2 = { L: [r3(D2.L[0] + dlo / 2), r3(clamp(D2.L[1] + dhi / 2, 0.6, 0.95))], C: r3(Math.max(0.1, cmax * D2.c)), h: r3(spec.hues?.accent2 !== undefined ? hueOf(spec.hues.accent2) : slot.C2) };
   // a locked role: its middle stop is the colour given, exactly; the band slides to centre on it
   for (const [role, hex] of Object.entries(spec.lock ?? {})) {
     const [L, C, h] = lchOf(hexToRgb(hex)), half = (P[role].L[1] - P[role].L[0]) / 2, mid = clamp(L, 0.22 + half * 0.5, 0.97 - half * 0.5);
     P[role] = { ...P[role], L: [r3(clamp(mid - half, 0.2, 0.9)), r3(clamp(mid + half, 0.3, 0.97))], C: r3(C), h: r3(h), exact: hex.toLowerCase() };
   }
-  return { P, Hl: r3(Hl), Hs: r3(Hs), moon };
+  return { P, Hl: r3(Hl), Hs: r3(Hs), moon, ...(A.air !== 'full' ? { air: A.air, lc: vac ? 0.012 : 0.04 } : {}) };
 }
 
 /** A candidate moved by a shift: every hue turned (the accents too, so the scheme holds), the bands moved toward night
@@ -218,15 +267,17 @@ function shiftCandidate(cand, s, A) {
   const dlo = li < 0 ? li * 0.14 : li * 0.1, dhi = li < 0 ? li * 0.26 : li * 0.04;
   // warmth: the land's hues pulled toward gold or toward blue, the sky's harder (a sunset, a cold sky), and warm light
   // fuller in chroma (the golden hour), cold light greyer
-  const pull = (h, k) => (w ? mixHue(h, w > 0 ? 55 : 245, Math.min(1, Math.abs(w) * k)) : h), kW = 1 + 0.45 * w;
+  const pull = (h, k) => (w ? mixHue(h, w > 0 ? 55 : 245, Math.min(1, Math.abs(w) * k)) : h), kW = 1 + 0.45 * w, vac = cand.air === 'none';
   const P = {};
   for (const [role, { exact: _x, ...p }] of Object.entries(cand.P)) {
-    const lo = clamp(p.L[0] + dlo, 0.22, 0.9), hi = clamp(p.L[1] + dhi, lo + 0.18, 0.97), h = wrapHue(p.h + turn), acc = role.startsWith('accent'), airy = role === 'sky' || role === 'cloud';
+    const acc = role.startsWith('accent'), airy = role === 'sky' || role === 'cloud', h = wrapHue(p.h + turn);
+    // (the void is the void by day and by night)
+    const lo = vac && airy ? p.L[0] : clamp(p.L[0] + dlo, 0.22, 0.9), hi = vac && airy ? p.L[1] : clamp(p.L[1] + dhi, lo + 0.18, 0.97);
     // the accents stay louder than the land however loud the land gets
     const C = p.C * kC * (acc ? Math.max(1, kW) : kW) + (airy && w > 0 ? 0.04 * w : 0);
     P[role] = { ...p, L: [r3(lo), r3(hi)], C: r3(clamp(C, 0, 0.32)), h: r3(acc ? h : pull(h, airy ? 0.8 : 0.6)) };
   }
-  P.sky.L[1] = r3(Math.max(P.sky.L[1], Math.min(0.97, P.ground.L[1] + 0.05)));
+  if (!vac) P.sky.L[1] = r3(Math.max(P.sky.L[1], Math.min(0.97, P.ground.L[1] + 0.05)));
   const low = A.key === 'low' || li < -0.35, gMid = (P.ground.L[0] + P.ground.L[1]) / 2;
   const aMid = low ? clamp(gMid + 0.24, 0.62, 0.86) : gMid <= 0.7 ? gMid + 0.18 : gMid - 0.2;
   // a land hue pulled onto the accent's: the accent steps aside, on the side it was
@@ -237,7 +288,7 @@ function shiftCandidate(cand, s, A) {
   }
   P.accent = { ...P.accent, h: r3(ah), L: [r3(clamp(aMid - 0.24, 0.22, 0.7)), r3(clamp(aMid + 0.22, 0.5, 0.95))], C: r3(Math.max(0.12, P.accent.C)) };
   const Hl = w ? mixHue(cand.Hl, w > 0 ? 45 : 225, Math.abs(w) * 0.6) : cand.Hl, Hs = w ? mixHue(cand.Hs, w > 0 ? 290 : 235, Math.abs(w) * 0.3) : cand.Hs;
-  return { P, Hl: r3(Hl), Hs: r3(Hs), moon: cand.moon || (li < -0.5 && w < 0), lc: r3(0.05 + 0.05 * Math.abs(w)) };
+  return { P, Hl: r3(Hl), Hs: r3(Hs), moon: !vac && (cand.moon || (li < -0.5 && w < 0)), lc: r3((cand.lc ?? 0.05) + 0.05 * Math.abs(w)), ...(cand.air ? { air: cand.air } : {}) };
 }
 
 /** A role's ramp at n stops: lightness across its band; chroma fullest at the middle; the hue leaning to the shadow's
@@ -253,19 +304,21 @@ function rampAt(p, n, Hl, Hs) {
   });
 }
 /** The far layers: the ground seen through the air, laid from the ground's middle toward the sky's light end. */
-function farAt(ground, sky, n) {
-  const g = rgbToOklab(ground[Math.floor(ground.length / 2)]), s = rgbToOklab(sky.at(-1));
+function farAt(ground, sky, n, air = 'full') {
+  const g = rgbToOklab(ground[Math.floor(ground.length / 2)]), s = rgbToOklab(sky.at(-1)), [t0, dt] = FAR_MIX[air];
   return Array.from({ length: n }, (_, i) => {
-    const t = 0.45 + 0.45 * (n === 1 ? 0.5 : i / (n - 1)), lab = g.map((v, k) => v + (s[k] - v) * t);
+    const t = t0 + dt * (n === 1 ? 0.5 : i / (n - 1)), lab = g.map((v, k) => v + (s[k] - v) * t);
     const [L, C, h] = lchOf(oklabToRgb(lab).map((v) => clamp(v, 0, 255)));
+    // (in vacuum a grey ground toward a grey void goes grey: its darkest stop keeps a colour, the ground's hue)
+    if (air === 'none') return oklch(L, Math.max(C, i ? 0.012 : 0.03), C < 0.012 ? lchOf(ground[Math.floor(ground.length / 2)])[2] : h);
     return oklch(L, C, h);
   });
 }
 
-function rolesOf({ P, Hl, Hs }, n = 5) {
+function rolesOf({ P, Hl, Hs, air }, n = 5) {
   const out = {};
   for (const role of PALETTE_ROLES) if (!ROLES[role].derived) out[role] = rampAt(P[role], n, Hl, Hs);
-  out.far = farAt(out.ground, out.sky, n);
+  out.far = farAt(out.ground, out.sky, n, air);
   return out;
 }
 
@@ -303,12 +356,13 @@ function hueFamilies(roles) {
 export const PALETTE_LAWS = Object.freeze([
   { law: 'ramps-climb', want: 'every ramp climbs from shadow to light', test: (K) => { const bad = Object.entries(K.roles).filter(([, r]) => r.some((c, i) => i && Lof(c) < Lof(r[i - 1]) - 0.004)).map(([k]) => k); return { ok: !bad.length, value: bad.join(', ') || 'all climb' }; } },
   { law: 'shade-is-colour', want: 'the darkest stop of every ramp is a colour, never black', test: (K) => { const bad = Object.entries(K.roles).filter(([, r]) => luma(r[0]) < 14 || chroma(r[0]) < 6).map(([k]) => k); return { ok: !bad.length, value: bad.join(', ') || 'all coloured' }; } },
-  { law: 'sky-brightest', want: 'the sky\'s light end is as light as anything on the ground', test: (K) => { const s = luma(K.roles.sky.at(-1)), g = Math.max(luma(K.roles.ground.at(-1)), luma(K.roles.rock.at(-2))); return { ok: s >= g - 4, value: `sky ${Math.round(s)} · ground ${Math.round(g)}` }; } },
+  { law: 'sky-brightest', air: ['full', 'thin'], want: 'the sky\'s light end is as light as anything on the ground', test: (K) => { const s = luma(K.roles.sky.at(-1)), g = Math.max(luma(K.roles.ground.at(-1)), luma(K.roles.rock.at(-2))); return { ok: s >= g - 4, value: `sky ${Math.round(s)} · ground ${Math.round(g)}` }; } },
+  { law: 'sky-darkest', air: ['none'], want: 'in vacuum the void is the darkest thing: the sky\'s light end well under the ground\'s middle', test: (K) => { const s = Lof(K.roles.sky.at(-1)), g = Lof(mid(K.roles.ground)); return { ok: g - s >= 0.15, value: `L: sky ${s.toFixed(2)} · ground ${g.toFixed(2)}` }; } },
   { law: 'accent-unique', want: 'the accent is nothing else\'s colour: every land and made stop sits ≥ 0.08 (OKLab) from it', test: (K) => { const a = mid(K.roles.accent); let near = Infinity, who = ''; for (const r of LAND_ROLES) for (const c of K.roles[r]) { const d = deltaE(a, c); if (d < near) { near = d; who = r; } } return { ok: near >= 0.08, value: `nearest: ${who} at ${near.toFixed(3)}` }; } },
-  { law: 'greyscale-read', want: 'it reads in grey: the sky, the ground and the accent sit apart in lightness', test: (K) => { const g = Lof(mid(K.roles.ground)), s = Lof(K.roles.sky.at(-1)), a = Lof(mid(K.roles.accent)); return { ok: s - g >= 0.08 && Math.abs(a - g) >= 0.08, value: `L: sky ${s.toFixed(2)} · ground ${g.toFixed(2)} · accent ${a.toFixed(2)}` }; } },
+  { law: 'greyscale-read', want: 'it reads in grey: the sky, the ground and the accent sit apart in lightness', test: (K) => { const g = Lof(mid(K.roles.ground)), s = Lof(K.roles.sky.at(-1)), a = Lof(mid(K.roles.accent)); return { ok: (K.read.air === 'none' ? g - s >= 0.15 : s - g >= 0.08) && Math.abs(a - g) >= 0.08, value: `L: sky ${s.toFixed(2)} · ground ${g.toFixed(2)} · accent ${a.toFixed(2)}` }; } },
   { law: 'ui-contrast', want: 'the HUD reads: ink on the panel and the bg ≥ 4.5:1, the accent on the panel ≥ 3:1 (WCAG 2)', test: (K) => { const u = Object.fromEntries(Object.entries(K.ui).map(([k, v]) => [k, hexToRgb(v)])); const ip = contrast(u.ink, u.panel), ib = contrast(u.ink, u.bg), ap = contrast(u.accent, u.panel); return { ok: ip >= 4.5 && ib >= 4.5 && ap >= 3, value: `ink/panel ${ip.toFixed(1)} · ink/bg ${ib.toFixed(1)} · accent/panel ${ap.toFixed(1)} · APCA ink Lc ${Math.round(apca(u.ink, u.panel))}` }; } },
   { law: 'colour-vision', want: 'the accent still parts from the ground for protan, deutan and tritan eyes (≥ 0.06)', test: (K) => { const a = mid(K.roles.accent), g = mid(K.roles.ground); const d = CVD_KINDS.map((k) => [k, deltaE(simulate(a, k), simulate(g, k))]); const worst = d.reduce((x, y) => (y[1] < x[1] ? y : x)); return { ok: worst[1] >= 0.06, value: `weakest: ${worst[0]} ${worst[1].toFixed(3)}` }; } },
-  { law: 'few-hues', want: 'two or three hue families carry the land (one only on purpose; four is busy)', test: (K) => { const n = hueFamilies(K.roles).length, one = ['mono-accent', 'duotone'].includes(K.read.scheme) || !!K.read.shift; return { ok: n <= 3 && (n >= 2 || one), value: `${n} famil${n === 1 ? 'y' : 'ies'}` }; } },
+  { law: 'few-hues', want: 'two or three hue families carry the land (one only on purpose; four is busy)', test: (K) => { const n = hueFamilies(K.roles).length, one = ['mono-accent', 'duotone'].includes(K.read.scheme) || !!K.read.shift || K.read.air === 'none'; return { ok: n <= 3 && (n >= 2 || one), value: `${n} famil${n === 1 ? 'y' : 'ies'}` }; } },
   { law: 'no-cliche', want: 'not teal-and-orange, not black shadows, not every role at full chroma', test: (K) => {
     const [, sc, sh] = lchOf(mid(K.roles.sky)), warm = ['ground', 'accent'].some((r) => { const [, c, h] = lchOf(mid(K.roles[r])); return c > 0.08 && h >= 35 && h <= 80; });
     const tealOrange = sc > 0.08 && sh >= 180 && sh <= 240 && warm;
@@ -323,7 +377,7 @@ export const PALETTE_LAWS = Object.freeze([
     return { ok: near.d >= 0.05 && hud >= 0.06, value: `nearest kit ${near.id} at ${near.d.toFixed(3)} · HUD ${hud.toFixed(3)} from stock`, novelty: Math.min(near.d, 0.25) / 0.25 };
   } },
 ]);
-function check(K) { return PALETTE_LAWS.map((l) => ({ law: l.law, want: l.want, ...l.test(K) })); }
+function check(K) { const air = K.read.air ?? 'full'; return PALETTE_LAWS.filter((l) => !l.air || l.air.includes(air)).map((l) => ({ law: l.law, want: l.want, ...l.test(K) })); }
 
 const hexRoles = (roles) => Object.fromEntries(Object.entries(roles).map(([k, r]) => [k, r.map(rgbToHex)]));
 
@@ -331,7 +385,7 @@ const SOLVED = new Map();
 /** One candidate's ramps, HUD, checks and score. */
 function weigh(cand, A, shift) {
   const roles = rolesOf(cand), ui = Object.fromEntries(Object.entries(uiOf(roles, cand, A.key, cand.P)).map(([n, c]) => [n, rgbToHex(c)]));
-  const K = { roles, ui, read: { scheme: A.scheme, ...(shift ? { shift } : {}) } }, checks = check(K);
+  const K = { roles, ui, read: { scheme: A.scheme, ...(shift ? { shift } : {}), ...(A.air !== 'full' ? { air: A.air } : {}) } }, checks = check(K);
   const passed = checks.filter((c) => c.ok).length, novelty = checks.find((c) => c.law === 'off-the-shelf').novelty, fams = hueFamilies(roles).length;
   return { cand, roles, ui, checks, score: passed * 10 + novelty * 8 + (fams >= 2 && fams <= 3 ? 2 : 0) };
 }
@@ -344,14 +398,15 @@ export function solvePalette(spec0 = {}) {
   const key = JSON.stringify(spec);
   if (SOLVED.has(key)) return SOLVED.get(key);
   const { script: _script, ...solved } = spec, { shift, ...still } = solved;
-  const A = readAxes(still);
+  // a preset is a spec to start from: the spec's own fields over it
+  const A = readAxes(overPreset(still));
   let best = null;
   if (shift) {
     const base = solvePalette(still);
     best = { k: base.read.candidate, ...weigh(shiftCandidate(base.params, shift, A), A, shift) };
   } else {
     for (let k = 0; k < CANDIDATES; k += 1) {
-      const w = weigh(candidate(spec, A, k), A);
+      const w = weigh(candidate(overPreset(spec), A, k), A);
       if (!best || w.score > best.score + 1e-9) best = { k, ...w };
     }
   }
@@ -361,9 +416,9 @@ export function solvePalette(spec0 = {}) {
   const contract = {
     id: `pal-${fingerprint([solved, best.k]).slice(0, 8)}`,
     spec,
-    read: { heat: A.heat, weight: A.weight, activity: A.activity, scheme: A.scheme, key: A.key, hue: A.hue, says: PALETTE_SCHEMES[A.scheme].says, ...(cand.moon ? { moonlit: true } : {}), candidate: best.k, ...(shift ? { shift } : {}), ...(lost.length ? { gamut: `chroma taken in for ${lost.join(', ')}` } : {}) },
+    read: { heat: A.heat, weight: A.weight, activity: A.activity, scheme: A.scheme, key: A.key, hue: A.hue, says: PALETTE_SCHEMES[A.scheme].says, ...(cand.moon ? { moonlit: true } : {}), candidate: best.k, ...(shift ? { shift } : {}), ...(A.air !== 'full' ? { air: A.air } : {}), ...(still.preset ? { preset: still.preset } : {}), ...(lost.length ? { gamut: `chroma taken in for ${lost.join(', ')}` } : {}) },
     roles: hexRoles(roles),
-    light: rgbToHex(light), shadow: rgbToHex(shadow), fog: rgbToHex(roles.far[Math.min(roles.far.length - 1, Math.floor(roles.far.length * 0.6))]),
+    light: rgbToHex(light), shadow: rgbToHex(shadow), fog: rgbToHex(A.air === 'none' ? roles.sky[1] : roles.far[Math.min(roles.far.length - 1, Math.floor(roles.far.length * 0.6))]),   // (in vacuum what the view fades into is the void)
     ui,
     checks: checks.map(({ novelty: _n, ...c }) => c),
   };
@@ -376,7 +431,7 @@ export function solvePalette(spec0 = {}) {
 /** A role's ramp at n stops ([r, g, b] each), solved again at that length, for a kit whose ramps are not five long. */
 export function rampOf(contract, role, n) {
   const C = contract.params;
-  if (role === 'far') return farAt(rampAt(C.P.ground, n, C.Hl, C.Hs), rampAt(C.P.sky, n, C.Hl, C.Hs), n);
+  if (role === 'far') return farAt(rampAt(C.P.ground, n, C.Hl, C.Hs), rampAt(C.P.sky, n, C.Hl, C.Hs), n, C.air);
   if (!C.P[role]) throw new Error(`palette: '${role}' is not a role (${PALETTE_ROLES.join(', ')})`);
   return rampAt(C.P[role], n, C.Hl, C.Hs);
 }

@@ -393,7 +393,9 @@ const DESCRIPTION_ALLOWLIST = {
 // (a room's 60-30-10 solved, its card's forms kept) and pick_palette naming it and a stage's art.palette.from.
 // Re-pinned 2026-10-14 (212_900 -> 213_400; measured 213,128) for the color theorist's C3: pick_palette's `shift` (a
 // palette moved, its identity kept) and `script` (a world's palette moved level by level along an arc).
-const PAYLOAD_CEILING = 213_400;
+// Re-pinned 2026-10-14 (213_400 -> 213_700; measured 213,449) for the color theorist's air: pick_palette's `air` (thin,
+// none: a void for a sky) and `preset` (moon, asteroid-belt, mars, icy-moon, station, deep-space).
+const PAYLOAD_CEILING = 213_700;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -51,10 +51,18 @@ export function landSwatches(K, sw) {
   return { ...sw, land, made, accent: sw.accent };
 }
 
+/** The fill: the sky's light between the sky's hue and the shadow's at lightness L; in vacuum there is no sky to fill
+ * the shade, only the planet's light, dark and in its hue. */
+function fillOf(K, L) {
+  const [, , sh] = lchOf(hexToRgb(K.shadow));
+  if (K.read.air === 'none') return rgbToHex(oklch(Math.min(L, 0.3), 0.045, sh));
+  const [, , skyH] = lchOf(hexToRgb(K.roles.sky[2]));
+  return rgbToHex(oklch(L, 0.07, mixHue(skyH, sh, 0.5)));
+}
+
 /** The sun's colour the palette's light; the sky's fill between the sky and the palette's shadow. */
 export function lightOf(K, light) {
-  const [, , skyH] = lchOf(hexToRgb(K.roles.sky[2])), [, , sh] = lchOf(hexToRgb(K.shadow));
-  return { ...light, key: { ...light.key, color: K.light }, ambient: rgbToHex(oklch(0.74, 0.07, mixHue(skyH, sh, 0.5))) };
+  return { ...light, key: { ...light.key, color: K.light }, ambient: fillOf(K, 0.74) };
 }
 
 // an interior's casework the card gives as a material (a wood, a metal, concrete) stays that material: the palette
@@ -137,7 +145,7 @@ export function lookCard(card, K) {
   return {
     ...card,
     palette: { base: K.roles.ground[2], accent: K.roles.accent[2], warm: K.light },
-    light: { ...card.light, ambient: rgbToHex(oklch(K.read.key === 'low' ? 0.32 : 0.62, 0.06, mixHue(skyH, sh, 0.5))), ...(card.light.key ? { key: { ...card.light.key, color: K.light } } : {}) },
+    light: { ...card.light, ambient: K.read.air === 'none' ? fillOf(K, 0.24) : rgbToHex(oklch(K.read.key === 'low' ? 0.32 : 0.62, 0.06, mixHue(skyH, sh, 0.5))), ...(card.light.key ? { key: { ...card.light.key, color: K.light } } : {}) },
     air: { ...card.air, fog: { ...card.air.fog, color: K.fog }, dome: { zenith: rgb(K.roles.sky[1]), horizon: rgb(K.roles.sky[4]) } },
   };
 }
@@ -150,7 +158,8 @@ export function natureColours(K) {
   return {
     palette: K.id, key: K.read.key,
     roles: { ground: mid('ground'), soil: mid('soil'), rock: mid('rock'), foliage: mid('foliage'), bark: mid('bark'), accent: mid('accent'), far: mid('far'), water: rgbToHex(rampNear(K, 'sky', 5, 0, { dL: -0.3 })[2]) },
-    light: K.light, ambient: rgbToHex(oklch(K.read.key === 'low' ? 0.5 : 0.72, 0.07, mixHue(skyH, sh, 0.5))), fog: K.fog,
+    light: K.light, ambient: K.read.air === 'none' ? fillOf(K, 0.3) : rgbToHex(oklch(K.read.key === 'low' ? 0.5 : 0.72, 0.07, mixHue(skyH, sh, 0.5))), fog: K.fog,
     sky: { zenith: hexToRgb(K.roles.sky[1]), horizon: hexToRgb(K.roles.sky[4]) },
+    ...(K.read.air && K.read.air !== 'full' ? { air: K.read.air } : {}),
   };
 }

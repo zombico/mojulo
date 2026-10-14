@@ -731,7 +731,7 @@ export function assembleNatureScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || 'mojulo stage · nature trail',
     bg: rgbHex(st.air.dome.horizon.map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: { zenith: st.air.dome.zenith, horizon: st.air.dome.horizon, day: 1, stars: 0, seed: 1 },
+    sky: { zenith: st.air.dome.zenith, horizon: st.air.dome.horizon, day: st.air.void ? 0 : 1, stars: st.air.void ? 1 : 0, seed: 1 },   // (a palette in vacuum: the void, the stars out)
     glow: false,
     // the spawn is at EYE height: the trail ribbon floats over a cut-away ground, so a spawn at ground level would
     // cast its first floor ray from under the ribbon, find nothing, and fall through
