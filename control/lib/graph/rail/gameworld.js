@@ -45,6 +45,17 @@ export function stampState(s) {
   }
 }
 
+/** Where a part is in its bible: the character bible when the world has a character book (and only its parts are
+ *  there), the world bible otherwise (bible route). */
+export function partAnchor(id, characters) {
+  const own = id === 'characters:direction' || id.startsWith('hero:') || id.startsWith('mechanics:') || id === 'equipment';
+  if (characters) return own ? id.replace(':', '-') : null;
+  if (own) return null;
+  if (id === 'world') return 'map';
+  if (id === 'cast' || id === 'quests') return 'story';
+  return id.replace(':', '-');
+}
+
 // what a run's action says of the thing at a step's ref
 const PART_STATE = { keep: 'fresh', remake: 'stale', edited: 'edited', make: 'missing', waiting: 'waiting', taken: 'taken' };
 const roleOf = (key) => (key === 'hero-equipped' ? 'hero' : key.replace(/-.*$/, ''));
@@ -58,11 +69,14 @@ export default registerRail({
     const stamps = [];
     try { stamps.push(...reviewState(world)); } catch (err) { errors.push(err.message); }
     try { if (world.characters) stamps.push(...characterState(world)); } catch (err) { errors.push(err.message); }
+    const anchorOf = (id) => partAnchor(id, !!world.characters);
     const concerns = stamps.filter((s) => partOutcome(s.id)).map((s) => ({
       id: s.id, name: s.name, outcome: partOutcome(s.id), ...stampState(s), ...(s.note ? { note: s.note } : {}),
+      ...(anchorOf(s.id) ? { anchor: anchorOf(s.id) } : {}),
     }));
-    // a world that writes no intent is read from what it says; saying it is still open
-    if (world.intent === undefined) concerns.unshift({ id: 'intent', name: 'What game it is', outcome: 'intent', state: 'open' });
+    // a world that writes no intent is read from what it says; saying it is still open (a quick game's goal is its
+    // intent, and design_game never asks it for one)
+    if (world.intent === undefined && !world.quick) concerns.unshift({ id: 'intent', name: 'What game it is', outcome: 'intent', state: 'open' });
 
     const made = world.made ?? {};
     const parts = [];

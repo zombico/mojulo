@@ -110,6 +110,8 @@ describe('the gameworld rail', () => {
     const settled = flat(auto).filter((c) => c.state === 'given');
     expect(settled.length).toBeGreaterThan(0);
     for (const c of settled) expect(c.gate).toBe('machine');
+    // a quick game's goal is its intent: nothing to say
+    expect(stateOf(auto, 'intent')).toBeUndefined();
   });
 
   it('what a run made is fresh only when the store holds what it left; missing before', () => {

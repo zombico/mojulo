@@ -42,6 +42,16 @@ The agent drives; the dashboard shows. Every affordance that wrote or handed the
     ref. A part on a rail of its own carries its outcomes in brief. A segment's level is shown on its city's rail.
   - **Exits**: the book, the World, and a gameworld's game and playtest once made.
   - A broken recipe answers with what broke (`errors`) rather than failing the page.
+- **A recipe on a rail is a project page** (`/sketches/<ref>`, `components/rail/RailPage.jsx`), in the workshop shell
+  so it has a way back:
+  - **Left:** each outcome with its concerns as dots, filled by state. A dot opens the book at that concern (each
+    concern carries its `anchor` in the book).
+  - **Centre:** the book, the World, or a made game and its playtest.
+  - **Right:** the parts by role, each marked by freshness, with a part's own outcomes as small marks. A segment's
+    level links up to its city.
+  - **Below:** the files it has been exported to (its outcome folder).
+  - It re-reads every few seconds and on focus, so what the agent changes shows up on its own. Every word on it is the
+    data's own. A rail recipe asked for bare (`?print`, `?display`, `?bare`) and every other kind keep the bare frame.
 
 ### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
 

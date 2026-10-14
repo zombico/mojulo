@@ -9,7 +9,7 @@
  *
  *   readRail(manifest, { ref, row }) → { rail, kind, outcomes: [{ id, name, concerns }], parts, exits, errors? } | null
  *
- *   concern  { id, outcome, state, tab?, card?, gate?, note? }
+ *   concern  { id, outcome, state, name?, tab?, card?, anchor?, gate?, note? }   (`anchor`: its id in the book)
  *     state  'given'    the recipe answers it
  *            'open'     nothing answers it yet: a field would
  *            'advised'  a law or a gate finds something

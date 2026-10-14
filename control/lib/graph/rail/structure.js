@@ -3,7 +3,7 @@
 // pieces a room places by ref; it is looked at in its book and walked in its World.
 import { registerRail, sketchHref } from './rail.js';
 import { readStructure } from '../structure/read.js';
-import { OUTCOMES, concernStates } from '../structure/open.js';
+import { OUTCOMES, concernStates, openConcerns } from '../structure/open.js';
 import { occupancyOf } from '../structure/programs.js';
 
 // every room of a flat plan or of a stack, and the pieces placed in it by ref
@@ -19,8 +19,11 @@ export default registerRail({
   outcomes: OUTCOMES.map(({ id, name }) => ({ id, name })),
   read(m, { ref, row }) {
     const read = readStructure(m);
+    // the book's anchor: a card the Open tab carries, else the Open tab for one not arisen yet, else its own tab
+    const carded = new Set(openConcerns(m, read).map((c) => c.id));
+    const anchor = (c) => (carded.has(c.id) ? `open-${c.id}` : c.state === 'open' ? 'open' : c.tab.toLowerCase());
     return {
-      concerns: concernStates(m, read),
+      concerns: concernStates(m, read).map((c) => ({ ...c, anchor: anchor(c) })),
       parts: pieceRefs(m).map((r) => ({ ref: r, role: 'piece', state: row(r) ? 'fresh' : 'missing' })),
       exits: ref ? [{ id: 'book', href: sketchHref(ref, 'bible') }, { id: 'walk', href: sketchHref(ref, 'world') }] : [],
     };

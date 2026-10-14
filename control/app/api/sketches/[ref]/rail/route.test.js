@@ -31,6 +31,7 @@ describe('GET /rail', () => {
     expect(body).toMatchObject({ ref: 'sk_house', title: 'A house', rail: 'structure' });
     expect(body.outcomes).toEqual(readRail(HOUSE, { ref: 'sk_house' }).outcomes);
     expect(body.parts).toEqual([{ ref: 'sk_chair', role: 'piece', state: 'missing' }]);
+    expect(body.files).toEqual([]);
     SketchRepository.create({ ref: 'sk_chair', title: 'chair', manifest: { kind: 'scad', source: 'cube(10);' } });
     expect((await (await rail('sk_house')).json()).parts[0]).toMatchObject({ ref: 'sk_chair', state: 'fresh', kind: 'scad' });
   });
