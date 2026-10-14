@@ -30,6 +30,11 @@ redraws with the new numbers on its next read.
   dewlap hangs as a fold under the throat instead of a lobe in front of the forelegs.
 - **Cervids** set their legs under the trunk, the upper arm and thigh slimmer across; **bears** are a little narrower
   across, the legs a little closer.
+- **Perching birds** crouch on short legs instead of standing tall on them: the macaw, the pigeon, the crow, the toucan
+  and the hummingbird stand lower (`legScale`), their long tails swung up about the root so they clear the ground, and
+  their drumsticks (and the rooster's) slimmer; the rooster's legs are a little shorter.
+- `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
+  to NaN). A four-legged species builds exactly as before.
 - `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,
   front, top) with no database or browser, `--parts` to colour faces by part, and `--measure` for the proportion
   readout the pass steers by (trunk width over height, the legs' reach over the trunk's half-width, the head's length
