@@ -2,7 +2,8 @@
 // other (`rule.target: 'all'`), and hands the world the engine's match layer (combat-match.js: kills credited to the
 // last hitter, the fallen respawn at the spawn farthest from the living, first to `killTarget` wins). Measures what a
 // two-minute bout does on a stage laid for a corridor fight.
-//   node scripts/spikes/shooter/deathmatch.mjs [bots=4] [seconds=120]      DM_MIND=hunt for the hunters it stalled with
+//   node scripts/spikes/shooter/deathmatch.mjs [bots=4] [seconds=120]      DM_MIND=hunt for the hunters it stalled with,
+//   DM_PEEK=1 for right-handed guns and minds that peek
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { register } from 'node:module';
@@ -24,7 +25,9 @@ const entities = payload.entities.map((e) => {
   if (e.id === 'player') return { ...e, body: { ...e.body, hittable: false }, transform: { ...e.transform, pos: [9999, 9999, 0] } };
   if (!e.id.startsWith('foe-')) return e;
   // DM_MIND=hunt: the hunter on target 'all' (the spike's first run); frag (default): the match player (mind.js)
-  return { ...e, team: undefined, rule: process.env.DM_MIND === 'hunt' ? { ...e.rule, target: 'all' } : { ...e.rule, mind: { ...e.rule.mind, motivation: 'frag' } } };
+  // DM_PEEK=1: right-handed guns and minds that peek an edge (mind.js peek)
+  const peek = process.env.DM_PEEK === '1' ? { peek: true } : {};
+  return { ...e, team: undefined, ...(peek.peek ? { weapon: { ...e.weapon, hand: 'right' } } : {}), rule: process.env.DM_MIND === 'hunt' ? { ...e.rule, target: 'all' } : { ...e.rule, ...peek, mind: { ...e.rule.mind, motivation: 'frag' } } };
 });
 const spawns = gunners.map((g) => [...g.transform.pos]);
 const W = E.createWorld({ entities, colliders: payload.colliders, match: { killTarget: 5, respawnDelay: 3, spawns } });

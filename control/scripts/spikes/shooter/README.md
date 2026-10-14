@@ -215,6 +215,13 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   where the floor is open, staggered lanes, a smaller court) until they hold; figure-eight, team mirror and floors are
   named gaps. A level's `arena` and the quick deathmatch's `arena` take the words.
 
+- **The right-hand peeker's advantage**: a weapon's `hand` puts the muzzle a shoulder off the eye; minds that peek
+  (`rule.peek`) take the nearest spot clearing eye and gun with the least body out. From the gun's side a corner is
+  peeked with a shorter step and less out, and the duel goes to the peeker; from the other, to the holder. The arena's
+  `peeks-fair` law keeps right-hand peeks into the other half even (a mirrored team map can fail it). `DM_PEEK=1` on
+  `deathmatch.mjs`. Open: the third-person shoulder camera (the follow rule's `shoulder`) as the player's own eye, which
+  makes the advantage far larger, and leaning.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

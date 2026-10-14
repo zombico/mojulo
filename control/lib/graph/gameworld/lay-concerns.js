@@ -363,7 +363,8 @@ function nearestOn(q, line) {
  *   drivable   the way, start to beats to exit, climbs no steeper than 1 in 4 between places
  *   arena      every spawn reaches every other, still with any one stretch of the way between them closed (no single
  *              chokepoint); no spawn sees another; cover within ARENA.coverNear of most of the floor; no clear line
- *              across the floor longer than its plan allows (its side); nothing of the stage's own standing on the floor
+ *              across the floor longer than its plan allows (its side); the right-hand peeks even between its halves
+ *              (arenaPeeks); nothing of the stage's own standing on the floor
  *   loop       the oval lies on the land, climbs no steeper than 1 in 4, nothing stands on it (but its own wall), and
  *              its checkpoints come round to the start */
 export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [], pads = [], raised = [], jump = 0, mechanics = [], loop = null, arena = null }) {
@@ -438,6 +439,37 @@ export function concernLaws(ids, { ends, blocks = [], posts = [], watchers = [],
   return out;
 }
 
+/** The RIGHT-HAND PEEKS of an arena's walls: every free end of a wall (no box touching it, clear of the wall round the
+ * floor) is peeked from either face; from one the edge is on the peeker's right (it steps right to clear it, its gun's
+ * side leading: worth more to a right-handed gun, mind.js peekSpot), from the other on its left. → [{ at, half }] the
+ * places to stand for a right-hand peek, each in the half of the floor it is in (0: v > 0 side, 1: the other), and
+ * whether it peeks into the other half (`toward`). Turned half round its centre, an arena gives each half as many right-
+ * hand peeks into the other; mirrored across its middle (a team map), one half's become the other's left-hand peeks. */
+export function arenaPeeks(arena, blocks) {
+  const [cx, cy] = arena.centre, H = arena.half, boxes = askBoxes(blocks), out = [];
+  const touches = (p, own) => boxes.some((B) => B !== own && p[0] > B.min[0] - 0.3 && p[0] < B.max[0] + 0.3 && p[1] > B.min[1] - 0.3 && p[1] < B.max[1] + 0.3);
+  for (const B of boxes) {
+    const sx = B.max[0] - B.min[0], sy = B.max[1] - B.min[1];
+    if (Math.max(sx, sy) < 1.5 || B.max[2] - B.min[2] < 1.7) continue;   // a wall a body hides behind, not a crate
+    const ax = sx >= sy ? 0 : 1, c = [(B.min[0] + B.max[0]) / 2, (B.min[1] + B.max[1]) / 2], half = (ax ? sy : sx) / 2;
+    for (const sgn of [1, -1]) {
+      const d = ax ? [0, sgn] : [sgn, 0], end = [c[0] + d[0] * half, c[1] + d[1] * half];
+      if (Math.abs(end[0] - cx) > H - 1 || Math.abs(end[1] - cy) > H - 1 || touches([end[0] + d[0] * 0.4, end[1] + d[1] * 0.4], B)) continue;
+      for (const nsg of [1, -1]) {
+        const n = ax ? [nsg, 0] : [0, nsg];
+        // facing across the wall (-n), its right is [-(-n)y, (-n)x] … the edge is on the right when d · right > 0
+        const f = [-n[0], -n[1]], right = [f[1], -f[0]];
+        if (d[0] * right[0] + d[1] * right[1] <= 0) continue;
+        const at = [end[0] + n[0] * 0.8 - d[0] * 0.5, end[1] + n[1] * 0.8 - d[1] * 0.5], v = at[1] - cy, u = at[0] - cx;
+        const hf = Math.abs(v) > 0.25 ? (v > 0 ? 0 : 1) : (u > 0 ? 0 : 1);
+        // toward: it peeks into the other half (its facing crosses the middle line), the peek a side attacks with
+        out.push({ at: at.map(r3), half: hf, toward: hf === 0 ? f[1] < -0.5 : f[1] > 0.5 });
+      }
+    }
+  }
+  return out;
+}
+
 /** The longest clear line across an arena's floor, eye to eye, between points of a 4 m grid inside its wall that no
  * box stands on: { longest, from, to } (from and to null when nothing is clear). `boxes`: the arena's (askBoxes). */
 export function arenaLongest(arena, boxes) {
@@ -497,6 +529,10 @@ function arenaLaws(arena, blocks, ends) {
   const { longest } = arenaLongest(arena, boxes);
   const most = arena.longest ?? 2 * H;
   out.push({ concern: 'arena', law: 'no-line-across', holds: longest <= most, says: `the longest clear line on the floor is ${longest.toFixed(1)} m (${most} at most)` });
+  // the right-hand peeks: where each half stands to peek an edge with its gun's side leading
+  const peeks = arenaPeeks(arena, blocks), ph = [0, 0];
+  for (const q of peeks) if (q.toward) ph[q.half]++;
+  out.push({ concern: 'arena', law: 'peeks-fair', holds: Math.abs(ph[0] - ph[1]) <= 1, says: `right-hand peeks into the other half: ${ph[0]} from one, ${ph[1]} from the other` });
   // nothing of the stage's own (rock, a stand of trees' trunks) standing on the floor
   const own = (ends.colliders ?? []).filter((c) => !String(c.of ?? '').startsWith('bound:') && !String(c.of ?? '').startsWith('block:') && floor.some((p) => boxNear(c, p, 0.5) && c.max[2] > z + 0.4)).length;
   const rocky = ends.rocks ? floor.filter((p) => { const r = ends.rocks(p[0], p[1]); return r != null && r > z + 0.4; }).length : 0;

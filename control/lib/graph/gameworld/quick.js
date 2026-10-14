@@ -540,7 +540,8 @@ export function shootCast(quick, ends, ref, { hero = false } = {}) {
 export const deathmatchBots = (quick) => Array.from({ length: quick.bots ?? DEATHMATCH.bots }, (_, k) => `bot-${k + 1}`);
 
 /** A deathmatch's cast, on its arena (ends.arena): the player on the first spawn, each bot on the next, all facing the
- * centre; the bots armed, match players (mind.js `frag`: fight whom they see, hunt the noise, strafe) on the navmesh.
+ * centre; every gun held right-handed (`hand`: past an edge on its right a shooter fires with less of itself out); the
+ * bots match players (mind.js `frag`: fight whom they see, hunt the noise, strafe, peek an edge) on the navmesh.
  * `ref`: their figure; `hero`: the player has a body. → { figures, entities, pilot } (stageLevelOrder's `extra`). */
 export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
   const A = ends.arena, bots = deathmatchBots(quick), figures = {}, entities = [];
@@ -550,8 +551,8 @@ export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
     figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({
       id,
-      rule: { type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: 3.4, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
-      weapon: { ...SHOOT.gun, range: 40 },
+      rule: { type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: 3.4, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
+      weapon: { ...SHOOT.gun, range: 40, hand: 'right' },
       body: { type: 'figure-rig', figure: id, hittable: true, hp: SHOOT.foeHp, poise: 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
       transform: { pos: at, heading: face(at) },
     });
@@ -559,7 +560,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
   const s0 = A.spawns[0];
   const pilot = {
     rule: { collideRadius: 0.3, collideHeight: 1.7 },
-    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0 },
+    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right' },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },
   };

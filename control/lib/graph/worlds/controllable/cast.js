@@ -171,7 +171,7 @@ export function buildCast(E) {
         // grudges and leads, a crossed health phase); the hits it took before are not a new hit
         if (e.rule && e.rule.type === 'ai') {
           e.lastSeen = null; e.searchT = null; e.coverAt = null; e.coverUntil = null; e.navPath = null; e.mindPhase = null;
-          e.fragTarget = null; e.fragLead = null; e.fragGrudge = null; e.fragHunch = null;
+          e.fragTarget = null; e.fragLead = null; e.fragGrudge = null; e.fragHunch = null; e.peek = null;
           e.coverHits = e.fragHits = e.hits || 0;
         }
         if (Number.isFinite(e.hpMax) && e.body) { e.body.hp = e.hpMax; e.body.hittable = true; }

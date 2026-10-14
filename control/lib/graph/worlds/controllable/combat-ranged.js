@@ -32,6 +32,30 @@ export function buildCombatRanged(E) {
   // Ammo model: a magazine of `magazine` rounds; auto weapons fire at `rof` rounds/sec,
   // semi weapons every `cooldown` sec; hitting 0 AUTO-RELOADS over `reload` sec (the HUD
   // shows the circular wait). All numbers are weapon-tunable.
+  // the gun at the shoulder of the hand that holds it: HAND.r off the eye's line to that side, HAND.f ahead, HAND.drop
+  // under the eye
+  const HAND = { f: 0.35, r: 0.28, drop: 0.15 };
+  const handMuzzle = (w) => ({ f: HAND.f, r: w.hand === 'left' ? -HAND.r : HAND.r, u: (w.eye ?? 0) - HAND.drop });
+  // muzzleAt(e, w) — the world point a shot leaves from: the gun tip (its body-frame offset), else the eye
+  function muzzleAt(e, w) {
+    const t = e.transform, mo = w && w.muzzleOffset, eye = (w && w.eye) || 0;
+    if (!mo) return [t.pos[0], t.pos[1], t.pos[2] + eye];
+    const hf = fwdXY(t.heading), hr = rightXY(t.heading);
+    return [t.pos[0] + hf[0] * (mo.f || 0) + hr[0] * (mo.r || 0), t.pos[1] + hf[1] * (mo.f || 0) + hr[1] * (mo.r || 0), t.pos[2] + (mo.u != null ? mo.u : eye)];
+  }
+  // bodyExposure(e, at, from, colliders) — how much of a body standing at `at` (feet, facing as it faces) a watcher's eye
+  // `from` sees: of five points across its chest and three across its head, the share a clear line reaches (0 to 1).
+  // The measure a peek is chosen by, and a law reads.
+  function bodyExposure(e, at, from, colliders) {
+    const egg = e.body && e.body.egg, a = egg ? egg.a : (e.body && e.body.radius) || 0.4, cz = egg ? (Number.isFinite(egg.cz) ? egg.cz : egg.c) : 1;
+    const top = egg ? cz + egg.c * 0.75 : cz + 0.5, hr = rightXY(e.transform.heading);
+    const pts = [];
+    for (const k of [-1, -0.5, 0, 0.5, 1]) pts.push([at[0] + hr[0] * a * k, at[1] + hr[1] * a * k, at[2] + cz]);
+    for (const k of [-0.5, 0, 0.5]) pts.push([at[0] + hr[0] * a * k, at[1] + hr[1] * a * k, at[2] + top]);
+    let seen = 0;
+    for (const p of pts) if (!sightBlocked(from, p, colliders)) seen++;
+    return seen / pts.length;
+  }
   function initWeapon(w) {
     if (!w || typeof w !== 'object') return null;
     const area = w.fireClass === 'area';
@@ -74,7 +98,11 @@ export function buildCombatRanged(E) {
       // Uncharged shots always fire at plain `range` — a chargeTime:0 weapon never reads this.
       chargedRangeMul: Number.isFinite(w.chargedRangeMul) && w.chargedRangeMul > 0 ? w.chargedRangeMul : 1.2,
       eye: w.eye ?? 0,                    // fire-origin height above the entity's pos
-      muzzleOffset: w.muzzleOffset || null,   // { f, r, u } body-frame gun tip (tracer/flash/launch origin; renderer)
+      muzzleOffset: w.muzzleOffset || (w.hand === 'right' || w.hand === 'left' ? handMuzzle(w) : null),   // { f, r, u } body-frame gun tip (tracer/flash/launch origin; the cover check starts here)
+      // HAND (opt-in `hand: 'right' | 'left'`): the gun held to that side of the body, its muzzle a shoulder's width off
+      // the eye's line (handMuzzle) unless `muzzleOffset` says where. A shot clears a corner from the muzzle, so past an
+      // edge on the gun's side the shooter fires with less of its body out (the right-hand peeker's advantage).
+      hand: w.hand === 'right' || w.hand === 'left' ? w.hand : null,
       muzzleAlt: w.muzzleAlt || false,        // DUAL WIELD (alternate): flip the lateral muzzle each shot (two guns take turns)
       muzzleDual: w.muzzleDual || false,      // DUAL WIELD (simultaneous): fire BOTH guns each shot — the renderer mirrors the muzzle flash
       // NO-FIRE-WHILE-BOOSTING (operator): heavy launchers (lob) + precise semi beams (the beam-rifle
@@ -546,5 +574,5 @@ export function buildCombatRanged(E) {
     stepProjectiles(state, dt);
   }, 30);
 
-  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile });
+  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, HAND });
 }

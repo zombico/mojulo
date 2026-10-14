@@ -34,6 +34,7 @@ export function buildMind(E) {
   const {
     clamp, fwdXY, rightXY, fwd3, TAU, sightBlocked, resolveBlocking, RULES,
     meleeSwingSpec, breakGuards, registerPreStep, registerStateInit, registerNormalize, armSwitchReady, navPath, navClear,
+    muzzleAt, bodyExposure,
   } = E;
 
   // entity dressing: a body tagged `food: true` is what a forager grazes (absent → no field: every other world is
@@ -528,6 +529,61 @@ export function buildMind(E) {
     }
     wanderStep(e, r, dt, world, { speedMul: 0.35, pause: [4, 7], pauseLoco: 'graze' });
   }
+  // ── PEEK (opt-in `rule.peek`: true | { reach, hold }): a mind that knows where its foe was but cannot see it does not
+  // walk out into its line: it sidesteps, to the nearest spot within `reach` (2 m) either side from which its eye sees
+  // that place and its muzzle clears the edge, the one with the least of its body in the foe's sight (a tie to its gun's
+  // side); it holds there `hold` (2.5) s, firing when it sees, and steps back to where it stood when nothing shows. With
+  // a gun in hand (`weapon.hand`) the muzzle is off its eye's line, so past an edge on the gun's side it is ready to fire
+  // with less of itself out: the right-hand peeker's advantage falls out of where the gun is, not out of a rule.
+  // peekSpot(e, r, world, at) — the spot to peek from, toward a foe last seen at `at` → { at, side, exposure } | null
+  function peekSpot(e, r, world, at) {
+    const t = e.transform, w = e.weapon, cs = world.colliders, reach = (r.peek && r.peek.reach) || 2;
+    const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
+    const foeEye = [at[0], at[1], at[2] + 1.6], foeChest = [at[0], at[1], at[2] + 1.2];
+    const face = Math.atan2(at[1] - t.pos[1], at[0] - t.pos[0]), hr = rightXY(face), hand = w && w.hand === 'left' ? -1 : 1;
+    const probe = { ...e, transform: { ...t, heading: face } };
+    let best = null;
+    for (let k = 0.1; k <= reach + 1e-9; k = Math.round((k + 0.1) * 10) / 10) {
+      for (const side of [hand, -hand]) {
+        const p = [t.pos[0] + hr[0] * k * side, t.pos[1] + hr[1] * k * side, t.pos[2]];
+        // room to stand there: no box at its body
+        if (cs.some((c) => p[0] > c.min[0] - 0.3 && p[0] < c.max[0] + 0.3 && p[1] > c.min[1] - 0.3 && p[1] < c.max[1] + 0.3 && c.max[2] > p[2] - (r.eye ?? 0) + 0.3)) continue;
+        probe.transform = { ...t, pos: p, heading: face };
+        const eye = [p[0], p[1], p[2] + eyeH(e)];
+        if (sightBlocked(eye, foeChest, cs) || sightBlocked(muzzleAt(probe, w), foeChest, cs)) continue;
+        const exposure = bodyExposure(probe, [p[0], p[1], p[2] - (r.eye ?? 0)], foeEye, cs);
+        if (!best || exposure < best.exposure - 1e-9) best = { at: p, side, exposure, k };
+      }
+      if (best) return best;   // the nearest step that clears: the least out, its gun's side first
+    }
+    return null;
+  }
+  // peekStep(e, r, dt, world) — the peek, while it owns the body: true
+  function peekStep(e, r, dt, world) {
+    const ls = e.lastSeen, now = (world && world.time) || 0, t = e.transform;
+    if (!ls || !world || !world.colliders || !e.weapon || now - ls.t > (r.memorySpan ?? 8)) { e.peek = null; return false; }
+    if (!e.peek || e.peek.seenT !== ls.t) {
+      const P = peekSpot(e, r, world, ls.pos);
+      if (!P) { e.peek = null; return false; }
+      e.peek = { ...P, from: t.pos.slice(), seenT: ls.t, t: now };
+    }
+    const P = e.peek, face = Math.atan2(ls.pos[1] - t.pos[1], ls.pos[0] - t.pos[0]);
+    turnToward(t, face, r, dt); e.aiFire = 0;
+    const back = now - P.t > ((r.peek && r.peek.hold) || 2.5), goal = back ? P.from : P.at;
+    const dx = goal[0] - t.pos[0], dy = goal[1] - t.pos[1], d = Math.hypot(dx, dy);
+    if (d > 0.01) {
+      // a sidestep, facing the foe the while
+      const step = Math.min(d, (r.speed ?? 6) * 0.8 * dt);
+      t.pos[0] += (dx / d) * step; t.pos[1] += (dy / d) * step;
+      if (world.colliders) block(t, r, r.eye ?? 0, world);
+      standOnGround(t, r, r.eye ?? 0, world);
+      e.moving = true; e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + step / (r.stride ?? 2.4);
+    } else e.moving = false;
+    if (back && d <= 0.01) { e.peek = null; e.lastSeen = null; return false; }   // back behind it, nothing seen: let it go
+    e.peekHolding = !back;
+    return true;
+  }
+
   // ── FRAG (`rule.mind.motivation: 'frag'`): a match player. Everyone not on its team is its foe (`rule.target`, else
   // 'enemy' on a team, 'all' without one). It fights whom it can SEE, never the nearest body behind a wall; seen, the
   // one that shot it last (for `fragGrudge`, 3 s) and the one it already fights count closer. Seeing no one it never
@@ -762,8 +818,11 @@ export function buildMind(E) {
     const percept = r.mind && r.mind.perception;
     if (percept && target && target !== e && !perceive(e, r, target, world) && e.groupFocus !== target.id) {
       target = null;
+      if (r.peek && peekStep(e, r, dt, world)) { e.reactionEnded = false; return; }
       if (percept === 'memory' && motive !== 'frag' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
     }
+    // a match player that sees no one peeks where it last saw a foe before it goes looking
+    if (!target && motive === 'frag' && r.peek && peekStep(e, r, dt, world)) { e.reactionEnded = false; return; }
     if (!target || target === e) { e.reactionEnded = false; idle(e, r, dt, world, motive); return; }
     // GUARD: it holds its post. A target farther than `guardRadius` (20) from the post is not its business: it goes
     // back to the post (LOST: return-to-post) and stands there (IDLE: post).
@@ -1000,11 +1059,13 @@ export function buildMind(E) {
       e.boosting = true; e.thrust = 1;
     } else {
       let moveF = 0;
-      if (dist2d > standoff && facing) moveF = speed * dt;
+      // a peek holds its spot while it fights from it (it does not walk out of the edge it peeked)
+      const holding = r.peek && e.peek && ((world && world.time) || 0) - e.peek.t < ((r.peek && r.peek.hold) || 2.5);
+      if (dist2d > standoff && facing && !holding) moveF = speed * dt;
       if (moveF) { t.pos[0] += f2[0] * moveF; t.pos[1] += f2[1] * moveF; }
       moveMag = moveF;
       // FRAG: it strafes as it shoots, side to side on its juke clock
-      if (motive === 'frag' && facing && w && (r.strafe ?? 0.6) > 0) {
+      if (motive === 'frag' && facing && w && (r.strafe ?? 0.6) > 0 && !holding) {
         const side = nextJuke(e, r, dt), ss = speed * (r.strafe ?? 0.6) * dt;
         t.pos[0] += rt2[0] * side * ss; t.pos[1] += rt2[1] * side * ss;
         moveMag = Math.max(moveMag, ss);
@@ -1025,8 +1086,10 @@ export function buildMind(E) {
       const a = fwd3(t.heading, t.pitch || 0);
       onAim = (a[0] * (dx / dist3d) + a[1] * (dy / dist3d) + a[2] * (dz / dist3d)) >= Math.cos(fireArc);
     } else onAim = Math.abs(rem) <= fireArc;
+    // a gun in hand (`weapon.hand`) fires from its muzzle, at the target's chest: what clears the edge is the gun
+    const tchest = w && w.hand ? [target.transform.pos[0], target.transform.pos[1], target.transform.pos[2] + tcz] : null;
     const engaged = !!w && onAim && rangeD <= (w.range || 400)
-      && !sightBlocked(origin, target.transform.pos, world && world.colliders);
+      && !(tchest ? sightBlocked(muzzleAt(e, w), tchest, world && world.colliders) : sightBlocked(origin, target.transform.pos, world && world.colliders));
     if (engaged) {
       const burstOn = (r.burst ?? 1.1) * (dif ? dif.burstMul : 1);
       const cycle = burstOn + (r.pause ?? 0.9) * (dif ? dif.pauseMul : 1);
@@ -1055,5 +1118,5 @@ export function buildMind(E) {
     state.aiTuning = AI_DIFFICULTY[spec.aiDifficulty] || null;
   });
 
-  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf, mindPickTarget: pickTarget, mindThreatOf: threatOf });
+  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf, mindPickTarget: pickTarget, mindThreatOf: threatOf, mindPeekSpot: peekSpot });
 }

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { quickWorld, goalMechanics, farmCast, shootCast, raceCast, RACE } from './quick.js';
 import { resolveLevel, readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
-import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight, arenaLayout } from './lay-concerns.js';
+import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight, arenaLayout, arenaAsks, arenaPeeks } from './lay-concerns.js';
 import { tunnelArena } from './tunnel-arena.js';
 import { guardPosts, defendCast, QUICK_GUARD } from './quick.js';
 import { stageEnds } from './levels.js';
@@ -198,11 +198,27 @@ describe('an arena', () => {
   it('every law holds on the arena as laid, and the words shown', () => {
     const L = laid();
     const laws = concernLaws(['arena'], { ends, blocks: L.blocks, arena: L });
-    expect(laws.map((l) => l.law)).toEqual(['routes-loop', 'spawns-unseen', 'cover-near', 'no-line-across', 'floor-clear', 'words-shown']);
+    expect(laws.map((l) => l.law)).toEqual(['routes-loop', 'spawns-unseen', 'cover-near', 'no-line-across', 'peeks-fair', 'floor-clear', 'words-shown']);
     for (const l of laws) expect(l.holds, `${l.law}: ${l.says}`).toBe(true);
     // a word it cannot lay is said, with what would close it
     const gap = concernLaws(['arena'], { ends, blocks: L.blocks, arena: laid('a figure eight arena') }).find((l) => l.law === 'words-shown');
     expect(gap).toMatchObject({ holds: false, says: expect.stringMatching(/'figure eight' is not laid yet/) });
+  });
+
+  it('turned half round, each half has as many right-hand peeks into the other; a team map\'s mirror hands them to one', () => {
+    const R = tunnelArena('a close quarters four-lane warehouse', { seed: 1, spawns: 4 }), A = { centre: [0, 0], half: R.plan.half };
+    const count = (pieces) => { const h = [0, 0]; for (const q of arenaPeeks(A, arenaAsks(pieces, (u, v) => [u, v, 0]))) if (q.toward) h[q.half]++; return h; };
+    const turned = count(R.plan.pieces);
+    expect(turned[0]).toBe(turned[1]);
+    expect(turned[0]).toBeGreaterThan(0);
+    // one half mirrored across the middle line onto the other: the edges one side peeks from its right, the other
+    // peeks from its left
+    const half = R.plan.pieces.filter((q) => q.v > 0.01 || (Math.abs(q.v) <= 0.01 && q.u >= 0));
+    const mirrored = [...half, ...half.filter((q) => q.v > 0.01).map((q) => ({ ...q, v: -q.v }))];
+    const m = count(mirrored);
+    expect(m[0]).not.toBe(m[1]);
+    const law = concernLaws(['arena'], { ends, blocks: arenaAsks(mirrored, (u, v) => [u, v, 0]), arena: { ...A, z: 0, spawns: [] } }).find((l) => l.law === 'peeks-fair');
+    expect(law).toMatchObject({ holds: false, says: expect.stringMatching(/right-hand peeks into the other half/) });
   });
 
   it('says what is wrong with one stripped bare, or walled into halves', () => {

@@ -58,6 +58,7 @@ export const STRATEGIES = Object.freeze({
   ],
   lost: [
     { id: 'return-to-post', line: 'goes back to its post', when: { motivation: ['guard'] }, status: 'built', lowers: MIND },
+    { id: 'peek', line: 'sidesteps to the nearest spot that clears its gun past the edge, its gun\'s side first, and back', needs: ['ranged'], when: { motivation: ['frag'] }, status: 'built', lowers: MIND },
     { id: 'search-last-seen', line: 'searches where it last saw the target', needs: ['memory'], status: 'built', lowers: MIND },
     { id: 'switch-tools', line: 'gives up the blade for guns a while', needs: ['melee', 'ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'forget', line: 'lets it go', status: 'built' },

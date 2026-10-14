@@ -118,6 +118,31 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   by it). The site takes the plan's size, and the stage lays its pieces, spawns and supplies. The quick deathmatch
   takes `arena: '<words>'` (default "a three-lane arena") and a spawn per contender.
 
+### Shooter: the right-hand peeker's advantage, from where the gun is
+
+- **A gun in hand.** A weapon's `hand: 'right' | 'left'` holds the gun to that side: its muzzle sits a shoulder off the
+  eye's line (`HAND`: 0.28 m aside, 0.35 m ahead, 0.15 m under the eye) unless `muzzleOffset` says where. A shot
+  already cleared cover from the muzzle; a mind's "can I fire" check now does too when its gun has a hand. Past an edge
+  on the gun's side the muzzle is clear by the time the eye is; past one on the other side the body must step a
+  shoulder further out before it can fire. Without `hand`, every weapon is as before.
+- **Minds that peek.** `rule.peek` (true, or `{ reach, hold }`): a mind that knows where its foe was but cannot see it
+  sidesteps to the nearest spot, either side within 2 m, from which its eye sees that place and its muzzle clears the
+  edge. Of the spots that do, it takes the one with the least of its body in the foe's sight, its gun's side on a tie.
+  It holds there 2.5 s fighting from it, and steps back to where it stood when nothing shows. The advantage falls out
+  of the geometry, not a rule. One corner, mirrored: from the gun's side it is ready after a 0.1 m step with 63% of its
+  body in sight; from the other, after 0.3 m with 88%. In a duel at that corner the peeker lands the first hit from
+  its gun's side, and the one holding the angle does from the other (`worlds/controllable/peek.test.js`). A match
+  player (`frag`) peeks where it last saw a foe before it goes looking (the mind matrix's `peek`, lost).
+- **A map law: right-hand peeks even.** Every free end of a wall is a right-hand peek from one face and a left-hand one
+  from the other (`arenaPeeks`). The arena's `peeks-fair` law counts, per half, the right-hand peeks into the other
+  half. An arena turned half round its centre always holds it. A team map mirrored across its middle can fail it: a
+  staggered four-lane arena mirrored gives one side 6 and the other 9. The team-map gap now says so.
+- **The quick deathmatch** holds every gun right-handed and its bots peek. On the spike's walled stage, four match
+  players with peeks and hands reach the limit in 62 s on 51 shots, against 88 s on 87 without; the kills spread
+  less (5 / 2 / 1 / 0 against 5 / 4 / 3 / 2). Measured, not tuned.
+- The page inlines the engine: its characterization hashes move (reverting only `combat-ranged.js`, `mind.js` and
+  `cast.js` passes them all).
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
