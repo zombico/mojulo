@@ -10,11 +10,13 @@
  *              below the town, and which way it `flows` (upstream and downstream are where the crafts go)
  *   armature   what the town is organised round: its MONUMENT at the heart, at the end of an axis from the water, on
  *              the summit above the town, or at the head of a forum square; the approach to it and the precinct round it
- *              (`at`: where the monument (or the square) stands, as fractions of the town, x from the west, y from the north)
+ *              (`at`: where the monument (or the square) stands, as fractions of the town, x from the west, y from the north;
+ *              `facing`: the way a market's hall looks into its square)
  *   enclosure  none, a ring wall round the town (towers, gates), or walled wards
  *   streets    the pattern (a meander from the gates to the heart, a lattice, an orthogonal grid, streets along the
  *              contours), the widths, how far apart the alleys run and how often they jog
- *   density    the lot sizes, the gap between neighbours, how much of the free ground is built
+ *   density    the lot sizes, the gap between neighbours, how much of the free ground is built; how the ground is cut
+ *              into lots (`plots`: packed, or frontage plots `front` wide and `deep` back from the streets)
  *   houses     the house assets by size, the largest whose threshold a lot meets
  *   placement  what stands by meaning or need, and where: wells at crossings, kilns under the wall, art at thresholds
  *   hinterland the fields and trees outside the town
@@ -30,7 +32,7 @@ import { ARMATURES as ARMATURE_RULES } from '../solver/armature.js';
 import { ENCLOSURES as ENCLOSURE_RULES } from '../solver/enclosure.js';
 import { STREETS } from '../solver/streets.js';
 import { WHERE as WHERE_RULES } from '../solver/placement.js';
-import { TREES as TREE_RULES, ACTIVITY_WHERE as ACTIVITY_RULES } from '../solver/land.js';
+import { TREES as TREE_RULES, ACTIVITY_WHERE as ACTIVITY_RULES, PLOTS as PLOT_RULES } from '../solver/land.js';
 
 const reads = (rules) => Object.freeze(Object.fromEntries(Object.entries(rules).map(([k, r]) => [k, r.read])));
 
@@ -43,6 +45,7 @@ export const ENCLOSURES = Object.freeze(Object.keys(ENCLOSURE_RULES));
 export const STREET_PATTERNS = Object.freeze(Object.keys(STREETS));
 export const SURFACES = Object.freeze(['mud', 'rubble', 'brick', 'flagstone', 'dry-earth']);
 export const TREES = Object.freeze(Object.keys(TREE_RULES));
+export const PLOTS = Object.freeze(Object.keys(PLOT_RULES));
 /** Where a placed thing stands, and what that means: each a rule in ../solver/placement.js. */
 export const WHERE = reads(WHERE_RULES);
 /** Where an activity's yard goes: each a rule in ../solver/land.js. */
@@ -74,7 +77,7 @@ export const FORM_SCHEMA = Object.freeze({
   site: { landform: word(LANDFORMS), high: word(SIDES), relief: num(0, 150), edge: num(0.05, 0.95), terraces: num(0, 20), cliff: bool, rock: num(0, 150), town: word(['high', 'low', 'both']) },
   water: { kind: word(WATERS), side: word(SIDES), width: num(0, 400), sink: num(0, 20), bank: num(0, 40), bridge: asset, flows: word(SIDES) },
   armature: {
-    kind: word(ARMATURES), monument: asset, square: pair(10, 300), at: pair(0.05, 0.95),
+    kind: word(ARMATURES), monument: asset, square: pair(10, 300), at: pair(0.05, 0.95), facing: word(SIDES),
     approach: { width: num(0, 60), flank: asset, flankDepth: num(1, 20), quay: asset, quaySize: size, way: num(0, 30) },
     precinct: { margin: num(0, 120), back: num(0, 200), wall: asset, gate: asset, thickness: num(0.5, 12), height: num(0, 20), terrace: num(0, 10), floor: word(SURFACES) },
   },
@@ -83,7 +86,7 @@ export const FORM_SCHEMA = Object.freeze({
     pattern: word(STREET_PATTERNS), main: num(2, 30), alley: num(1, 12), block: pair(6, 120), jog: prob, branches: int(0, 200), crossEvery: num(20, 400), stairs: asset,
     surface: { main: word(SURFACES), alley: word(SURFACES) },
   },
-  density: { lot: range(3, 60), gap: num(0, 3), fill: prob },
+  density: { lot: range(3, 60), gap: num(0, 3), fill: prob, plots: word(PLOTS), front: range(3, 30), deep: range(6, 80) },
   houses: listOf({ asset, minSide: num(0, 100), minArea: num(0, 5000), onMain: bool }, 1),
   walls: { run: asset, tower: asset, gate: asset, wardGate: asset },
   placement: listOf({ asset, where: word(Object.keys(WHERE)), max: int(0, 400), every: num(0, 400), size, monument: asset }),

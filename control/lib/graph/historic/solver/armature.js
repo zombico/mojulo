@@ -13,6 +13,7 @@ import { r2, centre, grow, rectFor, sideToward, frontEdge } from './context.js';
  * The armatures, by `armature.kind`. `read` is what the guide says; `face(X)` which way the monument looks; the rest
  * are what the kind brings:
  *   seat      seats the monument itself (the forum: at its square's head) instead of on its point
+ *   precinct  the precinct it claims, when not the square or the monument and its margin
  *   rock      the summit's precinct stands on the rock (`site.rock`)
  *   overWater the precinct may claim water (a summit over the sea)
  *   avenue    an `approach.width` is an avenue from the precinct's front out to the water
@@ -42,6 +43,20 @@ export const ARMATURES = Object.freeze({
     },
     eyeLevel: true,
   },
+  market: {
+    read: 'a market place at the heart, its hall on one side facing into it; the streets come in from the gates to the square',
+    face: (X) => X.A.facing ?? 's',
+    seat: (X) => {
+      const { A, ax, ay, mFacing } = X, [MW, MD] = X.M.size, [sw, sd] = A.square ?? [60, 40];
+      X.square = { x: ax - sw / 2, y: ay - sd / 2, w: sw, d: sd };
+      // the hall stands outside the square on its far side, its front on the square's edge
+      const back = opposite(mFacing), [ex, ey] = frontEdge(X.square, back), [bx, by] = toward(back);
+      return rectFor(ex + bx * MD / 2, ey + by * MD / 2, MW, MD, mFacing);
+    },
+    // the square and the hall on it, as one claim: the streets arrive at the square's open side
+    precinct: (X) => { const a = X.square, b = X.mRect, x = Math.min(a.x, b.x), y = Math.min(a.y, b.y); return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, d: Math.max(a.y + a.d, b.y + b.d) - y }; },
+    eyeLevel: true,
+  },
 });
 
 /** The site: the water, the monument's place and facing, its precinct, the lie of the land. */
@@ -60,11 +75,13 @@ export function seatArmature(X) {
   X.front = toward(mFacing); X.apron = M.apron ?? 0;
   const PR = X.PR = A.precinct || {}, margin = PR.margin ?? 0;
   // the precinct: the monument with its margin, the apron before it, `back` more behind
-  const precinct = X.precinct = square ? { ...square } : grow(mRect, margin);
+  const precinct = X.precinct = AR.precinct ? AR.precinct(X) : square ? { ...square } : grow(mRect, margin);
   if (!square) {
     const ext = (side, m) => { if (side === 'n') { precinct.y -= m; precinct.d += m; } else if (side === 's') precinct.d += m; else if (side === 'w') { precinct.x -= m; precinct.w += m; } else precinct.w += m; };
     ext(mFacing, X.apron); ext(opposite(mFacing), PR.back ?? 0);
   }
+  // a town on the high ground stands at z = 0: its water runs in the valley below, sunk with the land under it
+  if (F.site.town === 'high' && (F.site.relief ?? 0) > 0 && X.water.kind !== 'none') X.water.z -= F.site.relief;
   const site = X.site = heightOf(F.site, X.water, town, { rockRect: AR.rock && F.site.rock ? precinct : null, rng: stream(seed, 'site') });
   X.hAt = site.hAt;
   // a canal is dug in the low ground: it never climbs a bluff or a plateau

@@ -190,7 +190,27 @@ const FORUM = {
   cites: { armature: ['forum/forum-square'], streets: ['forum/sacra-via', 'forum/vicus-tuscus', 'forum/vicus-iugarius'] },
 };
 
-const base = Object.freeze({ sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, qin: QIN, pompeii: POMPEII, forum: FORUM });
+const ROTHENBURG = {
+  label: 'a free imperial city on its spur above the Tauber, round its market place',
+  frame: { town: [560, 420], region: [1100, 820] },
+  site: { landform: 'plateau', high: 'e', relief: 45, edge: 0.16, town: 'high' },
+  water: { kind: 'river', side: 'w', width: 22, sink: 1.2, bank: 8, flows: 's' },
+  armature: { kind: 'market', monument: 'rothenburg-rathaus', square: [56, 38], at: [0.56, 0.5], facing: 's' },
+  enclosure: { kind: 'ring', thickness: 3, towerEvery: 55, gates: 5, strip: 3, extent: [0.94, 0.9] },
+  streets: { pattern: 'meander', main: 7, alley: 3, block: [30, 22], jog: 0.1, branches: 60, surface: { main: 'rubble', alley: 'mud' } },
+  density: { lot: [7, 14], gap: 0, plots: 'frontage', front: [6, 10], deep: [12, 27] },
+  houses: [{ asset: 'stone-house', minArea: 100, onMain: true }, { asset: 'shop-house', onMain: true }, { asset: 'house' }],
+  walls: { run: 'rb-wall', tower: 'rb-tower', gate: 'rb-gate' },
+  placement: [
+    { monument: 'st-jakob', where: 'off-square', every: 10 },
+    { asset: 'rb-fountain', where: 'square-edge', max: 1, size: [4, 4] },
+    { asset: 'rb-well', where: 'crossing', max: 6, every: 70, size: [2.4, 2.4] },
+  ],
+  hinterland: { fields: 0.55, trees: 0.35, tree: 'round', max: 180 },
+  cites: { site: ['rothenburg/spur-town'], enclosure: ['rothenburg/ring-wall'], armature: ['rothenburg/market-place', 'rothenburg/rathaus'] },
+};
+
+const base = Object.freeze({ sumer: SUMER, thebes: THEBES, giza: GIZA, lindos: LINDOS, qin: QIN, pompeii: POMPEII, forum: FORUM, rothenburg: ROTHENBURG });
 /** A form read through another culture's: the culture it starts `from` (depth reads it: the polis's form is Lindos's). */
 export const FORM_FROM = Object.freeze({ polis: 'lindos' });
 /** Every culture's form, checked; a variant read through its base. */

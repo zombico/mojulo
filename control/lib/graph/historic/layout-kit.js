@@ -96,6 +96,37 @@ export function packLots(g, size, seed, { free = (v) => v === C.EMPTY } = {}) {
 }
 
 /**
+ * Plots cut back from the streets (burgage plots): each a narrow frontage on a lane, `front` [min, max] metres along
+ * it, running back `deep` [min, max] metres from it through EMPTY cells; the main streets' frontages cut first (`main`
+ * marks a main street's cells), then every lane's. What no plot reaches (a block's core) is left as it is: the yards
+ * and gardens behind the houses. Returns [{ c0, r0, w, d, facing }] in cells, `facing` the lane's side.
+ */
+export function frontageLots(g, front, deep, seed, { main = () => false } = {}) {
+  const { at, set, cols, rows } = g, P = stream(seed, 'plots'), lots = [];
+  const isLane = (v) => v === C.LANE;
+  const STEP = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+  const roll = ([lo, hi]) => Math.max(2, Math.round((lo + P() * (hi - lo)) / CELL));
+  for (const mains of [true, false]) for (let r0 = 0; r0 < rows; r0++) for (let c0 = 0; c0 < cols; c0++) {
+    if (at(c0, r0) !== C.EMPTY) continue;
+    const side = ['n', 's', 'w', 'e'].find((f) => { const [dc, dr] = STEP[f]; return isLane(at(c0 + dc, r0 + dr)) && (!mains || main(c0 + dc, r0 + dr)); });
+    if (!side) continue;
+    const [dc, dr] = STEP[side], along = dc ? [0, 1] : [1, 0], back = [-dc, -dr];
+    const fronts = (c, r) => at(c, r) === C.EMPTY && isLane(at(c + dc, r + dr));
+    const tw = roll(front), td = roll(deep);
+    let w = 1, d = 1;
+    while (w < tw && fronts(c0 + along[0] * w, r0 + along[1] * w)) w++;
+    const rowFree = (k) => { for (let j = 0; j < w; j++) if (at(c0 + along[0] * j + back[0] * k, r0 + along[1] * j + back[1] * k) !== C.EMPTY) return false; return true; };
+    while (d < td && rowFree(d)) d++;
+    if (w < 2 || d < 2) continue;   // too small for a house: left to the yards
+    const cs = [c0, c0 + along[0] * (w - 1) + back[0] * (d - 1)], rs = [r0, r0 + along[1] * (w - 1) + back[1] * (d - 1)];
+    const lot = { c0: Math.min(...cs), r0: Math.min(...rs), w: Math.abs(cs[1] - cs[0]) + 1, d: Math.abs(rs[1] - rs[0]) + 1, facing: side };
+    for (let r = lot.r0; r < lot.r0 + lot.d; r++) for (let c = lot.c0; c < lot.c0 + lot.w; c++) set(c, r, C.HOUSE);
+    lots.push(lot);
+  }
+  return lots;
+}
+
+/**
  * A lot → its house slot: it faces the side with the most lane along it (the door is on the street)
  * and stands `gap` metres in from its lot line so neighbours read apart. `assetFor(rect)` picks the house.
  */

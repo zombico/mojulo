@@ -9,7 +9,7 @@
  */
 const S = (group, value, bond = 'none') => ({ group, value, bond });
 
-export const HISTORIC_STYLES = Object.freeze({
+export const INVENTORY_STYLES = Object.freeze({
   fachwerk: {
     read: 'a Franconian timber-framed town house: a rubble-stone ground storey under rendered framed storeys, a steep plain-tiled gable to the street, small square lights, a round-headed door in the stone',
     record: 'timber-frame',
@@ -27,5 +27,22 @@ export const HISTORIC_STYLES = Object.freeze({
       stack: { kind: 'chimney', w: 0.6, group: 'str:stone', value: 0.55 },
     },
     compose: { mass: { kind: 'block', w: 7, d: 11 }, storeys: 3 },
+  },
+  steinhaus: {
+    read: 'a stone town house of the council families: coursed stone on every storey, dressed corners, a steep plain-tiled gable to the street, square lights on stone sills, a round-headed door',
+    record: 'timber-frame',
+    cites: ['rothenburg/shell-limestone', 'rothenburg/ashlar', 'rothenburg/stone-house', 'timber-frame/plain-tile', 'timber-frame/oak'],
+    storeyH: 3.1,
+    elements: {
+      wall: { kind: 'wall', storeys: [S('str:stone', 0.66, 'coursed')] },
+      roof: { kind: 'cap', form: 'gable', pitch: 56, eave: 0.25, group: 'str:tile', value: 0.46, courses: true },
+      lights: { kind: 'light', form: 'rect', w: 1, h: 1.5, sill: 0.9, bay: 2.8, group: 'str:opening', value: 0.04 },
+      door: { kind: 'door', form: 'arch', w: 1.4, h: 2.5 },
+      socle: { kind: 'socle', h: 0.5, group: 'str:stone', value: 0.52 },
+      sills: { kind: 'sill', h: 0.18, over: 0.08, group: 'str:stone', value: 0.8 },
+      quoins: { kind: 'quoins', w: 0.42, course: 0.34, group: 'str:stone', value: 0.8 },
+      stack: { kind: 'chimney', w: 0.7, group: 'str:stone', value: 0.55 },
+    },
+    compose: { mass: { kind: 'block', w: 9, d: 13 }, storeys: 3 },
   },
 });

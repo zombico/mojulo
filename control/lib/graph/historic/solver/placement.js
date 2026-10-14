@@ -20,6 +20,7 @@ export const WHERE = Object.freeze({
   'monument-front': { read: 'before the monument, on its axis', when: 'before', lay: monumentFront },
   precinct: { read: 'inside the precinct, beside the monument', when: 'before', lay: inPrecinct },
   'square-edge': { read: 'round the forum square, facing it', when: 'before', lay: squareEdge },
+  'off-square': { read: 'a second anchor (a church, a hall) a lane off the square, facing it, with open ground round it', when: 'before', lay: offSquare },
   approach: { read: 'lining the approach to the monument', when: 'after', lay: alongApproach },
   water: { read: 'afloat on the water', when: 'after', lay: afloat },
   bank: { read: 'on the bank of the water, outside the town', when: 'after', lay: onBank },
@@ -126,6 +127,31 @@ function squareEdge(X, it, { size: [w, d], n, every }) {
     if (!free(r, (v) => v === C.EMPTY || v === C.OPEN)) continue;
     put(X, it, r, long ? (o < 0 ? 'e' : 'w') : (o < 0 ? 's' : 'n')); claimRect(r, C.HOUSE); k++; s += w;
   }
+}
+
+function offSquare(X, it, { size: [w, d], n, every }) {
+  // a lane's width (`every`, else 9 m) off one of the square's sides (the monument's own last), facing across into it;
+  // the ground before it and round it kept open, so no house stands between the square and it
+  const { square, precinct, mFacing, notes, free, claimRect } = X, S0 = square ?? precinct, gap = every || 9;
+  const sides = ['n', 'e', 's', 'w'].sort((a, b) => (a === opposite(mFacing)) - (b === opposite(mFacing)));
+  let k = 0;
+  for (const side of sides) {
+    if (k >= n) break;
+    const f = opposite(side), [ex, ey] = frontEdge(S0, side), [ox, oy] = toward(side), along = side === 'n' || side === 's' ? [1, 0] : [0, 1];
+    const len = side === 'n' || side === 's' ? S0.w : S0.d;
+    for (const t of [0, 0.25, -0.25, 0.5, -0.5, 0.75, -0.75]) {
+      const cx = ex + along[0] * t * len + ox * (gap + d / 2), cy = ey + along[1] * t * len + oy * (gap + d / 2), r = rectFor(cx, cy, w, d, f);
+      if (!free(grow(r, 3), (v) => v === C.EMPTY || v === C.OPEN) || meets(grow(r, 2), precinct)) continue;
+      put(X, it, r, f);
+      // the ground round it and between it and the square stays open: a churchyard, the way to its door
+      claimRect(grow(r, 3), C.OPEN, (v) => v === C.EMPTY);
+      const [fx, fy] = frontEdge(r, f), [tx, ty] = toward(f);
+      claimRect(rectFor(fx + tx * gap / 2, fy + ty * gap / 2, w, gap, f), C.OPEN, (v) => v === C.EMPTY);
+      k++;
+      break;
+    }
+  }
+  if (k < n) notes.push(`no room off the square for '${it.asset ?? it.monument}'`);
 }
 
 // ── after the streets ──

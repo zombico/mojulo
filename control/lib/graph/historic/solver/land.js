@@ -3,7 +3,7 @@
  * it the fields, the trees and (in a region) the work done in the land. TREES is keyed by `hinterland.tree`,
  * ACTIVITY_WHERE by an activity's `where`; the form's schema reads its words from both.
  */
-import { CELL, C, stream, pick, packLots, lotSlot } from '../layout-kit.js';
+import { CELL, C, stream, pick, packLots, frontageLots, lotSlot } from '../layout-kit.js';
 import { landOf } from '../cultures/index.js';
 import { FARM_CULTURES, WORKS_CULTURES } from '../land-kits.js';
 import { availableAt, placeOf } from '../ledger/index.js';
@@ -39,6 +39,17 @@ function byWater(X, x, y, [yw, yd], upstream) {
   return -(nearW + (up === upstream ? 0 : 300) + Math.abs(dTown - Math.max(tw, td) * 0.6) * 0.3);
 }
 
+/**
+ * How a town's free ground is cut into house lots, by `density.plots`: `lots(X)` → [{ c0, r0, w, d, facing? }] in cells.
+ */
+export const PLOTS = Object.freeze({
+  pack: { read: 'lots packed into the free ground, each house facing its most open side', lots: (X) => packLots(X.g, X.F.density.lot, X.seed) },
+  frontage: {
+    read: 'narrow plots cut back from the streets, the main streets first, the houses in rows on the street line, yards behind',
+    lots: (X) => frontageLots(X.g, X.F.density.front ?? [5, 9], X.F.density.deep ?? [12, 30], X.seed, { main: (c, r) => X.surf[r * X.cols + c] === 1 }),
+  },
+});
+
 /** The activities a form's culture can lay: those whose kit (../land-kits.js) has every piece. */
 export function activitiesOf(culture, F, inReach = null) {
   const land = landOf(culture);
@@ -53,8 +64,9 @@ export function layLots(X) {
   const { F, g, seed, hAt, at, set, surf, cols, kit, notes, slots } = X;
   const D = F.density, H = F.houses, LT = stream(seed, 'fill');
   X.houseAssets = new Set(H.map((h) => h.asset));
-  for (const lot of packLots(g, D.lot, seed)) {
+  for (const lot of PLOTS[D.plots ?? 'pack'].lots(X)) {
     const s = lotSlot(g, lot, D.gap ?? 0.4, () => null), r = s.rect;
+    if (lot.facing) s.facing = lot.facing;   // a plot cut from a street fronts that street
     const zs = [[r.x, r.y], [r.x + r.w, r.y], [r.x, r.y + r.d], [r.x + r.w, r.y + r.d]].map((p) => hAt(...p));
     const opens = (v) => v === C.LANE || v === C.OPEN;
     let sides = 0;

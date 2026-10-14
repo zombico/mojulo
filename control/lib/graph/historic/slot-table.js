@@ -9,6 +9,7 @@ export const SLOT_TABLE = Object.freeze({
   "polis": "ln-statue:0–4",
   "pompeii": "pp-equestrian:0–7 (equestrian)",
   "qin": "",
+  "rothenburg": "",
   "sumer": "guardians:0 (form bull), votive-row:0",
   "thebes": "eg-colossus:0–1, eg-sphinx-row:0–2 (form criosphinx)",
 });

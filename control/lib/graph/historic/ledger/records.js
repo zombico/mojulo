@@ -19,6 +19,7 @@ import { QIN_RECORD, QIN_SOURCES } from '../record/qin.js';
 import { POMPEII_RECORD, POMPEII_SOURCES } from '../record/pompeii.js';
 import { FORUM_RECORD, FORUM_SOURCES } from '../record/forum.js';
 import { TIMBER_FRAME_RECORD, TIMBER_FRAME_SOURCES } from '../record/timber-frame.js';
+import { ROTHENBURG_RECORD, ROTHENBURG_SOURCES } from '../record/rothenburg.js';
 
 const rec = (id, region, entries, sources, { tradition = false } = {}) => Object.freeze({ id, region, entries, sources, ...(tradition ? { tradition } : {}) });
 
@@ -30,6 +31,7 @@ export const RECORDS = Object.freeze({
   qin: rec('qin', 'china', QIN_RECORD, QIN_SOURCES),
   pompeii: rec('pompeii', 'italy', POMPEII_RECORD, POMPEII_SOURCES),
   forum: rec('forum', 'italy', FORUM_RECORD, FORUM_SOURCES),
+  rothenburg: rec('rothenburg', 'germany', ROTHENBURG_RECORD, ROTHENBURG_SOURCES),
   'timber-frame': rec('timber-frame', 'europe', TIMBER_FRAME_RECORD, TIMBER_FRAME_SOURCES, { tradition: true }),
 });
 /** The tradition records: the styles a card may name. */

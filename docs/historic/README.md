@@ -78,6 +78,11 @@ barn, hall, tower) it is a kit asset (`inventoryKit({ house: { style: 'fachwerk'
 the card's palette. A culture in a tradition the inventory already speaks starts with houses, not boxes: its kit is
 inventory assets beside its own monuments, and the anachronism check reads the style's rows wherever it is built.
 
+Rothenburg (`cultures/rothenburg.js`, `assets/rothenburg.js`) is the worked example: a card that names `styles`, a
+kit whose houses are `inventoryKit` entries (`terrace: true`, `storeys` from the record's house types), a church from
+the landmark library (`landmarkAsset`), and hand-built pieces only where the town is its own (its wall, its town hall's
+tower). Its form uses the later-town rules: the `market` armature, an `off-square` second anchor, frontage plots.
+
 ## Depth: enter shallow, deepen in order
 
 | Depth | It has | It borrows | Its entry says |
