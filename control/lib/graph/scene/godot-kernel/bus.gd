@@ -591,6 +591,8 @@ func process_events(state: Dictionary, incoming: Array) -> Dictionary:
 		frontier.append(normalize_event(e))
 	var depth := 0
 	var stop := false
+	# the budget caps one drain, never the bus's life (metrics.processed keeps the lifetime total)
+	var spent := 0
 	while frontier.size() > 0 and not stop:
 		if depth > float(cap["depthCap"]):
 			_drop(state, frontier.size(), "depth")
@@ -600,11 +602,12 @@ func process_events(state: Dictionary, incoming: Array) -> Dictionary:
 		frontier = sort_events(frontier)
 		var next := []
 		for i in frontier.size():
-			if state["metrics"]["processed"] >= float(cap["budget"]):
+			if spent >= float(cap["budget"]):
 				_drop(state, frontier.size() - i, "budget")
 				stop = true
 				break
 			var ev: Dictionary = frontier[i]
+			spent += 1
 			state["metrics"]["processed"] += 1
 			state["log"].append({"type": ev["type"], "source": stored(ev.get("source", UNDEF)), "scope": stored(ev.get("scope", UNDEF)), "depth": depth})
 			for r in state["reactions"]:

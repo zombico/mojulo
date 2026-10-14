@@ -325,14 +325,18 @@ export function buildBus() {
     let frontier = (incoming || []).map(normalizeEvent);
     let depth = 0;
     let stop = false;
+    // the budget caps one drain (a tick's events and what they cascade into), never the bus's life: counted here,
+    // so a level that has run for minutes still hears its next event (metrics.processed keeps the lifetime total)
+    let spent = 0;
     while (frontier.length && !stop) {
       if (depth > cap.depthCap) { drop(state, frontier.length, 'depth'); break; }
       if (depth > state.metrics.maxDepth) state.metrics.maxDepth = depth;
       frontier = sortEvents(frontier);
       const next = [];
       for (let i = 0; i < frontier.length; i++) {
-        if (state.metrics.processed >= cap.budget) { drop(state, frontier.length - i, 'budget'); stop = true; break; }
+        if (spent >= cap.budget) { drop(state, frontier.length - i, 'budget'); stop = true; break; }
         const ev = frontier[i];
+        spent++;
         state.metrics.processed++;
         state.log.push({ type: ev.type, source: ev.source, scope: ev.scope, depth });
         for (const r of state.reactions) if (reactionMatch(state, ev, r)) for (const e of applyVerb(state, r, ev)) next.push(e);

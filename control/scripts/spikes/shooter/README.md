@@ -185,6 +185,17 @@ is what the laws read; the geometry is laid from it. The floormap (`era/floormap
 `gap` links, `stand` items that hide, and its `reachable` / `stand-hides` laws) is the closest existing substrate. A
 shooter map is plausibly a floormap with a combat program, as `program: { use }` lays a tavern's rooms by role.
 
+## Built since the spike
+
+- **Phase 1, the match on the bus**: the `frags` mechanic (`game/mechanics.js`, card `mechanic-cards/frags.md`):
+  kills credited and said as `kill { killer, victim }`, the fallen back at rotating spawns, a frag and a time limit,
+  the place, the player's death held by the cast. Laws in `game/mechanics.test.js` (frags on the bus) and
+  `game/frags.test.js` (a match played in the level sim).
+- A defect it surfaced on the way: the bus's event budget was counted over its life, so every level went deaf after
+  4096 events; it is per drain now, on the web and in Godot.
+- Open from phase 1: a spawn guard (in the sim a gunner respawned in front of the player's rifle was downed in the
+  same frame), the farthest spawn on the bus, teams.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

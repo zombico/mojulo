@@ -52,7 +52,7 @@ describe('lowerMechanic — individual verbs', () => {
 
   it('every registered mechanic lowers without throwing on a minimal call', () => {
     for (const k of MECHANIC_KINDS) {
-      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }] };
+      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'] };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });
@@ -375,5 +375,91 @@ describe('unseen, laps and score on the bus', () => {
 
   it('a mechanic without keep leaves the composed level without the key', () => {
     expect(composeMechanics([{ kind: 'reach-exit', at: [9, 0, 0] }], ctx())).not.toHaveProperty('keep');
+  });
+});
+
+// ── the shooter's match (frags): kills credited on the bus, the fallen back, a limit and a place ───────────────────
+describe('frags on the bus', () => {
+  const B = buildBus();
+  // a bus that steps: events in order, each followed by `secs` of timers and sequence waits (0.1 s steps)
+  const play = (composed, script) => {
+    const s = B.createBusState(composed.events, composed.events.entities);
+    const ops = [];
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } if (s._ctrlOps) { ops.push(...s._ctrlOps); s._ctrlOps = []; } };
+    pump([]);
+    for (const [e, secs = 0] of script) {
+      if (e) pump([e]);
+      for (let k = 0; k < Math.round(secs * 10); k++) { pump(B.tickTimers(s, 0.1)); pump(B.stepTime(s, 0.1)); }
+    }
+    return { s, ops, log: s.log.map((r) => r.type) };
+  };
+  const hit = (v, by) => [{ type: `hit:${v}`, entity: v, by }];
+  const down = (v) => [{ type: 'down', entity: v }];
+  const spawns = [[0, 0, 0], [20, 0, 0], [0, 20, 0], [20, 20, 0]];
+  const base = { kind: 'frags', rivals: ['bot-1', 'bot-2'], frags: 2, spawns, hits: 50 };
+
+  it('lowers to verbs Godot\'s bus performs, its ends won or lost, its frags and place kept', () => {
+    const c = composeMechanics([base], ctx());
+    expect(c.on).toEqual({ 'frags:won': { end: 'success' }, 'frags:lost': { end: 'fail' } });
+    expect(c.keep.map((k) => [k.label, k.best])).toEqual([['Frags', 'high'], ['Place', 'low']]);
+    const ops = new Set(c.events.reactions.filter((r) => r.do === 'ctrl').map((r) => r.op));
+    expect([...ops].sort()).toEqual(['kill', 'spawn']);
+    expect(c.events.sequences).toHaveLength(3);
+    expect(() => composeMechanics([{ kind: 'frags' }], ctx())).toThrow(/needs rivals/);
+    expect(() => composeMechanics([{ ...base, frags: 0 }], ctx())).toThrow(/frags is the limit/);
+    expect(() => composeMechanics([{ ...base, seconds: 3 }], ctx())).toThrow(/seconds is the time limit/);
+    expect(() => composeMechanics([{ ...base, spawns: [[0]] }], ctx())).toThrow(/spawns are/);
+  });
+
+  it('a fall is credited to its last hitter, said as a kill, and the fallen comes back at its next spawn after its time', () => {
+    const c = composeMechanics([base], ctx());
+    const { s, ops, log } = play(c, [[...hit('bot-1', 'bot-2')], [...hit('bot-1', 'hero')], [...down('bot-1'), 2.9]]);
+    expect(s.vars.__frag_0_hero).toBe(1);
+    expect(s.vars['__frag_0_bot-2']).toBe(0);
+    expect(s.log.filter((r) => r.type === 'kill')).toHaveLength(1);
+    // not yet back at 2.9 s; back by 3.1 s, at the spawn its rotation names
+    expect(ops.filter((o) => o.op === 'spawn')).toHaveLength(0);
+    const more = play(c, [[...hit('bot-1', 'hero')], [...down('bot-1'), 3.1]]);
+    const back = more.ops.filter((o) => o.op === 'spawn');
+    expect(back).toHaveLength(1);
+    expect(back[0]).toMatchObject({ who: 'bot-1', at: spawns[1] });
+    expect(log).toContain('kill');
+    // a fall nobody caused (no hit since it came back) credits no one
+    const self = play(c, [[...down('bot-2'), 3.1]]);
+    expect([self.s.vars.__frag_0_hero, self.s.vars['__frag_0_bot-1'], self.log.includes('kill')]).toEqual([0, 0, false]);
+  });
+
+  it('the player falls when its hp runs out, held down by the cast, and comes back whole', () => {
+    const c = composeMechanics([base], ctx());
+    const { s, ops } = play(c, [[...hit('hero', 'bot-2')], [...hit('hero', 'bot-2'), 3.1]]);
+    expect(s.vars['__frag_0_bot-2']).toBe(1);
+    expect(s.vars.__deaths_0).toBe(1);
+    expect(ops.map((o) => [o.op, o.who])).toEqual([['kill', 'hero'], ['spawn', 'hero']]);
+    expect(s.vars.hp).toBe(100);
+  });
+
+  it('the place moves with every frag, a tie to who got there first, and the limit ends it', () => {
+    const c = composeMechanics([base], ctx());
+    // the player falls by its hp (two 50 hp hits), the others by the cast's down
+    const kill = (v, by) => (v === 'hero' ? [[...hit(v, by)], [...hit(v, by), 3.1]] : [[...hit(v, by)], [...down(v), 3.1]]);
+    // bot-1 frags first: the player is second; the player draws level: still second; goes ahead: first
+    let r = play(c, kill('bot-2', 'bot-1'));
+    expect(r.s.vars.__place_0).toBe(2);
+    r = play(c, [...kill('bot-2', 'bot-1'), ...kill('bot-2', 'hero')]);
+    expect(r.s.vars.__place_0).toBe(2);
+    r = play(c, [...kill('bot-2', 'bot-1'), ...kill('bot-2', 'hero'), ...kill('bot-1', 'hero')]);
+    expect([r.s.vars.__place_0, r.log.includes('frags:won'), r.s.vars.__frags_over_0]).toEqual([1, true, 1]);
+    // another to the limit first: lost, and nothing after it counts as a second end
+    r = play(c, [...kill('hero', 'bot-1'), ...kill('bot-2', 'bot-1'), ...kill('bot-2', 'hero'), ...kill('bot-1', 'hero')]);
+    expect([r.log.includes('frags:lost'), r.log.includes('frags:won')]).toEqual([true, false]);
+  });
+
+  it('with a clock, the horn ends it and the place decides', () => {
+    const c = composeMechanics([{ ...base, frags: 9, seconds: 10, win: 1 }], ctx());
+    expect(c.events.hud.find((h) => h.label === 'Time')).toMatchObject({ as: 'clock' });
+    let r = play(c, [[...hit('bot-1', 'hero')], [...down('bot-1'), 10.5]]);
+    expect(r.log.includes('frags:won')).toBe(true);
+    r = play(c, [[...hit('bot-1', 'bot-2')], [...down('bot-1'), 10.5]]);
+    expect(r.log.includes('frags:lost')).toBe(true);
   });
 });

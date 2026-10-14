@@ -21,6 +21,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `deathmatch.mjs` hands the same stage to the engine's match layer as a free-for-all. The README maps every concept,
   built or absent, and gives a build order: the match on the bus, bots that play one, an arena site with laws,
   timed pickups, weapon roles keyed to sightlines, modes on top. Nothing registers; no level, kernel or pin changes.
+
+### Shooter: the match on the bus
+
+- **Frags, a deathmatch on the bus.** The `frags` mechanic makes a level a match between the player and its
+  `rivals`. Each fall is credited to whoever hit the fallen last (its `hit:<id>`'s `by`) and said on the bus as
+  `kill { killer, victim }`. The fallen comes back `respawn` seconds later at the next of `spawns`, each contender
+  rotating through them. First to `frags` wins; with `seconds`, the place at the horn decides (`win` or better). The
+  place is the kart racer's: a lead and an ahead flag per rival, a tie to whoever got there first. It owns the player's
+  hp and death: at 0 the cast's `kill` holds the player down, and it comes back whole. Frags and place are kept. It
+  lowers to guarded reactions, watches, a timer, a sequence per contender and the cast's kill and spawn, all verbs
+  Godot's bus performs, so it joins the hit mechanics that travel with the fight (`engine-portability.js`). The
+  engine's own match layer (`combat-match.js`, the mobile-suit arena's) is untouched: it stays on the web, outside the
+  bus.
+- **The bus no longer goes deaf.** Its event budget (4096) was counted over the bus's whole life, so any level stopped
+  hearing events after a few minutes (a 0.1 s timer at about 400 s). It now caps one drain, as its test always said
+  ("a per-tick budget"); `metrics.processed` keeps the lifetime total. The same in Godot's `kernel/bus.gd` (kernel
+  0.21.0). The page's characterization hashes move with the inlined bus (only that change moves them).
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
