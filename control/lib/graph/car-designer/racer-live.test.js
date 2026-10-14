@@ -2,7 +2,8 @@
 // the page's own step, throttle, a hard turn, the brake; its bones read back. The front wheels yaw with the steer and
 // the rear ones never; the body squats on the throttle, leans OUT of the turn and dives on the brake; the steering
 // wheel turns with the steer; at rest it is the bake's rest pose. And its juice: puffs at idle, the throttle's flame,
-// sparks and smoke in a hard corner, a boost's flame.
+// sparks and smoke in a hard corner, a boost's flame; its status and the big effects: brake lamps, a boost's shock and
+// the speed lines, impact stars and the dizzy ones, a white flash, a shield, a star's cycling colours.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -39,7 +40,19 @@ beforeAll(async () => {
     const idle = run(60, { forward: 0, turn: 0 }), throttle = run(30, { forward: 1, turn: 0 }), corner = run(80, { forward: 1, turn: 1 });
     const boost = run(20, { forward: 1, turn: 0 }, { boosting: true });
     run(1, { forward: 1, turn: 0 }, { boosting: false, landed: true });
-    return { idle, throttle, corner, boost, rows: rj.J.rows.map((r) => r.id) };
+    // R4: the status shaders and the big effects (a hit, a shield, a star set by hand: a game's)
+    const u = (slot) => rj.slot[slot] && rj.slot[slot][0], vals = (x) => x && { add: x.uAdd.value.x + x.uAdd.value.y + x.uAdd.value.z, mix: x.uMix.value, tint: x.uTint.value.x };
+    const shocks0 = rj.fired.boostShock || 0, stars0 = rj.fired.impactStars || 0, dizzy0 = rj.fired.dizzy || 0;
+    run(10, { forward: 1, turn: 0 }, { landed: false, boosting: true });
+    const surge = { screen: rj.screen, shocks: (rj.fired.boostShock || 0) - shocks0, streaks: rj.alive.motionLines || 0 };
+    run(6, { forward: -1, turn: 0 }, { boosting: false });
+    const brake = vals(u('brake'));
+    e.speed = 0.3; run(2, { forward: 0, turn: 0 });
+    const impact = { stars: (rj.fired.impactStars || 0) - stars0, dizzy: (rj.fired.dizzy || 0) - dizzy0, flash: vals(u('all')).mix };
+    run(20, { forward: 0, turn: 0 });
+    const shield = (run(5, { forward: 0, turn: 0 }, { shield: true }), rj.bubble && rj.bubble.visible);
+    const star = [0, 1, 2].map(() => (run(4, { forward: 0, turn: 0 }, { shield: false, star: true }), vals(u('all')).mix));
+    return { idle, throttle, corner, boost, brake, surge, impact, shield, star, rows: rj.J.rows.map((r) => r.id) };
   });
 }, 60000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
@@ -69,5 +82,17 @@ describe('the live racer', () => {
     expect(corner.alive.skidSmoke).toBeGreaterThan(0);
     expect(boost.flames).toContain('boostFlame');
     expect(boost.flames).not.toContain('throttleFlame');
+  });
+  it('shows status and the big effects: brake lamps, a boost\'s shock and speed lines, impact stars and a flash, a shield, a star', () => {
+    if (!exe) return;
+    const { brake, surge, impact, shield, star } = juice;
+    expect(brake.add).toBeGreaterThan(0.3);                 // the brake lamps glow
+    expect(surge.shocks).toBe(1);                           // one shock on the boost's first frame
+    expect(surge.screen).toBeGreaterThan(0.3);              // speed lines on the pilot's screen
+    expect(surge.streaks).toBeGreaterThan(0);               // motion lines
+    expect(impact.stars).toBe(1); expect(impact.dizzy).toBe(1);
+    expect(impact.flash).toBeGreaterThan(0.2);              // the machine flashes white
+    expect(shield).toBe(true);
+    expect(star.every((m) => m > 0.4)).toBe(true);          // the star's colours cycling over the paint
   });
 });

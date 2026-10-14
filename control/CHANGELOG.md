@@ -1748,7 +1748,8 @@ Planned:
 
 ### Racer parts: the ODM library, its solver, and the racer's juice
 
-Built so far: R1, the library and the solver; R2, the live rig; R3, the juice in the page.
+Built so far: R1, the library and the solver; R2, the live rig; R3, the juice in the page; R4, status and the big
+effects.
 
 - **The parts library** (`lib/graph/car-designer/parts.js`): the catalogue a cartoon racer is composed from, each part
   data an agent can read and extend: its family (body, wheel, engine, exhaust, aero, nose, lamps, tail, seat, steering,
@@ -1788,7 +1789,18 @@ Built so far: R1, the library and the solver; R2, the live rig; R3, the juice in
   the body; particles are a pooled set of sprites in the world, jittered by a seeded generator. Emitted only when a
   figure carries juice. Boosting and damage are a game's to set.
 
-Planned: R4 status shaders, R5 rivals in solved machines.
+- **Status and the big effects** (R4): the lamps and the hero piece are bones of their own (the status slots), and
+  every bone's material carries tint uniforms chained after any patch it has; STATUS rows play on them: head lamps lit
+  and brake lamps flaring red, each with a halo; the hero piece filling with a boost's charge and pulsing white when
+  full; a hard corner's tier in the lamps; a white flash on a hit or a bump; damage darkening and flickering the paint;
+  a star's colours cycling; an item held pulsing; a shield's bright-rimmed bubble round the machine. And FX, the
+  genre's big effects: a burst of cartoon stars from a bump (the page reads a bump as more speed lost in an instant
+  than any brake), stars circling the driver's head, motion lines streaming past at speed, manga speed lines rushing
+  in from the edges of the pilot's screen on a boost or a hard pull, and a ring of air thrown back as a boost starts.
+  A shader of the page's own carries the log-depth chunks (it draws with a logarithmic depth buffer). Hits, shields,
+  stars, items and a boost's charge are a game's to set.
+
+Planned: R5 rivals in solved machines.
 
 ### Car designer: a realistic vehicle, or a racer and their machine
 

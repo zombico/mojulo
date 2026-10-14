@@ -405,7 +405,8 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
   const paint = (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
   // the bones that live (R2): the steering wheel, a mast, the front fenders each their own; the rest rides the root
-  const boneOf = (p) => p.bone ?? (p.family === 'steering' ? 'steering' : PARTS[p.id]?.mount === 'mast' ? 'mast' : null);
+  // (and R4's status slots: the head lamps, the brake lamps, the hero piece, each a bone its tint is set on)
+  const boneOf = (p) => p.bone ?? (p.family === 'steering' ? 'steering' : PARTS[p.id]?.mount === 'mast' ? 'mast' : p.family === 'lamps' ? 'lampHead' : p.family === 'tail' ? 'lampBrake' : p.family === 'hero' ? 'hero' : null);
   const own = new Map();
   for (const p of state.placed) { const b = boneOf(p); if (!b) continue; if (!own.has(b)) own.set(b, { head: p.at.map(r4), faces: [] }); own.get(b).faces.push(...p.faces.map((f) => ({ ...f, slot: slotOf(p, f) }))); }
   const rootRaw = [...bodyFaces, ...state.placed.filter((p) => !boneOf(p)).flatMap((p) => p.faces.map((f) => ({ ...f, slot: slotOf(p, f) }))), ...stand.faces];
@@ -416,7 +417,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   const M = MOTION, heroMoves = ids.hero ? PARTS[ids.hero].moves ?? [] : [];
   const live = {
     steer: ['wheelFL', 'wheelFR', ...others.filter((o) => o.id.startsWith('fenderF')).map((o) => o.id)],
-    body: { bones: ['root', ...others.filter((o) => o.id === 'steering' || o.id === 'mast').map((o) => o.id)], pivot: [0, r4(F.WB / 2), 0] },
+    body: { bones: ['root', ...others.filter((o) => !o.id.startsWith('fenderF')).map((o) => o.id)], pivot: [0, r4(F.WB / 2), 0] },
     ...(own.has('steering') ? { wheel: 'steering' } : {}),
     ...(own.has('mast') ? { mast: 'mast', spin: heroMoves.includes('spin') } : {}),
     gains: { steer: M.steer.gain, steerMax: M.steer.limit, lean: M.lean.gain, leanMax: M.lean.limit, squat: M.squat.gain, dive: M.dive.gain, bounce: M.bounce.gain, wobble: M.wobble.gain, wobbleMax: M.wobble.limit },
@@ -425,7 +426,9 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   // wheel's contact the machine's frame (it neither rolls nor leans)
   const kinds0 = new Set(state.anchors.map((a) => a.kind.split('.')[0]));
   const juiceRows = Object.entries(JUICE).filter(([, j]) => kinds0.has(j.at.split('.')[0])).map(([id, j]) => ({ id, ...j }));
-  const figJuice = bakeJuice(juiceRows, state.anchors.map((a) => ({ ...a, bone: a.kind.startsWith('contact') ? null : 'root' })), r4(F.D));
+  const slots = { ...(own.has('lampHead') ? { head: 'lampHead' } : {}), ...(own.has('lampBrake') ? { brake: 'lampBrake' } : {}), ...(own.has('hero') ? { accent: 'hero' } : own.has('mast') ? { accent: 'mast' } : {}) };
+  const more = [{ kind: 'body', at: [0, r4(F.WB / 2), r4(V.deck * 0.8)], dir: [0, 0, 1] }, { kind: 'driver', at: stand.head.map(r4), dir: [0, 0, 1] }];
+  const figJuice = bakeJuice(juiceRows, [...state.anchors, ...more].map((a) => ({ ...a, bone: a.kind.startsWith('contact') ? null : 'root' })), r4(F.D), { slots });
   const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone) }), live, juice: figJuice, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
 
   // ── the readout: physics derived from what was built ──

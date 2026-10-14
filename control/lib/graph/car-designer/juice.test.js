@@ -25,6 +25,12 @@ describe('the juice', () => {
       expect(f.juice.D).toBeGreaterThan(0.2);
       for (const a of f.juice.anchors) expect(a.bone, a.kind).toBe(a.kind.startsWith('contact') ? null : 'root');
       for (const r of f.juice.rows) expect(f.juice.anchors.some((a) => a.kind === r.at || a.kind.split('.')[0] === r.at), r.id).toBe(true);
+      // status on the slots it has (each a bone of the figure), the big effects at anchors it has (or the screen)
+      for (const id of Object.values(f.juice.slots)) expect(f.bones.some((b) => b.id === id), id).toBe(true);
+      for (const r of f.juice.status) for (const sl of r.slots) expect(sl === 'all' || sl === 'bubble' || !!f.juice.slots[sl], `${r.id}.${sl}`).toBe(true);
+      for (const r of f.juice.fx) expect(r.at === 'screen' || f.juice.anchors.some((a) => a.kind === r.at), r.id).toBe(true);
+      expect(f.juice.fx.map((r) => r.id)).toEqual(expect.arrayContaining(['impactStars', 'dizzy', 'motionLines', 'speedLines', 'boostShock']));
+      for (const id of Object.values(f.juice.slots)) expect(f.live.body.bones, id).toContain(id);   // the slots ride the body
     }
   });
 });

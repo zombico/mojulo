@@ -7,8 +7,10 @@
  *   JUICE    a row per effect: `when` (a trigger over the facts, written as a small expression), `at` (the anchor kind),
  *            `look` (flame, puff, smoke, dust, spark, ring, trail), its colours by tier, its rate (per second), life (s),
  *            size (share of the machine's module D), and the most of it alive at once (its budget)
- *   STATUS   a row per indicator shader: the fact it reads, the paint slots that listen (lamp, accent, body …), the look
- *            (glow, pulse, fill, flash, cycle, tint, bubble) and its colours
+ *   STATUS   a row per indicator shader: its trigger, the slots that listen (head and brake lamps, the accent: the hero
+ *            piece, all, a bubble), the look (glow with a halo, fill by a fact, tier, flash, tint, cycle, pulse, bubble)
+ *   FX       the genre's big effects: impact stars, dizzy stars round the head, motion lines at speed, speed lines on
+ *            the screen on a surge, a boost's shockwave
  *   MOTION   how the machine itself answers the facts (racer.js bones): the front wheels' steer, the body's squat, dive,
  *            lean and bounce, a mast's wobble; exaggerated past physics (a cartoon's lean is three times a car's)
  *
@@ -37,15 +39,29 @@ export const JUICE = Object.freeze({
 });
 
 export const STATUS = Object.freeze({
-  headlamps: { fact: 'always', slots: ['lamp:head'], look: 'glow', colours: ['#fff6d0'], why: 'the face lit' },
-  brakeLamps: { fact: 'braking', slots: ['lamp:brake'], look: 'glow', colours: ['#5a1010', '#ff2a1a'], why: 'the brake lamps flare red' },
-  boostReady: { fact: 'boostCharge', slots: ['accent'], look: 'fill', colours: ['#2a3a5a', '#7ad6ff', '#ffffff'], why: 'the hero piece fills with charge; full, it glows white' },
-  driftTier: { fact: 'cornerTime', slots: ['lamp:brake', 'accent'], look: 'cycle', colours: DRIFT_TIERS, why: 'the drift\'s tier in the lamps' },
-  hit: { fact: 'hit', slots: ['body', 'accent'], look: 'flash', colours: ['#ffffff'], duration: 0.12, why: 'a hit: the machine flashes white' },
-  damaged: { fact: 'damage', slots: ['body'], look: 'tint', colours: ['#000000'], amount: 0.35, flicker: 0.6, why: 'damage darkens and flickers the paint' },
-  shield: { fact: 'shield', slots: ['bubble'], look: 'bubble', colours: ['#8fe6ff'], rim: 0.8, why: 'a shield: a bright-rimmed bubble round the machine' },
-  invulnerable: { fact: 'invulnerable', slots: ['body', 'accent'], look: 'cycle', colours: ['#ff4b4b', '#ffd23a', '#5dff7a', '#4bc3ff', '#c86bff'], rate: 8, why: 'a star: the colours cycling' },
-  itemHeld: { fact: 'item', slots: ['accent'], look: 'pulse', colours: ['#ffffff'], rate: 2, why: 'an item held: the hero piece pulses' },
+  headlamps: { when: '1', slots: ['head'], look: 'glow', colours: ['#fff6d0'], amount: 0.35, halo: 0.5, why: 'the face lit' },
+  brakeLamps: { when: 'braking', slots: ['brake'], look: 'glow', colours: ['#ff2a1a'], amount: 1, halo: 0.9, why: 'the brake lamps flare red' },
+  boostReady: { when: 'charge > 0', by: 'charge', slots: ['accent'], look: 'fill', colours: ['#7ad6ff', '#ffffff'], why: 'the hero piece fills with charge; full, it pulses white' },
+  driftTier: { when: 'cornerTime > 0', by: 'cornerTime', tierAt: [0, 0.8, 1.8], slots: ['brake', 'accent'], look: 'tier', colours: DRIFT_TIERS, amount: 0.55, why: 'the corner\'s tier in the lamps and the hero piece' },
+  hit: { when: 'hit || impact', slots: ['all'], look: 'flash', colours: ['#ffffff'], amount: 0.85, duration: 0.14, why: 'a hit: the machine flashes white' },
+  damaged: { when: 'damage > 0.3', by: 'damage', slots: ['all'], look: 'tint', colours: ['#3a2a2a'], amount: 0.45, flicker: 0.5, why: 'damage darkens and flickers the paint' },
+  shield: { when: 'shield', slots: ['bubble'], look: 'bubble', colours: ['#8fe6ff'], amount: 0.8, why: 'a shield: a bright-rimmed bubble round the machine' },
+  invulnerable: { when: 'invulnerable', slots: ['all'], look: 'cycle', colours: ['#ff4b4b', '#ffd23a', '#5dff7a', '#4bc3ff', '#c86bff'], amount: 0.55, rate: 8, why: 'a star: the colours cycling' },
+  itemHeld: { when: 'item', slots: ['accent'], look: 'pulse', colours: ['#ffffff'], amount: 0.5, rate: 2, why: 'an item held: the hero piece pulses' },
+});
+
+/** The genre's big effects, beyond the machine's own juice: what an impact, speed and a surge look like.
+ *   stars        a burst of cartoon stars from where it was hit
+ *   orbit        stars circling over the driver's head (dizzy)
+ *   streak       motion lines: white streaks beside and over the machine, along its way, at speed
+ *   screen       speed lines: streaks from the screen's edges toward its middle (the pilot's own, on a surge)
+ *   shock        a ring of air thrown back from where a boost starts */
+export const FX = Object.freeze({
+  impactStars: { when: 'impact || hit', at: 'body', look: 'stars', colours: ['#fff36b', '#ffffff', '#ffb02e'], count: 7, life: 0.55, size: 0.38, why: 'a bump or a hit: stars burst from it' },
+  dizzy: { when: 'impact', at: 'driver', look: 'orbit', colours: ['#fff36b', '#ffffff'], count: 4, life: 1.3, size: 0.2, why: 'knocked silly: stars round the head' },
+  motionLines: { when: 'topShare > 0.82 || boosting', at: 'body', look: 'streak', colours: ['#ffffff'], rate: 26, life: 0.22, size: 1.6, budget: 22, why: 'flat out: the air streaks past' },
+  speedLines: { when: 'boosting || accel > 5', at: 'screen', look: 'screen', colours: ['#ffffff'], by: 'surge', count: 46, why: 'a surge: speed lines rush in from the screen\'s edges' },
+  boostShock: { when: 'boostStart', at: 'tip', look: 'shock', colours: ['#bfe9ff', '#ffffff'], life: 0.32, size: 1.5, why: 'a boost\'s first instant: a ring of air thrown back' },
 });
 
 /** How the machine answers the facts: the bone, the fact, the gain (exaggerated), the limit, the return (s). */
@@ -60,9 +76,11 @@ export const MOTION = Object.freeze({
 
 /** The facts a trigger may read: the drive rule's (speed, throttle, braking, steer, skidding, landed), what the page
  *  keeps (skidTime: seconds into a slide; corner: the share of the tyres' grip a turn asks, v² tan|steer| / wheelbase
- *  over grip·g, and cornerTime: seconds above 0.6 of it — a cartoon drift is a hard corner, not a slide), what the ground says (offroad: its grip under the tarmac's), what a game sets
- *  (boosting, damage 0–1). */
-export const FACTS = Object.freeze(['speed', 'throttle', 'braking', 'steer', 'skidding', 'skidTime', 'corner', 'cornerTime', 'landed', 'boosting', 'offroad', 'damage']);
+ *  over grip·g, and cornerTime: seconds above 0.6 of it — a cartoon drift is a hard corner, not a slide; accel: the
+ *  speed's change, m/s²; topShare: the speed over the machine's top; surge: 0–1, a boost or a hard pull; impact: an edge,
+ *  a bump that took more speed in an instant than the brakes could; boostStart: a boost's first frame), what the ground says (offroad: its grip under the tarmac's), what a game sets
+ *  (boosting, damage 0–1, hit: an edge, charge 0–1, shield, invulnerable, item). */
+export const FACTS = Object.freeze(['speed', 'throttle', 'braking', 'steer', 'skidding', 'skidTime', 'corner', 'cornerTime', 'landed', 'boosting', 'boostStart', 'accel', 'topShare', 'surge', 'impact', 'offroad', 'damage', 'hit', 'charge', 'shield', 'invulnerable', 'item']);
 
 /** A trigger read into a tree: ['or'|'and', a, b] ['not', a] ['cmp', op, a, b] ['mul', a, b] ['abs', a] ['num', v]
  *  ['fact', name]. Throws on what it cannot read. */
@@ -90,10 +108,14 @@ export function compileWhen(src) {
   return tree;
 }
 
-/** The figure's juice: anchors [{ kind, bone (null: the machine's frame), at, dir }] and rows with compiled triggers. */
-export function bakeJuice(rows, anchors, D) {
+/** The figure's juice: anchors [{ kind, bone (null: the machine's frame), at, dir }] and rows with compiled triggers;
+ *  its status rows (the slots a machine has: head, brake, accent, all, bubble) and its FX, triggers compiled too. */
+export function bakeJuice(rows, anchors, D, { slots = {}, status = STATUS, fx = FX } = {}) {
+  const has = (sl) => sl === 'all' || sl === 'bubble' || !!slots[sl];
   return {
-    D,
+    D, slots,
+    status: Object.entries(status).filter(([, r]) => r.slots.some(has)).map(([id, r]) => ({ id, when: compileWhen(r.when), slots: r.slots.filter(has), look: r.look, colours: r.colours, ...(r.by ? { by: r.by } : {}), ...(r.tierAt ? { tierAt: r.tierAt } : {}), ...['amount', 'halo', 'duration', 'flicker', 'rate'].reduce((o, k) => (r[k] !== undefined ? { ...o, [k]: r[k] } : o), {}) })),
+    fx: Object.entries(fx).filter(([, r]) => r.at === 'screen' || anchors.some((a) => a.kind === r.at || a.kind.split('.')[0] === r.at)).map(([id, r]) => ({ id, when: compileWhen(r.when), at: r.at, look: r.look, colours: r.colours, ...['count', 'life', 'size', 'rate', 'budget', 'by'].reduce((o, k) => (r[k] !== undefined ? { ...o, [k]: r[k] } : o), {}) })),
     anchors: anchors.map((a) => ({ kind: a.kind, bone: a.bone ?? null, at: a.at, dir: a.dir })),
     rows: rows.map((j) => ({ id: j.id, when: compileWhen(j.when), at: j.at, look: j.look, colours: j.colours, ...(j.rate ? { rate: j.rate } : {}), ...(j.life ? { life: j.life } : {}), size: j.size, budget: j.budget, ...(j.flicker ? { flicker: j.flicker } : {}), ...(j.tierBy ? { tierBy: j.tierBy, tierAt: j.tierAt } : {}) })),
   };
