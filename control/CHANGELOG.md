@@ -1208,6 +1208,11 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   radius and colour, where the bus puts it, shown while on), so a pushed boulder, a growing crop and a supply travel;
   a pick or a shot (`inputs` on `pick` / `fire`) names the marker its ray meets (`fact:aim`, approximated: the ray
   meets the markers and the box colliders, not the GLB's meshes). Push, crops and supplies travel.
+- **Turn-based battles and routines travel**, proved equal frame by frame (`godot-story-rows.test.js`): a battle's
+  menu, its guarded vars and the foe's answer; a routine's hour cues and the cast's walk. On the way, two kernel
+  divergences the harness found are fixed: a menu up now freezes the world and its clock as the page's does (the bus's
+  timers and sagas, the cast, the fight; `level-sim.js` models it too), and the cast and the fight step after the bus's
+  ops, as the page's world steps after its events (a walk ordered this frame moves this frame).
 - **Planted bugs are a standing test** (`godot-plants.test.js`): mutants per kernel script (a flipped comparison, a
   reserved key dropped, a timer a tick late, a reserve ignored …), each of which must make its corpus fail. Three
   found holes in the corpus (an emit carrying reserved words, a heal past hpMax, a level past its max), now closed.

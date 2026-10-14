@@ -182,7 +182,8 @@ export const LINK_MARKS = Object.freeze({
 // ambient and passive are the practice dummy: it stands to be met and hit (kernel/cast.gd, combat.gd)
 export const MIND_TRAVELS = Object.freeze({
   motivation: ['ambient'], aggressiveness: ['passive'], rank: [], skill: [], perception: [], pathing: [],
-  squad: ['none'], social: ['none'], commander: ['none'],
+  // a routine is cues on the clock's hour and the cast's walk, which the kernel runs (II5): no mind needed
+  squad: ['none'], social: ['none', 'schedule'], commander: ['none'],
 });
 export const mindMark = (axis, value) => ((MIND_TRAVELS[axis] || []).includes(value)
   ? m(B, 'asks nothing of a mind: the character stands to be met')

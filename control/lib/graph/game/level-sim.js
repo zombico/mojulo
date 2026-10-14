@@ -10,6 +10,9 @@
  *     `at`: { <second>: [events] } pushed into the frame that reaches that time (an interact press: { type: 'use-<id>' })
  *     `input`: the pilot's held input every frame (set its fields: { fire: 1, … }), as the page's keys and mouse give it
  *
+ * A MENU UP FREEZES THE WORLD, as the page's does (channels/interact-channel.js __syncMenus: a menu whose var is 1 is
+ * open, read after the frame; the next frame's clock is 0 for the bus's timers and sagas and for the world's step).
+ *
  * Deterministic: a fixed dt (1/30 s), the bus's own content order, the world's seeded rules.
  */
 import { composeLive } from '../worlds/controllable/compose.js';
@@ -26,6 +29,8 @@ export function simLevel({ entities = [], events = {}, colliders } = {}, { groun
   const hooks = { ground, ...(surface ? { surface } : {}) };
   let zonePrev, castPrev, t = 0;
   const pulse = beat && beat.every > 0 ? { n: 0 } : null;
+  const menuVars = (events.menus || []).map((m) => m && (m.var || `ui-menu-${m.id}`)).filter(Boolean);
+  let frozen = false, mt = 0;
   const input = {};
   const pump = (list) => {
     if (list.length) B.processEvents(bus, list);
@@ -34,15 +39,19 @@ export function simLevel({ entities = [], events = {}, colliders } = {}, { groun
   };
   pump(events.initial || []);
   const frame = (dt, extra = []) => {
-    const incoming = [...extra, ...(pulse ? beatsDue(pulse, t + (beat.lead || 0), beat.every) : [])];
+    // the beat reads the music, which plays on under a menu: its own clock, never frozen
+    const incoming = [...extra, ...(pulse ? beatsDue(pulse, mt + (beat.lead || 0), beat.every) : [])];
+    mt += dt;
     const z = B.deriveZoneEvents(world.entities, zonePrev, events.sources); zonePrev = z.prev; incoming.push(...z.events);
     const c = E.castFacts(world, castPrev); castPrev = c.prev; incoming.push(...c.events);
     pump(incoming);
-    pump(B.tickTimers(bus, dt));
-    pump(B.stepTime(bus, dt));
+    const live = frozen ? 0 : dt;
+    pump(B.tickTimers(bus, live));
+    pump(B.stepTime(bus, live));
     B.syncToCtrl(bus, world.entities, (ops) => E.castOps(world, ops));
-    E.stepWorld(world, input, dt, hooks);
-    t += dt;
+    E.stepWorld(world, input, live, hooks);
+    t += live;
+    frozen = menuVars.some((v) => bus.vars[v] === 1);
   };
   const run = (seconds, at = {}) => {
     const due = Object.keys(at).map(Number).sort((a, b) => a - b);

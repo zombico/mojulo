@@ -32,7 +32,9 @@ export const POWER = Object.freeze({
         melee: { status: 'built', godot: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
         ranged: { status: 'built', godot: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
         // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars
-        'turn-based': { status: 'built', godot: 'absent', lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
+        // Godot: a battle's menu, guarded vars and the foe's beat run on the bus, the world frozen while it is up (II5,
+        // godot-story-rows.test.js: equal frame by frame)
+        'turn-based': { status: 'built', godot: 'built', lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS', godot: MOMENT } },

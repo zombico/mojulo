@@ -219,7 +219,8 @@ export function playScript(payload, frames) {
   for (let i = 0; i < frames.length; i++) {
     setInput(sim, frames[i] || {});
     const n0 = sim.bus.log.length;
-    sim.frame(SIM_DT, keyEvents(payload, (frames[i] || {}).keys));
+    // a frame's keys, then its raw events (a menu pick as the page's menu sends it: menu-pick:<menu>:<n>)
+    sim.frame(SIM_DT, [...keyEvents(payload, (frames[i] || {}).keys), ...JSON.parse(JSON.stringify((frames[i] || {}).events || []))]);
     keys.push(frameKey(sim, ids));
     const o = outcomeIn(contract, sim.bus.log, n0);
     if (o && !outcome) { outcome = o; at = i; }

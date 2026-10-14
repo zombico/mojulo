@@ -1208,13 +1208,20 @@ func _sim_add_eye(id: String, p: Array) -> Array:
 	return [p[0], p[1], float(p[2]) + float(sim_feet.get(id, 0.0))]
 
 
+const SIM_DT := 1.0 / 30.0   # the harness's step, the web level-sim's exactly (the engine's fixed-fps delta is not)
+
+
 func _process(delta: float) -> void:
 	var sim := sim_frame >= 0 and sim_frame < sim_frames.size()
+	if sim:
+		delta = SIM_DT
 	if sim and walker != null:
 		walker.sim_input = sim_frames[sim_frame]
 	if sim and sim_frames[sim_frame] is Dictionary:
 		for k in (sim_frames[sim_frame] as Dictionary).get("keys", []):
 			press_key(String(k))
+		for ev in (sim_frames[sim_frame] as Dictionary).get("events", []):
+			bus_pending.append((ev as Dictionary).duplicate(true))
 	_beat_tick(float(sim_frame) * delta if sim else -1.0)
 	_play(delta)
 	if sim:
@@ -1361,6 +1368,10 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	var incoming: Array = bus_pending + z["events"]
 	bus_pending = []
 	bus_incoming = incoming
+	# a menu up freezes the world and its clock, as the page's (interact-channel.js __mojFreeze, since 0.22.0): the menu
+	# the last frame left open stops this frame's bus timers and sagas, the cast and the fight
+	if menu_open != null:
+		delta = 0.0
 	bus_clock += minf(delta, 0.05)
 	if cast != null:
 		var me = cast_state["byId"].get(who if who != "" else "player")
@@ -1374,10 +1385,8 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 			# a mouse-look rule aims with the look's pitch; a tank-turning one aims level
 			if combat != null:
 				me["pitch"] = walker.pitch_node.rotation.x if combat.look and walker.pitch_node != null else 0.0
-		cast.step(cast_state, minf(delta, 0.05))
-		if combat != null and me != null:
-			combat.step(cast_state, me, _combat_input(), minf(delta, 0.05), walker.is_on_floor())
-			_draw_swing(me)
+		# the facts of the cast as the last frame's step left it (the page reads castFacts before the bus); the cast and
+		# the fight step after the bus's ops (below), as the page's controllable step runs after its events (since 0.22.0)
 		var facts: Array = cast.facts(cast_state)
 		for ev in facts:
 			character_event.emit(String(ev["type"]), String(ev["entity"]), ev)
@@ -1403,6 +1412,12 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	var warp = ctrl["warps"].get(who)
 	if warp is Array:
 		walker.global_position = to_yup(warp) * bus_units
+	if cast != null:
+		var me2 = cast_state["byId"].get(who if who != "" else "player")
+		cast.step(cast_state, minf(delta, 0.05))
+		if combat != null and me2 != null:
+			combat.step(cast_state, me2, _combat_input(), minf(delta, 0.05), walker.is_on_floor())
+			_draw_swing(me2)
 	_drain_bus(delta)
 	_sync_menus()
 	_draw_cast()
