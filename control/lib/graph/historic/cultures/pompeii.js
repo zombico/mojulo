@@ -6,7 +6,8 @@
  *  - the town mid-repair after the earthquake of 62: each monument's slot carries the record's `state`;
  *  - painted stucco over tufa, limestone and concrete; marble a veneer on a few buildings, much of it stripped;
  *  - low red tile roofs; lava streets between kerbed pavements.
- * Colours from the style card's estimated palette (../style/pompeii.js). Laid out by ../layouts/pompeii.js ('lava-spur').
+ * Colours from the style card's estimated palette (../style/pompeii.js). Its town is solved
+ * from its form (../form/towns.js).
  */
 import { POMPEII_ASSETS } from '../assets/pompeii.js';
 import { POMPEII_STYLE } from '../style/pompeii.js';
@@ -27,7 +28,6 @@ export const POMPEII = {
   aliases: ['pompeian', 'roman town', 'vesuvius', 'campania', 'herculaneum', 'eruption'],   // what people call it (search)
   soundtrack: 'roman',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: RECORDS.pompeii,   // the encyclopedia entry's basis
-  layout: 'lava-spur',
   palette: {
     ground: '#a99b7c',             // the spur's beaten earth and ash soil
     lane: S.lava, street: S.lava,  // lava paving

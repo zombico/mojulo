@@ -6,7 +6,7 @@
  *    roofs (stucco and tile are standard Greek practice, not confirmed at Lindos: conjecture);
  *  - the town of plastered courtyard houses on terraces, NOT the white cubic village (whitewash is modern);
  *  - NO fire on Athena's altar: her sacrifices were fireless (apyra hiera). Fire burns in the town.
- * Laid out by ../layouts/lindos.js ('acropolis'). The same layout with `site.cliff: false` is the
+ * Its town is solved from its form (../form/towns.js). The same form with `site.cliff: false` is the
  * generic Hellenistic polis (`polis` below): a town under a gentle acropolis hill.
  */
 import { LINDOS_ASSETS } from '../assets/lindos.js';
@@ -49,7 +49,6 @@ export const LINDOS = {
   aliases: ['rhodes', 'acropolis', 'athena lindia', 'aegean town'],   // what people call it (search)
   soundtrack: 'greek',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: RECORDS.lindos,   // the encyclopedia entry's basis
-  layout: 'acropolis',
   palette: PALETTE,
   skins: {
     kinds: {
@@ -76,7 +75,7 @@ export const LINDOS = {
 };
 
 /**
- * The generic Hellenistic polis: Lindos' kit and layout on a gentle acropolis hill with no cliff — the
+ * The generic Hellenistic polis: Lindos' kit and form on a gentle acropolis hill with no cliff — the
  * shape most Greek towns had. Its landmarks (the ship relief, the round tomb) stay Lindos' own.
  */
 export const POLIS = {
@@ -85,8 +84,8 @@ export const POLIS = {
   place: null,                   // invented: Lindos' kit on a gentle hill, no real town
   region: 'greece',
   aliases: ['greek town', 'polis', 'hellenistic city'],
-  // history (../lineage.js): the generic town of Lindos' world, on its layout and kit
-  draws: [{ from: 'lindos', kind: 'variant', parts: ['palette', 'skins', 'patterns', 'assets', 'layout', 'record'], note: 'a generic Hellenistic town on Lindos\' layout and kit' }],
+  // history (../lineage.js): the generic town of Lindos' world, on its form and kit
+  draws: [{ from: 'lindos', kind: 'variant', parts: ['palette', 'skins', 'patterns', 'assets', 'form', 'record'], note: 'a generic Hellenistic town on Lindos\' form and kit' }],
   site: { ...LINDOS.site, cliff: false, summit: 46, upper: 52 },
   landmarks: false,
 };

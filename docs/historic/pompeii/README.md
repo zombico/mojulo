@@ -72,7 +72,8 @@ The gaps a later pass should close:
 ## Built
 
 The town is laid out before its pieces are designed, so the drawing brief can be checked against what it needs
-(`control/lib/graph/historic/layouts/pompeii.js`, culture `pompeii`, layout `lava-spur`). Every piece is a
+(the solver, `control/lib/graph/historic/solver/`, from its form in `form/towns.js`: a ring-walled grid round the forum
+on the spur, the Capitolium its monument). Every piece is a
 placeholder in the kit (`assets/pompeii.js`, all `designed: false`):
 - **Massing blocks** in the card's numbers: podium temple, public hall, two-storey forum portico, colonnaded
   court, arch, gate, fountain.

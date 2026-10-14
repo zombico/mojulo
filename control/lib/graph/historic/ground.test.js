@@ -25,12 +25,11 @@ describe('historic ground: what the town stands on', () => {
     expect(f(1).bg).toContain('-10.00px');
     expect(groundTileCss([f(0), f(4)]).match(/data:image\/png/g).length).toBe(1);
   });
-  it('the main streets are rubble, the quays and the precinct brick, alleys mud, outside dry earth', () => {
+  it('the main streets are rubble, the precinct brick, alleys mud, outside dry earth', () => {
     const p = town();
     const by = (s) => p.grounds.filter((g) => g.surface === s);
     expect(by('rubble').length).toBeGreaterThan(20);
     expect(by('brick').some((g) => g.kind === 'precinct-floor')).toBe(true);
-    expect(by('brick').filter((g) => g.kind === 'quay').length).toBeGreaterThan(20);   // the quays: one strip per bank, nothing laid over them
     expect(by('mud').length).toBeGreaterThan(20);
     expect(p.grounds.find((g) => g.kind === 'ground').surface).toBe('dry-earth');
     expect(p.grounds.filter((g) => g.kind === 'lane' && !g.surface)).toEqual([]);

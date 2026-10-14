@@ -1,8 +1,8 @@
 /**
  * The Forum Romanum (Rome, read on a summer day of 79 CE — ../record/forum.js): a close-scale study beside the Pompeii
  * town, one civic space at walking scale where the detail is in the buildings. Its parts are the orders
- * (../assets/orders.js) standing as instances; its buildings ../assets/forum.js; laid out by ../layouts/forum.js
- * ('forum') at measured positions, not generated. Colours from the style card (../style/forum.js).
+ * (../assets/orders.js) standing as instances; its buildings ../assets/forum.js; Rome round its
+ * forum solved from its form (../form/towns.js), Castor its monument (../monuments/). Colours from the style card (../style/forum.js).
  */
 import { FORUM_STYLE } from '../style/forum.js';
 import { FORUM_READ_AT } from '../record/forum.js';
@@ -25,7 +25,6 @@ export const FORUM = {
   aliases: ['roman forum', 'imperial rome', 'senate house', 'curia', 'temple of saturn', 'vestal'],   // what people call it (search)
   soundtrack: 'roman',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: RECORDS.forum,   // the encyclopedia entry's basis
-  layout: 'forum',
   palette: {
     ground: '#b9ad92',             // the beaten ground behind the buildings
     square: S.travertine, street: S.selce, court: '#cbbf9f',

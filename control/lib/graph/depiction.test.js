@@ -28,10 +28,10 @@ describe('depiction: the caption a historic scene carries', () => {
     expect(polis.caption).toContain('invented place');
   });
 
-  it("names a scene's own subject: the land, the farm and the works are not the town", () => {
-    expect(describeHistoric({ culture: 'thebes', scene: 'region' }).subject).toBe('Thebes and its land');
-    expect(describeHistoric({ culture: 'thebes', scene: 'farm' }).subject).toMatch(/estate of Amun/);
-    expect(describeHistoric({ culture: 'sumer', scene: 'works' }).subject).toMatch(/works of a Sumerian town/);
+  it("names a scene's own subject: the town, the town in its land, a slice of life in it", () => {
+    expect(describeHistoric({ culture: 'thebes', scene: 'region' }).subject).toBe('New Kingdom Thebes in its land');
+    expect(describeHistoric({ culture: 'sumer', scene: 'slice', focus: 'farmstead' }).subject).toMatch(/a slice of life \(farmstead\)/);
+    expect(describeHistoric({ culture: 'thebes' }).subject).toBe('New Kingdom Thebes');
   });
 
   it('is pure, and returns nothing for a culture it does not know', () => {

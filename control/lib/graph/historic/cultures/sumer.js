@@ -67,5 +67,5 @@ export const SUMER = {
   precinct: { size: [124, 90], wall: 2.2, wallHeight: 5, platform: [52, 38], platformHeight: 20, stages: 3, temple: [18, 22], hall: [22, 18], clear: 9, templeHeight: 6.5 },   // clear: open court kept between the ziggurat (with its stair) and its neighbours
   canal: { width: 9, sink: 1.5 },   // sink: the water lies this far below the quays
   groves: { density: 0.5, max: 140 },
-  assets: SUMER_ASSETS,   // the kit that builds each slot the layout asks for
+  assets: SUMER_ASSETS,   // the kit that builds each slot the solver asks for
 };

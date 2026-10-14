@@ -4,9 +4,9 @@
  *  - cased smooth in white Tura limestone to the apex, not the stepped core stripped in the Middle Ages;
  *  - the Sphinx freshly carved, with no beard (a later addition).
  * An exhibit of the monuments, not a full level: the cemeteries, the workers' town and the building sites
- * are left out. The cited notes live in ../record/giza.js. Laid out by ../layouts/giza.js ('plateau'): the
- * desert plateau above the valley, the three pyramid complexes, causeways down the escarpment to the harbours,
- * the Sphinx in its quarry.
+ * are left out. The cited notes live in ../record/giza.js. Its town is solved from its form
+ * (../form/towns.js): the desert plateau above the valley, Khufu's pyramid on it (../monuments/), the causeway down
+ * to the workers' town on the floodplain, the Sphinx beside it.
  */
 import { GIZA_ASSETS } from '../assets/giza.js';
 import { RECORDS } from '../ledger/records.js';
@@ -21,7 +21,6 @@ export const GIZA = {
   aliases: ['pyramid', 'pyramids', 'great pyramid', 'sphinx', 'khufu', 'khafre', 'menkaure', 'pharaoh'],   // what people call it (search)
   soundtrack: 'egypt',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   record: RECORDS.giza,   // the encyclopedia entry's basis
-  layout: 'plateau',
   palette: {
     ground: '#d6bf92',            // the plateau: desert gravel and sand over limestone
     valley: '#8d7a5c',            // the floodplain's dark Nile mud
