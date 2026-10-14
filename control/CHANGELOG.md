@@ -22,8 +22,9 @@ taper survives, and the flow is in pieces cut to hang. The research behind it is
 
 - **Cloth hugs and tapers (principles law 2, rewritten).** Every copy piece keeps the body's ratios: its ease scales
   with each ring's radius, so a thin limb is not swallowed by the ease a torso needs. A top falls from the bust and
-  returns to the waist. A hem falls away only where it is cut to. The same `casual` now adds 9.7 cm at the waist and
-  keeps the leg's taper exactly (ankle over calf 0.72, cloth and body alike).
+  returns to the waist. A hem falls away only where it is cut to. On a landmark-head female the same `casual` now adds
+  3.3 cm at the waist and keeps the leg's taper (ankle over calf 0.52 against the body's 0.49), measured by tape
+  (below); on the anime head law 10 paints the tee on.
 - **Trousers by cut.** `language.bottom.cut`: `skinny`, `tapered` (the default), `straight` or `wide`. The old default
   flared every hem; that look is `straight` now.
 - **Rounder cloth.** A garment over a six-point limb ring is resampled to twelve points (sixteen over an eight) by an
@@ -55,6 +56,45 @@ taper survives, and the flow is in pieces cut to hang. The research behind it is
   over it toward its target) now takes that way out only when the joint's link can reach it. An unreachable exit was
   pulled back through the leg by the lengths. A `flowing` midi skirt had cleared the shins in a jog only because a
   bulky top widened the waist's collision capsule.
+- **The drawn figure (principles law 10).** On an anime hero, a top or trousers with no `fit` of their own lie close: a
+  knit is a second skin (`skin`, painted on the body), a woven is `fitted`. Trousers cut `straight` or `wide` keep their
+  fall. The readout's `hero.dress.outfit.fits` says what each slot became. On the anime `casual` the tee is now painted,
+  so its collar, cuffs and hem trim go with it; name `fit` to keep a tee as cloth.
+- **Girth targets.** `language.top | bottom | outer.girth: { waist: 4, hip: 6 … }` gives the cloth's girth over the
+  body, in cm, at landmarks found on the body's own rings (chest, waist, hip, thigh, knee, calf, ankle, bicep, elbow,
+  forearm, wrist). A landmark given is cinched: the drape does not lift it.
+- **Cloth clears only what lies beside it.** The lift over what is worn beneath is measured within each ring's own slab
+  along the part, replacing a 6 cm reach that carried a neighbour's bulge onto a ring. A second pass then raises the
+  four corners of each cloth patch by the least that clears a point of a layer bulging between rings. Bust
+  poke-through on the anime female's top went from 12 points a side to none. A `dense` piece also gains a ring halfway
+  between each two stations.
+- **The silhouette is read by tape.** `hero.dress.silhouette` measures the body as a tape does: the convex hull round
+  the ring and, on the torso, the navel and chest layers over it.
+- **Round robes.** The outfit catalogue's `robe`, `gown` and `tunic` (designed `pieces`, a creature's or a hero's) are
+  now the garment kernel's pieces. The bodice is on dense, proportional rings. The skirt is a `fit: 'skirt'` hull round
+  the hips and legs in twenty directions, so it is round at the hem and clears the legs and what is worn on them; the
+  old four-ring cone let trouser legs show through it. `flare` on these pieces is now metres per metre of fall. On the
+  anime female in `blouse` with a robe, the waist the cloth adds went from 27 cm to 15 cm.
+- **Cloaks hang from the shoulders.** A new garment kernel piece, `fit: 'cape'`, is open cloth hung from the shoulders
+  over an arc (`around`) of the hull round the trunk, the arms and the legs. Its rings crowd toward the top so the yoke
+  over the shoulders reads, and its dents are filled round each ring, so it is round where a board was flat. Below the
+  shoulders it only falls and flares. It skins as the torso above the waist and as a skirt below, and its `root` at the
+  nape hangs it as a strand. The catalogue's `cloak` is built on it (`wrap`, the share of a turn it covers; `hem`;
+  `rigidity`, `soft` by default); the flat board it was hung behind the back, clear of the body.
+- **Cloaks drape on the arms.** Cloth within a hand's breadth of an arm takes the blend of the arm's skin under it
+  (fully within 5 cm, none past 12 cm), and the flow rig keeps a flowing vertex's own arm weight (clavicle, upper arm,
+  elbow, forearm, hand) instead of handing all of it to its strings. A flowing cape hangs as a curtain, a string per
+  share of its width, rather than one string from the nape. Through a jog, the sleeve points showing through the cloak
+  went from 13.0 to 2.9 a frame on the anime female in `traveler`, and from 11.6 to 7.2 on the male in `adventurer`;
+  what remains is an arm swinging back into cloth behind it.
+- **Hoods.** A new garment kernel piece, `fit: 'hood'`, rises from the shoulders over the head, open at the face
+  (`open`, degrees each side of the front, 50 by default). The anime head and hair are drawn on the mesh, not in the
+  parts, so the piece is given the head's volume (`head: { at, r }`); the catalogue sizes it off the rig's head joints.
+  From the head's widest ring down it only falls, so it covers the nape and the hair down the back. It is locked to the
+  shoulders at its foot and the head above. `hood: true` (or `{ open }`) on a cloak or a robe.
+- **Sleeves and the wizard's robe.** `robe`, `gown` and `tunic` take `sleeve: 'none' | 'long' | 'bell'`: sleeves on the
+  arm's own rings over the cut's, a bell widening from the elbow to an open mouth at the wrist. The new `wizardRobe` is
+  a robe to the ankle, fuller, with bell sleeves.
 
 ### Shoot plan: a keyframed camera you can see in the world
 

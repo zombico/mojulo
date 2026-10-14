@@ -12,7 +12,8 @@
  *     or a sash tail from its top) or a CURTAIN (a string every 360 / M degrees round its hanging edge, its neighbours
  *     coupled: a skirt, a cape — a coarse cloth). Each joint rides the piece's CARRIER bone (the head, the pelvis); a
  *     bone per link, its roll from two joints across the carrier. The piece's vertices are re-weighed along their
- *     strings (between the two nearest strings round a curtain, between the two nearest links along each).
+ *     strings (between the two nearest strings round a curtain, between the two nearest links along each), less what
+ *     their own skin weighs an arm: cloth DRAPED on an arm keeps that share on it (a cloak over the shoulder).
  *   • THE TARGET. Each joint is pulled toward where the piece's own skin would carry it (the blend of the vertices round
  *     it): a skirt still follows the legs in a stride, a hair section the head; the dynamics ride on top.
  *   • THE FORM. The body and everything locked on it, as capsules on the body's bones, each the flesh round that bone
@@ -72,6 +73,7 @@ const SHEET_R = 0.025;    // a curtain's at a joint: the cloth spans to its neig
 const REACH = 1.25;       // the far-side rule's exit must lie within this share of the joint's link from the joint before it
 const CLEAR = 0.004;      // the least gap a string keeps from the form, where its rest allows (m)
 const CURTAIN = { strings: 16, links: 4 };
+const DRAPE_BONE = /^(clavicle|upperArm|foreArm|elbowFold|hand)[LR]$/;   // the arm's chain: a flowing vertex keeps its own weight on it
 
 /**
  * What flows on a compiled hero, its rig with the strings, the skin re-weighed along them, and the collision form.
@@ -179,6 +181,14 @@ export function flowRig(mesh, recipe, { hair = HAIR_SECTIONS, pieces = {} } = {}
       const m = acc.get(i) ?? {}; for (const [x, w] of e) m[x] = (m[x] || 0) + w * share; acc.set(i, m);
     }
     delete st.cover;
+  }
+  // cloth DRAPED ON A LIMB keeps its share on it: a vertex whose own skin weighs an arm (a cloak over the shoulder and
+  // the upper arm: body-garment.js capePart) goes with that arm by that share and flows by the rest, so a swinging arm
+  // carries the cloth over it instead of passing through it; the hair and the skirts weigh no arm and flow as before
+  const drapeBones = new Set(R.bones.map((b, x) => (DRAPE_BONE.test(b.id) ? x : -1)).filter((x) => x >= 0));
+  for (const [i, m] of acc) {
+    const own = skin.joints[i].map((j, k) => [j, skin.weights[i][k]]).filter(([j, w]) => w > 0 && drapeBones.has(j)), h = own.reduce((t, [, w]) => t + w, 0);
+    if (h > 1e-6) { const tot = Object.values(m).reduce((t, w) => t + w, 0); for (const x of Object.keys(m)) m[x] *= (1 - h) / tot; for (const [j, w] of own) m[j] = (m[j] || 0) + w; }
   }
   for (const [i, m] of acc) {
     const e = Object.entries(m).filter(([, w]) => w > 0).sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 4), tot = e.reduce((t, [, w]) => t + w, 0);

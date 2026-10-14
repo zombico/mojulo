@@ -150,7 +150,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (the anime look's soft cel step). `vibe: ['cocky', 'light']` lowers to the gaits' dials and a stand at mint (the words
   are not stored). `outfit` as a build may carry designed `pieces` (the outfit catalogue's mantle, pauldron, sash,
   bracers …) and their `intent` palette: worn over the cut on the hero's landmarks, a piece with no place on a person's
-  body said in `warnings`. A hero reading the newer tables (a build, `form: 'tiered'`, `painterly`, a `geocube`) is
+  body said in `warnings`. A `robe`, `gown` or `tunic` is a bodice on rounded rings and a skirt that is one round hull
+  over the hips and legs (`hem`: thigh | knee | shin | ankle, `flare` m per m of fall, `sleeve`: none | long | bell,
+  `hood`); a `wizardRobe` is a robe to the ankle, fuller, its sleeves belled wide at the wrist (`bell` m). A `cloak`
+  hangs from the shoulders round the back and over the arms to the calf (`wrap` 0.2–0.95 of a turn, 0.6 by default;
+  `hem`; `rigidity`, `soft` by default), round where a flat board was, and DRAPES ON THE ARMS: the cloth over an arm
+  goes with it, so a swing does not pass through it. `hood: true` (or `{ open }`, degrees each side of the face) raises
+  a hood from the shoulders over the head, open at the face, turning with the head. A hero reading the newer tables (a build, `form: 'tiered'`, `painterly`, a `geocube`) is
   stamped `laws` at mint; leave it out. A hero made from an egocube (`create_character { egocube }`) records it.
 
 - **Hero door (a human by word and percentage).** `create_character({ as: 'hero', spec: { cast, register, tune,
@@ -509,12 +515,16 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the ankle and the waist under the ribs; a top falls from the bust and returns to the waist; a hem falls away only
   where it is CUT to. Reach for these, not `detail: 'clothed'` (which adds bulk): TIGHT is `fit: 'skin'` (a painted
   second skin, mugen 0: leggings, a bodysuit, a fitted undershirt), close is `'fitted'`, the dials' cut `'eased'`,
-  standing off `'loose'` — per slot, so an outfit is tight in one place and full in another. Dials `stylize`, `fit`
+  standing off `'loose'` — per slot, so an outfit is tight in one place and full in another. LAW 10, THE DRAWN FIGURE:
+  on an anime hero a top or trousers with no `fit` of their own lie close (a knit `'skin'`, a woven `'fitted'`;
+  trousers cut `straight` or `wide` keep their fall), so name `fit` to stand cloth off. `girth: { chest | waist | hip |
+  thigh | knee | calf | ankle | bicep | elbow | forearm | wrist: cm }` on `top`, `bottom` or `outer` sets the cloth's
+  girth over the body (with its layers) at those landmarks; a landmark given is cinched there. Dials `stylize`, `fit`
   (slim 0 … relaxed 1), `coverage` (lengths step shorter by thirds), `ornament` 0–3. Language: `top { family: knit |
-  woven, sleeve, hem, collar, fit }`; `bottom { family, leg, cut: skinny | tapered (default) | straight | wide, fit }`
+  woven, sleeve, hem, collar, fit, girth }`; `bottom { family, leg, cut: skinny | tapered (default) | straight | wide, fit, girth }`
   or a skirt `{ kind: 'skirt', leg: micro … maxi, cut: pencil | aline | full, rigidity? }` (one hull round the hips and
   both legs, never narrowing below them, open beneath, skinned by nearness), `dress: true` (the skirt the top's own
-  cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit }` over both; `panels: [{ at: back | front | sides
+  cloth); `outer { family, sleeve, hem: waist … maxi, open, cut, fit, girth }` over both; `panels: [{ at: back | front | sides
   | sideR | sideL, length: micro … maxi, width: 0–1 of the half turn, split: 1 | 2, cut, rigidity }]` — DRAPE PANELS,
   open cloth hung from the waist over everything (coattails, a tabard's apron, tassets, a loincloth), under the belt,
   flowing as a strand (`soft` by default) while the body stays close: the flow is in pieces cut to hang, never in loose

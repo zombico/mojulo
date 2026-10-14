@@ -59,7 +59,11 @@ export function bodyMap(plan) {
   const trunk = [...pelvis.stations, ...torso.stations].map((st) => ({ z: st.z, yc: st.yc ?? 0, ry: Array.isArray(st.r) ? st.r[1] : st.r })).sort((a, b) => a.z - b.z);
   const edgeAt = (h, sign) => { const S = trunk; if (h <= S[0].z) return S[0].yc + sign * S[0].ry; for (let i = 0; i + 1 < S.length; i++) if (h <= S[i + 1].z) { const f = (h - S[i].z) / Math.max(1e-9, S[i + 1].z - S[i].z); return (S[i].yc + sign * S[i].ry) * (1 - f) + (S[i + 1].yc + sign * S[i + 1].ry) * f; } const L = S[S.length - 1]; return L.yc + sign * L.ry; };
   const plumb = (h, top, sign) => { let y = edgeAt(h, sign); for (const st of trunk) if (st.z >= h && st.z <= top) y = sign > 0 ? Math.max(y, st.yc + st.ry) : Math.min(y, st.yc - st.ry); return y; };
-  return { J, torso, pelvis, ringAt, uTop, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
+  // the HEAD's volume, an ellipsoid round the head and the hair (an anime head is drawn on the mesh, not in the segments),
+  // sized off its base and top: the hair rises above the top joint and stands out to its width and depth
+  const hb = J.headBase, ht = plan.rig?.joints?.headTop?.at ?? J.headTop, hh = hb ? (ht ? ht[2] - hb[2] : 0.13 * ((z('neckTop') ?? 1.6) / 1.6)) : 0;
+  const head = hb ? { at: [hb[0], hb[1], hb[2] + 0.85 * hh].map(r3), r: [1.1 * hh, 1.1 * hh, 0.88 * hh].map(r3) } : null;
+  return { names: new Set((plan.segments || []).map((s) => s.name.replace(/[RL]$/, ''))), head, J, torso, pelvis, ringAt, uTop, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
     thigh, arm, neckSeg, hasMeta: !!seg('metaR'), chestW, torsoW, armX, hipW, tail: z('tail0') ?? null, top: torso.stations[torso.stations.length - 1], front: (h, top) => plumb(h, top, 1), back: (h, top) => plumb(h, top, -1) };
 }
 
@@ -71,11 +75,11 @@ export const OUTFIT_KINDS = Object.freeze({
   gown: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'shin', flare: 0.45 }) },
   robe: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'ankle', flare: 0.25 }) },
   tunic: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'thigh', flare: 0.15 }) },
+  // a WIZARD'S ROBE: a robe to the ankle, fuller, its sleeves belled wide at the wrist (`sleeve`, `hood` as a robe's)
+  wizardRobe: { layer: 2, cls: 'soft', colour: 'base', compile: (p, B, G, I) => gownOf(p, B, G, { hem: 'ankle', flare: 0.2, sleeve: 'bell' }) },
   // L3: a CLOAK behind (from the shoulder line, on the back's plumb line, to the calf or above a tail that must read), a
   // COLLAR standing behind the nape (a rise above the shoulders)
-  cloak: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G, I) => { const top = B.shoulder - 0.02 * B.k, low = p.tailClear && B.tail ? B.tail + 0.05 * B.k : B.knee - 0.25 * (B.knee - B.ankle), bot = Math.min(top - 0.2 * B.k, low);
-    const zs = [top, top - 0.3 * (top - bot), top - 0.65 * (top - bot), bot], w0 = B.chestW * 0.86, w1 = B.chestW * (p.flare ?? 1.12), g = 0.025 * B.k, th = 0.012 * B.k;
-    return { segments: [boardOf(p.id ?? 'cloak', zs.map((h, i) => [B.back(h, top) - g - th - i * 0.012 * B.k, h, w0 + (w1 - w0) * i / 3]), th, G(p), { bone: 'torso', blend: { st2: { torso: 0.6, pelvis: 0.4 }, st3: { torso: 0.3, pelvis: 0.7 }, tip: { torso: 0.3, pelvis: 0.7 } } })] }; } },
+  cloak: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G) => cloakOf(p, B, G) },
   collar: { layer: 3, cls: 'stiff', colour: 'secondary', compile: (p, B, G, I) => { const n = B.neckSeg, nr = n ? (Array.isArray(n.rA) ? n.rA[0] : n.rA) : B.chestW * 0.4, ny = (B.J.neckBase?.[1] ?? 0) - (n ? (Array.isArray(n.rA) ? n.rA[1] : n.rA) : 0.1);
     const z0 = B.top.z - 0.03 * B.k, rise = (p.rise ?? 0.16) * B.k, z1 = (B.neckTop ?? B.top.z) + rise, th = 0.01 * B.k;
     const pts = [[ny - 0.01 * B.k, z0, nr * 1.5], [ny - 0.03 * B.k, z0 + 0.45 * (z1 - z0), nr * 1.9], [ny - 0.06 * B.k, z1, nr * (p.flare ?? 2.5)]];
@@ -174,38 +178,65 @@ function mountedOf(p, B, G, { r }) {
     signature: { kind: 'disc', c: [0, r3(B.front(z, z) + 0.05 * k), r3(z)], n: [0, 1, 0.1], r: r3(r * k), h: r3(0.016 * k), m: 16, rim: 0.6, group: G(p) } }] };
 }
 
-/** a BOARD: a flat cloth loft through `pts` [[y, z, half-width]] (a cloak hung down the back, a
- * collar standing up), `th` its half-thickness, flat at both ends */
+/** a BOARD: a flat cloth loft through `pts` [[y, z, half-width]] (a collar
+ * standing up), `th` its half-thickness, flat at both ends */
 function boardOf(name, pts, th, group, bind) {
   const stations = pts.map(([y, z, w]) => ({ at: [0, r3(y), r3(z)], r: [r3(w), r3(th)] }));
   return { name, kind: 'loft', stations, slots: 'ring12', caps: { back: stations[0].at, tip: stations[stations.length - 1].at }, group, mirror: 'plane', bind };
 }
 
-/** A GOWN, a ROBE or a TUNIC: a bodice fitted over the torso and a SKIRT tailored from the natural waist to its hem.
- * The skirt is one loft round both legs: wide enough at the hips to clear them, flaring by `flare` toward its hem,
- * its hem FLAT (its tip cap on the hem ring's centre, not a point beyond it); it rides the pelvis at the waist and, down
- * its length, each side's points blend toward that side's thigh, so it follows a stride instead of passing through it. */
-function gownOf(p, B, G, { hem, flare }) {
-  const e = (p.ease ?? 0.018) * B.k, wz = B.waist, w = B.ringAt(B.torso, wz), hz = B.hip, hr = B.ringAt(B.pelvis, Math.min(hz, B.pelvis.stations[B.pelvis.stations.length - 1].z));
-  const hemZ = { thigh: hz - 0.5 * (hz - B.knee), knee: B.knee + 0.08 * (hz - B.knee), shin: B.knee - 0.35 * (B.knee - B.ankle), ankle: B.ankle + 0.12 * (B.knee - B.ankle) }[p.hem ?? hem];
-  // wide enough at the hips to clear the thighs (their outer surface, a little ease beyond)
-  const legX = Math.abs(B.J.hip?.[0] ?? 0.1) + rad(B.thigh?.rA ?? 0.1) * 1.05;
-  const hipR = [Math.max(hr.r[0] + e, legX + e), Math.max(hr.r[1] + e, rad(B.thigh?.rA ?? 0.1) * 1.4 + e)];
-  const f = p.flare ?? flare;
-  const stations = [
-    { at: [0, r3(w.yc), r3(wz)], r: [r3(w.r[0] + e), r3(w.r[1] + e)] },
-    { at: [0, r3(hr.yc), r3(hz)], r: hipR.map(r3) },
-    { at: [0, r3(hr.yc + 0.005), r3((hz + hemZ) / 2)], r: hipR.map((x) => r3(x * (1 + f * 0.45))) },
-    { at: [0, r3(hr.yc + 0.01), r3(hemZ)], r: hipR.map((x) => r3(x * (1 + f))) },
-  ];
-  const n = stations.length, sideOf = (sl) => (/R$/.test(sl) ? 'R' : /L$/.test(sl) ? 'L' : null);
-  const slots = ['front', 'frontR', 'frontSideR', 'sideR', 'backSideR', 'backR', 'back', 'backL', 'backSideL', 'sideL', 'frontSideL', 'frontL'];
-  const blend = { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 1 } };
-  for (let i = 2; i < n; i++) { const t = (i - 1) / (n - 1); for (const sl of slots) { const S = sideOf(sl); blend[`st${i}.${sl}`] = S ? { pelvis: r3(1 - 0.6 * t), [`thigh${S}`]: r3(0.6 * t) } : { pelvis: 1 }; } }
+/** the body's shin by either name (the hero's shank, a creature's shin), or null */
+const shinOf = (B) => (B.names.has('shank') ? 'shank' : B.names.has('shin') ? 'shin' : null);
+/** a hem's height as an address on the leg: a word, or `low` (m) for a height read off the body (a hem above a tail) */
+function hemAt(B, word, low = null) {
+  const shin = shinOf(B);
+  if (low !== null) { const seg = B.thigh, S = seg?.stations || []; const zs = S.map((st) => st.z), top = Math.max(...zs), bot = Math.min(...zs);
+    if (S.length && low >= bot) return { part: 'thigh', run: r3(Math.max(0, Math.min(1, (top - low) / Math.max(1e-6, top - bot)))) }; }
+  return { thigh: { part: 'thigh', run: 0.5 }, knee: { part: 'thigh', run: 1 }, calf: shin ? { part: shin, run: 0.3 } : { part: 'thigh', run: 1 }, shin: shin ? { part: shin, run: 0.4 } : { part: 'thigh', run: 1 },
+    ankle: shin ? { part: shin, run: 0.88 } : { part: 'thigh', run: 1 } }[word];
+}
+const legsTo = (B, to) => ['pelvis', 'thigh', ...(to.part !== 'thigh' ? [to.part] : [])].filter((n) => B.names.has(n));
+
+/** A GOWN, a ROBE, a TUNIC or a WIZARD'S ROBE: a BODICE fitted over the torso (its ease proportional to each ring's
+ * radius, on dense, rounded rings: body-garment.js), SLEEVES if it has them (`sleeve`: 'none' | 'long' | 'bell', `bell`
+ * the mouth's extra ease in m), a HOOD if asked (`hood`), and a SKIRT from the top of the hips to its hem: the garment kernel's `fit: 'skirt'`,
+ * one hull round the hips and both legs in twenty directions (round, clear of the legs and of what is worn on them, never
+ * narrowing below the hips), flaring by `flare` (m per m of fall), each point skinning as a skirt's does (the pelvis at
+ * the waist, the leg it lies over below), so it follows a stride instead of passing through it. */
+function gownOf(p, B, G, { hem, flare, sleeve: sleeveOf = 'none' }) {
+  const e = (p.ease ?? 0.018) * B.k, id = p.id ?? p.kind, to = hemAt(B, p.hem ?? hem), sleeve = p.sleeve ?? sleeveOf, ref = r3(0.1 * B.k);
+  // SLEEVES (`sleeve`): 'long' to the wrist on the arm's own rings; 'bell' the same, widening from the elbow to an open
+  // mouth at the wrist (a wizard's); 'none' bare. Worn over the cut, so they stand off the sleeves beneath
+  const bell = sleeve === 'bell' ? r3((p.bell ?? 0.08) * B.k) : 0, elbow = bell ? r3(0.012 * B.k) : 0;
+  const sleeves = sleeve === 'none' || !B.names.has('upperArm') ? [] : [
+    { id: `${id}Sleeve`, part: 'upperArm', run: [0, 1], ease: r3(e), ...(elbow ? { flare: [0, elbow] } : {}), proportional: ref, dense: true, group: G(p) },
+    ...(B.names.has('foreArm') ? [{ id: `${id}Cuff`, part: 'foreArm', run: [0, 0.92], ease: r3(e), ...(bell ? { flare: [elbow, bell] } : {}), proportional: ref, dense: true, group: G(p) }] : [])];
   return {
-    garments: [{ id: `${p.id ?? p.kind}Bodice`, part: 'torso', ease: r3(e), group: G(p) }],
-    segments: [{ name: `${p.id ?? p.kind}Skirt`, kind: 'loft', stations, slots: 'ring12', caps: { back: [0, r3(w.yc), r3(wz + 0.02 * B.k)], tip: [0, r3(hr.yc + 0.01), r3(hemZ)] }, group: G(p), mirror: 'plane', bind: { bone: 'pelvis', blend } }],
+    garments: [{ id: `${id}Bodice`, part: 'torso', ease: r3(e), proportional: ref, dense: true, group: G(p) }, ...sleeves,
+      ...(B.names.has('pelvis') ? [{ id: `${id}Skirt`, fit: 'skirt', part: legsTo(B, to), from: { part: 'pelvis', run: 1 }, to, ease: r3(e), flare: [0, r3(p.flare ?? flare)], group: G(p) }] : []),
+      ...hoodOf(p, B, G, id, [60, 300], r3(e * 1.6))],
   };
+}
+
+/** a HOOD on a piece (`hood: true` or `{ open }`): the garment kernel's `fit: 'hood'`, rising from the shoulders over the
+ * head's volume (bodyMap `head`), its foot on `around`, open at the face, locked to the head; none without a head */
+function hoodOf(p, B, G, id, around, ease) {
+  if (!p.hood || !B.head) return [];
+  return [{ id: `${id}Hood`, fit: 'hood', part: ['torso', 'upperArm', 'neck'].filter((n) => B.names.has(n)), from: { part: 'torso', run: 1 }, head: B.head, around,
+    ...(typeof p.hood === 'object' && p.hood.open !== undefined ? { open: p.hood.open } : {}), ease, thick: r3(0.006 * B.k), group: G(p) }];
+}
+
+/** A CLOAK: hung from the shoulders down the back and round the sides (`wrap`, the share of a turn it covers, 0.6 by
+ * default: the back and the arms' outer sides) to the calf, or above a tail that must read: the garment kernel's
+ * `fit: 'cape'`, one hull round the trunk, the arms and the legs, so it is round over the shoulders and the arms where a
+ * board was flat, draping on the arms. It flows as a curtain (`rigidity`, soft by default). `hood: true` (or
+ * `{ open }`, the face's opening in degrees each side of the front) raises a `fit: 'hood'` over the head. */
+function cloakOf(p, B, G) {
+  const to = p.tailClear && B.tail ? hemAt(B, null, B.tail + 0.05 * B.k) : hemAt(B, p.hem ?? 'calf');
+  const arc = 360 * Math.max(0.2, Math.min(0.95, p.wrap ?? 0.6)), part = ['torso', 'upperArm', ...legsTo(B, to)].filter((n) => B.names.has(n)), id = p.id ?? 'cloak';
+  const around = [r3(180 - arc / 2), r3(180 + arc / 2)], ease = r3((p.ease ?? 0.02) * B.k), thick = r3(0.006 * B.k);
+  return { garments: [{ id, fit: 'cape', part, from: { part: 'torso', run: 1 }, to, around, ease, flare: [0, r3(p.flare ?? 0.12)], thick, group: G(p), rigidity: p.rigidity ?? 'soft' },
+    ...hoodOf(p, B, G, id, around, r3(ease * 1.2))] };
 }
 
 /** THE CUT on a creature: the outfit grammar the hero wears (outfit/expand.js: a top, a bottom, an outer layer, their
@@ -275,7 +306,7 @@ export function compileOutfit(plan) {
 
 // ─── the laws of visual interest (the Dressing Bible's), advisory ───
 /** how much of the outfit's area a kind covers, roughly (a skirt and bodice far more than a buckle) */
-const AREA = { gown: 10, robe: 11, tunic: 7, mantle: 4, cloak: 5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, pack: 2, quiver: 1 };
+const AREA = { gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, pack: 2, quiver: 1 };
 export const ARCHETYPE_SHAPES = { ruler: ['bell', 'column'], hero: ['wedge'], outlaw: ['wedge', 'needle'], caregiver: ['bell', 'barrel'], sage: ['bell', 'column'], magician: ['bell', 'needle'], explorer: ['wedge', 'column'], innocent: ['bell', 'barrel'], everyman: ['column', 'barrel'], jester: ['needle', 'wedge'], lover: ['needle', 'bell'], creator: ['column', 'barrel'] };
 
 /** the cut's cloth as the laws count it: each layer a piece of its area in its colour role (a coat over a shirt shows
@@ -315,7 +346,7 @@ export function outfitLaws(outfit, ctx = {}) {
   const sided = P.filter((p) => ['satchel'].includes(p.kind) || (['pauldron', 'bracers', 'armRings'].includes(p.kind) && !p.pair && I.symmetry !== 'symmetric') || p.kind === 'baldric');
   if (ctx.order !== undefined) law('symmetry from order', ctx.order < 0.5 ? sided.filter((p) => p.kind !== 'baldric').length <= 1 : sided.length >= 1, ctx.order < 0.5 ? `a bound order: ${sided.length} one-sided piece${sided.length === 1 ? '' : 's'} (one note at most)` : `a free order: ${sided.length} asymmetric piece${sided.length === 1 ? '' : 's'} (at least one)`);
   if (ctx.archetype && I.silhouette) law('shape from the archetype', (ARCHETYPE_SHAPES[ctx.archetype] || []).includes(I.silhouette), `${ctx.archetype} reads as ${(ARCHETYPE_SHAPES[ctx.archetype] || []).join(' or ')}; the outfit aims for ${I.silhouette}`);
-  if (ctx.mustSee?.includes('tail')) { const over = P.filter((p) => (['gown', 'robe', 'skirt'].includes(p.kind) || (p.kind === 'outer' && p.long)) && !p.tailSlit); law('the must-see stays seen', !over.length, over.length ? `${over.map((p) => p.kind).join(', ')} would hide the tail: give it a tail slit, or a tunic` : 'nothing covers the tail'); }
+  if (ctx.mustSee?.includes('tail')) { const over = P.filter((p) => (['gown', 'robe', 'wizardRobe', 'skirt'].includes(p.kind) || (p.kind === 'outer' && p.long)) && !p.tailSlit); law('the must-see stays seen', !over.length, over.length ? `${over.map((p) => p.kind).join(', ')} would hide the tail: give it a tail slit, or a tunic` : 'nothing covers the tail'); }
   // restraint: the cloth's base counts once (a top and its bottom are one outfit's ground), its outer layer once more
   const count = (outfit.pieces || []).length + (cloth.length ? 1 : 0) + (cloth.some((p) => p.kind === 'outer') ? 1 : 0);
   law('restraint', count <= 6, `${count} pieces (six at most: each one has to earn its place)`);

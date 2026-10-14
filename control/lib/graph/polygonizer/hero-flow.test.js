@@ -3,7 +3,7 @@
 // calm; through a sprint and a roll the links hold their lengths, no joint enters the body-and-outfit form or the
 // floor, and a loop's seam meets. Deterministic.
 import { describe, expect, it } from 'vitest';
-import { validateRig, rigNodesAt } from './station-loft-rig.js';
+import { validateRig, rigNodesAt, boneFrames, skinLayered } from './station-loft-rig.js';
 import { hairRig, flowRig, flowSimulation as hairSimulation, simulateClip, HAIR_SECTIONS, rigidityParams, rigidityErrors } from './hero-flow.js';
 import { locomotionClips, motionPlan } from './hero-motion.js';
 import { heroJump } from './hero-jump.js';
@@ -106,6 +106,49 @@ describe('hero-flow: a garment designed to flow', () => {
         for (const [, ci] of legs) expect(segD(nodes[j], caps[ci].a, caps[ci].b), `jog ${i} ${j} in ${F.form[ci].bone}`).toBeGreaterThan(Math.min(rAt(caps[ci], nodes[j]), restD[si][k][ci]) - 0.02);
       }));
     });
+  });
+});
+
+describe('hero-flow: a cloak drapes on the arms', () => {
+  // the catalogue's cloak (outfit-plan.js) is a cape (body-garment.js): soft, hung as a curtain, its cloth over each arm
+  // weighted to it, so the arms' swing carries the cloth instead of passing through it
+  const CLOAKED = heroOf({ cast: 'male', head: 'anime', outfit: { type: 'outfit', style: 'adventurer', pieces: [{ kind: 'cloak' }] } });
+  it('a curtain across the cloak; through a jog its links hold and no joint enters an arm', () => {
+    const F = flowRig(CLOAKED.mesh, CLOAKED.recipe, { hair: false }); const ck = F.strings.filter((s) => s.part === 'cloak_cape');
+    expect(ck.length).toBeGreaterThanOrEqual(6);
+    const fn = locomotionClips(motionPlan({ jog: true }), validateRig(CLOAKED.recipe.rig)).clips.jog, K = 84;
+    const out = simulateClip(F, Array.from({ length: K }, (_, k) => fn(k / K)), 0.7, { air: () => [0, -2.4, 0] });
+    const sim = hairSimulation(F); const arms = F.form.map((c, ci) => [c, ci]).filter(([c]) => /^(upperArm|foreArm)/.test(c.bone));
+    expect(arms.length).toBe(4);
+    const restD = ck.map((st) => st.rest.map((p) => F.form.map((c) => segD(p, c.a, c.b))));
+    out.forEach((pose, i) => {
+      if (i % 7) return; const { nodes } = rigNodesAt(F.R, pose); const caps = sim.caps(pose);
+      ck.forEach((st, si) => st.joints.forEach((j, k) => {
+        if (!k) return;
+        expect(Math.abs(Math.hypot(...[0, 1, 2].map((a) => nodes[j][a] - nodes[st.joints[k - 1]][a])) - st.lengths[k - 1])).toBeLessThan(0.003);
+        for (const [, ci] of arms) expect(segD(nodes[j], caps[ci].a, caps[ci].b), `jog ${i} ${j} in ${F.form[ci].bone}`).toBeGreaterThan(Math.min(rAt(caps[ci], nodes[j]), restD[si][k][ci]) - 0.02);
+      }));
+    });
+  });
+  it('through a jog the sleeves stay under it: few sleeve points show through the cloth over the arms', () => {
+    const { mesh } = CLOAKED, F = flowRig(mesh, CLOAKED.recipe, { hair: false }), part = (i) => mesh.provenance[i].part;
+    const cloak = mesh.provenance.map((_, i) => i).filter((i) => part(i) === 'cloak_cape');
+    // the cloth across the arc (not its two side edges, where an arm swinging forward past the front is no fault)
+    const across = (i) => { const m = String(mesh.provenance[i].id).match(/[./]p(\d+)([RL]?)$/); if (!m) return false; const k = +m[1], j = m[2] === 'L' ? k - 1 : k === 13 ? 12 : k; return j >= 2 && j <= 10; };
+    const C = cloak.filter(across), sleeve = mesh.provenance.map((_, i) => i).filter((i) => /^(topSleeve|topCuff)_/.test(part(i)));
+    const faces = mesh.faces.filter((f) => f.every((v) => part(v) === 'cloak_cape'));
+    const sub = (a, b) => [0, 1, 2].map((k) => a[k] - b[k]), dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const showing = (pose) => { const V = skinLayered(mesh, F.skin, boneFrames(F.R, F.R.joints, rigNodesAt(F.R, pose).nodes)), N = {};
+      for (const f of faces) { const a = sub(V[f[1]], V[f[0]]), b = sub(V[f[2]], V[f[0]]), n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; for (const v of f) N[v] = (N[v] ?? [0, 0, 0]).map((x, k) => x + n[k]); }
+      const cx = cloak.reduce((t, i) => t + V[i][0], 0) / cloak.length, cy = cloak.reduce((t, i) => t + V[i][1], 0) / cloak.length;
+      for (const i of C) { const n = N[i]; if (n[0] * (V[i][0] - cx) + n[1] * (V[i][1] - cy) < 0) N[i] = n.map((x) => -x); }
+      let out = 0; for (const s of sleeve) { let best = -1, bd = 0.04 ** 2; for (const c of C) { const d = sub(V[s], V[c]), dd = dot(d, d); if (dd < bd) { bd = dd; best = c; } }
+        if (best >= 0 && dot(sub(V[s], V[best]), N[best]) / Math.hypot(...N[best]) > 0.003) out++; } return out; };
+    expect(showing({})).toBe(0);
+    const fn = locomotionClips(motionPlan({ jog: true }), validateRig(CLOAKED.recipe.rig)).clips.jog, K = 84;
+    const out = simulateClip(F, Array.from({ length: K }, (_, k) => fn(k / K)), 0.7, { air: () => [0, -2.4, 0] });
+    const frames = out.filter((_, f) => f % 6 === 0), mean = frames.reduce((t, pose) => t + showing(pose), 0) / frames.length;
+    expect(mean / sleeve.length).toBeLessThan(0.025);   // 1.7 % with the arms' drape; 2.7 % as one strand without it
   });
 });
 

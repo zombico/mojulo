@@ -24,23 +24,37 @@ Proportional + dense garment rings, ring-only lift, trouser `cut`, waist-returni
 - `dress-silhouette.js` measures the body by TAPE (convex hull incl. navel/bust/pectoral layers).
 - Pins re-pinned: `outfit-laws.char.test.js`, `statue.char.test.js` (headers say why).
 
+## Third pass (merged 1012-consolidate; robes and cloaks)
+- Merged `origin/1012-consolidate` (conflicts: the changelog's Unreleased head, `layered.js` imports; both sides kept).
+  The outfit-laws and statue pins did not move.
+- **Round robes:** `outfit-plan.js` `gownOf` (robe, gown, tunic) emits garment-kernel pieces: a bodice on dense,
+  proportional rings and a `fit: 'skirt'` hull; the four-ring loft cone is gone. `flare` is m per m of fall.
+- **Cloaks:** new kernel piece `fit: 'cape'` (`body-garment.js` `capePart`): the shoulder-hung panel item 5 below
+  asked for, a hull round the trunk, arms and legs with a torso carrier above the waist and `legHull`'s blend below.
+  The catalogue's `cloak` uses it (`wrap`, `hem`, `rigidity`). Pinned in `body-garment.test.js` (clears what it
+  covers, wraps, root at the nape); creatures' explorer/outlaw cloaks build on every lineage.
+- **The male collar poke does not reproduce.** Paired ring-for-ring (same station, same ring12 slot), every torso and
+  pelvis point on the male `adventurer` lies under its cloth by ≥ 3.5 mm. The two shoulder-line points (x ±0.154,
+  z 1.387) read 4 mm "outside" only when the top's rings are interpolated by their mean height: those rings are not
+  planar at the shoulder, and the same points' own cloth points lie 8 mm outside them. What changed in the second
+  commit is the stand-off there: 6–9 cm (first commit) to ~8 mm. A paired check on limbs must not match slots by
+  name: limb6 and ring12 reuse names at different angles.
+- **Arms, hoods, wizard robes:** the cape drapes on the arms (`capePart` blend by nearness to the arm's skin; hero-flow
+  keeps a flowing vertex's own arm-chain weight, `DRAPE_BONE`), and hangs as a curtain (no `root`). New kernel piece
+  `fit: 'hood'` (`hoodPart`, head volume from `bodyMap` `head`). `sleeve` on robes, kind `wizardRobe`. Pinned in
+  `body-garment.test.js`, `hero-flow.test.js` (a cloak in a jog: joints out of the arms; sleeves showing < 2.5 %) and
+  `outfit-plan.test.js`.
+- Changelog and the `layered` card cover law 10, girth, the slab lift and clearance pass, the tape, mid rings, robes
+  and cloaks.
+
 ## Open items, in order
 1. **Failing:** `outfit.test.js` "the top drapes from what holds it out" — the shirt comes in 1.5 mm faster than its drape
    under the bust (0.0992 vs 0.1007). Likely the mid rings + per-ring proportional ease (the test assumes one ease);
    fix the test's expectation to use per-ring ease, or apply the drape constraint in `easeOf` terms. Do not loosen blindly.
-2. **Male collar poke:** on the male `adventurer` 2 torso points at the shoulder line (x ±0.154, z 1.387, between
-   `st3_st4_50` and the next ring) sit ~75 mm outside the top; the original base had 0. Probably the slab lift no longer
-   reaching the deltoid/shoulder layer from the neighbouring ring — check `overs` there (the shoulder yoke) and whether the
-   clearance pass sees those points (they are torso's OWN points, not `beneath`: the pass only clears `beneath`; consider
-   adding the source part's own points beyond its ring, or keep the old isotropic lift at the collar rings).
-3. Run before merge: `npm run test:critical`, `npm run test:deep:changed`, `npm run test:e2e`, the polygonizer/outfit/
-   egocube/gameworld folders. Run them serially (in parallel the MCP suites time out at 30 s).
-4. Changelog: add law 10, girth targets, slab lift + clearance, tape measure, mid rings to the Unreleased section.
-   Card: add `girth` to the `layered` card's OUTFIT BUILD language line (`solid-vocab/layered.md`).
-5. Not started: shoulder-hung panels (capes: `legHull` already takes any parts; needs a torso carrier in `blendAt` above
-   the waist), cuff panels, shading channels. Eyes gate never run: look at anime casual / adventurer / traveler / warden.
-
-Measurement spikes used (recreate under `control/lib/graph/polygonizer/zz-*.spike.gen.test.js`, run with
-`npx vitest run -c vitest.spike.config.js <file> --silent=false --reporter=verbose`): girths per landmark via
-`dressSilhouette({ parts })`; poke-through by interpolating the top's rings at each bust/torso point's z and a 2D
-point-in-polygon test.
+2. Eyes gate on the cloak in motion (a curtain, draping on the arms); nobody has watched a jog or a turn yet. An arm
+   swinging back still enters cloth behind it (machine: 1.7 % of sleeve points a frame on the male): that is collision,
+   which the flow rig does only at string joints.
+3. A designed robe over an outfit card that has its own belt buries that belt (`warnings`); the robe's sash sits over it.
+4. Not started: cuff panels, shading channels. Eyes gate never run: anime casual / adventurer / traveler / warden.
+5. Hoods over flowing hair: the hair's strands are not kept inside the hood; long hair may push through it in motion.
+   Wizard sleeves are a symmetric bell (a trumpet), not a hanging droop.
