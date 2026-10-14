@@ -24,6 +24,7 @@ import { PUFFS } from '../elements/moments.js';
 import { BEAM_NAMES, BEAM_LAYERS } from '../elements/beams.js';
 import { EXPLOSION_NAMES } from '../elements/explosions.js';
 import { BORDER_ELEMENTS, ELEMENT_IDS, BORDER_FLAVORS, FLAVOR_IDS, PIXEL_SIZES } from './borders.js';
+import { DRESS_WORDS, DRESS_DIALS, INVENTORY_LOOKS, LOOK_IDS, FLAVOR_LOOK } from './inventory-dress.js';
 
 // one ladder: the play tiers (click, walk, level, game) and the UI rungs merged; a rung admits itself and all below
 export const PLAY_RUNGS = Object.freeze([
@@ -202,9 +203,27 @@ function menusCard() {
     '  drawn), accept does the row\'s verb (buy, take, use) and the menu stays up; a guard that fails says why (a toast).',
     '  A collect\'s pickups count into the bag. Cue effects give and use move items too.',
     '  A view is a GRID by default (layout: \'list\' for rows; cols: 3 to 8): tabs by kind ([ ] or a click), what is worn',
-    '  first, tiles with icons (play.items[…].icon, else from its words) and counts, the focused one\'s card. Restyled by',
-    '  tokens: --moj-tile, --moj-tile-gap, --moj-tile-radius, --moj-tile-bg, --moj-qty-bg, --moj-kind-<kind>, --moj-card-w.',
+    '  first, tiles with icons (play.items[…].icon, else from its words) and counts, the focused one\'s card. Dressed by',
+    '  the guide: play.ui.inventory, a look (satchel, loadout, armory, tactical …) and words over it (card \'ui-inventory\').',
     `example: ${JSON.stringify([MENU_KINDS.talk.example, MENU_KINDS.shop.example])}`,
+  );
+}
+
+function inventoryCard() {
+  const ex = { border: 'cozy', inventory: { look: 'flavor', card: 'side' } };
+  return lines(
+    'THE INVENTORY\'S DRESS — how the guide dresses a view drawn as a grid (shop, chest, inventory). A menu still has no',
+    'look of its own: the dress is the guide\'s, beside the register and the border, and drawn from closed words only.',
+    `play.ui.inventory (or play_hints.inventory): a look, 'flavor', or { look?, ${DRESS_DIALS.join('?, ')}? }.`,
+    'LOOKS (a word for every dial; words named beside a look win over its own):',
+    LOOK_IDS.map((l) => `  ${l.padEnd(9)} ${INVENTORY_LOOKS[l].about}`),
+    `'flavor' takes the border flavor's look: ${Object.entries(FLAVOR_LOOK).map(([f, l]) => `${f} → ${l}`).join(', ')}.`,
+    'WORDS:',
+    DRESS_DIALS.map((d) => `  ${d.padEnd(9)} ${Object.entries(DRESS_WORDS[d]).map(([w, a]) => `${w} (${a})`).join(' · ')}`),
+    `example: play.ui: ${JSON.stringify(ex)}`,
+    'The board draws one grid view in every look, the worn one marked: a picking aid. On a guide already approved, set',
+    'play.ui.ask.inventory: the dress alone is redrawn (nothing else rolls) and the guide is proposed again.',
+    'Colour stays the guide\'s tokens; the kinds\' own colours read --moj-kind-<kind> when kinds is tinted.',
   );
 }
 
@@ -344,6 +363,7 @@ export function playCards() {
     ['ui-systems', 'Systems', 'what the weapon, lock, body and match publish, and the shooter parts that read them', 'an FPS / action HUD: reticle, ammo, hitmarker, lock', systemsCard()],
     ['ui-shared', 'Shared status', 'whose value a part shows (of) and who may see it (audience)', 'multiplayer: nameplates, scoreboards, team status', sharedCard()],
     ['ui-cues', 'Cues', 'the UI answering the game: when a happening, then an effect, until another', 'a prompt near a door, a pickup toast, an area name, a low-health alert, a hint', cuesCard()],
+    ['ui-inventory', 'Inventory dress', 'the guide dresses a grid view: a look (satchel, loadout, armory, tactical) and words for tiles, slots, card, badge, kinds, focus, backdrop', 'styling an inventory, a shop or a chest screen', inventoryCard()],
     ['ui-menus', 'Menus', 'what comes up from a thing in the map: read, talk, confirm, shop, chest, save, map, list', 'a sign to read, a shopkeeper, a chest, a bed, a save point', menusCard()],
     ['ui-scenes', 'Scenes', 'a directed moment: the camera taken, the cast moved, two talking, the camera handed back', 'a cutscene, an arrival, two characters talking, a reveal, a boss entrance', scenesCard()],
     ['ui-chapters', 'Chapters', 'the same world later: a difference turned by a happening, carried to the next level', 'a story that moves on, a town after the siege, a level that remembers what you did', chaptersCard()],
@@ -376,7 +396,7 @@ export function playRung(n) {
     rung: r.rung, name: r.name, makes: r.makes, built: r.built,
     admits: admitted.map((x) => x.name),
     parts: parts.map((p) => `ui-part-${p}`),
-    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'ui-chapters', 'ui-scenes', 'play-elements', 'play-beams', 'play-explosions', 'ui-pace'],
+    cards: ['play-guide', 'ui-board', 'ui-register', 'ui-motion', 'ui-layout', 'ui-border', 'ui-pixel', 'ui-systems', 'ui-shared', 'ui-cues', 'ui-menus', 'ui-inventory', 'ui-chapters', 'ui-scenes', 'play-elements', 'play-beams', 'play-explosions', 'ui-pace'],
     ...(r.built ? {} : { note: `rung ${n} (${r.name}) is not served yet; the parts listed draw today through play.parts and the board.` }),
   };
 }

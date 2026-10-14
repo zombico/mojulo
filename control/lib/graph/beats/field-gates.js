@@ -1,7 +1,7 @@
 /**
  * field-gates — the field-orchestra principles as machine checks over a beats-composition.
  *
- *   fieldGates(manifest, 'idyllic' | 'adventurous' | 'processional') → [] when every principle holds, else one line per breach
+ *   fieldGates(manifest, 'idyllic' | 'adventurous' | 'processional' | 'battle') → [] when every principle holds, else one line per breach
  *
  * Advisory, like every gate here: it reports and never refuses. It checks the principles a machine can see
  * (card `beats-field-orchestra`): one colour alone at the opening, the parts and leads sounding together inside
@@ -16,6 +16,8 @@ export const FIELD_BUDGETS = {
   adventurous: { parts: 5, leads: 2, vel: 0.8, notesPerSecond: 3 },
   // a stately procession (ceremony, a triumph outside combat): the adventurous space, no motion floor.
   processional: { parts: 5, leads: 2, vel: 0.8 },
+  // battle: the band (ground, stabs, ostinato) under two leads, a doubling and the timpani; forte, always moving.
+  battle: { parts: 6, leads: 2, vel: 0.9, notesPerSecond: 4 },
 };
 const NOT_LEADS = /^(timpani|glockenspiel|crotales)$/;
 const barLenOf = (m) => { const r = /^(\d+)\/(\d+)$/.exec(m.meter || '4/4'); return r ? (4 * r[1]) / r[2] : 4; };

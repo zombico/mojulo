@@ -78,14 +78,14 @@ export function coverOverlayParts(manifest, layout, renders = {}) {
       slots.title.text,
       { face: slots.title.font || ad.type.titleFont, fill: ad.palette.accent },
       layout.titleZone,
-      { fill: 0.92 },
+      layout.titleAlign ? { fill: 0.92, align: layout.titleAlign } : { fill: 0.92 },
     ));
   }
 
   for (const s of slots.subtext) {
     const region = layout.subtextRegions?.[s.role];
     if (!region || !s.text) continue;
-    parts.push(titleSvgPath(s.text, { face: s.font || ad.type.textFont, fill: ad.palette.ink }, region, { fill: s.role === 'author' ? 0.7 : 0.6 }));
+    parts.push(titleSvgPath(s.text, { face: s.font || ad.type.textFont, fill: ad.palette.ink }, region, { fill: s.role === 'author' ? 0.7 : 0.6, ...(layout.titleAlign ? { align: layout.titleAlign } : {}) }));
   }
 
   for (const md of slots.metadata) {

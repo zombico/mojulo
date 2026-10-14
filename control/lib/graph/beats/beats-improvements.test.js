@@ -129,7 +129,7 @@ describe('timbre: the kernel feature these add', () => {
     const { createHash } = await import('node:crypto');
     const { sliceKernelText } = await import('./beats-kernel.js');
     const t = readFileSync(new URL('./beats-kernel.js', import.meta.url), 'utf8');
-    const text = sliceKernelText(t.slice(t.indexOf('function buildBeatsKernel()'), t.lastIndexOf('}') + 1), (f) => f !== 'timbre');
+    const text = sliceKernelText(t.slice(t.indexOf('function buildBeatsKernel()'), t.lastIndexOf('}') + 1), (f) => f !== 'timbre' && f !== 'loop'); // newer features (loop) are off too
     expect(createHash('sha256').update(text).digest('hex')).toBe('2efd454af14c0a921ea31989d267f93b0b1f39bfcb072ecfa4cfaba4ab8d41f3');
   });
 

@@ -13,6 +13,217 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Game audio: scene-scored soundtracks and action SFX
+
+Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
+score its scene and its play call for.
+
+- **A looped composition keeps playing.** On the live page a composition with `loop: true` played once and went
+  silent: the transport kept running and never went back to the first event. Every `field:<mood>` world soundtrack
+  and every rhythm level's music is one. It now wraps at the next bar line, the seam the looped WAV export folds at
+  (`loopPeriod`, shared by both). The fix is a new kernel slice, `loop`, carried only by pages whose soundtrack is
+  a looped composition. Every other page, every WAV baseline and the frozen 2.1 kernel are byte for byte as before.
+- **`audio.sfx.on` hears the events reactions emit.** It read only the facts coming into the bus, so the events a
+  level's reactions emit (`goal:reached`, `pickup:*`, `door:*`, `checkpoint`, `lap`, `wave`, `beat:hit` …) never
+  played their cue. It now reads the log the bus drained, as the game channel does. Every World page with an audio
+  channel changes by these few lines (the `audio` and `kitchen-sink` emit pins move).
+- **A level's own soundtrack reaches the engine exports.** Godot, Unity and Unreal carried a level's music only when
+  it was a stored beats row. A `field:<mood>` score, an inline recipe or a kind's period music now ships as
+  `audio/<level>-soundtrack.wav`, rendered from the soundtrack the World page plays (`levelSoundtrack` in
+  `engine-score.js`, `engine-audio.js`). A stored row keeps its ref and its file.
+- **Music beds loop without a seam everywhere.** The game shell's menu, about and battle tracks are served and
+  exported as one seamless pass to the bar line (`beats.wav?loop=1`); Unity and Unreal beds are rendered looped like
+  Godot's already were. An sfx stays a one-shot.
+- **A level's music, suggested from its scene and its play.** `suggestScore` (`lib/graph/beats/score-suggest.js`)
+  starts from the mood the place asks for (the old word suggestion, unchanged) and moves it by what the level does.
+  Each mood has a point on a valence/arousal plane. A fight pushes darker and more driving, a sneak toward tension,
+  a race toward drive, a storm darker, and the last level of a run gets a lift. The nearest mood wins.
+  - Play moves a level only toward the moods that say an energy (highlands, expedition, wayfarer, night, tension;
+    triumph on the last level). A place mood (desert, tavern, chapel …) stays with its place.
+  - A stage kit counts as place words (`trail-valley` reads as plains, `gothic-stone` as a crypt).
+  - With no play in the context, the answer is the old one byte for byte, so `compose_world`'s suggestions for plain
+    worlds don't move.
+  - `create_game` replies with `music.suggest` for every level without a soundtrack. Each entry has its mood, the
+    `why`, two alternatives and the `update_sketch` call that applies it. Every level shares one `game` seed, so the
+    game keeps one score identity. `create_game` writes no level itself.
+  - `design_game({ quick: { music: 'auto' | '<mood>' } })` scores each level at mint, for any goal (before, `music`
+    was rhythm-only). Without `music`, a level's order and print are as before.
+- **Battle music and outcome stingers.** The field score writes the battle step of its energy ladder, and the
+  stingers a game plays when a level ends.
+  - `battle` (132–152 bpm) plays the orchestra as a band: low brass on the downbeats, string stabs on 2 and 4, a
+    sixteenth ostinato and a march, with the middle section a third up.
+  - `boss` is darker and faster: the shock or Phrygian charts, a brass lead.
+  - Both run on the game's identity, like every other cue, and pass a new `battle` gate budget (six parts, two
+    leads, forte, always moving).
+  - `victory` and `defeat` are four-bar stingers on the same identity. Victory is the brass alone in major, then
+    the band, a timpani roll and a cymbal. Defeat is a low line falling in the minor and a tam-tam.
+  - A game names them in `music.victory` / `music.defeat`, served unlooped. The arena shell plays one when a level
+    ends, not when a map exit leads on, and the score waits under it. The play shell takes these two and no other
+    music: it mutes the level under the stinger.
+  - A stinger is refused as a level soundtrack.
+  - `suggestScore` gives a level with a fight (hp foes, defeat-all, waves, or a battle, shoot or defend goal) the
+    battle cue, and the boss on the run's last level. Hazards alone still only darken.
+  - The seven pinned field moods are byte for byte as before.
+- **A level's action sounds from one word.** `audio: { sfx: 'auto' }` (or `{ auto: '<palette>' }`) resolves to a
+  palette of named cues (`lib/graph/beats/sfx-palettes.js`) built only from the existing beats-sfx gestures.
+  - Four voices with the same cue ids: `arcade`, `foley`, `orchestral` and `synth`.
+  - `'auto'` picks the palette the soundtrack's score identity implies (its band), and the game's tonic transposes
+    every pitched gesture into the music's key. With no field score it is arcade in C.
+  - Cues are wired only to the events the level's own mechanics emit (`MECHANIC_SFX`: pickup, door, goal, hit,
+    enemy down, death, spotted, checkpoint, lap, wave, beat hit and miss …). The gait, weapon, melee and dodge
+    channels take the same palette unless the spec names its own. What the spec writes wins.
+  - Every cue of every palette renders audibly, peaks 0.06–0.42 at the export.
+  - `design_game({ quick: { sfx: 'auto' | '<palette>' } })` writes it at mint. `create_game`'s suggested `apply`
+    adds `sfx: 'auto'` to a level with no sounds.
+  - Bus stingers fire a cue at most once every 60 ms, so a burst of one event is one sound. The `audio` and
+    `kitchen-sink` emit pins move again for these lines.
+- **The agent casts the score.** `score.cast = { colour?, ground?, lead?, brass?, pad?, motion?, kit? }` chooses who
+  plays each job of a generated field cue or stinger, over the dice of the game's band.
+  - The dice roll as without it: same key, tempo, chart and tune, new voices. A job left out keeps the band's player.
+  - `casting.js` describes every instrument on the shelf: its family, envelope, range (filled in for the unranged
+    synths), the jobs it can take, and what it conveys. A cast synth bass sits in the bass; the band's own unranged
+    voices keep their pinned register.
+  - An unknown job or instrument, or a kit in a pitched job (or the reverse), is refused by name.
+  - `create_beats` returns `cast_advice` for what will sound wrong: a bass without the low end, a pad that doesn't
+    hold.
+  - The new `beats-casting` card has the jobs, the shelf by family and how to cast for a feeling.
+  - The suggestions in `compose_world` and `create_game` now carry a `brief`: the feeling in words and on the
+    valence/arousal plane, the tempo band the generator will use, and the jobs to cast.
+  - Without a cast, every cue is byte for byte as before.
+- **Electronic game music: the club score.** `club:<mood>` (or `{ score: { style: 'club', mood } }`) generates a
+  32-bar electronic loop (`lib/graph/beats/club-score.js`).
+  - The form builds and drops: intro, build, drop A, a break without the kick (pad, arp, a riser), drop B with the
+    lead riff, and out.
+  - The kick has its own row, with the bass, stabs and pad ducked under it. Hats sit on the off-beats, the bass riff
+    repeats bar by bar, and the chart is hypnotic and never closes V–i.
+  - Five moods on an energy ladder: `drift` (92–104, half-time), `deep` (house), `drive` (acid techno), `rave` and
+    `peak` (145–150).
+  - It shares the game's score identity (its tonic and hall) with the field score, so one game keeps one key. Its
+    voices are cast by the same jobs.
+  - It passes its own gates over every seed (four on the floor in the drops, no kick in the break, the pump keyed to
+    a real row, an open seam, the tempo band) and is byte-pinned.
+  - The suggestions read the scene's style. Sci-fi, neon, cyber, lab, alien, space or robot words score it
+    electronic (the `research-lab` and `alien-night` kits among them), and the point the place and play reached
+    picks the club mood: a fight a rave, the last fight the peak, a race a drive.
+  - `create_game` scores a whole game in one style, electronic when most of its levels read so.
+    `design_game`'s quick `music` takes a club mood by name.
+  - A club soundtrack's `sfx: 'auto'` takes the synth palette. Card `beats-club`.
+  - The soft end: `ambient` (beatless, 60–76), `chill` (lo-fi beats, 80–92, swung boom-bap) and `lofi` (lo-fi house,
+    116–122, swung, a soft four-on-the-floor).
+    - Jazzy sevenths and ninths. The keys, pad and bass run through tape and a darker tone, the drums are
+      bit-crushed, and a vinyl crackle (an air texture in ambient) sits under every bar.
+    - Layers come and go instead of building and dropping. Ambient has a drone, pads that swell every eight bars,
+      bells through a long echo, and a long hall.
+    - The scene reading has three flavours: tech, cozy (a cafe, an apartment, a rooftop, rain) and drifting
+      (underwater, the cosmos, a void). A cozy or drifting scene the orchestra has no place for still gets music.
+      A calm bed sits a little calmer than the orchestra's point.
+    - The five driving moods are byte for byte as before, and the soft moods have their own pin.
+  - Rendered offline, a club loop is 50–78 s and takes about two minutes per minute of audio to export.
+- **Tested by laws, not catalogues.** The game-audio tests now check principles over generated spaces, and the
+  worked examples move to characterization pins (`score-suggest.char.test.js`).
+  - The suggestion is checked over a grid of every mood word and every registered stage kit, crossed with goals,
+    mechanics, the last level, time and weather. The laws are determinism, closure (a style's moods only, never a
+    stinger), fight music exactly for fights, play reaching only energy moods, direction (danger, a race, the clock
+    or the last level never calm it; stealth never brightens it), reachability of every mood, and the brief's tempo
+    band holding every generated cue.
+  - The sound wiring is checked against each mechanic card's own example, composed for real: every wired event is
+    one its mechanic can raise, and every outcome a mechanic's contract ends on is heard. That second law found five
+    silent outcomes, now wired: `win:met`, `laps:done`, `offbeat`, `crops:late` and `broke:*`. The registry-driven
+    kit law found `catacomb` levels getting no music; catacombs now read as expedition ground.
+  - Casting laws run over the whole shelf: an instrument's jobs follow from its kind, refusals happen exactly for
+    kit/pitched mix-ups, and advice appears exactly when an instrument doesn't fit its job.
+  - A deep tier (`game-audio.deep.test.js`) renders every cue of every palette (audible, unclipped) and measures a
+    driving club loop's break against its drops.
+- **Music that follows play.** `audio.combat` is a second score (any soundtrack form) that a level changes to when its
+  tension rises (`lib/graph/beats/adaptive-music.js`).
+  - The meter rises with the level's own events: by default the dangers its mechanics raise (hits, enemies falling,
+    being spotted, a wave, a leak), or the weights in `audio.tension.on`. It leaks back toward calm with a `decay`
+    time constant.
+  - Combat comes in at `enter` (0.6) on the playing piece's next bar line, crossfading over one bar in the same key.
+    It leaves only after the meter has stayed under `exit` (0.25) for `hold` (2) bars, so it never flaps.
+  - The scores play on two engines of their own; the cues, footsteps and wind keep a steady level. `tension` is also
+    a binding source, so a soundtrack's layers can fade in with the danger without a combat score.
+  - The logic is one self-contained closure: the tests hold its laws (the meter stays in [0, 1], changes land on bar
+    lines, combat only at `enter` and out only after `hold` bars at `exit`, a quiet level never leaves explore), and
+    the page runs that same function. A test runs the emitted page code on a real bus with stand-in engines: hits
+    bring combat in on the bar line, and calm takes it back out.
+  - Pages without `combat` or a tension binding emit byte for byte as before.
+  - Suggestions give a fight level its scene's own score as `soundtrack` and the fight's (battle, the boss; rave or
+    peak) as `combat`. `create_game`'s patch and `design_game`'s `music: 'auto'` write both.
+  - Unity and Unreal exports carry the explore score only; Godot plays the change (below).
+- **Godot plays the level's sound.** A level's world audio travels to the Godot pack as data the kernel performs
+  (kernel 0.20.0, `kernel/sound.gd`; `engine-sound.js` names each sound for what it plays).
+  - Its action sounds render to `audio/sfx/<id>_<n>.wav`, three takes each when the level's sounds vary. Each
+    plays through an `AudioStreamRandomizer` that never repeats a take, fired by the same bus events (first matching
+    glob, 60 ms apart) and the same hero moves (footsteps, shots, swings, dodges) as the page.
+  - `audio.combat` renders beside the soundtrack and the level changes to it on the bar line, crossfading over one
+    bar, by the page's own meter ported to GDScript. `scripts/godot-sound-conformance.mjs` holds the two equal over
+    seeded traces; with `MOJULO_GODOT` set, the test runs it and a real level whose hits bring the fight score in and
+    whose calm takes it out.
+  - The game's `music.victory` / `music.defeat` stingers render once and play when a level ends; the level's music
+    fades for them and the menu's waits.
+  - A pack with sound ships `default_bus_layout.tres`: Music, SFX and UI under Master, with a compressor on Music
+    keyed from SFX so the sounds duck the music. `score.json` gains an `audio` key only for a level with sounds or a
+    fight score; packs without either are byte-identical apart from the kernel.
+- **The world audio channel has a manual.** `get_beats_vocab({ id: 'beats-world-audio' })` documents every `audio`
+  key. Ten pointers (`compose_world`'s error and nine view cards) named `audio-beats`, a routing card that
+  `get_beats_vocab` refuses; they name the new card now, and a test checks that every `get_beats_vocab` pointer names
+  a real card.
+
+### Game menus: the inventory's dress, a game's cover, its front menus and its credits
+
+- **The inventory's dress.** The world's UI guide now dresses a grid view (inventory, shop, chest) from closed words
+  (`playscape/ui/inventory-dress.js`). A menu still has no look of its own.
+  - `play.ui.inventory` (or `play_hints.inventory`) is a look, `'flavor'`, or `{ look?, tile, shape, slots, card,
+    badge, kinds, focus, backdrop }`.
+  - The looks are classic (the page's own grid), satchel, loadout, armory and tactical. `'flavor'` takes the border
+    flavor's look: cozy → satchel, covert → loadout, mech-cockpit → armory, futurepunk → tactical.
+  - Words named beside a look win over its own. Shapes include round, hex and diamond (a clipped tile draws its edge
+    as a filled stroke). The backdrop dims or blurs the play behind the menu.
+  - The guide records the dress with its source. The page draws it after the menu sheet. Classic, or no dress, adds
+    no bytes.
+  - On a guide already approved, setting `play.ui.ask.inventory` redraws the dress alone (nothing else rolls), and
+    the guide is proposed again.
+  - The board draws one grid view in every look, with the worn one marked, as a picking aid. Its Style guide card
+    lists the dress. Its menu specimens show sample counts (a bag showed "Nothing carried.").
+  - The board's ammo-pip rule no longer squashes an inventory's worn slots.
+  - New play card: `ui-inventory`.
+- **A game's cover.** `create_cover` takes `for_kind: 'game'` and a `format`:
+  - `key-art`, the default: 16:9, the title screen's backdrop.
+  - `capsule`: the store's 460 × 215.
+  - `box`: the box front.
+  - `icon`: square.
+
+  The archetypes are `logo-center`, `lower-third` (title set left) and `hero-side` (a column for the title and the
+  menu). Each reserves a **menu zone** where the title screen places its menu. Subtext role `tagline` and metadata
+  kind `studio` are drawn. A book's cover is as it was.
+- **Covers without an image worker.** An illustration is `painted`, `placeholder` or `upload`.
+  - Under the Claude plugin profile a cover starts as a `placeholder`, so it has no render target and never reaches
+    for a worker.
+  - The operator uploads the picture into a stash on the dashboard. The agent maps it with `create_cover … art: {
+    stash, item }`, or, on a cover already made, a patch to `/slots/illustration` = `{ realizer: 'upload', from: {
+    stash, item } }`. The compositor draws the picture as it is (`image-outcomes/cover-upload.js`).
+- **The front of a game.** The light shell gains `front` (`game/play-front.js`), opt-in: a game without it emits no
+  front CSS, code or config.
+  - **Title.** It is drawn over a cover (by ref: its own lockup, the menu in its zone) or an image, else laid out
+    center, lower-third, left or right.
+  - **Attract screen.** `press` puts one first.
+  - **Start menu.** Entries are continue, play (start / new game), levels, options (sound, reset progress) and
+    credits. It is driven by the keys and the pad. With a front, home is the title, and the levels list, the result
+    and the pause lead back to it.
+  - **Credits.** The roll lists each role and its names, the thanks and the closing words, then "made with mojulo"
+    unless `attribution: false`. It is reduced-motion aware and skippable.
+  - **End.** When the last level is first cleared, the end card shows, then the roll, then the title. A run's result
+    offers the roll.
+  - **Where it comes from.** A cover ref resolves to its composite. `export_game` writes it to `assets/cover.png` (a
+    bound `/outcomes/…` image is copied). A gameworld's `front` setting is read on the world and carried onto the
+    game its run makes.
+  - **Words.** `create_game` takes `front`. New game vocab card: `front`. The gameworld world card names it.
+  - Godot and Unity do not carry the front yet. Their ledgers list `front` among the shell UI that does not travel,
+    and Godot's main scene is still the level list.
+- **Pins.** The tools/list payload is re-pinned for create_cover's `format` and `art` and create_game's `front`. The
+  HUD card list gains `front`. create_cover's description stays under its allowlist snapshot.
+
 ### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
 
 - **The budget reads a creature** (`cast-spend.js`). A creature is read by its own part names: the shin and the
@@ -758,6 +969,17 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   sweeps a second and 17 cm wide, where the bare wave flutters 4.5 a second, 6 cm), and the bow at 4.2 s (timed by beat,
   below; the bare bow goes down in 0.28 s). `emote_figure`'s side GIF plays the emote as minted now.
   The bare wave and bow are pinned byte for byte (`gait-frozen.char.test.js`); `motion-timing.test.js` holds the bands.
+
+### Godot reads a reaction's guard
+
+A Godot export of every quick game found the Godot bus firing guarded reactions unguarded: a race was won by touching
+only its finish line. Seven of the twelve quick goals lower to guarded reactions (race, rhythm, defend, puzzle, farm,
+battle, shoot).
+
+- **The guard.** `kernel/bus.gd` matches a reaction only while its `if` holds, as the web's `reactionMatch` does
+  (kernel 0.19.0). `bus-abi` `effect:guarded` is built in Godot, so the portability flags stop naming it.
+- **Proof.** The conformance corpus gains `guarded` (checkpoints in order and out of order, a guard on an undefined
+  var, a guard flipped by the reaction before it in the same event) and guards on the seeded scenarios' reactions.
 
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
 

@@ -169,7 +169,7 @@ describe('level contract — the result card (game.complete) + the hud card fami
   it('the hud cards load with the same discipline as the other families', async () => {
     const { getHudVocabCatalog } = await import('./hud-cards/loader.js');
     const cards = getHudVocabCatalog();
-    expect([...cards.keys()].sort()).toEqual(['hud-banner', 'hud-guide', 'hud-readout', 'hud-style']);
+    expect([...cards.keys()].sort()).toEqual(['front', 'hud-banner', 'hud-guide', 'hud-readout', 'hud-style']);
     for (const c of cards.values()) { expect(c.when.length).toBeGreaterThan(20); expect(c.body).toMatch(/slot|token/); }
   });
 });
