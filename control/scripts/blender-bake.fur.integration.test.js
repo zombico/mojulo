@@ -24,7 +24,15 @@ process.stdout.write(JSON.stringify({ ok: r.ok }) + '\\n'); process.exit(0);
 describe.skipIf(!BLENDER)('blender-bake --fur (real Blender)', () => {
   it('furs a minted character: stills, a .blend and fur.json, the eyes left bare', () => {
     const home = mkdtempSync(path.join(tmpdir(), 'moj-fur-gate-'));
-    const env = { ...process.env, MOJULO_HOME: home, MOJULO_OUTCOMES_DIR: path.join(home, 'outcomes') };
+    // Every data path pinned into the scratch home: resolveMojuloPaths() never overrides a set var, so an exported
+    // repo-dev MOJULO_DATA_DIR / SQLITE_PATH would otherwise mint fur_gate into the developer's DB (REF_EXISTS on rerun).
+    const data = path.join(home, 'data');
+    const env = {
+      ...process.env, MOJULO_HOME: home, MOJULO_DATA_DIR: data, SQLITE_PATH: path.join(data, 'mojulo-lite.db'),
+      STORAGE_ROOT: path.join(data, 'storage'), MOJULO_OUTCOMES_DIR: path.join(home, 'outcomes'),
+      MOJULO_EXPORTS_DIR: path.join(data, 'exports'), MOJULO_SCENE_PNG_DIR: path.join(data, 'scene-png'),
+      MOJULO_TURNTABLE_DIR: path.join(data, 'turntable'), MOJULO_FIGURE_SPECS_DIR: path.join(data, 'figure-specs'),
+    };
     try {
       const mint = spawnSync(process.execPath, ['--input-type=module', '-e', MINT], { env, encoding: 'utf8' });
       expect(mint.stdout, mint.stderr).toContain('"ok":true');
