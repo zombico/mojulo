@@ -55,4 +55,27 @@ func _snapshot(e: Dictionary, r: Dictionary) -> Dictionary:
 		s["boosting"] = bool(e.get("boosting", false))
 		s["boost"] = null if e.get("boost") == null else _nano(e["boost"])
 		s["lock"] = bool(e.get("boostLock", false))
+	if r.get("type") == "drive" or r.get("type") == "racer":
+		s["speed"] = _nano(e.get("speed", 0.0))
+		s["steer"] = _nano(e.get("steerAngle", 0.0))
+		s["cvz"] = _nano(e.get("vz", 0.0) if e.get("vz") != null else 0.0)
+		s["airborne"] = bool(e.get("airborne", false))
+		s["wheel"] = _nano(e.get("wheelPhase", 0.0))
+		s["braking"] = bool(e.get("braking", false))
+		s["skidding"] = null if r.get("lateralGrip") else bool(e.get("skidding", false))
+		s["lean"] = null if e.get("lean") == null else _nano(e["lean"])
+	if r.get("type") == "racer":
+		s["lineAt"] = e.get("lineAt")
+		s["laps"] = e.get("laps", 0)
+		s["stuckT"] = _nano(e.get("stuckT", 0.0))
+		s["backT"] = _nano(e.get("backT", 0.0))
+	if r.get("type") == "fly":
+		s["airspeed"] = _nano(e.get("airspeed", 0.0))
+		s["bank"] = _nano(e.get("bank", 0.0))
+		s["airborne"] = bool(e.get("airborne", false))
+		s["stalled"] = bool(e.get("stalled", false))
+		s["takeoff"] = bool(e.get("takeoff", false))
+		s["touchdown"] = bool(e.get("touchdown", false))
+		s["climb"] = _nano(e.get("climbRate", 0.0))
+		s["loco"] = e.get("locomotion")
 	return s

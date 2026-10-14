@@ -1263,6 +1263,16 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   equal key for key with its directed camera. A twin quirk is named (`godot-scenes.test.js`): the page draws half of
   an emoji for a frame as a line types on; Godot keeps the half back. Talk, the shots, framing, steps and quests are
   built.
+- **Vehicles travel** (kernel 0.23.0). `kernel/rules.gd` ports the drive rule (its power curve, brakes and reverse,
+  the slewed bicycle steer, drag and rolling, the classes' opt-in grip, the ground followed down at a fall rate,
+  walls, and flight off a ramp's lip or a crest with `air`), the racer (a rival driving its line: bends braked
+  into, laps counted, a lane, a grip-bound speed plan, ramps lifted for, backing off when held up) and fixed-wing
+  flight (taxi, takeoff, banked turns, stall, touchdown), held equal by the rules corpus (51 scenarios). A car or a
+  plane pilot is walked by its rule with its own node riding the pose; the score carries the rivals
+  (`score.drivers`) and the kernel drives them; the chase camera follows the car. A whole race (the car flown off a
+  lip, the rival round its loop, the camera) is equal key for key. The ground's surface grip under a car stays the
+  web's (`driveSurface`, approximated), and solid bodies that push walkers out on the web are named
+  (`bodies_solid`). Drive, racer, fly, the vehicle hero and the circuit are built.
 - **The export's ground is the page's.** The GLB de-collided its blend tiles together with the ground they lie on,
   lifting the ground itself a fraction of a millimetre where the page leaves it; blend faces now go last (the page
   draws them in their own pass), and `score.blendNodes` names their nodes so the kernel's land leaves them out. The

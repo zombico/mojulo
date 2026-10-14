@@ -9,6 +9,11 @@ extends RefCounted
 # jumpBuf, jumpWind, airJumpsUsed, gaitPhase, moving, locomotion, jumped, landed). An input is the web rule's axes
 # (forward, strafe, turn, lookDX, lookDY, jump, jumpHeld). A world is { ground: <make_ground>, colliders: [{min, max}] }.
 #
+# The vehicles (since 0.23.0, rules-drive.js drive and racer, rules-fly.js fly): a kinematic car (its power curve,
+# brakes, drag, the slewed bicycle steer, the ground followed down at a fall rate, walls; flight off a ramp's lip or a
+# crest with `air`), a driver no one pilots following its line, and fixed-wing flight. A car's ground surface (`surfaceGrip`
+# over the world's driveSurface) is the web's (godot-marks.js names it).
+#
 # What the platform rule does that this port does not (godot-marks.js PLATFORM_LOST names each, all opt-in on the rule):
 # the boost hover and inertia, space, the charged jump, the kneel, and the maneuver packs (dodge, tackle, a loadout). The
 # melee swing's halt is the fight's (kernel/combat.gd): level.gd passes it in.
@@ -188,6 +193,12 @@ static func step(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, wor
 			walk(e, r, input, dt, world)
 		"platform":
 			platform(e, r, input, dt, world, halt)
+		"drive":
+			drive(e, r, input, dt, world)
+		"racer":
+			racer(e, r, dt, world)
+		"fly":
+			fly(e, r, input, dt, world)
 
 
 # ── walk — ground-locked: a tank turn (or a look), forward and strafe, the feet on the ground under the eye ──────────
@@ -780,3 +791,369 @@ static func unshot(c: Dictionary, current: Dictionary) -> Dictionary:
 		c["heldRule"] = null
 		return held
 	return current
+
+
+
+# ── drive — a designed vehicle you board and drive (rules-drive.js) ─────────────────────────────────────────────────
+const G := 9.81
+
+
+static func _pos_num(r: Dictionary, k: String, dflt: float) -> float:
+	var v = r.get(k)
+	return float(v) if (v is float or v is int) and float(v) > 0.0 else dflt
+
+
+static func drive(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, world: Dictionary) -> void:
+	var p: Array = e["pos"]
+	var mass := _pos_num(r, "mass", 1400.0)
+	var power_n := _pos_num(r, "horsepower", 130.0) * 745.7
+	var S = world["surface"].call(p) if (_truthy(r.get("surfaceGrip")) and world.get("surface") is Callable) else null
+	var soft := _pos_num(r, "surfaceSoft", 1.0)
+	var grip := _pos_num(r, "grip", 1.0) * ((1.0 - (1.0 - float(S["mu"])) * soft) if S != null else 1.0) * _pos_num(r, "muScale", 1.0)
+	var traction_cap := grip * mass * G * _pos_num(r, "drivenShare", 1.0)
+	var brake0 := _pos_num(r, "brakeForce", mass * G * 0.8)
+	var brake_force := minf(brake0, grip * mass * G * float(r["brakeEff"])) if _pos_num(r, "brakeEff", 0.0) > 0.0 else brake0
+	var drag_k := _num(r, "drag", 0.42)
+	var roll_force := _num(r, "rollResist", 0.015) * mass * G * ((1.0 + (float(S["roll"]) - 1.0) * soft) if S != null else 1.0)
+	var airborne: bool = _truthy(r.get("air")) and _truthy(e.get("airborne"))
+	var wheelbase := _pos_num(r, "wheelbase", 2.8)
+	var wheel_r := _pos_num(r, "wheelRadius", 0.33)
+	var reverse_speed := _pos_num(r, "reverseSpeed", 6.0)
+	var steer_max := _num(r, "steerMax", 0.55)
+	var steer_speed := _num(r, "steerSpeed", 2.5)
+	var v_floor := _pos_num(r, "vFloor", 2.0)
+	var eye := _num(r, "eye", 0.0)
+	var v := float(e.get("speed", 0.0))
+	var throttle := clampf(_in(input, "forward"), 0.0, 1.0)
+	var brake_in := clampf(-_in(input, "forward"), 0.0, 1.0)
+	var F := 0.0
+	var braking := false
+	if airborne:
+		pass
+	elif throttle > 0.0:
+		if v >= -1e-3:
+			F = minf(power_n / maxf(absf(v), v_floor), traction_cap) * throttle
+		else:
+			F = brake_force * throttle
+			braking = true
+	elif brake_in > 0.0:
+		if v > 1e-3:
+			F = -brake_force * brake_in
+			braking = true
+		else:
+			F = -minf(power_n / maxf(absf(v), v_floor), traction_cap) * brake_in
+	var resist := drag_k * v * absf(v) + (roll_force * signf(v) if (not airborne and absf(v) > 1e-3) else 0.0)
+	var v0 := v
+	v += ((F - resist) / mass) * dt
+	if F == 0.0 and v0 != 0.0 and signf(v) != signf(v0):
+		v = 0.0
+	if F == 0.0 and absf(v) < 0.15:
+		v = 0.0
+	v = clampf(v, -reverse_speed, _pos_num(r, "topSpeed", INF))
+	var eff_max := steer_max / (1.0 + absf(v) * _num(r, "steerTighten", 0.03))
+	if _truthy(r.get("lateralGrip")) and absf(v) > 1.0:
+		eff_max = minf(eff_max, atan((grip * G * wheelbase) / (v * v)))
+	var steer_target := clampf(-_in(input, "turn"), -1.0, 1.0) * eff_max
+	var sa := float(e.get("steerAngle", 0.0))
+	e["steerAngle"] = sa + clampf(steer_target - sa, -steer_speed * dt, steer_speed * dt)
+	if not airborne:
+		e["heading"] = fmod(float(e["heading"]) + (v / wheelbase) * tan(float(e["steerAngle"])) * dt, TAU)
+	var f := fwd_xy(float(e["heading"]))
+	p[0] = float(p[0]) + f[0] * v * dt
+	p[1] = float(p[1]) + f[1] * v * dt
+	if world.get("colliders") is Array:
+		resolve_blocking(p, float(p[2]) - eye, _num(r, "collideHeight", 3.0), _num(r, "collideRadius", 0.0), world["colliders"], _num(r, "step", 0.3))
+	var gz := ground_at(world.get("ground"), [p[0], p[1], (float(p[2]) - eye) + _num(r, "collideHeight", 3.0)])
+	if not is_nan(gz) and _truthy(r.get("air")):
+		v = _drive_fly(e, r, gz + eye, v, f, dt, world)
+	elif not is_nan(gz):
+		var want := gz + eye
+		if want < float(p[2]):
+			p[2] = maxf(want, float(p[2]) - _num(r, "fallRate", 25.0) * dt)
+		else:
+			p[2] = want
+	e["speed"] = v
+	e["wheelPhase"] = float(e.get("wheelPhase", 0.0)) + v * dt / (TAU * wheel_r)
+	e["wheelSpin"] = v / (TAU * wheel_r)
+	e["throttle"] = throttle
+	e["brakeStart"] = braking and not _truthy(e.get("braking"))
+	e["braking"] = braking
+	var lat := (v * v * absf(tan(float(e["steerAngle"])))) / wheelbase
+	var skid := lat > grip * G
+	e["skidStart"] = skid and not _truthy(e.get("skidding"))
+	e["skidding"] = skid
+	e["boarded"] = not _truthy(e.get("_driven"))
+	e["_driven"] = true
+	e["locomotion"] = "drive"
+	e["gaitPhase"] = e["wheelPhase"]
+	e["moving"] = absf(v) > 1e-3
+	if r.get("wheels") == 2 or r.get("wheels") == 2.0:
+		e["lean"] = atan((v * v * tan(float(e["steerAngle"]))) / (wheelbase * G))
+
+
+# FLIGHT (opt-in `air`): off a ramp's lip or a crest the ground falls away faster than gravity takes the car; it flies
+# ballistic and lands keeping the speed along the landing. → the speed after
+static func _drive_fly(e: Dictionary, r: Dictionary, want: float, v: float, f: Array, dt: float, world: Dictionary) -> float:
+	var p: Array = e["pos"]
+	var z0 := float(p[2])
+	var vz := float(e.get("vz", 0.0))
+	var ballistic := z0 + vz * dt - 0.5 * G * dt * dt
+	var eye := _num(r, "eye", 0.0)
+	var top := want - eye + _num(r, "collideHeight", 3.0)
+	var dir := -1.0 if v < 0.0 else 1.0
+	var sp := absf(v)
+	var g = world.get("ground")
+	var g_at := func(d: float) -> float:
+		var z := ground_at(g, [float(p[0]) + f[0] * d * dir, float(p[1]) + f[1] * d * dir, top])
+		return NAN if is_nan(z) else z + eye
+	e["landed"] = false
+	if _truthy(e.get("airborne")):
+		e["vz"] = vz - G * dt
+		e["airT"] = float(e.get("airT", 0.0)) + dt
+		if ballistic > want:
+			p[2] = ballistic
+			return v
+		var ahead: float = g_at.call(1.0)
+		var slope := 0.0 if is_nan(ahead) else ahead - want
+		var keep := maxf(cos(atan2(vz, sp) - atan(slope)), _pos_num(r, "landKeep", 0.0))
+		p[2] = want
+		e["airborne"] = false
+		e["landed"] = true
+		e["airTime"] = e["airT"]
+		e["landLoss"] = 1.0 - keep
+		e["vz"] = sp * keep * slope
+		e["vzs"] = e["vz"]
+		return v * keep
+	var b2: float = g_at.call(-0.2)
+	var b1: float = g_at.call(-1.0)
+	var vz_lip := sp * (want - b2) / 0.2 if not is_nan(b2) else (want - z0) / dt
+	var vz_s := sp * (want - b1) if not is_nan(b1) else vz_lip
+	var az := 0.0 if e.get("vzs") == null else (vz_s - float(e["vzs"])) / dt
+	if want < ballistic - 0.003 and sp > 1.0:
+		var on_ramp := func(d: float) -> bool:
+			var a: float = g_at.call(d)
+			var b: float = g_at.call(d - 0.05)
+			return not is_nan(a) and not is_nan(b) and a - b > -0.02
+		var lo := -sp * dt - 0.05
+		var hi := 0.0
+		if on_ramp.call(lo):
+			for k in 10:
+				var m := (lo + hi) / 2.0
+				if on_ramp.call(m):
+					lo = m
+				else:
+					hi = m
+			var za: float = g_at.call(lo - 0.03)
+			var zb: float = g_at.call(lo - 0.23)
+			var slope := (za - zb) / 0.2 if (not is_nan(za) and not is_nan(zb)) else vz / sp
+			var zl := (want if is_nan(za) else za) + slope * 0.03
+			var vzl := clampf(sp * slope, -50.0, sp * 0.8)
+			var tau := -lo / sp
+			p[2] = maxf(zl + vzl * tau - 0.5 * G * tau * tau, want)
+			e["vz"] = vzl - G * tau
+		else:
+			p[2] = maxf(ballistic, want)
+			e["vz"] = vz - G * dt
+		e["airborne"] = true
+		e["airT"] = 0.0
+		e["vzs"] = null
+		return v
+	if az < -G:
+		p[2] = maxf(ballistic, want)
+		e["airborne"] = true
+		e["airT"] = 0.0
+		e["vz"] = vz - G * dt
+		e["vzs"] = null
+		return v
+	e["vz"] = clampf(vz_lip, -50.0, sp * 0.8)
+	e["vzs"] = vz_s
+	p[2] = want
+	return v
+
+
+# ── racer — a driver no one pilots: the same drive, its stick moved by the road ahead (rules-drive.js racer) ─────────
+static func _line_at(L: Array, closed: bool, i: int) -> Array:
+	var n := L.size()
+	return L[((i % n) + n) % n] if closed else L[mini(i, n - 1)]
+
+
+static func racer(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> void:
+	var L: Array = r.get("line") if r.get("line") is Array else []
+	var n := L.size()
+	if n == 0 or world.get("aiEnabled", true) == false:
+		drive(e, r, {"forward": 0.0, "turn": 0.0}, dt, world)
+		return
+	var closed := _truthy(r.get("closed"))
+	var p: Array = e["pos"]
+	if e.get("lineAt") == null:
+		var best := 0
+		var bd := INF
+		for i in n:
+			var d := _hypot(float(L[i][0]) - float(p[0]), float(L[i][1]) - float(p[1]))
+			if d < bd:
+				bd = d
+				best = i
+		var f := fwd_xy(float(e["heading"]))
+		var q: Array = L[best]
+		e["lineAt"] = best + 1 if (float(q[0]) - float(p[0])) * f[0] + (float(q[1]) - float(p[1])) * f[1] < 0.0 else best
+		e["laps"] = 0
+		e["stuckT"] = 0.0
+		e["backT"] = 0.0
+	var reach := _pos_num(r, "reach", 4.0)
+	for k in n:
+		var pt := _line_at(L, closed, int(e["lineAt"]))
+		var nx := _line_at(L, closed, int(e["lineAt"]) + 1)
+		var d := _hypot(float(pt[0]) - float(p[0]), float(pt[1]) - float(p[1]))
+		var passed := (float(p[0]) - float(pt[0])) * (float(nx[0]) - float(pt[0])) + (float(p[1]) - float(pt[1])) * (float(nx[1]) - float(pt[1])) > 0.0
+		if not (d < reach or (passed and d < reach * 3.0)):
+			break
+		if not closed and int(e["lineAt"]) >= n - 1:
+			break
+		e["lineAt"] = int(e["lineAt"]) + 1
+		if closed and int(e["lineAt"]) % n == 0:
+			e["laps"] = int(e["laps"]) + 1
+	var look := int(_pos_num(r, "look", 3.0))
+	var a := _line_at(L, closed, int(e["lineAt"]) + look - 1)
+	var b := _line_at(L, closed, int(e["lineAt"]) + look)
+	var dl := _hypot(float(b[0]) - float(a[0]), float(b[1]) - float(a[1]))
+	if dl == 0.0:
+		dl = 1.0
+	var lane := _num(r, "lane", 0.0)
+	var aim := [float(b[0]) - ((float(b[1]) - float(a[1])) / dl) * lane, float(b[1]) + ((float(b[0]) - float(a[0])) / dl) * lane]
+	var err := atan2(aim[1] - float(p[1]), aim[0] - float(p[0])) - float(e["heading"])
+	err = fmod(fmod(err + PI, TAU) + TAU, TAU) - PI
+	var c := _line_at(L, closed, int(e["lineAt"]) + look * 2)
+	var h1 := atan2(float(b[1]) - float(a[1]), float(b[0]) - float(a[0]))
+	var h2 := atan2(float(c[1]) - float(b[1]), float(c[0]) - float(b[0]))
+	var bend := absf(fmod(fmod(h2 - h1 + PI, TAU) + TAU, TAU) - PI)
+	var v := float(e.get("speed", 0.0))
+	var pace := _pos_num(r, "pace", 1.0)
+	var corner := _pos_num(r, "corner", 9.0)
+	var forward := pace
+	if bend > 0.25 and v > corner / bend:
+		forward = -0.6
+	elif absf(err) > 0.6 and v > corner:
+		forward = 0.0
+	if _truthy(r.get("lateralGrip")):
+		var Sg = world["surface"].call(p) if (_truthy(r.get("surfaceGrip")) and world.get("surface") is Callable) else null
+		var mu := _pos_num(r, "grip", 1.0) * _pos_num(r, "muScale", 1.0) * (float(Sg["mu"]) if Sg != null else 1.0) * 0.9
+		var aB := mu * G * _pos_num(r, "brakeEff", 0.8)
+		var want := INF
+		var p_now := _line_at(L, closed, int(e["lineAt"]))
+		var d := _hypot(float(p_now[0]) - float(p[0]), float(p_now[1]) - float(p[1]))
+		var k := 0
+		while k < 60 and d < (v * v) / (2.0 * aB) + 30.0:
+			var p0 := _line_at(L, closed, int(e["lineAt"]) + k - 2)
+			var p1 := _line_at(L, closed, int(e["lineAt"]) + k)
+			var p2 := _line_at(L, closed, int(e["lineAt"]) + k + 2)
+			var ab := _hypot(float(p1[0]) - float(p0[0]), float(p1[1]) - float(p0[1]))
+			var bc := _hypot(float(p2[0]) - float(p1[0]), float(p2[1]) - float(p1[1]))
+			var ac := _hypot(float(p2[0]) - float(p0[0]), float(p2[1]) - float(p0[1]))
+			var kap := absf(2.0 * ((float(p1[0]) - float(p0[0])) * (float(p2[1]) - float(p1[1])) - (float(p1[1]) - float(p0[1])) * (float(p2[0]) - float(p1[0])))) / (ab * bc * ac) if (ab != 0.0 and bc != 0.0 and ac != 0.0) else 0.0
+			if kap > 1e-4:
+				want = minf(want, sqrt((mu * G) / kap + 2.0 * aB * d))
+			var q := _line_at(L, closed, int(e["lineAt"]) + k + 1)
+			d += _hypot(float(q[0]) - float(p1[0]), float(q[1]) - float(p1[1]))
+			k += 1
+		var to_aim := _hypot(aim[0] - float(p[0]), aim[1] - float(p[1]))
+		if absf(err) > 0.35:
+			want = minf(want, sqrt((mu * G * to_aim) / (2.0 * sin(minf(absf(err), PI / 2.0)))))
+		forward = -1.0 if v > want else (0.0 if v > want * 0.97 else pace)
+	if r.get("ramps") is Array:
+		for q in r["ramps"]:
+			var dx := float(q["at"][0]) - float(p[0])
+			var dy := float(q["at"][1]) - float(p[1])
+			var fw := fwd_xy(float(e["heading"]))
+			var aim_v: float = (float(q["lo"]) + float(q["hi"])) / 2.0 if q.get("lo") != null else float(q["hi"])
+			var reach_b := (v * v - aim_v * aim_v) / (2.0 * 6.0) + 15.0
+			if dx * fw[0] + dy * fw[1] > 0.0 and _hypot(dx, dy) < maxf(15.0, reach_b) and v > aim_v:
+				forward = minf(forward, -1.0 if v > aim_v + 0.4 else 0.0)
+	if float(e["backT"]) > 0.0:
+		e["backT"] = float(e["backT"]) - dt
+		drive(e, r, {"forward": -1.0, "turn": clampf(err * 2.0, -1.0, 1.0)}, dt, world)
+		return
+	e["stuckT"] = float(e["stuckT"]) + dt if (forward > 0.0 and absf(v) < 0.5) else 0.0
+	if float(e["stuckT"]) > 1.0:
+		e["stuckT"] = 0.0
+		e["backT"] = 1.0
+	drive(e, r, {"forward": forward, "turn": clampf(-err * 2.5, -1.0, 1.0)}, dt, world)
+
+
+# ── fly — fixed-wing flight (rules-fly.js) ──────────────────────────────────────────────────────────────────────────
+static func fly(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, world: Dictionary) -> void:
+	var p: Array = e["pos"]
+	var mass := _pos_num(r, "mass", 1200.0)
+	var max_thrust := _pos_num(r, "thrust", mass * 6.0)
+	var drag_k := _num(r, "drag", 0.6)
+	var v_stall := _pos_num(r, "stallSpeed", 18.0)
+	var v_takeoff := _pos_num(r, "takeoffSpeed", float(roundi(v_stall * 1.25)))
+	var v_max := _pos_num(r, "maxSpeed", 80.0)
+	var bank_max := _num(r, "bankMax", 1.0)
+	var bank_rate := _num(r, "bankRate", 1.8)
+	var level_rate := _num(r, "levelRate", 0.9)
+	var pitch_max := _num(r, "pitchMax", 0.6)
+	var pitch_rate := _num(r, "pitchRate", 1.1)
+	var look_sens := _num(r, "lookSens", 0.0025)
+	var eye := _num(r, "eye", 0.0)
+	var v := float(e.get("airspeed", 0.0))
+	var throttle := clampf(_in(input, "forward"), 0.0, 1.0)
+	var brake_in := clampf(-_in(input, "forward"), 0.0, 1.0)
+	var gz := ground_at(world.get("ground"), [p[0], p[1], (float(p[2]) - eye) + _num(r, "collideHeight", 3.0)])
+	var on_ground := not is_nan(gz) and float(p[2]) - eye <= gz + 0.05
+	var was_airborne := _truthy(e.get("airborne"))
+	var force := max_thrust * throttle - drag_k * v * v
+	if brake_in > 0.0:
+		force -= (_num(r, "brakeDrag", drag_k * 5.0) * v * v + (_num(r, "wheelBrake", mass * G * 0.5) if on_ground else 0.0)) * brake_in
+	var a := force / mass
+	if not on_ground:
+		a -= G * sin(float(e.get("pitch", 0.0)))
+	v = clampf(v + a * dt, 0.0, v_max)
+	if on_ground and throttle == 0.0 and brake_in == 0.0 and v < 0.4:
+		v = 0.0
+	var bank_in := clampf(_in(input, "turn"), -1.0, 1.0)
+	var stalled := false
+	if on_ground and v < v_takeoff:
+		e["heading"] = fmod(float(e["heading"]) - bank_in * _num(r, "taxiTurn", 1.1) * minf(1.0, v / v_takeoff) * dt, TAU)
+		var bk := float(e.get("bank", 0.0))
+		e["bank"] = bk - clampf(bk, -level_rate * 2.0 * dt, level_rate * 2.0 * dt)
+		var pt := float(e.get("pitch", 0.0))
+		e["pitch"] = pt - clampf(pt, -pitch_rate * dt, pitch_rate * dt)
+	else:
+		e["bank"] = clampf(float(e.get("bank", 0.0)) + bank_in * bank_rate * dt, -bank_max, bank_max)
+		if bank_in == 0.0:
+			e["bank"] = float(e["bank"]) - clampf(float(e["bank"]), -level_rate * dt, level_rate * dt)
+		e["heading"] = fmod(float(e["heading"]) - (G / maxf(v, v_stall)) * tan(float(e["bank"])) * dt, TAU)
+		e["pitch"] = clampf(float(e.get("pitch", 0.0)) + _in(input, "lookDY") * look_sens + _in(input, "lift") * pitch_rate * dt, -pitch_max, pitch_max)
+		if not on_ground and v < v_stall:
+			stalled = true
+			e["pitch"] = maxf(-pitch_max, float(e["pitch"]) - _num(r, "stallDrop", 0.8) * dt)
+	var path_pitch := 0.0 if (on_ground and v < v_takeoff) else float(e.get("pitch", 0.0))
+	var dir := [cos(path_pitch) * cos(float(e["heading"])), cos(path_pitch) * sin(float(e["heading"])), sin(path_pitch)]
+	p[0] = float(p[0]) + dir[0] * v * dt
+	p[1] = float(p[1]) + dir[1] * v * dt
+	var vz: float = 0.0 if (on_ground and path_pitch <= 0.0) else dir[2] * v
+	if not on_ground and stalled:
+		vz -= _num(r, "sinkRate", 6.0) * (1.0 - v / v_stall)
+	p[2] = float(p[2]) + vz * dt
+	var airborne: bool
+	if not is_nan(gz):
+		var surf := gz + eye
+		if float(p[2]) <= surf + 0.05:
+			p[2] = surf
+			airborne = false
+		else:
+			airborne = true if float(p[2]) > surf + 0.1 else was_airborne
+	else:
+		airborne = true
+	e["takeoff"] = airborne and not was_airborne
+	e["touchdown"] = not airborne and was_airborne
+	e["airborne"] = airborne
+	e["airspeed"] = v
+	e["throttle"] = throttle
+	e["climbRate"] = vz if airborne else 0.0
+	e["stallStart"] = stalled and not _truthy(e.get("stalled"))
+	e["stalled"] = stalled
+	e["tilt"] = {"pitch": float(e.get("pitch", 0.0)) if airborne else 0.0, "roll": float(e.get("bank", 0.0))}
+	e["locomotion"] = "fly" if airborne else "taxi"
+	e["gaitPhase"] = float(e.get("gaitPhase", 0.0)) + (0.2 + throttle) * _num(r, "propRate", 3.0) * dt
+	e["moving"] = v > 1e-3

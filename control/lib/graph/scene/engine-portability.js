@@ -97,6 +97,7 @@ export const LEDGER_MARKS = Object.freeze({
   greybox_declared: { info: true }, skipped_runtime: { info: true }, sfx_carried: { info: true }, combat_music_carried: { info: true },
   hud_declared: { info: true }, lights_carried: { info: true }, look_declared: { info: true }, crystals_carried: { info: true },
   water_carried: { info: true }, address_carried: { info: true }, contract: { info: true }, bus_carried: { info: true },
+  bodies_solid: { godot: 'approximated', flag: 'solid bodies (body.collide) push the walkers out of them on the web; in Godot the pilot passes through them' },
   combat_carried: { info: true }, rules_carried: { info: true }, channels_carried: { info: true }, events_carried: { info: true },
   skipped_movers: { godot: 'absent', flag: 'mover/platform integrator channels do not travel' },
   skipped_physics: { godot: 'absent', flag: 'live physics channels do not travel' },

@@ -30,6 +30,9 @@ var rule = null          # the pilot's rule (score.pilot.rule) in rule mode, els
 var ent: Dictionary = {}  # its state in the recipe's frame (kernel/rules.gd entity)
 var world: Dictionary = {} # { ground, colliders } in recipe units
 var units := 1.0          # metres per recipe unit (score.metersPerUnit; the bus's)
+var body: Node3D = null    # a vehicle pilot's own node (the car), riding the rule's pose
+var body_rot0 := Basis()
+var body_heading0 := 0.0
 var input_held := false   # a scene plays: the pilot takes no input, the world steps on (the page's __mojMenuOpen)
 var subjects: Callable    # the characters a directing shot frames, by id (level.gd shot_subjects)
 var pilot_id := ""
@@ -259,6 +262,9 @@ func _show_pose(before: Vector3, delta: float) -> void:
 	if pitch_node != null and String(rule.get("turnMode", "tank")) != "tank":
 		pitch_node.rotation.x = float(ent.get("pitch", 0.0))
 	velocity = (position - before) / delta if delta > 0.0 else Vector3.ZERO
+	if body != null:
+		body.global_position = Vector3(float(p[0]), float(p[2]), -float(p[1])) * units
+		body.global_transform.basis = Basis(Vector3.UP, float(ent["heading"]) - body_heading0) * body_rot0
 
 
 # the keys as the page's pilot scheme reads them: W/S forward, A/D turn (a strafe under a look), Q/E strafe, Space jumps
@@ -273,6 +279,9 @@ func _key_input() -> Dictionary:
 		"strafe": k.call(KEY_E, KEY_E) - k.call(KEY_Q, KEY_Q),
 		"lookDX": _look.x, "lookDY": _look.y,
 		"jump": 1.0 if (space and not _was_jump) else 0.0, "jumpHeld": 1.0 if space else 0.0,
+		# a plane's pitch trim (Space up, Shift down) and boost (F)
+		"lift": (1.0 if space else 0.0) - (1.0 if Input.is_physical_key_pressed(KEY_SHIFT) else 0.0),
+		"boost": 1.0 if Input.is_physical_key_pressed(KEY_F) else 0.0,
 	}
 	_was_jump = space
 	_look = Vector2.ZERO

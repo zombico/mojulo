@@ -13,7 +13,7 @@ export const SOUL = Object.freeze({
         animal: { status: 'partial', godot: 'absent', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no animalRef' },
         // built 10-12: a quick game's `ride` (car, coupe, van) mints its build and pilots every stage on the drive rule,
         // its feel derived from the build's parts. Godot has no drive rule.
-        vehicle: { status: 'built', godot: 'absent', lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only, no fly rule yet' },
+        vehicle: { status: 'built', godot: 'built', lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only, no fly rule yet' },
         // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
         // Its body is a placeholder slab until the aircraft roster; Godot has no fly rule.
         aircraft: { status: 'built', godot: 'absent', lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },

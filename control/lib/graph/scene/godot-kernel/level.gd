@@ -835,6 +835,9 @@ func _dump(tag: String) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# the drivers step on the physics tick beside the pilot (the harness steps both itself, at its own step)
+	if not drivers.is_empty() and sim_frame < 0 and state == "playing" and not (walker != null and walker._harness):
+		step_drivers(_delta if menu_open == null and not journal_open else 0.0)
 	if probe_frames <= 0 or walker == null:
 		return
 	probe_frame += 1
@@ -995,13 +998,45 @@ func _spawn_walker() -> void:
 	walker.build_body(eye, eye_scale)
 	# a pilot on the web's walk or platform rule walks by kernel/rules.gd on the level's own faces (since 0.23.0)
 	var pilot = score.get("pilot")
-	if pilot is Dictionary and pilot.get("rule") is Dictionary and String(pilot["rule"].get("type", "")) in ["walk", "platform"]:
+	if pilot is Dictionary and pilot.get("rule") is Dictionary and String(pilot["rule"].get("type", "")) in ["walk", "platform", "drive", "fly"]:
 		var mpu := float(score.get("metersPerUnit", 1.0))
 		var boxes := []
 		for c in colliders:
 			if c is Dictionary and c.get("min") is Array and c.get("max") is Array:
 				boxes.append({"min": (c["min"] as Array).map(func(v): return float(v) / mpu), "max": (c["max"] as Array).map(func(v): return float(v) / mpu)})
-		walker.use_rule(pilot["rule"], pilot.get("pos", [0, 0, 0]), float(pilot.get("heading", 0.0)), {"ground": RulesScript.make_ground(_land_triangles(mpu), float(score.get("ground", 0.0)) / mpu), "colliders": boxes}, mpu)
+		land = {"ground": RulesScript.make_ground(_land_triangles(mpu), float(score.get("ground", 0.0)) / mpu), "colliders": boxes}
+		walker.use_rule(pilot["rule"], pilot.get("pos", [0, 0, 0]), float(pilot.get("heading", 0.0)), land, mpu)
+		# a vehicle pilot is its own body: the car's node rides the rule's pose (a walker's double is hidden instead)
+		if String(pilot["rule"]["type"]) in ["drive", "fly"]:
+			walker.body = _entity_node(s_(pilot.get("id")))
+			if walker.body != null:
+				walker.body_rot0 = walker.body.global_transform.basis
+				walker.body_heading0 = float(pilot.get("heading", 0.0))
+	_build_drivers()
+
+
+# THE DRIVERS (score.drivers, since 0.23.0): the rivals no one pilots (the racer rule), each driven by kernel/rules.gd
+# after the pilot as the web's world steps them, its node riding its pose
+var land: Dictionary = {}
+var drivers: Array = []   # [{ id, rule, ent, node, rot0, h0 }]
+func _build_drivers() -> void:
+	var mpu := float(score.get("metersPerUnit", 1.0))
+	for d in score.get("drivers", []):
+		if not (d is Dictionary and d.get("rule") is Dictionary):
+			continue
+		var node := _entity_node(s_(d.get("id")))
+		drivers.append({"id": s_(d["id"]), "rule": d["rule"], "ent": RulesScript.entity(d.get("pos", [0, 0, 0]), float(d.get("heading", 0.0))), "node": node,
+			"rot0": node.global_transform.basis if node != null else Basis(), "h0": float(d.get("heading", 0.0)), "mpu": mpu})
+
+
+func step_drivers(delta: float) -> void:
+	for d in drivers:
+		RulesScript.step(d["ent"], d["rule"], {}, delta, land if not land.is_empty() else {"ground": RulesScript.make_ground([], float(score.get("ground", 0.0))), "colliders": []})
+		var node: Node3D = d["node"]
+		if node != null:
+			var p: Array = d["ent"]["pos"]
+			node.global_position = Vector3(float(p[0]), float(p[2]), -float(p[1])) * float(d["mpu"])
+			node.global_transform.basis = Basis(Vector3.UP, float(d["ent"]["heading"]) - float(d["h0"])) * d["rot0"]
 
 
 # The page's camera (score.camera) when it watches the pilot the kernel walks by its rule: follow, eye, overhead, side
@@ -1199,7 +1234,7 @@ func _build_sound() -> void:
 func _sound_hero():
 	if cast == null or not cast_state.get("byId") is Dictionary:
 		return null
-	var who := s_(score.get("player"))
+	var who := player_id()
 	return cast_state["byId"].get(who if who != "" else "player")
 
 
@@ -1293,6 +1328,10 @@ func sim_key() -> String:
 			# the walker stands on its feet: its eye goes on, and _sim_ent takes it off again, as for every entity
 			parts.append(_sim_ent(id, _sim_add_eye(id, _bus_pos(walker.global_position)), atan2(bz.z, -bz.x)))
 			continue
+		var dv = drivers.filter(func(x): return x["id"] == id)
+		if not dv.is_empty():
+			parts.append(_sim_ent(id, dv[0]["ent"]["pos"], float(dv[0]["ent"]["heading"])))
+			continue
 		var ce = cast_state.get("byId", {}).get(id) if cast != null else null
 		if ce is Dictionary:
 			parts.append(_sim_ent(id, ce["pos"], float(ce.get("heading", 0.0))))
@@ -1311,6 +1350,12 @@ func _pilot_grounded() -> bool:
 	if walker.rule != null:
 		return walker.rule.get("type") == "walk" or walker.ent.get("grounded") == true
 	return walker.is_on_floor()
+
+
+# the player's id: the pilot the kernel runs by its rule (a car is one), else the score's seated walker
+func player_id() -> String:
+	var pilot = score.get("pilot")
+	return s_(pilot.get("id")) if pilot is Dictionary else s_(score.get("player"))
 
 
 # the walker's feet, raised by the pilot's eye so _sim_ent takes it off again (its key is its feet)
@@ -1337,6 +1382,8 @@ func _process(delta: float) -> void:
 	var was_playing := state == "playing"
 	_play(delta)
 	if sim:
+		if was_playing:
+			step_drivers(delta if menu_open == null and not journal_open else 0.0)
 		if was_playing and walker != null:
 			walker.sim_step(delta)
 		print("[mojulo-sim] %d %s %s" % [sim_frame, state, sim_key()])
@@ -1534,7 +1581,7 @@ func _bus_pos(pos: Vector3) -> Array:
 func _step_bus(delta: float, pos: Vector3) -> void:
 	if bus == null:
 		return
-	var who := s_(score.get("player"))
+	var who := player_id()
 	# a pilot on a rule stands where the web's does (its pos at the eye); the stock walker at its feet
 	var here: Array = walker.recipe_pos() if walker != null and walker.rule != null else _bus_pos(pos)
 	var z: Dictionary = bus.derive_zone_events([{"id": who if who != "" else "player", "position": here}], bus_zone_prev, bus_sources)
@@ -1853,7 +1900,7 @@ func _stat_bodies() -> void:
 	var q = bus_state.get("_statBodyOps")
 	if not (q is Array) or q.is_empty():
 		return
-	var who := s_(score.get("player"))
+	var who := player_id()
 	for o in q:
 		if o.get("who") == who and bus.finite(o.get("speed")) and float(o["speed"]) > 0:
 			walker.speed = float(o["speed"])
@@ -1912,7 +1959,7 @@ func _drain_bus(_delta: float) -> void:
 func _build_cast() -> void:
 	cast = CastScript.new()
 	cast_state = cast.create(cast_rows)
-	var who := s_(score.get("player"))
+	var who := player_id()
 	for e in cast_state["entities"]:
 		if e["id"] == who:
 			continue

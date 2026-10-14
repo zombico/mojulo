@@ -66,6 +66,34 @@ export const SCENARIOS = [
     entity: pilot({ type: 'platform', eye: 1.7, turnMode: 'look', strafe: 0.7, airControl: 0.4 }), faces: FLAT, input: run([10, { lookDX: 80, lookDY: 30 }], [20, { forward: 1, turn: -1 }], [2, { jump: 1, jumpHeld: 1, forward: 1 }], [25, { forward: 1, jumpHeld: 1 }]) },
 ];
 
+// the vehicles: a car's power, brakes, reverse, steer and coast; its opt-in physics; a wall; a ledge; flight off a ramp
+// and a crest; a racer round a closed line (its bends, its laps), held up by a wall and backing off; fixed-wing flight
+const CAR = { type: 'drive', horsepower: 180, mass: 1300, wheelbase: 2.7, eye: 0.6 };
+const RAMP = [quad(-60, -10, 20, 10), { corners: [[20, -10, 0], [30, -10, 3], [30, 10, 3], [20, 10, 0]] }, quad(30, -10, 34, 10, 3), quad(34, -10, 120, 10, -0.5)];
+const CREST = [quad(-60, -10, 10, 10), { corners: [[10, -10, 0], [20, -10, 4], [20, 10, 4], [10, 10, 0]] }, { corners: [[20, -10, 4], [26, -10, 0], [26, 10, 0], [20, 10, 4]] }, quad(26, -10, 120, 10)];
+const LOOP = [[0, 0], [30, 0], [45, 10], [45, 30], [30, 40], [0, 40], [-15, 30], [-15, 10]];
+export const VEHICLE_SCENARIOS = [
+  { id: 'drive-basics', about: 'throttle up the power curve, coast, brake, reverse from a stand, steer at speed and slow',
+    entity: pilot(CAR, [0, 0, 0.6]), faces: [quad(-200, -200, 200, 200)], input: run([60, { forward: 1 }], [20, {}], [25, { forward: -1 }], [30, { forward: -1 }], [20, { forward: 1, turn: 1 }], [40, { forward: 1, turn: -0.5 }], [30, {}]) },
+  { id: 'drive-physics', about: 'the classes\' opt-ins: driven share, brake efficiency, lateral grip, the weather\'s grip, a top speed, a two-wheeler\'s lean',
+    entity: pilot({ ...CAR, drivenShare: 0.6, brakeEff: 0.7, lateralGrip: true, muScale: 0.8, topSpeed: 22, wheels: 2, steerTighten: 0.05 }, [0, 0, 0.6]), faces: [quad(-200, -200, 200, 200)], input: run([90, { forward: 1, turn: 0.6 }], [30, { forward: -1, turn: -1 }], [20, {}]) },
+  { id: 'drive-wall-ledge', about: 'into a wall it slides along; off a ledge, followed down at the fall rate',
+    entity: pilot({ ...CAR, collideRadius: 1, fallRate: 8 }, [0, 0, 2.6], 0.2), faces: [quad(-60, -60, 20, 60, 2), quad(20, -60, 80, 60)], colliders: [{ min: [10, 4, 0], max: [14, 30, 6] }], input: run([90, { forward: 1, turn: -0.1 }]) },
+  { id: 'drive-ramp', about: 'off a ramp\'s lip: launched at the lip\'s slope, flown, landed keeping the speed along the landing',
+    entity: pilot({ ...CAR, air: true, landKeep: 0.6 }, [0, 0, 0.6]), faces: RAMP, input: run([150, { forward: 1 }]) },
+  { id: 'drive-crest', about: 'over a crest fast enough that the ground falls away faster than gravity takes the car',
+    entity: pilot({ ...CAR, air: true, horsepower: 400 }, [-50, 0, 0.6]), faces: CREST, input: run([150, { forward: 1 }]) },
+  { id: 'racer-loop', about: 'a racer round a closed line: the nearest point ahead, the bends braked into, its laps counted',
+    entity: pilot({ ...CAR, type: 'racer', line: LOOP, closed: true, look: 1, reach: 6, corner: 8, pace: 0.9 }, [-2, 0, 0.6], 0), faces: [quad(-200, -200, 200, 200)], input: run([700, {}]) },
+  { id: 'racer-grip', about: 'a grip-bound racer\'s speed plan, a lane off its line, a ramp ahead to lift for',
+    entity: pilot({ ...CAR, type: 'racer', line: LOOP, closed: true, lateralGrip: true, lane: 1.5, ramps: [{ at: [45, 20], lo: 6, hi: 10 }] }, [0, 0, 0.6], 0), faces: [quad(-200, -200, 200, 200)], input: run([300, {}]) },
+  { id: 'racer-stuck', about: 'a racer that cannot get going (a second throttling at a crawl) backs off for one, steering the other way',
+    entity: pilot({ ...CAR, type: 'racer', line: [[0, 0], [10, 5], [40, 0]], horsepower: 0.5, mass: 40000 }, [0, 0, 0.6], 0), faces: [quad(-200, -200, 200, 200)], input: run([150, {}]) },
+  { id: 'fly-flight', about: 'a taxi, the takeoff roll and rotation, a banked turn, a climb into a stall, the mush, a touchdown',
+    entity: pilot({ type: 'fly', mass: 900, thrust: 8000, stallSpeed: 16 }, [0, 0, 0]), faces: [quad(-2000, -2000, 2000, 2000)],
+    input: run([30, { forward: 0.3, turn: 0.5 }], [120, { forward: 1, lift: 1 }], [60, { forward: 1, turn: 1 }], [40, { forward: 1, turn: 0 }], [150, { lift: 1, forward: 0 }], [200, { forward: 0.2, lift: -0.5 }], [60, { forward: -1 }]) },
+];
+
 // the camera rules, each watching a pilot run a short course (follow, eye, overhead, side, fixed)
 const COURSE = run([10, {}], [30, { forward: 1, turn: 0.4 }], [2, { forward: 1, jump: 1, jumpHeld: 1 }], [20, { forward: 1, jumpHeld: 1 }], [20, { turn: -1 }], [30, { forward: 1 }]);
 const LOOK_COURSE = run([10, { lookDX: 60, lookDY: 25 }], [30, { forward: 1, lookDX: -10 }], [20, { lookDY: -60 }]);
@@ -144,6 +172,13 @@ export function snapshot(e) {
     pos: t.pos.map(nano), heading: nano(t.heading), pitch: nano(t.pitch || 0), vz: nano(e.vel[2]),
     gait: nano(e.gaitPhase || 0), moving: !!e.moving,
     ...(e.rule.type === 'platform' ? { grounded: !!e.grounded, coyote: nano(e.coyote ?? 0), buf: nano(e.jumpBuf ?? 0), wind: nano(e.jumpWind ?? 0), air: e.airJumpsUsed ?? 0, loco: e.locomotion, jumped: !!e.jumped, landed: !!e.landed, boosting: !!e.boosting, boost: e.boost == null ? null : nano(e.boost), lock: !!e.boostLock } : {}),
+    ...(e.rule.type === 'drive' || e.rule.type === 'racer' ? { speed: nano(e.speed || 0), steer: nano(e.steerAngle || 0), cvz: nano(e.vz || 0), airborne: !!e.airborne, wheel: nano(e.wheelPhase || 0), braking: !!e.braking,
+      // a lateral-grip car steered to its limit holds its demand at the tyres' grip exactly (tan of the atan that set
+      // it), where the skid flag turns on the maths library's last bit (V8's against Godot's): left out there, the
+      // pose and the speed still held
+      skidding: e.rule.lateralGrip ? null : !!e.skidding, lean: e.lean == null ? null : nano(e.lean) } : {}),
+    ...(e.rule.type === 'racer' ? { lineAt: e.lineAt ?? null, laps: e.laps ?? 0, stuckT: nano(e.stuckT || 0), backT: nano(e.backT || 0) } : {}),
+    ...(e.rule.type === 'fly' ? { airspeed: nano(e.airspeed || 0), bank: nano(e.bank || 0), airborne: !!e.airborne, stalled: !!e.stalled, takeoff: !!e.takeoff, touchdown: !!e.touchdown, climb: nano(e.climbRate || 0), loco: e.locomotion } : {}),
   });
 }
 
@@ -165,7 +200,7 @@ export function runRules(sc) {
 
 // what the Godot side reads: the rule, the start pose, the triangles, the colliders, the input
 export function corpus({ random = 8, seed = 1 } = {}) {
-  return [...SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].map((sc) => clone({
+  return [...SCENARIOS, ...VEHICLE_SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].map((sc) => clone({
     id: sc.id, rule: sc.entity.rule, pos: sc.entity.transform.pos, heading: sc.entity.transform.heading,
     tris: trianglesOf(sc.faces), colliders: sc.colliders || [], input: sc.input, dt: DT,
     // the camera's rule as the controllable engine seats it (core.js createWorld: { type: camera.rule, ...camera })
@@ -173,4 +208,4 @@ export function corpus({ random = 8, seed = 1 } = {}) {
   }));
 }
 
-export const scenarioById = (id, { random = 8, seed = 1 } = {}) => [...SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].find((s) => s.id === id);
+export const scenarioById = (id, { random = 8, seed = 1 } = {}) => [...SCENARIOS, ...VEHICLE_SCENARIOS, ...CAMERA_SCENARIOS, ...randomScenarios(random, seed)].find((s) => s.id === id);

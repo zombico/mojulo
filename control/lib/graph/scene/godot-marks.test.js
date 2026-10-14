@@ -175,13 +175,15 @@ describe('the verdict stamps, never refuses', () => {
     expect(p.verdict).toBe('plays');
     expect(exportVerdict(p)).toEqual({ verdict: 'plays', lost: [], approximated: [] });
   });
-  it('hollow: a sneak with no sight, a drive with no rule; plays-partly: a moving deck at rest', () => {
+  it('hollow: a sneak with no sight, a glider with no rule, a moving deck at rest; plays: a drive (since 0.23.0)', () => {
     const sneak = score({ entities: [walker] }, { game: { mechanics: [{ kind: 'unseen' }, { kind: 'reach-exit', at: [5, 0, 0] }] } });
     expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: sneak }], engine: 'godot' }).verdict).toBe('hollow');
+    const glider = score({ entities: [{ ...walker, pilotable: true, rule: { type: 'glide' } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
+    const pg = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: glider }], engine: 'godot' });
+    expect(pg.verdict).toBe('hollow');
+    expect(exportVerdict(pg).lost.join('\n')).toMatch(/rule 'glide' \(the pilot\)/);
     const car = score({ entities: [{ ...walker, pilotable: true, rule: { type: 'drive' } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
-    const pc = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: car }], engine: 'godot' });
-    expect(pc.verdict).toBe('hollow');
-    expect(exportVerdict(pc).lost.join('\n')).toMatch(/rule 'drive' \(the pilot\)/);
+    expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: car }], engine: 'godot' }).verdict).toBe('plays');
     const deck = score({ entities: [walker, { id: 'deck', rule: { type: 'mover', path: [[0, 0, 0], [1, 0, 0]] } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
     const pd = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: deck }], engine: 'godot' });
     expect(pd.verdict).toBe('hollow');   // a mover is a character's rule the level runs: absent and not the camera's
@@ -223,7 +225,7 @@ const EVIDENCE = {
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },
-  rule: { shot: 'rules', walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
+  rule: { drive: 'rules', racer: 'rules', fly: 'rules', shot: 'rules', walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
   event: {
     reactions: 'corpus', watches: 'corpus', sequences: 'corpus', timers: 'corpus', vars: 'corpus', sources: 'chapter', initial: 'corpus',
     entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter', scenes: 'scenes', quests: 'scenes',

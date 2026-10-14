@@ -169,7 +169,7 @@ export function godotReading(payload) {
     r.count++; r.camera = true;
     // the kernel steps the page's camera when it watches the pilot it walks by its rule (kernel/level.gd _build_camera_rule)
     const pe = (payload?.entities ?? []).find((e) => e?.id === player);
-    if (payload.camera.target !== player || !(pe?.rule?.type === 'walk' || pe?.rule?.type === 'platform')) r.unwatched = String(payload.camera.target ?? '');
+    if (payload.camera.target !== player || !RULED_PILOTS.has(pe?.rule?.type)) r.unwatched = String(payload.camera.target ?? '');
     const lost = Object.keys(CAMERA_LOST).filter((k) => payload.camera[k] != null && payload.camera[k] !== false).map((k) => CAMERA_LOST[k]);
     if (lost.length) r.lost = [...(r.lost || []), ...lost];
   }
@@ -187,11 +187,18 @@ function blendOnlyNodes(faces) {
   return [...by].filter(([, all]) => all).map(([k]) => k).sort();
 }
 
+// the rules kernel/rules.gd runs for a pilot (since 0.23.0: the vehicles too), and the drivers it runs for no one
+const RULED_PILOTS = new Set(['walk', 'platform', 'drive', 'fly']);
+function driverRows(payload) {
+  return (Array.isArray(payload?.entities) ? payload.entities : []).filter((e) => e && typeof e.id === 'string' && e.rule?.type === 'racer' && !e.isCamera)
+    .map((e) => ({ id: e.id, rule: JSON.parse(JSON.stringify(e.rule)), pos: Array.isArray(e.transform?.pos) ? e.transform.pos.slice(0, 3) : [0, 0, 0], heading: Number.isFinite(e.transform?.heading) ? e.transform.heading : 0 }));
+}
+
 // the pilot the level-equivalence key names first (a pilotable entity, else the first walker), when it walks or runs
 function pilotRow(payload) {
   const ents = Array.isArray(payload?.entities) ? payload.entities : [];
   const e = ents.find((x) => x?.pilotable === true) ?? ents.find((x) => x?.rule?.type === 'walk' || x?.rule?.type === 'platform');
-  if (!e || (e.rule?.type !== 'walk' && e.rule?.type !== 'platform')) return null;
+  if (!e || !RULED_PILOTS.has(e.rule?.type)) return null;
   const t = e.transform && typeof e.transform === 'object' ? e.transform : {};
   return { id: String(e.id), rule: JSON.parse(JSON.stringify(e.rule)), pos: Array.isArray(t.pos) && t.pos.length >= 3 ? t.pos.slice(0, 3) : [0, 0, 0], heading: Number.isFinite(t.heading) ? t.heading : 0 };
 }
@@ -375,8 +382,12 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     };
   }
 
+  // solid bodies (body.collide: the world pass that pushes walkers out of them) are the web's: named, never dropped
+  const solids = (payload.entities ?? []).filter((e) => e?.body?.collide && !e.isCamera).length;
+  if (solids) ledger.bodies_solid = { count: solids, note: 'solid bodies (body.collide) push the walkers and the cast\'s walks out of their eggs on the web (controllable core.js stepBodyCollisions); the Godot kernel does not run that pass' };
   const reading = godotReading(payload);
   const pilot = pilotRow(payload);
+  const drivers = driverRows(payload);
   const blendNodes = blendOnlyNodes(payload.faces);
   // only when some rule does not run whole: a world the kernel walks whole keeps its score byte-identical
   if (Object.entries(reading.rules).some(([t, r]) => RULE_MARKS[t]?.godot !== 'built' || r.lost || r.unwatched != null || ((t === 'walk' || t === 'platform') && r.count > (r.pilot ? 1 : 0)))) ledger.rules_carried = { by: reading.rules, note: 'the motion and camera rules the level\'s entities run, by type (pilot: the player\'s; camera: the camera\'s; lost: the opt-in moves of the pilot\'s platform rule the kernel does not run); kernel/rules.gd runs the pilot\'s walk or platform rule, kernel/walker.gd follow and eye (godot-marks.js RULE_MARKS)' };
@@ -468,6 +479,9 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
     // the pilot's motion rule as data, in RECIPE units like bus.json (score.metersPerUnit is the mesh's scale over them):
     // kernel/rules.gd runs a walk or a platform pilot as the web runs it, standing on the GLB's own faces. Absent ⇒ no key.
     ...(pilot ? { pilot } : {}),
+    // the rivals that drive themselves (the racer rule: a line, a pace), in recipe units: kernel/rules.gd drives each
+    // as the web does (since 0.23.0). Absent ⇒ no key.
+    ...(drivers.length ? { drivers } : {}),
     // the GLB nodes that are all blend faces (a second tile over the ground, which the page draws in its own pass at the
     // ground's height): the kernel's land leaves them out, so its pilot stands where the page's does. Absent ⇒ no key.
     ...(blendNodes.length ? { blendNodes } : {}),
