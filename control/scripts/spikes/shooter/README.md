@@ -203,6 +203,13 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   Laws in `worlds/controllable/frag.test.js`. Open: leading a moving target, item seeking, jumping, not firing
   through allies, and any mind in Godot.
 
+- **Phase 3, the arena site**: the `arena` concern (`gameworld/lay-concerns.js` `arenaSite`, `arenaLayout`, the arena
+  laws) and the quick `deathmatch` goal. A 36 m square in three lanes that all loop, built half-turn symmetric, eight
+  spawns out of each other's sight, supplies in the lanes; its five laws hold. Laws in `gameworld/lay-concerns.test.js`
+  (an arena) and `mcp/tools/design-game.quick.test.js` (deathmatch). Open: one floor only (high ground, ramps and
+  nav over storeys wait), one layout (lane counts, sizes and other topologies are parameters to come), supplies taken
+  once.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

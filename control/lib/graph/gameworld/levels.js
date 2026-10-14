@@ -31,7 +31,7 @@ import { RIDE_H } from './ride.js';
 import { fixedStations } from './cameras.js';
 import { cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
-import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks } from './lay-concerns.js';
+import { SPACING, beatPosts, coverBlocks, blindBlocks, concernLaws, jumpHeight, raisePickups, loopOn, loopBlocks, arenaOn, arenaLayout } from './lay-concerns.js';
 import { sceneFlags, sceneNeeds } from '../playscape/ui/scenes.js';
 import { storyScene, levelQuests } from './story.js';
 import { withBuildingLevel, PROBE } from '../structure/level.js';
@@ -73,9 +73,9 @@ export function gameStages(world) {
       // the field its intent laid (lay-concerns.js), on the first trail it was flattened on
       const first = s.node === laid.stages.find((x) => x.section === 'trail')?.node;
       // a loop's track: nothing grows on it (era/reserve.js)
-      const keep = R.loop && first ? { _keepOut: R.loop.keep } : {};
+      const keep = (R.loop || R.arena) && first ? { _keepOut: [...(R.loop?.keep ?? []), ...(R.arena?.keep ?? [])] } : {};
       const manifest = here.length || street || keep._keepOut ? { ...s.manifest, ...(here.length ? { buildings: here } : {}), ...(street ? { town: street } : {}), ...keep } : s.manifest;
-      const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}) };
+      const field = { ...(R.field && first ? { field: R.field } : {}), ...(R.board && first ? { board: R.board } : {}), ...(R.loop && first ? { loop: R.loop } : {}), ...(R.arena && first ? { arena: R.arena } : {}) };
       out.push({ level, node: s.node, section: s.section, index: i, manifest, ...field });
     });
     // the insides of the buildings whose scene changes at the door: each a level of its own, after the level's stages,
@@ -258,6 +258,9 @@ export const RACER_CAMERA = Object.freeze({ dist: 5.2, height: 2, lead: 1.5, loo
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
+// the spawns an arena lays: the most a match holds (the player and seven)
+const ARENA_SPAWNS = 8;
+
 export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
@@ -271,6 +274,9 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   Object.defineProperty(ends, 'board', { value: stage.board ?? null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'spacing', { value: concerns.includes('circuit') ? SPACING : null, enumerable: false, configurable: true });
   Object.defineProperty(ends, 'loop', { value: stage.loop ? loopOn(stage.loop, ends) : null, enumerable: false, configurable: true });
+  // the arena (the intent's `arena` concern): its square on the land, laid with its walls, cover, a pool of spawns (a
+  // match is eight at most) and supplies, before the goal reads them
+  Object.defineProperty(ends, 'arena', { value: stage.arena ? (() => { const A = arenaOn(stage.arena, ends); return { ...A, ...arenaLayout(A, ends, ARENA_SPAWNS) }; })() : null, enumerable: false, configurable: true });
   const name = title ?? `${G.name ?? G.id} · ${stage.level} · ${stage.node}`;
   // the camera (the gameworld's `camera`, cosmos space.camera). Absent keeps every arg below as it was, so the steps'
   // fingerprints hold: third person with a hero, the old first-person walker without one.
@@ -356,8 +362,11 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   }
   // LOOP (the intent's `loop` concern): a low wall down the oval's middle
   if (ends.loop) blocks = [...(blocks ?? []), ...loopBlocks(ends.loop, ends)];
+  // ARENA (the intent's `arena` concern): its wall, lanes and cover; the arena is the fight's cover and sightlines, so
+  // the trail's posts take none
+  if (ends.arena) blocks = [...(blocks ?? []), ...ends.arena.blocks];
   // COVER (the intent's `cover` concern): by the goal's fighting posts, else by the trail's beats
-  if (concerns.includes('cover') && stage.section === 'trail') {
+  if (concerns.includes('cover') && stage.section === 'trail' && !ends.arena) {
     posts ??= beatPosts(ends);
     const cover = coverBlocks(posts, ends);
     if (cover.length) blocks = [...(blocks ?? []), ...cover];
@@ -370,7 +379,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
     if (R.raised.length) { game.mechanics = R.mechanics; blocks = [...(blocks ?? []), ...R.blocks]; raised = R.raised; }
   }
   // WATCHERS (the intent's `watchers` concern): a wall on each watcher's approach, a place behind it out of its sight
-  const watched = concerns.includes('watchers') && stage.section === 'trail' ? (watchers ?? posts ?? beatPosts(ends)) : null;
+  const watched = concerns.includes('watchers') && stage.section === 'trail' && !ends.arena ? (watchers ?? posts ?? beatPosts(ends)) : null;
   if (watched?.length) blocks = [...(blocks ?? []), ...blindBlocks(watched, ends)];
   if (ways && ways.arrive.length) {
     const pilot = pilotPart.entities[0].id, ev = pilotPart.events || {};
@@ -390,7 +399,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
-  const laws = stage.section === 'roadway' ? ends.roadLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop }) : [];
+  const laws = stage.section === 'roadway' ? ends.roadLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 

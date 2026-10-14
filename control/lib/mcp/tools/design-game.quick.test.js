@@ -345,6 +345,32 @@ describe('design_game quick', () => {
     expect(P.weapon.reserve).toBe(before + 24);
   }, 240_000);
 
+  it('deathmatch: an arena laid on the trail\'s land whose laws hold, bots that fight each other, frags to a limit', async () => {
+    const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, world: { id: 'arena', style: { kit: 'trail-valley' } } }, ref: 'dm' });
+    // every arena law holds: no advice from it
+    expect(JSON.stringify(out)).not.toMatch(/arena: /);
+    const L = stored('dm-level-run-0');
+    expect(mechanicsOf('dm-level-run-0')).toEqual(['frags', 'supplies']);
+    expect(L.camera).toMatchObject({ rule: 'eye', mouseLook: true });
+    expect(L.entities.map((e) => e.id)).toEqual(['player', 'bot-1', 'bot-2', 'bot-3']);
+    expect(L.entities[1].rule.mind.motivation).toBe('frag');
+    const frags = L.game.mechanics[0];
+    expect(frags).toMatchObject({ rivals: ['bot-1', 'bot-2', 'bot-3'], frags: 3 });
+    expect(frags.spawns).toHaveLength(8);
+    // the arena's walls are one collider each; the cover on the trail's beats stands aside for it
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('dm-level-run-0'));
+    expect(payload.colliders.filter((c) => c.of.startsWith('block:')).length).toBe(L.blocks.length);
+    expect(L.blocks.every((b) => b.whole)).toBe(true);
+    // played headless with the player standing aside: the bots find each other and the match reaches its limit
+    const land = stageEnds(L).ground;
+    const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (x, y) => land(x, y) });
+    let t = 0;
+    for (; t < 150 && !sim.bus.vars.__frags_over_0; t += 1 / 30) sim.frame(1 / 30);
+    expect(sim.bus.log.filter((r) => r.type === 'kill').length).toBeGreaterThanOrEqual(3);
+    expect(sim.bus.log.map((r) => r.type)).toContain('frags:lost');
+  }, 240_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);
@@ -369,5 +395,10 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'shoot', camera: 'top-down' })).toThrow(/first-person or third-person/);
     expect(() => readQuick({ goal: 'shoot', foes: 9 })).toThrow(/foes is 1 to 8/);
     expect(() => readQuick({ goal: 'reach', foes: 2 })).toThrow(/battle and shoot goals/);
+    expect(() => readQuick({ goal: 'reach', bots: 2 })).toThrow(/bots belongs to the deathmatch goal/);
+    expect(() => readQuick({ goal: 'deathmatch', bots: 9 })).toThrow(/1 to 7/);
+    expect(() => readQuick({ goal: 'deathmatch', frags: 0 })).toThrow(/frag limit/);
+    expect(() => readQuick({ goal: 'deathmatch', seconds: 5 })).toThrow(/10 to 600|5 to 600/);
+    expect(() => readQuick({ goal: 'deathmatch', building: { use: 'tavern' } })).toThrow(/arena on a trail/);
   });
 });

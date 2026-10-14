@@ -84,7 +84,7 @@ import { readMade } from './made.js';
 import { readQuick } from './quick.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
-import { LAID, groundLays, fieldSite, boardSite, loopSite } from './lay-concerns.js';
+import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
@@ -544,7 +544,7 @@ export function resolveLevel(world, id) {
   // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
   // whose cube lays nothing on the ground is as it was
   const ids = concernIds(cubeOfWorld(G).cube), lays = ids.some((c) => LAID[c]?.includes('ground')) ? groundLays(ids, lv, levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d)) : null;
-  let field = null, board = null, loop = null;
+  let field = null, board = null, loop = null, arena = null;
   if (lays?.laid.length) {
     const g = L.ground ?? {};
     level.ground = { ...g, ...(lays.tune ? { tune: { ...lays.tune, ...(g.tune ?? {}) } } : {}), ...(lays.edits.length ? { edits: [...(g.edits ?? []), ...lays.edits] } : {}) };
@@ -553,6 +553,7 @@ export function resolveLevel(world, id) {
     if (lays.laid.includes('fields')) field = fieldSite(F2)?.centre ?? null;
     if (lays.laid.includes('board')) board = boardSite(F2)?.centre ?? null;
     if (lays.laid.includes('loop')) loop = loopSite(F2);
+    if (lays.laid.includes('arena')) arena = arenaSite(F2);
   }
   for (const [nid, n] of Object.entries(L.walk.nodes || {})) if (n && n.weather !== undefined && !same(lv.nodes[nid].weather, style.weather)) ledger.push({ scope: 'section', at: `${id}/${nid}`, key: 'weather', world: style.weather ?? null, local: lv.nodes[nid].weather });
 
@@ -587,7 +588,7 @@ export function resolveLevel(world, id) {
   });
   // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
   const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}) } : {}) };
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}), ...(arena ? { arena } : {}) } : {}) };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

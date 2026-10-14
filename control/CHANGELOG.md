@@ -62,6 +62,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The page inlines the mind and the cast, so the characterization hashes move (reverting only `mind.js` and `cast.js`
   passes them all). Every world without `frag` behaves as before; the controllable trace pins hold.
 
+### Shooter: an arena that loops, and a deathmatch in it
+
+- **The arena concern.** A cube with the `frags` mechanic asks for an arena, and the world lays one on its first
+  trail's land as a race lays its loop (`gameworld/lay-concerns.js`).
+  - **Ground.** A square 36 m across (`ARENA`) is flattened and kept clear of what grows.
+  - **Stage.** It stands a 3 m wall round the floor and two dividers making three lanes, open at both ends and the
+    middle so every way loops. It adds walls at the middle of each lane and across the middle lane's ends and
+    quarters, and crates. Every piece is the same turned half round the centre, so neither half has the better
+    ground.
+  - **Spawns and supplies.** Eight spawns, each paired with its turned partner and none in sight of another, and
+    supplies in the lanes (health in the side lanes, rounds in the middle).
+  - **Laws.** Every way between two spawns still has another when any stretch of it is closed (`routes-loop`), no
+    spawn sees another, cover lies within 3.5 m of most of the floor, no clear line across it is longer than 36 m, and
+    nothing of the stage's own stands on it. All hold on the arena as laid.
+  - **Other concerns stand aside.** On an arena stage the `cover` and `watchers` concerns lay nothing on the trail's
+    beats: the arena is the fight's cover.
+- **One collider for a whole form.** A block ask's `whole: true` makes a solid form one collider, its courses still
+  drawn, so an arena's walls are 21 boxes rather than hundreds. Without it a level's blocks collide as before.
+- **The quick deathmatch.** `goal: 'deathmatch'` with `bots` (3, up to 7), `frags` (10), `seconds` and `foe` (their
+  looks). It plays first person by default, on a trail laid without pits, streams or landmarks so the arena's floor
+  is clear. The player stands on a spawn and the bots on the next, `frag` minds on the navmesh. Its mechanics are
+  `frags` (the arena's spawns, the player's hp) and `supplies`. A deathmatch reads as the new `arena-shooter` genre
+  probe. Played headless with the player aside, three bots reach a 3-frag limit.
+- `.seconds` now belongs to the survive and deathmatch goals (its message says so). The quick card names the goal in
+  the same byte budget: its camera, hero and answer lines say the same in fewer words.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

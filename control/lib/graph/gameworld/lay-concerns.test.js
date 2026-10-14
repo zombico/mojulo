@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { quickWorld, goalMechanics, farmCast, shootCast, raceCast, RACE } from './quick.js';
 import { resolveLevel, readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
-import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight } from './lay-concerns.js';
+import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, ARENA, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight, arenaLayout } from './lay-concerns.js';
 import { guardPosts, defendCast, QUICK_GUARD } from './quick.js';
 import { stageEnds } from './levels.js';
 import { standBlocks } from '../playscape/terrain.js';
@@ -176,5 +176,43 @@ describe('the stage laid for the game, and its laws', () => {
     expect(concernLaws(['circuit'], { ends, mechanics: [laps] })[0]).toMatchObject({ holds: false, says: `the shortest leg is 5.0 m (${SPACING} wanted)` });
     expect(concernLaws(['drivable'], { ends })[0]).toMatchObject({ holds: false, says: 'the steepest leg climbs 60% (25% at most)' });
     expect(concernLaws(['fields'], { ends, mechanics: [{ kind: 'crops', plots: [{ at: [0, 0, 0] }, { at: [2, 0, 1.2] }] }] })[0].holds).toBe(false);
+  });
+});
+
+// ── the arena (a match's ground): laid on its square, and its laws ─────────────────────────────────────────────────
+describe('an arena', () => {
+  const A = { centre: [0, 0], half: ARENA.half, z: 0 }, ends = { spawn: [0, 0, 0] };
+  const laid = (n = 8) => ({ ...A, ...arenaLayout(A, ends, n) });
+
+  it('stands the same turned half round its centre, each piece one collider, its spawns out of each other\'s sight', () => {
+    const L = laid();
+    // every piece has its partner at (-u, -v) (the centre wall is its own)
+    for (const b of L.blocks) expect(L.blocks.some((o) => o.form === b.form && Math.abs(o.at[0] + b.at[0]) < 1e-6 && Math.abs(o.at[1] + b.at[1]) < 1e-6), JSON.stringify(b.at)).toBe(true);
+    expect(standBlocks(L.blocks).colliders).toHaveLength(L.blocks.length);
+    expect(L.spawns).toHaveLength(8);
+    for (let k = 0; k < 8; k += 2) expect([L.spawns[k][0] + L.spawns[k + 1][0], L.spawns[k][1] + L.spawns[k + 1][1]]).toEqual([0, 0]);
+    expect(L.drops.map((d) => d.gives).sort()).toEqual(['ammo', 'ammo', 'health', 'health']);
+  });
+
+  it('every law holds on the arena as laid', () => {
+    const L = laid();
+    const laws = concernLaws(['arena'], { ends, blocks: L.blocks, arena: L });
+    expect(laws.map((l) => l.law)).toEqual(['routes-loop', 'spawns-unseen', 'cover-near', 'no-line-across', 'floor-clear']);
+    for (const l of laws) expect(l.holds, `${l.law}: ${l.says}`).toBe(true);
+  });
+
+  it('says what is wrong with one stripped bare, or walled into halves', () => {
+    const L = laid();
+    const walls = L.blocks.slice(0, 4);   // the wall round it alone
+    const bare = concernLaws(['arena'], { ends, blocks: walls, arena: L });
+    expect(bare.find((l) => l.law === 'spawns-unseen').holds).toBe(false);
+    expect(bare.find((l) => l.law === 'no-line-across').holds).toBe(false);
+    expect(bare.find((l) => l.law === 'cover-near').holds).toBe(false);
+    // a wall straight across: the two halves cannot reach each other
+    const split = concernLaws(['arena'], { ends, blocks: [...walls, { form: 'wall', at: [0, 0, 0], N: [0, 1], length: 2 * ARENA.half, height: 3, thick: 0.5 }], arena: L });
+    expect(split.find((l) => l.law === 'routes-loop')).toMatchObject({ holds: false, says: expect.stringMatching(/cannot reach/) });
+    // the stage's own rock on the floor
+    const rocky = concernLaws(['arena'], { ends: { ...ends, colliders: [{ min: [3, 3, 0], max: [4, 4, 2], of: 'rock:1' }] }, blocks: L.blocks, arena: L });
+    expect(rocky.find((l) => l.law === 'floor-clear').holds).toBe(false);
   });
 });

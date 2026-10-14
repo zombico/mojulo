@@ -190,6 +190,20 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'arena-shooter',
+    name: 'Arena shooter',
+    anchor: false,
+    why: 'a deathmatch: bots that fight whom they see and hunt the noise, frags credited, the fallen back at a spawn, an arena whose ways all loop',
+    cube: {
+      reality: { era: 'gen-6', medium: '3d' },
+      space: { camera: 'first-person', topology: 'linear', levelForm: 'arena' },
+      power: { combat: ['ranged'], mechanics: ['frags', 'supplies'] },
+      soul: { hero: 'hero' },
+      mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh', squad: 'free-for-all' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'rhythm',
     name: 'Rhythm runner',
     anchor: false,
