@@ -13,6 +13,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Sea creatures: whales and dolphins, seals, cephalopods
+
+New families for the sea, each wired through the swim gaits, the behaviour tags, the social table and the search
+names (`about`), the generated DOES, mind and cosmos tables regenerated with them.
+
+- **Cetaceans** (`families/cetacean.js`): a fusiform trunk with no neck to speak of, a tail stock flattened side to
+  side, two HORIZONTAL flukes swept back to points, flat pectoral flippers, a raked dorsal (or a ridge), a melon over a
+  beak or a blunt front, a pale belly; `cetaceanFins` builds the fin set from a few numbers. The bottlenose dolphin
+  (worked species), the orca (the bull's tall dorsal, the eye patch, white chin, belly and flank lobe, the grey
+  saddle), the humpback (a flat broad head, the long pale flippers, a small hump), the beluga (all white, a round
+  melon, a ridge for a fin) and the narwhal (mottled, the tusk). They swim by a new `flukeStroke` pattern: the body
+  wave in the VERTICAL plane, the flukes beating up and down.
+
 ### Wildlife improvements: the default animals' silhouettes and proportions
 
 The species roster was built family by family in batches; this pass reads the whole roster at once, four views a

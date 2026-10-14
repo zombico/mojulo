@@ -114,6 +114,18 @@ export const FAMILIES = {
       },
     },
   },
+  cetacean: {
+    spine: { trunk: 6, neck: 0, tail: 3 },
+    gaits: {
+      swim: { pattern: 'flukeStroke' },
+    },
+    axial: { ...SWIMMER, lateral: 0, head: 'steady' },
+    note: 'a stiff front, the tail stock and the flukes beating UP and DOWN (a mammal\'s back flexes, a fish\'s sways)',
+    source: 'Fish 1993 (dolphin swimming kinematics); Fish & Rohr 1999 (review of dolphin hydrodynamics)',
+    species: {
+      humpbackWhale: { note: 'slow deep fluke beats, the long flippers banking and turning it' },
+    },
+  },
   plesiosaur: {
     spine: { trunk: 3, neck: 8, tail: 3 },
     gaits: {

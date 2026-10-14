@@ -108,7 +108,7 @@ export const TAIL_BUILD_OF = Object.freeze({
   canine: 'fur', procyonid: 'fur',
   feline: 'flesh', mustelid: 'flesh', rodent: 'flesh', monotreme: 'flesh', macropod: 'flesh', crocodilian: 'flesh',
   squamate: 'flesh', theropod: 'flesh', sauropod: 'flesh', hadrosaur: 'flesh', thyreophoran: 'flesh', ceratopsian: 'flesh',
-  teleost: 'flesh', chondrichthyan: 'flesh', plesiosaur: 'flesh',
+  teleost: 'flesh', chondrichthyan: 'flesh', plesiosaur: 'flesh', cetacean: 'flesh',
   equine: 'hair', bovid: 'hair', pachyderm: 'hair', giraffid: 'hair',
   cervid: 'stub', ursine: 'stub', leporid: 'stub', suid: 'stub', testudine: 'stub', pterosaur: 'stub', avian: 'feather',
 });
@@ -148,6 +148,7 @@ export const PATTERNS = Object.freeze({
   subcarangiform:    { kind: 'wave', waves: 1, amp: 0.1, from: 0.3, plane: 'lateral' },    // salmon, goldfish
   carangiform:       { kind: 'wave', waves: 0.8, amp: 0.08, from: 0.5, plane: 'lateral' }, // the rear half
   thunniform:        { kind: 'wave', waves: 0.6, amp: 0.1, from: 0.7, plane: 'lateral' },  // stiff body, tail beats
+  flukeStroke:       { kind: 'wave', waves: 0.6, amp: 0.1, from: 0.6, plane: 'vertical' }, // whales: the flukes beat up and down
   tailDrive:         { kind: 'wave', waves: 1, amp: 0.12, from: 0.45, plane: 'lateral' },  // crocodile, lizard swim
   // strokes (paired limbs or fins as the propulsor)
   labriform:     { kind: 'stroke', limbs: 'pectoral', phase: 0, note: 'rows with the pectoral fins' },

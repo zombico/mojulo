@@ -101,6 +101,7 @@ export const FAMILY_TAGS = Object.freeze({
   thyreophoran: { tags: ['browser'] },
   pterosaur:  { tags: ['predator'] },
   plesiosaur: { tags: ['predator'] },
+  cetacean:   { tags: ['predator', 'keeps-swimming'], species: { humpbackWhale: { add: ['filter'], drop: ['predator'] } } },
 });
 
 /** A species' tags: its family's, with its own added and dropped, in vocabulary order. */
