@@ -1,5 +1,5 @@
 /**
- * OUTFIT — dressing a figure by tiers, lowered to the garment array (outfit.plan.md P4).
+ * OUTFIT — dressing a figure by tiers, lowered to the garment array.
  *
  * `garment` is the LOWERED form: an ordered list of wardrobe keys and inline specs, and it is the
  * compatibility promise (a minted row keeps rendering byte-identical). `outfit` is the authoring

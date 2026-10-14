@@ -89,7 +89,7 @@ async function heroFigure(name, spec) {
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
-    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (a layered sketch minted through the hero door)`);
+    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (make one with create_character { as: 'hero' }; a creature or an animal is not a pilot yet)`);
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');

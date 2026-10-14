@@ -1,7 +1,7 @@
 /**
  * GARMENTS — clothes/adornments as offset shells over the figure's own flesh.
  *
- * SPIKE (lite-template/integration/0610/figure-garments.plan.md). The figure is
+ * The figure kind's clothing, shipped (it began as a spike). The figure is
  * a list of tagged world-space ring-stacks `{ id, rings: [{ center, polyline }] }`
  * emitted by `buildProtoform` (figure-proto.js). A garment here is NOT new
  * geometry sculpted from scratch — it is a SELECTION of those body stacks, each
@@ -15,7 +15,7 @@
  * (figure-readable-envelope.spike.gen.test.js `litFacesFromRings`) lights, culls,
  * and depth-sorts garment faces alongside flesh with zero pipeline change.
  *
- * CANON (inaugural clothing principles, lite-template/integration/0610/figure-garments.plan.md):
+ * CANON (the inaugural clothing principles):
  * a garment is `coverage + mugen field + rigidity + cuts` (+ material) over a body
  * that SUPPLIES ITS OWN GEOMETRY — the body part's topology picks the sampler (TUBE →
  * rings, SADDLE → top-down basin, BALL → crown-fan), openings DERIVE from part roles
@@ -1286,7 +1286,7 @@ export function componentSuperposition(v, comps, near = 0.3, ramp = 0.16) {
 // ─────────────────────────────────────────────────────────────────────────────
 // SHOULDER-BASED GARMENTS — the crown-fan cap (codified from the 38/39 spikes).
 //
-// PRINCIPLES — the garment model distilled (lite-template/integration/0610/figure-garments.plan.md):
+// PRINCIPLES — the garment model distilled:
 //  P1 ONE OP       — a garment surface is the body surface offset outward by a
 //                    standoff (mugen). Shrink-to-fit and grow-to-mugen converge.
 //  P2 TOPOLOGY     — the offset's SAMPLER follows the part's topology: a TUBE (torso,
@@ -1513,7 +1513,7 @@ export function cutBoundary(rings, cuts) {
 //
 // A garment has always been pure data resolved against any body (buildGarment),
 // but the MCP surface only admitted GARMENTS keys. This validator opens the
-// authoring door to INLINE specs (character-from-dream.plan.md C0b/C1: a
+// authoring door to INLINE specs (the character-from-dream loop: a
 // dreamed wardrobe piece minted as data, superposed with its own mugen score)
 // while keeping the closed-vocabulary discipline: unknown fit/cut kinds are
 // refused at mint, not discovered as silent no-ops at render.

@@ -14,10 +14,10 @@
   "parameters": [
     {
       "name": "sheet",
-      "description": "The Egocube roll: the arguments to scripts/egocube-roll.mjs (a brief, `--set ancestry=<people>`, a seed, a custom `--lineages` file), or the printed sheet itself. Omit to roll one with the operator."
+      "description": "The Egocube: a stored egocube's ref (create_sketch kind 'egocube'), its roll (a brief, facets such as ancestry, a seed, lineages), or the sheet itself. Omit to roll one with the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["create_character", "get_solid_vocab", "update_sketch", "measure_solid", "export_model"] }
+  "mcpTools": { "mojulo": ["create_sketch", "create_character", "update_character", "get_solid_vocab", "measure_solid", "export_model"] }
 }
 ---
 
@@ -27,21 +27,24 @@ An Egocube sheet (docs/egocube.md) says what a character's body, face, stance an
 each note names its source (`archetype.caregiver/shadow`, `ancestry.lupine`, `age.seasoned`) and the dials or passes
 that can carry it, never an amount. You are the designer. The sheet is the brief; the plan is yours.
 
-The roll runs from a shell today (no MCP tool yet), from `control/` (paths below are from `control/`; `docs/` is at
-the repo root, one level up):
+The sheet is a kind: `create_sketch({ kind: 'egocube', roll: { facets: { ancestry: 'feline' }, seed: 4 } })` rolls it
+and keeps it (card `egocube`); its stored manifest is the sheet you read. `create_character({ egocube: '<ref>' })` makes
+the stock reading of it in one call: use that as the baseline to beat, then design your own plan below. The audit and
+the contrast pairs run from a repo checkout only (they are dev scripts, not shipped), from `control/`:
 
 ```sh
-node scripts/egocube-roll.mjs --set ancestry=feline --seed 4            # the sheet
 node scripts/egocube-roll.mjs --set ancestry=feline --seed 4 --audit plan.json   # your plan, audited against it
 node scripts/egocube-roll.mjs --set ancestry=lupine --seed 3 --contrast archetype=ruler   # a contrast pair (below)
 ```
+
+Without a checkout, ledger the notes by hand: each note `carried` (and where) or `missing` (and why).
 
 ## The invariants — read first
 
 - **Design, never copy.** A served example (a contrast pair, the Pale Warden) shows how a note moves a choice. It is
   not a body to re-skin. The audit's `sameness` row flags a plan whose joint table is a served example's, rescaled.
 - **The plan is the artifact.** `create_character({ as: 'creature', spec: { plan } })` stores it; every fix is
-  `update_sketch` on `/plan/...` or `/dials/...`. Never re-mint for a change.
+  `update_character` with patch ops on `/plan/...` or `/dials/...`. Never re-mint for a change.
 - **Two gates, never conflated.** The audit and the mint's gates are the machine gate. Looking is the eyes gate, and
   only the operator passes it. Say which ran and what was seen.
 - **Every note lands or is named.** Finish with the audit's ledger: each sheet note `carried`, or `missing` with the
