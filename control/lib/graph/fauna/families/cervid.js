@@ -16,8 +16,8 @@ export const family = {
   joints: {
     neckBase: [0, 0.36, 0.84], neckTop: [0, 0.60, 1.08],
     throatA: [0, 0.50, 0.92], throatB: [0, 0.56, 0.975],
-    shoulder: [0.11, 0.33, 0.76], elbow: [0.115, 0.27, 0.52], carpus: [0.10, 0.31, 0.29], foreFetlock: [0.095, 0.32, 0.085], foreCoronet: [0.095, 0.35, 0.035], foreToe: [0.095, 0.40, 0.012],
-    hip: [0.09, -0.46, 0.80], stifle: [0.115, -0.31, 0.55], hock: [0.10, -0.53, 0.40], hindFetlock: [0.095, -0.505, 0.085], hindCoronet: [0.095, -0.48, 0.035], hindToe: [0.095, -0.43, 0.012],
+    shoulder: [0.097, 0.33, 0.76], elbow: [0.101, 0.27, 0.52], carpus: [0.088, 0.31, 0.29], foreFetlock: [0.084, 0.32, 0.085], foreCoronet: [0.084, 0.35, 0.035], foreToe: [0.084, 0.40, 0.012],
+    hip: [0.079, -0.46, 0.80], stifle: [0.101, -0.31, 0.55], hock: [0.088, -0.53, 0.40], hindFetlock: [0.084, -0.505, 0.085], hindCoronet: [0.084, -0.48, 0.035], hindToe: [0.084, -0.43, 0.012],
   },
   torso: [
     { at: [0, -0.64, 0.74], r: [0.08, 0.09] },
@@ -34,12 +34,12 @@ export const family = {
   tip: [[0, -0.755, 0.75, 0.045], [0, -0.77, 0.70, 0.035], [0, -0.775, 0.66, 0.02]],
   tipCaps: { back: [0, -0.75, 0.77], tip: [0, -0.775, 0.645] },
   legs: [
-    ['upperArmR', 'shoulder', 'elbow', [0.06, 0.10], [0.04, 0.045], 'Coat', [0.6, 0.5], [0.055, 0.08]],
+    ['upperArmR', 'shoulder', 'elbow', [0.051, 0.10], [0.034, 0.045], 'Coat', [0.6, 0.5], [0.047, 0.08]],
     ['foreArmR', 'elbow', 'carpus', [0.04, 0.045], [0.022, 0.026], 'Coat', [0.5, 0.4]],
     ['foreCannonR', 'carpus', 'foreFetlock', 0.02, 0.017, 'Sock', [0.4, 0.4]],
     ['forePasternR', 'foreFetlock', 'foreCoronet', 0.018, 0.02, 'Sock', [0.4, 0.4]],
     ['foreHoofR', 'foreCoronet', 'foreToe', [0.026, 0.026], [0.022, 0.012], 'Hoof', [0.5, 0.4]],
-    ['thighR', 'hip', 'stifle', [0.08, 0.12], [0.05, 0.055], 'Coat', [0.2, 0.5], [0.075, 0.105]],
+    ['thighR', 'hip', 'stifle', [0.064, 0.12], [0.04, 0.055], 'Coat', [0.2, 0.5], [0.06, 0.105]],
     ['shinR', 'stifle', 'hock', [0.05, 0.055], [0.024, 0.028], 'Coat', [0.5, 0.4]],
     ['hindCannonR', 'hock', 'hindFetlock', 0.021, 0.017, 'Sock', [0.4, 0.4]],
     ['hindPasternR', 'hindFetlock', 'hindCoronet', 0.018, 0.02, 'Sock', [0.4, 0.4]],
@@ -140,8 +140,8 @@ export const species = {
     joints: {
       neckBase: [0, 0.32, 0.86], neckTop: [0, 0.50, 0.90],
       throatA: [0, 0.44, 0.80], throatB: [0, 0.50, 0.84],
-      shoulder: [0.10, 0.30, 0.78], elbow: [0.105, 0.25, 0.56], carpus: [0.095, 0.29, 0.30], foreFetlock: [0.09, 0.30, 0.085], foreCoronet: [0.09, 0.33, 0.035], foreToe: [0.09, 0.38, 0.012],
-      hip: [0.085, -0.33, 0.75], stifle: [0.105, -0.20, 0.55], hock: [0.095, -0.40, 0.40], hindFetlock: [0.09, -0.36, 0.085], hindCoronet: [0.09, -0.335, 0.035], hindToe: [0.09, -0.285, 0.012],
+      shoulder: [0.088, 0.30, 0.78], elbow: [0.092, 0.25, 0.56], carpus: [0.084, 0.29, 0.30], foreFetlock: [0.079, 0.30, 0.085], foreCoronet: [0.079, 0.33, 0.035], foreToe: [0.079, 0.38, 0.012],
+      hip: [0.075, -0.33, 0.75], stifle: [0.092, -0.20, 0.55], hock: [0.084, -0.40, 0.40], hindFetlock: [0.079, -0.36, 0.085], hindCoronet: [0.079, -0.335, 0.035], hindToe: [0.079, -0.285, 0.012],
       bellA: [0, 0.55, 0.86], bellB: [0, 0.58, 0.60],
     },
     // short trunk, deep in front; `top` lifts the back over the shoulders (the hump) and lets the rump fall
@@ -186,12 +186,12 @@ export const species = {
     joints: { maneA: [0, 0.40, 0.70], maneB: [0, 0.54, 0.86] },
     // the broad hooves: the hoof rows wider and longer than the buck's
     legs: [
-      ['upperArmR', 'shoulder', 'elbow', [0.06, 0.10], [0.04, 0.045], 'Coat', [0.6, 0.5], [0.055, 0.08]],
+      ['upperArmR', 'shoulder', 'elbow', [0.051, 0.10], [0.034, 0.045], 'Coat', [0.6, 0.5], [0.047, 0.08]],
       ['foreArmR', 'elbow', 'carpus', [0.04, 0.045], [0.024, 0.028], 'Coat', [0.5, 0.4]],
       ['foreCannonR', 'carpus', 'foreFetlock', 0.022, 0.02, 'Sock', [0.4, 0.4]],
       ['forePasternR', 'foreFetlock', 'foreCoronet', 0.022, 0.026, 'Sock', [0.4, 0.4]],
       ['foreHoofR', 'foreCoronet', 'foreToe', [0.038, 0.032], [0.034, 0.014], 'Hoof', [0.5, 0.4]],
-      ['thighR', 'hip', 'stifle', [0.08, 0.12], [0.05, 0.055], 'Coat', [0.2, 0.5], [0.075, 0.105]],
+      ['thighR', 'hip', 'stifle', [0.064, 0.12], [0.04, 0.055], 'Coat', [0.2, 0.5], [0.06, 0.105]],
       ['shinR', 'stifle', 'hock', [0.05, 0.055], [0.026, 0.03], 'Coat', [0.5, 0.4]],
       ['hindCannonR', 'hock', 'hindFetlock', 0.023, 0.02, 'Sock', [0.4, 0.4]],
       ['hindPasternR', 'hindFetlock', 'hindCoronet', 0.022, 0.026, 'Sock', [0.4, 0.4]],

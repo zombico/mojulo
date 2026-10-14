@@ -13,6 +13,28 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Wildlife improvements: the default animals' silhouettes and proportions
+
+The species roster was built family by family in batches; this pass reads the whole roster at once, four views a
+species, and fixes what misreads in silhouette. Species are recipes: an `animal` sketch minted from a touched species
+redraws with the new numbers on its next read.
+
+- **Felines** stand on a deep narrow chest, not a slab: the trunk is about a fifth narrower across, the legs set under
+  it rather than at its edges, the upper arm and thigh slimmer across, and the paws near life size (they were about
+  twice it). The cheetah's waist is deep rather than pinched, its legs a little fuller.
+- **Canines** stand with their legs under the body (the coyote's stood out past its sides almost two to one), the
+  thigh and upper arm slimmer across, the loin deep instead of a wasp waist; the dog's otter tail tapers from a
+  thinner root and is carried level with a droop, and its legs are lighter.
+- **Bovids** are narrower across the barrel (the gazelle most), their legs set under it; the bull, the dairy cow and
+  the water buffalo carry their heads higher, the bull's larger with a longer muzzle raised off the chest, and the
+  dewlap hangs as a fold under the throat instead of a lobe in front of the forelegs.
+- **Cervids** set their legs under the trunk, the upper arm and thigh slimmer across; **bears** are a little narrower
+  across, the legs a little closer.
+- `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,
+  front, top) with no database or browser, `--parts` to colour faces by part, and `--measure` for the proportion
+  readout the pass steers by (trunk width over height, the legs' reach over the trunk's half-width, the head's length
+  and carriage).
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
