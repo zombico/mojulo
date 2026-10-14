@@ -406,6 +406,11 @@ export const TUNE = ratioControls({
 export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
 /** Resolve a tune spec to every TUNE_KEYS ratio, plus `from` when a move named it (see ratio-controls.js). */
 export const resolveTune = TUNE.resolve;
+/** The controls that came after heroes were stored: a stored tune carries one only when it is moved off 1, so a hero
+ * that never names it keeps its record byte for byte (the record seeds the face's tracks: anime-face-tracks faceSeed) */
+export const SPARSE_TUNE_KEYS = Object.freeze(['armLength']);
+/** a resolved tune as a hero record stores it: every control at its value but the sparse ones at 1 */
+export const storedTune = (tune) => Object.fromEntries(Object.entries(tune).filter(([k, v]) => !(SPARSE_TUNE_KEYS.includes(k) && v === 1)));
 /** Error strings for a tune spec (empty = valid). */
 export const validateTune = (spec, label = 'tune') => TUNE.validate(spec, label);
 /** Advisory: the resolved keys outside the lab's comfortable range. Never a refusal. */

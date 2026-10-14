@@ -9,8 +9,8 @@
  * viewport, inspector, status bar — over the pieces the earlier phases built.
  *
  * Three rules it holds to:
- *   · The dashboard is not a conversational surface. The Inspector's one amber
- *     card hands over a prompt; it does not chat.
+ *   · The dashboard is not a conversational surface, and it is view only: it
+ *     shows the recipe and what is bound to it, and hands nothing over.
  *   · Nothing here is new data. Display modes, shelf counts, queue depth and the
  *     bake ledger all already existed; §8 put this phase last for that reason.
  *   · An empty workshop is an invitation, not an error — it falls through to the
@@ -29,7 +29,7 @@ import CreationMap from './graph/CreationMap';
 import DisplayModes, { useDisplayModeState } from './DisplayModes';
 import WorkshopHome from './WorkshopHome';
 import WorkshopShell from './WorkshopShell';
-import { CopyPrompt, StatusBar } from './WorkshopChrome';
+import { StatusBar } from './WorkshopChrome';
 import WorldViewStrip, { useWorldViewProtocol } from './WorldViewStrip';
 import { visibleWorkshopGroups, DOOR_ICONS } from './workshop-nav';
 import { LIBRARY_SHELVES } from '@/lib/graph/sketch/library-shelves';
@@ -338,20 +338,8 @@ function BoundArtifacts({ outcome }) {
 function Inspector({ head, outcome }) {
   const t = useTranslations('home3d');
   const recipe = useMemo(() => JSON.stringify(head.manifest, null, 2), [head]);
-  // Agent-directed text, not UI chrome — the one place the home points at the
-  // host agent, because the dashboard never mutates.
-  const prompt = `Open the mojulo artifact ${head.ref} ("${head.title || head.ref}") — read its recipe, tell me what it is made of, and propose one change. Revise it with update_sketch; get_sketch_vocab has the vocabulary.`;
-
   return (
     <>
-      <section>
-        <Eyebrow>{t('inspector.askTitle')}</Eyebrow>
-        <p className="mt-2 text-[11px] leading-relaxed text-[color:var(--ink-muted)]">{t('inspector.askBody')}</p>
-        <div className="mt-2">
-          <CopyPrompt value={prompt} />
-        </div>
-      </section>
-
       <section>
         <Eyebrow>{t('inspector.bound')}</Eyebrow>
         <BoundArtifacts outcome={outcome} />

@@ -62,13 +62,8 @@ export const TOOL_TIERS = Object.freeze({
   // ── games (Play) ──
   get_game_vocab: 'ride',
   get_play_vocab: 'ride',
-  list_game_projects: 'ride',
-  get_game_project: 'ride',
-  bind_to_game_project: 'ride',
   export_game: 'ride',
   bake_sprite_sheet: 'ride',
-  create_game_project: 'fill',
-  update_game_project: 'fill',
   create_pixelizer_game: 'fill',
   create_sprite_sheet: 'judge',
   tune_ground: 'judge',

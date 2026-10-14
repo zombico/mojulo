@@ -11,9 +11,8 @@
  * not a location. The game itself never previews in-page: its tab is a
  * METADATA sheet (store, theme, contents, wiring) and play is a new-tab act.
  *
- * NOT an editor: manifests stay the only source of truth; every authoring
- * affordance is a copy-prompt handed back to the host agent. Read-only,
- * focus-refresh like the beats studio.
+ * NOT an editor and view only: manifests stay the only source of truth and
+ * authoring stays with the host agent. Focus-refresh like the beats studio.
  *
  * Mounted inside the pinned workshop shell: the shell is the viewport-height
  * instrument, and the studio column scrolls inside it.
@@ -47,32 +46,6 @@ const FOLDER_ICONS = {
   reference: StashIcon,
 };
 
-function CopyButton({ value, label, copiedLabel, subtle = false }) {
-  const [copied, setCopied] = useState(false);
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable — leave the button inert */
-    }
-  }, [value]);
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className={
-        subtle
-          ? 'rounded-full border border-neutral-800 px-3 py-1 text-xs text-neutral-400 transition hover:border-neutral-600 hover:text-neutral-200'
-          : 'rounded-md border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 transition hover:border-neutral-500 hover:text-white'
-      }
-    >
-      {copied ? copiedLabel : label}
-    </button>
-  );
-}
-
 function StatusChip({ children, tone = 'neutral' }) {
   const tones = {
     neutral: 'border-neutral-700 text-neutral-400',
@@ -102,7 +75,7 @@ function assetSrc(memberKind, kind, ref) {
 
 export default function GameDeveloperBody({ projectRef: ref, authEnabled = false }) {
   const t = useTranslations('gameDev');
-  const studioHue = WORKSHOP_GROUPS.find((g) => g.key === 'studio').hue;
+  const studioHue = WORKSHOP_GROUPS.find((g) => g.key === 'play').hue;
   const [meta, setMeta] = useState(null);
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
@@ -148,22 +121,6 @@ export default function GameDeveloperBody({ projectRef: ref, authEnabled = false
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [opened]);
-
-  const workPrompt = useMemo(
-    () =>
-      `Read my mojulo game project '${ref}' with get_game_project, then help me advance it — bind new members with bind_to_game_project, or mint/revise its game with create_game({ project_ref: '${ref}' }).`,
-    [ref],
-  );
-  const addPrompt = useCallback(
-    (role) =>
-      `Read my mojulo game project '${ref}' with get_game_project, then create a new ${role} artifact for it and bind it with bind_to_game_project({ ref: '${ref}', members: [{ ref: '<new ref>', role: '${role}' }] }).`,
-    [ref],
-  );
-  const mintGamePrompt = useMemo(
-    () =>
-      `Read my mojulo game project '${ref}' with get_game_project, then mint its game: promote the level members with a game: contract channel and call create_game({ ..., project_ref: '${ref}' }).`,
-    [ref],
-  );
 
   // ---- Folderize: merge stored members + implied manifest entries by asset
   // context (what it IS), provenance carried as badges. ----
@@ -231,7 +188,7 @@ export default function GameDeveloperBody({ projectRef: ref, authEnabled = false
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-8 py-16 text-center">
             <p className="text-sm text-neutral-400">{t('notFound')}</p>
-            <Link href="/maker/games" className="mt-4 inline-block text-sm text-emerald-300 hover:text-emerald-200">
+            <Link href="/play" className="mt-4 inline-block text-sm text-emerald-300 hover:text-emerald-200">
               {t('backToProjects')}
             </Link>
           </div>
@@ -285,7 +242,6 @@ export default function GameDeveloperBody({ projectRef: ref, authEnabled = false
                   {t('playNewTab')}
                 </a>
               )}
-              <CopyButton value={workPrompt} label={t('copyWorkPrompt')} copiedLabel={t('copied')} />
             </div>
           </header>
 
@@ -392,7 +348,6 @@ export default function GameDeveloperBody({ projectRef: ref, authEnabled = false
               ) : (
                 <div className="flex flex-col items-center gap-4 py-8 text-center">
                   <p className="max-w-sm text-sm leading-relaxed text-neutral-600">{t('noRules')}</p>
-                  <CopyButton value={mintGamePrompt} label={t('copyMintPrompt')} copiedLabel={t('copied')} />
                 </div>
               )
             ) : (
@@ -402,12 +357,10 @@ export default function GameDeveloperBody({ projectRef: ref, authEnabled = false
                     {t(`roles.${tab}`)}
                     <span className="ml-2 text-neutral-700">{rows.length}</span>
                   </h2>
-                  <CopyButton value={addPrompt(tab)} label={t('copyAddPrompt')} copiedLabel={t('copied')} subtle />
                 </div>
                 {rows.length === 0 ? (
                   <div className="flex flex-col items-center gap-4 py-8 text-center">
                     <p className="text-sm text-neutral-600">{t('emptyFolder')}</p>
-                    <CopyButton value={addPrompt(tab)} label={t('copyAddPrompt')} copiedLabel={t('copied')} />
                   </div>
                 ) : (
                   <div className="space-y-2">

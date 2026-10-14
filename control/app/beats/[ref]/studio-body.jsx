@@ -2,23 +2,20 @@
 
 /**
  * /beats/[ref]'s client body — the beats studio proper: player iframe (grid +
- * playhead + annotate-here live inside it), revision list (play any rev, "what
- * changed" via the musical diff), the annotation panel, WAV export, and
- * copy-revision-prompt.
+ * playhead, annotation marks), revision list (play any rev, "what changed" via
+ * the musical diff), the annotation panel, and the WAV and MIDI renders.
  *
- * A deliberation surface, not a chat: the studio renders state and captures
- * marks; authoring stays with the operator's host agent (get_beats →
- * update_beats). The copy-revision-prompt affordance is the bridge.
+ * View only: the studio renders state; marks and authoring stay with the
+ * operator's host agent (annotate_beats, get_beats → update_beats).
  *
  * Blocked per 3d-factory-ui.plan.md §7c: the pinned shell is the one frame —
  * the header band, the player pane and the aside are its regions, meeting at
  * shared hairlines instead of floating in gutters. The player pane is the
  * instrument's screen (the well behind the iframe is `--bay-void`, the render
- * register); the aside partitions into revisions and annotations. The one
- * amber affordance is the copy-revision-prompt — the ask handed to the agent.
+ * register); the aside partitions into revisions and annotations.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import WorkshopShell from '@/components/WorkshopShell';
@@ -31,16 +28,6 @@ function anchorLabel(anchor, t) {
   if (anchor.step !== undefined) parts.push(t('anchor.step', { step: anchor.step }));
   if (anchor.track) parts.push(anchor.track);
   return parts.join(' · ');
-}
-
-function anchorPromptLabel(anchor) {
-  if (!anchor || anchor.scope === 'artifact') return 'whole piece';
-  if (anchor.scope === 'track') return `track ${anchor.track}`;
-  if (anchor.scope === 'cue') return `cue ${anchor.cue}`;
-  const parts = [`bar ${anchor.bar}`];
-  if (anchor.step !== undefined) parts.push(`step ${anchor.step}`);
-  if (anchor.track) parts.push(`track ${anchor.track}`);
-  return parts.join(', ');
 }
 
 /** Aside section header — the eyebrow register, self-labelling the partition. */
@@ -62,7 +49,6 @@ export default function BeatsStudioBody({ sketchRef: ref, authEnabled = false })
   const [rev, setRev] = useState(null);           // null = head
   const [diffFor, setDiffFor] = useState(null);   // rev whose "what changed" is open
   const [diff, setDiff] = useState(null);
-  const [copied, setCopied] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -103,35 +89,6 @@ export default function BeatsStudioBody({ sketchRef: ref, authEnabled = false })
       setDiff([e.message]);
     }
   }, [ref, diffFor]);
-
-  const openAnnotations = useMemo(
-    () => (meta?.annotations || []).filter((a) => a.status === 'open'),
-    [meta],
-  );
-
-  const copyRevisionPrompt = useCallback(async () => {
-    const lines = [
-      `Revise the mojulo beats artifact '${ref}'${meta?.title ? ` ("${meta.title}")` : ''}.`,
-      `Read it first with get_beats({ ref: '${ref}' }) — the recipe plus the open annotations below —`,
-      'then apply the changes with update_beats (set `note` to a revision message, and pass',
-      '`resolveAnnotations: [ids]` for the marks the edit answers).',
-    ];
-    if (openAnnotations.length) {
-      lines.push('', 'Open annotations:');
-      for (const a of openAnnotations) {
-        lines.push(`- [#${a.id}] (${anchorPromptLabel(a.anchor)}) ${a.body}`);
-      }
-    } else {
-      lines.push('', '(No open annotations — describe the change you want.)');
-    }
-    try {
-      await navigator.clipboard.writeText(lines.join('\n'));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setError(t('copyFailed'));
-    }
-  }, [ref, meta, openAnnotations, t]);
 
   const encRef = encodeURIComponent(ref);
   const playerSrc = `/api/beats/${encRef}${rev ? `?rev=${rev}` : ''}`;
@@ -180,12 +137,6 @@ export default function BeatsStudioBody({ sketchRef: ref, authEnabled = false })
             />
           </div>
           <div className="flex flex-wrap items-center gap-2 border-t border-[color:var(--bay-rail)] px-4 py-2.5">
-            <button
-              onClick={copyRevisionPrompt}
-              className="rounded-[var(--radius-control)] border border-[color:var(--forge-idle)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--forge)] transition-colors duration-100 hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10"
-            >
-              {copied ? t('copied') : t('copyRevisionPrompt')}
-            </button>
             <a
               href={wavHref}
               className="rounded-[var(--radius-control)] border border-[color:var(--bay-rail-lit)] px-2.5 py-1 font-mono text-[11px] text-[color:var(--ink-secondary)] transition-colors duration-100 hover:text-[color:var(--ink-primary)]"
@@ -284,7 +235,6 @@ export default function BeatsStudioBody({ sketchRef: ref, authEnabled = false })
               ) : (
                 <p className="text-xs text-[color:var(--ink-muted)]">{t('noAnnotations')}</p>
               )}
-              <p className="mt-2 text-[11px] text-[color:var(--ink-muted)]">{t('annotateHint')}</p>
             </div>
           </section>
         </aside>

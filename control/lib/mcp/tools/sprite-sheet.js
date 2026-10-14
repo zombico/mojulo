@@ -50,7 +50,7 @@ export async function createSpriteSheetHandler(input) {
   if (projectRef !== undefined && projectRef !== null) {
     if (typeof projectRef !== 'string' || !projectRef) throw new Error('`project_ref` must be a non-empty gp_ ref if provided');
     if (!GameProjectRepository.getByRef(projectRef)) {
-      throw new Error(`Game project '${projectRef}' not found — create_game_project first, or list_game_projects to find it`);
+      throw new Error(`Game project '${projectRef}' not found (game projects are retired: leave project_ref out, or name one made before)`);
     }
   }
 
@@ -184,7 +184,7 @@ export function registerSpriteSheetTools() {
       + 'each frame becomes a per-frame render target on the shared image-render handoff loop. Then run '
       + 'request_image_render → pull → submit → accept per frame, and bake_sprite_sheet quantizes the '
       + 'accepted cells into pixelizer {size,palette,cells} sprites. Reach for "make a sprite sheet for my '
-      + '2D game", "sprite atlas for a walking character". `project_ref` binds it as a game project\'s graphic art.',
+      + '2D game", "sprite atlas for a walking character".',
     inputSchema: {
       type: 'object',
       properties: {
@@ -213,7 +213,7 @@ export function registerSpriteSheetTools() {
         characters: { type: 'array', description: 'Optional identity lock: [{ id, description, name?, rig?, ref? }] — the sprite\'s design held across every frame (same shape as keyframe-animation/sequential-art).' },
         renderBrief: { type: 'object', description: 'Optional style lock (preset / fork / custom) for the painted look.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        project_ref: { type: 'string', description: "Optional gp_… ref: binds as the project's graphic art." },
+        project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the sheet to.' },
       },
       required: ['title', 'frames'],
     },

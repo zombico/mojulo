@@ -13,9 +13,8 @@
  * dispatch is the `view` field on LIBRARY_SHELVES — the same body-swap the
  * Materials registry shelf proved.
  *
- * Read-only, like the rest of the dashboard: rooms select, preview, and hand
- * out copy-prompts; management (folders, bulk move/delete) stays in the full
- * folder view, one toggle away. The only live context a room ever mounts is
+ * Read-only, like the rest of the dashboard: rooms select and preview; the
+ * agent does the rest over MCP. The only live context a room ever mounts is
  * the board's focus iframe, and only after a scene is selected.
  *
  * Design: components/3d-factory-ui.plan.md §11 (the rooms), wireframes round 1.
@@ -286,37 +285,6 @@ function RoomModal({ label, onClose, wide = false, children }) {
         {children}
       </div>
     </div>
-  );
-}
-
-/** The one agent-directed affordance: state rendered, ask handed over. */
-function CopyPromptButton({ label, prompt }) {
-  const t = useTranslations('rooms');
-  const [state, setState] = useState('idle'); // idle | copied | failed
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(prompt);
-      setState('copied');
-    } catch {
-      // Clipboard access can be blocked (insecure context, denied permission) —
-      // say so instead of leaving the button silently inert.
-      setState('failed');
-    }
-    setTimeout(() => setState('idle'), 1500);
-  }, [prompt]);
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      title={prompt}
-      className={`rounded-[var(--radius-control)] border px-2 py-1 font-mono text-[10px] transition-colors duration-100 ${
-        state === 'failed'
-          ? 'border-[color:var(--fault)] text-[color:var(--fault)]'
-          : 'border-[color:var(--forge-idle)] text-[color:var(--forge)] hover:border-[color:var(--forge)] hover:bg-[color:var(--forge)]/10'
-      }`}
-    >
-      {state === 'copied' ? t('copied') : state === 'failed' ? t('copyFailed') : label}
-    </button>
   );
 }
 
@@ -620,7 +588,6 @@ function CastRoom({ sketches }) {
     () => (sel && activeTab ? sel.siblings.filter((s) => kindOf(s) === activeTab) : []),
     [sel, activeTab],
   );
-  const missing = useMemo(() => (sel ? KIT_KINDS.filter((k) => !sel.kit[k]) : []), [sel]);
 
   return (
     <div>
@@ -652,13 +619,6 @@ function CastRoom({ sketches }) {
                 >
                   {tKit(k)} <span className="tabular-nums opacity-60">{sel.kit[k]}</span>
                 </button>
-              ))}
-              {missing.map((k) => (
-                <CopyPromptButton
-                  key={k}
-                  label={t('mintMissing', { piece: tKit(k) })}
-                  prompt={t('mintPrompt', { name: castName(sel.title), piece: tKit(k), ref: sel.ref })}
-                />
               ))}
             </div>
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">

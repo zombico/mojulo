@@ -1,12 +1,12 @@
 // The shell-route registry — which pages wear the workshop shell.
 //
 // A shell page's top strip IS its nav (WorkshopShell.jsx), so the global
-// chrome (AuthNav + Breadcrumbs) stands down there. Both consult this ONE list
+// chrome (AuthNav) stands down there. It consults this ONE list
 // instead of growing per-route conditionals; converting a page to the shell
 // means adding its route here and nothing in the chrome components.
 //
 // `/sketches/<ref>` is NOT here: it is the bare artifact frame, where ALL
-// chrome (shell included) stands down — AuthNav/Breadcrumbs keep their own
+// chrome (shell included) stands down — AuthNav keeps its own
 // check for it. `/login` is not here either: the auth screen stays chromeless
 // by its own rules. '/dashboard' is an exact match: nothing is nested under it.
 
@@ -14,27 +14,24 @@ const SHELL_PATHS = new Set([
   '/',
   '/dashboard',
   '/library',
-  '/maker',
   '/maker/motion',
   '/maker/beats',
   '/maker/voice',
-  '/maker/games',
-  '/arcade',
+  '/play',
+  '/worlds',
+  '/places',
+  '/elements',
   '/render-bay',
   '/outputs',
   '/research',
   '/plan',
   '/stashes',
-  '/mcp-skills',
-  '/apps',
-  '/graph',
-  '/map',
   '/observability',
   '/settings',
 ]);
 
 // Detail readings of shell surfaces (refs and their sub-views).
-const SHELL_PREFIXES = ['/stashes/', '/mcp-skills/', '/apps/', '/beats/', '/games/'];
+const SHELL_PREFIXES = ['/stashes/', '/beats/', '/games/', '/elements/'];
 
 export function isShellPath(pathname) {
   if (!pathname) return false;

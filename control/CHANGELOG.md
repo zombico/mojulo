@@ -119,6 +119,112 @@ taught `mint_solid`. This theme stitches them.
   seconds (it moves stored rows: it waits for hero laws 2); the guards, the cast and the party walk the library's walk
   at the speeds tuned to it.
 
+### UI on rails: a view-only dashboard
+
+The agent drives; the dashboard shows. Every affordance that wrote or handed the operator a prompt to paste is gone.
+
+- **No copy-prompts.** The home's "Ask the agent" card and every copy button (Arcade, Game Developer, Voice, Beats,
+  Plans, Research, Render Bay, the status bar, the library rooms) are removed.
+- **No writes from the page.** The library's folders, the gallery's edits, the stash inbox and stash pages, and the
+  outputs' status are read only. The API routes stay for the agent's tools.
+- **The office wing leaves the dashboard**, as it left the tool surface in 3.1.0: `/apps`, `/mcp-skills`, `/map` and
+  `/graph` are gone, with their doors. The `/maker` hub, a copy of the Studio doors, redirects home.
+- **Kept on purpose:** sign-in, sign-out and Settings (the operator's keys and language), and the `/pose-lab`
+  developer harness.
+- A test holds it: no page or component sends anything but a GET or touches the clipboard, outside those exceptions.
+- **The rail, read** (`lib/graph/rail/`, `GET /api/sketches/<ref>/rail`). One shape over every recipe on a rail, which
+  is all the dashboard will draw:
+  - **Outcomes and concerns.** Each concern is `given`, `open`, `advised` (a law or a gate finds something) or
+    `waived` (its law holds by the recipe's waiver). A building reads its outcome table and a city its plan table,
+    the same tables `next` reads, so the page and the readout never disagree; `next` and the books are unchanged.
+    A concern that has not arisen yet (a roof's covering before the frame, a level per segment before the segments)
+    is open, never given.
+  - **A gameworld's book, grouped by what a game asks:** intent, world, characters, systems, levels, story, play.
+    A reviewed part is given by the creator's approval (`gate: 'eyes'`) or by the agent's machine gate
+    (`gate: 'machine'`), never one shown as the other.
+  - **A solid's ladder:** look, fit, function, engineered, capped at the recipe's `ask`.
+  - **Parts**, each `fresh`, `stale`, `edited`, `missing`, `waiting` or `taken`: what a gameworld's run made (by the
+    runner's own `decide`), a city's segment levels, its doors' insides and its sites' edifices, a room's pieces by
+    ref. A part on a rail of its own carries its outcomes in brief. A segment's level is shown on its city's rail.
+  - **Exits**: the book, the World, and a gameworld's game and playtest once made.
+  - A broken recipe answers with what broke (`errors`) rather than failing the page.
+- **A recipe on a rail is a project page** (`/sketches/<ref>`, `components/rail/RailPage.jsx`), in the workshop shell
+  so it has a way back:
+  - **Left:** each outcome with its concerns as dots, filled by state. A dot opens the book at that concern (each
+    concern carries its `anchor` in the book).
+  - **Centre:** the book, the World, or a made game and its playtest.
+  - **Right:** the parts by role, each marked by freshness, with a part's own outcomes as small marks. A segment's
+    level links up to its city.
+  - **Below:** the files it has been exported to (its outcome folder).
+  - It re-reads every few seconds and on focus, so what the agent changes shows up on its own. Every word on it is the
+    data's own. A rail recipe asked for bare (`?print`, `?display`, `?bare`) and every other kind keep the bare frame.
+- **The nav names what is made by what it is**, in four modes:
+  - **Make**: Worlds, Places, Characters, Objects, and the Library.
+  - **Media**: Motion, Beats, Voice, Images.
+  - **Play**: Play, the Render Bay, Outputs.
+  - **Ideate**: Research, Plans, Stashes.
+
+  Characters, Objects and Images open their Library shelves. New door faces: Places, Characters, Images (the office
+  wing's are gone). The Library's "Worlds" shelf of walkable scenes is now "Scenes".
+- **Worlds and Places** (`/worlds`, `/places`, `GET /api/projects`): the projects on a rail by what they are,
+  gameworlds, and cities and buildings, as cards with one bar per outcome showing its concerns' states. What a project
+  made for itself (a city's segment levels, its doors' insides) is on the project's page, not a card. A gameworld
+  leaves the Library's Diagrams shelf.
+- **Home** leads with the newest projects as the same cards, under the floor's plate.
+- **Play** (`/play`) folds the Arcade and the Game Developer gallery: every game as a cabinet, grouped by where it came
+  from (`/api/arcade`'s new `source`: a gameworld's run, a quick game, a pixelizer game, a game project, or
+  `create_game` alone). A game a world made links to the world's page; a project's shelf stays at `/games/<ref>`.
+  `/arcade` and `/maker/games` redirect to it, and `create_pixelizer_game`'s `arcadeUrl` is `/play`.
+- `get_ui_map` describes the dashboard by these modes, the project page and its marks.
+- **What was made comes first.** The books and the exports are the product, and every one is now a link away:
+  - **A book on its own.** The view on a project page opens in a tab of its own, and a book (structure, city, world,
+    character) downloads as one self-contained file.
+  - **Everything shipped, folder by folder.** A project page lists what it and its parts were exported as, whole:
+    a building's `sheets/`, `schedules/` and IFC, a game's `game.html`, `levels/` and Godot pack, the game a world's
+    run made (`scanOutcomeTree`; the old top-level-only list missed every subfolder). A page opens in its own tab;
+    a long folder folds, with its true count.
+  - **A game is a project page** (the `game` rail): played and playtested in the middle, its levels as parts, its
+    export below. It has no outcome dots; whether its levels can be finished is answered when it is made.
+  - **Folders open.** `/outcomes/<ref>/` with no `index.html` of its own (and any folder inside one) is drawn as a
+    listing of its folders and files, so the Render Bay's and the bench's folder links no longer 404. Scripts,
+    styles, CSV, audio, images and IFC are served with their types.
+  - **Play shows what shipped:** each cabinet links to its game's page and marks the self-contained `game.html` and
+    the Godot project export_game left on disk.
+- **Every sheet mojulo draws is on screen, without asking for it** (`lib/graph/sheets/registry.js`).
+  - **Both bibles.** `/bible` is a gameworld's world bible again (its map, its land, its civilizations' towns and
+    castles, each level), whether or not it has a hero; `/bible?book=characters` is the character bible. A world with
+    a hero had shown only its character bible, and the world's could not be reached. A gameworld's page shows both,
+    and a dot opens the one its part is in. `design_game` answers `characterBible` beside `bible`.
+  - **A world's own atlas.** Each gameworld draws the land, flora, blocks, structures, fortified town, castle and
+    technology sheets in its own kit, seed and civilization's finish (`/api/sketches/<ref>/sheet/<id>`), as named
+    views on its page that open in a tab and download.
+  - **A recipe's boards.** A stage's art board and landform board, a floormap's board and a world's UI board are
+    views on its page; a stage or floormap drawing one is a project page now, with no outcomes.
+  - **The repertoire.** Worlds leads with what a world can be built from: every sheet drawn from mojulo's own tables
+    (index, land, flora, blocks, structures, fortified town, castle, technology) in a chosen kit, each opening in its
+    own tab (`GET /api/sheets`, `/api/sheets/<id>?kit=&seed=`). A sheet that does not draw in the kit shows dimmed;
+    the kits each draws in are its builder's (any kit's land; an isekai kit's civil sheets).
+  - **Drawn once per revision.** A world bible is ~16 MB and two seconds to draw, a flora sheet up to eight; pages are
+    kept in memory by what keys them (`lib/sheet-cache.js`), so a second look is immediate. Nothing is stored.
+- **Elements: what a world is styled from, each seen as itself** (`/elements`, `lib/graph/elements/registry.js`).
+  - **A door of its own** in Make, between Objects and the Library. It leads with the repertoire (moved from Worlds),
+    then every geocube, kit and city grammar mojulo holds, each a card of its own colours: a geocube's ramps, a kit's
+    land swatches, a grammar's skins.
+  - **One element live** (`/elements/<family>/<id>`): a geocube's room and land, a kit's bare stage (a room kit in one
+    room), a grammar's small city as massing or with its look. Each is drawn from a recipe built there and never
+    stored, through the same seam a stored sketch's World is (`/api/elements/<family>/<id>/world`), and kept in memory
+    once drawn. Beside it, its colour ramps and the recipes that name it (a stage or a world on a geocube, a world in a
+    kit, a city by a grammar, `{ from }` included); below, its document.
+- **Game projects retire** (`RETIRED_PACKS`' `pack_game_projects`): `create_game_project`, `get_game_project`,
+  `update_game_project`, `bind_to_game_project` and `list_game_projects` leave the tool surface. A game's home is its
+  gameworld (`design_game`, quick or full).
+  - The five tools stay registered and callable by name, so a stored project, a seed script or a plan step that names
+    one keeps working.
+  - `create_game`, `create_pixelizer_game` and `create_sprite_sheet` still take a legacy `project_ref`, described as
+    such. Pixelizer games and sprite sheets stay on the surface.
+  - The studio index, the game form, the pixel-art card and the tool-surface page no longer point at them.
+  - The flat `tools/list` payload pin falls from 209,300 to 203,900 bytes.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
@@ -1062,7 +1168,9 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   thicknesses, so a body shortened by `legs` and `torso` kept a grown arm: the cast example `kid` hung its hands nearly
   to its knees (the arm 0.41 of its height, the adults' 0.37). `armLength` (0.8 … 1.15, in the lengths group) scales the
   upper arm and forearm as `legs` does the thigh and shank; absent or 1, the cast as before. `kid.json` takes 0.9: the
-  arm 0.37 of its height, the wrist at 0.44 of it.
+  arm 0.37 of its height, the wrist at 0.44 of it. The stored tune carries `armLength` only when it is moved off 1
+  (`SPARSE_TUNE_KEYS`): stored at 1 it changed every new hero's record, and through the record the seed of its face
+  tracks, so a hero that never names it keeps its record byte for byte.
 - **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
   takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
