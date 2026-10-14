@@ -397,13 +397,27 @@ export function hardwareGlyph(part, x, y) {
     case 'insert': rect(x, y - part.od / 2, L, part.od); hatch(x, x + L, part.od / 2, 2.5); g.push(`<circle cx="${r2(x + L + 3 + part.od / 2)}" cy="${r2(y)}" r="${r2(part.od / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/><circle cx="${r2(x + L + 3 + part.od / 2)}" cy="${r2(y)}" r="${r2(part.d / 2)}" fill="none" stroke="${INK}" stroke-width="${sw}"/>`); break;
     case 'clip': rect(x, y - part.h / 2, L, part.h); break;
     case 'spring': { const pts = []; for (let i = 0; i <= 12; i++) pts.push(`${r2(x + i * 5)} ${r2(y + (i % 2 ? -6 : 6))}`); g.push(`<path d="M${pts.join('L')}" fill="none" stroke="${INK}" stroke-width="${part.d / 4}"/>`); break; }
+    case 'slide': {
+      // longer than the page: both ends at true scale, broken in the middle the way a drawing breaks a long part, its
+      // length over the break; the drawer member a strip down the middle, a screw slot at each end
+      const h = part.h, a = SLIDE_END, x1 = x + a + SLIDE_GAP, top = y - h / 2, bot = y + h / 2;
+      poly([[x, top], [x + a, top], [x + a + 1.5, y - h / 4], [x + a - 1.5, y + h / 4], [x + a, bot], [x, bot]]);
+      poly([[x1, top], [x1 + a, top], [x1 + a, bot], [x1, bot], [x1 - 1.5, y + h / 4], [x1 + 1.5, y - h / 4]]);
+      for (const dy of [-h * 0.22, h * 0.22]) g.push(`<line x1="${r2(x + 1)}" y1="${r2(y + dy)}" x2="${r2(x + a - 2)}" y2="${r2(y + dy)}" stroke="${INK}" stroke-width="0.12"/><line x1="${r2(x1 + 2)}" y1="${r2(y + dy)}" x2="${r2(x1 + a - 1)}" y2="${r2(y + dy)}" stroke="${INK}" stroke-width="0.12"/>`);
+      for (const cx of [x + 5, x1 + a - 5]) g.push(`<circle cx="${r2(cx)}" cy="${r2(y)}" r="2" fill="none" stroke="${INK}" stroke-width="${sw}"/>`);
+      g.push(text(x + a + SLIDE_GAP / 2, top - 1.5, String(L), 3.2, 'middle'));
+      break;
+    }
     default: rect(x, y - 2, L, 4);
   }
   return g.join('');
 }
+const SLIDE_END = 24, SLIDE_GAP = 6;                  // a drawer slide's glyph: each true-scale end, the break between (mm)
 /** How long a glyph runs to the right (mm). */
-const glyphWidth = (p) => (p.family === 'cam' ? p.d : p.family === 'washer' ? p.length + 3 + p.od : p.family === 'nut' ? 2 * p.s / Math.sqrt(3) : p.family === 'bracket' ? p.leg : p.family === 'insert' ? p.length + 3 + p.od : p.family === 'spring' ? 60 : p.length + (p.head && p.head.shape === 'hex' ? p.head.k : 0));
-const glyphHeight = (p) => (p.family === 'bracket' ? p.leg : p.family === 'washer' ? p.od : p.family === 'insert' ? p.od : p.family === 'clip' ? p.h : p.family === 'spring' ? 12 : p.head ? (p.head.dk || p.head.s || p.d) : p.d);
+const glyphWidth = (p) => (p.family === 'cam' ? p.d : p.family === 'washer' ? p.length + 3 + p.od : p.family === 'nut' ? 2 * p.s / Math.sqrt(3) : p.family === 'bracket' ? p.leg : p.family === 'insert' ? p.length + 3 + p.od : p.family === 'spring' ? 60 : p.family === 'slide' ? 2 * SLIDE_END + SLIDE_GAP : p.length + (p.head && p.head.shape === 'hex' ? p.head.k : 0));
+const glyphHeight = (p) => (p.family === 'bracket' ? p.leg : p.family === 'washer' ? p.od : p.family === 'insert' ? p.od : p.family === 'clip' || p.family === 'slide' ? p.h : p.family === 'spring' ? 12 : p.head ? (p.head.dk || p.head.s || p.d) : p.d);
+/** [width, height] of a fitting's glyph (mm), or null when the catalog entry lacks a field the glyph reads. */
+const glyphSize = (p) => { const w = glyphWidth(p), h = glyphHeight(p); return Number.isFinite(w) && Number.isFinite(h) ? [w, h] : null; };
 
 /** The inventory: every part numbered with its size, every fitting lettered at 1:1, a 10 mm check bar. */
 function inventoryPage(plan, groups, mmPerUnit) {
@@ -422,11 +436,13 @@ function inventoryPage(plan, groups, mmPerUnit) {
   // fittings at 1:1
   let y = y0 + Math.ceil(plan.parts.length / cols) * ch + 10;
   body += `<line x1="12" y1="${y - 6}" x2="198" y2="${y - 6}" stroke="${INK}" stroke-width="0.3"/>`;
-  let x = 18, rowH = 0;
+  let x = 18, rowH = 0, scaled = false;
   for (const h of plan.hardware) {
-    const p = hardwarePart(h.code);
-    // a joint's own piece has no catalog size: a small drawing of it, not to scale
-    const w = p ? glyphWidth(p) + 30 : 60, hh = p ? Math.max(glyphHeight(p), 10) + 10 : 26;
+    const part = hardwarePart(h.code), size = part && glyphSize(part);
+    // a joint's own piece has no catalog size, and a fitting whose size can't be read is drawn the same way (one NaN
+    // would carry down the row and every row after it): a small drawing of it, not to scale
+    const p = size ? part : null; if (p) scaled = true;
+    const w = p ? size[0] + 30 : 60, hh = p ? Math.max(size[1], 10) + 10 : 26;
     if (x + w > 196) { x = 18; y += rowH; rowH = 0; }
     body += circle(x + 4, y + hh / 2, 3.6, h.letter, { size: 4 }) + text(x + 9.5, y + hh / 2 + 1.5, `×${h.count}`, 4, 'start', 700);
     if (p) body += hardwareGlyph(p, x + 22, y + hh / 2);
@@ -435,7 +451,7 @@ function inventoryPage(plan, groups, mmPerUnit) {
   }
   // the check bar: print at 100 % and this is 10 mm (only when there are fittings drawn to scale)
   const by = PAGE.h - 18;
-  if (plan.hardware.some((h) => hardwarePart(h.code))) body += `<g stroke="${INK}" stroke-width="0.3"><line x1="18" y1="${by}" x2="28" y2="${by}" stroke-width="0.6"/><line x1="18" y1="${by - 2}" x2="18" y2="${by + 2}"/><line x1="28" y1="${by - 2}" x2="28" y2="${by + 2}"/></g>${text(31, by + 1.4, '10 mm · 1:1', 3.2)}`;
+  if (scaled) body += `<g stroke="${INK}" stroke-width="0.3"><line x1="18" y1="${by}" x2="28" y2="${by}" stroke-width="0.6"/><line x1="18" y1="${by - 2}" x2="18" y2="${by + 2}"/><line x1="28" y1="${by - 2}" x2="28" y2="${by + 2}"/></g>${text(31, by + 1.4, '10 mm · 1:1', 3.2)}`;
   return page(body);
 }
 

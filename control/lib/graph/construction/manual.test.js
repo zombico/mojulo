@@ -90,6 +90,20 @@ describe('construction/manual — a frame writes its own instructions', () => {
     expect(inv).toMatch(/10 mm · 1:1/);
     expect(inv).toMatch(/<line x1="18" y1="\d+" x2="28"/);                   // the check bar is 10 units = 10 mm
   });
+  it('sizes every fitting it draws: a drawer slide (no diameter, no head) breaks to fit the page, and no page carries NaN', () => {
+    const dresser = { id: 'dresser', unit: 'mm', build: { type: 'carcass', w: 900, h: 1050, d: 480, material: 'plywood', joinery: 'confirmat', drawers: 4, back: 'groove', plinth: 80 } };
+    const { plan, pages } = manualPages(dresser);
+    expect(plan.hardware.map((h) => hardwarePart(h.code).family)).toContain('slide');
+    for (const p of pages) expect(p.svg, p.name).not.toContain('NaN');
+    // every fitting stays on the page: the slide is longer than A4 is wide, so it is drawn broken, its length written
+    const inv = pages.find((p) => p.name === 'inventory').svg;
+    const fitting = inv.slice(inv.indexOf('<line x1="12"'));                   // below the rule: the fittings and the bar
+    const xs = [...fitting.matchAll(/\b(?:x|x1|x2|cx)="(-?[\d.]+)"/g)].map((m) => +m[1]);
+    const ys = [...fitting.matchAll(/\b(?:y|y1|y2|cy)="(-?[\d.]+)"/g)].map((m) => +m[1]);
+    expect(Math.max(...xs)).toBeLessThan(210);
+    expect(Math.min(...ys)).toBeGreaterThan(0);
+    expect(fitting).toContain(`>${hardwarePart(plan.hardware.find((h) => h.code.startsWith('slide-')).code).length}</text>`);
+  });
   it('builds a manual for a timber bent too, its pegs going in with their joints', () => {
     const kigumi = {
       id: 'kigumi', unit: 'cm', species: 'hinoki',

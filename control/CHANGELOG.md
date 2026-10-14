@@ -13,6 +13,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Sheet-metal bend lines that mark without cutting
+
+- **A flat pattern with `bend_lines = true` stays one piece.** Each bend line was a slot run past both edges, so
+  the DXF and SVG drew the strip as separate outlines, one per flange, and a laser would have cut the part apart.
+  The slot now stops a tab short of each edge (2 mm, or a quarter of the width on a narrow strip): the drawing is
+  one outer outline with the holes and bend marks inside it. OpenSCAD's DXF has one layer, so a mark is a closed
+  inner loop: cut it as a slit or move it to an etch pass. Mech library v5; `bend_lines = false` draws
+  byte-identical.
+
+### Instruction manuals: a drawer slide on the inventory page
+
+- **The fittings row no longer falls off the page.** A drawer slide has no diameter and no head, so the inventory
+  read its glyph size as NaN, and every fitting after it in the row (a chest of drawers' confirmats and screws
+  included) was drawn at `y="NaN"` and clipped away. A slide is now drawn like any part longer than the page: both
+  ends at true scale, broken in the middle, its length written over the break. A fitting whose catalog entry still
+  can't be sized is drawn as a small not-to-scale sketch, like a joint's own piece, so one bad entry can't carry
+  down the row. The 10 mm check bar shows only when some fitting really is at 1:1.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
