@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Hizmetler Haritası",
-    "back": "Geri"
-  },
-  "actions": {
-    "start": "Başlat"
-  },
   "settings": {
     "title": "Ayarlar",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Uygulamalar",
-    "subtitle": "[UNTRANSLATED] Apps the agent has materialized through the App paradigm. Lifecycle, env vars, and live MCP introspection — read from the contextmap and the local runner.",
-    "loading": "Yükleniyor…",
-    "refresh": "Yenile",
-    "empty": "[UNTRANSLATED] No apps yet — ask your Claude Code agent to scaffold one.",
-    "backToList": "[UNTRANSLATED] Back to Apps",
-    "notFound": "[UNTRANSLATED] App not found.",
-    "openPreview": "[UNTRANSLATED] Open preview",
-    "openMcp": "[UNTRANSLATED] Open MCP",
-    "actions": {
-      "start": "Başlat",
-      "stop": "[UNTRANSLATED] Stop",
-      "starting": "[UNTRANSLATED] Starting…",
-      "stopping": "[UNTRANSLATED] Stopping…"
-    },
-    "status": {
-      "running": "Çalışıyor",
-      "stopped": "Durduruldu",
-      "crashed": "[UNTRANSLATED] Crashed",
-      "unknown": "Bilinmiyor"
-    },
-    "table": {
-      "headers": {
-        "name": "[UNTRANSLATED] Name",
-        "materialized": "[UNTRANSLATED] Materialized",
-        "runner": "[UNTRANSLATED] Runner",
-        "status": "Durum",
-        "actions": "[UNTRANSLATED] Actions"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Bu uygulamanın yaratılış haritası — onu var eden her araç çağrısı, tek bir hat üzerindeki duraklar olarak."
-      },
-      "metadata": "[UNTRANSLATED] Metadata",
-      "artifactPath": "Yapı yolu",
-      "materializationRef": "[UNTRANSLATED] Materialization ref",
-      "adapter": "[UNTRANSLATED] Adapter",
-      "appName": "[UNTRANSLATED] App name",
-      "host": "[UNTRANSLATED] Host",
-      "materializedAt": "[UNTRANSLATED] Materialized at",
-      "viewGraph": "[UNTRANSLATED] View graph",
-      "bindings": "[UNTRANSLATED] Bindings",
-      "binding": {
-        "runner": "[UNTRANSLATED] Runner",
-        "durability": "[UNTRANSLATED] Durability",
-        "inference": "[UNTRANSLATED] Inference",
-        "mcpSelf": "[UNTRANSLATED] MCP self"
-      },
-      "mcpPanel": {
-        "title": "[UNTRANSLATED] App MCP",
-        "url": "[UNTRANSLATED] MCP URL",
-        "offline": "[UNTRANSLATED] MCP offline — start the app to see its tool list.",
-        "loading": "[UNTRANSLATED] Loading tools…",
-        "error": "[UNTRANSLATED] Could not reach the app MCP: {error}",
-        "registeredTools": "[UNTRANSLATED] Registered tools",
-        "noTools": "[UNTRANSLATED] No tools registered.",
-        "declaredPurpose": "[UNTRANSLATED] Declared purpose"
-      },
-      "envPanel": {
-        "title": "[UNTRANSLATED] Environment variables",
-        "explainer": "[UNTRANSLATED] Values are written directly to the artifact's .env file. They are not logged, not stored in the control-plane database, and not echoed back to this view.",
-        "addKey": "[UNTRANSLATED] Key",
-        "addValue": "Değer",
-        "add": "[UNTRANSLATED] Add",
-        "delete": "Sil",
-        "deleteConfirm": "[UNTRANSLATED] Delete env var \"{key}\"?",
-        "noKeys": "[UNTRANSLATED] No env vars set yet.",
-        "valueHidden": "[UNTRANSLATED] •••••",
-        "edit": "Düzenle",
-        "save": "Kaydet",
-        "cancel": "İptal",
-        "newKeyPlaceholder": "[UNTRANSLATED] MY_KEY",
-        "newValuePlaceholder": "[UNTRANSLATED] value"
-      },
-      "provenance": {
-        "title": "[UNTRANSLATED] Provenance",
-        "subtitle": "[UNTRANSLATED] Principles attached to this app's materialization commit.",
-        "none": "[UNTRANSLATED] No principles recorded."
-      }
-    }
-  },
-  "graph": {
-    "title": "[UNTRANSLATED] App Creation Map",
-    "subtitle": "[UNTRANSLATED] How an app comes together. Each box is a piece; each arrow shows what causes what.",
-    "subtitleTechnical": "[UNTRANSLATED] How an app is composed in the mojulo paradigm. Stations are the pieces; lines are the MCP tools that snap them together. Validated against the live MCP registry and contextmap schema on every refresh.",
-    "technicalToggle": "[UNTRANSLATED] Technical",
-    "loading": "Yükleniyor…",
-    "refresh": "Yenile",
-    "overlay": {
-      "appCount": "[UNTRANSLATED] {count, plural, =0 {No apps made yet} =1 {1 app made} other {# apps made}}",
-      "lastMaterialized": "[UNTRANSLATED] Last one made",
-      "viewApps": "Çalışan uygulamaları görüntüle"
-    },
-    "validation": {
-      "ok": "Her şey hala iyi.",
-      "okTechnical": "Manifest geçerli: {tools} araç, {nodeKinds} düğüm türü, {edgeKinds} kenar türü, {sourceEvents} kaynak olayı hepsi çözüldü.",
-      "failed": "{count, plural, =1 {Harita da 1 şey artık gerçeklikle eşleşmiyor} other {Harita da # şey artık gerçeklikle eşleşmiyor}}"
-    },
-    "legend": {
-      "input": "Karar verdiğiniz şey",
-      "inputTechnical": "Giriş",
-      "mcpTool": "Ajanın çağırdığı bir araç",
-      "mcpToolTechnical": "MCP aracı",
-      "filesystem": "Diskteki dosyalar",
-      "filesystemTechnical": "Dosya sistemi",
-      "dbRow": "Belleğe giriş",
-      "dbRowTechnical": "DB satırı"
-    }
-  },
   "login": {
     "subtitle": "Devam etmek için oturum açın",
     "username": "Kullanıcı adı",
@@ -178,7 +60,6 @@
     "title": "Plan",
     "subtitle": "Önerilen çalışma — pik haline gelen oturumlar. Ana bilgisayar acentanızdan oluşturulmuş ve çalıştırılmıştır.",
     "navLabel": "Plan",
-    "newPlan": "Yeni Plan",
     "total": "{count} plan",
     "count": "{count} plan",
     "filteredCount": "{total} / {count}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Henüz yürütülmedi.",
     "stepOk": "tamam",
     "stepFailed": "başarısız",
-    "newPlanTitle": "Yeni Plan",
-    "newPlanIntro": "Planlar, host ajanında (Claude Code / Codex) oluşturulur. Amacı açıklayın, başlangıç istemini kopyalayın ve yeni bir ajan oturumuna yapıştırın — ajan plan moduna girer ve işi yürütür. Bu sayfa, plan oluşturulup gözden geçirilirken güncellenir.",
-    "intentLabel": "Neyi planlamak istiyorsunuz? (isteğe bağlı)",
-    "intentPlaceholder": "örn. besteci için webhook tetikleme çalışma zamanı",
-    "promptLabel": "Başlangıç istemi",
-    "copyPrompt": "İstemi kopyala",
-    "copied": "Kopyalandı",
     "close": "Kapat"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Parça",
     "kindSketch": "Taslak",
     "viewSketch": "Diyagramı görüntüle",
-    "composerHeading": "Not defterine ekle",
-    "composerStub": "Yalnızca önizleme — bağlama şimdilik host ajanınız aracılığıyla gerçekleşir.",
-    "composerPlaceholder": "Bağlantı yapıştırın, dosya bırakın veya not yazın…",
-    "newBook": "Yeni kitap",
-    "newBookTitle": "Yeni araştırma kitabı",
-    "newBookIntro": "Kitaplar, host ajanında (Claude Code / Codex) başlatılır. Konuyu açıklayın, başlangıç istemini kopyalayın ve yeni bir ajan oturumuna yapıştırın — ajan araştırma moduna girer ve işi yürütür. Bu sayfa, kitap biriktirilirken güncellenir.",
-    "intentLabel": "Neyi araştırmak istiyorsunuz? (isteğe bağlı)",
-    "intentPlaceholder": "örn. başkaları yerel MCP sunucularını nasıl tüneller",
-    "promptLabel": "Başlangıç istemi",
-    "copyPrompt": "İstemi kopyala",
-    "copied": "Kopyalandı",
     "close": "Kapat"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "Pano",
       "open": "Zemini aç →"
-    },
-    "ask": {
-      "title": "Ajana sor",
-      "body": "Üretim senin MCP ajanında olur."
     }
-  },
-  "breadcrumbs": {
-    "home": "Ana Sayfa"
   },
   "sketches": {
     "notFoundTitle": "Taslak bulunamadı",
@@ -398,10 +254,6 @@
     "refresh": "yenile",
     "statusOpen": "aç",
     "statusResolved": "rev {rev}'de çözüldü",
-    "annotateHint": "İşaretler, ajanınızdan yazılır (annotate_beats — bir çubuk, parça veya ipucuna sabitlenmiş); bu panel onları işler. Ajanın onları işaretlemesi veya harekete geçmesi için revizyon istemini kopyalayın.",
-    "copyRevisionPrompt": "Revizyon istemini kopyala",
-    "copied": "Kopyalandı ✓",
-    "copyFailed": "Panoya kopyalanamadı.",
     "exportWav": ".wav Dışa Aktar",
     "exportMidi": ".mid Dışa Aktar",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "Oyun Geliştirici",
     "gallerySubtitle": "Oyun başına tek proje — kuralları, seviyeleri, karakterleri, sesi ve sanatı tek bir rafta.",
     "galleryEmpty": "Henüz oyun projesi yok. Bir tane başlatmak için ana makine ajanından create_game_project çalıştır.",
-    "copyStarterPrompt": "Başlangıç istemini kopyala",
     "loading": "Projeler yükleniyor…",
     "noMembersYet": "Henüz üye yok",
     "notFound": "Bu proje mevcut değil — arşivlenmiş olabilir ya da referans hatalı.",
     "backToProjects": "Oyun Geliştirici'ye dön",
-    "copyWorkPrompt": "Çalışma istemini kopyala",
-    "copyAddPrompt": "ekle",
-    "copyMintPrompt": "oyunu bas",
-    "copied": "Kopyalandı",
     "playable": "Oynanabilir",
     "missing": "Eksik",
     "missingBody": "Bu üyenin yapıtı artık mevcut değil. Proje yuvayı koruyor; ana makine ajanından yeniden bağla ya da kaldır.",
@@ -472,8 +319,6 @@
     "subtitle": "Atölyeden basılmış, oynanabilir bağımsız oyunlar. Bir kabin seç ve oyna.",
     "loading": "Kabinler yükleniyor…",
     "emptyState": "Salonda henüz oyun yok. İlk kabini basmak için ana makine ajanından create_game çalıştır.",
-    "copyStarterPrompt": "Başlangıç istemini kopyala",
-    "copied": "Kopyalandı",
     "play": "Oyna",
     "levelCount": "{count, plural, one {# seviye} other {# seviye}}",
     "shipped": "Yayınlandı"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Yapımcı",
-      "subtitle": "Stüdyo: illüstrasyonlar, gezilebilir dünyalar, 3D nesneler, hareket, beat'ler, ses ve bitmiş çıktılar. İnce ayarlı bir yaratıcı yüzey, Eskizler'in kardeşi (diyagramlar için ayarlı). Her parça aynı eskiz ilkeli — her iki şekilde de sakla, referansla ve karşılaştır."
-    },
     "beats": {
       "title": "Ritimler",
       "subtitle": "Sentezlenmiş müzikler, besteler ve ses efektleri — birini seçin ve oynat'ı basın. Ajanınızdan create_beats aracılığıyla yenilerini yazın."
@@ -546,11 +387,7 @@
       "tuned": "Ayarlanmış (tarif değiştirilmemiş)",
       "reset": "sıfırla",
       "playingAt": "Güven {c} / derinlik {d}'de örnek al",
-      "noSamples": "Henüz işlenmiş örnek yok — konuş komutunu kopyalayın ve ajanınızın birkaç noktayı bağlamasını sağlayın (kenarlar dahil).",
-      "copyBlend": "Karışımı kopyala",
-      "copyCommand": "Konuş komutunu kopyala",
-      "copyPrompt": "Başlangıç istemini kopyala",
-      "copied": "Kopyalandı!",
+      "noSamples": "Henüz işlenmiş örnek yok.",
       "loading": "Ses kayıtları yükleniyor…",
       "empty": "Henüz ses kayıtları yok. Ajanınızdan create_voice ile bir tane oluşturmasını isteyin.",
       "unresolvable": "Bu kayıt artık çözülmüyor — bankası değişmiş olabilir. create_voice aracılığıyla yeniden oluşturun."
@@ -602,10 +439,6 @@
     "kindNovel": "Novela",
     "kindVisualGuide": "Görsel kılavuz",
     "kindUnknown": "Bilinmiyor",
-    "actions": {
-      "archive": "Arşiv",
-      "unarchive": "Arşivden çıkar"
-    },
     "sourceLabel": "[UNTRANSLATED] From",
     "sourceUnknown": "(depolama alanı kaldırıldı)",
     "lensLabel": "Lens",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "Depolama Alanları",
-    "subtitle": "Ajanın topladığı yazılı materyalin yeniden adlandırılabilir kapları. mint_stash MCP aracı aracılığıyla oluşturuldu.",
+    "subtitle": "Ajanın topladığı türlendirilmiş materyal kovaları.",
     "total": "{count, plural, =0 {Depolama alanı yok} =1 {1 depolama alanı} other {# depolama alanları}}",
     "count": "{count, plural, =0 {Eşleşme yok} =1 {1 depolama alanı} other {# depolama alanları}}",
     "filteredCount": "{count} / {total} gösterildi",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {çekmece yok} =1 {1 çekmece} other {# çekmeceler}}",
     "createdAt": "{timestamp} tarihinde oluşturuldu",
     "updatedAt": "{timestamp} tarihinde güncellenmiş",
-    "actions": {
-      "rename": "Yeniden adlandır",
-      "edit": "Düzenle",
-      "archive": "Arşiv",
-      "unarchive": "Arşivden çıkar",
-      "save": "Kaydet",
-      "cancel": "İptal",
-      "titleEmpty": "Başlık boş olamaz",
-      "renameFailed": "Yeniden adlandırma başarısız oldu",
-      "statusChangeFailed": "Durum değiştirilemedi"
-    },
     "detail": {
       "loading": "Depolama alanı yükleniyor…",
       "notFoundTitle": "Depolama alanı bulunamadı",
@@ -673,66 +495,7 @@
         "sketch": "Taslak"
       },
       "sketchFailed": "Taslak yüklenemedi.",
-      "openSketch": "Taslak aç",
-      "newDrawer": "Yeni çekmece",
-      "newDrawerPlaceholder": "Çekmece adı",
-      "drawerSaveError": "Çekmece kaydedilemedi",
-      "drawerRenameError": "Çekmece yeniden adlandırılamadı",
-      "renameDrawerLabel": "Çekmeci yeniden adlandır",
-      "moveError": "Öğe taşınamadı",
-      "archive": "Arşiv",
-      "archiveError": "Öğe arşivlenemedi",
-      "archiveWarning": "Bu öğe {cookCount, plural, =1 {1 pişirmede} other {# pişirmelerde}} görünür. Alıntılar arşivlenen içeriğe çözülür. Devam etsin mi?",
-      "archiveProceed": "Yine de arşivle",
-      "archiveCancel": "İptal",
-      "addItem": "+ Ekle",
-      "agentTypesFooter": "Komut dosyaları ve contextmap işaretçileri ajanınız tarafından eklenir.",
-      "picker": {
-        "text": "Yeni metin bloğu",
-        "image": "Resim yükle",
-        "svg": "SVG Ekle",
-        "link": "Bağlantı yapıştır",
-        "sketch": "Taslak seç"
-      },
-      "panel": {
-        "save": "Kaydet",
-        "cancel": "İptal",
-        "saving": "Kaydediliyor…",
-        "saveError": "Kaydedilemedi",
-        "titleLabel": "Başlık (isteğe bağlı)",
-        "titlePlaceholder": "Kısa etiket",
-        "sourceUrlLabel": "Kaynak URL'si (isteğe bağlı)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Düz metin",
-        "bodyLabel": "Gövde",
-        "bodyPlaceholder": "Yazın veya yapıştırın…",
-        "preview": "Önizleme",
-        "previewEmpty": "Önizlemek için yazın.",
-        "tooLong": "İçerik {limit, number} karakter sınırını aşıyor.",
-        "imagePick": "Resim seçin",
-        "imageDrop": "veya dosyayı buraya bırakın",
-        "imageTooLarge": "Resim {limit, number} MB sınırını aşıyor.",
-        "imageBadMime": "Resim dosyası değil ({mime}).",
-        "imageBadDimensions": "Resim boyutları okunamadı.",
-        "altLabel": "Alt metin (isteğe bağlı)",
-        "altPlaceholder": "Resimde ne var?",
-        "svgPaste": "SVG Yapıştır",
-        "svgUpload": "veya .svg yükle",
-        "svgBadShape": "SVG gövdesi <?xml veya <svg ile başlamalıdır.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL ayrıştırılamıyor.",
-        "urlTitleRequired": "Bağlantı öğeleri için başlık gereklidir.",
-        "descriptionLabel": "Açıklama (isteğe bağlı)",
-        "descriptionPlaceholder": "Bunun neden önemli olduğu…",
-        "sketchSearchPlaceholder": "Taslakları ara…",
-        "sketchEmpty": "Henüz taslak yok. Ajanınızdan create_sketch ile bir tane oluşturmasını isteyin.",
-        "sketchNoMatch": "Bu aramayla eşleşen taslak yok.",
-        "sketchPicked": "Seçildi"
-      }
+      "openSketch": "Taslak aç"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "PNG İndir",
     "invalidManifest": "Rendrant bu taslağı ayrıştıramadı.",
     "frameFailed": "Bu görünüm yüklenmedi.",
-    "renameLabel": "Taslağı yeniden adlandır",
-    "renamePlaceholder": "Taslak başlığı",
-    "renameSave": "Kaydet",
-    "renameSaveNew": "Yeni taslak olarak kaydet",
-    "renameCancel": "İptal",
-    "renameEmpty": "Başlık boş olamaz",
     "associationTags": {
       "plan": "Plan",
       "research": "Araştırma"
@@ -771,45 +528,21 @@
       "selectPrompt": "Oynatmak için sol tarafta bir parça seçin.",
       "invalidManifest": "Bu tarif ayrıştırılamadı.",
       "openNewTab": "Stüdyo'yu Aç",
-      "renameLabel": "Parçayı yeniden adlandır",
-      "renamePlaceholder": "Parça başlığı",
-      "renameSaveNew": "Yeni parça olarak kaydet",
       "exportWav": ".wav Dışa Aktar",
       "exportMidi": ".mid Dışa Aktar"
     },
     "folder": {
-      "newFolderButton": "Yeni klasör",
-      "newFolderTitle": "Yeni klasör",
-      "namePlaceholder": "Klasör adı",
       "create": "Oluştur",
       "cancel": "İptal",
-      "rename": "Klasörü yeniden adlandır",
-      "renameSave": "Kaydet",
       "delete": "Klasörü sil",
-      "deleteConfirm": "Bu klasörü sil? İçindeki taslaklar köke geri taşınır.",
       "rootCrumb": "Tüm taslaklar",
       "back": "Geri",
       "sketchCount": "{count, plural, =0 {boş} =1 {1 taslak} other {# taslaklar}}",
       "foldersHeader": "Klasörler",
       "rootHeader": "Taslaklar",
-      "inFolderHint": "Bu klasörü görüntülerken oluşturduğunuz yeni taslaklar otomatik olarak buraya inecek.",
-      "emptyFolder": "Bu klasör boş. Bir taslak oluşturun veya kökten buraya taşıyın.",
+      "emptyFolder": "Bu klasör boş.",
       "moveSourceFolder": "{name}'de",
       "moveSourceRoot": "Kökte"
-    },
-    "select": {
-      "enter": "Seç",
-      "exit": "Bitti",
-      "count": "{count, plural, =0 {Seçilmiş yok} =1 {1 seçildi} other {# seçildi}}",
-      "moveTo": "Şuraya taşı…",
-      "moveToRoot": "Köke taşı",
-      "moveSuccess": "{count, plural, =1 {1 taslak taşındı} other {# taslak taşındı}}",
-      "moveError": "Taşıma başarısız oldu: {error}",
-      "selectAll": "Tümünü seç",
-      "clear": "Temizle",
-      "delete": "Sil",
-      "deleteConfirm": "{count, plural, =1 {1 taslağı sil?} other {# taslağı sil?}} Bu geri alınamaz.",
-      "deleteError": "Silme başarısız oldu: {error}"
     },
     "viewToggle": {
       "split": "Bölünmüş görünüm",
@@ -820,72 +553,6 @@
       "move": "Taşı",
       "delete": "Sil",
       "deleteOneConfirm": "\"{title}\" silinsin? Bu geri alınamaz."
-    }
-  },
-  "map": {
-    "title": "Harita",
-    "subtitle": "Tüm filo iki düzlemde — yerde uygulamalar, havada MCP sunucuları ve bağlı hizmetler, hizmet-MCP kablolama ile.",
-    "loading": "Yükleniyor…",
-    "refresh": "Yenile",
-    "error": "Filo haritası yüklenemedi",
-    "empty": "Haritada henüz hiçbir şey yok — uygulama iskeleti oluşturun veya MCP envanterinizi bildirin.",
-    "counts": {
-      "apps": "Uygulamalar",
-      "servers": "MCP sunucuları",
-      "services": "Bağlı hizmetler"
-    },
-    "legend": {
-      "air": "Hava",
-      "ground": "Yer",
-      "servers": "MCP sunucuları",
-      "services": "Bağlı hizmetler",
-      "apps": "Uygulamalar"
-    }
-  },
-  "mcpSkills": {
-    "title": "Bağlı Hizmetler",
-    "subtitle": "Bağlı hizmetler: barındırıcı beceriler ve gerçekleştirilmiş MCP-orbit iş akışları, çağırdıkları MCP sunucularına karşı gösterilir.",
-    "loading": "[UNTRANSLATED] Loading...",
-    "refresh": "Yenile",
-    "error": "Bağlı hizmetler yüklenemedi",
-    "empty": "Henüz bağlı hizmet yok. Barındırıcı beceriler bildirin veya MCP-orbit bileşimini gerçekleştirin.",
-    "backToList": "Bağlı Hizmetlere Geri Dön",
-    "backToService": "Bağlı hizmete geri dön",
-    "notFound": "Bağlı hizmet bulunamadı.",
-    "viewGraph": "[UNTRANSLATED] View graph",
-    "present": "Mevcut",
-    "missing": "Eksik",
-    "counts": {
-      "servers": "MCP sunucuları",
-      "services": "Bağlı hizmetler"
-    },
-    "table": {
-      "name": "[UNTRANSLATED] Name",
-      "form": "Form",
-      "calls": "Çağrılar",
-      "updated": "Güncellendi"
-    },
-    "forms": {
-      "catalyst": "Katalizör becerisi",
-      "manual": "Manuel beceri",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "[UNTRANSLATED] Metadata",
-      "name": "[UNTRANSLATED] Name",
-      "ref": "Ref",
-      "kind": "Türü",
-      "form": "Form",
-      "updated": "Güncellendi",
-      "hostPath": "Barındırıcı yolu",
-      "catalyst": "Katalizör",
-      "composition": "Bileşim",
-      "calls": "Çağrılar",
-      "noCalls": "MCP çağrısı beyan edilmedi.",
-      "needs": "İhtiyaçlar",
-      "components": "Bileşenler",
-      "knobs": "Düğmeler",
-      "graphSubtitle": "Bağlı Hizmetler aynasından, gerçekleştirilmiş bileşimlerden ve güncel MCP envanterinden türetilmiştir."
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "Render Bölmesi",
     "subtitle": "Mojulo'nun ürettiği her şey tek yerde: kalıcı görsel render kuyruğu, GI pişirmeleri ve diskteki cook çıktıları ile dışa aktarımlar. “Bir şey üretiliyor” demenin, daha önce ortak bir evi olmayan dört yolu.",
-    "readOnly": "Bölme yalnızca durumu gösterir. Buradaki her eylem, ajanına kopyalayacağın bir istemdir — bir render'ı kabul etmek, bir dünyayı yeniden pişirmek ve bir dışa aktarım basmak, bu sayfadan değil, hep MCP araçlarıyla olur.",
     "refresh": "Yenile",
     "loading": "Yükleniyor…",
     "allLanes": "Tüm şeritler",
-    "copyPrompt": "İstemi kopyala",
-    "copied": "Kopyalandı",
-    "copyFailed": "Kopyalanamadı — metni seçip elle kopyala",
     "showing": "{total} içinden {shown} gösteriliyor",
     "queue": {
       "title": "Render kuyruğu",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "Yapıtı aç →",
-    "copied": "Kopyalandı",
-    "copyFailed": "Kopyalanamadı — metni seçip elle kopyala",
     "shelves": "Kütüphane",
     "bays": "Atölye",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "üçgen sayısı: export_model"
     },
     "inspector": {
-      "askTitle": "Ajana sor",
-      "askBody": "Panel yalnızca durumu gösterir, hiçbir şeyi değiştirmez. Bu tarifi değiştirmek host ajanında olur.",
-      "askCopy": "İstemi kopyala",
       "bound": "Bağlı yapıtlar",
       "boundEmpty": "Henüz bağlı bir şey yok — bu tarif için diskte render, mesh ya da dışa aktarım yok.",
       "openFolder": "Çıktı klasörünü aç · {size}",
@@ -1110,8 +768,6 @@
     "empty": "Bu kırılıma ya da aramaya uyan bir şey yok.",
     "emptyShelf": "{shelf} rafına henüz bir şey basılmadı.",
     "emptyShelfHint": "Ajandan bir tane yapmasını iste — sözcük dağarcığı get_sketch_vocab içinde.",
-    "copied": "Kopyalandı",
-    "copyFailed": "Kopyalanamadı — elle seç",
     "notExportable": "Mesh dışa aktarımı yok — bu yapıt gezilebilir bir model değil, bir diyagram olarak render edilir.",
     "stack": "×{n}",
     "seed": "tohum {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "boyanmış · harici işçi · iskelet tarif egemendir",
-    "mintMissing": "Ajana sor: {piece} bas",
-    "mintPrompt": "Mojulo karakteri “{name}” için (bkz. yapıt {ref}), eksik {piece} parçasını bas. Uygun aracı kullan (create_sprite_sheet / bind_character_sheet / figure araçları) — önce get_sketch_vocab oku.",
     "facets": {
       "scenes": {
         "walkable": "Gezilebilir",

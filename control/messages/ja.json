@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "サービスマップ",
-    "back": "戻る"
-  },
-  "actions": {
-    "start": "開始"
-  },
   "settings": {
     "title": "設定",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "アプリ",
-    "subtitle": "エージェントがアプリパラダイムを通じて実装したアプリ。ライフサイクル、環境変数、ライブMCP内省-コンテキストマップとローカルランナーから読み取ります。",
-    "loading": "読み込み中…",
-    "refresh": "更新",
-    "empty": "まだアプリがありません-Claude Codeエージェントにスキャフォールドするように依頼してください。",
-    "backToList": "アプリに戻る",
-    "notFound": "アプリが見つかりません。",
-    "openPreview": "プレビューを開く",
-    "openMcp": "MCPを開く",
-    "actions": {
-      "start": "開始",
-      "stop": "停止",
-      "starting": "開始中…",
-      "stopping": "停止中…"
-    },
-    "status": {
-      "running": "実行中",
-      "stopped": "停止",
-      "crashed": "クラッシュ",
-      "unknown": "不明"
-    },
-    "table": {
-      "headers": {
-        "name": "名前",
-        "materialized": "実装された",
-        "runner": "ランナー",
-        "status": "ステータス",
-        "actions": "アクション"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "このアプリの生成マップ — これを形にしたすべてのツール呼び出しを、1本の路線上の駅として表示します。"
-      },
-      "metadata": "メタデータ",
-      "artifactPath": "アーティファクトパス",
-      "materializationRef": "実装参照",
-      "adapter": "アダプタ",
-      "appName": "アプリ名",
-      "host": "ホスト",
-      "materializedAt": "実装日時",
-      "viewGraph": "グラフを表示",
-      "bindings": "バインディング",
-      "binding": {
-        "runner": "ランナー",
-        "durability": "耐久性",
-        "inference": "推論",
-        "mcpSelf": "MCP自身"
-      },
-      "mcpPanel": {
-        "title": "アプリMCP",
-        "url": "MCP URL",
-        "offline": "MCPがオフライン-アプリを起動してツールリストを表示します。",
-        "loading": "ツールを読み込み中…",
-        "error": "アプリMCPに到達できませんでした:{error}",
-        "registeredTools": "登録されたツール",
-        "noTools": "ツールが登録されていません。",
-        "declaredPurpose": "宣言された目的"
-      },
-      "envPanel": {
-        "title": "環境変数",
-        "explainer": "値はアーティファクトの.envファイルに直接書き込まれます。ログに記録されず、コントロールプレーンデータベースに保存されず、このビューにエコーバックされません。",
-        "addKey": "キー",
-        "addValue": "値",
-        "add": "追加",
-        "delete": "削除",
-        "deleteConfirm": "環境変数\"{key}\"を削除しますか？",
-        "noKeys": "まだ環境変数が設定されていません。",
-        "valueHidden": "•••••",
-        "edit": "編集",
-        "save": "保存",
-        "cancel": "キャンセル",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "値"
-      },
-      "provenance": {
-        "title": "出所",
-        "subtitle": "このアプリの実装コミットに添付された原則。",
-        "none": "原則が記録されていません。"
-      }
-    }
-  },
-  "graph": {
-    "title": "アプリ作成マップ",
-    "subtitle": "アプリがどのようにまとまるか。各ボックスは1つの部分です。各矢印は何が何を引き起こすかを示しています。",
-    "subtitleTechnical": "mojuloパラダイムでアプリがどのように構成されているか。ステーションは部分です。線はそれらをスナップするMCPツールです。すべての更新時にライブMCPレジストリとコンテキストマップスキーマに対して検証されます。",
-    "technicalToggle": "技術的",
-    "loading": "読み込み中…",
-    "refresh": "更新",
-    "overlay": {
-      "appCount": "{count, plural, =0 {まだアプリが作成されていません} =1 {1つのアプリが作成されました} other {#個のアプリが作成されました}}",
-      "lastMaterialized": "最後に作成されたもの",
-      "viewApps": "実行中のアプリを表示"
-    },
-    "validation": {
-      "ok": "すべてが確認されました。",
-      "okTechnical": "マニフェストが有効です:{tools}ツール、{nodeKinds}ノード種類、{edgeKinds}エッジ種類、{sourceEvents}ソースイベントがすべて解決します。",
-      "failed": "{count, plural, =1 {マップ内の1つのものは現実と一致しなくなりました} other {マップ内の#個のものは現実と一致しなくなりました}}"
-    },
-    "legend": {
-      "input": "あなたが決めたこと",
-      "inputTechnical": "入力",
-      "mcpTool": "エージェントが呼び出すツール",
-      "mcpToolTechnical": "MCPツール",
-      "filesystem": "ディスク上のファイル",
-      "filesystemTechnical": "ファイルシステム",
-      "dbRow": "メモリ内のエントリ",
-      "dbRowTechnical": "DBロー"
-    }
-  },
   "login": {
     "subtitle": "続行するにはサインイン",
     "username": "ユーザー名",
@@ -178,7 +60,6 @@
     "title": "計画",
     "subtitle": "提案された作業-スパイクになったセッション。ホストエージェントから作成および実行されます。",
     "navLabel": "計画",
-    "newPlan": "新しい計画",
     "total": "{count}個の計画",
     "count": "{count}個の計画",
     "filteredCount": "{total}中{count}個",
@@ -221,13 +102,6 @@
     "executionEmpty": "まだ実行されていません。",
     "stepOk": "成功",
     "stepFailed": "失敗",
-    "newPlanTitle": "新しい計画",
-    "newPlanIntro": "計画はホストエージェント(Claude Code / Codex)で構築されます。意図を説明し、スタータープロンプトをコピーして、新しいエージェントセッションに貼り付けてください。エージェントが計画モードに入り、作業を進めます。このページは計画が構築・修正されると更新されます。",
-    "intentLabel": "計画したいことは何ですか?(オプション)",
-    "intentPlaceholder": "例: composerのwebhookトリガーランタイム",
-    "promptLabel": "スタータープロンプト",
-    "copyPrompt": "プロンプトをコピー",
-    "copied": "コピーしました",
     "close": "閉じる"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "スニペット",
     "kindSketch": "スケッチ",
     "viewSketch": "図を表示",
-    "composerHeading": "ノートブックに追加",
-    "composerStub": "プレビューのみ — バインディングは現在ホストエージェント経由で行われます。",
-    "composerPlaceholder": "リンクを貼り付けるか、ファイルをドロップするか、ノートを書いてください…",
-    "newBook": "新しい書籍",
-    "newBookTitle": "新しいリサーチ書籍",
-    "newBookIntro": "書籍はホストエージェント(Claude Code / Codex)で開始されます。トピックを説明し、スタータープロンプトをコピーして、新しいエージェントセッションに貼り付けてください。エージェントがリサーチモードに入り、作業を進めます。このページは書籍が蓄積されると更新されます。",
-    "intentLabel": "何をリサーチしたいですか?(オプション)",
-    "intentPlaceholder": "例: 他者がローカルMCPサーバーをトンネルする方法",
-    "promptLabel": "スタータープロンプト",
-    "copyPrompt": "プロンプトをコピー",
-    "copied": "コピーしました",
     "close": "閉じる"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "ダッシュボード",
       "open": "フロアを開く →"
-    },
-    "ask": {
-      "title": "エージェントに依頼",
-      "body": "制作はMCPエージェントで行います。"
     }
-  },
-  "breadcrumbs": {
-    "home": "ホーム"
   },
   "sketches": {
     "notFoundTitle": "スケッチが見つかりません",
@@ -398,10 +254,6 @@
     "refresh": "更新",
     "statusOpen": "開く",
     "statusResolved": "リビジョン {rev} で解決済み",
-    "annotateHint": "マークはエージェント(annotate_beats — バー、トラック、またはキューに固定)から書き込まれます。このパネルでレンダリングされます。エージェントがマークを付けたり、作用させたりするために、リビジョンプロンプトをコピーしてください。",
-    "copyRevisionPrompt": "リビジョンプロンプトをコピー",
-    "copied": "コピーしました ✓",
-    "copyFailed": "クリップボードにコピーできませんでした。",
     "exportWav": ".wavをエクスポート",
     "exportMidi": ".midをエクスポート",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "ゲーム開発者",
     "gallerySubtitle": "ゲームごとに1プロジェクト — ルール、レベル、キャラクター、オーディオ、アートを1つの棚にまとめます。",
     "galleryEmpty": "まだゲームプロジェクトはありません。ホストエージェントから create_game_project を実行して開始してください。",
-    "copyStarterPrompt": "スタータープロンプトをコピー",
     "loading": "プロジェクトを読み込み中…",
     "noMembersYet": "まだメンバーがいません",
     "notFound": "そのプロジェクトは存在しません — アーカイブされたか、ref が間違っている可能性があります。",
     "backToProjects": "ゲーム開発者に戻る",
-    "copyWorkPrompt": "作業プロンプトをコピー",
-    "copyAddPrompt": "追加",
-    "copyMintPrompt": "ゲームを生成",
-    "copied": "コピーしました",
     "playable": "プレイ可能",
     "missing": "不足",
     "missingBody": "このメンバーのアーティファクトはもう存在しません。プロジェクトはスロットを保持します。ホストエージェントから再バインドまたは削除してください。",
@@ -472,8 +319,6 @@
     "subtitle": "ワークショップから生成された、プレイ可能なスタンドアロンゲーム。筐体を選んでプレイしましょう。",
     "loading": "筐体を読み込み中…",
     "emptyState": "まだフロアにゲームはありません。ホストエージェントから create_game を実行して最初の筐体を生成してください。",
-    "copyStarterPrompt": "スタータープロンプトをコピー",
-    "copied": "コピーしました",
     "play": "プレイ",
     "levelCount": "{count, plural, other {# レベル}}",
     "shipped": "リリース済み"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojuloメーカー",
-      "subtitle": "スタジオ：イラスト、歩けるワールド、3Dオブジェクト、モーション、ビート、ボイス、そして完成した出力。ダイアグラム向けに調整された Sketches の姉妹となる、調整済みのクリエイティブ面です。どの作品も同じスケッチプリミティブ — どちらの方法でもスタッシュ、参照、差分ができます。"
-    },
     "beats": {
       "title": "ビート",
       "subtitle": "合成されたサウンドトラック、コンポジション、サウンドエフェクト — 1つを選択して再生を押してください。create_beatsを介してエージェントから新しいものを作成者。"
@@ -546,11 +387,7 @@
       "tuned": "チューニング済み(レシピ不変)",
       "reset": "リセット",
       "playingAt": "自信{c} / 深さ{d}でサンプル",
-      "noSamples": "まだレンダリングされたサンプルはありません — spellコマンドをコピーして、エージェントにいくつかのポイント(エッジを含む)をバインドさせてください。",
-      "copyBlend": "ブレンドをコピー",
-      "copyCommand": "spellコマンドをコピー",
-      "copyPrompt": "スタータープロンプトをコピー",
-      "copied": "コピーしました!",
+      "noSamples": "レンダリング済みのサンプルはまだありません。",
       "loading": "ボイスレジスタを読み込み中…",
       "empty": "ボイスレジスタがまだありません。create_voiceでミントするようにエージェントに依頼してください。",
       "unresolvable": "このレジスタは解決されなくなりました — そのバンクが変更された可能性があります。create_voiceを介して再ミントしてください。"
@@ -602,10 +439,6 @@
     "kindNovel": "ノベラ",
     "kindVisualGuide": "ビジュアルガイド",
     "kindUnknown": "不明",
-    "actions": {
-      "archive": "アーカイブ",
-      "unarchive": "アーカイブ解除"
-    },
     "sourceLabel": "発信元",
     "sourceUnknown": "(スタッシュが削除されました)",
     "lensLabel": "レンズ",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "スタッシュ",
-    "subtitle": "エージェントが収集した型付きマテリアルの名前変更可能なバケット。mint_stash MCPツール経由でミント。",
+    "subtitle": "エージェントが集めた型付き素材のバケットです。",
     "total": "{count, plural, =0 {スタッシュなし} =1 {1個のスタッシュ} other {#個のスタッシュ}}",
     "count": "{count, plural, =0 {一致なし} =1 {1個のスタッシュ} other {#個のスタッシュ}}",
     "filteredCount": "{total}中{count}を表示",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {ドロワーなし} =1 {1個のドロワー} other {#個のドロワー}}",
     "createdAt": "{timestamp}に作成されました",
     "updatedAt": "{timestamp}に更新",
-    "actions": {
-      "rename": "名前変更",
-      "edit": "編集",
-      "archive": "アーカイブ",
-      "unarchive": "アーカイブ解除",
-      "save": "保存",
-      "cancel": "キャンセル",
-      "titleEmpty": "タイトルは空にできません",
-      "renameFailed": "名前変更に失敗しました",
-      "statusChangeFailed": "ステータスを変更できませんでした"
-    },
     "detail": {
       "loading": "スタッシュを読み込み中…",
       "notFoundTitle": "スタッシュが見つかりません",
@@ -673,66 +495,7 @@
         "sketch": "スケッチ"
       },
       "sketchFailed": "スケッチの読み込みに失敗しました。",
-      "openSketch": "スケッチを開く",
-      "newDrawer": "新しいドロワー",
-      "newDrawerPlaceholder": "ドロワー名",
-      "drawerSaveError": "ドロワーを保存できませんでした",
-      "drawerRenameError": "ドロワーの名前を変更できませんでした",
-      "renameDrawerLabel": "ドロワーの名前を変更",
-      "moveError": "アイテムを移動できませんでした",
-      "archive": "アーカイブ",
-      "archiveError": "アイテムをアーカイブできませんでした",
-      "archiveWarning": "このアイテムは{cookCount, plural, =1 {1つの調理法} other {#個の調理法}}に表示されます。引用はアーカイブされたコンテンツに解決されます。続行しますか?",
-      "archiveProceed": "とにかくアーカイブ",
-      "archiveCancel": "キャンセル",
-      "addItem": "+ 追加",
-      "agentTypesFooter": "スクリプトとcontextmapポインタはエージェントによって追加されます。",
-      "picker": {
-        "text": "新しいテキストブロック",
-        "image": "画像をアップロード",
-        "svg": "SVGを追加",
-        "link": "リンクを貼り付け",
-        "sketch": "スケッチを選択"
-      },
-      "panel": {
-        "save": "保存",
-        "cancel": "キャンセル",
-        "saving": "保存中…",
-        "saveError": "保存できませんでした",
-        "titleLabel": "タイトル(オプション)",
-        "titlePlaceholder": "短いラベル",
-        "sourceUrlLabel": "ソースURL(オプション)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "フォーマット",
-        "formatMarkdown": "マークダウン",
-        "formatHtml": "HTML",
-        "formatPlain": "プレーンテキスト",
-        "bodyLabel": "ボディ",
-        "bodyPlaceholder": "入力または貼り付け…",
-        "preview": "プレビュー",
-        "previewEmpty": "入力してプレビュー。",
-        "tooLong": "コンテンツが{limit, number}文字の上限を超えています。",
-        "imagePick": "画像を選択",
-        "imageDrop": "またはここにファイルをドロップ",
-        "imageTooLarge": "画像が{limit, number} MBの上限を超えています。",
-        "imageBadMime": "画像ファイルではありません({mime})。",
-        "imageBadDimensions": "画像の寸法を読むことができませんでした。",
-        "altLabel": "代替テキスト(オプション)",
-        "altPlaceholder": "画像に何が含まれていますか?",
-        "svgPaste": "SVGを貼り付け",
-        "svgUpload": "または.svgをアップロード",
-        "svgBadShape": "SVGボディは<?xmlまたは<svgで始まる必要があります。",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URLが解析されません。",
-        "urlTitleRequired": "リンクアイテムではタイトルが必須です。",
-        "descriptionLabel": "説明(オプション)",
-        "descriptionPlaceholder": "これが重要な理由…",
-        "sketchSearchPlaceholder": "スケッチを検索…",
-        "sketchEmpty": "まだスケッチがありません。create_sketchでミントするようにエージェントに依頼してください。",
-        "sketchNoMatch": "この検索と一致するスケッチはありません。",
-        "sketchPicked": "選択されました"
-      }
+      "openSketch": "スケッチを開く"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "PNGをダウンロード",
     "invalidManifest": "Rendrantはこのスケッチを解析できませんでした。",
     "frameFailed": "このビューは読み込めませんでした。",
-    "renameLabel": "スケッチの名前を変更",
-    "renamePlaceholder": "スケッチタイトル",
-    "renameSave": "保存",
-    "renameSaveNew": "新しいスケッチとして保存",
-    "renameCancel": "キャンセル",
-    "renameEmpty": "タイトルは空にできません",
     "associationTags": {
       "plan": "計画",
       "research": "リサーチ"
@@ -771,45 +528,21 @@
       "selectPrompt": "左側のトラックを選択して再生。",
       "invalidManifest": "このレシピを解析できませんでした。",
       "openNewTab": "スタジオを開く",
-      "renameLabel": "トラックの名前を変更",
-      "renamePlaceholder": "トラックタイトル",
-      "renameSaveNew": "新しいトラックとして保存",
       "exportWav": ".wavをエクスポート",
       "exportMidi": ".midをエクスポート"
     },
     "folder": {
-      "newFolderButton": "新しいフォルダ",
-      "newFolderTitle": "新しいフォルダ",
-      "namePlaceholder": "フォルダ名",
       "create": "作成",
       "cancel": "キャンセル",
-      "rename": "フォルダの名前を変更",
-      "renameSave": "保存",
       "delete": "フォルダを削除",
-      "deleteConfirm": "このフォルダを削除しますか?その中のスケッチはルートに戻ります。",
       "rootCrumb": "すべてのスケッチ",
       "back": "戻る",
       "sketchCount": "{count, plural, =0 {空} =1 {1個のスケッチ} other {#個のスケッチ}}",
       "foldersHeader": "フォルダ",
       "rootHeader": "スケッチ",
-      "inFolderHint": "このフォルダを表示している間にミントした新しいスケッチは、ここに自動的に配置されます。",
-      "emptyFolder": "このフォルダは空です。スケッチをミントするか、ルートからここに移動してください。",
+      "emptyFolder": "このフォルダーは空です。",
       "moveSourceFolder": "{name}内",
       "moveSourceRoot": "ルート"
-    },
-    "select": {
-      "enter": "選択",
-      "exit": "完了",
-      "count": "{count, plural, =0 {選択なし} =1 {1個選択} other {#個選択}}",
-      "moveTo": "移動…",
-      "moveToRoot": "ルートに移動",
-      "moveSuccess": "{count, plural, =1 {1個のスケッチが移動} other {#個のスケッチが移動}}",
-      "moveError": "移動に失敗: {error}",
-      "selectAll": "すべて選択",
-      "clear": "クリア",
-      "delete": "削除",
-      "deleteConfirm": "{count, plural, =1 {1個のスケッチを削除?} other {#個のスケッチを削除?}}これは取り消せません。",
-      "deleteError": "削除に失敗: {error}"
     },
     "viewToggle": {
       "split": "分割ビュー",
@@ -820,72 +553,6 @@
       "move": "移動",
       "delete": "削除",
       "deleteOneConfirm": "「{title}」を削除しますか?これは取り消せません。"
-    }
-  },
-  "map": {
-    "title": "マップ",
-    "subtitle": "2つの平面上のフリート全体 — 地上のアプリ、空中のMCPサーバーと接続されたサービス、サービス間MCPケーブル付き。",
-    "loading": "読み込み中…",
-    "refresh": "更新",
-    "error": "フリートマップの読み込みに失敗しました",
-    "empty": "まだマップに何もありません — アプリをスキャフォルドするか、MCPインベントリを宣言してください。",
-    "counts": {
-      "apps": "アプリ",
-      "servers": "MCPサーバー",
-      "services": "接続されたサービス"
-    },
-    "legend": {
-      "air": "空中",
-      "ground": "地上",
-      "servers": "MCPサーバー",
-      "services": "接続されたサービス",
-      "apps": "アプリ"
-    }
-  },
-  "mcpSkills": {
-    "title": "接続されたサービス",
-    "subtitle": "接続されたサービス: ホストスキルと具体化されたMCP-orbitsワークフロー、それらが呼び出すMCPサーバーに対して表示。",
-    "loading": "読み込み中...",
-    "refresh": "更新",
-    "error": "接続されたサービスの読み込みに失敗しました",
-    "empty": "まだ接続されたサービスがありません。ホストスキルを宣言するか、MCP-orbit合成を具体化してください。",
-    "backToList": "接続されたサービスに戻る",
-    "backToService": "接続されたサービスに戻る",
-    "notFound": "接続されたサービスが見つかりません。",
-    "viewGraph": "グラフを表示",
-    "present": "プレゼント",
-    "missing": "不足",
-    "counts": {
-      "servers": "MCPサーバー",
-      "services": "接続されたサービス"
-    },
-    "table": {
-      "name": "名前",
-      "form": "フォーム",
-      "calls": "呼び出し",
-      "updated": "更新済み"
-    },
-    "forms": {
-      "catalyst": "触媒スキル",
-      "manual": "手動スキル",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "メタデータ",
-      "name": "名前",
-      "ref": "Ref",
-      "kind": "種類",
-      "form": "フォーム",
-      "updated": "更新済み",
-      "hostPath": "ホストパス",
-      "catalyst": "触媒",
-      "composition": "合成",
-      "calls": "呼び出し",
-      "noCalls": "MCPコールが宣言されていません。",
-      "needs": "ニーズ",
-      "components": "コンポーネント",
-      "knobs": "ノブ",
-      "graphSubtitle": "接続されたサービスミラー、具体化された合成、および現在のMCPインベントリから派生。"
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "レンダーベイ",
     "subtitle": "mojuloが生成中のすべてを1か所に：永続的な画像レンダーキュー、GIベイク、そしてディスク上のcookとエクスポート。「何かが作られている」を表す4つの言い方に、これまで共通の置き場所はありませんでした。",
-    "readOnly": "ベイは状態を描画するだけです。ここでのアクションはすべてエージェントにコピーするプロンプトです — レンダーの受け入れ、ワールドの再ベイク、エクスポートのミントは、このページではなく必ずMCPツールを介して行われます。",
     "refresh": "更新",
     "loading": "読み込み中…",
     "allLanes": "すべてのレーン",
-    "copyPrompt": "プロンプトをコピー",
-    "copied": "コピーしました",
-    "copyFailed": "コピーできませんでした — テキストを選択して手動でコピーしてください",
     "showing": "{total}中{shown}を表示",
     "queue": {
       "title": "レンダーキュー",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "アーティファクトを開く →",
-    "copied": "コピーしました",
-    "copyFailed": "コピーできませんでした — テキストを選択して手動でコピーしてください",
     "shelves": "ライブラリ",
     "bays": "ワークショップ",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "三角形数: export_model"
     },
     "inspector": {
-      "askTitle": "エージェントに依頼",
-      "askBody": "ダッシュボードは状態を描画するだけで、変更は行いません。このレシピの変更はホストエージェントで行います。",
-      "askCopy": "プロンプトをコピー",
       "bound": "バインド済みアーティファクト",
       "boundEmpty": "まだ何もバインドされていません — このレシピのレンダー、メッシュ、エクスポートはディスク上にありません。",
       "openFolder": "outcomeフォルダを開く · {size}",
@@ -1110,8 +768,6 @@
     "empty": "このファセットまたは検索に一致するものはありません。",
     "emptyShelf": "{shelf}にはまだ何もミントされていません。",
     "emptyShelfHint": "エージェントに作成を依頼してください — 語彙はget_sketch_vocabにあります。",
-    "copied": "コピーしました",
-    "copyFailed": "コピーできませんでした — 手動で選択してください",
     "notExportable": "メッシュエクスポートはありません — このアーティファクトは歩けるモデルではなくダイアグラムとして描画されます。",
     "stack": "×{n}",
     "seed": "シード {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "ペイント済み · 外部ワーカー · スキャフォールドのレシピが本体です",
-    "mintMissing": "エージェントに依頼: {piece}をミント",
-    "mintPrompt": "mojuloのキャラクター「{name}」(アーティファクト {ref} を参照)について、不足している{piece}をミントしてください。対応するツール(create_sprite_sheet / bind_character_sheet / figureツール)を使用し、まずget_sketch_vocabを読んでください。",
     "facets": {
       "scenes": {
         "walkable": "歩行可能",

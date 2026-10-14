@@ -1,5 +1,5 @@
-// Shared Workshop navigation model — the single source of truth for the three
-// modes (Studio / Ideate / Operate) and their destinations. Rendered two ways:
+// Shared Workshop navigation model — the single source of truth for the two
+// modes (Studio / Ideate) and their destinations. Rendered two ways:
 // the home directory (WorkshopHome.jsx) and the global slide-out (WorkshopDrawer.jsx).
 // Each tile carries an i18n `key` (resolved as home.groups.<key> / home.tiles.<key>),
 // an href, and the NAME of its icon in DOOR_ICONS (see that registry for why a
@@ -9,12 +9,11 @@
 // listed first, opened by default, and never gated — an empty studio is an
 // invitation, not clutter.
 //
-// The OPERATIONAL destinations are the opposite: an apps tile on a host with no apps
-// is noise. Those tiles declare a `presence` key and appear only once that key has
-// records (counts from /api/workshop/presence); a group whose every tile is gated
-// away disappears with them. Diagrams live in Studio, not Operate, because
-// `mint_diagram` is a kernel capability that is always present — it must not vanish
-// with the operational group.
+// A tile may declare a `presence` key and appear only once that key has records
+// (counts from /api/workshop/presence); a group whose every tile is gated away
+// disappears with them. No tile is gated today: the operational doors (Connected
+// Services, Apps) left the dashboard with the office wing, as they left the tool
+// surface in 3.1.0.
 
 // --- Tile icons ---
 
@@ -359,9 +358,7 @@ export const WORKSHOP_GROUPS = [
       { key: 'games', href: '/maker/games', icon: 'GameDevIcon' },
       { key: 'arcade', href: '/arcade', icon: 'ArcadeIcon' },
       // The Render Bay watches production; /outputs stays the publication inbox
-      // it has always been (its filters and its archive action are real, and the
-      // bay does not mutate). The bay links into it rather than folding it. See
-      // components/3d-factory-ui.plan.md §8 phase 5.
+      // (its own filters over cooks). The bay links into it rather than folding it.
       { key: 'renderBay', href: '/render-bay', icon: 'RenderBayIcon' },
       { key: 'outputs', href: '/outputs', icon: 'CookIcon' },
     ],
@@ -374,15 +371,6 @@ export const WORKSHOP_GROUPS = [
       { key: 'research', href: '/research', icon: 'NotebookIcon' },
       { key: 'plan', href: '/plan', icon: 'PlanIcon' },
       { key: 'stash', href: '/stashes', icon: 'StashIcon' },
-    ],
-  },
-  {
-    key: 'operate',
-    Icon: OperateIcon,
-    hue: { base: 'var(--mode-operate)', strong: 'var(--mode-operate-strong)', idle: 'var(--mode-operate-idle)' },
-    tiles: [
-      { key: 'mcpSkills', href: '/mcp-skills', icon: 'ConnectedServicesIcon', presence: 'services' },
-      { key: 'apps', href: '/apps', icon: 'AppsGridIcon', presence: 'apps' },
     ],
   },
 ];

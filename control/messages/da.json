@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Tjenestekort",
-    "back": "Tilbage"
-  },
-  "actions": {
-    "start": "Start"
-  },
   "settings": {
     "title": "Indstillinger",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Apps",
-    "subtitle": "Apps som agenten har materialiseret gennem App-paradigmet. Livscyklus, miljøvariabler og live MCP-introspection — læs fra kontextkort og lokal runner.",
-    "loading": "Indlæser…",
-    "refresh": "Opdater",
-    "empty": "Ingen apps endnu — bed din Claude Code-agent om at bygge en.",
-    "backToList": "Tilbage til Apps",
-    "notFound": "App ikke fundet.",
-    "openPreview": "Åbn forhåndsvisning",
-    "openMcp": "Åbn MCP",
-    "actions": {
-      "start": "Start",
-      "stop": "Stop",
-      "starting": "Starter…",
-      "stopping": "Stopper…"
-    },
-    "status": {
-      "running": "Kører",
-      "stopped": "Stoppet",
-      "crashed": "Styrtet",
-      "unknown": "Ukendt"
-    },
-    "table": {
-      "headers": {
-        "name": "Navn",
-        "materialized": "Materialiseret",
-        "runner": "Runner",
-        "status": "Status",
-        "actions": "Handlinger"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Skabelseskortet for denne app — hvert værktøjskald der materialiserede den, som stationer på én linje."
-      },
-      "metadata": "Metadata",
-      "artifactPath": "Artefaktsti",
-      "materializationRef": "Materialiseringsref",
-      "adapter": "Adapter",
-      "appName": "App-navn",
-      "host": "Host",
-      "materializedAt": "Materialiseret på",
-      "viewGraph": "Vis graf",
-      "bindings": "Bindinger",
-      "binding": {
-        "runner": "Runner",
-        "durability": "Holdbarhed",
-        "inference": "Slutledning",
-        "mcpSelf": "MCP selv"
-      },
-      "mcpPanel": {
-        "title": "App MCP",
-        "url": "MCP URL",
-        "offline": "MCP offline — start appen for at se dens værktøjsliste.",
-        "loading": "Indlæser værktøjer…",
-        "error": "Kunne ikke nå app'ens MCP: {error}",
-        "registeredTools": "Registrerede værktøjer",
-        "noTools": "Ingen værktøjer registreret.",
-        "declaredPurpose": "Erklæret formål"
-      },
-      "envPanel": {
-        "title": "Miljøvariabler",
-        "explainer": "Værdier skrives direkte til artefaktets .env-fil. De er ikke logget, ikke gemt i kontrolplan-databasen og ikke gentaget tilbage til denne visning.",
-        "addKey": "Nøgle",
-        "addValue": "Værdi",
-        "add": "Tilføj",
-        "delete": "Slet",
-        "deleteConfirm": "Slet miljøvariabel \"{key}\"?",
-        "noKeys": "Ingen miljøvariabler indstillet endnu.",
-        "valueHidden": "•••••",
-        "edit": "[TODO: Edit...]",
-        "save": "Gem",
-        "cancel": "Annuller",
-        "newKeyPlaceholder": "MIN_NØGLE",
-        "newValuePlaceholder": "værdi"
-      },
-      "provenance": {
-        "title": "Provenance",
-        "subtitle": "Principper knyttet til denne apps materialiseringsbinding.",
-        "none": "Ingen principper registreret."
-      }
-    }
-  },
-  "graph": {
-    "title": "App-oprettelseskort",
-    "subtitle": "Hvordan en app kommer sammen. Hver boks er et stykke; hver pil viser hvad der forårsager hvad.",
-    "subtitleTechnical": "Hvordan en app sammensættes i mojulo-paradigmet. Stationer er stykkerne; linjer er MCP-værktøjerne, der samler dem. Valideret mod live MCP-register og contextmap-skema ved hver opdatering.",
-    "technicalToggle": "Teknisk",
-    "loading": "Indlæser…",
-    "refresh": "Opdater",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Ingen apps lavet endnu} =1 {1 app lavet} other {# apps lavet}}",
-      "lastMaterialized": "Den sidste laves",
-      "viewApps": "Se kørende apps"
-    },
-    "validation": {
-      "ok": "Alt tjekker stadig ud.",
-      "okTechnical": "Manifest gyldigt: {tools} værktøjer, {nodeKinds} nodetyper, {edgeKinds} kanttyper, {sourceEvents} kildebegivenheder løst alle.",
-      "failed": "{count, plural, =1 {1 ting i kortet svarer ikke længere til virkeligheden} other {# ting i kortet svarer ikke længere til virkeligheden}}"
-    },
-    "legend": {
-      "input": "Hvad du beslutter",
-      "inputTechnical": "Input",
-      "mcpTool": "Et værktøj som agenten kalder",
-      "mcpToolTechnical": "MCP-værktøj",
-      "filesystem": "Filer på disk",
-      "filesystemTechnical": "Filsystem",
-      "dbRow": "Post i hukommelse",
-      "dbRowTechnical": "DB-række"
-    }
-  },
   "login": {
     "subtitle": "Log ind for at fortsætte",
     "username": "Brugernavn",
@@ -178,7 +60,6 @@
     "title": "Plan",
     "subtitle": "Foreslået arbejde — sessioner der blev spidser. Smedet og kørt fra din host-agent.",
     "navLabel": "Plan",
-    "newPlan": "Ny plan",
     "total": "{count} planer",
     "count": "{count} planer",
     "filteredCount": "{count} af {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Ikke udført endnu.",
     "stepOk": "ok",
     "stepFailed": "mislykkedes",
-    "newPlanTitle": "Ny plan",
-    "newPlanIntro": "Planer skabes i din værtsagent (Claude Code / Codex). Beskriv intentionen, kopier startprompt'en, og indsæt den i en ny agentsession — agenten går i planmodus og udfører arbejdet. Denne side opdateres, når planen skabes og revideres.",
-    "intentLabel": "Hvad vil du planlægge? (valgfrit)",
-    "intentPlaceholder": "f.eks. en webhook-trigger-runtime for komponisten",
-    "promptLabel": "Startprompt",
-    "copyPrompt": "Kopier prompt",
-    "copied": "Kopieret",
     "close": "Luk"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Snippet",
     "kindSketch": "Skitse",
     "viewSketch": "Se diagram",
-    "composerHeading": "Tilføj til notesbog",
-    "composerStub": "Kun forhåndsvisning — binding sker gennem din værtsagent for nu.",
-    "composerPlaceholder": "Indsæt et link, slip en fil, eller noter noget…",
-    "newBook": "Ny bog",
-    "newBookTitle": "Ny forskningsbog",
-    "newBookIntro": "Bøger startes i din værtsagent (Claude Code / Codex). Beskriv emnet, kopier startprompt'en, og indsæt den i en ny agentsession — agenten går i forskningstilstand og udfører arbejdet. Denne side opdateres, når bogen vokser.",
-    "intentLabel": "Hvad vil du forske? (valgfrit)",
-    "intentPlaceholder": "f.eks. hvordan andre tuler lokale MCP-servere",
-    "promptLabel": "Startprompt",
-    "copyPrompt": "Kopier prompt",
-    "copied": "Kopieret",
     "close": "Luk"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "Dashboard",
       "open": "Åbn gulvet →"
-    },
-    "ask": {
-      "title": "Spørg agenten",
-      "body": "Skabelsen sker i din MCP-agent."
     }
-  },
-  "breadcrumbs": {
-    "home": "Hjem"
   },
   "sketches": {
     "notFoundTitle": "Skitse ikke fundet",
@@ -398,10 +254,6 @@
     "refresh": "opdater",
     "statusOpen": "åbn",
     "statusResolved": "løst @ rev {rev}",
-    "annotateHint": "Markeringer skrives fra din agent (annotate_beats — forankret til en takt, spor eller signal); dette panel gengiver dem. Kopier revisionsprompt'en for at få agenten til at markere eller handle på dem.",
-    "copyRevisionPrompt": "Kopier revisionsprompt",
-    "copied": "Kopieret ✓",
-    "copyFailed": "Kunne ikke kopiere til udklipsholder.",
     "exportWav": "Eksporter .wav",
     "exportMidi": "Eksporter .mid",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "Spiludvikler",
     "gallerySubtitle": "Ét projekt per spil — dets regler, baner, karakterer, lyd og grafik på én hylde.",
     "galleryEmpty": "Ingen spilprojekter endnu. Kør create_game_project fra din host-agent for at starte et.",
-    "copyStarterPrompt": "Kopier startprompt",
     "loading": "Indlæser projekter…",
     "noMembersYet": "Ingen medlemmer endnu",
     "notFound": "Det projekt findes ikke — det er måske arkiveret, eller ref'en er forkert.",
     "backToProjects": "Tilbage til Spiludvikler",
-    "copyWorkPrompt": "Kopiér arbejdsprompt",
-    "copyAddPrompt": "tilføj",
-    "copyMintPrompt": "mint spillet",
-    "copied": "Kopieret",
     "playable": "Spilbar",
     "missing": "Manglende",
     "missingBody": "Dette medlems artefakt findes ikke længere. Projektet beholder pladsen; genbind eller fjern den fra din host-agent.",
@@ -472,8 +319,6 @@
     "subtitle": "Spilbare standalone-spil, mintet fra værkstedet. Vælg et kabinet og spil.",
     "loading": "Indlæser kabinetter…",
     "emptyState": "Ingen spil på gulvet endnu. Kør create_game fra din host-agent for at minte det første kabinet.",
-    "copyStarterPrompt": "Kopier startprompt",
-    "copied": "Kopieret",
     "play": "Spil",
     "levelCount": "{count, plural, one {# bane} other {# baner}}",
     "shipped": "Udgivet"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "Studiet: illustrationer, gåbare verdener, 3D-objekter, bevægelse, beats, stemme og færdige outputs. En tunet kreativ flade, søskende til Sketches (tunet til diagrammer). Hver del er den samme sketch-primitiv — stash, referér og diff den uanset hvad."
-    },
     "beats": {
       "title": "Beats",
       "subtitle": "Syntetiserede soundtracks, kompositioner og lydeffekter — vælg en og tryk på afspil. Forfatter nye fra din agent via create_beats."
@@ -546,11 +387,7 @@
       "tuned": "Indstillet (opskrift uændret)",
       "reset": "nulstil",
       "playingAt": "Prøv ved selvtillid {c} / dybde {d}",
-      "noSamples": "Ingen gengivne prøver endnu — kopier tale-kommandoen og få din agent til at binde nogle få punkter (kanter inkluderet).",
-      "copyBlend": "Kopier blanding",
-      "copyCommand": "Kopier tale-kommando",
-      "copyPrompt": "Kopier startprompt",
-      "copied": "Kopieret!",
+      "noSamples": "Ingen renderede samples endnu.",
       "loading": "Indlæser stemmeregistre…",
       "empty": "Ingen stemmeregistre endnu. Bed din agent om at mønte en med create_voice.",
       "unresolvable": "Dette register løses ikke længere — dets bank kan være ændret. Mønt det igen via create_voice."
@@ -602,10 +439,6 @@
     "kindNovel": "Novelle",
     "kindVisualGuide": "Visuelt guide",
     "kindUnknown": "Ukendt",
-    "actions": {
-      "archive": "Arkiv",
-      "unarchive": "Fjern fra arkiv"
-    },
     "sourceLabel": "Fra",
     "sourceUnknown": "(gemmer fjernet)",
     "lensLabel": "Linse",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "Gemmer",
-    "subtitle": "Omdøbningsbeholdere med typetmateriale agenten har samlet. Møntet via mint_stash MCP-værktøjet.",
+    "subtitle": "Spande med typet materiale, som agenten har samlet.",
     "total": "{count, plural, =0 {Ingen gemmer} =1 {1 gemmer} other {# gemmer}}",
     "count": "{count, plural, =0 {Ingen match} =1 {1 gemmer} other {# gemmer}}",
     "filteredCount": "{count} af {total} vist",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {ingen skuffer} =1 {1 skuffe} other {# skuffer}}",
     "createdAt": "Oprettet {timestamp}",
     "updatedAt": "Opdateret {timestamp}",
-    "actions": {
-      "rename": "Omdøb",
-      "edit": "[TODO: Edit...]",
-      "archive": "Arkiv",
-      "unarchive": "Fjern fra arkiv",
-      "save": "Gem",
-      "cancel": "Annuller",
-      "titleEmpty": "Titel kan ikke være tom",
-      "renameFailed": "Omdøbning mislykkedes",
-      "statusChangeFailed": "Kunne ikke ændre status"
-    },
     "detail": {
       "loading": "Indlæser gemmer…",
       "notFoundTitle": "Gemmer ikke fundet",
@@ -673,66 +495,7 @@
         "sketch": "Skitse"
       },
       "sketchFailed": "Skitse kunne ikke indlæses.",
-      "openSketch": "Åbn skitse",
-      "newDrawer": "Ny skuffe",
-      "newDrawerPlaceholder": "Skuffenavn",
-      "drawerSaveError": "Kunne ikke gemme skuffe",
-      "drawerRenameError": "Kunne ikke omdøbe skuffe",
-      "renameDrawerLabel": "Omdøb skuffe",
-      "moveError": "Kunne ikke flytte element",
-      "archive": "Arkiv",
-      "archiveError": "Kunne ikke arkivere element",
-      "archiveWarning": "Dette element vises i {cookCount, plural, =1 {1 madlavning} other {# madlavninger}}. Citater løses til det arkiverede indhold. Fortsæt?",
-      "archiveProceed": "Arkiver alligevel",
-      "archiveCancel": "Annuller",
-      "addItem": "+ Tilføj",
-      "agentTypesFooter": "Skripter og kontekstkort-pegepinde tilføjes af din agent.",
-      "picker": {
-        "text": "Nyt tekstblok",
-        "image": "Upload billede",
-        "svg": "Tilføj SVG",
-        "link": "Indsæt link",
-        "sketch": "Vælg skitse"
-      },
-      "panel": {
-        "save": "Gem",
-        "cancel": "Annuller",
-        "saving": "Gemmer…",
-        "saveError": "Kunne ikke gemme",
-        "titleLabel": "Titel (valgfrit)",
-        "titlePlaceholder": "Kort etiket",
-        "sourceUrlLabel": "Kilde-URL (valgfrit)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Almindelig tekst",
-        "bodyLabel": "Krop",
-        "bodyPlaceholder": "Skriv eller indsæt…",
-        "preview": "Forhåndsvisning",
-        "previewEmpty": "Skriv for at få forhåndsvisning.",
-        "tooLong": "Indholdet overstiger {limit, number} tegngrænsen.",
-        "imagePick": "Vælg et billede",
-        "imageDrop": "eller slip en fil her",
-        "imageTooLarge": "Billede overstiger {limit, number} MB-grænsen.",
-        "imageBadMime": "Ikke en billedfil ({mime}).",
-        "imageBadDimensions": "Kunne ikke læse billeddimensioner.",
-        "altLabel": "Alt-tekst (valgfrit)",
-        "altPlaceholder": "Hvad er på billedet?",
-        "svgPaste": "Indsæt SVG",
-        "svgUpload": "eller upload .svg",
-        "svgBadShape": "SVG-krop skal starte med <?xml eller <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL parser ikke.",
-        "urlTitleRequired": "Titel er påkrævet for linkelementer.",
-        "descriptionLabel": "Beskrivelse (valgfrit)",
-        "descriptionPlaceholder": "Hvorfor dette betyder noget…",
-        "sketchSearchPlaceholder": "Søg skitser…",
-        "sketchEmpty": "Ingen skitser endnu. Bed din agent om at mønte en med create_sketch.",
-        "sketchNoMatch": "Ingen skitser passer til dette søgning.",
-        "sketchPicked": "Valgt"
-      }
+      "openSketch": "Åbn skitse"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant kunne ikke parse denne skitse.",
     "frameFailed": "Denne visning blev ikke indlæst.",
-    "renameLabel": "Omdøb skitse",
-    "renamePlaceholder": "Skitsetitel",
-    "renameSave": "Gem",
-    "renameSaveNew": "Gem som ny skitse",
-    "renameCancel": "Annuller",
-    "renameEmpty": "Titel kan ikke være tom",
     "associationTags": {
       "plan": "Plan",
       "research": "Forskning"
@@ -771,45 +528,21 @@
       "selectPrompt": "Vælg et spor til venstre for at afspille.",
       "invalidManifest": "Denne opskrift kunne ikke parse.",
       "openNewTab": "Åbn Studio",
-      "renameLabel": "Omdøb spor",
-      "renamePlaceholder": "Sportitel",
-      "renameSaveNew": "Gem som nyt spor",
       "exportWav": "Eksporter .wav",
       "exportMidi": "Eksporter .mid"
     },
     "folder": {
-      "newFolderButton": "Ny mappe",
-      "newFolderTitle": "Ny mappe",
-      "namePlaceholder": "Mappenavn",
       "create": "Opret",
       "cancel": "Annuller",
-      "rename": "Omdøb mappe",
-      "renameSave": "Gem",
       "delete": "Slet mappe",
-      "deleteConfirm": "Slet denne mappe? Skitser i den vil flytte tilbage til rod.",
       "rootCrumb": "Alle skitser",
       "back": "Tilbage",
       "sketchCount": "{count, plural, =0 {tom} =1 {1 skitse} other {# skitser}}",
       "foldersHeader": "Mapper",
       "rootHeader": "Skitser",
-      "inFolderHint": "Nye skitser du mønter mens du ser denne mappe, lander her automatisk.",
-      "emptyFolder": "Denne mappe er tom. Mønt en skitse eller flyt en her fra rod.",
+      "emptyFolder": "Denne mappe er tom.",
       "moveSourceFolder": "I {name}",
       "moveSourceRoot": "Ved rod"
-    },
-    "select": {
-      "enter": "Vælg",
-      "exit": "Færdig",
-      "count": "{count, plural, =0 {Ingen valgt} =1 {1 valgt} other {# valgt}}",
-      "moveTo": "Flyt til…",
-      "moveToRoot": "Flyt til rod",
-      "moveSuccess": "{count, plural, =1 {1 skitse flyttet} other {# skitser flyttet}}",
-      "moveError": "Flytning mislykkedes: {error}",
-      "selectAll": "Vælg alt",
-      "clear": "Ryd",
-      "delete": "Slet",
-      "deleteConfirm": "{count, plural, =1 {Slet 1 skitse?} other {Slet # skitser?}} Dette kan ikke fortrydes.",
-      "deleteError": "Sletning mislykkedes: {error}"
     },
     "viewToggle": {
       "split": "Delt visning",
@@ -820,72 +553,6 @@
       "move": "Flyt",
       "delete": "Slet",
       "deleteOneConfirm": "Slet \"{title}\"? Dette kan ikke fortrydes."
-    }
-  },
-  "map": {
-    "title": "Kort",
-    "subtitle": "Hele flåden på to planer — apps på jorden, MCP-servere og tilsluttede tjenester i luften, med tjeneste-til-MCP-ledning.",
-    "loading": "Indlæser…",
-    "refresh": "Opdater",
-    "error": "Kunne ikke indlæse flådekortet",
-    "empty": "Intet på kortet endnu — sæt en app op eller erklær dit MCP-inventar.",
-    "counts": {
-      "apps": "Apps",
-      "servers": "MCP-servere",
-      "services": "Tilsluttede tjenester"
-    },
-    "legend": {
-      "air": "Luft",
-      "ground": "Jord",
-      "servers": "MCP-servere",
-      "services": "Tilsluttede tjenester",
-      "apps": "Apps"
-    }
-  },
-  "mcpSkills": {
-    "title": "Tilsluttede tjenester",
-    "subtitle": "Tilsluttede tjenester: værtstjenestefer og materiel MCP-orbit-arbejdsflow, vist mod de MCP-servere de kalder.",
-    "loading": "Indlæser…",
-    "refresh": "Opdater",
-    "error": "Kunne ikke indlæse tilsluttede tjenester",
-    "empty": "Ingen tilsluttede tjenester endnu. Erklær værtskkompetencer eller materialiser en MCP-orbit-komposition.",
-    "backToList": "Tilbage til tilsluttede tjenester",
-    "backToService": "Tilbage til tilsluttet tjeneste",
-    "notFound": "Tilsluttet tjeneste ikke fundet.",
-    "viewGraph": "Vis graf",
-    "present": "Til stede",
-    "missing": "Manglende",
-    "counts": {
-      "servers": "MCP-servere",
-      "services": "Tilsluttede tjenester"
-    },
-    "table": {
-      "name": "Navn",
-      "form": "Formular",
-      "calls": "Opkald",
-      "updated": "Opdateret"
-    },
-    "forms": {
-      "catalyst": "Katalysatorfærdig",
-      "manual": "Manuel færdighed",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "name": "Navn",
-      "ref": "Ref",
-      "kind": "Art",
-      "form": "Formular",
-      "updated": "Opdateret",
-      "hostPath": "Værtsti",
-      "catalyst": "Katalysator",
-      "composition": "Komposition",
-      "calls": "Opkald",
-      "noCalls": "Ingen MCP-opkald erklæret.",
-      "needs": "Behov",
-      "components": "Komponenter",
-      "knobs": "Drejeknopper",
-      "graphSubtitle": "Afledt fra Connected Services spejl, materiel kompositoner og nuværende MCP-inventar."
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "Renderbås",
     "subtitle": "Alt hvad mojulo producerer, ét sted: den holdbare billedrender-kø, GI-bagninger og de cooks og eksporter der ligger på disken. Fire måder at sige \"noget er ved at blive lavet\" på, som ikke havde et fælles hjem før.",
-    "readOnly": "Båsen viser tilstand. Hver handling her er en prompt du kopierer ind i din agent — at acceptere en render, gen-bage en verden og mønte en eksport sker alt sammen gennem MCP-værktøjer, aldrig gennem denne side.",
     "refresh": "Opdater",
     "loading": "Indlæser…",
     "allLanes": "Alle baner",
-    "copyPrompt": "Kopier prompt",
-    "copied": "Kopieret",
-    "copyFailed": "Kunne ikke kopiere — markér teksten og kopiér den manuelt",
     "showing": "viser {shown} af {total}",
     "queue": {
       "title": "Renderkø",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "Åbn artefakt →",
-    "copied": "Kopieret",
-    "copyFailed": "Kunne ikke kopiere — markér teksten og kopiér den manuelt",
     "shelves": "Bibliotek",
     "bays": "Værksted",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "trekantantal: export_model"
     },
     "inspector": {
-      "askTitle": "Spørg agenten",
-      "askBody": "Dashboardet viser tilstand; det ændrer aldrig noget. Ændring af denne opskrift sker i din host-agent.",
-      "askCopy": "Kopier prompt",
       "bound": "Bundne artefakter",
       "boundEmpty": "Intet bundet endnu — ingen renders, meshes eller eksporter på disken for denne opskrift.",
       "openFolder": "Åbn outcome-mappe · {size}",
@@ -1110,8 +768,6 @@
     "empty": "Intet matcher denne facet eller søgning.",
     "emptyShelf": "Intet møntet ind i {shelf} endnu.",
     "emptyShelfHint": "Bed din agent om at lave en — get_sketch_vocab har vokabularet.",
-    "copied": "Kopieret",
-    "copyFailed": "Kunne ikke kopiere — markér manuelt",
     "notExportable": "Ingen mesh-eksport — dette artefakt renderes som et diagram, ikke som en model man kan gå i.",
     "stack": "×{n}",
     "seed": "seed {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "malet · ekstern arbejder · stilladsopskriften er suveræn",
-    "mintMissing": "Spørg agenten: mønt {piece}",
-    "mintPrompt": "For mojulo-karakteren \"{name}\" (se artefakt {ref}), mønt den manglende {piece}. Brug det matchende værktøj (create_sprite_sheet / bind_character_sheet / figure-værktøjer) — læs get_sketch_vocab først.",
     "facets": {
       "scenes": {
         "walkable": "Gåbare",

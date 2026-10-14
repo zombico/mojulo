@@ -13,6 +13,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### UI on rails: a view-only dashboard
+
+The agent drives; the dashboard shows. Every affordance that wrote or handed the operator a prompt to paste is gone.
+
+- **No copy-prompts.** The home's "Ask the agent" card and every copy button (Arcade, Game Developer, Voice, Beats,
+  Plans, Research, Render Bay, the status bar, the library rooms) are removed.
+- **No writes from the page.** The library's folders, the gallery's edits, the stash inbox and stash pages, and the
+  outputs' status are read only. The API routes stay for the agent's tools.
+- **The office wing leaves the dashboard**, as it left the tool surface in 3.1.0: `/apps`, `/mcp-skills`, `/map` and
+  `/graph` are gone, with their doors. The `/maker` hub, a copy of the Studio doors, redirects home.
+- **Kept on purpose:** sign-in, sign-out and Settings (the operator's keys and language), and the `/pose-lab`
+  developer harness.
+- A test holds it: no page or component sends anything but a GET or touches the clipboard, outside those exceptions.
+
 ### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
 
 - **The budget reads a creature** (`cast-spend.js`). A creature is read by its own part names: the shin and the

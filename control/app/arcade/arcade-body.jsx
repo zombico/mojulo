@@ -7,43 +7,18 @@
  * game owns its whole window, no dashboard wrapper chrome. The play-facing
  * sibling of the Game Developer studio: the studio is where a game is
  * assembled, the arcade is where finished games are picked and played. Not a
- * conversational surface — minting games stays with the host agent
- * (create_game); the empty state hands back a starter prompt.
+ * conversational surface and view only — minting games stays with the host
+ * agent (create_game).
  *
  * Wears the workshop shell (AuthNav and the breadcrumb bar stand down here);
  * page.jsx resolves the auth flag server-side and hands it down for the
  * strip's sign-out.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import WorkshopShell from '@/components/WorkshopShell';
-
-const STARTER_PROMPT =
-  "Let's build a playable mojulo game: read get_game_vocab for the kits and mechanics, compose promotable level worlds, then mint it with create_game.";
-
-function CopyButton({ value, label, copiedLabel }) {
-  const [copied, setCopied] = useState(false);
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable — leave the button inert */
-    }
-  }, [value]);
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-300 transition hover:border-neutral-500 hover:text-white"
-    >
-      {copied ? copiedLabel : label}
-    </button>
-  );
-}
 
 // The cabinet's marquee band — the game's theme accents as a gradient, so each
 // cabinet carries its own color identity without any stored artwork.
@@ -135,9 +110,6 @@ export default function ArcadeBody({ authEnabled = false }) {
       {cabinets !== null && cabinets.length === 0 && (
         <div className="rounded-lg border border-dashed border-neutral-800 p-8 text-center">
           <p className="text-sm text-neutral-400">{t('emptyState')}</p>
-          <div className="mt-4 inline-flex">
-            <CopyButton value={STARTER_PROMPT} label={t('copyStarterPrompt')} copiedLabel={t('copied')} />
-          </div>
         </div>
       )}
 

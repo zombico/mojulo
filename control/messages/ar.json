@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "خريطة الخدمات",
-    "back": "رجوع"
-  },
-  "actions": {
-    "start": "ابدأ"
-  },
   "settings": {
     "title": "الإعدادات",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "التطبيقات",
-    "subtitle": "التطبيقات التي جسدها الوكيل من خلال نموذج التطبيق. دورة الحياة ومتغيرات البيئة والفحص المباشر للـ MCP — اقرأ من خريطة السياق والمشغل المحلي.",
-    "loading": "جاري التحميل...",
-    "refresh": "تحديث",
-    "empty": "لا توجد تطبيقات حتى الآن — اطلب من وكيل Claude Code الخاص بك أن يقوم ببناء واحد.",
-    "backToList": "العودة إلى التطبيقات",
-    "notFound": "لم يتم العثور على التطبيق.",
-    "openPreview": "فتح المعاينة",
-    "openMcp": "فتح MCP",
-    "actions": {
-      "start": "ابدأ",
-      "stop": "إيقاف",
-      "starting": "جاري البدء…",
-      "stopping": "جاري الإيقاف…"
-    },
-    "status": {
-      "running": "جاري التشغيل",
-      "stopped": "متوقف",
-      "crashed": "تعطل",
-      "unknown": "غير معروف"
-    },
-    "table": {
-      "headers": {
-        "name": "الاسم",
-        "materialized": "مجسد",
-        "runner": "المشغل",
-        "status": "الحالة",
-        "actions": "الإجراءات"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "خريطة إنشاء هذا التطبيق — كل استدعاء أداة جسّده، كمحطات على خط واحد."
-      },
-      "metadata": "البيانات الوصفية",
-      "artifactPath": "مسار العملية",
-      "materializationRef": "مرجع التجسيد",
-      "adapter": "المحول",
-      "appName": "اسم التطبيق",
-      "host": "المضيف",
-      "materializedAt": "تم التجسيد في",
-      "viewGraph": "عرض الرسم البياني",
-      "bindings": "الربطات",
-      "binding": {
-        "runner": "المشغل",
-        "durability": "الاستدامة",
-        "inference": "الاستدلال",
-        "mcpSelf": "MCP ذاتي"
-      },
-      "mcpPanel": {
-        "title": "تطبيق MCP",
-        "url": "عنوان MCP",
-        "offline": "MCP غير متصل — ابدأ التطبيق لرؤية قائمة أدواته.",
-        "loading": "جاري تحميل الأدوات…",
-        "error": "لم يتمكن من الوصول إلى تطبيق MCP: {error}",
-        "registeredTools": "الأدوات المسجلة",
-        "noTools": "لم تتم تسجيل أي أدوات.",
-        "declaredPurpose": "الغرض المعلن"
-      },
-      "envPanel": {
-        "title": "متغيرات البيئة",
-        "explainer": "تتم كتابة القيم مباشرة إلى ملف .env الخاص بالعملية. لم يتم تسجيلها ولم يتم تخزينها في قاعدة بيانات لوحة التحكم ولم يتم إعادة طباعتها إلى هذا العرض.",
-        "addKey": "المفتاح",
-        "addValue": "القيمة",
-        "add": "إضافة",
-        "delete": "حذف",
-        "deleteConfirm": "حذف متغير البيئة \"{key}\"؟",
-        "noKeys": "لم يتم تعيين متغيرات البيئة بعد.",
-        "valueHidden": "•••••",
-        "edit": "تحرير",
-        "save": "حفظ",
-        "cancel": "إلغاء",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "القيمة"
-      },
-      "provenance": {
-        "title": "الأصل",
-        "subtitle": "المبادئ المرفقة بعملية تجسيد التطبيق.",
-        "none": "لم يتم تسجيل أي مبادئ."
-      }
-    }
-  },
-  "graph": {
-    "title": "خريطة إنشاء التطبيق",
-    "subtitle": "كيف يتم جمع التطبيق. كل مربع هو قطعة؛ كل سهم يظهر ما يسبب ماذا.",
-    "subtitleTechnical": "كيفية تكوين التطبيق في نموذج mojulo. المحطات هي الأجزاء؛ الخطوط هي أدوات MCP التي تربطها معًا. تم التحقق من صحتها مقابل سجل MCP المباشر وخطة خريطة السياق عند كل تحديث.",
-    "technicalToggle": "تقني",
-    "loading": "جاري التحميل...",
-    "refresh": "تحديث",
-    "overlay": {
-      "appCount": "{count, plural, =0 {لم يتم عمل أي تطبيقات حتى الآن} =1 {تم عمل تطبيق واحد} other {تم عمل # تطبيقات}}",
-      "lastMaterialized": "آخر واحد تم عمله",
-      "viewApps": "عرض التطبيقات قيد التشغيل"
-    },
-    "validation": {
-      "ok": "كل شيء لا يزال صحيحًا.",
-      "okTechnical": "البيان صحيح: {tools} أدوات، {nodeKinds} أنواع عقدة، {edgeKinds} أنواع حافة، {sourceEvents} أحداث المصدر جميعها تحل.",
-      "failed": "{count, plural, =1 {شيء واحد في الخريطة لا يطابق الواقع} other {# أشياء في الخريطة لا تطابق الواقع}}"
-    },
-    "legend": {
-      "input": "ما تقرره أنت",
-      "inputTechnical": "الإدخال",
-      "mcpTool": "أداة يستدعيها الوكيل",
-      "mcpToolTechnical": "أداة MCP",
-      "filesystem": "الملفات على القرص",
-      "filesystemTechnical": "نظام الملفات",
-      "dbRow": "إدخال في الذاكرة",
-      "dbRowTechnical": "صف قاعدة البيانات"
-    }
-  },
   "login": {
     "subtitle": "تسجيل الدخول للمتابعة",
     "username": "اسم المستخدم",
@@ -178,7 +60,6 @@
     "title": "خطة",
     "subtitle": "العمل المقترح — الجلسات التي أصبحت ارتفاعات. تم إنشاؤها والتشغيل من وكيل المضيف الخاص بك.",
     "navLabel": "خطة",
-    "newPlan": "خطة جديدة",
     "total": "{count} خطط",
     "count": "{count} خطط",
     "filteredCount": "{count} من {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "لم يتم التنفيذ بعد.",
     "stepOk": "موافق",
     "stepFailed": "فشل",
-    "newPlanTitle": "خطة جديدة",
-    "newPlanIntro": "يتم صياغة الخطط في وكيل المضيف الخاص بك (Claude Code / Codex). صف النية، انسخ موجه البداية، والصقه في جلسة وكيل جديدة — يدخل الوكيل وضع الخطة ويقود العمل. تتحدث هذه الصفحة مع تطور الخطة وتعديلها.",
-    "intentLabel": "ما الذي تريد التخطيط له؟ (اختياري)",
-    "intentPlaceholder": "مثال: وقت تشغيل مشغل webhook للموسيقار",
-    "promptLabel": "موجه البداية",
-    "copyPrompt": "نسخ الموجه",
-    "copied": "تم النسخ",
     "close": "إغلاق"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "مقتطف",
     "kindSketch": "رسم توضيحي",
     "viewSketch": "عرض الرسم البياني",
-    "composerHeading": "إضافة إلى دفتر الملاحظات",
-    "composerStub": "معاينة فقط — يحدث الربط من خلال وكيل المضيف الخاص بك الآن.",
-    "composerPlaceholder": "الصق رابطًا أو اسحب ملفًا أو اكتب ملاحظة…",
-    "newBook": "كتاب جديد",
-    "newBookTitle": "كتاب بحث جديد",
-    "newBookIntro": "يتم بدء الكتب في وكيل المضيف الخاص بك (Claude Code / Codex). صف الموضوع، انسخ موجه البداية، والصقه في جلسة وكيل جديدة — يدخل الوكيل وضع البحث ويقود العمل. تتحدث هذه الصفحة مع تراكم الكتاب.",
-    "intentLabel": "ماذا تريد أن تبحث؟ (اختياري)",
-    "intentPlaceholder": "مثال: كيف يقوم الآخرون بنفق خوادم MCP المحلية",
-    "promptLabel": "موجه البداية",
-    "copyPrompt": "نسخ الموجه",
-    "copied": "تم النسخ",
     "close": "إغلاق"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "لوحة التحكم",
       "open": "افتح الأرضية ←"
-    },
-    "ask": {
-      "title": "اسأل الوكيل",
-      "body": "الصناعة تحدث في وكيل MCP لديك."
     }
-  },
-  "breadcrumbs": {
-    "home": "الصفحة الرئيسية"
   },
   "sketches": {
     "notFoundTitle": "لم يتم العثور على الرسم التوضيحي",
@@ -398,10 +254,6 @@
     "refresh": "تحديث",
     "statusOpen": "فتح",
     "statusResolved": "تم الحل @ تنقيح {rev}",
-    "annotateHint": "يتم كتابة العلامات من وكيلك (annotate_beats — مرتبطة بشريط أو مسار أو إشارة)؛ هذا اللوحة تعرضها. انسخ موجه التنقيح ليعلم الوكيل بهذه العلامات أو يتصرف بناءً عليها.",
-    "copyRevisionPrompt": "نسخ موجه التنقيح",
-    "copied": "تم النسخ ✓",
-    "copyFailed": "لم يتمكن من النسخ إلى الحافظة.",
     "exportWav": "تصدير .wav",
     "exportMidi": "تصدير .mid",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "مطوّر الألعاب",
     "gallerySubtitle": "مشروع واحد لكل لعبة — قواعدها ومستوياتها وشخصياتها وصوتها وفنّها على رفّ واحد.",
     "galleryEmpty": "لا توجد مشاريع ألعاب بعد. شغّل create_game_project من وكيلك المضيف لبدء واحد.",
-    "copyStarterPrompt": "نسخ موجه البداية",
     "loading": "جارٍ تحميل المشاريع…",
     "noMembersYet": "لا أعضاء بعد",
     "notFound": "هذا المشروع غير موجود — ربما تمت أرشفته أو أنّ المرجع خاطئ.",
     "backToProjects": "العودة إلى مطوّر الألعاب",
-    "copyWorkPrompt": "نسخ موجّه العمل",
-    "copyAddPrompt": "إضافة",
-    "copyMintPrompt": "سكّ اللعبة",
-    "copied": "تم النسخ",
     "playable": "قابلة للّعب",
     "missing": "مفقود",
     "missingBody": "لم يعد أثر هذا العضو موجودًا. يحتفظ المشروع بالخانة؛ أعد الربط أو أزلها من وكيلك المضيف.",
@@ -472,8 +319,6 @@
     "subtitle": "ألعاب مستقلّة قابلة للّعب، مسكوكة من الورشة. اختر ماكينة والعب.",
     "loading": "جارٍ تحميل الماكينات…",
     "emptyState": "لا ألعاب في الصالة بعد. شغّل create_game من وكيلك المضيف لسكّ أول ماكينة.",
-    "copyStarterPrompt": "نسخ موجه البداية",
-    "copied": "تم النسخ",
     "play": "اللعب",
     "levelCount": "{count, plural, zero {# مستوى} one {# مستوى} two {# مستويان} few {# مستويات} many {# مستوًى} other {# مستوى}}",
     "shipped": "تم الإصدار"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "صانع Mojulo",
-      "subtitle": "الاستوديو: الرسوم التوضيحية، والعوالم القابلة للتجوّل، والكائنات ثلاثية الأبعاد، والحركة، والإيقاعات، والصوت، والمخرجات النهائية. سطح إبداعي مضبوط، شقيق للرسومات Sketches (المضبوطة للمخططات). كل قطعة هي نفس بدائيّة الرسم — خزّنها، وارجع إليها، وقارن فروقها في الحالتين."
-    },
     "beats": {
       "title": "الإيقاعات",
       "subtitle": "موسيقى تصويرية وتركيبات وتأثيرات صوتية مصنعة — حدد واحدة واضغط تشغيل. أنشئ أخرى جديدة من وكيلك عبر create_beats."
@@ -546,11 +387,7 @@
       "tuned": "معاير (الوصفة دون تغيير)",
       "reset": "إعادة تعيين",
       "playingAt": "عينة بثقة {c} / عمق {d}",
-      "noSamples": "لا توجد عينات معروضة حتى الآن — انسخ أمر الكلام واجعل وكيلك يربط نقاطًا قليلة (الحواف مضمونة).",
-      "copyBlend": "نسخ المزج",
-      "copyCommand": "نسخ أمر الكلام",
-      "copyPrompt": "نسخ موجه البداية",
-      "copied": "تم النسخ!",
+      "noSamples": "لا توجد عينات مُصيَّرة بعد.",
       "loading": "جاري تحميل السجلات الصوتية…",
       "empty": "لا توجد سجلات صوتية حتى الآن. اطلب من وكيلك صنع واحدة مع create_voice.",
       "unresolvable": "هذا السجل لم يعد يحل — قد تكون بنكه قد تغيرت. أعد صنعها عبر create_voice."
@@ -602,10 +439,6 @@
     "kindNovel": "رواية قصيرة",
     "kindVisualGuide": "دليل بصري",
     "kindUnknown": "غير معروف",
-    "actions": {
-      "archive": "الأرشيف",
-      "unarchive": "إلغاء الأرشفة"
-    },
     "sourceLabel": "من",
     "sourceUnknown": "(تم حذف التخزين)",
     "lensLabel": "العدسة",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "التخزينات",
-    "subtitle": "دلاء قابلة لإعادة الأسماء من المواد المكتوبة التي جمعها الوكيل. تم إنشاؤها عبر أداة mint_stash MCP.",
+    "subtitle": "حاويات لمواد مصنَّفة جمعها الوكيل.",
     "total": "{count, plural, =0 {لا توجد تخزينات} =1 {1 تخزين} other {# تخزينات}}",
     "count": "{count, plural, =0 {لا توجد مطابقات} =1 {1 تخزين} other {# تخزينات}}",
     "filteredCount": "{count} من {total} معروض",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {لا توجد أدراج} =1 {1 درج} other {# أدراج}}",
     "createdAt": "تم الإنشاء {timestamp}",
     "updatedAt": "تم التحديث {timestamp}",
-    "actions": {
-      "rename": "إعادة تسمية",
-      "edit": "تحرير",
-      "archive": "الأرشيف",
-      "unarchive": "إلغاء الأرشفة",
-      "save": "حفظ",
-      "cancel": "إلغاء",
-      "titleEmpty": "لا يمكن أن يكون العنوان فارغًا",
-      "renameFailed": "فشلت إعادة التسمية",
-      "statusChangeFailed": "لم يتمكن من تغيير الحالة"
-    },
     "detail": {
       "loading": "جاري تحميل التخزين…",
       "notFoundTitle": "لم يتم العثور على التخزين",
@@ -673,66 +495,7 @@
         "sketch": "رسم توضيحي"
       },
       "sketchFailed": "فشل تحميل الرسم.",
-      "openSketch": "فتح الرسم",
-      "newDrawer": "درج جديد",
-      "newDrawerPlaceholder": "اسم الدرج",
-      "drawerSaveError": "لم يتمكن من حفظ الدرج",
-      "drawerRenameError": "لم يتمكن من إعادة تسمية الدرج",
-      "renameDrawerLabel": "إعادة تسمية الدرج",
-      "moveError": "لم يتمكن من نقل العنصر",
-      "archive": "الأرشيف",
-      "archiveError": "لم يتمكن من أرشفة العنصر",
-      "archiveWarning": "يظهر هذا العنصر في {cookCount, plural, =1 {1 طهي} other {# طهي}}. تحل الاستشهادات إلى المحتوى المؤرشف. هل تريد المتابعة؟",
-      "archiveProceed": "أرشفة على أي حال",
-      "archiveCancel": "إلغاء",
-      "addItem": "+ إضافة",
-      "agentTypesFooter": "يتم إضافة السكريبتات ومؤشرات contextmap بواسطة وكيلك.",
-      "picker": {
-        "text": "كتلة نص جديدة",
-        "image": "تحميل صورة",
-        "svg": "إضافة SVG",
-        "link": "لصق الرابط",
-        "sketch": "اختر الرسم"
-      },
-      "panel": {
-        "save": "حفظ",
-        "cancel": "إلغاء",
-        "saving": "جاري الحفظ...",
-        "saveError": "لم يتمكن من الحفظ",
-        "titleLabel": "العنوان (اختياري)",
-        "titlePlaceholder": "تسمية قصيرة",
-        "sourceUrlLabel": "عنوان URL المصدر (اختياري)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "الصيغة",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "نص عادي",
-        "bodyLabel": "المحتوى",
-        "bodyPlaceholder": "اكتب أو الصق…",
-        "preview": "معاينة",
-        "previewEmpty": "اكتب لرؤية معاينة.",
-        "tooLong": "المحتوى يتجاوز حد الأحرف البالغ {limit, number}.",
-        "imagePick": "اختر صورة",
-        "imageDrop": "أو اسحب ملفًا هنا",
-        "imageTooLarge": "الصورة تتجاوز حد {limit, number} ميجابايت.",
-        "imageBadMime": "ليس ملف صورة ({mime}).",
-        "imageBadDimensions": "لم يتمكن من قراءة أبعاد الصورة.",
-        "altLabel": "نص بديل (اختياري)",
-        "altPlaceholder": "ما هو في الصورة؟",
-        "svgPaste": "لصق SVG",
-        "svgUpload": "أو تحميل .svg",
-        "svgBadShape": "يجب أن يبدأ جسم SVG بـ <?xml أو <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "لا يتم تحليل عنوان URL.",
-        "urlTitleRequired": "العنوان مطلوب لعناصر الارتباط.",
-        "descriptionLabel": "الوصف (اختياري)",
-        "descriptionPlaceholder": "لماذا هذا مهم…",
-        "sketchSearchPlaceholder": "البحث عن الرسومات…",
-        "sketchEmpty": "لا توجد رسومات حتى الآن. اطلب من وكيلك صنع واحدة مع create_sketch.",
-        "sketchNoMatch": "لا توجد رسومات تطابق هذا البحث.",
-        "sketchPicked": "مختار"
-      }
+      "openSketch": "فتح الرسم"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "تحميل PNG",
     "invalidManifest": "لم يتمكن Rendrant من تحليل هذا الرسم.",
     "frameFailed": "لم يتم تحميل هذا العرض.",
-    "renameLabel": "إعادة تسمية الرسم",
-    "renamePlaceholder": "عنوان الرسم",
-    "renameSave": "حفظ",
-    "renameSaveNew": "حفظ كرسم جديد",
-    "renameCancel": "إلغاء",
-    "renameEmpty": "لا يمكن أن يكون العنوان فارغًا",
     "associationTags": {
       "plan": "خطة",
       "research": "البحث"
@@ -771,45 +528,21 @@
       "selectPrompt": "حدد مسارًا على اليسار لتشغيله.",
       "invalidManifest": "لم يتمكن من تحليل هذه الوصفة.",
       "openNewTab": "فتح الاستوديو",
-      "renameLabel": "إعادة تسمية المسار",
-      "renamePlaceholder": "عنوان المسار",
-      "renameSaveNew": "حفظ كمسار جديد",
       "exportWav": "تصدير .wav",
       "exportMidi": "تصدير .mid"
     },
     "folder": {
-      "newFolderButton": "مجلد جديد",
-      "newFolderTitle": "مجلد جديد",
-      "namePlaceholder": "اسم المجلد",
       "create": "إنشاء",
       "cancel": "إلغاء",
-      "rename": "إعادة تسمية المجلد",
-      "renameSave": "حفظ",
       "delete": "حذف المجلد",
-      "deleteConfirm": "حذف هذا المجلد؟ ستنتقل الرسومات الموجودة فيه إلى الجذر.",
       "rootCrumb": "جميع الرسومات",
       "back": "رجوع",
       "sketchCount": "{count, plural, =0 {فارغ} =1 {1 رسم} other {# رسومات}}",
       "foldersHeader": "المجلدات",
       "rootHeader": "الرسومات التوضيحية",
-      "inFolderHint": "ستصل الرسومات الجديدة التي تنشئها أثناء عرض هذا المجلد هنا تلقائيًا.",
-      "emptyFolder": "هذا المجلد فارغ. أنشئ رسمًا أو انقل واحدًا هنا من الجذر.",
+      "emptyFolder": "هذا المجلد فارغ.",
       "moveSourceFolder": "في {name}",
       "moveSourceRoot": "في الجذر"
-    },
-    "select": {
-      "enter": "اختر",
-      "exit": "تم",
-      "count": "{count, plural, =0 {لم يتم اختيار أي شيء} =1 {1 مختار} other {# مختارة}}",
-      "moveTo": "نقل إلى…",
-      "moveToRoot": "نقل إلى الجذر",
-      "moveSuccess": "{count, plural, =1 {1 رسم منقول} other {# رسومات منقولة}}",
-      "moveError": "فشل النقل: {error}",
-      "selectAll": "تحديد الكل",
-      "clear": "مسح",
-      "delete": "حذف",
-      "deleteConfirm": "{count, plural, =1 {حذف 1 رسم؟} other {حذف # رسومات؟}} لا يمكن التراجع عن هذا.",
-      "deleteError": "فشل الحذف: {error}"
     },
     "viewToggle": {
       "split": "عرض مقسم",
@@ -820,72 +553,6 @@
       "move": "نقل",
       "delete": "حذف",
       "deleteOneConfirm": "حذف \"{title}\"؟ لا يمكن التراجع عن هذا."
-    }
-  },
-  "map": {
-    "title": "الخريطة",
-    "subtitle": "الأسطول بأكمله على طائرتين — التطبيقات على الأرض، وخوادم MCP والخدمات المتصلة في الهواء، مع توصيل الخدمة إلى MCP.",
-    "loading": "جاري التحميل...",
-    "refresh": "تحديث",
-    "error": "فشل تحميل خريطة الأسطول",
-    "empty": "لا شيء على الخريطة حتى الآن — أنشئ تطبيقًا أو أعلن عن مخزونك من MCP.",
-    "counts": {
-      "apps": "التطبيقات",
-      "servers": "خوادم MCP",
-      "services": "الخدمات المتصلة"
-    },
-    "legend": {
-      "air": "الهواء",
-      "ground": "الأرض",
-      "servers": "خوادم MCP",
-      "services": "الخدمات المتصلة",
-      "apps": "التطبيقات"
-    }
-  },
-  "mcpSkills": {
-    "title": "الخدمات المتصلة",
-    "subtitle": "الخدمات المتصلة: مهارات المضيف وسير عمل MCP-orbit المادي، معروضة مقابل خوادم MCP التي تستدعيها.",
-    "loading": "جاري التحميل...",
-    "refresh": "تحديث",
-    "error": "فشل تحميل الخدمات المتصلة",
-    "empty": "لا توجد خدمات متصلة حتى الآن. أعلن عن مهارات المضيف أو اجعل تركيب MCP-orbit ماديًا.",
-    "backToList": "العودة إلى الخدمات المتصلة",
-    "backToService": "العودة إلى الخدمة المتصلة",
-    "notFound": "لم يتم العثور على الخدمة المتصلة.",
-    "viewGraph": "عرض الرسم البياني",
-    "present": "موجود",
-    "missing": "مفقود",
-    "counts": {
-      "servers": "خوادم MCP",
-      "services": "الخدمات المتصلة"
-    },
-    "table": {
-      "name": "الاسم",
-      "form": "نموذج",
-      "calls": "المكالمات",
-      "updated": "تم التحديث"
-    },
-    "forms": {
-      "catalyst": "مهارة الحفاز",
-      "manual": "مهارة يدوية",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "البيانات الوصفية",
-      "name": "الاسم",
-      "ref": "المرجع",
-      "kind": "النوع",
-      "form": "نموذج",
-      "updated": "تم التحديث",
-      "hostPath": "مسار المضيف",
-      "catalyst": "الحفاز",
-      "composition": "التركيب",
-      "calls": "المكالمات",
-      "noCalls": "لم يتم التصريح بأي مكالمات MCP.",
-      "needs": "الاحتياجات",
-      "components": "المكونات",
-      "knobs": "الأزرار",
-      "graphSubtitle": "مستمد من مرآة الخدمات المتصلة والتركيبات المادية والمخزون الحالي لـ MCP."
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "ساحة التصيير",
     "subtitle": "كل ما ينتجه mojulo في مكان واحد: طابور تصيير الصور الدائم، وعمليات خَبْز GI، والطبخات والتصديرات على القرص. أربع طرق لقول «شيء ما يُصنع» لم يكن لها بيت مشترك.",
-    "readOnly": "تعرض الساحة الحالة فقط. كل إجراء هنا هو موجّه تنسخه إلى وكيلك — قبول تصيير، أو إعادة خَبْز عالم، أو إنشاء تصدير، كلها تحدث عبر أدوات MCP، لا عبر هذه الصفحة.",
     "refresh": "تحديث",
     "loading": "جاري التحميل...",
     "allLanes": "كل المسارات",
-    "copyPrompt": "نسخ الموجه",
-    "copied": "تم النسخ",
-    "copyFailed": "تعذّر النسخ — حدّد النص وانسخه يدويًا",
     "showing": "عرض {shown} من {total}",
     "queue": {
       "title": "طابور التصيير",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "افتح العمل ←",
-    "copied": "تم النسخ",
-    "copyFailed": "تعذّر النسخ — حدّد النص وانسخه يدويًا",
     "shelves": "المكتبة",
     "bays": "الورشة",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "عدد المثلثات: export_model"
     },
     "inspector": {
-      "askTitle": "اسأل الوكيل",
-      "askBody": "لوحة التحكم تعرض الحالة فقط ولا تغيّرها أبدًا. تعديل هذه الوصفة يحدث في وكيلك المضيف.",
-      "askCopy": "نسخ الموجه",
       "bound": "الأعمال المرتبطة",
       "boundEmpty": "لا شيء مرتبط بعد — لا تصييرات ولا شبكات ولا تصديرات على القرص لهذه الوصفة.",
       "openFolder": "افتح مجلد النتائج · {size}",
@@ -1110,8 +768,6 @@
     "empty": "لا شيء يطابق هذا التصنيف أو البحث.",
     "emptyShelf": "لم يُنشأ شيء في {shelf} بعد.",
     "emptyShelfHint": "اطلب من وكيلك صنع واحد — المفردات في get_sketch_vocab.",
-    "copied": "تم النسخ",
-    "copyFailed": "تعذّر النسخ — حدّد يدويًا",
     "notExportable": "لا يوجد تصدير شبكي — يُعرض هذا العمل كرسم بياني، لا كنموذج قابل للمشي فيه.",
     "stack": "×{n}",
     "seed": "بذرة {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "مرسوم · عامل خارجي · وصفة الهيكل هي السيادية",
-    "mintMissing": "اسأل الوكيل: أنشئ {piece}",
-    "mintPrompt": "لشخصية mojulo «{name}» (انظر العمل {ref})، أنشئ {piece} الناقص. استخدم الأداة المناسبة (create_sprite_sheet / bind_character_sheet / أدوات figure) — واقرأ get_sketch_vocab أولًا.",
     "facets": {
       "scenes": {
         "walkable": "قابل للمشي",

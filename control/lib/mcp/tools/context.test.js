@@ -400,18 +400,20 @@ describe('get_ui_map — dashboard page map', () => {
   it('maps the current dashboard pages and stays out of the always-paid body', async () => {
     const { content } = await uiMapHandler({});
     const text = content[0].text;
-    for (const page of ['/apps', '/map', '/graph', '/plan', '/research', '/sketches', '/settings']) {
+    for (const page of ['/', '/dashboard', '/library', '/plan', '/research', '/stashes', '/sketches', '/settings']) {
       expect(text, `ui map missing page ${page}`).toContain(`\`${page}\``);
     }
-    // The bot pages left with the chatbot factory (3.0.0).
-    for (const page of ['/bots', '/chat-builder', '/data']) {
+    // The bot pages left with the chatbot factory (3.0.0); the office wing's with its tools (3.1.0).
+    for (const page of ['/bots', '/chat-builder', '/data', '/apps', '/map', '/graph', '/mcp-skills', '/arcade/<ref>']) {
       expect(text, `ui map still names ${page}`).not.toContain(`\`${page}\``);
     }
     // Hints at the breadth of UI localization without enumerating every locale.
     expect(text).toMatch(/internationaliz|languages|locales|right-to-left/i);
     // The full page map is reached on demand, not folded into forward_context.
     const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
-    expect(body).not.toContain('App Creation Map: how an app comes together');
+    expect(body).not.toContain('Workshop Home');
+    // View only: the map never tells the user to copy a prompt.
+    expect(text).not.toMatch(/copy-prompt|copy-revision-prompt/);
     expect(body).toContain('`get_ui_map`');
   });
 });

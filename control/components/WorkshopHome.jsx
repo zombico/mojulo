@@ -23,14 +23,13 @@
  * ── The brand system, stated plainly (3d-factory-ui.plan.md §7) ─────────────
  *   · ONE frame, divided by shared hairlines. Padding, never margin.
  *   · The Ben-Day field means exactly one thing — space that can be minted into
- *     and has not been. So it appears twice: behind the ghosted mark on the
- *     dashboard plate (the floor is where minted things land) and under the
- *     amber ask card. Never behind a door: a door is not latent space.
+ *     and has not been. So it appears once: behind the ghosted mark on the
+ *     dashboard plate (the floor is where minted things land). Never behind a
+ *     door: a door is not latent space.
  *   · Counts are plain mono numbers. (Dot-row proportion meters were retired
  *     2026-09-01 at the maintainer's direction — numbers are enough.)
  *   · Hue carries STATE. Doors are ink at rest and take their mode's hue on
- *     hover; the one thing wearing a lit hue at rest is the ask card, because
- *     it is the only affordance that needs the agent to act.
+ *     hover. The page is view only: it hands nothing to the agent.
  *   · Mono for what a machine wrote, sans for the names a person reads.
  *
  * The nav model is shared with the global slide-out (workshop-nav.jsx), which is
@@ -45,15 +44,11 @@ import useSWR from 'swr';
 
 import IconRelief from '@/components/brand/IconRelief';
 import MojuloMark from '@/components/brand/MojuloMark';
-import { CopyPrompt, StatusBar } from '@/components/WorkshopChrome';
+import { StatusBar } from '@/components/WorkshopChrome';
 import { visibleWorkshopGroups, hueVars, FloorIcon, DOOR_ICONS } from '@/components/workshop-nav';
 import { LIBRARY_ZONES, zoneCounts } from '@/lib/graph/sketch/library-zones';
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
-
-/** The starter prompt the amber card hands over. Handed to the agent, never run here. */
-const STARTER_PROMPT =
-  'Call forward_context on the mojulo MCP, tell me what is already on the bench, and suggest three things worth making next.';
 
 /* ── the treatment's chrome vocabulary ────────────────────────────────────── */
 
@@ -352,20 +347,6 @@ export default function WorkshopHome({ authEnabled = false, asNav = false }) {
         {groups.map((group) => (
           <DoorGrid key={group.key} group={group} />
         ))}
-
-        {/* The one mutating affordance on the page, and it does not mutate: it
-            hands the operator a prompt for their own agent. Amber, on the
-            field, exactly once — the "not a conversational surface" rule made
-            visible rather than merely obeyed. */}
-        <div className="moj-field-faint border-t border-[color:var(--bay-rail)] px-4 py-4 sm:px-6">
-          <div className="flex max-w-sm flex-col gap-2 rounded-[var(--radius-card)] border border-[color:var(--forge)]/40 bg-[color:var(--bay-bench)] p-3">
-            <Micro style={{ color: 'var(--forge)' }}>{t('ask.title')}</Micro>
-            <p className="font-mono text-[10px] leading-relaxed text-[color:var(--ink-muted)]">
-              {t('ask.body')}
-            </p>
-            <CopyPrompt value={STARTER_PROMPT} />
-          </div>
-        </div>
 
         <StatusBar status={data?.status} queue={data?.queue} library={data?.library} note={agentNote} />
       </div>

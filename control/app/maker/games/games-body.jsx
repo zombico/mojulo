@@ -4,8 +4,8 @@
  * /maker/games' client body — the GAME PROJECTS gallery (game-developer.plan.md
  * GP3): one card per project (title, status, charter hook, role counts),
  * opening the /games/<ref> studio. Not a conversational surface — projects are
- * minted by the host agent (create_game_project); the empty state hands back
- * the starter prompt. Finished games are PLAYED from /arcade; this rail is
+ * minted by the host agent (create_game_project) and the page is view only.
+ * Finished games are PLAYED from /arcade; this rail is
  * where they are assembled.
  *
  * Wears the workshop shell (AuthNav and the breadcrumb bar stand down here);
@@ -13,36 +13,11 @@
  * strip's sign-out.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import WorkshopShell from '@/components/WorkshopShell';
-
-const STARTER_PROMPT =
-  "Start a mojulo game project with create_game_project({ title, charter }) — then we can gather its levels, characters, audio, and art in one place and mint the game with create_game({ project_ref }).";
-
-function CopyButton({ value, label, copiedLabel }) {
-  const [copied, setCopied] = useState(false);
-  const onCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable — leave the button inert */
-    }
-  }, [value]);
-  return (
-    <button
-      type="button"
-      onClick={onCopy}
-      className="rounded-md border border-neutral-700 px-2 py-1 text-xs text-neutral-300 transition hover:border-neutral-500 hover:text-white"
-    >
-      {copied ? copiedLabel : label}
-    </button>
-  );
-}
 
 function ProjectCard({ project }) {
   const t = useTranslations('gameDev');
@@ -114,9 +89,6 @@ export default function GameProjectsBody({ authEnabled = false }) {
       {projects !== null && projects.length === 0 && (
         <div className="rounded-lg border border-dashed border-neutral-800 p-8 text-center">
           <p className="text-sm text-neutral-400">{t('galleryEmpty')}</p>
-          <div className="mt-4 inline-flex">
-            <CopyButton value={STARTER_PROMPT} label={t('copyStarterPrompt')} copiedLabel={t('copied')} />
-          </div>
         </div>
       )}
 

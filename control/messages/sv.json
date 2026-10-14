@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Tjänstkarta",
-    "back": "Tillbaka"
-  },
-  "actions": {
-    "start": "Starta"
-  },
   "settings": {
     "title": "Inställningar",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Appar",
-    "subtitle": "Appar som agenten har materialiserat genom App-paradigmet. Livscykel, miljövariabler och live MCP-introduktion — läst från kontextkarta och den lokala körningsmiljön.",
-    "loading": "Laddar...",
-    "refresh": "Uppdatera",
-    "empty": "Inga appar ännu — be din Claude Code-agent att bygga en.",
-    "backToList": "Tillbaka till Appar",
-    "notFound": "App hittades inte.",
-    "openPreview": "Öppna förhandsgranskning",
-    "openMcp": "Öppna MCP",
-    "actions": {
-      "start": "Starta",
-      "stop": "Stopp",
-      "starting": "Startar…",
-      "stopping": "Stoppar…"
-    },
-    "status": {
-      "running": "Körs",
-      "stopped": "Stoppad",
-      "crashed": "Kraschade",
-      "unknown": "Okänd"
-    },
-    "table": {
-      "headers": {
-        "name": "Namn",
-        "materialized": "Materialiserad",
-        "runner": "Körningsmiljö",
-        "status": "Status",
-        "actions": "Åtgärder"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Skapelsekartan för den här appen — varje verktygsanrop som materialiserade den, som stationer på en linje."
-      },
-      "metadata": "Metadata",
-      "artifactPath": "Artefaktsökväg",
-      "materializationRef": "Materialiseringsreferens",
-      "adapter": "Adapter",
-      "appName": "Appnamn",
-      "host": "Värd",
-      "materializedAt": "Materialiserad på",
-      "viewGraph": "Visa graf",
-      "bindings": "Bindningar",
-      "binding": {
-        "runner": "Körningsmiljö",
-        "durability": "Varaktighet",
-        "inference": "Slutledning",
-        "mcpSelf": "MCP-själv"
-      },
-      "mcpPanel": {
-        "title": "App-MCP",
-        "url": "MCP-URL",
-        "offline": "MCP offline — starta appen för att se dess verktygslista.",
-        "loading": "Laddar verktyg…",
-        "error": "Kunde inte nå app-MCP:n: {error}",
-        "registeredTools": "Registrerade verktyg",
-        "noTools": "Inga verktyg registrerade.",
-        "declaredPurpose": "Deklarerat syfte"
-      },
-      "envPanel": {
-        "title": "Miljövariabler",
-        "explainer": "Värden skrivs direkt till artefaktens .env-fil. De loggas inte, lagras inte i kontrollplanets databas och ekas inte tillbaka till denna vy.",
-        "addKey": "Nyckel",
-        "addValue": "Värde",
-        "add": "Lägg till",
-        "delete": "Ta bort",
-        "deleteConfirm": "Ta bort miljövar \"{key}\"?",
-        "noKeys": "Inga miljövariabler inställda ännu.",
-        "valueHidden": "•••••",
-        "edit": "Redigera",
-        "save": "Spara",
-        "cancel": "Avbryt",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "värde"
-      },
-      "provenance": {
-        "title": "Provenans",
-        "subtitle": "Principer som är kopplade till denna apps materialiseringsengagemang.",
-        "none": "Inga principer registrerade."
-      }
-    }
-  },
-  "graph": {
-    "title": "App-skapandekarta",
-    "subtitle": "Hur en app kommer tillsammans. Varje ruta är en bit; varje pil visar vad som orsakar vad.",
-    "subtitleTechnical": "Hur en app är sammansatt i mojulo-paradigmet. Stationer är bitarna; linjer är MCP-verktygen som snappar dem ihop. Validerad mot live MCP-registret och kontextkartschemat vid varje uppdatering.",
-    "technicalToggle": "Teknisk",
-    "loading": "Laddar...",
-    "refresh": "Uppdatera",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Inga appar gjorda ännu} =1 {1 app gjord} other {# appar gjorda}}",
-      "lastMaterialized": "Sista gjorda",
-      "viewApps": "Visa körande appar"
-    },
-    "validation": {
-      "ok": "Allt stämmer fortfarande.",
-      "okTechnical": "Manifest giltigt: {tools} verktyg, {nodeKinds} nodtyper, {edgeKinds} kanttyper, {sourceEvents} källhändelser löses alla upp.",
-      "failed": "{count, plural, =1 {1 sak på kartan matchar inte längre verkligheten} other {# saker på kartan matchar inte längre verkligheten}}"
-    },
-    "legend": {
-      "input": "Vad du bestämmer",
-      "inputTechnical": "Inmatning",
-      "mcpTool": "Ett verktyg som agenten anropar",
-      "mcpToolTechnical": "MCP-verktyg",
-      "filesystem": "Filer på disk",
-      "filesystemTechnical": "Filsystem",
-      "dbRow": "Post i minnet",
-      "dbRowTechnical": "DB-rad"
-    }
-  },
   "login": {
     "subtitle": "Logga in för att fortsätta",
     "username": "Användarnamn",
@@ -178,7 +60,6 @@
     "title": "Plan",
     "subtitle": "Föreslagen arbete — sessioner som blev toppar. Smed och körd från din värdagent.",
     "navLabel": "Plan",
-    "newPlan": "Ny plan",
     "total": "{count} planer",
     "count": "{count} planer",
     "filteredCount": "{count} av {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Inte kördes ännu.",
     "stepOk": "ok",
     "stepFailed": "misslyckades",
-    "newPlanTitle": "Ny plan",
-    "newPlanIntro": "Planer skapas i din värdagent (Claude Code / Codex). Beskriv avsikten, kopiera startprompten och klistra in den i en ny agentsession — agenten går in i planläggningsläge och driver arbetet. Den här sidan uppdateras när planen skapas och revideras.",
-    "intentLabel": "Vad vill du planera? (valfritt)",
-    "intentPlaceholder": "t.ex. en webhook-triggerkörning för kompositören",
-    "promptLabel": "Startprompt",
-    "copyPrompt": "Kopiera prompt",
-    "copied": "Kopierad",
     "close": "Stäng"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Utdrag",
     "kindSketch": "Skiss",
     "viewSketch": "Visa diagram",
-    "composerHeading": "Lägg till i anteckningsboken",
-    "composerStub": "Endast förhandsvisning — bindning sker genom din värdagent för närvarande.",
-    "composerPlaceholder": "Klistra in en länk, släpp en fil eller skriv en anteckning…",
-    "newBook": "Ny bok",
-    "newBookTitle": "Ny forskningsbok",
-    "newBookIntro": "Böcker startas i din värdagent (Claude Code / Codex). Beskriv ämnet, kopiera startprompten och klistra in den i en ny agentsession — agenten går in i forskningsläge och driver arbetet. Den här sidan uppdateras när boken ackumuleras.",
-    "intentLabel": "Vad vill du forska? (valfritt)",
-    "intentPlaceholder": "t.ex. hur andra tunnelerar lokala MCP-servrar",
-    "promptLabel": "Startprompt",
-    "copyPrompt": "Kopiera prompt",
-    "copied": "Kopierad",
     "close": "Stäng"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "Instrumentpanel",
       "open": "Öppna golvet →"
-    },
-    "ask": {
-      "title": "Fråga agenten",
-      "body": "Skapandet sker i din MCP-agent."
     }
-  },
-  "breadcrumbs": {
-    "home": "Hem"
   },
   "sketches": {
     "notFoundTitle": "Skissen hittades inte",
@@ -398,10 +254,6 @@
     "refresh": "uppdatera",
     "statusOpen": "öppna",
     "statusResolved": "löst @ rev {rev}",
-    "annotateHint": "Märken skrivs från din agent (annotate_beats — förankrad till en takt, spår eller ledtråd); denna panel återger dem. Kopiera revisionsprompten för att få agenten att märka eller agera på dem.",
-    "copyRevisionPrompt": "Kopiera revisionsprompt",
-    "copied": "Kopierad ✓",
-    "copyFailed": "Kunde inte kopiera till urklipp.",
     "exportWav": "Exportera .wav",
     "exportMidi": "Exportera .mid",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "Spelutvecklare",
     "gallerySubtitle": "Ett projekt per spel — dess regler, nivåer, karaktärer, ljud och grafik på en enda hylla.",
     "galleryEmpty": "Inga spelprojekt än. Kör create_game_project från din värdagent för att starta ett.",
-    "copyStarterPrompt": "Kopiera startprompt",
     "loading": "Laddar projekt…",
     "noMembersYet": "Inga medlemmar än",
     "notFound": "Det projektet finns inte — det kan ha arkiverats eller så är referensen fel.",
     "backToProjects": "Tillbaka till Spelutvecklare",
-    "copyWorkPrompt": "Kopiera arbetsprompt",
-    "copyAddPrompt": "lägg till",
-    "copyMintPrompt": "mynta spelet",
-    "copied": "Kopierad",
     "playable": "Spelbar",
     "missing": "Saknad",
     "missingBody": "Den här medlemmens artefakt finns inte längre. Projektet behåller platsen; bind om eller ta bort den från din värdagent.",
@@ -472,8 +319,6 @@
     "subtitle": "Spelbara fristående spel, myntade i verkstaden. Välj ett spelskåp och spela.",
     "loading": "Laddar spelskåp…",
     "emptyState": "Inga spel på golvet än. Kör create_game från din värdagent för att mynta det första spelskåpet.",
-    "copyStarterPrompt": "Kopiera startprompt",
-    "copied": "Kopierad",
     "play": "Spela",
     "levelCount": "{count, plural, one {# nivå} other {# nivåer}}",
     "shipped": "Släppt"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "Studion: illustrationer, gångbara världar, 3D-objekt, rörelse, beats, röst och färdiga resultat. En finjusterad kreativ yta, syskon till Skisser (finjusterad för diagram). Varje del är samma skiss-primitiv — spara, referera och diffa den hur som helst."
-    },
     "beats": {
       "title": "Beats",
       "subtitle": "Syntetiserade soundtracks, kompositioner och ljudeffekter — välj en och tryck spela. Skapa nya från din agent via create_beats."
@@ -546,11 +387,7 @@
       "tuned": "Inställd (recept oförändrat)",
       "reset": "återställ",
       "playingAt": "Prov vid säkerhet {c} / djup {d}",
-      "noSamples": "Inga renderade prover ännu — kopiera talkkommandot och låt din agent binda några punkter (kanter inkluderade).",
-      "copyBlend": "Kopiera blandning",
-      "copyCommand": "Kopiera talkkommando",
-      "copyPrompt": "Kopiera startprompt",
-      "copied": "Kopierad!",
+      "noSamples": "Inga renderade samplingar ännu.",
       "loading": "Laddar röstregister…",
       "empty": "Inga röstregister ännu. Fråga din agent att mynta en med create_voice.",
       "unresolvable": "Detta register löser inte längre — dess bank kan ha ändrats. Återmynta det via create_voice."
@@ -602,10 +439,6 @@
     "kindNovel": "Novell",
     "kindVisualGuide": "Visuell guide",
     "kindUnknown": "Okänd",
-    "actions": {
-      "archive": "Arkiv",
-      "unarchive": "Avarkivera"
-    },
     "sourceLabel": "Från",
     "sourceUnknown": "(samling borttagen)",
     "lensLabel": "Lins",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "Samlingar",
-    "subtitle": "Omdöptbara behållare av typat material som agenten har samlat. Myntad via mint_stash MCP-verktyget.",
+    "subtitle": "Behållare med typat material som agenten har samlat.",
     "total": "{count, plural, =0 {Inga samlingar} =1 {1 samling} other {# samlingar}}",
     "count": "{count, plural, =0 {Inga matchningar} =1 {1 samling} other {# samlingar}}",
     "filteredCount": "{count} av {total} visas",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {inga lådor} =1 {1 låda} other {# lådor}}",
     "createdAt": "Skapad {timestamp}",
     "updatedAt": "Uppdaterad {timestamp}",
-    "actions": {
-      "rename": "Byt namn",
-      "edit": "Redigera",
-      "archive": "Arkiv",
-      "unarchive": "Avarkivera",
-      "save": "Spara",
-      "cancel": "Avbryt",
-      "titleEmpty": "Titeln kan inte vara tom",
-      "renameFailed": "Namnbyte misslyckades",
-      "statusChangeFailed": "Kunde inte ändra status"
-    },
     "detail": {
       "loading": "Laddar samling…",
       "notFoundTitle": "Samling hittades inte",
@@ -673,66 +495,7 @@
         "sketch": "Skiss"
       },
       "sketchFailed": "Skissen kunde inte laddas.",
-      "openSketch": "Öppna skiss",
-      "newDrawer": "Ny låda",
-      "newDrawerPlaceholder": "Låddnamn",
-      "drawerSaveError": "Kunde inte spara låda",
-      "drawerRenameError": "Kunde inte byta namn på låda",
-      "renameDrawerLabel": "Byt namn på låda",
-      "moveError": "Kunde inte flytta objekt",
-      "archive": "Arkiv",
-      "archiveError": "Kunde inte arkivera objekt",
-      "archiveWarning": "Detta objekt visas i {cookCount, plural, =1 {1 lag} other {# lagar}}. Citaten löser till det arkiverade innehållet. Fortsätta?",
-      "archiveProceed": "Arkivera ändå",
-      "archiveCancel": "Avbryt",
-      "addItem": "+ Lägg till",
-      "agentTypesFooter": "Skript och contextmap-pekare läggs till av din agent.",
-      "picker": {
-        "text": "Nytt textblock",
-        "image": "Ladda upp bild",
-        "svg": "Lägg till SVG",
-        "link": "Klistra in länk",
-        "sketch": "Välj skiss"
-      },
-      "panel": {
-        "save": "Spara",
-        "cancel": "Avbryt",
-        "saving": "Sparar...",
-        "saveError": "Kunde inte spara",
-        "titleLabel": "Titel (valfritt)",
-        "titlePlaceholder": "Kort etikett",
-        "sourceUrlLabel": "Käll-URL (valfritt)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Vanlig text",
-        "bodyLabel": "Brödtext",
-        "bodyPlaceholder": "Skriv eller klistra in…",
-        "preview": "Förhandsgranska",
-        "previewEmpty": "Skriv för att förhandsgranska.",
-        "tooLong": "Innehållet överstiger {limit, number} teckengränsen.",
-        "imagePick": "Välj en bild",
-        "imageDrop": "eller släpp en fil här",
-        "imageTooLarge": "Bilden överstiger {limit, number} MB-gränsen.",
-        "imageBadMime": "Inte en bildfil ({mime}).",
-        "imageBadDimensions": "Kunde inte läsa bilddimensioner.",
-        "altLabel": "Alt-text (valfritt)",
-        "altPlaceholder": "Vad finns i bilden?",
-        "svgPaste": "Klistra in SVG",
-        "svgUpload": "eller ladda upp .svg",
-        "svgBadShape": "SVG-brödtext måste börja med <?xml eller <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL tolkas inte.",
-        "urlTitleRequired": "Titel är obligatorisk för länkobjekt.",
-        "descriptionLabel": "Beskrivning (valfritt)",
-        "descriptionPlaceholder": "Varför detta är viktigt…",
-        "sketchSearchPlaceholder": "Sök skisser…",
-        "sketchEmpty": "Inga skisser ännu. Fråga din agent att mynta en med create_sketch.",
-        "sketchNoMatch": "Inga skisser matchar denna sökning.",
-        "sketchPicked": "Vald"
-      }
+      "openSketch": "Öppna skiss"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "Ladda ner PNG",
     "invalidManifest": "Rendrant kunde inte tolka denna skiss.",
     "frameFailed": "Den här vyn laddades inte.",
-    "renameLabel": "Byt namn på skiss",
-    "renamePlaceholder": "Skissbeteckning",
-    "renameSave": "Spara",
-    "renameSaveNew": "Spara som ny skiss",
-    "renameCancel": "Avbryt",
-    "renameEmpty": "Titeln kan inte vara tom",
     "associationTags": {
       "plan": "Plan",
       "research": "Forskning"
@@ -771,45 +528,21 @@
       "selectPrompt": "Välj ett spår till vänster för att spela.",
       "invalidManifest": "Denna recept kunde inte tolkas.",
       "openNewTab": "Öppna Studio",
-      "renameLabel": "Byt namn på spår",
-      "renamePlaceholder": "Spårbenämning",
-      "renameSaveNew": "Spara som nytt spår",
       "exportWav": "Exportera .wav",
       "exportMidi": "Exportera .mid"
     },
     "folder": {
-      "newFolderButton": "Ny mapp",
-      "newFolderTitle": "Ny mapp",
-      "namePlaceholder": "Mappnamn",
       "create": "Skapa",
       "cancel": "Avbryt",
-      "rename": "Byt namn på mapp",
-      "renameSave": "Spara",
       "delete": "Ta bort mapp",
-      "deleteConfirm": "Ta bort denna mapp? Skisser i den kommer att flytta tillbaka till rot.",
       "rootCrumb": "Alla skisser",
       "back": "Tillbaka",
       "sketchCount": "{count, plural, =0 {tom} =1 {1 skiss} other {# skisser}}",
       "foldersHeader": "Mappar",
       "rootHeader": "Skisser",
-      "inFolderHint": "Nya skisser som du myntar medan du visar denna mapp kommer automatiskt att hamna här.",
-      "emptyFolder": "Denna mapp är tom. Mynta en skiss eller flytta en hit från rot.",
+      "emptyFolder": "Den här mappen är tom.",
       "moveSourceFolder": "I {name}",
       "moveSourceRoot": "Vid rot"
-    },
-    "select": {
-      "enter": "Välj",
-      "exit": "Klar",
-      "count": "{count, plural, =0 {Inget valt} =1 {1 valt} other {# valt}}",
-      "moveTo": "Flytta till…",
-      "moveToRoot": "Flytta till rot",
-      "moveSuccess": "{count, plural, =1 {1 skiss flyttad} other {# skisser flyttade}}",
-      "moveError": "Flytt misslyckades: {error}",
-      "selectAll": "Välj alla",
-      "clear": "Rensa",
-      "delete": "Ta bort",
-      "deleteConfirm": "{count, plural, =1 {Ta bort 1 skiss?} other {Ta bort # skisser?}} Det här kan inte ångras.",
-      "deleteError": "Borttagning misslyckades: {error}"
     },
     "viewToggle": {
       "split": "Delad vy",
@@ -820,72 +553,6 @@
       "move": "Flytta",
       "delete": "Ta bort",
       "deleteOneConfirm": "Ta bort \"{title}\"? Det här kan inte ångras."
-    }
-  },
-  "map": {
-    "title": "Karta",
-    "subtitle": "Hela flottan på två plan — appar på marken, MCP-servrar och anslutna tjänster i luften, med tjänst-till-MCP-ledning.",
-    "loading": "Laddar...",
-    "refresh": "Uppdatera",
-    "error": "Kunde inte ladda flottkarta",
-    "empty": "Ingenting på kartan ännu — bygg en app eller deklarera din MCP-inventering.",
-    "counts": {
-      "apps": "Appar",
-      "servers": "MCP-servrar",
-      "services": "Anslutna tjänster"
-    },
-    "legend": {
-      "air": "Luft",
-      "ground": "Mark",
-      "servers": "MCP-servrar",
-      "services": "Anslutna tjänster",
-      "apps": "Appar"
-    }
-  },
-  "mcpSkills": {
-    "title": "Anslutna tjänster",
-    "subtitle": "Anslutna tjänster: värdskickligheter och materialiserade MCP-orbit-arbetsflöden, visade mot de MCP-servrar de anropar.",
-    "loading": "Laddar…",
-    "refresh": "Uppdatera",
-    "error": "Kunde inte ladda anslutna tjänster",
-    "empty": "Inga anslutna tjänster ännu. Deklarera värdskickligheter eller materialisera en MCP-orbit-sammansättning.",
-    "backToList": "Tillbaka till anslutna tjänster",
-    "backToService": "Tillbaka till ansluten tjänst",
-    "notFound": "Ansluten tjänst hittades inte.",
-    "viewGraph": "Visa graf",
-    "present": "Närvarande",
-    "missing": "Saknad",
-    "counts": {
-      "servers": "MCP-servrar",
-      "services": "Anslutna tjänster"
-    },
-    "table": {
-      "name": "Namn",
-      "form": "Formulär",
-      "calls": "Anrop",
-      "updated": "Uppdaterad"
-    },
-    "forms": {
-      "catalyst": "Katalysatorskicklighet",
-      "manual": "Manuell skicklighet",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "name": "Namn",
-      "ref": "Ref",
-      "kind": "Typ",
-      "form": "Formulär",
-      "updated": "Uppdaterad",
-      "hostPath": "Värdväg",
-      "catalyst": "Katalysator",
-      "composition": "Sammansättning",
-      "calls": "Anrop",
-      "noCalls": "Inga MCP-anrop deklarerade.",
-      "needs": "Behov",
-      "components": "Komponenter",
-      "knobs": "Rattar",
-      "graphSubtitle": "Härledd från Connected Services-spegeln, materialiserade sammansättningar och aktuell MCP-inventering."
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "Renderingsbås",
     "subtitle": "Allt mojulo producerar, på ett ställe: den beständiga bildrenderingskön, GI-bakningarna samt publikationerna och exporterna på disk. Fyra sätt att säga \"något håller på att bli till\" som förut saknade ett gemensamt hem.",
-    "readOnly": "Båset renderar tillstånd. Varje åtgärd här är en prompt att kopiera in i din agent — att acceptera en rendering, baka om en värld och mynta en export sker alla genom MCP-verktyg, aldrig genom den här sidan.",
     "refresh": "Uppdatera",
     "loading": "Laddar...",
     "allLanes": "Alla banor",
-    "copyPrompt": "Kopiera prompt",
-    "copied": "Kopierad",
-    "copyFailed": "Kunde inte kopiera — markera texten och kopiera den manuellt",
     "showing": "visar {shown} av {total}",
     "queue": {
       "title": "Renderingskö",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "Öppna artefakt →",
-    "copied": "Kopierad",
-    "copyFailed": "Kunde inte kopiera — markera texten och kopiera den manuellt",
     "shelves": "Bibliotek",
     "bays": "Verkstad",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "antal trianglar: export_model"
     },
     "inspector": {
-      "askTitle": "Fråga agenten",
-      "askBody": "Instrumentpanelen renderar tillstånd; den muterar aldrig. Att ändra det här receptet sker i din värdagent.",
-      "askCopy": "Kopiera prompt",
       "bound": "Bundna artefakter",
       "boundEmpty": "Inget bundet ännu — inga renderingar, meshar eller exporter på disk för det här receptet.",
       "openFolder": "Öppna resultatmapp · {size}",
@@ -1110,8 +768,6 @@
     "empty": "Inget matchar den här facetten eller sökningen.",
     "emptyShelf": "Inget myntat till {shelf} ännu.",
     "emptyShelfHint": "Be din agent att göra en — get_sketch_vocab har vokabulären.",
-    "copied": "Kopierad",
-    "copyFailed": "Kunde inte kopiera — markera manuellt",
     "notExportable": "Ingen mesh-export — den här artefakten renderas som ett diagram, inte som en gångbar modell.",
     "stack": "×{n}",
     "seed": "frö {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "målad · extern arbetare · ställningsreceptet är suveränt",
-    "mintMissing": "Be agenten: mynta {piece}",
-    "mintPrompt": "För mojulo-karaktären \"{name}\" (se artefakt {ref}), mynta den saknade {piece}. Använd det matchande verktyget (create_sprite_sheet / bind_character_sheet / figurverktygen) — läs get_sketch_vocab först.",
     "facets": {
       "scenes": {
         "walkable": "Gångbara",

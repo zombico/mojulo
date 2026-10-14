@@ -6,7 +6,7 @@ import { LIBRARY_SHELVES, LEGACY_ROUTE_SHELVES } from '@/lib/graph/sketch/librar
 // The nav is where the 2.0 reposition is visible to a human: the making surface
 // leads and is unconditional, the operational surface earns its place by having
 // records. See mojulo-2.0-pure-creative.plan.md (Phase 1f).
-describe('workshop nav — studio leads, ops is record-gated', () => {
+describe('workshop nav — studio leads, the office wing is gone', () => {
   const keysOf = (groups) => groups.map((g) => g.key);
   const tileKeys = (groups, key) => groups.find((g) => g.key === key)?.tiles.map((t) => t.key) || [];
 
@@ -14,23 +14,14 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
     expect(WORKSHOP_GROUPS[0].key).toBe('studio');
   });
 
-  it('every gated tile lives in operate; studio and ideate are unconditional', () => {
+  it('no door leads to the office wing, which left with its tools in 3.1.0', () => {
     for (const group of WORKSHOP_GROUPS) {
+      expect(group.key).not.toBe('operate');
       for (const tile of group.tiles) {
-        if (tile.presence) expect(group.key).toBe('operate');
+        expect(tile.presence).toBeUndefined();
+        expect(tile.href).not.toMatch(/^\/(apps|mcp-skills|map|graph)(\/|$)/);
       }
     }
-    expect(WORKSHOP_GROUPS.find((g) => g.key === 'operate').tiles.every((t) => t.presence)).toBe(true);
-  });
-
-  it('diagrams sit in studio, so the kernel capability never vanishes with ops', () => {
-    // Post-Library-fold the door is `library` and diagrams are a shelf behind it,
-    // but the invariant is unchanged: mint_diagram is a kernel capability, so its
-    // surface must never be gated on the operational pack.
-    expect(tileKeys(WORKSHOP_GROUPS, 'studio')).toContain('library');
-    expect(tileKeys(WORKSHOP_GROUPS, 'operate')).not.toContain('library');
-    expect(LIBRARY_SHELVES.map((s) => s.key)).toContain('diagrams');
-    // and it survives the empty-workshop case
     expect(tileKeys(visibleWorkshopGroups({ apps: 0, services: 0 }), 'studio')).toContain('library');
   });
 
@@ -41,11 +32,7 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
     }
   });
 
-  it('the Render Bay is a studio door, and /outputs is deliberately still one too', () => {
-    // The Library fold collapsed four routes because they were one gallery with a
-    // different prop. /outputs is NOT that: it is a distinct inbox with real
-    // filters and an archive action, and the read-only bay cannot carry it. So
-    // the bay links into it and both doors stay. See 3d-factory-ui.plan.md §8p5.
+  it('the Render Bay is a studio door, and /outputs is one too', () => {
     const studio = tileKeys(WORKSHOP_GROUPS, 'studio');
     expect(studio).toContain('renderBay');
     expect(studio).toContain('outputs');
@@ -60,10 +47,8 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
     expect(keysOf(visibleWorkshopGroups(undefined))).toEqual(['studio', 'ideate']);
   });
 
-  it('records bring their own tile back, and only their own', () => {
-    const groups = visibleWorkshopGroups({ apps: 2, services: 0 });
-    expect(keysOf(groups)).toEqual(['studio', 'ideate', 'operate']);
-    expect(tileKeys(groups, 'operate')).toEqual(['apps']);
+  it('records bring no door back: apps and services counts show the same two modes', () => {
+    expect(keysOf(visibleWorkshopGroups({ apps: 2, services: 5 }))).toEqual(['studio', 'ideate']);
   });
 
   // 3.0: the chatbot factory is its own project, and its pages left the dashboard with it.
@@ -79,9 +64,4 @@ describe('workshop nav — studio leads, ops is record-gated', () => {
     expect(keysOf(visibleWorkshopGroups({ bots: 3, apps: 0, services: 0 }))).toEqual(['studio', 'ideate']);
   });
 
-  it('a full host shows everything', () => {
-    const groups = visibleWorkshopGroups({ apps: 1, services: 5 });
-    expect(keysOf(groups)).toEqual(['studio', 'ideate', 'operate']);
-    expect(tileKeys(groups, 'operate')).toEqual(['mcpSkills', 'apps']);
-  });
 });

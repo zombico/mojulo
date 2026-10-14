@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Bản đồ Dịch vụ",
-    "back": "Quay lại"
-  },
-  "actions": {
-    "start": "Bắt đầu"
-  },
   "settings": {
     "title": "Cài đặt",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Ứng dụng",
-    "subtitle": "Các ứng dụng mà agent đã vật hóa thông qua mô hình ứng dụng. Vòng đời, biến env và self-reflection MCP trực tiếp — đọc từ contextmap và runner cục bộ.",
-    "loading": "Đang tải…",
-    "refresh": "Làm mới",
-    "empty": "Chưa có ứng dụng nào — yêu cầu agent Claude Code của bạn để tạo một ứng dụng.",
-    "backToList": "Quay lại ứng dụng",
-    "notFound": "Không tìm thấy ứng dụng.",
-    "openPreview": "Mở xem trước",
-    "openMcp": "Mở MCP",
-    "actions": {
-      "start": "Bắt đầu",
-      "stop": "Dừng",
-      "starting": "Đang khởi động…",
-      "stopping": "Đang dừng…"
-    },
-    "status": {
-      "running": "Đang chạy",
-      "stopped": "Đã dừng",
-      "crashed": "Đã sự cố",
-      "unknown": "Không xác định"
-    },
-    "table": {
-      "headers": {
-        "name": "Tên",
-        "materialized": "Vật hóa",
-        "runner": "Runner",
-        "status": "Trạng thái",
-        "actions": "Hành động"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Bản đồ tạo dựng của ứng dụng này — mọi lệnh gọi công cụ đã hiện thực hóa nó, như các trạm trên cùng một tuyến."
-      },
-      "metadata": "Siêu dữ liệu",
-      "artifactPath": "Đường dẫn tạo phẩm",
-      "materializationRef": "Tham chiếu vật hóa",
-      "adapter": "Bộ điều hợp",
-      "appName": "Tên ứng dụng",
-      "host": "Máy chủ",
-      "materializedAt": "Vật hóa tại",
-      "viewGraph": "Xem biểu đồ",
-      "bindings": "Liên kết",
-      "binding": {
-        "runner": "Runner",
-        "durability": "Độ bền",
-        "inference": "Suy luận",
-        "mcpSelf": "MCP tự"
-      },
-      "mcpPanel": {
-        "title": "MCP ứng dụng",
-        "url": "URL MCP",
-        "offline": "MCP ngoại tuyến — bắt đầu ứng dụng để xem danh sách công cụ của nó.",
-        "loading": "Đang tải công cụ…",
-        "error": "Không thể truy cập MCP ứng dụng: {error}",
-        "registeredTools": "Công cụ được đăng ký",
-        "noTools": "Không có công cụ nào được đăng ký.",
-        "declaredPurpose": "Mục đích được khai báo"
-      },
-      "envPanel": {
-        "title": "Biến môi trường",
-        "explainer": "Các giá trị được viết trực tiếp vào tệp .env của tạo phẩm. Chúng không được ghi nhật ký, không được lưu trữ trong cơ sở dữ liệu mặt phẳng điều khiển và không được phản ánh lại vào chế độ xem này.",
-        "addKey": "Khóa",
-        "addValue": "Giá trị",
-        "add": "Thêm",
-        "delete": "Xóa",
-        "deleteConfirm": "Xóa biến env \"{key}\"?",
-        "noKeys": "Chưa có biến env nào được đặt.",
-        "valueHidden": "•••••",
-        "edit": "Chỉnh sửa",
-        "save": "Lưu",
-        "cancel": "Hủy",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "giá trị"
-      },
-      "provenance": {
-        "title": "Nguồn gốc",
-        "subtitle": "Các nguyên tắc được gắn vào commit vật hóa ứng dụng này.",
-        "none": "Không ghi lại nguyên tắc nào."
-      }
-    }
-  },
-  "graph": {
-    "title": "Bản đồ tạo ứng dụng",
-    "subtitle": "Cách một ứng dụng được tập hợp lại với nhau. Mỗi hộp là một phần; mỗi mũi tên hiển thị nguyên nhân của cái gì.",
-    "subtitleTechnical": "Cách ứng dụng được soạn trong mô hình mojulo. Các trạm là những phần; dòng là các công cụ MCP kích hoạt chúng. Được xác thực dựa vào đăng ký MCP trực tiếp và lược đồ contextmap trên mỗi lần làm mới.",
-    "technicalToggle": "Kỹ thuật",
-    "loading": "Đang tải…",
-    "refresh": "Làm mới",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Chưa tạo ứng dụng nào} =1 {1 ứng dụng được tạo} other {# ứng dụng được tạo}}",
-      "lastMaterialized": "Cái cuối cùng được tạo",
-      "viewApps": "Xem ứng dụng đang chạy"
-    },
-    "validation": {
-      "ok": "Mọi thứ vẫn được kiểm tra.",
-      "okTechnical": "Manifest hợp lệ: {tools} công cụ, {nodeKinds} loại nút, {edgeKinds} loại cạnh, {sourceEvents} sự kiện nguồn tất cả được giải quyết.",
-      "failed": "{count, plural, =1 {1 thứ trong bản đồ không còn khớp với thực tế} other {# thứ trong bản đồ không còn khớp với thực tế}}"
-    },
-    "legend": {
-      "input": "Những gì bạn quyết định",
-      "inputTechnical": "Đầu vào",
-      "mcpTool": "Một công cụ mà agent gọi",
-      "mcpToolTechnical": "Công cụ MCP",
-      "filesystem": "Tệp trên đĩa",
-      "filesystemTechnical": "Hệ thống tệp",
-      "dbRow": "Mục nhập trong bộ nhớ",
-      "dbRowTechnical": "Hàng DB"
-    }
-  },
   "login": {
     "subtitle": "Đăng nhập để tiếp tục",
     "username": "Tên người dùng",
@@ -178,7 +60,6 @@
     "title": "Kế hoạch",
     "subtitle": "Công việc được đề xuất — các phiên đã trở thành spikes. Được tạo và chạy từ agent máy chủ của bạn.",
     "navLabel": "Kế hoạch",
-    "newPlan": "Kế hoạch mới",
     "total": "{count} kế hoạch",
     "count": "{count} kế hoạch",
     "filteredCount": "{count} trên {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Chưa thực thi.",
     "stepOk": "ok",
     "stepFailed": "thất bại",
-    "newPlanTitle": "Kế hoạch mới",
-    "newPlanIntro": "Kế hoạch được tạo trong đại lý máy chủ của bạn (Claude Code / Codex). Mô tả ý định, sao chép lời nhắc khởi động và dán vào phiên đại lý mới — đại lý vào chế độ kế hoạch và thực hiện công việc. Trang này cập nhật khi kế hoạch được tạo và sửa đổi.",
-    "intentLabel": "Bạn muốn lên kế hoạch gì? (tùy chọn)",
-    "intentPlaceholder": "ví dụ: thời gian chạy webhook trigger cho nhạc sĩ",
-    "promptLabel": "Lời nhắc khởi động",
-    "copyPrompt": "Sao chép lời nhắc",
-    "copied": "Đã sao chép",
     "close": "Đóng"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Đoạn trích",
     "kindSketch": "Phác thảo",
     "viewSketch": "Xem sơ đồ",
-    "composerHeading": "Thêm vào sổ ghi chép",
-    "composerStub": "Chỉ xem trước — liên kết xảy ra thông qua đại lý máy chủ của bạn bây giờ.",
-    "composerPlaceholder": "Dán liên kết, thả tệp hoặc viết ghi chú…",
-    "newBook": "Cuốn sách mới",
-    "newBookTitle": "Cuốn sách nghiên cứu mới",
-    "newBookIntro": "Sách được bắt đầu trong đại lý máy chủ của bạn (Claude Code / Codex). Mô tả chủ đề, sao chép lời nhắc khởi động và dán vào phiên đại lý mới — đại lý vào chế độ nghiên cứu và thực hiện công việc. Trang này cập nhật khi sách tích lũy.",
-    "intentLabel": "Bạn muốn nghiên cứu gì? (tùy chọn)",
-    "intentPlaceholder": "ví dụ: cách những người khác tạo đường hầm máy chủ MCP cục bộ",
-    "promptLabel": "Lời nhắc khởi động",
-    "copyPrompt": "Sao chép lời nhắc",
-    "copied": "Đã sao chép",
     "close": "Đóng"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "Bảng điều khiển",
       "open": "Mở sàn xưởng →"
-    },
-    "ask": {
-      "title": "Nhờ agent",
-      "body": "Việc tạo dựng diễn ra trong agent MCP của bạn."
     }
-  },
-  "breadcrumbs": {
-    "home": "Trang chủ"
   },
   "sketches": {
     "notFoundTitle": "Không tìm thấy phác thảo",
@@ -398,10 +254,6 @@
     "refresh": "làm mới",
     "statusOpen": "mở",
     "statusResolved": "đã giải quyết @ rev {rev}",
-    "annotateHint": "Dấu được viết từ đại lý của bạn (annotate_beats — neo vào một thanh, bài hát hoặc tín hiệu); bảng điều khiển này hiển thị chúng. Sao chép lời nhắc sửa đổi để đại lý đánh dấu hoặc hoạt động trên chúng.",
-    "copyRevisionPrompt": "Sao chép lời nhắc sửa đổi",
-    "copied": "Đã sao chép ✓",
-    "copyFailed": "Không thể sao chép vào bảng tạm.",
     "exportWav": "Xuất .wav",
     "exportMidi": "Xuất .mid",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "Nhà phát triển game",
     "gallerySubtitle": "Mỗi game một dự án — luật chơi, màn chơi, nhân vật, âm thanh và hình ảnh trên cùng một kệ.",
     "galleryEmpty": "Chưa có dự án game nào. Chạy create_game_project từ tác nhân máy chủ để bắt đầu.",
-    "copyStarterPrompt": "Sao chép lời nhắc khởi động",
     "loading": "Đang tải dự án…",
     "noMembersYet": "Chưa có thành viên nào",
     "notFound": "Dự án đó không tồn tại — có thể đã bị lưu trữ hoặc ref sai.",
     "backToProjects": "Quay lại Nhà phát triển game",
-    "copyWorkPrompt": "Sao chép prompt công việc",
-    "copyAddPrompt": "thêm",
-    "copyMintPrompt": "tạo game",
-    "copied": "Đã sao chép",
     "playable": "Chơi được",
     "missing": "Missing",
     "missingBody": "Artifact của thành viên này không còn tồn tại. Dự án vẫn giữ vị trí; hãy liên kết lại hoặc gỡ bỏ từ tác nhân máy chủ.",
@@ -472,8 +319,6 @@
     "subtitle": "Các game độc lập chơi được, tạo từ xưởng. Chọn một máy game và chơi.",
     "loading": "Đang tải máy game…",
     "emptyState": "Chưa có game nào trên sàn. Chạy create_game từ tác nhân máy chủ để tạo máy game đầu tiên.",
-    "copyStarterPrompt": "Sao chép lời nhắc khởi động",
-    "copied": "Đã sao chép",
     "play": "Chơi",
     "levelCount": "{count, plural, other {# màn chơi}}",
     "shipped": "Đã phát hành"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Xưởng Mojulo",
-      "subtitle": "Studio: hình minh họa, thế giới đi lại được, đối tượng 3D, chuyển động, beats, giọng nói và các đầu ra hoàn thiện. Một bề mặt sáng tạo được tinh chỉnh, anh em với Sketches (tinh chỉnh cho sơ đồ). Mỗi thành phần đều là cùng một sketch primitive — cất giữ, tham chiếu và so sánh theo cách nào cũng được."
-    },
     "beats": {
       "title": "Nhịp",
       "subtitle": "Âm thanh nền được tổng hợp, sáng tác và hiệu ứng âm thanh — chọn một và nhấn phát. Tác giả những cái mới từ đại lý của bạn thông qua create_beats."
@@ -546,11 +387,7 @@
       "tuned": "Được điều chỉnh (công thức không thay đổi)",
       "reset": "đặt lại",
       "playingAt": "Mẫu với độ tin cậy {c} / độ sâu {d}",
-      "noSamples": "Chưa có mẫu được hiển thị — sao chép lệnh speak và có đại lý của bạn liên kết một vài điểm (bao gồm cạnh).",
-      "copyBlend": "Sao chép hỗn hợp",
-      "copyCommand": "Sao chép lệnh speak",
-      "copyPrompt": "Sao chép lời nhắc khởi động",
-      "copied": "Đã sao chép!",
+      "noSamples": "Chưa có mẫu nào được kết xuất.",
       "loading": "Đang tải thanh ghi giọng…",
       "empty": "Chưa có thanh ghi giọng. Yêu cầu đại lý của bạn tạo một với create_voice.",
       "unresolvable": "Thanh ghi này không còn giải quyết — ngân hàng của nó có thể đã thay đổi. Tạo lại nó thông qua create_voice."
@@ -602,10 +439,6 @@
     "kindNovel": "Truyện ngắn",
     "kindVisualGuide": "Hướng dẫn trực quan",
     "kindUnknown": "Không xác định",
-    "actions": {
-      "archive": "Lưu trữ",
-      "unarchive": "Bỏ lưu trữ"
-    },
     "sourceLabel": "Từ",
     "sourceUnknown": "(kho lưu trữ được xóa)",
     "lensLabel": "Ống kính",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "Kho lưu trữ",
-    "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
+    "subtitle": "Các thùng chứa tư liệu có kiểu mà tác tử đã thu thập.",
     "total": "{count, plural, =0 {No stashes} =1 {1 stash} other {# stashes}}",
     "count": "{count, plural, =0 {No matches} =1 {1 stash} other {# stashes}}",
     "filteredCount": "{count} của {total} được hiển thị",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Tạo {timestamp}",
     "updatedAt": "Cập nhật {timestamp}",
-    "actions": {
-      "rename": "Rename",
-      "edit": "Chỉnh sửa",
-      "archive": "Lưu trữ",
-      "unarchive": "Bỏ lưu trữ",
-      "save": "Lưu",
-      "cancel": "Hủy",
-      "titleEmpty": "Title cannot be empty",
-      "renameFailed": "Rename failed",
-      "statusChangeFailed": "Could not change status"
-    },
     "detail": {
       "loading": "Loading stash…",
       "notFoundTitle": "Stash not found",
@@ -673,66 +495,7 @@
         "sketch": "Phác thảo"
       },
       "sketchFailed": "Sketch failed to load.",
-      "openSketch": "Open sketch",
-      "newDrawer": "New drawer",
-      "newDrawerPlaceholder": "Drawer name",
-      "drawerSaveError": "Could not save drawer",
-      "drawerRenameError": "Could not rename drawer",
-      "renameDrawerLabel": "Rename drawer",
-      "moveError": "Could not move item",
-      "archive": "Lưu trữ",
-      "archiveError": "Could not archive item",
-      "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
-      "archiveProceed": "Archive anyway",
-      "archiveCancel": "Hủy",
-      "addItem": "+ Add",
-      "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
-      "picker": {
-        "text": "New text block",
-        "image": "Upload image",
-        "svg": "Add SVG",
-        "link": "Paste link",
-        "sketch": "Pick sketch"
-      },
-      "panel": {
-        "save": "Lưu",
-        "cancel": "Hủy",
-        "saving": "Đang lưu…",
-        "saveError": "Could not save",
-        "titleLabel": "Title (optional)",
-        "titlePlaceholder": "Short label",
-        "sourceUrlLabel": "Source URL (optional)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Plain text",
-        "bodyLabel": "Body",
-        "bodyPlaceholder": "Type or paste…",
-        "preview": "Bản xem trước",
-        "previewEmpty": "Type to preview.",
-        "tooLong": "Content exceeds the {limit, number} character cap.",
-        "imagePick": "Choose an image",
-        "imageDrop": "or drop a file here",
-        "imageTooLarge": "Image exceeds the {limit, number} MB cap.",
-        "imageBadMime": "Not an image file ({mime}).",
-        "imageBadDimensions": "Could not read image dimensions.",
-        "altLabel": "Alt text (optional)",
-        "altPlaceholder": "What's in the image?",
-        "svgPaste": "Paste SVG",
-        "svgUpload": "or upload .svg",
-        "svgBadShape": "SVG body must start with <?xml or <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL doesn't parse.",
-        "urlTitleRequired": "Title is required for link items.",
-        "descriptionLabel": "Description (optional)",
-        "descriptionPlaceholder": "Why this matters…",
-        "sketchSearchPlaceholder": "Search sketches…",
-        "sketchEmpty": "No sketches yet. Ask your agent to mint one with create_sketch.",
-        "sketchNoMatch": "No sketches match this search.",
-        "sketchPicked": "Picked"
-      }
+      "openSketch": "Open sketch"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
     "frameFailed": "Khung xem này không tải được.",
-    "renameLabel": "Rename sketch",
-    "renamePlaceholder": "Sketch title",
-    "renameSave": "Lưu",
-    "renameSaveNew": "Save as new sketch",
-    "renameCancel": "Hủy",
-    "renameEmpty": "Title cannot be empty",
     "associationTags": {
       "plan": "Kế hoạch",
       "research": "Nghiên cứu"
@@ -771,45 +528,21 @@
       "selectPrompt": "Select a track on the left to play.",
       "invalidManifest": "This recipe could not be parsed.",
       "openNewTab": "Open Studio",
-      "renameLabel": "Rename track",
-      "renamePlaceholder": "Track title",
-      "renameSaveNew": "Save as new track",
       "exportWav": "Xuất .wav",
       "exportMidi": "Xuất .mid"
     },
     "folder": {
-      "newFolderButton": "New folder",
-      "newFolderTitle": "New folder",
-      "namePlaceholder": "Folder name",
       "create": "Create",
       "cancel": "Hủy",
-      "rename": "Rename folder",
-      "renameSave": "Lưu",
       "delete": "Delete folder",
-      "deleteConfirm": "Delete this folder? Sketches inside it will move back to root.",
       "rootCrumb": "All sketches",
       "back": "Quay lại",
       "sketchCount": "{count, plural, =0 {empty} =1 {1 sketch} other {# sketches}}",
       "foldersHeader": "Folders",
       "rootHeader": "Phác thảo",
-      "inFolderHint": "New sketches you mint while viewing this folder will land here automatically.",
-      "emptyFolder": "This folder is empty. Mint a sketch or move one here from root.",
+      "emptyFolder": "Thư mục này trống.",
       "moveSourceFolder": "In {name}",
       "moveSourceRoot": "At root"
-    },
-    "select": {
-      "enter": "Chọn",
-      "exit": "Done",
-      "count": "{count, plural, =0 {None selected} =1 {1 selected} other {# selected}}",
-      "moveTo": "Move to…",
-      "moveToRoot": "Move to root",
-      "moveSuccess": "{count, plural, =1 {1 sketch moved} other {# sketches moved}}",
-      "moveError": "Move failed: {error}",
-      "selectAll": "Chọn tất cả",
-      "clear": "Xóa",
-      "delete": "Xóa",
-      "deleteConfirm": "{count, plural, =1 {Delete 1 sketch?} other {Delete # sketches?}} This cannot be undone.",
-      "deleteError": "Delete failed: {error}"
     },
     "viewToggle": {
       "split": "Split view",
@@ -820,72 +553,6 @@
       "move": "Move",
       "delete": "Xóa",
       "deleteOneConfirm": "Delete \"{title}\"? This cannot be undone."
-    }
-  },
-  "map": {
-    "title": "Map",
-    "subtitle": "The whole fleet on two planes — apps on the ground, MCP servers and connected services on air, with service-to-MCP wiring.",
-    "loading": "Đang tải…",
-    "refresh": "Làm mới",
-    "error": "Failed to load the fleet map",
-    "empty": "Nothing on the map yet — scaffold an app or declare your MCP inventory.",
-    "counts": {
-      "apps": "Ứng dụng",
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "legend": {
-      "air": "Air",
-      "ground": "Ground",
-      "servers": "MCP servers",
-      "services": "Connected services",
-      "apps": "Ứng dụng"
-    }
-  },
-  "mcpSkills": {
-    "title": "Dịch vụ được kết nối",
-    "subtitle": "Connected services: host skills and materialized MCP-orbit workflows, shown against the MCP servers they call.",
-    "loading": "Đang tải...",
-    "refresh": "Làm mới",
-    "error": "Failed to load connected services",
-    "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "backToList": "Back to Connected Services",
-    "backToService": "Back to connected service",
-    "notFound": "Connected service not found.",
-    "viewGraph": "Xem biểu đồ",
-    "present": "Present",
-    "missing": "Missing",
-    "counts": {
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "table": {
-      "name": "Tên",
-      "form": "Form",
-      "calls": "Calls",
-      "updated": "Updated"
-    },
-    "forms": {
-      "catalyst": "Catalyst skill",
-      "manual": "Manual skill",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Siêu dữ liệu",
-      "name": "Tên",
-      "ref": "Ref",
-      "kind": "Loại",
-      "form": "Form",
-      "updated": "Updated",
-      "hostPath": "Host path",
-      "catalyst": "Catalyst",
-      "composition": "Composition",
-      "calls": "Calls",
-      "noCalls": "No MCP calls declared.",
-      "needs": "Needs",
-      "components": "Components",
-      "knobs": "Knobs",
-      "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "Khoang kết xuất",
     "subtitle": "Mọi thứ mojulo đang sản xuất, ở một nơi: hàng đợi kết xuất ảnh bền bỉ, các bản bake GI, cùng các bản cook và bản xuất trên đĩa. Bốn cách nói \"có thứ gì đó đang được làm\" mà trước đây không có chung một mái nhà.",
-    "readOnly": "Khoang này chỉ hiển thị trạng thái. Mọi hành động ở đây là một lời nhắc để sao chép vào agent của bạn — chấp nhận một bản kết xuất, bake lại một thế giới, hay tạo một bản xuất đều diễn ra qua công cụ MCP, không bao giờ qua trang này.",
     "refresh": "Làm mới",
     "loading": "Đang tải…",
     "allLanes": "Tất cả các làn",
-    "copyPrompt": "Sao chép lời nhắc",
-    "copied": "Đã sao chép",
-    "copyFailed": "Không sao chép được — hãy chọn văn bản và sao chép thủ công",
     "showing": "hiển thị {shown} trên {total}",
     "queue": {
       "title": "Hàng đợi kết xuất",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "Mở tạo tác →",
-    "copied": "Đã sao chép",
-    "copyFailed": "Không sao chép được — hãy chọn văn bản và sao chép thủ công",
     "shelves": "Thư viện",
     "bays": "Xưởng",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "số tam giác: export_model"
     },
     "inspector": {
-      "askTitle": "Nhờ agent",
-      "askBody": "Bảng điều khiển hiển thị trạng thái; nó không bao giờ thay đổi dữ liệu. Việc sửa công thức này diễn ra trong agent máy chủ của bạn.",
-      "askCopy": "Sao chép lời nhắc",
       "bound": "Tạo tác đã gắn",
       "boundEmpty": "Chưa gắn gì — không có bản kết xuất, mesh hay bản xuất nào trên đĩa cho công thức này.",
       "openFolder": "Mở thư mục kết quả · {size}",
@@ -1110,8 +768,6 @@
     "empty": "Không có gì khớp với khía cạnh hoặc tìm kiếm này.",
     "emptyShelf": "Chưa tạo gì vào {shelf}.",
     "emptyShelfHint": "Nhờ agent của bạn tạo một cái — get_sketch_vocab có sẵn từ vựng.",
-    "copied": "Đã sao chép",
-    "copyFailed": "Không sao chép được — hãy chọn thủ công",
     "notExportable": "Không có bản xuất mesh — tạo tác này kết xuất dưới dạng sơ đồ, không phải mô hình đi bộ được.",
     "stack": "×{n}",
     "seed": "seed {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "đã tô vẽ · worker bên ngoài · công thức khung dựng vẫn là gốc",
-    "mintMissing": "Nhờ agent: tạo {piece}",
-    "mintPrompt": "Với nhân vật mojulo \"{name}\" (xem tạo tác {ref}), hãy tạo {piece} còn thiếu. Dùng công cụ tương ứng (create_sprite_sheet / bind_character_sheet / công cụ figure) — đọc get_sketch_vocab trước.",
     "facets": {
       "scenes": {
         "walkable": "Đi bộ được",

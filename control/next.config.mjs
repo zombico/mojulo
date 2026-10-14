@@ -30,6 +30,11 @@ const nextConfig = {
       { source: '/maker/illustrations', destination: '/library?shelf=images', permanent: false },
       { source: '/maker/worlds', destination: '/library?shelf=scenes', permanent: false },
       { source: '/maker/objects', destination: '/library?shelf=models', permanent: false },
+      // The dashboard is view only (UI on rails): the /maker hub repeated the Studio
+      // doors, and the office wing's pages left with its tools (3.1.0).
+      { source: '/maker', destination: '/', permanent: false },
+      { source: '/:wing(apps|mcp-skills)/:rest*', destination: '/', permanent: false },
+      { source: '/:wing(map|graph)', destination: '/', permanent: false },
     ];
   },
   // Each stays a runtime require, and the dashboard package resolves every one from

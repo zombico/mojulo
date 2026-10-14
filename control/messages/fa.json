@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "نقشه سرویس‌ها",
-    "back": "بازگشت"
-  },
-  "actions": {
-    "start": "شروع"
-  },
   "settings": {
     "title": "Settings",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Apps",
-    "subtitle": "Apps the agent has materialized through the App paradigm. Lifecycle, env vars, and live MCP introspection — read from the contextmap and the local runner.",
-    "loading": "در حال بارگذاری...",
-    "refresh": "Refresh",
-    "empty": "No apps yet — ask your Claude Code agent to scaffold one.",
-    "backToList": "Back to Apps",
-    "notFound": "App not found.",
-    "openPreview": "Open preview",
-    "openMcp": "Open MCP",
-    "actions": {
-      "start": "شروع",
-      "stop": "Stop",
-      "starting": "Starting…",
-      "stopping": "Stopping…"
-    },
-    "status": {
-      "running": "در حال اجرا",
-      "stopped": "Stopped",
-      "crashed": "Crashed",
-      "unknown": "نامشخص"
-    },
-    "table": {
-      "headers": {
-        "name": "Name",
-        "materialized": "Materialized",
-        "runner": "Runner",
-        "status": "Status",
-        "actions": "Actions"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "نقشهٔ ساختِ این اپ — هر فراخوانِ ابزار که آن را پدید آورد، همچون ایستگاه‌هایی روی یک خط."
-      },
-      "metadata": "Metadata",
-      "artifactPath": "Artifact path",
-      "materializationRef": "Materialization ref",
-      "adapter": "Adapter",
-      "appName": "App name",
-      "host": "Host",
-      "materializedAt": "Materialized at",
-      "viewGraph": "View graph",
-      "bindings": "Bindings",
-      "binding": {
-        "runner": "Runner",
-        "durability": "Durability",
-        "inference": "Inference",
-        "mcpSelf": "MCP self"
-      },
-      "mcpPanel": {
-        "title": "App MCP",
-        "url": "MCP URL",
-        "offline": "MCP offline — start the app to see its tool list.",
-        "loading": "Loading tools…",
-        "error": "Could not reach the app MCP: {error}",
-        "registeredTools": "Registered tools",
-        "noTools": "No tools registered.",
-        "declaredPurpose": "Declared purpose"
-      },
-      "envPanel": {
-        "title": "Environment variables",
-        "explainer": "Values are written directly to the artifact's .env file. They are not logged, not stored in the control-plane database, and not echoed back to this view.",
-        "addKey": "Key",
-        "addValue": "Value",
-        "add": "Add",
-        "delete": "حذف",
-        "deleteConfirm": "Delete env var \"{key}\"?",
-        "noKeys": "No env vars set yet.",
-        "valueHidden": "•••••",
-        "edit": "ویرایش",
-        "save": "ذخیره",
-        "cancel": "لغو",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "value"
-      },
-      "provenance": {
-        "title": "Provenance",
-        "subtitle": "Principles attached to this app's materialization commit.",
-        "none": "No principles recorded."
-      }
-    }
-  },
-  "graph": {
-    "title": "App Creation Map",
-    "subtitle": "How an app comes together. Each box is a piece; each arrow shows what causes what.",
-    "subtitleTechnical": "How an app is composed in the mojulo paradigm. Stations are the pieces; lines are the MCP tools that snap them together. Validated against the live MCP registry and contextmap schema on every refresh.",
-    "technicalToggle": "Technical",
-    "loading": "در حال بارگذاری...",
-    "refresh": "Refresh",
-    "overlay": {
-      "appCount": "{count, plural, =0 {No apps made yet} =1 {1 app made} other {# apps made}}",
-      "lastMaterialized": "Last one made",
-      "viewApps": "View running apps"
-    },
-    "validation": {
-      "ok": "Everything still checks out.",
-      "okTechnical": "Manifest valid: {tools} tools, {nodeKinds} node kinds, {edgeKinds} edge kinds, {sourceEvents} source events all resolve.",
-      "failed": "{count, plural, =1 {1 thing in the map no longer matches reality} other {# things in the map no longer match reality}}"
-    },
-    "legend": {
-      "input": "What you decide",
-      "inputTechnical": "Input",
-      "mcpTool": "A tool the agent calls",
-      "mcpToolTechnical": "MCP tool",
-      "filesystem": "Files on disk",
-      "filesystemTechnical": "Filesystem",
-      "dbRow": "Entry in memory",
-      "dbRowTechnical": "DB row"
-    }
-  },
   "login": {
     "subtitle": "Sign in to continue",
     "username": "Username",
@@ -178,7 +60,6 @@
     "title": "Plan",
     "subtitle": "Proposed work — sessions that became spikes. Forged and run from your host agent.",
     "navLabel": "Plan",
-    "newPlan": "New Plan",
     "total": "{count} plans",
     "count": "{count} plans",
     "filteredCount": "{count} of {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "هنوز اجرا نشده.",
     "stepOk": "تأیید",
     "stepFailed": "ناموفق",
-    "newPlanTitle": "New Plan",
-    "newPlanIntro": "Plans are forged in your host agent (Claude Code / Codex). Describe the intent, copy the starter prompt, and paste it into a new agent session — the agent enters plan mode and drives the work. This page updates as the plan is forged and revised.",
-    "intentLabel": "می‌خواهید چه برنامه‌ریزی کنید؟ (اختیاری)",
-    "intentPlaceholder": "مثال: یک runtime trigger webhook برای composer",
-    "promptLabel": "نوع پرسش ابتدایی",
-    "copyPrompt": "کپی نوع پرسش",
-    "copied": "کپی شد",
     "close": "بستن"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "قطعه",
     "kindSketch": "طرح",
     "viewSketch": "View diagram",
-    "composerHeading": "اضافه کردن به دفتر یادداشت",
-    "composerStub": "Preview only — binding happens through your host agent for now.",
-    "composerPlaceholder": "Paste a link, drop a file, or jot a note…",
-    "newBook": "کتاب جدید",
-    "newBookTitle": "کتاب تحقیق جدید",
-    "newBookIntro": "Books are started in your host agent (Claude Code / Codex). Describe the topic, copy the starter prompt, and paste it into a new agent session — the agent enters research mode and drives the work. This page updates as the book accretes.",
-    "intentLabel": "می‌خواهید چه تحقیق کنید؟ (اختیاری)",
-    "intentPlaceholder": "مثال: چگونه دیگران سرورهای MCP محلی را تونل می‌کنند",
-    "promptLabel": "نوع پرسش ابتدایی",
-    "copyPrompt": "کپی نوع پرسش",
-    "copied": "کپی شد",
     "close": "بستن"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "داشبورد",
       "open": "ورود به سالن ←"
-    },
-    "ask": {
-      "title": "از عامل بخواهید",
-      "body": "ساختن در عاملِ MCP شما رخ می‌دهد."
     }
-  },
-  "breadcrumbs": {
-    "home": "خانه"
   },
   "sketches": {
     "notFoundTitle": "طرح یافت نشد",
@@ -398,10 +254,6 @@
     "refresh": "تازه‌سازی",
     "statusOpen": "باز کردن",
     "statusResolved": "resolved @ rev {rev}",
-    "annotateHint": "Marks are written from your agent (annotate_beats — anchored to a bar, track, or cue); this panel renders them. Copy the revision prompt to have the agent mark or act on them.",
-    "copyRevisionPrompt": "کپی نوع پرسش نسخه",
-    "copied": "کپی شد ✓",
-    "copyFailed": "نتوانست به کلیپ‌بورد کپی شود.",
     "exportWav": "صادرات .wav",
     "exportMidi": "صادرات .mid",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "توسعه‌دهنده بازی",
     "gallerySubtitle": "هر بازی یک پروژه — قوانین، مراحل، شخصیت‌ها، صدا و هنر آن روی یک قفسه.",
     "galleryEmpty": "هنوز پروژه بازی‌ای وجود ندارد. برای شروع یکی، create_game_project را از عامل میزبان خود اجرا کنید.",
-    "copyStarterPrompt": "کپی نوع پرسش ابتدایی",
     "loading": "در حال بارگذاری پروژه‌ها…",
     "noMembersYet": "هنوز عضوی وجود ندارد",
     "notFound": "آن پروژه وجود ندارد — ممکن است بایگانی شده باشد یا ارجاع نادرست باشد.",
     "backToProjects": "بازگشت به توسعه‌دهنده بازی",
-    "copyWorkPrompt": "کپی درخواست کار",
-    "copyAddPrompt": "افزودن",
-    "copyMintPrompt": "ساخت بازی",
-    "copied": "کپی شد",
     "playable": "قابل بازی",
     "missing": "گمشده",
     "missingBody": "مصنوع این عضو دیگر وجود ندارد. پروژه جایگاه را حفظ می‌کند؛ آن را از عامل میزبان خود دوباره متصل یا حذف کنید.",
@@ -472,8 +319,6 @@
     "subtitle": "بازی‌های مستقل قابل بازی، ساخته‌شده در کارگاه. یک دستگاه انتخاب کنید و بازی کنید.",
     "loading": "در حال بارگذاری دستگاه‌ها…",
     "emptyState": "هنوز بازی‌ای روی صحنه نیست. برای ساخت اولین دستگاه، create_game را از عامل میزبان خود اجرا کنید.",
-    "copyStarterPrompt": "کپی نوع پرسش ابتدایی",
-    "copied": "کپی شد",
     "play": "بازی",
     "levelCount": "{count, plural, other {# مرحله}}",
     "shipped": "منتشرشده"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "استودیو: تصویرسازی‌ها، جهان‌های قابل پیمایش، اشیای سه‌بعدی، حرکت، بیت‌ها، صدا و خروجی‌های نهایی. یک سطح خلاقانه تنظیم‌شده، هم‌خانواده با Sketches (تنظیم‌شده برای نمودارها). هر قطعه همان پریمیتیو sketch است — به هر حال می‌توانید آن را ذخیره، ارجاع و مقایسه کنید."
-    },
     "beats": {
       "title": "ضربات",
       "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
@@ -546,11 +387,7 @@
       "tuned": "تنظیم شده (دستور تغیر نکرده)",
       "reset": "بازنشانی",
       "playingAt": "نمونه با اطمینان {c} / عمق {d}",
-      "noSamples": "No rendered samples yet — copy the speak command and have your agent bind a few points (edges included).",
-      "copyBlend": "کپی ترکیب",
-      "copyCommand": "کپی دستور صحبت",
-      "copyPrompt": "کپی نوع پرسش ابتدایی",
-      "copied": "کپی شد!",
+      "noSamples": "هنوز نمونهٔ رندرشده‌ای وجود ندارد.",
       "loading": "در حال بارگذاری رجیسترهای صدا…",
       "empty": "No voice registers yet. Ask your agent to mint one with create_voice.",
       "unresolvable": "This register no longer resolves — its bank may have changed. Re-mint it via create_voice."
@@ -602,10 +439,6 @@
     "kindNovel": "داستان کوتاه",
     "kindVisualGuide": "راهنمای بصری",
     "kindUnknown": "نامشخص",
-    "actions": {
-      "archive": "بایگانی",
-      "unarchive": "خارج کردن از بایگانی"
-    },
     "sourceLabel": "From",
     "sourceUnknown": "(حافظه حذف شده)",
     "lensLabel": "عدسی",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "حافظه‌ها",
-    "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
+    "subtitle": "سطل‌هایی از مواد نوع‌دار که عامل گردآوری کرده است.",
     "total": "{count, plural, =0 {بدون حافظه} =1 {1 حافظه} other {# حافظه}}",
     "count": "{count, plural, =0 {بدون تطابق} =1 {1 حافظه} other {# حافظه}}",
     "filteredCount": "{count} از {total} نشان داده شده",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {بدون کشو} =1 {1 کشو} other {# کشو}}",
     "createdAt": "ایجاد شده {timestamp}",
     "updatedAt": "Updated {timestamp}",
-    "actions": {
-      "rename": "تغیر نام",
-      "edit": "ویرایش",
-      "archive": "بایگانی",
-      "unarchive": "خارج کردن از بایگانی",
-      "save": "ذخیره",
-      "cancel": "لغو",
-      "titleEmpty": "عنوان نمی‌تواند خالی باشد",
-      "renameFailed": "تغیر نام ناموفق بود",
-      "statusChangeFailed": "نتوانست وضعیت را تغییر دهد"
-    },
     "detail": {
       "loading": "در حال بارگذاری حافظه…",
       "notFoundTitle": "حافظه یافت نشد",
@@ -673,66 +495,7 @@
         "sketch": "طرح"
       },
       "sketchFailed": "بارگذاری طرح ناموفق بود.",
-      "openSketch": "باز کردن طرح",
-      "newDrawer": "کشو جدید",
-      "newDrawerPlaceholder": "نام کشو",
-      "drawerSaveError": "نتوانست کشو را ذخیره کند",
-      "drawerRenameError": "نتوانست کشو را تغیر نام دهد",
-      "renameDrawerLabel": "تغیر نام کشو",
-      "moveError": "نتوانست مورد را انتقال دهد",
-      "archive": "بایگانی",
-      "archiveError": "نتوانست مورد را بایگانی کند",
-      "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
-      "archiveProceed": "بایگانی کردن به هر حال",
-      "archiveCancel": "لغو",
-      "addItem": "+ اضافه کردن",
-      "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
-      "picker": {
-        "text": "بلوک متن جدید",
-        "image": "بارگذاری تصویر",
-        "svg": "اضافه کردن SVG",
-        "link": "چسباندن پیوند",
-        "sketch": "انتخاب طرح"
-      },
-      "panel": {
-        "save": "ذخیره",
-        "cancel": "لغو",
-        "saving": "در حال ذخیره...",
-        "saveError": "نتوانست ذخیره کند",
-        "titleLabel": "عنوان (اختیاری)",
-        "titlePlaceholder": "برچسب کوتاه",
-        "sourceUrlLabel": "Source URL (اختیاری)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "قالب",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "متن ساده",
-        "bodyLabel": "بدنه",
-        "bodyPlaceholder": "تایپ کنید یا چسبانید…",
-        "preview": "پیش‌نمایش",
-        "previewEmpty": "برای پیش‌نمایش تایپ کنید.",
-        "tooLong": "Content exceeds the {limit, number} character cap.",
-        "imagePick": "تصویر را انتخاب کنید",
-        "imageDrop": "یا فایل را اینجا رها کنید",
-        "imageTooLarge": "Image exceeds the {limit, number} MB cap.",
-        "imageBadMime": "Not an image file ({mime}).",
-        "imageBadDimensions": "نتوانست ابعاد تصویر را بخواند.",
-        "altLabel": "متن جایگزین (اختیاری)",
-        "altPlaceholder": "چه چیزی در تصویر است؟",
-        "svgPaste": "چسباندن SVG",
-        "svgUpload": "یا بارگذاری .svg",
-        "svgBadShape": "SVG body must start with <?xml or <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL تجزیه نشد.",
-        "urlTitleRequired": "عنوان برای موارد پیوند الزامی است.",
-        "descriptionLabel": "توضیح (اختیاری)",
-        "descriptionPlaceholder": "چرا این اهمیت دارد…",
-        "sketchSearchPlaceholder": "جستجو در طرح‌ها…",
-        "sketchEmpty": "No sketches yet. Ask your agent to mint one with create_sketch.",
-        "sketchNoMatch": "هیچ طرحی با این جستجو مطابقت ندارد.",
-        "sketchPicked": "انتخاب شده"
-      }
+      "openSketch": "باز کردن طرح"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "دانلود PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
     "frameFailed": "این نما بارگذاری نشد.",
-    "renameLabel": "تغیر نام طرح",
-    "renamePlaceholder": "عنوان طرح",
-    "renameSave": "ذخیره",
-    "renameSaveNew": "ذخیره به عنوان طرح جدید",
-    "renameCancel": "لغو",
-    "renameEmpty": "عنوان نمی‌تواند خالی باشد",
     "associationTags": {
       "plan": "Plan",
       "research": "تحقیق"
@@ -771,45 +528,21 @@
       "selectPrompt": "یک ترک را در سمت چپ انتخاب کنید تا پخش کنید.",
       "invalidManifest": "این دستور نتوانست تجزیه شود.",
       "openNewTab": "باز کردن استودیو",
-      "renameLabel": "تغیر نام ترک",
-      "renamePlaceholder": "عنوان ترک",
-      "renameSaveNew": "ذخیره به عنوان ترک جدید",
       "exportWav": "صادرات .wav",
       "exportMidi": "صادرات .mid"
     },
     "folder": {
-      "newFolderButton": "پوشه جدید",
-      "newFolderTitle": "پوشه جدید",
-      "namePlaceholder": "نام پوشه",
       "create": "ایجاد",
       "cancel": "لغو",
-      "rename": "تغیر نام پوشه",
-      "renameSave": "ذخیره",
       "delete": "حذف پوشه",
-      "deleteConfirm": "Delete this folder? Sketches inside it will move back to root.",
       "rootCrumb": "تمام طرح‌ها",
       "back": "بازگشت",
       "sketchCount": "{count, plural, =0 {خالی} =1 {1 طرح} other {# طرح}}",
       "foldersHeader": "پوشه‌ها",
       "rootHeader": "طرح‌ها",
-      "inFolderHint": "New sketches you mint while viewing this folder will land here automatically.",
-      "emptyFolder": "This folder is empty. Mint a sketch or move one here from root.",
+      "emptyFolder": "این پوشه خالی است.",
       "moveSourceFolder": "در {name}",
       "moveSourceRoot": "در ریشه"
-    },
-    "select": {
-      "enter": "انتخاب",
-      "exit": "انجام شد",
-      "count": "{count, plural, =0 {انتخابی نیست} =1 {1 انتخاب شده} other {# انتخاب شده}}",
-      "moveTo": "انتقال به…",
-      "moveToRoot": "انتقال به ریشه",
-      "moveSuccess": "{count, plural, =1 {1 طرح منتقل شد} other {# طرح منتقل شد}}",
-      "moveError": "انتقال ناموفق: {error}",
-      "selectAll": "انتخاب همه",
-      "clear": "پاک‌کردن",
-      "delete": "حذف",
-      "deleteConfirm": "{count, plural, =1 {Delete 1 sketch?} other {Delete # sketches?}} This cannot be undone.",
-      "deleteError": "حذف ناموفق: {error}"
     },
     "viewToggle": {
       "split": "نمای تقسیم شده",
@@ -820,72 +553,6 @@
       "move": "انتقال",
       "delete": "حذف",
       "deleteOneConfirm": "Delete \"{title}\"? This cannot be undone."
-    }
-  },
-  "map": {
-    "title": "نقشه",
-    "subtitle": "The whole fleet on two planes — apps on the ground, MCP servers and connected services on air, with service-to-MCP wiring.",
-    "loading": "در حال بارگذاری...",
-    "refresh": "Refresh",
-    "error": "بارگذاری نقشه بنادر ناموفق بود",
-    "empty": "Nothing on the map yet — scaffold an app or declare your MCP inventory.",
-    "counts": {
-      "apps": "Apps",
-      "servers": "سرورهای MCP",
-      "services": "خدمات متصل"
-    },
-    "legend": {
-      "air": "هوا",
-      "ground": "زمین",
-      "servers": "سرورهای MCP",
-      "services": "خدمات متصل",
-      "apps": "Apps"
-    }
-  },
-  "mcpSkills": {
-    "title": "خدمات متصل",
-    "subtitle": "Connected services: host skills and materialized MCP-orbit workflows, shown against the MCP servers they call.",
-    "loading": "Loading...",
-    "refresh": "Refresh",
-    "error": "بارگذاری خدمات متصل ناموفق بود",
-    "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "backToList": "بازگشت به خدمات متصل",
-    "backToService": "بازگشت به خدمت متصل",
-    "notFound": "خدمت متصل یافت نشد.",
-    "viewGraph": "View graph",
-    "present": "حاضر",
-    "missing": "گمشده",
-    "counts": {
-      "servers": "سرورهای MCP",
-      "services": "خدمات متصل"
-    },
-    "table": {
-      "name": "Name",
-      "form": "فرم",
-      "calls": "تماس‌ها",
-      "updated": "به‌روز شده"
-    },
-    "forms": {
-      "catalyst": "مهارت کاتالیزور",
-      "manual": "مهارت دستی",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "name": "Name",
-      "ref": "Ref",
-      "kind": "نوع",
-      "form": "فرم",
-      "updated": "به‌روز شده",
-      "hostPath": "مسیر میزبان",
-      "catalyst": "کاتالیزور",
-      "composition": "ترکیب",
-      "calls": "تماس‌ها",
-      "noCalls": "بدون تماس MCP اعلام شده.",
-      "needs": "نیازها",
-      "components": "اجزاء",
-      "knobs": "دکمه‌ها",
-      "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "ایستگاه رندر",
     "subtitle": "هر آنچه Mojulo تولید می‌کند، در یک جا: صفِ ماندگارِ رندرِ تصویر، پخت‌های GI، و پخت‌های انتشار و برون‌بردهای روی دیسک. چهار راهِ گفتنِ «چیزی در حالِ ساخته‌شدن است» که تا امروز خانهٔ مشترکی نداشتند.",
-    "readOnly": "این ایستگاه فقط وضعیت را نمایش می‌دهد. هر کنشی اینجا پرامپتی است برای کپی‌کردن در عاملتان — پذیرفتنِ یک رندر، بازپختِ یک جهان و ضربِ یک برون‌برد همه از راه ابزارهای MCP رخ می‌دهند، هرگز از این صفحه.",
     "refresh": "Refresh",
     "loading": "در حال بارگذاری...",
     "allLanes": "همهٔ خطوط",
-    "copyPrompt": "کپی نوع پرسش",
-    "copied": "کپی شد",
-    "copyFailed": "کپی نشد — متن را انتخاب و دستی کپی کنید",
     "showing": "نمایش {shown} از {total}",
     "queue": {
       "title": "صف رندر",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "گشودن ساخته ←",
-    "copied": "کپی شد",
-    "copyFailed": "کپی نشد — متن را انتخاب و دستی کپی کنید",
     "shelves": "کتابخانه",
     "bays": "کارگاه",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "شمار مثلث‌ها: export_model"
     },
     "inspector": {
-      "askTitle": "از عامل بخواهید",
-      "askBody": "داشبورد وضعیت را نمایش می‌دهد؛ هرگز تغییرش نمی‌دهد. تغییرِ این دستور ساخت در عاملِ میزبانِ شما رخ می‌دهد.",
-      "askCopy": "کپی نوع پرسش",
       "bound": "ساخته‌های پیوندخورده",
       "boundEmpty": "هنوز چیزی پیوند نخورده — هیچ رندر، مش یا برون‌بردی روی دیسک برای این دستور ساخت نیست.",
       "openFolder": "گشودن پوشهٔ خروجی · {size}",
@@ -1110,8 +768,6 @@
     "empty": "چیزی با این دسته‌بندی یا جست‌وجو مطابقت ندارد.",
     "emptyShelf": "هنوز چیزی در {shelf} ضرب نشده.",
     "emptyShelfHint": "از عاملتان بخواهید یکی بسازد — واژگانش در get_sketch_vocab هست.",
-    "copied": "کپی شد",
-    "copyFailed": "کپی نشد — دستی انتخاب کنید",
     "notExportable": "برون‌بردِ مش ندارد — این ساخته به‌صورت نمودار رندر می‌شود، نه مدلی پیمودنی.",
     "stack": "×{n}",
     "seed": "بذر {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "نقاشی‌شده · کارگرِ بیرونی · دستور ساختِ داربست حاکم است",
-    "mintMissing": "از عامل بخواهید: {piece} را ضرب کند",
-    "mintPrompt": "برای شخصیتِ mojulo با نام «{name}» (ساختهٔ {ref} را ببینید)، {piece} گم‌شده را ضرب کن. از ابزار متناظر استفاده کن (create_sprite_sheet / bind_character_sheet / ابزارهای figure) — اول get_sketch_vocab را بخوان.",
     "facets": {
       "scenes": {
         "walkable": "پیمودنی",

@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "सेवाएं मानचित्र",
-    "back": "वापस"
-  },
-  "actions": {
-    "start": "शुरू करें"
-  },
   "settings": {
     "title": "सेटिंग्स",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "ऐप्स",
-    "subtitle": "ऐप्स जो एजेंट ने ऐप प्रतिमान के माध्यम से मूर्त किए हैं। जीवनचक्र, env वैर्स, और लाइव MCP आत्मनिरीक्षण — contextmap और स्थानीय रनर से पढ़ें।",
-    "loading": "लोड हो रहा है…",
-    "refresh": "ताज़ा करें",
-    "empty": "अभी कोई ऐप्स नहीं — अपने Claude Code एजेंट को एक स्कैफोल्ड करने के लिए कहें।",
-    "backToList": "ऐप्स पर वापस जाएं",
-    "notFound": "ऐप नहीं मिला।",
-    "openPreview": "प्रीव्यू खोलें",
-    "openMcp": "MCP खोलें",
-    "actions": {
-      "start": "शुरू करें",
-      "stop": "रोकें",
-      "starting": "शुरू हो रहा है…",
-      "stopping": "बंद हो रहा है…"
-    },
-    "status": {
-      "running": "चल रहा है",
-      "stopped": "रोका गया",
-      "crashed": "क्रैश हो गया",
-      "unknown": "अज्ञात"
-    },
-    "table": {
-      "headers": {
-        "name": "नाम",
-        "materialized": "मूर्त",
-        "runner": "रनर",
-        "status": "स्थिति",
-        "actions": "क्रियाएं"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "इस ऐप का निर्माण-मानचित्र — हर टूल कॉल जिसने इसे साकार किया, एक ही लाइन पर स्टेशनों की तरह।"
-      },
-      "metadata": "मेटाडेटा",
-      "artifactPath": "कलाकृति पथ",
-      "materializationRef": "मूर्त संदर्भ",
-      "adapter": "अनुकूलक",
-      "appName": "ऐप का नाम",
-      "host": "होस्ट",
-      "materializedAt": "को मूर्त किया गया",
-      "viewGraph": "ग्राफ़ देखें",
-      "bindings": "बंधन",
-      "binding": {
-        "runner": "रनर",
-        "durability": "स्थायित्व",
-        "inference": "अनुमान",
-        "mcpSelf": "MCP स्व"
-      },
-      "mcpPanel": {
-        "title": "ऐप MCP",
-        "url": "MCP URL",
-        "offline": "MCP ऑफ़लाइन — इसकी टूल सूची देखने के लिए ऐप शुरू करें।",
-        "loading": "टूल्स लोड हो रहे हैं…",
-        "error": "ऐप MCP तक पहुंचने में विफल: {error}",
-        "registeredTools": "पंजीकृत टूल्स",
-        "noTools": "कोई टूल्स पंजीकृत नहीं।",
-        "declaredPurpose": "घोषित उद्देश्य"
-      },
-      "envPanel": {
-        "title": "पर्यावरण चर",
-        "explainer": "मानों को सीधे कलाकृति की .env फ़ाइल में लिखा जाता है। वे लॉग नहीं किए जाते, नियंत्रण-प्लेन डेटाबेस में संग्रहीत नहीं होते, और इस दृश्य में प्रतिध्वनित नहीं होते हैं।",
-        "addKey": "कुंजी",
-        "addValue": "मान",
-        "add": "जोड़ें",
-        "delete": "हटाएं",
-        "deleteConfirm": "env वर \"{key}\" हटाएं?",
-        "noKeys": "अभी कोई env वर्स सेट नहीं हैं।",
-        "valueHidden": "•••••",
-        "edit": "संपादित करें",
-        "save": "सहेजें",
-        "cancel": "रद्द करें",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "मान"
-      },
-      "provenance": {
-        "title": "उदभव",
-        "subtitle": "इस ऐप के मूर्तिकरण कमिट से जुड़े सिद्धांत।",
-        "none": "कोई सिद्धांत दर्ज नहीं।"
-      }
-    }
-  },
-  "graph": {
-    "title": "ऐप निर्माण मानचित्र",
-    "subtitle": "एक ऐप कैसे एक साथ आता है। प्रत्येक बॉक्स एक टुकड़ा है; प्रत्येक तीर दिखाता है कि क्या क्या कारण है।",
-    "subtitleTechnical": "mojulo प्रतिमान में एक ऐप कैसे रचा जाता है। स्टेशन टुकड़े हैं; लाइनें MCP टूल्स हैं जो उन्हें एक साथ स्नैप करती हैं। प्रत्येक ताज़ा करने पर लाइव MCP रजिस्ट्री और contextmap स्कीमा के विरुद्ध सत्यापित।",
-    "technicalToggle": "तकनीकी",
-    "loading": "लोड हो रहा है…",
-    "refresh": "ताज़ा करें",
-    "overlay": {
-      "appCount": "{count, plural, =0 {अभी तक कोई ऐप नहीं बनाया गया} =1 {1 ऐप बनाया गया} other {# ऐप्स बनाए गए}}",
-      "lastMaterialized": "अंतिम बनाया गया",
-      "viewApps": "चलने वाले ऐप्स देखें"
-    },
-    "validation": {
-      "ok": "सब कुछ अभी भी ठीक है।",
-      "okTechnical": "मैनिफेस्ट वैध: {tools} टूल्स, {nodeKinds} नोड प्रकार, {edgeKinds} एज प्रकार, {sourceEvents} स्रोत घटनाएं सभी समाधान हैं।",
-      "failed": "{count, plural, =1 {मानचित्र में 1 चीज़ अब वास्तविकता से मेल नहीं खाती} other {मानचित्र में # चीज़ें अब वास्तविकता से मेल नहीं खाती}}"
-    },
-    "legend": {
-      "input": "आप क्या तय करते हैं",
-      "inputTechnical": "इनपुट",
-      "mcpTool": "एक उपकरण जो एजेंट कॉल करता है",
-      "mcpToolTechnical": "MCP उपकरण",
-      "filesystem": "डिस्क पर फ़ाइलें",
-      "filesystemTechnical": "फ़ाइल सिस्टम",
-      "dbRow": "मेमोरी में प्रविष्टि",
-      "dbRowTechnical": "DB पंक्ति"
-    }
-  },
   "login": {
     "subtitle": "जारी रखने के लिए साइन इन करें",
     "username": "उपयोगकर्ता नाम",
@@ -178,7 +60,6 @@
     "title": "योजना",
     "subtitle": "प्रस्तावित कार्य — सत्र जो स्पाइक्स बन गए। आपके होस्ट एजेंट से बनाया गया और चलाया गया।",
     "navLabel": "योजना",
-    "newPlan": "नई योजना",
     "total": "{count} योजनाएं",
     "count": "{count} योजनाएं",
     "filteredCount": "{count} का {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Not executed yet.",
     "stepOk": "ok",
     "stepFailed": "विफल",
-    "newPlanTitle": "नई योजना",
-    "newPlanIntro": "Plans are forged in your host agent (Claude Code / Codex). Describe the intent, copy the starter prompt, and paste it into a new agent session — the agent enters plan mode and drives the work. This page updates as the plan is forged and revised.",
-    "intentLabel": "What do you want to plan? (optional)",
-    "intentPlaceholder": "e.g. a webhook trigger runtime for the composer",
-    "promptLabel": "Starter prompt",
-    "copyPrompt": "Copy prompt",
-    "copied": "Copied",
     "close": "बंद करें"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Snippet",
     "kindSketch": "Sketch",
     "viewSketch": "आरेख देखें",
-    "composerHeading": "Add to notebook",
-    "composerStub": "Preview only — binding happens through your host agent for now.",
-    "composerPlaceholder": "Paste a link, drop a file, or jot a note…",
-    "newBook": "New book",
-    "newBookTitle": "New research book",
-    "newBookIntro": "Books are started in your host agent (Claude Code / Codex). Describe the topic, copy the starter prompt, and paste it into a new agent session — the agent enters research mode and drives the work. This page updates as the book accretes.",
-    "intentLabel": "What do you want to research? (optional)",
-    "intentPlaceholder": "e.g. how others tunnel local MCP servers",
-    "promptLabel": "Starter prompt",
-    "copyPrompt": "Copy prompt",
-    "copied": "Copied",
     "close": "बंद करें"
   },
   "displayModes": {
@@ -354,14 +217,7 @@
     "dashboard": {
       "title": "डैशबोर्ड",
       "open": "फ़्लोर खोलें →"
-    },
-    "ask": {
-      "title": "एजेंट से कहें",
-      "body": "निर्माण आपके MCP एजेंट में होता है।"
     }
-  },
-  "breadcrumbs": {
-    "home": "Home"
   },
   "sketches": {
     "notFoundTitle": "Sketch not found",
@@ -398,10 +254,6 @@
     "refresh": "refresh",
     "statusOpen": "open",
     "statusResolved": "resolved @ rev {rev}",
-    "annotateHint": "Marks are written from your agent (annotate_beats — anchored to a bar, track, or cue); this panel renders them. Copy the revision prompt to have the agent mark or act on them.",
-    "copyRevisionPrompt": "Copy revision prompt",
-    "copied": "Copied ✓",
-    "copyFailed": "Could not copy to the clipboard.",
     "exportWav": "Export .wav",
     "exportMidi": "Export .mid",
     "anchor": {
@@ -416,15 +268,10 @@
     "galleryTitle": "गेम डेवलपर",
     "gallerySubtitle": "हर गेम के लिए एक प्रोजेक्ट — इसके नियम, लेवल, किरदार, ऑडियो और आर्ट एक ही शेल्फ पर।",
     "galleryEmpty": "अभी तक कोई गेम प्रोजेक्ट नहीं। एक शुरू करने के लिए अपने होस्ट एजेंट से create_game_project चलाएँ।",
-    "copyStarterPrompt": "Copy starter prompt",
     "loading": "प्रोजेक्ट लोड हो रहे हैं…",
     "noMembersYet": "अभी तक कोई सदस्य नहीं",
     "notFound": "वह प्रोजेक्ट मौजूद नहीं है — यह आर्काइव किया गया हो सकता है या ref गलत है।",
     "backToProjects": "गेम डेवलपर पर वापस",
-    "copyWorkPrompt": "वर्क प्रॉम्प्ट कॉपी करें",
-    "copyAddPrompt": "जोड़ें",
-    "copyMintPrompt": "गेम मिंट करें",
-    "copied": "Copied",
     "playable": "खेलने योग्य",
     "missing": "Missing",
     "missingBody": "इस सदस्य का आर्टिफ़ैक्ट अब मौजूद नहीं है। प्रोजेक्ट स्लॉट रखता है; अपने होस्ट एजेंट से इसे फिर से बाइंड करें या हटाएँ।",
@@ -472,8 +319,6 @@
     "subtitle": "वर्कशॉप से मिंट किए गए खेलने योग्य स्टैंडअलोन गेम। एक कैबिनेट चुनें और खेलें।",
     "loading": "कैबिनेट लोड हो रहे हैं…",
     "emptyState": "अभी तक फ़्लोर पर कोई गेम नहीं। पहला कैबिनेट मिंट करने के लिए अपने होस्ट एजेंट से create_game चलाएँ।",
-    "copyStarterPrompt": "Copy starter prompt",
-    "copied": "Copied",
     "play": "खेलें",
     "levelCount": "{count, plural, one {# लेवल} other {# लेवल}}",
     "shipped": "शिप किया गया"
@@ -525,10 +370,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "स्टूडियो: चित्र, चलने योग्य दुनिया, 3D ऑब्जेक्ट, मोशन, बीट्स, वॉइस और तैयार आउटपुट। एक ट्यून किया गया रचनात्मक सतह, Sketches का सहोदर (डायग्राम के लिए ट्यून किया गया)। हर टुकड़ा वही sketch प्रिमिटिव है — किसी भी तरह इसे स्टैश, संदर्भित और diff करें।"
-    },
     "beats": {
       "title": "Beats",
       "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
@@ -546,11 +387,7 @@
       "tuned": "Tuned (recipe unchanged)",
       "reset": "reset",
       "playingAt": "Sample at confidence {c} / depth {d}",
-      "noSamples": "No rendered samples yet — copy the speak command and have your agent bind a few points (edges included).",
-      "copyBlend": "Copy blend",
-      "copyCommand": "Copy speak command",
-      "copyPrompt": "Copy starter prompt",
-      "copied": "प्रतिलिपि किया गया!",
+      "noSamples": "अभी तक कोई रेंडर किया गया सैंपल नहीं।",
       "loading": "Loading voice registers…",
       "empty": "No voice registers yet. Ask your agent to mint one with create_voice.",
       "unresolvable": "This register no longer resolves — its bank may have changed. Re-mint it via create_voice."
@@ -602,10 +439,6 @@
     "kindNovel": "Novella",
     "kindVisualGuide": "Visual guide",
     "kindUnknown": "अज्ञात",
-    "actions": {
-      "archive": "Archive",
-      "unarchive": "Unarchive"
-    },
     "sourceLabel": "से",
     "sourceUnknown": "(stash removed)",
     "lensLabel": "Lens",
@@ -614,7 +447,7 @@
   },
   "stashes": {
     "title": "Stashes",
-    "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
+    "subtitle": "एजेंट द्वारा इकट्ठा की गई टाइप की हुई सामग्री के बकेट।",
     "total": "{count, plural, =0 {No stashes} =1 {1 stash} other {# stashes}}",
     "count": "{count, plural, =0 {No matches} =1 {1 stash} other {# stashes}}",
     "filteredCount": "{count} of {total} shown",
@@ -631,17 +464,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Created {timestamp}",
     "updatedAt": "{timestamp} को अपडेट किया गया",
-    "actions": {
-      "rename": "Rename",
-      "edit": "संपादित करें",
-      "archive": "Archive",
-      "unarchive": "Unarchive",
-      "save": "सहेजें",
-      "cancel": "रद्द करें",
-      "titleEmpty": "Title cannot be empty",
-      "renameFailed": "Rename failed",
-      "statusChangeFailed": "Could not change status"
-    },
     "detail": {
       "loading": "Loading stash…",
       "notFoundTitle": "Stash not found",
@@ -673,66 +495,7 @@
         "sketch": "Sketch"
       },
       "sketchFailed": "Sketch failed to load.",
-      "openSketch": "Open sketch",
-      "newDrawer": "New drawer",
-      "newDrawerPlaceholder": "Drawer name",
-      "drawerSaveError": "Could not save drawer",
-      "drawerRenameError": "Could not rename drawer",
-      "renameDrawerLabel": "Rename drawer",
-      "moveError": "Could not move item",
-      "archive": "Archive",
-      "archiveError": "Could not archive item",
-      "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
-      "archiveProceed": "Archive anyway",
-      "archiveCancel": "रद्द करें",
-      "addItem": "+ Add",
-      "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
-      "picker": {
-        "text": "New text block",
-        "image": "Upload image",
-        "svg": "Add SVG",
-        "link": "Paste link",
-        "sketch": "Pick sketch"
-      },
-      "panel": {
-        "save": "सहेजें",
-        "cancel": "रद्द करें",
-        "saving": "सहेज रहे हैं…",
-        "saveError": "Could not save",
-        "titleLabel": "Title (optional)",
-        "titlePlaceholder": "Short label",
-        "sourceUrlLabel": "Source URL (optional)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Plain text",
-        "bodyLabel": "Body",
-        "bodyPlaceholder": "Type or paste…",
-        "preview": "पूर्वावलोकन",
-        "previewEmpty": "Type to preview.",
-        "tooLong": "Content exceeds the {limit, number} character cap.",
-        "imagePick": "Choose an image",
-        "imageDrop": "or drop a file here",
-        "imageTooLarge": "Image exceeds the {limit, number} MB cap.",
-        "imageBadMime": "Not an image file ({mime}).",
-        "imageBadDimensions": "Could not read image dimensions.",
-        "altLabel": "Alt text (optional)",
-        "altPlaceholder": "What's in the image?",
-        "svgPaste": "Paste SVG",
-        "svgUpload": "or upload .svg",
-        "svgBadShape": "SVG body must start with <?xml or <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL doesn't parse.",
-        "urlTitleRequired": "Title is required for link items.",
-        "descriptionLabel": "Description (optional)",
-        "descriptionPlaceholder": "Why this matters…",
-        "sketchSearchPlaceholder": "Search sketches…",
-        "sketchEmpty": "No sketches yet. Ask your agent to mint one with create_sketch.",
-        "sketchNoMatch": "No sketches match this search.",
-        "sketchPicked": "Picked"
-      }
+      "openSketch": "Open sketch"
     }
   },
   "sketchesIndex": {
@@ -753,12 +516,6 @@
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
     "frameFailed": "यह व्यू लोड नहीं हुआ।",
-    "renameLabel": "Rename sketch",
-    "renamePlaceholder": "Sketch title",
-    "renameSave": "सहेजें",
-    "renameSaveNew": "Save as new sketch",
-    "renameCancel": "रद्द करें",
-    "renameEmpty": "Title cannot be empty",
     "associationTags": {
       "plan": "योजना",
       "research": "Research"
@@ -771,45 +528,21 @@
       "selectPrompt": "Select a track on the left to play.",
       "invalidManifest": "This recipe could not be parsed.",
       "openNewTab": "Open Studio",
-      "renameLabel": "Rename track",
-      "renamePlaceholder": "Track title",
-      "renameSaveNew": "Save as new track",
       "exportWav": "Export .wav",
       "exportMidi": "Export .mid"
     },
     "folder": {
-      "newFolderButton": "New folder",
-      "newFolderTitle": "New folder",
-      "namePlaceholder": "Folder name",
       "create": "Create",
       "cancel": "रद्द करें",
-      "rename": "Rename folder",
-      "renameSave": "सहेजें",
       "delete": "Delete folder",
-      "deleteConfirm": "Delete this folder? Sketches inside it will move back to root.",
       "rootCrumb": "All sketches",
       "back": "वापस",
       "sketchCount": "{count, plural, =0 {empty} =1 {1 sketch} other {# sketches}}",
       "foldersHeader": "Folders",
       "rootHeader": "Sketches",
-      "inFolderHint": "New sketches you mint while viewing this folder will land here automatically.",
-      "emptyFolder": "This folder is empty. Mint a sketch or move one here from root.",
+      "emptyFolder": "यह फ़ोल्डर खाली है।",
       "moveSourceFolder": "In {name}",
       "moveSourceRoot": "At root"
-    },
-    "select": {
-      "enter": "चुनें",
-      "exit": "Done",
-      "count": "{count, plural, =0 {None selected} =1 {1 selected} other {# selected}}",
-      "moveTo": "Move to…",
-      "moveToRoot": "Move to root",
-      "moveSuccess": "{count, plural, =1 {1 sketch moved} other {# sketches moved}}",
-      "moveError": "Move failed: {error}",
-      "selectAll": "सभी चुनें",
-      "clear": "साफ करें",
-      "delete": "हटाएं",
-      "deleteConfirm": "{count, plural, =1 {Delete 1 sketch?} other {Delete # sketches?}} This cannot be undone.",
-      "deleteError": "Delete failed: {error}"
     },
     "viewToggle": {
       "split": "Split view",
@@ -820,72 +553,6 @@
       "move": "Move",
       "delete": "हटाएं",
       "deleteOneConfirm": "Delete \"{title}\"? This cannot be undone."
-    }
-  },
-  "map": {
-    "title": "Map",
-    "subtitle": "The whole fleet on two planes — apps on the ground, MCP servers and connected services on air, with service-to-MCP wiring.",
-    "loading": "लोड हो रहा है…",
-    "refresh": "ताज़ा करें",
-    "error": "Failed to load the fleet map",
-    "empty": "Nothing on the map yet — scaffold an app or declare your MCP inventory.",
-    "counts": {
-      "apps": "ऐप्स",
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "legend": {
-      "air": "Air",
-      "ground": "Ground",
-      "servers": "MCP servers",
-      "services": "Connected services",
-      "apps": "ऐप्स"
-    }
-  },
-  "mcpSkills": {
-    "title": "Connected Services",
-    "subtitle": "Connected services: host skills and materialized MCP-orbit workflows, shown against the MCP servers they call.",
-    "loading": "लोड हो रहा है...",
-    "refresh": "ताज़ा करें",
-    "error": "Failed to load connected services",
-    "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "backToList": "Back to Connected Services",
-    "backToService": "Back to connected service",
-    "notFound": "Connected service not found.",
-    "viewGraph": "ग्राफ़ देखें",
-    "present": "Present",
-    "missing": "Missing",
-    "counts": {
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "table": {
-      "name": "नाम",
-      "form": "Form",
-      "calls": "Calls",
-      "updated": "Updated"
-    },
-    "forms": {
-      "catalyst": "Catalyst skill",
-      "manual": "Manual skill",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "मेटाडेटा",
-      "name": "नाम",
-      "ref": "Ref",
-      "kind": "Kind",
-      "form": "Form",
-      "updated": "Updated",
-      "hostPath": "Host path",
-      "catalyst": "Catalyst",
-      "composition": "Composition",
-      "calls": "Calls",
-      "noCalls": "No MCP calls declared.",
-      "needs": "Needs",
-      "components": "Components",
-      "knobs": "Knobs",
-      "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
     }
   },
   "observability": {
@@ -921,13 +588,9 @@
   "renderBay": {
     "title": "रेंडर बे",
     "subtitle": "mojulo जो कुछ बना रहा है, सब एक जगह: टिकाऊ इमेज-रेंडर क्यू, GI बेक, और डिस्क पर मौजूद कुक और एक्सपोर्ट। \"कुछ बन रहा है\" कहने के चार तरीके, जिनका अब तक कोई साझा घर नहीं था।",
-    "readOnly": "बे सिर्फ़ स्थिति दिखाता है। यहाँ हर क्रिया एक प्रॉम्प्ट है जिसे अपने एजेंट में कॉपी करना है — रेंडर स्वीकारना, वर्ल्ड दोबारा बेक करना और एक्सपोर्ट मिंट करना, सब MCP टूल से होता है, इस पेज से कभी नहीं।",
     "refresh": "ताज़ा करें",
     "loading": "लोड हो रहा है…",
     "allLanes": "सभी लेन",
-    "copyPrompt": "Copy prompt",
-    "copied": "Copied",
-    "copyFailed": "कॉपी नहीं हो सका — टेक्स्ट चुनकर मैन्युअली कॉपी करें",
     "showing": "{total} में से {shown} दिख रहे",
     "queue": {
       "title": "रेंडर क्यू",
@@ -993,8 +656,6 @@
   },
   "home3d": {
     "openArtifact": "आर्टिफ़ैक्ट खोलें →",
-    "copied": "Copied",
-    "copyFailed": "कॉपी नहीं हो सका — टेक्स्ट चुनकर मैन्युअली कॉपी करें",
     "shelves": "लाइब्रेरी",
     "bays": "वर्कशॉप",
     "outliner": {
@@ -1050,9 +711,6 @@
       "triHint": "ट्रायंगल गिनती: export_model"
     },
     "inspector": {
-      "askTitle": "एजेंट से कहें",
-      "askBody": "डैशबोर्ड स्थिति दिखाता है; यह कभी बदलाव नहीं करता। इस रेसिपी को बदलना आपके होस्ट एजेंट में होता है।",
-      "askCopy": "Copy prompt",
       "bound": "बाउंड आर्टिफ़ैक्ट",
       "boundEmpty": "अभी कुछ बाउंड नहीं — इस रेसिपी के लिए डिस्क पर कोई रेंडर, मेश या एक्सपोर्ट नहीं।",
       "openFolder": "outcome फ़ोल्डर खोलें · {size}",
@@ -1110,8 +768,6 @@
     "empty": "इस फ़ैसेट या खोज से कुछ मेल नहीं खाता।",
     "emptyShelf": "{shelf} में अभी कुछ मिंट नहीं हुआ।",
     "emptyShelfHint": "अपने एजेंट से एक बनाने को कहें — शब्दावली get_sketch_vocab में है।",
-    "copied": "Copied",
-    "copyFailed": "कॉपी नहीं हो सका — मैन्युअली चुनें",
     "notExportable": "कोई मेश एक्सपोर्ट नहीं — यह आर्टिफ़ैक्ट डायग्राम की तरह रेंडर होता है, चलने योग्य मॉडल की तरह नहीं।",
     "stack": "×{n}",
     "seed": "seed {seed}",
@@ -1127,8 +783,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "पेंटेड · बाहरी वर्कर · स्कैफ़ोल्ड रेसिपी संप्रभु है",
-    "mintMissing": "एजेंट से कहें: {piece} मिंट करें",
-    "mintPrompt": "mojulo कैरेक्टर \"{name}\" (आर्टिफ़ैक्ट {ref} देखें) के लिए गायब {piece} मिंट करें। मिलता-जुलता टूल इस्तेमाल करें (create_sprite_sheet / bind_character_sheet / figure टूल) — पहले get_sketch_vocab पढ़ें।",
     "facets": {
       "scenes": {
         "walkable": "चलने योग्य",
