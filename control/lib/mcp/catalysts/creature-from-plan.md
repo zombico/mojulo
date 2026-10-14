@@ -17,7 +17,7 @@
       "description": "The creature in words (e.g. 'a hulking dragon with lizard legs and a detailed head', 'a lean four-legged swamp hound', 'a squat armoured beetle-bear'). Invented or organic bodies only — a person is character-from-dream, a real species with a real skeleton is mint_solid kind 'animal', a lamp or a machine is reconstruct-from-dream. Omit to ask the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["get_solid_vocab", "mint_solid", "update_sketch", "measure_solid", "export_model", "semantic_search", "get_image_render_packet"] }
+  "mcpTools": { "mojulo": ["get_solid_vocab", "create_character", "update_character", "measure_solid", "export_model", "semantic_search", "get_image_render_packet"] }
 }
 ---
 
@@ -86,7 +86,7 @@ quadruped in `docs/examples/ring-plans/`.
             `construction ≤ 0.3`, ONE subject, near-orthographic), read the ring radius at each
             station from the picture against the issued grid, and write the numbers.
 
-3. MINT     mint_solid({ kind: 'layered', via: 'plan', spec: { plan, title, plan_audit? } }).
+3. MINT     create_character({ as: 'creature', spec: { plan, plan_audit? }, title }).
             Refusals name the plan field (a joint the table lacks, a midline part off x = 0, a claw
             on a face that is not there, a stretch dial not declared). Fix the plan, not the recipe.
 
@@ -102,7 +102,7 @@ quadruped in `docs/examples/ring-plans/`.
             height), `fill` (a line drawing scores a note — the compare wants a filled silhouette).
             The sheet shows reference | silhouette | overlap (red = reference only, blue = source only).
 
-6. FIX      One number at a time: update_sketch({ ref, patch: [{ op: 'set', path:
+6. FIX      One number at a time: update_character({ ref, patch: [{ op: 'set', path:
             '/plan/segments/3/rA', value: 0.21 }] }) — the recipe re-expands. A dial is a live knob
             instead: patch '/dials/<name>'. Back to 4.
 

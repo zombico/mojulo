@@ -25,6 +25,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
 import { assembleCityScene } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
@@ -480,6 +481,12 @@ export const WORLD_KINDS = {
     walk: true,
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
+  },
+  // an egocube (egocube/kind.js): a character's design sheet rolled once and kept, shown as its character at each age of
+  // its thread, side by side; characters are made from it by ref (create_character { egocube })
+  egocube: {
+    title: 'mojulo egocube',
+    resolve: (m, ctx) => assembleEgocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, (lm, c) => WORLD_KINDS.layered.resolve(lm, c)),
   },
   // a heartbeat (era/heartbeat.js, level/heartbeat-scene.js): the flow of a level's land apart from its look, shown as a
   // walkable greybox on a reference level. A level lays it with ground.heartbeat and paints it with its kit or geocube.

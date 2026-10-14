@@ -453,7 +453,7 @@ const FORM_DEFS = {
     title: 'Scene & figure illustration',
     makes: 'painted scene sketches + publication covers',
     tools: ['sketch_what_possible', 'create_cover'],
-    notes: ['- Posed human figures, non-humanoid creatures and the manji-tree IR are 3D solids: the "object" form (kinds `figure` / `manji-tree`), or the "character" form for a body with a rig.'],
+    notes: ['- Posed human figures and the manji-tree IR are 3D solids: the "object" form (kinds `figure` / `manji-tree`); a creature, or any body with a rig, is the "character" form.'],
   },
   'reference': {
     title: 'Visual reference (from a photo)',
@@ -475,7 +475,7 @@ const FORM_DEFS = {
   },
   'object': {
     title: '3D solids, figures & objects',
-    makes: 'figures, creatures, objects, buildings, wordmarks — the unified 3D-solid mint',
+    makes: 'objects, posed figures, buildings, wordmarks — the unified 3D-solid mint (a character is its own form)',
     tools: ['mint_solid', 'edit_solid', 'measure_solid', 'fabricate_solid', 'get_solid_vocab', 'verify_machina'],
     notes: ["- On a `layered` row a drawn line is data: `set /strokes/-` stores a stroke; `{ op:'solve', from:'/strokes/<id>' }` turns it into dials (silhouette), a strip (contour) or a brush dial, with the residual it could not hold."],
   },
@@ -601,10 +601,10 @@ Verb overrides (closed list): audio revises via \`update_beats\` · voice never 
 Outcomes — a call lands one of four ways (classes to recognize, not wire types): ok(ref, url) · advisory(ref, findings — stamped, shipped anyway) · needs-vocab(the reply names the \`get_*_vocab\` drawer to read) · no(reason + next move — \`get_register_kit\` legend).
 
 mint dispatch — match the ask to a FORM:
-  CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal); revise, its target resolution, a level's light → \`update_character\`
+  CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal); revise, its target resolution, a level's light → \`update_character\` · to reuse across games → \`egocube\` (\`create_sketch\`)
   GAME     a game designed top down (hero, powers, gear, systems) → \`design_game\` · a level's ground → \`tune_ground\` · made levels, one store → \`create_game\`
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
-  PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure / non-humanoid creature (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
+  PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
   OBJECT   3D at literal scale — an everyday object / part, an assembly, a carved wordmark / logo, a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable) · paint / emote one → \`edit_solid\` · measure one → \`measure_solid\` · which screws / bearings / hinges it needs, what to buy → \`fabricate_solid\` · mechanical feasibility of a minted object (joints, clearances, will-it-spin) → \`verify_machina\` (level completability is MOTION traversal, below)
   WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · animated science / math / bio study object ("teach me nuclear fission") → \`create_view\`
   HOUSE    a house / apartment / cottage / townhouse / ONE furnished room / a store, restaurant, mall or school campus, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice)

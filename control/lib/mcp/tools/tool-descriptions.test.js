@@ -376,7 +376,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-14 (209_300 -> 203_900; measured 203,721) for UI on rails, merged over the game menus: the five
 // game-project tools retired (RETIRED_PACKS' pack_game_projects, still callable by name), and project_ref's
 // descriptions cut to a legacy line.
-const PAYLOAD_CEILING = 203_900;
+// Re-pinned 2026-10-14 (203_900 -> 204_200; measured 203,928) for the character stitch merged over UI on rails:
+// create_character's `egocube` and `years` (a character made from a stored Egocube sheet, at an age on its thread),
+// update_character's merge said in its description. No new tool.
+const PAYLOAD_CEILING = 204_200;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

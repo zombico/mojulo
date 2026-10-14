@@ -4,7 +4,7 @@
 // landmarks; `scale` on a worn head is refused with a pointer to tune.stature; the child-coded guard reads the RESOLVED
 // cast, so a list, a dial map or a build that comes to child takes no bust.
 import { describe, it, expect } from 'vitest';
-import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES } from './hero-form.js';
+import { heroPlan, castOf, HERO_CASTS, HERO_BUILD_NAMES, HERO_LAWS_VERSION } from './hero-form.js';
 import { compileLayered } from './station-loft.js';
 import { CAST_PRESETS, CAST_PRESET_NAMES, composeCast, resolveCast } from './figure-cast.js';
 import { heroHeadPole } from './anime-looks.js';
@@ -89,6 +89,17 @@ describe('a pole with a build: female, built brute', () => {
   });
 });
 
+describe('casts and forms a worn head cannot build are refused at the door, not thrown downstream', () => {
+  it('a list or a dial map is the blank trunk\'s; the tiered form needs the structured core', () => {
+    for (const head of [undefined, 'landmark', 'anime']) {
+      for (const cast of [['child'], { thigh: 0.9 }]) expect(validateHeroSpec({ cast, head })).toEqual([expect.stringMatching(/^cast: a list or a dial map builds only the blank trunk/)]);
+    }
+    expect(validateHeroSpec({ cast: ['child'], head: 'none' })).toEqual([]);
+    expect(validateHeroSpec({ cast: 'male', form: 'tiered', core: 'streamlined' })).toEqual([expect.stringMatching(/^form: 'tiered' builds on the structured core/)]);
+    expect(validateHeroSpec({ cast: 'male', form: 'tiered' })).toEqual([]);
+  });
+});
+
 describe('scale on a worn head', () => {
   it('is refused with a pointer to tune.stature on the landmark and anime heads; the blank trunk honours it', () => {
     for (const head of [undefined, 'landmark', 'anime']) {
@@ -108,14 +119,15 @@ describe('scale on a worn head', () => {
 
 describe('the child-coded guard reads the resolved cast', () => {
   it('refuses a bust on a build, a list or a dial map that comes to a child', () => {
-    const refused = (cast, why) => expect(validateHeroSpec({ cast, body: { bust: 0.03 } })).toEqual([`body.bust: ${why} is a child-coded figure and takes no bust; remove body.bust (0 is the only value it takes)`]);
+    // a list or a dial map builds on the blank trunk only (a worn head refuses it by name, above)
+    const refused = (cast, why) => expect(validateHeroSpec({ cast, head: 'none', body: { bust: 0.03 } })).toEqual([`body.bust: ${why} is a child-coded figure and takes no bust; remove body.bust (0 is the only value it takes)`]);
     refused({ pole: 'female', build: 'child' }, "the 'child' build");
     refused({ build: 'chibi' }, "the 'chibi' build");
     refused(['child', { forearm: 1.1 }], "the cast on 'child'");
     refused(['brute', 'chibi'], "the cast on 'chibi'");
     refused({ from: 'child', thigh: 0.8 }, "the cast on 'child'");
     refused({ ...CAST_PRESETS.child.dials }, "the cast resolving to 'child'");
-    for (const cast of [{ pole: 'female', build: 'brute' }, ['brute', { forearm: 1.3 }], { thigh: 1.1 }]) expect(validateHeroSpec({ cast, body: { bust: 0.03 } }), JSON.stringify(cast)).toEqual([]);
+    for (const cast of [{ pole: 'female', build: 'brute' }, ['brute', { forearm: 1.3 }], { thigh: 1.1 }]) expect(validateHeroSpec({ cast, head: 'none', body: { bust: 0.03 } }), JSON.stringify(cast)).toEqual([]);
   });
   it('and at plan time: a figure that comes to a child is never bare-chested, a rash vest over its torso', () => {
     const torso = (m) => { const mesh = compileLayered(m.recipe); return new Set(mesh.groups.filter((_, i) => /^torso\/st[0-2]/.test(mesh.faceIds[i]))); };
@@ -124,5 +136,22 @@ describe('the child-coded guard reads the resolved cast', () => {
       expect(bustParts(m), JSON.stringify(spec)).toEqual([]); expect([...torso(m)], JSON.stringify(spec)).toEqual(['Swim']);
     }
     expect(torso(expand({ cast: 'male', detail: 'swimsuit' }))).toEqual(new Set(['Skin']));   // an adult's chest is bare
+  });
+});
+
+describe('the hero laws: a hero reading the newer tables is stamped at mint, and the stamp moves nothing', () => {
+  it('stamps a build, the tiered form, the painterly look and a cube; leaves the rest and the inline hero alone', () => {
+    for (const spec of [{ cast: { pole: 'female', build: 'brute' } }, { cast: 'male', form: 'tiered' }, { cast: 'female', head: 'anime', painterly: true }, { cast: 'male', geocube: 'island-noon' }]) {
+      expect(heroRecord(spec).laws, JSON.stringify(spec)).toBe(HERO_LAWS_VERSION);
+      expect(heroRecord(spec, { staleScale: true }).laws, JSON.stringify(spec)).toBeUndefined();
+    }
+    expect(heroRecord({ cast: 'male' }).laws).toBeUndefined();
+    expect(validateHeroSpec({ cast: 'male', laws: 99 })).toEqual([expect.stringMatching(/^laws: 99 is unknown — this kernel carries hero laws 1/)]);
+  });
+  it('a stamped hero builds what an unstamped one does: absent reads as laws 1', () => {
+    const spec = { cast: { pole: 'female', build: 'brute' } };
+    const stamped = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
+    const bare = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec, { staleScale: true }) });
+    expect(stamped.plan).toEqual(bare.plan); expect(stamped.recipe).toEqual(bare.recipe);
   });
 });

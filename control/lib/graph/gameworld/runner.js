@@ -38,6 +38,12 @@ import { rideBuild, rideRule } from './ride.js';
 import { seedOfRef } from '../beats/field-cue.js';
 
 const REF_MAX = 64;
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+
+/** The character light in an order's print. Named `light` where an order carries one: the door now receives it (it
+ * was dropped before), so the print of such an order moves and a run remakes the hero once, with its light. An order
+ * with none prints as it always did. */
+const lit = (toon) => (toon ? { light: toon } : { toon: null });
 
 /** The ref of what a run makes for `part` of the gameworld at `ref`: `<ref>-<part>`, or, past the 64 characters a ref
  * may have, the ref cut short with its print to keep it apart. */
@@ -47,28 +53,50 @@ export function childRef(ref, part) {
   return `${ref.slice(0, REF_MAX - part.length - 10)}-${fingerprint(ref)}-${part}`;
 }
 
+/** A hero a game plays runs on its own calibrated jog (a game's run speed is a jog's, not a walk's): `motion.jog`
+ * unless it names its own. A figure that only walks about (a guard, the cast) keeps its walk alone. */
+const playJog = (spec) => ((isObj(spec.motion) && 'jog' in spec.motion) || (isObj(spec.clips) && 'jog' in spec.clips) ? spec : { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), jog: true } });
+// the motion page sets /hero/motion whole: it keeps the jog the hero plays on
+const keepJog = (patch) => patch && patch.map((op) => (op.op === 'set' && op.path === '/hero/motion' && isObj(op.value) && !('jog' in op.value) ? { ...op, value: { ...op.value, jog: true } } : op));
+// the door gaits a pilot carries (player.js plays its own jog and walk over the library's)
+const gaitsOf = (spec) => (spec && isObj(spec.motion) ? Object.keys(spec.motion) : null);
+
+/** The hero's ref: the one the world adopts (`characters.hero.ref`, made with create_character), else the one a run
+ * makes at `<ref>-hero`. */
+export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? childRef(ref, 'hero');
+
 /** The steps of a run, in the order they are made (the hero first: the others name it, or wait on its pinned base). */
 export function runSteps(world, { ref, lookup } = {}) {
   if (typeof ref !== 'string' || !ref) throw new Error('runner: the steps are made at refs derived from the gameworld\'s own ref');
   const G = readGameworld(world);
-  if (world.quick) return quickSteps(world, G, ref);
+  if (world.quick) return quickSteps(world, G, ref, lookup);
   const O = heroOrders(G);
   if (!O) return [];
-  const heroRef = childRef(ref, 'hero');
-  const hero = { spec: O.mint.args.spec, mint: O.mint.args, motion: O.motion?.args.patch ?? null };
-  const steps = [{ key: 'hero', ref: heroRef, ready: true, order: hero, print: fingerprint({ spec: hero.spec, motion: hero.motion, toon: hero.mint.toon ?? null }) }];
+  // an adopted hero (characters.hero.ref) is pinned, never made: the step says so (`adopt`), and it plays as it is
+  const adopted = G.characters?.hero?.ref ?? null, heroRef = heroRefOf(world, ref);
+  const hero = { spec: playJog(O.mint.args.spec), mint: { ...O.mint.args, spec: playJog(O.mint.args.spec) }, motion: keepJog(O.motion?.args.patch) ?? null };
+  const steps = [adopted
+    ? { key: 'hero', ref: heroRef, ready: true, adopt: true, order: { adopt: heroRef }, print: fingerprint({ adopt: heroRef }) }
+    : { key: 'hero', ref: heroRef, ready: true, order: hero, print: fingerprint({ spec: hero.spec, motion: hero.motion, ...lit(hero.mint.toon) }) }];
   const ready = characterReady(world, { lookup }), B = resolveBook(world);
   const waits = (r) => (r.ready ? {} : { waiting: r.waiting });
-  const Q = equippedHero(G, { composed: { spec: hero.spec } });
+  // a hero edited by hand since the run is the one that plays: the equipped hero is built over it (its own motion
+  // included), not over the book's base (`lookup.heroSpec` is HEAD in the door's words, design-game.js heroLookup)
+  // (an adopted hero is its own throughout: its looks and its motion, never the book's)
+  const edited = !!(adopted ? lookup?.heroSpec : world.made?.hero?.ref === heroRef && lookup?.heroSpec && lookup.head && fingerprint(lookup.head) !== world.made.hero.stored);
+  const Q = equippedHero(G, { composed: { spec: edited ? lookup.heroSpec : hero.spec } });
   if (Q) {
     // the motion's gaits and clips ride; the stand that shows the gear (HOLD_STAND) wins over the motion's own
-    const spec = { ...Q.spec, ...(hero.motion ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}) };
-    steps.push({ key: 'hero-equipped', ref: childRef(ref, 'hero-equipped'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...hero.mint, title: `${hero.mint.title} · equipped`, spec }, spec }, print: fingerprint({ spec, toon: hero.mint.toon ?? null }) });
+    const spec = { ...Q.spec, ...(hero.motion && !edited ? motionFields(hero.motion) : {}), ...(Q.spec.gesture ? { gesture: Q.spec.gesture } : {}) };
+    // an adopted hero's light is its own row's (create_character's `toon`), not the tradition's
+    const toon = adopted ? lookup?.head?.toon : hero.mint.toon;
+    const { toon: _t, ...mint } = hero.mint;
+    steps.push({ key: 'hero-equipped', ref: childRef(ref, 'hero-equipped'), ready: ready.adornment.ready, ...waits(ready.adornment), order: { mint: { ...mint, ...(toon ? { toon } : {}), title: `${hero.mint.title} · equipped`, spec }, spec }, print: fingerprint({ spec, ...lit(toon) }) });
   }
   // the cast: each made after the hero, as the hero is (a hero-door base, then its motion); it waits on nothing
   for (const id of Object.keys(G.characters?.cast ?? {})) {
     const C = castOrders(G, id), order = { spec: C.mint.args.spec, mint: C.mint.args, motion: C.motion?.args.patch ?? null };
-    steps.push({ key: `cast-${id}`, ref: childRef(ref, `cast-${id}`), ready: true, order, print: fingerprint({ spec: order.spec, motion: order.motion, toon: order.mint.toon ?? null }) });
+    steps.push({ key: `cast-${id}`, ref: childRef(ref, `cast-${id}`), ready: true, order, print: fingerprint({ spec: order.spec, motion: order.motion, ...lit(order.mint.toon) }) });
   }
   const MO = mechanicsOrders(G, B.mechanics, { heroRef });
   if (MO) steps.push({ key: 'systems', ref: childRef(ref, 'systems'), ready: ready.systems.ready, ...waits(ready.systems), order: MO.args, print: fingerprint(MO.args) });
@@ -84,7 +112,9 @@ export function runSteps(world, { ref, lookup } = {}) {
   // the levels: each stage a world the hero pilots (holding its gear when the equipped hero is made), with the systems'
   // play block; then the game over them in the play shell (play-shell.js), its store compiled from the book. Walkable by construction; beatability is
   // the creator's, in play (create_game records the levels as unaudited).
-  const pilot = steps.some((s) => s.key === 'hero-equipped') ? childRef(ref, 'hero-equipped') : heroRef;
+  const equipped = steps.find((s) => s.key === 'hero-equipped');
+  const pilot = equipped ? childRef(ref, 'hero-equipped') : heroRef;
+  const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
   // a building by ref is played as it was made: its ref is the level, and no step makes it
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
@@ -100,7 +130,7 @@ export function runSteps(world, { ref, lookup } = {}) {
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
@@ -128,13 +158,17 @@ export function storyReport(world, { ref = 'gw' } = {}) {
 /** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the
  * goal placed on its anchors, piloted by the hero or in first person, then the game in the play shell (play-shell.js).
  * Nothing waits: a quick game has no book to review. */
-function quickSteps(world, G, ref) {
+function quickSteps(world, G, ref, lookup) {
   const Q = world.quick, steps = [];
-  const heroRef = Q.hero ? childRef(ref, 'hero') : null;
-  if (Q.hero) {
-    const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec: Q.hero, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
-    steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec: Q.hero, mint, motion: null }, print: fingerprint({ spec: Q.hero, toon: mint.toon ?? null }) });
+  // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
+  const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;
+  const heroRef = adopted ?? (Q.hero ? childRef(ref, 'hero') : null);
+  if (adopted) steps.push({ key: 'hero', ref: heroRef, ready: true, adopt: true, order: { adopt: heroRef }, print: fingerprint({ adopt: heroRef }) });
+  else if (Q.hero) {
+    const spec = playJog(Q.hero), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
+    steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
+  const heroGaits = gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(Q.hero) : null);
   // a ride (ride.js): the vehicle's build, minted as its own sketch; every stage drives it
   const rideRef = Q.ride ? childRef(ref, 'ride') : null;
   if (rideRef) {
@@ -148,20 +182,20 @@ function quickSteps(world, G, ref) {
     for (const [key, spec] of Q.goal === 'defend' ? [['foe', Q.foe ?? QUICK_FOE], ['tower', Q.tower ?? QUICK_TOWER]] : [['foe', Q.foe ?? (Q.goal === 'shoot' ? QUICK_GUNNER : QUICK_FOE)]]) {
       figRefs[key] = childRef(ref, key);
       const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${key}`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
-      steps.push({ key, ref: figRefs[key], ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, toon: mint.toon ?? null }) });
+      steps.push({ key, ref: figRefs[key], ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
     }
   }
   // a farm's farmhands: one figure
   if (Q.goal === 'farm' && (Q.folk ?? 2) > 0) {
     const spec = Q.farmhand ?? QUICK_FARMHAND, mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} farmhand`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
     figRefs.farmhand = childRef(ref, 'farmhand');
-    steps.push({ key: 'farmhand', ref: figRefs.farmhand, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, toon: mint.toon ?? null }) });
+    steps.push({ key: 'farmhand', ref: figRefs.farmhand, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
   // a sneak's guards: one figure, minted as a hero is (the game's own spec, or a plain one)
   const guardRef = Q.goal === 'sneak' ? childRef(ref, 'guard') : null;
   if (guardRef) {
     const spec = Q.guard ?? QUICK_GUARD, mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} guard`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
-    steps.push({ key: 'guard', ref: guardRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, toon: mint.toon ?? null }) });
+    steps.push({ key: 'guard', ref: guardRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
@@ -170,7 +204,7 @@ function quickSteps(world, G, ref) {
     if (s.building?.ref) return;
     const audio = scoreOf(s, i);
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef }), legend: 'click  fire' } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef }), legend: 'click  fire' } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   const links = gameLinks(stages, levelRefs);

@@ -29,7 +29,8 @@ async function compileAs(session) {
 describe('compile_plan and tiers', () => {
   it('counts steps by tier, lightest first, and names untiered tools', () => {
     expect(tierCounts(['create_view', 'measure_view', 'list_plans', 'design_game'])).toEqual({ ride: 2, fill: 1, design: 1 });
-    expect(tierCounts(['create_character'])).toEqual({ untiered: 1 });
+    expect(tierCounts(['create_character'])).toEqual({ judge: 1 });
+    expect(tierCounts(['not_a_listed_tool'])).toEqual({ untiered: 1 });
   });
 
   it('a Claude host learns the steps by tier and that execution needs no model', async () => {

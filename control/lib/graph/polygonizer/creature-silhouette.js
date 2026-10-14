@@ -37,6 +37,7 @@
  */
 import { figureMask, heightFrame } from './silhouette-gates.js';
 import { hexLch, lchHex } from './station-loft-shade.js';
+import { faceHex } from './face-hex.js';
 
 export const MONO_DL = 12, SPLIT_DL = 24, JAG = 0.18;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -127,7 +128,7 @@ export function markingTint(mesh, plan, markings) {
   const body = new Set(Object.entries(mesh.parts).filter(([, p]) => (p.layer ?? 1) === 1).map(([n]) => n));
   const cover = new Set([...F.keys()].filter((fi) => body.has(partOf(fi))).map((fi) => mesh.groups[fi]));
   for (const g of ['Fur', 'FurAlt']) cover.add(g);
-  const baseOf = (fi) => palette[mesh.groups[fi]] || mesh.parts[partOf(fi)]?.tint || '#8a8f96';
+  const baseOf = (fi) => faceHex(palette, mesh.groups[fi], mesh.parts[partOf(fi)]);
   // only the body's MAIN tone takes a marking: what already stands apart from it (dark paws, a pale belly the plan
   // painted) keeps its colour
   const tones = bodyTones(mesh, plan), mainTone = (hex) => !tones || Math.abs(hexLch(hex)[0] - tones.mid) <= MONO_DL;

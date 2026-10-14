@@ -13,6 +13,112 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character stitch: one hero mint, the hero's own walk in play, the Egocube as a kind
+
+A sweep of the character loop after its streams met found the core converged (one hero door, one cast resolver, the
+child guard on the resolved cast) and the doors around it not composing: four ways to mint a hero that each dropped
+something, games that never played the hero's own clips, an Egocube no agent could reach, and descriptions that still
+taught `mint_solid`. This theme stitches them.
+
+- **Fixed: a world that populates its gear finishes its run.** The run record had no key for a starter item
+  (`stock-<id>`), so a `design_game` run with `equipment.populate` threw after every sketch was minted and left the
+  world with no record and no pinned base.
+- **Fixed: the book's anime hero keeps its character light.** Its orders put `toon` beside the spec, where `mint_solid`
+  never reads it, so every anime hero a run made was lit by the studio. One helper now mints and remakes every hero a
+  run makes (`hero-mint.js`): the light rides in the spec, a remake sets it, and a figure remade with no motion page
+  keeps the walk it was stored with instead of the stock four keys. An order that carries a light prints anew, so the
+  next run remakes those heroes once, with their light; a hero edited by hand is still left alone. The four
+  near-identical hero branches of `design_game`'s runner are one.
+- **Refused at the door, not thrown downstream.** A list or a dial-map cast on a worn head (it builds only the blank
+  trunk) and `form: 'tiered'` on the streamlined core are refused by name; both threw a stack trace before.
+- **Fixed: the Egocube's child is a child.** It wrote the bare `cast: 'child'`, which keeps adult radii and the male
+  head; it writes the pole's child build, `{ pole, build: 'child' }`.
+- **An animal is an animal to the door.** A species minted as a ring plan carries its `species` (new rows; the resolve
+  never reads it), so `update_character` names it an animal and points at the `animal` card. `as: 'animal'` is titled
+  by what it is when no title is given, as the hero and the creature are (it was refused).
+- **Fixed: the cast spend counts the anime face as the head.** It wraps below the head's base and was charged to
+  clothing, so a bare anime hero read as over-dressed. Readout only.
+- **The hero laws.** A hero that reads the newer tables (a build, the tiered form, the painterly look, a geocube's cast
+  light) is stamped `laws: 1` at mint, as armour, outfit and statue builds already are, so an eyes-gate retune of
+  those tables lands as laws 2 beside them and never moves a row already minted. An absent stamp reads as laws 1; a
+  world's inline hero, re-recorded on every render, is never stamped there. An unknown `laws` is refused.
+- **A word the hero door does not take is refused, with where it belongs.** `create_character` dropped it without a
+  word (`build`, `wings`) and `update_character` stored it where nothing read it. Both now refuse it by name and say
+  where it goes (`build` → `cast: { pole, build }`, `wings` → a creature, a typo → the word it is nearest). Only the
+  words in the call are checked: a row that already carries one keeps rendering and can still be revised, and a
+  world's inline hero is never refused.
+- **`update_character` merges at any depth.** `{ adorn: { dials: { stylize: 1 } } }` turns one dial and
+  `{ palette: { Top } }` one colour; before, each replaced its whole key (and a dial alone was refused for losing the
+  armour's type). An object naming `type`, `style`, `item` or `from` still replaces its key whole, a list or a word
+  replaces, and null removes at any depth.
+- **`vibe` on the door.** Words for how the hero moves (`['cocky', 'light']`) are lowered at mint, and on an edit, to the
+  gaits' dials and a stand, as the character book's motion page lowers them; the hero's own `motion` and `gesture` win.
+  The mint says what each word did; the words themselves are not stored.
+- **A hero new to a world walks as a minted hero does.** A world's inline hero, written now, gets the calibrated walk
+  and its hero laws where it is written; a figure the world already had is left as it was stored.
+- **A hand edit is seen, and it plays.** A hero edited since the run that made it is said on its base
+  (`hero:base`: it has moved past its pin), and the equipped hero is built over the edited one instead of the book's.
+- **A hero made on its own joins a game.** `characters.hero.ref` (and a quick game's `hero: { ref }`) names a hero made
+  with `create_character`: the run pins it and makes none, the levels pilot it, its own looks and motion play (the
+  motion page says it is not applied), and a missing ref is said.
+- **The game plays the hero's own run.** A hero a game plays (the book's, a quick game's) is minted with the calibrated
+  jog beside its walk, and the motion page keeps it. The player plays the hero's own door gaits over the library's
+  (its jog forward and sideways, its walk turning) and the library fills the rest (the idle, the jump); before, the
+  library's clips covered every state it named, so a hero's calibrated walk never played. The pilot's stride is the
+  jog's own metres per cycle (`HERO_GAIT_STRIDE`, measured on the canonical heroes), so its feet keep pace at the
+  game's run speed; the jog plays about half again faster than its own clock there. Written into a level when it is
+  made: a stored game plays as it did. An adopted hero with no jog is told, and the library's plays.
+- **Clip lengths said as they are.** The Godot README and `export_model` said every clip runs one second; each runs its
+  own length (a calibrated walk 1.1 s).
+- **The Egocube, a kind.** `create_sketch { kind: 'egocube', roll: { brief?, facets?, seed?, years?, chapters? },
+  dress? }` rolls a character's design sheet (with `years` and `chapters`, its fate thread) where it is written and
+  keeps it by value, as a geocube keeps a level's look: the same person can be made in many games, and a later change
+  to the Egocube's tables never moves a stored sheet. Its preview is the character at each age of its thread, side by
+  side, every camera backed off to hold the lineup. No new tool.
+- **A character from a stored sheet.** `create_character { egocube: '<ref>', years? }` makes the sheet's character at
+  that age through the door its people take (a person the hero door, a lineage below it the creature door), dressed as
+  the cube says; a hero's `spec` lays over the sheet's words. The character records the sheet it was made from, and an
+  `update_character` says when the sheet has moved since (the character keeps what it was made with). A game takes it
+  by ref like any hero made on its own (`characters.hero.ref`).
+- **Designed dress keeps its pieces.** A person dressed from the sheet wore only the cut: the mantle, the pauldron, the
+  sash and the bracers the design chose (and its laws checked) were dropped. The hero's outfit build now carries them
+  (`outfit.pieces`, in its intent's palette) and the hero wears them over the cut on its own landmarks, as a creature
+  wears them; a piece with no place on a person's body yet (the collar, the medallion) is said, never dropped without a
+  word. The archer's `ranger` kit no longer rides a designed dress, and its ledger rows name the outfit.
+- **Fixed: rings addressed by their ids.** A designed piece read a refined part's rings by index, so on the hero's dense
+  torso a mantle sat above the collar; a ring's address is its id (`st1_st2_50` lies halfway). An unrefined creature's
+  ids are its indices: it wears as before.
+- **Fixed: the fate thread grows a character instead of inflating it.** Each growth note added a flat 6 % per dial over
+  the adult cast, at every later node: a girl at 16 stood 6 % taller than a grown woman, and so did she at 31. A
+  youth is now its share of adult height with its head larger for that height, and an adult carries no growth.
+- **The book and a designed underlayer.** A creator's underlayer that names its own tones keeps them, its ledger names
+  an inline card by its id (not the whole card), and the base's ornament 0 over one that asked for more is ledgered.
+- **Every pointer names the door.** The object pack, the object form, the studio index's PICTURE row, `mint_solid`'s
+  description, the creature, animal, armour and human-figure routing cards, the `create-hero`, `creature-from-plan`
+  and `creature-from-sheet` catalysts, the `layered` and `animal` manuals and `translate_modeler_lingo` named
+  `mint_solid` and `update_sketch` for a character, or sent a creature to the object form; they name `create_character`
+  and `update_character` (a posed picture of a person stays `mint_solid` kind `figure`). A `create_character` reply's
+  next move is `update_character`. A new `egocube` routing card, and the studio index sends a character to reuse across
+  games to it. The catalyst that rolled a sheet with a repo script rolls it with the kind (the audit stays a dev script).
+- **The character tools have a tier** (`judge`; `bind_character_sheet` `ride`), so the plugin's maker subagent can
+  call `create_character` and `update_character`; the plugin's agents are regenerated.
+- **Said as it is.** The cosmos soul facet marks a creature and an animal `partial` as a game's hero (made and rigged,
+  not pilotable: a world figure takes a hero alone), and a `heroRef` that is not a hero says how to make one. The stale
+  markers in this section's themes are corrected (body shade, the tiered face's ears and eyes, world gear, the
+  technology loop, a world above its levels, the Egocube's creature passes), and `figure-garments.js` drops its plan
+  citations and its spike label.
+- **One lookup, one list, nothing dead.** A face's colour (its group's palette colour, its part's tint, the grey) is one
+  `faceHex` for the static solid, the shade, the rig pack and the creature's silhouette; the child-coded words are
+  derived from the builds that carry a child's body; the tiers dense enough for full detail are one list; six exports
+  nothing read are gone. Every hero renders byte for byte as before.
+- Not yet: the library's Characters shelf for `create_character` rows (it picks by kind, and a character is a `layered`
+  row like any solid); the collar and the medallion on a person's neck; the cast's own `egocube` page in the book (a cast member is
+  made from a sheet with create_character first).
+- Not yet: the hero skinned with its face in Unity, Unreal and Godot's game levels (their runtimes find and drive the
+  rigid figure's nodes by name; Unreal cannot be checked here); a western hero's stock clips at their designed
+  seconds (it moves stored rows: it waits for hero laws 2); the guards, the cast and the party walk the library's walk
+  at the speeds tuned to it.
+
 ### UI on rails: a view-only dashboard
 
 The agent drives; the dashboard shows. Every affordance that wrote or handed the operator a prompt to paste is gone.
@@ -530,22 +636,19 @@ score its scene and its play call for.
   - On the Pale Warden: derived, a grey-blue back, head top and outer limbs, with points; from the painterly wolf as a
     reference, an indigo back and head over white, red inside the ears.
   - A creature without `style.drawn` renders as before.
-- **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
-  silhouette:
-  - a silhouette gate every pass must keep;
-  - bridges at the joints its bind chains name;
-  - triangles spent by what reads at the target, the freed ones going to the masses;
-  - smooth, proxy-normal shading, the body and face tint, the light and the outline;
-  - the motion library retargeted onto its skeleton.
-  The Pale Warden is the first case.
+- **Since built, and still planned.** The tiered hero's principles as passes over any ring plan, on the creature's own
+  body (the Pale Warden first): bridges at the joints its bind chains name, triangles spent by what reads at the
+  target, and its value split as markings are built (above). Still planned: a silhouette gate every pass must keep (its
+  measures exist; no pass calls them yet), smooth proxy-normal shading on the creature, and the motion library
+  retargeted onto its skeleton.
 
 ### Body shade: the western face's painted light on the whole figure, read off the body
 
 - **Planned.** The face's form shading (normals toward a simple form round each segment) and its painted tint (the
   occlusion in folds, warmth at the knuckles and joints, a contact shade at a garment's edge) on the neck, torso, limbs,
   hands and what they wear, each placed and sized off the built body, so a character's dials change only its shape and
-  the shading follows; the numbers are per look, female and male. The eye socket's shadow (under the western face) is
-  its first piece.
+  the shading follows; the numbers are per look, female and male. The eye socket's shadow (under the western face)
+  shipped as its first piece; the neck, torso, limbs, hands and what they wear are still planned.
 
 ### Egocube: a character's design notes, rolled from its archetype
 
@@ -801,8 +904,8 @@ score its scene and its play call for.
   a highlight or strands; 0 or absent is the hard step, byte-identical. The painterly hero takes `PAINTERLY_SOFT`
   (0.24) unless its light names its own.
 - **The look as data** (`era/looks.js`). `painterly-toon`: its conventions one line each, `built` (painted face, soft
-  edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure, the painted face in
-  motion). The hero readout's `painterly` names both.
+  edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure; the painted face in
+  motion has since shipped). The hero readout's `painterly` names both.
 - **Under a level's cast light** (a hero with `geocube`): the studio-lit faces (`layeredFaces` `paint`) carry the
   texture as the character-lit ones do, the fill the light alone; the face was blank there. The moving figure under it
   (the clip preview, the GLB) takes the painted face and its drawings on the rig's plain path too. (The painted face
@@ -981,7 +1084,8 @@ score its scene and its play call for.
   - The head's normals lean 0.7 toward its ellipsoid (`layeredShadingNormals({ ellipsoid })`, the ears half), the way
     shipped faces edit their normals toward a sphere: the face reads as one form. The rig pack bakes the same.
   - Absent the tiered form every head is as before.
-  - Hands, ears, eyes and hair by tier are the next pieces. Absent, every hero is as before.
+  - Ears and eyes by tier have since shipped (the tiered face); hands and hair by tier are the next pieces. Absent,
+    every hero is as before.
 - **Critics.**
   - `hero.critic` on every hero with a head (`polygonizer/hero-style-critic.js`) measures its proportions in head
     heights: heads tall, inseam, shoulders, hips over shoulders, wrist, hand, foot. It reads them against the
@@ -1432,7 +1536,7 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 
 ### World gear: starter items that fill a world
 
-- Under way. Every functional model in a game is technology. A world that sets `equipment.populate` fills its
+- Every functional model in a game is technology. A world that sets `equipment.populate` fills its
   starter gear from what it already says:
   - the hero's items;
   - each civilization's crafted held weapons that the equipment kernel can build;
@@ -1575,7 +1679,8 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 
 ### Technology design loop: chassis, adornment, skin
 
-- Under way, nothing ships yet. A civilization's crafted vehicles, tech-structures and weapons get a design loop like
+- Under way: the direction, the chassis and the adornment ship (below); the skin and the effects are next. A
+  civilization's crafted vehicles, tech-structures and weapons get a design loop like
   the hero's: direction, chassis (low-poly masses on a rigid rig), adornment (shells, plates, spikes and emitters on
   sockets, each serving a function), skin (values, a painted atlas, a team-colour mask), effects (the glow is the
   accent) and motion with tiers. Each page is reviewed in the bible. Built on the workbench, so crafted tech exports
@@ -3134,7 +3239,7 @@ Equipment is made once the stats stand: each class of gear raises a stat by tier
   fortification and how it lays out a town and raises a castle. Every level inherits both and is settled by one
   civilization; a town or a castle may be built by another. A level, a section or a place may override any of it,
   and each override is kept in a ledger beside the world's value. Levels lay out through the level graph unchanged.
-  Characters, mechanics and the people of the civilizations are left open.
+  The people of the civilizations are left open (the character book and the game's systems came after).
 - The gameworld graph: worlds, kits, civilizations, languages, fortifications, levels, sections and places as nodes,
   with typed edges (contains, styled, drawn-in, settled-by, built-by, speaks, raises, seam, leads, overrides), drawn as a map, an outline or a Mermaid flowchart as a document needs.
 - The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the natural world, a card for each

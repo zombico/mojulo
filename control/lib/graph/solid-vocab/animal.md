@@ -3,7 +3,7 @@
   "id": "animal",
   "name": "Animal",
   "family": "creature",
-  "entry": "mint_solid",
+  "entry": "create_character",
   "summary": "Mint a four-legged or bipedal ANIMAL — the figure system's animal realm: the same armature as the human protoform with the spine reoriented horizontal, as a bare archetype body or a dressed species recipe.",
   "when": "Reach for this on framing like 'a wolf / a horse / a deer with antlers / a lion / make me a dog / a T. rex / a bird / a four-legged creature / an animal I can 3D print / show me a fox from the side' — and for ARTHROPODS: 'a bee / a beetle / a spider / a crab / a scorpion / a centipede / a butterfly / any bug'."
 }
@@ -67,11 +67,11 @@ Bodies that parameterize to many animals have species-free MAKERS (`lib/graph/fa
 | | `pattern`, `colors` | markings on `'body'` (band / belly / stripes / patch); colour slots |
 
 ```
-mint_solid({ kind: 'animal', title: 'Moray', spec: { maker: 'fish', params: { length: 1.8,
+create_character({ as: 'animal', title: 'Moray', spec: { maker: 'fish', params: { length: 1.8,
   body: [[-0.37, 0.008, 0.018], [-0.18, 0.019, 0.03], [0.08, 0.024, 0.032], [0.24, 0.022, 0.027]],
   dorsal: [[0.2, 0.004], [0.0, 0.02], [-0.36, 0.01]], pectoral: null, pelvic: null,
   caudal: { kind: 'rounded', from: -0.36, len: 0.035 }, pattern: { back: '#3f5a2c', belly: '#5f7a3a' } } } })
-mint_solid({ kind: 'animal', title: 'Anaconda', spec: { maker: 'serpent', params: { girth: [0.15, 0.13],
+create_character({ as: 'animal', title: 'Anaconda', spec: { maker: 'serpent', params: { girth: [0.15, 0.13],
   path: { kind: 'coil', height: 0.04, neck: [[-0.35, 0.02], [-0.9, 0]], centre: [0.15, -1.5], r: [0.42, 0.85], turns: 0.75 },
   head: { shape: 'blunt', scale: 0.5 } } } })
 ```
@@ -226,5 +226,5 @@ markings on legs (`on: 'legs'`).
 
 The mint returns `stance` (hexapod, octopod, decapod, isopod, myriapod), `legs`, `length_m`, and for a `bug`: `basis`
 (the worked bug it started from), `worn` (each part swapped) and `ranked` (the three closest). The result is a
-layered ring plan: tune it in place with `update_sketch` on `/plan/...`. Two gates, never conflated: the machine gate
+layered ring plan: tune it in place with `update_character` (patch ops on `/plan/...`). Two gates, never conflated: the machine gate
 (`node scripts/fauna-fit.mjs --bug <id>`: closed, grounded, every foot planted, size) and the eyes gate, the operator's.

@@ -275,6 +275,17 @@ export const HERO_BUILDS = deepFreeze({
   chibi: { child: true, body: { chest: 0.62, chestDepth: 0.68, waist: 0.74, hip: 0.7, arm: 0.6, thigh: 0.66, calf: 0.62, neck: 0.6 }, headScale: 1.3 },
 });
 export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
+/**
+ * The HERO LAWS a hero is minted under: the tables its newer words are read through on every render, which a later
+ * retune after an eyes gate would otherwise move under rows already minted. Covered: the builds (HERO_BUILDS), the
+ * tiered form's face and hair (tiered-form.js TIERED_FACE*), the painterly soft edge (station-loft-shade.js
+ * PAINTERLY_SOFT) and the geocube's cast light (era/cast-light.js CAST_LIGHT). A hero using any of them is stamped
+ * `laws` at mint, as armour, outfit and statue builds are; an absent stamp reads as laws 1, the tables as they stand,
+ * so a row minted before the stamp keeps them. A retune adds laws 2 beside them, never in place.
+ */
+export const HERO_LAWS_VERSION = 1;
+/** Does this spec read a table the hero laws cover? */
+export const readsHeroLaws = (spec) => spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
 /** a cast in the build form: an object naming `pole` or `build` (a figure-cast dial map has neither key) */
 export const isBuiltCast = (cast) => !!cast && typeof cast === 'object' && !Array.isArray(cast) && ('pole' in cast || 'build' in cast);
 /** the hero pole a cast stands on: the word itself, the build form's `pole` (male unless named), else the cast as given */
@@ -392,7 +403,7 @@ export const TUNE = ratioControls({
     shoulders: [0.8, 1.25], waist: [0.8, 1.2], hips: [0.85, 1.2], depth: [0.85, 1.2],
     upperArm: [0.65, 1.5], forearm: [0.65, 1.5], thigh: [0.65, 1.5], calf: [0.65, 1.5] },
 });
-export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, DEFAULT: TUNE_DEFAULT, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
+export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
 /** Resolve a tune spec to every TUNE_KEYS ratio, plus `from` when a move named it (see ratio-controls.js). */
 export const resolveTune = TUNE.resolve;
 /** The controls that came after heroes were stored: a stored tune carries one only when it is moved off 1, so a hero

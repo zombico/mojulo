@@ -114,7 +114,7 @@ describe("mint_solid kind 'animal'", () => {
   it('is registered in the creature family and has a solid-vocab card', () => {
     expect(SOLID_KINDS.animal.family).toBe('creature');
     const card = getSolidVocabCatalog().get('animal');
-    expect(card.entry).toBe('mint_solid');
+    expect(card.entry).toBe('create_character');   // the Characters ring's door (it mints the same recipes)
     expect(card.family).toBe('creature');
   });
 });

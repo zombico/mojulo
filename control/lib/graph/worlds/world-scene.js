@@ -89,7 +89,7 @@ async function heroFigure(name, spec) {
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
-    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (a layered sketch minted through the hero door)`);
+    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (make one with create_character { as: 'hero' }; a creature or an animal is not a pilot yet)`);
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
@@ -623,9 +623,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // `figure-rig` body (station-loft-rig.js packLayeredRig: the same keys and blend as every rig body), without
         // the static solid or the clip preview. `clips` names which of the hero's clips plays each runtime state
         // ({ forward: 'run', idle: 'idleRelaxed', leap: 'leap' }): the body plays the hero's own clip under the
-        // runtime's name. `library` names an outside animation library (figures/library: Quaternius's CC0 one ships) whose
-        // clips fill the states the hero has no clip for, retargeted onto its rig. Absent ⇒ no hero is resolved,
-        // byte-identical.
+        // runtime's name. `library` names an outside animation library (figures/library: Quaternius's CC0 one ships)
+        // whose clips, retargeted onto its rig, play the states `clips` hands to them (playerStates, when the world was
+        // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
+        // no hero is resolved, byte-identical.
         if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
           payload.figures[name] = await heroFigure(name, rawSpec);
           continue;

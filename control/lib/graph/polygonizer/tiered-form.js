@@ -33,7 +33,7 @@ import { BREAST_FIELD, breastHeight } from './breast-field.js';
 import { castOf } from './hero-form.js';
 import { heroTarget } from '../era/cast-light.js';
 import { readTarget } from '../era/target.js';
-import { tierOf } from '../era/cast-spend.js';
+import { tierOf, DENSE_TIERS } from '../era/cast-spend.js';
 
 /** The field as the unsupported chest places it: the apex `cleft` bust radii off the midline (the equilateral rule
  * against the hero's notch), the inner reach running just past the midline with a fuller profile, so the pair meet low
@@ -343,7 +343,7 @@ export const TIERED_FACE_SMOOTH = Object.freeze({ w: 0.7, nose: 0.25, brow: 0.35
 /** The tiers (era/cast-spend.js) whose figure is tall enough on screen to show the ear's fold and antihelix: below them
  * the ear is the lean one (head-ear.js), 80 triangles against 280, its outline, rim and bowl. A hero with no target is
  * drawn for the default (1080p third-person, T2). */
-export const TIERED_FULL_EAR_TIERS = Object.freeze(['T3', 'T4']);
+export const TIERED_FULL_EAR_TIERS = DENSE_TIERS;
 
 /** The hero with the tiered face's defaults under its own words: the landmark head only (the anime head has its own).
  * The hair default is the record's (layered.js heroRecord stores the female's `bob` when she names none). The ear is the

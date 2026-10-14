@@ -20,8 +20,9 @@
 import { TIERS, normalizeTier } from '../agent-tasks/tiers.js';
 import { getPack } from './packs.js';
 
-// Tools whose tier waits on their own branch (characters). Listed, untiered: no `_meta` for them.
-export const TIER_DEFERRED = Object.freeze(['create_character', 'bind_character_sheet', 'update_character']);
+// Tools whose tier waits on their own branch. Listed, untiered: no `_meta` for them. (None: the character tools took
+// theirs in the character stitch.)
+export const TIER_DEFERRED = Object.freeze([]);
 
 export const TOOL_TIERS = Object.freeze({
   // ── orientation ──
@@ -43,6 +44,10 @@ export const TOOL_TIERS = Object.freeze({
   measure_solid: 'ride',
   mint_building: 'fill',
   edit_solid: 'fill',
+  // the Characters ring: a character is authored and revised (judge); a sheet's PNG is filed by ref (ride)
+  create_character: 'judge',
+  update_character: 'judge',
+  bind_character_sheet: 'ride',
   mint_solid: 'judge', // fill for furniture and gear; an `scad` program is authoring, so the ceiling wins
   fabricate_solid: 'judge',
   verify_machina: 'design',
