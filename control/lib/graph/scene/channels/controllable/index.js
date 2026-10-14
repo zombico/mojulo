@@ -62,6 +62,9 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // __makeRigGroup q branch below so rig pages without them stay byte-identical.
   const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && p.q));
+  // a vehicle rig that LIVES (car-designer/racer.js `live`: steer, lean, squat, dive, bounce, a mast's wobble) —
+  // the overlay below is emitted only when some figure carries one, so every other page stays byte-identical.
+  const figHasLive = Object.values(figures || {}).some((f) => f && f.rig && f.live);
   // spec rides two encodings: legacy float32 pairs (`spec`, vehicle/protoform rigs) and the
   // unit rigs' u8 pairs (`spec8` — [strength×255, shininess], dequantized to the same float
   // attribute here so the shared spec patch shader is unchanged).
@@ -485,7 +488,32 @@ function __rigOverlay(ov, clipName, phase, j, outQ, outP) {
   outP[2] = B[o0 + 6] + (B[o1 + 6] - B[o0 + 6]) * t;
   return true;
 }
-function __syncRigEntity(e, m, rig, dt) {
+${figHasLive ? `// THE LIVE VEHICLE (car-designer/racer.js \`live\`): the drive rule's facts, exaggerated, as bone overlays. Springs
+// per rig (rig.lv): the lean out of a turn, the pitch (a squat on the throttle, a dive on the brake), the bounce of a
+// landing (a damped spring), an engine's idle shiver; the front wheels' steer, the steering wheel's turn, a mast's
+// whip and a propeller's spin. → per bone: 'steer' | 'body' | 'wheel' | 'mast' and the frame's quaternions.
+const __lvQ = new THREE.Quaternion(), __lvQB = new THREE.Quaternion(), __lvQP = new THREE.Quaternion(), __lvQS = new THREE.Quaternion(), __lvQW = new THREE.Quaternion(), __lvQM = new THREE.Quaternion(), __lvH = new THREE.Vector3();
+const __LV_X = new THREE.Vector3(1, 0, 0), __LV_Y = new THREE.Vector3(0, 1, 0), __LV_Z = new THREE.Vector3(0, 0, 1);
+function __rigLive(e, rig, dt) {
+  const L = rig.fig.live, G = L.gains, d = Math.min(0.05, dt || 0);
+  if (!rig.lv) { rig.lv = { lean: 0, pitch: 0, bz: 0, vz: 0, spin: 0, whip: 0, role: {} }; rig.fig.bones.forEach((b, i) => { if (L.steer.includes(b.id)) rig.lv.role[i] = 'steer'; else if (b.id === L.wheel) rig.lv.role[i] = 'wheel'; else if (b.id === L.mast) rig.lv.role[i] = 'mast'; else if (L.body.bones.includes(b.id)) rig.lv.role[i] = 'body'; }); }
+  const S = rig.lv, v = e.speed || 0, st = e.steerAngle || 0, k = (r) => Math.min(1, d * r);
+  const steer = Math.max(-G.steerMax, Math.min(G.steerMax, st * G.steer));
+  S.lean += (Math.max(-G.leanMax, Math.min(G.leanMax, st * Math.abs(v) * G.lean)) - S.lean) * k(6);
+  S.pitch += ((e.throttle || 0) * G.squat * (v >= 0 ? 1 : -1) - (e.braking ? G.dive : 0) - S.pitch) * k(5);
+  if (e.landed) S.vz -= G.bounce * 4;
+  S.vz += (-140 * S.bz - 11 * S.vz) * d; S.bz += S.vz * d;
+  S.spin += d * (5 + Math.abs(v) * 1.6);
+  S.whip += (Math.min(G.wobbleMax, Math.abs(v) * G.wobble) + (e.braking ? -0.15 : 0) - S.whip) * k(4);
+  const shiver = (e.throttle || 0) > 0.05 || Math.abs(v) < 0.5 ? 0.004 * Math.sin((__world.time || 0) * 52) : 0;
+  __lvQS.setFromAxisAngle(__LV_Z, steer);
+  __lvQW.setFromAxisAngle(__LV_Y, -steer * 2.2);
+  __lvQB.setFromAxisAngle(__LV_Y, S.lean); __lvQP.setFromAxisAngle(__LV_X, S.pitch); __lvQB.multiply(__lvQP);
+  __lvQM.setFromAxisAngle(__LV_X, S.whip + 0.05 * Math.sin((__world.time || 0) * 9) * Math.min(1, Math.abs(v) / 8));
+  if (L.spin) { __lvQ.setFromAxisAngle(__LV_Z, S.spin); __lvQM.multiply(__lvQ); }
+  return { role: S.role, steer: __lvQS, wheel: __lvQW, body: __lvQB, mast: __lvQM, pivot: L.body.pivot, dz: Math.max(-0.2, S.bz) + shiver };
+}
+` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
     // ACROBATIC DODGE tumble: spin the WHOLE body a full turn about a world
@@ -583,7 +611,8 @@ function __syncRigEntity(e, m, rig, dt) {
       }
     }
   }
-  for (let bi = 0; bi < fig.bones.length; bi++) {
+${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
+` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
     __rigBone(fig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase, mix.mode === 'idle' && !hasIdle, bi, __rigQA, __rigPA);
@@ -612,7 +641,21 @@ function __syncRigEntity(e, m, rig, dt) {
         __rigQA.premultiply(__apQ);
       }
     }
-    // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
+${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
+    // then they, and the body, lean, pitch and bounce about the wheelbase's middle
+    if (LV && LV.role[bi]) {
+      const role = LV.role[bi];
+      if (role === 'steer') __rigQA.premultiply(LV.steer);
+      else {
+        if (role === 'wheel') __rigQA.premultiply(LV.wheel);
+        else if (role === 'mast') __rigQA.premultiply(LV.mast);
+        const P = LV.pivot;
+        __lvH.set(__rigPA[0] - P[0], __rigPA[1] - P[1], __rigPA[2] - P[2]).applyQuaternion(LV.body);
+        __rigPA[0] = P[0] + __lvH.x; __rigPA[1] = P[1] + __lvH.y; __rigPA[2] = P[2] + __lvH.z + LV.dz;
+        __rigQA.premultiply(LV.body);
+      }
+    }
+` : ''}    // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
     const rh = fig.bones[bi].head;
     __rigH.set(rh[0], rh[1], rh[2]).applyQuaternion(__rigQA);
     __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);

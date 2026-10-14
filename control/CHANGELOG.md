@@ -1748,7 +1748,7 @@ Planned:
 
 ### Racer parts: the ODM library, its solver, and the racer's juice
 
-Built so far: R1, the library and the solver.
+Built so far: R1, the library and the solver; R2, the live rig.
 
 - **The parts library** (`lib/graph/car-designer/parts.js`): the catalogue a cartoon racer is composed from, each part
   data an agent can read and extend: its family (body, wheel, engine, exhaust, aero, nose, lamps, tail, seat, steering,
@@ -1771,8 +1771,15 @@ Built so far: R1, the library and the solver.
   ring, damage smoke; brake lamps, a boost fill, a drift tier, a hit flash, damage tint, a shield, an invulnerable
   cycle, an item pulse; and the motion (steer, lean, squat, dive, bounce, wobble), exaggerated past physics.
 
-Planned: R2 the live rig (steer and body bones read from the drive rule), R3 the juice in the page, R4 status shaders,
-R5 rivals in solved machines.
+- **The live rig** (R2): a solved racer's figure carries `live`, and the page's controllable channel plays it from the
+  drive rule's facts each frame, exaggerated (juice.js MOTION): the front wheels (and their fenders) yaw into the turn
+  past physics while all four roll; the body, its parts and the driver lean out of a turn, squat on the throttle, dive
+  on the brake and bounce on landing (a damped spring) about the wheelbase's middle, with an engine's idle shiver; the
+  steering wheel turns; a mast whips back with speed and a jester's propeller spins. `packVehicleFigure` takes the
+  bones that roll (`rolls`; absent, as before). The overlay is emitted only when a figure lives, so every other page is
+  byte-identical. A frame trace in a real browser (`racer-live.test.js`, the e2e tier) holds it.
+
+Planned: R3 the juice in the page, R4 status shaders, R5 rivals in solved machines.
 
 ### Car designer: a realistic vehicle, or a racer and their machine
 

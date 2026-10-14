@@ -47,7 +47,7 @@ export const STATUS = Object.freeze({
 /** How the machine answers the facts: the bone, the fact, the gain (exaggerated), the limit, the return (s). */
 export const MOTION = Object.freeze({
   steer: { bone: 'steerF', fact: 'steerAngle', gain: 1.6, limit: 0.6, why: 'the front wheels turn more than the road needs: the turn reads' },
-  lean: { bone: 'body', fact: 'steerAngle * speed', gain: 0.012, limit: 0.22, why: 'the body leans out of a turn, three times a car\'s' },
+  lean: { bone: 'body', fact: 'steerAngle * speed', gain: 0.08, limit: 0.22, why: 'the body leans out of a turn, three times a car\'s' },
   squat: { bone: 'body', fact: 'throttle', gain: 0.1, limit: 0.1, settle: 0.25, why: 'the nose lifts and the tail squats on the throttle' },
   dive: { bone: 'body', fact: 'braking', gain: 0.12, limit: 0.12, settle: 0.2, why: 'the nose dives on the brake' },
   bounce: { bone: 'body', fact: 'landed', gain: 0.25, limit: 0.25, settle: 0.45, why: 'a landing: the body squashes and springs back' },

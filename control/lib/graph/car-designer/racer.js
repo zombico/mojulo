@@ -6,8 +6,14 @@
  *   racerFromSheet(egocubeSheet, { seed? })  → { vehicle (the vehicle sheet, its facets read off the driver), driver
  *        (a seated stand-in's sizes), palette (the outfit's), archetype, order, side, reads: [{ facet, value, why }] }
  *   solveRacer(racer, { parts?, seed? })     → { frame, chosen: [{ family, id, why }], suggestions: { family: [{ id,
- *        score, why }] }, faces: { root, wheels }, figure, anchors: [{ kind, at, dir, part }], juice, status, motion,
- *        physics, laws, changes }
+ *        score, why }] }, faces: { root, wheels, bones }, figure, anchors: [{ kind, at, dir, part }], juice, status,
+ *        motion, physics, laws, changes }
+ *
+ * The figure is a vehicle rig that LIVES (the page's controllable channel reads its `live`): the four wheels roll; the
+ * front wheels (and their fenders) steer by the drive rule's steerAngle, past physics; the root (the body, its parts,
+ * the driver) leans out of a turn, squats on the throttle, dives on the brake and bounces on landing about the
+ * wheelbase's middle; the steering wheel turns; a mast whips back with speed (a propeller spins on it). The gains are
+ * juice.js MOTION's.
  *
  * The reading (the outfit's tables, for a machine): the silhouette the outfit's (bell, wedge, needle, column → brick;
  * a heavy build's machine a barrel, a child's a tub, the innocent's a pod); the cockpit open unless the station is high
@@ -314,7 +320,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
         const hub = [s * tt / 2, y, P.r], fs = (s > 0 ? fs0 : mirrorX(fs0)).map((f) => ({ ...f, corners: f.corners.map((c) => add(c, hub).map(r4)) }));
         wheels.push({ bone: `wheel${front ? 'F' : 'R'}${s < 0 ? 'L' : 'R'}`, hub: hub.map(r4), r: P.r, w: P.w, front, faces: fs });
         anchors.push({ kind: front ? 'contact.front' : 'contact.rear', part: id, at: [r4(hub[0]), r4(y), 0], dir: [0, 0, 1] });
-        if (ids.fender) { const fp = sizeOf(ids.fender, { rw: P.r, ww: P.w }); put('fender', ids.fender, build(ids.fender, fp, [hub[0], y, 0]), { at: [hub[0], y, 0], P: fp, mount: 'hub' }); }
+        if (ids.fender) { const fp = sizeOf(ids.fender, { rw: P.r, ww: P.w }); put('fender', ids.fender, build(ids.fender, fp, [hub[0], y, 0]), { at: [hub[0], y, 0], P: fp, mount: 'hub', ...(front ? { bone: `fenderF${s < 0 ? 'L' : 'R'}` } : {}) }); }
       }
     }
     return { placed, anchors, wheels };
@@ -398,11 +404,24 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   const bodyFaces = body.faces.map((f) => { const m = mid(f), zm = (body.botAt(m[1]) + body.topAt(m[1])) / 2; return { ...f, slot: liv === 'two-tone' && m[2] < zm ? 'tech:skin' : liv === 'striped' && Math.abs(m[0]) < F.W * 0.18 && m[2] > zm ? 'tech:skin' : 'tech:body' }; });
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
   const paint = (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
-  const rootRaw = [...bodyFaces, ...state.placed.filter((p) => !p.bone).flatMap((p) => p.faces.map((f) => ({ ...f, slot: slotOf(p, f) }))), ...stand.faces];
+  // the bones that live (R2): the steering wheel, a mast, the front fenders each their own; the rest rides the root
+  const boneOf = (p) => p.bone ?? (p.family === 'steering' ? 'steering' : PARTS[p.id]?.mount === 'mast' ? 'mast' : null);
+  const own = new Map();
+  for (const p of state.placed) { const b = boneOf(p); if (!b) continue; if (!own.has(b)) own.set(b, { head: p.at.map(r4), faces: [] }); own.get(b).faces.push(...p.faces.map((f) => ({ ...f, slot: slotOf(p, f) }))); }
+  const rootRaw = [...bodyFaces, ...state.placed.filter((p) => !boneOf(p)).flatMap((p) => p.faces.map((f) => ({ ...f, slot: slotOf(p, f) }))), ...stand.faces];
   const root = paint(rootRaw);
-  const wheelFaces = state.wheels.map((w) => ({ bone: w.bone, hub: w.hub, faces: paint([...w.faces, ...state.placed.filter((p) => p.bone === w.bone).flatMap((p) => p.faces)]) }));
-  const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheelFaces.map((w) => ({ id: w.bone, head: w.hub }))];
-  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces])])), figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
+  const wheelFaces = state.wheels.map((w) => ({ bone: w.bone, hub: w.hub, faces: paint(w.faces) }));
+  const others = [...own.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, o]) => ({ id, head: o.head, faces: paint(o.faces) }));
+  const bones = [{ id: 'root', head: [0, 0, 0] }, ...wheelFaces.map((w) => ({ id: w.bone, head: w.hub })), ...others.map((o) => ({ id: o.id, head: o.head }))];
+  const M = MOTION, heroMoves = ids.hero ? PARTS[ids.hero].moves ?? [] : [];
+  const live = {
+    steer: ['wheelFL', 'wheelFR', ...others.filter((o) => o.id.startsWith('fenderF')).map((o) => o.id)],
+    body: { bones: ['root', ...others.filter((o) => o.id === 'steering' || o.id === 'mast').map((o) => o.id)], pivot: [0, r4(F.WB / 2), 0] },
+    ...(own.has('steering') ? { wheel: 'steering' } : {}),
+    ...(own.has('mast') ? { mast: 'mast', spin: heroMoves.includes('spin') } : {}),
+    gains: { steer: M.steer.gain, steerMax: M.steer.limit, lean: M.lean.gain, leanMax: M.lean.limit, squat: M.squat.gain, dive: M.dive.gain, bounce: M.bounce.gain, wobble: M.wobble.gain, wobbleMax: M.wobble.limit },
+  };
+  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone) }), live, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
 
   // ── the readout: physics derived from what was built ──
   const K = VEHICLES.kart, eng = PARTS[ids.engine], bb = boxOf(body.faces), vol = (bb.hi[0] - bb.lo[0]) * (bb.hi[1] - bb.lo[1]) * (bb.hi[2] - bb.lo[2]);
@@ -414,7 +433,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   return {
     frame: Object.fromEntries(Object.entries({ ...F, L: body.L, tailY: body.tailY, noseY: body.noseY }).map(([k, x]) => [k, r4(x)])),
     body: bodyId, chosen, suggestions, ids: { body: bodyId, ...ids },
-    faces: { root, wheels: wheelFaces }, figure, anchors: state.anchors, juice, status: STATUS, motion: MOTION,
+    faces: { root, wheels: wheelFaces, bones: others }, figure, anchors: state.anchors, juice, status: STATUS, motion: MOTION,
     physics, laws: failing, changes,
   };
 }

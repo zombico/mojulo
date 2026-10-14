@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { rollEgocube } from '../egocube/egocube.js';
 import { racerFromSheet, solveRacer } from './racer.js';
 import { PARTS, BODIES } from './parts.js';
-import { JUICE } from './juice.js';
+import { JUICE, MOTION } from './juice.js';
 
 const driver = (archetype, extra = {}) => racerFromSheet(rollEgocube({ facets: { archetype, ...extra }, seed: 11 }), { seed: 3 });
 const innocent = driver('innocent'), outlaw = driver('outlaw'), ruler = driver('ruler');
@@ -51,8 +51,17 @@ describe('the racer pole', () => {
   it('is a vehicle rig, its juice at the anchors it has, its physics derived from what was built', () => {
     const S = solved.get(ruler);
     expect(S.figure.rig).toBe(true);
-    expect(S.figure.bones.map((b) => b.id)).toEqual(['root', ...S.faces.wheels.map((w) => w.bone)]);
+    expect(S.figure.bones.map((b) => b.id)).toEqual(['root', ...S.faces.wheels.map((w) => w.bone), ...S.faces.bones.map((b) => b.id)]);
     expect(S.figure.clips.roll.k).toBeGreaterThan(1);
+    // it lives: the front wheels steer, the body (and what rides it) leans about the wheelbase's middle; only the
+    // wheels roll (a bone that lives otherwise holds still in the clip)
+    const L = S.figure.live, nb = S.figure.bones.length, k1 = S.figure.clips.roll.b.slice(7 * nb, 14 * nb);
+    expect(L.steer).toEqual(expect.arrayContaining(['wheelFL', 'wheelFR']));
+    expect(L.body.bones[0]).toBe('root');
+    expect(L.body.pivot[1]).toBeCloseTo(S.frame.WB / 2, 3);
+    expect(L.gains.lean).toBe(MOTION.lean.gain);
+    S.figure.bones.forEach((b, i) => expect(k1[7 * i + 3] < 1, b.id).toBe(b.id.startsWith('wheel')));
+    if (S.faces.bones.some((b) => b.id === 'steering')) expect(L.wheel).toBe('steering');
     const kinds = new Set(S.anchors.map((a) => a.kind.split('.')[0]));
     for (const j of S.juice) expect(kinds.has(j.at.split('.')[0]), j.id).toBe(true);
     expect(S.juice.map((j) => j.id)).toContain(Object.keys(JUICE).find((k) => JUICE[k].at === 'contact.rear'));
