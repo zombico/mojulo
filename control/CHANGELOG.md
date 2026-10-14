@@ -13,6 +13,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Wildflowers in the grass, and shrubs in flower and in fruit
+
+An isekai meadow can now be seeded with flowers in its grass and bushes through it. Both are opt-in, so a meadow
+already minted comes out as before.
+
+- **Wildflowers in the live grass (`grass.flowers`).** A share of the tufts carries flowers: oxeye daisy, buttercup,
+  red clover, lupine and corn poppy (`vegetation/wildflowers.js`). Each flower is a stem and a head grown in its tuft's
+  units and drawn on the tuft's root, at its scale. It bends with the tuft in the wind and under a foot. The parts take
+  their kind's ramps in the kit's palette, locked to the stops on a banded look and smooth on the material pole.
+  `grass.flowers: true | { share?, mix? }` (`mix` weighs the kinds). The meadow card draws them large and standing
+  clear (`size`, `lift`), as a stylized field reads them.
+- **Fruit on a bush.** The flora index's bush takes a `fruit` dial: clusters of berries hanging at the canopy's outer,
+  lower edge, on the new `fruit` part. Like the blooms, the berries roll their own dice, so a bush in fruit keeps the
+  shape of the same bush out of fruit.
+- **Shrubs (`shrubs`).** Bushes seeded within reach of the trail, clear of it, the rocks, the trees and each other
+  (`era/shrubs.js`). A `bloom` share is in flower, a `fruit` share in fruit, the rest green. They are drawn the
+  ikebana's way: the kit's flora skin, the same cel light, and the sun's shadow cast and taken. A bush taller than a
+  step is a collider; every bush is an anchor (`kind: 'shrub'`, its state). `shrubs: true | { count?, bloom?, fruit? }`.
+- **New ramps.** The isekai swatches gain `fruit`, `gold` and `violet` ramps (berries and poppies, buttercups, clover
+  and lupines), each starting from a cool dark stop like every other ramp.
+
 ### Grass contact and the grass's two poles
 
 The isekai live grass (`wind` on an isekai stage) moved only in the wind. Its one touch, the old `part`, was an offset

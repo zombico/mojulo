@@ -50,6 +50,7 @@ export const FLORA_PARTS = Object.freeze({
   blade: { role: 'grass', read: 'a grass blade: dark at the root, lit at the tip' },
   bloom2: { role: 'soil', read: 'a second flower colour, so a bed is never one white: warm in a meadow, the blossom in sakura' },
   bloom: { role: 'cloud', read: 'flowers on a mass: a few posies on its lit side, the decoration (never the accent: that is for use)' },
+  fruit: { role: 'fruit', read: 'berries hanging in clusters at a mass\'s outer, lower edge, under the leaves where the light still finds them' },
 });
 export const DEFAULT_SKIN = Object.freeze(Object.fromEntries(Object.entries(FLORA_PARTS).map(([k, v]) => [k, v.role])));
 /** Each kit's flora skin: which of its swatch ramps each part takes (era/style/swatches.js land); unnamed parts keep
@@ -59,7 +60,7 @@ export const FLORA_SKINS = Object.freeze({
   'isekai-bamboo': { flesh: 'bark' },
   'isekai-sakura': { flesh: 'rock', bloom2: 'blossom' },
   'isekai-garden': { bloom2: 'blossom' },
-  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', bloom2: 'foliage', water: 'glow' },
+  'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', bloom2: 'foliage', water: 'glow', fruit: 'glow' },
 });
 export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? FLORA_SKINS[baseOf(kitId)] ?? {}) });
 
@@ -141,8 +142,9 @@ export const FLORA_FORMS = Object.freeze({
     rails: { height: [3, 10], crown: [0.5, 0.72], width: [0.45, 0.85], masses: [4, 9], squash: [0.75, 1.15], tiers: [1, 1], lean: [0, 0.12], trunk: [0.03, 0.055], porosity: [0, 0.35] },
     variants: {
       lollipop: { masses: [0, 0], tiers: [1, 1], porosity: [0, 0], width: [0.55, 0.7] },
-      // a bush: the crown down to the ground, wide and low; `blooms` posies on its lit side when it flowers
-      bush: { height: [0.8, 1.8], crown: [0.86, 0.94], width: [1.1, 1.5], masses: [5, 8], squash: [0.55, 0.75], lean: [0, 0.04], trunk: [0.03, 0.045], porosity: [0, 0.15], blooms: [0, 0] },
+      // a bush: the crown down to the ground, wide and low; `blooms` posies on its lit side when it flowers, `fruit`
+      // clusters of berries hanging at its edge when it fruits
+      bush: { height: [0.8, 1.8], crown: [0.86, 0.94], width: [1.1, 1.5], masses: [5, 8], squash: [0.55, 0.75], lean: [0, 0.04], trunk: [0.03, 0.045], porosity: [0, 0.15], blooms: [0, 0], fruit: [0, 0] },
       broccoli: {},
       pads: { tiers: [3, 4], masses: [2, 4], lean: [0, 0.07], squash: [0.4, 0.55], crown: [0.62, 0.78], width: [0.5, 0.7], porosity: [0.2, 0.4] },
       column: { width: [0.22, 0.3], lean: [0, 0.06], porosity: [0, 0.1], tiers: [3, 4], masses: [3, 4], squash: [1.3, 1.6], crown: [0.8, 0.9] },
@@ -325,6 +327,21 @@ function buildBroccoli(X, rand, L, P) {
       const host = on[Math.floor(br() * on.length)], out_ = unit(add(unit(sub(host.c, crownC)), [mix(-0.5, 0.5, br()), mix(-0.5, 0.5, br()), mix(0.3, 0.9, br())]));
       const sz = Math.max(...host.r) * mix(0.22, 0.32, br());
       P.block({ id: `bloom${i}`, kind: 'mass', parent: host.id, fixed: true, c: add(host.c, [out_[0] * host.r[0] * 0.92, out_[1] * host.r[1] * 0.92, out_[2] * host.r[2] * 0.92]), r: [sz, sz, sz * 0.7], part: 'bloom', value: mix(0.62, 0.86, br()), detail: 0 });
+    }
+  }
+  // FRUIT: clusters of three berries hanging at the masses' outer, lower edge (where a branch tip droops under its load
+  // and the light still reaches under the leaves); half of them mid, none far. Their own dice, as the blooms'.
+  const nf = L.name === 'near' ? X.fruit ?? 0 : L.name === 'mid' ? Math.round((X.fruit ?? 0) / 2) : 0;
+  if (nf > 0) {
+    const fr = mulberry32(subSeed(Math.round(X.height * 1e4), 'flora:fruit')), on = P.blocks.filter((b) => b.part === 'mass');
+    const crownC = on.reduce((s, b) => add(s, b.c), [0, 0, 0]).map((v) => v / on.length);
+    for (let i = 0; i < nf; i++) {
+      const host = on[Math.floor(fr() * on.length)], o = sub(host.c, crownC), out_ = unit([o[0] + mix(-0.4, 0.4, fr()), o[1] + mix(-0.4, 0.4, fr()), mix(-0.55, 0.1, fr())]);
+      const at = add(host.c, [out_[0] * host.r[0] * 0.95, out_[1] * host.r[1] * 0.95, out_[2] * host.r[2] * 0.95]), sz = Math.max(...host.r) * mix(0.1, 0.14, fr()), v = mix(0.5, 0.8, fr());
+      for (let b = 0; b < 3; b++) {
+        const a = (2 * Math.PI * b) / 3 + fr();
+        P.block({ id: `fruit${i}_${b}`, kind: 'mass', parent: host.id, fixed: true, c: add(at, [Math.cos(a) * sz * 1.1, Math.sin(a) * sz * 1.1, -b * sz * 0.6]), r: [sz, sz, sz], part: 'fruit', value: v, detail: 0 });
+      }
     }
   }
 }
