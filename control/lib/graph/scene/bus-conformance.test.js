@@ -47,6 +47,18 @@ describe('the bus conformance corpus', () => {
     expect(snap('floats').join('')).toMatch(/\d\.\d{15,}/);
     expect(snap('undefined')[1]).toMatch(/"p":null/);
   });
+
+  it('plays every mechanic that travels, and reaches what each turns on', () => {
+    const last = (id) => JSON.parse(runScenario(all.find((s) => s.id === id)).at(-1).split('|')[0]);
+    const heard = (id) => last(id).log.map((l) => l.type);
+    expect(last('mechanic-laps').vars).toMatchObject({ __lap_0: 2, __race_over_0: 1 });
+    expect(heard('mechanic-laps')).toContain('laps:done');
+    expect(last('mechanic-score').vars.score).toBeGreaterThan(0);
+    expect(heard('mechanic-defeat-all')).toContain('all:defeated');
+    expect(heard('mechanic-reach-exit')).toContain('goal:reached');
+    expect(heard('mechanic-clock')).toContain('dawn');
+    expect(last('mechanic-hazard-damage').vars.hp).toBeLessThan(100);
+  });
 });
 
 describe.skipIf(!GODOT)('the Godot kernel', () => {

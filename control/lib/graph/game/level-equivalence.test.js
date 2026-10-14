@@ -66,3 +66,18 @@ describe('the level-equivalence harness, web half', () => {
     expect(outcomeIn(c, [{ type: 'spotted' }], 1)).toBe(null);
   });
 });
+
+// THE JS TWIN'S KNOWN BUGS, found by the Godot round's corpus. The Godot kernel matches the web here (it is the truth
+// the port is held to); each is pinned with it.fails, green while the bug stands and red the day it is fixed, so the
+// fix also moves the kernel and this note.
+describe('the JS twin: known bugs', () => {
+  it.fails('a collect pickup counts once: walking back over a coin already taken does not take it again', async () => {
+    const { simLevel } = await import('./level-sim.js');
+    const m = composeMechanics([{ kind: 'collect', into: 'bag', pickups: [{ item: 'coin', at: [3, 0, 0] }] }, { kind: 'reach-exit', at: [50, 0, 0] }], { storeSchema: { slices: [{ name: 'bag', kind: 'inventory' }] }, player: 'hero' });
+    const sim = simLevel({ entities: [{ id: 'hero', pilotable: true, rule: { type: 'walk' }, transform: { pos: [0, 0, 0], heading: 0 } }], events: m.events });
+    const H = sim.world.byId.hero;
+    for (const x of [3, 0, 3]) { H.transform.pos = [x, 0, 0]; sim.run(0.2); }
+    // today: 2 (the zone fires on every entry; its toggle hides the coin but guards nothing)
+    expect(sim.bus.vars['held:bag:coin']).toBe(1);
+  });
+});

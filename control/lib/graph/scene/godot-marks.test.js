@@ -9,6 +9,7 @@ import { GODOT_MARKS, worstMark, RULE_MARKS, CAMERA_RULE, PAGE_MARKS, EVENT_MARK
 import { MECHANIC_MARKS, MECHANIC_SAMPLES, GODOT_MECHANICS, GODOT_RULES, LEDGER_MARKS, SHELL_MARKS, assessPortability, exportVerdict, kitMark } from './engine-portability.js';
 import { BUS_ABI, BUS_VERBS, CAST_OPS, VERB_ROW, ctrlRow, busCoverage } from './bus-abi.js';
 import { extractEngineScore, godotReading } from './engine-score.js';
+import { corpus } from './bus-conformance.js';
 import { composeControllable, EMISSION_ENGINE } from '../worlds/controllable/compose.js';
 import { MECHANIC_KINDS } from '../game/mechanics.js';
 import { STAT_OPS } from '../playscape/stats/kernel.js';
@@ -90,6 +91,9 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(MECHANIC_MARKS.laps.godot).toBe('approximated');   // pure bus: only its kept best is the web's
     expect(MECHANIC_MARKS.score.godot).toBe('approximated');
     expect(GODOT_MECHANICS).toEqual(MECHANIC_KINDS.filter((k) => MECHANIC_MARKS[k].godot !== 'absent'));
+    // every mechanic that travels is played by the bus corpus Godot is held equal on (bus-conformance.js)
+    const ids = corpus({ random: 0 }).map((s) => s.id);
+    expect(GODOT_MECHANICS.filter((k) => !ids.includes(`mechanic-${k}`))).toEqual([]);
     expect(GODOT_RULES).toEqual(Object.keys(RULE_MARKS).filter((k) => RULE_MARKS[k].godot !== 'absent'));
   });
 

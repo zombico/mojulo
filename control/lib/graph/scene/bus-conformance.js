@@ -23,6 +23,7 @@ import { lowerPlay } from '../playscape/ui/direction.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { buildGameStoreKernel } from '../game/store-kernel.js';
 import { buildStats } from '../playscape/stats/kernel.js';
+import { MECHANIC_SAMPLES, MECHANIC_MARKS } from './engine-portability.js';
 
 // a scenario's frame: { events?: [...], dt?: seconds, walkers?: [{ id, position }] }
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -227,6 +228,36 @@ const crawler = () => {
   };
 };
 
+// EVERY MECHANIC that travels, lowered from its sample (engine-portability.js MECHANIC_SAMPLES, the one its mark is
+// found from) and played: a walker visits each of its zones in the order they are declared, twice round (a lap is a
+// lap), dwelling a few frames at each, and the events it hears from outside its own fragment (a beat, a press, a
+// sighting, a point) arrive one each a frame, round robin. The godot-marks ratchet asks every mechanic not marked
+// absent to be here by id (mechanic-<kind>).
+const MECH_STORE = { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }, { name: 'flags', kind: 'flags' }] };
+// a mechanic that composes only beside another (defeat-all counts an hp-pool's downs)
+const COMPANIONS = { 'defeat-all': [{ kind: 'hp-pool', entities: [{ id: 'foe', hp: 2 }] }] };
+function mechanicScenario(kind) {
+  const out = composeMechanics([{ kind, ...MECHANIC_SAMPLES[kind] }, ...(COMPANIONS[kind] || []), ...(kind === 'reach-exit' ? [] : [{ kind: 'reach-exit', at: [99, 99, 0] }])], { storeSchema: MECH_STORE, player: 'hero', spawn: [0, 0, 0] });
+  const ev = out.events, zones = (ev.sources || []).filter((x) => x && x.type === 'zone' && Array.isArray(x.at) && x.watch === 'hero' && x.at[0] !== 99);
+  const inner = new Set([...(ev.reactions || []).filter((r) => r.do === 'emit').map((r) => r.type), ...(ev.watches || []).map((w) => w.type),
+    ...(ev.timers || []).map((t) => t.emit && t.emit.type), ...(ev.inputs || []).map((i) => i.emit && i.emit.type)]);
+  const outside = [...new Set([...(ev.reactions || []).map((r) => String(r.on)), ...(ev.sequences || []).map((q) => q.trigger && q.trigger.on)]
+    .filter((t) => t && t !== 'enter' && t !== 'exit' && !inner.has(t)))].sort();
+  const presses = (ev.inputs || []).map((i) => i.emit && i.emit.type).filter(Boolean);
+  const feed = [...outside, ...presses];
+  const frames = [];
+  const visits = zones.length ? [...zones, ...zones].map((z) => z.at) : [[0, 0, 0]];
+  let k = 0;
+  for (const at of [[0, 0, 0], ...visits, [0, 0, 0]]) {
+    for (let d = 0; d < 4; d++) {
+      const events = feed.length && d % 2 === 0 ? [{ type: feed[k++ % feed.length], entity: 'guard', who: 'guard' }] : [];
+      frames.push({ walkers: [{ id: 'hero', position: at }], dt: 0.25, ...(events.length ? { events } : {}) });
+    }
+  }
+  return { id: `mechanic-${kind}`, about: `the ${kind} mechanic lowered from its sample and played through its zones and the events it hears`, config: clone(ev), entities: clone(ev.entities || []), frames };
+}
+export const mechanicScenarios = () => Object.keys(MECHANIC_MARKS).filter((k) => MECHANIC_MARKS[k].godot !== 'absent').map(mechanicScenario);
+
 // Godot's JSON parser rounds some decimals to a neighbouring double (kernel/json_exact.gd reads them exactly): a 60 Hz
 // step summed onto a 0.3 s period, and values JS prints in full (1.3000000000000003), hold the read to the web's
 const FLOATS = {
@@ -417,7 +448,7 @@ export function runStoreScenario(sc) {
 }
 
 export function corpus({ random = 24, seed = 7 } = {}) {
-  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), statsRun(), ...randomStatsScenarios(Math.ceil(random / 4), seed), ...randomScenarios(random, seed), ...STORE_SCENARIOS, ...randomStoreScenarios(Math.ceil(random / 2), seed)]);
+  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), statsRun(), ...mechanicScenarios(), ...randomStatsScenarios(Math.ceil(random / 4), seed), ...randomScenarios(random, seed), ...STORE_SCENARIOS, ...randomStoreScenarios(Math.ceil(random / 2), seed)]);
 }
 
 // ── the web side ─────────────────────────────────────────────────────────────────────────────────────────────────
