@@ -173,34 +173,32 @@
   "home": {
     "title": "Workshop Home",
     "groups": {
-      "ideate": "Ideate",
-      "operate": "Operate",
-      "studio": "Studio"
+      "make": "Make",
+      "media": "Media",
+      "play": "Play",
+      "ideate": "Ideate"
     },
     "drawer": {
       "open": "Open navigation",
       "close": "Close navigation"
     },
     "tiles": {
-      "mcpSkills": "Connected Services",
-      "apps": "Apps",
-      "sketch": "Sketches",
       "plan": "Plans",
       "outputs": "Outputs",
       "research": "Research",
       "stash": "Stashes",
-      "illustrations": "Illustrations",
       "worlds": "Worlds",
       "objects": "Objects",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Voice",
-      "games": "Game Developer",
-      "arcade": "Arcade",
-      "settings": "Settings",
       "library": "Library",
       "renderBay": "Render Bay",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Places",
+      "characters": "Characters",
+      "images": "Images",
+      "play": "Play"
     },
     "agentStatus": {
       "liveLabel": "Live",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Game Developer",
-    "gallerySubtitle": "One project per game — its rules, levels, characters, audio, and art on a single shelf.",
-    "galleryEmpty": "No game projects yet. Drive create_game_project from your host agent to start one.",
     "loading": "Loading projects…",
-    "noMembersYet": "No members yet",
     "notFound": "That project doesn't exist — it may have been archived or the ref is off.",
     "backToProjects": "Back to Game Developer",
-    "playable": "Playable",
     "missing": "Missing",
     "missingBody": "This member's artifact no longer exists. The project keeps the slot; rebind or remove it from your host agent.",
     "noRules": "No game minted yet — the project is pre-production.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Nothing here yet."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Playable standalone games, minted from the workshop. Pick a cabinet and play.",
-    "loading": "Loading cabinets…",
-    "emptyState": "No games on the floor yet. Drive create_game from your host agent to mint the first cabinet.",
-    "play": "Play",
     "levelCount": "{count, plural, one {# level} other {# levels}}",
     "shipped": "Shipped"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Every artifact the agent has minted — scenes, models, characters, materials, images, diagrams. One shelf per way of looking; the same recipe store underneath.",
     "shelves": {
       "recent": "Recent",
-      "scenes": "Worlds",
+      "scenes": "Scenes",
       "turntables": "Turntables",
       "models": "Models",
       "views": "Views",

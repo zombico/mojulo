@@ -173,34 +173,32 @@
   "home": {
     "title": "Werkplaats Start",
     "groups": {
-      "ideate": "Ideëren",
-      "operate": "Bedrijven",
-      "studio": "Studio"
+      "make": "Maken",
+      "media": "Media",
+      "play": "Speel",
+      "ideate": "Ideëren"
     },
     "drawer": {
       "open": "Navigatie openen",
       "close": "Navigatie sluiten"
     },
     "tiles": {
-      "mcpSkills": "Verbonden Services",
-      "apps": "Apps",
-      "sketch": "Schetsen",
       "plan": "Plannen",
       "outputs": "Outputs",
       "research": "Onderzoek",
       "stash": "Stashes",
-      "illustrations": "Illustraties",
       "worlds": "Werelden",
       "objects": "Objecten",
       "motion": "Beweging",
       "beats": "Beats",
       "voice": "Stem",
-      "games": "Gameontwikkelaar",
-      "arcade": "Arcade",
-      "settings": "Instellingen",
       "library": "Bibliotheek",
       "renderBay": "Renderbay",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Plaatsen",
+      "characters": "Personages",
+      "images": "Afbeeldingen",
+      "play": "Speel"
     },
     "agentStatus": {
       "liveLabel": "Live",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Gameontwikkelaar",
-    "gallerySubtitle": "Eén project per game — de regels, levels, personages, audio en art op één plank.",
-    "galleryEmpty": "Nog geen gameprojecten. Stuur create_game_project aan vanuit je host-agent om er een te starten.",
     "loading": "Projecten laden…",
-    "noMembersYet": "Nog geen leden",
     "notFound": "Dat project bestaat niet — het is mogelijk gearchiveerd of de ref klopt niet.",
     "backToProjects": "Terug naar Gameontwikkelaar",
-    "playable": "Speelbaar",
     "missing": "Ontbrekend",
     "missingBody": "Het artefact van dit lid bestaat niet meer. Het project houdt de slot; herbind of verwijder het vanuit je host-agent.",
     "noRules": "Nog geen game gemint — het project is pre-productie.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Hier is nog niets."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Speelbare standalone games, gemint vanuit de workshop. Kies een kast en speel.",
-    "loading": "Kasten laden…",
-    "emptyState": "Nog geen games op de vloer. Stuur create_game aan vanuit je host-agent om de eerste kast te minten.",
-    "play": "Speel",
     "levelCount": "{count, plural, one {# level} other {# levels}}",
     "shipped": "Uitgebracht"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Elk artefact dat de agent heeft gemint — scènes, modellen, personages, materialen, afbeeldingen, diagrammen. Eén plank per manier van kijken; dezelfde receptenopslag eronder.",
     "shelves": {
       "recent": "Recent",
-      "scenes": "Werelden",
+      "scenes": "Scènes",
       "turntables": "Draaitafels",
       "models": "Modellen",
       "views": "Weergaven",

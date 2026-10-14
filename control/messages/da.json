@@ -173,34 +173,32 @@
   "home": {
     "title": "Værksted Hjem",
     "groups": {
-      "ideate": "Ideér",
-      "operate": "Betjen",
-      "studio": "Studio"
+      "make": "Skab",
+      "media": "Medier",
+      "play": "Spil",
+      "ideate": "Ideér"
     },
     "drawer": {
       "open": "Åbn navigation",
       "close": "Luk navigation"
     },
     "tiles": {
-      "mcpSkills": "Tilsluttede tjenester",
-      "apps": "Apps",
-      "sketch": "Skitser",
       "plan": "Planer",
       "outputs": "Udgange",
       "research": "Forskning",
       "stash": "Gemmer",
-      "illustrations": "Illustrationer",
       "worlds": "Verdener",
       "objects": "Objekter",
       "motion": "Bevægelse",
       "beats": "Beats",
       "voice": "Stemme",
-      "games": "Spiludvikler",
-      "arcade": "Arkade",
-      "settings": "Indstillinger",
       "library": "Bibliotek",
       "renderBay": "Renderbås",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Steder",
+      "characters": "Karakterer",
+      "images": "Billeder",
+      "play": "Spil"
     },
     "agentStatus": {
       "liveLabel": "Direkte",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Spiludvikler",
-    "gallerySubtitle": "Ét projekt per spil — dets regler, baner, karakterer, lyd og grafik på én hylde.",
-    "galleryEmpty": "Ingen spilprojekter endnu. Kør create_game_project fra din host-agent for at starte et.",
     "loading": "Indlæser projekter…",
-    "noMembersYet": "Ingen medlemmer endnu",
     "notFound": "Det projekt findes ikke — det er måske arkiveret, eller ref'en er forkert.",
     "backToProjects": "Tilbage til Spiludvikler",
-    "playable": "Spilbar",
     "missing": "Manglende",
     "missingBody": "Dette medlems artefakt findes ikke længere. Projektet beholder pladsen; genbind eller fjern den fra din host-agent.",
     "noRules": "Intet spil mintet endnu — projektet er i præproduktion.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Intet her endnu."
   },
   "arcade": {
-    "title": "Mojulo Arkade",
-    "subtitle": "Spilbare standalone-spil, mintet fra værkstedet. Vælg et kabinet og spil.",
-    "loading": "Indlæser kabinetter…",
-    "emptyState": "Ingen spil på gulvet endnu. Kør create_game fra din host-agent for at minte det første kabinet.",
-    "play": "Spil",
     "levelCount": "{count, plural, one {# bane} other {# baner}}",
     "shipped": "Udgivet"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Alle artefakter agenten har møntet — scener, modeller, karakterer, materialer, billeder, diagrammer. Én hylde per måde at se på; det samme opskriftslager nedenunder.",
     "shelves": {
       "recent": "Seneste",
-      "scenes": "Verdener",
+      "scenes": "Scener",
       "turntables": "Drejeskiver",
       "models": "Modeller",
       "views": "Visninger",

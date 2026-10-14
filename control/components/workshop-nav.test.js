@@ -1,67 +1,51 @@
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-import { WORKSHOP_GROUPS, visibleWorkshopGroups } from '@/components/workshop-nav';
+import { WORKSHOP_GROUPS, visibleWorkshopGroups, DOOR_ICONS } from '@/components/workshop-nav';
 import { LIBRARY_SHELVES, LEGACY_ROUTE_SHELVES } from '@/lib/graph/sketch/library-shelves';
+import { ICON_DOTS } from '@/lib/brand/icon-dots';
 
-// The nav is where the 2.0 reposition is visible to a human: the making surface
-// leads and is unconditional, the operational surface earns its place by having
-// records. See mojulo-2.0-pure-creative.plan.md (Phase 1f).
-describe('workshop nav — studio leads, the office wing is gone', () => {
-  const keysOf = (groups) => groups.map((g) => g.key);
-  const tileKeys = (groups, key) => groups.find((g) => g.key === key)?.tiles.map((t) => t.key) || [];
+// The nav names what the agent makes by what it is, never by the tool that makes it. Make leads; every door lands on
+// a page that exists; every door's face is baked; nothing leads to a wing that left.
+const tiles = WORKSHOP_GROUPS.flatMap((g) => g.tiles);
+const keysOf = (groups) => groups.map((g) => g.key);
+const tileKeys = (key) => WORKSHOP_GROUPS.find((g) => g.key === key)?.tiles.map((t) => t.key) || [];
+const APP = path.resolve(__dirname, '..', 'app');
 
-  it('studio is the first mode', () => {
-    expect(WORKSHOP_GROUPS[0].key).toBe('studio');
+describe('workshop nav — by rail type', () => {
+  it('make leads, and its doors are what is made: worlds, places, characters, objects, then the whole library', () => {
+    expect(keysOf(WORKSHOP_GROUPS)).toEqual(['make', 'media', 'play', 'ideate']);
+    expect(tileKeys('make')).toEqual(['worlds', 'places', 'characters', 'objects', 'library']);
+    expect(tileKeys('play')[0]).toBe('play');
   });
 
-  it('no door leads to the office wing, which left with its tools in 3.1.0', () => {
-    for (const group of WORKSHOP_GROUPS) {
-      expect(group.key).not.toBe('operate');
-      for (const tile of group.tiles) {
-        expect(tile.presence).toBeUndefined();
-        expect(tile.href).not.toMatch(/^\/(apps|mcp-skills|map|graph)(\/|$)/);
-      }
-    }
-    expect(tileKeys(visibleWorkshopGroups({ apps: 0, services: 0 }), 'studio')).toContain('library');
-  });
-
-  it('every studio tile points at a route that still exists after the Library fold', () => {
-    const folded = Object.keys(LEGACY_ROUTE_SHELVES);
-    for (const tile of WORKSHOP_GROUPS.find((g) => g.key === 'studio').tiles) {
-      expect(folded, `${tile.key} → ${tile.href}`).not.toContain(tile.href);
+  it('every door lands on a page that exists, a shelf on a shelf the library has', () => {
+    const shelves = LIBRARY_SHELVES.map((s) => s.key);
+    for (const t of tiles) {
+      const [route, query] = t.href.split('?');
+      expect(existsSync(path.join(APP, route, 'page.jsx')), `${t.key} → ${route}`).toBe(true);
+      if (query) expect(shelves, t.href).toContain(new URLSearchParams(query).get('shelf'));
+      expect(Object.keys(LEGACY_ROUTE_SHELVES), t.href).not.toContain(route);
     }
   });
 
-  it('the Render Bay is a studio door, and /outputs is one too', () => {
-    const studio = tileKeys(WORKSHOP_GROUPS, 'studio');
-    expect(studio).toContain('renderBay');
-    expect(studio).toContain('outputs');
-  });
-
-  it('a fresh host shows only the creative + ideate modes', () => {
-    const groups = visibleWorkshopGroups({ apps: 0, services: 0 });
-    expect(keysOf(groups)).toEqual(['studio', 'ideate']);
-  });
-
-  it('unloaded presence hides gated tiles (no flash of tiles that will not stay)', () => {
-    expect(keysOf(visibleWorkshopGroups(undefined))).toEqual(['studio', 'ideate']);
-  });
-
-  it('records bring no door back: apps and services counts show the same two modes', () => {
-    expect(keysOf(visibleWorkshopGroups({ apps: 2, services: 5 }))).toEqual(['studio', 'ideate']);
-  });
-
-  // 3.0: the chatbot factory is its own project, and its pages left the dashboard with it.
-  // A host with bots deployed from 2.x still has deployment rows, so a bots count (from an
-  // older presence route) must not bring a door back to a page that no longer exists.
-  it('bots have no door: a bots count brings no tile back', () => {
-    for (const group of WORKSHOP_GROUPS) {
-      for (const tile of group.tiles) {
-        expect(tile.key).not.toBe('bots');
-        expect(tile.href).not.toMatch(/^\/(bots|bot-factory|chat-builder|data)(\/|$)/);
-      }
+  it('every door\'s face is a component and a baked lattice', () => {
+    for (const t of tiles) {
+      expect(DOOR_ICONS[t.icon], t.icon).toBeTypeOf('function');
+      expect(ICON_DOTS[t.icon], t.icon).toBeTruthy();
     }
-    expect(keysOf(visibleWorkshopGroups({ bots: 3, apps: 0, services: 0 }))).toEqual(['studio', 'ideate']);
   });
 
+  it('no door is a tool or a wing that left: no game projects, no arcade, no office, no bots', () => {
+    for (const t of tiles) {
+      expect(['games', 'arcade', 'apps', 'mcpSkills', 'bots']).not.toContain(t.key);
+      expect(t.href).not.toMatch(/^\/(apps|mcp-skills|map|graph|arcade|maker\/games|bots|bot-factory|chat-builder|data)(\/|$|\?)/);
+      expect(t.presence).toBeUndefined();
+    }
+  });
+
+  it('no door is gated: any presence shows every mode', () => {
+    for (const p of [undefined, {}, { apps: 2, services: 5, bots: 3 }]) expect(keysOf(visibleWorkshopGroups(p))).toEqual(keysOf(WORKSHOP_GROUPS));
+  });
 });

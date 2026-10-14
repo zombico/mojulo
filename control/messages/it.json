@@ -173,34 +173,32 @@
   "home": {
     "title": "Home del Workshop",
     "groups": {
-      "ideate": "Ideazione",
-      "operate": "Operazione",
-      "studio": "Studio"
+      "make": "Crea",
+      "media": "Media",
+      "play": "Gioca",
+      "ideate": "Ideazione"
     },
     "drawer": {
       "open": "Apri navigazione",
       "close": "Chiudi navigazione"
     },
     "tiles": {
-      "mcpSkills": "Servizi Connessi",
-      "apps": "App",
-      "sketch": "Schizzi",
       "plan": "Piani",
       "outputs": "Output",
       "research": "Ricerca",
       "stash": "Archivi",
-      "illustrations": "Illustrazioni",
       "worlds": "Mondi",
       "objects": "Oggetti",
       "motion": "Movimento",
       "beats": "Ritmi",
       "voice": "Voce",
-      "games": "Sviluppatore di giochi",
-      "arcade": "Arcade",
-      "settings": "Impostazioni",
       "library": "Libreria",
       "renderBay": "Baia di Render",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Luoghi",
+      "characters": "Personaggi",
+      "images": "Immagini",
+      "play": "Gioca"
     },
     "agentStatus": {
       "liveLabel": "In diretta",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Sviluppatore di giochi",
-    "gallerySubtitle": "Un progetto per gioco — regole, livelli, personaggi, audio e grafica su un unico ripiano.",
-    "galleryEmpty": "Ancora nessun progetto di gioco. Avvia create_game_project dal tuo agente host per crearne uno.",
     "loading": "Caricamento progetti…",
-    "noMembersYet": "Ancora nessun membro",
     "notFound": "Quel progetto non esiste — potrebbe essere stato archiviato o il ref è sbagliato.",
     "backToProjects": "Torna a Sviluppatore di giochi",
-    "playable": "Giocabile",
     "missing": "Mancante",
     "missingBody": "L'artefatto di questo membro non esiste più. Il progetto mantiene lo slot; riassocialo o rimuovilo dal tuo agente host.",
     "noRules": "Ancora nessun gioco coniato — il progetto è in pre-produzione.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Ancora niente qui."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Giochi standalone giocabili, coniati dal laboratorio. Scegli un cabinato e gioca.",
-    "loading": "Caricamento cabinati…",
-    "emptyState": "Ancora nessun gioco in sala. Avvia create_game dal tuo agente host per coniare il primo cabinato.",
-    "play": "Gioca",
     "levelCount": "{count, plural, one {# livello} other {# livelli}}",
     "shipped": "Rilasciato"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Ogni artefatto che l'agente ha creato — scene, modelli, personaggi, materiali, immagini, diagrammi. Uno scaffale per ogni modo di guardare; sotto, lo stesso archivio di ricette.",
     "shelves": {
       "recent": "Recenti",
-      "scenes": "Mondi",
+      "scenes": "Scene",
       "turntables": "Giradischi",
       "models": "Modelli",
       "views": "Viste",

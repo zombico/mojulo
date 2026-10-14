@@ -173,34 +173,32 @@
   "home": {
     "title": "Workshop-Startseite",
     "groups": {
-      "ideate": "Ideenfindung",
-      "operate": "Betrieb",
-      "studio": "Studio"
+      "make": "Erstellen",
+      "media": "Medien",
+      "play": "Spielen",
+      "ideate": "Ideenfindung"
     },
     "drawer": {
       "open": "Navigation öffnen",
       "close": "Navigation schließen"
     },
     "tiles": {
-      "mcpSkills": "Verbundene Dienste",
-      "apps": "Apps",
-      "sketch": "Sketches",
       "plan": "Pläne",
       "outputs": "Ausgaben",
       "research": "Forschung",
       "stash": "Vorräte",
-      "illustrations": "Illustrationen",
       "worlds": "Welten",
       "objects": "Objekte",
       "motion": "Bewegung",
       "beats": "Beats",
       "voice": "Stimme",
-      "games": "Spieleentwickler",
-      "arcade": "Arcade",
-      "settings": "Einstellungen",
       "library": "Bibliothek",
       "renderBay": "Render-Bucht",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Orte",
+      "characters": "Charaktere",
+      "images": "Bilder",
+      "play": "Spielen"
     },
     "agentStatus": {
       "liveLabel": "Live",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Spieleentwickler",
-    "gallerySubtitle": "Ein Projekt pro Spiel — seine Regeln, Level, Charaktere, Audio und Grafik in einem Regal.",
-    "galleryEmpty": "Noch keine Spieleprojekte. Steuere create_game_project von deinem Host-Agenten aus, um eines zu starten.",
     "loading": "Projekte werden geladen…",
-    "noMembersYet": "Noch keine Mitglieder",
     "notFound": "Dieses Projekt existiert nicht — es wurde vielleicht archiviert oder die Ref stimmt nicht.",
     "backToProjects": "Zurück zum Spieleentwickler",
-    "playable": "Spielbar",
     "missing": "Fehlend",
     "missingBody": "Das Artefakt dieses Mitglieds existiert nicht mehr. Das Projekt behält den Platz; binde es neu oder entferne es von deinem Host-Agenten.",
     "noRules": "Noch kein Spiel geprägt — das Projekt ist in der Vorproduktion.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Noch nichts hier."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Spielbare Standalone-Spiele, geprägt in der Werkstatt. Wähle einen Automaten und spiele.",
-    "loading": "Automaten werden geladen…",
-    "emptyState": "Noch keine Spiele auf der Fläche. Steuere create_game von deinem Host-Agenten aus, um den ersten Automaten zu prägen.",
-    "play": "Spielen",
     "levelCount": "{count, plural, one {# Level} other {# Level}}",
     "shipped": "Ausgeliefert"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Jedes Artefakt, das der Agent geprägt hat — Szenen, Modelle, Charaktere, Materialien, Bilder, Diagramme. Ein Regal pro Blickweise; darunter derselbe Rezeptspeicher.",
     "shelves": {
       "recent": "Zuletzt",
-      "scenes": "Welten",
+      "scenes": "Szenen",
       "turntables": "Drehteller",
       "models": "Modelle",
       "views": "Ansichten",

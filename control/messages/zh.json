@@ -173,34 +173,32 @@
   "home": {
     "title": "研讨会主页",
     "groups": {
-      "ideate": "构思",
-      "operate": "操作",
-      "studio": "工作室"
+      "make": "创作",
+      "media": "媒体",
+      "play": "游玩",
+      "ideate": "构思"
     },
     "drawer": {
       "open": "打开导航",
       "close": "关闭导航"
     },
     "tiles": {
-      "mcpSkills": "连接的服务",
-      "apps": "应用",
-      "sketch": "草图",
       "plan": "计划",
       "outputs": "输出",
       "research": "研究",
       "stash": "储存",
-      "illustrations": "插图",
       "worlds": "世界",
       "objects": "物件",
       "motion": "动作",
       "beats": "节拍",
       "voice": "语音",
-      "games": "游戏开发者",
-      "arcade": "街机厅",
-      "settings": "设置",
       "library": "作品库",
       "renderBay": "渲染区",
-      "dashboard": "仪表板"
+      "dashboard": "仪表板",
+      "places": "场所",
+      "characters": "角色",
+      "images": "图像",
+      "play": "游玩"
     },
     "agentStatus": {
       "liveLabel": "实时",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "游戏开发者",
-    "gallerySubtitle": "每个游戏一个项目 — 其规则、关卡、角色、音频和美术都在同一个货架上。",
-    "galleryEmpty": "暂无游戏项目。从你的主机代理调用 create_game_project 来创建一个。",
     "loading": "正在加载项目…",
-    "noMembersYet": "暂无成员",
     "notFound": "该项目不存在 — 它可能已被归档，或 ref 有误。",
     "backToProjects": "返回游戏开发者",
-    "playable": "可游玩",
     "missing": "缺失",
     "missingBody": "该成员的产物已不存在。项目保留此槽位；请从你的主机代理重新绑定或移除它。",
     "noRules": "尚未铸造游戏 — 项目处于前期制作阶段。",
@@ -315,11 +309,6 @@
     "emptyFolder": "这里还什么都没有。"
   },
   "arcade": {
-    "title": "Mojulo 街机厅",
-    "subtitle": "可游玩的独立游戏，从工作坊铸造而来。选择一台机台开始游玩。",
-    "loading": "正在加载机台…",
-    "emptyState": "场内暂无游戏。从你的主机代理调用 create_game 来铸造第一台机台。",
-    "play": "游玩",
     "levelCount": "{count, plural, other {# 个关卡}}",
     "shipped": "已发布"
   },
@@ -329,7 +318,7 @@
     "subtitle": "agent 铸造的所有作品 — 场景、模型、角色、材质、图像、图表。每种观看方式一个货架；底下是同一个配方库。",
     "shelves": {
       "recent": "最近",
-      "scenes": "世界",
+      "scenes": "场景",
       "turntables": "转台",
       "models": "模型",
       "views": "视图",

@@ -173,34 +173,32 @@
   "home": {
     "title": "Workshop Home",
     "groups": {
-      "ideate": "Ideate",
-      "operate": "Operate",
-      "studio": "Studio"
+      "make": "Gumawa",
+      "media": "Media",
+      "play": "Maglaro",
+      "ideate": "Ideate"
     },
     "drawer": {
       "open": "Buksan ang navigation",
       "close": "Isara ang navigation"
     },
     "tiles": {
-      "mcpSkills": "Mga konektadong serbisyo",
-      "apps": "Apps",
-      "sketch": "Sketches",
       "plan": "Mga plano",
       "outputs": "Mga output",
       "research": "Pananaliksik",
       "stash": "Stashes",
-      "illustrations": "Mga ilustrasyon",
       "worlds": "Mga mundo",
       "objects": "Mga Bagay",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Tunog",
-      "games": "Developer ng Laro",
-      "arcade": "Arcade",
-      "settings": "Mga Setting",
       "library": "Library",
       "renderBay": "Render Bay",
-      "dashboard": "Pang-alahukan"
+      "dashboard": "Pang-alahukan",
+      "places": "Mga lugar",
+      "characters": "Mga Karakter",
+      "images": "Mga Larawan",
+      "play": "Maglaro"
     },
     "agentStatus": {
       "liveLabel": "Live",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Developer ng Laro",
-    "gallerySubtitle": "Isang proyekto bawat laro — ang mga panuntunan, level, karakter, audio, at art nito sa iisang shelf.",
-    "galleryEmpty": "Wala pang game project. Patakbuhin ang create_game_project mula sa iyong host agent para magsimula.",
     "loading": "Naglo-load ng mga proyekto…",
-    "noMembersYet": "Wala pang miyembro",
     "notFound": "Wala ang proyektong iyon — maaaring na-archive na ito o mali ang ref.",
     "backToProjects": "Bumalik sa Developer ng Laro",
-    "playable": "Nalalaro",
     "missing": "Missing",
     "missingBody": "Wala na ang artifact ng miyembrong ito. Pinapanatili ng proyekto ang slot; i-rebind o alisin ito mula sa iyong host agent.",
     "noRules": "Wala pang na-mint na laro — nasa pre-production ang proyekto.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Wala pang laman dito."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Mga nalalarong standalone na laro, na-mint mula sa workshop. Pumili ng cabinet at maglaro.",
-    "loading": "Naglo-load ng mga cabinet…",
-    "emptyState": "Wala pang laro sa floor. Patakbuhin ang create_game mula sa iyong host agent para i-mint ang unang cabinet.",
-    "play": "Maglaro",
     "levelCount": "{count, plural, one {# level} other {# na level}}",
     "shipped": "Nailabas na"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Bawat artifact na na-mint ng agent — mga scene, model, karakter, material, larawan, diagram. Isang shelf bawat paraan ng pagtingin; iisang recipe store sa ilalim.",
     "shelves": {
       "recent": "Kamakailan",
-      "scenes": "Mga mundo",
+      "scenes": "Mga eksena",
       "turntables": "Mga turntable",
       "models": "Mga Model",
       "views": "Mga view",

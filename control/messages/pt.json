@@ -173,34 +173,32 @@
   "home": {
     "title": "Início da Oficina",
     "groups": {
-      "ideate": "Ideação",
-      "operate": "Operar",
-      "studio": "Estúdio"
+      "make": "Criar",
+      "media": "Mídia",
+      "play": "Jogar",
+      "ideate": "Ideação"
     },
     "drawer": {
       "open": "Abrir navegação",
       "close": "Fechar navegação"
     },
     "tiles": {
-      "mcpSkills": "Serviços Conectados",
-      "apps": "Apps",
-      "sketch": "Esboços",
       "plan": "Planos",
       "outputs": "Saídas",
       "research": "Pesquisa",
       "stash": "Esconderijos",
-      "illustrations": "Ilustrações",
       "worlds": "Mundos",
       "objects": "Objetos",
       "motion": "Movimento",
       "beats": "Beats",
       "voice": "Voz",
-      "games": "Desenvolvedor de Jogos",
-      "arcade": "Arcade",
-      "settings": "Configurações",
       "library": "Biblioteca",
       "renderBay": "Baía de Render",
-      "dashboard": "Painel"
+      "dashboard": "Painel",
+      "places": "Lugares",
+      "characters": "Personagens",
+      "images": "Imagens",
+      "play": "Jogar"
     },
     "agentStatus": {
       "liveLabel": "Ao vivo",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Desenvolvedor de Jogos",
-    "gallerySubtitle": "Um projeto por jogo — suas regras, fases, personagens, áudio e arte em uma única prateleira.",
-    "galleryEmpty": "Nenhum projeto de jogo ainda. Rode create_game_project a partir do seu agente host para começar um.",
     "loading": "Carregando projetos…",
-    "noMembersYet": "Nenhum membro ainda",
     "notFound": "Esse projeto não existe — pode ter sido arquivado ou a ref está errada.",
     "backToProjects": "Voltar ao Desenvolvedor de Jogos",
-    "playable": "Jogável",
     "missing": "Missing",
     "missingBody": "O artefato deste membro não existe mais. O projeto mantém o espaço; revincule ou remova-o a partir do seu agente host.",
     "noRules": "Nenhum jogo cunhado ainda — o projeto está em pré-produção.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Nada aqui ainda."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Jogos independentes e jogáveis, cunhados na oficina. Escolha um gabinete e jogue.",
-    "loading": "Carregando gabinetes…",
-    "emptyState": "Nenhum jogo no salão ainda. Rode create_game a partir do seu agente host para cunhar o primeiro gabinete.",
-    "play": "Jogar",
     "levelCount": "{count, plural, one {# fase} other {# fases}}",
     "shipped": "Publicado"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Todos os artefatos que o agente cunhou — cenas, modelos, personagens, materiais, imagens, diagramas. Uma prateleira por forma de olhar; o mesmo repositório de receitas por baixo.",
     "shelves": {
       "recent": "Recentes",
-      "scenes": "Mundos",
+      "scenes": "Cenas",
       "turntables": "Giradiscos",
       "models": "Modelos",
       "views": "Vistas",

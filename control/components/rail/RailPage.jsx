@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 
 import WorkshopShell from '@/components/WorkshopShell';
+import { PART_STYLE, Dot, concernTitle, briefStyle, concernStyle } from '@/components/rail/marks';
 import { formatBytes } from '@/lib/render-bay/lanes';
 
 const fetcher = async (url) => {
@@ -24,48 +25,6 @@ const fetcher = async (url) => {
   if (!res.ok) throw new Error(body.error || body.reason || `HTTP ${res.status}`);
   return body;
 };
-
-/* ── marks ────────────────────────────────────────────────────────────────── */
-
-// A concern's state as a dot. Given by the creator's eyes is solid; given by the machine gate is a ring around a
-// fainter fill, so the two never read alike.
-const CONCERN_STYLE = {
-  'given:eyes': { background: 'var(--live)', borderColor: 'var(--live)' },
-  'given:machine': { background: 'var(--live-idle)', borderColor: 'var(--live)' },
-  given: { background: 'var(--live)', borderColor: 'var(--live)' },
-  open: { background: 'transparent', borderColor: 'var(--ink-muted)' },
-  advised: { background: 'var(--forge)', borderColor: 'var(--forge)' },
-  waived: { background: 'transparent', borderColor: 'var(--ink-muted)', borderStyle: 'dashed' },
-};
-const PART_STYLE = {
-  fresh: { background: 'var(--live)', borderColor: 'var(--live)' },
-  stale: { background: 'var(--forge)', borderColor: 'var(--forge)' },
-  edited: { background: 'var(--think)', borderColor: 'var(--think)' },
-  missing: { background: 'transparent', borderColor: 'var(--ink-muted)' },
-  waiting: { background: 'transparent', borderColor: 'var(--ink-muted)', borderStyle: 'dotted' },
-  taken: { background: 'var(--fault)', borderColor: 'var(--fault)' },
-};
-
-function Dot({ style, size = 10, title }) {
-  return (
-    <span
-      aria-hidden={!title}
-      title={title}
-      className="inline-block shrink-0 rounded-full border-[1.5px]"
-      style={{ width: size, height: size, ...style }}
-    />
-  );
-}
-
-const concernTitle = (c) => [c.name || c.id, c.state, c.gate, c.note].filter(Boolean).join(' · ');
-
-/** An outcome in brief, as a part shows it: one mark, its worst state. */
-function briefStyle(o) {
-  if (o.advised) return CONCERN_STYLE.advised;
-  if (o.open) return CONCERN_STYLE.open;
-  if (o.given || o.waived) return CONCERN_STYLE.given;
-  return { ...CONCERN_STYLE.open, opacity: 0.4 };
-}
 
 /* ── exits ────────────────────────────────────────────────────────────────── */
 
@@ -88,12 +47,12 @@ function ExitIcon({ id, className = 'h-4 w-4' }) {
 
 function Outcomes({ outcomes, onConcern }) {
   return (
-    <ol className="flex flex-col">
+    <ol className="grid grid-cols-2 sm:grid-cols-4 lg:flex lg:flex-col">
       {outcomes.map((o) => {
         const total = o.concerns.length;
         const done = o.concerns.filter((c) => c.state === 'given' || c.state === 'waived').length;
         return (
-          <li key={o.id} className="border-b border-[color:var(--bay-rail)] px-4 py-3 last:border-b-0">
+          <li key={o.id} className="border-b border-[color:var(--bay-rail)] px-4 py-3 lg:last:border-b-0">
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-[13px] font-medium text-[color:var(--ink-primary)]">{o.name}</span>
               <span className="font-mono text-[10px] tabular-nums text-[color:var(--ink-muted)]">{total ? `${done}/${total}` : '—'}</span>
@@ -109,7 +68,7 @@ function Outcomes({ outcomes, onConcern }) {
                     aria-label={concernTitle(c)}
                     className="rounded-full p-0.5 transition-transform hover:scale-125 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[color:var(--live)]"
                   >
-                    <Dot style={CONCERN_STYLE[c.gate ? `${c.state}:${c.gate}` : c.state] || CONCERN_STYLE.open} />
+                    <Dot style={concernStyle(c)} />
                   </button>
                 ))}
               </div>

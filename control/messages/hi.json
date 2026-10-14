@@ -173,34 +173,32 @@
   "home": {
     "title": "Workshop Home",
     "groups": {
-      "ideate": "Ideate",
-      "operate": "Operate",
-      "studio": "Studio"
+      "make": "बनाएँ",
+      "media": "मीडिया",
+      "play": "खेलें",
+      "ideate": "Ideate"
     },
     "drawer": {
       "open": "Open navigation",
       "close": "Close navigation"
     },
     "tiles": {
-      "mcpSkills": "Connected Services",
-      "apps": "ऐप्स",
-      "sketch": "Sketches",
       "plan": "Plans",
       "outputs": "Outputs",
       "research": "Research",
       "stash": "Stashes",
-      "illustrations": "Illustrations",
       "worlds": "Worlds",
       "objects": "ऑब्जेक्ट",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Voice",
-      "games": "गेम डेवलपर",
-      "arcade": "आर्केड",
-      "settings": "सेटिंग्स",
       "library": "लाइब्रेरी",
       "renderBay": "रेंडर बे",
-      "dashboard": "डैशबोर्ड"
+      "dashboard": "डैशबोर्ड",
+      "places": "स्थान",
+      "characters": "किरदार",
+      "images": "इमेज",
+      "play": "खेलें"
     },
     "agentStatus": {
       "liveLabel": "Live",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "गेम डेवलपर",
-    "gallerySubtitle": "हर गेम के लिए एक प्रोजेक्ट — इसके नियम, लेवल, किरदार, ऑडियो और आर्ट एक ही शेल्फ पर।",
-    "galleryEmpty": "अभी तक कोई गेम प्रोजेक्ट नहीं। एक शुरू करने के लिए अपने होस्ट एजेंट से create_game_project चलाएँ।",
     "loading": "प्रोजेक्ट लोड हो रहे हैं…",
-    "noMembersYet": "अभी तक कोई सदस्य नहीं",
     "notFound": "वह प्रोजेक्ट मौजूद नहीं है — यह आर्काइव किया गया हो सकता है या ref गलत है।",
     "backToProjects": "गेम डेवलपर पर वापस",
-    "playable": "खेलने योग्य",
     "missing": "Missing",
     "missingBody": "इस सदस्य का आर्टिफ़ैक्ट अब मौजूद नहीं है। प्रोजेक्ट स्लॉट रखता है; अपने होस्ट एजेंट से इसे फिर से बाइंड करें या हटाएँ।",
     "noRules": "अभी तक कोई गेम मिंट नहीं हुआ — प्रोजेक्ट प्री-प्रोडक्शन में है।",
@@ -315,11 +309,6 @@
     "emptyFolder": "अभी यहाँ कुछ नहीं।"
   },
   "arcade": {
-    "title": "Mojulo आर्केड",
-    "subtitle": "वर्कशॉप से मिंट किए गए खेलने योग्य स्टैंडअलोन गेम। एक कैबिनेट चुनें और खेलें।",
-    "loading": "कैबिनेट लोड हो रहे हैं…",
-    "emptyState": "अभी तक फ़्लोर पर कोई गेम नहीं। पहला कैबिनेट मिंट करने के लिए अपने होस्ट एजेंट से create_game चलाएँ।",
-    "play": "खेलें",
     "levelCount": "{count, plural, one {# लेवल} other {# लेवल}}",
     "shipped": "शिप किया गया"
   },
@@ -329,7 +318,7 @@
     "subtitle": "एजेंट ने जो भी आर्टिफ़ैक्ट मिंट किए हैं — सीन, मॉडल, कैरेक्टर, मटीरियल, इमेज, डायग्राम। देखने के हर तरीके के लिए एक शेल्फ़; नीचे वही रेसिपी स्टोर।",
     "shelves": {
       "recent": "हाल के",
-      "scenes": "Worlds",
+      "scenes": "दृश्य",
       "turntables": "टर्नटेबल",
       "models": "मॉडल",
       "views": "व्यू",

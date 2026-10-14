@@ -1,13 +1,13 @@
-// Shared Workshop navigation model — the single source of truth for the two
-// modes (Studio / Ideate) and their destinations. Rendered two ways:
+// Shared Workshop navigation model — the single source of truth for the four
+// modes (Make / Media / Play / Ideate) and their destinations. Rendered two ways:
 // the home directory (WorkshopHome.jsx) and the global slide-out (WorkshopDrawer.jsx).
 // Each tile carries an i18n `key` (resolved as home.groups.<key> / home.tiles.<key>),
 // an href, and the NAME of its icon in DOOR_ICONS (see that registry for why a
 // name and not the component).
 //
-// STUDIO LEADS. Mojulo is a 3D factory; the making surface is the product, so it is
-// listed first, opened by default, and never gated — an empty studio is an
-// invitation, not clutter.
+// MAKE LEADS, by rail type: what the agent builds, named by what it is (worlds,
+// places, characters, objects), never by the tool that builds it. Listed first,
+// never gated — an empty shelf is an invitation, not clutter.
 //
 // A tile may declare a `presence` key and appear only once that key has records
 // (counts from /api/workshop/presence); a group whose every tile is gated away
@@ -16,33 +16,6 @@
 // surface in 3.1.0.
 
 // --- Tile icons ---
-
-export function ConnectedServicesIcon({ className = 'h-10 w-10' }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <circle cx="12" cy="12" r="2.5" />
-      <circle cx="4" cy="6" r="1.75" />
-      <circle cx="20" cy="6" r="1.75" />
-      <circle cx="4" cy="18" r="1.75" />
-      <circle cx="20" cy="18" r="1.75" />
-      <path d="M10.2 10.4l-4.6-3.2" />
-      <path d="M13.8 10.4l4.6-3.2" />
-      <path d="M10.2 13.6l-4.6 3.2" />
-      <path d="M13.8 13.6l4.6 3.2" />
-    </svg>
-  );
-}
-
-export function AppsGridIcon({ className = 'h-10 w-10' }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-    </svg>
-  );
-}
 
 export function LibraryIcon({ className = 'h-10 w-10' }) {
   // Asset shelf: a cube and a sphere standing on a rule — models on a shelf,
@@ -135,16 +108,6 @@ export function RenderBayIcon({ className = 'h-10 w-10' }) {
   );
 }
 
-export function MapIcon({ className = 'h-10 w-10' }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
-      <path d="M9 4v14" />
-      <path d="M15 6v14" />
-    </svg>
-  );
-}
-
 export function WorldIcon({ className = 'h-10 w-10' }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
@@ -222,6 +185,39 @@ export function ArcadeIcon({ className = 'h-10 w-10' }) {
   );
 }
 
+export function PlacesIcon({ className = 'h-10 w-10' }) {
+  // A skyline on its ground: a city and the buildings in it.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M3 21h18" />
+      <path d="M5 21V10l4-3v14" />
+      <path d="M9 21V4h6v17" />
+      <path d="M15 21v-9h4v9" />
+    </svg>
+  );
+}
+
+export function CharacterIcon({ className = 'h-10 w-10' }) {
+  // A figure: a head over shoulders.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="7" r="3" />
+      <path d="M6 21v-4a6 6 0 0 1 12 0v4" />
+    </svg>
+  );
+}
+
+export function ImagesIcon({ className = 'h-10 w-10' }) {
+  // A framed picture: a sun over hills.
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 16l5-5 4 4 3-3 6 6" />
+      <circle cx="16" cy="9" r="1.5" />
+    </svg>
+  );
+}
+
 export function FloorIcon({ className = 'h-10 w-10' }) {
   // The splayed floor: shelf strips receding on a floor plane — the dashboard's
   // own shape, so the row that opens it is drawn as the thing it opens.
@@ -243,20 +239,6 @@ export function IdeateIcon({ className = 'h-12 w-12' }) {
       <path d="M9 18h6" />
       <path d="M10 21h4" />
       <path d="M12 3a6 6 0 0 0-4 10.5c.6.6 1 1.4 1 2.5h6c0-1.1.4-1.9 1-2.5A6 6 0 0 0 12 3z" />
-    </svg>
-  );
-}
-
-export function OperateIcon({ className = 'h-12 w-12' }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <path d="M4 18a8 8 0 1 1 16 0" />
-      <path d="M12 18l3.5-4.5" />
-      <circle cx="12" cy="18" r="1.1" fill="currentColor" />
-      <path d="M4 18h1" />
-      <path d="M19 18h1" />
-      <path d="M6 11l.7.7" />
-      <path d="M18 11l-.7.7" />
     </svg>
   );
 }
@@ -315,20 +297,22 @@ export function BrandMark({ className = 'w-8 h-8', idPrefix = 'wsnav' }) {
  * its component directly.
  */
 export const DOOR_ICONS = {
-  AppsGridIcon,
   ArcadeIcon,
   BeatsIcon,
-  ConnectedServicesIcon,
+  CharacterIcon,
   CookIcon,
   FloorIcon,
-  GameDevIcon,
+  ImagesIcon,
   LibraryIcon,
   MotionIcon,
   NotebookIcon,
+  ObjectsIcon,
+  PlacesIcon,
   PlanIcon,
   RenderBayIcon,
   StashIcon,
   VoiceIcon,
+  WorldIcon,
 };
 
 // The three modes. Settings is not here — it lives in the top nav (AuthNav) as
@@ -343,22 +327,39 @@ export function hueVars(hue) {
 
 export const WORKSHOP_GROUPS = [
   {
-    key: 'studio',
+    // What the agent makes, by what it is: a game's world, a place (a city, a building), a character, an object.
+    // Worlds and places are projects on a rail (their own shelves, each card showing how far it has come); the
+    // others are the Library's shelves, and the Library is every artifact at once.
+    key: 'make',
     Icon: StudioIcon,
     hue: { base: 'var(--mode-studio)', strong: 'var(--mode-studio-strong)', idle: 'var(--mode-studio-idle)' },
     tiles: [
-      // One Library door replaces the four bucket rails (Sketches / Illustrations
-      // / Worlds / Objects). The vocabulary they carried did not vanish — it is
-      // the chip row inside, where it costs no navigation. See
-      // components/3d-factory-ui.plan.md §2.
+      { key: 'worlds', href: '/worlds', icon: 'WorldIcon' },
+      { key: 'places', href: '/places', icon: 'PlacesIcon' },
+      { key: 'characters', href: '/library?shelf=characters', icon: 'CharacterIcon' },
+      { key: 'objects', href: '/library?shelf=models', icon: 'ObjectsIcon' },
       { key: 'library', href: '/library', icon: 'LibraryIcon' },
+    ],
+  },
+  {
+    // What is watched, heard or looked at flat.
+    key: 'media',
+    Icon: MotionIcon,
+    hue: { base: 'var(--think)', strong: 'var(--think-strong)', idle: 'var(--think-idle)' },
+    tiles: [
       { key: 'motion', href: '/maker/motion', icon: 'MotionIcon' },
       { key: 'beats', href: '/maker/beats', icon: 'BeatsIcon' },
       { key: 'voice', href: '/maker/voice', icon: 'VoiceIcon' },
-      { key: 'games', href: '/maker/games', icon: 'GameDevIcon' },
-      { key: 'arcade', href: '/arcade', icon: 'ArcadeIcon' },
-      // The Render Bay watches production; /outputs stays the publication inbox
-      // (its own filters over cooks). The bay links into it rather than folding it.
+      { key: 'images', href: '/library?shelf=images', icon: 'ImagesIcon' },
+    ],
+  },
+  {
+    // What comes out: the games to play, what is being produced, and what was published.
+    key: 'play',
+    Icon: ArcadeIcon,
+    hue: { base: 'var(--live)', strong: 'var(--live-strong)', idle: 'var(--live-idle)' },
+    tiles: [
+      { key: 'play', href: '/play', icon: 'ArcadeIcon' },
       { key: 'renderBay', href: '/render-bay', icon: 'RenderBayIcon' },
       { key: 'outputs', href: '/outputs', icon: 'CookIcon' },
     ],

@@ -173,34 +173,32 @@
   "home": {
     "title": "Accueil de l'atelier",
     "groups": {
-      "ideate": "Idéer",
-      "operate": "Opérer",
-      "studio": "Studio"
+      "make": "Créer",
+      "media": "Médias",
+      "play": "Jouer",
+      "ideate": "Idéer"
     },
     "drawer": {
       "open": "Ouvrir la navigation",
       "close": "Fermer la navigation"
     },
     "tiles": {
-      "mcpSkills": "Services connectés",
-      "apps": "Apps",
-      "sketch": "Croquis",
       "plan": "Plans",
       "outputs": "Sorties",
       "research": "Recherche",
       "stash": "Stashes",
-      "illustrations": "Illustrations",
       "worlds": "Mondes",
       "objects": "Objets",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Voix",
-      "games": "Développeur de jeux",
-      "arcade": "Arcade",
-      "settings": "Paramètres",
       "library": "Bibliothèque",
       "renderBay": "Baie de rendu",
-      "dashboard": "Tableau de bord"
+      "dashboard": "Tableau de bord",
+      "places": "Lieux",
+      "characters": "Personnages",
+      "images": "Images",
+      "play": "Jouer"
     },
     "agentStatus": {
       "liveLabel": "En direct",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Développeur de jeux",
-    "gallerySubtitle": "Un projet par jeu — ses règles, niveaux, personnages, audio et art sur une seule étagère.",
-    "galleryEmpty": "Aucun projet de jeu pour l'instant. Lance create_game_project depuis ton agent hôte pour en démarrer un.",
     "loading": "Chargement des projets…",
-    "noMembersYet": "Aucun membre pour l'instant",
     "notFound": "Ce projet n'existe pas — il a peut-être été archivé ou la réf est erronée.",
     "backToProjects": "Retour au Développeur de jeux",
-    "playable": "Jouable",
     "missing": "Manquant",
     "missingBody": "L'artefact de ce membre n'existe plus. Le projet conserve l'emplacement ; relie-le ou retire-le depuis ton agent hôte.",
     "noRules": "Aucun jeu généré pour l'instant — le projet est en pré-production.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Rien ici pour l'instant."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Des jeux autonomes jouables, générés depuis l'atelier. Choisis une borne et joue.",
-    "loading": "Chargement des bornes…",
-    "emptyState": "Aucun jeu sur le plancher pour l'instant. Lance create_game depuis ton agent hôte pour générer la première borne.",
-    "play": "Jouer",
     "levelCount": "{count, plural, one {# niveau} other {# niveaux}}",
     "shipped": "Livré"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Chaque artefact que l'agent a frappé — scènes, modèles, personnages, matériaux, images, diagrammes. Une étagère par façon de regarder ; le même dépôt de recettes en dessous.",
     "shelves": {
       "recent": "Récents",
-      "scenes": "Mondes",
+      "scenes": "Scènes",
       "turntables": "Tourne-disques",
       "models": "Modèles",
       "views": "Vues",

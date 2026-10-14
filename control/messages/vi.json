@@ -173,34 +173,32 @@
   "home": {
     "title": "Trang chủ Xưởng",
     "groups": {
-      "ideate": "Phát triển ý tưởng",
-      "operate": "Hoạt động",
-      "studio": "Xưởng"
+      "make": "Tạo",
+      "media": "Phương tiện",
+      "play": "Chơi",
+      "ideate": "Phát triển ý tưởng"
     },
     "drawer": {
       "open": "Mở điều hướng",
       "close": "Đóng điều hướng"
     },
     "tiles": {
-      "mcpSkills": "Dịch vụ được kết nối",
-      "apps": "Ứng dụng",
-      "sketch": "Phác thảo",
       "plan": "Kế hoạch",
       "outputs": "Kết quả",
       "research": "Nghiên cứu",
       "stash": "Kho lưu trữ",
-      "illustrations": "Minh họa",
       "worlds": "Thế giới",
       "objects": "Đối tượng",
       "motion": "Chuyển động",
       "beats": "Nhịp",
       "voice": "Giọng nói",
-      "games": "Nhà phát triển game",
-      "arcade": "Arcade",
-      "settings": "Cài đặt",
       "library": "Thư viện",
       "renderBay": "Khoang kết xuất",
-      "dashboard": "Bảng điều khiển"
+      "dashboard": "Bảng điều khiển",
+      "places": "Địa điểm",
+      "characters": "Nhân vật",
+      "images": "Hình ảnh",
+      "play": "Chơi"
     },
     "agentStatus": {
       "liveLabel": "Trực tiếp",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Nhà phát triển game",
-    "gallerySubtitle": "Mỗi game một dự án — luật chơi, màn chơi, nhân vật, âm thanh và hình ảnh trên cùng một kệ.",
-    "galleryEmpty": "Chưa có dự án game nào. Chạy create_game_project từ tác nhân máy chủ để bắt đầu.",
     "loading": "Đang tải dự án…",
-    "noMembersYet": "Chưa có thành viên nào",
     "notFound": "Dự án đó không tồn tại — có thể đã bị lưu trữ hoặc ref sai.",
     "backToProjects": "Quay lại Nhà phát triển game",
-    "playable": "Chơi được",
     "missing": "Missing",
     "missingBody": "Artifact của thành viên này không còn tồn tại. Dự án vẫn giữ vị trí; hãy liên kết lại hoặc gỡ bỏ từ tác nhân máy chủ.",
     "noRules": "Chưa tạo game — dự án đang ở giai đoạn tiền sản xuất.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Chưa có gì ở đây."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Các game độc lập chơi được, tạo từ xưởng. Chọn một máy game và chơi.",
-    "loading": "Đang tải máy game…",
-    "emptyState": "Chưa có game nào trên sàn. Chạy create_game từ tác nhân máy chủ để tạo máy game đầu tiên.",
-    "play": "Chơi",
     "levelCount": "{count, plural, other {# màn chơi}}",
     "shipped": "Đã phát hành"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Mọi tạo tác agent đã tạo — cảnh, mô hình, nhân vật, vật liệu, hình ảnh, sơ đồ. Mỗi kệ là một cách nhìn; bên dưới vẫn là cùng một kho công thức.",
     "shelves": {
       "recent": "Gần đây",
-      "scenes": "Thế giới",
+      "scenes": "Cảnh",
       "turntables": "Bàn xoay",
       "models": "Mô hình",
       "views": "Góc nhìn",

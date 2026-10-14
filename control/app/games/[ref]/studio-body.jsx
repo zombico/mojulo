@@ -75,7 +75,7 @@ function assetSrc(memberKind, kind, ref) {
 
 export default function GameDeveloperBody({ projectRef: ref, authEnabled = false }) {
   const t = useTranslations('gameDev');
-  const studioHue = WORKSHOP_GROUPS.find((g) => g.key === 'studio').hue;
+  const studioHue = WORKSHOP_GROUPS.find((g) => g.key === 'play').hue;
   const [meta, setMeta] = useState(null);
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
@@ -188,7 +188,7 @@ export default function GameDeveloperBody({ projectRef: ref, authEnabled = false
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto max-w-3xl px-8 py-16 text-center">
             <p className="text-sm text-neutral-400">{t('notFound')}</p>
-            <Link href="/maker/games" className="mt-4 inline-block text-sm text-emerald-300 hover:text-emerald-200">
+            <Link href="/play" className="mt-4 inline-block text-sm text-emerald-300 hover:text-emerald-200">
               {t('backToProjects')}
             </Link>
           </div>

@@ -33,6 +33,9 @@ const nextConfig = {
       // The dashboard is view only (UI on rails): the /maker hub repeated the Studio
       // doors, and the office wing's pages left with its tools (3.1.0).
       { source: '/maker', destination: '/', permanent: false },
+      // Play folds the Arcade and the Game Developer gallery: every game, grouped by where it came from.
+      { source: '/arcade', destination: '/play', permanent: false },
+      { source: '/maker/games', destination: '/play', permanent: false },
       { source: '/:wing(apps|mcp-skills)/:rest*', destination: '/', permanent: false },
       { source: '/:wing(map|graph)', destination: '/', permanent: false },
     ];

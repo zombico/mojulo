@@ -173,34 +173,32 @@
   "home": {
     "title": "Nyumba ya Warsha",
     "groups": {
-      "ideate": "Mwe na mawazo",
-      "operate": "Endesha",
-      "studio": "Studhio"
+      "make": "Unda",
+      "media": "Vyombo vya habari",
+      "play": "Cheza",
+      "ideate": "Mwe na mawazo"
     },
     "drawer": {
       "open": "Fungua urambazaji",
       "close": "Funga urambazaji"
     },
     "tiles": {
-      "mcpSkills": "Huduma za Kuunganishwa",
-      "apps": "Programu",
-      "sketch": "Miundo",
       "plan": "Mipango",
       "outputs": "Matokeo",
       "research": "Utafiti",
       "stash": "Hazina",
-      "illustrations": "Picha",
       "worlds": "Ulimwengu",
       "objects": "Vitu",
       "motion": "Mwendo",
       "beats": "Kupiga",
       "voice": "Sauti",
-      "games": "Msanidi wa Michezo",
-      "arcade": "Arcade",
-      "settings": "Mipangilio",
       "library": "Maktaba",
       "renderBay": "Banda la Render",
-      "dashboard": "Irizi"
+      "dashboard": "Irizi",
+      "places": "Mahali",
+      "characters": "Wahusika",
+      "images": "Picha",
+      "play": "Cheza"
     },
     "agentStatus": {
       "liveLabel": "Hai",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Msanidi wa Michezo",
-    "gallerySubtitle": "Mradi mmoja kwa kila mchezo — sheria zake, ngazi, wahusika, sauti, na sanaa kwenye rafu moja.",
-    "galleryEmpty": "Bado hakuna miradi ya michezo. Endesha create_game_project kutoka kwa wakala wako mwenyeji ili kuanza mmoja.",
     "loading": "Inapakia miradi…",
-    "noMembersYet": "Bado hakuna wanachama",
     "notFound": "Mradi huo haupo — huenda umehifadhiwa kwenye kumbukumbu au ref si sahihi.",
     "backToProjects": "Rudi kwa Msanidi wa Michezo",
-    "playable": "Inachezeka",
     "missing": "Haipo",
     "missingBody": "Kifaa cha mwanachama huyu hakipo tena. Mradi unahifadhi nafasi; funga upya au kiondoe kutoka kwa wakala wako mwenyeji.",
     "noRules": "Bado hakuna mchezo uliotengenezwa — mradi uko katika hatua ya awali ya uzalishaji.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Bado hakuna kitu hapa."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Michezo huru inayochezeka, iliyotengenezwa kutoka warshani. Chagua kabati na ucheze.",
-    "loading": "Inapakia makabati…",
-    "emptyState": "Bado hakuna michezo sakafuni. Endesha create_game kutoka kwa wakala wako mwenyeji ili kutengeneza kabati la kwanza.",
-    "play": "Cheza",
     "levelCount": "{count, plural, one {# ngazi} other {# ngazi}}",
     "shipped": "Imetolewa"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Kila kazi ambayo wakala ameunda — mandhari, modeli, wahusika, nyenzo, picha, michoro. Rafu moja kwa kila namna ya kuangalia; hifadhi ile ile ya resipi chini yake.",
     "shelves": {
       "recent": "Za hivi karibuni",
-      "scenes": "Ulimwengu",
+      "scenes": "Matukio",
       "turntables": "Meza za kuzunguka",
       "models": "Modeli",
       "views": "Mionekano",

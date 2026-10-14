@@ -173,34 +173,32 @@
   "home": {
     "title": "Inicio del Taller",
     "groups": {
-      "ideate": "Ideación",
-      "operate": "Operar",
-      "studio": "Estudio"
+      "make": "Crear",
+      "media": "Medios",
+      "play": "Jugar",
+      "ideate": "Ideación"
     },
     "drawer": {
       "open": "Abrir navegación",
       "close": "Cerrar navegación"
     },
     "tiles": {
-      "mcpSkills": "Servicios Conectados",
-      "apps": "Aplicaciones",
-      "sketch": "Esquemas",
       "plan": "Planes",
       "outputs": "Resultados",
       "research": "Investigación",
       "stash": "Almacenes",
-      "illustrations": "Ilustraciones",
       "worlds": "Mundos",
       "objects": "Objetos",
       "motion": "Movimiento",
       "beats": "Beats",
       "voice": "Voz",
-      "games": "Desarrollador de juegos",
-      "arcade": "Arcade",
-      "settings": "Configuración",
       "library": "Biblioteca",
       "renderBay": "Bahía de renderizado",
-      "dashboard": "Panel de Control"
+      "dashboard": "Panel de Control",
+      "places": "Lugares",
+      "characters": "Personajes",
+      "images": "Imágenes",
+      "play": "Jugar"
     },
     "agentStatus": {
       "liveLabel": "En vivo",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Desarrollador de juegos",
-    "gallerySubtitle": "Un proyecto por juego — sus reglas, niveles, personajes, audio y arte en un solo estante.",
-    "galleryEmpty": "Aún no hay proyectos de juego. Ejecuta create_game_project desde tu agente anfitrión para empezar uno.",
     "loading": "Cargando proyectos…",
-    "noMembersYet": "Aún no hay miembros",
     "notFound": "Ese proyecto no existe — puede que se haya archivado o que la referencia esté mal.",
     "backToProjects": "Volver a Desarrollador de juegos",
-    "playable": "Jugable",
     "missing": "Falta",
     "missingBody": "El artefacto de este miembro ya no existe. El proyecto conserva el espacio; vuelve a vincularlo o elimínalo desde tu agente anfitrión.",
     "noRules": "Aún no se ha acuñado ningún juego — el proyecto está en preproducción.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Aún no hay nada aquí."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Juegos independientes jugables, acuñados desde el taller. Elige una máquina y juega.",
-    "loading": "Cargando máquinas…",
-    "emptyState": "Aún no hay juegos en el salón. Ejecuta create_game desde tu agente anfitrión para acuñar la primera máquina.",
-    "play": "Jugar",
     "levelCount": "{count, plural, one {# nivel} other {# niveles}}",
     "shipped": "Publicado"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Cada artefacto que el agente ha acuñado — escenas, modelos, personajes, materiales, imágenes, diagramas. Un estante por cada forma de mirar; el mismo depósito de recetas debajo.",
     "shelves": {
       "recent": "Recientes",
-      "scenes": "Mundos",
+      "scenes": "Escenas",
       "turntables": "Tornamesas",
       "models": "Modelos",
       "views": "Vistas",

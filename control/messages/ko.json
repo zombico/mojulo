@@ -173,34 +173,32 @@
   "home": {
     "title": "워크숍 홈",
     "groups": {
-      "ideate": "아이디어 내기",
-      "operate": "운영",
-      "studio": "스튜디오"
+      "make": "만들기",
+      "media": "미디어",
+      "play": "플레이",
+      "ideate": "아이디어 내기"
     },
     "drawer": {
       "open": "네비게이션 열기",
       "close": "네비게이션 닫기"
     },
     "tiles": {
-      "mcpSkills": "연결된 서비스",
-      "apps": "앱",
-      "sketch": "스케치",
       "plan": "계획",
       "outputs": "결과물",
       "research": "연구",
       "stash": "스태시",
-      "illustrations": "삽화",
       "worlds": "세계",
       "objects": "오브젝트",
       "motion": "모션",
       "beats": "비트",
       "voice": "음성",
-      "games": "게임 개발자",
-      "arcade": "아케이드",
-      "settings": "설정",
       "library": "라이브러리",
       "renderBay": "렌더 베이",
-      "dashboard": "대시보드"
+      "dashboard": "대시보드",
+      "places": "장소",
+      "characters": "캐릭터",
+      "images": "이미지",
+      "play": "플레이"
     },
     "agentStatus": {
       "liveLabel": "실시간",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "게임 개발자",
-    "gallerySubtitle": "게임당 프로젝트 하나 — 규칙, 레벨, 캐릭터, 오디오, 아트를 한 선반에 모아요.",
-    "galleryEmpty": "아직 게임 프로젝트가 없어요. 호스트 에이전트에서 create_game_project를 실행해 시작하세요.",
     "loading": "프로젝트 불러오는 중…",
-    "noMembersYet": "아직 멤버가 없어요",
     "notFound": "그 프로젝트가 없어요 — 보관됐거나 ref가 잘못됐을 수 있어요.",
     "backToProjects": "게임 개발자로 돌아가기",
-    "playable": "플레이 가능",
     "missing": "Missing",
     "missingBody": "이 멤버의 아티팩트가 더 이상 없어요. 프로젝트는 슬롯을 유지해요; 호스트 에이전트에서 다시 바인딩하거나 제거하세요.",
     "noRules": "아직 발행된 게임이 없어요 — 프로젝트는 사전 제작 단계예요.",
@@ -315,11 +309,6 @@
     "emptyFolder": "아직 아무것도 없어요."
   },
   "arcade": {
-    "title": "Mojulo 아케이드",
-    "subtitle": "워크숍에서 발행한 플레이 가능한 독립 게임들이에요. 캐비닛을 골라 플레이하세요.",
-    "loading": "캐비닛 불러오는 중…",
-    "emptyState": "아직 플로어에 게임이 없어요. 호스트 에이전트에서 create_game을 실행해 첫 캐비닛을 발행하세요.",
-    "play": "플레이",
     "levelCount": "{count, plural, other {레벨 #개}}",
     "shipped": "출시됨"
   },
@@ -329,7 +318,7 @@
     "subtitle": "에이전트가 만든 모든 아티팩트 — 씬, 모델, 캐릭터, 머티리얼, 이미지, 다이어그램. 보는 방식마다 선반 하나씩이고, 그 아래 레시피 저장소는 하나예요.",
     "shelves": {
       "recent": "최근",
-      "scenes": "세계",
+      "scenes": "장면",
       "turntables": "턴테이블",
       "models": "모델",
       "views": "뷰",

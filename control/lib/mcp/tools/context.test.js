@@ -400,7 +400,7 @@ describe('get_ui_map — dashboard page map', () => {
   it('maps the current dashboard pages and stays out of the always-paid body', async () => {
     const { content } = await uiMapHandler({});
     const text = content[0].text;
-    for (const page of ['/', '/dashboard', '/library', '/plan', '/research', '/stashes', '/sketches', '/settings']) {
+    for (const page of ['/', '/dashboard', '/library', '/worlds', '/places', '/play', '/plan', '/research', '/stashes', '/sketches', '/settings']) {
       expect(text, `ui map missing page ${page}`).toContain(`\`${page}\``);
     }
     // The bot pages left with the chatbot factory (3.0.0); the office wing's with its tools (3.1.0).

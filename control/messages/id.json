@@ -173,34 +173,32 @@
   "home": {
     "title": "Rumah Workshop",
     "groups": {
-      "ideate": "Ideate",
-      "operate": "Operate",
-      "studio": "Studio"
+      "make": "Buat",
+      "media": "Media",
+      "play": "Mainkan",
+      "ideate": "Ideate"
     },
     "drawer": {
       "open": "Buka navigasi",
       "close": "Tutup navigasi"
     },
     "tiles": {
-      "mcpSkills": "Layanan Terhubung",
-      "apps": "Aplikasi",
-      "sketch": "Sketsa",
       "plan": "Rencana",
       "outputs": "Output",
       "research": "Penelitian",
       "stash": "Gudang",
-      "illustrations": "Ilustrasi",
       "worlds": "Dunia",
       "objects": "Objek",
       "motion": "Gerak",
       "beats": "Ketukan",
       "voice": "Suara",
-      "games": "Pengembang Game",
-      "arcade": "Arcade",
-      "settings": "Pengaturan",
       "library": "Perpustakaan",
       "renderBay": "Bilik Render",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Tempat",
+      "characters": "Karakter",
+      "images": "Gambar",
+      "play": "Mainkan"
     },
     "agentStatus": {
       "liveLabel": "Langsung",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Pengembang Game",
-    "gallerySubtitle": "Satu proyek per game — aturan, level, karakter, audio, dan seni-nya dalam satu rak.",
-    "galleryEmpty": "Belum ada proyek game. Jalankan create_game_project dari agen host Anda untuk memulai.",
     "loading": "Memuat proyek…",
-    "noMembersYet": "Belum ada anggota",
     "notFound": "Proyek itu tidak ada — mungkin sudah diarsipkan atau ref-nya salah.",
     "backToProjects": "Kembali ke Pengembang Game",
-    "playable": "Dapat dimainkan",
     "missing": "Hilang",
     "missingBody": "Artefak anggota ini sudah tidak ada. Proyek tetap menyimpan slotnya; ikat ulang atau hapus dari agen host Anda.",
     "noRules": "Belum ada game yang dicetak — proyek masih pra-produksi.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Belum ada apa-apa di sini."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Game mandiri yang dapat dimainkan, dicetak dari workshop. Pilih kabinet dan mainkan.",
-    "loading": "Memuat kabinet…",
-    "emptyState": "Belum ada game di lantai. Jalankan create_game dari agen host Anda untuk mencetak kabinet pertama.",
-    "play": "Mainkan",
     "levelCount": "{count, plural, other {# level}}",
     "shipped": "Dirilis"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Setiap artefak yang telah dicetak agen — adegan, model, karakter, material, gambar, diagram. Satu rak per cara memandang; penyimpanan resep yang sama di baliknya.",
     "shelves": {
       "recent": "Terbaru",
-      "scenes": "Dunia",
+      "scenes": "Adegan",
       "turntables": "Meja putar",
       "models": "Model",
       "views": "Tampilan",

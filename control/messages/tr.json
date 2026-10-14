@@ -173,34 +173,32 @@
   "home": {
     "title": "Atölye Ana Sayfası",
     "groups": {
-      "ideate": "Fikir Üret",
-      "operate": "İşlet",
-      "studio": "Stüdyo"
+      "make": "Oluştur",
+      "media": "Medya",
+      "play": "Oyna",
+      "ideate": "Fikir Üret"
     },
     "drawer": {
       "open": "Gezinmeyi aç",
       "close": "Gezinmeyi kapat"
     },
     "tiles": {
-      "mcpSkills": "Bağlı Hizmetler",
-      "apps": "Uygulamalar",
-      "sketch": "Taslaklar",
       "plan": "Planlar",
       "outputs": "Çıktılar",
       "research": "Araştırma",
       "stash": "Depolama Alanları",
-      "illustrations": "İllüstrasyonlar",
       "worlds": "Dünyalar",
       "objects": "Nesneler",
       "motion": "Hareket",
       "beats": "Ritimler",
       "voice": "Ses",
-      "games": "Oyun Geliştirici",
-      "arcade": "Oyun Salonu",
-      "settings": "Ayarlar",
       "library": "Kütüphane",
       "renderBay": "Render Bölmesi",
-      "dashboard": "Pano"
+      "dashboard": "Pano",
+      "places": "Mekânlar",
+      "characters": "Karakterler",
+      "images": "Görseller",
+      "play": "Oyna"
     },
     "agentStatus": {
       "liveLabel": "Canlı",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Oyun Geliştirici",
-    "gallerySubtitle": "Oyun başına tek proje — kuralları, seviyeleri, karakterleri, sesi ve sanatı tek bir rafta.",
-    "galleryEmpty": "Henüz oyun projesi yok. Bir tane başlatmak için ana makine ajanından create_game_project çalıştır.",
     "loading": "Projeler yükleniyor…",
-    "noMembersYet": "Henüz üye yok",
     "notFound": "Bu proje mevcut değil — arşivlenmiş olabilir ya da referans hatalı.",
     "backToProjects": "Oyun Geliştirici'ye dön",
-    "playable": "Oynanabilir",
     "missing": "Eksik",
     "missingBody": "Bu üyenin yapıtı artık mevcut değil. Proje yuvayı koruyor; ana makine ajanından yeniden bağla ya da kaldır.",
     "noRules": "Henüz oyun basılmadı — proje ön yapım aşamasında.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Burada henüz bir şey yok."
   },
   "arcade": {
-    "title": "Mojulo Oyun Salonu",
-    "subtitle": "Atölyeden basılmış, oynanabilir bağımsız oyunlar. Bir kabin seç ve oyna.",
-    "loading": "Kabinler yükleniyor…",
-    "emptyState": "Salonda henüz oyun yok. İlk kabini basmak için ana makine ajanından create_game çalıştır.",
-    "play": "Oyna",
     "levelCount": "{count, plural, one {# seviye} other {# seviye}}",
     "shipped": "Yayınlandı"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Ajanın bastığı her yapıt — sahneler, modeller, karakterler, materyaller, görseller, diyagramlar. Her bakış biçimi için bir raf; altta hep aynı tarif deposu.",
     "shelves": {
       "recent": "Son eklenenler",
-      "scenes": "Dünyalar",
+      "scenes": "Sahneler",
       "turntables": "Döner tablalar",
       "models": "Modeller",
       "views": "Görünümler",

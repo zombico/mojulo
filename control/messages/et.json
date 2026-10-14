@@ -173,34 +173,32 @@
   "home": {
     "title": "[UNTRANSLATED]",
     "groups": {
-      "ideate": "[UNTRANSLATED]",
-      "operate": "Töö",
-      "studio": "Stuudio"
+      "make": "Loo",
+      "media": "Meedia",
+      "play": "Mängi",
+      "ideate": "[UNTRANSLATED]"
     },
     "drawer": {
       "open": "Ava navigatsioon",
       "close": "Sulge navigatsioon"
     },
     "tiles": {
-      "mcpSkills": "Ühendatud teenused",
-      "apps": "Rakendused",
-      "sketch": "Skitserid",
       "plan": "Plaanid",
       "outputs": "Väljundid",
       "research": "Uurimine",
       "stash": "Peidud",
-      "illustrations": "Illustratsioonid",
       "worlds": "Maailmad",
       "objects": "Objektid",
       "motion": "Liikumine",
       "beats": "Rütmid",
       "voice": "Hääl",
-      "games": "Mänguarendaja",
-      "arcade": "Arkaad",
-      "settings": "Seaded",
       "library": "Teek",
       "renderBay": "Renderdusala",
-      "dashboard": "Juhtpaneel"
+      "dashboard": "Juhtpaneel",
+      "places": "Kohad",
+      "characters": "Tegelased",
+      "images": "Pildid",
+      "play": "Mängi"
     },
     "agentStatus": {
       "liveLabel": "Otsesidemeis",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Mänguarendaja",
-    "gallerySubtitle": "Üks projekt mängu kohta — selle reeglid, tasemed, tegelased, heli ja kunst ühel riiulil.",
-    "galleryEmpty": "Veel pole mänguprojekte. Alusta create_game_project käivitamisega oma host-agendist.",
     "loading": "Projektide laadimine…",
-    "noMembersYet": "Veel pole liikmeid",
     "notFound": "Seda projekti ei ole olemas — see võib olla arhiveeritud või viide on vale.",
     "backToProjects": "Tagasi Mänguarendajasse",
-    "playable": "Mängitav",
     "missing": "[UNTRANSLATED:Missing]",
     "missingBody": "Selle liikme artefakti enam ei ole. Projekt hoiab pesa alles; seo uuesti või eemalda see oma host-agendist.",
     "noRules": "Mängu pole veel vermitud — projekt on eeltootmises.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Siin pole veel midagi."
   },
   "arcade": {
-    "title": "Mojulo Arkaad",
-    "subtitle": "Mängitavad iseseisvad mängud, vermitud töökojas. Vali kapp ja mängi.",
-    "loading": "Kappide laadimine…",
-    "emptyState": "Põrandal pole veel mänge. Esimese kapi vermimiseks käivita create_game oma host-agendist.",
-    "play": "Mängi",
     "levelCount": "{count, plural, one {# tase} other {# taset}}",
     "shipped": "Tarnitud"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Iga artefakt, mille agent on verminud — stseenid, mudelid, tegelased, materjalid, pildid, diagrammid. Üks riiul iga vaatamisviisi kohta; all sama retseptihoidla.",
     "shelves": {
       "recent": "Hiljutised",
-      "scenes": "Maailmad",
+      "scenes": "Stseenid",
       "turntables": "Pöördlauad",
       "models": "Mudelid",
       "views": "Vaated",

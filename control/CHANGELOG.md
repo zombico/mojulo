@@ -52,6 +52,24 @@ The agent drives; the dashboard shows. Every affordance that wrote or handed the
   - **Below:** the files it has been exported to (its outcome folder).
   - It re-reads every few seconds and on focus, so what the agent changes shows up on its own. Every word on it is the
     data's own. A rail recipe asked for bare (`?print`, `?display`, `?bare`) and every other kind keep the bare frame.
+- **The nav names what is made by what it is**, in four modes:
+  - **Make**: Worlds, Places, Characters, Objects, and the Library.
+  - **Media**: Motion, Beats, Voice, Images.
+  - **Play**: Play, the Render Bay, Outputs.
+  - **Ideate**: Research, Plans, Stashes.
+
+  Characters, Objects and Images open their Library shelves. New door faces: Places, Characters, Images (the office
+  wing's are gone). The Library's "Worlds" shelf of walkable scenes is now "Scenes".
+- **Worlds and Places** (`/worlds`, `/places`, `GET /api/projects`): the projects on a rail by what they are,
+  gameworlds, and cities and buildings, as cards with one bar per outcome showing its concerns' states. What a project
+  made for itself (a city's segment levels, its doors' insides) is on the project's page, not a card. A gameworld
+  leaves the Library's Diagrams shelf.
+- **Home** leads with the newest projects as the same cards, under the floor's plate.
+- **Play** (`/play`) folds the Arcade and the Game Developer gallery: every game as a cabinet, grouped by where it came
+  from (`/api/arcade`'s new `source`: a gameworld's run, a quick game, a pixelizer game, a game project, or
+  `create_game` alone). A game a world made links to the world's page; a project's shelf stays at `/games/<ref>`.
+  `/arcade` and `/maker/games` redirect to it, and `create_pixelizer_game`'s `arcadeUrl` is `/play`.
+- `get_ui_map` describes the dashboard by these modes, the project page and its marks.
 
 ### Egocube fidelity: the dice roll's creatures redrawn on their own bodies
 

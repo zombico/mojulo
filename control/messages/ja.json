@@ -173,34 +173,32 @@
   "home": {
     "title": "ワークショップホーム",
     "groups": {
-      "ideate": "アイデイエーション",
-      "operate": "オペレート",
-      "studio": "スタジオ"
+      "make": "つくる",
+      "media": "メディア",
+      "play": "プレイ",
+      "ideate": "アイデイエーション"
     },
     "drawer": {
       "open": "ナビゲーションを開く",
       "close": "ナビゲーションを閉じる"
     },
     "tiles": {
-      "mcpSkills": "接続されたサービス",
-      "apps": "アプリ",
-      "sketch": "スケッチ",
       "plan": "計画",
       "outputs": "出力",
       "research": "リサーチ",
       "stash": "スタッシュ",
-      "illustrations": "イラスト",
       "worlds": "ワールド",
       "objects": "オブジェクト",
       "motion": "モーション",
       "beats": "ビート",
       "voice": "ボイス",
-      "games": "ゲーム開発者",
-      "arcade": "アーケード",
-      "settings": "設定",
       "library": "ライブラリ",
       "renderBay": "レンダーベイ",
-      "dashboard": "ダッシュボード"
+      "dashboard": "ダッシュボード",
+      "places": "場所",
+      "characters": "キャラクター",
+      "images": "画像",
+      "play": "プレイ"
     },
     "agentStatus": {
       "liveLabel": "ライブ",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "ゲーム開発者",
-    "gallerySubtitle": "ゲームごとに1プロジェクト — ルール、レベル、キャラクター、オーディオ、アートを1つの棚にまとめます。",
-    "galleryEmpty": "まだゲームプロジェクトはありません。ホストエージェントから create_game_project を実行して開始してください。",
     "loading": "プロジェクトを読み込み中…",
-    "noMembersYet": "まだメンバーがいません",
     "notFound": "そのプロジェクトは存在しません — アーカイブされたか、ref が間違っている可能性があります。",
     "backToProjects": "ゲーム開発者に戻る",
-    "playable": "プレイ可能",
     "missing": "不足",
     "missingBody": "このメンバーのアーティファクトはもう存在しません。プロジェクトはスロットを保持します。ホストエージェントから再バインドまたは削除してください。",
     "noRules": "まだゲームは生成されていません — プロジェクトはプリプロダクション段階です。",
@@ -315,11 +309,6 @@
     "emptyFolder": "まだ何もありません。"
   },
   "arcade": {
-    "title": "Mojulo アーケード",
-    "subtitle": "ワークショップから生成された、プレイ可能なスタンドアロンゲーム。筐体を選んでプレイしましょう。",
-    "loading": "筐体を読み込み中…",
-    "emptyState": "まだフロアにゲームはありません。ホストエージェントから create_game を実行して最初の筐体を生成してください。",
-    "play": "プレイ",
     "levelCount": "{count, plural, other {# レベル}}",
     "shipped": "リリース済み"
   },
@@ -329,7 +318,7 @@
     "subtitle": "エージェントがミントしたすべてのアーティファクト — シーン、モデル、キャラクター、マテリアル、画像、ダイアグラム。見方ごとに1つの棚、その下にあるレシピストアは同じです。",
     "shelves": {
       "recent": "最近",
-      "scenes": "ワールド",
+      "scenes": "シーン",
       "turntables": "ターンテーブル",
       "models": "モデル",
       "views": "ビュー",

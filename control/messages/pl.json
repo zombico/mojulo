@@ -173,34 +173,32 @@
   "home": {
     "title": "Strona główna warsztatu",
     "groups": {
-      "ideate": "Ideacja",
-      "operate": "Operacja",
-      "studio": "Studio"
+      "make": "Twórz",
+      "media": "Media",
+      "play": "Graj",
+      "ideate": "Ideacja"
     },
     "drawer": {
       "open": "Otwórz nawigację",
       "close": "Zamknij nawigację"
     },
     "tiles": {
-      "mcpSkills": "Usługi połączone",
-      "apps": "Aplikacje",
-      "sketch": "Szkice",
       "plan": "Plany",
       "outputs": "Wyjścia",
       "research": "Badania",
       "stash": "Magazyny",
-      "illustrations": "Ilustracje",
       "worlds": "Światy",
       "objects": "Obiekty",
       "motion": "Ruch",
       "beats": "Bity",
       "voice": "Głos",
-      "games": "Twórca gier",
-      "arcade": "Arcade",
-      "settings": "Ustawienia",
       "library": "Biblioteka",
       "renderBay": "Stanowisko renderowania",
-      "dashboard": "Pulpit"
+      "dashboard": "Pulpit",
+      "places": "Miejsca",
+      "characters": "Postacie",
+      "images": "Obrazy",
+      "play": "Graj"
     },
     "agentStatus": {
       "liveLabel": "Na żywo",
@@ -266,13 +264,9 @@
   },
   "gameDev": {
     "galleryTitle": "Twórca gier",
-    "gallerySubtitle": "Jeden projekt na grę — jej zasady, poziomy, postacie, dźwięk i grafika na jednej półce.",
-    "galleryEmpty": "Brak projektów gier. Uruchom create_game_project z agenta hosta, aby rozpocząć.",
     "loading": "Ładowanie projektów…",
-    "noMembersYet": "Brak członków",
     "notFound": "Ten projekt nie istnieje — mógł zostać zarchiwizowany lub ref jest błędny.",
     "backToProjects": "Powrót do Twórcy gier",
-    "playable": "Grywalna",
     "missing": "Brakujący",
     "missingBody": "Artefakt tego członka już nie istnieje. Projekt zachowuje slot; podepnij ponownie lub usuń go z agenta hosta.",
     "noRules": "Nie utworzono jeszcze gry — projekt jest w fazie przedprodukcyjnej.",
@@ -315,11 +309,6 @@
     "emptyFolder": "Jeszcze nic tu nie ma."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Grywalne samodzielne gry, utworzone w warsztacie. Wybierz automat i graj.",
-    "loading": "Ładowanie automatów…",
-    "emptyState": "Brak gier na sali. Uruchom create_game z agenta hosta, aby utworzyć pierwszy automat.",
-    "play": "Graj",
     "levelCount": "{count, plural, one {# poziom} few {# poziomy} many {# poziomów} other {# poziomu}}",
     "shipped": "Wydane"
   },
@@ -329,7 +318,7 @@
     "subtitle": "Każdy artefakt wymintowany przez agenta — sceny, modele, postacie, materiały, obrazy, diagramy. Jedna półka na każdy sposób patrzenia; pod spodem ten sam magazyn przepisów.",
     "shelves": {
       "recent": "Ostatnie",
-      "scenes": "Światy",
+      "scenes": "Sceny",
       "turntables": "Obrotnice",
       "models": "Modele",
       "views": "Widoki",

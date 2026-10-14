@@ -5,8 +5,9 @@
  *
  * The splayed floor moved to `/dashboard`. What lands here is the thing the old
  * tile launcher was trying to be and the floor could never be: a page you read
- * in one glance and leave immediately. Every door is a plate wearing its own
- * dot-relief face, grouped by mode, named and nothing else.
+ * in one glance and leave immediately. Under the floor's plate, the newest
+ * projects on a rail, each with its outcomes as bars; then every door, a plate
+ * wearing its own dot-relief face, grouped by mode, named and nothing else.
  *
  * ── The page is one object ──────────────────────────────────────────────────
  * The whole surface is a single curved shell, and the shell's top strip IS the
@@ -45,6 +46,7 @@ import useSWR from 'swr';
 import IconRelief from '@/components/brand/IconRelief';
 import MojuloMark from '@/components/brand/MojuloMark';
 import { StatusBar } from '@/components/WorkshopChrome';
+import { ProjectGrid } from '@/components/rail/ProjectCards';
 import { visibleWorkshopGroups, hueVars, FloorIcon, DOOR_ICONS } from '@/components/workshop-nav';
 import { LIBRARY_ZONES, zoneCounts } from '@/lib/graph/sketch/library-zones';
 
@@ -325,6 +327,7 @@ export default function WorkshopHome({ authEnabled = false, asNav = false }) {
   // counts, not a viewport, and has no reason to pay for either.
   const { data } = useSWR('/api/home?shallow=1', fetcher, { revalidateOnFocus: false });
   const { data: presence } = useSWR('/api/workshop/presence', fetcher);
+  const { data: projects } = useSWR('/api/projects?limit=4', fetcher, { revalidateOnFocus: true });
   const groups = visibleWorkshopGroups(presence);
   const agentNote = useAgentNote();
   // The strip is the app's nav on the real front door, and wherever the caller
@@ -343,6 +346,14 @@ export default function WorkshopHome({ authEnabled = false, asNav = false }) {
         />
 
         <DashboardPlate library={data?.library} />
+
+        {/* What is being built, newest first: each project and how far each of its outcomes has come. No heading:
+            the cards are the statement. Absent until there is a project. */}
+        {projects?.projects?.length > 0 && (
+          <section className="border-b border-[color:var(--bay-rail)] px-4 py-4 sm:px-6">
+            <ProjectGrid projects={projects.projects} columns="sm:grid-cols-2 xl:grid-cols-4" />
+          </section>
+        )}
 
         {groups.map((group) => (
           <DoorGrid key={group.key} group={group} />
