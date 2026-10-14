@@ -478,6 +478,22 @@ export const SketchRepository = {
   },
 
   /**
+   * The rows of the given kinds, last touched first, whole (manifest included): the dashboard's project shelves read
+   * a few kinds and decide from the recipe which rows are projects of their own.
+   */
+  listByKinds({ kinds = [], limit = 200 } = {}) {
+    if (!Array.isArray(kinds) || !kinds.length) return [];
+    const handle = db();
+    const scope = spaceFilter();
+    const cap = Math.max(1, Math.min(2000, Number(limit) || 200));
+    return handle
+      .prepare(`SELECT * FROM sketches WHERE kind IN (${kinds.map(() => '?').join(', ')})${scope.sql} ORDER BY ${TOUCHED_ORDER} LIMIT ?`)
+      .all(...kinds, ...scope.params, cap)
+      .map(rowToSketch)
+      .filter(Boolean);
+  },
+
+  /**
    * Effective-bucket tallies over the WHOLE table, plus per-kind tallies for the
    * kinds a caller needs to sub-split a bucket (the Library's Characters shelf).
    * Two GROUP BYs over the persisted columns — no manifest is read — and a tiny

@@ -76,6 +76,24 @@ export const species = {
       set: { cephInR: (l) => (l[3] = [0.075, l[3][1]], l[4] = [0.065, l[4][1]], l), cephOutR: (l) => (l[3] = [0.065, l[3][1]], l[4] = [0.04, l[4][1]], l),
         hhEyeR: (l) => (l[3] = 0.07, l[4] = 0.06, l) } }),
   },
+  // WHALE SHARK (Rhincodon typus). Thesis: the biggest fish, a huge broad shark · a WIDE FLAT blunt head with the MOUTH
+  // right across the front (a filter feeder), tiny eyes behind its corners · ridges along the flanks · a tall first
+  // dorsal set far back, a tall near-symmetrical crescent tail · THE PATTERN: a checkerboard of pale SPOTS and stripes
+  // on a dark blue-grey back, a white belly · ~10 m long (Rowat & Brooks 2012, J. Fish Biol. 80: 1019–1056: commonly
+  // 4–12 m, to ~18 m).
+  whaleShark: {
+    family: 'chondrichthyan', name: 'a whale shark', scale: 2.3,
+    ...make({ ...GREAT_WHITE,
+      profile: [[-1.65, 0.14, 0.12], [-1.20, 0.26, 0.28], [-0.50, 0.46, 0.5], [0.20, 0.52, 0.54], [0.85, 0.5, 0.44], [1.20, 0.46, 0.34]],
+      snout: { len: 0.3, w: 1.6, scale: 2.4, kx: 1.5, kz: 0.62 }, neck: { from: 1.05, to: 1.4, rA: [0.47, 0.36], rB: [0.45, 0.3] },
+      eyeR: 0.012, eye: { at: 0.2, t: 2.4 }, mouth: { front: 0.02, corner: 0.22, gape: 1, recess: 0.01 },
+      dorsal: { at: -0.1, base: 0.7, height: 0.72, sweep: 0.42, thick: 0.05 },
+      caudal: { upper: { span: 1.4, angle: 45, chord: 0.22, thick: 0.06 }, lower: { ratio: 0.85, angle: 48, chord: 0.2 } },
+      pectoral: { ...GREAT_WHITE.pectoral, span: 0.95, chord: 0.36 },
+      pattern: { back: '#3e4c5e', belly: '#e8e8e2', from: 0.62 } }),
+    markDensity: { torso: 4 },
+    markings: [{ on: 'torso', kind: 'belly', group: 'Belly', from: 0.62 }, { on: 'torso', kind: 'spots', count: 44, size: [0.012, 0.016], seed: 12, group: 'Spot', color: '#d8dde2' }],
+  },
   // GIANT OCEANIC MANTA RAY (Mobula birostris). Thesis: a FLAT DIAMOND disc much wider than long, the pectoral
   // WINGS tapering to swept-back pointed tips · two CEPHALIC LOBES projecting forward either side of a wide terminal
   // mouth, eyes on the sides of the head · a thin whip tail about as long as the disc, a small dorsal at its base ·
@@ -139,6 +157,7 @@ export const species = {
 // into the plan (a species' bytes do not change with its facts). `common` is the everyday name, `aliases` the other
 // words for THIS animal (lower case, unique across every roster), `size` the published figure the build is fit to.
 export const about = {
+  whaleShark: { common: 'whale shark', aliases: ['whaleshark'], sci: 'Rhincodon typus', size: '~10 m long', source: 'Rowat & Brooks 2012, J. Fish Biol. 80: 1019–1056' },
   greatWhiteShark: { common: 'shark', aliases: ['great white', 'great white shark', 'white shark'], sci: 'Carcharodon carcharias', size: '~4.5 m long', source: 'Florida Museum' },
   hammerhead: { common: 'hammerhead shark', aliases: ['hammerhead', 'great hammerhead'], sci: 'Sphyrna mokarran', size: '~3.5 m long', source: 'Florida Museum' },
   mantaRay: { common: 'manta ray', aliases: ['manta', 'ray'], sci: 'Mobula birostris', size: '~4.5 m disc width', source: 'Marshall et al. 2009' },

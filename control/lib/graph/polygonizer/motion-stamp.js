@@ -1,7 +1,8 @@
 /**
  * motion-stamp — where a recipe is WRITTEN, the gaits it authors are stored by value: a figure's `motion`
  * (figure-posing.js stampMotion), a hero's door `motion` (hero-motion.js stampHeroMotion), and the same two inside a
- * world's `figures` map. Renders never come here, so a recipe stored before the mint tables keeps resolving its
+ * world's `figures` map. A hero new to a world's figures is also minted as the door mints one (the calibrated walk,
+ * the hero laws). Renders never come here, so a recipe stored before the mint tables keeps resolving its
  * left-out dials against the frozen defaults, byte for byte.
  *
  * An edit stamps only a motion it CHANGED (compared with the stored recipe it replaces): an edit to a figure's garment
@@ -9,6 +10,7 @@
  */
 import { stampMotion } from './figure-posing.js';
 import { stampHeroMotion } from './hero-motion.js';
+import { HERO_LAWS_VERSION, readsHeroLaws } from './hero-form.js';
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -34,6 +36,12 @@ export function withDefaultWalk(spec) {
   return { ...spec, motion: { ...(isObj(spec.motion) ? spec.motion : {}), walk: true } };
 }
 
+/** An inline hero as the door would mint it: withDefaultWalk, and `laws` when it reads the hero laws' tables. */
+function mintedInline(hero) {
+  const walked = withDefaultWalk(hero);
+  return walked.laws === undefined && readsHeroLaws(walked) ? { ...walked, laws: HERO_LAWS_VERSION } : walked;
+}
+
 function stampFigureMotion(entry, prev) {
   if (entry.motion == null || (prev && same(entry.motion, prev.motion))) return entry;
   const motion = stampMotion(entry.motion);
@@ -55,6 +63,10 @@ export function stampAuthoredMotion(manifest, prev = null) {
       if (!isObj(f)) continue;
       const pf = isObj(prev?.figures) ? prev.figures[name] : null;
       let g = stampFigureMotion(f, pf);
+      // a hero NEW to the world's figures is minted as the door mints one: the calibrated walk unless it brings its own,
+      // and the hero laws when it reads their tables (an inline hero is re-recorded on every render, so it is stamped
+      // here, where it is written, or never); a figure the world already had is left as it was stored
+      if (isObj(g.hero) && !pf) g = { ...g, hero: mintedInline(g.hero) };
       if (isObj(g.hero)) { const h = stampHero(g.hero, pf?.hero); if (h !== g.hero) g = { ...g, hero: h }; }
       if (g !== f) (figs ??= { ...m.figures })[name] = g;
     }

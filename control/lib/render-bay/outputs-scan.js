@@ -102,6 +102,52 @@ export async function scanOneOutcome(ref) {
 }
 
 /**
+ * One artifact's outcome folder, ALL of it: every file down to `maxDepth` folders, grouped by the folder it sits in
+ * at the top (`''` for the folder itself), so a building's `sheets/` and `schedules/` and a game's `levels/`, `godot/`
+ * and `assets/` show as what they are. `scanOneOutcome` reads the top only; an export that writes into subfolders
+ * would otherwise be invisible. Sidecars (the receipts and recipes) are left out. Each folder lists at most
+ * `perGroup` files (a Godot pack holds thousands); its `total` and the tree's are the true counts.
+ *
+ * → { ref, url, total, bytes, groups: [{ dir, total, bytes, files: [{ path, bytes, page }] }] }
+ *   `page` marks an HTML file: it opens to be looked at, where any other file is taken.
+ */
+export async function scanOutcomeTree(ref, { maxDepth = 3, perGroup = 60 } = {}) {
+  const empty = { ref, url: null, total: 0, bytes: 0, groups: [] };
+  if (!ref) return empty;
+  const root = path.join(outcomesBaseDir(), ref);
+  const groups = new Map();
+  let total = 0;
+  let bytes = 0;
+  const walk = async (dir, rel, depth) => {
+    const entries = (await readDirSafe(dir)).sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;   // the host's own (.DS_Store), never an output
+      const at = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        if (depth < maxDepth) await walk(path.join(dir, entry.name), at, depth + 1);
+        continue;
+      }
+      if (!entry.isFile() || SIDECAR.test(entry.name)) continue;
+      const stat = await statSafe(path.join(dir, entry.name));
+      if (!stat) continue;
+      const top = rel ? rel.split('/')[0] : '';
+      const g = groups.get(top) ?? { dir: top, total: 0, bytes: 0, files: [] };
+      g.total += 1;
+      g.bytes += stat.size;
+      if (g.files.length < perGroup) g.files.push({ path: at, bytes: stat.size, page: /\.html?$/i.test(entry.name) });
+      groups.set(top, g);
+      total += 1;
+      bytes += stat.size;
+    }
+  };
+  await walk(root, '', 0);
+  if (!total) return empty;
+  // the folder's own files first, then its subfolders by name
+  const ordered = [...groups.values()].sort((a, b) => (a.dir === '' ? -1 : b.dir === '' ? 1 : a.dir.localeCompare(b.dir)));
+  return { ref, url: outcomeUrlFor(ref), total, bytes, groups: ordered };
+}
+
+/**
  * Beats renders, grouped by the ref that minted them. `export_beats` writes
  * `<ref>.wav` / `<ref>.mid` for a loop or score and `<ref>.<cue>.wav` per SFX cue,
  * so the first dot-segment is the ref and one groove with nine cues reads as one

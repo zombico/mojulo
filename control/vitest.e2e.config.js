@@ -14,6 +14,7 @@ export const E2E = [
   'lib/mcp/tools/building-level.test.js',
   'lib/mcp/tools/design-game.test.js',
   'lib/mcp/tools/design-game.quick.test.js',
+  'lib/graph/car-designer/racer-live.test.js',
 ];
 
 export default defineConfig({

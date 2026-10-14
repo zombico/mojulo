@@ -1,5 +1,6 @@
 import { b64, safeJson } from '../../emit-util.js';
 import { emissionSource } from '../../../worlds/controllable/compose.js';
+import { surfaceAt } from '../../../roads/surface.js';
 import { commanderSource } from '../../../worlds/controllable/commander.js';
 import { MSG_GAMEPAD as GAME_MSG_GAMEPAD, MSG_AI as GAME_MSG_AI } from '../../../game/level-contract.js';
 import { hangarStepperBlock } from './hangar-menu.js';
@@ -47,7 +48,7 @@ function poolFigureBuffers(figures) {
   return { fig: rewrite(figures), pool: [...idx.keys()] };
 }
 
-export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null } = {}) {
+export function controllableChannelScript(entities, camera, figures, { exposeBodies = false, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, key = null, toonInk = null, driveSurface = null } = {}) {
   // per-vertex specular (material-response): inject the aSpec wiring into the rig-figure
   // builder ONLY when some packed figure carries a spec buffer (a material-finished suit).
   // Absent → the emitted controllable channel is byte-identical (the char-net pin holds),
@@ -61,6 +62,12 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // __makeRigGroup q branch below so rig pages without them stay byte-identical.
   const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && p.q));
+  // a vehicle rig that LIVES (car-designer/racer.js `live`: steer, lean, squat, dive, bounce, a mast's wobble) —
+  // the overlay below is emitted only when some figure carries one, so every other page stays byte-identical.
+  const figHasLive = Object.values(figures || {}).some((f) => f && f.rig && f.live);
+  // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
+  // emitted only when some figure carries one.
+  const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
   // spec rides two encodings: legacy float32 pairs (`spec`, vehicle/protoform rigs) and the
   // unit rigs' u8 pairs (`spec8` — [strength×255, shininess], dequantized to the same float
   // attribute here so the shared spec patch shader is unchanged).
@@ -322,7 +329,8 @@ function __makeRigGroup(fig, b) {
       jets.push({ holder, core, inner, shards, kind: th.kind, baseQ: holder.quaternion.clone() });
     }
     if (jets.length) group.userData.rigFig.jets = jets;
-  }
+  }${figHasJuice ? `
+  if (fig.juice) __rjBuild(fig, group, boneMeshes);` : ''}
   return group;
 }
 function __makeBody(e) {
@@ -484,7 +492,316 @@ function __rigOverlay(ov, clipName, phase, j, outQ, outP) {
   outP[2] = B[o0 + 6] + (B[o1 + 6] - B[o0 + 6]) * t;
   return true;
 }
-function __syncRigEntity(e, m, rig, dt) {
+${figHasJuice ? `// A RACER'S JUICE (car-designer/juice.js): each row a trigger over the facts, read each frame (a compiled tree, never
+// code), at the anchors the machine has. Flames are additive cones on their anchor (they ride the body); puffs, smoke,
+// dust and sparks are pooled sprites in the world; a landing is a ring on the ground. Jitter from a seeded LCG.
+let __rjSeed = 12345;
+const __rjRnd = () => { __rjSeed = (Math.imul(__rjSeed, 1103515245) + 12345) >>> 0; return __rjSeed / 4294967296; };
+const __rjUp = new THREE.Vector3(0, 1, 0), __rjV = new THREE.Vector3(), __rjD = new THREE.Vector3(), __rjQ = new THREE.Quaternion();
+let __rjTex = null, __rjParts = [], __rjRings = [];
+function __rjTexture() {
+  if (__rjTex) return __rjTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.75)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); __rjTex = new THREE.CanvasTexture(c); return __rjTex;
+}
+function __rjWhen(n, F) {
+  switch (n[0]) {
+    case 'or': return __rjWhen(n[1], F) || __rjWhen(n[2], F);
+    case 'and': return __rjWhen(n[1], F) && __rjWhen(n[2], F);
+    case 'not': return !__rjWhen(n[1], F);
+    case 'mul': return __rjWhen(n[1], F) * __rjWhen(n[2], F);
+    case 'abs': return Math.abs(__rjWhen(n[1], F));
+    case 'num': return n[1];
+    case 'fact': return F[n[1]] || 0;
+    case 'cmp': { const a = __rjWhen(n[2], F), b = __rjWhen(n[3], F); return n[1] === '<' ? a < b : n[1] === '>' ? a > b : n[1] === '<=' ? a <= b : n[1] === '>=' ? a >= b : n[1] === '==' ? a === b : a !== b; }
+  }
+  return 0;
+}
+const __rjMatch = (at, kind) => at === kind || (at.indexOf('.') < 0 && kind.split('.')[0] === at);
+function __rjBuild(fig, group, boneMeshes) {
+  const J = fig.juice, anchors = J.anchors.map((a) => {
+    const loc = new THREE.Object3D(); loc.position.set(a.at[0], a.at[1], a.at[2]);
+    const bi = a.bone ? fig.bones.findIndex((b) => b.id === a.bone) : -1;
+    (bi >= 0 && boneMeshes[bi] ? boneMeshes[bi] : group).add(loc);
+    return { kind: a.kind, loc, dir: new THREE.Vector3(a.dir[0], a.dir[1], a.dir[2]).normalize() };
+  });
+  const flames = [];
+  for (const row of J.rows) if (row.look === 'flame') for (const a of anchors) if (__rjMatch(row.at, a.kind)) {
+    const holder = new THREE.Object3D(); holder.quaternion.setFromUnitVectors(__rjUp, a.dir); holder.visible = false; a.loc.add(holder);
+    const len = row.size * J.D * 1.6, rad = Math.max(0.03, row.size * J.D * 0.32), cols = row.colours;
+    const mk = (r, l, col, o) => { const g = new THREE.ConeGeometry(r, l, 10, 1, true); g.translate(0, l / 2, 0); const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: new THREE.Color(col), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.raycast = function () {}; m.frustumCulled = false; m.userData.o = o; holder.add(m); return m; };
+    const outer = mk(rad, len, cols[cols.length - 1], 0.75), inner = mk(rad * 0.55, len * 0.6, cols[0], 0.95);
+    flames.push({ row, holder, outer, inner, amt: 0 });
+  }
+  // R4's status: every bone mesh's material tinted by uniforms chained after any patch it has (multiply, mix toward a
+  // colour, add a glow); the slots the machine has (head and brake lamps, the accent: its hero piece) are bone meshes
+  const st = boneMeshes.map((m) => {
+    if (!m) return null;
+    const u = { uTint: { value: new THREE.Vector3(1, 1, 1) }, uMix: { value: 0 }, uMixCol: { value: new THREE.Color(1, 1, 1) }, uAdd: { value: new THREE.Vector3() } };
+    const prev = m.material.onBeforeCompile;
+    m.material.onBeforeCompile = (sh) => {
+      if (prev) prev(sh);
+      Object.assign(sh.uniforms, u);
+      sh.fragmentShader = 'uniform vec3 uTint;\\nuniform float uMix;\\nuniform vec3 uMixCol;\\nuniform vec3 uAdd;\\n' + sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb = mix(gl_FragColor.rgb * uTint, uMixCol, uMix) + uAdd;\\n#include <dithering_fragment>');
+    };
+    m.material.needsUpdate = true;
+    return u;
+  });
+  const boneOf = (id) => fig.bones.findIndex((b) => b.id === id), slot = {};
+  for (const [k, id] of Object.entries(J.slots || {})) { const i = boneOf(id); if (i >= 0 && st[i]) slot[k] = [st[i]]; }
+  slot.all = st.filter(Boolean);
+  const halos = [];
+  for (const row of J.status || []) if (row.halo) for (const sl of row.slots) for (const a of anchors) if (a.kind === sl) {
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: __rjTexture(), color: new THREE.Color(row.colours[row.colours.length - 1]), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    const s0 = J.D * 0.55 * row.halo; spr.scale.set(s0, s0, s0); spr.raycast = function () {}; a.loc.add(spr); halos.push({ row, spr });
+  }
+  let bubble = null;
+  if ((J.status || []).some((r) => r.look === 'bubble')) {
+    const body = anchors.find((a) => a.kind === 'body'), rad = J.D * 1.9;
+    bubble = new THREE.Mesh(new THREE.SphereGeometry(rad, 24, 16), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uCol: { value: new THREE.Color(1, 1, 1) }, uA: { value: 0 } },
+      // (the page draws with a logarithmic depth buffer: a shader of its own carries the log-depth chunks, as fire's do)
+      vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vN; varying vec3 vV; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz); gl_Position = projectionMatrix * viewMatrix * wp;\\n#include <logdepthbuf_vertex>\\n}',
+      fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uA; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(vN, vV)), 2.2); gl_FragColor = vec4(uCol * (0.18 + 1.4 * f), uA * (0.25 + 0.9 * f)); }' }));
+    bubble.raycast = function () {}; bubble.visible = false; bubble.position.z = rad * 0.45; (body ? body.loc : group).add(bubble);
+  }
+  group.userData.rigFig.rj = { J, anchors, flames, acc: {}, alive: {}, skidT: 0, st, slot, halos, bubble, on: {}, flashT: {}, prevV: 0, accel: 0, impactCD: 0, wasBoost: false, group, fired: {}, screen: 0 };
+}
+let __rjStarTex = null, __rjStars = [], __rjStreaks = [], __rjShocks = [], __rjScreen = null;
+function __rjStarTexture() {
+  if (__rjStarTex) return __rjStarTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  g.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 12 : 29, a = -Math.PI / 2 + (i * Math.PI) / 5; g.lineTo(32 + r * Math.cos(a), 32 + r * Math.sin(a)); } g.closePath();
+  g.fillStyle = '#ffffff'; g.fill(); g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.9)'; g.stroke();
+  __rjStarTex = new THREE.CanvasTexture(c); return __rjStarTex;
+}
+function __rjStar(col, size) {
+  let s = __rjStars.find((q) => !q.on);
+  if (!s) { if (__rjStars.length >= 160) return null; const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: __rjStarTexture(), transparent: true, depthWrite: false, depthTest: false })); spr.renderOrder = 10; spr.raycast = function () {}; scene.add(spr); s = { spr }; __rjStars.push(s); }
+  s.on = true; s.age = 0; s.spr.material.color.set(col); s.spr.visible = true; s.size = size; return s;
+}
+function __rjStreak(rj, e, row) {
+  let k = __rjStreaks.find((q) => !q.on);
+  if (!k) { if (__rjStreaks.length >= 240) return; const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.raycast = function () {}; scene.add(m); k = { m }; __rjStreaks.push(k); }
+  const D = rj.J.D, h = e.transform.heading, f = [Math.cos(h), Math.sin(h)], sd = [-f[1], f[0]], side = __rjRnd() < 0.5 ? -1 : 1, top = __rjRnd() < 0.3;
+  const off = top ? (__rjRnd() - 0.5) * D * 1.6 : side * D * (1.1 + __rjRnd() * 1.2), up = top ? D * (1.6 + __rjRnd() * 0.8) : D * (0.2 + __rjRnd() * 1.4), ahead = D * (__rjRnd() * 2 - 0.6);
+  const p = e.transform.pos, gz = p[2] - ((e.rule && e.rule.eye) || 0);
+  k.m.position.set(p[0] + f[0] * ahead + sd[0] * off, p[1] + f[1] * ahead + sd[1] * off, gz + up);
+  k.m.rotation.set(top ? 0 : Math.PI / 2, 0, h, 'ZYX'); k.len = row.size * D * (0.6 + __rjRnd() * 0.8); k.wid = D * 0.035;
+  k.m.material.color.set(row.colours[0]); k.on = true; k.age = 0; k.life = row.life * (0.7 + __rjRnd() * 0.6); k.m.visible = true; k.rj = rj; k.key = row.id;
+  rj.alive[row.id] = (rj.alive[row.id] || 0) + 1;
+}
+// one ring, behind the machine at the middle of its anchors (two stacks throw one shock), thin and faint
+function __rjShock(rj, as, e, row) {
+  if (!as.length) return;
+  let k = __rjShocks.find((q) => !q.on);
+  if (!k) { const m = new THREE.Mesh(new THREE.RingGeometry(0.86, 1, 40), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.raycast = function () {}; scene.add(m); k = { m }; __rjShocks.push(k); }
+  k.m.position.set(0, 0, 0); for (const a of as) { a.loc.getWorldPosition(__rjV); k.m.position.addScaledVector(__rjV, 1 / as.length); }
+  k.m.position.x -= Math.cos(e.transform.heading) * rj.J.D * 0.3; k.m.position.y -= Math.sin(e.transform.heading) * rj.J.D * 0.3;
+  k.m.rotation.set(0, Math.PI / 2, e.transform.heading, 'ZYX');
+  k.m.material.color.set(row.colours[0]); k.on = true; k.age = 0; k.life = row.life; k.size = row.size * rj.J.D; k.m.visible = true;
+}
+function __rjScreenLines(amt, row) {
+  if (!__rjScreen) {
+    const host = document.getElementById('wrap') || document.body, c = document.createElement('canvas');
+    c.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:5';
+    host.appendChild(c); __rjScreen = { c, g: c.getContext('2d'), amt: 0 };
+  }
+  const S = __rjScreen; S.amt += (amt - S.amt) * 0.25;
+  const c = S.c, w = c.clientWidth || 1, h = c.clientHeight || 1; if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  S.g.clearRect(0, 0, w, h); if (S.amt < 0.03) return;
+  const cx = w / 2, cy = h * 0.46, n = Math.round((row ? row.count : 40) * S.amt);
+  S.g.strokeStyle = row ? row.colours[0] : '#ffffff';
+  for (let i = 0; i < n; i++) {
+    const t = __rjRnd() * Math.PI * 2, R = Math.hypot(w, h) * 0.55, x0 = cx + Math.cos(t) * R, y0 = cy + Math.sin(t) * R * 0.8, k = 0.18 + __rjRnd() * 0.32;
+    S.g.globalAlpha = (0.25 + __rjRnd() * 0.55) * S.amt; S.g.lineWidth = 1 + __rjRnd() * 3;
+    S.g.beginPath(); S.g.moveTo(x0, y0); S.g.lineTo(x0 + (cx - x0) * k, y0 + (cy - y0) * k); S.g.stroke();
+  }
+  S.g.globalAlpha = 1;
+}
+function __rjSpawn(rj, row, a, e, F, tier) {
+  const key = row.id; if ((rj.alive[key] || 0) >= row.budget) return;
+  let p = __rjParts.find((q) => !q.on);
+  if (!p) { if (__rjParts.length >= 900) return; const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: __rjTexture(), transparent: true, depthWrite: false })); spr.raycast = function () {}; scene.add(spr); p = { spr }; __rjParts.push(p); }
+  a.loc.getWorldPosition(__rjV); a.loc.getWorldQuaternion(__rjQ); __rjD.copy(a.dir).applyQuaternion(__rjQ);
+  const D = rj.J.D, r = () => __rjRnd() - 0.5, look = row.look, spark = look === 'spark' || look === 'trail';
+  const fx = Math.cos(e.transform.heading), fy = Math.sin(e.transform.heading), v = e.speed || 0;
+  p.on = true; p.rj = rj; p.key = key; p.age = 0; p.life = (row.life || 0.6) * (0.8 + 0.4 * __rjRnd());
+  p.spr.position.set(__rjV.x + r() * D * 0.1, __rjV.y + r() * D * 0.1, __rjV.z + (look === 'puff' ? 0 : 0.02));
+  p.grav = spark && look === 'spark' ? -9 : 0;
+  if (look === 'puff') p.vel = [__rjD.x * 0.6 + r() * 0.3 + fx * v, __rjD.y * 0.6 + r() * 0.3 + fy * v, 0.5 + __rjD.z * 0.6];
+  else if (look === 'smoke') p.vel = [r() * 0.8 + fx * v * 0.3, r() * 0.8 + fy * v * 0.3, 0.6 + __rjRnd() * 0.5];
+  else if (look === 'dust') p.vel = [r() * 1.6 + fx * v * 0.2, r() * 1.6 + fy * v * 0.2, 0.8 + __rjRnd() * 0.8];
+  else if (look === 'spark') p.vel = [r() * 3 + fx * v * 0.4, r() * 3 + fy * v * 0.4, 1.2 + __rjRnd() * 2.4];
+  else p.vel = [0, 0, 0];
+  const cols = row.colours, c0 = cols[Math.min(cols.length - 1, tier)], c1 = row.tierBy ? c0 : cols[cols.length - 1];
+  p.c0 = new THREE.Color(c0); p.c1 = new THREE.Color(c1);
+  p.s0 = row.size * D * (spark ? 1 : 0.8); p.s1 = spark ? p.s0 * 0.3 : p.s0 * 2.6;
+  p.o0 = spark ? 1 : look === 'puff' ? 0.75 : 0.6;
+  p.spr.material.blending = spark ? THREE.AdditiveBlending : THREE.NormalBlending; p.spr.material.needsUpdate = true;
+  p.spr.visible = true; rj.alive[key] = (rj.alive[key] || 0) + 1;
+}
+function __rjRing(rj, row, e) {
+  let g = __rjRings.find((q) => !q.on);
+  if (!g) { const m = new THREE.Mesh(new THREE.RingGeometry(0.75, 1, 28), new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide })); m.raycast = function () {}; scene.add(m); g = { m }; __rjRings.push(g); }
+  g.on = true; g.age = 0; g.life = row.life || 0.4; g.size = row.size * rj.J.D; g.m.position.set(e.transform.pos[0], e.transform.pos[1], (e.transform.pos[2] - ((e.rule && e.rule.eye) || 0)) + 0.03);
+  g.m.material.color.set(row.colours[0]); g.m.visible = true;
+}
+// the status rows on the slots' uniforms: reset, then each row on (a glow adds, a tint multiplies, the rest mix toward
+// a colour, the strongest wins); a lamp's halo with its glow; the shield's bubble
+const __rjC = new THREE.Color();
+function __rjStatus(rj, F, d, t) {
+  for (const u of rj.st) if (u) { u.uTint.value.set(1, 1, 1); u.uMix.value = 0; u.uAdd.value.set(0, 0, 0); }
+  for (const h of rj.halos) h.spr.material.opacity = 0;
+  for (const row of rj.J.status || []) {
+    const on = !!__rjWhen(row.when, F), was = rj.on[row.id]; rj.on[row.id] = on;
+    if (row.look === 'flash') { if (on && !was) rj.flashT[row.id] = row.duration || 0.12; rj.flashT[row.id] = Math.max(0, (rj.flashT[row.id] || 0) - d); }
+    const live = row.look === 'flash' ? (rj.flashT[row.id] || 0) > 0 : on;
+    if (row.look === 'bubble') { if (rj.bubble) { rj.bubble.visible = live; rj.bubble.material.uniforms.uCol.value.set(row.colours[0]); rj.bubble.material.uniforms.uA.value = (row.amount || 0.8) * (0.85 + 0.15 * Math.sin(t * 6)); } continue; }
+    if (!live) continue;
+    const by = row.by ? F[row.by] || 0 : 1, A = row.amount != null ? row.amount : 1;
+    let mix = 0, glow = 0, tint = null;
+    if (row.look === 'glow') { __rjC.set(row.colours[row.colours.length - 1]); glow = A; }
+    else if (row.look === 'fill') { const full = by >= 0.999; __rjC.set(full ? row.colours[row.colours.length - 1] : row.colours[0]); mix = full ? 0.45 + 0.35 * Math.sin(t * 14) : 0.6 * Math.min(1, by); }
+    else if (row.look === 'tier') { const i = Math.max(0, (row.tierAt || [0]).filter((x) => by >= x).length - 1); __rjC.set(row.colours[Math.min(row.colours.length - 1, i)]); mix = A; glow = A * 0.5; }
+    else if (row.look === 'flash') { __rjC.set(row.colours[0]); mix = A * ((rj.flashT[row.id] || 0) / (row.duration || 0.12)); }
+    else if (row.look === 'tint') { if (row.flicker && __rjRnd() < row.flicker * 0.15) continue; __rjC.set(row.colours[0]); tint = A * Math.min(1, by); }
+    else if (row.look === 'cycle') { __rjC.set(row.colours[Math.floor(t * (row.rate || 8)) % row.colours.length]); mix = A; }
+    else if (row.look === 'pulse') { __rjC.set(row.colours[0]); mix = A * (0.5 + 0.5 * Math.sin(t * (row.rate || 2) * Math.PI * 2)); }
+    for (const sl of row.slots) for (const u of rj.slot[sl] || []) {
+      if (tint != null) u.uTint.value.set(u.uTint.value.x * (1 - tint + tint * __rjC.r), u.uTint.value.y * (1 - tint + tint * __rjC.g), u.uTint.value.z * (1 - tint + tint * __rjC.b));
+      if (mix > u.uMix.value) { u.uMix.value = mix; u.uMixCol.value.copy(__rjC); }
+      if (glow) u.uAdd.value.set(u.uAdd.value.x + __rjC.r * glow * 0.5, u.uAdd.value.y + __rjC.g * glow * 0.5, u.uAdd.value.z + __rjC.b * glow * 0.5);
+    }
+    if (glow) for (const h of rj.halos) if (h.row === row) h.spr.material.opacity = Math.min(1, glow);
+  }
+}
+// the big effects: stars from a bump, stars round the head, motion lines at speed, a boost's shock, speed lines on
+// the pilot's screen
+function __rjFx(rj, e, F, d) {
+  for (const row of rj.J.fx || []) {
+    const on = !!__rjWhen(row.when, F), key = 'fx:' + row.id, was = rj.on[key]; rj.on[key] = on;
+    if (row.look === 'screen') { if (__world.pilotId === e.id || (!__world.pilotId && e.pilotable)) { __rjScreenLines(on ? (row.by ? F[row.by] || 0 : 1) : 0, row); rj.screen = __rjScreen ? __rjScreen.amt : 0; } continue; }
+    if (row.look === 'streak') { if (!on || (rj.alive[row.id] || 0) >= row.budget) continue; rj.acc[key] = (rj.acc[key] || 0) + row.rate * d; while (rj.acc[key] >= 1) { rj.acc[key] -= 1; __rjStreak(rj, e, row); } continue; }
+    if (!on || was) continue;   // the rest fire on the rising edge
+    rj.fired[row.id] = (rj.fired[row.id] || 0) + 1;
+    const a = rj.anchors.find((x) => x.kind === row.at || x.kind.split('.')[0] === row.at); if (!a) continue;
+    if (row.look === 'shock') { __rjShock(rj, rj.anchors.filter((b) => b.kind === row.at), e, row); continue; }
+    a.loc.getWorldPosition(__rjV);
+    for (let i = 0; i < (row.count || 5); i++) {
+      const s = __rjStar(row.colours[i % row.colours.length], row.size * rj.J.D * (0.75 + __rjRnd() * 0.5)); if (!s) break;
+      s.life = row.life * (0.85 + __rjRnd() * 0.3); s.spin = (__rjRnd() - 0.5) * 14;
+      if (row.look === 'orbit') { s.orbit = { a: a, ph: (i / (row.count || 4)) * Math.PI * 2, r: rj.J.D * 0.55 }; s.vel = null; }
+      else { const th = __rjRnd() * Math.PI * 2, sp = 2.2 + __rjRnd() * 2.2; s.orbit = null; s.vel = [Math.cos(th) * sp, Math.sin(th) * sp, 1.5 + __rjRnd() * 2.5]; s.spr.position.copy(__rjV); }
+    }
+  }
+}
+function __rjPools(d) {
+  for (const s of __rjStars) {
+    if (!s.on) continue;
+    s.age += d; const u = s.age / s.life;
+    if (u >= 1) { s.on = false; s.spr.visible = false; continue; }
+    if (s.orbit) { s.orbit.a.loc.getWorldPosition(__rjV); const ph = s.orbit.ph + s.age * 7; s.spr.position.set(__rjV.x + Math.cos(ph) * s.orbit.r, __rjV.y + Math.sin(ph) * s.orbit.r, __rjV.z + s.orbit.r * 0.6 + 0.06 * Math.sin(ph * 2)); }
+    else { s.vel[2] -= 6 * d; s.spr.position.x += s.vel[0] * d; s.spr.position.y += s.vel[1] * d; s.spr.position.z += s.vel[2] * d; }
+    const pop = u < 0.15 ? u / 0.15 * 1.25 : 1.25 - 0.45 * (u - 0.15), sz = s.size * pop; s.spr.scale.set(sz, sz, sz);
+    s.spr.material.rotation += s.spin * d; s.spr.material.opacity = u > 0.7 ? (1 - u) / 0.3 : 1;
+  }
+  for (const k of __rjStreaks) {
+    if (!k.on) continue;
+    k.age += d; const u = k.age / k.life;
+    if (u >= 1) { k.on = false; k.m.visible = false; k.rj.alive[k.key]--; continue; }
+    k.m.scale.set(k.len * (0.4 + 0.6 * Math.min(1, u * 3)), k.wid, 1); k.m.material.opacity = 0.75 * (1 - u);
+  }
+  for (const k of __rjShocks) {
+    if (!k.on) continue;
+    k.age += d; const u = k.age / k.life;
+    if (u >= 1) { k.on = false; k.m.visible = false; continue; }
+    const s = k.size * (0.2 + 0.8 * Math.sqrt(u)); k.m.scale.set(s, s, s); k.m.material.opacity = 0.5 * (1 - u) * (1 - u);
+  }
+}
+function __updateRacerJuice(dt) {
+  const d = Math.min(0.05, dt || 0), t = __world.time || 0;
+  for (const e of __world.entities) {
+    const body = __bodies[e.id], rf = body && body.userData && body.userData.rigFig, rj = rf && rf.rj;
+    if (!rj) continue;
+    rj.skidT = e.skidding ? rj.skidT + d : 0;
+    const R = e.rule || {}, vv = e.speed || 0, corner = (vv * vv * Math.abs(Math.tan(e.steerAngle || 0))) / Math.max(0.3, R.wheelbase || 1) / (Math.max(0.2, R.grip || 1) * 9.81);
+    rj.cornerT = corner > 0.6 ? (rj.cornerT || 0) + d : 0;
+    const hp = e.hp != null && e.hpMax ? 1 - e.hp / e.hpMax : (e.damage || 0);
+    // R4's facts: the speed's change (smoothed), a bump (more speed lost in an instant than any brake: an edge, with a
+    // cooldown), a boost's first frame, the share of the top speed, a surge (a boost, or a hard pull)
+    const acc = d > 0 ? (Math.abs(vv) - rj.prevV) / d : 0; rj.prevV = Math.abs(vv); rj.accel += (acc - rj.accel) * Math.min(1, d * 8);
+    rj.impactCD = Math.max(0, rj.impactCD - d);
+    const impact = acc < -28 && rj.impactCD === 0 ? 1 : 0; if (impact) rj.impactCD = 0.6;
+    const boosting = e.boosting || (e.boostT || 0) > 0 ? 1 : 0, boostStart = boosting && !rj.wasBoost ? 1 : 0; rj.wasBoost = !!boosting;
+    const topShare = Math.abs(vv) / Math.max(6, R.topSpeed || 13), surge = boosting ? 1 : Math.max(0, Math.min(1, (rj.accel - 4) / 6));
+    const F = { speed: Math.abs(e.speed || 0), throttle: e.throttle || 0, braking: e.braking ? 1 : 0, steer: e.steerAngle || 0, skidding: e.skidding ? 1 : 0, skidTime: rj.skidT, corner, cornerTime: rj.cornerT, landed: e.landed ? 1 : 0, boosting, boostStart, accel: rj.accel, topShare, surge, impact, hit: e.hit || e.hitStart ? 1 : 0, charge: e.boostCharge != null ? e.boostCharge : (e.charge || 0), shield: e.shield ? 1 : 0, invulnerable: e.invulnerable || e.star ? 1 : 0, item: e.item ? 1 : 0, offroad: ${driveSurface ? `(__surface(e.transform.pos) || { mu: 1 }).mu < 0.85 ? 1 : 0` : '0'}, damage: hp };
+    for (const row of rj.J.rows) {
+      const on = !!__rjWhen(row.when, F);
+      if (row.look === 'flame') continue;
+      if (row.look === 'ring') { if (on) __rjRing(rj, row, e); continue; }
+      if (!on) continue;
+      const tier = row.tierBy ? Math.max(0, row.tierAt.filter((x) => F[row.tierBy] >= x).length - 1) : 0;
+      for (const a of rj.anchors) {
+        if (!__rjMatch(row.at, a.kind)) continue;
+        const k = row.id + '|' + a.kind + a.loc.id; rj.acc[k] = (rj.acc[k] || 0) + (row.look === 'trail' ? 30 : (row.rate || 10)) * d;
+        while (rj.acc[k] >= 1) { rj.acc[k] -= 1; __rjSpawn(rj, row, a, e, F, tier); }
+      }
+    }
+    for (const f of rj.flames) {
+      const want = __rjWhen(f.row.when, F) ? 1 : 0; f.amt += (want - f.amt) * Math.min(1, d * 18);
+      if (f.amt < 0.02) { if (f.holder.visible) f.holder.visible = false; continue; }
+      f.holder.visible = true;
+      const fl = 1 - (f.row.flicker || 0.2) + (f.row.flicker || 0.2) * (0.5 + 0.5 * Math.sin(t * 47 + f.holder.id));
+      f.holder.scale.set(0.6 + 0.4 * f.amt, f.amt * fl, 0.6 + 0.4 * f.amt);
+      f.outer.material.opacity = f.outer.userData.o * f.amt; f.inner.material.opacity = f.inner.userData.o * f.amt;
+    }
+    __rjStatus(rj, F, d, t);
+    __rjFx(rj, e, F, d);
+  }
+  for (const p of __rjParts) {
+    if (!p.on) continue;
+    p.age += d; const u = p.age / p.life;
+    if (u >= 1) { p.on = false; p.spr.visible = false; p.rj.alive[p.key]--; continue; }
+    p.vel[2] += p.grav * d; const drag = Math.max(0, 1 - d * 2.2); p.vel[0] *= drag; p.vel[1] *= drag;
+    p.spr.position.x += p.vel[0] * d; p.spr.position.y += p.vel[1] * d; p.spr.position.z = Math.max(0.02, p.spr.position.z + p.vel[2] * d);
+    const s = p.s0 + (p.s1 - p.s0) * u; p.spr.scale.set(s, s, s);
+    p.spr.material.color.copy(p.c0).lerp(p.c1, u); p.spr.material.opacity = p.o0 * (1 - u) * (1 - u * 0.3);
+  }
+  for (const g of __rjRings) {
+    if (!g.on) continue;
+    g.age += d; const u = g.age / g.life;
+    if (u >= 1) { g.on = false; g.m.visible = false; continue; }
+    const s = g.size * (0.35 + 0.65 * Math.sqrt(u)); g.m.scale.set(s, s, s); g.m.material.opacity = 0.85 * (1 - u);
+  }
+  __rjPools(d);
+}
+` : ''}${figHasLive ? `// THE LIVE VEHICLE (car-designer/racer.js \`live\`): the drive rule's facts, exaggerated, as bone overlays. Springs
+// per rig (rig.lv): the lean out of a turn, the pitch (a squat on the throttle, a dive on the brake), the bounce of a
+// landing (a damped spring), an engine's idle shiver; the front wheels' steer, the steering wheel's turn, a mast's
+// whip and a propeller's spin. → per bone: 'steer' | 'body' | 'wheel' | 'mast' and the frame's quaternions.
+const __lvQ = new THREE.Quaternion(), __lvQB = new THREE.Quaternion(), __lvQP = new THREE.Quaternion(), __lvQS = new THREE.Quaternion(), __lvQW = new THREE.Quaternion(), __lvQM = new THREE.Quaternion(), __lvH = new THREE.Vector3();
+const __LV_X = new THREE.Vector3(1, 0, 0), __LV_Y = new THREE.Vector3(0, 1, 0), __LV_Z = new THREE.Vector3(0, 0, 1);
+function __rigLive(e, rig, dt) {
+  const L = rig.fig.live, G = L.gains, d = Math.min(0.05, dt || 0);
+  if (!rig.lv) { rig.lv = { lean: 0, pitch: 0, bz: 0, vz: 0, spin: 0, whip: 0, role: {} }; rig.fig.bones.forEach((b, i) => { if (L.steer.includes(b.id)) rig.lv.role[i] = 'steer'; else if (b.id === L.wheel) rig.lv.role[i] = 'wheel'; else if (b.id === L.mast) rig.lv.role[i] = 'mast'; else if (L.body.bones.includes(b.id)) rig.lv.role[i] = 'body'; }); }
+  const S = rig.lv, v = e.speed || 0, st = e.steerAngle || 0, k = (r) => Math.min(1, d * r);
+  const steer = Math.max(-G.steerMax, Math.min(G.steerMax, st * G.steer));
+  S.lean += (Math.max(-G.leanMax, Math.min(G.leanMax, st * Math.abs(v) * G.lean)) - S.lean) * k(6);
+  S.pitch += ((e.throttle || 0) * G.squat * (v >= 0 ? 1 : -1) - (e.braking ? G.dive : 0) - S.pitch) * k(5);
+  if (e.landed) S.vz -= G.bounce * 4;
+  S.vz += (-140 * S.bz - 11 * S.vz) * d; S.bz += S.vz * d;
+  S.spin += d * (5 + Math.abs(v) * 1.6);
+  S.whip += (Math.min(G.wobbleMax, Math.abs(v) * G.wobble) + (e.braking ? -0.15 : 0) - S.whip) * k(4);
+  const shiver = (e.throttle || 0) > 0.05 || Math.abs(v) < 0.5 ? 0.004 * Math.sin((__world.time || 0) * 52) : 0;
+  __lvQS.setFromAxisAngle(__LV_Z, steer);
+  __lvQW.setFromAxisAngle(__LV_Y, -steer * 2.2);
+  __lvQB.setFromAxisAngle(__LV_Y, S.lean); __lvQP.setFromAxisAngle(__LV_X, S.pitch); __lvQB.multiply(__lvQP);
+  __lvQM.setFromAxisAngle(__LV_X, S.whip + 0.05 * Math.sin((__world.time || 0) * 9) * Math.min(1, Math.abs(v) / 8));
+  if (L.spin) { __lvQ.setFromAxisAngle(__LV_Z, S.spin); __lvQM.multiply(__lvQ); }
+  return { role: S.role, steer: __lvQS, wheel: __lvQW, body: __lvQB, mast: __lvQM, pivot: L.body.pivot, dz: Math.max(-0.2, S.bz) + shiver };
+}
+` : ''}function __syncRigEntity(e, m, rig, dt) {
   const yawA = e.transform.heading + rig.yaw;
   if (e.tumble && e.tumble.angle) {
     // ACROBATIC DODGE tumble: spin the WHOLE body a full turn about a world
@@ -582,7 +899,8 @@ function __syncRigEntity(e, m, rig, dt) {
       }
     }
   }
-  for (let bi = 0; bi < fig.bones.length; bi++) {
+${figHasLive ? `  const LV = fig.live ? __rigLive(e, rig, dt) : null;
+` : ''}  for (let bi = 0; bi < fig.bones.length; bi++) {
     const mesh = rig.boneMeshes[bi];
     if (!mesh) continue;
     __rigBone(fig, mix.mode === 'idle' ? (hasIdle ? 'idle' : e.locomotion) : mix.mode, mix.phase, mix.mode === 'idle' && !hasIdle, bi, __rigQA, __rigPA);
@@ -611,7 +929,21 @@ function __syncRigEntity(e, m, rig, dt) {
         __rigQA.premultiply(__apQ);
       }
     }
-    // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
+${figHasLive ? `    // the live vehicle: a front wheel yaws about its hub; the steering wheel turns and a mast whips about their own heads,
+    // then they, and the body, lean, pitch and bounce about the wheelbase's middle
+    if (LV && LV.role[bi]) {
+      const role = LV.role[bi];
+      if (role === 'steer') __rigQA.premultiply(LV.steer);
+      else {
+        if (role === 'wheel') __rigQA.premultiply(LV.wheel);
+        else if (role === 'mast') __rigQA.premultiply(LV.mast);
+        const P = LV.pivot;
+        __lvH.set(__rigPA[0] - P[0], __rigPA[1] - P[1], __rigPA[2] - P[2]).applyQuaternion(LV.body);
+        __rigPA[0] = P[0] + __lvH.x; __rigPA[1] = P[1] + __lvH.y; __rigPA[2] = P[2] + __lvH.z + LV.dz;
+        __rigQA.premultiply(LV.body);
+      }
+    }
+` : ''}    // M·v = head' + q·(v − restHead)  →  compose(position = head' − q·restHead, q, 1)
     const rh = fig.bones[bi].head;
     __rigH.set(rh[0], rh[1], rh[2]).applyQuaternion(__rigQA);
     __rigV.set(__rigPA[0] - __rigH.x, __rigPA[1] - __rigH.y, __rigPA[2] - __rigH.z);
@@ -813,7 +1145,11 @@ function __driveCamera(dt) {
   camera.position.set(px, py, pz);
   camera.lookAt(look[0], look[1], look[2]);
 }
-// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
+${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on, for the vehicle classes' rule
+const __surfaceT = ${safeJson(driveSurface)};
+const __surfaceAt = ${surfaceAt.toString()};
+const __surface = (p) => __surfaceAt(__surfaceT, p);
+` : ''}// ground hook: nearest scene surface straight below (excluding entity bodies), for walk entities.
 const __groundRay = new THREE.Raycaster();
 const __bodySet = () => Object.values(__bodies);
 function __ground(pos) {
@@ -2529,13 +2865,14 @@ function __updateBreaks(dt) {
 ` : ''}stepControllable = (dt, inputOverride) => {
 ${hangarHook}  __msHookParams();
   if (dt > 0 && !window.__mojFreeze) {   // a menu up freezes the world (interact-channel)
-    ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground });
+    ${commanderStep}__CW.stepWorld(__world, inputOverride || __readInput(), dt, { ground: __ground${driveSurface ? ', surface: __surface' : ''} });
     for (const e of __world.entities) __syncEntity(e, dt);
     __updateFx();
     __updateChargeRings();
     __updateProjectiles();
     __updateClashes();
-    __updateThrusters(dt);${shadowHook}${smokeHook}${breakables ? `
+    __updateThrusters(dt);${figHasJuice ? `
+    __updateRacerJuice(dt);` : ''}${shadowHook}${smokeHook}${breakables ? `
     __updateBreaks(dt);` : ''}
   }
   if (__ctrlOwnsCamera) __driveCamera(dt);

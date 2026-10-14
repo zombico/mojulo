@@ -32,9 +32,12 @@ import * as sauropod from './families/sauropod.js';
 import * as thyreophoran from './families/thyreophoran.js';
 import * as pterosaur from './families/pterosaur.js';
 import * as plesiosaur from './families/plesiosaur.js';
+import * as cetacean from './families/cetacean.js';
+import * as pinniped from './families/pinniped.js';
+import * as cephalopod from './families/cephalopod.js';
 
 // a family module exports `family: null` until it is built; it then joins the roster with its species
-const MODULES = Object.fromEntries(Object.entries({ canine, feline, equine, cervid, bovid, ursine, pachyderm, procyonid, macropod, rodent, mustelid, monotreme, avian, crocodilian, testudine, leporid, suid, giraffid, primate, squamate, anuran, chiropteran, chondrichthyan, teleost, theropod, ceratopsian, hadrosaur, sauropod, thyreophoran, pterosaur, plesiosaur }).filter(([, m]) => m.family));
+const MODULES = Object.fromEntries(Object.entries({ canine, feline, equine, cervid, bovid, ursine, pachyderm, procyonid, macropod, rodent, mustelid, monotreme, avian, crocodilian, testudine, leporid, suid, giraffid, primate, squamate, anuran, chiropteran, chondrichthyan, teleost, theropod, ceratopsian, hadrosaur, sauropod, thyreophoran, pterosaur, plesiosaur, cetacean, pinniped, cephalopod }).filter(([, m]) => m.family));
 
 export const FAMILIES = Object.freeze(Object.fromEntries(Object.entries(MODULES).map(([k, m]) => [k, m.family])));
 /** Every species of every family, keyed by id, each tagged with its family. */

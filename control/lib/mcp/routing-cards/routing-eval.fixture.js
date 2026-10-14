@@ -51,6 +51,8 @@ export const FIXTURE = [
   ['record the hero clearing the chasm and show me the clip', 'forge_motion'],
   ['check the player can actually get from the door to the goal', 'forge_motion'],
   ['merge those short clips into a single movie file', 'stitch_motion'],
+  ['set up a 35mm camera that dollies down the street and show me its path', 'create_shoot_plan'],
+  ['put easy ease on the second camera keyframe and make the lens 85', 'update_shoot_plan'],
   ['a roguelike where my gear persists across floors', 'create_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
@@ -62,6 +64,10 @@ export const FIXTURE = [
   ['stage the two drawn characters in one scene and cut between their rooms', 'create_sketch'],
   ['make a pixel-art cutscene of my hero character', 'get_catalyst'],
   ['design me a two-storey house with a porch', 'mint_building'],
+  // interior designer: a room of a house decorated, styled, its pieces placed
+  ['decorate the lounge in my house in a warm japandi look', 'design_interior'],
+  ['where should the couch and armchairs go in my 14 by 18 living room with one window', 'design_interior'],
+  ['show my bedroom as quiet luxury and then as coastal so I can compare', 'design_interior'],
   ['a furnished apartment I can walk through', 'mint_building'],
   ['frame the house and give me an IFC model for Revit', 'mint_building'],
   // the structure book's outcomes: drawings and a build, asked for without the word "house" leading
@@ -84,7 +90,7 @@ export const FIXTURE = [
   // 3.1.0: the animal, creature, hero and armour rows below enter on create_character, the Characters
   // ring's door (the same recipes mint_solid makes).
   // The animal realm of the figure system (figure-inception-quality.plan.md
-  // phase 4). The PICTURE row already routes a non-humanoid creature here, so
+  // phase 4). The CHARACTER row routes a creature and an animal here, so
   // these pin that a NAMED real animal lands on the solid family rather than
   // drifting to the painted-picture or part-graph neighbours.
   ['a wolf I can 3D print', 'create_character'],
@@ -95,6 +101,9 @@ export const FIXTURE = [
   // stroke (layered): a drawn outline / line / brush on an existing creature or hero becomes a recipe op
   ['I sketched the outline I want for the dragon head, make it match my drawing', 'update_sketch'],
   ['let me draw a ridge along the brow instead of guessing station numbers', 'update_sketch'],
+  // egocube: a character's design rolled once and kept, then made in any game at any age (create_character { egocube })
+  ['I want to design a character once and use her in two different games, a farm girl who grows up to be a knight', 'create_sketch'],
+  ['make my egocube character as she is at twenty six', 'create_character'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],

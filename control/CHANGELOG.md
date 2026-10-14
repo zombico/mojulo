@@ -56,6 +56,540 @@ taper survives, and the flow is in pieces cut to hang. The research behind it is
   pulled back through the leg by the lengths. A `flowing` midi skirt had cleared the shins in a jog only because a
   bulky top widened the waist's collision capsule.
 
+### Shoot plan: a keyframed camera you can see in the world
+
+A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
+lens in millimetres, Easy Ease and hold keys) and a cut list of shots. The World page draws each camera as an
+object, with its frustum, its line to the point of interest and its motion path, one dot per frame so the spacing
+shows the ease, and can look through it. `node scripts/shoot-plan-demo.mjs --out <file>` emits a worked example
+(`lib/graph/shoot/example.js`: a crane down, a street dolly with a lens change, a held one-node reveal, and a
+camera that pans with a car, then eases onto its tail and rides along).
+
+- **The recipe is `manifest.shoot`** on any world, an opt-in like `marks`; `update_sketch` edits it in place. The
+  kernel is `lib/graph/shoot/`: `lens.js` (focal length ↔ field of view on a 36 mm film), `plan.js` (normalize the
+  AE words, a readout of duration, path length and peak speed), `sample.js` (the camera at a time, frames at a
+  rate, the drawable path). A sampled frame is the `worldFraming` every camera consumer already reads.
+- **A camera can follow what moves.** A key's `pos` or `poi` may name a walker, a car or a mover
+  (`{ follow: 'car:3', offset, frame: 'subject' }`) instead of a point: the AE move of linking the point of interest to a
+  layer, or parenting the camera to a null. Everything a world moves on a schedule is a pure function of its clock,
+  signalised traffic included (`lib/graph/shoot/subjects.js` runs the same traffic and crossing code the page embeds),
+  so a following camera is still sampled ahead and its path, and the route of what it follows, are drawn. A fixed key
+  eases onto a moving subject and off it.
+- **Key times are the world's clock.** A shot shows the world over its span, so two shots of the same span are
+  coverage of one action from two cameras. The page plays it that way: while a plan is on the page, it sets the
+  clock every channel steps to.
+- **`create_shoot_plan` / `update_shoot_plan`**, in the motion form. The first writes a plan onto a world (or, with
+  no plan, lists what a key can follow and where); the second edits it op by op in camera-operator and AE words
+  (`set_key` by time, `ease` one, some or every key, `retime`, `set_camera` with a one-node ↔ two-node flip that keeps
+  the view, shots added, renamed, reordered). Both write through `update_sketch`'s patch path, so the world pays its
+  own gate, and answer with the readout: timings, path length and speed in metres, what each camera follows, the
+  frames where a camera jumps (a followed car wrapping its lane), and the places a move passes through the world's
+  faces (`lib/graph/shoot/clearance.js`) or runs into a moving car or walker while its shot plays (each subject's
+  box measured off its mesh or figure, on the route it is scheduled to take). Advisory, like every gate. The manual is `get_motion_vocab({ id: 'shoot' })`,
+  an AE → plan table; a routing card sends "set up a camera", "35mm", "easy ease", "follow the car" there.
+- **`forge_motion` renders a plan**: `shot.motion: 'plan'` on a world captures each frame from its shot's camera with
+  the world stepped to that frame's own clock (`params.shot` for one shot). Roll is not applied to captures yet.
+- **Set pieces and transitions.** A plan may carry `pieces`: walls, floors, ceilings, pipes and frames (a panel
+  whose hole irises) that ride a camera (placed in its frame, banked with its roll: a layer parented to the camera)
+  or stand in the world, keyed like cameras and shown only in their shots. They are picture: the page and
+  `forge_motion` renders draw them, no mesh export carries them. A shot's `in` (`fade`, `wipe`, `iris`, `pipe`)
+  expands into pieces on the outgoing and incoming cameras, sized to the lens (`lib/graph/shoot/transitions.js`).
+  A pipe can be laid `along` a camera's path instead: world geometry swept along the route it travels, round or a
+  box (`sides` from floor, ceiling, left, right, kept level as the path turns), so a wall, a floor or a ceiling along a
+  path is the same piece with one side; the camera flies through it, and the pipe transition now lays its tube this
+  way when the camera travels. A frame with a `portal` is a window into another camera: its hole shows that camera's
+  view rendered from where the viewer stands relative to the frame (a render target sampled in screen space, behind a
+  clipping plane at the far camera), so flying through it arrives exactly in the other picture; `in: 'portal'` stands
+  such a door where the outgoing camera will be at the cut. Captures now apply the plan's roll. `update_shoot_plan` gains `add_piece`, `set_piece`, `piece_key`,
+  `remove_piece` and `set_shot { in }`.
+- **Live worlds.** In a world that plays live (controllable entities, physics) the plan runs on the world's own clock
+  instead of rewinding it, and a key may follow a live entity (`entity:<id>`): the page evaluates that camera's keys
+  each frame against where the entity is (the same timing curves; its path drawn as a trail), and the tools note
+  what a live world cannot do. A shot with `on: 'goal:*'` is cued instead of timed: when the world's event bus logs a
+  matching event (reaction-emitted ones included), the plan cuts to it for its length, timed from the event, then
+  returns to the running order. Plans in worlds that do not play live emit the same page as before.
+- **Exports.** A world GLB carries its plan as animated cameras: one per plan camera and `shot:program`, the edit
+  with STEP cuts (`shootCameraDefs` in `scene-gltf-level.js`; a plan-less GLB is byte for byte as before), which
+  Godot imports as Camera3D nodes on its AnimationPlayer. The Blender film takes a plan as one shot file per plan
+  shot, so `film_shots.py` cuts between a Blender camera per shot at markers (`planFilmShots`, the frames the
+  render captures).
+- **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
+  LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
+  without a plan is byte for byte as before.
+### Interior designer: a room of a house, furnished, styled and composed
+
+A room can now be fitted out as a design of its own: the `interior` kind. A room is a section of a house, so the floor
+plan comes first. An interior decorates one room of a `floorplan` row. It reads that room's walls, doors, windows and
+height from the house, and it never draws a wall. The house row is never written, several schemes can sit over one
+house, and an edit to the house flows into every design over it.
+
+**Built so far:**
+- **The door: `design_interior`,** in the building pack beside `mint_building`.
+  - It mints over a house and room, or a `section` described in words (its house drafted and minted first), and
+    answers with the room as decorated: the pieces by id, what was refused and why, the gaps and the review.
+  - With `ref` it revises in place: a new style, brief or surface replaces the old, and pieces merge by id.
+  - Decorating intents route to it through the `interior` routing card, three routing-eval rows, and the HOUSE row of
+    the routing index. The house card's contrast points there too.
+  - The plugin's maker subagent may call it (a `judge` tool).
+  - Re-pinned: the `tools/list` payload pin and the packs payload pin, for the one new listed tool.
+- **The recipe:**
+  `{ kind: 'interior', house, room, brief?, style?, focal?, surface?, pieces?, view? }`.
+  - `room` is the room's tag on the house's set (`'101'`), its name (`'lounge'`), its role or its glyph; `level`
+    narrows a stack to one storey.
+  - A word that names no room is refused with the house's rooms listed.
+- **A room from scratch, floor plan first.** `house: { section: { room, size, windows, doors } }` drafts the
+  smallest honest house round the room (`interior/section.js`):
+  - the room itself;
+  - the hall or rooms its doors lead to;
+  - neighbours past its other inside walls;
+  - outside walls only where it has windows;
+  - a front door on the hall's outside wall.
+  - The section is minted as an ordinary house row, under the house's own laws and door rules. The interior is
+    compiled against the draft first, so a bad recipe mints nothing. The interior then points at the house and the
+    room.
+- **The functional solver graph** (`interior/strategies.js`, `interior/solve.js`), in the fabricator's shape:
+  - **Functions:** a room's jobs, one word each: converse, media, read, display, dine, store, sleep, dress, work,
+    drop, anchor and light-task. The room's glyph supplies them when the brief names none.
+  - **The walk:** each function tries its strategies in order. The first that qualifies and lays wins, its
+    suggestions join the program (a conversation group brings a rug and a reading light), and the refused say why.
+  - **Gaps:** a function nothing fills is a gap, said in the readout, never a faked piece.
+  - **Stable ids:** every solved piece has an id from its group (`conversation.sofa`, `sleep.nightstand-1`).
+    `pieces: [{ id, size?, at?, facing?, omit?, like?, forms?, finish? }]` resizes, moves, turns, restyles or leaves
+    out one piece. An unknown id with a `piece` adds an extra.
+  - **Resizing:** a size is asked before the group is laid, so the group lays round it. A size outside the piece's
+    band is clamped and said.
+- **The laws** (`interior/laws.js`): clearances, distances and proportions, each with its source and stamped with
+  `LAWS_VERSION`. Among them:
+  - 36 in walkways, and 36 in to pull out a dining chair;
+  - a coffee table two thirds the sofa's length, 14–18 in from it;
+  - the screen at 1–1.5 times its diagonal;
+  - the rug under the front legs of every seat;
+  - art two thirds the width of what it hangs over.
+- **Hard laws:**
+  - A piece never stands in a door's approach, in front of glass it is taller than the sill of, or in a fixed
+    feature's hearth.
+  - A group may not close a way the room had: a passage narrower than the law from the door to another door or to a
+    seat. An optional piece that would close one is left out, and the readout says so.
+  - The review measures the narrowest way to every seat, the open floor and the light sources. It advises and
+    stamps; it never refuses.
+- **Style cards** (`interior/styles.js`):
+  - **The shelf:** the styles decorators name today: Japandi, Scandinavian, mid-century modern, modern organic,
+    warm minimalism, wabi-sabi, industrial, contemporary, transitional, modern farmhouse, coastal, modern
+    Mediterranean, boho, maximalism, NeoDeco, quiet luxury, new brutalism, grandmillennial, dark academia, '70s
+    revival and soft modern.
+  - **What a card holds:** a 60-30-10 palette, a floor, a timber and its finish, a cloth and an accent cloth, forms
+    per furniture kind, and the worked styles it starts from.
+  - **How a card is worn:** it resolves down to the house's own furniture grammar (`furnishings/forms.js`), so a
+    composed piece locks at its own size and a longer sofa takes another seat. `style: { name, accent }` dresses the
+    chairs and the coffee table from a second card.
+- **Surfaces and fixed features:**
+  - `surface` paints the room's walls (one wall at a time with `N`/`E`/`S`/`W`) and sets its trim and floor.
+  - A fireplace (its breast, firebox, hearth and mantel), a chimney breast or a column stands on a wall. The placer
+    keeps clear of it, and a fireplace becomes the focal point.
+  - A wall-mounted screen and art over a sofa hang at their true heights, never over an opening.
+- **The World page:**
+  - `view: 'section'` (the default) shows the room cut out of its house with a step of each neighbour through its
+    doors; `view: 'house'` shows the whole house.
+  - The room's shots are the dollhouse (from the corner that hides the least), two corners at a standing eye
+    looking at the focal wall, the doorway, and the plan.
+- **On the house kernel, opt-in only** (absent, a house builds byte for byte as before):
+  - `fitOut` names one room: no generated furniture, its own items, walls clipped to its own corners, its own floor
+    and its fixed features.
+  - `rooms[].items[].compose` stands a composed piece at the item's size, and `items[].finish` recolours a mesh piece.
+  - A media console's `dress: false` leaves its own screen off.
+
+**Planned:**
+- placement scores (balance, rule of thirds, accent repetition) and a seeded search;
+- deeper piece forms (curved and channel-tufted seats, fluted and cane fronts, pedestal and plinth bases), lamps,
+  pendants, headboards, rugs, art and plants that are their own pieces;
+- light-emitting pieces;
+- the browser look (tone, grades, ambient occlusion, bloom, depth of field, daylight by time of day);
+- millwork runs with elevations and cut lists;
+- variants and a scheme board on `design_interior`;
+- a screen beside the hearth when a fireplace is the focal point;
+- a drafted section's neighbours doored onto each other, not through the room;
+- the Blender hero still.
+
+### House finishes: doors, windows, floors and wallpapers with more than one look
+
+Houses were all minted alike: the same two-panel door, the window its facade defaults to, plain boards or marble, and
+a dotted paper. A house's doors, windows, floors and walls are now knobs like `windowStyle` and `entryDoorTint`, and
+the house style's roll draws them with its siding, roof and paints. A new house is minted with `finishes: 'auto'`
+(stamped beside `style: 'auto'`, `layout: 'varied'` and `furnishing: 'composed'`), and each family
+(`polygonizer/floorplan-styles.js` `HOUSE_STYLES[family].finishes`) picks each knob from its own seeded list. Every
+house from scratch differs, and the same house always re-renders the same. A house minted before carries no
+`finishes`, so it draws exactly what it did. A knob the manifest names wins over the roll; `finishes: null` at mint
+opts out.
+
+- **Doors (`doorStyle`, `doorLeafTint`):** two-panel, Shaker, five-panel, six-panel, flush, half-glazed, French,
+  plank and fluted, on a parked leaf and on both faces of a swung one.
+- **Windows (`windowStyle`, `windowFrameTint`):** crittall (a fine black steel grid), prairie (border lights),
+  cottage (the top third divided) and six-over-six join the house's own divisions. A family rolls from its wider list
+  only under `finishes: 'auto'`.
+- **Floors (`livingFloor`, `bedroomFloor`, `wetFloor`, each `{ pattern, colours }`):** straight and wide plank,
+  herringbone at 45°, chevron, basketweave parquet, checkerboard, hexagon tile, terrazzo and large-format stone.
+  Each is procedural in any colours (`finishes/patterns.js`), keyed `finish:<pattern>:<colours>` and served through
+  the surface-texture path, so no image is committed.
+- **Walls (`wallTreatment`, `wallpaper`):** the house's interior walls are painted, dressed with its treatment
+  (wainscot, board-and-batten, shiplap, picture-frame, beadboard) or papered (stripe, pinstripe, gingham, trellis,
+  scallop, polka, grasscloth, botanical, damask). Papers are procedural in any colours, mapped at true size on every
+  wall. The modern, tofu and mission families, which forced paint on every wall, let their walls vary under
+  `finishes: 'auto'`.
+- **What each house style draws from:** for example,
+  - cottage: plank or five-panel doors, six-over-six or cottage windows, a checkerboard or hex-tile kitchen,
+    botanical paper;
+  - modern: flush or fluted doors, crittall windows, chevron or smoked plank, terrazzo, grasscloth.
+- **Checking:** the knobs are checked by field at mint and on edit (`validateHouseConstruction`
+  `finishKnobErrors`). The manual is the `house-finishes` card. An interior's `surface` and its style cards take the
+  same patterns and treatments: each card has a floor pattern and, where the style calls for one, an accent wall.
+- **Re-pinned:** the floorplan mint golden. A new house's stored manifest gains `finishes: 'auto'`, the one key this
+  step adds.
+
+### Character stitch: one hero mint, the hero's own walk in play, the Egocube as a kind
+
+A sweep of the character loop after its streams met found the core converged (one hero door, one cast resolver, the
+child guard on the resolved cast) and the doors around it not composing: four ways to mint a hero that each dropped
+something, games that never played the hero's own clips, an Egocube no agent could reach, and descriptions that still
+taught `mint_solid`. This theme stitches them.
+
+- **Fixed: a world that populates its gear finishes its run.** The run record had no key for a starter item
+  (`stock-<id>`), so a `design_game` run with `equipment.populate` threw after every sketch was minted and left the
+  world with no record and no pinned base.
+- **Fixed: the book's anime hero keeps its character light.** Its orders put `toon` beside the spec, where `mint_solid`
+  never reads it, so every anime hero a run made was lit by the studio. One helper now mints and remakes every hero a
+  run makes (`hero-mint.js`): the light rides in the spec, a remake sets it, and a figure remade with no motion page
+  keeps the walk it was stored with instead of the stock four keys. An order that carries a light prints anew, so the
+  next run remakes those heroes once, with their light; a hero edited by hand is still left alone. The four
+  near-identical hero branches of `design_game`'s runner are one.
+- **Refused at the door, not thrown downstream.** A list or a dial-map cast on a worn head (it builds only the blank
+  trunk) and `form: 'tiered'` on the streamlined core are refused by name; both threw a stack trace before.
+- **Fixed: the Egocube's child is a child.** It wrote the bare `cast: 'child'`, which keeps adult radii and the male
+  head; it writes the pole's child build, `{ pole, build: 'child' }`.
+- **An animal is an animal to the door.** A species minted as a ring plan carries its `species` (new rows; the resolve
+  never reads it), so `update_character` names it an animal and points at the `animal` card. `as: 'animal'` is titled
+  by what it is when no title is given, as the hero and the creature are (it was refused).
+- **Fixed: the cast spend counts the anime face as the head.** It wraps below the head's base and was charged to
+  clothing, so a bare anime hero read as over-dressed. Readout only.
+- **The hero laws.** A hero that reads the newer tables (a build, the tiered form, the painterly look, a geocube's cast
+  light) is stamped `laws: 1` at mint, as armour, outfit and statue builds already are, so an eyes-gate retune of
+  those tables lands as laws 2 beside them and never moves a row already minted. An absent stamp reads as laws 1; a
+  world's inline hero, re-recorded on every render, is never stamped there. An unknown `laws` is refused.
+- **A word the hero door does not take is refused, with where it belongs.** `create_character` dropped it without a
+  word (`build`, `wings`) and `update_character` stored it where nothing read it. Both now refuse it by name and say
+  where it goes (`build` → `cast: { pole, build }`, `wings` → a creature, a typo → the word it is nearest). Only the
+  words in the call are checked: a row that already carries one keeps rendering and can still be revised, and a
+  world's inline hero is never refused.
+- **`update_character` merges at any depth.** `{ adorn: { dials: { stylize: 1 } } }` turns one dial and
+  `{ palette: { Top } }` one colour; before, each replaced its whole key (and a dial alone was refused for losing the
+  armour's type). An object naming `type`, `style`, `item` or `from` still replaces its key whole, a list or a word
+  replaces, and null removes at any depth.
+- **`vibe` on the door.** Words for how the hero moves (`['cocky', 'light']`) are lowered at mint, and on an edit, to the
+  gaits' dials and a stand, as the character book's motion page lowers them; the hero's own `motion` and `gesture` win.
+  The mint says what each word did; the words themselves are not stored.
+- **A hero new to a world walks as a minted hero does.** A world's inline hero, written now, gets the calibrated walk
+  and its hero laws where it is written; a figure the world already had is left as it was stored.
+- **A hand edit is seen, and it plays.** A hero edited since the run that made it is said on its base
+  (`hero:base`: it has moved past its pin), and the equipped hero is built over the edited one instead of the book's.
+- **A hero made on its own joins a game.** `characters.hero.ref` (and a quick game's `hero: { ref }`) names a hero made
+  with `create_character`: the run pins it and makes none, the levels pilot it, its own looks and motion play (the
+  motion page says it is not applied), and a missing ref is said.
+- **The game plays the hero's own run.** A hero a game plays (the book's, a quick game's) is minted with the calibrated
+  jog beside its walk, and the motion page keeps it. The player plays the hero's own door gaits over the library's
+  (its jog forward and sideways, its walk turning) and the library fills the rest (the idle, the jump); before, the
+  library's clips covered every state it named, so a hero's calibrated walk never played. The pilot's stride is the
+  jog's own metres per cycle (`HERO_GAIT_STRIDE`, measured on the canonical heroes), so its feet keep pace at the
+  game's run speed; the jog plays about half again faster than its own clock there. Written into a level when it is
+  made: a stored game plays as it did. An adopted hero with no jog is told, and the library's plays.
+- **Clip lengths said as they are.** The Godot README and `export_model` said every clip runs one second; each runs its
+  own length (a calibrated walk 1.1 s).
+- **The Egocube, a kind.** `create_sketch { kind: 'egocube', roll: { brief?, facets?, seed?, years?, chapters? },
+  dress? }` rolls a character's design sheet (with `years` and `chapters`, its fate thread) where it is written and
+  keeps it by value, as a geocube keeps a level's look: the same person can be made in many games, and a later change
+  to the Egocube's tables never moves a stored sheet. Its preview is the character at each age of its thread, side by
+  side, every camera backed off to hold the lineup. No new tool.
+- **A character from a stored sheet.** `create_character { egocube: '<ref>', years? }` makes the sheet's character at
+  that age through the door its people take (a person the hero door, a lineage below it the creature door), dressed as
+  the cube says; a hero's `spec` lays over the sheet's words. The character records the sheet it was made from, and an
+  `update_character` says when the sheet has moved since (the character keeps what it was made with). A game takes it
+  by ref like any hero made on its own (`characters.hero.ref`).
+- **Designed dress keeps its pieces.** A person dressed from the sheet wore only the cut: the mantle, the pauldron, the
+  sash and the bracers the design chose (and its laws checked) were dropped. The hero's outfit build now carries them
+  (`outfit.pieces`, in its intent's palette) and the hero wears them over the cut on its own landmarks, as a creature
+  wears them; a piece with no place on a person's body yet (the collar, the medallion) is said, never dropped without a
+  word. The archer's `ranger` kit no longer rides a designed dress, and its ledger rows name the outfit.
+- **Fixed: rings addressed by their ids.** A designed piece read a refined part's rings by index, so on the hero's dense
+  torso a mantle sat above the collar; a ring's address is its id (`st1_st2_50` lies halfway). An unrefined creature's
+  ids are its indices: it wears as before.
+- **Fixed: the fate thread grows a character instead of inflating it.** Each growth note added a flat 6 % per dial over
+  the adult cast, at every later node: a girl at 16 stood 6 % taller than a grown woman, and so did she at 31. A
+  youth is now its share of adult height with its head larger for that height, and an adult carries no growth.
+- **The book and a designed underlayer.** A creator's underlayer that names its own tones keeps them, its ledger names
+  an inline card by its id (not the whole card), and the base's ornament 0 over one that asked for more is ledgered.
+- **Every pointer names the door.** The object pack, the object form, the studio index's PICTURE row, `mint_solid`'s
+  description, the creature, animal, armour and human-figure routing cards, the `create-hero`, `creature-from-plan`
+  and `creature-from-sheet` catalysts, the `layered` and `animal` manuals and `translate_modeler_lingo` named
+  `mint_solid` and `update_sketch` for a character, or sent a creature to the object form; they name `create_character`
+  and `update_character` (a posed picture of a person stays `mint_solid` kind `figure`). A `create_character` reply's
+  next move is `update_character`. A new `egocube` routing card, and the studio index sends a character to reuse across
+  games to it. The catalyst that rolled a sheet with a repo script rolls it with the kind (the audit stays a dev script).
+- **The character tools have a tier** (`judge`; `bind_character_sheet` `ride`), so the plugin's maker subagent can
+  call `create_character` and `update_character`; the plugin's agents are regenerated.
+- **Said as it is.** The cosmos soul facet marks a creature and an animal `partial` as a game's hero (made and rigged,
+  not pilotable: a world figure takes a hero alone), and a `heroRef` that is not a hero says how to make one. The stale
+  markers in this section's themes are corrected (body shade, the tiered face's ears and eyes, world gear, the
+  technology loop, a world above its levels, the Egocube's creature passes), and `figure-garments.js` drops its plan
+  citations and its spike label.
+- **One lookup, one list, nothing dead.** A face's colour (its group's palette colour, its part's tint, the grey) is one
+  `faceHex` for the static solid, the shade, the rig pack and the creature's silhouette; the child-coded words are
+  derived from the builds that carry a child's body; the tiers dense enough for full detail are one list; six exports
+  nothing read are gone. Every hero renders byte for byte as before.
+- Not yet: the library's Characters shelf for `create_character` rows (it picks by kind, and a character is a `layered`
+  row like any solid); the collar and the medallion on a person's neck; the cast's own `egocube` page in the book (a cast member is
+  made from a sheet with create_character first).
+- Not yet: the hero skinned with its face in Unity, Unreal and Godot's game levels (their runtimes find and drive the
+  rigid figure's nodes by name; Unreal cannot be checked here); a western hero's stock clips at their designed
+  seconds (it moves stored rows: it waits for hero laws 2); the guards, the cast and the party walk the library's walk
+  at the speeds tuned to it.
+
+### UI on rails: a view-only dashboard
+
+The agent drives; the dashboard shows. Every affordance that wrote or handed the operator a prompt to paste is gone.
+
+- **No copy-prompts.** The home's "Ask the agent" card and every copy button (Arcade, Game Developer, Voice, Beats,
+  Plans, Research, Render Bay, the status bar, the library rooms) are removed.
+- **No writes from the page.** The library's folders, the gallery's edits, the stash inbox and stash pages, and the
+  outputs' status are read only. The API routes stay for the agent's tools.
+- **The office wing leaves the dashboard**, as it left the tool surface in 3.1.0: `/apps`, `/mcp-skills`, `/map` and
+  `/graph` are gone, with their doors. The `/maker` hub, a copy of the Studio doors, redirects home.
+- **Kept on purpose:** sign-in, sign-out and Settings (the operator's keys and language), and the `/pose-lab`
+  developer harness.
+- A test holds it: no page or component sends anything but a GET or touches the clipboard, outside those exceptions.
+- **The rail, read** (`lib/graph/rail/`, `GET /api/sketches/<ref>/rail`). One shape over every recipe on a rail, which
+  is all the dashboard will draw:
+  - **Outcomes and concerns.** Each concern is `given`, `open`, `advised` (a law or a gate finds something) or
+    `waived` (its law holds by the recipe's waiver). A building reads its outcome table and a city its plan table,
+    the same tables `next` reads, so the page and the readout never disagree; `next` and the books are unchanged.
+    A concern that has not arisen yet (a roof's covering before the frame, a level per segment before the segments)
+    is open, never given.
+  - **A gameworld's book, grouped by what a game asks:** intent, world, characters, systems, levels, story, play.
+    A reviewed part is given by the creator's approval (`gate: 'eyes'`) or by the agent's machine gate
+    (`gate: 'machine'`), never one shown as the other.
+  - **A solid's ladder:** look, fit, function, engineered, capped at the recipe's `ask`.
+  - **Parts**, each `fresh`, `stale`, `edited`, `missing`, `waiting` or `taken`: what a gameworld's run made (by the
+    runner's own `decide`), a city's segment levels, its doors' insides and its sites' edifices, a room's pieces by
+    ref. A part on a rail of its own carries its outcomes in brief. A segment's level is shown on its city's rail.
+  - **Exits**: the book, the World, and a gameworld's game and playtest once made.
+  - A broken recipe answers with what broke (`errors`) rather than failing the page.
+- **A recipe on a rail is a project page** (`/sketches/<ref>`, `components/rail/RailPage.jsx`), in the workshop shell
+  so it has a way back:
+  - **Left:** each outcome with its concerns as dots, filled by state. A dot opens the book at that concern (each
+    concern carries its `anchor` in the book).
+  - **Centre:** the book, the World, or a made game and its playtest.
+  - **Right:** the parts by role, each marked by freshness, with a part's own outcomes as small marks. A segment's
+    level links up to its city.
+  - **Below:** the files it has been exported to (its outcome folder).
+  - It re-reads every few seconds and on focus, so what the agent changes shows up on its own. Every word on it is the
+    data's own. A rail recipe asked for bare (`?print`, `?display`, `?bare`) and every other kind keep the bare frame.
+- **The nav names what is made by what it is**, in four modes:
+  - **Make**: Worlds, Places, Characters, Objects, and the Library.
+  - **Media**: Motion, Beats, Voice, Images.
+  - **Play**: Play, the Render Bay, Outputs.
+  - **Ideate**: Research, Plans, Stashes.
+
+  Characters, Objects and Images open their Library shelves. New door faces: Places, Characters, Images (the office
+  wing's are gone). The Library's "Worlds" shelf of walkable scenes is now "Scenes".
+- **Worlds and Places** (`/worlds`, `/places`, `GET /api/projects`): the projects on a rail by what they are,
+  gameworlds, and cities and buildings, as cards with one bar per outcome showing its concerns' states. What a project
+  made for itself (a city's segment levels, its doors' insides) is on the project's page, not a card. A gameworld
+  leaves the Library's Diagrams shelf.
+- **Home** leads with the newest projects as the same cards, under the floor's plate.
+- **Play** (`/play`) folds the Arcade and the Game Developer gallery: every game as a cabinet, grouped by where it came
+  from (`/api/arcade`'s new `source`: a gameworld's run, a quick game, a pixelizer game, a game project, or
+  `create_game` alone). A game a world made links to the world's page; a project's shelf stays at `/games/<ref>`.
+  `/arcade` and `/maker/games` redirect to it, and `create_pixelizer_game`'s `arcadeUrl` is `/play`.
+- `get_ui_map` describes the dashboard by these modes, the project page and its marks.
+- **What was made comes first.** The books and the exports are the product, and every one is now a link away:
+  - **A book on its own.** The view on a project page opens in a tab of its own, and a book (structure, city, world,
+    character) downloads as one self-contained file.
+  - **Everything shipped, folder by folder.** A project page lists what it and its parts were exported as, whole:
+    a building's `sheets/`, `schedules/` and IFC, a game's `game.html`, `levels/` and Godot pack, the game a world's
+    run made (`scanOutcomeTree`; the old top-level-only list missed every subfolder). A page opens in its own tab;
+    a long folder folds, with its true count.
+  - **A game is a project page** (the `game` rail): played and playtested in the middle, its levels as parts, its
+    export below. It has no outcome dots; whether its levels can be finished is answered when it is made.
+  - **Folders open.** `/outcomes/<ref>/` with no `index.html` of its own (and any folder inside one) is drawn as a
+    listing of its folders and files, so the Render Bay's and the bench's folder links no longer 404. Scripts,
+    styles, CSV, audio, images and IFC are served with their types.
+  - **Play shows what shipped:** each cabinet links to its game's page and marks the self-contained `game.html` and
+    the Godot project export_game left on disk.
+- **Every sheet mojulo draws is on screen, without asking for it** (`lib/graph/sheets/registry.js`).
+  - **Both bibles.** `/bible` is a gameworld's world bible again (its map, its land, its civilizations' towns and
+    castles, each level), whether or not it has a hero; `/bible?book=characters` is the character bible. A world with
+    a hero had shown only its character bible, and the world's could not be reached. A gameworld's page shows both,
+    and a dot opens the one its part is in. `design_game` answers `characterBible` beside `bible`.
+  - **A world's own atlas.** Each gameworld draws the land, flora, blocks, structures, fortified town, castle and
+    technology sheets in its own kit, seed and civilization's finish (`/api/sketches/<ref>/sheet/<id>`), as named
+    views on its page that open in a tab and download.
+  - **A recipe's boards.** A stage's art board and landform board, a floormap's board and a world's UI board are
+    views on its page; a stage or floormap drawing one is a project page now, with no outcomes.
+  - **The repertoire.** Worlds leads with what a world can be built from: every sheet drawn from mojulo's own tables
+    (index, land, flora, blocks, structures, fortified town, castle, technology) in a chosen kit, each opening in its
+    own tab (`GET /api/sheets`, `/api/sheets/<id>?kit=&seed=`). A sheet that does not draw in the kit shows dimmed;
+    the kits each draws in are its builder's (any kit's land; an isekai kit's civil sheets).
+  - **Drawn once per revision.** A world bible is ~16 MB and two seconds to draw, a flora sheet up to eight; pages are
+    kept in memory by what keys them (`lib/sheet-cache.js`), so a second look is immediate. Nothing is stored.
+- **Elements: what a world is styled from, each seen as itself** (`/elements`, `lib/graph/elements/registry.js`).
+  - **A door of its own** in Make, between Objects and the Library. It leads with the repertoire (moved from Worlds),
+    then every geocube, kit and city grammar mojulo holds, each a card of its own colours: a geocube's ramps, a kit's
+    land swatches, a grammar's skins.
+  - **One element live** (`/elements/<family>/<id>`): a geocube's room and land, a kit's bare stage (a room kit in one
+    room), a grammar's small city as massing or with its look. Each is drawn from a recipe built there and never
+    stored, through the same seam a stored sketch's World is (`/api/elements/<family>/<id>/world`), and kept in memory
+    once drawn. Beside it, its colour ramps and the recipes that name it (a stage or a world on a geocube, a world in a
+    kit, a city by a grammar, `{ from }` included); below, its document.
+- **Game projects retire** (`RETIRED_PACKS`' `pack_game_projects`): `create_game_project`, `get_game_project`,
+  `update_game_project`, `bind_to_game_project` and `list_game_projects` leave the tool surface. A game's home is its
+  gameworld (`design_game`, quick or full).
+  - The five tools stay registered and callable by name, so a stored project, a seed script or a plan step that names
+    one keeps working.
+  - `create_game`, `create_pixelizer_game` and `create_sprite_sheet` still take a legacy `project_ref`, described as
+    such. Pixelizer games and sprite sheets stay on the surface.
+  - The studio index, the game form, the pixel-art card and the tool-surface page no longer point at them.
+  - The flat `tools/list` payload pin falls from 209,300 to 203,900 bytes.
+### Sea creatures: whales and dolphins, seals, cephalopods
+
+New families for the sea, each wired through the swim gaits, the behaviour tags, the social table and the search
+names (`about`), the generated DOES, mind and cosmos tables regenerated with them.
+
+- **Cetaceans** (`families/cetacean.js`): a fusiform trunk with no neck to speak of, a tail stock flattened side to
+  side, two HORIZONTAL flukes swept back to points, flat pectoral flippers, a raked dorsal (or a ridge), a melon over a
+  beak or a blunt front, a pale belly; `cetaceanFins` builds the fin set from a few numbers. The bottlenose dolphin
+  (worked species), the orca (the bull's tall dorsal, the eye patch, white chin, belly and flank lobe, the grey
+  saddle), the humpback (a flat broad head, the long pale flippers, a small hump), the beluga (all white, a round
+  melon, a ridge for a fin) and the narwhal (mottled, the tusk). They swim by a new `flukeStroke` pattern: the body
+  wave in the VERTICAL plane, the flukes beating up and down.
+- **Pinnipeds** (`families/pinniped.js`), hauled out on land: a smooth spindle resting on its belly, short fore
+  flippers, the hind flippers trailing back (a true seal) or turned forward under the rump; a round whiskered head.
+  The harbour seal (worked species, no external ears), the California sea lion (propped high on long fore flippers,
+  small rolled ears, the bull's crest) and the walrus (a huge bulk, a broad whiskered muzzle, the tusks). They crawl
+  on land by a vertical body wave and swim by sweeping the hind flippers; the sea lion flies on its fore flippers.
+- **Cephalopods** (`families/cephalopod.js`): no skeleton and no legs: a mantle, a short neck into a head that is
+  mostly two big eyes, a crown of arms (`arm`: walked out along a heading that bends and curls at the tip, each kept
+  on its own side of sideways so its ring frame never flips; `forwardArm`: a bundle reaching forward, a tentacle's
+  club), a funnel. The common octopus (worked species: the mantle rising behind, eight arms spread over the seabed),
+  the European squid (a torpedo mantle, rhombic fins, two clubbed tentacles), the common cuttlefish (a flat oval
+  mantle edged with a fin skirt, the zebra bands) and the chambered nautilus (the striped shell, a hood, many short
+  tentacles). They swim by a new `jet` pattern (the mantle pulsing); the octopus also crawls. The arms are not yet
+  posed by the rig.
+- **More fish** on the fish maker: the swordfish (the flat sword a third of its length, a tall crescent dorsal, a deep
+  lunate tail), the humpback anglerfish of the deep (a round black body, an upturned mouth, a pale lure arching off
+  its forehead to a glowing bulb) and the whale shark (a wide flat head with the mouth across its front, a speckled
+  blue-grey back over a white belly; a filter feeder in its tags).
+- The stance line says what a seal and an octopus stand on ("hauled out on its flippers", "resting on its arms").
+
+### Wildlife improvements: the default animals' silhouettes and proportions
+
+The species roster was built family by family in batches; this pass reads the whole roster at once, four views a
+species, and fixes what misreads in silhouette. Species are recipes: an `animal` sketch minted from a touched species
+redraws with the new numbers on its next read.
+
+- **Felines** stand on a deep narrow chest, not a slab: the trunk is about a fifth narrower across, the legs set under
+  it rather than at its edges, the upper arm and thigh slimmer across, and the paws near life size (they were about
+  twice it). The cheetah's waist is deep rather than pinched, its legs a little fuller.
+- **Canines** stand with their legs under the body (the coyote's stood out past its sides almost two to one), the
+  thigh and upper arm slimmer across, the loin deep instead of a wasp waist; the dog's otter tail tapers from a
+  thinner root and is carried level with a droop, and its legs are lighter.
+- **Bovids** are narrower across the barrel (the gazelle most), their legs set under it; the bull, the dairy cow and
+  the water buffalo carry their heads higher, the bull's larger with a longer muzzle raised off the chest, and the
+  dewlap hangs as a fold under the throat instead of a lobe in front of the forelegs.
+- **Cervids** set their legs under the trunk, the upper arm and thigh slimmer across; **bears** are a little narrower
+  across, the legs a little closer.
+- **Perching birds** crouch on short legs instead of standing tall on them: the macaw, the pigeon, the crow, the toucan
+  and the hummingbird stand lower (`legScale`), their long tails swung up about the root so they clear the ground, and
+  their drumsticks slimmer; the rooster's legs are a little shorter.
+- **Crocodilians and lizards** sprawl less wide: the crocodile's and alligator's elbows and knees, and the monitor's,
+  the iguana's and the gecko's, come in toward the body (their feet stood out near twice the trunk's width), and the
+  crocodilian and monitor trunks are deeper, the armour rows and the crest lifted with them.
+- **Single fixes** where one species failed to read: the triceratops' frill seats on the back of its skull and sweeps
+  back, where it stood as a sail over the neck; the diplodocus raises its neck so its head shows; the rattlesnake's
+  raised neck meets its coil (a piece of the body was missing, leaving the head afloat); the skunk's plume arches over
+  its back at about a third of its old size (it towered over the animal); the moray tapers from a deep head end to a
+  thin tail instead of a cucumber's even girth.
+- The rabbit's head is larger (it was about a quarter small), the pig's legs fuller, the llama's barrel narrower.
+- **Folded wings** lie against a small bird's flank: `featherWing({ fit: true })` scales the wing's fixed sizes (the
+  tertials, the feather layers' stacking, the vanes' bow, the bones' girth, authored at a griffon's 0.69 m arm) by
+  the wing's own arm, so the pigeon's wing no longer stands off its body as a griffon-thick stack (it reached past
+  the trunk's width by half again), and the hummingbird's long blades fold along its back. Absent, a wing is built as
+  before; the other birds keep theirs (on a plump chicken or owl the fitted wing sinks out of sight).
+- **Pass two** (a fresh read of the whole roster): the T. rex's hips come in and its thighs are slimmer across and no
+  longer rise over the back (from the front it was a box wider than the animal), its head larger; the velociraptor's
+  arm feathers grow on both arms (they grew on the right only); the elasmosaurus carries its neck in a swan's curve
+  with a larger head and flippers (the neck was a dead-level rod); the moose's palms lie out flat, broad from above
+  (they stood on edge like a spray of sticks); the squid's arms spread into a visible bundle.
+- **Rodent eyes**: the rat, the mouse, the hamster and the guinea pig each wore a second eye: their all-black eyeball
+  sits on a small, curved head, and its sides showed past the lid ring as a larger black disc beside the eye. The
+  ball's hidden sides now take the fur's colour and the black cornea cap is wider (`irisAngle`), so one dark bead
+  shows in its lids. The squirrel takes the seated eye with a head-relative brow (its goggle eye's ball broke through
+  the skull roof). Also: the camel's hump stands higher, the fox's and coyote's ears are smaller, the squirrel's tail
+  is slimmer and curls lower. `fauna-lineup.mjs --head` crops each view to the head.
+- **Small eyes sit in their heads**: the set eye's few fixed lengths (the ball's lift off the skin, the cornea's step,
+  the pupil's dip, the catchlight, the lid's clearance) were millimetres tuned at the default eye; an eye smaller than
+  that now takes them in proportion, so a small head's eye is no longer lifted out of it (the hummingbird's and the
+  pigeon's stood off the head on stalks, the hedgehog's showed a second eye). An eye at or above the default, and the
+  goggle eye, build as before. Where a species had leaned on the lift to show its eye through a bulging brow, its
+  seat is shallower (the gecko, the iguana, the guinea pig, the hamster, the river otter).
+- The wild boar's and the warthog's crest sits on the back (it floated over it), the elephant's and the mammoth's trunk
+  tapers from a wider base, the pond turtle's neck is shorter and thicker, the rattle is smaller, and the hummingbird
+  slimmer.
+- `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
+  to NaN). A four-legged species builds exactly as before.
+- `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,
+  front, top) with no database or browser, `--parts` to colour faces by part, and `--measure` for the proportion
+  readout the pass steers by (trunk width over height, the legs' reach over the trunk's half-width, the head's length
+  and carriage).
+### Wildflowers in the grass, and shrubs in flower and in fruit
+
+An isekai meadow can now be seeded with flowers in its grass and bushes through it. Both are opt-in, so a meadow
+already minted comes out as before.
+
+- **Wildflowers in the live grass (`grass.flowers`).** A share of the tufts carries flowers: oxeye daisy, buttercup,
+  red clover, lupine and corn poppy (`vegetation/wildflowers.js`). Each flower is a stem and a head grown in its tuft's
+  units and drawn on the tuft's root, at its scale. It bends with the tuft in the wind and under a foot. The parts take
+  their kind's ramps in the kit's palette, locked to the stops on a banded look and smooth on the material pole.
+  `grass.flowers: true | { share?, mix? }` (`mix` weighs the kinds). The meadow card draws them large and standing
+  clear (`size`, `lift`), as a stylized field reads them.
+- **Fruit on a bush.** The flora index's bush takes a `fruit` dial: clusters of berries hanging at the canopy's outer,
+  lower edge, on the new `fruit` part. Like the blooms, the berries roll their own dice, so a bush in fruit keeps the
+  shape of the same bush out of fruit.
+- **Shrubs (`shrubs`).** Bushes seeded within reach of the trail, clear of it, the rocks, the trees and each other
+  (`era/shrubs.js`). A `bloom` share is in flower, a `fruit` share in fruit, the rest green. They are drawn the
+  ikebana's way: the kit's flora skin, the same cel light, and the sun's shadow cast and taken. A bush taller than a
+  step is a collider; every bush is an anchor (`kind: 'shrub'`, its state). `shrubs: true | { count?, bloom?, fruit? }`.
+- **New ramps.** The isekai swatches gain `fruit`, `gold` and `violet` ramps (berries and poppies, buttercups, clover
+  and lupines), each starting from a cool dark stop like every other ramp.
+
+### Grass contact and the grass's two poles
+
+The isekai live grass (`wind` on an isekai stage) moved only in the wind. Its one touch, the old `part`, was an offset
+round the camera's footprint on the map: it bent grass under a camera 20 m up and stretched blades. Contact is now a
+load on the blade, and the grass can be drawn as a material.
+
+- **Contact is a load, through the wind's own bend.** A foot, a landing or a blast adds to the wind's load before the
+  elastica bend table (`vegetation/wind.js`), so a pressed blade keeps its length and a foot and a gust add up. The
+  kernel is `vegetation/grass-contact.js`, tested in Node and inlined into the page.
+  - A bed round the camera records how far each cell's blades lie and which way. Bodies stamp it: the walker (only
+    while its feet are in the grass), the page's walkers and its physics spheres. Blades lie away from a body and along
+    its way, so a walked line reads as a trail. They stand back up with a half-life (`recover`).
+  - A landing from a fall, or `__mojStageGrass.impact(x, y, e)`, sends a ring of load out through the field and leaves
+    a crater. The ring is a closed form of the clock, so a frame with a pinned clock reproduces.
+  - Laid grass turns a stop up the ramp when it lies away from the eye and down when it lies toward it (the mowing stripe).
+- **The material pole draws the grass as a material.** On a realistic look (or with `grass.look: 'material'`) the
+  ramp is read smoothly between its stops. Blades darken into the canopy at the root, a share of tufts goes to straw at
+  the tips, and the sun shows through a blade seen against it. Banded looks keep the pixel lock.
+- **`grass` on an isekai stage:** `{ look?, contact?: false | { body?, press?, recover?, wave?: { speed?, decay? },
+  land? }, density?, height? }`. It is validated, and on its own it stands the live field in the default wind.
+  `contact: false` emits none of the contact code.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
@@ -467,22 +1001,19 @@ score its scene and its play call for.
   - On the Pale Warden: derived, a grey-blue back, head top and outer limbs, with points; from the painterly wolf as a
     reference, an indigo back and head over white, red inside the ears.
   - A creature without `style.drawn` renders as before.
-- **Planned.** The tiered hero's principles become passes over any ring plan, on the creature's own body and
-  silhouette:
-  - a silhouette gate every pass must keep;
-  - bridges at the joints its bind chains name;
-  - triangles spent by what reads at the target, the freed ones going to the masses;
-  - smooth, proxy-normal shading, the body and face tint, the light and the outline;
-  - the motion library retargeted onto its skeleton.
-  The Pale Warden is the first case.
+- **Since built, and still planned.** The tiered hero's principles as passes over any ring plan, on the creature's own
+  body (the Pale Warden first): bridges at the joints its bind chains name, triangles spent by what reads at the
+  target, and its value split as markings are built (above). Still planned: a silhouette gate every pass must keep (its
+  measures exist; no pass calls them yet), smooth proxy-normal shading on the creature, and the motion library
+  retargeted onto its skeleton.
 
 ### Body shade: the western face's painted light on the whole figure, read off the body
 
 - **Planned.** The face's form shading (normals toward a simple form round each segment) and its painted tint (the
   occlusion in folds, warmth at the knuckles and joints, a contact shade at a garment's edge) on the neck, torso, limbs,
   hands and what they wear, each placed and sized off the built body, so a character's dials change only its shape and
-  the shading follows; the numbers are per look, female and male. The eye socket's shadow (under the western face) is
-  its first piece.
+  the shading follows; the numbers are per look, female and male. The eye socket's shadow (under the western face)
+  shipped as its first piece; the neck, torso, limbs, hands and what they wear are still planned.
 
 ### Egocube: a character's design notes, rolled from its archetype
 
@@ -738,8 +1269,8 @@ score its scene and its play call for.
   a highlight or strands; 0 or absent is the hard step, byte-identical. The painterly hero takes `PAINTERLY_SOFT`
   (0.24) unless its light names its own.
 - **The look as data** (`era/looks.js`). `painterly-toon`: its conventions one line each, `built` (painted face, soft
-  edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure, the painted face in
-  motion). The hero readout's `painterly` names both.
+  edge, warm shade, rim from the air) or `planned` (painted albedo, ribbon hair, haze on the figure; the painted face in
+  motion has since shipped). The hero readout's `painterly` names both.
 - **Under a level's cast light** (a hero with `geocube`): the studio-lit faces (`layeredFaces` `paint`) carry the
   texture as the character-lit ones do, the fill the light alone; the face was blank there. The moving figure under it
   (the clip preview, the GLB) takes the painted face and its drawings on the rig's plain path too. (The painted face
@@ -918,7 +1449,8 @@ score its scene and its play call for.
   - The head's normals lean 0.7 toward its ellipsoid (`layeredShadingNormals({ ellipsoid })`, the ears half), the way
     shipped faces edit their normals toward a sphere: the face reads as one form. The rig pack bakes the same.
   - Absent the tiered form every head is as before.
-  - Hands, ears, eyes and hair by tier are the next pieces. Absent, every hero is as before.
+  - Ears and eyes by tier have since shipped (the tiered face); hands and hair by tier are the next pieces. Absent,
+    every hero is as before.
 - **Critics.**
   - `hero.critic` on every hero with a head (`polygonizer/hero-style-critic.js`) measures its proportions in head
     heights: heads tall, inseam, shoulders, hips over shoulders, wrist, hand, foot. It reads them against the
@@ -1001,7 +1533,9 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   thicknesses, so a body shortened by `legs` and `torso` kept a grown arm: the cast example `kid` hung its hands nearly
   to its knees (the arm 0.41 of its height, the adults' 0.37). `armLength` (0.8 … 1.15, in the lengths group) scales the
   upper arm and forearm as `legs` does the thigh and shank; absent or 1, the cast as before. `kid.json` takes 0.9: the
-  arm 0.37 of its height, the wrist at 0.44 of it.
+  arm 0.37 of its height, the wrist at 0.44 of it. The stored tune carries `armLength` only when it is moved off 1
+  (`SPARSE_TUNE_KEYS`): stored at 1 it changed every new hero's record, and through the record the seed of its face
+  tracks, so a hero that never names it keeps its record byte for byte.
 - **The run lands on one line.** The sprint takes `stepWidth` too (absent, the feet under the hip joints); `SPRINT_MINT`
   takes 0.03, so the feet land about 5 cm apart (runners 3 … 6 cm) instead of 28.
 - **Real seconds.** A stamped motion names how long it takes: `seconds` on a walk or run (one stride), a wave, or an
@@ -1367,7 +1901,7 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 
 ### World gear: starter items that fill a world
 
-- Under way. Every functional model in a game is technology. A world that sets `equipment.populate` fills its
+- Every functional model in a game is technology. A world that sets `equipment.populate` fills its
   starter gear from what it already says:
   - the hero's items;
   - each civilization's crafted held weapons that the equipment kernel can build;
@@ -1510,7 +2044,8 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 
 ### Technology design loop: chassis, adornment, skin
 
-- Under way, nothing ships yet. A civilization's crafted vehicles, tech-structures and weapons get a design loop like
+- Under way: the direction, the chassis and the adornment ship (below); the skin and the effects are next. A
+  civilization's crafted vehicles, tech-structures and weapons get a design loop like
   the hero's: direction, chassis (low-poly masses on a rigid rig), adornment (shells, plates, spikes and emitters on
   sockets, each serving a function), skin (values, a painted atlas, a team-colour mask), effects (the glow is the
   accent) and motion with tiers. Each page is reviewed in the bible. Built on the workbench, so crafted tech exports
@@ -1996,6 +2531,289 @@ A design trial built one hero at 11 and at 16 through the hero door and found fo
 - **The quick path.** `race` takes `track: 'trail' | 'loop'`, `laps` and `rivals` (with a ride). Rivals race round a
   loop on the longest trail by default, two abreast on a grid with the player last. A race against rivals reads as the
   new `kart-racer` genre.
+
+### Trackscape: scapeshift's eye, for a driver
+
+Built so far: the eye, where it needs something, the track in its world's look, the track dressed, the track from words, the arena plan, its local areas, and two looks for battle racers.
+
+- **The driver's eye** (`lib/graph/roads/eye.js`): the racing line driven on a speed plan bound by the vehicle's own
+  envelope (its cornering grip, launch, braking, top speed), looked along from the seat with the gaze 1.5 s down the
+  line. Scapeshift's eye spot and interest, read in seconds: a thing reads when it spans the eye spot where it is, its
+  ring is the time to reach it (near under 0.6 s, mid to 3 s, far beyond), and only a prop or more holds the gaze (a
+  wood of filler is rhythm, never a focus). Per second it says whether there was something to look at, per corner
+  whether the gaze held something before turn-in, whether a landmark was seen (a far sight line marched over the
+  land), and how many things pass a second. Today's dressing measured: every second of every lap blank, no corner
+  focused, no landmark.
+- **Where the eye needs something** (`roads/trackscape.js`): a plan of slots, each a place, a ring, the least span that
+  reads there, an interest and a beat, filled by a kit later. A corner is the pocket (boards counting down to the
+  braking point, a focus where the gaze lands beyond the outside at turn-in, a reveal down the next straight), a
+  straight carries rhythm and a set piece every few seconds (a span across a long one), the lines are gantries, a crest
+  is a reveal, and the lap has one landmark, searched round the track and scored by the lap's own eye. The inside of
+  every corner is kept clear to its apex. Laws (advisory): every corner focused, no blank run over 3 s, the landmark
+  seen from the grid and again, no two corners framed alike in a row, slots off the road and out of the sight lines.
+
+- **The track in its world's look** (`roads/track-kit.js`): a kit has no asphalt, so the track's materials are derived
+  from what it has, each the kit's own ramp of its kind (its hue, its cool shadow) taken to the material's values:
+  asphalt, a rubbered line, repairs, concrete, steel, tyre walls and gravel from its rock (and soil), earth and grass
+  its own; kerb red from its paint, white from its light, the ramp lip in its accent. Each is a pixel tile of its
+  material, drawn by the kit's pole: a realistic look multiplies the tile by baked light, a banded one paints the
+  tile in its light band's stops. The racing line is laid dark through every corner (on the banked road's own
+  height) and the asphalt is repaired here and there. `planTrack({ …, kit })` takes a kit's id or a look in words
+  (composed again wherever the track is drawn); a gameworld roadway level takes its world's look with `kit: true`.
+  Absent, the roadway's own tiles, byte for byte.
+
+- **The track's set pieces** (`roads/set-pieces.js`), written as scapeshift blocks (primitives on rails, numbers as
+  expressions, the eye spot gating every part at its ring, the blocks' laws), so a piece is data an agent can read and
+  write more of. A GT set (braking boards, hoardings, a grandstand, the start gantry, the advert bridge, a control
+  tower, a billboard, a grove, a light tower) and a kart set (striped bumpers, a bleacher with flags, giant mushrooms, a
+  castle tower, an arch, a castle). A slot's beat (and its focus's form) picks the piece; it is sized up its rails until
+  it reads where the slot needs it, turned to face the road (a span across it), and painted in the track's kit.
+- **The track dressed** (`roads/trackscape-dress.js`): every slot filled, each piece stood on its land, pushed off the
+  road where its footprint reaches it, a collider wherever a car can reach it (a span's legs), and the dressed track
+  measured again by the lap's own eye on the pieces as built. A roadway manifest asks with `scape: true` (or `{ set,
+  seed }`); a gameworld roadway level the same. Absent, the track as it was.
+
+- **A track from words** (`roads/trackscape-compose.js`): an intent ("a realistic GT circuit in green hills", "a cartoon
+  kart track by a candy castle, with jumps") read into the track's blocking (its class, form, length, twist, hills or
+  mountains, ramps, a crossing, its landmark) and its look (the rest of the words, a scene's common words said in the
+  land tunnel's own), dressed by the set its class races in. Opinions, each a word from changed: a GT circuit
+  realistic, a kart track cartoon. Track first (`composeTrack`: a roadway manifest), or the world and the track together
+  (`composeTrackWorld`: a gameworld whose look is the words'); a quick race takes `roadway: { intent }`.
+  `scripts/trackscape.mjs "<words>"` writes the World page and says what each word decided and what the eye found.
+
+- **The arena plan** (`roads/arena-plan.js`): a structure is never one-shot, so the venue is laid out in plan before
+  anything is built: the pit lane, pit building and paddock along the main straight on the side with room, stands where
+  a spectator sees the most of the lap (a stand's eye over the land, the best sites taken apart from each other), the
+  car park and hospitality behind the paddock, the landmark's ground, and a service road round the venue (its hull,
+  never crossing the track) with a spur to every zone and a tunnel exactly where a spur must cross. Its laws: zones off
+  the road, apart, out of the sight lines, reached, each stand seeing its share of the lap. Drawn as a plan sheet
+  (`arenaSheetSvg`) to review first; a trackscape slot inside a zone is the zone's to fill. `scripts/trackscape.mjs`
+  writes the sheet beside the World page.
+
+- **Local areas** (`roads/local-area.js`): each zone of the arena built on its own, in passes, so a venue is never
+  one-shot. Ground: a graded pad paved by its use (a strip along the track level with it and never under its land, a
+  block of its own one level with retaining walls where the land falls away), a car park's rows painted. Massing: the
+  plain volumes (shown when an area stops there, to review them). Elements: the structure from blocks, in modules where
+  it runs long (the pit building a row of pit modules with garage doors, glass and a sign band; a stand in sections;
+  hospitality). Dressing: the pit wall and its catch fence, a stand's fence, the team trucks in the paddock, cars parked
+  in the car park's rows, lamp posts. The service roads are laid on the land, a spur stopped short where it goes under
+  the track, a tunnel's portals either side. Every area has its own seed: one zone is re-rolled, held (`skip`) or
+  stopped at a pass (`upTo`) with `scape.local: { <zone>: … }`, and nothing else moves. Its laws: graded within a
+  height, off the road. Each area has a review shot (`localCamera`). New blocks: a pit module, hospitality, a lamp post,
+  a bay of catch fence.
+
+- **Two looks for battle racers.** A kit can be drawn on two more poles beside banded and material. The **voxel** look
+  (`roads/voxel-look.js`): every set piece and building a shell of cubes on one chunky grid (a detail proud of a wall
+  winning its cube), only the exposed sides drawn and runs of them merged, each corner darkened by the cubes round it,
+  banded the isekai way (a lit stop warmed by the key, a top half a stop up, the shade a stop down and cooled) with the
+  sun's cast shadows; the track's surfaces flat colour, varying cell to cell. The **shaded** look
+  (`roads/shaded-look.js`): the sixth generation's (Super Mario Sunshine, Kingdom Hearts), the pieces' own polygons
+  lit per corner (Gouraud), normals smoothed across a round and kept at an edge, a sky-blue fill from above and a warm
+  bounce from below, a hard high sun with cast shadows, the shade a clean pale blue, saturated, no tiles. A kit asks with
+  `{ id | look, pole: 'voxel' | 'shaded' }`; in words, a kart track is voxel unless "cartoon" or "pixel" (banded) or
+  "shaded", "sunshine", "kingdom hearts", "gamecube", "ps2" (shaded) say otherwise.
+- **The surrounds** (`roads/surrounds.js`): the land beyond the venue shaped and stood on, so a track sits in a place and
+  not on a flat field. A land's relief (rolling hills, ridged mountains with snow, terraced mesas, a plain) rises past
+  the venue's ring, never steeper than its slope from what must stay flat (the road's footprint, the zones, the roads,
+  the sight lines, the slots: their ground is the plan's to the millimetre), low mounds in the infield and a lake where
+  it is widest; the far ground a graded grid easing back to the plain under the haze; steep ground rock, high ground
+  snow, fields round the farms (four new track materials: rock, snow, crop, water). Rock formations where the driver
+  looks, down each long straight past the ring (tors, crags, spires, buttes, natural arches; a kart track's hoodoo
+  stacks): faceted lumps with banded strata, painted by the kit like a set piece. A settlement where the lap sees most:
+  a village (a chapel, houses along a lane, red roofs), farmsteads (a house, a silo, a shed: new blocks), or a town's
+  tower blocks on the horizon. Woods: trees near, canopy masses far, groves in the infield. On the voxel pole, far things
+  in coarser cubes. In words: "mountains", "alpine"; "canyon", "desert", "mesas" (and a sandy look); "plains"; "village",
+  "farms", "countryside", "town", "city", "wilderness". A manifest asks with `scape: { surrounds: false | { land?,
+  settlement?, seed? } }`; a gameworld level's `scape` now also takes `landmark` and `surrounds`.
+
+Planned:
+
+
+### Racer parts: the ODM library, its solver, and the racer's juice
+
+Built so far: R1, the library and the solver; R2, the live rig; R3, the juice in the page; R4, status and the big
+effects; R5, a field of racers in the quick race.
+
+- **The parts library** (`lib/graph/car-designer/parts.js`): the catalogue a cartoon racer is composed from, each part
+  data an agent can read and extend: its family (body, wheel, engine, exhaust, aero, nose, lamps, tail, seat, steering,
+  cockpit, fender, booster, hero), what it fits (weights over the vehicle sheet's facets and the driver's archetype and
+  order), the socket it mounts on, its size as expressions over the machine's frame (the rear wheel's diameter the
+  module), its effect anchors (an exhaust's tip, a wheel's contact, a lamp, a nozzle), how it moves, and its geometry
+  as a scapeshift block. Bodies are lofted profiles (a tub, a dart, a pencil, a carriage, a crate, a bean, a pod, a
+  slipper). Each archetype has one hero piece (a ruler's crown, an outlaw's horns, a jester's propeller …).
+- **The solver** (`car-designer/racer.js`): `racerFromSheet(egocubeSheet)` reads the machine off its driver (the
+  outfit's silhouette, palette and focal; cockpit, engine, era, motif, livery, wear, stance and exaggeration, each with
+  its reason); `solveRacer` sizes the frame to the seated driver (chibi proportion: big rear wheels, a short wheelbase,
+  a wide track), lofts the body clear of every wheel's sweep, scores each family's parts and keeps the runners-up as
+  suggestions, sizes and places each part at its socket, then holds the laws of visual plausibility (wheel-clear,
+  driver-seen from the chase camera, rear-reads, one-leads in the chase view, touches, budget), fixing each failure by
+  resizing, growing the body, moving a mast, or swapping to the next suggestion; every change kept with its reason.
+  A pin (`parts: { wheel: 'wire' }`) re-fits the rest round it. The output is a vehicle rig (root and four wheel
+  bones, the roll clip), its effect anchors, and a physics row derived from what was built.
+- **The juice and status tables** (`car-designer/juice.js`): what each game state looks like on a racer, as data: idle
+  puffs, throttle and boost flames, a boost trail, drift sparks by charge tier, skid smoke, surface dust, a landing
+  ring, damage smoke; brake lamps, a boost fill, a drift tier, a hit flash, damage tint, a shield, an invulnerable
+  cycle, an item pulse; and the motion (steer, lean, squat, dive, bounce, wobble), exaggerated past physics.
+
+- **The live rig** (R2): a solved racer's figure carries `live`, and the page's controllable channel plays it from the
+  drive rule's facts each frame, exaggerated (juice.js MOTION): the front wheels (and their fenders) yaw into the turn
+  past physics while all four roll; the body, its parts and the driver lean out of a turn, squat on the throttle, dive
+  on the brake and bounce on landing (a damped spring) about the wheelbase's middle, with an engine's idle shiver; the
+  steering wheel turns; a mast whips back with speed and a jester's propeller spins. `packVehicleFigure` takes the
+  bones that roll (`rolls`; absent, as before). The overlay is emitted only when a figure lives, so every other page is
+  byte-identical. A frame trace in a real browser (`racer-live.test.js`, the e2e tier) holds it.
+
+- **The juice in the page** (R3): a solved racer's figure carries `juice` (its rows at the anchors it has, each trigger
+  compiled into a tree over the facts, never code), and the page plays it: puffs from the exhaust at idle, a short
+  flickering flame on the throttle, a long white-hot flame on a boost (a booster's nozzle the biggest on the machine),
+  speed trails, sparks off the rear tyres in a hard corner coloured by how long it has held (blue, orange, violet),
+  tyre smoke, dust off the tarmac, a ring of dust on landing, black smoke when damaged. A cartoon drift is a hard
+  corner, not a slide: the page keeps `corner` (the share of the tyres' grip a turn asks) and `cornerTime`. Flames ride
+  the body; particles are a pooled set of sprites in the world, jittered by a seeded generator. Emitted only when a
+  figure carries juice. Boosting and damage are a game's to set.
+
+- **Status and the big effects** (R4): the lamps and the hero piece are bones of their own (the status slots), and
+  every bone's material carries tint uniforms chained after any patch it has; STATUS rows play on them: head lamps lit
+  and brake lamps flaring red, each with a halo; the hero piece filling with a boost's charge and pulsing white when
+  full; a hard corner's tier in the lamps; a white flash on a hit or a bump; damage darkening and flickering the paint;
+  a star's colours cycling; an item held pulsing; a shield's bright-rimmed bubble round the machine. And FX, the
+  genre's big effects: a burst of cartoon stars from a bump (the page reads a bump as more speed lost in an instant
+  than any brake), stars circling the driver's head, motion lines streaming past at speed, manga speed lines rushing
+  in from the edges of the pilot's screen on a boost or a hard pull, and a ring of air thrown back as a boost starts.
+  A shader of the page's own carries the log-depth chunks (it draws with a logarithmic depth buffer). Hits, shields,
+  stars, items and a boost's charge are a game's to set.
+
+- **A field of racers** (R5): a quick race takes `racers` (2 to 8: a number drawn, or each an archetype, a brief in
+  words, or `{ archetype?, build?, age?, brief?, facets?, seed?, parts? }`), the first yours and the rest your rivals,
+  each in the machine its driver reads as, on its own physics, at arcade unless a tuning is named. The level keeps only
+  each racer's recipe; the world resolves it to the solved machine (its live rig and juice with it), and nothing is
+  minted. The pilot is followed close behind. A racer's physics now follow what was built: mass from its shell, engine,
+  tyres and driver; power from its engine at its size; drag from its silhouette at its size; sticky tyres that corner
+  and drag; a centre of gravity from its stance, so a high, narrow machine rolls sooner; a short wheelbase that turns in
+  quicker. `car-designer/roster.js` reads five measures off them (top speed, pull, cornering, turn-in, weight in a bump)
+  and holds **balance** over the field: none best at everything, none bettered by another on every measure. A field
+  that fails is leaned, an engine or tyre swapped (the solver's runners-up first) with its reason; a pinned part is
+  never swapped. The law is the level's, advisory like the track's. `roads/vehicles.js` gains `envelopeOf` and `ruleOf`
+  for a row that is not a class (its own classes play as before).
+
+Planned: the driver seated as the character the hero door draws.
+
+### Car designer: a realistic vehicle, or a racer and their machine
+
+Built so far: the language.
+
+- **The vehicle sheet** (`lib/graph/car-designer/`): one vehicle as its pole, class, silhouette (wedge, bubble, brick,
+  needle, barrel, tub, bell), stance, cockpit, engine, era, motif, drive, wear, livery and exaggeration, each value a
+  reading with notes and derives on ten channels (frame, stance, cockpit, engine, handling, silhouette, surface,
+  livery, ornament, wear). Rolled from a brief and a seed the Egocube's way: every facet throws its die, an asked one
+  is never re-drawn, an incoherent roll is drawn again unless asked (then held), each dial claimed once by its highest
+  source (the class first). A realistic sheet takes its shape from its class and is never exaggerated; a racer's rolls
+  its own at kart scale. Every derive names a live dial: the vehicle designer's families, the technology builder's
+  wheeled plans, motifs and adornment, and the driving primitives' classes and physics. `scripts/vehicle-roll.mjs`
+  prints sheets.
+- **A realistic vehicle compiled** (`car-designer/realistic.js`): its class's true length, width, height, wheelbase,
+  track and wheel radius, LOFTED (never stretched: the vehicle designer's parts have toy proportions), its sheet's words
+  read as style: the body family its side profile, the wheel family its hubs, the lights its lamps, a lift and bigger
+  tyres only when the stance is asked, the livery and wear its paint (a second colour above the belt, stripes, numbers,
+  a patched panel). Heavy classes keep the fleet's own builds. Each wheel is its own bone, turning in the roll clip, so
+  the world drives it; the census holds what was drawn within 3 % of its class. `scripts/render-vehicles.mjs` lines
+  them up.
+- **The era draws the body** (`roads/bodywork.js`): the fleet's loft was one language, the three-box of the 70s and
+  80s (slab sides, a flat roof, upright glass, flat ends). A modern sheet now draws in the road today's terms: the plan
+  rounded at nose and tail, a tucked sill under a high shoulder, the glass leaning in to a crowned roof that arcs along
+  its length, raked glass, a belt rising to the tail, a low body's fenders rising over its wheels, cladding round a
+  crossover's or pickup's sills and arches, slim lamps sweeping round the corners with their light a line, a grille
+  between them and a lower intake, spoked alloys in arches that hug the tyre. A future sheet goes further (a faster roof,
+  a closed nose, a light bar across each end); classic and vintage keep the three-box. Still within 3 % of the class.
+  The fleet's traffic is unchanged. A compact is now a two-box hatch (it was drawn as a sedan), and a vehicle's
+  many-sided faces (wheels, end caps, round lamps) are fanned into quads, because the World draws only a face's first
+  four corners.
+
+Planned:
+
+- **`create_vehicle`**, beside `create_character`: `as: 'realistic'` or `as: 'racer'`.
+- **One language for vehicles:** a sheet of facets (silhouette, proportion, cockpit, engine, motif, livery, era, wear),
+  each reading with its reason, rolled from a brief and a seed, every note naming a setting that exists.
+- **A realistic vehicle** starts from a class and holds to its true dimensions and its physics.
+- **A racer's machine is read off the racer:** the Egocube rolls the driver, and the machine takes its silhouette from
+  the archetype, its size and weight from the build, its lean from the motivation and role, one focal piece, and the
+  outfit's own colours, so the pair reads as one. Cartoon proportions are dials, like the hero's chibi build. How it
+  handles is derived from what it is made of, never stated, and across a roster every machine is best at something
+  and none at everything.
+- **The driver in the seat:** seated, hands on the wheel, riding the machine in a game; a quick race of a roster, each
+  rival in their own machine.
+
+### Driving primitives: the roadway, a world that driving games call on
+
+Built so far: the roadway itself, a divided freeway at true scale (Highway 401's collector–express stretch by Pearson).
+
+- **A `roadway` world kind, in metres** (`lib/graph/roads/`). Its alignment is tangents, clothoid spirals and arcs;
+  grades joined by K-sized vertical curves; superelevation following curvature up to 6 %. Its cross-section, per
+  direction: a median Tall Wall, 4 express lanes, a separation wall and 5 collector lanes, all 3.75 m, each roadway
+  banking on its own inner edge; 3 m dashes on a 9 m cycle measured along each line; luminaires, verge and ditch.
+- **Structures sized from clearance.** An overpass sets its soffit from a clearance target (5.0 m + 0.15 m by default)
+  and guide-sign gantries hang at 5.4 m; clearance is measured back from the drawn undersides, and a target under
+  5.0 m advises, never refuses.
+- **A fleet at real dimensions, instanced:** eight classes from compact to a 22.5 m tractor with a 53 ft trailer,
+  lofted from length, width, height, wheelbase, track and wheel radius, at free flow in the lanes.
+- **An inspectable map** at `/api/sketches/<ref>/world/map`: every lane, line, wall, structure and vehicle at its true
+  station, with a key map, the profile with measured clearances, and curvature and bank. A click inspects; every
+  thing opens the 3D world at that spot (`?view=s<station>-<lane>`).
+- **The payload carries a lane graph**: stationed 3D centrelines, width, speed, surface and the line to each neighbour,
+  and every structure's measured clearance.
+- **Design classes** (`roads/classes.js`): kart, circuit, rally and freeway, each with its design speed, tightest
+  corner, bank, grade and crest limits; the freeway's are the corridor's own, unchanged.
+- **Laps and stages from corner points** (`roads/course.js`): a closed polygon of points of intersection, each rounded
+  by a spiral–arc–spiral curve, closes on itself to under a centimetre; an open one is a stage. A corner too wide for
+  its legs is tightened toward the class's tightest and said so.
+- **Hills and ramps** (`roads/ramps.js`): an elevation dial (hills, amplitude, smooth or sharp crests that fly) held
+  inside the class's grade; kickers, tabletops, gaps and whoops laid on the straights, each with its lip, its landing,
+  and the band of speeds that lands it, predicted by a ballistic flight over the drawn road.
+- **A seeded designer and presets:** a lap of a given length and twist, or a figure of eight with a bridge over its
+  crossing, kept clear of itself; `kart-oval`, `kart-sprint`, `figure-eight`, `hillside`, `stunt-park`.
+
+- **Circuits and stages** (`roadway` `form: 'circuit' | 'stage'`, `course: <preset | spec>`; `roads/track.js`): one
+  carriageway banked about its line, kerbs on the corners, run-off (gravel outside a circuit's corners), tyre walls or
+  armco, per class; a stage designer and a `rally-stage` preset. No form, or `corridor`, is the freeway as before.
+- **The track owns its ground:** terrain carried just under every footprint (the lower pass's where two cross),
+  eased to the land around; ramps and bridge approaches stand on walls down to it; a figure of eight's upper pass is a
+  deck whose soffit clears the lower road by the class's clearance over its whole width, measured.
+- **A track census** measures what was drawn: road width and bank from its edges, radius, grade off the ramps,
+  closure, the ground under every footprint point, the deck's clearance, each ramp's landing band; as laws, in the
+  gameworld's shape.
+- **What a track tells a game** (`roads/contract.js`, on the payload as `roadway`): stations, start and finish, sectors,
+  checkpoints, a grid of eight, a racing line, its bands' surfaces, its ramps and crossings; and a ground hook that finds
+  the drawn surface under a car (the right deck at a crossing). The racing line spreads each bend as wide as the road
+  lets it, its tightest bend wider than the road's own. A race on a roadway takes its checkpoints, grid and line from
+  it: rivals race every preset on its drawn surface.
+
+- **A gameworld level can be a roadway** (`levels.<id>.roadway: { form?, course?, dress? }`), as one can be a city: one
+  stage, started on its grid's pole and ended at its finish line, its laws the track's own. A race on it takes its
+  checkpoints, grid and racing line; its barriers are walls the cars hit. The quick race names one (`roadway: '<preset>'`
+  or a course spec), its land dressed with trees and rocks kept clear of the track.
+
+- **Vehicles bound by physics** (`roads/vehicles.js`): sixteen classes from a rental kart and a motocross bike to a
+  tractor-trailer at 80,000 lb, each a row of numbers (mass, power, driven wheels, drag area, rolling, wheelbase,
+  centre of gravity). What each can do follows from them: a launch capped by grip on its driven wheels with the load
+  shifting rearward (and a bike's front wheel lifting), a top speed where power meets drag, braking and cornering
+  capped by grip, and whether it rolls before it slides. Held to real figures: a compact 0–100 km/h in 8.6 s, a sports
+  car in 4.3; a stop from 100 km/h in 42 m dry, 68 wet, 143 in snow; a loaded truck still well under merge speed at the
+  end of a 365 m acceleration lane. The quick ride plays one (`vehicle`), at a `tuning` (sim, or arcade's lifted grip
+  and softer landings) and in `conditions` (dry, wet, snow, ice).
+- **Cars fly** off a roadway's ramps and crests: they leave the ground where it falls away faster than gravity takes
+  them, fly ballistically as far as the ramps' own landing bands predict, and land keeping the speed along the ground.
+- **Grip by surface:** gravel, grass and sand slip and drag, a kerb a little; the page knows what the tyres are on.
+- **Rivals drive to grip:** a speed plan from the bends ahead and the ground under them, and each ramp taken in the
+  middle of its landing band.
+
+Planned:
+
+- **A map and a minimap.** An inspect page for any roadway (plan, profile with ramps, sectors), and a `map` HUD that
+  draws the outline with every car on it.
+- **The kart racer moves onto a roadway, and the loop laid on a trail's land retires.** Trails become rally raid:
+  point to point across open land, its humps and crests the course, off-road surfaces, waypoints some of them hidden.
+- **Laws, measured from what was drawn:** width, radius, grade, bank, closure, clearance, every ramp's landing,
+  nothing standing on the road. They advise; none refuse.
 
 ### Menus: inventory, and the actions on what you hold
 
@@ -3069,7 +3887,7 @@ Equipment is made once the stats stand: each class of gear raises a stat by tier
   fortification and how it lays out a town and raises a castle. Every level inherits both and is settled by one
   civilization; a town or a castle may be built by another. A level, a section or a place may override any of it,
   and each override is kept in a ledger beside the world's value. Levels lay out through the level graph unchanged.
-  Characters, mechanics and the people of the civilizations are left open.
+  The people of the civilizations are left open (the character book and the game's systems came after).
 - The gameworld graph: worlds, kits, civilizations, languages, fortifications, levels, sections and places as nodes,
   with typed edges (contains, styled, drawn-in, settled-by, built-by, speaks, raises, seam, leads, overrides), drawn as a map, an outline or a Mermaid flowchart as a document needs.
 - The gameworld bible (`out-sheet.mjs gameworld`): a cover, the world map, the natural world, a card for each

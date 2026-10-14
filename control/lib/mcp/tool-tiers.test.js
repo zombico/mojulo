@@ -33,8 +33,8 @@ describe('the tier table', () => {
     expect(ceilingTier([undefined, 'nonsense'])).toBeUndefined();
     const world = PACKS.find((p) => p.id === 'pack_world');
     expect(toolTier('pack_world')).toBe(ceilingTier(world.members.map((m) => TOOL_TIERS[m])));
-    // a pack whose only member waits on its own branch waits with it
-    expect(toolTier('pack_character')).toBeUndefined();
+    // the Characters pack authors and revises: as heavy as its members
+    expect(toolTier('pack_character')).toBe('judge');
   });
 
   it('compose_world is judge: it authors a city plan and a machine for the crafter, not only a settled world', () => {
@@ -92,7 +92,7 @@ describe('tools/list', () => {
     expect(tierOf(tools, 'compose_world')).toBe('judge');
     expect(tierOf(tools, 'create_sketch')).toBe('judge');
     expect(tierOf(tools, 'design_game')).toBe('design');
-    expect(tierOf(tools, 'create_character')).toBeUndefined();
+    expect(tierOf(tools, 'create_character')).toBe('judge');
   });
 
   it('any other host, or none, gets no tier at all', () => {

@@ -14,6 +14,8 @@
 import { resolveAquaLook } from '../materials/aqua-look.js';
 import { normalizeShallows } from '../materials/shallows.js';
 import { resolveWorldAudio } from '../beats/beats-world.js';
+import { normalizeShoot, lowerShoot } from '../shoot/plan.js';
+import { shootSubjects } from '../shoot/subjects.js';
 
 const quad = (fill = '#888888', extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
 const floor = (fill = '#445566', extra = {}) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill, ...extra });
@@ -267,6 +269,44 @@ export const EMIT_FIXTURES = [
     { at: [2, 2, 0], dir: [0, 0, 1], size: 0.3, color: '#e5484d', label: 'shelf bracket: bending, SF 0.51 (low confidence)' },
     { at: [1, 3, 0], dir: [0.6, 0, 0.8], size: 0.3, color: '#3fb950', period: 2 },
   ] }],
+
+  // shoot: a shoot plan's cameras drawn as objects (frustum, POI, path, a dot per frame) and the cut-list panel —
+  // a two-node camera with an eased key and a lens change, a one-node still. Absent ⇒ byte-identical.
+  ['shoot', { faces: [floor()], shoot: lowerShoot(normalizeShoot({ fps: 12, cameras: [
+    { id: 'a', type: 'two_node', keys: [{ t: 0, pos: [-3, -3, 2], poi: [2, 2, 0], focal_mm: 35, ease: 'easy_ease' }, { t: 1, pos: [3, -3, 1], poi: [2, 2, 1], focal_mm: 50, ease: 'hold' }] },
+    { id: 'b', type: 'one_node', keys: [{ t: 0, pos: [6, 2, 1.5], yaw: 180, pitch: -5, roll: 4, focal_mm: 85 }] },
+  ] }).plan) }],
+
+  // shoot-set: a shoot plan's set pieces (a ringed pipe riding the camera, a world wall) and an iris transition between
+  // two shots; picture, not gizmo, so the capture variant carries them too (with the frame spec's shot and roll)
+  ...(() => {
+    const plan = normalizeShoot({ fps: 6, cameras: [
+      { id: 'a', keys: [{ t: 0, pos: [-3, -3, 2], poi: [2, 2, 0] }, { t: 1, pos: [3, -3, 1], poi: [2, 2, 1] }] },
+      { id: 'b', keys: [{ t: 0, pos: [6, 2, 1.5], poi: [0, 0, 0], roll: 8 }] },
+    ], shots: [{ name: 'one', camera: 'a', span: [0, 1] }, { name: 'two', camera: 'b', span: [0, 1], in: { type: 'iris', duration: 0.6 } }],
+    pieces: [
+      { id: 'tube', kind: 'pipe', attach: 'a', radius: 0.5, length: 4, rings: 4, cap: 'far', keys: [{ t: 0, at: [3, 0, 0] }, { t: 1, at: [1, 0, 0], ease: 'easy ease' }] },
+      { id: 'flat', kind: 'wall', attach: 'world', size: [2, 1], color: '#c03030', keys: [{ t: 0, at: [0, 3, 0.5], rot: [90, 0, 0], opacity: 0.8 }] },
+      { id: 'lane', kind: 'floor', along: 'a', size: [1, 1], extend: [0, 1] },
+      { id: 'bore', kind: 'pipe', along: 'a', radius: 0.4, cap: 'both' },
+      { id: 'door', kind: 'frame', shape: 'square', size: [1.2, 1], border: 0.1, portal: { shot: 'two' }, keys: [{ t: 0, at: [1, 1, 1], rot: [45, 0, 0] }] },
+    ] }).plan;
+    const shoot = lowerShoot(plan);
+    return [['shoot-set', { faces: [floor()], shoot }], ['shoot-set-capture', { faces: [floor()], shoot, capture: true }]];
+  })(),
+
+  // shoot-live: a plan in a world that plays live (a controllable entity): the plan runs on the world's clock, and a
+  // camera easing from a fixed place onto the entity 'd' is evaluated against where 'd' is, its path a trail
+  ...(() => {
+    const subjects = shootSubjects({ entities: ENTITIES });
+    const plan = normalizeShoot({ fps: 6, cameras: [
+      { id: 'chase', keys: [{ t: 0, pos: [-3, -3, 2], poi: { follow: 'entity:d' }, ease: 'easy ease out' }, { t: 1, pos: { follow: 'entity:d', offset: [-2, 0, 1], frame: 'subject' }, poi: { follow: 'entity:d' } }] },
+      { id: 'wide', keys: [{ t: 0, pos: [6, 6, 4], poi: [0, 0, 0] }] },
+    ], shots: [{ name: 'wide', camera: 'wide', span: [0, 1] }, { name: 'chase', camera: 'chase', span: [1, 3] },
+      { name: 'goal', camera: 'wide', span: [0, 1], on: 'goal:*', in: 'fade' }] }, { subjects }).plan;
+    // the cued shot cuts in when the bus logs a goal (its fade on its own time); the events channel supplies the bus
+    return [['shoot-live', { faces: [floor()], entities: ENTITIES, camera: CAMERA, events: EVENTS, shoot: lowerShoot(plan, { subjects, live: true }) }]];
+  })(),
 
   ['repeats', { faces: [floor()], repeats: REPEATS }],
   ['ao', { faces: [quad('#8899aa', { group: 'shell:leftWall', normal: [1, 0, 0] }), floor()], ao: true }],

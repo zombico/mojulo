@@ -45,7 +45,7 @@ const DIALS = ['stylize', 'fit', 'coverage', 'ornament'];
 
 /** Validate a build → error strings naming the choices */
 export function validateOutfitBuild(build) {
-  if (!isOutfitBuild(build)) return ["outfit: { type: 'outfit', style, dials?, language? }"];
+  if (!isOutfitBuild(build)) return ["outfit: { type: 'outfit', style, dials?, language?, pieces?, intent? }"];
   const errs = [], style = build.style ?? 'casual';
   if (typeof style === 'string') { if (!SEEDED_OUTFITS[style]) errs.push(`outfit.style: '${style}' is not a sample (${Object.keys(SEEDED_OUTFITS).join(', ')}); or pass an inline card`); }
   else errs.push(...validateOutfitCard(style));
@@ -64,7 +64,13 @@ export function validateOutfitBuild(build) {
       if (D.group !== undefined && !(typeof D.group === 'string' && /^[A-Za-z][A-Za-z0-9]*$/.test(D.group))) errs.push(`${at}.group: a palette group name`);
       if (D.motif !== undefined && !MOTIFS[D.motif]) errs.push(`${at}.motif: one of ${MOTIF_NAMES.join(', ')}`);
       if (D.motif !== undefined && D.prim !== 'embroidery') errs.push(`${at}.motif: an embroidery's`); }); }
-  for (const k of Object.keys(build)) if (!['type', 'style', 'dials', 'language', 'laws', 'detail'].includes(k)) errs.push(`outfit.${k}: not a build field (type, style, dials, language, laws, detail)`);
+  // the DESIGNED pieces worn over the cut (polygonizer/outfit-plan.js: mantle, pauldron, sash, bracers …) and the intent
+  // they were designed under (its palette's roles, symmetry, side, distortion): the kinds are judged where the hero is
+  // dressed (layered.js validateHeroSpec), the shape here
+  if (build.pieces !== undefined && !(Array.isArray(build.pieces) && build.pieces.every((P) => P && typeof P === 'object' && !Array.isArray(P) && typeof P.kind === 'string'))) errs.push('outfit.pieces: a list of { kind, role?, colour?, scale?, … } (the outfit catalogue\'s pieces)');
+  if (build.intent !== undefined && !(build.intent && typeof build.intent === 'object' && !Array.isArray(build.intent))) errs.push('outfit.intent: { palette: { base, secondary, trim, accent, leather? }, symmetry?, side?, distort? }');
+  if (build.intent !== undefined && build.pieces === undefined) errs.push('outfit.intent: the intent of designed pieces; give outfit.pieces with it');
+  for (const k of Object.keys(build)) if (!['type', 'style', 'dials', 'language', 'laws', 'detail', 'pieces', 'intent'].includes(k)) errs.push(`outfit.${k}: not a build field (type, style, dials, language, laws, detail, pieces, intent)`);
   if (build.laws !== undefined && build.laws !== OUTFIT_LAWS_VERSION) errs.push(`outfit.laws: ${build.laws} is unknown — this kernel carries outfit laws ${OUTFIT_LAWS_VERSION}`);
   return errs;
 }

@@ -253,20 +253,23 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   const E = spec; const mode = E.mode || 'iris', pupil = E.pupil || (mode === 'solid' ? 'none' : 'round');
   // SET EYE (opt-in: `spec.set` { sink, gap, lid }): the ball's centre sinks `sink` × R under the skin, so only a low
   // cornea cap shows (no goggle dome), and the surround becomes a thin lid hugging the ball (all sizes relative to R)
-  const S = E.set; const c = S ? [0, 0, 0.002 - (S.sink ?? 0.5) * R] : [0, 0, 0.002]; const irisA = E.irisAngle ?? (pupil === 'slit' ? 46 : 36), pupilA = E.pupilAngle ?? 15, limbA = irisA + 5;
+  // a SET eye's few fixed lengths (the ball's lift off the skin, the cornea's step, the pupil's dip, the catchlight, the lid's
+  // clearance) were tuned at the default eye (R 0.022); a smaller eye takes them in proportion (`k`), so a small head's eye
+  // is not lifted out of it on a stalk. An eye at or above the default, and the goggle eye, are as before.
+  const S = E.set; const k = S ? Math.min(1, R / 0.022) : 1; const c = S ? [0, 0, 0.002 * k - (S.sink ?? 0.5) * R] : [0, 0, 0.002]; const irisA = E.irisAngle ?? (pupil === 'slit' ? 46 : 36), pupilA = E.pupilAngle ?? 15, limbA = irisA + 5;
   const f = frameAt(bone, 'cranium', at, side); const out = {};
-  const polar = [160, 130, 100, 75, 55, limbA, irisA, (irisA + pupilA) / 2, pupilA]; const flatZ = dmath.cos(irisA * Math.PI / 180) * R + 0.002;
-  const rings = polar.map((a) => { const r = dmath.sin(a * Math.PI / 180) * R; let z = dmath.cos(a * Math.PI / 180) * R; if (a < irisA) z = flatZ - (a <= pupilA ? 0.0015 : 0);
+  const polar = [160, 130, 100, 75, 55, limbA, irisA, (irisA + pupilA) / 2, pupilA]; const flatZ = dmath.cos(irisA * Math.PI / 180) * R + 0.002 * k;
+  const rings = polar.map((a) => { const r = dmath.sin(a * Math.PI / 180) * R; let z = dmath.cos(a * Math.PI / 180) * R; if (a < irisA) z = flatZ - (a <= pupilA ? 0.0015 * k : 0);
     return ringAt(add(c, [0, 0, z]), [0, 0, 1], r, 10, 0, a <= pupilA && pupil === 'slit' ? [1, 0.28] : [1, 1]); });
   const gaze = E.gaze || [0, 0]; const turn = (p) => add(rot(rot(sub(p, c), [0, 1, 0], gaze[0] * Math.PI / 180), [1, 0, 0], -gaze[1] * Math.PI / 180), c);
-  const ball = loftParts(rings.map((r) => r.map(turn)), turn(add(c, [0, 0, -R])), turn(add(c, [0, 0, flatZ - 0.0015])));
+  const ball = loftParts(rings.map((r) => r.map(turn)), turn(add(c, [0, 0, -R])), turn(add(c, [0, 0, flatZ - 0.0015 * k])));
   const band = (j, k) => { const a = Math.min(polar[j], polar[j + 1]); const up = (rings[j][k][1] + rings[j][(k + 1) % 10][1]) / 2 > 0.45 * R;
     return a >= limbA ? (up && a >= 55 && a < 100 ? 'LidShadow' : 'Sclera') : a >= irisA ? 'Limbus' : a >= pupilA ? 'Iris' : 'Pupil'; };
   const tint = (g) => (mode === 'solid' && (g === 'Iris' || g === 'Limbus') ? 'Sclera' : pupil === 'none' && g === 'Pupil' ? (mode === 'solid' ? 'Sclera' : 'Iris') : g);
   const labels = []; for (let j = 0; j + 1 < rings.length; j++) for (let k = 0; k < 10; k++) { const g = tint(band(j, k)); labels.push(g, g); } for (let k = 0; k < 10; k++) labels.push('Sclera', tint('Pupil'));
   out.eye = { ...pinned(bone, 'cranium', at, side, ball, 'Sclera'), faceGroups: labels };
-  if (E.catchlight) { const cc = [-0.35 * dmath.sin(24 * Math.PI / 180) * R, 0.8 * dmath.sin(24 * Math.PI / 180) * R, c[2] + flatZ + 0.0009];
-    const hl = { points: { a: turn(add(cc, [0.0024, 0.0006, 0])), b: turn(add(cc, [-0.0012, 0.0021, 0])), d: turn(add(cc, [-0.0012, -0.0021, 0])), e: turn(add(cc, [0, 0, -0.0012])) }, faces: [['a', 'b', 'd'], ['a', 'e', 'b'], ['b', 'e', 'd'], ['d', 'e', 'a']] };
+  if (E.catchlight) { const cc = [-0.35 * dmath.sin(24 * Math.PI / 180) * R, 0.8 * dmath.sin(24 * Math.PI / 180) * R, c[2] + flatZ + 0.0009 * k];
+    const hl = { points: { a: turn(add(cc, [0.0024 * k, 0.0006 * k, 0])), b: turn(add(cc, [-0.0012 * k, 0.0021 * k, 0])), d: turn(add(cc, [-0.0012 * k, -0.0021 * k, 0])), e: turn(add(cc, [0, 0, -0.0012 * k])) }, faces: [['a', 'b', 'd'], ['a', 'e', 'b'], ['b', 'e', 'd'], ['d', 'e', 'a']] };
     if (dot(sub(hl.points.a, hl.points.e), cross(sub(hl.points.b, hl.points.e), sub(hl.points.d, hl.points.e))) < 0) hl.faces = hl.faces.map((q) => [...q].reverse());
     out.catch = pinned(bone, 'cranium', at, side, hl, 'Catchlight'); }
   // the brow's lower edge, sampled by its coordinate along the eye's tangent
@@ -283,9 +286,9 @@ function eyeRegion({ bone, skin, at, R, spec, side, lidClose, bunch, brow, browR
   // `clear` is lifted along the eye's axis onto it, a skin vertex onto it plus `minThick`: the lid drapes over
   // the front of the ball. Lifting along the axis keeps x and y, so the aperture and the brow tuck are
   // untouched and the two rules hold together. Points already clear are never moved.
-  const ballR = Math.max(...Object.values(ball.points).map((p) => dmath.hypot(...sub(p, c)))), Rc = ballR + (orbit.clear ?? 0.0008);
+  const ballR = Math.max(...Object.values(ball.points).map((p) => dmath.hypot(...sub(p, c)))), Rc = ballR + (orbit.clear ?? 0.0008 * k);
   const hold = (p, r) => { const d = sub(p, c); return dmath.hypot(...d) >= r ? p : [p[0], p[1], c[2] + Math.sqrt(r * r - d[0] * d[0] - d[1] * d[1])]; };
-  const clearOfBall = (sec) => { const H = sec.length / 2; return [...sec.slice(0, H).map((p) => hold(p, Rc + (orbit.minThick ?? 0.001))), ...sec.slice(H).map((p) => hold(p, Rc))]; };
+  const clearOfBall = (sec) => { const H = sec.length / 2; return [...sec.slice(0, H).map((p) => hold(p, Rc + (orbit.minThick ?? 0.001 * k))), ...sec.slice(H).map((p) => hold(p, Rc))]; };
   if (S) for (let j = 0; j < N; j++) { const phi = 2 * Math.PI * j / N, cs = dmath.cos(phi), sn = dmath.sin(phi), up = sn >= 0;
     // the lash on the ball (a hair off it), the lid's edge a thin step `lid` × R proud, the lid then running flush to the skin
     const rl = R * (1 + (S.gap ?? 0.04)), TL = R * (S.lid ?? 0.1); const ax = 0.97 * R * cs, ay = Math.min(0.97 * R, up ? hu : hl) * sn;

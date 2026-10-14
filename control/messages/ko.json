@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "서비스 맵",
-    "back": "뒤로"
-  },
-  "actions": {
-    "start": "시작"
-  },
   "settings": {
     "title": "설정",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "앱",
-    "subtitle": "에이전트가 앱 패러다임을 통해 구현한 앱. 생명주기, env vars, 라이브 MCP 자기성찰 — contextmap과 로컬 러너에서 읽어요",
-    "loading": "로드 중…",
-    "refresh": "새로고침",
-    "empty": "아직 앱이 없어요 — Claude Code 에이전트에 스캐폴드를 만들도록 요청해요",
-    "backToList": "앱으로 돌아가기",
-    "notFound": "앱을 찾을 수 없어요",
-    "openPreview": "미리보기 열기",
-    "openMcp": "MCP 열기",
-    "actions": {
-      "start": "시작",
-      "stop": "중지",
-      "starting": "시작 중…",
-      "stopping": "중지 중…"
-    },
-    "status": {
-      "running": "실행 중",
-      "stopped": "중지됨",
-      "crashed": "충돌",
-      "unknown": "알 수 없음"
-    },
-    "table": {
-      "headers": {
-        "name": "이름",
-        "materialized": "구현됨",
-        "runner": "러너",
-        "status": "상태",
-        "actions": "동작"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "이 앱의 생성 지도 — 앱을 만들어낸 모든 도구 호출을 한 노선 위의 역으로 표시해요."
-      },
-      "metadata": "메타데이터",
-      "artifactPath": "아티팩트 경로",
-      "materializationRef": "구현 참조",
-      "adapter": "어댑터",
-      "appName": "앱 이름",
-      "host": "호스트",
-      "materializedAt": "구현된 시간",
-      "viewGraph": "그래프 보기",
-      "bindings": "바인딩",
-      "binding": {
-        "runner": "러너",
-        "durability": "내구성",
-        "inference": "추론",
-        "mcpSelf": "MCP 자기"
-      },
-      "mcpPanel": {
-        "title": "앱 MCP",
-        "url": "MCP URL",
-        "offline": "MCP 오프라인 — 앱을 시작해서 도구 목록을 봐요",
-        "loading": "도구 로드 중…",
-        "error": "앱 MCP에 연결할 수 없어요: {error}",
-        "registeredTools": "등록된 도구",
-        "noTools": "등록된 도구가 없어요",
-        "declaredPurpose": "선언된 목적"
-      },
-      "envPanel": {
-        "title": "환경 변수",
-        "explainer": "값이 아티팩트의 .env 파일에 직접 작성돼요. 기록되지 않고, 제어 평면 데이터베이스에 저장되지 않고, 이 보기로 다시 표시되지 않아요",
-        "addKey": "키",
-        "addValue": "값",
-        "add": "추가",
-        "delete": "삭제",
-        "deleteConfirm": "env var \"{key}\"을(를) 삭제할래요?",
-        "noKeys": "아직 설정된 env vars가 없어요",
-        "valueHidden": "•••••",
-        "edit": "[MISSING: Edit]",
-        "save": "저장",
-        "cancel": "취소",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "값"
-      },
-      "provenance": {
-        "title": "출처",
-        "subtitle": "이 앱의 구현 커밋에 첨부된 원리",
-        "none": "기록된 원리가 없어요"
-      }
-    }
-  },
-  "graph": {
-    "title": "앱 생성 맵",
-    "subtitle": "앱이 어떻게 함께 만들어져요. 각 상자는 한 부분; 각 화살표는 무엇이 무엇을 유발하는지 보여줘요",
-    "subtitleTechnical": "mojulo 패러다임에서 앱이 어떻게 구성되는지. 스테이션은 조각들; 라인은 그들을 함께 연결하는 MCP 도구. 매번 새로고침할 때 라이브 MCP 레지스트리 및 contextmap 스키마와 비교해서 검증돼요",
-    "technicalToggle": "기술적",
-    "loading": "로드 중…",
-    "refresh": "새로고침",
-    "overlay": {
-      "appCount": "{count, plural, =0 {아직 만든 앱 없음} =1 {1개 앱 만들음} other {# 앱 만들음}}",
-      "lastMaterialized": "마지막에 만들어진 것",
-      "viewApps": "실행 중인 앱 보기"
-    },
-    "validation": {
-      "ok": "모든 것이 여전히 확인돼요",
-      "okTechnical": "매니페스트 유효: {tools} 도구, {nodeKinds} 노드 종류, {edgeKinds} 엣지 종류, {sourceEvents} 소스 이벤트 모두 해결돼요",
-      "failed": "{count, plural, =1 {맵의 1개 항목이 더 이상 현실과 일치하지 않음} other {맵의 # 항목이 더 이상 현실과 일치하지 않음}}"
-    },
-    "legend": {
-      "input": "당신이 결정한 것",
-      "inputTechnical": "입력",
-      "mcpTool": "에이전트가 호출하는 도구",
-      "mcpToolTechnical": "MCP 도구",
-      "filesystem": "디스크의 파일",
-      "filesystemTechnical": "파일시스템",
-      "dbRow": "메모리의 항목",
-      "dbRowTechnical": "DB 행"
-    }
-  },
   "login": {
     "subtitle": "계속하려면 로그인해요",
     "username": "사용자명",
@@ -178,7 +60,6 @@
     "title": "계획",
     "subtitle": "제안된 작업 — 스파이크가 된 세션. 호스트 에이전트에서 만들어지고 실행돼요",
     "navLabel": "계획",
-    "newPlan": "새 계획",
     "total": "{count}개 계획",
     "count": "{count}개 계획",
     "filteredCount": "{total}개 중 {count}",
@@ -221,13 +102,6 @@
     "executionEmpty": "아직 실행되지 않음.",
     "stepOk": "완료",
     "stepFailed": "실패",
-    "newPlanTitle": "새 계획",
-    "newPlanIntro": "계획은 호스트 에이전트(Claude Code / Codex)에서 작성합니다. 의도를 설명하고 시작 프롬프트를 복사해 새 에이전트 세션에 붙여넣으세요. 에이전트가 계획 모드로 진입하여 작업을 진행합니다. 이 페이지는 계획이 작성되고 수정되면서 업데이트됩니다.",
-    "intentLabel": "무엇을 계획하고 싶으신가요? (선택사항)",
-    "intentPlaceholder": "예: 작곡가용 웹훅 트리거 런타임",
-    "promptLabel": "시작 프롬프트",
-    "copyPrompt": "프롬프트 복사",
-    "copied": "복사됨",
     "close": "닫기"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "스니펫",
     "kindSketch": "스케치",
     "viewSketch": "다이어그램 보기",
-    "composerHeading": "노트북에 추가",
-    "composerStub": "미리보기만 — 현재 바인딩은 호스트 에이전트를 통해 발생합니다.",
-    "composerPlaceholder": "링크를 붙여넣거나 파일을 끌어다 놓거나 메모를 작성하세요…",
-    "newBook": "새 책",
-    "newBookTitle": "새 연구 책",
-    "newBookIntro": "책은 호스트 에이전트(Claude Code / Codex)에서 시작됩니다. 주제를 설명하고 시작 프롬프트를 복사해 새 에이전트 세션에 붙여넣으세요. 에이전트가 연구 모드로 진입하여 작업을 진행합니다. 이 페이지는 책이 추가되면서 업데이트됩니다.",
-    "intentLabel": "무엇을 연구하고 싶으신가요? (선택사항)",
-    "intentPlaceholder": "예: 다른 사람들이 로컬 MCP 서버를 터널링하는 방법",
-    "promptLabel": "시작 프롬프트",
-    "copyPrompt": "프롬프트 복사",
-    "copied": "복사됨",
     "close": "닫기"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "워크숍 홈",
     "groups": {
-      "ideate": "아이디어 내기",
-      "operate": "운영",
-      "studio": "스튜디오"
+      "make": "만들기",
+      "media": "미디어",
+      "play": "플레이",
+      "ideate": "아이디어 내기"
     },
     "drawer": {
       "open": "네비게이션 열기",
       "close": "네비게이션 닫기"
     },
     "tiles": {
-      "mcpSkills": "연결된 서비스",
-      "apps": "앱",
-      "sketch": "스케치",
       "plan": "계획",
       "outputs": "결과물",
       "research": "연구",
       "stash": "스태시",
-      "illustrations": "삽화",
       "worlds": "세계",
       "objects": "오브젝트",
       "motion": "모션",
       "beats": "비트",
       "voice": "음성",
-      "games": "게임 개발자",
-      "arcade": "아케이드",
-      "settings": "설정",
       "library": "라이브러리",
       "renderBay": "렌더 베이",
-      "dashboard": "대시보드"
+      "dashboard": "대시보드",
+      "places": "장소",
+      "characters": "캐릭터",
+      "images": "이미지",
+      "play": "플레이",
+      "elements": "요소"
     },
     "agentStatus": {
       "liveLabel": "실시간",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "대시보드",
       "open": "플로어 열기 →"
-    },
-    "ask": {
-      "title": "에이전트에게 요청하기",
-      "body": "만드는 일은 MCP 에이전트에서 일어나요."
     }
-  },
-  "breadcrumbs": {
-    "home": "홈"
   },
   "sketches": {
     "notFoundTitle": "스케치를 찾을 수 없음",
@@ -398,10 +253,6 @@
     "refresh": "새로고침",
     "statusOpen": "open",
     "statusResolved": "rev {rev}에서 해결됨",
-    "annotateHint": "마크는 에이전트에서 작성됩니다(annotate_beats — 막대, 트랙 또는 큐에 앵커됨). 이 패널이 렌더링합니다. 에이전트가 표시하거나 조치하도록 수정 프롬프트를 복사하세요.",
-    "copyRevisionPrompt": "수정 프롬프트 복사",
-    "copied": "복사됨 ✓",
-    "copyFailed": "클립보드에 복사할 수 없습니다.",
     "exportWav": ".wav 내보내기",
     "exportMidi": ".mid 내보내기",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "게임 개발자",
-    "gallerySubtitle": "게임당 프로젝트 하나 — 규칙, 레벨, 캐릭터, 오디오, 아트를 한 선반에 모아요.",
-    "galleryEmpty": "아직 게임 프로젝트가 없어요. 호스트 에이전트에서 create_game_project를 실행해 시작하세요.",
-    "copyStarterPrompt": "Copy starter prompt",
     "loading": "프로젝트 불러오는 중…",
-    "noMembersYet": "아직 멤버가 없어요",
     "notFound": "그 프로젝트가 없어요 — 보관됐거나 ref가 잘못됐을 수 있어요.",
     "backToProjects": "게임 개발자로 돌아가기",
-    "copyWorkPrompt": "작업 프롬프트 복사",
-    "copyAddPrompt": "추가",
-    "copyMintPrompt": "게임 발행",
-    "copied": "복사됨",
-    "playable": "플레이 가능",
     "missing": "Missing",
     "missingBody": "이 멤버의 아티팩트가 더 이상 없어요. 프로젝트는 슬롯을 유지해요; 호스트 에이전트에서 다시 바인딩하거나 제거하세요.",
     "noRules": "아직 발행된 게임이 없어요 — 프로젝트는 사전 제작 단계예요.",
@@ -468,13 +310,6 @@
     "emptyFolder": "아직 아무것도 없어요."
   },
   "arcade": {
-    "title": "Mojulo 아케이드",
-    "subtitle": "워크숍에서 발행한 플레이 가능한 독립 게임들이에요. 캐비닛을 골라 플레이하세요.",
-    "loading": "캐비닛 불러오는 중…",
-    "emptyState": "아직 플로어에 게임이 없어요. 호스트 에이전트에서 create_game을 실행해 첫 캐비닛을 발행하세요.",
-    "copyStarterPrompt": "Copy starter prompt",
-    "copied": "복사됨",
-    "play": "플레이",
     "levelCount": "{count, plural, other {레벨 #개}}",
     "shipped": "출시됨"
   },
@@ -484,7 +319,7 @@
     "subtitle": "에이전트가 만든 모든 아티팩트 — 씬, 모델, 캐릭터, 머티리얼, 이미지, 다이어그램. 보는 방식마다 선반 하나씩이고, 그 아래 레시피 저장소는 하나예요.",
     "shelves": {
       "recent": "최근",
-      "scenes": "세계",
+      "scenes": "장면",
       "turntables": "턴테이블",
       "models": "모델",
       "views": "뷰",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "스튜디오: 일러스트, 걸어다닐 수 있는 월드, 3D 오브젝트, 모션, 비트, 보이스, 그리고 완성된 출력물. 다이어그램에 맞춰진 Sketches의 형제 격인, 창작에 맞춰진 작업 공간이에요. 모든 조각은 같은 sketch 프리미티브 — 어느 쪽이든 스태시하고, 참조하고, diff할 수 있어요."
-    },
     "beats": {
       "title": "비트",
       "subtitle": "Synthesized soundtracks, compositions, and sound effects — select one and press play. Author new ones from your agent via create_beats."
@@ -546,11 +377,7 @@
       "tuned": "Tuned (recipe unchanged)",
       "reset": "reset",
       "playingAt": "Sample at confidence {c} / depth {d}",
-      "noSamples": "No rendered samples yet — copy the speak command and have your agent bind a few points (edges included).",
-      "copyBlend": "Copy blend",
-      "copyCommand": "Copy speak command",
-      "copyPrompt": "Copy starter prompt",
-      "copied": "복사됨!",
+      "noSamples": "아직 렌더링된 샘플이 없어요.",
       "loading": "Loading voice registers…",
       "empty": "No voice registers yet. Ask your agent to mint one with create_voice.",
       "unresolvable": "This register no longer resolves — its bank may have changed. Re-mint it via create_voice."
@@ -602,10 +429,6 @@
     "kindNovel": "Novella",
     "kindVisualGuide": "Visual guide",
     "kindUnknown": "알 수 없음",
-    "actions": {
-      "archive": "Archive",
-      "unarchive": "Unarchive"
-    },
     "sourceLabel": "시작",
     "sourceUnknown": "(stash removed)",
     "lensLabel": "Lens",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "스태시",
-    "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
+    "subtitle": "에이전트가 모은 유형별 자료 버킷이에요.",
     "total": "{count, plural, =0 {No stashes} =1 {1 stash} other {# stashes}}",
     "count": "{count, plural, =0 {No matches} =1 {1 stash} other {# stashes}}",
     "filteredCount": "{count} of {total} shown",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Created {timestamp}",
     "updatedAt": "업데이트됨 {timestamp}",
-    "actions": {
-      "rename": "Rename",
-      "edit": "[MISSING: Edit]",
-      "archive": "Archive",
-      "unarchive": "Unarchive",
-      "save": "저장",
-      "cancel": "취소",
-      "titleEmpty": "Title cannot be empty",
-      "renameFailed": "Rename failed",
-      "statusChangeFailed": "Could not change status"
-    },
     "detail": {
       "loading": "Loading stash…",
       "notFoundTitle": "Stash not found",
@@ -673,66 +485,7 @@
         "sketch": "스케치"
       },
       "sketchFailed": "Sketch failed to load.",
-      "openSketch": "Open sketch",
-      "newDrawer": "New drawer",
-      "newDrawerPlaceholder": "Drawer name",
-      "drawerSaveError": "Could not save drawer",
-      "drawerRenameError": "Could not rename drawer",
-      "renameDrawerLabel": "Rename drawer",
-      "moveError": "Could not move item",
-      "archive": "Archive",
-      "archiveError": "Could not archive item",
-      "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
-      "archiveProceed": "Archive anyway",
-      "archiveCancel": "취소",
-      "addItem": "+ Add",
-      "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
-      "picker": {
-        "text": "New text block",
-        "image": "Upload image",
-        "svg": "Add SVG",
-        "link": "Paste link",
-        "sketch": "Pick sketch"
-      },
-      "panel": {
-        "save": "저장",
-        "cancel": "취소",
-        "saving": "저장 중…",
-        "saveError": "Could not save",
-        "titleLabel": "Title (optional)",
-        "titlePlaceholder": "Short label",
-        "sourceUrlLabel": "Source URL (optional)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Plain text",
-        "bodyLabel": "Body",
-        "bodyPlaceholder": "Type or paste…",
-        "preview": "미리보기",
-        "previewEmpty": "Type to preview.",
-        "tooLong": "Content exceeds the {limit, number} character cap.",
-        "imagePick": "Choose an image",
-        "imageDrop": "or drop a file here",
-        "imageTooLarge": "Image exceeds the {limit, number} MB cap.",
-        "imageBadMime": "Not an image file ({mime}).",
-        "imageBadDimensions": "Could not read image dimensions.",
-        "altLabel": "Alt text (optional)",
-        "altPlaceholder": "What's in the image?",
-        "svgPaste": "Paste SVG",
-        "svgUpload": "or upload .svg",
-        "svgBadShape": "SVG body must start with <?xml or <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL doesn't parse.",
-        "urlTitleRequired": "Title is required for link items.",
-        "descriptionLabel": "Description (optional)",
-        "descriptionPlaceholder": "Why this matters…",
-        "sketchSearchPlaceholder": "Search sketches…",
-        "sketchEmpty": "No sketches yet. Ask your agent to mint one with create_sketch.",
-        "sketchNoMatch": "No sketches match this search.",
-        "sketchPicked": "Picked"
-      }
+      "openSketch": "Open sketch"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
     "frameFailed": "이 뷰가 로드되지 않았어요.",
-    "renameLabel": "Rename sketch",
-    "renamePlaceholder": "Sketch title",
-    "renameSave": "저장",
-    "renameSaveNew": "Save as new sketch",
-    "renameCancel": "취소",
-    "renameEmpty": "Title cannot be empty",
     "associationTags": {
       "plan": "계획",
       "research": "연구"
@@ -771,45 +518,21 @@
       "selectPrompt": "Select a track on the left to play.",
       "invalidManifest": "This recipe could not be parsed.",
       "openNewTab": "Open Studio",
-      "renameLabel": "Rename track",
-      "renamePlaceholder": "Track title",
-      "renameSaveNew": "Save as new track",
       "exportWav": ".wav 내보내기",
       "exportMidi": ".mid 내보내기"
     },
     "folder": {
-      "newFolderButton": "New folder",
-      "newFolderTitle": "New folder",
-      "namePlaceholder": "Folder name",
       "create": "Create",
       "cancel": "취소",
-      "rename": "Rename folder",
-      "renameSave": "저장",
       "delete": "Delete folder",
-      "deleteConfirm": "Delete this folder? Sketches inside it will move back to root.",
       "rootCrumb": "All sketches",
       "back": "뒤로",
       "sketchCount": "{count, plural, =0 {empty} =1 {1 sketch} other {# sketches}}",
       "foldersHeader": "Folders",
       "rootHeader": "스케치",
-      "inFolderHint": "New sketches you mint while viewing this folder will land here automatically.",
-      "emptyFolder": "This folder is empty. Mint a sketch or move one here from root.",
+      "emptyFolder": "이 폴더는 비어 있어요.",
       "moveSourceFolder": "In {name}",
       "moveSourceRoot": "At root"
-    },
-    "select": {
-      "enter": "[MISSING: Select]",
-      "exit": "Done",
-      "count": "{count, plural, =0 {None selected} =1 {1 selected} other {# selected}}",
-      "moveTo": "Move to…",
-      "moveToRoot": "Move to root",
-      "moveSuccess": "{count, plural, =1 {1 sketch moved} other {# sketches moved}}",
-      "moveError": "Move failed: {error}",
-      "selectAll": "모두 선택",
-      "clear": "[MISSING: Clear]",
-      "delete": "삭제",
-      "deleteConfirm": "{count, plural, =1 {Delete 1 sketch?} other {Delete # sketches?}} This cannot be undone.",
-      "deleteError": "Delete failed: {error}"
     },
     "viewToggle": {
       "split": "Split view",
@@ -820,72 +543,6 @@
       "move": "Move",
       "delete": "삭제",
       "deleteOneConfirm": "Delete \"{title}\"? This cannot be undone."
-    }
-  },
-  "map": {
-    "title": "Map",
-    "subtitle": "The whole fleet on two planes — apps on the ground, MCP servers and connected services on air, with service-to-MCP wiring.",
-    "loading": "로드 중…",
-    "refresh": "새로고침",
-    "error": "Failed to load the fleet map",
-    "empty": "Nothing on the map yet — scaffold an app or declare your MCP inventory.",
-    "counts": {
-      "apps": "앱",
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "legend": {
-      "air": "Air",
-      "ground": "Ground",
-      "servers": "MCP servers",
-      "services": "Connected services",
-      "apps": "앱"
-    }
-  },
-  "mcpSkills": {
-    "title": "연결된 서비스",
-    "subtitle": "Connected services: host skills and materialized MCP-orbit workflows, shown against the MCP servers they call.",
-    "loading": "로드 중...",
-    "refresh": "새로고침",
-    "error": "Failed to load connected services",
-    "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "backToList": "Back to Connected Services",
-    "backToService": "Back to connected service",
-    "notFound": "Connected service not found.",
-    "viewGraph": "그래프 보기",
-    "present": "Present",
-    "missing": "Missing",
-    "counts": {
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "table": {
-      "name": "이름",
-      "form": "Form",
-      "calls": "Calls",
-      "updated": "Updated"
-    },
-    "forms": {
-      "catalyst": "Catalyst skill",
-      "manual": "Manual skill",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "메타데이터",
-      "name": "이름",
-      "ref": "Ref",
-      "kind": "Kind",
-      "form": "Form",
-      "updated": "Updated",
-      "hostPath": "Host path",
-      "catalyst": "Catalyst",
-      "composition": "Composition",
-      "calls": "Calls",
-      "noCalls": "No MCP calls declared.",
-      "needs": "Needs",
-      "components": "Components",
-      "knobs": "Knobs",
-      "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "렌더 베이",
     "subtitle": "mojulo가 만들고 있는 모든 것을 한곳에: 지속되는 이미지 렌더 큐, GI 베이크, 그리고 디스크에 있는 쿡과 내보내기. \"무언가 만들어지고 있다\"를 말하는 네 가지 방식이 이제야 한집에 모였어요.",
-    "readOnly": "베이는 상태를 렌더링해요. 여기 있는 모든 동작은 에이전트에 붙여 넣을 프롬프트예요 — 렌더 수락, 월드 재베이크, 내보내기 생성은 모두 MCP 도구로 일어나고, 이 페이지에서는 일어나지 않아요.",
     "refresh": "새로고침",
     "loading": "로드 중…",
     "allLanes": "모든 레인",
-    "copyPrompt": "프롬프트 복사",
-    "copied": "복사됨",
-    "copyFailed": "복사하지 못했어요 — 텍스트를 선택해 직접 복사하세요",
     "showing": "{total}개 중 {shown}개 표시",
     "queue": {
       "title": "렌더 큐",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "아티팩트 열기 →",
-    "copied": "복사됨",
-    "copyFailed": "복사하지 못했어요 — 텍스트를 선택해 직접 복사하세요",
     "shelves": "라이브러리",
     "bays": "워크숍",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "삼각형 수: export_model"
     },
     "inspector": {
-      "askTitle": "에이전트에게 요청하기",
-      "askBody": "대시보드는 상태를 렌더링할 뿐 바꾸지 않아요. 이 레시피를 수정하는 건 호스트 에이전트에서 해요.",
-      "askCopy": "프롬프트 복사",
       "bound": "바인딩된 아티팩트",
       "boundEmpty": "아직 바인딩된 게 없어요 — 이 레시피에 대한 렌더, 메시, 내보내기가 디스크에 없어요.",
       "openFolder": "outcome 폴더 열기 · {size}",
@@ -1110,8 +758,6 @@
     "empty": "이 패싯이나 검색에 맞는 게 없어요.",
     "emptyShelf": "아직 {shelf}에 만들어진 게 없어요.",
     "emptyShelfHint": "에이전트에게 하나 만들어 달라고 하세요 — 어휘는 get_sketch_vocab에 있어요.",
-    "copied": "복사됨",
-    "copyFailed": "복사하지 못했어요 — 직접 선택하세요",
     "notExportable": "메시 내보내기 없음 — 이 아티팩트는 걸어다닐 수 있는 모델이 아니라 다이어그램으로 렌더링돼요.",
     "stack": "×{n}",
     "seed": "시드 {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "페인팅 · 외부 워커 · 스캐폴드 레시피가 원본",
-    "mintMissing": "에이전트에게 요청: {piece} 만들기",
-    "mintPrompt": "mojulo 캐릭터 \"{name}\"(아티팩트 {ref} 참고)에 대해 빠진 {piece}를 만들어 주세요. 맞는 도구(create_sprite_sheet / bind_character_sheet / figure 도구)를 쓰고, 먼저 get_sketch_vocab을 읽으세요.",
     "facets": {
       "scenes": {
         "walkable": "걸어다닐 수 있음",

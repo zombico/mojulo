@@ -29,7 +29,7 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, RETIRED_OFFICE_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
+import { PACKS, SPINE, RETIRED_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 import { toolTier } from '@/lib/mcp/tool-tiers';
@@ -132,7 +132,7 @@ export function cliInstructionsAddendum({ hostIds, cmd = 'mojulo' } = {}) {
 }
 
 const registeredTools = new Map();
-const RETIRED_OFFICE = new Set(RETIRED_OFFICE_TOOLS);
+const RETIRED = new Set(RETIRED_TOOLS);
 
 export function registerTool(tool) {
   if (!tool || !tool.name || typeof tool.handler !== 'function') {
@@ -142,9 +142,9 @@ export function registerTool(tool) {
   // that legitimately run long (heavy render bakes, gif encodes). See the soft
   // timeout in lib/mcp/telemetry.js. Optional `aliasOf` names the tool a
   // deprecated alias forwards to; the alias takes that tool's annotations.
-  // The office wing's tools left the surface in 3.1.0 (RETIRED_PACKS in packs.js): still callable
-  // by name, never listed.
-  if (RETIRED_OFFICE.has(tool.name)) tool.listed = false;
+  // A retired pack's tools (RETIRED_PACKS in packs.js: the office wing, game projects) are still
+  // callable by name, never listed.
+  if (RETIRED.has(tool.name)) tool.listed = false;
   registeredTools.set(tool.name, tool);
 }
 
@@ -601,6 +601,7 @@ async function registerAllTools() {
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
   const { registerBuildingTools } = await import('@/lib/mcp/tools/building');
+  const { registerInteriorTools } = await import('@/lib/mcp/tools/interior');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerRenderDoorTools } = await import('@/lib/mcp/tools/render-door');
@@ -623,6 +624,7 @@ async function registerAllTools() {
   const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
+  const { registerShootPlanTools } = await import('@/lib/mcp/tools/shoot-plan');
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
   const { registerDesignGameTools } = await import('@/lib/mcp/tools/design-game');
@@ -766,6 +768,9 @@ async function registerAllTools() {
   // mint_building — one door for the house (layout → dwelling → construction → BIM); mints
   // through the same mintSketch as create_sketch kind 'floorplan', so both store the same row.
   registerBuildingTools();
+  // design_interior — the interior designer's door: one room of a house fitted out (lib/graph/interior/), beside the
+  // building door whose house it decorates; mints through create_sketch's world-recipe path.
+  registerInteriorTools();
   // The render handoff (render-handoff.plan.md) — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).
@@ -839,6 +844,9 @@ async function registerAllTools() {
   // ships subject-agnostic camera motions; performance motions land in Phase 2.
   // See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
   registerMotionTools();
+  // the shoot plan (lib/graph/shoot/): cameras as visible, keyed objects in a world, in After Effects words; motion's
+  // authored sibling — forge_motion renders what it plans
+  registerShootPlanTools();
   // Mojulo Beats — the AUDIO mint, sibling to the visual mints: seeded
   // generative soundtracks, explicit-score compositions, and gesture-built
   // foley cues, all synthesized-WebAudio recipes (no media bytes stored).

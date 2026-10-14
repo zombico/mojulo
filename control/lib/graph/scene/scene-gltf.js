@@ -33,7 +33,7 @@ import { inkBake, inkGeoNormals, inkCentroid, inkBuried } from './ink-geometry.j
 import { drawLayerGroup } from './channels/draw-layers.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
-import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress, zRotationQuat } from './scene-gltf-level.js';
+import { levelCameras, shootCameraDefs, levelEntityNodes, levelSceneExtras, levelAddress, zRotationQuat } from './scene-gltf-level.js';
 import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 
@@ -1057,6 +1057,23 @@ class GlbBuilder {
     return nodeIdx;
   }
 
+  // A shoot plan's camera as an animated glTF camera node (shootCameraDefs): the node posed at its first frame, and
+  // one animation named for it moving the node's translation and rotation over its frames (STEP for the edit, so a
+  // cut is a cut). Blender, Godot and Unreal import it as a camera with an action / an AnimationPlayer track.
+  addAnimatedCameraNode({ name, translation, rotation, yfov, aspectRatio, znear, zfar, times, translations, rotations, step }) {
+    const node = this.addCameraNode({ name, translation, rotation, yfov, aspectRatio, znear, zfar });
+    const input = this.floatAccessor(Float32Array.from(times), 1, { min: [times[0]], max: [times[times.length - 1]] }, null);
+    const interpolation = step ? 'STEP' : 'LINEAR';
+    const samplers = [
+      { input, output: this.floatAccessor(Float32Array.from(translations.flat()), 3, null, null), interpolation },
+      { input, output: this.floatAccessor(Float32Array.from(rotations.flat()), 4, null, null), interpolation },
+    ];
+    const channels = [{ sampler: 0, target: { node, path: 'translation' } }, { sampler: 1, target: { node, path: 'rotation' } }];
+    if (!this.json.animations) this.json.animations = [];
+    this.json.animations.push({ name, samplers, channels });
+    return node;
+  }
+
   // KHR_lights_punctual (lit-handoff.plan.md, pot lights): a positioned light node in the
   // pre-root z-up frame like every other child. A spot shines down its node's -Z, which under
   // the y-up root IS mojulo's -Z (down) — a ceiling downlight needs no rotation. Intensity is
@@ -1470,6 +1487,10 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // touches an emitted world PAGE.
   const camDefs = levelCameras(payload);
   for (const c of camDefs) b.addCameraNode(c);
+  // A shoot plan's cameras (lib/graph/shoot/), animated: one per plan camera and one playing the edit. No plan → none.
+  const shotDefs = shootCameraDefs(payload.shoot, payload.viewBox);
+  for (const c of shotDefs) b.addAnimatedCameraNode(c);
+  animationCount += shotDefs.length;
   // Positioned lights (`payload.lights`: pot lights today) — KHR_lights_punctual nodes.
   const lightDefs = Array.isArray(payload.lights) ? payload.lights.filter((l) => l && Array.isArray(l.position)) : [];
   for (const l of lightDefs) b.addLightNode({ ...l, translation: l.position });
@@ -1535,6 +1556,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     nodeCount: b.children.length + b.sceneRoots.length,
     vertexCount,
     triangleCount,
+    ...(shotDefs.length ? { shotCameras: shotDefs.map((d) => d.name) } : {}),
   };
   if (clipSel) {
     out.animationCount = animationCount;

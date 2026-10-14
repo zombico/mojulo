@@ -400,18 +400,20 @@ describe('get_ui_map — dashboard page map', () => {
   it('maps the current dashboard pages and stays out of the always-paid body', async () => {
     const { content } = await uiMapHandler({});
     const text = content[0].text;
-    for (const page of ['/apps', '/map', '/graph', '/plan', '/research', '/sketches', '/settings']) {
+    for (const page of ['/', '/dashboard', '/library', '/worlds', '/places', '/play', '/plan', '/research', '/stashes', '/sketches', '/settings']) {
       expect(text, `ui map missing page ${page}`).toContain(`\`${page}\``);
     }
-    // The bot pages left with the chatbot factory (3.0.0).
-    for (const page of ['/bots', '/chat-builder', '/data']) {
+    // The bot pages left with the chatbot factory (3.0.0); the office wing's with its tools (3.1.0).
+    for (const page of ['/bots', '/chat-builder', '/data', '/apps', '/map', '/graph', '/mcp-skills', '/arcade/<ref>']) {
       expect(text, `ui map still names ${page}`).not.toContain(`\`${page}\``);
     }
     // Hints at the breadth of UI localization without enumerating every locale.
     expect(text).toMatch(/internationaliz|languages|locales|right-to-left/i);
     // The full page map is reached on demand, not folded into forward_context.
     const body = buildForwardContextBody({ register: 'mixed', disclosure: 'reflective' });
-    expect(body).not.toContain('App Creation Map: how an app comes together');
+    expect(body).not.toContain('Workshop Home');
+    // View only: the map never tells the user to copy a prompt.
+    expect(text).not.toMatch(/copy-prompt|copy-revision-prompt/);
     expect(body).toContain('`get_ui_map`');
   });
 });
@@ -563,15 +565,15 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'render_handoff',
     'verify_machina',
     'compose_world', 'list_world_themes', 'export_model', 'bind_mesh_render', 'translate_modeler_lingo',
-    'mint_building',
+    'mint_building', 'design_interior',
     'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
+    // the shoot plan (1014): cameras as visible keyed objects in a world, the motion form's authored sibling
+    'create_shoot_plan', 'update_shoot_plan',
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
     'design_game', 'tune_ground', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
-    // game projects (game-developer.plan.md GP1) — the project layer's tools
-    // live in the game form drawer beside the mint.
-    'create_game_project', 'get_game_project', 'update_game_project', 'bind_to_game_project', 'list_game_projects',
+    // game projects retired in 3.1.0 (RETIRED_PACKS): a game's home is its gameworld
   ];
 
   it('FORM_TOOLSETS keys are the shared CREATIVE_FORMS enum, in order (single source of truth)', () => {
@@ -797,7 +799,9 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // Grown 2026-10-13 (8_600 -> 8_650; measured 8,607 widest cell, studio+plain+pedagogical): the merge of the character
   // line (the CHARACTER row's update_character) with the consolidated line (the GAME row's tune_ground), each under the
   // ceiling alone.
-  const MODE_CEILINGS = { studio: 8_650 };
+  // Grown 2026-10-14 (8_650 -> 8_700; measured 8,651 widest cell, studio+plain+reflective): the merge of the shoot plan
+  // (create_shoot_plan, update_shoot_plan) with the interior designer (design_interior), each under the ceiling alone.
+  const MODE_CEILINGS = { studio: 8_700 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.
@@ -839,10 +843,10 @@ describe('the one body (3.1.0): no office wing, no bot, every FORM and entry too
   ];
 
   it('routes to no retired office tool and no chatbot-factory tool, even for a retired office read', async () => {
-    const { RETIRED_OFFICE_TOOLS } = await import('@/lib/mcp/packs');
+    const { RETIRED_TOOLS } = await import('@/lib/mcp/packs');
     for (const mode of [undefined, 'office']) {
       const body = buildForwardContextBody({ mode });
-      for (const name of RETIRED_OFFICE_TOOLS) expect(body, name).not.toContain(`\`${name}\``);
+      for (const name of RETIRED_TOOLS) expect(body, name).not.toContain(`\`${name}\``);
       for (const name of REMOVED_BOT_TOOLS) expect(body, name).not.toContain(`\`${name}`);
       expect(body).not.toContain("forward_context({mode:'office'})");
     }

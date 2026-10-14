@@ -25,12 +25,26 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
 export const COLOUR_GROUPS = Object.freeze({ base: 'OutfitBase', secondary: 'OutfitSecond', trim: 'OutfitTrim', accent: 'OutfitAccent', leather: 'Leather' });
 
+/** A ring's address on its part: `st<k>` is k, a split's `st<a>_st<b>_<pct>` lies pct % of the way from a to b; a ring
+ * with no id is addressed by its index. */
+export function uOfStation(st, i) {
+  const id = st?.id;
+  if (typeof id !== 'string') return i;
+  let m = id.match(/^st(\d+)$/); if (m) return +m[1];
+  m = id.match(/^st(\d+)_st(\d+)_(\d+)$/); if (m) return +m[1] + ((+m[2] - +m[1]) * +m[3]) / 100;
+  return i;
+}
+
 /** the body's landmarks, read off a creature plan: heights, the torso's and pelvis's rings by height, the size scale */
 export function bodyMap(plan) {
   const J = plan.joints || {}, seg = (n) => (plan.segments || []).find((s) => s.name === n);
   const torso = seg('torso'), pelvis = seg('pelvis'), z = (n) => J[n]?.[2];
-  const ringAt = (part, h) => { const S = part.stations; if (h <= S[0].z) return { s: 0, r: S[0].r, yc: S[0].yc ?? 0 }; for (let i = 0; i + 1 < S.length; i++) if (h <= S[i + 1].z) { const f = (h - S[i].z) / (S[i + 1].z - S[i].z), lerp = (a, b) => (Array.isArray(a) ? a.map((x, k) => x + (b[k] - x) * f) : a + (b - a) * f);
-    return { s: i + f, r: lerp(S[i].r, S[i + 1].r), yc: lerp(S[i].yc ?? 0, S[i + 1].yc ?? 0) }; } const L = S[S.length - 1]; return { s: S.length - 1, r: L.r, yc: L.yc ?? 0 }; };
+  // `s` is the part's own address, read off its rings' ids: a refined part (the hero's dense torso, a split inserting
+  // `st1_st2_50` between st1 and st2) addresses by its first rings, so its index is not its address; an unrefined one's
+  // ids are its indices
+  const uOf = (S, i) => uOfStation(S[i], i), uTop = (part) => uOf(part.stations, part.stations.length - 1);
+  const ringAt = (part, h) => { const S = part.stations; if (h <= S[0].z) return { s: uOf(S, 0), r: S[0].r, yc: S[0].yc ?? 0 }; for (let i = 0; i + 1 < S.length; i++) if (h <= S[i + 1].z) { const f = (h - S[i].z) / (S[i + 1].z - S[i].z), lerp = (a, b) => (Array.isArray(a) ? a.map((x, k) => x + (b[k] - x) * f) : a + (b - a) * f);
+    return { s: lerp(uOf(S, i), uOf(S, i + 1)), r: lerp(S[i].r, S[i + 1].r), yc: lerp(S[i].yc ?? 0, S[i + 1].yc ?? 0) }; } const L = S[S.length - 1]; return { s: uOf(S, S.length - 1), r: L.r, yc: L.yc ?? 0 }; };
   // the natural WAIST: the torso's narrowest ring between the hips and the shoulders
   const waist = torso.stations.filter((st) => st.z > (z('hip') ?? 0) && st.z < (z('shoulder') ?? Infinity)).reduce((a, st) => (!a || rad(st.r) < rad(a.r) ? st : a), null) ?? torso.stations[1];
   const ankle = z('hock') ?? z('ankle') ?? z('toeBase') ?? 0;
@@ -45,7 +59,7 @@ export function bodyMap(plan) {
   const trunk = [...pelvis.stations, ...torso.stations].map((st) => ({ z: st.z, yc: st.yc ?? 0, ry: Array.isArray(st.r) ? st.r[1] : st.r })).sort((a, b) => a.z - b.z);
   const edgeAt = (h, sign) => { const S = trunk; if (h <= S[0].z) return S[0].yc + sign * S[0].ry; for (let i = 0; i + 1 < S.length; i++) if (h <= S[i + 1].z) { const f = (h - S[i].z) / Math.max(1e-9, S[i + 1].z - S[i].z); return (S[i].yc + sign * S[i].ry) * (1 - f) + (S[i + 1].yc + sign * S[i + 1].ry) * f; } const L = S[S.length - 1]; return L.yc + sign * L.ry; };
   const plumb = (h, top, sign) => { let y = edgeAt(h, sign); for (const st of trunk) if (st.z >= h && st.z <= top) y = sign > 0 ? Math.max(y, st.yc + st.ry) : Math.min(y, st.yc - st.ry); return y; };
-  return { J, torso, pelvis, ringAt, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
+  return { J, torso, pelvis, ringAt, uTop, shoulder, neck: z('neckBase') ?? z('neckTop'), neckTop: z('neckTop'), waist: waist.z, hip: z('hip'), knee: z('knee'), ankle, k: (z('neckTop') ?? 1.6) / 1.6,
     thigh, arm, neckSeg, hasMeta: !!seg('metaR'), chestW, torsoW, armX, hipW, tail: z('tail0') ?? null, top: torso.stations[torso.stations.length - 1], front: (h, top) => plumb(h, top, 1), back: (h, top) => plumb(h, top, -1) };
 }
 
@@ -67,7 +81,7 @@ export const OUTFIT_KINDS = Object.freeze({
     const pts = [[ny - 0.01 * B.k, z0, nr * 1.5], [ny - 0.03 * B.k, z0 + 0.45 * (z1 - z0), nr * 1.9], [ny - 0.06 * B.k, z1, nr * (p.flare ?? 2.5)]];
     return { segments: [boardOf(p.id ?? 'collar', pts, th, G(p), { bone: 'torso', blend: { st2: { torso: 0.7, neck: 0.3 }, tip: { torso: 0.7, neck: 0.3 } } })] }; } },
   // L3: a MANTLE over the shoulders
-  mantle: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G) => { const a = B.ringAt(B.torso, B.shoulder - 0.09 * B.k).s, b = B.torso.stations.length - 1.05;
+  mantle: { layer: 3, cls: 'loose', colour: 'secondary', compile: (p, B, G) => { const a = B.ringAt(B.torso, B.shoulder - 0.09 * B.k).s, b = B.uTop(B.torso) - 0.05;
     return { adorn: [shell(p.id ?? 'mantle', 'torso', [a, b], { nt: 16, ns: 3, mugen: r3(0.035 * B.k), thick: r3(0.016 * B.k), group: G(p), ...(p.clasp === false ? { signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.003 * B.k), count: 1, m: 6, group: G(p) } } : { signature: { kind: 'buckle', k: 0, j: 2, w: r3(0.05 * B.k), h: r3(0.04 * B.k), bar: r3(0.008 * B.k), standoff: r3(0.008 * B.k), group: G({ colour: p.claspColour ?? 'trim' }) } }) })] }; } },
   // L5: a SASH at the natural waist, a BELT on the hip line, a BALDRIC across the chest
   sash: { layer: 5, cls: 'soft', colour: 'trim', compile: (p, B, G) => { const s = B.ringAt(B.torso, B.waist).s;
