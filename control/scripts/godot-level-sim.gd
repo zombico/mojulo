@@ -49,6 +49,10 @@ func _process(_delta: float) -> void:
 		return
 	if lv.sim_frame >= (sim["frames"] as Array).size() or lv.state != "playing":
 		print("[mojulo-sim] done state=%s frame=%d" % [lv.state, lv.sim_frame])
+		# the sky's clock dial (kernel 0.22.0): the night, the dim shown, the season, the state
+		var wx = lv.get_node_or_null("MojuloWeather")
+		if wx != null and wx.clock_on:
+			print("[mojulo-dial] night=%.4f dim=%.4f season=%d state=%s" % [wx.night, float(wx.shown.get("dim", 0.0)), wx.season, String(wx.shown.get("a", ""))])
 		# the markers as drawn (the bus's entities, kernel 0.22.0): id, shown, where (recipe units, in 5 cm quanta)
 		if "marker_nodes" in lv:
 			var rows := []

@@ -55,12 +55,14 @@ export const TIME = Object.freeze({
     passage: {
       values: {
         none: { status: 'built', godot: 'built' },
+        // Godot (II6): night and the season's climate on the clock dial (kernel/weather.gd clock()), as the fog, colour and
+        // light the kernel plays: approximated, as the weather is. Growth waits on crops' markers (built) and the clock.
         // built 10-12 (the world dial): a level's clock (game mechanic `clock`: minute, hour, day, season on the bus) is the
         // one number they read: the weather channel darkens the sky at night and swaps its climate by season; crops grow a
         // stage each dawn. A world's baked night (manifest.time) and a planting's age between chapters stay as they were.
-        'day-night': { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'a level\'s clock: night darkens the sky and its air from 20:00 to 05:00, dusk and dawn two hours each (the weather channel); cues read hour' },
-        seasons: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'the clock\'s seasons (days each): season on the bus, the sky\'s climate swapped (spring-blossom, temperate, autumn, alpine, or its own four)' },
-        growth: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'crops grow a stage each dawn on the clock (planted, grown, ripe); a tree\'s planting age between chapters is still the bake\'s (grow.js years)' },
+        'day-night': { status: 'built', godot: 'approximated', lowers: 'lib/graph/game/mechanics.js', note: 'a level\'s clock: night darkens the sky and its air from 20:00 to 05:00, dusk and dawn two hours each (the weather channel); cues read hour' },
+        seasons: { status: 'built', godot: 'approximated', lowers: 'lib/graph/game/mechanics.js', note: 'the clock\'s seasons (days each): season on the bus, the sky\'s climate swapped (spring-blossom, temperate, autumn, alpine, or its own four)' },
+        growth: { status: 'built', godot: 'built', lowers: 'lib/graph/game/mechanics.js', note: 'crops grow a stage each dawn on the clock (planted, grown, ripe); a tree\'s planting age between chapters is still the bake\'s (grow.js years)' },
         // built 10-12: the aftermath mechanic keeps each break as a flag the game carries and restores it on entry
         aftermath: { status: 'built', ...WEB, lowers: 'lib/graph/game/mechanics.js', note: 'what broke stays broken: each break a flag (broke:<id>) the game carries, taken away at the start on entry (a gameworld with destruction); a chapter turning a whole level to ruin is not built' },
         eras: { status: 'absent', effort: 'L', ...AGED, note: 'no era dial: city eras are only a changelog plan on 1003-city-eras; lib/graph/era is art styles, historic one period per culture (priced 10-12)' },

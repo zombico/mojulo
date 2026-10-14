@@ -1213,6 +1213,9 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   divergences the harness found are fixed: a menu up now freezes the world and its clock as the page's does (the bus's
   timers and sagas, the cast, the fight; `level-sim.js` models it too), and the cast and the fight step after the bus's
   ops, as the page's world steps after its events (a walk ordered this frame moves this frame).
+- **The clock dial travels** (`weather/clock-dial.js`, held equal to the page's own emitted night): a level's clock
+  darkens the Godot sky at night and its season swaps the climate (`score.weather.clock`, each season's schedule);
+  day-night and seasons travel as the weather does (approximated: fog, colour and light), and growth with them.
 - **Planted bugs are a standing test** (`godot-plants.test.js`): mutants per kernel script (a flipped comparison, a
   reserved key dropped, a timer a tick late, a reserve ignored …), each of which must make its corpus fail. Three
   found holes in the corpus (an emit carrying reserved words, a heal past hpMax, a level past its max), now closed.

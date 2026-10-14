@@ -1795,6 +1795,8 @@ func _sync_weather() -> void:
 	if wx == null:
 		return
 	var v: Dictionary = bus_state["vars"]
+	if wx.clock_on:
+		wx.clock(v.get("minute"), v.get("season"))
 	var top = null
 	for k in v:
 		if not String(k).begins_with("weather-force"):

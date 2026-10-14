@@ -13,10 +13,21 @@ import { airCard, airFromHaze, airColour } from '../era/air.js';
 const r3 = (v) => Math.round(v * 1e3) / 1e3;
 export const WEATHER_SCORE_SPAN = 1800;   // seconds of the schedule the score carries
 
-/** payload (resolveWorldScene's: weather { weather, seed, air? }, haze) → the score's `weather` row, or null. */
+/** payload (resolveWorldScene's: weather { weather, seed, air?, clock?, seasons? }, haze) → the score's `weather` row,
+ * or null. A level with a clock (the clock mechanic) carries `clock: true` (the sky reads the bus's minute: night,
+ * weather/clock-dial.js) and, with seasons, each season's own `timeline` and `states` in turn (the bus's season swaps
+ * the climate the schedule plays). Absent ⇒ no key, byte-identical. */
 export function weatherScore(payload, { unitScale = 1, span = WEATHER_SCORE_SPAN } = {}) {
   const P = payload && payload.weather;
   if (!P || !P.weather) return null;
+  const row = weatherRow(payload, P.weather, { unitScale, span });
+  if (!P.clock) return row;
+  const seasons = Array.isArray(P.seasons) ? P.seasons.map((w) => { const s = weatherRow(payload, w, { unitScale, span }); return { now: s.now, blend: s.blend, timeline: s.timeline, states: s.states }; }) : null;
+  return { ...row, clock: true, ...(seasons ? { seasons } : {}) };
+}
+
+function weatherRow(payload, weather, { unitScale, span }) {
+  const P = { ...payload.weather, weather };
   const W = readWeather(P.weather), air = P.air || airFromHaze(payload.haze, W.air), seed = P.seed >>> 0;
   const runs = weatherRuns(W, seed, span).map((r) => ({ is: r.is, from: r3(r.from), to: r3(r.to) }));
   // the states the schedule plays, the climate's, and the ones a cue can force (weather-force:<cue>, set by the bus)
