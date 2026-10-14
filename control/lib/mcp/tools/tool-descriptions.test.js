@@ -376,7 +376,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-14 (209_300 -> 212_500; measured 212,388) for two NEW tools, create_shoot_plan and
 // update_shoot_plan (the shoot plan: a world's cameras as visible keyed objects, in After Effects terms), schemas
 // trimmed to the plan's shape and the op names.
-const PAYLOAD_CEILING = 212_500;
+// Re-pinned 2026-10-14 (212_500 -> 212_800; measured 212,656): update_shoot_plan's set-piece and transition ops
+// (add_piece / set_piece / piece_key / remove_piece, set_shot's `in`). No new tool.
+const PAYLOAD_CEILING = 212_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

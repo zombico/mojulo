@@ -11,13 +11,15 @@
  *   remove_key { camera, t }
  *   ease { camera, t? | times?, ease }          every key when no time is given (AE: select all, F9)
  *   retime { camera?, scale?, shift? }          key times and that camera's shot spans; every camera when omitted
- *   add_shot { shot, at? }   set_shot { shot, name?, camera?, span? }   remove_shot { shot }   move_shot { shot, to }
+ *   add_shot { shot, at? }   set_shot { shot, name?, camera?, span?, in? }   remove_shot { shot }   move_shot { shot, to }
+ *     (`in` is the transition into the shot: 'cut' | 'fade' | 'wipe' | 'iris' | 'pipe', or { type, duration, … })
+ *   add_piece { piece }   set_piece { piece, …fields }   piece_key { piece, key }   remove_piece { piece }
  *   set { fps }
  */
 import { parseLens } from './lens.js';
 
 export const SHOOT_OPS = ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime',
-  'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'set'];
+  'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set'];
 
 const AIM_M = 10;   // where a one-node camera's new point of interest goes: this far down its view axis (sample.js)
 const sameT = (a, b) => Math.abs(a - b) < 1e-6;
@@ -32,6 +34,11 @@ function keyIndex(cam, t) {
   if (!Number.isFinite(t)) throw new Error(`${cam.id}: a key is addressed by its time \`t\` in seconds`);
   const i = cam.keys.findIndex((k) => sameT(k.t, t));
   if (i < 0) throw new Error(`${cam.id}: no key at ${t}s (keys at ${cam.keys.map((k) => k.t).join(', ')}s)`);
+  return i;
+}
+function pieceIndex(plan, id) {
+  const i = (plan.pieces || []).findIndex((p) => p.id === id);
+  if (i < 0) throw new Error(`no piece '${id}' (pieces: ${(plan.pieces || []).map((p) => p.id).join(', ') || 'none'})`);
   return i;
 }
 function shotIndex(plan, ref) {
@@ -73,7 +80,8 @@ function keyPatch(k, f) {
 /** Apply one op to a normalized plan; returns the next (un-normalized) plan and a short note of what it did. */
 export function applyShootOp(plan, op) {
   if (!op || typeof op !== 'object' || !SHOOT_OPS.includes(op.op)) throw new Error(`unknown op '${op && op.op}' (ops: ${SHOOT_OPS.join(', ')})`);
-  const next = { ...plan, cameras: plan.cameras.map((c) => ({ ...c, keys: c.keys.map((k) => ({ ...k })) })), shots: plan.shots.map((s) => ({ ...s })) };
+  const next = { ...plan, cameras: plan.cameras.map((c) => ({ ...c, keys: c.keys.map((k) => ({ ...k })) })), shots: plan.shots.map((s) => ({ ...s })),
+    ...(plan.pieces ? { pieces: plan.pieces.map((p) => ({ ...p, keys: p.keys.map((k) => ({ ...k })) })) } : {}) };
   const put = (cam) => { next.cameras = next.cameras.map((c) => (c.id === cam.id ? cam : c)); };
   switch (op.op) {
     case 'add_camera': {
@@ -91,6 +99,7 @@ export function applyShootOp(plan, op) {
       next.cameras = next.cameras.filter((c) => c.id !== op.camera);
       const before = next.shots.length;
       next.shots = next.shots.filter((s) => s.camera !== op.camera);
+      if (next.pieces) next.pieces = next.pieces.filter((p) => p.attach !== op.camera);
       return { plan: next, note: `removed camera ${op.camera}${before > next.shots.length ? ` and its ${before - next.shots.length} shot(s)` : ''}` };
     }
     case 'set_camera': {
@@ -164,6 +173,7 @@ export function applyShootOp(plan, op) {
       if (op.name !== undefined) s.name = op.name;
       if (op.camera !== undefined) { cameraOf(next, op.camera); s.camera = op.camera; }
       if (op.span !== undefined) s.span = op.span;
+      if (op.in !== undefined) { if (op.in === null || op.in === 'cut') delete s.in; else s.in = op.in; }
       next.shots[i] = s;
       return { plan: next, note: `set shot ${s.name}` };
     }
@@ -177,6 +187,35 @@ export function applyShootOp(plan, op) {
       const [s] = next.shots.splice(i, 1);
       next.shots.splice(Math.max(0, Math.min(next.shots.length, op.to | 0)), 0, s);
       return { plan: next, note: `moved shot ${s.name} to ${op.to | 0}` };
+    }
+    case 'add_piece': {
+      if (!op.piece || typeof op.piece !== 'object') throw new Error("add_piece needs { piece: { kind: 'wall' | 'floor' | 'ceiling' | 'pipe' | 'frame', attach?, keys } }");
+      if (op.piece.attach && op.piece.attach !== 'world') cameraOf(next, op.piece.attach);
+      if (op.piece.id && (next.pieces || []).some((p) => p.id === op.piece.id)) throw new Error(`a piece '${op.piece.id}' exists; set_piece edits it`);
+      next.pieces = [...(next.pieces || []), op.piece];
+      return { plan: next, note: `added ${op.piece.kind} ${op.piece.id || ''}`.trim() };
+    }
+    case 'set_piece': {
+      const i = pieceIndex(next, op.piece);
+      const { op: _op, piece, ...fields } = op;
+      if (fields.attach && fields.attach !== 'world') cameraOf(next, fields.attach);
+      next.pieces[i] = { ...next.pieces[i], ...fields };
+      return { plan: next, note: `set piece ${op.piece}` };
+    }
+    case 'piece_key': {
+      const i = pieceIndex(next, op.piece);
+      if (!op.key || typeof op.key !== 'object') throw new Error('piece_key needs { piece, key: { t, at?, rot?, scale?, opacity?, open?, ease? } }');
+      const p = next.pieces[i];
+      const at = Number.isFinite(op.key.t) ? p.keys.findIndex((k) => sameT(k.t, op.key.t)) : -1;
+      const keys = p.keys.slice();
+      if (at >= 0) keys[at] = { ...keys[at], ...op.key }; else keys.push(op.key);
+      next.pieces[i] = { ...p, keys };
+      return { plan: next, note: `${at >= 0 ? 'set' : 'added'} the ${p.id} key at ${op.key.t ?? '?'}s` };
+    }
+    case 'remove_piece': {
+      const i = pieceIndex(next, op.piece);
+      next.pieces = next.pieces.filter((_, j) => j !== i);
+      return { plan: next, note: `removed piece ${op.piece}` };
     }
     case 'set': {
       if (op.fps !== undefined) next.fps = op.fps;

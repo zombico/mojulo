@@ -107,7 +107,7 @@ export function registerShootPlanTools() {
         plan: {
           type: 'object',
           additionalProperties: true,
-          description: `{ fps?, cameras: [{ id?, type?: 'two-node'|'one-node', lens?: '35mm', keys: [{ t (s), pos, poi?, yaw?/pitch?, roll?, lens?, ease?: 'linear'|'easy ease'|'easy ease in'|'easy ease out'|'hold' }] }], shots?: [{ name, camera, span: [t0, t1] }] }. pos/poi: ${POINT}. Replaces the world's plan.`,
+          description: `{ fps?, cameras: [{ id?, type?: 'two-node'|'one-node', lens?: '35mm', keys: [{ t (s), pos, poi?, yaw?/pitch?, roll?, lens?, ease?: 'linear'|'easy ease'|'easy ease in'|'easy ease out'|'hold' }] }], shots?: [{ name, camera, span: [t0, t1], in?: transition }], pieces?: [{ kind, attach, keys }] } (manual: get_motion_vocab shoot). pos/poi: ${POINT}. Replaces the world's plan.`,
         },
         subjects_at: { type: 'number', description: 'List the followable subjects where they are at this time (s).' },
         note: { type: 'string', description: 'Revision note.' },
@@ -120,7 +120,7 @@ export function registerShootPlanTools() {
   registerTool({
     name: 'update_shoot_plan',
     description:
-      "Edit a world's shoot plan in place, op by op, in camera-operator and After Effects terms: add_key / set_key (by time; `to` moves it) / remove_key, ease (one key, some, or all: AE's select-all + F9), retime (scale / shift a camera's keys and shots), set_camera (rename, lens, path, flip one-node ↔ two-node keeping the view), add_camera / remove_camera, add_shot / set_shot / remove_shot / move_shot, set { fps }. Answers with the same readout and clearance as create_shoot_plan. Manual: get_motion_vocab({ id: 'shoot' }).",
+      "Edit a world's shoot plan in place, op by op, in camera-operator and After Effects terms: add_key / set_key (by time; `to` moves it) / remove_key, ease (one key, some, all: AE's F9), retime, set_camera (lens, path, one-node ↔ two-node keeping the view), add_camera / remove_camera, add_shot / set_shot (`in`: fade, wipe, iris, pipe) / remove_shot / move_shot, add_piece / set_piece / piece_key / remove_piece (walls, floors, ceilings, pipes, frames riding a camera or in the world), set { fps }. Same readout and clearance as create_shoot_plan. Manual: get_motion_vocab({ id: 'shoot' }).",
     inputSchema: {
       type: 'object',
       properties: {
@@ -128,7 +128,7 @@ export function registerShootPlanTools() {
         ops: {
           type: 'array',
           minItems: 1,
-          items: { type: 'object', additionalProperties: true, properties: { op: { type: 'string', enum: ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime', 'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'set'] } }, required: ['op'] },
+          items: { type: 'object', additionalProperties: true, properties: { op: { type: 'string', enum: ['add_camera', 'remove_camera', 'set_camera', 'add_key', 'set_key', 'remove_key', 'ease', 'retime', 'add_shot', 'set_shot', 'remove_shot', 'move_shot', 'add_piece', 'set_piece', 'piece_key', 'remove_piece', 'set'] } }, required: ['op'] },
           description: `In order; cameras by id, keys by \`t\` (s), shots by name or index. E.g. { op:'set_key', camera:'a', t:2, lens:'85mm', ease:'easy ease in' }. pos/poi: ${POINT}.`,
         },
         subjects_at: { type: 'number', description: 'List the followable subjects where they are at this time (s).' },

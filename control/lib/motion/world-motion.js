@@ -146,8 +146,8 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
  * Render a world's SHOOT PLAN (lib/graph/shoot/, `manifest.shoot`): the program sampled at its frame rate, each frame
  * captured from that frame's camera with the world stepped to the frame's own clock (`world_t`), so a cut between two
  * shots of one span replays the action and a camera following a car finds it where the plan sampled it. `params.shot`
- * (a name or an index) renders one shot alone. The capture page never carries the plan's gizmos. Roll is not yet
- * applied to captures (the capture camera stays upright).
+ * (a name or an index) renders one shot alone. The capture page carries the plan's set pieces and transitions
+ * (posed for the frame's shot) and its roll, never its gizmos.
  *
  * @returns {Promise<{ framePngs: Buffer[], width:number, height:number, viewBox:number[], cameras:object[], meta:object }>}
  */
@@ -179,6 +179,8 @@ export async function renderWorldPlan({ sketch, params = {}, fps }) {
     target: f.worldFraming.lookAt,
     vfov: verticalFov(f.worldFraming.horizontalFov, aspect),
     t: f.world_t * 1000,
+    shot: plan.shots.findIndex((s) => s.name === f.shot),   // the set pieces that show (indices into the whole cut)
+    roll: f.roll,
   }));
   const html = emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, wireframe: !!params.wireframe, decollide: params.decollide !== false });
   const { pngs } = await renderWorldFrames(html, specs, { width, height });

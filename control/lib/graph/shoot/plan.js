@@ -18,6 +18,8 @@
  */
 import { FILM_MM, parseLens } from './lens.js';
 import { compileCamera, cameraAt, programOf, sampleCameraTrack, pathPolyline } from './sample.js';
+import { normalizePieces, lowerPieces } from './pieces.js';
+import { normalizeTransition, transitionPieces } from './transitions.js';
 
 export const EASES = ['linear', 'easy_ease', 'easy_ease_in', 'easy_ease_out', 'hold'];
 export const CAMERA_TYPES = ['two_node', 'one_node'];
@@ -158,13 +160,18 @@ export function normalizeShoot(raw, { subjects = null } = {}) {
       const [a, b] = range(cam);
       const span = Array.isArray(s.span) && s.span.length === 2 && s.span.every(fin) ? s.span.slice() : [a, b > a ? b : a + STATIC_SHOT_S];
       if (!(span[1] > span[0]) || span[0] < 0) { warn(`shot ${i}: span [${span}] is empty, shot dropped`); return; }
-      shots.push({ name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`, camera: cam.id, span });
+      const tr = normalizeTransition(s.in);
+      shots.push({ name: typeof s.name === 'string' && s.name.trim() ? s.name.trim().slice(0, 60) : `${label(cam)} ${i + 1}`, camera: cam.id, span, ...(tr ? { in: tr } : {}) });
     });
   }
   if (!shots.length) {
     shots = cameras.map((c) => { const [a, b] = range(c); return { name: label(c), camera: c.id, span: [a, b > a ? b : a + STATIC_SHOT_S] }; });
   }
-  return { plan: { fps, cameras, shots }, warnings };
+  // shot names are how pieces and tools address shots: make them unique
+  const seen = new Set();
+  for (const s of shots) { let n = s.name, k = 2; while (seen.has(n)) n = `${s.name} ${k++}`; s.name = n; seen.add(n); }
+  const pieces = normalizePieces(raw.pieces, { cameras, shots }, warn);
+  return { plan: { fps, cameras, shots, ...(pieces.length ? { pieces } : {}) }, warnings };
 }
 
 /**
@@ -247,5 +254,13 @@ export function lowerShoot(plan, { subjects = null } = {}) {
       };
     }),
     shots: program.shots.map((s) => ({ name: s.name, camera: s.camera, start: s.start, length: s.length, span: s.span })),
+    ...lowerSet(plan, subjects),
   };
+}
+
+// the set pieces the page draws: the authored ones and the ones every shot's `in` transition expands into
+function lowerSet(plan, subjects) {
+  const generated = normalizePieces(transitionPieces(plan, { subjects }), plan);
+  const all = [...(plan.pieces || []), ...generated];
+  return all.length ? { pieces: lowerPieces(plan, all, { subjects }) } : {};
 }

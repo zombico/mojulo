@@ -84,3 +84,27 @@ describe('the gates the tools report', () => {
     expect(r.cameras[0].peak_speed_units_s).toBeCloseTo(4, 1);   // the jump is not a speed
   });
 });
+
+describe('pieces and transitions by op', () => {
+  it('add a piece, key it, re-skin it, put a transition on a shot, take both away', () => {
+    const two = run(PLAN, { op: 'add_shot', shot: { name: 'again', camera: 'a', span: [1, 2] } });
+    const p = run(two,
+      { op: 'add_piece', piece: { id: 'gate', kind: 'frame', attach: 'a', keys: [{ t: 0, at: [2, 0, 0], open: 1 }] } },
+      { op: 'piece_key', piece: 'gate', key: { t: 1, open: 0, ease: 'easy ease' } },
+      { op: 'set_piece', piece: 'gate', color: '#ff0000', shape: 'square' },
+      { op: 'set_shot', shot: 'again', in: { type: 'wipe', dir: 'right' } });
+    const gate = p.pieces[0];
+    expect(gate.keys.map((k) => [k.t, k.open])).toEqual([[0, 1], [1, 0]]);
+    expect([gate.color, gate.shape]).toEqual(['#ff0000', 'square']);
+    expect(p.shots[1].in).toEqual({ type: 'wipe', duration: 0.8, dir: 'right' });
+    const q = run(p, { op: 'remove_piece', piece: 'gate' }, { op: 'set_shot', shot: 'again', in: 'cut' });
+    expect(q.pieces).toBeUndefined();
+    expect(q.shots[1].in).toBeUndefined();
+  });
+
+  it('a camera taken away takes the pieces riding it', () => {
+    const p = run(PLAN, { op: 'add_camera', camera: { id: 'b', keys: [{ t: 0, pos: [0, -9, 1], poi: [0, 0, 1] }] } },
+      { op: 'add_piece', piece: { kind: 'wall', attach: 'b' } }, { op: 'remove_camera', camera: 'b' });
+    expect(p.pieces).toBeUndefined();
+  });
+});

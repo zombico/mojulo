@@ -276,6 +276,23 @@ export const EMIT_FIXTURES = [
     { id: 'b', type: 'one_node', keys: [{ t: 0, pos: [6, 2, 1.5], yaw: 180, pitch: -5, roll: 4, focal_mm: 85 }] },
   ] }).plan) }],
 
+  // shoot-set: a shoot plan's set pieces (a ringed pipe riding the camera, a world wall) and an iris transition between
+  // two shots; picture, not gizmo, so the capture variant carries them too (with the frame spec's shot and roll)
+  ...(() => {
+    const plan = normalizeShoot({ fps: 6, cameras: [
+      { id: 'a', keys: [{ t: 0, pos: [-3, -3, 2], poi: [2, 2, 0] }, { t: 1, pos: [3, -3, 1], poi: [2, 2, 1] }] },
+      { id: 'b', keys: [{ t: 0, pos: [6, 2, 1.5], poi: [0, 0, 0], roll: 8 }] },
+    ], shots: [{ name: 'one', camera: 'a', span: [0, 1] }, { name: 'two', camera: 'b', span: [0, 1], in: { type: 'iris', duration: 0.6 } }],
+    pieces: [
+      { id: 'tube', kind: 'pipe', attach: 'a', radius: 0.5, length: 4, rings: 4, cap: 'far', keys: [{ t: 0, at: [3, 0, 0] }, { t: 1, at: [1, 0, 0], ease: 'easy ease' }] },
+      { id: 'flat', kind: 'wall', attach: 'world', size: [2, 1], color: '#c03030', keys: [{ t: 0, at: [0, 3, 0.5], rot: [90, 0, 0], opacity: 0.8 }] },
+      { id: 'lane', kind: 'floor', along: 'a', size: [1, 1], extend: [0, 1] },
+      { id: 'bore', kind: 'pipe', along: 'a', radius: 0.4, cap: 'both' },
+    ] }).plan;
+    const shoot = lowerShoot(plan);
+    return [['shoot-set', { faces: [floor()], shoot }], ['shoot-set-capture', { faces: [floor()], shoot, capture: true }]];
+  })(),
+
   ['repeats', { faces: [floor()], repeats: REPEATS }],
   ['ao', { faces: [quad('#8899aa', { group: 'shell:leftWall', normal: [1, 0, 0] }), floor()], ao: true }],
   ['ao-repeats', { faces: [floor()], repeats: REPEATS, ao: { strength: 0.8, radius: 1.2 } }],

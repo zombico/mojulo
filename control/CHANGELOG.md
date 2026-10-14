@@ -45,6 +45,16 @@ camera that pans with a car, then eases onto its tail and rides along).
   an AE → plan table; a routing card sends "set up a camera", "35mm", "easy ease", "follow the car" there.
 - **`forge_motion` renders a plan**: `shot.motion: 'plan'` on a world captures each frame from its shot's camera with
   the world stepped to that frame's own clock (`params.shot` for one shot). Roll is not applied to captures yet.
+- **Set pieces and transitions.** A plan may carry `pieces`: walls, floors, ceilings, pipes and frames (a panel
+  whose hole irises) that ride a camera (placed in its frame, banked with its roll: a layer parented to the camera)
+  or stand in the world, keyed like cameras and shown only in their shots. They are picture: the page and
+  `forge_motion` renders draw them, no mesh export carries them. A shot's `in` (`fade`, `wipe`, `iris`, `pipe`)
+  expands into pieces on the outgoing and incoming cameras, sized to the lens (`lib/graph/shoot/transitions.js`).
+  A pipe can be laid `along` a camera's path instead: world geometry swept along the route it travels, round or a
+  box (`sides` from floor, ceiling, left, right, kept level as the path turns), so a wall, a floor or a ceiling along a
+  path is the same piece with one side; the camera flies through it, and the pipe transition now lays its tube this
+  way when the camera travels. Captures now apply the plan's roll. `update_shoot_plan` gains `add_piece`, `set_piece`, `piece_key`,
+  `remove_piece` and `set_shot { in }`.
 - **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
   LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
   without a plan is byte for byte as before.

@@ -13,7 +13,7 @@ import { safeJson } from '../emit-util.js';
 // plays, pauses and scrubs. Everything moves off `t` and the per-frame track the kernel sampled (no clock, no dice),
 // so ?t= stills are deterministic. Assigns the module-scoped `stepShoot`. Never emitted on capture runs, so no bake
 // carries a gizmo; nothing here is a face, so no mesh export carries it. Absent plan ⇒ this block is not emitted.
-export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = true } = {}) {
+export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = true, set = false } = {}) {
   return `
 // --- shoot channel (a shoot plan's cameras and paths) ---
 {
@@ -151,7 +151,8 @@ export function shootChannelScript(shoot, { scale = 1, aspect = 16 / 9, panel = 
   __shClock = (raw) => {
     __shLastT = raw || 0;
     const tau = __shTau(__shLastT / 1000);
-    __shCur = { tau, at: __shShot(tau) };
+    __shCur = { tau, at: __shShot(tau) };${set ? `
+    __shSetShot = __shCur.at.i;   // the shoot set shows this shot's pieces` : ''}
     return __shCur.at.t * 1000;
   };
   stepShoot = () => {

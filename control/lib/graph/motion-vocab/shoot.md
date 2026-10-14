@@ -39,9 +39,23 @@ Key times and shot spans are the WORLD's clock. A shot shows the world over its 
 
 `create_shoot_plan { ref }` with no `plan` lists what a key can follow (`subjects_at: <seconds>` gives where each one is): `walker:<i>`, `car:<i>` (signalised traffic included: it stops at lights), `mover:<group>`. A followed key is read at the instant being shown; a segment between a fixed key and a followed one eases from the place onto the subject (a pickup) or off it. `frame: 'subject'` turns the offset with the subject's heading — x forward, y left, z up — so `[-3.5, 0, 1.3]` rides behind and above. Physics bodies and player- or AI-driven entities move live and cannot be followed ahead of play.
 
+## Set pieces (`pieces`)
+
+Flats and shapes placed for the camera, not for the world: they render (in the page and in `forge_motion`) but are not world geometry. `kind`: `wall` (faces back toward a camera behind it), `floor`, `ceiling`, `pipe` (an open tube along its x; `radius`, `length`, `rings` banding in `color` / `color2`, `cap: 'far' | 'near'`), `frame` (a panel with a hole; `shape: 'round' | 'square'`, `border`; the key's `open` 0..1 is the aperture: an iris). `size: [a, b]` for walls, floors, ceilings, frames.
+
+`attach: '<camera id>'` rides that camera: a key's `at` is in the camera's frame — x down the lens, y to frame left, z up, banked with its roll — as an AE layer parented to the camera. `attach: 'world'` (default) places it at world coordinates. Keys `{ t, at, rot: [yaw, pitch, roll], scale, opacity, open, ease }` time like camera keys. It shows during its `shots` (default: its camera's shots, or every shot for a world piece), within `visible: [t0, t1]` when given.
+
+**Along a path.** A `pipe` with `along: '<camera id>'` is swept along the path that camera travels over `span: [t0, t1]` (default its keys), carried straight on by `extend: [before, after]` and capped (`cap: 'near' | 'far' | 'both'`): a tunnel the camera really flies through, bending where it bends, standing in the world for every camera to see. `profile: 'round'` (default; `radius`) or `'box'` (`size: [width, height]`, `sides` from floor, ceiling, left, right; it stays level as the path turns and climbs). A `wall` (`side: 'left' | 'right' | 'both'`), `floor` or `ceiling` given `along` is that box with that side: walls, floors and ceilings along a path and the tube are one piece. `rings` bands it along its length (default: about one band per one-and-a-half radii).
+
+Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 'pipe', along, profile: 'box', sides: ['floor', 'left', 'right'] }`; a road-side set = `{ kind: 'wall', along, side: 'both' }`; a corridor riding the camera instead = a `floor` at `[6, 0, -1]` and a `ceiling` at `[6, 0, 1]` attached to it; stage doors = two `wall`s at `[1, ±0.3, 0]` keyed apart to `[1, ±1.6, 0]`; a portal frame placed in the world that the camera flies through.
+
+## Transitions (a shot's `in`)
+
+`in: 'fade' | 'wipe' | 'iris' | 'pipe'` or `{ type, duration, color, dir }` is how the cut into that shot plays. It expands into pieces on the outgoing camera's last half and the incoming camera's first half, sized to the lens: `fade` (to `color`, black by default), `wipe` (`dir`: 'left' enters from frame left, 'right', 'up', 'down'), `iris` (a round frame closing and opening), `pipe` (fly into a ringed tube laid along the camera's own path and out of another; `radius`, `profile: 'box'` for a corridor; a camera that barely moves gets a straight tube slid over its lens). The first shot's `in` plays only its incoming half. Write the pieces yourself to bend one.
+
 ## Edits (`update_shoot_plan` ops)
 
-`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot` · `remove_shot` · `move_shot { shot, to }` · `set { fps }`.
+`add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
 
 ## Readout (the machine gate)
 
