@@ -9,16 +9,19 @@
  *   dials     a throttle lever (the cockpit's, held where it is left), no engine on a glider, the map's reach as the
  *             bound it is turned back at
  *   landing   the sink rate its gear takes at touchdown (`sinkMax`: harder is a crash) and its cruise (where a crash puts
- *             it back aloft); with a city on the map, its roofs (`roofs`), which the page counts as ground. The fly
- *             rule reads none of these: the page's flight block does
+ *             it back aloft); with a city on the map, its roofs (`roofs`), which the page counts as ground; with a
+ *             course, the course (`course`: its gates and the landing's approach) the page guides it by. The fly rule
+ *             reads none of these: the page's flight block does
  *
  *   flyRule(craft, { map?, lever?, assist? }) → the rule ({ type: 'fly', … }); `assist`: 'arcade' | 'sim' (rules-fly.js)
  *
  * Pure, deterministic.
  */
 import { craftOf, G } from './eye.js';
+import { approachTo, GLIDE } from './course.js';
 
 const DEG = Math.PI / 180;
+const r2 = (v) => Math.round(v * 100) / 100;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
 export function flyRule(craftSpec = 'trainer', { map = null, lever = true, assist = null } = {}) {
@@ -58,14 +61,18 @@ export function seatCraft(map, field, course = null, { assist = null } = {}) {
     const g0 = course?.gates?.[0]?.at;
     z = Math.max(gz + 4 * c.lowPass, g0 ? g0[2] + 1.2 * Math.hypot(g0[0] - sx, g0[1] - sy) / c.glide : -Infinity);
   }
-  const rule = { ...base, ...(aloft ? { launchSpeed: c.cruise } : {}), ...(field.roofs && field.roofs.length ? { roofs: field.roofs } : {}) };
+  // the course as the page's guidance reads it: each gate [x, y, z, radius, heading], and the landing's approach (the aim
+  // point, the landing heading and the slope) for the glide-slope lights
+  const fin = course?.finish ? field.pads.find((q) => q.id === course.finish.pad) ?? pad : null, app = fin ? approachTo(map, fin) : null;
+  const guide = course ? { gates: course.gates.map((g) => [...g.at, g.radius, g.heading]), ...(app ? { land: { aim: app.aim.map(r2), heading: r2(app.heading), glide: GLIDE } } : {}) } : null;
+  const rule = { ...base, ...(aloft ? { launchSpeed: c.cruise } : {}), ...(field.roofs && field.roofs.length ? { roofs: field.roofs } : {}), ...(guide ? { course: guide } : {}) };
   return { rule, transform: { pos: [sx, sy, Math.round(z * 100) / 100], heading, pitch: 0 }, ground: gz, end: [end[0], end[1], pad ? pad.datum : field.groundAt(end[0], end[1])] };
 }
 
 /** The craft as a level's pilot: its entity (seated, on its rule; a slab for a body until the aircraft roster) and the
  *  chase camera that banks with it. `seat` is seatCraft's. → { entities, camera } */
 export function craftPilot(map, seat) {
-  const c = map.craft, r2 = (v) => Math.round(v * 100) / 100;
+  const c = map.craft;
   return {
     // `player`, as every level's pilotable is: the level's zones (its gates, its pads) watch that id
     entities: [{ id: 'player', pilotable: true, rule: seat.rule, ambient: { type: 'static' }, body: { type: 'mesh', shape: 'box', size: [r2(c.max / 10), r2(c.max / 7), 0.8], color: '#e9eef4' }, transform: seat.transform }],

@@ -235,6 +235,62 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
       return out;
     };
   }
+  // the course's guidance (rule.course): the next gate bracketed on screen (an arrow at the edge when it is off it), a
+  // gate flown past outside its ring called out, and on the way to the runway the glide-slope lights (PAPI-like: four,
+  // white above the slope, red below) and the centreline
+  var mk = document.createElement('div'), miss = 0, missN = 0, prevSide = null, prevNext = -1, ownNext = 0, cpVar = null, V3 = new THREE.Vector3();
+  mk.style.cssText = 'position:absolute;pointer-events:none;z-index:9;display:none;font:600 11px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:#ffd166;text-align:center;transform:translate(-50%,-50%);white-space:nowrap';
+  document.body.appendChild(mk);
+  function nextOf(C, q) {
+    var B = window.__mojBus, v = B && B.state && B.state.vars;
+    if (v && cpVar === null) { cpVar = ''; for (var k in v) if (/^__cp_\\d+$/.test(k)) { cpVar = k; break; } }
+    if (v && cpVar) return v[cpVar];
+    // no game on the page: counted here, each gate when the craft is inside its ring
+    var G = C.gates[ownNext];
+    if (G && Math.hypot(q[0] - G[0], q[1] - G[1], q[2] - G[2]) <= G[3]) ownNext++;
+    return ownNext;
+  }
+  function guide(p) {
+    var C = p.rule.course; if (!C) { mk.style.display = 'none'; return ''; }
+    var q = p.transform.pos, n = nextOf(C, q), G = C.gates[n], L = C.land, out = '';
+    if (n !== prevNext) { prevNext = n; prevSide = null; }
+    var tgt = G ? [G[0], G[1], G[2]] : L ? L.aim : null;
+    if (G) {
+      // flown past: the gate's plane crossed (its heading the way through) outside its ring
+      var side = (q[0] - G[0]) * Math.cos(G[4]) + (q[1] - G[1]) * Math.sin(G[4]);
+      if (prevSide !== null && prevSide < 0 && side >= 0 && Math.hypot(q[0] - G[0], q[1] - G[1], q[2] - G[2]) > G[3]) { miss = performance.now(); missN = n + 1; }
+      prevSide = side;
+    }
+    if (tgt) {
+      var d = Math.hypot(tgt[0] - q[0], tgt[1] - q[1], tgt[2] - q[2]), r = renderer.domElement.getBoundingClientRect();
+      V3.set(tgt[0], tgt[1], tgt[2]).project(camera);
+      var label = (G ? 'GATE ' + (n + 1) : 'RUNWAY') + ' ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m');
+      var behind = V3.z > 1, on = !behind && Math.abs(V3.x) < 0.92 && Math.abs(V3.y) < 0.88;
+      mk.style.display = '';
+      if (on) {
+        mk.style.left = (r.left + (V3.x + 1) / 2 * r.width) + 'px'; mk.style.top = (r.top + (1 - V3.y) / 2 * r.height) + 'px';
+        mk.innerHTML = '<div style="width:34px;height:34px;margin:0 auto 3px;border:2px solid #ffd166;border-radius:50%;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>' + label;
+      } else {
+        // off the screen: an arrow at its edge, pointing the way to turn
+        var ax = behind ? -V3.x : V3.x, ay = behind ? -V3.y : V3.y, m = Math.max(Math.abs(ax) / 0.9, Math.abs(ay) / 0.85) || 1;
+        ax /= m; ay /= m;
+        mk.style.left = (r.left + (ax + 1) / 2 * r.width) + 'px'; mk.style.top = (r.top + (1 - ay) / 2 * r.height) + 'px';
+        mk.innerHTML = '<div style="font-size:22px;transform:rotate(' + (90 - Math.atan2(ay, ax) * 180 / Math.PI) + 'deg)">▲</div>' + label;
+      }
+    } else mk.style.display = 'none';
+    if (performance.now() - miss < 3000) out += '\\n<span style="color:#ff6b6b">MISSED GATE ' + missN + ' · turn back</span>';
+    if (!G && L) {
+      // the approach: the angle over the aim point against the slope, and the side of the centreline
+      var ax2 = Math.cos(L.heading), ay2 = Math.sin(L.heading), along = (q[0] - L.aim[0]) * ax2 + (q[1] - L.aim[1]) * ay2;
+      var dist = Math.max(1, -along), ang = Math.atan2(q[2] - L.aim[2], dist) * 180 / Math.PI, gs = Math.atan(L.glide) * 180 / Math.PI;
+      var lights = '';
+      for (var i = 0; i < 4; i++) lights += '<span style="color:' + (ang > gs - 0.5 + i / 3 ? '#ffffff' : '#ff4d4d') + '">●</span>';
+      var xte = (q[0] - L.aim[0]) * -ay2 + (q[1] - L.aim[1]) * ax2;
+      var loc = Math.abs(xte) < 12 ? 'on the centreline' : (xte > 0 ? 'centreline ▶' : '◀ centreline') + ' ' + Math.round(Math.abs(xte)) + ' m';
+      out += '\\nGS ' + lights + '  ' + (along < 0 ? loc : '');
+    }
+    return out;
+  }
   function tick() {
     var p = __world.pilotId && __world.byId[__world.pilotId];
     if (p && p.rule && p.rule.type === 'fly') {
@@ -255,8 +311,8 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
       el.style.display = '';
       el.innerHTML = 'SPD ' + pad(Math.round((p.airspeed || 0) * 1.94384), 4) + ' kt   HDG ' + pad(Math.round(brg), 3) + '\\n'
         + 'ALT ' + pad(Math.round(q[2]), 5) + ' m    AGL ' + (agl === null ? '   --' : pad(Math.round(agl), 5)) + ' m\\n'
-        + 'V/S ' + pad((p.climbRate || 0).toFixed(1), 5) + ' m/s  THR ' + pad(Math.round((p.throttle || 0) * 100), 3) + '%' + warn;
-    } else el.style.display = 'none';
+        + 'V/S ' + pad((p.climbRate || 0).toFixed(1), 5) + ' m/s  THR ' + pad(Math.round((p.throttle || 0) * 100), 3) + '%' + warn + guide(p);
+    } else { el.style.display = 'none'; mk.style.display = 'none'; }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);

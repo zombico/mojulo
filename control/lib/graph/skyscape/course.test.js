@@ -60,6 +60,9 @@ describe('the course', () => {
     // after a gate: that gate, aloft, heading for the next checkpoint
     const g = C.gates[0].at, n = L.checkpoints[1].at;
     expect(L.respawn[1]).toEqual({ spot: g, heading: Math.round(Math.atan2(n[1] - g[1], n[0] - g[0]) * 100) / 100, aloft: 1 });
+    // and the seated craft carries the course the page guides it by: each gate, and the landing's aim point and heading
+    expect(seat.rule.course.gates.map((q) => q.slice(0, 3))).toEqual(C.gates.map((q) => q.at));
+    expect(seat.rule.course.land.aim[2]).toBe(pad.datum);
   });
 
   it('is deterministic', () => {

@@ -72,7 +72,11 @@ describe('design_game quick', () => {
     expect(zones.every((q) => q.watch === payload.entities[0].id)).toBe(true);
     expect(laps.checkpoints.at(-1).land).toBe(true);
     expect(laps.respawn).toHaveLength(laps.checkpoints.length);
-    expect(emitThreeWorld({ ...payload, inline: true })).toContain('LEAVING THE AREA');   // the flight HUD
+    const page = emitThreeWorld({ ...payload, inline: true });
+    expect(page).toContain('LEAVING THE AREA');   // the flight HUD
+    expect(page).toContain('MISSED GATE');        // and the course's guidance, read off the craft's rule
+    expect(L.entities[0].rule.course.gates).toHaveLength(laps.checkpoints.length - 1);
+    expect(L.entities[0].rule.course.land.aim).toHaveLength(3);
   }, 240_000);
 
   it('survive and avoid: a countdown; hazards on the water the trail crosses, and hp to lose', async () => {

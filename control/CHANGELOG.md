@@ -98,6 +98,11 @@ genre on the quick path.
 - **The assist.** The fly rule's opt-in `assist`: 'arcade' never stalls (slow, the nose will not come up and eases
   down for speed) and levels the wings twice as fast; 'sim' leaves the bank where it is put. Quick `assist`, an
   airspace's `assist`. The `gameworld-quick` card names it (two phrases tightened to fit).
+- **Guidance on the course.** The seated craft carries its course (`rule.course`: each gate, the landing's aim point,
+  heading and slope) and the flight block reads it: the next gate bracketed on screen with its number and distance (an
+  arrow at the edge when it is off the screen or behind), a gate flown past outside its ring called out (MISSED GATE ·
+  turn back), and on the way to the runway four glide-slope lights (white above the slope, red below) and the side of
+  the centreline. The next gate is the game's own (the laps mechanic's), or counted on the page without a game.
 
 ### Sheet-metal bend lines that mark without cutting
 
