@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Servicenkaart",
-    "back": "Terug"
-  },
-  "actions": {
-    "start": "Starten"
-  },
   "settings": {
     "title": "Instellingen",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Apps",
-    "subtitle": "Apps die de agent heeft gerealiseerd via het App-paradigma. Lifecycle, omgevingsvariabelen en live MCP-introspectie — gelezen vanuit de contextkaart en de lokale runner.",
-    "loading": "Laden…",
-    "refresh": "Vernieuwen",
-    "empty": "Nog geen apps — vraag uw Claude Code-agent om er een te structureren.",
-    "backToList": "Terug naar Apps",
-    "notFound": "App niet gevonden.",
-    "openPreview": "Preview openen",
-    "openMcp": "MCP openen",
-    "actions": {
-      "start": "Starten",
-      "stop": "Stoppen",
-      "starting": "Starten…",
-      "stopping": "Stoppen…"
-    },
-    "status": {
-      "running": "Actief",
-      "stopped": "Gestopt",
-      "crashed": "Gecrasht",
-      "unknown": "Onbekend"
-    },
-    "table": {
-      "headers": {
-        "name": "Naam",
-        "materialized": "Gerealiseerd",
-        "runner": "Runner",
-        "status": "Status",
-        "actions": "Acties"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "De creatiekaart van deze app — elke tool-aanroep die haar heeft gerealiseerd, als stations op één lijn."
-      },
-      "metadata": "Metagegevens",
-      "artifactPath": "Artefactpad",
-      "materializationRef": "Realiseringsreferentie",
-      "adapter": "Adapter",
-      "appName": "Appnaam",
-      "host": "Host",
-      "materializedAt": "Gerealiseerd op",
-      "viewGraph": "Graf weergeven",
-      "bindings": "Bindingen",
-      "binding": {
-        "runner": "Runner",
-        "durability": "Duurzaamheid",
-        "inference": "Gevolgtrekking",
-        "mcpSelf": "MCP zelf"
-      },
-      "mcpPanel": {
-        "title": "App MCP",
-        "url": "MCP URL",
-        "offline": "MCP offline — start de app om de gereedschappenlijst te zien.",
-        "loading": "Gereedschappen laden…",
-        "error": "Kan app MCP niet bereiken: {error}",
-        "registeredTools": "Geregistreerde gereedschappen",
-        "noTools": "Geen gereedschappen geregistreerd.",
-        "declaredPurpose": "Verklaard doel"
-      },
-      "envPanel": {
-        "title": "Omgevingsvariabelen",
-        "explainer": "Waarden worden rechtstreeks naar het .env-bestand van het artefact geschreven. Ze worden niet vastgelegd, niet opgeslagen in de control-plane-database en niet teruggegeven aan deze weergave.",
-        "addKey": "Sleutel",
-        "addValue": "Waarde",
-        "add": "Toevoegen",
-        "delete": "Verwijderen",
-        "deleteConfirm": "Omgevingsvariabele verwijderen \"{key}\"?",
-        "noKeys": "Nog geen omgevingsvariabelen ingesteld.",
-        "valueHidden": "•••••",
-        "edit": "Bewerken",
-        "save": "Opslaan",
-        "cancel": "Annuleren",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "waarde"
-      },
-      "provenance": {
-        "title": "Herkomst",
-        "subtitle": "Principes gehecht aan de realiseringscommit van deze app.",
-        "none": "Geen principes geregistreerd."
-      }
-    }
-  },
-  "graph": {
-    "title": "App-creatiekaart",
-    "subtitle": "Hoe een app samenkomt. Elk vakje is een stuk; elke pijl toont wat wat veroorzaakt.",
-    "subtitleTechnical": "Hoe een app in het mojulo-paradigma wordt samengesteld. Stations zijn de stukken; lijnen zijn de MCP-gereedschappen die ze samenbrengen. Gevalideerd tegen het live MCP-register en contextmapschema bij elke vernieuwing.",
-    "technicalToggle": "Technisch",
-    "loading": "Laden…",
-    "refresh": "Vernieuwen",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Nog geen apps gemaakt} =1 {1 app gemaakt} other {# apps gemaakt}}",
-      "lastMaterialized": "Laatst gemaakte",
-      "viewApps": "Actieve apps weergeven"
-    },
-    "validation": {
-      "ok": "Alles klopt nog steeds.",
-      "okTechnical": "Manifest geldig: {tools} gereedschappen, {nodeKinds} knoopsoorten, {edgeKinds} randsoorten, {sourceEvents} brongebeurtenissen worden allemaal opgelost.",
-      "failed": "{count, plural, =1 {1 ding in de kaart komt niet meer overeen met de realiteit} other {# dingen in de kaart komen niet meer overeen met de realiteit}}"
-    },
-    "legend": {
-      "input": "Wat u besluit",
-      "inputTechnical": "Invoer",
-      "mcpTool": "Een gereedschap dat de agent aanroept",
-      "mcpToolTechnical": "MCP-gereedschap",
-      "filesystem": "Bestanden op schijf",
-      "filesystemTechnical": "Bestandssysteem",
-      "dbRow": "Item in geheugen",
-      "dbRowTechnical": "DB-rij"
-    }
-  },
   "login": {
     "subtitle": "Meld u aan om door te gaan",
     "username": "Gebruikersnaam",
@@ -178,7 +60,6 @@
     "title": "Plan",
     "subtitle": "Voorgesteld werk — sessies die spikes werden. Gesmeed en uitgevoerd vanuit uw hostbroker.",
     "navLabel": "Plan",
-    "newPlan": "Nieuw plan",
     "total": "{count} plannen",
     "count": "{count} plannen",
     "filteredCount": "{count} van {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Nog niet uitgevoerd.",
     "stepOk": "ok",
     "stepFailed": "mislukt",
-    "newPlanTitle": "Nieuw plan",
-    "newPlanIntro": "Plannen worden gesmeed in uw host-agent (Claude Code / Codex). Beschrijf de intent, kopieer de startprompt en plak deze in een nieuwe agent-sessie — de agent gaat in planmodus en voert het werk uit. Deze pagina wordt bijgewerkt terwijl het plan wordt gesmeed en herzien.",
-    "intentLabel": "Wat wilt u plannen? (optioneel)",
-    "intentPlaceholder": "bijv. een webhook trigger runtime voor de composer",
-    "promptLabel": "Startprompt",
-    "copyPrompt": "Prompt kopiëren",
-    "copied": "Gekopieerd",
     "close": "Sluiten"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Fragment",
     "kindSketch": "Schets",
     "viewSketch": "Diagram weergeven",
-    "composerHeading": "Aan notitieboek toevoegen",
-    "composerStub": "Alleen preview — binding gebeurt voorlopig via uw host-agent.",
-    "composerPlaceholder": "Plak een link, sleep een bestand neer, of maak een notitie…",
-    "newBook": "Nieuw boek",
-    "newBookTitle": "Nieuw onderzoeksboek",
-    "newBookIntro": "Boeken worden gestart in uw host-agent (Claude Code / Codex). Beschrijf het onderwerp, kopieer de startprompt en plak deze in een nieuwe agent-sessie — de agent gaat in onderzoeksmodus en voert het werk uit. Deze pagina wordt bijgewerkt terwijl het boek groeit.",
-    "intentLabel": "Wat wilt u onderzoeken? (optioneel)",
-    "intentPlaceholder": "bijv. hoe anderen lokale MCP-servers tunnelen",
-    "promptLabel": "Startprompt",
-    "copyPrompt": "Prompt kopiëren",
-    "copied": "Gekopieerd",
     "close": "Sluiten"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "Werkplaats Start",
     "groups": {
-      "ideate": "Ideëren",
-      "operate": "Bedrijven",
-      "studio": "Studio"
+      "make": "Maken",
+      "media": "Media",
+      "play": "Speel",
+      "ideate": "Ideëren"
     },
     "drawer": {
       "open": "Navigatie openen",
       "close": "Navigatie sluiten"
     },
     "tiles": {
-      "mcpSkills": "Verbonden Services",
-      "apps": "Apps",
-      "sketch": "Schetsen",
       "plan": "Plannen",
       "outputs": "Outputs",
       "research": "Onderzoek",
       "stash": "Stashes",
-      "illustrations": "Illustraties",
       "worlds": "Werelden",
       "objects": "Objecten",
       "motion": "Beweging",
       "beats": "Beats",
       "voice": "Stem",
-      "games": "Gameontwikkelaar",
-      "arcade": "Arcade",
-      "settings": "Instellingen",
       "library": "Bibliotheek",
       "renderBay": "Renderbay",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Plaatsen",
+      "characters": "Personages",
+      "images": "Afbeeldingen",
+      "play": "Speel",
+      "elements": "Elementen"
     },
     "agentStatus": {
       "liveLabel": "Live",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "Dashboard",
       "open": "Open de vloer →"
-    },
-    "ask": {
-      "title": "Vraag de agent",
-      "body": "Maken gebeurt in je MCP-agent."
     }
-  },
-  "breadcrumbs": {
-    "home": "Start"
   },
   "sketches": {
     "notFoundTitle": "Schets niet gevonden",
@@ -398,10 +253,6 @@
     "refresh": "vernieuwen",
     "statusOpen": "openen",
     "statusResolved": "opgelost @ rev {rev}",
-    "annotateHint": "Markeringen worden geschreven vanuit uw agent (annotate_beats — verankerd aan een maat, track of cue); dit paneel rendert deze. Kopieer de revisieprompt zodat de agent ze kan markeren of erop kan reageren.",
-    "copyRevisionPrompt": "Revisieprompt kopiëren",
-    "copied": "Gekopieerd ✓",
-    "copyFailed": "Kon niet naar klembord kopiëren.",
     "exportWav": ".wav exporteren",
     "exportMidi": ".mid exporteren",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "Gameontwikkelaar",
-    "gallerySubtitle": "Eén project per game — de regels, levels, personages, audio en art op één plank.",
-    "galleryEmpty": "Nog geen gameprojecten. Stuur create_game_project aan vanuit je host-agent om er een te starten.",
-    "copyStarterPrompt": "Startprompt kopiëren",
     "loading": "Projecten laden…",
-    "noMembersYet": "Nog geen leden",
     "notFound": "Dat project bestaat niet — het is mogelijk gearchiveerd of de ref klopt niet.",
     "backToProjects": "Terug naar Gameontwikkelaar",
-    "copyWorkPrompt": "Kopieer werk-prompt",
-    "copyAddPrompt": "toevoegen",
-    "copyMintPrompt": "de game minten",
-    "copied": "Gekopieerd",
-    "playable": "Speelbaar",
     "missing": "Ontbrekend",
     "missingBody": "Het artefact van dit lid bestaat niet meer. Het project houdt de slot; herbind of verwijder het vanuit je host-agent.",
     "noRules": "Nog geen game gemint — het project is pre-productie.",
@@ -468,13 +310,6 @@
     "emptyFolder": "Hier is nog niets."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Speelbare standalone games, gemint vanuit de workshop. Kies een kast en speel.",
-    "loading": "Kasten laden…",
-    "emptyState": "Nog geen games op de vloer. Stuur create_game aan vanuit je host-agent om de eerste kast te minten.",
-    "copyStarterPrompt": "Startprompt kopiëren",
-    "copied": "Gekopieerd",
-    "play": "Speel",
     "levelCount": "{count, plural, one {# level} other {# levels}}",
     "shipped": "Uitgebracht"
   },
@@ -484,7 +319,7 @@
     "subtitle": "Elk artefact dat de agent heeft gemint — scènes, modellen, personages, materialen, afbeeldingen, diagrammen. Eén plank per manier van kijken; dezelfde receptenopslag eronder.",
     "shelves": {
       "recent": "Recent",
-      "scenes": "Werelden",
+      "scenes": "Scènes",
       "turntables": "Draaitafels",
       "models": "Modellen",
       "views": "Weergaven",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "De studio: illustraties, beloopbare werelden, 3D-objecten, motion, beats, voice en afgewerkte output. Een afgestemd creatief oppervlak, broer van Sketches (afgestemd op diagrammen). Elk stuk is dezelfde sketch-primitive — stash, refereer en diff het hoe dan ook."
-    },
     "beats": {
       "title": "Beats",
       "subtitle": "Gesynthetiseerde soundtracks, composities en geluidseffecten — selecteer er een en druk op afspelen. Maak er nieuwe van via uw agent via create_beats."
@@ -546,11 +377,7 @@
       "tuned": "Afgestemd (recept ongewijzigd)",
       "reset": "herstellen",
       "playingAt": "Monster op zelfvertrouwen {c} / diepte {d}",
-      "noSamples": "Nog geen weergegeven monsters — kopieer de spreekcommando en laat uw agent een paar punten binden (randen inbegrepen).",
-      "copyBlend": "Blend kopiëren",
-      "copyCommand": "Spreekcommando kopiëren",
-      "copyPrompt": "Startprompt kopiëren",
-      "copied": "Gekopieerd!",
+      "noSamples": "Nog geen gerenderde samples.",
       "loading": "Voice-registers laden…",
       "empty": "Nog geen voice-registers. Vraag uw agent om er een te maken met create_voice.",
       "unresolvable": "Dit register kan niet meer worden opgelost — de bank ervan kan zijn gewijzigd. Maak het opnieuw via create_voice."
@@ -602,10 +429,6 @@
     "kindNovel": "Novelle",
     "kindVisualGuide": "Visuele gids",
     "kindUnknown": "Onbekend",
-    "actions": {
-      "archive": "Archiveren",
-      "unarchive": "Uit archief halen"
-    },
     "sourceLabel": "Van",
     "sourceUnknown": "(stash verwijderd)",
     "lensLabel": "Lens",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "Stashes",
-    "subtitle": "Hernoembare buckets van getypeerd materiaal dat de agent heeft verzameld. Gemaakt via de mint_stash MCP-tool.",
+    "subtitle": "Bakken met getypeerd materiaal dat de agent heeft verzameld.",
     "total": "{count, plural, =0 {Geen stashes} =1 {1 stash} other {# stashes}}",
     "count": "{count, plural, =0 {Geen overeenkomsten} =1 {1 stash} other {# stashes}}",
     "filteredCount": "{count} van {total} weergegeven",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {geen laden} =1 {1 lade} other {# laden}}",
     "createdAt": "Gemaakt {timestamp}",
     "updatedAt": "Bijgewerkt {timestamp}",
-    "actions": {
-      "rename": "Hernoemen",
-      "edit": "Bewerken",
-      "archive": "Archiveren",
-      "unarchive": "Uit archief halen",
-      "save": "Opslaan",
-      "cancel": "Annuleren",
-      "titleEmpty": "Titel kan niet leeg zijn",
-      "renameFailed": "Hernoemen mislukt",
-      "statusChangeFailed": "Kon status niet wijzigen"
-    },
     "detail": {
       "loading": "Stash laden…",
       "notFoundTitle": "Stash niet gevonden",
@@ -673,66 +485,7 @@
         "sketch": "Schets"
       },
       "sketchFailed": "Schets kon niet worden geladen.",
-      "openSketch": "Schets openen",
-      "newDrawer": "Nieuwe lade",
-      "newDrawerPlaceholder": "Ladenaam",
-      "drawerSaveError": "Kon lade niet opslaan",
-      "drawerRenameError": "Kon lade niet hernoemen",
-      "renameDrawerLabel": "Lade hernoemen",
-      "moveError": "Kon item niet verplaatsen",
-      "archive": "Archiveren",
-      "archiveError": "Kon item niet archiveren",
-      "archiveWarning": "Dit item verschijnt in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citaten worden opgelost naar de gearchiveerde inhoud. Doorgaan?",
-      "archiveProceed": "Toch archiveren",
-      "archiveCancel": "Annuleren",
-      "addItem": "+ Toevoegen",
-      "agentTypesFooter": "Scripts en contextmap-pointers worden toegevoegd door uw agent.",
-      "picker": {
-        "text": "Nieuw tekstblok",
-        "image": "Afbeelding uploaden",
-        "svg": "SVG toevoegen",
-        "link": "Link plakken",
-        "sketch": "Schets kiezen"
-      },
-      "panel": {
-        "save": "Opslaan",
-        "cancel": "Annuleren",
-        "saving": "Bezig met opslaan…",
-        "saveError": "Kon niet opslaan",
-        "titleLabel": "Titel (optioneel)",
-        "titlePlaceholder": "Kort label",
-        "sourceUrlLabel": "Bron-URL (optioneel)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Formaat",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Platte tekst",
-        "bodyLabel": "Inhoud",
-        "bodyPlaceholder": "Typ of plak…",
-        "preview": "Voorbeeld",
-        "previewEmpty": "Typ voor preview.",
-        "tooLong": "Inhoud overschrijdt de {limit, number} tekengrens.",
-        "imagePick": "Kies een afbeelding",
-        "imageDrop": "of sleep hier een bestand",
-        "imageTooLarge": "Afbeelding overschrijdt de {limit, number} MB-limiet.",
-        "imageBadMime": "Geen afbeeldingsbestand ({mime}).",
-        "imageBadDimensions": "Kon afbeeldingsafmetingen niet lezen.",
-        "altLabel": "Alt-tekst (optioneel)",
-        "altPlaceholder": "Wat is in de afbeelding?",
-        "svgPaste": "SVG plakken",
-        "svgUpload": "of upload .svg",
-        "svgBadShape": "SVG-inhoud moet beginnen met <?xml of <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL kan niet worden geparsed.",
-        "urlTitleRequired": "Titel is vereist voor link-items.",
-        "descriptionLabel": "Beschrijving (optioneel)",
-        "descriptionPlaceholder": "Waarom dit ertoe doet…",
-        "sketchSearchPlaceholder": "Schetsen zoeken…",
-        "sketchEmpty": "Nog geen schetsen. Vraag uw agent om er een te maken met create_sketch.",
-        "sketchNoMatch": "Geen schetsen komen overeen met deze zoeking.",
-        "sketchPicked": "Gekozen"
-      }
+      "openSketch": "Schets openen"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "PNG downloaden",
     "invalidManifest": "Rendrant kon deze schets niet parseren.",
     "frameFailed": "Deze weergave is niet geladen.",
-    "renameLabel": "Schets hernoemen",
-    "renamePlaceholder": "Schestitel",
-    "renameSave": "Opslaan",
-    "renameSaveNew": "Opslaan als nieuwe schets",
-    "renameCancel": "Annuleren",
-    "renameEmpty": "Titel kan niet leeg zijn",
     "associationTags": {
       "plan": "Plan",
       "research": "Onderzoek"
@@ -771,45 +518,21 @@
       "selectPrompt": "Selecteer een track aan de linkerkant om af te spelen.",
       "invalidManifest": "Dit recept kon niet worden geparsed.",
       "openNewTab": "Studio openen",
-      "renameLabel": "Track hernoemen",
-      "renamePlaceholder": "Tracktitel",
-      "renameSaveNew": "Opslaan als nieuwe track",
       "exportWav": ".wav exporteren",
       "exportMidi": ".mid exporteren"
     },
     "folder": {
-      "newFolderButton": "Nieuwe map",
-      "newFolderTitle": "Nieuwe map",
-      "namePlaceholder": "Mapnaam",
       "create": "Maken",
       "cancel": "Annuleren",
-      "rename": "Map hernoemen",
-      "renameSave": "Opslaan",
       "delete": "Map verwijderen",
-      "deleteConfirm": "Deze map verwijderen? Schetsen erin verplaatsen zich terug naar basis.",
       "rootCrumb": "Alle schetsen",
       "back": "Terug",
       "sketchCount": "{count, plural, =0 {leeg} =1 {1 schets} other {# schetsen}}",
       "foldersHeader": "Mappen",
       "rootHeader": "Schetsen",
-      "inFolderHint": "Nieuwe schetsen die u maakt terwijl u deze map bekijkt, komen hier automatisch terecht.",
-      "emptyFolder": "Deze map is leeg. Maak een schets of verplaats er een van basis.",
+      "emptyFolder": "Deze map is leeg.",
       "moveSourceFolder": "In {name}",
       "moveSourceRoot": "Bij basis"
-    },
-    "select": {
-      "enter": "Selecteren",
-      "exit": "Klaar",
-      "count": "{count, plural, =0 {Geen geselecteerd} =1 {1 geselecteerd} other {# geselecteerd}}",
-      "moveTo": "Verplaatsen naar…",
-      "moveToRoot": "Naar basis verplaatsen",
-      "moveSuccess": "{count, plural, =1 {1 schets verplaatst} other {# schetsen verplaatst}}",
-      "moveError": "Verplaatsing mislukt: {error}",
-      "selectAll": "Alles selecteren",
-      "clear": "Wissen",
-      "delete": "Verwijderen",
-      "deleteConfirm": "{count, plural, =1 {1 schets verwijderen?} other {# schetsen verwijderen?}} Dit kan niet ongedaan worden gemaakt.",
-      "deleteError": "Verwijderen mislukt: {error}"
     },
     "viewToggle": {
       "split": "Gesplitste weergave",
@@ -820,72 +543,6 @@
       "move": "Verplaatsen",
       "delete": "Verwijderen",
       "deleteOneConfirm": "\"{title}\" verwijderen? Dit kan niet ongedaan worden gemaakt."
-    }
-  },
-  "map": {
-    "title": "Kaart",
-    "subtitle": "De hele vloot op twee vlakken — apps op de grond, MCP-servers en verbonden services in de lucht, met service-naar-MCP-bedrading.",
-    "loading": "Laden…",
-    "refresh": "Vernieuwen",
-    "error": "Kon kaart van vloot niet laden",
-    "empty": "Nog niets op de kaart — bouw een app op of declareer uw MCP-inventaris.",
-    "counts": {
-      "apps": "Apps",
-      "servers": "MCP-servers",
-      "services": "Verbonden services"
-    },
-    "legend": {
-      "air": "Lucht",
-      "ground": "Grond",
-      "servers": "MCP-servers",
-      "services": "Verbonden services",
-      "apps": "Apps"
-    }
-  },
-  "mcpSkills": {
-    "title": "Verbonden Services",
-    "subtitle": "Verbonden services: hostvaardigheden en gerealiseerde MCP-orbit workflows, weergegeven tegen de MCP-servers die ze aanroepen.",
-    "loading": "Laden...",
-    "refresh": "Vernieuwen",
-    "error": "Kon verbonden services niet laden",
-    "empty": "Nog geen verbonden services. Declareer hostvaardigheden of realiseer een MCP-orbit samenstelling.",
-    "backToList": "Terug naar Verbonden Services",
-    "backToService": "Terug naar verbonden service",
-    "notFound": "Verbonden service niet gevonden.",
-    "viewGraph": "Graf weergeven",
-    "present": "Aanwezig",
-    "missing": "Ontbrekend",
-    "counts": {
-      "servers": "MCP-servers",
-      "services": "Verbonden services"
-    },
-    "table": {
-      "name": "Naam",
-      "form": "Formulier",
-      "calls": "Oproepen",
-      "updated": "Bijgewerkt"
-    },
-    "forms": {
-      "catalyst": "Katalysatorvaardigheid",
-      "manual": "Handmatige vaardigheid",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metagegevens",
-      "name": "Naam",
-      "ref": "Ref",
-      "kind": "Soort",
-      "form": "Formulier",
-      "updated": "Bijgewerkt",
-      "hostPath": "Hostpad",
-      "catalyst": "Katalysator",
-      "composition": "Samenstelling",
-      "calls": "Oproepen",
-      "noCalls": "Geen MCP-oproepen gedeclareerd.",
-      "needs": "Behoeften",
-      "components": "Onderdelen",
-      "knobs": "Knoppen",
-      "graphSubtitle": "Afgeleid van de Connected Services-spiegel, gerealiseerde composities en huidige MCP-inventaris."
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "Renderbay",
     "subtitle": "Alles wat mojulo produceert, op één plek: de duurzame image-renderwachtrij, GI-bakes, en de cooks en exports op schijf. Vier manieren om te zeggen \"er wordt iets gemaakt\" die tot nu toe geen gedeeld thuis hadden.",
-    "readOnly": "De bay rendert state. Elke actie hier is een prompt om naar je agent te kopiëren — een render accepteren, een wereld opnieuw bakken en een export minten gebeuren allemaal via MCP-tools, nooit via deze pagina.",
     "refresh": "Vernieuwen",
     "loading": "Laden…",
     "allLanes": "Alle banen",
-    "copyPrompt": "Prompt kopiëren",
-    "copied": "Gekopieerd",
-    "copyFailed": "Kopiëren mislukt — selecteer de tekst en kopieer handmatig",
     "showing": "{shown} van {total} getoond",
     "queue": {
       "title": "Renderwachtrij",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "Artefact openen →",
-    "copied": "Gekopieerd",
-    "copyFailed": "Kopiëren mislukt — selecteer de tekst en kopieer handmatig",
     "shelves": "Bibliotheek",
     "bays": "Werkplaats",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "aantal driehoeken: export_model"
     },
     "inspector": {
-      "askTitle": "Vraag de agent",
-      "askBody": "Het dashboard rendert state; het muteert nooit. Dit recept wijzig je in je host-agent.",
-      "askCopy": "Prompt kopiëren",
       "bound": "Gebonden artefacten",
       "boundEmpty": "Nog niets gebonden — geen renders, meshes of exports op schijf voor dit recept.",
       "openFolder": "Outcome-map openen · {size}",
@@ -1110,8 +758,6 @@
     "empty": "Niets komt overeen met dit facet of deze zoekopdracht.",
     "emptyShelf": "Nog niets gemint in {shelf}.",
     "emptyShelfHint": "Vraag je agent om er een te maken — get_sketch_vocab bevat het vocabulaire.",
-    "copied": "Gekopieerd",
-    "copyFailed": "Kopiëren mislukt — selecteer handmatig",
     "notExportable": "Geen mesh-export — dit artefact rendert als diagram, niet als beloopbaar model.",
     "stack": "×{n}",
     "seed": "seed {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "geschilderd · externe worker · scaffold-recept blijft soeverein",
-    "mintMissing": "Vraag agent: mint {piece}",
-    "mintPrompt": "Voor het mojulo-personage \"{name}\" (zie artefact {ref}), mint het ontbrekende {piece}. Gebruik de bijbehorende tool (create_sprite_sheet / bind_character_sheet / figure tools) — lees eerst get_sketch_vocab.",
     "facets": {
       "scenes": {
         "walkable": "Beloopbaar",

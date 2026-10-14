@@ -6,7 +6,7 @@
  * this mints a pure `step(state, action)` reducer game (brickster & kin) as a
  * tiny `kind:'game'` sketch whose manifest is a RECIPE (engine:'pixelizer',
  * reducer, presentation facts). That single row joins the `game` bucket, so the
- * game lands on the Maker gallery + the Mojulo Arcade (/arcade) and plays at
+ * game lands on the dashboard's Play page (/play) and plays at
  * /api/sketches/<ref>/game (the pixelizer branch serves the shell). Recipes,
  * not renders — the HTML is regenerated per request. No world/store/audit gate:
  * a reducer game has no levels to prove completable.
@@ -35,7 +35,7 @@ export async function createPixelizerGameHandler(input) {
   if (projectRef !== undefined && projectRef !== null) {
     if (typeof projectRef !== 'string' || !projectRef) throw new Error('`project_ref` must be a non-empty gp_ ref if provided');
     if (!GameProjectRepository.getByRef(projectRef)) {
-      throw new Error(`Game project '${projectRef}' not found — create_game_project first, or list_game_projects to find it`);
+      throw new Error(`Game project '${projectRef}' not found (game projects are retired: leave project_ref out, or name one made before)`);
     }
   }
 
@@ -54,7 +54,7 @@ export async function createPixelizerGameHandler(input) {
     reducer,
     url: `/sketches/${encodeURIComponent(sketch.ref)}`,
     playUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/game`,
-    arcadeUrl: `/arcade/${encodeURIComponent(sketch.ref)}`,
+    arcadeUrl: '/play',
     ...(project ? { project } : {}),
   };
 }
@@ -63,12 +63,12 @@ export function registerPixelizerGameTools() {
   registerTool({
     name: 'create_pixelizer_game',
     description:
-      'Mint a self-contained 2D REDUCER game into the Arcade — the pixelizer register beside '
+      'Mint a self-contained 2D REDUCER game into Play — the pixelizer register beside '
       + "`create_game`'s world/level games. A pure step(state,action) reducer + skin (brickster & kin), "
-      + "landed as a `kind:'game'` sketch so it joins the Arcade (`/arcade`) + Maker gallery and plays at "
+      + "landed as a `kind:'game'` sketch so it joins Play (`/play`) and plays at "
       + '`/api/sketches/<ref>/game`. No world / store / level audits. Pass `reducer` (a built reducer: '
       + PIXELIZER_REDUCER_IDS.join(' / ')
-      + ') + optional title/tagline/theme/music/register; `project_ref` binds it to a game project. Reach for '
+      + ') + optional title/tagline/theme/music/register. Reach for '
       + '"add brickster to the arcade", "mint the falling-blocks game".',
     inputSchema: {
       type: 'object',
@@ -80,7 +80,7 @@ export function registerPixelizerGameTools() {
         music: { type: 'boolean', description: 'Beats soundtrack + SFX. Default true.' },
         register: { type: 'string', enum: ['8bit', '16bit', '32bit'], description: "Optional era label; default the reducer's own." },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
-        project_ref: { type: 'string', description: "Optional gp_… ref: binds as the project's active rules member." },
+        project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the game to.' },
       },
       required: ['reducer'],
     },

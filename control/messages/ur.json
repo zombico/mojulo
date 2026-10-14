@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "خدمات کا نقشہ",
-    "back": "واپس"
-  },
-  "actions": {
-    "start": "شروع کریں"
-  },
   "settings": {
     "title": "ترتیبات",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "ایپس",
-    "subtitle": "ایپس جو ایجنٹ نے ایپ کے نمونے کے ذریعے مادی شکل دی ہے۔ Lifecycle، ماحول کی متغیرات، اور براہ راست MCP تفتیش — contextmap اور مقامی رنر سے پڑھیں۔",
-    "loading": "لوڈ ہو رہا ہے…",
-    "refresh": "تازہ کریں",
-    "empty": "ابھی کوئی ایپ نہیں — اپنے Claude Code ایجنٹ سے ایک کے لیے مانگیں۔",
-    "backToList": "ایپس کی طرف واپس",
-    "notFound": "ایپ نہیں ملا۔",
-    "openPreview": "پیش نظارہ کھولیں",
-    "openMcp": "MCP کھولیں",
-    "actions": {
-      "start": "شروع کریں",
-      "stop": "روکیں",
-      "starting": "شروع کیا جا رہا ہے…",
-      "stopping": "روکا جا رہا ہے…"
-    },
-    "status": {
-      "running": "چل رہا ہے",
-      "stopped": "روک دیا گیا",
-      "crashed": "کریش ہوا",
-      "unknown": "نامعلوم"
-    },
-    "table": {
-      "headers": {
-        "name": "نام",
-        "materialized": "مادی شکل",
-        "runner": "رنر",
-        "status": "حالت",
-        "actions": "عمل"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "اس ایپ کا تخلیقی نقشہ — ہر ٹول کال جس نے اسے وجود دیا، ایک ہی لائن پر اسٹیشنوں کی طرح۔"
-      },
-      "metadata": "Metadata",
-      "artifactPath": "نمونہ کا راستہ",
-      "materializationRef": "مادی شکل کا حوالہ",
-      "adapter": "موافق",
-      "appName": "ایپ کا نام",
-      "host": "میزبان",
-      "materializedAt": "مادی شکل میں",
-      "viewGraph": "گراف دیکھیں",
-      "bindings": "بندھن",
-      "binding": {
-        "runner": "رنر",
-        "durability": "پائیداری",
-        "inference": "استدلال",
-        "mcpSelf": "MCP خود"
-      },
-      "mcpPanel": {
-        "title": "ایپ MCP",
-        "url": "MCP URL",
-        "offline": "MCP آن لائن نہیں — ایپ شروع کریں اس کی ٹول کی فہرست دیکھنے کے لیے۔",
-        "loading": "ٹولز لوڈ ہو رہے ہیں…",
-        "error": "ایپ MCP تک نہیں پہنچ سکے: {error}",
-        "registeredTools": "رجسٹرڈ ٹولز",
-        "noTools": "کوئی ٹولز رجسٹرڈ نہیں۔",
-        "declaredPurpose": "اعلان شدہ مقصد"
-      },
-      "envPanel": {
-        "title": "ماحول کی متغیرات",
-        "explainer": "اقدار براہ راست نمونے کی .env فائل میں لکھی جاتی ہیں۔ وہ لاگ نہیں کی جاتیں، کنٹرول پلین ڈیٹا بیس میں محفوظ نہیں ہیں، اور اس نظر میں واپس echo نہیں کی جاتیں۔",
-        "addKey": "کلید",
-        "addValue": "قیمت",
-        "add": "شامل کریں",
-        "delete": "حذف کریں",
-        "deleteConfirm": "ماحول کی متغیر \"{key}\" کو حذف کریں؟",
-        "noKeys": "ابھی کوئی ماحول کی متغیر سیٹ نہیں ہوئی۔",
-        "valueHidden": "•••••",
-        "edit": "Edit",
-        "save": "محفوظ کریں",
-        "cancel": "منسوخ کریں",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "قیمت"
-      },
-      "provenance": {
-        "title": "منشاء",
-        "subtitle": "اس ایپ کی مادی شکل کے commit سے منسلک اصول۔",
-        "none": "کوئی اصول ریکارڈ نہیں کیا گیا۔"
-      }
-    }
-  },
-  "graph": {
-    "title": "ایپ کی تخلیق کا نقشہ",
-    "subtitle": "ایک ایپ کیسے اکٹھا ہوتی ہے۔ ہر ڈبہ ایک ٹکڑا ہے؛ ہر تیر دکھاتا ہے کہ کیا کیا کا سبب بنتا ہے۔",
-    "subtitleTechnical": "mojulo نمونے میں ایک ایپ کیسے تشکیل پاتی ہے۔ اسٹیشنز ٹکڑے ہیں؛ لائنیں MCP ٹولز ہیں جو انہیں اکٹھا کرتے ہیں۔ ہر تازہ کاری پر براہ راست MCP رجسٹری اور contextmap schema کے خلاف تصدیق کی گئی۔",
-    "technicalToggle": "تکنیکی",
-    "loading": "لوڈ ہو رہا ہے…",
-    "refresh": "تازہ کریں",
-    "overlay": {
-      "appCount": "{count, plural, =0 {ابھی کوئی ایپ نہیں بنی} =1 {1 ایپ بنی} other {# ایپس بنیں}}",
-      "lastMaterialized": "آخری ایک بنی",
-      "viewApps": "چل رہی ایپس دیکھیں"
-    },
-    "validation": {
-      "ok": "سب کچھ ابھی ٹھیک ہے۔",
-      "okTechnical": "Manifest درست ہے: {tools} ٹولز، {nodeKinds} node قسمیں، {edgeKinds} edge قسمیں، {sourceEvents} source واقعات تمام حل ہو گئے۔",
-      "failed": "{count, plural, =1 {نقشے میں 1 چیز حقیقت سے مطابقت نہیں رکھتی} other {نقشے میں # چیزیں حقیقت سے مطابقت نہیں رکھتیں}}"
-    },
-    "legend": {
-      "input": "جو آپ فیصلہ کرتے ہیں",
-      "inputTechnical": "داخلہ",
-      "mcpTool": "ایک ٹول جو ایجنٹ کالز کرتا ہے",
-      "mcpToolTechnical": "MCP ٹول",
-      "filesystem": "ڈسک پر فائلیں",
-      "filesystemTechnical": "فائل سسٹم",
-      "dbRow": "میموری میں داخلہ",
-      "dbRowTechnical": "DB قطار"
-    }
-  },
   "login": {
     "subtitle": "جاری رکھنے کے لیے سائن ان کریں",
     "username": "صارف نام",
@@ -178,7 +60,6 @@
     "title": "منصوبہ",
     "subtitle": "تجویز کردہ کام — سیشنز جو اسپائکس بن گئے۔ آپ کے میزبان ایجنٹ سے بنایا اور چلایا۔",
     "navLabel": "منصوبہ",
-    "newPlan": "نیا منصوبہ",
     "total": "{count} منصوبے",
     "count": "{count} منصوبے",
     "filteredCount": "{count} کے {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "ابھی عمل درآمد نہیں ہوئی۔",
     "stepOk": "ٹھیک ہے",
     "stepFailed": "ناکام",
-    "newPlanTitle": "نیا منصوبہ",
-    "newPlanIntro": "منصوبے آپ کے میزبان ایجنٹ میں بنائے جاتے ہیں (Claude Code / Codex)۔ مقصد کی تفصیل دیں، شروعاتی اشارہ نقل کریں، اور اسے نئے ایجنٹ سیشن میں پیسٹ کریں — ایجنٹ منصوبہ بندی کے موڈ میں داخل ہوتا ہے اور کام کو آگے بڑھاتا ہے۔ یہ صفحہ منصوبے کے آگے بڑھنے اور نظر ثانی کے ساتھ اپڈیٹ ہوتا ہے۔",
-    "intentLabel": "آپ کیا منصوبہ بنانا چاہتے ہیں؟ (اختیاری)",
-    "intentPlaceholder": "مثال کے طور پر composer کے لیے webhook trigger runtime",
-    "promptLabel": "شروعاتی اشارہ",
-    "copyPrompt": "اشارہ کی نقل کریں",
-    "copied": "نقل کیا گیا",
     "close": "بند کریں"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "اقتباس",
     "kindSketch": "خاکہ",
     "viewSketch": "خاکہ دیکھیں",
-    "composerHeading": "نوٹ بک میں شامل کریں",
-    "composerStub": "صرف پیش نظارہ — بندھن آپ کے میزبان ایجنٹ کے ذریعے ہوتا ہے۔",
-    "composerPlaceholder": "لنک پیسٹ کریں، فائل ڈالیں، یا نوٹ لکھیں…",
-    "newBook": "نئی کتاب",
-    "newBookTitle": "نئی تحقیق کی کتاب",
-    "newBookIntro": "کتابیں آپ کے میزبان ایجنٹ میں شروع کی جاتی ہیں (Claude Code / Codex)۔ موضوع کی تفصیل دیں، شروعاتی اشارہ نقل کریں، اور اسے نئے ایجنٹ سیشن میں پیسٹ کریں — ایجنٹ تحقیق کے موڈ میں داخل ہوتا ہے اور کام کو آگے بڑھاتا ہے۔ یہ صفحہ کتاب کے جمع ہونے کے ساتھ اپڈیٹ ہوتا ہے۔",
-    "intentLabel": "آپ کیا تحقیق کرنا چاہتے ہیں؟ (اختیاری)",
-    "intentPlaceholder": "مثال کے طور پر دوسرے لوگ مقامی MCP سرورز کو کیسے سرنگ کرتے ہیں",
-    "promptLabel": "شروعاتی اشارہ",
-    "copyPrompt": "اشارہ کی نقل کریں",
-    "copied": "نقل کیا گیا",
     "close": "بند کریں"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "کارگاہ کا صفحہ",
     "groups": {
-      "ideate": "نئے خیالات",
-      "operate": "کام کریں",
-      "studio": "اسٹوڈیو"
+      "make": "بنائیں",
+      "media": "میڈیا",
+      "play": "کھیلیں",
+      "ideate": "نئے خیالات"
     },
     "drawer": {
       "open": "نیویگیشن کھولیں",
       "close": "نیویگیشن بند کریں"
     },
     "tiles": {
-      "mcpSkills": "جڑے ہوئے خدمات",
-      "apps": "ایپس",
-      "sketch": "خاکے",
       "plan": "منصوبے",
       "outputs": "نتائج",
       "research": "تحقیق",
       "stash": "ذخائر",
-      "illustrations": "تصویریں",
       "worlds": "دنیائیں",
       "objects": "اشیاء",
       "motion": "حرکت",
       "beats": "بیٹس",
       "voice": "آواز",
-      "games": "گیم ڈویلپر",
-      "arcade": "آرکیڈ",
-      "settings": "ترتیبات",
       "library": "لائبریری",
       "renderBay": "رینڈر بے",
-      "dashboard": "ڈیش بورڈ"
+      "dashboard": "ڈیش بورڈ",
+      "places": "مقامات",
+      "characters": "کردار",
+      "images": "تصاویر",
+      "play": "کھیلیں",
+      "elements": "عناصر"
     },
     "agentStatus": {
       "liveLabel": "براہ راست",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "ڈیش بورڈ",
       "open": "منزل کھولیں →"
-    },
-    "ask": {
-      "title": "ایجنٹ سے کہیں",
-      "body": "بنانے کا کام آپ کے MCP ایجنٹ میں ہوتا ہے۔"
     }
-  },
-  "breadcrumbs": {
-    "home": "صفحہ"
   },
   "sketches": {
     "notFoundTitle": "خاکہ نہیں ملا",
@@ -398,10 +253,6 @@
     "refresh": "تازہ کریں",
     "statusOpen": "کھولیں",
     "statusResolved": "rev {rev} پر حل",
-    "annotateHint": "نشانات آپ کے ایجنٹ سے لکھے جاتے ہیں (annotate_beats — ایک بار، ٹریک، یا تلمیح سے منسلک)؛ یہ پینل انہیں دکھاتا ہے۔ ایجنٹ کو نشان لگانے یا ان پر عمل کرنے کے لیے نسخہ کا اشارہ نقل کریں۔",
-    "copyRevisionPrompt": "نسخہ کا اشارہ نقل کریں",
-    "copied": "نقل کیا گیا ✓",
-    "copyFailed": "کلپ بورڈ میں نقل نہیں کر سکے۔",
     "exportWav": "Export .wav",
     "exportMidi": "Export .mid",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "گیم ڈویلپر",
-    "gallerySubtitle": "ہر گیم کے لیے ایک پروجیکٹ — اس کے قواعد، لیولز، کردار، آڈیو، اور آرٹ ایک ہی شیلف پر۔",
-    "galleryEmpty": "ابھی کوئی گیم پروجیکٹ نہیں۔ ایک شروع کرنے کے لیے اپنے ہوسٹ ایجنٹ سے create_game_project چلائیں۔",
-    "copyStarterPrompt": "شروعاتی اشارہ نقل کریں",
     "loading": "پروجیکٹس لوڈ ہو رہے ہیں…",
-    "noMembersYet": "ابھی کوئی ممبر نہیں",
     "notFound": "وہ پروجیکٹ موجود نہیں — شاید اسے آرکائیو کر دیا گیا ہو یا ref غلط ہو۔",
     "backToProjects": "گیم ڈویلپر پر واپس",
-    "copyWorkPrompt": "ورک پرامپٹ کاپی کریں",
-    "copyAddPrompt": "شامل کریں",
-    "copyMintPrompt": "گیم منٹ کریں",
-    "copied": "نقل کیا گیا",
-    "playable": "قابلِ کھیل",
     "missing": "غائب",
     "missingBody": "اس ممبر کا آرٹفیکٹ اب موجود نہیں۔ پروجیکٹ سلاٹ برقرار رکھتا ہے؛ اسے اپنے ہوسٹ ایجنٹ سے دوبارہ باندھیں یا ہٹا دیں۔",
     "noRules": "ابھی کوئی گیم منٹ نہیں ہوئی — پروجیکٹ پری پروڈکشن میں ہے۔",
@@ -468,13 +310,6 @@
     "emptyFolder": "ابھی یہاں کچھ نہیں۔"
   },
   "arcade": {
-    "title": "Mojulo آرکیڈ",
-    "subtitle": "ورکشاپ سے منٹ کیے گئے قابلِ کھیل اسٹینڈ الون گیمز۔ ایک کیبنٹ منتخب کریں اور کھیلیں۔",
-    "loading": "کیبنٹس لوڈ ہو رہے ہیں…",
-    "emptyState": "ابھی فلور پر کوئی گیم نہیں۔ پہلی کیبنٹ منٹ کرنے کے لیے اپنے ہوسٹ ایجنٹ سے create_game چلائیں۔",
-    "copyStarterPrompt": "شروعاتی اشارہ نقل کریں",
-    "copied": "نقل کیا گیا",
-    "play": "کھیلیں",
     "levelCount": "{count, plural, one {# لیول} other {# لیولز}}",
     "shipped": "شپ شدہ"
   },
@@ -484,7 +319,7 @@
     "subtitle": "ہر وہ مصنوع جو ایجنٹ نے بنائی — مناظر، ماڈل، کردار، مٹیریل، تصاویر، ڈایاگرام۔ دیکھنے کے ہر انداز کے لیے ایک شیلف؛ نیچے وہی ترکیب اسٹور۔",
     "shelves": {
       "recent": "حالیہ",
-      "scenes": "دنیائیں",
+      "scenes": "مناظر",
       "turntables": "ٹرن ٹیبل",
       "models": "ماڈلز",
       "views": "ویو",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo میکر",
-      "subtitle": "اسٹوڈیو: السٹریشنز، قابلِ چلنے والی دنیائیں، 3D اشیاء، موشن، بیٹس، وائس، اور مکمل شدہ آؤٹ پٹس۔ ایک ٹیونڈ تخلیقی سطح، Sketches کی ہمشیرہ (ڈایاگرامز کے لیے ٹیونڈ)۔ ہر ٹکڑا وہی sketch پرمیٹو ہے — دونوں طرح سے اسٹیش، ریفرنس، اور diff کریں۔"
-    },
     "beats": {
       "title": "بیٹس",
       "subtitle": "مصنوعی ساؤنڈ ٹریکس، موسیقی ترکیبیں، اور آواز کے اثرات — ایک منتخب کریں اور چلائیں۔ اپنے ایجنٹ سے نئے بنائیں create_beats کے ذریعے۔"
@@ -546,11 +377,7 @@
       "tuned": "ٹیون شدہ (ترکیب نہیں بدلی)",
       "reset": "دوبارہ سیٹ کریں",
       "playingAt": "اعتماد {c} / گہرائی {d} پر نمونہ",
-      "noSamples": "ابھی کوئی نمونہ دکھایا نہیں گیا — بول کا حکم نقل کریں اور اپنے ایجنٹ کو کچھ نکات بندھنے دیں (کناریں شامل)۔",
-      "copyBlend": "ملاپ کی نقل کریں",
-      "copyCommand": "بول کا حکم نقل کریں",
-      "copyPrompt": "شروعاتی اشارہ نقل کریں",
-      "copied": "نقل ہو گیا!",
+      "noSamples": "ابھی تک کوئی رینڈر شدہ نمونہ نہیں۔",
       "loading": "آواز کے رجسٹرز لوڈ ہو رہے ہیں…",
       "empty": "ابھی کوئی آواز کا رجسٹر نہیں۔ اپنے ایجنٹ سے create_voice کے ساتھ ایک بنانے کے لیے کہیں۔",
       "unresolvable": "یہ رجسٹر اب حل نہیں ہوتا — اس کا بینک تبدیل ہو سکتا ہے۔ اسے create_voice کے ذریعے دوبارہ بنائیں۔"
@@ -602,10 +429,6 @@
     "kindNovel": "چھوٹی ناول",
     "kindVisualGuide": "بصری رہنمائی",
     "kindUnknown": "نامعلوم",
-    "actions": {
-      "archive": "ذخیرہ",
-      "unarchive": "ذخیرہ سے نکالیں"
-    },
     "sourceLabel": "سے",
     "sourceUnknown": "(ذخیرہ ہٹایا گیا)",
     "lensLabel": "عدسہ",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "ذخائر",
-    "subtitle": "ٹائپ شدہ مواد کے نام بدلنے کے قابل برتن جو ایجنٹ نے جمع کیے ہیں۔ mint_stash MCP آلہ کے ذریعے بنائے گئے۔",
+    "subtitle": "ایجنٹ کے جمع کردہ قسم وار مواد کی بالٹیاں۔",
     "total": "{count, plural, =0 {کوئی ذخیرہ نہیں} =1 {1 ذخیرہ} other {# ذخائر}}",
     "count": "{count, plural, =0 {کوئی مماثل نہیں} =1 {1 ذخیرہ} other {# ذخائر}}",
     "filteredCount": "{total} میں سے {count} دکھایا گیا",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {کوئی ڈرائر نہیں} =1 {1 ڈرائر} other {# ڈرائرز}}",
     "createdAt": "{timestamp} میں بنایا گیا",
     "updatedAt": "{timestamp} پر اپڈیٹ کیا گیا",
-    "actions": {
-      "rename": "نام بدلیں",
-      "edit": "Edit",
-      "archive": "ذخیرہ",
-      "unarchive": "ذخیرہ سے نکالیں",
-      "save": "محفوظ کریں",
-      "cancel": "منسوخ کریں",
-      "titleEmpty": "عنوان خالی نہیں ہو سکتا",
-      "renameFailed": "نام بدلنا ناکام",
-      "statusChangeFailed": "حالت تبدیل نہیں کر سکے"
-    },
     "detail": {
       "loading": "ذخیرہ لوڈ ہو رہا ہے…",
       "notFoundTitle": "ذخیرہ نہیں ملا",
@@ -673,66 +485,7 @@
         "sketch": "خاکہ"
       },
       "sketchFailed": "خاکہ لوڈ نہیں ہو سکا۔",
-      "openSketch": "خاکہ کھولیں",
-      "newDrawer": "نیا ڈرائر",
-      "newDrawerPlaceholder": "ڈرائر کا نام",
-      "drawerSaveError": "ڈرائر محفوظ نہیں کر سکے",
-      "drawerRenameError": "ڈرائر کا نام نہیں بدل سکے",
-      "renameDrawerLabel": "ڈرائر کا نام بدلیں",
-      "moveError": "چیز منتقل نہیں کر سکے",
-      "archive": "ذخیرہ",
-      "archiveError": "چیز کو ذخیرہ نہیں کر سکے",
-      "archiveWarning": "یہ چیز {cookCount, plural, =1 {1 cook} other {# cooks}} میں ظاہر ہوتی ہے۔ حوالہ جات محفوظ مواد کے لیے حل ہوتے ہیں۔ جاری رکھیں؟",
-      "archiveProceed": "بہر حال محفوظ کریں",
-      "archiveCancel": "منسوخ کریں",
-      "addItem": "+ شامل کریں",
-      "agentTypesFooter": "اسکرپٹس اور contextmap پوائنٹرز آپ کے ایجنٹ کے ذریعے شامل کیے جاتے ہیں۔",
-      "picker": {
-        "text": "نیا متن بلاک",
-        "image": "تصویر اپ لوڈ کریں",
-        "svg": "SVG شامل کریں",
-        "link": "لنک پیسٹ کریں",
-        "sketch": "خاکہ منتخب کریں"
-      },
-      "panel": {
-        "save": "محفوظ کریں",
-        "cancel": "منسوخ کریں",
-        "saving": "محفوظ کیا جا رہا ہے…",
-        "saveError": "محفوظ نہیں کر سکے",
-        "titleLabel": "عنوان (اختیاری)",
-        "titlePlaceholder": "مختصر لیبل",
-        "sourceUrlLabel": "ذریعہ URL (اختیاری)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "ترتیب",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "سادہ متن",
-        "bodyLabel": "بدن",
-        "bodyPlaceholder": "ٹائپ کریں یا پیسٹ کریں…",
-        "preview": "جھلک",
-        "previewEmpty": "پیش نظارہ کے لیے ٹائپ کریں۔",
-        "tooLong": "مواد {limit, number} حروف کی حد سے تجاوز کرتا ہے۔",
-        "imagePick": "تصویر منتخب کریں",
-        "imageDrop": "یا یہاں فائل ڈالیں",
-        "imageTooLarge": "تصویر {limit, number} MB کی حد سے تجاوز کرتی ہے۔",
-        "imageBadMime": "تصویر کی فائل نہیں ({mime})۔",
-        "imageBadDimensions": "تصویر کے طول و عرض نہیں پڑھ سکے۔",
-        "altLabel": "متبادل متن (اختیاری)",
-        "altPlaceholder": "تصویر میں کیا ہے؟",
-        "svgPaste": "SVG پیسٹ کریں",
-        "svgUpload": "یا .svg اپ لوڈ کریں",
-        "svgBadShape": "SVG بدن <?xml یا <svg سے شروع ہونا چاہیے۔",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL پارز نہیں ہوتا۔",
-        "urlTitleRequired": "لنک کی چیزوں کے لیے عنوان ضروری ہے۔",
-        "descriptionLabel": "تفصیل (اختیاری)",
-        "descriptionPlaceholder": "یہ کیوں اہم ہے…",
-        "sketchSearchPlaceholder": "خاکے تلاش کریں…",
-        "sketchEmpty": "ابھی کوئی خاکہ نہیں۔ اپنے ایجنٹ سے create_sketch کے ساتھ ایک بنانے کے لیے کہیں۔",
-        "sketchNoMatch": "کوئی خاکہ اس تلاش سے مماثل نہیں۔",
-        "sketchPicked": "منتخب"
-      }
+      "openSketch": "خاکہ کھولیں"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant اس خاکے کو پارز نہیں کر سکا۔",
     "frameFailed": "یہ منظر لوڈ نہیں ہوا۔",
-    "renameLabel": "خاکے کا نام بدلیں",
-    "renamePlaceholder": "خاکے کا عنوان",
-    "renameSave": "محفوظ کریں",
-    "renameSaveNew": "نئے خاکے کے طور پر محفوظ کریں",
-    "renameCancel": "منسوخ کریں",
-    "renameEmpty": "عنوان خالی نہیں ہو سکتا",
     "associationTags": {
       "plan": "منصوبہ",
       "research": "تحقیق"
@@ -771,45 +518,21 @@
       "selectPrompt": "چلانے کے لیے بائیں طرف ٹریک منتخب کریں۔",
       "invalidManifest": "یہ ترکیب پارز نہیں کی جا سکی۔",
       "openNewTab": "اسٹوڈیو کھولیں",
-      "renameLabel": "ٹریک کا نام بدلیں",
-      "renamePlaceholder": "ٹریک کا عنوان",
-      "renameSaveNew": "نئے ٹریک کے طور پر محفوظ کریں",
       "exportWav": "Export .wav",
       "exportMidi": "Export .mid"
     },
     "folder": {
-      "newFolderButton": "نیا فولڈر",
-      "newFolderTitle": "نیا فولڈر",
-      "namePlaceholder": "فولڈر کا نام",
       "create": "بنائیں",
       "cancel": "منسوخ کریں",
-      "rename": "فولڈر کا نام بدلیں",
-      "renameSave": "محفوظ کریں",
       "delete": "فولڈر حذف کریں",
-      "deleteConfirm": "یہ فولڈر حذف کریں؟ اس میں خاکے جڑ میں واپس چلے جائیں گے۔",
       "rootCrumb": "تمام خاکے",
       "back": "واپس",
       "sketchCount": "{count, plural, =0 {خالی} =1 {1 خاکہ} other {# خاکے}}",
       "foldersHeader": "فولڈرز",
       "rootHeader": "خاکے",
-      "inFolderHint": "اس فولڈر کو دیکھتے ہوئے جو نئے خاکے آپ بنائیں گے وہ یہاں خود بخود آئیں گے۔",
-      "emptyFolder": "یہ فولڈر خالی ہے۔ خاکہ بنائیں یا ایک کو یہاں سے جڑ سے منتقل کریں۔",
+      "emptyFolder": "یہ فولڈر خالی ہے۔",
       "moveSourceFolder": "{name} میں",
       "moveSourceRoot": "جڑ میں"
-    },
-    "select": {
-      "enter": "منتخب کریں",
-      "exit": "مکمل",
-      "count": "{count, plural, =0 {کوئی منتخب نہیں} =1 {1 منتخب} other {# منتخب}}",
-      "moveTo": "یہاں منتقل کریں…",
-      "moveToRoot": "جڑ میں منتقل کریں",
-      "moveSuccess": "{count, plural, =1 {1 خاکہ منتقل} other {# خاکے منتقل}}",
-      "moveError": "منتقلی ناکام: {error}",
-      "selectAll": "تمام کو منتخب کریں",
-      "clear": "صاف کریں",
-      "delete": "حذف کریں",
-      "deleteConfirm": "{count, plural, =1 {1 خاکہ حذف کریں؟} other {# خاکے حذف کریں؟}} یہ واپس نہیں کیا جا سکتا۔",
-      "deleteError": "حذف ناکام: {error}"
     },
     "viewToggle": {
       "split": "تقسیم شدہ منظر",
@@ -820,72 +543,6 @@
       "move": "منتقل کریں",
       "delete": "حذف کریں",
       "deleteOneConfirm": "\"{title}\" حذف کریں؟ یہ واپس نہیں کیا جا سکتا۔"
-    }
-  },
-  "map": {
-    "title": "نقشہ",
-    "subtitle": "پورا بیڑا دستہ دو طیاروں پر — ایپس زمین پر، MCP سرورز اور منسلک خدمات ہوا میں، خدمت سے MCP تار کے ساتھ۔",
-    "loading": "لوڈ ہو رہا ہے…",
-    "refresh": "تازہ کریں",
-    "error": "بیڑے دستے کا نقشہ لوڈ نہیں کر سکے",
-    "empty": "ابھی نقشے پر کچھ نہیں — ایپ کی نقشہ بندی کریں یا اپنی MCP فہرست کا اعلان کریں۔",
-    "counts": {
-      "apps": "ایپس",
-      "servers": "MCP سرورز",
-      "services": "منسلک خدمات"
-    },
-    "legend": {
-      "air": "ہوا",
-      "ground": "زمین",
-      "servers": "MCP سرورز",
-      "services": "منسلک خدمات",
-      "apps": "ایپس"
-    }
-  },
-  "mcpSkills": {
-    "title": "جڑے ہوئے خدمات",
-    "subtitle": "منسلک خدمات: میزبان صلاحیتیں اور مادہ شدہ MCP-orbit کے بہاؤ، جو MCP سرورز کے خلاف دکھائے جاتے ہیں جو وہ کال کرتے ہیں۔",
-    "loading": "لوڈ ہو رہا ہے...",
-    "refresh": "تازہ کریں",
-    "error": "منسلک خدمات لوڈ نہیں کر سکے",
-    "empty": "ابھی کوئی منسلک خدمت نہیں۔ میزبان صلاحیتوں کا اعلان کریں یا MCP-orbit کی ترکیب کو مادہ بنائیں۔",
-    "backToList": "منسلک خدمات پر واپس جائیں",
-    "backToService": "منسلک خدمت پر واپس جائیں",
-    "notFound": "منسلک خدمت نہیں ملی۔",
-    "viewGraph": "گراف دیکھیں",
-    "present": "موجود",
-    "missing": "غائب",
-    "counts": {
-      "servers": "MCP سرورز",
-      "services": "منسلک خدمات"
-    },
-    "table": {
-      "name": "نام",
-      "form": "فارم",
-      "calls": "کالیں",
-      "updated": "اپڈیٹ شدہ"
-    },
-    "forms": {
-      "catalyst": "Catalyst صلاحیت",
-      "manual": "دستی صلاحیت",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "name": "نام",
-      "ref": "حوالہ",
-      "kind": "قسم",
-      "form": "فارم",
-      "updated": "اپڈیٹ شدہ",
-      "hostPath": "میزبان کا راستہ",
-      "catalyst": "Catalyst",
-      "composition": "ترکیب",
-      "calls": "کالیں",
-      "noCalls": "کوئی MCP کالیں اعلان نہیں کی گئیں۔",
-      "needs": "ضروریات",
-      "components": "اجزاء",
-      "knobs": "نابس",
-      "graphSubtitle": "منسلک خدمات کے آئینے، مادہ شدہ ترکیبوں، اور موجودہ MCP فہرست سے اخذ شدہ۔"
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "رینڈر بے",
     "subtitle": "جو کچھ mojulo بنا رہا ہے، ایک ہی جگہ: پائیدار امیج-رینڈر قطار، GI بیکس، اور ڈسک پر موجود کُکس اور برآمدات۔ “کچھ بن رہا ہے” کہنے کے چار طریقے جن کا پہلے کوئی مشترکہ ٹھکانہ نہیں تھا۔",
-    "readOnly": "بے صرف حالت دکھاتا ہے۔ یہاں ہر عمل ایک اشارہ ہے جسے آپ اپنے ایجنٹ میں نقل کرتے ہیں — رینڈر قبول کرنا، دنیا کو دوبارہ بیک کرنا، اور برآمد بنانا سب MCP ٹولز سے ہوتا ہے، کبھی اس صفحے سے نہیں۔",
     "refresh": "تازہ کریں",
     "loading": "لوڈ ہو رہا ہے…",
     "allLanes": "تمام لینز",
-    "copyPrompt": "اشارہ کی نقل کریں",
-    "copied": "نقل کیا گیا",
-    "copyFailed": "نقل نہیں ہو سکا — متن منتخب کر کے خود نقل کریں",
     "showing": "{total} میں سے {shown} دکھائے جا رہے ہیں",
     "queue": {
       "title": "رینڈر قطار",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "مصنوع کھولیں →",
-    "copied": "نقل کیا گیا",
-    "copyFailed": "نقل نہیں ہو سکا — متن منتخب کر کے خود نقل کریں",
     "shelves": "لائبریری",
     "bays": "کارگاہ",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "مثلثوں کی گنتی: export_model"
     },
     "inspector": {
-      "askTitle": "ایجنٹ سے کہیں",
-      "askBody": "ڈیش بورڈ صرف حالت دکھاتا ہے؛ کبھی تبدیل نہیں کرتا۔ اس ترکیب میں تبدیلی آپ کے میزبان ایجنٹ میں ہوتی ہے۔",
-      "askCopy": "اشارہ کی نقل کریں",
       "bound": "منسلک مصنوعات",
       "boundEmpty": "ابھی کچھ منسلک نہیں — اس ترکیب کے لیے ڈسک پر کوئی رینڈر، میش، یا برآمد نہیں۔",
       "openFolder": "outcome فولڈر کھولیں · {size}",
@@ -1110,8 +758,6 @@
     "empty": "اس پہلو یا تلاش سے کچھ میل نہیں کھاتا۔",
     "emptyShelf": "{shelf} میں ابھی کچھ نہیں بنایا گیا۔",
     "emptyShelfHint": "اپنے ایجنٹ سے ایک بنانے کو کہیں — الفاظ get_sketch_vocab میں ہیں۔",
-    "copied": "نقل کیا گیا",
-    "copyFailed": "نقل نہیں ہو سکا — خود منتخب کریں",
     "notExportable": "کوئی میش برآمد نہیں — یہ مصنوع ڈایاگرام کے طور پر رینڈر ہوتی ہے، چلنے کے قابل ماڈل نہیں۔",
     "stack": "×{n}",
     "seed": "سیڈ {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "پینٹ شدہ · بیرونی ورکر · سکافولڈ ترکیب خودمختار ہے",
-    "mintMissing": "ایجنٹ سے کہیں: {piece} بنائیں",
-    "mintPrompt": "mojulo کے کردار “{name}” (مصنوع {ref} دیکھیں) کے لیے غائب {piece} بنائیں۔ متعلقہ ٹول استعمال کریں (create_sprite_sheet / bind_character_sheet / figure ٹولز) — پہلے get_sketch_vocab پڑھیں۔",
     "facets": {
       "scenes": {
         "walkable": "چلنے کے قابل",

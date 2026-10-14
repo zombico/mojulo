@@ -5,11 +5,20 @@
  * decorated with the manifest facts the menu shows (level count, tagline,
  * theme accents, music presence) and — when a game project claims the game as
  * its `rules` member — the project chip (title / status / gp_ ref, newest
- * claim wins). Pure projection: the arcade renders state and launches the
- * game shell; authoring stays with the host agent (create_game).
+ * claim wins). Each cabinet says where it came from (`source`): a gameworld's
+ * run (`world`, with the world's ref), a quick game (`quick`, the same), a
+ * pixelizer reducer (`pixel`), a game project's rules (`project`), or
+ * create_game alone (`game`), and what it was shipped as (`shipped`: the
+ * self-contained page export_game wrote, and its Godot pack, when on disk).
+ * Pure projection: Play renders state and launches the game shell; authoring
+ * stays with the host agent.
  */
 
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 import { NextResponse } from 'next/server';
+
+import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 
 import { getDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
@@ -37,10 +46,32 @@ function projectClaims() {
   return byRef;
 }
 
+// game ref → the gameworld whose run made it: { world, quick }
+function worldGames() {
+  const byGame = new Map();
+  for (const row of SketchRepository.listByKinds({ kinds: ['gameworld'], limit: 2000 })) {
+    const game = row.manifest?.made?.game?.ref;
+    if (typeof game === 'string') byGame.set(game, { world: row.ref, quick: !!row.manifest.quick });
+  }
+  return byGame;
+}
+
+// what export_game left on disk for a game: its self-contained page, its Godot project
+function shippedOf(ref) {
+  const dir = outcomeDirFor(ref), url = outcomeUrlFor(ref);
+  return {
+    html: existsSync(path.join(dir, 'game.html')) ? `${url}game.html` : null,
+    godot: existsSync(path.join(dir, 'godot')) ? `${url}godot` : null,
+  };
+}
+
+const sourceOf = (manifest, made, claim) => (made ? (made.quick ? 'quick' : 'world') : manifest.engine === 'pixelizer' ? 'pixel' : claim ? 'project' : 'game');
+
 export async function GET() {
   try {
     const games = SketchRepository.list({ bucket: 'game' });
     const claims = projectClaims();
+    const worlds = worldGames();
     const cabinets = games.map((sketch) => {
       const manifest = sketch.manifest || {};
       return {
@@ -51,6 +82,9 @@ export async function GET() {
         theme: manifest.theme ?? null,
         hasMusic: Boolean(manifest.music),
         project: claims.get(sketch.ref) ?? null,
+        source: sourceOf(manifest, worlds.get(sketch.ref), claims.get(sketch.ref)),
+        world: worlds.get(sketch.ref)?.world ?? null,
+        shipped: shippedOf(sketch.ref),
         playUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/game`,
         createdAt: sketch.createdAt ?? null,
       };
