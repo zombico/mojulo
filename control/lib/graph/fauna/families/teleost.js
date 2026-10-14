@@ -202,8 +202,8 @@ export const species = {
   // kept v1; 1006 upgrade v4 (gaping jaw, blunter snout, low even fins, flatter body) vs v1 SPLIT (v4 80% order1, v1 70% order2) → tie, v1 kept
   morayEel: fish({
     skeleton: 'bony', name: 'a green moray eel', length: 1.8, Z: 0.5,
-    body: [[-0.37, 0.008, 0.018], [-0.3, 0.014, 0.026], [-0.18, 0.019, 0.03], [-0.04, 0.022, 0.032], [0.08, 0.024, 0.032], [0.18, 0.024, 0.03], [0.24, 0.022, 0.027]],
-    head: { scale: 0.34, len: 0.085, taper: [1.5, 0.6], snout: 0.0, eye: { at: 0.22, h: 0.65, r: 0.16 }, mouth: 'terminal', gill: false },
+    body: [[-0.37, 0.004, 0.011], [-0.3, 0.008, 0.019], [-0.18, 0.013, 0.026], [-0.04, 0.017, 0.031], [0.08, 0.02, 0.034], [0.18, 0.022, 0.036], [0.24, 0.023, 0.036]],
+    head: { scale: 0.42, len: 0.1, taper: [1.5, 0.6], snout: 0.0, eye: { at: 0.22, h: 0.65, r: 0.16 }, mouth: 'terminal', gill: false },
     caudal: { kind: 'rounded', from: -0.36, len: 0.035, spread: 0.02, w: 0.012 },
     dorsal: [[0.2, 0.004], [0.17, 0.016], [0.0, 0.02], [-0.18, 0.02], [-0.3, 0.017], [-0.36, 0.01]],
     anal: [[-0.02, 0.004], [-0.05, 0.013], [-0.2, 0.015], [-0.32, 0.013], [-0.36, 0.008]],

@@ -36,6 +36,11 @@ redraws with the new numbers on its next read.
 - **Crocodilians and lizards** sprawl less wide: the crocodile's and alligator's elbows and knees, and the monitor's,
   the iguana's and the gecko's, come in toward the body (their feet stood out near twice the trunk's width), and the
   crocodilian and monitor trunks are deeper, the armour rows and the crest lifted with them.
+- **Single fixes** where one species failed to read: the triceratops' frill seats on the back of its skull and sweeps
+  back, where it stood as a sail over the neck; the diplodocus raises its neck so its head shows; the rattlesnake's
+  raised neck meets its coil (a piece of the body was missing, leaving the head afloat); the skunk's plume arches over
+  its back at about a third of its old size (it towered over the animal); the moray tapers from a deep head end to a
+  thin tail instead of a cucumber's even girth.
 - `legScale` works on a biped: a bird has no fore leg chain, and its body now drops by its hind legs alone (it went
   to NaN). A four-legged species builds exactly as before.
 - `scripts/fauna-lineup.mjs`: species or whole families as flat-shaded contact sheets (side, rear three-quarter,

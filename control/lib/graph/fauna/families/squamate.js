@@ -141,7 +141,7 @@ export const species = {
   // keratin beads at the lifted tail tip, the tail above it ringed black and white · grey-brown with dark DIAMONDS down
   // the back · ~1.2 m long (Wikipedia: adults commonly 1.2 m, max ~2.1 m), head ~5 cm.
   rattlesnake: serpentMaker({ name: 'a western diamondback rattlesnake', n: 84, girth: [0.036, 0.03], profile: [[0, 0.45], [0.15, 0.9], [0.35, 1.05], [0.8, 0.9], [0.95, 0.45], [1, 0.32]],
-    path: { kind: 'coil', height: 0.2, neck: [[-0.05, 0.16], [-0.02, 0.11], [-0.07, 0.05], [-0.1, 0.0]], centre: [0, -0.17], r: [0.07, 0.165], turns: 1.25,
+    path: { kind: 'coil', height: 0.2, neck: [[-0.03, 0.16], [-0.04, 0.11], [-0.08, 0.05], [-0.1, 0.0]], centre: [0, -0.17], r: [0.07, 0.165], turns: 1.25,
       lift: [[-0.17, -0.12, 0.02], [-0.175, -0.1, 0.05]] },
     head: { shape: 'viper', scale: 0.21, eyeR: 0.0065, eyeStyle: 'set' }, tail: { kind: 'rattle', beads: 7 },
     pattern: [
