@@ -62,6 +62,13 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
     palette and the stage (the same on every run), in the world's palette.
   - `pick_palette` answers `pixel` palettes at the 8bit and 16bit budgets, and `create_pixelizer_game` takes a
     `palette` for its accents.
+- **The ground**: the palette reaches the land's own colours, and the bake then lights them as before.
+  - A terrain world's `palette` gives a painted terrain its soil, stone, scree and every stratum.
+  - A composed world (`world: { features }`) takes its forest, lowland, highland, rock, snow (cool in shade, warm in
+    light), sand, silt, water, deep and sky from the palette. Its climate keeps the snowline and treeline.
+  - On an isekai kit the ground's starting tints (grass, trail, scree, crowns, wood) now come from the ramps the
+    palette made, so the ground is painted in them rather than pulled onto them.
+  - Heights are never touched, and a terrain world without a palette is byte-identical.
 - **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
   only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
   gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the

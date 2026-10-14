@@ -26,6 +26,13 @@ export function paletteLook(spec, { base = 'isekai-meadow', name } = {}) {
   try { c = D.start(K.spec.seed ?? 1, base); } catch (err) { throw new Error(`palette: ${err.message.replace(/^tunnel: land: /, '')}; a palette recolours a kit with land ramps`); }
   c = clone(c);
   c.swatches = landSwatches(K, c.swatches);
+  // the plain tints the ground's bake starts from (then locked onto its ramp): drawn from the ramp each group is locked
+  // to, a stop above its middle as the card's own are, so a recoloured ground is painted, not pulled, into its ramp
+  const T = c.facets.palette?.tint, lock = c.facets.palette?.lock ?? {};
+  if (T) for (const g of Object.keys(T)) {
+    const r = c.swatches.land[lock[`isekai:${g}`]];
+    if (r) T[g] = r[Math.round(0.7 * (r.length - 1))].map((v) => Math.round((v / 255) * 1000) / 1000);
+  }
   c.facets.sky.light = lightOf(K, c.facets.sky.light);
   c.hazeFromFar = true;
   // the tunnel's laws, and its own fixes for what fails (a ramp sorted, a shade lifted, the far layers laid again)

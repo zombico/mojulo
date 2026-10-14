@@ -5,6 +5,9 @@ import { gameTheme, coverPalette, landSwatches, interiorPalette } from './adapte
 import { paletteLook } from './look.js';
 import { stampWorldPalette, stampInteriorPalette, stampLookPalette } from './stamp.js';
 import { resolveLookSpec } from '../era/look.js';
+import { terrainField } from '../terrain/terrain-field.js';
+import { atlasField, ATLAS_CLIMATES } from '../terrain/terrain-atlas.js';
+import { stampTerrainPalette } from './stamp.js';
 import { SIXTH_GEN_LOOK_IDS } from '../era/sixth-gen.js';
 import { compileInterior, interiorErrors } from '../interior/compile.js';
 import { STYLE_CARDS } from '../interior/styles.js';
@@ -244,5 +247,40 @@ describe('a sixth-gen look in a palette', () => {
     expect(stampLookPalette({ kind: 'x', look: { id: 'gothic-night', palette: 'auto' } }, () => 6).look.palette).toEqual({ seed: 6 });
     const m = { kind: 'x', look: { id: 'gothic-night', palette: { seed: 2 } } };
     expect(stampLookPalette(m, () => 6)).toBe(m);
+  });
+});
+
+describe('the ground in a palette', () => {
+  const FROM = { heartbeat: 'rocky-irregular', splatch: 'verdure-trio', seed: 'field',
+    landform: [{ op: 'scarp', path: [[-16, -6], [16, -9]], throw: 3, side: 'right' }, { op: 'strata', thickness: 0.6 }, { op: 'talus', retreat: 0.3 }] };
+  it('a painted terrain\'s soil, stone, scree and every bed are the palette\'s; its height is not touched; absent, as it was', () => {
+    const plain = terrainField({ from: FROM, detail: false }), worn = terrainField({ from: FROM, detail: false, palette: { seed: 3 } });
+    expect(worn.K.ramps.beds).toHaveLength(plain.K.ramps.beds.length);
+    expect(worn.K.ramps.soil.stops).not.toEqual(plain.K.ramps.soil.stops);
+    expect(worn.heightAt(3, 4)).toBe(plain.heightAt(3, 4));
+    const n = worn.normalAt(3, 4, 0.5), z = worn.heightAt(3, 4);
+    expect(worn.colorAt(3, 4, z, n)).not.toEqual(plain.colorAt(3, 4, z, n));
+    expect(JSON.stringify(terrainField({ from: FROM, detail: false }).K.ramps)).toBe(JSON.stringify(plain.K.ramps));
+    expect(() => terrainField({ from: FROM, palette: { heat: 9 } })).toThrow(/palette.heat is −1 to 1/);
+  });
+  it('a composed world keeps its climate\'s snowline and treeline; its ground and sky are the palette\'s', () => {
+    const W = { features: [{ feature: 'lake', size: 'tarn' }], seed: 'ground' };
+    const plain = atlasField({ world: W }), worn = atlasField({ world: W, palette: { seed: 3, key: 'high' } });
+    expect(worn.K.zones).toEqual(plain.K.zones);
+    expect(Object.keys(worn.K.ramps).sort()).toEqual(Object.keys(ATLAS_CLIMATES.temperate.ramps).sort());
+    expect(worn.K.ramps.low.stops).not.toEqual(plain.K.ramps.low.stops);
+    expect(worn.meta.sky.zenith).not.toEqual(plain.meta.sky.zenith);
+    expect(worn.meta.sky.day).toBe(plain.meta.sky.day);
+    expect(plain.K.ramps).toBe(ATLAS_CLIMATES.temperate.ramps);
+  });
+  it('an isekai ground\'s bake starts from the palette\'s own ramps, not the card\'s tints', () => {
+    const [kit] = kitsByAccent(), L = paletteLook({ seed: 31 }, { base: kit, name: 'tint' }), card = lookOf(L.id).card;
+    const grass = lookOf(L.id).swatches.land.grass;
+    expect(card.tint.ground).toEqual(grass[Math.round(0.7 * (grass.length - 1))].map((v) => Math.round((v / 255) * 1000) / 1000));
+  });
+  it('stamped: a terrain palette with no seed gets one; a terrain world names its palette or keeps its painting\'s', () => {
+    expect(stampTerrainPalette({ kind: 'terrain', palette: 'auto' }, () => 5).palette).toEqual({ seed: 5 });
+    const m = { kind: 'terrain', from: {} };
+    expect(stampTerrainPalette(m, () => 5)).toBe(m);
   });
 });

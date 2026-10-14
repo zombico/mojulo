@@ -13,6 +13,7 @@
  *   resolveArtPalette(manifest, fresh) → a room stage whose `art.palette` is { from: spec } given its ramps, solved
  *   resolveTonePalette(manifest, fresh) → a stage whose `tone` is { preset?, from: spec } given the preset's ramps, solved
  *   stampLookPalette(manifest, fresh) → a world whose `look.palette` has no seed given one
+ *   stampTerrainPalette(manifest, fresh) → a terrain world whose `palette` has no seed given one
  *   freshPaletteSeed()
  *
  * `fresh` is injectable for tests.
@@ -81,4 +82,13 @@ export function stampLookPalette(manifest, fresh = freshPaletteSeed) {
   const L = isObj(manifest) ? manifest.look : undefined, p = isObj(L) ? L.palette : undefined;
   if (!(p === 'auto' || (isObj(p) && p.seed === undefined))) return manifest;
   return { ...manifest, look: { ...L, palette: { ...(isObj(p) ? p : {}), seed: fresh() } } };
+}
+
+/** A terrain world's palette (`kind: 'terrain'`, `palette`): its seed rolled here when it has none. Opt-in: a terrain
+ * world's colours are its painting's (or its climate's) unless it names a palette. */
+export function stampTerrainPalette(manifest, fresh = freshPaletteSeed) {
+  if (!isObj(manifest) || manifest.kind !== 'terrain') return manifest;
+  const p = manifest.palette;
+  if (!(p === 'auto' || (isObj(p) && p.seed === undefined))) return manifest;
+  return { ...manifest, palette: { ...(isObj(p) ? p : {}), seed: fresh() } };
 }

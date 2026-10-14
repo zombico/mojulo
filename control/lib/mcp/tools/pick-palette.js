@@ -31,7 +31,7 @@ export function pickPaletteHandler(input = {}) {
   return {
     ok: true,
     palettes,
-    use: 'Pass a `palette` (the spec) on: design_game world.style.palette (recolours the land from its kit or look, and skins the game\'s HUD), create_game palette, create_cover palette, design_interior palette (the room\'s 60-30-10, its card\'s forms kept), a room stage\'s art: { palette: { from: spec } } or tone: { preset?, from: spec }, a world\'s look: { id, palette: spec }, create_pixelizer_game palette; `pixel` holds palettes at the 8bit and 16bit budgets. Change what it read (heat, weight, activity, scheme, key, hue, hues, lock) or the seed to move it; the same spec always solves the same.',
+    use: 'Pass a `palette` (the spec) on: design_game world.style.palette (recolours the land from its kit or look, and skins the game\'s HUD), create_game palette, create_cover palette, design_interior palette (the room\'s 60-30-10, its card\'s forms kept), a room stage\'s art: { palette: { from: spec } } or tone: { preset?, from: spec }, a world\'s look: { id, palette: spec }, a terrain world\'s palette (its soil, rock, strata, snow, water and sky; the shape kept), create_pixelizer_game palette; `pixel` holds palettes at the 8bit and 16bit budgets. Change what it read (heat, weight, activity, scheme, key, hue, hues, lock) or the seed to move it; the same spec always solves the same.',
   };
 }
 
