@@ -295,9 +295,9 @@ export function rampOf(contract, role, n) {
   if (!C.P[role]) throw new Error(`palette: '${role}' is not a role (${PALETTE_ROLES.join(', ')})`);
   return rampAt(C.P[role], n, C.Hl, C.Hs);
 }
-/** A ramp off one of the contract's hues, for a kit ramp the palette has no role for (a blossom, a glow): its hue
- * turned by `turn` degrees from the role's, the role's band and chroma kept. */
-export function rampNear(contract, role, n, turn = 0) {
+/** A ramp off one of the contract's roles, for a ramp the palette has no role for (a blossom, a glow, a vault): its
+ * hue turned by `turn` degrees, its band moved by `dL` and its chroma scaled by `kC`. */
+export function rampNear(contract, role, n, turn = 0, { dL = 0, kC = 1 } = {}) {
   const C = contract.params, p = C.P[role];
-  return rampAt({ ...p, h: wrapHue(p.h + turn), exact: undefined }, n, C.Hl, C.Hs);
+  return rampAt({ ...p, h: wrapHue(p.h + turn), L: [clamp(p.L[0] + dL, 0.2, 0.9), clamp(p.L[1] + dL, 0.3, 0.97)], C: p.C * kC, exact: undefined }, n, C.Hl, C.Hs);
 }

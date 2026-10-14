@@ -389,7 +389,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-14 (209_900 -> 212_600; measured 212,339) for the color theorist: one new tool, pick_palette (a palette
 // solved for what a world is: key, chroma, scheme, ramps, checks), and a `palette` on create_game (the HUD solved
 // under the theme) and create_cover (a spec beside the { bg, accent, ink } it took).
-const PAYLOAD_CEILING = 212_600;
+// Re-pinned 2026-10-14 (212_600 -> 212_900; measured 212,673) for the color theorist's C2: design_interior's `palette`
+// (a room's 60-30-10 solved, its card's forms kept) and pick_palette naming it and a stage's art.palette.from.
+const PAYLOAD_CEILING = 212_900;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

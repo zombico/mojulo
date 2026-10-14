@@ -11,6 +11,8 @@
 import { STYLE_CARDS, DEFAULT_STYLE, LANGUAGE_STYLE } from './styles.js';
 import { PIECES } from './pieces.js';
 import { colourHex } from './palette.js';
+import { readPaletteSpec, solvePalette } from '../color-theorist/solve.js';
+import { interiorPalette } from '../color-theorist/adapters.js';
 import { FURNITURE_KINDS, FURNITURE_STYLES, resolveFurniture } from '../furnishings/forms.js';
 import { FABRIC_PRESETS } from '../construction/fabric.js';
 import { FINISHES as TIMBER_FINISHES } from '../construction/timber.js';
@@ -26,16 +28,25 @@ const DARK_FINISH = { sumi: '#2b2724', urushi: '#3a1f18', yakisugi: '#262320' };
 const ACCENT_IDS = /^(conversation\.chair-|reading\.chair)/;
 const ACCENT_TABLE = /^conversation\.coffee-table/;
 
-/** The card a room is dressed in: the asked style, else the house's furniture language's nearest, else the default. */
-export function styleCard(style, house = {}) {
+/** The card a room is dressed in: the asked style, else the house's furniture language's nearest, else the default.
+ * Its colours: the card's, then a palette solved for the room (color-theorist; the interior's `palette`), then the
+ * operator's own words over both. */
+export function styleCard(style, house = {}, palette = undefined) {
   const name = typeof style === 'string' ? style : style?.name;
   const base = STYLE_CARDS[name] || STYLE_CARDS[LANGUAGE_STYLE[house.furnitureLanguage]] || STYLE_CARDS[DEFAULT_STYLE];
   const id = STYLE_CARDS[name] ? name : Object.keys(STYLE_CARDS).find((k) => STYLE_CARDS[k] === base);
   const accentName = typeof style === 'object' && style ? style.accent : null;
   const accent = accentName && STYLE_CARDS[accentName] ? { id: accentName, ...STYLE_CARDS[accentName] } : null;
   // the operator's palette words over the card's
-  const palette = { ...base.palette, ...(typeof style === 'object' && style?.palette ? style.palette : {}) };
-  return { id, ...base, palette, accent };
+  const solved = palette && palette !== false ? solvePalette(palette === 'auto' ? {} : palette) : null;
+  const colours = { ...base.palette, ...(solved ? interiorPalette(solved, base.palette) : {}), ...(typeof style === 'object' && style?.palette ? style.palette : {}) };
+  return { id, ...base, palette: colours, accent, ...(solved ? { solved: { id: solved.id, scheme: solved.read.scheme, key: solved.read.key } } : {}) };
+}
+
+/** Why an interior's palette spec is malformed → string[]. */
+export function paletteErrors(palette) {
+  if (palette === undefined) return [];
+  try { readPaletteSpec(palette, 'palette'); return []; } catch (e) { return [e.message]; }
 }
 
 /** Why a style is malformed → string[]. */

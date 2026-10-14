@@ -30,7 +30,7 @@ export function pickPaletteHandler(input = {}) {
   return {
     ok: true,
     palettes,
-    use: 'Pass a `palette` (the spec) on: design_game world.style.palette (recolours the land from its kit or look, and skins the game\'s HUD), create_game palette, create_cover palette. Change what it read (heat, weight, activity, scheme, key, hue, hues, lock) or the seed to move it; the same spec always solves the same.',
+    use: 'Pass a `palette` (the spec) on: design_game world.style.palette (recolours the land from its kit or look, and skins the game\'s HUD), create_game palette, create_cover palette, design_interior palette (the room\'s 60-30-10, its card\'s forms kept), a room stage\'s art: { palette: { from: spec } }. Change what it read (heat, weight, activity, scheme, key, hue, hues, lock) or the seed to move it; the same spec always solves the same.',
   };
 }
 
@@ -38,7 +38,7 @@ export function registerPickPaletteTools() {
   registerTool({
     name: 'pick_palette',
     description:
-      "Solve a colour palette for what a world, game or cover is trying to be, by colour theory instead of a stock kit: value first (the key), a chroma budget, hue relations by scheme, ramps with warm light and cool shadow, then checked (sky brightest, a unique accent, reads in grey, HUD contrast, colour-blind eyes, no clichés, not a stock kit). Read the words into heat (cool −1…warm 1), weight (light −1…heavy 1), activity (calm −1…active 1); the rest is rolled from the seed. Returns each palette's spec (pass it as `palette` to design_game's world.style, create_game, create_cover), role ramps, HUD tokens and checks. Stores nothing.",
+      "Solve a colour palette for what a world, game or cover is trying to be, by colour theory instead of a stock kit: value first (the key), a chroma budget, hue relations by scheme, ramps with warm light and cool shadow, then checked (sky brightest, a unique accent, reads in grey, HUD contrast, colour-blind eyes, no clichés, not a stock kit). Read the words into heat (cool −1…warm 1), weight (light −1…heavy 1), activity (calm −1…active 1); the rest is rolled from the seed. Returns each palette's spec (pass it as `palette` to design_game's world.style, create_game, create_cover, design_interior, or a stage's art.palette.from), role ramps, HUD tokens and checks. Stores nothing.",
     inputSchema: {
       type: 'object',
       properties: {

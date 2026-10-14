@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { oklch, lchOf, hexToRgb, rgbToHex, rgbToOklab, oklabToRgb, contrast, deltaE, simulate, CVD_KINDS } from './oklab.js';
 import { readPaletteSpec, solvePalette, rampOf, PALETTE_SCHEME_IDS, PALETTE_ROLES, PALETTE_LAWS } from './solve.js';
-import { gameTheme, coverPalette, landSwatches } from './adapters.js';
+import { gameTheme, coverPalette, landSwatches, interiorPalette } from './adapters.js';
 import { paletteLook } from './look.js';
-import { stampWorldPalette } from './stamp.js';
+import { stampWorldPalette, stampInteriorPalette } from './stamp.js';
+import { compileInterior, interiorErrors } from '../interior/compile.js';
+import { STYLE_CARDS } from '../interior/styles.js';
 import { SWATCHES } from '../era/style/swatches.js';
 import { lookOf } from '../era/style/looks.js';
 import { STYLE_TOKENS } from '../game/hud-widgets.js';
@@ -164,5 +166,47 @@ describe('the stamp', () => {
   it('an edit keeps the palette the world had, and never gives an old world one', () => {
     expect(stampWorldPalette(world, { style: { palette: { seed: 5 } } }, fresh).style.palette).toEqual({ seed: 5 });
     expect(stampWorldPalette(world, { id: 'w' }, fresh)).toBe(world);
+  });
+});
+
+describe('a room in a palette', () => {
+  const HOUSE = {
+    kind: 'floorplan', title: 'three rooms', windows: true, furnish: true,
+    rooms: [{ x: 0, y: 0, w: 18, h: 14, glyph: 'L' }, { x: 18, y: 0, w: 5, h: 14, glyph: 'H' }, { x: 23, y: 0, w: 12, h: 14, glyph: 'B' }],
+    doors: [{ x: 18, y: 10, edge: 'W' }, { x: 23, y: 4, edge: 'E' }, { x: 20, y: 14, edge: 'S', entry: true }],
+  };
+  // a card whose casework is a material (a wood) and one whose casework is a paint colour
+  const woodCard = Object.keys(STYLE_CARDS).find((k) => /oak|walnut|teak/.test(STYLE_CARDS[k].palette.casework));
+  const paintCard = Object.keys(STYLE_CARDS).find((k) => STYLE_CARDS[k].palette.casework === 'white');
+
+  it('the 60-30-10 from the palette: quiet light walls (dark in a low key), a material casework kept', () => {
+    const hi = interiorPalette(solvePalette({ seed: 3, key: 'high' }), STYLE_CARDS[woodCard].palette), lo = interiorPalette(solvePalette({ seed: 3, key: 'low' }), STYLE_CARDS[paintCard].palette);
+    expect(Object.keys(hi).sort()).toEqual(['accent', 'casework', 'rug', 'trim', 'upholstery', 'walls']);
+    expect(L(hi.walls)).toBeGreaterThan(0.85);
+    expect(L(lo.walls)).toBeLessThan(0.45);
+    expect(hi.casework).toBe(STYLE_CARDS[woodCard].palette.casework);
+    expect(lo.casework).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it('a room keeps its card\'s forms and wears the palette; the operator\'s words win; absent, it is as it was', () => {
+    const room = { kind: 'interior', house: HOUSE, room: 'lounge', style: woodCard };
+    const plain = compileInterior(room, HOUSE).readout.style, K = solvePalette({ seed: 9 });
+    const worn = compileInterior({ ...room, palette: { seed: 9 } }, HOUSE).readout.style;
+    expect(worn.id).toBe(plain.id);
+    expect(worn.solved).toMatchObject({ id: K.id });
+    expect(worn.palette.walls).toBe(interiorPalette(K, STYLE_CARDS[woodCard].palette).walls);
+    expect(worn.palette.walls).not.toBe(plain.palette.walls);
+    expect(compileInterior({ ...room, style: { name: woodCard, palette: { walls: 'sage' } }, palette: { seed: 9 } }, HOUSE).readout.style.palette.walls).toBe('sage');
+    expect(plain.solved).toBeUndefined();
+    expect(interiorErrors({ ...room, palette: { heat: 5 } }).join(' ')).toMatch(/palette.heat is −1 to 1/);
+  });
+
+  it('stamped: a new room naming no style gets one rolled; a style named, or an edit of an old room, is left', () => {
+    const fresh = () => 99, room = { kind: 'interior', house: 'h', room: 'L' };
+    expect(stampInteriorPalette(room, null, fresh).palette).toEqual({ seed: 99 });
+    expect(stampInteriorPalette({ ...room, style: 'japandi' }, null, fresh)).toEqual({ ...room, style: 'japandi' });
+    expect(stampInteriorPalette(room, { kind: 'interior' }, fresh)).toBe(room);
+    expect(stampInteriorPalette(room, { palette: { seed: 4 } }, fresh).palette).toEqual({ seed: 4 });
+    expect(stampInteriorPalette({ kind: 'stage' }, null, fresh)).toEqual({ kind: 'stage' });
   });
 });

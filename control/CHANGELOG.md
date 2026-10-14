@@ -44,6 +44,15 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
   `false` keeps the stock cover colours.
 - **The stored thing is the spec**, and the solver's output for a spec is a compatibility promise (pinned by
   `color-theorist.char.test.js`). Recipes that name a kit, look, theme or cover palette render as before.
+- **Interiors**: `design_interior` takes `palette`. A room keeps its style card's furniture forms, timber and fabrics
+  and wears the palette's 60-30-10: walls in the world's hue (quiet and light, or dark in a low key), trim toward the
+  light, upholstery and rug off the made and foliage hues, the accent. A casework the card gives as a material (oak,
+  walnut, steel) stays that material. `style.palette`'s own words still win. The same spec as a world's gives a room
+  that world's colours. A new room that names no style gets a palette rolled, an edit keeps it, and `false` keeps the
+  card's.
+- **Room stages**: `art: { palette: { from: <spec> } }` solves the stage's art palette (stone, floor, vault, trim, wood,
+  accent and the torch) when the stage is written, and stores the ramps as numbers like any rolled palette, with what
+  they came from. The other art items roll as before, and the art board shows it.
 
 ### Shoot plan: a keyframed camera you can see in the world
 

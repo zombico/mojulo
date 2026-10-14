@@ -10,6 +10,7 @@ import { pickPaletteHandler } from './pick-palette.js';
 import { themeOf } from './create-game.js';
 import { createCoverHandler } from './cover.js';
 import { designGameHandler } from './design-game.js';
+import { designInteriorHandler } from './interior.js';
 import { MEADOWMARK } from '@/lib/graph/gameworld/examples.js';
 import { STYLE_DEFAULTS } from '@/lib/graph/game/hud-widgets.js';
 
@@ -85,5 +86,37 @@ describe('a gameworld\'s palette, settled where it is written', () => {
     const after = SketchRepository.getByRef('gw-dg');
     expect(after.manifest).toEqual(before.manifest);
     expect(after.updated_at ?? after.updatedAt).toEqual(before.updated_at ?? before.updatedAt);
+  });
+});
+
+describe('a room\'s palette, settled where it is written', () => {
+  const section = { room: 'living', size: ['14ft', '18ft'], windows: ['S'], doors: [{ wall: 'W', to: 'hall' }] };
+  it('a new room naming no style gets one rolled and says so; a revision keeps it; a style named is the card\'s', async () => {
+    const r = await designInteriorHandler({ title: 'Rolled room', ref: 'in-rolled', section });
+    const seed = SketchRepository.getByRef('in-rolled').manifest.palette.seed;
+    expect(Number.isInteger(seed)).toBe(true);
+    expect(r.interior.style).toMatch(/in palette pal-/);
+    await designInteriorHandler({ ref: 'in-rolled', brief: { focal: 'window' } });
+    expect(SketchRepository.getByRef('in-rolled').manifest.palette).toEqual({ seed });
+    await designInteriorHandler({ title: 'Japandi room', ref: 'in-card', section, style: 'japandi' });
+    expect(SketchRepository.getByRef('in-card').manifest.palette).toBeUndefined();
+  });
+});
+
+describe('a room stage\'s art palette from a palette', () => {
+  it('art.palette { from } is solved where it is written into the ramps the build reads; the other items roll as ever', async () => {
+    const { starter } = await import('@/lib/graph/era/entries.js');
+    const ROOMS = { ...starter('gothic-stone'), rooms: starter('gothic-stone').rooms.slice(0, 2), links: starter('gothic-stone').links.slice(0, 1) };
+    await createSketchHandler({ title: 'Crypt', ref: 'st-pal', manifest: { ...ROOMS, art: { palette: { from: { heat: -0.4, scheme: 'triad' } } } } });
+    const A = SketchRepository.getByRef('st-pal').manifest.art;
+    expect(A.palette.family).toMatch(/^palette pal-/);
+    expect(Number.isInteger(A.palette.from.seed)).toBe(true);
+    expect(A.palette.from).toMatchObject({ heat: -0.4, scheme: 'triad' });
+    for (const k of ['stone', 'floor', 'vault', 'trim', 'wood', 'accent']) expect(A.palette[k]).toHaveLength(5);
+    expect(A.palette.light).toHaveLength(3);
+    for (const k of ['materials', 'architecture', 'motifs', 'doodads', 'atmosphere']) expect(A[k]).toBeTruthy();
+    // an edit leaves it as stored
+    await updateSketchHandler({ ref: 'st-pal', manifest: { ...SketchRepository.getByRef('st-pal').manifest, title: 'Crypt 2' } });
+    expect(SketchRepository.getByRef('st-pal').manifest.art.palette).toEqual(A.palette);
   });
 });

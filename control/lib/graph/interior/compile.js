@@ -13,7 +13,7 @@
  */
 import { roomShell } from './shell.js';
 import { solveRoom, reviewRoom } from './solve.js';
-import { styleCard, styleErrors, skinPiece, skinSurfaces } from './skin.js';
+import { styleCard, styleErrors, paletteErrors, skinPiece, skinSurfaces } from './skin.js';
 import { PIECES } from './pieces.js';
 import { FEATURES, placeFeature, featureFaces, wallPieceFaces } from './wall-faces.js';
 import { makeRoom } from './place.js';
@@ -49,6 +49,7 @@ export function interiorErrors(m) {
   }
   if (m.room == null || m.room === '') e.push("interior.room: the room to fit out — its tag ('101'), name ('lounge'), role ('living') or glyph ('L')");
   e.push(...styleErrors(m.style));
+  e.push(...paletteErrors(m.palette));
   for (const [i, f] of (m.surface?.features || []).entries()) {
     if (!FEATURES[f?.type]) e.push(`surface.features[${i}].type: one of ${Object.keys(FEATURES).join(', ')}`);
     if (!['N', 'E', 'S', 'W'].includes(f?.wall)) e.push(`surface.features[${i}].wall: 'N' | 'E' | 'S' | 'W'`);
@@ -72,7 +73,7 @@ export function compileInterior(m, house) {
   const errs = interiorErrors(m);
   if (errs.length) throw new Error(`interior:\n- ${errs.join('\n- ')}`);
   const shell = roomShell(house, { room: m.room, level: m.level ?? null });
-  const card = styleCard(m.style, house);
+  const card = styleCard(m.style, house, m.palette);
   // the room's fixed features first: they are the shell's, and the placer keeps clear of them
   const probe = makeRoom({ ...shell, features: [] });
   const placedFeatures = (m.surface?.features || []).map((f, i) => placeFeature(shell, probe, f, i));
@@ -121,7 +122,7 @@ export function compileInterior(m, house) {
       windows: shell.openings.filter((o) => o.kind === 'window').map((o) => ({ mark: o.tag, wall: o.wall, width: r0(o.b - o.a) })),
       ...(shell.alsoMatched ? { alsoMatched: shell.alsoMatched } : {}),
     },
-    style: { id: card.id, label: card.label, line: card.line, ...(card.accent ? { accent: card.accent.id } : {}), palette: card.palette },
+    style: { id: card.id, label: card.label, line: card.line, ...(card.accent ? { accent: card.accent.id } : {}), palette: card.palette, ...(card.solved ? { solved: card.solved } : {}) },
     surfaces: { floor: surfaces.floor, walls: surfaces.walls, ...(surfaces.accentEdge ? { accentWall: surfaces.accentEdge } : {}) },
     focal: { wall: solved.focal.edge, why: solved.focal.why },
     pieces: [
