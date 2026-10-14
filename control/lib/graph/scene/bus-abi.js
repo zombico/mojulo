@@ -36,7 +36,7 @@ export const BUS_ABI = Object.freeze({
   }),
   effects: Object.freeze({
     logic: { about: 'emit, set, inc, toggle, spawn, move on the bus\'s own entities and vars', web: B, godot: B, how: 'the reducer itself, conformance-tested equal' },
-    guarded: { about: 'a reaction that fires only while its predicate holds (a reaction\'s if)', web: B, godot: A, how: 'buildBus reactionMatch; kernel/bus.gd does not read if yet' },
+    guarded: { about: 'a reaction that fires only while its predicate holds (a reaction\'s if)', web: B, godot: B, how: 'kernel/bus.gd _reaction_match reads if as buildBus reactionMatch does, conformance-tested equal (since 0.19.0)' },
     warp: { about: 'a move that sends the walker somewhere (a respawn, a teleport)', web: B, godot: B },
     impulse: { about: 'a push on a physics body', web: B, godot: P, how: 'the bus entity moves; no Godot body is linked to it' },
     hud: { about: 'banners, toasts, readouts and legends (score.hud)', web: B, godot: B, how: 'kernel/hud.gd: the slots, text / counter / bar / clock, banners, stacking toasts, legends, in the guide\'s tokens, font, frame and plate (score.hudStyle); the register\'s motion, sound, cursor and light and a stylized border stay the web\'s' },

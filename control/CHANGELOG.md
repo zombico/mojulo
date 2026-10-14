@@ -813,6 +813,17 @@ stored with its numbers, so recalibrating changes what is made next and never wh
   below; the bare bow goes down in 0.28 s). `emote_figure`'s side GIF plays the emote as minted now.
   The bare wave and bow are pinned byte for byte (`gait-frozen.char.test.js`); `motion-timing.test.js` holds the bands.
 
+### Godot reads a reaction's guard
+
+A Godot export of every quick game found the Godot bus firing guarded reactions unguarded: a race was won by touching
+only its finish line. Seven of the twelve quick goals lower to guarded reactions (race, rhythm, defend, puzzle, farm,
+battle, shoot).
+
+- **The guard.** `kernel/bus.gd` matches a reaction only while its `if` holds, as the web's `reactionMatch` does
+  (kernel 0.19.0). `bus-abi` `effect:guarded` is built in Godot, so the portability flags stop naming it.
+- **Proof.** The conformance corpus gains `guarded` (checkpoints in order and out of order, a guard on an undefined
+  var, a guard flipped by the reaction before it in the same event) and guards on the seeded scenarios' reactions.
+
 ### The hero door: builds, a child's body, and the child guard on the resolved cast
 
 A design trial built one hero at 11 and at 16 through the hero door and found four gaps.
