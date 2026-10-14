@@ -2,7 +2,7 @@
  * THE COLOR THEORIST — a palette solved for what a world is trying to be, instead of picked off a short shelf of kits.
  *
  * A palette SPEC is what a recipe stores: a seed and whatever the agent read from the world's intent —
- *   { seed, intent?, heat?, weight?, activity?, scheme?, key?, hue?, hues?, lock? }
+ *   { seed, intent?, heat?, weight?, activity?, scheme?, key?, hue?, hues?, lock?, shift?, script? }
  * heat (cool −1 … warm 1), weight (light −1 … heavy 1) and activity (calm −1 … active 1) are the three colour-emotion
  * factors that held across cultures (Ou, Luo et al. 2004); the agent reads the words, this file never does. What the
  * spec leaves out is rolled from its seed. The CONTRACT is what the spec solves to, every time the same:
@@ -18,8 +18,10 @@
  *
  *   readPaletteSpec(v, at) → the spec as written, checked (false stays false: the stock look)
  *   solvePalette(spec)     → the contract
+ *   scriptShift(script, i, n) → the shift a world's colour script gives its i-th of n levels (a `shift` moves a palette
+ *                          and keeps its identity: the same seed and candidate, its hues turned, its values moved)
  *   rampOf(contract, role, n) → that role's ramp at n stops ([r, g, b]), for a kit whose ramps are other lengths
- *   PALETTE_SCHEMES, PALETTE_KEYS, PALETTE_ROLES, PALETTE_LAWS
+ *   PALETTE_SCHEMES, PALETTE_KEYS, PALETTE_ROLES, PALETTE_LAWS, PALETTE_SCRIPTS
  *
  * Pure: seeded dice only. The output for a spec is a compatibility promise over every recipe that stores one.
  */
@@ -75,7 +77,39 @@ export const PALETTE_ROLES = Object.freeze(Object.keys(ROLES));
 const LOCKABLE = PALETTE_ROLES.filter((r) => !ROLES[r].derived);
 // how much of a world each role covers, roughly (for the hue-family count)
 const COVER = { sky: 3, cloud: 1, ground: 4, foliage: 2, soil: 1, rock: 1.5, bark: 0.4, made: 1, rope: 0.2 };
-const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock'];
+const SPEC_KEYS = ['seed', 'intent', 'heat', 'weight', 'activity', 'scheme', 'key', 'hue', 'hues', 'lock', 'shift', 'script'];
+// a shift: the same palette moved (its seed, its candidate, its hue relations kept)
+const SHIFT_RANGE = Object.freeze({ turn: [-180, 180, 'degrees every hue turns'], light: [-1, 1, 'toward night (−1) or day (1)'], chroma: [0.25, 2, 'chroma scaled'], warm: [-1, 1, 'hues and the light pulled cool (−1) or warm (1)'] });
+const NEUTRAL = Object.freeze({ turn: 0, light: 0, chroma: 1, warm: 0 });
+
+/** COLOUR SCRIPTS: a world's palette moved level by level along an arc (keyframes at 0…1 over the world's levels, in
+ * their written order), the way a film's colour script moves one palette through its acts. */
+export const PALETTE_SCRIPTS = Object.freeze({
+  dusk: { says: 'day into night: gold at the middle, a cool dark at the end', keys: [[0, {}], [0.5, { warm: 0.6, light: -0.2, chroma: 1.15 }], [1, { warm: -0.5, light: -0.8, chroma: 0.75 }]] },
+  dawn: { says: 'night into day: a cool dark first, gold, then the day', keys: [[0, { warm: -0.5, light: -0.8, chroma: 0.75 }], [0.5, { warm: 0.6, light: -0.2, chroma: 1.15 }], [1, {}]] },
+  descent: { says: 'deeper and quieter: each level darker, colder and greyer', keys: [[0, {}], [1, { light: -0.8, chroma: 0.6, warm: -0.4 }]] },
+  thaw: { says: 'cold and grey to warm and full', keys: [[0, { warm: -0.8, chroma: 0.45, light: 0.25 }], [1, { warm: 0.5, chroma: 1.5 }]] },
+  fever: { says: 'rising: louder, hotter and darker toward the end', keys: [[0, {}], [1, { chroma: 1.5, warm: 0.5, light: -0.3, turn: -20 }]] },
+  journey: { says: 'the hues travel a third of the wheel; the values hold', keys: [[0, {}], [1, { turn: 120 }]] },
+  seasons: { says: 'spring, summer, autumn, winter', keys: [[0, { warm: -0.1, chroma: 1.25, light: 0.1 }], [1 / 3, { warm: 0.3, chroma: 1.45 }], [2 / 3, { warm: 0.85, turn: -30, chroma: 1.2 }], [1, { warm: -0.8, chroma: 0.4, light: 0.25 }]] },
+});
+export const PALETTE_SCRIPT_IDS = Object.freeze(Object.keys(PALETTE_SCRIPTS));
+
+/** The shift a script gives the i-th of n levels (null where it moves nothing). */
+export function scriptShift(script, i, n) {
+  const S = PALETTE_SCRIPTS[script];
+  if (!S) throw new Error(`palette: script is one of ${PALETTE_SCRIPT_IDS.join(', ')}`);
+  const t = n <= 1 ? 0 : i / (n - 1), K = S.keys;
+  let j = 0;
+  while (j < K.length - 2 && t > K[j + 1][0]) j += 1;
+  const [t0, a] = K[j], [t1, b] = K[Math.min(j + 1, K.length - 1)], u = t1 > t0 ? clamp((t - t0) / (t1 - t0), 0, 1) : 0;
+  const out = {};
+  for (const [k, z] of Object.entries(NEUTRAL)) {
+    const v = r3((a[k] ?? z) + ((b[k] ?? z) - (a[k] ?? z)) * u);
+    if (Math.abs(v - z) > 1e-9) out[k] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}
 const CANDIDATES = 12;
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -107,6 +141,15 @@ export function readPaletteSpec(v, at = 'palette') {
       if (hueOf(h) === null) throw new Error(`${at}.hues.${r} is degrees, a '#hex', or a colour word (${hueWords()})`);
     }
   }
+  if (v.shift !== undefined) {
+    if (!isObj(v.shift)) throw new Error(`${at}.shift is { ${Object.keys(SHIFT_RANGE).join('?, ')}? }: the same palette moved`);
+    for (const [k, x] of Object.entries(v.shift)) {
+      const R = SHIFT_RANGE[k];
+      if (!R) throw new Error(`${at}.shift.${k} is not part of a shift (${Object.keys(SHIFT_RANGE).join(', ')})`);
+      if (!(typeof x === 'number' && x >= R[0] && x <= R[1])) throw new Error(`${at}.shift.${k} is ${R[0]} to ${R[1]} (${R[2]})`);
+    }
+  }
+  if (v.script !== undefined && !PALETTE_SCRIPTS[v.script]) throw new Error(`${at}.script is a world's colour script across its levels: ${PALETTE_SCRIPT_IDS.join(', ')}`);
   if (v.lock !== undefined) {
     if (!isObj(v.lock)) throw new Error(`${at}.lock is { <role>: '#hex' }: that role's middle stop, kept`);
     for (const [r, h] of Object.entries(v.lock)) {
@@ -164,6 +207,37 @@ function candidate(spec, A, k) {
     P[role] = { ...P[role], L: [r3(clamp(mid - half, 0.2, 0.9)), r3(clamp(mid + half, 0.3, 0.97))], C: r3(C), h: r3(h), exact: hex.toLowerCase() };
   }
   return { P, Hl: r3(Hl), Hs: r3(Hs), moon };
+}
+
+/** A candidate moved by a shift: every hue turned (the accents too, so the scheme holds), the bands moved toward night
+ * or day, chroma scaled, the land's hues and the light pulled warm or cool (the accents keep their hue, to stay unique),
+ * the accent set again in value against the moved ground. */
+function shiftCandidate(cand, s, A) {
+  const turn = s.turn ?? 0, li = s.light ?? 0, kC = s.chroma ?? 1, w = s.warm ?? 0;
+  if (!turn && !li && kC === 1 && !w) return cand;
+  const dlo = li < 0 ? li * 0.14 : li * 0.1, dhi = li < 0 ? li * 0.26 : li * 0.04;
+  // warmth: the land's hues pulled toward gold or toward blue, the sky's harder (a sunset, a cold sky), and warm light
+  // fuller in chroma (the golden hour), cold light greyer
+  const pull = (h, k) => (w ? mixHue(h, w > 0 ? 55 : 245, Math.min(1, Math.abs(w) * k)) : h), kW = 1 + 0.45 * w;
+  const P = {};
+  for (const [role, { exact: _x, ...p }] of Object.entries(cand.P)) {
+    const lo = clamp(p.L[0] + dlo, 0.22, 0.9), hi = clamp(p.L[1] + dhi, lo + 0.18, 0.97), h = wrapHue(p.h + turn), acc = role.startsWith('accent'), airy = role === 'sky' || role === 'cloud';
+    // the accents stay louder than the land however loud the land gets
+    const C = p.C * kC * (acc ? Math.max(1, kW) : kW) + (airy && w > 0 ? 0.04 * w : 0);
+    P[role] = { ...p, L: [r3(lo), r3(hi)], C: r3(clamp(C, 0, 0.32)), h: r3(acc ? h : pull(h, airy ? 0.8 : 0.6)) };
+  }
+  P.sky.L[1] = r3(Math.max(P.sky.L[1], Math.min(0.97, P.ground.L[1] + 0.05)));
+  const low = A.key === 'low' || li < -0.35, gMid = (P.ground.L[0] + P.ground.L[1]) / 2;
+  const aMid = low ? clamp(gMid + 0.24, 0.62, 0.86) : gMid <= 0.7 ? gMid + 0.18 : gMid - 0.2;
+  // a land hue pulled onto the accent's: the accent steps aside, on the side it was
+  let ah = P.accent.h;
+  for (const r of ['ground', 'foliage']) {
+    const d = wrapHue(ah - P[r].h), gap = Math.min(d, 360 - d);
+    if (gap < 35 && P[r].C > 0.04) ah = wrapHue(P[r].h + (d <= 180 ? 35 : -35));
+  }
+  P.accent = { ...P.accent, h: r3(ah), L: [r3(clamp(aMid - 0.24, 0.22, 0.7)), r3(clamp(aMid + 0.22, 0.5, 0.95))], C: r3(Math.max(0.12, P.accent.C)) };
+  const Hl = w ? mixHue(cand.Hl, w > 0 ? 45 : 225, Math.abs(w) * 0.6) : cand.Hl, Hs = w ? mixHue(cand.Hs, w > 0 ? 290 : 235, Math.abs(w) * 0.3) : cand.Hs;
+  return { P, Hl: r3(Hl), Hs: r3(Hs), moon: cand.moon || (li < -0.5 && w < 0), lc: r3(0.05 + 0.05 * Math.abs(w)) };
 }
 
 /** A role's ramp at n stops: lightness across its band; chroma fullest at the middle; the hue leaning to the shadow's
@@ -234,7 +308,7 @@ export const PALETTE_LAWS = Object.freeze([
   { law: 'greyscale-read', want: 'it reads in grey: the sky, the ground and the accent sit apart in lightness', test: (K) => { const g = Lof(mid(K.roles.ground)), s = Lof(K.roles.sky.at(-1)), a = Lof(mid(K.roles.accent)); return { ok: s - g >= 0.08 && Math.abs(a - g) >= 0.08, value: `L: sky ${s.toFixed(2)} · ground ${g.toFixed(2)} · accent ${a.toFixed(2)}` }; } },
   { law: 'ui-contrast', want: 'the HUD reads: ink on the panel and the bg ≥ 4.5:1, the accent on the panel ≥ 3:1 (WCAG 2)', test: (K) => { const u = Object.fromEntries(Object.entries(K.ui).map(([k, v]) => [k, hexToRgb(v)])); const ip = contrast(u.ink, u.panel), ib = contrast(u.ink, u.bg), ap = contrast(u.accent, u.panel); return { ok: ip >= 4.5 && ib >= 4.5 && ap >= 3, value: `ink/panel ${ip.toFixed(1)} · ink/bg ${ib.toFixed(1)} · accent/panel ${ap.toFixed(1)} · APCA ink Lc ${Math.round(apca(u.ink, u.panel))}` }; } },
   { law: 'colour-vision', want: 'the accent still parts from the ground for protan, deutan and tritan eyes (≥ 0.06)', test: (K) => { const a = mid(K.roles.accent), g = mid(K.roles.ground); const d = CVD_KINDS.map((k) => [k, deltaE(simulate(a, k), simulate(g, k))]); const worst = d.reduce((x, y) => (y[1] < x[1] ? y : x)); return { ok: worst[1] >= 0.06, value: `weakest: ${worst[0]} ${worst[1].toFixed(3)}` }; } },
-  { law: 'few-hues', want: 'two or three hue families carry the land (one only on purpose; four is busy)', test: (K) => { const n = hueFamilies(K.roles).length, one = ['mono-accent', 'duotone'].includes(K.read.scheme); return { ok: n <= 3 && (n >= 2 || one), value: `${n} famil${n === 1 ? 'y' : 'ies'}` }; } },
+  { law: 'few-hues', want: 'two or three hue families carry the land (one only on purpose; four is busy)', test: (K) => { const n = hueFamilies(K.roles).length, one = ['mono-accent', 'duotone'].includes(K.read.scheme) || !!K.read.shift; return { ok: n <= 3 && (n >= 2 || one), value: `${n} famil${n === 1 ? 'y' : 'ies'}` }; } },
   { law: 'no-cliche', want: 'not teal-and-orange, not black shadows, not every role at full chroma', test: (K) => {
     const [, sc, sh] = lchOf(mid(K.roles.sky)), warm = ['ground', 'accent'].some((r) => { const [, c, h] = lchOf(mid(K.roles[r])); return c > 0.08 && h >= 35 && h <= 80; });
     const tealOrange = sc > 0.08 && sh >= 180 && sh <= 240 && warm;
@@ -254,29 +328,40 @@ function check(K) { return PALETTE_LAWS.map((l) => ({ law: l.law, want: l.want, 
 const hexRoles = (roles) => Object.fromEntries(Object.entries(roles).map(([k, r]) => [k, r.map(rgbToHex)]));
 
 const SOLVED = new Map();
+/** One candidate's ramps, HUD, checks and score. */
+function weigh(cand, A, shift) {
+  const roles = rolesOf(cand), ui = Object.fromEntries(Object.entries(uiOf(roles, cand, A.key, cand.P)).map(([n, c]) => [n, rgbToHex(c)]));
+  const K = { roles, ui, read: { scheme: A.scheme, ...(shift ? { shift } : {}) } }, checks = check(K);
+  const passed = checks.filter((c) => c.ok).length, novelty = checks.find((c) => c.law === 'off-the-shelf').novelty, fams = hueFamilies(roles).length;
+  return { cand, roles, ui, checks, score: passed * 10 + novelty * 8 + (fams >= 2 && fams <= 3 ? 2 : 0) };
+}
 /** The spec solved: the best of the candidates its seed samples, by its laws, its distance from the shelf, and its
- * hue families. → the contract */
+ * hue families; a shift moves the candidate its spec without the shift chose. `script` is a world's, never solved.
+ * → the contract */
 export function solvePalette(spec0 = {}) {
   const spec = readPaletteSpec(spec0 === 'auto' ? {} : spec0);
   if (spec === false) throw new Error('palette: false is the stock look; there is nothing to solve');
   const key = JSON.stringify(spec);
   if (SOLVED.has(key)) return SOLVED.get(key);
-  const A = readAxes(spec);
+  const { script: _script, ...solved } = spec, { shift, ...still } = solved;
+  const A = readAxes(still);
   let best = null;
-  for (let k = 0; k < CANDIDATES; k += 1) {
-    const cand = candidate(spec, A, k), roles = rolesOf(cand), ui = Object.fromEntries(Object.entries(uiOf(roles, cand, A.key, cand.P)).map(([n, c]) => [n, rgbToHex(c)]));
-    const K = { roles, ui, read: { scheme: A.scheme } }, checks = check(K);
-    const passed = checks.filter((c) => c.ok).length, novelty = checks.find((c) => c.law === 'off-the-shelf').novelty, fams = hueFamilies(roles).length;
-    const score = passed * 10 + novelty * 8 + (fams >= 2 && fams <= 3 ? 2 : 0);
-    if (!best || score > best.score + 1e-9) best = { k, cand, roles, ui, checks, score };
+  if (shift) {
+    const base = solvePalette(still);
+    best = { k: base.read.candidate, ...weigh(shiftCandidate(base.params, shift, A), A, shift) };
+  } else {
+    for (let k = 0; k < CANDIDATES; k += 1) {
+      const w = weigh(candidate(spec, A, k), A);
+      if (!best || w.score > best.score + 1e-9) best = { k, ...w };
+    }
   }
   const { cand, roles, ui, checks } = best;
-  const light = oklch(0.95, 0.05, cand.Hl), shadow = oklch(0.34, 0.07, cand.Hs);
+  const light = oklch(0.95, cand.lc ?? 0.05, cand.Hl), shadow = oklch(0.34, 0.07, cand.Hs);
   const lost = Object.entries(cand.P).filter(([, p]) => gamutLoss((p.L[0] + p.L[1]) / 2, p.C, p.h) > 0.02).map(([r]) => r);
   const contract = {
-    id: `pal-${fingerprint([spec, best.k]).slice(0, 8)}`,
+    id: `pal-${fingerprint([solved, best.k]).slice(0, 8)}`,
     spec,
-    read: { heat: A.heat, weight: A.weight, activity: A.activity, scheme: A.scheme, key: A.key, hue: A.hue, says: PALETTE_SCHEMES[A.scheme].says, ...(cand.moon ? { moonlit: true } : {}), candidate: best.k, ...(lost.length ? { gamut: `chroma taken in for ${lost.join(', ')}` } : {}) },
+    read: { heat: A.heat, weight: A.weight, activity: A.activity, scheme: A.scheme, key: A.key, hue: A.hue, says: PALETTE_SCHEMES[A.scheme].says, ...(cand.moon ? { moonlit: true } : {}), candidate: best.k, ...(shift ? { shift } : {}), ...(lost.length ? { gamut: `chroma taken in for ${lost.join(', ')}` } : {}) },
     roles: hexRoles(roles),
     light: rgbToHex(light), shadow: rgbToHex(shadow), fog: rgbToHex(roles.far[Math.min(roles.far.length - 1, Math.floor(roles.far.length * 0.6))]),
     ui,

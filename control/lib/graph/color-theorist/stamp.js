@@ -15,18 +15,19 @@
  *   stampLookPalette(manifest, fresh) → a world whose `look.palette` has no seed given one
  *   stampTerrainPalette(manifest, fresh) → a terrain world whose `palette` has no seed given one
  *   resolveStagePalette(manifest, fresh) → a nature or jungle stage's `palette` spec solved into the data its builder reads
- *   freshPaletteSeed()
+ *   freshPaletteSeed(spec)  → a seed for the spec, the farthest of a few from the palettes written lately (ledger.js)
  *
- * `fresh` is injectable for tests.
+ * `fresh(spec)` is injectable for tests.
  */
-import { randomInt } from 'node:crypto';
 import { readPaletteSpec, solvePalette } from './solve.js';
+import { novelSeed } from './ledger.js';
 import { artPalette, toneRamps, natureColours } from './adapters.js';
 import { stageKit } from '../era/stage.js';
 import { TONE_PRESETS } from '../era/tone.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-export const freshPaletteSeed = () => randomInt(1, 2 ** 31 - 1);
+/** A seed for a spec, rolled at authoring time, looking away from the palettes written lately (ledger.js). */
+export const freshPaletteSeed = (spec = {}) => novelSeed(spec);
 const withPalette = (m, palette) => ({ ...m, style: { ...(m.style ?? {}), palette } });
 
 /** An interior's `palette` at authoring time, by the same rules: rolled for a new room that names no style, kept by an
@@ -34,20 +35,20 @@ const withPalette = (m, palette) => ({ ...m, style: { ...(m.style ?? {}), palett
 export function stampInteriorPalette(manifest, prior = null, fresh = freshPaletteSeed) {
   if (!isObj(manifest) || manifest.kind !== 'interior') return manifest;
   const p = manifest.palette;
-  if (p === 'auto' || (isObj(p) && p.seed === undefined)) return { ...manifest, palette: { ...(isObj(p) ? p : {}), seed: fresh() } };
+  if (p === 'auto' || (isObj(p) && p.seed === undefined)) { const q = isObj(p) ? p : {}; return { ...manifest, palette: { ...q, seed: fresh(q) } }; }
   if (p !== undefined || manifest.style !== undefined) return manifest;
   if (prior) return prior.palette !== undefined ? { ...manifest, palette: prior.palette } : manifest;
-  return { ...manifest, palette: { seed: fresh() } };
+  return { ...manifest, palette: { seed: fresh({}) } };
 }
 
 export function stampWorldPalette(manifest, prior = null, fresh = freshPaletteSeed) {
   if (!isObj(manifest)) return manifest;
   const st = isObj(manifest.style) ? manifest.style : {}, p = st.palette;
-  if (p === 'auto' || (isObj(p) && p.seed === undefined)) return withPalette(manifest, { ...(isObj(p) ? p : {}), seed: fresh() });
+  if (p === 'auto' || (isObj(p) && p.seed === undefined)) { const q = isObj(p) ? p : {}; return withPalette(manifest, { ...q, seed: fresh(q) }); }
   if (p !== undefined) return manifest;
   if (manifest.quick !== undefined || st.kit !== undefined || st.look !== undefined || st.geocube !== undefined) return manifest;
   if (prior) return prior.style?.palette !== undefined ? withPalette(manifest, prior.style.palette) : manifest;
-  return withPalette(manifest, { seed: fresh() });
+  return withPalette(manifest, { seed: fresh({}) });
 }
 
 /** A room stage's art palette from a palette spec (`art: { palette: { from: spec } }`, the other items rolled as ever by
@@ -58,7 +59,7 @@ export function resolveArtPalette(manifest, fresh = freshPaletteSeed) {
   let spec = readPaletteSpec(P.from, 'art.palette.from');
   if (spec === false) throw new Error("stage: art.palette.from is a palette spec (pick_palette's), or 'auto'");
   if (spec === 'auto') spec = {};
-  if (spec.seed === undefined) spec = { ...spec, seed: fresh() };
+  if (spec.seed === undefined) spec = { ...spec, seed: fresh(spec) };
   const K = solvePalette(spec);
   return { ...manifest, art: { ...manifest.art, palette: { seed: spec.seed, from: K.spec, ...artPalette(K) } } };
 }
@@ -74,7 +75,7 @@ export function resolveTonePalette(manifest, fresh = freshPaletteSeed) {
   let spec = readPaletteSpec(T.from, 'tone.from');
   if (spec === false) throw new Error("stage: tone.from is a palette spec (pick_palette's), or 'auto'");
   if (spec === 'auto') spec = {};
-  if (spec.seed === undefined) spec = { ...spec, seed: fresh() };
+  if (spec.seed === undefined) spec = { ...spec, seed: fresh(spec) };
   const K = solvePalette(spec), { ramps, key } = toneRamps(K, Object.keys(TONE_PRESETS[preset].ramps));
   return { ...manifest, tone: { ...T, preset, from: K.spec, palette: K.id, ramps: { ...ramps, ...(T.ramps ?? {}) }, key: T.key ?? key } };
 }
@@ -83,7 +84,8 @@ export function resolveTonePalette(manifest, fresh = freshPaletteSeed) {
 export function stampLookPalette(manifest, fresh = freshPaletteSeed) {
   const L = isObj(manifest) ? manifest.look : undefined, p = isObj(L) ? L.palette : undefined;
   if (!(p === 'auto' || (isObj(p) && p.seed === undefined))) return manifest;
-  return { ...manifest, look: { ...L, palette: { ...(isObj(p) ? p : {}), seed: fresh() } } };
+  const q = isObj(p) ? p : {};
+  return { ...manifest, look: { ...L, palette: { ...q, seed: fresh(q) } } };
 }
 
 /** A terrain world's palette (`kind: 'terrain'`, `palette`): its seed rolled here when it has none. Opt-in: a terrain
@@ -92,7 +94,8 @@ export function stampTerrainPalette(manifest, fresh = freshPaletteSeed) {
   if (!isObj(manifest) || manifest.kind !== 'terrain') return manifest;
   const p = manifest.palette;
   if (!(p === 'auto' || (isObj(p) && p.seed === undefined))) return manifest;
-  return { ...manifest, palette: { ...(isObj(p) ? p : {}), seed: fresh() } };
+  const q = isObj(p) ? p : {};
+  return { ...manifest, palette: { ...q, seed: fresh(q) } };
 }
 
 /** A nature or jungle stage's `palette` (a pick_palette spec): solved here, at authoring time, into the data its builder
@@ -103,7 +106,7 @@ export function resolveStagePalette(manifest, fresh = freshPaletteSeed) {
   if (!['nature', 'jungle'].includes(stageKit(manifest.kit)?.shell)) throw new Error(`stage: palette is for the open-ground kits painted by their cards (trail-valley, jungle-trail); a room kit takes art: { palette: { from } } or tone: { from }, an isekai kit a gameworld's style.palette`);
   let spec = readPaletteSpec(isObj(manifest.palette) && manifest.palette.from !== undefined ? manifest.palette.from : manifest.palette, 'palette');
   if (spec === 'auto') spec = {};
-  if (spec.seed === undefined) spec = { ...spec, seed: fresh() };
+  if (spec.seed === undefined) spec = { ...spec, seed: fresh(spec) };
   const K = solvePalette(spec);
   return { ...manifest, palette: { from: K.spec, ...natureColours(K) } };
 }

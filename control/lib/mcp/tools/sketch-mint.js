@@ -65,6 +65,7 @@ import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polyg
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
+import './palette-ledger.js';
 import { stampWorldPalette, stampInteriorPalette, resolveArtPalette, resolveTonePalette, stampLookPalette, stampTerrainPalette, resolveStagePalette } from '@/lib/graph/color-theorist/stamp.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';

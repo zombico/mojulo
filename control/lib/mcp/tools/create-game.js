@@ -87,7 +87,7 @@ export function themeOf(theme, palette, ref) {
   if (palette === undefined && theme !== undefined) return { theme, palette: null };
   let spec = palette === undefined ? {} : readPaletteSpec(palette, 'palette');
   if (spec === 'auto') spec = {};
-  if (spec.seed === undefined) spec = { ...spec, seed: ref ? (seedOfRef(ref) % 2147483646) + 1 : freshPaletteSeed() };
+  if (spec.seed === undefined) spec = { ...spec, seed: ref ? (seedOfRef(ref) % 2147483646) + 1 : freshPaletteSeed(spec) };
   const K = solvePalette(spec);
   return { theme: { ...gameTheme(K), ...(theme ?? {}) }, palette: { id: K.id, spec: K.spec, scheme: K.read.scheme, key: K.read.key } };
 }

@@ -76,7 +76,7 @@ import { craftTech } from './tech-crafter.js';
 import { readTechDirection, USES_BY_LIST } from './tech-direction.js';
 import { INTEREST } from '../playscape/objects/laws.js';
 import { composeLook } from './tunnel-land.js';
-import { readPaletteSpec, solvePalette } from '../color-theorist/solve.js';
+import { readPaletteSpec, solvePalette, scriptShift } from '../color-theorist/solve.js';
 import { paletteLook } from '../color-theorist/look.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
@@ -428,7 +428,13 @@ export function readGameworld(W) {
     if (L.seed !== undefined && !Number.isFinite(L.seed)) throw new Error(`gameworld: ${at}.seed is a number`);
     const st = readStyle(L.style, `${at}.style`);
     if (st.look) Object.assign(st, lookFor(st.look, st.kit ?? style.kit, seed, `${W.id}-${id}`));
-    if (st.palette) Object.assign(st, paletteFor(st.palette, st.kit ?? style.kit, `${W.id}-${id}`));
+    // a level's palette: its own; the world's moved (`{ shift }`); or the world's script's shift for this level. It
+    // recolours the kit the world started from (the level's own, else the world's base, not the world's recoloured kit)
+    const own = st.palette, moved = isObj(own) && Object.keys(own).every((k) => k === 'shift');
+    if ((moved || (own === undefined && style.palette?.script)) && !isObj(style.palette)) throw new Error(`gameworld: ${at}.style.palette { shift } moves the world's palette: give the world style.palette`);
+    const shift = moved ? own.shift : own === undefined && style.palette?.script ? scriptShift(style.palette.script, ids.indexOf(id), ids.length) : null;
+    if (shift) { const { script: _s, ...world } = style.palette; st.palette = { ...world, shift }; }
+    if (st.palette) Object.assign(st, paletteFor(st.palette, st.kit ?? style.colours?.base ?? style.kit, `${W.id}-${id}`));
     if (st.civilization !== undefined) civ(st.civilization, `${at}.style.civilization`);
     if (L.places !== undefined) {
       if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle?, buildings? }`);

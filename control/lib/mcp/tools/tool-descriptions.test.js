@@ -391,7 +391,9 @@ const DESCRIPTION_ALLOWLIST = {
 // under the theme) and create_cover (a spec beside the { bg, accent, ink } it took).
 // Re-pinned 2026-10-14 (212_600 -> 212_900; measured 212,673) for the color theorist's C2: design_interior's `palette`
 // (a room's 60-30-10 solved, its card's forms kept) and pick_palette naming it and a stage's art.palette.from.
-const PAYLOAD_CEILING = 212_900;
+// Re-pinned 2026-10-14 (212_900 -> 213_400; measured 213,128) for the color theorist's C3: pick_palette's `shift` (a
+// palette moved, its identity kept) and `script` (a world's palette moved level by level along an arc).
+const PAYLOAD_CEILING = 213_400;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

@@ -80,6 +80,20 @@ recolours a kit (or a look composed from words) and keeps its ramp lengths, tile
 
   A stage's `palette` is solved into this data when the stage is written. A palette world on these kits keeps its kit
   and hands its stages the palette. Without one, the kits are as they were.
+- **Variety at scale**:
+  - **A rolled seed looks away from recent palettes.** Where a palette's seed is rolled (a new world, room, stage, or
+    `pick_palette` with no seed), a few seeds are tried and the one farthest from the palettes of the most recently
+    written rows is kept (`color-theorist/ledger.js`). Only the seed is stored, so a row still re-renders the same;
+    the solver is unchanged for every spec.
+  - **Colour scripts.** A spec's `shift: { turn?, light?, chroma?, warm? }` moves a palette without changing its
+    identity (same seed, same hue relations): hues turned, values toward day or night, chroma scaled, light warm or
+    cool. A gameworld palette's `script` (dusk, dawn, descent, thaw, fever, journey, seasons) gives each level, in the
+    world's order, a shift along that arc. A level's `style.palette: { shift }` moves the world's palette for that
+    level alone. Levels drawn in a shifted palette carry it to their rooms and painted stages.
+  - **A contact sheet.** `node scripts/palette-contact-sheet.mjs` paints palettes side by side as small landscapes
+    (`color-theorist/contact.js`): ten intents at five seeds, the auto default, and a stream through the ledger,
+    with the spread measured (nearest neighbours, hue bins, keys, schemes). A deep test holds 50 auto palettes to
+    that spread.
 - **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
   only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
   gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the

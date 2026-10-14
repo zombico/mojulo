@@ -28,6 +28,7 @@ import {
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
+import './palette-ledger.js';
 import { stampWorldPalette } from '@/lib/graph/color-theorist/stamp.js';
 
 

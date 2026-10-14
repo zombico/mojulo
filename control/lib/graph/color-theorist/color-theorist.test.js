@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { oklch, lchOf, hexToRgb, rgbToHex, rgbToOklab, oklabToRgb, contrast, deltaE, simulate, CVD_KINDS } from './oklab.js';
-import { readPaletteSpec, solvePalette, rampOf, PALETTE_SCHEME_IDS, PALETTE_ROLES, PALETTE_LAWS } from './solve.js';
+import { readPaletteSpec, solvePalette, rampOf, scriptShift, PALETTE_SCHEME_IDS, PALETTE_ROLES, PALETTE_LAWS, PALETTE_SCRIPTS } from './solve.js';
+import { novelSeed, nearestRecent, palettesIn, signatureOf, paletteDistance } from './ledger.js';
+import { thumbnail, contactSheet, sheetStats } from './contact.js';
 import { gameTheme, coverPalette, landSwatches, interiorPalette } from './adapters.js';
 import { paletteLook } from './look.js';
 import { stampWorldPalette, stampInteriorPalette, stampLookPalette } from './stamp.js';
@@ -330,5 +332,93 @@ describe('a nature kit in a palette', () => {
     expect(G.style.colours).toMatchObject({ painted: true, base: 'trail-valley' });
     const st = gameStages(W).find((s) => s.manifest?.kind === 'stage' && s.manifest.kit === 'trail-valley');
     expect(st.manifest.palette).toEqual(P);
+  });
+});
+
+describe('a palette moved (shift) and a colour script', () => {
+  it('a shift keeps the identity (the candidate, the scheme) and moves the values, the hues and the chroma', () => {
+    const K = solvePalette({ seed: 5 }), night = solvePalette({ seed: 5, shift: { light: -1 } }), turned = solvePalette({ seed: 5, shift: { turn: 90 } });
+    expect(night.read).toMatchObject({ candidate: K.read.candidate, scheme: K.read.scheme, shift: { light: -1 } });
+    expect(night.id).not.toBe(K.id);
+    expect(L(mid(night.roles.ground))).toBeLessThan(L(mid(K.roles.ground)) - 0.05);
+    const hueOf = (C, r) => lchOf(hexToRgb(mid(C.roles[r])))[2], gap = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+    // the scheme holds: the ground and the sky stay as far apart on the wheel as they were
+    expect(Math.abs(gap(hueOf(turned, 'ground'), hueOf(turned, 'sky')) - gap(hueOf(K, 'ground'), hueOf(K, 'sky')))).toBeLessThan(12);
+    expect(gap(hueOf(turned, 'ground'), hueOf(K, 'ground'))).toBeGreaterThan(60);
+    // a shift that moves nothing is the palette itself
+    expect(solvePalette({ seed: 5, shift: {} }).roles).toEqual(K.roles);
+    for (const law of ['ramps-climb', 'shade-is-colour', 'sky-brightest', 'ui-contrast']) expect(night.checks.find((c) => c.law === law).ok).toBe(true);
+  });
+  it('a script is a world\'s: it solves nothing itself; each arc moves the levels from its first keyframe to its last', () => {
+    expect(solvePalette({ seed: 5, script: 'dusk' }).roles).toEqual(solvePalette({ seed: 5 }).roles);
+    for (const arc of Object.keys(PALETTE_SCRIPTS)) {
+      const K = PALETTE_SCRIPTS[arc].keys, first = scriptShift(arc, 0, 4), last = scriptShift(arc, 3, 4);
+      expect(first ?? {}).toEqual(K[0][1]);
+      expect(last ?? {}).toEqual(K.at(-1)[1]);
+    }
+    expect(scriptShift('descent', 0, 1)).toBeNull();
+    expect(() => readPaletteSpec({ shift: { light: 2 } })).toThrow(/shift.light is -1 to 1/);
+    expect(() => readPaletteSpec({ shift: { hue: 2 } })).toThrow(/shift.hue is not part of a shift/);
+    expect(() => readPaletteSpec({ script: 'noir' })).toThrow(/script is a world's colour script/);
+  });
+  it('a gameworld\'s script moves its levels in order; a level\'s { shift } moves the world\'s palette there alone', () => {
+    const W = { ...MEADOWMARK, style: { ...MEADOWMARK.style, palette: { seed: 42, script: 'descent' } } }, G = readGameworld(W);
+    const [first, last] = G.ids;
+    expect(G.levels[first].style.palette).toBeUndefined();
+    expect(G.levels[last].style.palette).toEqual({ seed: 42, shift: scriptShift('descent', 1, 2) });
+    // recoloured from the kit it started from: its own, else the world's base (never the world's recoloured kit)
+    expect(G.levels[last].style.colours.base).toBe(MEADOWMARK.levels[last].style?.kit ?? 'isekai-meadow');
+    const kits = new Set(gameStages(W).filter((s) => s.manifest?.kind === 'stage').map((s) => s.manifest.kit));
+    expect(kits.size).toBe(2);
+    const own = { ...MEADOWMARK, style: { ...MEADOWMARK.style, palette: { seed: 42 } }, levels: { ...MEADOWMARK.levels, [first]: { ...MEADOWMARK.levels[first], style: { palette: { shift: { warm: 0.5 } } } } } };
+    expect(readGameworld(own).levels[first].style.palette).toEqual({ seed: 42, shift: { warm: 0.5 } });
+    expect(() => readGameworld({ ...own, style: MEADOWMARK.style })).toThrow(/moves the world's palette: give the world style.palette/);
+  });
+});
+
+describe('the novelty ledger', () => {
+  it('a seed rolled with nothing recent is the first rolled; with recent palettes, the farthest of those tried', () => {
+    const rolls = [11, 12, 13, 14], roll = () => rolls.shift() ?? 99;
+    expect(novelSeed({}, { recent: [], roll })).toBe(11);
+    // the recent palette is seed 21's own: the roll that IS seed 21 is never the one kept
+    const recent = [signatureOf(solvePalette({ seed: 21 }))], seq = [21, 22, 23], r2 = () => seq.shift();
+    const kept = novelSeed({}, { recent, tries: 3, roll: r2 });
+    expect(kept).not.toBe(21);
+    const d = (s) => paletteDistance(signatureOf(solvePalette({ seed: s })), recent[0]);
+    expect(d(kept)).toBe(Math.max(d(22), d(23)));
+    expect(nearestRecent(solvePalette({ seed: 22 }), recent)).toEqual({ id: solvePalette({ seed: 21 }).id, distance: Math.round(d(22) * 1000) / 1000 });
+  });
+  it('finds the palettes a recipe stores, wherever it stores them, seeded; a cover\'s colours and a kit\'s are not specs', () => {
+    expect(palettesIn({ kind: 'gameworld', style: { palette: { seed: 3, heat: 0.4 } } })).toEqual([{ seed: 3, heat: 0.4 }]);
+    expect(palettesIn({ kind: 'stage', art: { palette: { from: { seed: 4 } } }, tone: { from: { seed: 5 } } })).toEqual([{ seed: 4 }, { seed: 5 }]);
+    expect(palettesIn({ kind: 'stage', palette: { from: { seed: 6 }, roles: {} } })).toEqual([{ seed: 6 }]);
+    expect(palettesIn({ kind: 'interior', palette: { seed: 7 } })).toEqual([{ seed: 7 }]);
+    expect(palettesIn({ artDirection: { palette: { bg: '#000000', accent: '#ff0000', ink: '#ffffff' } }, style: { palette: { auto: 1 } } })).toEqual([]);
+  });
+  it('a stream rolled through the ledger keeps every palette apart that the raw rolls let fall together', () => {
+    let s = 9;
+    const roll = () => { s = (Math.imul(s, 48271) % 2147483647 + 2147483647) % 2147483647 || 1; return s; };
+    const sig = [], raw = [];
+    for (let i = 0; i < 12; i += 1) { sig.push(signatureOf(solvePalette({ seed: novelSeed({}, { recent: sig, roll }) }))); raw.push(signatureOf(solvePalette({ seed: roll() }))); }
+    const least = (g) => Math.min(...g.flatMap((a, i) => g.slice(i + 1).map((b) => paletteDistance(a, b))));
+    expect(least(sig)).toBeGreaterThan(least(raw));
+    expect(least(sig)).toBeGreaterThan(0.04);
+  });
+});
+
+describe('the contact sheet', () => {
+  it('paints a palette into the same landscape from its roles alone; a page of them, with their spread', () => {
+    const K = solvePalette({ seed: 3 }), svg = thumbnail(K);
+    for (const c of [K.roles.sky[1], K.roles.ground[2], K.roles.accent[2], K.ui.panel, K.light]) expect(svg).toContain(c);
+    expect(svg.startsWith('<svg')).toBe(true);
+    const rows = [1, 2, 3].map((seed) => ({ label: `seed ${seed}`, contract: solvePalette({ seed }) }));
+    const page = contactSheet([{ title: 'Three', rows }, { title: 'Quiet', rows, stats: false }]);
+    expect(page).toMatch(/^<!doctype html>/);
+    expect(page.match(/<figure>/g)).toHaveLength(6);
+    expect(page.match(/class="stats"/g)).toHaveLength(1);
+    const S = sheetStats(rows.map((r) => r.contract));
+    expect(S.n).toBe(3);
+    expect(S.ground.bins.reduce((a, b) => a + b, 0) + S.ground.grey).toBe(3);
+    expect(S.nearest.least).toBeLessThanOrEqual(S.nearest.median);
   });
 });

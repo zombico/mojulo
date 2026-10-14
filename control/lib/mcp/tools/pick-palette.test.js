@@ -153,3 +153,16 @@ describe('pixel palettes', () => {
     expect(pixelTheme({ accent: '#ffffff' }, undefined)).toEqual({ accent: '#ffffff' });
   });
 });
+
+describe('the novelty ledger at the door', () => {
+  it('pick_palette says how far the nearest palette written lately is; a world\'s script and a shift pass through', async () => {
+    expect(pickPaletteHandler({ seed: 31 }).palettes[0].nearest).toBeUndefined();
+    await createSketchHandler({ title: 'Lately', manifest: { kind: 'gameworld', ...UNNAMED, style: { ...UNNAMED.style, palette: { seed: 31 } } }, ref: 'gw-late' });
+    const twin = pickPaletteHandler({ seed: 31 }).palettes[0], other = pickPaletteHandler({ seed: 32 }).palettes[0];
+    expect(twin.nearest).toMatchObject({ distance: 0, of: 1, says: /written lately/ });
+    expect(other.nearest.distance).toBeGreaterThan(0);
+    const p = pickPaletteHandler({ seed: 31, script: 'dusk', shift: { light: -0.5 } }).palettes[0];
+    expect(p.palette).toEqual({ seed: 31, script: 'dusk', shift: { light: -0.5 } });
+    expect(p.read.shift).toEqual({ light: -0.5 });
+  });
+});

@@ -59,6 +59,7 @@ export const FIXTURE = [
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
   ['my games all look the same, give this one colours of its own', 'pick_palette'],
   ['what colours should a cold, quiet drowned town at dusk be', 'pick_palette'],
+  ['make the colours go from day to night as the levels go on', 'pick_palette'],
   ['turn my notes into a picture book for kids', 'mint_stash'],
   ['lay out a comic page of my hero fighting the dragon', 'create_sketch'],
   ['an AI-painted portrait I will render with an image model', 'create_sketch'],

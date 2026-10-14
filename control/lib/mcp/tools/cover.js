@@ -32,7 +32,7 @@ function coverColours(palette, ref) {
   if (palette && typeof palette === 'object' && COVER_TOKENS.some((k) => k in palette)) return palette;
   let spec = palette === undefined ? {} : readPaletteSpec(palette, 'palette');
   if (spec === 'auto') spec = {};
-  if (spec.seed === undefined) spec = { ...spec, seed: ref ? (seedOfRef(ref) % 2147483646) + 1 : freshPaletteSeed() };
+  if (spec.seed === undefined) spec = { ...spec, seed: ref ? (seedOfRef(ref) % 2147483646) + 1 : freshPaletteSeed(spec) };
   return coverPalette(solvePalette(spec));
 }
 
