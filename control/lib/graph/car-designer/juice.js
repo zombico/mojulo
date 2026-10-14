@@ -13,6 +13,10 @@
  *            lean and bounce, a mast's wobble; exaggerated past physics (a cartoon's lean is three times a car's)
  *
  * Tiers are the genre's: a drift's charge (blue, then orange, then violet), a boost's flame white-hot at its root.
+ *
+ * A trigger is a small expression over FACTS (comparisons, &&, ||, !, abs(), *): compileWhen reads it once into a tree
+ * the page interprets each frame (never evaluated as code). bakeJuice(rows, anchors, D) → the figure's `juice`: its
+ * anchors (on a bone, or on the machine's frame), its rows with their triggers compiled, the module D sizes scale by.
  * Principles: an effect reads in a frame (big, bright, short); it never covers the driver's head; its colour says its
  * tier; the steady state is quiet (an idle puff), the event is loud (a boost). Pure data.
  */
@@ -20,15 +24,15 @@
 export const DRIFT_TIERS = Object.freeze(['#58b8ff', '#ff9a2e', '#c86bff']);
 
 export const JUICE = Object.freeze({
-  idlePuff: { when: 'speed < 2 && throttle < 0.1', at: 'tip', look: 'puff', colours: ['#d8d8d8', '#9a9a9a'], rate: 2.5, life: 0.9, size: 0.18, budget: 8, why: 'the engine is alive at rest: a putt of smoke' },
+  idlePuff: { when: 'speed < 2 && throttle < 0.1', at: 'tip', look: 'puff', colours: ['#d8d8d8', '#9a9a9a'], rate: 2.5, life: 0.9, size: 0.28, budget: 8, why: 'the engine is alive at rest: a putt of smoke' },
   throttleFlame: { when: 'throttle > 0.6 && !boosting', at: 'tip', look: 'flame', colours: ['#fff2b0', '#ff8a2a'], flicker: 0.35, size: 0.32, budget: 1, why: 'the throttle open: a short flame flickering at the tip' },
-  boostFlame: { when: 'boosting', at: 'tip', look: 'flame', colours: ['#ffffff', '#7ad6ff', '#3a6bff'], flicker: 0.15, size: 0.9, budget: 1, why: 'a boost: a long flame, white-hot at the root, the cool colour of speed' },
+  boostFlame: { when: 'boosting', at: 'tip', look: 'flame', colours: ['#ffffff', '#7ad6ff', '#3a6bff'], flicker: 0.15, size: 0.6, budget: 1, why: 'a boost: a long flame, white-hot at the root, the cool colour of speed' },
   boostNozzle: { when: 'boosting', at: 'boost', look: 'flame', colours: ['#ffffff', '#ffd23a', '#ff5a1a'], flicker: 0.2, size: 1.3, budget: 1, why: 'a booster lit: the biggest flame on the machine' },
   boostTrail: { when: 'boosting && speed > 8', at: 'contact.rear', look: 'trail', colours: ['#7ad6ff'], life: 0.35, size: 0.12, budget: 2, why: 'speed lines off the rear wheels while boosting' },
-  driftSpark: { when: 'skidding && abs(steer) > 0.2 && speed > 6', at: 'contact.rear', look: 'spark', colours: DRIFT_TIERS, tierBy: 'skidTime', tierAt: [0, 0.8, 1.8], rate: 40, life: 0.25, size: 0.06, budget: 60, why: 'a drift charging: sparks from the rear tyres, their colour the charge' },
-  skidSmoke: { when: 'skidding || (braking && speed > 10)', at: 'contact.rear', look: 'smoke', colours: ['#e6e6e6', '#bdbdbd'], rate: 18, life: 0.8, size: 0.4, budget: 24, why: 'rubber smoke where the tyres slide' },
-  surfaceDust: { when: 'speed > 4 && surface != "asphalt"', at: 'contact.rear', look: 'dust', colours: ['$surface'], rate: 14, life: 0.7, size: 0.35, budget: 20, why: 'off the tarmac the wheels throw the ground they are on' },
-  landingRing: { when: 'landed', at: 'contact', look: 'ring', colours: ['$surface', '#ffffff'], life: 0.4, size: 1.6, budget: 4, why: 'a landing: a ring of dust where the wheels hit' },
+  driftSpark: { when: 'corner > 0.6 && speed > 6', at: 'contact.rear', look: 'spark', colours: DRIFT_TIERS, tierBy: 'cornerTime', tierAt: [0, 0.8, 1.8], rate: 40, life: 0.3, size: 0.16, budget: 60, why: 'a hard corner charging: sparks from the rear tyres, their colour how long it has held' },
+  skidSmoke: { when: 'skidding || corner > 0.9 || (braking && speed > 10)', at: 'contact.rear', look: 'smoke', colours: ['#e6e6e6', '#bdbdbd'], rate: 18, life: 0.9, size: 0.55, budget: 24, why: 'rubber smoke where the tyres slide' },
+  surfaceDust: { when: 'speed > 4 && offroad', at: 'contact.rear', look: 'dust', colours: ['#c4a87c', '#9c8462'], rate: 14, life: 0.7, size: 0.35, budget: 20, why: 'off the tarmac the wheels throw the ground they are on' },
+  landingRing: { when: 'landed', at: 'contact', look: 'ring', colours: ['#e8dcc0', '#ffffff'], life: 0.4, size: 1.6, budget: 4, why: 'a landing: a ring of dust where the wheels hit' },
   damageSmoke: { when: 'damage > 0.6', at: 'tip', look: 'smoke', colours: ['#3a3a3a', '#6a6a6a'], rate: 8, life: 1.4, size: 0.5, budget: 14, why: 'hurt: black smoke from the engine' },
 });
 
@@ -36,7 +40,7 @@ export const STATUS = Object.freeze({
   headlamps: { fact: 'always', slots: ['lamp:head'], look: 'glow', colours: ['#fff6d0'], why: 'the face lit' },
   brakeLamps: { fact: 'braking', slots: ['lamp:brake'], look: 'glow', colours: ['#5a1010', '#ff2a1a'], why: 'the brake lamps flare red' },
   boostReady: { fact: 'boostCharge', slots: ['accent'], look: 'fill', colours: ['#2a3a5a', '#7ad6ff', '#ffffff'], why: 'the hero piece fills with charge; full, it glows white' },
-  driftTier: { fact: 'skidTime', slots: ['lamp:brake', 'accent'], look: 'cycle', colours: DRIFT_TIERS, why: 'the drift\'s tier in the lamps' },
+  driftTier: { fact: 'cornerTime', slots: ['lamp:brake', 'accent'], look: 'cycle', colours: DRIFT_TIERS, why: 'the drift\'s tier in the lamps' },
   hit: { fact: 'hit', slots: ['body', 'accent'], look: 'flash', colours: ['#ffffff'], duration: 0.12, why: 'a hit: the machine flashes white' },
   damaged: { fact: 'damage', slots: ['body'], look: 'tint', colours: ['#000000'], amount: 0.35, flicker: 0.6, why: 'damage darkens and flickers the paint' },
   shield: { fact: 'shield', slots: ['bubble'], look: 'bubble', colours: ['#8fe6ff'], rim: 0.8, why: 'a shield: a bright-rimmed bubble round the machine' },
@@ -53,3 +57,44 @@ export const MOTION = Object.freeze({
   bounce: { bone: 'body', fact: 'landed', gain: 0.25, limit: 0.25, settle: 0.45, why: 'a landing: the body squashes and springs back' },
   wobble: { bone: 'mast', fact: 'speed', gain: 0.03, limit: 0.35, why: 'a mast whips behind as it goes' },
 });
+
+/** The facts a trigger may read: the drive rule's (speed, throttle, braking, steer, skidding, landed), what the page
+ *  keeps (skidTime: seconds into a slide; corner: the share of the tyres' grip a turn asks, v² tan|steer| / wheelbase
+ *  over grip·g, and cornerTime: seconds above 0.6 of it — a cartoon drift is a hard corner, not a slide), what the ground says (offroad: its grip under the tarmac's), what a game sets
+ *  (boosting, damage 0–1). */
+export const FACTS = Object.freeze(['speed', 'throttle', 'braking', 'steer', 'skidding', 'skidTime', 'corner', 'cornerTime', 'landed', 'boosting', 'offroad', 'damage']);
+
+/** A trigger read into a tree: ['or'|'and', a, b] ['not', a] ['cmp', op, a, b] ['mul', a, b] ['abs', a] ['num', v]
+ *  ['fact', name]. Throws on what it cannot read. */
+export function compileWhen(src) {
+  const toks = String(src).match(/\s*(\d+\.?\d*|&&|\|\||<=|>=|==|!=|[<>!()*]|[a-zA-Z]+)/g)?.map((t) => t.trim()) ?? [];
+  if (toks.join('') !== String(src).replace(/\s+/g, '')) throw new Error(`juice: cannot read '${src}'`);
+  let i = 0;
+  const peek = () => toks[i], eat = (t) => { if (toks[i] !== t) throw new Error(`juice: '${src}': expected ${t} at ${toks[i] ?? 'the end'}`); i++; };
+  const or = () => { let a = and(); while (peek() === '||') { i++; a = ['or', a, and()]; } return a; };
+  const and = () => { let a = not(); while (peek() === '&&') { i++; a = ['and', a, not()]; } return a; };
+  const not = () => (peek() === '!' ? (i++, ['not', not()]) : cmp());
+  const cmp = () => { const a = mul(); const op = peek(); if (['<', '>', '<=', '>=', '==', '!='].includes(op)) { i++; return ['cmp', op, a, mul()]; } return a; };
+  const mul = () => { let a = atom(); while (peek() === '*') { i++; a = ['mul', a, atom()]; } return a; };
+  const atom = () => {
+    const t = toks[i++];
+    if (t === undefined) throw new Error(`juice: '${src}' ends early`);
+    if (t === '(') { const a = or(); eat(')'); return a; }
+    if (/^\d/.test(t)) return ['num', Number(t)];
+    if (t === 'abs') { eat('('); const a = or(); eat(')'); return ['abs', a]; }
+    if (!FACTS.includes(t)) throw new Error(`juice: '${src}': '${t}' is not a fact (${FACTS.join(', ')})`);
+    return ['fact', t];
+  };
+  const tree = or();
+  if (i !== toks.length) throw new Error(`juice: '${src}': left over at ${toks[i]}`);
+  return tree;
+}
+
+/** The figure's juice: anchors [{ kind, bone (null: the machine's frame), at, dir }] and rows with compiled triggers. */
+export function bakeJuice(rows, anchors, D) {
+  return {
+    D,
+    anchors: anchors.map((a) => ({ kind: a.kind, bone: a.bone ?? null, at: a.at, dir: a.dir })),
+    rows: rows.map((j) => ({ id: j.id, when: compileWhen(j.when), at: j.at, look: j.look, colours: j.colours, ...(j.rate ? { rate: j.rate } : {}), ...(j.life ? { life: j.life } : {}), size: j.size, budget: j.budget, ...(j.flicker ? { flicker: j.flicker } : {}), ...(j.tierBy ? { tierBy: j.tierBy, tierAt: j.tierAt } : {}) })),
+  };
+}

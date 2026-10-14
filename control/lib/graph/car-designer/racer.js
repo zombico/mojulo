@@ -43,7 +43,7 @@ import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { buildBlock, expr } from '../era/blocks.js';
 import { rollVehicleSheet } from './sheet.js';
 import { BODIES, PARTS, HERO_OF } from './parts.js';
-import { JUICE, STATUS, MOTION } from './juice.js';
+import { JUICE, STATUS, MOTION, bakeJuice } from './juice.js';
 import { VEHICLES } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { mulberry32 } from '../vegetation/grow.js';
@@ -421,7 +421,12 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
     ...(own.has('mast') ? { mast: 'mast', spin: heroMoves.includes('spin') } : {}),
     gains: { steer: M.steer.gain, steerMax: M.steer.limit, lean: M.lean.gain, leanMax: M.lean.limit, squat: M.squat.gain, dive: M.dive.gain, bounce: M.bounce.gain, wobble: M.wobble.gain, wobbleMax: M.wobble.limit },
   };
-  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone) }), live, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
+  // the juice (R3): its rows at the anchors this machine has; an exhaust's tip and a lamp ride the body (root), a
+  // wheel's contact the machine's frame (it neither rolls nor leans)
+  const kinds0 = new Set(state.anchors.map((a) => a.kind.split('.')[0]));
+  const juiceRows = Object.entries(JUICE).filter(([, j]) => kinds0.has(j.at.split('.')[0])).map(([id, j]) => ({ id, ...j }));
+  const figJuice = bakeJuice(juiceRows, state.anchors.map((a) => ({ ...a, bone: a.kind.startsWith('contact') ? null : 'root' })), r4(F.D));
+  const figure = { ...packVehicleFigure(bones, new Map([['root', root], ...wheelFaces.map((w) => [w.bone, w.faces]), ...others.map((o) => [o.id, o.faces])]), { rolls: wheelFaces.map((w) => w.bone) }), live, juice: figJuice, figH: r4(boxOf([...root, ...wheelFaces.flatMap((w) => w.faces), ...others.flatMap((o) => o.faces)]).hi[2]), wheelbase: r4(F.WB), wheelRadius: r4(F.r), warnings: [] };
 
   // ── the readout: physics derived from what was built ──
   const K = VEHICLES.kart, eng = PARTS[ids.engine], bb = boxOf(body.faces), vol = (bb.hi[0] - bb.lo[0]) * (bb.hi[1] - bb.lo[1]) * (bb.hi[2] - bb.lo[2]);

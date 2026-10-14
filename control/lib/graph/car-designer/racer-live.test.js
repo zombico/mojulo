@@ -1,7 +1,8 @@
 // The live racer in the page (an e2e suite: a real browser, skipped when none is installed): one racer driven through
 // the page's own step, throttle, a hard turn, the brake; its bones read back. The front wheels yaw with the steer and
 // the rear ones never; the body squats on the throttle, leans OUT of the turn and dives on the brake; the steering
-// wheel turns with the steer; at rest it is the bake's rest pose.
+// wheel turns with the steer; at rest it is the bake's rest pose. And its juice: puffs at idle, the throttle's flame,
+// sparks and smoke in a hard corner, a boost's flame.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
@@ -11,7 +12,7 @@ import { vehicleRule } from '../roads/vehicles.js';
 import { emitThreeWorld } from '../scene/scene-three.js';
 import { resolveChromium, CHROMIUM_WEBGL_ARGS } from '../scene/chromium.js';
 
-let exe = null, browser = null, shots = null;
+let exe = null, browser = null, shots = null, juice = null;
 const S = solveRacer(racerFromSheet(rollEgocube({ facets: { archetype: 'explorer' }, seed: 4 }), { seed: 4 }), { seed: 4 });
 beforeAll(async () => {
   try { exe = await resolveChromium({ allowFetch: false }); } catch { return; }
@@ -27,6 +28,18 @@ beforeAll(async () => {
     const read = () => Object.fromEntries(rig.fig.bones.map((b, i) => [b.id, Array.from(rig.boneMeshes[i].matrix.elements)]));
     const run = (n, input) => { for (let i = 0; i < n; i++) C.step(1 / 60, input); return { steer: e.steerAngle || 0, bones: read() }; };
     return { rest: run(1, { forward: 0, turn: 0 }), launch: run(45, { forward: 1, turn: 0 }), turn: run(60, { forward: 1, turn: 1 }), brake: run(20, { forward: -1, turn: 0 }) };
+  });
+  // the juice: idle, throttle, a hard corner, a boost (set by hand: a game's), a landing (its edge, by hand)
+  const fresh = await browser.newPage();
+  await fresh.setContent(html, { waitUntil: 'domcontentloaded' });
+  await fresh.waitForFunction(() => window.__mojCtrl && window.__mojCtrl.bodies && window.__mojCtrl.bodies.car, { timeout: 20000 });
+  juice = await fresh.evaluate(() => {
+    const C = window.__mojCtrl, e = C.world.entities.find((x) => x.id === 'car'), rj = C.bodies.car.userData.rigFig.rj;
+    const run = (n, input, set = {}) => { for (let i = 0; i < n; i++) { Object.assign(e, set); C.step(1 / 60, input); } return { alive: { ...rj.alive }, flames: rj.flames.filter((f) => f.holder.visible).map((f) => f.row.id) }; };
+    const idle = run(60, { forward: 0, turn: 0 }), throttle = run(30, { forward: 1, turn: 0 }), corner = run(80, { forward: 1, turn: 1 });
+    const boost = run(20, { forward: 1, turn: 0 }, { boosting: true });
+    run(1, { forward: 1, turn: 0 }, { boosting: false, landed: true });
+    return { idle, throttle, corner, boost, rows: rj.J.rows.map((r) => r.id) };
   });
 }, 60000);
 afterAll(async () => { if (browser) await browser.close().catch(() => {}); });
@@ -46,5 +59,15 @@ describe('the live racer', () => {
     expect(Math.abs(roll(turn.bones.root))).toBeGreaterThan(0.03);
     if (turn.bones.steering) expect(Math.abs(roll(turn.bones.steering) - roll(turn.bones.root))).toBeGreaterThan(0.05);
     expect(pitch(brake.bones.root)).toBeLessThan(-0.03);                           // a dive
+  });
+  it('shows each state at its anchors: idle puffs, the throttle\'s flame, sparks and smoke in a hard corner, a boost\'s flame', () => {
+    if (!exe) return;
+    const { idle, throttle, corner, boost } = juice;
+    expect(idle.alive.idlePuff).toBeGreaterThan(0);
+    expect(throttle.flames).toContain('throttleFlame');
+    expect(corner.alive.driftSpark).toBeGreaterThan(0);
+    expect(corner.alive.skidSmoke).toBeGreaterThan(0);
+    expect(boost.flames).toContain('boostFlame');
+    expect(boost.flames).not.toContain('throttleFlame');
   });
 });

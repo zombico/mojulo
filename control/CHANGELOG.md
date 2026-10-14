@@ -1748,7 +1748,7 @@ Planned:
 
 ### Racer parts: the ODM library, its solver, and the racer's juice
 
-Built so far: R1, the library and the solver; R2, the live rig.
+Built so far: R1, the library and the solver; R2, the live rig; R3, the juice in the page.
 
 - **The parts library** (`lib/graph/car-designer/parts.js`): the catalogue a cartoon racer is composed from, each part
   data an agent can read and extend: its family (body, wheel, engine, exhaust, aero, nose, lamps, tail, seat, steering,
@@ -1779,7 +1779,16 @@ Built so far: R1, the library and the solver; R2, the live rig.
   bones that roll (`rolls`; absent, as before). The overlay is emitted only when a figure lives, so every other page is
   byte-identical. A frame trace in a real browser (`racer-live.test.js`, the e2e tier) holds it.
 
-Planned: R3 the juice in the page, R4 status shaders, R5 rivals in solved machines.
+- **The juice in the page** (R3): a solved racer's figure carries `juice` (its rows at the anchors it has, each trigger
+  compiled into a tree over the facts, never code), and the page plays it: puffs from the exhaust at idle, a short
+  flickering flame on the throttle, a long white-hot flame on a boost (a booster's nozzle the biggest on the machine),
+  speed trails, sparks off the rear tyres in a hard corner coloured by how long it has held (blue, orange, violet),
+  tyre smoke, dust off the tarmac, a ring of dust on landing, black smoke when damaged. A cartoon drift is a hard
+  corner, not a slide: the page keeps `corner` (the share of the tyres' grip a turn asks) and `cornerTime`. Flames ride
+  the body; particles are a pooled set of sprites in the world, jittered by a seeded generator. Emitted only when a
+  figure carries juice. Boosting and damage are a game's to set.
+
+Planned: R4 status shaders, R5 rivals in solved machines.
 
 ### Car designer: a realistic vehicle, or a racer and their machine
 

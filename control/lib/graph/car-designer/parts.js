@@ -127,7 +127,7 @@ export const PARTS = Object.freeze({
       { id: 'pipe', prim: 'tube', role: 'outlet', r: 'r', sides: 8, from: [0, 0, 0], to: [0, '-len', '-drop'], group: 'tech:trim', value: 0.75 },
       { id: 'tip', prim: 'drum', role: 'outlet', axis: 'y', r: 'r * 1.5', h: 'r * 2.2', sides: 10, at: [0, '-len - r * 1.4', '-drop'], group: 'tech:trim', value: 0.85 },
     ], ['pipe'], 'pipe', 'part') }),
-  stacks: row({ family: 'exhaust', fits: { engine: { exposed: 2, oversized: 2 }, era: { classic: 1, vintage: 1 }, archetype: { outlaw: 1, hero: 0.5 }, stance: { raised: 1 } }, mount: 'stacks', size: { len: 'D * 0.55', r: 'D * 0.065' }, fx: { tip: [[0, '-r * 0.6', 'len + r * 1.8'], [0, -0.4, 1]] },
+  stacks: row({ family: 'exhaust', fits: { engine: { exposed: 2, oversized: 2 }, era: { classic: 1, vintage: 1 }, archetype: { outlaw: 1, hero: 0.5 }, stance: { raised: 1 } }, mount: 'stacks', size: { len: 'D * 0.55', r: 'D * 0.065' }, fx: { tip: [[0, '-r * 0.6', 'len + r * 1.8'], [0, -0.9, 0.45]] },
     block: B('stacks', 'stacks: pipes standing up behind the driver, trumpets at their tops', { len: [0.1, 2], r: [0.02, 0.2] }, [
       { id: 'pipe', prim: 'tube', role: 'outlet', r: 'r', sides: 8, from: [0, 0, 0], to: [0, '-r * 0.6', 'len'], group: 'tech:trim', value: 0.78 },
       { id: 'trumpet', prim: 'cone', role: 'outlet', r: 'r', r2: 'r * 1.8', h: 'r * 1.8', sides: 10, at: [0, '-r * 0.6', 'len'], group: 'tech:trim', value: 0.86 },
