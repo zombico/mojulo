@@ -1,5 +1,6 @@
 import { safeJson } from '../emit-util.js';
 import { terrainWindScript, WIND_AT_GLSL } from './terrain-wind.js';
+import { grassContact } from '../../vegetation/grass-contact.js';
 
 // In-page script: a stage's LIVE GRASS (opt-in: an isekai recipe's `wind`, era/isekai.js). The static blade cards are
 // the floor; this stands grown blades (vegetation/grass.js, the stylized meadow) round the walker and moves them.
@@ -13,7 +14,15 @@ import { terrainWindScript, WIND_AT_GLSL } from './terrain-wind.js';
 //     of the grass ramp's stops (lit or shade, from the mask); the fragment takes the stop at lo + coord × (hi − lo),
 //     from a nearest-filtered ramp texture, so only the palette's stops reach the screen, through every bend.
 //   · SHEEN: where the gust at a tuft's root runs above the mean, its upper blades step up the ramp: a gust is a band of
-//     light rolling across the field. PARTING: blades within `part.r` of the walker bend away from it, the tips most.
+//     light rolling across the field.
+//   · CONTACT (`contact`, vegetation/grass-contact.js): what touches the grass is a LOAD on the blade, added to the wind's
+//     before the bend table, so a pressed blade keeps its length and a foot and a gust add up. A bed round the camera
+//     holds how far each cell's blades lie and which way; the walker (while its feet are in the grass), the page's
+//     walkers and physics spheres stamp it, and it recovers with a half-life. A landing (or __mojStageGrass.impact) runs a
+//     ring of load out through the field, a closed form of the clock, and leaves a crater. A laid blade turns a stop up
+//     the ramp laid away from the eye and down laid toward it: the mowing stripe. Absent ⇒ the grass stands untouched.
+//   · THE MATERIAL POLE (`real`, era/style/pole.js): the ramp read smooth between its stops, darkened into the canopy at
+//     the root, a share of tufts gone to straw at the tips, the sun through a blade seen against it. Absent ⇒ the lock.
 //   · the cards: the static blade cards (their textured meshes, tagged with their group) discard inside the field, by the
 //     same distance from the eye the field thins by.
 //   · CROWNS: the trees' crown and wood meshes bend in the same gust field, weighted by height above the ground.
@@ -25,7 +34,31 @@ import { terrainWindScript, WIND_AT_GLSL } from './terrain-wind.js';
 //     field, lifted and skipped by gusts in the vertex shader; the static litter dissolves inside it.
 //   · the clock is window.__mojClock when a capture pins it (the wind's), so a baked frame is reproducible.
 // Absent `liveGrass` ⇒ NOT emitted.
-const FIELD = `
+// the contact's GLSL (with `contact`): the bed's load and the impacts' rings at a blade's root, set once per vertex into
+// mojCL and added to the wind's load before the bend table (so a pressed blade keeps its length); vLay is how far it lies
+const CONTACT_VDECL = "uniform sampler2D uBed; uniform vec4 uBedG; uniform vec4 uImp[__IMPN]; uniform vec4 uWave; uniform float uCT; uniform vec2 uFlat; vec2 mojCL = vec2(0.0); varying float vLay;\n"
+  + 'vec2 mojContact(vec2 p) { vec2 L = vec2(0.0), uv = (p - uBedG.xy) / uBedG.z;'
+  + ' if (uv.x > 0.0 && uv.y > 0.0 && uv.x < 1.0 && uv.y < 1.0) L += (texture(uBed, uv).gb * 255.0 - 127.0) / 127.0 * uFlat.x;'
+  + ' for (int i = 0; i < __IMPN; i++) { vec4 I = uImp[i]; float tau = uCT - I.z; if (I.w <= 0.0 || tau < 0.0) continue; vec2 d = p - I.xy; float r = length(d); if (r < 1e-3) continue;'
+  + ' float u = (r - uWave.x * tau) / uWave.y; L += d / r * (uWave.w * I.w * exp(-tau / uWave.z) * exp(-u * u) / sqrt(1.0 + r)); }'
+  + ' return L; }\n';
+// per instance: the contact's load, how far the tuft lies, and its laid blades' turn of a stop toward the eye or away
+// (a blade laid away from the eye shows its length to the sky, laid toward it its ends: the mowing stripe)
+const CONTACT_BEGIN = '{ mojCL = mojContact(instanceMatrix[3].xy); float cl = length(mojCL); vLay = clamp(cl / uFlat.y, 0.0, 1.0); vec2 vd = instanceMatrix[3].xy - cameraPosition.xy;'
+  + ' if (cl > 1e-4 && length(vd) > 1e-3) vShift += vLay * dot(mojCL / cl, normalize(vd)); }\n';
+// the material pole's fragment: the ramp read smooth between its stops, the canopy's occlusion at the root (opened where the
+// grass is laid), a `dry` share of tufts gone to straw at the tips, the sun through a blade seen against it, and a laid
+// blade turned up to the sky
+const REAL_VDECL = 'varying vec3 vMojW; varying float vDry;\n';
+const REAL_FDECL = 'uniform vec3 uSun; uniform vec3 uSunCol; uniform vec4 uReal; varying vec3 vMojW; varying float vDry;\n';
+const REAL_FRAG = 'float mojC = clamp(mojW.x + vRamp * (mojW.y - mojW.x) + vShift, 0.0, uRampN - 1.0), mojF = floor(mojC), mojL = __LAY;\n'
+  + 'vec3 mojCol = mix(texture2D(uRamp, vec2((mojF + 0.5) / uRampN, 0.5)).rgb, texture2D(uRamp, vec2((min(mojF + 1.0, uRampN - 1.0) + 0.5) / uRampN, 0.5)).rgb, mojC - mojF);\n'
+  + 'mojCol *= mix(uReal.x, 1.0, mix(smoothstep(0.0, 0.75, vRamp), 1.0, 0.6 * mojL));\n'
+  + '{ float g = dot(mojCol, vec3(0.2126, 0.7152, 0.0722)); mojCol = mix(mojCol, g * vec3(1.35, 1.15, 0.6), 0.65 * step(vDry, uReal.z) * smoothstep(0.25, 1.0, vRamp)); }\n'
+  + '{ vec3 V = normalize(vMojW - cameraPosition); mojCol += mojCol * uSunCol * (1.5 * uReal.y * pow(max(0.0, dot(V, uSun)), 3.0) * smoothstep(0.2, 1.0, vRamp) * step(uReal.w - 0.5, vWin.y)); }\n'
+  + 'mojCol *= 1.0 + 0.25 * mojL;\nvec4 diffuseColor = vec4(mojCol, opacity);';
+
+const FIELD = (o) => `
 (function () {
   const TW = window.__mojTerrain, LG = __LG; if (!TW || !TW.wind) return;
   const dec = (v) => { const s = atob(v.__b64), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return new self[v.t](u.buffer); };
@@ -35,20 +68,28 @@ const FIELD = `
   const N = LG.ramp.length, lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
   const rd = new Float32Array(N * 4); LG.ramp.forEach((c, i) => { rd[i * 4] = lin(c[0]); rd[i * 4 + 1] = lin(c[1]); rd[i * 4 + 2] = lin(c[2]); rd[i * 4 + 3] = 1; });
   const rampTex = new THREE.DataTexture(rd, N, 1, THREE.RGBAFormat, THREE.FloatType); rampTex.magFilter = rampTex.minFilter = THREE.NearestFilter; rampTex.needsUpdate = true;
-  const U = { uRamp: { value: rampTex }, uRampN: { value: N }, uPart: { value: new THREE.Vector4(0, 0, LG.part.k, LG.part.r) }, uSheen: { value: LG.sheen } };
-  const VDECL = 'attribute float aRamp; attribute vec2 iWin; varying float vRamp; varying vec2 vWin; varying float vShift; uniform vec4 uPart; uniform float uSheen;\\n'
-    + 'vec3 mojPart(vec3 root, vec3 local, float sc, float H) { vec2 d = root.xy - uPart.xy; float r = length(d); if (r > uPart.w || r < 1e-4) return vec3(0.0);'
-    + ' float s = clamp(local.z / H, 0.0, 1.0), k = uPart.z * (1.0 - r / uPart.w) * s * s * sc; return vec3(d / r * k, -0.5 * k * s); }\\n';
-  const FDECL = 'uniform sampler2D uRamp; uniform float uRampN; varying float vRamp; varying vec2 vWin; varying float vShift;\\n';
-  // the patch the wind's material applies over its own (userData.mojPatch): the ramp coordinate, the sheen, the parting
-  function patchFor(H) {
+  const U = { uRamp: { value: rampTex }, uRampN: { value: N }, uSheen: { value: LG.sheen } };${o.contact ? `
+  // CONTACT: the bed round the camera (an RGBA8 texture, linear) and the impacts ringing, from the kernel the tests run
+  const CT = LG.contact, bed = (__GC)(CT), bedPx = bed.pack(new Uint8Array(bed.N * bed.N * 4));
+  const bedTex = new THREE.DataTexture(bedPx, bed.N, bed.N, THREE.RGBAFormat); bedTex.magFilter = bedTex.minFilter = THREE.LinearFilter; bedTex.needsUpdate = true;
+  Object.assign(U, { uBed: { value: bedTex }, uBedG: { value: new THREE.Vector4(0, 0, bed.N * bed.cell, bed.N) }, uImp: { value: Array.from({ length: CT.impacts }, () => new THREE.Vector4(0, 0, 0, 0)) },
+    uWave: { value: new THREE.Vector4(CT.wave.speed, CT.wave.width, CT.wave.decay, CT.wave.gain) }, uCT: { value: 0 }, uFlat: { value: new THREE.Vector2(CT.flat * CT.press, CT.flat) } });` : ''}${o.real ? `
+  const R = LG.real, sc = R.sunColor.map(lin);
+  Object.assign(U, { uSun: { value: new THREE.Vector3(R.sun[0], R.sun[1], R.sun[2]).normalize() }, uSunCol: { value: new THREE.Vector3(sc[0], sc[1], sc[2]) }, uReal: { value: new THREE.Vector4(R.ao, R.back, R.dry, LG.win.lit[1]) } });` : ''}
+  const VDECL = 'attribute float aRamp; attribute vec2 iWin; varying float vRamp; varying vec2 vWin; varying float vShift; uniform float uSheen;\\n'${o.contact ? ` + ${JSON.stringify(CONTACT_VDECL)}.split('__IMPN').join(String(LG.contact.impacts))` : ''}${o.real ? ` + ${JSON.stringify(REAL_VDECL)}` : ''};
+  const FDECL = 'uniform sampler2D uRamp; uniform float uRampN; varying float vRamp; varying vec2 vWin; varying float vShift;\\n'${o.contact ? ` + 'varying float vLay;\\n'` : ''}${o.real ? ` + ${JSON.stringify(REAL_FDECL)}` : ''};
+  // the patch the wind's material applies over its own (userData.mojPatch): the ramp coordinate, the sheen${o.contact ? ', the contact' : ''}
+  function patchFor(fl = null) {
     return (sh) => {
-      Object.assign(sh.uniforms, U);
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + VDECL)
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvRamp = aRamp; vWin = iWin; vShift = 0.0;\\n#ifdef USE_INSTANCING\\n{ vec2 gu = mojWindAt(instanceMatrix[3].xy, 2.0, uWindT); vShift = uSheen * clamp(length(gu) / max(uWindA.x, 0.01) - 1.0, -1.0, 1.0) * smoothstep(0.35, 1.0, aRamp); }\\n#endif')
-        .replace('mvPosition = modelViewMatrix * mvPosition;', 'mvPosition.xyz += mojPart(instanceMatrix[3].xyz, transformed, length(instanceMatrix[2].xyz), ' + H.toFixed(4) + ');\\nmvPosition = modelViewMatrix * mvPosition;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\n' + FDECL)
-        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'float mojI = clamp(floor(vWin.x + vRamp * (vWin.y - vWin.x) + 0.5 + vShift), 0.0, uRampN - 1.0);\\nvec4 diffuseColor = vec4(texture2D(uRamp, vec2((mojI + 0.5) / uRampN, 0.5)).rgb, opacity);');
+      Object.assign(sh.uniforms, U, fl || {});
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\\n' + VDECL${o.flowers ? " + (fl ? 'attribute float aSeg; attribute vec4 iFlo; varying float vSeg; varying vec4 vFlo;\\n' : '')" : ''})
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\\nvRamp = aRamp; vWin = iWin; vShift = 0.0;\\n#ifdef USE_INSTANCING\\n{ vec2 gu = mojWindAt(instanceMatrix[3].xy, 2.0, uWindT); vShift = uSheen * clamp(length(gu) / max(uWindA.x, 0.01) - 1.0, -1.0, 1.0) * smoothstep(0.35, 1.0, aRamp); }\\n'${o.contact ? ` + ${JSON.stringify(CONTACT_BEGIN)}` : ''}${o.real ? ` + 'vDry = fract(sin(dot(instanceMatrix[3].xy, vec2(12.9898, 78.233))) * 43758.5453);\\n'` : ''}${o.flowers ? ` + (fl ? 'vSeg = aSeg; vFlo = iFlo;${o.real ? ' vDry = 1.0;' : ''}\\n' : '')` : ''} + '#endif')${o.contact ? `
+        .replace('float r = length(R);', 'R += mojCL; float r = length(R);')` : ''}${o.real ? `
+        .replace('mvPosition = modelViewMatrix * mvPosition;', 'vMojW = (modelMatrix * mvPosition).xyz;\\nmvPosition = modelViewMatrix * mvPosition;')` : ''};
+      // the window a fragment reads: a blade's (lit or shade), or a flower's part's (its stem the blade's, its petal, its eye)
+      const W = ${o.flowers ? "fl ? 'varying float vSeg; varying vec4 vFlo;\\n' : ''" : "''"}, mojW = ${o.flowers ? "fl ? 'vec2 mojW = vSeg < 0.5 ? vWin : (vSeg < 1.5 ? vFlo.xy : vFlo.zw);\\n' : " : ''}'vec2 mojW = vWin;\\n';
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\\n' + FDECL + W)
+        .replace('vec4 diffuseColor = vec4( diffuse, opacity );', mojW + ${o.real ? `${JSON.stringify(REAL_FRAG.replace('__LAY', o.contact ? 'vLay' : '0.0'))}` : `'float mojI = clamp(floor(mojW.x + vRamp * (mojW.y - mojW.x) + 0.5 + vShift), 0.0, uRampN - 1.0);\\nvec4 diffuseColor = vec4(texture2D(uRamp, vec2((mojI + 0.5) / uRampN, 0.5)).rgb, opacity);'`});
     };
   }
   const TPL = LG.templates.map((t) => {
@@ -58,8 +99,25 @@ const FIELD = `
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('aRamp', new THREE.BufferAttribute(R, 1)); g.computeBoundingSphere();
     const base = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }); base.userData.mojPatch = patchFor(t.H); base.userData.mojKey = '|stage-grass|' + t.H.toFixed(4);
     return { g, mat: TW.wind.material(base, LG.taker, t.H), tris: t.tris, im: null, cap: 0, n: 0, list: [] };
+  });${o.flowers ? `
+  // THE FLOWERS: a share of the tufts carries wildflowers (vegetation/wildflowers.js), drawn on the tuft's own root and
+  // scale and bent by the same load, so a flower moves with its grass; each vertex carries its part (stem, petal, eye) and
+  // its coordinate up that part's window, the instance its kind's petal and eye windows in the flowers' ramp
+  const FL = LG.flowers, FN = FL.ramp.length, fd = new Float32Array(FN * 4); FL.ramp.forEach((c, i) => { fd[i * 4] = lin(c[0]); fd[i * 4 + 1] = lin(c[1]); fd[i * 4 + 2] = lin(c[2]); fd[i * 4 + 3] = 1; });
+  const flowerTex = new THREE.DataTexture(fd, FN, 1, THREE.RGBAFormat, THREE.FloatType); flowerTex.magFilter = flowerTex.minFilter = THREE.NearestFilter; flowerTex.needsUpdate = true;
+  const FU = { uRamp: { value: flowerTex }, uRampN: { value: FN } };
+  const FT = FL.templates.map((t) => {
+    const q = dec(t.q), P = new Float32Array(q.length), sg = dec(t.seg), vv = dec(t.v), R = new Float32Array(vv.length), SG = new Float32Array(sg.length);
+    for (let i = 0; i < q.length; i++) { const k = i % 3; P[i] = t.lo[k] + (q[i] + 32768) * t.sc[k]; }
+    for (let i = 0; i < vv.length; i++) { R[i] = vv[i] / 255; SG[i] = sg[i]; }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('aRamp', new THREE.BufferAttribute(R, 1)); g.setAttribute('aSeg', new THREE.BufferAttribute(SG, 1)); g.computeBoundingSphere();
+    const base = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }); base.userData.mojPatch = patchFor(FU); base.userData.mojKey = '|stage-flower';
+    return { g, mat: TW.wind.material(base, LG.taker, 1), tris: t.tris, im: null, cap: 0, n: 0, list: [], flower: true };
   });
-  // the tufts of a tile: [x, y, z, h, pick, lit, lean, az] each, from the mask and a seeded hash
+  const FW = FL.kinds.reduce((s, K) => s + K.weight, 0);
+  // a tuft's bloom roll → its kind (by weight) and variant, or -1 for none
+  const kindOf = (r) => { if (r >= FL.share) return -1; let u = (r / FL.share) * FW; for (let i = 0; i < FL.kinds.length; i++) { u -= FL.kinds[i].weight; if (u < 0) return i; } return FL.kinds.length - 1; };` : ''}
+  // the tufts of a tile: [x, y, z, h, pick, lit, lean, az${o.flowers ? ', bloom' : ''}] each, from the mask and a seeded hash
   const hash = (i, j, s) => { let h = Math.imul(i, 374761393) ^ Math.imul(j, 668265263) ^ Math.imul(s, 1274126177); h = Math.imul(h ^ (h >>> 13), 1103515245); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
   const TILE = LG.tile, RAD = LG.radius, NEAR = LG.near, S = LG.seed | 0;
   function tuftsIn(ti, tj) {
@@ -70,16 +128,17 @@ const FIELD = `
       for (let q = 0; q < k; q++) {
         const x = G.x0 + (i + hash(i, j, S + 11 + q * 7)) * c, y = G.y0 + (j + hash(i, j, S + 13 + q * 7)) * c;
         const h = LG.height[0] + (LG.height[1] - LG.height[0]) * hash(i, j, S + 17 + q * 7);
-        out.push(x, y, TW.kernel.groundAt(x, y), h, hash(i, j, S + 19 + q * 7), (cellAt(x, y) & 2) ? 1 : 0, 8 * hash(i, j, S + 23 + q * 7), 360 * hash(i, j, S + 29 + q * 7));
+        out.push(x, y, TW.kernel.groundAt(x, y), h, hash(i, j, S + 19 + q * 7), (cellAt(x, y) & 2) ? 1 : 0, 8 * hash(i, j, S + 23 + q * 7), 360 * hash(i, j, S + 29 + q * 7)${o.flowers ? ', hash(i, j, S + 31 + q * 7)' : ''});
       }
     }
     return out;
   }
-  const PER = 8, tiles = new Map(), stat = { tiles: 0, live: 0, tris: 0, k: 1 };
+  const PER = ${o.flowers ? 9 : 8}, tiles = new Map(), stat = { tiles: 0, live: 0, tris: 0, k: 1 };
   function ensure(t, need) {
     if (need <= t.cap) return; if (t.im) { scene.remove(t.im); t.im.dispose(); }
     t.cap = Math.max(need, Math.ceil(t.cap * 1.5), 64); t.im = new THREE.InstancedMesh(t.g, t.mat, t.cap); t.im.count = 0; t.im.frustumCulled = false; t.im.userData.g = 'live-grass';
-    t.win = new THREE.InstancedBufferAttribute(new Float32Array(2 * t.cap), 2); t.g.setAttribute('iWin', t.win); scene.add(t.im);
+    t.win = new THREE.InstancedBufferAttribute(new Float32Array(2 * t.cap), 2); t.g.setAttribute('iWin', t.win);${o.flowers ? `
+    if (t.flower) { t.flo = new THREE.InstancedBufferAttribute(new Float32Array(4 * t.cap), 4); t.g.setAttribute('iFlo', t.flo); t.im.userData.g = 'live-flowers'; }` : ''} scene.add(t.im);
   }
   const M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), AX = new THREE.Vector3(), PV = new THREE.Vector3(), SV = new THREE.Vector3();
   const smooth = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
@@ -93,26 +152,41 @@ const FIELD = `
         const keep = d <= NEAR ? 1 : Math.max(0.05, (NEAR / d) ** 2), rank = (a[q + 4] * 9.7361 + 0.1307) % 1; if (rank >= keep) continue;
         const fade = d > 0.8 * RAD ? Math.max(0, (RAD - d) / (0.2 * RAD)) : 1, s = h * fade * smooth(0, 0.25 * keep, keep - rank), w = Math.min(1.8, 1 / Math.sqrt(keep));
         if (s <= 1e-3) continue;
-        all.push({ x, y, z, s, w, v: Math.min(LG.variants.length - 1, Math.floor(a[q + 4] * LG.variants.length)), lit: a[q + 5], lean: a[q + 6], az: a[q + 7], px: (LG.size * s * f) / d });
+        all.push({ x, y, z, s, w, v: Math.min(LG.variants.length - 1, Math.floor(a[q + 4] * LG.variants.length)), lit: a[q + 5], lean: a[q + 6], az: a[q + 7], px: (LG.size * s * f) / d${o.flowers ? ', fk: kindOf(a[q + 8])' : ''} });
       }
     }
     const lv = (e, k) => (e.px * k >= LG.px.L2 ? 'L2' : e.px * k >= LG.px.L1 ? 'L1' : 'L0'), cost = (k) => { let n = 0; for (const e of all) n += TPL[LG.variants[e.v][lv(e, k)]].tris; return n; };
     let k = 1; if (cost(1) > LG.drawTris) { let lo = 0.01, hi = 1; for (let it = 0; it < 14; it++) { const mid = Math.sqrt(lo * hi); if (cost(mid) > LG.drawTris) hi = mid; else lo = mid; } k = lo; }
     for (const e of all) { const t = TPL[LG.variants[e.v][lv(e, k)]]; t.list[t.n++] = e; }
     for (const t of TPL) {
-      ensure(t, t.n);
+      ensure(t, t.n); if (!t.im) continue;
       for (let i = 0; i < t.n; i++) {
         const e = t.list[i], az = (e.az * Math.PI) / 180; AX.set(-Math.sin(az), Math.cos(az), 0); Q.setFromAxisAngle(AX, (e.lean * Math.PI) / 180);
         M4.compose(PV.set(e.x, e.y, e.z - 0.03), Q, SV.set(e.s * e.w, e.s * e.w, e.s)); t.im.setMatrixAt(i, M4);
         const W = e.lit ? LG.win.lit : LG.win.shade; t.win.setXY(i, W[0], W[1]);
       }
       t.im.count = t.n; t.im.instanceMatrix.needsUpdate = true; t.win.needsUpdate = true;
+    }${o.flowers ? `
+    // the flowers ride their tufts: the same matrix, the tuft's level
+    for (const t of FT) t.n = 0;
+    let blooms = 0;
+    for (const e of all) { if (e.fk < 0) continue; const K = FL.kinds[e.fk], vs = K.variants[Math.min(K.variants.length - 1, Math.floor(((e.az / 360) * 7.31) % 1 * K.variants.length))], t = FT[vs[lv(e, k)]]; t.list[t.n++] = e; blooms++; }
+    for (const t of FT) {
+      ensure(t, t.n); if (!t.im) continue;
+      for (let i = 0; i < t.n; i++) {
+        const e = t.list[i], K = FL.kinds[e.fk], az = (e.az * Math.PI) / 180; AX.set(-Math.sin(az), Math.cos(az), 0); Q.setFromAxisAngle(AX, (e.lean * Math.PI) / 180);
+        M4.compose(PV.set(e.x, e.y, e.z - 0.03), Q, SV.set(e.s * e.w, e.s * e.w, e.s)); t.im.setMatrixAt(i, M4);
+        const W = e.lit ? LG.win.lit : LG.win.shade, Pw = e.lit ? K.petal.lit : K.petal.shade, Ew = e.lit ? K.eye.lit : K.eye.shade;
+        t.win.setXY(i, W[0], W[1]); t.flo.setXYZW(i, Pw[0], Pw[1], Ew[0], Ew[1]);
+      }
+      t.im.count = t.n; t.im.instanceMatrix.needsUpdate = true; t.win.needsUpdate = true; t.flo.needsUpdate = true;
     }
+    stat.blooms = blooms;` : ''}
     stat.live = all.length; stat.k = k;
   }
   let at = [1e12, 1e12, 1e12];
   function tick() {
-    const c = camera.position; U.uPart.value.x = c.x; U.uPart.value.y = c.y;
+    const c = camera.position;${o.contact ? ' touch();' : ''}
     if (Math.hypot(c.x - at[0], c.y - at[1], c.z - at[2]) > 0.75) {
       at = [c.x, c.y, c.z];
       const r = RAD + TILE, need = new Set();
@@ -136,8 +210,35 @@ const FIELD = `
     };
     mat.customProgramCacheKey = () => 'mojulo-grass-cards'; o.material = mat;
   });
-  window.__mojStageGrass = { tiles, stat, templates: TPL };
-  tick();
+${o.contact ? `  // the BODIES in the grass, every frame: the walker (only while its feet are in the grass: an eye up in the air presses
+  // nothing), the page's walkers and its physics spheres, and what the page presses itself; each stamps the bed where
+  // it stands, and one that lands from a fall makes an impact
+  const clockS = () => (window.__mojClock != null ? window.__mojClock : performance.now()) / 1000, TALL = LG.height[1] + 0.1, seen = new Map(), extra = [];
+  let lastT = null;
+  function body(key, x, y, z, r, t, dt) {
+    let b = seen.get(key); const g = TW.kernel.groundAt(x, y), inGrass = z - g < TALL;
+    if (!b || Math.hypot(x - b.x, y - b.y, z - b.z) > 3) { seen.set(key, { x, y, z, vx: 0, vy: 0, vz: 0 }); if (inGrass) bed.stamp(x, y, r, 0, 0, 1); return; }
+    if (dt > 0) { const vz = (z - b.z) / dt, e = bed.landing(b.vz, vz); if (e && inGrass) { bed.impact(x, y, e, t); stat.impacts++; } b.vx = (x - b.x) / dt; b.vy = (y - b.y) / dt; b.vz = vz; }
+    b.x = x; b.y = y; b.z = z; if (inGrass) bed.stamp(x, y, r, b.vx, b.vy, 1);
+  }
+  function touch() {
+    const t = clockS(), dt = lastT == null ? 0 : Math.max(0, Math.min(0.1, t - lastT)), c = camera.position; lastT = t;
+    bed.recover(dt); bed.follow(c.x, c.y);
+    body('eye', c.x, c.y, c.z - CT.eye, CT.body, t, dt);
+    const W = window.__mojWalkers; if (Array.isArray(W)) W.forEach((w, i) => { const q = w && w.pos; if (q && (q[0] || q[1])) body('w' + i, q[0], q[1], q[2], 0.35, t, dt); });
+    const S = window.__mojSim && window.__mojSim.meshes; if (S) for (const k in S) { const m = S[k]; if (!m || !m.geometry) continue; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere(); const r = m.geometry.boundingSphere.radius * m.scale.x; body('s' + k, m.position.x, m.position.y, m.position.z - r, Math.max(0.2, 1.2 * r), t, dt); }
+    for (const p of extra.splice(0)) bed.stamp(p[0], p[1], p[2], p[3], p[4], p[5]);
+    const o = bed.origin(); U.uBedG.value.x = o[0]; U.uBedG.value.y = o[1]; U.uCT.value = t;
+    const I = bed.ringing(t); U.uImp.value.forEach((v, i) => { const q = I[i]; if (q) v.set(q[0], q[1], q[2], q[3]); else v.set(0, 0, 0, 0); });
+    if (bed.live || stat.wasLive) { bed.pack(bedPx); bedTex.needsUpdate = true; } stat.wasLive = bed.live; stat.ringing = I.length;
+  }
+  stat.impacts = 0;
+  // for the page's own gameplay: an impact of strength e (1 a jump's landing) at (x, y), and a press (radius r, laid k
+  // 0..1, moving vx, vy) for one frame
+  const impact = (x, y, e = 1) => { bed.impact(x, y, e, clockS()); stat.impacts++; }, press = (x, y, r = 0.5, k = 1, vx = 0, vy = 0) => { extra.push([x, y, r, vx, vy, k]); };
+  window.__mojStageGrass = { tiles, stat, templates: TPL, bed, impact, press };
+` : `  window.__mojStageGrass = { tiles, stat, templates: TPL };
+`}  tick();
 })();
 `;
 
@@ -309,7 +410,8 @@ const PETALS = `
 
 /** `cfg`: { grid: { x0, y0, cell, nx, ny, zlo, zsc, z (Int16 b64), m (Uint8 b64) }, ramp, win: { lit, shade }, templates:
  *  [{ lo, sc, q, H, tris }], variants: [{ L2, L1, L0 }], size, radius, near, tile, density, height, px, drawTris, seed,
- *  sheen, part: { r, k }, taker, cards: [group], crowns: { groups, phi, reach, flutter, from, full } | null, wind } */
+ *  sheen, contact?: { …GRASS_CONTACT_DEFAULTS, eye }, real?: { ao, back, dry, sun, sunColor }, taker, cards: [group],
+ *  crowns: { groups, phi, reach, flutter, from, full } | null, wind } */
 export function stageGrassScript(cfg) {
   const { wind, ...rest } = cfg, lg = safeJson(rest);
   return `
@@ -326,5 +428,5 @@ export function stageGrassScript(cfg) {
   window.__mojTerrain = window.__mojTerrain || { kernel: { groundAt }, cfg: {}, stat: {} };
   window.__mojTerrain.stageHeights = Z; window.__mojTerrain.stageMask = dec(G.m); window.__mojStageLG = LG;
 })();
-${terrainWindScript(wind)}${FIELD.replace('__LG', 'window.__mojStageLG')}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
+${terrainWindScript(wind)}${FIELD({ contact: !!cfg.contact, real: !!cfg.real, flowers: !!cfg.flowers }).replace('__LG', 'window.__mojStageLG').replace('(__GC)', () => `(${grassContact.toString()})`)}${CROWNS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL))}${cfg.petals ? PETALS.replace('__LG', 'window.__mojStageLG').replace('__WIND_AT', safeJson(WIND_AT_GLSL)) : ''}`;
 }
