@@ -19,6 +19,7 @@
  */
 import { craftOf, G } from './eye.js';
 import { approachTo, GLIDE } from './course.js';
+import { spaceSeat } from './space.js';
 
 const DEG = Math.PI / 180;
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -35,7 +36,10 @@ export function flyRule(craftSpec = 'trainer', { map = null, lever = true, assis
     // a fast jet's moves quickly and goes higher
     bankMax: r3(c.bankMax * DEG), pitchMax: c.max > 150 ? 0.9 : 0.4, pitchRate: c.max > 150 ? 0.9 : 0.35,
     ...(lever && engine ? { lever: true } : {}), ...(assist === 'arcade' || assist === 'sim' ? { assist } : {}),
-    ...(map ? { bound: { hx: map.rings.reach.hx, hy: map.rings.reach.hy, warn: 5 } } : {}),
+    // a space craft: no lift, no gravity; it turns at its own rate, the rate that gives the coordinated turn's radius
+    // at cruise (so the eye's turn circle holds), and its nose goes nearly vertical
+    ...(c.space ? { gravity: false, lift: false, turnRate: r3((G * Math.tan(c.bankMax * DEG)) / c.cruise), pitchMax: 1.3, pitchRate: 1.1, space: true } : {}),
+    ...(map ? { bound: { hx: map.rings.reach.hx, hy: map.rings.reach.hy, warn: 5, ...(map.rings.reach.hz ? { hz: map.rings.reach.hz } : {}) } } : {}),
     eye: 1.2, sinkMax: c.sink ?? 3, cruise: c.cruise,
   };
 }
@@ -48,6 +52,14 @@ export function flyRule(craftSpec = 'trainer', { map = null, lever = true, assis
  */
 export function seatCraft(map, field, course = null, { assist = null } = {}) {
   const c = map.craft, base = flyRule(c.key === 'custom' ? c : c.key, { map, assist }), aloft = base.engine === false;
+  if (map.form === 'void') {
+    // in space (space.js): behind the first gate, flying at cruise, the lever where cruise holds it; the rocks its
+    // obstacles (spheres the page counts as a crash), the course its guidance
+    const t = course ? spaceSeat(map, course) : { pos: [0, -map.rings.field.hy, 0], heading: Math.PI / 2, pitch: 0 };
+    const guide = course ? { gates: course.gates.map((g) => [...g.at, g.radius, g.heading]) } : null;
+    const rule = { ...base, launchSpeed: c.cruise, leverStart: r2((c.cruise / c.max) ** 2), ...(field.asteroids?.length ? { obstacles: field.asteroids.flat() } : {}), ...(guide ? { course: guide } : {}) };
+    return { rule, transform: t, ground: t.pos[2], end: course ? course.gates[0].at : [0, 0, 0] };
+  }
   const pad = field.pads[0] ?? null, F = map.rings.field;
   let sx, sy, heading, end;
   if (pad) {

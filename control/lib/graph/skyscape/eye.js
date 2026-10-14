@@ -43,12 +43,16 @@ export const APPROACH = Object.freeze({ overStall: 1.3, flareEye: 2 });
  *   glider   a two-seat training glider (Schweizer SGS 2-33 class: stall ~31 kt, Vne 98 mph, ~1,000 lb flying, L/D 23)
  *   trainer  a four-seat piston trainer (Cessna 172 class: stall ~48 kt, cruise ~122 kt, Vne 163 kt, 13,500 ft,
  *            ~2,400 lb, 180 hp)
+ *   fighter  a space fighter (a game's, not a type's: an X-wing's feel): no air, so no lift and no gravity in play
+ *            (`space`: the fly rule's lift and gravity dials off, its turn its own rate at the coordinated turn's radius);
+ *            `stall` and `ceiling` are nominal, `lowPass` how near a surface it skims in a trench
  *   jet      a jet trainer (BAE Hawk class: stall ~100 kt, cruise ~400 kt, M0.84 low, 44,500 ft, ~5 t, one Adour
  *            of ~26 kN)
  */
 export const CRAFT = Object.freeze({
   glider: { label: 'training glider', stall: 16, cruise: 24, max: 44, ceiling: 3000, lowPass: 30, bankMax: 45, sink: 2, engine: false, mass: 470, thrust: 0, glide: 23 },
   trainer: { label: 'piston trainer', stall: 25, cruise: 63, max: 84, ceiling: 4100, lowPass: 60, bankMax: 60, sink: 3, engine: true, mass: 1090, thrust: 2900, glide: 9 },
+  fighter: { label: 'space fighter', stall: 20, cruise: 100, max: 160, ceiling: 20000, lowPass: 20, bankMax: 80, sink: 3, engine: true, mass: 10000, thrust: 64000, glide: 10, space: true },
   jet: { label: 'jet trainer', stall: 52, cruise: 206, max: 285, ceiling: 13500, lowPass: 150, bankMax: 80, sink: 3.6, engine: true, mass: 5000, thrust: 26000, glide: 12 },
 });
 

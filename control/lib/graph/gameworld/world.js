@@ -102,7 +102,7 @@ import { COURSE_PRESETS } from '../roads/course.js';
 import { SETS, TRACK_BLOCKS } from '../roads/set-pieces.js';
 import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 import { readFront } from '../game/play-front.js';
-import { validateAirspace } from '../skyscape/airspace.js';
+import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -154,7 +154,7 @@ const ID = /^[a-z][a-z0-9-]{0,47}$/;
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', 'front', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'airspace'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
-const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'course', 'assist'];
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -509,8 +509,9 @@ export function resolveLevel(world, id) {
 
   // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
   if (L.airspace) {
-    const { map = {}, ground = {}, course = true } = L.airspace;
-    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] }, ...(course ? { course } : {}) } };
+    // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
+    const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
   }
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {

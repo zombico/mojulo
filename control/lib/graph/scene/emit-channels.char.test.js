@@ -139,6 +139,9 @@ import { emitThreeWorld } from './scene-three.js';
 // levels the wings faster, 'sim' holds the bank). On the `controllable` fixture 2 lines are replaced and 5 added, all
 // the rule's own; nothing else moves (the flight block's touchdown, roofs and respawn are emitted only with a flying
 // body, which no fixture holds). The same 13, and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: space): the fly rule's bound takes `hz` (above and below, the turn-back's nose toward
+// the centre's height) and the lever a `leverStart`; on the `controllable` fixture 3 lines are replaced and 2 added, all
+// the rule's own, every one reading an absent key the old way. The same 13, and shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

@@ -58,7 +58,8 @@ export function flyCourse(map, field, course, { rule: given = null, seconds = 90
       const err = wrap(Math.atan2(dy, dx) - p.transform.heading);
       if (!extend && p.airborne && dh < 2.2 * rTurn && Math.abs(err) > 0.9) extend = true;
       if (extend && dh > 3.5 * rTurn) extend = false;
-      want = clamp(Math.atan2(dz, Math.max(dh, 1)), -0.25, 0.3);
+      const nose = c.space ? 1.0 : 0.3;   // in space the nose goes where the gate is
+      want = clamp(Math.atan2(dz, Math.max(dh, 1)), -Math.max(0.25, nose), nose);
       // terrain ahead (a ground-proximity warning): where the craft will be in a few seconds, the ground (or a city's
       // roof) within a low pass of the path pulls the nose up, whatever the target asks
       if (p.airborne) {
@@ -81,6 +82,8 @@ export function flyCourse(map, field, course, { rule: given = null, seconds = 90
     const lift = rolling ? 0 : p.airborne || v > c.stall * 1.15 ? clamp(4 * (want - (p.transform.pitch || 0)), -1, 1) : 0;
     E.stepWorld(world, { turn, lift, forward, lookDY: 0 }, dt, hooks);
     t += dt;
+    // a rock hit (space.js): a crash, as the page judges it
+    if (field.hitAt && field.hitAt(p.transform.pos[0], p.transform.pos[1], p.transform.pos[2], 2)) { reason = `crashed: hit an asteroid before gate ${passed() + 1}`; break; }
     // a touchdown, judged as the game judges it: in a pad's box and no harder than the gear takes, else a crash
     if (p.airborne) lastVs = p.climbRate || 0;
     else if (wasAir) {

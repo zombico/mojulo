@@ -30,7 +30,8 @@
  * above is then as it was:
  *   • engine: false — a glider: no thrust at all; W / S do nothing in the air (S still brakes on the ground).
  *   • lever: true — the throttle is a LEVER that W / S move (`leverRate`/s) and that holds where it is left, the way a
- *     cockpit's does; S at idle on the ground is the wheel brakes. Absent, W is the throttle while held.
+ *     cockpit's does; S at idle on the ground is the wheel brakes. `leverStart` sets it before it is first moved (a
+ *     craft that starts flying, at the setting that holds its speed). Absent, W is the throttle while held.
  *   • gravity: false — space: no energy exchange along the path, no stall (lift only matters against weight), no
  *     ground to roll on.
  *   • lift: false — the craft is held up by nothing: no stall (speed does not keep it up, nothing to lose), and it
@@ -39,9 +40,10 @@
  *   • assist: 'arcade' | 'sim' — how much the craft flies itself. 'arcade' never stalls: slow, the nose will not
  *     come up and eases down until the speed is back, and the wings level twice as fast. 'sim' leaves the bank where it
  *     is put (no self-levelling). Absent, between the two, as it was.
- *   • bound: { hx, hy, cx?, cy?, warn? } — the map's reach (skyscape/map.js): outside it the `outOfBounds` fact is up,
- *     and after `warn` s (5) the stick is taken and the craft is turned back toward the centre, wings and nose
- *     levelling, until it is inside again.
+ *   • bound: { hx, hy, cx?, cy?, warn?, hz?, cz? } — the map's reach (skyscape/map.js): outside it the `outOfBounds`
+ *     fact is up, and after `warn` s (5) the stick is taken and the craft is turned back toward the centre, wings and
+ *     nose levelling, until it is inside again. `hz` (space: skyscape/space.js) bounds it above and below `cz` too, and
+ *     the nose is then turned toward the centre's height rather than levelled.
  *
  * AFFORDANCE FACTS (the D5 doctrine): locomotion 'fly'|'taxi', airspeed, throttle, bank,
  * climbRate, stalled (+stallStart), airborne, takeoff/touchdown edges, gaitPhase as the prop
@@ -75,7 +77,7 @@ export function buildRulesFly(E) {
     let brakeIn = clamp(-input.forward, 0, 1);
     if (r.lever) {
       // the lever: W / S move it and it stays; S held at idle is the brakes (on the ground, the wheels)
-      const was = e.lever || 0;
+      const was = e.lever ?? (r.leverStart || 0);   // leverStart: where the lever sits before it is first moved
       e.lever = clamp(was + input.forward * (r.leverRate ?? 0.6) * dt, 0, 1);
       throttle = e.lever;
       brakeIn = was <= 0 && input.forward < 0 ? clamp(-input.forward, 0, 1) : 0;
@@ -98,14 +100,16 @@ export function buildRulesFly(E) {
     let bankIn = clamp(input.turn, -1, 1);                    // D = +1 = bank right
     let liftIn = input.lift || 0;
     if (r.bound) {
-      const B = r.bound, cx = B.cx || 0, cy = B.cy || 0, out = Math.abs(t.pos[0] - cx) > B.hx || Math.abs(t.pos[1] - cy) > B.hy;
+      const B = r.bound, cx = B.cx || 0, cy = B.cy || 0, cz = B.cz || 0;
+      const out = Math.abs(t.pos[0] - cx) > B.hx || Math.abs(t.pos[1] - cy) > B.hy || (B.hz > 0 && Math.abs(t.pos[2] - cz) > B.hz);
       e.boundT = out ? (e.boundT || 0) + dt : 0;
       e.outOfBounds = out;
       if (out && e.boundT > (B.warn ?? 5)) {
         let d = Math.atan2(cy - t.pos[1], cx - t.pos[0]) - t.heading;
         d = ((d % TAU) + TAU + Math.PI) % TAU - Math.PI;       // the turn back, the short way round
         bankIn = clamp(-2 * d, -1, 1);                          // heading grows with a left bank (−)
-        liftIn = clamp(-3 * (t.pitch || 0), -1, 1);             // and the nose comes level
+        const toward = B.hz > 0 ? clamp(Math.atan2(cz - t.pos[2], Math.hypot(cx - t.pos[0], cy - t.pos[1])), -pitchMax, pitchMax) : 0;
+        liftIn = clamp(3 * (toward - (t.pitch || 0)), -1, 1);   // and the nose comes level (or, bounded above and below, toward the centre)
       }
     }
     // ── the assist: slow, an arcade craft's nose will not come up (it is eased down below, and it never stalls) ──

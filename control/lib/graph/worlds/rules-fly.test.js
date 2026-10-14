@@ -204,15 +204,29 @@ describe('rule: fly — the flight dials', () => {
     expect(Math.abs(a0 - a1)).toBeGreaterThan(Math.abs(d0 - d1));
   });
 
+  it('leverStart sets the lever before it is first moved, and the lever holds there', () => {
+    const w = aloft({ lever: true, leverStart: 0.5 }), p = run(w, { forward: 0 }, 60);
+    expect(p.lever).toBe(0.5);
+    expect(p.throttle).toBe(0.5);
+  });
+
   it('every dial absent is the fly rule as it was', () => {
     const script = (i) => ({ forward: 1, lift: i > 200 ? 1 : 0, turn: i > 500 ? 0.6 : 0 });
     const go = (extra) => { const w = plane(extra); for (let i = 0; i < 700; i++) stepWorld(w, script(i), DT, flat); return w.byId.p; };
-    const a = go({}), b = go({ engine: undefined, lever: undefined, gravity: undefined, lift: undefined, assist: undefined });
+    const a = go({}), b = go({ engine: undefined, lever: undefined, gravity: undefined, lift: undefined, assist: undefined, leverStart: undefined });
     expect(a.transform.pos).toEqual(b.transform.pos);
   });
 });
 
 describe('rule: fly — the bound (the map\'s reach)', () => {
+  it('bounded above and below (space), a craft out over the top is turned back down toward the centre', () => {
+    const w = createWorld({ entities: [{ id: 'p', rule: { type: 'fly', mass: 1200, thrust: 7200, stallSpeed: 18, maxSpeed: 80, eye: 0.6, gravity: false, lift: false, pitchMax: 1.2, bound: { hx: 5000, hy: 5000, hz: 200, warn: 0.5 } }, transform: { pos: [0, 0, 260], heading: 0, pitch: 0.3 } }] });
+    w.byId.p.airspeed = 40; w.byId.p.airborne = true;
+    const p = run(w, { forward: 0.5 }, 240);
+    expect(p.outOfBounds === false || p.transform.pitch < 0).toBe(true);
+    expect(p.transform.pos[2]).toBeLessThan(260);
+  });
+
   it('warns outside the reach, then turns the craft back toward the centre', () => {
     const w = createWorld({ entities: [{ id: 'p', rule: { type: 'fly', mass: 1200, thrust: 7200, stallSpeed: 18, maxSpeed: 80, eye: 0.6, bound: { hx: 200, hy: 200, warn: 1 } }, transform: { pos: [190, 0, 400], heading: 0, pitch: 0 } }] });
     w.byId.p.airspeed = 40; w.byId.p.airborne = true;

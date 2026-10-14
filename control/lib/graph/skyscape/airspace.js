@@ -31,6 +31,14 @@ import * as dmath from '../../util/dmath.js';
 import { seatCraft, craftPilot } from './craft.js';
 import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
+import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace } from './space.js';
+
+/** A space manifest: its map's form is 'void', or its craft is a space craft (the fighter), whose map is space. */
+export function isSpace(m) {
+  const craft = (m.fly && typeof m.fly === 'object' && m.fly.craft) || m.map?.craft;
+  let space = false; try { space = !!(craft && craftOf(craft).space); } catch { /* the validator says so */ }
+  return m.map?.form === 'void' || space;
+}
 const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 const r2 = (v) => Math.round(v * 100) / 100;
 /** The spacing (m) a city's ground is meshed at near it: a street's width, so the painted plan reads. */
@@ -40,8 +48,16 @@ const CITY_PIN = 8;
 export function validateAirspace(m) {
   if (!m || typeof m !== 'object') return ['airspace must be an object { kind: \'airspace\', map?, ground?, seed?, spawn? }'];
   const e = [];
-  if (m.map !== undefined) e.push(...validateMap(m.map));
-  if (m.ground !== undefined) e.push(...readGroundAsk(m.ground));
+  if (isSpace(m)) {
+    // space: a field and its rocks, no ground (space.js)
+    if (m.map !== undefined) { const { form: _f, ...rest } = m.map; void _f; e.push(...validateMap(rest).filter((x) => !/map\.field/.test(x)), ...validateSpace(m.map, m.space || {})); }
+    if (m.ground !== undefined) e.push('airspace.ground: space has no ground (its contents are `space: { asteroids }`)');
+    if (m.space !== undefined && !(m.space && typeof m.space === 'object')) e.push('airspace.space must be { asteroids? }');
+  } else {
+    if (m.map !== undefined) e.push(...validateMap(m.map));
+    if (m.ground !== undefined) e.push(...readGroundAsk(m.ground));
+    if (m.space !== undefined) e.push("airspace.space belongs to a space map (map.form: 'void', or a space craft)");
+  }
   if (m.spawn !== undefined && !(Array.isArray(m.spawn) && m.spawn.length === 3 && m.spawn.every(Number.isFinite))) e.push('airspace.spawn must be [x, y, z] in metres');
   if (m.fly !== undefined && m.fly !== true && !(m.fly && typeof m.fly === 'object')) e.push('airspace.fly must be true or { craft? }: seat a craft to fly the map');
   if (m.assist !== undefined && !['arcade', 'sim'].includes(m.assist)) e.push("airspace.assist must be 'arcade' (never stalls, the wings level quickly) or 'sim' (the bank holds where it is put)");
@@ -55,12 +71,21 @@ export function airspaceOf(manifest) {
   const errs = validateAirspace(manifest); if (errs.length) throw new Error(`airspace: ${errs.join('; ')}`);
   // a seated craft (`fly.craft`) is the one the map is planned for: its reach, its haze, its ground's detail
   const craft = (manifest.fly && typeof manifest.fly === 'object' && manifest.fly.craft) || manifest.map?.craft;
-  const map = planMap({ ...(manifest.map || {}), ...(craft ? { craft } : {}), seed: manifest.seed ?? manifest.map?.seed ?? 1 });
+  const seed = manifest.seed ?? manifest.map?.seed ?? 1;
+  if (isSpace(manifest)) {
+    // space: the course is planned on the empty field first, so the rocks keep clear of it (and of the start)
+    const map = planSpace({ field: manifest.map?.field, craft: craft || 'fighter', seed });
+    const course = planCourse(map, spaceField(map, { asteroids: 'none' }), { ...(manifest.course && manifest.course !== true ? manifest.course : {}), seed });
+    const field = spaceField(map, { asteroids: manifest.space?.asteroids ?? 'field', seed, keep: courseTubes(map, course, spaceSeat(map, course)) });
+    return { map, field };
+  }
+  const map = planMap({ ...(manifest.map || {}), ...(craft ? { craft } : {}), seed });
   const field = mapGround(map, { seed: manifest.seed, ...(manifest.ground || {}) });
   return { map, field };
 }
 
 export function assembleAirspace(manifest, { title = 'mojulo airspace', live = false } = {}) {
+  if (isSpace(manifest)) return assembleSpace(manifest, { title });
   const { map, field } = airspaceOf(manifest);
   const channel = terrainPageChannel(field, { n: map.lod.n, split: map.lod.split, minSize: map.lod.minSize, horizonScale: map.lod.horizonScale });
   channel.hazeHeight = map.haze.hazeHeight;
@@ -109,6 +134,32 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
       pads: field.pads.map((p) => ({ id: p.id, kind: p.kind, center: p.center, along: p.along, size: [p.length, p.width], datum: p.datum, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })),
       ...(course ? { course: { gates: course.gates, finish: course.finish, laps: course.laps, laws: course.laws } } : {}),
       bounds: b, rootSize: channel.root.size,
+    },
+  };
+}
+
+/** The space map on the World page (space.js): stars all round, the rocks instanced, the course's gates, no ground. */
+function assembleSpace(manifest, { title }) {
+  const { map, field } = airspaceOf(manifest);
+  const course = manifest.course ? planCourse(map, field, { ...(manifest.course === true ? {} : manifest.course), seed: manifest.seed ?? 1 }) : null;
+  const seat = seatCraft(map, field, course, { assist: manifest.assist }), p = seat.transform.pos, R = map.rings.reach;
+  const pilot = manifest.fly ? craftPilot(map, seat) : null;
+  const ahead = [p[0] + Math.cos(seat.transform.heading) * 400, p[1] + Math.sin(seat.transform.heading) * 400, p[2]];
+  const cameras = [
+    { name: 'start', worldFraming: { cameraPosition: [p[0] - Math.cos(seat.transform.heading) * 60, p[1] - Math.sin(seat.transform.heading) * 60, p[2] + 15], lookAt: ahead, horizontalFov: 70 } },
+    { name: 'field', worldFraming: { cameraPosition: [-R.hx, -R.hy, R.hz], lookAt: [0, 0, 0], horizontalFov: 60 } },
+  ];
+  const laws = [...spaceLaws(map, field, course, seat.transform), ...(course ? course.laws : [])];
+  return {
+    faces: course ? course.faces : [], repeats: field.repeats, cameras, title,
+    sky: { space: true, seed: 7, center: [0, 0, 0], radius: 7000 }, bg: '#03040a',
+    ...(pilot ? {} : { walk: { speed: 20, spawn: p, radius: 0.4, minEye: 1.7, gravity: 0, jump: 0 } }),
+    viewBox: manifest.viewBox && manifest.viewBox.width ? manifest.viewBox : { width: 1120, height: 760 },
+    ...(pilot || {}),
+    meta: {
+      map: { form: 'void', craft: map.craft.key, rings: map.rings },
+      laws, space: field.report,
+      ...(course ? { course: { gates: course.gates, finish: null, laps: course.laps, laws: course.laws } } : {}),
     },
   };
 }

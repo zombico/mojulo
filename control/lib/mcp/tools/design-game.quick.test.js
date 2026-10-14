@@ -79,6 +79,20 @@ describe('design_game quick', () => {
     expect(L.entities[0].rule.course.land.aim).toHaveLength(3);
   }, 240_000);
 
+  it('fly in space: a space craft\'s map is space (rocks, stars, no ground), its gates a race with nothing to land on', async () => {
+    const out = await designGameHandler({ quick: { goal: 'fly', craft: 'fighter', airspace: { space: { asteroids: 'sparse' } }, world: { id: 'belt' } }, ref: 'sp' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('sp-level-run-0');
+    expect(L.ground).toBeUndefined();
+    expect(L.entities[0].rule).toMatchObject({ type: 'fly', gravity: false, lift: false, space: true });
+    const laps = L.game.mechanics.find((m) => m.kind === 'laps');
+    expect(laps.land).toBeUndefined();
+    expect(laps.checkpoints.at(-1).land).toBeUndefined();
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sp-level-run-0'), { live: true });
+    expect(payload.sky.space).toBe(true);
+    expect(payload.meta.laws.filter((l) => !l.ok)).toEqual([]);
+  }, 240_000);
+
   it('survive and avoid: a countdown; hazards on the water the trail crosses, and hp to lose', async () => {
     await designGameHandler({ quick: { goal: 'survive', seconds: 30, world: { id: 'hold' } }, ref: 'h' });
     expect(mechanicsOf('h-level-run-0')).toEqual(['survive']);

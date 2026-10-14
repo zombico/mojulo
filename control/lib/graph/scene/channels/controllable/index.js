@@ -211,11 +211,20 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
     }
     return null;
   }
+  // space (rule.space): no ground under the craft but a roof grid's (a station's), the view out to the stars, and its
+  // rocks (rule.obstacles: x, y, z, r flat) a crash when flown into
+  var spaced = false, rocks = null, clearOfRocks = true;
+  function rockHit(q) { for (var k = 0; k < rocks.length; k += 4) { var dx = q[0] - rocks[k], dy = q[1] - rocks[k + 1], dz = q[2] - rocks[k + 2], r = rocks[k + 3] + 2; if (dx * dx + dy * dy + dz * dz <= r * r) return true; } return false; }
   function hook(p) {
+    if (p.rule.space && !spaced) {
+      spaced = true; rocks = p.rule.obstacles || null;
+      __ground = function (pos) { return roofs ? roofAt(pos[0], pos[1]) : null; };   // eslint-disable-line no-func-assign
+      if (camera.far < 40000) { camera.far = 40000; camera.updateProjectionMatrix(); }
+    }
     if (p.rule.roofs && !roofs) {
       roofs = p.rule.roofs.map(function (r) { var b = atob(r.q), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return { x0: r.x0, y0: r.y0, cell: r.cell, nx: r.nx, ny: r.ny, base: r.base, h: new Uint16Array(u.buffer) }; });
       var g0 = __ground;
-      __ground = function (pos) { var g = g0(pos), t = roofAt(pos[0], pos[1]); return t !== null && (g === null || t > g) ? t : g; };   // eslint-disable-line no-func-assign
+      if (!p.rule.space) __ground = function (pos) { var g = g0(pos), t = roofAt(pos[0], pos[1]); return t !== null && (g === null || t > g) ? t : g; };   // eslint-disable-line no-func-assign
     }
     var B = window.__mojBus; if (hooked || !B || !B.bus) return; hooked = true;
     var prev = B.bus.processEvents;
@@ -229,7 +238,7 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
         ev = R;
         c.transform.pos = ev.spot.slice(); c.transform.heading = ev.heading || 0; c.transform.pitch = 0; c.bank = 0;
         c.airborne = !!ev.aloft; c.stalled = false; c.airspeed = ev.aloft ? (c.rule.cruise || c.rule.launchSpeed || c.rule.stallSpeed * 1.6) : 0;
-        if (c.rule.lever) c.lever = ev.aloft ? 0.75 : 0;
+        if (c.rule.lever) c.lever = ev.aloft ? (c.rule.leverStart || 0.75) : 0;
         wasAir = !!ev.aloft; lastVs = 0; armed = !!ev.aloft;
       }
       return out;
@@ -295,6 +304,11 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
     var p = __world.pilotId && __world.byId[__world.pilotId];
     if (p && p.rule && p.rule.type === 'fly') {
       hook(p);
+      if (rocks && window.__mojBus && window.__mojBus.bus) {
+        var hit = rockHit(p.transform.pos);
+        if (hit && clearOfRocks) { var Bk = window.__mojBus; Bk.bus.processEvents(Bk.state, [{ type: 'crash', entity: p.id, why: 'rock' }]); }
+        clearOfRocks = !hit;
+      }
       var q0 = p.transform.pos, g0 = __ground([q0[0], q0[1], q0[2]]);
       if (p.airborne && g0 !== null && q0[2] - g0 > ARM) armed = true;
       if (wasAir === null) wasAir = !!p.airborne;

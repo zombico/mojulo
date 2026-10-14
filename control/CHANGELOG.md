@@ -103,6 +103,17 @@ genre on the quick path.
   arrow at the edge when it is off the screen or behind), a gate flown past outside its ring called out (MISSED GATE ·
   turn back), and on the way to the runway four glide-slope lights (white above the slope, red below) and the side of
   the centreline. The next gate is the game's own (the laps mechanic's), or counted on the page without a game.
+- **Space** (`skyscape/space.js`). A map with no ground: a field and a reach about it above and below as well as round
+  (the fly rule's bound takes `hz`), stars all round (the World page's space sky, the camera's far plane out to
+  them), and asteroids: seeded granite rocks, instanced, in densities `none | sparse | field | dense`, each a sphere,
+  kept clear of every leg of the course and the start. The `fighter` craft class (a game's, not a type's) flies it
+  on the fly rule with lift and gravity off, turning at its own rate at the coordinated turn's radius, its lever
+  started where cruise holds (`leverStart`). The course weaves up and down through the field and ends at its last
+  gate; a rock flown into is a crash and the respawn brings the craft back aloft. `airspace` takes `space: {
+  asteroids }` for a space craft (or `map.form: 'void'`), and the quick fly goal takes `craft: 'fighter'`. Space laws:
+  turn room in three dimensions, the rocks clear of the course, everything in the reach; the autopilot flies it.
+  The ring gate takes a wider radius (to 40 m; the `ring` primitive's rail to 60); an atmosphere's gates are as they
+  were. `resolveLevel` now carries an airspace level's `assist` (it was dropped).
 
 ### Sheet-metal bend lines that mark without cutting
 

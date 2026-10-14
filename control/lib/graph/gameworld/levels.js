@@ -46,6 +46,7 @@ import { trackContract, trackSurface } from '../roads/contract.js';
 import { airspaceOf } from '../skyscape/airspace.js';
 import { planCourse } from '../skyscape/course.js';
 import { mapLaws } from '../skyscape/map.js';
+import { spaceLaws } from '../skyscape/space.js';
 import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 
@@ -156,7 +157,8 @@ export function airspaceEnds(manifest) {
   const out = { spawn: [sx, sy, seat.ground], heading: seat.transform.heading, exit, exitFrom: course?.finish ? 'the runway' : 'the last gate', planar: false, beats: [], hazards: [] };
   // and the course flown by its own craft (skyscape/autopilot.js): the flight's walkability, a machine gate
   const flown = course ? flyCourse(map, field, course, { rule: seat.rule }) : null;
-  const laws = [...mapLaws(map), ...(course ? course.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every gate in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
+  // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
+  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every gate in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
     .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
   for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
   AIR_ENDS.set(key, out);

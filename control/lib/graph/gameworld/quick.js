@@ -166,7 +166,7 @@ export function readQuick(Q) {
   for (const k of ['craft', 'assist', 'airspace']) if (Q.goal !== 'fly' && Q[k] !== undefined) throw fail(`.${k} belongs to the fly goal`);
   if (Q.goal === 'fly') {
     if (Q.craft !== undefined && !CRAFT[Q.craft]) throw fail(`.craft is one of ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join('; ')}`);
-    if (Q.airspace !== undefined && !(isObj(Q.airspace) && Object.keys(Q.airspace).every((k) => ['map', 'ground', 'course'].includes(k)))) throw fail('.airspace is { map?, ground?, course? }: the flight map as an airspace level takes it');
+    if (Q.airspace !== undefined && !(isObj(Q.airspace) && Object.keys(Q.airspace).every((k) => ['map', 'ground', 'space', 'course'].includes(k)))) throw fail('.airspace is { map?, ground?, space?, course? }: the flight map as an airspace level takes it (space: { asteroids } for a space craft)');
     if (Q.assist !== undefined && !['arcade', 'sim'].includes(Q.assist)) throw fail(".assist is 'arcade' (never stalls, the wings level quickly) or 'sim' (the bank holds where it is put)");
     if (Q.airspace?.map?.craft !== undefined) throw fail('.airspace.map.craft: name the aircraft once, as .craft');
     for (const k of ['hero', 'ride', 'racers', 'climb', 'building', 'run', 'roadway']) if (Q[k] !== undefined && Q[k] !== false) throw fail(`.${k}: a flight is flown in its aircraft over its own map (no ${k})`);

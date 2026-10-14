@@ -23,6 +23,7 @@
 import { buildBlock } from '../era/blocks.js';
 import { gnoise } from '../polygonizer/landform.js';
 import { ROOF_CELL } from './city.js';
+import { spaceHeights, spaceGateR } from './space.js';
 import * as dmath from '../../util/dmath.js';
 
 /** s of cruise between gates; the least a gate may be apart (s); a light craft's steepest gate-to-gate climb. */
@@ -30,13 +31,15 @@ export const GATE_S = 9, GATE_MIN_S = 4, CLIMB = 0.12;
 /** The ring gate: its hoop's radius in the craft's top speed (a gate a second-and-a-bit wide at max), on its rails. */
 export const RING_GATE = Object.freeze({
   id: 'ring-gate', read: 'a ring gate: a hoop to fly through, a lit band round its inside', tier: 'installation', mounts: ['socket'], functions: ['signal'],
-  params: { r: [6, 30], tube: [0.4, 1.6] },
+  params: { r: [6, 40], tube: [0.4, 1.6] },
   parts: [
     { id: 'hoop', prim: 'ring', role: 'frame', r: 'r', tube: 'tube', sides: 24, axis: 'x', group: 'tech:frame', value: 0.7 },
     { id: 'band', prim: 'ring', role: 'status', r: 'r - tube * 1.6', tube: 'tube * 0.35', sides: 24, axis: 'x', group: 'tech:light', value: 0.9 },
   ],
   sig: ['hoop'], lead: 'hoop',
 });
+/** An atmosphere gate's radius rail (m): a space gate (space.js) takes the block's wider one. */
+const AIR_R = [6, 30];
 /** The colours a gate is painted (frame, its lit band, the next gate's band) and the finish's. */
 const PAINT = { frame: [236, 150, 48], band: [255, 236, 140], next: [120, 220, 255] };
 
@@ -86,6 +89,8 @@ export function planCourse(map, field, { gates: nAsk, laps = 1, land = true, see
   let first = 0, best = -Infinity;
   pts.forEach((p, i) => { const dx = p[0] - dep[0], dy = p[1] - dep[1], d = dmath.hypot(dx, dy) || 1, ahead = (dx * depDir[0] + dy * depDir[1]) / d; const score = ahead - d / (4 * F.hx); if (score > best) { best = score; first = i; } });
   const ring = [...pts.slice(first), ...pts.slice(0, first)];
+  // in space (space.js): nothing to clear, nothing to land on; the loop weaves up and down through the field
+  if (map.form === 'void') return finishCourse(map, field, ring, spaceHeights(map, ring, seed), { laps, land: false, seed, open: false });
   const low = c.lowPass, clear = 1.5 * low, cell = readStep(field), glides = c.engine === false;
   if (glides) {
     // downhill: from the last gate back, each gate the higher of its own clearance and the next one's plus the height
@@ -105,7 +110,7 @@ export function planCourse(map, field, { gates: nAsk, laps = 1, land = true, see
   }
   // heights: a weave between the low pass and four, clamped to the climb a gate-to-gate leg allows, lifted over the ground
   const z = ring.map((p, i) => topAt(field)(p[0], p[1]) + low * (2 + 1.5 * (0.5 + 0.5 * gnoise(i * 0.7, 3.3, seed + 31))));
-  const top = map.ceiling - (Math.min(RING_GATE.params.r[1], Math.max(RING_GATE.params.r[0], c.max * 0.3)));   // a gate's top under the ceiling
+  const top = map.ceiling - (Math.min(AIR_R[1], Math.max(AIR_R[0], c.max * 0.3)));   // a gate's top under the ceiling
   // lifting a gate to ease one leg steepens the leg before it, round the loop: repeat until nothing moves (only ever
   // raising, under the ceiling, so it settles)
   const tops = ring.map((p, i) => Math.min(top, legTop(field, p, ring[(i + 1) % ring.length], cell) + clear));
@@ -127,7 +132,7 @@ export function planCourse(map, field, { gates: nAsk, laps = 1, land = true, see
 /** The gates from the line and its heights, the finish on the runway, the look, the laws. */
 function finishCourse(map, field, ring, z, { laps, land, seed, open }) {
   const c = map.craft, pad = field.pads[0] || null;
-  const radius = r2(clamp(c.max * 0.3, RING_GATE.params.r[0], RING_GATE.params.r[1]));
+  const radius = c.space ? spaceGateR(c) : r2(clamp(c.max * 0.3, AIR_R[0], AIR_R[1]));
   const gates = ring.map((p, i) => {
     const q = ring[(i + 1) % ring.length], o = ring[(i - 1 + ring.length) % ring.length];
     const heading = dmath.atan2(q[1] - o[1], q[0] - o[0]);
@@ -185,9 +190,10 @@ export function courseCheckpoints(course) {
 export function flightLaps(course, map, field, seat) {
   const G = course.gates, cps = courseCheckpoints(course);
   const toward = (a, b) => r2(dmath.atan2(b[1] - a[1], b[0] - a[0]));
-  const respawn = [{ spot: seat.transform.pos.map(r2), heading: r2(seat.transform.heading), aloft: seat.rule.engine === false ? 1 : 0 }];
+  // the start: on the runway, or aloft for a craft with no engine and in space (nothing to stand on)
+  const respawn = [{ spot: seat.transform.pos.map(r2), heading: r2(seat.transform.heading), aloft: seat.rule.engine === false || map.form === 'void' ? 1 : 0 }];
   for (let j = 0; j + 1 < cps.length; j++) respawn.push({ spot: G[j % G.length].at, heading: toward(cps[j].at, cps[j + 1].at), aloft: 1 });
-  return { kind: 'laps', checkpoints: cps, laps: course.laps ?? 1, land: { pads: field.pads.map((p) => ({ at: [p.center[0], p.center[1], r2(p.datum + TOUCHDOWN_H / 2)], half: padHalf(p) })) }, respawn };
+  return { kind: 'laps', checkpoints: cps, laps: course.laps ?? 1, ...(field.pads.length ? { land: { pads: field.pads.map((p) => ({ at: [p.center[0], p.center[1], r2(p.datum + TOUCHDOWN_H / 2)], half: padHalf(p) })) } } : {}), respawn };
 }
 
 /**
@@ -209,6 +215,14 @@ export function courseLaws(course, map, field) {
   const inner = course.open ? G.slice(1, -1).map((g, k) => k + 1) : G.map((g, i) => i);   // an open course turns only between its ends
   const tight = Math.min(Infinity, ...inner.map((i) => rTurn(G[(i - 1 + G.length) % G.length], G[i], G[(i + 1) % G.length])));
   out.push({ law: 'turns', ok: tight >= map.eye.turn.cruise - 1e-6, note: `the tightest turn is ${r2(tight)} m; the craft turns in ${map.eye.turn.cruise} m at cruise` });
+  if (map.form === 'void') {
+    // in space: no ground to clear (space.js keeps the rocks off the legs) and no climb, only how steep the nose goes
+    const steep = Math.max(...legs.map(([a, b]) => Math.atan2(Math.abs(b.at[2] - a.at[2]), Math.max(1, dist(a, b)))));
+    out.push({ law: 'pitch', ok: steep <= 0.6 + 1e-6, note: `the steepest leg is ${r2(steep * 180 / Math.PI)}° (at most ${r2(0.6 * 180 / Math.PI)}°)` });
+    const inZ = G.every((g) => Math.abs(g.at[0]) <= F.hx && Math.abs(g.at[1]) <= F.hy && Math.abs(g.at[2]) <= F.hz);
+    out.push({ law: 'in-reach', ok: inZ, note: inZ ? 'every gate is in the field' : 'a gate stands outside the field' });
+    return out;
+  }
   const cell = readStep(field), clear = Math.min(...legs.map(([a, b]) => { const L = dist(a, b), n = Math.max(2, Math.ceil(L / cell)); let m = Infinity; for (let i = 0; i <= n; i++) { const t = i / n, x = a.at[0] + (b.at[0] - a.at[0]) * t, y = a.at[1] + (b.at[1] - a.at[1]) * t, zz = a.at[2] + (b.at[2] - a.at[2]) * t; m = Math.min(m, zz - topAt(field)(x, y)); } return m; }));
   out.push({ law: 'clear', ok: clear >= c.lowPass - 1e-6, note: `the lowest leg passes ${r2(clear)} m over the ground or a roof (at least the low pass, ${c.lowPass} m)` });
   // (gates are kept to the centimetre, so a leg at the limit may read a hair over it)
