@@ -21,7 +21,7 @@ const FAMILY = Object.freeze({
   suid: 'herd', giraffid: 'herd', primate: 'herd', squamate: 'solitary', anuran: 'solitary', chiropteran: 'flock',
   chondrichthyan: 'solitary', teleost: 'school', theropod: 'solitary', ceratopsian: 'herd', hadrosaur: 'herd',
   sauropod: 'herd', thyreophoran: 'herd', pterosaur: 'flock', plesiosaur: 'solitary',
-  cetacean: 'school',
+  cetacean: 'school', pinniped: 'herd',
 });
 
 // where a species lives otherwise than its family

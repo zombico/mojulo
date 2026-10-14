@@ -126,6 +126,21 @@ export const FAMILIES = {
       humpbackWhale: { note: 'slow deep fluke beats, the long flippers banking and turning it' },
     },
   },
+  pinniped: {
+    spine: { trunk: 5, neck: 2, tail: 1 },
+    gaits: {
+      // on land a true seal humps along on its belly, the body rippling front to back (the "galumph")
+      crawl: { pattern: 'verticalHumps' },
+      swim: { pattern: 'subcarangiform' },
+    },
+    axial: { flex: 0.6, lateral: 0.3, wave: 'travelling', roll: 0, yaw: 0.1, head: 'steady', tail: 'none' },
+    note: 'humps along on its belly on land; in the water the hind flippers sweep side to side, the body bending',
+    source: 'Fish et al. 1988 (phocid swimming); Tennett et al. 2018 (seal terrestrial locomotion)',
+    species: {
+      seaLion: { gaits: { swim: { pattern: 'flipperFlight' } }, axial: { lateral: 0.05 },
+        note: 'flies underwater on its long fore flippers, the hind ones steering; on land it walks on all four' },
+    },
+  },
   plesiosaur: {
     spine: { trunk: 3, neck: 8, tail: 3 },
     gaits: {

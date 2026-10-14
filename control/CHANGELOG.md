@@ -25,6 +25,11 @@ names (`about`), the generated DOES, mind and cosmos tables regenerated with the
   saddle), the humpback (a flat broad head, the long pale flippers, a small hump), the beluga (all white, a round
   melon, a ridge for a fin) and the narwhal (mottled, the tusk). They swim by a new `flukeStroke` pattern: the body
   wave in the VERTICAL plane, the flukes beating up and down.
+- **Pinnipeds** (`families/pinniped.js`), hauled out on land: a smooth spindle resting on its belly, short fore
+  flippers, the hind flippers trailing back (a true seal) or turned forward under the rump; a round whiskered head.
+  The harbour seal (worked species, no external ears), the California sea lion (propped high on long fore flippers,
+  small rolled ears, the bull's crest) and the walrus (a huge bulk, a broad whiskered muzzle, the tusks). They crawl
+  on land by a vertical body wave and swim by sweeping the hind flippers; the sea lion flies on its fore flippers.
 
 ### Wildlife improvements: the default animals' silhouettes and proportions
 

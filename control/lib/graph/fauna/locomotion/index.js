@@ -108,7 +108,7 @@ export const TAIL_BUILD_OF = Object.freeze({
   canine: 'fur', procyonid: 'fur',
   feline: 'flesh', mustelid: 'flesh', rodent: 'flesh', monotreme: 'flesh', macropod: 'flesh', crocodilian: 'flesh',
   squamate: 'flesh', theropod: 'flesh', sauropod: 'flesh', hadrosaur: 'flesh', thyreophoran: 'flesh', ceratopsian: 'flesh',
-  teleost: 'flesh', chondrichthyan: 'flesh', plesiosaur: 'flesh', cetacean: 'flesh',
+  teleost: 'flesh', chondrichthyan: 'flesh', plesiosaur: 'flesh', cetacean: 'flesh', pinniped: 'stub',
   equine: 'hair', bovid: 'hair', pachyderm: 'hair', giraffid: 'hair',
   cervid: 'stub', ursine: 'stub', leporid: 'stub', suid: 'stub', testudine: 'stub', pterosaur: 'stub', avian: 'feather',
 });
