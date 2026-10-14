@@ -196,6 +196,13 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
 - Open from phase 1: a spawn guard (in the sim a gunner respawned in front of the player's rifle was downed in the
   same frame), the farthest spawn on the bus, teams.
 
+- **Phase 2, bots that play a match**: the mind's `frag` motivation (`worlds/controllable/mind.js`). It fights whom
+  it sees and whoever shot it, heads for the noise or a hunch when it sees no one, and strafes as it shoots; a respawn
+  starts its mind clean. `deathmatch.mjs` now runs it by default (`DM_MIND=hunt` for the hunters that stalled): the
+  4-bot bout reaches its limit of 5 in 88 s with kills spread 5 / 4 / 2 / 3, where the hunters made 0 in 120 s.
+  Laws in `worlds/controllable/frag.test.js`. Open: leading a moving target, item seeking, jumping, not firing
+  through allies, and any mind in Godot.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

@@ -528,6 +528,79 @@ export function buildMind(E) {
     }
     wanderStep(e, r, dt, world, { speedMul: 0.35, pause: [4, 7], pauseLoco: 'graze' });
   }
+  // ── FRAG (`rule.mind.motivation: 'frag'`): a match player. Everyone not on its team is its foe (`rule.target`, else
+  // 'enemy' on a team, 'all' without one). It fights whom it can SEE, never the nearest body behind a wall; seen, the
+  // one that shot it last (for `fragGrudge`, 3 s) and the one it already fights count closer. Seeing no one it never
+  // stands: it follows its freshest LEAD, the place the shot that hit it came from, a gunshot it heard (within
+  // `hearRange`, 35, in the last half second) or where it last saw a foe, for `leadSpan` (6 s); with none, a HUNCH:
+  // every `hunchEvery` (8) s a rival picked by its seeded dice, walked toward. While it shoots it strafes, side to side
+  // on its juke clock (`strafe`, 0.6 of its speed; 0 stands).
+  const fragPolicy = (e, r) => r.target ?? (e.team ? 'enemy' : 'all');
+  const fragFoe = (e, o, policy) => o !== e && !o.isCamera && !o.downed && !o.gone && !o.invincible && o.body && o.body.hittable && !(policy === 'enemy' && e.team && o.team === e.team);
+  // canSee(e, r, o, world, wide) — in sight range, in its facing cone (unless wide: the one it fights, the one that shot
+  // it), and a clear line eye to eye; no side effects (perceive records the sighting)
+  function canSee(e, r, o, world, wide) {
+    const t = e.transform, q = o.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1];
+    if (Math.hypot(dx, dy) > (r.sightRange ?? 120)) return false;
+    if (!wide) { const off = Math.atan2(dy, dx) - t.heading; if (Math.abs(Math.atan2(Math.sin(off), Math.cos(off))) > (r.sightCone ?? 1.2)) return false; }
+    const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
+    return !(world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(o)], world.colliders));
+  }
+  function fragNotice(e, r, world) {
+    if (!world || !world.byId) return null;
+    const now = world.time || 0, t = e.transform, policy = fragPolicy(e, r);
+    // a hit says who and where from: a grudge, and a lead to the shooter
+    if ((e.hits || 0) > (e.fragHits || 0)) {
+      e.fragHits = e.hits;
+      const by = e.lastHitBy && world.byId[e.lastHitBy];
+      if (by && by !== e) { e.fragGrudge = { id: by.id, t: now }; e.fragLead = { pos: by.transform.pos.slice(), t: now }; }
+    }
+    const grudge = e.fragGrudge && now - e.fragGrudge.t < (r.fragGrudge ?? 3) ? e.fragGrudge.id : null;
+    let best = null, bc = Infinity;
+    for (const id in world.byId) {
+      const o = world.byId[id];
+      if (!fragFoe(e, o, policy)) continue;
+      const mine = o.id === e.fragTarget || o.id === grudge;
+      if (!canSee(e, r, o, world, mine)) continue;
+      let c = Math.hypot(o.transform.pos[0] - t.pos[0], o.transform.pos[1] - t.pos[1]);
+      if (o.id === e.fragTarget) c *= 0.6;
+      if (o.id === grudge) c *= 0.3;   // being shot turns it, unless the one it fights is much closer
+      if (c < bc) { bc = c; best = o; }
+    }
+    e.fragTarget = best ? best.id : null;
+    return best;
+  }
+  // fragRoam(e, r, dt, world) — no foe in sight: hear, then follow the freshest lead, else a hunch
+  function fragRoam(e, r, dt, world) {
+    const t = e.transform, now = (world && world.time) || 0, span = r.leadSpan ?? 6;
+    if (world && world.byId) {
+      let heard = null, hd = r.hearRange ?? 35;
+      for (const id in world.byId) {
+        const o = world.byId[id], s = o.lastShot;
+        if (o === e || !s || now - s.t > 0.5 || !s.from) continue;
+        const d = Math.hypot(s.from[0] - t.pos[0], s.from[1] - t.pos[1]);
+        if (d < hd) { hd = d; heard = s.from; }
+      }
+      if (heard && !(e.fragLead && now - e.fragLead.t < 0.5)) e.fragLead = { pos: heard.slice(), t: now };
+    }
+    // where it last saw a foe is a lead too, as old as the sighting
+    if (e.lastSeen && (!e.fragLead || e.lastSeen.t > e.fragLead.t)) e.fragLead = { pos: e.lastSeen.pos.slice(), t: e.lastSeen.t };
+    let goal = e.fragLead && now - e.fragLead.t < span ? e.fragLead.pos : null;
+    if (goal && Math.hypot(goal[0] - t.pos[0], goal[1] - t.pos[1]) < 2) { e.fragLead = null; e.lastSeen = null; goal = null; }
+    if (!goal) {
+      if (!e.fragHunch || now >= e.fragHunch.until) {
+        const foes = [];
+        for (const id in (world && world.byId) || {}) { const o = world.byId[id]; if (fragFoe(e, o, fragPolicy(e, r))) foes.push(o); }
+        const n = e.fragHunchN = (e.fragHunchN || 0) + 1;
+        e.fragHunch = foes.length ? { id: foes[Math.floor(hash01(e.id, 7919 + n) * foes.length)].id, until: now + (r.hunchEvery ?? 8) } : null;
+      }
+      const h = e.fragHunch && world.byId[e.fragHunch.id];
+      if (h && !h.downed && !h.gone) goal = h.transform.pos;
+    }
+    if (!goal) { e.moving = false; return; }
+    e.aiFire = 0;
+    goTo(e, r, dt, world, goal, r.speed ?? 6);
+  }
   // idle(e, r, dt, world, motive) — IDLE by motivation; a mind without one stands
   function idle(e, r, dt, world, motive) {
     // GROUP (group.js): a member out of the fight keeps its formation slot behind the leader
@@ -539,6 +612,7 @@ export function buildMind(E) {
     if (motive === 'guard' || motive === 'escort') return returnToPost(e, r, dt, world);
     if (motive === 'wander' || motive === 'territorial') return wanderStep(e, r, dt, world, { speedMul: r.wanderSpeedMul ?? 0.5, pause: [r.wanderPause ?? 2, (r.wanderPause ?? 2) * 2] });
     if (motive === 'forage') return grazeStep(e, r, dt, world);
+    if (motive === 'frag') return fragRoam(e, r, dt, world);
     e.moving = false;
   }
 
@@ -681,14 +755,14 @@ export function buildMind(E) {
     }
     // NOTICE.
     const ward = motive === 'escort' ? wardOf(e, r, world) : null;
-    let target = pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);
+    let target = motive === 'frag' ? fragNotice(e, r, world) : pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);
     // COVER: hurt or reloading, it takes cover (opt-in `rule.cover`) from the one it fights, seen or not (it knows where
     // the fire came from)
     if (r.cover && target && target !== e && takeCover(e, r, dt, world, target)) { e.reactionEnded = false; return; }
     const percept = r.mind && r.mind.perception;
     if (percept && target && target !== e && !perceive(e, r, target, world) && e.groupFocus !== target.id) {
       target = null;
-      if (percept === 'memory' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
+      if (percept === 'memory' && motive !== 'frag' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
     }
     if (!target || target === e) { e.reactionEnded = false; idle(e, r, dt, world, motive); return; }
     // GUARD: it holds its post. A target farther than `guardRadius` (20) from the post is not its business: it goes
@@ -929,6 +1003,12 @@ export function buildMind(E) {
       if (dist2d > standoff && facing) moveF = speed * dt;
       if (moveF) { t.pos[0] += f2[0] * moveF; t.pos[1] += f2[1] * moveF; }
       moveMag = moveF;
+      // FRAG: it strafes as it shoots, side to side on its juke clock
+      if (motive === 'frag' && facing && w && (r.strafe ?? 0.6) > 0) {
+        const side = nextJuke(e, r, dt), ss = speed * (r.strafe ?? 0.6) * dt;
+        t.pos[0] += rt2[0] * side * ss; t.pos[1] += rt2[1] * side * ss;
+        moveMag = Math.max(moveMag, ss);
+      }
     }
     if (!isSpace && world && world.colliders) block(t, r, eye, world);
     if (!isSpace) standOnGround(t, r, eye, world);

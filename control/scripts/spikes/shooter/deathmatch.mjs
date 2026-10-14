@@ -2,7 +2,7 @@
 // other (`rule.target: 'all'`), and hands the world the engine's match layer (combat-match.js: kills credited to the
 // last hitter, the fallen respawn at the spawn farthest from the living, first to `killTarget` wins). Measures what a
 // two-minute bout does on a stage laid for a corridor fight.
-//   node scripts/spikes/shooter/deathmatch.mjs [bots=4] [seconds=120]
+//   node scripts/spikes/shooter/deathmatch.mjs [bots=4] [seconds=120]      DM_MIND=hunt for the hunters it stalled with
 process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { register } from 'node:module';
@@ -23,7 +23,8 @@ const gunners = payload.entities.filter((e) => e.id.startsWith('foe-'));
 const entities = payload.entities.map((e) => {
   if (e.id === 'player') return { ...e, body: { ...e.body, hittable: false }, transform: { ...e.transform, pos: [9999, 9999, 0] } };
   if (!e.id.startsWith('foe-')) return e;
-  return { ...e, team: undefined, rule: { ...e.rule, target: 'all' } };
+  // DM_MIND=hunt: the hunter on target 'all' (the spike's first run); frag (default): the match player (mind.js)
+  return { ...e, team: undefined, rule: process.env.DM_MIND === 'hunt' ? { ...e.rule, target: 'all' } : { ...e.rule, mind: { ...e.rule.mind, motivation: 'frag' } } };
 });
 const spawns = gunners.map((g) => [...g.transform.pos]);
 const W = E.createWorld({ entities, colliders: payload.colliders, match: { killTarget: 5, respawnDelay: 3, spawns } });

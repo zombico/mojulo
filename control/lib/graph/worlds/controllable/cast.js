@@ -3,7 +3,8 @@
  *
  *   castOps(state, ops)   apply the bus's queued character intents (event-bus `ctrl` verb, handed over by syncToCtrl),
  *                         in order. Each op is { op, who, … }; an unknown who is a no-op:
- *     spawn { at?, face? }    wake one minted asleep (`dormant`) or sent away: shown, revived, placed where it's told
+ *     spawn { at?, face? }    wake one minted asleep (`dormant`) or sent away: shown, revived, placed where it's told; a
+ *                         mind starts its life clean (no sighting, search, cover, path, grudge or health phase)
  *     vanish                  send one away (asleep again: hidden, unhittable, its rule held)
  *     kill                    it falls (`downed`; hp to 0 when it has hp); its rule is held while it lies
  *     hurt { by } / heal { by? }   its body.hp, floored at 0 (a fall) and capped at its hpMax (heal with no by: full)
@@ -166,6 +167,13 @@ export function buildCast(E) {
       if (o.op === 'spawn') {
         if (typeof o.with === 'string') e.transit = { is: o.with, dir: 'in', t0: t };
         e.dormant = false; e.gone = false; e.downed = false; e.castDown = false; e.route = null; e.held = false; e.pose = null;
+        // a fresh life: what its mind knew and was doing goes (a sighting, a search, a cover spot, a path, a match's
+        // grudges and leads, a crossed health phase); the hits it took before are not a new hit
+        if (e.rule && e.rule.type === 'ai') {
+          e.lastSeen = null; e.searchT = null; e.coverAt = null; e.coverUntil = null; e.navPath = null; e.mindPhase = null;
+          e.fragTarget = null; e.fragLead = null; e.fragGrudge = null; e.fragHunch = null;
+          e.coverHits = e.fragHits = e.hits || 0;
+        }
         if (Number.isFinite(e.hpMax) && e.body) { e.body.hp = e.hpMax; e.body.hittable = true; }
         if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
         if (Number.isFinite(o.face)) e.transform.heading = o.face * DEG;

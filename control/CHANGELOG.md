@@ -39,6 +39,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   ("a per-tick budget"); `metrics.processed` keeps the lifetime total. The same in Godot's `kernel/bus.gd` (kernel
   0.21.0). The page's characterization hashes move with the inlined bus (only that change moves them).
 
+### Shooter: bots that play a match
+
+- **A match player.** The mind's new motivation `frag` (`rule.mind.motivation: 'frag'`) plays a deathmatch. Everyone
+  not on its team is its foe (`rule.target`, else `'enemy'` on a team, `'all'` without one).
+  - **Target.** It fights whom it can see, never the nearest body behind a wall. Of those it sees, the one that shot
+    it last (for `fragGrudge`, 3 s) counts much closer, and the one it already fights counts closer too.
+  - **Seeing no one, it never stands.** It follows its freshest lead for `leadSpan` (6 s): where the shot that hit it
+    came from, a gunshot it heard (any shooter's last shot within `hearRange`, 35 m, in the last half second), or
+    where it last saw a foe. With no lead it follows a hunch: every `hunchEvery` (8) s a rival picked by its seeded
+    dice.
+  - **In a fight.** It strafes side to side as it shoots (`strafe`, 0.6 of its speed; 0 stands).
+  - **In the mind matrix.** Three strategies, `roam-to-fight` (idle), `fight-the-seen` (notice) and `strafe`
+    (engage), so the cosmos counts it.
+- **A fresh life.** The cast's `spawn` starts an `ai` body's mind clean: no sighting, search, cover spot, path, grudge
+  or lead. Hits taken before are not a new hit, and a crossed health phase is undone (phases were meant once per
+  life).
+- **Measured.** On the quick shooter's walled stage, as a free-for-all on the match layer, four hunters on `target:
+  'all'` fired 5 shots and got no kills in 120 s (`scripts/spikes/shooter/deathmatch.mjs`, `DM_MIND=hunt`). Four
+  `frag` players reach the limit of 5 in 88 s, every one killing and dying. A law plays three to a frag limit on a
+  walled floor through the bus (`worlds/controllable/frag.test.js`). Web only: no mind travels to Godot yet.
+- The page inlines the mind and the cast, so the characterization hashes move (reverting only `mind.js` and `cast.js`
+  passes them all). Every world without `frag` behaves as before; the controllable trace pins hold.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
