@@ -329,7 +329,8 @@ function hero(sheet) {
   const texture = (sheet.notes.hair || []).map((n) => n.line.match(/^(straight|wavy|curly|coily) hair$/)?.[1]).find(Boolean) || 'straight';
   const style = HAIR_STYLE[f.pole][f.order < 1 / 3 ? 'bound' : f.order > 2 / 3 ? 'free' : 'mid'];
   const spec = {
-    cast: f.age === 'child' ? 'child' : f.pole,
+    // a child is its pole's child build (a child's radii on her or his own landmarks); the bare 'child' word kept adult radii and the male head
+    cast: f.age === 'child' ? { pole: f.pole, build: 'child' } : f.pole,
     ...(Object.keys(tune).length ? { tune } : {}),
     ...(Object.keys(expression).length ? { expression } : {}),
     ...(gesture && gesture !== 'rest' ? { gesture } : {}),

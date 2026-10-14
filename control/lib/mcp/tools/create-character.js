@@ -42,13 +42,28 @@ export async function createCharacterHandler(input) {
         + "Manuals: get_solid_vocab({ id: 'layered' }) for a hero or a creature, ({ id: 'animal' }) for an animal.",
     );
   }
-  return mintSolidHandler({ ...entry.route(spec), spec, title, ref, folder_ref: folderRef });
+  // an animal is titled by what it is, as a hero and a creature are by the door (the animal kind requires a title)
+  const named = title ?? (as === 'animal' ? animalTitle(spec) : undefined);
+  return throughDoor(await mintSolidHandler({ ...entry.route(spec), spec, title: named, ref, folder_ref: folderRef }));
 }
+
+/** A character's next move is its own door's: the mint's `update_sketch` pointer, as `update_character` takes the same ops. */
+function throughDoor(out) {
+  const n = out?.next;
+  if (!n || n.tool !== 'update_sketch' || !n.args?.ref) return out;
+  return { ...out, next: { ...n, tool: 'update_character', args: { ref: n.args.ref, ...(n.args.patch ? { patch: n.args.patch } : {}) }, reason: `${n.reason ?? ''} (update_character also takes the hero's own words: spec, target, geocube, vibe)`.trim() } };
+}
+
+const animalTitle = (spec) => {
+  const what = spec?.species ?? spec?.archetype ?? spec?.maker ?? (spec?.bug && (spec.bug.name ?? spec.bug.like)) ?? 'animal';
+  return `animal · ${typeof what === 'string' ? what : 'animal'}`;
+};
 
 // ─── update_character ──────────────────────────────────────────────────────
 /** the stored kinds a character lives in: a hero or a creature is a layered row, an animal a layered or an animal row */
 const CHARACTER_ROW_KINDS = ['layered', 'animal'];
-/** what a stored row is, as the door names it */
+/** what a stored row is, as the door names it: a species ring plan carries its `species` (minted since 3.1.0); an older
+ * one reads as a creature, which is what it is to the door (a ring plan, revised by patch ops) */
 const asOf = (m) => (m.hero ? 'hero' : m.kind === 'animal' || m.fauna || m.species ? 'animal' : 'creature');
 
 /**
@@ -60,7 +75,7 @@ export function characterPatch(row, { spec, target, geocube }) {
   const as = asOf(row.manifest), words = { ...(spec || {}), ...(target !== undefined ? { target } : {}), ...(geocube !== undefined ? { geocube } : {}) };
   if (!Object.keys(words).length) return [];
   if (as !== 'hero') {
-    throw new Error(`update_character: '${row.ref}' is ${as === 'animal' ? 'an animal' : 'a creature'}; spec, target and geocube are a hero's words today. Edit its recipe with patch ops (${as === 'animal' ? "get_solid_vocab({ id: 'animal' })" : "get_solid_vocab({ id: 'layered' }): /plan/…, /dials/<name>"}).`);
+    throw new Error(`update_character: '${row.ref}' is ${as === 'animal' ? 'an animal' : 'a creature'}; spec, target and geocube are a hero's words today. Edit its recipe with patch ops (${as === 'animal' ? "get_solid_vocab({ id: 'animal' }): /plan/…, /dials/<name> on a species' ring plan" : "get_solid_vocab({ id: 'layered' }): /plan/…, /dials/<name>; a species' ring plan reads the same, its card is get_solid_vocab({ id: 'animal' })"}).`);
   }
   return Object.entries(words).map(([k, v]) => (v === null ? { op: 'remove', path: `/hero/${k}` } : { op: 'set', path: `/hero/${k}`, value: v }));
 }

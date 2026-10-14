@@ -103,6 +103,14 @@ describe('update_character revises what update_sketch revises', () => {
     expect(r.ok).toBe(true);
   }, 120_000);
 
+  it('a species is an animal to the door: titled by what it is, and named so on an edit', async () => {
+    const r = await createCharacterHandler({ as: 'animal', spec: { species: 'wolf' }, ref: 'uc_wolf' });
+    expect(r.ok).toBe(true);
+    expect(SketchRepository.getByRef('uc_wolf').title).toBe('animal · wolf');
+    expect(SketchRepository.getByRef('uc_wolf').manifest).toMatchObject({ kind: 'layered', species: 'wolf' });
+    await expect(updateCharacterHandler({ ref: 'uc_wolf', spec: { hair: 'bob' } })).rejects.toThrow(/'uc_wolf' is an animal;.*get_solid_vocab\(\{ id: 'animal' \}\)/);
+  }, 120_000);
+
   it('refuses a row that is not a character, an unknown ref and an empty edit', async () => {
     await expect(updateCharacterHandler({ ref: 'uc_nope' })).rejects.toThrow(/no sketch 'uc_nope'/);
     await twin('empty');

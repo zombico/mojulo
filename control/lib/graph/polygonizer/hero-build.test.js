@@ -89,6 +89,17 @@ describe('a pole with a build: female, built brute', () => {
   });
 });
 
+describe('casts and forms a worn head cannot build are refused at the door, not thrown downstream', () => {
+  it('a list or a dial map is the blank trunk\'s; the tiered form needs the structured core', () => {
+    for (const head of [undefined, 'landmark', 'anime']) {
+      for (const cast of [['child'], { thigh: 0.9 }]) expect(validateHeroSpec({ cast, head })).toEqual([expect.stringMatching(/^cast: a list or a dial map builds only the blank trunk/)]);
+    }
+    expect(validateHeroSpec({ cast: ['child'], head: 'none' })).toEqual([]);
+    expect(validateHeroSpec({ cast: 'male', form: 'tiered', core: 'streamlined' })).toEqual([expect.stringMatching(/^form: 'tiered' builds on the structured core/)]);
+    expect(validateHeroSpec({ cast: 'male', form: 'tiered' })).toEqual([]);
+  });
+});
+
 describe('scale on a worn head', () => {
   it('is refused with a pointer to tune.stature on the landmark and anime heads; the blank trunk honours it', () => {
     for (const head of [undefined, 'landmark', 'anime']) {
@@ -108,14 +119,15 @@ describe('scale on a worn head', () => {
 
 describe('the child-coded guard reads the resolved cast', () => {
   it('refuses a bust on a build, a list or a dial map that comes to a child', () => {
-    const refused = (cast, why) => expect(validateHeroSpec({ cast, body: { bust: 0.03 } })).toEqual([`body.bust: ${why} is a child-coded figure and takes no bust; remove body.bust (0 is the only value it takes)`]);
+    // a list or a dial map builds on the blank trunk only (a worn head refuses it by name, above)
+    const refused = (cast, why) => expect(validateHeroSpec({ cast, head: 'none', body: { bust: 0.03 } })).toEqual([`body.bust: ${why} is a child-coded figure and takes no bust; remove body.bust (0 is the only value it takes)`]);
     refused({ pole: 'female', build: 'child' }, "the 'child' build");
     refused({ build: 'chibi' }, "the 'chibi' build");
     refused(['child', { forearm: 1.1 }], "the cast on 'child'");
     refused(['brute', 'chibi'], "the cast on 'chibi'");
     refused({ from: 'child', thigh: 0.8 }, "the cast on 'child'");
     refused({ ...CAST_PRESETS.child.dials }, "the cast resolving to 'child'");
-    for (const cast of [{ pole: 'female', build: 'brute' }, ['brute', { forearm: 1.3 }], { thigh: 1.1 }]) expect(validateHeroSpec({ cast, body: { bust: 0.03 } }), JSON.stringify(cast)).toEqual([]);
+    for (const cast of [{ pole: 'female', build: 'brute' }, ['brute', { forearm: 1.3 }], { thigh: 1.1 }]) expect(validateHeroSpec({ cast, head: 'none', body: { bust: 0.03 } }), JSON.stringify(cast)).toEqual([]);
   });
   it('and at plan time: a figure that comes to a child is never bare-chested, a rash vest over its torso', () => {
     const torso = (m) => { const mesh = compileLayered(m.recipe); return new Set(mesh.groups.filter((_, i) => /^torso\/st[0-2]/.test(mesh.faceIds[i]))); };

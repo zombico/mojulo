@@ -27,6 +27,12 @@ describe('cast spend', () => {
     expect(s.regions.clothing.triangles).toBe(9);
   });
 
+  it('charges the anime head\'s face to the head where it wraps below the head\'s base', () => {
+    const s = castSpend(meshOf([['torso', 1.2, 10], ['face', 1.45, 7], ['cranium', 1.6, 3]]), PLAN, '1080p');
+    expect(s.regions.head.triangles).toBe(10);
+    expect(s.regions.clothing.triangles).toBe(0);
+  });
+
   it('reads hair by its name\'s start, not by a word inside another part\'s', () => {
     const s = castSpend(meshOf([['hairCap', 1.7, 5], ['hairLock0', 1.6, 2], ['tailR', 1.6, 1], ['adorn.torso-blockade', 1.2, 3]]), PLAN, '1080p');
     expect(s.regions.hair.triangles).toBe(8);

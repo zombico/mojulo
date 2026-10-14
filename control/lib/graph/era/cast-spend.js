@@ -55,8 +55,9 @@ export const REGIONS = Object.freeze(['body', 'head', 'hair', 'hands', 'clothing
 const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL]|(elbow|knee|wrist)Bridge[RL]|shoulder(Ball|Fold)[RL]|(elbow|knee|hip)Fold[RL]|shin[RL]|meta[RL]|tail\d+|pad\.toes[RL]|clawF\d+[RL]|[a-z]+Bridge[RL])$/;
 // (a creature's paw: its fingers, pads and claws)
 const HANDS = /^((hand|thumb|index|middle|ring|little)[RL]|finger[A-Z]\d[RL]|pad\.hand[RL]|clawH\d+[RL])$/;
-// the head's own parts that reach below its base (the jaw hangs about 4 cm under it; a creature's muzzle further)
-const HEAD = /^(cranium|jaw|surround[RL]|whisker\d+[RL]|wrinkle\d+[RL]|tooth[LU]\.\d+[RL]|tongue\.\d+|web[RL]|fold[RL]|catch[RL])$/;
+// the head's own parts that reach below its base (the jaw hangs about 4 cm under it; a creature's muzzle further; the anime
+// head's face, its heaviest part, wraps the chin)
+const HEAD = /^(cranium|jaw|face|surround[RL]|whisker\d+[RL]|wrinkle\d+[RL]|tooth[LU]\.\d+[RL]|tongue\.\d+|web[RL]|fold[RL]|catch[RL])$/;
 const COVER = /^tile[.\d]/;
 const HAIR = /^(hair|lock|braid|ponytail|fringe|bang|bun|tail[RL]?$)/i;
 // what is worn: an adornment's pieces (station-loft-adorn.js) and a garment copied off a body part (body-garment.js)
