@@ -13,6 +13,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Shooter spike: what an arena shooter needs, measured
+
+- Research spike (`scripts/spikes/shooter/`): the FPS / arena shooter's mechanics and map structure, measured against
+  what exists. `probe.mjs` mints the quick shooter through the real handlers and checks shooter conventions on its
+  map (routes, crossfire, sightline lengths, spawn safety, cover reach) and its fight (time to kill, a headless duel).
+  `deathmatch.mjs` hands the same stage to the engine's match layer as a free-for-all. The README maps every concept,
+  built or absent, and gives a build order: the match on the bus, bots that play one, an arena site with laws,
+  timed pickups, weapon roles keyed to sightlines, modes on top. Nothing registers; no level, kernel or pin changes.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
