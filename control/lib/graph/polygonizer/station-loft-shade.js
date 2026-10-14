@@ -44,6 +44,7 @@ import { hexToRgb, rgbToHex, resolveToon, resolveToonLight } from './vexar.js';
 import { layeredSeat } from './station-loft-faces.js';
 import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
+import { faceHex } from './face-hex.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -51,7 +52,6 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a); return l > 1e-300 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 1]; };
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-const FALLBACK = '#8a8f96';
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 
 /** The anime hero's default character light (the read-time default; frozen, shared). */
@@ -503,7 +503,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   // tones, its crease and the bare seat's cleft in a darker shade
   const panels = seatPanels(rest);
   // the swimsuit's tones: the first Swim face's fill and shade
-  const swim = panels ? (() => { const fi = mesh.groups.indexOf('Swim'); if (fi < 0) return null; const h = pal.Swim || mesh.parts[partOf(mesh, fi)]?.tint || FALLBACK; return { hex: h, shade: shadeFill(light, 'Swim', h) }; })() : null;
+  const swim = panels ? (() => { const fi = mesh.groups.indexOf('Swim'); if (fi < 0) return null; const h = faceHex(pal, 'Swim', mesh.parts[partOf(mesh, fi)]); return { hex: h, shade: shadeFill(light, 'Swim', h) }; })() : null;
   const VREF = mesh.vertices.map((v, vi) => ({ p: [v[0], v[1], v[2] + dz], vi }));
   const nV = mesh.vertices.length; const edges = new Map();   // min·nV + max → [{ s, p, a, b }] along min → max
   const shadeCache = new Map();
@@ -592,7 +592,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (!(l > 1e-14)) return null;   // a degenerate triangle has no face
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
     const partName = partOf(mesh, fi); const part = mesh.parts[partName]; const g = mesh.groups[fi];
-    const hex = pal[g] || part?.tint || FALLBACK;
+    const hex = faceHex(pal, g, part);
     if (unlit.has(g)) return { fi, tri, outNormal, partName, fill: hex, mark: true };
     if (glow.has(g)) return { fi, tri, outNormal, partName, fill: hex };
     const sk = `${g}|${hex}`; let shade = shadeCache.get(sk); if (shade === undefined) shadeCache.set(sk, shade = shadeFill(light, g, hex));

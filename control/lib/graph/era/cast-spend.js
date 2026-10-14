@@ -64,6 +64,8 @@ const HAIR = /^(hair|lock|braid|ponytail|fringe|bang|bun|tail[RL]?$)/i;
 const WORN = /^adorn\.|_/;
 
 export const tierOf = (figurePx) => TIERS.find((t) => figurePx < t.upTo);
+/** The tiers dense enough for a feature's full detail (the tiered ear, the painted face's dense sheet): one list. */
+export const DENSE_TIERS = Object.freeze(['T3', 'T4']);
 
 /** A part's region: the body's, the hands', the hair's, the head's (above the head's base, not hair) or the clothing's. */
 function regionOf(part, minZ, headBaseZ, cover = false) {

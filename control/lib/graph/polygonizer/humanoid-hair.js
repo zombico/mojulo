@@ -38,7 +38,7 @@ export const HAIR = ratioControls({
     lockWidth: [0.75, 1.25], taper: [0.65, 1.4], bend: [0.6, 1.4], asymmetry: [0, 1.5], corners: [0.6, 1.4], sideBulk: [0.75, 1.2], topSlope: [0.6, 1.4], lineup: [0, 1.4], definition: [0.6, 1.5] },
   zero: ['asymmetry', 'lineup'],
 });
-export const { KEYS: HAIR_KEYS, GROUPS: HAIR_GROUPS, RANGES: HAIR_RANGES } = HAIR;
+export const { KEYS: HAIR_KEYS, RANGES: HAIR_RANGES } = HAIR;
 
 // ─── the library ──────────────────────────────────────────────────────────
 // A style is DATA: its collection (who wears it by default; anyone may), its base construction, the controls that apply,

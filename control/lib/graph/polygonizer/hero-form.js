@@ -403,7 +403,7 @@ export const TUNE = ratioControls({
     shoulders: [0.8, 1.25], waist: [0.8, 1.2], hips: [0.85, 1.2], depth: [0.85, 1.2],
     upperArm: [0.65, 1.5], forearm: [0.65, 1.5], thigh: [0.65, 1.5], calf: [0.65, 1.5] },
 });
-export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, DEFAULT: TUNE_DEFAULT, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
+export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
 /** Resolve a tune spec to every TUNE_KEYS ratio, plus `from` when a move named it (see ratio-controls.js). */
 export const resolveTune = TUNE.resolve;
 /** Error strings for a tune spec (empty = valid). */

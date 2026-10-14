@@ -279,7 +279,8 @@ const femaleOf = (hero) => castOf(hero.cast, hero.proportions ?? (hero.head === 
 const gestureCast = (cast) => (isBuiltCast(cast) ? (cast.build && cast.build !== 'canonical' ? cast.build : castPole(cast)) : cast);
 
 /** the figure casts that read as a child (figure-cast.js) and the anime look that says so (anime-looks.js `kid`) */
-export const CHILD_CODED_CASTS = Object.freeze(['child', 'chibi']);
+// the child-coded words are the builds that carry a child's body (hero-form.js HERO_BUILDS `child`): one list, not two
+export const CHILD_CODED_CASTS = Object.freeze(HERO_BUILD_NAMES.filter((b) => HERO_BUILDS[b].child));
 const CHILD_CODED_LOOKS = Object.freeze(['kid']);
 /** why a cast is child-coded, read off the RESOLVED cast, or null: the word, the build form's build, a preset a list or a
  * dial map names (figure-cast resolveCast's `from`), or dials equal to a child-coded preset's */

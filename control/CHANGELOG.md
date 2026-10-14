@@ -107,6 +107,10 @@ taught `mint_solid`. This theme stitches them.
   markers in this section's themes are corrected (body shade, the tiered face's ears and eyes, world gear, the
   technology loop, a world above its levels, the Egocube's creature passes), and `figure-garments.js` drops its plan
   citations and its spike label.
+- **One lookup, one list, nothing dead.** A face's colour (its group's palette colour, its part's tint, the grey) is one
+  `faceHex` for the static solid, the shade, the rig pack and the creature's silhouette; the child-coded words are
+  derived from the builds that carry a child's body; the tiers dense enough for full detail are one list; six exports
+  nothing read are gone. Every hero renders byte for byte as before.
 - Not yet: the library's Characters shelf for `create_character` rows (it picks by kind, and a character is a `layered`
   row like any solid); the collar and the medallion on a person's neck; the cast's own `egocube` page in the book (a cast member is
   made from a sheet with create_character first).

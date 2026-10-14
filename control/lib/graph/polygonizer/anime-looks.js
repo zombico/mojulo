@@ -17,7 +17,7 @@
 import { ANIME_FACE, ANIME_FACE_MOVES, ANIME_HAIR_MOVES, ANIME_POSES, resolveAnimeFace, resolveAnimeHair, resolveAnimeExpression, animeDefaultStyle, ANIME_HAIR_BASE } from './anime-head.js';
 import { ANIME_HAIR_STYLES } from './anime-head.js';
 import { HEAD_PRESETS } from './humanoid-head.js';
-import { resolveTune, validateTune, castPole } from './hero-form.js';
+import { resolveTune, castPole } from './hero-form.js';
 import { ANIME_SCULPT_MOVES, resolveAnimeSculpt } from './anime-sculpt.js';
 import { genkiLayers, genkiExpression } from './anime-genki.js';
 
@@ -81,8 +81,6 @@ export function resolveLook(spec) {
   const { from: _tf, ...tune } = resolveTune(E.tune.length ? E.tune : undefined);
   return { words, face, ...(E.sculpt.length ? { sculpt: resolveAnimeSculpt(E.sculpt) } : {}), hair: resolveAnimeHair(E.hair), expression: E.expression.length ? resolveAnimeExpression(E.expression) : null, tune };
 }
-/** a look's `tune` entries are the body tune's words; the tune validator answers for them */
-export const validateLookTune = (look) => validateTune(lookEntries(look).tune);
 
 /**
  * The effective head and tune: the look's stamp, then the operator's own layer on top. `sculpt` is the graphic face's
@@ -122,6 +120,4 @@ export const heroHeadPole = (hero) => { const pole = castPole(hero.cast); return
  * form under every family, its cut when nothing names a family) — read here, never stored (the hero door and the face
  * rig read it the same way) */
 export const animeHeroEffective = (hero) => { const pole = heroHeadPole(hero); return composeAnime(hero, animeDefaultStyle(pole), { hairBase: ANIME_HAIR_BASE[pole] }); };
-/** the frame note's clause and the readout's trail */
-export const describeLook = (words) => (words?.length ? `look ${words.join('+')}` : '');
 export { ANIME_FACE };
