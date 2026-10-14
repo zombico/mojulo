@@ -90,6 +90,17 @@ describe('stampAuthoredMotion — what is written, and what an edit leaves alone
     expect(m.figures.hero.hero.motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
   });
 
+  it('a hero new to a world is minted as the door mints one; one the world already had is left as stored', () => {
+    const prev = { kind: 'room', figures: { kept: { hero: { cast: 'male' } } } };
+    const next = { kind: 'room', figures: { kept: { hero: { cast: 'male' } }, fresh: { hero: { cast: 'female', form: 'tiered' } }, own: { hero: { cast: 'male', motion: { walk: false } } } } };
+    const m = stampAuthoredMotion(next, prev);
+    expect(m.figures.kept).toBe(next.figures.kept);
+    expect(m.figures.fresh.hero.motion.walk).toMatchObject({ ...WALK_MINT, ...HERO_WALK });
+    expect(m.figures.fresh.hero.laws).toBe(1);
+    expect(m.figures.own.hero.motion.walk).toBe(false);
+    expect(m.figures.own.hero.laws).toBeUndefined();
+  });
+
   it("stamps a layered hero's motion, and leaves a hero without one alone", () => {
     const m = stampAuthoredMotion({ kind: 'layered', hero: { cast: 'female', motion: { sprint: true } } });
     expect(m.hero.motion.sprint).toMatchObject(MOTION_GAITS.sprint.base);

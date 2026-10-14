@@ -373,7 +373,15 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-13 (208_700 -> 209_300; measured 209,092) for the game menus line merged onto 1012-consolidate: create_cover's `format` (a game's key art,
 // capsule, box, icon) and `art` (an uploaded stash picture as the illustration, the plugin profile's way to real art),
 // and create_game's `front` (the light shell's title over a cover, start menu, credits, end). No new tool.
-const PAYLOAD_CEILING = 209_300;
+// Re-pinned 2026-10-14 (209_300 -> 203_900; measured 203,721) for UI on rails, merged over the game menus: the five
+// game-project tools retired (RETIRED_PACKS' pack_game_projects, still callable by name), and project_ref's
+// descriptions cut to a legacy line.
+// Re-pinned 2026-10-14 (203_900 -> 204_200; measured 203,928) for the character stitch merged over UI on rails:
+// create_character's `egocube` and `years` (a character made from a stored Egocube sheet, at an age on its thread),
+// update_character's merge said in its description. No new tool.
+// Re-pinned 2026-10-14 (204_200 -> 206_300; measured 206,207) for 1014-interior-designer: design_interior, the
+// interior designer's door in the building pack (one new listed tool, its schema trimmed to names and shapes).
+const PAYLOAD_CEILING = 206_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

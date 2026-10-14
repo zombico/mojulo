@@ -86,11 +86,18 @@ describe('the underlayer', () => {
     const G = anime({ looks: { underlayer: { type: 'outfit', style: 'office', dials: { ornament: 3 } } } });
     const U = underlayerFor(G);
     expect(U.build).toEqual({ type: 'outfit', style: 'office', dials: { ornament: 0 } });
-    expect(U.ledger).toEqual([expect.objectContaining({ scope: 'looks', key: 'underlayer', local: 'office' })]);
+    expect(U.ledger).toEqual([expect.objectContaining({ scope: 'looks', key: 'underlayer', local: 'office' }),
+      expect.objectContaining({ key: 'underlayer ornament', world: 0, local: 3 })]);   // told, not quietly changed
     // the cut is the creator's, the colours still the direction's
     const D = underlayerFor(anime({ looks: { underlayer: { type: 'outfit', style: 'adventurer' } } }, { primary: 'wind', secondary: 'brass' }));
     expect(D.tones).toMatchObject({ Top: ELEMENT_TINT.wind, Bottom: ELEMENT_TINT.brass });
     expect(D.read).toBe('the creator\'s own underlayer');
+    // an inline card that names its own tones (an Egocube's designed cut) keeps them, ledgered by its id
+    const E = underlayerFor(anime({ looks: { underlayer: { type: 'outfit', style: { id: 'designed', tones: { Top: '#5a2b1d' } } } } }, { primary: 'wind', secondary: 'brass' }));
+    expect(E.tones.Top).toBeUndefined();
+    expect(E.toneFrom.Top).toBe('the creator\'s underlayer, its own');
+    expect(E.tones.Bottom).toBe(ELEMENT_TINT.brass);
+    expect(E.ledger[0].local).toBe('designed');
   });
 });
 

@@ -88,7 +88,7 @@ export const FIXTURE = [
   // 3.1.0: the animal, creature, hero and armour rows below enter on create_character, the Characters
   // ring's door (the same recipes mint_solid makes).
   // The animal realm of the figure system (figure-inception-quality.plan.md
-  // phase 4). The PICTURE row already routes a non-humanoid creature here, so
+  // phase 4). The CHARACTER row routes a creature and an animal here, so
   // these pin that a NAMED real animal lands on the solid family rather than
   // drifting to the painted-picture or part-graph neighbours.
   ['a wolf I can 3D print', 'create_character'],
@@ -99,6 +99,9 @@ export const FIXTURE = [
   // stroke (layered): a drawn outline / line / brush on an existing creature or hero becomes a recipe op
   ['I sketched the outline I want for the dragon head, make it match my drawing', 'update_sketch'],
   ['let me draw a ridge along the brow instead of guessing station numbers', 'update_sketch'],
+  // egocube: a character's design rolled once and kept, then made in any game at any age (create_character { egocube })
+  ['I want to design a character once and use her in two different games, a farm girl who grows up to be a knight', 'create_sketch'],
+  ['make my egocube character as she is at twenty six', 'create_character'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],

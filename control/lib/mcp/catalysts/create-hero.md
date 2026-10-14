@@ -17,7 +17,7 @@
       "description": "The hero in words (e.g. 'a stout smith with a square jaw and cropped hair', 'a lanky courier, low-poly, with a ponytail', 'a boxy pixel knight'). Human characters only — a creature or invented body is creature-from-plan, a real species is mint_solid kind 'animal', a person as an SVG turnaround or a walker for pose work is the figure kind (character-from-dream). Omit to ask the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["get_solid_vocab", "mint_solid", "update_sketch", "measure_solid", "export_model", "semantic_search"] }
+  "mcpTools": { "mojulo": ["get_solid_vocab", "create_character", "update_character", "measure_solid", "export_model", "semantic_search"] }
 }
 ---
 
@@ -34,7 +34,7 @@ poses, animates, measures and exports.
 Grammar: `get_solid_vocab({ id: 'layered' })` (the Plan section, the HERO DOOR section, `style`, Exposure,
 Compare). The hero FORM is core (`control/lib/graph/polygonizer/hero-form.js`: `heroPlan({ cast, register, girth,
 headScale, scale, palette, head, body, tune })`; `male` / `female` casts, the body controls, the TUNE), minted
-through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune } })`; its canonical JSON is
+through `create_character({ as: 'hero', spec: { cast, register, tune } })`; its canonical JSON is
 `docs/examples/ring-plans/hero.plan.json`. The STARTER that wears the landmark head is `docs/examples/humanoid/`
 (`humanoidPlan({ preset, tune, body, face, register, hair, expression })`); the detail head is
 `docs/examples/hero-head/` (`bakeHero()`).
@@ -79,12 +79,12 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
 1. CAST     Pick the cast word and the register, then TUNE in percentages of that cast: the
             thirteen controls (stature; torso / neck / legs; shoulders / waist / hips / depth;
             head; upperArm / forearm / thigh / calf) and the moves (`athletic`, `long-legs`,
-            `full-limbs`), composed in a list. mint_solid({ kind: 'layered', via: 'hero', spec:
+            `full-limbs`), composed in a list. create_character({ as: 'hero', spec:
             { cast, register, tune, palette } }). Read the readout's `hero.measures` (metres)
             and say them back; a range warning is advice, the read is the operator's.
 
 2. SILHOUETTE  Look at the six views (scripts/export-wire-svg.mjs --ref <ref> --views 180,150,90,0).
-            Fix proportion ONE word at a time: update_sketch patching `/hero/tune/<control>`
+            Fix proportion ONE word at a time: update_character patching `/hero/tune/<control>`
             ("broader" is shoulders × 1.05 on what is there). A move the tune has no word for
             is a `/plan/...` patch (a ring radius, a station z, a segment's `e`); the next
             `/hero` edit regenerates the plan and says it replaced that hand edit. A hand-written
@@ -111,7 +111,7 @@ through `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune
             foreheadSlope), `eyes` (eyeSpacing, eyeSize), `cheeks` (cheekbone, cheek), `nose`
             (noseWidth, noseSize, noseDroop), `mouth` (mouthWidth), `jaw` (jawWidth, chinProjection,
             chinPoint), `ears`; moves `broad-jaw`, `large-eyes`. Pick the expression to bake
-            (neutral / smile / determined / surprised). Change ONE word: update_sketch patching
+            (neutral / smile / determined / surprised). Change ONE word: update_character patching
             `/hero/face/<control>`; read `hero.faceMeasures` back; look at the face view. The
             DETAIL head (docs/examples/hero-head `bakeHero({ hair, eye, palette })`) is worn as a
             baked include through `head:` when its live expression controls are the point.

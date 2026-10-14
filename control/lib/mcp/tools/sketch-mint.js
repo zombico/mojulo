@@ -78,6 +78,7 @@ import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { stampAuthoredMotion } from '@/lib/graph/polygonizer/motion-stamp.js';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
 import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
+import { rollStored } from '@/lib/graph/egocube/kind.js';
 import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeWork } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
@@ -581,6 +582,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // the gaits an edit authors (a figure's walk, a hero's, a world figure's) are stored by value as they are minted now;
   // a motion the edit left as stored keeps its bytes, and a restore comes back as it was exported (motion-stamp.js)
   if (!restore) manifest = stampAuthoredMotion(manifest, existingSketch?.manifest ?? null);
+  // an egocube's sheet (egocube/kind.js) is rolled where it is written and stored by value; a roll left as stored keeps it
+  if (manifest?.kind === 'egocube') manifest = rollStored(manifest, existingSketch?.manifest ?? null);
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world

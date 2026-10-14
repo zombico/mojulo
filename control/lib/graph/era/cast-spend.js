@@ -55,14 +55,17 @@ export const REGIONS = Object.freeze(['body', 'head', 'hair', 'hands', 'clothing
 const BODY = /^(torso|pelvis|neck|clavicle[RL]?|upperArm[RL]|foreArm[RL]|thigh[RL]|shank[RL]|foot[RL]|toes[RL]|pectoral[RL]|bust[RL]|(elbow|knee|wrist)Bridge[RL]|shoulder(Ball|Fold)[RL]|(elbow|knee|hip)Fold[RL]|shin[RL]|meta[RL]|tail\d+|pad\.toes[RL]|clawF\d+[RL]|[a-z]+Bridge[RL])$/;
 // (a creature's paw: its fingers, pads and claws)
 const HANDS = /^((hand|thumb|index|middle|ring|little)[RL]|finger[A-Z]\d[RL]|pad\.hand[RL]|clawH\d+[RL])$/;
-// the head's own parts that reach below its base (the jaw hangs about 4 cm under it; a creature's muzzle further)
-const HEAD = /^(cranium|jaw|surround[RL]|whisker\d+[RL]|wrinkle\d+[RL]|tooth[LU]\.\d+[RL]|tongue\.\d+|web[RL]|fold[RL]|catch[RL])$/;
+// the head's own parts that reach below its base (the jaw hangs about 4 cm under it; a creature's muzzle further; the anime
+// head's face, its heaviest part, wraps the chin)
+const HEAD = /^(cranium|jaw|face|surround[RL]|whisker\d+[RL]|wrinkle\d+[RL]|tooth[LU]\.\d+[RL]|tongue\.\d+|web[RL]|fold[RL]|catch[RL])$/;
 const COVER = /^tile[.\d]/;
 const HAIR = /^(hair|lock|braid|ponytail|fringe|bang|bun|tail[RL]?$)/i;
 // what is worn: an adornment's pieces (station-loft-adorn.js) and a garment copied off a body part (body-garment.js)
 const WORN = /^adorn\.|_/;
 
 export const tierOf = (figurePx) => TIERS.find((t) => figurePx < t.upTo);
+/** The tiers dense enough for a feature's full detail (the tiered ear, the painted face's dense sheet): one list. */
+export const DENSE_TIERS = Object.freeze(['T3', 'T4']);
 
 /** A part's region: the body's, the hands', the hair's, the head's (above the head's base, not hair) or the clothing's. */
 function regionOf(part, minZ, headBaseZ, cover = false) {

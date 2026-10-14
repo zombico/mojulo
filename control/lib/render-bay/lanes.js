@@ -17,10 +17,8 @@
  * "in flight" would hide the one gate §5 asks to make visible.
  *
  * ── Nothing here mutates ─────────────────────────────────────────────────────
- * Every lane action resolves to agent-directed prompt TEXT (the golden rule: the
- * dashboard renders state and hands the operator a prompt). The prompt strings
- * are addressed to the operator's agent, not UI chrome, so they stay English —
- * the same call the beats/voice studios make.
+ * The bay is view only: it shows each lane's state and hands nothing over. What
+ * happens next is the operator's agent's.
  *
  * Pure and import-light on purpose: the client bundle carries it, and the API
  * route uses the same functions server-side.
@@ -143,48 +141,6 @@ export function queueTotals(statusCounts = {}) {
 }
 
 /**
- * The agent-directed prompt for a queue row, or null when the row is settled and
- * there is nothing to ask for. Terminal-but-idle rows (expired, cancelled) get
- * no prompt on purpose: re-parking is a `request_image_render` against the head
- * manifest, not a resurrection of a dead row.
- */
-export function queuePrompt(request) {
-  if (!request) return null;
-  const { status, ref, target, id } = request;
-  if (status === 'pending') {
-    return `Pull and paint the queued render for ${ref} (target "${target}"): call pull_image_render({ ref: "${ref}" }), condition your image generator on the returned scaffold, then submit_image_render({ request_id, image_path }).`;
-  }
-  if (status === 'in_flight') {
-    return `Render request ${id} (${ref}, target "${target}") is in flight with a worker. If it has stalled, re-pull it with pull_image_render({ request_id: "${id}" }) and submit against the same id.`;
-  }
-  if (status === 'submitted') {
-    return `Eyes gate: look at the submitted render for ${ref} (target "${target}") and verify it against the scaffold — beat/pose carried, strict forms placed, bubble zones blank, identity holding. Then accept_image_render({ request_id: "${id}", accept_audit: { … }, source: "<your id, not the worker's>" }) or reject_image_render({ request_id: "${id}", accept_audit: { notes: "…" } }).`;
-  }
-  if (status === 'rejected') {
-    return `Render request ${id} (${ref}, target "${target}") was rejected. Repaint against the same request and re-submit: pull_image_render({ request_id: "${id}" }) then submit_image_render({ request_id: "${id}", image_path }).`;
-  }
-  return null;
-}
-
-/**
- * The prompt for a collapsed group. `pull_image_render({ ref })` drains one
- * sketch's requests, so a whole waiting artifact is one ask — which is why the
- * fold is honest rather than merely tidy.
- */
-export function queueGroupPrompt(group) {
-  if (!group) return null;
-  const n = group.requests.length;
-  if (n === 1) return queuePrompt(group.requests[0]);
-  if (group.status === 'pending' || group.status === 'in_flight') {
-    return `Paint the ${n} queued renders for ${group.ref}: call pull_image_render({ ref: "${group.ref}" }) repeatedly — it claims the oldest pending target each time — condition your image generator on each returned scaffold, and submit_image_render({ request_id, image_path }) after each. Targets: ${group.targets.join(', ')}.`;
-  }
-  if (group.status === 'rejected') {
-    return `${n} renders for ${group.ref} were rejected. Repaint each against its own request: pull_image_render({ request_id }) then submit_image_render({ request_id, image_path }). Targets: ${group.targets.join(', ')}.`;
-  }
-  return null;
-}
-
-/**
  * The machine gate's threshold in `bake-world-gi.mjs`: more than a quarter of the
  * lit-paint floor faces coming back near-black means the facing or the bake is
  * wrong, and the driver fails before binding anything.
@@ -224,13 +180,6 @@ export function bakeGates(bake) {
 export function bakeViewHref(bake) {
   if (!bake?.ref) return null;
   return `/sketches/${encodeURIComponent(bake.ref)}?display=baked`;
-}
-
-/** The agent-directed prompt for a bake row: re-bake at a different preset. */
-export function bakePrompt(bake) {
-  if (!bake) return null;
-  const source = bake.from || bake.ref;
-  return `Re-bake the world GI for ${source} at a different preset: node scripts/bake-world-gi.mjs --ref ${source} --preset interior-day|exterior|space|interior-lit --write (add --preview for a dry run; from a checkout's control/, or \`mojulo script bake-world-gi\` with the same flags on an install). Needs a local Blender.`;
 }
 
 /**

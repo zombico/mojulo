@@ -21,6 +21,8 @@ export function speciesPlan(id) {
 export function stanceOf(id) {
   const p = speciesParams(id); if (!p) return null;
   if (p.pose === 'swim') return 'swims';
+  if (p.family === 'cephalopod') return 'resting on its arms';
+  if (p.family === 'pinniped') return 'hauled out on its flippers';
   if (!(p.legs || []).length) return 'legless';
   if (p.family === 'avian') return 'two legs (a bird)';
   if (p.family === 'macropod') return 'upright on its hind legs and tail';

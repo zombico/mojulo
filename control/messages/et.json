@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Teenuste kaart",
-    "back": "Tagasi"
-  },
-  "actions": {
-    "start": "Alusta"
-  },
   "settings": {
     "title": "Seaded",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Rakendused",
-    "subtitle": "Rakendused, mille agent on reaaliseerinud App paradigma kaudu. Elutsükkel, keskkonna muutujad ja reaalajaline MCP introspektsioon — loetakse kontekstkaardilt ja kohalikult käitajalt.",
-    "loading": "Laaditakse…",
-    "refresh": "Värskenda",
-    "empty": "Rakendusi pole veel — paluge oma Claude Code agendil üks ehitada.",
-    "backToList": "Tagasi rakenduste juurde",
-    "notFound": "Rakendust ei leitud.",
-    "openPreview": "Ava eelvaade",
-    "openMcp": "Ava MCP",
-    "actions": {
-      "start": "Alusta",
-      "stop": "Peata",
-      "starting": "Käivitamine…",
-      "stopping": "Peatamine…"
-    },
-    "status": {
-      "running": "Töötab",
-      "stopped": "Peatatud",
-      "crashed": "Kokku varisenud",
-      "unknown": "Teadmata"
-    },
-    "table": {
-      "headers": {
-        "name": "Nimi",
-        "materialized": "Reaaliseeritud",
-        "runner": "Käitaja",
-        "status": "Olek",
-        "actions": "Tegevused"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Selle rakenduse loomiskaart — iga tööriistakutse, mis selle materialiseeris, jaamadena ühel liinil."
-      },
-      "metadata": "Metaandmed",
-      "artifactPath": "Artefakti tee",
-      "materializationRef": "Reaaliseerimise viide",
-      "adapter": "Adapter",
-      "appName": "Rakenduse nimi",
-      "host": "Host",
-      "materializedAt": "Reaaliseeritud aadressil",
-      "viewGraph": "Vaata graafikut",
-      "bindings": "Sidumised",
-      "binding": {
-        "runner": "Käitaja",
-        "durability": "Vastupidavus",
-        "inference": "Järeldus",
-        "mcpSelf": "MCP ise"
-      },
-      "mcpPanel": {
-        "title": "Rakenduse MCP",
-        "url": "MCP URL",
-        "offline": "MCP ühenduseta — rakenduse käivitamiseks vaadake selle tööriistaluetelu.",
-        "loading": "Tööriistad laaditakse…",
-        "error": "Rakenduse MCP-ni ei saanud jõuda: {error}",
-        "registeredTools": "Registreeritud tööriistad",
-        "noTools": "Registreeritud tööriistu pole.",
-        "declaredPurpose": "Deklareeritud eesmärk"
-      },
-      "envPanel": {
-        "title": "Keskkonna muutujad",
-        "explainer": "Väärtused kirjutatakse otse artefakti .env faili. Neid ei logita, neid ei salvestata juhtimispaani andmebaasi ja neid ei kaiutada tagasi selle vaatesse.",
-        "addKey": "Võti",
-        "addValue": "Väärtus",
-        "add": "Lisa",
-        "delete": "Kustuta",
-        "deleteConfirm": "Kustuta keskkonna muutuja \"{key}\"?",
-        "noKeys": "Keskkonna muutujaid pole veel määratud.",
-        "valueHidden": "•••••",
-        "edit": "Edit",
-        "save": "Salvesta",
-        "cancel": "Tühista",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "väärtus"
-      },
-      "provenance": {
-        "title": "Päritolu",
-        "subtitle": "Selle rakenduse reaaliseerimise committile lisatud põhimõtted.",
-        "none": "Põhimõtteid pole registreeritud."
-      }
-    }
-  },
-  "graph": {
-    "title": "Rakenduse loomise kaart",
-    "subtitle": "Kuidas rakendus kokku tuleb. Iga kast on osa; iga nool näitab, mis põhjustab mida.",
-    "subtitleTechnical": "Kuidas rakendus mojulo paradigmas on komponeeritud. Jaamad on osad; jooned on MCP tööriistad, mis neid kokku klipsivad. Kontrolli iga värskendusega reaalajas MCP registri ja kontekstkardi skeemi vastu.",
-    "technicalToggle": "Tehniline",
-    "loading": "Laaditakse…",
-    "refresh": "Värskenda",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Rakendusi pole veel tehtud} =1 {1 rakendus tehtud} other {# rakendust tehtud}}",
-      "lastMaterialized": "Viimati tehtud",
-      "viewApps": "Vaate käitavaid rakendusi"
-    },
-    "validation": {
-      "ok": "Kõik on endiselt kontrolli all.",
-      "okTechnical": "Manifest kehtib: {tools} tööriista, {nodeKinds} sõlmetüüpi, {edgeKinds} servatüüpi, {sourceEvents} allikasündmust kõik lahendavad.",
-      "failed": "{count, plural, =1 {1 asi kaardil enam ei vasta reaalsusele} other {# asja kaardil enam ei vasta reaalsusele}}"
-    },
-    "legend": {
-      "input": "Mida te otsustate",
-      "inputTechnical": "Sisend",
-      "mcpTool": "Tööriist, mida agent kutsub",
-      "mcpToolTechnical": "MCP tööriist",
-      "filesystem": "Failid kettale",
-      "filesystemTechnical": "Failisüsteem",
-      "dbRow": "Kirje mälus",
-      "dbRowTechnical": "Andmebaasi rida"
-    }
-  },
   "login": {
     "subtitle": "Jätkamiseks logi sisse",
     "username": "Kasutajanimi",
@@ -178,7 +60,6 @@
     "title": "Plaan",
     "subtitle": "Pakutud töö — sessiooid, mis muutusid tipuks. Välja kujundatud ja käitatud teie hostagendilt.",
     "navLabel": "Plaan",
-    "newPlan": "Uus plaan",
     "total": "{count} plaan",
     "count": "{count} plaan",
     "filteredCount": "{count} / {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Pole veel käivitatud.",
     "stepOk": "ok",
     "stepFailed": "ebaõnnestus",
-    "newPlanTitle": "Uus plaan",
-    "newPlanIntro": "Plaanid kujundatakse teie majutusagendis (Claude Code / Codex). Kirjeldage eesmärki, kopeerige käivitamiskutsed ja kleepige see uuele agendisessioonile — agent siseneb plaanimisjärku ja viib töö läbi. See leht uueneb plaani kujundamisel ja muutmisel.",
-    "intentLabel": "Mida te soovite planeerida? (valikuline)",
-    "intentPlaceholder": "nt webhook'i käivitamise käitusaeg komponisti jaoks",
-    "promptLabel": "Käivitamiskutsed",
-    "copyPrompt": "Kopeeri kutsed",
-    "copied": "Kopeeritud",
     "close": "Sulge"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Katkend",
     "kindSketch": "Skitser",
     "viewSketch": "Vaata diagrammi",
-    "composerHeading": "Lisa märkmikku",
-    "composerStub": "Eelvaade ainult — sidumisest hoolitseb teie majutusagent praegu.",
-    "composerPlaceholder": "Kleepige link, pange fail või kirjutage märkus…",
-    "newBook": "Uus raamat",
-    "newBookTitle": "Uus uurimisraamat",
-    "newBookIntro": "Raamatud alustatakse teie majutusagendis (Claude Code / Codex). Kirjeldage teemat, kopeerige käivitamiskutsed ja kleepige see uuele agendisessioonile — agent siseneb uurimisrežiimi ja viib töö läbi. See leht uueneb raamatu kasvamisel.",
-    "intentLabel": "Mida te soovite uurida? (valikuline)",
-    "intentPlaceholder": "nt kuidas teised kohalikke MCP-servereid tunnelivad",
-    "promptLabel": "Käivitamiskutsed",
-    "copyPrompt": "Kopeeri kutsed",
-    "copied": "Kopeeritud",
     "close": "Sulge"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "[UNTRANSLATED]",
     "groups": {
-      "ideate": "[UNTRANSLATED]",
-      "operate": "Töö",
-      "studio": "Stuudio"
+      "make": "Loo",
+      "media": "Meedia",
+      "play": "Mängi",
+      "ideate": "[UNTRANSLATED]"
     },
     "drawer": {
       "open": "Ava navigatsioon",
       "close": "Sulge navigatsioon"
     },
     "tiles": {
-      "mcpSkills": "Ühendatud teenused",
-      "apps": "Rakendused",
-      "sketch": "Skitserid",
       "plan": "Plaanid",
       "outputs": "Väljundid",
       "research": "Uurimine",
       "stash": "Peidud",
-      "illustrations": "Illustratsioonid",
       "worlds": "Maailmad",
       "objects": "Objektid",
       "motion": "Liikumine",
       "beats": "Rütmid",
       "voice": "Hääl",
-      "games": "Mänguarendaja",
-      "arcade": "Arkaad",
-      "settings": "Seaded",
       "library": "Teek",
       "renderBay": "Renderdusala",
-      "dashboard": "Juhtpaneel"
+      "dashboard": "Juhtpaneel",
+      "places": "Kohad",
+      "characters": "Tegelased",
+      "images": "Pildid",
+      "play": "Mängi",
+      "elements": "Elemendid"
     },
     "agentStatus": {
       "liveLabel": "Otsesidemeis",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "Juhtpaneel",
       "open": "Ava põrand →"
-    },
-    "ask": {
-      "title": "Küsi agendilt",
-      "body": "Tegemine toimub sinu MCP agendis."
     }
-  },
-  "breadcrumbs": {
-    "home": "Avaleht"
   },
   "sketches": {
     "notFoundTitle": "Skitseri ei leitud",
@@ -398,10 +253,6 @@
     "refresh": "värskenda",
     "statusOpen": "[UNTRANSLATED:open]",
     "statusResolved": "[UNTRANSLATED:resolved @ rev {rev}]",
-    "annotateHint": "[UNTRANSLATED:Marks are written from your agent (annot]",
-    "copyRevisionPrompt": "Kopeeri revisjoni kutsed",
-    "copied": "Kopeeritud ✓",
-    "copyFailed": "Lõikepuhvrisse kopeerimise ei õnnestunud.",
     "exportWav": "Ekspordi .wav",
     "exportMidi": "Ekspordi .mid",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "Mänguarendaja",
-    "gallerySubtitle": "Üks projekt mängu kohta — selle reeglid, tasemed, tegelased, heli ja kunst ühel riiulil.",
-    "galleryEmpty": "Veel pole mänguprojekte. Alusta create_game_project käivitamisega oma host-agendist.",
-    "copyStarterPrompt": "Kopeeri käivitamiskutsed",
     "loading": "Projektide laadimine…",
-    "noMembersYet": "Veel pole liikmeid",
     "notFound": "Seda projekti ei ole olemas — see võib olla arhiveeritud või viide on vale.",
     "backToProjects": "Tagasi Mänguarendajasse",
-    "copyWorkPrompt": "Kopeeri tööviip",
-    "copyAddPrompt": "lisa",
-    "copyMintPrompt": "vermi mäng",
-    "copied": "Kopeeritud",
-    "playable": "Mängitav",
     "missing": "[UNTRANSLATED:Missing]",
     "missingBody": "Selle liikme artefakti enam ei ole. Projekt hoiab pesa alles; seo uuesti või eemalda see oma host-agendist.",
     "noRules": "Mängu pole veel vermitud — projekt on eeltootmises.",
@@ -468,13 +310,6 @@
     "emptyFolder": "Siin pole veel midagi."
   },
   "arcade": {
-    "title": "Mojulo Arkaad",
-    "subtitle": "Mängitavad iseseisvad mängud, vermitud töökojas. Vali kapp ja mängi.",
-    "loading": "Kappide laadimine…",
-    "emptyState": "Põrandal pole veel mänge. Esimese kapi vermimiseks käivita create_game oma host-agendist.",
-    "copyStarterPrompt": "Kopeeri käivitamiskutsed",
-    "copied": "Kopeeritud",
-    "play": "Mängi",
     "levelCount": "{count, plural, one {# tase} other {# taset}}",
     "shipped": "Tarnitud"
   },
@@ -484,7 +319,7 @@
     "subtitle": "Iga artefakt, mille agent on verminud — stseenid, mudelid, tegelased, materjalid, pildid, diagrammid. Üks riiul iga vaatamisviisi kohta; all sama retseptihoidla.",
     "shelves": {
       "recent": "Hiljutised",
-      "scenes": "Maailmad",
+      "scenes": "Stseenid",
       "turntables": "Pöördlauad",
       "models": "Mudelid",
       "views": "Vaated",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "Stuudio: illustratsioonid, läbitavad maailmad, 3D-objektid, liikumine, biidid, hääl ja valmis väljundid. Häälestatud loominguline pind, Visandite sõsar (häälestatud diagrammide jaoks). Iga tükk on sama visandi primitiiv — talleta, viita ja võrdle seda mõlemal juhul."
-    },
     "beats": {
       "title": "Rütmid",
       "subtitle": "[UNTRANSLATED:Synthesized soundtracks, compositions, a]"
@@ -546,11 +377,7 @@
       "tuned": "Häälestatud (retsept muutumata)",
       "reset": "lähtesta",
       "playingAt": "Proov enesekindlusega {c} / sügavus {d}",
-      "noSamples": "Pole renderdatud proove veel — kopeerige rääkimise käsu ja laske oma agendil seotud mõned punktid (kaasatud servad).",
-      "copyBlend": "Kopeeri segu",
-      "copyCommand": "Kopeeri rääkimise käsk",
-      "copyPrompt": "Kopeeri käivitamiskutsed",
-      "copied": "Kopeeritud!",
+      "noSamples": "Renderdatud näidiseid veel pole.",
       "loading": "Häälte registrite laadimine…",
       "empty": "Häälte registreid pole veel. Paluge oma agendil üks create_voice-ga luua.",
       "unresolvable": "See register ei lahenda enam — selle pank võib muutunud olla. Ümberlooge create_voice kaudu."
@@ -602,10 +429,6 @@
     "kindNovel": "Novell",
     "kindVisualGuide": "Visuaalne juhend",
     "kindUnknown": "Teadmata",
-    "actions": {
-      "archive": "Arhiiv",
-      "unarchive": "Eemalda arhiivist"
-    },
     "sourceLabel": "Kellelt",
     "sourceUnknown": "(peitu eemaldatud)",
     "lensLabel": "Objektiiv",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "Peidud",
-    "subtitle": "Nimetamist võimaldavad tüüpiliste materjalide ämbrid, mille agent on kogunud. Loodud mint_stash MCP tööriista kaudu.",
+    "subtitle": "Agendi kogutud tüübitud materjali kogumid.",
     "total": "{count, plural, =0 {Ühtegi peiut} =1 {1 peide} other {# peiut}}",
     "count": "{count, plural, =0 {Ühtegi vastet} =1 {1 peide} other {# peiut}}",
     "filteredCount": "{count} {total}-st näidatud",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {ühtegi sahtlit} =1 {1 sahtel} other {# sahtlit}}",
     "createdAt": "Loodud {timestamp}",
     "updatedAt": "Uuendatud {timestamp}",
-    "actions": {
-      "rename": "Nimeta ümber",
-      "edit": "Edit",
-      "archive": "Arhiiv",
-      "unarchive": "Eemalda arhiivist",
-      "save": "Salvesta",
-      "cancel": "Tühista",
-      "titleEmpty": "[UNTRANSLATED:Title cannot be empty]",
-      "renameFailed": "[UNTRANSLATED:Rename failed]",
-      "statusChangeFailed": "[UNTRANSLATED:Could not change status]"
-    },
     "detail": {
       "loading": "[UNTRANSLATED:Loading stash…]",
       "notFoundTitle": "[UNTRANSLATED:Stash not found]",
@@ -673,66 +485,7 @@
         "sketch": "Skitser"
       },
       "sketchFailed": "[UNTRANSLATED:Sketch failed to load.]",
-      "openSketch": "[UNTRANSLATED:Open sketch]",
-      "newDrawer": "[UNTRANSLATED:New drawer]",
-      "newDrawerPlaceholder": "[UNTRANSLATED:Drawer name]",
-      "drawerSaveError": "[UNTRANSLATED:Could not save drawer]",
-      "drawerRenameError": "[UNTRANSLATED:Could not rename drawer]",
-      "renameDrawerLabel": "[UNTRANSLATED:Rename drawer]",
-      "moveError": "[UNTRANSLATED:Could not move item]",
-      "archive": "Arhiiv",
-      "archiveError": "[UNTRANSLATED:Could not archive item]",
-      "archiveWarning": "See üksus esineb {cookCount, plural, =1 {1 valmistises} other {# valmistises}}. Viited lahenevad arhiveeritud sisule. Kas jätkata?",
-      "archiveProceed": "[UNTRANSLATED:Archive anyway]",
-      "archiveCancel": "Tühista",
-      "addItem": "[UNTRANSLATED:+ Add]",
-      "agentTypesFooter": "[UNTRANSLATED:Scripts and contextmap pointers are adde]",
-      "picker": {
-        "text": "[UNTRANSLATED:New text block]",
-        "image": "[UNTRANSLATED:Upload image]",
-        "svg": "[UNTRANSLATED:Add SVG]",
-        "link": "[UNTRANSLATED:Paste link]",
-        "sketch": "[UNTRANSLATED:Pick sketch]"
-      },
-      "panel": {
-        "save": "Salvesta",
-        "cancel": "Tühista",
-        "saving": "Salvestatakse…",
-        "saveError": "[UNTRANSLATED:Could not save]",
-        "titleLabel": "[UNTRANSLATED:Title (optional)]",
-        "titlePlaceholder": "[UNTRANSLATED:Short label]",
-        "sourceUrlLabel": "[UNTRANSLATED:Source URL (optional)]",
-        "sourceUrlPlaceholder": "[UNTRANSLATED:https://…]",
-        "format": "[UNTRANSLATED:Format]",
-        "formatMarkdown": "[UNTRANSLATED:Markdown]",
-        "formatHtml": "[UNTRANSLATED:HTML]",
-        "formatPlain": "[UNTRANSLATED:Plain text]",
-        "bodyLabel": "[UNTRANSLATED:Body]",
-        "bodyPlaceholder": "[UNTRANSLATED:Type or paste…]",
-        "preview": "Eelvaade",
-        "previewEmpty": "[UNTRANSLATED:Type to preview.]",
-        "tooLong": "[UNTRANSLATED:Content exceeds the {limit, number} char]",
-        "imagePick": "[UNTRANSLATED:Choose an image]",
-        "imageDrop": "[UNTRANSLATED:or drop a file here]",
-        "imageTooLarge": "[UNTRANSLATED:Image exceeds the {limit, number} MB cap]",
-        "imageBadMime": "[UNTRANSLATED:Not an image file ({mime}).]",
-        "imageBadDimensions": "[UNTRANSLATED:Could not read image dimensions.]",
-        "altLabel": "[UNTRANSLATED:Alt text (optional)]",
-        "altPlaceholder": "[UNTRANSLATED:What's in the image?]",
-        "svgPaste": "[UNTRANSLATED:Paste SVG]",
-        "svgUpload": "[UNTRANSLATED:or upload .svg]",
-        "svgBadShape": "[UNTRANSLATED:SVG body must start with <?xml or <svg.]",
-        "urlLabel": "URL",
-        "urlPlaceholder": "[UNTRANSLATED:https://…]",
-        "urlInvalid": "[UNTRANSLATED:URL doesn't parse.]",
-        "urlTitleRequired": "[UNTRANSLATED:Title is required for link items.]",
-        "descriptionLabel": "[UNTRANSLATED:Description (optional)]",
-        "descriptionPlaceholder": "[UNTRANSLATED:Why this matters…]",
-        "sketchSearchPlaceholder": "[UNTRANSLATED:Search sketches…]",
-        "sketchEmpty": "[UNTRANSLATED:No sketches yet. Ask your agent to mint ]",
-        "sketchNoMatch": "[UNTRANSLATED:No sketches match this search.]",
-        "sketchPicked": "[UNTRANSLATED:Picked]"
-      }
+      "openSketch": "[UNTRANSLATED:Open sketch]"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "[UNTRANSLATED:Download PNG]",
     "invalidManifest": "[UNTRANSLATED:Rendrant could not parse this sketch.]",
     "frameFailed": "See vaade ei laadinud.",
-    "renameLabel": "[UNTRANSLATED:Rename sketch]",
-    "renamePlaceholder": "[UNTRANSLATED:Sketch title]",
-    "renameSave": "Salvesta",
-    "renameSaveNew": "[UNTRANSLATED:Save as new sketch]",
-    "renameCancel": "Tühista",
-    "renameEmpty": "[UNTRANSLATED:Title cannot be empty]",
     "associationTags": {
       "plan": "Plaan",
       "research": "Uurimine"
@@ -771,45 +518,21 @@
       "selectPrompt": "[UNTRANSLATED:Select a track on the left to play.]",
       "invalidManifest": "[UNTRANSLATED:This recipe could not be parsed.]",
       "openNewTab": "[UNTRANSLATED:Open Studio]",
-      "renameLabel": "[UNTRANSLATED:Rename track]",
-      "renamePlaceholder": "[UNTRANSLATED:Track title]",
-      "renameSaveNew": "[UNTRANSLATED:Save as new track]",
       "exportWav": "Ekspordi .wav",
       "exportMidi": "Ekspordi .mid"
     },
     "folder": {
-      "newFolderButton": "[UNTRANSLATED:New folder]",
-      "newFolderTitle": "[UNTRANSLATED:New folder]",
-      "namePlaceholder": "[UNTRANSLATED:Folder name]",
       "create": "[UNTRANSLATED:Create]",
       "cancel": "Tühista",
-      "rename": "[UNTRANSLATED:Rename folder]",
-      "renameSave": "Salvesta",
       "delete": "[UNTRANSLATED:Delete folder]",
-      "deleteConfirm": "[UNTRANSLATED:Delete this folder? Sketches inside it w]",
       "rootCrumb": "[UNTRANSLATED:All sketches]",
       "back": "Tagasi",
       "sketchCount": "{count, plural, =0 {tühi} =1 {1 skits} other {# skitsi}}",
       "foldersHeader": "[UNTRANSLATED:Folders]",
       "rootHeader": "Skitserid",
-      "inFolderHint": "[UNTRANSLATED:New sketches you mint while viewing this]",
-      "emptyFolder": "[UNTRANSLATED:This folder is empty. Mint a sketch or m]",
+      "emptyFolder": "See kaust on tühi.",
       "moveSourceFolder": "[UNTRANSLATED:In {name}]",
       "moveSourceRoot": "[UNTRANSLATED:At root]"
-    },
-    "select": {
-      "enter": "Select",
-      "exit": "[UNTRANSLATED:Done]",
-      "count": "{count, plural, =0 {Midagi pole valitud} =1 {1 valitud} other {# valitud}}",
-      "moveTo": "[UNTRANSLATED:Move to…]",
-      "moveToRoot": "[UNTRANSLATED:Move to root]",
-      "moveSuccess": "{count, plural, =1 {1 skits liigutatud} other {# skitsi liigutatud}}",
-      "moveError": "[UNTRANSLATED:Move failed: {error}]",
-      "selectAll": "Valige kõik",
-      "clear": "Clear",
-      "delete": "Kustuta",
-      "deleteConfirm": "{count, plural, =1 {Kustuta 1 skits?} other {Kustuta # skitsi?}} Seda ei saa tagasi võtta.",
-      "deleteError": "[UNTRANSLATED:Delete failed: {error}]"
     },
     "viewToggle": {
       "split": "[UNTRANSLATED:Split view]",
@@ -820,72 +543,6 @@
       "move": "[UNTRANSLATED:Move]",
       "delete": "Kustuta",
       "deleteOneConfirm": "[UNTRANSLATED:Delete \"{title}\"? This cannot be undone.]"
-    }
-  },
-  "map": {
-    "title": "[UNTRANSLATED:Map]",
-    "subtitle": "[UNTRANSLATED:The whole fleet on two planes — apps on ]",
-    "loading": "Laaditakse…",
-    "refresh": "Värskenda",
-    "error": "[UNTRANSLATED:Failed to load the fleet map]",
-    "empty": "[UNTRANSLATED:Nothing on the map yet — scaffold an app]",
-    "counts": {
-      "apps": "Rakendused",
-      "servers": "[UNTRANSLATED:MCP servers]",
-      "services": "[UNTRANSLATED:Connected services]"
-    },
-    "legend": {
-      "air": "[UNTRANSLATED:Air]",
-      "ground": "Pinnas",
-      "servers": "[UNTRANSLATED:MCP servers]",
-      "services": "[UNTRANSLATED:Connected services]",
-      "apps": "Rakendused"
-    }
-  },
-  "mcpSkills": {
-    "title": "Ühendatud teenused",
-    "subtitle": "[UNTRANSLATED:Connected services: host skills and mate]",
-    "loading": "Laaditakse...",
-    "refresh": "Värskenda",
-    "error": "[UNTRANSLATED:Failed to load connected services]",
-    "empty": "[UNTRANSLATED:No connected services yet. Declare host ]",
-    "backToList": "[UNTRANSLATED:Back to Connected Services]",
-    "backToService": "[UNTRANSLATED:Back to connected service]",
-    "notFound": "[UNTRANSLATED:Connected service not found.]",
-    "viewGraph": "Vaata graafikut",
-    "present": "[UNTRANSLATED:Present]",
-    "missing": "[UNTRANSLATED:Missing]",
-    "counts": {
-      "servers": "[UNTRANSLATED:MCP servers]",
-      "services": "[UNTRANSLATED:Connected services]"
-    },
-    "table": {
-      "name": "Nimi",
-      "form": "[UNTRANSLATED:Form]",
-      "calls": "[UNTRANSLATED:Calls]",
-      "updated": "[UNTRANSLATED:Updated]"
-    },
-    "forms": {
-      "catalyst": "[UNTRANSLATED:Catalyst skill]",
-      "manual": "[UNTRANSLATED:Manual skill]",
-      "orbit": "[UNTRANSLATED:MCP-orbit]"
-    },
-    "detail": {
-      "metadata": "Metaandmed",
-      "name": "Nimi",
-      "ref": "[UNTRANSLATED:Ref]",
-      "kind": "Liik",
-      "form": "[UNTRANSLATED:Form]",
-      "updated": "[UNTRANSLATED:Updated]",
-      "hostPath": "[UNTRANSLATED:Host path]",
-      "catalyst": "[UNTRANSLATED:Catalyst]",
-      "composition": "[UNTRANSLATED:Composition]",
-      "calls": "[UNTRANSLATED:Calls]",
-      "noCalls": "[UNTRANSLATED:No MCP calls declared.]",
-      "needs": "[UNTRANSLATED:Needs]",
-      "components": "[UNTRANSLATED:Components]",
-      "knobs": "[UNTRANSLATED:Knobs]",
-      "graphSubtitle": "[UNTRANSLATED:Derived from the Connected Services mirr]"
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "Renderdusala",
     "subtitle": "Kõik, mida mojulo toodab, ühes kohas: püsiv pildirenderduse järjekord, GI-küpsetused ning kettal olevad cook'id ja eksportid. Neli viisi öelda „midagi tehakse“, millel varem polnud ühist kodu.",
-    "readOnly": "Ala renderdab olekut. Iga tegevus siin on kutse, mille kopeerid oma agenti — renderduse vastuvõtmine, maailma uuesti küpsetamine ja ekspordi vermimine käivad kõik MCP tööriistade kaudu, mitte selle lehe kaudu.",
     "refresh": "Värskenda",
     "loading": "Laaditakse…",
     "allLanes": "Kõik rajad",
-    "copyPrompt": "Kopeeri kutsed",
-    "copied": "Kopeeritud",
-    "copyFailed": "Kopeerimine ebaõnnestus — vali tekst ja kopeeri käsitsi",
     "showing": "kuvatud {shown} / {total}",
     "queue": {
       "title": "Renderdusjärjekord",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "Ava artefakt →",
-    "copied": "Kopeeritud",
-    "copyFailed": "Kopeerimine ebaõnnestus — vali tekst ja kopeeri käsitsi",
     "shelves": "Teek",
     "bays": "Töökoda",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "kolmnurkade arv: export_model"
     },
     "inspector": {
-      "askTitle": "Küsi agendilt",
-      "askBody": "Juhtpaneel renderdab olekut; see ei muuda kunagi midagi. Selle retsepti muutmine käib sinu host-agendis.",
-      "askCopy": "Kopeeri kutsed",
       "bound": "Seotud artefaktid",
       "boundEmpty": "Midagi pole veel seotud — selle retsepti jaoks pole kettal renderdusi, võrke ega eksporte.",
       "openFolder": "Ava tulemuste kaust · {size}",
@@ -1110,8 +758,6 @@
     "empty": "Sellele tahule või otsingule ei vasta miski.",
     "emptyShelf": "Riiulisse {shelf} pole veel midagi vermitud.",
     "emptyShelfHint": "Palu oma agendil üks teha — sõnavara on get_sketch_vocab'is.",
-    "copied": "Kopeeritud",
-    "copyFailed": "Kopeerimine ebaõnnestus — vali käsitsi",
     "notExportable": "Võrgu eksporti pole — see artefakt renderdub diagrammina, mitte läbitava mudelina.",
     "stack": "×{n}",
     "seed": "seeme {seed}",
@@ -1127,8 +773,6 @@
     "svg": "[UNTRANSLATED:SVG]",
     "png": "PNG",
     "paintedLine": "maalitud · väline tööline · karkassiretsept on suveräänne",
-    "mintMissing": "Palu agendil vermida {piece}",
-    "mintPrompt": "Mojulo tegelase „{name}“ jaoks (vt artefakt {ref}) vermi puuduv {piece}. Kasuta sobivat tööriista (create_sprite_sheet / bind_character_sheet / figure tools) — loe esmalt get_sketch_vocab.",
     "facets": {
       "scenes": {
         "walkable": "Läbitavad",

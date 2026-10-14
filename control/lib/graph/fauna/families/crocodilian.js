@@ -36,7 +36,7 @@ const crest = (pts, hi, lo) => pts.flatMap(([y, z, w], i, a) => (i === a.length 
 // ([y, z centre, half-width, half-height], linear between stations); `ridge` lays a saw-tooth loft along the body at
 // share `f` of the half-width out from the spine (a side row, mirrored by name; f = 0 a midline crest), from y0 to y1
 // in `n` teeth of height `hi` (lower toward the ends), each tooth `wide` across, painted `group` (the light armour)
-const PROF = [[0.60, 0.27, 0.22, 0.14], [0.30, 0.27, 0.32, 0.18], [-0.10, 0.27, 0.36, 0.19], [-0.50, 0.27, 0.32, 0.18], [-0.79, 0.27, 0.215, 0.15],
+const PROF = [[0.60, 0.27, 0.22, 0.16], [0.30, 0.27, 0.32, 0.215], [-0.10, 0.27, 0.36, 0.23], [-0.50, 0.27, 0.32, 0.215], [-0.79, 0.27, 0.215, 0.17],
   [-1.20, 0.25, 0.14, 0.18], [-1.65, 0.21, 0.09, 0.17], [-2.10, 0.16, 0.06, 0.13], [-2.50, 0.11, 0.04, 0.08], [-2.80, 0.08, 0.02, 0.05]];
 const prof = (y) => { for (let i = 0; i + 1 < PROF.length; i++) { const [ya, ...a] = PROF[i], [yb, ...b] = PROF[i + 1];
   if (y <= ya && y >= yb) { const t = (ya - y) / (ya - yb); return a.map((v, k) => v + (b[k] - v) * t); } } return PROF[y > 0 ? 0 : PROF.length - 1].slice(1); };
@@ -61,15 +61,15 @@ export const family = {
   joints: {
     neckBase: [0, 0.62, 0.27], neckTop: [0, 0.86, 0.27],
     // sprawling: the elbow and the knee out past the body, the feet set wide and flat
-    shoulder: [0.20, 0.48, 0.24], elbow: [0.52, 0.42, 0.20], carpus: [0.54, 0.50, 0.05], forePaw: [0.54, 0.52, 0.025], foreToe: [0.60, 0.66, 0.012],
-    hip: [0.20, -0.52, 0.25], stifle: [0.56, -0.44, 0.22], hock: [0.58, -0.62, 0.06], hindPaw: [0.58, -0.60, 0.025], hindToe: [0.64, -0.40, 0.012],
+    shoulder: [0.20, 0.48, 0.24], elbow: [0.43, 0.42, 0.20], carpus: [0.44, 0.50, 0.05], forePaw: [0.44, 0.52, 0.025], foreToe: [0.48, 0.66, 0.012],
+    hip: [0.20, -0.52, 0.25], stifle: [0.45, -0.44, 0.22], hock: [0.47, -0.62, 0.06], hindPaw: [0.47, -0.60, 0.025], hindToe: [0.51, -0.40, 0.012],
   },
   torso: [
-    { at: [0, -0.78, 0.27], r: [0.22, 0.15] },
-    { at: [0, -0.50, 0.27], r: [0.32, 0.18] },
-    { at: [0, -0.10, 0.27], r: [0.36, 0.19] },
-    { at: [0, 0.30, 0.27], r: [0.32, 0.18] },
-    { at: [0, 0.60, 0.27], r: [0.22, 0.14] },
+    { at: [0, -0.78, 0.27], r: [0.22, 0.17] },
+    { at: [0, -0.50, 0.27], r: [0.32, 0.215] },
+    { at: [0, -0.10, 0.27], r: [0.36, 0.23] },
+    { at: [0, 0.30, 0.27], r: [0.32, 0.215] },
+    { at: [0, 0.60, 0.27], r: [0.22, 0.16] },
   ],
   torsoCaps: { back: [0, -0.86, 0.27], tip: [0, 0.72, 0.27] },
   neckRA: [0.19, 0.13], neckRB: [0.13, 0.09], neckRMid: [0.16, 0.11],
@@ -109,10 +109,10 @@ export const family = {
   headOrnaments: teeth([3.3, 3.8, 4.3, 4.8, 5.3, 5.75], 5.0, 0.02),
   headTiles: [], bodyTiles: [],
   // the tail: a massive, laterally FLATTENED loft [y, z, [half-width, half-height]] as long as the body, on stable rings
-  tailStations: [[-0.80, 0.27, [0.21, 0.15]], [-1.20, 0.25, [0.14, 0.18]], [-1.65, 0.21, [0.09, 0.17]], [-2.10, 0.16, [0.06, 0.13]], [-2.50, 0.11, [0.04, 0.08]], [-2.80, 0.08, [0.02, 0.05]]],
+  tailStations: [[-0.80, 0.27, [0.21, 0.17]], [-1.20, 0.25, [0.14, 0.18]], [-1.65, 0.21, [0.09, 0.17]], [-2.10, 0.16, [0.06, 0.13]], [-2.50, 0.11, [0.04, 0.08]], [-2.80, 0.08, [0.02, 0.05]]],
   tailCaps: { back: [0, -0.70, 0.27], tip: [0, -2.95, 0.07] },
   // the scute crest back line [y, z of the back surface, weight] from the nape down the tail
-  crestLine: [[0.60, 0.40, 0.6], [0.30, 0.45, 0.8], [-0.10, 0.46, 0.8], [-0.50, 0.45, 0.9], [-0.80, 0.42, 1.1], [-1.20, 0.39, 1.4], [-1.65, 0.32, 1.4], [-2.10, 0.26, 1.2], [-2.50, 0.19, 1.0], [-2.80, 0.13, 0.7]],
+  crestLine: [[0.60, 0.42, 0.6], [0.30, 0.485, 0.8], [-0.10, 0.50, 0.8], [-0.50, 0.485, 0.9], [-0.80, 0.44, 1.1], [-1.20, 0.39, 1.4], [-1.65, 0.32, 1.4], [-2.10, 0.26, 1.2], [-2.50, 0.19, 1.0], [-2.80, 0.13, 0.7]],
   scale: 1,
 };
 family.extraSegments = [

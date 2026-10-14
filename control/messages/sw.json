@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Ramani ya Huduma",
-    "back": "Rudi"
-  },
-  "actions": {
-    "start": "Anza"
-  },
   "settings": {
     "title": "Mipangilio",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Programu",
-    "subtitle": "Programu ambazo wakala umezitungia kupitia paradigm ya Programu. Umri wa maisha, vigezo vya mazingira, na uchunguzi wa MCP moja kwa moja — kusoma kutoka contextmap na runner wa ndani.",
-    "loading": "Inapakia…",
-    "refresh": "Jibadilishe",
-    "empty": "Hakuna programu bado — omba wakala wako wa Claude Code kuzitukia moja.",
-    "backToList": "Rudi kwenye Programu",
-    "notFound": "Programu haipatikani.",
-    "openPreview": "Fungua muonekano",
-    "openMcp": "Fungua MCP",
-    "actions": {
-      "start": "Anza",
-      "stop": "Simamisha",
-      "starting": "Inaanza…",
-      "stopping": "Imasimamisha…"
-    },
-    "status": {
-      "running": "Inaendelea",
-      "stopped": "Imesimamishwa",
-      "crashed": "Imedonda",
-      "unknown": "Haijulikani"
-    },
-    "table": {
-      "headers": {
-        "name": "Jina",
-        "materialized": "Ilipangwa",
-        "runner": "Mnengi",
-        "status": "Hali",
-        "actions": "Vitendo"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Ramani ya uumbaji wa programu hii — kila wito wa chombo ulioifanya iwepo, kama vituo kwenye njia moja."
-      },
-      "metadata": "Metadata",
-      "artifactPath": "Njia ya Kitu Kizuri",
-      "materializationRef": "Marejeleo ya Kupangwa",
-      "adapter": "Kubadilisha",
-      "appName": "Jina la programu",
-      "host": "Nyumba",
-      "materializedAt": "Ilipangwa saa",
-      "viewGraph": "Angalia grafu",
-      "bindings": "Zitukio",
-      "binding": {
-        "runner": "Mnengi",
-        "durability": "Endesha",
-        "inference": "Ugunduzi",
-        "mcpSelf": "MCP mwenyewe"
-      },
-      "mcpPanel": {
-        "title": "Programu MCP",
-        "url": "URL ya MCP",
-        "offline": "MCP iko sehemu mbali — anzisha programu kuona orodha yake ya zana.",
-        "loading": "Inapakia zana…",
-        "error": "Hainaweza kufikia MCP ya programu: {error}",
-        "registeredTools": "Zana zilizosajiliwa",
-        "noTools": "Hakuna zana zilizosajiliwa.",
-        "declaredPurpose": "Lengo lililosemwa"
-      },
-      "envPanel": {
-        "title": "Vigezo vya Mazingira",
-        "explainer": "Thamani zimeandikwa moja kwa moja kwenye faili la .env ya kitu kizuri. Hazijarekodiwa, hazihifadhiwi katika hifadhidata ya ndege ya udhibiti, na haziripelewi kwenye muonekano huu.",
-        "addKey": "Kitufe",
-        "addValue": "Thamani",
-        "add": "Ongeza",
-        "delete": "Futa",
-        "deleteConfirm": "Futa kigezo cha mazingira \"{key}\"?",
-        "noKeys": "Hakuna vigezo vya mazingira vya kuweka bado.",
-        "valueHidden": "•••••",
-        "edit": "Hariri",
-        "save": "Hifadhi",
-        "cancel": "Ghairi",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "thamani"
-      },
-      "provenance": {
-        "title": "Uzaliwa",
-        "subtitle": "Kanuni zilizofungwa kwa ujumbe wa kupangwa wa programu hii.",
-        "none": "Hakuna kanuni iliyorekodiwa."
-      }
-    }
-  },
-  "graph": {
-    "title": "Ramani ya Kuunda Programu",
-    "subtitle": "Jinsi programu inavyounganika. Kila sanduku ni kipande; kila mshale unaonyesha kile kinachosababisha kile.",
-    "subtitleTechnical": "Jinsi programu inyoandaliwa katika paradigm ya mojulo. Kituo ni vipande; mistari ni zana za MCP zinazoziunganisha. Tathminiwa kinyume na rejistri ya MCP ya moja kwa moja na mpango wa contextmap katika kila jibadilisho.",
-    "technicalToggle": "Teknolojia",
-    "loading": "Inapakia…",
-    "refresh": "Jibadilishe",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Hakuna programu iliyoundwa bado} =1 {programu 1 iliyoundwa} other {programu # iliyoundwa}}",
-      "lastMaterialized": "Moja ya mwisho iliyoundwa",
-      "viewApps": "Angalia programu zinazoendesha"
-    },
-    "validation": {
-      "ok": "Kila kitu kinachotaka kuonekeza.",
-      "okTechnical": "Manifest halali: {tools} zana, {nodeKinds} aina za nodus, {edgeKinds} aina za makali, {sourceEvents} matukio ya chanzo yote yanasomeka.",
-      "failed": "{count, plural, =1 {1 kitu katika ramani hakiwalingani na ukweli} other {# vitu katika ramani havikuwalingani na ukweli}}"
-    },
-    "legend": {
-      "input": "Kile unachokagiza",
-      "inputTechnical": "Ingizo",
-      "mcpTool": "Zana ambayo wakala anayoita",
-      "mcpToolTechnical": "Zana ya MCP",
-      "filesystem": "Faili kwenye diski",
-      "filesystemTechnical": "Mfumo wa Faili",
-      "dbRow": "Kuingia katika kumbukumbu",
-      "dbRowTechnical": "Safu ya DB"
-    }
-  },
   "login": {
     "subtitle": "Ingia kuendelea",
     "username": "Jina la Mtumiaji",
@@ -178,7 +60,6 @@
     "title": "Mpango",
     "subtitle": "Kazi iliyopendekezwa — vikao ambavyo vilibadilika kuwa misumari. Iliyorongwa na kuendesha kutoka wakala wako wa nyumba.",
     "navLabel": "Mpango",
-    "newPlan": "Mpango Mpya",
     "total": "{count} mipango",
     "count": "{count} mipango",
     "filteredCount": "{count} ya {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Haijatekelezwa bado.",
     "stepOk": "sawa",
     "stepFailed": "imeshindwa",
-    "newPlanTitle": "Mpango Mpya",
-    "newPlanIntro": "Mipango inajengwa katika wakala wako wa nyumba (Claude Code / Codex). Eleza azimio, nakili haraka ya kuanza, na bonyeza katika kikao kipya cha wakala — wakala inaingia hali ya mipango na inaendesha kazi. Ukurasa huu husasishwa kadri mipango inavyojengwa na kuboreshwa.",
-    "intentLabel": "Nini unayotaka kukamatia? (kwa hiari)",
-    "intentPlaceholder": "kv amali, webhook trigger runtime kwa muundaji",
-    "promptLabel": "Haraka ya kuanza",
-    "copyPrompt": "Nakili haraka",
-    "copied": "Kunakiliwa",
     "close": "Funga"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Kipande",
     "kindSketch": "Muundo",
     "viewSketch": "Angalia mchoro",
-    "composerHeading": "Ongeza kwenye daftari",
-    "composerStub": "Muonekano tu — ushikamano hutokea kupitia wakala wako wa nyumba kwa sasa.",
-    "composerPlaceholder": "Bonyeza kiungo, dondosha faili, au andika kumbuka…",
-    "newBook": "Kitabu kipya",
-    "newBookTitle": "Kitabu kipya cha utafiti",
-    "newBookIntro": "Vitabu vinaanzishwa katika wakala wako wa nyumba (Claude Code / Codex). Eleza mada, nakili haraka ya kuanza, na bonyeza katika kikao kipya cha wakala — wakala inaingia hali ya utafiti na inaendesha kazi. Ukurasa huu husasishwa kadri kitabu kinavyokusanyo.",
-    "intentLabel": "Nini unayotaka kujifunza? (kwa hiari)",
-    "intentPlaceholder": "kv amali, jinsi wengine winavyotumia MCP servers za ndani",
-    "promptLabel": "Haraka ya kuanza",
-    "copyPrompt": "Nakili haraka",
-    "copied": "Kunakiliwa",
     "close": "Funga"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "Nyumba ya Warsha",
     "groups": {
-      "ideate": "Mwe na mawazo",
-      "operate": "Endesha",
-      "studio": "Studhio"
+      "make": "Unda",
+      "media": "Vyombo vya habari",
+      "play": "Cheza",
+      "ideate": "Mwe na mawazo"
     },
     "drawer": {
       "open": "Fungua urambazaji",
       "close": "Funga urambazaji"
     },
     "tiles": {
-      "mcpSkills": "Huduma za Kuunganishwa",
-      "apps": "Programu",
-      "sketch": "Miundo",
       "plan": "Mipango",
       "outputs": "Matokeo",
       "research": "Utafiti",
       "stash": "Hazina",
-      "illustrations": "Picha",
       "worlds": "Ulimwengu",
       "objects": "Vitu",
       "motion": "Mwendo",
       "beats": "Kupiga",
       "voice": "Sauti",
-      "games": "Msanidi wa Michezo",
-      "arcade": "Arcade",
-      "settings": "Mipangilio",
       "library": "Maktaba",
       "renderBay": "Banda la Render",
-      "dashboard": "Irizi"
+      "dashboard": "Irizi",
+      "places": "Mahali",
+      "characters": "Wahusika",
+      "images": "Picha",
+      "play": "Cheza",
+      "elements": "Vipengele"
     },
     "agentStatus": {
       "liveLabel": "Hai",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "Irizi",
       "open": "Fungua sakafu →"
-    },
-    "ask": {
-      "title": "Muulize wakala",
-      "body": "Uundaji hufanyika ndani ya wakala wako wa MCP."
     }
-  },
-  "breadcrumbs": {
-    "home": "Nyumba"
   },
   "sketches": {
     "notFoundTitle": "Muundo haujaweza kupatikana",
@@ -398,10 +253,6 @@
     "refresh": "sasisha",
     "statusOpen": "fungua",
     "statusResolved": "kutatuliwa @ rev {rev}",
-    "annotateHint": "Alama zimeandikwa kutoka kwa wakala wako (annotate_beats — imefungwa kwa bar, wimbo, au ishara); paneli hii inazitoa. Nakili haraka ya marekebisho kuwa na wakala kuiweka au kutenda juu yake.",
-    "copyRevisionPrompt": "Nakili haraka ya marekebisho",
-    "copied": "Kunakiliwa ✓",
-    "copyFailed": "Haikuweza kunakili kwenye clipboard.",
     "exportWav": "Hamisha .wav",
     "exportMidi": "Hamisha .mid",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "Msanidi wa Michezo",
-    "gallerySubtitle": "Mradi mmoja kwa kila mchezo — sheria zake, ngazi, wahusika, sauti, na sanaa kwenye rafu moja.",
-    "galleryEmpty": "Bado hakuna miradi ya michezo. Endesha create_game_project kutoka kwa wakala wako mwenyeji ili kuanza mmoja.",
-    "copyStarterPrompt": "Nakili haraka ya kuanza",
     "loading": "Inapakia miradi…",
-    "noMembersYet": "Bado hakuna wanachama",
     "notFound": "Mradi huo haupo — huenda umehifadhiwa kwenye kumbukumbu au ref si sahihi.",
     "backToProjects": "Rudi kwa Msanidi wa Michezo",
-    "copyWorkPrompt": "Nakili kidokezo cha kazi",
-    "copyAddPrompt": "ongeza",
-    "copyMintPrompt": "tengeneza mchezo",
-    "copied": "Kunakiliwa",
-    "playable": "Inachezeka",
     "missing": "Haipo",
     "missingBody": "Kifaa cha mwanachama huyu hakipo tena. Mradi unahifadhi nafasi; funga upya au kiondoe kutoka kwa wakala wako mwenyeji.",
     "noRules": "Bado hakuna mchezo uliotengenezwa — mradi uko katika hatua ya awali ya uzalishaji.",
@@ -468,13 +310,6 @@
     "emptyFolder": "Bado hakuna kitu hapa."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Michezo huru inayochezeka, iliyotengenezwa kutoka warshani. Chagua kabati na ucheze.",
-    "loading": "Inapakia makabati…",
-    "emptyState": "Bado hakuna michezo sakafuni. Endesha create_game kutoka kwa wakala wako mwenyeji ili kutengeneza kabati la kwanza.",
-    "copyStarterPrompt": "Nakili haraka ya kuanza",
-    "copied": "Kunakiliwa",
-    "play": "Cheza",
     "levelCount": "{count, plural, one {# ngazi} other {# ngazi}}",
     "shipped": "Imetolewa"
   },
@@ -484,7 +319,7 @@
     "subtitle": "Kila kazi ambayo wakala ameunda — mandhari, modeli, wahusika, nyenzo, picha, michoro. Rafu moja kwa kila namna ya kuangalia; hifadhi ile ile ya resipi chini yake.",
     "shelves": {
       "recent": "Za hivi karibuni",
-      "scenes": "Ulimwengu",
+      "scenes": "Matukio",
       "turntables": "Meza za kuzunguka",
       "models": "Modeli",
       "views": "Mionekano",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mjumbe wa Mojulo",
-      "subtitle": "Studio: michoro, ulimwengu unaotembeka, vitu vya 3D, mwendo, beats, sauti, na matokeo yaliyokamilika. Uso wa ubunifu uliorekebishwa, ndugu wa Sketches (uliorekebishwa kwa michoro-mchoro). Kila kipande ni primitive ile ile ya sketch — hifadhi, rejelea, na linganisha kwa vyovyote."
-    },
     "beats": {
       "title": "Kupiga",
       "subtitle": "Kufa kwa moyo, muundo, na matokeo ya sauti — chagua moja na bonyeza cheza. Muandishi mpya kutoka kwa wakala wako kupitia create_beats."
@@ -546,11 +377,7 @@
       "tuned": "Iliyoboreswa (taratibu haijabadilishwa)",
       "reset": "kuanzia tena",
       "playingAt": "Sampuli kwa ujasiri {c} / kina {d}",
-      "noSamples": "Hakuna sampuli iliyotengenezwa bado — nakili amri ya kuzungumza na kuwa na wakala unaoshikamana pointi chache (kingo zijumishwe).",
-      "copyBlend": "Nakili muundo",
-      "copyCommand": "Nakili amri ya kuzungumza",
-      "copyPrompt": "Nakili haraka ya kuanza",
-      "copied": "Nilikunakili!",
+      "noSamples": "Bado hakuna sampuli zilizotolewa.",
       "loading": "Inapakia registers za sauti…",
       "empty": "Hakuna registers za sauti bado. Kumwomba wakala kuunda moja kwa create_voice.",
       "unresolvable": "Register hii haiwezi kutatuliwa tena — benki yake inaweza kwa kubadilishwa. Unda tena kupitia create_voice."
@@ -602,10 +429,6 @@
     "kindNovel": "Hadithi ndogo",
     "kindVisualGuide": "Mwongozo wa kielekezi",
     "kindUnknown": "Haijulikani",
-    "actions": {
-      "archive": "Hifadhi",
-      "unarchive": "Kuondoa kutoka hifadhi"
-    },
     "sourceLabel": "Kutoka",
     "sourceUnknown": "(hazina ililondolewa)",
     "lensLabel": "Kielekezi",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "Hazina",
-    "subtitle": "Ndoto za nyenzo za aina iliyokusanyo na wakala. Ziliumbwa kupitia chombo cha mint_stash MCP.",
+    "subtitle": "Ndoo za nyenzo zenye aina ambazo wakala amekusanya.",
     "total": "{count, plural, =0 {Hakuna hazina} =1 {1 hazina} other {# hazina}}",
     "count": "{count, plural, =0 {Hakuna vinavyofanana} =1 {1 hazina} other {# hazina}}",
     "filteredCount": "{count} ya {total} zilionyeshwa",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {hakuna droo} =1 {1 droo} other {# droo}}",
     "createdAt": "Iliumbwa {timestamp}",
     "updatedAt": "Ilisasishwa {timestamp}",
-    "actions": {
-      "rename": "Badilisha jina",
-      "edit": "Hariri",
-      "archive": "Hifadhi",
-      "unarchive": "Kuondoa kutoka hifadhi",
-      "save": "Hifadhi",
-      "cancel": "Ghairi",
-      "titleEmpty": "Kichwa hakiwezi kuwa tupu",
-      "renameFailed": "Kubadilisha jina kuishindwa",
-      "statusChangeFailed": "Haikuweza kubadilisha hali"
-    },
     "detail": {
       "loading": "Inapakia hazina…",
       "notFoundTitle": "Hazina haijaweza kupatikana",
@@ -673,66 +485,7 @@
         "sketch": "Muundo"
       },
       "sketchFailed": "Muundo kuishindwa kupakia.",
-      "openSketch": "Fungua muundo",
-      "newDrawer": "Droo mpya",
-      "newDrawerPlaceholder": "Jina la droo",
-      "drawerSaveError": "Haikuweza kuokoa droo",
-      "drawerRenameError": "Haikuweza kubadilisha jina la droo",
-      "renameDrawerLabel": "Badilisha jina la droo",
-      "moveError": "Haikuweza kusonge kitu",
-      "archive": "Hifadhi",
-      "archiveError": "Haikuweza kuhifadhi kitu",
-      "archiveWarning": "Kitu hiki kinaonekana katika {cookCount, plural, =1 {1 mchumi} other {# wachumi}}. Nukuu kutatuliwa kwa maudhui ya hifadhi. Endelea?",
-      "archiveProceed": "Hifadhi hata hivyo",
-      "archiveCancel": "Ghairi",
-      "addItem": "+ Ongeza",
-      "agentTypesFooter": "Hati na kuelekezea kwa ramani ya muktadha kuongezwa na wakala wako.",
-      "picker": {
-        "text": "Kuzama kwa maandishi mapya",
-        "image": "Pakua picha",
-        "svg": "Ongeza SVG",
-        "link": "Bonyeza kiungo",
-        "sketch": "Chagua muundo"
-      },
-      "panel": {
-        "save": "Hifadhi",
-        "cancel": "Ghairi",
-        "saving": "Inahifadhi…",
-        "saveError": "Haikuweza kuokoa",
-        "titleLabel": "Kichwa (kwa hiari)",
-        "titlePlaceholder": "Lebo ndogo",
-        "sourceUrlLabel": "URL ya chanzo (kwa hiari)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Muundo",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Maandishi safi",
-        "bodyLabel": "Mwili",
-        "bodyPlaceholder": "Andika au bonyeza…",
-        "preview": "Hakikisho",
-        "previewEmpty": "Andika kuangalia muonekano.",
-        "tooLong": "Maudhui yaozidi kiwango {limit, number} cha herufi.",
-        "imagePick": "Chagua picha",
-        "imageDrop": "au dondosha faili hapa",
-        "imageTooLarge": "Picha yaozidi kiwango {limit, number} MB.",
-        "imageBadMime": "Sio faili la picha ({mime}).",
-        "imageBadDimensions": "Haikuweza kusoma vipimo vya picha.",
-        "altLabel": "Maandishi ya mbadala (kwa hiari)",
-        "altPlaceholder": "Nini kiko katika picha?",
-        "svgPaste": "Bonyeza SVG",
-        "svgUpload": "au pakua .svg",
-        "svgBadShape": "Mwili wa SVG lazima uanzie na <?xml au <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL haiwezi kuchambuliwa.",
-        "urlTitleRequired": "Kichwa kinahitajika kwa kitu cha kiungo.",
-        "descriptionLabel": "Maelezo (kwa hiari)",
-        "descriptionPlaceholder": "Kwa nini hii ina maana…",
-        "sketchSearchPlaceholder": "Tafuta miundo…",
-        "sketchEmpty": "Hakuna miundo bado. Kumwomba wakala kuunda moja kwa create_sketch.",
-        "sketchNoMatch": "Hakuna miundo inafanana na utafutaji huu.",
-        "sketchPicked": "Kilichochaguliwa"
-      }
+      "openSketch": "Fungua muundo"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "Pakua PNG",
     "invalidManifest": "Rendrant haikuweza kuchambuza muundo huu.",
     "frameFailed": "Mwonekano huu haukupakia.",
-    "renameLabel": "Badilisha jina la muundo",
-    "renamePlaceholder": "Kichwa cha muundo",
-    "renameSave": "Hifadhi",
-    "renameSaveNew": "Okoa kama muundo mpya",
-    "renameCancel": "Ghairi",
-    "renameEmpty": "Kichwa hakiwezi kuwa tupu",
     "associationTags": {
       "plan": "Mpango",
       "research": "Utafiti"
@@ -771,45 +518,21 @@
       "selectPrompt": "Chagua wimbo kwenye kushoto kucheza.",
       "invalidManifest": "Taratibu hii haikuweza kuchambuziwa.",
       "openNewTab": "Fungua Studhio",
-      "renameLabel": "Badilisha jina la wimbo",
-      "renamePlaceholder": "Kichwa cha wimbo",
-      "renameSaveNew": "Okoa kama wimbo mpya",
       "exportWav": "Hamisha .wav",
       "exportMidi": "Hamisha .mid"
     },
     "folder": {
-      "newFolderButton": "Folda mpya",
-      "newFolderTitle": "Folda mpya",
-      "namePlaceholder": "Jina la folda",
       "create": "Tengeneza",
       "cancel": "Ghairi",
-      "rename": "Badilisha jina la folda",
-      "renameSave": "Hifadhi",
       "delete": "Futa folda",
-      "deleteConfirm": "Futa folda hii? Miundo katikati yake itarejea kwenye mzizi.",
       "rootCrumb": "Miundo yote",
       "back": "Rudi",
       "sketchCount": "{count, plural, =0 {tupu} =1 {1 muundo} other {# miundo}}",
       "foldersHeader": "Folda",
       "rootHeader": "Miundo",
-      "inFolderHint": "Miundo mpya ambayo ujumbuza wakati wa kuangalia folda hii itakamatia hapa kwa otomati.",
-      "emptyFolder": "Folda hii ni tupu. Jumbuza muundo au songe moja hapa kutoka kwa mzizi.",
+      "emptyFolder": "Folda hii ni tupu.",
       "moveSourceFolder": "Katika {name}",
       "moveSourceRoot": "Katika mzizi"
-    },
-    "select": {
-      "enter": "Chagua",
-      "exit": "Kumalizika",
-      "count": "{count, plural, =0 {Hakuna kilichochaguliwa} =1 {1 kilichochaguliwa} other {# kilichochaguliwa}}",
-      "moveTo": "Songe kwa…",
-      "moveToRoot": "Songe kwenye mzizi",
-      "moveSuccess": "{count, plural, =1 {1 muundo ulisonzwa} other {# miundo ilisonzwa}}",
-      "moveError": "Kusonge kuishindwa: {error}",
-      "selectAll": "Chagua zote",
-      "clear": "Futa",
-      "delete": "Futa",
-      "deleteConfirm": "{count, plural, =1 {Futa 1 muundo?} other {Futa # miundo?}} Hii haiwezi kurahisishwa.",
-      "deleteError": "Kufuta kuishindwa: {error}"
     },
     "viewToggle": {
       "split": "Mgawanyiko wa mtazamo",
@@ -820,72 +543,6 @@
       "move": "Songe",
       "delete": "Futa",
       "deleteOneConfirm": "Futa \"{title}\"? Hii haiwezi kurahisishwa."
-    }
-  },
-  "map": {
-    "title": "Ramani",
-    "subtitle": "Jeshi lote kwenye ndege mbili — programu kwenye ardhi, seva ya MCP na huduma za kuunganishwa kwenye angavu, kwa kumwiga kwa huduma-kwa-MCP.",
-    "loading": "Inapakia…",
-    "refresh": "Jibadilishe",
-    "error": "Imefeli kulodia ramani ya kundi",
-    "empty": "Hakuna chochote kwenye ramani bado — jenga programu au tangaza muhtasari wako wa MCP.",
-    "counts": {
-      "apps": "Programu",
-      "servers": "Seva za MCP",
-      "services": "Huduma zilizounganishwa"
-    },
-    "legend": {
-      "air": "Angavu",
-      "ground": "Ardhi",
-      "servers": "Seva za MCP",
-      "services": "Huduma zilizounganishwa",
-      "apps": "Programu"
-    }
-  },
-  "mcpSkills": {
-    "title": "Huduma za Kuunganishwa",
-    "subtitle": "Huduma zilizounganishwa: ujuzi wa mwenyeji na mtiririko wa MCP-orbit ulioujenwa, unaonyeshwa kinyume na seva za MCP zinazoziiita.",
-    "loading": "Inapakia…",
-    "refresh": "Jibadilishe",
-    "error": "Imefeli kulodia huduma zilizounganishwa",
-    "empty": "Hakuna huduma zilizounganishwa bado. Tangaza ujuzi wa mwenyeji au jenga uzingaji wa MCP-orbit.",
-    "backToList": "Rudi kwenye Huduma zilizounganishwa",
-    "backToService": "Rudi kwenye huduma iliyounganishwa",
-    "notFound": "Huduma iliyounganishwa haipatikani.",
-    "viewGraph": "Angalia grafu",
-    "present": "Iliyopo",
-    "missing": "Haipo",
-    "counts": {
-      "servers": "Seva za MCP",
-      "services": "Huduma zilizounganishwa"
-    },
-    "table": {
-      "name": "Jina",
-      "form": "Fomu",
-      "calls": "Simu",
-      "updated": "Ilisasishwa"
-    },
-    "forms": {
-      "catalyst": "Ujuzi wa Katalizador",
-      "manual": "Ujuzi wa Mikono",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "name": "Jina",
-      "ref": "Kumbuka",
-      "kind": "Aina",
-      "form": "Fomu",
-      "updated": "Ilisasishwa",
-      "hostPath": "Njia ya Mwenyeji",
-      "catalyst": "Katalizador",
-      "composition": "Uzingaji",
-      "calls": "Simu",
-      "noCalls": "Simu za MCP hazijatangazwa.",
-      "needs": "Mahitaji",
-      "components": "Sehemu",
-      "knobs": "Vipu",
-      "graphSubtitle": "Inayotokana na kioo cha Huduma zilizounganishwa, uzingaji ulioujenwa, na muhtasari wa MCP wa sasa."
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "Banda la Render",
     "subtitle": "Kila kitu ambacho mojulo inazalisha, mahali pamoja: foleni ya kudumu ya render za picha, uokaji wa GI, na machapisho na hamishaji zilizopo diskini. Njia nne za kusema \"kitu kinatengenezwa\" ambazo zamani hazikuwa na nyumba ya pamoja.",
-    "readOnly": "Banda huonyesha hali tu. Kila kitendo hapa ni maandishi ya kunakili kwenda kwa wakala wako — kukubali render, kuoka upya ulimwengu, na kuunda hamisho vyote hufanyika kupitia zana za MCP, kamwe si kupitia ukurasa huu.",
     "refresh": "Jibadilishe",
     "loading": "Inapakia…",
     "allLanes": "Njia zote",
-    "copyPrompt": "Nakili haraka",
-    "copied": "Kunakiliwa",
-    "copyFailed": "Haikuweza kunakili — chagua maandishi na uyanakili mwenyewe",
     "showing": "inaonyesha {shown} kati ya {total}",
     "queue": {
       "title": "Foleni ya render",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "Fungua kazi →",
-    "copied": "Kunakiliwa",
-    "copyFailed": "Haikuweza kunakili — chagua maandishi na uyanakili mwenyewe",
     "shelves": "Maktaba",
     "bays": "Warsha",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "idadi ya pembetatu: export_model"
     },
     "inspector": {
-      "askTitle": "Muulize wakala",
-      "askBody": "Dashibodi huonyesha hali tu; haibadilishi kamwe. Kubadilisha resipi hii hufanyika ndani ya wakala wako mwenyeji.",
-      "askCopy": "Nakili haraka",
       "bound": "Kazi zilizofungwa",
       "boundEmpty": "Hakuna kilichofungwa bado — hakuna render, meshi, au hamishaji diskini kwa resipi hii.",
       "openFolder": "Fungua folda ya matokeo · {size}",
@@ -1110,8 +758,6 @@
     "empty": "Hakuna kinacholingana na kichujio au utafutaji huu.",
     "emptyShelf": "Hakuna kilichoundwa katika {shelf} bado.",
     "emptyShelfHint": "Muombe wakala wako aunde moja — get_sketch_vocab ina msamiati.",
-    "copied": "Kunakiliwa",
-    "copyFailed": "Haikuweza kunakili — chagua mwenyewe",
     "notExportable": "Hakuna hamisho la meshi — kazi hii huonyeshwa kama mchoro, si modeli ya kutembea.",
     "stack": "×{n}",
     "seed": "mbegu {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "imepakwa rangi · mfanyakazi wa nje · resipi ya kiunzi ndiyo huru",
-    "mintMissing": "Muombe wakala: unda {piece}",
-    "mintPrompt": "Kwa mhusika wa mojulo \"{name}\" (angalia kazi {ref}), unda {piece} inayokosekana. Tumia chombo kinacholingana (create_sprite_sheet / bind_character_sheet / zana za figure) — soma get_sketch_vocab kwanza.",
     "facets": {
       "scenes": {
         "walkable": "Za kutembea",
