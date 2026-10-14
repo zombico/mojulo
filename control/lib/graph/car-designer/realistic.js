@@ -9,6 +9,9 @@
  *   bodyplan = …   a truck's or a bus's (the fleet's straight truck, tractor-trailer, bus)
  *   wheel = …      the hub (HUBS: a wire wheel's small bright centre, a steelie's cap, an alloy's wide face)
  *   lights = …     the lamps (round, rect, a bar)
+ *   era            the body's LANGUAGE (roads/bodywork.js, ERA_LANGUAGE): the road today's rounded plan, crowned roof,
+ *                  raked glass and wrapping lamps for a modern sheet, further for a future one; a classic or vintage
+ *                  sheet keeps the fleet's three-box (slab sides, upright glass); a faceted motif draws it crisper
  *   proportion.rideHeight ±, proportion.wheelScale +   a lift (or a drop) and bigger tyres, within REALISTIC_BAND;
  *                  every other proportion is held at the class (the realistic pole is true to it)
  *   livery.* / livery facet / wear facet   the paint: a second colour on the roof, stripes, a number, a patched panel
@@ -22,6 +25,7 @@
  * wheel its own bone, turning in the `roll` clip; vehicle space (+y forward). Pure and deterministic.
  */
 import { buildVehicle, FLEET, PAINTS } from '../roads/fleet.js';
+import { bodyShape } from '../roads/bodywork.js';
 import { VEHICLES, vehicleRule, envelope } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { readDerive } from './channels.js';
@@ -33,10 +37,11 @@ const r4 = (n) => Math.round(n * 1e4) / 1e4 + 0;
 
 /** Side profiles by body family: stations as fractions of the length from the nose (where the bonnet ends, the roof
  *  starts and stops, the deck starts) and heights as fractions of the class's height (bonnet, deck, belt). The fleet's
- *  measured classes are their sources (a compact is a two-box hatch, a midsize a three-box sedan). */
+ *  measured classes are their sources (a midsize a three-box sedan); a two-box hatch's roof runs on to a short tailgate
+ *  (the fleet's compact is drawn as a sedan, a three-box at traffic distance). */
 export const PROFILES = Object.freeze({
   sedanThree:   { kind: 'car', hood: 0.28, roofA: 0.44, roofB: 0.72, deck: 0.85, zHood: 0.556, zDeck: 0.694, zBelt: 0.653 },
-  wagonTwo:     { kind: 'car', hood: 0.29, roofA: 0.45, roofB: 0.74, deck: 0.86, zHood: 0.55, zDeck: 0.69, zBelt: 0.65 },
+  wagonTwo:     { kind: 'car', hood: 0.28, roofA: 0.44, roofB: 0.83, deck: 0.96, zHood: 0.55, zDeck: 0.74, zBelt: 0.65 },
   coupeThree:   { kind: 'car', hood: 0.32, roofA: 0.48, roofB: 0.7, deck: 0.86, zHood: 0.54, zDeck: 0.7, zBelt: 0.66 },
   crossoverTwo: { kind: 'car', hood: 0.25, roofA: 0.4, roofB: 0.86, deck: 0.97, zHood: 0.58, zDeck: 0.77, zBelt: 0.64 },
   fastbackEV:   { kind: 'car', hood: 0.26, roofA: 0.42, roofB: 0.66, deck: 0.95, zHood: 0.55, zDeck: 0.66, zBelt: 0.64 },
@@ -50,11 +55,15 @@ const BUS_PROFILE = Object.freeze({ hood: 0, roofA: 0.02, roofB: 1, deck: 1, zHo
 /** A wheel family's hub: its share of the wheel's radius and its fill. */
 export const HUBS = Object.freeze({
   steelie:        { ratio: 0.42, hex: '#9ea2a6' },
-  fiveSpokeAlloy: { ratio: 0.7, hex: '#c3c7cb' },
+  fiveSpokeAlloy: { ratio: 0.7, hex: '#c3c7cb', spokes: 5 },
   wireVintage:    { ratio: 0.78, hex: '#d9dcde' },
   heavyDuty:      { ratio: 0.5, hex: '#7d8186' },
 });
 const LAMPS = Object.freeze({ roundDuo: 'round', rectDuo: 'rect', barSingle: 'bar' });
+/** An era's body language (roads/bodywork.js); absent, the fleet's own loft: the three-box of the 70s and 80s. */
+export const ERA_LANGUAGE = Object.freeze({ modern: 'current', future: 'future' });
+/** Body families that wear lower cladding in the language (the crossover's arches and sills, the pickup's). */
+const CLAD = Object.freeze(['crossoverTwo', 'truckCab']);
 /** How far a realistic vehicle may leave its class: a lift (or a drop) of the body over its wheels, as a share of its
  *  height, and bigger tyres, as a share of their radius. Every other proportion is the class's. */
 export const REALISTIC_BAND = Object.freeze({ rideHeight: 0.06, wheelScale: 0.08 });
@@ -90,8 +99,9 @@ export function realisticSpec(sheet) {
     const fleet = FLEET[cls === 'tractorTrailerLoaded' ? 'tractorTrailer' : cls];
     return { ...base, kind: planKind, ...(fleet.cab ? { cab: fleet.cab, cabH: fleet.cabH } : {}), ...(fleet.kingpin ? { kingpin: fleet.kingpin, trailerL: fleet.trailerL, cabH: fleet.cabH } : {}), lift: 0 };
   }
-  const P = PROFILES[words.body] ?? PROFILES.sedanThree;
-  return { ...base, kind: P.kind, profile: absProfile(P, row.H), body: words.body, lift: r3(lift * row.H) };
+  const P = PROFILES[words.body] ?? PROFILES.sedanThree, language = ERA_LANGUAGE[sheet.facets.era];
+  const lang = language ? { language, ...(CLAD.includes(words.body) ? { clad: true } : {}), ...(sheet.facets.motif === 'faceted' ? { crisp: true } : {}) } : {};
+  return { ...base, kind: P.kind, profile: absProfile(P, row.H), body: words.body, lift: r3(lift * row.H), ...lang };
 }
 const absProfile = (P, H) => ({ hood: P.hood, roofA: P.roofA, roofB: P.roofB, deck: P.deck, zHood: r3(P.zHood * H), zDeck: r3(P.zDeck * H), zBelt: r3(P.zBelt * H) });
 
@@ -121,7 +131,14 @@ function shadeLike(lit, base) {
 // a stripe down the centre line (the livery's accent) or a number disc on each door
 function liveryMarks(sheet, spec) {
   const out = [], lv = sheet.facets.livery, R = (x, y, z) => [-y, x, z];   // the loft's +x forward → vehicle +y, its left → −x
-  if (lv === 'striped' && spec.profile) {
+  if (lv === 'striped' && spec.profile && spec.language) {
+    // the stripe follows the roof's arc, from the screen's top to the rear glass's
+    const B = bodyShape(spec), w = spec.W * 0.09, n = 8, at = (t) => B.A + (B.B - B.A) * t;
+    for (const sy of [-1, 1]) for (let i = 0; i < n; i++) {
+      const fa = at(i / n), fb = at((i + 1) / n), za = B.topAt(fa) + spec.lift + 0.012, zb = B.topAt(fb) + spec.lift + 0.012;
+      out.push({ corners: [R(B.x(fa), sy * w * 0.6, za), R(B.x(fb), sy * w * 0.6, zb), R(B.x(fb), sy * w * 1.6, zb), R(B.x(fa), sy * w * 1.6, za)], fill: '#eceae3', part: 'stripe' });
+    }
+  } else if (lv === 'striped' && spec.profile) {
     const zt = spec.H + spec.lift + 0.012, w = spec.W * 0.09, x0 = spec.L / 2 - spec.profile.roofA * spec.L, x1 = spec.L / 2 - spec.profile.roofB * spec.L;
     for (const sy of [-1, 1]) out.push({ corners: [R(x0, sy * w * 0.6, zt), R(x1, sy * w * 0.6, zt), R(x1, sy * w * 1.6, zt), R(x0, sy * w * 1.6, zt)], fill: '#eceae3', part: 'stripe' });
   }
@@ -132,6 +149,21 @@ function liveryMarks(sheet, spec) {
   return out;
 }
 
+// a polygon of more than four corners as a fan of quads (and a closing triangle) from its first corner, its corner fills
+// carried: the World's mesh draws a face's first four corners only, so a wheel's disc or an end cap would be clipped
+function fan(faces) {
+  return faces.flatMap((f) => {
+    const n = f.corners.length;
+    if (n <= 4) return [f];
+    const out = [];
+    for (let i = 1; i + 1 < n; i += 2) {
+      const idx = i + 2 < n ? [0, i, i + 1, i + 2] : [0, i, i + 1];
+      out.push({ ...f, corners: idx.map((j) => f.corners[j]), ...(f.cornerFills ? { cornerFills: idx.map((j) => f.cornerFills[j]) } : {}) });
+    }
+    return out;
+  });
+}
+
 /** Compile a realistic sheet. */
 export function compileRealistic(sheet, { keys = 12 } = {}) {
   const spec = realisticSpec(sheet), cls = sheet.facets.class;
@@ -140,7 +172,8 @@ export function compileRealistic(sheet, { keys = 12 } = {}) {
   const sink = (_call, side, x) => { const w = { side, x, faces: [] }; wheels.push(w); return w.faces; };
   const built = buildVehicle(cls, Math.PI / 2, { spec, wheels: sink });
   const lift = (f) => (spec.lift ? { ...f, corners: f.corners.map((c) => [c[0], c[1], c[2] + spec.lift]) } : f);
-  const root = [...paintFaces(built.paint.map(lift), sheet, spec), ...built.trim.map(lift), ...built.trailer.map(lift), ...liveryMarks(sheet, spec)];
+  const root = fan([...paintFaces(built.paint.map(lift), sheet, spec), ...built.trim.map(lift), ...built.trailer.map(lift), ...liveryMarks(sheet, spec)]);
+  for (const w of wheels) w.faces.splice(0, w.faces.length, ...fan(w.faces));
   // the bones: axles ranked front to back by position (a trailer's are built by a call of their own); the front pair
   // the front wheels, the next pair the rear, any further axle its own pair
   const ranks = [...new Set(wheels.map((w) => r4(w.x)))].sort((a, b) => b - a);

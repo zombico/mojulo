@@ -14,6 +14,7 @@
  */
 
 import { face, faceOut } from './road-faces.js';
+import { loftLanguage, BODY_LANGUAGES } from './bodywork.js';
 
 // L × W × H, wheelbase, track, wheel radius (m) — the plan's reference sheet. Profile stations are
 // fractions of L from the front: nose, windscreen base (hood end), roof start, roof end, deck start.
@@ -66,15 +67,24 @@ function box(out, R, x0, x1, y0, y1, z0, z1, hex) {
   prism(out, R, [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], y0, y1, hex);
 }
 /** A wheel: a 12-sided cylinder along y, tyre + a lighter hub disc on the outer face (`hub`: its share of the radius and
- *  its fill, a style's; the fleet's own by default). */
-function wheel(trim, R, x, y, r, w, side, hubStyle = null) {
-  const n = 12, poly = [];
+ *  its fill, a style's; the fleet's own by default; with `spokes`, the dark windows between them; `n` a language's
+ *  rounder tyre). */
+function wheel(trim, R, x, y, r, w, side, hubStyle = null, n = 12) {
+  const poly = [];
   for (let i = 0; i < n; i++) { const a = (i + 0.5) / n * 2 * Math.PI; poly.push([x + r * Math.cos(a), r + r * Math.sin(a)]); }
   const y0 = y - w / 2, y1 = y + w / 2;
   prism(trim, R, poly, y0, y1, T.tyre);
   const k = hubStyle?.ratio ?? 0.58, hub = poly.map(([px, pz]) => [x + (px - x) * k, r + (pz - r) * k]);
   const yo = side > 0 ? y1 + 0.005 : y0 - 0.005;
   trim.push(faceOut(hub.map(([px, pz]) => R(px, yo, pz)), hubStyle?.hex ?? T.hub, R(x, y, r)));
+  if (hubStyle?.spokes) {
+    const m = hubStyle.spokes, rr = r * k, yw = yo + (side > 0 ? 0.004 : -0.004), half = (Math.PI / m) * 0.62;
+    for (let i = 0; i < m; i++) {
+      const a = ((i + 0.5) / m) * 2 * Math.PI + Math.PI / 2, at = (q, t) => [x + rr * t * Math.cos(a + q), r + rr * t * Math.sin(a + q)];
+      const win = [at(-half * 0.55, 0.3), at(-half, 0.86), at(half, 0.86), at(half * 0.55, 0.3)];
+      trim.push(faceOut(win.map(([px, pz]) => R(px, yw, pz)), T.plastic, R(x, y, r)));
+    }
+  }
 }
 
 /**
@@ -141,11 +151,15 @@ function loftBody(paint, trim, R, spec) {
 }
 
 function wheelsFor(trim, R, spec, axles, sink = null) {
-  for (const [i, ax] of axles.entries()) for (const side of [-1, 1]) wheel(sink ? sink(i, side, ax) : trim, R, ax, side * (spec.track / 2), spec.r, spec.tyreW || 0.24, side, spec.hub);
+  const n = spec.language ? BODY_LANGUAGES[spec.language].wheelN : 12;
+  for (const [i, ax] of axles.entries()) for (const side of [-1, 1]) wheel(sink ? sink(i, side, ax) : trim, R, ax, side * (spec.track / 2), spec.r, spec.tyreW || 0.24, side, spec.hub, n);
 }
+// the body: the fleet's own loft, or a language's (bodywork.js) when the spec names one
+const loft = (paint, trim, R, spec) => (spec.language ? loftLanguage(paint, trim, R, spec, T) : loftBody(paint, trim, R, spec));
 
 /** Build one class at a yaw → { paint, trim, trailer? } face lists. `opts.spec` builds a compiled spec in place of the
- *  class's row (car-designer/realistic.js: the class's true numbers, a body family's profile, a style's lamps and hubs);
+ *  class's row (car-designer/realistic.js: the class's true numbers, a body family's profile, a style's lamps and hubs,
+ *  an era's body `language`);
  *  `opts.wheels(axle, side, x)` → the face list each wheel goes to (its own bone), in place of the trim. */
 export function buildVehicle(cls, yaw = 0, opts = {}) {
   const spec = opts.spec ?? FLEET[cls];
@@ -154,13 +168,13 @@ export function buildVehicle(cls, yaw = 0, opts = {}) {
   const R = makeFrame(yaw), paint = [], trim = [], trailer = [];
   const { L, W, r, wb } = spec;
   if (spec.kind === 'car' || spec.kind === 'box' || spec.kind === 'bus') {
-    loftBody(paint, trim, R, spec);
+    loft(paint, trim, R, spec);
     wheelsFor(trim, R, spec, [wb / 2 + (spec.kind === 'bus' ? 1.2 : 0), -wb / 2 + (spec.kind === 'bus' ? 1.2 : 0)], sink);
     if (spec.kind === 'bus') {                                     // a window band down both sides
       for (const sy of [-1, 1]) trim.push(faceOut([R(L / 2 - 1.3, sy * (W / 2 + 0.01), 1.55), R(-L / 2 + 0.6, sy * (W / 2 + 0.01), 1.55), R(-L / 2 + 0.6, sy * (W / 2 + 0.01), 2.75), R(L / 2 - 1.3, sy * (W / 2 + 0.01), 2.75)], T.glass, R(0, 0, 1.6)));
     }
   } else if (spec.kind === 'pickup') {
-    loftBody(paint, trim, R, spec);
+    loft(paint, trim, R, spec);
     // the bed: open box behind the cab (the loft's deck is the bed floor line); walls to 1.30 m
     const xb0 = L / 2 - spec.profile.deck * L, xb1 = -L / 2, zf = 0.95, zw = spec.profile.zDeck;
     for (const sy of [-1, 1]) box(paint, R, xb1, xb0, sy > 0 ? W / 2 - 0.08 : -W / 2, sy > 0 ? W / 2 : -W / 2 + 0.08, zf, zw, T.paint);

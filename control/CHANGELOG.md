@@ -1669,6 +1669,16 @@ Built so far: the language.
   a patched panel). Heavy classes keep the fleet's own builds. Each wheel is its own bone, turning in the roll clip, so
   the world drives it; the census holds what was drawn within 3 % of its class. `scripts/render-vehicles.mjs` lines
   them up.
+- **The era draws the body** (`roads/bodywork.js`): the fleet's loft was one language, the three-box of the 70s and
+  80s (slab sides, a flat roof, upright glass, flat ends). A modern sheet now draws in the road today's terms: the plan
+  rounded at nose and tail, a tucked sill under a high shoulder, the glass leaning in to a crowned roof that arcs along
+  its length, raked glass, a belt rising to the tail, a low body's fenders rising over its wheels, cladding round a
+  crossover's or pickup's sills and arches, slim lamps sweeping round the corners with their light a line, a grille
+  between them and a lower intake, spoked alloys in arches that hug the tyre. A future sheet goes further (a faster roof,
+  a closed nose, a light bar across each end); classic and vintage keep the three-box. Still within 3 % of the class.
+  The fleet's traffic is unchanged. A compact is now a two-box hatch (it was drawn as a sedan), and a vehicle's
+  many-sided faces (wheels, end caps, round lamps) are fanned into quads, because the World draws only a face's first
+  four corners.
 
 Planned:
 

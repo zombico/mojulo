@@ -4,7 +4,8 @@
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { rollVehicleSheet } from './sheet.js';
-import { compileRealistic, realisticSpec, PROFILES, HUBS, REALISTIC_BAND, OPEN_FRAME } from './realistic.js';
+import { compileRealistic, realisticSpec, PROFILES, HUBS, REALISTIC_BAND, OPEN_FRAME, ERA_LANGUAGE } from './realistic.js';
+import { BODY_LANGUAGES, bodyShape } from '../roads/bodywork.js';
 import { CLASS_TRAITS } from './facets.js';
 import { VEHICLES, vehicleRule } from '../roads/vehicles.js';
 import { planTrack } from '../roads/track.js';
@@ -57,11 +58,27 @@ describe('the sheet\'s words, read as style', () => {
     expect(vintage.spec.hub).toBe(HUBS.wireVintage);
     expect(vintage.spec.lamps).toBe('round');
     expect(future.spec.lamps).toBe('bar');
-    // round lamps are octagons on the nose and tail; a bar one quad across
-    const octagons = (c) => c.faces.root.filter((f) => f.corners.length === 8 && !f.part).length;
-    expect(octagons(vintage)).toBe(4);
-    expect(octagons(future)).toBe(0);
     expect(realisticSpec(sheet({ class: 'sports' })).body).toBe('coupeThree');
+  });
+  it('the era picks the body\'s language: a classic sheet the fleet\'s three-box, a modern one the road today\'s', () => {
+    const classic = realisticSpec(sheet({ class: LOFTED, era: 'classic' })), modern = realisticSpec(sheet({ class: LOFTED, era: 'modern' }));
+    expect(classic.language).toBeUndefined();
+    expect(modern.language).toBe(ERA_LANGUAGE.modern);
+    expect(BODY_LANGUAGES[modern.language]).toBeTruthy();
+    // within 3 % of the class under the language too, and every face one the World draws whole (four corners at most)
+    const c = compileRealistic(sheet({ class: LOFTED, era: 'modern' }));
+    for (const k of ['L', 'W', 'H', 'wheelbase', 'wheelRadius']) within(c.census.against[k]);
+    for (const f of [...c.faces.root, ...c.faces.wheels.flatMap((w) => w.faces)]) {
+      expect(f.corners.length).toBeLessThanOrEqual(4);
+      expect(f.corners.flat().every(Number.isFinite)).toBe(true);
+    }
+  });
+  it('a stripe follows the language\'s roof, never floating over its arc', () => {
+    const c = compileRealistic(sheet({ class: LOFTED, era: 'modern', livery: 'striped' })), B = bodyShape(c.spec);
+    const stripes = c.faces.root.filter((f) => f.part === 'stripe');
+    expect(stripes.length).toBeGreaterThan(2);
+    // vehicle space: +y forward (centring moves the body under a centimetre); the stripe 12 mm over the roof there
+    for (const f of stripes) for (const [, y, z] of f.corners) expect(Math.abs(z - (B.topAt((c.spec.L / 2 - y) / c.spec.L) + 0.012))).toBeLessThan(0.02);
   });
   it('the livery and the wear paint it: a second colour above the belt, stripes, numbers, a patched panel', () => {
     const parts = (facets) => new Set(compileRealistic(sheet({ class: LOFTED, ...facets })).faces.root.map((f) => f.part).filter(Boolean));
@@ -85,7 +102,7 @@ describe('a vehicle the world can drive', () => {
     const c = compileRealistic(sheet({ class: LOFTED }));
     expect(c.figure).toMatchObject({ rig: true, model: 'vehicle', facing: '+y', clips: { roll: { k: 12 } } });
     expect(c.figure.bones.map((b) => b.id).sort()).toEqual(['root', 'wheelFL', 'wheelFR', 'wheelRL', 'wheelRR']);
-    for (const w of c.faces.wheels) expect(c.figure.bones.find((b) => b.id === w.bone).head.map((v) => +v.toFixed(3))).toEqual(w.hub.map((v) => +v.toFixed(3)));
+    for (const w of c.faces.wheels) c.figure.bones.find((b) => b.id === w.bone).head.forEach((v, i) => expect(v).toBeCloseTo(w.hub[i], 3));
     expect(c.figure.parts.every(Boolean)).toBe(true);
     expect(c.figure.wheelbase).toBeCloseTo(c.census.wheelbase, 3);
     expect(c.rule).toEqual(vehicleRule(LOFTED));
