@@ -26,6 +26,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
 import { assembleCityScene } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
@@ -77,6 +78,7 @@ import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/sc
 import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
 import { resolveTerrainCities } from '@/lib/graph/terrain/terrain-city';
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
+import { assembleInteriorWorldScene } from '@/lib/graph/interior/scene';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleStoreWorldScene } from '../retail/store-world.js';
 import { assembleMallWorldScene } from '../polygonizer/floorplan-mall.js';
@@ -482,6 +484,12 @@ export const WORLD_KINDS = {
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
   },
+  // an egocube (egocube/kind.js): a character's design sheet rolled once and kept, shown as its character at each age of
+  // its thread, side by side; characters are made from it by ref (create_character { egocube })
+  egocube: {
+    title: 'mojulo egocube',
+    resolve: (m, ctx) => assembleEgocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, (lm, c) => WORLD_KINDS.layered.resolve(lm, c)),
+  },
   // a heartbeat (era/heartbeat.js, level/heartbeat-scene.js): the flow of a level's land apart from its look, shown as a
   // walkable greybox on a reference level. A level lays it with ground.heartbeat and paints it with its kit or geocube.
   heartbeat: {
@@ -539,6 +547,21 @@ export const WORLD_KINDS = {
       const stack = storeyLevels(m);
       if (stack) return assembleHouseWorldScene({ ...m, ...stack }, opts);
       return assembleFloorWorldScene(m, opts);
+    },
+  },
+  // a room of a house, fitted out (lib/graph/interior/): the house is read from its own row (`house`, a ref; an exported
+  // interior may carry it inline), the room's program solved and skinned, and the house built with that room fitted out.
+  // The house row is never written; an edit to the house flows into every interior over it.
+  interior: {
+    title: 'mojulo interior',
+    walk: true,
+    ownsWalk: true,   // the resolver places the walker in the room
+    ao: true,
+    resolve: (m, ctx) => {
+      const house = typeof m.house === 'string' ? SketchRepository.getByRef(m.house)?.manifest : m.house;
+      if (!house) throw new Error(`interior: no house '${m.house}' — mint_building makes one; an interior decorates a room of a house`);
+      if (house.kind !== 'floorplan') throw new Error(`interior: '${m.house}' is a ${house.kind}, not a house (kind 'floorplan')`);
+      return assembleInteriorWorldScene(m, house, { title: ctx.title, view: ctx.view });
     },
   },
   restaurant: {

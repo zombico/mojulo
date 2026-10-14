@@ -26,7 +26,7 @@ import { buildFluffs } from './figure-fluff.js';
 import { weldFluffs } from './figure-weld.js';
 import { spineDeformerFromNodes, warpStacks, spineArmAnchors } from './figure-spine.js';
 import { groundBalance, groundVault } from './figure-balance.js';
-import { gait, WALK_DEFAULTS, resolveMotion } from './figure-posing.js';
+import { gait, WALK_DEFAULTS, resolveMotion, motionSeconds } from './figure-posing.js';
 import { emoteMotion, isEmoteSpec } from './figure-emotes.js';
 import { buildGarment, GARMENTS, resolveCuts, cutPredicate, cutHits, cutBoundary } from './figure-garments.js';
 import { buildPatternGarment } from './pattern-garment.js';
@@ -147,11 +147,12 @@ function offRest(spine, hinge, full, balanced) {
  */
 export function balancedArmature(pose = {}, full = null, base = null) {
   const F = full || articulate(pose, base);
-  const { weight = 0, support = 'both', crouch = 0, kneeOut = 0, plant = null } = pose || {};
+  const { weight = 0, support = 'both', crouch = 0, kneeOut = 0, plant = null, heelLift = null } = pose || {};
   if (support === 'none') return F;
   const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
   // The IK solves on the CAST's bone lengths (base), or the canonical ones when there is no cast.
-  return plant ? groundVault(F, { plant, ...(base ? { base } : {}) }) : groundBalance(F, { feet, weight, crouch, kneeOut, ...(base ? { base } : {}) });
+  // heelLift: a walk's heel off the floor in late stance (figure-posing.js gait `heelRise`); absent ⇒ ankles on the floor
+  return plant ? groundVault(F, { plant, ...(heelLift ? { heel: heelLift } : {}), ...(base ? { base } : {}) }) : groundBalance(F, { feet, weight, crouch, kneeOut, ...(base ? { base } : {}) });
 }
 
 /**
@@ -215,7 +216,7 @@ function buildHeldShield(nodes, hold) {
 
 export function buildPosedFigure(pose = {}, proto = {}, garment = null, opts = {}) {
   const { fluffs = null, hold = null, attachments = null, hair = null, cast = null, fluffQuality = 1, weld = null, rest: restOverride = null } = opts || {};
-  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, face = null, ...limbs } = pose || {};
+  const { spine, hinge, squash, weight = 0, support = 'both', lift = 0, crouch = 0, kneeOut = 0, plant = null, footFlat = null, face = null, heelLift: _heel = null, ...limbs } = pose || {};
   // THE CAST (figure-cast.js): the rest armature this figure is built on. Every kinematic pass
   // below takes it — FK, the balance IK's bone lengths, the spine warp's S0 and the arm's anchor
   // height — so proportions are satisfied at the vajra level and the flesh just follows. null =
@@ -999,21 +1000,30 @@ const smooth = (x) => { const t = clamp01(x); return t * t * (3 - 2 * t); };
 // loops). Choreographed over phase u ∈ [0,1]:
 //   tilt in 0–.16; the arm lifts hip→up over .12–.28; wave .28–.74 with rising
 //   frequency, amplitude damped to 0 by ~.74 (the "stop"); arm returns .82–1.0.
-function wavePose(u) {
+// `waveMotion(dials)`: the same choreography with the wave's own dials (figure-posing.js WAVE_MINT): `waves` sweeps of
+// the hand at an EVEN pace across the wave window, `swing` degrees each way. Absent ⇒ the frozen wave below, the
+// accelerating 5.4 sweeps at 22°, byte for byte. The loop's length in seconds (`seconds`) is the caller's (motionSeconds).
+function waveMotion({ waves = null, swing = 22 } = {}) {
+  const even = Number.isFinite(waves) && waves > 0;
+  return (u) => wavePoseWith(u, even ? waves : null, swing);
+}
+function wavePose(u) { return wavePoseWith(u, null, 22); }
+function wavePoseWith(u, waves, swing) {
   const dof = {};
   const tilt = smooth(u / 0.16) * (1 - smooth((u - 0.80) / 0.20));         // ease in, hold, ease out
   dof.spine = { lateral: 0.11 * tilt, axial: 0.04 * tilt };                 // a light torso lean (head-led, not a fall)
   dof.head = { yaw: 13 * tilt, pitch: -7 * tilt };                         // cock the head
   const raise = smooth((u - 0.12) / 0.16) * (1 - smooth((u - 0.82) / 0.18)); // 0 = hand on hip · 1 = raised wave
   const w = clamp01((u - 0.28) / 0.46);                                     // local wave param
-  const theta = TAU * (2.2 * w + 3.2 * w * w);                              // phase: frequency RAMPS UP with w
+  const theta = waves === null ? TAU * (2.2 * w + 3.2 * w * w)              // phase: frequency RAMPS UP with w
+    : TAU * waves * w;                                                     // or an even `waves` sweeps
   const amp = smooth(w / 0.10) * (1 - smooth((w - 0.80) / 0.20));           // wave in, then damp to 0 → STOP
   const wave = (u > 0.28 && u < 0.80) ? SM.sin(theta) * amp : 0;
   const L = (a, b) => a + (b - a) * raise;                                  // blend hand-on-hip → raised wave
   // hand-on-hip (akimbo): elbow flared out, deeply bent, forearm rolled in to the hip.
   // raised wave:  upper arm out, forearm rolled UP (fingers up).
   // wave SWAYS the hand side to side through the shoulder's near-full abduction range.
-  dof.shR = { yaw: L(-30, -58) + wave * 22, pitch: L(4, -4), roll: L(-95, 92) };   // hip: elbow flared, forearm rolled DOWN to the hip → up: forearm rolled UP
+  dof.shR = { yaw: L(-30, -58) + wave * swing, pitch: L(4, -4), roll: L(-95, 92) };   // hip: elbow flared, forearm rolled DOWN to the hip → up: forearm rolled UP
   dof.elbowR = L(88, 92);
   return dof;
 }
@@ -1061,9 +1071,24 @@ const MOTIONS = { walk: gait(WALK_DEFAULTS), wave: wavePose, stretch: stretchPos
 // through figure-posing's resolveMotion, the shared motion front door.
 const motionFn = (m, frames, base = null) => {
   if (m === 'wave' || m === 'stretch') return MOTIONS[m];
+  if (m && typeof m === 'object' && m.wave && typeof m.wave === 'object') return waveMotion(m.wave);
   if (isEmoteSpec(m)) return emoteMotion(m, { frames });
   return resolveMotion(m, { frames, base });
 };
+/**
+ * A motion GIF's timing: `{ frames, fps }`. An explicit `animate: { frames, fps }` wins; a motion that names its loop in
+ * seconds (a stamped recipe: figure-posing.js motionSeconds) plays it in real time at 18 fps; else the 30-frame,
+ * 18 fps loop every bare motion has always had.
+ */
+export function motionTiming(motion, animate) {
+  const fps = (animate && typeof animate === 'object' && animate.fps) || 18;
+  if (animate && typeof animate === 'object' && animate.frames) return { frames: animate.frames, fps };
+  const secs = motionSeconds(motion);
+  if (!secs) return { frames: 30, fps };
+  // a short loop (a run's stride) keeps 16 frames and plays them faster, so it holds its seconds without stuttering
+  const frames = Math.round(secs * fps);
+  return frames >= 16 ? { frames, fps } : { frames: 16, fps: Math.round((16 / secs) * 100) / 100 };
+}
 export function figureIsAnimated(manifest) { return !!(manifest && motionFn(manifest.motion)); }
 
 // Does this STRING resolve to a known motion? Manifest validators use this to
@@ -1175,11 +1200,11 @@ export function figureRigSamples(manifest = {}, keys = 8, { tpose = false } = {}
     return [k, { x, y, z }];
   }));
   const solve = (pose) => {
-    const { support = 'both', weight = 0, crouch = 0, kneeOut = 0, plant = null } = pose || {};
+    const { support = 'both', weight = 0, crouch = 0, kneeOut = 0, plant = null, heelLift = null } = pose || {};
     const full = articulate(pose);
     if (support === 'none') return full;                     // airborne: pure FK
     const feet = support === 'L' ? ['L'] : support === 'R' ? ['R'] : ['L', 'R'];
-    return plant ? groundVault(full, { plant }) : groundBalance(full, { feet, weight, crouch, kneeOut });
+    return plant ? groundVault(full, { plant, ...(heelLift ? { heel: heelLift } : {}) }) : groundBalance(full, { feet, weight, crouch, kneeOut });
   };
   const restNodes = mapNodes(tBase ? balancedArmature({}, articulate({}, tBase), tBase) : solve(restPose));
   const nodeFrames = Array.from({ length: keys }, (_, i) =>

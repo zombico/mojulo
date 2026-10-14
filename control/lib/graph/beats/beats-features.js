@@ -89,6 +89,7 @@ function collect(m, set) {
   if ((m.room && m.room.model === 'plate') || (m.master && m.master.style)) set.add('anthem');
   if (scored(m)) set.add('score');
   if (m.kind === 'beats-composition' && Array.isArray(m.sweeps) && m.sweeps.length) set.add('anthem');
+  if (m.kind === 'beats-composition' && m.loop) set.add('loop');
   const arts = artsOf(m);
   if (arts.length) set.add('orch');
   if (arts.includes('pizz') || arts.includes('pm')) set.add('strings');
@@ -136,7 +137,7 @@ function collect(m, set) {
   for (const list of Object.values(m.cues || {})) addGestures(set, list);
 }
 
-const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre'];
+const ORDER = ['x', 'voice', 'strings', 'mix', 'sfx', 'ev', 'score', 'orch', 'perc', 'va', 'fx', 'anthem', 'timbre', 'loop'];
 const sorted = (set) => {
   for (const f of [...set]) for (const g of IMPLIES[f] || []) set.add(g);
   return ORDER.filter((f) => set.has(f));
@@ -154,6 +155,7 @@ export function audioFeatures(audio) {
   const set = new Set();
   if (!audio || typeof audio !== 'object') return [];
   collect(expandBeatsManifest(audio.soundtrack), set);
+  if (audio.combat) collect(expandBeatsManifest(audio.combat), set);
   for (const list of Object.values(audio.cues || {})) addGestures(set, list);
   for (const list of Object.values(audio.footsteps || {})) addGestures(set, list);
   addGestures(set, audio.jump && audio.jump.land);

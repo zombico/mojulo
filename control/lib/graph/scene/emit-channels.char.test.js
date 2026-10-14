@@ -127,6 +127,9 @@ import { emitThreeWorld } from './scene-three.js';
 // and steering capped by grip, surface grip, the weather, flight, a two-wheeler's lean) and the racer's ramps, and the
 // world's `surface` hook beside `ground`; reached only by a vehicle class's rule. With the engine source set aside, all
 // 64 fixtures are unchanged. Same 13.
+// Re-pinned 2026-10-14 (merge of 1012-consolidate into the racer line): the drive rule's engine source (D5) meets the
+// shoot plan's and game audio's fixtures; with the engine source set aside, all 68 fixtures are byte-identical to
+// 1012-consolidate's. The same 13, and the shoot plan's shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

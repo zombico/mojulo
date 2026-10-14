@@ -2,10 +2,11 @@ process.env.SQLITE_PATH = ':memory:';
 process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
-import { createCharacterHandler, updateCharacterHandler, CHARACTER_KINDS } from './create-character.js';
+import { createCharacterHandler, updateCharacterHandler, CHARACTER_DOORS } from './create-character.js';
 import { updateSketchHandler } from './sketch-mint.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { createSketchHandler } from './sketches.js';
 
 // create_character is a door, not a kind: a character minted through it is the same stored recipe mint_solid makes
 // from the same spec. Each pair mints under two refs and compares the stored manifests byte for byte.
@@ -35,9 +36,9 @@ describe('create_character mints what mint_solid mints', () => {
   }, 180_000);
 
   it('routes a creature without a plan to the layered recipe, and names every door', () => {
-    expect(CHARACTER_KINDS.creature.route({})).toEqual({ kind: 'layered' });
-    expect(CHARACTER_KINDS.creature.route({ plan: RING_PLAN })).toEqual({ kind: 'layered', via: 'plan' });
-    expect(Object.keys(CHARACTER_KINDS)).toEqual(['hero', 'creature', 'animal']);
+    expect(CHARACTER_DOORS.creature.route({})).toEqual({ kind: 'layered' });
+    expect(CHARACTER_DOORS.creature.route({ plan: RING_PLAN })).toEqual({ kind: 'layered', via: 'plan' });
+    expect(Object.keys(CHARACTER_DOORS)).toEqual(['hero', 'creature', 'animal']);
   });
 
   it('an unknown `as` refuses by name and points at both manuals', async () => {
@@ -96,11 +97,54 @@ describe('update_character revises what update_sketch revises', () => {
     expect(read('uc_listed_edited')).toEqual(made);
   }, 240_000);
 
+  it('a word the door does not take is refused with where it belongs, on create and on update; a stored one keeps rendering', async () => {
+    await expect(createCharacterHandler({ as: 'hero', spec: { cast: 'female', build: 'brute' } })).rejects.toThrow(/build: not a hero word; a build is the cast's: cast: \{ pole/);
+    await expect(createCharacterHandler({ as: 'hero', spec: { cast: 'female', wings: true } })).rejects.toThrow(/wings: not a hero word; a body beyond a person is a creature/);
+    await expect(createCharacterHandler({ as: 'hero', spec: { cast: 'female', hiar: 'bob' } })).rejects.toThrow(/hiar: not a hero word \(did you mean hair\?\)/);
+    await twin('stray');
+    await expect(updateCharacterHandler({ ref: 'uc_stray_door', spec: { wings: true } })).rejects.toThrow(/update_character refused:\n - wings: not a hero word/);
+    // a row that already carries a stray key (stored by an edit before the refusal) is still revised by its other words
+    await updateSketchHandler({ ref: 'uc_stray_door', patch: [{ op: 'set', path: '/hero/wings', value: true }] });
+    const r = await updateCharacterHandler({ ref: 'uc_stray_door', spec: { hair: 'bob' } });
+    expect(r.ok).toBe(true);
+  }, 240_000);
+
+  it('spec merges at any depth: one dial turns, a style replaces, null removes a nested word', async () => {
+    await createCharacterHandler({ as: 'hero', spec: { cast: 'male', adorn: { type: 'armor', style: 'knight', dials: { stylize: 0.5, coverage: 0.7 } }, palette: { Top: '#334455', Bottom: '#222222' } }, title: 'deep', ref: 'uc_deep' });
+    await updateCharacterHandler({ ref: 'uc_deep', spec: { adorn: { dials: { stylize: 1 } }, palette: { Top: '#aa3311' } } });
+    const h1 = SketchRepository.getByRef('uc_deep').manifest.hero;
+    expect(h1.adorn).toMatchObject({ type: 'armor', style: 'knight', dials: { stylize: 1, coverage: 0.7 } });
+    expect(h1.palette).toEqual({ Top: '#aa3311', Bottom: '#222222' });
+    await updateCharacterHandler({ ref: 'uc_deep', spec: { palette: { Bottom: null } } });
+    expect(SketchRepository.getByRef('uc_deep').manifest.hero.palette).toEqual({ Top: '#aa3311' });
+    await updateCharacterHandler({ ref: 'uc_deep', spec: { adorn: { type: 'armor', style: 'grim-scifi' } } });
+    expect(SketchRepository.getByRef('uc_deep').manifest.hero.adorn.dials?.coverage).not.toBe(0.7);
+  }, 240_000);
+
+  it('vibe: words for how the hero moves, lowered to its gaits and its stand at mint and on an edit', async () => {
+    const r = await createCharacterHandler({ as: 'hero', spec: { cast: 'female', vibe: ['cocky', 'light'] }, title: 'vibe', ref: 'uc_vibe' });
+    expect(r.vibe.read).toEqual(['cocky', 'light']);
+    const h = SketchRepository.getByRef('uc_vibe').manifest.hero;
+    expect(h.vibe).toBeUndefined();
+    expect(Object.keys(h.motion)).toContain('walk');
+    expect(h.gesture).toBeTruthy();
+    await updateCharacterHandler({ ref: 'uc_vibe', spec: { vibe: 'heavy' } });
+    expect(SketchRepository.getByRef('uc_vibe').manifest.hero.motion.walk).not.toEqual(h.motion.walk);
+  }, 240_000);
+
   it('a creature takes patch ops, and refuses a hero\'s words by name', async () => {
     await createCharacterHandler({ as: 'creature', spec: { plan: RING_PLAN }, title: 'beast', ref: 'uc_beast' });
     await expect(updateCharacterHandler({ ref: 'uc_beast', target: '1080p' })).rejects.toThrow(/'uc_beast' is a creature; spec, target and geocube are a hero's words today.*\/plan\//);
     const r = await updateCharacterHandler({ ref: 'uc_beast', title: 'renamed beast' });
     expect(r.ok).toBe(true);
+  }, 120_000);
+
+  it('a species is an animal to the door: titled by what it is, and named so on an edit', async () => {
+    const r = await createCharacterHandler({ as: 'animal', spec: { species: 'wolf' }, ref: 'uc_wolf' });
+    expect(r.ok).toBe(true);
+    expect(SketchRepository.getByRef('uc_wolf').title).toBe('animal · wolf');
+    expect(SketchRepository.getByRef('uc_wolf').manifest).toMatchObject({ kind: 'layered', species: 'wolf' });
+    await expect(updateCharacterHandler({ ref: 'uc_wolf', spec: { hair: 'bob' } })).rejects.toThrow(/'uc_wolf' is an animal;.*get_solid_vocab\(\{ id: 'animal' \}\)/);
   }, 120_000);
 
   it('refuses a row that is not a character, an unknown ref and an empty edit', async () => {
@@ -109,4 +153,27 @@ describe('update_character revises what update_sketch revises', () => {
     await expect(updateCharacterHandler({ ref: 'uc_empty_door' })).rejects.toThrow(/at least one of spec, target, geocube, patch, title/);
     await expect(updateCharacterHandler({ ref: 'uc_empty_door', target: '8k' })).rejects.toThrow(/resolution is a word/);
   }, 120_000);
+});
+
+describe('create_character from an egocube: one sheet, many games', () => {
+  it('makes the sheet\'s character at an age, records the sheet, and says when the sheet has moved since', async () => {
+    await createSketchHandler({ title: 'Wren', ref: 'cc_ego', manifest: { kind: 'egocube', roll: { seed: 3, years: 11, facets: { pole: 'female' }, chapters: [{ chapter: 'time', years: 15 }] } } });
+    const r = await createCharacterHandler({ egocube: 'cc_ego', years: 26, ref: 'cc_wren26' });
+    expect(r.ok).toBe(true);
+    expect(r.egocube).toMatchObject({ ref: 'cc_ego', years: 26, node: { years: 26, band: 'adult' } });
+    const m = SketchRepository.getByRef('cc_wren26').manifest;
+    expect(m.egocube).toMatchObject({ ref: 'cc_ego', rev: 1, years: 26 });
+    expect(m.hero.outfit.pieces?.length ?? 0).toBeGreaterThanOrEqual(0);
+    // the same sheet, the girl at 11: the female pole's child build
+    await createCharacterHandler({ egocube: 'cc_ego', ref: 'cc_wren11' });
+    expect(SketchRepository.getByRef('cc_wren11').manifest.hero.cast).toEqual({ pole: 'female', build: 'child' });
+    // a hero's words lay over the sheet's
+    await createCharacterHandler({ egocube: 'cc_ego', years: 26, spec: { palette: { Top: '#334455' } }, ref: 'cc_wren_own' });
+    expect(SketchRepository.getByRef('cc_wren_own').manifest.hero.palette.Top).toBe('#334455');
+    await expect(createCharacterHandler({ egocube: 'cc_ego', as: 'animal' })).rejects.toThrow(/makes a person \(as: hero\); leave `as` out/);
+    // the sheet re-rolled: the character keeps what it was made with, and an edit says so
+    await updateSketchHandler({ ref: 'cc_ego', patch: [{ op: 'set', path: '/roll/seed', value: 4 }] });
+    const u = await updateCharacterHandler({ ref: 'cc_wren26', spec: { hair: 'bob' } });
+    expect(u.egocube.moved).toMatch(/has moved since this character was made from it/);
+  }, 600_000);
 });

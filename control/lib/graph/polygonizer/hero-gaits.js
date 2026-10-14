@@ -8,3 +8,12 @@ export const GAITS = Object.freeze({
   // stride with less ground and more flight, a harder push off the forefoot
   sprint: Object.freeze({ motion: 'sprint', base: Object.freeze({ strideLength: 0.72, hipDrive: 1.7, swingTuck: 130, armSwing: 56, armBack: 1.1, elbowBend: 84, lean: 0.08, dutyFactor: 0.32, flightLift: 0.09, spineGive: 0.06, anklePoint: 20, toeFlick: 30 }), tilt: 18, seconds: 0.55 }),
 });
+
+/**
+ * The hero's own walk dials, over the figure's mint table (figure-posing.js WALK_MINT) on every hero walk minted now:
+ * heroLocomotion reads `duty` (the stance's share of the cycle), `heelMax` (the heel's cap at push-off, degrees) and
+ * `heelRoll` (the heel rolled up through the stance by each phase's need); `strideLength` is in the rig's metres. Tuned
+ * on the cast heroes: about 1.05 m/s, a 3.3 cm bob, a 58 % stance, the body no longer held low all cycle (the studied
+ * walk: 0.70 m/s, 5.5 cm, the hips never less than 5.5 cm down). The figure's gait ignores the three hero dials.
+ */
+export const HERO_WALK = Object.freeze({ strideLength: 0.55, duty: 0.55, heelMax: 70, heelRoll: true });

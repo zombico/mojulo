@@ -75,6 +75,18 @@ for (const ref of motions) {
   const worldRef = recipe.subject?.world_ref;
   if (!worldRef) fail(`'${ref}' is not a WORLD motion (its subject has no world_ref) — a Blender film is a camera over a world`);
   const { motion, params = {}, frames, fps = 12 } = recipe.shot || {};
+  if (motion === 'plan') {   // a shoot plan: one film shot (a Blender camera, a marker at its cut) per plan shot
+    if (shots.length && worldRef !== shots[0].shot.world_ref) fail(`'${ref}' is over '${worldRef}', not '${shots[0].shot.world_ref}' — one film is one world`);
+    const sketch = SketchRepository.getByRef(worldRef);
+    if (!sketch) fail(`world '${worldRef}' not found`);
+    const { planFilmShots } = await import('@/lib/motion/world-motion.js');
+    const film = await planFilmShots({ sketch, params, fps: recipe.shot.fps }).catch((e) => fail(e?.message ?? String(e)));
+    film.shots.forEach((s, k) => {
+      const sref = `${ref}-${String(k + 1).padStart(2, '0')}`;
+      shots.push({ ref: sref, shot: filmShot({ motionRef: sref, worldRef, title: s.name, motion, fps: film.fps, width: film.width, height: film.height, cameras: s.cameras }) });
+    });
+    continue;
+  }
   if (!WORLD_MOTION_NAMES.includes(motion)) fail(`'${ref}' is a '${motion}' shot — a film takes camera motions (${WORLD_MOTION_NAMES.join(', ')})`);
   if (shots.length && worldRef !== shots[0].shot.world_ref) fail(`'${ref}' is over '${worldRef}', not '${shots[0].shot.world_ref}' — one film is one world`);
   const sketch = SketchRepository.getByRef(worldRef);

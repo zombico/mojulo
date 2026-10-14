@@ -29,7 +29,11 @@
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (a plain one by default)
  *     alarms?: n,                           // sneak: how many sightings end it (1: the first)
- *     music?: '<mood>',                     // rhythm: the field score whose beat it runs to (wayfarer)
+ *     music?: '<mood>' | 'auto',            // rhythm: the field score whose beat it runs to (wayfarer). Any other goal:
+ *                                           // a field score under each level, one identity across the game ('auto':
+ *                                           // the mood each level's place and play call for, beats/score-suggest.js)
+ *     sfx?: 'auto' | '<palette>',           // action sounds wired to the goal's events, in the music's key ('auto': the
+ *                                           // palette the score implies; arcade, foley, orchestral, synth; beats/sfx-palettes.js)
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (plain ones by default)
@@ -59,6 +63,10 @@ import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites } from './lay-concerns.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
+import { SCORE_MOODS } from '../beats/field-score.js';
+import { CLUB_MOODS } from '../beats/club-score.js';
+import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
+import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -105,7 +113,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
+const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -114,7 +122,8 @@ export function readQuick(Q) {
   if (!isObj(Q)) throw fail(` is { goal: ${Object.keys(QUICK_GOALS).join(' | ')}, hero?, climb?, pickup?, seconds?, theme? }`);
   for (const k of Object.keys(Q)) if (!KEYS.includes(k)) throw fail(`.${k} is not part of a quick game (${KEYS.join(', ')})`);
   if (!QUICK_GOALS[Q.goal]) throw fail(`.goal is one of ${Object.entries(QUICK_GOALS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
-  if (Q.hero !== undefined && Q.hero !== false && !isObj(Q.hero)) throw fail('.hero is a hero-door spec (get_solid_vocab({ id: \'layered\' })), or false for first person');
+  if (Q.hero !== undefined && Q.hero !== false && !isObj(Q.hero)) throw fail('.hero is a hero-door spec (get_solid_vocab({ id: \'layered\' })), { ref } for a hero made with create_character, or false for first person');
+  if (isObj(Q.hero) && Q.hero.ref !== undefined && (Object.keys(Q.hero).length !== 1 || !(typeof Q.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(Q.hero.ref)))) throw fail('.hero { ref } adopts a hero made with create_character, by its sketch ref alone (its words are its own row\'s)');
   if (Q.climb !== undefined && typeof Q.climb !== 'boolean') throw fail('.climb is true or false');
   if (Q.ride !== undefined) {
     if (!RIDES[Q.ride]) throw fail(`.ride is one of ${Object.entries(RIDES).map(([k, v]) => `${k} (${v.words})`).join('; ')}`);
@@ -164,8 +173,10 @@ export function readQuick(Q) {
   if (Q.alarms !== undefined && !(Number.isInteger(Q.alarms) && Q.alarms >= 1 && Q.alarms <= 9)) throw fail('.alarms is how many sightings end the run, 1 to 9');
   if (Q.guard !== undefined && !isObj(Q.guard)) throw fail('.guard is a hero-door spec, as .hero is');
   if (Q.building !== undefined && (Q.goal === 'race' || Q.goal === 'sneak' || Q.goal === 'rhythm')) throw fail(`.building: ${Q.goal} runs a trail, not a building`);
-  for (const k of ['music', 'misses']) if (Q.goal !== 'rhythm' && Q[k] !== undefined) throw fail(`.${k} belongs to the rhythm goal`);
-  if (Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
+  if (Q.goal !== 'rhythm' && Q.misses !== undefined) throw fail('.misses belongs to the rhythm goal');
+  if (Q.goal === 'rhythm' && Q.music !== undefined && !RHYTHM_MOODS.includes(Q.music)) throw fail(`.music is a field score with a steady beat: ${RHYTHM_MOODS.join(', ')}`);
+  if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
+  if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
   if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot') throw fail('.foe belongs to the defend, battle and shoot goals');
@@ -551,9 +562,23 @@ export function bagPlay(quick) {
   };
 }
 
-/** The level's audio a goal needs: a rhythm game's music, its beat said on the bus (null: none). */
-export function goalAudio(quick) {
-  return quick.goal === 'rhythm' ? { soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true } : null;
+/**
+ * A level's audio (null: none). A rhythm game's music, its beat said on the bus. Any other goal with `music`: a field
+ * score under the level, every level sharing the game's identity (`game`, a seed); 'auto' asks score-suggest for the
+ * mood the level's place (`manifest`) and play (the goal, `final`) call for, quiet when its place calls for none.
+ * `sfx`: the level's action sounds (beats-world resolves 'auto' against the level's own mechanics).
+ */
+export function goalAudio(quick, { manifest = {}, final = false, game } = {}) {
+  const sfx = quick.sfx === undefined ? null : quick.sfx === 'auto' ? 'auto' : { auto: quick.sfx };
+  const withSfx = (a) => (sfx ? { ...(a || {}), sfx } : a);
+  if (quick.goal === 'rhythm') return withSfx({ soundtrack: `field:${quick.music ?? 'wayfarer'}`, beat: true });
+  if (quick.music === undefined) return withSfx(null);
+  const s = quick.music === 'auto' ? suggestScore(levelScoreContext(manifest, { goal: quick.goal, final })) : null;
+  const mood = quick.music === 'auto' ? s?.mood : quick.music;
+  const club = s?.style === 'club' || Object.prototype.hasOwnProperty.call(CLUB_MOODS, mood ?? '');
+  const score = (m) => ({ score: { mood: m, ...(club ? { style: 'club' } : {}), ...(Number.isInteger(game) ? { game } : {}) } });
+  // auto on a fight: the scene's own music, the fight's coming in with the tension (adaptive-music.js)
+  return withSfx(mood ? { soundtrack: score(s?.explore ?? mood), ...(s?.explore ? { combat: score(mood) } : {}) } : null);
 }
 
 /** The store the goal needs (create_game's `store`): a campaign always; a bag to collect into; the hero's hp to lose. */

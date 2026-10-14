@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { gearStyle, mirrorEntry, contrastEntry, augmentTiers, populateGear, gearOrders, gearFaces, GEAR_MOTIFS, MADE_ROLES, CONTRAST_OF } from './world-gear.js';
 import { HALDEN_REACH, MEADOWMARK_HERO, resolveWorld, readGameworld, characterBibleHtml } from './index.js';
 import { runSteps } from './runner.js';
+import { readMade } from './made.js';
 import { validateStyleCard, SEEDED_STYLES } from '../equipment/styles.js';
 import { validateGear } from '../polygonizer/hero-gear.js';
 import { MOTIF_IDS, TEAM_COLOURS } from './tech-direction.js';
@@ -72,6 +73,8 @@ describe('world gear: a civilization\'s gear speaks its technology\'s language',
     const steps = runSteps(world(true), { ref: 'gw' }).filter((s) => s.key.startsWith('stock-'));
     expect(steps.length).toBe(populateGear(G).entries.length);
     expect(steps[0].order).toMatchObject({ kind: 'equipment' });
+    // the run record takes every step the run makes (a stock- key once threw after its sketches were minted)
+    expect(() => readMade(Object.fromEntries(steps.map((s) => [s.key, { ref: s.ref, order: '0123abcd', stored: '0123abcd' }])))).not.toThrow();
   }, 120000);
 
   it('the gear is drawn from its build, shaded, each face its metal\'s colour', () => {

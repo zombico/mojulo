@@ -162,10 +162,13 @@ const lerp = (a, b, t) => a + (b - a) * t;
  * @param {object} p0  articulate() output
  * @param {{plant?: {L:number,R:number}, gain?: number, carry?: number, iters?: number}} opts
  *   carry — 0..1, how fully the COM commits over the planted support (1 = full pendulum).
+ *   heel  — { L, R } STAND: how far each planted ankle stands off the floor because its heel has lifted and the
+ *           foot rolls on its toes (late stance). The leg reaches its floor from that height, so the pelvis drops
+ *           less and the knee bends instead. Absent ⇒ every planted ankle on the floor.
  *   base  — the REST armature this figure is cast from (figure-cast.js): leg lengths, the
  *           floor height and the rest pelvis height all come from it. Omit → canonical.
  */
-export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, iters = 6, base = basePositions() } = {}) {
+export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, iters = 6, base = basePositions(), heel = null } = {}) {
   const p = {}; for (const k in p0) p[k] = { ...p0[k] };
   const GROUND = base.ankleL.z;                 // rest floor level (armature ankle)
   const restPelvisZ = base.pelvisHub.z;
@@ -174,6 +177,7 @@ export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, i
   const fkAnkle = { L: { ...p.ankleL }, R: { ...p.ankleR } };
   const fkKnee = { L: { ...p.kneeL }, R: { ...p.kneeR } };
   const wOf = (s) => Math.max(0, Math.min(1, plant[s]));
+  const floorOf = (s) => (heel && Number.isFinite(heel[s]) ? GROUND + Math.max(0, heel[s]) : GROUND);   // a lifted heel raises its ankle
   const wL = wOf('L'), wR = wOf('R'), wSum = wL + wR;
   // COM carry is measured against the NEUTRAL two-foot stance, so plant 1/1 holds the rest
   // pose exactly and only a committed (single-ish) support actually slides the body. The
@@ -201,7 +205,7 @@ export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, i
       const hx = fk0['hip' + s].x + sh.x, hy = fk0['hip' + s].y + sh.y, legLen = L1[s] + L2[s];
       const horiz = Math.hypot(hx - fkAnkle[s].x, hy - fkAnkle[s].y);
       const reach = Math.sqrt(Math.max(0, legLen * legLen - horiz * horiz));
-      drop = Math.max(drop, w * Math.max(0, restPelvisZ - (GROUND + reach)));
+      drop = Math.max(drop, w * Math.max(0, restPelvisZ - ((heel ? floorOf(s) : GROUND) + reach)));
     }
     drop *= gain;
     // 3) Place the body (pelvis + upper + hips) at the carried + dropped position…
@@ -210,7 +214,7 @@ export function groundVault(p0, { plant = { L: 1, R: 1 }, gain = 1, carry = 1, i
     // dropped body (its FK lift preserved). Knee re-solved by 2-bone IK so bones stay exact.
     for (const s of ['L', 'R']) {
       const w = wOf(s);
-      const grounded = { x: fkAnkle[s].x, y: fkAnkle[s].y, z: GROUND };
+      const grounded = { x: fkAnkle[s].x, y: fkAnkle[s].y, z: heel ? floorOf(s) : GROUND };
       const ridden = { x: fkAnkle[s].x + sh.x, y: fkAnkle[s].y + sh.y, z: fkAnkle[s].z - drop };
       const target = { x: lerp(ridden.x, grounded.x, w), y: lerp(ridden.y, grounded.y, w), z: lerp(ridden.z, grounded.z, w) };
       const pole = { x: fkKnee[s].x - fkAnkle[s].x, y: 1, z: 0 };   // keep the knee tracking its FK side

@@ -1,7 +1,12 @@
 // Loop points: an opt-in render that is exactly one seamless pass to the bar line, the ring-out folded onto the
-// head, with a `smpl` loop chunk game engines and samplers read. Off, the bytes are unchanged.
-import { describe, it, expect } from 'vitest';
+// head, with a `smpl` loop chunk game engines and samplers read. Off, the bytes are unchanged. Live, a looped
+// composition plays again from the same seam (the `loop` kernel slice).
+import { describe, it, expect, vi } from 'vitest';
 import { renderBeatsOffline, loopSeconds, renderBeatsPlan } from './beats-render.js';
+import { emitBeatsKernel } from './beats-kernel.js';
+import { beatsFeatures } from './beats-features.js';
+import { PATCHES } from './audio-patches.js';
+import { expandBeatsManifest } from './beats-authoring.js';
 import { normalizeBeatsManifest, validateBeatsManifest } from './beats-manifest.js';
 import { decodeWav, rms } from './audio-measure.js';
 import { fieldScore } from './field-score.js';
@@ -68,5 +73,66 @@ describe('looped render', () => {
     const sfx = normalizeBeatsManifest({ kind: 'beats-sfx', title: 'blip', cues: { blip: [{ type: 'tone', note: 'A5', dur: 0.1 }] } });
     await expect(renderBeatsOffline(sfx, { loop: true })).rejects.toThrow(/one-shot/);
     expect(validateBeatsManifest({ ...PLAIN, export: { loop: 'yes' } }).ok).toBe(false);
+  });
+});
+
+// A stand-in AudioContext: every node and param is an inert stub, the clock is ours, and each source's start(when)
+// is recorded, so the transport's schedule can be read without an audio device.
+function stubContext() {
+  const starts = [];
+  const stub = () => new Proxy(function () {}, {
+    get(t, k) {
+      if (k === Symbol.toPrimitive) return () => 0;
+      if (k === 'then') return undefined;
+      if (k === 'start') return (when) => { starts.push(Math.round(when * 1000) / 1000); };
+      if (k === 'getChannelData') return () => new Float32Array(16);
+      if (k === 'length') return 16;
+      if (k === 'value' || k === 'defaultValue') return 0;
+      if (!(k in t)) t[k] = stub();
+      return t[k];
+    },
+    set(t, k, v) { t[k] = v; return true; },
+    apply() { return stub(); },
+  });
+  const clock = { currentTime: 0, sampleRate: 44100, starts };
+  return new Proxy(clock, { get: (t, k) => (k in t ? t[k] : k === 'destination' ? stub() : () => stub()) });
+}
+
+// play `seconds` of the live transport (its 25 ms lookahead tick) and return the distinct start times. A page
+// hands the engine the expanded recipe (beats-player, beats-world), so this does too.
+function liveStarts(recipe, seconds) {
+  const manifest = expandBeatsManifest(recipe);
+  vi.useFakeTimers();
+  try {
+    const kernel = new Function('return (' + emitBeatsKernel(beatsFeatures(manifest)) + ')')()();
+    const ctx = stubContext();
+    kernel.createEngine(ctx).startComposition(manifest, PATCHES);
+    for (let t = 0; t <= seconds; t += 0.025) { ctx.currentTime = t; vi.advanceTimersByTime(25); }
+    return [...new Set(ctx.starts)].sort((a, b) => a - b);
+  } finally { vi.useRealTimers(); }
+}
+
+describe('looped live transport', () => {
+  // one note at bar 1 beat 1 (2.625 s at 120 bpm): the period is two bars, 4 s.
+  const ONE = { kind: 'beats-composition', bpm: 120, seed: 3, parts: [{ name: 'a', patch: 'sinePluck', events: [['1:1:1', 'C4', '0:1:0', 0.8]] }] };
+
+  it('detection adds the loop slice only for a looped composition', () => {
+    expect(beatsFeatures({ ...ONE, loop: true })).toContain('loop');
+    expect(beatsFeatures(ONE)).not.toContain('loop');
+    expect(beatsFeatures({ kind: 'beats-pattern', bpm: 120, loop: true, tracks: [] })).not.toContain('loop');
+  });
+
+  it('plays the piece again one period on, where 2.1 went silent after one pass', () => {
+    const t0 = 0.08;
+    expect(liveStarts({ ...ONE, loop: true }, 11)).toEqual([t0 + 2.625, t0 + 6.625, t0 + 10.625].map((x) => Math.round(x * 1000) / 1000));
+    expect(liveStarts(ONE, 11)).toEqual([Math.round((t0 + 2.625) * 1000) / 1000]);
+  });
+
+  it('wraps at the seam the export folds at (a scored field cue)', () => {
+    const m = normalizeBeatsManifest(fieldScore('plains', { seed: 12, identity: 5 }));
+    const L = loopSeconds(m, renderBeatsPlan(m).duration);
+    const live = liveStarts({ ...m, loop: true }, L + 1.5);
+    const first = live[0];
+    expect(live.some((x) => Math.abs(x - (first + L)) < 0.002)).toBe(true);
   });
 });

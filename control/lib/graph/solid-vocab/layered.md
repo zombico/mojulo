@@ -3,7 +3,7 @@
   "id": "layered",
   "name": "Layered solid (stations, slots, pins, dials)",
   "family": "object",
-  "entry": "mint_solid",
+  "entry": "create_character",
   "summary": "Mint a solid born layered: the primary form is named rings along a spine (stations × slots), details are pinned to named faces and carry their geometry as local offsets, and dials regenerate the whole thing — so `update_sketch` patching `/dials/<name>` reshapes the object in place. Renders its compiled mesh on every read: World turntable (a rigged recipe plays its clips there), `measure_solid`, GLB/STL export at true size, skinned GLB with clips.",
   "when": "Reach for this on 'a creature / a dragon / a monster / an invented animal / a character that is not a person / a body I can rig and animate / a head or character piece I want to keep editing by dials / widen the skull, lengthen the snout, open the jaw / a family of casts from one recipe / the same details riding a reshaped form'. A one-off measured part with no dials is a plain workbench spec; a real animal with a real skeleton is kind `animal`; a person is kind `figure`."
 }
@@ -30,7 +30,7 @@ Spec: `{ title?, recipe, dials?, channels?, units? ('m'), facing? ('+y'), seat? 
 the grid), grid?, toon? (+ toon.light?), hullShade?, rim? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
 and `export_model` see the compiled mesh itself (every closed part exact, whatever its shape; a recipe
 `palette: { <group>: '#hex' }` colours faces by group, else the part's `tint`). Patch a dial:
-`update_sketch { ref, patch: [{ op: 'set', path: '/dials/jawOpen', value: 30 }] }`.
+`update_character { ref, patch: [{ op: 'set', path: '/dials/jawOpen', value: 30 }] }` (a character; `update_sketch` takes the same ops on any layered row).
 `hullShade: true | { except: ['<part>', …] }` (rigged recipes) bakes the rig figure's vertex-colour light
 from the smooth L1 hull's normals instead of flat facets, so the light sweeps the underlying form while
 grown detail keeps its silhouette — the toon read. `except` names focal parts (a horn, a ridge) that keep
@@ -115,7 +115,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   a hero, a clip named `gesture` is the STAND (below): the World and the static exports show the solid skinned at its
   key, and the page opens on that solid; a plan's own clip of that name is an ordinary clip.
 
-- **Plan (the compact door).** `mint_solid({ kind: 'layered', via: 'plan', spec: { plan } })` — a RING PLAN
+- **Plan (the compact door).** `create_character({ as: 'creature', spec: { plan } })` (= `mint_solid({ kind: 'layered', via: 'plan', spec: { plan } })`) — a RING PLAN
   is what the seeds write by hand: `{ schema: 'layered-plan-v1', frame, joints: { name: [x, y, z] } (the right
   side), segments: [ { name, kind: 'trunk', stations: [{ z, r, yc?, e?, id?, u?, push? }], caps, mirror: 'plane' } (`u` a station's address
   parameter, default its index: a shaping ring between two addressed ones takes a fractional `u` and every address keeps its
@@ -145,7 +145,15 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   (shared overshoot rings). The recipe is stored beside the plan; a patch under `/plan` re-expands it, a patch
   under `/dials` or `/recipe` edits as before. Refusals name the plan field.
 
-- **Hero door (a human by word and percentage).** `mint_solid({ kind: 'layered', via: 'hero', spec: { cast, register, tune,
+- **The door's own words beside the body** (the hero door). A word it does not take is refused with where it belongs
+  (`build` → `cast: { pole, build }`, `wings` → a creature). `toon: { light: true }` in the spec is the character light
+  (the anime look's soft cel step). `vibe: ['cocky', 'light']` lowers to the gaits' dials and a stand at mint (the words
+  are not stored). `outfit` as a build may carry designed `pieces` (the outfit catalogue's mantle, pauldron, sash,
+  bracers …) and their `intent` palette: worn over the cut on the hero's landmarks, a piece with no place on a person's
+  body said in `warnings`. A hero reading the newer tables (a build, `form: 'tiered'`, `painterly`, a `geocube`) is
+  stamped `laws` at mint; leave it out. A hero made from an egocube (`create_character { egocube }`) records it.
+
+- **Hero door (a human by word and percentage).** `create_character({ as: 'hero', spec: { cast, register, tune,
   face?, hair?, expression?, sculpt?, painterly?, detail?, adorn?, gesture?, clips?, blink?, body?, girth?, headScale?, scale?, palette?, head?, title? } })` mints the HERO FORM (`control/lib/graph/polygonizer/hero-form.js`:
   a human ring plan on the vajra rest skeleton, one style register for every ring, `idle` / `walk` / `wave`) from a CAST
   word — `male` / `female` (the hero's own: joints, girth, body radii) or a figure cast (`canonical`, `heroic`, `brute`,
@@ -153,8 +161,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   'brute' }`: the pole's landmarks (girdles, head, silhouette) with the figure cast's dials over hers and its radii as
   percentages of hers, so a broad young woman is a build, not a tune past its range; `{ build: 'child' }` (pole `male`
   unless named) is an 11-year-old's body, a child's radii and head, and `child` / `chibi` builds are child-coded — and a TUNE: proportion as PERCENTAGES OF THAT CAST'S BASELINE (1 = as cast), the
-  body proportion lab's contract. Thirteen controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
-  `neck`, `legs` (joints move, the soles stay on the ground); widths `shoulders` (the arm chain rides out, the yoke widens),
+  body proportion lab's contract. Controls in five groups, each a ratio: `stature` (uniform); lengths `torso`,
+  `neck`, `legs` (joints move, the soles stay on the ground), `armLength` (the upper arm and forearm, so a body shortened
+  by `legs` and `torso` does not keep a grown arm that hangs to its knees); widths `shoulders` (the arm chain rides out, the yoke widens),
   `waist`, `hips` (the pelvis, not the stance), `depth` (front-to-back of the trunk and pelvis); `head` (uniform about the
   atlas); thicknesses `upperArm`, `forearm`, `thigh`, `calf` (rings scale about their own centres; joints, the yoke and the
   wrist ring stay). Group words expand first (`lengths`, `widths`, `limbs`, `arms`) and an explicit key in the same object
@@ -168,7 +177,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   anime `kid` look, takes no `bust`); `head` wears a baked include (the blank trunk otherwise). Height on the landmark and
   anime heads is `tune.stature`; `scale` sizes only the blank trunk or a baked include and is refused on a worn head.
   The row stores `hero` (cast, register, the RESOLVED tune, the move trail) beside `plan` and `recipe`: patch
-  `update_sketch { ref, patch: [{ op: 'set', path: '/hero/tune/shoulders', value: 1.1 }] }` and the plan and recipe regenerate;
+  `update_character { ref, spec: { tune: { shoulders: 1.1 } } }` (merged at any depth; the same as the patch `/hero/tune/shoulders`) and the plan and recipe regenerate;
   the readout's `hero` answers in metres (`height_m`, `shoulder_m` across the yoke, `hip_m` across the pelvis) with the tune
   and its advice. A `/plan` patch is honoured and kept until the next `/hero` edit, which regenerates and SAYS it replaced
   those hand edits (the archived revision keeps them). The live dials (`bulk`, `stance`, `lean`, a worn head's `jawOpen`)

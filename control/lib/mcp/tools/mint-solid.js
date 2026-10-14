@@ -282,7 +282,7 @@ export function registerMintSolidTools() {
     name: 'mint_solid',
     description:
       'Mint a 3D SOLID (a recipe; served as still, World and `.glb`). '
-      + 'Characters: figure, layered, animal, manji-tree. From words: equipment (gear), furniture. '
+      + 'Characters: create_character; figure, layered, manji-tree. From words: equipment (gear), furniture. '
       + 'Hard-edged or fitted parts: scad (OpenSCAD with an `mj_*` library of threads, fits, gears, '
       + 'enclosures; which standard parts → fabricate_solid). Measured or organic objects: workbench, code. '
       + 'Also assembler, carved-solid (metal wordmark), solid-turntable, edifice (an institution), '

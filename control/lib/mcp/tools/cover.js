@@ -18,11 +18,12 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { normalizeCoverManifest, coverRenderTargets } from '@/lib/graph/image-outcomes/cover-manifest';
 import { renderCoverSvg } from '@/lib/graph/image-outcomes/cover-preview';
+import { checkUploadedArt, readUploadFrom } from '@/lib/graph/image-outcomes/cover-upload';
 
 export function createCoverHandler(input) {
   if (!input || typeof input !== 'object') throw new Error('create_cover requires { title }');
   const {
-    title, for_kind: forKind, cover_title: coverTitle, author, series, subtext,
+    title, for_kind: forKind, format, art, cover_title: coverTitle, author, series, subtext,
     isbn, note, metadata, illustration_brief: illustrationBrief,
     archetype, palette, title_font: titleFont, text_font: textFont,
     relationship, checklist, render_brief: renderBrief, title_realizer: titleRealizer,
@@ -42,6 +43,14 @@ export function createCoverHandler(input) {
   if (profile && titleRealizer === 'painted') throw new Error(pluginProfileNotice("create_cover title_realizer 'painted'"));
   if (profile && renderBrief) throw new Error(pluginProfileNotice('create_cover render_brief'));
   const realizer = titleRealizer || (profile ? 'flat' : 'painted');
+  // the illustration: an uploaded picture when `art` maps one (cover-upload.js); else, with no image worker (the
+  // plugin profile), the palette placeholder the operator replaces by uploading; else painted, as before
+  if (art !== undefined) {
+    readUploadFrom(art);
+    const bad = checkUploadedArt(art);
+    if (bad.length) throw new Error(`art: ${bad.join('; ')}`);
+  }
+  const illustrationRealizer = art !== undefined ? 'upload' : profile ? 'placeholder' : 'painted';
   if (!['painted', 'carved', 'flat'].includes(realizer)) {
     throw new Error("`title_realizer` must be 'painted', 'carved', or 'flat'");
   }
@@ -55,6 +64,7 @@ export function createCoverHandler(input) {
     ...(checklist ? { checklist } : {}),
   };
 
+  if (format !== undefined && forKind !== 'game') throw new Error("`format` is a game cover's: for_kind: 'game'");
   const subtextList = Array.isArray(subtext) ? subtext : [
     ...(series ? [{ role: 'series', text: series }] : []),
     ...(author ? [{ role: 'author', text: author }] : []),
@@ -66,10 +76,12 @@ export function createCoverHandler(input) {
 
   const input2 = {
     for_kind: forKind,
+    ...(format !== undefined ? { format } : {}),
     artDirection,
     slots: {
       illustration: {
-        realizer: 'painted',
+        realizer: illustrationRealizer,
+        ...(art !== undefined ? { from: { stash: art.stash, item: art.item } } : {}),
         brief: illustrationBrief == null ? {}
           : typeof illustrationBrief === 'string' ? { subject: illustrationBrief } : illustrationBrief,
       },
@@ -98,7 +110,10 @@ export function createCoverHandler(input) {
       coverUrl: `/api/sketches/${enc}/cover.png`,
       archetype: manifest.artDirection.composition.archetype,
       for_kind: manifest.for_kind,
-      next: `Cover renders now at coverUrl: a palette illustration and a ${realizer} title.`,
+      ...(manifest.format ? { format: manifest.format } : {}),
+      next: illustrationRealizer === 'upload'
+        ? `Cover renders now at coverUrl: the uploaded picture and a ${realizer} title.`
+        : `Cover renders now at coverUrl: a palette placeholder illustration and a ${realizer} title. For real art, ask the operator to upload the picture into a stash on the dashboard (add image), find its item id with get_stash, then map it: update_sketch this cover, patch /slots/illustration = { realizer: 'upload', from: { stash, item } } (or create_cover art: { stash, item }).`,
     };
   }
   return {
@@ -109,8 +124,9 @@ export function createCoverHandler(input) {
     coverUrl: `/api/sketches/${enc}/cover.png`,
     archetype: manifest.artDirection.composition.archetype,
     for_kind: manifest.for_kind,
+    ...(manifest.format ? { format: manifest.format } : {}),
     render_targets: targets,
-    next: `Cover renders now at coverUrl with a placeholder illustration and a ${realizer} title. Painting the illustration${targets.includes('title') ? " and an alpha'd title mark" : ''} rides the render bicycle (a later phase); the recipe is unchanged when those bind.`,
+    next: illustrationRealizer === 'upload' ? `Cover renders now at coverUrl with the uploaded picture and a ${realizer} title.` : `Cover renders now at coverUrl with a placeholder illustration and a ${realizer} title. Painting the illustration${targets.includes('title') ? " and an alpha'd title mark" : ''} rides the render bicycle (a later phase); the recipe is unchanged when those bind.`,
   };
 }
 
@@ -118,22 +134,24 @@ export function registerCoverTools() {
   registerTool(withPluginProfile({
     name: 'create_cover',
     description:
-      "Mint a publication COVER — an illustration + title + subtext (author/series) + metadata (barcode/note) composed under one art direction, ready to bind onto a publication (a novel/picture_book cover today). Persists with kind `cover`; renders immediately (a palette placeholder illustration + a carved title) with NO image worker, then swaps in painted layers later without changing the recipe.\n\nStructure is guaranteed (every declared piece is placed, legible, in the safe area); look is not (archetype × palette × typeface × title treatment vary), so covers don't clone. Pick a publication with `for_kind` (seeds aspect + archetype + slots); override any of it.\n\nTitle: `title_realizer` picks how the title becomes pixels — 'painted' (default; a worker paints an alpha'd letter mark onto mojulo-carved letterforms), 'carved' (metalified 3D wordmark), or 'flat' (filled outline). mojulo always owns the letter SHAPES (from the font shelf), so spelling/forms are fixed; the worker only paints style.\n\nReturns { ok, ref, url, svgUrl, coverUrl, render_targets, next }. View the SVG face at url; the raster composite is coverUrl (/cover.png).",
+      "Mint a publication COVER — an illustration + title + subtext (author/series) + metadata (barcode/note) composed under one art direction, for a novel, a picture book, or a game (`for_kind: 'game'`, `format`: key-art, the backdrop a title screen draws its menu over, capsule, box, icon). Persists with kind `cover`; renders immediately (a palette placeholder illustration + a carved title) with NO image worker, then swaps in painted layers later without changing the recipe.\n\nStructure is guaranteed (every piece placed, legible, in the safe area); look varies (archetype × palette × type × treatment), so covers don't clone. `for_kind` seeds aspect, archetype and slots.\n\nTitle: `title_realizer` picks how the title becomes pixels — 'painted' (default; a worker paints an alpha'd letter mark onto mojulo-carved letterforms), 'carved' (metalified 3D wordmark), or 'flat' (filled outline). mojulo always owns the letter SHAPES (from the font shelf), so spelling/forms are fixed; the worker only paints style.\n\nReturns { ok, ref, url, svgUrl, coverUrl, render_targets, next }. SVG face at url; raster composite at coverUrl.",
     inputSchema: {
       type: 'object',
       required: ['title'],
       properties: {
         title: { type: 'string', description: 'Sketch title (also the default cover title).' },
         cover_title: { type: 'string', description: 'The title text shown on the cover (defaults to `title`).' },
-        for_kind: { type: 'string', description: "Publication kind that seeds aspect/archetype/slots: 'novel' (default) or 'picture_book'." },
+        for_kind: { type: 'string', description: "Publication kind that seeds aspect/archetype/slots: 'novel' (default), 'picture_book' or 'game'." },
+        art: { type: 'object', description: 'An uploaded picture as the illustration: { stash, item } (a stash image item).', properties: { stash: { type: 'string' }, item: { type: 'integer' } } },
+        format: { type: 'string', enum: ['key-art', 'capsule', 'box', 'icon'], description: "A game cover's format (default key-art: a title screen's backdrop; its archetype leaves the menu room)." },
         author: { type: 'string', description: 'Author byline (convenience → subtext role author).' },
         series: { type: 'string', description: 'Series/edition line (convenience → subtext role series).' },
-        subtext: { type: 'array', description: 'Explicit subtext runs [{ role, text, font? }] (roles: author, series). Overrides author/series.', items: { type: 'object' } },
+        subtext: { type: 'array', description: 'Explicit subtext runs [{ role, text, font? }] (roles: author, series; a game: tagline). Overrides author/series.', items: { type: 'object' } },
         isbn: { type: 'string', description: 'ISBN/EAN (convenience → metadata barcode).' },
         note: { type: 'string', description: 'Edition/credit note (convenience → metadata note).' },
-        metadata: { type: 'array', description: 'Explicit metadata [{ kind, value }] (kinds: barcode, note). Overrides isbn/note.', items: { type: 'object' } },
+        metadata: { type: 'array', description: 'Explicit metadata [{ kind, value }] (kinds: barcode, note; a game: studio). Overrides isbn/note.', items: { type: 'object' } },
         illustration_brief: { description: 'The illustration subject/style — a string (subject) or an object { subject?, style?, camera? }.' },
-        archetype: { type: 'string', description: 'Layout family: full-bleed-overlay | framed-below (else seeded by for_kind).' },
+        archetype: { type: 'string', description: 'Layout family: full-bleed-overlay | framed-below; a game: logo-center | lower-third | hero-side (else seeded by for_kind).' },
         palette: { type: 'object', description: 'Cover palette { bg, accent, ink } (#hex).', properties: { bg: { type: 'string' }, accent: { type: 'string' }, ink: { type: 'string' } } },
         title_font: { type: 'string', description: 'Font-shelf key for the title (e.g. im-fell, archivo-black, great-vibes).' },
         text_font: { type: 'string', description: 'Font-shelf key for subtext (e.g. inter).' },
@@ -150,7 +168,7 @@ export function registerCoverTools() {
     edits: [
       [
         'renders immediately (a palette placeholder illustration + a carved title) with NO image worker, then swaps in painted layers later without changing the recipe.',
-        "renders immediately: a palette illustration and a title set from mojulo's own letterforms.",
+        "renders immediately: a placeholder illustration (until the operator uploads a picture to a stash and you map it: `art`) and a title set from mojulo's own letterforms.",
       ],
       [
         "Title: `title_realizer` picks how the title becomes pixels — 'painted' (default; a worker paints an alpha'd letter mark onto mojulo-carved letterforms), 'carved' (metalified 3D wordmark), or 'flat' (filled outline). mojulo always owns the letter SHAPES (from the font shelf), so spelling/forms are fixed; the worker only paints style.",

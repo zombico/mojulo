@@ -53,6 +53,8 @@
  *     mode?, review?, brief?,             // the workflow's: gated or autonomous, the creator's verdicts, the prompt
  *     made?,                              // what a run made, and the prints it made it from (made.js; the runner writes it)
  *     quick?,                             // a quick game: one level, one goal, any hero or none (quick.js)
+ *     front?,                             // the game's title over a cover, start menu, credits, end (game/play-front.js),
+ *                                         // carried whole onto the game the run makes
  *     intent?: { from?, cube?, why? },    // what game it is, as a cosmos cube (intent.js): what the levels are laid for
  *   }
  *
@@ -95,6 +97,7 @@ import { TRACK_FORMS } from '../roads/track.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { SETS, TRACK_BLOCKS } from '../roads/set-pieces.js';
 import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
+import { readFront } from '../game/play-front.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -143,7 +146,7 @@ export const NATIVE = 'native';
 
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
-const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', ...RESERVED];
+const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', 'front', ...RESERVED];
 const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
@@ -470,8 +473,10 @@ export function readGameworld(W) {
   const mechanics = W.mechanics === undefined || W.mechanics === null ? null : readMechanics(W.mechanics);
   if (W.made !== undefined && W.made !== null) readMade(W.made);   // the runner's record: read, never carried
   if (W.quick !== undefined && W.quick !== null) readQuick(W.quick);   // a quick game's goal (quick.js): read, never carried
+  // the front: its shape read here (its menu against a game of several levels; the game's own check sees the count)
+  if (W.front !== undefined) { const e = readFront(W.front, { levels: 2, run: !!(isObj(W.quick) && W.quick.run), where: 'gameworld: front' }); if (e.length) throw new Error(e.join('\n')); }
   if (W.intent !== undefined) readIntent(W.intent);   // what game it is (intent.js): read here, laid by the levels
-  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
+  return { id: W.id, name: W.name ?? W.id, seed, style, civilizations, civIds, levels, ids, links, start, ...(characters ? { characters } : {}), ...(equipment ? { equipment } : {}), ...(mechanics ? { mechanics } : {}), ...(W.camera ? { camera: W.camera } : {}), ...(W.topology ? { topology: W.topology } : {}), ...(W.quick ? { quick: W.quick } : {}), ...(W.front !== undefined ? { front: W.front } : {}), ...(W.intent !== undefined ? { intent: W.intent } : {}), ...(Object.keys(sceneSets).length ? { scenes: sceneSets } : {}), ...(W.story !== undefined ? { story: readStory(W.story) } : {}), ...(W.quests !== undefined ? { quests: readGameQuests(W.quests, readStory(W.story)) } : {}), [READ]: true };
 }
 
 /**

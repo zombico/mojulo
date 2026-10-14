@@ -119,6 +119,61 @@ Every event the bus processes is a signal your scripts can take:
 `;
 };
 
+// The bus layout a pack with sound ships (Godot loads res://default_bus_layout.tres by itself): Music, SFX and UI under
+// Master, and a compressor on Music keyed from SFX, so a hit or a jingle pushes the score down for a moment. Packs
+// without sound ship no layout (byte-identical) and the kernel plays on Master as before.
+export const BUS_LAYOUT_TRES = `[gd_resource type="AudioBusLayout" load_steps=2 format=3]
+
+[sub_resource type="AudioEffectCompressor" id="duck"]
+resource_name = "Duck"
+threshold = -22.0
+ratio = 4.0
+attack_us = 5000.0
+release_ms = 300.0
+sidechain = &"SFX"
+
+[resource]
+bus/1/name = &"Music"
+bus/1/solo = false
+bus/1/mute = false
+bus/1/bypass_fx = false
+bus/1/volume_db = 0.0
+bus/1/send = &"Master"
+bus/1/effect/0/effect = SubResource("duck")
+bus/1/effect/0/enabled = true
+bus/2/name = &"SFX"
+bus/2/solo = false
+bus/2/mute = false
+bus/2/bypass_fx = false
+bus/2/volume_db = 0.0
+bus/2/send = &"Master"
+bus/3/name = &"UI"
+bus/3/solo = false
+bus/3/mute = false
+bus/3/bypass_fx = false
+bus/3/volume_db = 0.0
+bus/3/send = &"Master"
+`;
+
+// The level's sound (score.json `audio`, engine-sound.js) as kernel/sound.gd plays it. Absent ⇒ no section.
+const soundSection = (audio, stingers = []) => {
+  if (!audio && !stingers.length) return '';
+  const lines = [];
+  if (audio?.sounds?.length) lines.push(`- ${audio.sounds.length} action sounds in \`audio/sfx/\`${audio.variants > 1 ? ` (${audio.variants} takes each, never the same twice in a row)` : ''}, fired by bus events${audio.on ? ` (${Object.keys(audio.on).map((g) => `\`${g}\``).join(', ')})` : ''}${['footsteps', 'weapon', 'strike', 'dodge'].some((k) => audio[k]) ? ' and by the hero\'s own moves' : ''}`);
+  if (audio?.combat) lines.push(`- a fight score (\`audio/${audio.combat}.wav\`): it comes in on the next bar line when the tension reaches ${audio.tension?.enter ?? 0.6} and leaves after ${audio.tension?.hold ?? 2} bars under ${audio.tension?.exit ?? 0.25}, crossfading over one bar`);
+  if (stingers.length) lines.push(`- stingers (${stingers.map((k) => `\`audio/stinger-${k}.wav\``).join(', ')}): played once when a level ends; the menu's music waits for them`);
+  return `## Sound
+
+${lines.join('\n')}
+
+Buses: Music, SFX and UI (\`default_bus_layout.tres\`); the SFX bus ducks the music. Hear the tension in your scripts:
+
+    $Level/Sound.tension               # 0..1, raised by the level's events, leaking back to calm
+    $Level/Sound.music_changed.connect(func(to): print(to))   # "combat" | "explore"
+
+`;
+};
+
 // Godot 4 requires `exclude_filter` in every preset (without it the import logs one ERROR per preset); emitted with a
 // figure only, so every other pack stays byte-identical.
 function buildPresets(ref, { exclude = false } = {}) {
@@ -406,7 +461,7 @@ const figureLedger = (f) => (f.anime ? {
   figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
 } : {
   figure_skinned: {
-    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, one second each — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
+    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, each at its own length — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
   },
   figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
 });
@@ -445,8 +500,8 @@ rest (a clip that reaches overhead can leave the frame).${f.clips.includes('gest
 \`${f.clip}\` is the figure's own loop, not the stand the World page opens on
 (the clip \`gesture\`).` : ''} It is one skinned mesh
 (${f.joints} joints) carrying its ${f.clips.length} clips (${f.clips.map((c) => `\`${c}\``).join(', ')}) on the
-imported AnimationPlayer as \`${f.name}_<clip>\`, one second each (the World
-page plays a clip over three): set \`clip\` (\`${f.name}:<clip>\`) and \`view\`
+imported AnimationPlayer as \`${f.name}_<clip>\`, each at its own length (the World
+page plays a clip over three seconds): set \`clip\` (\`${f.name}:<clip>\`) and \`view\`
 (an index into the score's cameras) on the \`Level\` node of \`level.tscn\` to
 play another. \`model.glb.import\` imports it with LOD generation off.`);
 
@@ -496,11 +551,12 @@ Your figure is a rigged body: it follows you as a third-person suit (walk
 cycle while moving, idle when still), and every other rigged figure breathes
 its idle. Headless motion probe: \`godot --headless --path . res://level.tscn -- --mojulo-autowalk --mojulo-frames=120\`.` : ''}`}
 
-${looksSection(score)}${busSection(score)}${ownedSection()}## What travelled, what didn't
+${looksSection(score)}${busSection(score)}${soundSection(score.audio)}${ownedSection()}## What travelled, what didn't
 
 ${ledgerLines(ledger)}
 `,
     },
+    ...(score.audio ? [{ file: 'default_bus_layout.tres', text: BUS_LAYOUT_TRES }] : []),
     ...(figure ? [{ file: `${glbFile}.import`, text: FIGURE_IMPORT }, { file: 'figure.gd', text: FIGURE_VIEW_GD }, ...(figure.face ? [{ file: 'figure_face.gd', text: FIGURE_FACE_GD }] : [])] : []),
   ];
   return { files, ledger };
@@ -555,6 +611,9 @@ ${music.menuFile ? `
 [node name="Music" type="AudioStreamPlayer" parent="."]${music.menuDb != null ? `\nvolume_db = ${fmt(music.menuDb)}` : ''}\nstream = ExtResource("music")\n` : ''}`,
   });
 
+  const stingers = music.stingers ?? [];
+  if (stingers.length) ledger.stingers_carried = { kinds: stingers, note: 'played once by kernel/game.gd when a level ends (audio/stinger-<result>.wav); the level\'s music fades and the menu\'s waits' };
+  if (stingers.length || levels.some((lv) => lv.score?.audio)) files.push({ file: 'default_bus_layout.tres', text: BUS_LAYOUT_TRES });
   files.push({ file: 'project.godot', text: buildProjectGodot({ title, mainScene: 'menu.tscn', autoloadGame: true }) });
   files.push({ file: 'export_presets.cfg', text: buildPresets(ref) });
   files.push({ file: '.gitignore', text: GITIGNORE });
@@ -599,9 +658,9 @@ Levels whose player is a rigged figure show it as a third-person suit that
 follows you (walk cycle while moving, idle when still); other rigged figures
 breathe their idle.` : ''}
 
-${ownedSection()}## What travelled, what didn't
+${soundSection(null, stingers)}${ownedSection()}## What travelled, what didn't
 
-${ledgerLines({ ...(ledger.store_carried ? { store_carried: ledger.store_carried } : { skipped_store: ledger.skipped_store }), ...(ledger.skipped_shell ? { skipped_shell: ledger.skipped_shell } : {}), ...(ledger.gate_approximated ? { gate_approximated: ledger.gate_approximated } : {}) })}
+${ledgerLines({ ...(ledger.stingers_carried ? { stingers_carried: ledger.stingers_carried } : {}), ...(ledger.store_carried ? { store_carried: ledger.store_carried } : { skipped_store: ledger.skipped_store }), ...(ledger.skipped_shell ? { skipped_shell: ledger.skipped_shell } : {}), ...(ledger.gate_approximated ? { gate_approximated: ledger.gate_approximated } : {}) })}
 
 ${perLevelLedgers}
 `,

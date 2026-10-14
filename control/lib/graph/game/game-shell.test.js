@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emitGameShell } from './game-shell.js';
+import { emitPlayShell } from './play-shell.js';
 import { normalizeGameManifest, validateGameManifest } from './game-manifest.js';
 import { normalizeLevelContract } from './level-contract.js';
 
@@ -192,6 +193,36 @@ describe('emitGameShell with music', () => {
     // manifest volume keys ride the emitted MANIFEST literal for the resolver to read
     const tuned = normalizeGameManifest({ ...GAME, music: { ...MUSIC_DECL, menuVolume: 0.55, battleVolume: 0.35 } });
     expect(emitGameShell(tuned, LEVELS, null, MUSIC_RESOLVED)).toContain('"battleVolume":0.35');
+  });
+});
+
+// ── outcome stingers: music.victory / music.defeat, once when a level ends ─────────
+describe('outcome stingers', () => {
+  const STINGERS = { victory: '/api/sketches/sk_win/beats.wav', defeat: '/api/sketches/sk_lose/beats.wav' };
+
+  it('validate in either shell; the play shell takes the stingers and no other music', () => {
+    expect(validateGameManifest({ ...GAME, music: { victory: 'sk_win', defeat: 'sk_lose' } }).ok).toBe(true);
+    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win' } }).ok).toBe(true);
+    expect(validateGameManifest({ ...GAME, shell: 'play', music: { victory: 'sk_win', menu: 'sk_m' } }).errors.join()).toMatch(/shell 'play' has no music/);
+    expect(validateGameManifest({ ...GAME, music: { victory: 3 } }).errors.join()).toMatch(/music.victory must be a beats sketch ref.*mood: 'victory'/);
+  });
+
+  it('the arena shell plays the result\'s stinger once (after travel, not on it) and the score waits under it', () => {
+    const html = emitGameShell(normalizeGameManifest({ ...GAME_MUSIC, music: { ...MUSIC_DECL, victory: 'sk_win', defeat: 'sk_lose' } }), LEVELS, null, { ...MUSIC_RESOLVED, ...STINGERS });
+    const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
+    expect(() => new Function(script)).not.toThrow();
+    expect(script).toContain('/api/sketches/sk_win/beats.wav');
+    expect(script).toMatch(/playStinger\(d\.envelope\.result === 'success' \? MUSIC\.victory : d\.envelope\.result === 'fail' \? MUSIC\.defeat : null\)/);
+    expect(script.indexOf('playStinger(d.envelope')).toBeGreaterThan(script.indexOf('K.travel(SCHEMA, state, LEVELS'));
+    expect(script).toContain('if (stingerOn) return;');
+  });
+
+  it('the play shell carries them only when declared', () => {
+    const play = normalizeGameManifest({ ...GAME, shell: 'play' });
+    const levels = LEVELS.map((l) => ({ ...l }));
+    expect(emitPlayShell(play, levels)).not.toContain('"stingers"');
+    const html = emitPlayShell(play, levels, { stingers: STINGERS });
+    expect(html).toContain('"stingers":{"victory":"/api/sketches/sk_win/beats.wav","defeat":"/api/sketches/sk_lose/beats.wav"}');
   });
 });
 

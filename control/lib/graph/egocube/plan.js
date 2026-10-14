@@ -17,7 +17,7 @@
  * from the sheet. The hero door gets the cast, a tune for the build, the western expression channels, the gesture,
  * the hair and the swatches. Pure and deterministic: the same sheet, the same call.
  */
-import { readDerive } from './channels.js';
+import { readDerive, dialKey } from './channels.js';
 import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
@@ -318,8 +318,15 @@ const WAVE = Object.freeze({ straight: 0.6, wavy: 1.2, curly: 1.5, coily: 1.6 })
 function hero(sheet) {
   const f = sheet.facets, d = Object.values(sheet.derives).flat();
   const tune = { ...BUILD_TUNE[f.build] };
-  for (const x of d.map(readDerive).filter((r) => r.family === 'tune')) tune[x.key] = r3(clamp((tune[x.key] ?? 1) + (x.dir === '+' ? 0.06 : -0.06), 0.85, 1.15));
+  // a thread node's growth (thread.js) is lowered as amounts below, never as a step per dial over the adult cast
+  const grown = sheet.growth ?? null, fromGrowth = new Set(grown?.keys ?? []);
+  for (const x of d.map(readDerive).filter((r) => r.family === 'tune' && !fromGrowth.has(dialKey(r)))) tune[x.key] = r3(clamp((tune[x.key] ?? 1) + (x.dir === '+' ? 0.06 : -0.06), 0.85, 1.15));
   if (f.age === 'elder') tune.stature = r3((tune.stature ?? 1) * 0.97);
+  // a youth is its share of adult height, its head larger for that height (the child wears the child build instead)
+  if (grown?.stature && f.age !== 'child') {
+    tune.stature = r3(clamp((tune.stature ?? 1) * grown.stature, 0.85, 1.15));
+    tune.head = r3(clamp((tune.head ?? 1) * (grown.head / grown.stature), 0.85, 1.15));
+  }
   const expression = {};
   for (const x of d.map(readDerive).filter((r) => r.family === 'expression')) {
     const [lo, hi] = CHANNEL_RANGES[x.key], mid = x.key === 'aperture' ? 1 : 0;
@@ -329,7 +336,8 @@ function hero(sheet) {
   const texture = (sheet.notes.hair || []).map((n) => n.line.match(/^(straight|wavy|curly|coily) hair$/)?.[1]).find(Boolean) || 'straight';
   const style = HAIR_STYLE[f.pole][f.order < 1 / 3 ? 'bound' : f.order > 2 / 3 ? 'free' : 'mid'];
   const spec = {
-    cast: f.age === 'child' ? 'child' : f.pole,
+    // a child is its pole's child build (a child's radii on her or his own landmarks); the bare 'child' word kept adult radii and the male head
+    cast: f.age === 'child' ? { pole: f.pole, build: 'child' } : f.pole,
     ...(Object.keys(tune).length ? { tune } : {}),
     ...(Object.keys(expression).length ? { expression } : {}),
     ...(gesture && gesture !== 'rest' ? { gesture } : {}),
@@ -351,6 +359,8 @@ function ledgerOf(sheet, door, built) {
   const rows = [];
   for (const [ch, notes] of Object.entries(sheet.notes)) for (const n of notes) {
     let at = (door === 'creature' ? CREATURE_AT : HERO_AT)[ch];
+    // a designed dress lands where it is worn: the creature's outfit, the hero's outfit build (its cut and its pieces)
+    if (built.outfit && (ch === 'dress' || ch === 'silhouette')) at = door === 'creature' ? (ch === 'dress' ? 'plan.outfit' : 'the form and plan.outfit') : (ch === 'dress' ? 'spec.outfit (the cut and its pieces)' : 'spec.tune, spec.outfit.pieces');
     let pending = at ? null : door === 'hero' && ['cover', 'ornament'].includes(ch) ? 'the hero grammar has no pass for it' : ch === 'wear' ? 'no wear dials yet' : 'no landing in this door yet';
     if (door === 'creature') {
       if (ch === 'cover' && !built.cover.tiles.length) { at = null; pending = 'no cover hint for this people'; }
@@ -414,7 +424,8 @@ export function planFromSheet(sheet, { title, dress } = {}) {
   }
   const built = hero(sheet);
   // a person, dressed by the same principles: the cut as the hero's outfit build, in place of the stock clothed body
-  if (dress === 'designed') { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
+  // (the designed dress replaces the stock clothed body and the archer's kit a role was given: its pieces are its own)
+  if (dress === 'designed') { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, adorn: _a, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
   return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
 }
 

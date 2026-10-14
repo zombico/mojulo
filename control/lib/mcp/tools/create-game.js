@@ -39,10 +39,44 @@ import { getSfxVocabCatalog } from '@/lib/graph/game/sfx-cards/loader';
 import { getHudVocabCatalog } from '@/lib/graph/game/hud-cards/loader';
 import { getIdiomVocabCatalog } from '@/lib/graph/game/idiom-cards/loader';
 import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscape/ui/cards';
+import { suggestScore, levelScoreContext, sceneStyle } from '@/lib/graph/beats/score-suggest';
+import { seedOfRef } from '@/lib/graph/beats/field-cue';
+
+// The field score each level calls for (beats/score-suggest.js), for the levels with no soundtrack of their own, and
+// their action sounds ('auto') where they have none: one
+// identity across the game (its ref seeds `game`), each level's own ref its cue's seed. Advice: create_game never
+// writes a level; the reply carries the update_sketch call that does.
+function suggestLevelMusic(levelRefs, gameRef) {
+  const game = seedOfRef(gameRef);
+  const out = [];
+  // the row's title stands in for a manifest that carries none (its place words often live there)
+  const rows = levelRefs.map((ref) => { const row = SketchRepository.getByRef(ref), m = row?.manifest; return m ? { ref, m, ctx: { ...m, title: m.title ?? row.title } } : null; });
+  // one style for the game (one score): electronic when most of its levels read so (score-suggest sceneStyle)
+  const club = rows.filter((r) => r && sceneStyle(levelScoreContext(r.ctx)) === 'club').length * 2 > rows.filter(Boolean).length;
+  const style = club ? 'club' : 'field';
+  rows.forEach((r, i) => {
+    if (!r || r.m.audio?.soundtrack) return;
+    const { ref, m } = r;
+    const s = suggestScore({ ...levelScoreContext(r.ctx, { final: levelRefs.length > 1 && i === levelRefs.length - 1 }), style });
+    if (!s) return;
+    // and its action sounds, when it has none: the palette the score implies, wired to its mechanics (sfx-palettes.js)
+    // a fight level plays its scene's music and changes to the fight's when the tension rises (adaptive-music.js)
+    const score = (mood) => ({ score: { mood, ...(club ? { style } : {}), game } });
+    const audio = { ...(m.audio && typeof m.audio === 'object' ? m.audio : {}), soundtrack: score(s.explore ?? s.mood), ...(s.explore ? { combat: score(s.mood) } : {}), ...(m.audio?.sfx ? {} : { sfx: 'auto' }) };
+    out.push({ level: ref, mood: s.mood, why: s.why, also: s.also, brief: s.brief, apply: { ref, patch: [{ op: 'set', path: '/audio', value: audio }] } });
+  });
+  return out.length ? {
+    style,
+    suggest: out,
+    how: "each level's `apply` is an update_sketch call (its score, and sfx 'auto' where it has no sounds); the shared `game` seed keeps one score identity across the levels. "
+      + "Name another mood in score.mood to override, and cast its instruments for the brief's feeling in score.cast "
+      + "(one cast on every level keeps one sound). Manuals: get_beats_vocab({ id: 'beats-world-audio' }), get_beats_vocab({ id: 'beats-casting' }).",
+  } : null;
+}
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
-export async function mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -58,11 +92,11 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   if (projectRef !== null && projectRef !== undefined) {
     if (typeof projectRef !== 'string' || !projectRef) throw new Error('`project_ref` must be a non-empty gp_ ref if provided');
     if (!GameProjectRepository.getByRef(projectRef)) {
-      throw new Error(`Game project '${projectRef}' not found — create_game_project first, or list_game_projects to find it`);
+      throw new Error(`Game project '${projectRef}' not found (game projects are retired: leave project_ref out, or name one made before)`);
     }
   }
 
-  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}) };
+  const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
 
@@ -119,6 +153,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     project = { ref: projectRef, url: `/games/${encodeURIComponent(projectRef)}` };
   }
 
+  const levelMusic = suggestLevelMusic(finalized.levels.map((l) => l.ref), sketch.ref);
   return {
     ok: true,
     ref: sketch.ref,
@@ -127,6 +162,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     playtestUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/playtest`,
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
+    ...(levelMusic ? { music: levelMusic } : {}),
     ...(project ? { project } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
   };
@@ -136,9 +172,9 @@ export async function createGameHandler(input) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  const { title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, front, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   try {
-    return await mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    return await mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
   } catch (err) {
     if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the store-schema manuals.
@@ -276,9 +312,10 @@ export function registerGameTools() {
         },
         shell: { type: 'string', enum: ['play'], description: 'The light shell: no menu, music, setup, difficulty.' },
         run: { type: 'object', description: 'Runs (light shell): { length }: each run draws that many levels in a rolled order; a death ends it.' },
+        front: { type: 'object', description: "The light shell's title and credits: { cover?: <cover ref> | { art }, layout?, tagline?, press?, menu?: [continue|play|levels|options|credits], credits?: { roll: [{ role, names }], thanks? }, end? }. get_game_vocab({ id: 'front' })." },
         ref: { type: 'string', description: 'Optional stable sketch ref for the game.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-        project_ref: { type: 'string', description: 'Optional game-project ref (gp_… from create_game_project): binds the minted game as that project\'s ACTIVE rules member, so it appears in the /games/<ref> studio and its arcade cabinet carries the project chip. Levels/music are not copied — they surface as implied members.' },
+        project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the game to.' },
         audits: {
           type: 'object',
           description: "Completability evidence per level: { <levelRef>: { motion_ref } }. motion_ref is a forge_motion TRAVERSAL of that level (world_ref = the level) whose run reached the win condition — its final probe carries game.result:'success'. The gate verifies the stored probe. A level with no audit is refused unless allow_unaudited.",

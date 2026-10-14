@@ -4,6 +4,9 @@
  * Serves Outcome Artifact folders from control/data/outcomes/<cook_ref>/.
  * Bare URL /outcomes/<cook_ref>/ resolves to index.html. Any other path under
  * the same prefix is served as the file at that location (svg/png/json/md).
+ * A folder with no index.html of its own (a building's sheets, a game's
+ * export) is drawn as a listing of what is in it (lib/outcomes-listing.js),
+ * so every link to a folder opens.
  *
  * Strictly static — no React, no app shell. The file on disk IS the artifact;
  * this route just streams bytes with the right content-type.
@@ -18,6 +21,26 @@ import path from 'node:path';
 import { NextResponse } from 'next/server';
 
 import { outcomeDirFor } from '@/lib/outcomes-paths';
+import { folderListingHtml } from '@/lib/outcomes-listing';
+
+/** The folder at `dir`, drawn as a page; null when it is not a folder. */
+async function listing(dir, ref, sub) {
+  let entries;
+  try { entries = await fs.readdir(dir, { withFileTypes: true }); } catch { return null; }
+  const rows = [];
+  for (const e of entries) {
+    if (!SAFE_SEGMENT.test(e.name)) continue;
+    if (e.isDirectory()) rows.push({ name: e.name, dir: true });
+    else if (e.isFile()) {
+      const st = await fs.stat(path.join(dir, e.name)).catch(() => null);
+      rows.push({ name: e.name, dir: false, bytes: st?.size });
+    }
+  }
+  return new NextResponse(folderListingHtml({ ref, sub, entries: rows }), {
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'private, max-age=0, must-revalidate' },
+  });
+}
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/;
 
@@ -37,6 +60,20 @@ const CONTENT_TYPES = {
   '.3mf': 'application/vnd.ms-package.3dmanufacturing-3dmodel+xml',
   '.usdz': 'model/vnd.usdz+zip',
   '.usda': 'model/vnd.usda',
+  // what a game export's pages load, and a building's schedules and IFC
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.csv': 'text/csv; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.wav': 'audio/wav',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.woff2': 'font/woff2',
+  '.ifc': 'application/x-step',
 };
 
 function contentTypeFor(filename) {
@@ -85,6 +122,11 @@ export async function GET(request, { params }) {
   try {
     stat = await fs.stat(resolved);
   } catch (err) {
+    // the bare folder with no index.html of its own: what is in it
+    if (err.code === 'ENOENT' && rest.length === 0) {
+      const page = await listing(dir, cookRef, []);
+      if (page) return page;
+    }
     if (err.code === 'ENOENT') {
       return NextResponse.json(
         { error: `outcome not found: ${cookRef}${rest.length ? `/${rest.join('/')}` : ''}` },
@@ -92,6 +134,15 @@ export async function GET(request, { params }) {
       );
     }
     throw err;
+  }
+
+  // a folder inside the outcome: its own index.html when it has one, else what is in it
+  if (stat.isDirectory()) {
+    const index = path.join(resolved, 'index.html');
+    if (await fs.stat(index).then((st) => st.isFile(), () => false)) {
+      return new NextResponse(await fs.readFile(index), { status: 200, headers: { 'content-type': CONTENT_TYPES['.html'], 'cache-control': 'private, max-age=0, must-revalidate' } });
+    }
+    return listing(resolved, cookRef, rest);
   }
 
   const range = isVideo ? request.headers.get('range') : null;

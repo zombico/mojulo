@@ -9,6 +9,7 @@ process.env.SQLITE_PATH = ':memory:';
 import { describe, it, expect } from 'vitest';
 import { createFigureHandler, emoteFigureHandler } from './figure';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
+import { WALK_MINT } from '@/lib/graph/polygonizer/figure-posing';
 
 describe('create_figure motion transport parse (D1)', () => {
   it('accepts a JSON-stringified keyframe motion object (the M3 blocker)', async () => {
@@ -32,10 +33,10 @@ describe('create_figure motion transport parse (D1)', () => {
     expect(SketchRepository.getByRef('d1-emote').manifest.motion).toEqual({ emote: 'nod', intensity: 1.2 });
   });
 
-  it('still accepts a plain motion NAME string (not JSON)', async () => {
+  it('still accepts a plain motion NAME string (not JSON), stored by value as the walk is minted now', async () => {
     const out = await createFigureHandler({ title: 'Walker', ref: 'd1-walk', motion: 'walk', animate: false });
     expect(out.ok).toBe(true);
-    expect(SketchRepository.getByRef('d1-walk').manifest.motion).toBe('walk');
+    expect(SketchRepository.getByRef('d1-walk').manifest.motion).toEqual({ walk: { ...WALK_MINT } });
   });
 
   it('leaves a malformed JSON-looking string as a string → validator rejects it', async () => {

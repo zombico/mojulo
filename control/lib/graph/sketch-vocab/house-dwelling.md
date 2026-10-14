@@ -64,6 +64,8 @@ entry cut as the front door (with no `doors`, one is auto-cut on the south wall)
 and a painted swath per wall), `wallMaterial: 'plaster'` (`null` keeps flat paint), a ceiling in
 the walk tier only (`ceilings: false` removes it), and `floorTexture: 'auto'` (oak grain on
 boards, carrara on marble; `null` keeps the flat finish). Explicit `windows` / `floorStyle` /
+A new house also rolls its doors, windows, floor patterns per room kind, wall treatment and wallpaper with its style
+(`finishes: 'auto'`): the knobs and their tables are in `get_sketch_vocab({ id: 'house-finishes' })`.
 `entryDoor` / `furnishScale` / door `entry: false` still win; multi-cell and generated plans keep
 the opt-in posture.
 

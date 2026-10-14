@@ -63,6 +63,7 @@ export const TOOL_LINES = {
   fabricate_solid: L('compose', 'Make an object buildable: what each part must do → standard parts, a bill of materials and the cuts or joints that take them. Plan, then mint.'),
   verify_machina: L('observe', 'A checked feasibility verdict for a materials-handling problem: can this mechanism move this load within these limits?'),
   get_solid_vocab: L('orient', 'A `mint_solid` kind or `edit_solid` op manual (long ones open to `sections`). Omit `id` to list; find one with `semantic_search` kind solid_vocab.'),
+  design_interior: L('create', 'One room of a house fitted out: its jobs solved into furniture at true size, a named style, clearances kept; pieces by id. Revise: `design_interior` with `ref`.'),
   mint_building: L('create', 'A walkable house, apartment, room, store, restaurant, mall, office or school with its structure book, or as a game level; `next` names what is open by outcome and its card. Revise: `update_sketch`.'),
 
   // ── worlds ────────────────────────────────────────────────────────────────
@@ -81,11 +82,6 @@ export const TOOL_LINES = {
   bake_sprite_sheet: L('update', 'Quantize accepted sprite frames into pixel sprites under one palette, written back onto the sheet.'),
   get_game_vocab: L('orient', 'The GAME drawer: `gameworld-guide` and the page cards first, then store slices, level mechanics, kits, glyphs, sfx, hud. `samples` to browse a page.'),
   get_play_vocab: L('orient', 'The PLAY drawer: make a world interactive (a door, a lever, a HUD, a level) through a `play` block set with `update_sketch`.'),
-  create_game_project: L('maintain', "A game project: one home tying a game's rules, levels, characters, audio and art together, at `/games/<ref>`."),
-  get_game_project: L('maintain', 'One project in full: members by role, the active rules and play URL, level promotion, implied members.'),
-  update_game_project: L('maintain', 'Rename a project, revise its charter, or move its status (active → shipped → archived). Members: `bind_to_game_project`.'),
-  bind_to_game_project: L('maintain', 'Add or remove typed members (rules, level, character, audio, graphic, animation, reference) of a project.'),
-  list_game_projects: L('maintain', 'Every game project: title, status, member counts, playable.'),
   export_game: L('maintain', 'A stored game as a self-contained folder (game.html, levels, score, recipes, README); the sibling of `export_model` and `export_beats`.'),
 
   // ── read: pictures, diagrams, study views ─────────────────────────────────
@@ -120,6 +116,8 @@ export const TOOL_LINES = {
   forge_motion: L('observe', 'Put a subject in motion: camera moves, a slideshow deck, a world flythrough or a recorded traversal run. Decks read a stash `gather`ed in order.'),
   stitch_motion: L('compose', 'Join forged `forge_motion` clips end to end into one MP4 film.'),
   get_motion_vocab: L('orient', 'A `forge_motion` / `stitch_motion` family manual (camera, deck, effect, world, stitch).'),
+  create_shoot_plan: L('create', 'Cameras as visible objects in a world, keyed in After Effects terms, with a cut list; a key may follow a car or walker.'),
+  update_shoot_plan: L('update', 'Edit a shoot plan op by op: keys by time, Easy Ease and hold, retime, lens, one- ↔ two-node, shots.'),
 
   // ── workflows: catalysts, workers, connected MCPs ─────────────────────────
   recommend_catalysts: L('orient', 'The workflow shelf with what each needs and what it gives. The entry for "what can I automate?"; then `get_catalyst`.'),

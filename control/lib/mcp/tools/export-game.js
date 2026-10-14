@@ -489,7 +489,28 @@ export async function exportGameHandler(input, context = {}) {
     shellMenu = await repointShots(shellMenu);
   }
 
-  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu }));
+  // front.cover (the light shell's title backdrop): a cover sketch's composite is written to assets/cover.png, a bound
+  // /outcomes/… image is copied; the shell's copy points at the folder path, the recipe keeps the ref or the URL
+  let frontArt = resolved.frontArt;
+  if (frontArt) {
+    const fc = norm.front.cover;
+    if (typeof fc === 'string') {
+      // loaded here, not at boot: the compositor needs sharp, which the stdio boot never loads
+      const { compositeCoverForSketch } = await import('@/lib/graph/image-outcomes/cover-compositor');
+      await write('assets/cover.png', await compositeCoverForSketch(getSketch(fc)));
+      frontArt = { ...frontArt, src: 'assets/cover.png' };
+    } else {
+      const m = frontArt.src.match(/^\/outcomes\/([^/]+)\/(.+)$/);
+      if (m) {
+        const srcAbs = path.join(outcomeDirFor(decodeURIComponent(m[1])), decodeURIComponent(m[2]));
+        const rel = `assets/front-art${path.extname(srcAbs) || '.png'}`;
+        await write(rel, await fs.readFile(srcAbs));
+        frontArt = { ...frontArt, src: rel };
+      }
+    }
+  }
+
+  await write('game.html', emitShellFor(resolved, { manifest: shellManifest, menu: shellMenu, frontArt }));
   await writeRecipe('recipe/game.json', norm);
 
   // levels — the ?walk=1&hud=0&download=1 bake, one page per level, figure bank hoisted shared.
@@ -522,10 +543,13 @@ export async function exportGameHandler(input, context = {}) {
     await writeRecipe(`recipe/${en.ref}.json`, menuSketch.manifest);
   }
 
-  // music — the shell's score as offline WAV renders (default opts match the served beats.wav)
-  const beatsRefs = [...new Set([norm.music?.menu, norm.music?.about, ...(norm.music?.battle || [])].filter(Boolean))];
+  // music — the shell's score as offline WAV renders, looped like the served beats.wav?loop=1 (game-resolve.js)
+  const stingers = new Set([norm.music?.victory, norm.music?.defeat].filter(Boolean));
+  const beatsRefs = [...new Set([norm.music?.menu, norm.music?.about, ...(norm.music?.battle || []), ...stingers].filter(Boolean))];
   for (const br of beatsRefs) {
-    const rendered = await renderBeatsOffline(getSketch(br).manifest, {});
+    const m = getSketch(br).manifest;
+    // a stinger plays once (and an sfx is a one-shot): rendered whole, no loop fold
+    const rendered = await renderBeatsOffline(m, m.kind === 'beats-sfx' || stingers.has(br) ? {} : { loop: true });
     await write(BEATS_SRC(br), rendered.wav);
   }
 

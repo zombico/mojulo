@@ -275,6 +275,17 @@ export const HERO_BUILDS = deepFreeze({
   chibi: { child: true, body: { chest: 0.62, chestDepth: 0.68, waist: 0.74, hip: 0.7, arm: 0.6, thigh: 0.66, calf: 0.62, neck: 0.6 }, headScale: 1.3 },
 });
 export const HERO_BUILD_NAMES = Object.freeze(Object.keys(HERO_BUILDS));
+/**
+ * The HERO LAWS a hero is minted under: the tables its newer words are read through on every render, which a later
+ * retune after an eyes gate would otherwise move under rows already minted. Covered: the builds (HERO_BUILDS), the
+ * tiered form's face and hair (tiered-form.js TIERED_FACE*), the painterly soft edge (station-loft-shade.js
+ * PAINTERLY_SOFT) and the geocube's cast light (era/cast-light.js CAST_LIGHT). A hero using any of them is stamped
+ * `laws` at mint, as armour, outfit and statue builds are; an absent stamp reads as laws 1, the tables as they stand,
+ * so a row minted before the stamp keeps them. A retune adds laws 2 beside them, never in place.
+ */
+export const HERO_LAWS_VERSION = 1;
+/** Does this spec read a table the hero laws cover? */
+export const readsHeroLaws = (spec) => spec.form === 'tiered' || (spec.painterly !== undefined && spec.painterly !== null && spec.painterly !== false) || isBuiltCast(spec.cast) || (spec.geocube !== undefined && spec.geocube !== null);
 /** a cast in the build form: an object naming `pole` or `build` (a figure-cast dial map has neither key) */
 export const isBuiltCast = (cast) => !!cast && typeof cast === 'object' && !Array.isArray(cast) && ('pole' in cast || 'build' in cast);
 /** the hero pole a cast stands on: the word itself, the build form's `pole` (male unless named), else the cast as given */
@@ -374,7 +385,8 @@ export const WAVE_TWIST = Object.freeze({ anime: Object.freeze([-90, -90, -90, -
 export const withWaveHand = (keys, twists) => keys.map((k, i) => (i && twists[i - 1] != null ? { ...k, wristR: { twist: twists[i - 1] }, fingersR: 'open' } : k));
 
 // ─── The tune ─────────────────────────────────────────────────────────────
-// the thirteen body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses),
+// the body controls by group (a group word is an aggregate over its keys; `arms` over the two arm thicknesses, so the
+// arms' LENGTH is `armLength`, as the legs' is `legs`),
 // the lab's exploration limits (comfortable, not a wall) and its three MOVES. A move earns a slot by demonstrated need,
 // never by list; do not quote this list's length. One resolver with the face (ratio-controls.js).
 export const HERO_MOVES = Object.freeze({
@@ -384,16 +396,21 @@ export const HERO_MOVES = Object.freeze({
 });
 export const TUNE = ratioControls({
   label: 'tune',
-  groups: { scale: ['stature'], lengths: ['torso', 'neck', 'legs'], widths: ['shoulders', 'waist', 'hips', 'depth'], head: ['head'], limbs: ['upperArm', 'forearm', 'thigh', 'calf'] },
+  groups: { scale: ['stature'], lengths: ['torso', 'neck', 'legs', 'armLength'], widths: ['shoulders', 'waist', 'hips', 'depth'], head: ['head'], limbs: ['upperArm', 'forearm', 'thigh', 'calf'] },
   aggregates: { arms: ['upperArm', 'forearm'] },
   moves: HERO_MOVES,
-  ranges: { stature: [0.85, 1.15], torso: [0.85, 1.15], neck: [0.85, 1.15], legs: [0.85, 1.15], head: [0.85, 1.15],
+  ranges: { stature: [0.85, 1.15], torso: [0.85, 1.15], neck: [0.85, 1.15], legs: [0.85, 1.15], armLength: [0.8, 1.15], head: [0.85, 1.15],
     shoulders: [0.8, 1.25], waist: [0.8, 1.2], hips: [0.85, 1.2], depth: [0.85, 1.2],
     upperArm: [0.65, 1.5], forearm: [0.65, 1.5], thigh: [0.65, 1.5], calf: [0.65, 1.5] },
 });
-export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, DEFAULT: TUNE_DEFAULT, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
+export const { GROUPS: TUNE_GROUPS, KEYS: TUNE_KEYS, AGGREGATE_KEYS: TUNE_AGGREGATE_KEYS, RANGES: TUNE_RANGES, MOVE_NAMES: HERO_MOVE_NAMES } = TUNE;
 /** Resolve a tune spec to every TUNE_KEYS ratio, plus `from` when a move named it (see ratio-controls.js). */
 export const resolveTune = TUNE.resolve;
+/** The controls that came after heroes were stored: a stored tune carries one only when it is moved off 1, so a hero
+ * that never names it keeps its record byte for byte (the record seeds the face's tracks: anime-face-tracks faceSeed) */
+export const SPARSE_TUNE_KEYS = Object.freeze(['armLength']);
+/** a resolved tune as a hero record stores it: every control at its value but the sparse ones at 1 */
+export const storedTune = (tune) => Object.fromEntries(Object.entries(tune).filter(([k, v]) => !(SPARSE_TUNE_KEYS.includes(k) && v === 1)));
 /** Error strings for a tune spec (empty = valid). */
 export const validateTune = (spec, label = 'tune') => TUNE.validate(spec, label);
 /** Advisory: the resolved keys outside the lab's comfortable range. Never a refusal. */
@@ -439,7 +456,7 @@ export function heroPlan({ cast = 'canonical', register = 'round', girth = 1, he
   // the tune's lengths and shoulders multiply the cast's own dials (a unit ratio leaves the dial exactly as cast)
   const { from: _castFrom, ...castDials } = resolveCast(preset ? preset.dials : cast);
   const tuneDial = (k, f) => { if (f !== 1) castDials[k] = castDials[k] * f; };
-  tuneDial('lumbar', TN.torso); tuneDial('thoracic', TN.torso); tuneDial('neck', TN.neck); tuneDial('thigh', TN.legs); tuneDial('shank', TN.legs); tuneDial('shoulderSpan', TN.shoulders);
+  tuneDial('lumbar', TN.torso); tuneDial('thoracic', TN.torso); tuneDial('neck', TN.neck); tuneDial('thigh', TN.legs); tuneDial('shank', TN.legs); tuneDial('upperArm', TN.armLength); tuneDial('forearm', TN.armLength); tuneDial('shoulderSpan', TN.shoulders);
   const m = withMath(dmath, () => castArmature(castDials));   // the shared figure cast, on dmath (util/math-scope.js)
   const g0 = girth * (preset?.girth ?? 1);
   for (const k of Object.keys(body)) if (!(k in BODY_DEFAULTS) || !(Number.isFinite(body[k]) && (k === 'bust' ? body[k] >= 0 : body[k] > 0))) throw new Error(`hero.plan: body.${k} is not a body control (have ${Object.keys(BODY_DEFAULTS).join(', ')}) or not a positive number`);

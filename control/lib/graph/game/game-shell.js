@@ -406,7 +406,7 @@ const MENU = ${JSON.stringify(menu)};   // resolved menu entries (Start → Menu
 const LEVELS_ENTRY = MENU && MENU.find((en) => en.kind === 'levels');
 const LEVEL_BY_REF = {};   // ref → level entry, so a menu 'mode' resolves its variant refs to launchable levels
 for (const l of LEVELS) LEVEL_BY_REF[l.ref] = l;
-const MUSIC = ${JSON.stringify(music)};   // resolved score { menu: src|null, about: src|null, battle: [src,…] } or null
+const MUSIC = ${JSON.stringify(music)};   // resolved score { menu: src|null, about: src|null, battle: [src,…], victory: src|null, defeat: src|null } or null
 const SETUP = ${JSON.stringify(setup)};   // resolved per-slice setup presentation (hangar/count) or null
 const THEME = ${JSON.stringify(themeForLevel)};   // the style tokens every level receives on game-init (presentation sidecar) or null
 // the DIFFICULTY pick (manifest.difficulty): engine ai-tuning tiers named in the game's own
@@ -475,8 +475,26 @@ function playSrc(src, loop) {
   else if (entry) entry.promise.then((url) => { if (url) apply(url); });
 }
 function stopMusic() { wantSrc = null; if (musicEl) musicEl.pause(); }
+// outcome STINGERS (music.victory / music.defeat): one pass on their own element when a level ends; the score waits
+// under them and comes back when they end. A new level, or music switched off, cuts one short.
+let stingerEl = null, stingerOn = false;
+function stopStinger() { stingerOn = false; if (stingerEl) stingerEl.pause(); }
+function playStinger(src) {
+  if (!src || !musicOn) return;
+  stopMusic();
+  if (!stingerEl) { stingerEl = new Audio(); stingerEl.addEventListener('ended', () => { stingerOn = false; syncMusic(); }); }
+  stingerOn = true;
+  const entry = prefetchTrack(src);
+  const go = (url) => {
+    if (!url || !stingerOn) return;
+    stingerEl.src = url; stingerEl.loop = false; stingerEl.volume = musicVolFor(src);
+    stingerEl.play().catch(() => { stingerOn = false; syncMusic(); });
+  };
+  if (entry.url) go(entry.url); else entry.promise.then(go);
+}
 function syncMusic() {
-  if (!MUSIC || !musicOn) { stopMusic(); return; }
+  if (!MUSIC || !musicOn) { stopStinger(); stopMusic(); return; }
+  if (stingerOn) return;   // the stinger holds the score until it ends
   if (screen === 'world') { stopMusic(); return; }   // the viewed world carries its own score
   if (screen === 'level') {
     // battle music waits out the 5s post-begin delay (battleReady) — silence under the combat SFX until then.
@@ -490,6 +508,7 @@ function syncMusic() {
 if (MUSIC && MUSIC.menu) prefetchTrack(MUSIC.menu);   // start the menu render at boot
 function setScreen(s) {
   if (s !== 'level') { clearTimeout(battleTimer); battleReady = false; }
+  else stopStinger();
   screen = s; syncMusic(); syncMenuBtn();
   // menu.setupArt: the post-menu screens swap to the working-bay backdrop (see artCss)
   const sa = MANIFEST.menu && MANIFEST.menu.setupArt;
@@ -1396,6 +1415,7 @@ function renderSetup(lv, opts) {
   setScreen('setup');
   // the player is seconds from a battle — start rendering the track that will play first.
   if (MUSIC && MUSIC.battle && MUSIC.battle.length) prefetchTrack(battleTrack());
+  if (MUSIC) { if (MUSIC.victory) prefetchTrack(MUSIC.victory); if (MUSIC.defeat) prefetchTrack(MUSIC.defeat); }   // warm the stingers
   // a MODE may carry several map VARIANTS (identical picks, different world). variants[0] drives the
   // consumes render; a >1 set gets the map-select step and Start launches the selected variant. A
   // plain level (the flat-list path) is a single implicit variant, so the map step never shows.
@@ -1705,6 +1725,8 @@ ${manifest.links && manifest.links.length ? `  if (d.moj === ${JSON.stringify(MS
       startLevel(next, (next.contract.consumes || []).map((c) => ({ c })), undefined, from);
       return;
     }
+    // the level is over (not travelled through): its stinger, the score waiting under it
+    if (MUSIC) playStinger(d.envelope.result === 'success' ? MUSIC.victory : d.envelope.result === 'fail' ? MUSIC.defeat : null);
     const stats = d.envelope.stats;
     if (stats && Array.isArray(stats.rows) && stats.rows.length) {
       // linger on the in-world result tableau (banner + final topple), then the score screen.

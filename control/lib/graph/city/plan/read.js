@@ -72,6 +72,22 @@ export function openCityConcerns(m, read) {
 /** The readout's `next`: each open step once. */
 export const cityNextSteps = (m, read) => openCityConcerns(m, read).map((c) => ({ id: c.id, outcome: c.outcome, ...(c.export ? { call: c.export } : {}), add: c.field, card: c.card }));
 
+// the concerns a law measures, and the law: open, they advise; a law that holds only by a waiver is waived
+const CONCERN_LAW = { 'landmark-fits': 'landmark-fits', crossings: 'crossing-every', beats: 'beat-every', 'transit-reach': 'transit-reach', 'transit-on-street': 'transit-on-street' };
+// a concern that is closed before it arises (a level per segment waits on the segments) is given only once it is there
+const GIVEN_BY = { levels: (m) => !!(m.segments && m.segments.levels) };
+
+/** Every concern the city can reach, open or given, for the rail (lib/graph/rail): { id, outcome, tab, card, state }.
+ *  `state` is 'open' (a field would add it), 'advised' (a law finds something), 'given', or 'waived' (its law holds
+ *  only by the recipe's waiver). A call (create_game) is a step, never a state, so it is left out. */
+export function cityConcernStates(m, read) {
+  return CONCERNS.filter((c) => !c.export).map((c) => {
+    const law = CONCERN_LAW[c.id] && lawOf(read, CONCERN_LAW[c.id]);
+    const state = c.when(m, read) ? (law ? 'advised' : 'open') : GIVEN_BY[c.id] && !GIVEN_BY[c.id](m) ? 'open' : law?.waived > 0 ? 'waived' : 'given';
+    return { id: c.id, outcome: c.outcome, tab: c.tab, card: CITY_CARD, state };
+  }).sort((a, b) => ORDER.get(a.outcome) - ORDER.get(b.outcome));
+}
+
 /** A city recipe read whole: the design and its summary. `design` is kept for the book and the scene; the summary is
  *  what a reply carries. */
 export function readCity(m) {

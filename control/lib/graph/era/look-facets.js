@@ -22,7 +22,7 @@ export const FACETS = Object.freeze({
   palette: { keys: ['palette', 'lock', 'tint'], read: 'the colours: every ramp, shadow to light, and which group is locked to which' },
   grammar: { keys: ['tiles', 'cel', 'cliffCelR', 'hat', 'lip', 'trailBlend', 'contact', 'ground', 'pole'], read: 'how it is drawn: the stops a tile paints from, where light turns to shade, hats and fringes, and the pole (banded, or every surface its material under light) and the ground on it' },
   geology: { keys: ['landform', 'cliff', 'slope', 'lumps', 'rubble', 'boulder'], read: 'the rock: the landform, its cliff\'s beds and joints, rubble and boulders' },
-  flora: { keys: ['grass', 'trees', 'live', 'glow'], read: 'what grows: grass, trees, the live grass, what glows' },
+  flora: { keys: ['grass', 'trees', 'live', 'shrubs', 'glow'], read: 'what grows: grass, trees, the live grass, the shrubs, what glows' },
   sky: { keys: ['light', 'sun', 'cumulus', 'night', 'companion'], read: 'the light and the sky: the key, the sun, the clouds, a night, a world hanging in the day' },
   air: { keys: ['air', 'layers'], read: 'depth: the haze and the far layers' },
   water: { keys: ['water'], read: 'how water is painted' },
@@ -30,7 +30,7 @@ export const FACETS = Object.freeze({
 export const FACET_IDS = Object.freeze(Object.keys(FACETS));
 const FACET_OF = Object.fromEntries(FACET_IDS.flatMap((f) => FACETS[f].keys.map((k) => [k, f])));
 // the order a card's keys are written in (the meadow's), the facets' and the frame's alike
-const ORDER = ['id', 'references', 'principles', 'palette', 'tiles', 'cel', 'cliffCelR', 'lock', 'tint', 'site', 'focus', 'trailBlend', 'trail', 'lumps', 'cliff', 'slope', 'landform', 'rubble', 'boulder', 'hat', 'lip', 'grass', 'trees', 'live', 'contact', 'light', 'air', 'sun', 'cumulus', 'layers', 'night', 'glow', 'water', 'companion', 'pole', 'ground'];
+const ORDER = ['id', 'references', 'principles', 'palette', 'tiles', 'cel', 'cliffCelR', 'lock', 'tint', 'site', 'focus', 'trailBlend', 'trail', 'lumps', 'cliff', 'slope', 'landform', 'rubble', 'boulder', 'hat', 'lip', 'grass', 'trees', 'live', 'shrubs', 'contact', 'light', 'air', 'sun', 'cumulus', 'layers', 'night', 'glow', 'water', 'companion', 'pole', 'ground'];
 
 /** A card read as its facets and its frame. */
 export function decompileKit(card) {

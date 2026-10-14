@@ -89,7 +89,7 @@ async function heroFigure(name, spec) {
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
-    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (a layered sketch minted through the hero door)`);
+    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (make one with create_character { as: 'hero' }; a creature or an animal is not a pilot yet)`);
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
@@ -623,9 +623,10 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // `figure-rig` body (station-loft-rig.js packLayeredRig: the same keys and blend as every rig body), without
         // the static solid or the clip preview. `clips` names which of the hero's clips plays each runtime state
         // ({ forward: 'run', idle: 'idleRelaxed', leap: 'leap' }): the body plays the hero's own clip under the
-        // runtime's name. `library` names an outside animation library (figures/library: Quaternius's CC0 one ships) whose
-        // clips fill the states the hero has no clip for, retargeted onto its rig. Absent ⇒ no hero is resolved,
-        // byte-identical.
+        // runtime's name. `library` names an outside animation library (figures/library: Quaternius's CC0 one ships)
+        // whose clips, retargeted onto its rig, play the states `clips` hands to them (playerStates, when the world was
+        // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
+        // no hero is resolved, byte-identical.
         if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
           payload.figures[name] = await heroFigure(name, rawSpec);
           continue;
@@ -1046,7 +1047,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // A kind may name its own defaults first (`desc.audio(manifest) → audio spec`: the historic kind's
   // `soundtrack: 'default'` is its culture's period music); a kind without one reads the manifest's as written.
   if (payload && sketch.manifest.audio && typeof sketch.manifest.audio === 'object') {
-    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref });
+    const mechanics = Array.isArray(sketch.manifest.game?.mechanics) ? sketch.manifest.game.mechanics.map((m) => m && m.kind).filter(Boolean) : [];
+    const resolvedAudio = resolveWorldAudio(desc.audio ? desc.audio(sketch.manifest) : sketch.manifest.audio, { time, ref: sketch.ref, mechanics });
     if (resolvedAudio) payload.audio = resolvedAudio;
   }
 
@@ -1121,6 +1123,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { worldMarks } = await import('@/lib/graph/strength/world-marks');
     const marks = worldMarks(payload, manifest, { mmPerUnit: (payload.metersPerUnit ?? 1) * 1000 });
     if (marks.length) payload.marks = marks;
+  }
+
+  // generic, opt-in SHOOT PLAN (lib/graph/shoot/): cameras keyed in After Effects terms and a cut list, drawn by the
+  // World page as objects (frustum, point of interest, motion path, a dot per frame). Not a face, so no mesh export
+  // carries it; renderers read the plan itself. A key may follow something that moves on a schedule (a walker, a car,
+  // a mover), read off this payload. Absent, or nothing readable ⇒ payload untouched.
+  if (payload && manifest.shoot && typeof manifest.shoot === 'object') {
+    const { normalizeShoot, lowerShoot } = await import('@/lib/graph/shoot/plan');
+    const { shootSubjects, worldIsLive } = await import('@/lib/graph/shoot/subjects');
+    const subjects = shootSubjects(payload);
+    const { plan } = normalizeShoot(manifest.shoot, { subjects });
+    // a live world (entities, physics) plays as it goes: the page runs the plan on its clock instead of rewinding it
+    if (plan) payload.shoot = lowerShoot(plan, { subjects, live: worldIsLive(payload) });
   }
 
   return { payload, kind };

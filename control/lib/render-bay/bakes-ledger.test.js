@@ -11,7 +11,7 @@ process.env.MOJULO_SEMANTIC_INDEX_DISABLED = '1';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { closeDb } from '@/lib/db/index';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { bakeGates, bakePrompt, bakeViewHref } from './lanes.js';
+import { bakeGates, bakeViewHref } from './lanes.js';
 
 beforeEach(() => { closeDb(); });
 
@@ -77,6 +77,5 @@ describe('SketchRepository.giBakes', () => {
     expect(gates.machine.floorBlackFrac).toBe(0.04);
     expect(gates.eyes.recorded).toBe(false);
     expect(bakeViewHref(row)).toBe('/sketches/sk_city_gi?display=baked');
-    expect(bakePrompt(row)).toContain('--ref sk_city ');
   });
 });

@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Peta Layanan",
-    "back": "Kembali"
-  },
-  "actions": {
-    "start": "Mulai"
-  },
   "settings": {
     "title": "Pengaturan",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Aplikasi",
-    "subtitle": "Aplikasi yang telah dimateralisasi oleh agen melalui paradigma Aplikasi. Siklus hidup, variabel env, dan introspeksi MCP langsung — dibaca dari contextmap dan runner lokal.",
-    "loading": "Memuat…",
-    "refresh": "Segarkan",
-    "empty": "Belum ada aplikasi — minta agen Claude Code Anda untuk mengatur salah satu.",
-    "backToList": "Kembali ke Aplikasi",
-    "notFound": "Aplikasi tidak ditemukan.",
-    "openPreview": "Buka pratinjau",
-    "openMcp": "Buka MCP",
-    "actions": {
-      "start": "Mulai",
-      "stop": "Hentikan",
-      "starting": "Memulai…",
-      "stopping": "Menghentikan…"
-    },
-    "status": {
-      "running": "Berjalan",
-      "stopped": "Dihentikan",
-      "crashed": "Crash",
-      "unknown": "Tidak diketahui"
-    },
-    "table": {
-      "headers": {
-        "name": "Nama",
-        "materialized": "Dimateralisasi",
-        "runner": "Runner",
-        "status": "Status",
-        "actions": "Tindakan"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Peta penciptaan aplikasi ini — setiap panggilan alat yang mewujudkannya, sebagai stasiun pada satu jalur."
-      },
-      "metadata": "Metadata",
-      "artifactPath": "Jalur Artefak",
-      "materializationRef": "Ref materisalisasi",
-      "adapter": "Adaptor",
-      "appName": "Nama aplikasi",
-      "host": "Host",
-      "materializedAt": "Dimateralisasi di",
-      "viewGraph": "Lihat grafik",
-      "bindings": "Ikatan",
-      "binding": {
-        "runner": "Runner",
-        "durability": "Daya tahan",
-        "inference": "Inferensi",
-        "mcpSelf": "MCP self"
-      },
-      "mcpPanel": {
-        "title": "App MCP",
-        "url": "URL MCP",
-        "offline": "MCP offline — jalankan aplikasi untuk melihat daftar toolnya.",
-        "loading": "Memuat alat…",
-        "error": "Tidak dapat menjangkau app MCP: {error}",
-        "registeredTools": "Alat terdaftar",
-        "noTools": "Tidak ada alat terdaftar.",
-        "declaredPurpose": "Tujuan yang dideklarasikan"
-      },
-      "envPanel": {
-        "title": "Variabel lingkungan",
-        "explainer": "Nilai ditulis langsung ke file .env artefak. Mereka tidak dicatat, tidak disimpan di database control-plane, dan tidak digemakan kembali ke tampilan ini.",
-        "addKey": "Kunci",
-        "addValue": "Nilai",
-        "add": "Tambahkan",
-        "delete": "Hapus",
-        "deleteConfirm": "Hapus variabel env \"{key}\"?",
-        "noKeys": "Belum ada variabel env yang ditetapkan.",
-        "valueHidden": "•••••",
-        "edit": "Edit",
-        "save": "Simpan",
-        "cancel": "Batal",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "nilai"
-      },
-      "provenance": {
-        "title": "Asal usul",
-        "subtitle": "Prinsip yang terpasang pada commit materisalisasi aplikasi ini.",
-        "none": "Tidak ada prinsip yang dicatat."
-      }
-    }
-  },
-  "graph": {
-    "title": "Peta Pembuatan Aplikasi",
-    "subtitle": "Bagaimana aplikasi berkumpul. Setiap kotak adalah sebuah potongan; setiap panah menunjukkan apa yang menyebabkan apa.",
-    "subtitleTechnical": "Bagaimana aplikasi disusun dalam paradigma mojulo. Stasiun adalah potongannya; garis adalah alat MCP yang menggabungkannya. Divalidasi terhadap registri MCP langsung dan skema contextmap pada setiap penyegaran.",
-    "technicalToggle": "Teknis",
-    "loading": "Memuat…",
-    "refresh": "Segarkan",
-    "overlay": {
-      "appCount": "{count, plural, =0 {Belum ada aplikasi yang dibuat} =1 {1 aplikasi dibuat} other {# aplikasi dibuat}}",
-      "lastMaterialized": "Yang terakhir dibuat",
-      "viewApps": "Lihat aplikasi yang berjalan"
-    },
-    "validation": {
-      "ok": "Semuanya masih terbukti.",
-      "okTechnical": "Manifest valid: {tools} alat, {nodeKinds} jenis node, {edgeKinds} jenis edge, {sourceEvents} acara sumber semua diselesaikan.",
-      "failed": "{count, plural, =1 {1 hal di peta tidak lagi sesuai dengan kenyataan} other {# hal di peta tidak lagi sesuai dengan kenyataan}}"
-    },
-    "legend": {
-      "input": "Apa yang Anda putuskan",
-      "inputTechnical": "Masukan",
-      "mcpTool": "Alat yang dipanggil agen",
-      "mcpToolTechnical": "Alat MCP",
-      "filesystem": "File di disk",
-      "filesystemTechnical": "Sistem file",
-      "dbRow": "Entri dalam memori",
-      "dbRowTechnical": "Baris DB"
-    }
-  },
   "login": {
     "subtitle": "Masuk untuk melanjutkan",
     "username": "Nama pengguna",
@@ -178,7 +60,6 @@
     "title": "Rencana",
     "subtitle": "Pekerjaan yang diusulkan — sesi yang menjadi spike. Dibuat dan dijalankan dari agen host Anda.",
     "navLabel": "Rencana",
-    "newPlan": "Rencana Baru",
     "total": "{count} rencana",
     "count": "{count} rencana",
     "filteredCount": "{count} dari {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Belum dieksekusi.",
     "stepOk": "ok",
     "stepFailed": "gagal",
-    "newPlanTitle": "Rencana Baru",
-    "newPlanIntro": "Rencana dibuat di agen host Anda (Claude Code / Codex). Jelaskan maksud, salin prompt pemula, dan tempel ke sesi agen baru — agen memasuki mode rencana dan menjalankan pekerjaan. Halaman ini diperbarui saat rencana dibuat dan direvisi.",
-    "intentLabel": "Apa yang ingin Anda rencanakan? (opsional)",
-    "intentPlaceholder": "mis. runtime trigger webhook untuk komposer",
-    "promptLabel": "Prompt pemula",
-    "copyPrompt": "Salin prompt",
-    "copied": "Disalin",
     "close": "Tutup"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Potongan kode",
     "kindSketch": "Sketsa",
     "viewSketch": "Lihat diagram",
-    "composerHeading": "Tambahkan ke buku catatan",
-    "composerStub": "Pratinjau saja — pengikatan terjadi melalui agen host Anda untuk sekarang.",
-    "composerPlaceholder": "Tempel tautan, lepaskan file, atau tulis catatan…",
-    "newBook": "Buku baru",
-    "newBookTitle": "Buku penelitian baru",
-    "newBookIntro": "Buku dimulai di agen host Anda (Claude Code / Codex). Jelaskan topik, salin prompt pemula, dan tempel ke sesi agen baru — agen memasuki mode penelitian dan menjalankan pekerjaan. Halaman ini diperbarui saat buku terakumulasi.",
-    "intentLabel": "Apa yang ingin Anda teliti? (opsional)",
-    "intentPlaceholder": "mis. bagaimana orang lain menerowong server MCP lokal",
-    "promptLabel": "Prompt pemula",
-    "copyPrompt": "Salin prompt",
-    "copied": "Disalin",
     "close": "Tutup"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "Rumah Workshop",
     "groups": {
-      "ideate": "Ideate",
-      "operate": "Operate",
-      "studio": "Studio"
+      "make": "Buat",
+      "media": "Media",
+      "play": "Mainkan",
+      "ideate": "Ideate"
     },
     "drawer": {
       "open": "Buka navigasi",
       "close": "Tutup navigasi"
     },
     "tiles": {
-      "mcpSkills": "Layanan Terhubung",
-      "apps": "Aplikasi",
-      "sketch": "Sketsa",
       "plan": "Rencana",
       "outputs": "Output",
       "research": "Penelitian",
       "stash": "Gudang",
-      "illustrations": "Ilustrasi",
       "worlds": "Dunia",
       "objects": "Objek",
       "motion": "Gerak",
       "beats": "Ketukan",
       "voice": "Suara",
-      "games": "Pengembang Game",
-      "arcade": "Arcade",
-      "settings": "Pengaturan",
       "library": "Perpustakaan",
       "renderBay": "Bilik Render",
-      "dashboard": "Dashboard"
+      "dashboard": "Dashboard",
+      "places": "Tempat",
+      "characters": "Karakter",
+      "images": "Gambar",
+      "play": "Mainkan",
+      "elements": "Elemen"
     },
     "agentStatus": {
       "liveLabel": "Langsung",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "Dashboard",
       "open": "Buka lantai →"
-    },
-    "ask": {
-      "title": "Minta agen",
-      "body": "Pembuatan terjadi di agen MCP Anda."
     }
-  },
-  "breadcrumbs": {
-    "home": "Beranda"
   },
   "sketches": {
     "notFoundTitle": "Sketsa tidak ditemukan",
@@ -398,10 +253,6 @@
     "refresh": "segarkan",
     "statusOpen": "buka",
     "statusResolved": "diselesaikan @ rev {rev}",
-    "annotateHint": "Tanda ditulis dari agen Anda (annotate_beats — jangkar ke bar, trek, atau isyarat); panel ini merender mereka. Salin prompt revisi untuk memiliki agen menanda atau bertindak di atasnya.",
-    "copyRevisionPrompt": "Salin prompt revisi",
-    "copied": "Disalin ✓",
-    "copyFailed": "Tidak dapat disalin ke papan klip.",
     "exportWav": "Ekspor .wav",
     "exportMidi": "Ekspor .mid",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "Pengembang Game",
-    "gallerySubtitle": "Satu proyek per game — aturan, level, karakter, audio, dan seni-nya dalam satu rak.",
-    "galleryEmpty": "Belum ada proyek game. Jalankan create_game_project dari agen host Anda untuk memulai.",
-    "copyStarterPrompt": "Salin prompt pemula",
     "loading": "Memuat proyek…",
-    "noMembersYet": "Belum ada anggota",
     "notFound": "Proyek itu tidak ada — mungkin sudah diarsipkan atau ref-nya salah.",
     "backToProjects": "Kembali ke Pengembang Game",
-    "copyWorkPrompt": "Salin prompt kerja",
-    "copyAddPrompt": "tambahkan",
-    "copyMintPrompt": "cetak game",
-    "copied": "Disalin",
-    "playable": "Dapat dimainkan",
     "missing": "Hilang",
     "missingBody": "Artefak anggota ini sudah tidak ada. Proyek tetap menyimpan slotnya; ikat ulang atau hapus dari agen host Anda.",
     "noRules": "Belum ada game yang dicetak — proyek masih pra-produksi.",
@@ -468,13 +310,6 @@
     "emptyFolder": "Belum ada apa-apa di sini."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Game mandiri yang dapat dimainkan, dicetak dari workshop. Pilih kabinet dan mainkan.",
-    "loading": "Memuat kabinet…",
-    "emptyState": "Belum ada game di lantai. Jalankan create_game dari agen host Anda untuk mencetak kabinet pertama.",
-    "copyStarterPrompt": "Salin prompt pemula",
-    "copied": "Disalin",
-    "play": "Mainkan",
     "levelCount": "{count, plural, other {# level}}",
     "shipped": "Dirilis"
   },
@@ -484,7 +319,7 @@
     "subtitle": "Setiap artefak yang telah dicetak agen — adegan, model, karakter, material, gambar, diagram. Satu rak per cara memandang; penyimpanan resep yang sama di baliknya.",
     "shelves": {
       "recent": "Terbaru",
-      "scenes": "Dunia",
+      "scenes": "Adegan",
       "turntables": "Meja putar",
       "models": "Model",
       "views": "Tampilan",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Pembuat Mojulo",
-      "subtitle": "Studio: ilustrasi, dunia yang bisa dijelajahi, objek 3D, gerak, beat, suara, dan hasil akhir. Permukaan kreatif yang disetel, saudara dari Sketches (disetel untuk diagram). Setiap bagian adalah primitif sketsa yang sama — simpan, rujuk, dan diff dengan cara apa pun."
-    },
     "beats": {
       "title": "Ketukan",
       "subtitle": "Soundtrack, komposisi, dan efek suara sintetis — pilih satu dan tekan putar. Tulis yang baru dari agen Anda melalui create_beats."
@@ -546,11 +377,7 @@
       "tuned": "Disetel (resep tidak berubah)",
       "reset": "setel ulang",
       "playingAt": "Sampel pada kepercayaan {c} / kedalaman {d}",
-      "noSamples": "Belum ada sampel yang dirender — salin perintah bicara dan buat agen Anda mengikat beberapa titik (tepi disertakan).",
-      "copyBlend": "Salin blend",
-      "copyCommand": "Salin perintah bicara",
-      "copyPrompt": "Salin prompt pemula",
-      "copied": "Tersalin!",
+      "noSamples": "Belum ada sampel yang dirender.",
       "loading": "Memuat register suara…",
       "empty": "Belum ada register suara. Minta agen Anda untuk membuat satu dengan create_voice.",
       "unresolvable": "Register ini tidak lagi diselesaikan — banknya mungkin telah berubah. Buat ulang melalui create_voice."
@@ -602,10 +429,6 @@
     "kindNovel": "Novela",
     "kindVisualGuide": "Panduan visual",
     "kindUnknown": "Tidak diketahui",
-    "actions": {
-      "archive": "Arsip",
-      "unarchive": "Buka arsip"
-    },
     "sourceLabel": "Dari",
     "sourceUnknown": "(gudang dihapus)",
     "lensLabel": "Lensa",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "Gudang",
-    "subtitle": "Ember yang dapat diubah nama dari materi yang diketik yang telah dikumpulkan agen. Dibuat melalui alat MCP mint_stash.",
+    "subtitle": "Wadah materi bertipe yang telah dikumpulkan agen.",
     "total": "{count, plural, =0 {Tidak ada gudang} =1 {1 gudang} other {# gudang}}",
     "count": "{count, plural, =0 {Tidak ada kecocokan} =1 {1 gudang} other {# gudang}}",
     "filteredCount": "{count} dari {total} ditampilkan",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {tidak ada laci} =1 {1 laci} other {# laci}}",
     "createdAt": "Dibuat {timestamp}",
     "updatedAt": "Diperbarui {timestamp}",
-    "actions": {
-      "rename": "Ubah nama",
-      "edit": "Edit",
-      "archive": "Arsip",
-      "unarchive": "Buka arsip",
-      "save": "Simpan",
-      "cancel": "Batal",
-      "titleEmpty": "Judul tidak dapat kosong",
-      "renameFailed": "Pengubahan nama gagal",
-      "statusChangeFailed": "Tidak dapat mengubah status"
-    },
     "detail": {
       "loading": "Memuat gudang…",
       "notFoundTitle": "Gudang tidak ditemukan",
@@ -673,66 +485,7 @@
         "sketch": "Sketsa"
       },
       "sketchFailed": "Sketsa gagal dimuat.",
-      "openSketch": "Buka sketsa",
-      "newDrawer": "Laci baru",
-      "newDrawerPlaceholder": "Nama laci",
-      "drawerSaveError": "Tidak dapat menyimpan laci",
-      "drawerRenameError": "Tidak dapat mengubah nama laci",
-      "renameDrawerLabel": "Ubah nama laci",
-      "moveError": "Tidak dapat memindahkan item",
-      "archive": "Arsip",
-      "archiveError": "Tidak dapat mengarsipkan item",
-      "archiveWarning": "Item ini muncul di {cookCount, plural, =1 {1 masakan} other {# masakan}}. Kutipan diselesaikan ke konten yang diarsipkan. Lanjutkan?",
-      "archiveProceed": "Arsipkan bagaimanapun",
-      "archiveCancel": "Batal",
-      "addItem": "+ Tambah",
-      "agentTypesFooter": "Skrip dan penunjuk peta konteks ditambahkan oleh agen Anda.",
-      "picker": {
-        "text": "Blok teks baru",
-        "image": "Unggah gambar",
-        "svg": "Tambahkan SVG",
-        "link": "Tempel tautan",
-        "sketch": "Pilih sketsa"
-      },
-      "panel": {
-        "save": "Simpan",
-        "cancel": "Batal",
-        "saving": "Menyimpan…",
-        "saveError": "Tidak dapat disimpan",
-        "titleLabel": "Judul (opsional)",
-        "titlePlaceholder": "Label pendek",
-        "sourceUrlLabel": "URL sumber (opsional)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Teks biasa",
-        "bodyLabel": "Isi",
-        "bodyPlaceholder": "Ketik atau tempel…",
-        "preview": "Pratinjau",
-        "previewEmpty": "Ketik untuk pratinjau.",
-        "tooLong": "Konten melebihi batas karakter {limit, number}.",
-        "imagePick": "Pilih gambar",
-        "imageDrop": "atau lepaskan file di sini",
-        "imageTooLarge": "Gambar melebihi batas {limit, number} MB.",
-        "imageBadMime": "Bukan file gambar ({mime}).",
-        "imageBadDimensions": "Tidak dapat membaca dimensi gambar.",
-        "altLabel": "Teks alt (opsional)",
-        "altPlaceholder": "Apa yang ada di gambar?",
-        "svgPaste": "Tempel SVG",
-        "svgUpload": "atau unggah .svg",
-        "svgBadShape": "Isi SVG harus dimulai dengan <?xml atau <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL tidak dapat diurai.",
-        "urlTitleRequired": "Judul diperlukan untuk item tautan.",
-        "descriptionLabel": "Deskripsi (opsional)",
-        "descriptionPlaceholder": "Mengapa ini penting…",
-        "sketchSearchPlaceholder": "Cari sketsa…",
-        "sketchEmpty": "Belum ada sketsa. Minta agen Anda untuk membuat satu dengan create_sketch.",
-        "sketchNoMatch": "Tidak ada sketsa yang cocok dengan pencarian ini.",
-        "sketchPicked": "Dipilih"
-      }
+      "openSketch": "Buka sketsa"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "Unduh PNG",
     "invalidManifest": "Rendrant tidak dapat mem-parse sketsa ini.",
     "frameFailed": "Tampilan ini gagal dimuat.",
-    "renameLabel": "Ubah nama sketsa",
-    "renamePlaceholder": "Judul sketsa",
-    "renameSave": "Simpan",
-    "renameSaveNew": "Simpan sebagai sketsa baru",
-    "renameCancel": "Batal",
-    "renameEmpty": "Judul tidak dapat kosong",
     "associationTags": {
       "plan": "Rencana",
       "research": "Penelitian"
@@ -771,45 +518,21 @@
       "selectPrompt": "Pilih trek di sebelah kiri untuk diputar.",
       "invalidManifest": "Resep ini tidak dapat diuraikan.",
       "openNewTab": "Buka Studio",
-      "renameLabel": "Ubah nama trek",
-      "renamePlaceholder": "Judul trek",
-      "renameSaveNew": "Simpan sebagai trek baru",
       "exportWav": "Ekspor .wav",
       "exportMidi": "Ekspor .mid"
     },
     "folder": {
-      "newFolderButton": "Folder baru",
-      "newFolderTitle": "Folder baru",
-      "namePlaceholder": "Nama folder",
       "create": "Buat",
       "cancel": "Batal",
-      "rename": "Ubah nama folder",
-      "renameSave": "Simpan",
       "delete": "Hapus folder",
-      "deleteConfirm": "Hapus folder ini? Sketsa di dalamnya akan kembali ke root.",
       "rootCrumb": "Semua sketsa",
       "back": "Kembali",
       "sketchCount": "{count, plural, =0 {kosong} =1 {1 sketsa} other {# sketsa}}",
       "foldersHeader": "Folder",
       "rootHeader": "Sketsa",
-      "inFolderHint": "Sketsa baru yang Anda buat saat melihat folder ini akan mendarat di sini secara otomatis.",
-      "emptyFolder": "Folder ini kosong. Buat sketsa atau pindahkan satu di sini dari root.",
+      "emptyFolder": "Folder ini kosong.",
       "moveSourceFolder": "Di {name}",
       "moveSourceRoot": "Di root"
-    },
-    "select": {
-      "enter": "Select",
-      "exit": "Selesai",
-      "count": "{count, plural, =0 {Tidak ada yang dipilih} =1 {1 dipilih} other {# dipilih}}",
-      "moveTo": "Pindahkan ke…",
-      "moveToRoot": "Pindahkan ke root",
-      "moveSuccess": "{count, plural, =1 {1 sketsa dipindahkan} other {# sketsa dipindahkan}}",
-      "moveError": "Pemindahan gagal: {error}",
-      "selectAll": "Pilih semua",
-      "clear": "Clear",
-      "delete": "Hapus",
-      "deleteConfirm": "{count, plural, =1 {Hapus 1 sketsa?} other {Hapus # sketsa?}} Ini tidak dapat dibatalkan.",
-      "deleteError": "Penghapusan gagal: {error}"
     },
     "viewToggle": {
       "split": "Tampilan terpisah",
@@ -820,72 +543,6 @@
       "move": "Pindahkan",
       "delete": "Hapus",
       "deleteOneConfirm": "Hapus \"{title}\"? Ini tidak dapat dibatalkan."
-    }
-  },
-  "map": {
-    "title": "Peta",
-    "subtitle": "Seluruh armada di dua bidang — aplikasi di tanah, server MCP dan layanan terhubung di udara, dengan pengkabelan layanan-ke-MCP.",
-    "loading": "Memuat…",
-    "refresh": "Segarkan",
-    "error": "Gagal memuat peta armada",
-    "empty": "Tidak ada apa pun di peta — scaffold aplikasi atau deklarasikan inventori MCP Anda.",
-    "counts": {
-      "apps": "Aplikasi",
-      "servers": "Server MCP",
-      "services": "Layanan terhubung"
-    },
-    "legend": {
-      "air": "Udara",
-      "ground": "Tanah",
-      "servers": "Server MCP",
-      "services": "Layanan terhubung",
-      "apps": "Aplikasi"
-    }
-  },
-  "mcpSkills": {
-    "title": "Layanan Terhubung",
-    "subtitle": "Layanan terhubung: keterampilan host dan alur kerja MCP-orbit yang diwujudkan, ditampilkan terhadap server MCP yang mereka panggil.",
-    "loading": "Memuat...",
-    "refresh": "Segarkan",
-    "error": "Gagal memuat layanan terhubung",
-    "empty": "Belum ada layanan terhubung. Deklarasikan keterampilan host atau wujudkan komposisi MCP-orbit.",
-    "backToList": "Kembali ke Layanan Terhubung",
-    "backToService": "Kembali ke layanan terhubung",
-    "notFound": "Layanan terhubung tidak ditemukan.",
-    "viewGraph": "Lihat grafik",
-    "present": "Hadir",
-    "missing": "Hilang",
-    "counts": {
-      "servers": "Server MCP",
-      "services": "Layanan terhubung"
-    },
-    "table": {
-      "name": "Nama",
-      "form": "Formulir",
-      "calls": "Panggilan",
-      "updated": "Diperbarui"
-    },
-    "forms": {
-      "catalyst": "Keterampilan katalis",
-      "manual": "Keterampilan manual",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "name": "Nama",
-      "ref": "Ref",
-      "kind": "Jenis",
-      "form": "Formulir",
-      "updated": "Diperbarui",
-      "hostPath": "Jalur host",
-      "catalyst": "Katalis",
-      "composition": "Komposisi",
-      "calls": "Panggilan",
-      "noCalls": "Tidak ada panggilan MCP yang dideklarasikan.",
-      "needs": "Kebutuhan",
-      "components": "Komponen",
-      "knobs": "Tombol",
-      "graphSubtitle": "Berasal dari cermin Layanan Terhubung, komposisi yang diwujudkan, dan inventori MCP saat ini."
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "Bilik Render",
     "subtitle": "Semua yang sedang diproduksi mojulo, dalam satu tempat: antrean render gambar yang tahan lama, panggangan GI, serta cook dan ekspor di disk. Empat cara mengatakan \"sesuatu sedang dibuat\" yang dulu tidak punya rumah bersama.",
-    "readOnly": "Bilik ini merender state. Setiap aksi di sini adalah prompt untuk disalin ke agen Anda — menerima render, memanggang ulang dunia, dan mencetak ekspor semuanya terjadi melalui alat MCP, tidak pernah melalui halaman ini.",
     "refresh": "Segarkan",
     "loading": "Memuat…",
     "allLanes": "Semua jalur",
-    "copyPrompt": "Salin prompt",
-    "copied": "Disalin",
-    "copyFailed": "Gagal menyalin — pilih teksnya dan salin secara manual",
     "showing": "menampilkan {shown} dari {total}",
     "queue": {
       "title": "Antrean render",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "Buka artefak →",
-    "copied": "Disalin",
-    "copyFailed": "Gagal menyalin — pilih teksnya dan salin secara manual",
     "shelves": "Perpustakaan",
     "bays": "Workshop",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "jumlah segitiga: export_model"
     },
     "inspector": {
-      "askTitle": "Minta agen",
-      "askBody": "Dashboard merender state; ia tidak pernah mengubahnya. Mengubah resep ini terjadi di agen host Anda.",
-      "askCopy": "Salin prompt",
       "bound": "Artefak terikat",
       "boundEmpty": "Belum ada yang terikat — tidak ada render, mesh, atau ekspor di disk untuk resep ini.",
       "openFolder": "Buka folder outcome · {size}",
@@ -1110,8 +758,6 @@
     "empty": "Tidak ada yang cocok dengan faset atau pencarian ini.",
     "emptyShelf": "Belum ada yang dicetak ke {shelf}.",
     "emptyShelfHint": "Minta agen Anda untuk membuat satu — get_sketch_vocab berisi kosakatanya.",
-    "copied": "Disalin",
-    "copyFailed": "Gagal menyalin — pilih secara manual",
     "notExportable": "Tidak ada ekspor mesh — artefak ini dirender sebagai diagram, bukan model yang bisa dijelajahi.",
     "stack": "×{n}",
     "seed": "seed {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "dilukis · pekerja eksternal · resep perancah tetap berdaulat",
-    "mintMissing": "Minta agen: cetak {piece}",
-    "mintPrompt": "Untuk karakter mojulo \"{name}\" (lihat artefak {ref}), cetak {piece} yang hilang. Gunakan alat yang sesuai (create_sprite_sheet / bind_character_sheet / alat figur) — baca get_sketch_vocab lebih dulu.",
     "facets": {
       "scenes": {
         "walkable": "Bisa dijelajahi",

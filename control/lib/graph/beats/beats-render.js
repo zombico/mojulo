@@ -459,19 +459,12 @@ export function masterLoudness(channels, sr, { lufs, peak }) {
 }
 
 // ── loop points (opt-in `loop`) ──────────────────────────────────────────────
-// The loop period is the music up to the next BAR LINE, not the last note's end: a
-// scored composition reads its own clock (meters, tempo map), a plain one counts
-// 4/4 bars, ambient and pattern renders are whole periods already.
+// The loop period is the music up to the next BAR LINE, not the last note's end
+// (the kernel's loopPeriod, the seam the live transport wraps at); ambient and
+// pattern renders are whole periods already.
 export function loopSeconds(manifest, duration) {
   if (manifest.kind !== 'beats-composition') return duration;
-  const eps = 1e-6;
-  if (kernel.scored(manifest)) {
-    const clock = kernel.scoreClock(manifest);
-    for (let n = 1; n < 10000; n++) { const t = clock.sec(clock.bar(n)[0]); if (t >= duration - eps) return t; }
-    return duration;
-  }
-  const bar = kernel.barSeconds(manifest.bpm);
-  return Math.max(1, Math.ceil(duration / bar - eps)) * bar;
+  return kernel.loopPeriod(manifest, duration);
 }
 
 // Fold everything past the period back onto the head (the ring-out the next pass

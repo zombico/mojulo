@@ -741,7 +741,8 @@ main()
 }
 
 /** FILM.md — the operator's page for the film layer. */
-export function filmReadme({ title, worldRef, motionRef, motion, frames, fps, width, height }) {
+export function filmReadme({ title, worldRef, motionRef, motion, frames, fps, width, height, shotFiles = null }) {
+  const shotArgs = shotFiles && shotFiles.length ? shotFiles.map((f) => `--shot ${f}`).join(' ') : '--shot shot.json';
   const cli = `node scripts/export-blender-film.mjs --motion ${motionRef ?? '<mo_…>'}`;
   return `# ${title} — Blender film
 
@@ -762,7 +763,7 @@ lights and art: only the mojulo cameras are replaced.
 ## By hand
 
     <blender> -b --python import_mojulo.py -- --mode run --blend film.blend
-    <blender> -b film.blend --python film_shots.py -- --shot shot.json --verify film-gate.json
+    <blender> -b film.blend --python film_shots.py -- ${shotArgs} --verify film-gate.json
     <blender> -b film.blend --python film_light.py
     <blender> -b film.blend --python film_render.py -- --preset draft
 
@@ -783,9 +784,12 @@ lights and art: only the mojulo cameras are replaced.
 }
 
 /** The film layer's files (no world pack). */
-export function emitBlenderFilm({ shot, title, atmosphere = null }) {
+export function emitBlenderFilm({ shot, shots = null, title, atmosphere = null }) {
+  // a shoot plan: one shot file per plan shot under shots/, laid out in order as cuts (shot.json is the first)
+  const many = Array.isArray(shots) && shots.length > 1 ? shots.map((s, k) => ({ file: `shots/${s.motion_ref || `shot-${k + 1}`}.json`, s })) : null;
   const files = [
     { file: 'shot.json', text: `${JSON.stringify(shot, null, 2)}\n` },
+    ...(many ? many.map(({ file, s }) => ({ file, text: `${JSON.stringify(s, null, 2)}\n` })) : []),
     ...(atmosphere ? [{ file: 'atmosphere.json', text: `${JSON.stringify(atmosphere, null, 2)}\n` }] : []),
     { file: 'film_shots.py', text: filmShotsPy() },
     { file: 'film_light.py', text: filmLightPy() },
@@ -794,7 +798,8 @@ export function emitBlenderFilm({ shot, title, atmosphere = null }) {
       file: 'FILM.md',
       text: filmReadme({
         title: title || shot.title || shot.world_ref, worldRef: shot.world_ref, motionRef: shot.motion_ref,
-        motion: shot.motion, frames: shot.frame_count, fps: shot.fps, width: shot.width, height: shot.height,
+        motion: shot.motion, frames: many ? many.reduce((n, { s }) => n + s.frame_count, 0) : shot.frame_count, fps: shot.fps, width: shot.width, height: shot.height,
+        ...(many ? { shotFiles: many.map(({ file }) => file) } : {}),
       }),
     },
   ];
@@ -805,7 +810,7 @@ export function emitBlenderFilm({ shot, title, atmosphere = null }) {
  * Write a film pack: the world's Blender pack + the film layer, into `outDir` (written in place —
  * the operator's film.blend and renders beside it survive). Returns the pack result + the film files.
  */
-export async function writeBlenderFilm({ outDir, shot, title, base = 'lit', log = () => {} }) {
+export async function writeBlenderFilm({ outDir, shot, shots = null, title, base = 'lit', log = () => {} }) {
   const { buildBlenderPack } = await import('@/lib/graph/scene/blender-pack.js');
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
   const { resolveWorldScene } = await import('@/lib/graph/worlds/world-scene');
@@ -814,8 +819,9 @@ export async function writeBlenderFilm({ outDir, shot, title, base = 'lit', log 
   const sketch = SketchRepository.getByRef(shot.world_ref);
   const { payload } = await resolveWorldScene(sketch, { unshaded: true });
   const atmosphere = filmAtmosphere({ payload, manifest: sketch.manifest || {} });
-  const { files } = emitBlenderFilm({ shot, title, atmosphere });
+  const { files } = emitBlenderFilm({ shot, shots, title, atmosphere });
   const written = [];
+  if (files.some((f) => f.file.startsWith('shots/'))) await fs.mkdir(path.join(outDir, 'shots'), { recursive: true });
   for (const f of files) {
     await fs.writeFile(path.join(outDir, f.file), f.text);
     written.push({ file: f.file, bytes: Buffer.byteLength(f.text) });

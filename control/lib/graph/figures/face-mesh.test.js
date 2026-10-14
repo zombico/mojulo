@@ -132,6 +132,93 @@ describe('faceListToMesh', () => {
     expect(faceListToMesh([ellipse]).vertexCount).toBe(6);
   });
 
+  describe('n-gon faces (more than four corners)', () => {
+    // a regular 12-gon in the y = 0 plane, radius 1 — a wheel's tyre cap
+    const ring = (n, r = 1) => Array.from({ length: n }, (_, i) => [r * Math.cos((2 * Math.PI * i) / n), 0, r * Math.sin((2 * Math.PI * i) / n)]);
+    const area = (P) => { let s = 0; for (let i = 0; i < P.length; i += 9) {
+      const u = [P[i + 3] - P[i], P[i + 4] - P[i + 1], P[i + 5] - P[i + 2]], v = [P[i + 6] - P[i], P[i + 7] - P[i + 1], P[i + 8] - P[i + 2]];
+      s += Math.hypot(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]) / 2; } return s; };
+
+    it('fans a 12-gon from corner 0 into ten triangles covering the whole polygon', () => {
+      const c = ring(12);
+      const { positions, vertexCount, center } = faceListToMesh([{ corners: c, fill: '#fff' }]);
+      expect(vertexCount).toBe(30);
+      for (let t = 0; t < 10; t++) {
+        expect(Array.from(positions.slice(t * 9, t * 9 + 3))).toEqual(Array.from(Float32Array.from(c[0])));
+        expect(Array.from(positions.slice(t * 9 + 3, t * 9 + 6))).toEqual(Array.from(Float32Array.from(c[t + 1])));
+        expect(Array.from(positions.slice(t * 9 + 6, t * 9 + 9))).toEqual(Array.from(Float32Array.from(c[t + 2])));
+      }
+      expect(area(positions)).toBeCloseTo(3, 5);   // a regular 12-gon of radius 1 has area 3, not its first quad's
+      center.forEach((x) => expect(x).toBeCloseTo(0, 9));   // every corner counts toward the framing centre
+    });
+
+    it('carries per-corner cornerFills, vao and cornerNormals onto the corner each fan vertex came from', () => {
+      const c = ring(6);
+      const shades = ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#ffffff'];
+      const cornerNormals = c.map((p) => [p[0], 0, p[2]]);
+      const vao = [1, 0.9, 0.8, 0.7, 0.6, 0.5];
+      // outNormal agrees with the winding (−y), so the export path keeps the forward fan
+      const m = faceListToMesh([{ corners: c, fill: '#ffffff', cornerFills: shades, vao, cornerNormals, outNormal: [0, -1, 0] }], { withNormals: true });
+      const tris = [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]];
+      tris.flat().forEach((k, v) => {
+        const want = faceColorLinear({ fill: shades[k] }).map((x) => Math.fround(x * vao[k]));
+        expect(Array.from(m.colors.slice(v * 3, v * 3 + 3))).toEqual(want);
+        expect(Array.from(m.normals.slice(v * 3, v * 3 + 3))).toEqual(Array.from(Float32Array.from(cornerNormals[k])));
+      });
+    });
+
+    it('gives an n-gon corner past a four-entry vao the mean factor, and past a short cornerFills the face fill', () => {
+      const m = faceListToMesh([{ corners: ring(5), fill: '#ffffff', vao: [0.2, 0.4, 0.6, 0.8], cornerFills: ['#000000', '#000000', '#000000', '#000000'] }]);
+      // fan [0,1,2] [0,2,3] [0,3,4]: the last vertex is corner 4 → white × mean(vao) = 0.5
+      expect(Array.from(m.colors.slice(8 * 3, 8 * 3 + 3))).toEqual([0.5, 0.5, 0.5]);
+      expect(Array.from(m.colors.slice(0, 3))).toEqual([0, 0, 0]);
+    });
+
+    it('reverses the whole fan on the export path when the winding opposes the outward normal', () => {
+      const c = ring(8);   // CCW about −y seen this way round: the winding normal is −y
+      const fwd = faceListToMesh([{ corners: c, fill: '#fff', outNormal: [0, -1, 0] }], { withNormals: true });
+      const rev = faceListToMesh([{ corners: c, fill: '#fff', outNormal: [0, 1, 0] }], { withNormals: true });
+      expect(fwd.vertexCount).toBe(18);
+      expect(rev.vertexCount).toBe(18);
+      // the second vertex of the first triangle: corner 1 forward, corner 2 reversed
+      expect(Array.from(fwd.positions.slice(3, 6))).toEqual(Array.from(Float32Array.from(c[1])));
+      expect(Array.from(rev.positions.slice(3, 6))).toEqual(Array.from(Float32Array.from(c[2])));
+      expect(area(rev.positions)).toBeCloseTo(area(fwd.positions), 6);
+    });
+
+    it('fans a textured n-gon that carries a uv for every corner', () => {
+      const c = ring(6);
+      const m = faceListToMesh([{ corners: c, fill: '#fff', texture: 't', uv: c.map((p) => [p[0], p[2]]) }]);
+      expect(m.textureGroups.t.positions.length / 3).toBe(12);
+      expect(m.textureGroups.t.uvs.length / 2).toBe(12);
+    });
+
+    it('ignores clip and radius on an n-gon (they address a quad frame) and draws the polygon whole', () => {
+      const m = faceListToMesh([{ corners: ring(8), fill: '#fff', clip: 'polygon(50% 0%, 100% 100%, 0% 100%)', radius: '50%' }]);
+      expect(m.vertexCount).toBe(18);
+    });
+
+    it('ear-clips a concave n-gon instead of fanning across its hollow', () => {
+      // a C shape in y = 0 whose corner 0 cannot see the inner edge: a fan would cover the slot
+      const C = [[0, 0, 0], [3, 0, 0], [3, 0, 1], [1, 0, 1], [1, 0, 2], [3, 0, 2], [3, 0, 3], [0, 0, 3]];
+      const { positions, vertexCount } = faceListToMesh([{ corners: C, fill: '#fff' }]);
+      expect(vertexCount).toBe(18);
+      expect(area(positions)).toBeCloseTo(7, 6);   // 3×3 minus the 2×1 slot; the fan would sum to more
+      for (let i = 0; i < positions.length; i += 9) {   // no triangle's centroid lands in the slot
+        const cx = (positions[i] + positions[i + 3] + positions[i + 6]) / 3, cz = (positions[i + 2] + positions[i + 5] + positions[i + 8]) / 3;
+        expect(cx > 1 && cz > 1 && cz < 2).toBe(false);
+      }
+    });
+
+    it('de-collides a coincident n-gon twin over its whole footprint', () => {
+      const a = { corners: ring(12), fill: '#111' }, b = { corners: ring(12), fill: '#222' };
+      const out = decollideFaces([a, b]);
+      expect(out[0]).toBe(a);
+      expect(out[1]).not.toBe(b);
+      expect(out[1].corners[0][1]).not.toBe(0);   // lifted off y = 0 along the normal
+    });
+  });
+
   describe('coplanar depth stagger (z-fight de-collision)', () => {
     const plane = () => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill: '#888' });
 

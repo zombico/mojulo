@@ -3,6 +3,7 @@ import { audioFeatures, pagePatches } from '../../beats/beats-features.js';
 import { MSG_AUDIO as GAME_MSG_AUDIO } from '../../game/level-contract.js';
 import { safeJson } from '../emit-util.js';
 import { weatherAudioScript } from '../../beats/weather-audio.js';
+import { buildAdaptive } from '../../beats/adaptive-music.js';
 
 // audio channel (beats.plan.md): synthesized WebAudio presence over the live World — an ambient
 // soundtrack, bus-event SFX stingers, gait/walk footsteps, and wind. Emitted ONLY when the payload
@@ -13,10 +14,14 @@ import { weatherAudioScript } from '../../beats/weather-audio.js';
 // autoplay policy needs a user gesture — the canvas's existing click/pointer-lock entry is the
 // unlock; a small HUD speaker toggles mute after that.
 export function audioChannelScript(audio) {
+  // adaptive music (audio.combat): the scores play on two engines of their own, crossfaded; the first engine keeps the
+  // cues, footsteps and wind at a steady level. Without it every line below is as it was.
+  const combat = !!audio.combat;
+  const musicEng = combat ? '(__engs ? __engs[__music.active] : __beatsEng)' : '__beatsEng';
   return `
 // ---- beats audio channel (opt-in, presentation-only) ----
 const __AUDIO = ${safeJson(audio)};
-const __BEATS_PATCHES = ${safeJson(pagePatches(audio.soundtrack))};
+const __BEATS_PATCHES = ${safeJson(combat ? pagePatches(audio.soundtrack, audio.combat) : pagePatches(audio.soundtrack))};
 const __BEATS = (${emitBeatsKernel(audioFeatures(audio))})();
 let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;
 // one write path for mute × volume (0.9 is the engine's stock master level); suspend keeps
@@ -24,7 +29,8 @@ let __beatsCtx = null, __beatsEng = null, __beatsMuted = false, __beatsVol = 1;
 function __beatsApply() {
   __beatsBtn.textContent = __beatsMuted ? '\\u{1F507}' : '\\u{1F50A}';
   if (!__beatsEng) return;
-  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;
+  __beatsEng.master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;${combat ? `
+  if (__engs && !__switching) __engs[__music.active].master.gain.value = __beatsMuted ? 0 : 0.9 * __beatsVol;` : ''}
   if (__beatsMuted) __beatsCtx.suspend(); else __beatsCtx.resume().catch(() => {});
 }
 function __beatsUnlock() {
@@ -33,14 +39,64 @@ function __beatsUnlock() {
   __beatsEng = __BEATS.createEngine(__beatsCtx);
   if (__AUDIO.soundtrack) {${audio.beat ? `
     __beatT0 = __beatsCtx.currentTime + 0.08;   // the transport's own start (startTransport's t0): the beat clock's zero` : ''}
-    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
+${combat ? `    __engs = { explore: __BEATS.createEngine(__beatsCtx), combat: __BEATS.createEngine(__beatsCtx) };
+    __engs.combat.master.gain.value = 0;
+    __startTrack(__engs.explore, __AUDIO.soundtrack);
+    __musicT0 = __beatsCtx.currentTime + 0.08;   // the explore piece's t0: its bar lines are where a change may land` : `    if (__AUDIO.soundtrack.kind === 'beats-composition') __beatsEng.startComposition(__AUDIO.soundtrack, __BEATS_PATCHES);
     else if (__AUDIO.soundtrack.kind === 'beats-pattern') __beatsEng.startPattern(__AUDIO.soundtrack, __BEATS_PATCHES);
-    else __beatsEng.startAmbient(__AUDIO.soundtrack, __BEATS_PATCHES);
+    else __beatsEng.startAmbient(__AUDIO.soundtrack, __BEATS_PATCHES);`}
   }
   if (__AUDIO.wind) __beatsEng.wind(__AUDIO.wind);
   __beatsApply();   // prefs may have arrived over the sidecar before the unlock gesture
 }
-renderer.domElement.addEventListener('pointerdown', __beatsUnlock);${audio.beat ? `
+renderer.domElement.addEventListener('pointerdown', __beatsUnlock);${audio.tension ? `
+// THE TENSION (adaptive-music.js, the same closure the tests hold): raised by the level's own events off the bus log
+// (like the stingers: the reducer drains reaction-emitted events internally), leaking back toward calm. Read-only.
+const __ADAPT = (${buildAdaptive.toString()})();
+const __TEN = __AUDIO.tension;
+let __tension = 0, __tenLast = null;
+if (typeof __BUS !== 'undefined') {
+  const __tenPE = __BUS.processEvents;
+  __BUS.processEvents = function (state, events) {
+    const n0 = state.log.length, out = __tenPE(state, events);
+    for (let i = n0; i < state.log.length; i++) { const ev = state.log[i]; if (ev && ev.type) __tension = __ADAPT.raise(__tension, ev.type, __TEN.on); }
+    return out;
+  };
+}${combat ? `
+// THE CHANGE: combat comes in when the tension reaches \`enter\`, on the playing piece's next bar line, crossfading over
+// one bar; it goes back once the tension has stayed under \`exit\` for \`hold\` bars. Both pieces share the game's key.
+let __engs = null, __music = { active: 'explore', below: 0 }, __musicT0 = null, __switching = false;
+function __startTrack(eng, r) {
+  if (r.kind === 'beats-composition') eng.startComposition(r, __BEATS_PATCHES);
+  else if (r.kind === 'beats-pattern') eng.startPattern(r, __BEATS_PATCHES);
+  else eng.startAmbient(r, __BEATS_PATCHES);
+}
+function __switchTo(to) {
+  const from = __music.active, outEng = __engs[from], inEng = __engs[to];
+  const bar = __ADAPT.barSeconds(from === 'explore' ? __AUDIO.soundtrack : __AUDIO.combat);
+  const now = __beatsCtx.currentTime, at = __ADAPT.nextBar(now + 0.25, __musicT0, bar);
+  __switching = true;
+  setTimeout(() => {
+    __startTrack(inEng, to === 'explore' ? __AUDIO.soundtrack : __AUDIO.combat);
+    const t = __beatsCtx.currentTime + 0.08, vol = __beatsMuted ? 0 : 0.9 * __beatsVol;   // the new piece's t0: the bar line
+    __musicT0 = t;
+    inEng.master.gain.cancelScheduledValues(t); inEng.master.gain.setValueAtTime(0, t); inEng.master.gain.linearRampToValueAtTime(vol, t + bar);
+    outEng.master.gain.cancelScheduledValues(t); outEng.master.gain.setValueAtTime(outEng.master.gain.value, t); outEng.master.gain.linearRampToValueAtTime(0, t + bar);
+    __music = { active: to, below: 0 };
+    setTimeout(() => { outEng.stop(); __switching = false; }, (bar + 0.2) * 1000);
+  }, Math.max(0, (at - 0.08 - now) * 1000));
+}` : ''}
+(function __tensionLoop() {
+  requestAnimationFrame(__tensionLoop);
+  if (!__beatsCtx || __beatsCtx.state !== 'running') return;
+  const now = __beatsCtx.currentTime, dt = __tenLast === null ? 0 : Math.min(0.25, now - __tenLast);
+  __tenLast = now;
+  __tension = __ADAPT.leak(__tension, dt, __TEN.decay);${combat ? `
+  if (!__engs || __switching || __beatsMuted) return;
+  const next = __ADAPT.decide(__music, __tension, dt, __TEN, __ADAPT.barSeconds(__AUDIO.combat));
+  if (next.to) __switchTo(next.to); else __music = next;` : ''}
+})();
+window.__mojMusic = { get tension() { return __tension; }${combat ? ', get active() { return __music.active; }' : ''} };` : ''}${audio.beat ? `
 // THE BEAT ON THE BUS (audio.beat): the music's own clock says each beat, \`lead\` seconds early (a judging window opens
 // on it), as { type: 'beat', n }. No music playing (not started, muted), no beat: the clock is the AudioContext's.
 let __beatT0 = null, __beatN = 0;
@@ -99,21 +155,31 @@ ${audio.vary ? `// audio.sfx.vary (opt-in): each fired cue is the next variant (
 let __beatsVar = 0;
 function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain, ++__beatsVar); }` : `function __beatsCue(cue, gain) { if (__beatsEng && !__beatsMuted && cue && (gain == null || gain > 0.02)) __beatsEng.playCue(cue, null, null, gain == null ? 1 : gain); }`}
 // bus stingers: observe the drained event stream by wrapping the reducer entry — audio reads the
-// events and never touches state, so bus determinism (hash → replay) is untouched.
+// events and never touches state, so bus determinism (hash → replay) is untouched. Match the
+// state.log DELTA, not the incoming array: the reducer cascades reaction-emitted events
+// (goal:reached, pickup:*, door:*) internally, so only the log holds the whole drained stream.
 if (__AUDIO.on && typeof __BUS !== 'undefined') {
   const __beatsGlob = (str, pat) => {
     if (pat === '*') return true;
     if (pat.indexOf('*') < 0) return String(str) === pat;
     return new RegExp('^' + pat.split('*').map((s) => s.replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&')).join('.*') + '$').test(String(str));
   };
-  const __beatsPE = __BUS.processEvents;
+  const __beatsPE = __BUS.processEvents, __beatsLast = {};
   __BUS.processEvents = function (state, events) {
-    for (const ev of events) {
+    const n0 = state.log.length;
+    const out = __beatsPE(state, events);
+    for (let i = n0; i < state.log.length; i++) {
+      const ev = state.log[i];
+      if (!ev || !ev.type) continue;   // cap/noop markers carry no type
       for (const pat in __AUDIO.on) {
-        if (__beatsGlob(ev.type, pat)) { __beatsCue(__AUDIO.cues && __AUDIO.cues[__AUDIO.on[pat]]); break; }
+        if (!__beatsGlob(ev.type, pat)) continue;
+        // one cue at most every 60 ms: a burst of the same event (ten pickups in one tick) is one sound, not a pile-up
+        const id = __AUDIO.on[pat], now = performance.now();
+        if (!(now - (__beatsLast[id] || -1e9) < 60)) { __beatsLast[id] = now; __beatsCue(__AUDIO.cues && __AUDIO.cues[id]); }
+        break;
       }
     }
-    return __beatsPE(state, events);
+    return out;
   };
 }
 // footsteps: two sources, both read-only. Controllable entities expose gait edges (gaitPhase /
@@ -393,7 +459,7 @@ if (__AUDIO.bindings && __AUDIO.bindings.length) {
     __bindKin.pos = cam; __bindKin.t = now;
     __AUDIO.bindings.forEach((b, i) => {
       let v = null;
-      if (b.source === 'speed') v = __bindKin.speed;
+      ${audio.tension ? "if (b.source === 'tension') v = __tension;\n      else " : ''}if (b.source === 'speed') v = __bindKin.speed;
       else if (b.source === 'proximity') {
         const ref = b.point || __bindEntityPos(b.entity);
         if (ref) v = Math.hypot(cam[0] - ref[0], cam[1] - ref[1], cam[2] - ref[2]);
@@ -406,9 +472,9 @@ if (__AUDIO.bindings && __AUDIO.bindings.length) {
       const out = b.target.range[0] + n * (b.target.range[1] - b.target.range[0]);
       if (__bindLast[i] !== null && Math.abs(out - __bindLast[i]) < 0.002) return;
       __bindLast[i] = out;
-      if (b.target.macro === 'tone') __beatsEng.setTone(b.target.channel, out);
-      else if (b.target.macro === 'level') __beatsEng.setLevel(b.target.channel, out);
-      else __beatsEng.setTranspose(b.target.channel, out);
+      if (b.target.macro === 'tone') ${musicEng}.setTone(b.target.channel, out);
+      else if (b.target.macro === 'level') ${musicEng}.setLevel(b.target.channel, out);
+      else ${musicEng}.setTranspose(b.target.channel, out);
     });
   })();
 }`;

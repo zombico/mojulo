@@ -13,17 +13,17 @@ export const family = {
   },
   joints: {
     neckBase: [0, 0.42, 0.78], neckTop: [0, 0.66, 0.86],
-    shoulder: [0.16, 0.36, 0.72], elbow: [0.17, 0.28, 0.42], carpus: [0.15, 0.33, 0.13], forePaw: [0.15, 0.36, 0.074], foreToe: [0.15, 0.48, 0.064],
-    hip: [0.13, -0.46, 0.70], stifle: [0.16, -0.28, 0.44], hock: [0.15, -0.57, 0.22], hindPaw: [0.15, -0.51, 0.074], hindToe: [0.15, -0.39, 0.064],
+    shoulder: [0.115, 0.36, 0.72], elbow: [0.12, 0.28, 0.42], carpus: [0.11, 0.33, 0.13], forePaw: [0.11, 0.36, 0.074], foreToe: [0.11, 0.48, 0.064],
+    hip: [0.10, -0.46, 0.70], stifle: [0.115, -0.28, 0.44], hock: [0.11, -0.57, 0.22], hindPaw: [0.11, -0.51, 0.074], hindToe: [0.11, -0.39, 0.064],
   },
   // a level trunk: deep chest, a moderate (not wasp) waist, the rump a little lower and narrower than the shoulders
   torso: [
-    { at: [0, -0.64, 0.70], r: [0.11, 0.10] },
-    { at: [0, -0.48, 0.70], r: [0.15, 0.15] },
-    { at: [0, -0.24, 0.70], r: [0.13, 0.155] },
-    { at: [0, 0.02, 0.70], r: [0.15, 0.19] },
-    { at: [0, 0.24, 0.70], r: [0.165, 0.20] },
-    { at: [0, 0.40, 0.70], r: [0.15, 0.19] },
+    { at: [0, -0.64, 0.70], r: [0.09, 0.10] },
+    { at: [0, -0.48, 0.70], r: [0.12, 0.15] },
+    { at: [0, -0.24, 0.70], r: [0.10, 0.155] },
+    { at: [0, 0.02, 0.70], r: [0.12, 0.19] },
+    { at: [0, 0.24, 0.70], r: [0.13, 0.20] },
+    { at: [0, 0.40, 0.70], r: [0.12, 0.19] },
   ],
   torsoCaps: { back: [0, -0.72, 0.70], tip: [0, 0.50, 0.68] },
   neckRA: [0.14, 0.17], neckRB: [0.10, 0.11], neckRMid: [0.12, 0.14],
@@ -32,14 +32,14 @@ export const family = {
   tip: [[0, -0.97, 0.17, 0.035], [0, -1.02, 0.18, 0.055], [0, -1.07, 0.20, 0.04]],
   tipCaps: { back: [0, -0.95, 0.17], tip: [0, -1.10, 0.21] },
   legs: [
-    ['upperArmR', 'shoulder', 'elbow', [0.095, 0.14], [0.065, 0.07], 'Coat', [0.6, 0.5], [0.085, 0.105]],
-    ['foreArmR', 'elbow', 'carpus', [0.065, 0.07], [0.045, 0.047], 'Coat', [0.5, 0.4]],
-    ['pasternR', 'carpus', 'forePaw', 0.046, 0.045, 'Sock', [0.4, 0.4]],
-    ['forePawR', 'forePaw', 'foreToe', [0.08, 0.052], [0.076, 0.04], 'Sock', [0.6, 0.4]],
-    ['thighR', 'hip', 'stifle', [0.12, 0.165], [0.065, 0.07], 'Coat', [0.2, 0.5], [0.10, 0.13]],
-    ['shinR', 'stifle', 'hock', [0.06, 0.07], [0.04, 0.045], 'Coat', [0.5, 0.4]],
-    ['metaR', 'hock', 'hindPaw', 0.042, 0.04, 'Sock', [0.4, 0.4]],
-    ['hindPawR', 'hindPaw', 'hindToe', [0.074, 0.048], [0.07, 0.038], 'Sock', [0.6, 0.4]],
+    ['upperArmR', 'shoulder', 'elbow', [0.075, 0.14], [0.055, 0.07], 'Coat', [0.6, 0.5], [0.07, 0.105]],
+    ['foreArmR', 'elbow', 'carpus', [0.055, 0.07], [0.04, 0.047], 'Coat', [0.5, 0.4]],
+    ['pasternR', 'carpus', 'forePaw', 0.042, 0.042, 'Sock', [0.4, 0.4]],
+    ['forePawR', 'forePaw', 'foreToe', [0.06, 0.048], [0.056, 0.036], 'Sock', [0.6, 0.4]],
+    ['thighR', 'hip', 'stifle', [0.09, 0.165], [0.055, 0.07], 'Coat', [0.2, 0.5], [0.08, 0.13]],
+    ['shinR', 'stifle', 'hock', [0.05, 0.07], [0.036, 0.045], 'Coat', [0.5, 0.4]],
+    ['metaR', 'hock', 'hindPaw', 0.038, 0.038, 'Sock', [0.4, 0.4]],
+    ['hindPawR', 'hindPaw', 'hindToe', [0.056, 0.045], [0.052, 0.034], 'Sock', [0.6, 0.4]],
   ],
   // skull rows: [id, y, top, crown, brow, cheek, jowl, lip, palate] — a domed round braincase, broad cheeks, a short
   // blunt muzzle (rows st3..st6 packed close), a deep chin
@@ -138,8 +138,8 @@ export const species = {
     torsoCaps: { back: [0, -0.86, 0.75], tip: [0, 0.50, 0.60] },
     joints: {
       neckBase: [0, 0.42, 0.70], neckTop: [0, 0.62, 0.78],
-      shoulder: [0.16, 0.34, 0.64], elbow: [0.17, 0.27, 0.37],
-      hip: [0.13, -0.60, 0.77], stifle: [0.16, -0.40, 0.42], hock: [0.15, -0.72, 0.21], hindPaw: [0.15, -0.66, 0.074], hindToe: [0.15, -0.54, 0.064],
+      shoulder: [0.115, 0.34, 0.64], elbow: [0.12, 0.27, 0.37],
+      hip: [0.10, -0.60, 0.77], stifle: [0.115, -0.40, 0.42], hock: [0.11, -0.72, 0.21], hindPaw: [0.11, -0.66, 0.074], hindToe: [0.11, -0.54, 0.064],
       rumpA: [0, -0.76, 0.77], rumpB: [0, -0.42, 0.74],
     },
     extraSegments: [
@@ -209,7 +209,7 @@ export const species = {
       torso, torsoCaps: { back: [0, -0.82, Z], tip: [0, 0.50, Z - 0.02] },
       joints: {
         neckBase: [0, 0.42, 0.64], neckTop: [0, 0.64, 0.74],
-        shoulder: [0.16, 0.36, 0.58], elbow: [0.17, 0.28, 0.33], carpus: [0.15, 0.33, 0.12], hip: [0.13, -0.56, 0.56], stifle: [0.16, -0.38, 0.34], hock: [0.15, -0.64, 0.18], hindPaw: [0.15, -0.59, 0.074], hindToe: [0.15, -0.47, 0.064],
+        shoulder: [0.115, 0.36, 0.58], elbow: [0.12, 0.28, 0.33], carpus: [0.11, 0.33, 0.12], hip: [0.10, -0.56, 0.56], stifle: [0.115, -0.38, 0.34], hock: [0.11, -0.64, 0.18], hindPaw: [0.11, -0.59, 0.074], hindToe: [0.11, -0.47, 0.064],
       },
       tail: null, tip: null,
       extraSegments: [
@@ -230,9 +230,9 @@ export const species = {
   cheetah: (() => {
     const Z = 0.84;
     const torso = [
-      { at: [0, -0.62, Z], r: [0.085, 0.085] },
-      { at: [0, -0.48, Z], r: [0.11, 0.11] },
-      { at: [0, -0.24, Z], r: [0.07, 0.07] },
+      { at: [0, -0.62, Z], r: [0.08, 0.09] },
+      { at: [0, -0.48, Z], r: [0.095, 0.125] },
+      { at: [0, -0.24, Z], r: [0.07, 0.095] },
       { at: [0, 0.02, Z], r: [0.11, 0.16] },
       { at: [0, 0.24, Z], r: [0.12, 0.19] },
       { at: [0, 0.40, Z], r: [0.11, 0.16] },
@@ -240,13 +240,13 @@ export const species = {
     const ys = steps(-0.60, 0.38, 26);
     return {
       eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
-      family: 'feline', name: 'a cheetah', scale: 0.78, bulk: 1, legBulk: 0.8,
+      family: 'feline', name: 'a cheetah', scale: 0.78, bulk: 1, legBulk: 0.92,
       colors: { coat: '#d4a75c', sock: '#d4a75c', ash: '#eee2c8', ashAlt: '#e0d2b2', brow: '#14100c', tip: '#14100c', mane: '#1d1712' },
       torso, torsoCaps: { back: [0, -0.70, Z], tip: [0, 0.50, Z - 0.02] },
       joints: {
         neckBase: [0, 0.40, 0.90], neckTop: [0, 0.64, 1.00],
-        shoulder: [0.12, 0.34, 0.86], elbow: [0.13, 0.28, 0.52], carpus: [0.12, 0.33, 0.14], forePaw: [0.12, 0.35, 0.06], foreToe: [0.12, 0.45, 0.05],
-        hip: [0.10, -0.46, 0.86], stifle: [0.13, -0.26, 0.54], hock: [0.12, -0.58, 0.24], hindPaw: [0.12, -0.53, 0.06], hindToe: [0.12, -0.43, 0.05],
+        shoulder: [0.095, 0.34, 0.86], elbow: [0.10, 0.28, 0.52], carpus: [0.095, 0.33, 0.14], forePaw: [0.095, 0.35, 0.06], foreToe: [0.095, 0.45, 0.05],
+        hip: [0.08, -0.46, 0.86], stifle: [0.10, -0.26, 0.54], hock: [0.095, -0.58, 0.24], hindPaw: [0.095, -0.53, 0.06], hindToe: [0.095, -0.43, 0.05],
       },
       neckRA: [0.11, 0.15], neckRB: [0.075, 0.085], neckRMid: [0.09, 0.11],
       tail: null, tip: null,
@@ -284,7 +284,7 @@ export const species = {
       torso, torsoCaps: { back: [0, -0.80, Z], tip: [0, 0.50, Z - 0.02] },
       joints: {
         neckBase: [0, 0.42, 0.64], neckTop: [0, 0.64, 0.72],
-        shoulder: [0.16, 0.36, 0.56], elbow: [0.17, 0.29, 0.31], carpus: [0.15, 0.33, 0.12], hip: [0.13, -0.52, 0.56], stifle: [0.16, -0.36, 0.33], hock: [0.15, -0.60, 0.17], hindPaw: [0.15, -0.55, 0.074], hindToe: [0.15, -0.43, 0.064],
+        shoulder: [0.115, 0.36, 0.56], elbow: [0.12, 0.29, 0.31], carpus: [0.11, 0.33, 0.12], hip: [0.10, -0.52, 0.56], stifle: [0.115, -0.36, 0.33], hock: [0.11, -0.60, 0.17], hindPaw: [0.11, -0.55, 0.074], hindToe: [0.11, -0.43, 0.064],
       },
       neckRA: [0.16, 0.19], neckRB: [0.12, 0.13], neckRMid: [0.14, 0.16],
       tail: null, tip: null,
@@ -322,7 +322,7 @@ export const species = {
     torsoCaps: { back: [0, -0.58, 0.73], tip: [0, 0.50, 0.68] },
     joints: {
       neckBase: [0, 0.42, 0.78], neckTop: [0, 0.62, 0.88],
-      hip: [0.13, -0.38, 0.73], stifle: [0.16, -0.20, 0.44], hock: [0.15, -0.48, 0.22], hindPaw: [0.15, -0.43, 0.074], hindToe: [0.15, -0.31, 0.064],
+      hip: [0.10, -0.38, 0.73], stifle: [0.115, -0.20, 0.44], hock: [0.11, -0.48, 0.22], hindPaw: [0.11, -0.43, 0.074], hindToe: [0.11, -0.31, 0.064],
     },
     // the BOBBED tail: a short stub off the rump, its end black
     tail: [[0, -0.52, 0.78, 0.045], [0, -0.60, 0.75, 0.05], [0, -0.66, 0.70, 0.048]],
@@ -330,14 +330,14 @@ export const species = {
     tipCaps: { back: [0, -0.64, 0.72], tip: [0, -0.72, 0.61] },
     legScale: 1.18,
     legs: [
-      ['upperArmR', 'shoulder', 'elbow', [0.095, 0.14], [0.065, 0.07], 'Coat', [0.6, 0.5], [0.085, 0.105]],
-      ['foreArmR', 'elbow', 'carpus', [0.065, 0.07], [0.045, 0.047], 'Coat', [0.5, 0.4]],
-      ['pasternR', 'carpus', 'forePaw', 0.05, 0.055, 'Sock', [0.4, 0.4]],
-      ['forePawR', 'forePaw', 'foreToe', [0.10, 0.06], [0.095, 0.045], 'Sock', [0.6, 0.4]],
-      ['thighR', 'hip', 'stifle', [0.12, 0.165], [0.065, 0.07], 'Coat', [0.2, 0.5], [0.10, 0.13]],
-      ['shinR', 'stifle', 'hock', [0.06, 0.07], [0.04, 0.045], 'Coat', [0.5, 0.4]],
-      ['metaR', 'hock', 'hindPaw', 0.046, 0.05, 'Sock', [0.4, 0.4]],
-      ['hindPawR', 'hindPaw', 'hindToe', [0.095, 0.058], [0.09, 0.044], 'Sock', [0.6, 0.4]],
+      ['upperArmR', 'shoulder', 'elbow', [0.075, 0.14], [0.055, 0.07], 'Coat', [0.6, 0.5], [0.07, 0.105]],
+      ['foreArmR', 'elbow', 'carpus', [0.055, 0.07], [0.04, 0.047], 'Coat', [0.5, 0.4]],
+      ['pasternR', 'carpus', 'forePaw', 0.046, 0.05, 'Sock', [0.4, 0.4]],
+      ['forePawR', 'forePaw', 'foreToe', [0.08, 0.056], [0.075, 0.042], 'Sock', [0.6, 0.4]],
+      ['thighR', 'hip', 'stifle', [0.09, 0.165], [0.055, 0.07], 'Coat', [0.2, 0.5], [0.08, 0.13]],
+      ['shinR', 'stifle', 'hock', [0.05, 0.07], [0.036, 0.045], 'Coat', [0.5, 0.4]],
+      ['metaR', 'hock', 'hindPaw', 0.042, 0.046, 'Sock', [0.4, 0.4]],
+      ['hindPawR', 'hindPaw', 'hindToe', [0.075, 0.054], [0.07, 0.04], 'Sock', [0.6, 0.4]],
     ],
     headScale: 1.15, muzzleW: 1.15, muzzleLen: 0.62,
     // tall pointed ears, each with a black tuft standing off its tip
