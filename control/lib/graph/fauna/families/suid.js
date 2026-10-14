@@ -91,7 +91,7 @@ export const species = {
   // level barrel on short legs, cloven trotters · a short thick neck into a long straight wedge head carried low,
   // ending in a flat round snout DISC · broad ears flopping forward over the eyes · a thin curly tail · 0.80 m at the
   // withers (published adult Large White ~0.8–0.9 m shoulder height; breed-society / FAO breed descriptions).
-  pig: { family: 'suid', name: 'a domestic pig', muzzleLen: 0.82, muzzleW: 1.15, legBulk: 1.15, earR: [0.052, 0.08, 0.075, 0.035] },
+  pig: { family: 'suid', name: 'a domestic pig', muzzleLen: 0.82, muzzleW: 1.15, legBulk: 1.3, earR: [0.052, 0.08, 0.075, 0.035] },
 };
 
 // WILD BOAR (Sus scrofa) — Thesis: FRONT-HEAVY: a deep high shoulder and narrow flanks falling to a lower rump, on
