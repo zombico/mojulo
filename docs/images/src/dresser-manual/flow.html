@@ -1,0 +1,43 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1800px;height:720px;background:#0b1220;color:#d5dcea;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;position:relative;overflow:hidden}
+header{position:absolute;left:44px;top:34px;right:44px}
+h1{font-size:40px;font-weight:700;color:#f1f4fa;letter-spacing:-.01em}
+.sub{margin-top:8px;font-size:18px;color:#aab6cc;max-width:1500px}
+#calls{position:absolute;left:44px;top:150px;width:560px;background:#111a2b;border:1px solid #263042;border-radius:10px;padding:18px 20px;font:14px/1.6 ui-monospace,"SF Mono",Menlo,monospace;color:#b9c3d6}
+.call{margin-bottom:16px}.call:last-child{margin-bottom:0}
+.p{color:#7f8ba3}.t{color:#7fd3a3;font-weight:600}.k{color:#8fb4ff}.s{color:#e8c48a}
+.r{color:#e9edf5;padding-left:18px}.r .dim{color:#7f8ba3}
+.cap{position:absolute;left:44px;top:470px;width:560px;font-size:15px;line-height:1.55;color:#aab6cc}
+.cap b{color:#e9edf5;font-weight:600}
+.cap li{margin:6px 0 6px 18px}
+#pages{position:absolute;left:640px;top:150px;display:flex;gap:16px}
+.pg{width:210px}
+.pg img{width:210px;height:297px;display:block;border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.pg .l{margin-top:10px;line-height:1.45;font:500 12.5px ui-monospace,"SF Mono",Menlo,monospace;color:#aab6cc}
+.pg .l b{color:#e9edf5}
+.pg.warn .l b{color:#f2b25c}
+.foot{position:absolute;left:640px;top:520px;right:44px;font-size:15px;line-height:1.6;color:#aab6cc}
+.foot b{color:#e9edf5;font-weight:600}
+</style></head><body>
+<header><h1>From recipe to assembly manual.</h1>
+<div class="sub">The same chest of drawers, gathered into a stash and cooked as an instruction manual. Mojulo draws every page from the recipe: no prompt-written steps, no illustrator.</div></header>
+<div id="calls">
+<div class="call"><span class="p">›</span> <span class="t">mint_stash</span> { <span class="k">title</span>: <span class="s">"Chest of drawers manual"</span> }<div class="r">→ {{STASH}}</div></div>
+<div class="call"><span class="p">›</span> <span class="t">gather</span> { <span class="k">type</span>: <span class="s">"sketch"</span>,<br>&nbsp;&nbsp;<span class="k">metadata</span>: { <span class="k">sketch_ref</span>: <span class="s">"dresser_demo"</span> } }<div class="r">→ item 1</div></div>
+<div class="call"><span class="p">›</span> <span class="t">cook</span> { <span class="k">aim</span>: <span class="s">"Plywood chest of drawers"</span>,<br>&nbsp;&nbsp;<span class="k">publication</span>: { <span class="k">kind</span>: <span class="s">"instruction_manual"</span> } }<div class="r">→ {{COOK}} · {{FILES}} files<br><span class="dim">cover · parts inventory · {{STEPS}} wordless steps<br>A4 SVG pages + a self-contained viewer</span></div></div>
+</div>
+<div class="cap">What carries over from the design, untouched by hand:
+<ul><li><b>The parts</b>, numbered with their real sizes, the same ones on the cutting plan.</li>
+<li><b>The order</b>: the build order from the report, one step per page.</li>
+<li><b>The fittings</b>, lettered, with a call-out where each one goes.</li>
+<li><b>The tip-over finding</b>: the last page fixes it to the wall.</li></ul></div>
+<div id="pages">
+<div class="pg"><img src="{{P_COVER}}"><div class="l"><b>Cover</b><br>carton, mass, tools</div></div>
+<div class="pg"><img src="{{P_INV}}"><div class="l"><b>Inventory</b><br>parts by size, fittings at 1:1</div></div>
+<div class="pg"><img src="{{P_A}}"><div class="l"><b>Step 1</b><br>slides onto the sides</div></div>
+<div class="pg"><img src="{{P_B}}"><div class="l"><b>Step 9</b><br>a drawer box</div></div>
+<div class="pg warn"><img src="{{P_LAST}}"><div class="l"><b>Step {{STEPS}}</b><br>anchor it to the wall</div></div>
+</div>
+<div class="foot">Pages are 210 × 297 mm, drawn to print at 100%; the fittings on the inventory are at 1:1, with a 10 mm check bar.<br><b>From the same recipe:</b> .glb · .stl · .3mf · .scad · bom.csv, and the cutting plan in the report</div>
+</body></html>

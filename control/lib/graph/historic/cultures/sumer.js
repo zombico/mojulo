@@ -4,9 +4,7 @@
  * notes behind it live in ../record/sumer.js.
  */
 import { SUMER_ASSETS } from '../assets/sumer.js';
-import { SUMER_RECORD, SUMER_SOURCES } from '../record/sumer.js';
-import { SUMER_FARM_RECORD } from '../record/sumer-farm.js';
-import { SUMER_WORKS_RECORD } from '../record/sumer-works.js';
+import { RECORDS } from '../ledger/records.js';
 
 export const SUMER = {
   label: 'Sumer (Uruk period)',
@@ -18,7 +16,7 @@ export const SUMER = {
   aliases: ['sumerian', 'uruk', 'eridu', 'ziggurat', 'shumer', 'early dynastic'],   // what people call it (search)
   soundtrack: 'sumer',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   // what its town, land, farm and works stand on (the encyclopedia entry's basis)
-  record: { id: 'sumer', entries: [...SUMER_RECORD, ...SUMER_FARM_RECORD, ...SUMER_WORKS_RECORD], sources: SUMER_SOURCES },
+  record: RECORDS.sumer,
   palette: {
     ground: '#c2ab84',            // dry alluvium
     lane: '#d2bf98',              // beaten mud, paler with traffic
@@ -45,7 +43,7 @@ export const SUMER = {
   },
   // what each mass is made of, read on its face (../ground.js WALL_SKINS): houses rendered in mud,
   // the wall and the platforms in bare sun-dried brick, the ziggurat cased in baked brick laid in
-  // bitumen, anything whitewashed in lime. A kind not listed wears no skin (doors, reed, copper, stone).
+  // bitumen, anything whitewashed in gypsum. A kind not listed wears no skin (doors, reed, copper, stone).
   skins: {
     kinds: {
       house: 'mud-plaster', 'house-parapet': 'mud-plaster', 'house-roof': 'mud-plaster', 'court-wall': 'mud-plaster', cornice: 'mud-plaster', 'stair-head': 'mud-plaster',
@@ -54,10 +52,10 @@ export const SUMER = {
       platform: 'mudbrick', rib: 'mudbrick', merlon: 'mudbrick', 'stair-cheek': 'mudbrick', mass: 'mudbrick',
       'gate-frame': 'baked-brick', terrace: 'baked-brick', 'well-head': 'baked-brick', revetment: 'baked-brick',
       'bridge-pier': 'baked-brick', 'bridge-corbel': 'baked-brick', 'bridge-lintel': 'baked-brick', 'bridge-parapet': 'baked-brick',
-      temple: 'lime-plaster', shrine: 'lime-plaster',
+      temple: 'gypsum-wash', shrine: 'gypsum-wash',
     },
     assets: { ziggurat: { platform: 'baked-brick', rib: 'baked-brick', merlon: 'baked-brick', 'stair-cheek': 'baked-brick' }, 'canal-bridge': { 'stair-cheek': 'baked-brick' } },
-    whitewash: 'lime-plaster',   // a skinned mass in a pale tint is whitewashed, whatever its kind
+    whitewash: 'gypsum-wash',   // a skinned mass in a pale tint is whitewashed, whatever its kind: gypsum (the record's whitewash; lime is Early Dynastic)
     bare: { share: 0.3, from: 'mud-plaster', skin: 'mudbrick' },   // a share of houses stand in bare brick, unrendered
   },
   patterns: ['sun-dried-earth', 'whitewash', 'flat-roof-cube', 'courtyard-house', 'blank-wall', 'niched-wall', 'stepped-platform', 'terrace', 'organic-lanes', 'sacred-precinct', 'towered-wall', 'canal-through', 'grove-fringe', 'reed',
@@ -69,5 +67,5 @@ export const SUMER = {
   precinct: { size: [124, 90], wall: 2.2, wallHeight: 5, platform: [52, 38], platformHeight: 20, stages: 3, temple: [18, 22], hall: [22, 18], clear: 9, templeHeight: 6.5 },   // clear: open court kept between the ziggurat (with its stair) and its neighbours
   canal: { width: 9, sink: 1.5 },   // sink: the water lies this far below the quays
   groves: { density: 0.5, max: 140 },
-  assets: SUMER_ASSETS,   // the kit that builds each slot the layout asks for
+  assets: SUMER_ASSETS,   // the kit that builds each slot the solver asks for
 };

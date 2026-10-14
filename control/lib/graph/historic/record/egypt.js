@@ -381,7 +381,7 @@ const TYPES = [
     id: 'deir-el-medina-house', kind: 'type', name: 'workmen\'s row house (Deir el-Medina)', confidence: 'read',
     built: { from: -1504, to: -1070, approx: true }, materials: ['mudbrick-nk', 'mud-mortar', 'limestone', 'mud-plaster', 'gypsum-plaster', 'local-timber', 'palm', 'reed'],
     methods: ['coursed-mudbrick', 'flat-roof', 'whitewash'],
-    dims: { area: [50, 70], width: 5, rooms: [4, 5], stairToRoof: true },
+    dims: { area: [50, 70], width: 5, rooms: [4, 5], stairToRoof: true, storeys: [1, 1] },   // one storey, the roof lived on by its stair
     notes: 'Narrow terraced plan off the street: outer room with a plastered, painted brick lit-clos in a corner; main room with a column carrying the roof and a bench; a smaller room behind; corridor to a kitchen at the back (cellar); stair to the roof. Mudbrick on stone footings, mud-plastered, painted white outside. Households of three to five or more.',
     disputes: ['Average floor ~70 m² (Wikipedia, citing Oakes/McDowell) vs "about 5 by 10 m" in another summary.'],
     sources: [S.toivari, S.oakesMcDowell],
@@ -398,7 +398,7 @@ const TYPES = [
     id: 'amarna-villa', kind: 'type', name: 'elite villa in a walled compound (Amarna model)', confidence: 'secondary',
     built: { from: -1347, to: -1332, approx: true }, materials: ['mudbrick-nk', 'mud-mortar', 'local-timber', 'limestone', 'gypsum-plaster', 'paint-pigments', 'palm', 'reed'],
     methods: ['coursed-mudbrick', 'flat-roof', 'clerestory', 'whitewash'],
-    dims: { centralHall: [8, 8] },
+    dims: { centralHall: [8, 8], storeys: [1, 2] },   // a stair to the roof or an upper storey
     notes: 'Large focal central room from which the rest opened, roof on painted wooden columns, clerestory lighting (NK houses, read); staircase to roof or upper storey; external courtyards with substantial mudbrick granaries, sometimes ponds and shrines, inside an enclosure wall; stone door frames inscribed with the owner\'s name in elite houses (read). Nakht\'s house: ~30 ground-floor rooms, central hall ~8 m square (secondary). Amarna is the evidence; for Ramesside Thebes it is an analogue.',
     sources: [S.stevens, S.amarnaNorth, S.dkArch, S.emeryArch, S.kemp2012],
   },

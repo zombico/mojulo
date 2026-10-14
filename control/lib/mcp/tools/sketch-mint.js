@@ -490,6 +490,8 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     // or mall says its occupancy and its program's grade
     ...buildingSays(read),
     ...programSays(sketch.manifest),
+    // a historic scene's field guide: what the solver chose, the record behind it, the `form` knob for each
+    ...(sketch.manifest?.kind === 'historic' ? { guideUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/bible` } : {}),
     ...(design ? { design } : {}),
     ...(inferred?.length ? { inferred } : {}),
     ...(next ? { next } : {}),

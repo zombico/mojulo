@@ -1,12 +1,12 @@
 ---
 name: historic-culture
-description: Add or deepen a historic culture (a real city or civilization at its period) in the historic-city generator — scaffold a new one at depth 0 on an existing layout, take one to its record and style card, its own assets or its own layout, add a region for a new part of the world, or land a culture branch on the release-candidate trunk. Use when asked to "add a civilization / city / culture", "start the Indus / Maya / Babylon …", "deepen <culture>", "give <culture> its own record / assets / layout", or "land / merge <culture>". Invoke as `/historic-culture <ask>`.
+description: Add or deepen a historic culture (a real city or civilization at its period) in the historic-city generator — scaffold a new one at depth 0 on an existing culture's form, take one to its record and style card, its own assets or its own form and monument, add a region for a new part of the world, or land a culture branch on the release-candidate trunk. Use when asked to "add a civilization / city / culture", "start the Indus / Maya / Babylon …", "deepen <culture>", "give <culture> its own record / assets / form / monument", or "land / merge <culture>". Invoke as `/historic-culture <ask>`.
 ---
 
 # /historic-culture
 
 Read the guide first, every time: [docs/historic/README.md](../../../docs/historic/README.md). It is the method
-(depths, the asset loop, the card contract, the registries, the gates, landing on the trunk). This skill is the
+(depths, the form and the solver, the asset loop, the card contract, the registries, the gates, landing on the trunk). This skill is the
 order of moves.
 
 ## 1. Where is it now?
@@ -23,7 +23,7 @@ or `get_view_vocab({ id: '<id>' })` through the MCP). The next step is the next 
 
 1. Settle with the operator: the place, the period and a read-at year (or none: a general depiction of the
    span), the region (a new row in `lib/graph/historic/regions.js` if it is a new part of the world), which
-   existing layout has the town's SHAPE (the guide's table), and its LINEAGE: which registered cultures it
+   existing culture's form has the town's SHAPE (the guide's table: its site, water and armature), and its LINEAGE: which registered cultures it
    continues, inherits from, took forms from by contact, or varies (`get_view_vocab({ id: 'historic-lineage' })`
    or `lib/graph/historic/lineage.js`). Propose them; the operator corrects.
 2. Dry run, then write:
@@ -32,7 +32,8 @@ or `get_view_vocab({ id: '<id>' })` through the MCP). The next step is the next 
      --place "…" --region <region> --aliases "…" --draws <culture>:<kind>,… --dry
    ```
 3. Run the gates (step 1). Mint it: `create_sketch({ title, manifest: { kind: 'historic', culture: '<id>' } })`.
-4. Tell the operator plainly: at depth 0 it is the parent's town in the parent's colours; the palette is next.
+4. Tell the operator plainly: at depth 0 it is the parent's town in the parent's colours; the palette is next. Its
+   field guide (the mint's `guideUrl`) shows every choice the solver made and the knob for each.
    Read its README's brief with them: what each relation offers, and the record entries that are parallels to verify
    (the first sources for its own record at depth 1).
 
@@ -41,12 +42,15 @@ or `get_view_vocab({ id: '<id>' })` through the MCP). The next step is the next 
 - Palette and skins from reference images (indexed in `docs/historic/<id>/`).
 - Depth 1: `record/<id>.js` (cited; confidence read / secondary / unverified; disputes; anachronisms held at their
   dates) and `style/<id>.js` (a machine check per principle in `style.test.js`); `record` on the card.
-- Depth 2: the asset loop, one asset at a time (layout slots → `assetCall` → sheet → `assetBlueprint` → kit →
+- Depth 2: the asset loop, one asset at a time (the solver's slots → `assetCall` → sheet → `assetBlueprint` → kit →
   place → review). Never one-shot the town.
-- Depth 3: `layouts/<id>.js` on `layout-kit.js`, registered in `layouts/index.js`; `layout` on the card.
+- Depth 3: its own form, a row in `form/towns.js` (site, water, armature, enclosure, streets, density, placement,
+  hinterland, activities), each principle citing its record's rows (`cites`), and its monument in `monuments/`
+  (one building, at the record's size); drop `form` from the card. Read the field guide and the anachronism check
+  (`ledger/`) against its year: a principle or an activity whose rows are not yet in reach is a finding.
 
-Each step: write its plan and its CHANGELOG `###` section first (CLAUDE.md), keep every other culture's pages
-byte-identical, and stop at the eyes gate for the operator. Never claim the eyes gate passed.
+Each step: write its plan and its CHANGELOG `###` section first (CLAUDE.md), keep every other culture's town as it
+was (its form and its solved plan), and stop at the eyes gate for the operator. Never claim the eyes gate passed.
 
 ## 4. Land it on the trunk
 

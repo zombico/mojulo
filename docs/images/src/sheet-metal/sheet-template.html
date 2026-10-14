@@ -1,0 +1,42 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1800px;height:1000px;background:#0b1220;color:#d5dcea;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;position:relative;overflow:hidden}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+header{position:absolute;left:44px;top:34px;right:44px;display:flex;justify-content:space-between;align-items:flex-end}
+h1{font-size:40px;font-weight:700;color:#f1f4fa;letter-spacing:-.01em}
+.say{margin-top:8px;font-size:18px;color:#aab6cc}.say b{color:#e9edf5;font-weight:500}
+.tag{font-size:13px;color:#7f8ba3;text-align:right;line-height:1.6}.tag .big{font-size:22px;color:#7fd3a3;font-weight:600}
+h2{font:600 12.5px ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.12em;color:#7fd3a3;text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between}
+h2 span{color:#7f8ba3;letter-spacing:.02em;text-transform:none;font-weight:500}
+#bent{position:absolute;left:24px;top:130px;width:760px;height:570px}
+#bent img{width:760px;height:570px;display:block;-webkit-mask-image:radial-gradient(ellipse 62% 64% at 50% 52%,#000 62%,transparent 100%)}
+#bent .cap{position:absolute;left:24px;bottom:18px;font-size:14px;color:#aab6cc}
+#flat{position:absolute;left:820px;top:132px;width:940px}
+#flat svg{display:block;background:#0e1626;border:1px solid #263042;border-radius:10px}
+#flat .cut{fill:none;stroke:#e9edf5;stroke-width:2}
+#flat .mark{stroke:#f2b25c;stroke-width:2;stroke-dasharray:7 5}
+#flat .dim line{stroke:#7f8ba3;stroke-width:1}
+#flat .dim text{fill:#c9d6f0;font:600 15px ui-monospace,"SF Mono",Menlo,monospace;text-anchor:middle}
+#flat .note{fill:#aab6cc;font:13px -apple-system,Helvetica}
+.legend{margin-top:10px;display:flex;gap:26px;font-size:13.5px;color:#aab6cc}
+.legend i{display:inline-block;width:26px;height:0;vertical-align:middle;margin-right:8px;border-top:2px solid #e9edf5}
+.legend i.m{border-top:2px dashed #f2b25c}
+#math{position:absolute;left:820px;top:640px;width:940px;background:#111a2b;border:1px solid #263042;border-radius:10px;padding:16px 20px;font:15px/1.75 ui-monospace,"SF Mono",Menlo,monospace;color:#c9d6f0}
+#math .k{color:#7f8ba3}#math em{font-style:normal;color:#7fd3a3}
+#src{position:absolute;left:44px;top:720px;width:740px;font:11.5px/1.6 ui-monospace,"SF Mono",Menlo,monospace;color:#b9c3d6;background:#111a2b;border:1px solid #263042;border-radius:10px;padding:12px 16px;white-space:pre;overflow:hidden;max-height:250px}
+#goes{position:absolute;left:820px;top:752px;width:940px;font-size:14.5px;line-height:1.6;color:#aab6cc}
+#goes b{color:#e9edf5;font-weight:600}
+</style></head><body>
+<header>
+  <div><h1>Cut it. Bend it.</h1>
+  <div class="say">“<b>A U-channel bracket in 2 mm steel, 40 wide, two holes in the middle. Give me the flat pattern for the laser.</b>”</div></div>
+  <div class="tag"><div class="big">mint_solid · scad</div>mj_sheet + mj_sheet_flat · export_model dxf</div>
+</header>
+<div id="bent"><img src="{{BENT}}"><div class="cap">One program, two parts: the bent channel and its blank, holes in the same place on both.</div></div>
+<div id="flat"><h2>The flat pattern <span>drawn from the exported DXF · mm · {{N}} closed outlines</span></h2>{{FLAT}}
+<div class="legend"><span><i></i>cut</span><span><i class="m"></i>bend mark: a slit held by {{TAB}} mm tabs, or move it to an etch pass</span></div></div>
+<div id="math"><span class="k">bend allowance</span>  BA = π/2 × (r + k·t) = π/2 × (2 + 0.44 × 2) = <em>{{BA}}</em> mm<br>
+<span class="k">flat length  </span>  30 + 50 + 30 + 2 × BA = <em>{{FORM}}</em> mm   <span class="k">· the DXF says</span> <em>{{LEN}}</em> mm</div>
+<pre id="src">{{SRC}}</pre>
+<div id="goes"><b>Goes to</b> a laser, waterjet or plasma cutter (DXF, one layer, in mm), then a press brake: two 90° bends at the marks. The same program exports the bent part as .stl, .3mf and .scad.<br><b>Not here:</b> milling toolpaths, STEP, GD&amp;T. A milled part goes to a CAM tool from the .stl or .scad.</div>
+</body></html>

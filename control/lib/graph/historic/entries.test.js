@@ -25,7 +25,7 @@ describe('historic entries: generated encyclopedia cards', () => {
   });
 
   it('a new culture card is an entry with no other edit', () => {
-    HISTORIC_CULTURES.testland = { ...HISTORIC_CULTURES.qin, label: 'Testland', region: 'atlantis', aliases: ['testland'], record: null };
+    HISTORIC_CULTURES.testland = { ...HISTORIC_CULTURES.qin, form: 'qin', label: 'Testland', region: 'atlantis', aliases: ['testland'], record: null };
     try {
       const c = entryCard('testland');
       expect(c.name).toBe('Testland');
@@ -124,7 +124,7 @@ describe('the culture card contract (what an entry reads)', () => {
   }
 
   it('reads a silent place as not recorded, never as invented', () => {
-    HISTORIC_CULTURES.testland = { ...HISTORIC_CULTURES.qin, label: 'Testland' };
+    HISTORIC_CULTURES.testland = { ...HISTORIC_CULTURES.qin, form: 'qin', label: 'Testland' };
     delete HISTORIC_CULTURES.testland.place;
     try {
       expect(entryCard('testland').body).toMatch(/PLACE {6}place not recorded/);

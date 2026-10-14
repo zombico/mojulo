@@ -1,0 +1,63 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1800px;height:1220px;background:#0b1220;color:#d5dcea;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;position:relative;overflow:hidden}
+.mono{font-family:ui-monospace,"SF Mono",Menlo,monospace}
+header{position:absolute;left:44px;top:34px;right:44px;display:flex;justify-content:space-between;align-items:flex-end}
+h1{font-size:40px;font-weight:700;color:#f1f4fa;letter-spacing:-.01em}
+.say{margin-top:8px;font-size:18px;color:#aab6cc}.say b{color:#e9edf5;font-weight:500}
+.tag{font-size:13px;color:#7f8ba3;text-align:right;line-height:1.6}.tag .big{font-size:22px;color:#7fd3a3;font-weight:600}
+#hero{position:absolute;left:20px;top:122px;width:880px;height:660px}
+#hero img{width:880px;height:660px;display:block;-webkit-mask-image:radial-gradient(ellipse 62% 64% at 50% 50%,#000 64%,transparent 100%)}
+#side{position:absolute;left:950px;top:132px;width:806px}
+section{margin-bottom:20px}
+h2{font:600 12.5px ui-monospace,"SF Mono",Menlo,monospace;letter-spacing:.12em;color:#7fd3a3;text-transform:uppercase;margin-bottom:9px;display:flex;justify-content:space-between}
+h2 span{color:#7f8ba3;letter-spacing:.02em;text-transform:none;font-weight:500}
+.warn{border:1px solid #8a5a1e;background:rgba(214,138,40,.10);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.warn .t{font-size:19px;font-weight:650;color:#f2b25c;margin-bottom:4px}
+.warn .d{font-size:14.5px;line-height:1.5;color:#e2d3bd}
+.warn .d .mono{color:#f6dcb4}
+ul{list-style:none}
+li{font-size:15px;line-height:1.5;padding:4px 0;display:flex;gap:10px}
+li .k{color:#7f8ba3;min-width:170px;font-size:14px}
+li .v{color:#e9edf5}li .v em{font-style:normal;color:#7fd3a3}
+.row{display:flex;gap:28px}.row>section{flex:1}
+#cut{position:absolute;left:44px;right:44px;top:800px}
+.sheets{display:flex;gap:26px}
+.sh .shl{font:500 13px ui-monospace,"SF Mono",Menlo,monospace;color:#aab6cc;margin-bottom:6px}
+footer{position:absolute;left:44px;right:44px;bottom:28px;display:flex;justify-content:space-between;align-items:flex-end;gap:30px}
+pre{font:13px/1.55 ui-monospace,"SF Mono",Menlo,monospace;color:#b9c3d6;background:#111a2b;border:1px solid #263042;border-radius:8px;padding:11px 15px}
+pre .k{color:#8fb4ff}pre .s{color:#e8c48a}
+.exports{font-size:14px;color:#aab6cc;text-align:right;line-height:1.7}.exports b{color:#e9edf5;font-weight:500}
+.note{font-size:12.5px;color:#7f8ba3}
+</style></head><body>
+<header>
+  <div><h1>Not a mesh. A cutting plan.</h1>
+  <div class="say">“<b>Build a plywood chest of drawers, 900 wide, four drawers.</b>”</div></div>
+  <div class="tag"><div class="big">mint_solid · workbench</div>one carcass build, one recipe</div>
+</header>
+<div id="hero"><img src="{{HERO}}"></div>
+<div id="side">
+  <div class="warn"><div class="t">It tips. Fix it to the wall.</div>
+  <div class="d">Four drawers out <span class="mono">{{OUT}} mm</span> with a child’s <span class="mono">{{CHILD}} kg</span> on the top one: it overturns by <span class="mono">{{NET}} N·m</span>. An advisory scenario modelled after ASTM F2057-23; the piece’s assembly manual adds a wall-anchor step when it tips.</div></div>
+  <section><h2>Checks <span>advisory, never a refusal</span></h2><ul>
+  <li><span class="k">Child pulling at the top</span><span class="v"><em>holds</em> · {{PF}} N at {{PH}} mm: {{PO}} N·m to tip it, {{PR}} N·m holding</span></li>
+  <li><span class="k">Standing</span><span class="v"><em>{{STAND}} mm</em> margin inside the footprint</span></li>
+  <li><span class="k">Racking</span><span class="v"><em>square</em> · the grooved back holds it sideways, the sides front to back</span></li>
+  <li><span class="k">Top, bottom, divider</span><span class="v">sag <em>{{SAG}} mm</em> under 30 kg/m · limit {{SAGLIM}} mm</span></li>
+  <li><span class="k">Weight · carton</span><span class="v">{{MASS}} kg · flat-packs to {{CARTON}} mm</span></li></ul></section>
+  <div class="row">
+  <section><h2>Buy</h2><ul>{{BUY}}</ul></section>
+  <section><h2>Build order</h2><ul>
+  <li><span class="v"><span class="mono">1</span>&nbsp; left side, top, back into its groove</span></li>
+  <li><span class="v"><span class="mono">2</span>&nbsp; bottom, plinth, divider, right side</span></li>
+  <li><span class="v"><span class="mono">3</span>&nbsp; each drawer box, then onto its slides</span></li>
+  <li><span class="v"><span class="mono">4</span>&nbsp; drawer fronts screwed on last</span></li></ul></section>
+  </div>
+</div>
+<div id="cut"><h2>Cutting plan <span>2500 × 1250 sheets · 4 mm kerf · 10 mm trim · 18 mm at {{Y18}}% yield · plus {{HB}} sheets of 3 mm hardboard for the back and drawer bottoms</span></h2>
+<div class="sheets">{{CUT}}</div></div>
+<footer>
+<pre>{{RECIPE}}</pre>
+<div class="exports"><b>.glb · .stl · .3mf · .scad · bom.csv</b> from the same recipe<br><span class="note">Sizes from typical tables; check the supplier's datasheet. The eyes gate is yours.</span></div>
+</footer>
+</body></html>

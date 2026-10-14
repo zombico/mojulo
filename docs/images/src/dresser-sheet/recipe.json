@@ -1,0 +1,10 @@
+{
+  "units": "mm",
+  "frames": [
+    {
+      "id": "dresser",
+      "unit": "mm",
+      "build": { "type": "carcass", "w": 900, "h": 1050, "d": 480, "material": "plywood", "joinery": "confirmat", "drawers": 4, "back": "groove", "plinth": 80 }
+    }
+  ]
+}
