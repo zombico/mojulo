@@ -218,6 +218,8 @@ export const TOOL_ANNOTATIONS = {
   forge_motion: ['Forge a motion clip', ADDITIVE],
   stitch_motion: ['Stitch clips into a film', ADDITIVE],
   get_motion_vocab: ['Motion vocabulary cards', READ],
+  create_shoot_plan: ['Create a shoot plan', DESTRUCTIVE], // replaces the world's plan
+  update_shoot_plan: ['Update a shoot plan', DESTRUCTIVE],
   create_beats: ['Create beats', ADDITIVE],
   get_beats_vocab: ['Beats vocabulary cards', READ],
   get_beats: ['Get beats', READ],

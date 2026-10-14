@@ -20,6 +20,7 @@ import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
 import { marksChannelScript } from './marks.js';
+import { shootChannelScript } from './shoot.js';
 import { moverChannelScript } from './mover.js';
 import { pickChannelScript } from './pick.js';
 import { planetChannelScript } from './planet.js';
@@ -220,6 +221,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // assigns the scene-three-emitted `let stepMarks` (the strength sensor's pointer)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojMarks'] },        // the pointer count, for probes
+  { key: 'shoot', anchor: 'post-step', script: shootChannelScript,
+    normalizeIn: 'emitThreeWorld',     // gizmo scale off the mesh bounds; never emitted on capture runs
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojShoot'] },        // camera/shot counts, the program clock's now(), look() and seek(), for probes
   { key: 'audio', anchor: 'post-overlays', script: audioChannelScript,
     normalizeIn: 'emitThreeWorld',     // capture-gated: never emitted on capture runs
     requiresOptional: ['__BUS', '__mojCtrl'] },   // + walkOn (a registry let) for the gait loop
@@ -308,6 +313,7 @@ export { glowSpriteScript } from './glow.js';
 export { splatChannelScript } from './splats.js';
 export { spriteSfxChannelScript } from './sprite-sfx.js';
 export { marksChannelScript, normalizeMarks } from './marks.js';
+export { shootChannelScript } from './shoot.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';

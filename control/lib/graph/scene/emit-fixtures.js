@@ -14,6 +14,7 @@
 import { resolveAquaLook } from '../materials/aqua-look.js';
 import { normalizeShallows } from '../materials/shallows.js';
 import { resolveWorldAudio } from '../beats/beats-world.js';
+import { normalizeShoot, lowerShoot } from '../shoot/plan.js';
 
 const quad = (fill = '#888888', extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
 const floor = (fill = '#445566', extra = {}) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill, ...extra });
@@ -267,6 +268,13 @@ export const EMIT_FIXTURES = [
     { at: [2, 2, 0], dir: [0, 0, 1], size: 0.3, color: '#e5484d', label: 'shelf bracket: bending, SF 0.51 (low confidence)' },
     { at: [1, 3, 0], dir: [0.6, 0, 0.8], size: 0.3, color: '#3fb950', period: 2 },
   ] }],
+
+  // shoot: a shoot plan's cameras drawn as objects (frustum, POI, path, a dot per frame) and the cut-list panel —
+  // a two-node camera with an eased key and a lens change, a one-node still. Absent ⇒ byte-identical.
+  ['shoot', { faces: [floor()], shoot: lowerShoot(normalizeShoot({ fps: 12, cameras: [
+    { id: 'a', type: 'two_node', keys: [{ t: 0, pos: [-3, -3, 2], poi: [2, 2, 0], focal_mm: 35, ease: 'easy_ease' }, { t: 1, pos: [3, -3, 1], poi: [2, 2, 1], focal_mm: 50, ease: 'hold' }] },
+    { id: 'b', type: 'one_node', keys: [{ t: 0, pos: [6, 2, 1.5], yaw: 180, pitch: -5, roll: 4, focal_mm: 85 }] },
+  ] }).plan) }],
 
   ['repeats', { faces: [floor()], repeats: REPEATS }],
   ['ao', { faces: [quad('#8899aa', { group: 'shell:leftWall', normal: [1, 0, 0] }), floor()], ao: true }],

@@ -373,7 +373,10 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-13 (208_700 -> 209_300; measured 209,092) for the game menus line merged onto 1012-consolidate: create_cover's `format` (a game's key art,
 // capsule, box, icon) and `art` (an uploaded stash picture as the illustration, the plugin profile's way to real art),
 // and create_game's `front` (the light shell's title over a cover, start menu, credits, end). No new tool.
-const PAYLOAD_CEILING = 209_300;
+// Re-pinned 2026-10-14 (209_300 -> 212_500; measured 212,388) for two NEW tools, create_shoot_plan and
+// update_shoot_plan (the shoot plan: a world's cameras as visible keyed objects, in After Effects terms), schemas
+// trimmed to the plan's shape and the op names.
+const PAYLOAD_CEILING = 212_500;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

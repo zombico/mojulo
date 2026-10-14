@@ -1115,6 +1115,18 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (marks.length) payload.marks = marks;
   }
 
+  // generic, opt-in SHOOT PLAN (lib/graph/shoot/): cameras keyed in After Effects terms and a cut list, drawn by the
+  // World page as objects (frustum, point of interest, motion path, a dot per frame). Not a face, so no mesh export
+  // carries it; renderers read the plan itself. A key may follow something that moves on a schedule (a walker, a car,
+  // a mover), read off this payload. Absent, or nothing readable ⇒ payload untouched.
+  if (payload && manifest.shoot && typeof manifest.shoot === 'object') {
+    const { normalizeShoot, lowerShoot } = await import('@/lib/graph/shoot/plan');
+    const { shootSubjects } = await import('@/lib/graph/shoot/subjects');
+    const subjects = shootSubjects(payload);
+    const { plan } = normalizeShoot(manifest.shoot, { subjects });
+    if (plan) payload.shoot = lowerShoot(plan, { subjects });
+  }
+
   return { payload, kind };
 }
 

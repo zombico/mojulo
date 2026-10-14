@@ -13,6 +13,42 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Shoot plan: a keyframed camera you can see in the world
+
+A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
+lens in millimetres, Easy Ease and hold keys) and a cut list of shots. The World page draws each camera as an
+object, with its frustum, its line to the point of interest and its motion path, one dot per frame so the spacing
+shows the ease, and can look through it. `node scripts/shoot-plan-demo.mjs --out <file>` emits a worked example
+(`lib/graph/shoot/example.js`: a crane down, a street dolly with a lens change, a held one-node reveal, and a
+camera that pans with a car, then eases onto its tail and rides along).
+
+- **The recipe is `manifest.shoot`** on any world, an opt-in like `marks`; `update_sketch` edits it in place. The
+  kernel is `lib/graph/shoot/`: `lens.js` (focal length ↔ field of view on a 36 mm film), `plan.js` (normalize the
+  AE words, a readout of duration, path length and peak speed), `sample.js` (the camera at a time, frames at a
+  rate, the drawable path). A sampled frame is the `worldFraming` every camera consumer already reads.
+- **A camera can follow what moves.** A key's `pos` or `poi` may name a walker, a car or a mover
+  (`{ follow: 'car:3', offset, frame: 'subject' }`) instead of a point: the AE move of linking the point of interest to a
+  layer, or parenting the camera to a null. Everything a world moves on a schedule is a pure function of its clock,
+  signalised traffic included (`lib/graph/shoot/subjects.js` runs the same traffic and crossing code the page embeds),
+  so a following camera is still sampled ahead and its path, and the route of what it follows, are drawn. A fixed key
+  eases onto a moving subject and off it.
+- **Key times are the world's clock.** A shot shows the world over its span, so two shots of the same span are
+  coverage of one action from two cameras. The page plays it that way: while a plan is on the page, it sets the
+  clock every channel steps to.
+- **`create_shoot_plan` / `update_shoot_plan`**, in the motion form. The first writes a plan onto a world (or, with
+  no plan, lists what a key can follow and where); the second edits it op by op in camera-operator and AE words
+  (`set_key` by time, `ease` one, some or every key, `retime`, `set_camera` with a one-node ↔ two-node flip that keeps
+  the view, shots added, renamed, reordered). Both write through `update_sketch`'s patch path, so the world pays its
+  own gate, and answer with the readout: timings, path length and speed in metres, what each camera follows, the
+  frames where a camera jumps (a followed car wrapping its lane), and the places a move passes through the world's
+  faces (`lib/graph/shoot/clearance.js`). Advisory, like every gate. The manual is `get_motion_vocab({ id: 'shoot' })`,
+  an AE → plan table; a routing card sends "set up a camera", "35mm", "easy ease", "follow the car" there.
+- **`forge_motion` renders a plan**: `shot.motion: 'plan'` on a world captures each frame from its shot's camera with
+  the world stepped to that frame's own clock (`params.shot` for one shot). Roll is not applied to captures yet.
+- **The World page's `shoot` channel** draws the cameras and runs the cut list, with a shot list, a scrubber and
+  LOOK THROUGH. Nothing in it is a face, so no mesh export carries it, and capture runs never emit it. A world
+  without a plan is byte for byte as before.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the

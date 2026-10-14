@@ -51,6 +51,8 @@ export const FIXTURE = [
   ['record the hero clearing the chasm and show me the clip', 'forge_motion'],
   ['check the player can actually get from the door to the goal', 'forge_motion'],
   ['merge those short clips into a single movie file', 'stitch_motion'],
+  ['set up a 35mm camera that dollies down the street and show me its path', 'create_shoot_plan'],
+  ['put easy ease on the second camera keyframe and make the lens 85', 'update_shoot_plan'],
   ['a roguelike where my gear persists across floors', 'create_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],

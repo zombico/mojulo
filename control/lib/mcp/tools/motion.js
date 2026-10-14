@@ -48,6 +48,7 @@ import {
   renderMotion,
   renderDeckMotion,
   renderWorldMotion,
+  renderWorldPlan,
   renderWorldTraversalMotion,
   encodeGif,
   encodeGifBuffers,
@@ -324,7 +325,10 @@ export async function renderShot({ subject, shot }) {
     if (isDeckMotion(motion)) {
       throw new Error("'deck' needs a deck subject — a world animates with a camera motion (turntable/orbit/push_in/dolly_zoom/flythrough) or a 'traversal' input script.");
     }
-    if (motion === 'traversal') {
+    if (motion === 'plan') {
+      // the world's SHOOT PLAN (create_shoot_plan): its cameras and cut list, each frame at its own world clock
+      result = await renderWorldPlan({ sketch: resolved.sketch, params: shot.params || {}, fps: shot.fps });
+    } else if (motion === 'traversal') {
       // TRAVERSAL (renderer-ladder P3): shot.ticks is an input script driving the world's LIVE
       // channels (controllable entities / physics / events) at shot.fps, instead of a camera
       // path over passive time. The ticks ride into the stored recipe, so the run reproduces.
@@ -341,7 +345,7 @@ export async function renderShot({ subject, shot }) {
       });
     } else {
       if (!WORLD_MOTION_NAMES.includes(motion)) {
-        throw new Error(`unknown world motion '${motion}'. One of: ${WORLD_MOTION_NAMES.join(', ')}, traversal. Capability manual: get_motion_vocab().`);
+        throw new Error(`unknown world motion '${motion}'. One of: ${WORLD_MOTION_NAMES.join(', ')}, plan, traversal. Capability manual: get_motion_vocab().`);
       }
       result = await renderWorldMotion({
         sketch: resolved.sketch,
@@ -881,7 +885,7 @@ export function registerMotionTools() {
           type: 'object',
           description: 'The shot. CAMERA: a named camera motion + params. DECK: motion \'deck\' (or omit — implied for deck subjects).',
           properties: {
-            motion: { type: 'string', enum: [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES, 'traversal'], description: "Which motion. Camera: turntable/orbit/push_in/dolly_zoom/flythrough. Deck: 'deck'. Effect: materialize/transfigure. World only: 'traversal' — an input script (shot.ticks) drives the world's live entities/physics/events instead of a camera path. See the catalogue in the description." },
+            motion: { type: 'string', enum: [...MOTION_NAMES, ...DECK_MOTION_NAMES, ...EFFECT_MOTION_NAMES, 'plan', 'traversal'], description: "Which motion. Camera: turntable/orbit/push_in/dolly_zoom/flythrough. Deck: 'deck'. Effect: materialize/transfigure. World only: 'plan' renders the world's shoot plan (create_shoot_plan); 'traversal' — an input script (shot.ticks) drives the world's live entities/physics/events instead of a camera path. See the catalogue in the description." },
             ticks: {
               type: 'array',
               description: "TRAVERSAL only: the input script — one normalized input snapshot per tick at shot.fps ({forward,strafe,turn,lift,jump,jumpHeld,lookDX,lookDY}, each -1..1; {} = idle tick). The world's controllable entities, physics, and events advance one fixed dt per tick, so the same ticks reproduce the identical run. Stored into the recipe. The run's per-tick probe stream (entity positions, HUD vars) files as probes.json beside the video, and the final probe returns in the result.",

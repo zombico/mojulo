@@ -143,6 +143,57 @@ export async function renderWorldMotion({ sketch, motion, params = {}, frames, f
 }
 
 /**
+ * Render a world's SHOOT PLAN (lib/graph/shoot/, `manifest.shoot`): the program sampled at its frame rate, each frame
+ * captured from that frame's camera with the world stepped to the frame's own clock (`world_t`), so a cut between two
+ * shots of one span replays the action and a camera following a car finds it where the plan sampled it. `params.shot`
+ * (a name or an index) renders one shot alone. The capture page never carries the plan's gizmos. Roll is not yet
+ * applied to captures (the capture camera stays upright).
+ *
+ * @returns {Promise<{ framePngs: Buffer[], width:number, height:number, viewBox:number[], cameras:object[], meta:object }>}
+ */
+export async function renderWorldPlan({ sketch, params = {}, fps }) {
+  const { normalizeShoot } = await import('@/lib/graph/shoot/plan');
+  const { sampleProgram } = await import('@/lib/graph/shoot/sample');
+  const { shootSubjects } = await import('@/lib/graph/shoot/subjects');
+  if (!sketch?.manifest?.shoot) {
+    throw new Error(`'${sketch?.ref}' has no shoot plan — create_shoot_plan puts cameras in it first (get_motion_vocab({ id: 'shoot' })).`);
+  }
+  const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
+  if (!payload) throw new Error(`sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no three.js World form to shoot.`);
+  const subjects = shootSubjects(payload);
+  const { plan, warnings } = normalizeShoot(sketch.manifest.shoot, { subjects });
+  if (!plan) throw new Error(`the shoot plan on '${sketch.ref}' does not read: ${warnings.join('; ')}`);
+  let shots = plan.shots;
+  if (params.shot !== undefined && params.shot !== null) {
+    const i = typeof params.shot === 'number' ? params.shot : shots.findIndex((s) => s.name === params.shot);
+    if (!(i >= 0 && i < shots.length)) throw new Error(`no shot '${params.shot}' in the plan (shots: ${shots.map((s) => s.name).join(', ')})`);
+    shots = [shots[i]];
+  }
+  const rate = Math.max(1, Math.min(60, Math.round(fps || plan.fps)));
+  const frames = sampleProgram({ ...plan, shots }, { fps: rate, subjects });
+  const width = Math.round(params.width || DEFAULT_W);
+  const height = Math.round(params.height || DEFAULT_H);
+  const aspect = width / height;
+  const specs = frames.map((f) => ({
+    pos: f.worldFraming.cameraPosition,
+    target: f.worldFraming.lookAt,
+    vfov: verticalFov(f.worldFraming.horizontalFov, aspect),
+    t: f.world_t * 1000,
+  }));
+  const html = emitThreeWorld({ ...payload, inline: true, capture: true, walk: false, wireframe: !!params.wireframe, decollide: params.decollide !== false });
+  const { pngs } = await renderWorldFrames(html, specs, { width, height });
+  return {
+    framePngs: pngs,
+    width,
+    height,
+    viewBox: [0, 0, width, height],
+    cameras: frames.map((f) => f.worldFraming),
+    shots: shots.map((s) => s.name),
+    meta: { motion: 'plan', frames: frames.length, fps: rate, loop: params.loop ?? false, backend: 'three', shots: shots.map((s) => s.name) },
+  };
+}
+
+/**
  * Replay a TRAVERSAL over a stored world sketch (renderer-ladder P3): an input script — one
  * normalized input snapshot per tick at a fixed rate — drives the world's live channels
  * (controllable entities, physics, events) and is baked to raster frames plus a per-tick probe

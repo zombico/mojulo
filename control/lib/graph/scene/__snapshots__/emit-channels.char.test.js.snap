@@ -94,6 +94,8 @@ exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > shallows emits byte-identically 1`] = `"adfdbc98046845bc5cf161fddcd84dfb46bd3b099a83c3955481a0cb6b6efad8"`;
 
+exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > shoot emits byte-identically 1`] = `"e49012eb035cb2709ca9a0ffeb07491ad897e6c5ebfe509d43434dcd65b34ccc"`;
+
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > signs emits byte-identically 1`] = `"39d7b5382450a3b7739783fb63841620e4ee2dda250a27dcba5377003385656d"`;
 
 exports[`emitThreeWorld characterization (byte-level pin over the fixture matrix) > sky-atmosphere emits byte-identically 1`] = `"8062f48789fff9dd76385887d24b6a90cc64f6ff0fddea62999579af5bb1f811"`;

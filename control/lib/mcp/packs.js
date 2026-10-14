@@ -172,7 +172,7 @@ export const PACKS = [
     title: 'Motion, film & motion-comic',
     description:
       "MOTION & FILM (+ motion-comic) — add TIME to a static subject: forge_motion (camera moves and performances rendered to flipbook SVG + GIF), stitch_motion (clips → one film), motion-vocab cards, and the click-gated motion-comic authored via update_sketch. Open for 'give me a spinning view of that molecule', 'record the hero clearing the chasm and show me the clip', 'walk to the exit to check the level is beatable' (traversal proof), 'present these charts one after another as a click-through deck', 'merge the clips into a single movie'.",
-    members: ['forge_motion', 'stitch_motion', 'get_motion_vocab'],
+    members: ['forge_motion', 'stitch_motion', 'get_motion_vocab', 'create_shoot_plan', 'update_shoot_plan'],
     shared: ['update_sketch', 'get_sketch_vocab'],
   },
   {

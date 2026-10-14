@@ -498,7 +498,7 @@ const FORM_DEFS = {
   'motion': {
     title: 'Motion & film',
     makes: 'add time to a static subject; stitch clips into a film',
-    tools: ['forge_motion', 'get_motion_vocab', 'stitch_motion'],
+    tools: ['forge_motion', 'get_motion_vocab', 'stitch_motion', 'create_shoot_plan', 'update_shoot_plan'],
   },
   'motion-comic': {
     title: 'Motion comic — click-gated comic presentation',
@@ -610,7 +610,7 @@ mint dispatch — match the ask to a FORM:
   WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · animated science / math / bio study object ("teach me nuclear fission") → \`create_view\`
   HOUSE    a house / apartment / cottage / townhouse / ONE furnished room / a store, restaurant, mall or school campus, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice)
   BUILDING institutional / bespoke one-off (a terminal, a hall, a block of masses + concourses) → \`mint_solid\` kind edifice · a dwelling is HOUSE
-  OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\`
+  OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\` · shoot plan → \`create_shoot_plan\`
   MOTION COMIC  click-by-click reveal, one self-contained HTML file → \`create_sketch\` kind 'motion-comic'
   AUDIO    soundtrack / tune / beat / sfx → \`create_beats\` · revise → \`update_beats\` · notes → \`annotate_beats\` · what changed → \`diff_beats\`
   VOICE    how a voice SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (an external worker speaks it)

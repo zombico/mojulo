@@ -623,6 +623,7 @@ async function registerAllTools() {
   const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
+  const { registerShootPlanTools } = await import('@/lib/mcp/tools/shoot-plan');
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
   const { registerDesignGameTools } = await import('@/lib/mcp/tools/design-game');
@@ -839,6 +840,9 @@ async function registerAllTools() {
   // ships subject-agnostic camera motions; performance motions land in Phase 2.
   // See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
   registerMotionTools();
+  // the shoot plan (lib/graph/shoot/): cameras as visible, keyed objects in a world, in After Effects words; motion's
+  // authored sibling — forge_motion renders what it plans
+  registerShootPlanTools();
   // Mojulo Beats — the AUDIO mint, sibling to the visual mints: seeded
   // generative soundtracks, explicit-score compositions, and gesture-built
   // foley cues, all synthesized-WebAudio recipes (no media bytes stored).
