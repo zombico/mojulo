@@ -4,9 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { resolveCharacterLight, characterLitPieces, METAL_HIGHLIGHT, CREATURE_KEY, SHADE_STEP, hexLch } from './station-loft-shade.js';
 
 describe('a drawn creature under the character light', () => {
-  it('takes the light; a creature not drawn, and a landmark hero, do not; plate brings the gloss', () => {
+  it('takes the light, drawn or designed by hand; a landmark hero and a built animal do not; plate brings the gloss', () => {
     expect(resolveCharacterLight({ plan: { style: { drawn: true } } })).toBeTruthy();
-    expect(resolveCharacterLight({ plan: { style: {} } })).toBeNull();
+    expect(resolveCharacterLight({ plan: { style: {} } })).toBeTruthy();
+    expect(resolveCharacterLight({ plan: {}, species: 'cat' })).toBeNull();
+    expect(resolveCharacterLight({ plan: {}, toon: { light: false } })).toBeNull();
     expect(resolveCharacterLight({ hero: { head: 'landmark' } })).toBeNull();
     const plate = resolveCharacterLight({ plan: { style: { drawn: true }, outfit: { pieces: [{ kind: 'pauldron', colour: 'metal' }] } } });
     expect(plate.highlight).toMatchObject(METAL_HIGHLIGHT);

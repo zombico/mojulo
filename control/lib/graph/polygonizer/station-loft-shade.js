@@ -125,9 +125,10 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
   const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
-  // a DRAWN creature (creature-drawn.js) takes the character light too: the toon step its markings are stepped in, and
-  // the metal's gloss when it wears plate
-  if (!anime) { if (manifest?.hero || !manifest?.plan?.style?.drawn) return null;
+  // a CREATURE (a layered plan that is no hero and no built animal: create_character's `as: 'creature'`, drawn or designed
+  // by hand) takes the character light too, as a hero does: the toon step (a drawn one's markings stepped in it), the ink,
+  // the metal's gloss when it wears plate. A carved creature (a statue) keeps the stone's light
+  if (!anime) { if (!isCreature(manifest)) return null;
     const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
     return wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base; }
   const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
@@ -160,6 +161,8 @@ export function valueShades(palette = {}, unlit = [], skin = []) {
   }
   return out;
 }
+/** a creature's manifest: a layered plan worn by no hero, not a built animal (`fauna`, `species`, kind `animal`), not carved */
+export const isCreature = (m) => !!m?.plan && !m.hero && m.kind !== 'animal' && !m.fauna && !m.species && !m.plan.statue && !m.statue;
 /** WORKED METAL'S HOT SPOT: a hero that wears plate (an armour build, or a designed piece in the `metal` role) takes a
  * gloss on its metal groups, a small lit spot where the plate turns full to the key, so a crowned plate reads as a curve
  * and not one flat tone. A hero wearing none keeps the light it had. */

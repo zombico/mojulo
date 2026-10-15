@@ -75,7 +75,10 @@ describe('resolveCharacterLight — which light a layered manifest reads', () =>
     expect(resolveCharacterLight({ kind: 'layered', hero: { head: 'anime', cast: 'female', headPreset: 'male' } }, {})).toEqual(def('male'));
     expect(ANIME_HAIR_HIGHLIGHT).toEqual({ female: { Hair: { kind: 'ring', threshold: 0.3, band: [0.14, 0.22], falloff: 1.4 } }, male: { Hair: { kind: 'streak', threshold: 0.5, band: [0, 0.4], parts: 'fringe' } } });
     expect(resolveCharacterLight({ kind: 'layered', hero: { head: 'landmark' } }, {})).toBeNull();
-    expect(resolveCharacterLight({ kind: 'layered', plan: {} }, { toon: resolveToon({ bands: 3, ink: true }) })).toBeNull();
+    // a creature (a plan worn by no hero) takes the character light as a hero does; a built animal and a carved one do not
+    expect(resolveCharacterLight({ kind: 'layered', plan: {} }, { toon: resolveToon({ bands: 3, ink: true }) })).toBeTruthy();
+    expect(resolveCharacterLight({ kind: 'layered', plan: {}, fauna: { species: 'wolf' } }, {})).toBeNull();
+    expect(resolveCharacterLight({ kind: 'layered', plan: { statue: {} } }, {})).toBeNull();
     expect(ANIME_CHARACTER_LIGHT).toEqual(resolveToonLight(true));
     expect(Object.isFrozen(ANIME_CHARACTER_LIGHT.toLight)).toBe(true); expect(Object.isFrozen(resolveCharacterLight(anime, {}).highlight.Hair.band)).toBe(true);
   });
@@ -516,7 +519,8 @@ describe('the World payload: absent ⇒ byte-identical', () => {
     ],
   };
   const PINS = {
-    planBiped: [() => expandLayeredManifest({ kind: 'layered', plan }), ['a645ae390d3b0fbf', 'a33a830d8af3f744', 'f1b33d48167b8855']],
+    // a plan creature: re-pinned (plain, toon) when every creature took the character light, as a hero does
+    planBiped: [() => expandLayeredManifest({ kind: 'layered', plan }), ['c5b129ce574b2b0a', '5bb3b6687091837e', 'f1b33d48167b8855']],
     // the heroes on the streamlined core: these pin the light's absence, and predate the structured core (DEFAULT_CORE),
     // whose own payloads are pinned below. The plain and toon pins re-pinned for smooth shading under the studio light
     // (world-kinds.js, STUDIO_SMOOTH_CREASE: a hero off the anime head carries the key at its corners); the unshaded

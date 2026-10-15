@@ -247,7 +247,11 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
   over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
   to carry, so the skin no longer shows through the breeches in diamonds.
-- **Beasts shaded as the heroes are.** A drawn creature's character light now crosses its front with the shadow line,
+- **Every creature takes the hero's character light.** A creature (create_character's `as: 'creature'`: a layered plan
+  worn by no hero, drawn from a roll or designed by hand) is lit as a hero is: the toon step, the ink, the metal's gloss
+  on plate, read at render time, so creatures minted before re-render with it (`toon: { light: false }` opts out). A
+  built animal (`species`) and a carved creature (`statue`) keep their own light.
+- **Beasts shaded as the heroes are.** A creature's character light now crosses its front with the shadow line,
   as a hero's does when it stands turned in its stance: its key is the character key turned 35° toward the side
   (`CREATURE_KEY`) and its step sits a little toward the key (`CREATURE_STEP`). The body's own groups (its segments, fur,
   scales, chitin, feathers, the head's skin) shade as a hero's skin does, darker and richer, never a grey (a cream
