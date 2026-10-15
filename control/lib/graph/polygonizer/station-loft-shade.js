@@ -125,7 +125,10 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
   const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
-  if (!anime) return null;
+  // a DRAWN creature (creature-drawn.js) takes the character light too: the toon step its markings are stepped in, and
+  // the metal's gloss when it wears plate
+  if (!anime) { if (manifest?.hero || !manifest?.plan?.style?.drawn) return null; const base = resolveToonLight(true);
+    return wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base; }
   const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
   return wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
 }
@@ -133,7 +136,7 @@ export function resolveCharacterLight(manifest, ctx = {}) {
  * gloss on its metal groups, a small lit spot where the plate turns full to the key, so a crowned plate reads as a curve
  * and not one flat tone. A hero wearing none keeps the light it had. */
 export const METAL_HIGHLIGHT = deepFreeze(resolveToonLight({ highlight: { OutfitMetal: { kind: 'gloss', threshold: 0.9 }, Plate: { kind: 'gloss', threshold: 0.9 } } }).highlight);
-const wearsMetal = (hero) => !!hero && (hero.adorn?.type === 'armor' || !!hero.stylism || /"colour":"metal"/.test(JSON.stringify(hero.outfit ?? null)));
+const wearsMetal = (hero, plan = null) => (hero ? hero.adorn?.type === 'armor' || !!hero.stylism || /"colour":"metal"/.test(JSON.stringify(hero.outfit ?? null)) : /"colour":"metal"/.test(JSON.stringify(plan?.outfit ?? null)));
 
 // ─── shading normals ──────────────────────────────────────────────────────
 const partOf = (mesh, fi) => mesh.provenance[mesh.faces[fi][0]].part;
@@ -486,7 +489,8 @@ function mixLinear(a, b, k) {
   const A = hexToRgb(a), B = hexToRgb(b);
   return rgbToHex(A.map((x, i) => 255 * srgbC(linC(x / 255) + (linC(B[i] / 255) - linC(x / 255)) * k)));
 }
-export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
+const tintMean = (hex, tt) => { const m = [0, 1, 2].map((c) => (tt[0][c] + tt[1][c] + tt[2][c]) / 3), c = hexToRgb(hex); return rgbToHex(c.map((x, k) => Math.max(0, Math.min(255, x * m[k])))); };
+export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null, tint = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
   const glow = new Set(Array.isArray(glows) ? glows : []);   // the recipe's emissive groups: full-bright, never split (still inked)
@@ -599,7 +603,9 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (!(l > 1e-14)) return null;   // a degenerate triangle has no face
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
     const partName = partOf(mesh, fi); const part = mesh.parts[partName]; const g = mesh.groups[fi];
-    const hex = faceHex(pal, g, part);
+    // `tint` (a drawn creature's markings, face-tint.js's form): the face's base taken through its corners' mean multiplier,
+    // so the light steps the marked colour and its own shade; absent ⇒ as before
+    const tt = tint?.[fi], hex = tt ? tintMean(faceHex(pal, g, part), tt) : faceHex(pal, g, part);
     if (unlit.has(g)) return { fi, tri, outNormal, partName, fill: hex, mark: true };
     if (glow.has(g)) return { fi, tri, outNormal, partName, fill: hex };
     const sk = `${g}|${hex}`; let shade = shadeCache.get(sk); if (shade === undefined) shadeCache.set(sk, shade = shadeFill(light, g, hex));

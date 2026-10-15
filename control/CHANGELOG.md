@@ -222,6 +222,11 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   flat tone. A hero that wears none keeps the light it had.
 - **Soft bags.** The `pack` signature's `soft: true` is a bag, not a box: a rounded section pillowed through its depth,
   sagging at the bottom, with a flap over the top and down the front. The catalogue's satchel, pack and quiver use it.
+- **Beasts in the heroes' art style.** A drawn creature (the plan's `style.drawn`, every designed egocube beast) takes
+  the character light the anime hero does: the toon step, the ink hull and, when it wears plate, the metal's gloss. Its
+  markings (countershading, points, the second tone) are stepped as its own colours (`characterLitPieces` reads the
+  same per-face `tint` the studio path does), and its body and fur weld as one form (`drawnCrease`). A creature not
+  drawn keeps the studio light.
 - **A beast's plate is metal.** The egocube's beast palette gains a `metal` (worked iron or steel, a clear step from the
   trim and from the coat it lies on), and a beast's pauldron and breastplate wear it instead of a cloth colour.
 - **An egocube lineup of dressed figures no longer overflows** while framing its cameras (a spread of every corner).

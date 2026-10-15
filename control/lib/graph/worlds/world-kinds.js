@@ -658,8 +658,10 @@ export const WORLD_KINDS = {
       const castLight = castLight0 ? withBands(castLight0, resolveToon(ctx.toon)?.bands) : null;
       const character = castLight && (m.toon ?? m.scene?.toon)?.light == null ? null : resolveCharacterLight(m, ctx);
       const figLight = castLight && !character ? castLight : light;
-      const normals = character ? layeredShadingNormals(shown, m.recipe, stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) : null;
-      const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive }) : null;
+      const normals = character ? layeredShadingNormals(shown, m.recipe, { ...(stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}), ...(!m.hero && m.plan?.style?.drawn ? { crease: drawnCrease(m.plan), proxy: false } : {}) }) : null;
+      // a drawn creature's markings (creature-silhouette.js), stepped by the character light as its own colours
+      const marks = character && !m.hero && m.plan?.style?.drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
+      const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive, ...(marks ? { tint: marks } : {}) }) : null;
       // SMOOTH under the studio light (a hero without the character light and the anime head: the landmark head, no head;
       // an anime hero with the light turned off keeps the old bake): the faces carry
       // the key at their corners from the welded normals (STUDIO_SMOOTH_CREASE: the skin at 70°, the rest at 35°), so the
