@@ -285,7 +285,7 @@ const QUICK_LEVERS = {
     '    (1..12)   the fighters, solved into movesets and extended by recipe; the default four if absent',
     '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] (1..8)   stage worlds the fight runs on in 3D;',
     '    false: flat backdrops, stages: [{ id, name, sky: [top, bottom], floor, crowd }]',
-    '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: parry | burst | guard, … } the sim\'s dials',
+    '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: [parry | burst | guard], … } the sim\'s dials',
     '  its own simulation, seen from the side: only theme and camera side beside these (no hero, trail, building, ride or run)',
   ],
   shoot: () => [
