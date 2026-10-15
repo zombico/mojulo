@@ -113,7 +113,7 @@ export const OUTFIT_KINDS = Object.freeze({
     const plate = (S, id, extra) => ({ id, mode: 'shell', side: S, nt: 14, ns: 5, thick: r3(th), edge: 'roll', within: r3(th * 1.5), interior: G({ colour: 'shade' }), group: G(p), rigid: true, rim: { group: G({ colour: 'trim' }), at: 'low', ends: false }, ...extra });
     const sides = I.symmetry === 'symmetric' || p.pair ? ['R', 'L'] : [p.side ?? (I.side === 'R' ? 'L' : 'R')];
     // in the outfit's own cloth (`colour: 'base'`) it is a PAD, not armour: one soft cap, its edge topstitched
-    if (p.colour === 'base') return { adorn: sides.map((S) => plate(S, `${base}${S}`, { part: 'torso', over: [`upperArm${S}`], s: [2.7, 3.45], t: [1.1, 2.9], ns: 7, mugen: r3(mugen), thick: r3(0.016 * B.k), wall: r3(0.008 * B.k), crown: r3(0.012 * B.k), rad: r3(0.05 * B.k), support: 3.45, ramp: 0.5, rim: undefined, interior: undefined,
+    if (p.colour === 'base') return { adorn: sides.map((S) => plate(S, `${base}${S}`, { part: 'torso', over: [`upperArm${S}`], s: capWindow(B), t: [1.1, 2.9], ns: 7, mugen: r3(mugen), thick: r3(0.016 * B.k), wall: r3(0.008 * B.k), crown: r3(0.012 * B.k), rad: r3(0.05 * B.k), support: 3.45, ramp: 0.5, rim: undefined, interior: undefined,
       signature: { kind: 'motif', name: 'dots', mode: 'border', w: r3(0.002 * B.k), lift: r3(0.0006 * B.k), group: G({ colour: 'shade' }) } })) };
     return { adorn: sides.flatMap((S) => [
       // the LAMES down the upper arm, the lowest innermost: each one up stands a plate's thickness further off, so they
@@ -121,7 +121,7 @@ export const OUTFIT_KINDS = Object.freeze({
       ...[[0.3, 0.5], [0.16, 0.36], [0.02, 0.22]].map((s, i) => plate(S, `${base}${S}Lame${i}`, { part: `upperArm${S}`, share: true, s, t: [0.1, 0.9], mugen: r3(mugen + i * th * 0.6), crown: r3(0.004 * B.k), rad: r3(0.03 * B.k), support: s[0], ramp: 0.4,
         signature: { kind: 'studs', r: r3(0.005 * B.k), h: r3(0.003 * B.k), count: 2, m: 6, group: G({ colour: 'trim' }) } })),
       // the COP capping the shoulder from the yoke, over the arm and its lames, crowned into a cup; its field the motif
-      plate(S, `${base}${S}`, { part: 'torso', over: [`upperArm${S}`], s: [2.7, 3.45], t: [1.1, 2.9], ns: 7, mugen: r3(mugen + 3 * th * 0.6), crown: r3(0.016 * B.k), rad: r3(0.05 * B.k), support: 3.45, ramp: 0.5,
+      plate(S, `${base}${S}`, { part: 'torso', over: [`upperArm${S}`], s: capWindow(B), t: [1.1, 2.9], ns: 7, mugen: r3(mugen + 3 * th * 0.6), crown: r3(0.016 * B.k), rad: r3(0.05 * B.k), support: 3.45, ramp: 0.5,
         ...(p.float ? { hover: true } : { liner: { group: G({ colour: 'shade' }), seat: r3(0.004 * B.k) } }), signature: armourMotif(p, B, G) })]) }; } },
   // a BRACER in two bands (the wrist and the forearm), the skin or sleeve between them
   bracers: { layer: 4, cls: 'rigid', colour: 'leather', compile: (p, B, G, I) => ({ adorn: (I.symmetry === 'symmetric' ? ['R', 'L'] : [I.side ?? 'R']).flatMap((S) => [[0.62, 0.86], [0.94, 1.2]].map((s, i) => ({ id: `${p.id ?? 'bracer'}${S}${i ? '' : 'Wrist'}`, mode: 'shell', part: `foreArm${S}`, s, t: 'wrap', mugen: r3(0.012 * B.k), thick: r3(0.01 * B.k), edge: 'roll', crown: r3(0.004 * B.k), interior: G({ colour: 'shade' }), group: G(p), rigid: true,
@@ -362,6 +362,12 @@ function distorted(A, p, D) {
 
 /** ARMOUR'S ORNAMENT IN THE SURFACE (law 15): the focal plate's motif (or the one the detail spends on it, `trim.chest`) EMBOSSED (raised, in the trim's metal or the accent),
  * any other plate's ENGRAVED (cut in: a thin line in the plate's shade) */
+/** the shoulder cap's window on the torso, off the body's own SHOULDER joint (a beast's torso is not a hero's): from the
+ * joint to a little past halfway up the slope to the torso's top (a hero's: s 2.7 … 3.45) */
+function capWindow(B) {
+  const sh = Math.min(B.shoulder ?? B.top.z, B.top.z - 0.02 * B.k), top = B.top.z;
+  return [r3(B.ringAt(B.torso, sh - 0.005 * B.k).s), r3(Math.min(B.uTop(B.torso), B.ringAt(B.torso, sh + 0.55 * (top - sh)).s))];
+}
 function armourMotif(p, B, G) {
   const name = p.trim?.motif ?? p.motif ?? 'knot';
   return p.role === 'focal' || p.trim?.chest ? { kind: 'motif', name, mode: 'emblem', size: r3(0.07 * B.k), w: r3(0.004 * B.k), lift: r3(0.0015 * B.k), group: G({ colour: 'accent' }) }

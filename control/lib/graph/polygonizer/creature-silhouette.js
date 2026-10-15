@@ -95,7 +95,8 @@ export const MONO_SHARE = 0.8;
 /** the body's dominant lightness (the area-weighted median over its layer-1 surface), and each tone's area */
 function bodyTones(mesh, plan) {
   const V = mesh.vertices, partOf = (fi) => mesh.provenance[mesh.faces[fi][0]].part, L = [];
-  mesh.faces.forEach((t, fi) => { const P = mesh.parts[partOf(fi)]; if (!P || (P.layer ?? 1) !== 1) return; const hex = plan.palette?.[mesh.groups[fi]] || P.tint; if (!/^#[0-9a-f]{6}$/i.test(hex ?? '')) return;
+  // the body's own surface: not a garment over it, nor a second skin painted on it
+  mesh.faces.forEach((t, fi) => { const P = mesh.parts[partOf(fi)]; if (!P || (P.layer ?? 1) !== 1 || P.garment || (Array.isArray(P.painted) && P.painted.includes(mesh.groups[fi]))) return; const hex = plan.palette?.[mesh.groups[fi]] || P.tint; if (!/^#[0-9a-f]{6}$/i.test(hex ?? '')) return;
     const [a, b, c] = t.map((vi) => V[vi]), area = Math.hypot(...cross(sub(b, a), sub(c, a))) / 2; L.push([hexLch(hex)[0], area]); });
   if (!L.length) return null;
   const total = L.reduce((t, [, a]) => t + a, 0); L.sort((x, y) => x[0] - y[0]);
@@ -125,8 +126,10 @@ export function markingTint(mesh, plan, markings) {
   if (!markings || markings.pattern === 'none') return null;
   const pattern = markings.pattern ?? 'both', palette = plan.palette ?? {}, V = mesh.vertices, F = mesh.faces;
   const partOf = (fi) => mesh.provenance[F[fi][0]].part;
-  const body = new Set(Object.entries(mesh.parts).filter(([, p]) => (p.layer ?? 1) === 1).map(([n]) => n));
-  const cover = new Set([...F.keys()].filter((fi) => body.has(partOf(fi))).map((fi) => mesh.groups[fi]));
+  // the BODY's own faces: not a garment worn over it, nor what a second skin painted on it (cloth takes no markings)
+  const body = new Set(Object.entries(mesh.parts).filter(([, p]) => (p.layer ?? 1) === 1 && !p.garment).map(([n]) => n));
+  const painted = (fi) => { const p = mesh.parts[partOf(fi)]; return Array.isArray(p?.painted) && p.painted.includes(mesh.groups[fi]); };
+  const cover = new Set([...F.keys()].filter((fi) => body.has(partOf(fi)) && !painted(fi)).map((fi) => mesh.groups[fi]));
   for (const g of ['Fur', 'FurAlt']) cover.add(g);
   const baseOf = (fi) => faceHex(palette, mesh.groups[fi], mesh.parts[partOf(fi)]);
   // only the body's MAIN tone takes a marking: what already stands apart from it (dark paws, a pale belly the plan
@@ -136,7 +139,7 @@ export function markingTint(mesh, plan, markings) {
   const pointy = (part) => { const base = familyOf(part).replace(/^lock\.|^tile\./, ''); return last.has(part.replace(/[RL]$/, '')) || /^(ear|earInner)$/.test(base) || tails.slice(-2).includes(part); };
   return F.map((t, fi) => {
     const part = partOf(fi), g = mesh.groups[fi];
-    if (!cover.has(g) || part.startsWith('adorn.')) return null;
+    if (!cover.has(g) || part.startsWith('adorn.') || mesh.parts[part]?.garment || painted(fi)) return null;
     const P = t.map((vi) => V[vi]), c = [0, 1, 2].map((k) => (P[0][k] + P[1][k] + P[2][k]) / 3), n = unit(cross(sub(P[1], P[0]), sub(P[2], P[0])));
     const base = baseOf(fi); if (!mainTone(base)) return null;
     const light = hexLch(base)[0] >= 55, two = markings.colour ?? secondTone(base);
