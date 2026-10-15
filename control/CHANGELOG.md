@@ -92,6 +92,9 @@ dummies on purpose (the look is other tools' job).
   signature words (kicks, punches, fire, reversal, grab, overhead, heavy, light) fill every slot, close the loop the
   archetype leaves open (no reversal: an anti-air normal), and write down what each word did. A default roster of
   four dummies is solved from one line each (`versus-roster.js`).
+- **The fighter in the cosmos.** The cube's `combat` gains `versus` (built, web only: `versus-core.js`), and a genre
+  probe, "Versus fighter" (side camera, an arena, versus combat), dry-runs makeable; a Godot export would lose its
+  side camera and its fight (`docs/tool-surface/hillclimb.md`).
 - **The machine gate** (`versus-laws.js`, `versus-match.js`, `versus-cpu.js`): laws on each fighter (the throw is
   shorter than any poke, a fast jab exists, a jump is answered, an invincible special loses on block, a jump clears
   the fireball, a fireball is minus on block, reach costs frames), and a deterministic CPU that plays the loop, so

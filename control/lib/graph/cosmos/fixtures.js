@@ -296,6 +296,18 @@ export const FIXTURES = Object.freeze([
       time: { progression: 'linear' },
     },
   },
+  // the fighter (10-15): a side-on one-on-one in rounds, its own simulation on a stage arena
+  {
+    id: 'versus-fighter',
+    name: 'Versus fighter',
+    anchor: false,
+    why: 'two fighters face each other from the side, one on one, in rounds: normals, specials, throws and blocks',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'side', levelForm: 'arena' },
+      power: { combat: ['versus'], mechanics: ['hp-pool'] },
+    },
+  },
   {
     id: 'block-puzzle',
     name: 'Block-pushing puzzle',
