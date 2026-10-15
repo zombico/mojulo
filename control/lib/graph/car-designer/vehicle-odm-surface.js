@@ -59,6 +59,14 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     const a=i/N,b=(i+1)/N,u=2*Math.PI*j/M,v=2*Math.PI*(j+1)/M;
     // body patches have semantic part ids for future materials, LOD and attachment.
     const part='body.'+(j<M/2?'starboard':'port');
+    // Wheel openings are negative space, not a painted layer over the tyre.
+    // Cull patches on outer shoulders inside each wheel's swept envelope.
+    // This is an intentionally faceted opening pending conformal patch remeshing.
+    const tc=(a+b)/2, angle=(u+v)/2, z=profile(tc,angle)[2], yc=y(tc);
+    const outer=Math.abs(Math.cos(angle))>0.62;
+    const nearWheel=[design.topology.anchors.wheelFL[1],design.topology.anchors.wheelRL[1]]
+      .some(wy=>Math.abs(yc-wy)<r*1.15 && z<r*2.12);
+    if (outer && nearWheel) continue;
     surface.push(quad(profile(a,u),profile(b,u),profile(b,v),profile(a,v),PAINTS[paint],part));
   }
   // Raised teardrop canopy: transparent *looking* glass panels, no transparency required.
