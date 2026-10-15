@@ -157,12 +157,28 @@ function stepMatch(m) {
   }
   const p0 = s.p[0], b0 = before.p[0];
   if (p0.mv && p0.mf === 1 && (b0.mv !== p0.mv || b0.mf !== 0)) m.lastMove = m.ctx.fighters[0].moves[p0.mv];
+  tickEffects(m);
   for (const e of s.events) onEvent(m, e);
   for (let i = 0; i < 2; i++) {
     if (s.p[1 - i].combo >= 2) { m.combo[i] = s.p[1 - i].combo; m.comboT[i] = 70; }
     if (m.comboT[i] > 0) m.comboT[i]--;
   }
   if (s.phase === 'matchEnd') m.end++;
+}
+
+/**
+ * The overlay's clocks run on the match's steps, never the screen's frames: a banner, a toast, the super's dimming,
+ * the shake, the sparks and the health bar's trailing red last as many steps at any refresh rate (and hold still
+ * while the match is paused). Drawing only reads them.
+ */
+function tickEffects(m) {
+  if (m.banner && m.banner.n > 0) m.banner.n--;
+  if (m.flash && m.flash.n > 0) m.flash.n--;
+  if (m.superFlash > 0) m.superFlash--;
+  if (m.shake > 0) { m.shake *= 0.85; if (m.shake < 0.3) m.shake = 0; }
+  for (const p of m.sparks) { p.x += p.vx; p.y += p.vy; p.life--; }
+  m.sparks = m.sparks.filter((p) => p.life > 0);
+  for (let i = 0; i < 2; i++) m.lag[i] += (m.s.p[i].hp - m.lag[i]) * (m.s.p[i].combo ? 0 : 0.08);
 }
 
 function onEvent(m, e) {
@@ -281,9 +297,7 @@ function drawEffects(g, m, toScreen, S) {
     glow.addColorStop(0, '#fff'); glow.addColorStop(0.35, m.colors[t.o]); glow.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = glow; g.beginPath(); g.arc(x, y, r * 1.3, 0, Math.PI * 2); g.fill();
   }
-  m.sparks = m.sparks.filter((p) => p.life > 0);
   for (const p of m.sparks) {
-    p.x += p.vx; p.y += p.vy; p.life--;
     const [x, y] = toScreen(p.x, p.y);
     g.strokeStyle = p.color; g.lineWidth = 3;
     g.beginPath(); g.moveTo(x, y); g.lineTo(x - p.vx * S * 2, y + p.vy * S * 2); g.stroke();
@@ -308,11 +322,10 @@ function drawEffects(g, m, toScreen, S) {
 function drawHud(g, W, H, m) {
   const s = m.s;
   const barW = Math.min(W * 0.38, 520), barH = 22, top = 24, gap = 70;
-  if (m.superFlash > 0) { g.fillStyle = `rgba(0,0,0,${0.5 * Math.min(1, m.superFlash / 10)})`; g.fillRect(0, 0, W, H); m.superFlash--; }
+  if (m.superFlash > 0) { g.fillStyle = `rgba(0,0,0,${0.5 * Math.min(1, m.superFlash / 10)})`; g.fillRect(0, 0, W, H); }
   for (let i = 0; i < 2; i++) {
     const F = m.ctx.fighters[i];
     const frac = s.p[i].hp / F.hp;
-    m.lag[i] += (s.p[i].hp - m.lag[i]) * (s.p[i].combo ? 0 : 0.08);
     const lagFrac = Math.max(frac, m.lag[i] / F.hp);
     const x0 = i === 0 ? W / 2 - gap / 2 - barW : W / 2 + gap / 2;
     g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(x0 - 3, top - 3, barW + 6, barH + 6);
@@ -347,14 +360,12 @@ function drawHud(g, W, H, m) {
   if (m.flash && m.flash.n > 0) {
     const fx = m.flash.p === 0 ? W * 0.18 : m.flash.p === 1 ? W * 0.82 : W / 2;
     vsOutlined(g, m.flash.text, fx, H * 0.28, 28, '#ffd23a');
-    m.flash.n--;
   }
   if (m.banner && m.banner.n > 0) {
     const b = m.banner;
     const k = Math.min(1, (b.max - b.n) / 8);
     vsOutlined(g, b.t, W / 2, H * 0.4, Math.round(Math.min(W / 9, 110) * (0.6 + 0.4 * k)), '#fff');
     if (b.sub) vsOutlined(g, b.sub, W / 2, H * 0.4 + Math.min(W / 9, 110) * 0.7, 26, '#ffd23a');
-    b.n--;
   }
   if (m.mode === 'training') drawTraining(g, m);
 }

@@ -205,8 +205,6 @@ function frameCamera() {
   const mid = (s.p[0].x + s.p[1].x) / 2000;
   cam.x += (Math.max(-lim, Math.min(lim, mid)) - cam.x) * 0.15;
   const shake = match.shake > 0 ? Math.sin(match.t * 2.3) * match.shake * 0.006 : 0;
-  if (match.shake > 0) match.shake *= 0.85;
-  if (match.shake < 0.3) match.shake = 0;
   if (camera.fov !== VFOV) { camera.fov = VFOV; camera.updateProjectionMatrix(); }
   camera.position.set(cam.x + shake, PLANE - cam.dist, FLOOR + 1.25 + cam.dist * 0.05);
   camera.lookAt(cam.x + shake, PLANE, FLOOR + 1.05);

@@ -67,7 +67,10 @@ dummies on purpose (the look is other tools' job).
   meter, combo counter, the result (rematch, character select, mode select) and a continue after a loss to the CPU.
   Two players share a keyboard (WASD + J K L U I; arrows + 1 2 3 4 5) or use two gamepads. The sim steps at a fixed
   60 Hz. B draws the solved boxes; training shows the last move's frame data and a dummy that stands, crouches,
-  blocks, jumps or fights. Without arenas the fight is drawn flat on a backdrop with a crowd band.
+  blocks, jumps or fights. Without arenas the fight is drawn flat on a backdrop with a crowd band. The overlay keeps
+  the match's time, not the screen's: banners, toasts (COUNTER, PARRY …), the super's dimming, the shake, the sparks
+  and the trailing red of a health bar count the sim's steps, so they last as long at 144 Hz as at 60, and hold still
+  through a pause.
 
 - **The fight as a function of two pads** (`versus-core.js`): `stepVersus(state, [pad1, pad2], ctx)` at 60 Hz in
   integer frames and millimetres, no clock or dice, so a pad log replays a match to the byte and a snapshot is a

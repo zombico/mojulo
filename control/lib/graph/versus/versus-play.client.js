@@ -271,8 +271,6 @@ function viewFor() {
   const lim = Math.max(0, s.rules.half - W / scale / 2 + 200);
   match.cam += (Math.max(-lim, Math.min(lim, mid)) - match.cam) * 0.18;
   const shake = match.shake > 0 ? Math.sin(game.t * 2.3) * match.shake : 0;
-  if (match.shake > 0) match.shake *= 0.85;
-  if (match.shake < 0.3) match.shake = 0;
   return { scale, camX: match.cam + shake * 6, cx: W / 2, ground: H * 0.84 };
 }
 
