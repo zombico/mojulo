@@ -187,6 +187,30 @@ genre on the quick path.
   view, AI attack) is off by default on a level that carries its `game`, wherever it is opened (the shell, the
   playtest and the export already hid it); `?hud=1` brings it back for debugging. Every other world shows it as before.
 
+### Rolled front surfaces and headlight families
+
+- Sweep and rake the front bumper into a rolled nose, with curved corner transitions and matched body boundaries.
+- Add selectable round, cat-eye and slim headlight assemblies with matching running-light signatures and language-specific defaults; retain fitted lenses, material grouping and LOD budgets.
+
+### Vehicle detail segmentation
+
+- Separate lamp housings, seals, reflectors and emitters, and shape mirror pods with an inset reflective face and a solid mounting stalk. Keep small detail tessellation proportional to physical size and reuse the existing material slots.
+
+### Close-camera supercar detail and budgets
+
+- Give each surface detail level an explicit triangle ceiling and measured mesh census. Use shaped tyre shoulders, a consistent wheel design across LODs, rounded cabin surfaces, bevelled bumper ends and crease-aware shading normals.
+- Provide material assignments and a self-contained lit vehicle review with paint, glass, rubber and alloy finishes; keep the existing world renderer and racing compilers unchanged.
+
+### Supercar body panels and cabin framing
+
+- Separate the hood and door skins with fitted shut lines, frame the windscreen and side windows, and add door handles and mounted mirrors so the cabin reads as an assembled vehicle.
+
+### Supercar display surfaces: fitted arches and mounted details
+
+- Replace coarse wheel-patch deletion with sampled wheel-envelope openings, fitted wheel wells and crowned body panels. Separate the body deck from the canopy and close both body ends.
+- Mount lamps on the end panels and support the rear wing from the deck. Bake directional face shading so the mesh reads in the unlit world renderer; preserve the existing racer and realistic compilers.
+- `node scripts/render-supercars.mjs <output-directory> [game|studio|hero]` renders front, side and rear views, orbitable HTML models and a review sheet without writing to the database.
+
 ### Historic recipes: other eras by the same principles
 
 The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that
