@@ -286,6 +286,20 @@ function coverOf(cover, k, hasTail) {
   return { tiles: tiles.map((t) => ({ ...t, height: r3(t.height) })), ruff: cover.kind === 'fur' && where.has('ruff') };
 }
 
+/** THE SKIN (skin-paint.js): a scaled people's hide painted as a reptile's is drawn, by region: fine plates over a
+ * reptile's head, overlapping scales down the limbs, the tail and the back where the sheet scales them, broad scutes down
+ * the throat, chest and belly. Sizes by the body (k); the drawn tier drops a region too fine to read */
+function skinOf(cover, k, { reptileHead = false, hasTail = false } = {}) {
+  if (!cover || cover.kind !== 'scales') return reptileHead ? [{ parts: ['cranium', 'jaw'], pattern: 'plates', cell: r3(0.03 * k), contrast: 0.14 }] : [];
+  const where = new Set(cover.where), all = where.has('belly'), L = [];
+  const limbs = [...(all || where.has('forearm') ? ['foreArm', 'upperArm', 'hand'] : []), ...(all || where.has('thigh') ? ['thigh'] : []), ...(all || where.has('shin') ? ['shin', 'meta'] : []), ...(hasTail && (all || where.has('tail')) ? [0, 1, 2, 3, 4].map((i) => `tail${i}`) : [])];
+  if (all) L.push({ parts: ['torso', 'pelvis', 'neck'], pattern: 'scales', cell: r3(0.055 * k), contrast: 0.14 });
+  if (limbs.length) L.push({ parts: limbs, pattern: 'scales', cell: r3(0.045 * k), contrast: 0.16 });
+  if (all) L.push({ parts: ['torso', 'neck', 'pelvis'], t: [0, 0.3], pattern: 'bands', cell: r3(0.07 * k), contrast: 0.18 });
+  if (reptileHead) L.push({ parts: ['cranium', 'jaw'], pattern: 'plates', cell: r3(0.03 * k), contrast: 0.14 });
+  return L;
+}
+
 function adornOf({ kit, mirrored, mended }, k, groups) {
   const L = groups.leather, out = [];
   const sides = (S) => (mirrored ? ['R', 'L'] : [S]);
@@ -369,6 +383,7 @@ function creature(sheet, title) {
       ...(cover.tiles.length ? { tiles: cover.tiles } : {}),
       pads: ['R', 'L'].flatMap((S) => [{ part: `hand${S}`, s: 1.3, toward: { flex: [`hand${S}`, `fingerB1${S}`], drive: { grip: 45 } }, r: 0.5 }, { part: `toes${S}`, s: 1.0, toward: { world: [0, 0, -1] }, r: 0.55 }]) },
     adorn: adornOf(kitOf(sheet), k, groups),
+    ...(() => { const sk = skinOf(hints.cover, k, { reptileHead: reptile, hasTail: body.hasTail }); return sk.length ? { skin: sk } : {}; })(),
     palette,
   };
   return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo };

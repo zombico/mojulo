@@ -247,6 +247,17 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
   over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
   to carry, so the skin no longer shows through the breeches in diamonds.
+- **A creature's skin, painted.** A plan's `skin` (polygonizer/skin-paint.js) paints its hide by region: `scales`
+  (overlapping, pointing down the part), `plates` (irregular, a reptile's head), `bands` (scutes across the belly),
+  each a cell size in metres, a contrast and windows (`t` round the ring, `run` down the part). The texture is value
+  only (a light rim round a darker cell), so the body's colours, its markings and both tones of the character light read
+  through it, and the light's step and the ink fall over it, as on the painted face. One atlas per creature: each part a
+  region covers gets its own rectangle (a whole number of cells round its ring, so the pattern closes), plus a white
+  tile; one texture for the static page, the rig pack and the glTF. The UVs come from each vertex's place on its part
+  (its station's distance down the centreline, its slot round the ring). A region too fine to read at the creature's
+  target is dropped; a second skin's cloth is not hide (war paint keeps the scales under it). The egocube's scaled
+  peoples carry one: fine plates on a reptile's head, scales down the limbs, the tail and the back, broad scutes down the
+  throat, chest and belly. Absent, nothing changes.
 - **The concept: what character this is, before a piece is chosen.** `egocube/concept.js` reads a word off the sheet
   (warrior, noble, scholar, mystic, wanderer, artisan, healer, trickster; `wild` for a people below the clothed line,
   keeping its archetype's flavour), turned by the role (a frontline scholar fights). Its card names the adornment

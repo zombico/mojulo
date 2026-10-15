@@ -52,6 +52,11 @@ import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
+import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
+import { readTarget, pxPerMetre, DEFAULT_TARGET } from '@/lib/graph/era/target';
+import { planHeight } from '@/lib/graph/era/cast-density';
+/** pixels a metre a creature is drawn at (its drawn target, else the default): the skin's level of detail */
+const skinPpm = (plan) => { try { return pxPerMetre(readTarget((typeof plan.style?.drawn === 'object' && plan.style.drawn.target) || DEFAULT_TARGET), planHeight(plan)); } catch { return Infinity; } };
 import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
@@ -692,7 +697,11 @@ export const WORLD_KINDS = {
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
       // the PAINTED FACE (face-paint.js): the anime head's features as a texture on its face; absent ⇒ null, byte-identical
       // (under a level's cast light too: the studio-lit faces carry it the same way)
-      const facePaint = character || m.hero?.painterly ? facePaintOf(mesh, m.recipe?.palette) : null;
+      const facePaint0 = character || m.hero?.painterly ? facePaintOf(mesh, m.recipe?.palette) : null;
+      // a creature's SKIN TEXTURE (skin-paint.js, the plan's `skin`): its scales, plates and scutes painted as the face is,
+      // under the character light. Absent ⇒ byte-identical
+      const skinPaint = !facePaint0 && character && !m.hero && Array.isArray(m.plan?.skin) && m.plan.skin.length ? skinPaintOf(mesh, m.plan.skin, { ppm: skinPpm(m.plan) }) : null;
+      const facePaint = facePaint0 ?? skinPaint;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
         : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
@@ -756,7 +765,7 @@ export const WORLD_KINDS = {
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : null);
+        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));

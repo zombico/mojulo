@@ -54,6 +54,7 @@ import { bakeLayered } from './station-loft-detail.js';
 import { bakeBody, validateBody } from './station-loft-body.js';
 import { bakeAdorn, validateKit } from './station-loft-adorn.js';
 import { paintParts, validatePaint } from './body-paint.js';
+import { validateSkin } from './skin-paint.js';
 import { garmentParts, validateGarments } from './body-garment.js';
 import * as dmath from '../../util/dmath.js';
 
@@ -281,6 +282,7 @@ export function validatePlan(plan) {
   if (plan.body != null && (typeof plan.body !== 'object' || Array.isArray(plan.body))) fail('body must be an object of detail passes { refine?, volume?, creases?, tiles?, pads?, spurs?, rows?, collars? } (station-loft-body.js)');
   if (plan.adorn != null && !Array.isArray(plan.adorn)) fail('adorn must be a list of adornments [{ id, mode, part, …, signature }] (station-loft-adorn.js)');
   for (const e of validatePaint(plan.paint)) fail(e);
+  for (const e of validateSkin(plan.skin)) fail(e);
   for (const e of validateGarments(plan.garments)) fail(e);
   if (plan.emissive != null && !(Array.isArray(plan.emissive) && plan.emissive.every((g) => typeof g === 'string'))) fail('emissive must be a list of palette group names (they render full-bright: a lens, a visor slit, a reactor)');
   for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !includesOf(plan).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
