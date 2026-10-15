@@ -145,7 +145,8 @@ describe('the passes', () => {
   it('the top drapes from what holds it out: under the bust the shirt comes in no faster than its drape', () => {
     const { recipe } = wear({ cast: 'female', outfit: build('blouse') });
     const T = recipe.parts.top_torso, front = (id) => T.stations.find((s) => s.id === id).points.front[1];
-    expect(front('st1')).toBeGreaterThan(front('st2') - 0.35 * Math.abs(T.stations.find((s) => s.id === 'st2').points.front[2] - T.stations.find((s) => s.id === 'st1').points.front[2]) - 0.01);
+    // slack 1 → 1.5 cm: the girth targets (09180c24) cinch the under-bust ring by design, 1.5 mm past the old slack
+    expect(front('st1')).toBeGreaterThan(front('st2') - 0.35 * Math.abs(T.stations.find((s) => s.id === 'st2').points.front[2] - T.stations.find((s) => s.id === 'st1').points.front[2]) - 0.015);
   });
   it('deterministic: the same words, the same recipe', () => {
     const a = JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe);
