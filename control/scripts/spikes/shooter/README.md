@@ -80,11 +80,11 @@ engine match layer has it (web, `create_controllable_world` only). **Absent** me
 | manual reload | absent | reload only on empty; no input for it |
 | spread, bloom, recoil | absent | deterministic by design (the *seeded dice* rule permits a seeded cone; none exists); `ui/systems.js` names a `spread` nothing makes |
 | aim down sights / zoom | absent | no fov change, no aim input |
-| damage falloff | absent | flat at any range; splash flat inside `splashRadius` |
+| damage falloff | built | opt-in `weapon.falloff { from, to, min }`; splash still flat inside `splashRadius` |
 | knockback, self-splash, rocket jump | absent | hits move poise, never velocity; the shooter is excluded from its own splash |
 | slots and switching | built (web) | `rule.loadout`, R cycles, 1–N picks, `switchReady`; slot 0 only in Godot |
 | quick melee, grenades | partial | each needs its own loadout slot (`strike`, `throw`); no bounce, no cook |
-| weapon archetypes | absent | `SHOOT.rifle` / `SHOOT.gun` are the only firearms; gear (`equipment.js`) has no firearm class and makes no combat stats |
+| weapon archetypes | built (phase 5) | `gameworld/weapon-roles.js`: close, mid, long, area, each a sightline band with numbers from the pole; gear (`equipment.js`) still makes no combat stats |
 
 The concept to solidify is **the weapon archetype as a role**, not a stat block: each archetype is a job on a
 sightline band (close burst, mid precision, long precision, area denial, power weapon). Its numbers come from that
@@ -111,7 +111,7 @@ measures it.
 |---|---|---|
 | health, ammo | built | `supplies`, each taken once; ammo refills the weapon in hand (`rearm`) |
 | respawn on a timer | absent | composable from a timer and the `__sp_` flags, not lowered |
-| armor, weapon, power-up pickups | absent | `buff`/`status` exist, nothing wires them to a pickup or to damage |
+| armor, weapon, power-up pickups | built (phases 4, 5) | armor and the overdrive (`supplies`), guns as loadout slots `held: false` given by the cast's `arm` |
 | bots that want items | absent | the forager's `grazeStep` is the template |
 
 ### Match structure, modes, score
@@ -236,6 +236,14 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   them and know where they are (and when they took them), placed by risk on the arena's floor. Open: weapon pickups
   (a loadout slot gained at runtime), and the drops' glyphs reappearing on the page when a supply comes back (the eyes
   gate).
+
+- **Phase 5, weapons as roles**: `weapon-roles.js` gives each role (close, mid, long, area) a band of the arena's
+  sightlines, with numbers from the pole. The arena's clear lines (`arenaSightlines`) say which roles it serves, and
+  each served gun is laid where its band's lines meet. Guns on the floor are loadout slots `held: false`, given by the
+  cast's `arm`; a fresh respawn takes the kit back. Minds take the gun for the range and hold its standoff. There is
+  falloff, and a launcher's burst feeds the bus its damage. Measured (`weapons: true`, matches to 5): realistic 80 s,
+  middle 111 s, stylized 83 s; realistic hits 34 of 38 under 6 m. Open: a mind that keeps its gun's range (backs off,
+  takes a perch), so the long gun is fired as well as carried; pellets; Godot's loadout (slot 0 only).
 
 ## A build order, if this goes ahead
 

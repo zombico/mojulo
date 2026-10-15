@@ -15,6 +15,8 @@
  *   crates   `many` (0 to 1) of them, at seeded places off the walls and the spawns' ring, one or two high
  *   supplies by risk: health where the fewest see (a pocket), armor and the overdrive where the most do (contested),
  *            rounds between
+ *   weapons  (asked, weapon-roles.js) each gun the arena's sightlines serve where its band's lines meet: the close gun
+ *            where the clear lines are short, the long gun where they are long; one its lines hardly fall in is not laid
  *   stagger  (close quarters) a blocker at each lane's quarters against alternate sides, and the dividers' middle gaps
  *            offset: the way zig-zags and no line runs a lane or crosses them all
  *   breaks   short walls the tweak stands across a line the laws found (a spawn seen, a line across), where the floor
@@ -27,12 +29,14 @@
  *   ARENA_TRAITS                              the traits, by the words that name them
  *   composeArena(candidate, seed)             → { half, pieces } the grammar's layout
  *   arenaDomain()                             → a tunnel domain
- *   tunnelArena(intent, { seed, spawns })     → the tunnel's record; its plan { half, pieces, spawns, drops, longest }
+ *   tunnelArena(intent, { seed, spawns, weapons })   → the tunnel's record; its plan { half, pieces, spawns, drops,
+ *                                               longest, armory? } (armory: each asked role's share of the clear lines)
  *
  * Pure; seeded dice only.
  */
 import { tunnel } from './tunnel.js';
-import { ARENA, arenaAsks, arenaSpawns, arenaLongest, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
+import { ARENA, arenaAsks, arenaSpawns, arenaLongest, arenaSightlines, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
+import { WEAPON_ROLES, bandShare, servedRoles } from './weapon-roles.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -126,8 +130,9 @@ function barest(built) {
 // the supplies, placed by RISK: every free spot on the floor (2 m apart, clear of the boxes and the spawns) is scored
 // by how much of the floor sees it (a 4 m grid, eye to eye). Health goes where the fewest see (a pocket to recover in),
 // armor and the overdrive where the most do (contested: worth a fight), rounds between. Each a turned pair, no two
-// within 4 m. → [{ u, v, gives, seen }] (seen: the share of the floor that sees it)
-function arenaDrops(built, c) {
+// within 4 m. Asked `weapons` (roles the arena serves), each gun goes where the clear lines from it fall most in its
+// band, after the rest. → [{ u, v, gives, seen, slot? }] (seen: the share of the floor that sees it)
+function arenaDrops(built, c, weapons = []) {
   const H = c.half, boxes = askBoxes(arenaAsks(built.pieces, (u, v) => [u, v, 0]));
   const free = (u, v) => !boxes.some((B) => u > B.min[0] - 1 && u < B.max[0] + 1 && v > B.min[1] - 1 && v < B.max[1] + 1) && !built.spawns.some((s) => Math.hypot(s[0] - u, s[1] - v) < 3);
   const eyes = [];
@@ -135,17 +140,23 @@ function arenaDrops(built, c) {
   const spots = [];
   for (let u = -H + 2; u <= H - 2; u += 2) for (let v = 1; v <= H - 2; v += 2) {
     if (!free(u, v) || !free(-u, -v)) continue;
-    const seen = eyes.filter((e) => !lineBlocked(e, [u, v, 1.2], boxes)).length / Math.max(1, eyes.length);
-    spots.push({ u: r2(u), v: r2(v), seen: r2(seen) });
+    const clear = eyes.filter((e) => !lineBlocked(e, [u, v, 1.2], boxes)), seen = clear.length / Math.max(1, eyes.length);
+    spots.push({ u: r2(u), v: r2(v), seen: r2(seen), ...(weapons.length ? { lines: clear.map((e) => Math.hypot(e[0] - u, e[1] - v)) } : {}) });
   }
   spots.sort((a, b) => a.seen - b.seen || a.u - b.u || a.v - b.v);
   const taken = [], apart = (q) => taken.every((t) => Math.hypot(t.u - q.u, t.v - q.v) >= 4 && Math.hypot(t.u + q.u, t.v + q.v) >= 4);
   const pick = (list, gives) => { const q = list.find(apart) ?? list[0]; taken.push(q); return [{ u: q.u, v: q.v, gives, seen: q.seen }, { u: -q.u, v: -q.v, gives, seen: q.seen }]; };
   const most = [...spots].reverse(), mid = [...spots.slice(Math.floor(spots.length / 2)), ...spots.slice(0, Math.floor(spots.length / 2)).reverse()];
-  return [...pick(spots, 'health'), ...pick(most, 'armor'), ...pick(most, 'overdrive'), ...pick(mid, 'ammo')];
+  const items = [...pick(spots, 'health'), ...pick(most, 'armor'), ...pick(most, 'overdrive'), ...pick(mid, 'ammo')];
+  for (const role of weapons) {
+    const band = WEAPON_ROLES[role].band, fit = (q) => bandShare(q.lines, band);
+    const by = [...spots].sort((a, b) => fit(b) - fit(a) || b.seen - a.seen || a.u - b.u || a.v - b.v);
+    items.push(...pick(by, 'weapon').map((d) => ({ ...d, slot: role })));
+  }
+  return items;
 }
 
-export function arenaDomain({ spawns = 8 } = {}) {
+export function arenaDomain({ spawns = 8, weapons = null } = {}) {
   const frame = (H, extra) => ({ centre: [0, 0], half: H, z: 0, ...extra });
   return {
     id: 'arena', TRAITS: ARENA_TRAITS,
@@ -163,8 +174,10 @@ export function arenaDomain({ spawns = 8 } = {}) {
       const L = composeArena(cand, seed), H = cand.half;
       const sp = arenaSpawns(L.pieces, H, spawns), blocks = arenaAsks(L.pieces, (u, v) => [u, v, 0]);
       const built = { ...L, spawns: sp, blocks };
-      built.drops = arenaDrops(built, cand);
       built.line = arenaLongest(frame(H), askBoxes(blocks));
+      // the guns asked: each one the arena's clear lines serve (its band holds enough of them), laid where its lines meet
+      if (weapons?.length) built.armory = servedRoles(arenaSightlines(frame(H), askBoxes(blocks)), weapons);
+      built.drops = arenaDrops(built, cand, (built.armory ?? []).filter((a) => a.served).map((a) => a.role));
       built.laws = concernLaws(['arena'], { ends: { spawn: [0, 0, 0] }, blocks, arena: frame(H, { spawns: sp.map(([u, v]) => [u, v, 0]), longest: 2 * H }) }).filter((l) => l.law !== 'floor-clear');
       return built;
     },
@@ -217,13 +230,14 @@ export function arenaDomain({ spawns = 8 } = {}) {
       }
       return { candidate: c, changed: changed.length ? changed : [`reseed ${seed + 1}`], reseed: changed.length ? undefined : seed + 1 };
     },
-    plan: (cand, built) => ({ half: built.half, pieces: built.pieces, spawns: built.spawns, drops: built.drops, longest: 2 * built.half, topology: cand.topology, ...(cand.topology === 'lanes' ? { lanes: cand.lanes } : {}) }),
+    plan: (cand, built) => ({ half: built.half, pieces: built.pieces, spawns: built.spawns, drops: built.drops, longest: 2 * built.half, topology: cand.topology, ...(cand.topology === 'lanes' ? { lanes: cand.lanes } : {}), ...(built.armory ? { armory: built.armory } : {}) }),
   };
 }
 
-/** Tunnel an arena's words into its plan. `spawns`: how many it lays (a match's contenders, eight at most). */
-export function tunnelArena(intent, { seed = 1, spawns = 8, passes = 12 } = {}) {
-  return tunnel(arenaDomain({ spawns }), { intent, seed, passes });
+/** Tunnel an arena's words into its plan. `spawns`: how many it lays (a match's contenders, eight at most); `weapons`: the
+ * pickup roles asked (weapon-roles.js), each laid when the arena serves it. */
+export function tunnelArena(intent, { seed = 1, spawns = 8, passes = 12, weapons = null } = {}) {
+  return tunnel(arenaDomain({ spawns, weapons }), { intent, seed, passes });
 }
 
 export { RAILS as ARENA_RAILS };

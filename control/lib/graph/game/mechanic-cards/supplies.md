@@ -41,4 +41,17 @@ does not reload until a supply restocks it. Without a reserve the reload is endl
   overdrive drives them. Whoever takes one, it is gone for everyone until it is back. A mind that knows them
   (`rule.items`) goes for them when hurt or short of rounds, and remembers when it took each.
 
-Without `respawn`, armor, overdrive or `takers` it lowers byte for byte as before.
+## A weapon on the floor
+
+```json
+{ "kind": "supplies", "respawn": 30, "takers": "bot-*",
+  "drops": [{ "at": [12, 4, 0], "gives": "weapon", "slot": "long" }] }
+```
+
+- `gives: 'weapon'` with `slot`, a name (or index) in the taker's `loadout`: the cast's `arm`. A slot the loadout marks
+  `held: false` is not carried until it is picked up; then it is in hand (its switch time paid) and its key and the
+  cycle reach it. A gun carried already takes its rounds full. Emits `supply:weapon { slot }`.
+- The fallen come back with the loadout they were minted with (frags' `fresh` spawn): a picked-up gun is lost with
+  the life, as an arena's are. Minds that know the drop (`rule.items`) go for a gun they lack or that runs dry.
+
+Without `respawn`, armor, overdrive, a weapon or `takers` it lowers byte for byte as before.

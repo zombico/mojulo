@@ -168,12 +168,12 @@ export function arenaSpawns(pieces, half, n) {
 }
 
 /** The arena laid on its square from its plan (`arena.plan`: { half, pieces, spawns, drops, longest } in its own
- * frame): `blocks` (each piece one collider), `spawns` and `drops` ({ at, gives }) on the land, and the longest clear
- * line its plan allows. */
+ * frame): `blocks` (each piece one collider), `spawns` and `drops` ({ at, gives, slot? }) on the land, the longest clear
+ * line its plan allows, and its armory when it was asked for guns. */
 export function arenaLayout(arena) {
   const [cx, cy] = arena.centre, z = arena.z ?? 0, P = arena.plan;
   const at = (u, v) => [r3(cx + u), r3(cy + v), z];
-  return { blocks: arenaAsks(P.pieces, at), spawns: P.spawns.map(([u, v]) => at(u, v)), drops: P.drops.map((d) => ({ at: at(d.u, d.v), gives: d.gives })), longest: P.longest };
+  return { blocks: arenaAsks(P.pieces, at), spawns: P.spawns.map(([u, v]) => at(u, v)), drops: P.drops.map((d) => ({ at: at(d.u, d.v), gives: d.gives, ...(d.slot ? { slot: d.slot } : {}) })), longest: P.longest, ...(P.armory ? { armory: P.armory } : {}) };
 }
 
 export function groundLays(ids, level, F, { arena = null } = {}) {
@@ -486,6 +486,18 @@ export function arenaLongest(arena, boxes) {
     if (d > longest + 1e-9 && !blocked(a, b, boxes)) { longest = d; from = a; to = b; }
   }
   return { longest, from, to };
+}
+
+/** The clear lines across an arena's floor, eye to eye, between points of a 4 m grid inside its wall that no box stands
+ * on: their lengths in metres, shortest first (the sightline histogram a weapon set is read against, weapon-roles.js). */
+export function arenaSightlines(arena, boxes) {
+  const [cx, cy] = arena.centre, z = arena.z ?? 0, H = arena.half, pts = [], out = [];
+  for (let u = -H + 1; u <= H - 1; u += 4) for (let v = -H + 1; v <= H - 1; v += 4) {
+    const p = [cx + u, cy + v, z + 1.6];
+    if (!boxes.some((B) => p[0] > B.min[0] - 0.3 && p[0] < B.max[0] + 0.3 && p[1] > B.min[1] - 0.3 && p[1] < B.max[1] + 0.3)) pts.push(p);
+  }
+  for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) if (!blocked(pts[i], pts[j], boxes)) out.push(Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]));
+  return out.sort((a, b) => a - b);
 }
 
 // the arena's laws over what was laid on it (concernLaws): measured on its floor, a 2 m grid inside its wall

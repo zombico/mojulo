@@ -10,6 +10,11 @@
  *     hurt { by } / heal { by? }   its body.hp, floored at 0 (a fall) and capped at its hpMax (heal with no by: full)
  *     rearm { by? }           rounds for the weapon in its hand: `by` more in its reserve (a reload draws them), or with
  *                         no reserve (an endless reload) or no by, the magazine full
+ *     arm { slot, draw? }     a weapon picked up: its loadout slot (an index or its `name`) carried from now (a slot
+ *                         `held: false` waits for it) and in hand unless draw is false; one carried already: its rounds
+ *                         full again
+ *     spawn { fresh }         (fresh) the life starts with the loadout it was minted with: the slots it holds at the
+ *                         start, the first in hand, every round back
  *     walk { points, names?, speed?, then?, face?, pose?, reach? }   a DUMB PATH: straight lines from point to point
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
@@ -49,7 +54,7 @@
  */
 
 export function buildCast(E) {
-  const { TAU, clamp, resolveBlocking, registerBodyOwner } = E;
+  const { TAU, clamp, resolveBlocking, registerBodyOwner, initWeapon } = E;
   const DEG = Math.PI / 180;
 
   function stepRoute(e, dt, world) {
@@ -114,6 +119,9 @@ export function buildCast(E) {
     const k = Number.isFinite(o.shake) && o.shake > 0 ? o.shake : X && X.shake ? X.shake : 0;
     if (k) moment(state, { is: 'shake', at: at.slice(), k: Math.min(1, k * Math.sqrt(sc)), for: C ? 0.4 + C.stagger * (n - 1) : 0.4, t0 });
   }
+  // a body's loadout (a seat's pilot rule carries it, else its own rule), and its weapons as minted: rounds full
+  const loadoutOf = (e) => (e.pilotRule && Array.isArray(e.pilotRule.loadout) ? e.pilotRule.loadout : e.rule && Array.isArray(e.rule.loadout) ? e.rule.loadout : null);
+  function refill(w, cfg) { const f = initWeapon(cfg || null); if (w && f) { w.ammo = f.ammo; w.reserve = f.reserve; w.reloading = false; w.reloadT = 0; w.burstLeft = 0; } }
   function castOps(state, ops) {
     for (const o of ops || []) {
       // a SHOT (the scene layer): the player's camera rule held aside while a directing shot plays; unshot gives it back
@@ -179,6 +187,28 @@ export function buildCast(E) {
         if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
         if (Number.isFinite(o.face)) e.transform.heading = o.face * DEG;
         if (Array.isArray(e.vel)) e.vel = [0, 0, 0];
+        const lo = o.fresh ? loadoutOf(e) : null;
+        if (lo && e.loadoutWeapons) {
+          lo.forEach((c, i) => refill(e.loadoutWeapons[i], c && c.weapon));
+          if (e.loadoutHeld) e.loadoutHeld = lo.map((c) => !(c && c.held === false));
+          const i0 = e.loadoutHeld ? Math.max(0, e.loadoutHeld.indexOf(true)) : 0;
+          e.loadoutIdx = i0; e.weapon = e.loadoutWeapons[i0]; e.aiRangedPick = null;
+          if (e.body && lo[i0] && lo[i0].figure) e.body.figure = lo[i0].figure;
+        } else if (o.fresh && e.weapon) refill(e.weapon, (e.pilotRule && e.pilotRule.weapon) || (e.rule && e.rule.weapon));
+      } else if (o.op === 'arm') {
+        const lo = loadoutOf(e);
+        if (e.downed || e.gone || !lo || !e.loadoutWeapons) continue;
+        const i = Number.isInteger(o.slot) ? o.slot : lo.findIndex((c) => c && c.name === o.slot);
+        if (i < 0 || i >= lo.length || !e.loadoutWeapons[i]) continue;
+        const had = !e.loadoutHeld || e.loadoutHeld[i];
+        refill(e.loadoutWeapons[i], lo[i].weapon);
+        if (had) continue;
+        e.loadoutHeld[i] = true;
+        if (o.draw !== false && (e.loadoutIdx || 0) !== i) {
+          e.loadoutIdx = i; e.weapon = e.loadoutWeapons[i];
+          if (e.body && lo[i].figure) e.body.figure = lo[i].figure;
+          if (E.armSwitchReady) E.armSwitchReady(e, e.pilotRule || e.rule, lo[i]);   // the maneuvers' (later in EMISSION): a drawn gun is not ready at once
+        }
       } else if (o.op === 'vanish') {
         if (typeof o.with === 'string' && !e.gone) e.transit = { is: o.with, dir: 'out', t0: t };
         e.gone = true; e.dormant = true; e.route = null; e.held = false; e.moving = false;

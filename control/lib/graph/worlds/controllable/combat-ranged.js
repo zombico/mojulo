@@ -119,6 +119,9 @@ export function buildCombatRanged(E) {
       spread: w.spread && typeof w.spread === 'object' ? { base: w.spread.base ?? 0, move: w.spread.move ?? 0, bloom: w.spread.bloom ?? 0, recover: w.spread.recover ?? 4, max: w.spread.max ?? 6 } : null,
       recoil: w.recoil && typeof w.recoil === 'object' ? { kick: w.recoil.kick ?? 0, recover: w.recoil.recover ?? 6, max: w.recoil.max ?? 6 } : null,
       bloomNow: 0, kickNow: 0,
+      // FALLOFF (opt-in, metres): a round's damage holds to `from`, then thins in a line to `min` of itself at `to` and
+      // past it (a burst for a corner hurts little across a hall). Without it a round deals the same at any range.
+      falloff: w.falloff && typeof w.falloff === 'object' ? { from: w.falloff.from ?? 0, to: Math.max(w.falloff.to ?? 0, (w.falloff.from ?? 0) + 1e-3), min: w.falloff.min ?? 0.5 } : null,
       muzzleOffset: w.muzzleOffset || (w.hand === 'right' || w.hand === 'left' ? handMuzzle(w) : null),   // { f, r, u } body-frame gun tip (tracer/flash/launch origin; the cover check starts here)
       // HAND (opt-in `hand: 'right' | 'left'`): the gun held to that side of the body, its muzzle a shoulder's width off
       // the eye's line (handMuzzle) unless `muzzleOffset` says where. A shot clears a corner from the muzzle, so past an
@@ -407,7 +410,8 @@ export function buildCombatRanged(E) {
           // HEADSHOT (opt-in `weapon.headshot`, a multiplier): a core hit that enters the egg in its top HEAD_BAND is to the
           // head. What a hit dealt is kept for the cast's hit fact (`dmg`, `head`), so the bus can take it from an hp of its own
           const egg = tg.body.egg, head = !!(w.headshot > 1 && egg && best.mode === 'core' && hitPt[2] >= tg.transform.pos[2] + (Number.isFinite(egg.cz) ? egg.cz : egg.c) + egg.c * HEAD_BAND);
-          const dealt = shotDamage * (head ? w.headshot : 1);
+          const fo = w.falloff, far = fo ? (best.d <= fo.from ? 1 : best.d >= fo.to ? fo.min : 1 - ((1 - fo.min) * (best.d - fo.from)) / (fo.to - fo.from)) : 1;
+          const dealt = shotDamage * (head ? w.headshot : 1) * far;
           tg.lastHitDmg = dealt; tg.lastHitHead = head; tg.lastHitDmgN = tg.hits;   // whose hit it was: the count it was dealt at
           // a kit's ultimate charges on the hits its holder lands (mind.js kitStep)
           if (e.rule && e.rule.kit && e.rule.kit.ultimate) e.kitCharge = Math.min(100, (e.kitCharge || 0) + (e.rule.kit.ultimate.per ?? 5));
@@ -539,6 +543,7 @@ export function buildCombatRanged(E) {
       }
       tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1;
       tg.lastHitBy = p.owner;   // match-layer attribution (the round remembers its shooter)
+      tg.lastHitDmg = p.damage || 0; tg.lastHitHead = false; tg.lastHitDmgN = tg.hits;   // what the burst dealt, for the hit fact
       const mst = matchStat(state, p.owner);
       if (mst && !p.statHit) { p.statHit = true; mst.hits += 1; }   // one on-target credit per round, however wide the splash (accuracy stays ≤ 100%)
       // R19: a frontal shield eats the burst too (drains + a break staggers); a flank/rear burst bypasses.

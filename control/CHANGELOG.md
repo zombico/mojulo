@@ -205,6 +205,34 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
   (reverting only `mind.js` passes them all).
 
+### Shooter: weapons as roles, and guns on the floor (phase 5)
+
+- **A weapon is a job on a sightline band** (`gameworld/weapon-roles.js`). `close` (0 to 10 m: a burst for a corner,
+  two or three rounds at arm's length, its damage thinning past a room), `mid` (the pole's own rifle), `long` (18 to
+  90 m: a head in one round, a body in two or three, thrown wide by a run), `area` (a flat launcher, its burst a body's
+  width round). Their numbers come from the band and the shooter pole's hp and time to kill. The realistic end carries
+  close, mid and long; the stylized end close, mid and the launcher; the middle all four.
+- **The arena says which guns it serves.** `arenaSightlines` is the floor's clear lines, eye to eye. A role is served
+  when its band holds at least 8% of them. A close-quarters arena's long lines hold 2%, so it lays no long gun; the
+  large ring with long sightlines holds 44%. Each served gun is laid, as a turned pair, where the clear lines from it
+  fall most in its band. The plan keeps the reading (`armory`). A level's `arena.weapons` asks for them.
+- **Guns on the floor.** A loadout slot `held: false` is not carried until it is picked up. The cast's new `arm`
+  op gives it, in hand and paying its switch time; a gun already carried takes its rounds full. The cycle and the
+  number keys pass by a slot not carried. `supplies`' `gives: 'weapon', slot` is the drop; it says
+  `supply:weapon { slot }`. Frags' respawns are `fresh`: the fallen come back with the loadout they were minted with,
+  every round back.
+- **A gun for the range.** A slot's `band` makes a mind take the held gun whose band holds the distance (the narrowest
+  such), keeping the one in hand within 2 m of its band. The slot's standoff is the range it holds (close presses in,
+  long keeps back). Without a band, the old rotation. Minds want a gun they lack (or one nearly dry) within 18 m.
+- **Falloff** (opt-in `weapon.falloff: { from, to, min }`): a round's damage holds to `from` and thins to `min` of
+  itself at `to`. A launcher's burst now says what it dealt, so the bus takes a rocket's damage as it takes a round's.
+- **In the quick deathmatch**: `weapons: true` (with a pole). Bot matches to 5 on the trail valley: realistic 80 s (close
+  guns taken and fired), the middle 111 s, stylized 83 s. Hits land closer than the arena's lines: realistic 34 of 38
+  under 6 m. So a long gun is carried and seldom fired, because bots fight at the range they meet. A mind that keeps
+  its gun's range (backs off to it, holds a perch) is the open half.
+- Without `held: false`, `band`, `falloff`, a weapon drop or `fresh`, everything runs as before. The page's hashes
+  were re-pinned: reverting only the four engine builders passes them all.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

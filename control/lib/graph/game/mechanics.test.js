@@ -505,4 +505,23 @@ describe('supplies with timing', () => {
     expect(r.ops.map((o) => [o.op, o.who])).toEqual([['heal', 'bot-2'], ['status', 'bot-1']]);
     expect(r.log.filter((t) => t === 'supply:health')).toHaveLength(1);
   });
+
+  it('a weapon on the floor: the cast\'s arm with its slot, for the player and for the takers; it names its slot', () => {
+    const w = { kind: 'supplies', takers: 'bot-*', respawn: 30, drops: [{ at: [0, 0, 0], gives: 'weapon', slot: 'long' }] };
+    let r = play([w, { kind: 'reach-exit', at: [9, 9, 0] }], [[enter('sp_0_0')]]);
+    expect(r.ops.filter((o) => o.op === 'arm').map((o) => [o.who, o.slot])).toEqual([['hero', 'long']]);
+    expect(r.log).toContain('supply:weapon');
+    r = play([w, { kind: 'reach-exit', at: [9, 9, 0] }], [[enter('sp_0_0_t', 'bot-2')], [enter('sp_0_0')]]);
+    expect(r.ops.filter((o) => o.op === 'arm').map((o) => [o.who, o.slot])).toEqual([['bot-2', 'long']]);   // gone for everyone
+    const c = composeMechanics([w, { kind: 'reach-exit', at: [9, 9, 0] }], ctx());
+    expect(c.events.reactions.some((x) => x.type === 'supply:weapon' && x.slot === 'long')).toBe(true);
+    expect(() => composeMechanics([{ kind: 'supplies', drops: [{ at: [0, 0, 0], gives: 'weapon' }] }, { kind: 'reach-exit', at: [9, 9, 0] }], ctx())).toThrow(/slot/);
+  });
+
+  it('frags brings the fallen back fresh: the loadout they were minted with', () => {
+    const c = composeMechanics([{ kind: 'frags', rivals: ['bot-1'], spawns: [[0, 0, 0], [9, 0, 0]] }], ctx());
+    const spawns = c.events.reactions.filter((x) => x.op === 'spawn');
+    expect(spawns.length).toBeGreaterThan(0);
+    expect(spawns.every((x) => x.fresh === true)).toBe(true);
+  });
 });

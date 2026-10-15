@@ -265,6 +265,8 @@ const MECHANICS = {
   //   overdrive `gives: 'overdrive'`: the cast's status for `amount` seconds (10): its taker's rounds hit harder
   //   takers    a glob of the others who may take them too (`'bot-*'`): health and armor heal them (the cast's heal),
   //             rounds rearm them, overdrive drives them; whoever takes one, it is gone for everyone
+  //   weapon    `gives: 'weapon', slot`: the cast's arm, a loadout slot (its name or index) carried from then on (a slot
+  //             `held: false` waits for it), drawn; a gun carried already takes its rounds full
   supplies: {
     role: 'emitter', requires: [],
     lower(p, ctx) {
@@ -274,7 +276,8 @@ const MECHANICS = {
       if (p.takers !== undefined && !(typeof p.takers === 'string' && p.takers)) throw new Error(`supplies[${ctx.i}].takers is a glob of who else may take them ('bot-*')`);
       const world = { vars: {}, sources: [], reactions: [], entities: [] };
       drops.forEach((d, j) => {
-        if (!d || !SUPPLIES.includes(d.gives)) throw new Error(`supplies[${ctx.i}].drops[${j}].gives is one of ${SUPPLIES.join(', ')}`);
+        if (!d || !(SUPPLIES.includes(d.gives) || d.gives === 'weapon')) throw new Error(`supplies[${ctx.i}].drops[${j}].gives is one of ${SUPPLIES.join(', ')}, weapon`);
+        if (d.gives === 'weapon' && !((typeof d.slot === 'string' && d.slot) || Number.isInteger(d.slot))) throw new Error(`supplies[${ctx.i}].drops[${j}]: a weapon names its loadout slot (slot: its name or index)`);
         if (d.amount !== undefined && !(Number.isFinite(d.amount) && d.amount > 0)) throw new Error(`supplies[${ctx.i}].drops[${j}].amount is above 0`);
         const back = d.respawn ?? p.respawn;
         if (back !== undefined && !(Number.isFinite(back) && back > 0)) throw new Error(`supplies[${ctx.i}].drops[${j}]: respawn is the seconds it takes to come back, above 0`);
@@ -287,9 +290,10 @@ const MECHANICS = {
           ammo: { do: 'ctrl', op: 'rearm', who: ctx.player, ...(d.amount !== undefined ? { by: d.amount } : {}) },
           armor: { do: 'inc', var: 'armor', by: d.amount ?? 50, max: armorMax },
           overdrive: { do: 'ctrl', op: 'status', who: ctx.player, is: 'overdrive', for: d.amount ?? 10 },
+          weapon: { do: 'ctrl', op: 'arm', who: ctx.player, slot: d.slot },
         }[d.gives];
         world.reactions.push({ on: 'enter', match: { zone }, if: untaken, ...give });
-        world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `supply:${d.gives}` });
+        world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `supply:${d.gives}`, ...(d.gives === 'weapon' ? { slot: d.slot } : {}) });
         if (back !== undefined) world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `__${zone}_taken` });
         // the others who may take it: their own zone at the same place, the same once (or until it is back)
         if (p.takers) {
@@ -300,10 +304,11 @@ const MECHANICS = {
             armor: { do: 'ctrl', op: 'heal', who: them, by: d.amount ?? 50 },
             ammo: { do: 'ctrl', op: 'rearm', who: them, ...(d.amount !== undefined ? { by: d.amount } : {}) },
             overdrive: { do: 'ctrl', op: 'status', who: them, is: 'overdrive', for: d.amount ?? 10 },
+            weapon: { do: 'ctrl', op: 'arm', who: them, slot: d.slot },
           }[d.gives];
           world.reactions.push(
             { on: 'enter', match: { zone: theirs }, if: untaken, ...giveThem },
-            { on: 'enter', match: { zone: theirs }, if: untaken, do: 'emit', type: `supply:${d.gives}`, by: them },
+            { on: 'enter', match: { zone: theirs }, if: untaken, do: 'emit', type: `supply:${d.gives}`, by: them, ...(d.gives === 'weapon' ? { slot: d.slot } : {}) },
             ...(back !== undefined ? [{ on: 'enter', match: { zone: theirs }, if: untaken, do: 'emit', type: `__${zone}_taken` }] : []),
             { on: 'enter', match: { zone: theirs }, do: 'toggle', target: zone, to: false },
             { on: 'enter', match: { zone: theirs }, do: 'set', var: got, to: 1 },
@@ -316,7 +321,7 @@ const MECHANICS = {
           (world.sequences ||= []).push({ id: `__${zone}_back`, trigger: { on: `__${zone}_taken` }, steps: [{ await: { timer: back } }, { do: 'set', var: got, to: 0 }, { do: 'toggle', target: zone, to: true }, { do: 'emit', type: 'supply:back', zone }] });
         }
       });
-      return { world, emits: SUPPLIES.map((g) => `supply:${g}`) };
+      return { world, emits: [...SUPPLIES, ...(drops.some((d) => d.gives === 'weapon') ? ['weapon'] : [])].map((g) => `supply:${g}`) };
     },
   },
 
@@ -793,12 +798,12 @@ const MECHANICS = {
           );
         });
         world.reactions.push({ on: fell(c), do: 'set', var: last(c), to: 0 });
-        // back after its time, at its next spawn (none: where it lies)
+        // back after its time, at its next spawn (none: where it lies), fresh: the loadout it was minted with, rounds full
         world.sequences.push({ id: `__respawn_${i}_${c}`, trigger: { on: fell(c) }, steps: [{ await: { timer: respawn } }, { do: 'emit', type: rise(c) }] });
         if (spawns.length) {
-          spawns.forEach((s, j) => world.reactions.push({ on: rise(c), if: { var: sp(c), eq: j }, do: 'ctrl', op: 'spawn', who: c, at: s.slice(0, 3) }));
+          spawns.forEach((s, j) => world.reactions.push({ on: rise(c), if: { var: sp(c), eq: j }, do: 'ctrl', op: 'spawn', who: c, at: s.slice(0, 3), fresh: true }));
           world.reactions.push({ on: rise(c), do: 'inc', var: sp(c), by: 1 }, { on: rise(c), if: { var: sp(c), gte: spawns.length }, do: 'set', var: sp(c), to: 0 });
-        } else world.reactions.push({ on: rise(c), do: 'ctrl', op: 'spawn', who: c });
+        } else world.reactions.push({ on: rise(c), do: 'ctrl', op: 'spawn', who: c, fresh: true });
         // the limit
         world.watches.push({ type: `__top_${i}_${c}`, when: { var: frag(c), gte: frags } });
         world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P ? 'frags:won' : 'frags:lost' });

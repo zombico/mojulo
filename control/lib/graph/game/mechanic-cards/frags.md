@@ -31,7 +31,8 @@ not the end).
 - world: per contender a frag count `__frag_<i>_<id>` and a last hitter `__lh_<i>_<id>` (set on each `hit:<id>` by
   its `by`, cleared when it falls); a fall (`down`, or the player's hp at 0) credits the last hitter and emits
   `kill { killer, victim }` (nothing when no one hit it since it last came back); a sequence per contender waits
-  `respawn` seconds and the cast's `spawn` brings it back at `__sp_<i>_<id>`'s spawn; a watch per contender at the
+  `respawn` seconds and the cast's `spawn` brings it back fresh (`fresh`: the loadout it was minted with, every round back)
+  at `__sp_<i>_<id>`'s spawn; a watch per contender at the
   limit. The place is the laps rivals' lead and ahead flag per rival (`__place_<i>`, a tie to who got there first).
   With `seconds`, a clock (`__frags_t_<i>`) and a horn.
 - contract: `on: { "frags:won": { end: "success" }, "frags:lost": { end: "fail" } }`, `keep` frags and place.

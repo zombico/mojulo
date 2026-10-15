@@ -63,6 +63,7 @@ import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites } from './lay-concerns.js';
 import { shooterPole, readPole } from './shooter-pole.js';
+import { poleArmory, roleLoadout } from './weapon-roles.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
 import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
@@ -117,7 +118,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole'];
+const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -159,7 +160,9 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
   if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
-  for (const k of ['bots', 'frags', 'arena', 'pole']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
+  for (const k of ['bots', 'frags', 'arena', 'pole', 'weapons']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
+  if (Q.weapons !== undefined && Q.weapons !== true) throw fail('.weapons: true lays the pole\'s guns on the arena\'s floor to be picked up');
+  if (Q.weapons && Q.pole === undefined) throw fail('.weapons rides the shooter pole: name a pole (realistic..stylized, 0..1)');
   if (Q.pole !== undefined) { try { readPole(Q.pole); } catch (e) { throw fail(`.pole is ${e.message.replace(/^shooter pole: /, '')}`); } }
   if (Q.arena !== undefined && !(typeof Q.arena === 'string' && Q.arena.trim())) throw fail('.arena is the arena in a few words ("a tight three-lane arena with long sightlines")');
   if (Q.bots !== undefined && !(Number.isInteger(Q.bots) && Q.bots >= 1 && Q.bots <= 7)) throw fail('.bots is how many bots in the match with you, 1 to 7');
@@ -243,7 +246,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
       // a deathmatch's arena: its words, a spawn for each in the match
-      ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1 } } : {}) } };
+      ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}) } } : {}) } };
   return {
     id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },
@@ -553,18 +556,24 @@ export function shootCast(quick, ends, ref, { hero = false } = {}) {
 export function deathmatchLegend(quick) {
   if (quick.pole === undefined) return 'click  fire';
   const P = shooterPole(quick.pole);
-  return ['click  fire', P.move.jump ? `Space  jump${P.move.airJumps ? ' (twice)' : ''}` : null, P.move.dash ? 'F F  dash' : null, P.abilities.heal ? 'Q  heal' : null, P.abilities.ultimate ? 'X  ultimate' : null].filter(Boolean).join(' · ');
+  return ['click  fire', quick.weapons ? '1-4  a gun picked up · R  the next' : null, P.move.jump ? `Space  jump${P.move.airJumps ? ' (twice)' : ''}` : null, P.move.dash ? 'F F  dash' : null, P.abilities.heal ? 'Q  heal' : null, P.abilities.ultimate ? 'X  ultimate' : null].filter(Boolean).join(' · ');
 }
 
 // the seconds each supply takes to come back (an arena's item timing)
-export const ITEM_BACK = Object.freeze({ health: 20, ammo: 15, armor: 25, overdrive: 45 });
+export const ITEM_BACK = Object.freeze({ health: 20, ammo: 15, armor: 25, overdrive: 45, weapon: 30 });
 /** A deathmatch's supplies, from its arena's (placed by risk, tunnel-arena.js): health and rounds always, armor on the
- * shooter pole, the overdrive where the pole has an ultimate (the stylized end); each comes back after its ITEM_BACK.
- * → [{ at, gives, respawn }] */
+ * shooter pole, the overdrive where the pole has an ultimate (the stylized end), the guns the arena serves when it asks
+ * for weapons; each comes back after its ITEM_BACK. → [{ at, gives, respawn, slot? }] */
 export function deathmatchDrops(quick, ends) {
   const P = quick.pole !== undefined ? shooterPole(quick.pole) : null;
-  const keep = (g) => g === 'health' || g === 'ammo' || (P && g === 'armor') || (P && g === 'overdrive' && !!P.abilities.ultimate);
-  return ends.arena.drops.filter((d) => keep(d.gives)).map((d) => ({ at: d.at, gives: d.gives, respawn: ITEM_BACK[d.gives] }));
+  const keep = (g) => g === 'health' || g === 'ammo' || (P && g === 'armor') || (P && g === 'overdrive' && !!P.abilities.ultimate) || (quick.weapons && g === 'weapon');
+  return ends.arena.drops.filter((d) => keep(d.gives)).map((d) => ({ at: d.at, gives: d.gives, respawn: ITEM_BACK[d.gives], ...(d.slot ? { slot: d.slot } : {}) }));
+}
+/** A deathmatch's loadout with weapons (weapon-roles.js): the pole's rifle in hand, each gun its arena laid to be
+ * picked up after it; every slot carries its band (a mind takes the gun for the range). `eye`: the guns' height. */
+export function deathmatchLoadout(quick, ends, eye) {
+  const laid = [...new Set(ends.arena.drops.filter((d) => d.gives === 'weapon').map((d) => d.slot))];
+  return roleLoadout(quick.pole, laid).map((c) => ({ ...c, weapon: { ...c.weapon, eye } }));
 }
 
 /** A deathmatch's bots' ids (quick.bots of them). */
@@ -585,7 +594,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
     figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({
       id,
-      rule: { type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), items: deathmatchDrops(quick, ends).map((d) => ({ at: d.at, gives: d.gives, back: d.respawn })), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
+      rule: { type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), items: deathmatchDrops(quick, ends).map((d) => ({ at: d.at, gives: d.gives, back: d.respawn, ...(d.slot ? { slot: d.slot } : {}) })), ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, 1.4) } : {}), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
       weapon: P ? { ...P.weapon, eye: 1.4 } : { ...SHOOT.gun, range: 40, hand: 'right' },
       body: { type: 'figure-rig', figure: id, hittable: true, hp: P ? P.hp : SHOOT.foeHp, poise: P ? 6 : 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
       transform: { pos: at, heading: face(at) },
@@ -593,9 +602,11 @@ export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
   });
   const s0 = A.spawns[0];
   // the player's feet: the pole's pace; past its jump threshold the platform rule (a jump, an air jump, a dash)
-  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash } : { speed: P.move.speed };
+  // (with weapons it is the platform rule too: the rule that carries a loadout; short of the pole's jump, a hop a step high)
+  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
+    : quick.weapons ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
   const pilot = {
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0) } : {}) },
     weapon: P ? { ...P.weapon, eye: hero ? 1.5 : 0 } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right' },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },

@@ -637,11 +637,18 @@ export function buildMind(E) {
     items.forEach((it, k) => { if (Math.hypot(it.at[0] - t.pos[0], it.at[1] - t.pos[1]) < 1.2) took[k] = now; });
     const hurt = e.hpMax > 0 && Number.isFinite(e.body.hp) && e.body.hp < (r.itemsBelow ?? 0.6) * e.hpMax;
     const w = e.weapon, dry = !!w && w.reserve != null && w.ammo + w.reserve < w.magazine;
+    // a weapon (`gives: 'weapon'`, its loadout `slot`): wanted while not yet carried, or carried and nearly dry, within
+    // `gunReach` (18 m): farther, the hunt comes first
+    const lo = e.pilotRule && Array.isArray(e.pilotRule.loadout) ? e.pilotRule.loadout : Array.isArray(r.loadout) ? r.loadout : null;
+    const gun = (it) => {
+      const i = !lo || !e.loadoutWeapons ? -1 : Number.isInteger(it.slot) ? it.slot : lo.findIndex((c) => c && c.name === it.slot), g = i >= 0 ? e.loadoutWeapons[i] : null;
+      return !!g && ((e.loadoutHeld && !e.loadoutHeld[i]) || (g.reserve != null && g.ammo + g.reserve < g.magazine));
+    };
     let best = null, bd = Infinity;
     items.forEach((it, k) => {
       if (took[k] != null && now - took[k] < (it.back ?? Infinity)) return;
       const d = Math.hypot(it.at[0] - t.pos[0], it.at[1] - t.pos[1]);
-      const want = ((it.gives === 'health' || it.gives === 'armor') && hurt) || (it.gives === 'ammo' && dry) || (it.gives === 'overdrive' && d < 12);
+      const want = ((it.gives === 'health' || it.gives === 'armor') && hurt) || (it.gives === 'ammo' && dry) || (it.gives === 'overdrive' && d < 12) || (it.gives === 'weapon' && d < (r.gunReach ?? 18) && gun(it));
       if (want && d < bd) { bd = d; best = it; }
     });
     return best ? best.at : null;
@@ -962,15 +969,34 @@ export function buildMind(E) {
       // ENGAGE: the RANGED ROTATION (a duelist's repertoire): with two or more trigger guns (throw slots skipped) it
       // advances the pick every `weaponRotate` s (6), so its spacing shifts with the tool in hand. One gun: it just
       // selects it.
+      // (a slot not yet picked up, `held: false`, is not in its hands)
       const ranged = [];
-      for (let i = 0; i < e.loadoutWeapons.length; i++) if (e.loadoutWeapons[i] && !lo[i].throw) ranged.push(i);
+      for (let i = 0; i < e.loadoutWeapons.length; i++) if (e.loadoutWeapons[i] && !lo[i].throw && (!e.loadoutHeld || e.loadoutHeld[i])) ranged.push(i);
       if (ranged.length) {
-        if (e.aiRangedPick == null) { const cur = ranged.indexOf(e.loadoutIdx || 0); e.aiRangedPick = cur >= 0 ? cur : 0; }
-        if (ranged.length > 1) {
-          e.aiWeaponT = (e.aiWeaponT || 0) + dt;
-          if (e.aiWeaponT >= (r.weaponRotate ?? 6)) { e.aiWeaponT = 0; e.aiRangedPick = (e.aiRangedPick + 1) % ranged.length; }
+        let want;
+        if (ranged.some((i) => Array.isArray(lo[i].band))) {
+          // BANDS (opt-in, a slot's `band: [near, far]` metres, gameworld/weapon-roles.js): the gun for the range, not a
+          // rotation. The held gun whose band holds the distance, the narrowest such (the specialist), one with rounds
+          // before a dry one; the gun in hand is kept while the distance stays within 2 m of its band (a switch costs
+          // its ready time).
+          const band = (i) => (Array.isArray(lo[i].band) ? lo[i].band : [0, Infinity]);
+          const dry = (i) => { const w = e.loadoutWeapons[i]; return w.ammo <= 0 && w.reserve === 0; };
+          const off = (i) => { const [a, b] = band(i); return dist2d < a ? a - dist2d : dist2d > b ? dist2d - b : 0; };
+          const cur = e.loadoutIdx || 0;
+          if (ranged.includes(cur) && !dry(cur) && off(cur) <= 2 && !(off(cur) > 0 && ranged.some((i) => i !== cur && !dry(i) && off(i) === 0))) want = cur;
+          else want = ranged.reduce((p, q) => {
+            const k = (i) => [dry(i) ? 1 : 0, off(i), band(i)[1] - band(i)[0]];
+            const a = k(p), b = k(q);
+            return b[0] < a[0] || (b[0] === a[0] && (b[1] < a[1] - 1e-9 || (Math.abs(b[1] - a[1]) <= 1e-9 && b[2] < a[2]))) ? q : p;
+          });
+        } else {
+          if (e.aiRangedPick == null) { const cur = ranged.indexOf(e.loadoutIdx || 0); e.aiRangedPick = cur >= 0 ? cur : 0; }
+          if (ranged.length > 1) {
+            e.aiWeaponT = (e.aiWeaponT || 0) + dt;
+            if (e.aiWeaponT >= (r.weaponRotate ?? 6)) { e.aiWeaponT = 0; e.aiRangedPick = (e.aiRangedPick + 1) % ranged.length; }
+          }
+          want = ranged[e.aiRangedPick % ranged.length];
         }
-        const want = ranged[e.aiRangedPick % ranged.length];
         if (!e.weapon || (e.loadoutIdx || 0) !== want) {
           e.loadoutIdx = want; e.weapon = e.loadoutWeapons[want];
           if (e.body && lo[want].figure) e.body.figure = lo[want].figure;
