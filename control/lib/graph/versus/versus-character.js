@@ -156,7 +156,7 @@ export async function versusGate(manifest) {
 }
 
 /**
- * A character's own body for an arena (versus-skin.js poses it): its layered rig's bones and rigid parts, the clips
+ * A character's own body for an arena (versus-figure.js poses it): its layered rig's bones and rigid parts, the clips
  * left out (the fight is the motion). → { bones: [{ id, head, tail }], parts: [{ pos, col } | null] }, or null when
  * the rig has no parts to draw (the stick figure stands in).
  */

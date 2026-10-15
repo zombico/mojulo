@@ -7,13 +7,16 @@
  * may: `THREE`, `scene`, `camera`, `controls`, `wrap`, and `__ctrlOwnsCamera` (it owns the camera from the start).
  *
  * The fight's plane is the arena's: sim x (mm) is world x / 1000 about the room's middle, sim y the height off the
- * floor, all at the plane's y. Bodies are the stick figures as solid limbs (a fill and a black hull for the ink, a
- * joint ball at each bend), lead limbs a hand nearer the camera than rear ones. The camera stands square to the
+ * floor, all at the plane's y. Every body is the fighter in 3D (versus-figure.js): the vajra's skeleton posed from the
+ * sim's figure, bladed toward the camera with the lead on the far side, turning into its strikes, its side view the
+ * sim's own. A stick fighter is drawn on it as solid limbs (a fill and a black hull for the ink, a joint ball at each
+ * bend, the far side darker). The camera stands square to the
  * plane on the open side, keeps both fighters in frame (closer as they close in) and stops at the walls. Health,
  * timer, banners, sparks and fireballs are the runtime's overlay, on a canvas over the picture.
  *
  * A character made with create_character (its `character` ref, its body in `VERSUS_ARENA.bodies`) fights in its own
- * body: its rig's rigid parts, each bone turned from the fight's pose (versus-skin.js), the figure facing its foe.
+ * body: its rig's rigid parts on its own skeleton, each riding its segment of the figure, relit by the arena's key as
+ * it turns (the pack's baked rest light taken back out) and inked.
  * One the arena has no body for (a game's roster grown since the arena was made) is the stick figure.
  *
  * As a level: hosted in a versus game's frame it posts READY, fights the picks INIT brings (fighters as recipes,
@@ -22,7 +25,7 @@
  */
 
 /* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
-   skinSkeleton, skinPose, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
+   figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
 
 const AV = VERSUS_ARENA;
 const hosted = window.parent !== window;
@@ -50,6 +53,17 @@ const cam = { x: 0, dist: 5.8 };
 
 // ── bodies ───────────────────────────────────────────────────────────────────────────────────────────────────
 
+// the fighter in 3D (versus-figure.js): its nodes in the figure's frame (metres, facing +y, its right +x) placed on
+// the plane, facing its foe: +y along the plane toward the foe, its right toward the camera when it faces +x
+const worldOf = (p, n, out) => out.set(p.x / 1000 + p.face * n[1], PLANE - p.face * n[0], FLOOR + p.y / 1000 + n[2]);
+// how far the body stands bladed: all the way on its feet, half when hit, not at all falling or down
+const BLADE_OF = { fall: 0, ko: 0, down: 0, thrown: 0, rise: 0.4, hit: 0.5, burst: 0.6 };
+const bladeOf = (p) => BLADE_OF[p.st] ?? 1;
+const poseFigure = (base, p, F, t) => {
+  const pose = poseOf(p, F, t);
+  return { pose, N: figurePose(base, rigJoints(F.body, pose), { face: p.face, air: !!pose.air, blade: bladeOf(p) }) };
+};
+
 // a unit cylinder along +y with its light baked into vertex colours (the page draws unlit), and a ball
 function shadedGeometry(geo) {
   const n = geo.attributes.normal, c = new Float32Array(n.count * 3);
@@ -63,65 +77,70 @@ function shadedGeometry(geo) {
 const CYL = shadedGeometry(new THREE.CylinderGeometry(1, 1, 1, 10, 1, true).rotateX(Math.PI / 2));
 const BALL = shadedGeometry(new THREE.SphereGeometry(1, 14, 10));
 const INK = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+// the stick figure in the round: [from, to, width] on each side (S: the figure's L or R), the trunk, the girdles
 const LIMBS = [
-  ['pelvis', 'neck', 1.7], ['shoulder', 'elbowF', 1], ['elbowF', 'fistF', 1], ['shoulder', 'elbowB', 1], ['elbowB', 'fistB', 1],
-  ['pelvis', 'kneeF', 1.15], ['kneeF', 'ankleF', 1], ['ankleF', 'toeF', 0.8], ['pelvis', 'kneeB', 1.15], ['kneeB', 'ankleB', 1], ['ankleB', 'toeB', 0.8],
+  ['pelvisHub', 'neckHub', 1.7], ['shoulderL', 'shoulderR', 0.9], ['hipL', 'hipR', 0.9],
+  ...['L', 'R'].flatMap((S) => [[`shoulder${S}`, `elbow${S}`, 1], [`elbow${S}`, `fist${S}`, 1], [`hip${S}`, `knee${S}`, 1.15], [`knee${S}`, `ankle${S}`, 1], [`ankle${S}`, `toe${S}`, 0.8]]),
 ];
-const JOINTS = [['elbowF', 1], ['elbowB', 1], ['kneeF', 1.1], ['kneeB', 1.1], ['fistF', 1.5], ['fistB', 1.5], ['ankleF', 1], ['ankleB', 1], ['pelvis', 1.6], ['shoulder', 1.4]];
-const depthOf = (name) => (name.endsWith('F') ? -0.11 : name.endsWith('B') ? 0.11 : 0);
+const JOINTS = [['pelvisHub', 1.6], ...['L', 'R'].flatMap((S) => [[`shoulder${S}`, 1.2], [`elbow${S}`, 1], [`fist${S}`, 1.5], [`knee${S}`, 1.1], [`ankle${S}`, 1]])];
+// the far side (the lead, versus-figure.js) in the darker shade
+const farOf = (name, face) => { const S = name.slice(-1); return (S === 'L' && face > 0) || (S === 'R' && face < 0); };
 
 function makeBody(color, F) {
-  const front = new THREE.MeshBasicMaterial({ color, vertexColors: true });
-  const back = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), vertexColors: true });
+  const near = new THREE.MeshBasicMaterial({ color, vertexColors: true });
+  const far = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), vertexColors: true });
   const group = new THREE.Group();
   const part = (geo, mat) => {
     const fill = new THREE.Mesh(geo, mat), ink = new THREE.Mesh(geo, INK);
     group.add(fill, ink);
     return { fill, ink };
   };
-  const limbs = LIMBS.map(([a, b, w]) => ({ a, b, w, ...part(CYL, b.endsWith('B') ? back : front) }));
-  const joints = JOINTS.map(([j, w]) => ({ j, w, ...part(BALL, j.endsWith('B') ? back : front) }));
-  const head = part(BALL, front);
-  // a weapon: one more inked cylinder, the blade's own colour, on the grip hand's side of the plane
+  const limbs = LIMBS.map(([a, b, w]) => ({ a, b, w, ...part(CYL, near) }));
+  const joints = JOINTS.map(([j, w]) => ({ j, w, ...part(BALL, near) }));
+  const head = part(BALL, near);
+  // a weapon: one more inked cylinder, the blade's own colour, from the grip hand
   const blade = F && F.weapon ? part(CYL, new THREE.MeshBasicMaterial({ color: F.weapon.color, vertexColors: true })) : null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
   scene.add(group, shadow);
-  return { group, limbs, joints, head, blade, shadow, front, back };
+  return { group, limbs, joints, head, blade, shadow, near, far, base: figureBase(F.body) };
 }
 
 const vA = new THREE.Vector3(), vB = new THREE.Vector3(), UP = new THREE.Vector3(0, 0, 1), vD = new THREE.Vector3();
+function cylinderAt(mesh, a, b, r) {
+  vD.subVectors(b, a);
+  const len = vD.length() || 0.001;
+  mesh.position.addVectors(a, b).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(UP, vD.normalize());
+  mesh.scale.set(r, r, len);
+}
 function placeBody(B, p, F, t) {
-  const J = rigJoints(F.body, poseOf(p, F, t));
-  const at = (name, out) => out.set((p.x + J[name][0] * p.face) / 1000, PLANE + depthOf(name), FLOOR + (p.y + J[name][1]) / 1000);
+  const { N } = poseFigure(B.base, p, F, t);
   const r = F.body.limbR / 1000;
   for (const L of B.limbs) {
-    at(L.a, vA); at(L.b, vB);
-    vD.subVectors(vB, vA);
-    const len = vD.length() || 0.001;
-    for (const [mesh, k] of [[L.fill, 1], [L.ink, 1.32]]) {
-      mesh.position.addVectors(vA, vB).multiplyScalar(0.5);
-      mesh.quaternion.setFromUnitVectors(UP, vD.clone().normalize());
-      mesh.scale.set(r * L.w * k, r * L.w * k, len);
-    }
+    worldOf(p, N[L.a], vA); worldOf(p, N[L.b], vB);
+    L.fill.material = farOf(L.a, p.face) && farOf(L.b, p.face) ? B.far : B.near;
+    cylinderAt(L.fill, vA, vB, r * L.w);
+    cylinderAt(L.ink, vA, vB, r * L.w * 1.32);
   }
   for (const Jn of B.joints) {
-    at(Jn.j, vA);
+    worldOf(p, N[Jn.j], vA);
+    Jn.fill.material = farOf(Jn.j, p.face) ? B.far : B.near;
     for (const [mesh, k] of [[Jn.fill, 1.05], [Jn.ink, 1.32]]) { mesh.position.copy(vA); mesh.scale.setScalar(r * Jn.w * k); }
   }
   if (B.blade) {
-    const L = weaponLine(J, F.weapon);
-    const z = PLANE + (F.weapon.grip === 'B' ? 0.13 : -0.13);
-    vA.set((p.x + L.butt[0] * p.face) / 1000, z, FLOOR + (p.y + L.butt[1]) / 1000);
-    vB.set((p.x + L.tip[0] * p.face) / 1000, z, FLOOR + (p.y + L.tip[1]) / 1000);
-    vD.subVectors(vB, vA);
-    const len = vD.length() || 0.001, wr = (F.weapon.width / 1000) * 0.55;
-    for (const [mesh, k] of [[B.blade.fill, 1], [B.blade.ink, 1.6]]) {
-      mesh.position.addVectors(vA, vB).multiplyScalar(0.5);
-      mesh.quaternion.setFromUnitVectors(UP, vD.clone().normalize());
-      mesh.scale.set(wr * k, wr * k, len);
-    }
+    // the blade along the sim's line (weaponLine), from the grip hand's depth
+    const J = rigJoints(F.body, poseOf(p, F, t)), L = weaponLine(J, F.weapon);
+    const grip = F.weapon.grip === 'B' ? (p.face > 0 ? 'R' : 'L') : (p.face > 0 ? 'L' : 'R');
+    const depth = N[`wrist${grip}`][0];
+    worldOf(p, [depth, L.butt[0] / 1000, L.butt[1] / 1000], vA);
+    worldOf(p, [depth, L.tip[0] / 1000, L.tip[1] / 1000], vB);
+    const wr = (F.weapon.width / 1000) * 0.55;
+    cylinderAt(B.blade.fill, vA, vB, wr);
+    cylinderAt(B.blade.ink, vA, vB, wr * 1.6);
   }
-  at('head', vA);
+  // the head: a ball between the head's base and top
+  worldOf(p, N.headBase, vA); worldOf(p, N.headTop, vB);
+  vA.add(vB).multiplyScalar(0.5);
   const hr = F.body.head / 1000;
   B.head.fill.position.copy(vA); B.head.fill.scale.setScalar(hr);
   B.head.ink.position.copy(vA); B.head.ink.scale.setScalar(hr * 1.12);
@@ -129,48 +148,86 @@ function placeBody(B, p, F, t) {
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
 }
 
-// a character's own body: one mesh per bone part, posed each frame by its bone's turn (versus-skin.js)
+// a character's own body: one mesh per bone part riding its segment of the figure (versus-figure.js), relit by the
+// world's key as it turns (the rest light the pack baked in, taken back out by the face's rest normal) and inked
 const SKINS = {};
 function skinOf(ref) {
   const pack = ref && AV.bodies && AV.bodies[ref];
   if (!pack) return null;
-  return SKINS[ref] || (SKINS[ref] = { pack, sk: skinSkeleton(pack.bones) });
+  return SKINS[ref] || (SKINS[ref] = { pack, base: characterBase(pack.bones), seg: pack.bones.map((b) => segmentOf(b.id)) });
+}
+const REST_KEY = new THREE.Vector3(0.35, -0.55, 0.75).normalize();     // the pack's baked light (station-loft-rig.js)
+const WORLD_KEY = new THREE.Vector3(-0.35, -0.6, 0.72).normalize();    // the arena's: from the camera's side, above
+const INK_WIDTH = 0.011;
+// smooth normals over a triangle soup (corners at one place share theirs)
+function smoothNormals(pos) {
+  const acc = new Map(), n = new Float32Array(pos.length), key = (i) => `${Math.round(pos[i] * 2e4)},${Math.round(pos[i + 1] * 2e4)},${Math.round(pos[i + 2] * 2e4)}`;
+  for (let i = 0; i < pos.length; i += 9) {
+    const ax = pos[i + 3] - pos[i], ay = pos[i + 4] - pos[i + 1], az = pos[i + 5] - pos[i + 2];
+    const bx = pos[i + 6] - pos[i], by = pos[i + 7] - pos[i + 1], bz = pos[i + 8] - pos[i + 2];
+    const f = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+    for (let k = 0; k < 9; k += 3) { const kk = key(i + k), v = acc.get(kk) || [0, 0, 0]; v[0] += f[0]; v[1] += f[1]; v[2] += f[2]; acc.set(kk, v); }
+  }
+  for (let i = 0; i < pos.length; i += 3) {
+    const v = acc.get(key(i)), l = Math.hypot(v[0], v[1], v[2]) || 1;
+    n[i] = v[0] / l; n[i + 1] = v[1] / l; n[i + 2] = v[2] / l;
+  }
+  return n;
+}
+function litMaterial() {
+  const mat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uKey = { value: WORLD_KEY };
+    sh.vertexShader = 'attribute float restShade;\nuniform vec3 uKey;\nvarying float vRelight;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+      '#include <begin_vertex>\n  vec3 wn = normalize(mat3(modelMatrix) * normal);\n  vRelight = (0.55 + 0.45 * max(0.0, dot(wn, uKey))) / max(0.4, restShade);');
+    sh.fragmentShader = 'varying float vRelight;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb *= vRelight;');
+  };
+  return mat;
+}
+function inkMaterial() {
+  const mat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n  transformed += normalize(normal) * ${INK_WIDTH.toFixed(4)};`);
+  };
+  return mat;
 }
 function makeCharacter(skin) {
-  const group = new THREE.Group();
+  const group = new THREE.Group(), lit = litMaterial(), ink = inkMaterial();
   const meshes = skin.pack.parts.map((part) => {
     if (!part) return null;
+    const pos = decodeF32(part.pos), nrm = smoothNormals(pos), rest = new Float32Array(pos.length / 3);
+    for (let i = 0; i < rest.length; i++) rest[i] = 0.55 + 0.45 * Math.max(0, nrm[i * 3] * REST_KEY.x + nrm[i * 3 + 1] * REST_KEY.y + nrm[i * 3 + 2] * REST_KEY.z);
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    geo.setAttribute('restShade', new THREE.BufferAttribute(rest, 1));
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
-    mesh.matrixAutoUpdate = false;
-    mesh.frustumCulled = false;   // matrices change every frame
-    group.add(mesh);
-    return mesh;
+    const fill = new THREE.Mesh(geo, lit), hull = new THREE.Mesh(geo, ink);
+    for (const m of [fill, hull]) { m.matrixAutoUpdate = false; m.frustumCulled = false; group.add(m); }   // matrices change every frame
+    return { fill, hull };
   });
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
   scene.add(group, shadow);
   return { group, shadow, skin, meshes };
 }
-const qB = new THREE.Quaternion(), vR = new THREE.Vector3(), X_AXIS = new THREE.Vector3(1, 0, 0), ONE = new THREE.Vector3(1, 1, 1);
+const M4 = new THREE.Matrix4();
 function placeCharacter(B, p, F, t) {
-  const pose = poseOf(p, F, t);
-  const { a, h } = skinPose(B.skin.sk, rigJoints(F.body, pose), p.face, !!pose.air);
+  const { N } = poseFigure(B.skin.base, p, F, t);
+  const S = figureSegments(B.skin.base, N);
   // the figure faces +y in its own frame: turned to face its foe along the plane, its feet on the fight's ground
   B.group.position.set(p.x / 1000, PLANE, FLOOR + p.y / 1000);
   B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
-  const bones = B.skin.pack.bones;
   for (let i = 0; i < B.meshes.length; i++) {
-    const mesh = B.meshes[i];
-    if (!mesh) continue;
-    // M·v = head' + q·(v − restHead)
-    qB.setFromAxisAngle(X_AXIS, a[i]);
-    const rh = bones[i].head;
-    vR.set(rh[0], rh[1], rh[2]).applyQuaternion(qB);
-    vR.set(h[i][0] - vR.x, h[i][1] - vR.y, h[i][2] - vR.z);
-    mesh.matrix.compose(vR, qB, ONE);
+    const m = B.meshes[i];
+    if (!m) continue;
+    // v' = R (v − from) + at
+    const { R, from, at } = S[B.skin.seg[i]];
+    const tx = at[0] - (R[0][0] * from[0] + R[0][1] * from[1] + R[0][2] * from[2]);
+    const ty = at[1] - (R[1][0] * from[0] + R[1][1] * from[1] + R[1][2] * from[2]);
+    const tz = at[2] - (R[2][0] * from[0] + R[2][1] * from[1] + R[2][2] * from[2]);
+    M4.set(R[0][0], R[0][1], R[0][2], tx, R[1][0], R[1][1], R[1][2], ty, R[2][0], R[2][1], R[2][2], tz, 0, 0, 0, 1);
+    m.fill.matrix.copy(M4); m.hull.matrix.copy(M4);
   }
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));

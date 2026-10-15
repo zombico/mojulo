@@ -81,15 +81,22 @@ its own body on an arena; the stick figures are the simulation's own dummies, dr
   edits, measured again where the game is served (the play route, `export_game`, an arena's World page, the
   `update_sketch` gate and `design_game`'s mint), and a ref the store does not hold as a character is refused by
   name. Where no body is at hand (the flat page) the stick figure draws it in its proportions and colour.
-- **A character in its own body on an arena** (`versus-skin.js`, `versus-arena.client.js`). An arena whose roster
-  has a character carries that character's rig once (its layered rig's bones and rigid parts, without the clips),
-  and the fight draws it in place of the stick figure: every fight pose is a turn in the plane, so each bone takes
-  one angle about the figure's sideways axis (how far its stick segment has turned from rest), keeps its own length
-  and rest shape (an arm's outward hang, a foot's pitch), and is carried down the chain from the pelvis so no joint
-  opens; fingers and toes ride their hand and foot, the folds at hip, knee and elbow sit halfway, and a grounded
-  pose stands on the feet as the rest does. The lead side is the one nearer the camera, whichever way the figure
-  faces. A game hosting the arena sends which pick is a character; one the arena has no body for (a roster grown
-  since it was made) is the stick figure. Without a character, an arena's data and page are as they were.
+- **The fighter in 3D** (`versus-figure.js`, `versus-arena.client.js`). On an arena every body is posed in the
+  round on the vajra's skeleton (its joints and frame): the trunk and the head along the sim's lines, the hands and the
+  feet placed by a two-bone solve on the sim's own points, so its side view is the sim's figure (to a millimetre at
+  every frame of every move and state, whichever way it faces) and what hits is where the boxes are. Around that it
+  stands as the genre does: bladed, the hips and more the chest turned toward the camera with the lead on the far
+  side, the elbows down and out, the knees forward, the lead hand before its shoulder and the rear by the chin; a
+  strike turns the body back as far as the limb needs (a rear straight squares the shoulders, a roundhouse turns the
+  hips over); a body falling or down lies square. A stick fighter is drawn on it as inked limbs with depth, its far
+  side darker. A character's own body rides the same figure: an arena whose roster has a character carries its rig
+  once (its layered rig's bones and rigid parts, no clips), and each bone rides its segment (pelvis, torso, neck, head,
+  upper arm, forearm, thigh, shin, foot; a finger its forearm, a fold its lower limb, a tail the pelvis), turned by the
+  segment's frame on the character's own skeleton so every joint stays closed. Its colours are relit by the arena's
+  key as it turns (the rest light the pack baked in taken back out by each face's rest normal) and it is inked. A
+  game hosting the arena sends which pick is a character; one the arena has no body for (a roster grown since it was
+  made) is the stick figure. Without a character, an arena carries no bodies. The sim's boxes still come from its own
+  figure; moves authored in the vajra's words come next.
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless
