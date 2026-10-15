@@ -120,4 +120,22 @@ describe('update_sketch on a versus game (a fighter)', () => {
     expect(out.laws).toEqual([expect.objectContaining({ id: 'kata', held: expect.any(Number), of: expect.any(Number), broken: expect.any(Array) })]);
     await expect(updateSketchHandler({ ref: 'fight-game', manifest: { ...manifest, rules: { systems: ['dodge'] } } })).rejects.toThrow(/Invalid versus game: .*systems/);
   });
+
+  it('a character from the store fights in its own body: stored as its ref, measured on read, refused when it is not there', async () => {
+    const { heroRecord } = await import('./layered.js');
+    const { withCharacters } = await import('@/lib/graph/versus/versus-character.js');
+    const { versusGameData } = await import('@/lib/graph/versus/versus-page.js');
+    SketchRepository.create({ ref: 'brawler', title: 'Brawler', manifest: { kind: 'layered', hero: heroRecord({ cast: { pole: 'male', build: 'brute' } }) } });
+    SketchRepository.create({ ref: 'char-fight', title: 'Fight', manifest: { kind: 'game', engine: 'versus', title: 'Fight', roster: [{ id: 'kata', archetype: 'all-rounder' }] } });
+    const manifest = { kind: 'game', engine: 'versus', title: 'Fight', roster: [{ id: 'kata', archetype: 'all-rounder' }, { id: 'bruno', archetype: 'grappler', hero: { ref: 'brawler' } }] };
+    const out = await updateSketchHandler({ ref: 'char-fight', manifest });
+    expect(SketchRepository.getByRef('char-fight').manifest.roster[1]).toEqual({ id: 'bruno', archetype: 'grappler', hero: { ref: 'brawler' } });
+    expect(out.laws.map((l) => l.id)).toEqual(['kata', 'bruno']);
+    const [kata, bruno] = versusGameData(await withCharacters(manifest)).roster;
+    expect(kata).not.toHaveProperty('character');
+    expect(bruno).toMatchObject({ character: 'brawler', recipe: { body: { arm: expect.any(Number) } } });
+    expect(bruno.recipe.body.arm).toBeGreaterThan(1);   // the brute's long arms
+    await expect(updateSketchHandler({ ref: 'char-fight', manifest: { ...manifest, roster: [{ id: 'x', hero: { ref: 'ghost' } }] } }))
+      .rejects.toThrow(/Invalid versus game: roster\[0\]\.hero\.ref 'ghost' is not a stored character/);
+  });
 });

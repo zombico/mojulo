@@ -441,7 +441,8 @@ export async function exportGameHandler(input, context = {}) {
   // ── versus branch: a fighter's page is single-file too ──
   if (manifest.engine === 'versus') {
     const { emitVersusPage } = await import('@/lib/graph/versus/versus-page');
-    await write('game.html', emitVersusPage(manifest, { title: sketch.title }));
+    const { withCharacters } = await import('@/lib/graph/versus/versus-character');
+    await write('game.html', emitVersusPage(await withCharacters(manifest), { title: sketch.title }));
     await writeRecipe('recipe/game.json', manifest);
     await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'versus' }));
     const totalBytes = files.reduce((n, f) => n + f.bytes, 0);

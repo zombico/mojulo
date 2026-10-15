@@ -46,10 +46,13 @@ const PALETTE = ['#e0503a', '#3a9be0', '#9a4ae0', '#e0a23a', '#3ae08a', '#e03a9a
 
 /** A roster entry (an intent, or { recipe }) → the page's entry: id, name, color, archetype, recipe. */
 export function rosterEntry(entry, k = 0) {
+  // a character (versus-character.js) is measured where the game is served, before it reaches here
+  if (entry.hero !== undefined) throw new Error(`versus: roster[${k}] is a character (hero.ref '${entry.hero?.ref}'): it is measured from the store where the game is served`);
   const recipe = entry.recipe ?? solveFighter(entry).recipe;
   return {
     id: recipe.id, name: recipe.name, archetype: recipe.archetype ?? entry.archetype ?? null,
     color: entry.color ?? PALETTE[k % PALETTE.length], recipe,
+    ...(entry.character ? { character: entry.character } : {}),
   };
 }
 

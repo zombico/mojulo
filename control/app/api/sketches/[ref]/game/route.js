@@ -58,9 +58,10 @@ export async function GET(request, { params }) {
     // A versus game (a fighter, lib/graph/versus) is its own self-contained page too.
     if (sketch.manifest.engine === 'versus') {
       const { emitVersusPage } = await import('@/lib/graph/versus/versus-page');
+      const { withCharacters } = await import('@/lib/graph/versus/versus-character');
       let html;
       try {
-        html = emitVersusPage(sketch.manifest, { title: sketch.title });
+        html = emitVersusPage(await withCharacters(sketch.manifest), { title: sketch.title });
       } catch (err) {
         return NextResponse.json({ error: err.message }, { status: 422 });
       }

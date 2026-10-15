@@ -87,7 +87,13 @@ async function realize(step, action) {
   }
   if (key === 'game' && order.engine === 'versus') {
     // a fight's game (quick goal fight): the versus manifest as the row, whole in place
-    if (action === 'make') SketchRepository.create({ title: order.title, manifest: order, ref });
+    if (action === 'make') {
+      // the edit gate's, paid at mint too: a character in the roster must be one the store has
+      const { versusGate } = await import('@/lib/graph/versus/versus-character.js');
+      const { ok, errors } = await versusGate(order);
+      if (!ok) throw new Error(`Invalid versus game: ${errors.join('; ')}`);
+      SketchRepository.create({ title: order.title, manifest: order, ref });
+    }
     else await updateSketchHandler({ ref, title: order.title, manifest: order });
     return {};
   }

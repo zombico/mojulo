@@ -46,7 +46,9 @@
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     roster?: [<intent>, …],               // fight: the fighters (versus/versus-solver.js: { id, name?, archetype, cast?,
  *                                           // signature?, color?, weapon?, library?, normals?, specials?, super?, tune? }),
- *                                           // solved into movesets; the default four if absent
+ *                                           // solved into movesets; the default four if absent. `hero: { ref }` in place
+ *                                           // of a cast: a character made with create_character, its body measured where
+ *                                           // the game is served (versus/versus-character.js)
  *     arenas?: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] | false,
  *                                           // fight: scapeshift arenas (versus/versus-arena.js), each a stage world the
  *                                           // fight runs on in 3D (a plaza and a nave if absent); false: flat stages
@@ -88,6 +90,7 @@ import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { solveFighter } from '../versus/versus-solver.js';
 import { compileFighter } from '../versus/versus-compile.js';
 import { readRules } from '../versus/versus-core.js';
+import { isCharacterEntry, readCharacterEntry } from '../versus/versus-character.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -273,7 +276,7 @@ function readFight(Q) {
   for (const k of Object.keys(Q)) if (!FIGHT_KEYS.includes(k)) throw fail(`.${k}: a fight takes ${FIGHT_KEYS.join(', ')} (its fighters are its roster)`);
   if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
   if (Q.roster !== undefined) {
-    if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each an intent { id, name?, archetype, cast?, signature?, color? }');
+    if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each an intent { id, name?, archetype, cast? | hero: { ref }, signature?, color? }');
     const ids = new Set();
     Q.roster.forEach((r, i) => {
       if (!isObj(r) || typeof r.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(r.id)) throw fail(`.roster[${i}] needs an id (a short lower-case name)`);
@@ -281,7 +284,10 @@ function readFight(Q) {
       ids.add(r.id);
       const { color, ...intent } = r;
       if (color !== undefined && !/^#[0-9a-f]{6}$/i.test(color)) throw fail(`.roster[${i}].color is a #rrggbb colour`);
-      try { compileFighter(solveFighter(intent).recipe); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      // a character (hero: { ref }) is measured from the store where the game is served; here its words compile
+      if (isCharacterEntry(intent)) { try { readCharacterEntry(intent, `roster[${i}]`); } catch (e) { throw fail(e.message.replace(/^versus: /, '.')); } }
+      const { hero: _h, ...words } = intent;
+      try { compileFighter(solveFighter(words).recipe); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
     });
   }
   if (Q.arenas !== false && Q.stages !== undefined) throw fail('.stages are the flat backdrops of a fight without arenas (arenas: false)');

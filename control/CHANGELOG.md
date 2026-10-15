@@ -56,6 +56,16 @@ dummies on purpose (the look is other tools' job).
   super and a throw's `meter` (a command grab gains its own 50, no longer the throw's 80) now do what they say.
   `update_sketch` answers with each fighter's law stamp (`laws`: held, of, broken), advice that refuses nothing,
   and the replay fingerprint covers the whole state.
+- **A character as a fighter** (`versus-character.js`): a roster entry may name a character made with
+  `create_character` (`{ id, hero: { ref }, archetype?, signature?, … }`) in place of a cast. The moveset is still
+  the archetype's and the designer's words; the body is the character's, measured off its own skeleton into the
+  fight's body dials (height, arm, leg, torso, girth), calibrated so the default male hero is the fight's canonical
+  body, so a long-armed character reaches further and its boxes and law stamp follow. Its top's colour is its colour
+  unless the entry names one. The game stores the ref, never the measure: the fighter follows the character's
+  edits, measured again where the game is served (the play route, `export_game`, an arena's World page, the
+  `update_sketch` gate and `design_game`'s mint), and a ref the store does not hold as a character is refused by
+  name. A roster without a character is unchanged to the byte. The stick figure still draws it (its own body in 3D
+  is next).
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless

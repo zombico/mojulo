@@ -981,9 +981,9 @@ export async function updateSketchHandler(input) {
   let prevScadStats = null;
   if (manifest !== undefined && manifest?.kind === 'game' && manifest.engine === 'versus') {
     // A versus game (a fighter, lib/graph/versus) is its own simulation: no store, no levels to resolve. Its gate is
-    // that every fighter compiles (weapon, tunes, own specials) and every rule reads.
-    const { readVersusManifest } = await import('../../graph/versus/versus-page.js');
-    const { ok, errors, laws } = readVersusManifest(manifest);
+    // that every fighter compiles (weapon, tunes, own specials; a character measured from the store) and every rule reads.
+    const { versusGate } = await import('../../graph/versus/versus-character.js');
+    const { ok, errors, laws } = await versusGate(manifest);
     if (!ok) throw new Error(`Invalid versus game: ${errors.join('; ')}`);
     nextManifest = manifest;
     // each fighter's laws (versus-laws.js): the machine gate's stamp, advice only

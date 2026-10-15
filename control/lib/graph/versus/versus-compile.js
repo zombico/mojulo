@@ -586,7 +586,7 @@ const MOVEMENT_DIALS = {
   dashF: { frames: [1, 99], dist: [0, 9999] },
   dashB: { frames: [1, 99], dist: [0, 9999], invuln: [0, 99] },
 };
-const BODY_DIALS = { height: [1000, 2600], arm: [0.5, 2], leg: [0.5, 2], torso: [0.5, 2], girth: [0.5, 2] };
+export const BODY_DIALS = { height: [1000, 2600], arm: [0.5, 2], leg: [0.5, 2], torso: [0.5, 2], girth: [0.5, 2] };
 
 function readDials(v, dials, where) {
   if (v === undefined) return;

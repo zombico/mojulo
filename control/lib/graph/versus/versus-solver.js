@@ -13,6 +13,7 @@
  * anti-air normal at stand.H if it does not.
  *
  * An intent also carries what a designer adds after the solve, so a game's roster stays a few words:
+ *   body?     { height, arm, leg, torso, girth }   the body over the cast (a character's measure, versus-character.js)
  *   weapon?   a word (versus-library WEAPONS) or dials
  *   library?  the fighter's own specials and supers (versus-compile.js)
  *   normals?  { <slot>: family | { family, strength?, tune? } }      replaces the solved slot
@@ -132,6 +133,10 @@ const NORMAL_KEYS = Object.keys(LEANS.mixed);
 
 /** What the designer wrote over the solve: a weapon, their own shelf, slots replaced, tunes. */
 function overlay(recipe, intent, notes) {
+  if (intent.body) {
+    recipe.body = { ...intent.body };
+    notes.push(`body: ${intent.character ? `the character ${intent.character}'s, ` : ''}${Object.entries(intent.body).map(([k, v]) => `${k} ${v}`).join(', ')}`);
+  }
   if (intent.weapon) {
     recipe.weapon = intent.weapon;
     const kind = typeof intent.weapon === 'string' ? intent.weapon : intent.weapon.kind ?? 'sword';

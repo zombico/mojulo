@@ -570,6 +570,22 @@ describe('design_game quick', () => {
     expect(advice[0]).toMatch(/'catwalks' is not laid yet/);
   }, 240_000);
 
+  it('fight with a character: the roster keeps its ref, the arena\'s page fights in its measured body; a missing one refused', async () => {
+    const { heroRecord } = await import('./layered.js');
+    SketchRepository.create({ ref: 'mira', title: 'Mira', manifest: { kind: 'layered', hero: heroRecord({ cast: 'female', palette: { Top: '#2a8f6a' } }) } });
+    const roster = [{ id: 'kata', archetype: 'all-rounder' }, { id: 'mira', archetype: 'rushdown', hero: { ref: 'mira' } }];
+    const out = await designGameHandler({ quick: { goal: 'fight', roster, arenas: [{ id: 'plaza', kit: 'island-plaza' }], world: { id: 'duel' } }, ref: 'du' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['level-arena-plaza', 'make'], ['game', 'make']]);
+    expect(stored('du-game').roster).toEqual(roster);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('du-level-arena-plaza'));
+    const [kata, mira] = payload.versus.roster;
+    expect(kata).not.toHaveProperty('character');
+    expect(mira).toMatchObject({ character: 'mira', color: '#2a8f6a' });
+    expect(mira.recipe.body.height).toBeLessThan(1700);
+    await expect(designGameHandler({ quick: { goal: 'fight', roster: [{ id: 'x', hero: { ref: 'ghost' } }], arenas: false, world: { id: 'nobody' } }, ref: 'nb' }))
+      .rejects.toThrow(/roster\[0\]\.hero\.ref 'ghost' is not a stored character/);
+  }, 240_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);

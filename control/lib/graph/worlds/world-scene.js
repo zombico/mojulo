@@ -1084,7 +1084,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // the level wire's names; the page's versus channel fights on it. Absent ⇒ nothing (scene/channels/versus.js).
   if (payload && sketch.manifest.versus && typeof sketch.manifest.versus === 'object') {
     const { versusArenaData } = await import('@/lib/graph/versus/versus-page.js');
-    payload.versus = versusArenaData(sketch.manifest.versus);
+    const { withCharacters } = await import('@/lib/graph/versus/versus-character.js');
+    payload.versus = versusArenaData(await withCharacters(sketch.manifest.versus));
   }
 
   // UNSHADED honesty (interchange.plan.md I5): FLAT_LIGHT only reaches the kinds that shade

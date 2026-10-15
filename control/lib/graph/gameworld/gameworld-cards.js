@@ -283,6 +283,7 @@ const QUICK_LEVERS = {
   fight: () => [
     '  roster: [{ id, name?, archetype, cast?, signature?, color?, weapon?, library?, normals?, specials?, super?, tune? }]',
     '    (1..12)   the fighters, solved into movesets and extended by recipe; the default four if absent',
+    '    hero: { ref } in place of cast: a character made with create_character fights in its own body (measured on read)',
     '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] (1..8)   stage worlds the fight runs on in 3D;',
     '    false: flat backdrops, stages: [{ id, name, sky: [top, bottom], floor, crowd }]',
     '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: [parry | burst | guard], … } the sim\'s dials',
