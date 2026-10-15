@@ -82,19 +82,68 @@ const AIRFOIL_STEPS = 13;  // per surface; a section is 2 * 13 - 2 = 24 points, 
  *    starship's armour panel): every chordwise strip of skin is a plane;
  *  - `diamond`: the supersonic double wedge, two facets a side.
  */
-export function airfoil({ thickness = 0.12, camber = 0, kind = 'naca' } = {}) {
+/** The section's upper and lower surface at chord fraction x (thickness in chord units). */
+export function foilAt(x, { thickness = 0.12, camber = 0, kind = 'naca' } = {}) {
+  let half;
+  if (kind === 'slab') half = (thickness / 2) * Math.min(1, Math.sqrt(Math.max(0, Math.min(x, 1 - x)) / 0.06));
+  else if (kind === 'facet') half = (thickness / 2) * Math.max(0, Math.min(1, x / 0.25, (1 - x) / 0.35));
+  else if (kind === 'diamond') half = (thickness / 2) * (1 - Math.abs(2 * x - 1));
+  else half = 5 * thickness * (0.2969 * Math.sqrt(x) - 0.126 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
+  const mean = camber * 4 * x * (1 - x);
+  return { upper: mean + half, lower: mean - half, mean };
+}
+
+/**
+ * A section as its 24 points. `cut` (a chord fraction) stops it at a hinge line: the points aft of
+ * the cut land on the cut, so the ring keeps its count and closes with a flat hinge face (the wing
+ * ahead of a control surface).
+ */
+export function airfoil({ thickness = 0.12, camber = 0, kind = 'naca', cut = 1 } = {}) {
   const xs = [];
   for (let i = 0; i < AIRFOIL_STEPS; i += 1) xs.push(0.5 * (1 - Math.cos((Math.PI * i) / (AIRFOIL_STEPS - 1))));
-  const half = (x) => {
-    if (kind === 'slab') return (thickness / 2) * Math.min(1, Math.sqrt(Math.min(x, 1 - x) / 0.06));
-    if (kind === 'facet') return (thickness / 2) * Math.min(1, x / 0.25, (1 - x) / 0.35);
-    if (kind === 'diamond') return (thickness / 2) * (1 - Math.abs(2 * x - 1));
-    return 5 * thickness * (0.2969 * Math.sqrt(x) - 0.126 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
-  };
-  const mean = (x) => camber * 4 * x * (1 - x);
-  const upper = xs.slice().reverse().map((x) => [x, mean(x) + half(x)]);        // TE → LE
-  const lower = xs.slice(1, -1).map((x) => [x, mean(x) - half(x)]);               // LE → TE, no repeats
+  const at = (x) => foilAt(Math.min(x, cut), { thickness, camber, kind });
+  const upper = xs.slice().reverse().map((x) => [Math.min(x, cut), at(x).upper]);   // TE → LE
+  const lower = xs.slice(1, -1).map((x) => [Math.min(x, cut), at(x).lower]);        // LE → TE, no repeats
   return [...upper, ...lower];
+}
+
+/**
+ * The part of a section aft of a hinge at `cut` (a control surface): TE → hinge on top, hinge → TE
+ * below. Built convex on purpose: its thickness rides a straight line from the camber at the hinge to
+ * the trailing edge (a real surface is near enough a wedge), and a flat-paneled section is exactly a
+ * wedge, three points.
+ */
+export function airfoilAft({ thickness = 0.12, camber = 0, kind = 'naca', cut = 0.75 } = {}, steps = 6) {
+  const flat = kind === 'facet' || kind === 'diamond' || kind === 'slab';
+  const n = flat ? 1 : steps;
+  const m0 = foilAt(cut, { thickness, camber, kind }).mean;
+  const m1 = foilAt(1, { thickness, camber, kind }).mean;
+  const pt = (x, sgn) => {
+    const mean = m0 + ((x - cut) / (1 - cut)) * (m1 - m0);
+    const half = (foilAt(x, { thickness, camber: 0, kind }).upper) * (x === 1 ? 0 : 1);
+    return [x, mean + sgn * half];
+  };
+  const xs = [];
+  for (let i = 0; i <= n; i += 1) xs.push(cut + (1 - cut) * (i / n));
+  const upper = xs.slice().reverse().map((x) => pt(x, 1));   // TE → hinge
+  const lower = xs.slice(0, -1).map((x) => pt(x, -1));        // hinge → just before TE
+  return [...upper, ...lower];
+}
+
+/** Turn v about the unit axis k by angle a (Rodrigues). */
+export function turnAbout(v, k, a) {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const d = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+  const x = [k[1] * v[2] - k[2] * v[1], k[2] * v[0] - k[0] * v[2], k[0] * v[1] - k[1] * v[0]];
+  return [0, 1, 2].map((i) => v[i] * c + x[i] * s + k[i] * d * (1 - c));
+}
+
+/** A hex colour moved toward black (k < 0) or white (k > 0): a panel seam, a scuffed plate. */
+export function tone(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k));
+  return `#${ch.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
 }
 
 export const SECTION_POINTS = 24;

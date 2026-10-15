@@ -1612,6 +1612,16 @@ comes next are in `docs/flight-games.md`.
 - **More fidelity.** Sections at 24 points. Wing planforms with cranks, raked tips, strakes and gull dips.
   Winglets, canted fins, intakes (chin, side, half-cone), radial engines, tandem gear. Layout mounts can
   roll about the long axis and take a spacer `offset`.
+- **Finishes, articulation and surface detail.**
+  - Every part is finished by colour role: gloss paint or matte plating, brushed aluminium or blasted
+    steel, glass, rubber, and heat-blued titanium on hot sections (`finish: false` for bare tints).
+  - Control surfaces are cut out of their panels and hinged. Gear retracts, canopies hinge or slide, and
+    propellers turn. Each moving part is a joint in `garage.joints`, and `assembleCraft(id, { pose })`
+    mixes the pilot's pitch, roll, yaw, flaps, gear, canopy and prop into them.
+  - The skin carries spline-true panel seams (cabin barrels no longer bulge between stations), window
+    rows and framed doors, antennas and pitot booms, seeded greebles on starship plating, fan blades and
+    inlet lips, drive-pod fins and grilles, foil stripes, flap-track fairings, gear torque links, and
+    red/green wingtip lights.
 - **Machine gate:** every part builds closed, and every archetype lands within its class figures. Tricycles sit
   level, nacelles and propellers clear the ground, and thrust-to-weight falls in its class band
   (`craft-shelf.deep.test.js`). One emission pin per builder path and one whole craft

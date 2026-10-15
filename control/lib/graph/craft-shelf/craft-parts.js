@@ -8,7 +8,7 @@
  * read a seed: an inventory row is one part number and always makes the same part.
  */
 
-import { DEG, airfoil, extrudeWorld, facetSection, lathe, loftWorld, planeUV, round3, section, sweep } from './craft-common.js';
+import { DEG, airfoil, airfoilAft, extrudeWorld, facetSection, foilAt, lathe, loftWorld, mulberry32, hashSeed, planeUV, round3, section, sweep, tone, turnAbout } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
 
@@ -37,11 +37,28 @@ function stationAt(rows, s) {
  * lowest skin point sits at z = 0. Named points `[s, xf, zf]` land on the local section: xf and zf
  * in −1..1 of its half-width and half-height.
  */
-function buildFuselage(row, C) {
+// A smooth loft's spline overshoots a flat stretch (a cabin barrel bulges between its two stations):
+// guard each run of equal stations with copies a tenth in from its ends, so the barrel stays straight.
+function holdPlateaus(rows) {
+  const out = [rows[0]];
+  for (let i = 1; i < rows.length; i += 1) {
+    const p = rows[i - 1];
+    const q = rows[i];
+    const flat = p[1] === q[1] && p[2] === q[2] && p[3] === q[3] && (p[4] || 0) === (q[4] || 0);
+    if (flat && q[0] - p[0] > 0.05) {
+      const g = (q[0] - p[0]) * 0.1;
+      out.push([p[0] + g, ...p.slice(1)], [q[0] - g, ...q.slice(1)]);
+    }
+    out.push(q);
+  }
+  return out;
+}
+
+function buildFuselage(row, C, opts = {}) {
   const { length: L, width: W, height: H } = row.dims;
   const b = row.build;
   const belly = b.belly || 1;
-  const rows = b.stations;
+  const rows = b.facets ? b.stations : holdPlateaus(b.stations);
   const shape = (a, h, n) => (b.facets ? facetSection(a, h, b.facets) : section(a, h, n, belly));
   const lowOf = (a, h, n) => Math.min(...shape(a, h, n).map(([, z]) => z));
   const zMin = Math.min(...rows.map(([, w, h, z, n]) => z * H + lowOf(Math.max(w * W / 2, 0.005), Math.max(h * H / 2, 0.005), n || b.n || 2)));
@@ -90,7 +107,174 @@ function buildFuselage(row, C) {
     }));
     lofts.push(loftWorld('nose', [0, 0.005, zp], [0, -s1 * L, zp], st, C.trim, smooth ? { interp: 'smooth', segments: 4 } : {}));
   }
-  return { lofts, hardpoints };
+  const detail = hullDetail({ b, L, zp, stations, smooth, point, C, sku: opts.sku });
+  lofts.push(...detail.lofts);
+  return { lofts, ...(detail.extrudes.length ? { extrudes: detail.extrudes } : {}), ...(detail.sweeps.length ? { sweeps: detail.sweeps } : {}), hardpoints };
+}
+
+// The hull's skin ring at s exactly as the loft draws it: the same Catmull-Rom over the stations for a
+// smooth hull (loft-faces' ringAt), straight lines between them for a faceted one. [x, z] in craft space.
+function skinRing(stations, s, smooth, zp) {
+  const ts = stations.map((st) => st.t);
+  const P = stations.map((st) => st.points.map(([x, , z]) => [x, z + zp]));
+  const n = ts.length;
+  if (s <= ts[0]) return P[0];
+  if (s >= ts[n - 1]) return P[n - 1];
+  let k = 0;
+  while (k + 1 < n - 1 && s > ts[k + 1]) k += 1;
+  const t0 = ts[k];
+  const t1 = ts[k + 1];
+  const a = P[k];
+  const b = P[k + 1];
+  if (!smooth || n < 3) {
+    const w = (s - t0) / (t1 - t0);
+    return a.map((p, i) => [p[0] + w * (b[i][0] - p[0]), p[1] + w * (b[i][1] - p[1])]);
+  }
+  const prev = P[Math.max(0, k - 1)];
+  const next = P[Math.min(n - 1, k + 2)];
+  const tp = ts[Math.max(0, k - 1)];
+  const tn = ts[Math.min(n - 1, k + 2)];
+  const h = t1 - t0;
+  const u = (s - t0) / h;
+  const u2 = u * u;
+  const u3 = u2 * u;
+  const herm = (p0, p1, m0, m1) => (2 * u3 - 3 * u2 + 1) * p0 + (u3 - 2 * u2 + u) * h * m0 + (-2 * u3 + 3 * u2) * p1 + (u3 - u2) * h * m1;
+  return a.map((p, i) => [0, 1].map((d) => herm(p[d], b[i][d], (b[i][d] - prev[i][d]) / (t1 - tp), (next[i][d] - p[d]) / (tn - t0))));
+}
+
+/** Where the skin ring crosses height z on one side (+1 starboard, −1 port): its x, or null. */
+function skinX(ring, z, side) {
+  let best = null;
+  ring.forEach((p, i) => {
+    const q = ring[(i + 1) % ring.length];
+    if ((p[1] - z) * (q[1] - z) > 0 || p[1] === q[1]) return;
+    const x = p[0] + ((z - p[1]) / (q[1] - p[1])) * (q[0] - p[0]);
+    if (x * side > 0 && (best === null || x * side > best * side)) best = x;
+  });
+  return best;
+}
+
+/** Where the skin ring crosses x on its top (+1) or belly (−1): its z, or null. */
+function skinZ(ring, x, side) {
+  let best = null;
+  ring.forEach((p, i) => {
+    const q = ring[(i + 1) % ring.length];
+    if ((p[0] - x) * (q[0] - x) > 0 || p[0] === q[0]) return;
+    const z = p[1] + ((x - p[0]) / (q[0] - p[0])) * (q[1] - p[1]);
+    if (best === null || z * side > best * side) best = z;
+  });
+  return best;
+}
+
+/**
+ * The hull's surface detail, all on the real skin:
+ *  - panel seams: a hair-proud band every `seams` metres (default a tenth of the length, 1–3 m),
+ *    a shade darker than the paint; `seams: false` for none;
+ *  - `windows: { from, to, pitch, zf, w, h }`: a cabin row each side; `doors: [[s, zf, w, h]]`:
+ *    framed doors each side;
+ *  - `antennas: [[s, xf, zf, length, kind]]`: 'blade' standing off the skin, 'pitot' ahead of the nose;
+ *  - `greebles: { top, sides, span: [s0, s1] }`: seeded plant on a starship's plating (boxes of
+ *    machinery), the same every time for the same part number.
+ */
+function hullDetail({ b, L, zp, stations, smooth, point, C, sku }) {
+  const lofts = [];
+  const extrudes = [];
+  const sweeps = [];
+  const ringAt = (s) => skinRing(stations, s, smooth, zp);
+  const frame = (ring) => {
+    const xs = ring.map((p) => p[0]);
+    const zs = ring.map((p) => p[1]);
+    return { c: [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...zs) + Math.max(...zs)) / 2], hw: (Math.max(...xs) - Math.min(...xs)) / 2, hh: (Math.max(...zs) - Math.min(...zs)) / 2 };
+  };
+  const seam = tone(C.paint, -0.28);
+  const pitch = b.seams === false ? 0 : (b.seams || Math.max(1, Math.min(3, L / 10)));
+  const clear = [[0, (b.nose || 0) + 0.02], ...(b.windscreen ? [[b.windscreen[0] - 0.01, b.windscreen[1] + 0.01]] : [])];
+  // what a window must not sit across: a door's frame, a seam
+  const doorsAt = (b.doors || []).map(([sf, , w]) => [sf * L - w / 2 - 0.08, sf * L + w / 2 + 0.08]);
+  const seamsAt = [];
+  if (pitch) {
+    for (let y = pitch, i = 0; y < L * 0.97; y += pitch, i += 1) {
+      const sf = y / L;
+      if (clear.some(([a, z]) => sf >= a && sf <= z)) continue;
+      if (doorsAt.some(([a, z]) => y >= a && y <= z)) continue;
+      seamsAt.push(y);
+      const ring = ringAt(sf);
+      const { c, hw } = frame(ring);
+      if (hw < 0.08) continue;
+      const pts = ring.map(([x, z]) => {
+        const dx = x - c[0];
+        const dz = z - c[1];
+        const r = Math.hypot(dx, dz) || 1;
+        return [x + (dx / r) * 0.008, 0, z + (dz / r) * 0.008 - zp];
+      });
+      lofts.push(loftWorld(`seam_${i}`, [0, -y + 0.012, zp], [0, -y - 0.012, zp], [{ t: 0, points: pts }, { t: 1, points: pts }], seam));
+    }
+  }
+  const sideStrip = (id, sf, zf, w, h, proud, tint, extra = {}) => {
+    const ring = ringAt(sf);
+    const { c, hh } = frame(ring);
+    const z = c[1] + zf * hh;
+    for (const side of [1, -1]) {
+      const x = skinX(ring, z, side);
+      if (x === null) continue;
+      extrudes.push({
+        ...extrudeWorld(`${id}_${side > 0 ? 'r' : 'l'}`, [x - side * 0.03, -sf * L, z], [x + side * proud, -sf * L, z], [[0, w / 2, h / 2], [0, -w / 2, h / 2], [0, -w / 2, -h / 2], [0, w / 2, -h / 2]], tint),
+        ...extra,
+      });
+    }
+  };
+  if (b.windows) {
+    const { from, to, pitch: wp, zf, w, h } = b.windows;
+    for (let y = from * L, i = 0; y <= to * L + 1e-9; y += wp, i += 1) {
+      if (doorsAt.some(([a, z]) => y + w / 2 >= a && y - w / 2 <= z) || seamsAt.some((q) => Math.abs(q - y) < w / 2 + 0.03)) continue;
+      sideStrip(`window_${i}`, y / L, zf, w, h, 0.01, C.glass, { material: 'glass' });
+    }
+  }
+  for (const [i, [sf, zf, w, h]] of (b.doors || []).entries()) {
+    sideStrip(`door_frame_${i}`, sf, zf, w + 0.07, h + 0.07, 0.006, seam);
+    sideStrip(`door_${i}`, sf, zf, w, h, 0.012, C.paint);
+  }
+  for (const [i, [sf, xf, zf, len, kind]] of (b.antennas || []).entries()) {
+    const at = point([sf, xf, zf]);
+    if (kind === 'pitot') {
+      sweeps.push(sweep(`pitot_${i}`, [[at[0], at[1] - 0.05, at[2]], [at[0], at[1] + len, at[2]]], 0.022, C.chrome, { sides: 8 }));
+      continue;
+    }
+    const up = zf >= 0 ? 1 : -1;
+    const ring = ringAt(sf);
+    const z = skinZ(ring, at[0], up) ?? at[2];
+    extrudes.push(extrudeWorld(`antenna_${i}`, [at[0], at[1], z - up * 0.03], [at[0], at[1], z + up * len], [[0.012, len * 0.35, 0], [-0.012, len * 0.35, 0], [-0.012, -len * 0.35, 0], [0.012, -len * 0.35, 0]], C.trim));
+  }
+  if (b.greebles) {
+    const rng = mulberry32(hashSeed(sku || 'hull', 'greeble'));
+    const { top = 0, sides = 0, span = [0.3, 0.9] } = b.greebles;
+    const tints = [C.trim, tone(C.paint, -0.18), C.chrome, tone(C.paint, 0.12)];
+    const box = (id, from, to, a, d, tint) => extrudes.push(extrudeWorld(id, from, to, [[a / 2, d / 2], [-a / 2, d / 2], [-a / 2, -d / 2], [a / 2, -d / 2]].map(([p, q]) => (from[2] === to[2] ? [0, p, q] : [p, q, 0])), tint));
+    for (let i = 0; i < top; i += 1) {
+      const sf = span[0] + rng() * (span[1] - span[0]);
+      const ring = ringAt(sf);
+      const { hw } = frame(ring);
+      const x = (rng() * 2 - 1) * 0.5 * hw;
+      const z = skinZ(ring, x, 1);
+      const a = 0.12 + rng() * 0.4;
+      const d = 0.18 + rng() * 0.6;
+      const h = 0.04 + rng() * 0.18;
+      if (z !== null) box(`greeble_top_${i}`, [x, -sf * L, z - 0.03], [x, -sf * L, z + h], a, d, tints[Math.floor(rng() * tints.length)]);
+    }
+    for (let i = 0; i < sides; i += 1) {
+      const sf = span[0] + rng() * (span[1] - span[0]);
+      const ring = ringAt(sf);
+      const { c, hh } = frame(ring);
+      const side = rng() < 0.5 ? 1 : -1;
+      const z = c[1] + (rng() * 2 - 1) * 0.4 * hh;
+      const x = skinX(ring, z, side);
+      const a = 0.18 + rng() * 0.5;
+      const d = 0.1 + rng() * 0.3;
+      const h = 0.03 + rng() * 0.12;
+      if (x !== null) box(`greeble_side_${i}`, [x - side * 0.03, -sf * L, z], [x + side * h, -sf * L, z], a, d, tints[Math.floor(rng() * tints.length)]);
+    }
+  }
+  return { lofts, extrudes, sweeps };
 }
 
 /** A ball hull (a twin-panel interceptor's cockpit pod): a sphere lathed nose → tail, z ≥ 0. */
@@ -105,6 +289,9 @@ function buildBall(row, C) {
   const lathes = [lathe('ball', [0, 0, R], [0, -D, R], pairs, C.paint, { crossSections: 24, samples: 28 })];
   // the equatorial collar and the rear hatch ring
   lathes.push(lathe('collar', [0, -R + 0.08, R], [0, -R - 0.08, R], [[0, R * 1.02], [1, R * 1.02]], C.trim));
+  // the boarding hatch on top: a raised ring and its lid
+  lathes.push(lathe('hatch_ring', [0, -R, D - 0.06], [0, -R, D + 0.05], [[0, R * 0.36], [1, R * 0.3]], C.trim, { samples: 24, crossSections: 3 }));
+  lathes.push(lathe('hatch', [0, -R, D + 0.02], [0, -R, D + 0.09], [[0, R * 0.26], [1, R * 0.2]], C.chrome, { samples: 24, crossSections: 3, harmonics: [{ n: 8, amplitude: 0.04 }] }));
   const hardpoints = { mount: [0, 0, 0] };
   for (const [name, [s, xf, zf]] of Object.entries(row.build.points || {})) {
     hardpoints[name] = r3v([xf * R, -s * D, R + zf * R]);
@@ -115,6 +302,46 @@ function buildBall(row, C) {
 // ---- lifting surfaces --------------------------------------------------------------------------
 
 const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+
+// Control surfaces and how far each throws, degrees [trailing edge up, trailing edge down]
+// (a fin's rudder: [to port, to starboard]).
+export const CONTROL_RANGE = { flap: [0, 40], aileron: [-20, 20], elevator: [-25, 20], elevon: [-25, 25], rudder: [-25, 25] };
+
+/** A part's control surfaces: its own `surfaces`, or the stock split of its `hinge` band by kind. */
+function surfacesOf(row) {
+  const b = row.build;
+  if (b.surfaces) return b.surfaces;
+  if (!b.hinge) return [];
+  const [f0, f1, chord] = b.hinge;
+  if (row.kind === 'craft-fin') return [{ control: 'rudder', span: [f0, f1], chord }];
+  if (row.kind === 'craft-stabilizer') return [{ control: 'elevator', span: [f0, f1], chord }];
+  if (b.elevons) return [{ control: 'elevon', span: [f0, f1], chord }];
+  if (f1 - f0 < 0.35) return [{ control: 'aileron', span: [f0, f1], chord }];
+  const m = f0 + 0.55 * (f1 - f0);
+  return [{ control: 'flap', span: [f0, m], chord }, { control: 'aileron', span: [m, f1], chord }];
+}
+
+const clampPm = (v) => Math.max(-1, Math.min(1, Number.isFinite(v) ? v : 0));
+
+/**
+ * A pilot's controls → one surface's throw, −1 … 1 (+ trailing edge down; a fin's, to starboard).
+ * `pose`: pitch (+ nose up), roll (+ right wing down), yaw (+ nose right), flaps (0 … 1). The
+ * left-hand copy is the right-hand one mirrored, so it takes the opposite roll and yaw.
+ */
+export function controlThrow(control, pose = {}, side = null) {
+  const m = side === 'l' ? -1 : 1;
+  const pitch = clampPm(pose.pitch);
+  const roll = clampPm(pose.roll);
+  const yaw = clampPm(pose.yaw);
+  if (control === 'flap') return clamp01(pose.flaps);
+  if (control === 'aileron') return clampPm(-roll * m);
+  if (control === 'elevator') return -pitch;
+  if (control === 'elevon') return clampPm(-pitch - roll * m);
+  if (control === 'rudder') return clampPm(yaw * m);
+  return 0;
+}
+
+const NAV_LIGHT = { r: '#2fd36b', l: '#e23b3b', c: '#f4f6f8' };   // starboard green, port red, tail white
 
 /**
  * A wing, a stabilizer, a fin or a starfighter foil: lofts of wing sections from the root leading
@@ -128,8 +355,13 @@ const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
  *  - `fold: { at, angle, fixed? }`: a chordwise hinge at span fraction `at`; the outer panel turns
  *    `angle` degrees about it (+ folds up) at `opts.fold` (0 spread … 1 folded). `fixed` bakes the
  *    fold in: a bent panel.
+ *  - control surfaces (`surfaces`, or the stock split of `hinge: [f0, f1, chord]`): cut out of the
+ *    panel behind their hinge line and thrown about it by `opts.pose` (see controlThrow). Each one
+ *    is a joint in the readout, so a runtime can drive it.
  *  - `winglet: { height, root, tip, sweep, cant }`: an upturned tip (chords as fractions of the tip
- *    chord, cant from vertical).
+ *    chord, cant from vertical). `stripes: [[f0, f1]]`: painted bands across the chord (a foil's
+ *    squadron markings). `fairings: [f…]`: flap-track canoes under the trailing edge.
+ *  - an earth wing carries its navigation light at the tip: green on the right, red on the left.
  */
 function buildLiftingSurface(row, C, opts = {}) {
   const b = row.build;
@@ -168,17 +400,24 @@ function buildLiftingSurface(row, C, opts = {}) {
     if (!cant) return w;
     return [w[0] * Math.cos(cant) + w[2] * Math.sin(cant), w[1], -w[0] * Math.sin(cant) + w[2] * Math.cos(cant)];
   };
-  const wingSection = (f, tw = (b.twist || 0) * DEG * f) => {
+  // a section point (chord fraction c, thickness t in chords) at span fraction f → local, with washout
+  const foilOpts = (f) => ({ thickness: Math.max(thickAt(f), 0.04 / at(f).chord), camber: b.camber || 0, kind: b.section || 'naca' });
+  const place = (f, c, t) => {
     const { chord, lead, lift } = at(f);
-    // no skin thinner than 4 cm, however thin the ratio: a razor tip does not close
-    return airfoil({ thickness: Math.max(thickAt(f), 0.04 / chord), camber: b.camber || 0, kind: b.section || 'naca' }).map(([c, t]) => {
-      const y0 = -c * chord;
-      const z0 = t * chord;
-      // washout: the tip's leading edge drops
-      return [f * span, y0 * Math.cos(tw) + z0 * Math.sin(tw) - lead, -y0 * Math.sin(tw) + z0 * Math.cos(tw) + lift];
-    });
+    const tw = (b.twist || 0) * DEG * f;   // washout: the tip's leading edge drops
+    const y0 = -c * chord;
+    const z0 = t * chord;
+    return [f * span, y0 * Math.cos(tw) + z0 * Math.sin(tw) - lead, -y0 * Math.sin(tw) + z0 * Math.cos(tw) + lift];
   };
-  // one straight loft per side of the hinge; its stations lie square to its own axis
+  const surfaces = surfacesOf(row);
+  const EPS = 0.002;
+  // where a control surface sits, the panel stops at its hinge line
+  const cutAt = (f) => {
+    const sf = surfaces.find((q) => f >= q.span[0] - 1e-9 && f <= q.span[1] + 1e-9);
+    return sf ? 1 - sf.chord : 1;
+  };
+  const wingSection = (f) => airfoil({ ...foilOpts(f), cut: cutAt(f) }).map(([c, t]) => place(f, c, t));
+  // one straight loft per side of the fold hinge; its stations lie square to its own axis
   const loftAcross = (id, fs, pointsAt, tint, extra) => {
     const out = [];
     const cuts = [[0, hingeF], [hingeF, 1]].filter(([a, z]) => z > a);
@@ -197,21 +436,48 @@ function buildLiftingSurface(row, C, opts = {}) {
     }
     return out;
   };
-  const fs = [...new Set([...plan.map((p) => p.f), ...(fold ? [hingeF] : [])])].sort((p, q) => p - q);
-  const lofts = loftAcross('panel', fs, (f) => wingSection(f), C.paint);
-  // a control-surface band along the trailing edge reads the hinge line (flap / elevator / rudder)
-  if (b.hinge) {
-    const [f0, f1, frac] = b.hinge;
-    const band = (f) => {
-      const { chord, lead, lift } = at(f);
-      const yTe = -chord - lead;
-      const yH = yTe + frac * chord;
-      const th = Math.max(0.006, thickAt(f) * chord * 0.22) * 1.15;
-      return [[yH, th], [yTe, th * 0.3], [yTe, -th * 0.3], [yH, -th]].map(([y, h]) => [f * span, y, h + lift]);
-    };
-    const bandFs = [f0, ...fs.filter((f) => f > f0 && f < f1), f1];
-    lofts.push(...loftAcross('hinge', bandFs, band, C.trim));
+  // the panel steps down to the hinge line just inside each surface's ends, unless a neighbour carries on
+  const bare = (f) => f > 0 && f < 1 && cutAt(f) === 1;
+  const steps = surfaces.flatMap((q) => [bare(q.span[0] - EPS) ? q.span[0] - EPS : null, q.span[0], q.span[1], bare(q.span[1] + EPS) ? q.span[1] + EPS : null]).filter((f) => f !== null);
+  const fs = [...new Set([...plan.map((p) => p.f), ...(fold ? [hingeF] : []), ...steps])].sort((p, q) => p - q);
+  const lofts = loftAcross('panel', fs, wingSection, C.paint);
+  // each control surface: its own loft on its hinge line, thrown about it
+  const joints = [];
+  const pose = opts.pose || {};
+  for (const [i, sf] of surfaces.entries()) {
+    const range = sf.range || CONTROL_RANGE[sf.control];
+    const k = controlThrow(sf.control, pose, opts.side);
+    const angle = (k >= 0 ? k * range[1] : -k * range[0]) || 0;   // never a −0 in a stored recipe
+    const cut = 1 - sf.chord;
+    const pieces = [[sf.span[0], Math.min(sf.span[1], hingeF)], [Math.max(sf.span[0], hingeF), sf.span[1]]].filter(([p, q]) => q - p > 1e-6);
+    for (const [j, [fa, fb]] of pieces.entries()) {
+      const outer = Boolean(fold) && fa >= hingeF;
+      const hingePt = (f) => toWorld(place(f, cut, foilAt(cut, foilOpts(f)).mean), outer);
+      const A0 = hingePt(fa);
+      const A1 = hingePt(fb);
+      const len = Math.hypot(A1[0] - A0[0], A1[1] - A0[1], A1[2] - A0[2]);
+      const kx = [(A1[0] - A0[0]) / len, (A1[1] - A0[1]) / len, (A1[2] - A0[2]) / len];
+      const inside = [fa, ...fs.filter((f) => f > fa + 2 * EPS && f < fb - 2 * EPS), fb];
+      const st = inside.map((f) => {
+        const t = (f - fa) / (fb - fa);
+        const c = [A0[0] + t * (A1[0] - A0[0]), A0[1] + t * (A1[1] - A0[1]), A0[2] + t * (A1[2] - A0[2])];
+        const pts = airfoilAft({ ...foilOpts(f), cut }).map(([cc, tt]) => {
+          const w = toWorld(place(f, cc, tt), outer);
+          return turnAbout([w[0] - c[0], w[1] - c[1], w[2] - c[2]], kx, angle * DEG);
+        });
+        return { t, points: pts };
+      });
+      const id = `surface_${sf.control}${surfaces.length > 1 ? `_${i}` : ''}${pieces.length > 1 ? `_${j}` : ''}`;
+      // a surface wears the airframe's paint, a shade down: it reads by its hinge gap, not a colour
+      lofts.push(loftWorld(id, A0, A1, st, tone(C.paint, -0.07)));
+      joints.push({ name: id.slice(8), control: sf.control, kind: 'hinge', at: r3v(A0), dir: r3v(kx), length: round3(len), range: [...range], angle: round3(angle), monomer: id });
+    }
   }
+  const band = (id, f0, f1, inflate, tint) => {
+    const ring = (f) => airfoil({ ...foilOpts(f), thickness: foilOpts(f).thickness * inflate + 0.008 / at(f).chord, cut: cutAt(f) }).map(([c, t]) => place(f, c, t));
+    return loftAcross(id, [f0, ...fs.filter((f) => f > f0 && f < f1), f1], ring, tint);
+  };
+  for (const [i, [f0, f1]] of (b.stripes || []).entries()) lofts.push(...band(`stripe_${i}`, f0, f1, 1.06, C.trim));
   if (b.winglet) {
     const wl = b.winglet;
     const tip = at(1);
@@ -236,6 +502,28 @@ function buildLiftingSurface(row, C, opts = {}) {
     });
     lofts.push(loftWorld('winglet', a0, a1, st, C.trim));
   }
+  // flap-track fairings: canoes hung under the trailing edge, as long again behind it as under it
+  const extra = {};
+  for (const [i, f] of (b.fairings || []).entries()) {
+    const { chord } = at(f);
+    const outer = Boolean(fold) && f > hingeF;
+    const w = Math.max(0.12, chord * 0.05);
+    const lowAt = (c) => place(f, c, foilAt(Math.min(c, 1), foilOpts(f)).lower);
+    const p0 = lowAt(0.5);
+    const p1 = lowAt(1);
+    const tail = [p1[0], p1[1] - chord * 0.3, p1[2] - w * 0.6];
+    const from = toWorld([p0[0], p0[1], p0[2] + w * 0.4], outer);
+    const to = toWorld(tail, outer);
+    const ring = (k, drop) => section(w * k, w * 1.6 * k, 2, 1).map(([x, z]) => (vertical ? [z, 0, x] : [x, 0, z - drop]));
+    (extra.lofts ||= []).push(loftWorld(`fairing_${i}`, from, to, [{ t: 0, points: ring(0.3, 0) }, { t: 0.35, points: ring(1, w * 0.5) }, { t: 1, points: ring(0.2, 0) }], C.paint, { interp: 'smooth' }));
+  }
+  if (extra.lofts) lofts.push(...extra.lofts);
+  const lathes = [];
+  if (row.realm === 'earth' && row.kind === 'craft-wing' && b.navLight !== false) {
+    const tipLe = toWorld(place(1, 0.05, 0), true);
+    const out = toWorld(place(1, 0.05, 0).map((v, i) => (i === 0 ? v + 0.09 : v)), true);
+    lathes.push(lathe('nav_light', tipLe, out, [[0, 0.06], [0.6, 0.055], [1, 0.005]], NAV_LIGHT[opts.side || 'c'], { material: 'neon', samples: 12, crossSections: 4 }));
+  }
   const point = ([f, c, face = 'mid']) => {
     const { chord, lead, lift } = at(f);
     const half = thickAt(f) * chord * 0.5;
@@ -244,7 +532,7 @@ function buildLiftingSurface(row, C, opts = {}) {
   };
   const hardpoints = { mount: [0, 0, 0] };
   for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
-  return { lofts, hardpoints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
+  return { lofts, ...(lathes.length ? { lathes } : {}), hardpoints, joints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
 }
 
 // A panel's outline in its own plane, (y forward, z up), each in −1..1 of half the chord and half the height.
@@ -326,18 +614,32 @@ function buildEngine(row, C) {
       ? [[0, 0.86 * R], [0.05, 0.97 * R], [0.28, R], [0.72, 0.9 * R], [1, 0.6 * R]]
       : [[0, 0.55 * R], [0.12, 0.92 * R], [0.35, R], [0.7, 0.85 * R], [1, 0.25 * R]];
     lathes.push(lathe('nacelle', [xc, yf, zc], [xc, yf - L, zc], nacelle, C.paint, { crossSections: 18, samples: 28 }));
+    const sweeps = [];
     const hardpoints = { mount: [0, 0, 0] };
     if (fam === 'turbofan') {
       const fanR = (b.fanDiameter || 1.6 * R) / 2;
       lathes.push(lathe('fan', [xc, yf + 0.01, zc], [xc, yf - 0.06 * L, zc], [[0, fanR * 0.98], [1, fanR * 0.98]], C.rubber));
       lathes.push(lathe('spinner', [xc, yf - 0.02 * L, zc], [xc, yf - 0.16 * L, zc], [[0, 0.02], [1, fanR * 0.3]], C.chrome));
       lathes.push(lathe('plug', [xc, yf - 0.95 * L, zc], [xc, yf - 1.12 * L, zc], [[0, 0.42 * R], [1, 0.03]], C.chrome));
+      // the inlet lip, polished; the thrust-reverser seam a third of the way back
+      lathes.push(lathe('lip', [xc, yf + 0.012, zc], [xc, yf - 0.04 * L, zc], [[0, 0.88 * R], [1, 0.975 * R]], C.chrome, { samples: 28, crossSections: 4 }));
+      lathes.push(lathe('reverser_seam', [xc, yf - 0.5 * L, zc], [xc, yf - 0.52 * L, zc], [[0, 0.975 * R], [1, 0.97 * R]], C.trim, { samples: 28, crossSections: 2 }));
+      // the fan: blades from the spinner to the case, raked by their twist
+      const n = b.fanBlades || 18;
+      sweeps.push(...Array.from({ length: n }, (_, i) => {
+        const a = (i / n) * 2 * Math.PI;
+        const c = Math.cos(a);
+        const sn = Math.sin(a);
+        return sweep(`blade_${i}`, [[xc + c * fanR * 0.28, yf - 0.035 * L, zc + sn * fanR * 0.28], [xc + c * fanR * 0.95 - sn * 0.06, yf - 0.025 * L, zc + sn * fanR * 0.95 + c * 0.06]], Math.max(0.012, fanR * 0.035), C.chrome, { sides: 4 });
+      }));
     } else {
       // turboprop: the propeller hub is the nacelle's nose, the exhaust a stub on the side
       lathes.push(lathe('exhaust', [xc + 0.7 * R, yf - 0.32 * L, zc + 0.2 * R], [xc + 1.05 * R, yf - 0.42 * L, zc + 0.2 * R], [[0, 0.16 * R], [1, 0.16 * R]], C.chrome));
+      // the oil-cooler scoop under the nose
+      lathes.push(lathe('scoop', [xc, yf - 0.06 * L, zc - 0.62 * R], [xc, yf - 0.2 * L, zc - 0.62 * R], [[0, 0.2 * R], [1, 0.26 * R]], C.trim, { samples: 16, crossSections: 3 }));
       hardpoints.propHub = r3v([xc, yf, zc]);
     }
-    return { lathes, hardpoints };
+    return { lathes, ...(sweeps.length ? { sweeps } : {}), hardpoints };
   }
   if (fam === 'cowl') {
     // a nose cowling over a flat engine: the mount is the firewall, the hub the cowl's nose
@@ -374,8 +676,18 @@ function buildEngine(row, C) {
       lathe('intake', [0, L / 2 + 0.02, 0], [0, L / 2 - 0.04, 0], [[0, R * 0.5], [1, R * 0.5]], C.rubber),
       lathe('band', [0, L * 0.18, 0], [0, L * 0.08, 0], [[0, R * 1.04], [1, R * 1.04]], C.trim),
       lathe('glow', [0, -L / 2, 0], [0, -L / 2 - 0.04, 0], [[0, R * 0.78], [1, R * 0.78]], C.light, { material: 'neon' }),
+      lathe('nozzle_ring', [0, -L / 2 + 0.12, 0], [0, -L / 2 - 0.02, 0], [[0, R * 0.95], [1, R * 0.86]], C.chrome, { harmonics: [{ n: 12, amplitude: 0.03 }], crossSections: 3 }),
     ];
-    return { lathes, hardpoints: { mount: [0, 0, 0], exhaust: [0, round3(-L / 2), 0], top: [0, round3(-L * 0.3), round3(R * 0.95)], bottom: [0, round3(-L * 0.3), round3(-R * 0.95)] } };
+    // cooling fins along the drive body, and the bars across its intake
+    const extrudes = Array.from({ length: 6 }, (_, i) => {
+      const a = (i / 6) * 2 * Math.PI + Math.PI / 6;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      const fin = [[R * 0.95, -0.02], [R * 1.13, -0.02], [R * 1.13, 0.02], [R * 0.95, 0.02]].map(([r, w]) => [c * r - sn * w, 0, sn * r + c * w]);
+      return extrudeWorld(`fin_${i}`, [0, -L * 0.05, 0], [0, -L * 0.38, 0], fin, C.trim);
+    });
+    const sweeps = [-1, 0, 1].map((j) => sweep(`grille_${j + 1}`, [[-R * 0.45, L / 2 + 0.03, j * R * 0.22], [R * 0.45, L / 2 + 0.03, j * R * 0.22]], R * 0.035, C.chrome, { sides: 6 }));
+    return { lathes, extrudes, sweeps, hardpoints: { mount: [0, 0, 0], exhaust: [0, round3(-L / 2), 0], top: [0, round3(-L * 0.3), round3(R * 0.95)], bottom: [0, round3(-L * 0.3), round3(-R * 0.95)] } };
   }
   if (fam === 'radial') {
     // a big radial under a short cowl: the mount is the firewall, the dark ring is the cylinder heads
@@ -424,7 +736,7 @@ function buildEngine(row, C) {
 }
 
 /** A propeller: spinner forward of the mount, blades lofted root → tip with their twist. */
-function buildPropeller(row, C) {
+function buildPropeller(row, C, opts = {}) {
   const b = row.build;
   const D = row.dims.diameter;
   const sl = b.spinnerLength;
@@ -433,7 +745,7 @@ function buildPropeller(row, C) {
   const lathes = [lathe('spinner', [0, 0, 0], [0, sl, 0], [[0, hubR], [0.4, hubR * 0.92], [1, 0.02]], C.chrome, { crossSections: 10, samples: 24 })];
   const lofts = [];
   for (let k = 0; k < b.blades; k += 1) {
-    const phi = (k / b.blades) * 2 * Math.PI + Math.PI / 2 / b.blades;
+    const phi = (k / b.blades) * 2 * Math.PI + Math.PI / 2 / b.blades + ((opts.pose && opts.pose.prop) || 0) * DEG;
     const rhat = [Math.cos(phi), 0, Math.sin(phi)];
     const that = [-Math.sin(phi), 0, Math.cos(phi)];
     const station = (f) => {
@@ -455,7 +767,8 @@ function buildPropeller(row, C) {
     const to = [rhat[0] * D / 2, yBlade, rhat[2] * D / 2];
     lofts.push(loftWorld(`blade_${k}`, from, to, [{ t: 0, points: station(0) }, { t: 0.35, points: station(0.35) }, { t: 1, points: station(1) }], C.trim));
   }
-  return { lathes, lofts, hardpoints: { mount: [0, 0, 0] } };
+  const joints = [{ name: 'prop', control: 'prop', kind: 'spin', at: [0, 0, 0], dir: [0, 1, 0], range: [0, 360], angle: round3(((opts.pose && opts.pose.prop) || 0) % 360) }];
+  return { lathes, lofts, hardpoints: { mount: [0, 0, 0] }, joints };
 }
 
 /** A reaction-control quad: a block on the hull with four nozzles in its plane. */
@@ -482,7 +795,7 @@ function wheel(id, x, y, z, D, Wt, C) {
  * Landing gear, mount at the top of the strut (the gear well). `contact` is where the tyre (or
  * the skid pad) meets the ground in the part's frame: the assembler lifts the craft by it.
  */
-function buildGear(row, C) {
+function gearGeometry(row, C) {
   const b = row.build;
   const S = b.strut;
   const D = b.tyre ? b.tyre[0] : 0;
@@ -500,6 +813,9 @@ function buildGear(row, C) {
     // an oleo leg, its wheels side by side on one axle (one or two)
     axle = [0, b.rake || 0, -S];
     sweeps.push(sweep('oleo', [[0, 0, 0], [0, (b.rake || 0) * 0.5, -S * 0.5], axle, [0, axle[1], -S - b.oleo * 0.8]], b.oleo, C.chrome));
+    // the torque link: a scissor ahead of the oleo, knee forward
+    const knee = [0, axle[1] * 0.75 + b.oleo * 2.6, -S * 0.72];
+    sweeps.push(sweep('torque_link', [[0, (b.rake || 0) * 0.5 + b.oleo * 0.6, -S * 0.5], knee, [0, axle[1] + b.oleo * 0.6, -S + b.oleo * 1.2]], b.oleo * 0.28, C.trim));
     const n = b.wheels || 1;
     if (n === 1) lathes.push(...wheel('w', 0, axle[1], -S, D, Wt, C));
     else {
@@ -515,6 +831,8 @@ function buildGear(row, C) {
     const pitch = D * 1.12;
     const y0 = ((rows - 1) * pitch) / 2;
     sweeps.push(sweep('beam', [[0, y0 + D * 0.2, -S], [0, -y0 - D * 0.2, -S]], b.oleo * 0.7, C.chrome));
+    // the drag brace, from the oleo's top back to the truck
+    sweeps.push(sweep('brace', [[0, -b.oleo * 0.5, -S * 0.15], [0, -y0 * 0.7, -S * 0.8]], b.oleo * 0.35, C.trim));
     const half = (Wt + b.oleo * 2.2) / 2;
     for (let i = 0; i < rows; i += 1) {
       const y = y0 - i * pitch;
@@ -537,10 +855,73 @@ function buildGear(row, C) {
   return { sweeps, lathes, hardpoints: { mount: [0, 0, 0], contact } };
 }
 
+// How a leg stows: about which axis through its mount, which way (a right-hand main folds inboard).
+const RETRACT = { forward: [[1, 0, 0], 1], aft: [[1, 0, 0], -1], inward: [[0, 1, 0], 1] };
+
+const turnPt = (p, k, a) => {
+  if (Array.isArray(p)) return r3v(turnAbout(p, k, a));
+  const v = turnAbout([p.x, p.y, p.z], k, a);
+  return { x: round3(v[0]), y: round3(v[1]), z: round3(v[2]) };
+};
+
+/**
+ * Landing gear, mount at the top of the strut (the gear well). `contact` is where the tyre (or the
+ * skid pad) meets the ground in the part's frame. A leg with `retract` ('forward' | 'aft' |
+ * 'inward'; false for a fixed spring leg) is a joint: `opts.pose.gear` (0 down … 1 up) swings it
+ * 90° into its well.
+ */
+function buildGear(row, C, opts = {}) {
+  const g = gearGeometry(row, C);
+  const how = row.build.retract === undefined ? (row.build.family === 'spring' ? false : 'forward') : row.build.retract;
+  if (!how) return g;
+  const [k, sign] = RETRACT[how];
+  const angle = sign * 90 * clamp01(opts.pose && opts.pose.gear);
+  const joints = [{ name: 'gear', control: 'gear', kind: 'hinge', at: [0, 0, 0], dir: k, range: [0, sign * 90], angle }];
+  if (!angle) return { ...g, joints };
+  const a = angle * DEG;
+  return {
+    sweeps: g.sweeps.map((m) => ({ ...m, path: m.path.map((q) => turnPt(q, k, a)) })),
+    lathes: g.lathes.map((m) => ({ ...m, axisFrom: turnPt(m.axisFrom, k, a), axisTo: turnPt(m.axisTo, k, a) })),
+    hardpoints: { mount: [0, 0, 0], contact: turnPt(g.hardpoints.contact, k, a) },
+    joints,
+  };
+}
+
 // ---- cockpit, mounts, weapons -----------------------------------------------------------------
 
-/** A canopy: a glazed dome lofted from its front sill (the mount) aft; or a round window. */
-function buildCanopy(row, C) {
+/**
+ * A canopy: a glazed dome lofted from its front sill (the mount) aft, or a round window. A dome
+ * opens (`opts.pose.canopy`, 0 shut … 1 open): `opens: 'hinge'` (the default) lifts its front about
+ * the rear sill 40°; `'slide'` runs it back half its length on its rails.
+ */
+function buildCanopy(row, C, opts = {}) {
+  const g = canopyGeometry(row, C);
+  const b = row.build;
+  if (b.family === 'roundWindow' || b.opens === false) return g;
+  const L = row.dims.length;
+  const how = b.opens || 'hinge';
+  const k = clamp01(opts.pose && opts.pose.canopy);
+  const joints = [how === 'slide'
+    ? { name: 'canopy', control: 'canopy', kind: 'slide', at: [0, 0, 0], dir: [0, -1, 0], range: [0, round3(L * 0.5)], travel: round3(k * L * 0.5) }
+    : { name: 'canopy', control: 'canopy', kind: 'hinge', at: [0, round3(-L), 0], dir: [1, 0, 0], range: [0, 40], angle: round3(k * 40) }];
+  if (!k) return { ...g, joints };
+  const move = how === 'slide'
+    ? (p) => (Array.isArray(p) ? r3v([p[0], p[1] - k * L * 0.5, p[2]]) : { x: p.x, y: round3(p.y - k * L * 0.5), z: p.z })
+    : (p) => {
+      const q = Array.isArray(p) ? p : [p.x, p.y, p.z];
+      const v = turnAbout([q[0], q[1] + L, q[2]], [1, 0, 0], k * 40 * DEG);
+      const w = [v[0], v[1] - L, v[2]];
+      return Array.isArray(p) ? r3v(w) : { x: round3(w[0]), y: round3(w[1]), z: round3(w[2]) };
+    };
+  return {
+    ...g,
+    lofts: g.lofts.map((m) => ({ ...m, axisFrom: move(m.axisFrom), axisTo: move(m.axisTo) })),
+    ...(g.sweeps ? { sweeps: g.sweeps.map((m) => ({ ...m, path: m.path.map(move) })) } : {}),
+    joints,
+  };
+}
+
+function canopyGeometry(row, C) {
   const { length: L, width: W, height: H } = row.dims;
   const b = row.build;
   if (b.family === 'roundWindow') {
@@ -692,7 +1073,7 @@ function buildWeapon(row, C) {
 }
 
 export const CRAFT_BUILDERS = {
-  'craft-fuselage': (row, C) => (row.build.family === 'ball' ? buildBall(row, C) : buildFuselage(row, C)),
+  'craft-fuselage': (row, C, opts) => (row.build.family === 'ball' ? buildBall(row, C) : buildFuselage(row, C, opts)),
   'craft-wing': (row, C, opts) => (row.build.family === 'panel' ? buildPanel(row, C) : buildLiftingSurface(row, C, opts)),
   'craft-stabilizer': buildLiftingSurface,
   'craft-fin': buildLiftingSurface,

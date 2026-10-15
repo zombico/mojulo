@@ -223,3 +223,102 @@ describe('wing variations: folded, flat-paneled, rolled', () => {
     expect(planAssembler(manifest).stats.warnings).toBeUndefined();
   });
 });
+
+describe('articulation: what moves is a joint, posed from the pilot controls', () => {
+  const wingSku = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].kind === 'craft-wing' && CRAFT_ODM[k].build.hinge && !CRAFT_ODM[k].build.elevons && !CRAFT_ODM[k].build.fold);
+  const jointOf = (r, control) => r.garage.joints.find((j) => j.control === control);
+
+  it('cuts the control surfaces out of the panel and throws them about their hinge lines', () => {
+    const still = resolveCraftPart(wingSku, { seat: 'mount' });
+    expect(still.garage.joints.map((j) => j.control).sort()).toEqual(['aileron', 'flap']);
+    for (const j of still.garage.joints) {
+      expect(j.angle).toBe(0);
+      expect(Math.hypot(...j.dir)).toBeCloseTo(1, 3);
+      expect(still.lofts.some((l) => l.id === j.monomer)).toBe(true);
+    }
+    const flaps = resolveCraftPart(wingSku, { seat: 'mount', pose: { flaps: 1 } });
+    expect(jointOf(flaps, 'flap').angle).toBe(jointOf(flaps, 'flap').range[1]);
+    // only the moving surface's loft changes; the panel ahead of the hinge is the same
+    const panel = (r) => r.lofts.find((l) => l.id.startsWith('panel'));
+    expect(panel(flaps)).toEqual(panel(still));
+    expect(flaps.lofts.find((l) => l.id === jointOf(flaps, 'flap').monomer)).not.toEqual(still.lofts.find((l) => l.id === jointOf(still, 'flap').monomer));
+  });
+
+  it('rolls with the ailerons opposite on the two sides, pitches with both elevators together', () => {
+    const right = resolveCraftPart(wingSku, { seat: 'mount', side: 'r', pose: { roll: 1 } });
+    const left = resolveCraftPart(wingSku, { seat: 'mount', side: 'l', pose: { roll: 1 } });
+    expect(jointOf(right, 'aileron').angle).toBeLessThan(0);   // roll right: the right aileron rises
+    expect(jointOf(left, 'aileron').angle).toBeGreaterThan(0);
+    const { readout } = assembleCraft('narrowbody', { pose: { pitch: 1 } });
+    const elevators = readout.joints.filter((j) => j.control === 'elevator');
+    expect(elevators).toHaveLength(2);
+    expect(new Set(elevators.map((j) => j.angle)).size).toBe(1);
+    expect(elevators[0].angle).toBeLessThan(0);                // nose up: trailing edges up
+  });
+
+  it('swings the gear into its well, opens the canopy, turns the propeller', () => {
+    const gearSku = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].kind === 'craft-gear' && CRAFT_ODM[k].build.retract === 'inward');
+    const down = resolveCraftPart(gearSku, { seat: 'mount' });
+    const up = resolveCraftPart(gearSku, { seat: 'mount', pose: { gear: 1 } });
+    expect(jointOf(up, 'gear').angle).toBe(90);
+    expect(up.garage.hardpoints.contact[2]).toBeGreaterThan(down.garage.hardpoints.contact[2]);
+    expect(up.garage.hardpoints.contact[0]).toBeLessThan(down.garage.hardpoints.contact[0]);   // inboard
+    const fixed = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].kind === 'craft-gear' && CRAFT_ODM[k].build.retract === false);
+    expect(resolveCraftPart(fixed, { seat: 'mount' }).garage.joints).toBeUndefined();
+    const shut = resolveCraftPart('canopy-bubble-fighter', { seat: 'mount' });
+    const open = resolveCraftPart('canopy-bubble-fighter', { seat: 'mount', pose: { canopy: 1 } });
+    expect(open.lofts[0].axisFrom.z).toBeGreaterThan(shut.lofts[0].axisFrom.z);   // the front lifts
+    const slid = resolveCraftPart('canopy-bubble-warbird', { seat: 'mount', pose: { canopy: 1 } });
+    expect(slid.lofts[0].axisFrom.y).toBeLessThan(0);                              // runs back on its rails
+    const prop = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].kind === 'craft-propeller');
+    expect(resolveCraftPart(prop, { seat: 'mount', pose: { prop: 45 } }).lofts).not.toEqual(resolveCraftPart(prop, { seat: 'mount' }).lofts);
+  });
+
+  it('lifts a craft with its gear up off its wheels onto its belly', () => {
+    const { manifest, readout } = assembleCraft('jetFighter', { pose: { gear: 1 } });
+    expect(readout.gear).toEqual([]);
+    expect(readout.joints.filter((j) => j.control === 'gear').every((j) => j.angle !== 0)).toBe(true);
+    expect(planAssembler(manifest).stats.warnings).toBeUndefined();
+  });
+});
+
+describe('finishes and surface detail', () => {
+  it('gives every monomer a material by its colour role, the hot sections heat-tinted titanium', () => {
+    const r = resolveCraftPart('eng-turbofan-narrow', { seat: 'mount' });
+    const all = ['lathes', 'sweeps', 'lofts', 'extrudes'].flatMap((k) => r[k] || []);
+    expect(all.every((m) => m.material)).toBe(true);
+    expect(r.lathes.find((m) => m.id === 'plug').material).toMatchObject({ metal: 'titanium' });
+    const bare = resolveCraftPart('eng-turbofan-narrow', { seat: 'mount', finish: false });
+    expect(['lathes', 'sweeps'].flatMap((k) => bare[k] || []).filter((m) => m.material)).toEqual([]);
+    expect(bare.garage.finish).toBe(false);
+  });
+
+  it('keeps a cabin barrel straight between its stations, and its seams on the skin', () => {
+    // a windowed hull with a straight run: two equal stations back to back
+    const straight = (rows) => rows.some((p, i) => i > 0 && p.slice(1, 4).join() === rows[i - 1].slice(1, 4).join() && p[1] === 1);
+    const sku = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].kind === 'craft-fuselage' && CRAFT_ODM[k].build.windows && straight(CRAFT_ODM[k].build.stations));
+    const r = resolveCraftPart(sku, { seat: 'mount' });
+    const half = CRAFT_ODM[sku].dims.width / 2;
+    const seams = r.lofts.filter((l) => l.id.startsWith('seam'));
+    expect(seams.length).toBeGreaterThan(3);
+    const widest = Math.max(...seams.map((l) => Math.max(...l.stations[0].profile.map((p) => Math.abs(p[0])))));
+    expect(widest).toBeLessThan(half * 1.01 + 0.012);   // no bulge: a seam is a hair proud of a straight barrel
+    expect(r.extrudes.filter((e) => e.id.startsWith('window_')).length).toBeGreaterThan(10);
+    expect(r.extrudes.some((e) => e.id.startsWith('door_'))).toBe(true);
+  });
+
+  it('plants the same greebles for the same part number, and none where the row asks for none', () => {
+    const sku = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].build.greebles);
+    const a = resolveCraftPart(sku, { seat: 'mount' }).extrudes.filter((e) => e.id.startsWith('greeble'));
+    expect(a.length).toBeGreaterThan(0);
+    expect(resolveCraftPart(sku, { seat: 'mount' }).extrudes.filter((e) => e.id.startsWith('greeble'))).toEqual(a);
+    const plain = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].kind === 'craft-fuselage' && !CRAFT_ODM[k].build.greebles);
+    expect((resolveCraftPart(plain, { seat: 'mount' }).extrudes || []).some((e) => e.id.startsWith('greeble'))).toBe(false);
+  });
+
+  it('lights the wingtips green to starboard and red to port', () => {
+    const sku = Object.keys(CRAFT_ODM).find((k) => CRAFT_ODM[k].kind === 'craft-wing' && CRAFT_ODM[k].realm === 'earth' && !CRAFT_ODM[k].build.family);
+    const tint = (side) => resolveCraftPart(sku, { seat: 'mount', side }).lathes.find((m) => m.id === 'nav_light').tint;
+    expect(tint('r')).not.toBe(tint('l'));
+  });
+});

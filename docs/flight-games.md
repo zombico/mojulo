@@ -102,6 +102,36 @@ game can swap the sky for the void and keep its cast (`craftRoleAnalogues(role)`
 - **Mounts.** A layout entry can `roll` about the long axis (three wings at 120° about one hull). It can
   also take an `offset`, a spacer that sets a stock gear leg deeper so the craft sits level.
 
+### Finishes, articulation and surface detail
+
+- **Finishes.** Every monomer gets a material for its colour role:
+  - an aircraft's paint is gloss and a starship's plating matte;
+  - bare metal is brushed aluminium (earth) or blasted steel (space);
+  - glass, rubber and glows get their own materials;
+  - every hot section (nozzle, plug, drive bell, exhaust stack) is titanium blued by its own heat.
+  `finish: false` returns bare tints.
+- **Articulation.** What moves is a joint in the part's `garage.joints` (where it turns, its direction,
+  its range, where it is now):
+  - control surfaces are cut out of the panel behind their hinge line;
+  - landing gear swings into its well (`retract`: forward, aft, inward; a spring leg is fixed);
+  - a canopy hinges up or slides back;
+  - a propeller turns.
+
+  `assembleCraft(id, { pose })` takes the pilot's controls: `pitch`, `roll`, `yaw` (−1 … 1), `flaps`,
+  `gear`, `canopy` (0 … 1) and `prop` (degrees). It mixes them per surface (the left aileron opposite
+  the right, elevons both ways at once) and lists every joint in the readout for a runtime to drive.
+  With the gear up, the craft rests on its belly.
+- **Detail on the real skin.** Panel seams follow the loft's own spline, and a cabin barrel is held
+  straight between its stations (a spline would bulge it). Also on the skin:
+  - cabin window rows and framed doors, kept clear of each other;
+  - blade antennas and pitot booms;
+  - seeded greebles on starship plating, the same for the same part number;
+  - fan blades, inlet lips and reverser seams on the turbofans;
+  - cooling fins and intake grilles on the drive pods;
+  - stripes on starfighter foils, flap-track fairings on airliner wings;
+  - torque links and drag braces on the gear;
+  - wingtip navigation lights, green to starboard and red to port.
+
 Space reference figures are this shelf's own register sizes. They guard the shapes against drift; they
 are not published figures.
 

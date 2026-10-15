@@ -56,3 +56,20 @@ describe('every archetype', () => {
     }
   });
 });
+
+describe('every archetype, posed', () => {
+  const POSE = { gear: 1, flaps: 1, canopy: 1, roll: 0.6, pitch: -0.4, yaw: 0.5, prop: 20 };
+  it.each(Object.keys(CRAFT_ARCHETYPES))('%s articulates without tearing a part', (id) => {
+    const { manifest, readout } = assembleCraft(id, { pose: POSE });
+    expect(planAssembler(manifest).stats.warnings).toBeUndefined();
+    const seen = new Set();
+    for (const item of manifest.items) {
+      const key = JSON.stringify(item.source.garage.joints || []) + item.source.garage.sku;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const { stats } = planWorkbench(item.source);
+      expect((stats.warnings || []).filter((w) => /open shell/.test(w)), item.id).toEqual([]);
+    }
+    if (readout.realm === 'earth') expect(readout.joints.length).toBeGreaterThan(0);
+  });
+});

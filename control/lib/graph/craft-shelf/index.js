@@ -24,6 +24,31 @@ import { CRAFT_ARCHETYPES, CRAFT_ROLES } from './craft-archetypes.js';
 export { CRAFT_ARCHETYPES, CRAFT_COLOR_ROLES, CRAFT_KINDS, CRAFT_ODM, CRAFT_PALETTES, CRAFT_REALMS, CRAFT_ROLES };
 
 const REALM_PALETTE = { earth: 'airlinerWhite', space: 'scoutIvory' };
+
+// What each colour role is made of, by realm: painted skins satin on an aircraft and matte on a
+// starship's plating, bare metal brushed aluminium or blasted steel, and every hot section (a nozzle,
+// a plug, a drive bell, an exhaust stack) titanium blued by its own heat.
+// (The paints keep the studio's own brightness: a stock satin is a dimmer, greyer white than a livery.)
+const GLOSS = { preset: 'satin', ambient: 0.48, diffuse: 0.6, specular: 0.3, shininess: 20 };
+const SHEEN = { preset: 'satin', ambient: 0.46, diffuse: 0.6, specular: 0.18, shininess: 12 };
+const PLATE = { preset: 'matte', ambient: 0.48, diffuse: 0.58, specular: 0.06, shininess: 4 };
+const FINISH = {
+  earth: { paint: GLOSS, trim: SHEEN, glass: 'glass', rubber: 'rubber', chrome: { metal: 'aluminium', finish: 'brushed' }, light: 'neon' },
+  space: { paint: PLATE, trim: SHEEN, glass: 'glass', rubber: 'rubber', chrome: { metal: 'steel', finish: 'blasted' }, light: 'neon' },
+};
+const HOT = { metal: 'titanium', film: { temper: 330 } };
+const HOT_ID = /^(plug|nozzle|bell|exhaust|stack_)/;
+const ROLE_ORDER = ['paint', 'trim', 'chrome', 'rubber', 'glass', 'light'];
+
+/** Give every monomer without its own material the finish of its colour role (a seam's shade is paint). */
+function applyFinish(monomers, C, realm) {
+  const table = FINISH[realm];
+  const roleOf = (tint) => ROLE_ORDER.find((r) => C[r] === tint) || 'paint';
+  return Object.fromEntries(Object.entries(monomers).map(([key, list]) => [key, list.map((m) => {
+    if (m.material) return m;
+    return { ...m, material: clone(HOT_ID.test(m.id || '') ? HOT : table[roleOf(m.tint)]) };
+  })]));
+}
 const MONOMERS = ['lathes', 'extrudes', 'sweeps', 'lofts'];
 
 function partRow(sku) {
@@ -47,7 +72,7 @@ function shiftRecipe(recipe, dz) {
   }
   const hp = {};
   for (const [name, v] of Object.entries(recipe.garage.hardpoints)) hp[name] = shiftPoint(v, dz);
-  out.garage = { ...recipe.garage, hardpoints: hp };
+  out.garage = { ...recipe.garage, hardpoints: hp, ...(recipe.garage.joints ? { joints: recipe.garage.joints.map((j) => ({ ...j, at: shiftPoint(j.at, dz) })) } : {}) };
   return out;
 }
 
@@ -62,16 +87,20 @@ function lowestZ(recipe) {
  * on the measured grid for a lone preview; `seat: 'mount'` keeps its mount at the origin, the
  * frame `assembleCraft` places it in. Hardpoints ride in `garage.hardpoints`, in the same frame.
  * `fold` (0 spread … 1 folded) sets a folding wing's hinge; parts that do not fold ignore it.
+ * `pose` moves what articulates — { pitch, roll, yaw (−1 … 1), flaps, gear, canopy (0 … 1), prop
+ * (degrees) } — and `side` ('r' | 'l') says which copy of a pair this is (a left aileron throws the
+ * other way; a left wingtip shows red). `finish: false` drops the material finishes to bare tints.
  */
-export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fold = 0, title } = {}) {
+export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fold = 0, pose = {}, side = null, finish = true, title } = {}) {
   const row = partRow(sku);
   const { id: paletteId, colors: C } = resolveCraftPalette(palette, colors, REALM_PALETTE[row.realm]);
-  const geom = CRAFT_BUILDERS[row.kind](row, C, { fold });
+  const geom = CRAFT_BUILDERS[row.kind](row, C, { fold, pose, side, sku });
+  const monomers = Object.fromEntries(MONOMERS.filter((k) => geom[k] && geom[k].length).map((k) => [k, geom[k]]));
   const recipe = {
     kind: 'workbench',
     title: title || `${row.label} (${sku})`,
     units: 'm',
-    ...Object.fromEntries(MONOMERS.filter((k) => geom[k] && geom[k].length).map((k) => [k, geom[k]])),
+    ...(finish ? applyFinish(monomers, C, row.realm) : monomers),
     garage: {
       kind: row.kind,
       sku,
@@ -89,6 +118,10 @@ export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fol
       hardpoints: geom.hardpoints,
       // a folding wing says how it folds and how far it is folded in this recipe (degrees)
       ...(row.build.fold ? { fold: { ...clone(row.build.fold), angleNow: geom.fold } } : {}),
+      // what moves: control surfaces, gear, canopy, propeller — where it turns, how far, where it is now
+      ...(geom.joints && geom.joints.length ? { joints: geom.joints } : {}),
+      ...(side ? { side } : {}),
+      finish: finish ? row.realm : false,
       seat,
     },
   };
@@ -132,14 +165,15 @@ function archetypeRow(id) {
  * Walk a layout: every part placed by its mount at the hardpoint `at` names, mirrors made. A part whose
  * parent was swapped for one without that hardpoint is left off and named (advice, not a refusal).
  */
-function placeLayout(row, { palette, colors, swap, fold }) {
+function placeLayout(row, { palette, colors, swap, fold, pose, finish }) {
   const placed = new Map();
   const order = [];
   const skipped = new Set();
   const warnings = [];
   for (const entry of row.layout) {
     const sku = swap[entry.id] || entry.sku;
-    const recipe = resolveCraftPart(sku, { palette, colors, seat: 'mount', fold });
+    const make = (side) => resolveCraftPart(sku, { palette, colors, seat: 'mount', fold, pose, side, finish });
+    const recipe = make(entry.pair ? 'r' : null);
     let target = [0, 0, 0];
     let parent = null;
     if (entry.at) {
@@ -171,7 +205,8 @@ function placeLayout(row, { palette, colors, swap, fold }) {
     if (entry.pair) {
       const X = flipM(new Set(['x']));
       const r = { id: `${entry.id}-r`, slot: entry.id, recipe, at, R, flip };
-      const l = { id: `${entry.id}-l`, slot: entry.id, recipe, at: [-at[0], at[1], at[2]], R: mul3(X, mul3(R, X)), flip: flipXor(flip, new Set(['x'])) };
+      // the left copy is its own recipe: it throws its aileron the other way and shows a red light
+      const l = { id: `${entry.id}-l`, slot: entry.id, recipe: make('l'), at: [-at[0], at[1], at[2]], R: mul3(X, mul3(R, X)), flip: flipXor(flip, new Set(['x'])) };
       placed.set(r.id, r).set(l.id, l);
       order.push(r, l);
     } else {
@@ -212,12 +247,14 @@ function toManifest(row, order, { pitch, lift, title }) {
  * folds every folding wing; absent, the archetype's own stance (a shuttle lands with its wings up).
  * Returns `{ manifest, readout }`: the readout measures the craft as built.
  */
-export function assembleCraft(archetype, { palette, colors = {}, swap = {}, attitude = 'ground', fold, title } = {}) {
+export function assembleCraft(archetype, { palette, colors = {}, swap = {}, attitude = 'ground', fold, pose = {}, finish = true, title } = {}) {
   const row = archetypeRow(archetype);
   const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (row.fold || 0)));
-  const { order, warnings: placing } = placeLayout(row, { palette: palette || row.palette, colors, swap, fold: foldNow });
+  const { order, warnings: placing } = placeLayout(row, { palette: palette || row.palette, colors, swap, fold: foldNow, pose, finish });
+  // gear fully up: the craft is in the air, so it does not stand on its wheels (it rests on its belly)
+  const gearUp = Number(pose.gear) >= 1;
   const contacts = order
-    .filter((p) => p.recipe.garage.hardpoints.contact)
+    .filter((p) => !gearUp && p.recipe.garage.hardpoints.contact)
     .map((p) => {
       const c = orient(p, p.recipe.garage.hardpoints.contact);
       return [p.at[0] + c[0], p.at[1] + c[1], p.at[2] + c[2]];
@@ -243,7 +280,7 @@ export function assembleCraft(archetype, { palette, colors = {}, swap = {}, atti
   const manifest = toManifest(row, order, { pitch, lift, title });
   // where each wheel or pad meets the ground, in the craft's world frame (a fly rule's taxi points)
   const gear = order
-    .filter((p) => p.recipe.garage.hardpoints.contact)
+    .filter((p) => !gearUp && p.recipe.garage.hardpoints.contact)
     .map((p) => {
       const c = orient(p, p.recipe.garage.hardpoints.contact);
       const w = rotX(pitch, [p.at[0] + c[0], p.at[1] + c[1], p.at[2] + c[2]]);
@@ -251,7 +288,11 @@ export function assembleCraft(archetype, { palette, colors = {}, swap = {}, atti
     });
   const readout = measureCraft(archetype, manifest, { pitch, swap });
   if (placing.length) readout.audit = { ...readout.audit, ok: false, warnings: [...readout.audit.warnings, ...placing] };
-  return { manifest, readout: { ...readout, fold: foldNow, gear } };
+  // every joint on the craft, by item: what a runtime drives (a fly rule's ailerons, a hangar's fold)
+  const joints = manifest.items.flatMap((it) => (it.source.garage.joints || []).map((j) => ({
+    item: it.id, name: j.name, control: j.control, kind: j.kind, range: j.range, ...(j.kind === 'slide' ? { travel: j.travel } : { angle: j.angle }),
+  })));
+  return { manifest, readout: { ...readout, fold: foldNow, pose: clone(pose), gear, joints } };
 }
 
 /** What the assembled craft measures, weighs and pushes, beside its reference figure. */

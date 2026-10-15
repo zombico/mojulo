@@ -67,6 +67,8 @@ export const CRAFT_ODM = {
       family: 'tube', n: 3.2,
       stations: [[0, 0.9, 0.8, 0.5], [0.08, 1, 1, 0.5], [0.35, 1, 1, 0.52], [0.55, 0.62, 0.62, 0.56], [0.85, 0.28, 0.4, 0.58], [1, 0.12, 0.3, 0.6]],
       windscreen: [0.05, 0.16],
+      windows: { from: 0.2, to: 0.3, pitch: 0.6, zf: 0.42, w: 0.55, h: 0.42 },
+      doors: [[0.15, -0.05, 0.85, 0.9]],
       points: { cowl: [0, 0, -0.05], wingRoot: [0.1, 0, 0.98], mainGear: [0.33, 0.85, -1], noseGear: [0.02, 0, -0.85], stabRoot: [0.92, 0, -0.2], finRoot: [0.85, 0, 0.75] },
     },
   },
@@ -77,6 +79,7 @@ export const CRAFT_ODM = {
     build: {
       family: 'tube', n: 2.4,
       stations: [[0, 0.85, 0.78, 0.52], [0.1, 0.95, 0.94, 0.52], [0.3, 1, 1, 0.5], [0.45, 1, 1, 0.5], [0.62, 0.8, 0.86, 0.52], [0.85, 0.38, 0.6, 0.58], [1, 0.1, 0.36, 0.62]],
+      antennas: [[0.5, 0, 1, 0.45, 'blade']],
       points: { engine: [0.25, 0, 0], wingRoot: [0.3, 0.78, -0.55], canopy: [0.33, 0, 0.88], stabRoot: [0.9, 0, 0], finRoot: [0.82, 0, 0.7], tailGear: [0.9, 0, -0.85] },
     },
   },
@@ -87,6 +90,7 @@ export const CRAFT_ODM = {
     build: {
       family: 'tube', n: 2.6, belly: 0.8, nose: 0.08,
       stations: [[0, 0.02, 0.02, 0.62, 2], [0.08, 0.42, 0.48, 0.62, 2], [0.2, 0.75, 0.8, 0.58, 2.2], [0.35, 1, 1, 0.5], [0.6, 1, 0.95, 0.5, 3], [0.85, 0.85, 0.75, 0.52, 2.6], [1, 0.62, 0.6, 0.52, 2]],
+      antennas: [[0, 0, 0, 0.7, 'pitot'], [0.5, 0, 1, 0.25, 'blade']],
       points: { canopy: [0.12, 0, 0.82], intake: [0.27, 0, -0.85], wingRoot: [0.42, 0.85, -0.05], engine: [0.707, 0, 0], stabRoot: [0.86, 0.85, -0.05], finRoot: [0.7, 0, 0.92], mainGear: [0.55, 0.55, -1], noseGear: [0.3, 0, -1], gun: [0.27, -0.75, 0.3] },
     },
   },
@@ -98,6 +102,9 @@ export const CRAFT_ODM = {
       family: 'tube', n: 2,
       stations: [[0, 0.02, 0.02, 0.45], [0.06, 0.55, 0.55, 0.45], [0.16, 0.95, 0.95, 0.5], [0.25, 1, 1, 0.5], [0.62, 1, 1, 0.5], [0.82, 0.6, 0.62, 0.6], [1, 0.12, 0.2, 0.75]],
       windscreen: [0.1, 0.17],
+      windows: { from: 0.24, to: 0.56, pitch: 0.82, zf: 0.22, w: 0.36, h: 0.42 },
+      doors: [[0.19, 0.05, 0.7, 1.45]],
+      antennas: [[0.6, 0, 1, 0.22, 'blade']],
       points: { wingRoot: [0.45, 0.82, -0.6], engineStub: [0.74, 0.62, 0.15], finRoot: [0.84, 0, 0.6], mainGear: [0.5, 0.3, -1], noseGear: [0.1, 0, -0.9] },
     },
   },
@@ -109,6 +116,8 @@ export const CRAFT_ODM = {
       family: 'tube', n: 2,
       stations: [[0, 0.02, 0.02, 0.45], [0.05, 0.6, 0.6, 0.45], [0.12, 0.98, 0.98, 0.5], [0.18, 1, 1, 0.5], [0.7, 1, 1, 0.5], [0.85, 0.62, 0.7, 0.6], [1, 0.12, 0.25, 0.78]],
       windscreen: [0.06, 0.1],
+      windows: { from: 0.16, to: 0.7, pitch: 0.75, zf: 0.2, w: 0.27, h: 0.36 },
+      doors: [[0.11, 0.02, 0.72, 1.75], [0.8, 0.02, 0.72, 1.75]],
       points: { wingRoot: [0.43, 0, 0.98], finRoot: [0.86, 0, 0.6], mainGear: [0.5, 0.9, -0.8], noseGear: [0.07, 0, -0.9] },
     },
   },
@@ -116,13 +125,23 @@ export const CRAFT_ODM = {
     kind: 'craft-fuselage', realm: 'earth', label: 'narrowbody airliner fuselage', classOf: 'A320 / 737 class',
     aliases: ['narrowbody fuselage', 'single-aisle fuselage', 'airliner fuselage'],
     dims: { length: 37.6, width: 3.95, height: 4.14 }, mass: 9800, mount: null,
-    build: { family: 'tube', n: 2, stations: AIRLINER_BARREL, windscreen: [0.045, 0.075], points: { wingRoot: [0.4, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.82, 0, 0.75], noseGear: [0.06, 0, -0.9] } },
+    build: {
+      family: 'tube', n: 2, stations: AIRLINER_BARREL, windscreen: [0.045, 0.075],
+      windows: { from: 0.11, to: 0.82, pitch: 0.533, zf: 0.26, w: 0.25, h: 0.33 },
+      doors: [[0.075, 0.08, 0.81, 1.85], [0.885, 0.08, 0.81, 1.85], [0.415, 0.2, 0.51, 0.96]],
+      antennas: [[0.3, 0, 1, 0.32, 'blade'], [0.55, 0, -1, 0.28, 'blade']],
+      points: { wingRoot: [0.4, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.82, 0, 0.75], noseGear: [0.06, 0, -0.9] } },
   },
   'fus-widebody': {
     kind: 'craft-fuselage', realm: 'earth', label: 'widebody airliner fuselage', classOf: '777 class',
     aliases: ['widebody fuselage', 'twin-aisle fuselage', 'jumbo fuselage'],
     dims: { length: 63.7, width: 6.19, height: 6.2 }, mass: 32000, mount: null,
-    build: { family: 'tube', n: 2, stations: AIRLINER_BARREL, windscreen: [0.03, 0.05], points: { wingRoot: [0.4, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.82, 0, 0.75], noseGear: [0.06, 0, -0.9] } },
+    build: {
+      family: 'tube', n: 2, stations: AIRLINER_BARREL, windscreen: [0.03, 0.05],
+      windows: { from: 0.08, to: 0.86, pitch: 0.533, zf: 0.3, w: 0.27, h: 0.38 },
+      doors: [[0.06, 0.08, 1.07, 1.93], [0.3, 0.08, 1.07, 1.93], [0.6, 0.08, 1.07, 1.93], [0.885, 0.08, 1.07, 1.93]],
+      antennas: [[0.25, 0, 1, 0.38, 'blade'], [0.5, 0, -1, 0.32, 'blade']],
+      points: { wingRoot: [0.4, 0.92, -0.6], stabRoot: [0.9, 0.2, 0.1], finRoot: [0.82, 0, 0.75], noseGear: [0.06, 0, -0.9] } },
   },
 
   // ===== earth: wings, tails ===================================================================
@@ -157,7 +176,7 @@ export const CRAFT_ODM = {
     aliases: ['airliner wing', 'narrowbody wing'], dims: { span: 16.05 }, mass: 4400, mount: 'wing-root',
     build: {
       planform: [[0, 6.1], [0.3, 3.9], [1, 1.5]], sweep: 27, dihedral: 5.1, thickness: 0.15, tipThickness: 0.11, camber: 0.02, twist: 3, hinge: [0.05, 0.95, 0.22],
-      winglet: { height: 2.4, root: 0.85, tip: 0.35, sweep: 40, cant: 10 }, points: { engine: [0.243, 0.05, 'lower'], gear: [0.12, 0.62, 'lower'] },
+      fairings: [0.15, 0.3, 0.45], winglet: { height: 2.4, root: 0.85, tip: 0.35, sweep: 40, cant: 10 }, points: { engine: [0.243, 0.05, 'lower'], gear: [0.12, 0.62, 'lower'] },
     },
   },
   'wing-widebody': {
@@ -165,7 +184,7 @@ export const CRAFT_ODM = {
     aliases: ['widebody wing', 'jumbo wing'], dims: { span: 27.4 }, mass: 17000, mount: 'wing-root',
     build: {
       // the yehudi crank inboard, a raked tip outboard
-      planform: [[0, 11.5], [0.3, 7.0], [0.92, 2.9], [1, 1.3, 20.1]], sweep: 34, dihedral: 6, thickness: 0.14, tipThickness: 0.1, camber: 0.02, twist: 3, hinge: [0.05, 0.92, 0.2],
+      planform: [[0, 11.5], [0.3, 7.0], [0.92, 2.9], [1, 1.3, 20.1]], sweep: 34, dihedral: 6, thickness: 0.14, tipThickness: 0.1, camber: 0.02, twist: 3, hinge: [0.05, 0.92, 0.2], fairings: [0.13, 0.27, 0.41],
       points: { engine: [0.237, 0.05, 'lower'], gear: [0.09, 0.6, 'lower'] },
     },
   },
@@ -301,17 +320,17 @@ export const CRAFT_ODM = {
   'gear-nose-light': {
     kind: 'craft-gear', realm: 'earth', label: 'nose oleo, light single', classOf: 'light single, 5.00-5 tyre',
     aliases: ['nose gear'], dims: { height: 0.81 }, mass: 9, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.63, oleo: 0.035, rake: 0.08, tyre: [0.36, 0.13] },
+    build: { retract: false, family: 'leg', strut: 0.63, oleo: 0.035, rake: 0.08, tyre: [0.36, 0.13] },
   },
   'gear-main-warbird': {
     kind: 'craft-gear', realm: 'earth', label: 'retractable main leg, piston fighter', classOf: 'P-51D class, 27 in tyre',
     aliases: ['warbird main gear'], dims: { height: 1.55 }, mass: 75, mount: 'gear-well',
-    build: { family: 'leg', strut: 1.21, oleo: 0.07, rake: 0.12, tyre: [0.69, 0.22] },
+    build: { retract: 'inward', family: 'leg', strut: 1.21, oleo: 0.07, rake: 0.12, tyre: [0.69, 0.22] },
   },
   'gear-tail-warbird': {
     kind: 'craft-gear', realm: 'earth', label: 'tailwheel', classOf: 'P-51D class',
     aliases: ['tail wheel', 'tailwheel'], dims: { height: 0.71 }, mass: 12, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.55, oleo: 0.04, rake: -0.12, tyre: [0.32, 0.1] },
+    build: { retract: 'aft', family: 'leg', strut: 0.55, oleo: 0.04, rake: -0.12, tyre: [0.32, 0.1] },
   },
   'gear-main-fighter': {
     kind: 'craft-gear', realm: 'earth', label: 'main leg, jet fighter', classOf: 'F-16 class, 27.75 in tyre',
@@ -326,7 +345,7 @@ export const CRAFT_ODM = {
   'gear-main-bizjet': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel main leg, business jet', classOf: 'Learjet 45 class',
     aliases: ['bizjet main gear'], dims: { height: 0.98 }, mass: 85, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.7, oleo: 0.07, wheels: 2, tyre: [0.56, 0.17] },
+    build: { retract: 'inward', family: 'leg', strut: 0.7, oleo: 0.07, wheels: 2, tyre: [0.56, 0.17] },
   },
   'gear-nose-bizjet': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel nose leg, business jet', classOf: 'Learjet 45 class',
@@ -336,7 +355,7 @@ export const CRAFT_ODM = {
   'gear-main-regional': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel sponson leg, regional', classOf: 'ATR 72 class',
     aliases: ['regional main gear'], dims: { height: 1.2 }, mass: 220, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.8, oleo: 0.1, wheels: 2, tyre: [0.81, 0.25] },
+    build: { retract: 'inward', family: 'leg', strut: 0.8, oleo: 0.1, wheels: 2, tyre: [0.81, 0.25] },
   },
   'gear-nose-regional': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel nose leg, regional', classOf: 'ATR 72 class',
@@ -346,7 +365,7 @@ export const CRAFT_ODM = {
   'gear-main-narrowbody': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel main leg, single aisle', classOf: 'A320 class, 46 in tyre',
     aliases: ['airliner main gear'], dims: { height: 2.75 }, mass: 1100, mount: 'gear-well',
-    build: { family: 'leg', strut: 2.15, oleo: 0.16, wheels: 2, tyre: [1.17, 0.43] },
+    build: { retract: 'inward', family: 'leg', strut: 2.15, oleo: 0.16, wheels: 2, tyre: [1.17, 0.43] },
   },
   'gear-nose-narrowbody': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel nose leg, single aisle', classOf: 'A320 class, 30 in tyre',
@@ -356,7 +375,7 @@ export const CRAFT_ODM = {
   'gear-bogie-widebody': {
     kind: 'craft-gear', realm: 'earth', label: 'six-wheel main bogie, twin aisle', classOf: '777 class, 50 in tyre',
     aliases: ['bogie', 'main bogie', 'six wheel truck'], dims: { height: 4.36 }, mass: 4800, mount: 'gear-well',
-    build: { family: 'bogie', strut: 3.7, oleo: 0.22, rows: 3, tyre: [1.32, 0.51] },
+    build: { retract: 'inward', family: 'bogie', strut: 3.7, oleo: 0.22, rows: 3, tyre: [1.32, 0.51] },
   },
   'gear-nose-widebody': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel nose leg, twin aisle', classOf: '777 class, 43 in tyre',
@@ -368,7 +387,7 @@ export const CRAFT_ODM = {
   'canopy-bubble-warbird': {
     kind: 'craft-canopy', realm: 'earth', label: 'bubble canopy, piston fighter', classOf: 'P-51D class',
     aliases: ['bubble canopy'], dims: { length: 1.9, width: 0.78, height: 0.58 }, mass: 45, mount: 'sill',
-    build: { family: 'bubble', bows: [0.22] },
+    build: { family: 'bubble', opens: 'slide', bows: [0.22] },
   },
   'canopy-bubble-fighter': {
     kind: 'craft-canopy', realm: 'earth', label: 'frameless bubble canopy, jet fighter', classOf: 'F-16 class',
@@ -413,6 +432,7 @@ export const CRAFT_ODM = {
     build: {
       // the long box nose of a snubfighter: square plates tapering to a flat wedge, a stepped cockpit
       family: 'facet', facets: BOX_CHAMFER,
+      greebles: { top: 14, sides: 10, span: [0.5, 0.96] },
       stations: [[0, 0.2, 0.12, 0.4], [0.4, 0.46, 0.42, 0.44], [0.5, 0.7, 0.78, 0.49], [0.62, 1, 1, 0.5], [1, 1, 1, 0.5]],
       points: { canopy: [0.5, 0, 0.82], foilUpper: [0.86, 0.9, 0.35], foilLower: [0.86, 0.9, -0.35], noseGear: [0.3, 0, -0.9], mainGear: [0.8, 0.55, -1], rcs: [0.95, 0, 1], droid: [0.62, 0, 0.98] },
     },
@@ -427,6 +447,7 @@ export const CRAFT_ODM = {
     aliases: ['viper hull', 'dart hull', 'colonial fighter hull'], dims: { length: 8.5, width: 1.6, height: 1.4 }, mass: 3600, mount: null,
     build: {
       family: 'facet', facets: CHINE,
+      greebles: { top: 6, sides: 6, span: [0.45, 0.95] },
       stations: [[0, 0.03, 0.03, 0.5], [0.25, 0.5, 0.45, 0.5], [0.5, 0.85, 0.8, 0.5], [0.7, 1, 1, 0.5], [1, 0.95, 0.95, 0.5]],
       points: { canopy: [0.3, 0, 0.82], wingRoot: [0.62, 0.85, -0.2], finRoot: [0.7, 0, 0.9], engineTop: [1, 0, 0.5], engineLow: [1, 0.55, -0.4], gun: [0.32, 0.75, -0.2], noseGear: [0.25, 0, -0.9], mainGear: [0.75, 0.6, -1] },
     },
@@ -436,6 +457,7 @@ export const CRAFT_ODM = {
     aliases: ['heavy fighter hull', 'carrier fighter hull'], dims: { length: 18.0, width: 3.2, height: 2.4 }, mass: 14000, mount: null,
     build: {
       family: 'facet', facets: WEDGE,
+      greebles: { top: 16, sides: 10, span: [0.35, 0.95] },
       stations: [[0, 0.04, 0.03, 0.45], [0.2, 0.55, 0.5, 0.45], [0.45, 0.9, 0.85, 0.5], [0.7, 1, 1, 0.5], [1, 0.85, 0.8, 0.5]],
       points: { canopy: [0.22, 0, 0.8], wingRoot: [0.5, 0.88, -0.3], finRoot: [0.78, 0.55, 0.8], engine: [0.97, 0.5, 0], noseGear: [0.25, 0, -0.9], mainGear: [0.62, 0.6, -1], rcs: [0.4, 0, 1] },
     },
@@ -445,6 +467,7 @@ export const CRAFT_ODM = {
     aliases: ['bomber hull', 'pod and spine hull'], dims: { length: 16.0, width: 2.4, height: 1.9 }, mass: 9000, mount: null,
     build: {
       family: 'facet', facets: BOX_BEVEL,
+      greebles: { top: 12, sides: 10, span: [0.62, 0.98] },
       stations: [[0, 0.06, 0.06, 0.5], [0.08, 0.7, 0.6, 0.5], [0.2, 1, 1, 0.5], [0.3, 0.8, 0.8, 0.5], [0.36, 0.35, 0.42, 0.5], [0.62, 0.35, 0.42, 0.5], [0.68, 0.9, 0.8, 0.5], [0.8, 0.9, 0.8, 0.5], [0.84, 0.3, 0.3, 0.5], [1, 0.3, 0.3, 0.5]],
       points: { canopy: [0.08, 0, 0.55], turret: [0.2, 0, 0.98], crossbar: [0.74, 0.7, 0], launcher: [0.14, 0, -0.95], noseGear: [0.18, 0, -0.95], mainGear: [0.74, 0.6, -0.95] },
     },
@@ -454,6 +477,7 @@ export const CRAFT_ODM = {
     aliases: ['utility shuttle hull', 'raptor hull', 'dropship hull'], dims: { length: 8.6, width: 3.2, height: 2.6 }, mass: 8000, mount: null,
     build: {
       family: 'facet', facets: BOX_CHAMFER,
+      greebles: { top: 10, sides: 14, span: [0.2, 0.92] },
       stations: [[0, 0.4, 0.35, 0.42], [0.12, 0.85, 0.8, 0.48], [0.3, 1, 1, 0.5], [0.85, 1, 0.95, 0.52], [1, 0.8, 0.7, 0.55]],
       windscreen: [0.03, 0.15],
       points: { stub: [0.72, 0.9, -0.2], skidFront: [0.2, 0.6, -1], skidRear: [0.8, 0.7, -1], rcs: [0.6, 0, 1] },
@@ -465,7 +489,7 @@ export const CRAFT_ODM = {
     kind: 'craft-wing', realm: 'space', label: 'split strike foil', classOf: 'strike-foil snubfighter register',
     aliases: ['s-foil', 'strike foil', 'x foil'], dims: { span: 4.6 }, mass: 700, mount: 'wing-root',
     // the foils split open to 13° for combat and close flat for cruise and landing: a fold at the root
-    build: { section: 'facet', rootChord: 2.3, tipChord: 1.2, sweep: 4, dihedral: 13, thickness: 0.07, fold: { at: 0, angle: -13 }, points: { pod: [0.1, 0.25], tip: [1, 0.55] } },
+    build: { section: 'facet', rootChord: 2.3, tipChord: 1.2, sweep: 4, dihedral: 13, thickness: 0.07, fold: { at: 0, angle: -13 }, stripes: [[0.6, 0.7]], points: { pod: [0.1, 0.25], tip: [1, 0.55] } },
   },
   'panel-hex': {
     kind: 'craft-wing', realm: 'space', label: 'hexagonal panel wing', classOf: 'twin-panel interceptor register',
@@ -475,13 +499,13 @@ export const CRAFT_ODM = {
   'wing-colonial-stub': {
     kind: 'craft-wing', realm: 'space', label: 'swept stub wing', classOf: 'colonial viper register',
     aliases: ['stub wing', 'viper wing'], dims: { span: 2.2 }, mass: 260, mount: 'wing-root',
-    build: { section: 'facet', rootChord: 3.4, tipChord: 1.1, sweep: 45, dihedral: 0, thickness: 0.06 },
+    build: { section: 'facet', rootChord: 3.4, tipChord: 1.1, sweep: 45, dihedral: 0, thickness: 0.06, stripes: [[0.62, 0.78]] },
   },
   'wing-heavy-fighter': {
     kind: 'craft-wing', realm: 'space', label: 'swept lifting wing, heavy fighter', classOf: 'carrier heavy fighter register',
     aliases: ['heavy fighter wing'], dims: { span: 6.0 }, mass: 1500, mount: 'wing-root',
     // folds at mid span for the carrier's hangar deck
-    build: { section: 'facet', rootChord: 7.0, tipChord: 1.6, sweep: 52, dihedral: -4, thickness: 0.06, hinge: [0.1, 0.85, 0.2], fold: { at: 0.5, angle: 105 }, points: { gun: [0.08, 0.05, 'mid'], store: [0.4, 0.4, 'lower'] } },
+    build: { section: 'facet', rootChord: 7.0, tipChord: 1.6, sweep: 52, dihedral: -4, thickness: 0.06, hinge: [0.1, 0.85, 0.2], elevons: true, fold: { at: 0.5, angle: 105 }, points: { gun: [0.08, 0.05, 'mid'], store: [0.4, 0.4, 'lower'] } },
   },
   'fin-colonial': {
     kind: 'craft-fin', realm: 'space', label: 'dorsal fin, colonial dart', classOf: 'colonial viper register',
@@ -644,13 +668,14 @@ export const CRAFT_ODM = {
     build: {
       family: 'tube', n: 2.4, nose: 0.08,
       stations: [[0, 0.02, 0.02, 0.56, 2], [0.07, 0.3, 0.32, 0.56, 2], [0.18, 0.58, 0.6, 0.56, 2], [0.3, 0.7, 0.85, 0.54, 2.2], [0.45, 1, 1, 0.5, 2.6], [0.8, 0.95, 0.9, 0.5, 2.4], [1, 0.62, 0.6, 0.5, 2]],
+      antennas: [[0, 0, 0, 1.3, 'pitot']],
       points: { canopy: [0.19, 0, 0.82], intake: [0.3, 0.75, 0], wingRoot: [0.42, 0.85, -0.45], engine: [0.6, 0, 0], finRoot: [0.62, 0, 0.9], noseGear: [0.25, 0, -0.9], gun: [0.33, 0.6, -0.6] },
     },
   },
   'wing-delta-tailless': {
     kind: 'craft-wing', realm: 'earth', label: 'tailless delta wing panel', classOf: 'Mirage III class',
     aliases: ['tailless delta', 'pure delta wing'], dims: { span: 3.36 }, mass: 700, mount: 'wing-root',
-    build: { rootChord: 6.3, tipChord: 0.6, sweep: 60, dihedral: -1, thickness: 0.045, hinge: [0.05, 0.95, 0.15], points: { gear: [0.3, 0.45, 'lower'], tip: [1, 0.4] } },
+    build: { rootChord: 6.3, tipChord: 0.6, sweep: 60, dihedral: -1, thickness: 0.045, hinge: [0.05, 0.95, 0.15], elevons: true, points: { gear: [0.3, 0.45, 'lower'], tip: [1, 0.4] } },
   },
   'fin-delta': {
     kind: 'craft-fin', realm: 'earth', label: 'swept fin, delta interceptor', classOf: 'Mirage III class',
@@ -690,7 +715,7 @@ export const CRAFT_ODM = {
   'gear-main-delta': {
     kind: 'craft-gear', realm: 'earth', label: 'main leg, delta interceptor', classOf: 'Mirage III class',
     aliases: ['delta main gear'], dims: { height: 1.4 }, mass: 90, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.87, oleo: 0.07, tyre: [0.75, 0.21] },
+    build: { retract: 'inward', family: 'leg', strut: 0.87, oleo: 0.07, tyre: [0.75, 0.21] },
   },
   'gear-nose-delta': {
     kind: 'craft-gear', realm: 'earth', label: 'nose leg, delta interceptor', classOf: 'Mirage III class',
@@ -704,6 +729,7 @@ export const CRAFT_ODM = {
     build: {
       family: 'tube', n: 2.6, nose: 0.06,
       stations: [[0, 0.02, 0.02, 0.6, 2], [0.06, 0.3, 0.33, 0.62, 2], [0.16, 0.46, 0.55, 0.6, 2], [0.3, 0.58, 0.75, 0.55, 2.4], [0.45, 0.9, 0.92, 0.5, 3], [0.7, 1, 0.9, 0.5, 3.2], [0.92, 0.85, 0.7, 0.5, 3], [1, 0.75, 0.55, 0.5, 3]],
+      antennas: [[0.45, 0, 1, 0.25, 'blade'], [0.5, 0, -1, 0.22, 'blade']],
       points: { canopy: [0.17, 0, 0.8], gun: [0.12, 0, 0.35], intake: [0.4, 0.62, -0.45], wingRoot: [0.27, 0.8, 0], engine: [0.77, 0.42, 0], stabRoot: [0.84, 0.8, 0], finRoot: [0.62, 0.55, 0.85], mainGear: [0.58, 0.75, -1], noseGear: [0.15, 0, -1] },
     },
   },
@@ -734,7 +760,7 @@ export const CRAFT_ODM = {
   'gear-main-carrier': {
     kind: 'craft-gear', realm: 'earth', label: 'carrier main leg', classOf: 'F/A-18 class',
     aliases: ['carrier main gear'], dims: { height: 1.1 }, mass: 160, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.65, oleo: 0.09, tyre: [0.76, 0.24] },
+    build: { retract: 'aft', family: 'leg', strut: 0.65, oleo: 0.09, tyre: [0.76, 0.24] },
   },
   'gear-nose-carrier': {
     kind: 'craft-gear', realm: 'earth', label: 'catapult nose leg', classOf: 'F/A-18 class',
@@ -783,12 +809,12 @@ export const CRAFT_ODM = {
   'gear-main-corsair': {
     kind: 'craft-gear', realm: 'earth', label: 'short main leg at the gull crank', classOf: 'F4U Corsair class',
     aliases: ['corsair main gear'], dims: { height: 1.2 }, mass: 90, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.8, oleo: 0.08, rake: 0.1, tyre: [0.81, 0.25] },
+    build: { retract: 'aft', family: 'leg', strut: 0.8, oleo: 0.08, rake: 0.1, tyre: [0.81, 0.25] },
   },
   'gear-tail-corsair': {
     kind: 'craft-gear', realm: 'earth', label: 'tailwheel and hook', classOf: 'F4U Corsair class',
     aliases: ['corsair tailwheel'], dims: { height: 0.6 }, mass: 14, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.75, oleo: 0.04, rake: -0.12, tyre: [0.32, 0.1] },
+    build: { retract: 'aft', family: 'leg', strut: 0.75, oleo: 0.04, rake: -0.12, tyre: [0.32, 0.1] },
   },
 
   'fus-attack': {
@@ -836,7 +862,7 @@ export const CRAFT_ODM = {
   'canopy-bubble-attack': {
     kind: 'craft-canopy', realm: 'earth', label: 'bubble canopy, attack', classOf: 'A-10 class',
     aliases: ['attack canopy'], dims: { length: 2.4, width: 0.95, height: 0.8 }, mass: 110, mount: 'sill',
-    build: { family: 'bubble', bows: [0.25] },
+    build: { family: 'bubble', opens: 'hinge', bows: [0.25] },
   },
   'gear-main-attack': {
     kind: 'craft-gear', realm: 'earth', label: 'pod-mounted main leg', classOf: 'A-10 class',
@@ -856,6 +882,9 @@ export const CRAFT_ODM = {
       family: 'tube', n: 2.8, nose: 0.035,
       stations: [[0, 0.05, 0.05, 0.42, 2], [0.04, 0.55, 0.55, 0.45, 2.2], [0.1, 0.92, 0.9, 0.5, 2.8], [0.16, 1, 1, 0.5], [0.66, 1, 1, 0.5], [0.8, 0.85, 0.72, 0.62], [0.93, 0.55, 0.38, 0.8, 2.4], [1, 0.25, 0.18, 0.88, 2]],
       windscreen: [0.045, 0.09],
+      windows: { from: 0.14, to: 0.62, pitch: 2.1, zf: 0.32, w: 0.4, h: 0.4 },
+      doors: [[0.12, -0.25, 0.9, 1.8], [0.74, -0.2, 0.9, 1.8]],
+      antennas: [[0.25, 0, 1, 0.4, 'blade'], [0.6, 0, 1, 0.3, 'blade']],
       points: { wingRoot: [0.36, 0, 1], finRoot: [0.84, 0, 0.75], stabRoot: [0.93, 0.3, 0], mainGear: [0.47, 0.98, -0.85], noseGear: [0.08, 0, -0.9] },
     },
   },
@@ -890,7 +919,7 @@ export const CRAFT_ODM = {
   'gear-tandem-transport': {
     kind: 'craft-gear', realm: 'earth', label: 'tandem sponson main gear', classOf: 'C-130 class',
     aliases: ['tandem gear', 'sponson gear'], dims: { height: 1.2 }, mass: 700, mount: 'gear-well',
-    build: { family: 'bogie', strut: 0.62, oleo: 0.14, rows: 2, single: true, tyre: [1.14, 0.39] },
+    build: { retract: 'inward', family: 'bogie', strut: 0.62, oleo: 0.14, rows: 2, single: true, tyre: [1.14, 0.39] },
   },
   'gear-nose-transport': {
     kind: 'craft-gear', realm: 'earth', label: 'twin-wheel nose leg, transport', classOf: 'C-130 class',
@@ -910,7 +939,7 @@ export const CRAFT_ODM = {
   'wing-stealth-facet': {
     kind: 'craft-wing', realm: 'earth', label: 'faceted arrowhead wing panel', classOf: 'F-117 class',
     aliases: ['faceted wing', 'flat panel wing', 'stealth wing'], dims: { span: 6.1 }, mass: 1300, mount: 'wing-root',
-    build: { section: 'facet', planform: [[0, 13.0], [1, 1.2]], sweep: 67.5, thickness: 0.06, hinge: [0.3, 0.95, 0.15] },
+    build: { section: 'facet', planform: [[0, 13.0], [1, 1.2]], sweep: 67.5, thickness: 0.06, hinge: [0.3, 0.95, 0.15], elevons: true },
   },
   'fin-stealth-vtail': {
     kind: 'craft-fin', realm: 'earth', label: 'faceted V-tail ruddervator', classOf: 'F-117 class',
@@ -930,7 +959,7 @@ export const CRAFT_ODM = {
   'gear-main-stealth': {
     kind: 'craft-gear', realm: 'earth', label: 'main leg, stealth strike', classOf: 'F-117 class',
     aliases: ['stealth main gear'], dims: { height: 1.4 }, mass: 150, mount: 'gear-well',
-    build: { family: 'leg', strut: 0.7, oleo: 0.08, tyre: [0.75, 0.23] },
+    build: { retract: 'forward', family: 'leg', strut: 0.7, oleo: 0.08, tyre: [0.75, 0.23] },
   },
   'gear-nose-stealth': {
     kind: 'craft-gear', realm: 'earth', label: 'nose leg, stealth strike', classOf: 'F-117 class',
@@ -944,6 +973,7 @@ export const CRAFT_ODM = {
     aliases: ['wedge hull', 'arrowhead hull'], dims: { length: 7.8, width: 3.6, height: 1.25 }, mass: 3000, mount: null,
     build: {
       family: 'facet', facets: WEDGE,
+      greebles: { top: 6, sides: 0, span: [0.5, 0.95] },
       stations: [[0, 0.05, 0.2, 0.5], [0.25, 0.35, 0.6, 0.5], [0.6, 0.75, 0.95, 0.5], [1, 1, 1, 0.5]],
       points: { canopy: [0.35, 0, 0.7], wingRoot: [0.62, 0.9, 0], noseGear: [0.3, 0, -0.9], mainGear: [0.85, 0.5, -1] },
     },
@@ -995,6 +1025,7 @@ export const CRAFT_ODM = {
     aliases: ['command shuttle hull', 'shuttle hull'], dims: { length: 15.0, width: 4.6, height: 4.2 }, mass: 22000, mount: null,
     build: {
       family: 'facet', facets: BOX_BEVEL,
+      greebles: { top: 10, sides: 12, span: [0.3, 0.92] },
       stations: [[0, 0.5, 0.45, 0.42, 3], [0.12, 0.85, 0.8, 0.48], [0.25, 1, 1, 0.5, 4], [0.85, 1, 0.95, 0.5, 4], [1, 0.85, 0.8, 0.52]],
       windscreen: [0.02, 0.1],
       points: { finRoot: [0.45, 0, 0.98], wingRoot: [0.5, 0.95, -0.55], engine: [0.98, 0.45, 0], gun: [0.06, 0.6, -0.6], noseGear: [0.15, 0, -1], mainGear: [0.8, 0.6, -1] },
@@ -1022,6 +1053,7 @@ export const CRAFT_ODM = {
     aliases: ['starliner hull', 'liner hull'], dims: { length: 44.0, width: 5.6, height: 5.2 }, mass: 60000, mount: null,
     build: {
       family: 'facet', facets: CHINE,
+      greebles: { top: 10, sides: 8, span: [0.5, 0.9] },
       stations: [[0, 0.02, 0.02, 0.5], [0.08, 0.45, 0.4, 0.5], [0.2, 0.8, 0.75, 0.5], [0.4, 1, 1, 0.5], [0.7, 0.95, 0.9, 0.52], [0.9, 0.6, 0.55, 0.55], [1, 0.25, 0.25, 0.56]],
       windscreen: [0.05, 0.09],
       points: { wingRoot: [0.42, 0.85, -0.3], finRoot: [0.78, 0, 0.85], engineStub: [0.76, 0.75, 0.2], noseGear: [0.12, 0, -0.95] },
@@ -1058,6 +1090,7 @@ export const CRAFT_ODM = {
     aliases: ['trainer hull'], dims: { length: 7.0, width: 1.3, height: 1.4 }, mass: 1400, mount: null,
     build: {
       family: 'facet', facets: BOX_BEVEL, nose: 0.06,
+      greebles: { top: 4, sides: 4, span: [0.5, 0.95] },
       stations: [[0, 0.05, 0.05, 0.5], [0.15, 0.6, 0.6, 0.5], [0.35, 1, 1, 0.5, 2.2], [0.75, 0.9, 0.85, 0.5, 2.4], [1, 0.55, 0.5, 0.5, 2.4]],
       points: { canopy: [0.18, 0, 0.85], wingRoot: [0.45, 0.85, -0.4], finRoot: [0.75, 0, 0.85], engine: [1, 0, 0], noseGear: [0.2, 0, -0.9], mainGear: [0.55, 0.85, -0.9] },
     },
