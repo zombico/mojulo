@@ -24,7 +24,7 @@ import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
 import { extractMinds } from './mind-score.js';
 import { levelSound } from './engine-sound.js';
-import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS, CAMERA_LOST, platformLost, aiLost, weaponLost } from './godot-marks.js';
+import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS, CAMERA_LOST, platformLost, aiLost, weaponLost, figureOverlays } from './godot-marks.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -177,7 +177,9 @@ export function godotReading(payload) {
     const lost = Object.keys(CAMERA_LOST).filter((k) => payload.camera[k] != null && payload.camera[k] !== false).map((k) => CAMERA_LOST[k]);
     if (lost.length) r.lost = [...(r.lost || []), ...lost];
   }
-  return { rules: by, channels, events };
+  // what the page does to a rigged figure beyond its clips (a vehicle's live overlay, a racer's juice and lights)
+  const figures = figureOverlays(payload?.figures);
+  return { rules: by, channels, events, figures };
 }
 
 // THE EDIT of a shoot plan (lib/graph/shoot/): its program camera rides the GLB (`cam:shot:program` and its STEP
@@ -423,6 +425,7 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   // only when some rule does not run whole: a world the kernel walks whole keeps its score byte-identical
   if (Object.entries(reading.rules).some(([t, r]) => RULE_MARKS[t]?.godot !== 'built' || r.lost || r.unwatched != null || ((t === 'walk' || t === 'platform') && r.count > (r.pilot ? 1 : 0)))) ledger.rules_carried = { by: reading.rules, note: 'the motion and camera rules the level\'s entities run, by type (pilot: the player\'s; camera: the camera\'s; lost: the opt-in moves of the pilot\'s platform rule the kernel does not run); kernel/rules.gd runs the pilot\'s walk or platform rule, kernel/walker.gd follow and eye (godot-marks.js RULE_MARKS)' };
   if (reading.channels.length) ledger.channels_carried = { keys: reading.channels, note: 'the page channels the world fills that a Godot export does not carry whole (godot-marks.js PAGE_MARKS says what each loses)' };
+  if (reading.figures.length) ledger.figures_carried = { keys: reading.figures, note: 'the page overlays the world\'s rigged figures carry that a Godot export does not run: the figure and its clips ride the GLB (godot-marks.js FIGURE_MARKS says what each loses)' };
   if (reading.events.length) ledger.events_carried = { keys: reading.events, note: 'the events keys bus.json and score.json drop or carry in part (godot-marks.js EVENT_MARKS)' };
 
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next

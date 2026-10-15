@@ -18,7 +18,7 @@
 import { lowerMechanic, MECHANIC_KINDS } from '../game/mechanics.js';
 import { KITS } from '../game/kits.js';
 import { busCoverage } from './bus-abi.js';
-import { RULE_MARKS, PAGE_MARKS, EVENT_MARKS, worstMark } from './godot-marks.js';
+import { RULE_MARKS, PAGE_MARKS, EVENT_MARKS, FIGURE_MARKS, worstMark } from './godot-marks.js';
 
 export const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
 // the mechanics that wait on hits (hit:<id>): they travel when combat does (the cosmos sweep credits them together);
@@ -103,7 +103,7 @@ export const LEDGER_MARKS = Object.freeze({
   hud_declared: { info: true }, lights_carried: { info: true }, look_declared: { info: true }, crystals_carried: { info: true },
   water_carried: { info: true }, address_carried: { info: true }, contract: { info: true }, bus_carried: { info: true },
   bodies_solid: { godot: 'approximated', flag: 'solid bodies (body.collide) push the walkers out of them on the web; in Godot the pilot passes through them' },
-  combat_carried: { info: true }, rules_carried: { info: true }, channels_carried: { info: true }, events_carried: { info: true },
+  combat_carried: { info: true }, rules_carried: { info: true }, channels_carried: { info: true }, figures_carried: { info: true }, events_carried: { info: true },
   skipped_movers: { godot: 'absent', flag: 'mover/platform integrator channels do not travel' },
   skipped_physics: { godot: 'absent', flag: 'live physics channels do not travel' },
   skipped_fx: { godot: 'absent', flag: 'camera-facing fx (billboards, glows) are not drawn' },
@@ -162,6 +162,12 @@ function godotFlags(score) {
     const mk = PAGE_MARKS[k];
     if (!mk) out.push(flag('absent', `page channel '${k}' is not marked (godot-marks.js PAGE_MARKS)`));
     else if (mk.godot !== 'built') out.push(flag(mk.godot, `${k}: ${mk.how}`, false));
+  }
+  // what the page does to a rigged figure beyond its clips
+  for (const k of L.figures_carried?.keys || []) {
+    const mk = FIGURE_MARKS[k];
+    if (!mk) out.push(flag('absent', `figure overlay '${k}' is not marked (godot-marks.js FIGURE_MARKS)`));
+    else if (mk.godot !== 'built') out.push(flag(mk.godot, `figures (${k}): ${mk.how}`, false));
   }
   // the events keys the export drops (scenes, quests) or carries in part
   for (const k of L.events_carried?.keys || []) {

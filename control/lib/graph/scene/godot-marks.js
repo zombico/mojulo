@@ -165,11 +165,31 @@ export const PAGE_MARKS = Object.freeze({
   shallows: m(A, 'shallows are not drawn'), wetSand: m(A, 'wet sand is not drawn'), softGround: m(A, 'soft ground is not drawn'),
   jets: m(A, 'jets are not drawn'), jetLight: m(A, 'jet light is not drawn'), sway: m(A, 'vegetation does not sway'),
   flicker: m(A, 'lights do not flicker'), motes: m(A, 'motes are not drawn'),
+  wetRoad: m(A, 'a wet road\'s film is not drawn: the road keeps its baked dark, no sky or lamp thrown back off it'),
   weather: m(P, 'fog, colour and light (kernel/weather.gd); falls, landings and lightning are the web\'s'),
   tone: m(B, 'kernel/tone.gdshader on each surface, the page\'s ramp, bands and detail (score.tone); the background and the fog off the default ramp'),
   liveGrass: m(A, 'live grass is not drawn'),
   pixel: m(B, 'score.pixel: the 3D drawn at 1/scale and blown up without smoothing (the viewport\'s nearest scaling), the HUD crisp as the page\'s'),
 });
+
+// ── a rigged figure's page overlays (scene/channels/controllable: what the page does to a figure beyond its clips) ──
+// The skinned figure and its clips ride the GLB (PAGE_MARKS.figures); these are read off each figure in payload.figures.
+export const FIGURE_MARKS = Object.freeze({
+  live: m(A, 'a vehicle\'s live overlay (the front wheels steering, the body leaning, squatting and diving off the drive) is the page\'s: the car holds its rest pose'),
+  juice: m(A, 'a racer\'s juice (flames, smoke, sparks, dust, the landing ring, the lamps lit by its status) is the page\'s'),
+  beams: m(A, 'the headlamps\' pool on the road (a dark race mood) is not drawn'),
+  trails: m(A, 'the tail lamps\' ribbons (a race after dark) are not drawn'),
+});
+/** The overlays a payload's figures carry (FIGURE_MARKS' keys, sorted). */
+export function figureOverlays(figures) {
+  const on = new Set();
+  for (const f of Object.values(figures && typeof figures === 'object' ? figures : {})) {
+    if (!f || !f.rig) continue;
+    if (f.live) on.add('live');
+    if (f.juice) { on.add('juice'); if (f.juice.beams) on.add('beams'); if (f.juice.trails) on.add('trails'); }
+  }
+  return [...on].sort();
+}
 
 // ── the events manifest's keys (the page reads the whole object; what travels rides bus.json or score.json) ──────────
 // `carried` rows ride the export (bus.json's fragment, cast, stats, inputs; score.json's hud, hudStyle, menus, looks).

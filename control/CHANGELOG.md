@@ -1305,6 +1305,14 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   parent, so a fast move strays from the page's path (6 cm at the hand of the wave, between two keys), which is why it is opt-in and the
   default pack's `figure_humanoid` row says how to ask for it. Machine-held by `godot-edit.test.js` and
   `godot-humanoid-pack.test.js`.
+- **The supercars and the race moods, named in Godot** (kernel 0.28.0). Every body the world moves now stands in the
+  zones in Godot as on the page (the drivers and the cast beside the pilot): a rival that starts on its last checkpoint,
+  or crosses one, counts its laps and its place as the web's does, where before only the pilot entered a zone. A
+  supercar field ships skinned like a racer's, the moods' relit faces and sky with it; what the page alone lays on a
+  car is now said per level (`figures_carried`,
+  `FIGURE_MARKS`: the live overlay's steer and lean, the juice, a dark mood's headlamp pool and tail-lamp ribbons), as
+  is the wet road's film (`PAGE_MARKS.wetRoad`). The fixture matrix gains variants past the cosmos fixtures: a field of
+  supercars on a wet night, and an airspace in a palette.
 - **The new games, swept** (kernel 0.27.0). On the rebase onto the flight and shooter games, the fly rule's dials run in
   `kernel/rules.gd` (a glider, the throttle lever, space without gravity or lift, the boost and its charge, the barrel
   roll, the arcade and sim assists, the map's bound), held equal by seven new rules scenarios; the space shooter and air

@@ -5,7 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { GODOT_MARKS, worstMark, PLATFORM_KEYS, platformLost, RULE_MARKS, CAMERA_RULE, PAGE_MARKS, EVENT_MARKS, EVENT_CARRIED, SYSTEM_MARKS, LINK_MARKS, gaitMark, traversalMark, mindMark } from './godot-marks.js';
+import { GODOT_MARKS, worstMark, PLATFORM_KEYS, platformLost, RULE_MARKS, CAMERA_RULE, PAGE_MARKS, EVENT_MARKS, EVENT_CARRIED, SYSTEM_MARKS, LINK_MARKS, gaitMark, traversalMark, mindMark, FIGURE_MARKS, figureOverlays } from './godot-marks.js';
+import { supercarFigure } from '../car-designer/supercar-figure.js';
+import { bakeJuice } from '../car-designer/juice.js';
 import { MECHANIC_MARKS, MECHANIC_SAMPLES, GODOT_MECHANICS, GODOT_RULES, LEDGER_MARKS, SHELL_MARKS, assessPortability, exportVerdict, kitMark } from './engine-portability.js';
 import { BUS_ABI, BUS_VERBS, CAST_OPS, VERB_ROW, ctrlRow, busCoverage } from './bus-abi.js';
 import { extractEngineScore, godotReading } from './engine-score.js';
@@ -33,6 +35,18 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(unmarked, 'mark each in godot-marks.js PAGE_MARKS').toEqual([]);
     // and no stale row: every mark names an input the page still takes
     expect(Object.keys(PAGE_MARKS).filter((k) => !inputs.includes(k))).toEqual([]);
+  });
+
+  it('every overlay the page lays on a rigged figure: its live overlay, its juice and what a dark mood adds to it', () => {
+    // a supercar in the darkest mood carries every overlay there is; a juice key bakeJuice does not write is an overlay
+    const night = supercarFigure({ mood: 'night-rain' }), base = Object.keys(bakeJuice([], [], 1));
+    const extra = Object.keys(night.juice).filter((k) => !base.includes(k));
+    expect(extra.length).toBeGreaterThan(0);
+    expect(extra.filter((k) => !marked(FIGURE_MARKS[k])), 'mark each in godot-marks.js FIGURE_MARKS').toEqual([]);
+    expect(figureOverlays({ car: night })).toEqual(Object.keys(FIGURE_MARKS).sort());
+    // a car at noon: no lights of its own; a figure with no rig, nothing
+    expect(figureOverlays({ car: supercarFigure({}) })).toEqual(['juice', 'live']);
+    expect(figureOverlays({ glyph: { juice: {} } })).toEqual([]);
   });
 
   it('every controllable rule (compose.js RULES), and every camera the cosmos names', () => {

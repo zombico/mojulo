@@ -56,6 +56,12 @@ export const FIXTURE_QUICK = Object.freeze({
   'tower-defense': { goal: 'defend', camera: 'top-down', hero: HERO },
   'block-puzzle': { goal: 'puzzle', camera: 'top-down', hero: HERO },
 });
+// A FIXTURE'S VARIANTS: the same genre asked a way that reaches what the plain fixture does not (a field of supercars in a
+// race's mood, an airspace in a palette), run after the fixtures under `<fixture>-<what>`.
+export const FIXTURE_VARIANTS = Object.freeze({
+  'racing-supercars-night': { goal: 'race', supercars: 3, roadway: 'kart-oval', mood: 'night-rain' },
+  'flight-sim-palette': { goal: 'fly', craft: 'trainer', world: { style: { palette: { preset: 'coastal-noon' } } } },
+});
 export const NOT_QUICK = Object.freeze({
   'story-adventure': 'the quick path has no talk, scenes or quests: a story game is written on the full rail (design_game world)',
   'arena-brawler': 'the quick path has no arena of hunting foes to fight in melee: an arena is written on the full rail',
@@ -72,7 +78,7 @@ function godot(bin, args, timeout = 600000) {
  * exportVerdict, L (level-equivalence), godotBin, out, seconds }. */
 export async function fixtureRow(id, ctx) {
   const row = { id, minted: false, exports: null, verdict: null, imports: null, win: { web: null, godot: null }, control: { web: null, godot: null }, equal: null };
-  const spec = FIXTURE_QUICK[id];
+  const spec = FIXTURE_QUICK[id] ?? FIXTURE_VARIANTS[id];
   if (!spec) { row.note = NOT_QUICK[id] ?? 'no quick form'; return row; }
   const ref = `fx-${id}`;
   const { world = {}, ...quick } = spec;
@@ -184,7 +190,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   };
   const only = args.only ? args.only.split(',') : null;
   const rows = [];
-  for (const f of FIXTURES) {
+  for (const f of [...FIXTURES, ...Object.keys(FIXTURE_VARIANTS).map((id) => ({ id }))]) {
     if (only && !only.includes(f.id)) continue;
     process.stderr.write(`[matrix] ${f.id}\n`);
     rows.push(await fixtureRow(f.id, ctx));

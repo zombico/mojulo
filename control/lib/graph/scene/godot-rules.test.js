@@ -49,7 +49,8 @@ export function pageCamera() {
   return (c, dt) => { W.camera = c; drive(dt); return at.slice(); };
 }
 const camLines = (text) => text.split('\n').filter((l) => l.startsWith('[mojulo-cam] ')).map((l) => l.split(' ').slice(1));
-// a race: a car piloted over a ramp, a rival on a loop, a chase camera on the car, a checkpoint zone that counts
+// a race: a car piloted over a ramp, a rival on a loop, a chase camera on the car, a checkpoint zone that counts, and a
+// zone the rival starts in and leaves (a body the world moves stands in the zones as the pilot does)
 const LOOP = [[0, 8], [30, 8], [45, 18], [45, 38], [30, 48], [0, 48], [-15, 38], [-15, 18]];
 export function raceLevel() {
   const car = { type: 'drive', horsepower: 180, mass: 1300, wheelbase: 2.7, eye: 0.6, air: true };
@@ -60,7 +61,10 @@ export function raceLevel() {
       { id: 'rival', rule: { ...car, type: 'racer', air: false, line: LOOP, closed: true, look: 1, reach: 6, pace: 0.8 }, transform: { pos: [-2, 8, 0.6], heading: 0 }, body: { type: 'mesh', shape: 'box', size: [4, 1.8, 1.4] } },
     ],
     camera: { rule: 'follow', target: 'car', dist: 9, height: 3.5 },
-    events: { sources: [{ type: 'zone', zone: 'gate', at: [50, -3, 0], radius: 4, planar: true, watch: 'car' }], reactions: [{ on: 'enter', match: { zone: 'gate' }, do: 'set', var: 'through', to: 1 }] },
+    events: {
+      sources: [{ type: 'zone', zone: 'gate', at: [50, -3, 0], radius: 4, planar: true, watch: 'car' }, { type: 'zone', zone: 'grid', at: [-2, 8, 0], radius: 4, planar: true, watch: 'rival' }],
+      reactions: [{ on: 'enter', match: { zone: 'gate' }, do: 'set', var: 'through', to: 1 }, { on: 'enter', match: { zone: 'grid', entity: 'rival' }, do: 'inc', var: 'onGrid', by: 1 }, { on: 'exit', match: { zone: 'grid' }, do: 'inc', var: 'offGrid', by: 1 }],
+    },
   };
 }
 const race = () => run([110, { forward: 1 }], [30, { forward: -1 }], [40, { forward: 1, turn: 0.6 }], [20, {}]);
@@ -200,6 +204,9 @@ describe('the motion rules the Godot kernel runs', () => {
     const z = (k, i) => Number(k.split('|')[i].split(':')[1].split(',')[2]);
     expect(Math.max(...keys.map((k) => z(k, 1)))).toBeGreaterThan(60);   // in the air off the lip (quanta of 5 cm)
     expect(keys.at(-1).split('|')[2]).not.toBe(keys[0].split('|')[2]);
+    // the rival stands in the grid from the first frame and drives out of it
+    expect(JSON.parse(keys[0].split('|')[0]).vars.onGrid).toBe(1);
+    expect(JSON.parse(keys.at(-1).split('|')[0]).vars.offGrid).toBe(1);
   });
 
   it.skipIf(!GODOT)('a whole race: the car, its flight and the rival, key for key in both engines, the chase camera on the car (MOJULO_GODOT)', () => {
@@ -211,6 +218,9 @@ describe('the motion rules the Godot kernel runs', () => {
     expect(cmp.equal).toBe(true);
     const got = camLines(godot.text).map((l) => l[1]);
     expect(got).toEqual(want.map((v) => v.map((x) => x.toFixed(4)).join(',')));
+    // a rival that never stands in a zone parts from the web on the first frame
+    const { compare: planted } = playBoth(raceLevel(), race(), { godot: GODOT, mutate: [{ file: 'level.gd', from: '			zoned.append({"id": d["id"], "position": d["ent"]["pos"]})', to: '			pass' }] });
+    expect(planted.equal).toBe(false);
   }, 600000);
 
   it.skipIf(!GODOT)('a level whose ground is not read from its faces parts from the web (MOJULO_GODOT)', () => {

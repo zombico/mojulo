@@ -17,7 +17,7 @@ import { buildGodotGamePack } from '@/lib/graph/scene/godot-pack.js';
 import { exportVerdict } from '@/lib/graph/scene/engine-portability.js';
 import { FIXTURES } from '@/lib/graph/cosmos/fixtures.js';
 import * as L from './level-equivalence.js';
-import { fixtureRow, formatMatrix, FIXTURE_QUICK } from '../../../scripts/godot-fixture-matrix.mjs';
+import { fixtureRow, formatMatrix, FIXTURE_QUICK, FIXTURE_VARIANTS } from '../../../scripts/godot-fixture-matrix.mjs';
 
 const GODOT = process.env.MOJULO_GODOT;
 
@@ -28,19 +28,20 @@ describe.skipIf(!GODOT)('the fixture matrix (MOJULO_GODOT)', () => {
     const ctx = { designGameHandler, SketchRepository, resolveWorldScene, buildGodotGamePack, exportVerdict, L, godotBin: GODOT, out, seconds: 120, keep: false };
     const rows = [];
     try {
-      for (const f of FIXTURES) rows.push(await fixtureRow(f.id, ctx));
+      for (const id of [...FIXTURES.map((f) => f.id), ...Object.keys(FIXTURE_VARIANTS)]) rows.push(await fixtureRow(id, ctx));
     } finally {
       if (!process.env.MOJULO_KEEP_PACK) fs.rmSync(out, { recursive: true, force: true });
     }
     console.log(`\n${formatMatrix(rows)}\n`);
-    expect(rows.map((r) => r.id)).toEqual(FIXTURES.map((f) => f.id));
+    expect(rows.map((r) => r.id)).toEqual([...FIXTURES.map((f) => f.id), ...Object.keys(FIXTURE_VARIANTS)]);
     for (const r of rows) {
-      if (!FIXTURE_QUICK[r.id]) { expect(r.note, r.id).toBeTruthy(); continue; }
+      const spec = FIXTURE_QUICK[r.id] ?? FIXTURE_VARIANTS[r.id];
+      if (!spec) { expect(r.note, r.id).toBeTruthy(); continue; }
       expect({ id: r.id, minted: r.minted, exports: r.exports, imports: r.imports, error: r.godotError ?? null }).toEqual({ id: r.id, minted: true, exports: true, imports: true, error: null });
       expect(r.control.web, `${r.id}: stay-put ends nothing on the web`).toBe(true);
       expect(['plays', 'plays-partly', 'hollow'], r.id).toContain(r.verdict);
       // a hero's figure ships skinned (IV1): one mesh, its clips, its face and its ink
-      if (FIXTURE_QUICK[r.id].hero) expect(r.skinned.length, `${r.id}: the hero ships skinned`).toBeGreaterThan(0);
+      if (spec.hero) expect(r.skinned.length, `${r.id}: the hero ships skinned`).toBeGreaterThan(0);
       // what the export says plays must play the same: the hollow-game catcher
       if (r.verdict === 'plays') expect({ id: r.id, win: r.win, control: r.control, equal: r.equal }).toEqual({ id: r.id, win: { web: true, webAt: r.win.webAt, godot: true }, control: { web: true, godot: true }, equal: true });
     }

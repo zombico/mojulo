@@ -1609,7 +1609,21 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	var who := player_id()
 	# a pilot on a rule stands where the web's does (its pos at the eye); the stock walker at its feet
 	var here: Array = walker.recipe_pos() if walker != null and walker.rule != null else _bus_pos(pos)
-	var z: Dictionary = bus.derive_zone_events([{"id": who if who != "" else "player", "position": here}], bus_zone_prev, bus_sources)
+	# every body the world moves stands in the zones, as the page's world.entities do (since 0.28.0): the pilot, the
+	# drivers (a rival into its checkpoint), the cast where its last step left it
+	var me_id := who if who != "" else "player"
+	var zoned: Array = [{"id": me_id, "position": here}]
+	var seen := {me_id: true}
+	for d in drivers:
+		if not seen.has(d["id"]):
+			seen[d["id"]] = true
+			zoned.append({"id": d["id"], "position": d["ent"]["pos"]})
+	if cast != null:
+		for ce in cast_state.get("entities", []):
+			if not seen.has(ce["id"]):
+				seen[ce["id"]] = true
+				zoned.append({"id": ce["id"], "position": ce["pos"], "gone": ce.get("gone", false)})
+	var z: Dictionary = bus.derive_zone_events(zoned, bus_zone_prev, bus_sources)
 	bus_zone_prev = z["prev"]
 	var incoming: Array = bus_pending + z["events"]
 	bus_pending = []
