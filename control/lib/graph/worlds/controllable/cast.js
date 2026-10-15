@@ -15,6 +15,9 @@
  *                         full again
  *     spawn { fresh }         (fresh) the life starts with the loadout it was minted with: the slots it holds at the
  *                         start, the first in hand, every round back
+ *     spawn { among, guard }  (among: [[x, y, z?], …]) at the one farthest from the living (the nearest other standing
+ *                         body; a tie to the first): nobody stands up in front of the gun that felled them. (guard)
+ *                         that many seconds no round or blade hurts it, or until it fires (the spawn guard)
  *     walk { points, names?, speed?, then?, face?, pose?, reach? }   a DUMB PATH: straight lines from point to point
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
@@ -184,7 +187,20 @@ export function buildCast(E) {
           e.coverHits = e.fragHits = e.hits || 0;
         }
         if (Number.isFinite(e.hpMax) && e.body) { e.body.hp = e.hpMax; e.body.hittable = true; }
-        if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
+        if (Array.isArray(o.among) && o.among.length) {
+          let best = null, bd = -1;
+          for (const s of o.among) {
+            if (!Array.isArray(s)) continue;
+            let dmin = Infinity;
+            for (const x of state.entities) {
+              if (x === e || x.isCamera || x.downed || x.gone || x.dormant || !(x.body && x.body.hittable)) continue;
+              dmin = Math.min(dmin, Math.hypot(x.transform.pos[0] - s[0], x.transform.pos[1] - s[1]));
+            }
+            if (dmin > bd) { bd = dmin; best = s; }
+          }
+          if (best) e.transform.pos = pt3(best, e.transform.pos[2]);
+        } else if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
+        if (Number.isFinite(o.guard) && o.guard > 0) { e.spawnGuard = true; e.spawnGuardT = o.guard; e.invincible = true; }   // combat-match's spawn-guard ticks it; a shot breaks it
         if (Number.isFinite(o.face)) e.transform.heading = o.face * DEG;
         if (Array.isArray(e.vel)) e.vel = [0, 0, 0];
         const lo = o.fresh ? loadoutOf(e) : null;

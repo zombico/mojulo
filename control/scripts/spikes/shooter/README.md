@@ -245,6 +245,10 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   middle 111 s, stylized 83 s; realistic hits 34 of 38 under 6 m. Open: a mind that keeps its gun's range (backs off,
   takes a perch), so the long gun is fired as well as carried; pellets; Godot's loadout (slot 0 only).
 
+- **Phase 6, a fair respawn**: the cast's `spawn { among, guard }` stands the fallen at the spawn farthest from the
+  living, unhurt for a few seconds or until it fires (`frags` uses both; Godot's cast too). Minds lead a moving target
+  with a travelling round. Matches to 5 without weapons: 84, 79, 115 s (a fresh spawn is no longer a free kill).
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

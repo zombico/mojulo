@@ -417,12 +417,14 @@ describe('frags on the bus', () => {
     expect(s.vars.__frag_0_hero).toBe(1);
     expect(s.vars['__frag_0_bot-2']).toBe(0);
     expect(s.log.filter((r) => r.type === 'kill')).toHaveLength(1);
-    // not yet back at 2.9 s; back by 3.1 s, at the spawn its rotation names
+    // not yet back at 2.9 s; back by 3.1 s, at the farthest of the spawns (the cast picks it), guarded
     expect(ops.filter((o) => o.op === 'spawn')).toHaveLength(0);
     const more = play(c, [[...hit('bot-1', 'hero')], [...down('bot-1'), 3.1]]);
     const back = more.ops.filter((o) => o.op === 'spawn');
     expect(back).toHaveLength(1);
-    expect(back[0]).toMatchObject({ who: 'bot-1', at: spawns[1] });
+    expect(back[0]).toMatchObject({ who: 'bot-1', among: spawns, guard: 2, fresh: true });
+    expect(composeMechanics([{ ...base, guard: 0 }], ctx()).events.reactions.find((x) => x.op === 'spawn').guard).toBeUndefined();
+    expect(() => composeMechanics([{ ...base, guard: -1 }], ctx())).toThrow(/guard is the seconds/);
     expect(log).toContain('kill');
     // a fall nobody caused (no hit since it came back) credits no one
     const self = play(c, [[...down('bot-2'), 3.1]]);

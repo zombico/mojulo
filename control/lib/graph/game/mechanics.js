@@ -756,8 +756,8 @@ const MECHANICS = {
 
   // FRAGS (a terminal): a deathmatch. The player and `rivals` (the others' ids, each a character with hp) are contenders;
   // a fall is credited to whoever hit the fallen last (its hit:<id>'s `by`), said on the bus as `kill { killer,
-  // victim }`, and the fallen comes back `respawn` seconds later at the next of `spawns` (each contender rotates
-  // through them from its own start). The player's hp is the level's (`hp`, `hits` a hit): at 0 it falls as the others
+  // victim }`, and the fallen comes back `respawn` seconds later at the one of `spawns` farthest from the living (the
+  // cast's `among`), guarded `guard` seconds (2; 0: none) or until it fires. The player's hp is the level's (`hp`, `hits` a hit): at 0 it falls as the others
   // do (the cast's kill holds it), back with full hp. First to `frags` wins it (the player: `frags:won`; anyone else:
   // `frags:lost`); with `seconds`, the clock ends it too and the place decides (`win` or better wins). The place is the
   // laps rivals' lead: one more than the contenders strictly ahead, a tie to whoever got there first. Its frags and
@@ -778,13 +778,15 @@ const MECHANICS = {
       if (Number.isNaN(respawn)) throw new Error(`frags[${i}]: respawn is the seconds the fallen lie, 0 or more`);
       const spawns = Array.isArray(p.spawns) ? p.spawns : [];
       if (!spawns.every((s) => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite))) throw new Error(`frags[${i}]: spawns are [[x, y, z?], …], where the fallen come back`);
+      const guard = p.guard === undefined ? 2 : Number.isFinite(p.guard) && p.guard >= 0 ? p.guard : NaN;
+      if (Number.isNaN(guard)) throw new Error(`frags[${i}]: guard is the seconds a body back on its feet is not hurt, 0 or more`);
       const hp = Number.isFinite(p.hp) && p.hp > 0 ? p.hp : 100, hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : 10;
       const C = [P, ...who], n = C.length, win = Number.isInteger(p.win) && p.win >= 1 ? Math.min(p.win, n) : 1;
-      const frag = (c) => `__frag_${i}_${c}`, last = (c) => `__lh_${i}_${c}`, fell = (c) => `__fell_${i}_${c}`, rise = (c) => `__rise_${i}_${c}`, sp = (c) => `__sp_${i}_${c}`;
+      const frag = (c) => `__frag_${i}_${c}`, last = (c) => `__lh_${i}_${c}`, fell = (c) => `__fell_${i}_${c}`, rise = (c) => `__rise_${i}_${c}`;
       const over = `__frags_over_${i}`, place = `__place_${i}`, clock = `__frags_t_${i}`, deaths = `__deaths_${i}`, mine = `__pf_${i}`, live = { var: over, eq: 0 };
       const world = { vars: { hp, [over]: 0, [place]: 1, [deaths]: 0 }, reactions: [], watches: [], sequences: [], timers: [], hud: [] };
-      C.forEach((c, k) => {
-        Object.assign(world.vars, { [frag(c)]: 0, [last(c)]: 0, ...(spawns.length ? { [sp(c)]: (k * Math.max(1, Math.floor(spawns.length / n))) % spawns.length } : {}) });
+      C.forEach((c) => {
+        Object.assign(world.vars, { [frag(c)]: 0, [last(c)]: 0 });
         // who hit it last (0: nobody since it last came back)
         C.forEach((a, j) => { if (a !== c) world.reactions.push({ on: `hit:${c}`, match: { by: a }, do: 'set', var: last(c), to: j + 1 }); });
         // its fall, credited to the last hitter, said as a kill
@@ -798,12 +800,10 @@ const MECHANICS = {
           );
         });
         world.reactions.push({ on: fell(c), do: 'set', var: last(c), to: 0 });
-        // back after its time, at its next spawn (none: where it lies), fresh: the loadout it was minted with, rounds full
+        // back after its time, at the spawn farthest from the living (none: where it lies), fresh (the loadout it was minted
+        // with, rounds full) and guarded
         world.sequences.push({ id: `__respawn_${i}_${c}`, trigger: { on: fell(c) }, steps: [{ await: { timer: respawn } }, { do: 'emit', type: rise(c) }] });
-        if (spawns.length) {
-          spawns.forEach((s, j) => world.reactions.push({ on: rise(c), if: { var: sp(c), eq: j }, do: 'ctrl', op: 'spawn', who: c, at: s.slice(0, 3), fresh: true }));
-          world.reactions.push({ on: rise(c), do: 'inc', var: sp(c), by: 1 }, { on: rise(c), if: { var: sp(c), gte: spawns.length }, do: 'set', var: sp(c), to: 0 });
-        } else world.reactions.push({ on: rise(c), do: 'ctrl', op: 'spawn', who: c, fresh: true });
+        world.reactions.push({ on: rise(c), do: 'ctrl', op: 'spawn', who: c, ...(spawns.length ? { among: spawns.map((s) => s.slice(0, 3)) } : {}), fresh: true, ...(guard ? { guard } : {}) });
         // the limit
         world.watches.push({ type: `__top_${i}_${c}`, when: { var: frag(c), gte: frags } });
         world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P ? 'frags:won' : 'frags:lost' });

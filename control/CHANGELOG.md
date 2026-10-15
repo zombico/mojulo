@@ -205,6 +205,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
   (reverting only `mind.js` passes them all).
 
+### Shooter: a fair respawn and a led shot (phase 6)
+
+- **The farthest spawn, on the bus.** The cast's `spawn { among }` stands the fallen at the spawn farthest from the
+  nearest living body (a tie to the first). `frags` uses it instead of a rotation, so nobody stands up in front of the
+  gun that felled them. Godot's cast picks it the same way (kernel 0.22.0).
+- **The spawn guard.** `spawn { guard }`: that many seconds no round, blade or burst hurts the body, or until it fires
+  (combat-match's fire-gated guard). `frags`' `guard` (2 s, 0 for none). A mind does not target a guarded body. In
+  Godot the guard holds for its seconds; firing does not break it there.
+- **A led shot.** A mind with a travelling round (a launcher, a grenade) aims where its target will be. That is the
+  round's flight time ahead along the target's smoothed pace. A hitscan round needs none, and leads nothing.
+- Measured (bot matches to 5, no weapons): realistic 84 s, the middle 79 s, stylized 115 s (were 68, 79, 98). A
+  fresh spawn is no longer a free kill.
+  With weapons: 91, 93 and 80 s.
+- The page's hashes re-pinned (reverting only `cast.js` and `mind.js` passes them).
+
 ### Shooter: weapons as roles, and guns on the floor (phase 5)
 
 - **A weapon is a job on a sightline band** (`gameworld/weapon-roles.js`). `close` (0 to 10 m: a burst for a corner,

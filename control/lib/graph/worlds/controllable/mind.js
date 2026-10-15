@@ -1004,9 +1004,21 @@ export function buildMind(E) {
         }
       }
     }
-    // aim: turn toward the target, pitch at its egg centre
-    const rem = turnToward(t, Math.atan2(dy, dx), r, dt);
+    // aim: turn toward the target, pitch at its egg centre. A travelling round (a lob: a launcher, a grenade) is LED: aimed
+    // where the target will be when it gets there, its flight time ahead along the target's pace (its steps, smoothed;
+    // a jump of more than 5 m in a frame, a respawn, starts it over). A hitscan round needs no lead.
     const w = e.weapon;
+    let ax = dx, ay = dy;
+    if (w && w.fireClass === 'lob' && w.projectileSpeed > 0 && !r.space) {
+      const q = target.transform.pos, lp = e.leadPrev;
+      if (lp && lp.id === target.id && dt > 0 && Math.hypot(q[0] - lp.at[0], q[1] - lp.at[1]) < 5) {
+        const vx = (q[0] - lp.at[0]) / dt, vy = (q[1] - lp.at[1]) / dt, v = e.leadVel || [vx, vy];
+        e.leadVel = [v[0] * 0.7 + vx * 0.3, v[1] * 0.7 + vy * 0.3];
+      } else e.leadVel = null;
+      e.leadPrev = { id: target.id, at: [q[0], q[1]] };
+      if (e.leadVel) { const tf = dist2d / w.projectileSpeed; ax = dx + e.leadVel[0] * tf; ay = dy + e.leadVel[1] * tf; }
+    }
+    const rem = turnToward(t, Math.atan2(ay, ax), r, dt);
     const tb = target.body || {};
     const tcz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 0);
     t.pitch = clamp(Math.atan2((target.transform.pos[2] + tcz) - (t.pos[2] + (w ? w.eye || 0 : 0)), dist2d), -1.2, 1.2);
