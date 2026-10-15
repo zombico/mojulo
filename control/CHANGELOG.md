@@ -1579,6 +1579,32 @@ load on the blade, and the grass can be drawn as a material.
   land? }, density?, height? }`. It is validated, and on its own it stands the live field in the default wind.
   `contact: false` emits none of the contact code.
 
+### Craft shelf: an ODM inventory of aircraft and spacecraft parts
+
+Flight had a rule (`fly`) and no aircraft: its only body was a box slab. The craft shelf
+(`lib/graph/craft-shelf/`) is the flying sibling of the veh-* shelf. It is a catalogue of off-the-shelf flight parts,
+one row each, that whole craft are assembled from. The flight-game paradigm, what mojulo has for it and what
+comes next are in `docs/flight-games.md`.
+
+- **Two realms, one ruler.** Earth parts are sized to the real class they name: fuselages, wings and tails,
+  piston, turboprop and turbofan powerplants, propellers, gear legs and bogies, canopies, pylons and guns from
+  light singles to widebodies. Space parts follow the register of film and game spacecraft (snubfighters,
+  twin-panel interceptors, colonial darts, carrier heavy fighters, bombers, utility shuttles) in the same metres.
+  Names are generic.
+- **A row is a part number** (`CRAFT_ODM`): its kind, realm, class, the words people say, dims in metres, mass,
+  thrust or power, and its mount family. A builder per kind emits workbench monomers around the part's mount
+  with named hardpoints. `findCraftPart` turns words into a part number, one word to one part.
+- **Archetypes assemble craft** (`CRAFT_ARCHETYPES`, `assembleCraft`). Each row has a BOM audited by the veh-*
+  shelf's `planAssemblyBom` and a layout that hangs parts on each other's hardpoints, mirrored in pairs. The
+  result is an assembler recipe standing on its gear, a taildragger nose-up. Its readout gives span, length,
+  height, ground clearance per kind of part, thrust-to-weight and the gear contact points. A swapped part of the
+  wrong kind or realm, or one that leaves a part without its hardpoint, is named and never refused.
+- **Machine gate:** every part builds closed, and every archetype lands within its class figures. Tricycles sit
+  level, nacelles and propellers clear the ground, and thrust-to-weight falls in its class band
+  (`craft-shelf.deep.test.js`). One emission pin per builder path and one whole craft
+  (`craft-shelf.char.test.js`). No eyes gate has run.
+- Nothing existing changes: the shelf is new modules only, with no MCP surface yet.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
