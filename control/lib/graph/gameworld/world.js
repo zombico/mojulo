@@ -276,6 +276,15 @@ const lookFor = (look, base, seed, name) => {
   composedFrom(L.id, base, { look: look.intent, seed: look.seed ?? seed, base, name });
   return { kit: L.id, look: { ...look, base: L.base, id: L.id, tunnel: logOf(L.record) } };
 };
+/** A level's cube in the level's palette (the world's, moved by the level's shift): the color theorist decides the
+ * cube's colours from the same spec the HUD and the bible read, so the room, the land and the game are one solve. A
+ * world with no palette (or `false`) leaves the cube as it is. */
+export const cubeInPalette = (cube, palette) => {
+  if (cube === undefined || !isObj(palette)) return cube;
+  const { script: _s, ...p } = palette;
+  return { ...(typeof cube === 'string' ? { from: cube } : cube), palette: p };
+};
+
 /** A palette on a kit (color-theorist/look.js): the kit id the recoloured look registers under, and what it read. */
 const paletteFor = (spec, base, name) => {
   // a nature or jungle kit is painted by its card, not by ramps: its kit stays, and its stages carry the palette
@@ -582,7 +591,7 @@ export function resolveLevel(world, id) {
     const grammar = isObj(plan.grammar) ? plan.grammar : civilizationGrammar(anchor, kit, seed, typeof plan.grammar === 'string' ? { base: plan.grammar } : {});
     // its buildings walked into, not entered by a door: a door's inside is not a level of this world yet
     const sg = plan.segments === undefined || plan.segments === true ? {} : plan.segments;
-    const city = { ...plan, seed: plan.seed ?? seed, grammar, segments: { ...sg, enter: { walk: 2, door: 0, ...(sg.enter ?? {}) } }, ...(plan.paint === undefined && style.geocube !== undefined ? { paint: { geocube: style.geocube } } : {}) };
+    const city = { ...plan, seed: plan.seed ?? seed, grammar, segments: { ...sg, enter: { walk: 2, door: 0, ...(sg.enter ?? {}) } }, ...(plan.paint === undefined && style.geocube !== undefined ? { paint: { geocube: cubeInPalette(style.geocube, style.palette) } } : {}) };
     return { id, name: L.name ?? id, seed, style, built: { city: civId }, ledger, level: null, town: null, city: { plan: city, civilization: civId, ...(from !== undefined ? { from } : {}), ...(to !== undefined ? { to } : {}) } };
   }
 
@@ -612,7 +621,7 @@ export function resolveLevel(world, id) {
   // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
   // the level's own ground (level/ground.js): its grid, its dials and its edits, laid on its trails when it is laid out
   const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}), ...(L.ground !== undefined ? { ground: L.ground } : {}),
-    ...(style.geocube !== undefined ? { geocube: style.geocube } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
+    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
   let lv = readLevel(level);
   // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
   // whose cube lays nothing on the ground is as it was

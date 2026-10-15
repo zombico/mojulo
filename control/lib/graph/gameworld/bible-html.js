@@ -18,6 +18,7 @@
  * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
+import { readGeocube, geocubeRamps } from '../era/geocube.js';
 import { inferCity } from '../city/plan/card.js';
 import { trackCourse } from '../roads/track.js';
 import { designCity } from '../city/plan/design.js';
@@ -262,7 +263,11 @@ export function gameworldBibleHtml(world) {
 <dl class="vocab">${[['trees', N.trees], ['grass', N.grass], ['water', N.water.read], ['sky', N.sky.read], ['light', N.light], ['air', N.air], ['far', N.far]].map(([t, v]) => `<dt>${t}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
 <details><summary>Its principles</summary><ul class="principles">${N.principles.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></details></article>`;
   }).join('');
-  const keyHtml = kits.map((k) => { const K = colorKey(k); return `<article class="card" id="key-${esc(k)}"><div class="card-h"><span class="eyebrow">Color key</span><h3>${esc(k)}</h3></div><div class="key">${K.ramps.map((r) => `<div class="key-row"><div class="ramp">${r.stops.map((h) => `<i style="background:${h}" title="${h}"></i>`).join('')}</div><div><b>${esc(r.name)}</b>${r.shared ? ` <span class="muted">(its ${esc(r.shared)})</span>` : ''}<p class="muted">${esc(r.paints)}</p></div></div>`).join('')}</div></article>`; }).join('');
+  // the cubes the levels stand on (era/geocube.js): each its key colours and its sky, and where its colours came from
+  const cubes = [...new Map(order.filter((id) => built[id].R.level?.geocube !== undefined).map((id) => readGeocube(built[id].R.level.geocube)).map((c) => [c.palette?.id ?? c.id, c])).values()];
+  const ramp = (stops) => `<div class="ramp">${stops.map((h) => `<i style="background:${h}" title="${h}"></i>`).join('')}</div>`;
+  const cubeHtml = cubes.map((c) => `<article class="card" id="cube-${esc(c.palette?.id ?? c.id)}"><div class="card-h"><span class="eyebrow">Geocube</span><h3>${esc(c.title)}</h3><p class="muted">${c.palette?.id ? `solved by the color theorist: ${esc(c.palette.id)}, ${esc(c.palette.reads)}` : 'its own colours'}</p></div><div class="key">${Object.entries(geocubeRamps(c)).map(([name, stops]) => `<div class="key-row">${ramp(stops)}<div><b>${esc(name)}</b></div></div>`).join('')}${c.light.sky ? `<div class="key-row">${ramp([c.light.sky.zenith, c.light.sky.horizon, ...(c.light.sky.fog ? [c.light.sky.fog] : [])])}<div><b>sky</b><p class="muted">zenith, horizon${c.light.sky.fog ? ', fog' : ''}</p></div></div>` : ''}</div></article>`).join('');
+  const keyHtml = cubeHtml + kits.map((k) => { const K = colorKey(k); return `<article class="card" id="key-${esc(k)}"><div class="card-h"><span class="eyebrow">Color key</span><h3>${esc(k)}</h3></div><div class="key">${K.ramps.map((r) => `<div class="key-row"><div class="ramp">${r.stops.map((h) => `<i style="background:${h}" title="${h}"></i>`).join('')}</div><div><b>${esc(r.name)}</b>${r.shared ? ` <span class="muted">(its ${esc(r.shared)})</span>` : ''}<p class="muted">${esc(r.paints)}</p></div></div>`).join('')}</div></article>`; }).join('');
   const gr = guide.ground, row = (o) => Object.entries(o).map(([k, v]) => `${esc(k)} ${show(v)}`).join(' · ') || 'its card\'s own';
   const groundHtml = `<article class="card" id="guide-ground"><div class="card-h"><span class="eyebrow">The ground's character</span><h3>Handed down</h3><p class="muted">How every level's ground rises, falls and is climbed, unless it says otherwise.</p></div><dl class="vocab"><dt>trails</dt><dd>${row(gr.trail)}</dd><dt>climbs</dt><dd>${row(gr.meru)}</dd></dl></article>`;
 

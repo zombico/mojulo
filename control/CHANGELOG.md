@@ -13,6 +13,25 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Geocube palettes: the color theorist decides the cube
+
+A geocube's colours were hand-picked and a palette's were solved, and a world that named both kept the palette only
+on its HUD: every painted section took the cube's own colours, under the reference's fixed sky. Now the color
+theorist decides every new cube's colours, and one solve colours the level's room, its land, its sky, its HUD and its
+bible.
+
+- **A cube's colours are solved.** A geocube carries a pick_palette spec (`palette`); its key colours, shade,
+  register and moon are solved from it. A colour written on the cube is a lock the solve fits the rest round. Each
+  preset is now an intent (its key, heat, scheme and accent), not a fixed set of hex.
+- **A cube has a sky.** `light.sky` (zenith, horizon, fog) from the palette paints the island and every painted
+  trail's dome, in place of the reference's.
+- **Stamped where it is written.** A cube named in a gameworld, a stage, a hero, a city's paint or an airspace gets
+  its palette's seed at authoring time; an edit keeps it. Recipes minted before render as they did.
+- **A world's palette paints its cube, and a cube colours its game.** A world that names both lowers its palette
+  (moved per level) into each level's cube; one that names only a cube takes the cube's palette for its HUD and cover.
+- **The interpreter names a cube.** A world composed from a prompt starts from the cube its words point at, with a
+  palette read from the prompt, and the brief says which word decided it.
+
 ### Desktop export: a game as an app, the engines as translations
 
 A game plays in the browser; that build is the game itself. It now also ships as a desktop app, and the copy

@@ -13,6 +13,7 @@
  *   pixelPalette(contract, budget)   → a pixelizer palette at a register's budget (3 / 15 / 61 colours, darkest roles first)
   *   lookCard(card, contract)         → a sixth-gen reference card (era/sixth-gen.js) in the palette: its palette, light and air
  *   natureColours(contract)          → a nature or jungle stage's `palette` data (color-theorist/recolour.js reads it)
+ *   cubeColours(contract)            → a geocube's key colours, its tone's key, its moon and its sky (era/geocube.js)
  *
  * Pure.
  */
@@ -162,4 +163,23 @@ export function natureColours(K) {
     sky: { zenith: hexToRgb(K.roles.sky[1]), horizon: hexToRgb(K.roles.sky[4]) },
     ...(K.read.air && K.read.air !== 'full' ? { air: K.read.air } : {}),
   };
+}
+
+/**
+ * A geocube's colours (era/geocube.js) from the palette: the stone its rock, the floor its soil, the trim its made
+ * things lifted and quieter, the accent the accent, the grass its ground, the foliage its foliage, the
+ * water the sky sunk (as the nature stage's), the sand the soil's light end, and `shade` the hue of the palette's
+ * shadow, which every ramp's dark end leans to. The tone's key is where the palette's middle light sits; the moon is
+ * the palette's light (a moonlit palette's is cool); the sky is the sky ramp's zenith and horizon, and the fog.
+ * → { colour, key, moon, sky: { zenith, horizon, fog } }
+ */
+export function cubeColours(K) {
+  const mid = (r) => K.roles[r][2];
+  const colour = {
+    stone: mid('rock'), floor: mid('soil'), trim: rgbToHex(rampNear(K, 'made', 5, 0, { dL: 0.08, kC: 0.7 })[2]),
+    accent: mid('accent'), grass: mid('ground'), foliage: mid('foliage'),
+    water: rgbToHex(rampNear(K, 'sky', 5, 0, { dL: -0.3 })[2]), sand: K.roles.soil[3],
+    shade: Math.round(lchOf(hexToRgb(K.shadow))[2]) % 360,
+  };
+  return { colour, key: TONE_KEY[K.read.key], moon: K.light, sky: { zenith: K.roles.sky[1], horizon: K.roles.sky[4], fog: K.fog } };
 }

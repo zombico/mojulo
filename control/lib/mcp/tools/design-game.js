@@ -31,7 +31,7 @@ import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/li
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
 import './palette-ledger.js';
-import { stampWorldPalette } from '@/lib/graph/color-theorist/stamp.js';
+import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -249,7 +249,7 @@ export async function designGameHandler(input, context = {}) {
       if (!isGameworldKind(exists.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${exists.manifest?.kind}', not a gameworld`);
       // the runner's record stays with the recipe unless the new one brings its own; the same recipe again writes nothing
       // (and its palette: a recipe re-sent whole keeps the colours it was given, so the same recipe writes nothing)
-      const next = stampWorldPalette(world.made === undefined && exists.manifest.made ? { ...manifest, made: exists.manifest.made } : manifest, exists.manifest);
+      const next = stampWorldPalette(stampGeocubes(world.made === undefined && exists.manifest.made ? { ...manifest, made: exists.manifest.made } : manifest, exists.manifest), exists.manifest);
       if (JSON.stringify(next) !== JSON.stringify(exists.manifest) || (title && title !== exists.title)) {
         await updateSketchHandler({ ref, ...(title ? { title } : {}), manifest: next });
       }

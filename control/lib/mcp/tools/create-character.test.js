@@ -65,9 +65,11 @@ describe('update_character revises what update_sketch revises', () => {
       { op: 'set', path: '/hero/register', value: 'chamfer' }, { op: 'set', path: '/hero/hair', value: 'braid' },
       { op: 'set', path: '/hero/target', value: '1080p' }, { op: 'set', path: '/hero/geocube', value: 'island-noon' }] });
     expect(a.ok).toBe(true);
-    expect(manifestOf('uc_words_door')).toBe(manifestOf('uc_words_sketch'));
+    // each cube is given its own palette's seed where it is written (color-theorist/stamp.js): the two agree but for it
+    const unseeded = (ref) => manifestOf(ref).replace(/,"seed":\d+/, '');
+    expect(unseeded('uc_words_door')).toBe(unseeded('uc_words_sketch'));
     const hero = SketchRepository.getByRef('uc_words_door').manifest.hero;
-    expect(hero).toMatchObject({ register: 'chamfer', target: '1080p', geocube: 'island-noon' });
+    expect(hero).toMatchObject({ register: 'chamfer', target: '1080p', geocube: { from: 'island-noon', palette: { key: 'high', seed: expect.any(Number) } } });
   }, 240_000);
 
   it('the readout gives each part\'s outline at the target; null removes a word', async () => {
