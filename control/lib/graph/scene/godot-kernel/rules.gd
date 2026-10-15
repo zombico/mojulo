@@ -519,8 +519,16 @@ static func _follow(c: Dictionary, r: Dictionary, tgt: Dictionary, dt: float) ->
 	var sp := sin(pp)
 	var tp: Array = tgt["pos"]
 	var want := [float(tp[0]) - f[0] * dist * cp + rt[0] * shoulder, float(tp[1]) - f[1] * dist * cp + rt[1] * shoulder, float(tp[2]) + height - dist * sp]
-	_ease_to(c, want, smooth(_num(r, "lerp", 8.0), dt))
+	var k := smooth(_num(r, "lerp", 8.0), dt)
+	_ease_to(c, want, k)
 	c["lookAt"] = [float(tp[0]) + f[0] * lead * cp, float(tp[1]) + f[1] * lead * cp, float(tp[2]) + look_h + lead * sp]
+	# the bank (opt-in `rollFollow`, since 0.28.0): the chase rolls with a target that rolls (the fly rule's tilt), eased
+	# on the same lerp; absent, `roll` is never set
+	var rf := _num(r, "rollFollow", 0.0)
+	if rf != 0.0:
+		var tl = tgt.get("tilt")
+		var tr := _num(tl, "roll", 0.0) if tl is Dictionary else 0.0
+		c["roll"] = float(c.get("roll", 0.0)) + (tr * rf - float(c.get("roll", 0.0))) * k
 
 
 static func _overhead(c: Dictionary, r: Dictionary, tgt: Dictionary, dt: float) -> void:

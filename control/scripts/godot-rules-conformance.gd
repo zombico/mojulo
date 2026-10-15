@@ -37,7 +37,10 @@ static func _nano(x) -> float:
 
 
 func _cam(c: Dictionary) -> Dictionary:
-	return {"pos": (c["pos"] as Array).map(_nano), "heading": _nano(c["heading"]), "pitch": _nano(c.get("pitch", 0.0)), "lookAt": (c["lookAt"] as Array).map(_nano) if c["lookAt"] is Array else null}
+	var d := {"pos": (c["pos"] as Array).map(_nano), "heading": _nano(c["heading"]), "pitch": _nano(c.get("pitch", 0.0)), "lookAt": (c["lookAt"] as Array).map(_nano) if c["lookAt"] is Array else null}
+	if c.has("roll"):
+		d["roll"] = _nano(c["roll"])
+	return d
 
 
 func _snapshot(e: Dictionary, r: Dictionary) -> Dictionary:

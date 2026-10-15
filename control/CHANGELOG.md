@@ -1307,7 +1307,8 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   `godot-humanoid-pack.test.js`.
 - **The supercars and the race moods, named in Godot** (kernel 0.28.0). Every body the world moves now stands in the
   zones in Godot as on the page (the drivers and the cast beside the pilot): a rival that starts on its last checkpoint,
-  or crosses one, counts its laps and its place as the web's does, where before only the pilot entered a zone. A
+  or crosses one, counts its laps and its place as the web's does, where before only the pilot entered a zone. The
+  flight games' chase camera banks with the craft in Godot too (`rollFollow`, a new rules scenario holds it equal). A
   supercar field ships skinned like a racer's, the moods' relit faces and sky with it; what the page alone lays on a
   car is now said per level (`figures_carried`,
   `FIGURE_MARKS`: the live overlay's steer and lean, the juice, a dark mood's headlamp pool and tail-lamp ribbons), as

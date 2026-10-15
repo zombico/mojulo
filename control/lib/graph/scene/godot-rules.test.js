@@ -39,11 +39,12 @@ const withCamera = (camera) => ({ ...ledgeLevel(), camera });
 // scene with no meshes: where the page puts its camera for a camera entity, frame by frame
 export function pageCamera() {
   const src = fs.readFileSync(path.join(process.cwd(), 'lib/graph/scene/channels/controllable/index.js'), 'utf8');
-  const a = src.indexOf('const __camRay = new THREE.Raycaster();'), b = src.indexOf('camera.lookAt(look[0], look[1], look[2]);\n}', a);
-  const body = src.slice(a, b + 'camera.lookAt(look[0], look[1], look[2]);\n}'.length);
+  // (to the close of __driveCamera: the first line at the margin after its lookAt)
+  const a = src.indexOf('const __camRay = new THREE.Raycaster();'), b = src.indexOf('\n}\n', src.indexOf('camera.lookAt(look[0], look[1], look[2]);', a));
+  const body = src.slice(a, b + 2);
   const THREE = { Raycaster: class { set() {} intersectObjects() { return []; } }, Vector3: class { constructor(x, y, z) { Object.assign(this, { x, y, z }); } } };
   const at = [];
-  const camera = { position: { set: (x, y, z) => at.splice(0, 3, x, y, z) }, lookAt() {} };
+  const camera = { position: { set: (x, y, z) => at.splice(0, 3, x, y, z) }, lookAt() {}, rotateZ() {} };
   const W = { camera: null };
   const drive = new Function('THREE', 'scene', 'camera', '__bodySet', '__world', `${body}\nreturn __driveCamera;`)(THREE, { children: [] }, camera, () => [], W);
   return (c, dt) => { W.camera = c; drive(dt); return at.slice(); };
@@ -137,6 +138,7 @@ describe('the motion rules the Godot kernel runs', () => {
     { name: 'a stall that does not sink', from: '		vz -= _num(r, "sinkRate", 6.0) * (1.0 - v / v_stall)', to: '		pass' },
     { name: 'a racer slow to back off', from: '	if float(e["stuckT"]) > 1.0:', to: '	if float(e["stuckT"]) > 2.0:' },
     { name: 'a gauge that never unlocks', from: '			e["boostLock"] = false', to: '			pass' },
+    { name: 'a chase that banks at once', from: '(tr * rf - float(c.get("roll", 0.0))) * k', to: '(tr * rf - float(c.get("roll", 0.0))) * 1.0' },
   ];
   it.skipIf(!GODOT)('every planted bug in the rules is caught by the corpus (MOJULO_GODOT)', () => {
     const sc = corpus();
@@ -144,7 +146,7 @@ describe('the motion rules the Godot kernel runs', () => {
       const { out } = runGodotRules(sc, GODOT, { mutate: [{ file: 'rules.gd', from: p.from, to: p.to }] });
       expect(compare(sc, out).some((r) => !r.equal), p.name).toBe(true);
     }
-  }, 900000);
+  }, 1800000);
 
   it.skipIf(!GODOT)('a whole level: the pilot climbs, jumps the ledge and wins, key for key in both engines (MOJULO_GODOT)', () => {
     for (const rule of [{ type: 'platform', eye: 1.7, collideRadius: 0.3 }, { type: 'walk', eye: 1.7, speed: 5 }]) {

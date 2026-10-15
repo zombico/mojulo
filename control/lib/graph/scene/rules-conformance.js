@@ -132,6 +132,8 @@ export const CAMERA_SCENARIOS = [
     entity: pilot({ type: 'platform', eye: 1.7 }), faces: STEPPED, input: COURSE, camera: { rule: 'follow', target: 'hero', dist: 7, height: 2.5, shoulder: 0.6, lead: 3, lookH: 1.2, lerp: 6 } },
   { id: 'camera-follow-reverse-pitch', about: 'the reverse chase swinging round, pitched with a look pilot',
     entity: pilot({ type: 'platform', eye: 1.7, turnMode: 'look' }), faces: FLAT, input: LOOK_COURSE, camera: { rule: 'follow', target: 'hero', reverse: true, pitchFollow: 0.7 }, at: [3, -8, 4] },
+  { id: 'camera-follow-roll', about: 'a chase banking with a craft that rolls (rollFollow), the sim\'s bank held where it is put',
+    entity: pilot({ type: 'fly', assist: 'sim', launchSpeed: 40 }, [0, 0, 300]), faces: [quad(-3000, -3000, 3000, 3000)], input: run([20, { turn: 1, forward: 1 }], [60, { forward: 1 }], [20, { turn: -1 }]), camera: { rule: 'follow', target: 'hero', dist: 12, height: 3, lead: 8, rollFollow: 1 }, at: [0, -12, 303] },
   { id: 'camera-eye', about: 'first person: the eye above the target, its heading and pitch',
     entity: pilot({ type: 'walk', eye: 1.6, turnMode: 'look', lookPitch: true }), faces: FLAT, input: LOOK_COURSE, camera: { rule: 'eye', target: 'hero', height: 0.1 } },
   { id: 'camera-overhead', about: 'the ¾ overhead, north up the screen, a world-movement pilot under it',
@@ -198,7 +200,7 @@ export function snapshot(e) {
 }
 
 // a camera: its pose and its look point to 1e-9
-const camSnap = (c) => canon({ pos: c.transform.pos.map(nano), heading: nano(c.transform.heading), pitch: nano(c.transform.pitch || 0), lookAt: c.lookAt ? c.lookAt.map(nano) : null });
+const camSnap = (c) => canon({ pos: c.transform.pos.map(nano), heading: nano(c.transform.heading), pitch: nano(c.transform.pitch || 0), lookAt: c.lookAt ? c.lookAt.map(nano) : null, ...(c.roll != null ? { roll: nano(c.roll) } : {}) });
 
 export function runRules(sc) {
   const camera = sc.camera ? { ...clone(sc.camera), ...(sc.at ? { transform: { pos: sc.at.slice(), heading: 0 } } : {}) } : undefined;

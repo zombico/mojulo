@@ -236,6 +236,9 @@ func _show_camera(dt: float, drive := true) -> void:
 	if from.distance_to(to) > 1e-6:
 		var up := Vector3.UP if absf((to - from).normalized().dot(Vector3.UP)) < 0.999 else Vector3.FORWARD
 		cam_node.look_at(to, up)
+	# a chase banking with its target: about the view axis, as the page's camera.rotateZ(-roll)
+	if typeof(cam.get("roll")) == TYPE_FLOAT and float(cam["roll"]) != 0.0:
+		cam_node.rotate_object_local(Vector3.BACK, -float(cam["roll"]))
 
 
 var _shown := Vector3.INF   # where the pose last put the node: a node moved since (a script, a probe) moves the pose
