@@ -130,9 +130,9 @@ describe('pack registry shape', () => {
   });
 
   it('the retired packs never list, and none of their members is homed in a live pack', () => {
-    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects']);
+    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors']);
     expect(RETIRED_OFFICE_TOOLS).not.toContain('create_game_project');
-    expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects']));
+    expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan']));
     const live = new Set(PACKS.flatMap((p) => [p.id, ...p.members]));
     for (const name of RETIRED_TOOLS) expect(live.has(name), name).toBe(false);
     for (const pack of RETIRED_PACKS) expect(live.has(pack.id), pack.id).toBe(false);

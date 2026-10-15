@@ -114,11 +114,9 @@ export const TOOL_LINES = {
   get_voice_vocab: L('orient', 'The voice drawer: recipe shape, banks, calibration, the worker ladder. Pull before your first `create_voice`.'),
 
   // ── observe: motion ───────────────────────────────────────────────────────
-  forge_motion: L('observe', 'Put a subject in motion: camera moves, a slideshow deck, a world flythrough or a recorded traversal run. Decks read a stash `gather`ed in order.'),
+  forge_motion: L('observe', 'Put a subject in motion: camera moves, a slideshow deck, a flythrough, a recorded run; a world\'s cameras keyed as a shoot plan (`shoot`). Decks read a `gather`ed stash.'),
   stitch_motion: L('compose', 'Join forged `forge_motion` clips end to end into one MP4 film.'),
   get_motion_vocab: L('orient', 'A `forge_motion` / `stitch_motion` family manual (camera, deck, effect, world, stitch).'),
-  create_shoot_plan: L('create', 'Cameras as visible objects in a world, keyed in After Effects terms, with a cut list; a key may follow a car or walker.'),
-  update_shoot_plan: L('update', 'Edit a shoot plan op by op: keys by time, Easy Ease and hold, retime, lens, one- ↔ two-node, shots.'),
 
   // ── workflows: catalysts, workers, connected MCPs ─────────────────────────
   recommend_catalysts: L('orient', 'The workflow shelf with what each needs and what it gives. The entry for "what can I automate?"; then `get_catalyst`.'),

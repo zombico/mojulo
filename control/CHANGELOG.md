@@ -13,6 +13,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Tool consolidation: one door per intent
+
+What a user asks lands on one tool. A new capability is a routing card and an argument on the door that owns
+its intent, not a new listed tool; a drawer that lists a growing family (quick goals, genres) names each member
+in a line and takes the member as a parameter. Measured by the in-context routing eval, before and after.
+
+- **A world's shoot plan is `forge_motion`'s.** `forge_motion({ subject: { world_ref }, shoot: { plan } })` writes a
+  world's cameras, `{ ops }` edits them, `{}` lists what a key can follow; with `shot: { motion: 'plan' }` the same
+  call renders. `create_shoot_plan` and `update_shoot_plan` are folded: no longer listed, still callable by name.
+- **Revising a character is `update_character`'s**, whatever part changes (body, face, hair, outfit, armour); a
+  routing card says so in revision words.
+- **The quick path and the genres are indexes.** `get_game_vocab({ id: 'gameworld-quick-<goal>' })` is the quick
+  card with one goal's play and levers in full (the race's ride, vehicle, tuning, conditions, racers and roadway
+  are on a card for the first time); `gameworld-intent-<genre>` gives a genre's why, words, cube and what it asks.
+  A new goal or genre adds a card, not bytes to a shared one.
+- **The asset receipts have a route in:** the orientation's export line names `sign_asset` and `verify_asset`.
+- The flat `tools/list` is two tools and about 3KB smaller.
+
 ### Skyscape: flight games, and what a map is for a pilot
 
 Flight as a game type: one flight model with two dials (lift, gravity) under three genres (a flight sim, air combat,

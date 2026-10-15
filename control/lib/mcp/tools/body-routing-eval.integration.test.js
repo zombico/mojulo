@@ -70,6 +70,7 @@ const KNOWN_TOOLS = new Set([
   'forge_publications', 'gather', 'cook', 'export_model', 'export_game', 'export_beats',
   'bake_sprite_sheet', 'translate_modeler_lingo', 'verify_machina', 'forward_context',
   'capture_reference', 'mint_diagram', 'create_cover', 'create_sprite_sheet',
+  'get_game_vocab', 'get_motion_vocab', 'get_play_vocab', 'design_game',
 ]);
 
 // Body-eval grain differs from card grain: the shared fixture's expected tool
@@ -80,6 +81,8 @@ const KNOWN_TOOLS = new Set([
 const ACCEPT_OVERRIDES = new Map([
   ['turn this concept art of an espresso machine into a 3d model piece by piece', ['reference_protocol']],
   ['rebuild my drawing of a bicycle as a real 3d model one segment at a time', ['reference_protocol']],
+  // a "version of the same hero" reads as a new mint or a revision of the one there; both doors are right
+  ['a stockier version of the same hero, fuller arms and thighs', ['update_character']],
 ]);
 
 const routingPrompt = (phrasing) => `You are an agent driving the mojulo MCP server on the operator's machine. You have read this orientation:

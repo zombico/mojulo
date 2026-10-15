@@ -51,8 +51,8 @@ export const FIXTURE = [
   ['record the hero clearing the chasm and show me the clip', 'forge_motion'],
   ['check the player can actually get from the door to the goal', 'forge_motion'],
   ['merge those short clips into a single movie file', 'stitch_motion'],
-  ['set up a 35mm camera that dollies down the street and show me its path', 'create_shoot_plan'],
-  ['put easy ease on the second camera keyframe and make the lens 85', 'update_shoot_plan'],
+  ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
+  ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
@@ -111,34 +111,46 @@ export const FIXTURE = [
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],
-  // hero tune: proportion by word and percentage on an existing hero (hero-tune)
-  ['make her shoulders broader and her legs a bit longer', 'create_character'],
+  // hero tune: proportion by word and percentage on an existing hero (hero-tune). Revising a character you have is
+  // update_character's (the studio body's CHARACTER row, the hero card's "iterate by word"); a new one is create_character's
+  ['make her shoulders broader and her legs a bit longer', 'update_character'],
   ['a stockier version of the same hero, fuller arms and thighs', 'create_character'],
-  ['tune my character\'s body proportions by percent, smaller head', 'create_character'],
+  ['tune my character\'s body proportions by percent, smaller head', 'update_character'],
   // face tune: the face proportion lab's words on the hero's fitted head (face-tune)
-  ['give my hero a broader jaw and larger eyes', 'create_character'],
-  ['a longer face with a smaller nose and a bob haircut on the same character', 'create_character'],
+  ['give my hero a broader jaw and larger eyes', 'update_character'],
+  ['a longer face with a smaller nose and a bob haircut on the same character', 'update_character'],
   // hair library: a hairstyle by word and its controls (hair-library)
-  ['give my hero an undercut, then try a ponytail with a longer tail', 'create_character'],
+  ['give my hero an undercut, then try a ponytail with a longer tail', 'update_character'],
   // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
-  ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'create_character'],
+  ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'update_character'],
   // anime form: the Anime Form Studio's head worn by the hero (`head: 'anime'`), its clumps directed by name
   ['an anime heroine with a long layered cut and one bang swept over her eye', 'create_character'],
   // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
   ['start from the rival look, then give him droopy eyes and messy hair', 'create_character'],
   // armor (layered hero adorn build): worn armour from a style and dials (armor)
-  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'create_character'],
-  ['only armour the shoulders and chest for now, full plate later', 'create_character'],
+  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'update_character'],
+  ['only armour the shoulders and chest for now, full plate later', 'update_character'],
   // character fidelity (1011): a hero drawn for its target screen and in its level's light, revised by update_character
   ['my hero looks faceted on a 4k screen, give him the polygons it needs', 'update_character'],
   ['light my knight the way the gothic night level is lit so he fits in', 'update_character'],
   // world weather: a climate for any world's sky (weather)
   ['make it rain in my world and let a thunderstorm roll in now and then', 'compose_world'],
   ['a snowy pass where a blizzard starts when I walk in, with a dust storm world elsewhere', 'compose_world'],
-  // historic entries: a real place at its period mints through its encyclopedia entry's starter
-  ['walk me through ancient Thebes', 'create_sketch'],
-  ['what did a Sumerian city look like', 'create_sketch'],
-  ['show me the pyramids of Giza when they were new', 'create_sketch'],
+  // one door per intent (tool consolidation): revising a character lands on update_character whatever
+  // part of it changes; a camera plan is one door however the ask is put
+  ['the knight I made last week, give him a beard and a scar across the cheek', 'update_character'],
+  ['make my hero look a bit older and heavier set', 'update_character'],
+  ['change her hair to a short bob and keep everything else', 'update_character'],
+  ['the opening shot is too slow, speed the camera up as it goes through the gate', 'forge_motion'],
+  ['add another camera looking down from the bell tower and cut to it at the end', 'forge_motion'],
+  // ...the game's ground and colours asked as "my game" (which door owns them is measured, not assumed)
+  ['the second level of my game is too flat, give it some real hills', 'tune_ground'],
+  ['my platformer feels drab, can it have warmer colours', 'pick_palette'],
+  // asset receipts: asked in plain words
+  ['stamp my exported model so people can tell I made it', 'sign_asset'],
+  ['is this glb really the one I exported, or has someone changed it', 'verify_asset'],
+  // (historic places left the routing eval in 1015: the historic kind is a composer over its recipes now, not an
+  // exhibit a visitor asks for by a place's name, so "walk me through Thebes" is not a route to hold)
 ];
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary

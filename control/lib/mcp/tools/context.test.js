@@ -568,8 +568,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'mint_building', 'design_interior',
     'create_view', 'get_view_vocab', 'measure_view', 'save_recipe',
     'forge_motion', 'stitch_motion', 'get_motion_vocab',
-    // the shoot plan (1014): cameras as visible keyed objects in a world, the motion form's authored sibling
-    'create_shoot_plan', 'update_shoot_plan',
+    // the shoot plan (1014) folded into forge_motion's `shoot` (1015): create_shoot_plan / update_shoot_plan are retired names
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
     'design_game', 'tune_ground', 'pick_palette', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
@@ -803,7 +802,9 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // (create_shoot_plan, update_shoot_plan) with the interior designer (design_interior), each under the ceiling alone.
   // Grown 2026-10-14 (8_700 -> 8_750; measured 8,711 widest cell, studio+plain+pedagogical): the color theorist, the
   // GAME row's pick_palette (a world's colours, solved), the routing card's entry named in the body.
-  const MODE_CEILINGS = { studio: 8_750 };
+  // Grown 2026-10-15 (8_750 -> 8_830; measured 8,811 widest cell, studio+plain+pedagogical): 1015, the asset receipts named on the
+  // export line (they had no route in) and the OBSERVE row's camera words for forge_motion's shoot.
+  const MODE_CEILINGS = { studio: 8_830 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

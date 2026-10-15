@@ -23,7 +23,7 @@ const VOCAB_DIR = moduleDir(import.meta.url, 'lib/graph/motion-vocab');
 
 const REQUIRED_FIELDS = ['id', 'name', 'family', 'entry', 'summary', 'when'];
 const VALID_FAMILIES = new Set(['motion']);
-const VALID_ENTRIES = new Set(['forge_motion', 'stitch_motion', 'create_shoot_plan']);
+const VALID_ENTRIES = new Set(['forge_motion', 'stitch_motion']);
 const FRONTMATTER_FENCE = /^---\s*\n([\s\S]*?)\n---\s*\n?/;
 
 let cache = null;
