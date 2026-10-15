@@ -23,10 +23,37 @@ describe('the creature head library', () => {
     expect(a.palette.Skull).not.toBe('#ffffff');
     expect(headPlan('wolf').palette.Skull).toBe(a.palette.Skull);
     expect(headFor('lupine')).toEqual({ id: 'wolf', provisional: false });
-    expect(headFor('feline')).toEqual({ id: 'wolf', provisional: true });
-    expect(headFor('avian')).toBe(null);
+    expect(headFor('feline')).toEqual({ id: 'felid', provisional: false });
+    expect(headFor('orcish')).toBe(null);
     expect(() => headPlan('cat')).toThrow(/unknown head 'cat'.*wolf/);
     expect(() => headPlan('wolf', { palette: { Skull: 'white' } })).toThrow(/#rrggbb/);
+  });
+});
+
+/** a people the library draws no head for (the stand-in's case) */
+const SELKIE = { reads: 'selkie (seal-kin)', humanity: [0.3, 0.5], cover: { grey: '#6a6e72' }, cues: [{ at: 1, ch: 'structure', line: 'a seal\'s round face', derives: ['door = creature'] }] };
+
+describe('a head derived from the nearest skull', () => {
+  const rows = (id, part = 'cranium') => headPlan(id).parts[part].rows;
+  it('moves the rows and keeps their names and slots, so everything addressed by station and slot still lands', () => {
+    for (const id of HEAD_IDS.filter((x) => HEAD_LIBRARY[x].derived)) {
+      const from = rows(HEAD_LIBRARY[id].from);
+      expect(rows(id).map((r) => r[0]), id).toEqual(from.map((r) => r[0]));
+      expect(rows(id).map((r) => Object.keys(r[2])), id).toEqual(from.map((r) => Object.keys(r[2])));
+      expect(JSON.stringify(rows(id)), id).not.toBe(JSON.stringify(from));
+    }
+  });
+  it('a felid: the wolf\'s muzzle pulled in, the skull rounder; a beak: the muzzle drawn to a point', () => {
+    const tip = (id) => headPlan(id).parts.cranium.caps.tip[1], width = (id, i) => rows(id)[i][2].cheek[0];
+    expect(tip('felid')).toBeLessThan(0.6 * tip('wolf'));
+    expect(width('felid', 2)).toBeGreaterThan(width('wolf', 2));
+    const last = rows('beaked').length - 1;
+    expect(width('beaked', last) / width('beaked', 2)).toBeLessThan(0.15);
+    expect(headPlan('beaked').ornaments.some((o) => o.kind === 'teeth')).toBe(false);
+  });
+  it('a derived head\'s own groups keep their colour under the character\'s skin', () => {
+    const bird = planFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } })).create.spec.plan.heads[0].plan;
+    expect(bird.palette.Snout).toBe(headPlan('beaked').palette.Snout);
   });
 });
 
@@ -60,18 +87,18 @@ describe('planFromSheet', () => {
     const bear = planFromSheet(rollEgocube({ facets: { ancestry: 'ursine', humanity: 0.3 } }));
     expect(bear.thesis).toMatch(/short muzzle \(bear\)/);
     const cat = planFromSheet(rollEgocube({ facets: { ancestry: 'feline', humanity: 0.4 } }));
-    expect(cat.thesis).toMatch(/\(wolf, provisional\)/);
-    const bird = planFromSheet(rollEgocube({ facets: { ancestry: 'avian', humanity: 0.3 } }));
-    expect(bird.thesis).toMatch(/head pending \(the dragon stands in\)/);
-    expect(bird.ledger.filter((r) => r.channel === 'structure').every((r) => /no library head for avian yet: the dragon head stands in/.test(r.pending))).toBe(true);
+    expect(cat.thesis).toMatch(/short muzzle \(felid\)/);
+    const kin = planFromSheet(rollEgocube({ facets: { ancestry: 'selkie' }, lineages: { selkie: SELKIE } }));
+    expect(kin.thesis).toMatch(/head pending \(the felid stands in\)/);
+    expect(kin.ledger.filter((r) => r.channel === 'structure').every((r) => /no library head for selkie yet: the felid head stands in/.test(r.pending))).toBe(true);
   });
   it('scales a head authored in metres with its horns on it, and strips a stand-in to a neutral skull', () => {
     const dragon = planFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'draconic' } })).create.spec.plan.heads[0].plan;
     expect(dragon.ornaments.filter((o) => o.name === 'horn').map((o) => o.space)).toEqual(['head']);
     expect(dragon.units.scale).toBeLessThan(1);
-    const bird = planFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } })).create.spec.plan.heads[0].plan;
-    expect(bird.ornaments.some((o) => o.name === 'horn')).toBe(false);
-    expect(bird.midline).toBeUndefined();
+    const kin = planFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'selkie' }, lineages: { selkie: SELKIE } })).create.spec.plan.heads[0].plan;
+    expect(kin.ornaments.some((o) => o.kind === 'sweep' && o.name !== 'nose')).toBe(false);
+    expect(kin.midline).toBeUndefined();
   });
   it('lands every note once, in the call or as pending with a reason', () => {
     for (const [anc, seed] of [['lupine', 3], ['draconic', 5], ['european', 2], ['infernal', 4]]) {

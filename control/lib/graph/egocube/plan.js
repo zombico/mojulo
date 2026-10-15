@@ -75,8 +75,9 @@ export const READING_KIT = Object.freeze({ 'caregiver/shadow': ['pack', 'satchel
 
 // ══════════ the creature door ══════════
 
-/** the head a people with no library head wears meanwhile, so the rig has a skull to anchor to; the ledger says so */
-export const STAND_IN_HEAD = 'dragon';
+/** the head a people with no library head wears meanwhile (a neutral short-muzzled skull, its ears and crest taken off),
+ * so the rig has a skull to anchor to; the ledger says so */
+export const STAND_IN_HEAD = 'felid';
 
 function headOf(sheet) {
   const named = derivesOf(sheet, ['structure']).map(readDerive).find((r) => r.family === 'head');
@@ -298,7 +299,9 @@ function creature(sheet, title) {
     Emblem: f.archetype === 'ruler' ? '#d5aa3a' : '#b9a46a',
   };
   const heads = [{ name: 'head', plan: (() => {
-    const hp = headPlan(head.id, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(head.id).palette).map(([grp, t]) => [grp, shade(skin, t)])) });
+    // the skin's tones over the head's own neutral reading, but for the groups that are not skin (a beak's horn)
+    const own = HEAD_LIBRARY[head.id].keep || [];
+    const hp = headPlan(head.id, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(head.id).palette && !own.includes(grp)).map(([grp, t]) => [grp, shade(skin, t)])) });
     // scale the head to the body: a head authored in metres (no units) has its 'world' sweeps in those same metres,
     // so they become head-space and scale with it (else the dragon's horns float off a scaled skull)
     if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));

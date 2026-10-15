@@ -108,7 +108,9 @@ loop's own card (`creature-from-plan`) holds the ring-plan forms and the art dir
 
 ## Deriving a head (the wolf, from the bear)
 
-Library skulls (`lib/graph/creature-heads/`): `dragon` (reptile), `bear` and `wolf` (mammal). A head plan's cranium
+Library skulls (`lib/graph/creature-heads/`): `dragon` (reptile), `bear` and `wolf` (mammal), and three DERIVED from
+them by row moves (`derive.js` HEAD_DERIVATIONS: `felid` from the wolf, `beaked` from the wolf, `mandibled` from the
+bear), which the automatic door wears and a designer can start from. A head plan's cranium
 and jaw are station ROWS `[id, y, { slot: z | [x, z] }]`; every region, skin map, tile window and ornament is
 addressed by station and slot PARAMETERS (`[s, t]`), so moving a row moves everything addressed to it with it.
 

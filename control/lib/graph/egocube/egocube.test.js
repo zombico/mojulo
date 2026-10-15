@@ -16,6 +16,7 @@ import { ARMOR_DIALS } from '../armor/principles.js';
 import { OUTFIT_DIALS } from '../outfit/principles.js';
 import { POLES } from './facets.js';
 import { readdirSync, readFileSync } from 'node:fs';
+import { HEAD_DERIVATIONS } from '../creature-heads/derive.js';
 import { fileURLToPath } from 'node:url';
 import { HUMAN_ANCESTRIES, HUMAN_IDS, LINEAGES, MST, DOOR_H, readLineage } from './ancestry.js';
 
@@ -45,7 +46,8 @@ describe('the dial register', () => {
     };
     for (const [family, keys] of Object.entries(live)) for (const k of DIALS[family].keys) expect(keys, `${family}.${k}`).toContain(k);
     expect(POLES).toEqual(Object.keys(HERO_CASTS));
-    const heads = readdirSync(`${REPO}control/lib/graph/creature-heads/heads`).map((f) => f.replace('.head.json', ''));
+    // the drawn heads (a file each) and the derived ones (creature-heads/derive.js)
+    const heads = [...readdirSync(`${REPO}control/lib/graph/creature-heads/heads`).map((f) => f.replace('.head.json', '')), ...Object.keys(HEAD_DERIVATIONS)];
     expect(DIALS.head.keys.sort()).toEqual(heads.sort());
     const catalyst = readFileSync(`${REPO}control/lib/mcp/catalysts/creature-from-plan.md`, 'utf8');
     for (const p of DIALS.pass.keys) expect(catalyst, `pass ${p}`).toMatch(new RegExp(`^\\| \\d [a-z ]*${p} \\|`, 'mi'));   // '6 Grown patches'
