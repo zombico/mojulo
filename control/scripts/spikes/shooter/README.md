@@ -232,6 +232,11 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   matches now land within 80 to 86 s at every pole, 4 to 18 hits a kill. Pass `ground` to a sim as the engine calls it:
   `(q) => land(q[0], q[1])`.
 
+- **Phase 4, the item economy**: supplies that come back on their timers, armor and the overdrive, bots that take
+  them and know where they are (and when they took them), placed by risk on the arena's floor. Open: weapon pickups
+  (a loadout slot gained at runtime), and the drops' glyphs reappearing on the page when a supply comes back (the eyes
+  gate).
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

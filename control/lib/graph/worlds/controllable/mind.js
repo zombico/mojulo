@@ -626,9 +626,33 @@ export function buildMind(E) {
     e.fragTarget = best ? best.id : null;
     return best;
   }
-  // fragRoam(e, r, dt, world) — no foe in sight: hear, then follow the freshest lead, else a hunch
+  // ITEMS (opt-in `rule.items`: [{ at, gives, back }], the arena's supplies as the mind knows them): hurt (under
+  // `itemsBelow`, 0.6, of its hp) it goes for the nearest health or armor, short of rounds (fewer than a magazine left)
+  // for ammo, and an overdrive within 12 m it takes on the way. It remembers when it took each (it stood on it) and
+  // does not go back before its `back`: item timing, a match's map knowledge. → the item's place, or null
+  function itemGoal(e, r, world) {
+    const items = r.items, now = (world && world.time) || 0, t = e.transform;
+    if (!Array.isArray(items) || !items.length || !e.body) return null;
+    const took = e.itemTook || (e.itemTook = {});
+    items.forEach((it, k) => { if (Math.hypot(it.at[0] - t.pos[0], it.at[1] - t.pos[1]) < 1.2) took[k] = now; });
+    const hurt = e.hpMax > 0 && Number.isFinite(e.body.hp) && e.body.hp < (r.itemsBelow ?? 0.6) * e.hpMax;
+    const w = e.weapon, dry = !!w && w.reserve != null && w.ammo + w.reserve < w.magazine;
+    let best = null, bd = Infinity;
+    items.forEach((it, k) => {
+      if (took[k] != null && now - took[k] < (it.back ?? Infinity)) return;
+      const d = Math.hypot(it.at[0] - t.pos[0], it.at[1] - t.pos[1]);
+      const want = ((it.gives === 'health' || it.gives === 'armor') && hurt) || (it.gives === 'ammo' && dry) || (it.gives === 'overdrive' && d < 12);
+      if (want && d < bd) { bd = d; best = it; }
+    });
+    return best ? best.at : null;
+  }
+  // fragRoam(e, r, dt, world) — no foe in sight: an item it wants first, then hear, then follow the freshest lead, else
+  // a hunch
   function fragRoam(e, r, dt, world) {
     const t = e.transform, now = (world && world.time) || 0, span = r.leadSpan ?? 6;
+    const item = itemGoal(e, r, world);
+    if (item) { e.aiFire = 0; e.seekingItem = true; goTo(e, r, dt, world, item, r.speed ?? 6); return; }
+    e.seekingItem = false;
     if (world && world.byId) {
       let heard = null, hd = r.hearRange ?? 35;
       for (const id in world.byId) {

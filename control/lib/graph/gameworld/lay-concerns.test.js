@@ -192,7 +192,11 @@ describe('an arena', () => {
     expect(L.blocks.every((b) => b.at[2] === 2 && b.whole)).toBe(true);
     expect(standBlocks(L.blocks).colliders).toHaveLength(L.blocks.length);
     expect(L.spawns).toHaveLength(4);
-    expect(L.drops.map((d) => d.gives).sort()).toEqual(['ammo', 'ammo', 'health', 'health']);
+    expect(L.drops.map((d) => d.gives).sort()).toEqual(['ammo', 'ammo', 'armor', 'armor', 'health', 'health', 'overdrive', 'overdrive']);
+    // placed by risk: health where fewer of the floor see it than armor and the overdrive
+    const seen = (g) => tunnelArena('an arena', { seed: 1, spawns: 4 }).plan.drops.find((d) => d.gives === g).seen;
+    expect(seen('health')).toBeLessThan(seen('armor'));
+    expect(seen('health')).toBeLessThan(seen('overdrive'));
   });
 
   it('every law holds on the arena as laid, and the words shown', () => {

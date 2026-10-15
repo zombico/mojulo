@@ -13,6 +13,8 @@
  *   ring     a court in the middle (`court`, of half the side) walled round with a doorway on each side (`gapMid`), the
  *            floor round it the loop
  *   crates   `many` (0 to 1) of them, at seeded places off the walls and the spawns' ring, one or two high
+ *   supplies by risk: health where the fewest see (a pocket), armor and the overdrive where the most do (contested),
+ *            rounds between
  *   stagger  (close quarters) a blocker at each lane's quarters against alternate sides, and the dividers' middle gaps
  *            offset: the way zig-zags and no line runs a lane or crosses them all
  *   breaks   short walls the tweak stands across a line the laws found (a spawn seen, a line across), where the floor
@@ -30,7 +32,7 @@
  * Pure; seeded dice only.
  */
 import { tunnel } from './tunnel.js';
-import { ARENA, arenaAsks, arenaSpawns, arenaLongest, askBoxes, concernLaws } from './lay-concerns.js';
+import { ARENA, arenaAsks, arenaSpawns, arenaLongest, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
 const r2 = (v) => Math.round(v * 100) / 100;
@@ -121,15 +123,26 @@ function barest(built) {
   return best;
 }
 
-// the supplies: health and rounds on free floor in the lanes (or round the court), in turned pairs
+// the supplies, placed by RISK: every free spot on the floor (2 m apart, clear of the boxes and the spawns) is scored
+// by how much of the floor sees it (a 4 m grid, eye to eye). Health goes where the fewest see (a pocket to recover in),
+// armor and the overdrive where the most do (contested: worth a fight), rounds between. Each a turned pair, no two
+// within 4 m. → [{ u, v, gives, seen }] (seen: the share of the floor that sees it)
 function arenaDrops(built, c) {
   const H = c.half, boxes = askBoxes(arenaAsks(built.pieces, (u, v) => [u, v, 0]));
-  const free = (u, v) => !boxes.some((B) => u > B.min[0] - 1 && u < B.max[0] + 1 && v > B.min[1] - 1 && v < B.max[1] + 1);
-  const spot = (tries) => tries.find(([u, v]) => free(u, v) && free(-u, -v)) ?? tries[0];
-  const side = built.lanes[built.lanes.length - 1], mid = c.topology === 'ring' ? 0 : built.lanes[Math.floor(built.lanes.length / 2)].mid;
-  const health = spot([3, 4.5, 6, 2].map((v) => [r2(side.mid), v]));
-  const ammo = spot([H / 3, H / 2, H / 4].map((v) => [r2(mid), r2(v)]));
-  return [{ u: health[0], v: health[1], gives: 'health' }, { u: -health[0], v: -health[1], gives: 'health' }, { u: ammo[0], v: ammo[1], gives: 'ammo' }, { u: -ammo[0], v: -ammo[1], gives: 'ammo' }];
+  const free = (u, v) => !boxes.some((B) => u > B.min[0] - 1 && u < B.max[0] + 1 && v > B.min[1] - 1 && v < B.max[1] + 1) && !built.spawns.some((s) => Math.hypot(s[0] - u, s[1] - v) < 3);
+  const eyes = [];
+  for (let u = -H + 2; u <= H - 2; u += 4) for (let v = -H + 2; v <= H - 2; v += 4) if (free(u, v)) eyes.push([u, v, 1.6]);
+  const spots = [];
+  for (let u = -H + 2; u <= H - 2; u += 2) for (let v = 1; v <= H - 2; v += 2) {
+    if (!free(u, v) || !free(-u, -v)) continue;
+    const seen = eyes.filter((e) => !lineBlocked(e, [u, v, 1.2], boxes)).length / Math.max(1, eyes.length);
+    spots.push({ u: r2(u), v: r2(v), seen: r2(seen) });
+  }
+  spots.sort((a, b) => a.seen - b.seen || a.u - b.u || a.v - b.v);
+  const taken = [], apart = (q) => taken.every((t) => Math.hypot(t.u - q.u, t.v - q.v) >= 4 && Math.hypot(t.u + q.u, t.v + q.v) >= 4);
+  const pick = (list, gives) => { const q = list.find(apart) ?? list[0]; taken.push(q); return [{ u: q.u, v: q.v, gives, seen: q.seen }, { u: -q.u, v: -q.v, gives, seen: q.seen }]; };
+  const most = [...spots].reverse(), mid = [...spots.slice(Math.floor(spots.length / 2)), ...spots.slice(0, Math.floor(spots.length / 2)).reverse()];
+  return [...pick(spots, 'health'), ...pick(most, 'armor'), ...pick(most, 'overdrive'), ...pick(mid, 'ammo')];
 }
 
 export function arenaDomain({ spawns = 8 } = {}) {

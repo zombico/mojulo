@@ -318,15 +318,17 @@ export function goalMechanics(quick, ends) {
       // a match on the arena its concern laid: the bots its rivals, its spawns where the fallen come back, its supplies
       if (!ends.arena) throw new Error('gameworld: quick deathmatch: the stage laid no arena (its trail is too short to hold one)');
       const rivals = deathmatchBots(quick), base = { kind: 'frags', rivals, frags: quick.frags ?? DEATHMATCH.frags, ...(quick.seconds ? { seconds: quick.seconds } : {}), spawns: ends.arena.spawns };
+      const drops = deathmatchDrops(quick, ends);
       if (quick.pole === undefined) return [
         { ...base, respawn: DEATHMATCH.respawn, hp: SHOOT.hp, hits: SHOOT.hit },
-        { kind: 'supplies', max: SHOOT.hp, drops: ends.arena.drops.map((d) => ({ ...d, amount: d.gives === 'health' ? SHOOT.health : SHOOT.rounds })) },
+        { kind: 'supplies', max: SHOOT.hp, drops: drops.map((d) => ({ ...d, amount: d.gives === 'health' ? SHOOT.health : SHOOT.rounds })), takers: 'bot-*' },
       ];
-      // on the shooter pole (shooter-pole.js): its hp taking each round's own damage, its respawn, its kit
+      // on the shooter pole (shooter-pole.js): its hp taking each round's own damage (armor first), its respawn, its kit
       const P = shooterPole(quick.pole), ab = P.abilities;
+      const amount = { health: Math.round(P.hp * 0.3), ammo: P.weapon.magazine, armor: Math.round(P.hp * 0.5), overdrive: 10 };
       return [
-        { ...base, respawn: P.respawn, hp: P.hp, damage: true },
-        { kind: 'supplies', max: P.hp, drops: ends.arena.drops.map((d) => ({ ...d, amount: d.gives === 'health' ? Math.round(P.hp * 0.3) : P.weapon.magazine })) },
+        { ...base, respawn: P.respawn, hp: P.hp, damage: true, ...(drops.some((d) => d.gives === 'armor') ? { armor: true } : {}) },
+        { kind: 'supplies', max: P.hp, armorMax: P.hp, drops: drops.map((d) => ({ ...d, amount: amount[d.gives] })), takers: 'bot-*' },
         ...(P.regen ? [{ kind: 'regen', ...P.regen }] : []),
         ...(ab.heal || ab.ultimate ? [{ kind: 'abilities', ...(ab.heal ? { heal: ab.heal } : {}), ...(ab.ultimate ? { ultimate: { ...ab.ultimate, rivals } } : {}) }] : []),
       ];
@@ -554,6 +556,17 @@ export function deathmatchLegend(quick) {
   return ['click  fire', P.move.jump ? `Space  jump${P.move.airJumps ? ' (twice)' : ''}` : null, P.move.dash ? 'F F  dash' : null, P.abilities.heal ? 'Q  heal' : null, P.abilities.ultimate ? 'X  ultimate' : null].filter(Boolean).join(' · ');
 }
 
+// the seconds each supply takes to come back (an arena's item timing)
+export const ITEM_BACK = Object.freeze({ health: 20, ammo: 15, armor: 25, overdrive: 45 });
+/** A deathmatch's supplies, from its arena's (placed by risk, tunnel-arena.js): health and rounds always, armor on the
+ * shooter pole, the overdrive where the pole has an ultimate (the stylized end); each comes back after its ITEM_BACK.
+ * → [{ at, gives, respawn }] */
+export function deathmatchDrops(quick, ends) {
+  const P = quick.pole !== undefined ? shooterPole(quick.pole) : null;
+  const keep = (g) => g === 'health' || g === 'ammo' || (P && g === 'armor') || (P && g === 'overdrive' && !!P.abilities.ultimate);
+  return ends.arena.drops.filter((d) => keep(d.gives)).map((d) => ({ at: d.at, gives: d.gives, respawn: ITEM_BACK[d.gives] }));
+}
+
 /** A deathmatch's bots' ids (quick.bots of them). */
 export const deathmatchBots = (quick) => Array.from({ length: quick.bots ?? DEATHMATCH.bots }, (_, k) => `bot-${k + 1}`);
 
@@ -572,7 +585,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
     figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({
       id,
-      rule: { type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
+      rule: { type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), items: deathmatchDrops(quick, ends).map((d) => ({ at: d.at, gives: d.gives, back: d.respawn })), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
       weapon: P ? { ...P.weapon, eye: 1.4 } : { ...SHOOT.gun, range: 40, hand: 'right' },
       body: { type: 'figure-rig', figure: id, hittable: true, hp: P ? P.hp : SHOOT.foeHp, poise: P ? 6 : 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
       transform: { pos: at, heading: face(at) },

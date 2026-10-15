@@ -22,7 +22,9 @@ not the end).
 - `respawn`: seconds a fallen contender lies before it comes back (3). `spawns`: where they come back, each
   contender rotating through them from its own start; none, and it stands up where it fell.
 - `hp`, `hits`: the player's hp (100) and what each hit on it takes (10). At 0 the player falls (the cast's `kill`
-  holds it) and comes back with full hp.
+  holds it) and comes back with full hp. `damage: true`: each round takes its own damage instead (a head hit's
+  included). `armor: true` (with damage): the level's `armor` (a supply's) takes whole rounds while it lasts, then hp;
+  it is lost with a fall.
 
 ## Lowers to
 

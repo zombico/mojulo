@@ -54,3 +54,18 @@ describe('a mind\'s kit', () => {
     expect([plain.byId.a.hopZ ?? 0, plain.byId.a.kitHops ?? 0, plain.byId.a.kitCharge ?? 0]).toEqual([0, 0, 0]);
   });
 });
+
+describe('a mind that knows the items', () => {
+  it('hurt, it goes for the health it does not remember taking; it remembers, and waits out its time', () => {
+    const items = [{ at: [-10, 0, 0], gives: 'health', back: 20 }, { at: [10, 8, 0], gives: 'ammo', back: 15 }];
+    const w = E.createWorld({ entities: [{ ...fighter('a', [0, 0, 0], 0), rule: { ...fighter('a', [0, 0, 0], 0).rule, items } }] });
+    const a = w.byId.a;
+    a.body.hp = 50;
+    for (let k = 0; k < 30 * 5 && !(a.itemTook && a.itemTook[0] != null); k++) E.stepWorld(w, {}, 1 / 30, hooks);
+    expect(a.itemTook[0]).toBeGreaterThan(0);
+    // still hurt (nothing healed it here), it does not go back to a pad it took a moment ago
+    for (let k = 0; k < 30 * 2; k++) E.stepWorld(w, {}, 1 / 30, hooks);
+    expect(Math.hypot(a.transform.pos[0] + 10, a.transform.pos[1])).toBeLessThan(2);   // it stays near, no other want
+    expect(a.seekingItem).toBe(false);
+  });
+});

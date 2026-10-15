@@ -184,6 +184,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   test passed it `(x, y)`, so nothing pulled a hop down. Both are fixed.
 - The page's hashes re-pinned (reverting only `mind.js` and `combat-ranged.js` passes them all).
 
+### Shooter: an arena's item economy (phase 4)
+
+- **Supplies that come back.** `supplies`' `respawn` (or a drop's own): seconds after it is taken the drop is there
+  again, its marker back on, `supply:back` said. An arena's item timing.
+- **Armor and the overdrive.** `gives: 'armor'` fills the level's `armor`, which takes whole rounds while it lasts, then
+  hp (`frags`' `armor: true`, lost with a fall). `gives: 'overdrive'` is the cast's status for `amount` seconds: its
+  taker's rounds hit harder. Drawn as a gem and a star.
+- **The others take them too.** `takers` (a glob, `'bot-*'`): health and armor heal them, rounds rearm them, overdrive
+  drives them; whoever takes one, it is gone for everyone until it is back.
+- **Placed by risk** (`tunnel-arena.js`). Every free spot on the floor is scored by how much of the floor sees it.
+  Health goes where the fewest do, armor and the overdrive where the most do (worth a fight), rounds between. On the
+  plain arena: health seen by 11% of the floor, armor 44%.
+- **Minds that know the items** (`rule.items`). A match player hurt under 60% goes for the nearest health or armor,
+  short of rounds for ammo, and takes an overdrive within 12 m on the way. It remembers when it took each and waits out
+  its time before going back.
+- **In the quick deathmatch.** Health and rounds always; armor on the shooter pole; the overdrive where the pole has an
+  ultimate. They come back after 20, 15, 25 and 45 s, and bots take them. Bot matches to 5: realistic 68 s (6 items
+  taken, 5 back), the middle 79 s (7, 5), stylized 98 s (9, 7).
+- Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
+  (reverting only `mind.js` passes them all).
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

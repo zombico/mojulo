@@ -1,5 +1,5 @@
 ---
-{ "id": "supplies", "name": "Supplies (emitter)", "summary": "Pickups that give: health back into the level's hp, or rounds for the player's weapon (into its reserve, or a full magazine). Each is taken once, drawn as a floating heart or orb. The ammo-and-health economy of a shooter.", "when": "health pack, medkit, ammo pickup, ammo box, refill, restock, supplies, heal on pickup, ammo is scarce" }
+{ "id": "supplies", "name": "Supplies (emitter)", "summary": "Pickups that give: health back into the level's hp, rounds for the player's weapon, armor, or an overdrive. Taken once, or back after a respawn time (an arena's item timing); bots may take them too. Drawn as a floating heart, orb, gem or star. The item economy of a shooter.", "when": "health pack, medkit, ammo pickup, ammo box, refill, restock, supplies, heal on pickup, ammo is scarce, armor pickup, power-up, quad damage, item timing, pickups respawn" }
 ---
 
 ## Role
@@ -25,3 +25,20 @@
 
 A weapon's ammo economy: `weapon.reserve` is the spare rounds a reload draws from; out of both, the weapon is dry and
 does not reload until a supply restocks it. Without a reserve the reload is endless and an ammo drop fills the magazine.
+
+## Timing, armor, the overdrive, and who takes them
+
+```json
+{ "kind": "supplies", "respawn": 20, "takers": "bot-*", "armorMax": 100,
+  "drops": [{ "at": [4, 10, 0], "gives": "armor", "amount": 50, "respawn": 25 }, { "at": [0, 0, 0], "gives": "overdrive", "amount": 10 }] }
+```
+
+- `respawn` (or a drop's own): seconds after it is taken it is there again (a sequence sets it back, toggles its marker
+  on and says `supply:back`). Without it a drop is taken once, as before.
+- `gives: 'armor'`: into the level's `armor` (to `armorMax`): `frags` with `armor: true` lets it take whole rounds while
+  it lasts. `gives: 'overdrive'`: the cast's status for `amount` seconds (10): its taker's rounds hit harder.
+- `takers`: a glob of the others who may take them: health and armor heal them (the cast's heal), rounds rearm them,
+  overdrive drives them. Whoever takes one, it is gone for everyone until it is back. A mind that knows them
+  (`rule.items`) goes for them when hurt or short of rounds, and remembers when it took each.
+
+Without `respawn`, armor, overdrive or `takers` it lowers byte for byte as before.

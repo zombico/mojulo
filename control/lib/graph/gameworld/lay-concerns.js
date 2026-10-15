@@ -304,7 +304,9 @@ function boxNear(c, p, r) {
   const dx = Math.max(c.min[0] - p[0], 0, p[0] - c.max[0]), dy = Math.max(c.min[1] - p[1], 0, p[1] - c.max[1]);
   return Math.hypot(dx, dy) < r;
 }
-// does a box stand across the segment a → b (strictly between them)?
+// does a box stand across the segment a → b (strictly between them)? (exported as lineBlocked: the arena tunnel's
+// exposure measure)
+export function lineBlocked(a, b, boxes) { return blocked(a, b, boxes); }
 function blocked(a, b, boxes) {
   const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
   return boxes.some((B) => {

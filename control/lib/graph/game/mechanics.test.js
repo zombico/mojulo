@@ -463,3 +463,46 @@ describe('frags on the bus', () => {
     expect(r.log.includes('frags:lost')).toBe(true);
   });
 });
+
+// ── an arena's item economy: supplies that come back, armor, the overdrive, bots that take them ─────────────────────
+describe('supplies with timing', () => {
+  const B = buildBus();
+  const play = (mechs, script) => {
+    const c = composeMechanics(mechs, ctx()), s = B.createBusState(c.events, c.events.entities), ops = [];
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } if (s._ctrlOps) { ops.push(...s._ctrlOps); s._ctrlOps = []; } };
+    pump([]);
+    for (const [e, secs = 0] of script) { if (e) pump([e]); for (let k = 0; k < Math.round(secs * 10); k++) { pump(B.tickTimers(s, 0.1)); pump(B.stepTime(s, 0.1)); } }
+    return { s, ops, log: s.log.map((r) => r.type) };
+  };
+  const enter = (zone, entity = 'hero') => ({ type: 'enter', zone, entity });
+  const drops = [{ at: [0, 0, 0], gives: 'health', amount: 30, respawn: 5 }, { at: [9, 0, 0], gives: 'armor', amount: 50 }, { at: [0, 9, 0], gives: 'overdrive', amount: 8 }];
+
+  it('without the new keys it lowers as it did', () => {
+    const plain = composeMechanics([{ kind: 'supplies', drops: [{ at: [0, 0, 0], gives: 'health' }, { at: [1, 0, 0], gives: 'ammo' }] }, { kind: 'reach-exit', at: [9, 9, 0] }], ctx());
+    expect(plain.events.reactions.map((r) => r.do).slice(0, 8)).toEqual(['inc', 'emit', 'toggle', 'set', 'ctrl', 'emit', 'toggle', 'set']);
+    expect(plain.events.sequences ?? []).toEqual([]);
+  });
+
+  it('a supply with a respawn is there again after its time, to be taken again; one without stays gone', () => {
+    const frags = { kind: 'frags', rivals: ['bot-1'], hp: 100, damage: true, armor: true };
+    let r = play([frags, { kind: 'supplies', drops }], [[{ type: 'hit:hero', entity: 'hero', by: 'bot-1', harm: -60, dmg: 60, head: 0 }], [enter('sp_1_0'), 4.9], [enter('sp_1_0')]]);
+    expect(r.s.vars.hp).toBe(70);   // the armor was empty: the round took 60 of hp; its pad gave 30; not back yet
+    r = play([frags, { kind: 'supplies', drops }], [[{ type: 'hit:hero', entity: 'hero', by: 'bot-1', harm: -60, dmg: 60, head: 0 }], [enter('sp_1_0'), 5.1], [enter('sp_1_0')]]);
+    expect(r.log).toContain('supply:back');
+    expect(r.s.vars.hp).toBe(100);
+    expect(r.log.filter((t) => t === 'supply:health')).toHaveLength(2);
+  });
+
+  it('armor takes whole rounds while it lasts, then the hp does; it is lost with a fall', () => {
+    const frags = { kind: 'frags', rivals: ['bot-1'], hp: 100, damage: true, armor: true };
+    const hit = (h) => ({ type: 'hit:hero', entity: 'hero', by: 'bot-1', harm: -h, dmg: h, head: 0 });
+    const r = play([frags, { kind: 'supplies', drops }], [[enter('sp_1_1')], [hit(30)], [hit(30)], [hit(30)]]);
+    expect([r.s.vars.armor, r.s.vars.hp]).toEqual([0, 70]);   // 50 → 20 → 0 (the second round's overflow lost), then hp
+  });
+
+  it('the others take them too (takers), and once taken by anyone it is gone for everyone', () => {
+    const r = play([{ kind: 'supplies', drops, takers: 'bot-*' }, { kind: 'reach-exit', at: [99, 99, 0] }], [[enter('sp_0_0_t', 'bot-2')], [enter('sp_0_0')], [enter('sp_0_2_t', 'bot-1')]]);
+    expect(r.ops.map((o) => [o.op, o.who])).toEqual([['heal', 'bot-2'], ['status', 'bot-1']]);
+    expect(r.log.filter((t) => t === 'supply:health')).toHaveLength(1);
+  });
+});

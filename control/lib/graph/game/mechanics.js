@@ -258,27 +258,63 @@ const MECHANICS = {
   },
 
   // walk over a supply → it gives (emitter): health back into the level's hp (to `max`), or rounds for the player's
-  // weapon (the cast's rearm: into its reserve, or a full magazine). Each is taken once.
+  // weapon (the cast's rearm: into its reserve, or a full magazine). Each is taken once, unless it comes back:
+  //   respawn   seconds after it is taken it is there again (`p.respawn`, or a drop's own): an arena's item timing
+  //   armor     `gives: 'armor'`: into the level's `armor` (to `armorMax`, 100), which takes whole rounds while it lasts
+  //             (frags' `armor`)
+  //   overdrive `gives: 'overdrive'`: the cast's status for `amount` seconds (10): its taker's rounds hit harder
+  //   takers    a glob of the others who may take them too (`'bot-*'`): health and armor heal them (the cast's heal),
+  //             rounds rearm them, overdrive drives them; whoever takes one, it is gone for everyone
   supplies: {
     role: 'emitter', requires: [],
     lower(p, ctx) {
       const drops = Array.isArray(p.drops) ? p.drops : [];
-      if (!drops.length) throw new Error(`supplies[${ctx.i}]: needs drops: [{ at, gives: 'health' | 'ammo', amount? }]`);
-      const max = Number.isFinite(p.max) && p.max > 0 ? p.max : 100;
+      if (!drops.length) throw new Error(`supplies[${ctx.i}]: needs drops: [{ at, gives: '${SUPPLIES.join("' | '")}', amount? }]`);
+      const max = Number.isFinite(p.max) && p.max > 0 ? p.max : 100, armorMax = Number.isFinite(p.armorMax) && p.armorMax > 0 ? p.armorMax : 100;
+      if (p.takers !== undefined && !(typeof p.takers === 'string' && p.takers)) throw new Error(`supplies[${ctx.i}].takers is a glob of who else may take them ('bot-*')`);
       const world = { vars: {}, sources: [], reactions: [], entities: [] };
       drops.forEach((d, j) => {
         if (!d || !SUPPLIES.includes(d.gives)) throw new Error(`supplies[${ctx.i}].drops[${j}].gives is one of ${SUPPLIES.join(', ')}`);
         if (d.amount !== undefined && !(Number.isFinite(d.amount) && d.amount > 0)) throw new Error(`supplies[${ctx.i}].drops[${j}].amount is above 0`);
+        const back = d.respawn ?? p.respawn;
+        if (back !== undefined && !(Number.isFinite(back) && back > 0)) throw new Error(`supplies[${ctx.i}].drops[${j}]: respawn is the seconds it takes to come back, above 0`);
         const zone = `sp_${ctx.i}_${j}`, at = Array.isArray(d.at) ? d.at : [0, 0, 0], got = `__${zone}`, untaken = { var: got, eq: 0 };
         world.vars[got] = 0;
         world.entities.push({ id: zone, on: true, position: at });
         world.sources.push({ type: 'zone', zone, at, radius: d.radius != null ? d.radius : 1.4, planar: true, watch: ctx.player });
-        world.reactions.push(d.gives === 'health'
-          ? { on: 'enter', match: { zone }, if: untaken, do: 'inc', var: 'hp', by: d.amount ?? 25, max }
-          : { on: 'enter', match: { zone }, if: untaken, do: 'ctrl', op: 'rearm', who: ctx.player, ...(d.amount !== undefined ? { by: d.amount } : {}) });
+        const give = {
+          health: { do: 'inc', var: 'hp', by: d.amount ?? 25, max },
+          ammo: { do: 'ctrl', op: 'rearm', who: ctx.player, ...(d.amount !== undefined ? { by: d.amount } : {}) },
+          armor: { do: 'inc', var: 'armor', by: d.amount ?? 50, max: armorMax },
+          overdrive: { do: 'ctrl', op: 'status', who: ctx.player, is: 'overdrive', for: d.amount ?? 10 },
+        }[d.gives];
+        world.reactions.push({ on: 'enter', match: { zone }, if: untaken, ...give });
         world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `supply:${d.gives}` });
+        if (back !== undefined) world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `__${zone}_taken` });
+        // the others who may take it: their own zone at the same place, the same once (or until it is back)
+        if (p.takers) {
+          const theirs = `${zone}_t`, them = 'event.entity';
+          world.sources.push({ type: 'zone', zone: theirs, at, radius: d.radius != null ? d.radius : 1.4, planar: true, watch: p.takers });
+          const giveThem = {
+            health: { do: 'ctrl', op: 'heal', who: them, by: d.amount ?? 25 },
+            armor: { do: 'ctrl', op: 'heal', who: them, by: d.amount ?? 50 },
+            ammo: { do: 'ctrl', op: 'rearm', who: them, ...(d.amount !== undefined ? { by: d.amount } : {}) },
+            overdrive: { do: 'ctrl', op: 'status', who: them, is: 'overdrive', for: d.amount ?? 10 },
+          }[d.gives];
+          world.reactions.push(
+            { on: 'enter', match: { zone: theirs }, if: untaken, ...giveThem },
+            { on: 'enter', match: { zone: theirs }, if: untaken, do: 'emit', type: `supply:${d.gives}`, by: them },
+            ...(back !== undefined ? [{ on: 'enter', match: { zone: theirs }, if: untaken, do: 'emit', type: `__${zone}_taken` }] : []),
+            { on: 'enter', match: { zone: theirs }, do: 'toggle', target: zone, to: false },
+            { on: 'enter', match: { zone: theirs }, do: 'set', var: got, to: 1 },
+          );
+        }
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: got, to: 1 });
+        // back after its time: there again, to be taken again
+        if (back !== undefined) {
+          (world.sequences ||= []).push({ id: `__${zone}_back`, trigger: { on: `__${zone}_taken` }, steps: [{ await: { timer: back } }, { do: 'set', var: got, to: 0 }, { do: 'toggle', target: zone, to: true }, { do: 'emit', type: 'supply:back', zone }] });
+        }
       });
       return { world, emits: SUPPLIES.map((g) => `supply:${g}`) };
     },
@@ -772,13 +808,24 @@ const MECHANICS = {
       world.watches.push({ type: fell(P), when: { var: 'hp', lte: 0 } });
       // the player's hp: a flat `hits` a hit, or (`damage: true`) what each round dealt (the hit fact's `harm`, a head
       // hit's included: combat-ranged.js); a hit that says no damage then costs none
-      const harm = p.damage === true
-        ? ['0', '1'].map((h) => ({ on: `hit:${P}`, match: { head: h }, if: live, do: 'inc', var: 'hp', by: 'event.harm', min: 0 }))
-        : [{ on: `hit:${P}`, if: live, do: 'inc', var: 'hp', by: -hits, min: 0 }];
+      // `armor` (with damage): the level's `armor` takes whole rounds while it lasts, then the hp does
+      const armored = p.damage === true && p.armor !== undefined && p.armor !== false;
+      const harm = armored
+        ? [...['0', '1'].flatMap((h) => [
+          { on: `hit:${P}`, match: { head: h }, if: { var: 'armor', gt: 0 }, do: 'emit', type: `__armored_${i}`, harm: 'event.harm' },
+          { on: `hit:${P}`, match: { head: h }, if: { var: 'armor', lte: 0 }, do: 'emit', type: `__bare_${i}`, harm: 'event.harm' },
+        ]),
+        { on: `__armored_${i}`, if: live, do: 'inc', var: 'armor', by: 'event.harm', min: 0 },
+        { on: `__bare_${i}`, if: live, do: 'inc', var: 'hp', by: 'event.harm', min: 0 }]
+        : p.damage === true
+          ? ['0', '1'].map((h) => ({ on: `hit:${P}`, match: { head: h }, if: live, do: 'inc', var: 'hp', by: 'event.harm', min: 0 }))
+          : [{ on: `hit:${P}`, if: live, do: 'inc', var: 'hp', by: -hits, min: 0 }];
+      if (armored) { world.vars.armor = 0; world.hud.push({ var: 'armor', label: 'Armor' }); }
       world.reactions.push(
         ...harm,
         { on: fell(P), do: 'ctrl', op: 'kill', who: P },
         { on: fell(P), do: 'inc', var: deaths, by: 1 },
+        ...(armored ? [{ on: fell(P), do: 'set', var: 'armor', to: 0 }] : []),
         { on: rise(P), do: 'set', var: 'hp', to: hp },
       );
       // the place: per other, the lead (the player's frags less its own) and an ahead flag (laps' rivals)
@@ -896,7 +943,7 @@ const MECHANICS = {
 
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
 // what a supply gives
-export const SUPPLIES = Object.freeze(['health', 'ammo']);
+export const SUPPLIES = Object.freeze(['health', 'ammo', 'armor', 'overdrive']);
 export const TERMINAL_KINDS = MECHANIC_KINDS.filter((k) => MECHANICS[k].role === 'terminal');
 
 export function lowerMechanic(kind, params, ctx) {
