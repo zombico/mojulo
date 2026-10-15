@@ -92,6 +92,20 @@ export const VEHICLE_SCENARIOS = [
   { id: 'fly-flight', about: 'a taxi, the takeoff roll and rotation, a banked turn, a climb into a stall, the mush, a touchdown',
     entity: pilot({ type: 'fly', mass: 900, thrust: 8000, stallSpeed: 16 }, [0, 0, 0]), faces: [quad(-2000, -2000, 2000, 2000)],
     input: run([30, { forward: 0.3, turn: 0.5 }], [120, { forward: 1, lift: 1 }], [60, { forward: 1, turn: 1 }], [40, { forward: 1, turn: 0 }], [150, { lift: 1, forward: 0 }], [200, { forward: 0.2, lift: -0.5 }], [60, { forward: -1 }]) },
+  // the flight dials (the web's skyscape)
+  { id: 'fly-glider', about: 'a glider set down aloft, already flying: no engine, W does nothing in the air; it sinks to a landing',
+    entity: pilot({ type: 'fly', engine: false, launchSpeed: 24, mass: 300, stallSpeed: 14 }, [0, 0, 120]), faces: [quad(-3000, -3000, 3000, 3000)], input: run([60, { forward: 1, turn: 0.4 }], [120, { lift: -0.4 }], [300, {}]) },
+  { id: 'fly-lever', about: 'the throttle a lever that holds where it is left; S at idle on the ground the wheel brakes',
+    entity: pilot({ type: 'fly', lever: true, leverRate: 0.8, mass: 900, thrust: 8000 }, [0, 0, 0]), faces: [quad(-3000, -3000, 3000, 3000)], input: run([40, { forward: 1 }], [200, { lift: 0.6 }], [60, { forward: -1 }], [120, {}], [80, { lift: -1, forward: -1 }]) },
+  { id: 'fly-space', about: 'space: no gravity, no lift, a turn rate at full bank, the boost and its charge, a barrel roll each way',
+    entity: pilot({ type: 'fly', gravity: false, lift: false, turnRate: 1.4, launchSpeed: 40, maxSpeed: 120, boost: { thrust: 2.5, time: 1.5, recharge: 0.8 }, roll: { time: 0.6, side: 20, cooldown: 1 } }, [0, 0, 500]), faces: [],
+    input: run([40, { forward: 1, turn: 1 }], [70, { forward: 1, boost: 1 }], [30, { forward: 1, lift: 1 }], [2, { strafe: 1 }], [30, {}], [2, { strafe: -1 }], [10, { strafe: -1 }], [40, { forward: 0.4, boost: 1 }]) },
+  { id: 'fly-arcade', about: 'the arcade assist: slow, the nose will not come up and eases down until the speed is back; never a stall; wings level twice as fast',
+    entity: pilot({ type: 'fly', assist: 'arcade', mass: 900, thrust: 3000, stallSpeed: 20, launchSpeed: 26 }, [0, 0, 300]), faces: [quad(-3000, -3000, 3000, 3000)], input: run([90, { lift: 1, turn: 1 }], [60, { lift: 1 }], [120, { forward: 1 }]) },
+  { id: 'fly-sim', about: 'the sim assist: the bank stays where it is put', entity: pilot({ type: 'fly', assist: 'sim', launchSpeed: 40 }, [0, 0, 300]), faces: [quad(-3000, -3000, 3000, 3000)], input: run([20, { turn: 1, forward: 1 }], [90, { forward: 1 }]) },
+  { id: 'fly-bound', about: 'out of the map\'s reach: warned, then the stick taken and the craft turned back toward the centre, its nose toward the centre\'s height',
+    entity: pilot({ type: 'fly', gravity: false, lift: false, launchSpeed: 60, bound: { hx: 80, hy: 80, warn: 1, hz: 40, cz: 0 } }, [0, 0, 0], 0.3), faces: [], input: run([400, { forward: 1, lift: 0.4 }]) },
+  { id: 'fly-space-surface', about: 'a craft in space meets what it flies into: its ground read without gravity', entity: pilot({ type: 'fly', gravity: false, space: true, launchSpeed: 30 }, [0, 0, 20]), faces: [quad(-3000, -3000, 3000, 3000)], input: run([60, { lift: -1 }], [60, {}]) },
 ];
 
 // the camera rules, each watching a pilot run a short course (follow, eye, overhead, side, fixed)
@@ -178,7 +192,8 @@ export function snapshot(e) {
       // pose and the speed still held
       skidding: e.rule.lateralGrip ? null : !!e.skidding, lean: e.lean == null ? null : nano(e.lean) } : {}),
     ...(e.rule.type === 'racer' ? { lineAt: e.lineAt ?? null, laps: e.laps ?? 0, stuckT: nano(e.stuckT || 0), backT: nano(e.backT || 0) } : {}),
-    ...(e.rule.type === 'fly' ? { airspeed: nano(e.airspeed || 0), bank: nano(e.bank || 0), airborne: !!e.airborne, stalled: !!e.stalled, takeoff: !!e.takeoff, touchdown: !!e.touchdown, climb: nano(e.climbRate || 0), loco: e.locomotion } : {}),
+    ...(e.rule.type === 'fly' ? { airspeed: nano(e.airspeed || 0), bank: nano(e.bank || 0), airborne: !!e.airborne, stalled: !!e.stalled, takeoff: !!e.takeoff, touchdown: !!e.touchdown, climb: nano(e.climbRate || 0), loco: e.locomotion,
+      lever: e.lever == null ? null : nano(e.lever), boostE: e.boostE == null ? null : nano(e.boostE), boosting: !!e.boosting, rolling: !!e.rolling, oob: !!e.outOfBounds, roll: nano(e.tilt ? e.tilt.roll : 0) } : {}),
   });
 }
 

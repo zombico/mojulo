@@ -44,7 +44,7 @@ export const RULE_MARKS = Object.freeze({
   launcher: m(A, 'no launcher: a catapult stands still'),
   drive: m(B, 'kernel/rules.gd: the web drive rule (its power curve, brakes, steer, the ground followed down, walls, flight off a lip with `air`); the surface grip under it is the web\'s (PAGE_MARKS.driveSurface)'),
   racer: m(B, 'kernel/rules.gd: the rivals drive their lines as the web\'s (score.drivers), braking into bends, counting laps, backing off when held up'),
-  fly: m(B, 'kernel/rules.gd: fixed-wing flight (taxi, takeoff, banked turns, stall, touchdown)'),
+  fly: m(B, 'kernel/rules.gd: fixed-wing flight (taxi, takeoff, banked turns, stall, touchdown) and its dials since 0.27.0 (a glider, the throttle lever, space, the boost, the barrel roll, the assist, the map\'s bound)'),
   patrol: m(A, 'no patrol: a guard stands where it was placed'),
   ai: m(B, 'kernel/mind.gd (since 0.26.0): the web mind (every motivation, perception and memory, cover, pathing on the web\'s grid in kernel/nav.gd, groups in kernel/group.gd, the blade, the roll, the charge, the loadout, the tier, a body\'s own tuning, a boss\'s phases and adapting), firing and swinging through kernel/combat.gd; the commander and the pilot\'s shove-down set piece stay the web\'s'),
 });

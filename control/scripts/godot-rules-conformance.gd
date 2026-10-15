@@ -78,4 +78,10 @@ func _snapshot(e: Dictionary, r: Dictionary) -> Dictionary:
 		s["touchdown"] = bool(e.get("touchdown", false))
 		s["climb"] = _nano(e.get("climbRate", 0.0))
 		s["loco"] = e.get("locomotion")
+		s["lever"] = _nano(e["lever"]) if e.get("lever") != null else null
+		s["boostE"] = _nano(e["boostE"]) if e.get("boostE") != null else null
+		s["boosting"] = e.get("boosting") == true
+		s["rolling"] = e.get("rolling") == true
+		s["oob"] = e.get("outOfBounds") == true
+		s["roll"] = _nano((e["tilt"] as Dictionary).get("roll", 0.0) if e.get("tilt") is Dictionary else 0.0)
 	return s

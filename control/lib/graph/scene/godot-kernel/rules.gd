@@ -105,6 +105,12 @@ static func right_xy(h: float) -> Array:
 	return [sin(h), -cos(h)]
 
 
+# `d.k || 0` for a number
+static func _num0(d: Dictionary, k: String) -> float:
+	var v = d.get(k)
+	return float(v) if (v is float or v is int) and not is_nan(float(v)) else 0.0
+
+
 static func _hypot(a: float, b: float) -> float:
 	return sqrt(a * a + b * b)
 
@@ -1083,7 +1089,10 @@ static func racer(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) ->
 static func fly(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, world: Dictionary) -> void:
 	var p: Array = e["pos"]
 	var mass := _pos_num(r, "mass", 1200.0)
-	var max_thrust := _pos_num(r, "thrust", mass * 6.0)
+	# the flight dials (since 0.27.0, the web's skyscape: one flight model under every flight game); each absent, as it was
+	var max_thrust := 0.0 if r.get("engine") == false else _pos_num(r, "thrust", mass * 6.0)
+	var grav: bool = r.get("gravity") != false
+	var lifts: bool = r.get("lift") != false
 	var drag_k := _num(r, "drag", 0.6)
 	var v_stall := _pos_num(r, "stallSpeed", 18.0)
 	var v_takeoff := _pos_num(r, "takeoffSpeed", float(roundi(v_stall * 1.25)))
@@ -1095,22 +1104,64 @@ static func fly(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, worl
 	var pitch_rate := _num(r, "pitchRate", 1.1)
 	var look_sens := _num(r, "lookSens", 0.0025)
 	var eye := _num(r, "eye", 0.0)
-	var v := float(e.get("airspeed", 0.0))
+	# launchSpeed: a craft that starts flying (a glider aloft)
+	var v: float = float(e["airspeed"]) if e.get("airspeed") != null else (float(r["launchSpeed"]) if _truthy(r.get("launchSpeed")) else 0.0)
 	var throttle := clampf(_in(input, "forward"), 0.0, 1.0)
 	var brake_in := clampf(-_in(input, "forward"), 0.0, 1.0)
-	var gz := ground_at(world.get("ground"), [p[0], p[1], (float(p[2]) - eye) + _num(r, "collideHeight", 3.0)])
+	if _truthy(r.get("lever")):
+		# the lever: W / S move it and it stays; S held at idle is the brakes (on the ground, the wheels)
+		var was: float = float(e["lever"]) if e.get("lever") != null else (float(r["leverStart"]) if _truthy(r.get("leverStart")) else 0.0)
+		e["lever"] = clampf(was + _in(input, "forward") * _num(r, "leverRate", 0.6) * dt, 0.0, 1.0)
+		throttle = float(e["lever"])
+		brake_in = clampf(-_in(input, "forward"), 0.0, 1.0) if was <= 0.0 and _in(input, "forward") < 0.0 else 0.0
+	var gz := ground_at(world.get("ground"), [p[0], p[1], (float(p[2]) - eye) + _num(r, "collideHeight", 3.0)]) if (grav or _truthy(r.get("space"))) else NAN
 	var on_ground := not is_nan(gz) and float(p[2]) - eye <= gz + 0.05
 	var was_airborne := _truthy(e.get("airborne"))
-	var force := max_thrust * throttle - drag_k * v * v
+	# the boost (opt-in): input.boost held multiplies thrust while its charge lasts, refilled when let go
+	var boost_mul := 1.0
+	if _truthy(r.get("boost")):
+		var B: Dictionary = r["boost"] if r["boost"] is Dictionary else {}
+		var full := _num(B, "time", 3.0)
+		if e.get("boostE") == null:
+			e["boostE"] = full
+		e["boosting"] = _truthy(input.get("boost")) and float(e["boostE"]) > 0.0 and max_thrust > 0.0
+		if e["boosting"]:
+			boost_mul = _num(B, "thrust", 2.0)
+			e["boostE"] = maxf(0.0, float(e["boostE"]) - dt)
+		else:
+			e["boostE"] = minf(full, float(e["boostE"]) + _num(B, "recharge", 0.5) * dt)
+	var force := max_thrust * throttle * boost_mul - drag_k * v * v
 	if brake_in > 0.0:
 		force -= (_num(r, "brakeDrag", drag_k * 5.0) * v * v + (_num(r, "wheelBrake", mass * G * 0.5) if on_ground else 0.0)) * brake_in
 	var a := force / mass
-	if not on_ground:
+	if not on_ground and grav:
 		a -= G * sin(float(e.get("pitch", 0.0)))
 	v = clampf(v + a * dt, 0.0, v_max)
 	if on_ground and throttle == 0.0 and brake_in == 0.0 and v < 0.4:
 		v = 0.0
 	var bank_in := clampf(_in(input, "turn"), -1.0, 1.0)
+	var lift_in := _in(input, "lift")
+	# the bound: warned outside the map's reach, then turned back toward its centre
+	if r.get("bound") is Dictionary:
+		var Bd: Dictionary = r["bound"]
+		var cx := _num0(Bd, "cx")
+		var cy := _num0(Bd, "cy")
+		var cz := _num0(Bd, "cz")
+		var hz := _num0(Bd, "hz")
+		var out: bool = absf(float(p[0]) - cx) > float(Bd["hx"]) or absf(float(p[1]) - cy) > float(Bd["hy"]) or (hz > 0.0 and absf(float(p[2]) - cz) > hz)
+		e["boundT"] = (float(e.get("boundT", 0.0)) if _truthy(e.get("boundT")) else 0.0) + dt if out else 0.0
+		e["outOfBounds"] = out
+		if out and float(e["boundT"]) > _num(Bd, "warn", 5.0):
+			var d := atan2(cy - float(p[1]), cx - float(p[0])) - float(e["heading"])
+			d = fmod(fmod(d, TAU) + TAU + PI, TAU) - PI
+			bank_in = clampf(-2.0 * d, -1.0, 1.0)
+			var toward := clampf(atan2(cz - float(p[2]), _hypot(cx - float(p[0]), cy - float(p[1]))), -pitch_max, pitch_max) if hz > 0.0 else 0.0
+			lift_in = clampf(3.0 * (toward - float(e.get("pitch", 0.0))), -1.0, 1.0)
+	# the assist: slow, an arcade craft's nose will not come up (it is eased down below, and it never stalls)
+	var assist = r.get("assist") if r.get("assist") == "arcade" or r.get("assist") == "sim" else null
+	var guarded: bool = assist == "arcade" and not on_ground and lifts and grav and v < v_stall * 1.2
+	if guarded and lift_in > 0.0:
+		lift_in = 0.0
 	var stalled := false
 	if on_ground and v < v_takeoff:
 		e["heading"] = fmod(float(e["heading"]) - bank_in * _num(r, "taxiTurn", 1.1) * minf(1.0, v / v_takeoff) * dt, TAU)
@@ -1120,11 +1171,16 @@ static func fly(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, worl
 		e["pitch"] = pt - clampf(pt, -pitch_rate * dt, pitch_rate * dt)
 	else:
 		e["bank"] = clampf(float(e.get("bank", 0.0)) + bank_in * bank_rate * dt, -bank_max, bank_max)
-		if bank_in == 0.0:
-			e["bank"] = float(e["bank"]) - clampf(float(e["bank"]), -level_rate * dt, level_rate * dt)
-		e["heading"] = fmod(float(e["heading"]) - (G / maxf(v, v_stall)) * tan(float(e["bank"])) * dt, TAU)
-		e["pitch"] = clampf(float(e.get("pitch", 0.0)) + _in(input, "lookDY") * look_sens + _in(input, "lift") * pitch_rate * dt, -pitch_max, pitch_max)
-		if not on_ground and v < v_stall:
+		if bank_in == 0.0 and assist != "sim":
+			var lr := level_rate * (2.0 if assist == "arcade" else 1.0)
+			e["bank"] = float(e["bank"]) - clampf(float(e["bank"]), -lr * dt, lr * dt)
+		var turn: float = (G / maxf(v, v_stall)) * tan(float(e["bank"])) if lifts else _num(r, "turnRate", 1.2) * float(e["bank"]) / bank_max
+		e["heading"] = fmod(float(e["heading"]) - turn * dt, TAU)
+		var warned: bool = r.get("bound") is Dictionary and float(e.get("boundT", 0.0)) > _num(r["bound"], "warn", 5.0)
+		e["pitch"] = clampf(float(e.get("pitch", 0.0)) + (0.0 if warned else _in(input, "lookDY") * look_sens) + lift_in * pitch_rate * dt, -pitch_max, pitch_max)
+		if guarded and float(e["pitch"]) > -0.05:
+			e["pitch"] = float(e["pitch"]) - minf(0.5 * pitch_rate * dt, float(e["pitch"]) + 0.05)
+		if not on_ground and lifts and grav and v < v_stall and assist != "arcade":
 			stalled = true
 			e["pitch"] = maxf(-pitch_max, float(e["pitch"]) - _num(r, "stallDrop", 0.8) * dt)
 	var path_pitch := 0.0 if (on_ground and v < v_takeoff) else float(e.get("pitch", 0.0))
@@ -1132,7 +1188,7 @@ static func fly(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, worl
 	p[0] = float(p[0]) + dir[0] * v * dt
 	p[1] = float(p[1]) + dir[1] * v * dt
 	var vz: float = 0.0 if (on_ground and path_pitch <= 0.0) else dir[2] * v
-	if not on_ground and stalled:
+	if not on_ground and stalled and grav:
 		vz -= _num(r, "sinkRate", 6.0) * (1.0 - v / v_stall)
 	p[2] = float(p[2]) + vz * dt
 	var airborne: bool
@@ -1153,7 +1209,30 @@ static func fly(e: Dictionary, r: Dictionary, input: Dictionary, dt: float, worl
 	e["climbRate"] = vz if airborne else 0.0
 	e["stallStart"] = stalled and not _truthy(e.get("stalled"))
 	e["stalled"] = stalled
-	e["tilt"] = {"pitch": float(e.get("pitch", 0.0)) if airborne else 0.0, "roll": float(e.get("bank", 0.0))}
+	# the barrel roll (opt-in): a strafe press rolls the craft a full turn over `time` s, carrying it `side` m that way,
+	# untouchable while it rolls
+	var spin := 0.0
+	if _truthy(r.get("roll")) and airborne:
+		var R: Dictionary = r["roll"] if r["roll"] is Dictionary else {}
+		var T := _num(R, "time", 0.7)
+		var s_in := signf(_in(input, "strafe"))
+		if float(e.get("rollCd", 0.0)) > 0.0:
+			e["rollCd"] = maxf(0.0, float(e["rollCd"]) - dt)
+		if not (float(e.get("rollT", 0.0)) > 0.0) and s_in != 0.0 and not _truthy(e.get("strafePrev")) and not (float(e.get("rollCd", 0.0)) > 0.0):
+			e["rollT"] = T
+			e["rollDir"] = s_in
+			e["rollCd"] = _num(R, "cooldown", 1.5)
+		if float(e.get("rollT", 0.0)) > 0.0:
+			var stp := minf(dt, float(e["rollT"]))
+			var side := _num(R, "side", 30.0) / T
+			p[0] = float(p[0]) + sin(float(e["heading"])) * float(e["rollDir"]) * side * stp
+			p[1] = float(p[1]) - cos(float(e["heading"])) * float(e["rollDir"]) * side * stp
+			e["rollT"] = float(e["rollT"]) - stp
+			spin = float(e["rollDir"]) * 2.0 * PI * (1.0 - maxf(0.0, float(e["rollT"])) / T)
+		e["rolling"] = float(e.get("rollT", 0.0)) > 0.0
+		e["invincible"] = e["rolling"]
+		e["strafePrev"] = s_in != 0.0
+	e["tilt"] = {"pitch": float(e.get("pitch", 0.0)) if airborne else 0.0, "roll": float(e.get("bank", 0.0)) + spin}
 	e["locomotion"] = "fly" if airborne else "taxi"
 	e["gaitPhase"] = float(e.get("gaitPhase", 0.0)) + (0.2 + throttle) * _num(r, "propRate", 3.0) * dt
 	e["moving"] = v > 1e-3
