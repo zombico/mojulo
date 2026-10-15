@@ -21,7 +21,7 @@ import { ADORNS, ORB_ADORNS } from './mascot-adorn.js';
 
 export const MAX_ATTEMPTS = 8;
 /** The facets, in the order their dice are thrown: a new facet goes last, so an older seed throws the older ones alike. */
-export const MASCOT_KEYS = Object.freeze(['promise', 'form', 'accent', 'eyes', 'hook', 'extremities', 'energy', 'hue', 'being', 'skin', 'expression', 'adorn']);
+export const MASCOT_KEYS = Object.freeze(['promise', 'form', 'accent', 'eyes', 'hook', 'extremities', 'energy', 'hue', 'being', 'skin', 'expression', 'adorn', 'style']);
 
 /** Channel id → what a note there says. In the order a sheet prints them. */
 export const MASCOT_CHANNELS = Object.freeze({
@@ -136,6 +136,7 @@ export const SKINS = Object.freeze({
 /** The face at rest (mascot-face.js EXPRESSION_FACE): the clips make the others. */
 export const EXPRESSIONS = Object.freeze({
   happy: v('happy', { face: 'at rest: a smile, the eyes open' }, {}),
+  joy: v('beaming', { face: 'at rest: the eyes shut in two happy arcs, a wide smile' }, {}),
   grin: v('grinning', { face: 'at rest: a wide open grin' }, {}),
   content: v('content', { face: 'at rest: a closed smile, the lids a little down' }, {}),
   determined: v('determined', { face: 'at rest: the brows down at the middle, the mouth set' }, {}),
@@ -146,6 +147,19 @@ export const EXPRESSIONS = Object.freeze({
   sleepy: v('sleepy', { face: 'at rest: the lids heavy, the mouth closed' }, {}),
 });
 
+/** The STYLE the laws are read in (docs/mascot.md, Anime SD): the western toon, or anime super-deformed. */
+export const STYLES = Object.freeze({
+  toon: v('a western toon', {}, {}),
+  anime: v('anime, super-deformed', {
+    frame: 'super-deformed: about two heads, the head wider than tall, a tiny soft body, small round hands and feet',
+    face: 'anime eyes: huge, set low and wide, a coloured iris, two glints, a heavy upper lash; a dot for a nose, a tiny mouth, a blush',
+    palette: 'pastel: the colours softened and lightened',
+  }, {}),
+});
+
+/** what the anime style leans when it is asked for (S3, S5): open, bright faces; the ahoge (a tuft) as the hook */
+const STYLE_LEAN = Object.freeze({ expression: { happy: 3, joy: 3, grin: 2, surprised: 2, content: 0.4, determined: 0.5, sleepy: 0.3 }, hook: { tuft: 5, ears: 1.5 } });
+
 /** The hues a mascot owns: the body colour. Saturated and value-separated by design (law 7). */
 export const HUES = Object.freeze({
   red: '#e0302c', orange: '#f08a1c', yellow: '#f6cf2a', green: '#4fb848', teal: '#25b3b0', blue: '#1f5fd6',
@@ -153,7 +167,7 @@ export const HUES = Object.freeze({
 });
 
 const ADORN_READS = Object.fromEntries(Object.entries(ADORNS).map(([k, a]) => [k, v(a.reads, a.at ? { silhouette: a.note } : {}, {})]));
-const TABLES = { adorn: ADORN_READS, promise: PROMISES, form: FORMS, accent: ACCENTS, eyes: EYES, hook: HOOKS, extremities: EXTREMITIES, energy: ENERGIES, hue: HUES, being: BEINGS, skin: SKINS, expression: EXPRESSIONS };
+const TABLES = { style: STYLES, adorn: ADORN_READS, promise: PROMISES, form: FORMS, accent: ACCENTS, eyes: EYES, hook: HOOKS, extremities: EXTREMITIES, energy: ENERGIES, hue: HUES, being: BEINGS, skin: SKINS, expression: EXPRESSIONS };
 const KNOWN = Object.fromEntries(Object.entries(TABLES).map(([k, t]) => [k, Object.keys(t)]));
 
 /** The seed's priors before a promise leans them: weights per value (an absent value weighs 0). */
@@ -168,8 +182,9 @@ export const PRIORS = Object.freeze({
   hue: Object.fromEntries(Object.keys(HUES).map((h) => [h, 1])),
   being: { critter: 3, human: 1 },
   skin: Object.fromEntries(Object.keys(SKINS).map((k) => [k, 1])),
-  expression: { happy: 2, grin: 1.5, content: 1.5, determined: 1, smirk: 1, surprised: 1, sad: 0.3, angry: 0.3, sleepy: 0.5 },
+  expression: { happy: 2, joy: 0.75, grin: 1.5, content: 1.5, determined: 1, smirk: 1, surprised: 1, sad: 0.3, angry: 0.3, sleepy: 0.5 },
   adorn: { none: 1.5, collar: 1, scarf: 1, bow: 1, belt: 1, medal: 0.5, bandana: 1, pack: 1, bands: 1 },
+  style: { toon: 3, anime: 1 },
 });
 
 /** Incoherent rolls: drawn again unless every facet in `on` was asked for. A table to grow at the eyes gate. */
@@ -197,9 +212,9 @@ export const MASCOT_LEXICON = Object.freeze({
   // a real species (the fauna roster), by its id, its spoken name or an everyday one: its card decides the rest
   // (mascot-animals.js); a word below that is also a species' wins
   ...ANIMAL_WORDS,
-  // the tuning's own words: they ask for a mascot and decide nothing else ('cute' and 'kawaii' are read but ask for
-  // nothing: a cute knight is a person; 'chibi' is the hero door's cast word)
-  'mascot': {}, 'cartoon': {}, 'cartoony': {}, 'cartoonish': {}, 'toon': {}, 'toony': {}, 'cute': {}, 'kawaii': {},
+  // the tuning's own words: they ask for a mascot and decide nothing else ('cute' is read but asks for nothing: a cute
+  // knight is a person); the anime style's words (chibi, sd, kawaii) ask for one too
+  'mascot': {}, 'cartoon': {}, 'cartoony': {}, 'cartoonish': {}, 'toon': {}, 'toony': {}, 'cute': {},
   'platformer': {}, 'plushie': { promise: 'comfort' }, 'plush': { promise: 'comfort' },
   'team mascot': { promise: 'pride' }, 'sports mascot': { promise: 'pride' }, 'school mascot': { promise: 'pride' },
   // familiar names, as styles
@@ -244,6 +259,10 @@ export const MASCOT_LEXICON = Object.freeze({
   'determined': { expression: 'determined' }, 'serious': { expression: 'determined' }, 'smug': { expression: 'smirk' }, 'smirking': { expression: 'smirk' },
   'surprised': { expression: 'surprised' }, 'amazed': { expression: 'surprised' }, 'sad': { expression: 'sad' }, 'gloomy': { expression: 'sad' },
   'angry': { expression: 'angry' }, 'grumpy': { expression: 'angry' }, 'drowsy': { expression: 'sleepy' },
+  // the style (anime super-deformed): these ask for a mascot too
+  'anime': { style: 'anime' }, 'manga': { style: 'anime' }, 'chibi': { style: 'anime', form: 'sprout' }, 'sd': { style: 'anime', form: 'sprout' },
+  'super-deformed': { style: 'anime', form: 'sprout' }, 'moe': { style: 'anime' }, 'kawaii': { style: 'anime' }, 'beaming': { expression: 'joy' },
+  'western': { style: 'toon' },
   // the signature piece (mascot-adorn.js)
   'collar': { adorn: 'collar' }, 'bell': { adorn: 'collar' }, 'scarf': { adorn: 'scarf' }, 'bow': { adorn: 'bow' }, 'ribbon': { adorn: 'bow' },
   'belt': { adorn: 'belt' }, 'champion': { adorn: 'belt' }, 'medal': { adorn: 'medal' }, 'bandana': { adorn: 'bandana' }, 'kerchief': { adorn: 'bandana' },
@@ -253,7 +272,7 @@ export const MASCOT_LEXICON = Object.freeze({
 });
 
 /** The words that ask for the mascot tuning (any word of the lexicon but a bare colour or shape word). */
-const ASKING = new Set(['mascot', 'cartoon', 'cartoony', 'cartoonish', 'toon', 'toony', 'platformer', 'plushie', 'plush',
+const ASKING = new Set(['mascot', 'cartoon', 'cartoony', 'cartoonish', 'toon', 'toony', 'chibi', 'sd', 'super-deformed', 'kawaii', 'platformer', 'plushie', 'plush',
   'team mascot', 'sports mascot', 'school mascot', 'sonic-like', 'sonic', 'kirby-like', 'kirby', 'mario-like', 'mario', 'yoshi-like', 'yoshi', 'pikachu-like', 'pikachu']);
 const PHRASE_MAX = Math.max(...Object.keys(MASCOT_LEXICON).map((k) => k.split(' ').length));
 const FILLER = new Set(['a', 'an', 'the', 'who', 'and', 'of', 'with', 'is', 'like', 'that', 'in', 'to', 'but', 'very', 'character', 'for', 'my', 'game']);
@@ -313,6 +332,8 @@ function throwDice(rand, given) {
     let w = leaned(k, promise);
     // the orb has no neck, waist or wrists: its piece is a bow or nothing (the die still throws once)
     if (k === 'adorn' && (given.form ?? f.form) === 'orb') w = Object.fromEntries(Object.entries(w).filter(([a]) => ORB_ADORNS.includes(a)));
+    // an anime mascot asked for (its style die is thrown last) rests open and bright, and wears the ahoge as its hook
+    if (given.style === 'anime' && STYLE_LEAN[k]) w = Object.fromEntries(Object.entries(w).map(([val, x]) => [val, x * (STYLE_LEAN[k][val] ?? 1)]));
     f[k] = pick(rand, w);
   }
   return f;
@@ -326,6 +347,7 @@ function sources(f) {
     { from: `promise.${f.promise}`, ...PROMISES[f.promise] }, { from: `form.${f.form}`, ...FORMS[f.form] },
     { from: `eyes.${f.eyes}`, ...EYES[f.eyes] }, { from: `hook.${f.hook}`, ...HOOKS[f.hook] }, { from: `accent.${f.accent}`, ...ACCENTS[f.accent] },
     { from: `extremities.${f.extremities}`, ...EXTREMITIES[f.extremities] }, { from: `energy.${f.energy}`, ...ENERGIES[f.energy] },
+    ...(f.style === 'anime' ? [{ from: 'style.anime', ...STYLES.anime }] : []),
     { from: `being.${f.being}`, ...BEINGS[f.being] }, { from: `expression.${f.expression}`, ...EXPRESSIONS[f.expression] }, { from: `adorn.${f.adorn}`, ...ADORN_READS[f.adorn] },
   ];
 }
@@ -388,7 +410,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     given: [...MASCOT_KEYS.filter((k) => k in named), ...(card ? ['animal'] : [])],
     accord,
     ...(card ? { animal: card } : {}),   // the resolved card, kept by value: its kit is what the body draws
-    reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
+    reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}${f.style === 'anime' ? ', drawn anime super-deformed' : ''}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
     notes, derives,
     unread: { words: fromBrief.unread },
     faults: broken.map((x) => ({ id: x.id, why: x.why, held: x.on.every((k) => asked.has(k)) })),

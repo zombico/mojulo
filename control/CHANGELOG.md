@@ -79,6 +79,16 @@ asymmetric life; it only needs to animate), and how a mascot differs from the Eg
   to the piece and the idle, order to the accent, build to the form, ancestry to a skin or an animal), on the person's
   own seed. The output carries a model sheet (thesis, swatches, what names it, its piece, faces and clips, each law with
   its choice), and the cube's preview is its turnaround: front, three-quarter, side, back.
+- **The anime style, super-deformed** (laws S1–S7 in `docs/mascot.md`): the `style` facet (`toon` or `anime`), asked
+  for by `anime`, `chibi`, `sd`, `super-deformed`, `kawaii`, `moe`, `manga`. It brings:
+  - a bigger, wider head on a shorter body;
+  - small soft hands and feet;
+  - the anime eye: low and wide, a coloured iris, the pupil low in it, two glints, a heavy lash;
+  - a dot nose, a tiny mouth and a blush;
+  - a person's hair as a cap with a fringe and side locks, and the ahoge as the leaned hook;
+  - pastel colours and open, bright rest faces.
+
+  A new `joy` expression (the eyes shut in happy arcs) is a clip for every mascot.
 - Gates: machine, the mascot tests (the laws as numbers: heads tall by form, eye size and height, the accent's hook,
   the palette's accord, every hook and form compiling, every energy's idle posed with planted feet; the face's parts
   and chains, each expression's channels from the rest face, the blink shutting the lids, the smirk at rest, the mouth on

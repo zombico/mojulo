@@ -78,3 +78,29 @@ describe('the egocube\'s mascot output: a person made as its mascot', () => {
     expect(mascotPlanFromSheet(rollMascot({ brief: 'kirby-like' })).create.as).toBe('creature');
   });
 });
+
+describe('the anime style: super-deformed (S1–S7)', () => {
+  const plan = (brief, facets = {}) => mascotPlan(rollMascot({ brief, facets })).plan;
+  it('is asked for by its words and draws the anime eye: an iris, two glints, a lash', () => {
+    const sheet = rollMascot({ brief: 'a chibi cat mascot' });
+    expect(sheet.facets).toMatchObject({ style: 'anime', form: 'sprout', animal: 'houseCat' });
+    const names = plan('a chibi cat mascot').segments.map((x) => x.name);
+    expect(names).toEqual(expect.arrayContaining(['irisR', 'glintR', 'glint2R', 'lashR', 'cheekR']));
+    expect(names).not.toContain('eyeR' + 'x');
+  });
+  it('sets the eyes lower and the feet smaller than the toon does, and softens the colours', () => {
+    const toon = mascotPlan(rollMascot({ facets: { form: 'sprout', hook: 'none', hue: 'blue', style: 'toon' } })), anime = mascotPlan(rollMascot({ facets: { form: 'sprout', hook: 'none', hue: 'blue', style: 'anime' } }));
+    const eyeZ = (P) => P.plan.segments.find((x) => x.name === 'eyeR').stations[1].at[2] - P.H.C[2];
+    expect(eyeZ(anime)).toBeLessThan(eyeZ(toon));
+    const shoe = (P) => P.plan.segments.find((x) => x.name === 'shoeR').stations[5].r[0];
+    expect(shoe(anime)).toBeLessThan(shoe(toon));
+    const lum = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)).reduce((a, b) => a + b, 0);
+    expect(lum(anime.plan.palette.Body)).toBeGreaterThan(lum(toon.plan.palette.Body));
+  });
+  it('draws an anime person\'s hair as locks and rests the face open', () => {
+    const names = plan('a chibi girl mascot', { hook: 'tuft' }).segments.map((x) => x.name);
+    expect(names).toEqual(expect.arrayContaining(['hair', 'fringe0', 'fringe1R', 'sideLockR', 'tuft', 'nose']));
+    const rests = [1, 2, 3, 4, 5, 6, 7, 8].map((seed) => rollMascot({ brief: 'a chibi mascot', seed }).facets.expression);
+    expect(rests.filter((e) => ['happy', 'joy', 'grin', 'surprised'].includes(e)).length).toBeGreaterThan(4);
+  });
+});

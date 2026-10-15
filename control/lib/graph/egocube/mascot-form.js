@@ -45,6 +45,11 @@ export const EYE_FORMS = Object.freeze({
   joined: Object.freeze({ az: 11, el: 3, w: 0.22, h: 0.29, pupil: Object.freeze([0.085, 0.17]), nudge: 2.5, glint: 0.036 }),
   dots: Object.freeze({ az: 21, el: 3, w: 0, h: 0, pupil: Object.freeze([0.072, 0.1]), nudge: 0, glint: 0.032 }),
 });
+/** the ANIME eye (style: anime, S3): huge, low and wide; a coloured iris filling it, the pupil low in the iris, a big glint
+ *  up and out and a small one down and in, a heavy lash along its top. Pair and joined eyes both draw it; dots stay dots. */
+export const ANIME_EYE = Object.freeze({ az: 23, el: -9, w: 0.17, h: 0.28, iris: Object.freeze([0.15, 0.25]), pupil: Object.freeze([0.075, 0.13]), nudge: -1, glint: 0.075, glint2: 0.035, anime: true });
+const eyeForm = (f) => (f.style === 'anime' && f.eyes !== 'dots' ? ANIME_EYE : EYE_FORMS[f.eyes]);
+
 /** the limbs' radius as a share of the hand's (law 6: rubber hose against mitts) */
 const LIMB_OF_HAND = Object.freeze({ nubs: 0.62, gloves: 0.36, paws: 0.5 });
 /** the hand's size by extremities (gloves over-size it) */
@@ -61,6 +66,8 @@ function measuresOf(sheet) {
     else k[key] *= 1 + s * STEP;
   }
   if (f.hook === 'snout') k.lift += 2;   // the eyes climb above a snout
+  // S1, S2 (anime super-deformed): a bigger head on a shorter, softer body; small round hands and small feet
+  if (f.style === 'anime') { k.head *= 1.08; k.legs *= 0.75; k.arms *= 0.8; k.body *= 0.9; k.hands *= 0.85; k.feet *= 0.72; }
   M.headR *= k.head; M.bodyR *= k.body; M.bodyH *= k.body; M.leg *= k.legs; M.arm *= k.arms;
   M.hand *= k.hands * HAND_SCALE[f.extremities]; M.foot = M.foot.map((x) => x * k.feet);
   return { M, k };
@@ -94,14 +101,18 @@ const piece = (accent) => ({ Adorn: accent, Pack: hsl(accent, ([h, s, l]) => [h,
  *  wheel (contrast), white gloves, the eyes unlit (Sclera, Pupil). */
 export function mascotPalette(sheet, k = { saturation: 0, value: 0 }) {
   const f = sheet.facets, grey = f.hue === 'white';
-  const body = hsl(HUES[f.hue], ([h, s, l]) => [h, clamp(s + 0.08 * k.saturation, 0, 1), clamp(l + 0.06 * k.value, 0.12, 0.92)]);
+  // S6: an anime mascot's colours are pastel, softened and lightened
+  const pastel = f.style === 'anime' ? ([h, s, l]) => [h, s * 0.78, clamp(l + 0.14, 0, 0.82)] : (x) => x;
+  const body = hsl(HUES[f.hue], ([h, s, l]) => pastel([h, clamp(s + 0.08 * k.saturation, 0, 1), clamp(l + 0.06 * k.value, 0.12, 0.92)]));
   const accent = grey ? (sheet.accord === 'harmony' ? '#f28fb4' : '#e0302c')
     : sheet.accord === 'harmony' ? hsl(body, ([h, s, l]) => [(h + 18) % 360, clamp(s + 0.08, 0, 1), clamp(l - 0.14, 0.2, 0.8)])
       : hsl(body, ([h, s]) => [(h + 165) % 360, clamp(Math.max(s, 0.72), 0, 1), 0.5]);
   const belly = f.hue === 'yellow' ? mix(body, '#fff4cf', 0.55) : grey ? mix(body, CREAM, 0.3) : mix(CREAM, body, 0.12);
   const human = f.being === 'human', skin = SKINS[f.skin] ?? SKINS.peach;
   // the face's own: a dark mouth, a warm tongue; the brows dark (a person's in the hair's colour)
-  const face = { Mouth: '#3a1622', Tongue: '#e8707a', Brow: human ? hsl(skin.hair, ([h, s, l]) => [h, s, clamp(l - 0.05, 0.08, 0.5)]) : hsl(body, ([h, s, l]) => [h, s * 0.6, clamp(l - 0.32, 0.1, 0.35)]) };
+  // the iris (anime eyes, S3) in the body's hue made deep; the lash ink
+  const eyesOf = { Iris: hsl(HUES[f.hue] ?? body, ([h]) => [h, 0.62, 0.4]), Ink: '#1c1420', ...(f.style === 'anime' ? { Cheek: '#f49aa8' } : {}) };
+  const face = { ...eyesOf, Mouth: '#3a1622', Tongue: '#e8707a', Brow: human ? hsl(skin.hair, ([h, s, l]) => [h, s, clamp(l - 0.05, 0.08, 0.5)]) : hsl(body, ([h, s, l]) => [h, s * 0.6, clamp(l - 0.32, 0.1, 0.35)]) };
   // a person: skin and hair as given, the hue on the shirt, the accent (or its darker self) on the trousers
   if (human) return {
     Skin: skin.skin, Nose: hsl(skin.skin, ([h, s, l]) => [(h + 352) % 360, clamp(s + 0.12, 0, 1), clamp(l - 0.04, 0, 1)]), Hair: skin.hair, Body: body,
@@ -195,7 +206,8 @@ function ballTrunk(name, cz, rz, rx, ry, n, group, bind) {
 /** The ring plan: { plan, H, height }. */
 export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
   const f = sheet.facets, { M, k } = measuresOf(sheet), orb = f.form === 'orb';
-  const wx = 1 + 0.05 * Math.round(Math.log(k.width) / Math.log(1 + STEP));   // a wide promise widens the head and the body
+  // a wide promise widens the head and the body; an anime head is wider than tall (S1)
+  const wx = (1 + 0.05 * Math.round(Math.log(k.width) / Math.log(1 + STEP))) * (f.style === 'anime' ? 1.07 : 1);
   // ── the vertical layout: soles on z = 0 ──
   // an animal (mascot-animals.js): its kit is drawn in place of the hook, its coat in place of the hue
   const A = sheet.animal ?? null, K = A?.kit ?? {};
@@ -219,7 +231,7 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     toeBase: [hipX, r4(fl * 0.3), r4(fh * 0.9)], toeTip: [hipX, r4(fl * 0.85), r4(fh * 0.8)],
     shoulder: sh, elbow: V(elbow), wrist: V(wrist), knuckles: V(knuckles),
   };
-  const hand = M.hand, limb = hand * LIMB_OF_HAND[f.extremities] * (A?.limbs ?? 1), legR = orb ? limb * 0.9 : limb * 1.15;
+  const hand = M.hand, limb = hand * Math.max(LIMB_OF_HAND[f.extremities], f.style === 'anime' ? 0.6 : 0) * (A?.limbs ?? 1), legR = orb ? limb * 0.9 : limb * 1.15;
   const human = f.being === 'human', gloves = f.extremities === 'gloves';
   // the groups: a critter is its body's colour all over; a person is skin, a shirt in the hue, trousers, hair
   const G = human ? { head: 'Skin', body: 'Body', leg: 'Bottom', upperArm: 'Body', foreArm: gloves ? 'Body' : 'Skin', hand: 'Glove', fur: 'Hair', face: 'Skin' }
@@ -252,7 +264,9 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     K.arms ? shape('handR', V(sub(wrist, mul(armDir, hand * 1.4))), V(add(wrist, mul(armDir, hand * (K.arms === 'wing' ? 2.8 : 2.3)))), [r4(hand * 1.25), r4(hand * 0.45)], 'egg', { group: G.hand, bind: 'handR' })
       : shape('handR', V(sub(wrist, mul(armDir, hand * 0.4))), V(add(wrist, mul(armDir, hand * 2))), r4(hand), 'ball', { group: G.hand, bind: 'handR' }),
     ...eyes(f, H, k, K),
-    ...(f.eyes === 'dots' || human ? [lens('cheekR', H, 44, -24, human ? 0.11 : 0.13, human ? 0.08 : 0.11, 0.006, 'Cheek', headBind)] : []),
+    // the blush: dot eyes and people wear it, and every anime face (S4), wide and low under the eyes
+    ...(f.style === 'anime' ? [lens('cheekR', H, 36, -24, 0.15, 0.075, 0.006, 'Cheek', headBind)]
+      : f.eyes === 'dots' || human ? [lens('cheekR', H, 44, -24, human ? 0.11 : 0.13, human ? 0.08 : 0.11, 0.006, 'Cheek', headBind)] : []),
     ...(human ? personParts(f, H, { headBind }) : []),
     ...hooks,
     ...face.segments,
@@ -295,7 +309,7 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
 
 /** The R eye's centre and size, in head radii and degrees: what the lids and the brows are placed by. */
 function eyeOf(f, k) {
-  const X = EYE_FORMS[f.eyes], s = k.size, [pw, ph] = X.pupil.map((x) => x * s * k.pupil);
+  const X = eyeForm(f), s = k.size, [pw, ph] = X.pupil.map((x) => x * s * k.pupil);
   const az = X.az + 2.5 * k.gap, el = X.el + 7 * k.lift;
   return X.w ? { az, el, w: X.w * s, h: X.h * s, lidOut: 0.075 } : { az, el, w: pw * 1.15, h: ph * 1.15, lidOut: 0.06 };
 }
@@ -309,10 +323,12 @@ function faceOf(f, H, k, { headBind, orb, human, hooks, G, wide = false }) {
     const A = snout.caps.back, B = snout.caps.tip, C = A.map((x, i) => x + (B[i] - x) * 0.62), r = snout.stations[3].r;
     E = { C, rx: r[0] * 0.92, ry: Math.hypot(...B.map((x, i) => x - C[i])), rz: r[1] * 0.95 }; el = -38;
   }
-  const size0 = f.eyes === 'dots' ? [0.13, 0.085] : orb ? [0.15, 0.1] : [0.2, 0.13], size = wide ? [size0[0] * 2, size0[1] * 1.2] : size0;   // a frog's grin
+  const anime = f.style === 'anime';
+  if (anime && !snout) el = human ? -32 : -30;   // S4: the mouth tucked close under the low eyes
+  const size0 = anime ? [0.11, 0.075] : f.eyes === 'dots' ? [0.13, 0.085] : orb ? [0.15, 0.1] : [0.2, 0.13], size = wide ? [size0[0] * 2, size0[1] * 1.2] : size0;   // a frog's grin
   return buildFace({
     H, eye: eyeOf(f, k), mouth: { E, el, w: size[0], h: size[1] }, rest: f.expression, ride: headBind,
-    brows: { on: human || !(orb || f.eyes === 'dots'), h: f.accent === 'block' ? 0.045 : 0.032 },
+    brows: { on: human || !(orb || f.eyes === 'dots'), h: anime ? 0.02 : f.accent === 'block' ? 0.045 : 0.032, lift: anime ? 7 : 0 },   // anime brows: thin and high
     groups: { lid: G.head, lip: snout ? snout.group : G.face, brow: 'Brow' },
   });
 }
@@ -320,6 +336,7 @@ function faceOf(f, H, k, { headBind, orb, human, hooks, G, wide = false }) {
 /** A person's features (being: human): a nose in the accent's family, ears, and hair as one chunky form. */
 function personParts(f, H, { headBind }) {
   const R = H.rz, at = onHeadAt(H), b = f.accent === 'block', sp = f.accent === 'spike';
+  if (f.style === 'anime') return animePerson(f, H, { headBind, at, R, b });
   const nose = sp ? shape('nose', at(0, 0.85, -0.12), at(0, 1.22, -0.2), r4(0.11 * R), 'cone', { group: 'Nose', bind: headBind, tip: 0.2 })
     : shape('nose', at(0, 0.82, -0.14), at(0, 1.2, -0.16), r4(0.15 * R), b ? 'egg' : 'ball', { group: 'Nose', bind: headBind, e: b ? 4 : undefined });
   const ear = shape('humanEarR', at(0.86, -0.04, -0.08), at(1.12, -0.12, -0.02), [r4(0.1 * R), r4(0.16 * R)], 'ball', { group: 'Skin', bind: headBind });
@@ -332,9 +349,30 @@ function personParts(f, H, { headBind }) {
   return [nose, ear, ...hair];
 }
 
+/** An ANIME person (S4, S5): a dot of a nose, small ears, and the hair as chunky locks: the cap of hair, a fringe of
+ *  locks over the forehead and a lock down each side of the face (the ahoge, the one lock that stands up, is the hook) */
+function animePerson(f, H, { headBind, at, R, b }) {
+  const g = { group: 'Hair', bind: headBind };
+  const nose = shape('nose', at(0, 0.9, -0.16), at(0, 1.05, -0.17), r4(0.05 * R), 'ball', { group: 'Nose', bind: headBind });
+  const ear = shape('humanEarR', at(0.88, -0.04, -0.12), at(1.06, -0.1, -0.08), [r4(0.07 * R), r4(0.12 * R)], 'ball', { group: 'Skin', bind: headBind });
+  if (f.hook === 'cap') return [nose, ear];
+  const cap = { name: 'hair', kind: 'trunk', mirror: 'plane', group: 'Hair', bind: headBind,
+    stations: Array.from({ length: 13 }, (_, i) => { const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / 13, rz = H.rz * 1.07;
+      return { z: r4(H.C[2] + 0.12 * H.rz + rz * Math.sin(a)), yc: r4(-0.14 * H.ry), r: [r4(H.rx * 1.08 * Math.cos(a)), r4(H.ry * 1.05 * Math.cos(a))], ...(b ? { e: 3 } : {}) }; }),
+    caps: { back: [0, r4(-0.14 * H.ry), r4(H.C[2] + 0.12 * H.rz - H.rz * 1.07)], tip: [0, r4(-0.14 * H.ry), r4(H.C[2] + 0.12 * H.rz + H.rz * 1.07)] } };
+  const tip = b ? 0.5 : 0.08, prof = b ? 'egg' : 'cone';
+  const fringe = [
+    shape('fringe0', at(0, 0.55, 0.82), at(0, 1.02, 0.36), r4(0.2 * R), prof, { ...g, tip }),
+    shape('fringe1R', at(0.3, 0.5, 0.8), at(0.36, 0.98, 0.3), r4(0.19 * R), prof, { ...g, tip }),
+    shape('fringe2R', at(0.58, 0.38, 0.7), at(0.68, 0.78, 0.22), r4(0.18 * R), prof, { ...g, tip }),
+    shape('sideLockR', at(0.82, 0.2, 0.38), at(0.9, 0.32, -0.55), r4(0.17 * R), prof, { ...g, tip }),
+  ];
+  return [nose, ear, cap, ...fringe];
+}
+
 /** The eyes (law 4): the white, the pupil turned a little toward the nose, one glint up and out. */
 function eyes(f, H, k, K = {}) {
-  const X = EYE_FORMS[f.eyes], s = k.size, az = X.az + 2.5 * k.gap, el = X.el + 7 * k.lift, bind = f.form === 'orb' ? 'torso' : 'head';
+  const X = eyeForm(f), s = k.size, az = X.az + 2.5 * k.gap, el = X.el + 7 * k.lift, bind = f.form === 'orb' ? 'torso' : 'head';
   const out = [];
   // the marks the eyes sit in, behind the white: a panda's patches, a raccoon's mask, an owl's pale dishes
   const w = X.w || X.pupil[0] * 1.6, h = X.h || X.pupil[1] * 1.4;
@@ -344,7 +382,17 @@ function eyes(f, H, k, K = {}) {
   if (X.w) out.push(lens('eyeR', H, az, el, X.w * s, X.h * s, 0.004, 'Sclera', bind));
   const pz = X.w ? 0.022 : 0.006, [pw, ph] = X.pupil.map((x) => x * s * k.pupil), deg = 180 / Math.PI;
   const paz = az + X.nudge, pel = X.w ? el - 1.5 : el;
-  if (K.eyes === 'disc' && X.w) out.push(lens('irisR', H, az + X.nudge * 0.5, el - 1, X.w * s * 0.8, X.h * s * 0.72, 0.012, 'Iris', bind));
+  if (K.eyes === 'disc' && X.w && !X.anime) out.push(lens('irisR', H, az + X.nudge * 0.5, el - 1, X.w * s * 0.8, X.h * s * 0.72, 0.012, 'Iris', bind));
+  if (X.anime) {
+    // S3: the iris fills the eye, the pupil sits low in it, two glints, the lash heavy along the top
+    const d = 180 / Math.PI, [iw, ih] = X.iris.map((x) => x * s);
+    out.push(lens('irisR', H, az + X.nudge, el - 1.5, iw, ih, 0.012, 'Iris', bind));
+    out.push(lens('pupilR', H, az + X.nudge, el - 4, pw, ph, 0.022, 'Pupil', bind));
+    out.push(lens('glintR', H, az + X.nudge + 0.45 * iw * d, el + 0.35 * ih * d, X.glint * s, X.glint * s * 1.15, 0.042, 'Sclera', bind));
+    out.push(lens('glint2R', H, az + X.nudge - 0.35 * iw * d, el - 0.45 * ih * d, X.glint2 * s, X.glint2 * s, 0.042, 'Sclera', bind));
+    out.push(lens('lashR', H, az + 1.5, el + 0.92 * X.h * s * d, X.w * s * 1.18, 0.05 * s, 0.03, 'Ink', bind));
+    return out;
+  }
   out.push(lens('pupilR', H, paz, pel, pw, ph, pz, 'Pupil', bind));
   out.push(lens('glintR', H, paz + 0.3 * pw * deg, pel + 0.35 * ph * deg, X.glint * s, X.glint * s, pz + 0.02, 'Sclera', bind));
   return out;
@@ -520,6 +568,7 @@ function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper }) {
     happy: { ...READY, crouch: 0.06, armL: { x: -0.7, y: 0.25, z: -0.55 }, armR: { x: 0.7, y: 0.25, z: -0.55 } },
     grin: { ...READY, armL: { x: -0.8, y: 0.2, z: -0.4 }, armR: { x: 0.8, y: 0.2, z: -0.4 } },
     content: { ...READY, head: { x: 0.15, y: 0.05, z: 1 } },
+    joy: { ...READY, crouch: 0.08, armL: { x: -0.7, y: 0.3, z: -0.45 }, armR: { x: 0.7, y: 0.3, z: -0.45 } },
     determined: { ...READY, crouch: 0.14, armL: { x: -0.35, y: 0.75, z: -0.4 }, armR: { x: 0.35, y: 0.75, z: -0.4 }, elbowL: 'half', elbowR: 'half' },
     smirk: { ...READY, head: { x: -0.18, y: 0, z: 1 } },
     surprised: { ...READY, spine: { arch: 0.25 }, armL: { x: -0.75, y: 0.3, z: 0.35 }, armR: { x: 0.75, y: 0.3, z: 0.35 } },

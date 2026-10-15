@@ -32,7 +32,8 @@ describe('the mascot sheet', () => {
     expect(asksForMascot('a kirby-like blob')).toBe(true);
     expect(asksForMascot('a spiky blue thing')).toBe(false);
     expect(asksForMascot('a weary paladin')).toBe(false);
-    expect(asksForMascot('a cute chibi knight')).toBe(false);
+    expect(asksForMascot('a cute knight')).toBe(false);
+    expect(asksForMascot('a chibi knight')).toBe(true);   // the anime style's words ask for a mascot
   });
   it('fixing one facet never moves another (every die is thrown)', () => {
     const a = sheetOf({}, 9), b = sheetOf({ hue: a.facets.hue === 'red' ? 'blue' : 'red' }, 9);

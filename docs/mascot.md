@@ -154,6 +154,32 @@ holds the laws as numbers:
 Every amount is a first reading for the eyes gate, iterated in place with `update_character` patch ops. The sheet's
 ledger says where each note landed.
 
+## The anime style: super-deformed
+
+The laws hold in anime too, but anime SD (super-deformed, chibi) reads several of them its own way. The `style` facet
+picks it (`toon`, the western reading above, or `anime`). The words `anime`, `chibi`, `sd`, `super-deformed`,
+`kawaii`, `moe` and `manga` ask for it, and the last four ask for a mascot too.
+
+- **S1. Two heads, the head wider than tall:** a bigger head (×1.08, wider ×1.07) on a shorter body; the legs ×0.75,
+  the arms ×0.8.
+- **S2. Small, soft extremities**, where the toon has big ones: the hands ×0.85, the feet ×0.72, the limbs soft rather
+  than rubber hose. This is law 6 read the other way.
+- **S3. The eyes are everything.** They are huge, set low (below the head's middle) and wide. A coloured iris fills the
+  eye, the pupil sits low in it, a big glint is up and out and a small one down and in, and a heavy lash runs along the
+  top. There is no lower lid.
+- **S4. Almost nothing else:** a dot for a nose, a tiny mouth tucked close under the eyes, a wide soft blush, thin
+  brows set high.
+- **S5. A person's hair is locks:** the cap of hair, a fringe of locks over the forehead, a lock down each side of the
+  face. The ahoge (the single lock that stands up) is the anime hook; the style leans the hook to it.
+- **S6. Pastel:** the colours softened (saturation ×0.78) and lightened, with a soft pink blush.
+- **S7. Open, bright faces:** the style leans the rest face to happy, beaming, grinning or surprised. `joy` (beaming:
+  the eyes shut in happy arcs, the mouth wide) is an expression and a clip for every mascot, toon or anime.
+
+Any mascot can be anime: a critter, a person, an animal (`a chibi cat mascot`), with any adornment. For an anime hero
+in RPG proportions instead, the hero door has its own anime head and chibi build (`create_character({ as: 'hero' })`).
+One known gap: a lid turned down over the big anime eye shows as a skin-coloured bump; anime would draw it as the lash
+coming down.
+
 ## Smooth forms
 
 Law 8 asks for forms a toy maker could cast, and a faceted ball is not one. Every trunk is drawn on twenty-slot rings

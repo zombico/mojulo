@@ -32,6 +32,7 @@ const turnY = (v, a) => { const c = Math.cos(rad(a)), s = Math.sin(rad(a)); retu
  *  inner end drops; a side each when they differ). First readings for the eyes gate. */
 export const EXPRESSION_FACE = Object.freeze({
   happy: { lid: 0, lipU: 0.45, lipD: 0, brow: { lift: 4, tilt: -6 } },
+  joy: { lid: 1, lipU: 0.24, lipD: 0, brow: { lift: 7, tilt: -5 } },   // the eyes shut in happy arcs, the mouth wide (anime's ^ ^)
   grin: { lid: 0.12, lipU: 0.26, lipD: 0, brow: { lift: 6, tilt: -4 } },
   content: { lid: 0.38, lipU: 0.47, lipD: 0.47, brow: { lift: 0, tilt: -3 } },
   determined: { lid: 0.28, lipU: 0.5, lipD: 0.4, brow: { lift: -3, tilt: 14 } },
@@ -115,7 +116,7 @@ export function buildFace({ H, eye, mouth, brows, rest = 'happy', groups, ride }
   }
 
   // ── the brows ──
-  const browEl = eye.el + deg(Math.atan(eye.h * 1.25)) + 6, browW = Math.max(eye.w * 1.1, 0.1), browH = brows.h;
+  const browEl = eye.el + deg(Math.atan(eye.h * 1.25)) + 6 + (brows.lift ?? 0), browW = Math.max(eye.w * 1.1, 0.1), browH = brows.h;
   if (brows.on) {
     const restB = (S) => side(restF.brow, S) ?? { lift: 0, tilt: 0 };
     const u0 = dirOf(eye.az, browEl);
