@@ -396,10 +396,80 @@ export function reachTax(body, fam) {
   return Math.max(0, Math.round((reach - body.height * 0.48) / (body.height * 0.09)));
 }
 
+// ── the body behind a strike ─────────────────────────────────────────────────────────────────────────────────
+
+const KICK_LIMB = /^(toe|ankle|knee)([FB])$/, HAND_LIMB = /^(fist|elbow)([FB])$/;
+const sameKey = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// a knee bent by d degrees: the thigh forward, the shin back (the foot stays under it)
+const kneeBent = (leg, d) => [leg[0] + d, leg[1] - d * 1.6, ...leg.slice(2)];
+
+/**
+ * A standing strike's keys with the whole body behind them, so every family moves as a body and not as a limb:
+ *   a kick: THE KNEE LEADS. Its load is raised to a chamber at least the strike's height, the shin folded under it,
+ *     and after contact it re-chambers before the foot comes down (unless it swings `through`, or is a `straight`-leg
+ *     kick that rises with the knee locked). The trunk leans away from a high kick, the head kept on the target. The
+ *     weight comes over the standing leg (its foot under the hips, flat, the knee giving), the hips turn into the kick (a lead-leg kick opens the far hip forward, toward
+ *     the camera; a rear-leg kick turns them over, away from it), and a rear-leg kick swings its arm down against
+ *     the leg. A turn or an arm the family authored is kept; an authored standing leg keeps its line, bent at least
+ *     as far.
+ *   a punch: the drive is the body's, on top of whatever the arm does. The body coils back in the load; at the
+ *     strike its hips drive forward and down onto the bending lead knee, and a rear hand brings the back knee in and
+ *     its heel up.
+ * The side view changes with it (the boxes follow the body, as they follow every pose).
+ */
+export function strikeBody(fam, rest = POSES.guard) {
+  if (fam.stance !== 'stand') return fam;
+  const k = KICK_LIMB.exec(fam.limb), h = HAND_LIMB.exec(fam.limb);
+  if (!k && !h) return fam;
+  // a key the family left as a guard has it (the genre's or the fighter's own)
+  const left = (p, key) => p[key] === undefined || sameKey(p[key], rest[key]) || sameKey(p[key], POSES.guard[key]);
+  const load = { ...fam.load }, strike = { ...fam.strike };
+  let follow = fam.follow ? { ...fam.follow } : undefined;
+  if (k) {
+    const S = k[2], K = `leg${S}`, U = `leg${S === 'F' ? 'B' : 'F'}`;
+    const high = strike[K][0] >= 60 && k[1] !== 'knee';
+    if (high) {
+      // (a straight-leg kick, an axe kick, rises with the knee locked: no chamber to fold)
+      const t = Math.max(load[K][0], Math.min(strike[K][0] + 8, 125));
+      if (!fam.straight) load[K] = [t, Math.min(load[K][1], t - 115), load[K][2] ?? 90];
+      const lean = -0.32 * (strike[K][0] - 40), torso = strike.torso ?? 0;
+      if (torso < 30 && torso > lean) { strike.torso = lean; strike.head = Math.max(strike.head ?? torso, lean * 0.3); }
+      if (!fam.through && !fam.straight) {
+        if (!follow) follow = { ...load };
+        else if (follow[K][0] < t - 10) follow[K] = [t - 6, Math.min(follow[K][1], t - 120), follow[K][2] ?? 90];
+      }
+    }
+    // the weight comes over the standing leg: its foot under the hips, flat, the knee giving under the kick (an
+    // authored standing leg keeps its line, and gives at least as much)
+    const stand = (d) => [2 + d, -10 - d * 1.6, 92];
+    const gives = (leg, least) => { const short = least - (leg[0] - leg[1]); return short > 0 ? kneeBent(leg, short / 2.6) : leg; };
+    if (left(load, U)) load[U] = stand(4); else load[U] = gives(load[U], 10);
+    for (const p of [strike, ...(follow ? [follow] : [])]) p[U] = left(p, U) ? stand(high ? 10 : 6) : gives(p[U], high ? 16 : 10);
+    if (strike.sway === undefined && high) {
+      const turn = S === 'F' ? 45 : -60;
+      strike.sway = turn; load.sway ??= -turn * 0.3;
+      if (follow && follow.sway === undefined) follow.sway = turn * 0.8;
+      if (S === 'B' && strike.twist === undefined) strike.twist = -20;
+    }
+    if (S === 'B' && high && left(strike, 'armB')) strike.armB = [-35, -20];
+  } else {
+    // (on top of what the punch says: the drive is the body's, whatever the arm does)
+    const S = h[2], hip = (p) => p.hip ?? rest.hip ?? [0, 0];
+    const at = (p, key) => p[key] ?? rest[key] ?? POSES.guard[key];
+    load.hip = [hip(load)[0] - 25, hip(load)[1] - 10];
+    load.torso = (load.torso ?? rest.torso ?? 0) - 3;
+    strike.hip = [hip(strike)[0] + 45, hip(strike)[1] - 20];
+    strike.legF = kneeBent(at(strike, 'legF'), 7);
+    if (S === 'B') { const b = at(strike, 'legB'); strike.legB = [b[0] + 6, b[1] - 8, Math.min(b[2] ?? 90, 64)]; }
+    if (follow) follow.hip = [hip(follow)[0] + 35, hip(follow)[1] - 15];
+  }
+  return { ...fam, load, strike, ...(follow ? { follow } : {}) };
+}
+
 /** A normal slot (`stand.M`) with its family, strength and tune → a compiled move. */
 export function compileNormal(body, slot, { family, strength, tune } = {}, weapon = null, rests = REST_POSES) {
-  const fam = FAMILIES[family];
-  if (!fam) throw new Error(`versus: ${slot} family '${family}' is not one of ${Object.keys(FAMILIES).join(', ')}`);
+  if (!FAMILIES[family]) throw new Error(`versus: ${slot} family '${family}' is not one of ${Object.keys(FAMILIES).join(', ')}`);
+  const fam = strikeBody(FAMILIES[family], rests.stand);
   const [stance, letter] = slot.split('.');
   if (fam.stance !== stance) throw new Error(`versus: ${slot} wants a ${stance} family; '${family}' is a ${fam.stance} move`);
   const T = readTune(tune, slot);

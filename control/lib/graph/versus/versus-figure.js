@@ -59,7 +59,7 @@ const FIG_DEG = Math.PI / 180;
 // the hips following, the side tilt (degrees)
 const FIG_STANCE = { open: 45, hips: 28, tilt: 8 };
 // how far past square a strike may turn them (the far side's range: a roundhouse turns the hips over)
-const FIG_TURN = { hips: 70, chest: 45 };
+const FIG_TURN = { hips: 100, chest: 60 };
 
 /** A skeleton to the stick figure's own lengths (its body, versus-rig.js versusBody, mm), arms hanging. */
 export function figureBase(body) {

@@ -119,9 +119,9 @@ export const NORMAL_FAMILIES = Object.freeze({
   sweep: {
     stance: 'crouch', limb: 'toeF', tempo: 1.1, guard: 'low', knock: 'down', adv: { block: -12 },
     says: 'a sweep: low, it knocks down, very unsafe on block',
-    load: P(POSES.crouch, { torso: 40, legF: [50, 20, 90], sway: 20 }),
-    strike: P(POSES.crouch, { torso: 44, legF: [88, 92, 100], legB: [30, -70, 60], hip: [0, -60], armF: [20, 20], sway: -40 }),
-    follow: P(POSES.crouch, { torso: 42, legF: [70, 70, 100], legB: [30, -70, 60], hip: [0, -60], sway: -50 }),
+    load: P(POSES.crouch, { torso: 40, legF: [50, 20, 90], sway: -10 }),
+    strike: P(POSES.crouch, { torso: 44, legF: [88, 92, 100], legB: [30, -70, 60], hip: [0, -60], armF: [20, 20], sway: 40 }),
+    follow: P(POSES.crouch, { torso: 42, legF: [70, 70, 100], legB: [30, -70, 60], hip: [0, -60], sway: 50 }),
   },
   'crouch-uppercut': {
     stance: 'crouch', limb: 'fistF', tempo: 1, antiAir: true, says: 'a crouching uppercut: an anti-air from low',

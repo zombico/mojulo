@@ -139,6 +139,17 @@ its own body on an arena; the stick figures are the simulation's own dummies, dr
   their follow-throughs and turns. The 3D figure meets a turn its limbs cannot follow with the nearest turn that
   reaches, either way, so the arena still draws every hand and foot where the sim's boxes are (a sweep over every
   frame of every family holds it).
+- **Every strike moves as a body** (`strikeBody`, `versus-compile.js`): a pass every standing normal goes through, so
+  each of them moves the whole body, not a limb. In a kick the knee leads: the load is raised to a chamber at least
+  the strike's height with the shin folded, and after contact the leg re-chambers before the foot comes down (a kick
+  that swings `through`, the Thai kick and the meia-lua, does not; a `straight`-leg kick, the axe kick, rises with
+  the knee locked). The trunk leans away from a high kick with the head kept on the target. The weight comes over a
+  standing leg that gives at the knee, its foot under the hips. The hips turn into the kick, a lead leg opening the
+  far hip forward and a rear leg turning them over, and a rear-leg kick swings its arm down against the leg. In a
+  punch the body coils back in the load, and at the strike the hips drive forward and down onto a bending lead
+  knee, a rear hand bringing the back knee in and its heel up. The lead-leg kicks had their hips turned the wrong
+  way; they open now. The savate kicks are three distinct paths: the fouetté whips round high to the head, the
+  chassé drives level from a knee pulled to the chest, and the revers chambers through its turn.
 - **Fighting traditions** (`versus-traditions.js`, a page module; `tradition` on a recipe, an intent or a roster
   entry). Boxing, karate, taekwondo, Muay Thai, kung fu, capoeira, savate and brawling. Each is a guard (where the
   hands are, how low and wide it stands, its crouch and walk), an idle rhythm (a boxer's bounce on bent knees, the

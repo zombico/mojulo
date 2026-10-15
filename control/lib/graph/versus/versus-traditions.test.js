@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { TRADITIONS, FAMILIES, traditionRests } from './versus-traditions.js';
 import { POSES } from './versus-library.js';
-import { compileFighter } from './versus-compile.js';
+import { compileFighter, strikeBody } from './versus-compile.js';
 import { solveFighter } from './versus-solver.js';
 import { fighterSpec } from './versus-sheet.js';
 import { rigJoints, lerpPose } from './versus-rig.js';
@@ -116,5 +116,56 @@ describe('versus: the runtime stands a tradition\'s body', () => {
     const p = { st: 'hit', sf: 20, stun: 0, low: 0, y: 0, ko: 0, rx: { k: 'hit', h: 1, w: 1 } };
     expect(reactionPose(p, {}, { guard: own.stand, crouch: own.crouch }).torso).toBe(own.stand.torso);
     expect(reactionPose(p, {}).torso).toBe(POSES.guard.torso);
+  });
+});
+
+describe('versus: every strike moves as a body', () => {
+  const kicks = Object.entries(FAMILIES).filter(([, f]) => f.stance === 'stand' && /^(toe|ankle)/.test(f.limb) && !f.strike.spin);
+  const highKick = (side, flag) => kicks.find(([, f]) => f.limb.endsWith(side) && f.strike[`leg${side}`][0] >= 80 && !!f[flag] === false && !f.through && !f.straight);
+  const knee = (leg) => leg[0] - leg[1];   // how far the knee is bent (degrees between the thigh and the shin)
+
+  it('a kick\'s knee leads: it chambers at least to the strike\'s height with the shin folded, and re-chambers after', () => {
+    const [, fam] = highKick('F');
+    const b = strikeBody(fam);
+    expect(b.load.legF[0]).toBeGreaterThanOrEqual(Math.min(fam.strike.legF[0] + 8, 125) - 1e-9);
+    expect(knee(b.load.legF)).toBeGreaterThanOrEqual(115);
+    expect(knee(b.follow.legF)).toBeGreaterThanOrEqual(110);
+    // one that swings through the target, or rises straight, does neither
+    const [, through] = kicks.find(([, f]) => f.through);
+    const leg = (f) => `leg${f.limb.slice(-1)}`;
+    expect(strikeBody(through).follow[leg(through)]).toEqual(through.follow[leg(through)]);
+    const [, straight] = kicks.find(([, f]) => f.straight);
+    expect(strikeBody(straight).load[`leg${straight.limb.slice(-1)}`]).toEqual(straight.load[`leg${straight.limb.slice(-1)}`]);
+  });
+
+  it('the weight comes over the standing leg, its knee giving, and the trunk leans away from a high kick', () => {
+    const F = fighter({}), [, fam] = highKick('F'), b = strikeBody(fam);
+    expect(knee(b.strike.legB)).toBeGreaterThanOrEqual(16 - 1e-9);
+    expect(b.strike.torso).toBeLessThan(0);
+    // one that leaves the standing leg to its guard stands it under the hips
+    const free = { ...fam, strike: { ...fam.strike, legB: POSES.guard.legB } };
+    const J = rigJoints(F.body, strikeBody(free).strike), G = rigJoints(F.body, POSES.guard);
+    expect(Math.abs(J.ankleB[0] - J.pelvis[0])).toBeLessThan(Math.abs(G.ankleB[0] - G.pelvis[0]));
+  });
+
+  it('the hips turn into a kick: a lead leg opens the far hip forward, a rear leg turns them over', () => {
+    const lead = kicks.find(([, f]) => f.limb.endsWith('F') && f.strike.legF[0] >= 80 && f.strike.sway === undefined);
+    const rear = kicks.find(([, f]) => f.limb.endsWith('B') && f.strike.legB[0] >= 80);
+    if (lead) expect(strikeBody(lead[1]).strike.sway).toBeGreaterThan(0);
+    expect(strikeBody(rear[1]).strike.sway).toBeLessThan(0);
+  });
+
+  it('a punch is driven by the body: coiled back in the load, the hips forward and down at the strike', () => {
+    const [, fam] = Object.entries(FAMILIES).find(([, f]) => f.stance === 'stand' && f.limb === 'fistB');
+    const b = strikeBody(fam), hip = (p) => p.hip ?? [0, 0];
+    expect(hip(b.load)[0]).toBeLessThan(hip(fam.load)[0]);
+    expect(hip(b.strike)[0]).toBeGreaterThan(hip(fam.strike)[0]);
+    expect(hip(b.strike)[1]).toBeLessThan(hip(fam.strike)[1]);
+    expect(b.strike.legB[2]).toBeLessThanOrEqual(64);   // the back heel up
+  });
+
+  it('a crouching or air move is left as it is written', () => {
+    const [, low] = Object.entries(FAMILIES).find(([, f]) => f.stance !== 'stand');
+    expect(strikeBody(low)).toBe(low);
   });
 });

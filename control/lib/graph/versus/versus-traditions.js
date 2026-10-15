@@ -10,6 +10,8 @@
  * shoulder over), with the kinetic chain keyed on the round body (versus-library.js). A spinning move turns its back in
  * the load (180°) and completes the turn AT CONTACT (360°): the body turned whole about the vertical would carry the
  * striking foot off the line the hitbox is on, so the hit lands square, and the follow carries the turn on past it.
+ * A kick that swings through the target (a Thai kick, a meia-lua) says `through`: it does not re-chamber; a kick
+ * that rises with the knee locked (the axe kick) says `straight`: it does not chamber at all.
  * Its `normals` fill every slot
  * (stand, crouch, air × L, M, H); its `families` are the ones a signature word may swap in (its own, and the shared
  * ones it also throws).
@@ -62,7 +64,7 @@ const SHARED_MOVES = {
   'flying-side-kick': {
     stance: 'air', limb: 'ankleF', tempo: 1.1, says: 'a flying side kick: the body turns side-on in the air, the heel leads',
     load: tr(AIR, { legF: [96, -40, 90], legB: [40, -80, 60] }),
-    strike: tr(AIR, { torso: -30, legF: [92, 92, 180], legB: [30, -70, 60], armF: [80, 110], armB: [-20, 40], sway: -70, twist: -40 }),
+    strike: tr(AIR, { torso: -30, legF: [92, 92, 180], legB: [30, -70, 60], armF: [80, 110], armB: [-20, 40], sway: 70, twist: 15 }),
   },
   'spin-sweep': {
     stance: 'crouch', limb: 'toeB', tempo: 1.15, guard: 'low', knock: 'down', adv: { block: -12 },
@@ -151,26 +153,26 @@ const TRADITION_LIST = {
       'cut-kick': {
         stance: 'stand', limb: 'toeF', tempo: 0.9, says: 'a cut kick: the lead leg lifts and slices out before they can close',
         load: tr(TKD, { legF: [70, -20, 100] }),
-        strike: tr(TKD, { torso: -14, legF: [86, 84, 120], legB: [-6, -6, 90], sway: -20 }),
+        strike: tr(TKD, { torso: -14, legF: [86, 84, 120], legB: [-6, -6, 90], sway: 30 }),
         follow: tr(TKD, { legF: [66, -10, 100] }),
       },
       'side-kick': {
         stance: 'stand', limb: 'ankleF', tempo: 1.05, says: 'a side kick (yop chagi): the body turns side-on, the heel drives out in a line',
-        load: tr(TKD, { torso: -6, legF: [100, -40, 120], sway: -40, twist: -20 }),
-        strike: tr(TKD, { torso: -32, head: -14, legF: [94, 94, 180], legB: [-4, -2, 90], armF: [40, 110], armB: [-30, 30], sway: -85, twist: -45, feet: [0, 1] }),
-        follow: tr(TKD, { torso: -20, legF: [98, -30, 120], sway: -60, twist: -30 }),
+        load: tr(TKD, { torso: -6, legF: [112, -10, 120], sway: 40, twist: 10 }),
+        strike: tr(TKD, { torso: -32, head: -14, legF: [94, 94, 180], legB: [6, -14, 80], armF: [40, 110], armB: [-30, 30], sway: 85, twist: 20, feet: [0, 1] }),
+        follow: tr(TKD, { torso: -20, legF: [108, -14, 120], sway: 60, twist: 10 }),
       },
       'axe-kick': {
-        stance: 'stand', limb: 'ankleB', tempo: 1.3, guard: 'overhead', says: 'an axe kick: the leg rises straight up and the heel drops over the guard (blocked standing)',
+        stance: 'stand', limb: 'ankleB', tempo: 1.3, guard: 'overhead', straight: true, says: 'an axe kick: the leg rises straight up and the heel drops over the guard (blocked standing)',
         load: tr(TKD, { torso: -14, legB: [150, 150, 150], legF: [0, 0, 90], armF: [40, 140], armB: [-20, 30] }),
         strike: tr(TKD, { torso: 6, legB: [112, 112, 130], legF: [2, 0, 90], twist: -20 }),
         follow: tr(TKD, { torso: 16, legB: [60, 50, 100] }),
       },
       'low-side-kick': {
         stance: 'crouch', limb: 'ankleF', tempo: 1, guard: 'low', says: 'a low side kick: from the crouch, the heel to the knee',
-        load: tr(TKD_LOW, { legF: [80, -20, 120], sway: -30 }),
-        strike: tr(TKD_LOW, { torso: 16, legF: [80, 82, 180], sway: -70, twist: -30 }),
-        follow: tr(TKD_LOW, { legF: [76, -10, 120], sway: -40 }),
+        load: tr(TKD_LOW, { legF: [96, -30, 120], sway: 30 }),
+        strike: tr(TKD_LOW, { torso: 16, legF: [80, 82, 180], sway: 70, twist: 10 }),
+        follow: tr(TKD_LOW, { legF: [92, -20, 120], sway: 40 }),
       },
       'tornado-kick': {
         stance: 'air', limb: 'toeB', tempo: 1.15, says: 'a tornado kick: a full turn in the air, the rear leg whipping round',
@@ -199,7 +201,7 @@ const TRADITION_LIST = {
         follow: tr(THAI, { torso: 14, armB: [80, 230], hip: [30, 0], sway: -40, twist: -70, hands: [0.5, -0.4] }),
       },
       'thai-kick': {
-        stance: 'stand', limb: 'ankleB', tempo: 1.2, damage: 1.15, says: 'a Thai round kick: the arm swings down, the hips turn over and the shin goes through',
+        stance: 'stand', limb: 'ankleB', tempo: 1.2, damage: 1.15, through: true, says: 'a Thai round kick: the arm swings down, the hips turn over and the shin goes through',
         load: tr(THAI, { armB: [40, 170], legB: [-20, -30, 70], sway: 16 }),
         strike: tr(THAI, { torso: -16, head: 0, legB: [98, 94, 100], legF: [4, 0, 70], armB: [-40, -30], armF: [70, 160], sway: -75, twist: -45, feet: [1, 0] }),
         follow: tr(THAI, { torso: -10, legB: [60, 50, 90], armB: [-50, -40], sway: -110, twist: -70, spin: 30 }),
@@ -279,7 +281,7 @@ const TRADITION_LIST = {
         follow: tr(CAP, { torso: -10, legB: [70, -10, 90], hip: [0, -20], sway: -50 }),
       },
       'meia-lua': {
-        stance: 'stand', limb: 'toeB', tempo: 1.3, says: 'a meia-lua de compasso: the hands to the floor, the body turns and the heel sweeps round high',
+        stance: 'stand', limb: 'toeB', tempo: 1.3, through: true, says: 'a meia-lua de compasso: the hands to the floor, the body turns and the heel sweeps round high',
         load: tr(CAP, { torso: 70, head: 50, armF: [10, 10], armB: [-10, -10], legB: [-40, -40, 70], hip: [0, -60], spin: 180 }),
         strike: tr(CAP, { torso: 80, head: 70, armF: [0, 0], armB: [10, 10], legB: [120, 125, 160], legF: [40, -10, 90], hip: [0, -60], spin: 360 }),
         follow: tr(CAP, { torso: 50, legB: [70, 50, 90], spin: 380 }),
@@ -292,16 +294,16 @@ const TRADITION_LIST = {
       },
       'chapa-baixa': {
         stance: 'crouch', limb: 'ankleF', tempo: 1, guard: 'low', says: 'a chapa baixa: a low push with the sole, a hand on the floor',
-        load: tr(CAP_LOW, { legF: [70, -20, 140], armB: [-60, -70] }),
-        strike: tr(CAP_LOW, { torso: 40, legF: [76, 78, 170], armB: [-20, -10], sway: -50 }),
-        follow: tr(CAP_LOW, { legF: [70, -10, 140], sway: -30 }),
+        load: tr(CAP_LOW, { legF: [92, -30, 140], armB: [-60, -70] }),
+        strike: tr(CAP_LOW, { torso: 40, legF: [76, 78, 170], armB: [-20, -10], sway: 50 }),
+        follow: tr(CAP_LOW, { legF: [88, -20, 140], sway: 30 }),
       },
       rasteira: {
         stance: 'crouch', limb: 'toeF', tempo: 1.1, guard: 'low', knock: 'down', adv: { block: -12 },
         says: 'a rasteira: the hands on the floor, the lead foot hooks the legs away',
-        load: tr(CAP_LOW, { torso: 50, legF: [60, 20, 90], sway: 20 }),
-        strike: tr(CAP_LOW, { torso: 54, legF: [86, 90, 100], legB: [36, -70, 60], armF: [10, 10], armB: [-10, -10], hip: [0, -70], sway: -40 }),
-        follow: tr(CAP_LOW, { torso: 50, legF: [70, 72, 100], sway: -50 }),
+        load: tr(CAP_LOW, { torso: 50, legF: [60, 20, 90], sway: -10 }),
+        strike: tr(CAP_LOW, { torso: 54, legF: [86, 90, 100], legB: [36, -70, 60], armF: [10, 10], armB: [-10, -10], hip: [0, -70], sway: 40 }),
+        follow: tr(CAP_LOW, { torso: 50, legF: [70, 72, 100], sway: 50 }),
       },
       armada: {
         stance: 'air', limb: 'toeB', tempo: 1.1, says: 'an armada pulada: a jumping spin, the outside of the foot round',
@@ -325,26 +327,26 @@ const TRADITION_LIST = {
     moves: {
       fouette: {
         stance: 'stand', limb: 'toeF', tempo: 0.95, says: 'a fouetté: the lead leg whips round and the point of the shoe lands',
-        load: tr(SAV, { legF: [64, -30, 90], sway: 14 }),
-        strike: tr(SAV, { torso: -14, legF: [96, 100, 120], legB: [-4, -4, 70], sway: -45, twist: -14, feet: [0.1, 1] }),
-        follow: tr(SAV, { legF: [70, -20, 100], sway: -30 }),
+        load: tr(SAV, { legF: [100, -20, 90], sway: -10 }),
+        strike: tr(SAV, { torso: -24, head: -8, legF: [114, 120, 130], legB: [2, -12, 64], armF: [30, 120], sway: 60, twist: 10, feet: [0.1, 1] }),
+        follow: tr(SAV, { legF: [100, -24, 100], sway: 45 }),
       },
       chasse: {
         stance: 'stand', limb: 'ankleF', tempo: 1.05, says: 'a chassé: the sole of the shoe driven out side-on, the long stop-hit',
-        load: tr(SAV, { torso: -8, legF: [96, -30, 130], sway: -40, twist: -20 }),
-        strike: tr(SAV, { torso: -28, legF: [90, 90, 175], legB: [-6, -2, 90], sway: -80, twist: -40, feet: [0, 1] }),
-        follow: tr(SAV, { torso: -16, legF: [90, -20, 130], sway: -50, twist: -25 }),
+        load: tr(SAV, { torso: -4, legF: [122, -4, 130], sway: 40, twist: 10 }),
+        strike: tr(SAV, { torso: -30, legF: [84, 84, 175], legB: [8, -14, 80], sway: 85, twist: 20, feet: [0, 1] }),
+        follow: tr(SAV, { torso: -16, legF: [106, -16, 130], sway: 55, twist: 10 }),
       },
       revers: {
         stance: 'stand', limb: 'toeB', tempo: 1.3, says: 'a revers: a spinning back kick, the heel hooking round',
-        load: tr(SAV, { torso: -6, spin: 180 }),
-        strike: tr(SAV, { torso: -24, head: -10, legB: [100, 106, 110], legF: [2, 0, 80], spin: 360 }),
-        follow: tr(SAV, { torso: -10, legB: [60, 20, 90], spin: 380 }),
+        load: tr(SAV, { torso: 6, legB: [70, -40, 80], legF: [16, -6, 70], spin: 180 }),
+        strike: tr(SAV, { torso: -24, head: -10, legB: [100, 106, 110], legF: [8, -10, 70], armB: [-30, -10], spin: 360 }),
+        follow: tr(SAV, { torso: -10, legB: [104, -10, 90], spin: 380 }),
       },
       'coup-bas': {
         stance: 'crouch', limb: 'toeF', tempo: 0.95, guard: 'low', says: 'a coup de pied bas: the toe of the shoe to the shin, low',
         load: tr(POSES.crouch, { legF: [56, 0, 100] }),
-        strike: tr(POSES.crouch, { torso: 16, legF: [70, 76, 120], sway: -20 }),
+        strike: tr(POSES.crouch, { torso: 16, legF: [70, 76, 120], sway: 25 }),
         follow: tr(POSES.crouch, { legF: [56, 10, 100] }),
       },
     },
