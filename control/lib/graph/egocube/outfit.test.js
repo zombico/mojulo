@@ -75,7 +75,7 @@ describe('the outfit, designed from the sheet', () => {
   it('a cut still compiles onto a creature when an author asks: second skin painted, cloth fitted, the worn pieces over it', () => {
     const sheet = rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), base = planFromSheet(sheet, { dress: 'designed' }).create.spec.plan;
     const plan = { ...base, outfit: outfitFromSheet(sheet).outfit }, built = compileOutfit(plan), L = plan.outfit.cut.language;
-    expect(plan.style.drawn).toBe(true);
+    expect(plan.style.drawn).toEqual({ markings: { pattern: 'both', ventral: 'panel' } });
     expect(plan.adorn).toEqual([]);
     const ids = built.garments.map((g) => g.id);
     expect(ids).toEqual(expect.arrayContaining(['outer', 'bottomSeat', 'bottomLeg']));

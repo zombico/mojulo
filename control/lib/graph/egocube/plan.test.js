@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { planFromSheet, shade } from './plan.js';
+import { planFromSheet, shade, legible, BODY_MIN_L, EYE_ACCENTS } from './plan.js';
+import { hexLch } from '../polygonizer/station-loft-shade.js';
 import { LINEAGES, HUMAN_IDS } from './ancestry.js';
 import { HEAD_LIBRARY, HEAD_IDS, headPlan, headFor } from '../creature-heads/index.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
@@ -54,6 +55,18 @@ describe('a head derived from the nearest skull', () => {
   it('a derived head\'s own groups keep their colour under the character\'s skin', () => {
     const bird = planFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } })).create.spec.plan.heads[0].plan;
     expect(bird.palette.Snout).toBe(headPlan('beaked').palette.Snout);
+  });
+});
+
+describe('a rolled beast\'s value', () => {
+  it('a black coat is drawn deep, never vanishing on the dark stage: its hue kept, its value lifted to the floor', () => {
+    expect(hexLch(legible('#1e1c1c'))[0]).toBeCloseTo(BODY_MIN_L, 0);
+    expect(legible('#8a8a88')).toBe('#8a8a88');
+  });
+  it('the eye is the face\'s accent, a people\'s own colour; a dressed beast\'s underside is a pale throat and belly', () => {
+    const P = planFromSheet(rollEgocube({ seed: 4, facets: { ancestry: 'feline' } }), { dress: 'designed' }).create.spec.plan;
+    expect(EYE_ACCENTS.feline).toContain(P.heads[0].plan.palette.Iris);
+    expect(P.style.drawn.markings).toEqual({ pattern: 'both', ventral: 'panel' });
   });
 });
 

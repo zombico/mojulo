@@ -21,6 +21,8 @@
  *       countershade: the VENTRAL side (the front and underside of the trunk and neck, the inside of the limbs, under the
  *                     jaw) and the DORSAL side (the back, the top of the head, the outside of the limbs) take the two
  *                     tones, the lighter ventral;
+ *                     `ventral: 'panel'` keeps it to a strip down the trunk's front (the throat and the belly) and under
+ *                     the jaw, the limbs in the coat (a roll's beast: a dark body lightened all down its front reads as cloth);
  *       points:       the ends of each limb chain (its last part), the tail's last links and the ears take the darker
  *                     tone of a light body, the lighter of a dark one;
  *       per FACE, by its rest centroid and normal, so a border runs along the mesh's own edges: crisp, and ragged by
@@ -136,23 +138,37 @@ export function markingTint(mesh, plan, markings) {
   // painted) keeps its colour
   const tones = bodyTones(mesh, plan), mainTone = (hex) => !tones || Math.abs(hexLch(hex)[0] - tones.mid) <= MONO_DL;
   const { last } = chains(plan), tails = Object.keys(mesh.parts).filter((n) => /^tail\d+$/.test(n)).sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+  // `ventral: 'panel'`: the countershade a pale throat and belly only (the half-width each trunk part's own)
+  const panel = markings.ventral === 'panel', widths = new Map();
+  const halfW = (part) => { if (!widths.has(part)) { let w = 0; F.forEach((t, fi) => { if (partOf(fi) === part) for (const vi of t) w = Math.max(w, Math.abs(V[vi][0])); }); widths.set(part, w); } return widths.get(part); };
   const pointy = (part) => { const base = familyOf(part).replace(/^lock\.|^tile\./, ''); return last.has(part.replace(/[RL]$/, '')) || /^(ear|earInner)$/.test(base) || tails.slice(-2).includes(part); };
   return F.map((t, fi) => {
     const part = partOf(fi), g = mesh.groups[fi];
     if (!cover.has(g) || part.startsWith('adorn.') || mesh.parts[part]?.garment || painted(fi)) return null;
     const P = t.map((vi) => V[vi]), c = [0, 1, 2].map((k) => (P[0][k] + P[1][k] + P[2][k]) / 3), n = unit(cross(sub(P[1], P[0]), sub(P[2], P[0])));
     const base = baseOf(fi); if (!mainTone(base)) return null;
-    const light = hexLch(base)[0] >= 55, two = markings.colour ?? secondTone(base);
+    const light = hexLch(base)[0] >= 55;
+    // a panel is always the paler throat and belly; the points take the second tone
+    const paler = () => { const [L, C, h] = hexLch(base); return lchHex(Math.min(92, L + (light ? 12 : SPLIT_DL)), C * 0.8, h); };
+    let two = markings.colour ?? secondTone(base);
     const jag = JAG * (hash(`${part}/${fi}`) - 0.5);
     let marked = false;
     if (pattern === 'points' || pattern === 'both') marked = pointy(part);
     if (!marked && (pattern === 'countershade' || pattern === 'both')) {
       const fam = familyOf(part), side = c[0] >= 0 ? 1 : -1;
-      const ventral = /^(cranium|jaw)$/.test(part) ? [0, 0.35, -1] : /[RL]$/.test(part) && !TRUNK.test(fam) ? [-side, 0.4, -0.2] : [0, 0.85, -0.5];
-      const v = dot(n, unit(ventral)) + jag;
-      marked = light ? v < -0.1 : v > 0.1;   // a light body darkens its dorsal side, a dark one lightens its ventral
+      if (panel) {
+        // a PANEL: only the throat and the belly, a strip down the trunk's front, and under the jaw; the limbs keep the coat
+        const head = /^(cranium|jaw)$/.test(part);
+        if (head) marked = dot(n, unit([0, 0.35, -1])) + jag > 0.35;
+        else if (TRUNK.test(fam)) marked = dot(n, unit([0, 1, -0.25])) + jag > 0.3 && Math.abs(c[0]) < (0.36 + jag) * halfW(part);
+      } else {
+        const ventral = /^(cranium|jaw)$/.test(part) ? [0, 0.35, -1] : /[RL]$/.test(part) && !TRUNK.test(fam) ? [-side, 0.4, -0.2] : [0, 0.85, -0.5];
+        const v = dot(n, unit(ventral)) + jag;
+        marked = light ? v < -0.1 : v > 0.1;   // a light body darkens its dorsal side, a dark one lightens its ventral
+      }
     }
     if (!marked) return null;
+    if (panel && !markings.colour && !pointy(part)) two = paler();
     const [a, b] = [hexRgb(base), hexRgb(two)], m = [0, 1, 2].map((k) => +(a[k] > 0.02 ? Math.min(4, b[k] / a[k]) : 1).toFixed(4));
     return [m, m, m];
   });

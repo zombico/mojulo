@@ -22,6 +22,7 @@ import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { outfitFromSheet, adornFromSheet, heroOutfitOf } from './outfit.js';
+import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -276,6 +277,18 @@ function adornOf({ kit, mirrored, mended }, k, groups) {
   return out;
 }
 
+/** a body is never darker than this L* (CIELCh): a black coat drawn on the stage's dark backdrop is drawn as a deep
+ * blue-black or brown-black that holds its outline, as a painter draws black fur (its hue and chroma kept) */
+export const BODY_MIN_L = 24;
+export function legible(hex) { const [L, C, H] = hexLch(hex); return L >= BODY_MIN_L ? hex : lchHex(BODY_MIN_L, C, H); }
+/** the eye is the face's one saturated accent: a people's eye colours (ancestry.js's eyes lines), the one whose hue
+ * stands furthest from the coat's chosen (deterministic, no dice: the same coat, the same eyes) */
+export const EYE_ACCENTS = Object.freeze({ feline: ['#8fe8c2', '#e8c23a', '#a8d84a'], lupine: ['#e0a030', '#d8e4ec'], draconic: ['#e0a830', '#c8ccd2', '#d8502a'], avian: ['#f2c422', '#e8742a'], ursine: ['#9a6428'] });
+function eyeAccent(lineage, coat) {
+  const opts = EYE_ACCENTS[lineage]; if (!opts) return null;
+  const hc = hexLch(coat)[2], away = (hex) => { const d = Math.abs(hexLch(hex)[2] - hc) % 360; return Math.min(d, 360 - d); };
+  return opts.reduce((best, x) => (away(x) > away(best) ? x : best));
+}
 const HEAD_TONES = Object.freeze({ Skull: 0, Body: 0, Jowl: 0.04, Jaw: 0.1, Snout: 0.12, Lip: 0.08, Brow: -0.12, Pad: -0.05, Lids: -0.08, Ears: -0.06, Fur: 0.03, FurAlt: -0.05, Folds: 0.04, Web: 0.04, Wrinkles: -0.18, Scales: -0.04, ScalesAlt: 0.04 });
 
 function creature(sheet, title) {
@@ -287,7 +300,7 @@ function creature(sheet, title) {
   const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff, pole: f.pole, build: f.build });
   const stance = stanceOf(sheet);
   const { dials, rig, clips } = dialsAndRig(body, stance);
-  const skin = sheet.ancestry.colours.Skin, reptile = head && HEAD_LIBRARY[head.id].family === 'reptile';
+  const skin = legible(sheet.ancestry.colours.Skin), reptile = head && HEAD_LIBRARY[head.id].family === 'reptile';
   const shadowSide = sheet.reading.reads !== 'light';
   const groups = { leather: 'Leather' };
   const palette = {
@@ -301,7 +314,8 @@ function creature(sheet, title) {
   const heads = [{ name: 'head', plan: (() => {
     // the skin's tones over the head's own neutral reading, but for the groups that are not skin (a beak's horn)
     const own = HEAD_LIBRARY[head.id].keep || [];
-    const hp = headPlan(head.id, { palette: Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(head.id).palette && !own.includes(grp)).map(([grp, t]) => [grp, shade(skin, t)])) });
+    const iris = eyeAccent(f.ancestry, skin);
+    const hp = headPlan(head.id, { palette: { ...Object.fromEntries(Object.entries(HEAD_TONES).filter(([grp]) => grp in headPlan(head.id).palette && !own.includes(grp)).map(([grp, t]) => [grp, shade(skin, t)])), ...(iris ? { Iris: iris } : {}) } });
     // scale the head to the body: a head authored in metres (no units) has its 'world' sweeps in those same metres,
     // so they become head-space and scale with it (else the dragon's horns float off a scaled skull)
     if (!hp.units) hp.ornaments = (hp.ornaments || []).map((o) => (o.space === 'world' ? { ...o, space: 'head' } : o));
@@ -435,7 +449,7 @@ export function planFromSheet(sheet, { title, dress } = {}) {
   if (door === 'creature') {
     const built = creature(sheet, name);
     // a beast is adorned, not clothed: its frame shows (outfit.js adornFromSheet)
-    if (dress === 'designed') { const { outfit, laws } = adornFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: true } }; built.outfit = { outfit, laws }; }
+    if (dress === 'designed') { const { outfit, laws } = adornFromSheet(sheet, { coat: legible(sheet.ancestry.colours.Skin) }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
     return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
       after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }

@@ -242,7 +242,7 @@ export function validatePlan(plan) {
     const d = plan.style.drawn;
     if (d != null && d !== true && !(d && typeof d === 'object' && !Array.isArray(d) && Object.keys(d).every((k) => ['target', 'markings', 'eyes'].includes(k)))) fail("style.drawn is true or { target?, markings? } (the creature drawn for its target: bridged joints, rings by its outline rule; markings { pattern: 'countershade' | 'points' | 'both' | 'none', colour? } or false)");
     if (d?.eyes !== undefined && !(Number.isFinite(d.eyes) && d.eyes >= 0.5 && d.eyes <= 2)) fail('style.drawn.eyes is a ratio 0.5–2 (the eyes against the head plan\'s own; absent, they grow to read at the target)');
-    if (d?.markings && !(d.markings === false || (typeof d.markings === 'object' && ['countershade', 'points', 'both', 'none', undefined].includes(d.markings.pattern) && (d.markings.colour === undefined || /^#[0-9a-f]{6}$/i.test(d.markings.colour))))) fail("style.drawn.markings is { pattern: 'countershade' | 'points' | 'both' | 'none', colour?: '#rrggbb' } or false");
+    if (d?.markings && !(d.markings === false || (typeof d.markings === 'object' && ['countershade', 'points', 'both', 'none', undefined].includes(d.markings.pattern) && (d.markings.colour === undefined || /^#[0-9a-f]{6}$/i.test(d.markings.colour)) && [undefined, 'panel'].includes(d.markings.ventral)))) fail("style.drawn.markings is { pattern: 'countershade' | 'points' | 'both' | 'none', colour?: '#rrggbb', ventral?: 'panel' } or false");
   }
   const joints = plan.joints || {};
   for (const [k, v] of Object.entries(joints)) if (!isVec(v)) fail(`joint '${k}' must be [x, y, z]`);
