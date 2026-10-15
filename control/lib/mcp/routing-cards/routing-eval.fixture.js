@@ -149,9 +149,20 @@ export const FIXTURE = [
   // asset receipts: asked in plain words
   ['stamp my exported model so people can tell I made it', 'sign_asset'],
   ['is this glb really the one I exported, or has someone changed it', 'verify_asset'],
-  // (historic places left the routing eval in 1015: the historic kind is a composer over its recipes now, not an
-  // exhibit a visitor asks for by a place's name, so "walk me through Thebes" is not a route to hold)
+  // historic entries: a real place at its period, through the historic card's door. Known misses (the model sends
+  // them to compose_world): kept so the miss stays in the score until the door users ask by is decided
+  ['walk me through ancient Thebes', 'create_sketch'],
+  ['what did a Sumerian city look like', 'create_sketch'],
+  ['show me the pyramids of Giza when they were new', 'create_sketch'],
 ];
+
+// Rows the routing gets wrong today, kept on purpose: the report lists them apart from new misses, and the score
+// still counts them. A row leaves this set when its route is fixed, never by leaving the fixture.
+export const KNOWN_MISSES = new Set([
+  'walk me through ancient Thebes',
+  'what did a Sumerian city look like',
+  'show me the pyramids of Giza when they were new',
+]);
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary
 // ("walk", "dungeon", "world", "animated") where a loose membership gate lets

@@ -444,9 +444,12 @@ export async function forgeMotionHandler(input) {
     const { shoot, ...rest } = input;
     if (!shoot || typeof shoot !== 'object' || Array.isArray(shoot)) throw new Error("`shoot` is { plan } (write the world's cameras), { ops } (edit them) or {} (list what a key can follow): get_motion_vocab({ id: 'shoot' })");
     if (rest.recipe !== undefined || rest.recipe_ref !== undefined) throw new Error('`shoot` writes a world\'s plan; a re-forge (recipe / recipe_ref) renders one already made: pass one or the other');
+    if (!rest.subject?.world_ref) throw new Error("`shoot` writes a world's cameras: pass subject: { world_ref: '<the world sketch>' }");
+    // refused before anything is written: a plan and another motion in one call would write one and drop the other
+    if (rest.shot !== undefined && rest.shot?.motion !== 'plan') throw new Error("beside `shoot`, a shot renders the plan (shot: { motion: 'plan' }); forge another motion in its own call");
     const { shootPlanHandler } = await import('@/lib/mcp/tools/shoot-plan');
-    const planned = await shootPlanHandler({ ...shoot, ref: rest.subject?.world_ref });
-    if (rest.shot?.motion !== 'plan') return { ...planned, render: "forge_motion({ subject: { world_ref }, shot: { motion: 'plan' } }) renders it" };
+    const planned = await shootPlanHandler({ ...shoot, ref: rest.subject.world_ref });
+    if (rest.shot === undefined) return { ...planned, render: "forge_motion({ subject: { world_ref }, shot: { motion: 'plan' } }) renders it" };
     const rendered = await forgeMotionCore(rest);
     return { ...rendered, shoot: planned };
   }
@@ -887,8 +890,13 @@ export function registerMotionTools() {
       properties: {
         shoot: {
           type: 'object',
-          additionalProperties: true,
-          description: "WORLD: a shoot plan on subject.world_ref, cameras as visible objects. { plan: { fps?, cameras: [{ id?, type?: 'two-node'|'one-node', lens?: '35mm', keys: [{ t, pos, poi?, ease? }] }], shots? } } writes (replaces) it; { ops: [{ op: 'set_key', camera, t, … }] } edits in place; {} lists what a key can follow (subjects_at: s). Manual: get_motion_vocab({ id: 'shoot' }). Without shot: writes only; with shot.motion 'plan': writes and renders.",
+          description: "WORLD: subject.world_ref's shoot plan, cameras as visible objects (get_motion_vocab({ id: 'shoot' })). { plan } writes, { ops } edits, {} lists what a key can follow; with shot.motion 'plan' it renders too.",
+          properties: {
+            plan: { type: 'object', additionalProperties: true, description: "{ fps?, cameras: [{ id?, type?: 'two-node'|'one-node', lens?: '35mm', keys: [{ t, pos, poi?, ease? }] }], shots? }; replaces the plan" },
+            ops: { type: 'array', items: { type: 'object', additionalProperties: true }, description: "{ op: 'set_key', camera, t, … }, in order" },
+            subjects_at: { type: 'number', description: 'Where each followable subject is at t (s).' },
+            note: { type: 'string', description: 'Revision note.' },
+          },
         },
         title: { type: 'string', description: 'Title for the motion project + artifact (defaults from the recipe when re-forging).' },
         recipe: { type: 'object', description: 'RE-FORGE: a stored recipe.json, optionally edited — replaces subject+shot. Both ticks and waypoints present replays the ticks; delete shot.ticks to recompile edited waypoints.' },

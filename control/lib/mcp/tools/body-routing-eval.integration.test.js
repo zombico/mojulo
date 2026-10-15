@@ -21,7 +21,16 @@
 // same fixture — the recorded-baseline vs candidate comparison IS the phase-1
 // merge gate; the in-test floor below is only a regression net.
 //
-// Scoring: routing rows assert an aggregate floor. Behavioral rows are
+// Surfaces: MOJULO_BODY_EVAL_SURFACE picks what the model has read. `body` (default) is the orientation alone;
+// `index` adds the listed tools' one-liners (get_tool_index({ full: true })), the nearest cheap stand-in for a
+// host's tools/list; `names` is the listed names alone, no orientation: what a host that defers MCP tools (Claude
+// Code) holds before any read, where a door's name is the whole routing signal.
+//
+// Reports: every routing row's answer is kept (routing.rows). MOJULO_BODY_EVAL_BASELINE=<report.json> adds the
+// comparison against it (routing-cards/eval-diff.js): a rise split into the model's answers moving and the
+// fixture's answer key moving. The same diff from the shell: scripts/body-eval-diff.mjs <a> <b>.
+//
+// Scoring: routing rows assert an aggregate floor (body surface only; the others report). Behavioral rows are
 // REPORT-ONLY (logged + written to the report JSON) — they diagnose, they
 // don't gate; the needs-vocab row in particular is EXPECTED to fail until
 // pointer discipline lands on creative-tool error copy (see the plan's
@@ -36,7 +45,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { buildForwardContextBody } from './context.js';
-import { FIXTURE, COLLISION_FIXTURE } from '../routing-cards/routing-eval.fixture.js';
+import { FIXTURE, COLLISION_FIXTURE, KNOWN_MISSES } from '../routing-cards/routing-eval.fixture.js';
+import { diffReports, formatDiff } from '../routing-cards/eval-diff.js';
 
 const enabled = process.env.MOJULO_BODY_EVAL === '1';
 const cliPresent = (() => {
@@ -50,8 +60,10 @@ const cliPresent = (() => {
 
 const MODEL = process.env.MOJULO_BODY_EVAL_MODEL || 'sonnet';
 const CONCURRENCY = 6;
-const ROUTING_FLOOR = 0.75; // regression net only — the real gate is baseline vs candidate
-const REPORT_PATH = join(tmpdir(), 'mojulo-body-eval-report.json');
+const ROUTING_FLOOR = 0.75; // regression net only, over the rows not known to miss — the real gate is baseline vs candidate
+const SURFACES = ['body', 'index', 'names'];
+const SURFACE = process.env.MOJULO_BODY_EVAL_SURFACE || 'body';
+const REPORT_PATH = join(tmpdir(), SURFACE === 'body' ? 'mojulo-body-eval-report.json' : `mojulo-body-eval-report-${SURFACE}.json`);
 
 const body = process.env.MOJULO_BODY_EVAL_BODY_FILE
   ? readFileSync(process.env.MOJULO_BODY_EVAL_BODY_FILE, 'utf8')
@@ -85,11 +97,26 @@ const ACCEPT_OVERRIDES = new Map([
   ['a stockier version of the same hero, fuller arms and thighs', ['update_character']],
 ]);
 
-const routingPrompt = (phrasing) => `You are an agent driving the mojulo MCP server on the operator's machine. You have read this orientation:
+// What the model has read, by surface (built in the test: the index and the names need the registry).
+let preamble = '';
+async function buildPreamble(surface) {
+  if (!SURFACES.includes(surface)) throw new Error(`MOJULO_BODY_EVAL_SURFACE is one of ${SURFACES.join(', ')}`);
+  const { ensureToolsRegistered, isToolListed } = await import('@/lib/mcp/server');
+  const { TOOL_LINES } = await import('@/lib/mcp/tool-lines.js');
+  await ensureToolsRegistered();
+  const listed = Object.keys(TOOL_LINES).filter(isToolListed);
+  for (const name of listed) KNOWN_TOOLS.add(name);
+  const orientation = `You have read this orientation:\n\n<orientation>\n${body}\n</orientation>`;
+  if (surface === 'body') return orientation;
+  if (surface === 'names') {
+    return `The server lists these tools. You hold their names only: you have read no description and no orientation.\n\n<tools>\n${listed.join(', ')}\n</tools>`;
+  }
+  const { toolIndexHandler } = await import('./context.js');
+  const index = (await toolIndexHandler({ full: true })).content[0].text;
+  return `${orientation}\n\nand the server's tool index, one line per listed tool:\n\n<tool_index>\n${index}\n</tool_index>`;
+}
 
-<orientation>
-${body}
-</orientation>
+const routingPrompt = (phrasing) => `You are an agent driving the mojulo MCP server on the operator's machine. ${preamble}
 
 The user says: "${phrasing}"
 
@@ -143,11 +170,7 @@ const BEHAVIORAL = [
   },
 ];
 
-const behavioralPrompt = (c) => `You are an agent driving the mojulo MCP server on the operator's machine. You have read this orientation:
-
-<orientation>
-${body}
-</orientation>
+const behavioralPrompt = (c) => `You are an agent driving the mojulo MCP server on the operator's machine. ${preamble}
 
 Session so far: ${c.transcript}
 
@@ -190,6 +213,7 @@ describe.skipIf(!enabled || !cliPresent)(
     it(
       'the studio body routes the shared fixture + reports the behavioral moves',
       async () => {
+        preamble = await buildPreamble(SURFACE);
         const routingRows = [...FIXTURE, ...COLLISION_FIXTURE];
         const jobs = [
           ...routingRows.map(([phrasing, expected]) => ({
@@ -203,15 +227,16 @@ describe.skipIf(!enabled || !cliPresent)(
         const results = await pool(jobs);
 
         const routing = results.filter((r) => r.kind === 'routing');
-        const misses = [];
-        for (const r of routing) {
+        const rows = routing.map((r) => {
           const got = firstTool(r.out);
           const accepted = new Set([r.expected, ...(ACCEPT_OVERRIDES.get(r.phrasing) || [])]);
-          if (!accepted.has(got)) {
-            misses.push({ phrasing: r.phrasing, expected: r.expected, got, raw: r.out.slice(0, 160) });
-          }
-        }
+          return { phrasing: r.phrasing, expected: r.expected, got, ok: accepted.has(got), ...(KNOWN_MISSES.has(r.phrasing) ? { known: true } : {}), raw: r.out.slice(0, 160) };
+        });
+        const misses = rows.filter((r) => !r.ok).map(({ ok, ...m }) => m);
         const score = (routing.length - misses.length) / routing.length;
+        // the floor nets new regressions: a known miss is counted in the score, not against the net
+        const watched = rows.filter((r) => !r.known);
+        const netScore = watched.filter((r) => r.ok).length / watched.length;
 
         const behavioral = results
           .filter((r) => r.kind === 'behavioral')
@@ -225,18 +250,31 @@ describe.skipIf(!enabled || !cliPresent)(
         const report = {
           when: new Date().toISOString(),
           model: MODEL,
+          surface: SURFACE,
           bodySource: process.env.MOJULO_BODY_EVAL_BODY_FILE || 'live studio body',
           bodyChars: body.length,
-          routing: { score, correct: routing.length - misses.length, total: routing.length, misses },
+          preambleChars: preamble.length,
+          routing: {
+            score, correct: routing.length - misses.length, total: routing.length,
+            known_misses: misses.filter((m) => m.known).length, new_misses: misses.filter((m) => !m.known).length,
+            misses, rows: rows.map(({ raw, ...r }) => r),
+          },
           behavioral,
         };
+        if (process.env.MOJULO_BODY_EVAL_BASELINE) {
+          const d = diffReports(JSON.parse(readFileSync(process.env.MOJULO_BODY_EVAL_BASELINE, 'utf8')), report);
+          report.vs_baseline = { file: process.env.MOJULO_BODY_EVAL_BASELINE, ...d };
+          // eslint-disable-next-line no-console
+          console.log(`[body-eval] against the baseline\n${formatDiff(d)}`);
+        }
         writeFileSync(REPORT_PATH, JSON.stringify(report, null, 2));
         // eslint-disable-next-line no-console
         console.log(`[body-eval] report → ${REPORT_PATH}\n${JSON.stringify(report, null, 2)}`);
 
+        if (SURFACE !== 'body') return;   // the other surfaces report; the floor was set on the body
         expect(
-          score,
-          `routing score ${score.toFixed(2)} below floor ${ROUTING_FLOOR}; misses:\n${misses
+          netScore,
+          `routing score ${netScore.toFixed(2)} (known misses aside) below floor ${ROUTING_FLOOR}; misses:\n${misses
             .map((m) => `"${m.phrasing}" wanted ${m.expected} got ${m.got} — ${m.raw}`)
             .join('\n')}`,
         ).toBeGreaterThanOrEqual(ROUTING_FLOOR);

@@ -17,7 +17,8 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 What a user asks lands on one tool. A new capability is a routing card and an argument on the door that owns
 its intent, not a new listed tool; a drawer that lists a growing family (quick goals, genres) names each member
-in a line and takes the member as a parameter. Measured by the in-context routing eval, before and after.
+in a line and takes the member as a parameter. Measured by the in-context routing eval, before and after; most of
+the measured rise is the answer key catching up with doors the model already chose, which the eval now reports apart.
 
 - **A world's shoot plan is `forge_motion`'s.** `forge_motion({ subject: { world_ref }, shoot: { plan } })` writes a
   world's cameras, `{ ops }` edits them, `{}` lists what a key can follow; with `shot: { motion: 'plan' }` the same
@@ -30,6 +31,13 @@ in a line and takes the member as a parameter. Measured by the in-context routin
   A new goal or genre adds a card, not bytes to a shared one.
 - **The asset receipts have a route in:** the orientation's export line names `sign_asset` and `verify_asset`.
 - The flat `tools/list` is two tools and about 3KB smaller.
+- **A new door earns its place.** A listed tool that creates or composes is the expected answer of a routing-eval
+  row, or is named in the test's shrink-only list of doors without one; every row's answer is a listed tool.
+- **The routing eval sees a host's surface and says what moved.** Gate 2b scores the orientation alone, with the
+  tool index beside it, or the listed names alone (`MOJULO_BODY_EVAL_SURFACE`); its report keeps every row, and
+  `scripts/body-eval-diff.mjs` splits two reports' difference into the model's answers moving and the answer key
+  moving. Rows the routing still misses stay in the fixture, marked known.
+- `forge_motion` refuses `shoot` beside a shot other than `plan` (it wrote the plan and dropped the render).
 
 ### Skyscape: flight games, and what a map is for a pilot
 

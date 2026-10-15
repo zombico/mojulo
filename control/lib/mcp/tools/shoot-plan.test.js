@@ -62,6 +62,10 @@ describe("forge_motion's shoot plan", () => {
   it('points the way when there is no plan or no world', async () => {
     await expect(shoot('stage', { ops: [{ op: 'set', fps: 30 }] })).rejects.toThrow(/shoot: \{ plan \}/);
     await expect(shoot('stage', { plan: PLAN, ops: [] })).rejects.toThrow(/pass one/);
+    await expect(forgeMotionHandler({ shoot: { plan: PLAN } })).rejects.toThrow(/subject: \{ world_ref/);
+    // another motion beside a plan is refused before anything is written, not written with its render dropped
+    await expect(forgeMotionHandler({ subject: { world_ref: 'stage' }, shoot: { plan: PLAN }, shot: { motion: 'orbit' } })).rejects.toThrow(/its own call/);
+    expect(SketchRepository.getByRef('stage').manifest.shoot).toBeUndefined();
     await expect(shoot('stage', 'a plan')).rejects.toThrow(/`shoot` is \{ plan \}/);
     SketchRepository.create({ ref: 'chart', title: 'chart', manifest: { title: 'c', viewBox: { width: 100, height: 100 }, stations: [] } });
     await expect(shoot('chart', { plan: PLAN })).rejects.toThrow(/not a 3D world/);
