@@ -33,6 +33,8 @@ import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
 import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
 import { CAMERAS } from './cameras.js';
+import { SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
+import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { GENRES, genreCube } from './intent.js';
@@ -270,8 +272,10 @@ const QUICK_LEVERS = {
     `  ride: ${Object.keys(RIDES).join(' | ')}   you drive it (W / S / A / D), followed from behind; no hero, climb or building`,
     `    vehicle: ${Object.keys(VEHICLES).join(' | ')}; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
     '  rivals: n (1..7, with a ride)   a place to finish in, on the podium',
-    '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }):',
-    '    the whole field, yours first (no ride, hero or rivals beside it)',
+    '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade? }):',
+    '    the whole field, yours first (no ride, hero or rivals beside it); shade: smooth bevels and smooth-lights a racer (cel by default)',
+    `  supercars: n (2..8) or a list ({ preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery? }): a field of supercars, yours first, liveries solved to stand out`,
+    `  mood: ${RACE_MOOD_IDS.join(' | ')} (with a roadway)   the light it is raced in: lamps after dark, rain and a wet road`,
     `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground, in place of track (no track, climb, building or run beside it)`,
   ],
   sneak: () => [`  guards: n (1..8, 3), guard: ${HERO_WORDS}, alarms: n (1..9, 1)   sightings that end the run`],

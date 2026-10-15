@@ -5,9 +5,14 @@
  *
  *   racerFromSheet(egocubeSheet, { seed? })  → { vehicle (the vehicle sheet, its facets read off the driver), driver
  *        (a seated stand-in's sizes), palette (the outfit's), archetype, order, side, reads: [{ facet, value, why }] }
- *   solveRacer(racer, { parts?, seed? })     → { frame, chosen: [{ family, id, why }], suggestions: { family: [{ id,
- *        score, why }] }, faces: { root, wheels, bones }, figure, anchors: [{ kind, at, dir, part }], juice, status,
- *        motion, physics, laws, changes }
+ *   solveRacer(racer, { parts?, seed?, shade? }) → { frame, chosen: [{ family, id, why }], suggestions: { family: [{
+ *        id, score, why }] }, faces: { root, wheels, bones }, figure, anchors: [{ kind, at, dir, part }], juice,
+ *        status, motion, physics, census, laws, changes }
+ *
+ * `shade`: 'cel' (the default) paints each face one colour under a two-step light; 'smooth' bevels the parts (their
+ * corners rounded, their ends eased, inside the plain part's bounds) and lights them as racer-shade.js does: the same
+ * light baked per corner across normals smoothed within a slot up to the motif's crease, lamps unshaded and rimmed
+ * dark, each face tagged with its material and albedo.
  *
  * The figure is a vehicle rig that LIVES (the page's controllable channel reads its `live`): the four wheels roll; the
  * front wheels (and their fenders) steer by the drive rule's steerAngle, past physics; the root (the body, its parts,
@@ -47,6 +52,7 @@ import { JUICE, STATUS, MOTION, bakeJuice } from './juice.js';
 import { VEHICLES } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { shadeRacerFaces, rimLamps, LAMP_RIM } from './racer-shade.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 /** Toward the chase camera: behind, a little to the side and above (the hero angle). */
@@ -215,8 +221,17 @@ function fan(faces) {
   return faces.flatMap((f) => { const n = f.corners.length; if (n <= 4) return [f]; const out = []; for (let i = 1; i + 1 < n; i += 2) out.push({ ...f, corners: (i + 2 < n ? [0, i, i + 1, i + 2] : [0, i, i + 1]).map((j) => f.corners[j]) }); return out; });
 }
 
+export const SHADES = Object.freeze(['cel', 'smooth']);
+const FACE_BUDGET = 4000;
+/** The smooth finish's bevel: a share of each part's least size. */
+export const BEVEL = 0.3;
+
 /** Solve a racer's machine from its reading. `parts`: { family: id } pins. */
-export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
+export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}) {
+  if (!SHADES.includes(shade)) throw new Error(`car-designer: shade is one of ${SHADES.join(', ')}, not '${shade}'`);
+  // (the smooth finish's parts are bevelled, so its light has a shoulder to grade: blocks.js `bevel`; the laws judge
+  // the plain parts, so a finish never changes the machine, and the bevelled ones are built once they are done)
+  let bevelled = {};
   const v = R.vehicle.facets, F = frameOf(R), rnd = mulberry32((seed * 2654435761 + 41) >>> 0);
   const ctx = { silhouette: v.silhouette, motif: v.motif, era: v.era, engine: v.engine, stance: v.stance, cockpit: v.cockpit, archetype: R.archetype, order: R.order };
   const changes = [], suggestions = {}, chosen = [], ranked = {}, tried = {};
@@ -265,7 +280,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
     if (row.family === 'engine') { const d0 = P.d; P.d = Math.max(row.block.params.d[0], Math.min(P.d, engineSpace * 0.92)); if (P.d < d0 - 1e-6 && !changes.some((c) => c.part === id && c.change === 'shortened')) changes.push({ part: id, change: 'shortened', why: `the engine shortened to the deck between the seat and the tail (${r4(P.d)} m)` }); }
     return P;
   };
-  const build = (id, P, at) => buildBlock(PARTS[id].block, { params: P, ring: 'near', at, seed: 1 }).faces;
+  const build = (id, P, at) => buildBlock(PARTS[id].block, { params: P, ring: 'near', at, seed: 1, ...bevelled }).faces;
   const mirrorX = (fs) => fs.map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [-x, y, z]).reverse() }));
   const atExpr = (row, vars) => (row.at ?? [0, 0, 0]).map((e) => (typeof e === 'number' ? e : expr(e, vars)));
   const place = () => {
@@ -315,7 +330,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
     const wheels = [];
     for (const [front, y, rr, ww, tt] of [[true, F.yF, F.rf, F.wF, F.Tf], [false, F.yR, F.r, F.wR, F.T]]) {
       const id = ids.wheel, P = { ...sizeOf(id, { rw: rr, ww }) };
-      const fs0 = buildBlock(PARTS[id].block, { params: P, ring: 'near', seed: 1 }).faces.map((f) => ({ ...f, corners: f.corners.map(([x, yy, z]) => [x, yy, z - P.r]) }));
+      const fs0 = buildBlock(PARTS[id].block, { params: P, ring: 'near', seed: 1, ...bevelled }).faces.map((f) => ({ ...f, corners: f.corners.map(([x, yy, z]) => [x, yy, z - P.r]) }));
       for (const s of [1, -1]) {
         const hub = [s * tt / 2, y, P.r], fs = (s > 0 ? fs0 : mirrorX(fs0)).map((f) => ({ ...f, corners: f.corners.map((c) => add(c, hub).map(r4)) }));
         wheels.push({ bone: `wheel${front ? 'F' : 'R'}${s < 0 ? 'L' : 'R'}`, hub: hub.map(r4), r: P.r, w: P.w, front, faces: fs });
@@ -368,7 +383,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
     const bodyBox = boxOf(body.faces);
     for (const p of state.placed) { const m = p.mount === 'hub' ? null : p.mount === 'stacks' ? state.placed.find((q) => q.family === 'engine')?.box : bodyBox; if (!m) continue; const sep = Math.max(...[0, 1, 2].map((i) => Math.max(m.lo[i] - p.box.hi[i], p.box.lo[i] - m.hi[i]))); if (sep > 0.05) law('touches', false, `${p.id} ${r4(sep)} m off its ${p.mount}`); }
     const n = body.faces.length + state.placed.reduce((s, p) => s + p.faces.length, 0) + state.wheels.reduce((s, w) => s + w.faces.length, 0) + stand.faces.length;
-    law('budget', n <= 4000, `${n} faces`);
+    law('budget', n <= FACE_BUDGET, `${n} faces`);
     return out;
   };
   // place, judge, fix: up to six rounds
@@ -398,18 +413,25 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
     }
   }
   const failing = L.filter((l) => !l.ok).map(({ law, detail }) => ({ law, detail }));
+  // (the plain machine's height, which the physics reads: a bevel rounds a top edge down)
+  const plainH = shade === 'smooth' ? r4(Math.max(...[body.faces, ...state.placed.map((p) => p.faces), ...state.wheels.map((w) => w.faces), stand.faces].flat().flatMap((f) => f.corners.map((c) => c[2])))) : null;
+  if (shade === 'smooth') { bevelled = { bevel: BEVEL }; shape(); state = place(); }
 
   // ── paint, bones, the figure ──
   const PAL = paintOf(R), liv = v.livery, mid = (f) => f.corners.reduce((s, p) => add(s, p.map((x) => x / f.corners.length)), [0, 0, 0]);
   const bodyFaces = body.faces.map((f) => { const m = mid(f), zm = (body.botAt(m[1]) + body.topAt(m[1])) / 2; return { ...f, slot: liv === 'two-tone' && m[2] < zm ? 'tech:skin' : liv === 'striped' && Math.abs(m[0]) < F.W * 0.18 && m[2] > zm ? 'tech:skin' : 'tech:body' }; });
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
-  const paint = (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
+  const paint = shade === 'smooth'
+    ? (fs) => shadeRacerFaces(fan(fs).map((f) => ({ ...f, corners: f.corners.map((c) => c.map(r4)) })), { palette: { ...PAL, 'lamp:rim': LAMP_RIM }, motif: v.motif, sun: SUN })
+    : (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
   // the bones that live (R2): the steering wheel, a mast, the front fenders each their own; the rest rides the root
   // (and R4's status slots: the head lamps, the brake lamps, the hero piece, each a bone its tint is set on)
   const boneOf = (p) => p.bone ?? (p.family === 'steering' ? 'steering' : PARTS[p.id]?.mount === 'mast' ? 'mast' : p.family === 'lamps' ? 'lampHead' : p.family === 'tail' ? 'lampBrake' : p.family === 'hero' ? 'hero' : null);
+  // (the smooth finish rims a lamp: its faces turned from its lens dark, so a thin light reads against loud paint)
+  const slotted = (p) => { const fs = p.faces.map((f) => ({ ...f, slot: slotOf(p, f) })); return shade === 'smooth' ? rimLamps(fs, [0, F.WB / 2, F.deck / 2]) : fs; };
   const own = new Map();
-  for (const p of state.placed) { const b = boneOf(p); if (!b) continue; if (!own.has(b)) own.set(b, { head: p.at.map(r4), faces: [] }); own.get(b).faces.push(...p.faces.map((f) => ({ ...f, slot: slotOf(p, f) }))); }
-  const rootRaw = [...bodyFaces, ...state.placed.filter((p) => !boneOf(p)).flatMap((p) => p.faces.map((f) => ({ ...f, slot: slotOf(p, f) }))), ...stand.faces];
+  for (const p of state.placed) { const b = boneOf(p); if (!b) continue; if (!own.has(b)) own.set(b, { head: p.at.map(r4), faces: [] }); own.get(b).faces.push(...slotted(p)); }
+  const rootRaw = [...bodyFaces, ...state.placed.filter((p) => !boneOf(p)).flatMap(slotted), ...stand.faces];
   const root = paint(rootRaw);
   const wheelFaces = state.wheels.map((w) => ({ bone: w.bone, hub: w.hub, faces: paint(w.faces) }));
   const others = [...own.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([id, o]) => ({ id, head: o.head, faces: paint(o.faces) }));
@@ -441,7 +463,12 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   // the kart's in wheelbases, so a short machine turns quicker)
   const shell = vol * 140, engine = (eng?.power ?? 8) * 4 * (F.D / 0.5) ** 2, tyres = 2 * 30 * (F.D ** 2 * F.wR + F.D ** 2 * 0.78 ** 2 * F.wF) / 0.1 * (ids.wheel === 'chunky' ? 1.3 : 1);
   const mass = 40 + shell + engine + tyres + R.driver.mass, cgH = (R.driver.mass * (F.seatZ + R.driver.torso * 0.4) + (mass - R.driver.mass) * V.deck * 0.6) / mass;
-  const physics = { ...K, mass: r4(mass), power: r4((eng?.power ?? 8) * (F.D / 0.5) ** 2), CdA: r4((CDA[v.silhouette] ?? 0.5) * (F.D / 0.5) ** 2), grip: r4(K.grip * (GRIP[ids.wheel] ?? 1)), Crr: CRR[ids.wheel] ?? K.Crr, cgH: r4(cgH), wheelbase: r4(F.WB), track: r4(F.T), wheelRadius: r4(F.r), turn: r4(F.WB * K.turn / K.wheelbase), L: r4(bb.hi[1] - bb.lo[1]), W: r4(F.T + F.wR), H: figure.figH, eye: r4(stand.head[2]) };
+  const physics = { ...K, mass: r4(mass), power: r4((eng?.power ?? 8) * (F.D / 0.5) ** 2), CdA: r4((CDA[v.silhouette] ?? 0.5) * (F.D / 0.5) ** 2), grip: r4(K.grip * (GRIP[ids.wheel] ?? 1)), Crr: CRR[ids.wheel] ?? K.Crr, cgH: r4(cgH), wheelbase: r4(F.WB), track: r4(F.T), wheelRadius: r4(F.r), turn: r4(F.WB * K.turn / K.wheelbase), L: r4(bb.hi[1] - bb.lo[1]), W: r4(F.T + F.wR), H: plainH ?? figure.figH, eye: r4(stand.head[2]) };
+
+  // the census: the faces the budget law counts, and the triangles each bone draws
+  const tri = (fs) => fs.reduce((t, f) => t + f.corners.length - 2, 0);
+  const byBone = { root: tri(root), ...Object.fromEntries(wheelFaces.map((w) => [w.bone, tri(w.faces)])), ...Object.fromEntries(others.map((o) => [o.id, tri(o.faces)])) };
+  const census = { faces: rootRaw.length + state.wheels.reduce((t, w) => t + w.faces.length, 0) + [...own.values()].reduce((t, o) => t + o.faces.length, 0), faceBudget: FACE_BUDGET, triangles: Object.values(byBone).reduce((t, x) => t + x, 0), byBone };
 
   const kinds = new Set(state.anchors.map((a) => a.kind.split('.')[0]));
   const juice = Object.entries(JUICE).filter(([, j]) => kinds.has(j.at.split('.')[0])).map(([id, j]) => ({ id, ...j }));
@@ -449,6 +476,6 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
     frame: Object.fromEntries(Object.entries({ ...F, L: body.L, tailY: body.tailY, noseY: body.noseY }).map(([k, x]) => [k, r4(x)])),
     body: bodyId, chosen, suggestions, ids: { body: bodyId, ...ids },
     faces: { root, wheels: wheelFaces, bones: others }, figure, anchors: state.anchors, juice, status: STATUS, motion: MOTION,
-    physics, laws: failing, changes,
+    physics, census, laws: failing, changes,
   };
 }

@@ -237,6 +237,82 @@ genre on the quick path.
   view, AI attack) is off by default on a level that carries its `game`, wherever it is opened (the shell, the
   playtest and the export already hid it); `?hud=1` brings it back for debugging. Every other world shows it as before.
 
+### Rolled front surfaces and headlight families
+
+- Sweep and rake the front bumper into a rolled nose, with curved corner transitions and matched body boundaries.
+- Add selectable round, cat-eye and slim headlight assemblies with matching running-light signatures and language-specific defaults; retain fitted lenses, material grouping and LOD budgets.
+
+### Vehicle detail segmentation
+
+- Separate lamp housings, seals, reflectors and emitters, and shape mirror pods with an inset reflective face and a solid mounting stalk. Keep small detail tessellation proportional to physical size and reuse the existing material slots.
+
+### Close-camera supercar detail and budgets
+
+- Give each surface detail level an explicit triangle ceiling and measured mesh census. Use shaped tyre shoulders, a consistent wheel design across LODs, rounded cabin surfaces, bevelled bumper ends and crease-aware shading normals.
+- Provide material assignments and a self-contained lit vehicle review with paint, glass, rubber and alloy finishes; keep the existing world renderer and racing compilers unchanged.
+
+### Supercar body panels and cabin framing
+
+- Separate the hood and door skins with fitted shut lines, frame the windscreen and side windows, and add door handles and mounted mirrors so the cabin reads as an assembled vehicle.
+
+### Supercar display surfaces: fitted arches and mounted details
+
+- Replace coarse wheel-patch deletion with sampled wheel-envelope openings, fitted wheel wells and crowned body panels. Separate the body deck from the canopy and close both body ends.
+- Mount lamps on the end panels and support the rear wing from the deck. Bake directional face shading so the mesh reads in the unlit world renderer; preserve the existing racer and realistic compilers.
+- `node scripts/render-supercars.mjs <output-directory> [game|studio|hero]` renders front, side and rear views, orbitable HTML models and a review sheet without writing to the database.
+
+### Cabin, cooling and expressive aero library
+
+- Add raked, curved and tapered cabin profiles, fitted recessed cooling vents, and shaped spoiler assemblies with distinct mounts and endplates.
+- Provide reusable exotic-car composition cards with independent cabin, lighting, cooling and spoiler choices for visual exploration. Preserve exterior mesh budgets and existing material slots.
+
+### Kart shading: the supercar's finish on the racer pole
+
+- A cartoon racer takes `shade: 'smooth'` (on `solveRacer` and in a racer's recipe): its parts are bevelled, its
+  corner normals are smoothed within a paint slot and broken at the motif's crease angle, its toon light is baked per
+  corner with the shadow step softened to a band, and its lamps are left unshaded and rimmed dark (the faces turned
+  from the lens, so a thin light reads against loud paint). The laws judge the plain parts, so
+  the machine (its parts, physics, anchors) is the same; the finish costs about twice the triangles, within the
+  budget. Without it a racer is byte-identical to before.
+- `buildBlock` takes an opt-in `bevel` (a share of each drawn part's least size): a capped prism's corners rounded
+  and its ends eased into its caps, closed and inside the plain part's bounds, in one or two steps by the part's size.
+  Absent, every block builds as before.
+- A solved racer carries its triangle census against the budget law's ceiling; a smooth one tags each face with a
+  material, its albedo and its normals, so it opens in the vehicle review page.
+- `node scripts/render-karts.mjs <output-directory> [archetypes] [seed]` renders each racer's chase view cel and
+  smooth, and the smooth one in the lit material review, with the census, without writing to the database.
+- The quick race's `racers` list takes `shade` per racer, and its card says so.
+
+### Supercar liveries: paint any colour, a livery, and a field solved against its world
+
+- A supercar's `paint` is a name or any `#rrggbb`, and `livery: { pattern: 'mono' | 'stripes' | 'split', secondary? }`
+  cuts the painted panels at the pattern's lines and paints them: twin centre stripes over the top and the fascias,
+  or the body below the waist. Only the faces a pattern paints are cut, so a livery's lines cost geometry: it takes
+  an allowance of `LIVERY_ALLOWANCE` (a tenth) over the quality's triangle ceiling, reported in the census. Without a
+  livery a supercar is byte-identical to before.
+- `solveLiveries({ n, seed, palette?, against? })` (color theorist) solves a field of liveries seen against a world:
+  each paint clear of the road, the kerb, the grass and the sky, and of the others, for colour-blind eyes too; the
+  patterns rotate through the field. Its laws advise and none refuse.
+
+### Race moods and the supercar on the grid
+
+- A quick race takes `supercars`: a field (2 to 8, or a list of `{ preset?, paint?, livery? }`) of the composed
+  supercars, each on the sports class's rule at its own frame, its livery solved against the ground it races on unless
+  given. A `figures` entry `{ supercar: { preset, seed, surface, mood? } }` draws one as a vehicle rig anywhere.
+- A race on a roadway takes a `mood`: `golden`, `dusk`, `night`, `rain` or `night-rain`. The track is re-lit under the
+  mood's key and ambient, its sky and haze turn with it, street lights stand lit along the road after dark (their pools
+  baked on the road, their heads glowing, some in neon at night), the cars' lamps come on, and a wet mood darkens the
+  road, lays a reflective film over it that throws the lamps back, and brings the rain. A roadway level takes `mood`
+  too. Absent, every race is byte-identical.
+
+### Night drive: a lighter field, headlight beams, light trails, rain spray
+
+- A supercar on the grid packs its mesh indexed and quantized, as unit rigs do, so a field weighs a fraction of what
+  it did. Every other vehicle rig is unchanged.
+- In a dark mood the cars' headlamps throw a pool of light on the road ahead, and after dark each tail lamp leaves a
+  red ribbon behind the car, brighter on the brake. In the wet the rear tyres throw a mist the colour of the sky.
+  A page without them is byte-identical.
+
 ### Historic recipes: other eras by the same principles
 
 The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that

@@ -27,6 +27,7 @@ import { SURFACES } from './surfaces.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { trackKit } from './track-kit.js';
 import { racingLine } from './contract.js';
+import { moodOf, moodScene } from './race-mood.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const TILE = 2.5;
@@ -93,7 +94,7 @@ export function planTrack(m = {}) {
   const baseGrade = (s) => { const h = 0.25; return (baseZ(Math.min(L, s + h)) - baseZ(Math.max(0, s - h))) / (Math.min(L, s + h) - Math.max(0, s - h)); };
   const deck = course.crossingDeck ?? null;
   const onDeck = (s) => !!deck && s >= deck.s0 - 1e-6 && s <= deck.s1 + 1e-6;
-  const faces = [], sections = [], colliders = [];
+  const faces = [], sections = [], colliders = [], roadFaces = new Set();
   // the kit (`kit`, track-kit.js): every surface in its world's look; absent, the roadway's own tiles and colours
   const K = m.kit ? trackKit(m.kit) : null;
   const KIT_OF = { asphalt: 'asphalt', gravel: 'gravel', grass: 'grass', dirt: 'earth', sand: 'earth' };
@@ -113,7 +114,7 @@ export function planTrack(m = {}) {
     for (const side of [1, -1]) {
       const quad = (o0, o1, dz = 0) => [P(A, side * o0, dz), P(A, side * o1, dz), P(B, side * o1, dz), P(B, side * o0, dz)];
       const uv = (o0, o1, t = TILE) => [[sA / t, (side * o0) / t], [sA / t, (side * o1) / t], [sB / t, (side * o1) / t], [sB / t, (side * o0) / t]];
-      faces.push(surf(T.road, quad(0, X.road), uv(0, X.road)));
+      faces.push(surf(T.road, quad(0, X.road), uv(0, X.road))); roadFaces.add(faces[faces.length - 1]);
       if (T.edgeLine) faces.push(paint('line', quad(X.road - 0.35 - T.edgeLine, X.road - 0.35, 0.012), COLOR.line));
       if (T.kerb) {
         if (corner) { const white = Math.floor((sA + sB) / 4) % 2; faces.push(paint(white ? 'kerbWhite' : 'kerbRed', quad(X.road, X.kerb, 0.02), white ? COLOR.kerbWhite : COLOR.kerbRed)); }
@@ -178,7 +179,7 @@ export function planTrack(m = {}) {
   const props = m.dress ? dressProps({ a, X, terrain, dress: m.dress, seed: Number.isInteger(m.seed) ? m.seed : 1 }) : [];
   for (const q of props) faces.push(...propFaces(q));
   const cameras = trackCameras({ a, X, P, course, deck, crossings });
-  return { form: m.form, course, alignment: a, X, stations: st, faces, ground, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L };
+  return { form: m.form, course, alignment: a, X, stations: st, faces, roadFaces, ground, sections, terrain, groundAt, lines, deck, crossings, colliders, props, cameras, advisories: course.advisories, length: L };
 }
 
 // ── the ground ───────────────────────────────────────────────────────────────────────────────────
@@ -428,6 +429,11 @@ export function trackLaws(c) {
 export function assembleTrackScene(m = {}, opts = {}, planned = null) {
   // `planned`: a plan already made (trackscape-dress.js: a track dressed by its trackscape); else this manifest's
   const plan = planned ?? planTrack(m);
+  // `mood` (race-mood.js): the light the race is run in; absent, noon, every byte as it was
+  const scene = assembleNoonScene(m, opts, plan);
+  return m.mood ? moodScene(scene, plan, moodOf(m.mood), { isRoad: (f) => !!plan.roadFaces?.has(f) }) : scene;
+}
+function assembleNoonScene(m, opts, plan) {
   const first = trackViewCamera(plan, opts.view);
   const cameras = first ? [first, ...plan.cameras.filter((c) => c !== first)] : plan.cameras;
   const V = 3000;

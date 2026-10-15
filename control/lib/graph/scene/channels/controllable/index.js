@@ -68,6 +68,9 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // a racer's JUICE (car-designer/juice.js: flames, puffs, smoke, dust, sparks, a landing ring at its anchors) —
   // emitted only when some figure carries one.
   const figHasJuice = Object.values(figures || {}).some((f) => f && f.rig && f.juice);
+  // a car's own light in a dark mood (car-designer/supercar-figure.js: the headlamps' pool on the road, the tail lamps'
+  // ribbons) — emitted only when some figure's juice carries them.
+  const figHasLights = figHasJuice && Object.values(figures || {}).some((f) => f && f.rig && f.juice && (f.juice.beams || f.juice.trails));
   // spec rides two encodings: legacy float32 pairs (`spec`, vehicle/protoform rigs) and the
   // unit rigs' u8 pairs (`spec8` — [strength×255, shininess], dequantized to the same float
   // attribute here so the shared spec patch shader is unchanged).
@@ -741,8 +744,60 @@ function __rjBuild(fig, group, boneMeshes) {
       fragmentShader: '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uA; varying vec3 vN; varying vec3 vV; void main() {\\n#include <logdepthbuf_fragment>\\n float f = pow(1.0 - abs(dot(vN, vV)), 2.2); gl_FragColor = vec4(uCol * (0.18 + 1.4 * f), uA * (0.25 + 0.9 * f)); }' }));
     bubble.raycast = function () {}; bubble.visible = false; bubble.position.z = rad * 0.45; (body ? body.loc : group).add(bubble);
   }
-  group.userData.rigFig.rj = { J, anchors, flames, acc: {}, alive: {}, skidT: 0, st, slot, halos, bubble, on: {}, flashT: {}, prevV: 0, accel: 0, impactCD: 0, wasBoost: false, group, fired: {}, screen: 0 };
+  group.userData.rigFig.rj = { J, anchors, flames, acc: {}, alive: {}, skidT: 0, st, slot, halos, bubble, on: {}, flashT: {}, prevV: 0, accel: 0, impactCD: 0, wasBoost: false, group, fired: {}, screen: 0 };${figHasLights ? `
+  if (J.beams || J.trails) __rjLightsBuild(group.userData.rigFig.rj, fig, group, boneMeshes);` : ''}
+}${figHasLights ? `
+// A CAR'S OWN LIGHT: the headlamps' pool on the road ahead (a soft cone in the machine's frame, so it follows the
+// heading and not the body's lean, drawn additively a hair over the road), and from each tail lamp a ribbon the car
+// leaves behind (world points, the newest at the lamp, each fading as it ages, turned to face the camera).
+const __rlBeamV = '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\\n#include <logdepthbuf_vertex>\\n}';
+const __rlBeamF = '#include <logdepthbuf_pars_fragment>\\nuniform vec3 uCol; uniform float uA, uSp; varying vec2 vUv; void main() {\\n#include <logdepthbuf_fragment>\\n float v = vUv.y, u = vUv.x * 2.0 - 1.0, w = 0.3 + 0.7 * v, c = uSp * (1.0 - v);\\n float lobes = exp(-pow((u - c) / (0.34 * w), 2.0)) + exp(-pow((u + c) / (0.34 * w), 2.0));\\n float k = smoothstep(0.0, 0.3, v) * pow(1.0 - v, 1.2) * min(1.0, lobes) * 1.6;\\n gl_FragColor = vec4(uCol * k * uA, 1.0); }';
+function __rjLightsBuild(rj, fig, group, boneMeshes) {
+  const J = rj.J, L = { beam: null, trails: [] };
+  if (J.beams) {
+    const B = J.beams, g = new THREE.PlaneGeometry(B.width, B.len); g.translate(0, B.from + B.len / 2, 0.06);
+    const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: { uCol: { value: new THREE.Color(B.colour) }, uA: { value: 0 }, uSp: { value: B.spread } }, vertexShader: __rlBeamV, fragmentShader: __rlBeamF, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    m.raycast = function () {}; m.frustumCulled = false; m.renderOrder = 0.9; group.add(m); L.beam = { m, B };
+  }
+  if (J.trails) for (const at of J.trails.at) {
+    const bi = J.trails.bone ? fig.bones.findIndex((b) => b.id === J.trails.bone) : -1, loc = new THREE.Object3D();
+    loc.position.set(at[0], at[1], at[2]); (bi >= 0 && boneMeshes[bi] ? boneMeshes[bi] : group).add(loc);
+    const N = J.trails.points, pos = new Float32Array(N * 6), col = new Float32Array(N * 6), idx = [];
+    for (let i = 0; i + 1 < N; i++) idx.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setIndex(idx);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+    m.raycast = function () {}; m.frustumCulled = false; scene.add(m);
+    L.trails.push({ loc, m, pts: [], c: new THREE.Color(J.trails.colour) });
+  }
+  rj.lights = L;
 }
+const __rlP = new THREE.Vector3(), __rlS = new THREE.Vector3(), __rlT = new THREE.Vector3(), __rlE = new THREE.Vector3();
+function __rjLightsTick(rj, e, F, d) {
+  const L = rj.lights, t = __world.time || 0;
+  if (L.beam) L.beam.m.material.uniforms.uA.value = L.beam.B.amount * (0.85 + 0.15 * Math.min(1, F.speed / 30));
+  const T = rj.J.trails;
+  for (const tr of L.trails) {
+    tr.loc.getWorldPosition(__rlP);
+    const last = tr.pts[0];
+    if (F.speed > T.minSpeed && (!last || __rlP.distanceToSquared(last.p) > 0.04)) { tr.pts.unshift({ p: __rlP.clone(), t }); if (tr.pts.length > T.points) tr.pts.pop(); }
+    while (tr.pts.length && t - tr.pts[tr.pts.length - 1].t > T.life) tr.pts.pop();
+    const pos = tr.m.geometry.attributes.position.array, col = tr.m.geometry.attributes.color.array, n = tr.pts.length;
+    const A = T.amount * (F.braking ? T.brake : 1);
+    for (let i = 0; i < T.points; i++) {
+      const q = tr.pts[Math.min(i, n - 1)], o = i * 6;
+      if (!q || n < 2) { for (let k = 0; k < 6; k++) { pos[o + k] = 0; col[o + k] = 0; } continue; }
+      const a = tr.pts[Math.max(0, Math.min(i, n - 1) - 1)].p, b = tr.pts[Math.min(n - 1, Math.min(i, n - 1) + 1)].p;
+      const age = i < n ? Math.max(0, 1 - (t - q.t) / T.life) : 0, hw = (T.width / 2) * (0.25 + 0.75 * age);   // (narrowing as it ages)
+      __rlT.subVectors(b, a); __rlE.subVectors(camera.position, q.p); __rlS.crossVectors(__rlT, __rlE);
+      const sl = __rlS.length(); if (sl > 1e-6) __rlS.multiplyScalar(hw / sl); else __rlS.set(0, 0, hw);
+      pos[o] = q.p.x + __rlS.x; pos[o + 1] = q.p.y + __rlS.y; pos[o + 2] = q.p.z + __rlS.z;
+      pos[o + 3] = q.p.x - __rlS.x; pos[o + 4] = q.p.y - __rlS.y; pos[o + 5] = q.p.z - __rlS.z;
+      const f = A * age * age;
+      col[o] = col[o + 3] = tr.c.r * f; col[o + 1] = col[o + 4] = tr.c.g * f; col[o + 2] = col[o + 5] = tr.c.b * f;
+    }
+    tr.m.geometry.attributes.position.needsUpdate = true; tr.m.geometry.attributes.color.needsUpdate = true;
+  }
+}` : ''}
 let __rjStarTex = null, __rjStars = [], __rjStreaks = [], __rjShocks = [], __rjScreen = null;
 function __rjStarTexture() {
   if (__rjStarTex) return __rjStarTex;
@@ -933,7 +988,8 @@ function __updateRacerJuice(dt) {
       f.outer.material.opacity = f.outer.userData.o * f.amt; f.inner.material.opacity = f.inner.userData.o * f.amt;
     }
     __rjStatus(rj, F, d, t);
-    __rjFx(rj, e, F, d);
+    __rjFx(rj, e, F, d);${figHasLights ? `
+    if (rj.lights) __rjLightsTick(rj, e, F, d);` : ''}
   }
   for (const p of __rjParts) {
     if (!p.on) continue;

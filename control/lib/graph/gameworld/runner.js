@@ -33,7 +33,7 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
+import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
 import { rideBuild, rideRule } from './ride.js';
 import { seedOfRef } from '../beats/field-cue.js';
 import { solvePalette } from '../color-theorist/solve.js';
@@ -183,8 +183,11 @@ function quickSteps(world, G, ref, lookup) {
   }
   // a field of racers (quick.racers): solved here, each a recipe its figure resolves through (nothing to mint); yours first
   const racers = Q.racers !== undefined ? quickRacers(Q, Number.isInteger(G.seed) ? G.seed : 1) : null;
+  // a field of supercars (quick.supercars): each a recipe its figure resolves through, its livery solved; yours first
+  const supercars = Q.supercars !== undefined ? quickSupercars(Q, Number.isInteger(G.seed) ? G.seed : 1) : null;
   const ride = rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
-    : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field } : null;
+    : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field }
+    : supercars ? { figure: supercars.field[0].figure, rule: supercars.field[0].rule, field: supercars.field } : null;
   // (the field's balance as a level law, in the concerns' shape: advice in the run's readout, never a refusal)
   const B = racers?.balance, nameOf = (i) => racers.field[i].archetype;
   const balance = racers ? { concern: 'racers', law: 'balance', holds: B.holds, says: B.holds ? `each of the ${racers.field.length} machines has something over every rival, none best at everything${racers.changes.length ? ` (leaned: ${racers.changes.map((c) => `the ${c.archetype}'s ${c.family} ${c.from} → ${c.to}`).join('; ')})` : ''}` : [...B.bettered.map((x) => `the ${nameOf(x.i)}'s machine bettered everywhere by the ${nameOf(x.by)}'s`), ...B.everything.map((i) => `the ${nameOf(i)}'s machine best at everything`)].join('; ') } : null;
