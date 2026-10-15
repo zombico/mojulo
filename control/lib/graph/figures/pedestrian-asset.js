@@ -55,6 +55,9 @@ export const POSES = {
   idleR:   { kneeL: 6, kneeR: 6, elbowL: 10, elbowR: 16, spine: { lateral: -0.10, axial: -0.04 }, hipR: { roll: 4 }, head: { yaw: 10 } },
   strollL: { elbowL: 20, elbowR: 16, shL: { pitch: 16 }, shR: { pitch: -14 }, hipL: { pitch: 20 }, hipR: { pitch: -14 }, kneeL: 8, kneeR: 30, ankleL: 6, ankleR: -12, spine: { axial: 0.12, sagittal: 0.06 }, head: { yaw: 6 } },
   strollR: { elbowL: 16, elbowR: 20, shL: { pitch: -14 }, shR: { pitch: 16 }, hipL: { pitch: -14 }, hipR: { pitch: 20 }, kneeL: 30, kneeR: 8, ankleL: -12, ankleR: 6, spine: { axial: -0.12, sagittal: 0.06 }, head: { yaw: -6 } },
+  // crowd poses (a fight's stands, versus/arena.js): both fists up, or one up and one at the chest
+  cheerL: { shL: { pitch: 150 }, shR: { pitch: 150 }, elbowL: 25, elbowR: 25, kneeL: 6, kneeR: 6, head: { yaw: -6 } },
+  cheerR: { shL: { pitch: 40 }, shR: { pitch: 160 }, elbowL: 95, elbowR: 15, kneeL: 6, kneeR: 6, head: { yaw: 8 } },
   // work poses (the historic miniatures' field hands; the city never draws them): bent over the crop with both hands
   // low (reaping, weeding), leaning into a hoe or mattock, and walking with a load hoisted on the right shoulder
   stoop: { hinge: 55, kneeL: 22, kneeR: 30, elbowL: 20, elbowR: 30, shL: { pitch: 40 }, shR: { pitch: 55 }, head: { yaw: 6 } },

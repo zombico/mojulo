@@ -17,6 +17,9 @@ import { emitThreeWorld } from './scene-three.js';
 //   })" > /tmp/emission.html
 // and diff against the same dump from a clean checkout.
 //
+// The `versus` fixture (a side-view fight on an arena) embeds lib/graph/versus's pure modules and browser clients
+// whole: a change to any of them re-pins that fixture alone, and every other page stays as it was.
+//
 // Re-pinned 2026-10-07 (playscape: movers run rails and ride drives): the controllable runtime the page embeds gained
 // the mover's `path` / `drive: 'ride'` branch and the carry pass's `_ridden` mark. The diff on the `controllable` fixture
 // is additions only (85 lines, none removed); every fixture that embeds the controllable runtime re-pinned with it.

@@ -8,7 +8,7 @@
  * is regenerated on every read. No network, no CDN.
  *
  *   manifest = { kind: 'game', engine: 'versus', title?, roster?: [intent | { recipe }], stages?: [stage],
- *                rules?: { rounds?, timer? } }
+ *                arenas?: [{ ref, name?, says? }], rules?: { rounds?, timer? } }
  */
 
 import { readFileSync } from 'node:fs';
@@ -16,6 +16,11 @@ import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { solveFighter } from './versus-solver.js';
 import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
+import { ARENA_PLANE } from './versus-arena.js';
+import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
+
+// the level wire a hosted arena speaks (the game shell's own handshake: ready → init → outcome)
+export const VERSUS_WIRE = Object.freeze({ ready: MSG_READY, init: MSG_INIT, outcome: MSG_OUTCOME, version: CONTRACT_VERSION });
 
 const SRC = moduleDir(import.meta.url, 'lib/graph/versus');
 
@@ -46,8 +51,19 @@ export function versusGameData(manifest = {}) {
   const roster = (manifest.roster ?? DEFAULT_ROSTER).map(rosterEntry);
   if (roster.length < 1) throw new Error('versus: a roster needs at least one fighter');
   const stages = manifest.stages ?? DEFAULT_STAGES;
-  const rules = { ...(manifest.rules?.rounds ? { rounds: manifest.rules.rounds } : {}), ...(manifest.rules?.timer ? { timer: manifest.rules.timer } : {}) };
-  return { title: manifest.title ?? 'Versus', roster, stages, rules };
+  const rules = rulesOf(manifest.rules);
+  // arenas: scapeshift stage worlds carrying the fight channel, hosted in a frame (`src`: their World page)
+  const arenas = (manifest.arenas ?? []).map((a) => ({ ref: a.ref, name: a.name ?? a.ref, ...(a.says ? { says: a.says } : {}), src: a.src ?? `/api/sketches/${encodeURIComponent(a.ref)}/world?hud=0` }));
+  return { title: manifest.title ?? 'Versus', roster, stages, rules, ...(arenas.length ? { arenas } : {}), wire: VERSUS_WIRE };
+}
+
+const rulesOf = (r) => ({ ...(r?.rounds ? { rounds: r.rounds } : {}), ...(r?.timer ? { timer: r.timer } : {}) });
+
+/** What an arena's fight channel carries: the plane and walls (m), the floor, the roster solved, the rules, the wire. */
+export function versusArenaData(v = {}) {
+  const roster = (v.roster ?? DEFAULT_ROSTER).map(rosterEntry);
+  if (roster.length < 1) throw new Error('versus: an arena needs at least one fighter');
+  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules: rulesOf(v.rules), wire: VERSUS_WIRE };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -55,7 +71,7 @@ const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 /** The playable page. */
 export function emitVersusPage(manifest = {}, { title } = {}) {
   const data = versusGameData({ ...manifest, title: title ?? manifest.title });
-  const lib = VERSUS_PAGE_MODULES.map((f) => `// ── ${f} ──\n${versusSource(f)}`).join('\n');
+  const lib = [...VERSUS_PAGE_MODULES, 'versus-runtime.client.js'].map((f) => `// ── ${f} ──\n${versusSource(f)}`).join('\n');
   const shell = versusSource('versus-play.client.js');
   // the data rides as JSON; `</` is escaped so nothing in a name can close the script
   const json = JSON.stringify(data).replace(/</g, '\\u003c');

@@ -33,7 +33,7 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { quickVersus, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
+import { quickVersus, fightArenas, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
 import { rideBuild, rideRule } from './ride.js';
 import { seedOfRef } from '../beats/field-cue.js';
 import { solvePalette } from '../color-theorist/solve.js';
@@ -168,8 +168,12 @@ function quickSteps(world, G, ref, lookup) {
   const Q = world.quick, steps = [];
   // a fight is its own simulation (versus/): one game row, its roster solved where it plays
   if (Q.goal === 'fight') {
-    const game = quickVersus(Q, { title: G.name ?? G.id, theme: Q.theme ?? paletteTheme(G) });
-    return [{ key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+    // each arena a stage world the fight runs on (a level), then the game that picks among them
+    const title = G.name ?? G.id;
+    const arenas = fightArenas(Q, { title }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
+    const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
+    const game = quickVersus(Q, { title, theme: Q.theme ?? paletteTheme(G), arenas: arenas.map((a) => ({ ref: a.ref, name: a.name })) });
+    return [...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
   }
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;

@@ -193,3 +193,17 @@ describe('versus: the solver and the laws', () => {
     }
   });
 });
+
+describe('versus: the inlined pages', () => {
+  it('the front and the arena block parse as one script each (no name collides across the inlined modules)', async () => {
+    const { emitVersusPage, versusArenaData } = await import('./versus-page.js');
+    const { versusChannelScript } = await import('../scene/channels/versus.js');
+    const html = emitVersusPage({ title: 't', arenas: [{ ref: 'sk_a', name: 'A' }] });
+    const script = html.split('<script>')[1].split('</script>')[0];
+    expect(() => new Function(script)).not.toThrow();
+    expect(html).toContain('/api/sketches/sk_a/world?hud=0');
+    const data = versusArenaData({ plane: 6, half: 8 });
+    expect(data.wire).toMatchObject({ ready: 'game-ready', init: 'game-init', outcome: 'game-outcome' });
+    expect(() => new Function(`let stepFight; ${versusChannelScript(data)}`)).not.toThrow();
+  });
+});

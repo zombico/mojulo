@@ -23,13 +23,31 @@ dummies on purpose (the look is other tools' job).
   the roster is a list of intents (archetype, cast, signature words), solved where the game plays; the run makes
   one `kind: 'game'`, `engine: 'versus'` row, played at `/api/sketches/<ref>/game` and exported by `export_game` as
   one `game.html`. A fight is seen from the side and takes no hero, trail, building or ride.
-- **The playable page** (`versus-page.js`, `versus-play.client.js`): one self-contained HTML file, the pure modules
+- **Scapeshift arenas: the fight in 3D on a stage** (`versus-arena.js`, `versus-arena.client.js`,
+  `scene/channels/versus.js`). An arena is a `stage` recipe of a few words: one long, shallow room on a stage kit
+  (the plaza, the nave, the crypt, the lab, the catacomb), its camera side left open, the fight plane six metres in,
+  so the camera stands on the floor square to it. The World page's opt-in `versus` channel fights on it: the stick
+  figures as solid limbs with an ink hull, the camera keeping both fighters in frame and stopping at the walls, the
+  health, timer, banners, sparks and fireballs drawn over the picture. A kit that stands a set piece at the centre
+  (the plaza's fountain) is undressed so the floor is clear. Absent, the channel adds nothing to any page (the
+  emission pin holds for every other fixture; a `versus` fixture is pinned beside them).
+- **Stands: a set's audience** (`era/stands.js`, the stage's `stands` key, opt-in): tiers along the wall across
+  from a room's one open side, a barrier in front, and people on them facing the open side, built only where the
+  camera sees. Each person is the city's pedestrian at its smallest detail, baked once per pose, build and dress and
+  stamped as instanced repeats with a tint (`shade` sets the crowd back behind what plays in front). The figures
+  gain two cheering poses. Absent, a stage is as it was.
+- **Arenas as levels.** The quick fight makes its arenas (`arenas: [{ id, name?, kit?, look?, width?, depth?,
+  height?, crowd? }]`, a plaza and a nave if none are named; `arenas: false` for the flat stages) as stage worlds
+  beside the game, and the game's stage select picks among them. The front hosts the chosen arena's World page in a
+  frame and speaks the game shell's own level wire to it (ready, init with the picks, outcome back); an arena opened
+  on its own fights its first two fighters against the CPU. A tap shorter than a slow frame still counts.
+- **The playable page** (`versus-page.js`, `versus-play.client.js`, `versus-runtime.client.js`): one self-contained HTML file, the pure modules
   inlined. Title, mode select (versus, versus CPU at four levels, training, CPU vs CPU), character select where each
   player picks a fighter and a scheme, stage select, rounds with ROUND / FIGHT / K.O. / TIME, mirrored health bars,
   meter, combo counter, the result (rematch, character select, mode select) and a continue after a loss to the CPU.
   Two players share a keyboard (WASD + J K L U I; arrows + 1 2 3 4 5) or use two gamepads. The sim steps at a fixed
   60 Hz. B draws the solved boxes; training shows the last move's frame data and a dummy that stands, crouches,
-  blocks, jumps or fights. The arena is a 2D backdrop with a crowd behind the fight plane for now.
+  blocks, jumps or fights. Without arenas the fight is drawn flat on a backdrop with a crowd band.
 
 - **The fight as a function of two pads** (`versus-core.js`): `stepVersus(state, [pad1, pad2], ctx)` at 60 Hz in
   integer frames and millimetres, no clock or dice, so a pad log replays a match to the byte and a snapshot is a
