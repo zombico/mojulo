@@ -104,6 +104,9 @@ export const FIXTURE = [
   // egocube: a character's design rolled once and kept, then made in any game at any age (create_character { egocube })
   ['I want to design a character once and use her in two different games, a farm girl who grows up to be a knight', 'create_sketch'],
   ['make my egocube character as she is at twenty six', 'create_character'],
+  // mascot: a cartoony, head-heavy character rolled from a promise (create_character { as: 'mascot' })
+  ['I need a speedy blue cartoon guy with spikes for my platformer', 'create_character'],
+  ['a round pink blob mascot with big eyes that floats around', 'create_character'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],

@@ -177,3 +177,25 @@ describe('create_character from an egocube: one sheet, many games', () => {
     expect(u.egocube.moved).toMatch(/has moved since this character was made from it/);
   }, 600_000);
 });
+
+describe('create_character as a mascot (docs/mascot.md)', () => {
+  it('rolls a sheet from its words, mints its body through the creature door, and makes the same mascot from an egocube', async () => {
+    const r = await createCharacterHandler({ as: 'mascot', spec: { brief: 'a sonic-like mascot, but cheeky', seed: 2 }, ref: 'cc_mascot' });
+    expect(r.ok).toBe(true);
+    expect(r.mascot.facets).toMatchObject({ promise: 'mischief', accent: 'spike', hook: 'quills' });
+    expect(r.next.tool).toBe('update_character');
+    const m = SketchRepository.getByRef('cc_mascot').manifest;
+    expect(m.plan.clips.idle).toBeTruthy();
+    expect(m.dials).toMatchObject({ lean: -4, tilt: -9 });   // the promise's pose (law 9)
+    expect(m).toMatchObject({ hullShade: true, toon: { light: true } });
+    await expect(createCharacterHandler({ as: 'mascot', spec: { cast: 'male' } })).rejects.toThrow(/brief, facets, seed/);
+    // the egocube kind: a cartoony brief rolls the same sheet, and the egocube door makes the same body
+    await createSketchHandler({ title: 'Zip', ref: 'cc_ego_mascot', manifest: { kind: 'egocube', roll: { brief: 'a sonic-like mascot, but cheeky', seed: 2 } } });
+    expect(SketchRepository.getByRef('cc_ego_mascot').manifest.sheet.tuning).toBe('mascot');
+    const e = await createCharacterHandler({ egocube: 'cc_ego_mascot', ref: 'cc_ego_mascot_made' });
+    expect(e.ok).toBe(true);
+    const made = SketchRepository.getByRef('cc_ego_mascot_made').manifest;
+    expect(JSON.stringify(made.plan)).toBe(JSON.stringify(m.plan));
+    expect(made.dials).toEqual(m.dials);
+  }, 300_000);
+});
