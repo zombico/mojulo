@@ -5,7 +5,12 @@
  *
  * manifest: { kind: 'airspace', map?: { form?, field?, craft?, ceiling?, lands? }, ground?: { land?, heartbeat?, scale?,
  *             pads?, cities?, geocube?, seed? }, seed?, spawn?: [x, y, z] metres, viewBox?, fly?: true | { craft? }, assist?: 'arcade' | 'sim',
- *             course?: true | { gates?, laps?, land? } }
+ *             course?: true | { gates?, laps?, land? }, palette? }
+ *
+ * `palette` (a color-theorist spec: pick_palette's, a preset such as 'coastal-noon', or a gameworld level's, moved by
+ * its script) colours the land, the sky, the haze and the sea (ground.js); without it the map is painted as it always
+ * was, from its geocube under a day sky. The haze stays the sky's horizon (it hides the map's edge). A space map keeps
+ * its void.
  *
  * `course` plans a gate course on the map (course.js): its ring gates drawn, its gates, finish and laws in `meta.course`
  * (the checkpoints a level's `laps` mechanic takes).
@@ -33,6 +38,7 @@ import { planCourse } from './course.js';
 import { craftOf } from './eye.js';
 import { planSpace, spaceField, spaceSeat, courseTubes, spaceLaws, validateSpace } from './space.js';
 import { trenchField } from './trench.js';
+import { readPaletteSpec } from '../color-theorist/solve.js';
 
 /** A space manifest: its map's form is 'void', or its craft is a space craft (the fighter), whose map is space. */
 export function isSpace(m) {
@@ -64,6 +70,7 @@ export function validateAirspace(m) {
   if (m.assist !== undefined && !['arcade', 'sim'].includes(m.assist)) e.push("airspace.assist must be 'arcade' (never stalls, the wings level quickly) or 'sim' (the bank holds where it is put)");
   if (m.course !== undefined && m.course !== true && m.course !== false && !(m.course && typeof m.course === 'object')) e.push('airspace.course must be true or { gates?, laps?, land? }: plan a gate course on the map (false: none)');
   if (m.fly && typeof m.fly === 'object' && m.fly.craft !== undefined) { try { craftOf(m.fly.craft); } catch (err) { e.push(`airspace.fly: ${err.message}`); } }
+  if (m.palette !== undefined) { try { readPaletteSpec(m.palette, 'airspace.palette'); } catch (err) { e.push(err.message); } }
   return e;
 }
 
@@ -84,7 +91,7 @@ export function airspaceOf(manifest) {
     return { map, field };
   }
   const map = planMap({ ...(manifest.map || {}), ...(craft ? { craft } : {}), seed });
-  const field = mapGround(map, { seed: manifest.seed, ...(manifest.ground || {}) });
+  const field = mapGround(map, { seed: manifest.seed, ...(manifest.ground || {}) }, { palette: manifest.palette || undefined });
   return { map, field };
 }
 
@@ -93,6 +100,7 @@ export function assembleAirspace(manifest, { title = 'mojulo airspace', live = f
   const { map, field } = airspaceOf(manifest);
   const channel = terrainPageChannel(field, { n: map.lod.n, split: map.lod.split, minSize: map.lod.minSize, horizonScale: map.lod.horizonScale });
   channel.hazeHeight = map.haze.hazeHeight;
+  if (field.water && channel.water) channel.water = { ...channel.water, color: field.water };
   // a city's painted streets read only where the mesh is finer than they are: over its footprint a node splits, while
   // the eye is near enough to see them, down to CITY_PIN m between vertices (the terrain world's pin)
   const towns = field.report.cities || [];

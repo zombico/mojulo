@@ -1611,6 +1611,79 @@ load on the blade, and the grass can be drawn as a material.
   land? }, density?, height? }`. It is validated, and on its own it stands the live field in the default wind.
   `contact: false` emits none of the contact code.
 
+### Craft shelf: an ODM inventory of aircraft and spacecraft parts
+
+Flight had a rule (`fly`) and no aircraft: its only body was a box slab. The craft shelf
+(`lib/graph/craft-shelf/`) is the flying sibling of the veh-* shelf. It is a catalogue of off-the-shelf flight parts,
+one row each, that whole craft are assembled from. The flight-game paradigm, what mojulo has for it and what
+comes next are in `docs/flight-games.md`.
+
+- **Two realms, one ruler.** Earth parts are sized to the real class they name: fuselages, wings and tails,
+  piston, turboprop and turbofan powerplants, propellers, gear legs and bogies, canopies, pylons and guns from
+  light singles to widebodies. Space parts follow the register of film and game spacecraft (snubfighters,
+  twin-panel interceptors, colonial darts, carrier heavy fighters, bombers, utility shuttles) in the same metres.
+  Names are generic.
+- **A row is a part number** (`CRAFT_ODM`): its kind, realm, class, the words people say, dims in metres, mass,
+  thrust or power, and its mount family. A builder per kind emits workbench monomers around the part's mount
+  with named hardpoints. `findCraftPart` turns words into a part number, one word to one part.
+- **Archetypes assemble craft** (`CRAFT_ARCHETYPES`, `assembleCraft`). Each row has a BOM audited by the veh-*
+  shelf's `planAssemblyBom` and a layout that hangs parts on each other's hardpoints, mirrored in pairs. The
+  result is an assembler recipe standing on its gear, a taildragger nose-up. Its readout gives span, length,
+  height, ground clearance per kind of part, thrust-to-weight and the gear contact points. A swapped part of the
+  wrong kind or realm, or one that leaves a part without its hardpoint, is named and never refused.
+- **Roles with analogues in both realms** (`CRAFT_ROLES`, `craftRoleAnalogues`): trainer, interceptor,
+  superiority, carrier, strike, stealth, transport, courier, liner. Each has at least one earth machine and
+  one starship. Earth adds Mirage III, F/A-18, F4U, A-10, C-130 and F-117 classes. Space adds an arrowhead
+  interceptor, a bent-panel fighter, a tri-wing command shuttle, a starliner, a two-seat trainer, a faceted
+  raider, and a twin-panel family (dagger interceptor, twin-pod bomber, tri-wing defender) beside the
+  original line fighter.
+- **Folded and flat-paneled wings.** A wing row can fold about a chordwise hinge, and `assembleCraft(id,
+  { fold })` sets it from spread to folded (carrier decks, closing foils, a shuttle landing). Faceted sections
+  keep every plate flat. Spacecraft hulls are built from plates (chamfered box, chined diamond, wedge). Panel
+  wings take any outline and can bend at the crease.
+- **More fidelity.** Sections at 24 points. Wing planforms with cranks, raked tips, strakes and gull dips.
+  Winglets, canted fins, intakes (chin, side, half-cone), radial engines, tandem gear. Layout mounts can
+  roll about the long axis and take a spacer `offset`.
+- **Finishes, articulation and surface detail.**
+  - Every part is finished by colour role: gloss paint or matte plating, brushed aluminium or blasted
+    steel, glass, rubber, and heat-blued titanium on hot sections (`finish: false` for bare tints).
+  - Control surfaces are cut out of their panels and hinged. Gear retracts, canopies hinge or slide, and
+    propellers turn. Each moving part is a joint in `garage.joints`, and `assembleCraft(id, { pose })`
+    mixes the pilot's pitch, roll, yaw, flaps, gear, canopy and prop into them.
+  - The skin carries spline-true panel seams (cabin barrels no longer bulge between stations), window
+    rows and framed doors, antennas and pitot booms, seeded greebles on starship plating, fan blades and
+    inlet lips, drive-pod fins and grilles, foil stripes, flap-track fairings, gear torque links, and
+    red/green wingtip lights.
+- **Machine gate:** every part builds closed, and every archetype lands within its class figures. Tricycles sit
+  level, nacelles and propellers clear the ground, and thrust-to-weight falls in its class band
+  (`craft-shelf.deep.test.js`). One emission pin per builder path and one whole craft
+  (`craft-shelf.char.test.js`). No eyes gate has run.
+- Nothing existing changes: the shelf is new modules only, with no MCP surface yet.
+
+### Flight palette: the color theorist paints the airspace
+
+A flight level took its world's palette only on its HUD. Its land came from a geocube, and its sky, haze and sea
+were a fixed clear day. Now the palette colours the airspace, so a flight world reads as one look. This pass
+covers the land and the air. The runway, gates, cities, foes and the craft's livery keep their fixed colours for
+now.
+
+- **`palette` on the `airspace` kind.** It takes a pick_palette spec, and an airspace level carries its world's
+  `style.palette`, moved by the world's colour script. The palette's ground, rock and scree ramps paint the land
+  in place of the geocube, the same ramps a painted terrain takes. Its sky ramp gives the zenith and horizon, and
+  its water ramp the sea round an island. The haze stays the horizon's colour, because it hides the map's edge.
+  The relief, pads, cities and course are the same with or without a palette. A space map keeps its void.
+  `meta.ground` names the palette in place of the geocube.
+- **Earth presets** beside the space ones: `coastal-noon`, `alpine-dawn`, `desert-haze` and `autumn-farmland`.
+  Each is a place seen from the air, with its sky's hue named. A quick flight takes one as
+  `quick.world.style.palette: { preset }`. Quick games still roll no palette of their own.
+- **Machine gate:** with no palette, or `palette: false`, the airspace is byte-identical to before. A painted
+  airspace keeps its relief, pads and grids, and its zenith is deeper than its horizon. The same spec renders the
+  same bytes. A game world's palette and its script's shift reach the airspace manifest. A quick flight in a
+  preset stores its rolled seed and renders in it. One earth preset is pinned in the solver's characterization
+  test. The existing palettes did not move. No eyes gate has run.
+- Airspace levels are unreleased, so no published world changes colour. A local world that already stores a
+  palette and an airspace level now draws that level in its palette.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the

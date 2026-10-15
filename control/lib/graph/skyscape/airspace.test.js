@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { assembleAirspace, validateAirspace } from './airspace.js';
 import { planMap } from './map.js';
+import { solvePalette, PALETTE_PRESETS } from '../color-theorist/solve.js';
+import { terrainRamps, atlasGround } from '../color-theorist/ground.js';
+import { rgbToOklab } from '../color-theorist/oklab.js';
 
 // the smallest airspace with every ring and a pad
 const M = { kind: 'airspace', map: { form: 'island', field: 1200, craft: 'glider' }, ground: { pads: [{ at: [0.5, 0.4] }] } };
@@ -35,5 +38,50 @@ describe('the airspace world kind', () => {
 
   it('is deterministic', () => {
     expect(JSON.stringify(assembleAirspace(M, { live: true }))).toBe(JSON.stringify(assembleAirspace(M, { live: true })));
+  });
+});
+
+describe('a palette colours the airspace', () => {
+  // an earth preset, chosen from the table (a preset with air)
+  const preset = Object.keys(PALETTE_PRESETS).find((p) => (PALETTE_PRESETS[p].spec.air ?? 'full') === 'full');
+  const P = { ...M, palette: { preset, seed: 3 } }, K = solvePalette(P.palette);
+  const hex = (c) => '#' + c.map((v) => v.toString(16).padStart(2, '0')).join('');
+  const Lof = (c) => rgbToOklab(c)[0];
+
+  it('absent or false, it adds nothing', () => {
+    const plain = JSON.stringify(assembleAirspace(M, { live: true }));
+    expect(JSON.stringify(assembleAirspace({ ...M, palette: false }, { live: true }))).toBe(plain);
+    expect(assembleAirspace(M, { live: true }).meta.ground).toMatchObject({ geocube: expect.any(String) });
+  });
+
+  it('paints the ground, the sky, the haze and the sea from the palette; the land itself is the same', () => {
+    const plain = assembleAirspace(M, { live: true }), p = assembleAirspace(P, { live: true }), A = atlasGround(K);
+    const R = terrainRamps(K, 1);
+    expect(p.terrain.K.ramps).toEqual({ ...R, beds: [R.stone] });
+    expect([p.sky.zenith, p.sky.horizon]).toEqual([A.sky.zenith, A.sky.horizon]);
+    // the haze is the horizon: it hides the map's edge in the palette's air
+    expect(p.bg).toBe(hex(A.sky.horizon));
+    expect(p.haze.color).toBe(p.bg);
+    expect(p.terrain.water.color).toBe(hex(A.ramps.water.stops[2]));
+    expect(p.meta.ground).toMatchObject({ palette: K.id });
+    // relief, pads and course the same: the palette colours, it does not move ground
+    expect(p.meta.pads).toEqual(plain.meta.pads);
+    expect(p.meta.ground.relief).toEqual(plain.meta.ground.relief);
+    expect(p.terrain.K.grids).toEqual(plain.terrain.K.grids);
+  });
+
+  it('under air, the zenith is deeper than the horizon', () => {
+    const p = assembleAirspace(P, { live: true });
+    expect(Lof(p.sky.zenith)).toBeLessThan(Lof(p.sky.horizon));
+  });
+
+  it('a space map keeps its void', () => {
+    const S = { kind: 'airspace', seed: 2, map: { form: 'void' } };
+    expect(JSON.stringify(assembleAirspace({ ...S, palette: { preset, seed: 3 } }))).toBe(JSON.stringify(assembleAirspace(S)));
+  });
+
+  it('teaches on a bad palette, and is deterministic', () => {
+    expect(validateAirspace({ ...M, palette: { preset: 'pluto' } })[0]).toMatch(/airspace.palette.preset is one of/);
+    expect(JSON.stringify(assembleAirspace(P, { live: true }))).toBe(JSON.stringify(assembleAirspace(P, { live: true })));
   });
 });

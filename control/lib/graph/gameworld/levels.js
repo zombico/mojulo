@@ -74,7 +74,8 @@ export function gameStages(world) {
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
     if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
     // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's
-    if (R.airspace) { out.push({ level, node: 'airspace', section: 'airspace', index: 0, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed } }); continue; }
+    // manifest, coloured by the level's palette (the world's, or the world's moved by its script) where it has one
+    if (R.airspace) { const pal = R.style?.palette ?? G.style?.palette; out.push({ level, node: 'airspace', section: 'airspace', index: 0, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed, ...(pal ? { palette: pal } : {}) } }); continue; }
     const laid = layLevel(R.level);
     // the level's buildings stand on the section they name, or on its first trail
     const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;

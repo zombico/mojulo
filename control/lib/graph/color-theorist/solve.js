@@ -102,9 +102,14 @@ const AIR_ROLES = Object.freeze({
 // the darkest, so the ramp still climbs)
 const FAR_MIX = Object.freeze({ full: [0.45, 0.45], thin: [0.3, 0.3], none: [0.22, -0.16] });
 
-/** PRESETS: a starting spec for a kind of place (its own fields over it). Space first; the void is named blue-black to
- * violet-black (a void rolled with the scheme can come out brown). */
+/** PRESETS: a starting spec for a kind of place (its own fields over it). Earth seen from the air first (a flight
+ * world's land, sky and sea, each with its sky's hue named so the haze reads as that air); then space, the void named
+ * blue-black to violet-black (a void rolled with the scheme can come out brown). */
 export const PALETTE_PRESETS = Object.freeze({
+  'coastal-noon': { says: 'green headlands, a clear blue sky and a bright sea under a high sun', spec: { hue: 140, hues: { sky: 245 }, heat: -0.2, weight: -0.45, activity: 0.15, scheme: 'complementary', key: 'high' } },
+  'alpine-dawn': { says: 'dark pine and cold rock, the sky going from violet to rose over the peaks', spec: { hue: 165, hues: { sky: 300 }, heat: -0.35, weight: 0.25, activity: -0.25, scheme: 'split-complementary', key: 'mid' } },
+  'desert-haze': { says: 'ochre sand and pale stone under a washed-out, dusty sky', spec: { hue: 75, hues: { sky: 255 }, heat: 0.6, weight: -0.3, activity: -0.55, scheme: 'analogous', key: 'high' } },
+  'autumn-farmland': { says: 'a patchwork of rust, gold and late green under a cool afternoon sky', spec: { hue: 55, hues: { sky: 255, foliage: 40 }, heat: 0.55, weight: 0.2, activity: 0.2, scheme: 'split-complementary', key: 'mid' } },
   moon: { says: 'grey regolith under a black sky, a white sun, the shade lit by the planet', spec: { air: 'none', hues: { sky: 255 }, heat: -0.1, weight: 0.5, activity: -0.85, scheme: 'mono-accent', key: 'mid' } },
   'asteroid-belt': { says: 'dark carbon rock, a warm hard sun, ice glints and running lights', spec: { air: 'none', hues: { sky: 240 }, heat: 0.15, weight: 0.75, activity: -0.4, scheme: 'complementary', key: 'low' } },
   mars: { says: 'rust dust under a pale butterscotch sky', spec: { air: 'thin', heat: 0.75, weight: 0.1, activity: -0.1, scheme: 'analogous', hue: 'rust' } },
