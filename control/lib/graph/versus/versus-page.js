@@ -7,7 +7,8 @@
  * server; the page compiles the recipes), its stages. Recipes, not renders: the stored game is a few words, the page
  * is regenerated on every read. No network, no CDN.
  *
- *   manifest = { kind: 'game', engine: 'versus', title?, roster?: [intent | { recipe }], stages?: [stage] }
+ *   manifest = { kind: 'game', engine: 'versus', title?, roster?: [intent | { recipe }], stages?: [stage],
+ *                rules?: { rounds?, timer? } }
  */
 
 import { readFileSync } from 'node:fs';
@@ -45,7 +46,8 @@ export function versusGameData(manifest = {}) {
   const roster = (manifest.roster ?? DEFAULT_ROSTER).map(rosterEntry);
   if (roster.length < 1) throw new Error('versus: a roster needs at least one fighter');
   const stages = manifest.stages ?? DEFAULT_STAGES;
-  return { title: manifest.title ?? 'Versus', roster, stages };
+  const rules = { ...(manifest.rules?.rounds ? { rounds: manifest.rules.rounds } : {}), ...(manifest.rules?.timer ? { timer: manifest.rules.timer } : {}) };
+  return { title: manifest.title ?? 'Versus', roster, stages, rules };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

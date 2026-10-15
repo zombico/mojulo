@@ -85,6 +85,12 @@ async function realize(step, action) {
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
     return {};
   }
+  if (key === 'game' && order.engine === 'versus') {
+    // a fight's game (quick goal fight): the versus manifest as the row, whole in place
+    if (action === 'make') SketchRepository.create({ title: order.title, manifest: order, ref });
+    else await updateSketchHandler({ ref, title: order.title, manifest: order });
+    return {};
+  }
   if (key === 'game') {
     // the game over the levels: create_game (the levels unaudited, recorded), its manifest whole in place
     const { title, store, levels, links, theme, shell } = order;

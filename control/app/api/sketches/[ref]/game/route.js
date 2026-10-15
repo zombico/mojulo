@@ -55,6 +55,21 @@ export async function GET(request, { params }) {
       });
     }
 
+    // A versus game (a fighter, lib/graph/versus) is its own self-contained page too.
+    if (sketch.manifest.engine === 'versus') {
+      const { emitVersusPage } = await import('@/lib/graph/versus/versus-page');
+      let html;
+      try {
+        html = emitVersusPage(sketch.manifest, { title: sketch.title });
+      } catch (err) {
+        return NextResponse.json({ error: err.message }, { status: 422 });
+      }
+      return new Response(html, {
+        status: 200,
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': 'inline', 'Cache-Control': 'no-store' },
+      });
+    }
+
     let resolved;
     try {
       resolved = resolveGame(sketch.manifest, (r) => SketchRepository.getByRef(r), levelSrc, worldSrc);

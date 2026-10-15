@@ -35,6 +35,8 @@ const AIR_STUN = { L: [14, 10], M: [17, 13], H: [20, 16] };
 const PROJECTILE_STUN = [22, 18];
 
 const ease = (t) => t * t * (3 - 2 * t);
+// a push box's half-width in trunk radii: two bodies stop a little wider than their trunks, as they read on screen
+const PUSH_HALF = 1.45;
 
 /** The trunk and leg boxes of a pose, plus the box of a limb when it is out. */
 function hurtOf(body, J, limb) {
@@ -49,7 +51,7 @@ function hurtOf(body, J, limb) {
 }
 
 function pushOf(body, J, air) {
-  const half = Math.round(body.bodyR * 1.25);
+  const half = Math.round(body.bodyR * PUSH_HALF);
   const y0 = air ? Math.round(Math.min(J.ankleF[1], J.ankleB[1], J.pelvis[1] - body.thigh * 0.5)) : 0;
   return [-half, y0, half, Math.round(J.neck[1])];
 }
@@ -163,7 +165,7 @@ export function compileThrow(body, slot = 'throw', over = {}) {
   const m = baseMove(slot, 'throw', 'stand', THROW.limb);
   Object.assign(m, { id: 'throw', startup: THROW.startup, active: THROW.active, recovery: THROW.recovery, damage: THROW.damage, hitstop: 0, push: 0 });
   m.total = m.startup + m.active - 1 + m.recovery;
-  m.throw = { range: Math.round(body.bodyR * 1.25 + body.upper * 0.9 * (over.reach ?? 1)), tech: over.techable === false ? 0 : THROW.tech, clinch: over.clinch ?? THROW.clinch };
+  m.throw = { range: Math.round(body.bodyR * PUSH_HALF + body.upper * 0.9 * (over.reach ?? 1)), tech: over.techable === false ? 0 : THROW.tech, clinch: over.clinch ?? THROW.clinch };
   if (over.damage) m.damage = over.damage;
   m.frames = layFrames(body, m, THROW);
   m.reach = m.throw.range;

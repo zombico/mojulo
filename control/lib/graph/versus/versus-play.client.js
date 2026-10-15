@@ -124,7 +124,7 @@ function startMatch() {
   const schemes = game.pick.map((p) => SCHEMES[p.scheme]);
   if (game.mode === 'cpu') schemes[1] = 'modern';
   if (game.mode === 'watch') { schemes[0] = 'modern'; schemes[1] = 'modern'; }
-  const s = newVersus(ctx, { schemes, rules: game.mode === 'training' ? { intro: 30 } : {} });
+  const s = newVersus(ctx, { schemes, rules: { ...(VERSUS.rules || {}), ...(game.mode === 'training' ? { intro: 30 } : {}) } });
   match = {
     ctx, s, mem: [newCpuMemory(), newCpuMemory()], sparks: [], banner: null, slow: 0, shake: 0, cam: 0, end: 0,
     colors: [a.color, a.id === b.id ? '#e8e8e8' : b.color], names: [a.name, b.name], lastMove: null, lag: [s.p[0].hp, s.p[1].hp],

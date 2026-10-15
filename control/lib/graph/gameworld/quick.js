@@ -44,6 +44,10 @@
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
+ *     roster?: [<intent>, …],               // fight: the fighters (versus/versus-solver.js: { id, name?, archetype, cast?,
+ *                                           // signature?, color? }), solved into movesets; the default four if absent
+ *     stages?: [{ id, name, sky, floor, crowd }], // fight: the arenas (versus/versus-roster.js DEFAULT_STAGES)
+ *     rounds?: n, timer?: n,                // fight: rounds to win (1 to 3, 2) and seconds a round (30 to 99, 99)
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
  *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
@@ -75,6 +79,7 @@ import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
+import { solveFighter } from '../versus/versus-solver.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -90,6 +95,7 @@ export const QUICK_GOALS = Object.freeze({
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
+  fight: 'a 1v1 fighter from the side: roster, stages, rounds, timer',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
@@ -129,7 +135,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'stages', 'rounds', 'timer'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -247,7 +253,50 @@ export function readQuick(Q) {
   if (Q.goal === 'shoot' && !flies && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
+  for (const k of ['roster', 'stages', 'rounds', 'timer']) if (Q.goal !== 'fight' && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
+  if (Q.goal === 'fight') readFight(Q);
   return Q;
+}
+
+// what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
+const FIGHT_KEYS = ['goal', 'roster', 'stages', 'rounds', 'timer', 'theme', 'camera'];
+function readFight(Q) {
+  for (const k of Object.keys(Q)) if (!FIGHT_KEYS.includes(k)) throw fail(`.${k}: a fight takes ${FIGHT_KEYS.join(', ')} (its fighters are its roster)`);
+  if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
+  if (Q.roster !== undefined) {
+    if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each an intent { id, name?, archetype, cast?, signature?, color? }');
+    const ids = new Set();
+    Q.roster.forEach((r, i) => {
+      if (!isObj(r) || typeof r.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(r.id)) throw fail(`.roster[${i}] needs an id (a short lower-case name)`);
+      if (ids.has(r.id)) throw fail(`.roster[${i}].id '${r.id}' is taken`);
+      ids.add(r.id);
+      const { color, ...intent } = r;
+      if (color !== undefined && !/^#[0-9a-f]{6}$/i.test(color)) throw fail(`.roster[${i}].color is a #rrggbb colour`);
+      try { solveFighter(intent); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+    });
+  }
+  if (Q.stages !== undefined) {
+    if (!Array.isArray(Q.stages) || Q.stages.length < 1) throw fail('.stages is a list of arenas { id, name, sky: [top, bottom], floor, crowd }');
+    Q.stages.forEach((st, i) => {
+      const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
+      if (!isObj(st) || typeof st.id !== 'string' || typeof st.name !== 'string' || !Array.isArray(st.sky) || st.sky.length !== 2 || !st.sky.every(hex) || !hex(st.floor) || !hex(st.crowd)) {
+        throw fail(`.stages[${i}] is { id, name, sky: ['#top', '#bottom'], floor: '#…', crowd: '#…' }`);
+      }
+    });
+  }
+  if (Q.rounds !== undefined && !(Number.isInteger(Q.rounds) && Q.rounds >= 1 && Q.rounds <= 3)) throw fail('.rounds is how many rounds win the match, 1 to 3');
+  if (Q.timer !== undefined && !(Number.isInteger(Q.timer) && Q.timer >= 30 && Q.timer <= 99)) throw fail('.timer is a round\'s seconds, 30 to 99');
+}
+
+/** A fight's game: the versus manifest the play route serves (versus/versus-page.js). */
+export function quickVersus(Q, { title, theme } = {}) {
+  return {
+    kind: 'game', engine: 'versus', title,
+    ...(Q.roster ? { roster: Q.roster } : {}),
+    ...(Q.stages ? { stages: Q.stages } : {}),
+    ...(Q.rounds || Q.timer ? { rules: { ...(Q.rounds ? { rounds: Q.rounds } : {}), ...(Q.timer ? { timer: Q.timer } : {}) } } : {}),
+    ...(theme ? { theme } : {}),
+  };
 }
 
 /** A quick game's gameworld: the creator's own settings (id, name, seed, style …) kept, one level written. */
@@ -256,7 +305,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   const { camera: named, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
-  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : undefined);
+  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);

@@ -17,7 +17,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 A one-on-one fighter in the Street Fighter line (a 2D fight plane, local two players) as rails a designer composes
 from, in `lib/graph/versus/`. The fight is its own pure simulation, not controllable rules; the stick figures are
-dummies on purpose (the look is other tools' job). Nothing outside the folder changes yet.
+dummies on purpose (the look is other tools' job).
+
+- **A quick game that fights** (`design_game({ quick: { goal: 'fight', roster?, stages?, rounds?, timer? } })`):
+  the roster is a list of intents (archetype, cast, signature words), solved where the game plays; the run makes
+  one `kind: 'game'`, `engine: 'versus'` row, played at `/api/sketches/<ref>/game` and exported by `export_game` as
+  one `game.html`. A fight is seen from the side and takes no hero, trail, building or ride.
+- **The playable page** (`versus-page.js`, `versus-play.client.js`): one self-contained HTML file, the pure modules
+  inlined. Title, mode select (versus, versus CPU at four levels, training, CPU vs CPU), character select where each
+  player picks a fighter and a scheme, stage select, rounds with ROUND / FIGHT / K.O. / TIME, mirrored health bars,
+  meter, combo counter, the result (rematch, character select, mode select) and a continue after a loss to the CPU.
+  Two players share a keyboard (WASD + J K L U I; arrows + 1 2 3 4 5) or use two gamepads. The sim steps at a fixed
+  60 Hz. B draws the solved boxes; training shows the last move's frame data and a dummy that stands, crouches,
+  blocks, jumps or fights. The arena is a 2D backdrop with a crowd behind the fight plane for now.
 
 - **The fight as a function of two pads** (`versus-core.js`): `stepVersus(state, [pad1, pad2], ctx)` at 60 Hz in
   integer frames and millimetres, no clock or dice, so a pad log replays a match to the byte and a snapshot is a

@@ -280,6 +280,11 @@ const QUICK_LEVERS = {
   puzzle: () => ['  boulders: n (1..4, 2)   no climb, building or ride'],
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
+  fight: () => [
+    '  roster: [{ id, name?, archetype, cast?, signature?, color? }] (1..12)   the fighters, solved into movesets; the default four if absent',
+    '  stages: [{ id, name, sky: [top, bottom], floor, crowd }]   the arenas; rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round',
+    '  its own simulation, seen from the side: only theme and camera side beside these (no hero, trail, building, ride or run)',
+  ],
   shoot: () => [
     `  foes: n (4), foe: ${HERO_WORDS}   first person by default (or third-person); walls to take cover behind`,
     `  craft: ${Object.keys(CRAFT).join(' | ')}   a dogfight instead: waves: n of fighters, assist, airspace (as fly's); followed from behind`,
