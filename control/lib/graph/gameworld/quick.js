@@ -25,7 +25,8 @@
  *     racers?: n | [<racer>, …],            // race: a field of cartoon racers (2 to 8), each in the machine its driver
  *                                           // reads as (car-designer/roster.js), the first yours, the rest your rivals:
  *                                           // n drawn, or each an archetype, a brief in words, or { archetype?, build?,
- *                                           // age?, brief?, facets?, seed?, parts? }; balanced, each on its own physics
+ *                                           // age?, brief?, facets?, seed?, parts?, shade? }; balanced, each on its own
+ *                                           // physics (shade 'smooth': bevelled parts, smooth light; 'cel' the default)
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
  *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (a plain one by default)
  *     alarms?: n,                           // sneak: how many sightings end it (1: the first)
@@ -155,7 +156,7 @@ export function readQuick(Q) {
     if (Q.climb || Q.building !== undefined || Q.run !== undefined) throw fail('.racers race a lap or a roadway: no climb, building or run');
     if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.racers are followed from behind (camera third-person)');
     const list = Number.isInteger(Q.racers) ? null : Q.racers;
-    if (list === null ? !(Q.racers >= 2 && Q.racers <= 8) : !(Array.isArray(list) && list.length >= 2 && list.length <= 8)) throw fail('.racers is how many racers (2 to 8), or a list of them: each an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }');
+    if (list === null ? !(Q.racers >= 2 && Q.racers <= 8) : !(Array.isArray(list) && list.length >= 2 && list.length <= 8)) throw fail('.racers is how many racers (2 to 8), or a list of them: each an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade? }');
     if (list) list.forEach((r, k) => { try { racerSpec(r, k); } catch (e) { throw fail(`.racers[${k}]: ${e.message.replace(/^car-designer: /, '')}`); } });
   }
   for (const k of ['vehicle', 'tuning', 'conditions']) if (Q[k] !== undefined && !Q.ride && !(Q.racers !== undefined && k !== 'vehicle')) throw fail(`.${k} is how the ride drives: name a ride`);

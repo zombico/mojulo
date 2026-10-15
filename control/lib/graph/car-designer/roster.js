@@ -16,7 +16,7 @@
  * family; then the machine that betters it) until the field fails less, each change kept with its reason.
  *
  *   racerSpec(entry, k, seed)     an entry (an archetype, a brief in words, or { archetype?, build?, age?, brief?,
- *                                 facets?, seed?, parts? }) → the recipe { facets, brief?, seed, parts? }
+ *                                 facets?, seed?, parts?, shade? }) → the recipe { facets, brief?, seed, parts?, shade? }
  *   racerOf(spec)                 → { R, S } the reading and the solved machine (what a figures entry resolves through)
  *   racerMeasures(S)              → { top, pull, corner, turn, heft }
  *   racerRule(S, { tuning, conditions })   the drive rule the machine plays by (arcade by default)

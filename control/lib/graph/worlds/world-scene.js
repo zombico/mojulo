@@ -639,7 +639,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           continue;
         }
         // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
-        // brief?, seed, parts? }, what a quick race's field writes): the driver read off its Egocube sheet, its machine
+        // brief?, seed, parts?, shade? }, what a quick race's field writes): the driver read off its Egocube sheet, its machine
         // solved from the parts library, delivered as the vehicle rig it bakes (its live overlay and juice with it).
         // Absent ⇒ no racer is resolved, byte-identical.
         if (rawSpec.racer && typeof rawSpec.racer === 'object') {

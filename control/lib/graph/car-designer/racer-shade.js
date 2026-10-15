@@ -20,10 +20,24 @@ export const KART_MATERIALS = Object.freeze({
 const MATERIAL_OF = Object.freeze({
   'tech:body': 'paint', 'tech:skin': 'paint', 'str:paint': 'paint', 'driver:helmet': 'paint',
   'tech:trim': 'alloy', 'tech:frame': 'carbon', 'tech:glass': 'glass', 'tech:light': 'lamp', 'lamp:brake': 'tail',
-  'tech:cable': 'rubber', seat: 'seal', 'driver:suit': 'cloth', 'driver:glove': 'seal',
+  'tech:cable': 'rubber', seat: 'seal', 'driver:suit': 'cloth', 'driver:glove': 'seal', 'lamp:rim': 'seal',
 });
 export const materialOfSlot = (slot) => MATERIAL_OF[slot] ?? 'paint';
 const EMISSIVE = new Set(['tech:light', 'lamp:brake']);
+
+/** A lamp's rim: the supercar's slim headlight kept a dark perimeter so its signature read against bright paint. */
+export const LAMP_RIM = '#1d2026';
+const area = (c) => { let s = [0, 0, 0]; for (let i = 1; i + 1 < c.length; i++) { const u = c[i].map((x, k) => x - c[0][k]), w = c[i + 1].map((x, k) => x - c[0][k]); s = [s[0] + u[1] * w[2] - u[2] * w[1], s[1] + u[2] * w[0] - u[0] * w[2], s[2] + u[0] * w[1] - u[1] * w[0]]; } return Math.hypot(...s) / 2; };
+/** One part's faces, its lamps rimmed: a lit face turned more than 45° from the part's lens (the lit face that most
+ *  faces out from `centre`, the machine's middle, by its area) takes the `lamp:rim` slot. A part with no lamp is
+ *  returned as it came. */
+export function rimLamps(faces, centre = [0, 0, 0]) {
+  const lit = faces.filter((f) => EMISSIVE.has(f.slot ?? f.group));
+  if (!lit.length) return faces;
+  const out = (f) => { const c = f.corners.reduce((s, p) => s.map((x, k) => x + p[k] / f.corners.length), [0, 0, 0]); return area(f.corners) * dot(newell(f.corners), unit(c.map((x, k) => x - centre[k]))); };
+  const lens = newell(lit.reduce((a, f) => (out(f) > out(a) + 1e-12 ? f : a)).corners);
+  return faces.map((f) => (EMISSIVE.has(f.slot ?? f.group) && dot(newell(f.corners), lens) < Math.SQRT1_2 ? { ...f, slot: 'lamp:rim' } : f));
+}
 
 /** The angle (degrees) past which two faces keep their edge, by the body's motif (ROUND_OF's reading of it). */
 export const CREASE = Object.freeze({ smooth: 60, organic: 70, ornate: 50, riveted: 30, spiked: 30, faceted: 25 });

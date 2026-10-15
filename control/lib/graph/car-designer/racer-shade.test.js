@@ -1,13 +1,14 @@
-// The racer's smooth finish: the supercar's corner normals and baked light on a cartoon racer, opt-in. The concepts:
-// absent, nothing changes; the shape is the same shape; a rounded shell grades across its rings where a chamfered one
-// keeps its creases; a lamp is never shaded; every face is tagged; the census counts what is drawn; a recipe carries
-// it; deterministic. One driver per body procedure: a smooth motif and a hard-edged one, chosen from the archetypes.
+// The racer's smooth finish: the supercar's bevelled parts, corner normals and baked light on a cartoon racer, opt-in.
+// The concepts: absent, nothing changes; the machine is the same machine (its parts, laws, physics, anchors) and its
+// bevelled parts stay inside the plain ones; a rounded shell grades across its rings where a chamfered one keeps its
+// creases; a lamp is never shaded; every face is tagged; the census counts what is drawn, within the budget; a recipe
+// carries it; deterministic. One driver per body procedure: a smooth motif and a hard-edged one, chosen from the archetypes.
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from '../egocube/egocube.js';
 import { ARCHETYPES } from '../egocube/facets.js';
 import { racerFromSheet, solveRacer } from './racer.js';
 import { racerSpec, racerOf } from './roster.js';
-import { shadeRacerFaces, racerReviewInput, CREASE, KART_MATERIALS } from './racer-shade.js';
+import { shadeRacerFaces, rimLamps, racerReviewInput, CREASE, KART_MATERIALS, LAMP_RIM } from './racer-shade.js';
 import { packVehicleReview } from './vehicle-review.js';
 
 const read = (archetype) => racerFromSheet(rollEgocube({ facets: { archetype }, seed: 11 }), { seed: 3 });
@@ -53,11 +54,13 @@ describe('the racer\'s smooth finish', () => {
     expect(() => solveRacer(round, { shade: 'phong' })).toThrow(/shade is one of cel, smooth/);
   });
 
-  it('changes the light, never the shape', () => {
+  it('finishes the same machine: its parts, laws, physics and anchors kept, its bevels inside the plain parts', () => {
+    const box = (fs) => { const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; for (const f of fs) for (const c of f.corners) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], c[i]); hi[i] = Math.max(hi[i], c[i]); } return { lo, hi }; };
     for (const R of [round, hard]) {
-      const a = all(cel.get(R)).flat(), b = all(smooth.get(R)).flat();
-      expect(b.map((f) => f.corners)).toEqual(a.map((f) => f.corners));
-      expect(smooth.get(R).physics).toEqual(cel.get(R).physics);
+      const C = cel.get(R), S = smooth.get(R), b = all(S).flat();
+      for (const k of ['ids', 'laws', 'changes', 'physics', 'anchors', 'frame']) expect(S[k], k).toEqual(C[k]);
+      expect(S.census.faces).toBeGreaterThan(C.census.faces);
+      all(S).forEach((fs, i) => { const p = box(all(C)[i]), q = box(fs); for (let j = 0; j < 3; j++) { expect(q.lo[j]).toBeGreaterThanOrEqual(p.lo[j] - 1e-3); expect(q.hi[j]).toBeLessThanOrEqual(p.hi[j] + 1e-3); } });
       for (const f of b) {
         expect(f.cornerFills).toHaveLength(f.corners.length);
         expect(KART_MATERIALS[f.material], f.material).toBeTruthy();
@@ -67,15 +70,32 @@ describe('the racer\'s smooth finish', () => {
   });
 
   it('grades a rounded shell across its rings, and keeps a hard body\'s creases', () => {
-    const body = (S) => S.faces.root;
-    const r = steps(body(cel.get(round)), body(smooth.get(round)));
+    // the lofted body (never bevelled): the faces both finishes open their root with, corner for corner
+    const shell = (R) => { const a = cel.get(R).faces.root, b = smooth.get(R).faces.root; let k = 0; while (k < a.length && JSON.stringify(a[k].corners) === JSON.stringify(b[k].corners)) k++; return [a.slice(0, k), b.slice(0, k)]; };
+    const r = steps(...shell(round));
     const soft = r.filter(([d]) => d > Math.cos((CREASE.smooth * Math.PI) / 180) && d < 0.999);
     expect(soft.length).toBeGreaterThan(50);
     expect(mean(soft.map((s) => s[2]))).toBeLessThan(mean(soft.map((s) => s[1])) * 0.5);
     const crease = Math.cos((CREASE[hard.vehicle.facets.motif] * Math.PI) / 180);
-    const kept = steps(body(cel.get(hard)), body(smooth.get(hard))).filter(([d, c]) => d < crease && c > 8);
+    const kept = steps(...shell(hard)).filter(([d, c]) => d < crease && c > 8);
     expect(kept.length).toBeGreaterThan(5);
     expect(mean(kept.map((s) => s[2]))).toBeGreaterThan(mean(kept.map((s) => s[1])) * 0.5);
+  });
+
+  it('rims a lamp dark: the faces turned from its lens, never the lens', () => {
+    const rims = all(smooth.get(round)).flat().filter((f) => f.albedo === LAMP_RIM);
+    expect(rims.length).toBeGreaterThan(0);
+    expect(all(cel.get(round)).flat().some((f) => f.fill === LAMP_RIM)).toBe(false);
+    // a lamp facing +y: its front a lens, its sides and back the rim; a part with no lamp untouched
+    const q = (y, n) => (n > 0 ? [[0, y, 0], [1, y, 0], [1, y, 1], [0, y, 1]] : [[0, y, 1], [1, y, 1], [1, y, 0], [0, y, 0]]);
+    // (the machine's middle behind it: the face toward +y is the lens, whichever way its faces are listed)
+    const lamp = [{ corners: q(0, 1), slot: 'tech:light' }, { corners: q(0.1, -1), slot: 'tech:light' }, { corners: [[0, 0, 0], [0, 0, 1], [0, 0.1, 1], [0, 0.1, 0]], slot: 'tech:light' }];
+    const lensAt = (fs) => fs.map((f) => (f.corners[0][1] > 0.05 && f.corners.every((c) => c[1] === f.corners[0][1]) ? 'lens' : f.slot));
+    expect(lensAt(rimLamps(lamp, [0.5, -2, 0.5]))).toEqual(['lamp:rim', 'lens', 'lamp:rim']);
+    expect(lensAt(rimLamps([...lamp].reverse(), [0.5, -2, 0.5]))).toEqual(['lamp:rim', 'lens', 'lamp:rim']);
+    expect(rimLamps(lamp, [0.5, -2, 0.5])[1].slot).toBe('tech:light');
+    const plain = [{ corners: q(0, 1), slot: 'tech:body' }];
+    expect(rimLamps(plain)).toBe(plain);
   });
 
   it('leaves a lamp its colour', () => {

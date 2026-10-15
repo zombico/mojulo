@@ -218,11 +218,20 @@ genre on the quick path.
 
 ### Kart shading: the supercar's finish on the racer pole
 
-- A cartoon racer takes `shade: 'smooth'` (on `solveRacer` and in a racer's recipe): its corner normals are smoothed
-  within a paint slot and broken at the motif's crease angle, its toon light is baked per corner with the shadow step
-  softened to a band, and its lamps are left unshaded. Without it a racer is byte-identical to before.
+- A cartoon racer takes `shade: 'smooth'` (on `solveRacer` and in a racer's recipe): its parts are bevelled, its
+  corner normals are smoothed within a paint slot and broken at the motif's crease angle, its toon light is baked per
+  corner with the shadow step softened to a band, and its lamps are left unshaded and rimmed dark (the faces turned
+  from the lens, so a thin light reads against loud paint). The laws judge the plain parts, so
+  the machine (its parts, physics, anchors) is the same; the finish costs about twice the triangles, within the
+  budget. Without it a racer is byte-identical to before.
+- `buildBlock` takes an opt-in `bevel` (a share of each drawn part's least size): a capped prism's corners rounded
+  and its ends eased into its caps, closed and inside the plain part's bounds, in one or two steps by the part's size.
+  Absent, every block builds as before.
 - A solved racer carries its triangle census against the budget law's ceiling; a smooth one tags each face with a
-  material and its albedo, so it opens in the vehicle review page.
+  material, its albedo and its normals, so it opens in the vehicle review page.
+- `node scripts/render-karts.mjs <output-directory> [archetypes] [seed]` renders each racer's chase view cel and
+  smooth, and the smooth one in the lit material review, with the census, without writing to the database.
+- The quick race's `racers` list takes `shade` per racer, and its card says so.
 
 ### Historic recipes: other eras by the same principles
 
