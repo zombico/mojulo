@@ -38,11 +38,25 @@ describe('the arena tunnel', () => {
   }, 60_000);
 
   it('a word the grammar cannot show is a gap, named with what would close it', () => {
-    const r = tunnelArena('a figure eight arena with towers for teams', { seed: 1, spawns: 4 });
-    expect(r.gaps.map((g) => g.trait).sort()).toEqual(['figure-eight', 'floors', 'team']);
+    const r = tunnelArena('a figure eight mirrored arena with towers for capture the flag', { seed: 1, spawns: 4 });
+    expect(r.gaps.map((g) => g.trait).sort()).toEqual(['ctf', 'figure-eight', 'floors', 'mirror']);
+    expect(r.gaps.find((g) => g.trait === 'mirror').why).toMatch(/right-hand peeks/);
     expect(r.gaps.every((g) => g.why && g.proposal)).toBe(true);
     expect([r.held, r.complete]).toEqual([true, false]);
   });
+
+  it('a team map: two bases at the ends, one the other turned, no spawn of one in sight of the other\'s', () => {
+    const r = tunnelArena('a team three-lane arena', { seed: 1, spawns: 4 });
+    expect(r.complete).toBe(true);
+    const { spawns, bases } = r.plan, A = bases[0].map((k) => spawns[k]), Bs = bases[1].map((k) => spawns[k]);
+    expect([A.length, Bs.length]).toEqual([3, 3]);
+    A.forEach((p, k) => expect(Bs[k]).toEqual([-p[0], -p[1]].map((x) => x + 0)));
+    expect(A.every((p) => p[1] < -r.plan.half / 4)).toBe(true);   // A's at one end, B's at the other
+    expect(r.passes.at(-1).laws.failed).toEqual([]);
+    // the same base asked without the word
+    expect(JSON.stringify(tunnelArena('a three-lane arena', { seed: 1, spawns: 4, teams: 2 }).plan.bases)).toBe(JSON.stringify(bases));
+    expect(tunnelArena('a three-lane arena', { seed: 1, spawns: 4 }).plan.bases).toBeUndefined();
+  }, 60_000);
 
   it('the grammar is half-turn symmetric whatever it is asked', () => {
     const D = arenaDomain();

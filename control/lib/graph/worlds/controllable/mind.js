@@ -630,6 +630,18 @@ export function buildMind(E) {
   // `itemsBelow`, 0.6, of its hp) it goes for the nearest health or armor, short of rounds (fewer than a magazine left)
   // for ammo, and an overdrive within 12 m it takes on the way. It remembers when it took each (it stood on it) and
   // does not go back before its `back`: item timing, a match's map knowledge. → the item's place, or null
+  // allyOnLine(e, from, target, world) — a standing body of its own side within a body's width of the line from `from`
+  // to the target, before it (opt-in `rule.clearLine`: it holds its fire rather than shoot through a teammate)
+  function allyOnLine(e, from, target, world) {
+    const q = target.transform.pos, lx = q[0] - from[0], ly = q[1] - from[1], L = Math.hypot(lx, ly) || 1e-6;
+    for (const id in (world && world.byId) || {}) {
+      const o = world.byId[id];
+      if (o === e || o === target || o.team !== e.team || o.downed || o.gone || !(o.body && o.body.hittable)) continue;
+      const ox = o.transform.pos[0] - from[0], oy = o.transform.pos[1] - from[1], along = (ox * lx + oy * ly) / L;
+      if (along > 0 && along < L && Math.abs(ox * ly - oy * lx) / L < 0.8) return true;
+    }
+    return false;
+  }
   function itemGoal(e, r, world) {
     const items = r.items, now = (world && world.time) || 0, t = e.transform;
     if (!Array.isArray(items) || !items.length || !e.body) return null;
@@ -660,6 +672,14 @@ export function buildMind(E) {
     const item = itemGoal(e, r, world);
     if (item) { e.aiFire = 0; e.seekingItem = true; goTo(e, r, dt, world, item, r.speed ?? 6); return; }
     e.seekingItem = false;
+    // an OBJECTIVE (opt-in `rule.objective: { at, radius? }`, a point its side holds): no foe in sight and nothing it
+    // wants, it goes there and stands on it (within `radius`, 2 m), turning to look round
+    const O = r.objective;
+    if (O && Array.isArray(O.at)) {
+      e.aiFire = 0;
+      if (Math.hypot(O.at[0] - t.pos[0], O.at[1] - t.pos[1]) > (O.radius ?? 2)) { goTo(e, r, dt, world, O.at, r.speed ?? 6); return; }
+      e.moving = false; t.heading += (r.turn ?? 3) * 0.3 * dt; return;
+    }
     if (world && world.byId) {
       let heard = null, hd = r.hearRange ?? 35;
       for (const id in world.byId) {
@@ -1151,7 +1171,8 @@ export function buildMind(E) {
     // a gun in hand (`weapon.hand`) fires from its muzzle, at the target's chest: what clears the edge is the gun
     const tchest = w && w.hand ? [target.transform.pos[0], target.transform.pos[1], target.transform.pos[2] + tcz] : null;
     const engaged = !!w && onAim && rangeD <= (w.range || 400)
-      && !(tchest ? sightBlocked(muzzleAt(e, w), tchest, world && world.colliders) : sightBlocked(origin, target.transform.pos, world && world.colliders));
+      && !(tchest ? sightBlocked(muzzleAt(e, w), tchest, world && world.colliders) : sightBlocked(origin, target.transform.pos, world && world.colliders))
+      && !(r.clearLine && e.team && allyOnLine(e, origin, target, world));
     if (engaged) {
       const burstOn = (r.burst ?? 1.1) * (dif ? dif.burstMul : 1);
       const cycle = burstOn + (r.pause ?? 0.9) * (dif ? dif.pauseMul : 1);

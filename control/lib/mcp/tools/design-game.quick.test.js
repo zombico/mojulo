@@ -431,6 +431,30 @@ describe('design_game quick', () => {
     expect(picked).toBeGreaterThan(0);   // rounds fired from a gun picked up
   }, 300_000);
 
+  it('deathmatch with two sides: team bases, a side\'s frags; control: a point both sides go for', async () => {
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 4, pole: 0.5, mode: 'control', world: { id: 'sides', style: { kit: 'trail-valley' } } }, ref: 'sd' });
+    expect(stored('sd').levels.run.arena.teams).toBe(2);
+    const L = stored('sd-level-run-0'), byId = Object.fromEntries(L.entities.map((e) => [e.id, e]));
+    expect(['player', 'bot-1', 'bot-2', 'bot-3', 'bot-4'].map((id) => byId[id].team)).toEqual(['red', 'blue', 'red', 'blue', 'red']);
+    const frags = L.game.mechanics.find((m) => m.kind === 'frags'), cp = L.game.mechanics.find((m) => m.kind === 'control');
+    expect(frags.teams).toEqual({ red: ['player', 'bot-2', 'bot-4'], blue: ['bot-1', 'bot-3'] });
+    expect(Object.keys(frags.spawns)).toEqual(['red', 'blue']);
+    expect(cp).toMatchObject({ teams: frags.teams, hold: 60, radius: 4 });
+    expect(byId['bot-1'].rule).toMatchObject({ clearLine: true, objective: { at: cp.at } });
+    // each side starts at its own base
+    const near = (id, side) => frags.spawns[side].some((q) => Math.hypot(q[0] - byId[id].transform.pos[0], q[1] - byId[id].transform.pos[1]) < 0.01);
+    expect(['bot-1', 'bot-3'].every((id) => near(id, 'blue')) && ['bot-2', 'bot-4'].every((id) => near(id, 'red'))).toBe(true);
+    // played headless with the player aside: both sides stand on the point, and one scores on it
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sd-level-run-0'));
+    const land = stageEnds(L).ground;
+    const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (q) => land(q[0], q[1]) });
+    const k = L.game.mechanics.indexOf(cp), on = { red: 0, blue: 0 };
+    for (let t = 0; t < 60; t += 1 / 30) { sim.frame(1 / 30); for (const sd of ['red', 'blue']) if (sim.bus.vars[`__cpn_${k}_${sd}`] > 0) on[sd]++; }
+    expect(on.red > 0 && on.blue > 0).toBe(true);
+    expect(sim.bus.vars[`__cps_${k}_red`] + sim.bus.vars[`__cps_${k}_blue`]).toBeGreaterThan(0);
+  }, 300_000);
+
   it('deathmatch: the arena from its words (tunnel-arena.js), a word it cannot lay said as advice', async () => {
     const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, arena: 'a small ring arena with towers', world: { id: 'ring', style: { kit: 'trail-valley' } } }, ref: 'rg' });
     const L = stored('rg-level-run-0');
@@ -478,6 +502,8 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'deathmatch', pole: 'arcade' })).toThrow(/pole is 'realistic', 'stylized'/);
     expect(() => readQuick({ goal: 'shoot', pole: 1 })).toThrow(/pole belongs to the deathmatch goal/);
     expect(() => readQuick({ goal: 'deathmatch', weapons: true })).toThrow(/weapons rides the shooter pole/);
+    expect(() => readQuick({ goal: 'deathmatch', mode: 'ctf' })).toThrow(/mode is free-for-all, team, control/);
+    expect(() => readQuick({ goal: 'shoot', mode: 'team' })).toThrow(/mode belongs to the deathmatch goal/);
     expect(() => readQuick({ goal: 'deathmatch', pole: 0, weapons: 'all' })).toThrow(/weapons: true/);
   });
 });

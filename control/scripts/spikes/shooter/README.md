@@ -119,13 +119,13 @@ measures it.
 | concept | status | where |
 |---|---|---|
 | respawn, spawn guard, farthest spawn | stack 2 | `respawnEntity`, `fireGuard`, `iFrames`, `respawnDelay` |
-| teams, team kills | stack 2 (bot targeting built) | team mode from `e.team`; `pickTarget(…, 'enemy')` |
+| teams, team kills | built (phase 7) | `frags`' `teams` on the bus; minds by `e.team`, holding fire for a teammate (`clearLine`) |
 | frag limit | stack 2 | `killTarget` |
 | time limit (most frags at the horn), draw, overtime, rounds | absent | `survive` is a countdown to *success*; a level ends only `success \| fail \| abort` |
 | kill feed, scoreboard (kills, deaths, damage, accuracy) | stack 2 | `m.feed`, `m.stats`; drawn on the web page and the shell's score screen |
 | a kill on the bus (killer, victim, weapon) | absent | `down` has the victim only |
 | place / leader on the bus | absent | the racer's `laps` + `rivals` is the model: per-actor counters unrolled at lowering, a lead per rival (bus predicates compare a var with a constant, never two vars) |
-| deathmatch, team deathmatch | stack 2 | `buildFfa`, `buildTeam` (pack maps only) |
+| deathmatch, team deathmatch | built (phases 1, 7) | `frags`, with `teams`; a point held for time is `control` |
 | elimination, horde on the player | partial | `defeat-all` is one-sided; `waves` walks to a base, not at the player |
 | capture the flag, king of the hill / control, bomb, gun game | absent | zone facts, `while`-gated timers and guards are the parts; nothing composes them |
 | the match in the cosmos cube | absent | the shooter probe is "makeable" because the cube has no axis for match structure |
@@ -176,7 +176,7 @@ Every value below is something a laid site can be measured for, the way the loop
 | **spawns** | stack 2 | spawn zones on the map and spawn safety as a law (no enemy sightline into a spawn, a minimum distance to the nearest power position); the farthest-spawn pick exists |
 | **verticality, power positions** | parts only | storeys, stairs, ladders, lifts and jump pads exist (`era/storeys.js`, `playscape/objects`), but nav is one floor (`nav.js`: "stairs, multi-level floors and space are out of scope"). A power position is high ground that sees much and is reached by few routes |
 | **item placement by risk** | absent | health in safe pockets, armor and power weapons in contested space (high betweenness, exposed, at a height). Item timing comes from respawn timers |
-| **symmetry** | absent | mirror and rotational layouts so team maps are fair by construction, and team bases at the mirror's ends |
+| **symmetry** | built (turned) | every arena is turned half round its centre; a team map's bases sit at the ends. A mirror is a named gap: it unbalances the right-hand peeks |
 | **objectives** | absent | flag stands and control zones are sites, placed by symmetry |
 | **interiors** | built, closed to the shooter | building and room-kit levels are full of rooms and doors; `shoot` refuses a building (`quick.js`) and cover is trail-only |
 
@@ -248,6 +248,12 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
 - **Phase 6, a fair respawn**: the cast's `spawn { among, guard }` stands the fallen at the spawn farthest from the
   living, unhurt for a few seconds or until it fires (`frags` uses both; Godot's cast too). Minds lead a moving target
   with a travelling round. Matches to 5 without weapons: 84, 79, 115 s (a fresh spawn is no longer a free kill).
+
+- **Phase 7, two sides**: `frags`' `teams` (side scores, side spawns), a `control` point, team arenas with bases at
+  the ends (turned, not mirrored: a mirror unbalances the right-hand peeks, so "mirrored" is answered as a gap with
+  that reason), minds that hold fire for a teammate (`clearLine`) and go for the point (`objective`). Quick
+  `mode: 'team' | 'control'`. Open: capture the flag (the cast cannot carry), a moving point, overtime, Godot's
+  control.
 
 ## A build order, if this goes ahead
 

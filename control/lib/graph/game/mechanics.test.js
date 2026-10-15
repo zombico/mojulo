@@ -52,7 +52,7 @@ describe('lowerMechanic — individual verbs', () => {
 
   it('every registered mechanic lowers without throwing on a minimal call', () => {
     for (const k of MECHANIC_KINDS) {
-      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true };
+      const params = { pickups: [{ item: 'x', at: [0, 0, 0] }], hazards: [{ at: [0, 0, 0] }], at: [1, 0, 0], seconds: 10, when: { var: 'kills', gte: 3 }, entities: [{ id: 'e1' }], count: 1, checkpoints: [{ at: [5, 0, 0] }, { at: [9, 0, 0] }], waves: [{ foes: ['foe-1'] }], path: [[9, 0], [0, 0]], origin: [0, 0, 0], cols: 3, rows: 3, blocks: [[1, 1]], plates: [[2, 1]], plots: [{ at: [0, 0, 0] }], drops: [{ at: [0, 0, 0], gives: 'ammo' }], rivals: ['foe-1'], heal: true, teams: { a: ['hero'], b: ['foe-1'] } };
       expect(() => lowerMechanic(k, params, { i: 0, player: 'hero', storeSchema: STORE }), k).not.toThrow();
     }
   });
@@ -525,5 +525,55 @@ describe('supplies with timing', () => {
     const spawns = c.events.reactions.filter((x) => x.op === 'spawn');
     expect(spawns.length).toBeGreaterThan(0);
     expect(spawns.every((x) => x.fresh === true)).toBe(true);
+  });
+});
+
+describe('two sides', () => {
+  const B = buildBus();
+  const play = (composed, script) => {
+    const s = B.createBusState(composed.events, composed.events.entities), ops = [];
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } if (s._ctrlOps) { ops.push(...s._ctrlOps); s._ctrlOps = []; } };
+    pump([]);
+    for (const [e, secs = 0] of script) { if (e) pump([e]); for (let k = 0; k < Math.round(secs * 10); k++) { pump(B.tickTimers(s, 0.1)); pump(B.stepTime(s, 0.1)); } }
+    return { s, ops, log: s.log.map((r) => r.type) };
+  };
+  const teams = { red: ['hero', 'bot-1'], blue: ['bot-2', 'bot-3'] };
+  const hit = (v, by) => ({ type: `hit:${v}`, entity: v, by }), down = (v) => ({ type: 'down', entity: v });
+
+  it('team frags: a fall counts for the other side only, the first side to the limit wins, each back at its base', () => {
+    const spawns = { red: [[0, -15, 0]], blue: [[0, 15, 0]] };
+    const c = composeMechanics([{ kind: 'frags', rivals: ['bot-1', 'bot-2', 'bot-3'], frags: 2, teams, spawns }], ctx());
+    let r = play(c, [[hit('bot-2', 'bot-3')], [down('bot-2'), 3.1]]);   // a teammate's round credits nobody
+    expect([r.s.vars.__team_0_blue, r.log.includes('kill')]).toEqual([0, false]);
+    expect(r.ops.find((o) => o.op === 'spawn')).toMatchObject({ who: 'bot-2', among: spawns.blue });
+    r = play(c, [[hit('bot-2', 'bot-1')], [down('bot-2'), 3.1], [hit('bot-3', 'hero')], [down('bot-3')]]);
+    expect([r.s.vars.__team_0_red, r.s.vars['__frag_0_bot-1'], r.s.vars.__frag_0_hero]).toEqual([2, 1, 1]);
+    expect(r.log).toContain('frags:won');   // the side's limit, though no one of it reached it alone
+    r = play(c, [[hit('bot-1', 'bot-2')], [down('bot-1'), 3.1], [hit('bot-1', 'bot-3')], [down('bot-1')]]);
+    expect(r.log).toContain('frags:lost');
+    expect(c.keep.map((k) => k.label)).toEqual(['Frags', 'Side']);
+  });
+
+  it('team frags at the horn: the side ahead wins, a tie is lost', () => {
+    const c = composeMechanics([{ kind: 'frags', rivals: ['bot-1', 'bot-2', 'bot-3'], frags: 9, seconds: 10, teams }], ctx());
+    expect(play(c, [[hit('bot-2', 'hero')], [down('bot-2'), 10.1]]).log).toContain('frags:won');
+    expect(play(c, [[null, 10.1]]).log).toContain('frags:lost');
+    expect(() => composeMechanics([{ kind: 'frags', rivals: ['bot-1', 'bot-2'], teams }], ctx())).toThrow(/two sides/);
+    expect(() => composeMechanics([{ kind: 'frags', rivals: ['bot-1'], teams: { a: ['hero'], b: ['bot-1'], c: [] } }], ctx())).toThrow(/two sides/);
+  });
+
+  it('control: a second scored by the side alone on the point; contested, empty or fallen, none', () => {
+    const c = composeMechanics([{ kind: 'control', teams, at: [0, 0, 0], hold: 5 }], ctx());
+    const enter = (who) => ({ type: 'enter', zone: `cp_0_${who}`, entity: who }), exit = (who) => ({ type: 'exit', zone: `cp_0_${who}`, entity: who });
+    let r = play(c, [[enter('bot-1'), 3.05]]);
+    expect(r.s.vars.__cps_0_red).toBe(3);
+    r = play(c, [[enter('bot-1'), 2.05], [enter('bot-2'), 3]]);   // contested from 2 s
+    expect([r.s.vars.__cps_0_red, r.s.vars.__cps_0_blue]).toEqual([2, 0]);
+    r = play(c, [[enter('bot-1'), 1.05], [down('bot-1'), 2], [exit('bot-1'), 2]]);   // a fallen body holds nothing, its exit is not counted twice
+    expect([r.s.vars.__cps_0_red, r.s.vars.__cpn_0_red]).toEqual([1, 0]);
+    expect(play(c, [[enter('hero'), 5.05]]).log).toContain('control:won');
+    expect(play(c, [[enter('bot-3'), 5.05]]).log).toContain('control:lost');
+    expect(() => composeMechanics([{ kind: 'control', teams: { a: ['bot-1'], b: ['bot-2'] }, at: [0, 0, 0] }], ctx())).toThrow(/player in one/);
+    expect(() => composeMechanics([{ kind: 'control', teams, at: [0, 0, 0], hold: 2 }], ctx())).toThrow(/hold the seconds/);
   });
 });

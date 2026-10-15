@@ -167,13 +167,38 @@ export function arenaSpawns(pieces, half, n) {
   return spawns;
 }
 
+/** A TEAM arena's spawns: two bases, one at each end of the floor along v, `per` spawns each. Base A's are off the ring
+ * and the floor in the far third at -v (the one nearest the end's middle first, then the farthest from those taken);
+ * base B's are A's turned half round the centre, so neither side has the better ground. Each spawn out of sight of
+ * every spawn of the other base (eye to chest); a base's own may see each other. When the end holds no more out of
+ * sight, the rest are the farthest left, and the law says so. → { spawns: [[u, v]] (A's then B's), bases: [[i…], [i…]] } */
+export function arenaBases(pieces, half, per) {
+  const boxes = askBoxes(arenaAsks(pieces, (u, v) => [u, v, 0])), eye = (p) => [p[0], p[1], 1.6], chest = (p) => [p[0], p[1], 1.2];
+  const clear = (p) => !boxes.some((B) => p[0] > B.min[0] - 0.8 && p[0] < B.max[0] + 0.8 && p[1] > B.min[1] - 0.8 && p[1] < B.max[1] + 0.8);
+  const unseen = (p, q) => blocked(eye(p), chest(q), boxes) && blocked(eye(q), chest(p), boxes);
+  const d = half - ARENA.inset, turn = (p) => [r3(-p[0]), r3(-p[1])];
+  const end = [];
+  for (let u = -d; u <= d + 1e-9; u += 2) for (let v = -d; v <= -d / 3; v += 2) { const p = [r3(u), r3(v)]; if (clear(p) && clear(turn(p))) end.push(p); }
+  const A = [], B = [];
+  const far = (p) => (A.length ? Math.min(...A.map((s) => Math.hypot(s[0] - p[0], s[1] - p[1]))) : -Math.hypot(p[0], p[1] + d));
+  for (const strict of [true, false]) {
+    while (A.length < per) {
+      const fits = end.filter((p) => !A.some((s) => s[0] === p[0] && s[1] === p[1]) && (!strict || (unseen(p, turn(p)) && B.every((s) => unseen(s, p)) && A.every((s) => unseen(s, turn(p))))));
+      if (!fits.length) break;
+      const p = fits.reduce((m, c) => (far(c) > far(m) + 1e-9 ? c : m));
+      A.push(p); B.push(turn(p));
+    }
+  }
+  return { spawns: [...A, ...B], bases: [A.map((_, k) => k), B.map((_, k) => A.length + k)] };
+}
+
 /** The arena laid on its square from its plan (`arena.plan`: { half, pieces, spawns, drops, longest } in its own
  * frame): `blocks` (each piece one collider), `spawns` and `drops` ({ at, gives, slot? }) on the land, the longest clear
  * line its plan allows, and its armory when it was asked for guns. */
 export function arenaLayout(arena) {
   const [cx, cy] = arena.centre, z = arena.z ?? 0, P = arena.plan;
   const at = (u, v) => [r3(cx + u), r3(cy + v), z];
-  return { blocks: arenaAsks(P.pieces, at), spawns: P.spawns.map(([u, v]) => at(u, v)), drops: P.drops.map((d) => ({ at: at(d.u, d.v), gives: d.gives, ...(d.slot ? { slot: d.slot } : {}) })), longest: P.longest, ...(P.armory ? { armory: P.armory } : {}) };
+  return { blocks: arenaAsks(P.pieces, at), spawns: P.spawns.map(([u, v]) => at(u, v)), drops: P.drops.map((d) => ({ at: at(d.u, d.v), gives: d.gives, ...(d.slot ? { slot: d.slot } : {}) })), longest: P.longest, ...(P.armory ? { armory: P.armory } : {}), ...(P.bases ? { bases: P.bases } : {}) };
 }
 
 export function groundLays(ids, level, F, { arena = null } = {}) {
@@ -530,12 +555,13 @@ function arenaLaws(arena, blocks, ends) {
   }
   out.push({ concern: 'arena', law: 'routes-loop', holds: !cut && !lost && spawns.length > 1, says: lost ? `spawn ${lost[0] + 1} cannot reach spawn ${lost[1] + 1}` : cut ? `closing the way at [${cut[2].map((v) => v.toFixed(1))}] cuts spawn ${cut[0] + 1} off from spawn ${cut[1] + 1}` : `every way between the ${spawns.length} spawns has another round any stretch of it` });
   // spawns out of each other's sight, eye to chest
-  const seen = [];
+  const seen = [], sideOf = arena.bases ? (k) => (arena.bases[0].includes(k) ? 0 : 1) : null;
   for (let i = 0; i < spawns.length; i++) for (let j = i + 1; j < spawns.length; j++) {
+    if (sideOf && sideOf(i) === sideOf(j)) continue;   // a base's own spawns may see each other
     const a = spawns[i], b = spawns[j];
     if (!blocked([a[0], a[1], z + 1.6], [b[0], b[1], z + 1.2], boxes) || !blocked([b[0], b[1], z + 1.6], [a[0], a[1], z + 1.2], boxes)) seen.push(`${i + 1}-${j + 1}`);
   }
-  out.push({ concern: 'arena', law: 'spawns-unseen', holds: !seen.length, says: seen.length ? `spawns in sight of each other: ${seen.join(', ')}` : `none of the ${spawns.length} spawns sees another` });
+  out.push({ concern: 'arena', law: 'spawns-unseen', holds: !seen.length, says: seen.length ? `spawns in sight of each other: ${seen.join(', ')}` : arena.bases ? `no spawn of one base sees a spawn of the other (${arena.bases[0].length} a side)` : `none of the ${spawns.length} spawns sees another` });
   // cover near most of the floor
   const near = floor.filter((p) => boxes.some((B) => boxNear(B, p, ARENA.coverNear))).length;
   out.push({ concern: 'arena', law: 'cover-near', holds: near >= ARENA.covered * floor.length, says: `${Math.round((100 * near) / (floor.length || 1))}% of the floor has cover within ${ARENA.coverNear} m (${Math.round(ARENA.covered * 100)}% wanted)` });

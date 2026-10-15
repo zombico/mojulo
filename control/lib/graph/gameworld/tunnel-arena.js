@@ -23,19 +23,23 @@
  *            is most open, each with its partner; one that cut a way is taken away and never stood there again: the
  *            laws shape the arena, not a hand
  *
- * A trait the grammar cannot show is a GAP, named with what would close it (a figure of eight, a team map's mirror,
- * floors and high ground), never filled silently.
+ *   bases    (a team map) two bases at the ends, the second the first turned half round, no spawn of one in sight of
+ *            the other's
+ *
+ * A trait the grammar cannot show is a GAP, named with what would close it (a figure of eight, a mirror, capture the
+ * flag, floors and high ground), never filled silently.
  *
  *   ARENA_TRAITS                              the traits, by the words that name them
  *   composeArena(candidate, seed)             → { half, pieces } the grammar's layout
  *   arenaDomain()                             → a tunnel domain
- *   tunnelArena(intent, { seed, spawns, weapons })   → the tunnel's record; its plan { half, pieces, spawns, drops,
- *                                               longest, armory? } (armory: each asked role's share of the clear lines)
+ *   tunnelArena(intent, { seed, spawns, weapons, teams })   → the tunnel's record; its plan { half, pieces, spawns,
+ *                                               drops, longest, armory?, bases? } (armory: each asked role's share of the
+ *                                               clear lines; bases: each side's spawns, by index)
  *
  * Pure; seeded dice only.
  */
 import { tunnel } from './tunnel.js';
-import { ARENA, arenaAsks, arenaSpawns, arenaLongest, arenaSightlines, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
+import { ARENA, arenaAsks, arenaSpawns, arenaBases, arenaLongest, arenaSightlines, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
 import { WEAPON_ROLES, bandShare, servedRoles } from './weapon-roles.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
@@ -62,7 +66,9 @@ export const ARENA_TRAITS = Object.freeze({
   close: S(['close quarters', 'close-quarters', 'cqb', 'corridors', 'claustrophobic'], 'close quarters: no line much longer than half the floor', { sight: 'close' }),
   long: S(['long sightlines', 'long sightline', 'sniper', 'snipers', 'long-range', 'long range', 'sightlines'], 'long sightlines: a lane that runs most of the floor', { sight: 'long' }),
   'figure-eight': G(['figure eight', 'figure-eight', 'figure-8', 'eight'], 'two loops sharing a crossing', { why: 'the grammar lays lanes or one court; a figure of eight is two loops through one crossing', proposal: 'a topology `eight`: two courts side by side, their doorways facing across a shared middle' }),
-  team: G(['team', 'teams', 'mirrored', 'mirror', 'bases', 'ctf', 'capture'], 'a team map: two halves mirrored, a base at each end', { why: 'the arena is turned half round its centre, fair for a free-for-all; a team map wants a mirror and bases, and a mirror hands one side the right-hand peeks into the other (the peeks-fair law says how many)', proposal: 'a symmetry `mirror` across the middle line with its edges set so each side peeks the other as often from its gun\'s side, a base zone at each end, spawns by side (with the team modes)' }),
+  team: S(['team', 'teams', 'bases', 'two sides', 'team deathmatch', 'tdm', 'control point', 'king of the hill', 'objective'], 'a team map: a base at each end, the floor turned half round so neither side has the better ground', { teams: 2 }),
+  mirror: G(['mirrored', 'mirror', 'mirror-image'], 'two halves mirrored across the middle', { why: 'a mirror hands one side the right-hand peeks into the other (the peeks-fair law counts them): a team map here is turned half round its centre instead, each base at an end, which is as fair and keeps the peeks even', proposal: 'a mirror whose wall ends are set so each side peeks the other as often from its gun\'s side' }),
+  ctf: G(['ctf', 'capture the flag', 'flags', 'flag'], 'capture the flag: a flag at each base', { why: 'a flag carried is a body following a body: the cast cannot yet carry one (a team map and a control point are laid)', proposal: 'a `carry` op on the cast (a thing held to a body, dropped where it falls) and a capture mechanic over it' }),
   floors: G(['floors', 'multi-level', 'storeys', 'stories', 'towers', 'tower', 'balcony', 'balconies', 'bridges', 'high ground', 'ramps'], 'more than one floor: high ground, ramps, a bridge', { why: 'the arena is one floor: the minds path on one floor at a time (nav.js)', proposal: 'raised platforms on ramps (stairs from era/storeys.js), and a nav that joins floors by their flights' }),
 });
 
@@ -160,7 +166,7 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
   const frame = (H, extra) => ({ centre: [0, 0], half: H, z: 0, ...extra });
   return {
     id: 'arena', TRAITS: ARENA_TRAITS,
-    start: (seed, base) => ({ half: ARENA.half, topology: 'lanes', lanes: 3, gapEnd: 3, gapMid: 5, court: 0.33, many: 0.45, sight: null, stagger: false, breaks: [], cut: [], setBy: {}, ...(base ?? {}) }),
+    start: (seed, base) => ({ half: ARENA.half, topology: 'lanes', lanes: 3, gapEnd: 3, gapMid: 5, court: 0.33, many: 0.45, sight: null, stagger: false, teams: 0, breaks: [], cut: [], setBy: {}, ...(base ?? {}) }),
     pull(cand, T, id) {
       if (T.gap) return { gap: T.gap };
       const c = clone(cand), changed = [];
@@ -172,18 +178,21 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
     },
     build(cand, seed) {
       const L = composeArena(cand, seed), H = cand.half;
-      const sp = arenaSpawns(L.pieces, H, spawns), blocks = arenaAsks(L.pieces, (u, v) => [u, v, 0]);
-      const built = { ...L, spawns: sp, blocks };
+      // a team map: two bases, one at each end, the contenders' half and a spare each (arenaBases); else spawns for all
+      const B = cand.teams ? arenaBases(L.pieces, H, Math.max(2, Math.ceil(spawns / 2)) + 1) : null;
+      const sp = B ? B.spawns : arenaSpawns(L.pieces, H, spawns), blocks = arenaAsks(L.pieces, (u, v) => [u, v, 0]);
+      const built = { ...L, spawns: sp, blocks, ...(B ? { bases: B.bases } : {}) };
       built.line = arenaLongest(frame(H), askBoxes(blocks));
       // the guns asked: each one the arena's clear lines serve (its band holds enough of them), laid where its lines meet
       if (weapons?.length) built.armory = servedRoles(arenaSightlines(frame(H), askBoxes(blocks)), weapons);
       built.drops = arenaDrops(built, cand, (built.armory ?? []).filter((a) => a.served).map((a) => a.role));
-      built.laws = concernLaws(['arena'], { ends: { spawn: [0, 0, 0] }, blocks, arena: frame(H, { spawns: sp.map(([u, v]) => [u, v, 0]), longest: 2 * H }) }).filter((l) => l.law !== 'floor-clear');
+      built.laws = concernLaws(['arena'], { ends: { spawn: [0, 0, 0] }, blocks, arena: frame(H, { spawns: sp.map(([u, v]) => [u, v, 0]), longest: 2 * H, ...(B ? { bases: B.bases } : {}) }) }).filter((l) => l.law !== 'floor-clear');
       return built;
     },
     measure(T, id, built, cand) {
       const H = built.half, long = built.line.longest;
       if (T.set.half) return { ok: H === T.set.half, value: `${2 * H} m across` };
+      if (T.set.teams) return { ok: !!built.bases && built.bases.every((b) => b.length >= 2), value: built.bases ? `two bases of ${built.bases[0].length}` : 'no bases' };
       if (T.set.topology === 'ring') return { ok: cand.topology === 'ring', value: cand.topology };
       if (T.set.lanes) return { ok: cand.topology === 'lanes' && built.lanes.length === T.set.lanes, value: `${built.lanes.length} lanes` };
       if (T.set.many !== undefined) { const n = built.pieces.filter((p) => p.form === 'crate').length; return { ok: T.set.many > 0.5 ? n >= 10 : n <= 6, value: `${n} crates` }; }
@@ -230,14 +239,14 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
       }
       return { candidate: c, changed: changed.length ? changed : [`reseed ${seed + 1}`], reseed: changed.length ? undefined : seed + 1 };
     },
-    plan: (cand, built) => ({ half: built.half, pieces: built.pieces, spawns: built.spawns, drops: built.drops, longest: 2 * built.half, topology: cand.topology, ...(cand.topology === 'lanes' ? { lanes: cand.lanes } : {}), ...(built.armory ? { armory: built.armory } : {}) }),
+    plan: (cand, built) => ({ half: built.half, pieces: built.pieces, spawns: built.spawns, drops: built.drops, longest: 2 * built.half, topology: cand.topology, ...(cand.topology === 'lanes' ? { lanes: cand.lanes } : {}), ...(built.armory ? { armory: built.armory } : {}), ...(built.bases ? { bases: built.bases } : {}) }),
   };
 }
 
 /** Tunnel an arena's words into its plan. `spawns`: how many it lays (a match's contenders, eight at most); `weapons`: the
  * pickup roles asked (weapon-roles.js), each laid when the arena serves it. */
-export function tunnelArena(intent, { seed = 1, spawns = 8, passes = 12, weapons = null } = {}) {
-  return tunnel(arenaDomain({ spawns, weapons }), { intent, seed, passes });
+export function tunnelArena(intent, { seed = 1, spawns = 8, passes = 12, weapons = null, teams = 0 } = {}) {
+  return tunnel(arenaDomain({ spawns, weapons }), { intent, seed, passes, ...(teams ? { base: { teams } } : {}) });
 }
 
 export { RAILS as ARENA_RAILS };

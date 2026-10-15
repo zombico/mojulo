@@ -205,6 +205,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
   (reverting only `mind.js` passes them all).
 
+### Shooter: two sides, team bases and a point to hold (phase 7)
+
+- **Team deathmatch on the bus.** `frags`' `teams` (two sides, every contender in one). A fall counts only when the
+  other side felled it; a teammate's round is never the last hitter. The first side to the limit wins, and at the
+  horn the side ahead (a tie is lost). `spawns` keyed by side bring each body back at its own base. The HUD shows
+  ours and theirs.
+- **`control`**, a new terminal: a point two sides fight over. Each second, the side alone on it scores one;
+  contested or empty, nobody does, and a fallen body holds nothing. First to `hold` seconds wins. Pair it with
+  `frags` (sides, a high limit) for the respawns. It is the web's: a Godot export does not keep it yet.
+- **A team map from the words** (`tunnel-arena.js`). "team", "bases", "tdm", "control point" (or `teams: 2`) lay two
+  bases at the ends, one the other turned half round. No spawn of one base is in sight of the other's; a base's own
+  spawns may see each other. A team arena is turned, not mirrored. "mirrored" is a gap that says why: a mirror hands
+  one side the right-hand peeks into the other (phase 3's `peeks-fair`). "capture the flag" is a gap too, because the
+  cast cannot yet carry a flag.
+- **Minds on a side.** `rule.clearLine`: hold fire rather than shoot through a teammate on the line.
+  `rule.objective { at, radius }`: with no foe in sight and nothing it wants, go to the point and stand on it.
+- **In the quick deathmatch**: `mode: 'team' | 'control'`. The player and every other bot are red, the rest blue.
+  Each side starts at its base, the team limit is 20 (50 in control, where the point decides), and the point is the
+  clear floor nearest the middle. Measured with 4 bots (two a side, the player aside), middle pole: team 17 to 20 in
+  231 s, control 29 to 60 s held in 130 s (red on it 53 s, blue 86 s).
+- Without `teams`, frags lowers as before; without `clearLine` or `objective`, minds as before. The page's hashes were
+  re-pinned: reverting only `mind.js` passes them.
+
 ### Shooter: a fair respawn and a led shot (phase 6)
 
 - **The farthest spawn, on the bus.** The cast's `spawn { among }` stands the fallen at the spawn farthest from the

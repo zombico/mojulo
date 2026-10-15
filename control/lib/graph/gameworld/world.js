@@ -359,7 +359,8 @@ export function readGameworld(W) {
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
     if (L.arena !== undefined) {
       const A = L.arena, words = typeof A === 'string' ? A : A?.words;
-      if (!(typeof words === 'string' && words.trim()) || (isObj(A) && Object.keys(A).some((k) => !['words', 'spawns', 'weapons'].includes(k)))) throw new Error(`gameworld: ${at}.arena is the arena in a few words ("a tight three-lane arena with long sightlines"), or { words, spawns, weapons }`);
+      if (!(typeof words === 'string' && words.trim()) || (isObj(A) && Object.keys(A).some((k) => !['words', 'spawns', 'weapons', 'teams'].includes(k)))) throw new Error(`gameworld: ${at}.arena is the arena in a few words ("a tight three-lane arena with long sightlines"), or { words, spawns, weapons, teams }`);
+      if (isObj(A) && A.teams !== undefined && A.teams !== 2) throw new Error(`gameworld: ${at}.arena.teams is 2: a team map, a base at each end`);
       if (isObj(A) && A.weapons !== undefined && !(Array.isArray(A.weapons) && A.weapons.every((w) => WEAPON_ROLES[w]))) throw new Error(`gameworld: ${at}.arena.weapons is the guns laid on its floor, roles of ${Object.keys(WEAPON_ROLES).join(', ')} (each laid where the arena's lines serve it)`);
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
@@ -555,7 +556,7 @@ export function resolveLevel(world, id) {
   // whose cube lays nothing on the ground is as it was
   const ids = concernIds(cubeOfWorld(G).cube);
   // the arena its cube asks for, tunnelled from the level's words (tunnel-arena.js): its plan sizes the ground laid
-  const arenaRun = ids.includes('arena') ? tunnelArena(typeof L.arena === 'string' ? L.arena : L.arena?.words ?? 'an arena', { seed, spawns: (isObj(L.arena) && L.arena.spawns) || 8, ...(isObj(L.arena) && L.arena.weapons ? { weapons: L.arena.weapons } : {}) }) : null;
+  const arenaRun = ids.includes('arena') ? tunnelArena(typeof L.arena === 'string' ? L.arena : L.arena?.words ?? 'an arena', { seed, spawns: (isObj(L.arena) && L.arena.spawns) || 8, ...(isObj(L.arena) && L.arena.weapons ? { weapons: L.arena.weapons } : {}), ...(isObj(L.arena) && L.arena.teams ? { teams: L.arena.teams } : {}) }) : null;
   const lays = ids.some((c) => LAID[c]?.includes('ground')) ? groundLays(ids, lv, levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d), { arena: arenaRun?.plan ?? null }) : null;
   let field = null, board = null, loop = null, arena = null;
   if (lays?.laid.length) {

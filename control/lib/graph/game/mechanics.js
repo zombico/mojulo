@@ -764,6 +764,10 @@ const MECHANICS = {
   // place are kept. Lowers to vars, guarded reactions, watches, a timer, a sequence per contender and the cast's kill
   // and spawn: every verb Godot's bus performs. `damage: true`: the player's hp takes each round's own damage (a web
   // round's: Godot's hits say none).
+  // TEAMS (`teams: { <name>: [ids], <name>: [ids] }`, two of them, every contender in one): a fall counts for the
+  // felling side only when it felled the other side (a teammate's hit is never credited); the first SIDE to `frags`
+  // wins; at the horn the side ahead wins (a tie is lost); each side comes back at its own spawns (`spawns` keyed by
+  // side) or the shared ones. Kept: the player's frags and its side's.
   frags: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
@@ -776,26 +780,37 @@ const MECHANICS = {
       if (Number.isNaN(seconds)) throw new Error(`frags[${i}]: seconds is the time limit, a whole number from 10`);
       const respawn = p.respawn === undefined ? 3 : Number.isFinite(p.respawn) && p.respawn >= 0 ? p.respawn : NaN;
       if (Number.isNaN(respawn)) throw new Error(`frags[${i}]: respawn is the seconds the fallen lie, 0 or more`);
-      const spawns = Array.isArray(p.spawns) ? p.spawns : [];
-      if (!spawns.every((s) => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite))) throw new Error(`frags[${i}]: spawns are [[x, y, z?], …], where the fallen come back`);
+      // the sides (two), each contender in one
+      let side = null, sides = null;
+      if (p.teams !== undefined) {
+        const T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+        const all = [P, ...who], listed = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
+        if (names.length !== 2 || listed.length !== all.length || new Set(listed).size !== listed.length || !all.every((c) => listed.includes(c))) throw new Error(`frags[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player and every rival in one, once`);
+        sides = names; side = Object.fromEntries(names.flatMap((k) => T[k].map((c) => [c, k])));
+      }
+      const spawnList = (L) => Array.isArray(L) && L.every((s) => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite));
+      const spawns = Array.isArray(p.spawns) ? p.spawns : [], spawnsOf = sides && p.spawns && !Array.isArray(p.spawns) ? p.spawns : null;
+      if (spawnsOf ? !sides.every((k) => spawnList(spawnsOf[k])) : !spawnList(spawns)) throw new Error(`frags[${i}]: spawns are [[x, y, z?], …], where the fallen come back${sides ? ' (or { <side>: [[x, y, z?], …] } per side)' : ''}`);
       const guard = p.guard === undefined ? 2 : Number.isFinite(p.guard) && p.guard >= 0 ? p.guard : NaN;
       if (Number.isNaN(guard)) throw new Error(`frags[${i}]: guard is the seconds a body back on its feet is not hurt, 0 or more`);
       const hp = Number.isFinite(p.hp) && p.hp > 0 ? p.hp : 100, hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : 10;
       const C = [P, ...who], n = C.length, win = Number.isInteger(p.win) && p.win >= 1 ? Math.min(p.win, n) : 1;
-      const frag = (c) => `__frag_${i}_${c}`, last = (c) => `__lh_${i}_${c}`, fell = (c) => `__fell_${i}_${c}`, rise = (c) => `__rise_${i}_${c}`;
-      const over = `__frags_over_${i}`, place = `__place_${i}`, clock = `__frags_t_${i}`, deaths = `__deaths_${i}`, mine = `__pf_${i}`, live = { var: over, eq: 0 };
+      const team = (k) => `__team_${i}_${k}`, frag = (c) => `__frag_${i}_${c}`, last = (c) => `__lh_${i}_${c}`, fell = (c) => `__fell_${i}_${c}`, rise = (c) => `__rise_${i}_${c}`;
+      const tlead = `__tlead_${i}`, over = `__frags_over_${i}`, place = `__place_${i}`, clock = `__frags_t_${i}`, deaths = `__deaths_${i}`, mine = `__pf_${i}`, live = { var: over, eq: 0 };
       const world = { vars: { hp, [over]: 0, [place]: 1, [deaths]: 0 }, reactions: [], watches: [], sequences: [], timers: [], hud: [] };
       C.forEach((c) => {
         Object.assign(world.vars, { [frag(c)]: 0, [last(c)]: 0 });
-        // who hit it last (0: nobody since it last came back)
-        C.forEach((a, j) => { if (a !== c) world.reactions.push({ on: `hit:${c}`, match: { by: a }, do: 'set', var: last(c), to: j + 1 }); });
-        // its fall, credited to the last hitter, said as a kill
+        // who hit it last (0: nobody since it last came back); with sides, only the other side's hits count
+        const foe = (a) => a !== c && (!side || side[a] !== side[c]);
+        C.forEach((a, j) => { if (foe(a)) world.reactions.push({ on: `hit:${c}`, match: { by: a }, do: 'set', var: last(c), to: j + 1 }); });
+        // its fall, credited to the last hitter, said as a kill (and counted for the hitter's side)
         C.forEach((a, j) => {
-          if (a === c) return;
+          if (!foe(a)) return;
           const got = { var: last(c), eq: j + 1 };
           world.reactions.push(
             { on: fell(c), if: got, do: 'inc', var: frag(a), by: 1 },
             { on: fell(c), if: got, do: 'emit', type: 'kill', killer: a, victim: c },
+            ...(side ? [{ on: fell(c), if: got, do: 'inc', var: team(side[a]), by: 1 }, { on: fell(c), if: got, do: 'inc', var: tlead, by: side[a] === side[P] ? 1 : -1 }] : []),
             { on: fell(c), if: got, do: 'emit', type: a === P ? mine : `__bf_${i}_${a}` },
           );
         });
@@ -803,10 +818,18 @@ const MECHANICS = {
         // back after its time, at the spawn farthest from the living (none: where it lies), fresh (the loadout it was minted
         // with, rounds full) and guarded
         world.sequences.push({ id: `__respawn_${i}_${c}`, trigger: { on: fell(c) }, steps: [{ await: { timer: respawn } }, { do: 'emit', type: rise(c) }] });
-        world.reactions.push({ on: rise(c), do: 'ctrl', op: 'spawn', who: c, ...(spawns.length ? { among: spawns.map((s) => s.slice(0, 3)) } : {}), fresh: true, ...(guard ? { guard } : {}) });
-        // the limit
-        world.watches.push({ type: `__top_${i}_${c}`, when: { var: frag(c), gte: frags } });
-        world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P ? 'frags:won' : 'frags:lost' });
+        const own = spawnsOf ? spawnsOf[side[c]] : spawns;
+        world.reactions.push({ on: rise(c), do: 'ctrl', op: 'spawn', who: c, ...(own.length ? { among: own.map((s) => s.slice(0, 3)) } : {}), fresh: true, ...(guard ? { guard } : {}) });
+        // the limit (a side's, with sides)
+        if (!side) {
+          world.watches.push({ type: `__top_${i}_${c}`, when: { var: frag(c), gte: frags } });
+          world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P ? 'frags:won' : 'frags:lost' });
+        }
+      });
+      if (sides) sides.forEach((k) => {
+        world.vars[team(k)] = 0;
+        world.watches.push({ type: `__ttop_${i}_${k}`, when: { var: team(k), gte: frags } });
+        world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'emit', type: k === side[P] ? 'frags:won' : 'frags:lost' });
       });
       // the others fall as the cast says (their hp ran out); the player when the level's hp does, held down by the cast
       who.forEach((c) => world.reactions.push({ on: 'down', match: { entity: c }, do: 'emit', type: fell(c) }));
@@ -833,8 +856,10 @@ const MECHANICS = {
         ...(armored ? [{ on: fell(P), do: 'set', var: 'armor', to: 0 }] : []),
         { on: rise(P), do: 'set', var: 'hp', to: hp },
       );
-      // the place: per other, the lead (the player's frags less its own) and an ahead flag (laps' rivals)
-      who.forEach((c) => {
+      // the place: per other, the lead (the player's frags less its own) and an ahead flag (laps' rivals); with sides,
+      // the side's lead over the other (`__tlead_<i>`) decides instead
+      if (side) world.vars[tlead] = 0;
+      if (!side) who.forEach((c) => {
         const lead = `__lead_${i}_${c}`, ahead = `__ahead_${i}_${c}`, gets = `__gets_${i}_${c}`, falls = `__falls_${i}_${c}`;
         Object.assign(world.vars, { [lead]: 0, [ahead]: 0 });
         world.reactions.push(
@@ -854,25 +879,77 @@ const MECHANICS = {
         world.timers.push({ every: 1, emit: { type: `__frags_sec_${i}` }, while: live });
         world.reactions.push({ on: `__frags_sec_${i}`, do: 'inc', var: clock, by: -1, min: 0 });
         world.watches.push({ type: `__horn_${i}`, when: { var: clock, lte: 0 } });
-        world.reactions.push(
+        world.reactions.push(...(side ? [
+          { on: `__horn_${i}`, if: { var: tlead, gt: 0 }, do: 'emit', type: 'frags:won' },
+          { on: `__horn_${i}`, if: { var: tlead, lte: 0 }, do: 'emit', type: 'frags:lost' },
+        ] : [
           { on: `__horn_${i}`, if: { var: place, lte: win }, do: 'emit', type: 'frags:won' },
           { on: `__horn_${i}`, if: { var: place, gt: win }, do: 'emit', type: 'frags:lost' },
-        );
+        ]));
         world.hud.push({ var: clock, label: 'Time', as: 'clock' });
       }
       world.reactions.push({ on: 'frags:won', do: 'set', var: over, to: 1 }, { on: 'frags:lost', do: 'set', var: over, to: 1 });
       world.hud.push(
         { var: 'hp', label: 'HP' },
-        { var: frag(P), label: 'Frags', as: 'counter', max: frags },
-        { var: place, label: 'Place', as: 'counter', max: n },
+        { var: frag(P), label: 'Frags', as: 'counter', ...(side ? {} : { max: frags }) },
+        ...(side ? [{ var: team(side[P]), label: 'Ours', as: 'counter', max: frags }, { var: team(sides.find((k) => k !== side[P])), label: 'Theirs', as: 'counter', max: frags }]
+          : [{ var: place, label: 'Place', as: 'counter', max: n }]),
         { on: mine, text: 'Frag!', as: 'toast', ttl: 1 },
         { on: fell(P), text: 'Fragged', as: 'toast', ttl: Math.max(1, respawn) },
       );
       return {
         world,
         on: { 'frags:won': { end: 'success' }, 'frags:lost': { end: 'fail' } },
-        keep: [{ var: frag(P), label: 'Frags', best: 'high' }, { var: place, label: 'Place', best: 'low' }],
+        keep: [{ var: frag(P), label: 'Frags', best: 'high' }, side ? { var: team(side[P]), label: 'Side', best: 'high' } : { var: place, label: 'Place', best: 'low' }],
       };
+    },
+  },
+
+  // CONTROL (a terminal): a point two sides fight over (`teams`, as frags' sides). Every second the side alone on it (a
+  // ring `radius` round `at`, its standing bodies: a fallen one holds nothing) scores one; contested (both there) or
+  // empty, nobody does. The first side to `hold` seconds wins it (the player's: `control:won`; the other's:
+  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches (the web's: a Godot export
+  // does not keep it yet). Kept: the player's side's seconds on the point.
+  control: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, P = ctx.player, T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+      const all = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
+      if (names.length !== 2 || !all.every((c) => typeof c === 'string' && c) || new Set(all).size !== all.length || !all.includes(P)) throw new Error(`control[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player in one, each id once`);
+      if (!(Array.isArray(p.at) && p.at.length >= 2 && p.at.every(Number.isFinite))) throw new Error(`control[${i}]: at is the point, [x, y, z?]`);
+      const radius = p.radius === undefined ? 4 : Number.isFinite(p.radius) && p.radius > 0 ? p.radius : NaN;
+      const hold = p.hold === undefined ? 60 : Number.isInteger(p.hold) && p.hold >= 5 ? p.hold : NaN;
+      if (Number.isNaN(radius) || Number.isNaN(hold)) throw new Error(`control[${i}]: radius is the point's reach in metres (4), hold the seconds on it that win (60, from 5)`);
+      const at = [p.at[0], p.at[1], p.at[2] ?? 0], mineSide = names.find((k) => T[k].includes(P)), other = (k) => names.find((x) => x !== k);
+      const n = (k) => `__cpn_${i}_${k}`, sc = (k) => `__cps_${i}_${k}`, inn = (c) => `__cpin_${i}_${c}`, over = `__cp_over_${i}`, live = { var: over, eq: 0 }, tick = `__cp_tick_${i}`;
+      const world = { vars: { [over]: 0 }, sources: [], reactions: [], watches: [], timers: [], entities: [{ id: `cp_${i}`, on: true, position: at }], hud: [] };
+      names.forEach((k) => {
+        Object.assign(world.vars, { [n(k)]: 0, [sc(k)]: 0 });
+        T[k].forEach((c) => {
+          const zone = `cp_${i}_${c}`, flag = inn(c);
+          world.vars[flag] = 0;
+          world.sources.push({ type: 'zone', zone, at, radius, planar: true, watch: c });
+          world.reactions.push(
+            { on: 'enter', match: { zone }, if: { var: flag, eq: 0 }, do: 'inc', var: n(k), by: 1 },
+            { on: 'enter', match: { zone }, do: 'set', var: flag, to: 1 },
+            { on: 'exit', match: { zone }, if: { var: flag, eq: 1 }, do: 'inc', var: n(k), by: -1 },
+            { on: 'exit', match: { zone }, do: 'set', var: flag, to: 0 },
+            { on: 'down', match: { entity: c }, if: { var: flag, eq: 1 }, do: 'inc', var: n(k), by: -1 },
+            { on: 'down', match: { entity: c }, do: 'set', var: flag, to: 0 },
+          );
+        });
+        // a second on the point: the other side none there, this side some
+        world.reactions.push(
+          { on: tick, if: { var: n(other(k)), eq: 0 }, do: 'emit', type: `__cpa_${i}_${k}` },
+          { on: `__cpa_${i}_${k}`, if: { var: n(k), gt: 0 }, do: 'inc', var: sc(k), by: 1 },
+        );
+        world.watches.push({ type: `__cpw_${i}_${k}`, when: { var: sc(k), gte: hold } });
+        world.reactions.push({ on: `__cpw_${i}_${k}`, if: live, do: 'emit', type: k === mineSide ? 'control:won' : 'control:lost' });
+      });
+      world.timers.push({ every: 1, emit: { type: tick }, while: live });
+      world.reactions.push({ on: 'control:won', do: 'set', var: over, to: 1 }, { on: 'control:lost', do: 'set', var: over, to: 1 });
+      world.hud.push({ var: sc(mineSide), label: 'Point (ours)', as: 'counter', max: hold }, { var: sc(other(mineSide)), label: 'Point (theirs)', as: 'counter', max: hold });
+      return { world, on: { 'control:won': { end: 'success' }, 'control:lost': { end: 'fail' } }, keep: [{ var: sc(mineSide), label: 'Held', best: 'high' }] };
     },
   },
 
