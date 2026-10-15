@@ -114,9 +114,20 @@ export const BIPED_TEMPLATE = Object.freeze({
 });
 
 /** the biped: the Pale Warden's body at height h, girth g, with its legs, tail, fingers and claws by kind */
-function biped({ k, g, legs, tail, fingers, claws, ruff }) {
+/** MASSES BEFORE DETAIL (the designed creatures' first principle): a body is a chest over a waist over the hips, not a
+ * box. Half-widths at girth 1 (the build's GIRTH scales them all): the chest by pole, the waist a share of it by build
+ * (a heroic or lithe V, a stout or brute barrel), the shoulder line a little past the chest (the male's) or inside it
+ * (the female's), the hips the female's wider than her waist; a keel forward on the male's chest, a bust on the
+ * female's. Every limb swells to a muscle belly (`rMid`) instead of running as a cone. */
+export const MASS = Object.freeze({
+  pole: { male: { chest: 0.3, shoulder: 0.33, hips: 0.22, keel: 0.02, bust: 0 }, female: { chest: 0.26, shoulder: 0.27, hips: 0.25, keel: 0, bust: 0.03 } },
+  waist: { lithe: 0.6, heroic: 0.6, canonical: 0.68, stout: 0.86, brute: 0.82 },
+});
+function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 'canonical' }) {
   const P = (p) => mul(p, k), R = (r) => (Array.isArray(r) ? r.map((x) => r3(x * k * g)) : r3(r * k * g));
-  const J = Object.fromEntries(Object.entries(BIPED_TEMPLATE[legs]).map(([n, p]) => [n, P(UPPER[n] && n !== 'neckBase' && n !== 'neckTop' ? [p[0] * g, p[1], p[2]] : p)]));
+  const M = MASS.pole[pole] ?? MASS.pole.male, Wst = M.chest * (MASS.waist[build] ?? MASS.waist.canonical);
+  // the shoulder joint sits just inside the shoulder line (the template's 0.37 inside its 0.40)
+  const J = Object.fromEntries(Object.entries(BIPED_TEMPLATE[legs]).map(([n, p]) => [n, P(UPPER[n] && n !== 'neckBase' && n !== 'neckTop' ? [p[0] * g * (M.shoulder / 0.4), p[1], p[2]] : p)]));
   const T = tail && TAILS[tail];
   if (T) J.tail = [[0, -0.17, 0.95], [0, -0.36, 0.83], [0, -0.52, 0.67], [0, -0.64, 0.5], [0, -0.72, 0.35], [0, -0.76, 0.22]]
     .map((p, i, a) => P(i === 0 ? p : add(a[0], mul(add(p, mul(a[0], -1)), T.len))));
@@ -129,22 +140,23 @@ function biped({ k, g, legs, tail, fingers, claws, ruff }) {
   const limb = (name, from, to, rA, rB, opts, group, prev, next) => ({ name, kind: 'segment', from, to, rA: R(rA), rB: R(rB), ...opts, group, tint: '#cccccc', mirror: 'name', bind: { bone: name, prev, next } });
   const z = (v) => r3(v * k);
   const segments = [
-    { name: 'pelvis', kind: 'trunk', stations: [{ z: z(0.8), r: R([0.2, 0.16]) }, { z: z(0.92), r: R([0.23, 0.17]) }, { z: z(1.04), r: R([0.24, 0.18]), yc: z(0.01) }],
+    { name: 'pelvis', kind: 'trunk', stations: [{ z: z(0.8), r: R([M.hips * 0.86, 0.16]) }, { z: z(0.92), r: R([M.hips, 0.17]) }, { z: z(1.04), r: R([M.hips * 0.96, 0.18]), yc: z(0.01) }],
       caps: { back: P([0, 0, 0.74]), tip: P([0, 0, 1.1]) }, group: 'Pelvis', tint: '#cccccc', mirror: 'plane', bind: { bone: 'pelvis' } },
     { name: 'torso', kind: 'trunk', stations: [
-      { z: z(0.92), r: R([0.24, 0.19]), yc: z(0.02) }, { z: z(1.16), r: R([0.28, 0.24]), yc: z(0.05), e: 2.2 }, { z: z(1.36), r: R([0.35, 0.29]), yc: z(0.05), e: 2.3 },
-      { z: z(1.54), r: R([0.4, 0.28]), yc: z(0.02), e: 2.4 }, { z: z(1.66), r: R(ruff ? [0.33, 0.24] : [0.27, 0.19]), yc: 0 },
+      { z: z(0.92), r: R([M.hips * 0.96, 0.19]), yc: z(0.02) }, { z: z(1.14), r: R([Wst, Wst * 0.86]), yc: z(0.03), e: 2.1 },
+      { z: z(1.36), r: R([M.chest, M.chest * 0.84]), yc: z(0.05), e: 2.2, ...(M.keel || M.bust ? { push: { ...(M.keel ? { front: [0, r3(M.keel * k * g), 0] } : {}), ...(M.bust ? { frontR: [0, r3(M.bust * k * g), z(-0.01)] } : {}) } } : {}) },
+      { z: z(1.54), r: R([M.shoulder, M.chest * 0.8]), yc: z(0.02), e: 2.3 }, { z: z(1.66), r: R(ruff ? [0.33, 0.24] : [0.24, 0.18]), yc: 0 },
     ], caps: { back: P([0, 0.02, 0.86]), tip: P([0, 0, 1.72]) }, group: 'Torso', tint: '#cccccc', mirror: 'plane',
       bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 0.5, torso: 0.5 }, st4: { torso: 0.6, neck: 0.4 }, tip: { neck: 1 } } } },
     { name: 'neck', kind: 'segment', from: 'neckBase', to: 'neckTop', rA: R(ruff ? [0.23, 0.21] : [0.15, 0.14]), rB: R(ruff ? [0.13, 0.13] : [0.1, 0.1]), slots: 'ring8', over: [0.3, 0.4], group: 'Neck', tint: '#cccccc', mirror: 'plane',
       bind: { bone: 'neck', blend: { back: { torso: 1 }, st0: { torso: 0.5, neck: 0.5 }, st2: { neck: 0.5, head: 0.5 }, tip: { head: 1 } } } },
     ...(T ? [{ name: 'tail', kind: 'chain', joints: [0, 1, 2, 3, 4, 5].map((i) => `tail${i}`), r: T.r.map((x) => r3(x * k * g)), over: { first: 0.4, last: 0.3, inner: 0.6 }, group: 'Tail', tint: '#cccccc', mirror: 'plane', bind: { root: 'pelvis' } }] : []),
-    limb('thighR', 'hip', 'knee', [0.12, 0.14], [0.085, 0.095], { e: 2.2, over: [0.5, 0.6] }, 'Legs', 'pelvis', 'shinR'),
-    limb('shinR', 'knee', 'hock', 0.085, 0.055, { over: [0.6, 0.6] }, 'Legs', 'thighR', 'metaR'),
+    limb('thighR', 'hip', 'knee', [0.12, 0.14], [0.085, 0.095], { e: 2.2, over: [0.5, 0.6], mid: 0.4, rMid: R([0.115, 0.13]) }, 'Legs', 'pelvis', 'shinR'),
+    limb('shinR', 'knee', 'hock', 0.085, 0.055, { over: [0.6, 0.6], mid: 0.35, rMid: R([0.08, 0.088]) }, 'Legs', 'thighR', 'metaR'),
     limb('metaR', 'hock', 'toeBase', 0.055, [0.075, 0.05], { over: [0.6, 0.4] }, 'Legs', 'shinR', 'toesR'),
     limb('toesR', 'toeBase', 'toeTip', [0.08, 0.045], [0.065, 0.028], { over: [0.3, 0.3] }, 'Feet', 'metaR', null),
-    limb('upperArmR', 'shoulder', 'elbow', 0.095, 0.075, { over: [0.6, 0.6] }, 'Arms', 'torso', 'foreArmR'),
-    limb('foreArmR', 'elbow', 'wrist', 0.075, 0.055, { over: [0.6, 0.6] }, 'Arms', 'upperArmR', 'handR'),
+    limb('upperArmR', 'shoulder', 'elbow', 0.095, 0.075, { over: [0.6, 0.6], mid: 0.45, rMid: R([0.088, 0.092]) }, 'Arms', 'torso', 'foreArmR'),
+    limb('foreArmR', 'elbow', 'wrist', 0.075, 0.055, { over: [0.6, 0.6], mid: 0.3, rMid: R([0.074, 0.068]) }, 'Arms', 'upperArmR', 'handR'),
     limb('handR', 'wrist', 'knuckles', [0.065, 0.055], [0.085, 0.035], { over: [0.4, 0.3] }, 'Hands', 'foreArmR', null),
     ...FINGERS.flatMap((X) => [
       limb(`finger${X}1R`, `finger${X}k`, `finger${X}m`, 0.021, 0.019, { over: [0.5, 0.5] }, 'Hands', 'handR', `finger${X}2R`),
@@ -271,7 +283,7 @@ function creature(sheet, title) {
   const legs = hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
   const head = headOf(sheet);
   const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail]);
-  const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff });
+  const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff, pole: f.pole, build: f.build });
   const stance = stanceOf(sheet);
   const { dials, rig, clips } = dialsAndRig(body, stance);
   const skin = sheet.ancestry.colours.Skin, reptile = head && HEAD_LIBRARY[head.id].family === 'reptile';
@@ -298,6 +310,8 @@ function creature(sheet, title) {
   const plan = {
     schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y', note: `metres; ${title}, soles on z = 0` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed' },
+    // the ring family the designed creatures' trunks are built in (ring12: round, not a box), an e a little past round
+    style: { slots: 'ring12', e: 2.2 },
     joints: body.joints, segments: body.segments, heads, details: body.details, dials, rig, clips,
     body: { refine: [{ parts: ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', ...(body.hasTail ? [0, 1, 2, 3, 4].map((i) => `tail${i}`) : [])] }, { parts: ['torso'], slots: false }],
       volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)], ...['R', 'L'].map((S) => [`thigh${S}`, { front: 1, 'front*': 0.7 }, { st1: 1, st0: 0.3 }, r3(0.025 * k * g)])],
