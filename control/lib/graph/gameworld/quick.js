@@ -134,7 +134,12 @@ export function readQuick(Q) {
   if (!isObj(Q)) throw fail(` is { goal: ${Object.keys(QUICK_GOALS).join(' | ')}, hero?, climb?, pickup?, seconds?, theme? }`);
   for (const k of Object.keys(Q)) if (!KEYS.includes(k)) throw fail(`.${k} is not part of a quick game (${KEYS.join(', ')})`);
   if (!QUICK_GOALS[Q.goal]) throw fail(`.goal is one of ${Object.entries(QUICK_GOALS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
-  if (Q.hero !== undefined && Q.hero !== false && !isObj(Q.hero)) throw fail('.hero is a hero-door spec (get_solid_vocab({ id: \'layered\' })), { ref } for a hero made with create_character, or false for first person');
+  if (Q.hero !== undefined && Q.hero !== false && !isObj(Q.hero)) throw fail('.hero is a hero-door spec (get_solid_vocab({ id: \'layered\' })), { ref } for a hero or mascot made with create_character, { mascot: true | { brief?, facets?, seed? } } for a mascot on foot, or false for first person');
+  if (isObj(Q.hero) && Q.hero.mascot !== undefined) {
+    const M = Q.hero.mascot;
+    if (Object.keys(Q.hero).length !== 1) throw fail('.hero { mascot } is a mascot on foot alone (its words are the mascot\'s: brief, facets, seed)');
+    if (!(M === true || (isObj(M) && Object.keys(M).every((k) => ['brief', 'facets', 'seed'].includes(k))))) throw fail('.hero.mascot is true (rolled in the game\'s setting) or { brief?, facets?, seed? } (docs/mascot.md)');
+  }
   if (isObj(Q.hero) && Q.hero.ref !== undefined && (Object.keys(Q.hero).length !== 1 || !(typeof Q.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(Q.hero.ref)))) throw fail('.hero { ref } adopts a hero made with create_character, by its sketch ref alone (its words are its own row\'s)');
   if (Q.climb !== undefined && typeof Q.climb !== 'boolean') throw fail('.climb is true or false');
   if (Q.ride !== undefined) {

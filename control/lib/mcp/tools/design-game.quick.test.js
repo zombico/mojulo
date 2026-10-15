@@ -57,6 +57,27 @@ describe('design_game quick', () => {
     expect(stored('s-game').theme).toMatchObject({ accent: '#7a2f8e' });
   }, 240_000);
 
+  it('reach with a mascot on foot: minted through the creature door in the game\'s setting, piloted by its own body', async () => {
+    const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
+    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);
+    const H = stored('m-hero');
+    expect(H.plan.mascot).toMatchObject({ form: expect.any(String), height: expect.any(Number) });
+    expect(H.plan.mascot.height).toBeLessThan(1.2);
+    const L = stored('m-level-run-0');
+    // its own clips play the runtime's states (no library), its capsule and its camera are its body's
+    expect(L.figures.hero).toMatchObject({ heroRef: 'm-hero', clips: { forward: 'run', turn: 'walk', idle: 'idle', leap: 'leap', squat: 'squat' } });
+    expect(L.figures.hero.library).toBeUndefined();
+    expect(L.entities[0].rule.collideHeight).toBeCloseTo(H.plan.mascot.height, 2);
+    expect(L.camera.dist).toBeLessThan(5.5);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('m-level-run-0'));
+    expect(Object.keys(payload.figures.hero.clips)).toEqual(expect.arrayContaining(['forward', 'turn', 'leap']));
+    // a run again remakes nothing; a mascot made with create_character is adopted as the pilot by its ref
+    expect((await designGameHandler({ ref: 'm' })).ran ?? []).toEqual([]);
+    await designGameHandler({ quick: { goal: 'reach', hero: { ref: 'm-hero' }, world: { id: 'zoom2', style: { kit: 'isekai-meadow' } } }, ref: 'm2' });
+    expect(stored('m2-level-run-0').figures.hero.clips.forward).toBe('run');
+    expect(() => readQuick({ goal: 'reach', hero: { mascot: { colour: 'blue' } } })).toThrow(/hero\.mascot is true .* \{ brief\?, facets\?, seed\? \}/);
+  }, 240_000);
+
   it('fly: an airspace flown by its craft, the course\'s gates as laps in three dimensions, the runway the finish', async () => {
     const out = await designGameHandler({ quick: { goal: 'fly', craft: 'trainer', airspace: { map: { form: 'island', field: 2400 } }, world: { id: 'skies' } }, ref: 'f' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);

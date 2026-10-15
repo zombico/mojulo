@@ -149,7 +149,8 @@ holds the laws as numbers:
 - **extremities**: the hands and feet over-sized against thin limbs (law 6);
 - **hue and accord**: the body in the hue, a pale belly and muzzle, the accent a neighbour in harmony or a complement
   in contrast, the gloves white (law 7);
-- **energy**: the idle clip and the stance (law 9), with a hop and a cheer that every mascot has.
+- **energy**: the idle clip and the stance (law 9), with a hop and a cheer that every mascot has, and the flavour of
+  its walk and run (below, On foot).
 
 Every amount is a first reading for the eyes gate, iterated in place with `update_character` patch ops. The sheet's
 ledger says where each note landed.
@@ -254,10 +255,51 @@ promise, locomotion as the idle. The analysis, the crafts and the principles are
   name) with no person's facet, years or lineage rolls a mascot; `tuning: 'person'` keeps the Egocube's method. `cute`,
   `kawaii` and `chibi` ask for nothing on their own: a cute knight is a person.
 - Revise in place with `update_character` patch ops: `/dials/lean`, `/dials/tilt`, or `/plan/...` for a measure.
-- The clips: `idle` (by energy), `hop`, `cheer`, `wave`, `blink`, and one per expression (`happy`, `grin`, `content`,
-  `determined`, `smirk`, `surprised`, `sad`, `angry`, `sleepy`).
+- The clips: `idle` (by energy), `hop`, `cheer`, `wave`, `blink`, one per expression (`happy`, `grin`, `content`,
+  `determined`, `smirk`, `surprised`, `sad`, `angry`, `sleepy`), and on foot `walk`, `run`, `squat` and `leap`.
 - The contact sheet for the eyes gate, from a repo checkout (`control/`):
   `MOJULO_SPIKE_OUT=/abs/dir node ../docs/examples/mascot/render-mascots.mjs 'sonic-like|kirby-like'`, one row per brief:
   the front, the three-quarter and the side at rest, then idle, cheer, the top of the hop and the wave. It is flat-lit
   and diagnostic; the World page's character light is the look. `--faces` draws the faces close up instead: the rest
   face, then every expression.
+
+## On foot
+
+A mascot walks and runs on its own legs, and a game can take it as its pilot.
+
+**The gaits** ([mascot-gait.js](../control/lib/graph/egocube/mascot-gait.js)) are clips on its rig, sized by its legs,
+never by a person's. The stride is a share of the leg (a walk 0.9, a run 1.5), cut to what the leg reaches with the root
+sunk at most a seventh of the leg in the walk and a quarter in the run. It is centred where the ankle passes under the
+hip, because a mascot's big shoe puts its toe well ahead of it. The cycle is a pendulum of that leg: a person's second at
+0.9 m of leg, so √(leg / 0.9), never under 0.38 s; the run's is 0.72 of the walk's. A walk keeps a foot down at every key,
+both feet down twice a cycle; a run flies twice a cycle, the root rising through the flight. The swing foot lifts high,
+as a cartoon step does, but never higher than its leg can fold (a stub thigh cannot draw its foot to its hip). Each key's
+root sinks just enough that both legs reach their targets. The arms swing against the legs. The energy flavours it:
+bouncy bobs, zippy leans in and trails its arms when it runs, sturdy waddles wide, swaying sways, floaty barely touches
+down. `squat` winds a game's jump up and `leap` holds its flight.
+
+**Export.** The rig maps onto a humanoid's: the shin is the lower leg and the metatarsus (from the hock) the foot, as a
+game maps a digitigrade leg. So a mascot moulds to the T-pose and exports as a humanoid with its gaits, and so does any
+creature-door biped on the same legs.
+
+**As a pilot** ([mascot-pilot.js](../control/lib/graph/egocube/mascot-pilot.js)). A stored mascot is a pilot as a hero
+is (`heroRef` names either). It keeps its own size; the game's movement (its speed, its jump, the step it climbs) stays
+the game's, as a cartoon hops many times its own height. What follows its body:
+- its clips play the runtime's states: forward the run, turn the walk, idle the idle, the jump's squat and leap;
+- the stride is the run's travel per cycle at the game's speed, lengthened so the cycle never plays more than four
+  times a second (past that its feet skate, as a cartoon's do);
+- the capsule is its height and its head's half-width;
+- the follow camera is a person's scaled by its height (never under 0.45 of it) and looks at its head;
+- a first-person eye sits at its eyes.
+
+A quick game takes one as `quick.hero: { mascot: true | { brief?, facets?, seed? } }`, rolled in the game's setting
+(its tradition is the mascot's style) and minted through the creature door, as `create_character { as: 'mascot' }`
+mints one. Or adopt one made before: `quick.hero: { ref }`.
+
+Not yet:
+- a game's other figures as mascots (its foes, guards and farmhands are people);
+- a mascot hero's hit egg in a shooter (a person's);
+- an orb that rolls;
+- a mascot's own vault and ledge moves;
+- foot IK on slopes at play time.
+

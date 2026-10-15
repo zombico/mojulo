@@ -70,6 +70,8 @@ async function realize(step, action) {
   const { key, ref, order } = step;
   if (HERO_STEP.test(key)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
+    // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
+    else if (order.mascot) await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/plan', value: order.mint.spec.plan }], note: 'design_game: the mascot hero' });
     else await updateSketchHandler({ ref, patch: heroRemakeOps(order, SketchRepository.getByRef(ref)?.manifest), note: `design_game: ${HERO_NOTE[key] ?? (key.startsWith('cast-') ? 'a cast member' : `the ${key}`)}` });
     // the book's base is the revision as made: pinned before the motion branches from it
     const pin = key === 'hero' ? pinBase({ ref, rev: headRev(ref), manifest: SketchRepository.getByRef(ref).manifest }) : null;

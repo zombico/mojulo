@@ -83,13 +83,15 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * fallback returns null for any non-room manifest). Async because the workbench path
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
-/** A hero as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
+/** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 async function heroFigure(name, spec) {
   let manifest;
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
-    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (make one with create_character { as: 'hero' }; a creature or an animal is not a pilot yet)`);
+    // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump)
+    const { isMascotPlan } = await import('@/lib/graph/egocube/mascot-pilot.js');
+    if (!src || src.manifest?.kind !== 'layered' || !(src.manifest.hero || isMascotPlan(src.manifest.plan))) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero or mascot (make one with create_character { as: 'hero' } or { as: 'mascot' }; any other creature or an animal is not a pilot yet)`);
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');

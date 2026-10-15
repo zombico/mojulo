@@ -3,7 +3,8 @@
  * diagnostic: the World page's character light is the look; nothing here is a recipe change. Run from control:
  *   MOJULO_SPIKE_OUT=/absolute/path node ../docs/examples/mascot/render-mascots.mjs ['sonic-like|kirby-like|…'] [--seed n] [--faces]
  * `--faces`: the faces instead, close up and from the front, one row per brief: the rest face, then every expression clip's
- * held key (mascots-faces.png). */
+ * held key (mascots-faces.png). `--gaits`: on foot instead, from the side, one row per brief: four keys of the walk, then
+ * four of the run (mascots-gaits.png; the clips walk in place, so a planted foot slides back under the body). */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,7 +46,7 @@ function cell(mesh, palette, view, framing) {
   return rgb;
 }
 
-const FACES = args.includes('--faces'), COLUMNS = FACES ? 1 + EXPRESSION_IDS.length : 7;
+const FACES = args.includes('--faces'), GAITS = args.includes('--gaits'), COLUMNS = FACES ? 1 + EXPRESSION_IDS.length : GAITS ? 8 : 7;
 const cells = [], table = [];
 for (const brief of briefs) if (FACES) {
   const sheet = rollMascot({ brief, seed }), P = mascotPlanFromSheet(sheet), plan = P.create.spec.plan;
@@ -56,6 +57,13 @@ for (const brief of briefs) if (FACES) {
   cells.push(cell(mesh, plan.palette, 'frontal', framing));
   for (const e of EXPRESSION_IDS) cells.push(cell(poseLayered(mesh, recipe, plan.clips[e][1]).mesh, plan.palette, 'frontal', framing));
   table.push({ brief, thesis: `${P.thesis} · rests ${sheet.facets.expression}`, ...sheet.facets });
+} else if (GAITS) {
+  const sheet = rollMascot({ brief, seed }), P = mascotPlanFromSheet(sheet), plan = P.create.spec.plan;
+  const recipe = expandPlan(plan), mesh = compileLayered(recipe);
+  const posed = ['walk', 'run'].flatMap((g) => [0, 2, 4, 6].map((i) => poseLayered(mesh, recipe, plan.clips[g][i]).mesh));
+  const framing = { ...mesh, vertices: [mesh, ...posed].flatMap((m) => m.vertices) };
+  for (const m of posed) cells.push(cell(m, plan.palette, 'lateral', framing));
+  table.push({ brief, thesis: P.thesis, ...sheet.facets });
 } else {
   const sheet = rollMascot({ brief, seed }), P = mascotPlanFromSheet(sheet), plan = P.create.spec.plan;
   const recipe = expandPlan(plan), mesh = compileLayered(recipe);
@@ -68,8 +76,8 @@ for (const brief of briefs) if (FACES) {
 const size = FRAME.size, rows = Math.ceil(cells.length / COLUMNS), rgb = new Uint8Array(COLUMNS * size * rows * size * 3);
 for (let i = 0; i < rgb.length; i += 3) rgb.set(BG, i);
 cells.forEach((c, i) => { for (let y = 0; y < size; y++) rgb.set(c.subarray(y * size * 3, (y + 1) * size * 3), ((Math.floor(i / COLUMNS) * size + y) * COLUMNS * size + (i % COLUMNS) * size) * 3); });
-const name = FACES ? 'mascots-faces' : 'mascots';
+const name = FACES ? 'mascots-faces' : GAITS ? 'mascots-gaits' : 'mascots';
 writeFileSync(`${OUT}/${name}.png`, encodePng(Buffer.from(rgb), COLUMNS * size, rows * size));
 writeFileSync(`${OUT}/${name}.json`, JSON.stringify(table, null, 1) + '\n');
-console.log(`${OUT}/${name}.png: ${briefs.length} rows (${FACES ? `rest, ${EXPRESSION_IDS.join(', ')}` : 'front, three-quarter, side; idle, cheer, hop, wave'})`);
+console.log(`${OUT}/${name}.png: ${briefs.length} rows (${FACES ? `rest, ${EXPRESSION_IDS.join(', ')}` : GAITS ? 'walk keys 0, 2, 4, 6; run keys 0, 2, 4, 6, from the side' : 'front, three-quarter, side; idle, cheer, hop, wave'})`);
 console.table(table.map(({ brief, thesis }) => ({ brief, thesis })));

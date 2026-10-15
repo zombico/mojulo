@@ -36,6 +36,9 @@ import { bindStory } from './story.js';
 import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { rideBuild, rideRule } from './ride.js';
+import { rollMascot } from '../egocube/mascot.js';
+import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
+import { isMascotPlan, mascotPilot } from '../egocube/mascot-pilot.js';
 import { seedOfRef } from '../beats/field-cue.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
@@ -67,9 +70,9 @@ const keepJog = (patch) => patch && patch.map((op) => (op.op === 'set' && op.pat
 // the door gaits a pilot carries (player.js plays its own jog and walk over the library's)
 const gaitsOf = (spec) => (spec && isObj(spec.motion) ? Object.keys(spec.motion) : null);
 
-/** The hero's ref: the one the world adopts (`characters.hero.ref`, made with create_character), else the one a run
- * makes at `<ref>-hero`. */
-export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? childRef(ref, 'hero');
+/** The hero's ref: the one the world adopts (`characters.hero.ref`, or a quick game's `quick.hero.ref`, made with
+ * create_character), else the one a run makes at `<ref>-hero`. */
+export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? (typeof world.quick?.hero?.ref === 'string' ? world.quick.hero.ref : null) ?? childRef(ref, 'hero');
 
 /** The steps of a run, in the order they are made (the hero first: the others name it, or wait on its pinned base). */
 export function runSteps(world, { ref, lookup } = {}) {
@@ -170,12 +173,23 @@ function quickSteps(world, G, ref, lookup) {
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;
   const heroRef = adopted ?? (Q.hero ? childRef(ref, 'hero') : null);
+  const setting = settingOfGame(G, Q);
+  // a MASCOT on foot (egocube/mascot-pilot.js): rolled from its words in the game's setting (its tradition its style),
+  // minted through the creature door as create_character { as: 'mascot' } mints one, and piloted by its own body
+  let pilot = adopted && isMascotPlan(lookup?.head?.plan) ? mascotPilot(lookup.head.plan) : null;
   if (adopted) steps.push({ key: 'hero', ref: heroRef, ready: true, adopt: true, order: { adopt: heroRef }, print: fingerprint({ adopt: heroRef }) });
-  else if (Q.hero) {
+  else if (isObj(Q.hero) && Q.hero.mascot !== undefined) {
+    const words = Q.hero.mascot === true ? {} : Q.hero.mascot, seed = words.seed ?? (Number.isInteger(G.seed) ? G.seed : 1);
+    const P = mascotPlanFromSheet(rollMascot({ ...words, seed, setting }), { title: `${G.name ?? G.id} hero` });
+    const dials = Object.fromEntries((P.after || []).filter((op) => op.op === 'set' && /^\/dials\/[^/]+$/.test(op.path)).map((op) => [op.path.slice(7), op.value]));
+    const mint = { kind: 'layered', via: 'plan', title: P.create.title, spec: { ...P.create.spec, ...(Object.keys(dials).length ? { dials } : {}) } };
+    steps.push({ key: 'hero', ref: heroRef, ready: true, order: { mascot: words, mint, motion: null }, print: fingerprint({ mascot: mint.spec }) });
+    pilot = mascotPilot(P.create.spec.plan);
+  } else if (Q.hero) {
     const spec = playJog(Q.hero), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
-  const heroGaits = gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(Q.hero) : null);
+  const heroGaits = pilot ? null : gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(Q.hero) : null);
   // a ride (ride.js): the vehicle's build, minted as its own sketch; every stage drives it
   const rideRef = Q.ride ? childRef(ref, 'ride') : null;
   if (rideRef) {
@@ -184,7 +198,6 @@ function quickSteps(world, G, ref, lookup) {
   }
   // a field of racers (quick.racers): solved here, each a recipe its figure resolves through (nothing to mint); yours first
   // the field rolled in the game's setting (cast-setting.js): its genre leans who races, its tradition how they are drawn
-  const setting = settingOfGame(G, Q);
   const racers = Q.racers !== undefined ? quickRacers(Q, Number.isInteger(G.seed) ? G.seed : 1, setting) : null;
   const ride = rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
     : racers ? { racer: racers.field[0].spec, rule: racers.field[0].rule, field: racers.field } : null;
@@ -243,7 +256,7 @@ function quickSteps(world, G, ref, lookup) {
     if (s.building?.ref) return;
     const audio = scoreOf(s, i);
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), ...(pilot ? { pilot } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
     const extraLaws = [...(balance ? [balance] : []), ...castLaws], laws = extraLaws.length ? [...(L.laws ?? []), ...extraLaws] : L.laws;
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(laws ? { laws } : {}) });
   });
