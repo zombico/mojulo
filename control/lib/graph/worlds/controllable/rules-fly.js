@@ -24,7 +24,7 @@
  * Rule params (tuned defaults, real-ish units like drive — kg / N / m/s):
  * { mass, thrust?, drag?, brakeDrag?, wheelBrake?, stallSpeed?, takeoffSpeed?, maxSpeed?,
  *   bankMax?, bankRate?, levelRate?, pitchMax?, pitchRate?, lookSens?, taxiTurn?, stallDrop?,
- *   sinkRate?, propRate?, eye?, engine?, lever?, leverRate?, gravity?, lift?, turnRate?, assist?, space? }
+ *   sinkRate?, propRate?, eye?, engine?, lever?, leverRate?, gravity?, lift?, turnRate?, assist?, space?, boost?, roll? }
  *
  * The flight dials (skyscape: one flight model under every flight game). Each is absent by default and every number
  * above is then as it was:
@@ -36,6 +36,11 @@
  *     ground to roll on.
  *   • lift: false — the craft is held up by nothing: no stall (speed does not keep it up, nothing to lose), and it
  *     turns at `turnRate` rad/s at full bank instead of by the coordinated-turn law (there is no lift to bank).
+ *   • boost: { thrust?, time?, recharge? } — input.boost held multiplies thrust (2×) while a charge of `time` s (3)
+ *     lasts, refilled at `recharge` s per s (0.5) when let go: facts `boosting`, `boostE`.
+ *   • roll: { time?, side?, cooldown? } — a barrel roll: a strafe press (Q / E) turns the craft a full roll over
+ *     `time` s (0.7), carrying it `side` m (30) that way, untouchable while it rolls (`invincible`); `cooldown` s
+ *     (1.5) between. Facts `rolling`, `tilt.roll` with the spin.
  *   • space: true — a craft in space still meets what it flies into (a station's surface, a trench's walls): its
  *     ground is read without gravity, and a touchdown there is the page's to judge (a crash).
  *   • launchSpeed — the airspeed it starts at (m/s): a craft set down in the air already flying, as a glider is.
@@ -91,7 +96,17 @@ export function buildRulesFly(E) {
     const wasAirborne = !!e.airborne;
 
     // ── airspeed: thrust − drag − brakes − gravity-along-path ──
-    let force = maxThrust * throttle - dragK * v * v;
+    // ── the boost (opt-in `boost`: { thrust?, time?, recharge? }): input.boost held pushes thrust by `thrust` (2×) while
+    // its charge lasts (`time` s), which refills at `recharge` s per s when let go ──
+    let boostMul = 1;
+    if (r.boost) {
+      const B = r.boost, full = B.time ?? 3;
+      if (e.boostE == null) e.boostE = full;
+      e.boosting = !!input.boost && e.boostE > 0 && maxThrust > 0;
+      if (e.boosting) { boostMul = B.thrust ?? 2; e.boostE = Math.max(0, e.boostE - dt); }
+      else e.boostE = Math.min(full, e.boostE + (B.recharge ?? 0.5) * dt);
+    }
+    let force = maxThrust * throttle * boostMul - dragK * v * v;
     if (brakeIn > 0) force -= ((r.brakeDrag ?? dragK * 5) * v * v + (onGround ? (r.wheelBrake ?? mass * G * 0.5) : 0)) * brakeIn;
     let a = force / mass;
     if (!onGround && grav) a -= G * Math.sin(t.pitch || 0);   // the energy exchange: climb bleeds, dive buys back
@@ -167,7 +182,23 @@ export function buildRulesFly(E) {
     e.climbRate = airborne ? vz : 0;
     e.stallStart = stalled && !e.stalled ? true : false;
     e.stalled = stalled;
-    e.tilt = { pitch: airborne ? (t.pitch || 0) : 0, roll: e.bank || 0 };   // the mesh sync attitudes the body
+    // ── the barrel roll (opt-in `roll`: { time?, side?, cooldown? }): a strafe press (Q / E) rolls the craft a full turn
+    // over `time` s, carrying it `side` m that way, and it takes no hits while it rolls ──
+    let spin = 0;
+    if (r.roll && airborne) {
+      const R = r.roll, T = R.time ?? 0.7, sIn = Math.sign(input.strafe || 0);
+      if (e.rollCd > 0) e.rollCd = Math.max(0, e.rollCd - dt);
+      if (!(e.rollT > 0) && sIn && !e.strafePrev && !(e.rollCd > 0)) { e.rollT = T; e.rollDir = sIn; e.rollCd = R.cooldown ?? 1.5; }
+      if (e.rollT > 0) {
+        const step = Math.min(dt, e.rollT), side = (R.side ?? 30) / T;
+        t.pos[0] += Math.sin(t.heading) * e.rollDir * side * step; t.pos[1] -= Math.cos(t.heading) * e.rollDir * side * step;
+        e.rollT -= step;
+        spin = e.rollDir * 2 * Math.PI * (1 - Math.max(0, e.rollT) / T);
+      }
+      e.rolling = e.rollT > 0; e.invincible = e.rolling;
+      e.strafePrev = !!sIn;
+    }
+    e.tilt = { pitch: airborne ? (t.pitch || 0) : 0, roll: (e.bank || 0) + spin };   // the mesh sync attitudes the body
     e.locomotion = airborne ? 'fly' : 'taxi';
     e.gaitPhase = (e.gaitPhase || 0) + (0.2 + throttle) * (r.propRate ?? 3) * dt;   // the prop driver
     e.moving = v > 1e-3;

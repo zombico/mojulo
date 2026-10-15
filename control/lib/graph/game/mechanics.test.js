@@ -362,6 +362,28 @@ describe('unseen, laps and score on the bus', () => {
     expect(JSON.stringify(race.events)).not.toMatch(/touchdown|respawn|pad_/);
   });
 
+  it('hunting waves (no path): each wing woken when the one before is down, no lives, every one down is success', () => {
+    const c = composeMechanics([{ kind: 'waves', waves: [{ foes: ['foe-1', 'foe-2'] }, { foes: ['foe-3'] }], clear: true }], ctx());
+    expect(c.on).toEqual({ 'waves:cleared': { end: 'success' } });
+    const steps = c.events.sequences[0].steps;
+    expect(steps.some((q) => q.op === 'walk')).toBe(false);
+    expect(steps.some((q) => q.await && q.await.on === '__wave_clear_0_1')).toBe(true);
+    // (a sequence's waits run on the bus's stepTime as well as its timers)
+    const s = B.createBusState(c.events, c.events.entities);
+    const pump = (list) => { B.processEvents(s, list); let w = B.watchEvents(s); while (w.length) { B.processEvents(s, w); w = B.watchEvents(s); } };
+    const tick = (n) => { for (let k = 0; k < n; k++) { pump(B.tickTimers(s, 0.1)); pump(B.stepTime(s, 0.1)); } };
+    const waves = () => s.log.filter((r) => r.type === 'wave').length;
+    pump(c.events.initial || []); tick(60);
+    expect(waves()).toBe(1);                         // the first wing; the second waits for it to be down
+    pump([{ type: 'down', entity: 'foe-1' }]); tick(60);
+    expect(waves()).toBe(1);
+    pump([{ type: 'down', entity: 'foe-2' }]); tick(60);
+    expect(waves()).toBe(2);
+    pump([{ type: 'down', entity: 'foe-3' }]);
+    expect(types(s)).toContain('waves:cleared');
+    expect(() => composeMechanics([{ kind: 'waves', waves: [{ foes: ['foe-1'] }], path: [] }], ctx())).toThrow(/needs path/);
+  });
+
   it('respawn: a crash comes back at its start, aloft, and hurts when asked', () => {
     const c = composeMechanics([{ kind: 'fail-on-death', startHp: 100 }, { kind: 'respawn', at: { spot: [1, 2, 3], heading: 0.5, aloft: 1 }, hurt: 25 }, { kind: 'defeat-all', who: 'foe-*', count: 1 }], ctx());
     const s = run(c, [{ type: 'crash', entity: 'hero', why: 'rock' }]);

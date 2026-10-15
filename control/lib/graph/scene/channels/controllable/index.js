@@ -215,13 +215,17 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // rocks (rule.obstacles: x, y, z, r flat) a crash when flown into
   var spaced = false, rocks = null, clearOfRocks = true;
   function rockHit(q) { for (var k = 0; k < rocks.length; k += 4) { var dx = q[0] - rocks[k], dy = q[1] - rocks[k + 1], dz = q[2] - rocks[k + 2], r = rocks[k + 3] + 2; if (dx * dx + dy * dy + dz * dz <= r * r) return true; } return false; }
-  // an armed craft fires on F as well as the (pointer-locked) mouse
+  // an armed craft fires its guns on Z as well as the (pointer-locked) left mouse, its missile on the right mouse (R is
+  // the scheme's); F is its boost
   var fireKeyed = false;
   function hook(p) {
     if (!fireKeyed) {
       fireKeyed = true;
-      window.addEventListener('keydown', function (ev) { if (ev.code === 'KeyF') __fireDown = true; });
-      window.addEventListener('keyup', function (ev) { if (ev.code === 'KeyF') __fireDown = false; });
+      window.addEventListener('keydown', function (ev) { if (ev.code === 'KeyZ') __fireDown = true; });
+      window.addEventListener('keyup', function (ev) { if (ev.code === 'KeyZ') __fireDown = false; });
+      renderer.domElement.addEventListener('mousedown', function (ev) { if (ev.button === 2 && document.pointerLockElement === renderer.domElement) window.__mojAltFire = true; });
+      window.addEventListener('mouseup', function (ev) { if (ev.button === 2) window.__mojAltFire = false; });
+      renderer.domElement.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
     }
     if (p.rule.space && !spaced) {
       spaced = true; rocks = p.rule.obstacles || null;
@@ -254,6 +258,28 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
   // the course's guidance (rule.course): the next gate bracketed on screen (an arrow at the edge when it is off it), a
   // gate flown past outside its ring called out, and on the way to the runway the glide-slope lights (PAPI-like: four,
   // white above the slope, red below) and the centreline
+  // the missile lock's bracket: round the body the lock is building on, its ring filling, red when locked
+  var lk = document.createElement('div'), LV = new THREE.Vector3();
+  lk.style.cssText = 'position:absolute;pointer-events:none;z-index:9;display:none;transform:translate(-50%,-50%);font:600 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;white-space:nowrap';
+  document.body.appendChild(lk);
+  function lockMark(p) {
+    var L = p.mlock, tg = L && __world.byId[L.target];
+    if (!tg) { lk.style.display = 'none'; return; }
+    var r = renderer.domElement.getBoundingClientRect(), q = tg.transform.pos;
+    LV.set(q[0], q[1], q[2]).project(camera);
+    if (LV.z > 1 || Math.abs(LV.x) > 1 || Math.abs(LV.y) > 1) { lk.style.display = 'none'; return; }
+    var need = (p.rule.missiles && p.rule.missiles.lockTime) || 1.2, f = Math.min(1, L.t / need), col = L.locked ? '#ff4d4d' : '#9fe3ff';
+    lk.style.display = ''; lk.style.left = (r.left + (LV.x + 1) / 2 * r.width) + 'px'; lk.style.top = (r.top + (1 - LV.y) / 2 * r.height) + 'px';
+    lk.innerHTML = '<div style="width:44px;height:44px;margin:0 auto 2px;border:2px solid ' + col + ';border-radius:4px;transform:rotate(45deg) scale(' + (1.6 - 0.6 * f) + ')"></div><span style="color:' + col + '">' + (L.locked ? 'LOCK' : Math.round(100 * f) + '%') + '</span>';
+  }
+  // the weapons' line: missiles and flares left, the boost's charge, a homing round's warning
+  function arms(p) {
+    var m = p.rule.missiles, out = '';
+    if (m) out += '\\nMSL ' + (p.missilesLeft == null ? (m.count || 4) : p.missilesLeft) + '  FLR ' + (p.flaresLeft == null ? (m.flares || 0) : p.flaresLeft) + (p.flareT > 0 ? ' <span style="color:#ffd166">FLARE</span>' : '');
+    if (p.rule.boost) { var full = p.rule.boost.time || 3, e2 = p.boostE == null ? full : p.boostE, n = Math.round(8 * e2 / full); out += (m ? '  ' : '\\n') + 'BST ' + '▮'.repeat(n) + '▯'.repeat(8 - n); }
+    if (p.incoming != null) out += '\\n<span style="color:#ff4d4d">INCOMING · ' + Math.round(p.incoming) + ' m</span>';
+    return out;
+  }
   var mk = document.createElement('div'), miss = 0, missN = 0, prevSide = null, prevNext = -1, ownNext = 0, cpVar = null, V3 = new THREE.Vector3();
   mk.style.cssText = 'position:absolute;pointer-events:none;z-index:9;display:none;font:600 11px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:#ffd166;text-align:center;transform:translate(-50%,-50%);white-space:nowrap';
   document.body.appendChild(mk);
@@ -333,8 +359,9 @@ window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + curre
       el.style.display = '';
       el.innerHTML = 'SPD ' + pad(Math.round((p.airspeed || 0) * 1.94384), 4) + ' kt   HDG ' + pad(Math.round(brg), 3) + '\\n'
         + 'ALT ' + pad(Math.round(q[2]), 5) + ' m    AGL ' + (agl === null ? '   --' : pad(Math.round(agl), 5)) + ' m\\n'
-        + 'V/S ' + pad((p.climbRate || 0).toFixed(1), 5) + ' m/s  THR ' + pad(Math.round((p.throttle || 0) * 100), 3) + '%' + warn + guide(p);
-    } else { el.style.display = 'none'; mk.style.display = 'none'; }
+        + 'V/S ' + pad((p.climbRate || 0).toFixed(1), 5) + ' m/s  THR ' + pad(Math.round((p.throttle || 0) * 100), 3) + '%' + warn + guide(p) + arms(p);
+      lockMark(p);
+    } else { el.style.display = 'none'; mk.style.display = 'none'; lk.style.display = 'none'; }
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
@@ -1614,6 +1641,8 @@ function __readInput() {
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
     aiToggle,                        // AI attack switch (G): ai-ambient suits stand down / wake up
     lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge
+    missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
+    flare: __k('flare') ? 1 : 0,     // a craft's flare (X)
     lookDX: __lookDX, lookDY: __lookDY,
   };
   __lookDX = 0; __lookDY = 0;

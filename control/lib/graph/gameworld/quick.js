@@ -72,7 +72,7 @@ import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { flightLaps } from '../skyscape/course.js';
-import { dogfightCast, WING } from '../skyscape/dogfight.js';
+import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -201,7 +201,9 @@ export function readQuick(Q) {
   if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
   if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
-  for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
+  for (const k of ['lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
+  // (waves: a defence's, or a dogfight's wings: shoot with a craft)
+  if (Q.waves !== undefined && Q.goal !== 'defend' && !(Q.goal === 'shoot' && Q.craft !== undefined)) throw fail('.waves belongs to the defend goal (and shoot with a craft: a dogfight\'s wings)');
   if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot') throw fail('.foe belongs to the defend, battle and shoot goals');
   if (Q.waves !== undefined && !(Number.isInteger(Q.waves) && Q.waves >= 1 && Q.waves <= DEFEND.perWave.length)) throw fail(`.waves is 1 to ${DEFEND.perWave.length}`);
   if (Q.lives !== undefined && !(Number.isInteger(Q.lives) && Q.lives >= 1 && Q.lives <= 20)) throw fail('.lives is 1 to 20');
@@ -331,8 +333,10 @@ export function goalMechanics(quick, ends) {
         return [
           { kind: 'fail-on-death', startHp: SHOOT.hp, hits: DOGFIGHT.hit },
           { kind: 'respawn', at: { spot: p.pos, heading: p.heading, aloft: 1 }, hurt: DOGFIGHT.crash },
+          // a dogfight in waves: wing after wing, each woken when the one before is down (dogfight.js waveIds)
+          ...(quick.waves && !ends.airField.port ? [{ kind: 'waves', waves: waveIds(quick.waves, quick.foes ?? WING.n), clear: true }] : [
           // a trench run (a station's trench: skyscape/trench.js) is won by its port alone; a dogfight by the wing
-          { kind: 'defeat-all', who: 'foe-*', count: ends.airField.port ? 1 : Math.max(1, Math.min(WING.max, quick.foes ?? WING.n)), label: ends.airField.port ? 'Port' : 'Down' },
+          { kind: 'defeat-all', who: 'foe-*', count: ends.airField.port ? 1 : Math.max(1, Math.min(WING.max, quick.foes ?? WING.n)), label: ends.airField.port ? 'Port' : 'Down' }]),
         ];
       }
       // every foe down; each hit on you costs hp; the supplies between the posts
@@ -539,7 +543,7 @@ export function shootDrops(posts, ends) {
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
 export function shootCast(quick, ends, ref, { hero = false } = {}) {
   // with a craft, a dogfight: the wing of fighters and the craft's cannon (skyscape/dogfight.js)
-  if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes });
+  if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
   const posts = shootPosts(quick, ends), figures = {}, entities = [];
   posts.forEach((p) => {
     figures[p.id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };

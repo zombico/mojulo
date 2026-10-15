@@ -148,6 +148,11 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-14 (skyscape: air combat): the mind's space seek keeps `rule.clearance` over the ground (read under
 // it and ahead); on the `controllable` fixture 13 lines are added and none changed, gated on the key. The same 13, and
 // shoot-live.
+// Re-pinned 2026-10-14 (skyscape: missiles, boost, roll): the weapon system's opt-in `rule.missiles` (a lock, homing
+// rounds, flares; `noGround` and `hitsAs` on a round), the fly rule's opt-in `boost` and `roll`, the input's `missile`
+// and `flare` (and the pilot scheme's two vehicle actions for them). On the `controllable` fixture 7 lines are replaced
+// (the input's zero, thrust, tilt, the ground test, a burst's hit count, the exports, the scheme) and 101 added; every
+// replaced line reads an absent key the old way. The same 13, and shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

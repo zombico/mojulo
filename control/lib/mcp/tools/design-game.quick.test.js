@@ -103,6 +103,15 @@ describe('design_game quick', () => {
     expect(L.entities[0]).toMatchObject({ id: 'player', weapon: { fireClass: 'sight' }, rule: { type: 'fly', space: true } });
     expect(L.camera.mouseLook).toBe(true);
     expect(L.game.mechanics.find((m) => m.kind === 'laps')).toBeUndefined();
+    // the craft's fight: missiles and flares, a boost, a roll; each foe carrying its own missiles
+    expect(L.entities[0].rule).toMatchObject({ missiles: { count: 6 }, boost: { thrust: 2 }, roll: { side: 30 } });
+    expect(L.entities.filter((e) => /^foe-/.test(e.id)).every((e) => e.rule.missiles && e.rule.missiles.count > 0)).toBe(true);
+    // in waves: the wings asleep, the waves mechanic their terminal
+    await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', foes: 2, waves: 3, world: { id: 'wv' } }, ref: 'wv' });
+    const V = stored('wv-level-run-0');
+    expect(mechanicsOf('wv-level-run-0')).toEqual(['fail-on-death', 'respawn', 'waves']);
+    expect(V.game.mechanics.find((m) => m.kind === 'waves')).toMatchObject({ clear: true, waves: [{ foes: ['foe-1', 'foe-2'] }, { foes: ['foe-3', 'foe-4'] }, { foes: ['foe-5', 'foe-6'] }] });
+    expect(V.entities.filter((e) => /^foe-/.test(e.id)).every((e) => e.dormant)).toBe(true);
   }, 240_000);
 
   it('shoot with a craft in a trench: the station its ground, the port its goal, turrets on the rims', async () => {

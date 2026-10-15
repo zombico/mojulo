@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { airspaceOf } from './airspace.js';
 import { seatCraft } from './craft.js';
-import { dogfightCast, guns, WING, RANGE_S } from './dogfight.js';
+import { dogfightCast, guns, waveIds, WING, RANGE_S } from './dogfight.js';
 import { CRAFT } from './eye.js';
 import { createWorld, stepWorld } from '../worlds/controllable-world.js';
 
@@ -58,6 +58,16 @@ describe('the dogfight', () => {
     expect(kept.x).toBeGreaterThan(800);                 // it crossed the ridge
     expect(kept.lowest).toBeGreaterThanOrEqual(30 - 1e-6);   // never under half its clearance
     expect(free.lowest).toBeLessThan(0);                 // without it, through the hill
+  });
+
+  it('in waves: every wing minted asleep, later wings further off, the ids the waves mechanic wakes', () => {
+    const X = dogfightCast(map, field, seat, { foes: 3, waves: 2 });
+    expect(X.entities).toHaveLength(6);
+    expect(X.entities.every((e) => e.dormant === true)).toBe(true);
+    expect(waveIds(2, 3)).toEqual([{ foes: ['foe-1', 'foe-2', 'foe-3'] }, { foes: ['foe-4', 'foe-5', 'foe-6'] }]);
+    const [sx, sy] = seat.transform.pos, ahead = (e) => Math.hypot(e.transform.pos[0] - sx, e.transform.pos[1] - sy);
+    const mean = (es) => es.reduce((a, e) => a + ahead(e), 0) / es.length;
+    expect(mean(X.entities.slice(3))).toBeGreaterThan(mean(X.entities.slice(0, 3)));
   });
 
   it('is deterministic', () => {

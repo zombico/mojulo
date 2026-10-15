@@ -518,46 +518,56 @@ const MECHANICS = {
   // WAVES (a terminal: success and fail). Foes minted asleep (dormant) wake in waves and walk `path` to the base; one
   // that arrives costs a life and is sent away, one that falls pays `bounty` into the purse. Every foe accounted for:
   // success; no lives left: fail. `waves`: [{ after: s, foes: [id], every?: s }], after the previous wave's last foe.
+  // HUNTING waves (no `path`: a dogfight's wings, skyscape/dogfight.js): the woken foes fight with their own minds, no
+  // base, no lives; every one down is success. `clear: true`: each wave waits for the one before to be shot down
+  // (then its `after`).
   waves: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
       const waves = Array.isArray(p.waves) ? p.waves : [];
       const path = Array.isArray(p.path) ? p.path.filter((q) => Array.isArray(q) && q.length >= 2) : [];
       if (!waves.length || !waves.every((w) => w && Array.isArray(w.foes) && w.foes.length && w.foes.every((f) => typeof f === 'string' && f))) throw new Error(`waves[${ctx.i}]: needs waves: [{ after?, foes: [id, …], every? }] (foes minted dormant)`);
-      if (!path.length) throw new Error(`waves[${ctx.i}]: needs path: [[x, y], …], the foes' walk to the base`);
+      const hunt = !path.length && (p.hunt === true || p.path === undefined);
+      if (!path.length && !hunt) throw new Error(`waves[${ctx.i}]: needs path: [[x, y], …], the foes' walk to the base (or none, to hunt)`);
       const i = ctx.i, lives = Number.isInteger(p.lives) && p.lives > 0 ? p.lives : 5, total = waves.reduce((n, w) => n + w.foes.length, 0);
       const L = `__lives_${i}`, done = `__done_${i}`, who = typeof p.who === 'string' && p.who ? p.who : 'foe-*';
       const purse = p.purse && typeof p.purse.var === 'string' ? p.purse : null, bounty = Number.isFinite(p.bounty) ? p.bounty : 1;
       const speed = Number.isFinite(p.speed) && p.speed > 0 ? p.speed : 2.2;
-      const steps = [];
+      const steps = [], clears = [];
+      let cum = 0;
       waves.forEach((w, k) => {
-        steps.push({ await: { timer: Number.isFinite(w.after) ? w.after : k ? 8 : 4 } }, { do: 'emit', type: 'wave', n: k + 1, of: waves.length });
+        // (clear: after the wave before is down: a watch on the downs so far says so)
+        if (p.clear && k) { const ev = `__wave_clear_${i}_${k}`; clears.push({ type: ev, when: { var: done, gte: cum } }); steps.push({ await: { on: ev } }); }
+        steps.push({ await: { timer: Number.isFinite(w.after) ? w.after : k ? (p.clear ? 2 : 8) : (hunt ? 1 : 4) } }, { do: 'emit', type: 'wave', n: k + 1, of: waves.length });
         w.foes.forEach((f, j) => {
-          if (j) steps.push({ await: { timer: Number.isFinite(w.every) ? w.every : 1.6 } });
-          steps.push({ do: 'ctrl', op: 'spawn', who: f }, { do: 'ctrl', op: 'walk', who: f, points: path.map((q) => [q[0], q[1]]), speed, then: 'stay' });
+          if (j) steps.push({ await: { timer: Number.isFinite(w.every) ? w.every : (hunt ? 0.4 : 1.6) } });
+          steps.push({ do: 'ctrl', op: 'spawn', who: f }, ...(hunt ? [] : [{ do: 'ctrl', op: 'walk', who: f, points: path.map((q) => [q[0], q[1]]), speed, then: 'stay' }]));
         });
+        cum += w.foes.length;
       });
       const world = {
-        vars: { [L]: lives, [done]: 0, ...(purse ? { [purse.var]: Number.isFinite(purse.start) ? purse.start : 0 } : {}) },
+        vars: { ...(hunt ? {} : { [L]: lives }), [done]: 0, ...(purse ? { [purse.var]: Number.isFinite(purse.start) ? purse.start : 0 } : {}) },
         initial: [{ type: `__waves_go_${i}` }],
         sequences: [{ id: `__waves_${i}`, trigger: { on: `__waves_go_${i}` }, steps }],
         reactions: [
-          { on: 'arrive', match: { entity: who, last: 1 }, do: 'emit', type: 'leak', entity: 'event.entity' },
-          { on: 'leak', do: 'inc', var: L, by: -1, min: 0 },
-          { on: 'leak', do: 'inc', var: done, by: 1 },
-          { on: 'leak', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+          ...(hunt ? [] : [
+            { on: 'arrive', match: { entity: who, last: 1 }, do: 'emit', type: 'leak', entity: 'event.entity' },
+            { on: 'leak', do: 'inc', var: L, by: -1, min: 0 },
+            { on: 'leak', do: 'inc', var: done, by: 1 },
+            { on: 'leak', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+          ]),
           { on: 'down', match: { entity: who }, do: 'inc', var: done, by: 1 },
           ...(purse ? [{ on: 'down', match: { entity: who }, do: 'inc', var: purse.var, by: bounty }] : []),
         ],
-        watches: [{ type: 'base:fallen', when: { var: L, lte: 0 } }, { type: 'waves:cleared', when: { var: done, gte: total } }],
+        watches: [...(hunt ? [] : [{ type: 'base:fallen', when: { var: L, lte: 0 } }]), { type: 'waves:cleared', when: { var: done, gte: total } }, ...clears],
         hud: [
-          { var: L, label: 'Lives', as: 'counter', max: lives },
+          ...(hunt ? [{ var: done, label: 'Down', as: 'counter', max: total }] : [{ var: L, label: 'Lives', as: 'counter', max: lives }]),
           ...(purse ? [{ var: purse.var, label: typeof purse.label === 'string' ? purse.label : 'Gold', as: 'counter' }] : []),
           { on: 'wave', text: 'Wave {event.n} of {event.of}', ttl: 2 },
           { on: 'leak', text: 'one got through', as: 'toast', ttl: 1.2, color: 'harm' },
         ],
       };
-      return { world, on: { 'waves:cleared': { end: 'success' }, 'base:fallen': { end: 'fail' } } };
+      return { world, on: { 'waves:cleared': { end: 'success' }, ...(hunt ? {} : { 'base:fallen': { end: 'fail' } }) } };
     },
   },
 

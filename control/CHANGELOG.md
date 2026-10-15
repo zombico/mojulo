@@ -138,6 +138,20 @@ genre on the quick path.
 - **Fighters keep clear of the ground.** The mind's space seek takes an opt-in `clearance`: the ground under it and two
   seconds ahead read, a climb toward the higher at up to its speed, never under half of it. Air combat's wing keeps
   two low passes; a space wing has no ground to read.
+- **Lock-on missiles and flares** (the weapon system's opt-in `rule.missiles`, combat-ranged.js `stepMissiles`). A
+  lock builds on the foe nearest the aim axis (in its cone and range) while it stays there, and takes after
+  `lockTime`; the trigger launches a round at the shooter's speed plus the missile's, homing on the locked foe at its
+  turn rate (unlocked, straight), `noGround`, its burst counting `hitsAs` hits. A flare burning on the target breaks
+  every lock on it. The pilot fires on R or the right mouse and flares on X (two vehicle actions in the pilot scheme,
+  the input's `missile` and `flare`); a mind fires when locked and cooled and lights a flare when a round homes in.
+  The flight block brackets the lock (filling, red when locked) and reads missiles, flares and INCOMING.
+- **Boost and the barrel roll** (the fly rule's opt-in `boost` and `roll`). F doubles thrust while a three-second charge
+  lasts, refilling when let go; Q / E rolls a full turn, carrying the craft 30 m aside, untouchable while it rolls,
+  then cools down. Guns moved to Z (and the mouse) as F became the boost. A dogfight's craft carries all of it; its
+  foes carry two missiles each, lock slower and turn slower.
+- **Waves of fighters.** The waves mechanic hunts when it has no path (the woken foes fight with their own minds: no
+  base, no lives, every one down is success) and with `clear: true` wakes each wave when the one before is down. Quick
+  `shoot` with a craft takes `waves: n` (wings of `foes`, minted asleep, later ones further off).
 
 ### Sheet-metal bend lines that mark without cutting
 
