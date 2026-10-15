@@ -9,12 +9,12 @@
  *   torso, head:              0 stands straight up, + leans forward.
  *
  *   pose = { torso, head, armF: [upper, fore], armB: [upper, fore], legF: [thigh, shin, foot], legB: [...],
- *            hip?: [dx, dy], air?: true, pitch?, lie?: true, twist?, spin?, bank? }
+ *            hip?: [dx, dy], air?: true, pitch?, lie?: true, twist?, spin?, bank?, sway?, tilt? }
  *
  * `pitch` turns the whole body about the pelvis (+ over its face, - onto its back: a tumble, a fall), and a body that
- * `lie`s rests on its lowest point (its back, its side) instead of its feet. `twist`, `spin` and `bank` are the round
- * body's own (versus-figure.js: the chest turned further, the whole body turned about the vertical, rolled about its
- * forward line); the side view does not read them.
+ * `lie`s rests on its lowest point (its back, its side) instead of its feet. `twist`, `sway`, `tilt`, `spin` and `bank` are
+ * the round body's own (versus-figure.js: the chest and the hips turned further, the trunk tilted further to a side,
+ * the whole body turned about the vertical, rolled about its forward line); the side view does not read them.
  *
  * F is the lead side (nearer the opponent), B the rear. A grounded pose stands on its lowest point: the figure is
  * lifted or sunk so its lowest foot point touches y = 0 (a crouch sinks without saying so); `air: true` keeps the
@@ -138,7 +138,7 @@ export function lerpPose(a, b, t) {
   out.hip = [mix(ha[0], hb[0]), mix(ha[1], hb[1])];
   if (t < 0.5 ? a.air : b.air) out.air = true;
   // the round body's turns, and a lying body (absent from both: nothing added)
-  for (const k of ['pitch', 'twist', 'spin', 'bank']) if (a[k] !== undefined || b[k] !== undefined) out[k] = mix(a[k] ?? 0, b[k] ?? 0);
+  for (const k of ['pitch', 'twist', 'spin', 'bank', 'sway', 'tilt']) if (a[k] !== undefined || b[k] !== undefined) out[k] = mix(a[k] ?? 0, b[k] ?? 0);
   if (t < 0.5 ? a.lie : b.lie) out.lie = true;
   return out;
 }

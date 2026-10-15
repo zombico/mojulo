@@ -62,7 +62,8 @@ const bladeOf = (p) => BLADE_OF[p.st] ?? 1;
 const poseFigure = (base, p, F, { pose, J }) => ({
   pose,
   N: figurePose(base, J, {
-    face: p.face, air: !!pose.air, blade: bladeOf(p), twist: pose.twist ?? 0, spin: pose.spin ?? 0, bank: pose.bank ?? 0, lie: !!pose.lie,
+    face: p.face, air: !!pose.air, blade: bladeOf(p), stance: F.stance,
+    twist: pose.twist ?? 0, sway: pose.sway ?? 0, tilt: pose.tilt ?? 0, spin: pose.spin ?? 0, bank: pose.bank ?? 0, lie: !!pose.lie,
   }),
 });
 

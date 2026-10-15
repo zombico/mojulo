@@ -263,7 +263,12 @@ function poseOf(p, F, t, rules) {
   if (reacting) return reacting;
   const wave = (k) => (Math.sin(t * k) + 1) / 2;
   switch (p.st) {
-    case 'walkF': case 'walkB': return lerpPose(POSES.walkA, POSES.walkB, wave(0.22));
+    case 'walkF': case 'walkB': {
+      // the stride in the round: the hips swing with each step and the shoulders counter them, the side tilt rides
+      // onto the stepping foot; walking in the chest opens further to the screen, backing off it closes up
+      const w = wave(0.22), s = w * 2 - 1;
+      return { ...lerpPose(POSES.walkA, POSES.walkB, w), sway: s * 7, twist: (p.st === 'walkF' ? 8 : -4) - s * 5, tilt: s * 3 };
+    }
     case 'crouch': return POSES.crouch;
     case 'prejump': return POSES.prejump;
     case 'air': return POSES.jump;
@@ -273,7 +278,8 @@ function poseOf(p, F, t, rules) {
     case 'burst': return lerpPose(POSES.crouch, POSES.burst, Math.min(1, p.sf / 4));
     case 'win': return lerpPose(POSES.guard, POSES.win, Math.min(1, p.sf / 20));
     case 'lose': return lerpPose(POSES.guard, POSES.lose, Math.min(1, p.sf / 30));
-    default: return { ...POSES.guard, torso: POSES.guard.torso + Math.sin(t * 0.08) * 2 };
+    // standing: breathing, the chest and the tilt swaying slowly about the stance
+    default: return { ...POSES.guard, torso: POSES.guard.torso + Math.sin(t * 0.08) * 2, twist: Math.sin(t * 0.05) * 2, tilt: Math.sin(t * 0.08) * 1.5 };
   }
 }
 

@@ -586,6 +586,11 @@ const MOVEMENT_DIALS = {
   dashF: { frames: [1, 99], dist: [0, 9999] },
   dashB: { frames: [1, 99], dist: [0, 9999], invuln: [0, 99] },
 };
+// the STANCE a fighter stands in (degrees; versus-figure.js reads it, the sim never does): how far the chest opens to
+// the camera, how far the hips follow, and the SIDE TILT, the trunk bent toward the camera so the shoulder line runs on
+// a diagonal and the torso reads in the silhouette
+export const STANCE_DIALS = { open: [0, 70], hips: [0, 60], tilt: [-20, 25] };
+export const DEFAULT_STANCE = Object.freeze({ open: 45, hips: 28, tilt: 8 });
 export const BODY_DIALS = { height: [1000, 2600], arm: [0.5, 2], leg: [0.5, 2], torso: [0.5, 2], girth: [0.5, 2] };
 
 function readDials(v, dials, where) {
@@ -608,6 +613,14 @@ export function readMovement(recipe) {
       if (!BODY_DIALS[k]) throw new Error(`versus: ${id} body has no '${k}' (one of ${Object.keys(BODY_DIALS).join(', ')})`);
       const [lo, hi] = BODY_DIALS[k];
       if (!(typeof n === 'number' && n >= lo && n <= hi)) throw new Error(`versus: ${id} body.${k} is a number from ${lo} to ${hi}`);
+    }
+  }
+  if (recipe.stance !== undefined) {
+    if (!recipe.stance || typeof recipe.stance !== 'object' || Array.isArray(recipe.stance)) throw new Error(`versus: ${id} stance is { ${Object.keys(STANCE_DIALS).join(', ')} } (degrees)`);
+    for (const [k, n] of Object.entries(recipe.stance)) {
+      if (!STANCE_DIALS[k]) throw new Error(`versus: ${id} stance has no '${k}' (one of ${Object.keys(STANCE_DIALS).join(', ')})`);
+      const [lo, hi] = STANCE_DIALS[k];
+      if (!(typeof n === 'number' && n >= lo && n <= hi)) throw new Error(`versus: ${id} stance.${k} is degrees from ${lo} to ${hi}`);
     }
   }
   if (recipe.hp !== undefined && !(isInt(recipe.hp) && recipe.hp >= 1 && recipe.hp <= 99999)) throw new Error(`versus: ${id} hp is a whole number from 1 to 99999`);
@@ -658,6 +671,7 @@ export function compileFighter(recipe) {
     dash: { f: { ...MOVEMENT.dash.f, ...(recipe.dash?.f ?? {}) }, b: { ...MOVEMENT.dash.b, ...(recipe.dash?.b ?? {}) } },
     jump,
     idle: idleOf(body),
+    stance: { ...DEFAULT_STANCE, ...(recipe.stance ?? {}) },
     ...(weapon ? { weapon } : {}),
     moves,
   };

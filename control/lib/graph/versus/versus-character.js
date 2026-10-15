@@ -107,6 +107,7 @@ export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
     out.push({
       id: spec.id, name: spec.name ?? (sheet ? fighterName(sheet) : spec.id),
       ...read.intent, ...(style ? { archetype: style } : {}), ...over,
+      ...(over.stance && read.intent.stance ? { stance: { ...read.intent.stance, ...over.stance } } : {}),
       body, ...(spec.color ?? color ? { color: spec.color ?? color } : {}), character: ref,
       ...(sheet ? { sheet: manifest.egocube.ref, reads: read.reads } : {}),
     });

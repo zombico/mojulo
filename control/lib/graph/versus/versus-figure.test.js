@@ -96,3 +96,29 @@ describe('versus: the arena carries a character\'s body only when it has one', (
     expect(versusChannelScript(plain)).not.toContain('"bodies"');
   });
 });
+
+describe('versus: the stance, and the side tilt', () => {
+  const pose = (stance, face = 1, extra = {}) => figurePose(BASE, rigJoints(F.body, POSES.guard), { face, stance, ...extra });
+  const opening = (N) => Math.abs(Math.atan2(N.shoulderL[1] - N.shoulderR[1], N.shoulderL[0] - N.shoulderR[0]) * 180 / Math.PI);
+  it('each style stands its own way: a rushdown opens to the screen further than a grappler', () => {
+    const rush = compileFighter(solveFighter({ id: 'r', archetype: 'rushdown' }).recipe).stance;
+    const grab = compileFighter(solveFighter({ id: 'g', archetype: 'grappler' }).recipe).stance;
+    expect(rush.open).toBeGreaterThan(grab.open);
+    expect(Math.abs(180 - opening(pose(rush)))).toBeGreaterThan(Math.abs(180 - opening(pose(grab))));
+    expect(() => compileFighter({ ...solveFighter({ id: 'x' }).recipe, stance: { open: 90 } })).toThrow(/stance\.open is degrees from 0 to 70/);
+  });
+
+  it('tilts the trunk toward the camera: the shoulder on the camera\'s side lower than it would stand, whichever way it faces', () => {
+    for (const face of [1, -1]) {
+      const near = face > 0 ? 'R' : 'L', far = near === 'R' ? 'L' : 'R';
+      const drop = (N) => N[`shoulder${near}`][2] - N[`shoulder${far}`][2];
+      const tilted = pose({ open: 45, hips: 28, tilt: 12 }, face), upright = pose({ open: 45, hips: 28, tilt: 0 }, face);
+      expect(drop(tilted), `face ${face}`).toBeLessThan(drop(upright) - 0.05);
+      // the trunk leans toward the screen: the neck nearer the camera than the pelvis
+      expect(Math.sign(tilted.neckHub[0] - tilted.pelvisHub[0])).toBe(face);
+    }
+    // and the side view stays the sim's: the hands where the boxes are
+    const J = rigJoints(F.body, POSES.guard), N = pose({ open: 60, hips: 40, tilt: 20 });
+    expect(Math.hypot(N.wristL[1] * 1000 - J.handF[0], N.wristL[2] * 1000 - J.handF[1])).toBeLessThan(2);
+  });
+});

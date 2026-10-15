@@ -11,6 +11,9 @@
  *              overhead); the shadow, as motivation turns them, adds its own (the bully's heavy body, the tyrant's grab)
  *   build      how much body they have → heavy or light (brute and stout heavy, lithe light)
  *   age        a child is light on its feet
+ *   stance     how they stand to fight (versus-compile.js STANCE_DIALS: the chest open to the camera, the hips, the
+ *              side tilt), the style's turned by the sheet's own stance notes (confidence opens the chest, weight
+ *              plants the hips and sits into the back hip, a loose carriage tilts the trunk) and its build
  *
  *   fighterSpec(entry, k, seed)  a roster entry → { id, name?, color?, roll | hero, over } (said what is wrong)
  *   defaultFighters(seed)        the roster when none is named: four sheets, a frontline, a flanker, a caster and a
@@ -52,6 +55,20 @@ export const WORD_OF_SHADOW = Object.freeze({
   lover: ['grab', 'the obsessive holds on'], caregiver: ['heavy', 'the martyr carries everything'], creator: ['fire', 'the mad maker\'s overwork thrown'],
   ruler: ['grab', 'the tyrant seizes'],
 });
+// how the sheet's stance notes (its derives: the motion axes) and its build stand the fighter (degrees over the style's)
+export const STANCE_OF_NOTE = Object.freeze({
+  'axes.confidence +': [{ open: 8, tilt: 2 }, 'confidence opens the chest to the world'],
+  'axes.confidence -': [{ open: -8 }, 'doubt turns the shoulder in, the chest guarded'],
+  'axes.weight +': [{ hips: -6, tilt: 3 }, 'weight plants the hips square and sits into the back hip'],
+  'axes.weight -': [{ hips: 6 }, 'lightness blades the hips, up on the toes'],
+  'axes.energy +': [{ tilt: 2 }, 'energy leans the trunk into it'],
+  'axes.energy -': [{ tilt: -2 }, 'stillness keeps the trunk up'],
+  'axes.poise +': [{ tilt: -3 }, 'poise holds the trunk upright'],
+  'axes.poise -': [{ tilt: 3 }, 'a loose carriage lets the trunk hang to a side'],
+});
+const STANCE_OF_BUILD = Object.freeze({ brute: [{ open: -6 }, 'a brute\'s mass turns the chest in'], stout: [{ open: -4 }, 'a stout trunk squares up'], lithe: [{ open: 5 }, 'a lithe body opens long'] });
+const STANCE_RANGE = Object.freeze({ open: [0, 70], hips: [0, 60], tilt: [-20, 25] });
+
 const WORD_OF_BUILD = Object.freeze({ brute: ['heavy', 'a brute\'s mass'], stout: ['heavy', 'a stout, planted body'], lithe: ['light', 'a lithe body'] });
 const WORD_OF_AGE = Object.freeze({ child: ['light', 'a child is light on its feet'] });
 
@@ -84,12 +101,23 @@ export function fighterFromSheet(sheet) {
   const reading = sheet.reading?.reads ?? 'light';
   if (reading !== 'shadow') add('archetype', f.archetype, WORD_OF_ARCHETYPE[f.archetype]);
   if (reading !== 'light') add('archetype', `${f.archetype}/shadow`, WORD_OF_SHADOW[f.archetype]);
-  return { intent: { archetype: style, ...(words.length ? { signature: words } : {}) }, reads };
+  // the stance: the style's, turned by the sheet's own notes on how this person stands, and its build
+  const stance = { ...STYLES[style].stance };
+  const turn = (facet, value, row) => {
+    if (!row) return;
+    const [d, why] = row;
+    for (const [k, v] of Object.entries(d)) stance[k] += v;
+    reads.push({ facet, value, stance: d, why });
+  };
+  for (const note of sheet.derives?.stance ?? []) turn('stance', note, STANCE_OF_NOTE[note]);
+  turn('build', f.build, STANCE_OF_BUILD[f.build]);
+  for (const [k, [lo, hi]] of Object.entries(STANCE_RANGE)) stance[k] = Math.max(lo, Math.min(hi, stance[k]));
+  return { intent: { archetype: style, ...(words.length ? { signature: words } : {}), stance }, reads };
 }
 
 // what an entry may say: the sheet's words, a character, and the fight's own words over the sheet
 const SHEET_KEYS = ['brief', 'facets', 'seed', 'archetype', 'build', 'age', 'role', 'ancestry', 'pole'];
-const FIGHT_KEYS = ['style', 'signature', 'weapon', 'library', 'normals', 'specials', 'super', 'tune'];
+const FIGHT_KEYS = ['style', 'signature', 'stance', 'weapon', 'library', 'normals', 'specials', 'super', 'tune'];
 const OWN_KEYS = ['id', 'name', 'color'];
 const ENTRY = 'a fighter is a character: an archetype word, a brief in words, { brief?, facets?, seed?, archetype?, build?, age?, role?, name?, … }, or { hero: { ref } } (a character made with create_character)';
 

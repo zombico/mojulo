@@ -112,6 +112,16 @@ its own body on an arena; the stick figures are the simulation's own dummies, dr
   state change eases in from the body drawn before it (the joints blend, not the angles, over a few steps; a second
   hit in a stun starts it over), so nothing pops. The sim's boxes are unchanged: a reacting body is hurt where its
   stance's boxes are; the replay fingerprint covers the new record.
+- **The fighting stance: a body shown to the screen** (`stance: { open, hips, tilt }`, on the fighter recipe and a
+  roster entry). A fighter does not stand square to its opponent: its chest is opened toward the camera (`open`,
+  degrees), its hips less (`hips`), and its trunk leans onto the back hip so the shoulder line tilts (`tilt`), so a
+  part of the torso reads in the silhouette. Each style has its own (a rushdown opens widest and leans in, a grappler
+  stays square and low), and the sheet moves it with a reason each: confidence opens the chest, weight plants the
+  hips and sits into the back hip, energy and poise lean it, a brute's or a stout build's stays shut, a lithe one's
+  opens. The 3D figure still matches the sim's side view: the chest and hips turn back, and the lean straightens,
+  only as far as the limbs need to reach where the sim put the hands and feet. Walking forward rolls the shoulder
+  into the step and sways the trunk, walking back turns it away; the idle guard breathes in the same turn. The sim
+  and its boxes are unchanged.
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless

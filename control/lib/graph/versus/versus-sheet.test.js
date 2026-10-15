@@ -66,3 +66,17 @@ describe('versus: a roster entry is a character', () => {
     expect(defaultFighters(5)).toEqual(four);
   });
 });
+
+describe('versus: the stance read off a sheet', () => {
+  it('confidence opens the chest, weight plants the hips and sits into the back hip, each said', () => {
+    const plain = fighterFromSheet(roll({ role: 'support', archetype: 'everyman', build: 'canonical', motivation: 0.1 }, 9));
+    const sure = { ...roll({ role: 'support', archetype: 'everyman', build: 'canonical', motivation: 0.1 }, 9) };
+    sure.derives = { ...sure.derives, stance: ['axes.confidence +', 'axes.weight +'] };
+    const read = fighterFromSheet(sure);
+    const base = STYLES['all-rounder'].stance;
+    expect(read.intent.stance).toEqual({ open: base.open + 8, hips: base.hips - 6, tilt: base.tilt + 2 + 3 });
+    expect(read.reads.filter((r) => r.stance).map((r) => r.value)).toEqual(['axes.confidence +', 'axes.weight +']);
+    expect(plain.intent.stance).toBeTruthy();
+    expect(compileFighter(solveFighter({ id: 'x', ...read.intent }).recipe).stance).toEqual(read.intent.stance);
+  });
+});

@@ -14,6 +14,8 @@
  *
  * An intent also carries what a designer adds after the solve, so a game's roster stays a few words:
  *   body?     { height, arm, leg, torso, girth }   the body over the cast (a character's measure, versus-character.js)
+ *   stance?   { open, hips, tilt }   the stance over the archetype's (degrees: the chest open to the camera, the hips, the
+ *             side tilt; versus-compile.js STANCE_DIALS)
  *   weapon?   a word (versus-library WEAPONS) or dials
  *   library?  the fighter's own specials and supers (versus-compile.js)
  *   normals?  { <slot>: family | { family, strength?, tune? } }      replaces the solved slot
@@ -25,25 +27,25 @@
 export const ARCHETYPES = Object.freeze({
   'all-rounder': {
     says: 'a fireball, the reversal and a rush: every answer, none the strongest',
-    cast: 'heroic', lean: 'mixed',
+    cast: 'heroic', lean: 'mixed', stance: { open: 45, hips: 28, tilt: 8 },
     specials: { neutral: 'fireball', forward: 'rising', back: 'rush' }, super: 'super-fireball',
     movement: {},
   },
   rushdown: {
     says: 'fast feet, an overhead and a rush: lives at close range, wins by pressure',
-    cast: 'lithe', lean: 'light',
+    cast: 'lithe', lean: 'light', stance: { open: 55, hips: 38, tilt: 10 },
     specials: { forward: 'rising', back: 'spin', down: 'leap' }, super: 'super-rush',
     movement: { hp: 950, walk: { f: 60, b: 44 }, dash: { f: { frames: 16, dist: 1250 } } },
   },
   zoner: {
     says: 'a fast fireball and long pokes: keeps the screen, weak up close',
-    cast: 'heroic', lean: 'long',
+    cast: 'heroic', lean: 'long', stance: { open: 50, hips: 32, tilt: 12 },
     specials: { neutral: 'fireball', forward: 'rising', back: 'spin' }, super: 'super-fireball',
     movement: { hp: 950, walk: { f: 46, b: 40 } },
   },
   grappler: {
     says: 'a command throw and a big body: walks in slowly, one read takes a third of the bar',
-    cast: 'brute', lean: 'heavy',
+    cast: 'brute', lean: 'heavy', stance: { open: 32, hips: 18, tilt: 4 },
     specials: { neutral: 'grab', back: 'rush', down: 'leap' }, super: 'super-grab',
     movement: { hp: 1100, walk: { f: 42, b: 34 }, dash: { f: { frames: 22, dist: 900 } }, jump: { vy: 116 } },
   },
@@ -119,6 +121,7 @@ export function solveFighter(intent = {}) {
     name: intent.name ?? intent.id ?? 'Fighter',
     archetype: intent.archetype ?? 'all-rounder',
     cast: intent.cast ?? arch.cast,
+    stance: { ...arch.stance },
     ...mv,
     normals: Object.fromEntries(Object.entries(normals).map(([slot, family]) => [slot, { family }])),
     specials: Object.fromEntries(Object.entries(specials).map(([dir, id]) => [dir, { id }])),
@@ -133,6 +136,10 @@ const NORMAL_KEYS = Object.keys(LEANS.mixed);
 
 /** What the designer wrote over the solve: a weapon, their own shelf, slots replaced, tunes. */
 function overlay(recipe, intent, notes) {
+  if (intent.stance) {
+    recipe.stance = { ...recipe.stance, ...intent.stance };
+    notes.push(`stance: ${Object.entries(intent.stance).map(([k, v]) => `${k} ${v}°`).join(', ')}`);
+  }
   if (intent.body) {
     recipe.body = { ...intent.body };
     notes.push(`body: ${intent.character ? `the character ${intent.character}'s, ` : ''}${Object.entries(intent.body).map(([k, v]) => `${k} ${v}`).join(', ')}`);

@@ -10,9 +10,13 @@
  *
  * The SIDE VIEW IS THE SIM'S FIGURE: the trunk and the head lie along the sim's lines, and the hands and the feet are
  * placed by a two-bone solve on the sim's own points (the wrist on its hand, the heel on its ankle), so what hits and
- * what is hit is where the boxes are. Around that the body is in the round, as the genre stands it:
- *   - BLADED: the hips and, more, the chest turned toward the camera, the lead shoulder forward; the LEAD side (the
- *     sim's F) is the far one, the figure's left when it faces +x and its right when it faces -x, so the chest reads
+ * what is hit is where the boxes are. Around that the body is in the round, as the genre stands it (the fighter's
+ * STANCE, versus-compile.js STANCE_DIALS):
+ *   - BLADED: the hips and, more, the chest turned toward the camera (`open`, `hips`), the lead shoulder forward; the
+ *     LEAD side (the sim's F) is the far one, the figure's left when it faces +x and its right when it faces -x, so
+ *     the chest reads
+ *   - the SIDE TILT (`tilt`): the trunk bent toward the camera, the shoulder line on a diagonal, the torso in the
+ *     silhouette (fighters rarely stand square, staring at each other)
  *   - the elbows bent down and out, the knees forward, the lead hand before its shoulder, the rear one by the chin
  *   - the feet under the hips, each foot rigid (its own bones) and turned to point at the sim's toe, standing on the
  *     floor as the rest does
@@ -48,8 +52,9 @@ const fv = {
 const figRotX = (v, a) => { const c = Math.cos(a), s = Math.sin(a); return [v[0], v[1] * c - v[2] * s, v[1] * s + v[2] * c]; };
 const figRotZ = (v, a) => { const c = Math.cos(a), s = Math.sin(a); return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]]; };
 const FIG_DEG = Math.PI / 180;
-// how far a standing fighter turns toward the camera: the hips, and the chest further
-const FIG_BLADE = { hips: 18, chest: 32 };
+// how a fighter stands when its recipe says nothing (versus-compile.js DEFAULT_STANCE): the chest open to the camera,
+// the hips following, the side tilt (degrees)
+const FIG_STANCE = { open: 45, hips: 28, tilt: 8 };
 // how far past square a strike may turn them (the far side's range: a roundhouse turns the hips over)
 const FIG_TURN = { hips: 70, chest: 45 };
 // the hands' depth, as a share of their shoulder's: the lead before its shoulder, the rear tucked by the chin
@@ -124,12 +129,13 @@ function figReach(root, target, l1, l2, pole) {
 
 /**
  * The skeleton posed by the sim's joints J (versus-rig.js rigJoints, mm), facing `face` (+1 toward +x), airborne or
- * not, bladed by `blade` (0 … 1), and turned by the pose's own round-body channels (degrees): `twist` the chest
- * further toward the camera, `spin` the whole body about the vertical through the pelvis (toward the camera first),
+ * not, standing in its `stance` ({ open, hips, tilt }, degrees) as far as `blade` (0 … 1) has it, and turned by the
+ * pose's own round-body channels (degrees): `twist` the chest further toward the camera, `sway` the hips, `tilt` the
+ * trunk further to the camera's side, `spin` the whole body about the vertical through the pelvis (toward the camera first),
  * `bank` the whole body about its forward line (its top toward the camera); a body that `lie`s rests on its lowest
  * point. → { <node>: [x, y, z] } in metres, the figure's frame, plus `fistL/R`, `heelL/R`.
  */
-export function figurePose(base, J, { face = 1, air = false, blade = 1, twist = 0, spin = 0, bank = 0, lie = false } = {}) {
+export function figurePose(base, J, { face = 1, air = false, blade = 1, stance = FIG_STANCE, twist = 0, sway = 0, tilt = 0, spin = 0, bank = 0, lie = false } = {}) {
   const sg = face > 0 ? 1 : -1, lead = sg > 0 ? 'L' : 'R';
   const at = (p) => [0, p[0] / 1000, p[1] / 1000];
   const sideOf = (S) => (S === lead ? 'F' : 'B');
@@ -138,7 +144,13 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, twist = 
   // the trunk along the sim's pelvis → neck, the chest turned toward the camera about it (the camera is the figure's
   // right when it faces +x: a turn toward it brings the far, lead shoulder forward)
   const t = fv.sub(at(J.neck), P), lean = Math.atan2(t[1], t[2]);
-  const trunkAt = (k, chest) => fv.add(P, figRotX(figRotZ(fv.sub(base[k], O), chest), -lean));
+  // the side tilt: the trunk bent toward the camera about its forward line through the pelvis (the head stays on the
+  // sim's line, so it rights itself on the neck)
+  const side = sg * (blade * stance.tilt + tilt) * FIG_DEG;
+  let cs = Math.cos(side), sn = Math.sin(side);
+  const tiltBy = (share) => { cs = Math.cos(side * share); sn = Math.sin(side * share); };
+  const tilted = (v) => [v[0] * cs + v[2] * sn, v[1], -v[0] * sn + v[2] * cs];
+  const trunkAt = (k, chest) => fv.add(P, figRotX(tilted(figRotZ(fv.sub(base[k], O), chest)), -lean));
   const hipAt = (S, hips) => fv.add(P, figRotZ(fv.sub(base[`hip${S}`], O), hips));
   const len = (a, b) => fv.len(fv.sub(base[b], base[a]));
   // the targets: each wrist on the sim's hand (its depth a share of its shoulder's); each ankle joint up the sim's shin
@@ -147,8 +159,14 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, twist = 
   const armLen = (S) => len(`shoulder${S}`, `elbow${S}`) + len(`elbow${S}`, `wrist${S}`);
   const wristAt = (S, sh) => {
     const w = at(J[`hand${sideOf(S)}`]), want = sh[0] * (S === lead ? FIG_HAND_IN.lead : FIG_HAND_IN.rear);
-    const room = Math.sqrt(Math.max(0, (armLen(S) * 0.999) ** 2 - (w[1] - sh[1]) ** 2 - (w[2] - sh[2]) ** 2));
-    w[0] = sh[0] + Math.max(-room, Math.min(room, want - sh[0]));
+    const dd = (w[1] - sh[1]) ** 2 + (w[2] - sh[2]) ** 2;
+    const room = Math.sqrt(Math.max(0, (armLen(S) * 0.999) ** 2 - dd));
+    // (and a hand folded in closer than the arm folds takes the depth it needs: the forearm and the upper arm differ)
+    const least = Math.abs(len(`shoulder${S}`, `elbow${S}`) - len(`elbow${S}`, `wrist${S}`)) * 1.01;
+    const need = Math.sqrt(Math.max(0, least ** 2 - dd));
+    let dx = Math.max(-room, Math.min(room, want - sh[0]));
+    if (Math.abs(dx) < need) dx = (dx < 0 || (dx === 0 && sh[0] > 0) ? -1 : 1) * need;
+    w[0] = sh[0] + dx;
     return w;
   };
   const foot = Object.fromEntries(FIG_SIDES.map((S) => {
@@ -156,11 +174,11 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, twist = 
     return [S, { heel: at(J[`ankle${X}`]), lift: fv.mul(shin, -h), h }];
   }));
   const ankleAt = (S, hip) => { const h = [hip[0], foot[S].heel[1], foot[S].heel[2]]; return fv.add(h, foot[S].lift); };
-  // the turns: as far toward the camera as the blade asks, back as far as the limbs need (2° at a time, at most past
+  // the turns: as far toward the camera as the blade asks, back as far as the limbs need (1° at a time, at most past
   // square by the far side's own range); the turn with the least reach missing if none reaches
   const turnFor = (most, least, misses) => {
     let best = null;
-    for (let deg = most; deg >= least - 1e-9; deg -= 2) {
+    for (let deg = most; deg >= least - 1e-9; deg -= 1) {
       const miss = misses(-sg * deg * FIG_DEG);
       if (miss <= 1e-9) return -sg * deg * FIG_DEG;
       if (!best || miss < best.miss) best = { miss, deg };
@@ -168,11 +186,18 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, twist = 
     return -sg * best.deg * FIG_DEG;
   };
   const over = (root, target, l) => Math.max(0, fv.len(fv.sub(target, root)) - l * 0.999);
-  const chest = turnFor(blade * FIG_BLADE.chest + twist, -FIG_TURN.chest, (c) => FIG_SIDES.reduce((m, S) => {
+  // the chest turns back, and the trunk straightens out of its tilt, as far as the arms need (an arm up overhead)
+  const armsMiss = (c) => FIG_SIDES.reduce((m, S) => {
     const sh = trunkAt(`shoulder${S}`, c);
     return m + over(sh, wristAt(S, sh), armLen(S));
-  }, 0));
-  const hips = turnFor(blade * FIG_BLADE.hips, -FIG_TURN.hips, (h) => FIG_SIDES.reduce((m, S) => {
+  }, 0);
+  let chest;
+  for (const share of [1, 0.5, 0]) {
+    tiltBy(share);
+    chest = turnFor(blade * stance.open + twist, -FIG_TURN.chest, armsMiss);
+    if (armsMiss(chest) <= 1e-9) break;
+  }
+  const hips = turnFor(blade * stance.hips + sway, -FIG_TURN.hips, (h) => FIG_SIDES.reduce((m, S) => {
     const hp = hipAt(S, h);
     return m + over(hp, ankleAt(S, hp), len(`hip${S}`, `knee${S}`) + len(`knee${S}`, `ankle${S}`));
   }, 0));
@@ -182,7 +207,7 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, twist = 
   const hd = fv.unit(fv.sub(at(J.head), at(J.neck)));
   N.headBase = fv.add(N.neckHub, fv.mul(hd, len('neckHub', 'headBase')));
   N.headTop = fv.add(N.headBase, fv.mul(hd, len('headBase', 'headTop')));
-  const chestFwd = figRotX(figRotZ([0, 1, 0], chest), -lean);
+  const chestFwd = figRotX(tilted(figRotZ([0, 1, 0], chest)), -lean);
   for (const S of FIG_SIDES) {
     const out = S === 'R' ? 1 : -1;
     N[`hip${S}`] = hipAt(S, hips);
