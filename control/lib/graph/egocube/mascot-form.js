@@ -14,6 +14,7 @@
  */
 import { readMascotDerive, HUES, SKINS } from './mascot.js';
 import { buildFace, EXPRESSION_IDS } from './mascot-face.js';
+import { animalPalette } from './mascot-animals.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
@@ -113,6 +114,17 @@ export function mascotPalette(sheet, k = { saturation: 0, value: 0 }) {
   };
 }
 
+/** An animal's palette (A6): its own coat as flat zones (mascot-animals.js animalPalette) over the mascot's groups; the
+ *  face's, the eyes' and the gloves' as for any mascot. */
+function coatPalette(sheet, k, A, f) {
+  const base = mascotPalette(sheet, k), a = animalPalette(A.id, A);
+  const belly = a.Belly ?? mix(a.Body, CREAM, 0.6);
+  return {
+    ...base, ...a, Belly: belly, Accent: a.Patch, Glove: f.extremities === 'gloves' ? '#f7f6f1' : a.Body, Sole: belly, Hair: a.Mane,
+    Brow: hsl(a.Body, ([h, s, l]) => [h, s * 0.6, clamp(l - 0.32, 0.08, 0.32)]),
+  };
+}
+
 // ══════════ the shapes: every form a ball, an egg or a cone (law 8) ══════════
 
 /** a profile: the ring's share of its radius at t ∈ [0, 1] along the shape */
@@ -168,10 +180,17 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
   const f = sheet.facets, { M, k } = measuresOf(sheet), orb = f.form === 'orb';
   const wx = 1 + 0.05 * Math.round(Math.log(k.width) / Math.log(1 + STEP));   // a wide promise widens the head and the body
   // ── the vertical layout: soles on z = 0 ──
+  // an animal (mascot-animals.js): its kit is drawn in place of the hook, its coat in place of the hue
+  const A = sheet.animal ?? null, K = A?.kit ?? {};
+  if (K.eyes === 'top') { k.lift += 6; k.gap += 3; k.size *= 1.1; }
+  if (K.pattern === 'patches') { k.size *= 0.72; k.gap += 1; }       // a panda's eyes are small in big patches   // a frog's eyes ride on top of its head
+  if (K.eyes === 'disc') { k.size *= 1.3; k.gap += 1; }                // an owl's are its face
   const [fw, fl, fh] = M.foot, R = M.headR;
   const ankleZ = r4(fh * 1.3), hipZ = r4(ankleZ + M.leg), neckZ = orb ? 0 : r4(hipZ + M.bodyH);
+  // A10: a proportion that IS the name (a giraffe's neck) is kept against law 3: the head rides up on it
+  const neckLift = K.neck && !orb ? r4(R * 1.25) : 0;
   const H = orb ? { C: [0, 0, r4(fh * 1.1 + R * 0.92)], rx: r4(R * wx), ry: r4(R * 0.96), rz: r4(R * 0.92) }
-    : { C: [0, 0, r4(neckZ + R * 0.72)], rx: r4(R * wx), ry: r4(R * 0.94), rz: r4(R * 0.9) };
+    : { C: [0, 0, r4(neckZ + neckLift + R * 0.72)], rx: r4(R * wx), ry: r4(R * 0.94), rz: r4(R * 0.9) };
   const top = r4(H.C[2] + H.rz), headBind = orb ? 'torso' : 'head';
   // ── the joints (the right side; the rig's and the limbs') ──
   const hipX = orb ? r4(H.rx * 0.38) : r4(M.bodyR * 0.55);
@@ -183,11 +202,17 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     toeBase: [hipX, r4(fl * 0.3), r4(fh * 0.9)], toeTip: [hipX, r4(fl * 0.85), r4(fh * 0.8)],
     shoulder: sh, elbow: V(elbow), wrist: V(wrist), knuckles: V(knuckles),
   };
-  const hand = M.hand, limb = hand * LIMB_OF_HAND[f.extremities], legR = orb ? limb * 0.9 : limb * 1.15;
+  const hand = M.hand, limb = hand * LIMB_OF_HAND[f.extremities] * (A?.limbs ?? 1), legR = orb ? limb * 0.9 : limb * 1.15;
   const human = f.being === 'human', gloves = f.extremities === 'gloves';
   // the groups: a critter is its body's colour all over; a person is skin, a shirt in the hue, trousers, hair
   const G = human ? { head: 'Skin', body: 'Body', leg: 'Bottom', upperArm: 'Body', foreArm: gloves ? 'Body' : 'Skin', hand: 'Glove', fur: 'Hair', face: 'Skin' }
     : { head: 'Body', body: 'Body', leg: 'Body', upperArm: 'Body', foreArm: 'Body', hand: 'Glove', fur: 'Body', face: f.eyes === 'joined' ? 'Belly' : 'Body' };
+  // an animal's limbs wear its markings (a panda's are black, a fox's paws in socks); its feet are its own
+  if (K.pattern === 'patches') Object.assign(G, { leg: 'Patch', upperArm: 'Patch', foreArm: 'Patch', hand: 'Patch' });
+  if (K.pattern === 'socks') G.hand = 'Patch';
+  if (K.arms) G.hand = 'Body';
+  const shoeG = !A ? 'Shoe' : K.feet === 'webbed' ? (A.family === 'anuran' ? 'Body' : 'Beak') : K.feet === 'hooves' ? 'Hoof' : ['patches', 'socks'].includes(K.pattern) ? 'Patch' : 'Body';
+  const foot = K.feet === 'webbed' ? [fw * 1.35, fh * 0.65] : K.feet === 'hooves' ? [fw * 0.8, fh * 1.05] : [fw, fh];
   const body = orb ? [] : [{ name: 'body', kind: 'trunk', mirror: 'plane', group: G.body,
     // a pear (law 6: the mass low), its top drawn in under the head (law 3: no neck)
     stations: [0, 0.18, 0.4, 0.62, 0.82, 1].map((t, i) => { const rr = M.bodyR * [0.62, 0.93, 1, 0.94, 0.8, 0.55][i]; return { z: r4(hipZ - M.bodyR * 0.45 + t * (M.bodyH + M.bodyR * 0.45)), r: [r4(rr * wx), r4(rr * 0.92)] }; }),
@@ -195,18 +220,20 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 1 }, st2: { pelvis: 0.5, torso: 0.5 }, tip: { torso: 0.6, head: 0.4 } } } }];
   // the shoe: an egg from the heel to past the toe, its sole on the ground (law 6: big feet carry the pose)
   const heel = [hipX, r4(-fl * 0.95), r4(fh)], toe = [hipX, r4(fl * 1.05), r4(fh)];
-  const hooks = hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur: G.fur });
-  const face = faceOf(f, H, k, { headBind, orb, human, hooks, G });
+  const hooks = A ? animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) : hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur: G.fur });
+  const face = faceOf(f, H, k, { headBind, orb, human, hooks, G, wide: K.muzzle === 'wide' });
   const segments = [
     ...body,
     ballTrunk('head', H.C[2], H.rz, H.rx, H.ry, 11, G.head, headBind),
     { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: r4(legR), rB: r4(legR * 0.92), mirror: 'name', group: G.leg, bind: { bone: 'thighR', prev: 'pelvis', next: 'shinR' } },
     { name: 'shinR', kind: 'segment', from: 'knee', to: 'ankle', rA: r4(legR * 0.92), rB: r4(legR * 0.85), mirror: 'name', group: G.leg, bind: { bone: 'shinR', prev: 'thighR', next: 'metaR' } },
-    shape('shoeR', heel, toe, [r4(fw), r4(fh)], 'egg', { group: 'Shoe', bind: 'metaR' }),
+    shape('shoeR', heel, toe, foot.map(r4), 'egg', { group: shoeG, bind: 'metaR' }),
     { name: 'upperArmR', kind: 'segment', from: 'shoulder', to: 'elbow', rA: r4(limb), rB: r4(limb * 0.92), mirror: 'name', group: G.upperArm, bind: { bone: 'upperArmR', prev: 'torso', next: 'foreArmR' } },
     { name: 'foreArmR', kind: 'segment', from: 'elbow', to: 'wrist', rA: r4(limb * 0.92), rB: r4(limb * (gloves ? 1.5 : 0.9)), mirror: 'name', group: G.foreArm, bind: { bone: 'foreArmR', prev: 'upperArmR', next: 'handR' } },
-    shape('handR', V(sub(wrist, mul(armDir, hand * 0.4))), V(add(wrist, mul(armDir, hand * 2))), r4(hand), 'ball', { group: G.hand, bind: 'handR' }),
-    ...eyes(f, H, k),
+    // a flipper or a wing in place of a hand: the hand flattened and lengthened, in the coat
+    K.arms ? shape('handR', V(sub(wrist, mul(armDir, hand * 1.4))), V(add(wrist, mul(armDir, hand * (K.arms === 'wing' ? 2.8 : 2.3)))), [r4(hand * 1.25), r4(hand * 0.45)], 'egg', { group: G.hand, bind: 'handR' })
+      : shape('handR', V(sub(wrist, mul(armDir, hand * 0.4))), V(add(wrist, mul(armDir, hand * 2))), r4(hand), 'ball', { group: G.hand, bind: 'handR' }),
+    ...eyes(f, H, k, K),
     ...(f.eyes === 'dots' || human ? [lens('cheekR', H, 44, -24, human ? 0.11 : 0.13, human ? 0.08 : 0.11, 0.006, 'Cheek', headBind)] : []),
     ...(human ? personParts(f, H, { headBind }) : []),
     ...hooks,
@@ -224,11 +251,16 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
   const paint = [
     ...(orb || human ? [] : [{ part: 'body', t: [0, 0.42], run: [0.12, 0.8], group: 'Belly' }]),
     ...(human && !orb ? [{ part: 'body', run: [0, 0.42], group: 'Bottom' }] : []),   // trousers to the waist
-    ...(f.promise === 'pride' && !orb && !human ? [{ part: 'body', t: [0.42, 1], run: [0.3, 1], group: 'Jersey' }, { part: 'body', t: [0, 0.42], run: [0.55, 1], group: 'Jersey' }] : []),
+    ...(f.promise === 'pride' && !orb && !human && !A ? [{ part: 'body', t: [0.42, 1], run: [0.3, 1], group: 'Jersey' }, { part: 'body', t: [0, 0.42], run: [0.55, 1], group: 'Jersey' }] : []),
     ...(f.eyes === 'joined' && !human ? [{ part: 'head', t: [0, 0.36], run: [0.1, 0.42], group: 'Belly' }] : []),
     ...(gloves ? [{ part: 'foreArm', run: [0.7, 1], group: 'Glove' }] : []),
     { part: 'shoe', t: [0.7, 1], group: 'Sole' },
-    ...(f.hook === 'ears' && f.accent === 'spike' ? [{ part: 'ear', run: [0.6, 1], group: 'Tip' }] : []),
+    ...(f.hook === 'ears' && f.accent === 'spike' && !A ? [{ part: 'ear', run: [0.6, 1], group: 'Tip' }] : []),
+    // an animal's coat zones (A6)
+    ...(K.pattern === 'tuxedo' ? [{ part: 'head', t: [0, 0.42], run: [0.12, 0.72], group: 'Belly' }] : []),
+    ...(K.pattern === 'socks' ? [{ part: 'foreArm', run: [0.5, 1], group: 'Patch' }, { part: 'shin', run: [0.4, 1], group: 'Patch' }] : []),
+    ...(K.pattern === 'stripes' && !orb ? [0.22, 0.46, 0.7].map((u) => ({ part: 'body', t: [0.3, 1], run: [u, u + 0.07], group: 'Patch' })) : []),
+    ...(A?.tipTail && hooks.some((x) => x.name === 'tail0') ? [{ part: 'tail0', run: [0.7, 1], group: 'Tip' }] : []),
   ];
   const height = r4(Math.max(top, ...segments.flatMap((s) => (s.kind === 'loft' ? [s.caps.tip[2], ...s.stations.map((x) => x.at[2])] : [])).filter(Number.isFinite)));
   const plan = {
@@ -236,7 +268,7 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed' },
     style: { slots: 'ring12', limbSlots: 'ring8', e: 2 },
     joints, segments, dials, rig, clips, paint,
-    palette: mascotPalette(sheet, k),
+    palette: A ? coatPalette(sheet, k, A, f) : mascotPalette(sheet, k),
   };
   return { plan, H, height };
 }
@@ -250,18 +282,18 @@ function eyeOf(f, k) {
 
 /** The face that acts (mascot-face.js): the lids, the mouth and its lips, the brows, at the sheet's rest expression. The
  *  mouth sits low on the face (law 4), on a snout when there is one. */
-function faceOf(f, H, k, { headBind, orb, human, hooks, G }) {
+function faceOf(f, H, k, { headBind, orb, human, hooks, G, wide = false }) {
   const snout = hooks.find((x) => x.name === 'snout');
   let E = H, el = human ? -36 : f.eyes === 'joined' ? -38 : f.eyes === 'dots' ? -22 : orb ? -20 : -30;
   if (snout) {
     const A = snout.caps.back, B = snout.caps.tip, C = A.map((x, i) => x + (B[i] - x) * 0.62), r = snout.stations[3].r;
     E = { C, rx: r[0] * 0.92, ry: Math.hypot(...B.map((x, i) => x - C[i])), rz: r[1] * 0.95 }; el = -38;
   }
-  const size = f.eyes === 'dots' ? [0.13, 0.085] : orb ? [0.15, 0.1] : [0.2, 0.13];
+  const size0 = f.eyes === 'dots' ? [0.13, 0.085] : orb ? [0.15, 0.1] : [0.2, 0.13], size = wide ? [size0[0] * 2, size0[1] * 1.2] : size0;   // a frog's grin
   return buildFace({
     H, eye: eyeOf(f, k), mouth: { E, el, w: size[0], h: size[1] }, rest: f.expression, ride: headBind,
     brows: { on: human || !(orb || f.eyes === 'dots'), h: f.accent === 'block' ? 0.045 : 0.032 },
-    groups: { lid: G.head, lip: snout ? 'Body' : G.face, brow: 'Brow' },
+    groups: { lid: G.head, lip: snout ? snout.group : G.face, brow: 'Brow' },
   });
 }
 
@@ -281,14 +313,79 @@ function personParts(f, H, { headBind }) {
 }
 
 /** The eyes (law 4): the white, the pupil turned a little toward the nose, one glint up and out. */
-function eyes(f, H, k) {
+function eyes(f, H, k, K = {}) {
   const X = EYE_FORMS[f.eyes], s = k.size, az = X.az + 2.5 * k.gap, el = X.el + 7 * k.lift, bind = f.form === 'orb' ? 'torso' : 'head';
   const out = [];
+  // the marks the eyes sit in, behind the white: a panda's patches, a raccoon's mask, an owl's pale dishes
+  const w = X.w || X.pupil[0] * 1.6, h = X.h || X.pupil[1] * 1.4;
+  if (K.pattern === 'patches') out.push(lens('patchR', H, az + 3, el - 5, w * s * 2.4, h * s * 1.7, -0.02, 'Patch', bind));
+  if (K.pattern === 'mask') out.push(lens('maskR', H, az - 3, el - 2, w * s * 2, h * s * 1.05, -0.02, 'Patch', bind));
+  if (K.eyes === 'disc') out.push(lens('discR', H, az + 2, el - 2, w * s * 1.75, h * s * 1.4, -0.02, 'Belly', bind));
   if (X.w) out.push(lens('eyeR', H, az, el, X.w * s, X.h * s, 0.004, 'Sclera', bind));
   const pz = X.w ? 0.022 : 0.006, [pw, ph] = X.pupil.map((x) => x * s * k.pupil), deg = 180 / Math.PI;
   const paz = az + X.nudge, pel = X.w ? el - 1.5 : el;
+  if (K.eyes === 'disc' && X.w) out.push(lens('irisR', H, az + X.nudge * 0.5, el - 1, X.w * s * 0.8, X.h * s * 0.72, 0.012, 'Iris', bind));
   out.push(lens('pupilR', H, paz, pel, pw, ph, pz, 'Pupil', bind));
   out.push(lens('glintR', H, paz + 0.3 * pw * deg, pel + 0.35 * ph * deg, X.glint * s, X.glint * s, pz + 0.02, 'Sclera', bind));
+  return out;
+}
+
+/** An ANIMAL's kit (docs/mascot-animals.md): its identifiers as mascot shapes, every one a ball, an egg or a cone,
+ *  sized to the head (A4: a muzzle at most a head's radius long), bound to the head (or the orb's body). */
+function animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) {
+  const R = H.rz, at = onHeadAt(H), out = [], g = (group, bind = headBind) => ({ group, bind });
+  // ears
+  if (K.ears === 'pointed') out.push(shape('earR', at(0.42, -0.06, 0.6), at(0.72, -0.12, 1.45), [r4(0.24 * R), r4(0.09 * R)], 'cone', { ...g('Body'), tip: 0.08 }));
+  if (K.ears === 'tall') out.push(shape('earR', at(0.22, -0.1, 0.78), at(0.42, -0.25, 2.25), [r4(0.2 * R), r4(0.08 * R)], 'egg', g('Body')));
+  if (K.ears === 'round') out.push(shape('earR', at(0.55, -0.1, 0.62), at(0.8, -0.14, 1.08), [r4(0.27 * R), r4(0.1 * R)], 'ball', g(K.pattern === 'patches' ? 'Patch' : 'Body')));
+  if (K.ears === 'flap') out.push(shape('earR', at(0.92, 0.12, 0.1), at(0.92, -0.25, 0.1), [r4(0.62 * R), r4(0.78 * R)], 'ball', g('Body')));
+  if (K.ears === 'tufts') out.push(shape('earR', at(0.42, 0.02, 0.72), at(0.72, -0.04, 1.28), [r4(0.14 * R), r4(0.06 * R)], 'cone', { ...g('Mane'), tip: 0.1 }));
+  // the muzzle: named 'snout' so the mouth lands on it (mascot-face.js); a nose at its tip
+  const muzzle = (A, B, r, profile, group, nose = true) => { out.push(shape('snout', A, B, r, profile, { ...g(group), tip: 0.3 }));
+    if (nose) { const d = unit(sub(B, A)), tipP = add(B, mul(d, -0.06 * R)); out.push(shape('noseTip', V(add(tipP, [0, 0, 0.02 * R])), V(add(tipP, add(mul(d, 0.16 * R), [0, 0, 0.04 * R]))), r4(0.11 * R), 'ball', g('Nose'))); } };
+  if (K.muzzle === 'point') muzzle(at(0, 0.55, -0.3), at(0, 1.5, -0.3), [r4(0.36 * R), r4(0.3 * R)], 'cone', 'Belly');
+  if (K.muzzle === 'round') muzzle(at(0, 0.45, -0.35), at(0, 1.32, -0.3), [r4(0.42 * R), r4(0.34 * R)], 'egg', 'Belly');
+  if (K.muzzle === 'long') muzzle(at(0, 0.45, -0.3), at(0, 2.1, -0.4), [r4(0.4 * R), r4(0.25 * R)], 'egg', 'Body');
+  if (K.muzzle === 'beak') muzzle(at(0, 0.7, -0.1), at(0, 1.55, -0.25), [r4(0.28 * R), r4(0.2 * R)], 'cone', 'Beak', false);
+  if (K.muzzle === 'bill') muzzle(at(0, 0.7, -0.2), at(0, 1.75, -0.25), [r4(0.42 * R), r4(0.13 * R)], 'egg', 'Beak', false);
+  if (K.muzzle === 'disc') muzzle(at(0, 0.72, -0.2), at(0, 1.3, -0.22), [r4(0.32 * R), r4(0.26 * R)], 'egg', 'Nose', false);
+  if (K.muzzle === 'button') out.push(shape('noseTip', at(0, 0.9, -0.16), at(0, 1.14, -0.16), r4(0.09 * R), 'ball', g('Nose')));
+  if (K.muzzle === 'trunk') {
+    const a = at(0, 0.82, -0.05), b = at(0, 1.35, -0.6), tip = at(0, 1.5, -1.05);
+    out.push(shape('trunk0', a, b, r4(0.28 * R), 'egg', g('Body')), shape('trunk1', V(sub(b, [0, 0.03 * R, -0.05 * R])), tip, r4(0.2 * R), 'cone', { ...g('Body'), tip: 0.7 }));
+  }
+  // the mane: the head's ellipsoid again, larger, set back, so from the front it is a ring round the face (A2)
+  // a crest (a horse's): tufts down the top and back of the head, in the mane's colour
+  if (K.mane === 'crest') [[0.15, 0.98], [-0.35, 0.92], [-0.75, 0.6], [-0.95, 0.1]].forEach(([y, z], i) => { const b = at(0, y * 0.95, z * 0.95), d = unit([0, y - 0.3, z]);
+    out.push(shape(`mane${i}`, b, V(add(b, mul(d, 0.42 * R))), [r4(0.1 * R), r4(0.2 * R)], 'egg', g('Mane'))); });
+  if (K.mane === 'ring') out.push({ name: 'mane', kind: 'trunk', mirror: 'plane', group: 'Mane', bind: headBind,
+    stations: Array.from({ length: 9 }, (_, i) => { const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / 9; return { z: r4(H.C[2] + 0.02 * H.rz + H.rz * 1.4 * Math.sin(a)), yc: r4(-0.5 * H.ry), r: [r4(H.rx * 1.42 * Math.cos(a)), r4(H.ry * 0.98 * Math.cos(a))] }; }),
+    caps: { back: [0, r4(-0.5 * H.ry), r4(H.C[2] + 0.02 * H.rz - H.rz * 1.4)], tip: [0, r4(-0.5 * H.ry), r4(H.C[2] + 0.02 * H.rz + H.rz * 1.4)] } });
+  if (K.horns === 'horns') out.push(shape('hornR', at(0.42, 0.02, 0.72), at(0.82, 0.05, 1.4), r4(0.14 * R), 'cone', { ...g('Horn'), tip: 0.1 }));
+  if (K.horns === 'ossicones') out.push(shape('hornR', at(0.25, -0.05, 0.85), at(0.32, -0.08, 1.4), r4(0.08 * R), 'bud', g('Mane')));
+  if (K.fin) out.push({ ...shape('fin', at(0, -0.25, 0.85), at(0, -0.75, 1.55), [r4(0.07 * R), r4(0.36 * R)], 'cone', { ...g('Body'), tip: 0.06 }) });
+  if (K.neck && neckLift) {
+    const a = [0, 0, r4(neckZ - 0.1 * R)], b = [0, 0, r4(neckZ + neckLift + 0.25 * R)];
+    out.push({ name: 'neck', kind: 'segment', from: 'neckA', to: 'neckB', joints: { neckA: a, neckB: b }, rA: r4(0.36 * R), rB: r4(0.3 * R), mirror: 'plane', group: 'Body', bind: headBind });
+  }
+  if (K.spines) out.push(...hookParts({ ...f, hook: 'spines' }, H, { M, hipZ, neckZ, headBind, orb }));
+  if (K.quills) out.push(...hookParts({ ...f, hook: 'quills' }, H, { M, hipZ, neckZ, headBind, orb }));
+  // the shell: the body's own pear again, larger and set back, a dome on the back (A2)
+  if (K.shell && !orb) out.push({ name: 'shell', kind: 'trunk', mirror: 'plane', group: 'Shell', bind: 'torso',
+    stations: [0, 0.25, 0.5, 0.75, 1].map((t, i) => ({ z: r4(hipZ - 0.2 * M.bodyR + t * (neckZ - hipZ + 0.1 * M.bodyR)), yc: r4(-0.45 * M.bodyR), r: [r4(M.bodyR * 1.15 * [0.75, 1, 1.05, 0.95, 0.6][i]), r4(M.bodyR * 0.85 * [0.75, 1, 1.05, 0.95, 0.6][i])] })),
+    caps: { back: [0, r4(-0.45 * M.bodyR), r4(hipZ - 0.35 * M.bodyR)], tip: [0, r4(-0.45 * M.bodyR), r4(neckZ + 0.2 * M.bodyR)] } });
+  // the tail: off the rump (the orb's ball), in its kind
+  if (K.tail) {
+    const s = orb ? R : M.bodyR * 1.6, bind = orb ? 'torso' : 'pelvis', base = orb ? at(0, -0.88, -0.45) : V([0, -M.bodyR * 0.8, hipZ + M.bodyR * 0.15]);
+    const T = (name, a, b, r, profile, group = 'Body', tip) => out.push(shape(name, a, b, r, profile, { group, bind, ...(tip ? { tip } : {}) }));
+    if (K.tail === 'brush') T('tail0', base, V(add(base, [0, -0.85 * s, 0.55 * s])), [r4(0.3 * s), r4(0.32 * s)], 'egg');
+    if (K.tail === 'pom') T('tail0', V(add(base, [0, 0.08 * s, 0])), V(add(base, [0, -0.42 * s, 0.08 * s])), r4(0.26 * s), 'ball', 'Belly');
+    if (K.tail === 'thin') { const m = V(add(base, [0, -0.55 * s, 0.1 * s])); T('tail0', base, m, r4(0.07 * s), 'egg'); T('tail1', V(add(m, [0, 0.04 * s, -0.02 * s])), V(add(m, [0, -0.25 * s, 0.6 * s])), r4(0.07 * s), 'cone', 'Body', 0.5); }
+    if (K.tail === 'tuft') { const m = V(add(base, [0, -0.75 * s, 0.25 * s])); T('tail0', base, m, r4(0.06 * s), 'egg'); T('tail1', V(add(m, [0, 0.1 * s, -0.05 * s])), V(add(m, [0, -0.25 * s, 0.1 * s])), r4(0.15 * s), 'ball', 'Mane'); }
+    if (K.tail === 'flat') T('tail0', base, V(add(base, [0, -0.9 * s, -0.25 * s])), [r4(0.3 * s), r4(0.07 * s)], 'egg', 'Patch');
+    if (K.tail === 'fluke') { const m = V(add(base, [0, -0.45 * s, 0.05 * s])); T('tail0', base, m, r4(0.16 * s), 'egg'); T('tail1', V(add(m, [0, 0.06 * s, 0])), V(add(m, [0, -0.3 * s, 0.05 * s])), [r4(0.5 * s), r4(0.07 * s)], 'egg'); }
+    if (K.tail === 'thick') T('tail0', V(add(base, [0, 0.1 * s, 0.05 * s])), V([0, base[1] - 1.1 * s, r4(Math.max(0.05 * s, base[2] - 0.55 * s))]), r4(0.3 * s), 'cone', 'Body', 0.15);
+  }
   return out;
 }
 

@@ -16,6 +16,7 @@
  * decides the amounts, the character loop iterates them.
  */
 import { mulberry32 } from '../vegetation/grow.js';
+import { ANIMAL_WORDS, animalCard, animalFacets } from './mascot-animals.js';
 
 export const MAX_ATTEMPTS = 8;
 /** The facets, in the order their dice are thrown: a new facet goes last, so an older seed throws the older ones alike. */
@@ -188,6 +189,9 @@ export const FAULTS = Object.freeze([
 
 /** The words people use for mascots, each a partial sheet. A familiar name is read as a style, never copied. */
 export const MASCOT_LEXICON = Object.freeze({
+  // a real species (the fauna roster), by its id, its spoken name or an everyday one: its card decides the rest
+  // (mascot-animals.js); a word below that is also a species' wins
+  ...ANIMAL_WORDS,
   // the tuning's own words: they ask for a mascot and decide nothing else ('cute' and 'kawaii' are read but ask for
   // nothing: a cute knight is a person; 'chibi' is the hero door's cast word)
   'mascot': {}, 'cartoon': {}, 'cartoony': {}, 'cartoonish': {}, 'toon': {}, 'toony': {}, 'cute': {}, 'kawaii': {},
@@ -218,8 +222,7 @@ export const MASCOT_LEXICON = Object.freeze({
   // form
   'ball': { form: 'orb' }, 'blob': { form: 'orb', accent: 'round' }, 'tiny': { form: 'orb' }, 'little': { form: 'sprout' }, 'small': { form: 'sprout' }, 'tall': { form: 'toon' },
   // the hook
-  'eared': { hook: 'ears' }, 'bunny': { hook: 'ears' }, 'quilled': { hook: 'quills' }, 'hedgehog': { hook: 'quills', accent: 'spike' },
-  'snouted': { hook: 'snout' }, 'dino': { hook: 'snout' }, 'dinosaur': { hook: 'snout' }, 'tufted': { hook: 'tuft' },
+  'eared': { hook: 'ears' }, 'quilled': { hook: 'quills' }, 'snouted': { hook: 'snout' }, 'tufted': { hook: 'tuft' },
   'antenna': { hook: 'antenna' }, 'tailed': { hook: 'tail' }, 'spined': { hook: 'spines' }, 'dragon': { hook: 'spines' },
   // extremities, eyes, energy
   'gloved': { extremities: 'gloves' }, 'stubby': { extremities: 'nubs' }, 'pawed': { extremities: 'paws' },
@@ -270,6 +273,7 @@ export const asksForMascot = (brief) => readMascotBrief(brief).asks;
 export function readMascot(spec = {}) {
   if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error('mascot: the facets are an object');
   for (const [k, val] of Object.entries(spec)) {
+    if (k === 'animal') { if (val !== 'none') animalCard(val); continue; }   // a species of the roster (throws naming it)
     if (!MASCOT_KEYS.includes(k)) throw new Error(`mascot: unknown facet '${k}' (known: ${MASCOT_KEYS.join(', ')}; a mascot has no age, build or archetype)`);
     if (!KNOWN[k].includes(val)) throw new Error(`mascot: unknown ${k} '${val}' (known: ${KNOWN[k].join(', ')})`);
   }
@@ -313,9 +317,21 @@ function sources(f) {
 }
 
 /** Merge per channel: notes in priority order; each knob once, its highest-priority direction. */
-function compose(f) {
+/** An animal's notes (docs/mascot-animals.md): what names it, what it lets go, its folk reading, its coat. */
+function animalSource(card) {
+  const name = card.id.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+  const kept = Object.entries(card.kit).map(([k, v]) => `${v} ${k}`).join(', ');
+  return { from: `animal.${card.id}`, notes: {
+    promise: `the ${name}, read as people read it: ${card.folk}`,
+    silhouette: `named by ${card.identity.length ? card.identity.join(', ') : 'its face and feet alone'} (${kept || 'nothing added'})`,
+    frame: `let go: ${card.drops}${card.dropped.length ? `; and past the budget: ${card.dropped.join(', ')}` : ''}`,
+    ...(card.craft ? { face: `crafted: ${card.craft}` } : {}),
+  } };
+}
+
+function compose(f, card = null) {
   const notes = {}, derives = {}, claimed = new Set();
-  for (const src of sources(f)) for (const ch of MASCOT_CHANNEL_IDS) {
+  for (const src of [...(card ? [animalSource(card)] : []), ...sources(f)]) for (const ch of MASCOT_CHANNEL_IDS) {
     for (const line of lines(src.notes?.[ch])) (notes[ch] ||= []).push({ line, from: src.from });
     for (const d of lines(src.derives?.[ch])) {
       const r = readMascotDerive(d), key = `${r.family}.${r.key}`;
@@ -324,7 +340,7 @@ function compose(f) {
       (derives[ch] ||= []).push(d);
     }
   }
-  (notes.palette ||= []).push(f.being === 'human' ? { line: `${f.hue}: the clothes' colour, owned; ${f.skin} skin`, from: `hue.${f.hue}` } : { line: `${f.hue}: the body's colour, owned`, from: `hue.${f.hue}` });
+  (notes.palette ||= []).push(card ? { line: `the ${card.id}'s own coat, as flat zones: the coat, its pale front, its dark marks; saturated unless its identity is light against dark`, from: `animal.${card.id}` } : f.being === 'human' ? { line: `${f.hue}: the clothes' colour, owned; ${f.skin} skin`, from: `hue.${f.hue}` } : { line: `${f.hue}: the body's colour, owned`, from: `hue.${f.hue}` });
   const ordered = (o) => Object.fromEntries(MASCOT_CHANNEL_IDS.filter((c) => o[c]).map((c) => [c, o[c]]));
   return { notes: ordered(notes), derives: ordered(derives) };
 }
@@ -337,7 +353,11 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
   readMascot(asked0);
   const fromBrief = readMascotBrief(brief);
   readMascot(fromBrief.facets);
-  const given = { ...fromBrief.facets, ...asked0 };
+  const named = { ...fromBrief.facets, ...asked0 };
+  // an animal decides the facets its card names, under whatever the operator asked for (it is an ask too)
+  const card = named.animal && named.animal !== 'none' ? animalCard(named.animal) : null;
+  const given = { ...(card ? animalFacets(card) : {}), ...named };
+  delete given.animal;
   const asked = new Set(Object.keys(given));
   let f, attempt = 0, broken = [];
   for (; attempt < MAX_ATTEMPTS; attempt++) {
@@ -346,13 +366,14 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     if (broken.every((x) => x.on.every((k) => asked.has(k)))) break;
   }
   if (attempt === MAX_ATTEMPTS) attempt -= 1;
-  const { notes, derives } = compose(f);
+  const { notes, derives } = compose(f, card);
   const accord = accordOf(f.accent);
   return {
     tuning: 'mascot', path, seed, attempt,
-    facets: Object.fromEntries(MASCOT_KEYS.map((k) => [k, f[k]])),
-    given: MASCOT_KEYS.filter((k) => k in given),
+    facets: { ...Object.fromEntries(MASCOT_KEYS.map((k) => [k, f[k]])), ...(card ? { animal: card.id } : {}) },
+    given: [...MASCOT_KEYS.filter((k) => k in named), ...(card ? ['animal'] : [])],
     accord,
+    ...(card ? { animal: card } : {}),   // the resolved card, kept by value: its kit is what the body draws
     reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
     notes, derives,
     unread: { words: fromBrief.unread },

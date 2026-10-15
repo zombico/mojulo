@@ -51,10 +51,27 @@ asymmetric life; it only needs to animate), and how a mascot differs from the Eg
   the trousers take the accent or a darker shirt colour; the `skin` facet gives skin and hair. Two new hooks: `cap` (a
   high crown in the shirt's colour, a bill, an emblem) and `moustache`. A snout, a tail, spines or paws on a person is a
   fault unless asked. `mario-like` now reads as a capped, gloved person.
+- **Animal mascots** (`lib/graph/egocube/mascot-animals.js`, `docs/mascot-animals.md`): a real species from the fauna
+  roster made a mascot. Eight were crafted by hand (fox, giant panda, rabbit, frog, emperor penguin, elephant, great
+  horned owl, lion) and the rules they shared were distilled into a card per family, so every species has a reading.
+  The rules: at most three outline identifiers, ranked; patterns and mouths ride free; stand it up; a muzzle at most a
+  head's radius (a dropped one leaves its nose); eyes forward unless they are the identifier; the real coat as flat
+  zones, saturated unless light against dark; mass as limb weight; the folk reading as the promise; locomotion as the
+  idle; a proportion that is the name (a giraffe's neck) kept. The body compiler gained the kit:
+  - ears: pointed, tall, round, flap, tufts;
+  - muzzles: point, round, beak, bill, trunk, disc, long, button, wide;
+  - tails: brush, pom, tuft, thin, flat, fluke, thick;
+  - a ring or crest mane, horns, a shell, a dorsal fin, a long neck;
+  - patterns: patches, tuxedo, mask, stripes, socks;
+  - disc and top eyes, flippers and wings, webbed feet and hooves.
+
+  A species by id, spoken name or everyday name in the brief (`panda`, `owl`, `bunny`) picks it, as does
+  `facets.animal`. `hedgehog`, `bunny` and `dino` now name species instead of a hook.
 - Gates: machine, the mascot tests (the laws as numbers: heads tall by form, eye size and height, the accent's hook,
   the palette's accord, every hook and form compiling, every energy's idle posed with planted feet; the face's parts
   and chains, each expression's channels from the rest face, the blink shutting the lids, the smirk at rest, the mouth on
-  a snout; a person's parts and palette, the cap, the human fault). The eyes gate has
+  a snout; a person's parts and palette, the cap, the human fault; a card per family, one species per family compiling
+  and rigging, the identity budget, the crafted eight's decisions, the coat). The eyes gate has
   not run: during the build the first readings were seen only as flat-lit contact sheets
   (`docs/examples/mascot/render-mascots.mjs`, `--faces` for the expressions), never in the World page's light.
 

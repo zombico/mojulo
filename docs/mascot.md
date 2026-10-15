@@ -154,6 +154,14 @@ holds the laws as numbers:
 Every amount is a first reading for the eyes gate, iterated in place with `update_character` patch ops. The sheet's
 ledger says where each note landed.
 
+## Animal mascots
+
+A real species from the fauna roster can be a mascot: `a fox mascot`, `facets: { animal: 'greatHornedOwl' }`. Eight
+species were crafted by hand and the rules they shared were distilled into a card per family: three identifiers at
+most, stand it up, shorten the face, eyes forward, the coat as flat zones, mass as attitude, the folk reading as the
+promise, locomotion as the idle. The analysis, the crafts and the principles are in
+[mascot-animals.md](mascot-animals.md).
+
 ## Making one
 
 - `create_character({ as: 'mascot', spec: { brief: 'a sonic-like mascot', facets?, seed? } })` rolls the sheet and

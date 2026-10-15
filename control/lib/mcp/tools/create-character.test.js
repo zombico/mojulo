@@ -203,5 +203,9 @@ describe('create_character as a mascot (docs/mascot.md)', () => {
     const hm = SketchRepository.getByRef('cc_mascot_human').manifest;
     expect(Object.keys(hm.plan.clips)).toEqual(expect.arrayContaining(['blink', 'happy', 'surprised', 'sad', 'angry']));
     expect(hm.plan.rig.chains.lipU).toBeTruthy();
+    // a real species made a mascot (docs/mascot-animals.md): its card's kit, its own coat
+    const fx = await createCharacterHandler({ as: 'mascot', spec: { brief: 'a fox mascot' }, ref: 'cc_mascot_fox' });
+    expect(fx.mascot.facets).toMatchObject({ animal: 'fox', promise: 'mischief' });
+    expect(SketchRepository.getByRef('cc_mascot_fox').manifest.plan.segments.map((x) => x.name)).toEqual(expect.arrayContaining(['earR', 'snout', 'tail0']));
   }, 300_000);
 });
