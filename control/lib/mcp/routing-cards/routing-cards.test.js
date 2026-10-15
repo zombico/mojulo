@@ -26,6 +26,8 @@ import { buildForwardContextBody } from '@/lib/mcp/tools/context.js';
 import { CREATIVE_FORMS } from '@/lib/mcp/creative-forms';
 import { TOOL_LINES } from '@/lib/mcp/tool-lines.js';
 import { FIXTURE, COLLISION_FIXTURE, KNOWN_MISSES } from './routing-eval.fixture.js';
+import { HOLDOUT } from './routing-eval.holdout.js';
+import { createHash } from 'node:crypto';
 
 describe('routing-card shelf — loader + lint', () => {
   it('loads the catalog with required fields on every card', () => {
@@ -137,5 +139,20 @@ describe('routing eval fixture — one door per intent', () => {
   it('a known miss is a row in the fixture', () => {
     const phrasings = new Set(FIXTURE.map(([p]) => p));
     expect([...KNOWN_MISSES].filter((p) => !phrasings.has(p))).toEqual([]);
+  });
+});
+
+describe('routing eval held-out set — frozen', () => {
+  it('is unchanged: re-pin only for a fold that adds a door to accept sets, never to fit a run', () => {
+    // routing-eval.holdout.js says why. Pinned 2026-10-15 (64 requests written blind, 63 kept).
+    const hash = createHash('sha256').update(JSON.stringify(HOLDOUT)).digest('hex').slice(0, 16);
+    expect(hash).toBe('802ed8e4bae0485b');
+  });
+
+  it('every accept set names tools that exist, listed or folded', async () => {
+    const { ensureToolsRegistered, hasRegisteredTool } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    expect(HOLDOUT.flatMap(([, ts]) => ts).filter((t) => !hasRegisteredTool(t))).toEqual([]);
+    expect(new Set(HOLDOUT.map(([p]) => p)).size).toBe(HOLDOUT.length);
   });
 });

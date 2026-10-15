@@ -37,6 +37,11 @@ the measured rise is the answer key catching up with doors the model already cho
   tool index beside it, or the listed names alone (`MOJULO_BODY_EVAL_SURFACE`); its report keeps every row, and
   `scripts/body-eval-diff.mjs` splits two reports' difference into the model's answers moving and the answer key
   moving. Rows the routing still misses stay in the fixture, marked known.
+- **Routing measured past its own fixture.** A frozen held-out set of requests written blind (`routing-eval.holdout.js`,
+  pinned by hash, each row accepting the doors of either era) is scored with `MOJULO_BODY_EVAL_SET=holdout`, and
+  another commit's surfaces with `MOJULO_BODY_EVAL_SURFACE_DIR`. `scripts/routing-e2e.mjs` runs whole tasks
+  through a real server on a throwaway database (done, calls, refusals); `scripts/surface-history.mjs` reads how the
+  surface grew from git; `scripts/routing-ledger.mjs` reads how sessions found their way from the tool-call ledger.
 - `forge_motion` refuses `shoot` beside a shot other than `plan` (it wrote the plan and dropped the render).
 
 ### Skyscape: flight games, and what a map is for a pilot

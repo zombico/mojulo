@@ -272,7 +272,7 @@ const QUICK_LEVERS = {
     '  rivals: n (1..7, with a ride)   a place to finish in, on the podium',
     '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }):',
     '    the whole field, yours first (no ride, hero or rivals beside it)',
-    `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground`,
+    `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground, in place of track (no track, climb, building or run beside it)`,
   ],
   sneak: () => [`  guards: n (1..8, 3), guard: ${HERO_WORDS}, alarms: n (1..9, 1)   sightings that end the run`],
   rhythm: () => [`  music: ${RHYTHM_MOODS.join(' | ')}   a field score with a steady beat; misses: n (1..99) presses off the beat that end it`],

@@ -30,7 +30,12 @@
 // comparison against it (routing-cards/eval-diff.js): a rise split into the model's answers moving and the
 // fixture's answer key moving. The same diff from the shell: scripts/body-eval-diff.mjs <a> <b>.
 //
-// Scoring: routing rows assert an aggregate floor (body surface only; the others report). Behavioral rows are
+// Sets: MOJULO_BODY_EVAL_SET=holdout scores the frozen held-out requests (routing-eval.holdout.js) instead of the
+// fixture: rows with an accept set each, no behavioral rows, report-only. Another commit's surfaces:
+// MOJULO_BODY_EVAL_SURFACE_DIR=<dir> reads body.txt / names.txt / index.txt from it in place of the live ones (dump
+// them at that commit), so one harness and one answer key score both. MOJULO_BODY_EVAL_REPORT names the report file.
+//
+// Scoring: routing rows assert an aggregate floor (body surface on the fixture only; the rest report). Behavioral rows are
 // REPORT-ONLY (logged + written to the report JSON) — they diagnose, they
 // don't gate; the needs-vocab row in particular is EXPECTED to fail until
 // pointer discipline lands on creative-tool error copy (see the plan's
@@ -47,6 +52,7 @@ import { describe, it, expect } from 'vitest';
 import { buildForwardContextBody } from './context.js';
 import { FIXTURE, COLLISION_FIXTURE, KNOWN_MISSES } from '../routing-cards/routing-eval.fixture.js';
 import { diffReports, formatDiff } from '../routing-cards/eval-diff.js';
+import { HOLDOUT } from '../routing-cards/routing-eval.holdout.js';
 
 const enabled = process.env.MOJULO_BODY_EVAL === '1';
 const cliPresent = (() => {
@@ -63,11 +69,15 @@ const CONCURRENCY = 6;
 const ROUTING_FLOOR = 0.75; // regression net only, over the rows not known to miss — the real gate is baseline vs candidate
 const SURFACES = ['body', 'index', 'names'];
 const SURFACE = process.env.MOJULO_BODY_EVAL_SURFACE || 'body';
-const REPORT_PATH = join(tmpdir(), SURFACE === 'body' ? 'mojulo-body-eval-report.json' : `mojulo-body-eval-report-${SURFACE}.json`);
+const SET = process.env.MOJULO_BODY_EVAL_SET || 'fixture';
+const SURFACE_DIR = process.env.MOJULO_BODY_EVAL_SURFACE_DIR || null;
+const REPORT_PATH = process.env.MOJULO_BODY_EVAL_REPORT
+  || join(tmpdir(), `mojulo-body-eval-report${SET === 'fixture' ? '' : `-${SET}`}${SURFACE === 'body' ? '' : `-${SURFACE}`}.json`);
+const fromDir = (f) => readFileSync(join(SURFACE_DIR, f), 'utf8');
 
 const body = process.env.MOJULO_BODY_EVAL_BODY_FILE
   ? readFileSync(process.env.MOJULO_BODY_EVAL_BODY_FILE, 'utf8')
-  : buildForwardContextBody({ mode: 'studio' });
+  : SURFACE_DIR ? fromDir('body.txt') : buildForwardContextBody({ mode: 'studio' });
 
 // Tools the first-tool grader recognizes in a reply. Superset of fixture
 // expectations plus plausible confusions (drawers, verbs-mistaken-as-tools
@@ -75,6 +85,7 @@ const body = process.env.MOJULO_BODY_EVAL_BODY_FILE
 const KNOWN_TOOLS = new Set([
   ...FIXTURE.map(([, t]) => t),
   ...COLLISION_FIXTURE.map(([, t]) => t),
+  ...HOLDOUT.flatMap(([, ts]) => ts),
   'update_sketch', 'update_beats', 'edit_solid', 'get_beats', 'annotate_beats', 'diff_beats',
   'create_game_project', 'semantic_search', 'get_creative_toolset', 'get_sketch_vocab',
   'get_view_vocab', 'get_beats_vocab', 'get_voice_vocab', 'get_solid_vocab',
@@ -104,7 +115,7 @@ async function buildPreamble(surface) {
   const { ensureToolsRegistered, isToolListed } = await import('@/lib/mcp/server');
   const { TOOL_LINES } = await import('@/lib/mcp/tool-lines.js');
   await ensureToolsRegistered();
-  const listed = Object.keys(TOOL_LINES).filter(isToolListed);
+  const listed = SURFACE_DIR ? fromDir('names.txt').trim().split(/,\s*/) : Object.keys(TOOL_LINES).filter(isToolListed);
   for (const name of listed) KNOWN_TOOLS.add(name);
   const orientation = `You have read this orientation:\n\n<orientation>\n${body}\n</orientation>`;
   if (surface === 'body') return orientation;
@@ -112,15 +123,19 @@ async function buildPreamble(surface) {
     return `The server lists these tools. You hold their names only: you have read no description and no orientation.\n\n<tools>\n${listed.join(', ')}\n</tools>`;
   }
   const { toolIndexHandler } = await import('./context.js');
-  const index = (await toolIndexHandler({ full: true })).content[0].text;
+  const index = SURFACE_DIR ? fromDir('index.txt') : (await toolIndexHandler({ full: true })).content[0].text;
   return `${orientation}\n\nand the server's tool index, one line per listed tool:\n\n<tool_index>\n${index}\n</tool_index>`;
 }
+
+// Holding names alone, a sensible agent reads the index first (the first names run answered get_tool_index to
+// nearly every row), so the names surface asks which tool does the work: whether a name alone points at the door.
+const NAMES_QUESTION = 'Which of these tools does the work this ask needs? Name the one that does it, not one you would read first.';
 
 const routingPrompt = (phrasing) => `You are an agent driving the mojulo MCP server on the operator's machine. ${preamble}
 
 The user says: "${phrasing}"
 
-Which mojulo tool do you call FIRST for this ask? Reply with ONLY the tool name, nothing else. Do not invoke any tools — answer in plain text.`;
+${SURFACE === 'names' ? NAMES_QUESTION : 'Which mojulo tool do you call FIRST for this ask?'} Reply with ONLY the tool name, nothing else. Do not invoke any tools — answer in plain text.`;
 
 // Behavioral rows — the moves the grammar plan makes expressible. Transcript-
 // style: the model is mid-session and must name the next move.
@@ -214,22 +229,26 @@ describe.skipIf(!enabled || !cliPresent)(
       'the studio body routes the shared fixture + reports the behavioral moves',
       async () => {
         preamble = await buildPreamble(SURFACE);
-        const routingRows = [...FIXTURE, ...COLLISION_FIXTURE];
+        // a held-out row carries its accept set; its first door stands as `expected`
+        const routingRows = SET === 'holdout'
+          ? HOLDOUT.map(([phrasing, accept]) => [phrasing, accept[0], accept])
+          : [...FIXTURE, ...COLLISION_FIXTURE].map(([phrasing, expected]) => [phrasing, expected, [expected, ...(ACCEPT_OVERRIDES.get(phrasing) || [])]]);
         const jobs = [
-          ...routingRows.map(([phrasing, expected]) => ({
+          ...routingRows.map(([phrasing, expected, accept]) => ({
             kind: 'routing',
             phrasing,
             expected,
+            accept,
             prompt: routingPrompt(phrasing),
           })),
-          ...BEHAVIORAL.map((c) => ({ kind: 'behavioral', case: c, prompt: behavioralPrompt(c) })),
+          ...(SET === 'holdout' ? [] : BEHAVIORAL.map((c) => ({ kind: 'behavioral', case: c, prompt: behavioralPrompt(c) }))),
         ];
         const results = await pool(jobs);
 
         const routing = results.filter((r) => r.kind === 'routing');
         const rows = routing.map((r) => {
           const got = firstTool(r.out);
-          const accepted = new Set([r.expected, ...(ACCEPT_OVERRIDES.get(r.phrasing) || [])]);
+          const accepted = new Set(r.accept);
           return { phrasing: r.phrasing, expected: r.expected, got, ok: accepted.has(got), ...(KNOWN_MISSES.has(r.phrasing) ? { known: true } : {}), raw: r.out.slice(0, 160) };
         });
         const misses = rows.filter((r) => !r.ok).map(({ ok, ...m }) => m);
@@ -250,7 +269,9 @@ describe.skipIf(!enabled || !cliPresent)(
         const report = {
           when: new Date().toISOString(),
           model: MODEL,
+          set: SET,
           surface: SURFACE,
+          surfaceDir: SURFACE_DIR,
           bodySource: process.env.MOJULO_BODY_EVAL_BODY_FILE || 'live studio body',
           bodyChars: body.length,
           preambleChars: preamble.length,
@@ -271,7 +292,7 @@ describe.skipIf(!enabled || !cliPresent)(
         // eslint-disable-next-line no-console
         console.log(`[body-eval] report → ${REPORT_PATH}\n${JSON.stringify(report, null, 2)}`);
 
-        if (SURFACE !== 'body') return;   // the other surfaces report; the floor was set on the body
+        if (SURFACE !== 'body' || SET !== 'fixture') return;   // the floor was set on the body over the fixture; the rest report
         expect(
           netScore,
           `routing score ${netScore.toFixed(2)} (known misses aside) below floor ${ROUTING_FLOOR}; misses:\n${misses
