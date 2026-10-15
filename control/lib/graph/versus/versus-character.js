@@ -1,35 +1,26 @@
 /**
  * versus character — a fighter who is a character made with create_character.
  *
- * A roster entry may name a stored hero instead of a cast: `{ id, hero: { ref }, name?, archetype?, signature?, color?,
- * weapon?, … }`. The moveset is still the archetype's and the designer's words; the BODY is the character's, measured
- * off its own skeleton (the layered hero's rig joints) into the fight's body dials, so a long-armed character reaches
- * further and its boxes follow. The game stores the ref, never the measure: like a quick game's adopted hero, the fighter
- * follows the character's edits, measured again wherever the game is served (the play route, the export, an arena's
- * World page, the edit gate).
+ * A game's roster names characters: `{ id, hero: { ref }, name?, color?, style?, signature?, weapon?, … }`. The BODY is
+ * the character's, measured off its own skeleton (the layered hero's rig joints) into the fight's body dials, so a
+ * long-armed character reaches further and its boxes follow. The FIGHT is read off the sheet the character was made
+ * from (versus-sheet.js: its role, archetype, build and age, at the sheet's revision the character records), the entry's
+ * own fight words over it; a character made without a sheet is an all-rounder unless the entry says. The game stores
+ * the ref, never the measure: like a quick game's adopted hero, the fighter follows the character's edits, measured again
+ * wherever the game is served (the play route, the export, an arena's World page, the edit gate).
  *
  * The calibration: the default male hero (create_character's `cast: 'male'`) is the fight's canonical body, arm, leg and
  * torso 1; a dial is the character's proportion over his. Height is the character's own (mm to the top of the head).
  */
 import { BODY_DIALS } from './versus-compile.js';
+import { fighterSpec, fighterFromSheet, fighterName } from './versus-sheet.js';
 import { castOf, BODY_DEFAULTS } from '../polygonizer/hero-form.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const HEX = /^#[0-9a-f]{6}$/i;
-// a character's body is its own: these would contradict it
-const NOT_WITH_HERO = ['cast', 'body', 'recipe'];
-
 /** A roster entry that names a character (unresolved). */
 export const isCharacterEntry = (e) => isObj(e) && e.hero !== undefined;
-
-/** The shape of a character entry, before any lookup; throws naming what is wrong. */
-export function readCharacterEntry(e, where = 'fighter') {
-  if (!isObj(e.hero) || Object.keys(e.hero).join() !== 'ref' || typeof e.hero.ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(e.hero.ref)) {
-    throw new Error(`versus: ${where}.hero is { ref } (a character made with create_character)`);
-  }
-  for (const k of NOT_WITH_HERO) if (e[k] !== undefined) throw new Error(`versus: ${where}.${k}: a character's body is its own (drop ${k}, or the hero)`);
-}
 
 const at = (j) => (Array.isArray(j) ? j : j.at);
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
@@ -94,37 +85,74 @@ export async function measureCharacter(manifest, where = 'fighter', ref = '?') {
 }
 
 /**
- * A roster with its characters measured: each `{ hero: { ref }, … }` entry becomes an intent with the character's
- * `body` (and its colour, unless the entry names one) and `character: ref`. `lookup(ref)` → a row's manifest or null.
- * A roster without a character comes back as given.
+ * A roster with its characters measured and their fights read: each `{ hero: { ref }, … }` entry becomes the solver's
+ * intent, the sheet's reading (`reads`: what each facet chose and why) under the entry's own fight words (`style` the
+ * fight's style), with the character's `body`, its colour unless the entry names one, its name (the entry's, else the
+ * sheet's) and `character: ref`. `lookup(ref)` → a row's manifest or null; `sheetOf(record)` → the sheet a character's
+ * `egocube` record names, or null. A roster without a character comes back as given.
  */
-export async function resolveCharacters(roster, lookup) {
+export async function resolveCharacters(roster, lookup, sheetOf = () => null) {
   if (!Array.isArray(roster) || !roster.some(isCharacterEntry)) return roster;
   const out = [];
   for (const [i, e] of roster.entries()) {
     if (!isCharacterEntry(e)) { out.push(e); continue; }
     const where = `roster[${i}]`;
-    readCharacterEntry(e, where);
-    const { hero, ...intent } = e;
-    const { body, color } = await measureCharacter(lookup(hero.ref), where, hero.ref);
-    out.push({ ...intent, body, ...(intent.color === undefined && color ? { color } : {}), character: hero.ref });
+    let spec;
+    try { spec = fighterSpec(e, i); } catch (err) { throw new Error(`versus: ${where}: ${err.message.replace(/^versus: /, '')}`); }
+    const ref = spec.hero.ref, manifest = lookup(ref);
+    const { body, color } = await measureCharacter(manifest, where, ref);
+    const sheet = manifest.egocube ? sheetOf(manifest.egocube) : null;
+    const read = sheet ? fighterFromSheet(sheet) : { intent: { archetype: 'all-rounder' }, reads: [] };
+    const { style, ...over } = spec.over;
+    out.push({
+      id: spec.id, name: spec.name ?? (sheet ? fighterName(sheet) : spec.id),
+      ...read.intent, ...(style ? { archetype: style } : {}), ...over,
+      body, ...(spec.color ?? color ? { color: spec.color ?? color } : {}), character: ref,
+      ...(sheet ? { sheet: manifest.egocube.ref, reads: read.reads } : {}),
+    });
   }
   return out;
+}
+
+/** The sheet a character's egocube record names, as it was when the character was made (its revision, by print). */
+async function storeSheets() {
+  const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+  const { SketchRevisionRepository } = await import('@/lib/db/repositories/sketch-revisions');
+  const { egocubeNodes, egocubePrint } = await import('../egocube/kind.js');
+  return (rec) => {
+    if (!isObj(rec) || typeof rec.ref !== 'string') return null;
+    const head = SketchRepository.getByRef(rec.ref)?.manifest;
+    const m = head?.kind === 'egocube' && egocubePrint(head) === rec.print ? head : SketchRevisionRepository.get(rec.ref, rec.rev)?.manifest ?? head;
+    if (m?.kind !== 'egocube') return null;
+    try {
+      const nodes = egocubeNodes(m);
+      return (rec.years !== undefined ? nodes.find((n) => n.years === rec.years) : nodes[0])?.sheet ?? null;
+    } catch { return null; }
+  };
 }
 
 /** A manifest (a versus game, or an arena's versus channel) with its roster's characters measured from the store. */
 export async function withCharacters(holder) {
   if (!isObj(holder) || !Array.isArray(holder.roster) || !holder.roster.some(isCharacterEntry)) return holder;
   const { SketchRepository } = await import('@/lib/db/repositories/sketches');
-  return { ...holder, roster: await resolveCharacters(holder.roster, (ref) => SketchRepository.getByRef(ref)?.manifest ?? null) };
+  return { ...holder, roster: await resolveCharacters(holder.roster, (ref) => SketchRepository.getByRef(ref)?.manifest ?? null, await storeSheets()) };
 }
 
-/** The gate a versus game pays at mint and on every edit, its characters measured first: → { ok, errors, laws }. */
+/**
+ * The gate a versus game pays at mint and on every edit: every fighter a character (measured, its fight read off its
+ * sheet), fought on arenas. → { ok, errors, laws, fighters: [{ id, character, sheet?, reads? }] }.
+ */
 export async function versusGate(manifest) {
   const { readVersusManifest } = await import('./versus-page.js');
+  const errors = [];
+  if (!Array.isArray(manifest?.roster) || !manifest.roster.length) errors.push('roster: a versus game names its fighters, each a character ({ hero: { ref } })');
+  else manifest.roster.forEach((e, i) => { if (!isCharacterEntry(e)) errors.push(`roster[${i}] is not a character: every fighter is one ({ hero: { ref } }, made with create_character)`); });
+  if (!Array.isArray(manifest?.arenas) || !manifest.arenas.length) errors.push('arenas: a versus game is fought on its arenas (stage worlds), at least one');
+  if (errors.length) return { ok: false, errors, laws: [], fighters: [] };
   let measured;
-  try { measured = await withCharacters(manifest); } catch (e) { return { ok: false, errors: [e.message.replace(/^versus: /, '')], laws: [] }; }
-  return readVersusManifest(measured);
+  try { measured = await withCharacters(manifest); } catch (e) { return { ok: false, errors: [e.message.replace(/^versus: /, '')], laws: [], fighters: [] }; }
+  const fighters = measured.roster.map((e) => ({ id: e.id, character: e.character, ...(e.sheet ? { sheet: e.sheet, reads: e.reads } : {}) }));
+  return { ...readVersusManifest(measured), fighters };
 }
 
 /**

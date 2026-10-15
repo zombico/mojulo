@@ -17,6 +17,7 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { createSketchHandler, updateSketchHandler } from './sketches.js';
 import { mintSolidHandler } from './mint-solid.js';
+import { createCharacterHandler } from './create-character.js';
 import { createGameHandler } from './create-game.js';
 import { heroMintArgs, heroRemakeOps } from './hero-mint.js';
 import { HERO_FIELDS } from './layered.js';
@@ -83,6 +84,25 @@ async function realize(step, action) {
     // a stage as a level: create_sketch at mint, its manifest whole in place
     if (action === 'make') await createSketchHandler({ ...order, ref });
     else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
+    return {};
+  }
+  if (/^fighter-.+-sheet$/.test(key)) {
+    // a fighter's sheet (an egocube): rolled where it is written; a changed roll rolls it anew in place
+    if (action === 'make') await createSketchHandler({ ...order, ref });
+    else await updateSketchHandler({ ref, title: order.title, manifest: order.manifest });
+    return {};
+  }
+  if (key.startsWith('fighter-')) {
+    // a fighter: the character its sheet makes (create_character { egocube }). Remade (its sheet rolled anew, the
+    // character not edited by hand since): made beside it from the sheet as it is now and moved into its own row, so
+    // the ref and its history stay
+    if (action === 'make') await createCharacterHandler({ egocube: order.egocube, title: order.title, ref });
+    else {
+      const beside = childRef(ref, 'remake');
+      await createCharacterHandler({ egocube: order.egocube, title: order.title, ref: beside });
+      try { await updateSketchHandler({ ref, title: order.title, manifest: SketchRepository.getByRef(beside).manifest, note: 'design_game: the fighter remade from its sheet' }); }
+      finally { SketchRepository.deleteByRef(beside); }
+    }
     return {};
   }
   if (key === 'game' && order.engine === 'versus') {
@@ -309,9 +329,21 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
     if (!W.made?.hero) throw new Error('design_game: compare after you have made your own world (run it first): a reference read before the design is a template, and this one is not');
     comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
   }
-  const full = readout(ref, W);
+  const full = { ...readout(ref, W), ...(await fightReadout(W)) };
   if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(comparison ? { comparison } : {}) };
   return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(comparison ? { comparison } : {}) };
+}
+
+/** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet
+ * chose for the fight and why, and each fighter's law stamp (advice). */
+async function fightReadout(W) {
+  const game = W.quick?.goal === 'fight' && W.made?.game ? SketchRepository.getByRef(W.made.game.ref)?.manifest : null;
+  if (game?.engine !== 'versus') return {};
+  const { versusGate } = await import('@/lib/graph/versus/versus-character.js');
+  const { ok, errors, laws, fighters } = await versusGate(game);
+  if (!ok) return { fight: { errors } };
+  const stamp = Object.fromEntries(laws.map(({ id, ...l }) => [id, l]));
+  return { fight: { fighters: fighters.map((f) => ({ ...f, laws: stamp[f.id] })) } };
 }
 
 // readout: 'changed': the parts whose stamp moved since the call began, any other section that differs, and the next
@@ -320,7 +352,7 @@ function changedOnly(full, prev) {
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const prevParts = new Map((prev?.parts ?? []).map((p) => [p.id, p]));
   const out = { ref: full.ref, url: full.url, parts: full.parts.filter((p) => !same(p, prevParts.get(p.id))) };
-  for (const k of ['intent', 'advice', 'numbers', 'steps', 'made', 'mode']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
+  for (const k of ['intent', 'advice', 'numbers', 'steps', 'made', 'mode', 'fight']) if (full[k] !== undefined && !same(full[k], prev?.[k])) out[k] = full[k];
   return { ...out, next: full.next };
 }
 

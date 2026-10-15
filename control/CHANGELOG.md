@@ -16,13 +16,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 ### Fighting game: a side-view versus fighter on composable rails
 
 A one-on-one fighter in the Street Fighter line (a 2D fight plane, local two players) as rails a designer composes
-from, in `lib/graph/versus/`. The fight is its own pure simulation, not controllable rules; the stick figures are
-dummies on purpose (the look is other tools' job).
+from, in `lib/graph/versus/`. The fight is its own pure simulation, not controllable rules. Every fighter in a game
+is a character designed by the character loop (an Egocube sheet made into one with `create_character`), fought in
+its own body on an arena; the stick figures are the simulation's own dummies, drawn only where no body is at hand.
 
-- **A quick game that fights** (`design_game({ quick: { goal: 'fight', roster?, stages?, rounds?, timer? } })`):
-  the roster is a list of intents (archetype, cast, signature words), solved where the game plays; the run makes
-  one `kind: 'game'`, `engine: 'versus'` row, played at `/api/sketches/<ref>/game` and exported by `export_game` as
-  one `game.html`. A fight is seen from the side and takes no hero, trail, building or ride.
+- **A quick game that fights** (`design_game({ quick: { goal: 'fight', roster?, arenas?, rounds?, timer?, rules? } })`):
+  the run makes the fighters (below), the arenas and one `kind: 'game'`, `engine: 'versus'` row, played at
+  `/api/sketches/<ref>/game` and exported by `export_game` as one `game.html`. A fight is seen from the side and takes
+  no hero, trail, building or ride.
+- **Fighters designed by the character loop** (`versus-sheet.js`). A roster entry is the sheet that designs a
+  fighter (an archetype word, a brief in words, or `{ brief?, facets?, seed?, archetype?, role?, build?, age?, name?,
+  color? }`, the Egocube's words) or `{ hero: { ref } }`, a character already made; with no roster, four sheets, a
+  frontline, a flanker, a caster and a support of four different archetypes. The run rolls each sheet as an
+  `egocube` row and makes its character from it through `create_character`, so every fighter is revised the way any
+  character is (`update_character`), and a rerun keeps a fighter edited by hand (a changed sheet remakes one that
+  was not, in its own row). The fight is read off the same sheet, with a reason for each choice: the role is the
+  style (the frontline grapples, the flanker rushes down, the ranged and the caster keep the screen, the rest are
+  all-rounders), the archetype gives a signature word and its shadow, as motivation turns it, another (the hero's
+  reversal, the bully's heavy body, the magician's fireball, the tyrant's grab), the build makes it heavy or light
+  over the drive's word, a child is light; the HUD names the archetype, or the shadow it has become. The entry's own
+  fight words (`style`, `signature`, `weapon`, `library`, `normals`, `specials`, `super`, `tune`) lay over the
+  reading. The game stores its characters by ref; the fight is read from the sheet at the revision the character
+  was made from. `design_game` and `update_sketch` answer with each fighter's reading and law stamp. A stick fighter
+  (a fight style where the character belongs) and a game without arenas are refused by name; a sheet whose people
+  is below the hero door (a lineage the creature loop builds) is refused until the creature bodies come.
 - **Scapeshift arenas: the fight in 3D on a stage** (`versus-arena.js`, `versus-arena.client.js`,
   `scene/channels/versus.js`). An arena is a `stage` recipe of a few words: one long, shallow room on a stage kit
   (the plaza, the nave, the crypt, the lab, the catacomb), its camera side left open, the fight plane six metres in,
@@ -37,7 +54,7 @@ dummies on purpose (the look is other tools' job).
   stamped as instanced repeats with a tint (`shade` sets the crowd back behind what plays in front). The figures
   gain two cheering poses. Absent, a stage is as it was.
 - **Arenas as levels.** The quick fight makes its arenas (`arenas: [{ id, name?, kit?, look?, width?, depth?,
-  height?, crowd? }]`, a plaza and a nave if none are named; `arenas: false` for the flat stages) as stage worlds
+  height?, crowd? }]`, a plaza and a nave if none are named; a fight always has them) as stage worlds
   beside the game, and the game's stage select picks among them. The front hosts the chosen arena's World page in a
   frame and speaks the game shell's own level wire to it (ready, init with the picks, outcome back); an arena opened
   on its own fights its first two fighters against the CPU. A tap shorter than a slow frame still counts.
@@ -56,16 +73,14 @@ dummies on purpose (the look is other tools' job).
   super and a throw's `meter` (a command grab gains its own 50, no longer the throw's 80) now do what they say.
   `update_sketch` answers with each fighter's law stamp (`laws`: held, of, broken), advice that refuses nothing,
   and the replay fingerprint covers the whole state.
-- **A character as a fighter** (`versus-character.js`): a roster entry may name a character made with
-  `create_character` (`{ id, hero: { ref }, archetype?, signature?, … }`) in place of a cast. The moveset is still
-  the archetype's and the designer's words; the body is the character's, measured off its own skeleton into the
+- **A character's body as a fighter's** (`versus-character.js`): a game names its fighters as characters (`{ id,
+  hero: { ref }, style?, signature?, … }`). The body is the character's, measured off its own skeleton into the
   fight's body dials (height, arm, leg, torso, girth), calibrated so the default male hero is the fight's canonical
   body, so a long-armed character reaches further and its boxes and law stamp follow. Its top's colour is its colour
   unless the entry names one. The game stores the ref, never the measure: the fighter follows the character's
   edits, measured again where the game is served (the play route, `export_game`, an arena's World page, the
   `update_sketch` gate and `design_game`'s mint), and a ref the store does not hold as a character is refused by
-  name. A roster without a character is unchanged to the byte. On the flat page the stick figure draws it in its
-  proportions and colour.
+  name. Where no body is at hand (the flat page) the stick figure draws it in its proportions and colour.
 - **A character in its own body on an arena** (`versus-skin.js`, `versus-arena.client.js`). An arena whose roster
   has a character carries that character's rig once (its layered rig's bones and rigid parts, without the clips),
   and the fight draws it in place of the stick figure: every fight pose is a turn in the plane, so each bone takes

@@ -44,15 +44,15 @@
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
- *     roster?: [<intent>, …],               // fight: the fighters (versus/versus-solver.js: { id, name?, archetype, cast?,
- *                                           // signature?, color?, weapon?, library?, normals?, specials?, super?, tune? }),
- *                                           // solved into movesets; the default four if absent. `hero: { ref }` in place
- *                                           // of a cast: a character made with create_character, its body measured where
- *                                           // the game is served (versus/versus-character.js)
- *     arenas?: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] | false,
+ *     roster?: [<fighter>, …],              // fight: the fighters, each a CHARACTER (versus/versus-sheet.js): an Egocube
+ *                                           // sheet (an archetype word, a brief, { brief?, facets?, seed?, archetype?,
+ *                                           // role?, build?, age?, name?, color? }) made into one by the run, or { hero:
+ *                                           // { ref } } (one made with create_character); the fight read off the sheet,
+ *                                           // the entry's style?, signature?, weapon?, library?, normals?, specials?,
+ *                                           // super?, tune? over it; four sheets (one per style) if absent
+ *     arenas?: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }],
  *                                           // fight: scapeshift arenas (versus/versus-arena.js), each a stage world the
- *                                           // fight runs on in 3D (a plaza and a nave if absent); false: flat stages
- *     stages?: [{ id, name, sky, floor, crowd }], // fight, arenas false: the flat backdrops (versus-roster.js)
+ *                                           // fight runs on in 3D (a plaza and a nave if absent)
  *     rounds?: n, timer?: n,                // fight: rounds to win (1 to 3, 2) and seconds a round (30 to 99, 99)
  *     rules?: { systems?, … },              // fight: the full rules block (versus/versus-core.js readRules): systems (parry,
  *                                           // burst, guard) and the sim's dials; rounds and timer win over it
@@ -90,7 +90,7 @@ import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { solveFighter } from '../versus/versus-solver.js';
 import { compileFighter } from '../versus/versus-compile.js';
 import { readRules } from '../versus/versus-core.js';
-import { isCharacterEntry, readCharacterEntry } from '../versus/versus-character.js';
+import { fighterSpec, defaultFighters } from '../versus/versus-sheet.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -107,7 +107,7 @@ export const QUICK_GOALS = Object.freeze({
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
-  fight: 'a 1v1 fighter from the side: roster, arenas, rounds, timer, rules',
+  fight: 'a 1v1 fighter from the side, every fighter a character the character loop designs: roster, arenas, rounds, timer, rules',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
@@ -271,35 +271,27 @@ export function readQuick(Q) {
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'theme', 'camera'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'rounds', 'timer', 'rules', 'theme', 'camera'];
 function readFight(Q) {
-  for (const k of Object.keys(Q)) if (!FIGHT_KEYS.includes(k)) throw fail(`.${k}: a fight takes ${FIGHT_KEYS.join(', ')} (its fighters are its roster)`);
+  for (const k of Object.keys(Q)) {
+    if (k === 'stages') throw fail('.stages: a fight is fought on its arenas (name them as arenas)');
+    if (!FIGHT_KEYS.includes(k)) throw fail(`.${k}: a fight takes ${FIGHT_KEYS.join(', ')} (its fighters are its roster)`);
+  }
   if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
   if (Q.roster !== undefined) {
-    if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each an intent { id, name?, archetype, cast? | hero: { ref }, signature?, color? }');
+    if (!Array.isArray(Q.roster) || Q.roster.length < 1 || Q.roster.length > 12) throw fail('.roster is 1 to 12 fighters, each a character: an archetype word, a brief in words, { brief?, facets?, seed?, archetype?, role?, build?, age?, … }, or { hero: { ref } }');
     const ids = new Set();
     Q.roster.forEach((r, i) => {
-      if (!isObj(r) || typeof r.id !== 'string' || !/^[a-z0-9-]{1,32}$/.test(r.id)) throw fail(`.roster[${i}] needs an id (a short lower-case name)`);
-      if (ids.has(r.id)) throw fail(`.roster[${i}].id '${r.id}' is taken`);
-      ids.add(r.id);
-      const { color, ...intent } = r;
-      if (color !== undefined && !/^#[0-9a-f]{6}$/i.test(color)) throw fail(`.roster[${i}].color is a #rrggbb colour`);
-      // a character (hero: { ref }) is measured from the store where the game is served; here its words compile
-      if (isCharacterEntry(intent)) { try { readCharacterEntry(intent, `roster[${i}]`); } catch (e) { throw fail(e.message.replace(/^versus: /, '.')); } }
-      const { hero: _h, ...words } = intent;
-      try { compileFighter(solveFighter(words).recipe); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      let spec;
+      try { spec = fighterSpec(r, i); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      if (ids.has(spec.id)) throw fail(`.roster[${i}].id '${spec.id}' is taken`);
+      ids.add(spec.id);
+      // the fight's own words over the sheet compile as they would on any fighter
+      const { style, ...over } = spec.over;
+      try { compileFighter(solveFighter({ id: spec.id, archetype: style, ...over }).recipe); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
     });
   }
-  if (Q.arenas !== false && Q.stages !== undefined) throw fail('.stages are the flat backdrops of a fight without arenas (arenas: false)');
-  if (Q.stages !== undefined) {
-    if (!Array.isArray(Q.stages) || Q.stages.length < 1) throw fail('.stages is a list of arenas { id, name, sky: [top, bottom], floor, crowd }');
-    Q.stages.forEach((st, i) => {
-      const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v);
-      if (!isObj(st) || typeof st.id !== 'string' || typeof st.name !== 'string' || !Array.isArray(st.sky) || st.sky.length !== 2 || !st.sky.every(hex) || !hex(st.floor) || !hex(st.crowd)) {
-        throw fail(`.stages[${i}] is { id, name, sky: ['#top', '#bottom'], floor: '#…', crowd: '#…' }`);
-      }
-    });
-  }
+  if (Q.arenas === false) throw fail('.arenas: a fight is fought on its arenas (name them, or leave them out for a plaza and a nave)');
   if (Q.arenas !== undefined && Q.arenas !== false) {
     if (!Array.isArray(Q.arenas) || Q.arenas.length < 1 || Q.arenas.length > 8) throw fail('.arenas is 1 to 8 arenas { id, name?, kit?, look?, width?, depth?, height?, crowd? }, or false for flat stages');
     const ids = new Set();
@@ -322,24 +314,27 @@ function readFight(Q) {
 export const FIGHT_ARENAS = Object.freeze([{ id: 'plaza', name: 'Plaza', kit: 'island-plaza' }, { id: 'nave', name: 'Nave', kit: 'gothic-nave' }]);
 
 /** A fight's arenas as stage recipes (each a level the fight runs on): → [{ id, name, manifest }]; none with arenas: false. */
-export function fightArenas(Q, { title } = {}) {
-  if (Q.arenas === false) return [];
+export function fightArenas(Q, { title, roster } = {}) {
   const rules = fightRules(Q);
   return (Q.arenas ?? FIGHT_ARENAS).map(({ id, name, ...words }) => ({
     id, name: name ?? id,
-    manifest: arenaManifest({ ...words, title: `${title ?? 'versus'} · ${name ?? id}`, ...(Q.roster ? { roster: Q.roster } : {}), ...(rules ? { rules } : {}) }),
+    manifest: arenaManifest({ ...words, title: `${title ?? 'versus'} · ${name ?? id}`, ...(roster ? { roster } : {}), ...(rules ? { rules } : {}) }),
   }));
 }
+
+/** A fight's fighters (versus-sheet.js fighterSpec): each a sheet to make into a character, or a character already
+ * made; the default four sheets when the roster names none. */
+export const fightFighters = (Q, seed = 1) => (Q.roster ?? defaultFighters(seed)).map((e, k) => fighterSpec(e, k, seed));
 // the fight's rules: the full block (versus-core readRules: systems and the sim's dials), rounds and timer over it
 const fightRules = (Q) => (Q.rounds || Q.timer || Q.rules ? { ...(Q.rules ?? {}), ...(Q.rounds ? { rounds: Q.rounds } : {}), ...(Q.timer ? { timer: Q.timer } : {}) } : null);
 
-/** A fight's game: the versus manifest the play route serves (versus/versus-page.js); `arenas` its levels' refs. */
-export function quickVersus(Q, { title, theme, arenas } = {}) {
+/** A fight's game: the versus manifest the play route serves (versus/versus-page.js); `roster` its characters, `arenas`
+ * its levels' refs. */
+export function quickVersus(Q, { title, theme, arenas, roster } = {}) {
   return {
     kind: 'game', engine: 'versus', title,
-    ...(Q.roster ? { roster: Q.roster } : {}),
+    ...(roster ? { roster } : {}),
     ...(arenas && arenas.length ? { arenas } : {}),
-    ...(Q.stages ? { stages: Q.stages } : {}),
     ...(fightRules(Q) ? { rules: fightRules(Q) } : {}),
     ...(theme ? { theme } : {}),
   };

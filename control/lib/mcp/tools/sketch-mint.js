@@ -974,6 +974,7 @@ export async function updateSketchHandler(input) {
   let nextManifest;
   let gameNote;
   let versusLaws = null;
+  let versusFighters = null;
   let workbenchStats = null;
   let layeredStats = null;
   let prevWorkbenchStats = null;
@@ -981,13 +982,16 @@ export async function updateSketchHandler(input) {
   let prevScadStats = null;
   if (manifest !== undefined && manifest?.kind === 'game' && manifest.engine === 'versus') {
     // A versus game (a fighter, lib/graph/versus) is its own simulation: no store, no levels to resolve. Its gate is
-    // that every fighter compiles (weapon, tunes, own specials; a character measured from the store) and every rule reads.
+    // that every fighter is a character from the store (measured, its fight read off its sheet) and compiles (weapon,
+    // tunes, own specials), the game names its arenas, and every rule reads.
     const { versusGate } = await import('../../graph/versus/versus-character.js');
-    const { ok, errors, laws } = await versusGate(manifest);
+    const { ok, errors, laws, fighters } = await versusGate(manifest);
     if (!ok) throw new Error(`Invalid versus game: ${errors.join('; ')}`);
     nextManifest = manifest;
     // each fighter's laws (versus-laws.js): the machine gate's stamp, advice only
     if (laws.length) versusLaws = laws;
+    // each fighter's character, and what its sheet chose for the fight and why
+    if (fighters?.length) versusFighters = fighters;
   } else if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
@@ -1119,6 +1123,7 @@ export async function updateSketchHandler(input) {
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),
     ...(versusLaws ? { laws: versusLaws } : {}),
+    ...(versusFighters ? { fighters: versusFighters } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),
     ...(layeredStats ? { stats: { ...layeredStats, ...(revision ? { archived_rev: revision.archived_rev } : {}) } } : {}),
