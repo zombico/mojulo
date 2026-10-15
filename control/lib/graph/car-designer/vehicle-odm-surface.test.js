@@ -98,20 +98,30 @@ describe('supercar visual geometry regressions',()=>{
       }
     }
   });
-  it('joins wing supports to the deck and the wing, and omits the wing for clean designs',()=>{
+  it('gives raised wings solid mounts and omits them for clean designs',()=>{
     const c=compileSupercarSurface({seed:1014,aero:'track'});
-    const wing=c.faces.detail.find(f=>f.part==='aero.wing');
+    const wing=c.faces.detail.filter(f=>f.part==='aero.wing').flatMap(f=>f.corners);
     const supports=c.faces.detail.filter(f=>f.part==='aero.support');
-    expect(supports).toHaveLength(2);
-    for(const f of supports) {
-      const [base,other,top]=f.corners;
-      expect(base[2]).toBeLessThan(top[2]);
-      expect(other[2]).toBeLessThan(top[2]);
-      expect(top[1]).toBe(wing.corners[2][1]);
-      expect(top[2]).toBe(wing.corners[2][2]);
-      expect(Math.abs(top[0])).toBeLessThan(Math.abs(wing.corners[0][0]));
+    expect(wing.length).toBeGreaterThan(4);
+    const deckTriangles=c.faces.body.filter(f=>f.part.startsWith('body.deck')).flatMap(triangulate);
+    const wingTriangles=c.faces.detail.filter(f=>f.part==='aero.wing').flatMap(triangulate);
+    const assemblies=new Set(supports.map(f=>f.assembly));
+    expect(assemblies.size).toBe(2);
+    for(const assembly of assemblies) {
+      const points=supports.filter(f=>f.assembly===assembly).flatMap(f=>f.corners);
+      expect(Math.min(...points.map(p=>p[2]))).toBeLessThan(Math.min(...wing.map(p=>p[2])));
+      expect(Math.max(...points.map(p=>p[2]))).toBeGreaterThan(Math.min(...wing.map(p=>p[2])));
+      for(const p of points)expect(Math.abs(p[0])).toBeLessThan(Math.max(...wing.map(p=>Math.abs(p[0]))));
+      const unique=[...new Map(points.map(p=>[JSON.stringify(p),p])).values()];
+      const gaps=unique.flatMap(p=>heightsAt(deckTriangles,p).map(z=>p[2]-z));
+      expect(Math.min(...gaps)).toBeLessThan(.002);
+      expect(Math.min(...gaps)).toBeGreaterThan(-.03);
+      expect(unique.some(p=>{
+        const heights=heightsAt(wingTriangles,p);
+        return heights.length>=2&&p[2]>=Math.min(...heights)-.001&&p[2]<=Math.max(...heights)+.001;
+      })).toBe(true);
     }
-    expect(compileSupercarSurface({aero:'clean'}).faces.detail.some(f=>['aero.wing','aero.support'].includes(f.part))).toBe(false);
+    expect(compileSupercarSurface({aero:'clean'}).faces.detail.some(f=>f.part.startsWith('aero.wing')||f.part==='aero.support')).toBe(false);
   });
   it('bakes multiple paint values and produces nondegenerate quads within the physical envelope',()=>{
     for(const language of ['aeroWedge','grandTourer','trackSpecial']) {
@@ -180,3 +190,18 @@ describe('fitted hood, doors and cabin',()=>{
     }
   });
 });
+
+function triangulate(f) {
+  return [[f.corners[0],f.corners[1],f.corners[2]],[f.corners[0],f.corners[2],f.corners[3]]];
+}
+function heightsAt(triangles,p) {
+  const heights=[];
+  for(const [a,b,c] of triangles) {
+    const den=(b[1]-c[1])*(a[0]-c[0])+(c[0]-b[0])*(a[1]-c[1]);
+    if(Math.abs(den)<1e-10)continue;
+    const u=((b[1]-c[1])*(p[0]-c[0])+(c[0]-b[0])*(p[1]-c[1]))/den;
+    const v=((c[1]-a[1])*(p[0]-c[0])+(a[0]-c[0])*(p[1]-c[1]))/den;
+    if(u>=-1e-5&&v>=-1e-5&&u+v<=1.00001)heights.push(u*a[2]+v*b[2]+(1-u-v)*c[2]);
+  }
+  return heights;
+}

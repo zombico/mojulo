@@ -8,6 +8,9 @@ import { solveSupercarDesign } from './vehicle-odm.js';
 import { finishVehicleFaces, VEHICLE_MATERIALS } from './vehicle-surface-finish.js';
 import { lampAssembly, mirrorAssembly, resolveHeadlightStyle, frontIntake } from './vehicle-details.js';
 import { frontEnvelope } from './vehicle-front.js';
+import { createCabinProfile } from './vehicle-cabin.js';
+import { spoilerAssembly, resolveSpoilerStyle } from './vehicle-aero.js';
+import { createCoolingLayout } from './vehicle-vents.js';
 
 // Game samples spend more of the cross-body budget on the outer fender roll.
 export const SUPERCAR_LODS = Object.freeze({
@@ -82,7 +85,7 @@ function wheel(cx,cy,cz,r,side,quality) {
 }
 
 /** Compile design or brief to viewable studio faces. */
-export function compileSupercarSurface(brief={}, {quality='studio', paint='scarlet', headlightStyle='auto'}={}) {
+export function compileSupercarSurface(brief={}, {quality='studio', paint='scarlet', headlightStyle='auto', cabinStyle='auto', ventStyle='auto', spoilerStyle='auto'}={}) {
   if (!['game','studio','hero'].includes(quality)) throw new Error('vehicle-odm: unknown surface quality');
   if (!(paint in PAINTS)) throw new Error('vehicle-odm: unknown paint');
   const design=brief?.frame && brief?.topology ? brief : solveSupercarDesign(brief);
@@ -97,16 +100,20 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
   const wheelYs=[design.topology.anchors.wheelFL[1],design.topology.anchors.wheelRL[1]];
   const archR=r+0.07;
   const front=frontEnvelope({frame:design.frame,language:design.language,frontWheelY:wheelYs[0],archRadius:archR});
-  const start=sts[2].t,end=sts[4].t,peak=sts[3].t;
+  const cabinProfile=createCabinProfile(design,cabinStyle);
+  cabinStyle=cabinProfile.style;
+  const {start,end,peak,roofStart,roofEnd}=cabinProfile;
   const hoodStart=0.065,hoodEnd=start-0.018;
   const seam=0.007, seamT=seam/L;
   const doorStart=Math.max(start+0.008,(L/2-wheelYs[0]+archR*1.06)/L);
   const doorEnd=Math.min(end-0.012,(L/2-wheelYs[1]-archR*1.06)/L);
   const doorLow=0.16,doorHigh=0.94,seamH=0.014;
+  const cooling=createCoolingLayout({style:ventStyle,design,doorEnd,hoodStart,hoodEnd,wheelYs,archRadius:archR});
+  ventStyle=cooling.style;
   // The elliptical opening envelopes the round tyre down to the sill,
   // rather than deleting rectangular strips of the shoulder. Shared samples keep the arch and body connected.
   const archAngle=Math.PI/2;
-  const panelCuts=[0,1,...front.samples,...sts.map(s=>s.t),hoodStart,hoodStart+seamT,
+  const panelCuts=[0,1,...front.samples,...cooling.cuts,...sts.map(s=>s.t),hoodStart,hoodStart+seamT,
     hoodEnd-seamT,hoodEnd,doorStart,doorStart+seamT,doorEnd-seamT,doorEnd];
   const samples=new Set(panelCuts);
   // Keep semantic boundaries exact when an LOD or arch sample falls nearby.
@@ -157,6 +164,10 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     return point(side*(s.width*(h<0.55?mix(0.98,1,h/0.55):1)+W*0.006*Math.sin(Math.PI*h)-inset+offset),
       y(t),mix(archBottom(t),s.z,h));
   };
+  const hoodVentPoint=(t,q,j,offset=0)=>{
+    const lanes=deckLanes(t),u=mix(lanes[j],lanes[j+1],q),p=hoodPoint(t,u);
+    p[2]+=offset;return p;
+  };
   const doorCuts=[0,doorLow,doorLow+seamH,0.55,doorHigh-seamH,doorHigh,1];
   const doorBands=[...doorCuts,...Array.from({length:lod.side-1},(_,i)=>(i+1)/lod.side)
     .filter(h=>doorCuts.every(c=>Math.abs(c-h)>0.001))].sort((a,b)=>a-b);
@@ -171,6 +182,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
       const hoodLane=j>=2&&j<=lanesA.length-4;
       const gap=inHood&&hoodLane&&(lateralSeam||endSeam);
       const hood=inHood&&!gap&&Math.abs(u)<hoodWidth(middle);
+      const vent=(j===0||j===lanesA.length-2)?cooling.hoodCell({t0:a,t1:b,point:(t,q,offset)=>hoodVentPoint(t,q,j,offset)}):null;
+      if(vent){body.push(...vent);continue;}
       body.push(quad(hoodPoint(a,lanesA[j]),hoodPoint(b,lanesB[j]),
         hoodPoint(b,lanesB[j+1]),hoodPoint(a,lanesA[j+1]),gap?HEX.seal:paintColor,
         gap?'body.deck.hood-seam':hood?'body.deck.hood':'body.deck'));
@@ -182,6 +195,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
         const inDoor=middle>doorStart&&middle<doorEnd&&h>doorLow&&h<doorHigh;
         const gap=inDoor&&(middle<doorStart+seamT||middle>doorEnd-seamT||h<doorLow+seamH||h>doorHigh-seamH);
         const part=gap?`door.${name}.seam`:inDoor?`door.${name}.skin`:hi<=0.55?'body.sill':'body.shoulder';
+        const vent=cooling.sideCell({t0:a,t1:b,h0:lo,h1:hi,point:(t,h,offset)=>sidePoint(t,h,side,offset)});
+        if(vent){body.push(...vent);continue;}
         body.push(quad(sidePoint(a,lo,side),sidePoint(b,lo,side),sidePoint(b,hi,side),sidePoint(a,hi,side),gap?HEX.seal:paintColor,part));
       }
       const bottom=t=>sidePoint(t,0,side);
@@ -196,6 +211,8 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
       }
     }
   }
+  for(const side of [-1,1])detail.push(...cooling.sideBlades((t,h,offset)=>sidePoint(t,h,side,offset)));
+  for(const j of [0,deckLanes(0).length-2])detail.push(...cooling.hoodBlades((t,q,offset)=>hoodVentPoint(t,q,j,offset)));
   // End panels share the deck boundary; lamps sit on these panels, not on
   // guessed interior longitudinal stations that could leave them floating.
   for(const t of [0,1]) {
@@ -225,29 +242,17 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
   // The cabin is an assembly: painted pillars, rubber seals, door glass,
   // rear quarter panes and separate front/rear screens. Its bottom follows
   // the actual crowned deck across the full width, with no floating edge.
-  const roofStart=mix(start,peak,0.72),roofEnd=mix(peak,end,0.38);
+
   const pillarHalf=0.035/L,screenSeal=0.012/L;
   const cabinTs=[...new Set([start,start+screenSeal,roofStart-screenSeal,roofStart,
     peak,roofEnd,roofEnd+screenSeal,end-screenSeal,end,
     roofEnd-pillarHalf,roofEnd+pillarHalf,
     ...Array.from({length:bands+1},(_,i)=>mix(start,end,i/bands))])].sort((a,b)=>a-b)
     .filter((t,i,a)=>!i||t-a[i-1]>0.0001);
-  const cabin=t=>{
-    const q=Math.max(0,Math.min(1,t<roofStart?(t-start)/(roofStart-start):t>roofEnd?(end-t)/(end-roofEnd):1));
-    const curve=q+0.10*q*(1-q);
-    return {q:curve,w:W*mix(0.32,0.255,curve)};
-  };
-  const roofPoint=(t,u)=>{
-    const c=cabin(t),x=c.w*u;
-    return point(x,y(t),mix(deck(t,x)[2],H-0.025*u*u,c.q)+0.003);
-  };
-  const windowPoint=(t,h,side)=>{
-    const bottom=deck(t,side*W*0.32),top=roofPoint(t,side);
-    bottom[2]+=0.003;
-    return bottom.map((v,i)=>mix(v,top[i],h));
-  };
+  const roofPoint=(t,u)=>cabinProfile.roofPoint(deck,t,u);
+  const windowPoint=(t,h,side)=>cabinProfile.windowPoint(deck,t,h,side);
   const glazingLanes=[-1,-0.92,...Array.from({length:bands+1},(_,i)=>mix(-0.88,0.88,i/bands)),0.92,1];
-  const windowBands=[0,0.045,0.09,0.65,0.88,0.94,1];
+  const windowBands=[0,0.045,0.09,0.88,0.94,1];
   for(let i=0;i<cabinTs.length-1;i++) {
     const a=cabinTs[i],b=cabinTs[i+1],t=(a+b)/2;
     const onRoof=t>=roofStart&&t<=roofEnd;
@@ -265,7 +270,7 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
       const lo=windowBands[j],hi=windowBands[j+1],h=(lo+hi)/2;
       const pillar=Math.abs(t-roofEnd)<pillarHalf||t<start+screenSeal||t>end-screenSeal||h<0.045||h>0.94;
       const seal=!pillar&&(h<0.09||h>0.88);
-      const color=pillar?paintColor:seal?HEX.seal:h>0.65?HEX.reflection:HEX.glass;
+      const color=pillar?paintColor:seal?HEX.seal:HEX.glass;
       const part=pillar?'cabin.pillar':seal?'cabin.window-seal':t>roofEnd?'glass.quarter':'glass.side';
       detail.push(...windowPatch([windowPoint(a,lo,side),windowPoint(b,lo,side),windowPoint(b,hi,side),windowPoint(a,hi,side)],color,part));
     }
@@ -278,7 +283,7 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     detail.push(quad(handle(-0.013,0.745,0.008),handle(0.013,0.745,0.008),handle(0.013,0.775,0.008),handle(-0.013,0.775,0.008),design.language==='grandTourer'?HEX.rim:HEX.carbon,'door.handle'));
     // A short stalk mounts the mirror at the base of the A pillar. Overall
     // width includes the housings, so mirrors stay inside the design envelope.
-    const mt=roofStart-0.018,yy=y(mt),mount=windowPoint(mt,0.18,side);
+    const mt=mix(start,roofStart,0.40),yy=y(mt),mount=windowPoint(mt,0.18,side);
     const z=Math.max(mount[2]+0.02,shoulder(mt).z+0.045);
     const inner=side*W*0.400,outer=side*W*0.495;
     detail.push(...mirrorAssembly({side,inner,outer,y:yy,z,mount,paint:paintColor}));
@@ -288,20 +293,12 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     // The dark sill insert is fitted onto the body between the wheel wells.
     const a=(L/2-wheelYs[0]+archR*1.1)/L,b=(L/2-wheelYs[1]-archR*1.1)/L;
     if(a<b) {
-      const p=(t,h)=>point(side*(shoulder(t).width+0.003),y(t),mix(clearance,shoulder(t).z,h));
+      const p=(t,h)=>sidePoint(t,h,side,0.003);
       detail.push(quad(p(a,0.12),p(b,0.12),p(b,0.38),p(a,0.31),HEX.carbon,'intake.side'));
     }
   }
-  if(design.topology.aero.wing!=='none') {
-    const t=0.94,yy=y(t);
-    const z=design.topology.aero.wing==='fixed' ? Math.max(H*0.91,shoulder(t).z+0.15) : shoulder(t).z+0.06;
-    const span=W*(design.topology.aero.wing==='fixed'?0.47:0.39);
-    detail.push(quad(point(-span,yy-0.10,z),point(span,yy-0.10,z),point(span,yy+0.13,z+0.02),point(-span,yy+0.13,z+0.02),HEX.carbon,'aero.wing'));
-    for(const side of [-1,1]) {
-      const x=side*W*0.24;
-      detail.push(quad(deck(t,x),deck(t-0.035,x),point(x,yy+0.13,z+0.02),point(x,yy-0.01,z+0.008),HEX.carbon,'aero.support'));
-    }
-  }
+  spoilerStyle=resolveSpoilerStyle(spoilerStyle,design);
+  detail.push(...spoilerAssembly({design,style:spoilerStyle,quality,deck,paint:paintColor}));
   // Round fascia corners and bevel their top/bottom edges. Apply the same
   // deformation to lamps, seams and deck vertices so attachments stay fitted.
   // Tyres keep their exact circular profile and axle positions.
@@ -368,5 +365,5 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     trianglesByPart:finished.reduce((counts,f)=>{counts[f.part]=(counts[f.part]||0)+f.corners.length-2;return counts;},{}),
     materialGroups:new Set(finished.map(f=>f.material)).size,
     uniquePositions:new Set(finished.flatMap(f=>f.corners.map(p=>p.join(',')))).size};
-  return {design,quality,headlightStyle,faces,materials:VEHICLE_MATERIALS,census};
+  return {design,quality,headlightStyle,cabinStyle,ventStyle,spoilerStyle,faces,materials:VEHICLE_MATERIALS,census};
 }

@@ -211,6 +211,11 @@ genre on the quick path.
 - Mount lamps on the end panels and support the rear wing from the deck. Bake directional face shading so the mesh reads in the unlit world renderer; preserve the existing racer and realistic compilers.
 - `node scripts/render-supercars.mjs <output-directory> [game|studio|hero]` renders front, side and rear views, orbitable HTML models and a review sheet without writing to the database.
 
+### Cabin, cooling and expressive aero library
+
+- Add raked, curved and tapered cabin profiles, fitted recessed cooling vents, and shaped spoiler assemblies with distinct mounts and endplates.
+- Provide reusable exotic-car composition cards with independent cabin, lighting, cooling and spoiler choices for visual exploration. Preserve exterior mesh budgets and existing material slots.
+
 ### Historic recipes: other eras by the same principles
 
 The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that

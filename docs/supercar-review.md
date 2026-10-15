@@ -9,9 +9,37 @@ node scripts/render-supercars.mjs /workspace/supercar-game game pbr
 node scripts/render-supercars.mjs /workspace/supercar-close studio pbr
 node scripts/render-supercars.mjs /workspace/supercar-baked game baked
 node scripts/render-supercars.mjs /workspace/supercar-front game pbr front,side,lights
+node scripts/render-supercars.mjs /workspace/supercar-cabin game pbr cabin,spoiler,vents razor,endurance
 ```
 
-Each run produces front, flank, rear, close chase, headlamp and mirror detail views for the representative architectures, plus `index.html` and `report.json`. The lit pages include a Wireframe button. No database writes or external textures are required; Chromium must already be installed. The baked mode uses the existing world renderer for comparison.
+Each run produces front, flank, rear, close chase, headlamp, mirror, cabin, spoiler and vent detail views for the composition cards in `SUPERCAR_LIBRARY`, plus `index.html` and `report.json`. The lit pages include a Wireframe button. No database writes or external textures are required; Chromium must already be installed. The baked mode uses the existing world renderer for comparison.
+
+## Composing the vehicle library
+
+`control/lib/graph/car-designer/vehicle-library.js` defines replayable cards for an Italian-style wedge, a rounded road coupe, a track special and a front-engine fastback. Each combines the existing architectural brief with independent exterior choices:
+
+| Card | Cabin | Cooling | Spoiler |
+| --- | --- | --- | --- |
+| `razor` | Low wedge with a raked windscreen | Recessed quarter-panel intakes | Swept pedestal wing |
+| `strada` | Tapered teardrop coupe | Recessed quarter-panel intakes | Integrated ducktail |
+| `endurance` | Tapered teardrop coupe | Recessed quarter-panel intakes | Swan-neck wing and endplates |
+| `touring` | Long fastback | Hood extractors | Integrated ducktail |
+
+```js
+import {composeSupercar} from './vehicle-library.js';
+
+const car = composeSupercar({
+  preset: 'razor', seed: 1014,
+  brief: {finish: 'twoTone'},
+  surface: {quality: 'studio', paint: 'amber', spoilerStyle: 'swanNeck'},
+});
+// Store this small recipe and regenerate the same mesh later.
+const replay = composeSupercar(JSON.parse(JSON.stringify(car.composition)));
+```
+
+`brief` overrides architectural inputs; `surface` overrides the card's exterior choices. Surface options include `cabinStyle` (`wedge`, `teardrop`, `fastback`), `ventStyle` (`none`, `sideBlades`, `hoodLouvers`), `spoilerStyle` (`none`, `ducktail`, `pedestal`, `swanNeck`) and `headlightStyle` as described below. `auto` uses architectural or styling defaults. Resolved choices are exposed on the compiled result. A long cabin without room for a side duct uses hood extractors instead; the resolved `ventStyle` records that fit decision. The cards do not add database rows or change the solved physical frame.
+
+Cabin surfaces use a continuous roof-height curve, a longer raked windscreen, transverse crown, tapered upper glazing and fitted pillars/seals. Vent recesses replace actual body cells and close the hole with perimeter walls and an inset throat; louvres are solid blades. Wings have closed cambered profiles, swept/tapered tips, shaped endplates and solid mounts. The ducktail follows the deck. These are exterior form and readability features; airflow, drag, downforce, cooling and driver accommodation have not been simulated.
 
 ## Geometry budgets
 

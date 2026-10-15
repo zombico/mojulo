@@ -27,6 +27,7 @@ function normal(f) {
   return unit(outward<0?n.map(v=>-v):n);
 }
 function material(f) {
+  if(f.part==='aero.ducktail'||f.part==='aero.endplate.accent')return 'paint';
   if(f.part==='headlamp'||f.part==='lamp.reverse') return 'lamp';
   if(f.part==='lamp.reflector'||f.part==='mirror.glass')return 'alloy';
   if(/^(lamp\.(front|rear)\.lens|lamp.indicator|mirror.indicator)$/.test(f.part))return 'glass';
@@ -37,7 +38,7 @@ function material(f) {
   if(/^(rim|wheel.spoke|wheel.hub)/.test(f.part)) return 'alloy';
   if(f.part==='wheel.brake') return 'brake';
   if(/seam|seal|handle-pocket/.test(f.part)) return 'seal';
-  if(/^(intake|aero|wheel.well|mirror.stalk)/.test(f.part)) return 'carbon';
+  if(/^(intake|vent|aero|wheel.well|mirror.stalk)/.test(f.part)) return 'carbon';
   return 'paint';
 }
 function shade(hex,n) {
