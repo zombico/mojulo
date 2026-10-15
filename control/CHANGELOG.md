@@ -255,6 +255,14 @@ genre on the quick path.
   road, lays a reflective film over it that throws the lamps back, and brings the rain. A roadway level takes `mood`
   too. Absent, every race is byte-identical.
 
+### Night drive: a lighter field, headlight beams, light trails, rain spray
+
+- A supercar on the grid packs its mesh indexed and quantized, as unit rigs do, so a field weighs a fraction of what
+  it did. Every other vehicle rig is unchanged.
+- In a dark mood the cars' headlamps throw a pool of light on the road ahead, and after dark each tail lamp leaves a
+  red ribbon behind the car, brighter on the brake. In the wet the rear tyres throw a mist the colour of the sky.
+  A page without them is byte-identical.
+
 ### Historic recipes: other eras by the same principles
 
 The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that

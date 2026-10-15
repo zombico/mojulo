@@ -267,7 +267,9 @@ describe('design_game quick', () => {
     // the page resolves each recipe to its machine: a live vehicle rig with its juice
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('cr-level-run-0'));
     for (const k of ['ride', 'rival-1', 'rival-2']) expect(payload.figures[k]).toMatchObject({ rig: true, live: expect.any(Object), juice: expect.any(Object) });
-    expect(emitThreeWorld({ ...payload })).toMatch(/__updateRacerJuice/);
+    const page = emitThreeWorld({ ...payload });
+    expect(page).toMatch(/__updateRacerJuice/);
+    expect(page).not.toMatch(/__rjLightsTick/);   // (a kart throws no light of its own)
   }, 240_000);
   it('a field of supercars at night in the rain: liveried, each on its own frame, the track lit by its lamps and wet', async () => {
     const out = await designGameHandler({ quick: { goal: 'race', supercars: 2, laps: 1, roadway: 'kart-oval', mood: 'night-rain', world: { id: 'gt', style: { kit: 'trail-valley' } } }, ref: 'sc' });
@@ -282,7 +284,11 @@ describe('design_game quick', () => {
     expect(payload.sky.day).toBe(0);
     expect(payload.faces.some((f) => f.glow)).toBe(true);
     expect(payload.weather).toBeTruthy();
-    expect(emitThreeWorld({ ...payload })).toMatch(/wet road: the sky and the lamps/);
+    const page = emitThreeWorld({ ...payload });
+    expect(page).toMatch(/wet road: the sky and the lamps/);
+    // the cars' own light: the headlamps' pool, the tail lamps' ribbons
+    expect(payload.figures.ride.juice).toMatchObject({ beams: expect.any(Object), trails: expect.any(Object) });
+    expect(page).toMatch(/__rjLightsTick/);
   }, 240_000);
   it('defend:foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
     const out = await designGameHandler({ quick: { goal: 'defend', waves: 1, pads: 2, world: { id: 'hold', style: { kit: 'trail-valley' } } }, ref: 'd' });

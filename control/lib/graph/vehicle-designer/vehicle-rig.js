@@ -24,7 +24,7 @@
  */
 
 import { faceListToMesh } from '../figures/face-mesh.js';
-import { b64f32, b64u8 } from '../figures/rig-bake.js';
+import { b64f32, b64u8, packRigMesh } from '../figures/rig-bake.js';
 import { lowerAssemblerBuild } from '../worlds/workbench-assembler.js';
 import { deriveAxleSockets } from './veh-garage.js';
 
@@ -147,15 +147,17 @@ export function bakeVehicleRig(manifest = {}, { keys = 12, targetH = null } = {}
  * packVehicleFigure(bones, buckets, { keys }) — the browser's rig-figure format for a vehicle: per bone (`root` holds
  * still, every other bone a wheel) its packed faces, and the `roll` clip turning each wheel −2π·phase about vehicle +x.
  * `bones`: [{ id, head }] in vehicle space (+y forward, +z up), already normalized; `buckets`: Map bone id → faces;
- * `rolls`: the bones the clip turns (absent: every bone but the root), so a rig can carry bones that live otherwise.
+ * `rolls`: the bones the clip turns (absent: every bone but the root), so a rig can carry bones that live otherwise;
+ * `packed`: each part indexed and quantized (rig-bake packRigMesh, the unit rigs' form) instead of float32 soup.
  * Shared by the assembler bake above and the car designer's lofted vehicles (car-designer/realistic.js).
  */
-export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null } = {}) {
+export function packVehicleFigure(bones, buckets, { keys = 12, rolls = null, packed = false } = {}) {
   const parts = bones.map((b) => {
     const fs = buckets.get(b.id) || [];
     if (!fs.length) return null;
     const gm = faceListToMesh(fs);
     if (!gm.positions.length) return null;
+    if (packed) return packRigMesh(gm, fs.length);
     return { pos: b64f32(gm.positions), col: b64u8(gm.colors), faces: fs.length, ...(gm.specs ? { spec: b64f32(gm.specs) } : {}) };
   });
 

@@ -7,7 +7,9 @@
  *                                 bones (lampHead, lampBrake: the status slots the page lights), its `live` (the front
  *                                 wheels steer, the body leans, squats and dives about the wheelbase's middle, a car's
  *                                 measure of it) and its `juice` (rubber smoke and sparks off the rear tyres, a flame
- *                                 at the tail pipes, the headlamps' glow brighter as the mood darkens)
+ *                                 at the tail pipes, the headlamps' glow brighter as the mood darkens; in a dark mood
+ *                                 the headlamps' pool on the road (`juice.beams`), after dark the tail lamps' ribbons
+ *                                 (`juice.trails`), in the wet a mist off the rear tyres)
  *   supercarRule(design, opts)    the sports class (roads/vehicles.js) at the design's length, width, height,
  *                                 wheelbase, track and wheel radius, at a tuning and in conditions
  *   readSupercarSpec(spec)        the spec checked (throws naming what is wrong)
@@ -18,7 +20,7 @@
  */
 import { composeSupercar, SUPERCAR_LIBRARY } from './vehicle-library.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
-import { JUICE, STATUS, MOTION, bakeJuice } from './juice.js';
+import { JUICE, STATUS, MOTION, FX, bakeJuice } from './juice.js';
 import { VEHICLES, ruleOf } from '../roads/vehicles.js';
 import { moodOf, relightAlbedo, RACE_MOOD_IDS } from '../roads/race-mood.js';
 
@@ -43,6 +45,23 @@ export function supercarRule(design, { tuning = 'arcade', conditions = 'dry' } =
 // a car's measure of a cartoon's motion: the body moves a third as far
 const CAR_MOTION = { lean: 0.35, squat: 0.4, dive: 0.4, bounce: 0.5 };
 const CAR_JUICE = ['throttleFlame', 'boostFlame', 'boostTrail', 'driftSpark', 'skidSmoke', 'surfaceDust', 'landingRing', 'damageSmoke'];
+// how dark a mood is: its ambient and half its key against noon's (0 at noon, 1 in no light at all)
+const mean = (v) => (v[0] + v[1] + v[2]) / 3;
+const darkness = (m) => r4(Math.max(0, Math.min(1, 1 - (mean(m.ambient) + 0.5 * mean(m.key)) / 0.8)));
+// the headlamps' pool: from the nose, a length on the road, a width (of the car's), two lobes that merge as they reach
+const BEAM = { len: 17, width: 2.6, spread: 0.32, colour: '#fff0c8', amount: 0.95 }, BEAM_DARK = 0.4;
+// the tail lamps' ribbons: their width (m), how long a point lives (s), how many, above what speed, brighter on the brake
+const TRAIL = { colour: '#ff2414', width: 0.11, life: 0.3, points: 24, minSpeed: 6, amount: 0.7, brake: 1.6 }, TRAIL_DARK = 0.8;
+// rain off the rear tyres: a mist the colour of the sky it falls from, never brighter than the light it is seen in
+const hexOf = (rgb) => '#' + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+const SPRAY_LIT = [128, 140, 160];   // (the lamps and the cars' own light the spray is seen in, after dark)
+const rainSpray = (m, dark) => {
+  const c = m.sky.horizon.map((v, k) => v + (SPRAY_LIT[k] - v) * 0.55 * dark);
+  return { id: 'rainSpray', when: 'speed > 7', at: 'contact.rear', look: 'smoke', colours: [hexOf(c.map((v) => v * 1.15)), hexOf(c.map((v) => v * 0.85))], rate: 28, life: 0.55, size: 0.7, budget: 40 };
+};
+// the genre's streaks after dark: the colour of the night, not a white that glares on it
+const DARK_STREAK = '#7d8fbf';
+const darkFx = (dark) => (dark < TRAIL_DARK ? FX : Object.fromEntries(Object.entries(FX).map(([id, r]) => [id, r.look === 'streak' || r.look === 'screen' ? { ...r, colours: [DARK_STREAK] } : r])));
 const fan = (f) => {
   const n = f.corners.length; if (n <= 4) return [f];
   const out = []; for (let i = 1; i + 1 < n; i += 2) { const idx = i + 2 < n ? [0, i, i + 1, i + 2] : [0, i, i + 1]; out.push({ ...f, corners: idx.map((j) => f.corners[j]), ...(f.cornerFills ? { cornerFills: idx.map((j) => f.cornerFills[j]) } : {}), ...(f.cornerNormals ? { cornerNormals: idx.map((j) => f.cornerNormals[j]) } : {}) }); }
@@ -83,9 +102,20 @@ export function supercarFigure(spec = {}) {
     { kind: 'body', bone: 'root', at: [0, 0, r4(F.H * 0.6)], dir: [0, 0, 1] },
   ];
   const lamps = mood ? { ...STATUS, headlamps: { ...STATUS.headlamps, amount: mood.headlamps, halo: 0.5 + mood.headlamps } } : STATUS;
-  const juice = bakeJuice(CAR_JUICE.map((id) => ({ id, ...JUICE[id] })), anchors, r4(F.wheelRadius * 2), { slots: { ...(head.length ? { head: 'lampHead' } : {}), ...(brake.length ? { brake: 'lampBrake' } : {}) }, status: lamps });
+  const dark = mood ? darkness(mood) : 0;
+  const rows = [...CAR_JUICE.map((id) => ({ id, ...JUICE[id] })), ...(mood?.wet ? [rainSpray(mood, dark)] : [])];
+  const juice = bakeJuice(rows, anchors, r4(F.wheelRadius * 2), { slots: { ...(head.length ? { head: 'lampHead' } : {}), ...(brake.length ? { brake: 'lampBrake' } : {}) }, status: lamps, fx: darkFx(dark) });
+  // the car's own light in the dark: the headlamps' pool on the road ahead, the tail lamps' ribbons after dark
+  if (dark >= BEAM_DARK && head.length) {
+    const nose = Math.max(...head.flatMap((f) => f.corners.map((p) => p[1])));
+    juice.beams = { from: r4(nose - 0.1), len: BEAM.len, width: r4(F.W * BEAM.width), spread: BEAM.spread, colour: BEAM.colour, amount: r4(BEAM.amount * dark) };
+  }
+  if (dark >= TRAIL_DARK && brake.length) {
+    const side = (sg) => brake.filter((f) => Math.sign(f.corners.reduce((a, p) => a + p[0], 0)) === sg);
+    juice.trails = { bone: 'lampBrake', at: [-1, 1].map(side).filter((fs) => fs.length).map(mid), colour: TRAIL.colour, width: TRAIL.width, life: TRAIL.life, points: TRAIL.points, minSpeed: TRAIL.minSpeed, amount: r4(TRAIL.amount * dark), brake: TRAIL.brake };
+  }
   return {
-    ...packVehicleFigure(bones, buckets, { rolls: wheels.map((w) => w.id) }),
+    ...packVehicleFigure(bones, buckets, { rolls: wheels.map((w) => w.id), packed: true }),
     live, juice,
     figH: r4(Math.max(...shell.flatMap((f) => f.corners.map((p) => p[2])))),
     wheelbase: r4(WB), wheelRadius: r4(F.wheelRadius), warnings: [],
