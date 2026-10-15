@@ -69,6 +69,27 @@ export function buildCombatRanged(E) {
     for (const p of pts) if (!sightBlocked(from, p, colliders)) seen++;
     return seen / pts.length;
   }
+  // crosshairPoint(e, state, range) — where an over-the-shoulder camera's crosshair (the centre of its view: a follow
+  // camera on `e`, looking from where it is at its look point) falls: the first wall or body (not e's own) on that ray,
+  // else `range` out. null when no such camera follows e.
+  function crosshairPoint(e, state, range) {
+    const cam = state.camera;
+    if (!cam || !cam.rule || cam.rule.type !== 'follow' || cam.rule.target !== e.id || !cam.lookAt) return null;
+    const C = cam.transform.pos, v = [cam.lookAt[0] - C[0], cam.lookAt[1] - C[1], cam.lookAt[2] - C[2]], L = Math.hypot(v[0], v[1], v[2]);
+    if (!(L > 1e-6)) return null;
+    const d = [v[0] / L, v[1] / L, v[2] / L], reach = range + Math.hypot(e.transform.pos[0] - C[0], e.transform.pos[1] - C[1]);
+    const far = [C[0] + d[0] * reach, C[1] + d[1] * reach, C[2] + d[2] * reach];
+    let best = reach;
+    const wt = nearestWallT(C, far, state.colliders);
+    if (wt != null) best = wt * reach;
+    for (const tg of state.entities) {
+      if (tg === e || tg.isCamera || !(tg.body && tg.body.hittable && tg.body.egg)) continue;
+      const te = hitEgg(C, d, tg);
+      if (te != null && te < best) best = te;
+    }
+    e.crosshairAt = [C[0] + d[0] * best, C[1] + d[1] * best, C[2] + d[2] * best];
+    return e.crosshairAt;
+  }
   function initWeapon(w) {
     if (!w || typeof w !== 'object') return null;
     const area = w.fireClass === 'area';
@@ -127,6 +148,7 @@ export function buildCombatRanged(E) {
       // the eye's line (handMuzzle) unless `muzzleOffset` says where. A shot clears a corner from the muzzle, so past an
       // edge on the gun's side the shooter fires with less of its body out (the right-hand peeker's advantage).
       hand: w.hand === 'right' || w.hand === 'left' ? w.hand : null,
+      converge: w.converge === true,      // CONVERGE (opt-in): the round goes from the muzzle to the crosshair's point (an over-the-shoulder camera's)
       muzzleAlt: w.muzzleAlt || false,        // DUAL WIELD (alternate): flip the lateral muzzle each shot (two guns take turns)
       muzzleDual: w.muzzleDual || false,      // DUAL WIELD (simultaneous): fire BOTH guns each shot — the renderer mirrors the muzzle flash
       // NO-FIRE-WHILE-BOOSTING (operator): heavy launchers (lob) + precise semi beams (the beam-rifle
@@ -315,18 +337,7 @@ export function buildCombatRanged(E) {
       w.cooldownT = w.auto ? 1 / (w.rof || 10)
         : (w.burstLeft > 0 ? 1 / (w.burstRof || 8) : (w.cooldown || 0.5));
       const t = e.transform;
-      const origin = [t.pos[0], t.pos[1], t.pos[2] + w.eye];
-      let aim = fwd3(t.heading, t.pitch || 0);
-      // SPREAD and RECOIL: the round's own direction off the aim (the cone it leaves in, the climb of a spray)
-      if (w.spread || w.recoil) {
-        const run = w._lp ? Math.min(1, Math.hypot(t.pos[0] - w._lp[0], t.pos[1] - w._lp[1]) / Math.max(dt, 1e-6) / MOVE_REF) : 0;
-        const cone = w.spread ? Math.min(w.spread.max, w.spread.base + w.spread.move * run + w.bloomNow) : 0;
-        const u1 = hash01(e.id, 2 * w.shots), u2 = hash01(e.id, 2 * w.shots + 1), rr = cone * Math.sqrt(u2), th = u1 * 2 * Math.PI;
-        aim = fwd3(t.heading + rr * Math.cos(th) * DEG, (t.pitch || 0) + (rr * Math.sin(th) + w.kickNow) * DEG);
-        w.lastCone = cone;
-        if (w.spread) w.bloomNow = Math.min(w.spread.max, w.bloomNow + w.spread.bloom);
-        if (w.recoil) w.kickNow = Math.min(w.recoil.max, w.kickNow + w.recoil.kick);
-      }
+      let origin = [t.pos[0], t.pos[1], t.pos[2] + w.eye];
       // muzzle world point: the gun tip (body-frame offset), else the eye — the launch/tracer origin.
       // DUAL WIELD (muzzleAlt): a two-pistol slot shares one magazine but the two guns TAKE TURNS —
       // the lateral (right) offset flips sign each shot, so the tracer/flash alternates left↔right hand.
@@ -335,13 +346,32 @@ export function buildCombatRanged(E) {
       const from = mo
         ? [t.pos[0] + hf[0] * (mo.f || 0) + hr[0] * (mo.r || 0) * rMul, t.pos[1] + hf[1] * (mo.f || 0) + hr[1] * (mo.r || 0) * rMul, t.pos[2] + (mo.u != null ? mo.u : w.eye)]
         : origin.slice();
+      // the aim's base: the body's heading and pitch, or (CONVERGE, opt-in `weapon.converge`: an over-the-shoulder
+      // camera's) the line from the muzzle to the point under the crosshair, the round leaving from the muzzle
+      let baseH = t.heading, baseP = t.pitch || 0;
+      const conv = w.converge ? crosshairPoint(e, state, shotRange) : null;
+      if (conv) {
+        const v = [conv[0] - from[0], conv[1] - from[1], conv[2] - from[2]], L = Math.hypot(v[0], v[1], v[2]) || 1e-6;
+        baseH = Math.atan2(v[1], v[0]); baseP = Math.asin(clamp(v[2] / L, -1, 1)); origin = from.slice();
+      }
+      let aim = fwd3(baseH, baseP);
+      // SPREAD and RECOIL: the round's own direction off the aim (the cone it leaves in, the climb of a spray)
+      if (w.spread || w.recoil) {
+        const run = w._lp ? Math.min(1, Math.hypot(t.pos[0] - w._lp[0], t.pos[1] - w._lp[1]) / Math.max(dt, 1e-6) / MOVE_REF) : 0;
+        const cone = w.spread ? Math.min(w.spread.max, w.spread.base + w.spread.move * run + w.bloomNow) : 0;
+        const u1 = hash01(e.id, 2 * w.shots), u2 = hash01(e.id, 2 * w.shots + 1), rr = cone * Math.sqrt(u2), th = u1 * 2 * Math.PI;
+        aim = fwd3(baseH + rr * Math.cos(th) * DEG, baseP + (rr * Math.sin(th) + w.kickNow) * DEG);
+        w.lastCone = cone;
+        if (w.spread) w.bloomNow = Math.min(w.spread.max, w.bloomNow + w.spread.bloom);
+        if (w.recoil) w.kickNow = Math.min(w.recoil.max, w.kickNow + w.recoil.kick);
+      }
       if (w.fireClass === 'lob') {
         // LAUNCH a travelling round (R14) instead of resolving a hitscan cone. The launch aim tilts
         // UP by lobAngle° (the arc); velocity = that direction · projectileSpeed. stepProjectiles
         // integrates it under gravity and adjudicates the burst. lastShot carries to:null so the
         // hitscan fx channel draws nothing — the projectile channel owns lob visuals.
         const la = (w.lobAngle || 0) * Math.PI / 180;
-        const dir = fwd3(t.heading, (t.pitch || 0) + la);
+        const dir = fwd3(baseH, baseP + la);
         const sp = w.projectileSpeed || 60;
         state.projectiles.push({
           id: 'proj-' + (state.projSeq++), owner: e.id,

@@ -542,7 +542,7 @@ export function shootDrops(posts, ends) {
 /** A shooter's cast, on a stage: each foe at its post, armed, hunting by sight and taking cover (the walls are the
  * intent's: its `cover` concern stands them by these posts, lay-concerns.js). `ref`: their figure; `hero`: the player
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
-export function shootCast(quick, ends, ref, { hero = false } = {}) {
+export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
   const posts = shootPosts(quick, ends), figures = {}, entities = [];
   posts.forEach((p) => {
     figures[p.id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
@@ -555,14 +555,22 @@ export function shootCast(quick, ends, ref, { hero = false } = {}) {
     });
   });
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
-  // (sight is eye to eye), the rifle at its eye
+  // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
+  const over = shoulderOf(camera ?? quick.camera, hero);
   const pilot = {
     rule: { collideRadius: 0.3, collideHeight: 1.7 },
-    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0 },
+    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
-  return { figures, entities, posts, pilot };
+  return { figures, entities, posts, pilot, ...(over ? { camera: over } : {}) };
 }
+
+// OVER THE SHOULDER: a shooter's third-person camera, close behind the hero and off its right shoulder, its crosshair's
+// line crossing the body's own `lead` metres out; the player's rounds go from the muzzle to the point under the
+// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included
+export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1 });
+/** The over-the-shoulder camera for a shooter's hero played third-person (`camera`: the world's), else null. */
+export const shoulderOf = (camera, hero) => (hero && camera === 'third-person' ? SHOULDER : null);
 
 /** A deathmatch's legend: fire, and on the shooter pole its feet and its kit. */
 export function deathmatchLegend(quick) {
@@ -582,10 +590,11 @@ export function deathmatchDrops(quick, ends) {
   return ends.arena.drops.filter((d) => keep(d.gives)).map((d) => ({ at: d.at, gives: d.gives, respawn: ITEM_BACK[d.gives], ...(d.slot ? { slot: d.slot } : {}) }));
 }
 /** A deathmatch's loadout with weapons (weapon-roles.js): the pole's rifle in hand, each gun its arena laid to be
- * picked up after it; every slot carries its band (a mind takes the gun for the range). `eye`: the guns' height. */
-export function deathmatchLoadout(quick, ends, eye) {
+ * picked up after it; every slot carries its band (a mind takes the gun for the range). `eye`: the guns' height;
+ * `converge`: the rounds go to the crosshair's point (over the shoulder). */
+export function deathmatchLoadout(quick, ends, eye, converge = false) {
   const laid = [...new Set(ends.arena.drops.filter((d) => d.gives === 'weapon').map((d) => d.slot))];
-  return roleLoadout(quick.pole, laid).map((c) => ({ ...c, weapon: { ...c.weapon, eye } }));
+  return roleLoadout(quick.pole, laid).map((c) => ({ ...c, weapon: { ...c.weapon, eye, ...(converge ? { converge: true } : {}) } }));
 }
 
 /** A deathmatch's two sides (mode team or control), or null: the player and every other bot red, the rest blue. */
@@ -611,7 +620,7 @@ export const deathmatchBots = (quick) => Array.from({ length: quick.bots ?? DEAT
  * centre; every gun held right-handed (`hand`: past an edge on its right a shooter fires with less of itself out); the
  * bots match players (mind.js `frag`: fight whom they see, hunt the noise, strafe, peek an edge) on the navmesh.
  * `ref`: their figure; `hero`: the player has a body. → { figures, entities, pilot } (stageLevelOrder's `extra`). */
-export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
+export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) {
   const A = ends.arena, bots = deathmatchBots(quick), figures = {}, entities = [];
   const face = (p) => r3(Math.atan2(A.centre[1] - p[1], A.centre[0] - p[0]));
   // on the shooter pole: every gun the pole's (the same for all), every body its hp, the bots' minds and the player's
@@ -642,14 +651,15 @@ export function deathmatchCast(quick, ends, ref, { hero = false } = {}) {
   // (with weapons it is the platform rule too: the rule that carries a loadout; short of the pole's jump, a hop a step high)
   const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
     : quick.weapons ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
+  const over = shoulderOf(camera ?? quick.camera, hero), conv = over ? { converge: true } : {};
   const pilot = {
     ...(S ? { team: 'red' } : {}),
-    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0) } : {}) },
-    weapon: P ? { ...P.weapon, eye: hero ? 1.5 : 0 } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right' },
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}) },
+    weapon: P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
     transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },
   };
-  return { figures, entities, pilot };
+  return { figures, entities, pilot, ...(over ? { camera: over } : {}) };
 }
 
 /** A defence's cast and its building, on a stage: the foes asleep at the trail's end (as many as its waves send), a

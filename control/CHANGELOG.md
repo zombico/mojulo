@@ -205,6 +205,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
   (reverting only `mind.js` passes them all).
 
+### Shooter: over the shoulder (phase 10)
+
+- **The shoulder camera** (`quick.js` `SHOULDER`). A shooter's hero played `camera: 'third-person'` (shoot or
+  deathmatch) is followed close behind (2.8 m) and off its right shoulder (0.75 m). Its crosshair's line crosses
+  the body's own 10 m out. First person stays the default.
+- **Aim convergence** (opt-in `weapon.converge`). Over the shoulder, the crosshair's line is not the gun's: a round
+  sent down the body's heading lands beside the crosshair at every range, a body under the crosshair 20 m out
+  missed. A converged round goes from the muzzle to the point the crosshair is on: the first wall or body on the
+  camera's centre ray, else the round's range. What the crosshair is on is what is hit, including a wall the gun
+  cannot clear. `e.crosshairAt` keeps the point.
+- **The third-person peek, measured** (`shoulder.test.js`). Past a corner, the camera sees a foe while the foe sees
+  none of the player's body and the gun cannot clear the edge. The information is the player's, and the shot is
+  not, which is the convention's answer. Minds have no camera, so the peek is the player's alone.
+- The quick shooters take the world's camera into their casts, and a goal's `extra` may frame a follow camera
+  (`camera`).
+- Without `converge`, a round goes down the heading as before. The page's hashes were re-pinned: reverting only
+  `combat-ranged.js` passes them.
+
 ### Shooter: floors and high ground (phase 9)
 
 - **Towers in the arena grammar** (`tunnel-arena.js`). "towers", "high ground", "platforms", "verticality" lay a

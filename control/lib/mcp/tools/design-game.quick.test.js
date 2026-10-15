@@ -473,6 +473,16 @@ describe('design_game quick', () => {
     expect(up).toBeGreaterThan(0);
   }, 300_000);
 
+  it('deathmatch over the shoulder: a hero played third-person, the camera off its right shoulder, its rounds converged', async () => {
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', hero: { cast: 'male' }, camera: 'third-person', world: { id: 'over', style: { kit: 'trail-valley' } } }, ref: 'ov' });
+    const L = stored('ov-level-run-0');
+    expect(L.camera).toMatchObject({ rule: 'follow', target: 'hero', dist: 2.8, shoulder: 0.75, lead: 10 });
+    expect(L.entities[0].weapon.converge).toBe(true);
+    // first person (the default) keeps the eye and the plain round
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', world: { id: 'eye', style: { kit: 'trail-valley' } } }, ref: 'ey' });
+    expect(stored('ey-level-run-0').entities[0].weapon.converge).toBeUndefined();
+  }, 300_000);
+
   it('deathmatch: the arena from its words (tunnel-arena.js), a word it cannot lay said as advice', async () => {
     const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, arena: 'a small ring arena with catwalks', world: { id: 'ring', style: { kit: 'trail-valley' } } }, ref: 'rg' });
     const L = stored('rg-level-run-0');

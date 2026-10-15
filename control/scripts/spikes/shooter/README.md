@@ -266,6 +266,11 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   flights (`rule.floors`); the armor on the tops. Open: bridges and catwalks (a floor walked under), towers in small
   or close-quarters arenas (a top there sees the spawns or there is no room), Godot's floors.
 
+- **Phase 10, over the shoulder**: a shooter's third-person camera off the right shoulder, and aim convergence (the
+  round from the muzzle to the crosshair's point). The third-person peek is measured: the camera sees past a corner
+  the body hides behind. Open: the reticle drawn where the converged round will land when the gun's line is blocked
+  (the eyes gate), a left-shoulder swap.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.
