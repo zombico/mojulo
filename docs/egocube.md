@@ -6,6 +6,10 @@ and the roller (`egocube.js`); `node scripts/egocube-roll.mjs --brief "a weary p
 cast laws, factions and the fate thread below are design, not code yet. A sheet compiles to a first character
 by the method in From a sheet to a character, below.
 
+A **mascot** is designed by another method: from a promise, not a life, on a head-heavy body of any topology. The
+egocube takes it as its `mascot` tuning (`roll.tuning: 'mascot'`, or a cartoony brief); the laws and the facets are in
+[mascot.md](mascot.md).
+
 The Egocube is the soul facet's deep cube, the way the geocube is the reality facet's. The cosmos soul facet
 ([control/lib/graph/cosmos/facets/soul.js](../control/lib/graph/cosmos/facets/soul.js)) asks "who?" and answers
 with a kind (hero, creature, animal), a cast preset and a vibe. The Egocube answers it with a person: who they are,

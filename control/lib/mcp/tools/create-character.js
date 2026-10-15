@@ -10,6 +10,8 @@
  *   as 'hero'     → mint_solid kind 'layered' via 'hero'   (a cast word, a tune, face, hair, dress)
  *   as 'creature' → mint_solid kind 'layered' via 'plan' when spec.plan, else the layered recipe
  *   as 'animal'   → mint_solid kind 'animal'                (a species, or a bare archetype)
+ *   as 'mascot'   → a mascot sheet rolled from spec { brief?, facets?, seed? } (egocube/mascot.js), its body compiled
+ *                   to a ring plan (egocube/mascot-form.js), minted as a creature: the same call a mascot egocube makes
  *
  * Iteration: `update_character` (below), the same door the other way round: a character's own words merged into the
  * stored recipe, carried out by `update_sketch`'s patch path, so an edit through it equals the equivalent patch
@@ -23,6 +25,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { HERO_FIELDS, heroKeyHint, lowerVibe } from '@/lib/mcp/tools/layered';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { egocubeCreate, egocubePrint } from '@/lib/graph/egocube/kind.js';
+import { rollMascot } from '@/lib/graph/egocube/mascot.js';
+import { mascotPlanFromSheet } from '@/lib/graph/egocube/mascot-form.js';
 
 // as → the mint_solid call it makes, and the card that is its manual.
 export const CHARACTER_DOORS = {
@@ -31,7 +35,23 @@ export const CHARACTER_DOORS = {
   animal: { card: 'animal', route: () => ({ kind: 'animal' }) },
 };
 
-const AS_LIST = Object.keys(CHARACTER_DOORS);
+/** `as: 'mascot'` is a door of its own: a sheet rolled from the words, then the creature door (docs/mascot.md) */
+const AS_LIST = [...Object.keys(CHARACTER_DOORS), 'mascot'];
+const MASCOT_SPEC_KEYS = ['brief', 'facets', 'seed'];
+
+/** The dials a sheet's first reading turns after the mint (`after` ops on /dials/<name>), as a mint's `dials`. */
+const dialsAfter = (after) => Object.fromEntries((after || []).filter((op) => op.op === 'set' && /^\/dials\/[^/]+$/.test(op.path)).map((op) => [op.path.slice(7), op.value]));
+
+/** A MASCOT: rolled from its words (brief, facets, seed), compiled, minted through the creature door. */
+async function createMascot({ spec = {}, title, ref, folder_ref: folderRef }) {
+  if (!spec || typeof spec !== 'object' || Array.isArray(spec)) throw new Error("create_character: a mascot's spec is { brief?, facets?, seed? } (docs/mascot.md)");
+  const unknown = Object.keys(spec).filter((k) => !MASCOT_SPEC_KEYS.includes(k));
+  if (unknown.length) throw new Error(`create_character: a mascot's spec takes ${MASCOT_SPEC_KEYS.join(', ')} (not ${unknown.join(', ')}); its body is revised after, with update_character patch ops`);
+  const sheet = rollMascot(spec), P = mascotPlanFromSheet(sheet, { ...(title ? { title } : {}) });
+  const dials = dialsAfter(P.after);
+  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS.creature.route(P.create.spec), spec: { ...P.create.spec, ...(Object.keys(dials).length ? { dials } : {}) }, title: P.create.title, ref, folder_ref: folderRef }));
+  return { ...out, mascot: { thesis: P.thesis, facets: sheet.facets, given: sheet.given, reads: sheet.reads, ...(sheet.unread.words.length ? { unread: sheet.unread.words } : {}), ...(sheet.faults.length ? { faults: sheet.faults } : {}) } };
+}
 
 /**
  * A character from a stored EGOCUBE (egocube/kind.js): the sheet's node at `years` (the canonical one when none is named)
@@ -39,18 +59,19 @@ const AS_LIST = Object.keys(CHARACTER_DOORS);
  * cube says unless `dress` says otherwise; a hero's `spec` words lay over the sheet's. The character records the sheet it
  * was made from ({ ref, rev, print, years }), so an edit to the sheet moves nothing already made and is said on an edit.
  */
-async function createFromEgocube({ egocube, years, dress, as, spec, title, ref, folder_ref: folderRef }) {
+async function createFromEgocube({ egocube, years, dress, output, as, spec, title, ref, folder_ref: folderRef }) {
   const row = SketchRepository.getByRef(egocube);
   if (!row || row.manifest?.kind !== 'egocube') throw new Error(`create_character: '${egocube}' is not an egocube (make one with create_sketch { kind: 'egocube', roll })`);
-  const C = egocubeCreate(row.manifest, { years, dress });
+  // `output: 'mascot'`: the cube's character made as its mascot (egocube/mascot-from-person.js), with its model sheet
+  const C = egocubeCreate(row.manifest, { years, dress, output });
   if (as !== undefined && as !== C.create.as) throw new Error(`create_character: the egocube '${egocube}' makes ${C.create.as === 'hero' ? 'a person (as: hero)' : 'a body below the hero door (as: creature)'}; leave \`as\` out`);
   if (spec !== undefined && C.create.as !== 'hero') throw new Error('create_character: `spec` lays a hero\'s words over the sheet; a creature from an egocube is revised after, with update_character patch ops');
-  const lean = (C.after || []).find((op) => op.path === '/dials/lean')?.value;
-  const own = { ...C.create.spec, ...(spec || {}), ...(lean !== undefined ? { dials: { lean } } : {}) };
+  const dials = dialsAfter(C.after);
+  const own = { ...C.create.spec, ...(spec || {}), ...(Object.keys(dials).length ? { dials } : {}) };
   const made = { ref: egocube, rev: (SketchRevisionRepository.head(egocube)?.rev ?? 0) + 1, print: egocubePrint(row.manifest), ...(C.node.years !== undefined ? { years: C.node.years } : {}) };
   const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, egocube: made }, title: title ?? C.create.title, ref, folder_ref: folderRef }));
   const landed = (C.ledger || []).filter((r) => r.at).length;
-  return { ...out, egocube: { ...made, node: C.node, notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
+  return { ...out, ...(C.modelSheet ? { modelSheet: C.modelSheet } : {}), ...(C.mascot ? { mascot: C.mascot } : {}), egocube: { ...made, ...(C.output ? { output: C.output } : {}), node: C.node, notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
 }
 
 export async function createCharacterHandler(input) {
@@ -59,10 +80,11 @@ export async function createCharacterHandler(input) {
     throw new Error(`create_character requires an object: { as: ${AS_LIST.map((a) => `'${a}'`).join(' | ')}, spec, title?, ref?, folder_ref? }`);
   }
   const { as, spec, title, ref, folder_ref: folderRef } = input;
+  if (as === 'mascot') return createMascot(input);
   const entry = CHARACTER_DOORS[as];
   if (!entry) {
     throw new Error(
-      `create_character: unknown as '${as}'. Known: ${AS_LIST.join(', ')} (a person, an invented body, a real species). `
+      `create_character: unknown as '${as}'. Known: ${AS_LIST.join(', ')} (a person, an invented body, a real species, a cartoon mascot). `
         + "Manuals: get_solid_vocab({ id: 'layered' }) for a hero or a creature, ({ id: 'animal' }) for an animal.",
     );
   }
@@ -152,17 +174,18 @@ export function registerCreateCharacterTools() {
     description:
       "Make a CHARACTER: a body with a rig you can play, print or watch. `as: 'hero'`, a person (spec { cast: "
       + "'male' | 'female', register: 'round' | 'lowpoly' …, tune, face, hair, expression, detail, adorn }); "
-      + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan, a ring plan, or a full "
-      + "layered recipe); `as: 'animal'`, a real species (spec { species } or a bare { archetype }). A tiny "
-      + 'deterministic recipe served as a still, an orbitable World that plays its clips, and a skinned `.glb`. '
-      + "Iterate in place with `update_character`; never re-mint. Manual: get_solid_vocab({ id: 'layered' }) for a hero "
-      + "or a creature, ({ id: 'animal' }) for an animal.",
+      + "`as: 'creature'`, an invented body, a dragon, a monster, a plush toy (spec.plan, a ring plan, or a layered "
+      + "recipe); `as: 'animal'`, a real species (spec { species } or { archetype }); `as: 'mascot'`, cartoony, "
+      + "head-heavy (spec { brief: 'sonic-like', facets?, seed? }). A deterministic recipe: a still, a World that "
+      + 'plays its clips, a skinned `.glb`. Iterate in place with `update_character`; never re-mint. Manual: '
+      + "get_solid_vocab({ id: 'layered' }), ({ id: 'animal' }) for an animal.",
     inputSchema: {
       type: 'object',
       properties: {
-        as: { type: 'string', enum: AS_LIST, description: 'hero (a person) | creature (an invented body) | animal (a real species).' },
+        as: { type: 'string', enum: AS_LIST, description: 'hero (a person) | creature (an invented body) | animal (a real species) | mascot (cartoony, Sonic-like).' },
         egocube: { type: 'string', description: "An egocube's ref (create_sketch kind 'egocube'): its character, at `years` on its thread." },
         years: { type: 'number' },
+        output: { type: 'string', enum: ['character', 'mascot'], description: "With egocube: 'mascot' makes the cube's character as its mascot." },
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },

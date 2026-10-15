@@ -1077,6 +1077,90 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   forearm; a second pair of arms is built, rigged and folded forward under the first. A drawn creature's joint bridges
   find a bone's own segment, not a feather riding it.
 
+### Mascot characters: a character read from a promise, not a life
+
+The Egocube designs a person in RPG proportions from a life. A mascot (Kirby, Mario, Sonic, Yoshi, a team's mascot) is
+designed backwards from the one feeling it stands for and from how it reads at a glance, on any body that can
+animate. `docs/mascot.md` holds the analysis: the reference set, ten laws distilled from it (a promise not a life; a
+silhouette that reads at 64 px; head-heavy, the baby schema; the eyes carry the character; a round core with an
+accent in harmony or contrast; big, medium, small; an owned palette; nothing on the surface; a symmetric body with an
+asymmetric life; it only needs to animate), and how a mascot differs from the Egocube's person.
+
+- **The mascot sheet** (`lib/graph/egocube/mascot.js`): its own facets (promise, form, accent, eyes, hook,
+  extremities, energy, hue), no age, build, archetype or wear. The promise leans the priors of every other facet;
+  brief words decide one facet each, and a familiar name (`sonic-like`, `kirby-like`, `mario-like`, `yoshi-like`,
+  `pikachu-like`) is read as a style that decides several. Faults are drawn again unless asked (a soft promise under
+  spikes, quills on a round accent, a tail the orb's ball would swallow). Pure and deterministic, as the Egocube is.
+- **The mascot body** (`lib/graph/egocube/mascot-form.js`): the sheet compiled to a ring plan on the creature door. It
+  has three forms (orb, about one head tall; sprout, about two; toon, about three) on a round core. The eyes are lenses
+  that hug the head (a pair, joined in one mask over a pale muzzle, or dots with cheeks). The hook is drawn in the
+  accent's family: ears, quills, a snout, a tuft, an antenna, a tail or spines, pointed, round or squared. Thin limbs end
+  in big hands and shoes; the palette is owned, with a pale front and the accent a neighbour or a complement. It mints
+  with a rig, the clips idle (one per energy: bouncy, zippy, floaty, sturdy, swaying), hop, cheer and wave, and the
+  lean and tilt dials, smooth-shaded under the character light.
+- **`create_character({ as: 'mascot', spec: { brief, facets?, seed? } })`** rolls and mints in one call; the result
+  carries the sheet's facets and reads. The card `mascot` routes "something cartoony like Sonic" there.
+- **The egocube's `roll.tuning`**: `'mascot'` rolls a mascot sheet, `'person'` the Egocube's. Absent, a brief that asks
+  for a mascot (`cartoony`, `mascot`, `sonic-like` …) with no person's facet, lineage or years is a mascot. A mascot
+  never ages: years, chapters and lineages are refused. `create_character({ egocube })` makes the same body the
+  `mascot` door makes. A stored egocube keeps the sheet it was rolled to.
+- **The face and its expressions** (`lib/graph/egocube/mascot-face.js`): a mouth with a tongue, two lips over it, a lid
+  over each eye and a brow over it. Each moving feature is a lens on its own bone, turned by a rig chain (`lidR`,
+  `lidL`, `lipU`, `lipD`, `browLiftR`, `browLiftL`, `browR`, `browL`), so an expression is bone motion that plays in the
+  World and exports in the skinned GLB. The sheet's `expression` facet is the rest face, built into the geometry: happy,
+  grin, content, determined, smirk (the face at rest is not symmetric), surprised, sad, angry, sleepy. Every other
+  expression is a clip of its name, beside a `blink`; the hop and the cheer change face as they go.
+- **Human mascots**: the `being` facet (`critter` or `human`) draws a person in a mascot's proportions. The head is skin,
+  the hair one chunky form in the accent's family, with a nose, ears and blushing cheeks. The hue goes on the shirt and
+  the trousers take the accent or a darker shirt colour; the `skin` facet gives skin and hair. Two new hooks: `cap` (a
+  high crown in the shirt's colour, a bill, an emblem) and `moustache`. A snout, a tail, spines or paws on a person is a
+  fault unless asked. `mario-like` now reads as a capped, gloved person.
+- **Animal mascots** (`lib/graph/egocube/mascot-animals.js`, `docs/mascot-animals.md`): a real species from the fauna
+  roster made a mascot. Eight were crafted by hand (fox, giant panda, rabbit, frog, emperor penguin, elephant, great
+  horned owl, lion) and the rules they shared were distilled into a card per family, so every species has a reading.
+  The rules: at most three outline identifiers, ranked; patterns and mouths ride free; stand it up; a muzzle at most a
+  head's radius (a dropped one leaves its nose); eyes forward unless they are the identifier; the real coat as flat
+  zones, saturated unless light against dark; mass as limb weight; the folk reading as the promise; locomotion as the
+  idle; a proportion that is the name (a giraffe's neck) kept. The body compiler gained the kit:
+  - ears: pointed, tall, round, flap, tufts;
+  - muzzles: point, round, beak, bill, trunk, disc, long, button, wide;
+  - tails: brush, pom, tuft, thin, flat, fluke, thick;
+  - a ring or crest mane, horns, a shell, a dorsal fin, a long neck;
+  - patterns: patches, tuxedo, mask, stripes, socks;
+  - disc and top eyes, flippers and wings, webbed feet and hooves.
+
+  A species by id, spoken name or everyday name in the brief (`panda`, `owl`, `bunny`) picks it, as does
+  `facets.animal`. `hedgehog`, `bunny` and `dino` now name species instead of a hook.
+- **Smooth forms (law 8)**: trunks on twenty-slot rings (the head on seventeen stations, the body's pear on ten, a
+  smooth curve), limbs, shapes and lenses on twelve, the rounded shapes densest toward their ends.
+- **Adornment: one signature piece** (`lib/graph/egocube/mascot-adorn.js`, laws Ad1–Ad6 in `docs/mascot.md`), on the
+  core adornment layer. The `adorn` facet: a bell collar, a scarf with streaming tails, a bow, a champion's belt, a
+  medal, a bandana, a pack, studded wristbands, or none. It is leaned by the promise and carries the colour the body
+  lacks, with a gold shine; the orb wears a bow or nothing.
+- **The egocube's mascot output**: `create_character({ egocube, output: 'mascot' })`, or an egocube written with
+  `output: 'mascot'`, makes the cube's character as its mascot (`lib/graph/egocube/mascot-from-person.js`). A person's
+  facets are read into a mascot's, each with its reason (archetype to promise and hue, reading to the face at rest, role
+  to the piece and the idle, order to the accent, build to the form, ancestry to a skin or an animal), on the person's
+  own seed. The output carries a model sheet (thesis, swatches, what names it, its piece, faces and clips, each law with
+  its choice), and the cube's preview is its turnaround: front, three-quarter, side, back.
+- **The anime style, super-deformed** (laws S1–S7 in `docs/mascot.md`): the `style` facet (`toon` or `anime`), asked
+  for by `anime`, `chibi`, `sd`, `super-deformed`, `kawaii`, `moe`, `manga`. It brings:
+  - a bigger, wider head on a shorter body;
+  - small soft hands and feet;
+  - the anime eye: low and wide, a coloured iris, the pupil low in it, two glints, a heavy lash;
+  - a dot nose, a tiny mouth and a blush;
+  - a person's hair as a cap with a fringe and side locks, and the ahoge as the leaned hook;
+  - pastel colours and open, bright rest faces.
+
+  A new `joy` expression (the eyes shut in happy arcs) is a clip for every mascot.
+- Gates: machine, the mascot tests (the laws as numbers: heads tall by form, eye size and height, the accent's hook,
+  the palette's accord, every hook and form compiling, every energy's idle posed with planted feet; the face's parts
+  and chains, each expression's channels from the rest face, the blink shutting the lids, the smirk at rest, the mouth on
+  a snout; a person's parts and palette, the cap, the human fault; a card per family, one species per family compiling
+  and rigging, the identity budget, the crafted eight's decisions, the coat). The eyes gate has
+  not run: during the build the first readings were seen only as flat-lit contact sheets
+  (`docs/examples/mascot/render-mascots.mjs`, `--faces` for the expressions), never in the World page's light.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a
