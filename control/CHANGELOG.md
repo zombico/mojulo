@@ -13,6 +13,40 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Fighting game: a side-view versus fighter on composable rails
+
+A one-on-one fighter in the Street Fighter line (a 2D fight plane, local two players) as rails a designer composes
+from, in `lib/graph/versus/`. The fight is its own pure simulation, not controllable rules; the stick figures are
+dummies on purpose (the look is other tools' job). Nothing outside the folder changes yet.
+
+- **The fight as a function of two pads** (`versus-core.js`): `stepVersus(state, [pad1, pad2], ctx)` at 60 Hz in
+  integer frames and millimetres, no clock or dice, so a pad log replays a match to the byte and a snapshot is a
+  clone. Walking, crouching, jumping with prejump, dashes, auto-facing, push boxes, walls and the screen's span;
+  strikes hitbox against hurtbox for both players at once (trades), blocking by holding back (a low crouched, an
+  overhead stood), chip, pushback that the attacker takes at a wall, hitstop, counter hits, damage scaling,
+  knockdowns, launches and juggles, wake-up, throws with a tech window, command throws, fireballs that trade with
+  each other, invincibility, meter, supers with a freeze, and rounds (intro, timer, KO, time over, best of three).
+- **The move record** (`versus-library.js`, `versus-compile.js`): every move is one record (what it hits with on the
+  rig, its poses guard → load → strike → guard, its startup / active / recovery, what it does on contact). Normals
+  are a family (jab, straight, hook, uppercut, front kick, roundhouse, knee, crouching jab and punch, low kick,
+  sweep, crouching uppercut, air punch, air kick, air stomp) at a strength (L / M / H); the designer writes the
+  intended advantage and the stun is solved from it. Hitboxes and hurtboxes are solved from the stick figure's
+  striking segment and body each frame (the limb's hurtbox is out while it is), so a longer arm reaches further with
+  the same key, and reach costs frames. Specials: fireball, the rising reversal, rush, spin, leaping overhead,
+  command grab, each at L / M / H; supers are their bigger selves.
+- **Buttons are not moves** (`versus-input.js`): a scheme reads buttons into a moveset slot, so every character plays
+  in every scheme and each player picks their own. Modern (L / M / H, Special + direction, Special + H the super,
+  Throw), classic (motions: 236, 623, 214, 22, 41236, 236236), simple (one attack button and an auto-combo). A
+  buffer keeps presses through hitstop.
+- **Intent → a character** (`versus-solver.js`): an archetype (all-rounder, rushdown, zoner, grappler), a cast and
+  signature words (kicks, punches, fire, reversal, grab, overhead, heavy, light) fill every slot, close the loop the
+  archetype leaves open (no reversal: an anti-air normal), and write down what each word did. A default roster of
+  four dummies is solved from one line each (`versus-roster.js`).
+- **The machine gate** (`versus-laws.js`, `versus-match.js`, `versus-cpu.js`): laws on each fighter (the throw is
+  shorter than any poke, a fast jab exists, a jump is answered, an invincible special loses on block, a jump clears
+  the fireball, a fireball is minus on block, reach costs frames), and a deterministic CPU that plays the loop, so
+  the roster fights itself headless and reports win rates, the longest combo and the most a combo took.
+
 ### Tool consolidation: one door per intent
 
 What a user asks lands on one tool. A new capability is a routing card and an argument on the door that owns
