@@ -41,6 +41,18 @@ dummies on purpose (the look is other tools' job).
   beside the game, and the game's stage select picks among them. The front hosts the chosen arena's World page in a
   frame and speaks the game shell's own level wire to it (ready, init with the picks, outcome back); an arena opened
   on its own fights its first two fighters against the CPU. A tap shorter than a slow frame still counts.
+- **Extending a spawned game by editing its recipe** (no code; `update_sketch` now gates a versus game by compiling
+  every fighter and reading the rules, where it used to refuse it as a level game). A roster intent carries a
+  `weapon`, its own `library` of specials and supers (the shipped record's shape, `from` a shipped one, built from
+  primitives: projectile, travel, airborne, invuln windows, armor, a low or high profile that clips the hurtboxes,
+  a riposte that catches and answers, hits, knock, command throw), slot overrides and a `tune` on any move (frames,
+  damage, intended advantage, guard, knock; the stun is still solved from the advantage). The full rules block
+  passes through, with opt-in `systems` (parry, burst, guard crush); absent, the fight is the same to the byte.
+- **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
+  its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
+  in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless
+  `hurt: 'none'`), and two blades that meet clash. A law, `disjoint-pays`, flags a blade that pays nothing. Drawn in
+  2D and 3D.
 - **The playable page** (`versus-page.js`, `versus-play.client.js`, `versus-runtime.client.js`): one self-contained HTML file, the pure modules
   inlined. Title, mode select (versus, versus CPU at four levels, training, CPU vs CPU), character select where each
   player picks a fighter and a scheme, stage select, rounds with ROUND / FIGHT / K.O. / TIME, mirrored health bars,

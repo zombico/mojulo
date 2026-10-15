@@ -11,6 +11,14 @@
  *
  * Every fighter has the throw (the loop's third corner) and an answer to a jump: the reversal if it has one, an
  * anti-air normal at stand.H if it does not.
+ *
+ * An intent also carries what a designer adds after the solve, so a game's roster stays a few words:
+ *   weapon?   a word (versus-library WEAPONS) or dials
+ *   library?  the fighter's own specials and supers (versus-compile.js)
+ *   normals?  { <slot>: family | { family, strength?, tune? } }      replaces the solved slot
+ *   specials? { <dir>: id | { id, motion?, tune? } | null }           replaces (or, null, empties) a direction
+ *   super?    id | { id, tune? }
+ *   tune?     { <slot> | special.<dir> | super | throw: tune }          a tune onto what the solve chose
  */
 
 export const ARCHETYPES = Object.freeze({
@@ -115,7 +123,44 @@ export function solveFighter(intent = {}) {
     specials: Object.fromEntries(Object.entries(specials).map(([dir, id]) => [dir, { id }])),
     super: { id: superId },
   };
+  overlay(recipe, intent, notes);
   return { recipe, notes };
+}
+
+const SPECIAL_DIRS = ['neutral', 'forward', 'back', 'down'];
+const NORMAL_KEYS = Object.keys(LEANS.mixed);
+
+/** What the designer wrote over the solve: a weapon, their own shelf, slots replaced, tunes. */
+function overlay(recipe, intent, notes) {
+  if (intent.weapon) {
+    recipe.weapon = intent.weapon;
+    const kind = typeof intent.weapon === 'string' ? intent.weapon : intent.weapon.kind ?? 'sword';
+    notes.push(`weapon: ${kind}, its strikes hit with the blade and pay for it in recovery`);
+  }
+  if (intent.library) { recipe.library = intent.library; notes.push(`library: ${[...Object.keys(intent.library.specials ?? {}), ...Object.keys(intent.library.supers ?? {})].join(', ')}`); }
+  for (const [slot, n] of Object.entries(intent.normals ?? {})) {
+    if (!NORMAL_KEYS.includes(slot)) throw new Error(`versus: normals.${slot} is not a slot (${NORMAL_KEYS.join(', ')})`);
+    recipe.normals[slot] = typeof n === 'string' ? { family: n } : { ...n };
+    notes.push(`normals: ${slot} → ${recipe.normals[slot].family}`);
+  }
+  for (const [dir, sp] of Object.entries(intent.specials ?? {})) {
+    if (!SPECIAL_DIRS.includes(dir)) throw new Error(`versus: specials.${dir} is not a direction (${SPECIAL_DIRS.join(', ')})`);
+    if (sp === null) { delete recipe.specials[dir]; notes.push(`specials: ${dir} emptied`); continue; }
+    recipe.specials[dir] = typeof sp === 'string' ? { id: sp } : { ...sp };
+    notes.push(`specials: ${dir} → ${recipe.specials[dir].id}`);
+  }
+  if (intent.super) { recipe.super = typeof intent.super === 'string' ? { id: intent.super } : { ...intent.super }; notes.push(`super → ${recipe.super.id}`); }
+  for (const [key, tune] of Object.entries(intent.tune ?? {})) {
+    if (NORMAL_KEYS.includes(key)) recipe.normals[key] = { ...recipe.normals[key], tune };
+    else if (key.startsWith('special.') && SPECIAL_DIRS.includes(key.slice(8))) {
+      const dir = key.slice(8);
+      if (!recipe.specials[dir]) throw new Error(`versus: tune.${key}: the fighter has no special at ${dir}`);
+      recipe.specials[dir] = { ...recipe.specials[dir], tune };
+    } else if (key === 'super') recipe.super = { ...recipe.super, tune };
+    else if (key === 'throw') recipe.throw = { tune };
+    else throw new Error(`versus: tune.${key} is a normal slot, special.<${SPECIAL_DIRS.join(' | ')}>, super or throw`);
+    notes.push(`tune: ${key} (${Object.keys(tune).join(', ')})`);
+  }
 }
 
 const STANCE_OF = { jab: 'stand', straight: 'stand', hook: 'stand', uppercut: 'stand', 'front-kick': 'stand', roundhouse: 'stand', knee: 'stand', 'crouch-jab': 'crouch', 'low-kick': 'crouch', 'crouch-punch': 'crouch', sweep: 'crouch', 'crouch-uppercut': 'crouch', 'air-punch': 'air', 'air-kick': 'air', 'air-stomp': 'air' };

@@ -106,3 +106,17 @@ describe('update_sketch on game manifests', () => {
       .toContain('bag');
   });
 });
+
+describe('update_sketch on a versus game (a fighter)', () => {
+  it('an edit that gives a fighter a weapon, a tune and the game a system lands in place; one that cannot compile says why', async () => {
+    SketchRepository.create({ ref: 'fight-game', title: 'Fight', manifest: { kind: 'game', engine: 'versus', title: 'Fight', roster: [{ id: 'kata', archetype: 'all-rounder' }] } });
+    const manifest = {
+      kind: 'game', engine: 'versus', title: 'Fight',
+      roster: [{ id: 'kata', archetype: 'all-rounder', weapon: 'sword', tune: { 'stand.M': { adv: { block: 1 } } } }],
+      rules: { systems: ['parry'] },
+    };
+    await updateSketchHandler({ ref: 'fight-game', manifest });
+    expect(SketchRepository.getByRef('fight-game').manifest).toEqual(manifest);
+    await expect(updateSketchHandler({ ref: 'fight-game', manifest: { ...manifest, rules: { systems: ['dodge'] } } })).rejects.toThrow(/Invalid versus game: .*systems/);
+  });
+});

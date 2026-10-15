@@ -13,7 +13,7 @@
  */
 
 /* global VERSUS, compileFighter, rigJoints, SCHEMES, RT, VS_LEVELS, VS_DUMMY, installVersusInput, menuInput, blip, endInputFrame,
-   newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined, vsShade */
+   newMatch, stepMatch, poseOf, drawEffects, drawHud, drawBlade, vsText, vsOutlined, vsShade */
 
 const cv = document.getElementById('versus');
 const g = cv.getContext('2d');
@@ -200,6 +200,8 @@ function drawFighter(p, F, color, view, t) {
   g.fill();
   g.lineCap = 'round'; g.lineJoin = 'round';
   const lw = Math.max(4, F.body.limbR * 2 * S);
+  // a rear-hand weapon is behind the body, a lead-hand one in front of it
+  if (F.weapon && F.weapon.grip === 'B') drawBlade(g, F, J, sx, sy, S);
   for (const [a, b] of BONES) {
     const back = a.endsWith('B') || b.endsWith('B');
     const trunk = a === 'pelvis' && b === 'neck';
@@ -210,6 +212,7 @@ function drawFighter(p, F, color, view, t) {
     g.lineWidth = trunk ? lw * 1.7 : lw;
     g.beginPath(); g.moveTo(sx(J[a][0]), sy(J[a][1])); g.lineTo(sx(J[b][0]), sy(J[b][1])); g.stroke();
   }
+  if (F.weapon && F.weapon.grip === 'F') drawBlade(g, F, J, sx, sy, S);
   const hr = F.body.head * S;
   g.fillStyle = color; g.strokeStyle = '#000'; g.lineWidth = 3;
   g.beginPath(); g.arc(sx(J.head[0]), sy(J.head[1]), hr, 0, Math.PI * 2); g.fill(); g.stroke();

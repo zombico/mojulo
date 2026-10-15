@@ -17,7 +17,7 @@
  * abort). On its own it fights the arena's first two fighters, player 1 against the CPU, and offers another.
  */
 
-/* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, RT, VS_DUMMY,
+/* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
    installVersusInput, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
 
 const AV = VERSUS_ARENA;
@@ -66,7 +66,7 @@ const LIMBS = [
 const JOINTS = [['elbowF', 1], ['elbowB', 1], ['kneeF', 1.1], ['kneeB', 1.1], ['fistF', 1.5], ['fistB', 1.5], ['ankleF', 1], ['ankleB', 1], ['pelvis', 1.6], ['shoulder', 1.4]];
 const depthOf = (name) => (name.endsWith('F') ? -0.11 : name.endsWith('B') ? 0.11 : 0);
 
-function makeBody(color) {
+function makeBody(color, F) {
   const front = new THREE.MeshBasicMaterial({ color, vertexColors: true });
   const back = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.55), vertexColors: true });
   const group = new THREE.Group();
@@ -78,9 +78,11 @@ function makeBody(color) {
   const limbs = LIMBS.map(([a, b, w]) => ({ a, b, w, ...part(CYL, b.endsWith('B') ? back : front) }));
   const joints = JOINTS.map(([j, w]) => ({ j, w, ...part(BALL, j.endsWith('B') ? back : front) }));
   const head = part(BALL, front);
+  // a weapon: one more inked cylinder, the blade's own colour, on the grip hand's side of the plane
+  const blade = F && F.weapon ? part(CYL, new THREE.MeshBasicMaterial({ color: F.weapon.color, vertexColors: true })) : null;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
   scene.add(group, shadow);
-  return { group, limbs, joints, head, shadow, front, back };
+  return { group, limbs, joints, head, blade, shadow, front, back };
 }
 
 const vA = new THREE.Vector3(), vB = new THREE.Vector3(), UP = new THREE.Vector3(0, 0, 1), vD = new THREE.Vector3();
@@ -101,6 +103,19 @@ function placeBody(B, p, F, t) {
   for (const Jn of B.joints) {
     at(Jn.j, vA);
     for (const [mesh, k] of [[Jn.fill, 1.05], [Jn.ink, 1.32]]) { mesh.position.copy(vA); mesh.scale.setScalar(r * Jn.w * k); }
+  }
+  if (B.blade) {
+    const L = weaponLine(J, F.weapon);
+    const z = PLANE + (F.weapon.grip === 'B' ? 0.13 : -0.13);
+    vA.set((p.x + L.butt[0] * p.face) / 1000, z, FLOOR + (p.y + L.butt[1]) / 1000);
+    vB.set((p.x + L.tip[0] * p.face) / 1000, z, FLOOR + (p.y + L.tip[1]) / 1000);
+    vD.subVectors(vB, vA);
+    const len = vD.length() || 0.001, wr = (F.weapon.width / 1000) * 0.55;
+    for (const [mesh, k] of [[B.blade.fill, 1], [B.blade.ink, 1.6]]) {
+      mesh.position.addVectors(vA, vB).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(UP, vD.clone().normalize());
+      mesh.scale.set(wr * k, wr * k, len);
+    }
   }
   at('head', vA);
   const hr = F.body.head / 1000;
@@ -128,7 +143,7 @@ function begin(params) {
   const fighters = params.fighters.map((r) => compileFighter(r));
   const rules = { ...(AV.rules || {}), ...(params.rules || {}), half: Math.round(AV.half * 1000) };
   match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, rules, seed: params.seed ?? 1 });
-  bodies = params.colors.map((c) => makeBody(c));
+  bodies = params.colors.map((c, i) => makeBody(c, fighters[i]));
   phase = 'fight';
 }
 

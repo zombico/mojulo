@@ -978,7 +978,14 @@ export async function updateSketchHandler(input) {
   let prevWorkbenchStats = null;
   let scadStats = null;
   let prevScadStats = null;
-  if (manifest !== undefined && manifest?.kind === 'game') {
+  if (manifest !== undefined && manifest?.kind === 'game' && manifest.engine === 'versus') {
+    // A versus game (a fighter, lib/graph/versus) is its own simulation: no store, no levels to resolve. Its gate is
+    // that every fighter compiles (weapon, tunes, own specials) and every rule reads.
+    const { readVersusManifest } = await import('../../graph/versus/versus-page.js');
+    const { ok, errors } = readVersusManifest(manifest);
+    if (!ok) throw new Error(`Invalid versus game: ${errors.join('; ')}`);
+    nextManifest = manifest;
+  } else if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
     // tweaking a level list or difficulty meant re-minting + re-binding project

@@ -12,6 +12,11 @@
  *   SPECIALS         the loop's verbs: fireball (projectile), rising (the invincible reversal), rush, spin, leap
  *                    (an overhead), grab (a command throw); each at L / M / H.
  *   SUPERS           a special's bigger self: a freeze, invincibility, damage, a full meter.
+ *   WEAPONS          what a fighter may hold: a blade on the grip hand that its strikes hit with (versus-compile.js
+ *                    lays the blade, its disjoint and what that costs).
+ *
+ * A recipe adds to the shelves without code: its own specials and supers in the same record (`library`), a tune on
+ * any move, and a weapon; a game's rules switch on SYSTEMS by word.
  *
  * Frames follow the genre's count: `startup` includes the first active frame, so a 4-frame jab hits on frame 4;
  * active frames run startup .. startup + active - 1, then recovery. Advantage is the designer's intent (`adv.hit`,
@@ -40,6 +45,7 @@ POSES.fall = { torso: -55, head: -70, armF: [140, 120], armB: [170, 150], legF: 
 POSES.down = { torso: -90, head: -95, armF: [-80, -95], armB: [-100, -110], legF: [88, 92, 175], legB: [80, 90, 170] };
 POSES.rise = P(POSES.crouch, { torso: 40, head: 20 });
 POSES.thrown = P(POSES.fall, { air: false });
+POSES.burst = P(POSES.guard, { torso: -8, head: -12, armF: [120, 150], armB: [-120, -150], legF: [30, 10, 90], legB: [-30, -10, 90] });
 POSES.win = P(POSES.guard, { torso: 0, head: -10, armB: [175, 178], armF: [20, 165] });
 POSES.lose = P(POSES.crouch, { torso: 60, head: 70, armF: [5, 0], armB: [-5, 0] });
 
@@ -229,3 +235,34 @@ export const SUPERS = Object.freeze({
 
 export const SUPER_COST = 1000;
 export const METER_MAX = 1000;
+
+// ── weapons ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A weapon rides the grip hand (F lead, B rear) along the forearm, turned by `angle` (degrees, + tips it up); its
+ * blade is `length` of the body's height past the fist (`butt` behind it, drawn only). A strike with the grip hand
+ * hits with the blade. The blade is disjointed: it is not a hurtbox while it swings, so it pays for its reach in
+ * frames (versus-compile.js reachTax) and, by default, stays hurtable through a whiff's recovery (`hurt`:
+ * 'recovery'; 'none' fully disjointed; 'always' hurtable whenever it is out). `tempo` stretches the grip hand's
+ * normals, `damage` scales what they deal, `width` is the blade's half-thickness (mm at 1800 tall).
+ */
+export const WEAPONS = Object.freeze({
+  knife: { grip: 'F', length: 0.14, width: 40, angle: -10, tempo: 0.95, damage: 1, hurt: 'recovery', color: '#d8dde6', says: 'a knife: barely longer than a fist, quick' },
+  sword: { grip: 'F', length: 0.42, width: 45, angle: 0, tempo: 1, damage: 1.1, hurt: 'recovery', color: '#e6ebf2', says: 'a sword in the lead hand: the jab becomes a thrust' },
+  katana: { grip: 'F', length: 0.48, width: 40, angle: 6, tempo: 1, damage: 1.15, hurt: 'recovery', color: '#f2f4f8', says: 'a long blade: reach, paid for on a whiff' },
+  axe: { grip: 'F', length: 0.36, width: 90, angle: 10, tempo: 1.12, damage: 1.3, hurt: 'recovery', color: '#b9a48a', says: 'an axe: short, slow, it hits like a sweep' },
+  spear: { grip: 'B', length: 0.72, width: 35, butt: 0.3, angle: -4, tempo: 1.05, damage: 1, hurt: 'recovery', color: '#c9b089', says: 'a spear in the rear hand: the longest poke, the lead hand stays free' },
+  staff: { grip: 'B', length: 0.5, width: 45, butt: 0.45, angle: 0, tempo: 1.02, damage: 0.95, hurt: 'always', color: '#a57b4f', says: 'a staff: long both ways, its wood is hit as it swings' },
+  claws: { grip: 'F', length: 0.1, width: 60, angle: 0, tempo: 0.92, damage: 0.95, hurt: 'recovery', color: '#c8ccd2', says: 'claws: a fist that cuts, a frame faster' },
+});
+
+export const WEAPON_HURT = Object.freeze(['recovery', 'none', 'always']);
+
+// ── systems ──────────────────────────────────────────────────────────────────────────────────────────────────
+
+// a game's opt-in rules (rules.systems); absent, the fight is the same to the byte
+export const SYSTEMS = Object.freeze({
+  parry: 'tap forward as a strike arrives (down for a low) to parry it: no damage, and you move first',
+  burst: 'once a round, S + T while being hit breaks the combo and knocks the attacker away',
+  guard: 'blocking wears a guard bar; an empty bar is crushed, open for a combo',
+});

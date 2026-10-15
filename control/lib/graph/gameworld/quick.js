@@ -45,12 +45,15 @@
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     roster?: [<intent>, …],               // fight: the fighters (versus/versus-solver.js: { id, name?, archetype, cast?,
- *                                           // signature?, color? }), solved into movesets; the default four if absent
+ *                                           // signature?, color?, weapon?, library?, normals?, specials?, super?, tune? }),
+ *                                           // solved into movesets; the default four if absent
  *     arenas?: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] | false,
  *                                           // fight: scapeshift arenas (versus/versus-arena.js), each a stage world the
  *                                           // fight runs on in 3D (a plaza and a nave if absent); false: flat stages
  *     stages?: [{ id, name, sky, floor, crowd }], // fight, arenas false: the flat backdrops (versus-roster.js)
  *     rounds?: n, timer?: n,                // fight: rounds to win (1 to 3, 2) and seconds a round (30 to 99, 99)
+ *     rules?: { systems?, … },              // fight: the full rules block (versus/versus-core.js readRules): systems (parry,
+ *                                           // burst, guard) and the sim's dials; rounds and timer win over it
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
  *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
@@ -83,6 +86,8 @@ import { CRAFT } from '../skyscape/eye.js';
 import { flightLaps } from '../skyscape/course.js';
 import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 import { solveFighter } from '../versus/versus-solver.js';
+import { compileFighter } from '../versus/versus-compile.js';
+import { readRules } from '../versus/versus-core.js';
 import { readArena, arenaManifest } from '../versus/versus-arena.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -99,7 +104,7 @@ export const QUICK_GOALS = Object.freeze({
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
-  fight: 'a 1v1 fighter from the side: roster, arenas, rounds, timer',
+  fight: 'a 1v1 fighter from the side: roster, arenas, rounds, timer, rules',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
   fly: 'fly the ring gates in order and land; best time kept',
@@ -139,7 +144,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -257,13 +262,13 @@ export function readQuick(Q) {
   if (Q.goal === 'shoot' && !flies && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
-  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer']) if (Q.goal !== 'fight' && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
+  for (const k of ['roster', 'arenas', 'stages', 'rounds', 'timer', 'rules']) if (Q.goal !== 'fight' && Q[k] !== undefined) throw fail(`.${k} belongs to the fight goal`);
   if (Q.goal === 'fight') readFight(Q);
   return Q;
 }
 
 // what a fight takes (a versus game is its own simulation: no hero, trail, building, ride or run)
-const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'theme', 'camera'];
+const FIGHT_KEYS = ['goal', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'theme', 'camera'];
 function readFight(Q) {
   for (const k of Object.keys(Q)) if (!FIGHT_KEYS.includes(k)) throw fail(`.${k}: a fight takes ${FIGHT_KEYS.join(', ')} (its fighters are its roster)`);
   if (Q.camera !== undefined && Q.camera !== 'side') throw fail('.fight is seen from the side (camera side)');
@@ -276,7 +281,7 @@ function readFight(Q) {
       ids.add(r.id);
       const { color, ...intent } = r;
       if (color !== undefined && !/^#[0-9a-f]{6}$/i.test(color)) throw fail(`.roster[${i}].color is a #rrggbb colour`);
-      try { solveFighter(intent); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+      try { compileFighter(solveFighter(intent).recipe); } catch (e) { throw fail(`.roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
     });
   }
   if (Q.arenas !== false && Q.stages !== undefined) throw fail('.stages are the flat backdrops of a fight without arenas (arenas: false)');
@@ -302,6 +307,9 @@ function readFight(Q) {
   }
   if (Q.rounds !== undefined && !(Number.isInteger(Q.rounds) && Q.rounds >= 1 && Q.rounds <= 3)) throw fail('.rounds is how many rounds win the match, 1 to 3');
   if (Q.timer !== undefined && !(Number.isInteger(Q.timer) && Q.timer >= 30 && Q.timer <= 99)) throw fail('.timer is a round\'s seconds, 30 to 99');
+  if (Q.rules !== undefined) {
+    try { readRules(Q.rules); } catch (e) { throw fail(`.rules: ${e.message.replace(/^versus: /, '')}`); }
+  }
 }
 
 // a fight's arenas when it names none: an open-air plaza and a nave
@@ -316,7 +324,8 @@ export function fightArenas(Q, { title } = {}) {
     manifest: arenaManifest({ ...words, title: `${title ?? 'versus'} · ${name ?? id}`, ...(Q.roster ? { roster: Q.roster } : {}), ...(rules ? { rules } : {}) }),
   }));
 }
-const fightRules = (Q) => (Q.rounds || Q.timer ? { ...(Q.rounds ? { rounds: Q.rounds } : {}), ...(Q.timer ? { timer: Q.timer } : {}) } : null);
+// the fight's rules: the full block (versus-core readRules: systems and the sim's dials), rounds and timer over it
+const fightRules = (Q) => (Q.rounds || Q.timer || Q.rules ? { ...(Q.rules ?? {}), ...(Q.rounds ? { rounds: Q.rounds } : {}), ...(Q.timer ? { timer: Q.timer } : {}) } : null);
 
 /** A fight's game: the versus manifest the play route serves (versus/versus-page.js); `arenas` its levels' refs. */
 export function quickVersus(Q, { title, theme, arenas } = {}) {
@@ -325,7 +334,7 @@ export function quickVersus(Q, { title, theme, arenas } = {}) {
     ...(Q.roster ? { roster: Q.roster } : {}),
     ...(arenas && arenas.length ? { arenas } : {}),
     ...(Q.stages ? { stages: Q.stages } : {}),
-    ...(Q.rounds || Q.timer ? { rules: { ...(Q.rounds ? { rounds: Q.rounds } : {}), ...(Q.timer ? { timer: Q.timer } : {}) } } : {}),
+    ...(fightRules(Q) ? { rules: fightRules(Q) } : {}),
     ...(theme ? { theme } : {}),
   };
 }

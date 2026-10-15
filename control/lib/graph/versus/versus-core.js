@@ -18,7 +18,7 @@
  */
 
 import { recordInput, readCommand, autoNext, consume, pressed, traced, currentDir, downish, BTN, SCHEMES, ZERO_PAD } from './versus-input.js';
-import { METER_MAX } from './versus-library.js';
+import { METER_MAX, SYSTEMS } from './versus-library.js';
 
 export const VERSUS_RULES = Object.freeze({
   half: 3800,       // the walls, from mid-stage
@@ -31,7 +31,37 @@ export const VERSUS_RULES = Object.freeze({
   roundGap: 60,     // frames of the round-end card before the next intro
   down: 36, rise: 10, juggle: 3, cancelLate: 8, throwInvulnAfter: 5,
   scaling: [100, 100, 80, 70, 60, 50, 40, 30, 20, 10],
+  // the systems' dials (read only when the system is on)
+  parryWindow: 6,   // frames a forward (or down) tap parries for
+  parryFreeze: 16,  // frames the parried attacker is held
+  burstReach: 1600, // mm the burst knocks an attacker away from
+  guardMax: 1000, guardRegen: 3, guardRest: 60, crushStun: 40,
 });
+
+// the rules a game may set (the rest are the sim's own): whole numbers from a floor, the scaling row, the systems
+const RULE_FLOORS = { half: 1500, span: 1500, start: 300, timer: 10, rounds: 1, down: 1, rise: 1, juggle: 0, cancelLate: 0, parryWindow: 1, parryFreeze: 0, burstReach: 0, guardMax: 100, guardRegen: 0, guardRest: 0, crushStun: 1 };
+
+/** A game's rules as written → the overrides newVersus takes; throws on a key or value it cannot read. */
+export function readRules(r) {
+  if (r === undefined || r === null) return {};
+  if (typeof r !== 'object' || Array.isArray(r)) throw new Error('versus: rules is an object');
+  const out = {};
+  for (const [k, v] of Object.entries(r)) {
+    if (k in RULE_FLOORS) {
+      if (!Number.isInteger(v) || v < RULE_FLOORS[k] || v > 99999) throw new Error(`versus: rules.${k} is a whole number from ${RULE_FLOORS[k]}`);
+      out[k] = v;
+    } else if (k === 'scaling') {
+      if (!Array.isArray(v) || !v.length || v.length > 20 || !v.every((n) => Number.isInteger(n) && n >= 0 && n <= 200)) throw new Error('versus: rules.scaling is a list of percentages, one per hit of a combo');
+      out[k] = v.slice();
+    } else if (k === 'systems') {
+      if (!Array.isArray(v) || !v.every((w) => SYSTEMS[w])) throw new Error(`versus: rules.systems is a list of ${Object.keys(SYSTEMS).join(', ')}`);
+      if (v.length) out[k] = [...new Set(v)];
+    } else throw new Error(`versus: rules has no '${k}' (one of ${[...Object.keys(RULE_FLOORS), 'scaling', 'systems'].join(', ')})`);
+  }
+  return out;
+}
+
+const sys = (s, w) => !!s.rules.systems && s.rules.systems.includes(w);
 
 const NEUTRAL = new Set(['stand', 'walkF', 'walkB', 'crouch']);
 const sign = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
@@ -43,6 +73,8 @@ function newPlayer(i, fighter, rules, meter = 0, scheme = 'modern') {
     hitN: 0, hitAt: 0, conn: 0, combo: 0, jug: 0, pushv: 0, pushn: 0, jx: 0, airMove: 0, air: 0,
     landing: 0, inv: 0, tinv: 0, tb: 0, clinch: 0, techable: 0, throwDmg: 0, ko: 0, counter: 0,
     hist: [], held: 0, scheme,
+    ...(rules.systems && rules.systems.includes('guard') ? { gd: rules.guardMax, gdT: 0 } : {}),
+    ...(rules.systems && rules.systems.includes('burst') ? { burst: 0 } : {}),
   };
 }
 
@@ -109,7 +141,7 @@ const shotBox = (t) => [t.x - t.w / 2, t.y - t.h / 2, t.x + t.w / 2, t.y + t.h /
 
 function invulnTo(p, F, kind) {
   if (p.inv > 0 && kind !== 'throw') return true;
-  if (p.st === 'down' || p.st === 'rise' || p.st === 'thrown' || p.st === 'throwing' || p.st === 'tech' || p.st === 'ko') return true;
+  if (p.st === 'down' || p.st === 'rise' || p.st === 'thrown' || p.st === 'throwing' || p.st === 'tech' || p.st === 'ko' || p.st === 'burst') return true;
   if (p.mv) {
     const m = F.moves[p.mv];
     for (const [a, b, k] of m.invuln) if (p.mf >= a && p.mf <= b && k === kind) return true;
@@ -170,6 +202,7 @@ function think(s, i, ctx) {
   if (s.phase !== 'fight') return;
   const p = s.p[i];
   const F = ctx.fighters[i];
+  if (p.burst === 0 && (p.st === 'hit' || p.st === 'fall') && !p.ko && pressed(p.hist, BTN.S, 4) && pressed(p.hist, BTN.T, 4)) { burst(s, i); return; }
   if (p.hs > 0) return;
   const dir = currentDir(p.hist);
   const hasShot = s.shots.some((t) => t.o === i);
@@ -219,6 +252,7 @@ function start(s, i, ctx, cmd) {
   p.hitN = 0;
   p.hitAt = 0;
   p.air = 0;
+  if (m.armor) p.armorN = 0;
   if (m.stance === 'air') { p.airMove = 1; return; }
   p.st = 'move';
   p.sf = 0;
@@ -240,6 +274,10 @@ function advance(s, i, ctx) {
   const F = ctx.fighters[i];
   if (p.inv > 0) p.inv--;
   if (p.tinv > 0) p.tinv--;
+  if (p.gd !== undefined && p.st !== 'block') {
+    p.gdT++;
+    if (p.gdT > s.rules.guardRest) p.gd = Math.min(s.rules.guardMax, p.gd + s.rules.guardRegen);
+  }
   if (p.hs > 0) { p.hs--; return; }
   p.sf++;
   if (p.pushn > 0) { p.x += p.pushv; p.pushn--; }
@@ -321,6 +359,10 @@ function advance(s, i, ctx) {
     }
     case 'thrown': break; // the thrower moves this body
     case 'tech': if (p.sf >= 14) { p.st = 'stand'; p.sf = 0; } break;
+    case 'burst':
+      if (p.y > 0 || p.vy > 0) fly(p, J.g);
+      if (p.y <= 0) { p.y = 0; p.vy = 0; p.vx = 0; if (p.sf >= 24) { p.st = 'stand'; p.sf = 0; } }
+      break;
     case 'win': case 'lose': break;
     default: break;
   }
@@ -344,6 +386,20 @@ function tech(s, i) {
     q.st = 'tech'; q.sf = 0; q.mv = null; q.pushv = dir * 25; q.pushn = 10;
   }
   s.events.push({ t: 'tech', x: (p.x + o.x) / 2 });
+}
+
+// the burst (system 'burst'): once a round, the one being hit breaks free and knocks a close attacker away
+function burst(s, i) {
+  const p = s.p[i], o = s.p[1 - i];
+  p.burst = 1;
+  p.hist = consume(p.hist);
+  p.st = 'burst'; p.sf = 0; p.mv = null; p.air = 0; p.hs = 0; p.stun = 0; p.combo = 0; p.jug = 0; p.inv = 30; p.pushn = 0;
+  p.vx = 0; if (p.y > 0) p.vy = Math.max(p.vy, 20);
+  if (Math.abs(o.x - p.x) <= s.rules.burstReach && !o.ko && o.st !== 'down') {
+    const away = sign(o.x - p.x) || -p.face;
+    o.st = 'fall'; o.sf = 0; o.mv = null; o.air = 0; o.hs = 0; o.vy = 60; o.vx = away * 34; if (o.y <= 0) o.y = 1;
+  }
+  s.events.push({ t: 'burst', p: i, x: p.x, y: p.y + 1000 });
 }
 
 function spawnShot(s, i, m) {
@@ -408,7 +464,7 @@ function separate(s, ctx, before) {
 
 function autoFace(s, i) {
   const p = s.p[i], o = s.p[1 - i];
-  if (!(NEUTRAL.has(p.st) || p.st === 'land' || p.st === 'rise' || p.st === 'down' || p.st === 'prejump')) return;
+  if (!(NEUTRAL.has(p.st) || p.st === 'land' || p.st === 'rise' || p.st === 'down' || p.st === 'prejump' || p.st === 'burst')) return;
   const f = sign(o.x - p.x);
   if (f) p.face = f;
 }
@@ -434,6 +490,14 @@ function canBlock(d, guard) {
   return true;
 }
 
+// a fresh tap of `dir` within the last `within` frames: the direction arrives (it was not held the frame before)
+function tapped(hist, dir, within) {
+  for (let i = hist.length - 1; i >= 1 && i >= hist.length - within; i--) {
+    if ((hist[i] & 15) === dir && (hist[i - 1] & 15) !== dir) return true;
+  }
+  return false;
+}
+
 function scaled(s, d, dmg) {
   const T = s.rules.scaling;
   return Math.max(1, Math.floor((dmg * T[Math.min(d.combo, T.length - 1)]) / 100));
@@ -453,11 +517,26 @@ function resolve(s, ctx) {
     if (sign(o.x - p.x) !== p.face && o.x !== p.x) return false;
     return !invulnTo(o, F[1 - i], 'throw');
   });
+  // blades that meet on the same frame clash: neither lands, both recoil
+  const clashed = [false, false];
+  const blades = [0, 1].map((i) => {
+    const m = activeMove(s.p[i], F[i]);
+    const fr = m && m.armed ? moveFrame(s.p[i], F[i]) : null;
+    return fr && fr.blade ? worldBox(fr.blade, s.p[i].x, s.p[i].y, s.p[i].face) : null;
+  });
+  if (blades[0] && blades[1] && overlap(blades[0], blades[1])) {
+    for (let i = 0; i < 2; i++) {
+      const p = s.p[i];
+      p.hitN = F[i].moves[p.mv].hits; p.hs = 12; p.pushv = -p.face * 30; p.pushn = 8;
+      clashed[i] = true;
+    }
+    s.events.push({ t: 'clash', x: (blades[0][2] + blades[0][0] + blades[1][0] + blades[1][2]) / 4, y: (blades[0][1] + blades[0][3]) / 2 });
+  }
   // strikes
   for (let i = 0; i < 2; i++) {
     const p = s.p[i], o = s.p[1 - i];
     const m = activeMove(p, F[i]);
-    if (!m || m.throw || o.ko) continue;
+    if (!m || m.throw || o.ko || clashed[i]) continue;
     const hb = hitBox(p, F[i]);
     if (!hb) continue;
     if (o.st === 'fall' && (!m.juggle || o.jug >= s.rules.juggle)) continue;
@@ -506,6 +585,38 @@ function applyHit(s, ctx, { a, m, shot }) {
   const push = src.push ?? 150;
   if (shot) { shot.hits--; shot.hitAt = s.f; } else { p.hitN++; p.hitAt = p.mf; }
   const airborne = d.y > 0 || d.air || d.st === 'air' || d.st === 'fall';
+  const dm = d.st === 'move' && d.mv ? ctx.fighters[1 - a].moves[d.mv] : null;
+
+  // a riposte catches a strike in its window and answers it
+  if (!shot && dm && dm.riposte && d.mf >= dm.riposte[0] && d.mf <= dm.riposte[1] && d.hs === 0) {
+    const [, , rdmg, knock] = dm.riposte;
+    d.mf = dm.riposte[1]; d.hs = 0;
+    p.hp -= scaled(s, p, rdmg); p.combo++; p.mv = null; p.air = 0; p.hs = hitstop;
+    if (knock === 'none') { p.st = 'hit'; p.sf = 0; p.stun = 20; p.low = 0; }
+    else { p.st = 'fall'; p.sf = 0; p.vy = knock === 'launch' ? 105 : 50; p.vx = -face * 20; if (p.y <= 0) p.y = 1; p.jug++; }
+    s.events.push({ t: 'riposte', p: 1 - a, x: d.x + d.face * 300, y: 1100 });
+    if (p.hp <= 0) ko(s, a, -face);
+    return;
+  }
+  // a parry (system 'parry'): a fresh tap toward the attacker (down for a low) as it lands
+  if (sys(s, 'parry') && !airborne && NEUTRAL.has(d.st) && tapped(d.hist, guard === 'low' ? 2 : 6, s.rules.parryWindow)) {
+    if (!shot) { p.hs = s.rules.parryFreeze; p.conn = 0; }
+    d.hs = 0;
+    d.hist = consume(d.hist);
+    d.meter = Math.min(METER_MAX, d.meter + 30);
+    s.events.push({ t: 'parry', p: 1 - a, x: shot ? shot.x : d.x - face * 200, y: shot ? shot.y : 1100 });
+    return;
+  }
+  // armor absorbs a strike or a shot in its window: the damage lands, the stun does not
+  if (dm && dm.armor && d.mf >= dm.armor[0] && d.mf <= dm.armor[1] && (d.armorN ?? 0) < dm.armor[2]) {
+    d.armorN = (d.armorN ?? 0) + 1;
+    d.hp -= scaled(s, d, src.dmg ?? src.damage);
+    d.hs = hitstop;
+    if (!shot) { p.hs = hitstop; p.conn = 2; }
+    s.events.push({ t: 'armor', p: a, x: shot ? shot.x : d.x - face * 200, y: shot ? shot.y : 1100 });
+    if (d.hp <= 0) ko(s, 1 - a, face);
+    return;
+  }
   const atWall = (dx) => Math.abs(d.x + dx) >= s.rules.half - ctx.fighters[1 - a].idle.stand.push[2] - 30;
   const pushOut = (amount) => {
     const per = Math.round(amount / 8);
@@ -514,6 +625,18 @@ function applyHit(s, ctx, { a, m, shot }) {
   };
 
   if (!airborne && canBlock(d, guard)) {
+    // the guard bar (system 'guard'): a block wears it, an empty one is crushed open
+    if (d.gd !== undefined) {
+      d.gd -= Math.round((src.dmg ?? src.damage ?? 30) * 1.5) + 20;
+      d.gdT = 0;
+      if (d.gd <= 0) {
+        d.gd = s.rules.guardMax;
+        d.st = 'hit'; d.sf = 0; d.stun = s.rules.crushStun; d.low = 0; d.mv = null; d.hs = hitstop;
+        if (!shot) { p.hs = hitstop; p.conn = 1; }
+        s.events.push({ t: 'crush', p: a, x: d.x, y: 1300 });
+        return;
+      }
+    }
     const chip = src.chip ?? 0;
     const lethal = shot ? shot.sup : m.kind === 'super';
     d.hp = Math.max(lethal ? 0 : Math.min(d.hp, 1), d.hp - chip);
@@ -621,7 +744,7 @@ function nextRound(s, ctx) {
 
 /** A short, stable fingerprint of a state (replay checks). */
 export function versusHash(s) {
-  const str = JSON.stringify([s.f, s.phase, s.pf, s.round, s.wins, s.timer, s.p.map((p) => [p.x, p.y, p.vx, p.vy, p.face, p.hp, p.meter, p.st, p.sf, p.mv, p.mf, p.hs, p.stun, p.combo]), s.shots.map((t) => [t.x, t.y, t.hits])]);
+  const str = JSON.stringify([s.f, s.phase, s.pf, s.round, s.wins, s.timer, s.p.map((p) => [p.x, p.y, p.vx, p.vy, p.face, p.hp, p.meter, p.st, p.sf, p.mv, p.mf, p.hs, p.stun, p.combo]), s.shots.map((t) => [t.x, t.y, t.hits]), ...(s.rules.systems && s.rules.systems.length ? [s.p.map((p) => [p.gd ?? null, p.burst ?? null])] : [])]);
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   return h.toString(16).padStart(8, '0');

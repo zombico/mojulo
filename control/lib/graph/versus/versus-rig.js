@@ -135,4 +135,19 @@ export function pointsBox(points, pad) {
   return [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
 }
 
+/**
+ * A weapon's line in a pose: { grip, tip, butt } (rig mm), the blade along the grip hand's forearm turned by its
+ * angle. `weapon` is the compiled one (lengths in mm). Null if there is none.
+ */
+export function weaponLine(J, weapon) {
+  if (!weapon) return null;
+  const s = weapon.grip === 'B' ? 'B' : 'F';
+  const e = J[`elbow${s}`], f = J[`fist${s}`];
+  const dx = f[0] - e[0], dy = f[1] - e[1];
+  const n = Math.hypot(dx, dy) || 1;
+  const a = (weapon.angle ?? 0) * DEG;
+  const ux = (dx / n) * Math.cos(a) - (dy / n) * Math.sin(a), uy = (dx / n) * Math.sin(a) + (dy / n) * Math.cos(a);
+  return { grip: f, tip: [f[0] + ux * weapon.length, f[1] + uy * weapon.length], butt: [f[0] - ux * (weapon.butt ?? 0), f[1] - uy * (weapon.butt ?? 0)] };
+}
+
 export const roundBox = (b) => b.map((v) => Math.round(v));

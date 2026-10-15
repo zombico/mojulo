@@ -58,6 +58,8 @@ export function cpuPad(state, ctx, i, mem, level = CPU_LEVELS.regular) {
     if (has('special.back.M') && !F.moves['special.back.M'].throw) return out(-fwd, 0, BTN.S);
     if (has('special.neutral.M') && !F.moves['special.neutral.M'].throw) return out(0, 0, BTN.S);
   }
+  // a long combo on me: break it (system 'burst', once a round)
+  if (p.burst === 0 && (p.st === 'hit' || p.st === 'fall') && p.combo >= 3 && dice(16) < L.react * 0.25) return out(0, 0, BTN.S | BTN.T);
   const busy = !(p.st === 'stand' || p.st === 'walkF' || p.st === 'walkB' || p.st === 'crouch' || p.st === 'block');
   // something is coming: block it (low if it is low)
   const oMove = o.mv ? ctx.fighters[1 - i].moves[o.mv] : null;

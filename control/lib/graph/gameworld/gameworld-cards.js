@@ -281,10 +281,11 @@ const QUICK_LEVERS = {
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
   fight: () => [
-    '  roster: [{ id, name?, archetype, cast?, signature?, color? }] (1..12)   the fighters, solved into movesets; the default four if absent',
+    '  roster: [{ id, name?, archetype, cast?, signature?, color?, weapon?, library?, normals?, specials?, super?, tune? }]',
+    '    (1..12)   the fighters, solved into movesets and extended by recipe; the default four if absent',
     '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] (1..8)   stage worlds the fight runs on in 3D;',
     '    false: flat backdrops, stages: [{ id, name, sky: [top, bottom], floor, crowd }]',
-    '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round',
+    '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: parry | burst | guard, … } the sim\'s dials',
     '  its own simulation, seen from the side: only theme and camera side beside these (no hero, trail, building, ride or run)',
   ],
   shoot: () => [

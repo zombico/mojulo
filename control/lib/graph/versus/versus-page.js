@@ -8,13 +8,19 @@
  * is regenerated on every read. No network, no CDN.
  *
  *   manifest = { kind: 'game', engine: 'versus', title?, roster?: [intent | { recipe }], stages?: [stage],
- *                arenas?: [{ ref, name?, says? }], rules?: { rounds?, timer? } }
+ *                arenas?: [{ ref, name?, says? }], rules?: { rounds?, timer?, systems?, … (versus-core readRules) } }
+ *
+ * A spawned game is extended by editing this manifest (update_sketch): a roster entry's weapon, tunes, own
+ * specials and slot overrides (versus-solver.js, versus-compile.js), the rules and their systems.
+ * readVersusManifest is the gate: every fighter compiles and every rule reads, or it says why.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { moduleDir } from '../../module-dir.js';
 import { solveFighter } from './versus-solver.js';
+import { compileFighter } from './versus-compile.js';
+import { readRules } from './versus-core.js';
 import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
 import { ARENA_PLANE } from './versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
@@ -57,7 +63,27 @@ export function versusGameData(manifest = {}) {
   return { title: manifest.title ?? 'Versus', roster, stages, rules, ...(arenas.length ? { arenas } : {}), wire: VERSUS_WIRE };
 }
 
-const rulesOf = (r) => ({ ...(r?.rounds ? { rounds: r.rounds } : {}), ...(r?.timer ? { timer: r.timer } : {}) });
+const rulesOf = (r) => readRules(r);
+
+const MANIFEST_KEYS = ['kind', 'engine', 'title', 'roster', 'stages', 'arenas', 'rules', 'theme'];
+
+/** The gate a versus manifest pays at mint and on every edit: → { ok, errors, notes } (notes: each fighter's laws). */
+export function readVersusManifest(manifest = {}) {
+  const errors = [];
+  for (const k of Object.keys(manifest)) if (!MANIFEST_KEYS.includes(k)) errors.push(`${k}: a versus game takes ${MANIFEST_KEYS.join(', ')}`);
+  if (manifest.roster !== undefined && (!Array.isArray(manifest.roster) || !manifest.roster.length)) errors.push('roster is a list of fighters (intents, or { recipe })');
+  try { readRules(manifest.rules); } catch (e) { errors.push(e.message.replace(/^versus: /, '')); }
+  const ids = new Set();
+  (Array.isArray(manifest.roster) ? manifest.roster : []).forEach((entry, i) => {
+    try {
+      const { recipe } = rosterEntry(entry, i);
+      if (ids.has(recipe.id)) throw new Error(`id '${recipe.id}' is taken`);
+      ids.add(recipe.id);
+      compileFighter(recipe);
+    } catch (e) { errors.push(`roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
+  });
+  return { ok: !errors.length, errors };
+}
 
 /** What an arena's fight channel carries: the plane and walls (m), the floor, the roster solved, the rules, the wire. */
 export function versusArenaData(v = {}) {

@@ -9,9 +9,13 @@
  *   fireball-jumped  a jump at its apex clears the fireball (the loop's answer to it)
  *   fireball-minus   a fireball is not plus on block at point blank (it is not pressure for free)
  *   reach-costs      no normal that reaches further than the jab starts faster than it
+ *   disjoint-pays    an armed normal pays for the blade its hurtbox does not cover: its tip stays hurtable after a
+ *                    whiff, or it recovers slower than the same normal unarmed (a fighter with a weapon)
  *
  * lawsFor(fighter) → [{ id, ok, says, measured }]
  */
+
+import { compileNormal } from './versus-compile.js';
 
 const grounded = (m) => m.kind === 'normal' && m.stance !== 'air';
 
@@ -50,6 +54,18 @@ export function lawsFor(F) {
   const jab = F.moves['stand.L'];
   const cheap = ground.filter((m) => m.reach > jab.reach && m.startup < jab.startup);
   law('reach-costs', !cheap.length, 'no normal that reaches further than the jab starts faster', { jab: [jab.startup, jab.reach], cheaper: cheap.map((m) => m.slot) });
+  const armed = ground.filter((m) => m.armed);
+  if (armed.length) {
+    const rows = armed.map((m) => {
+      const bare = compileNormal(F.body, m.slot, { family: m.id, strength: m.strength });
+      const tip = m.reach - F.body.limbR * 2;
+      let window = 0;
+      for (let f = m.startup + m.active; f <= m.total; f++) if (m.frames[f].hurt.some((b) => b[2] >= tip)) window++;
+      return { slot: m.slot, disjoint: m.disjoint, tipHurtable: window, slower: m.recovery - bare.recovery };
+    });
+    const free = rows.filter((r) => r.tipHurtable < 1 && r.slower < 1);
+    law('disjoint-pays', !free.length, 'an armed normal pays for its blade: hurtable at the tip after a whiff, or slower to recover', { free: free.map((r) => r.slot), rows });
+  }
   return out;
 }
 

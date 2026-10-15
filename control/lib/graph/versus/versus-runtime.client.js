@@ -9,7 +9,7 @@
  */
 
 /* global compileFighter, newVersus, stepVersus, cpuPad, newCpuMemory, CPU_LEVELS, POSES, lerpPose, hurtBoxes,
-   hitBox, pushBox, BTN */
+   hitBox, pushBox, BTN, weaponLine */
 
 const VS_LEVELS = ['novice', 'regular', 'veteran', 'ace'];
 const VS_DUMMY = ['stand', 'crouch', 'block', 'jump', 'cpu'];
@@ -179,6 +179,11 @@ function onEvent(m, e) {
     case 'throw': spark(m, e.x, e.y, '#ffffff', 12); blip('throw'); m.shake = 8; break;
     case 'tech': spark(m, e.x, 1100, '#aaaaaa', 8); m.flash = { text: 'TECH', p: -1, n: 40 }; blip('block'); break;
     case 'clash': spark(m, e.x, e.y, '#ff9a3a', 10); blip('block'); break;
+    case 'parry': spark(m, e.x, e.y, '#7ad2ff', 12); m.flash = { text: 'PARRY', p: e.p, n: 40 }; blip('block'); break;
+    case 'burst': spark(m, e.x, e.y, '#ffffff', 18); m.flash = { text: 'BURST', p: e.p, n: 50 }; m.shake = 10; blip('super'); break;
+    case 'crush': spark(m, e.x, e.y, '#ff5a3a', 14); m.flash = { text: 'GUARD CRUSH', p: e.p, n: 50 }; m.shake = 8; blip('counter'); break;
+    case 'armor': spark(m, e.x, e.y, '#c8c8c8', 8); m.flash = { text: 'ARMOR', p: 1 - e.p, n: 30 }; blip('block'); break;
+    case 'riposte': spark(m, e.x, e.y, '#ffd23a', 14); m.flash = { text: 'RIPOSTE', p: e.p, n: 40 }; m.shake = 8; blip('counter'); break;
     case 'super': m.superFlash = 40; blip('super'); break;
     case 'special': if (m.ctx.fighters[e.p].moves[e.slot].projectile) blip('fireball'); break;
     case 'ko': big('K.O.', null, 120); m.slow = 70; blip('ko'); break;
@@ -217,6 +222,7 @@ function poseOf(p, F, t) {
     case 'land': return lerpPose(POSES.crouch, POSES.guard, Math.min(1, p.sf / Math.max(1, p.landing)));
     case 'dashF': return POSES.dash;
     case 'dashB': case 'tech': return POSES.backdash;
+    case 'burst': return lerpPose(POSES.crouch, POSES.burst, Math.min(1, p.sf / 4));
     case 'hit': return p.low ? POSES.hitCrouch : (p.sf % 2 ? POSES.hitHigh : POSES.hitLow);
     case 'block': return p.low ? POSES.blockLow : POSES.blockHigh;
     case 'fall': return POSES.fall;
@@ -233,6 +239,19 @@ function poseOf(p, F, t) {
 // ── the overlay ──────────────────────────────────────────────────────────────────────────────────────────────
 
 const VS_FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+/** A fighter's weapon in 2D: the blade (and butt) as an inked stroke, at `sx(x)`, `sy(y)` (rig mm → px). */
+function drawBlade(g, F, J, sx, sy, S) {
+  const L = weaponLine(J, F.weapon);
+  if (!L) return;
+  const w = Math.max(3, F.weapon.width * 0.9 * S);
+  const stroke = (color, width) => {
+    g.strokeStyle = color; g.lineWidth = width; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(sx(L.butt[0]), sy(L.butt[1])); g.lineTo(sx(L.tip[0]), sy(L.tip[1])); g.stroke();
+  };
+  stroke('#000', w + 4);
+  stroke(F.weapon.color, w);
+}
+
 function vsText(g, str, x, y, size, color, align = 'center', weight = 800) {
   g.font = `${weight} ${size}px ${VS_FONT}`;
   g.textAlign = align; g.textBaseline = 'middle';
@@ -301,6 +320,11 @@ function drawHud(g, W, H, m) {
     const fillFrom = (f) => (i === 0 ? x0 + barW * (1 - f) : x0);
     g.fillStyle = '#d23a2a'; g.fillRect(fillFrom(lagFrac), top, barW * lagFrac, barH);
     g.fillStyle = frac < 0.25 ? '#ff8a3a' : '#ffd23a'; g.fillRect(fillFrom(frac), top, barW * frac, barH);
+    if (s.p[i].gd !== undefined) {
+      const gf = s.p[i].gd / s.rules.guardMax;
+      g.fillStyle = 'rgba(0,0,0,0.6)'; g.fillRect(x0, top + barH + 1, barW, 5);
+      g.fillStyle = gf < 0.3 ? '#ff5a3a' : '#9ad2ff'; g.fillRect(fillFrom(gf), top + barH + 1, barW * gf, 5);
+    }
     vsText(g, m.names[i].toUpperCase(), i === 0 ? x0 : x0 + barW, top + barH + 16, 16, '#fff', i === 0 ? 'left' : 'right');
     vsText(g, s.p[i].scheme.toUpperCase(), i === 0 ? x0 + barW : x0, top + barH + 16, 11, 'rgba(255,255,255,0.6)', i === 0 ? 'right' : 'left', 600);
     for (let k = 0; k < s.rules.rounds; k++) {
