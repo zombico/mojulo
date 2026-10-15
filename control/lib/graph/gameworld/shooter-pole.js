@@ -1,12 +1,14 @@
 /**
  * THE SHOOTER POLE — one dial from a REALISTIC shooter to a STYLIZED one, resolved into the rules a match plays by.
  *
- *   realistic (0)   a gun kills in a few rounds and the head is worth four bodies; the player walks, no jumping off
+ *   realistic (0)   a gun kills in a few rounds and the head is worth four bodies; a planted, tapped shot is true and
+ *                   a run or a spray is not (spread, recoil); the player walks, no jumping off
  *                   the ground's own steps; no kit; minds hold angles and peek them; the fallen lie a while; the arena
  *                   close quarters. The fight is decided by who sees whom first, and from where.
  *   stylized (1)    a body takes a long burst to drop and the head two; the player runs fast, jumps twice and dashes;
  *                   a heal on a cooldown and an ultimate charged by fighting (overdrive: its rounds hit harder); hp
- *                   mends when left alone; minds strafe and roll rather than peek; the fallen are back quickly; the
+ *                   mends when left alone; a cone a run hardly widens; minds strafe, hop, dash, heal and ult (their
+ *                   kit) rather than peek; the fallen are back quickly; the
  *                   arena large, open and long. The fight is decided by movement and the kit.
  *
  * Between the poles every number moves along the dial and each feature switches on where its pole begins to win
@@ -27,12 +29,16 @@ export const SHOOTER_POLES = Object.freeze({
     read: 'a few rounds kill and the head is worth four; walk, no kit; minds hold angles and peek them; the arena close',
     ttk: 0.3, hp: 100, rof: 10, headshot: 4, coreAngle: 0.8, magazine: 30, reserve: 90, reload: 2.4,
     speed: 4.5, respawn: 5, strafe: 0.35, arena: 'a close quarters three-lane arena',
+    // a planted, tapped shot is true; a run or a spray is not: a spray blooms and climbs faster than it settles (degrees)
+    spread: { base: 0.15, move: 4, bloom: 0.9, recover: 5, max: 5 }, recoil: { kick: 0.6, recover: 3, max: 4 },
   }),
   stylized: Object.freeze({
     read: 'a long burst drops a body, the head is worth two; run, double jump, dash; a heal and an ultimate on their keys; hp mends; minds strafe and roll; the arena large and open',
     ttk: 1.25, hp: 200, rof: 8, headshot: 2, coreAngle: 1.5, magazine: 40, reserve: 160, reload: 1.5,
     speed: 6.5, respawn: 3, strafe: 0.9, arena: 'a large sparse ring arena with long sightlines',
     regen: { after: 4, rate: 25 }, heal: { amount: 60, cooldown: 8 }, ultimate: { per: 6, for: 6 },
+    // a wider cone that a run hardly widens, a spray that hardly climbs (degrees)
+    spread: { base: 0.5, move: 0.3, bloom: 0.15, recover: 6, max: 2 }, recoil: { kick: 0.15, recover: 8, max: 1.5 },
   }),
 });
 // where each feature switches on along the dial (at or past it), or off (peeking, below it)
@@ -56,6 +62,15 @@ export function shooterPole(v) {
   const weapon = {
     fireClass: 'sight', auto: true, rof, magazine: Math.round(at('magazine')), reserve: Math.round(at('reserve')), reload: r2(at('reload')),
     damage, impact: 0.5, range: 60, coreAngle: r2(at('coreAngle')), headshot: r2(at('headshot')), hand: 'right',
+    spread: Object.fromEntries(Object.keys(R.spread).map((k) => [k, r2(lerp(R.spread[k], S.spread[k], p))])),
+    recoil: Object.fromEntries(Object.keys(R.recoil).map((k) => [k, r2(lerp(R.recoil[k], S.recoil[k], p))])),
+  };
+  // the bots' kit: the player's, as a mind carries it out (mind.js kitStep)
+  const kit = {
+    ...(p >= THRESHOLDS.jump ? { hop: true } : {}),
+    ...(p >= THRESHOLDS.dash ? { dash: { cooldown: 3 } } : {}),
+    ...(p >= THRESHOLDS.heal ? { heal: { amount: S.heal.amount, cooldown: S.heal.cooldown, below: 0.4 } } : {}),
+    ...(p >= THRESHOLDS.ultimate ? { ultimate: { ...S.ultimate } } : {}),
   };
   const move = {
     speed: r2(at('speed')),
@@ -71,7 +86,7 @@ export function shooterPole(v) {
       ...(p >= THRESHOLDS.ultimate ? { ultimate: { ...S.ultimate, max: hp } } : {}),
     },
     respawn: r2(at('respawn')),
-    mind: { peek: p < THRESHOLDS.peekBelow, strafe: r2(at('strafe')), dodge: p >= THRESHOLDS.dash },
+    mind: { peek: p < THRESHOLDS.peekBelow, strafe: r2(at('strafe')), dodge: p >= THRESHOLDS.dash, ...(Object.keys(kit).length ? { kit } : {}) },
     arena: p < 0.34 ? R.arena : p > 0.66 ? S.arena : 'a three-lane arena',
   };
 }

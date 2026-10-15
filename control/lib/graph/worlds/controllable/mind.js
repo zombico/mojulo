@@ -1107,7 +1107,60 @@ export function buildMind(E) {
       t.pitch = clamp((t.pitch || 0) + Math.sin(e.aiWobT * dif.wobbleHz * 0.77 * TAU + 1.3) * dif.aimWobble * 0.6, -1.2, 1.2);
     }
   }
-  Object.assign(RULES, { ai });
+  // ── KIT (opt-in `rule.kit`): what a stylized shooter's mind does with its body and its abilities, after it decides
+  // each frame. All on the world clock, no dice:
+  //   hop       (true | a jump speed) under fire (hit in the last second), a jump, `hopEvery` (1.4) s apart
+  //   dash      ({ cooldown }) a fresh hit rolls it off the line, square to whoever shot it (no invincibility: a dash
+  //             is a move, not a shield)
+  //   heal      ({ amount, cooldown, below }) under `below` (0.4) of its hp, `amount` back
+  //   ultimate  ({ per, for }) charged `per` (to 100) by every hit it lands (combat-ranged.js), spent on a foe it sees:
+  //             overdrive (its rounds hit harder) for `for` s, and its hp full
+  const KIT_GRAVITY = 20;
+  function kitStep(e, r, dt, world) {
+    const K = r.kit, t = e.transform, now = (world && world.time) || 0;
+    if (e.downed || e.gone) { e.hopZ = 0; e.hopVz = 0; return; }
+    const fresh = (e.hits || 0) > (e.kitHits || 0);
+    if (fresh) { e.kitHits = e.hits; e.kitHitT = now; }
+    const underFire = e.kitHitT != null && now - e.kitHitT < 1;
+    for (const k of ['kitHopCd', 'kitDashCd', 'kitHealCd']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
+    if (K.dash && fresh && !(e.kitDashCd > 0) && e.dodgeT == null) {
+      const by = e.lastHitBy && world.byId && world.byId[e.lastHitBy], from = by ? by.transform.pos : null;
+      const away = from ? Math.atan2(t.pos[1] - from[1], t.pos[0] - from[0]) : t.heading, side = (e.kitDashes || 0) % 2 ? 1 : -1;
+      rollOff(e, r, null, [Math.cos(away + side * Math.PI / 2), Math.sin(away + side * Math.PI / 2)], rightXY(t.heading));
+      e.dodgeSpent = true; e.kitDashCd = (K.dash && K.dash.cooldown) || 3; e.kitDashes = (e.kitDashes || 0) + 1;
+    }
+    if (K.heal && e.body && Number.isFinite(e.body.hp) && e.hpMax > 0 && !(e.kitHealCd > 0) && e.body.hp < (K.heal.below ?? 0.4) * e.hpMax) {
+      e.body.hp = Math.min(e.hpMax, e.body.hp + (K.heal.amount ?? 50)); e.kitHealCd = K.heal.cooldown ?? 10; e.kitHeals = (e.kitHeals || 0) + 1;
+    }
+    if (K.ultimate && (e.kitCharge || 0) >= 100 && e.fragTarget) {
+      (e.statuses || (e.statuses = {})).overdrive = { t0: now, until: now + (K.ultimate.for ?? 6) };
+      e.kitCharge = 0; e.kitUlts = (e.kitUlts || 0) + 1;
+      if (e.hpMax > 0 && e.body) e.body.hp = e.hpMax;
+    }
+    // the hop: a jump off the ground it stands on, its height kept over the ground under it (the height it added last
+    // frame taken off first, so it never stacks, ground or no ground)
+    if (K.hop) {
+      if (e.hopApplied) { t.pos[2] -= e.hopApplied; e.hopApplied = 0; }
+      if (!(e.hopZ > 0) && underFire && !(e.kitHopCd > 0) && e.dodgeT == null) { e.hopVz = K.hop === true ? 6.5 : K.hop; e.hopZ = 1e-3; e.kitHopCd = r.hopEvery ?? 1.4; e.kitHops = (e.kitHops || 0) + 1; }
+      if (e.hopZ > 0) {
+        e.hopZ += e.hopVz * dt; e.hopVz -= KIT_GRAVITY * dt;
+        if (e.hopZ <= 0) { e.hopZ = 0; e.hopVz = 0; }
+        standOnGround(t, r, r.eye ?? 0, world);
+        t.pos[2] += e.hopZ; e.hopApplied = e.hopZ;
+        // the mind aimed from the ground: aim again from where the hop has it (its foe's egg centre)
+        const tg = e.fragTarget && world.byId ? world.byId[e.fragTarget] : null;
+        if (tg && e.weapon) {
+          const q = tg.transform.pos, tb = tg.body || {}, cz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 0);
+          t.pitch = clamp(Math.atan2((q[2] + cz) - (t.pos[2] + (e.weapon.eye || 0)), Math.hypot(q[0] - t.pos[0], q[1] - t.pos[1]) || 1e-6), -1.2, 1.2);
+        }
+      }
+    }
+  }
+  function aiWithKit(e, input, dt, world) {
+    ai(e, input, dt, world);
+    if (e.rule && e.rule.kit) kitStep(e, e.rule, dt, world);
+  }
+  Object.assign(RULES, { ai: aiWithKit });
 
   // AI ATTACK TOGGLE: the G press edge flips the world switch every mind gates on.
   registerPreStep('ai-toggle', (state, input) => {

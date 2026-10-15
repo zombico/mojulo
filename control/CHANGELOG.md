@@ -166,6 +166,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The page's characterization hashes move with the engine (reverting only `cast.js` and `combat-ranged.js` passes them
   all).
 
+### Shooter: each pole's other half (spread and recoil; the bots' kit)
+
+- **Spread and recoil** (opt-in on a weapon, degrees). A round leaves inside a cone: `base`, widened by `move` at a
+  run (4 m/s) and by the bloom a spray builds (`bloom` a shot, `recover` a second back, to `max`). Where in the cone is
+  a seeded hash of the shooter and its shot count, so a run replays byte for byte. `recoil` climbs the aim `kick` a
+  shot and settles `recover` a second. The realistic pole's spray outpaces its recovery (a planted tap at 30 m always
+  lands, the same taps on the run land under three in four); the stylized pole's cone a run hardly widens. Without
+  them every round goes where it is aimed, as before.
+- **A mind's kit** (opt-in `rule.kit`, the stylized pole's): under fire it hops; a fresh hit dashes it off the line,
+  square to the shooter (no invincibility); under 40% hp it heals; the hits it lands charge an ultimate it spends on a
+  foe it sees (overdrive, hp full). Each switches on along the dial with the player's own (`THRESHOLDS`). A hop re-aims
+  from where it has the body, and takes back the height it added the frame before, so it never stacks.
+- **Measured.** Bots only, to 5: realistic 80 s at 4 hits a kill; the middle 86 s at 8.6 (38 hops, 25 dashes);
+  stylized 84 s at 18.4 (74 hops, 40 dashes, 15 heals, 10 ultimates). An ablation found a hop that let a body float
+  away when a ground hook took the wrong arguments: the engine calls `ground([x, y, z])`; the spike's scripts and a quick
+  test passed it `(x, y)`, so nothing pulled a hop down. Both are fixed.
+- The page's hashes re-pinned (reverting only `mind.js` and `combat-ranged.js` passes them all).
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

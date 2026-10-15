@@ -227,6 +227,11 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   damage on the bus, overdrive, and the `regen` and `abilities` mechanics came with it. Open: bots that use the kit and
   jump, recoil and spread (the realistic pole wants them), a third-person shoulder camera at the stylized end.
 
+- **Each pole's other half**: spread and recoil (seeded cones, bloom, climb) give the realistic pole its cost of moving
+  and spraying; a mind's `kit` (hop, dash, heal, ultimate) gives the stylized pole's bots what its player has. Bot
+  matches now land within 80 to 86 s at every pole, 4 to 18 hits a kill. Pass `ground` to a sim as the engine calls it:
+  `(q) => land(q[0], q[1])`.
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.

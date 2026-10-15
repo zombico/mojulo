@@ -31,7 +31,7 @@ const entities = payload.entities.map((e) => {
 });
 const spawns = gunners.map((g) => [...g.transform.pos]);
 const W = E.createWorld({ entities, colliders: payload.colliders, match: { killTarget: 5, respawnDelay: 3, spawns } });
-const hooks = { ground: (x, y) => land(x, y) };
+const hooks = { ground: (q) => land(q[0], q[1]) };
 const r1 = (v) => Math.round(v * 10) / 10;
 let t = 0, firstKill = null, seenPairs = new Set(), idle = {};
 for (const g of gunners) idle[g.id] = 0;

@@ -91,7 +91,7 @@ note('fight: what the player carries', { weapon: P0?.weapon && Object.keys(P0.we
 
 // ── 5. a headless duel: the player at 15 m in front of foe-1 with a clear line, perfect aim, firing at will ─────────
 {
-  const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: cols }, { ground: (x, y) => land(x, y) });
+  const sim = simLevel({ entities: payload.entities, events: payload.events, colliders: cols }, { ground: (q) => land(q[0], q[1]) });
   const W = sim.world, P = W.byId[W.pilotId], f1 = W.byId['foe-1'], q0 = f1.transform.pos;
   const spot = [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9].map((da) => { const a = f1.transform.heading + da, x = q0[0] + Math.cos(a) * 15, y = q0[1] + Math.sin(a) * 15; return [x, y, ground(x, y) + 1.7]; })
     .find((p) => !E.sightBlocked([p[0], p[1], p[2] - 0.4], [q0[0], q0[1], q0[2] + 1.3], cols));

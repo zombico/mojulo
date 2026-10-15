@@ -35,6 +35,17 @@ export function buildCombatRanged(E) {
   // the gun at the shoulder of the hand that holds it: HAND.r off the eye's line to that side, HAND.f ahead, HAND.drop
   // under the eye
   const HAND = { f: 0.35, r: 0.28, drop: 0.15 };
+  // a run for spread: the pace at which a weapon's `move` spread is all there (m/s); degrees to radians
+  const MOVE_REF = 4, DEG = Math.PI / 180;
+  // hash01(id, n) — a seeded uniform in [0, 1) from a body's id and a count (FNV-style, as the mind's): where a round
+  // falls in its cone, the same every run
+  function hash01(id, n) {
+    const str = String(id) + ':' + n;
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    h ^= h >>> 13; h = Math.imul(h, 0x5bd1e995); h ^= h >>> 15;
+    return (h >>> 0) / 4294967296;
+  }
   // the head: the top of a body's egg above its centre by this share of its half-height; and an overdrive's multiplier
   const HEAD_BAND = 0.55, OVERDRIVE = 1.5;
   const handMuzzle = (w) => ({ f: HAND.f, r: w.hand === 'left' ? -HAND.r : HAND.r, u: (w.eye ?? 0) - HAND.drop });
@@ -101,6 +112,13 @@ export function buildCombatRanged(E) {
       chargedRangeMul: Number.isFinite(w.chargedRangeMul) && w.chargedRangeMul > 0 ? w.chargedRangeMul : 1.2,
       eye: w.eye ?? 0,                    // fire-origin height above the entity's pos
       headshot: Number.isFinite(w.headshot) && w.headshot > 1 ? w.headshot : null,   // a head hit's multiplier (opt-in)
+      // SPREAD (opt-in, degrees): a shot leaves inside a cone of `base`, wider by `move` at a run (MOVE_REF m/s) and by
+      // the BLOOM a spray builds (`bloom` a shot, `recover` a second back, `max` the cone's widest); where in the cone is
+      // a seeded hash of the shooter and its shot count (deterministic). RECOIL (opt-in, degrees): each shot climbs the
+      // aim `kick` (to `max`), settling `recover` a second. Without them a shot goes where it is aimed, as before.
+      spread: w.spread && typeof w.spread === 'object' ? { base: w.spread.base ?? 0, move: w.spread.move ?? 0, bloom: w.spread.bloom ?? 0, recover: w.spread.recover ?? 4, max: w.spread.max ?? 6 } : null,
+      recoil: w.recoil && typeof w.recoil === 'object' ? { kick: w.recoil.kick ?? 0, recover: w.recoil.recover ?? 6, max: w.recoil.max ?? 6 } : null,
+      bloomNow: 0, kickNow: 0,
       muzzleOffset: w.muzzleOffset || (w.hand === 'right' || w.hand === 'left' ? handMuzzle(w) : null),   // { f, r, u } body-frame gun tip (tracer/flash/launch origin; the cover check starts here)
       // HAND (opt-in `hand: 'right' | 'left'`): the gun held to that side of the body, its muzzle a shoulder's width off
       // the eye's line (handMuzzle) unless `muzzleOffset` says where. A shot clears a corner from the muzzle, so past an
@@ -166,6 +184,8 @@ export function buildCombatRanged(E) {
   function tickWeapon(w, dt) {
     if (!w) return;
     if (w.cooldownT > 0) w.cooldownT = Math.max(0, w.cooldownT - dt);
+    if (w.spread && w.bloomNow > 0) w.bloomNow = Math.max(0, w.bloomNow - w.spread.recover * dt);
+    if (w.recoil && w.kickNow > 0) w.kickNow = Math.max(0, w.kickNow - w.recoil.recover * dt);
     if (w.energyMax > 0) {
       const rr = w.energyLock ? (w.energyOverheatRegen ?? w.energyRegen) : w.energyRegen;
       if (rr > 0) w.energy = Math.min(w.energyMax, (w.energy ?? w.energyMax) + rr * dt);
@@ -190,6 +210,7 @@ export function buildCombatRanged(E) {
   // "the reticle sits on the target" reads as a hit. Returns 'core' | 'assist' | 'miss'.
   // Passive timers (cooldownT / reload) tick in tickWeapon, world-side — this only READS them.
   function stepWeapon(e, input, dt, state) {
+    if (e.weapon && e.weapon.spread) { const lp = e.weapon._lpNext; e.weapon._lp = lp; e.weapon._lpNext = [e.transform.pos[0], e.transform.pos[1]]; }
     const w = e.weapon;
     if (!w) return;
     if (w.reloading) {
@@ -292,7 +313,17 @@ export function buildCombatRanged(E) {
         : (w.burstLeft > 0 ? 1 / (w.burstRof || 8) : (w.cooldown || 0.5));
       const t = e.transform;
       const origin = [t.pos[0], t.pos[1], t.pos[2] + w.eye];
-      const aim = fwd3(t.heading, t.pitch || 0);
+      let aim = fwd3(t.heading, t.pitch || 0);
+      // SPREAD and RECOIL: the round's own direction off the aim (the cone it leaves in, the climb of a spray)
+      if (w.spread || w.recoil) {
+        const run = w._lp ? Math.min(1, Math.hypot(t.pos[0] - w._lp[0], t.pos[1] - w._lp[1]) / Math.max(dt, 1e-6) / MOVE_REF) : 0;
+        const cone = w.spread ? Math.min(w.spread.max, w.spread.base + w.spread.move * run + w.bloomNow) : 0;
+        const u1 = hash01(e.id, 2 * w.shots), u2 = hash01(e.id, 2 * w.shots + 1), rr = cone * Math.sqrt(u2), th = u1 * 2 * Math.PI;
+        aim = fwd3(t.heading + rr * Math.cos(th) * DEG, (t.pitch || 0) + (rr * Math.sin(th) + w.kickNow) * DEG);
+        w.lastCone = cone;
+        if (w.spread) w.bloomNow = Math.min(w.spread.max, w.bloomNow + w.spread.bloom);
+        if (w.recoil) w.kickNow = Math.min(w.recoil.max, w.kickNow + w.recoil.kick);
+      }
       // muzzle world point: the gun tip (body-frame offset), else the eye — the launch/tracer origin.
       // DUAL WIELD (muzzleAlt): a two-pistol slot shares one magazine but the two guns TAKE TURNS —
       // the lateral (right) offset flips sign each shot, so the tracer/flash alternates left↔right hand.
@@ -378,6 +409,8 @@ export function buildCombatRanged(E) {
           const egg = tg.body.egg, head = !!(w.headshot > 1 && egg && best.mode === 'core' && hitPt[2] >= tg.transform.pos[2] + (Number.isFinite(egg.cz) ? egg.cz : egg.c) + egg.c * HEAD_BAND);
           const dealt = shotDamage * (head ? w.headshot : 1);
           tg.lastHitDmg = dealt; tg.lastHitHead = head; tg.lastHitDmgN = tg.hits;   // whose hit it was: the count it was dealt at
+          // a kit's ultimate charges on the hits its holder lands (mind.js kitStep)
+          if (e.rule && e.rule.kit && e.rule.kit.ultimate) e.kitCharge = Math.min(100, (e.kitCharge || 0) + (e.rule.kit.ultimate.per ?? 5));
           if (mst) mst.hits += 1;   // score screen: the round connected (a shield catch still counts on-target)
           // R19: a frontal shield EATS the shot (drains its HP by the shot's damage, no hp/poise; a
           // break staggers). Shield HP is in hp points, so a 100-hp shield takes ~5 damage-20 rifle hits.

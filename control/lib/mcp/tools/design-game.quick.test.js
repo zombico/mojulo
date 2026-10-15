@@ -364,7 +364,7 @@ describe('design_game quick', () => {
     // played headless with the player standing aside: the bots find each other and the match reaches its limit
     const land = stageEnds(L).ground;
     const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
-    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (x, y) => land(x, y) });
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (q) => land(q[0], q[1]) });
     let t = 0;
     for (; t < 150 && !sim.bus.vars.__frags_over_0; t += 1 / 30) sim.frame(1 / 30);
     expect(sim.bus.log.filter((r) => r.type === 'kill').length).toBeGreaterThanOrEqual(3);
@@ -393,7 +393,7 @@ describe('design_game quick', () => {
       const { payload } = await resolveWorldScene(SketchRepository.getByRef(`pl-${pole}-level-run-0`));
       const land = stageEnds(out[pole].L).ground;
       const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
-      const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (x, y) => land(x, y) });
+      const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (q) => land(q[0], q[1]) });
       for (let t = 0; t < 180 && !sim.bus.vars.__frags_over_0; t += 1 / 30) sim.frame(1 / 30);
       const kills = sim.bus.log.filter((r) => r.type === 'kill').length, hits = ['bot-1', 'bot-2', 'bot-3'].reduce((n, id) => n + sim.bus.log.filter((r) => r.type === `hit:${id}`).length, 0);
       expect(kills, pole).toBeGreaterThanOrEqual(3);
