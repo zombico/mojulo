@@ -23,6 +23,7 @@ import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 import { outfitFromSheet, adornFromSheet, heroOutfitOf } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
+import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
 const r3 = (x) => Math.round(x * 1000) / 1000;
 const add = (a, b) => a.map((x, i) => x + b[i]); const mul = (a, s) => a.map((x) => x * s); const unit = (v) => mul(v, 1 / Math.hypot(...v));
@@ -281,6 +282,7 @@ export const LOCK_KINDS = Object.freeze({
   feather: { profile: 'feather', lift: 0.15, curl: 0.05, thin: 0.15 },
   quill: { profile: 'quill', lift: 0.45, curl: 0 },
   spine: { profile: 'spine', lift: 0.88, curl: 0 },
+  bump: { profile: 'bump', lift: 1, curl: 0 },
 });
 const lockOf = (kind, k) => (id, parts, s, t, rows, count, length, width, extra = {}) => { const K = LOCK_KINDS[kind], m = (v) => r3(v * k);
   return { id, parts, share: true, s, t, rows, count, length: length.map(m), width: m(width), ...(K.thin ? { thick: m(width * K.thin) } : {}), lift: K.lift, curl: K.curl, ...(K.profile !== 'blade' ? { profile: K.profile } : {}), group: ['Fur', 'FurAlt'], ...extra }; };
@@ -309,24 +311,58 @@ function quillLocks(where, k) {
     ...(where.has('forearm') ? [lock('quillsArm', ['upperArmR', 'upperArmL'], [0.05, 0.5], [0.5, 1], 2, 3, [0.14, 0.12], 0.012)] : [])]);
 }
 
-/** FUR AS SHAPES (station-loft-body.js `locks`): directional tufts where they make the outline, each a few blades lying
- * down the coat's flow and flicking out at the tip: the elbow's (the back of the forearm), the outer thigh's, the
- * calf's, a ruff over the shoulders and up the neck when the people has one, a brush down the tail. Sizes by the body */
-function furLocks(where, k, hasTail, tail) {
-  const L = [], lock = (...a) => L.push(lockOf('tuft', k)(...a));
-  if (where.has('ruff')) { lock('ruff', ['torso'], [0.74, 1], [0, 1], 3, 9, [0.16, 0.11], 0.05, { lift: 0.45, against: true }); lock('ruffNeck', ['neck'], [0.1, 0.8], [0, 1], 2, 6, [0.13, 0.09], 0.045, { against: true }); }
-  if (where.has('forearm')) lock('elbow', ['foreArmR', 'foreArmL'], [0.03, 0.4], [0.6, 1], 2, 2, [0.09, 0.06], 0.03, { curl: 0.3 });
-  if (where.has('thigh')) lock('thigh', ['thighR', 'thighL'], [0.15, 0.7], [0.4, 0.85], 2, 3, [0.1, 0.07], 0.035);
-  if (where.has('thigh') || where.has('shin')) lock('calf', ['shinR', 'shinL'], [0.1, 0.5], [0.7, 1], 1, 2, [0.07, 0.07], 0.028);
-  if (where.has('tail') && hasTail) lock('tail', [0, 1, 2, 3, 4].map((i) => `tail${i}`), [0.1, 0.9], [0, 1], 1, tail === 'brush' ? 5 : 3, tail === 'brush' ? [0.13, 0.13] : [0.08, 0.08], tail === 'brush' ? 0.045 : 0.03, { curl: 0.25, lift: 0.3 });
+/** FUR AS SHAPES (station-loft-body.js `locks`), DEPICTED, not patterned: a coat is drawn as a few CLUMPS where fur
+ * would break the outline, each a fan of pointed blades of graded length from one root (long, short, middling), the
+ * blades' colours alternating, the body between them smooth (the way a designed creature's fur is drawn: a mane, a ruff,
+ * the backs of the joints, a tail's brush, never an even cover). Clumps lie along the contour: a ruff over the shoulders
+ * and up the neck when the people has one, two at the back of the outer thigh, a brush down the tail (its links carry
+ * the offset on); then a few CHOICE SPOTS (FUR_SPOTS) for variety. Sizes by the body */
+function furLocks(where, k, hasTail, tail, spots = []) {
+  const L = [], lock = (...a) => L.push(lockOf('tuft', k)(...a)), clump = (n) => ({ clump: n, jitter: 0.2 });
+  if (where.has('ruff')) { lock('ruff', ['torso'], [0.78, 1], [0.05, 0.95], 2, 4, [0.2, 0.15], 0.042, { lift: 0.45, against: true, ...clump(5) }); lock('ruffNeck', ['neck'], [0.15, 0.75], [0.1, 0.9], 2, 3, [0.15, 0.11], 0.036, { against: true, ...clump(3) }); }
+  if (where.has('thigh')) lock('thigh', ['thighR', 'thighL'], [0.4, 0.75], [0.55, 0.9], 2, 1, [0.11, 0.08], 0.032, clump(3));
+  for (const id of spots) { const S = FUR_SPOTS[id]; lock(id, S.parts, S.s, S.t, 1, 1, S.length, S.width, { ...clump(S.clump ?? 3), ...(S.curl ? { curl: S.curl } : {}) }); }
+  if (where.has('tail') && hasTail) lock('tail', [0, 1, 2, 3, 4].map((i) => `tail${i}`), [0.2, 0.8], [0.1, 0.9], 1, tail === 'brush' ? 3 : 2, tail === 'brush' ? [0.15, 0.15] : [0.08, 0.08], tail === 'brush' ? 0.04 : 0.028, { curl: 0.25, lift: 0.3, ...clump(tail === 'brush' ? 3 : 1) });
+  return noFlow(L);
+}
+/** CHEEKS: a mammal's cheek fur as clumps swept back along the jaw line below the eye (the cranium's cheek row and down,
+ * toward its back), in place of the head's own field of tiles there (`CHEEK_ROW`, the head rows' cheek slot) */
+const CHEEK_ROW = 3;
+function cheekLocks(k) {
+  return noFlow([lockOf('tuft', k)('cheeks', ['cranium'], [0.1, 0.28], [0.55, 0.78], 2, 2, [0.11, 0.08], 0.03, { against: true, clump: 4, jitter: 0.2, curl: 0.3 })]);
+}
+/** CHOICE SPOTS: where a clump gives a coat variety, none of them a must: the back of the elbow, the back of the knee,
+ * round the triceps, under the wrist. A coat takes one to three of the ones its fur reaches (`reach`, the cover's
+ * where), by the sheet's seed (the same sheet, the same tufts); one under something worn is not grown
+ * (station-loft-body.js clears a lock under an adornment) */
+export const FUR_SPOTS = Object.freeze({
+  elbow: { reach: 'forearm', parts: ['foreArmR', 'foreArmL'], s: [0.06, 0.1], t: [0.8, 0.85], length: [0.1, 0.1], width: 0.03, curl: 0.3, clump: 4 },
+  knee: { reach: 'thigh', parts: ['shinR', 'shinL'], s: [0.06, 0.1], t: [0.85, 0.9], length: [0.09, 0.09], width: 0.03, clump: 3 },
+  tricep: { reach: 'forearm', parts: ['upperArmR', 'upperArmL'], s: [0.5, 0.55], t: [0.75, 0.8], length: [0.09, 0.09], width: 0.03, clump: 3 },
+  wrist: { reach: 'forearm', parts: ['foreArmR', 'foreArmL'], s: [0.84, 0.88], t: [0.65, 0.7], length: [0.07, 0.07], width: 0.024, curl: 0.3, clump: 3 },
+});
+const seedOf = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+function furSpots(where, sheet) {
+  const ok = Object.keys(FUR_SPOTS).filter((id) => where.has(FUR_SPOTS[id].reach)); if (!ok.length) return [];
+  const rng = mulberry32(seedOf(`spots:${sheet.seed ?? 1}:${sheet.facets.ancestry}`)), deck = ok.map((id) => [rng(), id]).sort((a, b) => a[0] - b[0]).map(([, id]) => id);
+  return deck.slice(0, Math.min(deck.length, 1 + Math.floor(rng() * 3))).sort((a, b) => ok.indexOf(a) - ok.indexOf(b));
+}
+/** BUMPS: a reptile's raised scales as shapes (the `bump` lock, a low dome straight off the skin): osteoderms in layered
+ * rows down the back either side of the spine where the scales cover the body, tubercles scattered over the outer
+ * forearm and thigh where they cover the limbs; the rows stand apart (a negative overlap), so they read as a pattern */
+function bumpLocks(where, k) {
+  const lock = lockOf('bump', k), all = where.has('belly'), L = [], G = { group: ['ScalesAlt', 'Scales'] };
+  if (all) L.push(lock('osteoderms', ['torso'], [0.12, 0.92], [0.72, 0.93], 1, 1, [0.022, 0.016], 0.026, { layers: { overlap: -0.9 }, ...G }));
+  if (all || where.has('forearm')) L.push(lock('tubercles', ['foreArmR', 'foreArmL'], [0.15, 0.75], [0.3, 0.7], 1, 1, [0.014, 0.014], 0.017, { layers: { overlap: -1.6 }, ...G }));
+  if (all || where.has('thigh')) L.push(lock('tuberclesThigh', ['thighR', 'thighL'], [0.2, 0.75], [0.3, 0.7], 1, 1, [0.016, 0.016], 0.02, { layers: { overlap: -1.6 }, ...G }));
   return noFlow(L);
 }
 
-function coverOf(cover, k, hasTail, tail) {
+function coverOf(cover, k, hasTail, tail, { sheet = null, reptile = false } = {}) {
   if (!cover) return { tiles: [], locks: [], ruff: false };
   const T = COVER[cover.kind] || COVER.fur, where = new Set(cover.where);
-  // a coat is SHAPES that break the outline (locks); scales and chitin lie flat (tiles)
-  if (cover.kind === 'fur') return { tiles: [], locks: furLocks(where, k, hasTail, tail), ruff: where.has('ruff') };
+  // a coat is SHAPES that break the outline (locks); scales and chitin lie flat (tiles), a reptile's raised ones bumps
+  if (cover.kind === 'fur') return { tiles: [], locks: furLocks(where, k, hasTail, tail, sheet ? furSpots(where, sheet) : []), ruff: where.has('ruff') };
   if (cover.kind === 'quills') return { tiles: [], locks: quillLocks(where, k), ruff: false };
   const tiles = [];
   if (cover.kind === 'fur' && where.has('ruff')) tiles.push({ id: 'ruff', parts: ['torso'], s: [3.1, 4.0], t: [0, 4], grid: [2, 8], brick: true, ...T(0.09 * k), lean: -1.35 },
@@ -336,7 +372,7 @@ function coverOf(cover, k, hasTail, tail) {
   if (where.has('thigh')) tiles.push({ id: 'thigh', parts: ['thighR', 'thighL'], s: [0.3, 1.6], t: [1.0, 2.6], grid: [3, 3], brick: true, ...T(0.022 * k) });
   if (where.has('shin')) tiles.push({ id: 'shin', parts: ['shinR', 'shinL'], s: [0.2, 1.8], t: [0.6, 2.6], grid: [5, 3], brick: true, ...T(0.02 * k) });
   if (where.has('tail') && hasTail) tiles.push({ id: 'tail', parts: [0, 1, 2, 3, 4].map((i) => `tail${i}`), s: [0.1, 1.9], t: [0, 2.9], grid: [3, 5], brick: true, ...T(0.045 * k) });
-  return { tiles: tiles.map((t) => ({ ...t, height: r3(t.height) })), locks: [], ruff: cover.kind === 'fur' && where.has('ruff') };
+  return { tiles: tiles.map((t) => ({ ...t, height: r3(t.height) })), locks: cover.kind === 'scales' && reptile ? bumpLocks(where, k) : [], ruff: cover.kind === 'fur' && where.has('ruff') };
 }
 
 /** THE SKIN (skin-paint.js): a scaled people's hide painted as a reptile's is drawn, by region: fine plates over a
@@ -413,11 +449,11 @@ function creature(sheet, title) {
   const k = r3((HEIGHT[f.build] * AGE_SCALE[f.age]) / 2.0), g = GIRTH[f.build];
   const legs = hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
   const head = headOf(sheet);
-  const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail], hints.tail);
+  const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail], hints.tail, { sheet, reptile: !!head && HEAD_LIBRARY[head.id].family === 'reptile' });
   const topo = topologyOf(sheet);
   // the shapes that break the outline: the coat's (fur, quills), a bird-kin's feathers, a crest of spines when the sheet says so
   const feathered = f.ancestry === 'avian' || head.id === 'beaked';
-  const shapes = [...cover.locks, ...(feathered ? featherLocks(k, { crest: noted(sheet, /feathers instead of hair: a crest|swept-back plumes/) }) : []), ...(noted(sheet, /crest of spikes down the nape and spine/) ? spineLocks(k) : [])];
+  const shapes = [...cover.locks, ...(hints.cover?.kind === 'fur' && head && HEAD_LIBRARY[head.id].family === 'mammal' ? cheekLocks(k) : []), ...(feathered ? featherLocks(k, { crest: noted(sheet, /feathers instead of hair: a crest|swept-back plumes/) }) : []), ...(noted(sheet, /crest of spikes down the nape and spine/) ? spineLocks(k) : [])];
   const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff, pole: f.pole, build: f.build, ...topo });
   const stance = stanceOf(sheet);
   const { dials, rig, clips } = dialsAndRig(body, stance);
@@ -443,6 +479,8 @@ function creature(sheet, title) {
     hp.units = { scale: r3((hp.units?.scale ?? 1) * k), offset: hp.units?.offset ?? [0, 0, 0] };
     // a stand-in is a neutral skull: the species' own ornaments (horns, a crest) are not the people's
     if (head.standIn) { hp.ornaments = hp.ornaments.filter((o) => o.kind !== 'sweep' || o.name === 'nose'); delete hp.midline; }
+    // a coat's CHEEKS are its clumps (cheekLocks, on the body's cranium), not the head's field of tiles below the cheek row
+    if (hints.cover?.kind === 'fur' && hp.regions?.tiles) { const tiles = hp.regions.tiles.filter((T) => !(T.part === 'cranium' && T.t[0] >= CHEEK_ROW)); if (tiles.length) hp.regions.tiles = tiles; else delete hp.regions.tiles; }
     if (['seasoned', 'elder'].includes(f.age)) hp.regions.wrinkles = hp.regions.wrinkles.map((w) => (w.drive.cheekBunch || w.drive.browFurrow ? { ...w, rest: f.age === 'elder' ? 0.8 : 0.55 } : w));
     return hp; })(), expression: expressionOf(sheet), on: 'neckTop', bind: { cranium: 'head', jaw: 'jaw' } }];
   const plan = {

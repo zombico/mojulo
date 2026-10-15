@@ -161,9 +161,13 @@ Detail that does not change the outline (a scale's edge, a feather row, the lie 
 built: the plan's `skin` is a list of regions `{ parts, pattern, cell, contrast?, t?, run?, fade? }`, patterns
 `scales` · `plates` · `bands` · `feathers` · `fur` · `segments` (polygonizer/skin-paint.js). It is value only, so the
 character light's two tones, the markings and the ink fall over it. Detail that DOES change the outline (spines, a ruff,
-crest plates) stays geometry: `body.locks` (profiles `blade` a tuft, `feather`, `quill`, `spine`; `share: true` windows),
-`body.tiles`, ornaments. Lay them ALONG THE CONTOUR (no `flow`: down the part as it curves; `against` on a trunk or a
-neck), and stand one against the body only for contrast (a crest of spines with its own `flow` and a high `lift`). Choose by anatomy, as the cover note says it: a reptile's head
+crest plates) stays geometry: `body.locks` (profiles `blade` a tuft, `feather`, `quill`, `spine`, `bump`; `share: true`
+windows), `body.tiles`, ornaments. Lay them ALONG THE CONTOUR (no `flow`: down the part as it curves; `against` on a trunk
+or a neck), and stand one against the body only for contrast (a crest of spines with its own `flow` and a high `lift`).
+Fur is DEPICTED, not patterned: a few `clump: 3–5` locks where fur breaks the outline (a ruff, the cheeks, the backs of
+the elbow and knee, a tail's brush), the body between smooth; an even cover reads as scales. `layers` (a brick of rows
+read off the surface) is for what IS a pattern: a reptile's `bump` osteoderms, a feather cape. Nothing grows under a
+worn piece. Choose by anatomy, as the cover note says it: a reptile's head
 in fine `plates`, its limbs and back in `scales`, `bands` down the belly (`t: [0, 0.3]`); a bird's crown in small
 `feathers` with the beak left bare (`run` on the cranium); fur `fur` with the muzzle bare. Toon reads need BOLD cells:
 4–5 cm on a limb at 2 m, 3 cm on a head; anything under a few pixels at the target is dropped.

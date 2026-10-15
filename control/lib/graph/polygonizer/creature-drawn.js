@@ -125,7 +125,8 @@ export function drawnPlan(plan) {
     // a tuft that would not read is dropped; a flat MARKING (laid down, no lean, or fading at its edge: spots, a
     // streak, a scale pattern) is colour, not outline, and stays whatever its height
     ...(dense.body.tiles ? { tiles: dense.body.tiles.filter((T) => T.lean === 0 || (T.edgeFade ?? 0) >= 0.25 || (T.height ?? 0) * ppm >= TUFT_MIN_PX) } : {}),
-    ...(dense.body.locks ? { locks: dense.body.locks.filter((K) => Math.max(...[K.length].flat()) * ppm >= TUFT_MIN_PX).map((K) => ({ ...K, segments: Math.min(K.segments ?? 5, Math.max(2, Math.ceil(Math.max(...[K.length].flat()) * ppm / LOCK_SEGMENT_PX))) })) } : {}),
+    // a bump reads by its breadth (its length is its height), its dome kept to three rings at least
+    ...(dense.body.locks ? { locks: dense.body.locks.filter((K) => (K.profile === 'bump' ? 2 * K.width : Math.max(...[K.length].flat())) * ppm >= TUFT_MIN_PX).map((K) => ({ ...K, segments: K.profile === 'bump' ? K.segments ?? 3 : Math.min(K.segments ?? 5, Math.max(2, Math.ceil(Math.max(...[K.length].flat()) * ppm / LOCK_SEGMENT_PX))) })) } : {}),
     ...(dense.body.refine ? { refine: dense.body.refine.flatMap((e) => {
       if (e.stations === false || !Array.isArray(e.parts) || !e.parts.some((p) => bridges.has(p))) return [e];
       const own = e.parts.filter((p) => !bridges.has(p)), mine = e.parts.filter((p) => bridges.has(p));

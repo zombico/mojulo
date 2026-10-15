@@ -255,10 +255,20 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   wears a short cape of feathers over the upper arms, feathered thighs and, when its sheet says so, a crest; a
   dragon-kin whose sheet asks for "a crest of spikes down the nape and spine" grows one upright row of spines down its
   back and neck; a people whose cover is `quills` grows them lying back over the back and shoulders.
-- **A coat's tufts are shapes that break the outline.** A furred people's roll grows its fur as `locks` (blades leaving
-  the skin, lying down the coat's flow and flicking out at the tip) where they make the silhouette: the elbow's on the
-  back of the forearm, the outer thigh's, the calf's, a ruff over the shoulders and up the neck when the people has one,
-  a brush down the tail. They replace the coat's spike tiles; the sheet audit counts locks as cover.
+- **A coat's fur is depicted, not patterned.** A furred people's roll grows its fur as a few `locks` CLUMPS where fur
+  would break the outline: each lock may be a `clump` of fanned blades from one root, graded long, short, middling,
+  each flicking away from the centre, their colours alternating. A ruff over the shoulders and up the neck when the
+  people has one, two clumps at the back of the outer thigh, a brush down the tail (a window over a chain of parts
+  carries its offset on, link to link), clumps swept back from a mammal's cheeks in place of the head's cheek tiles;
+  then one to three CHOICE SPOTS by the sheet's seed (the back of the elbow, the back of the knee, round the triceps,
+  under the wrist). The body between stays smooth. A lock is never grown under what the plan wears (an adornment's
+  window on its carrier, the first half of a part it reaches `over`). They replace the coat's spike tiles; the sheet
+  audit counts locks as cover.
+- **Layers and bumps.** `layers: true | { overlap }` reads a lock window's rows and count off its own surface and the
+  lock's footprint, laid as a brick (an offset layer one lock fewer, each in a gap of the layer before; a negative
+  overlap stands the rows apart). The `bump` profile is a low six-sided dome standing straight off the skin; a
+  reptile-headed people with scales grows osteoderms in layered rows down the back and tubercles over the outer forearm
+  and thigh. The drawn tier keeps a bump by its breadth.
 - **A creature's skin, painted.** A plan's `skin` (polygonizer/skin-paint.js) paints its hide by region: `scales`
   (overlapping, pointing down the part), `plates` (irregular, a reptile's head), `bands` (scutes across the belly),
   `feathers` (long rounded tips in rows, a shaft down each), `fur` (tufts: three light strokes converging down the part),

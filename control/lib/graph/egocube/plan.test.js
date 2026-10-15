@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { planFromSheet, shade, legible, BODY_MIN_L, EYE_ACCENTS, LOCK_KINDS } from './plan.js';
+import { planFromSheet, shade, legible, BODY_MIN_L, EYE_ACCENTS, LOCK_KINDS, FUR_SPOTS } from './plan.js';
 import { validateBody } from '../polygonizer/station-loft-body.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
 import { LINEAGES, HUMAN_IDS } from './ancestry.js';
@@ -104,10 +104,33 @@ describe('the shapes that break the outline', () => {
     expect(kin.body.locks.map((L) => L.profile)).toEqual(['quill']);
     expect(() => expandPlan(kin)).not.toThrow();
   });
+  it('locks in layers lie in a brick (an offset layer one lock fewer, in the gaps); a coat\'s are clumps; none under what is worn', () => {
+    const wolf = planFromSheet(rollEgocube({ seed: 3, facets: { ancestry: 'lupine' } })).create.spec.plan;
+    const back = { id: 'back', parts: ['torso'], share: true, s: [0.2, 0.9], t: [0.6, 1], layers: { overlap: -0.9 }, length: [0.02, 0.02], width: 0.025, profile: 'bump', lift: 1, group: ['Fur'] };
+    const perRow = {}; for (const n of Object.keys(expandPlan({ ...wolf, adorn: [], body: { ...wolf.body, locks: [back] } }).parts).filter((x) => /^lock\.back\.torso\.R\./.test(x))) { const j = n.split('.').at(-1); perRow[j] = (perRow[j] ?? 0) + 1; }
+    const counts = Object.keys(perRow).sort((a, b) => a - b).map((j) => perRow[j]);
+    expect(counts.length).toBeGreaterThan(1); counts.forEach((c, j) => expect(c).toBe(counts[0] - (j % 2)));
+    // a clump: the lock and its fanned blades, by name
+    const ruff = Object.keys(expandPlan(wolf).parts).filter((n) => /^lock\.ruff\.torso\.R\.0\.0(\.c\d)?$/.test(n));
+    expect(ruff.length).toBe(wolf.body.locks.find((t) => t.id === 'ruff').clump);
+    // the same window on the forearm, bare and under a bracer: the bracer's stretch grows none
+    const lock = { id: 'test', parts: ['foreArmR'], share: true, s: [0.05, 0.95], t: [0.3, 1], layers: true, length: [0.06, 0.05], width: 0.02, group: ['Fur'] };
+    const bare = { ...wolf, adorn: [], body: { ...wolf.body, locks: [lock] } }, n = (plan) => Object.keys(expandPlan(plan).parts).filter((x) => x.startsWith('lock.test')).length;
+    const worn = { ...bare, adorn: [{ id: 'bracer', mode: 'shell', part: 'foreArmR', share: true, s: [0.4, 0.95], t: 'wrap', mugen: 0.012, thick: 0.01, group: 'Leather', signature: { kind: 'studs', r: 0.008, h: 0.004, count: 3, m: 6, group: 'Leather' } }] };
+    expect(n(worn)).toBeGreaterThan(0); expect(n(worn)).toBeLessThan(n(bare));
+  });
+  it('a reptile\'s raised scales are bumps: osteoderms down the back, tubercles on the limbs, standing apart', () => {
+    const dragon = planFromSheet(rollEgocube({ seed: 3, facets: { ancestry: 'draconic', humanity: 0.3 } })).create.spec.plan;
+    const bumps = dragon.body.locks.filter((L) => L.profile === 'bump');
+    expect(bumps.map((L) => L.id)).toEqual(expect.arrayContaining(['osteoderms', 'tubercles']));
+    expect(bumps.every((L) => L.layers.overlap < 0 && L.lift === 1)).toBe(true);
+    expect(Object.keys(expandPlan(dragon).parts).filter((x) => x.startsWith('lock.osteoderms')).length).toBeGreaterThan(6);
+  });
   it('a lock\'s section is a named profile', () => {
     const parts = { torso: {} }, K = { parts: ['torso'], s: [0, 1], t: [0, 1], group: ['Fur'], length: 0.1, width: 0.02 };
     expect(validateBody({ locks: [{ ...K, profile: 'feather' }] }, parts)).toEqual([]);
-    expect(validateBody({ locks: [{ ...K, profile: 'leaf' }] }, parts)[0]).toMatch(/profile: 'blade' \| 'feather' \| 'quill' \| 'spine'/);
+    expect(validateBody({ locks: [{ ...K, profile: 'leaf' }] }, parts)[0]).toMatch(/profile: 'blade' \| 'feather' \| 'quill' \| 'spine' \| 'bump'/);
+    expect(validateBody({ locks: [{ ...K, layers: { overlap: 2 } }] }, parts)[0]).toMatch(/layers/);
   });
 });
 
@@ -131,7 +154,13 @@ describe('planFromSheet', () => {
     const plan = p.create.spec.plan;
     expect(plan.heads[0].plan.name).toBe('wolf');
     // the coat as shapes that break the outline (locks), where the warden's roll has fur
-    expect(plan.body.locks.map((t) => t.id)).toEqual(['ruff', 'ruffNeck', 'elbow', 'thigh', 'calf', 'tail']);
+    // clumps where fur breaks the outline, then one to three choice spots for variety (by the seed), the tail's brush last
+    const ids = plan.body.locks.map((t) => t.id), spots = ids.slice(3, -2);
+    expect([...ids.slice(0, 3), ...ids.slice(-2)]).toEqual(['ruff', 'ruffNeck', 'thigh', 'tail', 'cheeks']);
+    // the cheeks are clumps, the head's tiles below the cheek row gone
+    expect(plan.heads[0].plan.regions.tiles?.every((T) => T.t[0] < 3) ?? true).toBe(true);
+    expect(spots.length).toBeGreaterThanOrEqual(1); expect(spots.length).toBeLessThanOrEqual(3); expect(spots.every((x) => x in FUR_SPOTS)).toBe(true);
+    expect(plan.body.locks.find((t) => t.id === 'ruff').clump).toBeGreaterThan(2);
     expect(plan.body.tiles).toBeUndefined();
     expect(plan.adorn.map((a) => a.id)).toEqual(expect.arrayContaining(['belt', 'cord', 'pack', 'satchelR', 'satchelL', 'wrapR', 'wrapL']));
     expect(plan.adorn.filter((a) => a.signature.group === 'Emblem')).toHaveLength(1);
