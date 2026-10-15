@@ -155,6 +155,17 @@ nostril moved onto the beak's base; mandibles are two flattened `head`-space swe
 whose front collapses into a clypeus, with a curl control to open them. Draw the new skull as a file beside the others
 when it is good.
 
+## Painting the hide (`skin`)
+
+Detail that does not change the outline (a scale's edge, a feather row, the lie of fur, a chitin seam) is PAINTED, not
+built: the plan's `skin` is a list of regions `{ parts, pattern, cell, contrast?, t?, run?, fade? }`, patterns
+`scales` · `plates` · `bands` · `feathers` · `fur` · `segments` (polygonizer/skin-paint.js). It is value only, so the
+character light's two tones, the markings and the ink fall over it. Detail that DOES change the outline (spines, a ruff,
+crest plates) stays geometry (`body.tiles`, ornaments). Choose by anatomy, as the cover note says it: a reptile's head
+in fine `plates`, its limbs and back in `scales`, `bands` down the belly (`t: [0, 0.3]`); a bird's crown in small
+`feathers` with the beak left bare (`run` on the cranium); fur `fur` with the muzzle bare. Toon reads need BOLD cells:
+4–5 cm on a limb at 2 m, 3 cm on a head; anything under a few pixels at the target is dropped.
+
 ## The lessons (each learned building the first ones; the audit checks the ones a machine can)
 
 | Lesson | Principle | Audit |
