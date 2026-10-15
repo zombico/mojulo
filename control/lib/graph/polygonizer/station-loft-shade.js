@@ -40,7 +40,7 @@
  *
  * Pure and deterministic: functions of the mesh, the recipe and the light alone.
  */
-import { hexToRgb, rgbToHex, resolveToon, resolveToonLight } from './vexar.js';
+import { hexToRgb, rgbToHex, resolveToon, resolveToonLight, CHARACTER_LIGHT_UNLIT } from './vexar.js';
 import { layeredSeat } from './station-loft-faces.js';
 import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
@@ -127,10 +127,38 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
   // a DRAWN creature (creature-drawn.js) takes the character light too: the toon step its markings are stepped in, and
   // the metal's gloss when it wears plate
-  if (!anime) { if (manifest?.hero || !manifest?.plan?.style?.drawn) return null; const base = resolveToonLight(true);
+  if (!anime) { if (manifest?.hero || !manifest?.plan?.style?.drawn) return null;
+    const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
     return wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base; }
   const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
   return wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
+}
+/** A DRAWN CREATURE'S SHADE BY VALUE: the derived shade multiplies the colour, so a dark or saturated one (a beast's deep
+ * cloth, a black coat) steps by a few L* and its shadow side does not read; each palette group whose derived shade
+ * steps less than SHADE_STEP takes a shade SHADE_STEP darker in L* (floored at SHADE_FLOOR, never closer than 6 to its
+ * lit tone), its chroma kept a little, its hue turned toward violet as the hair's is: the form reads as the heroes' does */
+export const SHADE_STEP = 13, SHADE_FLOOR = 12;
+/** a drawn creature's step sits a little toward the key (N·L > CREATURE_STEP is lit), so each form turns a shadow shape
+ * toward the eye on the side away from the key, as a cel painter places it, not only round its back */
+export const CREATURE_STEP = 0.15;
+/** the key a drawn creature is lit by: the character key turned 35° toward the side. A hero stands turned in its stance
+ * (hero-gesture.js), so the key crosses its front; a creature stands square to the key, which lit it head on (the front
+ * all one tone, the shadow round its back). Turned, the shadow line crosses the front as it does on the hero */
+export const CREATURE_KEY = Object.freeze([0.8, 0.36, 0.55]);
+/** the groups of a creature's own body (its segments' and its cover's, and the library heads' skin groups): shaded as a
+ * hero's skin is, darker and RICHER (never a grey: a cream coat's shade is a warm tan, a blue hide's a deep blue) */
+const CREATURE_SKIN = ['Fur', 'FurAlt', 'Scales', 'ScalesAlt', 'Chitin', 'ChitinAlt', 'Flight', 'FlightAlt', 'Skull', 'Body', 'Jowl', 'Jaw', 'Snout', 'Lip', 'Brow', 'Lids', 'Ears', 'Folds', 'Web', 'Cheek', 'Throat', 'Cap', 'CapAlt'];
+export function creatureSkin(plan = {}) { return [...new Set([...(plan.segments || []).map((g) => g.group).filter(Boolean), ...CREATURE_SKIN])]; }
+export function valueShades(palette = {}, unlit = [], skin = []) {
+  const out = {};
+  for (const [g, hex] of Object.entries(palette || {})) {
+    if (unlit.includes(g) || typeof hex !== 'string' || !/^#[0-9a-f]{6}$/i.test(hex)) continue;
+    const [L, C, h] = hexLch(hex);
+    if (skin.includes(g)) { out[g] = lchHex(Math.max(SHADE_FLOOR, L - Math.max(SHADE_STEP + 3, 0.22 * L)), C * 1.2 + 6, hueToward(h, 6)); continue; }
+    if (L - hexLch(derivedShade(g, hex))[0] >= SHADE_STEP) continue;
+    out[g] = lchHex(Math.max(L - SHADE_STEP, Math.min(SHADE_FLOOR, L - 6)), C * 0.9, hueToward(h, 12));
+  }
+  return out;
 }
 /** WORKED METAL'S HOT SPOT: a hero that wears plate (an armour build, or a designed piece in the `metal` role) takes a
  * gloss on its metal groups, a small lit spot where the plate turns full to the key, so a crowned plate reads as a curve

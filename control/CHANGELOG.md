@@ -247,6 +247,12 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
   over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
   to carry, so the skin no longer shows through the breeches in diamonds.
+- **Beasts shaded as the heroes are.** A drawn creature's character light now crosses its front with the shadow line,
+  as a hero's does when it stands turned in its stance: its key is the character key turned 35° toward the side
+  (`CREATURE_KEY`) and its step sits a little toward the key (`CREATURE_STEP`). The body's own groups (its segments, fur,
+  scales, chitin, feathers, the head's skin) shade as a hero's skin does, darker and richer, never a grey (a cream
+  coat's shade is a warm tan), and a dark cloth or coat whose derived shade stepped only a few L* steps by `SHADE_STEP`.
+  Heroes are untouched.
 - **Topology from the frame's notes.** A cat's thin tail is carried lifted in an S and a heavy tail held level behind
   (neither hangs to the floor as a third leg); wings on the arms are five flight feathers trailing from the hand and
   forearm; a second pair of arms is built, rigged and folded forward under the first. A drawn creature's joint bridges
