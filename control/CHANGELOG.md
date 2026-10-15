@@ -41,6 +41,8 @@ dummies on purpose (the look is other tools' job).
   beside the game, and the game's stage select picks among them. The front hosts the chosen arena's World page in a
   frame and speaks the game shell's own level wire to it (ready, init with the picks, outcome back); an arena opened
   on its own fights its first two fighters against the CPU. A tap shorter than a slow frame still counts.
+  Hosted, an arena fights by the game's rules as they are now, whole (a system dropped from the game stays
+  dropped), and only its walls are its own; the rules and roster it was made with are for the arena alone.
 - **Extending a spawned game by editing its recipe** (no code; `update_sketch` now gates a versus game by compiling
   every fighter and reading the rules, where it used to refuse it as a level game). A roster intent carries a
   `weapon`, its own `library` of specials and supers (the shipped record's shape, `from` a shipped one, built from

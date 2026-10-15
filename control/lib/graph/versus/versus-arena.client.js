@@ -18,7 +18,7 @@
  */
 
 /* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
-   installVersusInput, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
+   installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
 
 const AV = VERSUS_ARENA;
 const hosted = window.parent !== window;
@@ -141,7 +141,7 @@ function begin(params) {
   lastParams = params;
   for (const B of bodies) scene.remove(B.group, B.shadow);
   const fighters = params.fighters.map((r) => compileFighter(r));
-  const rules = { ...(AV.rules || {}), ...(params.rules || {}), half: Math.round(AV.half * 1000) };
+  const rules = hostedRules(AV.rules, params.rules, Math.round(AV.half * 1000));
   match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, rules, seed: params.seed ?? 1 });
   bodies = params.colors.map((c, i) => makeBody(c, fighters[i]));
   phase = 'fight';

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compileFighter } from './versus-compile.js';
-import { newVersus, stepVersus, readRules, versusHash } from './versus-core.js';
+import { newVersus, stepVersus, readRules, versusHash, hostedRules } from './versus-core.js';
 import { solveFighter } from './versus-solver.js';
 import { lawsFor } from './versus-laws.js';
 import { runVersus } from './versus-match.js';
@@ -257,5 +257,14 @@ describe('versus extend: the gate reads everything the fight reads', () => {
     expect(g.laws[0].broken).toEqual([]);
     expect(g.laws[1].broken).toContain('reach-costs');   // a slow jab: something reaching further starts sooner
     expect(g.laws[1].held + g.laws[1].broken.length).toBe(g.laws[1].of);
+  });
+});
+
+describe('versus extend: an arena hosted by its game', () => {
+  it('fights by the game\'s rules as they are now, not the copy the arena was made with; its walls stay its own', () => {
+    const made = { systems: ['parry'], timer: 60, half: 5000 };
+    expect(hostedRules(made, { timer: 45 }, 7000)).toEqual({ timer: 45, half: 7000 });   // parry, dropped from the game, stays dropped
+    expect(hostedRules(made, {}, 7000)).toEqual({ half: 7000 });
+    expect(hostedRules(made, undefined, 7000)).toEqual({ systems: ['parry'], timer: 60, half: 7000 });   // on its own
   });
 });

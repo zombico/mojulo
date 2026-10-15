@@ -61,6 +61,14 @@ export function readRules(r) {
   return out;
 }
 
+/**
+ * The rules a hosted match fights by: the host's whole block when it sends one (its edits win, and a system it
+ * dropped stays dropped), else the arena's own (an arena played on its own); the walls are always the arena's.
+ */
+export function hostedRules(own, sent, half) {
+  return { ...(sent ?? own ?? {}), half };
+}
+
 const sys = (s, w) => !!s.rules.systems && s.rules.systems.includes(w);
 
 const NEUTRAL = new Set(['stand', 'walkF', 'walkB', 'crouch']);
