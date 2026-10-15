@@ -1310,8 +1310,9 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   roll, the arcade and sim assists, the map's bound), held equal by seven new rules scenarios; the space shooter and air
   combat now play key for key, the flight sim to a quantum. The new mechanics (respawn, frags, control, regen,
   abilities) carry their marks, and the arena shooter's match player and the minds' new moves (peek, floors, items, the
-  gun for the range, perches, objectives, a flier's clearance) are named per level (`AI_LOST`) until the kernel runs
-  them. The fixture matrix mints the four new games.
+  gun for the range, perches, objectives, a flier's clearance) are named per level (`AI_LOST`), as are the guns' new
+  ways (spread, recoil, falloff, headshots, the gun's hand, the round to the crosshair, homing missiles: `WEAPON_LOST`),
+  until the kernel runs them. The fixture matrix mints the four new games.
 - **The mind travels** (kernel 0.26.0). Bodies on the web's `ai` rule decide in `kernel/mind.gd`, a port of the web's
   mind: every motivation (hunt, guard, escort, territorial, wander, forage, flee, sentry), sight and memory with the
   search, cover from the one it fights, the blade with its combo and give-up, the roll off a stagger, the loadout's

@@ -73,6 +73,20 @@ export const AI_LOST = Object.freeze({
   perches: 'perches', objective: 'an objective to hold', clearLine: 'holding fire past a teammate', clearance: 'a flier\'s ground clearance',
   hearRange: 'the match player (frag)', leadSpan: 'the match player (frag)', hunchEvery: 'the match player (frag)', fragGrudge: 'the match player (frag)',
 });
+// a weapon's opt-in behaviour kernel/combat.gd does not run (yet): the arena shooter's and the dogfight's guns
+// (worlds/controllable/combat-ranged.js since the shooter spike). Named per level.
+export const WEAPON_LOST = Object.freeze({
+  spread: 'spread and bloom', recoil: 'recoil', falloff: 'damage falloff', headshot: 'headshots', hand: 'the gun\'s hand (its muzzle off the eye)',
+  converge: 'the round to the crosshair', band: 'the gun for the range (bands)',
+});
+/** What a body's weapons (its own, its loadout's) and its rule ask for that the kernel's fight does not run. */
+export function weaponLost(e) {
+  const ws = [e && e.weapon, ...((e && e.rule && Array.isArray(e.rule.loadout) ? e.rule.loadout : []).map((c) => c && c.weapon))].filter(Boolean);
+  const out = ws.flatMap((w) => Object.keys(w).filter((k) => w[k] != null && w[k] !== false && WEAPON_LOST[k]).map((k) => WEAPON_LOST[k]));
+  if (e && e.rule && e.rule.missiles) out.push('homing missiles and flares');
+  return [...new Set(out)].sort();
+}
+
 /** The opt-in moves an `ai` rule asks for that the kernel's mind does not run, by name (each once). */
 export function aiLost(rule) {
   if (!rule || rule.type !== 'ai') return [];

@@ -24,7 +24,7 @@ import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
 import { extractMinds } from './mind-score.js';
 import { levelSound } from './engine-sound.js';
-import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS, CAMERA_LOST, platformLost, aiLost } from './godot-marks.js';
+import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS, CAMERA_LOST, platformLost, aiLost, weaponLost } from './godot-marks.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -155,7 +155,7 @@ export function godotReading(payload) {
     r.count++;
     if (e.isCamera) r.camera = true;
     // a mind's opt-in moves the kernel does not run (godot-marks.js AI_LOST)
-    const aiL = aiLost(e.rule);
+    const aiL = [...aiLost(e.rule), ...weaponLost(e)];
     if (aiL.length) r.lost = [...new Set([...(r.lost || []), ...aiL])].sort();
     if (player != null && e.id === player) {
       r.pilot = true;
