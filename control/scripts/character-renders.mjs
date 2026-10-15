@@ -45,6 +45,13 @@ export async function renderHeroViews(world, { size = 640, elevation = 10, focal
   const source = { schema: 'wire-source-v1', ref, kind, ...weldFaces(faces) };
   const { target, distance } = frameSource(source, { focalPixels: focal, size });
   const out = {};
+  // the BLOCKOUT (stylism/silhouette.js): the outline without the arms, front, three-quarter and side, as flat shapes
+  try {
+    const { planLayered } = await import('../lib/mcp/tools/layered.js');
+    const { readSilhouette, blockoutSvg } = await import('../lib/graph/stylism/silhouette.js');
+    const R = readSilhouette(planLayered(sketch.manifest).mesh);
+    out.blockout = { svg: blockoutSvg(R, { title: `${world.name ?? world.id} hero, blockout` }), outline: R.outline, widths: R.widths };
+  } catch (e) { console.error(`character-renders: no blockout (${e.message.split('\n')[0]})`); }
   // the live view: the same self-contained three.js page the dashboard's World serves (coloured, orbitable), baked
   // into one string so the bible stays one file. A rigged hero's page carries its packed rig and plays its clips over
   // the hidden solid (the page's own controls pick the clip); what the payload carries is logged, to say whether it did.

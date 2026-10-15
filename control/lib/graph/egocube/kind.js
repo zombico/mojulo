@@ -92,7 +92,9 @@ export async function assembleEgocubeScene(m, ctx, layered) {
   const body = scenes.flatMap((s, i) => s.faces.filter((f) => !f.studio).map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x + offset(i), y, z]) })));
   const { figures: _f, ...first } = scenes[0];
   // each camera backs off along its own line until the lineup's width fits its view (a one-figure framing sees ~2 m)
-  const xs = body.flatMap((f) => f.corners.map((c) => c[0])), span = xs.length ? Math.max(...xs) - Math.min(...xs) : 0;
+  // (a loop, not a spread: a lineup of dressed figures has more corners than a call takes arguments)
+  let lo = Infinity, hi = -Infinity; for (const f of body) for (const c of f.corners) { if (c[0] < lo) lo = c[0]; if (c[0] > hi) hi = c[0]; }
+  const span = hi >= lo ? hi - lo : 0;
   const cameras = (first.cameras || []).map((c) => {
     const F = c.worldFraming; if (!F?.cameraPosition || !F.lookAt || !F.horizontalFov) return c;
     const d = F.cameraPosition.map((v, k) => v - F.lookAt[k]), dist = Math.hypot(...d), seen = 2 * dist * Math.tan((F.horizontalFov * Math.PI) / 360);

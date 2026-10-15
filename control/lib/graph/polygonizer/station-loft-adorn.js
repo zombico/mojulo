@@ -41,7 +41,10 @@ export function beneathOf(fig, names, { pokes = /^(spur|spine)/, onTop = false }
   // ON TOP: also every body detail PINNED to a carrier (fur tiles, locks, scales: named for their pass, not their part), so
   // an adornment rides over the cover instead of sinking under it
   const pinned = (k, p) => onTop && names.includes(p.pin?.parent ?? fig.anchors?.[k]?.part);
+  // the part and every GARMENT worn on it (body-garment.js names a garment piece `<id>_<part>`): an adornment rides over
+  // the cloth, not under it
   for (const n of names) if (L1[n]) pts.push(...Object.values(L1[n].points));
+  for (const [k, P] of Object.entries(L1)) if (P.garment && names.some((n) => k.endsWith(`_${n}`))) pts.push(...Object.values(P.points));
   for (const [k, p] of Object.entries(fig.parts)) if (!pokes.test(k) && (names.some((n) => k.includes(n)) || pinned(k, p))) pts.push(...Object.values(p.points));
   return pts; }
 /** height of the beneath hull above an address, along its normal, within a lateral radius */
@@ -65,6 +68,7 @@ export function byShare(P, A) {
  * (ringLoft); partial → a capped loft. The mugen field ramps away from the `support` station (snug where it hangs). */
 export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.part]; const beneath = beneathOf(fig, [A.part, ...(A.over || [])], { onTop: !!A.onTop });
   A = byShare(P, A);
+  if (A.edge) return hollowShell(fig, A, side, beneath);
   let { list, closed } = around(P, A.t, side, A.nt ?? 12); let S = Array.from({ length: (A.ns ?? 4) + 1 }, (_, j) => lerp(A.s[0], A.s[1], j / (A.ns ?? 4)));
   // a RIM paints a band along the shell's own edges in another group (the low-poly trim: it IS the plate's edge, so it
   // follows every flare); its rows are inserted `w` (stations) in from the rimmed ends, and `wt` (a fraction) in from a
@@ -80,7 +84,10 @@ export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.
   const nb = (k, j) => [[k, j], [k - 1, j], [k + 1, j], [k, j - 1], [k, j + 1]].map(([a, b]) => [closed ? (a + H.length) % H.length : Math.min(H.length - 1, Math.max(0, a)), Math.min(S.length - 1, Math.max(0, b))]);
   H = H.map((row, k) => row.map((_, j) => Math.max(...nb(k, j).map(([a, b]) => H[a][b])))); H = H.map((row, k) => row.map((_, j) => mean(nb(k, j).map(([a, b]) => [H[a][b]]))[0]));   // min-shield: max, then mean
   const mug = (s) => A.mugen * (1 + (A.ramp ?? 0) * (A.support == null ? 0 : Math.abs(s - A.support) / Math.max(1e-9, Math.abs(A.s[1] - A.s[0]))));
-  const inner = F.map((row, k) => row.map((f, j) => add(f.origin, mul(f.normal, H[k][j] + mug(S[j]))))); const outer = inner.map((row, k) => row.map((p, j) => add(p, mul(F[k][j].normal, A.thick))));
+  // `seat`: the wall filled down to `seat` off the hull, solid from the body to the outer face (a plate standing out by
+  // its own mass, never on a gap)
+  const lift = (k, j) => (A.seat != null ? H[k][j] + A.seat : H[k][j] + mug(S[j]));
+  const inner = F.map((row, k) => row.map((f, j) => add(f.origin, mul(f.normal, lift(k, j))))); const outer = inner.map((row, k) => row.map((p, j) => (A.seat != null ? add(F[k][j].origin, mul(F[k][j].normal, H[k][j] + mug(S[j]) + A.thick)) : add(p, mul(F[k][j].normal, A.thick)))));
   const sections = inner.map((row, k) => [...row, ...[...outer[k]].reverse()]);
   const mesh = closed ? ringLoft(sections) : loftParts(sections, mean(sections[0]), mean(sections[sections.length - 1]));
   if (rim) { const J = S.length, m = 2 * J, K = sections.length, at = rim.at ?? 'both', G = [];
@@ -91,6 +98,96 @@ export function shell(fig, A, side) { const L1 = fig.mesh.parts; const P = L1[A.
     if (!closed) for (let q = 0; q < m; q++) G.push(ends ? rim.group : A.group, ends ? rim.group : A.group);
     mesh.faceGroups = G; }
   return { mesh: { ...mesh, group: A.group }, grid: { inner, outer, F, S, list, closed } }; }
+/** HOLLOW SHELL (`edge` given): a PLATE, not a slab — what reads as worked metal or boiled leather is a thin wall whose
+ * thickness shows only at its edge, and a curve of its own over the form beneath:
+ *   edge   'roll' (the wall swells to `thick` at every free edge and the edge rounds over: a rolled bead) | 'flat' (the
+ *          wall alone, a sheet's own thickness at the edge)
+ *   wall   the sheet's thickness (m; default 0.3 × `thick`); the outer face is where a slab's would be
+ *   crown  (m) the outer face domed off the hull, most at the window's middle (a pauldron's cup, a breastplate's swell)
+ *   keel   (m) a ridge toward the window's t start (the centre line of a half plate: the breastplate's two planes)
+ *   bead   the edge band's share of the window (default 0.07)
+ *   interior  the group the inside of the wall is shaded in (absent: the plate's own)
+ * Rows are added at the bead and the window is sampled at least 6 × 12, so the crown reads as a curve under the toon
+ * light. A partial shell's t ends round over too (no flat cap). `seat` does not fill a hollow shell: what closes the gap
+ * under a plate is its liner, a piece of its own (outfit-plan.js). `rim` paints the bead. The grid it hands the
+ * signatures is the plate's (inner and outer faces). */
+function hollowShell(fig, A, side, beneath) { const L1 = fig.mesh.parts, P = L1[A.part];
+  const e = A.bead ?? 0.07, r6 = (x) => Math.round(x * 1e6) / 1e6;
+  const fr = (n) => [...new Set([...Array.from({ length: n + 1 }, (_, i) => i / n), e, 1 - e].map(r6))].sort((a, b) => a - b);
+  const fs = fr(Math.max(A.ns ?? 4, 6)), S = fs.map((f) => lerp(A.s[0], A.s[1], f));
+  const closed = A.t === 'wrap', fk = closed ? null : fr(Math.max(A.nt ?? 12, 12));
+  const list = closed ? around(P, 'wrap', side, Math.max(A.nt ?? 12, 12)).list : fk.map((f) => [lerp(A.t[0], A.t[1], f), side]);
+  const F = list.map(([t, sd]) => S.map((s) => frameAt(L1, A.part, [s, t], sd)));
+  // `slab` (m): a plate clears only what lies BESIDE it (its own slab along the part, that far each way): a bust's
+  // overhang lifts the plate over the bust, not the fauld under it; and the lift is smoothed round the ring only, never
+  // along the part (a dilation along it would fill the under-bust and the waist): a plate MOULDED, coming back in under a
+  // form. Absent, it clears everything within `rad` and the lift is smoothed both ways (a cop riding over the deltoid)
+  const slab = A.slab ?? Infinity, along = (k, j) => unit(sub(F[k][Math.min(S.length - 1, j + 1)].origin, F[k][Math.max(0, j - 1)].origin));
+  // (each row's slab reaches its neighbouring rows at the least: a form peaking between two rows is still cleared)
+  const gap = (k, j) => Math.max(...[j - 1, j + 1].filter((x) => x >= 0 && x < S.length).map((x) => dmath.hypot(...sub(F[k][x].origin, F[k][j].origin))));
+  let H = F.map((row, k) => row.map((f, j) => { const ax = along(k, j), sl = Math.max(slab, gap(k, j)); let h = 0; for (const v of beneath) { const d = sub(v, f.origin), up = dot(d, f.normal); if (up <= h || Math.abs(dot(d, ax)) > sl) continue;
+    if (dmath.hypot(...sub(d, mul(f.normal, up))) < (A.rad ?? 0.05)) h = up; } return h; }));
+  const nb = (k, j) => [[k, j], [k - 1, j], [k + 1, j], ...(A.slab != null ? [] : [[k, j - 1], [k, j + 1]])].map(([a, b]) => [closed ? (a + H.length) % H.length : Math.min(H.length - 1, Math.max(0, a)), Math.min(S.length - 1, Math.max(0, b))]);
+  H = H.map((row, k) => row.map((_, j) => Math.max(...nb(k, j).map(([a, b]) => H[a][b])))); H = H.map((row, k) => row.map((_, j) => mean(nb(k, j).map(([a, b]) => [H[a][b]]))[0]));
+  const mug = (s) => A.mugen * (1 + (A.ramp ?? 0) * (A.support == null ? 0 : Math.abs(s - A.support) / Math.max(1e-9, Math.abs(A.s[1] - A.s[0]))));
+  const J = S.length, K = list.length, wall = A.wall ?? A.thick * 0.3, roll = A.edge === 'roll';
+  const atEdge = (k, j) => j === 0 || j === J - 1 || (!closed && (k === 0 || k === K - 1));
+  const rise = (k, j) => (A.crown ?? 0) * dmath.sin(Math.PI * fs[j]) * (closed ? 1 : dmath.sin(Math.PI * fk[k])) + (closed || !A.keel ? 0 : A.keel * Math.max(0, 1 - fk[k] / 0.3));
+  const outAt = (k, j) => H[k][j] + mug(S[j]) + A.thick + rise(k, j);
+  // the plate is FAIRER than the body under it (a smith beats out the muscle's bumps): the outer face relaxed toward its
+  // neighbours' mean a few times, then held clear of what it covers (no point nearer the body than its own stand-off)
+  // (no point moves farther than `fairCap` m: small bumps are ironed out, a form as big as a bust is kept and the plate
+  // comes back in under it)
+  const raw = F.map((row, k) => row.map((f, j) => add(f.origin, mul(f.normal, outAt(k, j))))), cap = A.fairCap ?? 0.008;
+  let outer = raw;
+  for (let it = 0; it < (A.fair ?? 6); it++) outer = outer.map((row, k) => row.map((p, j) => {
+    const ks = closed ? [(k + K - 1) % K, (k + 1) % K] : [k - 1, k + 1].filter((x) => x >= 0 && x < K), js = [j - 1, j + 1].filter((x) => x >= 0 && x < J);
+    if (j === 0 || j === J - 1 || (!closed && (k === 0 || k === K - 1))) return p;   // the edges hold the window (two halves meeting on a seam stay met)
+    const q = mean([...ks.map((x) => outer[x][j]), ...js.map((x) => outer[k][x])]), f = F[k][j], lifted = add(p, mul(sub(q, p), 0.5));
+    const h = dot(sub(lifted, f.origin), f.normal), floor = H[k][j] + mug(S[j]) + wall;
+    const held = h < floor ? add(lifted, mul(f.normal, floor - h)) : lifted, d = sub(held, raw[k][j]), l = dmath.hypot(...d);
+    return l > cap ? add(raw[k][j], mul(d, cap / l)) : held; }));
+  // WITHIN THE FIGURE (`within`: m past it): no point of the plate stands out sideways past the body's own widest line at
+  // its height (the arms at rest included) by more than `within`; a point past it comes in along its normal, never nearer
+  // the body than its wall (armour drawn for games: the outline is the figure's, the plate reads on it, not beside it)
+  // The plate keeps its shape: its whole stand-off over what it covers is scaled down by one factor until it fits. A
+  // `hover`ing plate (a detached genre's: alien) keeps its gap and scales only what stands past it.
+  // (the width is that of what the plate COVERS, its part and `over`: a breastplate is held to the torso, a pauldron
+  // over the arm to the arm's line)
+  if (A.within != null) { const covered = new Set([A.part, ...(A.over || [])]), body = Object.entries(L1).filter(([n, Q]) => (Q.layer ?? 1) === 1 && (covered.has(n) || [...covered].some((c) => n.endsWith(`_${c}`)))).flatMap(([, Q]) => Object.values(Q.points));
+    const reach = (z) => body.reduce((w, v) => (Math.abs(v[2] - z) < 0.04 && Math.abs(v[0]) > w ? Math.abs(v[0]) : w), 0);
+    const base = outer.map((row, k) => row.map((p, j) => { const f = F[k][j], floor = H[k][j] + wall + (A.hover ? mug(S[j]) : 0); return { f, floor, h: dot(sub(p, f.origin), f.normal) }; }));
+    const lims = outer.map((row) => row.map((p) => reach(p[2]) + A.within));
+    const at = (c, x) => add(c.f.origin, mul(c.f.normal, c.floor + x * Math.max(0, c.h - c.floor)));
+    const fits = (x) => base.every((row, k) => row.every((c, j) => Math.abs(at(c, x)[0]) <= lims[k][j] + 1e-9));
+    if (!fits(1)) { let lo = 0, hi = 1; for (let it = 0; it < 12; it++) { const m = (lo + hi) / 2; if (fits(m)) lo = m; else hi = m; }
+      outer = base.map((row) => row.map((c) => at(c, lo))); } }
+  const inner = outer.map((row, k) => row.map((p, j) => add(p, mul(F[k][j].normal, -(roll && atEdge(k, j) ? A.thick : wall)))));
+  const mid = (k, j) => mul(add(outer[k][j], inner[k][j]), 0.5), r = (roll ? A.thick : wall) * 0.45;
+  const away = (k, a, b) => unit(sub(F[k][a].origin, F[k][b].origin));
+  // a section per ring sample: the inner face up the window, over the high edge, the outer face back, under the low edge
+  const sections = F.map((_, k) => [...inner[k], add(mid(k, J - 1), mul(away(k, J - 1, J - 2), r)), ...[...outer[k]].reverse(), add(mid(k, 0), mul(away(k, 0, 1), r))]);
+  const m = 2 * J + 2, jOf = (q) => (q < J ? q : q === J ? J - 1 : q <= 2 * J ? 2 * J - q : 0);
+  let mesh;
+  if (closed) mesh = ringLoft(sections);
+  else { // the t ends round over: each end's section drawn in toward its mid-line and carried a bead's radius beyond it
+    const end = (k, k2) => sections[k].map((p, q) => { const j = jOf(q), c = mid(k, j); return add(add(p, mul(sub(c, p), 0.8)), mul(unit(sub(F[k][j].origin, F[k2][j].origin)), r)); });
+    const e0 = end(0, 1), e1 = end(K - 1, K - 2);
+    mesh = loftParts([e0, ...sections, e1], mean(e0), mean(e1)); }
+  // the faces' groups: the wall's inside in `interior`, the bead (and with a `rim`, its band) in the rim's
+  const rim = A.rim, inside = A.interior ?? A.group, hiRim = rim && (rim.at ?? 'both') !== 'low', loRim = rim && (rim.at ?? 'both') !== 'high';
+  const qGroup = (q) => { const hi = q === J - 1 || q === J || q === J + 1 || q === J - 2, lo = q === 2 * J || q === 2 * J + 1 || q === 2 * J - 1 || q === 0;
+    if ((hi && hiRim) || (lo && loRim)) return rim.group; return q < J - 1 && !hi && !lo ? inside : A.group; };
+  const G = [], bands = closed ? K : K + 1, endG = rim && rim.ends !== false ? rim.group : A.group;
+  for (let b = 0; b < bands; b++) for (let q = 0; q < m; q++) { const g = !closed && (b === 0 || b === bands - 1) ? endG : qGroup(q); G.push(g, g); }
+  if (!closed) for (let q = 0; q < m; q++) G.push(endG, endG);
+  // the LINER (`liner: { group, seat }`): what fills the gap under a plate standing off the body, recessed a bead inside
+  // its edge and in the plate's shadow, so the outline stays one shape and the plate still reads as a shell over it
+  let liner = null;
+  if (A.liner) { const L = A.liner, ks = closed ? F.map((_, k) => k) : F.map((_, k) => k).slice(1, -1), js = S.map((_, j) => j).slice(1, -1);
+    const secs = ks.map((k) => [...js.map((j) => add(F[k][j].origin, mul(F[k][j].normal, H[k][j] + (L.seat ?? 0)))), ...[...js].reverse().map((j) => add(inner[k][j], mul(F[k][j].normal, -0.001)))]);
+    liner = { ...(closed ? ringLoft(secs) : loftParts(secs, mean(secs[0]), mean(secs[secs.length - 1]))), group: L.group }; }
+  return { mesh: { ...mesh, group: A.group, ...(G.some((g) => g !== A.group) ? { faceGroups: G } : {}) }, grid: { inner, outer, F, S, list, closed }, ...(liner ? { liner } : {}) }; }
 /** STRAP: a path of addresses (each [s, t, side] on the carrier), lifted over the beneath hull, as a flat band */
 export function strap(fig, A) { const L1 = fig.mesh.parts; const beneath = beneathOf(fig, [A.part, ...(A.over || [])], { onTop: !!A.onTop }); const pts = [], ns = [];
   for (let i = 0; i + 1 < A.path.length; i++) { const [a, b] = [A.path[i], A.path[i + 1]]; const n = a[2] === b[2] ? 4 : 1; for (let k = 0; k < n; k++) { const u = k / n; const at = a[2] === b[2] ? [lerp(a[0], b[0], u), lerp(a[1], b[1], u)] : [a[0], a[1]]; const f = frameAt(L1, A.part, at, a[2]); pts.push(add(f.origin, mul(f.normal, hullHeight(beneath, f.origin, f.normal, A.rad ?? 0.05) + A.mugen))); ns.push(f.normal); } }
@@ -289,8 +386,19 @@ export const SIGNATURES = {
   /** RIBBONS from one grid point, tessellated as the anime hair's sections are (ribbonMesh): { spine: [[x,y,z]…] (x scaled
    * by each `spread`), spread?, width, thick, cols?, rows?, taper?, ridge?, flute?, twist?, tip?: 'square' | 'point' |
    * 'swallow', notch?, across? } — a bow's tails, a streamer, a hair ribbon */
-  ribbon: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
-    return (S.spread ?? [1]).map((x) => ({ ...ribbonMesh(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), { ...S, across: S.across ? [S.across[0] * x, S.across[1], S.across[2]] : null }), root: p.map((v) => +v.toFixed(6)) })); },
+  // `drape: { len, links?, clear?, apart? }` LAYS each ribbon over what lies beneath it instead of along `spine`: a chain
+  // falling from the grid point, each link pushed out along the knot's outward direction (level) until it stands `clear`
+  // off everything beneath within a hand's breadth of it, its links kept their length: a tail down a seat, over a bust
+  ribbon: (fig, g, beneath, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
+    const lay = (a, D) => { const n = D.links ?? 6, len = D.len / n, clear = D.clear ?? 0.02, nf = g.F[k][j].normal, out = unit([nf[0], nf[1], 0]);
+      let P = Array.from({ length: n + 1 }, (_, i) => add(a, [0, 0, -len * i]));
+      for (let it = 0; it < 10; it++) {
+        for (let i = 1; i <= n; i++) { let h = -Infinity; for (const v of beneath) { const d = sub(v, P[i]), up = dot(d, out); if (up <= h) continue; if (dmath.hypot(...sub(d, mul(out, up))) < 0.05) h = up; }
+          if (h > -clear) P[i] = add(P[i], mul(out, h + clear)); }
+        for (let i = 1; i <= n; i++) { const d = sub(P[i], P[i - 1]), l = dmath.hypot(...d) || 1; P[i] = add(P[i - 1], mul(d, len / l)); } }
+      return P; };
+    const spineOf = (x) => (S.drape ? lay(add(p, [x * (S.drape.apart ?? 0.012), 0, 0]), S.drape) : S.spine.map(([a, b, c]) => add(p, [a * x, b, c])));
+    return (S.spread ?? [1]).map((x) => ({ ...ribbonMesh(spineOf(x), { ...S, across: S.across ? [S.across[0] * x, S.across[1], S.across[2]] : null }), root: p.map((v) => +v.toFixed(6)) })); },
   /** a fan of flattened sweeps from one grid point: { spine: [[x,y,z]…] (x scaled by each `spread`), spread, r, m?, squash? } */
   plume: (fig, g, _b, S) => { const [k, j] = gridAt(g, { k: 0, j: 2, ...S }, S.side); const p = g.outer[k][j];
     return S.spread.map((x) => sweep(S.spine.map(([a, b, c]) => add(p, [a * x, b, c])), S.r, S.m ?? 6, { squash: S.squash ?? [1, 0.45] })); },
@@ -519,6 +627,18 @@ export const SIGNATURES = {
   pack: (fig, g, _b, S) => { const K = g.outer.length, J = g.outer[0].length, k = Math.floor(K / 2), j = Math.floor(J / 2);
     const c = add(g.outer[k][j], mul(g.F[k][j].normal, S.lift ?? 0)); const nrm = unit(sub(g.F[k][j].normal, mul([0, 0, 1], g.F[k][j].normal[2])));
     const up = [0, 0, 1], lat = unit(cross(up, nrm)), ch = S.chamfer ?? Math.min(S.w, S.h) * 0.15;
+    // SOFT: a bag, not a box — a rounded section (a superellipse) pillowed through its depth, sagging wider at the
+    // bottom, its flap a sheet over the top and down the front with a turned edge
+    if (S.soft) { const n = 20, ex = 2 / (S.round ?? 3.2), sag = S.sag ?? 0.08;
+      const sect = (dz, sc) => Array.from({ length: n }, (_, i) => { const a = 2 * Math.PI * i / n, ca = dmath.cos(a), sa = dmath.sin(a);
+        const x = Math.sign(ca) * Math.abs(ca) ** ex, y = Math.sign(sa) * Math.abs(sa) ** ex;
+        return add(add(add(c, mul(lat, x * S.w / 2 * sc * (1 - sag * y))), mul(up, y * S.h / 2 * sc)), mul(nrm, dz)); });
+      const D = [0, 0.12, 0.35, 0.65, 0.88, 1].map((f) => [f * S.d, 0.78 + 0.22 * dmath.sin(Math.PI * Math.min(1, f * 1.15))]);
+      const bag = loftParts(D.map(([dz, sc]) => sect(dz, sc)), add(c, mul(nrm, -0.002)), add(c, mul(nrm, S.d + 0.002)));
+      if (S.flap === false) return [bag];
+      const lip = Math.max(0.004, S.d * 0.06), top = add(add(c, mul(up, S.h / 2 + lip)), mul(nrm, S.d * 0.25));
+      const spine = [top, add(add(c, mul(up, S.h / 2 + lip)), mul(nrm, S.d * 0.85)), add(add(c, mul(up, S.h / 2 - lip)), mul(nrm, S.d + lip)), add(add(c, mul(up, S.h * (0.5 - (S.flap ?? 0.42)))), mul(nrm, S.d * 0.98 + lip))];
+      return [bag, { ...ribbonMesh(spine, { width: S.w * 0.96, thick: lip * 0.6, cols: 7, rows: 10, ridge: 0.6, across: lat }), ...(S.flapGroup ? { group: S.flapGroup } : {}) }]; }
     const rect = (dz, sc) => [[-1, -1 + ch / S.h * 2], [-1 + ch / S.w * 2, -1], [1 - ch / S.w * 2, -1], [1, -1 + ch / S.h * 2], [1, 1 - ch / S.h * 2], [1 - ch / S.w * 2, 1], [-1 + ch / S.w * 2, 1], [-1, 1 - ch / S.h * 2]]
       .map(([a, b]) => add(add(add(c, mul(lat, a * S.w / 2 * sc)), mul(up, b * S.h / 2 * sc)), mul(nrm, dz)));
     const out = [loftParts([rect(0, 0.92), rect(S.d * 0.15, 1), rect(S.d * 0.85, 1), rect(S.d, 0.9)], add(c, mul(nrm, -0.002)), add(c, mul(nrm, S.d + 0.002)))];
@@ -621,7 +741,8 @@ export const SIGNATURES = {
   /** a row of studs along a strap or a shell row: { r, h, count, from?, to?, m? } */
   studs: (fig, g, _b, S) => { const j = g.pts ? 0 : gridAt(g, S, S.side)[1];
     const row = g.pts ? g.pts.map((p) => ({ p, n: unit(sub(p, [0, 0, p[2]])) })) : g.list.map((_, k) => ({ p: g.outer[k][j], n: g.F[k][j].normal }));
-    const a = S.from ?? 0, b = S.to ?? row.length - 1; return Array.from({ length: S.count }, (_, q) => { const e = row[Math.round(lerp(a, b, S.count === 1 ? 0.5 : q / (S.count - 1)))]; return disc(e.p, e.n, S.r, S.h, S.m ?? 8, S.rim ?? 0.7); }); },
+    const end = (v, d) => (v === undefined ? d : v < 0 ? row.length + v : v);   // a negative index counts from the row's end
+    const a = end(S.from, 0), b = end(S.to, row.length - 1); return Array.from({ length: S.count }, (_, q) => { const e = row[Math.round(lerp(a, b, S.count === 1 ? 0.5 : q / (S.count - 1)))]; return disc(e.p, e.n, S.r, S.h, S.m ?? 8, S.rim ?? 0.7); }); },
 };
 
 // ─── wear: build up the figure ───
@@ -633,7 +754,7 @@ export const SIGNATURES = {
  * includes the ones worn before it. `recipe` (the unrefined source) names the bone a rigid adornment rides. */
 export function wear(fig, kit, { recipe } = {}) { const out = {}; const record = []; const meta = {};
   for (const A of kit) { const side = A.side || 'R'; let g, mesh; const mode = A.mode === 'band' ? 'shell' : A.mode;
-    if (mode === 'shell') { ({ mesh, grid: g } = shell(fig, A, side));
+    if (mode === 'shell') { let liner; ({ mesh, grid: g, liner } = shell(fig, A, side)); if (liner && !A.ghost) out[`adorn.${A.id}.liner`] = { ...liner, layer: 3 };
       // a VOLUME is the whole visible piece: its carrying shell (whose window only sizes it) becomes a slender core on the
       // carrier's axis, buried in the body, so no shell face shows past the volume's rounded ends
       if (A.signature?.kind === 'volume' && A.t === 'wrap') { const ax = axisOf(g), r = 0.25 * Math.min(...ax.map((x) => x.r));
@@ -699,6 +820,15 @@ export function validateKit(kit, parts) {
     if (A.mode === 'strap') { if (!Array.isArray(A.path) || A.path.length < 2) errs.push(`${at}.path: two or more [s, t, side] addresses`); if (!Number.isFinite(A.width)) errs.push(`${at}.width: metres`); }
     else if (A.mode) { if (!Array.isArray(A.s) || A.s.length !== 2) errs.push(`${at}.s: [s0, s1]`); if (!(A.t === 'wrap' || (Array.isArray(A.t) && A.t.length === 2))) errs.push(`${at}.t: 'wrap' or [t0, t1]`); }
     for (const k of ['mugen', 'thick']) if (!Number.isFinite(A[k])) errs.push(`${at}.${k}: metres`);
+    if (A.seat !== undefined && (A.mode !== 'shell' || !Number.isFinite(A.seat) || A.seat < 0)) errs.push(`${at}.seat: metres ≥ 0 (a shell filled down to it off the body)`);
+    if (A.edge !== undefined && (A.mode === 'strap' || !['roll', 'flat'].includes(A.edge))) errs.push(`${at}.edge: 'roll' | 'flat' (a shell drawn as a plate: a thin wall, its edge rolled or flat)`);
+    for (const k of ['wall', 'crown', 'keel']) if (A[k] !== undefined && (A.edge === undefined || !Number.isFinite(A[k]) || A[k] < 0)) errs.push(`${at}.${k}: metres ≥ 0, on a shell with an \`edge\``);
+    if (A.slab !== undefined && (A.edge === undefined || !(Number.isFinite(A.slab) && A.slab > 0))) errs.push(`${at}.slab: metres > 0 (a plate clears only what lies within that slab along its part: moulded under a form), on a shell with an \`edge\``);
+    if (A.hover !== undefined && typeof A.hover !== 'boolean') errs.push(`${at}.hover: true | false (the plate's stand-off is a gap the within law keeps)`);
+    if (A.within !== undefined && (A.edge === undefined || !Number.isFinite(A.within) || A.within < 0)) errs.push(`${at}.within: metres ≥ 0 (how far a plate may stand past the figure's own width), on a shell with an \`edge\``);
+    if (A.bead !== undefined && (A.edge === undefined || !(A.bead > 0 && A.bead < 0.5))) errs.push(`${at}.bead: the edge band's share of the window (0 … 0.5), on a shell with an \`edge\``);
+    if (A.liner !== undefined && (A.edge === undefined || typeof A.liner !== 'object' || typeof A.liner.group !== 'string' || (A.liner.seat !== undefined && !(Number.isFinite(A.liner.seat) && A.liner.seat >= 0)))) errs.push(`${at}.liner: { group, seat? } (what fills the gap under a plate, recessed in its shadow), on a shell with an \`edge\``);
+    if (A.interior !== undefined && (A.edge === undefined || typeof A.interior !== 'string')) errs.push(`${at}.interior: a group (the inside of a plate's wall), on a shell with an \`edge\``);
     if (A.rim !== undefined && (typeof A.rim !== 'object' || typeof A.rim.group !== 'string' || (A.rim.at !== undefined && !['low', 'high', 'both'].includes(A.rim.at)))) errs.push(`${at}.rim: { group, at?: 'low' | 'high' | 'both', w?, wt?, ends? } (a shell's painted edge)`);
     if (A.stack !== undefined && typeof A.stack !== 'boolean') errs.push(`${at}.stack: true | false (false: later adornments are not lifted over it)`);
     if (!A.signature || typeof A.signature !== 'object' || !SIGNATURES[A.signature.kind]) errs.push(`${at}.signature: { kind: ${Object.keys(SIGNATURES).join(' | ')}, group, …numbers } — every adornment names the one element that justifies it`);

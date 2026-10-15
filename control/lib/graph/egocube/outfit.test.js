@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
 import { outfitFromSheet, adornFromSheet, outfitPalette } from './outfit.js';
-import { planFromSheet } from './plan.js';
+import { planFromSheet, CLOTHED_H } from './plan.js';
 import { compileOutfit, outfitLaws, OUTFIT_KIND_NAMES } from '../polygonizer/outfit-plan.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
@@ -67,15 +67,21 @@ describe('the outfit, designed from the sheet', () => {
     // the bird's scaled shins banded on the tarsus; chitin strapped between its plates; a planned beast is adorned
     expect(adornFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } })).outfit.pieces.map((p) => p.kind)).toContain('anklets');
     expect(adornFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'insectoid' } })).outfit.pieces.map((p) => p.kind)).toContain('harness');
-    const call = planFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), { dress: 'designed' }), plan = call.create.spec.plan;
-    expect(plan.outfit.cut).toBeUndefined();
-    expect(() => expandPlan(compileOutfit(plan))).not.toThrow();
+    // the door adorns a people near the beast, and clothes one with enough of a person in it, from the cut
+    const at = (humanity) => planFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'draconic', humanity } }), { dress: 'designed' }).create.spec.plan;
+    const beast = at(CLOTHED_H - 0.05), kin = at(CLOTHED_H + 0.2);
+    expect(beast.outfit.cut).toBeUndefined();
+    expect(kin.outfit.cut.language).toBeTruthy();
+    for (const plan of [beast, kin]) expect(() => expandPlan(compileOutfit(plan))).not.toThrow();
+    // cloth carries the mass beneath it: no muscle swell on a part a garment lies over (it would push the skin through)
+    const clothed = compileOutfit(kin), parts = new Set(clothed.garments.flatMap((g) => [g.part].flat()).map((n) => n.replace(/[RL]$/, '')));
+    for (const V of clothed.body.volume ?? []) expect(parts.has(V[0].replace(/[RL]$/, '')), V[0]).toBe(false);
   });
 
   it('a cut still compiles onto a creature when an author asks: second skin painted, cloth fitted, the worn pieces over it', () => {
     const sheet = rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), base = planFromSheet(sheet, { dress: 'designed' }).create.spec.plan;
     const plan = { ...base, outfit: outfitFromSheet(sheet).outfit }, built = compileOutfit(plan), L = plan.outfit.cut.language;
-    expect(plan.style.drawn).toBe(true);
+    expect(plan.style.drawn).toEqual({ markings: { pattern: 'both', ventral: 'panel' } });
     expect(plan.adorn).toEqual([]);
     const ids = built.garments.map((g) => g.id);
     expect(ids).toEqual(expect.arrayContaining(['outer', 'bottomSeat', 'bottomLeg']));
@@ -86,12 +92,14 @@ describe('the outfit, designed from the sheet', () => {
     if (L.top?.fit === 'skin') { expect(ids).not.toContain('top'); expect(built.paint.some((P) => [P.part].flat().includes('torso') && P.group === 'Top')).toBe(true); }
     expect(built.palette.Outer).toBe(plan.outfit.intent.palette[plan.outfit.cut.colours.Outer]);
     expect(() => expandPlan(built)).not.toThrow();
-    // the catalogue's tailored gown still compiles: a fitted bodice, a skirt with a flat hem riding the thighs
+    // the catalogue's tailored gown still compiles: a bodice on rounded proportional rings, and a skirt that is the garment
+    // kernel's hull round the hips and the legs, its hem riding the thighs
     const gown = compileOutfit({ ...plan, outfit: { intent: plan.outfit.intent, pieces: [{ kind: 'gown', why: 'x' }] } });
-    const skirt = gown.segments.find((x) => x.name === 'gownSkirt');
-    expect(gown.garments.map((g) => g.id)).toContain('gownBodice');
-    expect(skirt.caps.tip[2]).toBe(skirt.stations[skirt.stations.length - 1].at[2]);
-    expect(Object.keys(skirt.bind.blend).some((k) => /^st3\.sideR$/.test(k) && skirt.bind.blend[k].thighR > 0)).toBe(true);
+    const bodice = gown.garments.find((g) => g.id === 'gownBodice'), skirtE = gown.garments.find((g) => g.id === 'gownSkirt');
+    expect(bodice.dense && bodice.proportional > 0).toBe(true);
+    expect(skirtE.fit).toBe('skirt');
+    const skirt = expandPlan(gown).parts.gownSkirt_skirt, hemRing = skirt.stations.findIndex((st, i, S) => i > 0 && Object.values(st.points)[0][2] > Object.values(S[i - 1].points)[0][2]) - 1;
+    expect(Object.entries(skirt.bind.blend).some(([k, w]) => k.startsWith(`st${hemRing}.`) && w.thighR > 0)).toBe(true);
     // the detail list rides the cut onto the creature: a binding on the hem lands on the outermost hem, by share
     const detailed = compileOutfit({ ...plan, outfit: { ...plan.outfit, cut: { ...plan.outfit.cut, detail: [{ prim: 'binding', role: 'hem', group: 'OutfitAccent' }] } } });
     const hem = detailed.paint.find((P) => P.group === 'OutfitAccent');

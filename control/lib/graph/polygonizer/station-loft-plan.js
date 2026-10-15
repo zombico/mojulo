@@ -54,6 +54,7 @@ import { bakeLayered } from './station-loft-detail.js';
 import { bakeBody, validateBody } from './station-loft-body.js';
 import { bakeAdorn, validateKit } from './station-loft-adorn.js';
 import { paintParts, validatePaint } from './body-paint.js';
+import { validateSkin } from './skin-paint.js';
 import { garmentParts, validateGarments } from './body-garment.js';
 import * as dmath from '../../util/dmath.js';
 
@@ -74,6 +75,8 @@ export const SLOT_FAMILIES = {
   ring10: ['front', 'frontR', 'sideFrontR', 'sideBackR', 'backR', 'back', 'backL', 'sideBackL', 'sideFrontL', 'frontL'],
   ring12: ['front', 'frontR', 'frontSideR', 'sideR', 'backSideR', 'backR', 'back', 'backL', 'backSideL', 'sideL', 'frontSideL', 'frontL'],
   limb6: ['front', 'frontR', 'backR', 'back', 'backL', 'frontL'],
+  // a garment's dense ring over a ring8 part (body-garment.js `dense`): the body's slots at every other place
+  ring16: ['front', 'f1R', 'f2R', 'f3R', 'sideR', 'b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'sideL', 'f3L', 'f2L', 'f1L'],
   // a fine ring for a form sampled point by point (a `rings` part: the breast's lens)
   ring20: ['front', 'a1R', 'a2R', 'a3R', 'a4R', 'sideR', 'b4R', 'b3R', 'b2R', 'b1R', 'back', 'b1L', 'b2L', 'b3L', 'b4L', 'sideL', 'a4L', 'a3L', 'a2L', 'a1L'],
 };
@@ -240,7 +243,7 @@ export function validatePlan(plan) {
     const d = plan.style.drawn;
     if (d != null && d !== true && !(d && typeof d === 'object' && !Array.isArray(d) && Object.keys(d).every((k) => ['target', 'markings', 'eyes'].includes(k)))) fail("style.drawn is true or { target?, markings? } (the creature drawn for its target: bridged joints, rings by its outline rule; markings { pattern: 'countershade' | 'points' | 'both' | 'none', colour? } or false)");
     if (d?.eyes !== undefined && !(Number.isFinite(d.eyes) && d.eyes >= 0.5 && d.eyes <= 2)) fail('style.drawn.eyes is a ratio 0.5–2 (the eyes against the head plan\'s own; absent, they grow to read at the target)');
-    if (d?.markings && !(d.markings === false || (typeof d.markings === 'object' && ['countershade', 'points', 'both', 'none', undefined].includes(d.markings.pattern) && (d.markings.colour === undefined || /^#[0-9a-f]{6}$/i.test(d.markings.colour))))) fail("style.drawn.markings is { pattern: 'countershade' | 'points' | 'both' | 'none', colour?: '#rrggbb' } or false");
+    if (d?.markings && !(d.markings === false || (typeof d.markings === 'object' && ['countershade', 'points', 'both', 'none', undefined].includes(d.markings.pattern) && (d.markings.colour === undefined || /^#[0-9a-f]{6}$/i.test(d.markings.colour)) && [undefined, 'panel'].includes(d.markings.ventral)))) fail("style.drawn.markings is { pattern: 'countershade' | 'points' | 'both' | 'none', colour?: '#rrggbb', ventral?: 'panel' } or false");
   }
   const joints = plan.joints || {};
   for (const [k, v] of Object.entries(joints)) if (!isVec(v)) fail(`joint '${k}' must be [x, y, z]`);
@@ -279,6 +282,7 @@ export function validatePlan(plan) {
   if (plan.body != null && (typeof plan.body !== 'object' || Array.isArray(plan.body))) fail('body must be an object of detail passes { refine?, volume?, creases?, tiles?, pads?, spurs?, rows?, collars? } (station-loft-body.js)');
   if (plan.adorn != null && !Array.isArray(plan.adorn)) fail('adorn must be a list of adornments [{ id, mode, part, …, signature }] (station-loft-adorn.js)');
   for (const e of validatePaint(plan.paint)) fail(e);
+  for (const e of validateSkin(plan.skin)) fail(e);
   for (const e of validateGarments(plan.garments)) fail(e);
   if (plan.emissive != null && !(Array.isArray(plan.emissive) && plan.emissive.every((g) => typeof g === 'string'))) fail('emissive must be a list of palette group names (they render full-bright: a lens, a visor slit, a reactor)');
   for (const [k, d] of Object.entries(plan.dials || {})) { if (!d || typeof d !== 'object') fail(`dial '${k}' must be an object`); if (d.op === 'include' && !includesOf(plan).some((i) => i.name === d.name)) fail(`dial '${k}' includes '${d.name}', which no include declares`); }
@@ -387,7 +391,7 @@ export function expandPlan(plan) {
     if (errs.length) fail(errs.join('; '));
     const source = JSON.parse(JSON.stringify(recipe)); let fig;
     try {
-      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts, anchors: built.anchors }; }
+      if (plan.body) { const { recipe: baked, built } = bakeBody(recipe, plan.body, { under: plan.adorn || [] }); Object.assign(recipe, baked); fig = { mesh: built.mesh, parts: built.parts, anchors: built.anchors }; }
       else fig = { mesh: compileLayered(recipe, {}), parts: {} };
       if (plan.adorn?.length) bakeAdorn(recipe, fig, plan.adorn, { source });
     } catch (err) { fail(`${plan.body && plan.adorn ? 'body / adorn' : plan.body ? 'body' : 'adorn'}: ${err.message}`); }

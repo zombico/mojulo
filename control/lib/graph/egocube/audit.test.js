@@ -59,7 +59,8 @@ describe('auditPlan', () => {
   });
   it('names a refused window as the windows lesson', () => {
     const sheet = warden(), call = first(sheet);
-    call.spec.plan.body.tiles.find((t) => t.id === 'forearm').t = [1.0, 3.4];
+    // a tile whose window runs past its ring (the warden's own coat is locks, fur as shapes: this one is put on it)
+    call.spec.plan.body.tiles = [{ id: 'forearm', parts: ['foreArmR', 'foreArmL'], s: [0.2, 1.4], t: [1.0, 3.4], grid: [3, 3], brick: true, sides: 3, coverage: 1.25, inset: 0.85, height: 0.02, lean: -1.2, group: ['Fur', 'FurAlt'] }];
     const r = auditPlan(sheet, call);
     expect(r.expands).toBe(false);
     expect(lesson(r, 'windows').ok).toBe(false);

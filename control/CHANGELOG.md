@@ -744,6 +744,306 @@ the diorama views are gone.
   its gun's range (backs off to it, holds a perch) is the open half.
 - Without `held: false`, `band`, `falloff`, a weapon drop or `fresh`, everything runs as before. The page's hashes
   were re-pinned: reverting only the four engine builders passes them all.
+### Character clothing: the anime silhouette
+
+A hero's clothes bulked up and went boxy: measured on the rings, an anime female's `casual` tee added 23 cm to her
+waist girth and an `adventurer` tunic 37 cm to his, and every trouser leg lost the body's calf-to-ankle taper. The
+outfit build now dresses a hero the way Genshin-style and VTuber avatars are dressed: tight cloth is the body, the
+taper survives, and the flow is in pieces cut to hang. The research behind it is `docs/character-clothing-gap.md`.
+
+- **Cloth hugs and tapers (principles law 2, rewritten).** Every copy piece keeps the body's ratios: its ease scales
+  with each ring's radius, so a thin limb is not swallowed by the ease a torso needs. A top falls from the bust and
+  returns to the waist. A hem falls away only where it is cut to. On a landmark-head female the same `casual` now adds
+  3.3 cm at the waist and keeps the leg's taper (ankle over calf 0.52 against the body's 0.49), measured by tape
+  (below); on the anime head law 10 paints the tee on.
+- **Trousers by cut.** `language.bottom.cut`: `skinny`, `tapered` (the default), `straight` or `wide`. The old default
+  flared every hem; that look is `straight` now.
+- **Rounder cloth.** A garment over a six-point limb ring is resampled to twelve points (sixteen over an eight) by an
+  interpolating subdivision, addressed on the body's own ring by `slotT`, so a trouser leg is not a hexagonal tube.
+- **The layers no longer stack at the waist.** The lift a garment takes over what lies beneath it is smoothed round
+  each ring only, never along the body, so it no longer fills the waist between the ribs and the hips. A shirt worn
+  out adds no extra stand-off over the trousers' seat.
+- **Drape panels.** `language.panels: [{ at, length, width?, split?, cut?, rigidity? }]` hangs open cloth from the
+  waist over everything worn: coattails (`split: 2`), a tabard's apron, tassets, a loincloth. The belt lies over their
+  tops, their hems take the trim, the tone is `Panel`, and each flows as a strand (`soft` by default). The garment kernel's
+  `fit: 'panel'` with `around: [from, to]` degrees is the piece beneath.
+- **New cards.** `traveler` (a second-skin top, tapered trousers, an open jacket, split coattails) and `warden` (a
+  tabard front and back, side tassets, skinny trousers).
+- **The dressed silhouette in the readout.** `hero.dress.silhouette` measures the cloth against the skin at the
+  waist, hips, thigh, knee, calf and ankle, and advises when the cloth fills the waist or erases the taper. It is
+  advice and a machine read; whether the figure reads is still a person's call.
+- **The manual says how to dress tight.** The `layered` card's outfit section names `fit: 'skin' | 'fitted' |
+  'eased' | 'loose'`, the outer layer, the cuts and the panels, and says `detail: 'clothed'` adds bulk. The `hero`
+  routing card points at `outfit` instead of `detail: 'clothed'`.
+- **The update law.** `OUTFIT_LAWS_VERSION` now covers the whole chain an outfit's bytes pass through: the laws, the
+  expander and the garment kernel. The kernel only grows: a piece's fields never change meaning, and new behaviour is a
+  new field (`proportional`, `dense`, `fit: 'panel'`). The expander picks fields by laws version.
+  `outfit-laws.char.test.js` pins the laws and the rings for one card per procedure. A moved hash is a version bump
+  with the old one kept. Version 1 was rewritten in place, since 3.1.0 has not been released and no outfit has been
+  minted under it.
+- **Statue drapery moves with it.** A statue's drapery is an outfit build, so every draped statue's pins were re-pinned
+  for the new kernel (`statue.char.test.js`).
+- **A skirt keeps out of the legs without a padded waist.** The flow solver's far-side rule (cloth caught behind a leg goes back
+  over it toward its target) now takes that way out only when the joint's link can reach it. An unreachable exit was
+  pulled back through the leg by the lengths. A `flowing` midi skirt had cleared the shins in a jog only because a
+  bulky top widened the waist's collision capsule.
+- **The drawn figure (principles law 10).** On an anime hero, a top or trousers with no `fit` of their own lie close: a
+  knit is a second skin (`skin`, painted on the body), a woven is `fitted`. Trousers cut `straight` or `wide` keep their
+  fall. The readout's `hero.dress.outfit.fits` says what each slot became. On the anime `casual` the tee is now painted,
+  so its collar, cuffs and hem trim go with it; name `fit` to keep a tee as cloth.
+- **Girth targets.** `language.top | bottom | outer.girth: { waist: 4, hip: 6 … }` gives the cloth's girth over the
+  body, in cm, at landmarks found on the body's own rings (chest, waist, hip, thigh, knee, calf, ankle, bicep, elbow,
+  forearm, wrist). A landmark given is cinched: the drape does not lift it.
+- **Cloth clears only what lies beside it.** The lift over what is worn beneath is measured within each ring's own slab
+  along the part, replacing a 6 cm reach that carried a neighbour's bulge onto a ring. A second pass then raises the
+  four corners of each cloth patch by the least that clears a point of a layer bulging between rings. Bust
+  poke-through on the anime female's top went from 12 points a side to none. A `dense` piece also gains a ring halfway
+  between each two stations.
+- **The silhouette is read by tape.** `hero.dress.silhouette` measures the body as a tape does: the convex hull round
+  the ring and, on the torso, the navel and chest layers over it.
+- **Round robes.** The outfit catalogue's `robe`, `gown` and `tunic` (designed `pieces`, a creature's or a hero's) are
+  now the garment kernel's pieces. The bodice is on dense, proportional rings. The skirt is a `fit: 'skirt'` hull round
+  the hips and legs in twenty directions, so it is round at the hem and clears the legs and what is worn on them; the
+  old four-ring cone let trouser legs show through it. `flare` on these pieces is now metres per metre of fall. On the
+  anime female in `blouse` with a robe, the waist the cloth adds went from 27 cm to 15 cm.
+- **Cloaks hang from the shoulders.** A new garment kernel piece, `fit: 'cape'`, is open cloth hung from the shoulders
+  over an arc (`around`) of the hull round the trunk, the arms and the legs. Its rings crowd toward the top so the yoke
+  over the shoulders reads, and its dents are filled round each ring, so it is round where a board was flat. Below the
+  shoulders it only falls and flares. It skins as the torso above the waist and as a skirt below, and its `root` at the
+  nape hangs it as a strand. The catalogue's `cloak` is built on it (`wrap`, the share of a turn it covers; `hem`;
+  `rigidity`, `soft` by default); the flat board it was hung behind the back, clear of the body.
+- **Cloaks drape on the arms.** Cloth within a hand's breadth of an arm takes the blend of the arm's skin under it
+  (fully within 5 cm, none past 12 cm), and the flow rig keeps a flowing vertex's own arm weight (clavicle, upper arm,
+  elbow, forearm, hand) instead of handing all of it to its strings. A flowing cape hangs as a curtain, a string per
+  share of its width, rather than one string from the nape. Through a jog, the sleeve points showing through the cloak
+  went from 13.0 to 2.9 a frame on the anime female in `traveler`, and from 11.6 to 7.2 on the male in `adventurer`;
+  what remains is an arm swinging back into cloth behind it.
+- **Hoods.** A new garment kernel piece, `fit: 'hood'`, rises from the shoulders over the head, open at the face
+  (`open`, degrees each side of the front, 50 by default). The anime head and hair are drawn on the mesh, not in the
+  parts, so the piece is given the head's volume (`head: { at, r }`); the catalogue sizes it off the rig's head joints.
+  From the head's widest ring down it only falls, so it covers the nape and the hair down the back. It is locked to the
+  shoulders at its foot and the head above. `hood: true` (or `{ open }`) on a cloak or a robe.
+- **Sleeves and the wizard's robe.** `robe`, `gown` and `tunic` take `sleeve: 'none' | 'long' | 'bell'`: sleeves on the
+  arm's own rings over the cut's, a bell widening from the elbow to an open mouth at the wrist. The new `wizardRobe` is
+  a robe to the ankle, fuller, with bell sleeves.
+
+### Character stylism: a silhouette solver, a register and a detail budget
+
+`hero.stylism: { genre, register, detail, silhouette }` dresses a hero the way a character designer works:
+silhouette first, then value, then detail. Each stage is a solver over principles that spends a budget, lowers to the
+build fields the garment kernels already compile, and writes down what it chose and why. `genre` is a vocabulary card
+(`fantasy`, `modern`, `scifi`, `alien`): what draws an edge, a cuff, a closure or a breaker, from what material. `register`
+runs `grounded` → `storybook` → `heroic` → `mythic` in any genre (Frieren's cast to Warcraft; The Expanse to 40k).
+`detail` runs `plain` → `considered` → `rich` → `ornate`. Absent, the hero is as before. The notes are in
+`hero.dress.stylism`.
+
+- **The silhouette solver.** `silhouette: wedge | bell | column | needle | barrel` picks a genre's big masses for that
+  outline at believable sizes, the register choosing among them: pauldrons or a mantle, a robe and cloak, a straight robe under a straight cloak, a
+  close fit, a padded coat with hip panels; in modern, a boxy jacket with padded shoulders or a long coat; in sci-fi,
+  shoulder plates, a collar ring, a harness. The readout reads the outline back off the dressed figure with the arms
+  left out (a hand at the hip is not the hip). At heroic, across the four genres and both casts, it reads as its target
+  in 47 of 48 cases; the miss, a sci-fi column a hair under the needle line, is said with what leads and what would
+  move it.
+- **Named silhouettes and the hourglass.** `silhouette` also takes a character type, an outline letter with the
+  signature that makes it read: `operative`, `ribbon`, `sailor`, `princess`, `valkyrie`, `miko`, `qipao`, `lolita`,
+  `idol`, `kunoichi`, `knight`, `samurai`, `gunslinger`, `monk`, `rogue`, `brawler`. A signature not yet drawn with
+  its own technique (a sailor collar, pleats, slits, puff sleeves) is drawn with a stand-in and listed in
+  `silhouette.approximated`. The outline letters gain `hourglass` (X), read off the waist's narrowest row against the
+  shoulders and the hem; the genres draw its low half as an a-line skirt to the ankle, as wide as the shoulders above
+  it. A princess is a ball gown, a bell. At heroic, fifteen of the sixteen read as their outline on the anime female
+  (the gunslinger's belted duster reads as an X) and twelve on the male (his shoulders turn the gunslinger's, the
+  miko's, the sailor's and the princess's bell into an X), and the readout says so. The hourglass is reached in every
+  genre on both casts.
+- **Believable sizes; the register warps after the design.** The silhouette's pieces were sized by the register, so a
+  mythic wedge's pauldrons stood out to 1.75 × the arm line and, seated solid, rose over the head. Every technique now
+  draws at a fixed, believable size (pauldrons 1.12 × the arm line, a cloak's flare, a bow's tails), and the register
+  only chooses among them. Heightening is a WARP stage after the design: from storybook up, cloth flares and streamers
+  lengthen by the genre's `warp.flare`, rigid pieces thicken toward its `warp.chunk` (the outfit's distortion, a pair
+  kept a pair: `lean: false`), and the focal piece grows, each within its cap. The notes say what was warped.
+- **A knight's breastplate.** `chestPlate` takes `cut: 'cuirass'`, from under the collarbone to the belt and inside the
+  arms; the default chest plate (up to the shoulders) is unchanged.
+- **One shape, no floating bits.** A broad shoulder plate (a wedge's pauldrons, a knight's, a samurai's) stood off
+  the shoulder by its whole width, so on the male it hovered: two islands beside his torso in the blockout. It is now
+  seated: the same outer shape, filled solid down to the shoulder (the adornment shell's new `seat`). The readout
+  checks the figure is one shape: `read.cohesive`, with `floating` (a worn piece that comes nowhere within 3 cm of the
+  body, its cloth or another piece; hair holds nothing up) and `islands` (a mass of the outline more than two pixels
+  apart; a thin tail's specks do not count). A figure that breaks gets a note and a warning saying what floats and what
+  would bridge it. Across the four genres' outlines and the sixteen named silhouettes, both casts at heroic, every
+  figure is one shape. A plain pauldron (`shoulder` 1 or under) is unchanged.
+- **The detail solver.** `detail` is now spent, in a designer's order, as units of technique. The FOCAL zone goes
+  first and stays the richest: an embroidered emblem on the chest or back, a border on an edge, or, where a gown or
+  robe covers the cloth, a fitting (a medallion at the neck, arm rings at the wrists, a sash at the waist). Then the
+  motif ECHOED at another zone at another scale, then quiet bindings on the remaining edges, then one metal fitting
+  near the focal at heroic and above (at grounded, metal only where it works). One motif family, the genre's. It
+  lowers to the outfit's `detail` list, its `ornament` dial, the catalogue's fittings and the designed pieces' own
+  trim, spending only on roles the outfit shows (a robe buries the shirt's chest; a drawn second skin has no hem). The
+  hierarchy is weighed in units: an emblem 3, a border or a broad fitting 2, a binding or a small ring of metal 1, and
+  a signature's own pieces (a ribbon's bows) are charged first. `plain` spends nothing beyond the garment's own construction. The focal comes from the outline (a
+  wedge's chest, a bell's waist, a needle's neck), or `stylism.focal`, and `stylism.motif` names the motif. Each
+  spend is a note under `stage: 'detail'` with its zone, its cost and the budget left.
+- **Trim on designed pieces.** A robe, gown, wizard's robe, tunic or cloak takes `trim: { hem?: 'binding' |
+  'embroidery', cuffs?: 'binding', chest?: 'emblem', motif? }`: a band of the secondary cloth, the motif worked along
+  the hem in the trim's thread, an emblem on the bodice. Thread work lies in the cloth it is worked on, so the readout
+  no longer calls it unread or sunk into its own carrier.
+- **A stand-in palette.** The tuner's designed pieces (a dress, plates, bows) rendered grey: nothing gave them colour
+  roles. The value stage now fills `outfit.intent.palette` with a stand-in, until a style guide's palette supplies it.
+  It decides only what a palette must answer locally. Each role is a clear value step from what it sits on: the base
+  from the cloth it covers, the secondary from the base and the fitting. The accent is the dominant hue's complement,
+  where the chroma is spent. What is metal or leather keeps its material's colour, outside the palette: each genre's
+  materials name its `plate`, its `fitting` (plain to precious by the register) and its `strap`, and plate pieces wear
+  a new `metal` role. The outfit's own roles and the hero's own palette groups stand over it, and the notes give each
+  role's reason under `stage: 'value'`.
+- **The alien genre.** `genre: 'alien'` is the one whose masses stand apart: its plates hover (a pauldron's new
+  `float: true`), and the readout notes the gap as the genre's own instead of flagging it. Arrival at grounded,
+  Evangelion's Angels at mythic; nacre and chitin, membrane and spun filament.
+- **Adornments ride over the cloth.** A kit piece (a bow, a sash, a breastplate, a belt) cleared only the body part it
+  sits on, not the garments worn over that part, so on a dressed hero it sank into the cloth: a bow on the back of a
+  dress 56 % at rest. It now clears every garment on its part as well. On the bow test model the warnings went from 12
+  to 6, none of them at rest.
+- **Bows.** A new catalogue piece, `bow` (`at`: back | collar | wrists; `tails`; `loops: false` for a scarf's knot): a
+  knot, two loops and two tails flowing as strands. The ribbon signature's new `drape` lays each tail over what it
+  hangs across (a seat, a bust, a hand) instead of along a fixed spine.
+- **A skirt for trousers.** An outfit language slot of another kind (`bottom: { kind: 'skirt' }` over a card's
+  trousers) now replaces the card's slot instead of merging a trouser's `fit` or `cut` into a skirt.
+- **The blockout.** The outline without the arms, front, three-quarter and side, as flat shapes: the thumbnail a
+  designer draws first. The character bible draws it beside the hero (`out-sheet.mjs characters --render`).
+- **What the hero says wins.** With no outfit the genre's base card is worn. With one, its own language slots, dials and
+  pieces stand over the solver's, and a word outfit is left alone (the notes say so).
+- **The update law.** `stylism` is stamped `laws` at mint, and `stylism-laws.char.test.js` pins what each genre
+  resolves to at the register's two ends.
+
+### Creature apparel: hollow plate, cloth that folds, beasts dressed as expressively as people
+
+What anyone wears now reads as what it is, before a beast wears more of it. Plate read as blocks: each piece was a
+slab of one thickness, square at every edge, following the body's bumps, filled solid when seated, with a knob on its
+field; a pack was a box. Plate is now drawn the way games draw armour.
+
+- **Hollow plate.** A shell with an `edge` (`'roll'` | `'flat'`) is a plate, not a slab. Its thin `wall` shows its
+  thickness only at a rolled bead along each free edge, and the edge rounds over, with no flat cap. `crown` domes it off
+  what it covers (a pauldron's cup), and `keel` raises a ridge down a half plate's centre line. The outer face is
+  relaxed fairer than the body under it. The inside is drawn in an `interior` group, and a `liner` fills the gap under a
+  plate standing off the body, recessed and in shade. A rim paints the bead. A shell without `edge` is byte-for-byte as
+  before. The catalogue's plate and metal bands use it, in a new `shade` role (the plate's colour in shadow, derived
+  when the palette names none).
+- **Armour as games draw it (armour laws 13–15).** No plate stands past the figure's own width at its height by more
+  than its thickness (`within`: the plate's stand-off is scaled down as one, so its shape is kept; a detached genre's
+  plates `hover`). No plate covers a whole part. A `pauldron` is a cop over three lames shingling down the upper arm. A
+  `chestPlate` is a breastplate on a ridge over a fauld that tapers to the waist (`cut: 'cuirass'`), or over one lame.
+  `bracers` are two bands. Ornament is on the edge or in the surface: a trim bead, rivets at a lame's ends, the focal's
+  `motif` embossed and the others engraved. There are no bosses on the field. `shoulder` no longer broadens: the fantasy
+  wedge and hourglass carry their breadth in a `mantle` at every register, with the plate over it, and every outline is
+  still reached. A pauldron in the outfit's own cloth is a topstitched pad. A breastplate is MOULDED (`slab`: it clears
+  only what lies beside each ring, so it comes back in under the bust instead of standing out over the fauld), and the
+  stylism's breastplate drops the open jacket under it and holds the top in at the waist. A plate's width is that of
+  what it covers (a breastplate the torso's, a pauldron the arm's line), so the chest does not spread to the arms. The
+  shoulder-led outlines (the wedge, the X) are reached where the figure's own shoulders lead (the male cast); on a
+  narrower cast they are a miss the readout advises, never forced by plate carried past the shoulders.
+- **How much of the chest a breastplate covers.** `chestPlate.cover` (0.4 … 1, default 0.8, the base proportion) sets
+  how far it reaches across and down: below 0.65 one lame under the breast, to 0.9 two, the full fauld only above, and
+  past 0.8 it grows down, never wider. The stylism keeps the base at every detail (the detail is spent on the surface),
+  so a chest is not over-covered; the whole front is asked for by name. When the detail's focal is the chest and a breastplate covers it,
+  the motif is embossed on the plate (its `trim.chest`), not a medallion hung over it.
+- **One buckle at the waist.** Where a belt is worn, a sash ties with a knot of its own cloth instead of a second
+  buckle, and a fauld's rivets sit at each lame's outer end only (a column of them down the sternum read as buckles).
+- **Trim reads against plate; a sash is cloth.** The stand-in palette's fitting metal is never the plate's own metal
+  and stands a clear value step from it, so rims, rivets and buckles read on the plate. A `sash` is cloth: the
+  secondary, the accent when it is the focal; only its buckle is the trim's metal.
+- **Metal catches the light.** A hero that wears plate (an armour build, a stylism, or a piece in the `metal` role)
+  takes a gloss highlight on its metal groups under the anime light, so a crowned plate reads as a curve and not as one
+  flat tone. A hero that wears none keeps the light it had.
+- **Soft bags.** The `pack` signature's `soft: true` is a bag, not a box: a rounded section pillowed through its depth,
+  sagging at the bottom, with a flap over the top and down the front. The catalogue's satchel, pack and quiver use it.
+- **Beasts in the heroes' art style.** A drawn creature (the plan's `style.drawn`, every designed egocube beast) takes
+  the character light the anime hero does: the toon step, the ink hull and, when it wears plate, the metal's gloss. Its
+  markings (countershading, points, the second tone) are stepped as its own colours (`characterLitPieces` reads the
+  same per-face `tint` the studio path does), and its body and fur weld as one form (`drawnCrease`). A creature not
+  drawn keeps the studio light.
+- **A beast's plate is metal.** The egocube's beast palette gains a `metal` (worked iron or steel, a clear step from the
+  trim and from the coat it lies on), and a beast's pauldron and breastplate wear it instead of a cloth colour.
+- **An egocube lineup of dressed figures no longer overflows** while framing its cameras (a spread of every corner).
+
+- **A rolled beast is built masses first.** The egocube's creature door draws a chest over a waist over the hips by
+  pole and build (a keel or a bust, the shoulder line from the pole), each big limb swelling to a muscle belly, the
+  trunk in the finer ring family; a drawn creature keeps its flat markings (spots, streaks) through the tuft filter.
+- **Heads derived from the nearest skull.** `creature-heads/derive.js` re-draws a library head by moving its rows (the
+  slots and row ids kept, so every region, skin map and ornament still lands): `felid` from the wolf (the muzzle pulled
+  in, the skull rounder, the eyes brought to the face, broad ears), `beaked` from the wolf (the muzzle drawn to a point
+  in horn), `mandibled` from the bear (a short face pitched down, compound eyes, mandibles, antennae). The feline, avian
+  and insectoid peoples wear them; a people with no head wears a neutral felid skull as its stand-in, not the dragon's.
+- **A rolled beast's value.** A black coat is drawn at L* 24 at least (`BODY_MIN_L`, its hue kept), so it holds on the
+  dark stage; the eyes are the face's one saturated accent (a people's eye colours, the one furthest in hue from the
+  coat); a dressed beast's underside is a pale throat and belly (`style.drawn.markings.ventral: 'panel'`), its limbs
+  left in the coat.
+- **A beast with enough of a person in it is clothed.** At humanity 0.25 and over (`CLOTHED_H`) the designed dress is
+  the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
+  over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
+  to carry, so the skin no longer shows through the breeches in diamonds.
+- **Shapes that break the outline, along the body's contour.** The body's `locks` take a `profile` ('blade' the
+  default, a tuft; 'feather' broad and flat, its tip rounded; 'quill' a thin needle; 'spine' a stout cone), `share: true`
+  windows (s a share of the part's length, t of the ring half, so one window reads alike on every part) and `against`
+  (lying down a part whose s rises: a trunk, a neck). Without a `flow` a lock lies ALONG THE CONTOUR, down its part as
+  the surface curves; a shape that stands against the body for contrast names its own. The egocube's roll: a bird-kin
+  wears a short cape of feathers over the upper arms, feathered thighs and, when its sheet says so, a crest; a
+  dragon-kin whose sheet asks for "a crest of spikes down the nape and spine" grows one upright row of spines down its
+  back and neck; a people whose cover is `quills` grows them lying back over the back and shoulders.
+- **A coat's fur is depicted, not patterned.** A furred people's roll grows its fur as a few `locks` CLUMPS where fur
+  would break the outline: each lock may be a `clump` of fanned blades from one root, graded long, short, middling,
+  each flicking away from the centre, their colours alternating. A ruff over the shoulders and up the neck when the
+  people has one, two clumps at the back of the outer thigh, a brush down the tail (a window over a chain of parts
+  carries its offset on, link to link), clumps swept back from a mammal's cheeks in place of the head's cheek tiles;
+  then one to three CHOICE SPOTS by the sheet's seed (the back of the elbow, the back of the knee, round the triceps,
+  under the wrist). The body between stays smooth. A lock is never grown under what the plan wears (an adornment's
+  window on its carrier, the first half of a part it reaches `over`). They replace the coat's spike tiles; the sheet
+  audit counts locks as cover.
+- **Layers and bumps.** `layers: true | { overlap }` reads a lock window's rows and count off its own surface and the
+  lock's footprint, laid as a brick (an offset layer one lock fewer, each in a gap of the layer before; a negative
+  overlap stands the rows apart). The `bump` profile is a low six-sided dome standing straight off the skin; a
+  reptile-headed people with scales grows osteoderms in layered rows down the back and tubercles over the outer forearm
+  and thigh. The drawn tier keeps a bump by its breadth.
+- **A creature's skin, painted.** A plan's `skin` (polygonizer/skin-paint.js) paints its hide by region: `scales`
+  (overlapping, pointing down the part), `plates` (irregular, a reptile's head), `bands` (scutes across the belly),
+  `feathers` (long rounded tips in rows, a shaft down each), `fur` (tufts: three light strokes converging down the part),
+  `segments` (chitin rings, a light lip over a dark seam), each a cell size in metres, a contrast and windows (`t` round
+  the ring, `run` down the part); a pattern fades out toward a part's ends, so two parts never meet in a seam at a
+  joint (`fade: false` keeps it to the end); `lines: 'dark'` draws the lines darker than the hide (a pale coat's: the egocube
+  sets it on a coat of L* 62 or more). `fur` is a few choice hatch strokes, two or three short parallels, some crossed,
+  more toward the sides and the back (opt-in: a rolled coat is its tufts, painted nothing). The texture is value
+  only (a light rim round a darker cell), so the body's colours, its markings and both tones of the character light read
+  through it, and the light's step and the ink fall over it, as on the painted face. One atlas per creature: each part a
+  region covers gets its own rectangle (a whole number of cells round its ring, so the pattern closes), plus a white
+  tile; one texture for the static page, the rig pack and the glTF. The UVs come from each vertex's place on its part
+  (its station's distance down the centreline, its slot round the ring). A region too fine to read at the creature's
+  target is dropped; a second skin's cloth is not hide (war paint keeps the scales under it). The egocube's scaled
+  peoples carry one: fine plates on a reptile's head, scales down the limbs, the tail and the back, broad scutes down the
+  throat, chest and belly; a bird-kin's body, neck, arms and crown in feathers (its beak bare) and its scaled shins; an insect-kin's body and every limb ringed in chitin, its head in a
+  few large plates. Absent, nothing changes.
+- **The concept: what character this is, before a piece is chosen.** `egocube/concept.js` reads a word off the sheet
+  (warrior, noble, scholar, mystic, wanderer, artisan, healer, trickster; `wild` for a people below the clothed line,
+  keeping its archetype's flavour), turned by the role (a frontline scholar fights). Its card names the adornment
+  families it reaches for, what it refuses and its material. A beast's pieces are made to agree with it (a refused
+  piece is dropped, a sash never rides a cuirass's fauld, a cloak never buries wings, a bound character carries one
+  thing at a hip) and its own pieces join the gear in the room the gear leaves, never fewer than one. The outfit's
+  intent names the concept; the reasons ride the readout.
+- **Adornment that is not only gear.** New catalogue pieces built from the kernel's own signatures: `charms` (a bell and
+  a bone on a cord at the hip), `feathers` (a fan tied at the upper arm), `streamers` (ribbons from the arm or the
+  tail's ring), `warpaint` (painted bands on the arms), `prayerBand` (a band of runes on the forearm), `toolRoll` (a
+  soft roll at the back of the hip) and `trophy` (a horned skull at the hip). Arm pieces pair on a bound character.
+  New colour roles `bone` and `paint` (an ochre on a light coat, a white clay on a dark one), and a colour an outfit
+  names outright (a hex) now carries itself into the palette instead of falling back to the neutral tint.
+- **Every creature takes the hero's character light.** A creature (create_character's `as: 'creature'`: a layered plan
+  worn by no hero, drawn from a roll or designed by hand) is lit as a hero is: the toon step, the ink, the metal's gloss
+  on plate, read at render time, so creatures minted before re-render with it (`toon: { light: false }` opts out). A
+  built animal (`species`) and a carved creature (`statue`) keep their own light.
+- **Beasts shaded as the heroes are.** A creature's character light now crosses its front with the shadow line,
+  as a hero's does when it stands turned in its stance: its key is the character key turned 35° toward the side
+  (`CREATURE_KEY`) and its step sits a little toward the key (`CREATURE_STEP`). The body's own groups (its segments, fur,
+  scales, chitin, feathers, the head's skin) shade as a hero's skin does, darker and richer, never a grey (a cream
+  coat's shade is a warm tan), and a dark cloth or coat whose derived shade stepped only a few L* steps by `SHADE_STEP`.
+  Heroes are untouched.
+- **Topology from the frame's notes.** A cat's thin tail is carried lifted in an S and a heavy tail held level behind
+  (neither hangs to the floor as a third leg); wings on the arms are five flight feathers trailing from the hand and
+  forearm; a second pair of arms is built, rigged and folded forward under the first. A drawn creature's joint bridges
+  find a bone's own segment, not a feather riding it.
 
 ### Shoot plan: a keyframed camera you can see in the world
 

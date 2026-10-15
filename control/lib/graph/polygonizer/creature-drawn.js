@@ -60,7 +60,9 @@ export const drawnTarget = (plan) => {
 
 export function creatureJoints(plan, targetSpec = DEFAULT_TARGET) {
   const target = readTarget(targetSpec), ppm = pxPerMetre(target, planHeight(plan));
-  const segs = plan.segments || [], byBone = new Map(segs.map((g) => [boneOf(g), g]));
+  // a bone's segment is the one named for it (a feather or a plate riding the hand's bone is not the hand)
+  const segs = plan.segments || [], byBone = new Map();
+  for (const g of segs) { const b = boneOf(g); if (!byBone.has(b) || g.name === b) byBone.set(b, g); }
   const out = [];
   for (const U of segs) {
     if (!['segment', 'loft'].includes(U.kind) || !right(U) || typeof U.bind !== 'object' || !U.bind?.next) continue;
@@ -120,8 +122,11 @@ export function drawnPlan(plan) {
   const ppm = pxPerMetre(readTarget(target), planHeight(plan)), bridges = new Set(joints.flatMap((J) => [J.bridge, J.bridge.replace(/R$/, 'L')]));
   const body = dense.body && {
     ...dense.body,
-    ...(dense.body.tiles ? { tiles: dense.body.tiles.filter((T) => (T.height ?? 0) * ppm >= TUFT_MIN_PX) } : {}),
-    ...(dense.body.locks ? { locks: dense.body.locks.filter((K) => Math.max(...[K.length].flat()) * ppm >= TUFT_MIN_PX).map((K) => ({ ...K, segments: Math.min(K.segments ?? 5, Math.max(2, Math.ceil(Math.max(...[K.length].flat()) * ppm / LOCK_SEGMENT_PX))) })) } : {}),
+    // a tuft that would not read is dropped; a flat MARKING (laid down, no lean, or fading at its edge: spots, a
+    // streak, a scale pattern) is colour, not outline, and stays whatever its height
+    ...(dense.body.tiles ? { tiles: dense.body.tiles.filter((T) => T.lean === 0 || (T.edgeFade ?? 0) >= 0.25 || (T.height ?? 0) * ppm >= TUFT_MIN_PX) } : {}),
+    // a bump reads by its breadth (its length is its height), its dome kept to three rings at least
+    ...(dense.body.locks ? { locks: dense.body.locks.filter((K) => (K.profile === 'bump' ? 2 * K.width : Math.max(...[K.length].flat())) * ppm >= TUFT_MIN_PX).map((K) => ({ ...K, segments: K.profile === 'bump' ? K.segments ?? 3 : Math.min(K.segments ?? 5, Math.max(2, Math.ceil(Math.max(...[K.length].flat()) * ppm / LOCK_SEGMENT_PX))) })) } : {}),
     ...(dense.body.refine ? { refine: dense.body.refine.flatMap((e) => {
       if (e.stations === false || !Array.isArray(e.parts) || !e.parts.some((p) => bridges.has(p))) return [e];
       const own = e.parts.filter((p) => !bridges.has(p)), mine = e.parts.filter((p) => bridges.has(p));

@@ -285,7 +285,7 @@ export function dressPlan(plan, { detail, adorn, paint, outfit, operatorPalette 
   if (wantOutfit && isOutfitBuild(outfit)) {
     // an outfit build: its garments, its trims painted on them after any paint of the operator's, its buttons as body
     // detail rows and its belt as the last adornment, all from the words on every read
-    built = expandOutfit(outfit, { have: new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, ''))), scale }, { ...plan.palette, ...outfitTones(outfit), ...operatorPalette });
+    built = expandOutfit(outfit, { have: new Set(plan.segments.map((s) => s.name.replace(/[RL]$/, ''))), scale, drawn: figure.anime ? 'anime' : null }, { ...plan.palette, ...outfitTones(outfit), ...operatorPalette });
     plan.garments = built.garments;
     if (built.paint.length) plan.paint = [...(plan.paint || []), ...built.paint];
     if (built.rows.length) plan.body = { ...(plan.body || {}), rows: [...(plan.body?.rows || []), ...built.rows] };
