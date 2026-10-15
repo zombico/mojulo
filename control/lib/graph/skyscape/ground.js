@@ -15,14 +15,15 @@
  *              world), flat to the datum under the wheels whatever the detail around them, painted with their marks
  *   cities     fractal cities (city.js, terrain-city.js's): sited clear of the pads' climb-outs, graded, seated as
  *              plain metro masses; their roofs are obstacles (`topAt`)
- *   paint      a geocube's key colours as the kernel's ramps (grass the soil, stone the rock, sand the scree)
+ *   paint      a geocube's key colours as the kernel's ramps (grass the soil, stone the rock, sand the scree); or,
+ *              given a palette (color-theorist/), the palette's: its ground, rock and sky ramps, its sea sunk from its sky
  *
  * The result is a terrain field (terrain-field.js's shape: the kernel bound to its grids, `pageConfig()` for the page)
  * so the World page meshes it around the camera with the LOD the map planned, and server and page stand on the same
  * ground. Past the grid the kernel's own `outside()` carries the backdrop: the sea round an island, the wall's height
  * round a basin, a plain under the haze.
  *
- *   readGroundAsk(ask), mapGround(map, ask) → field + { pads, report }
+ *   readGroundAsk(ask), mapGround(map, ask, { palette? }) → field + { pads, report }
  *
  * Pure, deterministic (seeded noise, no clock).
  */
@@ -34,6 +35,8 @@ import { LANDS, SHAPES } from '../roads/surrounds.js';
 import { terrainKernel } from '../terrain/terrain-kernel.js';
 import * as dmath from '../../util/dmath.js';
 import { readCityAsk, prepareCities, seatCities } from './city.js';
+import { solvePalette } from '../color-theorist/solve.js';
+import { terrainRamps, atlasGround } from '../color-theorist/ground.js';
 
 /** The painting's width in its own units (terrain-field.js): the kernel's backdrop swell and fall are sized in them. */
 const PAINT_WIDTH = 24;
@@ -44,6 +47,8 @@ export const PAD_KINDS = Object.freeze({
   runway: { size: [900, 30], falloff: 80, label: 'a paved strip to take off from and land on' },
   pad: { size: [60, 60], falloff: 40, label: 'a level square to set down on' },
 });
+/** The sky a map is painted under when no palette is given: a clear day. */
+const DAY_SKY = Object.freeze({ zenith: [96, 146, 206], horizon: [196, 214, 226], day: 1 });
 /** The geocube a map is painted with when none is named: a daytime one. */
 export const DEFAULT_GEOCUBE = 'island-noon';
 const ASPHALT = { stops: [[46, 48, 52], [70, 72, 76], [92, 94, 98], [118, 120, 124]], pos: [0, 1 / 3, 2 / 3, 1], gamma: 1 };
@@ -55,6 +60,7 @@ const r2 = (v) => Math.round(v * 100) / 100;
 const isUV = (p) => Array.isArray(p) && p.length === 2 && p.every((v) => Number.isFinite(v) && v >= 0 && v <= 1);
 const rgbOf = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const rampOfHex = (hexes) => ({ stops: hexes.map(rgbOf), pos: [0, 1 / 3, 2 / 3, 1], gamma: 1 });
+const rgbHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
 const b64 = (a) => Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64');
 
 /** Errors (strings) for a ground ask; [] when it lays. */
@@ -228,10 +234,13 @@ function padLayer(p, datum) {
 }
 
 /**
- * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, cities?, geocube?, seed? }. → a terrain field (K, kernel, heightAt,
- * groundAt, normalAt, colorAt, bounds, meta, pageConfig) plus `pads` (each with its datum) and a `report`.
+ * The map's ground. `ask`: { land?, heartbeat?, scale?, pads?, cities?, geocube?, seed? }. `palette`: a palette spec
+ * (color-theorist/solve.js) that colours the ground, the sky and the sea in place of the geocube and the day sky (the
+ * relief, the pads and the cities are the same with or without it). → a terrain field (K, kernel, heightAt, groundAt,
+ * normalAt, colorAt, bounds, meta, pageConfig) plus `pads` (each with its datum), a `report`, and `water` (the sea's
+ * colour, a palette's only).
  */
-export function mapGround(map, ask = {}) {
+export function mapGround(map, ask = {}, { palette } = {}) {
   const errs = readGroundAsk(ask); if (errs.length) throw new Error(`ground: ${errs.join('; ')}`);
   const land = LANDS[ask.land ?? (map.form === 'basin' ? 'mountains' : map.form === 'canyon' ? 'mesas' : 'hills')];
   const seed = hashSeed(ask.seed ?? map.seed ?? 'skyscape') % 100003;
@@ -263,6 +272,9 @@ export function mapGround(map, ask = {}) {
   const B = map.backdrop, sea = B.sea ? 0 : null;
   const cellM = g.dx, L0 = 4 * cellM, octaves = []; for (let L = L0; L >= 0.5 && octaves.length < 16; L /= 2) octaves.push([L, dmath.pow(L / L0, 0.8)]);
   const cube = readGeocube(ask.geocube ?? DEFAULT_GEOCUBE), R4 = geocubeRamps(cube, 4);
+  // a palette paints in place of the geocube: its ground the soil, its rock the stone and the scree, its sky the sky
+  const P = palette ? solvePalette(palette === 'auto' ? {} : palette) : null;
+  const painted = P ? { ramps: terrainRamps(P, 1), atlas: atlasGround(P, { day: 1 }) } : null;
   const K = {
     nx: g.nx, ny: g.ny, x0: g.x0 / s, y0: g.y0 / s, dx: g.dx / s, hq, hMin: lo / zs, hStep, hard, apron, apronStep: 1,
     s, zs, yc: 0, rect: [g.x0 / s, (g.x0 + (g.nx - 1) * g.dx) / s, g.y0 / s, (g.y0 + (g.ny - 1) * g.dx) / s],
@@ -271,7 +283,7 @@ export function mapGround(map, ask = {}) {
     sea: sea === null ? null : sea / zs, beds: null,
     detail: { octaves, norm: octaves.reduce((a, o) => a + o[1], 0) || 1, rock: 0.06 * L0, soil: 0.012 * L0, seed },
     light: LIGHT.dir, lambert: { ambient: LIGHT.ambient, gain: LIGHT.gain },
-    ramps: { soil: rampOfHex(R4.grass), stone: rampOfHex(R4.stone), scree: rampOfHex(R4.sand ?? R4.floor), beds: [rampOfHex(R4.stone)] },
+    ramps: painted ? { ...painted.ramps, beds: [painted.ramps.stone] } : { soil: rampOfHex(R4.grass), stone: rampOfHex(R4.stone), scree: rampOfHex(R4.sand ?? R4.floor), beds: [rampOfHex(R4.stone)] },
   };
   // the pads: each sited near where it was asked for, where it needs the least earthwork (the most the natural ground
   // stands off its datum over the footprint), dry, inside the field and clear of the pads before it; graded flat
@@ -289,7 +301,7 @@ export function mapGround(map, ask = {}) {
   if (layers.length) K.grade = layers;
   const kernel = layers.length ? terrainKernel(K) : natural;
   const town = seatCities(preps, { K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, bounds });
-  const sky = { zenith: [96, 146, 206], horizon: [196, 214, 226], day: 1 };
+  const sky = painted ? painted.atlas.sky : { ...DAY_SKY };
   return {
     K, kernel, heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     // the highest surface: the ground, or a city's roof over it (what a course and a pilot keep clear of)
@@ -297,7 +309,9 @@ export function mapGround(map, ask = {}) {
     bounds,
     meta: { span: 2 * G.hx, relief: 1, horizon: K.horizon.mode, sea, planet: null, sky, rock: null, octaves: octaves.length, scree: [] },
     pads,
-    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), geocube: cube.id, scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}) },
+    // the sea's colour: the palette's water ramp at its middle (no palette: the page's own, from the sky)
+    ...(painted && sea !== null ? { water: rgbHex(painted.atlas.ramps.water.stops[2]) } : {}),
+    report: { land: Object.keys(LANDS).find((k) => LANDS[k] === land), ...(P ? { palette: P.id } : { geocube: cube.id }), scale, marks: edits.length, relief: [r2(lo), r2(hi)], grid: [g.nx, g.ny], cell: r2(cellM), pads: pads.map((p) => ({ id: p.id, datum: p.datum, earthwork: p.earthwork, moved: p.moved, ...(p.depart ? { depart: p.depart, gradient: p.gradient } : {}) })), ...(town.cities.length ? { cities: town.cities } : {}) },
     pageConfig() {
       const { hq: q, hard: h, apron: a, grade, ...rest } = K;
       return { ...rest, grids: { hq: b64(q), hard: b64(h), apron: b64(a) }, ...(grade ? { grade: grade.map((L) => ({ ...L, dq: b64(L.dq), w: b64(L.w), ...(L.paint ? { paint: { ...L.paint, pc: b64(L.paint.pc) } } : {}) })) } : {}) };

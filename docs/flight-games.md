@@ -145,6 +145,29 @@ The machine gate on the shelf:
 
 All of this is in `craft-shelf.deep.test.js`. No eyes gate has been run on the shelf.
 
+## The airspace in a palette
+
+A flight level is drawn by the color theorist (`control/lib/graph/color-theorist/`) when its world has a palette.
+The world's `style.palette`, moved level by level by its colour script, rides the `airspace` manifest as `palette`.
+The `airspace` kind also takes one directly. It colours four things (`skyscape/ground.js`):
+
+- **The land.** The palette's ground, rock and scree ramps replace the geocube's, through `terrainRamps`, the same
+  ramps a painted terrain takes. The relief, the pads and the cities do not move.
+- **The sky.** Zenith and horizon come from the palette's sky ramp, through `atlasGround`. Under air the zenith
+  is the deeper of the two.
+- **The haze.** It stays the horizon's colour, because the haze is what hides the map's edge.
+- **The sea.** Round an island it takes the middle of the palette's water ramp.
+
+Without a palette, the airspace is painted from its geocube under a day sky, byte for byte as before. Quick games
+roll no palette: a quick flight is coloured only when its world names one. The earth presets in
+`PALETTE_PRESETS` (`color-theorist/solve.js`) name a place seen from the air, each with its sky's hue. A space map
+keeps its void.
+
+Still painted in fixed colours, and next for the palette: the runway and its marks, the gate rings, the cities'
+masses, the dogfight's foes, the space map's rocks and trench, and the craft's livery. The livery would go through
+the shelf's paint, trim and light roles (`resolveCraftPalette`). There is no cloud layer yet, so the palette's
+`cloud` role is unused here.
+
 ## What comes next
 
 The shelf is the asset layer. In order, the moves that turn it into flight games:

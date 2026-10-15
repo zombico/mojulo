@@ -396,7 +396,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-14 (213_400 -> 213_700; measured 213,449) for the color theorist's air: pick_palette's `air` (thin,
 // none: a void for a sky) and `preset` (moon, asteroid-belt, mars, icy-moon, station, deep-space).
 // Lowered 2026-10-15 (213_700 -> 210_800; measured 210,537) for 1015-tool-consolidation: the shoot plan folded into forge_motion.
-const PAYLOAD_CEILING = 210_800;
+// Raised 2026-10-15 (210_800 -> 211_100; measured 210,856) for the flight palette: four earth presets in pick_palette's
+// `preset` enum (the palette's own list, a place a flight world names) and its line naming them.
+const PAYLOAD_CEILING = 211_100;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

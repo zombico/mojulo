@@ -295,6 +295,7 @@ const QUICK_LEVERS = {
     `  craft: ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join(', ')}`,
     '  assist: arcade (never stalls, the wings level quickly) | sim (the bank holds where it is put); laps: n (not a glider)',
     `  airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} }, ground?, space?, course? }   space: { asteroids } for a space craft`,
+    '  world: { style: { palette } }: pick_palette\'s spec, or { preset: \'coastal-noon\' }; paints the land, sky, haze and sea',
     '  followed from behind; no hero, ride, climb, building or run',
   ],
 };

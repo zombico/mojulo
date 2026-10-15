@@ -13,6 +13,8 @@ const PINS = [
   [{ seed: 9, shift: { light: -0.5, warm: 0.4 } }, 'pal-15fae808', 'e9abd4b4'],
   [{ seed: 9, preset: 'moon' }, 'pal-4e0ddb1d', '26b01935'],
   [{ seed: 9, preset: 'mars' }, 'pal-68305a5c', '072a8ea1'],
+  // an earth preset (the flight presets: air, the sky's hue named)
+  [{ seed: 9, preset: 'coastal-noon' }, 'pal-3c4bcf9e', 'b826f4d6'],
 ];
 
 describe('the solver is pinned', () => {

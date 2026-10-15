@@ -1628,6 +1628,30 @@ comes next are in `docs/flight-games.md`.
   (`craft-shelf.char.test.js`). No eyes gate has run.
 - Nothing existing changes: the shelf is new modules only, with no MCP surface yet.
 
+### Flight palette: the color theorist paints the airspace
+
+A flight level took its world's palette only on its HUD. Its land came from a geocube, and its sky, haze and sea
+were a fixed clear day. Now the palette colours the airspace, so a flight world reads as one look. This pass
+covers the land and the air. The runway, gates, cities, foes and the craft's livery keep their fixed colours for
+now.
+
+- **`palette` on the `airspace` kind.** It takes a pick_palette spec, and an airspace level carries its world's
+  `style.palette`, moved by the world's colour script. The palette's ground, rock and scree ramps paint the land
+  in place of the geocube, the same ramps a painted terrain takes. Its sky ramp gives the zenith and horizon, and
+  its water ramp the sea round an island. The haze stays the horizon's colour, because it hides the map's edge.
+  The relief, pads, cities and course are the same with or without a palette. A space map keeps its void.
+  `meta.ground` names the palette in place of the geocube.
+- **Earth presets** beside the space ones: `coastal-noon`, `alpine-dawn`, `desert-haze` and `autumn-farmland`.
+  Each is a place seen from the air, with its sky's hue named. A quick flight takes one as
+  `quick.world.style.palette: { preset }`. Quick games still roll no palette of their own.
+- **Machine gate:** with no palette, or `palette: false`, the airspace is byte-identical to before. A painted
+  airspace keeps its relief, pads and grids, and its zenith is deeper than its horizon. The same spec renders the
+  same bytes. A game world's palette and its script's shift reach the airspace manifest. A quick flight in a
+  preset stores its rolled seed and renders in it. One earth preset is pinned in the solver's characterization
+  test. The existing palettes did not move. No eyes gate has run.
+- Airspace levels are unreleased, so no published world changes colour. A local world that already stores a
+  palette and an airspace level now draws that level in its palette.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the

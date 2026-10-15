@@ -456,6 +456,15 @@ describe('air: a world with thin air, or none', () => {
     const toSky = (C) => deltaE(hexToRgb(mid(C.roles.far)), hexToRgb(C.roles.sky.at(-1)));
     expect(toSky(K) / deltaE(hexToRgb(mid(K.roles.ground)), hexToRgb(K.roles.sky.at(-1)))).toBeGreaterThan(toSky(F) / deltaE(hexToRgb(mid(F.roles.ground)), hexToRgb(F.roles.sky.at(-1))));
   });
+  it('an earth preset is a world with air: the sky the brightest, in the hue it names, the ground in its own', () => {
+    const id = Object.keys(PALETTE_PRESETS).find((p) => (PALETTE_PRESETS[p].spec.air ?? 'full') === 'full' && PALETTE_PRESETS[p].spec.hues?.sky !== undefined);
+    const S = PALETTE_PRESETS[id].spec, K = solvePalette({ preset: id, seed: 5 });
+    expect(K.read.air).toBeUndefined();
+    expect(K.checks.find((c) => c.law === 'sky-brightest').ok).toBe(true);
+    const gap = (a, b) => Math.abs(((a - b + 540) % 360) - 180), h = (r) => lchOf(hexToRgb(mid(K.roles[r])))[2];
+    expect(gap(K.params.P.sky.h, S.hues.sky)).toBeLessThan(1);
+    expect(gap(h('ground'), S.hue)).toBeLessThan(20);
+  });
   it('a preset is a spec to start from: its own fields win; an unknown preset or air teaches', () => {
     const id = presetOf('none'), K = solvePalette({ preset: id, seed: 2, key: 'high', scheme: 'triad' });
     expect(K.read).toMatchObject({ key: 'high', scheme: 'triad', air: 'none' });

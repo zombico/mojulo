@@ -80,6 +80,15 @@ describe('design_game quick', () => {
     expect(L.entities[0].rule.course.land.aim).toHaveLength(3);
   }, 240_000);
 
+  it('fly in a palette: the world names a preset, its seed is rolled and stored, the land, sky and haze are the palette\'s', async () => {
+    await designGameHandler({ quick: { goal: 'fly', craft: 'trainer', airspace: { map: { form: 'island', field: 2400 } }, world: { id: 'coast', style: { palette: { preset: 'coastal-noon' } } } }, ref: 'fp' });
+    const L = stored('fp-level-run-0');
+    expect(L.palette).toMatchObject({ preset: 'coastal-noon', seed: expect.any(Number) });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('fp-level-run-0'), { live: true });
+    expect(payload.meta.ground.palette).toMatch(/^pal-/);
+    expect(payload.haze.color).toBe(payload.bg);
+  }, 240_000);
+
   it('fly in space: a space craft\'s map is space (rocks, stars, no ground), its gates a race with nothing to land on', async () => {
     const out = await designGameHandler({ quick: { goal: 'fly', craft: 'fighter', airspace: { space: { asteroids: 'sparse' } }, world: { id: 'belt' } }, ref: 'sp' });
     expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
