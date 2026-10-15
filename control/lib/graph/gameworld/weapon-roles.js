@@ -32,9 +32,9 @@ export const SERVED = 0.08;   // a band an arena serves holds at least this shar
 
 export const WEAPON_ROLES = Object.freeze({
   close: Object.freeze({ band: [0, 10], standoff: 3, read: 'a burst for a corner: a body in two or three at arm\'s length, little across a hall' }),
-  mid: Object.freeze({ band: [6, 35], read: 'the pole\'s own rifle, the gun a body starts with' }),
+  mid: Object.freeze({ band: [6, 35], standoff: 12, read: 'the pole\'s own rifle, the gun a body starts with' }),
   long: Object.freeze({ band: [18, 90], standoff: 24, read: 'a head in one round, a body in two or three; slow, and thrown wide by a run' }),
-  area: Object.freeze({ band: [6, 28], standoff: 12, read: 'a launcher: rounds that burst where they land' }),
+  area: Object.freeze({ band: [6, 28], standoff: 15, read: 'a launcher: rounds that burst where they land' }),
 });
 
 /** A role's weapon at a point on the shooter pole. */
@@ -88,11 +88,11 @@ export function servedRoles(lines, roles) {
 
 /** A loadout on the pole: the mid gun in hand, each of `pickups` (role names) not carried until it is picked up. Each
  * slot carries its band, so a mind takes the gun for the range (mind.js), and the range it holds with it (`approach`:
- * the close gun presses in, the long gun keeps back). */
+ * the close gun presses in, the long gun keeps back); the long gun `plant`s (its mind stands to shoot it). */
 export function roleLoadout(pole, pickups = []) {
   return ['mid', ...pickups.filter((r) => r !== 'mid')].map((role, k) => {
     const W = weaponRole(role, pole);
     const hold = WEAPON_ROLES[role].standoff;
-    return { name: role, band: W.band, weapon: W.weapon, ...(hold ? { approach: { standoff: hold } } : {}), ...(k ? { held: false } : {}) };
+    return { name: role, band: W.band, weapon: W.weapon, ...(hold ? { approach: { standoff: hold } } : {}), ...(role === 'long' ? { plant: true } : {}), ...(k ? { held: false } : {}) };
   });
 }

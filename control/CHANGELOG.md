@@ -205,6 +205,29 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
   (reverting only `mind.js` passes them all).
 
+### Shooter: minds that make their gun's range (phase 8)
+
+- **A gun for the range by its sweet spot.** Among the held guns whose band holds the distance, a mind takes the
+  one whose sweet spot is nearest. The sweet spot is the slot's `approach.standoff`: close 3 m, the rifle 12, the
+  launcher 15, the long gun 24. Phase 5's "narrowest band" never chose the long gun, whose band is the widest. The
+  gun in hand stays until another is nearer its own sweet spot by 2 m.
+- **`rule.keepRange`.** A mind carrying a gun that wants distance (the long gun), closer than it wants, backs off.
+  It keeps fighting with the gun for the range until the long gun takes over; backed into a wall, it gives that up
+  for 3 s. From 8 m off a standing target it ends 21.5 m away, the long gun drawn and landing.
+- **A slot that `plant`s** (the long gun's): its mind stands to shoot it rather than strafe, since a run throws it
+  wide.
+- **`rule.perches`.** Carrying the long gun and seeing no one, a mind holds the nearest perch (in the quick
+  deathmatch, the long gun's own drops, where the arena's long lines meet) and watches.
+- Measured (`weapons: true`, matches to 5): realistic 99 s, middle 98 s, stylized 109 s. At the middle pole fights
+  moved out: 73 of 77 hits at 6 to 18 m (phase 5: most under 6 m). But the long gun was fired once: carried 125
+  bot-seconds, mostly backing off from a chaser, which closes faster than a retreat opens. Only 9 s were spent
+  engaged past 18 m. The long gun stands in exposed open ground, beyond the 18 m a mind walks for a gun, so on the
+  large ring with long sightlines it was held 1 s in 94. The mechanism holds in isolation (`range.test.js`). In a
+  match, what is still missing is a reason to fight far: an arena whose fights start far, or minds that pick the
+  perch before the gun.
+- Without `keepRange`, `perches` or `plant`, minds behave as before; bands now choose by sweet spot. The page's hashes
+  were re-pinned: reverting only `mind.js` passes them.
+
 ### Shooter: two sides, team bases and a point to hold (phase 7)
 
 - **Team deathmatch on the bus.** `frags`' `teams` (two sides, every contender in one). A fall counts only when the

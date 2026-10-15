@@ -630,6 +630,19 @@ export function buildMind(E) {
   // `itemsBelow`, 0.6, of its hp) it goes for the nearest health or armor, short of rounds (fewer than a magazine left)
   // for ammo, and an overdrive within 12 m it takes on the way. It remembers when it took each (it stood on it) and
   // does not go back before its `back`: item timing, a match's map knowledge. → the item's place, or null
+  // rangeNeed(e, lo) — the distance a carried gun wants (a held slot whose band starts 12 m or more out, with rounds: the
+  // long gun): halfway from its band's near edge to its sweet spot, and half a metre; 0 when it carries none
+  function rangeNeed(e, lo) {
+    let need = 0;
+    if (!lo || !e.loadoutWeapons) return 0;
+    for (let i = 0; i < lo.length; i++) {
+      const b = lo[i] && lo[i].band, g = e.loadoutWeapons[i];
+      if (!Array.isArray(b) || b[0] < 12 || !g || (e.loadoutHeld && !e.loadoutHeld[i]) || (g.ammo <= 0 && g.reserve === 0)) continue;
+      const sw = lo[i].approach && Number.isFinite(lo[i].approach.standoff) ? lo[i].approach.standoff : b[0] + 1;
+      need = Math.max(need, (b[0] + Math.max(b[0] + 1, sw)) / 2 + 0.5);
+    }
+    return need;
+  }
   // allyOnLine(e, from, target, world) — a standing body of its own side within a body's width of the line from `from`
   // to the target, before it (opt-in `rule.clearLine`: it holds its fire rather than shoot through a teammate)
   function allyOnLine(e, from, target, world) {
@@ -672,6 +685,17 @@ export function buildMind(E) {
     const item = itemGoal(e, r, world);
     if (item) { e.aiFire = 0; e.seekingItem = true; goTo(e, r, dt, world, item, r.speed ?? 6); return; }
     e.seekingItem = false;
+    // a PERCH (opt-in `rule.perches: [[x, y, z?], …]`, spots where long lines meet): carrying a gun that wants distance
+    // (`keepRange`), no foe in sight and nothing it wants, it holds the nearest perch and watches, turning slowly, rather
+    // than hunt into a close fight
+    const lo = e.pilotRule && Array.isArray(e.pilotRule.loadout) ? e.pilotRule.loadout : Array.isArray(r.loadout) ? r.loadout : null;
+    if (r.keepRange && Array.isArray(r.perches) && r.perches.length && rangeNeed(e, lo)) {
+      const pk = r.perches.reduce((p, q) => (Math.hypot(q[0] - t.pos[0], q[1] - t.pos[1]) < Math.hypot(p[0] - t.pos[0], p[1] - t.pos[1]) ? q : p));
+      e.aiFire = 0; e.perched = Math.hypot(pk[0] - t.pos[0], pk[1] - t.pos[1]) <= 1;
+      if (!e.perched) { goTo(e, r, dt, world, pk, r.speed ?? 6); return; }
+      e.moving = false; t.heading += (r.turn ?? 3) * 0.25 * dt; return;
+    }
+    e.perched = false;
     // an OBJECTIVE (opt-in `rule.objective: { at, radius? }`, a point its side holds): no foe in sight and nothing it
     // wants, it goes there and stands on it (within `radius`, 2 m), turning to look round
     const O = r.objective;
@@ -996,19 +1020,17 @@ export function buildMind(E) {
         let want;
         if (ranged.some((i) => Array.isArray(lo[i].band))) {
           // BANDS (opt-in, a slot's `band: [near, far]` metres, gameworld/weapon-roles.js): the gun for the range, not a
-          // rotation. The held gun whose band holds the distance, the narrowest such (the specialist), one with rounds
-          // before a dry one; the gun in hand is kept while the distance stays within 2 m of its band (a switch costs
-          // its ready time).
+          // rotation. Of the held guns with rounds whose band holds the distance, the one whose SWEET SPOT (its slot's
+          // `approach.standoff`, else its band's middle) is nearest it; the gun in hand is kept while the distance stays
+          // within 2 m of its band, unless another in band is nearer its sweet spot by 2 m (a switch costs its ready time).
           const band = (i) => (Array.isArray(lo[i].band) ? lo[i].band : [0, Infinity]);
+          const sweet = (i) => (lo[i].approach && Number.isFinite(lo[i].approach.standoff) ? lo[i].approach.standoff : (band(i)[0] + Math.min(band(i)[1], band(i)[0] + 40)) / 2);
           const dry = (i) => { const w = e.loadoutWeapons[i]; return w.ammo <= 0 && w.reserve === 0; };
           const off = (i) => { const [a, b] = band(i); return dist2d < a ? a - dist2d : dist2d > b ? dist2d - b : 0; };
+          const fit = (i) => off(i) * 10 + Math.abs(dist2d - sweet(i));
           const cur = e.loadoutIdx || 0;
-          if (ranged.includes(cur) && !dry(cur) && off(cur) <= 2 && !(off(cur) > 0 && ranged.some((i) => i !== cur && !dry(i) && off(i) === 0))) want = cur;
-          else want = ranged.reduce((p, q) => {
-            const k = (i) => [dry(i) ? 1 : 0, off(i), band(i)[1] - band(i)[0]];
-            const a = k(p), b = k(q);
-            return b[0] < a[0] || (b[0] === a[0] && (b[1] < a[1] - 1e-9 || (Math.abs(b[1] - a[1]) <= 1e-9 && b[2] < a[2]))) ? q : p;
-          });
+          if (ranged.includes(cur) && !dry(cur) && off(cur) <= 2 && !ranged.some((i) => i !== cur && !dry(i) && off(i) === 0 && fit(i) < fit(cur) - 2)) want = cur;
+          else want = ranged.reduce((p, q) => ((dry(q) ? 1 : 0) < (dry(p) ? 1 : 0) || ((dry(q) ? 1 : 0) === (dry(p) ? 1 : 0) && fit(q) < fit(p) - 1e-9) ? q : p));
         } else {
           if (e.aiRangedPick == null) { const cur = ranged.indexOf(e.loadoutIdx || 0); e.aiRangedPick = cur >= 0 ? cur : 0; }
           if (ranged.length > 1) {
@@ -1144,10 +1166,27 @@ export function buildMind(E) {
       // a peek holds its spot while it fights from it (it does not walk out of the edge it peeked)
       const holding = r.peek && e.peek && ((world && world.time) || 0) - e.peek.t < ((r.peek && r.peek.hold) || 2.5);
       if (dist2d > standoff && facing && !holding) moveF = speed * dt;
+      // KEEP RANGE (opt-in `rule.keepRange`): carrying a gun that wants distance (a held slot whose band starts 12 m or
+      // more out, with rounds: the long gun), closer than its band it backs off, still fighting with the gun for the
+      // range, until it is there and the gun for the range is that one. Backed into a wall (under half a metre in a
+      // second) it gives it up for 3 s.
+      if (r.keepRange && lo && e.loadoutWeapons && facing && !holding) {
+        if (e.backOffT > 0) e.backOffT -= dt;
+        const need = rangeNeed(e, lo);
+        if (need && dist2d < need && !(e.backOffT > 0)) {
+          const B = e.backing || (e.backing = { from: [t.pos[0], t.pos[1]], t: 0 });
+          B.t += dt;
+          if (B.t >= 1) { if (Math.hypot(t.pos[0] - B.from[0], t.pos[1] - B.from[1]) < 0.5) e.backOffT = 3; e.backing = null; }
+          moveF = -speed * 0.8 * dt;
+        } else e.backing = null;
+      }
       if (moveF) { t.pos[0] += f2[0] * moveF; t.pos[1] += f2[1] * moveF; }
-      moveMag = moveF;
-      // FRAG: it strafes as it shoots, side to side on its juke clock
-      if (motive === 'frag' && facing && w && (r.strafe ?? 0.6) > 0 && !holding) {
+      moveMag = Math.abs(moveF);
+      if (moveF < 0) e.backStep = true;   // the walk clip run backwards (gait.js wraps a negative phase)
+      // FRAG: it strafes as it shoots, side to side on its juke clock; not with a slot that `plant`s (a gun a run throws
+      // wide: it stands to shoot)
+      const planted = !!(aSlot && aSlot.plant);
+      if (motive === 'frag' && facing && w && (r.strafe ?? 0.6) > 0 && !holding && !planted) {
         const side = nextJuke(e, r, dt), ss = speed * (r.strafe ?? 0.6) * dt;
         t.pos[0] += rt2[0] * side * ss; t.pos[1] += rt2[1] * side * ss;
         moveMag = Math.max(moveMag, ss);
@@ -1155,8 +1194,9 @@ export function buildMind(E) {
     }
     if (!isSpace && world && world.colliders) block(t, r, eye, world);
     if (!isSpace) standOnGround(t, r, eye, world);
-    if (moveMag > 0) { e.locomotion = clip; e.gaitPhase = (e.gaitPhase || 0) + moveMag / strideLen; e.moving = true; }
+    if (moveMag > 0) { e.locomotion = clip; e.gaitPhase = (e.gaitPhase || 0) + (e.backStep ? -moveMag : moveMag) / strideLen; e.moving = true; }
     else e.moving = false;
+    e.backStep = false;
 
     // STRIKE: the trigger. Engaged = on aim within `fireArc`°, in range, sightline clear; space gates on the full 3D
     // aim. Burst/pause cadence; the tuning's latency shortens bursts, lengthens gaps, and holds a fresh sighting for

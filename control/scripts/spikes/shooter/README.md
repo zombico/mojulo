@@ -255,6 +255,12 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   `mode: 'team' | 'control'`. Open: capture the flag (the cast cannot carry), a moving point, overtime, Godot's
   control.
 
+- **Phase 8, a gun's range**: guns chosen by their sweet spot (the role's standoff), `keepRange` (back off to the long
+  gun's range), `plant` (stand to shoot it), `perches` (hold where long lines meet). The mechanism holds in isolation,
+  but in a match the long gun is still fired about once. A chaser closes faster than a retreat opens; fights start
+  where minds meet (under 18 m); and the long gun's drop is exposed and far from where minds walk. Open: a reason to
+  fight far (arenas whose fights start far, minds that pick the perch before the gun).
+
 ## A build order, if this goes ahead
 
 As the hill-climb asks: composed concepts, each one moving a genre probe, opt-in, absent keys keep every byte.
