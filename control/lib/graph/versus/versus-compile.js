@@ -37,7 +37,7 @@
  * plain data (no functions), so a page can compile in the browser from the stored recipe.
  */
 
-import { versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
+import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
 import { POSES, STRENGTHS, NORMAL_FAMILIES, NORMAL_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT } from './versus-library.js';
 
 // movement defaults (mm per frame, frames)
@@ -184,6 +184,16 @@ export function readTune(T, where) {
   return T;
 }
 
+/** A tune key that this move would carry and never read is refused, so a recipe never says what the fight ignores. */
+function refuse(T, keys, where, what) {
+  for (const k of keys) if (T[k] !== undefined) throw new Error(`versus: ${where} tune.${k} does nothing on ${what}`);
+}
+// what only some moves read: a projectile its speed, an airborne move its vel and landing, a throw its reach
+const SHAPE_KEYS = ['speed', 'vel', 'landing', 'reach'];
+const STRENGTH_ROWS = ['L', 'M', 'H'];
+// what a throw never reads: it is unblockable and lands when the clinch ends
+const THROW_IGNORES = ['hitstop', 'push', 'chip', 'guard', 'knock', 'juggle', 'adv', 'hits', 'speed', 'vel', 'landing'];
+
 /** A tune row for one strength: the flat keys, then the strength's own. */
 const tuneAt = (T, st) => {
   const { L, M, H, ...flat } = T;
@@ -283,6 +293,12 @@ export function readPose(v, where) {
 const STRENGTH_KEYS = ['L', 'M', 'H'];
 const perStrength = (at) => (at && STRENGTH_KEYS.some((k) => at[k]) ? at : { L: at ?? {}, M: at ?? {}, H: at ?? {} });
 
+/** A classic motion as written: numpad digits, 2 to 8 of them ('236', '623', '41236'). */
+export function readMotion(v, where) {
+  if (typeof v !== 'string' || !/^[1-9]{2,8}$/.test(v)) throw new Error(`versus: ${where} motion is 2 to 8 numpad digits (6 toward the opponent: '236', '623', '214')`);
+  return v;
+}
+
 /** A recipe's own special (maybe `from` a shipped one) → a record compileSpecial reads. */
 function readSpecial(id, rec, specials) {
   const where = `special '${id}'`;
@@ -299,6 +315,7 @@ function readSpecial(id, rec, specials) {
   delete out.from;
   for (const k of ['load', 'strike', 'after', 'rest']) if (rec[k] !== undefined) out[k] = readPose(rec[k], `${where} ${k}`);
   if (!out.load || !out.strike) throw new Error(`versus: ${where} needs a load and a strike pose`);
+  readMotion(out.motion, where);
   if (!STRIKE_SEGMENTS[out.limb]) throw new Error(`versus: ${where} limb is one of ${Object.keys(STRIKE_SEGMENTS).join(', ')}`);
   if (out.projectile && !(out.projectile.w > 0 && out.projectile.h > 0)) throw new Error(`versus: ${where} projectile is { w, h, y?, life? }`);
   if (out.projectile) out.projectile = { y: 0, life: 150, ...out.projectile };
@@ -353,6 +370,8 @@ export function compileNormal(body, slot, { family, strength, tune } = {}, weapo
   const [stance, letter] = slot.split('.');
   if (fam.stance !== stance) throw new Error(`versus: ${slot} wants a ${stance} family; '${family}' is a ${fam.stance} move`);
   const T = readTune(tune, slot);
+  refuse(T, [...SHAPE_KEYS, ...STRENGTH_ROWS], slot, 'a normal');
+  if (stance === 'air') refuse(T, ['adv', 'travel', 'armor', 'riposte'], slot, 'an air normal (a jump-in flies its arc; its stun is its strength\'s)');
   const st = STRENGTHS[strength ?? letter];
   const m = baseMove(slot, 'normal', stance, fam.limb);
   m.id = family;
@@ -375,6 +394,13 @@ export function compileNormal(body, slot, { family, strength, tune } = {}, weapo
   if (armed) m.disjoint = weapon.length;
   const adv = applyTune(m, T, { ...st.adv, ...(fam.adv ?? {}) });
   primitives(m, T, slot);
+  if (T.hits !== undefined) {
+    // a multi-hit normal: its damage is the total, shared, one hit every active / hits frames
+    if (T.hits > m.active) throw new Error(`versus: ${slot} tune.hits ${T.hits} needs at least as many active frames (${m.active})`);
+    m.hits = T.hits;
+    m.rehit = m.hits > 1 ? Math.floor(m.active / m.hits) : 0;
+    m.damage = Math.round(m.damage / m.hits);
+  }
   m.total = m.startup + m.active - 1 + m.recovery;
   if (stance === 'air') {
     [m.hitstun, m.blockstun] = AIR_STUN[m.strength];
@@ -392,8 +418,9 @@ export function compileNormal(body, slot, { family, strength, tune } = {}, weapo
 /** The throw: its reach a short arm's length from the body, shorter than any normal. */
 export function compileThrow(body, slot = 'throw', over = {}) {
   const m = baseMove(slot, 'throw', 'stand', THROW.limb);
-  Object.assign(m, { id: 'throw', startup: THROW.startup, active: THROW.active, recovery: THROW.recovery, damage: THROW.damage, hitstop: 0, push: 0 });
+  Object.assign(m, { id: 'throw', startup: THROW.startup, active: THROW.active, recovery: THROW.recovery, damage: THROW.damage, hitstop: 0, push: 0, meter: THROW.meter });
   const T = readTune(over.tune, slot);
+  refuse(T, [...THROW_IGNORES, ...STRENGTH_ROWS], slot, 'a throw');
   m.throw = { range: Math.round(body.bodyR * PUSH_HALF + body.upper * 0.9 * (T.reach ?? over.reach ?? 1)), tech: over.techable === false ? 0 : THROW.tech, clinch: over.clinch ?? THROW.clinch };
   if (over.damage) m.damage = over.damage;
   applyTune(m, T, {});
@@ -412,12 +439,21 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
   const base = lib[id];
   if (!base) throw new Error(`versus: special '${id}' is not one of ${Object.keys(lib).join(', ')}`);
   const T = tuneAt(readTune(o.tune, slot), strength);
+  if (base.throw) refuse(T, [...THROW_IGNORES, 'speed'], slot, `${id} (a command throw)`);
+  else {
+    if (!base.projectile) refuse(T, ['speed'], slot, `${id} (it throws no projectile)`);
+    else refuse(T, ['adv', 'hits', 'active', 'guard', 'knock', 'juggle'], slot, `${id} (a projectile is blocked mid, hits once and its stun is its own)`);
+    if (!base.airborne) refuse(T, ['vel', 'landing'], slot, `${id} (it does not leave the ground)`);
+    else refuse(T, ['recovery', 'adv'], slot, `${id} (airborne: it ends on landing, a tune sets landing)`);
+    refuse(T, ['reach'], slot, `${id} (only a throw reaches)`);
+  }
   // a tune rides the strength's row (frames, damage, travel, …) and the record (guard, chip, hitstop, …)
   const at = { ...base.at[strength], ...T, adv: { ...(base.adv ?? {}), ...(base.at[strength].adv ?? {}), ...(T.adv ?? {}) } };
   const sp = { ...base, ...T, knock: base.knock };
   if (sp.throw) {
     const m = compileThrow(body, slot, { reach: at.reach, techable: false, clinch: sp.clinch, damage: at.damage });
-    Object.assign(m, { id, kind: 'special', strength, rps: sp.rps, startup: at.startup, active: at.active ?? 3, recovery: at.recovery, meter: sp.meter });
+    Object.assign(m, { id, kind: 'special', strength, rps: sp.rps, startup: at.startup, active: at.active ?? 3, recovery: at.recovery, meter: sp.meter ?? m.meter });
+    if (at.travel) m.travel = at.travel;
     primitives(m, at, `${slot}.${strength}`);
     if (T.invuln === undefined && base.invuln) primitives(m, { invuln: base.invuln }, slot);
     m.total = m.startup + m.active - 1 + m.recovery;
@@ -479,16 +515,27 @@ export function compileSuper(body, id, o = {}) {
   const T = readTune(o.tune, 'super');
   const su = { ...base, ...T };
   const sp = lib[su.from];
+  refuse(T, STRENGTH_ROWS, 'super', 'a super (it has one strength)');
+  const shot = !!(su.projectile ?? (sp.projectile && su.speed));
+  if (sp.throw) refuse(T, [...THROW_IGNORES, 'speed'], 'super', `${id} (a throw)`);
+  else {
+    if (!shot) refuse(T, ['speed'], 'super', `${id} (it throws no projectile)`);
+    else refuse(T, ['adv', 'active', 'guard', 'knock', 'juggle'], 'super', `${id} (a projectile is blocked mid, knocks down and its stun is its own)`);
+    if (!sp.airborne) refuse(T, ['vel', 'landing'], 'super', `${id} (it does not leave the ground)`);
+    else refuse(T, ['recovery', 'adv'], 'super', `${id} (airborne: it ends on landing, a tune sets landing)`);
+    refuse(T, ['reach'], 'super', `${id} (only a throw reaches)`);
+  }
   let m;
   if (sp.throw) {
     m = compileThrow(body, 'super', { reach: su.reach, techable: false, clinch: su.clinch, damage: su.damage });
     Object.assign(m, { startup: su.startup, active: su.active ?? 4, recovery: su.recovery });
+    if (su.travel) m.travel = su.travel;
   } else {
     m = baseMove('super', 'super', 'stand', sp.limb);
     Object.assign(m, { guard: su.guard ?? sp.guard ?? 'mid', knock: su.knock ?? 'down', chip: su.chip ?? 30, hitstop: su.hitstop ?? 6, push: su.push ?? 120, damage: su.damage, startup: su.startup, active: su.active ?? 1 });
     m.hits = su.hits ?? 1;
     m.rehit = su.rehit ?? 0;
-    m.juggle = true;
+    m.juggle = su.juggle ?? true;
     if (sp.airborne) {
       m.airborne = [sp.airborne, 999];
       m.vel = { [sp.airborne]: su.vel };
@@ -498,6 +545,7 @@ export function compileSuper(body, id, o = {}) {
     if (su.travel) m.travel = su.travel;
   }
   Object.assign(m, { id, kind: 'super', cost: SUPER_COST, freeze: su.freeze, rps: sp.rps });
+  if (su.meter !== undefined) m.meter = su.meter;
   if (isInt(su.invuln)) m.invuln = [...m.invuln, [1, su.invuln, 'strike'], [1, su.invuln, 'projectile'], [1, su.invuln, 'throw']];
   else primitives(m, { invuln: su.invuln }, 'super');
   primitives(m, { armor: su.armor, profile: su.profile, riposte: su.riposte }, 'super');
@@ -507,14 +555,15 @@ export function compileSuper(body, id, o = {}) {
   const projectile = su.projectile ?? (sp.projectile && su.speed ? { ...sp.projectile } : null);
   if (projectile) {
     const hits = su.hits ?? 1;
-    m.projectile = { y: 0, life: 90, ...projectile, speed: su.speed, damage: Math.round(su.damage / hits), chip: Math.round((su.chip ?? 30) / hits), hitstun: 30, blockstun: 20, hits, rehit: su.rehit ?? 0, hitstop: 4, push: 60 };
+    m.projectile = { y: 0, life: 90, ...projectile, speed: su.speed, damage: Math.round(su.damage / hits), chip: Math.round((su.chip ?? 30) / hits), hitstun: 30, blockstun: 20, hits, rehit: su.rehit ?? 0, hitstop: su.hitstop ?? 4, push: su.push ?? 60 };
     m.active = 1;
     m.total = m.startup + m.recovery;
   }
   if (!m.throw) {
     if (m.hits > 1 && !m.projectile) m.damage = Math.round(m.damage / m.hits);
-    m.hitstun = m.airborne ? 60 : stunFor(m, 20);
-    m.blockstun = stunFor(m, -16);
+    const adv = { hit: 20, block: -16, ...(T.adv ?? {}) };
+    m.hitstun = m.airborne ? 60 : stunFor(m, adv.hit);
+    m.blockstun = stunFor(m, adv.block);
   }
   if (Object.keys(T).length) m.tuned = Object.keys(T);
   m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon);
@@ -530,9 +579,52 @@ export function frameAdvantage(m) {
   return { hit: m.hitstun - after, block: m.blockstun - after };
 }
 
+// the movement a recipe may set: whole numbers from a floor to a ceiling (the sim's state stays integers)
+const MOVEMENT_DIALS = {
+  walk: { f: [0, 400], b: [0, 400] },
+  jump: { prejump: [1, 30], vy: [1, 400], g: [1, 100], vx: [0, 400], landing: [0, 60] },
+  dashF: { frames: [1, 99], dist: [0, 9999] },
+  dashB: { frames: [1, 99], dist: [0, 9999], invuln: [0, 99] },
+};
+const BODY_DIALS = { height: [1000, 2600], arm: [0.5, 2], leg: [0.5, 2], torso: [0.5, 2], girth: [0.5, 2] };
+
+function readDials(v, dials, where) {
+  if (v === undefined) return;
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error(`versus: ${where} is { ${Object.keys(dials).join(', ')} }`);
+  for (const [k, n] of Object.entries(v)) {
+    if (!dials[k]) throw new Error(`versus: ${where} has no '${k}' (one of ${Object.keys(dials).join(', ')})`);
+    const [lo, hi] = dials[k];
+    if (!(isInt(n) && n >= lo && n <= hi)) throw new Error(`versus: ${where}.${k} is a whole number from ${lo} to ${hi}`);
+  }
+}
+
+/** A recipe's cast, body and movement; throws naming what it cannot read. */
+export function readMovement(recipe) {
+  const id = recipe.id ?? 'fighter';
+  if (recipe.cast !== undefined && !VERSUS_CASTS[recipe.cast]) throw new Error(`versus: ${id} cast '${recipe.cast}' is one of ${Object.keys(VERSUS_CASTS).join(', ')}`);
+  if (recipe.body !== undefined) {
+    if (!recipe.body || typeof recipe.body !== 'object' || Array.isArray(recipe.body)) throw new Error(`versus: ${id} body is { ${Object.keys(BODY_DIALS).join(', ')} }`);
+    for (const [k, n] of Object.entries(recipe.body)) {
+      if (!BODY_DIALS[k]) throw new Error(`versus: ${id} body has no '${k}' (one of ${Object.keys(BODY_DIALS).join(', ')})`);
+      const [lo, hi] = BODY_DIALS[k];
+      if (!(typeof n === 'number' && n >= lo && n <= hi)) throw new Error(`versus: ${id} body.${k} is a number from ${lo} to ${hi}`);
+    }
+  }
+  if (recipe.hp !== undefined && !(isInt(recipe.hp) && recipe.hp >= 1 && recipe.hp <= 99999)) throw new Error(`versus: ${id} hp is a whole number from 1 to 99999`);
+  readDials(recipe.walk, MOVEMENT_DIALS.walk, `${id} walk`);
+  readDials(recipe.jump, MOVEMENT_DIALS.jump, `${id} jump`);
+  if (recipe.dash !== undefined) {
+    if (!recipe.dash || typeof recipe.dash !== 'object' || Array.isArray(recipe.dash)) throw new Error(`versus: ${id} dash is { f?, b? }`);
+    for (const k of Object.keys(recipe.dash)) if (k !== 'f' && k !== 'b') throw new Error(`versus: ${id} dash has no '${k}' (f, b)`);
+    readDials(recipe.dash.f, MOVEMENT_DIALS.dashF, `${id} dash.f`);
+    readDials(recipe.dash.b, MOVEMENT_DIALS.dashB, `${id} dash.b`);
+  }
+}
+
 /** A recipe → the compiled fighter (plain data). */
 export function compileFighter(recipe) {
   if (!recipe || typeof recipe !== 'object') throw new Error('versus: a fighter recipe is an object');
+  readMovement(recipe);
   const body = versusBody(recipe.cast ?? 'heroic', recipe.body ?? {});
   const weapon = readWeapon(recipe.weapon, body);
   const { specials, supers } = libraryOf(recipe);
@@ -548,7 +640,7 @@ export function compileFighter(recipe) {
     if (!s) continue;
     for (const st of ['L', 'M', 'H']) {
       const m = compileSpecial(body, `special.${dir}`, s.id, st, { lib: specials, tune: s.tune, weapon });
-      m.motion = s.motion ?? specials[s.id].motion;
+      m.motion = readMotion(s.motion ?? specials[s.id].motion, `special.${dir}`);
       moves[`special.${dir}.${st}`] = m;
     }
   }

@@ -136,7 +136,7 @@ export const NORMAL_SLOTS = Object.freeze([
 // ── throws ───────────────────────────────────────────────────────────────────────────────────────────────────
 
 export const THROW = Object.freeze({
-  limb: 'fistF', startup: 5, active: 3, recovery: 22, damage: 120, tech: 10, clinch: 24, range: 0,
+  limb: 'fistF', startup: 5, active: 3, recovery: 22, damage: 120, tech: 10, clinch: 24, range: 0, meter: 80,
   load: P(POSES.guard, { armF: [60, 100], armB: [50, 110] }),
   strike: P(POSES.guard, { torso: 20, armF: [82, 84], armB: [76, 86] }),
   says: 'a throw: unblockable, short, it loses to a strike or a jump and is teched by a throw',

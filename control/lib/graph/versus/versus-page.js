@@ -21,6 +21,7 @@ import { moduleDir } from '../../module-dir.js';
 import { solveFighter } from './versus-solver.js';
 import { compileFighter } from './versus-compile.js';
 import { readRules } from './versus-core.js';
+import { lawStamp } from './versus-laws.js';
 import { DEFAULT_ROSTER, DEFAULT_STAGES } from './versus-roster.js';
 import { ARENA_PLANE } from './versus-arena.js';
 import { MSG_READY, MSG_INIT, MSG_OUTCOME, CONTRACT_VERSION } from '../game/level-contract.js';
@@ -67,22 +68,26 @@ const rulesOf = (r) => readRules(r);
 
 const MANIFEST_KEYS = ['kind', 'engine', 'title', 'roster', 'stages', 'arenas', 'rules', 'theme'];
 
-/** The gate a versus manifest pays at mint and on every edit: → { ok, errors, notes } (notes: each fighter's laws). */
+/**
+ * The gate a versus manifest pays at mint and on every edit: → { ok, errors, laws }. `laws` is each fighter's stamp
+ * (versus-laws.js: { id, held, of, broken }): it advises, never refuses.
+ */
 export function readVersusManifest(manifest = {}) {
   const errors = [];
   for (const k of Object.keys(manifest)) if (!MANIFEST_KEYS.includes(k)) errors.push(`${k}: a versus game takes ${MANIFEST_KEYS.join(', ')}`);
   if (manifest.roster !== undefined && (!Array.isArray(manifest.roster) || !manifest.roster.length)) errors.push('roster is a list of fighters (intents, or { recipe })');
   try { readRules(manifest.rules); } catch (e) { errors.push(e.message.replace(/^versus: /, '')); }
   const ids = new Set();
+  const laws = [];
   (Array.isArray(manifest.roster) ? manifest.roster : []).forEach((entry, i) => {
     try {
       const { recipe } = rosterEntry(entry, i);
       if (ids.has(recipe.id)) throw new Error(`id '${recipe.id}' is taken`);
       ids.add(recipe.id);
-      compileFighter(recipe);
+      laws.push({ id: recipe.id, ...lawStamp(compileFighter(recipe)) });
     } catch (e) { errors.push(`roster[${i}]: ${e.message.replace(/^versus: /, '')}`); }
   });
-  return { ok: !errors.length, errors };
+  return { ok: !errors.length, errors, laws };
 }
 
 /** What an arena's fight channel carries: the plane and walls (m), the floor, the roster solved, the rules, the wire. */

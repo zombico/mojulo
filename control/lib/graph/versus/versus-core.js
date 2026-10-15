@@ -344,6 +344,7 @@ function advance(s, i, ctx) {
         break;
       }
       if (p.sf >= p.clinch) {
+        const gain = ctx.fighters[i].moves[p.mv].meter;
         o.hp -= scaled(s, o, p.throwDmg);
         o.st = 'fall'; o.sf = 0; o.vy = 60;
         const away = p.tb ? -p.face : p.face;
@@ -352,7 +353,7 @@ function advance(s, i, ctx) {
         o.combo++;
         if (o.hp <= 0) { o.hp = 0; o.ko = 1; }
         p.st = 'land'; p.sf = 0; p.landing = 12; p.mv = null;
-        p.meter = Math.min(METER_MAX, p.meter + 80);
+        p.meter = Math.min(METER_MAX, p.meter + gain);
         s.events.push({ t: 'throw', p: i, x: o.x, y: 900 });
       }
       break;
@@ -742,9 +743,10 @@ function nextRound(s, ctx) {
   s.roundWinner = null;
 }
 
-/** A short, stable fingerprint of a state (replay checks). */
+/** A short, stable fingerprint of a state (replay checks): all of it but the rules it was given and the frame's events. */
 export function versusHash(s) {
-  const str = JSON.stringify([s.f, s.phase, s.pf, s.round, s.wins, s.timer, s.p.map((p) => [p.x, p.y, p.vx, p.vy, p.face, p.hp, p.meter, p.st, p.sf, p.mv, p.mf, p.hs, p.stun, p.combo]), s.shots.map((t) => [t.x, t.y, t.hits]), ...(s.rules.systems && s.rules.systems.length ? [s.p.map((p) => [p.gd ?? null, p.burst ?? null])] : [])]);
+  const { rules: _r, events: _e, ...fight } = s;
+  const str = JSON.stringify(fight);
   let h = 2166136261;
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   return h.toString(16).padStart(8, '0');

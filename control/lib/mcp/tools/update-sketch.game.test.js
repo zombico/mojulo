@@ -115,8 +115,9 @@ describe('update_sketch on a versus game (a fighter)', () => {
       roster: [{ id: 'kata', archetype: 'all-rounder', weapon: 'sword', tune: { 'stand.M': { adv: { block: 1 } } } }],
       rules: { systems: ['parry'] },
     };
-    await updateSketchHandler({ ref: 'fight-game', manifest });
+    const out = await updateSketchHandler({ ref: 'fight-game', manifest });
     expect(SketchRepository.getByRef('fight-game').manifest).toEqual(manifest);
+    expect(out.laws).toEqual([expect.objectContaining({ id: 'kata', held: expect.any(Number), of: expect.any(Number), broken: expect.any(Array) })]);
     await expect(updateSketchHandler({ ref: 'fight-game', manifest: { ...manifest, rules: { systems: ['dodge'] } } })).rejects.toThrow(/Invalid versus game: .*systems/);
   });
 });

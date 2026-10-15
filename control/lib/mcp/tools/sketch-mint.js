@@ -973,6 +973,7 @@ export async function updateSketchHandler(input) {
 
   let nextManifest;
   let gameNote;
+  let versusLaws = null;
   let workbenchStats = null;
   let layeredStats = null;
   let prevWorkbenchStats = null;
@@ -982,9 +983,11 @@ export async function updateSketchHandler(input) {
     // A versus game (a fighter, lib/graph/versus) is its own simulation: no store, no levels to resolve. Its gate is
     // that every fighter compiles (weapon, tunes, own specials) and every rule reads.
     const { readVersusManifest } = await import('../../graph/versus/versus-page.js');
-    const { ok, errors } = readVersusManifest(manifest);
+    const { ok, errors, laws } = readVersusManifest(manifest);
     if (!ok) throw new Error(`Invalid versus game: ${errors.join('; ')}`);
     nextManifest = manifest;
+    // each fighter's laws (versus-laws.js): the machine gate's stamp, advice only
+    if (laws.length) versusLaws = laws;
   } else if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
@@ -1115,6 +1118,7 @@ export async function updateSketchHandler(input) {
     ...(design ? { design } : {}),
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),
+    ...(versusLaws ? { laws: versusLaws } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),
     ...(layeredStats ? { stats: { ...layeredStats, ...(revision ? { archived_rev: revision.archived_rev } : {}) } } : {}),

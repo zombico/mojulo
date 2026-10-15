@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compileFighter } from './versus-compile.js';
-import { newVersus, stepVersus, readRules } from './versus-core.js';
+import { newVersus, stepVersus, readRules, versusHash } from './versus-core.js';
 import { solveFighter } from './versus-solver.js';
 import { lawsFor } from './versus-laws.js';
 import { runVersus } from './versus-match.js';
@@ -193,5 +193,69 @@ describe('versus extend: a spawned game, edited', () => {
     expect(bad.ok).toBe(false);
     expect(bad.errors.join(' ')).toMatch(/roster\[0\].*startup/);
     expect(bad.errors.join(' ')).toMatch(/systems/);
+  });
+});
+
+describe('versus extend: the gate reads everything the fight reads', () => {
+  const ROW = { from: 'fireball', at: { L: { startup: 13, recovery: 30, speed: 45 }, M: { startup: 12, recovery: 31, speed: 60 }, H: { startup: 11, recovery: 32, speed: 80 } } };
+
+  it('a motion is numpad digits; any of them reads, in the classic scheme too', () => {
+    expect(() => withRecipe({ library: { specials: { odd: { ...ROW, motion: '2x8' } } }, specials: { ...base.specials, neutral: { id: 'odd' } } })).toThrow(/motion is 2 to 8 numpad digits/);
+    expect(() => withRecipe({ specials: { ...base.specials, neutral: { id: 'fireball', motion: '5' } } })).toThrow(/special.neutral motion/);
+    const F = withRecipe({ library: { specials: { beam: { ...ROW, motion: '28' } } }, specials: { ...base.specials, neutral: { id: 'beam' } } });
+    const ctx = { fighters: [F, K] };
+    let s = newVersus(ctx, { schemes: ['classic', 'classic'], rules: { intro: 1 } });
+    s = stepVersus(s, [Z, Z], ctx);
+    const pads = [{ x: 0, y: -1, b: 0 }, { x: 0, y: -1, b: 0 }, { x: 0, y: 1, b: BTN.M }];
+    const r = run(s, ctx, 20, (k) => [pads[k] ?? Z, Z]);
+    expect(r.events.some(([, e]) => e.t === 'special' && e.slot === 'special.neutral.M')).toBe(true);
+  });
+
+  it('the cast, body and movement are read: whole numbers in range, or it says which', () => {
+    expect(() => withRecipe({ hp: 'lots' })).toThrow(/hp is a whole number/);
+    expect(() => withRecipe({ jump: { g: 0 } })).toThrow(/jump.g is a whole number from 1/);
+    expect(() => withRecipe({ dash: { f: { frames: 0 } } })).toThrow(/dash.f.frames/);
+    expect(() => withRecipe({ walk: { f: 52.5 } })).toThrow(/walk.f/);
+    expect(() => withRecipe({ cast: 'giant' })).toThrow(/cast 'giant'/);
+    expect(() => withRecipe({ body: { height: 'tall' } })).toThrow(/body.height/);
+    expect(withRecipe({ hp: 1200, walk: { f: 60 }, jump: { g: 7 }, body: { arm: 1.1 } }).hp).toBe(1200);
+  });
+
+  it('a tune key the move would never read is refused, never ignored', () => {
+    expect(() => withRecipe({ normals: { ...base.normals, 'stand.M': { family: 'straight', tune: { landing: 4 } } } })).toThrow(/tune.landing does nothing on a normal/);
+    expect(() => withRecipe({ normals: { ...base.normals, 'air.H': { family: 'air-stomp', tune: { adv: { hit: 4 } } } } })).toThrow(/tune.adv does nothing on an air normal/);
+    expect(() => withRecipe({ throw: { tune: { chip: 5 } } })).toThrow(/tune.chip does nothing on a throw/);
+    expect(() => withRecipe({ specials: { ...base.specials, neutral: { id: 'fireball', tune: { guard: 'low' } } } })).toThrow(/tune.guard does nothing on fireball/);
+    expect(() => withRecipe({ specials: { ...base.specials, forward: { id: 'rising', tune: { recovery: 9 } } } })).toThrow(/tune.recovery does nothing on rising/);
+    expect(() => withRecipe({ super: { id: 'super-fireball', tune: { adv: { hit: 30 } } } })).toThrow(/tune.adv does nothing on super-fireball/);
+  });
+
+  it('what a tune says it does, it does: hits on a normal, adv on a super, meter on a throw', () => {
+    const two = withRecipe({ normals: { ...base.normals, 'stand.H': { ...base.normals['stand.H'], tune: { hits: 2 } } } }).moves['stand.H'];
+    expect([two.hits, two.rehit, two.damage]).toEqual([2, Math.floor(two.active / 2), Math.round(K.moves['stand.H'].damage / 2)]);
+    const rush = solveFighter({ id: 'r', archetype: 'rushdown' }).recipe;
+    const plus = compileFighter({ ...rush, super: { id: 'super-rush', tune: { adv: { hit: 30 } } } }).moves.super;
+    expect(plus.hitstun - compileFighter(rush).moves.super.hitstun).toBe(10);
+    const greedy = withRecipe({ throw: { tune: { meter: 150 } } });
+    const { ctx, s } = fight(700, [greedy, K]);
+    const r = run(s, ctx, 60, (k) => [{ x: 0, y: 0, b: tap(k, 0, BTN.T) }, Z]);
+    expect(has(r.events, 'throw')).toBe(true);
+    expect(r.s.p[0].meter).toBe(150);
+  });
+
+  it('the replay fingerprint is the whole state: a field the fight carries, changed, changes it', () => {
+    const { s } = fight(1200, [K, K]);
+    const t = { ...s, p: s.p.map((p, i) => (i ? p : { ...p, inv: p.inv + 1 })) };
+    expect(versusHash(t)).not.toBe(versusHash(s));
+    expect(versusHash({ ...s, events: [{ t: 'hit' }] })).toBe(versusHash(s));
+  });
+
+  it('the game gate stamps each fighter with its laws, and refuses none for them', () => {
+    const g = readVersusManifest({ kind: 'game', engine: 'versus', roster: [{ id: 'kata', archetype: 'all-rounder' }, { id: 'slow', archetype: 'zoner', tune: { 'stand.L': { startup: 9 } } }] });
+    expect(g.ok).toBe(true);
+    expect(g.laws.map((l) => l.id)).toEqual(['kata', 'slow']);
+    expect(g.laws[0].broken).toEqual([]);
+    expect(g.laws[1].broken).toContain('reach-costs');   // a slow jab: something reaching further starts sooner
+    expect(g.laws[1].held + g.laws[1].broken.length).toBe(g.laws[1].of);
   });
 });

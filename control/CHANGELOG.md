@@ -48,6 +48,12 @@ dummies on purpose (the look is other tools' job).
   a riposte that catches and answers, hits, knock, command throw), slot overrides and a `tune` on any move (frames,
   damage, intended advantage, guard, knock; the stun is still solved from the advantage). The full rules block
   passes through, with opt-in `systems` (parry, burst, guard crush); absent, the fight is the same to the byte.
+  The gate reads everything the fight reads: a special's motion (any numpad digits), the cast, the body dials and
+  the movement (whole numbers in range), and a tune key the move would never read (a throw's chip, a fireball's
+  guard, an airborne special's recovery) is refused by name rather than ignored; `hits` on a normal, `adv` on a
+  super and a throw's `meter` (a command grab gains its own 50, no longer the throw's 80) now do what they say.
+  `update_sketch` answers with each fighter's law stamp (`laws`: held, of, broken), advice that refuses nothing,
+  and the replay fingerprint covers the whole state.
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless

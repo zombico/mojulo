@@ -55,13 +55,12 @@ export function consume(hist) {
 }
 
 export const downish = (d) => d === 1 || d === 2 || d === 3;
-const DIGIT_OK = {
-  1: (d) => d === 1, 2: (d) => d === 2, 3: (d) => d === 3, 4: (d) => d === 4, 6: (d) => d === 6,
-};
+// a motion is numpad digits (a recipe's own special may write any, versus-compile readMotion): each matches itself
+const DIGIT_OK = Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => [n, (d) => d === n]));
 
 /** Did the history trace a motion (e.g. '236') ending near now? Each digit in order; the last within the buffer. */
 export function traced(hist, motion) {
-  const win = MOTION_WINDOW[motion] ?? 14;
+  const win = MOTION_WINDOW[motion] ?? Math.max(14, motion.length * 4);
   const digits = motion.split('').map(Number);
   let k = digits.length - 1;
   const start = Math.max(0, hist.length - win);
