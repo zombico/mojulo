@@ -13,8 +13,8 @@ import { mindAxisValues } from '../../mind/cosmos.js';
 import { mindMark } from '../../scene/godot-marks.js';
 
 const MIND_RULE = 'lib/graph/worlds/controllable/mind.js';
-// every value's Godot mark (scene/godot-marks.js mindMark): the kernel has no mind, so only a value that asks
-// nothing of one travels (an ambient, passive character that stands to be met; none)
+// every value's Godot mark (scene/godot-marks.js mindMark): kernel/mind.gd runs the web's mind (since 0.26.0); the
+// commander stays the page's
 const marked = (axis, values) => Object.fromEntries(Object.entries(values).map(([v, row]) => [v, { ...row, godot: mindMark(axis, v).godot }]));
 const AXES = mindAxisValues();
 

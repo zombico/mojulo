@@ -343,7 +343,7 @@ func facts(st: Dictionary) -> Array:
 	var next := {}
 	var events := []
 	for e in st["entities"]:
-		var cur := {"d": e["downed"], "g": e["gone"], "a": e["arrivals"], "s": e["stucks"], "h": int(e.get("hits", 0))}
+		var cur := {"d": e["downed"], "g": e["gone"], "a": e["arrivals"], "s": e["stucks"], "h": int(e.get("hits", 0)), "n": int(e.get("sightings", 0))}
 		next[e["id"]] = cur
 		var p = null if seed else _prev.get(e["id"])
 		if p == null:
@@ -361,6 +361,9 @@ func facts(st: Dictionary) -> Array:
 			events.append(ev)
 		if cur["s"] > p["s"]:
 			events.append({"type": "stuck", "entity": e["id"]})
+		# a mind's fresh sighting (kernel/mind.gd perceive, since 0.26.0): the bus's `seen`, and who it saw
+		if cur["n"] > int(p.get("n", 0)):
+			events.append({"type": "seen", "entity": e["id"], "target": e.get("seenId")})
 		for k in range(int(p.get("h", 0)), cur["h"]):
 			events.append({"type": "hit:" + String(e["id"]), "entity": e["id"], "by": e.get("lastHitBy")})
 		for k in (e["statuses"] as Dictionary).keys():

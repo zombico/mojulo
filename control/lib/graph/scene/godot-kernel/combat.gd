@@ -6,8 +6,10 @@ extends RefCounted
 # ray against eggs and spheres, cover, frontal shields, lob rounds swept along their flight and their splash; and
 # the reaction a poise-bearing body plays (armReaction / stepReaction: stagger, topple, the flat hold, the getup and
 # its wake guard; a killing blow floors it, and its fall blasts a stagger around it). Held EQUAL to the web frame by frame by
-# scripts/godot-combat-conformance.mjs. What stays on the web: the combo's stun, scaling and juggle, the clash and the
-# other set pieces, boost armor and the charge-through-boost, a loadout's other slots and every AI's attack. A hit
+# scripts/godot-combat-conformance.mjs. Since 0.26.0 the minds fight here too (kernel/mind.gd decides; its trigger,
+# blade and charge are this file's), and a thrusting body holds a semi or lob shot as the web's does. What stays on
+# the web: the combo's stun, scaling and juggle, the clash and the other set pieces, boost armor, the hero's other
+# loadout slots. A hit
 # counts on the body (`hits`), and kernel/cast.gd tells the bus (hit:<id>).
 #
 #   var K = preload("res://kernel/combat.gd").new()
@@ -16,6 +18,8 @@ extends RefCounted
 #                                        input: { fire, forward, strafe, turn }; one frame in the web engine's order
 
 const Bus := preload("res://kernel/bus.gd")
+const MindScript := preload("res://kernel/mind.gd")
+const GroupScript := preload("res://kernel/group.gd")
 var strike = null
 var look := false
 var colliders = null
@@ -274,10 +278,14 @@ static func step_reaction(e: Dictionary, dt: float) -> bool:
 			e["staggerT"] = 0.0
 			e["downPauseT"] = null
 			e["locomotion"] = "getup"
+			e["moving"] = true
+			e["gaitPhase"] = 0.0
 			e["invincible"] = true
 			return true
 		e["staggerT"] = 1.0
 		e["locomotion"] = "topple"
+		e["moving"] = true
+		e["gaitPhase"] = 1.0
 		e["invincible"] = false
 		return true
 	e["staggerT"] = float(e["staggerT"]) + dt / _or(e.get("reactDur"), _or(e.get("staggerDur"), 1.3))
@@ -287,12 +295,16 @@ static func step_reaction(e: Dictionary, dt: float) -> bool:
 				e["downPauseT"] = 0.0
 			e["staggerT"] = 1.0
 			e["locomotion"] = "topple"
+			e["moving"] = true
+			e["gaitPhase"] = 1.0
 			e["invincible"] = false
 			return true
 		var rose: bool = e["reactClip"] == "getup"
 		e["staggerT"] = null
 		e["downPauseT"] = null
-		e["locomotion"] = null
+		# back on its feet: the recovery EDGE a mind consumes (it rolls out on it), its clip the one it returns to
+		e["locomotion"] = e["staggerReturn"] if Bus.truthy(e.get("staggerReturn")) else "forward"
+		e["reactionEnded"] = true
 		if rose and _or(e.get("wakeGuard"), 0.0) > 0.0:
 			e["wakeGuardT"] = float(e["wakeGuard"])
 			e["invincible"] = true
@@ -300,6 +312,8 @@ static func step_reaction(e: Dictionary, dt: float) -> bool:
 			e["invincible"] = false
 		return false
 	e["locomotion"] = e["reactClip"]
+	e["moving"] = true
+	e["gaitPhase"] = e["staggerT"]
 	e["invincible"] = e["reactClip"] == "getup"
 	return true
 
@@ -479,6 +493,17 @@ func step_weapon(e: Dictionary, input: Dictionary, dt: float, st: Dictionary) ->
 	var edge := fire_held and not Bus.truthy(w["prevFire"])
 	var release := not fire_held and Bus.truthy(w["prevFire"])
 	var energy_ready := not (float(w["energyMax"]) > 0.0) or float(w["energy"]) > 0.0
+	# NO FIRE WHILE BOOSTING (since 0.26.0, a mind's boost juke): a thrusting body cannot line up a semi or lob shot; an
+	# auto weapon keeps streaming (`boostFire` overrides the class), and a charge keeps flowing through the thrust
+	var can_boost_fire: bool = Bus.truthy(w["boostFire"]) if w.get("boostFire") != null else Bus.truthy(w["auto"])
+	if Bus.truthy(e.get("boosting")) and not can_boost_fire:
+		var charge_flow: bool = float(w["chargeTime"]) > 0.0 and not Bus.truthy(w["auto"]) and ((Bus.truthy(w["charging"]) and fire_held) \
+				or (edge and float(w["cooldownT"]) <= 0.0 and float(w["burstLeft"]) <= 0.0 and float(w["ammo"]) > 0.0 and energy_ready) \
+				or (Bus.truthy(w["charging"]) and release and Bus.truthy(w["chargeReady"])))
+		if not charge_flow:
+			_cancel_charge(w)
+			w["prevFire"] = fire_held
+			return
 	var forced := false
 	var charged := false
 	if float(w["chargeTime"]) > 0.0 and not Bus.truthy(w["auto"]):
@@ -729,9 +754,36 @@ func _death_bursts(st: Dictionary) -> void:
 
 
 # ── one frame, in the web engine's order: per body its timers, its reaction, its rule and its arms; then the rounds ──
-func step(st: Dictionary, hero: Dictionary, input: Dictionary, dt: float, grounded: bool) -> void:
+# `pose` ({ pos, heading, pitch }, optional): where the pilot's own rule leaves it this frame, set when the loop reaches
+# it (the web steps the pilot in its turn, after the frame's pre-steps: a group reads where it stood); absent, the
+# caller has placed it already. `part`: "all" (one frame), or the frame in two halves around the pilot's own step,
+# which the web takes in its turn before the minds after it: "hero" (the pre-steps, the pilot and the bodies), then
+# "minds" (the minds, the rounds in flight and the falls), the pilot placed where its step left it in between.
+var _frame_world = null
+
+
+func step(st: Dictionary, hero, input: Dictionary, dt: float, grounded: bool, pose = null, part := "all") -> void:
+	if part != "minds":
+		# the minds' world switch (the web's ai-toggle pre-step: the G press flips it), then their frame's world
+		if mind != null and Bus.truthy(input.get("aiToggle")):
+			mind_off = not mind_off
+		_frame_world = mind_world(st, hero) if mind != null else null
+		# the groups give their members slots before the bodies step (the web's `groups` pre-step)
+		if _frame_world != null:
+			groups.step(st, dt, mind, _frame_world)
+	var world = _frame_world
 	for e in st["entities"]:
-		var me := is_same(e, hero)
+		var me := hero != null and is_same(e, hero)
+		if world != null and mind_ids.has(e["id"]):
+			if part != "hero":
+				_step_mind(st, e, dt, world)
+			continue
+		if part == "minds":
+			continue
+		if me and pose is Dictionary:
+			e["pos"] = (pose["pos"] as Array).duplicate()
+			e["heading"] = float(pose["heading"])
+			e["pitch"] = float(pose["pitch"])
 		if me:
 			if e.get("weapon") is Dictionary:
 				tick_weapon(e["weapon"], dt)
@@ -748,5 +800,193 @@ func step(st: Dictionary, hero: Dictionary, input: Dictionary, dt: float, ground
 			step_weapon(e, input, dt, st)
 		if not owned:
 			step_melee(e, st["entities"])
+	if part == "hero":
+		return
 	step_projectiles(st, dt)
 	_death_bursts(st)
+
+
+
+# ── THE MINDS (since 0.26.0): bodies on the web's `ai` rule decide in kernel/mind.gd and fight with this file's trigger
+# and blade, in the web engine's order for each body: its timers (its weapons and cooldowns), its owners (asleep, or
+# reacting: the rule and the weapon wait), the rule, then its trigger (its own, never the pilot's) and its blade.
+# bus.json's `minds` (mind-score.js): each body's rule, the minds' weapons and loadouts, where each was placed, the
+# world's tier and switch, the food a forager grazes. What stays on the web: a clash of blades, the shove-down set
+# piece a counter-charge on the pilot plays there, and the commander.
+var mind = null
+var groups = null
+var mind_ids := {}
+var mind_off := false
+var mind_tier = null
+var mind_order: Array = []
+# the ground a mind stands on (the web's hooks.ground): level.gd hands it the land; flat at 0 without one
+var ground_fn: Callable = func(_p): return 0.0
+# the clock a mind decides by (level.gd sets it to the frame's start, before the cast's clock moves); < 0: the cast's
+var mind_clock := -1.0
+
+
+func arm_minds(st: Dictionary, minds: Dictionary) -> void:
+	mind = MindScript.new()
+	groups = GroupScript.new()
+	mind_ids = {}
+	mind_off = Bus.truthy(minds.get("off"))
+	mind_tier = minds.get("tier") if minds.get("tier") is Dictionary else null
+	# the walls a mind sees past and paths round (the fight's own, when it has them)
+	if colliders == null and minds.get("colliders") is Array:
+		colliders = minds["colliders"]
+	var rules: Dictionary = minds.get("rules", {}) if minds.get("rules") is Dictionary else {}
+	for e in st["entities"]:
+		if rules.get(e["id"]) is Dictionary:
+			e["rule"] = (rules[e["id"]] as Dictionary).duplicate(true)
+		if not e.has("pitch"):
+			e["pitch"] = 0.0
+	var ms: Dictionary = minds.get("minds", {}) if minds.get("minds") is Dictionary else {}
+	for id in ms:
+		var e = st["byId"].get(String(id))
+		if e == null:
+			continue
+		var m: Dictionary = ms[id]
+		e["spawn"] = (m.get("spawn", {"pos": e["pos"]}) as Dictionary).duplicate(true)
+		if m.get("loadoutWeapons") is Array:
+			e["loadoutWeapons"] = (m["loadoutWeapons"] as Array).duplicate(true)
+			e["loadoutIdx"] = int(m.get("loadoutIdx", 0))
+			e["weapon"] = e["loadoutWeapons"][e["loadoutIdx"]]
+		elif m.get("weapon") is Dictionary:
+			e["weapon"] = (m["weapon"] as Dictionary).duplicate(true)
+		if m.get("pilotRule") is Dictionary:
+			e["pilotRule"] = (m["pilotRule"] as Dictionary).duplicate(true)
+		if m.get("team") is String:
+			e["team"] = m["team"]
+		e["locomotion"] = "forward"
+		e["moving"] = false
+		e["gaitPhase"] = 0.0
+		e["aiFire"] = 0
+		mind_ids[String(id)] = true
+	for id in minds.get("food", []):
+		if st["byId"].has(String(id)):
+			st["byId"][String(id)]["food"] = true
+	mind_order = MindScript.id_order(st["entities"])
+
+
+# the world a mind decides in this frame (the web builds it afresh each step: its path grids live one frame)
+func mind_world(st: Dictionary, hero) -> Dictionary:
+	return {"byId": st["byId"], "order": mind_order, "colliders": colliders, "pilotId": hero["id"] if hero != null else null,
+		"aiEnabled": not mind_off, "aiTuning": mind_tier, "time": mind_clock if mind_clock >= 0.0 else float(st["time"]), "ground": ground_fn, "navCache": {}}
+
+
+func _step_mind(st: Dictionary, e: Dictionary, dt: float, world: Dictionary) -> void:
+	# timers: every carried weapon, the swing, roll and charge cooldowns, the switch ready-time
+	if e.get("loadoutWeapons") is Array:
+		for lw in e["loadoutWeapons"]:
+			if lw is Dictionary:
+				tick_weapon(lw, dt)
+	elif e.get("weapon") is Dictionary:
+		tick_weapon(e["weapon"], dt)
+	if e.get("swingT") == null and _or(e.get("strikeCdT"), 0.0) > 0.0:
+		e["strikeCdT"] = maxf(0.0, float(e["strikeCdT"]) - dt)
+	if e.get("dodgeT") == null and _or(e.get("dodgeCdT"), 0.0) > 0.0:
+		e["dodgeCdT"] = maxf(0.0, float(e["dodgeCdT"]) - dt)
+	if e.get("tackleT") == null and _or(e.get("tackleCdT"), 0.0) > 0.0:
+		e["tackleCdT"] = maxf(0.0, float(e["tackleCdT"]) - dt)
+	if _or(e.get("readyT"), 0.0) > 0.0:
+		e["readyT"] = maxf(0.0, float(e["readyT"]) - dt)
+	# owners: asleep (the cast's dormant), the reaction, the cast (a route it walks, a spot it holds, felled by a cue)
+	var owned := Bus.truthy(e.get("dormant"))
+	owned = step_reaction(e, dt) or owned
+	owned = owned or Bus.truthy(e.get("castDown")) or e.get("route") != null or Bus.truthy(e.get("held"))
+	if owned and e.get("weapon") is Dictionary:
+		_cancel_charge(e["weapon"])
+	if owned:
+		return
+	mind.ai(e, dt, world)
+	if e.get("weapon") is Dictionary:
+		step_weapon(e, {"fire": 1 if Bus.truthy(e.get("aiFire")) else 0}, dt, st)
+	if e.get("swingT") != null:
+		step_melee(e, st["entities"])
+	if e.get("tackleT") != null:
+		step_tackle(e, st)
+
+
+# A CHARGE (combat-melee.js stepTackle): a body checking down its line rams the first hittable body in front within
+# reach, once, and stops on it: an ally only reels; one caught mid-swing is STUFFED (the counter: it topples, its swing
+# spent, and the charger's gauge is refilled), which the web plays as the shove-down set piece when the pilot is in it
+# and a camera watches (that stays the web's: here it is the plain counter); anything else takes the charge's damage and
+# reels.
+func step_tackle(e: Dictionary, st: Dictionary) -> void:
+	var r: Dictionary = e["rule"]
+	var reach: float = float(r["tackleReach"]) if r.get("tackleReach") != null else 8.0
+	var dmg: float = float(r["tackleDamage"]) if r.get("tackleDamage") != null else 15.0
+	var cos_cone := cos((float(r["tackleCone"]) if r.get("tackleCone") != null else 70.0) * PI / 180.0)
+	var aim := _fwd_xy(float(e["heading"]))
+	var p: Array = e["pos"]
+	var origin := [float(p[0]), float(p[1]), float(p[2]) + (float(r["eye"]) if r.get("eye") != null else 0.0)]
+	if not (e.get("tackleHits") is Dictionary):
+		e["tackleHits"] = {}
+	for tg in st["entities"]:
+		if is_same(tg, e) or Bus.truthy(tg.get("invincible")) or not _hittable(tg):
+			continue
+		if e["tackleHits"].has(tg["id"]):
+			continue
+		var v := _sub(tg["pos"], origin)
+		var d := _hypot3(v[0], v[1], v[2])
+		if d < 1e-3 or d > reach + lat_r(tg):
+			continue
+		var flat := _hypot2(v[0], v[1])
+		if flat == 0.0:
+			flat = 1e-6
+		if (v[0] * aim[0] + v[1] * aim[1]) / flat < cos_cone:
+			continue
+		e["tackleHits"][tg["id"]] = true
+		if e.get("team") is String and tg.get("team") is String and tg["team"] == e["team"]:
+			if _fin(tg.get("poise")) and tg["staggerT"] == null:
+				arm_reaction(tg, "stagger")
+			_end_tackle(e)
+			return
+		if tg.get("swingT") != null and tg.get("strikeParams") != null and tg.get("staggerT") == null:
+			_tackle_counter(e, tg)
+			_end_tackle(e)
+			return
+		e["tackleHitCount"] = int(e.get("tackleHitCount", 0)) + 1
+		_hit(tg, e["id"])
+		if _fin(tg.get("hp")):
+			_hurt(tg, dmg)
+		arm_reaction(tg, "stagger")
+		_end_tackle(e)
+		return
+
+
+static func _end_tackle(e: Dictionary) -> void:
+	e["tackleT"] = null
+	e["tackleDir"] = null
+	if e.get("cineT") == null:
+		e["invincible"] = false
+
+
+static func _tackle_counter(tackler: Dictionary, victim: Dictionary) -> void:
+	arm_reaction(victim, "topple", true)
+	victim["swingT"] = null
+	victim["swingCombo"] = false
+	victim["comboT"] = 0.0
+	victim["struckThisSwing"] = {}
+	_hit(victim, tackler["id"])
+	var dmg: float = float(tackler["rule"]["counterDamage"]) if tackler.get("rule") is Dictionary and _fin(tackler["rule"].get("counterDamage")) else 0.0
+	if dmg > 0.0 and _fin(victim.get("hp")):
+		victim["hp"] = maxf(0.0, float(victim["hp"]) - dmg)
+		if float(victim["hp"]) <= 0.0:
+			if Bus.truthy(victim.get("noDestroy")) and _fin(victim.get("hpMax")):
+				victim["hp"] = float(victim["hpMax"])
+			else:
+				victim["downed"] = true
+	var bm: float = float(tackler["rule"]["boostMax"]) if tackler.get("rule") is Dictionary and _fin(tackler["rule"].get("boostMax")) and float(tackler["rule"]["boostMax"]) > 0.0 else 0.0
+	if bm > 0.0:
+		tackler["boost"] = bm
+		tackler["boostLock"] = false
+	tackler["tackleCounterHit"] = int(tackler.get("tackleCounterHit", 0)) + 1
+	var pv: Array = victim["pos"]
+	var pt: Array = tackler["pos"]
+	var ux: float = pv[0] - pt[0]
+	var uy: float = pv[1] - pt[1]
+	var ul := _hypot2(ux, uy)
+	if ul == 0.0:
+		ul = 1e-6
+	victim["heading"] = atan2(-uy / ul, -ux / ul)

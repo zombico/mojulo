@@ -22,6 +22,7 @@ import { lookRGB } from '../playscape/elements/elements.js';
 import { weatherScore } from './weather-score.js';
 import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
+import { extractMinds } from './mind-score.js';
 import { levelSound } from './engine-sound.js';
 import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS, CAMERA_LOST, platformLost } from './godot-marks.js';
 
@@ -232,13 +233,16 @@ export function extractBus(payload) {
   // the fight (combat-score.js): a melee hero and what it can hit ride beside the cast, which they need; a level with
   // a fight and no other behaviour carries an empty fragment
   const combat = payload ? extractCombat(payload, playerOf(payload)) : null;
-  if (!combat && !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
+  // the minds (mind-score.js): each body on the `ai` rule, run by an engine kernel as the web runs it (Godot:
+  // kernel/mind.gd, since 0.26.0, held equal by the mind corpus); they fight with the fight above. Absent ⇒ no key.
+  const minds = payload ? extractMinds(payload, playerOf(payload)) : null;
+  if (!combat && !minds && !['reactions', 'watches', 'sequences', 'timers'].some((k) => Array.isArray(ev[k]) && ev[k].length)) return null;
   const fragment = Object.fromEntries(BUS_CHANNELS.filter((k) => ev[k] !== undefined).map((k) => [k, ev[k]]));
   const mpu = Number(payload.metersPerUnit);
   // the characters the behaviour moves (its cues reach the cast: events.cast), in the bus's own units: where each
   // stands, its heading, asleep or not, its hp and pace. An engine kernel's cast adapter (Godot: kernel/cast.gd)
   // starts from these. Absent cast ⇒ no rows.
-  const cast = ev.cast === true || combat ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
+  const cast = ev.cast === true || combat || minds ? (payload.entities || []).filter((e) => e && typeof e.id === 'string' && !e.isCamera).map((e) => ({
     id: e.id, pos: Array.isArray(e.transform?.pos) ? e.transform.pos : [0, 0, 0],
     ...(Number.isFinite(e.transform?.heading) ? { heading: e.transform.heading } : {}),
     ...(e.dormant ? { dormant: true } : {}),
@@ -260,7 +264,7 @@ export function extractBus(payload) {
   // 0.23.0, held equal by the scenes corpus). Absent ⇒ no key.
   const scenes = Array.isArray(ev.scenes) && ev.scenes.length ? ev.scenes : null;
   const quests = Array.isArray(ev.quests) && ev.quests.length ? ev.quests : null;
-  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}), ...(inputs.length ? { inputs } : {}), ...(scenes ? { scenes } : {}), ...(quests ? { quests } : {}) };
+  return { version: BUS_VERSION, metersPerUnit: Number.isFinite(mpu) && mpu > 0 ? mpu : 1, fragment, ...(cast && cast.length ? { cast } : {}), ...(stats ? { stats } : {}), ...(combat ? { combat } : {}), ...(minds ? { minds } : {}), ...(inputs.length ? { inputs } : {}), ...(scenes ? { scenes } : {}), ...(quests ? { quests } : {}) };
 }
 
 // A primitive body (`mesh`: a box or a sphere, centred on the entity) bakes no geometry into the GLB: its node is an

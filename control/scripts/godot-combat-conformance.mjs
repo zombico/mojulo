@@ -31,7 +31,7 @@ export function runGodotCombat(scenarios, godot, { mutate = [] } = {}) {
   try {
     mkdirSync(path.join(dir, 'kernel'));
     writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="combat-conformance"\n');
-    for (const f of ['bus.gd', 'json_exact.gd', 'cast.gd', 'combat.gd']) copyFileSync(path.join(CONTROL, 'lib/graph/scene/godot-kernel', f), path.join(dir, 'kernel', f));
+    for (const f of ['bus.gd', 'json_exact.gd', 'cast.gd', 'combat.gd', 'rules.gd', 'nav.gd', 'mind.gd', 'group.gd']) copyFileSync(path.join(CONTROL, 'lib/graph/scene/godot-kernel', f), path.join(dir, 'kernel', f));
     for (const { file, from, to } of mutate) {
       const p = path.join(dir, 'kernel', file), src = readFileSync(p, 'utf8');
       if (!src.includes(from)) throw new Error(`plant does not apply: kernel/${file} has no '${from}'`);

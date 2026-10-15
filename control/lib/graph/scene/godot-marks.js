@@ -46,7 +46,7 @@ export const RULE_MARKS = Object.freeze({
   racer: m(B, 'kernel/rules.gd: the rivals drive their lines as the web\'s (score.drivers), braking into bends, counting laps, backing off when held up'),
   fly: m(B, 'kernel/rules.gd: fixed-wing flight (taxi, takeoff, banked turns, stall, touchdown)'),
   patrol: m(A, 'no patrol: a guard stands where it was placed'),
-  ai: m(A, 'no mind: an AI character stands where it was placed (the cast\'s bus ops still move it)'),
+  ai: m(B, 'kernel/mind.gd (since 0.26.0): the web mind (every motivation, perception and memory, cover, pathing on the web\'s grid in kernel/nav.gd, groups in kernel/group.gd, the blade, the roll, the charge, the loadout, the tier, a body\'s own tuning, a boss\'s phases and adapting), firing and swinging through kernel/combat.gd; the commander and the pilot\'s shove-down set piece stay the web\'s'),
 });
 
 // the platform rule's keys (worlds/controllable rules-platform.js, maneuvers.js, combat-melee.js read them), each where
@@ -105,7 +105,7 @@ export const PAGE_MARKS = Object.freeze({
   entities: m(B, 'GLB nodes placed as the payload places them; their rules are marked by RULE_MARKS'),
   camera: m(B, 'the camera entity; its rule is marked by RULE_MARKS'),
   pilot: m(B, 'the walker pilots the player entity'),
-  spectate: m(A, 'no spectator camera'), ai: m(A, 'no mind (P5)'), aiDifficulty: m(A, 'no mind to tune'), commander: m(A, 'no commander'),
+  spectate: m(A, 'no spectator camera'), ai: m(B, 'the world switch: off, every mind stands down until G (kernel/combat.gd)'), aiDifficulty: m(B, 'the class tier tunes every mind (kernel/mind.gd)'), commander: m(A, 'no commander: the page\'s (its builtin, hook and http ports); a commanded mind keeps its authored strategy'),
   lock: m(A, 'no lock-on'), match: m(A, 'arena match modes do not travel'), hangar: m(A, 'the hangar is the page\'s'),
   colliders: m(B, 'StaticBody3D boxes (level.gd _build_colliders)'),
   breakables: m(P, 'held whole as solid colliders (breakables_held): breaking them is the web\'s'),
@@ -179,7 +179,7 @@ export const SYSTEM_MARKS = Object.freeze({
   unlock: m(B, 'a power\'s move merges into the pilot\'s platform rule the moment the bus hears it picked up (kernel/level.gd, rules.gd)'),
   transform: m(P, 'a form is a stat tier and a transfigure (kernel/cast.gd, drawn simpler)'),
   equip: m(B, 'powers from carried gear: stats and cues'),
-  place: m(A, 'a pad wakes what stands asleep there through the cast, but the towers it wakes fire through a mind'),
+  place: m(B, 'a pad wakes what stands asleep there through the cast, and the towers it wakes fire (kernel/mind.gd sentry)'),
 });
 
 // ── space.traversal (playscape/objects ENTRIES): the runtime rule each lowers to, if any ─────────────────────────────
@@ -207,14 +207,11 @@ export const LINK_MARKS = Object.freeze({
   gap: m(B, 'jumped with the pilot\'s own rule (kernel/rules.gd)'),
 });
 
-// ── the mind (cosmos facet mind): the kernel has no mind. A value that asks nothing of one travels ─────────────────
-// ambient and passive are the practice dummy: it stands to be met and hit (kernel/cast.gd, combat.gd)
-export const MIND_TRAVELS = Object.freeze({
-  motivation: ['ambient'], aggressiveness: ['passive'], rank: [], skill: [], perception: [], pathing: [],
-  // a routine is cues on the clock's hour and the cast's walk, which the kernel runs (II5): no mind needed
-  // talk is a scene with the cast (kernel/scenes.gd, III-d): it asks nothing of a mind either
-  squad: ['none'], social: ['none', 'schedule', 'talk'], commander: ['none'],
+// ── the mind (cosmos facet mind): kernel/mind.gd runs the web's mind (since 0.26.0), held equal by the mind corpus. What
+// stays the web's is named here: the commander (a page's strategist), and the opportunist's counter on the pilot, which
+// the page plays as a shove-down set piece where the kernel plays the plain counter (the swinger stuffed and flung)
+export const MIND_WEB = Object.freeze({
+  commander: { builtin: m(A, 'the commander is the page\'s: a commanded mind keeps its authored strategy'), agent: m(A, 'the commander is the page\'s (its hook and http ports)') },
+  aggressiveness: { opportunist: m(P, 'kernel/mind.gd: the counter-charge runs; when the pilot is in it the page plays a shove-down set piece, the kernel the plain counter') },
 });
-export const mindMark = (axis, value) => ((MIND_TRAVELS[axis] || []).includes(value)
-  ? m(B, 'asks nothing of a mind: the character stands to be met')
-  : m(A, 'the kernel has no mind (worlds/controllable/mind.js is not ported)'));
+export const mindMark = (axis, value) => MIND_WEB[axis]?.[value] ?? m(B, 'kernel/mind.gd runs it as the web\'s mind does (the mind corpus)');

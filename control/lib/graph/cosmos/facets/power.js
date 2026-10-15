@@ -6,7 +6,6 @@
  */
 const PORT = 'lib/graph/scene/engine-portability.js';
 const MARKS = 'lib/graph/scene/godot-marks.js';
-const WEB = { godot: 'absent' };
 // a moment on the cast's clock (kernel/cast.gd), struck when a beam lands, drawn simpler than the page
 const MOMENT = { all: 'approximated', how: 'a moment on the cast\'s clock (kernel/cast.gd), drawn simpler than the page' };
 export const POWER = Object.freeze({
@@ -46,7 +45,7 @@ export const POWER = Object.freeze({
       // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
       // defence's towers. Free placement anywhere on a grid is not built.
       planned: {
-        place: { status: 'built', ...WEB, lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
+        place: { status: 'built', godot: 'built', lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
       },
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)

@@ -34,7 +34,7 @@ export const BUS_ABI = Object.freeze({
     struck: { about: 'a beam reaches a character (struck)', web: B, godot: B, how: 'kernel/cast.gd: a beam is a moment that lands after its distance (the web\'s land rule), and its target hears struck' },
     stats: { about: 'the stats\' happenings: levelled, bought, denied, epoch, opened', web: B, godot: B, how: 'kernel/stats.gd, conformance-tested equal to the web\'s stats kernel' },
     menu: { about: 'a menu\'s pick or close (menu-pick:<menu>:<n>, menu-close:<menu>)', web: B, godot: B, how: 'level.gd: arrows or W / S, Enter / Space / E, Esc' },
-    seen: { about: 'a character with sight newly sees its target (seen: what unseen ends on)', web: B, godot: A, how: 'the web mind counts sightings (perceive) and castFacts says them; Godot has no mind\'s perception yet' },
+    seen: { about: 'a character with sight newly sees its target (seen: what unseen ends on)', web: B, godot: B, how: 'kernel/mind.gd counts sightings (perceive) and kernel/cast.gd facts says them (since 0.26.0)' },
     beat: { about: 'the music\'s beat, said early by its own clock (beat: what on-beat judges)', web: B, godot: B, how: 'kernel/level.gd _beat_tick from the music player\'s position and score.beat, the page\'s clock as one function (beats/beat-clock.js); equal on the bus at the harness\'s fixed step' },
   }),
   effects: Object.freeze({

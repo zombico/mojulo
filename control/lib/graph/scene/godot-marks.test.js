@@ -109,7 +109,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(Object.keys(MECHANIC_SAMPLES).sort()).toEqual([...MECHANIC_KINDS].sort());
     for (const k of MECHANIC_KINDS) expect(marked(MECHANIC_MARKS[k]), k).toBe(true);
     // a mark comes from coverage, not from a list: each lost one names the bus row or shell part it lacks
-    expect(MECHANIC_MARKS.unseen).toMatchObject({ godot: 'absent', rows: ['fact:seen'] });
+    expect(MECHANIC_MARKS.unseen).toMatchObject({ godot: 'built', rows: [] });   // the sighting the mind counts (since 0.26.0)
     expect(MECHANIC_MARKS['on-beat'].godot).toBe('built');   // since the beat travels (II2)
     expect(MECHANIC_MARKS.push.godot).toBe('built');       // its boulders are markers (II4)
     expect(MECHANIC_MARKS.supplies.godot).toBe('built');   // its drops are markers, its rearm travels (II3, II4)
@@ -130,7 +130,8 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     for (const k of Object.keys(ENTRIES)) expect(traversalMark(k).how, k).not.toBe('not marked');
     expect(Object.keys(LINK_MARKS).sort()).toEqual([...LINK_KINDS].sort());
     expect(mindMark('motivation', 'ambient').godot).toBe('built');
-    expect(mindMark('motivation', 'hunt').godot).toBe('absent');
+    expect(mindMark('motivation', 'hunt').godot).toBe('built');
+    expect(mindMark('commander', 'builtin').godot).toBe('absent');
     expect(worstMark('built', ['approximated'], 'built')).toBe('approximated');
     expect(worstMark()).toBe('built');
   });
@@ -175,9 +176,9 @@ describe('the verdict stamps, never refuses', () => {
     expect(p.verdict).toBe('plays');
     expect(exportVerdict(p)).toEqual({ verdict: 'plays', lost: [], approximated: [] });
   });
-  it('hollow: a sneak with no sight, a glider with no rule, a moving deck at rest; plays: a drive (since 0.23.0)', () => {
+  it('hollow: a glider with no rule, a moving deck at rest; plays: a drive (since 0.23.0), a sneak past sight (since 0.26.0)', () => {
     const sneak = score({ entities: [walker] }, { game: { mechanics: [{ kind: 'unseen' }, { kind: 'reach-exit', at: [5, 0, 0] }] } });
-    expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: sneak }], engine: 'godot' }).verdict).toBe('hollow');
+    expect(assessPortability({ manifest: {}, levels: [{ ref: 'r', score: sneak }], engine: 'godot' }).verdict).toBe('plays');
     const glider = score({ entities: [{ ...walker, pilotable: true, rule: { type: 'glide' } }] }, { game: { mechanics: [{ kind: 'reach-exit', at: [5, 0, 0] }] } });
     const pg = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: glider }], engine: 'godot' });
     expect(pg.verdict).toBe('hollow');
@@ -218,22 +219,23 @@ const PROOF = {
   scenes: ['lib/graph/scene/godot-scenes.test.js', 'kernel/scenes.gd and quests.gd are equal to the web'],
   look: ['lib/graph/scene/godot-look.test.js', 'a headless Godot builds the sky, the haze, the pixel scaling and the tone'],
   cameras: ['lib/graph/scene/godot-rules.test.js', 'drive the Godot camera as they drive the page'],
+  mind: ['lib/graph/scene/godot-mind.test.js', 'kernel/mind.gd and nav.gd are equal to the web'],
 };
 const EVIDENCE = {
   bus: {
     'fact:zone': 'chapter', 'fact:use': 'chapter', 'fact:start': 'corpus', 'fact:timer': 'corpus', 'fact:input': 'key', 'fact:cast': 'cast',
-    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat', 'effect:rearm': 'combat', 'effect:entities': 'markers', 'effect:shot': 'scenes',
+    'fact:hit': 'fight', 'fact:struck': 'beam', 'fact:stats': 'shrine', 'fact:menu': 'chapter', 'fact:beat': 'beat', 'effect:rearm': 'combat', 'fact:seen': 'mind', 'effect:entities': 'markers', 'effect:shot': 'scenes',
     'effect:logic': 'corpus', 'effect:guarded': 'corpus', 'effect:warp': 'corpus', 'effect:hud': 'hud', 'effect:menus': 'chapter',
     'effect:parts': 'hud', 'effect:phase': 'hud', 'effect:weather': 'storm', 'effect:stats': 'shrine',
   },
-  rule: { drive: 'rules', racer: 'rules', fly: 'rules', shot: 'rules', walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
+  rule: { ai: 'mind', drive: 'rules', racer: 'rules', fly: 'rules', shot: 'rules', walk: 'rules', platform: 'rules', follow: 'cameras', eye: 'cameras', overhead: 'cameras', side: 'cameras', fixed: 'cameras' },
   event: {
     reactions: 'corpus', watches: 'corpus', sequences: 'corpus', timers: 'corpus', vars: 'corpus', sources: 'chapter', initial: 'corpus',
     entities: 'corpus', budget: 'corpus', depthCap: 'corpus', cast: 'cast', stats: 'shrine', hud: 'hud', style: 'hud', menus: 'chapter', scenes: 'scenes', quests: 'scenes',
   },
   page: {
     bg: 'look', tone: 'look', pixel: 'look', figures: 'matrix', faces: 'matrix', cameras: 'matrix', textures: 'matrix', soft: 'matrix', repeats: 'matrix', ao: 'matrix', light: 'matrix', entities: 'matrix',
-    camera: 'matrix', pilot: 'matrix', colliders: 'matrix', events: 'matrix', game: 'matrix',
+    camera: 'matrix', pilot: 'matrix', colliders: 'matrix', events: 'matrix', game: 'matrix', ai: 'mind', aiDifficulty: 'mind',
   },
 };
 

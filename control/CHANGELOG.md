@@ -1305,6 +1305,18 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   parent, so a fast move strays from the page's path (6 cm at the hand of the wave, between two keys), which is why it is opt-in and the
   default pack's `figure_humanoid` row says how to ask for it. Machine-held by `godot-edit.test.js` and
   `godot-humanoid-pack.test.js`.
+- **The mind travels** (kernel 0.26.0). Bodies on the web's `ai` rule decide in `kernel/mind.gd`, a port of the web's
+  mind: every motivation (hunt, guard, escort, territorial, wander, forage, flee, sentry), sight and memory with the
+  search, cover from the one it fights, the blade with its combo and give-up, the roll off a stagger, the loadout's
+  rotation, a world's tier and a body's own tuning, a boss's phases and adapting, the boost juke and space. It paths
+  round walls on the web's grid (`kernel/nav.gd`), moves in groups (`kernel/group.gd`: packs, squads, herds, attack
+  tokens) and fights with the kernel's trigger, blade and charge (`kernel/combat.gd`; a semi or lob weapon holds fire
+  mid-thrust, as on the web). `bus.json` carries the minds (`minds`: each body's rule, the minds' weapons, the tier,
+  the walls), the bus hears `seen`, and a level whose minds hit nothing still runs them. The mind corpus
+  (`mind-conformance.js`, its first scenarios the cover law) is equal frame by frame at five seeds, and every planted
+  bug is caught (`godot-mind.test.js`). The shooter and stealth fixtures now play their levels key for key. What
+  stays the page's: the commander, and the shove-down set piece when an opportunist's counter-charge catches the
+  pilot (the kernel plays the plain counter).
 
 ### Mascot characters: a character read from a promise, not a life
 

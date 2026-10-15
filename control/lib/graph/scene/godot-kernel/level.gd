@@ -125,6 +125,8 @@ var cast = null
 # mouse button (the held WASD picks the cut), its hits count on the bodies, and the cast tells the bus (hit:<id>).
 var combat = null
 var combat_doc = null
+var minds_doc = null
+var combat_rest := -1.0   # the sim's deferred half of the fight's frame (its dt), until the pilot has stepped
 var combat_fire := false             # a held fire the probe sets (no mouse in a headless run)
 # THE KEYS (since 0.18.0): bus.json's `inputs`, a key or a click bound to an event (a power's key, the status page)
 var bus_inputs: Array = []
@@ -1393,6 +1395,20 @@ func _process(delta: float) -> void:
 			step_drivers(delta if menu_open == null and not journal_open else 0.0)
 		if was_playing and walker != null:
 			walker.sim_step(delta)
+		# the second half of the fight's frame: the minds, the rounds, the falls, the pilot where its step left it
+		if combat_rest >= 0.0:
+			var me3 = cast_state["byId"].get(player_id() if player_id() != "" else "player")
+			if me3 != null and walker.rule != null:
+				me3["pos"] = walker.recipe_pos().duplicate()
+				me3["heading"] = walker.recipe_heading()
+			elif me3 != null:
+				me3["pos"] = _bus_pos(walker.global_position)
+				if combat_doc is Dictionary:
+					me3["pos"][2] += float(combat_doc.get("eye", 0.0))
+				var bz3 := walker.global_transform.basis.z
+				me3["heading"] = atan2(bz3.z, -bz3.x)
+			combat.step(cast_state, me3, {}, combat_rest, _pilot_grounded(), null, "minds")
+			combat_rest = -1.0
 		print("[mojulo-sim] %d %s %s" % [sim_frame, state, sim_key()])
 		if walker != null and walker.cam_rule != null:
 			# the page's camera as the rule left it, and the node as drawn, in the recipe's frame (godot-rules.test.js)
@@ -1469,6 +1485,8 @@ func _build_bus() -> void:
 	bus_sources = frag.get("sources", []) if frag.get("sources") is Array else []
 	if doc.get("combat") is Dictionary:
 		combat_doc = doc["combat"]
+	if doc.get("minds") is Dictionary:
+		minds_doc = doc["minds"]
 	if doc.get("inputs") is Array:
 		bus_inputs = doc["inputs"]
 	if doc.get("cast") is Array and not (doc["cast"] as Array).is_empty():
@@ -1651,9 +1669,17 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 	_step_quests(minf(delta, 0.05))
 	if cast != null:
 		var me2 = cast_state["byId"].get(who if who != "" else "player")
+		# a mind decides at the frame's start, as the web's world steps before its clock moves
+		if combat != null:
+			combat.mind_clock = float(cast_state["time"])
 		cast.step(cast_state, minf(delta, 0.05))
+		if combat != null and (me2 != null or combat.mind != null):
+			# the harness steps the pilot after the bus (below in _process): the minds, who see it, wait for that step
+			var split := sim_frame >= 0 and combat.mind != null and walker != null
+			combat.step(cast_state, me2, _combat_input(), minf(delta, 0.05), _pilot_grounded(), null, "hero" if split else "all")
+			if split:
+				combat_rest = minf(delta, 0.05)
 		if combat != null and me2 != null:
-			combat.step(cast_state, me2, _combat_input(), minf(delta, 0.05), _pilot_grounded())
 			# a swing roots the body, as the web's platform rule halts its drive while one runs
 			walker.halt = 0.0 if me2.get("swingT") != null else 1.0
 			_draw_swing(me2)
@@ -1979,10 +2005,15 @@ func _build_cast() -> void:
 					looks.lift(node, k)
 			node.rotation = cast_nodes[e["id"]]["rot0"]
 		cast_nodes[e["id"]] = {"node": node, "rot0": node.rotation, "heading0": e["heading"], "worn": {}}
-	if combat_doc is Dictionary:
+	# the minds (since 0.26.0): bodies on the web's `ai` rule decide in kernel/mind.gd, on the land the pilot stands on;
+	# a level whose minds hit nothing (a guard that only watches) arms a fight with no bodies for them
+	if combat_doc is Dictionary or minds_doc is Dictionary:
 		combat = CombatScript.new()
-		combat.arm(cast_state, combat_doc)
+		combat.arm(cast_state, combat_doc if combat_doc is Dictionary else {})
 		combat_swings = 0
+		if minds_doc is Dictionary:
+			combat.arm_minds(cast_state, minds_doc)
+			combat.ground_fn = _mind_ground
 	cast.facts(cast_state)   # the first read seeds: nothing the world was minted with fires
 	_draw_cast()
 
@@ -2995,3 +3026,12 @@ func _step_edit(delta: float) -> void:
 			var q := g.basis.get_rotation_quaternion()
 			print("[mojulo-edit] %d %.4f,%.4f,%.4f %.5f,%.5f,%.5f,%.5f %.4f" % [j, g.origin.x, g.origin.y, g.origin.z, q.x, q.y, q.z, q.w, edit_cam.fov])
 	edit_t += delta
+
+
+
+# the ground a mind stands on: the land's faces the pilot walks (kernel/rules.gd), else the score's flat ground; null
+# where there is none (the web's ground hook)
+func _mind_ground(p: Array):
+	var g = land.get("ground") if not land.is_empty() else RulesScript.make_ground([], float(score.get("ground", 0.0)) / float(score.get("metersPerUnit", 1.0)))
+	var z := RulesScript.ground_at(g, p)
+	return null if is_nan(z) else z
