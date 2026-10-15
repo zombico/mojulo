@@ -2,8 +2,11 @@
  * versus library — the stick figure's moves as keys a designer can read.
  *
  * Every move is a variation of one record: what it hits with (a striking point on the rig), the poses it passes
- * through (guard → load → strike, held through the active frames → guard), how long each phase lasts, and what it
- * does to the one it touches. The boxes are not drawn: the compiler solves them from the striking segment and the
+ * through (guard → load → strike, held through the active frames → follow → guard), how long each phase lasts, and
+ * what it does to the one it touches. The WEIGHT is in the keys: the load winds the body up, the strike accelerates
+ * into contact, the follow carries it on past (the body still turning through), and the kinetic chain is keyed on the
+ * round body (`sway` the hips, `twist` the chest, `hands` / `feet` across the centre line: the side view, and so the
+ * boxes, never see them). The boxes are not drawn: the compiler solves them from the striking segment and the
  * body, so a longer arm reaches further with the same key.
  *
  * Three shelves:
@@ -63,34 +66,42 @@ export const STANCES = Object.freeze(['stand', 'crouch', 'air']);
 export const NORMAL_FAMILIES = Object.freeze({
   jab: {
     stance: 'stand', limb: 'fistF', tempo: 0.9, says: 'a lead-hand jab: fast, short, the button that interrupts',
-    load: P(POSES.guard, { armF: [55, 125] }), strike: P(POSES.guard, { torso: 14, armF: [88, 90] }),
+    load: P(POSES.guard, { armF: [55, 125], twist: 6 }), strike: P(POSES.guard, { torso: 14, armF: [88, 90], twist: 10 }),
+    follow: P(POSES.guard, { torso: 12, armF: [78, 104], twist: 6 }),
   },
   straight: {
     stance: 'stand', limb: 'fistB', tempo: 1, says: 'a rear straight: the hip turns into a long punch',
-    load: P(POSES.guard, { torso: 4, armB: [10, 150] }),
-    strike: P(POSES.guard, { torso: 24, armF: [20, 165], armB: [86, 88], legB: [-24, -20, 70], hip: [60, 0] }),
+    load: P(POSES.guard, { torso: 4, armB: [10, 150], sway: 10, twist: 8 }),
+    strike: P(POSES.guard, { torso: 24, armF: [20, 165], armB: [86, 88], legB: [-24, -20, 70], hip: [60, 0], sway: -40, twist: -60, hands: [0.3, 0.1] }),
+    follow: P(POSES.guard, { torso: 22, armF: [22, 162], armB: [78, 96], legB: [-22, -18, 72], hip: [50, 0], sway: -34, twist: -50 }),
   },
   hook: {
     stance: 'stand', limb: 'fistF', tempo: 1, says: 'a lead hook: short, high, it catches a forward jump early',
-    load: P(POSES.guard, { torso: 0, armF: [40, 140] }), strike: P(POSES.guard, { torso: 18, armF: [80, 128] }),
+    load: P(POSES.guard, { torso: 0, armF: [40, 140], twist: 18, sway: 10 }),
+    strike: P(POSES.guard, { torso: 18, armF: [80, 128], twist: -35, sway: -22, hands: [0, 0.3] }),
+    follow: P(POSES.guard, { torso: 16, armF: [72, 118], twist: -48, sway: -26, hands: [-0.3, 0.3] }),
   },
   uppercut: {
     stance: 'stand', limb: 'fistB', tempo: 1, antiAir: true, says: 'a rising uppercut: the normal that answers a jump',
-    load: P(POSES.guard, { torso: 20, armB: [-10, 40], hip: [0, -60] }),
-    strike: P(POSES.guard, { torso: 4, armF: [10, 160], armB: [150, 172], hip: [30, 40] }),
+    load: P(POSES.guard, { torso: 20, armB: [-10, 40], hip: [0, -60], sway: 12, twist: 10 }),
+    strike: P(POSES.guard, { torso: 4, armF: [10, 160], armB: [150, 172], hip: [30, 40], sway: -30, twist: -40, hands: [0.4, 0.1] }),
+    follow: P(POSES.guard, { torso: 0, head: -8, armF: [12, 158], armB: [160, 176], hip: [24, 50], legB: [-14, -14, 60], sway: -34, twist: -46 }),
   },
   'front-kick': {
     stance: 'stand', limb: 'toeF', tempo: 1.05, says: 'a lead front kick: the long poke that keeps them out',
-    load: P(POSES.guard, { torso: 0, legF: [60, -20, 90] }), strike: P(POSES.guard, { torso: -12, legF: [92, 92, 150], legB: [-4, -4, 90] }),
+    load: P(POSES.guard, { torso: 0, legF: [72, -30, 100] }), strike: P(POSES.guard, { torso: -12, legF: [92, 92, 150], legB: [-4, -4, 90] }),
+    follow: P(POSES.guard, { torso: -6, legF: [74, -20, 110] }),
   },
   roundhouse: {
     stance: 'stand', limb: 'toeB', tempo: 1.15, says: 'a rear roundhouse: high, far, slow to come home',
-    load: P(POSES.guard, { torso: 0, legB: [40, -40, 80], legF: [4, 0, 90] }),
-    strike: P(POSES.guard, { torso: -24, head: -5, legB: [102, 108, 120], legF: [0, 0, 90], armB: [-20, 80] }),
+    load: P(POSES.guard, { torso: 0, legB: [52, -40, 80], legF: [4, 0, 90], sway: 20 }),
+    strike: P(POSES.guard, { torso: -24, head: -5, legB: [102, 108, 120], legF: [0, 0, 90], armB: [-20, 80], sway: -60, twist: -25, feet: [1, 0.2] }),
+    follow: P(POSES.guard, { torso: -16, legB: [70, -20, 90], legF: [0, 0, 90], armB: [0, 110], sway: -50, twist: -20 }),
   },
   knee: {
     stance: 'stand', limb: 'kneeF', tempo: 0.95, says: 'a lead knee: short, quick, close in',
-    load: P(POSES.guard, { legF: [50, -30, 80] }), strike: P(POSES.guard, { torso: -6, legF: [105, -30, 60], legB: [-4, -4, 90] }),
+    load: P(POSES.guard, { legF: [50, -30, 80] }), strike: P(POSES.guard, { torso: -6, legF: [105, -30, 60], legB: [-4, -4, 90], armF: [60, 100], armB: [50, 110] }),
+    follow: P(POSES.guard, { torso: 0, legF: [80, -20, 70] }),
   },
   'crouch-jab': {
     stance: 'crouch', limb: 'fistF', tempo: 0.9, says: 'a crouching jab: low profile, fast, it chains into itself',
@@ -102,13 +113,15 @@ export const NORMAL_FAMILIES = Object.freeze({
   },
   'crouch-punch': {
     stance: 'crouch', limb: 'fistB', tempo: 1, says: 'a crouching straight: the low poke that cancels',
-    load: P(POSES.crouch, { armB: [10, 150] }), strike: P(POSES.crouch, { torso: 34, armF: [25, 160], armB: [88, 92] }),
+    load: P(POSES.crouch, { armB: [10, 150], sway: 10 }), strike: P(POSES.crouch, { torso: 34, armF: [25, 160], armB: [88, 92], sway: -30, twist: -45 }),
+    follow: P(POSES.crouch, { torso: 32, armF: [28, 158], armB: [80, 100], sway: -24, twist: -36 }),
   },
   sweep: {
     stance: 'crouch', limb: 'toeF', tempo: 1.1, guard: 'low', knock: 'down', adv: { block: -12 },
     says: 'a sweep: low, it knocks down, very unsafe on block',
-    load: P(POSES.crouch, { torso: 40, legF: [50, 20, 90] }),
-    strike: P(POSES.crouch, { torso: 44, legF: [88, 92, 100], legB: [30, -70, 60], hip: [0, -60] }),
+    load: P(POSES.crouch, { torso: 40, legF: [50, 20, 90], sway: 20 }),
+    strike: P(POSES.crouch, { torso: 44, legF: [88, 92, 100], legB: [30, -70, 60], hip: [0, -60], armF: [20, 20], sway: -40 }),
+    follow: P(POSES.crouch, { torso: 42, legF: [70, 70, 100], legB: [30, -70, 60], hip: [0, -60], sway: -50 }),
   },
   'crouch-uppercut': {
     stance: 'crouch', limb: 'fistF', tempo: 1, antiAir: true, says: 'a crouching uppercut: an anti-air from low',

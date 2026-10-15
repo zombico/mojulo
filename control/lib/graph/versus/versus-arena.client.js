@@ -64,6 +64,7 @@ const poseFigure = (base, p, F, { pose, J }) => ({
   N: figurePose(base, J, {
     face: p.face, air: !!pose.air, blade: bladeOf(p), stance: F.stance,
     twist: pose.twist ?? 0, sway: pose.sway ?? 0, tilt: pose.tilt ?? 0, spin: pose.spin ?? 0, bank: pose.bank ?? 0, lie: !!pose.lie,
+    ...(pose.hands ? { hands: pose.hands } : {}), ...(pose.feet ? { feet: pose.feet } : {}),
   }),
 });
 

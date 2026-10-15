@@ -272,7 +272,9 @@ function poseOf(p, F, t, rules) {
     const mv = F.moves[p.mv];
     return mv.frames[Math.max(1, Math.min(p.mf, mv.total))].pose;
   }
-  const reacting = reactionPose(p, rules);
+  // the fighter's own guard, crouch and walk (its tradition's, versus-traditions.js), else the genre's
+  const own = F.poses ?? POSES, guard = own.guard, crouch = own.crouch;
+  const reacting = reactionPose(p, rules, own);
   if (reacting) return reacting;
   const wave = (k) => (Math.sin(t * k) + 1) / 2;
   switch (p.st) {
@@ -280,19 +282,30 @@ function poseOf(p, F, t, rules) {
       // the stride in the round: the hips swing with each step and the shoulders counter them, the side tilt rides
       // onto the stepping foot; walking in the chest opens further to the screen, backing off it closes up
       const w = wave(0.22), s = w * 2 - 1;
-      return { ...lerpPose(POSES.walkA, POSES.walkB, w), sway: s * 7, twist: (p.st === 'walkF' ? 8 : -4) - s * 5, tilt: s * 3 };
+      return { ...lerpPose(own.walkA, own.walkB, w), sway: s * 7, twist: (p.st === 'walkF' ? 8 : -4) - s * 5, tilt: s * 3 };
     }
-    case 'crouch': return POSES.crouch;
+    case 'crouch': return crouch;
     case 'prejump': return POSES.prejump;
     case 'air': return POSES.jump;
-    case 'land': return lerpPose(POSES.crouch, POSES.guard, Math.min(1, p.sf / Math.max(1, p.landing)));
+    case 'land': return lerpPose(crouch, guard, Math.min(1, p.sf / Math.max(1, p.landing)));
     case 'dashF': return POSES.dash;
     case 'dashB': return POSES.backdash;
-    case 'burst': return lerpPose(POSES.crouch, POSES.burst, Math.min(1, p.sf / 4));
-    case 'win': return lerpPose(POSES.guard, POSES.win, Math.min(1, p.sf / 20));
-    case 'lose': return lerpPose(POSES.guard, POSES.lose, Math.min(1, p.sf / 30));
-    // standing: breathing, the chest and the tilt swaying slowly about the stance
-    default: return { ...POSES.guard, torso: POSES.guard.torso + Math.sin(t * 0.08) * 2, twist: Math.sin(t * 0.05) * 2, tilt: Math.sin(t * 0.08) * 1.5 };
+    case 'burst': return lerpPose(crouch, POSES.burst, Math.min(1, p.sf / 4));
+    case 'win': return lerpPose(guard, POSES.win, Math.min(1, p.sf / 20));
+    case 'lose': return lerpPose(guard, POSES.lose, Math.min(1, p.sf / 30));
+    default: {
+      // standing: breathing, the chest and the tilt swaying slowly about the stance; a tradition's rhythm on top (a
+      // boxer's bounce on the balls of the feet, the ginga's rock from side to side)
+      // (the bounce bends the knees: the body stands on its feet, so a dip is the legs folding under it)
+      const r = F.rhythm ?? { bounce: 0, rock: 0 }, hip = guard.hip ?? [0, 0];
+      const bob = r.bounce ? (1 - Math.abs(Math.sin(t * 0.16))) * 9 * r.bounce : 0, rock = Math.sin(t * 0.07) * r.rock;
+      const knee = (leg) => [leg[0] + bob, leg[1] - bob, ...leg.slice(2)];
+      return {
+        ...guard, torso: (guard.torso ?? 0) + Math.sin(t * 0.08) * 2, hip: [hip[0] + rock * 60, hip[1]],
+        ...(bob ? { legF: knee(guard.legF), legB: knee(guard.legB) } : {}),
+        twist: Math.sin(t * 0.05) * 2 + rock * 14, sway: rock * 18, tilt: Math.sin(t * 0.08) * 1.5 - rock * 4,
+      };
+    }
   }
 }
 

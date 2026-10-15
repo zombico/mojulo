@@ -10,7 +10,10 @@
  *   recipe = {
  *     id, name, cast?: 'heroic' | 'brute' | 'lithe' | 'stout', body?: { …dials },
  *     hp?, walk?: { f, b }, dash?: { f, b }, jump?: { vy, g, vx },
- *     normals: { 'stand.L': { family, strength? }, … },     // the nine slots (versus-library NORMAL_SLOTS)
+ *     tradition?: 'boxing' | 'karate' | …,   // its guard, crouch, walk and rhythm (versus-traditions.js TRADITIONS)
+ *     stance?: { open, hips, tilt },
+ *     normals: { 'stand.L': { family, strength? }, … },     // the nine slots (versus-library NORMAL_SLOTS), any family
+ *                                                          // of any tradition (versus-traditions.js FAMILIES)
  *     specials?: { neutral | forward | back | down: { id, motion?, tune? } },
  *     super?: { id, tune? },
  *     throw?: { tune? },
@@ -38,7 +41,8 @@
  */
 
 import { VERSUS_CASTS, versusBody, rigJoints, lerpPose, segmentBox, pointsBox, roundBox, weaponLine, STRIKE_SEGMENTS } from './versus-rig.js';
-import { POSES, STRENGTHS, NORMAL_FAMILIES, NORMAL_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT } from './versus-library.js';
+import { POSES, STRENGTHS, NORMAL_SLOTS, THROW, SPECIALS, SPECIAL_SLOTS, SUPERS, SUPER_COST, WEAPONS, WEAPON_HURT } from './versus-library.js';
+import { FAMILIES, TRADITIONS, traditionRests } from './versus-traditions.js';
 
 // movement defaults (mm per frame, frames)
 export const MOVEMENT = Object.freeze({
@@ -53,6 +57,10 @@ const AIR_STUN = { L: [14, 10], M: [17, 13], H: [20, 16] };
 const PROJECTILE_STUN = [22, 18];
 
 const ease = (t) => t * t * (3 - 2 * t);
+// a strike accelerates into contact: slow out of the load, fastest at the hit
+const accel = (t) => t * t;
+// the share of a recovery the follow-through takes (the body carried on past contact before it comes home)
+const FOLLOW_SHARE = 0.4;
 // a push box's half-width in trunk radii in the air (a body in flight is pushed as a column about its pelvis)
 const PUSH_HALF = 1.45;
 // on the ground two bodies stop where their trunks would touch, as the round body stands them, and this much apart (mm)
@@ -89,17 +97,19 @@ function pushOf(body, J, air, open) {
   return [Math.round(Math.min(...xs) - t), 0, Math.round(Math.max(...xs) + t + PUSH_GAP / 2), top];
 }
 
-/** A stance's idle boxes (stand, crouch, air, fall), the push boxes as its stance stands it. */
-function idleOf(body, stance) {
+/** A stance's idle boxes (stand, crouch, air, fall), the push boxes as its stance stands it, at the fighter's rests. */
+function idleOf(body, stance, rests = REST_POSES) {
   const out = {};
-  for (const [k, pose] of [['stand', POSES.guard], ['crouch', POSES.crouch], ['air', POSES.jump], ['fall', POSES.fall]]) {
+  for (const [k, pose] of [['stand', rests.stand], ['crouch', rests.crouch], ['air', POSES.jump], ['fall', POSES.fall]]) {
     const J = rigJoints(body, pose);
     out[k] = { hurt: hurtOf(body, J), push: pushOf(body, J, !!pose.air, stance.open) };
   }
   return out;
 }
 
-const stanceRest = (stance) => (stance === 'crouch' ? POSES.crouch : stance === 'air' ? POSES.jump : POSES.guard);
+// what a move starts from and comes home to, by its stance: the genre's own, or a tradition's (versus-traditions.js)
+const REST_POSES = Object.freeze({ stand: POSES.guard, crouch: POSES.crouch, air: POSES.jump });
+const stanceRest = (stance, rests = REST_POSES) => rests[stance] ?? REST_POSES[stance] ?? POSES.guard;
 
 /** Clip boxes to a profile: `low` keeps what is under it (a slide), `high` what is over it (a hop). */
 function clipProfile(boxes, pr) {
@@ -113,13 +123,17 @@ function clipProfile(boxes, pr) {
 }
 
 /**
- * Lay a move's frames: the pose eases guard → load → strike over startup, holds through the active frames, and
- * eases back over recovery; the limb's hurtbox is out from the load to the end of the active frames plus a third of
+ * Lay a move's frames: the pose eases guard → load, then accelerates load → strike over startup, holds through the
+ * active frames, is carried on to its `follow` (if it has one) over the first part of recovery and eases back over
+ * the rest (a spinning move's whole turns kept, so it comes home facing as it went); the limb's hurtbox is out from the load to the end of the active frames plus a third of
  * recovery (the whiff window a poke is punished in); an armed move's, through all of it. An armed move hits with
  * its blade too (and marks it, for clashes); the blade is a hurtbox only where the weapon's `hurt` says. A profile clips the hurtboxes in its window.
  */
-function layFrames(body, m, shape, weapon = null) {
-  const rest = shape.rest ?? stanceRest(m.stance);
+function layFrames(body, m, shape, weapon = null, rests = REST_POSES) {
+  const rest = shape.rest ?? stanceRest(m.stance, rests);
+  const last = shape.follow ?? shape.strike;
+  const turns = Math.round((last.spin ?? 0) / 360) * 360;
+  const home = turns ? { ...(shape.after ?? rest), spin: turns } : shape.after ?? rest;
   const lastActive = m.startup + m.active - 1;
   const n = m.total;
   const frames = [null];
@@ -130,9 +144,13 @@ function layFrames(body, m, shape, weapon = null) {
   const pr = m.profile;
   for (let f = 1; f <= n; f++) {
     let pose;
-    if (f < m.startup) pose = f <= loadAt ? lerpPose(rest, shape.load, ease(f / loadAt)) : lerpPose(shape.load, shape.strike, ease((f - loadAt) / (m.startup - loadAt)));
+    if (f < m.startup) pose = f <= loadAt ? lerpPose(rest, shape.load, ease(f / loadAt)) : lerpPose(shape.load, shape.strike, accel((f - loadAt) / (m.startup - loadAt)));
     else if (f <= lastActive) pose = shape.strike;
-    else pose = lerpPose(shape.strike, shape.after ?? rest, ease((f - lastActive) / Math.max(1, n - lastActive)));
+    else {
+      const k = f - lastActive, span = Math.max(1, n - lastActive);
+      const fAt = shape.follow ? Math.min(span - 1, Math.max(1, Math.round(span * FOLLOW_SHARE))) : 0;
+      pose = k <= fAt ? lerpPose(shape.strike, shape.follow, ease(k / fAt)) : lerpPose(last, home, ease((k - fAt) / Math.max(1, span - fAt)));
+    }
     const J = rigJoints(body, pose);
     const out = f >= loadAt && f <= limbOut;
     let hurt = hurtOf(body, J, out ? m.limb : null);
@@ -379,9 +397,9 @@ export function reachTax(body, fam) {
 }
 
 /** A normal slot (`stand.M`) with its family, strength and tune → a compiled move. */
-export function compileNormal(body, slot, { family, strength, tune } = {}, weapon = null) {
-  const fam = NORMAL_FAMILIES[family];
-  if (!fam) throw new Error(`versus: ${slot} family '${family}' is not one of ${Object.keys(NORMAL_FAMILIES).join(', ')}`);
+export function compileNormal(body, slot, { family, strength, tune } = {}, weapon = null, rests = REST_POSES) {
+  const fam = FAMILIES[family];
+  if (!fam) throw new Error(`versus: ${slot} family '${family}' is not one of ${Object.keys(FAMILIES).join(', ')}`);
   const [stance, letter] = slot.split('.');
   if (fam.stance !== stance) throw new Error(`versus: ${slot} wants a ${stance} family; '${family}' is a ${fam.stance} move`);
   const T = readTune(tune, slot);
@@ -399,9 +417,11 @@ export function compileNormal(body, slot, { family, strength, tune } = {}, weapo
   m.startup = Math.max(3, Math.round(st.startup * tempo) + tax + blade.startup);
   m.active = st.active;
   m.recovery = Math.max(4, Math.round(st.recovery * tempo) + tax + blade.recovery);
-  m.damage = armed ? Math.round(st.damage * weapon.damage) : st.damage;
+  // (a family may hit harder than its strength, push further, or carry the body in: a haymaker, a teep, a charge)
+  m.damage = Math.round(st.damage * (armed ? weapon.damage : 1) * (fam.damage ?? 1));
   m.hitstop = st.hitstop;
-  m.push = st.push;
+  m.push = fam.push ?? st.push;
+  if (fam.travel) m.travel = fam.travel;
   m.meter = st.meter;
   m.guard = fam.guard ?? (stance === 'air' ? 'overhead' : 'mid');
   m.knock = fam.knock ?? 'none';
@@ -425,7 +445,7 @@ export function compileNormal(body, slot, { family, strength, tune } = {}, weapo
     m.cancel = ['special', 'super'];
     if (m.strength === 'L') m.chain = ['stand.L', 'crouch.L'];
   }
-  m.frames = layFrames(body, m, fam, weapon);
+  m.frames = layFrames(body, m, fam, weapon, rests);
   m.reach = reachOf(m.frames);
   return m;
 }
@@ -441,7 +461,7 @@ export function compileThrow(body, slot = 'throw', over = {}) {
   applyTune(m, T, {});
   primitives(m, T, slot);
   m.total = m.startup + m.active - 1 + m.recovery;
-  m.frames = layFrames(body, m, THROW);
+  m.frames = layFrames(body, m, THROW, null, over.rests);
   m.reach = m.throw.range;
   return m;
 }
@@ -466,13 +486,13 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
   const at = { ...base.at[strength], ...T, adv: { ...(base.adv ?? {}), ...(base.at[strength].adv ?? {}), ...(T.adv ?? {}) } };
   const sp = { ...base, ...T, knock: base.knock };
   if (sp.throw) {
-    const m = compileThrow(body, slot, { reach: at.reach, techable: false, clinch: sp.clinch, damage: at.damage });
+    const m = compileThrow(body, slot, { reach: at.reach, techable: false, clinch: sp.clinch, damage: at.damage, rests: o.rests });
     Object.assign(m, { id, kind: 'special', strength, rps: sp.rps, startup: at.startup, active: at.active ?? 3, recovery: at.recovery, meter: sp.meter ?? m.meter });
     if (at.travel) m.travel = at.travel;
     primitives(m, at, `${slot}.${strength}`);
     if (T.invuln === undefined && base.invuln) primitives(m, { invuln: base.invuln }, slot);
     m.total = m.startup + m.active - 1 + m.recovery;
-    m.frames = layFrames(body, m, sp);
+    m.frames = layFrames(body, m, sp, null, o.rests);
     if (m.tuned === undefined && Object.keys(T).length) m.tuned = Object.keys(T);
     return m;
   }
@@ -516,7 +536,7 @@ export function compileSpecial(body, slot, id, strength = 'M', o = {}) {
     m.blockstun = stunFor(m, adv.block);
   }
   if (Object.keys(T).length) m.tuned = Object.keys(T);
-  m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon);
+  m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon, o.rests);
   m.reach = reachOf(m.frames);
   return m;
 }
@@ -542,7 +562,7 @@ export function compileSuper(body, id, o = {}) {
   }
   let m;
   if (sp.throw) {
-    m = compileThrow(body, 'super', { reach: su.reach, techable: false, clinch: su.clinch, damage: su.damage });
+    m = compileThrow(body, 'super', { reach: su.reach, techable: false, clinch: su.clinch, damage: su.damage, rests: o.rests });
     Object.assign(m, { startup: su.startup, active: su.active ?? 4, recovery: su.recovery });
     if (su.travel) m.travel = su.travel;
   } else {
@@ -581,7 +601,7 @@ export function compileSuper(body, id, o = {}) {
     m.blockstun = stunFor(m, adv.block);
   }
   if (Object.keys(T).length) m.tuned = Object.keys(T);
-  m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon);
+  m.frames = layFrames(body, m, { ...sp, after: sp.after ?? (m.airborne ? POSES.fall : undefined) }, o.weapon, o.rests);
   m.reach = m.throw ? m.throw.range : reachOf(m.frames);
   return m;
 }
@@ -638,6 +658,7 @@ export function readMovement(recipe) {
       if (!(typeof n === 'number' && n >= lo && n <= hi)) throw new Error(`versus: ${id} stance.${k} is degrees from ${lo} to ${hi}`);
     }
   }
+  if (recipe.tradition !== undefined && !TRADITIONS[recipe.tradition]) throw new Error(`versus: ${id} tradition '${recipe.tradition}' is one of ${Object.keys(TRADITIONS).join(', ')}`);
   if (recipe.hp !== undefined && !(isInt(recipe.hp) && recipe.hp >= 1 && recipe.hp <= 99999)) throw new Error(`versus: ${id} hp is a whole number from 1 to 99999`);
   readDials(recipe.walk, MOVEMENT_DIALS.walk, `${id} walk`);
   readDials(recipe.jump, MOVEMENT_DIALS.jump, `${id} jump`);
@@ -655,28 +676,31 @@ export function compileFighter(recipe) {
   readMovement(recipe);
   const body = versusBody(recipe.cast ?? 'heroic', recipe.body ?? {});
   const weapon = readWeapon(recipe.weapon, body);
+  // a tradition's guard is where every move starts and comes home (none: the genre's own)
+  const own = traditionRests(recipe.tradition);
+  const rests = own ?? REST_POSES;
   const { specials, supers } = libraryOf(recipe);
   const moves = {};
   for (const slot of NORMAL_SLOTS) {
     const n = recipe.normals?.[slot];
     if (!n) throw new Error(`versus: ${recipe.id ?? 'fighter'} has no ${slot} (normals: ${NORMAL_SLOTS.join(', ')})`);
-    moves[slot] = compileNormal(body, slot, n, weapon);
+    moves[slot] = compileNormal(body, slot, n, weapon, rests);
   }
-  moves.throw = compileThrow(body, 'throw', { tune: recipe.throw?.tune });
+  moves.throw = compileThrow(body, 'throw', { tune: recipe.throw?.tune, rests });
   for (const dir of SPECIAL_SLOTS) {
     const s = recipe.specials?.[dir];
     if (!s) continue;
     for (const st of ['L', 'M', 'H']) {
-      const m = compileSpecial(body, `special.${dir}`, s.id, st, { lib: specials, tune: s.tune, weapon });
+      const m = compileSpecial(body, `special.${dir}`, s.id, st, { lib: specials, tune: s.tune, weapon, rests });
       m.motion = readMotion(s.motion ?? specials[s.id].motion, `special.${dir}`);
       moves[`special.${dir}.${st}`] = m;
     }
   }
-  if (recipe.super) moves.super = compileSuper(body, recipe.super.id, { lib: specials, supers, tune: recipe.super.tune, weapon });
+  if (recipe.super) moves.super = compileSuper(body, recipe.super.id, { lib: specials, supers, tune: recipe.super.tune, weapon, rests });
   for (const m of Object.values(moves)) m.adv = frameAdvantage(m);
   const jump = { ...MOVEMENT.jump, ...(recipe.jump ?? {}) };
   const stance = { ...DEFAULT_STANCE, ...(recipe.stance ?? {}) };
-  const idle = idleOf(body, stance);
+  const idle = idleOf(body, stance, rests);
   // a grab reaches an arm's length past the chest: from the push box's front as the stance stands it
   const chest = idle.stand.push[2] - Math.round(body.bodyR * PUSH_HALF);
   for (const m of Object.values(moves)) if (m.throw) { m.throw.range += chest; m.reach = m.throw.range; }
@@ -692,6 +716,7 @@ export function compileFighter(recipe) {
     jump,
     idle,
     stance,
+    ...(own ? { tradition: recipe.tradition, poses: { guard: own.stand, crouch: own.crouch, walkA: own.walkA, walkB: own.walkB }, rhythm: TRADITIONS[recipe.tradition].rhythm } : {}),
     ...(weapon ? { weapon } : {}),
     moves,
   };

@@ -129,6 +129,34 @@ its own body on an arena; the stick figures are the simulation's own dummies, dr
   was, so jumps still cross over. A throw reaches the same arm's length past the chest, a wall stops the box itself,
   and pushback at a wall reads the body's back. The drawn bodies ease over more steps when their joints have far to
   go, a second blow that throws a body another way starts its ease over, and a new round is a cut.
+- **Strikes with weight** (`versus-library.js`, `versus-compile.js`). A move's keys are now load, strike and `follow`:
+  the strike accelerates into contact (slow out of the load, fastest at the hit), and after the active frames the
+  body is carried on past contact to its follow before it comes home (a cross carries the shoulder over, a karate kick
+  re-chambers, a Thai kick turns the body through). The kinetic chain is keyed on the round body: the hips (`sway`)
+  then the chest (`twist`) turn into the blow, and two new 3D-only channels, `hands` and `feet` (each hand's and
+  foot's depth as a share of its own shoulder's or hip's, 0 the centre line), swing a hook across to the centre and
+  pull a karate rear fist back to the hip. The side view, and so every box, never sees them. The shared families gained
+  their follow-throughs and turns. The 3D figure meets a turn its limbs cannot follow with the nearest turn that
+  reaches, either way, so the arena still draws every hand and foot where the sim's boxes are (a sweep over every
+  frame of every family holds it).
+- **Fighting traditions** (`versus-traditions.js`, a page module; `tradition` on a recipe, an intent or a roster
+  entry). Boxing, karate, taekwondo, Muay Thai, kung fu, capoeira, savate and brawling. Each is a guard (where the
+  hands are, how low and wide it stands, its crouch and walk), an idle rhythm (a boxer's bounce on bent knees, the
+  ginga's rock), its stance against the style's (a Thai boxer square, a taekwondo player side-on), and its own punches
+  and kicks in every slot: the cross, the lead hook and the shovel hook; the kizami-zuki, the gyaku-zuki with its
+  hikite and the re-chambering mawashi-geri; the cut kick, the side kick, the axe kick (an overhead) and the tornado
+  kick; the teep, the elbow, the Thai round kick, the low kick and the flying knee; the palm strike, the tiger claw,
+  the crane kick and the butterfly kick; the bênção, the martelo, the meia-lua de compasso, the cabeçada and the
+  rasteira; the fouetté, the chassé and the spinning revers; the headbutt, the body blow, the haymaker, the shoulder
+  charge and the elbow drop. Every family of every tradition is in one namespace, so any fighter may take any move
+  in a slot. A spinning move turns its back in the load and completes its turn at contact, so the hit lands square.
+  A family may push further, hit harder or carry the body in (`push`, `damage`, `travel`). The solver fills the slots
+  from the tradition, swaps a signature's kicks or punches among the tradition's own moves (and says when it throws
+  none to swap), finds its anti-air, and moves the stance its way; each is said in the notes. A tradition word alone
+  is a roster entry (a sheet rolled to fight that way). The page stands a fighter in its tradition's guard, crouch and
+  walk, its moves start and come home there, its idle boxes are measured on it, and its reactions come home to it.
+  Without a tradition a fighter compiles to the genre's own guard; nothing is added to it. Every tradition holds
+  its fighter's laws and fights a CPU match in which blows land both ways (`versus-traditions.deep.test.js`).
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless

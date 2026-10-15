@@ -5,7 +5,10 @@
  * slots from the library and closes the rock-paper-scissors loop the archetype leaves open, writing down what each
  * word did. The recipe it returns is an ordinary recipe (versus-compile.js): the designer edits any slot after.
  *
- *   intent = { id, name?, archetype: 'all-rounder' | 'rushdown' | 'zoner' | 'grappler', cast?, signature?: [words] }
+ *   intent = { id, name?, archetype: 'all-rounder' | 'rushdown' | 'zoner' | 'grappler', tradition?, cast?, signature?: [words] }
+ *   tradition: how the fighter was taught to strike (versus-traditions.js: boxing, karate, taekwondo, muay-thai, kung-fu,
+ *              capoeira, savate, brawler): its guard, and its punches and kicks in every slot, its stance moved its way;
+ *              without one, the archetype's lean of the genre's own moves
  *   signature words: kicks, punches, fire (a fireball), reversal (the invincible uppercut), grab (a command throw),
  *                    overhead (a leaping overhead), heavy, light
  *
@@ -23,6 +26,9 @@
  *   super?    id | { id, tune? }
  *   tune?     { <slot> | special.<dir> | super | throw: tune }          a tune onto what the solve chose
  */
+
+import { FAMILIES, TRADITIONS } from './versus-traditions.js';
+import { STANCE_DIALS } from './versus-compile.js';
 
 export const ARCHETYPES = Object.freeze({
   'all-rounder': {
@@ -80,7 +86,10 @@ export function solveFighter(intent = {}) {
   const words = intent.signature ?? [];
   for (const w of words) if (!SIGNATURES[w]) throw new Error(`versus: signature '${w}' is one of ${Object.keys(SIGNATURES).join(', ')}`);
   const notes = [`${intent.archetype ?? 'all-rounder'}: ${arch.says}`];
-  const normals = { ...LEANS[arch.lean] };
+  const trad = intent.tradition === undefined ? null : TRADITIONS[intent.tradition];
+  if (intent.tradition !== undefined && !trad) throw new Error(`versus: tradition '${intent.tradition}' is one of ${Object.keys(TRADITIONS).join(', ')}`);
+  if (trad) notes.push(trad.says);
+  const normals = { ...(trad ? trad.normals : LEANS[arch.lean]) };
   const specials = { ...arch.specials };
   const mv = JSON.parse(JSON.stringify(arch.movement));
 
@@ -89,8 +98,19 @@ export function solveFighter(intent = {}) {
       if (table[fam] && sameStance(fam, table[fam])) { normals[slot] = table[fam]; notes.push(`${word}: ${slot} ${fam} → ${table[fam]}`); }
     }
   };
-  if (words.includes('kicks')) swap(KICK_FOR, 'kicks');
-  if (words.includes('punches')) swap(PUNCH_FOR, 'punches');
+  // a tradition swaps among its own moves: each punch for a kick it throws at the same stance (or the other way)
+  const swapWithin = (want, word) => {
+    const pool = [...new Set([...Object.values(trad.normals), ...trad.families])];
+    let swapped = 0;
+    for (const [slot, fam] of Object.entries(normals)) {
+      if (KIND_OF(fam) === want) continue;
+      const to = pool.find((f) => KIND_OF(f) === want && sameStance(f, fam) && !Object.values(normals).includes(f));
+      if (to) { normals[slot] = to; swapped++; notes.push(`${word}: ${slot} ${fam} → ${to}`); }
+    }
+    if (!swapped) notes.push(`${word}: ${intent.tradition} throws no ${want === 'kick' ? 'kicks' : 'punches'} where it would swap one`);
+  };
+  if (words.includes('kicks')) (trad ? swapWithin('kick', 'kicks') : swap(KICK_FOR, 'kicks'));
+  if (words.includes('punches')) (trad ? swapWithin('punch', 'punches') : swap(PUNCH_FOR, 'punches'));
   if (words.includes('fire') && !Object.values(specials).includes('fireball')) {
     const at = specials.neutral ? (specials.down ? 'back' : 'down') : 'neutral';
     if (specials.neutral && at !== 'neutral') { specials[at] = specials.neutral; }
@@ -107,10 +127,11 @@ export function solveFighter(intent = {}) {
   if (words.includes('heavy')) { mv.hp = (mv.hp ?? 1000) + 100; mv.walk = { f: (mv.walk?.f ?? 52) - 6, b: (mv.walk?.b ?? 40) - 4 }; notes.push('heavy: +100 health, slower walk'); }
   if (words.includes('light')) { mv.hp = (mv.hp ?? 1000) - 80; mv.walk = { f: (mv.walk?.f ?? 52) + 6, b: (mv.walk?.b ?? 40) + 4 }; notes.push('light: -80 health, quicker walk'); }
 
-  // close the loop: an answer to a jump
-  if (!Object.values(specials).includes('rising') && normals['stand.H'] !== 'uppercut') {
-    notes.push(`no reversal: stand.H ${normals['stand.H']} → uppercut, the anti-air`);
-    normals['stand.H'] = 'uppercut';
+  // close the loop: an answer to a jump (a tradition's own standing anti-air if it throws one)
+  if (!Object.values(specials).includes('rising') && !FAMILIES[normals['stand.H']].antiAir) {
+    const aa = (trad ? trad.families : []).find((f) => FAMILIES[f].stance === 'stand' && FAMILIES[f].antiAir) ?? 'uppercut';
+    notes.push(`no reversal: stand.H ${normals['stand.H']} → ${aa}, the anti-air`);
+    normals['stand.H'] = aa;
   }
   if (!Object.values(specials).includes('fireball')) notes.push('no fireball: the screen is crossed on foot; a jump-in is the approach');
   notes.push('throw: every fighter throws (L + M, or T)');
@@ -121,6 +142,7 @@ export function solveFighter(intent = {}) {
     name: intent.name ?? intent.id ?? 'Fighter',
     archetype: intent.archetype ?? 'all-rounder',
     cast: intent.cast ?? arch.cast,
+    ...(trad ? { tradition: intent.tradition } : {}),
     stance: { ...arch.stance },
     ...mv,
     normals: Object.fromEntries(Object.entries(normals).map(([slot, family]) => [slot, { family }])),
@@ -128,6 +150,17 @@ export function solveFighter(intent = {}) {
     super: { id: superId },
   };
   overlay(recipe, intent, notes);
+  if (trad) {
+    // the tradition stands its own way: its degrees onto the style's (and the sheet's), held inside the dials
+    const moved = [];
+    for (const [k, d] of Object.entries(trad.stance)) {
+      if (!d) continue;
+      const [lo, hi] = STANCE_DIALS[k];
+      recipe.stance[k] = Math.min(hi, Math.max(lo, (recipe.stance[k] ?? 0) + d));
+      moved.push(`${k} ${d > 0 ? '+' : ''}${d}°`);
+    }
+    if (moved.length) notes.push(`${intent.tradition} stance: ${moved.join(', ')}`);
+  }
   return { recipe, notes };
 }
 
@@ -175,5 +208,6 @@ function overlay(recipe, intent, notes) {
   }
 }
 
-const STANCE_OF = { jab: 'stand', straight: 'stand', hook: 'stand', uppercut: 'stand', 'front-kick': 'stand', roundhouse: 'stand', knee: 'stand', 'crouch-jab': 'crouch', 'low-kick': 'crouch', 'crouch-punch': 'crouch', sweep: 'crouch', 'crouch-uppercut': 'crouch', 'air-punch': 'air', 'air-kick': 'air', 'air-stomp': 'air' };
-const sameStance = (a, b) => STANCE_OF[a] === STANCE_OF[b];
+const sameStance = (a, b) => FAMILIES[a]?.stance === FAMILIES[b]?.stance;
+// a family is a punch (a hand, an elbow, the head) or a kick (a foot, a shin, a knee)
+const KIND_OF = (f) => (/^(toe|ankle|knee)/.test(FAMILIES[f]?.limb ?? '') ? 'kick' : 'punch');

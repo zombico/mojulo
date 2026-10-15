@@ -124,6 +124,13 @@ export const STRIKE_SEGMENTS = Object.freeze({
   head: ['neck', 'head'],
 });
 
+/**
+ * The round body's hand and foot depths at rest (versus-figure.js): each hand's as a share of its own shoulder's (the
+ * lead before its shoulder, the rear tucked by the chin), each foot's of its own hip's (under it). A pose may say its
+ * own (`hands: [lead, rear]`, `feet: [lead, rear]`; 0 the centre line, below 0 across it): the side view never sees it.
+ */
+export const ROUND_REST = Object.freeze({ hands: Object.freeze([0.75, 0.3]), feet: Object.freeze([1, 1]) });
+
 /** Interpolate two poses (t 0..1), angle by angle; `air` and `hip` blend too. */
 export function lerpPose(a, b, t) {
   const mix = (x, y) => x + (y - x) * t;
@@ -139,6 +146,11 @@ export function lerpPose(a, b, t) {
   if (t < 0.5 ? a.air : b.air) out.air = true;
   // the round body's turns, and a lying body (absent from both: nothing added)
   for (const k of ['pitch', 'twist', 'spin', 'bank', 'sway', 'tilt']) if (a[k] !== undefined || b[k] !== undefined) out[k] = mix(a[k] ?? 0, b[k] ?? 0);
+  for (const k of ['hands', 'feet']) {
+    if (a[k] === undefined && b[k] === undefined) continue;
+    const u = a[k] ?? ROUND_REST[k], v = b[k] ?? ROUND_REST[k];
+    out[k] = [mix(u[0], v[0]), mix(u[1], v[1])];
+  }
   if (t < 0.5 ? a.lie : b.lie) out.lie = true;
   return out;
 }

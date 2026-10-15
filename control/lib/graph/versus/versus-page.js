@@ -33,7 +33,7 @@ const SRC = moduleDir(import.meta.url, 'lib/graph/versus');
 
 // the order matters: each module only uses names from the ones before it
 export const VERSUS_PAGE_MODULES = Object.freeze([
-  'versus-rig.js', 'versus-library.js', 'versus-react.js', 'versus-compile.js', 'versus-input.js', 'versus-core.js', 'versus-cpu.js',
+  'versus-rig.js', 'versus-library.js', 'versus-traditions.js', 'versus-react.js', 'versus-compile.js', 'versus-input.js', 'versus-core.js', 'versus-cpu.js',
 ]);
 
 /** A sibling module as a classic-script fragment (import lines and `export ` stripped). */

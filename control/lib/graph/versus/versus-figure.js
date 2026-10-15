@@ -18,6 +18,7 @@
  *   - the SIDE TILT (`tilt`): the trunk bent toward the camera, the shoulder line on a diagonal, the torso in the
  *     silhouette (fighters rarely stand square, staring at each other)
  *   - the elbows bent down and out, the knees forward, the lead hand before its shoulder, the rear one by the chin
+ *     (a pose's `hands` and `feet` move them across: a hook swings to the centre line, a hikite pulls to the hip)
  *   - the feet under the hips, each foot rigid (its own bones) and turned to point at the sim's toe, standing on the
  *     floor as the rest does
  * `blade` (0 … 1) is how far the body turns: a standing fighter all the way, one falling or down not at all. A strike
@@ -37,6 +38,8 @@
  *
  * Pure, no dice; nothing here is kept by the sim.
  */
+/* (inlined after versus-rig.js: ROUND_REST, each hand's and foot's depth at rest) */
+import { ROUND_REST } from './versus-rig.js';
 
 const FIG_SIDES = ['L', 'R'];
 const fv = {
@@ -57,8 +60,6 @@ const FIG_DEG = Math.PI / 180;
 const FIG_STANCE = { open: 45, hips: 28, tilt: 8 };
 // how far past square a strike may turn them (the far side's range: a roundhouse turns the hips over)
 const FIG_TURN = { hips: 70, chest: 45 };
-// the hands' depth, as a share of their shoulder's: the lead before its shoulder, the rear tucked by the chin
-const FIG_HAND_IN = { lead: 0.75, rear: 0.3 };
 
 /** A skeleton to the stick figure's own lengths (its body, versus-rig.js versusBody, mm), arms hanging. */
 export function figureBase(body) {
@@ -135,7 +136,7 @@ function figReach(root, target, l1, l2, pole) {
  * `bank` the whole body about its forward line (its top toward the camera); a body that `lie`s rests on its lowest
  * point. → { <node>: [x, y, z] } in metres, the figure's frame, plus `fistL/R`, `heelL/R`.
  */
-export function figurePose(base, J, { face = 1, air = false, blade = 1, stance = FIG_STANCE, twist = 0, sway = 0, tilt = 0, spin = 0, bank = 0, lie = false } = {}) {
+export function figurePose(base, J, { face = 1, air = false, blade = 1, stance = FIG_STANCE, twist = 0, sway = 0, tilt = 0, spin = 0, bank = 0, lie = false, hands = ROUND_REST.hands, feet = ROUND_REST.feet } = {}) {
   const sg = face > 0 ? 1 : -1, lead = sg > 0 ? 'L' : 'R';
   const at = (p) => [0, p[0] / 1000, p[1] / 1000];
   const sideOf = (S) => (S === lead ? 'F' : 'B');
@@ -158,7 +159,7 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, stance =
   // (a hand at full stretch keeps only the depth its arm still reaches)
   const armLen = (S) => len(`shoulder${S}`, `elbow${S}`) + len(`elbow${S}`, `wrist${S}`);
   const wristAt = (S, sh) => {
-    const w = at(J[`hand${sideOf(S)}`]), want = sh[0] * (S === lead ? FIG_HAND_IN.lead : FIG_HAND_IN.rear);
+    const w = at(J[`hand${sideOf(S)}`]), want = sh[0] * hands[S === lead ? 0 : 1];
     const dd = (w[1] - sh[1]) ** 2 + (w[2] - sh[2]) ** 2;
     const room = Math.sqrt(Math.max(0, (armLen(S) * 0.999) ** 2 - dd));
     // (and a hand folded in closer than the arm folds takes the depth it needs: the forearm and the upper arm differ)
@@ -173,15 +174,21 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, stance =
     const X = sideOf(S), shin = fv.unit(fv.sub(at(J[`ankle${X}`]), at(J[`knee${X}`]))), h = base[`ankle${S}`][2];
     return [S, { heel: at(J[`ankle${X}`]), lift: fv.mul(shin, -h), h }];
   }));
-  const ankleAt = (S, hip) => { const h = [hip[0], foot[S].heel[1], foot[S].heel[2]]; return fv.add(h, foot[S].lift); };
+  const ankleAt = (S, hip) => { const h = [hip[0] * feet[S === lead ? 0 : 1], foot[S].heel[1], foot[S].heel[2]]; return fv.add(h, foot[S].lift); };
   // the turns: as far toward the camera as the blade asks, back as far as the limbs need (1° at a time, at most past
-  // square by the far side's own range); the turn with the least reach missing if none reaches
-  const turnFor = (most, least, misses) => {
+  // square by the far side's own range); a move that keys a turn past what its limbs can follow (a side kick's hips
+  // turned right over) is met by the nearest turn that reaches, either way; the turn with the least reach missing if
+  // none reaches
+  const turnFor = (want, least, misses, home = want) => {
+    const hi = Math.max(want, home), lo = least, span = hi - Math.min(lo, want);
     let best = null;
-    for (let deg = most; deg >= least - 1e-9; deg -= 1) {
-      const miss = misses(-sg * deg * FIG_DEG);
-      if (miss <= 1e-9) return -sg * deg * FIG_DEG;
-      if (!best || miss < best.miss) best = { miss, deg };
+    for (let k = 0; k <= span + 1; k++) {
+      for (const deg of k ? [want - k, want + k] : [want]) {
+        if (deg < lo - 1e-9 || deg > hi + 1e-9) continue;
+        const miss = misses(-sg * deg * FIG_DEG);
+        if (miss <= 1e-9) return -sg * deg * FIG_DEG;
+        if (!best || miss < best.miss) best = { miss, deg };
+      }
     }
     return -sg * best.deg * FIG_DEG;
   };
@@ -194,13 +201,13 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1, stance =
   let chest;
   for (const share of [1, 0.5, 0]) {
     tiltBy(share);
-    chest = turnFor(blade * stance.open + twist, -FIG_TURN.chest, armsMiss);
+    chest = turnFor(blade * stance.open + twist, -FIG_TURN.chest, armsMiss, blade * stance.open);
     if (armsMiss(chest) <= 1e-9) break;
   }
   const hips = turnFor(blade * stance.hips + sway, -FIG_TURN.hips, (h) => FIG_SIDES.reduce((m, S) => {
     const hp = hipAt(S, h);
     return m + over(hp, ankleAt(S, hp), len(`hip${S}`, `knee${S}`) + len(`knee${S}`, `ankle${S}`));
-  }, 0));
+  }, 0), blade * stance.hips);
   N.pelvisHub = P;
   for (const k of ['navel', 'neckHub', 'shoulderL', 'shoulderR']) N[k] = trunkAt(k, chest);
   // the head along the sim's neck → head line

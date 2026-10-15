@@ -26,6 +26,7 @@
  */
 import { ARCHETYPES, ROLES, BUILDS, AGES } from '../egocube/facets.js';
 import { ARCHETYPES as STYLES, SIGNATURES } from './versus-solver.js';
+import { TRADITIONS } from './versus-traditions.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -117,9 +118,9 @@ export function fighterFromSheet(sheet) {
 
 // what an entry may say: the sheet's words, a character, and the fight's own words over the sheet
 const SHEET_KEYS = ['brief', 'facets', 'seed', 'archetype', 'build', 'age', 'role', 'ancestry', 'pole'];
-const FIGHT_KEYS = ['style', 'signature', 'stance', 'weapon', 'library', 'normals', 'specials', 'super', 'tune'];
+const FIGHT_KEYS = ['style', 'tradition', 'signature', 'stance', 'weapon', 'library', 'normals', 'specials', 'super', 'tune'];
 const OWN_KEYS = ['id', 'name', 'color'];
-const ENTRY = 'a fighter is a character: an archetype word, a brief in words, { brief?, facets?, seed?, archetype?, build?, age?, role?, name?, … }, or { hero: { ref } } (a character made with create_character)';
+const ENTRY = 'a fighter is a character: an archetype word, a tradition word (boxing, karate, …: a character rolled to fight that way), a brief in words, { brief?, facets?, seed?, archetype?, build?, age?, role?, name?, tradition?, … }, or { hero: { ref } } (a character made with create_character)';
 
 /** A roster entry → { id, name?, color?, roll: { brief?, facets, seed } | hero: { ref }, over: { fight words } }. */
 export function fighterSpec(entry, k = 0, seed = 1) {
@@ -128,6 +129,7 @@ export function fighterSpec(entry, k = 0, seed = 1) {
     const w = entry.trim();
     if (!w) throw fail(ENTRY);
     if (STYLES[w]) throw fail(`'${w}' is a fight style: say who the fighter is (an archetype like ${Object.keys(ARCHETYPES).slice(0, 3).join(', ')}, or a brief), and give the style as { style: '${w}' }`);
+    if (TRADITIONS[w]) return { id, roll: { facets: {}, seed: s0 }, over: { tradition: w } };
     return { id, roll: ARCHETYPES[w] ? { facets: { archetype: w }, seed: s0 } : { brief: w, facets: {}, seed: s0 }, over: {} };
   }
   if (!isObj(entry)) throw fail(ENTRY);
@@ -140,6 +142,7 @@ export function fighterSpec(entry, k = 0, seed = 1) {
   if (entry.name !== undefined && !(typeof entry.name === 'string' && entry.name.trim() && entry.name.length <= 24)) throw fail('a fighter\'s name is a few words (at most 24 letters)');
   if (entry.color !== undefined && !/^#[0-9a-f]{6}$/i.test(entry.color)) throw fail('a fighter\'s color is a #rrggbb colour');
   if (entry.style !== undefined && !STYLES[entry.style]) throw fail(`style is a fight style: ${Object.keys(STYLES).join(', ')}`);
+  if (entry.tradition !== undefined && !TRADITIONS[entry.tradition]) throw fail(`tradition is how the fighter strikes: ${Object.keys(TRADITIONS).join(', ')}`);
   if (entry.signature !== undefined && !(Array.isArray(entry.signature) && entry.signature.every((w) => SIGNATURES[w]))) throw fail(`signature is a list of ${Object.keys(SIGNATURES).join(', ')}`);
   const over = Object.fromEntries(FIGHT_KEYS.filter((x) => entry[x] !== undefined).map((x) => [x, entry[x]]));
   const own = { id: entry.id ?? id, ...(entry.name ? { name: entry.name } : {}), ...(entry.color ? { color: entry.color } : {}) };
