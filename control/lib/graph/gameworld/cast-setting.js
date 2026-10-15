@@ -9,8 +9,9 @@
  *   ramps       the kit card's ramps the clothes are dressed from, the world's own materials first (CLOTHES_RAMPS)
  *
  *   settingOfGame(G, quick?)  → the setting; `G` a read world (readGameworld's), `quick` the world's quick spec
- *   quickFigure(G, quick, key, setting?)  → { spec, toon?, sheet, pending } a quick game's figure it names none of
- *                               (QUICK_FIGURES), rolled in the setting and dressed in the kit's underlayer
+ *   quickFigure(G, quick, key, setting?, { variant?, uniform? })  → { spec, toon?, sheet, pending } a quick game's figure
+ *                               it names none of (QUICK_FIGURES), rolled in the setting and dressed in the kit's
+ *                               underlayer; `variant` another roll of the same role, `uniform` a rank's first member's spec
  *
  * Pure. A word the game does not say is left out, never guessed.
  */
@@ -50,6 +51,10 @@ export function settingOfGame(G, quick = null) {
   return readSetting(out);
 }
 
+/** How many figures a quick game rolls for one role at most: its members cycle over them (a crowd of foes is three
+ * faces, never one) */
+export const CAST_POOL = 3;
+
 /**
  * The figures a quick game stands up when it names none (quick.foe, quick.tower, quick.farmhand, quick.guard): what the
  * goal asks of each (a facet, under the setting's lean for the rest) and what the play puts in its hands. Gear is a
@@ -66,11 +71,11 @@ export const QUICK_FIGURES = Object.freeze({
 /** A quick figure rolled in the game's setting: the Egocube's person on the hero door (a blind roll is human, so it is
  * always that door), in the game's tradition, wearing what the kit's world wears beneath everything (hero-looks.js
  * UNDERLAYERS, as a book hero's base does) in the world's ramps. */
-export function quickFigure(G, quick, key, setting = settingOfGame(G, quick)) {
+export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { variant = 0, uniform = null } = {}) {
   const F = QUICK_FIGURES[key];
   if (!F) throw new Error(`quick figure: '${key}' is not one (${Object.keys(QUICK_FIGURES).join(', ')})`);
   const seed = Number.isInteger(G.seed) ? G.seed : 1;
-  const sheet = rollEgocube({ facets: F.facets, seed, path: `quick/${key}`, setting });
+  const sheet = rollEgocube({ facets: F.facets, seed, path: variant ? `quick/${key}/${variant + 1}` : `quick/${key}`, setting });
   const P = planFromSheet(sheet), pending = P.ledger.filter((r) => r.pending && r.from.startsWith('setting.')).map((r) => `${r.channel}: ${r.pending}`);
   let spec = P.create.spec;
   const rail = UNDERLAYERS[G.style?.kit];
@@ -78,6 +83,13 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick)) {
     // the world's underlayer in place of the stock clothed body and the role's kit (the base a book hero wears)
     const { detail: _d, adorn: _a, ...rest } = spec;
     spec = { ...rest, outfit: { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: rail.language } : {}) } };
+  }
+  // a rank's member wears the first's uniform (its clothes, their colours, its kit and gear) on a face of its own
+  if (uniform) {
+    const { outfit: _o, detail: _d, adorn: _a, gear: _g, ...own } = spec;
+    spec = { ...own, ...Object.fromEntries(['outfit', 'detail', 'adorn', 'gear'].filter((k) => uniform[k] !== undefined).map((k) => [k, uniform[k]])),
+      palette: { ...own.palette, ...Object.fromEntries(['Top', 'Bottom'].filter((g) => uniform.palette?.[g]).map((g) => [g, uniform.palette[g]])) } };
+    return { spec, ...(P.create.toon ? { toon: P.create.toon } : {}), sheet: { print: fingerprint(sheet), reads: sheet.reads }, pending };
   }
   if (F.gear && KITLESS_ERAS.includes(setting.era)) pending.push(`gear: no ${setting.era} ${F.gear.right.item === 'bow' ? 'firearm' : 'weapon'} yet: the ${F.gear.right.item} is left out of its hands`);
   else if (F.gear) spec = { ...spec, gear: F.gear };

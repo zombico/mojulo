@@ -381,12 +381,13 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
     };
   }
   // GUARDS (a sneak, quick.js): watchers with sight at their posts, sweeping their gaze (`scan`); a sighting is the bus's
-  // `seen`, which the `unseen` mechanic ends the level on. `guards`: { ref (their figure), posts(ends) → [{ id, at, heading }] }
+  // `seen`, which the `unseen` mechanic ends the level on. `guards`: { ref (their figure, or a pool cycled), posts(ends) → [{ id, at, heading }] }
   const watchers = guards?.ref ? guards.posts(ends) : null;
   if (guards?.ref) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
-    for (const g of watchers) {
-      figures[g.id] = { heroRef: guards.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    for (const [k, g] of watchers.entries()) {
+      // (a pool of guards' figures, each its own roll, cycled: quick.js refAt)
+      figures[g.id] = { heroRef: Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
       const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
       entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
     }

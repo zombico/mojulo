@@ -83,6 +83,17 @@ export function tposeFrames(bones) {
     bones.forEach((o, j) => { if (j !== i) { const d = segDistSq(b.head, o.head, o.tail); if (d < bd) { bd = d; best = j; } } });
     return best;
   });
+  // two extra bones nearest each other (a pair of bust bones either side of the midline) would each take the other as
+  // its parent: every bone of such a loop rides its nearest humanoid bone instead (a rig with no loop is as it was)
+  const nearestNamed = (b) => { let best = -1, bd = Infinity; for (const j of names.keys()) { const o = bones[j], d = segDistSq(b.head, o.head, o.tail); if (d < bd) { bd = d; best = j; } } return best; };
+  bones.forEach((_, i) => {
+    const path = [];
+    for (let p = i; p >= 0 && !names.get(p); p = parentOf[p]) {
+      const at = path.indexOf(p);
+      if (at >= 0) { for (const k of path.slice(at)) parentOf[k] = nearestNamed(bones[k]); break; }
+      path.push(p);
+    }
+  });
   // the lateral axis from the rig itself: left = from the right upper arm's root toward the left's, level
   const hl = bones[byVrm.get('leftUpperArm')].head, hr = bones[byVrm.get('rightUpperArm')].head;
   const left = unit([hl[0] - hr[0], hl[1] - hr[1], 0]), right = left.map((c) => -c), down = [0, 0, -1];

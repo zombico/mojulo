@@ -1,6 +1,6 @@
 /** render-lineup.mjs — a CHARACTER ROLLS contact sheet for the eyes gate (docs/egocube.md, The setting): one row per game
  * scenario, the same seeds rolled in that game's setting (gameworld/cast-setting.js), so a row shows what the dice give
- * that game; the last row is the same seeds with no setting, the roll as it was. Front views, flat-lit and diagnostic:
+ * that game (a race's field drawn seated in its machines); the last row is the same seeds with no setting, the roll as it was. Front views, flat-lit and diagnostic:
  * the World page's character light is the look; nothing here is a recipe change. Run from control:
  *   MOJULO_SPIKE_OUT=/absolute/path node ../docs/examples/character-rolls/render-lineup.mjs [--n 4]
  * Writes lineup.png and lineup.json (each cell's facets and reads). */
@@ -26,6 +26,7 @@ const { compileLayered } = await lib('lib/graph/polygonizer/station-loft.js');
 const { viewCamera, rasterDepth } = await lib('lib/graph/scene/depth-raster.js');
 const { encodePng } = await lib('lib/graph/landscape/surface-textures.js');
 const { vec } = await lib('lib/graph/polygonizer/station-loft-detail.js');
+const { solveRoster } = await lib('lib/graph/car-designer/roster.js');
 const { unit, cross, sub, dot } = vec;
 
 const OUT = resolve(process.env.MOJULO_SPIKE_OUT || 'lineup-out');
@@ -58,6 +59,20 @@ function personCell(spec) {
   const m = expandLayeredManifest({ kind: 'layered', hero: heroRecord(spec) });
   return cell(compileLayered(m.recipe), { ...(m.plan?.palette ?? {}), ...m.recipe.palette });
 }
+/** a racer's machine and its seated driver, three-quarter: its faces carry their own fills (racer.js paints them) */
+function kartCell(S) {
+  const fs = [...S.faces.root, ...S.faces.wheels.flatMap((w) => w.faces), ...S.faces.bones.flatMap((b) => b.faces)];
+  const vertices = [], faces = [], groups = [], palette = {};
+  fs.forEach((f, i) => { const base = vertices.length; vertices.push(...f.corners); faces.push(f.corners.map((_, k) => base + k)); groups.push(`f${i}`); palette[`f${i}`] = f.fill; });
+  const mesh = { vertices, faces, groups }, camera = viewCamera(mesh, 'three-quarter', { ...FRAME, elevationDegrees: 14 }), raster = rasterDepth(mesh, camera, FRAME.size * 2);
+  const size = FRAME.size, rgb = new Uint8Array(size * size * 3);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const sum = [0, 0, 0];
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) { const face = raster.face[(y * 2 + dy) * size * 2 + x * 2 + dx], col = face < 0 ? BG : hex(palette[groups[face]]); for (let k = 0; k < 3; k++) sum[k] += col[k]; }
+    rgb.set(sum.map((c) => Math.round(c / 4)), (y * size + x) * 3);
+  }
+  return rgb;
+}
 function mascotCell(sheet) {
   const plan = mascotPlanFromSheet(sheet).create.spec.plan;
   return cell(compileLayered(expandPlan(plan)), plan.palette);
@@ -70,11 +85,22 @@ const SCENARIOS = [
   { row: 'sneak · gothic stone', kit: 'gothic-stone', goal: 'sneak', figure: 'guard' },
   { row: 'deathmatch · the moon', kit: 'airless-plain', goal: 'deathmatch', figure: 'gunner' },
   { row: 'race · mascots', kit: 'isekai-meadow', goal: 'race', mascot: true },
+  { row: 'race · the field, seated', kit: 'isekai-meadow', goal: 'race', karts: true },
   { row: 'no setting (as before)', none: true },
 ];
 
 const cells = [], table = [];
-for (const S of SCENARIOS) for (let seed = 1; seed <= N; seed++) {
+for (const S of SCENARIOS) {
+  if (S.karts) {
+    const setting = settingOfGame({ style: { kit: S.kit } }, { goal: S.goal });
+    for (const r of solveRoster(N, { seed: 1, setting }).racers) {
+      cells.push(kartCell(r.S));
+      table.push({ row: S.row, archetype: r.archetype, tuning: r.spec.tuning ?? 'person', laws: r.S.laws });
+      process.stdout.write('.');
+    }
+    continue;
+  }
+  for (let seed = 1; seed <= N; seed++) {
   if (S.none) {
     const sheet = rollEgocube({ seed, path: 'quick/foe' }), spec = planFromSheet(sheet).create.spec;
     cells.push(personCell(spec));
@@ -91,6 +117,7 @@ for (const S of SCENARIOS) for (let seed = 1; seed <= N; seed++) {
     table.push({ row: S.row, seed, setting: { tradition: setting.tradition, era: setting.era, genre: setting.genre }, reads: F.sheet.reads.slice(0, 3), pending: F.pending });
   }
   process.stdout.write('.');
+  }
 }
 const size = FRAME.size, COLUMNS = N, rows = Math.ceil(cells.length / COLUMNS), rgb = new Uint8Array(COLUMNS * size * rows * size * 3);
 for (let i = 0; i < rgb.length; i += 3) rgb.set(BG, i);

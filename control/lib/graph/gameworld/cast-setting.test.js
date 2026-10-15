@@ -51,6 +51,26 @@ describe("a game's setting", () => {
     expect(runSteps(world({ goal: 'sneak' }, { kit: RUSTIC }), { ref: 'q' }).find((s) => s.key === 'guard').order.spec.gear).toEqual(QUICK_FIGURES.guard.gear);
   });
 
+  it('rolls a role as a pool of its own people: a rank in one uniform, each a face of its own; folk each their own', () => {
+    const steps = runSteps(world({ goal: 'sneak', guards: 4 }, { kit: RUSTIC }), { ref: 'q' });
+    const guards = steps.filter((s) => /^guard(-\d)?$/.test(s.key));
+    expect(guards.map((s) => s.key)).toEqual(['guard', 'guard-2', 'guard-3']);   // never more than the pool
+    const [a, ...rest] = guards.map((s) => s.order.spec);
+    for (const b of rest) {
+      expect(b.outfit).toEqual(a.outfit);
+      expect([b.palette.Top, b.palette.Bottom]).toEqual([a.palette.Top, a.palette.Bottom]);
+      expect(b.gear).toEqual(a.gear);
+    }
+    expect(new Set(guards.map((s) => JSON.stringify([s.order.spec.palette.Skin, s.order.spec.cast, s.order.spec.hair]))).size).toBeGreaterThan(1);
+    // the level's guards cycle over the pool
+    const level = steps.find((s) => s.key.startsWith('level-'));
+    expect(new Set(JSON.stringify(level.order).match(/"heroRef":"[^"]+guard[^"]*"/g)).size).toBe(3);
+    // farmhands are each their own: no uniform
+    const folk = runSteps(world({ goal: 'farm', folk: 2 }, { kit: RUSTIC }), { ref: 'q' }).filter((s) => s.key.startsWith('farmhand'));
+    expect(folk).toHaveLength(2);
+    expect(folk[0].order.spec.palette.Top === folk[1].order.spec.palette.Top && folk[0].order.spec.palette.Bottom === folk[1].order.spec.palette.Bottom).toBe(false);
+  });
+
   it("a game's own figure is minted as given", () => {
     const own = { cast: 'female', palette: { Top: '#123456' } };
     const steps = runSteps(world({ goal: 'sneak', guard: own }), { ref: 'q' });

@@ -176,7 +176,8 @@ describe('design_game quick', () => {
 
   it('sneak: guards with sight keep the trail, sweeping; a sighting ends it', async () => {
     const out = await designGameHandler({ quick: { goal: 'sneak', guards: 2, world: { id: 'creep', style: { kit: 'trail-valley' } } }, ref: 'k' });
-    expect(out.ran.map((r) => r.key)).toEqual(['guard', 'level-run-0', 'game']);
+    // (two guards, each a roll of its own in the game's setting: gameworld/cast-setting.js)
+    expect(out.ran.map((r) => r.key)).toEqual(['guard', 'guard-2', 'level-run-0', 'game']);
     const L = stored('k-level-run-0');
     expect(mechanicsOf('k-level-run-0')).toEqual(['unseen', 'reach-exit']);
     const guards = L.entities.filter((e) => e.team === 'guards');
@@ -286,7 +287,8 @@ describe('design_game quick', () => {
   }, 240_000);
   it('defend: foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
     const out = await designGameHandler({ quick: { goal: 'defend', waves: 1, pads: 2, world: { id: 'hold', style: { kit: 'trail-valley' } } }, ref: 'd' });
-    expect(out.ran.map((r) => r.key)).toEqual(['foe', 'tower', 'level-run-0', 'game']);
+    // (the foes a pool of three rolls, the two pads' archers two)
+    expect(out.ran.map((r) => r.key)).toEqual(['foe', 'foe-2', 'foe-3', 'tower', 'tower-2', 'level-run-0', 'game']);
     const L = stored('d-level-run-0');
     expect(mechanicsOf('d-level-run-0')).toEqual(['waves']);
     expect(L.entities.filter((e) => e.team === 'wave')).toHaveLength(3);

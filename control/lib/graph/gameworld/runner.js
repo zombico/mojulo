@@ -34,7 +34,7 @@ import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickStore } from './quick.js';
-import { settingOfGame, quickFigure } from './cast-setting.js';
+import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { rideBuild, rideRule } from './ride.js';
 import { seedOfRef } from '../beats/field-cue.js';
 import { solvePalette } from '../color-theorist/solve.js';
@@ -194,34 +194,45 @@ function quickSteps(world, G, ref, lookup) {
   // the figures: each minted as a hero is, the game's own spec or, when it names none, one rolled in the game's setting
   // (cast-setting.js: its tradition, era, genre and colours), so a sakura farm and a moon arena stand up their own people
   const cast = [];
-  const figureStep = (key, own, as = key) => {
-    const F = own ? { spec: own, ...(own.head === 'anime' ? { toon: { light: true } } : {}), pending: [] } : quickFigure(G, Q, as, setting);
-    if (!own) cast.push({ key, reads: F.sheet.reads, pending: F.pending });
+  const stepOf = (key, F) => {
     const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${key}`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
     return { key, ready: true, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
   };
-  // a defence's foe and tower archer, a battle's foe, a shooter's and a deathmatch's gunner: one figure each
+  // a role's figures: the game's own spec (one figure for all), or a POOL rolled in its setting, each its own roll,
+  // cycled over the members (quick.js refAt), the first at the role's own ref; a RANK (guards, archers, foot soldiers)
+  // shares the first's uniform and keeps its own face, as affiliation echoes the lived channels (docs/egocube.md)
+  const castOf = (key, own, { as = key, n = 1, rank = false } = {}) => {
+    if (own) { const r = childRef(ref, key); steps.push({ ...stepOf(key, { spec: own, ...(own.head === 'anime' ? { toon: { light: true } } : {}) }), ref: r }); return r; }
+    const refs = [];
+    let first = null;
+    for (let i = 0; i < Math.max(1, Math.min(CAST_POOL, n)); i++) {
+      const k = i ? `${key}-${i + 1}` : key, F = quickFigure(G, Q, as, setting, { variant: i, ...(rank && first ? { uniform: first.spec } : {}) });
+      first ??= F;
+      refs.push(childRef(ref, k));
+      steps.push({ ...stepOf(k, F), ref: refs[i] });
+    }
+    cast.push({ key, n: refs.length, rank, reads: first.sheet.reads, pending: first.pending });
+    return refs.length === 1 ? refs[0] : refs;
+  };
+  // a defence's foes and tower archers, a battle's foes, a shooter's gunners and a deathmatch's bots
   const figRefs = {};
   // (a dogfight's foes are fighters, not figures: skyscape/dogfight.js)
-  if (Q.goal === 'defend' || Q.goal === 'battle' || Q.goal === 'deathmatch' || (Q.goal === 'shoot' && Q.craft === undefined)) {
-    for (const [key, own, as] of Q.goal === 'defend' ? [['foe', Q.foe, 'foe'], ['tower', Q.tower, 'tower']] : [['foe', Q.foe, Q.goal === 'shoot' || Q.goal === 'deathmatch' ? 'gunner' : 'foe']]) {
-      figRefs[key] = childRef(ref, key);
-      steps.push({ ...figureStep(key, own, as), ref: figRefs[key] });
-    }
-  }
-  // a farm's farmhands: one figure
-  if (Q.goal === 'farm' && (Q.folk ?? 2) > 0) {
-    figRefs.farmhand = childRef(ref, 'farmhand');
-    steps.push({ ...figureStep('farmhand', Q.farmhand), ref: figRefs.farmhand });
-  }
-  // a sneak's guards: one figure
-  const guardRef = Q.goal === 'sneak' ? childRef(ref, 'guard') : null;
-  if (guardRef) steps.push({ ...figureStep('guard', Q.guard), ref: guardRef });
+  if (Q.goal === 'defend') {
+    figRefs.foe = castOf('foe', Q.foe, { n: CAST_POOL, rank: true });
+    figRefs.tower = castOf('tower', Q.tower, { n: Q.pads ?? 4, rank: true });
+  } else if (Q.goal === 'battle') figRefs.foe = castOf('foe', Q.foe, { n: Q.foes ?? 3, rank: true });
+  else if (Q.goal === 'shoot' && Q.craft === undefined) figRefs.foe = castOf('foe', Q.foe, { as: 'gunner', n: CAST_POOL, rank: true });
+  // (a deathmatch's bots are each for themselves: no uniform)
+  else if (Q.goal === 'deathmatch') figRefs.foe = castOf('foe', Q.foe, { as: 'gunner', n: Q.bots ?? CAST_POOL });
+  // a farm's farmhands, each their own person
+  if (Q.goal === 'farm' && (Q.folk ?? 2) > 0) figRefs.farmhand = castOf('farmhand', Q.farmhand, { n: Q.folk ?? 2 });
+  // a sneak's guards, a rank
+  const guardRef = Q.goal === 'sneak' ? castOf('guard', Q.guard, { n: Q.guards ?? 3, rank: true }) : null;
   // what the setting rolled, and an adopted hero drawn in another tradition, as advice in the run's readout (a level
   // law, in the concerns' shape), never a refusal
   const castLaws = [];
   if (cast.length) castLaws.push({ concern: 'cast', law: 'setting', holds: cast.every((c) => !c.pending.length),
-    says: `rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}): ${cast.map((c) => `the ${c.key}, ${c.reads.slice(0, 2).join('; ')}${c.pending.length ? ` (${c.pending.join('; ')})` : ''}`).join(' · ')}` });
+    says: `rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}): ${cast.map((c) => `the ${c.key}${c.n > 1 ? ` (${c.n} rolls${c.rank ? ', one uniform' : ''})` : ''}, ${c.reads.slice(0, 2).join('; ')}${c.pending.length ? ` (${c.pending.join('; ')})` : ''}`).join(' · ')}` });
   const adoptedTradition = adopted && lookup?.heroSpec ? (lookup.heroSpec.head === 'anime' ? 'anime' : 'western') : null;
   if (adoptedTradition && setting.tradition && adoptedTradition !== setting.tradition) castLaws.push({ concern: 'cast', law: 'tradition', holds: false,
     says: `the adopted hero is drawn ${adoptedTradition}; the game is ${setting.tradition}. It is kept as it is: update_character can move its head and proportions to the game's tradition` });

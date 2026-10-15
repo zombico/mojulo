@@ -93,7 +93,9 @@ the game by `settingOfGame` ([gameworld/cast-setting.js](../control/lib/graph/ga
 A lean is a multiplier on the seed's priors, never a verdict: what the operator asks for (a facet, a brief word)
 beats the setting, and a roll with no setting is the roll it always was, byte for byte. A stored cube keeps the
 setting it was rolled in (`roll.setting`). A quick game's figures it names none of (its foe, guard, farmhand, tower
-archer, gunner) are rolled in its setting and wear the kit's underlayer, and its racers are rolled in it; the run's
+archer, gunner) are rolled in its setting, a few to a role (a rank in one uniform, each with its own face), and wear
+the kit's underlayer, and its racers are rolled in it (a race
+leans to mascots: a mascot racer's driver is the person's mascot, seated in the machine read off the person); the run's
 readout says what was rolled, what the era left out, and an adopted hero drawn in another tradition (kept as it is).
 
 ## One Egocube: the facets
@@ -455,6 +457,7 @@ A fate thread is a separate call on a sheet that already exists, never part of t
   whole cast today.
 - **Era gear**: the role kit and the held items are a myth's (sword, dagger, bow, staff, shield). A modern or future
   setting leaves them off and says so; no firearm or modern kit is built yet.
-- **One body per role in a quick game**: each goal's casts take one figure ref, so every guard is the same roll.
+- **A quick game's crowd is three faces**: a role rolls a pool of at most three (`CAST_POOL`), cycled over its members;
+  a larger crowd repeats them.
 - **No free text on `create_character`**: notes reach it through the catalyst and the character book.
 - **Non-hero cast**: waits on story-cast and party landing; on this branch the book still refuses `characters.cast`.

@@ -34,6 +34,19 @@ one shirt colour, a weapon) whatever its world. A game now loads the dice. `docs
   or future era leaves the fantasy weapon out and says so. The stock presets are gone. Racers are rolled in it too,
   the field drawn by the genre's archetype lean. The run's readout carries a `cast` law: what was rolled, what the era
   left out, and an adopted hero drawn in another tradition (kept as it is).
+- **A role is a pool of people.** A quick game rolls up to three figures per role (`CAST_POOL`), cycled over its
+  members, so a crowd of foes is three faces, never one: `guard`, `guard-2`, `guard-3` (the first at the role's own
+  ref). A RANK (guards, tower archers, a defence's and a battle's foes, a shooter's gunners) shares the first member's
+  uniform (its clothes, their colours, its gear) on a face of its own, as affiliation echoes the lived channels;
+  farmhands and a deathmatch's bots are each their own. A game's own figure spec is still one figure for all.
+- **Fixed: a figure rig whose two extra bones were nearest each other** (a bust pair) took each other as parents, and
+  moulding it to the T-pose threw (`rig-tpose.js`); every bone of such a loop now rides its nearest humanoid bone. A
+  rig with no loop moulds as before.
+- **Mascot racers.** A race leans hard toward mascots: a racer the setting's die (or its entry's `tuning: 'mascot'`)
+  makes a mascot is driven by that person's mascot, seated in the cockpit by the rig's own seat channel in place of the
+  chibi stand-in (`lib/graph/car-designer/mascot-driver.js`). The machine and its physics are still read off the
+  person, so the field's balance is unchanged; faces hidden in the shell are left out, the mascot keeps its fine rings
+  and its own colours, and it is counted apart from the machine's face budget. The driver-seen law looks for its crown.
 - **Fixed: a deathmatch's bots had no body.** The figure step left the deathmatch out, so its bots fell back to the
   stock placeholder figure.
 - **The eyes gate has not run.** `docs/examples/character-rolls/render-lineup.mjs` draws a flat-lit contact sheet, one
