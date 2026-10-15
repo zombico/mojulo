@@ -154,6 +154,62 @@ holds the laws as numbers:
 Every amount is a first reading for the eyes gate, iterated in place with `update_character` patch ops. The sheet's
 ledger says where each note landed.
 
+## Smooth forms
+
+Law 8 asks for forms a toy maker could cast, and a faceted ball is not one. Every trunk is drawn on twenty-slot rings
+(the head on seventeen of them, the body's pear on ten), and every limb, shape and lens on twelve. The rounded shapes
+(hands, shoes, ears, muzzles, tails) put their rings densest toward their ends, where a ball turns fastest. The mint
+asks for the hull's smooth shading (`hullShade`) under the character light, so the light sweeps the form, not its facets.
+
+## Adornment: one signature piece
+
+A mascot wears one piece, which is the accessory people draw from memory. It is built on the core adornment layer: a
+band or shell worn over the body, lifted clear of it by its mugen, with one signature element.
+
+- **Ad1. One piece**, never a costume.
+- **Ad2. On a silhouette edge:** the neck, the crown, the waist, the wrists or the back.
+- **Ad3. Big and simple**, sized to the head, its signature readable at 64 px.
+- **Ad4. It carries the colour the body lacks** (the accent, or for an animal the colour across the wheel from its
+  coat), with one gold shine on its signature.
+- **Ad5. It says the promise:**
+  - speed trails a scarf;
+  - cheer wears a bow;
+  - mischief knots a bandana;
+  - might wears a champion's belt;
+  - comfort a bell collar;
+  - pride a medal;
+  - wonder carries a pack.
+- **Ad6. It rides the body:** a rigid piece rides its bone and a ribbon trails. It never covers the face or the hook.
+
+The `adorn` facet holds the piece: none, collar (a bell), scarf (streaming tails), bow (on the crown), belt (a big
+buckle), medal (on a ribbon), bandana (its knot's tails down the front), pack (on a band round the body), bands (studded
+wristbands). The promise leans it; the orb, with no neck, waist or wrists, wears a bow or nothing. Brief words: `bell`,
+`scarf`, `bow`, `belt`, `medal`, `bandana`, `backpack`, `wristbands`.
+
+## The egocube's mascot output: a person made as their mascot
+
+The same character can be made twice: at RPG proportions through the hero door, and as its mascot.
+`create_character({ egocube, output: 'mascot' })` does it for one call, and an egocube written with `output: 'mascot'`
+does it by default. A person's sheet is not rolled again. Its facets are read into the mascot facets that play the same
+part, and the mascot is rolled from them on the person's own seed, so the pair stays one character:
+
+| The person's | The mascot's | Read as |
+|---|---|---|
+| archetype | promise and hue | its light is the promise (hero: might, jester: mischief, caregiver: comfort, ruler: pride, …), and the colour it owns |
+| reading (light, turning, shadow) | expression at rest | light happy, turning determined, shadow smirking (a hero's shadow angry, a sage's light content) |
+| role | the piece and the idle | frontline a belt, sturdy; flanker a bandana, zippy; ranged a scarf; caster a medal, floaty; support a pack |
+| order | the accent | bound is square, free is spiky, between is round |
+| build (a child's age) | the form | lithe and stout the sprout, the rest the toon |
+| ancestry | a person's skin, or an animal | the nearest mascot skin; a lineage played by its animal (feline a house cat, lupine a wolf, ursine a bear, avian an owl) or by its mark (sylvan pointed ears, dwarven a moustache) |
+
+What a life wrote (wear, a face set by its years, a kit chosen by a role) has no mascot channel: a mascot does not age,
+and its piece is one signature. Each read is recorded with its reason (`mascot.mapping`).
+
+The output carries a **model sheet**, the mascot maker's hand-off. It holds the thesis, the owned swatches by role, what
+names it at 64 px, its piece, its rest face and its expression clips, and each of the ten laws with the choice that
+answers it. The egocube's preview of a mascot output is the model sheet's **turnaround**: the one character four times,
+turned to show its front, three-quarter, side and back.
+
 ## Animal mascots
 
 A real species from the fauna roster can be a mascot: `a fox mascot`, `facets: { animal: 'greatHornedOwl' }`. Eight

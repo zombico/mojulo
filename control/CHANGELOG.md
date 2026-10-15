@@ -67,6 +67,18 @@ asymmetric life; it only needs to animate), and how a mascot differs from the Eg
 
   A species by id, spoken name or everyday name in the brief (`panda`, `owl`, `bunny`) picks it, as does
   `facets.animal`. `hedgehog`, `bunny` and `dino` now name species instead of a hook.
+- **Smooth forms (law 8)**: trunks on twenty-slot rings (the head on seventeen stations, the body's pear on ten, a
+  smooth curve), limbs, shapes and lenses on twelve, the rounded shapes densest toward their ends.
+- **Adornment: one signature piece** (`lib/graph/egocube/mascot-adorn.js`, laws Ad1–Ad6 in `docs/mascot.md`), on the
+  core adornment layer. The `adorn` facet: a bell collar, a scarf with streaming tails, a bow, a champion's belt, a
+  medal, a bandana, a pack, studded wristbands, or none. It is leaned by the promise and carries the colour the body
+  lacks, with a gold shine; the orb wears a bow or nothing.
+- **The egocube's mascot output**: `create_character({ egocube, output: 'mascot' })`, or an egocube written with
+  `output: 'mascot'`, makes the cube's character as its mascot (`lib/graph/egocube/mascot-from-person.js`). A person's
+  facets are read into a mascot's, each with its reason (archetype to promise and hue, reading to the face at rest, role
+  to the piece and the idle, order to the accent, build to the form, ancestry to a skin or an animal), on the person's
+  own seed. The output carries a model sheet (thesis, swatches, what names it, its piece, faces and clips, each law with
+  its choice), and the cube's preview is its turnaround: front, three-quarter, side, back.
 - Gates: machine, the mascot tests (the laws as numbers: heads tall by form, eye size and height, the accent's hook,
   the palette's accord, every hook and form compiling, every energy's idle posed with planted feet; the face's parts
   and chains, each expression's channels from the rest face, the blink shutting the lids, the smirk at rest, the mouth on

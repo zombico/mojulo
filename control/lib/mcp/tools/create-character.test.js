@@ -207,5 +207,13 @@ describe('create_character as a mascot (docs/mascot.md)', () => {
     const fx = await createCharacterHandler({ as: 'mascot', spec: { brief: 'a fox mascot' }, ref: 'cc_mascot_fox' });
     expect(fx.mascot.facets).toMatchObject({ animal: 'fox', promise: 'mischief' });
     expect(SketchRepository.getByRef('cc_mascot_fox').manifest.plan.segments.map((x) => x.name)).toEqual(expect.arrayContaining(['earR', 'snout', 'tail0']));
+    // the egocube's mascot output: the person on the cube made as their mascot, with the model sheet
+    await createSketchHandler({ title: 'Paladin', ref: 'cc_ego_person', manifest: { kind: 'egocube', roll: { brief: 'a weary paladin', seed: 3 } } });
+    const pm = await createCharacterHandler({ egocube: 'cc_ego_person', output: 'mascot', ref: 'cc_ego_person_mascot' });
+    expect(pm.ok).toBe(true);
+    expect(pm.egocube.output).toBe('mascot');
+    expect(pm.modelSheet.laws).toHaveLength(10);
+    expect(pm.mascot.facets).toMatchObject({ promise: 'might', adorn: 'belt' });
+    expect(SketchRepository.getByRef('cc_ego_person_mascot').manifest.plan.adorn.map((a) => a.id)).toEqual(['belt']);
   }, 300_000);
 });

@@ -27,7 +27,8 @@ import { rollEgocube } from './egocube.js';
 import { rollThread } from './thread.js';
 import { planFromSheet } from './plan.js';
 import { rollMascot, asksForMascot, MASCOT_KEYS } from './mascot.js';
-import { mascotPlanFromSheet } from './mascot-form.js';
+import { mascotPlanFromSheet, modelSheet } from './mascot-form.js';
+import { mascotOfPerson } from './mascot-from-person.js';
 import { fingerprint } from '../gameworld/review.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -40,7 +41,9 @@ export function isMascotRoll(roll = {}) {
   const personal = Object.keys(roll.facets || {}).some((k) => !MASCOT_KEYS.includes(k)) || roll.years !== undefined || roll.chapters !== undefined || roll.lineages !== undefined;
   return !personal && asksForMascot(roll.brief || '');
 }
-const KEYS = ['kind', 'title', 'roll', 'dress', 'sheet', 'thread'];
+const KEYS = ['kind', 'title', 'roll', 'dress', 'output', 'sheet', 'thread'];
+/** what the cube makes by default: the character as rolled, or its MASCOT (a person's read into a mascot's facets) */
+export const OUTPUTS = Object.freeze(['character', 'mascot']);
 const DRESS = ['designed', 'kit'];
 /** metres between two characters in the lineup */
 export const LINEUP_GAP = 1.1;
@@ -55,6 +58,7 @@ export function readEgocubeKind(m) {
   if (m.roll.chapters !== undefined && m.roll.years === undefined) throw fail('roll.chapters follow a character from an age: give roll.years');
   if (m.roll.tuning !== undefined && !TUNINGS.includes(m.roll.tuning)) throw fail(`roll.tuning is ${TUNINGS.map((t) => `'${t}'`).join(' or ')} (person: a life drawn on a body; mascot: a promise on a head-heavy body, docs/mascot.md)`);
   if (isMascotRoll(m.roll)) for (const k of ['years', 'chapters', 'lineages']) if (m.roll[k] !== undefined) throw fail(`a mascot does not age and has no people: roll.${k} is a person's (tuning: 'person')`);
+  if (m.output !== undefined && !OUTPUTS.includes(m.output)) throw fail(`output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')} (mascot: the character made as its mascot, docs/mascot.md)`);
   if (m.dress !== undefined && !DRESS.includes(m.dress)) throw fail(`dress is ${DRESS.map((d) => `'${d}'`).join(' or ')} (designed: the outfit designed from the sheet; kit: the stock kit by role)`);
   return m;
 }
@@ -81,15 +85,26 @@ export function egocubeNodes(m) {
 }
 
 /** The create_character call for the node at `years` (exactly, else the canonical node), dressed as the cube says. */
-export function egocubeCreate(m, { years, dress, title } = {}) {
+export function egocubeCreate(m, { years, dress, title, output } = {}) {
   const nodes = egocubeNodes(m);
   const node = years === undefined ? nodes[0] : nodes.find((n) => n.years === years);
   if (!node) throw new Error(`egocube: no node at ${years} years (the thread has ${nodes.map((n) => n.years).join(', ')})`);
-  // a mascot's body is its own (mascot-form.js): it is not dressed, its promise is its look
-  const P = node.sheet.tuning === 'mascot' ? mascotPlanFromSheet(node.sheet, { ...(title ? { title } : {}) })
-    : planFromSheet(node.sheet, { dress: (dress ?? m.dress ?? 'designed') === 'designed' ? 'designed' : undefined, ...(title ? { title } : {}) });
+  const out = output ?? m.output ?? 'character';
+  if (!OUTPUTS.includes(out)) throw new Error(`egocube: output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')}`);
+  // THE MASCOT OUTPUT: a mascot sheet as it is, a person's read into a mascot's facets on its own seed (mascot-from-person.js);
+  // its body is its own (mascot-form.js), not dressed: its promise and its one piece are its look
+  const mascot = node.sheet.tuning === 'mascot' ? node.sheet : out === 'mascot' ? mascotOfPerson(node.sheet) : null;
+  if (mascot) {
+    const P = mascotPlanFromSheet(mascot, { ...(title ? { title } : {}) });
+    return { node: { years: node.years, band: node.band }, output: 'mascot', create: P.create, after: P.after, ledger: P.ledger, modelSheet: modelSheet(mascot, P),
+      ...(mascot.mapping ? { mascot: { facets: mascot.facets, mapping: mascot.mapping } } : {}) };
+  }
+  const P = planFromSheet(node.sheet, { dress: (dress ?? m.dress ?? 'designed') === 'designed' ? 'designed' : undefined, ...(title ? { title } : {}) });
   return { node: { years: node.years, band: node.band }, create: P.create, after: P.after, ledger: P.ledger, ...(P.outfit ? { outfit: P.outfit } : {}) };
 }
+
+/** the TURNAROUND a mascot's model sheet shows: front, three-quarter, side, back (degrees about the vertical) */
+export const TURNAROUND = Object.freeze([0, -40, -90, 180]);
 
 /** What a character records of the sheet it was made from: the sheet's (or the thread's) print. */
 export const egocubePrint = (m) => fingerprint(m.thread ?? m.sheet ?? null);
@@ -102,16 +117,20 @@ export const egocubePrint = (m) => fingerprint(m.thread ?? m.sheet ?? null);
 export async function assembleEgocubeScene(m, ctx, layered) {
   const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
   const nodes = egocubeNodes(rollStored(m));
+  // a mascot's preview is its model sheet's turnaround: the one character four times, turned (mascots do not age)
+  const turnaround = nodes[0].sheet.tuning === 'mascot' || (m.output ?? 'character') === 'mascot';
   const scenes = [];
-  for (const n of nodes) {
+  for (const n of turnaround ? nodes.slice(0, 1) : nodes) {
     const C = egocubeCreate(rollStored(m), { years: n.years });
     const manifest = C.create.as === 'hero'
       ? expandLayeredManifest({ kind: 'layered', hero: heroRecord(C.create.spec) })
       : expandLayeredManifest({ kind: 'layered', plan: C.create.spec.plan, ...(C.create.spec.toon ? { toon: C.create.spec.toon } : {}), ...(C.create.spec.hullShade ? { hullShade: C.create.spec.hullShade } : {}) });
     scenes.push(await layered(manifest, { ...ctx, title: `${ctx.title ?? 'egocube'} · ${n.years ?? n.band}` }));
   }
+  if (turnaround) while (scenes.length < TURNAROUND.length) scenes.push(scenes[0]);
   const offset = (i) => (i - (scenes.length - 1) / 2) * LINEUP_GAP;
-  const body = scenes.flatMap((s, i) => s.faces.filter((f) => !f.studio).map((f) => ({ ...f, corners: f.corners.map(([x, y, z]) => [x + offset(i), y, z]) })));
+  const turn = (i) => { const a = ((turnaround ? TURNAROUND[i] : 0) * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a); return ([x, y, z]) => [x * c - y * s, x * s + y * c, z]; };
+  const body = scenes.flatMap((s, i) => { const T = turn(i); return s.faces.filter((f) => !f.studio).map((f) => ({ ...f, corners: f.corners.map((p) => { const [x, y, z] = T(p); return [x + offset(i), y, z]; }), ...(Array.isArray(f.normal) && f.normal.length === 3 ? { normal: T(f.normal) } : {}) })); });
   const { figures: _f, ...first } = scenes[0];
   // each camera backs off along its own line until the lineup's width fits its view (a one-figure framing sees ~2 m)
   const xs = body.flatMap((f) => f.corners.map((c) => c[0])), span = xs.length ? Math.max(...xs) - Math.min(...xs) : 0;

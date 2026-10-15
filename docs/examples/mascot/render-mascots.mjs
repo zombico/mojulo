@@ -28,8 +28,11 @@ const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 
 function cell(mesh, palette, view, framing) {
   const camera = viewCamera(framing, view, FRAME), raster = rasterDepth(mesh, camera, FRAME.size * 2);
+  // smooth: each face lit by its corners' averaged normals (the World's hull shade does it per pixel)
+  const vn = mesh.vertices.map(() => [0, 0, 0]);
+  for (const f of mesh.faces) { const [a, b, c] = f.map((k) => mesh.vertices[k]), fn = cross(sub(b, a), sub(c, a)); for (const k of f) for (let d = 0; d < 3; d++) vn[k][d] += fn[d]; }
   const colours = mesh.faces.map((f, i) => {
-    const [a, b, c] = f.map((k) => mesh.vertices[k]), n = unit(cross(sub(b, a), sub(c, a)));
+    const s3 = f.reduce((t, k) => [t[0] + vn[k][0], t[1] + vn[k][1], t[2] + vn[k][2]], [0, 0, 0]), n = Math.hypot(...s3) > 1e-12 ? unit(s3) : [0, 0, 1];
     const light = UNLIT.has(mesh.groups[i]) ? 1 : 0.5 + 0.42 * Math.max(0, dot(n, key)) + 0.13 * Math.max(0, dot(n, fill));
     return hex(palette[mesh.groups[i]] || '#ff00ff').map((c) => Math.min(255, Math.round(c * light)));
   });

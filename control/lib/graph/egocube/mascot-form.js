@@ -15,6 +15,7 @@
 import { readMascotDerive, HUES, SKINS } from './mascot.js';
 import { buildFace, EXPRESSION_IDS } from './mascot-face.js';
 import { animalPalette } from './mascot-animals.js';
+import { mascotAdorn } from './mascot-adorn.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
@@ -86,6 +87,9 @@ const mix = (a, b, t) => rgbHex(hexRgb(a).map((x, i) => x + (hexRgb(b)[i] - x) *
 /** the pale front: a warm cream, tinted by the body (a cool body's front reads tan, never grey) */
 const CREAM = '#f7deb6';
 
+/** the signature piece's colours (Ad4): the accent, a deeper accent for a pack, one gold shine */
+const piece = (accent) => ({ Adorn: accent, Pack: hsl(accent, ([h, s, l]) => [h, s, clamp(l - 0.14, 0.12, 0.7)]), Shine: '#f2c230' });
+
 /** The owned palette: the body in its hue, a pale front, the accent a warmer, deeper neighbour (harmony) or across the
  *  wheel (contrast), white gloves, the eyes unlit (Sclera, Pupil). */
 export function mascotPalette(sheet, k = { saturation: 0, value: 0 }) {
@@ -104,12 +108,14 @@ export function mascotPalette(sheet, k = { saturation: 0, value: 0 }) {
     Bottom: sheet.accord === 'harmony' ? hsl(body, ([h, s, l]) => [h, s * 0.8, clamp(l - 0.22, 0.12, 0.6)]) : accent, Accent: accent,
     Shoe: '#5e3a22', Sole: '#3a2416', Glove: f.extremities === 'gloves' ? '#f7f6f1' : skin.skin, Emblem: '#f7f6f1',
     Sclera: '#ffffff', Pupil: '#17182b', Cheek: '#ec7a7f', Tip: skin.hair, Belly: belly, ...face,
+    // Ad4: a person's trousers already wear the accent, so the piece takes the shirt's triad (it must not vanish on them)
+    ...piece(hsl(body, ([h, s2]) => [(h + 120) % 360, clamp(Math.max(s2, 0.65), 0, 1), 0.5])),
   };
   return {
     Body: body, Belly: belly, Accent: accent, Shoe: f.extremities === 'paws' ? body : accent,
     Sole: f.extremities === 'paws' ? belly : f.extremities === 'gloves' ? '#f4efe4' : hsl(accent, ([h, s, l]) => [h, s, clamp(l - 0.12, 0.1, 0.9)]),
     Glove: f.extremities === 'gloves' ? '#f7f6f1' : body, Tip: hsl(body, ([h, s, l]) => [h, s * 0.4, 0.16]),
-    Sclera: '#ffffff', Pupil: '#17182b', Cheek: '#ec5a63', Emblem: '#f7f6f1', Hair: body, ...face,
+    Sclera: '#ffffff', Pupil: '#17182b', Cheek: '#ec5a63', Emblem: '#f7f6f1', Hair: body, ...face, ...piece(accent),
     ...(f.promise === 'pride' ? { Jersey: accent } : {}),
   };
 }
@@ -122,6 +128,8 @@ function coatPalette(sheet, k, A, f) {
   return {
     ...base, ...a, Belly: belly, Accent: a.Patch, Glove: f.extremities === 'gloves' ? '#f7f6f1' : a.Body, Sole: belly, Hair: a.Mane,
     Brow: hsl(a.Body, ([h, s, l]) => [h, s * 0.6, clamp(l - 0.32, 0.08, 0.32)]),
+    // Ad4: the piece carries the colour the coat lacks: across the wheel from it (a red collar on a grey or a white coat)
+    Adorn: toHsl(hexRgb(a.Body))[1] < 0.15 ? '#d8302c' : hsl(a.Body, ([h, s2]) => [(h + 165) % 360, clamp(Math.max(s2, 0.7), 0, 1), 0.48]),
   };
 }
 
@@ -134,7 +142,8 @@ const PROFILES = Object.freeze({
   cone: (t) => (t < 0.22 ? Math.sqrt(Math.max(0, 1 - ((0.22 - t) / 0.22) ** 2)) : 1 - (t - 0.22) / 0.78),
   bud: (t) => (t < 0.3 ? 0.45 : Math.sqrt(Math.max(0, 1 - ((t - 0.65) / 0.35) ** 2))),   // a stalk swelling to a ball
 });
-const TS = Object.freeze([0.05, 0.16, 0.3, 0.5, 0.7, 0.84, 0.95]);
+/** where a shape's rings stand along it: dense toward the ends, where a ball turns fastest (law 8: smooth, toy-like) */
+const TS = Object.freeze([0.02, 0.06, 0.12, 0.2, 0.3, 0.42, 0.55, 0.67, 0.78, 0.87, 0.94, 0.98]);
 
 /** A loft from A to B along a profile, its ring `r` a radius or [half-width, half-height] (frame 'keep': a run mostly
  *  along y keeps its front up). The tip of a cone keeps `tip` of the radius. A right part (its name ends in R) mirrors by
@@ -167,6 +176,14 @@ function lens(name, H, az, el, w, h, out, group, bind) {
   return { name, kind: 'loft', frame: 'keep', slots: 'ring12', mirror: name.endsWith('R') ? 'name' : 'plane', group, bind,
     stations: [{ at: at(out - 0.09), r: [r4(w * R * 0.9), r4(h * R * 0.9)] }, { at: at(out), r: [r4(w * R), r4(h * R)] }, { at: at(out + 0.016), r: [r4(w * R * 0.72), r4(h * R * 0.72)] }],
     caps: { back: at(out - 0.11), tip: at(out + 0.024) } };
+}
+
+/** the body's pear (law 6: the mass low): its radius share at t ∈ [0, 1] up the body, a smooth curve through the
+ *  first readings 0.62 · 0.93 · 1 · 0.94 · 0.8 · 0.55 */
+function pear(t) {
+  const X = [0, 0.18, 0.4, 0.62, 0.82, 1], Y = [0.62, 0.93, 1, 0.94, 0.8, 0.55];
+  const i = Math.min(X.length - 2, X.findIndex((x, j) => t <= X[j + 1])), u = (t - X[i]) / (X[i + 1] - X[i]), w = (1 - Math.cos(Math.PI * u)) / 2;
+  return Y[i] + (Y[i + 1] - Y[i]) * w;
 }
 
 /** a ball trunk: `n` stations up an ellipsoid (centre z, half-height rz, radii rx, ry) */
@@ -215,16 +232,17 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
   const foot = K.feet === 'webbed' ? [fw * 1.35, fh * 0.65] : K.feet === 'hooves' ? [fw * 0.8, fh * 1.05] : [fw, fh];
   const body = orb ? [] : [{ name: 'body', kind: 'trunk', mirror: 'plane', group: G.body,
     // a pear (law 6: the mass low), its top drawn in under the head (law 3: no neck)
-    stations: [0, 0.18, 0.4, 0.62, 0.82, 1].map((t, i) => { const rr = M.bodyR * [0.62, 0.93, 1, 0.94, 0.8, 0.55][i]; return { z: r4(hipZ - M.bodyR * 0.45 + t * (M.bodyH + M.bodyR * 0.45)), r: [r4(rr * wx), r4(rr * 0.92)] }; }),
+    // ten rings on a smooth pear profile (law 8: no facet should read at the target)
+    stations: Array.from({ length: 10 }, (_, i) => { const t = i / 9, rr = M.bodyR * pear(t); return { z: r4(hipZ - M.bodyR * 0.45 + t * (M.bodyH + M.bodyR * 0.45)), r: [r4(rr * wx), r4(rr * 0.92)] }; }),
     caps: { back: [0, 0, r4(hipZ - M.bodyR * 0.62)], tip: [0, 0, r4(neckZ + M.bodyR * 0.2)] },
-    bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 1 }, st2: { pelvis: 0.5, torso: 0.5 }, tip: { torso: 0.6, head: 0.4 } } } }];
+    bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 1 }, st2: { pelvis: 1 }, st3: { pelvis: 0.75, torso: 0.25 }, st4: { pelvis: 0.4, torso: 0.6 }, tip: { torso: 0.6, head: 0.4 } } } }];
   // the shoe: an egg from the heel to past the toe, its sole on the ground (law 6: big feet carry the pose)
   const heel = [hipX, r4(-fl * 0.95), r4(fh)], toe = [hipX, r4(fl * 1.05), r4(fh)];
   const hooks = A ? animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) : hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur: G.fur });
   const face = faceOf(f, H, k, { headBind, orb, human, hooks, G, wide: K.muzzle === 'wide' });
   const segments = [
     ...body,
-    ballTrunk('head', H.C[2], H.rz, H.rx, H.ry, 11, G.head, headBind),
+    ballTrunk('head', H.C[2], H.rz, H.rx, H.ry, 17, G.head, headBind),
     { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: r4(legR), rB: r4(legR * 0.92), mirror: 'name', group: G.leg, bind: { bone: 'thighR', prev: 'pelvis', next: 'shinR' } },
     { name: 'shinR', kind: 'segment', from: 'knee', to: 'ankle', rA: r4(legR * 0.92), rB: r4(legR * 0.85), mirror: 'name', group: G.leg, bind: { bone: 'shinR', prev: 'thighR', next: 'metaR' } },
     shape('shoeR', heel, toe, foot.map(r4), 'egg', { group: shoeG, bind: 'metaR' }),
@@ -266,8 +284,10 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
   const plan = {
     schema: PLAN_SCHEMA, frame: { up: '+z', front: '+y', note: `metres; ${title}, soles on z = 0` },
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed' },
-    style: { slots: 'ring12', limbSlots: 'ring8', e: 2 },
+    style: { slots: 'ring20', limbSlots: 'ring12', e: 2 },   // law 8: fine rings, so a smooth form reads smooth
     joints, segments, dials, rig, clips, paint,
+    // the signature piece (mascot-adorn.js, Ad1–Ad6): worn over the body by the core adornment layer
+    ...((A0) => (A0.length ? { adorn: A0 } : {}))(mascotAdorn(f, { R: H.rz, orb })),
     palette: A ? coatPalette(sheet, k, A, f) : mascotPalette(sheet, k),
   };
   return { plan, H, height };
@@ -306,7 +326,7 @@ function personParts(f, H, { headBind }) {
   // the hair: the head's ellipsoid again, a little larger and set up and back, so it shows over the crown and the
   // back and sinks below the face (a capped head wears its cap instead; a spiky one adds its spikes as the hook)
   const hair = f.hook === 'cap' ? [] : [{ name: 'hair', kind: 'trunk', mirror: 'plane', group: 'Hair', bind: headBind,
-    stations: Array.from({ length: 9 }, (_, i) => { const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / 9, rz = H.rz * 1.05;
+    stations: Array.from({ length: 13 }, (_, i) => { const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / 13, rz = H.rz * 1.05;
       return { z: r4(H.C[2] + 0.1 * H.rz + rz * Math.sin(a)), yc: r4(-0.17 * H.ry), r: [r4(H.rx * 1.05 * Math.cos(a)), r4(H.ry * 1.03 * Math.cos(a))], ...(b ? { e: 3.2 } : {}) }; }),
     caps: { back: [0, r4(-0.17 * H.ry), r4(H.C[2] + 0.1 * H.rz - H.rz * 1.05)], tip: [0, r4(-0.17 * H.ry), r4(H.C[2] + 0.1 * H.rz + H.rz * 1.05)] } }];
   return [nose, ear, ...hair];
@@ -359,7 +379,7 @@ function animalParts(f, K, H, { M, hipZ, neckZ, neckLift, headBind, orb }) {
   if (K.mane === 'crest') [[0.15, 0.98], [-0.35, 0.92], [-0.75, 0.6], [-0.95, 0.1]].forEach(([y, z], i) => { const b = at(0, y * 0.95, z * 0.95), d = unit([0, y - 0.3, z]);
     out.push(shape(`mane${i}`, b, V(add(b, mul(d, 0.42 * R))), [r4(0.1 * R), r4(0.2 * R)], 'egg', g('Mane'))); });
   if (K.mane === 'ring') out.push({ name: 'mane', kind: 'trunk', mirror: 'plane', group: 'Mane', bind: headBind,
-    stations: Array.from({ length: 9 }, (_, i) => { const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / 9; return { z: r4(H.C[2] + 0.02 * H.rz + H.rz * 1.4 * Math.sin(a)), yc: r4(-0.5 * H.ry), r: [r4(H.rx * 1.42 * Math.cos(a)), r4(H.ry * 0.98 * Math.cos(a))] }; }),
+    stations: Array.from({ length: 13 }, (_, i) => { const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / 13; return { z: r4(H.C[2] + 0.02 * H.rz + H.rz * 1.4 * Math.sin(a)), yc: r4(-0.5 * H.ry), r: [r4(H.rx * 1.42 * Math.cos(a)), r4(H.ry * 0.98 * Math.cos(a))] }; }),
     caps: { back: [0, r4(-0.5 * H.ry), r4(H.C[2] + 0.02 * H.rz - H.rz * 1.4)], tip: [0, r4(-0.5 * H.ry), r4(H.C[2] + 0.02 * H.rz + H.rz * 1.4)] } });
   if (K.horns === 'horns') out.push(shape('hornR', at(0.42, 0.02, 0.72), at(0.82, 0.05, 1.4), r4(0.14 * R), 'cone', { ...g('Horn'), tip: 0.1 }));
   if (K.horns === 'ossicones') out.push(shape('hornR', at(0.25, -0.05, 0.85), at(0.32, -0.08, 1.4), r4(0.08 * R), 'bud', g('Mane')));
@@ -419,7 +439,7 @@ function hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur = 'Body' }) {
       // the crown set high (its rim above the brows) and its rim standing a little off the head
       const lift = 0.4, cz = H.rz * 0.85, Cap = { C: [0, r4(-0.04 * H.ry), r4(H.C[2] + lift * H.rz)], rx: H.rx * 1.04, ry: H.ry * 1.04, rz: cz };
       const dome = { name: 'cap', kind: 'trunk', mirror: 'plane', group: capG, bind: headBind,
-        stations: Array.from({ length: 6 }, (_, i) => { const a = (Math.PI / 2) * (i / 6) + 0.02;
+        stations: Array.from({ length: 9 }, (_, i) => { const a = (Math.PI / 2) * (i / 9) + 0.02;
           return { z: r4(Cap.C[2] + cz * Math.sin(a)), yc: Cap.C[1], r: [r4(Cap.rx * Math.cos(a)), r4(Cap.ry * Math.cos(a))], ...(block ? { e: 3 } : {}) }; }),
         caps: { back: [0, Cap.C[1], r4(Cap.C[2] - 0.05 * H.rz)], tip: [0, Cap.C[1], r4(Cap.C[2] + cz)] } };
       const bill = shape('bill', at(0, 0.62, lift + 0.04), at(0, 1.5, lift - 0.06), [r4(0.62 * R), r4(0.07 * R)], spike ? 'cone' : 'egg', { group: capG, bind: headBind, tip: 0.3, ts: [0.08, 0.3, 0.55, 0.75, 0.9, 0.97] });
@@ -535,6 +555,29 @@ const AT = Object.freeze({
 });
 /** the lean and the tilt a promise sets after the mint (law 9: the asymmetric life) */
 export const PROMISE_POSE = Object.freeze({ speed: { lean: 8 }, cheer: { tilt: 6 }, mischief: { lean: -4, tilt: -9 }, might: { lean: 4 }, comfort: {}, pride: {}, wonder: { tilt: 5 } });
+
+/**
+ * THE MODEL SHEET: what a mascot's maker hands on (the mascot output of an egocube): the thesis and the measures, the
+ * owned swatches by role, what names it, its piece, its faces and its clips, and each law with the choice that answers
+ * it. The egocube's preview draws its turnaround (kind.js TURNAROUND). Data only: `P` is mascotPlanFromSheet's call.
+ */
+export function modelSheet(sheet, P) {
+  const f = sheet.facets, plan = P.create.spec.plan, pal = plan.palette;
+  const roles = f.being === 'human' ? [['Skin', 'skin'], ['Hair', 'hair'], ['Body', 'shirt'], ['Bottom', 'trousers']] : [['Body', 'body'], ['Belly', 'pale front']];
+  const swatches = [...roles, ['Accent', 'accent'], ...(f.adorn && f.adorn !== 'none' ? [['Adorn', 'the piece'], ['Shine', 'its shine']] : []), ['Pupil', 'eyes']]
+    .filter(([g]) => pal[g]).map(([group, role]) => ({ group, role, hex: pal[group] }));
+  const named = sheet.animal ? `the ${sheet.animal.id}: ${sheet.animal.identity.join(', ') || 'its face and feet'}` : f.hook === 'none' ? 'the shape alone' : f.hook;
+  return {
+    name: P.create.title, thesis: P.thesis, swatches, named, piece: f.adorn ?? 'none',
+    faces: { rest: f.expression, clips: EXPRESSION_IDS.filter((e) => plan.clips[e]) }, clips: Object.keys(plan.clips),
+    laws: [
+      { law: 1, reads: `promises ${f.promise}` }, { law: 2, reads: `named at 64 px by ${named}` }, { law: 3, reads: `${f.form}: ${P.thesis.split(' · ')[0].split(', ')[1] ?? ''}` },
+      { law: 4, reads: `${f.eyes} eyes; rests ${f.expression}` }, { law: 5, reads: `a round core, a ${f.accent} accent (${sheet.accord})` },
+      { law: 6, reads: `${f.extremities} at the ends of thin limbs` }, { law: 7, reads: swatches.slice(0, 3).map((x) => `${x.role} ${x.hex}`).join(', ') },
+      { law: 8, reads: 'smooth forms on fine rings, nothing on the surface' }, { law: 9, reads: `idles ${f.energy}` }, { law: 10, reads: `${plan.rig.bones.length} bones, ${Object.keys(plan.clips).length} clips` },
+    ],
+  };
+}
 
 /** The first create_character call for a mascot sheet: { door, thesis, create, after, ledger }. */
 export function mascotPlanFromSheet(sheet, { title } = {}) {

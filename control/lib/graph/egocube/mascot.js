@@ -17,10 +17,11 @@
  */
 import { mulberry32 } from '../vegetation/grow.js';
 import { ANIMAL_WORDS, animalCard, animalFacets } from './mascot-animals.js';
+import { ADORNS, ORB_ADORNS } from './mascot-adorn.js';
 
 export const MAX_ATTEMPTS = 8;
 /** The facets, in the order their dice are thrown: a new facet goes last, so an older seed throws the older ones alike. */
-export const MASCOT_KEYS = Object.freeze(['promise', 'form', 'accent', 'eyes', 'hook', 'extremities', 'energy', 'hue', 'being', 'skin', 'expression']);
+export const MASCOT_KEYS = Object.freeze(['promise', 'form', 'accent', 'eyes', 'hook', 'extremities', 'energy', 'hue', 'being', 'skin', 'expression', 'adorn']);
 
 /** Channel id → what a note there says. In the order a sheet prints them. */
 export const MASCOT_CHANNELS = Object.freeze({
@@ -55,25 +56,25 @@ const v = (reads, notes = {}, derives = {}, lean = {}) => Object.freeze({ reads,
 export const PROMISES = Object.freeze({
   speed: v('speed: it is already moving', { promise: 'speed: everything points back from a forward centre', motion: 'impatient at rest: a foot taps', frame: 'longer legs, a lighter body' },
     { frame: ['proportion.legs +', 'proportion.body -'], motion: ['motion.lean +'] },
-    { form: { sprout: 3 }, accent: { spike: 4 }, eyes: { joined: 3 }, hook: { quills: 4, ears: 1.5 }, extremities: { gloves: 3 }, energy: { zippy: 6 }, hue: { blue: 4, red: 1.5, teal: 1.5 }, expression: { determined: 3, grin: 3 } }),
+    { form: { sprout: 3 }, accent: { spike: 4 }, eyes: { joined: 3 }, hook: { quills: 4, ears: 1.5 }, extremities: { gloves: 3 }, energy: { zippy: 6 }, hue: { blue: 4, red: 1.5, teal: 1.5 }, expression: { determined: 3, grin: 3 }, adorn: { scarf: 4, bands: 2 } }),
   cheer: v('cheer: glad to see you', { promise: 'cheer: open, up-turned, nothing guarded', face: 'eyes wide and lifted', motion: 'it bounces in place' },
     { face: ['eyes.size +'], motion: ['motion.bounce +'] },
-    { form: { orb: 1.5, sprout: 1.5 }, accent: { round: 4 }, eyes: { pair: 3 }, hook: { antenna: 2, tuft: 2, ears: 1.5 }, energy: { bouncy: 6 }, hue: { yellow: 4, orange: 2, pink: 2 }, expression: { happy: 4, grin: 3 } }),
+    { form: { orb: 1.5, sprout: 1.5 }, accent: { round: 4 }, eyes: { pair: 3 }, hook: { antenna: 2, tuft: 2, ears: 1.5 }, energy: { bouncy: 6 }, hue: { yellow: 4, orange: 2, pink: 2 }, expression: { happy: 4, grin: 3 }, adorn: { bow: 3, bandana: 1.5 } }),
   mischief: v('mischief: up to something', { promise: 'mischief: one thing about it is not quite trustworthy', face: 'the pupils small and sharp', motion: 'it sways, weight on one hip' },
     { face: ['eyes.pupil -'], motion: ['motion.lean -'] },
-    { accent: { spike: 2.5 }, eyes: { pair: 2, dots: 2 }, hook: { ears: 3, tail: 3, tuft: 1.5 }, extremities: { paws: 2.5 }, energy: { swaying: 4, zippy: 1.5 }, hue: { purple: 4, green: 2.5, orange: 1.5 }, expression: { smirk: 6, grin: 2 } }),
+    { accent: { spike: 2.5 }, eyes: { pair: 2, dots: 2 }, hook: { ears: 3, tail: 3, tuft: 1.5 }, extremities: { paws: 2.5 }, energy: { swaying: 4, zippy: 1.5 }, hue: { purple: 4, green: 2.5, orange: 1.5 }, expression: { smirk: 6, grin: 2 }, adorn: { bandana: 4 } }),
   might: v('might: small, and stronger than it looks', { promise: 'might: low and planted, the mass up front', frame: 'a big body for its size, short legs', extremities: 'big fists' },
     { frame: ['proportion.body +', 'proportion.width +', 'proportion.legs -'], extremities: ['extremities.hands +'], motion: ['motion.stance +'] },
-    { form: { toon: 3 }, accent: { block: 5 }, eyes: { pair: 2 }, hook: { spines: 2.5, ears: 1.5, tuft: 1.5 }, extremities: { gloves: 2, paws: 2 }, energy: { sturdy: 6 }, hue: { red: 4, brown: 2, orange: 2 }, expression: { determined: 5, angry: 2 } }),
+    { form: { toon: 3 }, accent: { block: 5 }, eyes: { pair: 2 }, hook: { spines: 2.5, ears: 1.5, tuft: 1.5 }, extremities: { gloves: 2, paws: 2 }, energy: { sturdy: 6 }, hue: { red: 4, brown: 2, orange: 2 }, expression: { determined: 5, angry: 2 }, adorn: { belt: 4, bands: 2 } }),
   comfort: v('comfort: something to hold', { promise: 'comfort: no edge anywhere; it could be hugged', frame: 'round all over, the head wide', motion: 'it sways slowly' },
     { frame: ['proportion.width +'], face: ['eyes.lift -'] },
-    { form: { orb: 4, sprout: 2 }, accent: { round: 6 }, eyes: { pair: 2, dots: 3 }, hook: { ears: 4, none: 2, tail: 1.5 }, extremities: { nubs: 4, paws: 2 }, energy: { swaying: 3, floaty: 3 }, hue: { pink: 4, white: 2.5, brown: 2, yellow: 1.5 }, expression: { content: 5, happy: 2, sleepy: 2 } }),
+    { form: { orb: 4, sprout: 2 }, accent: { round: 6 }, eyes: { pair: 2, dots: 3 }, hook: { ears: 4, none: 2, tail: 1.5 }, extremities: { nubs: 4, paws: 2 }, energy: { swaying: 3, floaty: 3 }, hue: { pink: 4, white: 2.5, brown: 2, yellow: 1.5 }, expression: { content: 5, happy: 2, sleepy: 2 }, adorn: { collar: 4, bow: 1.5 } }),
   pride: v('pride: it carries a crowd\'s colours', { promise: 'pride: it stands for a team and wears its colours', face: 'huge eyes, read from the back row', silhouette: 'a big head that reads from the stands' },
     { frame: ['proportion.head +'], face: ['eyes.size +'], motion: ['motion.stance +'] },
-    { form: { toon: 5 }, accent: { round: 2, block: 2 }, eyes: { pair: 4 }, hook: { ears: 2.5, tuft: 2, quills: 1 }, extremities: { gloves: 5 }, energy: { bouncy: 3, sturdy: 2 }, hue: { red: 2, blue: 2, green: 1.5, orange: 1.5 }, expression: { grin: 4, happy: 2 } }),
+    { form: { toon: 5 }, accent: { round: 2, block: 2 }, eyes: { pair: 4 }, hook: { ears: 2.5, tuft: 2, quills: 1 }, extremities: { gloves: 5 }, energy: { bouncy: 3, sturdy: 2 }, hue: { red: 2, blue: 2, green: 1.5, orange: 1.5 }, expression: { grin: 4, happy: 2 }, adorn: { medal: 12 } }),
   wonder: v('wonder: it is from somewhere else', { promise: 'wonder: curious, a little strange, weightless', face: 'eyes set wide and high', motion: 'it floats' },
     { face: ['eyes.gap +', 'eyes.size +'] },
-    { form: { orb: 3, sprout: 2 }, accent: { round: 3 }, eyes: { pair: 2, dots: 2 }, hook: { antenna: 5, ears: 1.5 }, extremities: { nubs: 3 }, energy: { floaty: 6 }, hue: { teal: 4, purple: 3, white: 2 }, expression: { surprised: 4, happy: 2 } }),
+    { form: { orb: 3, sprout: 2 }, accent: { round: 3 }, eyes: { pair: 2, dots: 2 }, hook: { antenna: 5, ears: 1.5 }, extremities: { nubs: 3 }, energy: { floaty: 6 }, hue: { teal: 4, purple: 3, white: 2 }, expression: { surprised: 4, happy: 2 }, adorn: { pack: 4, scarf: 1.5 } }),
 });
 
 export const FORMS = Object.freeze({
@@ -151,7 +152,8 @@ export const HUES = Object.freeze({
   purple: '#8a4fd0', pink: '#f28fb4', brown: '#9a6238', white: '#f2efe8',
 });
 
-const TABLES = { promise: PROMISES, form: FORMS, accent: ACCENTS, eyes: EYES, hook: HOOKS, extremities: EXTREMITIES, energy: ENERGIES, hue: HUES, being: BEINGS, skin: SKINS, expression: EXPRESSIONS };
+const ADORN_READS = Object.fromEntries(Object.entries(ADORNS).map(([k, a]) => [k, v(a.reads, a.at ? { silhouette: a.note } : {}, {})]));
+const TABLES = { adorn: ADORN_READS, promise: PROMISES, form: FORMS, accent: ACCENTS, eyes: EYES, hook: HOOKS, extremities: EXTREMITIES, energy: ENERGIES, hue: HUES, being: BEINGS, skin: SKINS, expression: EXPRESSIONS };
 const KNOWN = Object.fromEntries(Object.entries(TABLES).map(([k, t]) => [k, Object.keys(t)]));
 
 /** The seed's priors before a promise leans them: weights per value (an absent value weighs 0). */
@@ -167,6 +169,7 @@ export const PRIORS = Object.freeze({
   being: { critter: 3, human: 1 },
   skin: Object.fromEntries(Object.keys(SKINS).map((k) => [k, 1])),
   expression: { happy: 2, grin: 1.5, content: 1.5, determined: 1, smirk: 1, surprised: 1, sad: 0.3, angry: 0.3, sleepy: 0.5 },
+  adorn: { none: 1.5, collar: 1, scarf: 1, bow: 1, belt: 1, medal: 0.5, bandana: 1, pack: 1, bands: 1 },
 });
 
 /** Incoherent rolls: drawn again unless every facet in `on` was asked for. A table to grow at the eyes gate. */
@@ -181,6 +184,8 @@ export const FAULTS = Object.freeze([
     why: 'gloves need arms to hang from; the orb has stubs' },
   { id: 'human-beast', on: ['being', 'hook'], when: (f) => f.being === 'human' && ['snout', 'tail', 'spines'].includes(f.hook),
     why: 'a snout, a tail or spines on a person is a brief (a costume), not a roll' },
+  { id: 'orb-adorn', on: ['form', 'adorn'], when: (f) => f.form === 'orb' && !ORB_ADORNS.includes(f.adorn),
+    why: 'the orb has no neck, waist or wrists to wear it on: a bow or nothing' },
   { id: 'human-paws', on: ['being', 'extremities'], when: (f) => f.being === 'human' && f.extremities === 'paws',
     why: 'a person has hands, gloved or bare, not paws' },
 ]);
@@ -239,6 +244,10 @@ export const MASCOT_LEXICON = Object.freeze({
   'determined': { expression: 'determined' }, 'serious': { expression: 'determined' }, 'smug': { expression: 'smirk' }, 'smirking': { expression: 'smirk' },
   'surprised': { expression: 'surprised' }, 'amazed': { expression: 'surprised' }, 'sad': { expression: 'sad' }, 'gloomy': { expression: 'sad' },
   'angry': { expression: 'angry' }, 'grumpy': { expression: 'angry' }, 'drowsy': { expression: 'sleepy' },
+  // the signature piece (mascot-adorn.js)
+  'collar': { adorn: 'collar' }, 'bell': { adorn: 'collar' }, 'scarf': { adorn: 'scarf' }, 'bow': { adorn: 'bow' }, 'ribbon': { adorn: 'bow' },
+  'belt': { adorn: 'belt' }, 'champion': { adorn: 'belt' }, 'medal': { adorn: 'medal' }, 'bandana': { adorn: 'bandana' }, 'kerchief': { adorn: 'bandana' },
+  'backpack': { adorn: 'pack' }, 'pack': { adorn: 'pack' }, 'wristbands': { adorn: 'bands' }, 'sweatbands': { adorn: 'bands' },
   // hues
   ...Object.fromEntries(Object.keys(HUES).map((h) => [h, { hue: h }])),
 });
@@ -300,7 +309,12 @@ function throwDice(rand, given) {
   const f = {};
   f.promise = pick(rand, PRIORS.promise);
   const promise = given.promise ?? f.promise;
-  for (const k of MASCOT_KEYS.slice(1)) f[k] = pick(rand, leaned(k, promise));
+  for (const k of MASCOT_KEYS.slice(1)) {
+    let w = leaned(k, promise);
+    // the orb has no neck, waist or wrists: its piece is a bow or nothing (the die still throws once)
+    if (k === 'adorn' && (given.form ?? f.form) === 'orb') w = Object.fromEntries(Object.entries(w).filter(([a]) => ORB_ADORNS.includes(a)));
+    f[k] = pick(rand, w);
+  }
   return f;
 }
 
@@ -312,7 +326,7 @@ function sources(f) {
     { from: `promise.${f.promise}`, ...PROMISES[f.promise] }, { from: `form.${f.form}`, ...FORMS[f.form] },
     { from: `eyes.${f.eyes}`, ...EYES[f.eyes] }, { from: `hook.${f.hook}`, ...HOOKS[f.hook] }, { from: `accent.${f.accent}`, ...ACCENTS[f.accent] },
     { from: `extremities.${f.extremities}`, ...EXTREMITIES[f.extremities] }, { from: `energy.${f.energy}`, ...ENERGIES[f.energy] },
-    { from: `being.${f.being}`, ...BEINGS[f.being] }, { from: `expression.${f.expression}`, ...EXPRESSIONS[f.expression] },
+    { from: `being.${f.being}`, ...BEINGS[f.being] }, { from: `expression.${f.expression}`, ...EXPRESSIONS[f.expression] }, { from: `adorn.${f.adorn}`, ...ADORN_READS[f.adorn] },
   ];
 }
 

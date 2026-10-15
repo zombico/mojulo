@@ -48,4 +48,14 @@ describe('the egocube kind', () => {
     const dist = Math.hypot(...front.cameraPosition.map((v, i) => v - front.lookAt[i]));
     expect(2 * dist * Math.tan((front.horizontalFov * Math.PI) / 360)).toBeGreaterThanOrEqual(Math.max(...xs) - Math.min(...xs));
   }, 300_000);
+
+  it('previews a mascot output as its model sheet\'s turnaround: one character, four turns', async () => {
+    const cube = { kind: 'egocube', roll: { brief: 'a weary paladin', seed: 3 }, output: 'mascot' };
+    const scene = await assembleEgocubeScene(cube, { title: 'Paladin' }, (m, c) => WORLD_KINDS.layered.resolve(m, c));
+    const body = scene.faces.filter((f) => !f.studio);
+    expect(body.length % 4).toBe(0);
+    // the four copies stand apart, and the last is turned to show its back (its front faces away from +y)
+    const quarter = body.length / 4, ys = (i) => body.slice(i * quarter, (i + 1) * quarter).flatMap((f) => f.corners.map((c) => c[1]));
+    expect(Math.max(...ys(0))).toBeCloseTo(-Math.min(...ys(3)), 2);
+  }, 300_000);
 });

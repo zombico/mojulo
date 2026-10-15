@@ -59,10 +59,11 @@ async function createMascot({ spec = {}, title, ref, folder_ref: folderRef }) {
  * cube says unless `dress` says otherwise; a hero's `spec` words lay over the sheet's. The character records the sheet it
  * was made from ({ ref, rev, print, years }), so an edit to the sheet moves nothing already made and is said on an edit.
  */
-async function createFromEgocube({ egocube, years, dress, as, spec, title, ref, folder_ref: folderRef }) {
+async function createFromEgocube({ egocube, years, dress, output, as, spec, title, ref, folder_ref: folderRef }) {
   const row = SketchRepository.getByRef(egocube);
   if (!row || row.manifest?.kind !== 'egocube') throw new Error(`create_character: '${egocube}' is not an egocube (make one with create_sketch { kind: 'egocube', roll })`);
-  const C = egocubeCreate(row.manifest, { years, dress });
+  // `output: 'mascot'`: the cube's character made as its mascot (egocube/mascot-from-person.js), with its model sheet
+  const C = egocubeCreate(row.manifest, { years, dress, output });
   if (as !== undefined && as !== C.create.as) throw new Error(`create_character: the egocube '${egocube}' makes ${C.create.as === 'hero' ? 'a person (as: hero)' : 'a body below the hero door (as: creature)'}; leave \`as\` out`);
   if (spec !== undefined && C.create.as !== 'hero') throw new Error('create_character: `spec` lays a hero\'s words over the sheet; a creature from an egocube is revised after, with update_character patch ops');
   const dials = dialsAfter(C.after);
@@ -70,7 +71,7 @@ async function createFromEgocube({ egocube, years, dress, as, spec, title, ref, 
   const made = { ref: egocube, rev: (SketchRevisionRepository.head(egocube)?.rev ?? 0) + 1, print: egocubePrint(row.manifest), ...(C.node.years !== undefined ? { years: C.node.years } : {}) };
   const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, egocube: made }, title: title ?? C.create.title, ref, folder_ref: folderRef }));
   const landed = (C.ledger || []).filter((r) => r.at).length;
-  return { ...out, egocube: { ...made, node: C.node, notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
+  return { ...out, ...(C.modelSheet ? { modelSheet: C.modelSheet } : {}), ...(C.mascot ? { mascot: C.mascot } : {}), egocube: { ...made, ...(C.output ? { output: C.output } : {}), node: C.node, notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
 }
 
 export async function createCharacterHandler(input) {
@@ -184,6 +185,7 @@ export function registerCreateCharacterTools() {
         as: { type: 'string', enum: AS_LIST, description: 'hero (a person) | creature (an invented body) | animal (a real species) | mascot (cartoony, Sonic-like).' },
         egocube: { type: 'string', description: "An egocube's ref (create_sketch kind 'egocube'): its character, at `years` on its thread." },
         years: { type: 'number' },
+        output: { type: 'string', enum: ['character', 'mascot'], description: "With egocube: 'mascot' makes the cube's character as its mascot." },
         spec: { type: 'object', description: "The body's own knobs, per its card (`layered` for hero and creature, `animal` for animal)." },
         title: { type: 'string', description: 'Title for the resulting sketch artifact.' },
         ref: { type: 'string', description: 'Optional stable sketch ref.' },
