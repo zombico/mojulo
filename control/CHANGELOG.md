@@ -64,8 +64,17 @@ dummies on purpose (the look is other tools' job).
   unless the entry names one. The game stores the ref, never the measure: the fighter follows the character's
   edits, measured again where the game is served (the play route, `export_game`, an arena's World page, the
   `update_sketch` gate and `design_game`'s mint), and a ref the store does not hold as a character is refused by
-  name. A roster without a character is unchanged to the byte. The stick figure still draws it (its own body in 3D
-  is next).
+  name. A roster without a character is unchanged to the byte. On the flat page the stick figure draws it in its
+  proportions and colour.
+- **A character in its own body on an arena** (`versus-skin.js`, `versus-arena.client.js`). An arena whose roster
+  has a character carries that character's rig once (its layered rig's bones and rigid parts, without the clips),
+  and the fight draws it in place of the stick figure: every fight pose is a turn in the plane, so each bone takes
+  one angle about the figure's sideways axis (how far its stick segment has turned from rest), keeps its own length
+  and rest shape (an arm's outward hang, a foot's pitch), and is carried down the chain from the pelvis so no joint
+  opens; fingers and toes ride their hand and foot, the folds at hip, knee and elbow sit halfway, and a grounded
+  pose stands on the feet as the rest does. The lead side is the one nearer the camera, whichever way the figure
+  faces. A game hosting the arena sends which pick is a character; one the arena has no body for (a roster grown
+  since it was made) is the stick figure. Without a character, an arena's data and page are as they were.
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless

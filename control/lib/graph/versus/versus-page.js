@@ -93,11 +93,12 @@ export function readVersusManifest(manifest = {}) {
   return { ok: !errors.length, errors, laws };
 }
 
-/** What an arena's fight channel carries: the plane and walls (m), the floor, the roster solved, the rules, the wire. */
+/** What an arena's fight channel carries: the plane and walls (m), the floor, the roster solved, the rules, the wire, and
+ * each character's own body when the roster has one (versus-character.js characterBodies; none: nothing added). */
 export function versusArenaData(v = {}) {
   const roster = (v.roster ?? DEFAULT_ROSTER).map(rosterEntry);
   if (roster.length < 1) throw new Error('versus: an arena needs at least one fighter');
-  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules: rulesOf(v.rules), wire: VERSUS_WIRE };
+  return { plane: v.plane ?? ARENA_PLANE, half: v.half ?? 8, floor: v.floor ?? 0, roster, rules: rulesOf(v.rules), wire: VERSUS_WIRE, ...(v.bodies ? { bodies: v.bodies } : {}) };
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

@@ -570,7 +570,7 @@ describe('design_game quick', () => {
     expect(advice[0]).toMatch(/'catwalks' is not laid yet/);
   }, 240_000);
 
-  it('fight with a character: the roster keeps its ref, the arena\'s page fights in its measured body; a missing one refused', async () => {
+  it('fight with a character: the roster keeps its ref, the arena\'s page fights in its measured body and its own rig; a missing one refused', async () => {
     const { heroRecord } = await import('./layered.js');
     SketchRepository.create({ ref: 'mira', title: 'Mira', manifest: { kind: 'layered', hero: heroRecord({ cast: 'female', palette: { Top: '#2a8f6a' } }) } });
     const roster = [{ id: 'kata', archetype: 'all-rounder' }, { id: 'mira', archetype: 'rushdown', hero: { ref: 'mira' } }];
@@ -582,6 +582,10 @@ describe('design_game quick', () => {
     expect(kata).not.toHaveProperty('character');
     expect(mira).toMatchObject({ character: 'mira', color: '#2a8f6a' });
     expect(mira.recipe.body.height).toBeLessThan(1700);
+    // her own body rides the arena once (the rig's bones and parts, no clips); the stick fighter brings none
+    expect(Object.keys(payload.versus.bodies)).toEqual(['mira']);
+    expect(payload.versus.bodies.mira.bones.find((b) => b.id === 'foreArmR')).toBeTruthy();
+    expect(payload.versus.bodies.mira.parts.some((p) => p && p.pos && p.col)).toBe(true);
     await expect(designGameHandler({ quick: { goal: 'fight', roster: [{ id: 'x', hero: { ref: 'ghost' } }], arenas: false, world: { id: 'nobody' } }, ref: 'nb' }))
       .rejects.toThrow(/roster\[0\]\.hero\.ref 'ghost' is not a stored character/);
   }, 240_000);

@@ -126,3 +126,30 @@ export async function versusGate(manifest) {
   try { measured = await withCharacters(manifest); } catch (e) { return { ok: false, errors: [e.message.replace(/^versus: /, '')], laws: [] }; }
   return readVersusManifest(measured);
 }
+
+/**
+ * A character's own body for an arena (versus-skin.js poses it): its layered rig's bones and rigid parts, the clips
+ * left out (the fight is the motion). → { bones: [{ id, head, tail }], parts: [{ pos, col } | null] }, or null when
+ * the rig has no parts to draw (the stick figure stands in).
+ */
+export async function characterBody(manifest) {
+  const { expandLayeredManifest } = await layered();
+  const { WORLD_KINDS } = await import('../worlds/world-kinds.js');
+  const scene = await WORLD_KINDS.layered.resolve(expandLayeredManifest(manifest), { title: 'fighter' });
+  const fig = scene?.figures?.body;
+  if (!fig || !Array.isArray(fig.bones) || !fig.parts?.some((p) => p?.pos)) return null;
+  return { bones: fig.bones.map(({ id, head, tail }) => ({ id, head, tail })), parts: fig.parts.map((p) => (p?.pos ? { pos: p.pos, col: p.col } : null)) };
+}
+
+/** An arena's measured roster → { <ref>: body } for each character in it (one body per character), from the store. */
+export async function characterBodies(roster) {
+  const refs = [...new Set((Array.isArray(roster) ? roster : []).map((e) => e?.character).filter((r) => typeof r === 'string'))];
+  if (!refs.length) return null;
+  const { SketchRepository } = await import('@/lib/db/repositories/sketches');
+  const out = {};
+  for (const ref of refs) {
+    const body = await characterBody(SketchRepository.getByRef(ref)?.manifest).catch(() => null);
+    if (body) out[ref] = body;
+  }
+  return Object.keys(out).length ? out : null;
+}

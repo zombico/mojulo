@@ -77,6 +77,8 @@ function hostArena(P) {
   frame.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;border:0;background:#000';
   document.body.appendChild(frame);
   const params = { fighters: [P.a.recipe, P.b.recipe], names: P.names, colors: P.colors, schemes: P.schemes, mode: P.mode, level: P.level, rules: P.rules, seed: P.seed };
+  // a character fights in its own body where the arena has it (versus-arena.client.js)
+  if (P.a.character || P.b.character) params.characters = [P.a.character || null, P.b.character || null];
   host = { frame, params, names: P.names };
   frame.addEventListener('load', () => frame.focus());
   game.screen = 'arena';

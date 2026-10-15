@@ -12,13 +12,17 @@
  * plane on the open side, keeps both fighters in frame (closer as they close in) and stops at the walls. Health,
  * timer, banners, sparks and fireballs are the runtime's overlay, on a canvas over the picture.
  *
+ * A character made with create_character (its `character` ref, its body in `VERSUS_ARENA.bodies`) fights in its own
+ * body: its rig's rigid parts, each bone turned from the fight's pose (versus-skin.js), the figure facing its foe.
+ * One the arena has no body for (a game's roster grown since the arena was made) is the stick figure.
+ *
  * As a level: hosted in a versus game's frame it posts READY, fights the picks INIT brings (fighters as recipes,
  * names, colours, schemes, mode), and posts OUTCOME at the end (its result for player 1; quitting from pause is an
  * abort). On its own it fights the arena's first two fighters, player 1 against the CPU, and offers another.
  */
 
 /* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
-   installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
+   skinSkeleton, skinPose, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
 
 const AV = VERSUS_ARENA;
 const hosted = window.parent !== window;
@@ -125,6 +129,54 @@ function placeBody(B, p, F, t) {
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
 }
 
+// a character's own body: one mesh per bone part, posed each frame by its bone's turn (versus-skin.js)
+const SKINS = {};
+function skinOf(ref) {
+  const pack = ref && AV.bodies && AV.bodies[ref];
+  if (!pack) return null;
+  return SKINS[ref] || (SKINS[ref] = { pack, sk: skinSkeleton(pack.bones) });
+}
+function makeCharacter(skin) {
+  const group = new THREE.Group();
+  const meshes = skin.pack.parts.map((part) => {
+    if (!part) return null;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(decodeF32(part.pos), 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
+    geo.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    mesh.matrixAutoUpdate = false;
+    mesh.frustumCulled = false;   // matrices change every frame
+    group.add(mesh);
+    return mesh;
+  });
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false }));
+  scene.add(group, shadow);
+  return { group, shadow, skin, meshes };
+}
+const qB = new THREE.Quaternion(), vR = new THREE.Vector3(), X_AXIS = new THREE.Vector3(1, 0, 0), ONE = new THREE.Vector3(1, 1, 1);
+function placeCharacter(B, p, F, t) {
+  const pose = poseOf(p, F, t);
+  const { a, h } = skinPose(B.skin.sk, rigJoints(F.body, pose), p.face, !!pose.air);
+  // the figure faces +y in its own frame: turned to face its foe along the plane, its feet on the fight's ground
+  B.group.position.set(p.x / 1000, PLANE, FLOOR + p.y / 1000);
+  B.group.rotation.set(0, 0, p.face > 0 ? -Math.PI / 2 : Math.PI / 2);
+  const bones = B.skin.pack.bones;
+  for (let i = 0; i < B.meshes.length; i++) {
+    const mesh = B.meshes[i];
+    if (!mesh) continue;
+    // M·v = head' + q·(v − restHead)
+    qB.setFromAxisAngle(X_AXIS, a[i]);
+    const rh = bones[i].head;
+    vR.set(rh[0], rh[1], rh[2]).applyQuaternion(qB);
+    vR.set(h[i][0] - vR.x, h[i][1] - vR.y, h[i][2] - vR.z);
+    mesh.matrix.compose(vR, qB, ONE);
+  }
+  B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
+  B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
+}
+const placeFighter = (B, p, F, t) => (B.skin ? placeCharacter(B, p, F, t) : placeBody(B, p, F, t));
+
 // ── the fight ────────────────────────────────────────────────────────────────────────────────────────────────
 
 const ROSTER = AV.roster.map((r) => ({ ...r, F: compileFighter(r.recipe) }));
@@ -134,7 +186,7 @@ installVersusInput((code) => { if (code === 'KeyR' && match && match.mode === 't
 
 function defaults() {
   const a = ROSTER[0], b = ROSTER[Math.min(1, ROSTER.length - 1)];
-  return { fighters: [a.recipe, b.recipe], names: [a.name, b.name], colors: [a.color, a.id === b.id ? '#e8e8e8' : b.color], schemes: ['modern', 'modern'], mode: 'cpu', level: 1, seed: 1 };
+  return { fighters: [a.recipe, b.recipe], names: [a.name, b.name], colors: [a.color, a.id === b.id ? '#e8e8e8' : b.color], characters: [a.character || null, b.character || null], schemes: ['modern', 'modern'], mode: 'cpu', level: 1, seed: 1 };
 }
 
 function begin(params) {
@@ -143,7 +195,10 @@ function begin(params) {
   const fighters = params.fighters.map((r) => compileFighter(r));
   const rules = hostedRules(AV.rules, params.rules, Math.round(AV.half * 1000));
   match = newMatch({ fighters, names: params.names, colors: params.colors, schemes: params.schemes, mode: params.mode, level: params.level, rules, seed: params.seed ?? 1 });
-  bodies = params.colors.map((c, i) => makeBody(c, fighters[i]));
+  bodies = params.colors.map((c, i) => {
+    const skin = skinOf(params.characters && params.characters[i]);
+    return skin ? makeCharacter(skin) : makeBody(c, fighters[i]);
+  });
   phase = 'fight';
 }
 
@@ -222,7 +277,7 @@ function draw() {
   if (!match) { vsOutlined(g2, 'GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
   frameCamera();
   const s = match.s;
-  for (let i = 0; i < 2; i++) placeBody(bodies[i], s.p[i], match.ctx.fighters[i], match.t + i * 40);
+  for (let i = 0; i < 2; i++) placeFighter(bodies[i], s.p[i], match.ctx.fighters[i], match.t + i * 40);
   const S = OH / (2 * cam.dist * Math.tan((VFOV * Math.PI) / 360)) / 1000;
   drawEffects(g2, match, toScreen, S);
   drawHud(g2, OW, OH, match);
@@ -246,4 +301,4 @@ function stepArenaFight(t) {
   draw();
 }
 
-window.__mojVersus = { get match() { return match; }, get phase() { return phase; }, ROSTER };
+window.__mojVersus = { get match() { return match; }, get phase() { return phase; }, get bodies() { return bodies; }, ROSTER };
