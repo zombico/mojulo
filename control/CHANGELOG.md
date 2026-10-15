@@ -45,6 +45,24 @@ says what the engine packs are: translations of it, Godot the most complete.
   `export_game`; two routing-eval rows hold it.
 - The README's game example starts at `design_game`, names the genres, and ends at the desktop app.
 
+### Desktop seam: a game ready for a store, the store left to its developer
+
+The desktop app becomes a well-behaved desktop game with one seam a store-minded developer plugs into. mojulo ships
+no store SDK, holds no app ID and uploads nothing; the same seam serves Steam, GOG, Epic or a zip download.
+
+- **The hooks contract.** `main.js` loads `platform/hooks.js` when present (`contract: 1`; `beforeReady`, `ready`,
+  `onEvent`, and `send` for pause and resume); the game emits named events (`game-start`, `level-start`,
+  `level-end`, `game-complete`, `save-written`). The export writes a stub under `platform/` only when it is absent
+  and never touches it again. The web shell stays byte-identical.
+- **Saves as files**, under the app's own `saves/` folder, so a store's cloud sync can carry them. A save the shell
+  cannot read is set aside with a notice, never overwritten, on the web too; the export says whether an update
+  keeps existing saves loading.
+- **Window behaviour:** fullscreen by default, F11 and Alt+Enter, a Display setting, Quit to desktop.
+- **Controller-complete menus** in both shells, on the web too, with text legible at 1280×800.
+- **Packaging:** exact Electron and packager pins, per-OS scripts, an icon from the cover, `licenses/`, a
+  `provenance.json` of which generators made what, and the recipes kept out of the packaged app.
+- `docs/desktop-handoff.md` says what mojulo guarantees and what the developer owns, with Steam as the worked example.
+
 ### Tool consolidation: one door per intent
 
 What a user asks lands on one tool. A new capability is a routing card and an argument on the door that owns
