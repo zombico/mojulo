@@ -11,6 +11,11 @@
  *   scales  overlapping rounded scales pointing down the part (the arm's, the tail's, the back's)
  *   plates  irregular polygonal plates (a reptile's head: the cranium's and the jaw's)
  *   bands   broad transverse scutes across the part (the belly's, the throat's)
+ *   feathers  long rounded tips in offset rows down the part, a shaft down each (a bird's body)
+ *   fur     tufts: tapering light strokes lying down the part, staggered and jittered (the lie of the coat)
+ *   segments  chitin rings round the part: a light lip over a dark seam at each plate's edge
+ * `fade: false` keeps a region's pattern to the part's very ends (by default it fades out over most of a cell there, so
+ * two parts' patterns never meet in a seam at a joint)
  *
  * ECONOMY: one texture per creature, an ATLAS. Every part a region covers gets its own rectangle, as wide as its ring
  * (in cells, a whole number round it, so the pattern closes on itself) and as long as the part, at a few texels a cell;
@@ -30,7 +35,7 @@
  */
 import { encodePngGrey } from '../landscape/surface-textures.js';
 
-export const SKIN_PATTERNS = Object.freeze(['scales', 'plates', 'bands']);
+export const SKIN_PATTERNS = Object.freeze(['scales', 'plates', 'bands', 'feathers', 'fur', 'segments']);
 /** the least a cell may measure on screen and still be drawn (px at the target) */
 export const SKIN_MIN_PX = 5;
 /** texels a cell is painted at (more for the fine, fewer for the large, inside the atlas's bounds) */
@@ -48,6 +53,7 @@ export function validateSkin(skin) {
     if (!SKIN_PATTERNS.includes(R.pattern)) errs.push(`${at}.pattern: ${SKIN_PATTERNS.map((p) => `'${p}'`).join(' | ')}`);
     if (!(Number.isFinite(R.cell) && R.cell >= 0.003 && R.cell <= 0.3)) errs.push(`${at}.cell: metres, 0.003 … 0.3`);
     if (R.contrast !== undefined && !(Number.isFinite(R.contrast) && R.contrast >= 0.04 && R.contrast <= 0.3)) errs.push(`${at}.contrast: 0.04 … 0.3`);
+    if (R.fade !== undefined && typeof R.fade !== 'boolean') errs.push(`${at}.fade: true (the default: the pattern fades out at a part's ends) or false`);
     for (const w of ['t', 'run']) if (R[w] !== undefined && !(isWin(R[w]) && R[w][0] >= 0 && R[w][1] <= 1)) errs.push(`${at}.${w}: [a, b] within 0 … 1`);
   });
   return errs;
@@ -55,7 +61,7 @@ export function validateSkin(skin) {
 
 // ─── the patterns: value at a point in CELL units (a across the ring, b down the part) → [0..1], 1 the rim ───
 const hash = (x, y, s) => { let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(s | 0, 2147483647)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-const RIM = { scales: 0.22, plates: 0.13, bands: 0.14 };
+const RIM = { scales: 0.22, plates: 0.13, bands: 0.14, feathers: 0.16, fur: 0.12, segments: 0.1 };
 /** overlapping scales pointing down the part: rows half a cell apart, every other row offset by half; each scale a disc,
  * the one nearer the root lying over the next (a scale's free edge, its lower arc, points down the part) */
 function scalesAt(a, b) {
@@ -66,6 +72,31 @@ function scalesAt(a, b) {
   }
   return 1;
 }
+/** feathers: long rounded tips in offset rows pointing down the part (a cell twice as long as wide), each with its
+ * shaft down its middle; the one nearer the root lies over the next */
+function feathersAt(a, b) {
+  const H = 0.9, R = 0.55, j0 = Math.floor(b / H);
+  for (let j = j0 - 1; j <= j0 + 2; j++) {
+    const off = (j & 1) * 0.5, cx = Math.round(a - off) + off, cy = j * H, dx = a - cx, dy = (b - cy) / 1.8, d = Math.hypot(dx, dy);
+    if (d <= R && b >= cy - 0.05) return d > R * (1 - RIM.feathers) ? 1 : Math.abs(dx) < 0.035 && b < cy + 0.75 ? 1 : 0;
+  }
+  return 1;
+}
+/** fur: TUFTS, each three light strokes converging to a point down the part (the lie of the coat), staggered and jittered
+ * (seeded); between them the coat (value 1 the stroke, 0 the ground: the stroke is the light catching the hair) */
+function furAt(a, b, seed) {
+  const j0 = Math.floor(b / 0.8);
+  for (let j = j0 - 1; j <= j0; j++) {
+    const off = (j & 1) * 0.5, i = Math.round(a - off), jit = hash(i, j, seed) - 0.5, cx = i + off + 0.25 * jit, top = j * 0.8 + 0.2 * hash(j, i, seed + 3);
+    const t = (b - top) / 1.0; if (t < 0 || t > 1) continue;
+    const lean = 0.1 * Math.sin(t * 2.2 + jit * 3), w = RIM.fur * 0.7 * (1 - t) + 0.012;
+    for (const dx of [-0.22, 0, 0.22]) if (Math.abs(a - (cx + dx * (1 - t) ** 1.4 + lean)) < w * (dx ? 0.8 : 1)) return 1;
+  }
+  return 0;
+}
+/** chitin segments: rings round the part, each a plate whose lower edge is a light lip over a dark seam (the next plate
+ * tucked under it); the seam's depth is the value below the cell's (`2`: the darker tone) */
+function segmentsAt(a, b) { const f = ((b % 1) + 1) % 1; return f > 1 - RIM.segments ? 1 : f < RIM.segments * 0.8 ? 2 : 0; }
 /** irregular plates: a jittered grid's cells (seeded), their borders the rims */
 function platesAt(a, b, seed) {
   const ia = Math.floor(a), ib = Math.floor(b); let d1 = Infinity, d2 = Infinity;
@@ -135,8 +166,11 @@ export function skinPaintOf(mesh, skin, { ppm = Infinity, seed = 1 } = {}) {
         if (R.t && !(tShare >= R.t[0] && tShare <= R.t[1])) continue;
         if (R.run && !(u >= R.run[0] && u <= R.run[1])) continue;
         const a = v * n, b = u * down;
-        const rim = R.pattern === 'scales' ? scalesAt(a, b) : R.pattern === 'plates' ? platesAt(a, b, seed + n) : bandsAt(a, b, n);
-        val = Math.round(255 * (rim ? 1 : 1 - (R.contrast ?? 0.14)));
+        const P = R.pattern, rim = P === 'scales' ? scalesAt(a, b) : P === 'plates' ? platesAt(a, b, seed + n) : P === 'feathers' ? feathersAt(a, b) : P === 'fur' ? furAt(a, b, seed + n) : P === 'segments' ? segmentsAt(a, b) : bandsAt(a, b, n);
+        const c = R.contrast ?? 0.14, lv = rim === 1 ? 1 : rim === 2 ? 1 - 2 * c : 1 - c;
+        // the pattern FADES out toward a part's ends, where the next part's pattern meets it (no seam at a joint)
+        const ends = Math.min(u, 1 - u) * Lp / (R.cell * 0.8), fade = Math.min(1, Math.max(0, R.fade === false ? 1 : ends));
+        val = Math.round(255 * (1 - (1 - lv) * fade));
       }
       grey[(r.y + py) * ATLAS_W + r.x + px] = val;
     }
@@ -181,7 +215,7 @@ export function skinPaintOf(mesh, skin, { ppm = Infinity, seed = 1 } = {}) {
     const A = at(ref.a) ?? white, B = at(ref.b) ?? white; return [A[0] + (B[0] - A[0]) * ref.s, A[1] + (B[1] - A[1]) * ref.s];
   };
   // the light alone under the texture: the fill lifted by the pattern's mean, so the hide keeps its colour on average
-  const mean = 1 - 0.75 * Math.max(...regions.map((R) => R.contrast ?? 0.14)), lights = new Map();
+  const DARK = { scales: 0.7, plates: 0.75, bands: 0.8, feathers: 0.7, fur: 0.8, segments: 0.9 }, mean = regions.reduce((m, R) => m + (1 - DARK[R.pattern] * (R.contrast ?? 0.14)), 0) / regions.length, lights = new Map();
   const light = (fill) => { let h = lights.get(fill); if (!h) lights.set(fill, h = liftHex(fill, mean)); return h; };
   return { key, url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
     atlas: { url, w: ATLAS_W, h: H }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0, pad: PAD };

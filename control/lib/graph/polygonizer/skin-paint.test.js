@@ -39,7 +39,24 @@ describe('the skin', () => {
     expect(skinPaintOf(mesh, plan.skin).key).toBe(skinPaintOf(mesh, plan.skin).key);
   });
   it('says what is wrong with a region', () => {
-    expect(validateSkin([{ parts: ['torso'], pattern: 'fur', cell: 0.02 }])[0]).toMatch(/pattern: 'scales' \| 'plates' \| 'bands'/);
+    expect(validateSkin([{ parts: ['torso'], pattern: 'hide', cell: 0.02 }])[0]).toMatch(/pattern: 'scales' \| 'plates' \| 'bands'/);
     expect(validateSkin([{ parts: ['torso'], pattern: 'scales', cell: 2 }])[0]).toMatch(/cell: metres/);
   });
 });
+
+describe('the hides a roll carries', () => {
+  it('feathers on a bird-kin (its beak bare), fur on the furred, chitin rings on the insect-kin: each paints, and fades at a joint', () => {
+    const skinOfRoll = (ancestry, seed) => planFromSheet(rollEgocube({ seed, facets: { ancestry } }), { dress: 'designed' }).create.spec.plan.skin.map((R) => R.pattern);
+    expect(skinOfRoll('avian', 2)).toContain('feathers');
+    expect(skinOfRoll('lupine', 9)).toContain('fur');
+    expect(skinOfRoll('insectoid', 2)).toContain('segments');
+    const bird = planFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } }), { dress: 'designed' }).create.spec.plan;
+    expect(bird.skin.find((R) => R.parts.includes('cranium')).run[1]).toBeLessThan(0.5);
+    // every pattern paints on one body; a region kept to the part's ends (fade false) and one fading paint different bytes
+    for (const pattern of ['feathers', 'fur', 'segments']) expect(skinPaintOf(mesh, [{ parts: ['foreArm'], pattern, cell: 0.05 }]), pattern).toBeTruthy();
+    const keyOf = (fade) => skinPaintOf(mesh, [{ parts: ['foreArm'], pattern: 'scales', cell: 0.05, fade }]).key;
+    expect(keyOf(false)).not.toBe(keyOf(true));
+    expect(validateSkin([{ parts: ['torso'], pattern: 'fur', cell: 0.05, fade: 'yes' }])[0]).toMatch(/fade/);
+  });
+});
+
