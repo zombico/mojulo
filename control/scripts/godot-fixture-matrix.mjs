@@ -70,8 +70,9 @@ export const NOT_QUICK = Object.freeze({
 const SCRIPT_ERR = /SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Failed loading resource/;
 
 function godot(bin, args, timeout = 600000) {
-  const r = spawnSync(bin, args, { encoding: 'utf8', timeout, maxBuffer: 1 << 28 });
-  return { code: r.status, text: `${r.stdout || ''}${r.stderr || ''}` };
+  const r = spawnSync(bin, args, { encoding: 'utf8', timeout, maxBuffer: 1 << 30 });
+  // (a run cut short says why: the buffer full, a timeout's signal; never a bare null)
+  return { code: r.status ?? r.error?.code ?? r.signal, text: `${r.stdout || ''}${r.stderr || ''}` };
 }
 
 /** One fixture through the matrix. `ctx`: { designGameHandler, SketchRepository, resolveWorldScene, buildGodotGamePack,

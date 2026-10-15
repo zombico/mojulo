@@ -65,14 +65,14 @@ export function playInGodot(dir, payload, frames, godot, { params = null } = {})
   const feet = Object.fromEntries((payload.entities || []).filter((e) => ids.includes(e.id) && Number.isFinite(e.rule?.eye)).map((e) => [e.id, e.rule.eye]));
   const file = path.join(dir, 'sim', `run-${process.pid}.json`);
   fs.writeFileSync(file, JSON.stringify({ ref: 'harness', frames, ids, feet, ...(params ? { params } : {}) }));
-  const r = spawnSync(godot, ['--headless', '--fixed-fps', '30', '--path', dir, '--', `--mojulo-sim=${file}`], { encoding: 'utf8', timeout: 600000, maxBuffer: 1 << 28 });
+  const r = spawnSync(godot, ['--headless', '--fixed-fps', '30', '--path', dir, '--', `--mojulo-sim=${file}`], { encoding: 'utf8', timeout: 600000, maxBuffer: 1 << 30 });
   const text = `${r.stdout || ''}${r.stderr || ''}`, keys = [], states = [];
   for (const l of text.split('\n')) {
     const m = /^\[mojulo-sim\] (\d+) (\w+) (.*)$/.exec(l);
     if (m) { keys[+m[1]] = m[3]; states[+m[1]] = m[2]; }
   }
   const err = SCRIPT_ERR.exec(text);
-  return { keys, states, error: err ? `${err[0]}: ${text.split('\n').find((l) => SCRIPT_ERR.test(l))}` : r.status !== 0 ? `exit ${r.status}` : null, text };
+  return { keys, states, error: err ? `${err[0]}: ${text.split('\n').find((l) => SCRIPT_ERR.test(l))}` : r.status !== 0 ? `exit ${r.status ?? r.error?.code ?? r.signal}` : null, text };
 }
 
 export function playBoth(payload, frames, { godot, dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-harness-')), keep = false, mutate = [], params = null } = {}) {
