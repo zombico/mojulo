@@ -12,6 +12,8 @@
  * (`approve`, `revise`), then the run (`run: true`). Each is optional; a call with only `ref` reads.
  */
 import { registerTool } from '@/lib/mcp/server';
+import { shareForContext } from '@/lib/mcp/hosts/handoff';
+import { shareBrief } from '@/lib/graph/game/share-offer.js';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
@@ -143,7 +145,7 @@ async function runWorld(ref, world, { force = false } = {}) {
 }
 
 /** Each part's stamp, the steps, what was made, and what to do next. */
-function readout(ref, world) {
+function readout(ref, world, context = {}) {
   const lookup = world.characters ? heroLookup(heroRefOf(world, ref)) : undefined;
   // a hero edited by hand since the run has moved past its pinned base: said on the base's part, never refused
   const adopted = world.characters?.hero?.ref;
@@ -169,6 +171,8 @@ function readout(ref, world) {
     // the game as a player gets it, and the playtest: every level open, nothing saved, `?level=<ref>` for one
     const game = encodeURIComponent(world.made.game.ref);
     next.push({ step: 'play', url: `/api/sketches/${game}/game`, playtest: `/api/sketches/${game}/playtest`, gate: 'eyes', card: 'gameworld-next' });
+    // how to share it, by what this host can do; the call that made the game carries the whole offer (`share`)
+    next.push({ step: 'share', can: shareBrief(shareForContext(context, { ref: world.made.game.ref })), card: 'gameworld-next' });
   }
   if (world.characters) next.push({ step: world.made?.hero ? 'rerun' : 'run', card: 'gameworld-next' });
   if (world.characters?.hero?.actions && !world.characters.hero.adornment) next.push({ step: 'adornment', path: '/characters/hero/adornment', card: 'gameworld-adornment' });
@@ -215,7 +219,7 @@ function reviewWith(world, { approve, revise, note }) {
   return review;
 }
 
-export async function designGameHandler(input) {
+export async function designGameHandler(input, context = {}) {
   if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, patch?, approve?, revise?, note?, run?, force?, example?, compare? }');
   const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick, readout: shape } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
@@ -231,7 +235,7 @@ export async function designGameHandler(input) {
     if (!REFERENCES[example]) throw new Error(`design_game: example is one of ${Object.keys(REFERENCES).join(', ')} (a reference made only when the creator asks to see one)`);
     if (world !== undefined || patch !== undefined || given !== undefined) throw new Error('design_game: an example is made on its own, at its own ref; it takes no world, patch or ref');
     const at = `example-${example}`;
-    const out = SketchRepository.getByRef(at) ? await designGameHandler({ ref: at, run }) : await designGameHandler({ world: REFERENCES[example], ref: at, title: `Reference example: ${REFERENCES[example].name}`, run });
+    const out = SketchRepository.getByRef(at) ? await designGameHandler({ ref: at, run }, context) : await designGameHandler({ world: REFERENCES[example], ref: at, title: `Reference example: ${REFERENCES[example].name}`, run }, context);
     return { ...out, example: `a reference, made because it was asked for: compare your own world with it after you have made yours (design_game({ ref, compare: '${example}' })), never as a start` };
   }
   if (world !== undefined && patch !== undefined) throw new Error('design_game: `world` replaces the recipe whole, `patch` edits it by part: one or the other');
@@ -260,14 +264,14 @@ export async function designGameHandler(input) {
     if (patch !== undefined) await updateSketchHandler({ ref, patch, ...(title ? { title } : {}) });
   }
   try {
-    return await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape });
+    return await afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context);
   } catch (err) {
     // the recipe is stored; the call failed after it: say where, so the next call fixes it in place
     throw new Error(`${err.message}\n— the gameworld is stored at '${ref}' as written; fix it with design_game({ ref: '${ref}', patch }) rather than starting a new one.`);
   }
 }
 
-async function afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }) {
+async function afterWrite(ref, { approve, revise, note, run, force, compare, before, shape }, context = {}) {
   let W = gameworldOf(SketchRepository.getByRef(ref).manifest);
   // the verdicts
   if (approve !== undefined || revise !== undefined) {
@@ -297,9 +301,12 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
     if (!W.made?.hero) throw new Error('design_game: compare after you have made your own world (run it first): a reference read before the design is a template, and this one is not');
     comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
   }
-  const full = readout(ref, W);
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(comparison ? { comparison } : {}) };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(comparison ? { comparison } : {}) };
+  const full = readout(ref, W, context);
+  // the run that made (or remade) the game completed it: the whole share offer rides this call, once
+  const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
+  const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(comparison ? { comparison } : {}), ...share };
 }
 
 // readout: 'changed': the parts whose stamp moved since the call began, any other section that differs, and the next

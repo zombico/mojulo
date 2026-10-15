@@ -388,6 +388,9 @@ function nextCard() {
     '  play       the game is made: `url`. Its levels are walkable by construction (the hero spawns on each stage\'s ground,',
     '             its exit is the stage\'s own end); whether they can be beaten is the creator\'s to judge in play: nothing',
     '             proved it (`gate: eyes`). `playtest` plays it with every level open and nothing saved; ?level=<ref> opens one.',
+    '  share      the game is complete: ask the creator how they want to share it before exporting anything. `can` is',
+    '             what this host allows per option (here | carry | ask | no); the call that made the game carries the',
+    '             whole offer (`share`: each option\'s call and why). Where nothing can leave the host, the recipe is the handoff.',
     '  run        run: true makes the hero, and every step that is ready.',
     '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
     '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
@@ -453,7 +456,7 @@ const CARDS = [
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins', storyCard],
-  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, run, rerun, intent, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

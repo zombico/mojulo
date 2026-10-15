@@ -147,6 +147,9 @@ export const FIXTURE = [
   ['the second level of my game is too flat, give it some real hills', 'tune_ground'],
   ['my platformer feels drab, can it have warmer colours', 'pick_palette'],
   // asset receipts: asked in plain words
+  // share a finished game (desktop export): the completion offer's options all enter on export_game
+  ['the game is done, how do I get it to my friends', 'export_game'],
+  ['wrap my finished racer as a program I can double-click on my laptop', 'export_game'],
   ['stamp my exported model so people can tell I made it', 'sign_asset'],
   ['is this glb really the one I exported, or has someone changed it', 'verify_asset'],
   // (historic places left the routing eval in 1015: deemphasized, a historical view rather than an ask the surface

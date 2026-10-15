@@ -77,7 +77,7 @@ export { getServerVersion };
 export const SERVER_INSTRUCTIONS = `Mojulo is a **3D factory with a media studio** on the operator's machine: a stateful MCP server over its own SQLite store. The agent makes things by conversation, and each one is a tiny deterministic recipe: the recipe is the source, renders are derived and regenerate on every read. Mojulo is the agent-driven upstream that feeds Godot, Unity, Unreal, Blender and the slicer. It does not rival them on rendering, and it is not merely an exporter.
 
 What it makes, by what people do with it:
-- **Play**: games, composed by \`design_game\` from worlds, characters (\`create_character\`: heroes, creatures, animals), gear and sound. Godot first-class.
+- **Play**: games, composed by \`design_game\` from worlds, characters (\`create_character\`: heroes, creatures, animals), gear and sound. It plays in the browser or as a desktop app; the engines get a translation, Godot the fullest.
 - **Print**: solids at true scale, \`mint_solid\` then \`export_model\` (STL or 3MF, mm, z-up); a house is \`mint_building\`.
 - **Read**: diagrams, illustrations, science views, covers and publications: \`create_sketch\`, \`create_view\`, \`cook\`.
 - **Hear**: scores, sound effects and voices: \`create_beats\`, \`create_voice\`.

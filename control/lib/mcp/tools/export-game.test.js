@@ -143,3 +143,53 @@ describe('export_game — world/level games', () => {
     expect(existsSync(path.join(OUT, 'sk_eg_broken', 'game.html'))).toBe(false);
   });
 });
+
+describe("export_game — target 'desktop'", () => {
+  it('writes the web folder plus the three files that make it an Electron app, the same bytes each time', async () => {
+    const floor = [{ corners: [[-50, -50, 0], [50, -50, 0], [50, 50, 0], [-50, 50, 0]], fill: '#565' }];
+    SketchRepository.create({
+      title: 'desk level', ref: 'sk_eg_desk_lv',
+      manifest: { kind: 'controllable', faces: floor,
+        entities: [{ id: 'hero', transform: { pos: [0, 0, 0] }, rule: { type: 'walk', speed: 10 }, body: { type: 'mesh', shape: 'box', size: [4, 4, 8], color: '#fa0' } }],
+        game: { levelRef: 'sk_eg_desk_lv', produces: { results: ['success'], events: [] } } },
+    });
+    SketchRepository.create({
+      title: 'Desk Run', ref: 'sk_eg_desk',
+      manifest: { kind: 'game', title: 'Desk Run', store: { slices: [{ name: 'flags', kind: 'flags' }] }, levels: [{ ref: 'sk_eg_desk_lv', title: 'One' }] },
+    });
+
+    const result = await exportGameHandler({ ref: 'sk_eg_desk', target: 'desktop', cdn: true });
+    expect(result.ok).toBe(true);
+    expect(result.target).toBe('desktop');
+    const names = result.files.map((f) => f.file);
+    expect(names).toEqual(expect.arrayContaining(['game.html', 'levels/sk_eg_desk_lv.html', 'package.json', 'main.js', '.gitignore', 'README.md']));
+    // a desktop app is offline: `cdn: true` is refused with a note, three.js stays inlined
+    expect(result.cdn_note).toMatch(/desktop app inlines three\.js/);
+    expect(readFileSync(path.join(result.dir, 'levels/sk_eg_desk_lv.html'), 'utf8')).not.toMatch(/cdn\.jsdelivr/);
+
+    const pkg = JSON.parse(readFileSync(path.join(result.dir, 'package.json'), 'utf8'));
+    expect(pkg).toMatchObject({ name: 'desk-run-sk-eg-desk', productName: 'Desk Run', main: 'main.js', private: true });
+    expect(pkg.devDependencies.electron).toBe(result.desktop.electron);
+    expect(pkg.scripts.start).toBe('electron .');
+    const readme = readFileSync(path.join(result.dir, 'README.md'), 'utf8');
+    expect(readme).toContain('## Play it as a desktop app');
+    expect(readme.indexOf('## Play it as a desktop app')).toBeLessThan(readme.indexOf('## How to re-mint'));
+
+    const before = Object.fromEntries(['package.json', 'main.js', '.gitignore', 'README.md', 'game.html']
+      .map((f) => [f, readFileSync(path.join(result.dir, f))]));
+    await exportGameHandler({ ref: 'sk_eg_desk', target: 'desktop' });
+    for (const [f, bytes] of Object.entries(before)) expect(readFileSync(path.join(result.dir, f)).equals(bytes), f).toBe(true);
+  });
+
+  it('a pixelizer game becomes an app the same way; its web export writes none of the desktop files', async () => {
+    const manifest = { kind: 'game', engine: 'pixelizer', reducer: 'brickster', title: 'Brick Desk', music: true, menu: { tagline: 't' } };
+    SketchRepository.create({ title: 'Brick Desk', manifest, ref: 'sk_eg_brick_desk' });
+    const web = await exportGameHandler({ ref: 'sk_eg_brick_desk' });
+    expect(web.files.map((f) => f.file).sort()).toEqual(['README.md', 'game.html', 'recipe/game.json']);
+    expect(web.desktop).toBeUndefined();
+    expect(readFileSync(path.join(web.dir, 'README.md'), 'utf8')).not.toContain('desktop app');
+    const desk = await exportGameHandler({ ref: 'sk_eg_brick_desk', target: 'desktop' });
+    expect(desk.files.map((f) => f.file).sort()).toEqual(['.gitignore', 'README.md', 'game.html', 'main.js', 'package.json', 'recipe/game.json']);
+    expect(desk.desktop.gate).toMatch(/export-desktop\.mjs --ref sk_eg_brick_desk/);
+  });
+});

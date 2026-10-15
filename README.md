@@ -161,9 +161,11 @@ The legs take the aprons on mortise and tenon, sized so the tenons stop short of
 
 The agent calls `compose_world { base: 'city', seed: 11, overrides: { profile: 'metro', flavor: 'new-york' } }`. `metro` builds it in proportion at about 0.8 × 0.5 km, and the flavor picks the architecture: brick walk-ups, fire escapes, water tanks and Art Deco setbacks here, or `paris`, `london`, `tokyo` and more. The whole city is a pure function of the seed: change it for a new city, keep it and the same city regrows on any machine. `context: { time: 'night' }` lights it for night, and `asset: { monument: 'eiffel-tower' }` stands a landmark at its real size. Open `/world` to walk it with WASD or jump between its street, aerial and skyline views. Bases besides `city`: a transport hub, a K-12 campus, a torch-lit dungeon, a planetary body, a painted landscape, terrain at real scale, a walkable Cayley graph of a finite group.
 
-### 5. "Make it walkable, then make it a game, then export it for Godot"
+### 5. "Make me a kart racer, then let me play it as an app"
 
-`compose_world { base: 'controllable' }` gives a live world you drive. Adding `game: { mechanics: [...] }` to a world makes it a level: reach the exit, survive twenty seconds, collect the relay core. `create_game` binds levels, a synthesized score and figures into one playable artifact with a typed store (inventory, party, flags) that carries between levels; every level must pass a contract dry-run and a traversal that reached the win condition before the game mints. `export_game { target: 'godot' }` writes a real Godot 4 project you open and extend. Unity and Unreal get the same data pack plus an importer; the worked Unreal example is [docs/examples/unreal-night-run/](docs/examples/unreal-night-run/).
+`design_game` designs a game top down (the hero, its powers, gear and systems) and with `run: true` makes each ready step. Levels are worlds with a game contract (reach the exit, survive twenty seconds, win the race); `create_game` binds them, a synthesized score and the figures into one game with a typed store that carries between levels, and it does not mint until every level passes a contract dry-run and a traversal that reaches its win condition. Arena shooters with bots, kart racers with rival drivers, flight, stealth and rhythm games are built from the same parts.
+
+It plays in the browser as it is: `export_game` writes a self-contained folder for any static host, and `target: 'desktop'` makes that folder an Electron app (`npm install && npm start`, offline; signing it is yours). The engines get a translation with a report of what did not travel: `target: 'godot'` writes a real Godot 4 project, the fullest of them; Unity and Unreal get a data pack plus an importer ([worked Unreal example](docs/examples/unreal-night-run/)).
 
 **Also from a sentence:** a posed human figure or an animal mid-stride, rigged for glTF or VRM; a six-storey building with a set-back penthouse; an ambient loop or a full score synthesized from seeded math with no samples; a room's layout recovered from a photo you show your agent. The full catalog is in [docs/tour.md](docs/tour.md).
 
@@ -175,9 +177,10 @@ One recipe, several targets, all off the same ref: `/api/sketches/<ref>/{svg,sce
 
 | Target | What you get | The gate |
 |---|---|---|
-| **Browser** | A still SVG, a dependency-free CSS-3D scene, a walkable WebGL world. | Your eyes. |
+| **Browser** | A still SVG, a dependency-free CSS-3D scene, a walkable WebGL world, a whole game as a self-contained folder. | Your eyes. |
+| **Desktop app** | That game folder as an Electron app: `npm install && npm start` plays it offline, `npm run package` builds it for your machine (unsigned). | The shell and its first level loaded hidden, when Electron is installed. |
 | **`.glb` / OpenUSD** | glTF with lighting baked into vertex colours (or `lit` for PBR), rig clips, skinned meshes, VRM bone names; `usda` / `usdz` at true scale. | Blender and `usdcat`, when installed. |
-| **Godot** (first-class) | A real Godot 4 project: `project.godot`, the versioned kernel scripts, the GLB, export presets. | Headless import and a one-frame run, when `MOJULO_GODOT` names the binary. |
+| **Godot** (the fullest translation) | A real Godot 4 project: `project.godot`, the versioned kernel scripts, the GLB, export presets. | Headless import and a one-frame run, when `MOJULO_GODOT` names the binary. |
 | **Unity / Unreal** (gated legs) | A data pack plus a C# editor importer or a Python importer; game packs add a C++ kernel plugin. | A scratch project imported headless, when `MOJULO_UNITY` / `MOJULO_UNREAL` name the editor. |
 | **Blender** (art pass) | An art-pass pack with importer scripts, and a Cycles bake of global illumination back into vertex colours. | The importer run headless, when `MOJULO_BLENDER` names the binary. |
 | **STL / 3MF** | Print-ready at true scale: mm, z-up, colours and instanced repeats in 3MF, process-aware advisories (FDM, SLA, SLS, MJF). | A local slicer run over the 3MF, stamping layers, time and filament. PrusaSlicer and Bambu Studio verified. |
