@@ -86,7 +86,9 @@ import { readMade } from './made.js';
 import { readQuick } from './quick.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
-import { LAID, groundLays, fieldSite, boardSite, loopSite } from './lay-concerns.js';
+import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
+import { tunnelArena } from './tunnel-arena.js';
+import { WEAPON_ROLES } from './weapon-roles.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
@@ -151,7 +153,7 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', 'front', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -384,6 +386,15 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
+    // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
+    if (L.arena !== undefined) {
+      const A = L.arena, words = typeof A === 'string' ? A : A?.words;
+      if (!(typeof words === 'string' && words.trim()) || (isObj(A) && Object.keys(A).some((k) => !['words', 'spawns', 'weapons', 'teams'].includes(k)))) throw new Error(`gameworld: ${at}.arena is the arena in a few words ("a tight three-lane arena with long sightlines"), or { words, spawns, weapons, teams }`);
+      if (isObj(A) && A.teams !== undefined && A.teams !== 2) throw new Error(`gameworld: ${at}.arena.teams is 2: a team map, a base at each end`);
+      if (isObj(A) && A.weapons !== undefined && !(Array.isArray(A.weapons) && A.weapons.every((w) => WEAPON_ROLES[w]))) throw new Error(`gameworld: ${at}.arena.weapons is the guns laid on its floor, roles of ${Object.keys(WEAPON_ROLES).join(', ')} (each laid where the arena's lines serve it)`);
+      if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
+      if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
+    }
     if (L.roadway !== undefined) {
       // a roadway level: a track built for driving (roads/track.js), laid on its own ground
       if (L.walk !== undefined || L.building !== undefined || L.city !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city or a roadway, one of them`);
@@ -580,8 +591,11 @@ export function resolveLevel(world, id) {
   let lv = readLevel(level);
   // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
   // whose cube lays nothing on the ground is as it was
-  const ids = concernIds(cubeOfWorld(G).cube), lays = ids.some((c) => LAID[c]?.includes('ground')) ? groundLays(ids, lv, levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d)) : null;
-  let field = null, board = null, loop = null;
+  const ids = concernIds(cubeOfWorld(G).cube);
+  // the arena its cube asks for, tunnelled from the level's words (tunnel-arena.js): its plan sizes the ground laid
+  const arenaRun = ids.includes('arena') ? tunnelArena(typeof L.arena === 'string' ? L.arena : L.arena?.words ?? 'an arena', { seed, spawns: (isObj(L.arena) && L.arena.spawns) || 8, ...(isObj(L.arena) && L.arena.weapons ? { weapons: L.arena.weapons } : {}), ...(isObj(L.arena) && L.arena.teams ? { teams: L.arena.teams } : {}) }) : null;
+  const lays = ids.some((c) => LAID[c]?.includes('ground')) ? groundLays(ids, lv, levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d), { arena: arenaRun?.plan ?? null }) : null;
+  let field = null, board = null, loop = null, arena = null;
   if (lays?.laid.length) {
     const g = L.ground ?? {};
     level.ground = { ...g, ...(lays.tune ? { tune: { ...lays.tune, ...(g.tune ?? {}) } } : {}), ...(lays.edits.length ? { edits: [...(g.edits ?? []), ...lays.edits] } : {}) };
@@ -590,6 +604,10 @@ export function resolveLevel(world, id) {
     if (lays.laid.includes('fields')) field = fieldSite(F2)?.centre ?? null;
     if (lays.laid.includes('board')) board = boardSite(F2)?.centre ?? null;
     if (lays.laid.includes('loop')) loop = loopSite(F2);
+    if (lays.laid.includes('arena')) {
+      const site = arenaSite(F2, arenaRun.plan.half), R = arenaRun;
+      arena = site && { ...site, plan: R.plan, tunnel: { words: R.intent, held: R.held, complete: R.complete, passes: R.passes.length, gaps: R.gaps.map((g) => ({ trait: g.trait, word: g.word, why: g.why, proposal: g.proposal })) } };
+    }
   }
   for (const [nid, n] of Object.entries(L.walk.nodes || {})) if (n && n.weather !== undefined && !same(lv.nodes[nid].weather, style.weather)) ledger.push({ scope: 'section', at: `${id}/${nid}`, key: 'weather', world: style.weather ?? null, local: lv.nodes[nid].weather });
 
@@ -624,7 +642,7 @@ export function resolveLevel(world, id) {
   });
   // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
   const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}) } : {}) };
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}), ...(arena ? { arena } : {}) } : {}) };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

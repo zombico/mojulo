@@ -20,7 +20,7 @@ const ARMED = Object.freeze({
 const BASE = Object.freeze({ motivation: 'hunt', aggressiveness: 'bold', rank: 'minion' });
 // a motivation is judged at its natural temperament: the fighting goals at bold, the rest at passive, so a forager's
 // status is about foraging, not about a fight it would never start
-const NATURAL = Object.freeze({ hunt: 'bold', guard: 'bold', territorial: 'bold' });
+const NATURAL = Object.freeze({ hunt: 'bold', guard: 'bold', territorial: 'bold', frag: 'bold' });
 const SEVERITY = { built: 0, partial: 1, local: 2, absent: 3 };
 const MODULE = 'lib/graph/mind/resolve.js';
 

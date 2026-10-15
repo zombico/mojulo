@@ -3,12 +3,21 @@
  *
  *   castOps(state, ops)   apply the bus's queued character intents (event-bus `ctrl` verb, handed over by syncToCtrl),
  *                         in order. Each op is { op, who, … }; an unknown who is a no-op:
- *     spawn { at?, face? }    wake one minted asleep (`dormant`) or sent away: shown, revived, placed where it's told
+ *     spawn { at?, face? }    wake one minted asleep (`dormant`) or sent away: shown, revived, placed where it's told; a
+ *                         mind starts its life clean (no sighting, search, cover, path, grudge or health phase)
  *     vanish                  send one away (asleep again: hidden, unhittable, its rule held)
  *     kill                    it falls (`downed`; hp to 0 when it has hp); its rule is held while it lies
  *     hurt { by } / heal { by? }   its body.hp, floored at 0 (a fall) and capped at its hpMax (heal with no by: full)
  *     rearm { by? }           rounds for the weapon in its hand: `by` more in its reserve (a reload draws them), or with
  *                         no reserve (an endless reload) or no by, the magazine full
+ *     arm { slot, draw? }     a weapon picked up: its loadout slot (an index or its `name`) carried from now (a slot
+ *                         `held: false` waits for it) and in hand unless draw is false; one carried already: its rounds
+ *                         full again
+ *     spawn { fresh }         (fresh) the life starts with the loadout it was minted with: the slots it holds at the
+ *                         start, the first in hand, every round back
+ *     spawn { among, guard }  (among: [[x, y, z?], …]) at the one farthest from the living (the nearest other standing
+ *                         body; a tie to the first): nobody stands up in front of the gun that felled them. (guard)
+ *                         that many seconds no round or blade hurts it, or until it fires (the spawn guard)
  *     walk { points, names?, speed?, then?, face?, pose?, reach? }   a DUMB PATH: straight lines from point to point
  *                         (turn toward it, step, ground snap, collider push-out); `then` at the last point: 'stay' (hold
  *                         there, take `face` / `pose`), 'loop', 'back' (walk the points back, then stay)
@@ -35,8 +44,9 @@
  *                         distance of `land`), its impact and shake are moments then, and `struck` fires on a target
  *   castFacts(state, prev) → { events, prev }   edge-detected happenings, as bus events with `entity`:
  *     down · gone · spawned · arrive { at: the point's name, last: 1 | 0, pose? } · stuck · faded { is } (a status ran
- *     out, here, or was lifted) · struck { by, beam } (a beam reached it) · hit:<id> { by } once per hit it took (a
- *     blade, a round, a splash, a tackle: its `hits` count; `by` the last hitter), what hp-pool reads
+ *     out, here, or was lifted) · struck { by, beam } (a beam reached it) · hit:<id> { by, dmg?, harm?, head? } once per
+ *     hit it took (a blade, a round, a splash, a tackle: its `hits` count; `by` the last hitter; a round's damage, its
+ *     negative and 1 for the head), what hp-pool reads
  *     (the first read seeds; nothing a world was minted with fires)
  *
  * A walk is a BODY OWNER (the rule waits while it walks or holds); so is a cast fall. A second of walking that closes
@@ -47,7 +57,7 @@
  */
 
 export function buildCast(E) {
-  const { TAU, clamp, resolveBlocking, registerBodyOwner } = E;
+  const { TAU, clamp, resolveBlocking, registerBodyOwner, initWeapon } = E;
   const DEG = Math.PI / 180;
 
   function stepRoute(e, dt, world) {
@@ -112,6 +122,9 @@ export function buildCast(E) {
     const k = Number.isFinite(o.shake) && o.shake > 0 ? o.shake : X && X.shake ? X.shake : 0;
     if (k) moment(state, { is: 'shake', at: at.slice(), k: Math.min(1, k * Math.sqrt(sc)), for: C ? 0.4 + C.stagger * (n - 1) : 0.4, t0 });
   }
+  // a body's loadout (a seat's pilot rule carries it, else its own rule), and its weapons as minted: rounds full
+  const loadoutOf = (e) => (e.pilotRule && Array.isArray(e.pilotRule.loadout) ? e.pilotRule.loadout : e.rule && Array.isArray(e.rule.loadout) ? e.rule.loadout : null);
+  function refill(w, cfg) { const f = initWeapon(cfg || null); if (w && f) { w.ammo = f.ammo; w.reserve = f.reserve; w.reloading = false; w.reloadT = 0; w.burstLeft = 0; } }
   function castOps(state, ops) {
     for (const o of ops || []) {
       // a SHOT (the scene layer): the player's camera rule held aside while a directing shot plays; unshot gives it back
@@ -166,10 +179,52 @@ export function buildCast(E) {
       if (o.op === 'spawn') {
         if (typeof o.with === 'string') e.transit = { is: o.with, dir: 'in', t0: t };
         e.dormant = false; e.gone = false; e.downed = false; e.castDown = false; e.route = null; e.held = false; e.pose = null;
+        // a fresh life: what its mind knew and was doing goes (a sighting, a search, a cover spot, a path, a match's
+        // grudges and leads, a crossed health phase); the hits it took before are not a new hit
+        if (e.rule && e.rule.type === 'ai') {
+          e.lastSeen = null; e.searchT = null; e.coverAt = null; e.coverUntil = null; e.navPath = null; e.mindPhase = null;
+          e.fragTarget = null; e.fragLead = null; e.fragGrudge = null; e.fragHunch = null; e.peek = null; e.flight = null;
+          e.coverHits = e.fragHits = e.hits || 0;
+        }
         if (Number.isFinite(e.hpMax) && e.body) { e.body.hp = e.hpMax; e.body.hittable = true; }
-        if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
+        if (Array.isArray(o.among) && o.among.length) {
+          let best = null, bd = -1;
+          for (const s of o.among) {
+            if (!Array.isArray(s)) continue;
+            let dmin = Infinity;
+            for (const x of state.entities) {
+              if (x === e || x.isCamera || x.downed || x.gone || x.dormant || !(x.body && x.body.hittable)) continue;
+              dmin = Math.min(dmin, Math.hypot(x.transform.pos[0] - s[0], x.transform.pos[1] - s[1]));
+            }
+            if (dmin > bd) { bd = dmin; best = s; }
+          }
+          if (best) e.transform.pos = pt3(best, e.transform.pos[2]);
+        } else if (Array.isArray(o.at)) e.transform.pos = pt3(o.at, e.transform.pos[2]);
+        if (Number.isFinite(o.guard) && o.guard > 0) { e.spawnGuard = true; e.spawnGuardT = o.guard; e.invincible = true; }   // combat-match's spawn-guard ticks it; a shot breaks it
         if (Number.isFinite(o.face)) e.transform.heading = o.face * DEG;
         if (Array.isArray(e.vel)) e.vel = [0, 0, 0];
+        const lo = o.fresh ? loadoutOf(e) : null;
+        if (lo && e.loadoutWeapons) {
+          lo.forEach((c, i) => refill(e.loadoutWeapons[i], c && c.weapon));
+          if (e.loadoutHeld) e.loadoutHeld = lo.map((c) => !(c && c.held === false));
+          const i0 = e.loadoutHeld ? Math.max(0, e.loadoutHeld.indexOf(true)) : 0;
+          e.loadoutIdx = i0; e.weapon = e.loadoutWeapons[i0]; e.aiRangedPick = null;
+          if (e.body && lo[i0] && lo[i0].figure) e.body.figure = lo[i0].figure;
+        } else if (o.fresh && e.weapon) refill(e.weapon, (e.pilotRule && e.pilotRule.weapon) || (e.rule && e.rule.weapon));
+      } else if (o.op === 'arm') {
+        const lo = loadoutOf(e);
+        if (e.downed || e.gone || !lo || !e.loadoutWeapons) continue;
+        const i = Number.isInteger(o.slot) ? o.slot : lo.findIndex((c) => c && c.name === o.slot);
+        if (i < 0 || i >= lo.length || !e.loadoutWeapons[i]) continue;
+        const had = !e.loadoutHeld || e.loadoutHeld[i];
+        refill(e.loadoutWeapons[i], lo[i].weapon);
+        if (had) continue;
+        e.loadoutHeld[i] = true;
+        if (o.draw !== false && (e.loadoutIdx || 0) !== i) {
+          e.loadoutIdx = i; e.weapon = e.loadoutWeapons[i];
+          if (e.body && lo[i].figure) e.body.figure = lo[i].figure;
+          if (E.armSwitchReady) E.armSwitchReady(e, e.pilotRule || e.rule, lo[i]);   // the maneuvers' (later in EMISSION): a drawn gun is not ready at once
+        }
       } else if (o.op === 'vanish') {
         if (typeof o.with === 'string' && !e.gone) e.transit = { is: o.with, dir: 'out', t0: t };
         e.gone = true; e.dormant = true; e.route = null; e.held = false; e.moving = false;
@@ -229,7 +284,8 @@ export function buildCast(E) {
       if (cur.a > p.a) events.push({ type: 'arrive', entity: e.id, at: e.arrivedAt, last: e.arrivedLast ? 1 : 0, ...(e.arrivedLast && e.pose ? { pose: e.pose } : {}) });
       if (cur.s > p.s) events.push({ type: 'stuck', entity: e.id });
       if (cur.n > (p.n || 0)) events.push({ type: 'seen', entity: e.id, target: e.seenId || null });
-      for (let k = p.h || 0; k < cur.h; k++) events.push({ type: `hit:${e.id}`, entity: e.id, by: e.lastHitBy || null });
+      // a hit's damage (and whether it was to the head) when a round said it (combat-ranged.js): a bus hp takes it
+      for (let k = p.h || 0; k < cur.h; k++) events.push({ type: `hit:${e.id}`, entity: e.id, by: e.lastHitBy || null, ...(Number.isFinite(e.lastHitDmg) && e.lastHitDmgN === cur.h ? { dmg: e.lastHitDmg, harm: -e.lastHitDmg, head: e.lastHitHead ? 1 : 0 } : {}) });
       // statuses run out on the world clock; a lifted one was queued by the op
       if (e.statuses) for (const k of Object.keys(e.statuses)) { const u = e.statuses[k].until; if (u != null && (state.time || 0) >= u) { delete e.statuses[k]; (e.faded || (e.faded = [])).push(k); } }
       if (e.faded && e.faded.length) { for (const k of e.faded) events.push({ type: 'faded', entity: e.id, is: k }); e.faded.length = 0; }

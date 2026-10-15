@@ -61,7 +61,9 @@ import { CAMERAS } from './cameras.js';
 import { RIDES, RIDE_H } from './ride.js';
 import { playerStates } from '../playscape/player.js';
 import { mulberry32 } from '../vegetation/grow.js';
-import { beatPosts, padSites } from './lay-concerns.js';
+import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
+import { shooterPole, readPole } from './shooter-pole.js';
+import { poleArmory, roleLoadout } from './weapon-roles.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
 import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
@@ -83,6 +85,7 @@ export const QUICK_GOALS = Object.freeze({
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
+  deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given)
@@ -101,6 +104,10 @@ export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a55
 // pole's, the last's), and their lane off a roadway's racing line (narrower: that line already runs near the edges),
 // and a car's body on a roadway (its radius: the barriers stop it; the ride's own rule carries none)
 export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72], roadLane: 0.8, body: 0.9 });
+// a deathmatch's numbers: bots in it, the frag limit, the seconds a fallen body lies, its arena's words when it names none
+export const DEATHMATCH = Object.freeze({ bots: 3, frags: 10, respawn: 3, arena: 'a three-lane arena', teamFrags: 20, hold: 60 });
+// a deathmatch's modes: everyone for themselves; two sides to a frag limit; two sides holding a point for time
+export const DEATHMATCH_MODES = Object.freeze(['free-for-all', 'team', 'control']);
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
@@ -113,7 +120,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
+const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -154,7 +161,19 @@ export function readQuick(Q) {
   if (Q.building !== undefined && Q.climb) throw fail('.climb and .building: a building is its own level, not a climb after a trail');
   if (Q.building !== undefined && Q.goal === 'avoid') throw fail('.building has no hazards to avoid (reach, collect or survive)');
   if (Q.goal !== 'collect' && Q.pickup !== undefined) throw fail('.pickup belongs to the collect goal');
-  if (Q.goal !== 'survive' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive goal');
+  if (Q.goal !== 'survive' && Q.goal !== 'deathmatch' && Q.seconds !== undefined) throw fail('.seconds belongs to the survive and deathmatch goals');
+  for (const k of ['bots', 'frags', 'arena', 'pole', 'weapons', 'mode']) if (Q.goal !== 'deathmatch' && Q[k] !== undefined) throw fail(`.${k} belongs to the deathmatch goal`);
+  if (Q.mode !== undefined && !DEATHMATCH_MODES.includes(Q.mode)) throw fail(`.mode is ${DEATHMATCH_MODES.join(', ')} (two sides: team deathmatch, or a point held for time)`);
+  if (Q.mode && Q.mode !== 'free-for-all' && (Q.bots ?? DEATHMATCH.bots) < 1) throw fail('.mode: two sides need a bot on the other side');
+  if (Q.weapons !== undefined && Q.weapons !== true) throw fail('.weapons: true lays the pole\'s guns on the arena\'s floor to be picked up');
+  if (Q.weapons && Q.pole === undefined) throw fail('.weapons rides the shooter pole: name a pole (realistic..stylized, 0..1)');
+  if (Q.pole !== undefined) { try { readPole(Q.pole); } catch (e) { throw fail(`.pole is ${e.message.replace(/^shooter pole: /, '')}`); } }
+  if (Q.arena !== undefined && !(typeof Q.arena === 'string' && Q.arena.trim())) throw fail('.arena is the arena in a few words ("a tight three-lane arena with long sightlines")');
+  if (Q.bots !== undefined && !(Number.isInteger(Q.bots) && Q.bots >= 1 && Q.bots <= 7)) throw fail('.bots is how many bots in the match with you, 1 to 7');
+  if (Q.frags !== undefined && !(Number.isInteger(Q.frags) && Q.frags >= 1 && Q.frags <= 50)) throw fail('.frags is the frag limit that wins, 1 to 50');
+  if (Q.goal === 'deathmatch' && Q.seconds !== undefined && Q.seconds < 10) throw fail('.seconds is a deathmatch\'s time limit, 10 to 600');
+  if (Q.goal === 'deathmatch' && (Q.building !== undefined || Q.ride || Q.climb || Q.run !== undefined)) throw fail('.deathmatch fights in an arena on a trail\'s land: no building, ride, climb or run');
+  if (Q.goal === 'deathmatch' && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.deathmatch aims from the eye or over the shoulder: camera first-person or third-person');
   for (const k of ['track', 'laps', 'rivals']) if (Q.goal !== 'race' && Q[k] !== undefined) throw fail(`.${k} belongs to the race goal`);
   if (Q.track !== undefined && !['trail', 'loop'].includes(Q.track)) throw fail('.track is trail (end to end) or loop (round a loop laid on the trail\'s land)');
   if (Q.roadway !== undefined) {
@@ -179,7 +198,7 @@ export function readQuick(Q) {
   if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
   for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
-  if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot') throw fail('.foe belongs to the defend, battle and shoot goals');
+  if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot' && Q.goal !== 'deathmatch') throw fail('.foe belongs to the defend, battle, shoot and deathmatch goals');
   if (Q.waves !== undefined && !(Number.isInteger(Q.waves) && Q.waves >= 1 && Q.waves <= DEFEND.perWave.length)) throw fail(`.waves is 1 to ${DEFEND.perWave.length}`);
   if (Q.lives !== undefined && !(Number.isInteger(Q.lives) && Q.lives >= 1 && Q.lives <= 20)) throw fail('.lives is 1 to 20');
   if (Q.pads !== undefined && !(Number.isInteger(Q.pads) && Q.pads >= 1 && Q.pads <= 8)) throw fail('.pads is 1 to 8');
@@ -212,13 +231,14 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   const { camera: named, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
-  const camera = named ?? (quick.goal === 'shoot' ? 'first-person' : undefined);
+  const camera = named ?? (quick.goal === 'shoot' || quick.goal === 'deathmatch' ? 'first-person' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
   // a loop is laid on the trail's land: the longest trail, so a lap is a stretch worth driving
   const loop = quick.goal === 'race' && (quick.track === 'loop' || ((quick.rivals || quick.racers) && quick.track !== 'trail'));
-  const nodes = { path: { trail: loop ? { run: RACE.run, beats: RACE.beats } : {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
+  // an arena too: its trail the longest, with no beat that cuts the land or stands a stone on it
+  const nodes = { path: { trail: loop || quick.goal === 'deathmatch' ? { run: RACE.run, beats: RACE.beats } : {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
   // a run's pool: trails each laid from its own seed, two more than a run draws
   const s0 = Number.isInteger(seed) ? seed : 1;
   // a race on a roadway: the level is the roadway itself (a lap, or a stage when its course runs end to end), dressed
@@ -228,7 +248,9 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const levels = worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
-    : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) } } };
+    : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
+      // a deathmatch's arena: its words, a spawn for each in the match
+      ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } };
   return {
     id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },
@@ -297,6 +319,33 @@ export function goalMechanics(quick, ends) {
         { kind: 'fail-on-death', startHp: SHOOT.hp, hits: SHOOT.hit },
         ...(drops.length ? [{ kind: 'supplies', max: SHOOT.hp, drops }] : []),
         { kind: 'defeat-all', who: 'foe-*', count: posts.length, label: 'Down' },
+      ];
+    }
+    case 'deathmatch': {
+      // a match on the arena its concern laid: the bots its rivals, its spawns where the fallen come back, its supplies
+      if (!ends.arena) throw new Error('gameworld: quick deathmatch: the stage laid no arena (its trail is too short to hold one)');
+      // two sides (mode team or control): each comes back at its own base, the frags its side's; with control, a point
+      // in the middle the sides hold for time (frags' limit then high: the point decides)
+      const rivals = deathmatchBots(quick), S = deathmatchSides(quick), A = ends.arena;
+      const limit = quick.frags ?? (quick.mode === 'control' ? 50 : S ? DEATHMATCH.teamFrags : DEATHMATCH.frags);
+      const sides = S ? { teams: S, spawns: { red: A.bases[0].map((k) => A.spawns[k]), blue: A.bases[1].map((k) => A.spawns[k]) } } : { spawns: A.spawns };
+      const base = { kind: 'frags', rivals, frags: limit, ...(quick.seconds ? { seconds: quick.seconds } : {}), ...sides };
+      const point = quick.mode === 'control' ? [{ kind: 'control', teams: S, at: deathmatchPoint(ends), radius: 4, hold: DEATHMATCH.hold }] : [];
+      const drops = deathmatchDrops(quick, ends);
+      if (quick.pole === undefined) return [
+        { ...base, respawn: DEATHMATCH.respawn, hp: SHOOT.hp, hits: SHOOT.hit },
+        { kind: 'supplies', max: SHOOT.hp, drops: drops.map((d) => ({ ...d, amount: d.gives === 'health' ? SHOOT.health : SHOOT.rounds })), takers: 'bot-*' },
+        ...point,
+      ];
+      // on the shooter pole (shooter-pole.js): its hp taking each round's own damage (armor first), its respawn, its kit
+      const P = shooterPole(quick.pole), ab = P.abilities;
+      const amount = { health: Math.round(P.hp * 0.3), ammo: P.weapon.magazine, armor: Math.round(P.hp * 0.5), overdrive: 10 };
+      return [
+        { ...base, respawn: P.respawn, hp: P.hp, damage: true, ...(drops.some((d) => d.gives === 'armor') ? { armor: true } : {}) },
+        { kind: 'supplies', max: P.hp, armorMax: P.hp, drops: drops.map((d) => ({ ...d, amount: amount[d.gives] })), takers: 'bot-*' },
+        ...(P.regen ? [{ kind: 'regen', ...P.regen }] : []),
+        ...(ab.heal || ab.ultimate ? [{ kind: 'abilities', ...(ab.heal ? { heal: ab.heal } : {}), ...(ab.ultimate ? { ultimate: { ...ab.ultimate, rivals: S ? S.blue : rivals } } : {}) }] : []),
+        ...point,
       ];
     }
     case 'battle':
@@ -493,7 +542,7 @@ export function shootDrops(posts, ends) {
 /** A shooter's cast, on a stage: each foe at its post, armed, hunting by sight and taking cover (the walls are the
  * intent's: its `cover` concern stands them by these posts, lay-concerns.js). `ref`: their figure; `hero`: the player
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
-export function shootCast(quick, ends, ref, { hero = false } = {}) {
+export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
   const posts = shootPosts(quick, ends), figures = {}, entities = [];
   posts.forEach((p) => {
     figures[p.id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
@@ -506,13 +555,111 @@ export function shootCast(quick, ends, ref, { hero = false } = {}) {
     });
   });
   // the player, armed: hittable (a person's egg: over its feet, or under the eye it walks at), its eye's height known
-  // (sight is eye to eye), the rifle at its eye
+  // (sight is eye to eye), the rifle at its eye; over the shoulder (shoulderOf) its rounds converge on the crosshair
+  const over = shoulderOf(camera ?? quick.camera, hero);
   const pilot = {
     rule: { collideRadius: 0.3, collideHeight: 1.7 },
-    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0 },
+    weapon: { ...SHOOT.rifle, eye: hero ? 1.5 : 0, ...(over ? { converge: true } : {}) },
     body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
   };
-  return { figures, entities, posts, pilot };
+  return { figures, entities, posts, pilot, ...(over ? { camera: over } : {}) };
+}
+
+// OVER THE SHOULDER: a shooter's third-person camera, close behind the hero and off its right shoulder, its crosshair's
+// line crossing the body's own `lead` metres out; the player's rounds go from the muzzle to the point under the
+// crosshair (weapon.converge), so what the crosshair is on is what is hit, a wall the gun cannot clear included
+export const SHOULDER = Object.freeze({ dist: 2.8, height: 1.8, shoulder: 0.75, lookH: 1.55, lead: 10, lerp: 16, pitchFollow: 1 });
+/** The over-the-shoulder camera for a shooter's hero played third-person (`camera`: the world's), else null. */
+export const shoulderOf = (camera, hero) => (hero && camera === 'third-person' ? SHOULDER : null);
+
+/** A deathmatch's legend: fire, and on the shooter pole its feet and its kit. */
+export function deathmatchLegend(quick) {
+  if (quick.pole === undefined) return 'click  fire';
+  const P = shooterPole(quick.pole);
+  return ['click  fire', quick.weapons ? '1-4  a gun picked up · R  the next' : null, P.move.jump ? `Space  jump${P.move.airJumps ? ' (twice)' : ''}` : null, P.move.dash ? 'F F  dash' : null, P.abilities.heal ? 'Q  heal' : null, P.abilities.ultimate ? 'X  ultimate' : null].filter(Boolean).join(' · ');
+}
+
+// the seconds each supply takes to come back (an arena's item timing)
+export const ITEM_BACK = Object.freeze({ health: 20, ammo: 15, armor: 25, overdrive: 45, weapon: 30 });
+/** A deathmatch's supplies, from its arena's (placed by risk, tunnel-arena.js): health and rounds always, armor on the
+ * shooter pole, the overdrive where the pole has an ultimate (the stylized end), the guns the arena serves when it asks
+ * for weapons; each comes back after its ITEM_BACK. → [{ at, gives, respawn, slot? }] */
+export function deathmatchDrops(quick, ends) {
+  const P = quick.pole !== undefined ? shooterPole(quick.pole) : null;
+  const keep = (g) => g === 'health' || g === 'ammo' || (P && g === 'armor') || (P && g === 'overdrive' && !!P.abilities.ultimate) || (quick.weapons && g === 'weapon');
+  return ends.arena.drops.filter((d) => keep(d.gives)).map((d) => ({ at: d.at, gives: d.gives, respawn: ITEM_BACK[d.gives], ...(d.slot ? { slot: d.slot } : {}) }));
+}
+/** A deathmatch's loadout with weapons (weapon-roles.js): the pole's rifle in hand, each gun its arena laid to be
+ * picked up after it; every slot carries its band (a mind takes the gun for the range). `eye`: the guns' height;
+ * `converge`: the rounds go to the crosshair's point (over the shoulder). */
+export function deathmatchLoadout(quick, ends, eye, converge = false) {
+  const laid = [...new Set(ends.arena.drops.filter((d) => d.gives === 'weapon').map((d) => d.slot))];
+  return roleLoadout(quick.pole, laid).map((c) => ({ ...c, weapon: { ...c.weapon, eye, ...(converge ? { converge: true } : {}) } }));
+}
+
+/** A deathmatch's two sides (mode team or control), or null: the player and every other bot red, the rest blue. */
+export function deathmatchSides(quick) {
+  if (!quick.mode || quick.mode === 'free-for-all') return null;
+  const all = ['player', ...deathmatchBots(quick)];
+  return { red: all.filter((_, k) => k % 2 === 0), blue: all.filter((_, k) => k % 2 === 1) };
+}
+/** A control match's point: the clear floor nearest the arena's middle (a blocker may stand on the middle itself). */
+export function deathmatchPoint(ends) {
+  const A = ends.arena, boxes = askBoxes(A.blocks), [cx, cy] = A.centre;
+  const clear = (x, y) => !boxes.some((B) => x > B.min[0] - 1 && x < B.max[0] + 1 && y > B.min[1] - 1 && y < B.max[1] + 1);
+  for (let r = 0; r <= A.half; r += 1) for (let k = 0; k < Math.max(1, Math.round(r * 2 * Math.PI)); k++) {
+    const a = (k / Math.max(1, Math.round(r * 2 * Math.PI))) * 2 * Math.PI, x = r3(cx + r * Math.cos(a)), y = r3(cy + r * Math.sin(a));
+    if (clear(x, y)) return [x, y, A.z ?? 0];
+  }
+  return [cx, cy, A.z ?? 0];
+}
+/** A deathmatch's bots' ids (quick.bots of them). */
+export const deathmatchBots = (quick) => Array.from({ length: quick.bots ?? DEATHMATCH.bots }, (_, k) => `bot-${k + 1}`);
+
+/** A deathmatch's cast, on its arena (ends.arena): the player on the first spawn, each bot on the next, all facing the
+ * centre; every gun held right-handed (`hand`: past an edge on its right a shooter fires with less of itself out); the
+ * bots match players (mind.js `frag`: fight whom they see, hunt the noise, strafe, peek an edge) on the navmesh.
+ * `ref`: their figure; `hero`: the player has a body. → { figures, entities, pilot } (stageLevelOrder's `extra`). */
+export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) {
+  const A = ends.arena, bots = deathmatchBots(quick), figures = {}, entities = [];
+  const face = (p) => r3(Math.atan2(A.centre[1] - p[1], A.centre[0] - p[0]));
+  // on the shooter pole: every gun the pole's (the same for all), every body its hp, the bots' minds and the player's
+  // feet the pole's (shooter-pole.js)
+  const P = quick.pole !== undefined ? shooterPole(quick.pole) : null;
+  // two sides: each body on its own base (the player first on red's), its side its team (allies pass through, minds
+  // fight the other side and hold fire rather than shoot through a teammate); with control, the point their objective
+  const S = deathmatchSides(quick), sideOf = (id) => (S ? (S.red.includes(id) ? 'red' : 'blue') : null);
+  const spot = (id, k) => {
+    if (!S) return A.spawns[k % A.spawns.length];
+    const b = A.bases[sideOf(id) === 'red' ? 0 : 1], j = S[sideOf(id)].indexOf(id);
+    return A.spawns[b[j % b.length]];
+  };
+  const teamRule = S ? { clearLine: true, ...(quick.mode === 'control' ? { objective: { at: deathmatchPoint(ends), radius: 2.5 } } : {}) } : {};
+  bots.forEach((id, k) => {
+    const at = spot(id, k + 1);
+    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    entities.push({
+      id, ...(S ? { team: sideOf(id) } : {}),
+      rule: { ...teamRule, type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), items: deathmatchDrops(quick, ends).map((d) => ({ at: d.at, gives: d.gives, back: d.respawn, ...(d.slot ? { slot: d.slot } : {}) })), ...(ends.arena.floors ? { floors: ends.arena.floors } : {}), ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, 1.4), keepRange: true, perches: [...ends.arena.drops.filter((d) => d.slot === 'long').map((d) => d.at), ...(ends.arena.floors ?? []).map((f) => [r3((f.area[0] + f.area[2]) / 2), r3((f.area[1] + f.area[3]) / 2), f.z])] } : {}), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
+      weapon: P ? { ...P.weapon, eye: 1.4 } : { ...SHOOT.gun, range: 40, hand: 'right' },
+      body: { type: 'figure-rig', figure: id, hittable: true, hp: P ? P.hp : SHOOT.foeHp, poise: P ? 6 : 2, radius: 0.6, egg: { ...PERSON, cz: PERSON.c } },
+      transform: { pos: at, heading: face(at) },
+    });
+  });
+  const s0 = spot('player', 0);
+  // the player's feet: the pole's pace; past its jump threshold the platform rule (a jump, an air jump, a dash)
+  // (with weapons it is the platform rule too: the rule that carries a loadout; short of the pole's jump, a hop a step high)
+  const feet = !P ? {} : P.move.jump ? { type: 'platform', speed: P.move.speed, jumpSpeed: 8.5, airJumps: P.move.airJumps, dodge: !!P.move.dash }
+    : quick.weapons ? { type: 'platform', speed: P.move.speed, jumpSpeed: 3.2, airJumps: 0, dodge: !!P.move.dash } : { speed: P.move.speed };
+  const over = shoulderOf(camera ?? quick.camera, hero), conv = over ? { converge: true } : {};
+  const pilot = {
+    ...(S ? { team: 'red' } : {}),
+    rule: { collideRadius: 0.3, collideHeight: 1.7, ...feet, ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, hero ? 1.5 : 0, !!over) } : {}) },
+    weapon: P ? { ...P.weapon, eye: hero ? 1.5 : 0, ...conv } : { ...SHOOT.rifle, eye: hero ? 1.5 : 0, hand: 'right', ...conv },
+    body: { hittable: true, radius: 0.5, egg: { ...PERSON, cz: hero ? PERSON.c : PERSON.c - 1.7 } },
+    transform: { pos: [s0[0], s0[1], s0[2] + (hero ? 0 : 1.7)], heading: face(s0) },
+  };
+  return { figures, entities, pilot, ...(over ? { camera: over } : {}) };
 }
 
 /** A defence's cast and its building, on a stage: the foes asleep at the trail's end (as many as its waves send), a

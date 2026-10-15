@@ -258,29 +258,70 @@ const MECHANICS = {
   },
 
   // walk over a supply → it gives (emitter): health back into the level's hp (to `max`), or rounds for the player's
-  // weapon (the cast's rearm: into its reserve, or a full magazine). Each is taken once.
+  // weapon (the cast's rearm: into its reserve, or a full magazine). Each is taken once, unless it comes back:
+  //   respawn   seconds after it is taken it is there again (`p.respawn`, or a drop's own): an arena's item timing
+  //   armor     `gives: 'armor'`: into the level's `armor` (to `armorMax`, 100), which takes whole rounds while it lasts
+  //             (frags' `armor`)
+  //   overdrive `gives: 'overdrive'`: the cast's status for `amount` seconds (10): its taker's rounds hit harder
+  //   takers    a glob of the others who may take them too (`'bot-*'`): health and armor heal them (the cast's heal),
+  //             rounds rearm them, overdrive drives them; whoever takes one, it is gone for everyone
+  //   weapon    `gives: 'weapon', slot`: the cast's arm, a loadout slot (its name or index) carried from then on (a slot
+  //             `held: false` waits for it), drawn; a gun carried already takes its rounds full
   supplies: {
     role: 'emitter', requires: [],
     lower(p, ctx) {
       const drops = Array.isArray(p.drops) ? p.drops : [];
-      if (!drops.length) throw new Error(`supplies[${ctx.i}]: needs drops: [{ at, gives: 'health' | 'ammo', amount? }]`);
-      const max = Number.isFinite(p.max) && p.max > 0 ? p.max : 100;
+      if (!drops.length) throw new Error(`supplies[${ctx.i}]: needs drops: [{ at, gives: '${SUPPLIES.join("' | '")}', amount? }]`);
+      const max = Number.isFinite(p.max) && p.max > 0 ? p.max : 100, armorMax = Number.isFinite(p.armorMax) && p.armorMax > 0 ? p.armorMax : 100;
+      if (p.takers !== undefined && !(typeof p.takers === 'string' && p.takers)) throw new Error(`supplies[${ctx.i}].takers is a glob of who else may take them ('bot-*')`);
       const world = { vars: {}, sources: [], reactions: [], entities: [] };
       drops.forEach((d, j) => {
-        if (!d || !SUPPLIES.includes(d.gives)) throw new Error(`supplies[${ctx.i}].drops[${j}].gives is one of ${SUPPLIES.join(', ')}`);
+        if (!d || !(SUPPLIES.includes(d.gives) || d.gives === 'weapon')) throw new Error(`supplies[${ctx.i}].drops[${j}].gives is one of ${SUPPLIES.join(', ')}, weapon`);
+        if (d.gives === 'weapon' && !((typeof d.slot === 'string' && d.slot) || Number.isInteger(d.slot))) throw new Error(`supplies[${ctx.i}].drops[${j}]: a weapon names its loadout slot (slot: its name or index)`);
         if (d.amount !== undefined && !(Number.isFinite(d.amount) && d.amount > 0)) throw new Error(`supplies[${ctx.i}].drops[${j}].amount is above 0`);
+        const back = d.respawn ?? p.respawn;
+        if (back !== undefined && !(Number.isFinite(back) && back > 0)) throw new Error(`supplies[${ctx.i}].drops[${j}]: respawn is the seconds it takes to come back, above 0`);
         const zone = `sp_${ctx.i}_${j}`, at = Array.isArray(d.at) ? d.at : [0, 0, 0], got = `__${zone}`, untaken = { var: got, eq: 0 };
         world.vars[got] = 0;
         world.entities.push({ id: zone, on: true, position: at });
         world.sources.push({ type: 'zone', zone, at, radius: d.radius != null ? d.radius : 1.4, planar: true, watch: ctx.player });
-        world.reactions.push(d.gives === 'health'
-          ? { on: 'enter', match: { zone }, if: untaken, do: 'inc', var: 'hp', by: d.amount ?? 25, max }
-          : { on: 'enter', match: { zone }, if: untaken, do: 'ctrl', op: 'rearm', who: ctx.player, ...(d.amount !== undefined ? { by: d.amount } : {}) });
-        world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `supply:${d.gives}` });
+        const give = {
+          health: { do: 'inc', var: 'hp', by: d.amount ?? 25, max },
+          ammo: { do: 'ctrl', op: 'rearm', who: ctx.player, ...(d.amount !== undefined ? { by: d.amount } : {}) },
+          armor: { do: 'inc', var: 'armor', by: d.amount ?? 50, max: armorMax },
+          overdrive: { do: 'ctrl', op: 'status', who: ctx.player, is: 'overdrive', for: d.amount ?? 10 },
+          weapon: { do: 'ctrl', op: 'arm', who: ctx.player, slot: d.slot },
+        }[d.gives];
+        world.reactions.push({ on: 'enter', match: { zone }, if: untaken, ...give });
+        world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `supply:${d.gives}`, ...(d.gives === 'weapon' ? { slot: d.slot } : {}) });
+        if (back !== undefined) world.reactions.push({ on: 'enter', match: { zone }, if: untaken, do: 'emit', type: `__${zone}_taken` });
+        // the others who may take it: their own zone at the same place, the same once (or until it is back)
+        if (p.takers) {
+          const theirs = `${zone}_t`, them = 'event.entity';
+          world.sources.push({ type: 'zone', zone: theirs, at, radius: d.radius != null ? d.radius : 1.4, planar: true, watch: p.takers });
+          const giveThem = {
+            health: { do: 'ctrl', op: 'heal', who: them, by: d.amount ?? 25 },
+            armor: { do: 'ctrl', op: 'heal', who: them, by: d.amount ?? 50 },
+            ammo: { do: 'ctrl', op: 'rearm', who: them, ...(d.amount !== undefined ? { by: d.amount } : {}) },
+            overdrive: { do: 'ctrl', op: 'status', who: them, is: 'overdrive', for: d.amount ?? 10 },
+            weapon: { do: 'ctrl', op: 'arm', who: them, slot: d.slot },
+          }[d.gives];
+          world.reactions.push(
+            { on: 'enter', match: { zone: theirs }, if: untaken, ...giveThem },
+            { on: 'enter', match: { zone: theirs }, if: untaken, do: 'emit', type: `supply:${d.gives}`, by: them, ...(d.gives === 'weapon' ? { slot: d.slot } : {}) },
+            ...(back !== undefined ? [{ on: 'enter', match: { zone: theirs }, if: untaken, do: 'emit', type: `__${zone}_taken` }] : []),
+            { on: 'enter', match: { zone: theirs }, do: 'toggle', target: zone, to: false },
+            { on: 'enter', match: { zone: theirs }, do: 'set', var: got, to: 1 },
+          );
+        }
         world.reactions.push({ on: 'enter', match: { zone }, do: 'toggle', target: zone, to: false });
         world.reactions.push({ on: 'enter', match: { zone }, do: 'set', var: got, to: 1 });
+        // back after its time: there again, to be taken again
+        if (back !== undefined) {
+          (world.sequences ||= []).push({ id: `__${zone}_back`, trigger: { on: `__${zone}_taken` }, steps: [{ await: { timer: back } }, { do: 'set', var: got, to: 0 }, { do: 'toggle', target: zone, to: true }, { do: 'emit', type: 'supply:back', zone }] });
+        }
       });
-      return { world, emits: SUPPLIES.map((g) => `supply:${g}`) };
+      return { world, emits: [...SUPPLIES, ...(drops.some((d) => d.gives === 'weapon') ? ['weapon'] : [])].map((g) => `supply:${g}`) };
     },
   },
 
@@ -712,11 +753,279 @@ const MECHANICS = {
       };
     },
   },
+
+  // FRAGS (a terminal): a deathmatch. The player and `rivals` (the others' ids, each a character with hp) are contenders;
+  // a fall is credited to whoever hit the fallen last (its hit:<id>'s `by`), said on the bus as `kill { killer,
+  // victim }`, and the fallen comes back `respawn` seconds later at the one of `spawns` farthest from the living (the
+  // cast's `among`), guarded `guard` seconds (2; 0: none) or until it fires. The player's hp is the level's (`hp`, `hits` a hit): at 0 it falls as the others
+  // do (the cast's kill holds it), back with full hp. First to `frags` wins it (the player: `frags:won`; anyone else:
+  // `frags:lost`); with `seconds`, the clock ends it too and the place decides (`win` or better wins). The place is the
+  // laps rivals' lead: one more than the contenders strictly ahead, a tie to whoever got there first. Its frags and
+  // place are kept. Lowers to vars, guarded reactions, watches, a timer, a sequence per contender and the cast's kill
+  // and spawn: every verb Godot's bus performs. `damage: true`: the player's hp takes each round's own damage (a web
+  // round's: Godot's hits say none).
+  // TEAMS (`teams: { <name>: [ids], <name>: [ids] }`, two of them, every contender in one): a fall counts for the
+  // felling side only when it felled the other side (a teammate's hit is never credited); the first SIDE to `frags`
+  // wins; at the horn the side ahead wins (a tie is lost); each side comes back at its own spawns (`spawns` keyed by
+  // side) or the shared ones. Kept: the player's frags and its side's.
+  frags: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, P = ctx.player;
+      const who = Array.isArray(p.rivals) ? p.rivals.filter((w) => typeof w === 'string' && w && w !== P) : [];
+      if (!who.length || new Set(who).size !== who.length) throw new Error(`frags[${i}]: needs rivals: ['<id>', …], the others in the match (characters with hp), each once`);
+      const frags = Number.isInteger(p.frags) && p.frags >= 1 ? p.frags : 10;
+      if (p.frags !== undefined && p.frags !== frags) throw new Error(`frags[${i}]: frags is the limit that wins, a whole number from 1`);
+      const seconds = p.seconds === undefined ? null : Number.isInteger(p.seconds) && p.seconds >= 10 ? p.seconds : NaN;
+      if (Number.isNaN(seconds)) throw new Error(`frags[${i}]: seconds is the time limit, a whole number from 10`);
+      const respawn = p.respawn === undefined ? 3 : Number.isFinite(p.respawn) && p.respawn >= 0 ? p.respawn : NaN;
+      if (Number.isNaN(respawn)) throw new Error(`frags[${i}]: respawn is the seconds the fallen lie, 0 or more`);
+      // the sides (two), each contender in one
+      let side = null, sides = null;
+      if (p.teams !== undefined) {
+        const T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+        const all = [P, ...who], listed = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
+        if (names.length !== 2 || listed.length !== all.length || new Set(listed).size !== listed.length || !all.every((c) => listed.includes(c))) throw new Error(`frags[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player and every rival in one, once`);
+        sides = names; side = Object.fromEntries(names.flatMap((k) => T[k].map((c) => [c, k])));
+      }
+      const spawnList = (L) => Array.isArray(L) && L.every((s) => Array.isArray(s) && s.length >= 2 && s.every(Number.isFinite));
+      const spawns = Array.isArray(p.spawns) ? p.spawns : [], spawnsOf = sides && p.spawns && !Array.isArray(p.spawns) ? p.spawns : null;
+      if (spawnsOf ? !sides.every((k) => spawnList(spawnsOf[k])) : !spawnList(spawns)) throw new Error(`frags[${i}]: spawns are [[x, y, z?], …], where the fallen come back${sides ? ' (or { <side>: [[x, y, z?], …] } per side)' : ''}`);
+      const guard = p.guard === undefined ? 2 : Number.isFinite(p.guard) && p.guard >= 0 ? p.guard : NaN;
+      if (Number.isNaN(guard)) throw new Error(`frags[${i}]: guard is the seconds a body back on its feet is not hurt, 0 or more`);
+      const hp = Number.isFinite(p.hp) && p.hp > 0 ? p.hp : 100, hits = Number.isFinite(p.hits) && p.hits > 0 ? p.hits : 10;
+      const C = [P, ...who], n = C.length, win = Number.isInteger(p.win) && p.win >= 1 ? Math.min(p.win, n) : 1;
+      const team = (k) => `__team_${i}_${k}`, frag = (c) => `__frag_${i}_${c}`, last = (c) => `__lh_${i}_${c}`, fell = (c) => `__fell_${i}_${c}`, rise = (c) => `__rise_${i}_${c}`;
+      const tlead = `__tlead_${i}`, over = `__frags_over_${i}`, place = `__place_${i}`, clock = `__frags_t_${i}`, deaths = `__deaths_${i}`, mine = `__pf_${i}`, live = { var: over, eq: 0 };
+      const world = { vars: { hp, [over]: 0, [place]: 1, [deaths]: 0 }, reactions: [], watches: [], sequences: [], timers: [], hud: [] };
+      C.forEach((c) => {
+        Object.assign(world.vars, { [frag(c)]: 0, [last(c)]: 0 });
+        // who hit it last (0: nobody since it last came back); with sides, only the other side's hits count
+        const foe = (a) => a !== c && (!side || side[a] !== side[c]);
+        C.forEach((a, j) => { if (foe(a)) world.reactions.push({ on: `hit:${c}`, match: { by: a }, do: 'set', var: last(c), to: j + 1 }); });
+        // its fall, credited to the last hitter, said as a kill (and counted for the hitter's side)
+        C.forEach((a, j) => {
+          if (!foe(a)) return;
+          const got = { var: last(c), eq: j + 1 };
+          world.reactions.push(
+            { on: fell(c), if: got, do: 'inc', var: frag(a), by: 1 },
+            { on: fell(c), if: got, do: 'emit', type: 'kill', killer: a, victim: c },
+            ...(side ? [{ on: fell(c), if: got, do: 'inc', var: team(side[a]), by: 1 }, { on: fell(c), if: got, do: 'inc', var: tlead, by: side[a] === side[P] ? 1 : -1 }] : []),
+            { on: fell(c), if: got, do: 'emit', type: a === P ? mine : `__bf_${i}_${a}` },
+          );
+        });
+        world.reactions.push({ on: fell(c), do: 'set', var: last(c), to: 0 });
+        // back after its time, at the spawn farthest from the living (none: where it lies), fresh (the loadout it was minted
+        // with, rounds full) and guarded
+        world.sequences.push({ id: `__respawn_${i}_${c}`, trigger: { on: fell(c) }, steps: [{ await: { timer: respawn } }, { do: 'emit', type: rise(c) }] });
+        const own = spawnsOf ? spawnsOf[side[c]] : spawns;
+        world.reactions.push({ on: rise(c), do: 'ctrl', op: 'spawn', who: c, ...(own.length ? { among: own.map((s) => s.slice(0, 3)) } : {}), fresh: true, ...(guard ? { guard } : {}) });
+        // the limit (a side's, with sides)
+        if (!side) {
+          world.watches.push({ type: `__top_${i}_${c}`, when: { var: frag(c), gte: frags } });
+          world.reactions.push({ on: `__top_${i}_${c}`, if: live, do: 'emit', type: c === P ? 'frags:won' : 'frags:lost' });
+        }
+      });
+      if (sides) sides.forEach((k) => {
+        world.vars[team(k)] = 0;
+        world.watches.push({ type: `__ttop_${i}_${k}`, when: { var: team(k), gte: frags } });
+        world.reactions.push({ on: `__ttop_${i}_${k}`, if: live, do: 'emit', type: k === side[P] ? 'frags:won' : 'frags:lost' });
+      });
+      // the others fall as the cast says (their hp ran out); the player when the level's hp does, held down by the cast
+      who.forEach((c) => world.reactions.push({ on: 'down', match: { entity: c }, do: 'emit', type: fell(c) }));
+      world.watches.push({ type: fell(P), when: { var: 'hp', lte: 0 } });
+      // the player's hp: a flat `hits` a hit, or (`damage: true`) what each round dealt (the hit fact's `harm`, a head
+      // hit's included: combat-ranged.js); a hit that says no damage then costs none
+      // `armor` (with damage): the level's `armor` takes whole rounds while it lasts, then the hp does
+      const armored = p.damage === true && p.armor !== undefined && p.armor !== false;
+      const harm = armored
+        ? [...['0', '1'].flatMap((h) => [
+          { on: `hit:${P}`, match: { head: h }, if: { var: 'armor', gt: 0 }, do: 'emit', type: `__armored_${i}`, harm: 'event.harm' },
+          { on: `hit:${P}`, match: { head: h }, if: { var: 'armor', lte: 0 }, do: 'emit', type: `__bare_${i}`, harm: 'event.harm' },
+        ]),
+        { on: `__armored_${i}`, if: live, do: 'inc', var: 'armor', by: 'event.harm', min: 0 },
+        { on: `__bare_${i}`, if: live, do: 'inc', var: 'hp', by: 'event.harm', min: 0 }]
+        : p.damage === true
+          ? ['0', '1'].map((h) => ({ on: `hit:${P}`, match: { head: h }, if: live, do: 'inc', var: 'hp', by: 'event.harm', min: 0 }))
+          : [{ on: `hit:${P}`, if: live, do: 'inc', var: 'hp', by: -hits, min: 0 }];
+      if (armored) { world.vars.armor = 0; world.hud.push({ var: 'armor', label: 'Armor' }); }
+      world.reactions.push(
+        ...harm,
+        { on: fell(P), do: 'ctrl', op: 'kill', who: P },
+        { on: fell(P), do: 'inc', var: deaths, by: 1 },
+        ...(armored ? [{ on: fell(P), do: 'set', var: 'armor', to: 0 }] : []),
+        { on: rise(P), do: 'set', var: 'hp', to: hp },
+      );
+      // the place: per other, the lead (the player's frags less its own) and an ahead flag (laps' rivals); with sides,
+      // the side's lead over the other (`__tlead_<i>`) decides instead
+      if (side) world.vars[tlead] = 0;
+      if (!side) who.forEach((c) => {
+        const lead = `__lead_${i}_${c}`, ahead = `__ahead_${i}_${c}`, gets = `__gets_${i}_${c}`, falls = `__falls_${i}_${c}`;
+        Object.assign(world.vars, { [lead]: 0, [ahead]: 0 });
+        world.reactions.push(
+          { on: `__bf_${i}_${c}`, do: 'inc', var: lead, by: -1 },
+          { on: `__bf_${i}_${c}`, if: { var: lead, lt: 0 }, do: 'emit', type: gets },
+          { on: gets, if: { var: ahead, eq: 0 }, do: 'inc', var: place, by: 1 },
+          { on: gets, if: { var: ahead, eq: 0 }, do: 'set', var: ahead, to: 1 },
+          { on: mine, do: 'inc', var: lead, by: 1 },
+          { on: mine, if: { var: lead, gt: 0 }, do: 'emit', type: falls },
+          { on: falls, if: { var: ahead, eq: 1 }, do: 'inc', var: place, by: -1 },
+          { on: falls, if: { var: ahead, eq: 1 }, do: 'set', var: ahead, to: 0 },
+        );
+      });
+      // the clock: at the horn the place decides
+      if (seconds) {
+        world.vars[clock] = seconds;
+        world.timers.push({ every: 1, emit: { type: `__frags_sec_${i}` }, while: live });
+        world.reactions.push({ on: `__frags_sec_${i}`, do: 'inc', var: clock, by: -1, min: 0 });
+        world.watches.push({ type: `__horn_${i}`, when: { var: clock, lte: 0 } });
+        world.reactions.push(...(side ? [
+          { on: `__horn_${i}`, if: { var: tlead, gt: 0 }, do: 'emit', type: 'frags:won' },
+          { on: `__horn_${i}`, if: { var: tlead, lte: 0 }, do: 'emit', type: 'frags:lost' },
+        ] : [
+          { on: `__horn_${i}`, if: { var: place, lte: win }, do: 'emit', type: 'frags:won' },
+          { on: `__horn_${i}`, if: { var: place, gt: win }, do: 'emit', type: 'frags:lost' },
+        ]));
+        world.hud.push({ var: clock, label: 'Time', as: 'clock' });
+      }
+      world.reactions.push({ on: 'frags:won', do: 'set', var: over, to: 1 }, { on: 'frags:lost', do: 'set', var: over, to: 1 });
+      world.hud.push(
+        { var: 'hp', label: 'HP' },
+        { var: frag(P), label: 'Frags', as: 'counter', ...(side ? {} : { max: frags }) },
+        ...(side ? [{ var: team(side[P]), label: 'Ours', as: 'counter', max: frags }, { var: team(sides.find((k) => k !== side[P])), label: 'Theirs', as: 'counter', max: frags }]
+          : [{ var: place, label: 'Place', as: 'counter', max: n }]),
+        { on: mine, text: 'Frag!', as: 'toast', ttl: 1 },
+        { on: fell(P), text: 'Fragged', as: 'toast', ttl: Math.max(1, respawn) },
+      );
+      return {
+        world,
+        on: { 'frags:won': { end: 'success' }, 'frags:lost': { end: 'fail' } },
+        keep: [{ var: frag(P), label: 'Frags', best: 'high' }, side ? { var: team(side[P]), label: 'Side', best: 'high' } : { var: place, label: 'Place', best: 'low' }],
+      };
+    },
+  },
+
+  // CONTROL (a terminal): a point two sides fight over (`teams`, as frags' sides). Every second the side alone on it (a
+  // ring `radius` round `at`, its standing bodies: a fallen one holds nothing) scores one; contested (both there) or
+  // empty, nobody does. The first side to `hold` seconds wins it (the player's: `control:won`; the other's:
+  // `control:lost`). Lowers to a zone per contender, counts and flags, a timer and watches (the web's: a Godot export
+  // does not keep it yet). Kept: the player's side's seconds on the point.
+  control: {
+    role: 'terminal', ends: ['success', 'fail'], requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, P = ctx.player, T = p.teams, names = T && typeof T === 'object' && !Array.isArray(T) ? Object.keys(T) : [];
+      const all = names.flatMap((k) => (Array.isArray(T[k]) ? T[k] : [null]));
+      if (names.length !== 2 || !all.every((c) => typeof c === 'string' && c) || new Set(all).size !== all.length || !all.includes(P)) throw new Error(`control[${i}]: teams are two sides { <name>: ['<id>', …], <name>: […] }, the player in one, each id once`);
+      if (!(Array.isArray(p.at) && p.at.length >= 2 && p.at.every(Number.isFinite))) throw new Error(`control[${i}]: at is the point, [x, y, z?]`);
+      const radius = p.radius === undefined ? 4 : Number.isFinite(p.radius) && p.radius > 0 ? p.radius : NaN;
+      const hold = p.hold === undefined ? 60 : Number.isInteger(p.hold) && p.hold >= 5 ? p.hold : NaN;
+      if (Number.isNaN(radius) || Number.isNaN(hold)) throw new Error(`control[${i}]: radius is the point's reach in metres (4), hold the seconds on it that win (60, from 5)`);
+      const at = [p.at[0], p.at[1], p.at[2] ?? 0], mineSide = names.find((k) => T[k].includes(P)), other = (k) => names.find((x) => x !== k);
+      const n = (k) => `__cpn_${i}_${k}`, sc = (k) => `__cps_${i}_${k}`, inn = (c) => `__cpin_${i}_${c}`, over = `__cp_over_${i}`, live = { var: over, eq: 0 }, tick = `__cp_tick_${i}`;
+      const world = { vars: { [over]: 0 }, sources: [], reactions: [], watches: [], timers: [], entities: [{ id: `cp_${i}`, on: true, position: at }], hud: [] };
+      names.forEach((k) => {
+        Object.assign(world.vars, { [n(k)]: 0, [sc(k)]: 0 });
+        T[k].forEach((c) => {
+          const zone = `cp_${i}_${c}`, flag = inn(c);
+          world.vars[flag] = 0;
+          world.sources.push({ type: 'zone', zone, at, radius, planar: true, watch: c });
+          world.reactions.push(
+            { on: 'enter', match: { zone }, if: { var: flag, eq: 0 }, do: 'inc', var: n(k), by: 1 },
+            { on: 'enter', match: { zone }, do: 'set', var: flag, to: 1 },
+            { on: 'exit', match: { zone }, if: { var: flag, eq: 1 }, do: 'inc', var: n(k), by: -1 },
+            { on: 'exit', match: { zone }, do: 'set', var: flag, to: 0 },
+            { on: 'down', match: { entity: c }, if: { var: flag, eq: 1 }, do: 'inc', var: n(k), by: -1 },
+            { on: 'down', match: { entity: c }, do: 'set', var: flag, to: 0 },
+          );
+        });
+        // a second on the point: the other side none there, this side some
+        world.reactions.push(
+          { on: tick, if: { var: n(other(k)), eq: 0 }, do: 'emit', type: `__cpa_${i}_${k}` },
+          { on: `__cpa_${i}_${k}`, if: { var: n(k), gt: 0 }, do: 'inc', var: sc(k), by: 1 },
+        );
+        world.watches.push({ type: `__cpw_${i}_${k}`, when: { var: sc(k), gte: hold } });
+        world.reactions.push({ on: `__cpw_${i}_${k}`, if: live, do: 'emit', type: k === mineSide ? 'control:won' : 'control:lost' });
+      });
+      world.timers.push({ every: 1, emit: { type: tick }, while: live });
+      world.reactions.push({ on: 'control:won', do: 'set', var: over, to: 1 }, { on: 'control:lost', do: 'set', var: over, to: 1 });
+      world.hud.push({ var: sc(mineSide), label: 'Point (ours)', as: 'counter', max: hold }, { var: sc(other(mineSide)), label: 'Point (theirs)', as: 'counter', max: hold });
+      return { world, on: { 'control:won': { end: 'success' }, 'control:lost': { end: 'fail' } }, keep: [{ var: sc(mineSide), label: 'Held', best: 'high' }] };
+    },
+  },
+
+  // REGEN (an emitter): the player's hp comes back once it has gone `after` seconds unhurt, `rate` hp a second, to `max`.
+  // A body at 0 does not mend (a match's fall is its own).
+  regen: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, calm = `__calm_${i}`, tick = `__regen_tick_${i}`, step = 0.25;
+      const after = Number.isFinite(p.after) && p.after >= 0 ? p.after : 4, rate = Number.isFinite(p.rate) && p.rate > 0 ? p.rate : 20, max = Number.isFinite(p.max) && p.max > 0 ? p.max : 100;
+      return {
+        world: {
+          vars: { [calm]: 0 },
+          timers: [{ every: step, emit: { type: tick } }],
+          reactions: [
+            { on: tick, do: 'inc', var: calm, by: step },
+            { on: `hit:${ctx.player}`, do: 'set', var: calm, to: 0 },
+            // (a reaction's guard is one predicate: the second rides an event of its own)
+            { on: tick, if: { var: calm, gte: after }, do: 'emit', type: `__regen_due_${i}` },
+            { on: `__regen_due_${i}`, if: { var: 'hp', gt: 0 }, do: 'inc', var: 'hp', by: rate * step, max },
+          ],
+        },
+      };
+    },
+  },
+
+  // ABILITIES (an emitter): the player's kit on its keys, each on its cooldown, on the bus.
+  //   heal       { key ('q'), amount (50), cooldown (10), max (100) }   hp back, at once
+  //   ultimate   { key ('x'), per (5), rivals: [ids], for (6), max }    charged by every hit the player lands on a rival
+  //              (`per` a hit, to 100); spent, it puts the player in OVERDRIVE (the cast's status: its rounds hit harder,
+  //              combat-ranged.js) for `for` seconds and fills its hp
+  // Every key press is `ability:<name>`; a spent one is `ability:<name>:used`.
+  abilities: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      const i = ctx.i, P = ctx.player, world = { vars: {}, reactions: [], timers: [], inputs: [], hud: [] };
+      const tick = `__ab_tick_${i}`, step = 0.5;
+      if (!p.heal && !p.ultimate) throw new Error(`abilities[${i}]: name a heal { key?, amount?, cooldown? } or an ultimate { key?, per?, rivals, for? }`);
+      world.timers.push({ every: step, emit: { type: tick } });
+      if (p.heal) {
+        const H = p.heal === true ? {} : p.heal, cd = `__cd_heal_${i}`, key = H.key ?? 'q', amount = H.amount ?? 50, cool = H.cooldown ?? 10, max = H.max ?? 100;
+        world.vars[cd] = 0;
+        world.inputs.push({ on: 'key', key, once: true, emit: { type: 'ability:heal' } });
+        world.reactions.push(
+          { on: 'ability:heal', if: { var: cd, lte: 0 }, do: 'emit', type: `__heal_ready_${i}` },
+          { on: `__heal_ready_${i}`, if: { var: 'hp', gt: 0 }, do: 'emit', type: 'ability:heal:used' },
+          { on: 'ability:heal:used', do: 'inc', var: 'hp', by: amount, max },
+          { on: 'ability:heal:used', do: 'set', var: cd, to: cool },
+          { on: tick, do: 'inc', var: cd, by: -step, min: 0 },
+        );
+        world.hud.push({ var: cd, label: `Heal (${key.toUpperCase()})`, as: 'counter' });
+      }
+      if (p.ultimate) {
+        const U = p.ultimate, ult = `__ult_${i}`, key = U.key ?? 'x', per = U.per ?? 5, dur = U.for ?? 6, max = U.max ?? 100;
+        const rivals = Array.isArray(U.rivals) ? U.rivals : [];
+        if (!rivals.length) throw new Error(`abilities[${i}].ultimate: rivals: ['<id>', …], whose hits charge it`);
+        world.vars[ult] = 0;
+        world.inputs.push({ on: 'key', key, once: true, emit: { type: 'ability:ultimate' } });
+        for (const r of rivals) world.reactions.push({ on: `hit:${r}`, match: { by: P }, do: 'inc', var: ult, by: per, max: 100 });
+        world.reactions.push(
+          { on: 'ability:ultimate', if: { var: ult, gte: 100 }, do: 'emit', type: `__ult_ready_${i}` },
+          { on: `__ult_ready_${i}`, if: { var: 'hp', gt: 0 }, do: 'emit', type: 'ability:ultimate:used' },
+          { on: 'ability:ultimate:used', do: 'set', var: ult, to: 0 },
+          { on: 'ability:ultimate:used', do: 'set', var: 'hp', to: max },
+          { on: 'ability:ultimate:used', do: 'ctrl', op: 'status', who: P, is: 'overdrive', for: dur },
+        );
+        world.hud.push({ var: ult, label: `Ultimate (${key.toUpperCase()})`, as: 'bar', max: 100 }, { on: 'ability:ultimate:used', text: 'Overdrive!', as: 'toast', ttl: 1.5 });
+      }
+      return { world };
+    },
+  },
 };
 
 export const MECHANIC_KINDS = Object.keys(MECHANICS);
 // what a supply gives
-export const SUPPLIES = Object.freeze(['health', 'ammo']);
+export const SUPPLIES = Object.freeze(['health', 'ammo', 'armor', 'overdrive']);
 export const TERMINAL_KINDS = MECHANIC_KINDS.filter((k) => MECHANICS[k].role === 'terminal');
 
 export function lowerMechanic(kind, params, ctx) {

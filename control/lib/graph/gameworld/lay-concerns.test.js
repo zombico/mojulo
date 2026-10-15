@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { quickWorld, goalMechanics, farmCast, shootCast, raceCast, RACE } from './quick.js';
 import { resolveLevel, readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
-import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight } from './lay-concerns.js';
+import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight, arenaLayout, arenaAsks, arenaPeeks } from './lay-concerns.js';
+import { tunnelArena } from './tunnel-arena.js';
 import { guardPosts, defendCast, QUICK_GUARD } from './quick.js';
 import { stageEnds } from './levels.js';
 import { standBlocks } from '../playscape/terrain.js';
@@ -176,5 +177,64 @@ describe('the stage laid for the game, and its laws', () => {
     expect(concernLaws(['circuit'], { ends, mechanics: [laps] })[0]).toMatchObject({ holds: false, says: `the shortest leg is 5.0 m (${SPACING} wanted)` });
     expect(concernLaws(['drivable'], { ends })[0]).toMatchObject({ holds: false, says: 'the steepest leg climbs 60% (25% at most)' });
     expect(concernLaws(['fields'], { ends, mechanics: [{ kind: 'crops', plots: [{ at: [0, 0, 0] }, { at: [2, 0, 1.2] }] }] })[0].holds).toBe(false);
+  });
+});
+
+// ── the arena (a match's ground): its plan laid on its square, and its laws ─────────────────────────────────────
+describe('an arena', () => {
+  const ends = { spawn: [0, 0, 0] };
+  const laid = (words = 'an arena', spawns = 4) => { const R = tunnelArena(words, { seed: 1, spawns }); const A = { centre: [100, 50], half: R.plan.half, z: 2, plan: R.plan, tunnel: { words, gaps: R.gaps } }; return { ...A, ...arenaLayout(A) }; };
+
+  it('lays its plan on its square: the same turned half round its centre, each piece one collider, spawns and drops there', () => {
+    const L = laid();
+    const turned = (b, o) => Math.abs(o.at[0] - 100 + (b.at[0] - 100)) < 1e-6 && Math.abs(o.at[1] - 50 + (b.at[1] - 50)) < 1e-6;
+    for (const b of L.blocks) expect(L.blocks.some((o) => o.form === b.form && turned(b, o)), JSON.stringify(b.at)).toBe(true);
+    expect(L.blocks.every((b) => b.at[2] === 2 && b.whole)).toBe(true);
+    expect(standBlocks(L.blocks).colliders).toHaveLength(L.blocks.length);
+    expect(L.spawns).toHaveLength(4);
+    expect(L.drops.map((d) => d.gives).sort()).toEqual(['ammo', 'ammo', 'armor', 'armor', 'health', 'health', 'overdrive', 'overdrive']);
+    // placed by risk: health where fewer of the floor see it than armor and the overdrive
+    const seen = (g) => tunnelArena('an arena', { seed: 1, spawns: 4 }).plan.drops.find((d) => d.gives === g).seen;
+    expect(seen('health')).toBeLessThan(seen('armor'));
+    expect(seen('health')).toBeLessThan(seen('overdrive'));
+  });
+
+  it('every law holds on the arena as laid, and the words shown', () => {
+    const L = laid();
+    const laws = concernLaws(['arena'], { ends, blocks: L.blocks, arena: L });
+    expect(laws.map((l) => l.law)).toEqual(['routes-loop', 'spawns-unseen', 'cover-near', 'no-line-across', 'peeks-fair', 'floor-clear', 'words-shown']);
+    for (const l of laws) expect(l.holds, `${l.law}: ${l.says}`).toBe(true);
+    // a word it cannot lay is said, with what would close it
+    const gap = concernLaws(['arena'], { ends, blocks: L.blocks, arena: laid('a figure eight arena') }).find((l) => l.law === 'words-shown');
+    expect(gap).toMatchObject({ holds: false, says: expect.stringMatching(/'figure eight' is not laid yet/) });
+  });
+
+  it('turned half round, each half has as many right-hand peeks into the other; a team map\'s mirror hands them to one', () => {
+    const R = tunnelArena('a close quarters four-lane warehouse', { seed: 1, spawns: 4 }), A = { centre: [0, 0], half: R.plan.half };
+    const count = (pieces) => { const h = [0, 0]; for (const q of arenaPeeks(A, arenaAsks(pieces, (u, v) => [u, v, 0]))) if (q.toward) h[q.half]++; return h; };
+    const turned = count(R.plan.pieces);
+    expect(turned[0]).toBe(turned[1]);
+    expect(turned[0]).toBeGreaterThan(0);
+    // one half mirrored across the middle line onto the other: the edges one side peeks from its right, the other
+    // peeks from its left
+    const half = R.plan.pieces.filter((q) => q.v > 0.01 || (Math.abs(q.v) <= 0.01 && q.u >= 0));
+    const mirrored = [...half, ...half.filter((q) => q.v > 0.01).map((q) => ({ ...q, v: -q.v }))];
+    const m = count(mirrored);
+    expect(m[0]).not.toBe(m[1]);
+    const law = concernLaws(['arena'], { ends, blocks: arenaAsks(mirrored, (u, v) => [u, v, 0]), arena: { ...A, z: 0, spawns: [] } }).find((l) => l.law === 'peeks-fair');
+    expect(law).toMatchObject({ holds: false, says: expect.stringMatching(/right-hand peeks into the other half/) });
+  });
+
+  it('says what is wrong with one stripped bare, or walled into halves', () => {
+    const L = laid(), H = L.half;
+    const walls = L.blocks.slice(0, 4);   // the wall round it alone
+    const bare = concernLaws(['arena'], { ends, blocks: walls, arena: L });
+    expect(bare.find((l) => l.law === 'spawns-unseen').holds).toBe(false);
+    expect(bare.find((l) => l.law === 'no-line-across').holds).toBe(false);
+    expect(bare.find((l) => l.law === 'cover-near').holds).toBe(false);
+    const split = concernLaws(['arena'], { ends, blocks: [...walls, { form: 'wall', at: [100, 50, 2], N: [0, 1], length: 2 * H, height: 3, thick: 0.5 }], arena: L });
+    expect(split.find((l) => l.law === 'routes-loop')).toMatchObject({ holds: false, says: expect.stringMatching(/cannot reach/) });
+    const rocky = concernLaws(['arena'], { ends: { ...ends, colliders: [{ min: [103, 53, 2], max: [104, 54, 4], of: 'rock:1' }] }, blocks: L.blocks, arena: L });
+    expect(rocky.find((l) => l.law === 'floor-clear').holds).toBe(false);
   });
 });

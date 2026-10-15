@@ -248,6 +248,329 @@ the diorama views are gone.
   draw alike). Two findings stand as gaps in their records: Qin's hall walls in lime plaster and Lindos's kilns in mud
   render, neither material yet recorded for its place.
 
+### Shooter spike: what an arena shooter needs, measured
+
+- Research spike (`scripts/spikes/shooter/`): the FPS / arena shooter's mechanics and map structure, measured against
+  what exists. `probe.mjs` mints the quick shooter through the real handlers and checks shooter conventions on its
+  map (routes, crossfire, sightline lengths, spawn safety, cover reach) and its fight (time to kill, a headless duel).
+  `deathmatch.mjs` hands the same stage to the engine's match layer as a free-for-all. The README maps every concept,
+  built or absent, and gives a build order: the match on the bus, bots that play one, an arena site with laws,
+  timed pickups, weapon roles keyed to sightlines, modes on top. Nothing registers; no level, kernel or pin changes.
+
+### Shooter: the match on the bus
+
+- **Frags, a deathmatch on the bus.** The `frags` mechanic makes a level a match between the player and its
+  `rivals`. Each fall is credited to whoever hit the fallen last (its `hit:<id>`'s `by`) and said on the bus as
+  `kill { killer, victim }`. The fallen comes back `respawn` seconds later at the next of `spawns`, each contender
+  rotating through them. First to `frags` wins; with `seconds`, the place at the horn decides (`win` or better). The
+  place is the kart racer's: a lead and an ahead flag per rival, a tie to whoever got there first. It owns the player's
+  hp and death: at 0 the cast's `kill` holds the player down, and it comes back whole. Frags and place are kept. It
+  lowers to guarded reactions, watches, a timer, a sequence per contender and the cast's kill and spawn, all verbs
+  Godot's bus performs, so it joins the hit mechanics that travel with the fight (`engine-portability.js`). The
+  engine's own match layer (`combat-match.js`, the mobile-suit arena's) is untouched: it stays on the web, outside the
+  bus.
+- **The bus no longer goes deaf.** Its event budget (4096) was counted over the bus's whole life, so any level stopped
+  hearing events after a few minutes (a 0.1 s timer at about 400 s). It now caps one drain, as its test always said
+  ("a per-tick budget"); `metrics.processed` keeps the lifetime total. The same in Godot's `kernel/bus.gd` (kernel
+  0.21.0). The page's characterization hashes move with the inlined bus (only that change moves them).
+
+### Shooter: bots that play a match
+
+- **A match player.** The mind's new motivation `frag` (`rule.mind.motivation: 'frag'`) plays a deathmatch. Everyone
+  not on its team is its foe (`rule.target`, else `'enemy'` on a team, `'all'` without one).
+  - **Target.** It fights whom it can see, never the nearest body behind a wall. Of those it sees, the one that shot
+    it last (for `fragGrudge`, 3 s) counts much closer, and the one it already fights counts closer too.
+  - **Seeing no one, it never stands.** It follows its freshest lead for `leadSpan` (6 s): where the shot that hit it
+    came from, a gunshot it heard (any shooter's last shot within `hearRange`, 35 m, in the last half second), or
+    where it last saw a foe. With no lead it follows a hunch: every `hunchEvery` (8) s a rival picked by its seeded
+    dice.
+  - **In a fight.** It strafes side to side as it shoots (`strafe`, 0.6 of its speed; 0 stands).
+  - **In the mind matrix.** Three strategies, `roam-to-fight` (idle), `fight-the-seen` (notice) and `strafe`
+    (engage), so the cosmos counts it.
+- **A fresh life.** The cast's `spawn` starts an `ai` body's mind clean: no sighting, search, cover spot, path, grudge
+  or lead. Hits taken before are not a new hit, and a crossed health phase is undone (phases were meant once per
+  life).
+- **Measured.** On the quick shooter's walled stage, as a free-for-all on the match layer, four hunters on `target:
+  'all'` fired 5 shots and got no kills in 120 s (`scripts/spikes/shooter/deathmatch.mjs`, `DM_MIND=hunt`). Four
+  `frag` players reach the limit of 5 in 88 s, every one killing and dying. A law plays three to a frag limit on a
+  walled floor through the bus (`worlds/controllable/frag.test.js`). Web only: no mind travels to Godot yet.
+- The page inlines the mind and the cast, so the characterization hashes move (reverting only `mind.js` and `cast.js`
+  passes them all). Every world without `frag` behaves as before; the controllable trace pins hold.
+
+### Shooter: an arena that loops, and a deathmatch in it
+
+- **The arena concern.** A cube with the `frags` mechanic asks for an arena, and the world lays one on its first
+  trail's land as a race lays its loop (`gameworld/lay-concerns.js`).
+  - **Ground.** A square 36 m across (`ARENA`) is flattened and kept clear of what grows.
+  - **Stage.** It stands a 3 m wall round the floor and two dividers making three lanes, open at both ends and the
+    middle so every way loops. It adds walls at the middle of each lane and across the middle lane's ends and
+    quarters, and crates. Every piece is the same turned half round the centre, so neither half has the better
+    ground.
+  - **Spawns and supplies.** Eight spawns, each paired with its turned partner and none in sight of another, and
+    supplies in the lanes (health in the side lanes, rounds in the middle).
+  - **Laws.** Every way between two spawns still has another when any stretch of it is closed (`routes-loop`), no
+    spawn sees another, cover lies within 3.5 m of most of the floor, no clear line across it is longer than 36 m, and
+    nothing of the stage's own stands on it. All hold on the arena as laid.
+  - **Other concerns stand aside.** On an arena stage the `cover` and `watchers` concerns lay nothing on the trail's
+    beats: the arena is the fight's cover.
+- **One collider for a whole form.** A block ask's `whole: true` makes a solid form one collider, its courses still
+  drawn, so an arena's walls are 21 boxes rather than hundreds. Without it a level's blocks collide as before.
+- **The quick deathmatch.** `goal: 'deathmatch'` with `bots` (3, up to 7), `frags` (10), `seconds` and `foe` (their
+  looks). It plays first person by default, on a trail laid without pits, streams or landmarks so the arena's floor
+  is clear. The player stands on a spawn and the bots on the next, `frag` minds on the navmesh. Its mechanics are
+  `frags` (the arena's spawns, the player's hp) and `supplies`. A deathmatch reads as the new `arena-shooter` genre
+  probe. Played headless with the player aside, three bots reach a 3-frag limit.
+- `.seconds` now belongs to the survive and deathmatch goals (its message says so). The quick card names the goal in
+  the same byte budget: its camera, hero and answer lines say the same in fewer words.
+
+### Shooter: the arena tunnelled from words
+
+- **An arena is tunnelled, not authored.** The phase before laid one fixed arena from a hand list of pieces, tuned by
+  hand until its laws held. Now scapeshift's tunnel builds it (`gameworld/tunnel-arena.js`, a domain of
+  `gameworld/tunnel.js` beside buildings, technology and land). The words are read into settings of a layout grammar:
+  - size: `small` 26 m, `medium` 36 m, `large` 48 m;
+  - topology: `two`, `three` or `four lanes`, or a `ring` (a walled court whose doorways open on a loop round it);
+  - cover: `dense` or `sparse`;
+  - sightlines: `close quarters` or `long sightlines`.
+- **The grammar.** It stands a wall round the floor; lane dividers open at both ends and the middle, or the court; a
+  blocker across each lane's middle; and crates by seeded dice. All of it is the same turned half round the centre.
+- **The laws shape the result.** The arena's laws and each word's measure assess it, and what fails is tweaked, every
+  pass logged:
+  - a spawn in sight of another, or a line across the floor, gets a short wall across it where the floor is most open;
+  - a wall that then cuts a way is taken away and never stood there again;
+  - close quarters staggers the lanes (blockers at the quarters against alternate sides, the dividers' middle gaps
+    offset);
+  - a ring short of room shrinks its court;
+  - a sparse arena short of cover gets a wall where the floor is barest, not crates.
+- **Gaps are named.** A word the grammar cannot show (a figure of eight, a team map's mirror, floors and towers) is
+  named with what would close it, and said as the arena's `words-shown` law, never filled.
+- **Spawns for the match.** Spawns may stand in a pocket on the floor as well as round the wall, and the plan lays one
+  for each contender.
+- **Measured.** Eight intents over three seeds with four spawns: every one without a gap word completes in 1 to 5
+  passes (10 to 500 ms); the one with gap words holds and names them. With eight spawns, a small cluttered courtyard is
+  the one that does not settle in 12 passes, and its laws say so as advice.
+- **In the world.** A level's `arena` is its words, or `{ words, spawns }`, tunnelled when the world is read (seeded
+  by it). The site takes the plan's size, and the stage lays its pieces, spawns and supplies. The quick deathmatch
+  takes `arena: '<words>'` (default "a three-lane arena") and a spawn per contender.
+
+### Shooter: the right-hand peeker's advantage, from where the gun is
+
+- **A gun in hand.** A weapon's `hand: 'right' | 'left'` holds the gun to that side: its muzzle sits a shoulder off the
+  eye's line (`HAND`: 0.28 m aside, 0.35 m ahead, 0.15 m under the eye) unless `muzzleOffset` says where. A shot
+  already cleared cover from the muzzle; a mind's "can I fire" check now does too when its gun has a hand. Past an edge
+  on the gun's side the muzzle is clear by the time the eye is; past one on the other side the body must step a
+  shoulder further out before it can fire. Without `hand`, every weapon is as before.
+- **Minds that peek.** `rule.peek` (true, or `{ reach, hold }`): a mind that knows where its foe was but cannot see it
+  sidesteps to the nearest spot, either side within 2 m, from which its eye sees that place and its muzzle clears the
+  edge. Of the spots that do, it takes the one with the least of its body in the foe's sight, its gun's side on a tie.
+  It holds there 2.5 s fighting from it, and steps back to where it stood when nothing shows. The advantage falls out
+  of the geometry, not a rule. One corner, mirrored: from the gun's side it is ready after a 0.1 m step with 63% of its
+  body in sight; from the other, after 0.3 m with 88%. In a duel at that corner the peeker lands the first hit from
+  its gun's side, and the one holding the angle does from the other (`worlds/controllable/peek.test.js`). A match
+  player (`frag`) peeks where it last saw a foe before it goes looking (the mind matrix's `peek`, lost).
+- **A map law: right-hand peeks even.** Every free end of a wall is a right-hand peek from one face and a left-hand one
+  from the other (`arenaPeeks`). The arena's `peeks-fair` law counts, per half, the right-hand peeks into the other
+  half. An arena turned half round its centre always holds it. A team map mirrored across its middle can fail it: a
+  staggered four-lane arena mirrored gives one side 6 and the other 9. The team-map gap now says so.
+- **The quick deathmatch** holds every gun right-handed and its bots peek. On the spike's walled stage, four match
+  players with peeks and hands reach the limit in 62 s on 51 shots, against 88 s on 87 without; the kills spread
+  less (5 / 2 / 1 / 0 against 5 / 4 / 3 / 2). Measured, not tuned.
+- The page inlines the engine: its characterization hashes move (reverting only `combat-ranged.js`, `mind.js` and
+  `cast.js` passes them all).
+
+### Shooter: the pole from realistic to stylized
+
+- **One dial, `pole`** (`gameworld/shooter-pole.js`): `'realistic'` (0) to `'stylized'` (1), resolved into the rules a
+  match plays by. The time to kill is its spine, 0.3 s to 1.25 s: the damage a round deals is derived from it, the hp
+  (100 to 200) and the fire rate, so a body takes the rounds the dial says.
+  - **Realistic** walks, has no kit, peeks, holds a head worth four rounds, and waits 5 s to respawn in a close-quarters
+    arena.
+  - **Stylized** runs faster on the platform rule (a jump, an air jump, a dash), mends hp after 4 s unhurt, has a heal
+    on Q and an ultimate on X, its minds strafe and roll, its head is worth two, and it respawns in 3 s in a large,
+    sparse ring with long sightlines.
+  - Between, the numbers move along the dial and each feature switches on where its pole wins (`THRESHOLDS`).
+- **The engine.** A weapon's `headshot` multiplies a core hit that enters the top of the egg (`HEAD_BAND`). The hit
+  fact carries what a round dealt (`dmg`, `harm`, `head`). The `overdrive` status makes rounds hit 1.5 times as hard.
+  Without them, every weapon and hit is as before.
+- **The bus.** `frags`' `damage: true` takes the player's hp by each round's own damage. Two new emitters: `regen` (hp
+  that mends after a calm spell) and `abilities` (a heal on a key with a cooldown; an ultimate charged by hits landed,
+  spent into overdrive and full hp). Their verbs travel to Godot; a round's own damage is the web's.
+- **The quick deathmatch** takes `pole`. Without it, it plays as before. Played headless between bots to a limit of 5:
+  realistic 82 s at 4.2 hits a kill, the middle 71 s at 8.4, stylized 40 s at 12. The open ring keeps stylized bots in
+  sight of each other, so its matches end sooner on longer duels. The bots do not use the kit or jump yet.
+- The page's characterization hashes move with the engine (reverting only `cast.js` and `combat-ranged.js` passes them
+  all).
+
+### Shooter: each pole's other half (spread and recoil; the bots' kit)
+
+- **Spread and recoil** (opt-in on a weapon, degrees). A round leaves inside a cone: `base`, widened by `move` at a
+  run (4 m/s) and by the bloom a spray builds (`bloom` a shot, `recover` a second back, to `max`). Where in the cone is
+  a seeded hash of the shooter and its shot count, so a run replays byte for byte. `recoil` climbs the aim `kick` a
+  shot and settles `recover` a second. The realistic pole's spray outpaces its recovery (a planted tap at 30 m always
+  lands, the same taps on the run land under three in four); the stylized pole's cone a run hardly widens. Without
+  them every round goes where it is aimed, as before.
+- **A mind's kit** (opt-in `rule.kit`, the stylized pole's): under fire it hops; a fresh hit dashes it off the line,
+  square to the shooter (no invincibility); under 40% hp it heals; the hits it lands charge an ultimate it spends on a
+  foe it sees (overdrive, hp full). Each switches on along the dial with the player's own (`THRESHOLDS`). A hop re-aims
+  from where it has the body, and takes back the height it added the frame before, so it never stacks.
+- **Measured.** Bots only, to 5: realistic 80 s at 4 hits a kill; the middle 86 s at 8.6 (38 hops, 25 dashes);
+  stylized 84 s at 18.4 (74 hops, 40 dashes, 15 heals, 10 ultimates). An ablation found a hop that let a body float
+  away when a ground hook took the wrong arguments: the engine calls `ground([x, y, z])`; the spike's scripts and a quick
+  test passed it `(x, y)`, so nothing pulled a hop down. Both are fixed.
+- The page's hashes re-pinned (reverting only `mind.js` and `combat-ranged.js` passes them all).
+
+### Shooter: an arena's item economy (phase 4)
+
+- **Supplies that come back.** `supplies`' `respawn` (or a drop's own): seconds after it is taken the drop is there
+  again, its marker back on, `supply:back` said. An arena's item timing.
+- **Armor and the overdrive.** `gives: 'armor'` fills the level's `armor`, which takes whole rounds while it lasts, then
+  hp (`frags`' `armor: true`, lost with a fall). `gives: 'overdrive'` is the cast's status for `amount` seconds: its
+  taker's rounds hit harder. Drawn as a gem and a star.
+- **The others take them too.** `takers` (a glob, `'bot-*'`): health and armor heal them, rounds rearm them, overdrive
+  drives them; whoever takes one, it is gone for everyone until it is back.
+- **Placed by risk** (`tunnel-arena.js`). Every free spot on the floor is scored by how much of the floor sees it.
+  Health goes where the fewest do, armor and the overdrive where the most do (worth a fight), rounds between. On the
+  plain arena: health seen by 11% of the floor, armor 44%.
+- **Minds that know the items** (`rule.items`). A match player hurt under 60% goes for the nearest health or armor,
+  short of rounds for ammo, and takes an overdrive within 12 m on the way. It remembers when it took each and waits out
+  its time before going back.
+- **In the quick deathmatch.** Health and rounds always; armor on the shooter pole; the overdrive where the pole has an
+  ultimate. They come back after 20, 15, 25 and 45 s, and bots take them. Bot matches to 5: realistic 68 s (6 items
+  taken, 5 back), the middle 79 s (7, 5), stylized 98 s (9, 7).
+- Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
+  (reverting only `mind.js` passes them all).
+
+### Shooter: over the shoulder (phase 10)
+
+- **The shoulder camera** (`quick.js` `SHOULDER`). A shooter's hero played `camera: 'third-person'` (shoot or
+  deathmatch) is followed close behind (2.8 m) and off its right shoulder (0.75 m). Its crosshair's line crosses
+  the body's own 10 m out. First person stays the default.
+- **Aim convergence** (opt-in `weapon.converge`). Over the shoulder, the crosshair's line is not the gun's: a round
+  sent down the body's heading lands beside the crosshair at every range, a body under the crosshair 20 m out
+  missed. A converged round goes from the muzzle to the point the crosshair is on: the first wall or body on the
+  camera's centre ray, else the round's range. What the crosshair is on is what is hit, including a wall the gun
+  cannot clear. `e.crosshairAt` keeps the point.
+- **The third-person peek, measured** (`shoulder.test.js`). Past a corner, the camera sees a foe while the foe sees
+  none of the player's body and the gun cannot clear the edge. The information is the player's, and the shot is
+  not, which is the convention's answer. Minds have no camera, so the peek is the player's alone.
+- The quick shooters take the world's camera into their casts, and a goal's `extra` may frame a follow camera
+  (`camera`).
+- Without `converge`, a round goes down the heading as before. The page's hashes were re-pinned: reverting only
+  `combat-ranged.js` passes them.
+
+### Shooter: floors and high ground (phase 9)
+
+- **Towers in the arena grammar** (`tunnel-arena.js`). "towers", "high ground", "platforms", "verticality" lay a
+  turned pair of towers. Each is a block 2.5 m high with a stair up one side, in steps of 0.25 m a body climbs. Each
+  stands where its top sees the most of the floor, with its stair toward the middle (else another way round), and
+  2 m clear of every other box. Where none fits, a smaller tower stands 1.5 m clear. "bridges" and "catwalks" are a
+  gap.
+- **Three high-ground laws.** `floors-reached`: each top is reached up its stair from the first spawn.
+  `power-position`: a top sees a quarter more of the floor than its stair's foot does. `spawns-unseen-from-high`:
+  no spawn is in sight of a top, and spawns are chosen out of sight of the tops. A tower that fails is stood
+  elsewhere, never there again. A small arena cannot keep a top out of sight of its spawns: the log says so, tower
+  by tower, and lays none. A close-quarters arena has no room for one.
+- **Minds walk between floors** (`rule.floors`: each floor's area, height and flights). A goal on a top is reached
+  by walking round to the stair's foot and up it; a goal on the ground from a top goes down the stair, never off
+  the side. `towerFloor` gives a tower's floor. Phase 8's perches can stand on a top.
+- **The armor goes on the tops**, worth the climb and the exposure. The quick deathmatch gives its bots the arena's
+  floors, and with weapons the tops as perches.
+- `askBoxes` knows a pillar, which is what a tower is made of. Sims stand bodies on box tops with
+  `groundOf(colliders, land)`, as the page's raycast does.
+- Measured (`weapons: true`, three-lane arena with towers, matches to 5): pole 0.3 141 s, bots on the high ground
+  4% of the time, 7 hits landed from it; pole 0.7 130 s, 6%, 18 hits. The armor on the tops was taken once a match.
+- Without towers, every arena lays as before. Minds without `floors` walk as before. The page's hashes were
+  re-pinned: reverting only `mind.js` and `cast.js` passes them.
+
+### Shooter: minds that make their gun's range (phase 8)
+
+- **A gun for the range by its sweet spot.** Among the held guns whose band holds the distance, a mind takes the
+  one whose sweet spot is nearest. The sweet spot is the slot's `approach.standoff`: close 3 m, the rifle 12, the
+  launcher 15, the long gun 24. Phase 5's "narrowest band" never chose the long gun, whose band is the widest. The
+  gun in hand stays until another is nearer its own sweet spot by 2 m.
+- **`rule.keepRange`.** A mind carrying a gun that wants distance (the long gun), closer than it wants, backs off.
+  It keeps fighting with the gun for the range until the long gun takes over; backed into a wall, it gives that up
+  for 3 s. From 8 m off a standing target it ends 21.5 m away, the long gun drawn and landing.
+- **A slot that `plant`s** (the long gun's): its mind stands to shoot it rather than strafe, since a run throws it
+  wide.
+- **`rule.perches`.** Carrying the long gun and seeing no one, a mind holds the nearest perch (in the quick
+  deathmatch, the long gun's own drops, where the arena's long lines meet) and watches.
+- Measured (`weapons: true`, matches to 5): realistic 99 s, middle 98 s, stylized 109 s. At the middle pole fights
+  moved out: 73 of 77 hits at 6 to 18 m (phase 5: most under 6 m). But the long gun was fired once: carried 125
+  bot-seconds, mostly backing off from a chaser, which closes faster than a retreat opens. Only 9 s were spent
+  engaged past 18 m. The long gun stands in exposed open ground, beyond the 18 m a mind walks for a gun, so on the
+  large ring with long sightlines it was held 1 s in 94. The mechanism holds in isolation (`range.test.js`). In a
+  match, what is still missing is a reason to fight far: an arena whose fights start far, or minds that pick the
+  perch before the gun.
+- Without `keepRange`, `perches` or `plant`, minds behave as before; bands now choose by sweet spot. The page's hashes
+  were re-pinned: reverting only `mind.js` passes them.
+
+### Shooter: two sides, team bases and a point to hold (phase 7)
+
+- **Team deathmatch on the bus.** `frags`' `teams` (two sides, every contender in one). A fall counts only when the
+  other side felled it; a teammate's round is never the last hitter. The first side to the limit wins, and at the
+  horn the side ahead (a tie is lost). `spawns` keyed by side bring each body back at its own base. The HUD shows
+  ours and theirs.
+- **`control`**, a new terminal: a point two sides fight over. Each second, the side alone on it scores one;
+  contested or empty, nobody does, and a fallen body holds nothing. First to `hold` seconds wins. Pair it with
+  `frags` (sides, a high limit) for the respawns. It is the web's: a Godot export does not keep it yet.
+- **A team map from the words** (`tunnel-arena.js`). "team", "bases", "tdm", "control point" (or `teams: 2`) lay two
+  bases at the ends, one the other turned half round. No spawn of one base is in sight of the other's; a base's own
+  spawns may see each other. A team arena is turned, not mirrored. "mirrored" is a gap that says why: a mirror hands
+  one side the right-hand peeks into the other (phase 3's `peeks-fair`). "capture the flag" is a gap too, because the
+  cast cannot yet carry a flag.
+- **Minds on a side.** `rule.clearLine`: hold fire rather than shoot through a teammate on the line.
+  `rule.objective { at, radius }`: with no foe in sight and nothing it wants, go to the point and stand on it.
+- **In the quick deathmatch**: `mode: 'team' | 'control'`. The player and every other bot are red, the rest blue.
+  Each side starts at its base, the team limit is 20 (50 in control, where the point decides), and the point is the
+  clear floor nearest the middle. Measured with 4 bots (two a side, the player aside), middle pole: team 17 to 20 in
+  231 s, control 29 to 60 s held in 130 s (red on it 53 s, blue 86 s).
+- Without `teams`, frags lowers as before; without `clearLine` or `objective`, minds as before. The page's hashes were
+  re-pinned: reverting only `mind.js` passes them.
+
+### Shooter: a fair respawn and a led shot (phase 6)
+
+- **The farthest spawn, on the bus.** The cast's `spawn { among }` stands the fallen at the spawn farthest from the
+  nearest living body (a tie to the first). `frags` uses it instead of a rotation, so nobody stands up in front of the
+  gun that felled them. Godot's cast picks it the same way (kernel 0.22.0).
+- **The spawn guard.** `spawn { guard }`: that many seconds no round, blade or burst hurts the body, or until it fires
+  (combat-match's fire-gated guard). `frags`' `guard` (2 s, 0 for none). A mind does not target a guarded body. In
+  Godot the guard holds for its seconds; firing does not break it there.
+- **A led shot.** A mind with a travelling round (a launcher, a grenade) aims where its target will be. That is the
+  round's flight time ahead along the target's smoothed pace. A hitscan round needs none, and leads nothing.
+- Measured (bot matches to 5, no weapons): realistic 84 s, the middle 79 s, stylized 115 s (were 68, 79, 98). A
+  fresh spawn is no longer a free kill.
+  With weapons: 91, 93 and 80 s.
+- The page's hashes re-pinned (reverting only `cast.js` and `mind.js` passes them).
+
+### Shooter: weapons as roles, and guns on the floor (phase 5)
+
+- **A weapon is a job on a sightline band** (`gameworld/weapon-roles.js`). `close` (0 to 10 m: a burst for a corner,
+  two or three rounds at arm's length, its damage thinning past a room), `mid` (the pole's own rifle), `long` (18 to
+  90 m: a head in one round, a body in two or three, thrown wide by a run), `area` (a flat launcher, its burst a body's
+  width round). Their numbers come from the band and the shooter pole's hp and time to kill. The realistic end carries
+  close, mid and long; the stylized end close, mid and the launcher; the middle all four.
+- **The arena says which guns it serves.** `arenaSightlines` is the floor's clear lines, eye to eye. A role is served
+  when its band holds at least 8% of them. A close-quarters arena's long lines hold 2%, so it lays no long gun; the
+  large ring with long sightlines holds 44%. Each served gun is laid, as a turned pair, where the clear lines from it
+  fall most in its band. The plan keeps the reading (`armory`). A level's `arena.weapons` asks for them.
+- **Guns on the floor.** A loadout slot `held: false` is not carried until it is picked up. The cast's new `arm`
+  op gives it, in hand and paying its switch time; a gun already carried takes its rounds full. The cycle and the
+  number keys pass by a slot not carried. `supplies`' `gives: 'weapon', slot` is the drop; it says
+  `supply:weapon { slot }`. Frags' respawns are `fresh`: the fallen come back with the loadout they were minted with,
+  every round back.
+- **A gun for the range.** A slot's `band` makes a mind take the held gun whose band holds the distance (the narrowest
+  such), keeping the one in hand within 2 m of its band. The slot's standoff is the range it holds (close presses in,
+  long keeps back). Without a band, the old rotation. Minds want a gun they lack (or one nearly dry) within 18 m.
+- **Falloff** (opt-in `weapon.falloff: { from, to, min }`): a round's damage holds to `from` and thins to `min` of
+  itself at `to`. A launcher's burst now says what it dealt, so the bus takes a rocket's damage as it takes a round's.
+- **In the quick deathmatch**: `weapons: true` (with a pole). Bot matches to 5 on the trail valley: realistic 80 s (close
+  guns taken and fired), the middle 111 s, stylized 83 s. Hits land closer than the arena's lines: realistic 34 of 38
+  under 6 m. So a long gun is carried and seldom fired, because bots fight at the range they meet. A mind that keeps
+  its gun's range (backs off to it, holds a perch) is the open half.
+- Without `held: false`, `band`, `falloff`, a weapon drop or `fresh`, everything runs as before. The page's hashes
+  were re-pinned: reverting only the four engine builders passes them all.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

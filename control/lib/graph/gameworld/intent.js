@@ -33,6 +33,7 @@ const WORDS = Object.freeze({
   collectathon: ['collect', 'collectathon', 'coins', 'gems', 'platformer', 'jump'],
   'top-down-adventure': ['top-down', 'top down', 'adventure', 'overworld', 'zelda-like', 'explore'],
   shooter: ['shooter', 'shoot', 'gun', 'guns', 'rifle', 'fps', 'first-person shooter', 'firefight', 'cover', 'ammo'],
+  'arena-shooter': ['deathmatch', 'death match', 'arena shooter', 'frags', 'frag', 'free for all', 'free-for-all', 'bots', 'respawn', 'quake', 'unreal tournament'],
   jrpg: ['rpg', 'jrpg', 'party', 'turn-based', 'turn based', 'battle', 'battles', 'role-playing'],
   metroidvania: ['metroidvania', 'abilities unlock', 'backtrack', 'map', 'interconnected'],
   'survival-horror': ['horror', 'survival horror', 'scary', 'dread', 'fixed camera', 'mansion'],
@@ -52,7 +53,7 @@ export const GENRES = Object.freeze(Object.fromEntries(FIXTURES.map((f) => [f.id
 const CUBES = Object.fromEntries(FIXTURES.map((f) => [f.id, f.cube]));
 export const QUICK_GENRE = Object.freeze({
   collect: 'collectathon', race: 'racing', sneak: 'stealth', rhythm: 'rhythm', defend: 'tower-defense',
-  puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter',
+  puzzle: 'block-puzzle', farm: 'farming', battle: 'jrpg', shoot: 'shooter', deathmatch: 'arena-shooter',
 });
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

@@ -70,10 +70,11 @@ export function decorateMechanics(mechanics, ctx = {}) {
         suppress.push(zone);                     // hide the mechanic's box marker (glyph replaces it)
       });
     } else if (m.kind === 'supplies') {
-      // a supply: a heart for health, an orb for rounds, floating; it pops when taken (as a pickup does)
+      // a supply: a heart for health, an orb for rounds, a gem for armor, a star for overdrive, floating; it pops when
+      // taken (as a pickup does)
       (Array.isArray(m.drops) ? m.drops : []).forEach((d, j) => {
         const zone = `sp_${i}_${j}`, gid = `dec_${zone}`, at = Array.isArray(d.at) ? d.at : [0, 0, 0];
-        entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: d.gives === 'health' ? 'heart' : 'orb' } });
+        entities.push({ id: gid, transform: { pos: at, heading: 0 }, rule: { type: 'clock', rate: 0 }, body: { type: 'glyph', form: { health: 'heart', armor: 'gem', overdrive: 'star' }[d.gives] ?? 'orb' } });
         states[gid] = 'float';
         on[zone] = { gesture: 'burst', target: gid };
         suppress.push(zone);

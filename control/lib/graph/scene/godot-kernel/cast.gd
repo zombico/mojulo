@@ -9,7 +9,8 @@ extends RefCounted
 #
 #   var C = preload("res://kernel/cast.gd").new()
 #   var st = C.create(rows)              rows: [{ id, pos, heading?, dormant?, hp?, speed? }]
-#   C.ops(st, ops)                       the bus's queued `ctrl` intents (bus.take_ctrl), in order
+#   C.ops(st, ops)                       the bus's queued `ctrl` intents (bus.take_ctrl), in order (a spawn's `among`
+#                                        picks the spot farthest from the living; its `guard` holds it unhittable)
 #   C.step(st, dt)                       routes walk; the world clock moves
 #   C.facts(st) → [event]                down · gone · spawned · arrive { at, last, pose? } · stuck · hit:<id> { by }
 #                                        (once per hit kernel/combat.gd counted) · faded { is } · struck { by, beam? }
@@ -77,10 +78,31 @@ func ops(st: Dictionary, list: Array) -> void:
 				if e.has("hpMax"):
 					e["hp"] = e["hpMax"]
 					e["hittable"] = true
-				if o.get("at") is Array:
+				if o.get("among") is Array and not (o["among"] as Array).is_empty():
+					# the spawn farthest from the living (the nearest other standing body; a tie to the first), as the web
+					var best = null
+					var bd := -1.0
+					for sp in o["among"]:
+						if not (sp is Array):
+							continue
+						var dmin := INF
+						for x in st["entities"]:
+							if is_same(x, e) or x["downed"] or x["gone"] or x["dormant"] or not Bus.truthy(x.get("hittable")):
+								continue
+							dmin = minf(dmin, Vector2(float(x["pos"][0]) - float(sp[0]), float(x["pos"][1]) - float(sp[1])).length())
+						if dmin > bd:
+							bd = dmin
+							best = sp
+					if best != null:
+						e["pos"] = _pt3(best, e["pos"][2])
+				elif o.get("at") is Array:
 					e["pos"] = _pt3(o["at"], e["pos"][2])
 				if Bus.finite(o.get("face")):
 					e["heading"] = float(o["face"]) * DEG
+				# the spawn guard: unhittable its seconds (the wake guard's clock: combat.gd ticks a poised body's, step the rest)
+				if Bus.finite(o.get("guard")) and float(o["guard"]) > 0.0:
+					e["wakeGuardT"] = float(o["guard"])
+					e["invincible"] = true
 			"vanish":
 				e["gone"] = true; e["dormant"] = true; e["route"] = null; e["held"] = false; e["moving"] = false
 				e["hittable"] = false
@@ -188,6 +210,9 @@ func _step_route(e: Dictionary, dt: float) -> void:
 func step(st: Dictionary, dt: float) -> void:
 	st["time"] += dt
 	for e in st["entities"]:
+		if not Bus.finite(e.get("poise")) and Bus.finite(e.get("wakeGuardT")) and float(e["wakeGuardT"]) > 0.0:
+			e["wakeGuardT"] = maxf(0.0, float(e["wakeGuardT"]) - dt)
+			e["invincible"] = float(e["wakeGuardT"]) > 0.0
 		if e["route"] != null:
 			if e["downed"] or e["gone"]:
 				e["route"] = null
