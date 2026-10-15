@@ -1,0 +1,80 @@
+// Held-out routing set: requests written blind (2026-10-15, by an agent shown a plain account of what mojulo makes,
+// never a routing card, the fixture or a tool name), labelled after against the documented doors. Each row accepts
+// every door that would land the ask in either era of the 1015 consolidation (a camera plan: forge_motion now,
+// create_shoot_plan before), so one set scores both.
+//
+// FROZEN. It measures whether routing generalizes past the phrasings the surface was tuned on, which holds only while
+// nobody tunes against it: never add, drop or relabel a row to fit a run. A fold that moves an intent to another
+// door adds that door to the rows' accept sets, in the same commit, and re-pins the hash in routing-cards.test.js.
+// Dropped at labelling: "make it cooler" (no referent: the guard is to ask one question, not a door).
+//
+// Scored by gate 2b with MOJULO_BODY_EVAL_SET=holdout (tools/body-routing-eval.integration.test.js).
+
+export const HOLDOUT = [
+  // new things
+  ['make me a knight with a big scar over one eye and dented silver armour', ['create_character']],
+  ['can you do an anime girl, short pink hair, school uniform, sorta shy looking', ['create_character']],
+  ['i want a little fox creature for my game, like pokemon-ish but not a ripoff', ['create_character']],
+  ['Make a realistic golden retriever sitting down', ['create_character']],
+  ['design an orc warrior thats rigged so i can animate him in blender later', ['create_character']],
+  ['I need a wall bracket to hold a 32mm curtain rod, something I can print in PETG', ['mint_solid']],
+  ["make a phone stand that folds flat and tell me what screws or magnets i'd have to buy for it", ['fabricate_solid', 'mint_solid']],
+  ['sci-fi blaster prop for cosplay, life size, split into pieces that fit on my ender 3 bed', ['mint_solid']],
+  ['design a ring with a little leaf pattern going around it, US size 7', ['mint_solid']],
+  ['Design a two bedroom apartment around 70 square meters with an open kitchen', ['mint_building']],
+  ['can you make a cozy bedroom with a reading nook and a window seat', ['mint_building', 'design_interior']],
+  ['floor plan for a small elementary school, like 6 classrooms, a gym and a library', ['mint_building']],
+  ['make the inside of a little corner bakery, display case, a few tables', ['mint_building', 'design_interior']],
+  ['a foggy pine forest valley I can walk around in at dusk', ['compose_world']],
+  ['build me a city with a river through the middle and a downtown with tall buildings', ['compose_world']],
+  ['a desert canyon i can fly a plane through', ['compose_world', 'design_game']],
+  ['snowy mountains with a blizzard rolling in', ['compose_world']],
+  ["make a quick platformer where you're a frog jumping across lily pads", ['design_game']],
+  ['tower defence game, medieval theme, goblins coming down a road', ['design_game']],
+  ['Can I get a stealth level where you sneak through a museum at night and steal a painting', ['design_game']],
+  ['I want a proper RPG: a hero who finds a cursed sword, a couple of towns, some gear to collect, and a boss at the end. playable in my browser if possible', ['design_game']],
+  ['kart racing game on a beach track', ['design_game']],
+  ['a chill farming game, just one season is fine, crops and a little barn', ['design_game']],
+  ['quick deathmatch arena for 4 players, industrial warehouse vibe', ['design_game']],
+  ['draw a flow chart of our refund process: customer requests, we check the receipt, approve or deny, then refund', ['create_sketch']],
+  ['bar chart of my monthly running: jan 42km, feb 38, mar 55, apr 61, may 70', ['create_sketch']],
+  ['pixel art sprite sheet of a little wizard walking in 4 directions', ['create_sprite_sheet', 'create_character']],
+  ['book cover for my fantasy novel The Salt Queen, dark and moody, a crown half buried in sand', ['create_cover']],
+  ["interactive thing showing how a pendulum's swing time changes with string length, for my year 10 physics class", ['create_view']],
+  ['a painted scene of a lighthouse in a storm, big waves', ['sketch_what_possible']],
+  ['make an upbeat chiptune track for a title screen', ['create_beats']],
+  ['I need a sound effect for picking up a coin and one for a creaky old gate', ['create_beats']],
+  ["put together a short picture book about a turtle who's scared of water, for my 4 year old", ['mint_stash', 'cook', 'forge_publications']],
+  ['research the history of the bicycle and turn it into a short illustrated essay', ['enter_research_mode', 'start_research', 'mint_stash']],
+  ['make a slideshow pitching my game idea to my friends, like 8 slides', ['forge_motion', 'mint_stash', 'cook']],
+  ['give me 5 different takes on a coffee mug design so I can pick one', ['run_experiment_sweep', 'mint_solid']],
+  ['plan out a whole small game for me in one go: a character, a level, some music, then export it all to Godot', ['enter_plan_mode', 'forge_plan', 'design_game']],
+  // changing what was made
+  ['the dragon from earlier, can you make its wings bigger and turn it dark red', ['update_character']],
+  ['make her hair longer and wavy... actually no, braids. two braids', ['update_character']],
+  ['my level is way too easy, add more enemies and a couple of gaps to jump', ['design_game', 'update_sketch']],
+  ['change the apartment so the second bedroom is an office instead', ['mint_building', 'update_sketch']],
+  ['the bracket snapped lol, make it thicker at the bend', ['update_sketch', 'edit_solid', 'mint_solid']],
+  ['can the city have more trees and parks and less cars everywhere', ['compose_world', 'update_sketch']],
+  ['give the knight a red cape and swap his sword for a war hammer', ['update_character']],
+  ['the colours on my level are too bright, make it more autumn, oranges and browns', ['pick_palette']],
+  ['add some hills and a cliff along the left edge of the map', ['tune_ground']],
+  ["the chiptune is good but slow it down and make it sadder, its for the game over screen now", ['update_beats']],
+  ['in the flowchart add a step where a manager has to sign off if the refund is over $100', ['update_sketch']],
+  ['repaint the bedroom sage green, bigger rug, and swap the armchair for a beanbag', ['design_interior']],
+  ['make the fox chubbier and give it a raspy little voice', ['update_character', 'create_voice']],
+  ['make it rain in the forest and switch it to night', ['compose_world', 'update_sketch']],
+  ['can my rpg hero get a shield and a side quest in the swamp town', ['design_game']],
+  ['ok the 3rd mug, but use the handle from the first one', ['update_sketch', 'mint_solid', 'edit_solid']],
+  // exporting, checking, animating, filming
+  ['export the phone stand as 3mf for bambu studio', ['export_model']],
+  ['can I get the orc as a glb with the skeleton so i can drop him into unity', ['export_model']],
+  ['turn the frog platformer into a godot project i can open', ['export_game']],
+  ['make a turntable gif of the dragon spinning', ['forge_motion']],
+  ['record a playthrough of the museum level to prove it can actually be beaten', ['forge_motion']],
+  ['set up a couple of cameras in the city, a slow drone shot over the river that pulls back to show downtown, and give me a shot list', ['forge_motion', 'create_shoot_plan']],
+  ["stitch the flythrough and the turntable into one short video, I'll colour grade it in After Effects after", ['stitch_motion']],
+  ['sign the STL before I post it on printables so people know I made it', ['sign_asset']],
+  ['someone sent my model file back to me, can you check if they changed anything in it', ['verify_asset']],
+  ['send the lighthouse painting scene over to blender for a nicer render', ['recommend_catalysts', 'get_catalyst', 'render_handoff']],
+];

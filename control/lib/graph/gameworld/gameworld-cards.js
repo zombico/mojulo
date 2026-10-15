@@ -31,9 +31,12 @@ import { STAGE_KITS, resolveKitId } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
-import { QUICK_GOALS, RHYTHM_MOODS } from './quick.js';
-import { GENRES } from './intent.js';
-import { CONCERNS } from './concerns.js';
+import { QUICK_GOALS, RHYTHM_MOODS, RACE, DEFEND, DEATHMATCH_MODES } from './quick.js';
+import { CAMERAS } from './cameras.js';
+import { VEHICLES, TUNINGS, CONDITIONS } from '../roads/vehicles.js';
+import { COURSE_PRESETS } from '../roads/course.js';
+import { GENRES, genreCube } from './intent.js';
+import { CONCERNS, concernsOf } from './concerns.js';
 import { RIDES } from './ride.js';
 import { LEVEL_SECTIONS } from '../level/graph.js';
 import { TUNE_KEYS, HERO_MOVE_NAMES, PALETTE as HERO_PALETTE, HERO_CASTS, PROPORTION_WORDS } from '../polygonizer/hero-form.js';
@@ -253,34 +256,99 @@ function systemsCard() {
   );
 }
 
+// THE QUICK PATH in two grains: `gameworld-quick` names the goals and the levers every goal takes, and
+// `gameworld-quick-<goal>` is that card with one goal's play and its own levers in full. A new goal is a row in
+// QUICK_LEVERS (and its card), never more bytes on the index: the agent that knows the goal reads one card.
+const HERO_WORDS = '{ <hero-door words> }';
+const QUICK_LEVERS = {
+  reach: () => ['  climb: true   the exit is the climb\'s top (without it, the trail\'s end)'],
+  collect: () => ['  pickup: \'<word>\'   what lies along the way, one lower-case word (coin, key, star, gem, shell…)'],
+  survive: () => ['  seconds: n (5..600)   how long to last'],
+  avoid: () => [],
+  race: () => [
+    `  track: trail | loop   end to end, or round a loop laid on the trail's land; laps: n (1..9, ${RACE.laps} round a loop)`,
+    `  ride: ${Object.keys(RIDES).join(' | ')}   you drive it (W / S / A / D), followed from behind; no hero, climb or building`,
+    `    vehicle: ${Object.keys(VEHICLES).join(' | ')}; tuning: ${TUNINGS.join(' | ')}; conditions: ${Object.keys(CONDITIONS).join(' | ')}`,
+    '  rivals: n (1..7, with a ride)   a place to finish in, on the podium',
+    '  racers: n (2..8) or a list (an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }):',
+    '    the whole field, yours first (no ride, hero or rivals beside it)',
+    `  roadway: ${Object.keys(COURSE_PRESETS).join(' | ')} | a course spec | { intent: '<words>' }   the race's whole ground, in place of track (no track, climb, building or run beside it)`,
+  ],
+  sneak: () => [`  guards: n (1..8, 3), guard: ${HERO_WORDS}, alarms: n (1..9, 1)   sightings that end the run`],
+  rhythm: () => [`  music: ${RHYTHM_MOODS.join(' | ')}   a field score with a steady beat; misses: n (1..99) presses off the beat that end it`],
+  defend: () => [`  waves: n (1..${DEFEND.perWave.length}, 3), lives: n (1..20, 5), pads: n (1..8, 4), foe / tower: ${HERO_WORDS}   no climb, no building`],
+  puzzle: () => ['  boulders: n (1..4, 2)   no climb, building or ride'],
+  farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
+  battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
+  shoot: () => [
+    `  foes: n (4), foe: ${HERO_WORDS}   first person by default (or third-person); walls to take cover behind`,
+    `  craft: ${Object.keys(CRAFT).join(' | ')}   a dogfight instead: waves: n of fighters, assist, airspace (as fly's); followed from behind`,
+  ],
+  deathmatch: () => [
+    `  bots: n (1..7, 3), frags: n (1..50, 10), seconds: n (10..600) a time limit, foe: ${HERO_WORDS}`,
+    '  arena: \'<words>\' ("a tight three-lane arena with long sightlines"), pole: realistic..stylized (0..1),',
+    '    weapons: true (the pole\'s guns on the arena\'s floor; needs a pole)',
+    `  mode: ${DEATHMATCH_MODES.join(' | ')}   two sides: team deathmatch, or a point held for time`,
+    '  camera first-person or third-person (over the shoulder); no building, ride, climb or run',
+  ],
+  fly: () => [
+    `  craft: ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join(', ')}`,
+    '  assist: arcade (never stalls, the wings level quickly) | sim (the bank holds where it is put); laps: n (not a glider)',
+    `  airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} }, ground?, space?, course? }   space: { asteroids } for a space craft`,
+    '  followed from behind; no hero, ride, climb, building or run',
+  ],
+};
+export const QUICK_GOAL_CARD_IDS = Object.keys(QUICK_GOALS).map((g) => `gameworld-quick-${g}`);
+
+const quickHead = () => 'THE QUICK PATH — one level, one goal, one call: design_game({ quick: { goal, ... } }). The loop is simple; the graphics are not.';
+const quickShared = () => [
+  'levers any goal takes (where its play allows; a refusal names the clash):',
+  `  hero: ${HERO_WORDS} | { ref } (a hero from create_character): looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }));`,
+  '    absent or false: first person, you are the camera',
+  `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
+  '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
+  '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
+  `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
+  "  music: 'auto' | '<mood>', sfx: 'auto' | '<palette>'   a score per level, the goal's sounds",
+  `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world says what each takes)`,
+  '',
+  'THE ANSWER: the readout of the one-level gameworld written and run: its stage as a level with the goal on the stage\'s own',
+  'anchors, the store the goal needs, and the game in the light play shell (title, level, result), with its play link.',
+  'Walkable by construction; whether it can be beaten is the creator\'s to judge in play, and nothing proved it.',
+  'GROWING: it is an ordinary gameworld. Patch in the hero\'s pages (design_game({ ref, patch })) and the same sketch becomes',
+  'the book, with every page, review and gate (gameworld-guide). Levels composed by hand stay create_game\'s.',
+];
+
 function quickCard() {
   return lines(
-    'THE QUICK PATH — one level, one goal, one call: design_game({ quick: { goal, ... } }). The loop is simple; the graphics are not.',
+    quickHead(),
     '',
-    `goal: ${Object.entries(QUICK_GOALS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
-    'levers, optional:',
-    `  climb: true   a climb after the trail (reach: exit at its top); pickup: '<word>' for collect (coin, key…); seconds: n for survive`,
-    `  sneak: guards: n (3), guard: { … as hero }, alarms: n (1)   rhythm: music: ${RHYTHM_MOODS.join(' | ')}, misses: n`,
-    '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { … as hero }   puzzle: boulders: n (2)',
-    '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { … as hero }   (night falls)',
-    '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { … as hero }',
-    '  shoot: foes: n (4), foe (as battle\'s); craft: a dogfight (waves)',
-    '  deathmatch: bots: n (3), frags: n (10), seconds: n, arena: \'<words>\', pole: realistic..stylized (0..1), weapons: true, mode: team | control, foe',
-    `  ride: ${Object.keys(RIDES).join(' | ')}   the hero drives it (W/S/A/D); no hero, climb or building`,
-    '  race: track: trail | loop (laid on the trail\'s land), laps: n (3 round a loop), rivals: n (1-7, with a ride)',
-    `  fly: craft: ${Object.keys(CRAFT).join(' | ')}, assist: arcade | sim, laps, airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} } }`,
-    `  hero: { <hero-door words> } looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }))`,
-    `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: first person without a hero or to shoot, else third (fly: behind); top-down, side need a hero`,
-    `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the shell's skin`,
-    "  music: 'auto' | '<mood>', sfx: 'auto' | '<palette>'   a score per level, the goal's sounds",
-    `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world)`,
+    `goal: ${Object.keys(QUICK_GOALS).join(' | ')}.`,
+    'A goal\'s play and its own levers: get_game_vocab({ id: \'gameworld-quick-<goal>\' }), this card with that goal in full.',
+    'Knowing the goal, read that card alone.',
     '',
-    'THE ANSWER: the gameworld written and run: its stage as a level, the goal on the stage\'s anchors, the store it',
-    'needs, the game in the play shell and its play link. Walkable by construction; whether it can be beaten is the creator\'s',
-    'to judge in play: nothing proved it.',
-    'GROWING: an ordinary gameworld. Patch in the hero\'s pages (design_game({ ref, patch })) and it becomes the book',
-    '(gameworld-guide). Hand-composed levels stay create_game\'s.',
+    ...quickShared(),
   );
+}
+
+function quickGoalCard(goal) {
+  const own = QUICK_LEVERS[goal]();
+  return lines(
+    quickHead(),
+    '',
+    `goal: '${goal}'   ${QUICK_GOALS[goal]}.`,
+    own.length ? 'its levers, all optional:' : 'no levers of its own.',
+    ...own,
+    '',
+    ...quickShared(),
+  );
+}
+
+/** One quick goal's card by id (`gameworld-quick-<goal>`), or null. Served by id, not listed with the rail. */
+export function quickGoalCardById(id) {
+  const goal = typeof id === 'string' && id.startsWith('gameworld-quick-') ? id.slice('gameworld-quick-'.length) : null;
+  if (!goal || !Object.prototype.hasOwnProperty.call(QUICK_GOALS, goal)) return null;
+  return { id, name: `The quick path: ${goal}`, summary: QUICK_GOALS[goal], when: `a quick ${goal} game`, scope: 'rail', body: quickGoalCard(goal) };
 }
 
 function storyCard() {
@@ -340,7 +408,8 @@ function intentCard() {
     'design_game suggests from the brief (intent.suggest); a world that writes none is read from what it says (camera,',
     'topology, quick goal), and shown.',
     '',
-    `genres: ${Object.entries(GENRES).map(([k, g]) => `${k} (${g.why})`).join('; ')}.`,
+    `genres: ${Object.keys(GENRES).join(' | ')}.`,
+    'A genre\'s why, the words a brief uses for it, its cube and what it asks: get_game_vocab({ id: \'gameworld-intent-<genre>\' }).',
     '',
     'CONCERNS: what the cube asks of the world, raised by its values (a farm with guns asks both):',
     ...CONCERNS.map((c) => `  ${c.id.padEnd(14)}${c.when.join(' | ')}`),
@@ -348,9 +417,32 @@ function intentCard() {
   );
 }
 
+// one genre in full (`gameworld-intent-<genre>`): the index above names the genres, so a new genre is a row here, not
+// bytes on the index
+function genreCard(id) {
+  const g = GENRES[id], cube = genreCube(id);
+  const say = (v) => (Array.isArray(v) ? `[${v.map(say).join(', ')}]` : typeof v === 'string' ? `'${v}'` : String(v));
+  return lines(
+    `WHAT GAME IT IS: ${g.name} — intent: { from: '${id}' }; cube overrides any value (gameworld-intent).`,
+    '',
+    `why: ${g.why}.`,
+    ...(g.words.length ? [`a brief says: ${g.words.join(', ')}`] : []),
+    'its cube:',
+    ...Object.entries(cube).map(([facet, set]) => `  ${facet.padEnd(8)}{ ${Object.entries(set).map(([k, v]) => `${k}: ${say(v)}`).join(', ')} }`),
+    `what it asks of the world: ${concernsOf(cube).map((c) => c.id).join(', ') || 'nothing past a walk'} (gameworld-intent says what raises each).`,
+  );
+}
+
+/** One genre's card by id (`gameworld-intent-<genre>`), or null. Served by id, not listed with the rail. */
+export function genreCardById(id) {
+  const genre = typeof id === 'string' && id.startsWith('gameworld-intent-') ? id.slice('gameworld-intent-'.length) : null;
+  if (!genre || !Object.prototype.hasOwnProperty.call(GENRES, genre)) return null;
+  return { id, name: `What game it is: ${GENRES[genre].name}`, summary: GENRES[genre].why, when: `a ${GENRES[genre].name.toLowerCase()} game`, scope: 'rail', body: genreCard(genre) };
+}
+
 const CARDS = [
   ['gameworld-guide', 'The game book', 'the loop and the principles: design a game top down, then let design_game make it', 'make a game, design a game, a game with a hero and powers, where do I start', guide],
-  ['gameworld-quick', 'The quick path', 'one level and a simple goal in one call: reach, collect, survive, avoid, race, sneak, rhythm, defend, puzzle, farm, battle, shoot, deathmatch', 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
+  ['gameworld-quick', 'The quick path', `one level and a simple goal in one call: ${Object.keys(QUICK_GOALS).join(', ')}`, 'a simple game, a platformer level, collect coins, reach the exit, survive for a minute, a race against the clock, a kart race against rivals, a stealth level, a rhythm game, drive a car, tower defence, a boulder puzzle, a farm, a turn-based fight, a shooter, a deathmatch with bots, a quick game', quickCard],
   ['gameworld-intent', 'What game it is', 'the cube the world is laid for: a genre to start from, and what each value asks of the world', 'a shooter, a farming game, a racing game, what kind of game, genre, game type', intentCard],
   ['gameworld-world', 'The world', 'the ground, its levels, kits, civilizations and links', 'the levels of my game, where it happens', worldCard],
   ['gameworld-direction', 'The direction', 'how characters are drawn: tradition, elements, motif', 'anime or western, the colours of my hero', directionCard],

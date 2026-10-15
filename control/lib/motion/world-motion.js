@@ -182,7 +182,7 @@ async function planFrames({ sketch, params = {}, fps }) {
   const { sampleProgram } = await import('@/lib/graph/shoot/sample');
   const { shootSubjects, worldIsLive } = await import('@/lib/graph/shoot/subjects');
   if (!sketch?.manifest?.shoot) {
-    throw new Error(`'${sketch?.ref}' has no shoot plan — create_shoot_plan puts cameras in it first (get_motion_vocab({ id: 'shoot' })).`);
+    throw new Error(`'${sketch?.ref}' has no shoot plan — forge_motion's shoot: { plan } puts cameras in it first (get_motion_vocab({ id: 'shoot' })).`);
   }
   const { payload } = (await resolveWorldScene(sketch, { view: params.view })) || {};
   if (!payload) throw new Error(`sketch '${sketch.ref}' (kind '${sketch.manifest?.kind}') has no three.js World form to shoot.`);

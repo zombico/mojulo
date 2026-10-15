@@ -1,5 +1,5 @@
 /**
- * Shoot plan — the edits `update_shoot_plan` applies, in the words of a camera operator and an After Effects user.
+ * Shoot plan — the edits `forge_motion`'s `shoot: { ops }` applies, in the words of a camera operator and an After Effects user.
  * Each op works on the NORMALIZED plan (plan.js) and returns a new one; the caller normalizes the result again, so an
  * op only has to say what changed. Ops address cameras by id, keys by time (seconds, the world clock) and shots by
  * name or index. Pure.

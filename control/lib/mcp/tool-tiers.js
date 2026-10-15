@@ -104,8 +104,6 @@ export const TOOL_TIERS = Object.freeze({
   get_motion_vocab: 'ride',
   forge_motion: 'judge',
   stitch_motion: 'judge',
-  create_shoot_plan: 'judge',
-  update_shoot_plan: 'judge',
 
   // ── workflows: plans ──
   enter_plan_mode: 'ride',

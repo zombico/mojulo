@@ -395,7 +395,8 @@ const DESCRIPTION_ALLOWLIST = {
 // palette moved, its identity kept) and `script` (a world's palette moved level by level along an arc).
 // Re-pinned 2026-10-14 (213_400 -> 213_700; measured 213,449) for the color theorist's air: pick_palette's `air` (thin,
 // none: a void for a sky) and `preset` (moon, asteroid-belt, mars, icy-moon, station, deep-space).
-const PAYLOAD_CEILING = 213_700;
+// Lowered 2026-10-15 (213_700 -> 210_800; measured 210,537) for 1015-tool-consolidation: the shoot plan folded into forge_motion.
+const PAYLOAD_CEILING = 210_800;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

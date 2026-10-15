@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { gameworldCards, GAMEWORLD_CARD_IDS } from './gameworld-cards.js';
+import { gameworldCards, GAMEWORLD_CARD_IDS, QUICK_GOAL_CARD_IDS, quickGoalCardById, genreCardById } from './gameworld-cards.js';
+import { QUICK_GOALS } from './quick.js';
+import { GENRES } from './intent.js';
 import { gameworldSamples, SAMPLE_PAGES, DERIVE } from './samples.js';
 import { ELEMENT_WORDS, IDIOMS, SYSTEM_KINDS, VIBES, RAILS, CLASS_SLOTS, TRADITIONS, MEADOWMARK_HERO, HALDEN_REACH, readGameworld } from './index.js';
 import { LOOKS } from '../playscape/elements/elements.js';
@@ -31,6 +33,36 @@ describe('the rail\'s cards', () => {
     on('gameworld-actions', [...Object.keys(IDIOMS), ...Object.keys(SYSTEM_KINDS), ...Object.keys(LOOKS), ...BEAM_NAMES]);
     on('gameworld-adornment', RAILS.flatMap((r) => r.stems));
     on('gameworld-equipment', Object.keys(CLASS_SLOTS));
+  });
+
+  it('a growing family is an index and a card per member: a quick goal, a genre', () => {
+    // the index names each member and grows by a word; the member's card carries it in full, and reading it is one call
+    const quick = cards.get('gameworld-quick').body, intent = cards.get('gameworld-intent').body;
+    for (const g of Object.keys(QUICK_GOALS)) {
+      const c = quickGoalCardById(`gameworld-quick-${g}`);
+      expect(c, g).not.toBeNull();
+      expect(Buffer.byteLength(c.body), c.id).toBeLessThan(4096);
+      expect(c.body, g).toContain(QUICK_GOALS[g]);
+      expect(quick).not.toContain(QUICK_GOALS[g]);
+    }
+    expect(QUICK_GOAL_CARD_IDS).toEqual(Object.keys(QUICK_GOALS).map((g) => `gameworld-quick-${g}`));
+    for (const [id, g] of Object.entries(GENRES)) {
+      const c = genreCardById(`gameworld-intent-${id}`);
+      expect(c, id).not.toBeNull();
+      expect(Buffer.byteLength(c.body), c.id).toBeLessThan(4096);
+      expect(c.body).toContain(g.why);
+      expect(intent).not.toContain(g.why);
+    }
+    expect(quickGoalCardById('gameworld-quick-nope')).toBeNull();
+    expect(genreCardById('gameworld-intent-nope')).toBeNull();
+    // a goal's own levers are on its card, not the index: every key a quick game takes is on some goal's card
+    const goalCards = Object.keys(QUICK_GOALS).map((g) => quickGoalCardById(`gameworld-quick-${g}`).body).join('\n');
+    for (const k of ['pickup', 'seconds', 'track', 'laps', 'ride', 'vehicle', 'tuning', 'conditions', 'rivals', 'racers', 'roadway', 'guards', 'guard', 'alarms',
+      'music', 'misses', 'waves', 'lives', 'pads', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'foes', 'foe', 'craft', 'assist',
+      'airspace', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'hero', 'camera', 'climb', 'run', 'building', 'theme', 'sfx', 'world']) {
+      expect(goalCards, k).toMatch(new RegExp(`\\b${k}:`));
+    }
+    expect(quick).not.toMatch(/\bfrags:|\bboulders:|\bguards:/);
   });
 
   it('no test fixture is shown anywhere: not its name, its items, its powers, its places', () => {

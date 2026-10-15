@@ -21,7 +21,7 @@ WORLD motions apply the SAME camera motions (turntable / orbit / push_in / dolly
 
 ## Shot — plan (the world's shoot plan)
 
-`shot.motion: 'plan'` renders the cameras and cut list a world carries (`create_shoot_plan`; manual `get_motion_vocab({ id: 'shoot' })`). Each frame is captured from its shot's camera with the world stepped to that frame's own clock, so a cut between two shots of one span replays the action, and a camera following a car finds it where the plan put it. `shot.fps` (default: the plan's), `shot.params`: `{ shot: <name | index> }` for one shot alone, `{ width, height }`. Exports as the other camera shots do (`gif` / `mp4` / `both`).
+`shot.motion: 'plan'` renders the cameras and cut list a world carries (written with `shoot`; manual `get_motion_vocab({ id: 'shoot' })`). Each frame is captured from its shot's camera with the world stepped to that frame's own clock, so a cut between two shots of one span replays the action, and a camera following a car finds it where the plan put it. `shot.fps` (default: the plan's), `shot.params`: `{ shot: <name | index> }` for one shot alone, `{ width, height }`. Exports as the other camera shots do (`gif` / `mp4` / `both`).
 
 ## Shot — traversal (an input-script run)
 

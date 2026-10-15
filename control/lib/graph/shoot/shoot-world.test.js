@@ -49,7 +49,7 @@ describe('a shoot plan on a world', () => {
 describe('forge_motion plan: what it refuses before it renders', async () => {
   const { renderWorldPlan } = await import('../../motion/world-motion.js');
   it('names the tool that makes a plan, and the shots a missing one could have been', async () => {
-    await expect(renderWorldPlan({ sketch: { ref: 'w', manifest: WORLD } })).rejects.toThrow(/create_shoot_plan/);
+    await expect(renderWorldPlan({ sketch: { ref: 'w', manifest: WORLD } })).rejects.toThrow(/shoot: \{ plan \}/);
     await expect(renderWorldPlan({ sketch: { ref: 'w', manifest: { ...WORLD, shoot: SHOOT } }, params: { shot: 'nope' } })).rejects.toThrow(/shots: orbit/);
   });
 });

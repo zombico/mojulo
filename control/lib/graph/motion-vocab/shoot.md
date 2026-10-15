@@ -3,13 +3,13 @@
   "id": "shoot",
   "name": "Shoot plan (cameras as objects in a world, in After Effects terms)",
   "family": "motion",
-  "entry": "create_shoot_plan",
-  "summary": "Keyed cameras placed in a 3D world as visible objects — two-node or one-node, a lens in mm, Easy Ease / hold keys, a cut list; a key may follow a moving car, walker or mover. Drawn on the World page with its path; rendered by forge_motion.",
+  "entry": "forge_motion",
+  "summary": "Keyed cameras placed in a 3D world as visible objects — two-node or one-node, a lens in mm, Easy Ease / hold keys, a cut list; a key may follow a moving car, walker or mover. Written with forge_motion's `shoot`, drawn on the World page with its path, rendered by forge_motion (`shot.motion: 'plan'`).",
   "when": "Reach for this on 'set up a camera / plan the shots / a two-node camera / point of interest / 35mm / easy ease the key / show me the camera path / follow the car / chase cam / look through the camera'."
 }
 ---
 
-A shoot plan lives on a world's recipe (`manifest.shoot`). `create_shoot_plan { ref, plan }` writes it, `update_shoot_plan { ref, ops }` edits it, and the World page (`/api/sketches/<ref>/world`) draws every camera as an object: its frustum at the lens's field of view, the line to its point of interest, its motion path with a dot per frame (the spacing is the ease, as in an AE motion path), a diamond per key (white for hold), and a panel with the shots, a scrubber and LOOK THROUGH.
+A shoot plan lives on a world's recipe (`manifest.shoot`). `forge_motion { subject: { world_ref }, shoot: { plan } }` writes it, `shoot: { ops }` edits it, `shot: { motion: 'plan' }` beside either renders it in the same call, and the World page (`/api/sketches/<ref>/world`) draws every camera as an object: its frustum at the lens's field of view, the line to its point of interest, its motion path with a dot per frame (the spacing is the ease, as in an AE motion path), a diamond per key (white for hold), and a panel with the shots, a scrubber and LOOK THROUGH.
 
 ## After Effects → plan
 
@@ -37,7 +37,7 @@ Key times and shot spans are the WORLD's clock. A shot shows the world over its 
 
 ## Following what moves
 
-`create_shoot_plan { ref }` with no `plan` lists what a key can follow (`subjects_at: <seconds>` gives where each one is): `walker:<i>`, `car:<i>` (signalised traffic included: it stops at lights), `mover:<group>`. A followed key is read at the instant being shown; a segment between a fixed key and a followed one eases from the place onto the subject (a pickup) or off it. `frame: 'subject'` turns the offset with the subject's heading — x forward, y left, z up — so `[-3.5, 0, 1.3]` rides behind and above. A world's controllable entities (the player, AI, scripted movers, physics) move LIVE: follow one as `entity:<id>`. Its place is not known until it plays, so the plan's readout assumes it at its spawn, and the World page evaluates that camera's keys each frame against where the entity really is (its path drawn as a trail behind it).
+`shoot: {}` (no `plan`, no `ops`) lists what a key can follow (`subjects_at: <seconds>` gives where each one is): `walker:<i>`, `car:<i>` (signalised traffic included: it stops at lights), `mover:<group>`. A followed key is read at the instant being shown; a segment between a fixed key and a followed one eases from the place onto the subject (a pickup) or off it. `frame: 'subject'` turns the offset with the subject's heading — x forward, y left, z up — so `[-3.5, 0, 1.3]` rides behind and above. A world's controllable entities (the player, AI, scripted movers, physics) move LIVE: follow one as `entity:<id>`. Its place is not known until it plays, so the plan's readout assumes it at its spawn, and the World page evaluates that camera's keys each frame against where the entity really is (its path drawn as a trail behind it).
 
 ## Live worlds
 
@@ -61,7 +61,7 @@ Recipes: a wormhole = a `pipe` `along` the flying camera; a corridor = `{ kind: 
 
 `in: 'fade' | 'wipe' | 'iris' | 'pipe'` or `{ type, duration, color, dir }` is how the cut into that shot plays. It expands into pieces on the outgoing camera's last half and the incoming camera's first half, sized to the lens: `fade` (to `color`, black by default), `wipe` (`dir`: 'left' enters from frame left, 'right', 'up', 'down'), `iris` (a round frame closing and opening), `portal` (a door stood where the outgoing camera will be at the cut, its hole a window into the incoming camera: the camera flies through into the next shot; the whole `duration` is the approach; a camera that barely moves gets the window as an iris opening from the middle), `pipe` (fly into a ringed tube laid along the camera's own path and out of another; `radius`, `profile: 'box'` for a corridor; a camera that barely moves gets a straight tube slid over its lens). The first shot's `in` plays only its incoming half. Write the pieces yourself to bend one.
 
-## Edits (`update_shoot_plan` ops)
+## Edits (`shoot: { ops }`)
 
 `add_key { camera, key }` · `set_key { camera, t, to?, pos?, poi?, lens?, ease?, roll? }` · `remove_key { camera, t }` · `ease { camera, t? | times?, ease }` (no time = every key) · `retime { camera?, scale?, shift? }` (keys and that camera's shots) · `set_camera { camera, name?, lens?, path?, type? }` (flipping the type keeps the view) · `add_camera { camera, shot? }` · `remove_camera` · `add_shot { shot, at? }` · `set_shot { shot, name?, camera?, span?, in? }` · `remove_shot` · `move_shot { shot, to }` · `add_piece { piece }` · `set_piece { piece, …fields }` · `piece_key { piece, key }` (a key at an existing time merges) · `remove_piece` · `set { fps }`.
 

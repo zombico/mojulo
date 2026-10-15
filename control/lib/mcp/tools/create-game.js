@@ -30,7 +30,7 @@ import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
 import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
-import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES } from '@/lib/graph/gameworld/gameworld-cards';
+import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES, quickGoalCardById, genreCardById } from '@/lib/graph/gameworld/gameworld-cards';
 import { gameworldSamples } from '@/lib/graph/gameworld/samples';
 import { getMechanicVocabCatalog } from '@/lib/graph/game/mechanic-cards/loader';
 import { getKitVocabCatalog } from '@/lib/graph/game/kit-cards/loader';
@@ -208,6 +208,9 @@ export async function getGameVocabHandler(input) {
     return { ok: true, ...gameworldSamples(samples, { ...(n !== undefined ? { n } : {}), ...(seed !== undefined ? { seed } : {}) }), _telemetrySignal: { id_requested: true, found: true } };
   }
   if (id && rail.has(id)) return { ok: true, card: rail.get(id), _telemetrySignal: { id_requested: true, found: true } };
+  // a quick goal's card and a genre's card: served by id, named on their index cards, not listed
+  const sub = id ? quickGoalCardById(id) ?? genreCardById(id) : null;
+  if (sub) return { ok: true, card: sub, _telemetrySignal: { id_requested: true, found: true } };
   const slices = getGameVocabCatalog();
   const mechanics = getMechanicVocabCatalog();
   const kits = getKitVocabCatalog();
@@ -218,7 +221,7 @@ export async function getGameVocabHandler(input) {
   if (id) {
     const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id) || idioms.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }

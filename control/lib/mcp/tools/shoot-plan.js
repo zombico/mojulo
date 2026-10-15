@@ -1,5 +1,7 @@
 /**
- * The shoot-plan tools: `create_shoot_plan` and `update_shoot_plan`. A shoot plan is a world's cameras keyed in After
+ * The shoot plan, written through `forge_motion({ subject: { world_ref }, shoot })` (shootPlanHandler): a camera is a
+ * motion to the user, so the plan is forge_motion's. `create_shoot_plan` and `update_shoot_plan` are folded (RETIRED_PACKS'
+ * pack_folded_doors): registered and callable by name, never listed. A shoot plan is a world's cameras keyed in After
  * Effects terms plus a cut list (lib/graph/shoot/), stored on the world recipe as `manifest.shoot` and drawn by its
  * World page: each camera as an object with its frustum, point of interest and motion path, LOOK THROUGH, the shots.
  *
@@ -79,7 +81,7 @@ export async function updateShootPlanHandler(input = {}) {
   const { ref, ops, note, subjects_at: subjectsAt } = input;
   const world = await readWorld(ref);
   const stored = world.sketch.manifest?.shoot;
-  if (!stored) throw new Error(`'${ref}' has no shoot plan yet — create_shoot_plan makes one`);
+  if (!stored) throw new Error(`'${ref}' has no shoot plan yet — forge_motion({ subject: { world_ref }, shoot: { plan } }) makes one`);
   if (!Array.isArray(ops) || !ops.length) {
     if (Number.isFinite(subjectsAt)) return { ok: true, ref, subjects: subjectsSays(world.subjects, subjectsAt) };
     throw new Error('`ops` is a non-empty list of edits (add_key, set_key, ease, retime, add_shot, set_camera, …)');
@@ -87,7 +89,7 @@ export async function updateShootPlanHandler(input = {}) {
   const { normalizeShoot } = await import('@/lib/graph/shoot/plan');
   const { applyShootOp } = await import('@/lib/graph/shoot/ops');
   let plan = normalizeShoot(stored, { subjects: world.subjects }).plan;
-  if (!plan) throw new Error(`the stored plan on '${ref}' no longer reads; create_shoot_plan replaces it`);
+  if (!plan) throw new Error(`the stored plan on '${ref}' no longer reads; shoot: { plan } replaces it`);
   const notes = [];
   ops.forEach((op, i) => {
     let res;
@@ -100,13 +102,21 @@ export async function updateShootPlanHandler(input = {}) {
   return { ...out, ...(Number.isFinite(subjectsAt) ? { subjects: subjectsSays(world.subjects, subjectsAt) } : {}) };
 }
 
+/** One door: `plan` writes (replaces), `ops` edits in place, neither lists what a key can follow. */
+export async function shootPlanHandler(input = {}) {
+  const { plan, ops } = input;
+  if (plan !== undefined && ops !== undefined) throw new Error('shoot: `plan` writes a whole plan, `ops` edits the one there; pass one');
+  if (ops !== undefined) return updateShootPlanHandler(input);
+  return createShootPlanHandler(input);
+}
+
 const POINT = "[x,y,z] (world units) or { follow: 'car:2', offset?, frame?: 'subject' }";
 
 export function registerShootPlanTools() {
   registerTool({
     name: 'create_shoot_plan',
     description:
-      "Put cameras in a 3D world as visible objects with a SHOOT PLAN, in After Effects words: two-node (position + point of interest) or one-node cameras, a lens in mm ('35mm'), keys with Easy Ease / ease in / ease out / hold, and a cut list of shots. The World page draws each camera's frustum and motion path (a dot per frame) and can LOOK THROUGH it. A key may follow a moving car, walker or mover. Returns the readout (timings, metres, speeds, jumps) and where a move passes through geometry. Omit `plan` to list what can be followed. Manual: get_motion_vocab({ id: 'shoot' }). Edit with update_shoot_plan; render with forge_motion.",
+      "Folded into forge_motion({ subject: { world_ref }, shoot: { plan } }). Put cameras in a 3D world as visible objects with a SHOOT PLAN, in After Effects words: two-node (position + point of interest) or one-node cameras, a lens in mm ('35mm'), keys with Easy Ease / ease in / ease out / hold, and a cut list of shots. The World page draws each camera's frustum and motion path (a dot per frame) and can LOOK THROUGH it. A key may follow a moving car, walker or mover. Returns the readout (timings, metres, speeds, jumps) and where a move passes through geometry. Omit `plan` to list what can be followed. Manual: get_motion_vocab({ id: 'shoot' }). Edit with `shoot: { ops }`; render with shot.motion 'plan'.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -127,7 +137,7 @@ export function registerShootPlanTools() {
   registerTool({
     name: 'update_shoot_plan',
     description:
-      "Edit a world's shoot plan in place, op by op, in camera-operator and After Effects terms: add_key / set_key (by time; `to` moves it) / remove_key, ease (one key, some, all: AE's F9), retime, set_camera (lens, path, one-node ↔ two-node keeping the view), add_camera / remove_camera, add_shot / set_shot (`in`: fade, wipe, iris, pipe, portal; `on`: an event that cuts to it) / remove_shot / move_shot, add_piece / set_piece / piece_key / remove_piece (walls, floors, ceilings, pipes, frames riding a camera or in the world), set { fps }. Same readout and clearance as create_shoot_plan. Manual: get_motion_vocab({ id: 'shoot' }).",
+      "Folded into forge_motion({ subject: { world_ref }, shoot: { ops } }). Edit a world's shoot plan in place, op by op, in camera-operator and After Effects terms: add_key / set_key (by time; `to` moves it) / remove_key, ease (one key, some, all: AE's F9), retime, set_camera (lens, path, one-node ↔ two-node keeping the view), add_camera / remove_camera, add_shot / set_shot (`in`: fade, wipe, iris, pipe, portal; `on`: an event that cuts to it) / remove_shot / move_shot, add_piece / set_piece / piece_key / remove_piece (walls, floors, ceilings, pipes, frames riding a camera or in the world), set { fps }. Same readout and clearance as a written plan. Manual: get_motion_vocab({ id: 'shoot' }).",
     inputSchema: {
       type: 'object',
       properties: {

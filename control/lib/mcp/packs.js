@@ -168,7 +168,7 @@ export const PACKS = [
     title: 'Motion, film & motion-comic',
     description:
       "MOTION & FILM (+ motion-comic) — add TIME to a static subject: forge_motion (camera moves and performances rendered to flipbook SVG + GIF), stitch_motion (clips → one film), motion-vocab cards, and the click-gated motion-comic authored via update_sketch. Open for 'give me a spinning view of that molecule', 'record the hero clearing the chasm and show me the clip', 'walk to the exit to check the level is beatable' (traversal proof), 'present these charts one after another as a click-through deck', 'merge the clips into a single movie'.",
-    members: ['forge_motion', 'stitch_motion', 'get_motion_vocab', 'create_shoot_plan', 'update_shoot_plan'],
+    members: ['forge_motion', 'stitch_motion', 'get_motion_vocab'],
     shared: ['update_sketch', 'get_sketch_vocab'],
   },
   {
@@ -427,6 +427,21 @@ export const RETIRED_PACKS = [
       'update_game_project',
       'bind_to_game_project',
       'list_game_projects',
+    ],
+  },
+  // A door folded into the door that owns its intent (1015 tool consolidation): what the user asks lands on one tool,
+  // and the folded name still answers for a plan step, a seed script or a host that remembers it.
+  {
+    id: 'pack_folded_doors',
+    ring: 'retired',
+    retired: '3.1.0',
+    title: 'Folded doors',
+    description:
+      "FOLDED DOORS — tools whose work moved onto the door users ask by: a world's shoot plan is forge_motion's (`shoot`).",
+    body: 'Folded in 3.1.0 for one door per intent. Callable by name; each description names its door.',
+    members: [
+      'create_shoot_plan',
+      'update_shoot_plan',
     ],
   },
 ];

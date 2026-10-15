@@ -498,7 +498,7 @@ const FORM_DEFS = {
   'motion': {
     title: 'Motion & film',
     makes: 'add time to a static subject; stitch clips into a film',
-    tools: ['forge_motion', 'get_motion_vocab', 'stitch_motion', 'create_shoot_plan', 'update_shoot_plan'],
+    tools: ['forge_motion', 'get_motion_vocab', 'stitch_motion'],
   },
   'motion-comic': {
     title: 'Motion comic — click-gated comic presentation',
@@ -609,14 +609,14 @@ mint dispatch — match the ask to a FORM:
   WORLD    traversable — city / airport / drivable / flyable / platformer / walkable anything → \`compose_world\` (a BASE × a THEME) · a level's own look (rooms, an island) → a \`geocube\` first (\`create_sketch\`) · animated science / math / bio study object ("teach me nuclear fission") → \`create_view\`
   HOUSE    a house / apartment / cottage / townhouse / ONE furnished room / a store, restaurant, mall or school campus, its plans, drawing set, frame or IFC → \`mint_building\` (routing card \`house\`; NOT compose_world, NOT edifice) · decorating one room → \`design_interior\`
   BUILDING institutional / bespoke one-off (a terminal, a hall, a block of masses + concourses) → \`mint_solid\` kind edifice · a dwelling is HOUSE
-  OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\` · shoot plan → \`create_shoot_plan\`
+  OBSERVE  animate / turntable / flythrough / slideshow deck / replay-a-run / walk-to-a-place-and-verify → \`forge_motion\` (families camera / deck / traversal / waypoints) · join clips into one film → \`stitch_motion\` · cameras keyed in a world, a shot list → \`forge_motion\` \`shoot\`
   MOTION COMIC  click-by-click reveal, one self-contained HTML file → \`create_sketch\` kind 'motion-comic'
   AUDIO    soundtrack / tune / beat / sfx → \`create_beats\` · revise → \`update_beats\` · notes → \`annotate_beats\` · what changed → \`diff_beats\`
   VOICE    how a voice SOUNDS (deeper, more confident, a Japanese narrator) → \`create_voice\` (an external worker speaks it)
   PUBLICATION  essay / picture book / deck / brief from gathered material → \`mint_stash\` → \`gather\` → \`cook\` · multi-kind preview → \`forge_publications\`
   WORKFLOW many at once: a chain written once, each step taking the last's ref (mint → export → measure) → \`enter_plan_mode\` → \`forge_plan\` → \`compile_plan\` → \`execute_plan\` · variations of one recipe over a value → \`run_experiment_sweep\` · a flow through another MCP or worker on this host (Blender, ComfyUI) → \`recommend_catalysts\` → \`get_catalyst\`
 
-export dispatch: object/figure → \`export_model\` (print-ready 3MF | STL, mm, z-up | glTF | USD) · game/world → \`export_game\` (Godot first-class) · audio → \`export_beats\` (WAV/MIDI) · sprites → \`bake_sprite_sheet\`
+export dispatch: object/figure → \`export_model\` (print-ready 3MF | STL, mm, z-up | glTF | USD) · game/world → \`export_game\` (Godot first-class) · audio → \`export_beats\` (WAV/MIDI) · sprites → \`bake_sprite_sheet\` · a file's creator receipt, asked for → \`sign_asset\` / \`verify_asset\`
 
 Guards:
   - revise the same ref — never re-mint to change a thing

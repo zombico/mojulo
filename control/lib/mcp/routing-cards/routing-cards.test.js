@@ -24,6 +24,10 @@ import {
 } from './loader.js';
 import { buildForwardContextBody } from '@/lib/mcp/tools/context.js';
 import { CREATIVE_FORMS } from '@/lib/mcp/creative-forms';
+import { TOOL_LINES } from '@/lib/mcp/tool-lines.js';
+import { FIXTURE, COLLISION_FIXTURE, KNOWN_MISSES } from './routing-eval.fixture.js';
+import { HOLDOUT } from './routing-eval.holdout.js';
+import { createHash } from 'node:crypto';
 
 describe('routing-card shelf — loader + lint', () => {
   it('loads the catalog with required fields on every card', () => {
@@ -100,5 +104,55 @@ describe('routing-card shelf — registry + body sweeps', () => {
     // and flags any card whose entry is ALSO absent from the body so the
     // author consciously decided which layer carries it.
     expect(dark).toEqual([]);
+  });
+});
+
+// One door per intent: a listed tool that makes or composes a thing is a door, and a door is an intent a user voices,
+// so some fixture row says it in a user's words (CLAUDE.md, the MCP tool surface). The doors below had no row when
+// the rule landed: shrink-only, so a new door brings its row instead of a name here.
+const DOORS_WITHOUT_A_ROW = [
+  'capture_reference', 'cook', 'create_cover', 'create_pixelizer_game', 'create_sprite_sheet', 'design_game',
+  'execute_plan', 'forge_plan', 'forge_publications', 'mint_diagram', 'run_experiment_sweep', 'start_research',
+  'synthesize_abstract',
+];
+
+describe('routing eval fixture — one door per intent', () => {
+  it('every listed create / compose tool is some row\'s answer, or on the shrink-only list', async () => {
+    const { ensureToolsRegistered, isToolListed } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    const answers = new Set(FIXTURE.map(([, tool]) => tool));
+    const doors = Object.entries(TOOL_LINES)
+      .filter(([name, l]) => ['create', 'compose'].includes(l.verb) && isToolListed(name))
+      .map(([name]) => name);
+    expect(doors.filter((d) => !answers.has(d) && !DOORS_WITHOUT_A_ROW.includes(d)), 'a door with no fixture row').toEqual([]);
+    // a name earns its way off the list by getting a row (or stops being a listed door): take it off
+    expect(DOORS_WITHOUT_A_ROW.filter((d) => answers.has(d) || !doors.includes(d)), 'off the list now').toEqual([]);
+  });
+
+  it('every row\'s answer is a listed tool: a fold rewrites the rows that named the folded door', async () => {
+    const { ensureToolsRegistered, isToolListed } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    const stale = [...FIXTURE, ...COLLISION_FIXTURE].filter(([, tool]) => !isToolListed(tool)).map(([p, tool]) => `${tool} ← "${p}"`);
+    expect(stale).toEqual([]);
+  });
+
+  it('a known miss is a row in the fixture', () => {
+    const phrasings = new Set(FIXTURE.map(([p]) => p));
+    expect([...KNOWN_MISSES].filter((p) => !phrasings.has(p))).toEqual([]);
+  });
+});
+
+describe('routing eval held-out set — frozen', () => {
+  it('is unchanged: re-pin only for a fold that adds a door to accept sets, never to fit a run', () => {
+    // routing-eval.holdout.js says why. Pinned 2026-10-15 (64 requests written blind, 63 kept).
+    const hash = createHash('sha256').update(JSON.stringify(HOLDOUT)).digest('hex').slice(0, 16);
+    expect(hash).toBe('802ed8e4bae0485b');
+  });
+
+  it('every accept set names tools that exist, listed or folded', async () => {
+    const { ensureToolsRegistered, hasRegisteredTool } = await import('@/lib/mcp/server');
+    await ensureToolsRegistered();
+    expect(HOLDOUT.flatMap(([, ts]) => ts).filter((t) => !hasRegisteredTool(t))).toEqual([]);
+    expect(new Set(HOLDOUT.map(([p]) => p)).size).toBe(HOLDOUT.length);
   });
 });
