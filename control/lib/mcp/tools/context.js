@@ -526,7 +526,7 @@ const FORM_DEFS = {
     title: 'Game',
     makes: 'a playable standalone artifact — a typed store + levels that are worlds',
     tools: [
-      'design_game', 'tune_ground', 'create_game', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'get_game_vocab',
+      'design_game', 'tune_ground', 'pick_palette', 'create_game', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'get_game_vocab',
       'get_play_vocab', 'export_game',
     ],
   },
@@ -602,7 +602,7 @@ Outcomes — a call lands one of four ways (classes to recognize, not wire types
 
 mint dispatch — match the ask to a FORM:
   CHARACTER a hero / a person to play or print, a creature, a monster, a dragon, a plush toy, an animal, rigged → \`create_character\` (as hero | creature | animal); revise, its target resolution, a level's light → \`update_character\` · to reuse across games → \`egocube\` (\`create_sketch\`)
-  GAME     a game designed top down (hero, powers, gear, systems) → \`design_game\` · a level's ground → \`tune_ground\` · made levels, one store → \`create_game\`
+  GAME     a game designed top down (hero, powers, gear, systems) → \`design_game\` · a level's ground → \`tune_ground\` · its colours → \`pick_palette\` · made levels, one store → \`create_game\`
   PLAY     make a world interactive (a lever, a door that opens, a HUD) → \`get_play_vocab\`
   PICTURE  diagram / data chart ("draw me X", "chart these numbers") → \`create_sketch\` · scene / figure illustration ("illustrate X", a portrait, a landscape) → \`sketch_what_possible\` (its \`architecturalConstruction\` family draws a house's FACADE — a picture, not a place; a house to walk is HOUSE) · a posed person / figure (even asked for as "a picture of…") → \`mint_solid\` · build from a PHOTO you can see → \`reference_protocol\` · direct an AI-generated image / comic page → \`create_sketch\` kind 'image-outcome'/'sequential-art'
   OBJECT   3D at literal scale — an everyday object / part, an assembly, a carved wordmark / logo, a spinning convex solid → \`mint_solid\` (kinds workbench / assembler / carved-solid / solid-turntable) · paint / emote one → \`edit_solid\` · measure one → \`measure_solid\` · which screws / bearings / hinges it needs, what to buy → \`fabricate_solid\` · mechanical feasibility of a minted object (joints, clearances, will-it-spin) → \`verify_machina\` (level completability is MOTION traversal, below)

@@ -249,6 +249,7 @@ STAGE_KITS['isekai-bamboo'] = Object.freeze({ shell: 'isekai', style: 'isekai-ba
 STAGE_KITS['isekai-sakura'] = Object.freeze({ shell: 'isekai', style: 'isekai-sakura' });
 // The ALIEN-NIGHT kit: another world at night in the same look — the moon the key, lantern plants lighting the ground.
 STAGE_KITS['alien-night'] = Object.freeze({ shell: 'isekai', style: 'alien-night' });
+STAGE_KITS['airless-plain'] = Object.freeze({ shell: 'isekai', style: 'airless-plain' });
 STAGE_KITS['isekai-garden'] = Object.freeze({ shell: 'isekai', style: 'isekai-garden' });
 Object.freeze(STAGE_KITS);
 /** The proportions each room kit is built by (tile-specs.js PROPORTION_RAILS): a part it inherits but never draws (the

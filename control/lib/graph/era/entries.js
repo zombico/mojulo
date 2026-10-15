@@ -27,14 +27,17 @@ import { ISEKAI_MEADOW } from './style/isekai-meadow.js';
 import { ISEKAI_BAMBOO } from './style/isekai-bamboo.js';
 import { ISEKAI_SAKURA } from './style/isekai-sakura.js';
 import { ALIEN_NIGHT } from './style/alien-night.js';
+import { AIRLESS_PLAIN } from './style/airless-plain.js';
 import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 
 /** The bytes a kit, look or hub card's body may take: the infobox and a starter, never a manual. */
 // raised from 3200 when the laws card took dare-height, motif-small and doodads-apart (one line each)
-export const STAGE_CARD_BODY_CEILING = 3600;
+// 3600 -> 3800 (2026-10-14): a kit line for airless-plain (the airless world the color theorist's vacuum palettes
+// asked for); the hub lists every kit by design
+export const STAGE_CARD_BODY_CEILING = 3800;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
-const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, ISEKAI_GARDEN].map((s) => [s.id, s]));
+const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
 const ROOM_SHELLS = new Set([undefined, 'nave', 'plaza', 'lab']);
 
 /** A recipe each kit is known to build (the shapes its own tests mint); an open-ground kit needs only its id. */
@@ -65,6 +68,7 @@ const KIT_WORDS = {
   'isekai-bamboo': ['bamboo grove', 'bamboo forest'],
   'isekai-sakura': ['cherry blossom grove', 'sakura trees'],
   'alien-night': ['alien planet at night', 'bioluminescent landscape', 'night alien world'],
+  'airless-plain': ['moon surface', 'cratered asteroid', 'airless world under the stars'],
   'isekai-garden': ['flower garden', 'ikebana garden', 'garden path in bloom'],
 };
 

@@ -26,6 +26,8 @@
  */
 import { priorityFlood, drainage } from '../polygonizer/terrain-erosion.js';
 import { atlasKernel } from './atlas-kernel.js';
+import { solvePalette } from '../color-theorist/solve.js';
+import { atlasGround } from '../color-theorist/ground.js';
 import * as dmath from '../../util/dmath.js';
 
 // ── the size bands: metres; the first size of each feature is its default ────────────────────────────────────────────
@@ -615,6 +617,9 @@ export function decodeDeep(v) {
 export function atlasField(spec) {
   const world = { ...spec.world, seed: spec.world.seed ?? spec.seed ?? 'atlas' };
   const P = composeAtlas(world), K = { ...P.K }, S = P.C.S, H = P.C.H;
+  // a palette colours the climate's ground and sky (color-theorist/ground.js); its snowline and treeline stay the climate's
+  const ground = spec.palette ? atlasGround(solvePalette(spec.palette === 'auto' ? {} : spec.palette), P.clim.sky) : null;
+  if (ground) K.ramps = ground.ramps;
   if (spec.planet) {
     const R = (spec.planet === true ? null : spec.planet.radius) ?? (S >= 5e5 ? 6.371e6 : Math.max(8 * S, 2e4));
     K.planet = { R, inner: H / R, outer: (1.35 * H) / R, cont: { amp: Math.max(1200, P.C.tierH * 3), wl: 0.9 * R, bias: 0.12, base: P.C.coasts.length ? -250 : 50 }, seed: (P.C.seed + 911) % 100003, sea: 0 };
@@ -627,7 +632,7 @@ export function atlasField(spec) {
     K, kernel, kernelSource: atlasKernel.toString(), heightAt: kernel.heightAt, groundAt: kernel.groundAt, normalAt: kernel.normalAt, colorAt: kernel.colorAt,
     bounds: { x: [-H, H], y: [-H, H], z: [lo, hi], cell: fin.dx }, siteBounds: { x: [fin.x0, fin.x0 + fin.ext], y: [fin.y0, fin.y0 + fin.ext], z: [lo, hi], cell: fin.dx },
     patches: P.levels.slice(1).map((l) => ({ x0: l.x0, y0: l.y0, w: l.ext, d: l.ext, spacing: 2 * l.dx })),
-    meta: { span: S, relief: 1, horizon: 'none', sea: P.C.coasts.length ? 0 : null, planet: K.planet || null, sky: P.clim.sky, rock: 'granite', octaves: P.C.oct.length, scree: [] },
+    meta: { span: S, relief: 1, horizon: 'none', sea: P.C.coasts.length ? 0 : null, planet: K.planet || null, sky: ground ? ground.sky : P.clim.sky, rock: 'granite', octaves: P.C.oct.length, scree: [] },
     views,
     pageConfig() { return encodeDeep(K); },
     /** The same field over another K (a grade layer added: terrain-city.js). */

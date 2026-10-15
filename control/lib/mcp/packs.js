@@ -134,6 +134,7 @@ export const PACKS = [
     members: [
       'design_game',
       'tune_ground',
+      'pick_palette',
       'create_game',
       'create_pixelizer_game',
       'create_sprite_sheet',

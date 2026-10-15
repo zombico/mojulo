@@ -60,6 +60,7 @@ export const FLORA_SKINS = Object.freeze({
   'isekai-bamboo': { flesh: 'bark' },
   'isekai-sakura': { flesh: 'rock', bloom2: 'blossom' },
   'isekai-garden': { bloom2: 'blossom' },
+  'airless-plain': {},
   'alien-night': { flesh: 'glow', gills: 'bark', detail: 'glow', bloom: 'glow', bloom2: 'foliage', water: 'glow', fruit: 'glow' },
 });
 export const floraSkin = (kitId) => ({ ...DEFAULT_SKIN, ...(FLORA_SKINS[kitId] ?? FLORA_SKINS[baseOf(kitId)] ?? {}) });

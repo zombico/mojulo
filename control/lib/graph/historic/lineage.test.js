@@ -4,7 +4,10 @@ import { HISTORIC_CULTURES } from './cultures/index.js';
 import { KINDS, PARTS, RECORD_KINDS, relationsOf, ancestry, lineageTree, drawable, briefText, yearOf } from './lineage.js';
 import { entryCard, lineageCard, historicEntryCards } from './entries.js';
 
-const layoutOf = (K) => K.layout || 'ring-canal';
+import { FORMS, FORM_FROM } from './form/towns.js';
+
+// the culture whose form lays a culture's town
+const formOf = (id) => (FORMS[id] ? FORM_FROM[id] ?? id : HISTORIC_CULTURES[id]?.form);
 
 describe('the lineage checklist: relations are history, held to time and to the registry', () => {
   for (const [id, K] of Object.entries(HISTORIC_CULTURES)) {
@@ -18,7 +21,7 @@ describe('the lineage checklist: relations are history, held to time and to the 
         // a source cannot start after the culture drawing on it has ended; a continuation starts earlier
         expect(S.years[0], `${id} ← ${r.from}: the source begins after ${id} ends`).toBeLessThanOrEqual(K.years[1]);
         if (r.kind === 'continues') expect(S.years[0], `${id} continues ${r.from}, which begins later`).toBeLessThan(K.years[0]);
-        if (r.kind === 'variant') expect(layoutOf(S), `${id} is a variant of ${r.from} on another layout`).toBe(layoutOf(K));
+        if (r.kind === 'variant') expect(formOf(r.from), `${id} is a variant of ${r.from} on another form`).toBe(formOf(id));
       }
     });
   }

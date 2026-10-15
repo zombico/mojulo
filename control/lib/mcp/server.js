@@ -629,6 +629,7 @@ async function registerAllTools() {
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
   const { registerDesignGameTools } = await import('@/lib/mcp/tools/design-game');
   const { registerTuneGroundTools } = await import('@/lib/mcp/tools/tune-ground');
+  const { registerPickPaletteTools } = await import('@/lib/mcp/tools/pick-palette');
   const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
   const { registerGameProjectTools } = await import('@/lib/mcp/tools/game-projects');
   const { registerPixelizerGameTools } = await import('@/lib/mcp/tools/pixelizer-game');
@@ -868,6 +869,8 @@ async function registerAllTools() {
   registerDesignGameTools();
   // tune_ground: a gameworld level's ground in its own space (dials and edits on a grid), beside the rail that made it
   registerTuneGroundTools();
+  // pick_palette: the color theorist's door, colours solved for what a world is (a gameworld's style, a game, a cover)
+  registerPickPaletteTools();
   registerGameTools();
   // Game projects register immediately after the game mint — the project
   // layer that ties one game's artifacts together (game-developer.plan.md).

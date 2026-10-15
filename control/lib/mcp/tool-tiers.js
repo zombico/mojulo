@@ -68,6 +68,7 @@ export const TOOL_TIERS = Object.freeze({
   create_pixelizer_game: 'fill',
   create_sprite_sheet: 'judge',
   tune_ground: 'judge',
+  pick_palette: 'fill',
   create_game: 'design',
   design_game: 'design',
 

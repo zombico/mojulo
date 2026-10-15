@@ -572,7 +572,7 @@ describe('creative toolsets (Ring 10 re-cut by FORM) — the partition + reader'
     'create_shoot_plan', 'update_shoot_plan',
     'create_beats', 'get_beats_vocab', 'get_beats', 'update_beats', 'annotate_beats', 'diff_beats', 'export_beats',
     'create_voice', 'get_voice', 'bind_voice_sample', 'get_voice_vocab',
-    'design_game', 'tune_ground', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
+    'design_game', 'tune_ground', 'pick_palette', 'create_game', 'get_game_vocab', 'get_play_vocab', 'create_pixelizer_game', 'create_sprite_sheet', 'bake_sprite_sheet', 'export_game',
     // game projects retired in 3.1.0 (RETIRED_PACKS): a game's home is its gameworld
   ];
 
@@ -801,7 +801,9 @@ describe('forward_context body ceiling (orientation-diet, routing-card move) —
   // ceiling alone.
   // Grown 2026-10-14 (8_650 -> 8_700; measured 8,651 widest cell, studio+plain+reflective): the merge of the shoot plan
   // (create_shoot_plan, update_shoot_plan) with the interior designer (design_interior), each under the ceiling alone.
-  const MODE_CEILINGS = { studio: 8_700 };
+  // Grown 2026-10-14 (8_700 -> 8_750; measured 8,711 widest cell, studio+plain+pedagogical): the color theorist, the
+  // GAME row's pick_palette (a world's colours, solved), the routing card's entry named in the body.
+  const MODE_CEILINGS = { studio: 8_750 };
 
   // A representative pulse: a workshop with something in every bucket. The
   // empty-workshop variant is shorter, so this is the honest worst case.

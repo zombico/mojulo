@@ -1,6 +1,6 @@
 /**
- * historic/crews — the people and beasts at the work of the farm, the works and the region (./farmstead.js,
- * ./workshops.js, ./historic-region.js). Those kits build every tool and building at rest and leave the gap on
+ * historic/crews — the people and beasts at the work of the farm, the works and the region (the activities
+ * the solver lays, ./solver/; their kits ./land-kits.js). Those kits build every tool and building at rest and leave the gap on
  * purpose: "the donkey pair and the carter are placed by their own builders, at the yoke", "the moulders are placed
  * by their own builder". This is that builder, over the same miniatures as the town (./miniatures.js `folkKit`).
  *

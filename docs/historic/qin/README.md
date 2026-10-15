@@ -48,13 +48,13 @@ Every Qin building is one of these, put together from the constants above:
 ### Built
 
 The kit (`control/lib/graph/historic/assets/qin.js`) builds pieces 1–6, plus the Wei bridge, the Epang
-building site and trees. The town (`layouts/qin.js`) puts them together.
+building site and trees. The solver (`solver/`) lays the town from its form (`form/towns.js`).
 
 The ground is in two steps: the palace on the lip of the Xianyang tableland (10 m, a guess), a sheer
 loess bluff cut by gullies, and the wards on the river plain, with the axis climbing the bluff as a
 causeway. The Wei is braided round sandbars. Its line is a reconstruction, since the river has since moved
-north over the old town. Ground and water go through the shared `terrain.js`, as Lindos' do: the layout
-gives a height function, and the river takes the native `river` water look. The World page also draws the
+north over the old town. Ground and water go through the shared `terrain.js`, as every culture's do: the solver's
+site gives a height function, and the river takes the native `river` water look. The World page also draws the
 riverbed and the land beyond the frame, out to the Qinling and the northern hills (`plan.world`).
 
 Pieces 7–9 (the multi-storey tower, the Lishan mound and the army pit) are not built yet. Lishan lies

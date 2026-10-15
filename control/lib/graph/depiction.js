@@ -14,12 +14,8 @@
  * silent about its place says `place not recorded`. Pure: the same manifest gives the same text.
  */
 import { HISTORIC_CULTURES } from './historic/historic-city.js';
-import { REGION_CULTURES } from './historic/historic-region.js';
-import { FARM_CULTURES } from './historic/farmstead.js';
-import { WORKS_CULTURES } from './historic/workshops.js';
 import { HISTORIC_STYLES } from './historic/style/index.js';
 import { SIXTH_GEN } from './era/sixth-gen.js';
-import { landOf } from './historic/cultures/index.js';
 
 
 /** A year as the caption says it: 1250 BCE, 212 BCE, 1066 CE. */
@@ -43,12 +39,12 @@ export function periodText(p) {
   return `${p.name ? `${p.name}, ` : ''}${span}${at}`;
 }
 
-/** What a historic scene shows: the town is the culture; its land, farm and works are their own cards' subjects. */
-function historicSubject(culture, scene) {
-  if (scene === 'region') return REGION_CULTURES[culture]?.label;
-  if (scene === 'farm') return FARM_CULTURES[landOf(culture)]?.label;
-  if (scene === 'works') return WORKS_CULTURES[landOf(culture)]?.label;
-  return HISTORIC_CULTURES[culture].label;
+/** What a historic scene shows: the town; the town in its land; a slice of life in it, round what it is cut round. */
+function historicSubject(culture, scene, focus) {
+  const label = HISTORIC_CULTURES[culture].label;
+  if (scene === 'region') return `${label} in its land`;
+  if (scene === 'slice') return `${label}: a slice of life${focus ? ` (${focus})` : ''}`;
+  return label;
 }
 
 /**
@@ -59,7 +55,7 @@ export function describeHistoric(m = {}) {
   const card = HISTORIC_CULTURES[m.culture];
   if (!card) return null;
   const scene = m.scene ?? 'city';
-  const subject = historicSubject(m.culture, scene) || card.label;
+  const subject = historicSubject(m.culture, scene, m.focus) || card.label;
   const period = periodOf(card);
   // `place: null` says the town is invented; a card that says nothing about its place is not guessed at
   const place = card.place === null ? 'invented' : typeof card.place === 'string' ? card.place : 'place not recorded';

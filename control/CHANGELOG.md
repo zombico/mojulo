@@ -156,6 +156,165 @@ genre on the quick path.
   view, AI attack) is off by default on a level that carries its `game`, wherever it is opened (the shell, the
   playtest and the export already hid it); `?hud=1` brings it back for debugging. Every other world shows it as before.
 
+### Historic recipes: other eras by the same principles
+
+The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that
+place and year, and its buildings composed from an inventory of styles and structures rather than drawn by hand.
+
+- **The solver as rules.** `solveHistoric` is a context and one module per layer (`solver/armature.js`,
+  `enclosure.js`, `streets.js`, `placement.js`, `land.js`, `views.js`, `emit.js`, `laws.js`), each a table keyed by
+  the form's own words: a new armature, enclosure, street pattern, placement or tree is one entry, and the form's
+  schema reads its words from those tables. Every shipped culture solves byte-identical to before. The placement
+  `water-edge`, which the schema took but no rule laid, is refused until one does.
+- **Buildings from the inventory** (`historic/inventory/`). A style (a building language as data: walls storey by
+  storey, the cap's form, pitch and covering, the lights and their rhythm, the door, the ornaments) spoken as a use
+  (dwelling, shop, workshop, barn, hall, tower) on a lot is a kit asset: `inventoryAsset({ id, style, use })` builds
+  it through the era library's `speak` as lit panels, fronting its slot, painted from the culture's palette (each
+  surface group, plaster, stone, timber, thatch, tile, slate, openings, to a palette key or a neutral default, a face's
+  value moving it lighter or darker). A culture's kit holds inventory assets beside hand-built ones and the solver lays
+  them like any house. It says as much as the scene can show: the fine at a slice, the masses and caps over a region.
+- **Styles: traditions the ledger can date.** A tradition record is keyed by a way of building, not a place
+  (`record/timber-frame.js`: oak framing, wattle and daub, lime render, plain tile, thatch, jettying, the town house
+  and the hall house, each cited and marked unverified), its rows dated for the tradition at large and, where it
+  arrived later or ended earlier, region by region (`spread`). Regions lie `within` larger ones (the German lands
+  within Europe), and a row is dated by the nearest region that names it. A card names the traditions it builds in
+  (`styles`, or `--styles` on `new-culture.mjs`); the ledger reaches them at its region and year as their own reach,
+  house types and forms included, and never by region alone. The inventory's first historic style, `fachwerk` (a
+  Franconian timber-framed town house: a rubble-stone ground storey, rendered framed storeys, a steep plain-tiled
+  gable), cites its rows, and the anachronism check reads them wherever a town builds in it. The roofs the ledger
+  knows gain thatch.
+- **Rothenburg ob der Tauber, c. 1500** (`culture: 'rothenburg'`): the first town composed from the inventory. A
+  free imperial city on a spur of the plateau, the Tauber in the valley below it on the west, its ring wall with a
+  roofed walk, towers and gate towers, its market place with the Gothic town hall and its tower, St. Jakob a street
+  off it. Its houses are spoken, not drawn: the Franconian timber-framed house as dwellings and shops, the council's
+  stone house on the main streets, in rows on the street line, two to four storeys as the record's house types give
+  them. Its church is the landmark library's Gothic church (`landmarkAsset`). Its record (`record/rothenburg.js`: the
+  shell limestone, the wall, the market place, the town hall, the church, the castle fallen in 1356, late medieval
+  dress) is cited and marked unverified; it builds in the `timber-frame` tradition, and the ledger finds nothing in the
+  town out of reach at 1500. A late-medieval mood (portative organ, lute, shawm, tabor, the church's bell) is its
+  opt-in soundtrack. Its towers are the library's church's, at the entrance front, not St. Jakob's at the choir.
+- **What a later town needs, as solver rules.** A `market` armature: the square at the heart, its hall on one side
+  facing in (`armature.facing`), the streets arriving at the square. An `off-square` placement: a second co-equal
+  anchor (a church, a hall) a lane off the square, facing it, its ground kept open. Frontage plots
+  (`density.plots: 'frontage'`, `front`, `deep`): narrow plots cut back from the streets, the main streets first, the
+  houses in rows on the street line and yards behind. A town on high ground over its water has the water in the valley
+  below it, not at its own level. Inventory assets gain `terrace` (wall to wall on the street line), `storeys` (the
+  band a house rises in) and `crown`; seen close they draw a wall's bond.
+
+### Color theorist: a palette solved for what a world is
+
+Every unnamed world used to land on the same meadow and every game on the same navy HUD. A palette is now solved
+by colour theory from what a world is trying to be, and one solve colours the land, the game's HUD and a cover. The
+order is the art director's: value first (a key), then a chroma budget, then how the hues relate (a scheme), then
+ramps that lean toward a warm light and a cool shadow, then checks. Stock kits are where it starts: a palette
+recolours a kit (or a look composed from words) and keeps its ramp lengths, tiles, grammar, flora and air.
+
+- **`pick_palette`** (game pack): the agent reads the world's words into heat (cool … warm), weight (light … heavy)
+  and activity (calm … active), and may add a scheme (analogous, complementary, split-complementary, triad, tetrad,
+  mono-accent, duotone), a key, a hue, per-role hues or a locked colour. Anything left out is rolled from the seed.
+  It returns the spec to pass on, role ramps, light/shadow/fog, HUD tokens, cover colours and the checks. `variants`
+  returns several palettes from consecutive seeds to choose between. Nothing is stored.
+- **The kernel is `lib/graph/color-theorist/`**:
+  - `oklab.js`: OKLab/OKLCH, gamut mapping by chroma, WCAG 2 and APCA contrast, colour-vision simulation.
+  - `solve.js`: the spec, the solve and the laws (ramps climb, shade is a colour, the sky is brightest, the accent is
+    unique, it reads in grey, HUD contrast, colour-blind eyes, few hue families, no clichés, not a stock kit). Seeded
+    candidates are scored by the laws and their distance from the shipped kits.
+  - `adapters.js`: a game theme, cover colours, a kit's swatches at its own ramp lengths, the card's light.
+  - `look.js`: a palette on a kit, through the land tunnel's own domain and laws, registered as a look.
+  - `stamp.js`: settles the palette at authoring time.
+- **A gameworld's `style.palette`** (a level's too) recolours the kit or look, and its game's HUD comes from the same
+  palette. A new gameworld that names no kit, look or geocube (and isn't a quick game) gets a palette rolled when it
+  is written, the way a stage's `art` is. Re-sending the same recipe or editing it keeps that palette. A world made
+  before this change never gains one by being edited. `palette: false` keeps the kit's own colours.
+- **`create_game` takes `palette`**, and its HUD tokens sit under `theme`'s own. A game minted with neither gets a
+  palette solved from its ref, not the stock HUD. A design_game remake keeps the theme the game was minted with.
+- **`create_cover`'s `palette`** takes a spec beside `{ bg, accent, ink }`. Left out, one is solved for the cover;
+  `false` keeps the stock cover colours.
+- **The stored thing is the spec**, and the solver's output for a spec is a compatibility promise (pinned by
+  `color-theorist.char.test.js`). Recipes that name a kit, look, theme or cover palette render as before.
+- **Interiors**: `design_interior` takes `palette`. A room keeps its style card's furniture forms, timber and fabrics
+  and wears the palette's 60-30-10: walls in the world's hue (quiet and light, or dark in a low key), trim toward the
+  light, upholstery and rug off the made and foliage hues, the accent. A casework the card gives as a material (oak,
+  walnut, steel) stays that material. `style.palette`'s own words still win. The same spec as a world's gives a room
+  that world's colours. A new room that names no style gets a palette rolled, an edit keeps it, and `false` keeps the
+  card's.
+- **Room stages**: `art: { palette: { from: <spec> } }` solves the stage's art palette (stone, floor, vault, trim, wood,
+  accent and the torch) when the stage is written, and stores the ramps as numbers like any rolled palette, with what
+  they came from. The other art items roll as before, and the art board shows it.
+- **Tones, looks, buildings and pixels**:
+  - A stage's `tone: { preset?, from: <spec> }` solves the preset's own ramps (flat's when none is named) when the stage
+    is written. Its `key` follows the palette's unless the tone names one.
+  - A world's `look: { id, palette }` recolours the sixth-gen card's palette, light and air, keeping its placements
+    and contrast.
+  - A palette world's building levels on a room kit that takes art direction get an art direction rolled from the
+    palette and the stage (the same on every run), in the world's palette.
+  - `pick_palette` answers `pixel` palettes at the 8bit and 16bit budgets, and `create_pixelizer_game` takes a
+    `palette` for its accents.
+- **The ground**: the palette reaches the land's own colours, and the bake then lights them as before.
+  - A terrain world's `palette` gives a painted terrain its soil, stone, scree and every stratum.
+  - A composed world (`world: { features }`) takes its forest, lowland, highland, rock, snow (cool in shade, warm in
+    light), sand, silt, water, deep and sky from the palette. Its climate keeps the snowline and treeline.
+  - On an isekai kit the ground's starting tints (grass, trail, scree, crowns, wood) now come from the ramps the
+    palette made, so the ground is painted in them rather than pulled onto them.
+  - Heights are never touched, and a terrain world without a palette is byte-identical.
+- **Nature and jungle kits** (`trail-valley`, `jungle-trail`) take a palette. They colour by multiplying coloured
+  tiles and cards by tints, so ramps can't reach them. Instead, every surface keeps its own lightness (so the card's
+  value laws still hold) and takes the hue and chroma of the role it plays:
+  - the trail takes the soil, the meadow the ground, cliffs and scree the rock, boughs and leaves the foliage, wood the
+    bark, the blazes the accent, and the far ridges the far layers;
+  - a tiled face or card wears its new `even:` greyscale twin (its median at one level), so its tint lands on the colour
+    it names (`era/tone.js` `greyTwin`, `color-theorist/recolour.js`);
+  - the sun, fill, haze and sky are the palette's, and the jungle's warm-green grade goes neutral.
+
+  A stage's `palette` is solved into this data when the stage is written. A palette world on these kits keeps its kit
+  and hands its stages the palette. Without one, the kits are as they were.
+- **Variety at scale**:
+  - **A rolled seed looks away from recent palettes.** Where a palette's seed is rolled (a new world, room, stage, or
+    `pick_palette` with no seed), a few seeds are tried and the one farthest from the palettes of the most recently
+    written rows is kept (`color-theorist/ledger.js`). Only the seed is stored, so a row still re-renders the same;
+    the solver is unchanged for every spec.
+  - **Colour scripts.** A spec's `shift: { turn?, light?, chroma?, warm? }` moves a palette without changing its
+    identity (same seed, same hue relations): hues turned, values toward day or night, chroma scaled, light warm or
+    cool. A gameworld palette's `script` (dusk, dawn, descent, thaw, fever, journey, seasons) gives each level, in the
+    world's order, a shift along that arc. A level's `style.palette: { shift }` moves the world's palette for that
+    level alone. Levels drawn in a shifted palette carry it to their rooms and painted stages.
+  - **A contact sheet.** `node scripts/palette-contact-sheet.mjs` paints palettes side by side as small landscapes
+    (`color-theorist/contact.js`): ten intents at five seeds, the auto default, and a stream through the ledger,
+    with the spread measured (nearest neighbours, hue bins, keys, schemes). A deep test holds 50 auto palettes to
+    that spread.
+  - **Tuned by the sheet.** A heat the agent reads now narrows the world's hue band (the whole wheel at 0, 50° round
+    warm or cool at ±1), and a read activity leans the scheme (calm toward analogous, mono-accent and duotone; active
+    toward complementary, split, triad and tetrad), so an intent owns its colours: of ten intents at five seeds, 44 of
+    50 palettes now sit nearest one of their own intent's (27 before). Skies carry more colour (fewer warm greys),
+    short of a saturated teal; accents climb toward neon as activity passes the middle. Rolled axes keep the old wide
+    bands, so a palette from its seed alone stays as varied. Every palette solves anew (the char pins moved).
+- **Air, and palettes for space.** The solver assumed a world with air: the sky the brightest thing, distance fading
+  into haze, shade filled by the sky. A spec's `air` says otherwise:
+  - `air: 'thin'` (Mars, Titan): the sky takes the dust's hue, pale and quiet, and distance hazes half as much.
+  - `air: 'none'` (vacuum): the sky is the void (near-black, tinted, never black), distance stays sharp, the shade is
+    lit by the planet in the sky, the light is near white, and the land is regolith and ice while the colour lives in
+    hulls, cables, lights and engine glow. The checks read the air (in vacuum the sky is the darkest thing).
+  - `preset`: `moon`, `asteroid-belt`, `mars`, `icy-moon`, `station`, `deep-space`, a starting spec the spec's own fields
+    override.
+  - On an isekai kit a vacuum palette draws a void sky with stars and a white sun, with no haze and a dark fill; the
+    nature kits take the void's fog and dome. Without `air`, every palette solves as before.
+  - **An airless kit, `airless-plain`**: a moon, an asteroid, an icy body in the isekai look. Nothing grows (no grass,
+    no trees, no fringe on the rocks); the ground is cratered (a card's `craters`: bowls with raised rims, kept off the
+    trail, in `era/nature.js`) and strewn with boulders and pebbles; a low hard sun, almost no fill; the void with the
+    stars out and a blue world hanging low. Its ramps are neutral regolith greys whose shade leans blue. The words
+    airless, lunar, crater(ed), asteroid and vacuum compose a gameworld onto it. A vacuum palette on it keeps its world
+    and paints it the palette's planet colour; a palette with air gives it a sky and a haze.
+  - **A coloured world in the sky**: a sky-dome moon may carry its own colour (the void's hanging planet); a page
+    without one is byte-identical.
+  - Vacuum palettes are measured against the airless kits on the shelf, palettes with air against the rest, so a new
+    airless kit moves no palette with air.
+- **A stage drawn in a composed look survives a restart.** A gameworld's look words and palette register their kit
+  only in the running process, so a stored stage that named such a kit failed to resolve after a restart unless its
+  gameworld had been read first. Its level now carries `looks`, the recipes that compose its kit (base first), and the
+  scene composes them again before it reads the kit. This covers worlds with look words and no palette too. The level
+  rows of a stored world with `style.look` print differently, so its next `design_game` run remakes them once, in place
+  (a level edited by hand is left as it is, and stays without `looks` until `force`).
+
 ### Sheet-metal bend lines that mark without cutting
 
 - **A flat pattern with `bend_lines = true` stays one piece.** Each bend line was a slot run past both edges, so
@@ -173,6 +332,64 @@ genre on the quick path.
   ends at true scale, broken in the middle, its length written over the break. A fitting whose catalog entry still
   can't be sized is drawn as a small not-to-scale sketch, like a joint's own piece, so one bad entry can't carry
   down the row. The 10 mm check bar shows only when some fitting really is at 1:1.
+
+### Historic solver: towns from the era's technology, monuments as buildings, a field guide
+
+A historic scene is solved rather than hand-laid: what a town is built of, how dense it is and how it is walked come
+from what people had at that place in that year, read from one cited ledger of materials, methods, building types
+and urban forms. Monuments stay hand-authored, one building each, seated on a site the way a city plan's landmark
+is. The solver lays the town, the town in its land, or a slice of life at eye level, and every scene comes with a
+field guide: what was chosen, the source behind it, and the knob that changes it. The hand-written town layouts and
+the diorama views are gone.
+
+- **The form** (`historic/form/`). Each culture's town is a document of principles: its site (flat, a bluff, a
+  terraced hill, a plateau), its water (a canal, a river, the sea), its armature (the monument at the heart, at the
+  end of an axis from the water, on the summit, at a forum's head), its enclosure (a ring wall, walled wards), its
+  streets (meander, lattice, grid, contour), its density, its houses, what stands where by meaning (wells at
+  crossings, kilns under the wall, art before the monument and at the precinct's gate), its hinterland and the work
+  done in its land. Each principle cites the record rows it stands on. A manifest's `form` rewrites any part of it,
+  checked and refused by name: `{ kind: 'historic', culture: 'thebes', form: { streets: { jog: 0 } } }`.
+- **The monuments** (`historic/monuments/`): the Anu ziggurat, the temple of Amun at Luxor, Khufu's pyramid and the
+  Great Sphinx, the temple of Athena Lindia, Xianyang Palace No. 1, the Capitolium, the temple of Castor and the Curia
+  Julia, each one building at the record's size, laid in its own frame from its culture's kit. Everything round a
+  monument (its precinct and walls, its approach, the town) is the solver's.
+- **The solver** (`historic/solver/`). One layered designer for every culture, each layer on its own dice: the
+  site, the armature, the enclosure, the streets, what stands by meaning, the lots and houses, the land and its
+  activities, the ground (through the shared terrain mesher), the views. It emits the plan every historic emitter
+  already read, so the kits, skins, light, statues, people and the World page are unchanged. It reads the ledger as
+  it solves: an activity whose record rows are not yet in reach at the town's year is left out and the plan says
+  why (Sumer at 3175 BCE has no harbour quarter: its kar is attested from 2500 BCE). Walkability laws (every house on
+  a lane, one lane network, the monument whole on its site) advise.
+- **Scenes.** The `historic` kind's `scene` is `city`, `region` or `slice`, for every culture: the region lays the
+  farms and crafts of the culture's land kits (`land-kits.js`) where each needs to be (the farm among the fields,
+  potters upstream, the stone landed downstream); a slice is cut from the region round a `focus` (an activity, the
+  street, the monument, the water, a gate, the market). The `farm` and `works` scenes and their `season` are gone:
+  their kits are the region's activities.
+- **The field guide.** `/api/sketches/<ref>/bible` serves a historic scene as its field guide: the plan from above,
+  every principle with its `form` path, its value and what it takes, the record rows it stands on with their dates,
+  basis and sources, the monuments, the surfaces, roofs and storeys its builders had, any anachronism, the laws, and
+  the views and slices on offer. The mint's reply carries its `guideUrl`.
+- **Depth** is found off the form: a culture at depth 3 has its own form; a scaffold names the culture whose form
+  its town is laid out by (`form: '<culture>'` on its card, written by `new-culture.mjs`). Lineage carries `form`
+  where it carried `layout`.
+- **Removed:** `historic/layouts/`, the ring-canal layout in `historic-city.js`, `historic-region.js`,
+  `farmstead.js` and `workshops.js` (their kits now in `land-kits.js`), and the Forum's measured diorama. The tests
+  that pinned those layouts went with them; the solver's concepts are tested one case per procedure.
+
+- **The ledger** (`historic/ledger/`). Every cited record is read as one table, each row keyed `<record>/<id>`
+  (Egypt's "travertine" is calcite, Italy's is not). `availableAt({ region, year, record?, draws? })` returns what a
+  builder had in reach: the place's own record, what its lineage relations carry, and the materials and methods of
+  the other records in its region, each row saying which reach brought it. A culture card names its record from
+  `RECORDS`, one line per record with its region.
+- **What can be built.** `buildableAt` turns what is in reach into the wall surfaces a scene may show (every skin the
+  renderer draws, each made by named ledger rows), the roof forms it may carry, and the storeys its houses rise to,
+  read from the house types' own `dims.storeys` (added where a type's notes state it: the Deir el-Medina house, the
+  Amarna villa, the Lindos house). Where the record does not say, it says so.
+- **The anachronism check.** `ledgerFindings` names anything a scene uses that nothing in reach makes, with the
+  earliest row that would. It advises, never refuses. Over the shipped cards it found Sumer whitewashing in lime a
+  few centuries before its own record has lime: Sumer now whitewashes in gypsum, as its record says (the two skins
+  draw alike). Two findings stand as gaps in their records: Qin's hall walls in lime plaster and Lindos's kilns in mud
+  render, neither material yet recorded for its place.
 
 ### Shoot plan: a keyframed camera you can see in the world
 

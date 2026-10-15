@@ -4,7 +4,7 @@
  */
 export const GENERATED = Object.freeze({
   "reality.look": Object.freeze({"lowers":"lib/graph/era/sixth-gen.js#SIXTH_GEN_LOOKS","values":["gothic-night","desert-dusk","island-noon","jungle-haze","lab-dark"]}),
-  "reality.kit": Object.freeze({"lowers":"lib/graph/era/stage.js#STAGE_KITS","values":["gothic-stone","gothic-nave","island-plaza","research-lab","catacomb","trail-valley","jungle-trail","isekai-meadow","isekai-bamboo","isekai-sakura","alien-night","isekai-garden"]}),
+  "reality.kit": Object.freeze({"lowers":"lib/graph/era/stage.js#STAGE_KITS","values":["gothic-stone","gothic-nave","island-plaza","research-lab","catacomb","trail-valley","jungle-trail","isekai-meadow","isekai-bamboo","isekai-sakura","alien-night","airless-plain","isekai-garden"]}),
   "reality.climate": Object.freeze({"lowers":"lib/graph/weather/weather.js#CLIMATES","values":["temperate","monsoon","alpine","desert","spring-blossom","autumn","storm-coast"]}),
   "space.links": Object.freeze({"lowers":"lib/graph/era/floormap.js#LINK_KINDS","values":["open","door","stair","gap"]}),
   "space.traversal": Object.freeze({"lowers":"lib/graph/playscape/objects/index.js#ENTRIES","values":["door","platform","lift","catapult","bridge","ladder","stairs"]}),
