@@ -14,7 +14,8 @@
  *   feathers  long rounded tips in offset rows down the part, a shaft down each (a bird's body)
  *   fur     tufts: tapering light strokes lying down the part, staggered and jittered (the lie of the coat)
  *   segments  chitin rings round the part: a light lip over a dark seam at each plate's edge
- * `fade: false` keeps a region's pattern to the part's very ends (by default it fades out over most of a cell there, so
+ * `lines: 'dark'` draws the pattern's lines darker than the hide instead of lighter (a pale coat's: light on light does
+ * not read). `fade: false` keeps a region's pattern to the part's very ends (by default it fades out over most of a cell there, so
  * two parts' patterns never meet in a seam at a joint)
  *
  * ECONOMY: one texture per creature, an ATLAS. Every part a region covers gets its own rectangle, as wide as its ring
@@ -53,6 +54,7 @@ export function validateSkin(skin) {
     if (!SKIN_PATTERNS.includes(R.pattern)) errs.push(`${at}.pattern: ${SKIN_PATTERNS.map((p) => `'${p}'`).join(' | ')}`);
     if (!(Number.isFinite(R.cell) && R.cell >= 0.003 && R.cell <= 0.3)) errs.push(`${at}.cell: metres, 0.003 … 0.3`);
     if (R.contrast !== undefined && !(Number.isFinite(R.contrast) && R.contrast >= 0.04 && R.contrast <= 0.3)) errs.push(`${at}.contrast: 0.04 … 0.3`);
+    if (R.lines !== undefined && !['light', 'dark'].includes(R.lines)) errs.push(`${at}.lines: 'light' (a light line, the default) | 'dark' (a darker line: a pale hide's)`);
     if (R.fade !== undefined && typeof R.fade !== 'boolean') errs.push(`${at}.fade: true (the default: the pattern fades out at a part's ends) or false`);
     for (const w of ['t', 'run']) if (R[w] !== undefined && !(isWin(R[w]) && R[w][0] >= 0 && R[w][1] <= 1)) errs.push(`${at}.${w}: [a, b] within 0 … 1`);
   });
@@ -82,15 +84,17 @@ function feathersAt(a, b) {
   }
   return 1;
 }
-/** fur: TUFTS, each three light strokes converging to a point down the part (the lie of the coat), staggered and jittered
- * (seeded); between them the coat (value 1 the stroke, 0 the ground: the stroke is the light catching the hair) */
-function furAt(a, b, seed) {
-  const j0 = Math.floor(b / 0.8);
-  for (let j = j0 - 1; j <= j0; j++) {
-    const off = (j & 1) * 0.5, i = Math.round(a - off), jit = hash(i, j, seed) - 0.5, cx = i + off + 0.25 * jit, top = j * 0.8 + 0.2 * hash(j, i, seed + 3);
-    const t = (b - top) / 1.0; if (t < 0 || t > 1) continue;
-    const lean = 0.1 * Math.sin(t * 2.2 + jit * 3), w = RIM.fur * 0.7 * (1 - t) + 0.012;
-    for (const dx of [-0.22, 0, 0.22]) if (Math.abs(a - (cx + dx * (1 - t) ** 1.4 + lean)) < w * (dx ? 0.8 : 1)) return 1;
+/** fur: TUFTS, each three strokes converging to a point down the part (the lie of the coat), sized and placed by seed;
+ * the coat's FLOW leans them: round the trunk they lie out toward the sides (`v` the place round the ring), and each
+ * tuft turns a little its own way (value 1 the stroke, 0 the ground: the stroke is the light catching the hair) */
+function furAt(a, b, seed, v = 0) {
+  const j0 = Math.floor(b / 0.8), flow = 0.45 * Math.sin(2 * Math.PI * v);
+  for (let j = j0 - 2; j <= j0; j++) for (const di of [0, -1, 1]) {
+    const off = (j & 1) * 0.5, i = Math.round(a - off) + di, jit = hash(i, j, seed) - 0.5, size = 0.75 + 0.5 * hash(j, i, seed + 11);
+    const cx = i + off + 0.25 * jit, top = j * 0.8 + 0.2 * hash(j, i, seed + 3), len = 1.0 * size;
+    const t = (b - top) / len; if (t < 0 || t > 1) continue;
+    const slope = flow + 0.35 * jit, lean = slope * t * len + 0.08 * Math.sin(t * 2.2 + jit * 3), w = (RIM.fur * 0.7 * (1 - t) + 0.012) * size;
+    for (const dx of [-0.22, 0, 0.22]) if (Math.abs(a - (cx + dx * size * (1 - t) ** 1.4 + lean)) < w * (dx ? 0.8 : 1)) return 1;
   }
   return 0;
 }
@@ -166,8 +170,10 @@ export function skinPaintOf(mesh, skin, { ppm = Infinity, seed = 1 } = {}) {
         if (R.t && !(tShare >= R.t[0] && tShare <= R.t[1])) continue;
         if (R.run && !(u >= R.run[0] && u <= R.run[1])) continue;
         const a = v * n, b = u * down;
-        const P = R.pattern, rim = P === 'scales' ? scalesAt(a, b) : P === 'plates' ? platesAt(a, b, seed + n) : P === 'feathers' ? feathersAt(a, b) : P === 'fur' ? furAt(a, b, seed + n) : P === 'segments' ? segmentsAt(a, b) : bandsAt(a, b, n);
-        const c = R.contrast ?? 0.14, lv = rim === 1 ? 1 : rim === 2 ? 1 - 2 * c : 1 - c;
+        const P = R.pattern, rim = P === 'scales' ? scalesAt(a, b) : P === 'plates' ? platesAt(a, b, seed + n) : P === 'feathers' ? feathersAt(a, b) : P === 'fur' ? furAt(a, b, seed + n, vv) : P === 'segments' ? segmentsAt(a, b) : bandsAt(a, b, n);
+        // LINES: light (the default: a light rim, the cell a step darker) or, on a light coat, DARK (the cell the coat, the
+        // line drawn darker, as a toon draws the lines of a pale hide); a seam is the darkest either way
+        const c = R.contrast ?? 0.14, dark = R.lines === 'dark', lv = rim === 2 ? 1 - 2 * c : dark ? (rim === 1 ? 1 - 1.4 * c : 1) : rim === 1 ? 1 : 1 - c;
         // the pattern FADES out toward a part's ends, where the next part's pattern meets it (no seam at a joint)
         const ends = Math.min(u, 1 - u) * Lp / (R.cell * 0.8), fade = Math.min(1, Math.max(0, R.fade === false ? 1 : ends));
         val = Math.round(255 * (1 - (1 - lv) * fade));
@@ -215,7 +221,7 @@ export function skinPaintOf(mesh, skin, { ppm = Infinity, seed = 1 } = {}) {
     const A = at(ref.a) ?? white, B = at(ref.b) ?? white; return [A[0] + (B[0] - A[0]) * ref.s, A[1] + (B[1] - A[1]) * ref.s];
   };
   // the light alone under the texture: the fill lifted by the pattern's mean, so the hide keeps its colour on average
-  const DARK = { scales: 0.7, plates: 0.75, bands: 0.8, feathers: 0.7, fur: 0.8, segments: 0.9 }, mean = regions.reduce((m, R) => m + (1 - DARK[R.pattern] * (R.contrast ?? 0.14)), 0) / regions.length, lights = new Map();
+  const DARK = { scales: 0.7, plates: 0.75, bands: 0.8, feathers: 0.7, fur: 0.8, segments: 0.9 }, mean = regions.reduce((m, R) => m + (1 - (R.lines === 'dark' ? 1.4 * (1 - DARK[R.pattern]) : DARK[R.pattern]) * (R.contrast ?? 0.14)), 0) / regions.length, lights = new Map();
   const light = (fill) => { let h = lights.get(fill); if (!h) lights.set(fill, h = liftHex(fill, mean)); return h; };
   return { key, url, painted: (fi) => { if (fis.has(fi)) { face = fi; return true; } return false; }, uvAt, light,
     atlas: { url, w: ATLAS_W, h: H }, baseUV: (t) => t, white, regionOf: new Map(), regions: [], hidden: [0, 0, 0], targets: 0, pad: PAD };

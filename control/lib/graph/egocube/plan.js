@@ -343,6 +343,8 @@ function adornOf({ kit, mirrored, mended }, k, groups) {
 /** a body is never darker than this L* (CIELCh): a black coat drawn on the stage's dark backdrop is drawn as a deep
  * blue-black or brown-black that holds its outline, as a painter draws black fur (its hue and chroma kept) */
 export const BODY_MIN_L = 24;
+/** a coat this light (L*) or lighter has its skin's pattern drawn in dark lines */
+export const PALE_COAT = 62;
 export function legible(hex) { const [L, C, H] = hexLch(hex); return L >= BODY_MIN_L ? hex : lchHex(BODY_MIN_L, C, H); }
 /** the eye is the face's one saturated accent: a people's eye colours (ancestry.js's eyes lines), the one whose hue
  * stands furthest from the coat's chosen (deterministic, no dice: the same coat, the same eyes) */
@@ -399,7 +401,8 @@ function creature(sheet, title) {
       ...(cover.tiles.length ? { tiles: cover.tiles } : {}),
       pads: ['R', 'L'].flatMap((S) => [{ part: `hand${S}`, s: 1.3, toward: { flex: [`hand${S}`, `fingerB1${S}`], drive: { grip: 45 } }, r: 0.5 }, { part: `toes${S}`, s: 1.0, toward: { world: [0, 0, -1] }, r: 0.55 }]) },
     adorn: adornOf(kitOf(sheet), k, groups),
-    ...(() => { const sk = skinOf(hints.cover, k, { reptileHead: reptile, hasTail: body.hasTail, feathered: f.ancestry === 'avian' || HEAD_LIBRARY[head.id].family === 'avian' }); return sk.length ? { skin: sk } : {}; })(),
+    // a pale coat's pattern is drawn in darker lines (light on light does not read)
+    ...(() => { const sk = skinOf(hints.cover, k, { reptileHead: reptile, hasTail: body.hasTail, feathered: f.ancestry === 'avian' || HEAD_LIBRARY[head.id].family === 'avian' }); return sk.length ? { skin: hexLch(skin)[0] >= PALE_COAT ? sk.map((R) => ({ ...R, lines: 'dark' })) : sk } : {}; })(),
     palette,
   };
   return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo };

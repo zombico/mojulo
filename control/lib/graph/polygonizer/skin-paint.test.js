@@ -60,3 +60,14 @@ describe('the hides a roll carries', () => {
   });
 });
 
+describe('a pale coat', () => {
+  it('draws its pattern in dark lines (light on light does not read); a dark coat keeps light ones', () => {
+    const coat = (ancestry, seed, humanity) => planFromSheet(rollEgocube({ seed, facets: { ancestry, humanity } }), { dress: 'designed' }).create.spec.plan;
+    expect(coat('feline', 4, 0.24).skin.every((R) => R.lines === 'dark')).toBe(true);
+    expect(coat('ursine', 5).skin.every((R) => R.lines === undefined)).toBe(true);
+    const keyOf = (lines) => skinPaintOf(mesh, [{ parts: ['foreArm'], pattern: 'fur', cell: 0.05, ...(lines ? { lines } : {}) }]).key;
+    expect(keyOf('dark')).not.toBe(keyOf());
+    expect(validateSkin([{ parts: ['torso'], pattern: 'fur', cell: 0.05, lines: 'grey' }])[0]).toMatch(/lines/);
+  });
+});
+
