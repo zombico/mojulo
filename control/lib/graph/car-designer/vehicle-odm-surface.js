@@ -5,7 +5,8 @@
  * This is a studio/display mesh, not a watertight manufacturing solid.
  */
 import { solveSupercarDesign } from './vehicle-odm.js';
-import { finishVehicleFaces, VEHICLE_MATERIALS } from './vehicle-surface-finish.js';
+import { finishVehicleFaces, VEHICLE_MATERIALS, material } from './vehicle-surface-finish.js';
+import { paintHex, liveryOf, applyLivery } from './vehicle-livery.js';
 import { lampAssembly, mirrorAssembly, resolveHeadlightStyle, frontIntake } from './vehicle-details.js';
 import { frontEnvelope } from './vehicle-front.js';
 import { createCabinProfile } from './vehicle-cabin.js';
@@ -19,12 +20,11 @@ export const SUPERCAR_LODS = Object.freeze({
   hero: Object.freeze({ longitudinal: 72, cross: 20, side: 10, arch: 40, wheel: 64, triangleBudget: 44000 }),
 });
 
+/** A livery's share over a quality's triangle ceiling: its cut lines. */
+export const LIVERY_ALLOWANCE = 0.1;
+
 const r4 = x => Math.round(x * 1e4) / 1e4;
 const mix = (a,b,t) => a + (b-a)*t;
-const PAINTS = Object.freeze({
-  scarlet: '#af2632', obsidian: '#1c2630', pearl: '#cdd4df',
-  cobalt: '#1b559a', amber: '#c78928',
-});
 const HEX = Object.freeze({ glass:'#182d3d', rubber:'#15171b', rim:'#a5aab3', carbon:'#20252a', lamp:'#dbeafa', tail:'#a92129', seal:'#252c35', reflection:'#294553' });
 const face=(corners,fill,part)=>({corners:corners.map(p=>p.map(r4)),fill,part});
 const point=(x,y,z)=>[x,y,z];
@@ -85,9 +85,9 @@ function wheel(cx,cy,cz,r,side,quality) {
 }
 
 /** Compile design or brief to viewable studio faces. */
-export function compileSupercarSurface(brief={}, {quality='studio', paint='scarlet', headlightStyle='auto', cabinStyle='auto', ventStyle='auto', spoilerStyle='auto'}={}) {
+export function compileSupercarSurface(brief={}, {quality='studio', paint='scarlet', livery, headlightStyle='auto', cabinStyle='auto', ventStyle='auto', spoilerStyle='auto'}={}) {
   if (!['game','studio','hero'].includes(quality)) throw new Error('vehicle-odm: unknown surface quality');
-  if (!(paint in PAINTS)) throw new Error('vehicle-odm: unknown paint');
+  const paintBase=paintHex(paint),scheme=liveryOf(livery,paint);
   const design=brief?.frame && brief?.topology ? brief : solveSupercarDesign(brief);
   if (!design.valid) throw new Error('vehicle-odm: design fails physical constraints');
   headlightStyle=resolveHeadlightStyle(headlightStyle,design.language);
@@ -144,7 +144,7 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
     const crown=0.025*Math.sin(Math.PI*q)*Math.pow(Math.max(0,1-Math.abs(x)/(s.width*0.66)),2);
     return point(x,y(t),mix(center,s.z,Math.pow(Math.abs(x/s.width),2))+crown);
   };
-  const paintColor=design.finish==='carbon'?HEX.carbon:PAINTS[paint];
+  const paintColor=design.finish==='carbon'?HEX.carbon:paintBase;
   const hoodWidth=t=>mix(0.58,0.70,Math.max(0,Math.min(1,(t-hoodStart)/(hoodEnd-hoodStart))));
   const deckLanes=t=>{
     const u=hoodWidth(t),gap=seam/shoulder(t).width;
@@ -355,15 +355,19 @@ export function compileSupercarSurface(brief={}, {quality='studio', paint='scarl
   };
   const fittedDetail=shell.slice(body.length).flatMap(f=>conform(f));
   shell.splice(body.length,shell.length-body.length,...fittedDetail);
-  const detailCount=fittedDetail.length;
-  const finished=finishVehicleFaces([...shell,...wheels]);
-  const faces={body:finished.slice(0,body.length),detail:finished.slice(body.length,body.length+detailCount),wheels:finished.slice(body.length+detailCount)};
+  // The livery cuts the shell at its pattern's planes and paints the pieces (absent, nothing is cut).
+  const painted=f=>material(f)==='paint';
+  const [bodyShell,detailShell]=[shell.slice(0,body.length),shell.slice(body.length)].map(fs=>applyLivery(fs,{paint:paintColor,livery:scheme,frame:design.frame,isPaint:painted}));
+  const finished=finishVehicleFaces([...bodyShell,...detailShell,...wheels]);
+  const faces={body:finished.slice(0,bodyShell.length),detail:finished.slice(bodyShell.length,bodyShell.length+detailShell.length),wheels:finished.slice(bodyShell.length+detailShell.length)};
   const triangles=finished.reduce((sum,f)=>sum+f.corners.length-2,0);
-  if(triangles>lod.triangleBudget) throw new Error(`vehicle-odm: ${quality} mesh exceeds ${lod.triangleBudget} triangle budget (${triangles})`);
-  const census={bodyFaces:body.length,detailFaces:detailCount,wheelFaces:wheels.length,totalFaces:finished.length,
-    triangles,triangleBudget:lod.triangleBudget,remainingTriangles:lod.triangleBudget-triangles,
+  // (a livery's lines are geometry: it has its own allowance over the quality's ceiling)
+  const budget=scheme.pattern==='mono'?lod.triangleBudget:Math.round(lod.triangleBudget*(1+LIVERY_ALLOWANCE));
+  if(triangles>budget) throw new Error(`vehicle-odm: ${quality} mesh exceeds ${budget} triangle budget (${triangles})`);
+  const census={bodyFaces:bodyShell.length,detailFaces:detailShell.length,wheelFaces:wheels.length,totalFaces:finished.length,
+    triangles,triangleBudget:budget,remainingTriangles:budget-triangles,
     trianglesByPart:finished.reduce((counts,f)=>{counts[f.part]=(counts[f.part]||0)+f.corners.length-2;return counts;},{}),
     materialGroups:new Set(finished.map(f=>f.material)).size,
     uniquePositions:new Set(finished.flatMap(f=>f.corners.map(p=>p.join(',')))).size};
-  return {design,quality,headlightStyle,cabinStyle,ventStyle,spoilerStyle,faces,materials:VEHICLE_MATERIALS,census};
+  return {design,quality,headlightStyle,cabinStyle,ventStyle,spoilerStyle,...(scheme.pattern!=='mono'?{livery:scheme}:{}),faces,materials:VEHICLE_MATERIALS,census};
 }

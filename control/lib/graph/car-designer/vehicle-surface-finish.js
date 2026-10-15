@@ -26,7 +26,8 @@ function normal(f) {
   const outward=top?n[2]:dot(n,[center[0],center[1],center[2]-0.4]);
   return unit(outward<0?n.map(v=>-v):n);
 }
-function material(f) {
+/** A face's material, by its part. */
+export function material(f) {
   if(f.part==='aero.ducktail'||f.part==='aero.endplate.accent')return 'paint';
   if(f.part==='headlamp'||f.part==='lamp.reverse') return 'lamp';
   if(f.part==='lamp.reflector'||f.part==='mirror.glass')return 'alloy';

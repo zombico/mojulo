@@ -233,6 +233,17 @@ genre on the quick path.
   smooth, and the smooth one in the lit material review, with the census, without writing to the database.
 - The quick race's `racers` list takes `shade` per racer, and its card says so.
 
+### Supercar liveries: paint any colour, a livery, and a field solved against its world
+
+- A supercar's `paint` is a name or any `#rrggbb`, and `livery: { pattern: 'mono' | 'stripes' | 'split', secondary? }`
+  cuts the painted panels at the pattern's lines and paints them: twin centre stripes over the top and the fascias,
+  or the body below the waist. Only the faces a pattern paints are cut, so a livery's lines cost geometry: it takes
+  an allowance of `LIVERY_ALLOWANCE` (a tenth) over the quality's triangle ceiling, reported in the census. Without a
+  livery a supercar is byte-identical to before.
+- `solveLiveries({ n, seed, palette?, against? })` (color theorist) solves a field of liveries seen against a world:
+  each paint clear of the road, the kerb, the grass and the sky, and of the others, for colour-blind eyes too; the
+  patterns rotate through the field. Its laws advise and none refuse.
+
 ### Historic recipes: other eras by the same principles
 
 The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that
