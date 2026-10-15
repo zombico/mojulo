@@ -272,9 +272,24 @@ function dialsAndRig({ J, FINGERS, fingerJoints, hasTail, extraArms = [], arms2 
   return { dials, rig, clips };
 }
 
-function coverOf(cover, k, hasTail) {
-  if (!cover) return { tiles: [], ruff: false };
+/** FUR AS SHAPES (station-loft-body.js `locks`): directional tufts where they make the outline, each a few blades lying
+ * down the coat's flow and flicking out at the tip: the elbow's (the back of the forearm), the outer thigh's, the
+ * calf's, a ruff over the shoulders and up the neck when the people has one, a brush down the tail. Sizes by the body */
+function furLocks(where, k, hasTail, tail) {
+  const L = [], m = (v) => r3(v * k), lock = (id, parts, s, t, rows, count, length, width, extra = {}) => L.push({ id, parts, s, t, rows, count, length: length.map(m), width: m(width), lift: 0.5, flow: [0, -0.35, -1], curl: 0.22, group: ['Fur', 'FurAlt'], ...extra });
+  if (where.has('ruff')) { lock('ruff', ['torso'], [3.0, 4.0], [0, 3], 3, 7, [0.16, 0.11], 0.05, { lift: 0.55 }); lock('ruffNeck', ['neck'], [0.3, 1.5], [0, 3], 2, 5, [0.13, 0.09], 0.045); }
+  if (where.has('forearm')) lock('elbow', ['foreArmR', 'foreArmL'], [0.1, 0.9], [1.9, 3], 2, 2, [0.09, 0.06], 0.03, { curl: 0.3 });
+  if (where.has('thigh')) lock('thigh', ['thighR', 'thighL'], [0.3, 1.4], [1.2, 2.6], 2, 3, [0.1, 0.07], 0.035);
+  if (where.has('thigh') || where.has('shin')) lock('calf', ['shinR', 'shinL'], [0.2, 1.0], [2.1, 3], 1, 2, [0.07, 0.07], 0.028);
+  if (where.has('tail') && hasTail) lock('tail', [0, 1, 2, 3, 4].map((i) => `tail${i}`), [0.2, 1.8], [0, 3], 1, tail === 'brush' ? 5 : 3, tail === 'brush' ? [0.13, 0.13] : [0.08, 0.08], tail === 'brush' ? 0.045 : 0.03, { flow: undefined, curl: 0.25, lift: 0.35 });
+  return L.map(({ flow, ...x }) => (flow ? { ...x, flow } : x));
+}
+
+function coverOf(cover, k, hasTail, tail) {
+  if (!cover) return { tiles: [], locks: [], ruff: false };
   const T = COVER[cover.kind] || COVER.fur, where = new Set(cover.where);
+  // a coat is SHAPES that break the outline (locks); scales and chitin lie flat (tiles)
+  if (cover.kind === 'fur') return { tiles: [], locks: furLocks(where, k, hasTail, tail), ruff: where.has('ruff') };
   const tiles = [];
   if (cover.kind === 'fur' && where.has('ruff')) tiles.push({ id: 'ruff', parts: ['torso'], s: [3.1, 4.0], t: [0, 4], grid: [2, 8], brick: true, ...T(0.09 * k), lean: -1.35 },
     { id: 'ruffNeck', parts: ['neck'], s: [0.55, 1.45], t: [0, 4], grid: [2, 8], brick: true, ...T(0.08 * k), lean: -1.35 });
@@ -283,7 +298,7 @@ function coverOf(cover, k, hasTail) {
   if (where.has('thigh')) tiles.push({ id: 'thigh', parts: ['thighR', 'thighL'], s: [0.3, 1.6], t: [1.0, 2.6], grid: [3, 3], brick: true, ...T(0.022 * k) });
   if (where.has('shin')) tiles.push({ id: 'shin', parts: ['shinR', 'shinL'], s: [0.2, 1.8], t: [0.6, 2.6], grid: [5, 3], brick: true, ...T(0.02 * k) });
   if (where.has('tail') && hasTail) tiles.push({ id: 'tail', parts: [0, 1, 2, 3, 4].map((i) => `tail${i}`), s: [0.1, 1.9], t: [0, 2.9], grid: [3, 5], brick: true, ...T(0.045 * k) });
-  return { tiles: tiles.map((t) => ({ ...t, height: r3(t.height) })), ruff: cover.kind === 'fur' && where.has('ruff') };
+  return { tiles: tiles.map((t) => ({ ...t, height: r3(t.height) })), locks: [], ruff: cover.kind === 'fur' && where.has('ruff') };
 }
 
 /** THE SKIN (skin-paint.js): a scaled people's hide painted as a reptile's is drawn, by region: fine plates over a
@@ -361,7 +376,7 @@ function creature(sheet, title) {
   const k = r3((HEIGHT[f.build] * AGE_SCALE[f.age]) / 2.0), g = GIRTH[f.build];
   const legs = hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
   const head = headOf(sheet);
-  const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail]);
+  const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail], hints.tail);
   const topo = topologyOf(sheet);
   const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff, pole: f.pole, build: f.build, ...topo });
   const stance = stanceOf(sheet);
@@ -398,7 +413,7 @@ function creature(sheet, title) {
     joints: body.joints, segments: body.segments, heads, details: body.details, dials, rig, clips,
     body: { refine: [{ parts: ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', ...(body.hasTail ? [0, 1, 2, 3, 4].map((i) => `tail${i}`) : [])] }, { parts: ['torso'], slots: false }],
       volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)], ...['R', 'L'].map((S) => [`thigh${S}`, { front: 1, 'front*': 0.7 }, { st1: 1, st0: 0.3 }, r3(0.025 * k * g)])],
-      ...(cover.tiles.length ? { tiles: cover.tiles } : {}),
+      ...(cover.tiles.length ? { tiles: cover.tiles } : {}), ...(cover.locks.length ? { locks: cover.locks } : {}),
       pads: ['R', 'L'].flatMap((S) => [{ part: `hand${S}`, s: 1.3, toward: { flex: [`hand${S}`, `fingerB1${S}`], drive: { grip: 45 } }, r: 0.5 }, { part: `toes${S}`, s: 1.0, toward: { world: [0, 0, -1] }, r: 0.55 }]) },
     adorn: adornOf(kitOf(sheet), k, groups),
     // a pale coat's pattern is drawn in darker lines (light on light does not read)
@@ -462,7 +477,7 @@ function ledgerOf(sheet, door, built) {
     if (built.outfit && (ch === 'dress' || ch === 'silhouette')) at = door === 'creature' ? (ch === 'dress' ? 'plan.outfit' : 'the form and plan.outfit') : (ch === 'dress' ? 'spec.outfit (the cut and its pieces)' : 'spec.tune, spec.outfit.pieces');
     let pending = at ? null : door === 'hero' && ['cover', 'ornament'].includes(ch) ? 'the hero grammar has no pass for it' : ch === 'wear' ? 'no wear dials yet' : 'no landing in this door yet';
     if (door === 'creature') {
-      if (ch === 'cover' && !built.cover.tiles.length) { at = null; pending = 'no cover hint for this people'; }
+      if (ch === 'cover' && !built.cover.tiles.length && !built.cover.locks.length) { at = null; pending = 'no cover hint for this people'; }
       if (ch === 'wear' && !['seasoned', 'elder'].includes(sheet.facets.age)) { at = null; pending = 'no wear dials yet'; }
       if (ch === 'structure' && built.head.standIn) { at = null; pending = `no library head for ${sheet.facets.ancestry} yet: the ${built.head.id} head stands in; draw one from the nearest (creature-heads)`; }
       if (ch === 'ornament' && /horns|antennae|tusks|wings|crest|frill/.test(n.line) && !(built.head?.id === 'dragon' && /horns|crest/.test(n.line)) && !(built.head?.id === 'mandibled' && /antennae/.test(n.line))) { at = null; pending = 'an ornament the library head and the body plan do not carry yet'; }

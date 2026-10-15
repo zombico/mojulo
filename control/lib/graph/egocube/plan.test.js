@@ -109,7 +109,9 @@ describe('planFromSheet', () => {
     expect(p.thesis).toBe('barrel · digitigrade biped, leaning forward · long muzzle (wolf) · a ruff of fur at the neck and shoulders · 2 m');
     const plan = p.create.spec.plan;
     expect(plan.heads[0].plan.name).toBe('wolf');
-    expect(plan.body.tiles.map((t) => t.id)).toEqual(['ruff', 'ruffNeck', 'forearm', 'thigh', 'tail']);
+    // the coat as shapes that break the outline (locks), where the warden's roll has fur
+    expect(plan.body.locks.map((t) => t.id)).toEqual(['ruff', 'ruffNeck', 'elbow', 'thigh', 'calf', 'tail']);
+    expect(plan.body.tiles).toBeUndefined();
     expect(plan.adorn.map((a) => a.id)).toEqual(expect.arrayContaining(['belt', 'cord', 'pack', 'satchelR', 'satchelL', 'wrapR', 'wrapL']));
     expect(plan.adorn.filter((a) => a.signature.group === 'Emblem')).toHaveLength(1);
     expect(p.after).toEqual([{ op: 'set', path: '/dials/lean', value: 18 }]);

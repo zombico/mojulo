@@ -247,13 +247,18 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
   over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
   to carry, so the skin no longer shows through the breeches in diamonds.
+- **A coat's tufts are shapes that break the outline.** A furred people's roll grows its fur as `locks` (blades leaving
+  the skin, lying down the coat's flow and flicking out at the tip) where they make the silhouette: the elbow's on the
+  back of the forearm, the outer thigh's, the calf's, a ruff over the shoulders and up the neck when the people has one,
+  a brush down the tail. They replace the coat's spike tiles; the sheet audit counts locks as cover.
 - **A creature's skin, painted.** A plan's `skin` (polygonizer/skin-paint.js) paints its hide by region: `scales`
   (overlapping, pointing down the part), `plates` (irregular, a reptile's head), `bands` (scutes across the belly),
   `feathers` (long rounded tips in rows, a shaft down each), `fur` (tufts: three light strokes converging down the part),
   `segments` (chitin rings, a light lip over a dark seam), each a cell size in metres, a contrast and windows (`t` round
   the ring, `run` down the part); a pattern fades out toward a part's ends, so two parts never meet in a seam at a
   joint (`fade: false` keeps it to the end); `lines: 'dark'` draws the lines darker than the hide (a pale coat's: the egocube
-  sets it on a coat of L* 62 or more); fur tufts vary in size and lean with the coat's flow round the trunk. The texture is value
+  sets it on a coat of L* 62 or more). A coat's `fur` is a few choice hatch strokes, two or three short parallels, some
+  crossed, more toward the sides and the back; its tufts are geometry. The texture is value
   only (a light rim round a darker cell), so the body's colours, its markings and both tones of the character light read
   through it, and the light's step and the ink fall over it, as on the painted face. One atlas per creature: each part a
   region covers gets its own rectangle (a whole number of cells round its ring, so the pattern closes), plus a white

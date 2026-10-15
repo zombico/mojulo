@@ -36,7 +36,8 @@ const heightOf = (plan) => (plan.joints?.neckTop?.[2] ?? 1.86) / 0.93;
 
 function headPlans(plan) { return (plan.heads || []).map((h) => h.plan).filter(Boolean); }
 function headOrnaments(plan) { return headPlans(plan).flatMap((h) => h.ornaments || []); }
-function tiles(plan) { return plan.body?.tiles || []; }
+/** the cover a plan grows: its tiles and its locks (fur as shapes: the blades that break the outline) */
+function tiles(plan) { return [...(plan.body?.tiles || []), ...(plan.body?.locks || [])]; }
 function adorn(plan) { return plan.adorn || []; }
 function segs(plan) { return plan.segments || []; }
 function sigKinds(plan) { return adorn(plan).map((a) => a.signature?.kind).filter(Boolean); }
@@ -77,7 +78,7 @@ function carries(sheet, plan, dials, ch, line) {
     }
     case 'cover': {
       const g = coverGroups(plan).join(' ');
-      if (!tiles(plan).length) return ['missing', 'no tiles'];
+      if (!tiles(plan).length) return ['missing', 'no tiles or locks'];
       if (has(/ruff/, L)) return ruffTiles(plan).length ? ['carried', 'tiles on the neck and the upper torso'] : ['missing', 'no tiles at the neck'];
       for (const [word, re] of [['fur', /fur/], ['scale', /scale|scute/], ['chitin', /chitin|plate/], ['bone', /bone/]]) if (has(re, L)) return has(new RegExp(word), g) || (word === 'scale' && /scute|plate/.test(g)) ? ['carried', `${word} tiles`] : ['eyes', `tiles (${g || 'no groups'}): whether they read as ${word} is for the eyes`];
       return ['carried', 'tiles'];
