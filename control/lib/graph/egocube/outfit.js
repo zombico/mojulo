@@ -41,6 +41,7 @@
  *              office across the chest, a pauldron on one shoulder, a satchel on one hip)
  * Pure and deterministic.
  */
+import { conceptOf, dressByConcept } from './concept.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { outfitLaws, ARCHETYPE_SHAPES } from '../polygonizer/outfit-plan.js';
 
@@ -235,9 +236,12 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   if (free && !pieces.some(asym)) pieces.push(OFFICE.mantle.includes(a) ? { kind: 'baldric', colour: 'trim', why: `the sash of office worn across the chest: the free ${a}'s one asymmetric note` } : { kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' });
   if (!free) for (const p of pieces) if (p.kind === 'pauldron') p.pair = true;
   if (silhouette === 'wedge') for (const p of pieces) if (p.kind === 'pauldron') p.shoulder = 1.25;   // the wedge's broad shoulder line
+  // THE CONCEPT on a beast (concept.js): the cloth and the pieces agree with the character, and its own adornment joins
+  const beast = sheet.ancestry?.door === 'creature', concept = beast ? conceptOf(sheet) : null;
+  const agreed = beast ? dressByConcept(pieces, sheet, { A: anatomyOf(sheet), tailSeen, cut: cut.language, room: 5 - (cut.language.outer ? 1 : 0), concept }) : null;
   // restraint: six pieces at most, kept by what each is for (the garment, the focal, the station, the role's first
   // need, the asymmetric note, the waist, the role's second need, the detail)
-  const rank = (p) => (p.role === 'focal' ? 1 : p.kind === 'mantle' ? 2 : p.why?.includes('asymmetric') ? 4 : p.kind === 'sash' ? 5 : p.role === 'detail' ? 7 : (ROLE_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 3 : 6);
+  const rank = (p) => (p.role === 'focal' ? 1 : p.family ? 3.5 : p.kind === 'mantle' ? 2 : p.why?.includes('asymmetric') ? 4 : p.kind === 'sash' ? 5 : p.role === 'detail' ? 7 : (ROLE_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 3 : 6);
   const room = 5 - (cut.language.outer ? 1 : 0);   // the cloth (its base and its outer layer) counts toward the whole's six
   if (pieces.length > room) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, room)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
   // repetition: the trim on two pieces at least (the mantle's clasp takes it when only one wears it)
@@ -250,10 +254,10 @@ export function outfitFromSheet(sheet, { coat } = {}) {
     else if (pieces.length < room) pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' });
     // no room for one more: a piece already worn takes the trim
     else for (const r of pieces.filter((p) => p.role !== 'focal' && ['collar', 'baldric', 'sash', 'belt', 'bracers'].includes(p.kind))) { if (trims() >= 2) break; r.colour = 'trim'; } }
-  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin) },
+  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin), ...(concept ? { concept: concept.word } : {}) },
     cut: { language: cut.language, dials: cut.dials, colours: cut.colours, notes: cut.notes }, pieces };
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [] });
-  return { outfit, laws };
+  return { outfit, laws, ...(concept ? { concept: { ...concept, agreed } } : {}) };
 }
 /** THE FRAME ADORNED: a beast is not clothed. Its body (the silhouette, the fur, the scales, the plates) is the costume,
  * and what it wears accents the frame on its own landmarks: straps, bands, metal, a plate where it fights, what it
@@ -323,13 +327,16 @@ export function adornFromSheet(sheet, { coat } = {}) {
   for (const p of pieces) if (['pauldron', 'chestPlate'].includes(p.kind)) p.colour = 'metal';
   // chitin's straps riveted
   if (A.chitin) for (const p of pieces) if (['harness', 'baldric'].includes(p.kind)) Object.assign(p, { studs: 5, why: `${p.why}, riveted across the plates` });
+  // THE CONCEPT (concept.js): what character this is decides what agrees; its own adornment (found, textile, ritual,
+  // craft) joins the gear, so a beast is not only a gladiator
+  const concept = conceptOf(sheet), agreed = dressByConcept(pieces, sheet, { A, tailSeen, room: 5, concept });
   // order: bound pairs, free one asymmetric note
-  const asym = (p) => ['satchel', 'baldric'].includes(p.kind) || (['pauldron', 'armRings'].includes(p.kind) && !p.pair);
-  if (free && !pieces.some(asym)) { const r = pieces.find((p) => ['pauldron', 'armRings'].includes(p.kind)); if (r) r.why = `${r.why}, on one side: the free order's asymmetric note`; else pieces.push({ kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' }); }
+  const asym = (p) => ['satchel', 'baldric', 'charms', 'trophy', 'toolRoll'].includes(p.kind) || (['pauldron', 'armRings', 'feathers', 'prayerBand'].includes(p.kind) && !p.pair) || (p.kind === 'streamers' && !p.pair && p.on !== 'tail');
+  if (free && !pieces.some(asym)) { const r = pieces.find((p) => ['pauldron', 'armRings'].includes(p.kind)); if (r) r.why = `${r.why}, on one side: the free order's asymmetric note`; else if (!concept.refuses.includes('satchel')) pieces.push({ kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' }); }
   if (!free) for (const p of pieces) if (['pauldron', 'armRings'].includes(p.kind)) p.pair = true;
   // (no broadened shoulder line: a beast's own shoulders carry its silhouette, and its plates lie close on them)
   // restraint: five pieces at most, so the frame shows (the focal, the role's first need, the station, the asymmetric note)
-  const rank = (p) => (p.role === 'focal' ? 0 : (BEAST_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 1 : ['tailRing', 'anklets'].includes(p.kind) || (p.kind === 'harness' && A.chitin) ? 1.5 : ['chestPlate', 'torc', 'chain', 'armRings'].includes(p.kind) ? 2 : asym(p) ? 3 : 5);
+  const rank = (p) => (p.role === 'focal' ? 0 : p.family ? 1.6 : (BEAST_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 1 : ['tailRing', 'anklets'].includes(p.kind) || (p.kind === 'harness' && A.chitin) ? 1.5 : ['chestPlate', 'torc', 'chain', 'armRings'].includes(p.kind) ? 2 : asym(p) ? 3 : 5);
   if (pieces.length > 5) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, 5)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
   // repetition: the metal twice at least (a ring, studs, a band takes it)
   const trims = () => pieces.filter((p) => (p.colour ?? DEFAULT[p.kind] ?? 'base') === 'trim').length + pieces.filter((p) => p.cordColour === 'trim').length + pieces.filter((p) => ['bracers', 'chestPlate', 'harness', 'baldric'].includes(p.kind) || (p.kind === 'pauldron' && p.role !== 'focal')).length;
@@ -340,9 +347,9 @@ export function adornFromSheet(sheet, { coat } = {}) {
   // against the other's (the compile's asymmetry), heavy frames chunked, sleek ones flared
   const distort = distortOf(sheet);
   for (const p of pieces) p.scale = Math.round((p.role === 'focal' ? 1 + 0.9 * distort.amount : p.role === 'detail' ? 1 - 0.2 * distort.amount : 1 - 0.1 * distort.amount) * 100) / 100;
-  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin), distort }, pieces };
+  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin), distort, concept: concept.word }, pieces };
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [], frame: true });
-  return { outfit, laws };
+  return { outfit, laws, concept: { ...concept, agreed } };
 }
 
 /** THE CUT FOR THE HERO DOOR: the same derived cut as an inline outfit card for a person's record (`spec.outfit`), its

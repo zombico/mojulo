@@ -23,7 +23,11 @@ import { expandOutfit } from '../outfit/expand.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const rad = (r) => (Array.isArray(r) ? Math.max(...r) : r);
-export const COLOUR_GROUPS = Object.freeze({ base: 'OutfitBase', secondary: 'OutfitSecond', trim: 'OutfitTrim', accent: 'OutfitAccent', leather: 'Leather', metal: 'OutfitMetal', shade: 'OutfitShade' });
+export const COLOUR_GROUPS = Object.freeze({ base: 'OutfitBase', secondary: 'OutfitSecond', trim: 'OutfitTrim', accent: 'OutfitAccent', leather: 'Leather', metal: 'OutfitMetal', shade: 'OutfitShade', bone: 'OutfitBone', paint: 'OutfitPaint' });
+/** the found and ritual roles' own colours when the palette names none: bone and horn, and a body paint that stands off
+ * the coat it is painted on (an ochre on a light coat, a white clay on a dark one) */
+export const BONE = '#ddd3bd';
+export const paintOn = (coat) => (hexLch(coat ?? '#808080')[0] >= 50 ? '#9a3a24' : '#e4ddcc');
 /** the SHADE a plate's inside and its liner are drawn in: the plate's own colour in shadow (darker, duller), so the gap
  * under a plate reads as a hollow, not as more plate */
 export const shadeOf = (hex) => { const [L, C, h] = hexLch(hex); return lchHex(Math.max(10, L * 0.42), C * 0.55, h); };
@@ -152,6 +156,34 @@ export const OUTFIT_KINDS = Object.freeze({
     signature: { kind: 'studs', r: r3(0.006 * B.k), h: r3(0.004 * B.k), count: 2, m: 6, group: G({ colour: 'trim' }) } })) }; } },
   tailRing: { layer: 7, cls: 'rigid', colour: 'trim', compile: (p, B, G) => ({ adorn: [{ id: p.id ?? 'tailRing', mode: 'band', part: p.part ?? 'tail1', share: true, s: [0.3, 0.6], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.012 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.003 * B.k), interior: G({ colour: 'shade' }),
     signature: { kind: 'studs', r: r3(0.007 * B.k), h: r3(0.005 * B.k), count: 3, m: 6, group: G({ colour: 'trim' }) } }] }) },
+  // ADORNMENT THAT IS NOT GEAR (egocube/concept.js: the concept's families), each built of the kernel's own signatures.
+  // FOUND: CHARMS on a cord at one hip, a bell and a bone (`charm: 'bell' | 'bone' | 'both'`); FEATHERS tied to a cord on
+  // the upper arm, a small fan falling back
+  charms: { layer: 7, cls: 'loose', colour: 'trim', compile: (p, B, G, I) => { const S = p.side ?? I.side ?? 'R', which = p.charm ?? 'both', cord = { mode: 'shell', part: 'pelvis', side: S, s: [1.45, 1.62], nt: 3, ns: 1, mugen: r3(0.022 * B.k), thick: r3(0.004 * B.k), group: G({ colour: 'leather' }) };
+    const out = [];
+    if (which !== 'bone') out.push({ ...cord, id: `${p.id ?? 'charm'}Bell${S}`, t: [0.9, 1.15], signature: { kind: 'bell', side: S, after: 1, links: 3, len: r3(0.05 * B.k), clear: r3(0.02 * B.k), link: r3(0.004 * B.k), profile: [0.5, 0.95, 1, 0.9, 0.55], r: r3(0.034 * B.k), top: r3(0.014 * B.k), step: r3(0.013 * B.k), m: 10, capTop: r3(0.007 * B.k), capBottom: r3(0.085 * B.k), group: G(p) } });
+    if (which !== 'bell') out.push({ ...cord, id: `${p.id ?? 'charm'}Bone${S}`, t: [1.25, 1.5], nt: 4, ns: 2, signature: { kind: 'skull', dir: [1, 0.3, 0], side: S, r: r3(0.045 * B.k), proud: 0.35, horns: 0, group: G({ colour: 'bone' }), socketGroup: G({ colour: 'shade' }), m: 8 } });
+    return { adorn: out }; } },
+  feathers: { layer: 7, cls: 'loose', colour: 'secondary', compile: (p, B, G, I) => { const sides = p.pair ? ['R', 'L'] : [p.side ?? I.side ?? 'R'];
+    return { adorn: sides.map((S) => ({ id: `${p.id ?? 'feathers'}${S}`, mode: 'band', part: `upperArm${S}`, share: true, s: [0.42, 0.5], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.006 * B.k), thick: r3(0.006 * B.k), group: G({ colour: 'leather' }),
+      signature: { kind: 'plume', k: 2, j: 2, spread: [-1, 0, 1], spine: [[0, 0, -0.006], [0.02, -0.02, -0.05], [0.035, -0.045, -0.12], [0.045, -0.075, -0.19], [0.048, -0.1, -0.25]].map((q) => q.map((v) => r3(v * B.k))), r: [0.012, 0.026, 0.024, 0.012].map((v) => r3(v * B.k)), m: 6, squash: [1, 0.3], group: G(p) } })) }; } },
+  // TEXTILE: STREAMERS, two ribbons falling from a cord on the upper arm (the free side), or from the tail's ring
+  streamers: { layer: 7, cls: 'loose', colour: 'secondary', compile: (p, B, G, I) => { const tail = p.on === 'tail', sides = tail ? [''] : p.pair ? ['R', 'L'] : [p.side ?? I.side ?? 'R'];
+    return { adorn: sides.map((S) => ({ id: `${p.id ?? 'streamers'}${S}`, mode: 'band', part: tail ? 'tail1' : `upperArm${S}`, share: true, s: tail ? [0.2, 0.3] : [0.7, 0.78], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.004 * B.k), thick: r3(0.005 * B.k), group: G({ colour: 'trim' }),
+      signature: { kind: 'ribbon', k: tail ? 5 : 2, j: 2, spread: [-1, 1], spine: [[0, 0, 0], [0.012, -0.025, -0.09], [0.018, -0.045, -0.2], [0.014, -0.06, -0.32]].map((q) => q.map((v) => r3(v * B.k))), width: r3(0.034 * B.k), thick: r3(0.002 * B.k), tip: 'swallow', group: G(p) } })) }; } },
+  // RITUAL: WARPAINT, painted bands on the forearms (and a stroke on the upper arm), the body's own faces, no geometry;
+  // a PRAYER BAND, a cord band on the forearm carved with its runes
+  warpaint: { layer: 0, cls: 'soft', colour: 'paint', compile: (p, B, G) => ({ paint: [{ part: 'foreArm', run: [0.22, 0.3], t: 'wrap', group: G(p) }, { part: 'foreArm', run: [0.4, 0.46], t: 'wrap', group: G(p) }, { part: 'upperArm', run: [0.3, 0.4], t: [0, 0.5], group: G(p) }] }) },
+  prayerBand: { layer: 7, cls: 'soft', colour: 'secondary', compile: (p, B, G, I) => { const sides = p.pair ? ['R', 'L'] : [p.side ?? I.side ?? 'R'];
+    return { adorn: sides.map((S) => ({ id: `${p.id ?? 'prayerBand'}${S}`, mode: 'band', part: `foreArm${S}`, share: true, s: [0.3, 0.52], t: 'wrap', nt: 12, ns: 2, mugen: r3(0.005 * B.k), thick: r3(0.008 * B.k), rad: r3(0.03 * B.k), group: G(p), edge: 'roll', interior: G({ colour: 'shade' }),
+      signature: { kind: 'runes', count: 4, h: r3(0.03 * B.k), w: r3(0.003 * B.k), lift: 0.0015, group: G({ colour: 'trim' }) } })) }; } },
+  // CRAFT: a TOOL ROLL, a soft bundle at the back of the hip (handles out)
+  toolRoll: { layer: 6, cls: 'stiff', colour: 'leather', compile: (p, B, G, I) => { const S = p.side ?? (I.side === 'R' ? 'L' : 'R');
+    return { adorn: [{ id: `${p.id ?? 'toolRoll'}${S}`, mode: 'shell', part: 'pelvis', side: S, s: [0.9, 1.3], t: [2.4, 3.0], nt: 4, ns: 2, mugen: r3(0.02 * B.k), thick: r3(0.008 * B.k), group: G({ colour: 'leather' }), signature: { kind: 'pack', w: r3(0.2 * B.k), h: r3(0.09 * B.k), d: r3(0.08 * B.k), lift: 0, chamfer: r3(0.03 * B.k), soft: true, round: 2.2, sag: 0, flap: false, group: G(p) } }] }; } },
+  // TROPHY (the warrior's): a horned skull hung at the hip
+  trophy: { layer: 7, cls: 'loose', colour: 'bone', compile: (p, B, G, I) => { const S = p.side ?? I.side ?? 'R';
+    return { adorn: [{ id: `${p.id ?? 'trophy'}${S}`, mode: 'shell', part: 'pelvis', side: S, s: [1.45, 1.62], t: [0.95, 1.25], nt: 4, ns: 2, mugen: r3(0.022 * B.k), thick: r3(0.004 * B.k), group: G({ colour: 'leather' }),
+      signature: { kind: 'skull', dir: [1, 0.3, 0], side: S, r: r3(0.07 * B.k), proud: 0.4, horns: 2, group: G(p), socketGroup: G({ colour: 'shade' }), hornGroup: G(p), m: 8 } }] }; } },
   // a CHEST PLATE: the breast in two halves meeting on a ridge at the sternum, and below it (`cut: 'cuirass'`, to the
   // waist) the fauld: lames shingling down, the cloth showing between them and at the sides (laws 13–15). The default is a
   // high plate over the breast with one lame under it. The focal half carries the embossed motif; the edges the trim.
@@ -411,13 +443,19 @@ export function compileOutfit(plan) {
   if (!palette[COLOUR_GROUPS.shade] && adorn.some((A) => A.interior === COLOUR_GROUPS.shade || A.liner?.group === COLOUR_GROUPS.shade)) palette[COLOUR_GROUPS.shade] = shadeOf(palette[COLOUR_GROUPS.secondary] ?? palette[COLOUR_GROUPS.base] ?? '#6b6b6b');
   // a designed piece's own trim (its binding bands) after the cut's paint
   if (piecePaint.length) paint = [...(paint || []), ...piecePaint];
+  // the found and ritual roles, and a colour a piece names outright (a hex group carries itself into the palette)
+  const used = new Set(); const walk = (o) => { if (!o || typeof o !== 'object') return; for (const [k, v] of Object.entries(o)) { if (/group$/i.test(k) && typeof v === 'string') used.add(v); else if (k === 'interior' && typeof v === 'string') used.add(v); else walk(v); } };
+  walk(adorn); walk(paint); walk(garments);
+  if (used.has(COLOUR_GROUPS.bone) && !palette[COLOUR_GROUPS.bone]) palette[COLOUR_GROUPS.bone] = BONE;
+  if (used.has(COLOUR_GROUPS.paint) && !palette[COLOUR_GROUPS.paint]) palette[COLOUR_GROUPS.paint] = paintOn(plan.palette?.Torso ?? plan.palette?.Skin);
+  for (const g of used) if (/^#[0-9a-f]{6}$/i.test(g) && !palette[g]) palette[g] = g;
   const { outfit: _o, ...rest } = plan;
   return { ...rest, segments, ...(garments.length ? { garments } : {}), adorn, palette, ...(paint ? { paint } : {}), ...(body ? { body } : {}), outfitCompiled: true };
 }
 
 // ─── the laws of visual interest (the Dressing Bible's), advisory ───
 /** how much of the outfit's area a kind covers, roughly (a skirt and bodice far more than a buckle) */
-const AREA = { bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, pack: 2, quiver: 1 };
+const AREA = { charms: 0.3, feathers: 0.4, streamers: 0.4, warpaint: 0.3, prayerBand: 0.3, toolRoll: 0.5, trophy: 0.4, bow: 0.5, gown: 10, robe: 11, wizardRobe: 13, tunic: 7, mantle: 4, cloak: 5, collar: 1.5, harness: 1.4, torc: 0.4, armRings: 0.4, anklets: 0.3, tailRing: 0.2, chestPlate: 2.2, sash: 1.2, belt: 1, baldric: 1, wraps: 0.6, pauldron: 1.5, bracers: 0.8, chain: 0.5, medallion: 0.4, satchel: 1, pack: 2, quiver: 1 };
 export const ARCHETYPE_SHAPES = { ruler: ['bell', 'column'], hero: ['wedge'], outlaw: ['wedge', 'needle'], caregiver: ['bell', 'barrel'], sage: ['bell', 'column'], magician: ['bell', 'needle'], explorer: ['wedge', 'column'], innocent: ['bell', 'barrel'], everyman: ['column', 'barrel'], jester: ['needle', 'wedge'], lover: ['needle', 'bell'], creator: ['column', 'barrel'] };
 
 /** the cut's cloth as the laws count it: each layer a piece of its area in its colour role (a coat over a shirt shows
@@ -454,7 +492,7 @@ export function outfitLaws(outfit, ctx = {}) {
   const fitted = P.filter((p) => ['bracers', 'chestPlate', 'harness', 'baldric'].includes(p.kind) || (p.kind === 'pauldron' && p.role !== 'focal')).length;
   const trimUses = edged + fitted + P.filter((p) => colourOf(p) === 'trim').length + P.filter((p) => (p.kind === 'mantle' && p.clasp !== false && (p.claspColour ?? 'trim') === 'trim') || (p.kind === 'sash' ? (p.knotColour ?? 'trim') === 'trim' : p.knotColour === 'trim') || p.cordColour === 'trim').length;   // a sash's buckle is the trim's metal
   law('repetition with variation', trimUses >= 2, `the trim appears on ${trimUses} piece${trimUses === 1 ? '' : 's'} (2 or 3 ties the outfit)`);
-  const sided = P.filter((p) => ['satchel'].includes(p.kind) || (['pauldron', 'bracers', 'armRings'].includes(p.kind) && !p.pair && I.symmetry !== 'symmetric') || p.kind === 'baldric');
+  const sided = P.filter((p) => ['satchel', 'charms', 'trophy', 'toolRoll'].includes(p.kind) || (['pauldron', 'bracers', 'armRings', 'feathers', 'prayerBand'].includes(p.kind) && !p.pair && I.symmetry !== 'symmetric') || (p.kind === 'streamers' && p.on !== 'tail' && !p.pair) || p.kind === 'baldric');
   if (ctx.order !== undefined) law('symmetry from order', ctx.order < 0.5 ? sided.filter((p) => p.kind !== 'baldric').length <= 1 : sided.length >= 1, ctx.order < 0.5 ? `a bound order: ${sided.length} one-sided piece${sided.length === 1 ? '' : 's'} (one note at most)` : `a free order: ${sided.length} asymmetric piece${sided.length === 1 ? '' : 's'} (at least one)`);
   if (ctx.archetype && I.silhouette) law('shape from the archetype', (ARCHETYPE_SHAPES[ctx.archetype] || []).includes(I.silhouette), `${ctx.archetype} reads as ${(ARCHETYPE_SHAPES[ctx.archetype] || []).join(' or ')}; the outfit aims for ${I.silhouette}`);
   if (ctx.mustSee?.includes('tail')) { const over = P.filter((p) => (['gown', 'robe', 'wizardRobe', 'skirt'].includes(p.kind) || (p.kind === 'outer' && p.long)) && !p.tailSlit); law('the must-see stays seen', !over.length, over.length ? `${over.map((p) => p.kind).join(', ')} would hide the tail: give it a tail slit, or a tunic` : 'nothing covers the tail'); }

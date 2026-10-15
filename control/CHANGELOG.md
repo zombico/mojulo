@@ -247,6 +247,19 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
   over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
   to carry, so the skin no longer shows through the breeches in diamonds.
+- **The concept: what character this is, before a piece is chosen.** `egocube/concept.js` reads a word off the sheet
+  (warrior, noble, scholar, mystic, wanderer, artisan, healer, trickster; `wild` for a people below the clothed line,
+  keeping its archetype's flavour), turned by the role (a frontline scholar fights). Its card names the adornment
+  families it reaches for, what it refuses and its material. A beast's pieces are made to agree with it (a refused
+  piece is dropped, a sash never rides a cuirass's fauld, a cloak never buries wings, a bound character carries one
+  thing at a hip) and its own pieces join the gear in the room the gear leaves, never fewer than one. The outfit's
+  intent names the concept; the reasons ride the readout.
+- **Adornment that is not only gear.** New catalogue pieces built from the kernel's own signatures: `charms` (a bell and
+  a bone on a cord at the hip), `feathers` (a fan tied at the upper arm), `streamers` (ribbons from the arm or the
+  tail's ring), `warpaint` (painted bands on the arms), `prayerBand` (a band of runes on the forearm), `toolRoll` (a
+  soft roll at the back of the hip) and `trophy` (a horned skull at the hip). Arm pieces pair on a bound character.
+  New colour roles `bone` and `paint` (an ochre on a light coat, a white clay on a dark one), and a colour an outfit
+  names outright (a hex) now carries itself into the palette instead of falling back to the neutral tint.
 - **Every creature takes the hero's character light.** A creature (create_character's `as: 'creature'`: a layered plan
   worn by no hero, drawn from a roll or designed by hand) is lit as a hero is: the toon step, the ink, the metal's gloss
   on plate, read at render time, so creatures minted before re-render with it (`toon: { light: false }` opts out). A
