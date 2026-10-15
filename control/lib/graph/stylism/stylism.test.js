@@ -150,12 +150,16 @@ describe('the detail solver', () => {
 describe('the silhouette solver on a dressed hero', () => {
   const dressed = (spec) => { const h = heroRecord(spec), ex = expandLayeredManifest({ kind: 'layered', title: 't', hero: h }), plan = heroPlanOf(h);
     const mesh = planLayered({ kind: 'layered', title: 't', recipe: ex.recipe, plan, hero: h, dials: ex.dials, units: 'm' }).mesh; return { h, plan, mesh, recipe: ex.recipe }; };
+  // armour stays within the figure's width (armor/principles.js law 13): the shoulder-led letters (the wedge, the X) are
+  // reached where the figure's own shoulders lead (the male cast); on the female they are misses the readout advises
+  // (below), never forced by plate carried past her shoulders
+  const castFor = (o) => (['wedge', 'hourglass'].includes(o) ? { cast: 'male' } : {});
   it('each outline is reached in one genre, read back without the arms', { timeout: 120000 }, () => {
-    for (const o of OUTLINES) { const { mesh } = dressed(hero({ genre: 'fantasy', silhouette: o, register: 'heroic' })); expect(readSilhouette(mesh).outline, o).toBe(o); }
+    for (const o of OUTLINES) { const { mesh } = dressed(hero({ genre: 'fantasy', silhouette: o, register: 'heroic' }, castFor(o))); expect(readSilhouette(mesh).outline, o).toBe(o); }
   });
   it('a named silhouette reads as its outline: one card per outline letter, chosen in code', { timeout: 180000 }, () => {
     for (const o of OUTLINES) { const n = NAMED_SILHOUETTES.find((x) => NAMED[x].outline === o); if (!n) continue;
-      const { mesh } = dressed(hero({ silhouette: n, register: 'heroic' })); expect(readSilhouette(mesh).outline, `${n} (${o})`).toBe(outlineOf(n)); }
+      const { mesh } = dressed(hero({ silhouette: n, register: 'heroic' }, castFor(o))); expect(readSilhouette(mesh).outline, `${n} (${o})`).toBe(outlineOf(n)); }
   });
   it('a named silhouette\'s stand-ins are said, its card\'s base worn, its type named in the notes; the detail sets how many bows', () => {
     const L = stylismLedger(hero({ silhouette: 'sailor' }));
@@ -191,9 +195,12 @@ describe('the silhouette solver on a dressed hero', () => {
     expect(cohesionAdvice({ islands: { front: [0.09], side: [] }, floating: [{ piece: 'pauldronR', gap: 0.09 }] }).why).toMatch(/pauldronR hovers 9 cm .*front outline has 1 mass apart .*seat what floats/);
   });
   it('the readout carries the notes and the read; a miss is advised, never forced; the blockout is a sheet', { timeout: 120000 }, () => {
-    const { h, plan, mesh, recipe } = dressed(hero({ genre: 'fantasy', silhouette: 'wedge', register: 'heroic' }));
+    const { h, plan, mesh, recipe } = dressed(hero({ genre: 'fantasy', silhouette: 'wedge', register: 'heroic' }, { cast: 'male' }));
     const S = heroReadout(h, plan, null, [], { mesh, recipe }).dress.stylism;
     expect(S.silhouette.read.outline).toBe('wedge'); expect(S.notes.some((n) => n.technique === 'read')).toBe(false);
+    // the female's narrower shoulders, the plate held to them: the wedge is missed, and the readout says so
+    const f = dressed(hero({ genre: 'fantasy', silhouette: 'wedge', register: 'heroic' })), F = heroReadout(f.h, f.plan, null, [], { mesh: f.mesh, recipe: f.recipe }).dress.stylism;
+    expect(F.silhouette.read.outline).not.toBe('wedge'); expect(F.notes.some((n) => n.technique === 'read')).toBe(true);
     expect(silhouetteAdvice('barrel', { outline: 'wedge', widths: { low: 0.2, mid: 0.3, high: 0.4 } })).toMatch(/the shoulders lead; for a barrel, more in the middle/);
     // the detail lands on what is worn: no role it named is missing
     expect((heroReadout(h, plan, null, [], { mesh, recipe }).dress.outfit?.warnings || []).filter((w) => /^detail: no/.test(w))).toEqual([]);

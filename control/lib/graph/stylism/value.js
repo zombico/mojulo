@@ -48,8 +48,11 @@ export function standInPalette(G, r, card = {}, genre = 'fantasy') {
   const fit = M.fitting ?? M.metal, start = Math.min(fit.length - 1, Math.round(r * (fit.length - 1)));
   const order = [...fit.slice(start), ...fit.slice(0, start).reverse()].filter((m) => MATERIAL_SWATCHES[m]);
   const Lof = (m) => hexLch(MATERIAL_SWATCHES[m])[0];
-  let trimWord = order.find((m) => clear(Lof(m), [Lb], 18));
-  if (!trimWord) { trimWord = order[0]; const Lm = Lof(trimWord); let best = null;
+  // a fitting reads against the PLATE it is fixed to as well: never the plate's own metal, a clear step from it
+  const plateL = MATERIAL_SWATCHES[M.plate ?? M.metal[0]] ? hexLch(MATERIAL_SWATCHES[M.plate ?? M.metal[0]])[0] : null;
+  const offPlate = (m) => m !== (M.plate ?? M.metal[0]) && (plateL === null || Math.abs(Lof(m) - plateL) >= 12);
+  let trimWord = order.find((m) => clear(Lof(m), [Lb], 18) && offPlate(m));
+  if (!trimWord) { trimWord = order.find(offPlate) ?? order[0]; const Lm = Lof(trimWord); let best = null;
     for (let x = 16; x <= 88; x++) if (clear(x, [Lu], 20) && clear(x, [Lm], 18) && (best === null || Math.abs(x - Lb) < Math.abs(best - Lb))) best = x;
     if (best !== null) Lb = best; }
   const trim = MATERIAL_SWATCHES[trimWord] ?? '#b8913f', Lt = hexLch(trim)[0];

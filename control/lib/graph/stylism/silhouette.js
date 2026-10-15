@@ -28,9 +28,9 @@ const lerp = (a, b, t) => a + (b - a) * t;
 export const TECHNIQUES = Object.freeze({
   // the shoulders broadened: a cape of cloth over them (grounded), armour standing off them (heightened)
   mantle: (r) => ({ pieces: [{ kind: 'mantle' }], note: 'a mantle over the shoulders: the line broadens without armour' }),
-  pauldrons: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'metal', shoulder: 1.12 }], note: 'pauldrons out past the arm line (1.12 ×): the shoulders carry the shape' }),
-  shoulderPlates: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'metal', shoulder: 1.1 }], note: 'shoulder plates just past the arm line (1.1 ×)' }),
-  shoulderPads: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'base', shoulder: 1.06 }], note: 'padded shoulders (1.06 × the arm line), in the jacket\'s own cloth' }),
+  pauldrons: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'metal', shoulder: 1.12 }], note: 'pauldrons in layered plates, a cop over lames down the arm: the shoulders carry the shape within the figure\'s width' }),
+  shoulderPlates: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'metal', shoulder: 1.1 }], note: 'shoulder plates, layered, within the figure\'s width' }),
+  shoulderPads: () => ({ pieces: [{ kind: 'pauldron', pair: true, colour: 'base', shoulder: 1.06 }], note: 'padded shoulders in the jacket\'s own cloth, topstitched' }),
   boxyJacket: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: r < 0.5 ? 'hip' : 'waist', fit: 'loose', open: true } }, note: 'a boxy jacket, loose and short: width at the shoulders, none below' }),
   // the legs kept close, so the shoulders read against them
   closeLegs: () => ({ language: { bottom: { kind: 'trousers', cut: 'skinny' } }, note: 'the legs cut skinny: a narrow base under a broad top' }),
@@ -78,7 +78,8 @@ export const TECHNIQUES = Object.freeze({
   sidePanels: () => ({ language: { panels: [{ at: 'sides', length: 'mini', width: 0.3, rigidity: 'soft' }] }, note: 'short panels at the hips, swinging' }),
   scarf: () => ({ pieces: [{ kind: 'bow', id: 'scarf', at: 'collar', loops: false, tails: 0.55, colour: 'accent' }], note: 'a scarf at the throat, its tails long and flowing: the motion line' }),
   tabard: () => ({ language: { panels: [{ at: 'front', length: 'knee', width: 0.4 }, { at: 'back', length: 'knee', width: 0.4 }] }, note: 'a tabard front and back: the vertical of a knight' }),
-  chestPlate: () => ({ pieces: [{ kind: 'chestPlate', cut: 'cuirass', colour: 'metal' }], note: 'a breastplate from the collarbone to the waist: the chest a hard plane' }),
+  // the chest at the catalogue's base proportion (its `cover`), whatever the detail: the detail is spent on the surface
+  chestPlate: () => ({ pieces: [{ kind: 'chestPlate', cut: 'cuirass', colour: 'metal' }], language: { outer: false, top: { girth: { waist: 3 } } }, note: 'a breastplate over a fauld, from the collarbone to the waist: the chest a hard plane, the cloth under it held in at the waist, no open jacket under it' }),
   duster: (r) => ({ language: { outer: { family: 'woven', sleeve: 'long', hem: 'maxi', cut: 'aline', open: true, collar: true } }, note: 'a duster to the shin, open: it swings behind the stride' }),
   sleeveless: () => ({ language: { top: { sleeve: 'none' } }, note: 'the arms bare: the shoulders are the body\'s own' }),
   wraps: () => ({ pieces: [{ kind: 'wraps' }], note: 'wraps at the wrists: the hands made the tools' }),

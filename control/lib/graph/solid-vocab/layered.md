@@ -159,8 +159,13 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   a scarf's knot) is a knot, two loops and two tails that lie over what they hang across and flow. `hood: true` (or `{ open }`, degrees each side of the face) raises
   a hood from the shoulders over the head, open at the face, turning with the head. Robes, gowns, tunics and cloaks take
   `trim: { hem?: 'binding' | 'embroidery', cuffs?: 'binding', chest?: 'emblem', motif? }` (a band of the secondary
-  cloth; the motif in the trim's thread). A `pauldron` with `shoulder` > 1 is seated solid on the shoulder; `float:
-  true` stands it off instead. A hero reading the newer tables (a build, `form: 'tiered'`, `painterly`, a `geocube`) is
+  cloth; the motif in the trim's thread). PLATE (`pauldron`, `chestPlate`, `bracers`, the metal bands) is drawn as games
+  draw armour: a hollow plate (a thin wall, a rolled edge in the trim, its inside in shade), within the figure's own width
+  (`shoulder` no longer broadens: a wide shoulder line is a `mantle` under the plate), segmented (a cop over lames down
+  the arm; a breastplate over a fauld that tapers to the waist, `cover` 0.4–1 how much of the chest it takes, 0.8 at most
+  unless heavily ornamented; a bracer in two bands), and ornamented on the edge or in
+  the surface (rivets at a lame's ends; the focal's `motif` embossed, the others engraved), never a knob on the field.
+  `float: true` hovers the cop (alien). A pauldron in the outfit's own cloth (`colour: 'base'`) is a topstitched pad. A hero reading the newer tables (a build, `form: 'tiered'`, `painterly`, a `geocube`) is
   stamped `laws` at mint; leave it out. A hero made from an egocube (`create_character { egocube }`) records it.
 
 - **Hero door (a human by word and percentage).** `create_character({ as: 'hero', spec: { cast, register, tune,
@@ -545,7 +550,7 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   the silhouette first, then detail, each a solver over principles that lowers to the outfit build above and writes down
   why. `genre` is a vocabulary card: `fantasy` (default) | `modern` | `scifi` | `alien` — what makes each big shape there (a
   mantle or pauldrons, a boxy jacket and padded shoulders, shoulder plates and a collar ring); every genre but `alien`
-  keeps the figure ONE shape (a plate seated on the shoulder), `alien`'s plates hover (a pauldron's `float: true`). `register` is how heightened,
+  keeps the figure ONE shape (plate within the figure's width, the breadth a mantle's), `alien`'s plates hover (a pauldron's `float: true`). `register` is how heightened,
   in any genre: `grounded` | `storybook` (default) | `heroic` | `mythic` or 0–1 (Frieren's cast to Warcraft; The
   Expanse to 40k): the outfit's `stylize` and an armour build's `mass`, and a WARP after the design (cloth flares and
   streamers longer, rigid pieces thicker, the focal piece larger, each capped); the silhouette's pieces keep believable sizes. `silhouette` is the

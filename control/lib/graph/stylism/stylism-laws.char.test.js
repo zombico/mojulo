@@ -16,15 +16,18 @@ import { NAMED_SILHOUETTES } from './silhouettes.js';
 
 // re-pinned in place (version 1 is unreleased): the value stage's stand-in palette joined the outfit (intent.palette),
 // the plates wear the `metal` role, the detail solver spends the budget (detail list, ornament, fittings, trims), and the
-// silhouette keeps its baseline sizes while the register warps after the design
+// silhouette keeps its baseline sizes while the register warps after the design; and armour drawn as games draw it
+// (armor/principles.js laws 13–15): plates within the figure's width, so the pauldron notes no longer say the plate
+// stands past the arm line; a fitting is
+// never the plate's own metal, and a sash is cloth (its buckle the trim)
 const PINS = {
   1: {
-    'fantasy grounded': '397286cafd43634f', 'fantasy mythic': '4960927bbe955a57',
+    'fantasy grounded': 'e942be5fa6edaa1b', 'fantasy mythic': 'cfd4fba27001c5a0',
     'modern grounded': '6b24f1e0d29fab8f', 'modern mythic': '65f89331d3493ff0',
-    'scifi grounded': 'ce455086956aa34c', 'scifi mythic': '28f9a73a329db060',
-    'alien grounded': 'd9b8043826c57c3a', 'alien mythic': '7b7e277af9dd4059',
+    'scifi grounded': 'ce455086956aa34c', 'scifi mythic': 'c8730cfc2dd6e048',
+    'alien grounded': 'cf8967a0df8d8ddd', 'alien mythic': '7b7e277af9dd4059',
     'named': '31c0745d0b293675',
-    'detail plain': '93dab3d7bf4395df', 'detail ornate': '78e748dc859ae514',
+    'detail plain': '91530cb12b1a116b', 'detail ornate': '14f8c0f8c7c776da',
   },
 };
 const hash = (o) => createHash('sha256').update(JSON.stringify(o)).digest('hex').slice(0, 16);

@@ -181,6 +181,51 @@ runs `grounded` → `storybook` → `heroic` → `mythic` in any genre (Frieren'
 - **The update law.** `stylism` is stamped `laws` at mint, and `stylism-laws.char.test.js` pins what each genre
   resolves to at the register's two ends.
 
+### Creature apparel: hollow plate, cloth that folds, beasts dressed as expressively as people
+
+What anyone wears now reads as what it is, before a beast wears more of it. Plate read as blocks: each piece was a
+slab of one thickness, square at every edge, following the body's bumps, filled solid when seated, with a knob on its
+field; a pack was a box. Plate is now drawn the way games draw armour.
+
+- **Hollow plate.** A shell with an `edge` (`'roll'` | `'flat'`) is a plate, not a slab. Its thin `wall` shows its
+  thickness only at a rolled bead along each free edge, and the edge rounds over, with no flat cap. `crown` domes it off
+  what it covers (a pauldron's cup), and `keel` raises a ridge down a half plate's centre line. The outer face is
+  relaxed fairer than the body under it. The inside is drawn in an `interior` group, and a `liner` fills the gap under a
+  plate standing off the body, recessed and in shade. A rim paints the bead. A shell without `edge` is byte-for-byte as
+  before. The catalogue's plate and metal bands use it, in a new `shade` role (the plate's colour in shadow, derived
+  when the palette names none).
+- **Armour as games draw it (armour laws 13–15).** No plate stands past the figure's own width at its height by more
+  than its thickness (`within`: the plate's stand-off is scaled down as one, so its shape is kept; a detached genre's
+  plates `hover`). No plate covers a whole part. A `pauldron` is a cop over three lames shingling down the upper arm. A
+  `chestPlate` is a breastplate on a ridge over a fauld that tapers to the waist (`cut: 'cuirass'`), or over one lame.
+  `bracers` are two bands. Ornament is on the edge or in the surface: a trim bead, rivets at a lame's ends, the focal's
+  `motif` embossed and the others engraved. There are no bosses on the field. `shoulder` no longer broadens: the fantasy
+  wedge and hourglass carry their breadth in a `mantle` at every register, with the plate over it, and every outline is
+  still reached. A pauldron in the outfit's own cloth is a topstitched pad. A breastplate is MOULDED (`slab`: it clears
+  only what lies beside each ring, so it comes back in under the bust instead of standing out over the fauld), and the
+  stylism's breastplate drops the open jacket under it and holds the top in at the waist. A plate's width is that of
+  what it covers (a breastplate the torso's, a pauldron the arm's line), so the chest does not spread to the arms. The
+  shoulder-led outlines (the wedge, the X) are reached where the figure's own shoulders lead (the male cast); on a
+  narrower cast they are a miss the readout advises, never forced by plate carried past the shoulders.
+- **How much of the chest a breastplate covers.** `chestPlate.cover` (0.4 … 1, default 0.8, the base proportion) sets
+  how far it reaches across and down: below 0.65 one lame under the breast, to 0.9 two, the full fauld only above, and
+  past 0.8 it grows down, never wider. The stylism keeps the base at every detail (the detail is spent on the surface),
+  so a chest is not over-covered; the whole front is asked for by name. When the detail's focal is the chest and a breastplate covers it,
+  the motif is embossed on the plate (its `trim.chest`), not a medallion hung over it.
+- **One buckle at the waist.** Where a belt is worn, a sash ties with a knot of its own cloth instead of a second
+  buckle, and a fauld's rivets sit at each lame's outer end only (a column of them down the sternum read as buckles).
+- **Trim reads against plate; a sash is cloth.** The stand-in palette's fitting metal is never the plate's own metal
+  and stands a clear value step from it, so rims, rivets and buckles read on the plate. A `sash` is cloth: the
+  secondary, the accent when it is the focal; only its buckle is the trim's metal.
+- **Metal catches the light.** A hero that wears plate (an armour build, a stylism, or a piece in the `metal` role)
+  takes a gloss highlight on its metal groups under the anime light, so a crowned plate reads as a curve and not as one
+  flat tone. A hero that wears none keeps the light it had.
+- **Soft bags.** The `pack` signature's `soft: true` is a bag, not a box: a rounded section pillowed through its depth,
+  sagging at the bottom, with a flap over the top and down the front. The catalogue's satchel, pack and quiver use it.
+- **A beast's plate is metal.** The egocube's beast palette gains a `metal` (worked iron or steel, a clear step from the
+  trim and from the coat it lies on), and a beast's pauldron and breastplate wear it instead of a cloth colour.
+- **An egocube lineup of dressed figures no longer overflows** while framing its cameras (a spread of every corner).
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

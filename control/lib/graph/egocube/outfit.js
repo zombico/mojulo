@@ -91,8 +91,12 @@ export function outfitPalette(sheet, coat = '#8a5a38') {
   const lift = hasDerive(sheet, 'palette.Trim +') ? 14 : 10, La = L < Lt ? Math.min(94, Lt + lift) : Math.max(10, Lt - lift - 6);
   const Lacc = [La, L < 50 ? L + 30 : L - 30, Ls + 20, Ls - 20, L < 50 ? L + 44 : L - 44].find((x) => x >= 10 && x <= 94 && Math.abs(x - L) >= 15 && Math.abs(x - Ls) >= 15) ?? La;
   const accent = keepL(Lacc, Ct * 1.15, Ht);
-  return { base, secondary, trim, accent, leather: shadow ? '#5e4d3e' : '#6e4a2e' };
+  // the plate: worked iron or steel, never the trim's metal, a clear step from the trim and from the coat it lies on (a
+  // plate in a cloth colour reads as cloth)
+  const metal = PLATES.find((m) => Math.abs(hexLch(m)[0] - hexLch(trim)[0]) >= 12 && Math.abs(hexLch(m)[0] - Lc) >= 16) ?? PLATES.find((m) => Math.abs(hexLch(m)[0] - Lc) >= 16) ?? PLATES[0];
+  return { base, secondary, trim, accent, leather: shadow ? '#5e4d3e' : '#6e4a2e', metal };
 }
+const PLATES = ['#8e949c', '#5d6168', '#a9aeb6', '#454950'];
 
 /** A PEOPLE'S OWN DRESS: what a lineage's body and life ask of the cut, as tendencies on the grammar's axes, never an
  * outfit. Each reads the lineage's own lines (ancestry.js) and combines with the archetype, role and order:
@@ -237,9 +241,11 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   const room = 5 - (cut.language.outer ? 1 : 0);   // the cloth (its base and its outer layer) counts toward the whole's six
   if (pieces.length > room) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, room)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
   // repetition: the trim on two pieces at least (the mantle's clasp takes it when only one wears it)
-  const trims = () => pieces.filter((p) => (p.colour ?? defaultColour(p.kind)) === 'trim').length + pieces.filter((p) => p.kind === 'mantle' && p.clasp !== false).length;
+  const trims = () => pieces.filter((p) => (p.colour ?? defaultColour(p.kind)) === 'trim').length + pieces.filter((p) => (p.kind === 'mantle' && p.clasp !== false) || (p.kind === 'sash' && (p.knotColour ?? 'trim') === 'trim')).length;   // a sash's buckle is the trim's metal
   if (trims() < 2) { const m = pieces.find((p) => p.kind === 'mantle'); if (m) Object.assign(m, { clasp: true, claspColour: 'trim' }); }
   if (trims() < 2) { const m = pieces.find((p) => ['medallion', 'chain'].includes(p.kind)); if (m) m.cordColour = 'trim'; }
+  // a focal sash is its cloth in the accent; its buckle can still be the trim's metal
+  if (trims() < 2) { const k = pieces.find((p) => p.kind === 'sash' && p.knotColour === 'accent'); if (k) k.knotColour = 'trim'; }
   if (trims() < 2) { const w = pieces.find((p) => p.kind === 'wraps'); if (w) w.colour = 'trim';
     else if (pieces.length < room) pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' });
     // no room for one more: a piece already worn takes the trim
@@ -313,6 +319,8 @@ export function adornFromSheet(sheet, { coat } = {}) {
   const throat = pieces.filter((p) => ['torc', 'chain', 'medallion'].includes(p.kind)); if (throat.length > 1) for (const p of throat) if (p.role !== 'focal') pieces.splice(pieces.indexOf(p), 1);
   // a medallion where a harness crosses is mounted there, the harness's boss (a pendant on the straps, not on a chain)
   { const h = pieces.find((p) => p.kind === 'harness'), m = pieces.find((p) => p.kind === 'medallion'); if (h && m) { m.mount = 'harness'; h.mounted = true; m.why = `${m.why}: mounted where the harness crosses`; } }
+  // PLATE is metal, not cloth: a pauldron or a breastplate wears the palette's plate metal (its focal motif embossed)
+  for (const p of pieces) if (['pauldron', 'chestPlate'].includes(p.kind)) p.colour = 'metal';
   // chitin's straps riveted
   if (A.chitin) for (const p of pieces) if (['harness', 'baldric'].includes(p.kind)) Object.assign(p, { studs: 5, why: `${p.why}, riveted across the plates` });
   // order: bound pairs, free one asymmetric note
@@ -350,5 +358,5 @@ export function heroOutfitOf(outfit) {
   return { type: 'outfit', style: { id: 'designed', dials: outfit.cut.dials, language: L, tones: Object.fromEntries(Object.entries(tones).filter(([, v]) => v)) }, ...(outfit.cut.detail ? { detail: outfit.cut.detail } : {}),
     ...(pieces.length ? { pieces, intent: { palette, ...(symmetry ? { symmetry } : {}), ...(side ? { side } : {}), ...(distort ? { distort } : {}) } } : {}) };
 }
-const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', harness: 'leather', torc: 'trim', armRings: 'trim', anklets: 'trim', tailRing: 'trim', chestPlate: 'secondary', sash: 'trim', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'secondary', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
+const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', harness: 'leather', torc: 'trim', armRings: 'trim', anklets: 'trim', tailRing: 'trim', chestPlate: 'metal', sash: 'secondary', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'metal', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
 const defaultColour = (kind) => DEFAULT[kind] ?? 'base';

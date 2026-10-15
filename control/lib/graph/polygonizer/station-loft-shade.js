@@ -125,8 +125,15 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
   const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
-  return anime ? (painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)]) : null;
+  if (!anime) return null;
+  const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
+  return wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
 }
+/** WORKED METAL'S HOT SPOT: a hero that wears plate (an armour build, or a designed piece in the `metal` role) takes a
+ * gloss on its metal groups, a small lit spot where the plate turns full to the key, so a crowned plate reads as a curve
+ * and not one flat tone. A hero wearing none keeps the light it had. */
+export const METAL_HIGHLIGHT = deepFreeze(resolveToonLight({ highlight: { OutfitMetal: { kind: 'gloss', threshold: 0.9 }, Plate: { kind: 'gloss', threshold: 0.9 } } }).highlight);
+const wearsMetal = (hero) => !!hero && (hero.adorn?.type === 'armor' || !!hero.stylism || /"colour":"metal"/.test(JSON.stringify(hero.outfit ?? null)));
 
 // ─── shading normals ──────────────────────────────────────────────────────
 const partOf = (mesh, fi) => mesh.provenance[mesh.faces[fi][0]].part;

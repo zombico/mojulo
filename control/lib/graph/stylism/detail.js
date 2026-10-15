@@ -64,7 +64,9 @@ export function shownRoles(language = {}, pieces = [], drawn = null) {
 }
 
 // a designed piece's own trim roles (outfit-plan.js `trimOf`): its hem, its cuffs when sleeved, its bodice's chest
-const PIECE_TRIM = { gown: ['chest', 'hem', 'cuffs'], robe: ['chest', 'hem', 'cuffs'], wizardRobe: ['chest', 'hem', 'cuffs'], tunic: ['chest', 'hem', 'cuffs'], cloak: ['hem'] };
+// (a breastplate's own surface is its chest: the motif embossed there, armor/principles.js law 15, never a medallion hung
+// over the plate)
+const PIECE_TRIM = { gown: ['chest', 'hem', 'cuffs'], robe: ['chest', 'hem', 'cuffs'], wizardRobe: ['chest', 'hem', 'cuffs'], tunic: ['chest', 'hem', 'cuffs'], cloak: ['hem'], chestPlate: ['chest'] };
 const sleeved = (p) => p.kind === 'wizardRobe' ? p.sleeve !== 'none' : !!p.sleeve && p.sleeve !== 'none';
 const PIECE_ZONE = { chest: 'chest', hem: 'hem', cuffs: 'wrists' };
 
