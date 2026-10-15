@@ -53,6 +53,7 @@ export function resolveCraftPalette(palette, colors = {}, fallback) {
 }
 
 export const DEG = Math.PI / 180;
+const round4 = (n) => Math.round(n * 1e4) / 1e4;
 export const p3 = (v) => ({ x: round3(v[0]), y: round3(v[1]), z: round3(v[2]) });
 
 /**
@@ -65,23 +66,29 @@ export function planeUV(from, to, offsets) {
   const d = [to[0] - from[0], to[1] - from[1], to[2] - from[2]];
   const n = Math.hypot(d[0], d[1], d[2]);
   const [u, v] = perpBasis([d[0] / n, d[1] / n, d[2] / n]);
-  return offsets.map((o) => [round3(o[0] * u[0] + o[1] * u[1] + o[2] * u[2]), round3(o[0] * v[0] + o[1] * v[1] + o[2] * v[2])]);
+  // 0.1 mm, not 1 mm: a thin trailing edge rounded to the millimetre zig-zags, and its cap tears
+  return offsets.map((o) => [round4(o[0] * u[0] + o[1] * u[1] + o[2] * u[2]), round4(o[0] * v[0] + o[1] * v[1] + o[2] * v[2])]);
 }
 
 // ---- sections -------------------------------------------------------------------------------
 
-const AIRFOIL_STEPS = 9;   // per surface; a section is 2 * 9 - 2 = 16 points, TE → upper → LE → lower
+const AIRFOIL_STEPS = 13;  // per surface; a section is 2 * 13 - 2 = 24 points, TE → upper → LE → lower
 
 /**
  * A wing section as [chordwise, thickness] pairs, chord running 0 (LE) → 1 (TE), scaled later.
- * `kind: 'naca'` is the 4-digit thickness form with a closed trailing edge and a light camber;
- * `kind: 'slab'` is a flat plate with rounded edges (a starfighter foil, a radiator panel).
+ *  - `naca`: the 4-digit thickness form with a closed trailing edge and a light camber;
+ *  - `slab`: a flat plate with rounded edges (a starfighter foil, a radiator panel);
+ *  - `facet`: a flat-paneled section, a hexagon of straight facets (a faceted stealth wing, a
+ *    starship's armour panel): every chordwise strip of skin is a plane;
+ *  - `diamond`: the supersonic double wedge, two facets a side.
  */
 export function airfoil({ thickness = 0.12, camber = 0, kind = 'naca' } = {}) {
   const xs = [];
   for (let i = 0; i < AIRFOIL_STEPS; i += 1) xs.push(0.5 * (1 - Math.cos((Math.PI * i) / (AIRFOIL_STEPS - 1))));
   const half = (x) => {
     if (kind === 'slab') return (thickness / 2) * Math.min(1, Math.sqrt(Math.min(x, 1 - x) / 0.06));
+    if (kind === 'facet') return (thickness / 2) * Math.min(1, x / 0.25, (1 - x) / 0.35);
+    if (kind === 'diamond') return (thickness / 2) * (1 - Math.abs(2 * x - 1));
     return 5 * thickness * (0.2969 * Math.sqrt(x) - 0.126 * x - 0.3516 * x * x + 0.2843 * x ** 3 - 0.1036 * x ** 4);
   };
   const mean = (x) => camber * 4 * x * (1 - x);
@@ -90,7 +97,7 @@ export function airfoil({ thickness = 0.12, camber = 0, kind = 'naca' } = {}) {
   return [...upper, ...lower];
 }
 
-const SECTION_POINTS = 16;
+export const SECTION_POINTS = 24;
 
 /**
  * A fuselage or hull cross-section: a superellipse of half-width a, half-height b, exponent n
@@ -107,6 +114,32 @@ export function section(a, b, n = 2, belly = 1) {
     const z = b * Math.sign(s) * Math.abs(s) ** (2 / n);
     pts.push([x, z < 0 ? z * belly : z]);
   }
+  return pts;
+}
+
+/**
+ * A flat-paneled section: a closed polygon `shape` ([x, z] in −1..1, CCW from +x) scaled to
+ * half-width a and half-height b, resampled to SECTION_POINTS with every corner kept, so each
+ * side stays one flat facet and stations morph corner to corner.
+ */
+export function facetSection(a, b, shape) {
+  const n = shape.length;
+  const len = shape.map((p, i) => { const q = shape[(i + 1) % n]; return Math.hypot((q[0] - p[0]) * a, (q[1] - p[1]) * b); });
+  const total = len.reduce((s, l) => s + l, 0);
+  // every corner is a point; the rest share out by edge length (largest remainder, deterministic)
+  const spare = SECTION_POINTS - n;
+  const raw = len.map((l) => (l / total) * spare);
+  const extra = raw.map(Math.floor);
+  let left = spare - extra.reduce((s, k) => s + k, 0);
+  raw.map((r, i) => [r - Math.floor(r), i]).sort((p, q) => q[0] - p[0] || p[1] - q[1]).forEach(([, i]) => { if (left > 0) { extra[i] += 1; left -= 1; } });
+  const pts = [];
+  shape.forEach((p, i) => {
+    const q = shape[(i + 1) % n];
+    for (let k = 0; k <= extra[i]; k += 1) {
+      const t = k / (extra[i] + 1);
+      pts.push([(p[0] + t * (q[0] - p[0])) * a, (p[1] + t * (q[1] - p[1])) * b]);
+    }
+  });
   return pts;
 }
 

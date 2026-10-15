@@ -19,9 +19,9 @@ import { planAssemblyBom } from '../vehicle-designer/assembly-bom.js';
 import { CRAFT_COLOR_ROLES, CRAFT_PALETTES, DEG, clone, resolveCraftPalette, round3 } from './craft-common.js';
 import { CRAFT_BUILDERS } from './craft-parts.js';
 import { CRAFT_KINDS, CRAFT_ODM, CRAFT_REALMS } from './craft-odm.js';
-import { CRAFT_ARCHETYPES } from './craft-archetypes.js';
+import { CRAFT_ARCHETYPES, CRAFT_ROLES } from './craft-archetypes.js';
 
-export { CRAFT_ARCHETYPES, CRAFT_COLOR_ROLES, CRAFT_KINDS, CRAFT_ODM, CRAFT_PALETTES, CRAFT_REALMS };
+export { CRAFT_ARCHETYPES, CRAFT_COLOR_ROLES, CRAFT_KINDS, CRAFT_ODM, CRAFT_PALETTES, CRAFT_REALMS, CRAFT_ROLES };
 
 const REALM_PALETTE = { earth: 'airlinerWhite', space: 'scoutIvory' };
 const MONOMERS = ['lathes', 'extrudes', 'sweeps', 'lofts'];
@@ -61,11 +61,12 @@ function lowestZ(recipe) {
  * One inventory row → a workbench recipe in metres. `seat: 'grid'` (the default) rests the part
  * on the measured grid for a lone preview; `seat: 'mount'` keeps its mount at the origin, the
  * frame `assembleCraft` places it in. Hardpoints ride in `garage.hardpoints`, in the same frame.
+ * `fold` (0 spread … 1 folded) sets a folding wing's hinge; parts that do not fold ignore it.
  */
-export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', title } = {}) {
+export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', fold = 0, title } = {}) {
   const row = partRow(sku);
   const { id: paletteId, colors: C } = resolveCraftPalette(palette, colors, REALM_PALETTE[row.realm]);
-  const geom = CRAFT_BUILDERS[row.kind](row, C);
+  const geom = CRAFT_BUILDERS[row.kind](row, C, { fold });
   const recipe = {
     kind: 'workbench',
     title: title || `${row.label} (${sku})`,
@@ -86,6 +87,8 @@ export function resolveCraftPart(sku, { palette, colors = {}, seat = 'grid', tit
       mountFamily: row.mount,
       localFrame: { forward: '+y', up: '+z', right: '+x' },
       hardpoints: geom.hardpoints,
+      // a folding wing says how it folds and how far it is folded in this recipe (degrees)
+      ...(row.build.fold ? { fold: { ...clone(row.build.fold), angleNow: geom.fold } } : {}),
       seat,
     },
   };
@@ -101,7 +104,23 @@ const flipSet = (f) => new Set(typeof f === 'string' ? f.toLowerCase().split('')
 const flipXor = (a, b) => new Set(['x', 'y', 'z'].filter((c) => a.has(c) !== b.has(c)));
 const flipStr = (s) => ['x', 'y', 'z'].filter((c) => s.has(c)).join('');
 const applyFlip = (s, v) => [s.has('x') ? -v[0] : v[0], s.has('y') ? -v[1] : v[1], s.has('z') ? -v[2] : v[2]];
-const rotX = (a, v) => [v[0], v[1] * Math.cos(a) - v[2] * Math.sin(a), v[1] * Math.sin(a) + v[2] * Math.cos(a)];
+
+// 3×3 rotations. A placed part's orientation is R·F: its flip F in its own frame, then a rotation R
+// (the assembler's own order), so a mirror stays a flip and a roll stays a rotation all the way down.
+const I3 = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+const mul3 = (A, B) => A.map((row) => [0, 1, 2].map((j) => row[0] * B[0][j] + row[1] * B[1][j] + row[2] * B[2][j]));
+const vec3 = (M, v) => M.map((row) => row[0] * v[0] + row[1] * v[1] + row[2] * v[2]);
+const flipM = (s) => [[s.has('x') ? -1 : 1, 0, 0], [0, s.has('y') ? -1 : 1, 0], [0, 0, s.has('z') ? -1 : 1]];
+const rotXM = (a) => [[1, 0, 0], [0, Math.cos(a), -Math.sin(a)], [0, Math.sin(a), Math.cos(a)]];
+const rotYM = (a) => [[Math.cos(a), 0, Math.sin(a)], [0, 1, 0], [-Math.sin(a), 0, Math.cos(a)]];
+const rotX = (a, v) => vec3(rotXM(a), v);
+const orient = (p, v) => vec3(p.R, applyFlip(p.flip, v));
+/** R = Rz·Ry·Rx → [rx, ry, rz] in degrees, the assembler's `rotate`. */
+function eulerXYZ(M) {
+  const ry = Math.asin(Math.max(-1, Math.min(1, -M[2][0])));
+  if (Math.abs(Math.cos(ry)) < 1e-9) return [Math.atan2(-M[1][2], M[1][1]) / DEG, ry / DEG, 0];
+  return [Math.atan2(M[2][1], M[2][2]) / DEG, ry / DEG, Math.atan2(M[1][0], M[0][0]) / DEG];
+}
 
 function archetypeRow(id) {
   const row = CRAFT_ARCHETYPES[id];
@@ -113,22 +132,22 @@ function archetypeRow(id) {
  * Walk a layout: every part placed by its mount at the hardpoint `at` names, mirrors made. A part whose
  * parent was swapped for one without that hardpoint is left off and named (advice, not a refusal).
  */
-function placeLayout(row, { palette, colors, swap }) {
+function placeLayout(row, { palette, colors, swap, fold }) {
   const placed = new Map();
   const order = [];
   const skipped = new Set();
   const warnings = [];
   for (const entry of row.layout) {
     const sku = swap[entry.id] || entry.sku;
-    const recipe = resolveCraftPart(sku, { palette, colors, seat: 'mount' });
+    const recipe = resolveCraftPart(sku, { palette, colors, seat: 'mount', fold });
     let target = [0, 0, 0];
-    let parentFlip = new Set();
+    let parent = null;
     if (entry.at) {
       const [pid, hp] = entry.at.split('.');
       if (skipped.has(pid)) { skipped.add(entry.id); warnings.push(`${entry.id}: left off, its parent '${pid}' is off`); continue; }
       const parentPaired = placed.has(`${pid}-r`);
       if (parentPaired && !entry.pair) throw new Error(`Layout '${entry.id}' sits on paired '${pid}' and must pair with it`);
-      const parent = placed.get(parentPaired ? `${pid}-r` : pid);
+      parent = placed.get(parentPaired ? `${pid}-r` : pid);
       if (!parent) throw new Error(`Layout '${entry.id}' is at '${entry.at}', but '${pid}' is not an earlier part`);
       const v = parent.recipe.garage.hardpoints[hp];
       if (!v) {
@@ -136,20 +155,27 @@ function placeLayout(row, { palette, colors, swap }) {
         warnings.push(`${entry.id}: left off, '${pid}' (${parent.recipe.garage.sku}) has no hardpoint '${hp}' (it has ${Object.keys(parent.recipe.garage.hardpoints).join(', ')})`);
         continue;
       }
-      const w = applyFlip(parent.flip, v);
+      // an `offset` is a spacer at the mount, in the parent's own frame (a longer gear well, a raised stub)
+      const off = entry.offset || [0, 0, 0];
+      const w = orient(parent, [v[0] + off[0], v[1] + off[1], v[2] + off[2]]);
       target = [parent.at[0] + w[0], parent.at[1] + w[1], parent.at[2] + w[2]];
-      parentFlip = parent.flip;
     }
-    const flip = flipXor(parentFlip, flipSet(entry.flip));
-    const mount = applyFlip(flip, recipe.garage.hardpoints.mount);
+    // the part's own flip and `roll` (degrees about the long axis, + turns +x down), under its parent's
+    const pF = parent ? parent.flip : new Set();
+    const pR = parent ? parent.R : I3;
+    const ownR = entry.roll ? rotYM(entry.roll * DEG) : I3;
+    const R = mul3(pR, mul3(flipM(pF), mul3(ownR, flipM(pF))));
+    const flip = flipXor(pF, flipSet(entry.flip));
+    const mount = vec3(R, applyFlip(flip, recipe.garage.hardpoints.mount));
     const at = [target[0] - mount[0], target[1] - mount[1], target[2] - mount[2]];
     if (entry.pair) {
-      const r = { id: `${entry.id}-r`, slot: entry.id, recipe, at, flip };
-      const l = { id: `${entry.id}-l`, slot: entry.id, recipe, at: [-at[0], at[1], at[2]], flip: flipXor(flip, new Set(['x'])) };
+      const X = flipM(new Set(['x']));
+      const r = { id: `${entry.id}-r`, slot: entry.id, recipe, at, R, flip };
+      const l = { id: `${entry.id}-l`, slot: entry.id, recipe, at: [-at[0], at[1], at[2]], R: mul3(X, mul3(R, X)), flip: flipXor(flip, new Set(['x'])) };
       placed.set(r.id, r).set(l.id, l);
       order.push(r, l);
     } else {
-      const p = { id: entry.id, slot: entry.id, recipe, at, flip };
+      const p = { id: entry.id, slot: entry.id, recipe, at, R, flip };
       placed.set(p.id, p);
       order.push(p);
     }
@@ -165,13 +191,13 @@ function toManifest(row, order, { pitch, lift, title }) {
     items: order.map((p) => {
       const at = rotX(pitch, p.at);
       const f = flipStr(p.flip);
-      const deg = round3(pitch / DEG);
+      const rot = eulerXYZ(mul3(rotXM(pitch), p.R)).map((d) => round3(d) || 0);
       return {
         id: p.id,
         source: p.recipe,
         at: [round3(at[0]), round3(at[1]), round3(at[2] + lift)],
         ...(f ? { flip: f } : {}),
-        ...(deg ? { rotate: [deg, 0, 0] } : {}),
+        ...(rot.some(Boolean) ? { rotate: rot } : {}),
       };
     }),
   };
@@ -182,16 +208,18 @@ function toManifest(row, order, { pitch, lift, title }) {
  * `swap: { <layout id>: <sku> }` puts another inventory part in a slot (audited, never refused).
  * `attitude: 'ground'` (default) rests the craft on all its gear, pitching a taildragger nose up;
  * `'level'` keeps the waterline level and rests it on its lowest contact. A craft with no gear
- * rests on its lowest point (a panel interceptor stands on its panels' lower corners).
+ * rests on its lowest point (a panel interceptor stands on its panels' lower corners). `fold` (0 … 1)
+ * folds every folding wing; absent, the archetype's own stance (a shuttle lands with its wings up).
  * Returns `{ manifest, readout }`: the readout measures the craft as built.
  */
-export function assembleCraft(archetype, { palette, colors = {}, swap = {}, attitude = 'ground', title } = {}) {
+export function assembleCraft(archetype, { palette, colors = {}, swap = {}, attitude = 'ground', fold, title } = {}) {
   const row = archetypeRow(archetype);
-  const { order, warnings: placing } = placeLayout(row, { palette: palette || row.palette, colors, swap });
+  const foldNow = Math.max(0, Math.min(1, Number.isFinite(fold) ? fold : (row.fold || 0)));
+  const { order, warnings: placing } = placeLayout(row, { palette: palette || row.palette, colors, swap, fold: foldNow });
   const contacts = order
     .filter((p) => p.recipe.garage.hardpoints.contact)
     .map((p) => {
-      const c = applyFlip(p.flip, p.recipe.garage.hardpoints.contact);
+      const c = orient(p, p.recipe.garage.hardpoints.contact);
       return [p.at[0] + c[0], p.at[1] + c[1], p.at[2] + c[2]];
     });
   let pitch = 0;
@@ -217,13 +245,13 @@ export function assembleCraft(archetype, { palette, colors = {}, swap = {}, atti
   const gear = order
     .filter((p) => p.recipe.garage.hardpoints.contact)
     .map((p) => {
-      const c = applyFlip(p.flip, p.recipe.garage.hardpoints.contact);
+      const c = orient(p, p.recipe.garage.hardpoints.contact);
       const w = rotX(pitch, [p.at[0] + c[0], p.at[1] + c[1], p.at[2] + c[2]]);
       return { id: p.id, contact: [round3(w[0]), round3(w[1]), round3(w[2] + lift)] };
     });
   const readout = measureCraft(archetype, manifest, { pitch, swap });
   if (placing.length) readout.audit = { ...readout.audit, ok: false, warnings: [...readout.audit.warnings, ...placing] };
-  return { manifest, readout: { ...readout, gear } };
+  return { manifest, readout: { ...readout, fold: foldNow, gear } };
 }
 
 /** What the assembled craft measures, weighs and pushes, beside its reference figure. */
@@ -254,6 +282,7 @@ export function measureCraft(archetype, manifest, { pitch = 0, swap = {} } = {})
   return {
     archetype,
     realm: row.realm,
+    role: row.role,
     class: row.class,
     classOf: row.classOf,
     pitch: r1(pitch / DEG),
@@ -319,4 +348,12 @@ export function listCraftShelf({ realm, kind } = {}) {
   return Object.entries(CRAFT_ODM)
     .filter(([, r]) => (!realm || r.realm === realm) && (!kind || r.kind === kind))
     .map(([sku, r]) => ({ sku, kind: r.kind, realm: r.realm, label: r.label, classOf: r.classOf, dims: clone(r.dims), mass: r.mass, ...(r.perf ? { perf: clone(r.perf) } : {}) }));
+}
+
+/** A role and its craft in both realms: the earth machine and its starship analogue, side by side. */
+export function craftRoleAnalogues(role) {
+  const r = CRAFT_ROLES[role];
+  if (!r) throw new Error(`Unknown craft role '${role}'; expected one of: ${Object.keys(CRAFT_ROLES).join(', ')}`);
+  const of = (realm) => Object.entries(CRAFT_ARCHETYPES).filter(([, a]) => a.role === role && a.realm === realm).map(([id]) => id);
+  return { role, label: r.label, mission: r.mission, earth: of('earth'), space: of('space') };
 }

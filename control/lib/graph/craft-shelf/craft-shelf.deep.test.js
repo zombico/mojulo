@@ -10,11 +10,17 @@ import { CRAFT_ARCHETYPES, CRAFT_ODM, assembleCraft, resolveCraftPart } from './
 
 // What a thrust-to-weight at maximum take-off mass looks like per class (afterburner counted for the fighter).
 const THRUST_TO_WEIGHT = {
-  'jet fighter': [0.6, 1.3],
+  'jet fighter': [0.4, 1.3],
+  'attack jet': [0.25, 0.6],
+  'stealth jet': [0.3, 0.6],
+  'star liner': [0.5, 1.5],
+  'stealth raider': [1, 3],
+  trainer: [1, 3],
   'business jet': [0.25, 0.5],
   airliner: [0.25, 0.4],
   'space superiority fighter': [2, 5],
   interceptor: [1.2, 3],
+  'panel fighter': [1, 3],
   'heavy fighter': [1.5, 4],
   bomber: [1, 3],
   'utility shuttle': [1, 3],

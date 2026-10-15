@@ -1599,6 +1599,19 @@ comes next are in `docs/flight-games.md`.
   result is an assembler recipe standing on its gear, a taildragger nose-up. Its readout gives span, length,
   height, ground clearance per kind of part, thrust-to-weight and the gear contact points. A swapped part of the
   wrong kind or realm, or one that leaves a part without its hardpoint, is named and never refused.
+- **Roles with analogues in both realms** (`CRAFT_ROLES`, `craftRoleAnalogues`): trainer, interceptor,
+  superiority, carrier, strike, stealth, transport, courier, liner. Each has at least one earth machine and
+  one starship. Earth adds Mirage III, F/A-18, F4U, A-10, C-130 and F-117 classes. Space adds an arrowhead
+  interceptor, a bent-panel fighter, a tri-wing command shuttle, a starliner, a two-seat trainer, a faceted
+  raider, and a twin-panel family (dagger interceptor, twin-pod bomber, tri-wing defender) beside the
+  original line fighter.
+- **Folded and flat-paneled wings.** A wing row can fold about a chordwise hinge, and `assembleCraft(id,
+  { fold })` sets it from spread to folded (carrier decks, closing foils, a shuttle landing). Faceted sections
+  keep every plate flat. Spacecraft hulls are built from plates (chamfered box, chined diamond, wedge). Panel
+  wings take any outline and can bend at the crease.
+- **More fidelity.** Sections at 24 points. Wing planforms with cranks, raked tips, strakes and gull dips.
+  Winglets, canted fins, intakes (chin, side, half-cone), radial engines, tandem gear. Layout mounts can
+  roll about the long axis and take a spacer `offset`.
 - **Machine gate:** every part builds closed, and every archetype lands within its class figures. Tricycles sit
   level, nacelles and propellers clear the ground, and thrust-to-weight falls in its class band
   (`craft-shelf.deep.test.js`). One emission pin per builder path and one whole craft

@@ -68,7 +68,7 @@ which whole craft are assembled.
   mount, with named hardpoints in the same frame (a wing's engine station, a pylon's carry end, a gear's ground
   contact). Craft space is +y forward, +z up, +x right. A left-hand part is the right-hand one under
   `flip: 'x'`.
-- **The archetypes** (`craft-archetypes.js`, `CRAFT_ARCHETYPES`): whole craft as rows. A row has a BOM (the
+- **The archetypes** (`craft-archetypes.js`, `CRAFT_ARCHETYPES`): whole craft as rows. A row has a role, a BOM (the
   part kinds a craft of this type needs, audited by the veh-* shelf's `planAssemblyBom`), a stock layout that
   hangs inventory parts on each other's hardpoints, and the class figures the result is held to.
 - **The API** (`index.js`):
@@ -79,6 +79,31 @@ which whole craft are assembled.
   - `planCraftBuild` is the advisory audit. A drive from the other realm, a part in the wrong slot, or a part
     left without the hardpoint it hangs from is named, never refused.
   - `findCraftPart('turbofan')` turns words into a part number.
+
+### Roles, analogues and silhouettes
+
+Every archetype carries a **role** (`CRAFT_ROLES`): trainer, interceptor, superiority, carrier, strike,
+stealth, transport, courier, liner. Each role holds at least one earth machine and one starship, so a
+game can swap the sky for the void and keep its cast (`craftRoleAnalogues(role)`).
+
+- **Folded wings.** A wing row can carry a chordwise hinge (`fold: { at, angle }`). `assembleCraft(id,
+  { fold })` sets it from spread (0) to folded (1). Examples: a carrier fighter's tips for the hangar deck,
+  a gull wing folding up, snubfighter foils closing flat, a shuttle's wings standing up to land. An
+  archetype has its own resting stance (`fold` on the row). A `fixed` fold is a shape, not a stance (a
+  bent panel).
+- **Flat panels.**
+  - A faceted section (`section: 'facet'`, `facets` on a hull or canopy) is lofted linearly, so every
+    plate stays flat. Spacecraft hulls are built from plates: a chamfered box, a chined diamond, a wedge.
+  - Panel wings (`family: 'panel'`) are outlines extruded flat (a hexagon, a notched dagger), with spars,
+    and can `bend` inward at the crease.
+  - The ball cockpit pods stay round: that is the panel fighters' signature.
+- **Planforms.** A wing's stations (`planform`) give cranks, raked tips, a gull's dip and a strake's
+  long root. `winglet` turns the tip up and `cant` leans a fin.
+- **Mounts.** A layout entry can `roll` about the long axis (three wings at 120° about one hull). It can
+  also take an `offset`, a spacer that sets a stock gear leg deeper so the craft sits level.
+
+Space reference figures are this shelf's own register sizes. They guard the shapes against drift; they
+are not published figures.
 
 The machine gate on the shelf:
 

@@ -8,7 +8,7 @@
  * read a seed: an inventory row is one part number and always makes the same part.
  */
 
-import { DEG, airfoil, extrudeWorld, lathe, loftWorld, round3, section, sweep } from './craft-common.js';
+import { DEG, airfoil, extrudeWorld, facetSection, lathe, loftWorld, planeUV, round3, section, sweep } from './craft-common.js';
 
 const r3v = (v) => v.map(round3);
 
@@ -30,27 +30,31 @@ function stationAt(rows, s) {
 }
 
 /**
- * A fuselage or hull: a smooth loft nose (y = 0) → tail (y = −length), its stations
- * `[s, width, height, centre]` as fractions of the row's dims, a superellipse section. The
- * lowest skin point sits at z = 0. Named points `[s, xf, zf]` land on the local section: xf and
- * zf in −1..1 of its half-width and half-height.
+ * A fuselage or hull: a loft nose (y = 0) → tail (y = −length), its stations
+ * `[s, width, height, centre, n?]` as fractions of the row's dims (n overrides the section's
+ * superellipse exponent there, so a round nose can square off into a chined body). `facets` swaps
+ * the superellipse for a flat-paneled polygon, lofted linearly so every panel stays flat. The
+ * lowest skin point sits at z = 0. Named points `[s, xf, zf]` land on the local section: xf and zf
+ * in −1..1 of its half-width and half-height.
  */
 function buildFuselage(row, C) {
   const { length: L, width: W, height: H } = row.dims;
   const b = row.build;
-  const n = b.n || 2;
   const belly = b.belly || 1;
   const rows = b.stations;
-  const zMin = Math.min(...rows.map(([, , h, z]) => z * H - (h * H / 2) * belly));
+  const shape = (a, h, n) => (b.facets ? facetSection(a, h, b.facets) : section(a, h, n, belly));
+  const lowOf = (a, h, n) => Math.min(...shape(a, h, n).map(([, z]) => z));
+  const zMin = Math.min(...rows.map(([, w, h, z, n]) => z * H + lowOf(Math.max(w * W / 2, 0.005), Math.max(h * H / 2, 0.005), n || b.n || 2)));
   const zp = H / 2;
   const from = [0, 0, zp];
   const to = [0, -L, zp];
-  const stations = rows.map(([s, w, h, z]) => ({
+  const stations = rows.map(([s, w, h, z, n]) => ({
     t: s,
-    points: section(Math.max(w * W / 2, 0.005), Math.max(h * H / 2, 0.005), n, belly)
+    points: shape(Math.max(w * W / 2, 0.005), Math.max(h * H / 2, 0.005), n || b.n || 2)
       .map(([x, zz]) => [x, 0, z * H - zMin + zz - zp]),
   }));
-  const lofts = [loftWorld('hull', from, to, stations, C.paint, { interp: 'smooth', segments: b.segments || 4 })];
+  const smooth = !b.facets;
+  const lofts = [loftWorld('hull', from, to, stations, C.paint, smooth ? { interp: 'smooth', segments: b.segments || 5 } : {})];
   const point = ([s, xf, zf]) => {
     const st = stationAt(rows, s);
     const halfH = (st.h * H) / 2;
@@ -69,10 +73,22 @@ function buildFuselage(row, C) {
       const k = i === 1 ? 1 : 0.92;
       return {
         t: (s - s0) / (s1 - s0),
-        points: section(a * k, hh * k, n, belly).map(([x, zz]) => [x, 0, zc + Math.max(zz, hh * 0.25) - zp]),
+        points: shape(a * k, hh * k, st.n || b.n || 2).map(([x, zz]) => [x, 0, zc + Math.max(zz, hh * 0.25) - zp]),
       };
     });
     lofts.push(loftWorld('windscreen', [0, -s0 * L, zp], [0, -s1 * L, zp], ws, C.glass, { material: 'glass' }));
+  }
+  // a radome or nose cone in the trim colour, the hull's first stretch
+  if (b.nose) {
+    const s1 = b.nose;
+    const ns = rows.filter(([s]) => s < s1);
+    const end = stationAt(rows, s1);
+    const list = [...ns, [s1, end.w, end.h, end.z, ns.length ? ns[ns.length - 1][4] : undefined]];
+    const st = list.map(([s, w, h, z, n]) => ({
+      t: s / s1,
+      points: shape(Math.max(w * W / 2, 0.005) * 1.006, Math.max(h * H / 2, 0.005) * 1.006, n || b.n || 2).map(([x, zz]) => [x, 0, z * H - zMin + zz - zp]),
+    }));
+    lofts.push(loftWorld('nose', [0, 0.005, zp], [0, -s1 * L, zp], st, C.trim, smooth ? { interp: 'smooth', segments: 4 } : {}));
   }
   return { lofts, hardpoints };
 }
@@ -98,70 +114,198 @@ function buildBall(row, C) {
 
 // ---- lifting surfaces --------------------------------------------------------------------------
 
+const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
+
 /**
- * A wing, a stabilizer, a fin or a starfighter foil: a loft of airfoil sections from the root
- * leading edge (the mount) out to the tip, swept, with dihedral and washout. Horizontal panels
- * run along +x (the right-hand panel); a vertical fin runs up +z.
+ * A wing, a stabilizer, a fin or a starfighter foil: lofts of wing sections from the root leading
+ * edge (the mount) out to the tip. Horizontal panels run along +x (the right-hand panel); a fin runs
+ * up +z, leaning outboard by `cant`.
+ *
+ *  - `planform`: `[f, chord, lead?, lift?]` stations across the span (f 0 root → 1 tip; chord in
+ *    metres; lead = how far the leading edge sits aft of the root's; lift = how high). A missing lead
+ *    or lift follows `sweep` / `dihedral`. Without one, the panel is a straight taper root → tip.
+ *    Cranks, raked tips, a gull's dip and a strake's long root chord are stations.
+ *  - `fold: { at, angle, fixed? }`: a chordwise hinge at span fraction `at`; the outer panel turns
+ *    `angle` degrees about it (+ folds up) at `opts.fold` (0 spread … 1 folded). `fixed` bakes the
+ *    fold in: a bent panel.
+ *  - `winglet: { height, root, tip, sweep, cant }`: an upturned tip (chords as fractions of the tip
+ *    chord, cant from vertical).
  */
-function buildLiftingSurface(row, C) {
+function buildLiftingSurface(row, C, opts = {}) {
   const b = row.build;
   const span = row.dims.span;
-  const cr = b.rootChord;
-  const ct = b.tipChord;
-  const lead = span * Math.tan((b.sweep || 0) * DEG);
-  const lift = span * Math.tan((b.dihedral || 0) * DEG);
   const vertical = Boolean(b.vertical);
-  const foilAt = (f) => airfoil({ thickness: b.thickness + f * ((b.tipThickness ?? b.thickness) - b.thickness), camber: b.camber || 0, kind: b.section || 'naca' });
-  const stationAt = (f) => {
-    const chord = cr + f * (ct - cr);
-    const tw = f * (b.twist || 0) * DEG;   // washout: the tip's leading edge drops
-    return foilAt(f).map(([c, h]) => {
+  const sweepT = Math.tan((b.sweep || 0) * DEG);
+  const dihT = Math.tan((b.dihedral || 0) * DEG);
+  const plan = (b.planform || [[0, b.rootChord], [1, b.tipChord]]).map(([f, chord, lead, lift]) => ({
+    f, chord, lead: lead ?? f * span * sweepT, lift: lift ?? f * span * dihT,
+  }));
+  const at = (f) => {
+    let i = 1;
+    while (i < plan.length - 1 && f > plan[i].f) i += 1;
+    const p = plan[i - 1];
+    const q = plan[i];
+    const k = q.f === p.f ? 0 : (f - p.f) / (q.f - p.f);
+    return { chord: p.chord + k * (q.chord - p.chord), lead: p.lead + k * (q.lead - p.lead), lift: p.lift + k * (q.lift - p.lift) };
+  };
+  const thickAt = (f) => b.thickness + f * ((b.tipThickness ?? b.thickness) - b.thickness);
+  const fold = b.fold || null;
+  const hingeF = fold ? fold.at : 1;
+  const foldA = fold ? fold.angle * DEG * (fold.fixed ? 1 : clamp01(opts.fold)) : 0;
+  const pivot = fold ? [hingeF * span, at(hingeF).lift] : [0, 0];
+  const cant = (b.cant || 0) * DEG;
+  // local (s spanwise, y chordwise, h thickness-wise) → world, the outer panel turned about the hinge
+  const toWorld = ([sl, y, h], outer) => {
+    let ss = sl;
+    let hh = h;
+    if (outer && foldA) {
+      const ds = sl - pivot[0];
+      const dh = h - pivot[1];
+      ss = pivot[0] + ds * Math.cos(foldA) - dh * Math.sin(foldA);
+      hh = pivot[1] + ds * Math.sin(foldA) + dh * Math.cos(foldA);
+    }
+    const w = vertical ? [hh, y, ss] : [ss, y, hh];
+    if (!cant) return w;
+    return [w[0] * Math.cos(cant) + w[2] * Math.sin(cant), w[1], -w[0] * Math.sin(cant) + w[2] * Math.cos(cant)];
+  };
+  const wingSection = (f, tw = (b.twist || 0) * DEG * f) => {
+    const { chord, lead, lift } = at(f);
+    // no skin thinner than 4 cm, however thin the ratio: a razor tip does not close
+    return airfoil({ thickness: Math.max(thickAt(f), 0.04 / chord), camber: b.camber || 0, kind: b.section || 'naca' }).map(([c, t]) => {
       const y0 = -c * chord;
-      const z0 = h * chord;
-      const y = y0 * Math.cos(tw) + z0 * Math.sin(tw);
-      const z = -y0 * Math.sin(tw) + z0 * Math.cos(tw);
-      // thickness runs in z on a horizontal panel, in x on a fin; the sweep moves the section aft
-      return vertical ? [z, y - f * lead, 0] : [0, y - f * lead, z + f * lift];
+      const z0 = t * chord;
+      // washout: the tip's leading edge drops
+      return [f * span, y0 * Math.cos(tw) + z0 * Math.sin(tw) - lead, -y0 * Math.sin(tw) + z0 * Math.cos(tw) + lift];
     });
   };
-  const to = vertical ? [0, 0, span] : [span, 0, 0];
-  const lofts = [loftWorld('panel', [0, 0, 0], to, [{ t: 0, points: stationAt(0) }, { t: 1, points: stationAt(1) }], C.paint)];
+  // one straight loft per side of the hinge; its stations lie square to its own axis
+  const loftAcross = (id, fs, pointsAt, tint, extra) => {
+    const out = [];
+    const cuts = [[0, hingeF], [hingeF, 1]].filter(([a, z]) => z > a);
+    for (const [f0, f1] of cuts) {
+      const outer = Boolean(fold) && f0 >= hingeF;
+      const inner = [...new Set([f0, ...fs.filter((f) => f > f0 && f < f1), f1])].filter((f) => f >= fs[0] && f <= fs[fs.length - 1]).sort((p, q) => p - q);
+      if (inner.length < 2) continue;
+      const a0 = toWorld([inner[0] * span, 0, outer ? pivot[1] : 0], outer);
+      const a1 = toWorld([inner[inner.length - 1] * span, 0, outer ? pivot[1] : 0], outer);
+      const st = inner.map((f) => {
+        const t = (f - inner[0]) / (inner[inner.length - 1] - inner[0]);
+        const c = [a0[0] + t * (a1[0] - a0[0]), a0[1] + t * (a1[1] - a0[1]), a0[2] + t * (a1[2] - a0[2])];
+        return { t, points: pointsAt(f).map((p) => { const w = toWorld(p, outer); return [w[0] - c[0], w[1] - c[1], w[2] - c[2]]; }) };
+      });
+      out.push(loftWorld(cuts.length > 1 ? `${id}_${outer ? 'outer' : 'inner'}` : id, a0, a1, st, tint, extra));
+    }
+    return out;
+  };
+  const fs = [...new Set([...plan.map((p) => p.f), ...(fold ? [hingeF] : [])])].sort((p, q) => p - q);
+  const lofts = loftAcross('panel', fs, (f) => wingSection(f), C.paint);
   // a control-surface band along the trailing edge reads the hinge line (flap / elevator / rudder)
   if (b.hinge) {
     const [f0, f1, frac] = b.hinge;
     const band = (f) => {
-      const chord = cr + f * (ct - cr);
-      const yTe = -chord - f * lead;
+      const { chord, lead, lift } = at(f);
+      const yTe = -chord - lead;
       const yH = yTe + frac * chord;
-      const th = Math.max(0.006, b.thickness * chord * 0.22);
-      const pts = [[yH, th], [yTe, th * 0.3], [yTe, -th * 0.3], [yH, -th]];
-      return pts.map(([y, z]) => (vertical ? [z * 1.15, y, 0] : [0, y, z * 1.15 + f * lift]));
+      const th = Math.max(0.006, thickAt(f) * chord * 0.22) * 1.15;
+      return [[yH, th], [yTe, th * 0.3], [yTe, -th * 0.3], [yH, -th]].map(([y, h]) => [f * span, y, h + lift]);
     };
-    const a = vertical ? [0, 0, f0 * span] : [f0 * span, 0, 0];
-    const z = vertical ? [0, 0, f1 * span] : [f1 * span, 0, 0];
-    lofts.push(loftWorld('hinge', a, z, [{ t: 0, points: band(f0) }, { t: 1, points: band(f1) }], C.trim));
+    const bandFs = [f0, ...fs.filter((f) => f > f0 && f < f1), f1];
+    lofts.push(...loftAcross('hinge', bandFs, band, C.trim));
+  }
+  if (b.winglet) {
+    const wl = b.winglet;
+    const tip = at(1);
+    const lean = (wl.cant || 0) * DEG;
+    const dir = [Math.sin(lean), Math.cos(lean)];               // (s, h): up, leaning outboard
+    const nrm = [Math.cos(lean), -Math.sin(lean)];              // the winglet's thickness direction
+    const c0 = tip.chord * wl.root;
+    const c1 = tip.chord * wl.tip;
+    const base = [span, tip.lift];
+    const wsec = (t) => {
+      const chord = c0 + t * (c1 - c0);
+      const yLe = -tip.lead - (tip.chord - c0) - t * wl.height * Math.tan((wl.sweep || 0) * DEG);
+      const sc = base[0] + dir[0] * wl.height * t;
+      const hc = base[1] + dir[1] * wl.height * t;
+      return airfoil({ thickness: 0.09, kind: 'naca' }).map(([c, h]) => [sc + nrm[0] * h * chord, yLe - c * chord, hc + nrm[1] * h * chord]);
+    };
+    const a0 = toWorld([base[0], 0, base[1]], true);
+    const a1 = toWorld([base[0] + dir[0] * wl.height, 0, base[1] + dir[1] * wl.height], true);
+    const st = [0, 1].map((t) => {
+      const c = [a0[0] + t * (a1[0] - a0[0]), a0[1] + t * (a1[1] - a0[1]), a0[2] + t * (a1[2] - a0[2])];
+      return { t, points: wsec(t).map((p) => { const w = toWorld(p, true); return [w[0] - c[0], w[1] - c[1], w[2] - c[2]]; }) };
+    });
+    lofts.push(loftWorld('winglet', a0, a1, st, C.trim));
   }
   const point = ([f, c, face = 'mid']) => {
-    const chord = cr + f * (ct - cr);
-    const half = (b.thickness + f * ((b.tipThickness ?? b.thickness) - b.thickness)) * chord * 0.5;
+    const { chord, lead, lift } = at(f);
+    const half = thickAt(f) * chord * 0.5;
     const off = face === 'lower' ? -half : face === 'upper' ? half : 0;
-    const y = -c * chord - f * lead;
-    return vertical ? r3v([off, y, f * span]) : r3v([f * span, y, f * lift + off]);
+    return r3v(toWorld([f * span, -c * chord - lead, lift + off], f > hingeF));
   };
   const hardpoints = { mount: [0, 0, 0] };
   for (const [name, spec] of Object.entries(b.points || {})) hardpoints[name] = point(spec);
-  return { lofts, hardpoints };
+  return { lofts, hardpoints, ...(fold ? { fold: round3(foldA / DEG) } : {}) };
 }
 
-/** A hexagonal panel wing (vertex up), standing in the y-z plane, its inner face on the mount. */
-function buildHexPanel(row, C) {
+// A panel's outline in its own plane, (y forward, z up), each in −1..1 of half the chord and half the height.
+const PANEL_OUTLINES = {
+  // the line fighter's hexagon, vertex up
+  hex: [[0, 1], [1, 0.5], [1, -0.5], [0, -1], [-1, -0.5], [-1, 0.5]],
+  // the interceptor's dagger: two blades reaching forward past a notched leading edge
+  dagger: [[1, 1], [0.1, 0.32], [0.1, -0.32], [1, -1], [-0.55, -0.78], [-0.3, 0], [-0.55, 0.78]],
+};
+
+/**
+ * A flat panel wing standing in the y-z plane (a twin-panel fighter's solar wing), its inner face
+ * on the mount: an outline extruded through its thickness, spars from the hub to every corner on
+ * the outer face. `points` name places on the outer face in outline coordinates (a blade tip's gun).
+ */
+function buildPanel(row, C) {
   const { span: T, height: Hh, chord: Wd } = row.dims;
-  const hex = [[0, 0, Hh / 2], [0, Wd / 2, Hh / 4], [0, Wd / 2, -Hh / 4], [0, 0, -Hh / 2], [0, -Wd / 2, -Hh / 4], [0, -Wd / 2, Hh / 4]];
-  const extrudes = [extrudeWorld('panel', [0, 0, 0], [T, 0, 0], hex.map(([, y, z]) => [0, y, z]), C.paint)];
-  // the spars: six ribs from the hub to each corner on the outer face, and the hub boss
-  const sweeps = hex.map(([, y, z], i) => sweep(`rib_${i}`, [[T, 0, 0], [T, y * 0.97, z * 0.97]], 0.06, C.trim));
+  const b = row.build;
+  const outline = (PANEL_OUTLINES[b.outline || 'hex']).map(([y, z]) => [(y * Wd) / 2, (z * Hh) / 2]);
+  // `bend`: the upper and lower halves turn inward about the hub's chord line (a bomber's creased panels)
+  const beta = (b.bend || 0) * DEG;
+  const halves = beta ? [1, -1].map((side) => {
+    const half = [];
+    outline.forEach((p, i) => {
+      const q = outline[(i + 1) % outline.length];
+      if (p[1] * side >= 0) half.push(p);
+      if ((p[1] * side > 0 && q[1] * side < 0) || (p[1] * side < 0 && q[1] * side > 0)) {
+        const t = p[1] / (p[1] - q[1]);
+        half.push([p[0] + t * (q[0] - p[0]), 0]);
+      }
+    });
+    return { side, pts: half };
+  }) : [{ side: 0, pts: outline }];
+  // a point of the panel's plane (offset x across its thickness) → craft space, bent with its half
+  const place = (x, y, z, side) => {
+    const a = side * beta;   // upper half leans its top inboard (−x), the lower half its bottom
+    return [x * Math.cos(a) - z * Math.sin(a), y, x * Math.sin(a) + z * Math.cos(a)];
+  };
+  const extrudes = [];
+  const sweeps = [];
+  for (const { side, pts } of halves) {
+    const from = place(0, 0, 0, side);
+    const to = place(T, 0, 0, side);
+    let ring = pts.map(([y, z]) => { const w = place(0, y, z, side); return [w[0] - from[0], w[1] - from[1], w[2] - from[2]]; });
+    // the kernel wants a counter-clockwise ring in its own (u, v): reverse a clockwise outline
+    const uv = planeUV(from, to, ring);
+    const area = uv.reduce((acc, p, i) => { const q = uv[(i + 1) % uv.length]; return acc + p[0] * q[1] - q[0] * p[1]; }, 0);
+    if (area < 0) ring = ring.reverse();
+    const tag = side > 0 ? '_upper' : side < 0 ? '_lower' : '';
+    extrudes.push(extrudeWorld(`panel${tag}`, from, to, ring, C.paint));
+    // the spars: a rib from the hub to each outer corner on the outer face
+    pts.filter(([, z]) => Math.abs(z) > 1e-9 || !side).forEach(([y, z], i) => {
+      sweeps.push(sweep(`rib${tag}_${i}`, [place(T, 0, 0, side), place(T, y * 0.97, z * 0.97, side)], 0.06, C.trim));
+    });
+  }
   const lathes = [lathe('hub', [0, 0, 0], [T + 0.12, 0, 0], [[0, 0.55], [1, 0.42]], C.trim)];
-  return { extrudes, sweeps, lathes, hardpoints: { mount: [0, 0, 0], center: [round3(T), 0, 0] } };
+  const hardpoints = { mount: [0, 0, 0], center: [round3(T), 0, 0] };
+  for (const [name, [y, z]] of Object.entries(b.points || {})) {
+    hardpoints[name] = r3v(place(T, (y * Wd) / 2, (z * Hh) / 2, beta ? Math.sign(z) || 1 : 0));
+  }
+  return { extrudes, sweeps, lathes, hardpoints };
 }
 
 // ---- propulsion -------------------------------------------------------------------------------
@@ -231,7 +375,16 @@ function buildEngine(row, C) {
       lathe('band', [0, L * 0.18, 0], [0, L * 0.08, 0], [[0, R * 1.04], [1, R * 1.04]], C.trim),
       lathe('glow', [0, -L / 2, 0], [0, -L / 2 - 0.04, 0], [[0, R * 0.78], [1, R * 0.78]], C.light, { material: 'neon' }),
     ];
-    return { lathes, hardpoints: { mount: [0, 0, 0], exhaust: [0, round3(-L / 2), 0] } };
+    return { lathes, hardpoints: { mount: [0, 0, 0], exhaust: [0, round3(-L / 2), 0], top: [0, round3(-L * 0.3), round3(R * 0.95)], bottom: [0, round3(-L * 0.3), round3(-R * 0.95)] } };
+  }
+  if (fam === 'radial') {
+    // a big radial under a short cowl: the mount is the firewall, the dark ring is the cylinder heads
+    const lathes = [
+      lathe('cowl', [0, 0, 0], [0, L, 0], [[0, R * 0.9], [0.45, R], [0.9, R * 0.97], [1, R * 0.84]], C.paint, { crossSections: 10, samples: 28 }),
+      lathe('flaps', [0, 0.02, 0], [0, -0.12, 0], [[0, R * 0.92], [1, R * 0.86]], C.trim, { harmonics: [{ n: 18, amplitude: 0.025 }] }),
+      lathe('heads', [0, L - 0.04, 0], [0, L + 0.01, 0], [[0, R * 0.8], [1, R * 0.8]], C.rubber, { harmonics: [{ n: 18, amplitude: 0.06 }] }),
+    ];
+    return { lathes, hardpoints: { mount: [0, 0, 0], propHub: [0, round3(L + 0.02), 0] } };
   }
   if (fam === 'bell') {
     // a main-drive bell: the mount is the throat ring, the bell flares aft
@@ -365,7 +518,9 @@ function buildGear(row, C) {
     const half = (Wt + b.oleo * 2.2) / 2;
     for (let i = 0; i < rows; i += 1) {
       const y = y0 - i * pitch;
-      lathes.push(...wheel(`l${i}`, -half, y, -S, D, Wt, C), ...wheel(`r${i}`, half, y, -S, D, Wt, C));
+      // two wheels a row on a truck; one a row on a tandem (a transport's sponson gear)
+      if (b.single) lathes.push(...wheel(`w${i}`, 0, y, -S, D, Wt, C));
+      else lathes.push(...wheel(`l${i}`, -half, y, -S, D, Wt, C), ...wheel(`r${i}`, half, y, -S, D, Wt, C));
     }
   } else if (b.family === 'skid') {
     // a landing strut and pad (spacecraft): no wheels
@@ -402,11 +557,13 @@ function buildCanopy(row, C) {
     return { lathes, sweeps, hardpoints: { mount: [0, 0, 0] } };
   }
   const rows = b.stations || [[0, 0.3, 0.25], [0.3, 1, 0.92], [0.7, 0.95, 1], [1, 0.6, 0.55]];
+  // a blown bubble, or (`facets`) flat panes like a faceted stealth canopy
+  const FACET = [[1, 0], [0.62, 0.7], [0.18, 1], [-0.18, 1], [-0.62, 0.7], [-1, 0], [-0.9, -0.03], [0.9, -0.03]];
   const stations = rows.map(([s, w, h]) => ({
     t: s,
-    points: section(Math.max(w * W / 2, 0.01), Math.max(h * H, 0.01), 2, 0.02).map(([x, z]) => [x, 0, z]),
+    points: (b.facets ? facetSection(Math.max(w * W / 2, 0.01), Math.max(h * H, 0.01), FACET) : section(Math.max(w * W / 2, 0.01), Math.max(h * H, 0.01), b.n || 2, 0.02)).map(([x, z]) => [x, 0, z]),
   }));
-  const lofts = [loftWorld('glass', [0, 0, 0], [0, -L, 0], stations, C.glass, { interp: 'smooth', material: 'glass' })];
+  const lofts = [loftWorld('glass', [0, 0, 0], [0, -L, 0], stations, C.glass, { ...(b.facets ? {} : { interp: 'smooth' }), material: 'glass' })];
   const sweeps = [];
   for (const f of b.bows || []) {
     const st = rows.reduce((acc, r) => (r[0] <= f ? r : acc), rows[0]);
@@ -417,6 +574,27 @@ function buildCanopy(row, C) {
     sweeps.push(sweep(`bow_${Math.round(f * 100)}`, path, 0.025, C.trim));
   }
   return { lofts, ...(sweeps.length ? { sweeps } : {}), hardpoints: { mount: [0, 0, 0] } };
+}
+
+/**
+ * An air intake on the fuselage: a duct lofted aft from its mouth (the mount at the mouth's inner
+ * edge), a dark face inside the lip, and for `halfCone` the shock cone standing in it. `side` sits
+ * outboard of the mount (a left one is its mirror); `chin` hangs below it.
+ */
+function buildIntake(row, C) {
+  const { length: L, width: w, height: h } = row.dims;
+  const b = row.build;
+  const n = b.n || 4;
+  const off = b.family === 'chin' ? [0, -h / 2] : [w / 2, 0];
+  const ring = (k) => section((w / 2) * k, (h / 2) * k, n, 1).map(([x, z]) => [x + off[0], 0, z + off[1]]);
+  const lofts = [loftWorld('duct', [0, 0, 0], [0, -L, 0], [{ t: 0, points: ring(1) }, { t: 0.35, points: ring(1.02) }, { t: 1, points: ring(0.6) }], C.paint, { interp: 'smooth' })];
+  const extrudes = [extrudeWorld('mouth', [0, 0.01, 0], [0, -0.06, 0], ring(0.84), C.rubber)];
+  const lathes = [];
+  if (b.family === 'halfCone') {
+    const r = Math.min(w, h) * 0.32;
+    lathes.push(lathe('cone', [off[0] - w * 0.12, w * 0.55, off[1]], [off[0] - w * 0.12, -0.08, off[1]], [[0, 0.01], [0.75, r * 0.9], [1, r]], C.chrome));
+  }
+  return { lofts, extrudes, ...(lathes.length ? { lathes } : {}), hardpoints: { mount: [0, 0, 0] } };
 }
 
 /** A pylon or a mount arm: the mount is its root, `carry` the far end where the store hangs. */
@@ -463,8 +641,8 @@ function buildWeapon(row, C) {
     const lathes = [
       lathe('body', [0, -bodyL * 0.5, 0], [0, bodyL * 0.5, 0], [[0, R * 1.6], [0.8, R * 1.6], [1, R * 1.1]], C.trim),
       lathe('barrel', [0, bodyL * 0.5, 0], [0, L - bodyL * 0.5 - L * 0.12, 0], [[0, R], [1, R * 0.8]], C.chrome, { samples: 14 }),
-      lathe('muzzle', [0, L - bodyL * 0.5 - L * 0.12, 0], [0, L - bodyL * 0.5, 0], [[0, 0.004], [0.08, R * 1.35], [0.9, R * 1.2], [1, 0.004]], C.trim, { harmonics: [{ n: 6, amplitude: 0.12 }] }),
-      lathe('tip', [0, L - bodyL * 0.5 - 0.01, 0], [0, L - bodyL * 0.5 + 0.03, 0], [[0, R * 0.6], [1, 0.004]], C.light, { material: 'neon' }),
+      lathe('muzzle', [0, L - bodyL * 0.5 - L * 0.12 - 0.03, 0], [0, L - bodyL * 0.5, 0], [[0, 0.004], [0.08, R * 1.35], [0.9, R * 1.2], [1, 0.004]], C.trim, { harmonics: [{ n: 6, amplitude: 0.12 }] }),
+      lathe('tip', [0, L - bodyL * 0.5 - 0.03, 0], [0, L - bodyL * 0.5 + 0.03, 0], [[0, R * 0.6], [1, 0.004]], C.light, { material: 'neon' }),
     ];
     return { lathes, hardpoints: { mount: [0, 0, 0], muzzle: [0, round3(L - bodyL * 0.5), 0] } };
   }
@@ -515,7 +693,7 @@ function buildWeapon(row, C) {
 
 export const CRAFT_BUILDERS = {
   'craft-fuselage': (row, C) => (row.build.family === 'ball' ? buildBall(row, C) : buildFuselage(row, C)),
-  'craft-wing': (row, C) => (row.build.family === 'hexPanel' ? buildHexPanel(row, C) : buildLiftingSurface(row, C)),
+  'craft-wing': (row, C, opts) => (row.build.family === 'panel' ? buildPanel(row, C) : buildLiftingSurface(row, C, opts)),
   'craft-stabilizer': buildLiftingSurface,
   'craft-fin': buildLiftingSurface,
   'craft-engine': buildEngine,
@@ -525,4 +703,5 @@ export const CRAFT_BUILDERS = {
   'craft-canopy': buildCanopy,
   'craft-pylon': buildPylon,
   'craft-weapon': buildWeapon,
+  'craft-intake': buildIntake,
 };
