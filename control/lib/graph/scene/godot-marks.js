@@ -66,6 +66,22 @@ export const PLATFORM_KEYS = Object.freeze({
     loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
   },
 });
+// the `ai` rule's opt-in moves the kernel's mind does not run (yet): the match player and the arena shooter's moves
+// (worlds/controllable/mind.js since the shooter spike). Named per level, as the platform rule's are.
+export const AI_LOST = Object.freeze({
+  floors: 'floors and their stairs', peek: 'peeking round an edge', items: 'items and their timing', keepRange: 'keeping a long gun\'s range',
+  perches: 'perches', objective: 'an objective to hold', clearLine: 'holding fire past a teammate', clearance: 'a flier\'s ground clearance',
+  hearRange: 'the match player (frag)', leadSpan: 'the match player (frag)', hunchEvery: 'the match player (frag)', fragGrudge: 'the match player (frag)',
+});
+/** The opt-in moves an `ai` rule asks for that the kernel's mind does not run, by name (each once). */
+export function aiLost(rule) {
+  if (!rule || rule.type !== 'ai') return [];
+  const out = Object.keys(rule).filter((k) => rule[k] != null && rule[k] !== false && AI_LOST[k]).map((k) => AI_LOST[k]);
+  if (rule.mind && rule.mind.motivation === 'frag') out.push('the match player (frag)');
+  if (Array.isArray(rule.loadout) && rule.loadout.some((c) => c && (Array.isArray(c.band) || c.held === false || c.plant))) out.push('the gun for the range (bands)');
+  return [...new Set(out)].sort();
+}
+
 // a camera rule's keys the kernel does not run (opt-in): the follow camera's lock tracking (the lock is the web's)
 export const CAMERA_LOST = Object.freeze({ lockTrack: 'the lock tracking' });
 
@@ -212,6 +228,7 @@ export const LINK_MARKS = Object.freeze({
 // the page plays as a shove-down set piece where the kernel plays the plain counter (the swinger stuffed and flung)
 export const MIND_WEB = Object.freeze({
   commander: { builtin: m(A, 'the commander is the page\'s: a commanded mind keeps its authored strategy'), agent: m(A, 'the commander is the page\'s (its hook and http ports)') },
+  motivation: { frag: m(A, 'the match player (sight, leads, hearing, hunches, the strafe) is the web\'s: kernel/mind.gd hunts as `hunt` does') },
   aggressiveness: { opportunist: m(P, 'kernel/mind.gd: the counter-charge runs; when the pilot is in it the page plays a shove-down set piece, the kernel the plain counter') },
 });
 export const mindMark = (axis, value) => MIND_WEB[axis]?.[value] ?? m(B, 'kernel/mind.gd runs it as the web\'s mind does (the mind corpus)');

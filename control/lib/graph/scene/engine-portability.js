@@ -50,6 +50,11 @@ export const MECHANIC_SAMPLES = Object.freeze({
   aftermath: {},
   bag: {},
   score: { points: [{ on: 'pickup:coin' }] },
+  respawn: { at: [0, 0, 0] },
+  frags: { rivals: ['bot-1'] },
+  control: { teams: { red: ['player', 'hero'], blue: ['bot-1'] }, at: [0, 0, 0] },   // the ratchet plays as player, the bus corpus as hero
+  regen: {},
+  abilities: { heal: true },
 });
 // what a lowered mechanic hands the SHELL beside its world (the bus carries the world): its mark in Godot
 export const MECHANIC_EXTRAS = Object.freeze({
@@ -142,7 +147,7 @@ function godotFlags(score) {
     const mk = RULE_MARKS[type];
     if (!mk) { out.push(flag('absent', `rule '${type}' is not marked (godot-marks.js RULE_MARKS)`, true)); continue; }
     // the pilot's rule runs whole but for the opt-in moves the kernel does not (PLATFORM_LOST), each named
-    if (row.lost && row.lost.length) out.push(flag('approximated', `rule '${type}' (${row.camera && !row.pilot ? 'the camera' : 'the pilot'}): the kernel runs it but for ${row.lost.join(', ')} (godot-marks.js PLATFORM_KEYS, CAMERA_LOST)`, false));
+    if (row.lost && row.lost.length) out.push(flag('approximated', `rule '${type}' (${row.camera && !row.pilot ? 'the camera' : type === 'ai' ? 'the minds' : 'the pilot'}): the kernel runs it but for ${row.lost.join(', ')} (godot-marks.js PLATFORM_KEYS, CAMERA_LOST, AI_LOST)`, false));
     // the page's camera runs in the kernel only when it watches the pilot the kernel walks by its rule
     if (row.unwatched != null) out.push(flag('approximated', `rule '${type}' (the camera) watches '${row.unwatched}', not a pilot the kernel walks by its rule: the walker's own first-person or spring-arm view stands in`, false));
     // only the pilot runs its walk or platform rule in the kernel: another walker stands where it was placed
