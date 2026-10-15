@@ -272,17 +272,54 @@ function dialsAndRig({ J, FINGERS, fingerJoints, hasTail, extraArms = [], arms2 
   return { dials, rig, clips };
 }
 
+/** THE SHAPES THAT BREAK THE OUTLINE (station-loft-body.js `locks`). They lie ALONG THE CONTOUR of the body (no `flow`:
+ * down the part as its surface curves; `against` on a trunk or a neck, whose parts rise) unless a shape is meant to
+ * stand against it for contrast (a crest of spines, a raised crest), which names its own flow. By kind: a section (`profile`), how far it stands
+ * off the skin (`lift`), how much its tip flicks (`curl`), its thickness to its width */
+export const LOCK_KINDS = Object.freeze({
+  tuft: { profile: 'blade', lift: 0.35, curl: 0.22 },
+  feather: { profile: 'feather', lift: 0.15, curl: 0.05, thin: 0.15 },
+  quill: { profile: 'quill', lift: 0.45, curl: 0 },
+  spine: { profile: 'spine', lift: 0.88, curl: 0 },
+});
+const lockOf = (kind, k) => (id, parts, s, t, rows, count, length, width, extra = {}) => { const K = LOCK_KINDS[kind], m = (v) => r3(v * k);
+  return { id, parts, share: true, s, t, rows, count, length: length.map(m), width: m(width), ...(K.thin ? { thick: m(width * K.thin) } : {}), lift: K.lift, curl: K.curl, ...(K.profile !== 'blade' ? { profile: K.profile } : {}), group: ['Fur', 'FurAlt'], ...extra }; };
+const noFlow = (L) => L.map(({ flow, ...x }) => (flow ? { ...x, flow } : x));
+/** FEATHERS AS SHAPES: a short cape of broad flat feathers over the upper arm's back, the thigh's feathering, a crest on
+ * the crown when the sheet's feathers say so; the body's rows stay painted (skin-paint.js `feathers`) */
+function featherLocks(k, { crest = false } = {}) {
+  const lock = lockOf('feather', k), L = [];
+  L.push(lock('cape', ['upperArmR', 'upperArmL'], [0.05, 0.55], [0.45, 1], 2, 3, [0.15, 0.12], 0.055));
+  L.push(lock('thighFeathers', ['thighR', 'thighL'], [0.25, 0.8], [0.2, 1], 2, 4, [0.12, 0.1], 0.05));
+  if (crest) L.push(lock('crest', ['cranium'], [0.06, 0.32], [0, 0.15], 3, 2, [0.16, 0.12], 0.04, { lift: 0.6, flow: [0, -1, 0.35], curl: 0.08 }));
+  return noFlow(L);
+}
+/** SPINES down the back: a paired row either side of the spine from the nape down the back, stout and standing (a
+ * dragon-kin's crest of spikes) */
+function spineLocks(k) {
+  const lock = lockOf('spine', k);
+  // one row on the midline (one side's window at the ring's back)
+  return noFlow([lock('spines', ['torso'], [0.3, 0.95], [0.97, 1], 6, 1, [0.1, 0.14], 0.04, { flow: [0, -0.5, 0.6], sides: ['R'] }),
+    lock('spinesNeck', ['neck'], [0.1, 0.9], [0.97, 1], 3, 1, [0.12, 0.09], 0.034, { flow: [0, -0.6, 0.5], sides: ['R'] })]);
+}
+/** QUILLS: long stiff needles over the back and the shoulders, standing and swept back (a porcupine-kin's) */
+function quillLocks(where, k) {
+  const lock = lockOf('quill', k);
+  return noFlow([lock('quills', ['torso'], [0.35, 0.98], [0.55, 1], 4, 6, [0.2, 0.26], 0.014, { against: true, jitter: 0.25 }),
+    ...(where.has('forearm') ? [lock('quillsArm', ['upperArmR', 'upperArmL'], [0.05, 0.5], [0.5, 1], 2, 3, [0.14, 0.12], 0.012)] : [])]);
+}
+
 /** FUR AS SHAPES (station-loft-body.js `locks`): directional tufts where they make the outline, each a few blades lying
  * down the coat's flow and flicking out at the tip: the elbow's (the back of the forearm), the outer thigh's, the
  * calf's, a ruff over the shoulders and up the neck when the people has one, a brush down the tail. Sizes by the body */
 function furLocks(where, k, hasTail, tail) {
-  const L = [], m = (v) => r3(v * k), lock = (id, parts, s, t, rows, count, length, width, extra = {}) => L.push({ id, parts, s, t, rows, count, length: length.map(m), width: m(width), lift: 0.5, flow: [0, -0.35, -1], curl: 0.22, group: ['Fur', 'FurAlt'], ...extra });
-  if (where.has('ruff')) { lock('ruff', ['torso'], [3.0, 4.0], [0, 3], 3, 7, [0.16, 0.11], 0.05, { lift: 0.55 }); lock('ruffNeck', ['neck'], [0.3, 1.5], [0, 3], 2, 5, [0.13, 0.09], 0.045); }
-  if (where.has('forearm')) lock('elbow', ['foreArmR', 'foreArmL'], [0.1, 0.9], [1.9, 3], 2, 2, [0.09, 0.06], 0.03, { curl: 0.3 });
-  if (where.has('thigh')) lock('thigh', ['thighR', 'thighL'], [0.3, 1.4], [1.2, 2.6], 2, 3, [0.1, 0.07], 0.035);
-  if (where.has('thigh') || where.has('shin')) lock('calf', ['shinR', 'shinL'], [0.2, 1.0], [2.1, 3], 1, 2, [0.07, 0.07], 0.028);
-  if (where.has('tail') && hasTail) lock('tail', [0, 1, 2, 3, 4].map((i) => `tail${i}`), [0.2, 1.8], [0, 3], 1, tail === 'brush' ? 5 : 3, tail === 'brush' ? [0.13, 0.13] : [0.08, 0.08], tail === 'brush' ? 0.045 : 0.03, { flow: undefined, curl: 0.25, lift: 0.35 });
-  return L.map(({ flow, ...x }) => (flow ? { ...x, flow } : x));
+  const L = [], lock = (...a) => L.push(lockOf('tuft', k)(...a));
+  if (where.has('ruff')) { lock('ruff', ['torso'], [0.74, 1], [0, 1], 3, 9, [0.16, 0.11], 0.05, { lift: 0.45, against: true }); lock('ruffNeck', ['neck'], [0.1, 0.8], [0, 1], 2, 6, [0.13, 0.09], 0.045, { against: true }); }
+  if (where.has('forearm')) lock('elbow', ['foreArmR', 'foreArmL'], [0.03, 0.4], [0.6, 1], 2, 2, [0.09, 0.06], 0.03, { curl: 0.3 });
+  if (where.has('thigh')) lock('thigh', ['thighR', 'thighL'], [0.15, 0.7], [0.4, 0.85], 2, 3, [0.1, 0.07], 0.035);
+  if (where.has('thigh') || where.has('shin')) lock('calf', ['shinR', 'shinL'], [0.1, 0.5], [0.7, 1], 1, 2, [0.07, 0.07], 0.028);
+  if (where.has('tail') && hasTail) lock('tail', [0, 1, 2, 3, 4].map((i) => `tail${i}`), [0.1, 0.9], [0, 1], 1, tail === 'brush' ? 5 : 3, tail === 'brush' ? [0.13, 0.13] : [0.08, 0.08], tail === 'brush' ? 0.045 : 0.03, { curl: 0.25, lift: 0.3 });
+  return noFlow(L);
 }
 
 function coverOf(cover, k, hasTail, tail) {
@@ -290,6 +327,7 @@ function coverOf(cover, k, hasTail, tail) {
   const T = COVER[cover.kind] || COVER.fur, where = new Set(cover.where);
   // a coat is SHAPES that break the outline (locks); scales and chitin lie flat (tiles)
   if (cover.kind === 'fur') return { tiles: [], locks: furLocks(where, k, hasTail, tail), ruff: where.has('ruff') };
+  if (cover.kind === 'quills') return { tiles: [], locks: quillLocks(where, k), ruff: false };
   const tiles = [];
   if (cover.kind === 'fur' && where.has('ruff')) tiles.push({ id: 'ruff', parts: ['torso'], s: [3.1, 4.0], t: [0, 4], grid: [2, 8], brick: true, ...T(0.09 * k), lean: -1.35 },
     { id: 'ruffNeck', parts: ['neck'], s: [0.55, 1.45], t: [0, 4], grid: [2, 8], brick: true, ...T(0.08 * k), lean: -1.35 });
@@ -315,9 +353,8 @@ function skinOf(cover, k, { reptileHead = false, hasTail = false, feathered = fa
     return L;
   }
   // FUR: the coat's lie in tufts down the body and limbs, the tail's longer; the head's short (the muzzle bare)
-  if (cover?.kind === 'fur') return [{ parts: ['torso', 'pelvis', 'neck', 'upperArm', 'foreArm', 'thigh', 'shin', 'meta'], pattern: 'fur', cell: r3(0.045 * k), contrast: 0.16 },
-    ...(hasTail ? [{ parts: TAIL_PARTS, pattern: 'fur', cell: r3(0.06 * k), contrast: 0.18 }] : []),
-    { parts: ['cranium'], run: [0, 0.55], pattern: 'fur', cell: r3(0.03 * k), contrast: 0.12 }];
+  // FUR: the coat is its tufts (locks, shapes that break the outline); nothing painted under them
+  if (cover?.kind === 'fur' || cover?.kind === 'quills') return [];
   // CHITIN: plates ringed round the body and every limb, a lip over a seam at each; the head's few large plates
   if (cover?.kind === 'chitin') return [{ parts: ['torso', 'pelvis', 'neck', 'upperArm', 'foreArm', 'thigh', 'shin', 'meta', 'upperArm2', 'foreArm2'], pattern: 'segments', cell: r3(0.07 * k), contrast: 0.14 },
     { parts: ['cranium'], pattern: 'plates', cell: r3(0.05 * k), contrast: 0.12 }];
@@ -378,6 +415,9 @@ function creature(sheet, title) {
   const head = headOf(sheet);
   const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail], hints.tail);
   const topo = topologyOf(sheet);
+  // the shapes that break the outline: the coat's (fur, quills), a bird-kin's feathers, a crest of spines when the sheet says so
+  const feathered = f.ancestry === 'avian' || head.id === 'beaked';
+  const shapes = [...cover.locks, ...(feathered ? featherLocks(k, { crest: noted(sheet, /feathers instead of hair: a crest|swept-back plumes/) }) : []), ...(noted(sheet, /crest of spikes down the nape and spine/) ? spineLocks(k) : [])];
   const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff, pole: f.pole, build: f.build, ...topo });
   const stance = stanceOf(sheet);
   const { dials, rig, clips } = dialsAndRig(body, stance);
@@ -413,14 +453,14 @@ function creature(sheet, title) {
     joints: body.joints, segments: body.segments, heads, details: body.details, dials, rig, clips,
     body: { refine: [{ parts: ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', ...(body.hasTail ? [0, 1, 2, 3, 4].map((i) => `tail${i}`) : [])] }, { parts: ['torso'], slots: false }],
       volume: [['torso', { 'front*': 0.8, 'side*': 0.4 }, { st3: 1, st2: 0.4 }, r3(0.03 * k * g)], ...['R', 'L'].map((S) => [`thigh${S}`, { front: 1, 'front*': 0.7 }, { st1: 1, st0: 0.3 }, r3(0.025 * k * g)])],
-      ...(cover.tiles.length ? { tiles: cover.tiles } : {}), ...(cover.locks.length ? { locks: cover.locks } : {}),
+      ...(cover.tiles.length ? { tiles: cover.tiles } : {}), ...(shapes.length ? { locks: shapes } : {}),
       pads: ['R', 'L'].flatMap((S) => [{ part: `hand${S}`, s: 1.3, toward: { flex: [`hand${S}`, `fingerB1${S}`], drive: { grip: 45 } }, r: 0.5 }, { part: `toes${S}`, s: 1.0, toward: { world: [0, 0, -1] }, r: 0.55 }]) },
     adorn: adornOf(kitOf(sheet), k, groups),
     // a pale coat's pattern is drawn in darker lines (light on light does not read)
-    ...(() => { const sk = skinOf(hints.cover, k, { reptileHead: reptile, hasTail: body.hasTail, feathered: f.ancestry === 'avian' || HEAD_LIBRARY[head.id].family === 'avian' }); return sk.length ? { skin: hexLch(skin)[0] >= PALE_COAT ? sk.map((R) => ({ ...R, lines: 'dark' })) : sk } : {}; })(),
+    ...(() => { const sk = skinOf(hints.cover, k, { reptileHead: reptile, hasTail: body.hasTail, feathered }); return sk.length ? { skin: hexLch(skin)[0] >= PALE_COAT ? sk.map((R) => ({ ...R, lines: 'dark' })) : sk } : {}; })(),
     palette,
   };
-  return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo };
+  return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo, shapes };
 }
 
 // ══════════ the hero door ══════════
@@ -481,7 +521,7 @@ function ledgerOf(sheet, door, built) {
       if (ch === 'wear' && !['seasoned', 'elder'].includes(sheet.facets.age)) { at = null; pending = 'no wear dials yet'; }
       if (ch === 'structure' && built.head.standIn) { at = null; pending = `no library head for ${sheet.facets.ancestry} yet: the ${built.head.id} head stands in; draw one from the nearest (creature-heads)`; }
       if (ch === 'ornament' && /horns|antennae|tusks|wings|crest|frill/.test(n.line) && !(built.head?.id === 'dragon' && /horns|crest/.test(n.line)) && !(built.head?.id === 'mandibled' && /antennae/.test(n.line))) { at = null; pending = 'an ornament the library head and the body plan do not carry yet'; }
-      if (ch === 'silhouette' && /wings|crest|frill|a pair/.test(n.line) && !(built.topo?.wings && /wings on the arms/.test(n.line))) { at = null; pending = 'not in the body plan yet (folded wings, a crest, a familiar)'; }
+      if (ch === 'silhouette' && /wings|crest|frill|a pair/.test(n.line) && !(built.topo?.wings && /wings on the arms/.test(n.line)) && !(/crest of spikes/.test(n.line) && built.shapes?.some((L) => L.id === 'spines'))) { at = null; pending = 'not in the body plan yet (folded wings, a crest, a familiar)'; }
       if (built.topo?.wings && /wings on the arms/.test(n.line)) at = 'plan.segments wingPrim1-3, wingSec1-2 (flight feathers on the hand and forearm)';
       if (built.topo?.arms2 && /second pair of arms/.test(n.line)) at = 'plan.segments upperArm2, foreArm2, hand2 (rigged)';
     }

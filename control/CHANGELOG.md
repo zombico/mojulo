@@ -247,6 +247,14 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
   over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
   to carry, so the skin no longer shows through the breeches in diamonds.
+- **Shapes that break the outline, along the body's contour.** The body's `locks` take a `profile` ('blade' the
+  default, a tuft; 'feather' broad and flat, its tip rounded; 'quill' a thin needle; 'spine' a stout cone), `share: true`
+  windows (s a share of the part's length, t of the ring half, so one window reads alike on every part) and `against`
+  (lying down a part whose s rises: a trunk, a neck). Without a `flow` a lock lies ALONG THE CONTOUR, down its part as
+  the surface curves; a shape that stands against the body for contrast names its own. The egocube's roll: a bird-kin
+  wears a short cape of feathers over the upper arms, feathered thighs and, when its sheet says so, a crest; a
+  dragon-kin whose sheet asks for "a crest of spikes down the nape and spine" grows one upright row of spines down its
+  back and neck; a people whose cover is `quills` grows them lying back over the back and shoulders.
 - **A coat's tufts are shapes that break the outline.** A furred people's roll grows its fur as `locks` (blades leaving
   the skin, lying down the coat's flow and flicking out at the tip) where they make the silhouette: the elbow's on the
   back of the forearm, the outer thigh's, the calf's, a ruff over the shoulders and up the neck when the people has one,
@@ -257,8 +265,8 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   `segments` (chitin rings, a light lip over a dark seam), each a cell size in metres, a contrast and windows (`t` round
   the ring, `run` down the part); a pattern fades out toward a part's ends, so two parts never meet in a seam at a
   joint (`fade: false` keeps it to the end); `lines: 'dark'` draws the lines darker than the hide (a pale coat's: the egocube
-  sets it on a coat of L* 62 or more). A coat's `fur` is a few choice hatch strokes, two or three short parallels, some
-  crossed, more toward the sides and the back; its tufts are geometry. The texture is value
+  sets it on a coat of L* 62 or more). `fur` is a few choice hatch strokes, two or three short parallels, some crossed,
+  more toward the sides and the back (opt-in: a rolled coat is its tufts, painted nothing). The texture is value
   only (a light rim round a darker cell), so the body's colours, its markings and both tones of the character light read
   through it, and the light's step and the ink fall over it, as on the painted face. One atlas per creature: each part a
   region covers gets its own rectangle (a whole number of cells round its ring, so the pattern closes), plus a white
@@ -266,8 +274,7 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   (its station's distance down the centreline, its slot round the ring). A region too fine to read at the creature's
   target is dropped; a second skin's cloth is not hide (war paint keeps the scales under it). The egocube's scaled
   peoples carry one: fine plates on a reptile's head, scales down the limbs, the tail and the back, broad scutes down the
-  throat, chest and belly; a bird-kin's body, neck, arms and crown in feathers (its beak bare) and its scaled shins; a
-  furred people's coat in tufts (the muzzle bare); an insect-kin's body and every limb ringed in chitin, its head in a
+  throat, chest and belly; a bird-kin's body, neck, arms and crown in feathers (its beak bare) and its scaled shins; an insect-kin's body and every limb ringed in chitin, its head in a
   few large plates. Absent, nothing changes.
 - **The concept: what character this is, before a piece is chosen.** `egocube/concept.js` reads a word off the sheet
   (warrior, noble, scholar, mystic, wanderer, artisan, healer, trickster; `wild` for a people below the clothed line,

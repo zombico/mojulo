@@ -2,7 +2,8 @@
 // faces its regions cover, the rest on a white tile; the character light's step falls over it. One scaled roll.
 import { describe, expect, it } from 'vitest';
 import { rollEgocube } from '../egocube/egocube.js';
-import { planFromSheet } from '../egocube/plan.js';
+import { planFromSheet, PALE_COAT } from '../egocube/plan.js';
+import { hexLch } from './station-loft-shade.js';
 import { compileOutfit } from './outfit-plan.js';
 import { expandPlan } from './station-loft-plan.js';
 import { compileLayered } from './station-loft.js';
@@ -46,9 +47,10 @@ describe('the skin', () => {
 
 describe('the hides a roll carries', () => {
   it('feathers on a bird-kin (its beak bare), fur on the furred, chitin rings on the insect-kin: each paints, and fades at a joint', () => {
-    const skinOfRoll = (ancestry, seed) => planFromSheet(rollEgocube({ seed, facets: { ancestry } }), { dress: 'designed' }).create.spec.plan.skin.map((R) => R.pattern);
+    const skinOfRoll = (ancestry, seed) => (planFromSheet(rollEgocube({ seed, facets: { ancestry } }), { dress: 'designed' }).create.spec.plan.skin ?? []).map((R) => R.pattern);
     expect(skinOfRoll('avian', 2)).toContain('feathers');
-    expect(skinOfRoll('lupine', 9)).toContain('fur');
+    // a coat is its tufts (body.locks, shapes that break the outline): nothing painted under it
+    expect(planFromSheet(rollEgocube({ seed: 9, facets: { ancestry: 'lupine' } }), { dress: 'designed' }).create.spec.plan.skin).toBeUndefined();
     expect(skinOfRoll('insectoid', 2)).toContain('segments');
     const bird = planFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } }), { dress: 'designed' }).create.spec.plan;
     expect(bird.skin.find((R) => R.parts.includes('cranium')).run[1]).toBeLessThan(0.5);
@@ -62,9 +64,11 @@ describe('the hides a roll carries', () => {
 
 describe('a pale coat', () => {
   it('draws its pattern in dark lines (light on light does not read); a dark coat keeps light ones', () => {
-    const coat = (ancestry, seed, humanity) => planFromSheet(rollEgocube({ seed, facets: { ancestry, ...(humanity === undefined ? {} : { humanity }) } }), { dress: 'designed' }).create.spec.plan;
-    expect(coat('feline', 4, 0.24).skin.every((R) => R.lines === 'dark')).toBe(true);
-    expect(coat('ursine', 5).skin.every((R) => R.lines === undefined)).toBe(true);
+    // the scaled peoples' coats run from ivory to obsidian: the first of each among a few rolls
+    const dragons = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((seed) => planFromSheet(rollEgocube({ seed, facets: { ancestry: 'draconic', humanity: 0.3 } }), { dress: 'designed' }).create.spec.plan).filter((p) => p.skin);
+    const L = (p) => hexLch(p.palette.Torso)[0];
+    expect(dragons.find((p) => L(p) >= PALE_COAT).skin.every((R) => R.lines === 'dark')).toBe(true);
+    expect(dragons.find((p) => L(p) < PALE_COAT).skin.every((R) => R.lines === undefined)).toBe(true);
     const keyOf = (lines) => skinPaintOf(mesh, [{ parts: ['foreArm'], pattern: 'scales', cell: 0.05, ...(lines ? { lines } : {}) }]).key;
     expect(keyOf('dark')).not.toBe(keyOf());
     expect(validateSkin([{ parts: ['torso'], pattern: 'fur', cell: 0.05, lines: 'grey' }])[0]).toMatch(/lines/);

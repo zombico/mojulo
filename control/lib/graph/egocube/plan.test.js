@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
-import { planFromSheet, shade, legible, BODY_MIN_L, EYE_ACCENTS } from './plan.js';
+import { planFromSheet, shade, legible, BODY_MIN_L, EYE_ACCENTS, LOCK_KINDS } from './plan.js';
+import { validateBody } from '../polygonizer/station-loft-body.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
 import { LINEAGES, HUMAN_IDS } from './ancestry.js';
 import { HEAD_LIBRARY, HEAD_IDS, headPlan, headFor } from '../creature-heads/index.js';
@@ -87,6 +88,26 @@ describe('a rolled beast\'s topology, from its frame\'s notes', () => {
     expect(bug.rig.bones.find((b) => b.perSide).perSide.map((b) => b.id)).toContain('upperArm2$S');
     expect(bug.dials.lean.parts).toContain('upperArm2L');
     expect(() => expandPlan(bug)).not.toThrow();
+  });
+});
+
+describe('the shapes that break the outline', () => {
+  const roll = (facets, lineages) => planFromSheet(rollEgocube({ seed: 2, facets, ...(lineages ? { lineages } : {}) }), { dress: 'designed' }).create.spec.plan;
+  it('lie along the body\'s contour unless they stand for contrast: a coat\'s tufts, a bird\'s feathers, quills; a crest of spines stands', () => {
+    const wolf = roll({ ancestry: 'lupine', humanity: 0.24 }), bird = roll({ ancestry: 'avian', humanity: 0.2 }), dragon = roll({ ancestry: 'draconic', humanity: 0.2 });
+    for (const L of [...wolf.body.locks, ...bird.body.locks.filter((x) => x.id !== 'crest')]) { expect(L.flow, L.id).toBeUndefined(); expect(L.share).toBe(true); }
+    expect(wolf.body.locks.find((L) => L.id === 'ruff').against).toBe(true);   // a trunk's coat lies down it
+    expect(bird.body.locks.every((L) => L.profile === 'feather')).toBe(true);
+    const spines = dragon.body.locks.find((L) => L.id === 'spines');
+    expect(spines.profile).toBe('spine'); expect(spines.sides).toEqual(['R']); expect(spines.flow).toBeTruthy(); expect(spines.lift).toBeGreaterThan(LOCK_KINDS.tuft.lift);
+    const kin = roll({ ancestry: 'quill', humanity: 0.22 }, { quill: { reads: 'porcupine-kin', humanity: [0.2, 0.5], cover: { brown: '#5a4632' }, cues: [{ at: 1, ch: 'cover', line: 'quills over the back', plan: { cover: { kind: 'quills', where: [] } } }, { at: 1, ch: 'structure', line: 'a blunt muzzle', derives: ['door = creature'] }] } });
+    expect(kin.body.locks.map((L) => L.profile)).toEqual(['quill']);
+    expect(() => expandPlan(kin)).not.toThrow();
+  });
+  it('a lock\'s section is a named profile', () => {
+    const parts = { torso: {} }, K = { parts: ['torso'], s: [0, 1], t: [0, 1], group: ['Fur'], length: 0.1, width: 0.02 };
+    expect(validateBody({ locks: [{ ...K, profile: 'feather' }] }, parts)).toEqual([]);
+    expect(validateBody({ locks: [{ ...K, profile: 'leaf' }] }, parts)[0]).toMatch(/profile: 'blade' \| 'feather' \| 'quill' \| 'spine'/);
   });
 });
 

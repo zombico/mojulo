@@ -136,7 +136,19 @@ function rigidTiles(L1, name, side, T, idBase, dom, keep = [], RIGID_W = RIGID) 
  * rings, its half-width `width` (m) at the root tapering to a point, its thickness `thick` (m; a quarter of the width by
  * default), its length graded from `length[0]` (the first row) to `length[1]` (the last), jittered by `jitter`. It leaves
  * the skin at `lift` (1 standing straight out, 0 lying flat) and bends to lie along `flow` (a world direction, laid onto
- * the skin; absent, down the part's s), its tip flicked outward by `curl` (in lengths, away from the midline). */
+ * the skin; absent, down the part's s), its tip flicked outward by `curl` (in lengths, away from the midline);
+ * `share: true` reads s and t as shares (of the part's length; of the ring half, 0 the front, 1 the back). Its
+ * section by `profile`: 'blade' (the default, a tuft), 'feather', 'quill', 'spine' (PROFILES_LOCK). */
+/** a lock's section down its length (u 0 the root → 1 the tip): its half-width and its half-thickness. `blade` (the
+ * default): a tuft of fur, tapering to a point; `feather`: broad and flat, full to near its end, its tip rounded off;
+ * `quill`: a thin round needle; `spine`: a stout cone (a reptile's dorsal spike, a horn's row) */
+const PROFILES_LOCK = Object.freeze({
+  blade: (w, th, u) => [w * (1 - u) ** 0.8, th * (1 - u)],
+  feather: (w, th, u) => [w * (0.65 + 0.35 * Math.sin(Math.PI * Math.min(1, 0.3 + u))), th * (1 - 0.5 * u)],
+  quill: (w, th, u) => [w * (1 - u) ** 1.5, w * (1 - u) ** 1.5],
+  spine: (w, th, u) => [w * (1 - u) ** 1.2, w * 0.8 * (1 - u) ** 1.2],
+});
+export const LOCK_PROFILES = Object.freeze(Object.keys(PROFILES_LOCK));
 function locks(L1, name, side, K, idBase, dom) {
   const out = {}, anchors = {}; const [s0, s1] = K.s, [t0, t1] = K.t, rows = Math.max(1, K.rows ?? 1), n = Math.max(1, K.count ?? 4), N = Math.max(2, K.segments ?? 5);
   const [L0, L9] = Array.isArray(K.length) ? K.length : [K.length, K.length], lift = clamp(K.lift ?? 0.6, 0, 1);
@@ -146,7 +158,10 @@ function locks(L1, name, side, K, idBase, dom) {
     const sc = s0 + (rows === 1 ? 0.5 : j / (rows - 1)) * (s1 - s0), tc = t0 + (i + 0.5 + (j % 2 ? 0.5 : 0) + (K.wobble ?? 0) * (r1 - 0.5)) / (n + (j % 2 ? 0.5 : 0)) * (t1 - t0);
     if (tc > t1 + 1e-9) continue;
     const F = frameAt(L1, name, [sc, tc], side), nrm = F.normal, c = F.origin;
-    let f = K.flow ? sub(K.flow, mul(nrm, dot(K.flow, nrm))) : sub(frameAt(L1, name, [clamp(sc + 0.25, s0, sMax(L1[name])), tc], side).origin, c);
+    // absent `flow`: ALONG THE CONTOUR, down the part's own s as the surface curves (`against: true` up it: a trunk's
+    // and a neck's s rise, and their coat lies down)
+    let f = K.flow ? sub(K.flow, mul(nrm, dot(K.flow, nrm))) : K.against ? sub(c, frameAt(L1, name, [clamp(sc - 0.25, 0, sMax(L1[name])), tc], side).origin) : sub(frameAt(L1, name, [clamp(sc + 0.25, s0, sMax(L1[name])), tc], side).origin, c);
+    if (K.against && !K.flow) f = mul(f, -1);
     f = dmath.hypot(...f) > 1e-6 ? unit(f) : unit(sub([0, 0, -1], mul(nrm, -nrm[2])));
     let b = unit([f[1] * nrm[2] - f[2] * nrm[1], f[2] * nrm[0] - f[0] * nrm[2], f[0] * nrm[1] - f[1] * nrm[0]]); if (b[0] * (c[0] || (side === 'L' ? -1 : 1)) < 0) b = mul(b, -1);   // outward
     const L = (L0 + (L9 - L0) * (rows === 1 ? 0 : j / (rows - 1))) * (1 + (K.jitter ?? 0) * (2 * r2 - 1)), w = K.width * (1 + 0.5 * (K.jitter ?? 0) * (2 * r3 - 1)), th = K.thick ?? w * 0.25;
@@ -154,7 +169,7 @@ function locks(L1, name, side, K, idBase, dom) {
     const a0 = (1 - lift) * Math.PI / 2, spine = [sub(c, mul(nrm, 0.003))]; let p0 = spine[0];
     for (let k = 1; k <= N; k++) { const u = k / N, a = a0 + (Math.PI / 2 - a0) * u, d = add(mul(nrm, dmath.cos(a)), mul(f, dmath.sin(a)));
       p0 = add(p0, mul(d, L / N)); spine.push(add(p0, mul(b, (K.curl ?? 0) * L * u * u))); }
-    const rings = spine.slice(0, -1).map((p, k) => { const u = k / N, d = unit(sub(spine[k + 1], p)), up = unit([b[1] * d[2] - b[2] * d[1], b[2] * d[0] - b[0] * d[2], b[0] * d[1] - b[1] * d[0]]), ww = w * (1 - u) ** 0.8, tt = th * (1 - u);
+    const rings = spine.slice(0, -1).map((p, k) => { const u = k / N, d = unit(sub(spine[k + 1], p)), up = unit([b[1] * d[2] - b[2] * d[1], b[2] * d[0] - b[0] * d[2], b[0] * d[1] - b[1] * d[0]]), [ww, tt] = PROFILES_LOCK[K.profile ?? 'blade'](w, th, u);
       return [add(p, mul(b, ww)), add(p, mul(up, tt)), add(p, mul(b, -ww)), add(p, mul(up, -tt))]; });
     out[id] = { ...loftParts(rings, sub(c, mul(nrm, 0.006)), spine[N]), group: K.group[(i + j) % K.group.length], bone: dom(sc).bone };
     anchors[id] = { part: name, at: [sc, tc], side };
@@ -194,7 +209,10 @@ export function detailBody(src, body, dials = {}, { binds = false } = {}) {
   for (const T of body.tiles || []) for (const p of T.parts) { const dom = dominance(src.parts[p]); for (const side of ['R', 'L']) { const g = rigidTiles(L1, p, side, T, T.id ? `tile.${T.id}.${p}.${side}` : `tile.${p}.${side}`, dom, keep, RIGID_W);
     for (const k of Object.keys(g.tiles)) if (parts[k]) throw new Error(`body: tile ${k} is grown twice — give each tile window on ${p} its own id`);
     Object.assign(parts, g.tiles); Object.assign(anchors, g.anchors); stats.gatedTiles += g.gated; } }
-  for (const K of body.locks || []) for (const p of K.parts) { const dom = dominance(src.parts[p]); for (const side of K.sides ?? ['R', 'L']) { const g = locks(L1, p, side, K, `lock.${K.id ?? 'fur'}.${p}.${side}`, dom);
+  // `share: true`: a lock window's s as a share of its part's length and t as a share of the ring half (0 the front, 1 the
+  // back), the measure body paint and adornment use: one window reads alike on parts whose stations or slots differ
+  for (const K0 of body.locks || []) for (const p of K0.parts) { const dom = dominance(src.parts[p]), K = K0.share ? { ...K0, s: K0.s.map((x) => x * sMax(L1[p])), t: K0.t.map((x) => x * H(L1[p])) } : K0;
+    for (const side of K.sides ?? ['R', 'L']) { const g = locks(L1, p, side, K, `lock.${K.id ?? 'fur'}.${p}.${side}`, dom);
     for (const k of Object.keys(g.locks)) if (parts[k]) throw new Error(`body: lock ${k} is grown twice — give each lock window on ${p} its own id`);
     Object.assign(parts, g.locks); Object.assign(anchors, g.anchors); } }
   for (const S of body.rows || []) { const P = L1[S.part], dom = dominance(src.parts[S.part]); const t = P.slotT?.[S.t] ?? H(P); const R = radius(L1, S.part); const kind = S.shape ?? 'spur';
@@ -232,7 +250,7 @@ export function validateBody(body, parts) {
   for (const [i, v] of (body.volume || []).entries()) if (!Array.isArray(v) || v.length !== 4) errs.push(`body.volume[${i}]: [part, slotWeights, stationWeights, metres]`); else need(v[0], `body.volume[${i}]`);
   for (const [i, j] of (body.creases?.joints || []).entries()) if (!Array.isArray(j) || j.length < 2) errs.push(`body.creases.joints[${i}]: [partA, partB, group?]`); else { need(j[0], `body.creases.joints[${i}]`); need(j[1], `body.creases.joints[${i}]`); }
   for (const [i, T] of (body.tiles || []).entries()) { if (!Array.isArray(T.parts) || !Array.isArray(T.s) || !Array.isArray(T.t) || !Array.isArray(T.grid) || !Array.isArray(T.group) || !Number.isFinite(T.height) || !Number.isFinite(T.inset)) errs.push(`body.tiles[${i}]: { parts, s: [s0, s1], t: [t0, t1], grid: [ns, nt], height, inset, group: [names] }`); else T.parts.forEach((p) => need(p, `body.tiles[${i}]`)); }
-  for (const [i, K] of (body.locks || []).entries()) { if (!Array.isArray(K.parts) || !Array.isArray(K.s) || !Array.isArray(K.t) || !Array.isArray(K.group) || !(Number.isFinite(K.length) || (Array.isArray(K.length) && K.length.length === 2 && K.length.every(Number.isFinite))) || !Number.isFinite(K.width)) errs.push(`body.locks[${i}]: { parts, s: [s0, s1], t: [t0, t1], rows?, count?, length: m | [first row, last row], width, thick?, lift?, flow?: [x, y, z], curl?, jitter?, segments?, sides?, group: [names] }`); else K.parts.forEach((p) => need(p, `body.locks[${i}]`)); }
+  for (const [i, K] of (body.locks || []).entries()) { if (!Array.isArray(K.parts) || !Array.isArray(K.s) || !Array.isArray(K.t) || !Array.isArray(K.group) || !(Number.isFinite(K.length) || (Array.isArray(K.length) && K.length.length === 2 && K.length.every(Number.isFinite))) || !Number.isFinite(K.width)) errs.push(`body.locks[${i}]: { parts, s: [s0, s1], t: [t0, t1], rows?, count?, length: m | [first row, last row], width, thick?, lift?, flow?: [x, y, z], curl?, jitter?, segments?, sides?, group: [names] }`); else { K.parts.forEach((p) => need(p, `body.locks[${i}]`)); if (K.profile !== undefined && !LOCK_PROFILES.includes(K.profile)) errs.push(`body.locks[${i}].profile: ${LOCK_PROFILES.map((x) => `'${x}'`).join(' | ')}`); } }
   for (const [i, P] of (body.pads || []).entries()) { if (!P.part || !Number.isFinite(P.s) || !Number.isFinite(P.r) || !P.toward || !(P.toward.world || P.toward.flex || P.toward.away)) errs.push(`body.pads[${i}]: { part, s, r, toward: { world } | { flex: [a, b], drive? } | { away: [a, b] } }`); else need(P.part, `body.pads[${i}]`); }
   for (const [i, S] of (body.rows || []).entries()) { if (!S.part || !Array.isArray(S.s) || !(S.step > 0)) errs.push(`body.rows[${i}]: { part, t, s: [s0, s1], step, shape?: 'spur' | 'stud', r }`); else need(S.part, `body.rows[${i}]`); }
   for (const [i, C] of (body.collars || []).entries()) { if (!C.part || !Number.isFinite(C.height)) errs.push(`body.collars[${i}]: { part, at: <station id>, height, width? }`); else need(C.part, `body.collars[${i}]`); }
