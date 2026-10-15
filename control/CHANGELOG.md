@@ -120,8 +120,15 @@ its own body on an arena; the stick figures are the simulation's own dummies, dr
   hips and sits into the back hip, energy and poise lean it, a brute's or a stout build's stays shut, a lithe one's
   opens. The 3D figure still matches the sim's side view: the chest and hips turn back, and the lean straightens,
   only as far as the limbs need to reach where the sim put the hands and feet. Walking forward rolls the shoulder
-  into the step and sways the trunk, walking back turns it away; the idle guard breathes in the same turn. The sim
-  and its boxes are unchanged.
+  into the step and sways the trunk, walking back turns it away; the idle guard breathes in the same turn.
+- **Bodies that stop short of each other** (the push boxes). On the ground a push box is the trunk as the round body
+  stands it: from the pelvis through the shoulders to the head, as far forward as the guard leans it, thickened by
+  the stance's opened chest (the lead shoulder forward, the rear one back), so two characters walked into each other
+  stop with their trunks a few centimetres apart instead of through each other (they overlapped by about a fifth of a
+  metre; a test poses the characters' own meshes where the sim leaves them). In the air the push box is the column it
+  was, so jumps still cross over. A throw reaches the same arm's length past the chest, a wall stops the box itself,
+  and pushback at a wall reads the body's back. The drawn bodies ease over more steps when their joints have far to
+  go, a second blow that throws a body another way starts its ease over, and a new round is a cut.
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless

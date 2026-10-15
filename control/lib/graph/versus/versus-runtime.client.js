@@ -175,18 +175,31 @@ function stepMatch(m) {
 /**
  * The bodies drawn, one a step: each body's pose this step and its joints, eased in from the joints drawn before
  * whenever it changes state or move, or a state starts over (a second hit in a stun): over two steps into a move,
- * four into anything else. The JOINTS blend, not the angles, so a body falling onto the floor travels down to it
- * instead of jumping. Drawing reads `drawnPose` (the pose, for its round-body channels, and the joints).
+ * four into anything else, and more when the joints have far to go (no joint further in a step than BLEND_STEP of
+ * the body's height: a held body flung into its fall swings its arms over, it does not jump). The JOINTS blend, not
+ * the angles, so a body falling onto the floor travels down to it instead of jumping. A new round is a cut. Drawing
+ * reads `drawnPose` (the pose, for its round-body channels, and the joints).
  */
+const BLEND_STEP = 0.2;
 function tickPoses(m) {
   m.drawn = m.drawn || [null, null];
   for (let i = 0; i < 2; i++) {
     const p = m.s.p[i], F = m.ctx.fighters[i];
     const pose = poseOf(p, F, m.t + i * 40, m.s.rules), J = rigJoints(F.body, pose);
-    const key = p.mv ? `mv:${p.mv}` : `st:${p.st}`;
+    // (what it reacts to is part of the state: a second blow that throws it another way starts it over)
+    const key = p.mv ? `mv:${p.mv}` : `st:${p.st}${p.rx ? `:${p.rx.k}${p.rx.h}` : ''}`;
     const d = m.drawn[i];
-    if (!d) { m.drawn[i] = { key, sf: p.sf, from: J, k: 1, n: 1, pose, J }; continue; }
-    if (key !== d.key || (!p.mv && p.sf < d.sf)) { d.from = d.J; d.k = 0; d.key = key; d.n = p.mv ? 2 : 4; }
+    // a new round is a cut (the bodies are set on their marks): drawn as they are, nothing eased in
+    if (!d || d.round !== m.s.round) { m.drawn[i] = { key, sf: p.sf, round: m.s.round, from: J, k: 1, n: 1, pose, J }; continue; }
+    if (key !== d.key || (!p.mv && p.sf < d.sf)) {
+      d.from = d.J; d.k = 0; d.key = key; d.n = p.mv ? 2 : 4;
+      if (!p.mv) {
+        // the eased step's fastest is 1.5 times its average
+        let far = 0;
+        for (const k of Object.keys(J)) far = Math.max(far, Math.hypot(J[k][0] - d.from[k][0], J[k][1] - d.from[k][1]));
+        d.n = Math.max(d.n, Math.ceil((1.5 * far) / (BLEND_STEP * F.body.height)));
+      }
+    }
     d.sf = p.sf;
     d.k = Math.min(1, d.k + 1 / d.n);
     const e = d.k * d.k * (3 - 2 * d.k);

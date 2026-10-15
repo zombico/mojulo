@@ -453,18 +453,18 @@ function separate(s, ctx, before) {
     const pl = left === 0 ? pa : pb, pr = left === 0 ? pb : pa;
     const over = pl[2] - pr[0];
     if (over > 0) {
-      const lw = L.x - (pl[2] - pl[0]) / 2 <= -R.half + 1, rw = Rr.x + (pr[2] - pr[0]) / 2 >= R.half - 1;
+      const lw = pl[0] <= -R.half + 1, rw = pr[2] >= R.half - 1;
       const sl = lw ? 0 : rw ? over : Math.ceil(over / 2);
       L.x -= sl;
       Rr.x += over - sl;
     }
   }
-  // walls
+  // walls: no body's push box past one
   for (let i = 0; i < 2; i++) {
     const p = s.p[i];
-    const half = Math.round(ctx.fighters[i].idle.stand.push[2]);
-    if (p.x < -R.half + half) p.x = -R.half + half;
-    if (p.x > R.half - half) p.x = R.half - half;
+    const box = pushBox(p, ctx.fighters[i]);
+    if (box[0] < -R.half) p.x += -R.half - box[0];
+    else if (box[2] > R.half) p.x -= box[2] - R.half;
   }
   // a thrown body rides the thrower's hands
   for (let i = 0; i < 2; i++) {
@@ -649,7 +649,7 @@ function applyHit(s, ctx, { a, m, shot }) {
     if (d.hp <= 0) ko(s, 1 - a, face);
     return;
   }
-  const atWall = (dx) => Math.abs(d.x + dx) >= s.rules.half - ctx.fighters[1 - a].idle.stand.push[2] - 30;
+  const atWall = (dx) => Math.abs(d.x + dx) >= s.rules.half + ctx.fighters[1 - a].idle.stand.push[0] - 30;   // its back to it
   const pushOut = (amount) => {
     const per = Math.round(amount / 8);
     if (atWall(face * 40) && !shot) { p.pushv = -face * per; p.pushn = 8; }

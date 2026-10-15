@@ -53,8 +53,10 @@ const AIR_STUN = { L: [14, 10], M: [17, 13], H: [20, 16] };
 const PROJECTILE_STUN = [22, 18];
 
 const ease = (t) => t * t * (3 - 2 * t);
-// a push box's half-width in trunk radii: two bodies stop a little wider than their trunks, as they read on screen
+// a push box's half-width in trunk radii in the air (a body in flight is pushed as a column about its pelvis)
 const PUSH_HALF = 1.45;
+// on the ground two bodies stop where their trunks would touch, as the round body stands them, and this much apart (mm)
+const PUSH_GAP = 40;
 
 /** The trunk and leg boxes of a pose, plus the box of a limb when it is out. */
 function hurtOf(body, J, limb) {
@@ -68,18 +70,31 @@ function hurtOf(body, J, limb) {
   return boxes.map(roundBox);
 }
 
-function pushOf(body, J, air) {
-  const half = Math.round(body.bodyR * PUSH_HALF);
-  const y0 = air ? Math.round(Math.min(J.ankleF[1], J.ankleB[1], J.pelvis[1] - body.thigh * 0.5)) : 0;
-  return [-half, y0, half, Math.round(J.neck[1])];
+/**
+ * A pose's push box. On the ground it is the TRUNK AS THE ROUND BODY STANDS IT (versus-figure.js): the line from the
+ * pelvis through the shoulders to the head, fattened by the trunk's half-thickness along the plane, which the stance
+ * widens (the chest opened `open` degrees to the camera puts the lead shoulder forward and the rear one back, the
+ * shoulder's own thickness, a limb and a half, beyond them); a body leaning into its guard pushes from where its chest
+ * is, not from its feet, so two trunks stop short of each other. In the air it is a column about the pelvis, so a jump
+ * still crosses over.
+ */
+function pushOf(body, J, air, open) {
+  const top = Math.round(J.neck[1]);
+  if (air) {
+    const half = Math.round(body.bodyR * PUSH_HALF);
+    return [-half, Math.round(Math.min(J.ankleF[1], J.ankleB[1], J.pelvis[1] - body.thigh * 0.5)), half, top];
+  }
+  const t = Math.max(body.bodyR, body.bodyR * 1.2 * Math.sin(open * Math.PI / 180) + body.limbR * 1.5);
+  const xs = [J.pelvis, J.shoulder, J.neck, J.head].map((q) => q[0]);
+  return [Math.round(Math.min(...xs) - t), 0, Math.round(Math.max(...xs) + t + PUSH_GAP / 2), top];
 }
 
-/** A stance's idle boxes (stand, crouch, air, fall). */
-function idleOf(body) {
+/** A stance's idle boxes (stand, crouch, air, fall), the push boxes as its stance stands it. */
+function idleOf(body, stance) {
   const out = {};
   for (const [k, pose] of [['stand', POSES.guard], ['crouch', POSES.crouch], ['air', POSES.jump], ['fall', POSES.fall]]) {
     const J = rigJoints(body, pose);
-    out[k] = { hurt: hurtOf(body, J), push: pushOf(body, J, !!pose.air) };
+    out[k] = { hurt: hurtOf(body, J), push: pushOf(body, J, !!pose.air, stance.open) };
   }
   return out;
 }
@@ -660,6 +675,11 @@ export function compileFighter(recipe) {
   if (recipe.super) moves.super = compileSuper(body, recipe.super.id, { lib: specials, supers, tune: recipe.super.tune, weapon });
   for (const m of Object.values(moves)) m.adv = frameAdvantage(m);
   const jump = { ...MOVEMENT.jump, ...(recipe.jump ?? {}) };
+  const stance = { ...DEFAULT_STANCE, ...(recipe.stance ?? {}) };
+  const idle = idleOf(body, stance);
+  // a grab reaches an arm's length past the chest: from the push box's front as the stance stands it
+  const chest = idle.stand.push[2] - Math.round(body.bodyR * PUSH_HALF);
+  for (const m of Object.values(moves)) if (m.throw) { m.throw.range += chest; m.reach = m.throw.range; }
   return {
     id: recipe.id ?? 'fighter',
     name: recipe.name ?? recipe.id ?? 'Fighter',
@@ -670,8 +690,8 @@ export function compileFighter(recipe) {
     walk: { ...MOVEMENT.walk, ...(recipe.walk ?? {}) },
     dash: { f: { ...MOVEMENT.dash.f, ...(recipe.dash?.f ?? {}) }, b: { ...MOVEMENT.dash.b, ...(recipe.dash?.b ?? {}) } },
     jump,
-    idle: idleOf(body),
-    stance: { ...DEFAULT_STANCE, ...(recipe.stance ?? {}) },
+    idle,
+    stance,
     ...(weapon ? { weapon } : {}),
     moves,
   };

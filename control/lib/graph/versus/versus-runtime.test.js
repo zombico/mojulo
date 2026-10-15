@@ -46,12 +46,12 @@ describe('versus runtime: the bodies move, they never pop', () => {
   it('every state change eases in from the body drawn before it: no joint jumps in a step (a move moves at its own speed)', () => {
     const R = loadPoses();
     const m = R.newMatch({ fighters: [F, F], names: ['A', 'B'], colors: ['#e0503a', '#3a9be0'], schemes: ['modern', 'modern'], mode: 'watch', level: 3, rules: {}, seed: 7 });
-    let worst = 0, raw = 0, prev = null, reactions = 0;
-    for (let k = 0; k < 1500; k++) {
-      const was = m.s.p.map((p) => !!p.mv);
+    let worst = 0, raw = 0, prev = null, reactions = 0, rounds = 0;
+    for (let k = 0; k < 4000; k++) {
+      const was = m.s.p.map((p) => !!p.mv), round = m.s.round;
       R.stepMatch(m);
       const now = [0, 1].map((i) => ({ drawn: R.drawnPose(m, i).J, bare: R.rigJoints(F.body, R.poseOf(m.s.p[i], F, m.t + i * 40, m.s.rules)), mv: !!m.s.p[i].mv }));
-      if (prev) for (let i = 0; i < 2; i++) {
+      if (prev && round === m.s.round) for (let i = 0; i < 2; i++) {   // (a new round is a cut, drawn as it stands)
         if (now[i].mv || was[i]) continue;   // a move's frames are its frame data
         for (const j of Object.keys(now[i].drawn)) {
           worst = Math.max(worst, Math.hypot(now[i].drawn[j][0] - prev[i].drawn[j][0], now[i].drawn[j][1] - prev[i].drawn[j][1]));
@@ -59,6 +59,7 @@ describe('versus runtime: the bodies move, they never pop', () => {
         }
       }
       if (m.s.p.some((p) => p.rx)) reactions++;
+      rounds = m.s.round;
       prev = now;
     }
     expect(reactions).toBeGreaterThan(0);
@@ -66,5 +67,6 @@ describe('versus runtime: the bodies move, they never pop', () => {
     expect(raw).toBeGreaterThan(worst * 1.5);
     // (a heavy blow still flings an arm fast: the impact is struck at once and held through the freeze)
     expect(worst).toBeLessThan(F.body.height * 0.3);
+    expect(rounds).toBeGreaterThan(1);
   });
 });
