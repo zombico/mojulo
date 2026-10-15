@@ -25,6 +25,7 @@ import { resolveAdapterId } from '@/lib/mcp/adapters/loader';
 import { getClientInfo } from '@/lib/mcp/client-bindings';
 import { hostProfileForAdapter, getHostProfile, hostHandoff } from './registry.js';
 import { pluginProfileActive } from '../plugin-profile.js';
+import { shareOffer } from '../../graph/game/share-offer.js';
 
 export const SURFACES = new Set(['local', 'box']);
 
@@ -276,4 +277,11 @@ export function fitsForContext(context, artifact, env = process.env) {
  * context and env, then notes. */
 export function handoffForContext(context, artifact, env = process.env) {
   return handoffFor({ host: resolveHandoffHost(context, env), surface: resolveHandoffSurface(context, env), artifact });
+}
+
+/** A finished game's share offer on this host (../../graph/game/share-offer.js): the same host and surface resolution as
+ * the handoff note, so what the offer says is possible and the door the export then names never disagree. */
+export function shareForContext(context, game, env = process.env) {
+  const host = resolveHandoffHost(context, env);
+  return shareOffer({ ...game, table: hostHandoff(host), surface: resolveHandoffSurface(context, env) });
 }

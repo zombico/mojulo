@@ -39,6 +39,12 @@ describe('design_game quick', () => {
     // the light play shell, and a playtest of the same game
     expect(stored('q-game').shell).toBe('play');
     expect(out.next.find((n) => n.step === 'play')).toMatchObject({ gate: 'eyes', card: 'gameworld-next', playtest: '/api/sketches/q-game/playtest' });
+    // complete: the call that made the game asks how to share it; later readouts carry only what the host allows
+    expect(out.share.ask).toMatch(/ask the operator/);
+    expect(out.share.options.map((o) => o.id)).toEqual(['play', 'desktop', 'web', 'godot']);
+    const again = await designGameHandler({ ref: 'q' }, { host: 'grok-chat' });
+    expect(again.share).toBeUndefined();
+    expect(again.next.find((n) => n.step === 'share')).toMatchObject({ can: { play: 'no', desktop: 'no', web: 'no', godot: 'no' }, card: 'gameworld-next' });
   }, 240_000);
 
   it('reach with a climb and a hero the door draws: the hero pilots both stages, the climb\'s exit is its top, in volume', async () => {

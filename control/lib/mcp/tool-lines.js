@@ -83,7 +83,7 @@ export const TOOL_LINES = {
   bake_sprite_sheet: L('update', 'Quantize accepted sprite frames into pixel sprites under one palette, written back onto the sheet.'),
   get_game_vocab: L('orient', 'The GAME drawer: `gameworld-guide` and the page cards first, then store slices, level mechanics, kits, glyphs, sfx, hud. `samples` to browse a page.'),
   get_play_vocab: L('orient', 'The PLAY drawer: make a world interactive (a door, a lever, a HUD, a level) through a `play` block set with `update_sketch`.'),
-  export_game: L('maintain', 'A stored game as a self-contained folder (game.html, levels, score, recipes, README); the sibling of `export_model` and `export_beats`.'),
+  export_game: L('maintain', 'A stored game as a self-contained folder (game.html, levels, score, recipes, README) or a desktop app; engine packs translate it.'),
 
   // ── read: pictures, diagrams, study views ─────────────────────────────────
   create_sketch: L('create', 'A flow chart, data chart or scene illustration (stations, edges, marks, or a recipe). Find a layout with `semantic_search`, read it with `get_sketch_vocab`.'),

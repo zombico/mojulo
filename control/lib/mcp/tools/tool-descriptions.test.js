@@ -99,8 +99,9 @@ const DESCRIPTION_ALLOWLIST = {
   // export_game re-pinned 2026-09-03 (1253 → 1378) to bless the Unity Y1
   // clause that rode the third-engine-leg commit (`target:'unity'` routing —
   // the growth predates the greybox seam, which added only input-schema
-  // bytes, not description). Shrink-only from here.
-  export_game: 1378,
+  // bytes, not description). Shrink-only from here. Lowered 2026-10-15 (1378 -> 1290, 1015-desktop-export): the
+  // desktop target's clause rode in on a tighter wording of the rest.
+  export_game: 1290,
   // export_model re-pinned 2026-07-17: the STL print-handoff format
   // (format:'glb'|'stl' + scale → mm) rides the same tool. Re-pinned
   // 2026-08-11 to bless the animated-GLB clause (interchange.plan.md I1:

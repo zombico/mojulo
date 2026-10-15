@@ -42,6 +42,7 @@ import { rasterizeSketchToPng } from '@/lib/graph/sketch/sketch-png';
 import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
+import { ELECTRON_TARGET, DESKTOP_GITIGNORE, desktopMainJs, desktopPackageJson, desktopReadmeLines } from '@/lib/graph/game/desktop-shell';
 
 // The recipe-hash style of image_render_requests.manifest_hash — short, stable,
 // enough to tie a published render back to the exact recipe that minted it.
@@ -185,7 +186,7 @@ function menuModeLines(menu) {
   return lines;
 }
 
-function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryBank }) {
+function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryBank, desktop = false }) {
   const modeLines = engine === 'pixelizer' ? [] : menuModeLines(manifest.menu);
   const lines = [
     `# ${manifest.title}`,
@@ -225,6 +226,7 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
         'that play on the same map fetch its terrain once and the browser caches it).']
       : []),
     '',
+    ...(desktop ? desktopReadmeLines() : []),
     '## How to re-mint',
     '',
     'On any host running mojulo, the recipes under `recipe/` reproduce this artifact:',
@@ -267,9 +269,11 @@ function withHandoff(result, context, artifact) {
 export async function exportGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
   const { ref, target, posture = null, cdn: cdnInput = false } = input;
-  // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only self-contained pages.
+  // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only self-contained pages, and so does a desktop
+  // app, which plays offline.
   const pluginBuild = pluginProfileActive();
-  const cdn = pluginBuild ? false : cdnInput;
+  const desktop = target === 'desktop';
+  const cdn = pluginBuild || desktop ? false : cdnInput;
   if (!ref || typeof ref !== 'string') throw new Error('`ref` is required (string)');
 
   if (target === 'godot') {
@@ -422,18 +426,38 @@ export async function exportGameHandler(input, context = {}) {
   const manifest = sketch.manifest;
   const hash = manifestHash(manifest);
 
+  // target 'desktop': the same folder plus the three root files that make it an Electron app (desktop-shell.js)
+  const writeDesktop = async () => {
+    const app = { title: manifest.title || sketch.title, ref };
+    await write('package.json', desktopPackageJson(app));
+    await write('main.js', desktopMainJs(app));
+    await write('.gitignore', DESKTOP_GITIGNORE);
+  };
+  const desktopResult = () => (desktop ? {
+    target: 'desktop',
+    desktop: {
+      electron: ELECTRON_TARGET,
+      play: `cd ${dir} && npm install && npm start`,
+      package: 'npm run package (an unsigned app for this machine, under dist/)',
+      gate: `node scripts/export-desktop.mjs --ref ${ref} launches it hidden and reports what failed to load`,
+    },
+    ...(cdnInput && !pluginBuild ? { cdn_note: '`cdn: true` was ignored: a desktop app inlines three.js so it plays offline.' } : {}),
+  } : {});
+
   // ── pixelizer branch: already single-file, the export is just the folder dressing ──
   if (manifest.engine === 'pixelizer') {
     const { emitPixelizerGame } = await import('@/lib/graph/pixelizer/pixelizer-games');
     await write('game.html', emitPixelizerGame(manifest, { title: sketch.title }));
     await writeRecipe('recipe/game.json', manifest);
-    await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'pixelizer' }));
+    if (desktop) await writeDesktop();
+    await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'pixelizer', desktop }));
     const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
     return withHandoff({
       ok: true, ref, engine: 'pixelizer', dir,
       preview_url: `${outcomeUrlFor(ref)}game.html`,
       files, total_bytes: totalBytes,
       note: 'Single-file reducer game — game.html plays anywhere, file:// included.',
+      ...desktopResult(),
     }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
   }
 
@@ -578,7 +602,8 @@ export async function exportGameHandler(input, context = {}) {
     }
   }
 
-  await write('README.md', buildReadme({ manifest: norm, ref, hash, files, figureBank: figureFiles.size > 0, geometryBank: geometryFiles.size > 0 }));
+  if (desktop) await writeDesktop();
+  await write('README.md', buildReadme({ manifest: norm, ref, hash, files, figureBank: figureFiles.size > 0, geometryBank: geometryFiles.size > 0, desktop }));
 
   const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
   const heavy = files.filter((f) => f.bytes > 25 * 1024 * 1024).map((f) => f.file);
@@ -593,6 +618,7 @@ export async function exportGameHandler(input, context = {}) {
     } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
+    ...desktopResult(),
   }, context, { kind: 'folder', name: 'game.html', path: dir, dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
 }
 
@@ -602,35 +628,31 @@ export function registerExportGameTools() {
     // May fetch Chrome for Testing first, then bake: past the 120 s default.
     timeoutMs: RENDER_TOOL_TIMEOUT_MS,
     description:
-      'Materialize a stored game as a portable folder to share — the game '
-      + 'sibling of export_model / export_beats, and the first leg of publishing a playable artifact '
-      + '(the folder is `git init && gh repo create` away from a GitHub-Pages URL). '
-      + 'Pass a game `ref` (a create_game / create_pixelizer_game sketch). Writes '
-      + '`data/outcomes/<ref>/`: `game.html` (the shell), `levels/<ref>.html` (geometry, three.js inlined; '
-      + '`cdn: true`: three.js off the pinned CDN; banks hoisted to `assets/` — serve '
-      + 'over HTTP, file:// does not load levels), `assets/<ref>.wav` (the shell score), and '
-      + '`recipe/*.json` (the SOVEREIGN manifests — anyone with mojulo re-mints) + a README. '
-      + 'Deterministic; previews at `/outcomes/<ref>/game.html`, exactly what ships. Slow for big '
-      + 'games (each level is a full world bake). Reach for "export this '
-      + 'game", "make the game shareable / playable outside mojulo", "publish the game to GitHub '
-      + "Pages\". `target:'godot'` instead emits a Godot 4 pack under `data/outcomes/<ref>/godot/` "
-      + '— data (per-level GLB + score.json + game.json + audio) performed by the versioned '
-      + "mojulo-godot kernel, with a portability report. `target:'unity'` is the Unity 6 sibling "
-      + '(same data, mojulo-unity kernel + T-numbered import guide) under `data/outcomes/<ref>/unity/`; '
-      + "`target:'unreal'` the UE 5 sibling (data + the MojuloKernel C++ plugin the project compiles) under `data/outcomes/<ref>/unreal/`.",
+      'Materialize a stored game as a portable folder to share — the game sibling of export_model / export_beats. '
+      + 'Pass a game `ref` (a create_game / create_pixelizer_game sketch). The default writes `data/outcomes/<ref>/`: '
+      + '`game.html` (the shell), `levels/<ref>.html` (three.js inlined; `cdn: true`: off the pinned CDN; banks hoisted '
+      + 'to `assets/` — serve over HTTP, file:// does not load levels), `assets/<ref>.wav` (the score), `recipe/*.json` '
+      + '(the SOVEREIGN manifests — anyone with mojulo re-mints) + a README; `git init && gh repo create` away from a '
+      + "GitHub-Pages URL. `target:'desktop'` adds `package.json` + `main.js`: the same folder is an Electron app "
+      + '(`npm install && npm start`, offline, no web server). Deterministic; previews at `/outcomes/<ref>/game.html`, '
+      + 'exactly what ships. Slow for big games (each level is a full world bake). Reach for "export this game", "make '
+      + 'it playable outside mojulo", "publish it to GitHub Pages", "make it a desktop app". The engines get a '
+      + "translation with a portability report: `target:'godot'` a Godot 4 pack under `<ref>/godot/` (per-level GLB, "
+      + "score, game.json, audio, run by the versioned mojulo-godot kernel); `'unity'` the Unity 6 sibling (the "
+      + "mojulo-unity kernel + an import guide); `'unreal'` the UE 5 sibling (data + the MojuloKernel C++ plugin).",
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Existing game sketch ref (`sk_…`, kind `game`). Errors on other kinds.' },
-        target: { type: 'string', enum: ['web', 'godot', 'unity', 'unreal'], description: 'Optional. Default `web` (the self-contained folder). `godot`/`unity`/`unreal` emit the engine pack instead.' },
+        target: { type: 'string', enum: ['web', 'desktop', 'godot', 'unity', 'unreal'], description: 'Optional. Default `web` (the self-contained folder). `desktop`: that folder as an Electron app. `godot`/`unity`/`unreal` emit the engine pack instead.' },
         posture: { type: 'string', enum: ['greybox', 'final'], description: 'Optional operator-declared handoff posture for engine packs. `greybox` = blockout: geometry/scale/layout authoritative, surfaces placeholder — the ledger reframes surfacing losses as deferred and the import guide carries the handoff sentence. Never inferred; a manifest `posture` is the durable default.' },
-        cdn: { type: 'boolean', description: "web target only. Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },
+        cdn: { type: 'boolean', description: "web target only (a desktop app always inlines). Default false: every level/menu/preview page inlines three.js (~1 MB each) and contacts no server. `true` loads three.js from the pinned jsdelivr CDN, the only form a page door running a CSP will execute." },
       },
       required: ['ref'],
     },
     handler: exportGameHandler,
   }, {
-    edits: [['`cdn: true`: three.js off the pinned CDN; banks hoisted', 'banks hoisted']],
+    edits: [['; `cdn: true`: off the pinned CDN; banks hoisted', '; banks hoisted']],
     schema: (schema) => {
       delete schema.properties.cdn;
       return schema;

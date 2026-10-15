@@ -22,6 +22,7 @@ import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { registerTool } from '@/lib/mcp/server';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
+import { shareForContext } from '@/lib/mcp/hosts/handoff';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/repositories/game-projects';
@@ -186,13 +187,15 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   };
 }
 
-export async function createGameHandler(input) {
+export async function createGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
   const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   try {
-    return await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    // the game is complete: now is when the operator is asked how to share it (share-offer.js)
+    return { ...out, share: shareForContext(context, { ref: out.ref, playUrl: out.playUrl }) };
   } catch (err) {
     if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the store-schema manuals.

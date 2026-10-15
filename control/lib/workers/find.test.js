@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { findBlender, findGodot, findUnity, findUnreal, workersPresent, BLENDER_APP, GODOT_APP } from './find.js';
+import path from 'node:path';
+import { findBlender, findElectron, findGodot, findUnity, findUnreal, workersPresent, BLENDER_APP, GODOT_APP } from './find.js';
 import { findSlicer } from '../graph/scene/print-gate.js';
 
 // a host made of the paths that exist, the PATH names that resolve, and the env
@@ -25,9 +26,17 @@ describe('the worker finders', () => {
     expect(findUnreal(host({ env: { MOJULO_UNREAL: '/x/ue' } }))).toBe('/x/ue');
   });
 
+  it('Electron: the env var, then the exported folder\'s own install, then PATH', () => {
+    const own = path.join('/game', 'node_modules', '.bin', process.platform === 'win32' ? 'electron.cmd' : 'electron');
+    expect(findElectron(host({ env: { MOJULO_ELECTRON: '/x/electron' }, files: [own] }), { dir: '/game' })).toBe('/x/electron');
+    expect(findElectron(host({ files: [own], path: { electron: '/usr/bin/electron' } }), { dir: '/game' })).toBe(own);
+    expect(findElectron(host({ path: { electron: '/usr/bin/electron' } }), { dir: '/game' })).toBe('/usr/bin/electron');
+    expect(findElectron(host())).toBe(null);
+  });
+
   it('every worker says its env var, what it runs and what still happens without it; an empty host finds none it must find', () => {
     const W = workersPresent({ host: host(), findSlicer, chromiumCandidates: ['/c/chrome'], ffmpegCached: '/cache/ffmpeg' });
-    expect(W.map((w) => w.id)).toEqual(['blender', 'godot', 'unity', 'unreal', 'slicer', 'openscad', 'ffmpeg', 'chromium']);
+    expect(W.map((w) => w.id)).toEqual(['blender', 'godot', 'unity', 'unreal', 'electron', 'slicer', 'openscad', 'ffmpeg', 'chromium']);
     for (const w of W) {
       expect(w.uses, w.id).toBeTruthy();
       expect(w.without, w.id).toBeTruthy();

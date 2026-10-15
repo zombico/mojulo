@@ -17,6 +17,7 @@
  */
 
 import { registerTool } from '@/lib/mcp/server';
+import { shareForContext } from '@/lib/mcp/hosts/handoff';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/repositories/game-projects';
 import { PIXELIZER_REDUCER_IDS, buildPixelizerGameManifest } from '@/lib/graph/pixelizer/pixelizer-games';
@@ -33,7 +34,7 @@ export function pixelTheme(theme, palette) {
   return { accent: K.ui.accent, accent2: K.ui.accent2, style: 'hud', ...(theme ?? {}) };
 }
 
-export async function createPixelizerGameHandler(input) {
+export async function createPixelizerGameHandler(input, context = {}) {
   const { reducer, title, tagline, theme: themeIn, palette, music, register, ref, project_ref: projectRef } =
     input && typeof input === 'object' ? input : {};
 
@@ -69,6 +70,7 @@ export async function createPixelizerGameHandler(input) {
     playUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/game`,
     arcadeUrl: '/play',
     ...(project ? { project } : {}),
+    share: shareForContext(context, { ref: sketch.ref, engine: 'pixelizer', playUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/game` }),
   };
 }
 

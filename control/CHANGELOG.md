@@ -13,6 +13,38 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Desktop export: a game as an app, the engines as translations
+
+A game plays in the browser; that build is the game itself. It now also ships as a desktop app, and the copy
+says what the engine packs are: translations of it, Godot the most complete.
+
+- **`export_game { target: 'desktop' }`** writes the web folder (three.js always inlined) plus `package.json`,
+  `main.js` and `.gitignore` at its root: `npm install && npm start` plays it in an Electron window, and
+  `npm run package` builds the app with `@electron/packager`. The window serves the folder over its own `game://`
+  scheme, so the levels' shared banks load without a web server; it refuses any http(s) request, opens outside
+  links in the browser, and keeps saves in the app's own storage. Electron is the exported folder's
+  devDependency (`ELECTRON_TARGET`); mojulo never installs it. Same rows, same bytes. Signing and notarizing the
+  app are the operator's.
+- **The machine gate.** `node scripts/export-desktop.mjs --ref <game>` exports and launches the app hidden over
+  the shell and its first level (`main.js --mojulo-smoke`), reporting pages that failed to load, console errors
+  and files the folder lacks. It runs when `MOJULO_ELECTRON`, the folder's own install or `electron` on the PATH
+  names a binary, and says why it skipped otherwise; `version({ workers: true })` lists it.
+- **The ladder, said as it is.** The orientation, `get_substrate`, `forward_context`, the README and the docs no
+  longer call Godot "first-class": a game plays in the browser, as a folder or a desktop app; Godot is the most
+  complete engine translation (a real project and a headless gate), Unity and Unreal gated legs, Blender an art
+  pass. Never identical across engines.
+- **Sharing comes up when the game is done.** `create_game` and `create_pixelizer_game` return a `share` offer, and
+  so does the `design_game` call whose run made the game (later readouts carry a `share` step with the verdicts
+  alone): ask the operator how they want to share it, then call the option they choose (play it here, a desktop
+  app, a web folder for GitHub Pages, a single page for a pixelizer game, a Godot project). Each option's verdict
+  per surface (`here`, `carry`, `ask`, `no`) is read off the host's handoff rows, so a box that hands back single
+  files says no to a folder and points at the recipe, an ephemeral box says to share before the session ends, an
+  unknown host is told to ask, and a surface the agent has not named gets both rows. The recipe is the floor: any
+  host running mojulo re-mints the game from it. The `gameworld-next` card says what `share` asks.
+- A `share-game` routing card sends "how do I share my game", "make it an app I can double-click" and their kin to
+  `export_game`; two routing-eval rows hold it.
+- The README's game example starts at `design_game`, names the genres, and ends at the desktop app.
+
 ### Tool consolidation: one door per intent
 
 What a user asks lands on one tool. A new capability is a routing card and an argument on the door that owns
