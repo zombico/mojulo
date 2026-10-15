@@ -152,6 +152,9 @@ genre on the quick path.
 - **Waves of fighters.** The waves mechanic hunts when it has no path (the woken foes fight with their own minds: no
   base, no lives, every one down is success) and with `clear: true` wakes each wave when the one before is down. Quick
   `shoot` with a craft takes `waves: n` (wings of `foes`, minted asleep, later ones further off).
+- **A game's level opens clean.** The World page's dev-chrome strip (bookmark cameras, wireframe, fly / walk, reverse
+  view, AI attack) is off by default on a level that carries its `game`, wherever it is opened (the shell, the
+  playtest and the export already hid it); `?hud=1` brings it back for debugging. Every other world shows it as before.
 
 ### Sheet-metal bend lines that mark without cutting
 

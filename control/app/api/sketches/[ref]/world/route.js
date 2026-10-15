@@ -364,8 +364,11 @@ export async function GET(request, { params }) {
     const decollide = !['0', 'false'].includes(request.nextUrl.searchParams.get('decollide'));
     // ?hud=0 hides the top-left dev-chrome button strip (view cams, wireframe, fly/walk,
     // reverse view, AI attack). The game shell requests its level/menu iframes with it so
-    // play screens present clean; keyboard twins keep working. ON by default everywhere else.
-    const hud = !['0', 'false'].includes(request.nextUrl.searchParams.get('hud'));
+    // play screens present clean; keyboard twins keep working. A game's level (a manifest with
+    // its `game`) is a play screen opened on its own too, so it is OFF there unless ?hud=1;
+    // ON by default everywhere else.
+    const hudParam = request.nextUrl.searchParams.get('hud');
+    const hud = hudParam != null ? !['0', 'false'].includes(hudParam) : !sketch.manifest?.game;
     // ?download=1 bakes the three.js runtime itself into data: URL modules (see
     // emit-util.js inlineImportmap) instead of pointing at this server's /vendor/three,
     // so the saved file is a genuinely portable, open-anywhere page — the live iframe
