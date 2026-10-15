@@ -216,6 +216,14 @@ genre on the quick path.
 - Add raked, curved and tapered cabin profiles, fitted recessed cooling vents, and shaped spoiler assemblies with distinct mounts and endplates.
 - Provide reusable exotic-car composition cards with independent cabin, lighting, cooling and spoiler choices for visual exploration. Preserve exterior mesh budgets and existing material slots.
 
+### Kart shading: the supercar's finish on the racer pole
+
+- A cartoon racer takes `shade: 'smooth'` (on `solveRacer` and in a racer's recipe): its corner normals are smoothed
+  within a paint slot and broken at the motif's crease angle, its toon light is baked per corner with the shadow step
+  softened to a band, and its lamps are left unshaded. Without it a racer is byte-identical to before.
+- A solved racer carries its triangle census against the budget law's ceiling; a smooth one tags each face with a
+  material and its albedo, so it opens in the vehicle review page.
+
 ### Historic recipes: other eras by the same principles
 
 The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that

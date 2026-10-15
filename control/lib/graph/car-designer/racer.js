@@ -5,9 +5,13 @@
  *
  *   racerFromSheet(egocubeSheet, { seed? })  → { vehicle (the vehicle sheet, its facets read off the driver), driver
  *        (a seated stand-in's sizes), palette (the outfit's), archetype, order, side, reads: [{ facet, value, why }] }
- *   solveRacer(racer, { parts?, seed? })     → { frame, chosen: [{ family, id, why }], suggestions: { family: [{ id,
- *        score, why }] }, faces: { root, wheels, bones }, figure, anchors: [{ kind, at, dir, part }], juice, status,
- *        motion, physics, laws, changes }
+ *   solveRacer(racer, { parts?, seed?, shade? }) → { frame, chosen: [{ family, id, why }], suggestions: { family: [{
+ *        id, score, why }] }, faces: { root, wheels, bones }, figure, anchors: [{ kind, at, dir, part }], juice,
+ *        status, motion, physics, census, laws, changes }
+ *
+ * `shade`: 'cel' (the default) paints each face one colour under a two-step light; 'smooth' is racer-shade.js's: the
+ * same light baked per corner across normals smoothed within a slot up to the motif's crease, lamps unshaded, each
+ * face tagged with its material and albedo.
  *
  * The figure is a vehicle rig that LIVES (the page's controllable channel reads its `live`): the four wheels roll; the
  * front wheels (and their fenders) steer by the drive rule's steerAngle, past physics; the root (the body, its parts,
@@ -47,6 +51,7 @@ import { JUICE, STATUS, MOTION, bakeJuice } from './juice.js';
 import { VEHICLES } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
 import { mulberry32 } from '../vegetation/grow.js';
+import { shadeRacerFaces } from './racer-shade.js';
 
 const r4 = (v) => Math.round(v * 1e4) / 1e4;
 /** Toward the chase camera: behind, a little to the side and above (the hero angle). */
@@ -215,8 +220,12 @@ function fan(faces) {
   return faces.flatMap((f) => { const n = f.corners.length; if (n <= 4) return [f]; const out = []; for (let i = 1; i + 1 < n; i += 2) out.push({ ...f, corners: (i + 2 < n ? [0, i, i + 1, i + 2] : [0, i, i + 1]).map((j) => f.corners[j]) }); return out; });
 }
 
+export const SHADES = Object.freeze(['cel', 'smooth']);
+const FACE_BUDGET = 4000;
+
 /** Solve a racer's machine from its reading. `parts`: { family: id } pins. */
-export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
+export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}) {
+  if (!SHADES.includes(shade)) throw new Error(`car-designer: shade is one of ${SHADES.join(', ')}, not '${shade}'`);
   const v = R.vehicle.facets, F = frameOf(R), rnd = mulberry32((seed * 2654435761 + 41) >>> 0);
   const ctx = { silhouette: v.silhouette, motif: v.motif, era: v.era, engine: v.engine, stance: v.stance, cockpit: v.cockpit, archetype: R.archetype, order: R.order };
   const changes = [], suggestions = {}, chosen = [], ranked = {}, tried = {};
@@ -368,7 +377,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
     const bodyBox = boxOf(body.faces);
     for (const p of state.placed) { const m = p.mount === 'hub' ? null : p.mount === 'stacks' ? state.placed.find((q) => q.family === 'engine')?.box : bodyBox; if (!m) continue; const sep = Math.max(...[0, 1, 2].map((i) => Math.max(m.lo[i] - p.box.hi[i], p.box.lo[i] - m.hi[i]))); if (sep > 0.05) law('touches', false, `${p.id} ${r4(sep)} m off its ${p.mount}`); }
     const n = body.faces.length + state.placed.reduce((s, p) => s + p.faces.length, 0) + state.wheels.reduce((s, w) => s + w.faces.length, 0) + stand.faces.length;
-    law('budget', n <= 4000, `${n} faces`);
+    law('budget', n <= FACE_BUDGET, `${n} faces`);
     return out;
   };
   // place, judge, fix: up to six rounds
@@ -403,7 +412,9 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   const PAL = paintOf(R), liv = v.livery, mid = (f) => f.corners.reduce((s, p) => add(s, p.map((x) => x / f.corners.length)), [0, 0, 0]);
   const bodyFaces = body.faces.map((f) => { const m = mid(f), zm = (body.botAt(m[1]) + body.topAt(m[1])) / 2; return { ...f, slot: liv === 'two-tone' && m[2] < zm ? 'tech:skin' : liv === 'striped' && Math.abs(m[0]) < F.W * 0.18 && m[2] > zm ? 'tech:skin' : 'tech:body' }; });
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
-  const paint = (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
+  const paint = shade === 'smooth'
+    ? (fs) => shadeRacerFaces(fan(fs).map((f) => ({ ...f, corners: f.corners.map((c) => c.map(r4)) })), { palette: PAL, motif: v.motif, sun: SUN })
+    : (fs) => fan(fs).map((f) => ({ corners: f.corners.map((c) => c.map(r4)), fill: lit(f, PAL) }));
   // the bones that live (R2): the steering wheel, a mast, the front fenders each their own; the rest rides the root
   // (and R4's status slots: the head lamps, the brake lamps, the hero piece, each a bone its tint is set on)
   const boneOf = (p) => p.bone ?? (p.family === 'steering' ? 'steering' : PARTS[p.id]?.mount === 'mast' ? 'mast' : p.family === 'lamps' ? 'lampHead' : p.family === 'tail' ? 'lampBrake' : p.family === 'hero' ? 'hero' : null);
@@ -443,12 +454,17 @@ export function solveRacer(R, { parts: pins = {}, seed = 1 } = {}) {
   const mass = 40 + shell + engine + tyres + R.driver.mass, cgH = (R.driver.mass * (F.seatZ + R.driver.torso * 0.4) + (mass - R.driver.mass) * V.deck * 0.6) / mass;
   const physics = { ...K, mass: r4(mass), power: r4((eng?.power ?? 8) * (F.D / 0.5) ** 2), CdA: r4((CDA[v.silhouette] ?? 0.5) * (F.D / 0.5) ** 2), grip: r4(K.grip * (GRIP[ids.wheel] ?? 1)), Crr: CRR[ids.wheel] ?? K.Crr, cgH: r4(cgH), wheelbase: r4(F.WB), track: r4(F.T), wheelRadius: r4(F.r), turn: r4(F.WB * K.turn / K.wheelbase), L: r4(bb.hi[1] - bb.lo[1]), W: r4(F.T + F.wR), H: figure.figH, eye: r4(stand.head[2]) };
 
+  // the census: the faces the budget law counts, and the triangles each bone draws
+  const tri = (fs) => fs.reduce((t, f) => t + f.corners.length - 2, 0);
+  const byBone = { root: tri(root), ...Object.fromEntries(wheelFaces.map((w) => [w.bone, tri(w.faces)])), ...Object.fromEntries(others.map((o) => [o.id, tri(o.faces)])) };
+  const census = { faces: rootRaw.length + state.wheels.reduce((t, w) => t + w.faces.length, 0) + [...own.values()].reduce((t, o) => t + o.faces.length, 0), faceBudget: FACE_BUDGET, triangles: Object.values(byBone).reduce((t, x) => t + x, 0), byBone };
+
   const kinds = new Set(state.anchors.map((a) => a.kind.split('.')[0]));
   const juice = Object.entries(JUICE).filter(([, j]) => kinds.has(j.at.split('.')[0])).map(([id, j]) => ({ id, ...j }));
   return {
     frame: Object.fromEntries(Object.entries({ ...F, L: body.L, tailY: body.tailY, noseY: body.noseY }).map(([k, x]) => [k, r4(x)])),
     body: bodyId, chosen, suggestions, ids: { body: bodyId, ...ids },
     faces: { root, wheels: wheelFaces, bones: others }, figure, anchors: state.anchors, juice, status: STATUS, motion: MOTION,
-    physics, laws: failing, changes,
+    physics, census, laws: failing, changes,
   };
 }

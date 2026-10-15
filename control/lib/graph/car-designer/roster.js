@@ -29,42 +29,43 @@ import { rollEgocube } from '../egocube/egocube.js';
 import { ARCHETYPES } from '../egocube/facets.js';
 import { envelopeOf, ruleOf, wheelPower } from '../roads/vehicles.js';
 import { mulberry32 } from '../vegetation/grow.js';
-import { racerFromSheet, solveRacer } from './racer.js';
+import { racerFromSheet, solveRacer, SHADES } from './racer.js';
 import { PARTS } from './parts.js';
 
 const G = 9.81, RHO = 1.225;
 const r3 = (v) => Math.round(v * 1000) / 1000;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`car-designer: ${m}`);
-const SPEC_KEYS = ['archetype', 'build', 'age', 'brief', 'facets', 'seed', 'parts'];
+const SPEC_KEYS = ['archetype', 'build', 'age', 'brief', 'facets', 'seed', 'parts', 'shade'];
 
 export const MEASURES = Object.freeze({ top: 'top speed', pull: 'pull', corner: 'cornering', turn: 'turn-in', heft: 'weight in a bump' });
 // the solver's families a lean may swap, in the order it tries them
 const LEANS = ['engine', 'wheel'];
 const HARD = ['touches', 'wheel-clear', 'budget'];
 
-/** An entry of a roster → its recipe: { facets, brief?, seed, parts? }. */
+/** An entry of a roster → its recipe: { facets, brief?, seed, parts?, shade? }. */
 export function racerSpec(entry, k = 0, seed = 1) {
   const s0 = seed * 31 + 7 * k + 1;
   if (typeof entry === 'string') {
     const w = entry.trim();
-    if (!w) throw fail('a racer is an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }');
+    if (!w) throw fail('a racer is an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade? }');
     return ARCHETYPES[w] ? { facets: { archetype: w }, seed: s0 } : { facets: {}, brief: w, seed: s0 };
   }
-  if (!isObj(entry)) throw fail('a racer is an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }');
+  if (!isObj(entry)) throw fail('a racer is an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade? }');
   for (const key of Object.keys(entry)) if (!SPEC_KEYS.includes(key)) throw fail(`a racer's ${key} is not one of ${SPEC_KEYS.join(', ')}`);
   if (entry.facets !== undefined && !isObj(entry.facets)) throw fail('a racer\'s facets are the Egocube\'s ({ archetype, build, age, role, … })');
   if (entry.parts !== undefined && !isObj(entry.parts)) throw fail('a racer\'s parts are pins { family: id }');
   if (entry.seed !== undefined && !Number.isInteger(entry.seed)) throw fail('a racer\'s seed is a whole number');
+  if (entry.shade !== undefined && !SHADES.includes(entry.shade)) throw fail(`a racer's shade is one of ${SHADES.join(', ')}`);
   const facets = { ...(entry.facets ?? {}), ...Object.fromEntries(['archetype', 'build', 'age'].filter((x) => entry[x] !== undefined).map((x) => [x, entry[x]])) };
-  return { facets, ...(entry.brief ? { brief: entry.brief } : {}), seed: entry.seed ?? s0, ...(entry.parts ? { parts: entry.parts } : {}) };
+  return { facets, ...(entry.brief ? { brief: entry.brief } : {}), seed: entry.seed ?? s0, ...(entry.parts ? { parts: entry.parts } : {}), ...(entry.shade ? { shade: entry.shade } : {}) };
 }
 
 /** A recipe's reading and machine. */
 export function racerOf(spec) {
   const sheet = rollEgocube({ facets: spec.facets ?? {}, ...(spec.brief ? { brief: spec.brief } : {}), seed: spec.seed ?? 1 });
   const R = racerFromSheet(sheet, { seed: spec.seed ?? 1 });
-  return { R, S: solveRacer(R, { seed: spec.seed ?? 1, parts: spec.parts ?? {} }) };
+  return { R, S: solveRacer(R, { seed: spec.seed ?? 1, parts: spec.parts ?? {}, ...(spec.shade ? { shade: spec.shade } : {}) }) };
 }
 
 /** A machine's five measures, read off its derived physics. */
