@@ -4,7 +4,7 @@ import { resolveLevel, readGameworld } from './world.js';
 import { gameStages, stageLevelOrder } from './levels.js';
 import { concernLaws, SPACING, DRIVABLE, LOOP, LOOP_TUNE, beatPosts, coverBlocks, blindSpots, askBoxes, jumpHeight, arenaLayout, arenaAsks, arenaPeeks } from './lay-concerns.js';
 import { tunnelArena } from './tunnel-arena.js';
-import { guardPosts, defendCast, QUICK_GUARD } from './quick.js';
+import { guardPosts, defendCast } from './quick.js';
 import { stageEnds } from './levels.js';
 import { standBlocks } from '../playscape/terrain.js';
 import { composeLive } from '../worlds/controllable/compose.js';

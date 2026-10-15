@@ -3,11 +3,12 @@
  * nothing and sets no dial: the sheet says what the face, the stance, the silhouette and the dress should carry, and
  * names the dials that can carry it; the character loop decides the amounts.
  *
- *   readEgocube(spec)                                  throws on an unknown facet or value, naming the known ones
- *   rollEgocube({ brief?, facets?, seed = 1, path })   → the sheet
+ *   readEgocube(spec)                                            throws on an unknown facet or value, naming the known ones
+ *   rollEgocube({ brief?, facets?, seed = 1, path, setting? })   → the sheet
  *
- * A facet is decided by, in order: an explicit `facets` entry, a brief word (lexicon.js), the seed. Every facet throws
- * its die whether or not it is used, so fixing one never moves another. A roll that breaks a FAULT is drawn again on
+ * A facet is decided by, in order: an explicit `facets` entry, a brief word (lexicon.js), the seed, whose priors the
+ * game's SETTING leans when one is given (setting.js). Every facet throws its die whether or not it is used, so fixing
+ * one never moves another. A roll that breaks a FAULT is drawn again on
  * the next attempt seed (up to MAX_ATTEMPTS); a fault among asked facets only (explicit or a brief word) is the
  * operator's and is kept, marked `held`. Pure and deterministic: the same arguments, the same sheet, byte for byte.
  *
@@ -22,6 +23,7 @@ import { CHANNEL_IDS, FACE_OF_LIFE, readDerive, dialKey } from './channels.js';
 import { AGES, POLES, POLE_READS, BUILDS, ROLES, ARCHETYPES, ARCHETYPE_IDS, MOTIVES, ORDERS } from './facets.js';
 import { readBrief } from './lexicon.js';
 import { HUMAN_IDS, LINEAGES, ancestryIds, readLineage, resolveAncestry } from './ancestry.js';
+import { readSetting, leanOf, leanPriors } from './setting.js';
 
 export const MAX_ATTEMPTS = 8;
 export const SPEC_KEYS = Object.freeze(['age', 'pole', 'ancestry', 'humanity', 'build', 'role', 'archetype', 'motivation', 'order']);
@@ -82,11 +84,12 @@ function pick(rand, weights) {
 const unit = (rand) => Math.round(rand() * 100) / 100;
 
 /** Every facet's die, thrown in a fixed order; a new facet's die goes last, so an old seed rolls the old character. */
-function throwDice(rand) {
+function throwDice(rand, lean = {}) {
+  const P = (k) => leanPriors(PRIORS[k], lean[k]);   // the setting's lean (setting.js); absent, the priors as they are
   return {
-    age: pick(rand, PRIORS.age), pole: pick(rand, PRIORS.pole), build: pick(rand, PRIORS.build),
-    role: pick(rand, PRIORS.role), archetype: pick(rand, PRIORS.archetype), motivation: unit(rand), order: unit(rand),
-    ancestry: pick(rand, PRIORS.ancestry), humanity: unit(rand),
+    age: pick(rand, P('age')), pole: pick(rand, P('pole')), build: pick(rand, P('build')),
+    role: pick(rand, P('role')), archetype: pick(rand, P('archetype')), motivation: unit(rand), order: unit(rand),
+    ancestry: pick(rand, P('ancestry')), humanity: unit(rand),
   };
 }
 
@@ -167,8 +170,10 @@ export function bandOfYears(years) {
   return years <= 12 ? 'child' : years <= 19 ? 'youth' : years < 40 ? 'adult' : years < 60 ? 'seasoned' : 'elder';
 }
 
-export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 'hero', lineages = {}, years } = {}) {
+export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 'hero', lineages = {}, years, setting } = {}) {
   for (const [id, lin] of Object.entries(lineages)) readLineage(id, lin);
+  if (setting !== undefined) readSetting(setting);
+  const lean = leanOf(setting, 'person');
   const facets = years == null ? asked0 : { ...asked0, age: bandOfYears(years) };   // years decide the band
   readEgocube(facets, lineages);
   const fromBrief = readBrief(brief);
@@ -177,7 +182,7 @@ export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 
   const asked = new Set(Object.keys(given));   // a brief word is an ask too
   let f, attempt = 0, broken = [];
   for (; attempt < MAX_ATTEMPTS; attempt++) {
-    f = { ...throwDice(mulberry32(hashSeed(`${seed}::egocube::${path}::${attempt}`))), ...given };
+    f = { ...throwDice(mulberry32(hashSeed(`${seed}::egocube::${path}::${attempt}`)), lean), ...given };
     broken = FAULTS.filter((x) => x.when(f, lineages));
     if (broken.every((x) => x.on.every((k) => asked.has(k)))) break;   // none, or only the operator's own
   }
@@ -191,6 +196,7 @@ export function rollEgocube({ brief = '', facets: asked0 = {}, seed = 1, path = 
     path, seed, attempt,
     facets: facetsOut,
     given: SPEC_KEYS.filter((k) => k in given),
+    ...(setting !== undefined ? { setting } : {}),   // the game it was rolled for: its tradition is the body's rule (plan.js)
     reading: { archetype: f.archetype, shadow: ARCHETYPES[f.archetype].shadow.name, ...reading },
     ancestry: { id: f.ancestry, kind: anc.kind, reads: anc.reads, door: anc.door, colours: anc.colours, ...(anc.plan && Object.keys(anc.plan).length ? { plan: anc.plan } : {}) },
     reads: summary(f, anc),

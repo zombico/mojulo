@@ -76,6 +76,26 @@ square, triangle), material. Every character belongs to one. A world of one fact
 race invading another is two factions with opposed languages under one light, and the hero and villain can be
 designed from opposite ends because their factions are.
 
+### The setting: a game loads the dice
+
+A game says a good deal about its people before anyone asks for one: its world's look, its era, what is played in
+it. The **setting** ([setting.js](../control/lib/graph/egocube/setting.js)) carries that to every roll made for the
+game, person and mascot alike, so each game gets its best shot at characters drawn in its own look. It is read off
+the game by `settingOfGame` ([gameworld/cast-setting.js](../control/lib/graph/gameworld/cast-setting.js)):
+
+| Word | Read from | What it does |
+|---|---|---|
+| `tradition` | the book's direction; else the kit's pole (banded anime, material western, the rule the book already ledgers a hero against) | a RULE: an anime game's person wears the anime head, its proportions and the character light, and the sheet's graphic-face derives land on its `sculpt`; a mascot's style |
+| `era` | the kit (`ERA_OF_KIT`) | leans the roles the era has people for (no casters in the modern world); a modern or future era leaves the fantasy role kit and weapons off and says so (no era gear yet) |
+| `genre` | the quick game's goal | leans who stands in it (`GENRES`: farmhands are non-combatants, a firefight has no children) and how far it leans toward a mascot |
+| `ramps` | the kit card's ramps, made and grown things first | the clothes' colours: the top by archetype, the bottom by role, each walked along its ramp until it no longer reads as the skin under it |
+
+A lean is a multiplier on the seed's priors, never a verdict: what the operator asks for (a facet, a brief word)
+beats the setting, and a roll with no setting is the roll it always was, byte for byte. A stored cube keeps the
+setting it was rolled in (`roll.setting`). A quick game's figures it names none of (its foe, guard, farmhand, tower
+archer, gunner) are rolled in its setting and wear the kit's underlayer, and its racers are rolled in it; the run's
+readout says what was rolled, what the era left out, and an adopted hero drawn in another tradition (kept as it is).
+
 ## One Egocube: the facets
 
 The setting is not rolled per character: the world is shared and the faction is assigned. The rest is.
@@ -431,6 +451,10 @@ A fate thread is a separate call on a sheet that already exists, never part of t
   nothing. The bands above map onto what exists.
 - **Archetype looks are anime-only**: `look` is refused on the landmark head, so the western face takes notes
   through `face`, `expression` and stance.
-- **Factions**: the gameworld has one world kit; a faction layer is new.
+- **Factions**: the gameworld has one world kit; a faction layer is new. A game's setting is one language for its
+  whole cast today.
+- **Era gear**: the role kit and the held items are a myth's (sword, dagger, bow, staff, shield). A modern or future
+  setting leaves them off and says so; no firearm or modern kit is built yet.
+- **One body per role in a quick game**: each goal's casts take one figure ref, so every guard is the same roll.
 - **No free text on `create_character`**: notes reach it through the catalyst and the character book.
 - **Non-hero cast**: waits on story-cast and party landing; on this branch the book still refuses `characters.cast`.

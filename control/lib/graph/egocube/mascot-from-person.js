@@ -63,6 +63,6 @@ export function mascotFacetsOfPerson(sheet) {
 /** The person's mascot: the mascot sheet rolled from the read facets on the person's own seed (one character, two tunings). */
 export function mascotOfPerson(sheet) {
   const { facets, mapping } = mascotFacetsOfPerson(sheet);
-  const m = rollMascot({ facets, seed: sheet.seed, path: `${sheet.path ?? 'hero'}/mascot` });
+  const m = rollMascot({ facets, seed: sheet.seed, path: `${sheet.path ?? 'hero'}/mascot`, ...(sheet.setting ? { setting: sheet.setting } : {}) });   // in the game it was made for
   return { ...m, person: { facets: sheet.facets, reads: sheet.reads }, mapping };
 }

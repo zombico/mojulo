@@ -2,13 +2,15 @@
  * THE EGOCUBE AS A KIND: a character's design sheet rolled once and kept, so the same person can be made in many games,
  * as a geocube is a level's look rolled once and kept for many levels.
  *
- *   { kind: 'egocube', title?, roll: { tuning?, brief?, facets?, seed?, lineages?, years?, chapters? }, dress?: 'designed' | 'kit',
+ *   { kind: 'egocube', title?, roll: { tuning?, brief?, facets?, seed?, lineages?, years?, chapters?, setting? }, dress?: 'designed' | 'kit',
  *     sheet? | thread? }
  *
  * `roll.tuning` chooses the design method: 'person' (the Egocube: a life drawn on a body) or 'mascot' (mascot.js: a
  * promise on a head-heavy, round, any-topology body; docs/mascot.md). Absent, a brief that asks for a mascot ('cartoony',
  * 'sonic-like', 'mascot', …) with no person's facet, lineage or years is a mascot, and any other roll a person; a stored
  * roll keeps the sheet it was rolled to (rollStored). A mascot does not age: it takes no years, chapters or lineages.
+ * `roll.setting` is the game it is rolled for (setting.js): its tradition is the body's rule, its genre and era lean
+ * the dice; either tuning takes one.
  *
  * `roll` is rollEgocube's arguments (with `years` and `chapters`, rollThread's: a fate thread). The sheet (or the
  * thread) is ROLLED WHERE IT IS WRITTEN and stored by value (`rollStored`): a later change to the Egocube's tables never
@@ -32,7 +34,7 @@ import { mascotOfPerson } from './mascot-from-person.js';
 import { fingerprint } from '../gameworld/review.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
-const ROLL_KEYS = ['tuning', 'brief', 'facets', 'seed', 'lineages', 'years', 'chapters'];
+const ROLL_KEYS = ['tuning', 'brief', 'facets', 'seed', 'lineages', 'years', 'chapters', 'setting'];
 export const TUNINGS = Object.freeze(['person', 'mascot']);
 
 /** Whether a roll is a mascot's: named so, or a brief that asks for one with nothing only a person has. */
@@ -123,7 +125,7 @@ export async function assembleEgocubeScene(m, ctx, layered) {
   for (const n of turnaround ? nodes.slice(0, 1) : nodes) {
     const C = egocubeCreate(rollStored(m), { years: n.years });
     const manifest = C.create.as === 'hero'
-      ? expandLayeredManifest({ kind: 'layered', hero: heroRecord(C.create.spec) })
+      ? expandLayeredManifest({ kind: 'layered', hero: heroRecord(C.create.spec), ...(C.create.toon ? { toon: C.create.toon } : {}) })
       : expandLayeredManifest({ kind: 'layered', plan: C.create.spec.plan, ...(C.create.spec.toon ? { toon: C.create.spec.toon } : {}), ...(C.create.spec.hullShade ? { hullShade: C.create.spec.hullShade } : {}) });
     scenes.push(await layered(manifest, { ...ctx, title: `${ctx.title ?? 'egocube'} · ${n.years ?? n.band}` }));
   }

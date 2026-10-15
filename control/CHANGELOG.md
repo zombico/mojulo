@@ -13,6 +13,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character rolls: each game's best shot at its own people
+
+The Egocube is a loaded die, and it was loaded the same way for every game: the roller took no setting, a rolled
+person always landed on the western landmark head, and a quick game stood up the same stock figures (a male body,
+one shirt colour, a weapon) whatever its world. A game now loads the dice. `docs/egocube.md`, The setting.
+
+- **The setting** (`lib/graph/egocube/setting.js`): `{ tradition, era, genre, ramps, lean }`, read and validated. Its
+  genre (a quick game's goal) and era lean the priors of both rollers, person and mascot, as multipliers; what the
+  operator asks for beats it, and a roll with no setting is byte-identical to before. `rollEgocube`, `rollMascot`,
+  the fate thread, a person's mascot output and the stored egocube (`roll.setting`) all take it.
+- **The tradition lands on the body.** An anime setting's person wears the anime head, its proportions and the
+  character light; the sheet's face-at-rest and eye derives land on the anime head's own expression amounts and its
+  graphic face (`sculpt`), its hair on the anime families. A mascot takes the tradition as its style. Its clothes are
+  the world's ramps, walked until cloth no longer reads as the skin under it.
+- **A game's setting** (`lib/graph/gameworld/cast-setting.js`): `settingOfGame` reads the tradition from the book's
+  direction or the kit's pole, the era from the kit, the genre from the quick goal and the ramps from the kit card.
+- **Quick figures are rolled in it.** A quick game's foe, tower archer, gunner, farmhand and guard it names none of
+  are rolled in its setting (the goal's facet kept: a farmhand does not fight) and wear the kit's underlayer; a modern
+  or future era leaves the fantasy weapon out and says so. The stock presets are gone. Racers are rolled in it too,
+  the field drawn by the genre's archetype lean. The run's readout carries a `cast` law: what was rolled, what the era
+  left out, and an adopted hero drawn in another tradition (kept as it is).
+- **Fixed: a deathmatch's bots had no body.** The figure step left the deathmatch out, so its bots fell back to the
+  stock placeholder figure.
+- **The eyes gate has not run.** `docs/examples/character-rolls/render-lineup.mjs` draws a flat-lit contact sheet, one
+  row per scenario and a last row with no setting.
+
 ### Desktop export: a game as an app, the engines as translations
 
 A game plays in the browser; that build is the game itself. It now also ships as a desktop app, and the copy

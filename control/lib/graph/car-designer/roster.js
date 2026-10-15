@@ -21,12 +21,13 @@
  *   racerMeasures(S)              → { top, pull, corner, turn, heft }
  *   racerRule(S, { tuning, conditions })   the drive rule the machine plays by (arcade by default)
  *   balanceOf(measures)           → { holds, best: { measure: [i] }, everything: [i], bettered: [{ i, by }] }
- *   solveRoster(entries | n, { seed })      → { racers: [{ spec, archetype, R, S, measures, rule }], balance, changes }
+ *   solveRoster(entries | n, { seed, setting? })   → { racers: [{ spec, archetype, R, S, measures, rule }], balance, changes }
  *
  * Pure and deterministic: a roster of n draws distinct archetypes in a seeded order.
  */
 import { rollEgocube } from '../egocube/egocube.js';
 import { ARCHETYPES } from '../egocube/facets.js';
+import { leanOf } from '../egocube/setting.js';
 import { envelopeOf, ruleOf, wheelPower } from '../roads/vehicles.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { racerFromSheet, solveRacer } from './racer.js';
@@ -43,13 +44,14 @@ export const MEASURES = Object.freeze({ top: 'top speed', pull: 'pull', corner: 
 const LEANS = ['engine', 'wheel'];
 const HARD = ['touches', 'wheel-clear', 'budget'];
 
-/** An entry of a roster → its recipe: { facets, brief?, seed, parts? }. */
-export function racerSpec(entry, k = 0, seed = 1) {
-  const s0 = seed * 31 + 7 * k + 1;
+/** An entry of a roster → its recipe: { facets, brief?, seed, parts?, setting? } (`setting`: the game's, egocube/setting.js,
+ * kept in the recipe so the figure the world resolves through it is the one the roster rolled). */
+export function racerSpec(entry, k = 0, seed = 1, setting) {
+  const s0 = seed * 31 + 7 * k + 1, inGame = setting ? { setting } : {};
   if (typeof entry === 'string') {
     const w = entry.trim();
     if (!w) throw fail('a racer is an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }');
-    return ARCHETYPES[w] ? { facets: { archetype: w }, seed: s0 } : { facets: {}, brief: w, seed: s0 };
+    return ARCHETYPES[w] ? { facets: { archetype: w }, seed: s0, ...inGame } : { facets: {}, brief: w, seed: s0, ...inGame };
   }
   if (!isObj(entry)) throw fail('a racer is an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts? }');
   for (const key of Object.keys(entry)) if (!SPEC_KEYS.includes(key)) throw fail(`a racer's ${key} is not one of ${SPEC_KEYS.join(', ')}`);
@@ -57,12 +59,12 @@ export function racerSpec(entry, k = 0, seed = 1) {
   if (entry.parts !== undefined && !isObj(entry.parts)) throw fail('a racer\'s parts are pins { family: id }');
   if (entry.seed !== undefined && !Number.isInteger(entry.seed)) throw fail('a racer\'s seed is a whole number');
   const facets = { ...(entry.facets ?? {}), ...Object.fromEntries(['archetype', 'build', 'age'].filter((x) => entry[x] !== undefined).map((x) => [x, entry[x]])) };
-  return { facets, ...(entry.brief ? { brief: entry.brief } : {}), seed: entry.seed ?? s0, ...(entry.parts ? { parts: entry.parts } : {}) };
+  return { facets, ...(entry.brief ? { brief: entry.brief } : {}), seed: entry.seed ?? s0, ...(entry.parts ? { parts: entry.parts } : {}), ...inGame };
 }
 
 /** A recipe's reading and machine. */
 export function racerOf(spec) {
-  const sheet = rollEgocube({ facets: spec.facets ?? {}, ...(spec.brief ? { brief: spec.brief } : {}), seed: spec.seed ?? 1 });
+  const sheet = rollEgocube({ facets: spec.facets ?? {}, ...(spec.brief ? { brief: spec.brief } : {}), seed: spec.seed ?? 1, ...(spec.setting ? { setting: spec.setting } : {}) });
   const R = racerFromSheet(sheet, { seed: spec.seed ?? 1 });
   return { R, S: solveRacer(R, { seed: spec.seed ?? 1, parts: spec.parts ?? {} }) };
 }
@@ -89,18 +91,24 @@ export function balanceOf(ms) {
   return { holds: !everything.length && !bettered.length, best, everything, bettered };
 }
 
-/** A field of racers, balanced. `field`: n (2 to 8, a seeded draw of distinct archetypes) or a list of entries. */
-export function solveRoster(field, { seed = 1 } = {}) {
+/** A field of racers, balanced. `field`: n (2 to 8, a seeded draw of distinct archetypes) or a list of entries.
+ * `setting`, the game's (egocube/setting.js): its genre's archetype lean weights the draw, and every racer is rolled in it. */
+export function solveRoster(field, { seed = 1, setting } = {}) {
   let entries;
   if (Number.isInteger(field)) {
     if (field < 1 || field > 8) throw fail('a roster is 1 to 8 racers');
     const rnd = mulberry32((seed * 2654435761 + 97) >>> 0), pool = Object.keys(ARCHETYPES);
-    for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    const lean = setting ? leanOf(setting, 'person').archetype : null;
+    if (lean) {
+      // a weighted draw without replacement: each archetype keyed u^(1/w) and the highest kept (an archetype leaned to 0 last)
+      const key = Object.fromEntries(pool.map((a) => { const w = lean[a] ?? 1, u = rnd(); return [a, w > 0 ? Math.log(u) / w : -Infinity]; }));
+      pool.sort((a, b) => key[b] - key[a]);
+    } else for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
     entries = pool.slice(0, field);
   } else if (Array.isArray(field) && field.length >= 1 && field.length <= 8) entries = field;
   else throw fail('a roster is a number of racers (1 to 8) or a list of them (an archetype, a brief, or { archetype?, … })');
   const racers = entries.map((e, k) => {
-    const spec = racerSpec(e, k, seed), { R, S } = racerOf(spec);
+    const spec = racerSpec(e, k, seed, setting), { R, S } = racerOf(spec);
     return { spec, archetype: R.archetype, R, S, measures: racerMeasures(S) };
   });
   // the lean: a racer bettered everywhere by another (or best everywhere) takes a runner-up engine or tyre that gives

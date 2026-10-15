@@ -25,9 +25,11 @@
  *     racers?: n | [<racer>, …],            // race: a field of cartoon racers (2 to 8), each in the machine its driver
  *                                           // reads as (car-designer/roster.js), the first yours, the rest your rivals:
  *                                           // n drawn, or each an archetype, a brief in words, or { archetype?, build?,
- *                                           // age?, brief?, facets?, seed?, parts? }; balanced, each on its own physics
+ *                                           // age?, brief?, facets?, seed?, parts? }; balanced, each on its own physics,
+ *                                           // each driver rolled in the game's setting
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
- *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (a plain one by default)
+ *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (by default, rolled in the game's setting:
+ *                                           // gameworld/cast-setting.js)
  *     alarms?: n,                           // sneak: how many sightings end it (1: the first)
  *     music?: '<mood>' | 'auto',            // rhythm: the field score whose beat it runs to (wayfarer). Any other goal:
  *                                           // a field score under each level, one identity across the game ('auto':
@@ -36,13 +38,13 @@
  *                                           // palette the score implies; arcade, foley, orchestral, synth; beats/sfx-palettes.js)
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
- *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (plain ones by default)
+ *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
  *     boulders?: n,                         // puzzle: how many boulders to push onto their plates (2, at most 4)
  *     craft?: 'glider' | 'trainer' | 'jet', // fly: the aircraft (skyscape/eye.js CRAFT); the map and the course are its
  *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
  *     airspace?: { map?, ground?, course? }, // fly: the flight map (an island by default), as an airspace level takes it
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
- *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
+ *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks (rolled by default)
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
@@ -105,7 +107,6 @@ export const SHOOT = Object.freeze({
 });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
 const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
-export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a5530' }, gear: { right: { item: 'bow' } } });
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
@@ -118,17 +119,12 @@ export const DEATHMATCH = Object.freeze({ bots: 3, frags: 10, respawn: 3, arena:
 // a deathmatch's modes: everyone for themselves; two sides to a frag limit; two sides holding a point for time
 export const DEATHMATCH_MODES = Object.freeze(['free-for-all', 'team', 'control']);
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
-export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
 export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 6 });
-export const QUICK_FOE = Object.freeze({ cast: 'male', palette: { Top: '#6b2222' }, gear: { right: { item: 'dagger' } } });
-export const QUICK_TOWER = Object.freeze({ cast: 'female', palette: { Top: '#2e5c3a' }, gear: { right: { item: 'bow' } } });
 // a defence's numbers: what a tower costs, the purse it starts with, what a felled foe pays, foes in a wave
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-// a guard when the game names none: plain, armed
-export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
 const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
@@ -417,8 +413,8 @@ export const raceRivals = (quick) => Array.from({ length: quick.racers !== undef
 /** A field of racers (quick.racers): the roster solved and balanced (car-designer/roster.js), each racer's recipe (what
  * its figure resolves through) and the drive rule its own machine plays by, at the race's tuning (arcade unless named)
  * and conditions. → { field: [{ spec, archetype, rule }], balance, changes } */
-export function quickRacers(quick, seed = 1) {
-  const { racers, balance, changes } = solveRoster(quick.racers, { seed });
+export function quickRacers(quick, seed = 1, setting) {
+  const { racers, balance, changes } = solveRoster(quick.racers, { seed, ...(setting ? { setting } : {}) });
   const field = racers.map((r) => ({ spec: r.spec, archetype: r.archetype, rule: { ...racerRule(r.S, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } }));
   return { field, balance, changes };
 }
