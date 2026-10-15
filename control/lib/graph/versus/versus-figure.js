@@ -124,9 +124,12 @@ function figReach(root, target, l1, l2, pole) {
 
 /**
  * The skeleton posed by the sim's joints J (versus-rig.js rigJoints, mm), facing `face` (+1 toward +x), airborne or
- * not, bladed by `blade` (0 … 1). → { <node>: [x, y, z] } in metres, the figure's frame, plus `fistL/R`.
+ * not, bladed by `blade` (0 … 1), and turned by the pose's own round-body channels (degrees): `twist` the chest
+ * further toward the camera, `spin` the whole body about the vertical through the pelvis (toward the camera first),
+ * `bank` the whole body about its forward line (its top toward the camera); a body that `lie`s rests on its lowest
+ * point. → { <node>: [x, y, z] } in metres, the figure's frame, plus `fistL/R`, `heelL/R`.
  */
-export function figurePose(base, J, { face = 1, air = false, blade = 1 } = {}) {
+export function figurePose(base, J, { face = 1, air = false, blade = 1, twist = 0, spin = 0, bank = 0, lie = false } = {}) {
   const sg = face > 0 ? 1 : -1, lead = sg > 0 ? 'L' : 'R';
   const at = (p) => [0, p[0] / 1000, p[1] / 1000];
   const sideOf = (S) => (S === lead ? 'F' : 'B');
@@ -165,7 +168,7 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1 } = {}) {
     return -sg * best.deg * FIG_DEG;
   };
   const over = (root, target, l) => Math.max(0, fv.len(fv.sub(target, root)) - l * 0.999);
-  const chest = turnFor(blade * FIG_BLADE.chest, -FIG_TURN.chest, (c) => FIG_SIDES.reduce((m, S) => {
+  const chest = turnFor(blade * FIG_BLADE.chest + twist, -FIG_TURN.chest, (c) => FIG_SIDES.reduce((m, S) => {
     const sh = trunkAt(`shoulder${S}`, c);
     return m + over(sh, wristAt(S, sh), armLen(S));
   }, 0));
@@ -200,8 +203,23 @@ export function figurePose(base, J, { face = 1, air = false, blade = 1 } = {}) {
   // a leg too short for the sim's spot (a character shorter in the leg than the sim's figure) leaves its foot in the
   // air: grounded, the body sinks by the least such gap so the nearer foot stands
   const gaps = FIG_SIDES.map((S) => N[`ankle${S}`][2] - ankleAt(S, N[`hip${S}`])[2]);
-  const dz = air ? 0 : -Math.max(0, Math.min(...gaps));
+  const dz = air || lie ? 0 : -Math.max(0, Math.min(...gaps));
   if (dz) for (const k of Object.keys(N)) N[k] = [N[k][0], N[k][1], N[k][2] + dz];
+  // the whole body turned: about the vertical (a spin), about its forward line (a roll onto a side)
+  if (spin || bank) {
+    const piv = N.pelvisHub;
+    for (const k of Object.keys(N)) {
+      let v = fv.sub(N[k], piv);
+      if (spin) v = figRotZ(v, -sg * spin * FIG_DEG);
+      if (bank) { const a = sg * bank * FIG_DEG, c = Math.cos(a), si = Math.sin(a); v = [v[0] * c + v[2] * si, v[1], -v[0] * si + v[2] * c]; }
+      N[k] = fv.add(piv, v);
+    }
+  }
+  if (lie && bank) {
+    // rolled, a lying body rests on its new lowest point
+    const low = Math.min(...Object.values(N).map((q) => q[2])) - 0.04;
+    for (const k of Object.keys(N)) N[k] = [N[k][0], N[k][1], N[k][2] - low];
+  }
   return N;
 }
 

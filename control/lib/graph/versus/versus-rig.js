@@ -9,7 +9,12 @@
  *   torso, head:              0 stands straight up, + leans forward.
  *
  *   pose = { torso, head, armF: [upper, fore], armB: [upper, fore], legF: [thigh, shin, foot], legB: [...],
- *            hip?: [dx, dy], air?: true }
+ *            hip?: [dx, dy], air?: true, pitch?, lie?: true, twist?, spin?, bank? }
+ *
+ * `pitch` turns the whole body about the pelvis (+ over its face, - onto its back: a tumble, a fall), and a body that
+ * `lie`s rests on its lowest point (its back, its side) instead of its feet. `twist`, `spin` and `bank` are the round
+ * body's own (versus-figure.js: the chest turned further, the whole body turned about the vertical, rolled about its
+ * forward line); the side view does not read them.
  *
  * F is the lead side (nearer the opponent), B the rear. A grounded pose stands on its lowest point: the figure is
  * lifted or sunk so its lowest foot point touches y = 0 (a crouch sinks without saying so); `air: true` keeps the
@@ -82,7 +87,19 @@ export function rigJoints(body, pose) {
     J[`ankle${side}`] = along(J[`knee${side}`], limbDir(leg[1]), body.shin + body.ankle);
     J[`toe${side}`] = along(J[`ankle${side}`], limbDir(leg[2] ?? 90), body.foot);
   }
-  if (!pose.air) {
+  if (pose.pitch) {
+    // the whole body about the pelvis (+ forward: the head goes over the face)
+    const a = pose.pitch * DEG, c = Math.cos(a), si = Math.sin(a);
+    for (const k of Object.keys(J)) {
+      const dx = J[k][0] - pelvis[0], dy = J[k][1] - pelvis[1];
+      J[k] = [pelvis[0] + dx * c + dy * si, pelvis[1] - dx * si + dy * c];
+    }
+  }
+  if (pose.lie) {
+    // lying: the lowest point of the body on the floor, a limb's thickness under it
+    const low = Math.min(...Object.values(J).map((q) => q[1])) - body.limbR;
+    for (const k of Object.keys(J)) J[k] = [J[k][0], J[k][1] - low];
+  } else if (!pose.air) {
     // stand on the lowest foot point
     const low = Math.min(J.ankleF[1], J.ankleB[1], J.toeF[1], J.toeB[1]);
     for (const k of Object.keys(J)) J[k] = [J[k][0], J[k][1] - low];
@@ -120,6 +137,9 @@ export function lerpPose(a, b, t) {
   const ha = a.hip ?? [0, 0], hb = b.hip ?? [0, 0];
   out.hip = [mix(ha[0], hb[0]), mix(ha[1], hb[1])];
   if (t < 0.5 ? a.air : b.air) out.air = true;
+  // the round body's turns, and a lying body (absent from both: nothing added)
+  for (const k of ['pitch', 'twist', 'spin', 'bank']) if (a[k] !== undefined || b[k] !== undefined) out[k] = mix(a[k] ?? 0, b[k] ?? 0);
+  if (t < 0.5 ? a.lie : b.lie) out.lie = true;
   return out;
 }
 

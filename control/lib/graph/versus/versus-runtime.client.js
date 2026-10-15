@@ -8,7 +8,7 @@
  * picture itself is the caller's: it hands `toScreen(xmm, ymm)` and a px-per-mm scale for the overlay to land on.
  */
 
-/* global compileFighter, newVersus, stepVersus, cpuPad, newCpuMemory, CPU_LEVELS, POSES, lerpPose, hurtBoxes,
+/* global compileFighter, newVersus, stepVersus, cpuPad, newCpuMemory, CPU_LEVELS, POSES, lerpPose, reactionPose, hurtBoxes,
    hitBox, pushBox, BTN, weaponLine */
 
 const VS_LEVELS = ['novice', 'regular', 'veteran', 'ace'];
@@ -158,6 +158,7 @@ function stepMatch(m) {
   const p0 = s.p[0], b0 = before.p[0];
   if (p0.mv && p0.mf === 1 && (b0.mv !== p0.mv || b0.mf !== 0)) m.lastMove = m.ctx.fighters[0].moves[p0.mv];
   tickEffects(m);
+  tickPoses(m);
   for (const e of s.events) onEvent(m, e);
   for (let i = 0; i < 2; i++) {
     if (s.p[1 - i].combo >= 2) { m.combo[i] = s.p[1 - i].combo; m.comboT[i] = 70; }
@@ -171,6 +172,35 @@ function stepMatch(m) {
  * the shake, the sparks and the health bar's trailing red last as many steps at any refresh rate (and hold still
  * while the match is paused). Drawing only reads them.
  */
+/**
+ * The bodies drawn, one a step: each body's pose this step and its joints, eased in from the joints drawn before
+ * whenever it changes state or move, or a state starts over (a second hit in a stun): over two steps into a move,
+ * four into anything else. The JOINTS blend, not the angles, so a body falling onto the floor travels down to it
+ * instead of jumping. Drawing reads `drawnPose` (the pose, for its round-body channels, and the joints).
+ */
+function tickPoses(m) {
+  m.drawn = m.drawn || [null, null];
+  for (let i = 0; i < 2; i++) {
+    const p = m.s.p[i], F = m.ctx.fighters[i];
+    const pose = poseOf(p, F, m.t + i * 40, m.s.rules), J = rigJoints(F.body, pose);
+    const key = p.mv ? `mv:${p.mv}` : `st:${p.st}`;
+    const d = m.drawn[i];
+    if (!d) { m.drawn[i] = { key, sf: p.sf, from: J, k: 1, n: 1, pose, J }; continue; }
+    if (key !== d.key || (!p.mv && p.sf < d.sf)) { d.from = d.J; d.k = 0; d.key = key; d.n = p.mv ? 2 : 4; }
+    d.sf = p.sf;
+    d.k = Math.min(1, d.k + 1 / d.n);
+    const e = d.k * d.k * (3 - 2 * d.k);
+    d.pose = pose;
+    d.J = d.k >= 1 ? J : Object.fromEntries(Object.keys(J).map((k) => [k, [d.from[k][0] + (J[k][0] - d.from[k][0]) * e, d.from[k][1] + (J[k][1] - d.from[k][1]) * e]]));
+  }
+}
+/** What to draw a body as: { pose, J } (its pose this step and its eased joints), or its state's own before a step. */
+const drawnPose = (m, i) => {
+  if (m.drawn?.[i]) return m.drawn[i];
+  const F = m.ctx.fighters[i], pose = poseOf(m.s.p[i], F, m.t + i * 40, m.s.rules);
+  return { pose, J: rigJoints(F.body, pose) };
+};
+
 function tickEffects(m) {
   if (m.banner && m.banner.n > 0) m.banner.n--;
   if (m.flash && m.flash.n > 0) m.flash.n--;
@@ -223,12 +253,14 @@ function spark(m, x, y, color, n) {
   }
 }
 
-/** The pose a body is in this frame. */
-function poseOf(p, F, t) {
+/** The pose a body is in this frame: its move's, a reaction's (versus-react.js), or its state's. */
+function poseOf(p, F, t, rules) {
   if (p.mv) {
     const mv = F.moves[p.mv];
     return mv.frames[Math.max(1, Math.min(p.mf, mv.total))].pose;
   }
+  const reacting = reactionPose(p, rules);
+  if (reacting) return reacting;
   const wave = (k) => (Math.sin(t * k) + 1) / 2;
   switch (p.st) {
     case 'walkF': case 'walkB': return lerpPose(POSES.walkA, POSES.walkB, wave(0.22));
@@ -237,15 +269,8 @@ function poseOf(p, F, t) {
     case 'air': return POSES.jump;
     case 'land': return lerpPose(POSES.crouch, POSES.guard, Math.min(1, p.sf / Math.max(1, p.landing)));
     case 'dashF': return POSES.dash;
-    case 'dashB': case 'tech': return POSES.backdash;
+    case 'dashB': return POSES.backdash;
     case 'burst': return lerpPose(POSES.crouch, POSES.burst, Math.min(1, p.sf / 4));
-    case 'hit': return p.low ? POSES.hitCrouch : (p.sf % 2 ? POSES.hitHigh : POSES.hitLow);
-    case 'block': return p.low ? POSES.blockLow : POSES.blockHigh;
-    case 'fall': return POSES.fall;
-    case 'ko': return p.y > 0 ? POSES.fall : POSES.down;
-    case 'down': return POSES.down;
-    case 'rise': return lerpPose(POSES.down, POSES.rise, Math.min(1, p.sf / 10));
-    case 'thrown': return POSES.thrown;
     case 'win': return lerpPose(POSES.guard, POSES.win, Math.min(1, p.sf / 20));
     case 'lose': return lerpPose(POSES.guard, POSES.lose, Math.min(1, p.sf / 30));
     default: return { ...POSES.guard, torso: POSES.guard.torso + Math.sin(t * 0.08) * 2 };

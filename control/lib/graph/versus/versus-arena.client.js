@@ -25,7 +25,7 @@
  */
 
 /* global VERSUS_ARENA, THREE, scene, camera, controls, wrap, compileFighter, rigJoints, weaponLine, RT, VS_DUMMY,
-   figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawEffects, drawHud, vsText, vsOutlined */
+   figureBase, characterBase, figurePose, figureSegments, segmentOf, decodeF32, decodeU8, installVersusInput, hostedRules, menuInput, endInputFrame, newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, vsText, vsOutlined */
 
 const AV = VERSUS_ARENA;
 const hosted = window.parent !== window;
@@ -59,10 +59,12 @@ const worldOf = (p, n, out) => out.set(p.x / 1000 + p.face * n[1], PLANE - p.fac
 // how far the body stands bladed: all the way on its feet, half when hit, not at all falling or down
 const BLADE_OF = { fall: 0, ko: 0, down: 0, thrown: 0, rise: 0.4, hit: 0.5, burst: 0.6 };
 const bladeOf = (p) => BLADE_OF[p.st] ?? 1;
-const poseFigure = (base, p, F, t) => {
-  const pose = poseOf(p, F, t);
-  return { pose, N: figurePose(base, rigJoints(F.body, pose), { face: p.face, air: !!pose.air, blade: bladeOf(p) }) };
-};
+const poseFigure = (base, p, F, { pose, J }) => ({
+  pose,
+  N: figurePose(base, J, {
+    face: p.face, air: !!pose.air, blade: bladeOf(p), twist: pose.twist ?? 0, spin: pose.spin ?? 0, bank: pose.bank ?? 0, lie: !!pose.lie,
+  }),
+});
 
 // a unit cylinder along +y with its light baked into vertex colours (the page draws unlit), and a ball
 function shadedGeometry(geo) {
@@ -113,8 +115,8 @@ function cylinderAt(mesh, a, b, r) {
   mesh.quaternion.setFromUnitVectors(UP, vD.normalize());
   mesh.scale.set(r, r, len);
 }
-function placeBody(B, p, F, t) {
-  const { N } = poseFigure(B.base, p, F, t);
+function placeBody(B, p, F, drawn) {
+  const { N } = poseFigure(B.base, p, F, drawn);
   const r = F.body.limbR / 1000;
   for (const L of B.limbs) {
     worldOf(p, N[L.a], vA); worldOf(p, N[L.b], vB);
@@ -129,7 +131,7 @@ function placeBody(B, p, F, t) {
   }
   if (B.blade) {
     // the blade along the sim's line (weaponLine), from the grip hand's depth
-    const J = rigJoints(F.body, poseOf(p, F, t)), L = weaponLine(J, F.weapon);
+    const L = weaponLine(drawn.J, F.weapon);
     const grip = F.weapon.grip === 'B' ? (p.face > 0 ? 'R' : 'L') : (p.face > 0 ? 'L' : 'R');
     const depth = N[`wrist${grip}`][0];
     worldOf(p, [depth, L.butt[0] / 1000, L.butt[1] / 1000], vA);
@@ -212,8 +214,8 @@ function makeCharacter(skin) {
   return { group, shadow, skin, meshes };
 }
 const M4 = new THREE.Matrix4();
-function placeCharacter(B, p, F, t) {
-  const { N } = poseFigure(B.skin.base, p, F, t);
+function placeCharacter(B, p, F, drawn) {
+  const { N } = poseFigure(B.skin.base, p, F, drawn);
   const S = figureSegments(B.skin.base, N);
   // the figure faces +y in its own frame: turned to face its foe along the plane, its feet on the fight's ground
   B.group.position.set(p.x / 1000, PLANE, FLOOR + p.y / 1000);
@@ -232,7 +234,7 @@ function placeCharacter(B, p, F, t) {
   B.shadow.position.set(p.x / 1000, PLANE, FLOOR + 0.01);
   B.shadow.scale.setScalar((F.body.bodyR / 1000) * 1.8 * Math.max(0.4, 1 - p.y / 1600));
 }
-const placeFighter = (B, p, F, t) => (B.skin ? placeCharacter(B, p, F, t) : placeBody(B, p, F, t));
+const placeFighter = (B, p, F, drawn) => (B.skin ? placeCharacter(B, p, F, drawn) : placeBody(B, p, F, drawn));
 
 // ── the fight ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -334,7 +336,7 @@ function draw() {
   if (!match) { vsOutlined(g2, 'GET READY', OW / 2, OH / 2, 40, '#fff'); return; }
   frameCamera();
   const s = match.s;
-  for (let i = 0; i < 2; i++) placeFighter(bodies[i], s.p[i], match.ctx.fighters[i], match.t + i * 40);
+  for (let i = 0; i < 2; i++) placeFighter(bodies[i], s.p[i], match.ctx.fighters[i], drawnPose(match, i));
   const S = OH / (2 * cam.dist * Math.tan((VFOV * Math.PI) / 360)) / 1000;
   drawEffects(g2, match, toScreen, S);
   drawHud(g2, OW, OH, match);

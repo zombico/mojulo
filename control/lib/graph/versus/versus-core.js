@@ -79,7 +79,7 @@ function newPlayer(i, fighter, rules, meter = 0, scheme = 'modern') {
     x: i === 0 ? -rules.start : rules.start, y: 0, vx: 0, vy: 0, face: i === 0 ? 1 : -1,
     hp: fighter.hp, meter, st: 'stand', sf: 0, mv: null, mf: 0, hs: 0, stun: 0, low: 0,
     hitN: 0, hitAt: 0, conn: 0, combo: 0, jug: 0, pushv: 0, pushn: 0, jx: 0, airMove: 0, air: 0,
-    landing: 0, inv: 0, tinv: 0, tb: 0, clinch: 0, techable: 0, throwDmg: 0, ko: 0, counter: 0,
+    landing: 0, inv: 0, tinv: 0, tb: 0, clinch: 0, techable: 0, throwDmg: 0, ko: 0, counter: 0, rx: 0,
     hist: [], held: 0, scheme,
     ...(rules.systems && rules.systems.includes('guard') ? { gd: rules.guardMax, gdT: 0 } : {}),
     ...(rules.systems && rules.systems.includes('burst') ? { burst: 0 } : {}),
@@ -355,6 +355,7 @@ function advance(s, i, ctx) {
         const gain = ctx.fighters[i].moves[p.mv].meter;
         o.hp -= scaled(s, o, p.throwDmg);
         o.st = 'fall'; o.sf = 0; o.vy = 60;
+        react(o, 'throw', 1, 2);
         const away = p.tb ? -p.face : p.face;
         if (p.tb) o.x = p.x - p.face * 300;
         o.vx = away * 22;
@@ -407,6 +408,7 @@ function burst(s, i) {
   if (Math.abs(o.x - p.x) <= s.rules.burstReach && !o.ko && o.st !== 'down') {
     const away = sign(o.x - p.x) || -p.face;
     o.st = 'fall'; o.sf = 0; o.mv = null; o.air = 0; o.hs = 0; o.vy = 60; o.vx = away * 34; if (o.y <= 0) o.y = 1;
+    react(o, 'blown', 1, 2);
   }
   s.events.push({ t: 'burst', p: i, x: p.x, y: p.y + 1000 });
 }
@@ -576,12 +578,29 @@ function resolve(s, ctx) {
   }
 }
 
+/**
+ * What a body is reacting to (`rx`, read by the page's reactions, versus-react.js; the sim itself never reads it):
+ *   k   the kind: hit, block, crush, launch, down (a knockdown), sweep (a low knockdown), air (hit in the air),
+ *       grab, throw, blown (burst away)
+ *   h   where it landed: 0 high (the head), 1 the body, 2 low (the legs), from the box that hit against the body's own
+ *   w   how hard: 0 light, 1 medium, 2 heavy (by the damage it carried)
+ *   c   1 on a counter hit
+ */
+function react(d, k, h = 1, w = 1, c = 0) { d.rx = { k, h, w, c }; }
+function heightOf(box, d, F) {
+  const top = Math.max(...hurtBoxes(d, F).map((b) => b[3]), d.y + 1);
+  const rel = ((box[1] + box[3]) / 2 - d.y) / Math.max(1, top - d.y);
+  return rel > 0.7 ? 0 : rel < 0.38 ? 2 : 1;
+}
+const weightOf = (dmg) => (dmg < 45 ? 0 : dmg < 85 ? 1 : 2);
+
 function applyThrow(s, ctx, i) {
   const p = s.p[i], o = s.p[1 - i];
   const m = ctx.fighters[i].moves[p.mv];
   p.hitN = 1;
   p.st = 'throwing'; p.sf = 0; p.clinch = m.throw.clinch; p.throwDmg = m.damage;
   o.st = 'thrown'; o.sf = 0; o.mv = null; o.techable = m.throw.tech; o.pushn = 0;
+  react(o, 'grab', 1, weightOf(m.damage));
   s.events.push({ t: 'grab', p: i, x: (p.x + o.x) / 2 });
 }
 
@@ -595,14 +614,18 @@ function applyHit(s, ctx, { a, m, shot }) {
   if (shot) { shot.hits--; shot.hitAt = s.f; } else { p.hitN++; p.hitAt = p.mf; }
   const airborne = d.y > 0 || d.air || d.st === 'air' || d.st === 'fall';
   const dm = d.st === 'move' && d.mv ? ctx.fighters[1 - a].moves[d.mv] : null;
+  // where the blow lands and how hard (what the body reacts to)
+  const box = shot ? shotBox(shot) : hitBox(p, ctx.fighters[a]);
+  const at = guard === 'low' ? 2 : box ? heightOf(box, d, ctx.fighters[1 - a]) : 1;
+  const hard = (shot && shot.sup) || (!shot && m.kind === 'super') ? 2 : weightOf(src.dmg ?? src.damage ?? 30);
 
   // a riposte catches a strike in its window and answers it
   if (!shot && dm && dm.riposte && d.mf >= dm.riposte[0] && d.mf <= dm.riposte[1] && d.hs === 0) {
     const [, , rdmg, knock] = dm.riposte;
     d.mf = dm.riposte[1]; d.hs = 0;
     p.hp -= scaled(s, p, rdmg); p.combo++; p.mv = null; p.air = 0; p.hs = hitstop;
-    if (knock === 'none') { p.st = 'hit'; p.sf = 0; p.stun = 20; p.low = 0; }
-    else { p.st = 'fall'; p.sf = 0; p.vy = knock === 'launch' ? 105 : 50; p.vx = -face * 20; if (p.y <= 0) p.y = 1; p.jug++; }
+    if (knock === 'none') { p.st = 'hit'; p.sf = 0; p.stun = 20; p.low = 0; react(p, 'hit', 1, 1, 1); }
+    else { p.st = 'fall'; p.sf = 0; p.vy = knock === 'launch' ? 105 : 50; p.vx = -face * 20; if (p.y <= 0) p.y = 1; p.jug++; react(p, knock === 'launch' ? 'launch' : 'down', 1, 2, 1); }
     s.events.push({ t: 'riposte', p: 1 - a, x: d.x + d.face * 300, y: 1100 });
     if (p.hp <= 0) ko(s, a, -face);
     return;
@@ -641,6 +664,7 @@ function applyHit(s, ctx, { a, m, shot }) {
       if (d.gd <= 0) {
         d.gd = s.rules.guardMax;
         d.st = 'hit'; d.sf = 0; d.stun = s.rules.crushStun; d.low = 0; d.mv = null; d.hs = hitstop;
+        react(d, 'crush', at, 2);
         if (!shot) { p.hs = hitstop; p.conn = 1; }
         s.events.push({ t: 'crush', p: a, x: d.x, y: 1300 });
         return;
@@ -650,6 +674,7 @@ function applyHit(s, ctx, { a, m, shot }) {
     const lethal = shot ? shot.sup : m.kind === 'super';
     d.hp = Math.max(lethal ? 0 : Math.min(d.hp, 1), d.hp - chip);
     d.st = 'block'; d.sf = 0; d.stun = src.blockstun; d.low = currentDir(d.hist) === 1 ? 1 : 0; d.mv = null;
+    react(d, 'block', at, hard);
     d.hs = shot ? hitstop - 2 : hitstop - 2;
     if (!shot) { p.hs = hitstop - 2; p.conn = p.conn || 2; }
     pushOut(push);
@@ -674,6 +699,7 @@ function applyHit(s, ctx, { a, m, shot }) {
   const knock = shot ? (shot.sup ? 'down' : 'none') : m.knock;
   if (airborne || knock === 'launch' || knock === 'down') {
     d.st = 'fall'; d.sf = 0;
+    react(d, knock === 'launch' ? 'launch' : airborne ? 'air' : guard === 'low' ? 'sweep' : 'down', at, hard, counter ? 1 : 0);
     d.vy = knock === 'launch' ? 105 : airborne ? 55 : 45;
     d.vx = face * (knock === 'launch' ? 10 : 20);
     if (d.y <= 0) d.y = 1;
@@ -681,6 +707,7 @@ function applyHit(s, ctx, { a, m, shot }) {
   } else {
     d.low = stanceOf(d) === 'crouch' ? 1 : 0;
     d.st = 'hit'; d.sf = 0; d.stun = src.hitstun + (counter ? 2 : 0);
+    react(d, 'hit', at, hard, counter ? 1 : 0);
     pushOut(push);
   }
   s.events.push({ t: counter ? 'counter' : 'hit', p: a, dmg, x: shot ? shot.x : d.x - face * 150, y: shot ? shot.y : 1100, combo: d.combo });

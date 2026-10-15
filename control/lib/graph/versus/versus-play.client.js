@@ -13,7 +13,7 @@
  */
 
 /* global VERSUS, compileFighter, rigJoints, SCHEMES, RT, VS_LEVELS, VS_DUMMY, installVersusInput, menuInput, blip, endInputFrame,
-   newMatch, stepMatch, poseOf, drawEffects, drawHud, drawBlade, vsText, vsOutlined, vsShade */
+   newMatch, stepMatch, poseOf, drawnPose, drawEffects, drawHud, drawBlade, vsText, vsOutlined, vsShade */
 
 const cv = document.getElementById('versus');
 const g = cv.getContext('2d');
@@ -191,8 +191,8 @@ const BONES = [
   ['pelvis', 'kneeF'], ['kneeF', 'ankleF'], ['ankleF', 'toeF'], ['shoulder', 'elbowF'], ['elbowF', 'fistF'],
 ];
 
-function drawFighter(p, F, color, view, t) {
-  const J = rigJoints(F.body, poseOf(p, F, t));
+function drawFighter(p, F, color, view, t, drawn = null) {
+  const J = drawn ? drawn.J : rigJoints(F.body, poseOf(p, F, t));
   const S = view.scale;
   const sx = (x) => view.cx + (p.x + x * p.face - view.camX) * S;
   const sy = (y) => view.ground - (p.y + y) * S;
@@ -281,7 +281,7 @@ function drawFight() {
   drawStage(STAGES[game.stageIx], view, game.t);
   const s = match.s;
   const order = s.p[0].mv && !s.p[1].mv ? [1, 0] : [0, 1];
-  for (const i of order) drawFighter(s.p[i], match.ctx.fighters[i], match.colors[i], view, game.t + i * 40);
+  for (const i of order) drawFighter(s.p[i], match.ctx.fighters[i], match.colors[i], view, game.t + i * 40, drawnPose(match, i));
   drawEffects(g, match, (x, y) => [view.cx + (x - view.camX) * view.scale, view.ground - y * view.scale], view.scale);
   drawHud(g, W, H, match);
 }

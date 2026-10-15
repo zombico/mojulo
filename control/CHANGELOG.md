@@ -97,6 +97,21 @@ its own body on an arena; the stick figures are the simulation's own dummies, dr
   game hosting the arena sends which pick is a character; one the arena has no body for (a roster grown since it was
   made) is the stick figure. Without a character, an arena carries no bodies. The sim's boxes still come from its own
   figure; moves authored in the vajra's words come next.
+- **Reactions: how a body takes what happens to it** (`versus-react.js`). The sim now records what a body is
+  reacting to (`rx`: the kind, where the blow landed from the box that hit against the body's own, how hard by its
+  damage, a counter), and the page turns it into a timed clip over the state's own length: a high hit snaps the head
+  back and flings the arms, a body hit folds the trunk over the blow, a low one buckles the lead knee and drops the
+  hips, a crouching one jolts the shoulders; heavier blows and counters carry further and hold longer, the impact
+  struck at once and held through the hit's freeze, every one home by the end of its stun. A broken guard is blown
+  open then sways; a block rocks back into the guard. In the air the body falls by what put it there (launched it
+  tumbles back, knocked down it jack-knifes, swept its legs go out from under it, thrown it is turned over, hit in
+  the air it hangs limp), resting its lowest point on the sim's height so it comes down onto the floor; it lands with
+  a slam and a bounce, lies on its back, rolls to a side and pushes up to a knee, and rises from the knee; a broken
+  throw hops back, a body being thrown is held, struggling. The whole body pitches about its pelvis for tumbles and
+  lying (`pitch`, `lie`, in the side view too), and the round body turns further (`twist`, `spin`, `bank`). Every
+  state change eases in from the body drawn before it (the joints blend, not the angles, over a few steps; a second
+  hit in a stun starts it over), so nothing pops. The sim's boxes are unchanged: a reacting body is hurt where its
+  stance's boxes are; the replay fingerprint covers the new record.
 - **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
   its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
   in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless
