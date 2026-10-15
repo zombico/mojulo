@@ -21,7 +21,7 @@ import { UNDERLAYERS } from './hero-looks.js';
 import { poleOf } from '../era/style/pole.js';
 import { readSetting } from '../egocube/setting.js';
 import { rollEgocube } from '../egocube/egocube.js';
-import { planFromSheet, KITLESS_ERAS } from '../egocube/plan.js';
+import { planFromSheet } from '../egocube/plan.js';
 import { fingerprint } from './review.js';
 
 /** The era each kit's world is in: who it has people for. A kit with no row says nothing. */
@@ -57,15 +57,17 @@ export const CAST_POOL = 3;
 
 /**
  * The figures a quick game stands up when it names none (quick.foe, quick.tower, quick.farmhand, quick.guard): what the
- * goal asks of each (a facet, under the setting's lean for the rest) and what the play puts in its hands. Gear is a
- * myth's or a rustic world's: a modern or future one has none built yet, so its hands are left empty and it is said.
+ * goal asks of each (a facet, under the setting's lean for the rest) and what the play puts in its hands: a myth's or a
+ * rustic world's `gear`, a modern or a future world's its `era` row (the firearms, equipment/firearm.js; a future's in
+ * its own card).
  */
+const armed = (gear) => ({ modern: gear, future: Object.fromEntries(Object.entries(gear).map(([slot, g]) => [slot, { ...g, style: 'future' }])) });
 export const QUICK_FIGURES = Object.freeze({
-  foe:      { facets: {}, gear: { right: { item: 'dagger' } } },
-  gunner:   { facets: { role: 'ranged' }, gear: { right: { item: 'bow' } } },
-  tower:    { facets: { role: 'ranged' }, gear: { right: { item: 'bow' } } },
+  foe:      { facets: {}, gear: { right: { item: 'dagger' } }, era: armed({ right: { item: 'pistol' } }) },
+  gunner:   { facets: { role: 'ranged' }, gear: { right: { item: 'bow' } }, era: armed({ right: { item: 'carbine' } }) },
+  tower:    { facets: { role: 'ranged' }, gear: { right: { item: 'bow' } }, era: armed({ right: { item: 'carbine' } }) },
   farmhand: { facets: { role: 'non-combatant' } },
-  guard:    { facets: { role: 'frontline' }, gear: { right: { item: 'sword' } } },
+  guard:    { facets: { role: 'frontline' }, gear: { right: { item: 'sword' } }, era: armed({ right: { item: 'carbine' }, hip: { item: 'pistol' } }) },
 });
 
 /** A quick figure rolled in the game's setting: the Egocube's person on the hero door (a blind roll is human, so it is
@@ -81,8 +83,9 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
   const rail = UNDERLAYERS[G.style?.kit];
   if (rail) {
     // the world's underlayer in place of the stock clothed body and the role's kit (the base a book hero wears)
-    const { detail: _d, adorn: _a, ...rest } = spec;
-    spec = { ...rest, outfit: { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: rail.language } : {}) } };
+    // (a modern or future person's era pieces, its role's kit, are worn over it: plan.js eraOutfit)
+    const { detail: _d, adorn: _a, ...rest } = spec, worn = spec.outfit?.pieces ? { pieces: spec.outfit.pieces, intent: spec.outfit.intent } : {};
+    spec = { ...rest, outfit: { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: rail.language } : {}), ...worn } };
   }
   // a rank's member wears the first's uniform (its clothes, their colours, its kit and gear) on a face of its own
   if (uniform) {
@@ -91,7 +94,7 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
       palette: { ...own.palette, ...Object.fromEntries(['Top', 'Bottom'].filter((g) => uniform.palette?.[g]).map((g) => [g, uniform.palette[g]])) } };
     return { spec, ...(P.create.toon ? { toon: P.create.toon } : {}), sheet: { print: fingerprint(sheet), reads: sheet.reads }, pending };
   }
-  if (F.gear && KITLESS_ERAS.includes(setting.era)) pending.push(`gear: no ${setting.era} ${F.gear.right.item === 'bow' ? 'firearm' : 'weapon'} yet: the ${F.gear.right.item} is left out of its hands`);
-  else if (F.gear) spec = { ...spec, gear: F.gear };
+  const gear = F.era?.[setting.era] ?? F.gear;
+  if (gear) spec = { ...spec, gear };
   return { spec, ...(P.create.toon ? { toon: P.create.toon } : {}), sheet: { print: fingerprint(sheet), reads: sheet.reads }, pending };
 }

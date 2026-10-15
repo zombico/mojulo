@@ -86,7 +86,7 @@ the game by `settingOfGame` ([gameworld/cast-setting.js](../control/lib/graph/ga
 | Word | Read from | What it does |
 |---|---|---|
 | `tradition` | the book's direction; else the kit's pole (banded anime, material western, the rule the book already ledgers a hero against) | a RULE: an anime game's person wears the anime head, its proportions and the character light, and the sheet's graphic-face derives land on its `sculpt`; a mascot's style |
-| `era` | the kit (`ERA_OF_KIT`) | leans the roles the era has people for (no casters in the modern world); a modern or future era leaves the fantasy role kit and weapons off and says so (no era gear yet) |
+| `era` | the kit (`ERA_OF_KIT`) | leans the roles the era has people for (no casters in the modern world); a modern or future person wears the era's clothes and its role's kit (below, Era gear), and a quick figure carries the era's arms |
 | `genre` | the quick game's goal | leans who stands in it (`GENRES`: farmhands are non-combatants, a firefight has no children) and how far it leans toward a mascot |
 | `ramps` | the kit card's ramps, made and grown things first | the clothes' colours: the top by archetype, the bottom by role, each walked along its ramp until it no longer reads as the skin under it |
 
@@ -94,9 +94,24 @@ A lean is a multiplier on the seed's priors, never a verdict: what the operator 
 beats the setting, and a roll with no setting is the roll it always was, byte for byte. A stored cube keeps the
 setting it was rolled in (`roll.setting`). A quick game's figures it names none of (its foe, guard, farmhand, tower
 archer, gunner) are rolled in its setting, a few to a role (a rank in one uniform, each with its own face), and wear
-the kit's underlayer, and its racers are rolled in it (a race
+the kit's underlayer with its era's kit over it, and its racers are rolled in it (a race
 leans to mascots: a mascot racer's driver is the person's mascot, seated in the machine read off the person); the run's
-readout says what was rolled, what the era left out, and an adopted hero drawn in another tradition (kept as it is).
+readout says what was rolled and an adopted hero drawn in another tradition (kept as it is).
+
+**Era gear.** A myth's or a rustic world's people wear the myth's kit (the stock jerkin and a ranger's kit, or the
+designed outfit's quiver, baldric, pauldron and cloak). A modern or a future world's people wear their era's
+([outfit.js](../control/lib/graph/egocube/outfit.js) `ERA_GEAR`, [plan.js](../control/lib/graph/egocube/plan.js)
+`ERA_STYLE`):
+- the clothes an outfit build in the era's style (modern casual, future athleisure), not the jerkin;
+- the role's pieces over it:
+  - modern: a frontline's plate carrier and kneepads, a flanker's pouches, a ranged chest rig, a support's pack, a
+    tech's satchel;
+  - future: a hardshell in the metal with plates standing off the shoulders, cells on the belt, wrist units;
+- the travelling cloak and the mantle of office left off, and the outlaw's baldric a medallion.
+
+The pieces (`vest`, `pouches`, `kneepads` in the outfit catalogue) are built on windows the myth's pieces proved. A quick
+figure carries the era's arms: a foe a pistol, a gunner and a tower archer a carbine, a guard a carbine with a pistol
+holstered; a future world's in the future card ([equipment/firearm.js](../control/lib/graph/equipment/firearm.js)).
 
 ## One Egocube: the facets
 
@@ -455,8 +470,8 @@ A fate thread is a separate call on a sheet that already exists, never part of t
   through `face`, `expression` and stance.
 - **Factions**: the gameworld has one world kit; a faction layer is new. A game's setting is one language for its
   whole cast today.
-- **Era gear**: the role kit and the held items are a myth's (sword, dagger, bow, staff, shield). A modern or future
-  setting leaves them off and says so; no firearm or modern kit is built yet.
+- **Era gear**: a game book's equipment table (`gameworld/equipment.js`) is still the myth's classes, a row per sword,
+  bow and shield; a modern game's book has no firearm class to fill. Helmets and visors are the armour's only.
 - **A quick game's crowd is three faces**: a role rolls a pool of at most three (`CAST_POOL`), cycled over its members;
   a larger crowd repeats them.
 - **No free text on `create_character`**: notes reach it through the catalyst and the character book.

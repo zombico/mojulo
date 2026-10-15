@@ -5,15 +5,16 @@ import { settingOfGame, quickFigure, QUICK_FIGURES, ERA_OF_KIT, CLOTHES_RAMPS } 
 import { readGameworld } from './world.js';
 import { quickWorld, quickRacers } from './quick.js';
 import { runSteps } from './runner.js';
-import { KITLESS_ERAS } from '../egocube/plan.js';
+import { KIT_ERAS } from '../egocube/plan.js';
+import { FIREARM_ITEMS } from '../equipment/firearm.js';
 import { validateHeroSpec } from '@/lib/mcp/tools/layered.js';
 
 const world = (quick, style) => quickWorld({ id: 'w', quick, ...(style ? { style } : {}) });
 const read = (W) => readGameworld(W);
-// one kit per era the procedure treats apart, chosen from the table: a rustic world, and one with no gear built yet
+// one kit per era the procedure treats apart, chosen from the table: a rustic world, and a future one (its era's kit)
 const RUSTIC = Object.keys(ERA_OF_KIT).find((k) => ERA_OF_KIT[k] === 'rustic' && k !== 'isekai-meadow');
 // (a kit a quick game's trail is laid on: the jungle lays its own)
-const KITLESS = 'alien-night';
+const FUTURE = 'alien-night';
 const lawsOf = (steps) => steps.flatMap((s) => s.laws ?? []).filter((l) => l.concern === 'cast');
 
 describe("a game's setting", () => {
@@ -40,14 +41,18 @@ describe("a game's setting", () => {
     expect(quickFigure(G, W.quick, 'farmhand').sheet.reads.join(' ')).toMatch(/non-combatant/);
   });
 
-  it('in a world with no gear of its era, leaves the hands empty and says so', () => {
-    expect(KITLESS_ERAS).toContain(ERA_OF_KIT[KITLESS]);
-    const W = world({ goal: 'sneak' }, { kit: KITLESS });
+  it('arms and kits a modern or future world\'s people in its era: its firearms in its card, its role\'s pieces over the underlayer', () => {
+    expect(KIT_ERAS).toContain(ERA_OF_KIT[FUTURE]);
+    const W = world({ goal: 'sneak' }, { kit: FUTURE });
     const guard = runSteps(W, { ref: 'q' }).find((s) => s.key === 'guard');
-    expect(guard.order.spec.gear).toBeUndefined();
+    expect(guard.order.spec.gear).toEqual(QUICK_FIGURES.guard.era.future);
+    expect(Object.values(guard.order.spec.gear).every((g) => FIREARM_ITEMS.includes(g.item) && g.style === 'future')).toBe(true);
+    // the frontline's era kit worn over the world's underlayer
+    expect(guard.order.spec.outfit).toMatchObject({ type: 'outfit', style: 'athleisure', pieces: expect.arrayContaining([expect.objectContaining({ kind: 'vest' })]) });
+    expect(validateHeroSpec(guard.order.spec)).toEqual([]);
     const law = lawsOf(runSteps(W, { ref: 'q' })).find((l) => l.law === 'setting');
-    expect(law.holds).toBe(false);
-    expect(law.says).toMatch(/no .* weapon yet/);
+    expect(law.says ?? '').not.toMatch(/yet/);
+    // a rustic world keeps the myth's
     expect(runSteps(world({ goal: 'sneak' }, { kit: RUSTIC }), { ref: 'q' }).find((s) => s.key === 'guard').order.spec.gear).toEqual(QUICK_FIGURES.guard.gear);
   });
 

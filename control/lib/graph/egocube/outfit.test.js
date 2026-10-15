@@ -118,3 +118,22 @@ describe('the outfit, designed from the sheet', () => {
     expect(failing).toEqual(expect.arrayContaining(['one focal', 'clear value steps', 'shape from the archetype', 'the must-see stays seen', 'every piece has a reason']));
   });
 });
+
+describe("the era's kit (a modern or future world's people)", () => {
+  it('a designed outfit in each era passes the visual-interest laws with one focal, its gear the era\'s', async () => {
+    const { ERA_GEAR } = await import('./outfit.js');
+    for (const era of Object.keys(ERA_GEAR)) for (const role of ['frontline', 'support']) {
+      const sheet = rollEgocube({ seed: 3, facets: { role, archetype: 'hero' }, setting: { era } }), { outfit, laws } = outfitFromSheet(sheet);
+      expect(laws.filter((l) => !l.ok).map((l) => `${era} ${role}: ${l.law}: ${l.why}`)).toEqual([]);
+      expect(outfit.pieces.filter((p) => p.role === 'focal')).toHaveLength(1);
+      expect(outfit.pieces.map((p) => p.kind)).toContain(ERA_GEAR[era].gear[role][0].kind);
+    }
+  });
+  it('its pieces compile on a hero body: the carrier front and back, the pouches at both hips, a pad over each knee', async () => {
+    const { heroRecord, expandLayeredManifest } = await import('../../mcp/tools/layered.js');
+    const palette = { base: '#445566', secondary: '#334433', trim: '#c0c0c0', accent: '#cc3333', leather: '#5a3b24' };
+    const hero = heroRecord({ cast: 'female', outfit: { type: 'outfit', style: 'casual', dials: { ornament: 0 }, pieces: [{ kind: 'vest' }, { kind: 'pouches' }, { kind: 'kneepads' }], intent: { palette } } });
+    const ids = new Set(JSON.stringify(expandLayeredManifest({ kind: 'layered', hero })).match(/"(vest|pouches|kneepad)[A-Za-z0-9]*"/g).map((x) => x.slice(1, -1)));
+    for (const id of ['vestR', 'vestL', 'vestBack', 'pouchesR', 'pouchesL', 'pouchesBelt', 'kneepadR', 'kneepadL']) expect(ids).toContain(id);
+  });
+});

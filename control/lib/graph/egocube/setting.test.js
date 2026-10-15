@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readSetting, leanOf, leanPriors, tuningOf, mascotWeight, GENRES, ERAS } from './setting.js';
 import { rollEgocube } from './egocube.js';
 import { rollMascot } from './mascot.js';
-import { planFromSheet, KITLESS_ERAS } from './plan.js';
+import { planFromSheet, KIT_ERAS, ERA_STYLE } from './plan.js';
 import { rollStored, egocubeCreate, readEgocubeKind } from './kind.js';
 import { mascotOfPerson } from './mascot-from-person.js';
 import { ANIME_SCULPT } from '../polygonizer/anime-sculpt.js';
@@ -58,7 +58,7 @@ describe('the setting', () => {
   it('leans an era\'s roles: no spells in the modern world', () => {
     const lean = leanOf({ era: 'modern' });
     expect(lean.role.caster).toBeLessThan(1);
-    expect(Object.keys(ERAS)).toEqual(expect.arrayContaining(KITLESS_ERAS));
+    expect(Object.keys(ERAS)).toEqual(expect.arrayContaining(KIT_ERAS));
   });
 
   it('chooses person or mascot on its own die, at its genre\'s weight', () => {
@@ -111,12 +111,28 @@ describe('the tradition, carried to the body', () => {
     expect(roomy.create.spec.palette.Top).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('an era with no gear for the role leaves the fantasy kit off, and says so', () => {
-    const era = KITLESS_ERAS[0], role = 'ranged';
+  it('a modern or future person wears the era\'s clothes and the role\'s era kit, in place of the jerkin and the ranger\'s kit', () => {
+    const era = KIT_ERAS[0], role = 'frontline';
     const P = planFromSheet(rollEgocube({ seed: 2, facets: { role }, setting: { era } }), { dress: undefined });
     expect(P.create.spec.adorn).toBeUndefined();
-    expect(P.ledger).toContainEqual(expect.objectContaining({ channel: 'dress', from: `setting.era.${era}`, pending: expect.stringMatching(/no .* gear yet/) }));
+    expect(P.create.spec.detail).toBeUndefined();
+    expect(P.create.spec.outfit).toMatchObject({ type: 'outfit', style: ERA_STYLE[era], pieces: expect.arrayContaining([expect.objectContaining({ kind: 'vest' })]) });
+    expect(P.ledger).toContainEqual(expect.objectContaining({ channel: 'dress', from: `setting.era.${era}`, at: expect.stringMatching(/spec\.outfit/) }));
+    expect(P.ledger.some((r) => r.pending && r.from.startsWith('setting.'))).toBe(false);
     expect(planFromSheet(rollEgocube({ seed: 2, facets: { role } })).create.spec.adorn).toBe('ranger');
+  });
+
+  it('a designed dress in a modern or future world carries the era\'s kit, never the myth\'s', () => {
+    const myth = new Set(['quiver', 'baldric', 'cloak', 'mantle']);
+    for (const era of KIT_ERAS) {
+      const P = planFromSheet(rollEgocube({ seed: 5, facets: { role: 'ranged', archetype: 'outlaw' }, setting: { era } }), { dress: 'designed' });
+      const kinds = P.create.spec.outfit.pieces.map((p) => p.kind);
+      expect(kinds.filter((k) => myth.has(k))).toEqual([]);
+      expect(kinds).toContain('vest');
+    }
+    // with no setting the same roll keeps the ranger's quiver
+    const kinds = planFromSheet(rollEgocube({ seed: 5, facets: { role: 'ranged', archetype: 'outlaw' } }), { dress: 'designed' }).create.spec.outfit.pieces.map((p) => p.kind);
+    expect(kinds).toContain('quiver');
   });
 
   it('a mascot takes the tradition as its style, under the operator\'s own word', () => {

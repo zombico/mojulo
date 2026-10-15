@@ -58,6 +58,43 @@ export const ROLE_GEAR = Object.freeze({
 });
 export const FOCAL = Object.freeze({ ruler: 'chain', sage: 'medallion', magician: 'medallion', hero: 'pauldron', outlaw: 'baldric', caregiver: 'sash', innocent: 'medallion', lover: 'medallion', explorer: 'medallion', everyman: 'medallion', jester: 'medallion', creator: 'medallion' });
 export const OFFICE = Object.freeze({ mantle: ['ruler', 'sage', 'magician', 'hero'], sash: ['ruler', 'caregiver', 'innocent', 'lover', 'sage'] });
+/**
+ * THE ERA'S KIT (the setting's era, setting.js): what a modern or a future world's people carry for their role, in place
+ * of a myth's. A myth's or a rustic world's people (and a roll with no setting) wear ROLE_GEAR as they always did.
+ *   gear    by role, as ROLE_GEAR: the modern carrier and pouches, a future hardshell in the metal
+ *   focal   the archetypes whose myth focal is a myth's piece (a baldric, a pauldron no role brought), and the era's
+ *   drop    the myth's pieces the era leaves off: a traveller's cloak, a mantle of office (its people wear coats)
+ */
+export const ERA_GEAR = Object.freeze({
+  modern: {
+    gear: {
+      frontline: [{ kind: 'vest', why: 'a plate carrier takes the round on the chest' }, { kind: 'kneepads', why: 'the frontline kneels behind cover' }],
+      flanker: [{ kind: 'pouches', why: 'a flanker carries its reloads on the belt, light' }],
+      ranged: [{ kind: 'vest', cover: 0.6, why: 'a chest rig: the magazines where the support hand finds them' }],
+      support: [{ kind: 'pack', colour: 'secondary', why: 'what the medic hands out is carried on the back' }],
+      controller: [{ kind: 'pouches', why: 'the tools of the trade, on the belt' }],
+      caster: [{ kind: 'satchel', why: 'the tech keeps its kit at the hip' }],
+      'non-combatant': [],
+    },
+    focal: { hero: 'vest', outlaw: 'medallion' },
+    drop: ['cloak', 'mantle'],
+  },
+  future: {
+    gear: {
+      frontline: [{ kind: 'vest', cover: 0.95, colour: 'metal', why: 'a hardshell over the chest' }, { kind: 'pauldron', pair: true, float: true, why: 'the plates stand off the shoulders' }],
+      flanker: [{ kind: 'pouches', why: 'a flanker carries its cells on the belt, light' }, { kind: 'kneepads', why: 'the knees taken on landing' }],
+      ranged: [{ kind: 'vest', cover: 0.7, colour: 'metal', why: 'a chest shell where the cells ride' }],
+      support: [{ kind: 'pack', colour: 'secondary', why: 'the field kit on the back' }],
+      controller: [{ kind: 'bracers', colour: 'metal', why: 'the wrist units it works the machines through' }],
+      caster: [{ kind: 'bracers', colour: 'metal', why: 'the wrist units it works the machines through' }],
+      'non-combatant': [],
+    },
+    focal: { outlaw: 'medallion' },
+    drop: ['cloak', 'mantle'],
+  },
+});
+/** the era's kit for a sheet (null for a myth's or a rustic world's people, and with no setting) */
+export const eraKitOf = (sheet) => ERA_GEAR[sheet.setting?.era] ?? null;
 /** a tail that is a must-see (a stub reads as body) */
 const SEEN_TAILS = new Set(['thin', 'thick', 'brush']);
 const GOLD = '#c9a24a', SILVER = '#b7bcc4', BRONZE = '#8c6239';
@@ -213,27 +250,28 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   const tail = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan?.tail : null, tailSeen = SEEN_TAILS.has(tail);
   // the sheet's own silhouette word when the archetype reads that way; the archetype's otherwise
   const said = deriveOf(sheet, 'silhouette ='), silhouette = said && (ARCHETYPE_SHAPES[a] || []).includes(said) ? said : SHAPE[a] ?? 'column';
-  const pieces = [], cut = cutFromSheet(sheet, { silhouette, tailSeen });
+  const pieces = [], cut = cutFromSheet(sheet, { silhouette, tailSeen }), kit = eraKitOf(sheet);
+  const roleGear = kit ? kit.gear[f.role] ?? [] : ROLE_GEAR[f.role] ?? [], focalOf = kit ? { ...FOCAL, ...kit.focal } : FOCAL, dropped = new Set(kit?.drop ?? []);
   const long = ['knee', 'midi', 'maxi'].includes(cut.language.outer?.hem);
   // the station on the shoulders when no long coat already carries it; a sash where the cloth meets at the waist
-  if (OFFICE.mantle.includes(a) && !long) pieces.push({ kind: 'mantle', clasp: false, why: `the ${a}'s station on the shoulder line` });
-  if (OFFICE.sash.includes(a) && !(cut.language.outer && !cut.language.outer.open)) pieces.push({ kind: 'sash', why: 'marks the natural waist', ...(FOCAL[a] === 'sash' ? { role: 'focal', knotColour: 'accent' } : {}) });
+  if (OFFICE.mantle.includes(a) && !long && !dropped.has('mantle')) pieces.push({ kind: 'mantle', clasp: false, why: `the ${a}'s station on the shoulder line` });
+  if (OFFICE.sash.includes(a) && !(cut.language.outer && !cut.language.outer.open)) pieces.push({ kind: 'sash', why: 'marks the natural waist', ...(focalOf[a] === 'sash' ? { role: 'focal', knotColour: 'accent' } : {}) });
   // a traveller's cloak, where no tail must read; a needle's rise
   // the cloak is the largest field the figure wears: it takes the base (60 / 30 / 10)
-  if (['explorer', 'outlaw'].includes(a) && !tailSeen && !anatomyOf(sheet).wings) pieces.push({ kind: 'cloak', colour: 'base', why: `the ${a} travels: a cloak from the shoulders` });
+  if (['explorer', 'outlaw'].includes(a) && !tailSeen && !anatomyOf(sheet).wings && !dropped.has('cloak')) pieces.push({ kind: 'cloak', colour: 'base', why: `the ${a} travels: a cloak from the shoulders` });
   // a standing collar is the cloth it stands from: the base
   if (silhouette === 'needle' && !cut.language.outer?.collar) pieces.push({ kind: 'collar', colour: 'base', why: 'the needle\'s height: a collar standing behind the nape' });
   // what the role needs
-  for (const g of ROLE_GEAR[f.role] ?? []) if (!pieces.some((p) => p.kind === g.kind)) pieces.push({ ...g });
-  // the one focal piece: the archetype's, unless armour is the hero's and the role brought none
-  const focalKind = FOCAL[a] === 'pauldron' && !pieces.some((p) => p.kind === 'pauldron') ? 'medallion' : FOCAL[a];
+  for (const g of roleGear) if (!pieces.some((p) => p.kind === g.kind)) pieces.push({ ...g });
+  // the one focal piece: the archetype's, unless it is gear (armour, a vest) and the role brought none
+  const focalKind = ['pauldron', 'vest'].includes(focalOf[a]) && !pieces.some((p) => p.kind === focalOf[a]) ? 'medallion' : focalOf[a];
   const own = pieces.find((p) => p.kind === focalKind);
   if (own) Object.assign(own, { role: 'focal', ...(focalKind === 'pauldron' || focalKind === 'baldric' ? { colour: own.colour ?? 'secondary' } : {}) });
   else pieces.push({ kind: focalKind, role: 'focal', why: focalKind === 'chain' ? 'the chain of office, near the face' : `the ${a}'s emblem, near the face` });
   if (hasDerive(sheet, 'armor.ornament +')) for (const p of pieces) if (p.kind === 'pauldron' && p.role === 'focal') p.colour = 'secondary';
   // order: a free character wears one asymmetric note; a bound one keeps it to one
   const asym = (p) => ['satchel', 'baldric'].includes(p.kind) || (p.kind === 'pauldron' && !p.pair);
-  if (free && !pieces.some(asym)) pieces.push(OFFICE.mantle.includes(a) ? { kind: 'baldric', colour: 'trim', why: `the sash of office worn across the chest: the free ${a}'s one asymmetric note` } : { kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' });
+  if (free && !pieces.some(asym)) pieces.push(OFFICE.mantle.includes(a) && !kit ? { kind: 'baldric', colour: 'trim', why: `the sash of office worn across the chest: the free ${a}'s one asymmetric note` } : { kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' });
   if (!free) for (const p of pieces) if (p.kind === 'pauldron') p.pair = true;
   if (silhouette === 'wedge') for (const p of pieces) if (p.kind === 'pauldron') p.shoulder = 1.25;   // the wedge's broad shoulder line
   // THE CONCEPT on a beast (concept.js): the cloth and the pieces agree with the character, and its own adornment joins
@@ -241,7 +279,7 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   const agreed = beast ? dressByConcept(pieces, sheet, { A: anatomyOf(sheet), tailSeen, cut: cut.language, room: 5 - (cut.language.outer ? 1 : 0), concept }) : null;
   // restraint: six pieces at most, kept by what each is for (the garment, the focal, the station, the role's first
   // need, the asymmetric note, the waist, the role's second need, the detail)
-  const rank = (p) => (p.role === 'focal' ? 1 : p.family ? 3.5 : p.kind === 'mantle' ? 2 : p.why?.includes('asymmetric') ? 4 : p.kind === 'sash' ? 5 : p.role === 'detail' ? 7 : (ROLE_GEAR[f.role] ?? []).findIndex((g) => g.kind === p.kind) === 0 ? 3 : 6);
+  const rank = (p) => (p.role === 'focal' ? 1 : p.family ? 3.5 : p.kind === 'mantle' ? 2 : p.why?.includes('asymmetric') ? 4 : p.kind === 'sash' ? 5 : p.role === 'detail' ? 7 : roleGear.findIndex((g) => g.kind === p.kind) === 0 ? 3 : 6);
   const room = 5 - (cut.language.outer ? 1 : 0);   // the cloth (its base and its outer layer) counts toward the whole's six
   if (pieces.length > room) { const keep = new Set([...pieces].sort((x, y) => rank(x) - rank(y)).slice(0, room)); for (let i = pieces.length - 1; i >= 0; i--) if (!keep.has(pieces[i])) pieces.splice(i, 1); }
   // repetition: the trim on two pieces at least (the mantle's clasp takes it when only one wears it)
@@ -365,5 +403,5 @@ export function heroOutfitOf(outfit) {
   return { type: 'outfit', style: { id: 'designed', dials: outfit.cut.dials, language: L, tones: Object.fromEntries(Object.entries(tones).filter(([, v]) => v)) }, ...(outfit.cut.detail ? { detail: outfit.cut.detail } : {}),
     ...(pieces.length ? { pieces, intent: { palette, ...(symmetry ? { symmetry } : {}), ...(side ? { side } : {}), ...(distort ? { distort } : {}) } } : {}) };
 }
-const DEFAULT = { gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', harness: 'leather', torc: 'trim', armRings: 'trim', anklets: 'trim', tailRing: 'trim', chestPlate: 'metal', sash: 'secondary', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'metal', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
+const DEFAULT = { vest: 'secondary', pouches: 'leather', kneepads: 'secondary', gown: 'base', robe: 'base', tunic: 'base', mantle: 'secondary', cloak: 'secondary', collar: 'secondary', harness: 'leather', torc: 'trim', armRings: 'trim', anklets: 'trim', tailRing: 'trim', chestPlate: 'metal', sash: 'secondary', belt: 'leather', baldric: 'leather', wraps: 'secondary', pauldron: 'metal', bracers: 'leather', chain: 'accent', medallion: 'accent', satchel: 'leather', pack: 'leather', quiver: 'leather' };
 const defaultColour = (kind) => DEFAULT[kind] ?? 'base';

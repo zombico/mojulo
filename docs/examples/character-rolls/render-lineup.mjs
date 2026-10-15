@@ -83,6 +83,7 @@ const SCENARIOS = [
   { row: 'farm · sakura valley', kit: 'isekai-sakura', goal: 'farm', figure: 'farmhand' },
   { row: 'defend · meadow', kit: 'isekai-meadow', goal: 'defend', figure: 'foe' },
   { row: 'sneak · gothic stone', kit: 'gothic-stone', goal: 'sneak', figure: 'guard' },
+  { row: 'sneak · the lab (modern)', kit: 'research-lab', goal: 'sneak', figure: 'guard' },
   { row: 'deathmatch · the moon', kit: 'airless-plain', goal: 'deathmatch', figure: 'gunner' },
   { row: 'race · mascots', kit: 'isekai-meadow', goal: 'race', mascot: true },
   { row: 'race · the field, seated', kit: 'isekai-meadow', goal: 'race', karts: true },

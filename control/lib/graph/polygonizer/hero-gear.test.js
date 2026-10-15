@@ -104,3 +104,31 @@ describe('the World page and the pack', () => {
     }
   });
 });
+
+describe('firearms', () => {
+  const { hero, R } = heroOf({ cast: 'male', gear: { right: { item: 'carbine' }, hip: { item: 'pistol', style: 'future' } } });
+  const G = Object.fromEntries(gearMounts(hero, R).map((g) => [g.slot, g])), J = R.joints;
+  const at = (g, s) => gearRestPoint(g, g.sockets[s].origin);
+  it('a long gun at low ready: the grip in the fist, the muzzle forward and down and above the floor', () => {
+    const g = G.right; expect(g.bone).toBe('handR'); expect(g.hold).toBe('firearm');
+    expect(segDist(at(g, 'grip'), J.wristR, J.knucklesR)).toBeLessThan(0.05);
+    expect(at(g, 'tip')[1] - at(g, 'grip')[1]).toBeGreaterThan(0.1);
+    expect(at(g, 'tip')[2]).toBeLessThan(at(g, 'grip')[2]); expect(at(g, 'tip')[2]).toBeGreaterThan(0.02);
+  });
+  it('a pistol holstered at the right thigh, muzzle down, the grip behind it', () => {
+    const g = G.hip; expect(g.bone).toBe('pelvis');
+    expect(at(g, 'grip')[0]).toBeGreaterThan(J.hipR[0]);   // the right side is +x, outside the hip
+    expect(at(g, 'tip')[2]).toBeLessThan(at(g, 'grip')[2]);
+    expect(at(g, 'stock')[1]).toBeLessThan(at(g, 'tip')[1]);
+  });
+  it('a long gun slung on the back, muzzle down, behind the body', () => {
+    const { hero: h, R: R2 } = heroOf({ cast: 'female', gear: { back: { item: 'shotgun' } } });
+    const [g] = gearMounts(h, R2); expect(g.bone).toBe('torso');
+    expect(at(g, 'tip')[2]).toBeLessThan(at(g, 'stock')[2]); expect(at(g, 'tip')[1]).toBeLessThan(0);
+  });
+  it('a long gun has no hip; a myth sample is no firearm\'s', () => {
+    const errs = validateGear({ hip: { item: 'carbine' }, right: { item: 'pistol', style: 'elven' } }).join('\n');
+    expect(errs).toMatch(/gear\.hip: a carbine is a long gun/);
+    expect(errs).toMatch(/gear\.right: .*not a firearm sample/);
+  });
+});

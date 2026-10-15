@@ -13,6 +13,80 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Era gear: outfits and gear for modern and future worlds
+
+A modern or future game's people stood with empty hands and their role's kit left off: the gear was a myth's (sword,
+dagger, bow, staff, shield, a ranger's quiver). The era now dresses and arms them. `docs/egocube.md`, The setting.
+
+- **Firearms as gear** (`lib/graph/equipment/firearm.js`): `pistol`, `carbine`, `shotgun`, generic proxies with no make
+  or model, built from the same boxes the carry holds pose round (`equipment/firearm-shapes.js`, moved out of
+  `hero-carry.js` byte for byte). Their own cards: `service` (the default: square-edged gunmetal and black polymer, a
+  wooden shotgun stock) and `future` (smooth and pale, a lit band down each side), or an inline card. A myth's sample, a
+  stone or parts are refused by name. Sockets `grip`, `tip`, `stock`. They are their own family (`FIREARM_ITEMS`;
+  `GEAR_ITEMS` is both), so the myth catalogue, its samples and their pins are untouched; a pin per firearm card ×
+  firearm.
+- **The firearm hold** (`hero-gear.js`). In a hand at low ready: the grip along the fist, the muzzle forward and down,
+  tilted further until it clears the floor. On the back slung muzzle down, its side to the back. A pistol on the hip is
+  holstered at the right thigh; a long gun on the hip is refused (`gear.hip: a carbine is a long gun`).
+- **The era's kit** (`egocube/outfit.js` `ERA_GEAR`). A modern or future person wears its era's clothes (an outfit build
+  in `ERA_STYLE`: modern casual, future athleisure) in place of the stock jerkin, and its role's pieces over them in place
+  of the ranger's kit:
+  - modern: a carrier and kneepads, pouches, a chest rig, a pack, a satchel;
+  - future: a hardshell in the metal with floating plates, cells on the belt, wrist units.
+
+  The designed dress reads the era too: no quiver, baldric, travelling cloak or mantle of office, the outlaw's focal a
+  medallion. Three catalogue pieces, each built on a window a myth piece proved: `vest` (the cuirass cut as a plate
+  carrier, a flat back panel), `pouches` (a duty belt, a pouch at each hip), `kneepads` (on a hero's shank or a
+  creature's shin). A myth's or a rustic world's people, and every roll with no setting, are as they were.
+- **Quick figures carry the era's arms**: a foe a pistol, a gunner and a tower archer a carbine, a guard a carbine with a
+  pistol holstered, a future world's in the future card; the role's era pieces are worn over the kit's underlayer. The
+  setting's "no gear yet" lines are gone, and `KITLESS_ERAS` with them (`KIT_ERAS` names the eras that dress their own).
+- The `layered` card's gear section and the `equipment` card name the firearms.
+- **The eyes gate has not run.** The character-rolls lineup draws a row per era.
+- Not yet: a game book's equipment table is the myth's classes (no firearm class for a modern book); helmets and visors
+  are the armour's only.
+
+### Mascots on foot
+
+A mascot drove a racer and stood still everywhere else: it had no walk, no run, and no game would take it as a pilot.
+`docs/mascot.md`, On foot.
+
+- **Gaits** (`lib/graph/egocube/mascot-gait.js`): `walk` and `run` clips on every mascot, sized by its own legs.
+  - The stride is a share of the leg, cut to what the leg reaches with the root sunk a little, and centred where the
+    ankle passes under the hip (a big shoe puts the toe well ahead of it).
+  - The cycle is a pendulum of that leg (√(leg / 0.9) s).
+  - A walk keeps a foot down at every key; a run flies twice a cycle.
+  - The swing foot lifts high but never past what the leg can fold.
+  - The arms swing against the legs, and the energy flavours it: bouncy bobs, zippy leans and trails its arms, sturdy
+    waddles, swaying sways, floaty barely touches down.
+
+  `squat` and `leap` wind up and hold a game's jump. `mascotGaits(plan)` gives each gait's stride, cycle, travel and
+  speed. The clips walk in place on the rig's `feet` and `sink` channels.
+- **The rig audit measures a foot given a `feet` target from that target** (`station-loft-rig.js` `auditRig`): a gait's
+  footfall is where the pose puts it, not drift. A pose with no target is measured as before.
+- **A mascot is a humanoid** (`figure-humanoid-map.js`): a creature-door biped's `shin` is the lower leg and its `meta`
+  the foot. A mascot (and a digitigrade creature on the same legs) moulds to the T-pose and exports as a humanoid with its
+  gaits.
+- **A mascot is a pilot** (`egocube/mascot-pilot.js`):
+  - `heroRef` may name a stored mascot (its plan carries `mascot`: energy, form, height, head);
+  - it keeps its own size, and the game's speed, jump and step stay the game's;
+  - its clips play the runtime's states, its stride is the run's travel (the cycle at most four a second);
+  - its capsule is its height and its head, and the follow camera and the first-person eye are framed on it;
+  - `playerWorld` takes `pilot`, `stageLevelOrder` passes it.
+- **A quick game's mascot hero**: `quick.hero: { mascot: true | { brief?, facets?, seed? } }`.
+  - It is rolled in the game's setting (its tradition the mascot's style) and minted through the creature door.
+  - A re-run remakes it by its plan.
+  - `quick.hero: { ref }` adopts one made with `create_character { as: 'mascot' }`.
+  - The `gameworld-quick` card says so.
+- **Fixed: a quick game's adopted hero had no lookup** (`heroRefOf` read only a book's `characters.hero.ref`), so its own
+  gaits were never read.
+- **The eyes gate has not run.** The mascot contact sheet does not draw the gaits yet.
+- Not yet:
+  - a game's other figures as mascots;
+  - a mascot hero's hit egg in a shooter;
+  - an orb that rolls;
+  - foot IK on slopes.
+
 ### Character rolls: each game's best shot at its own people
 
 The Egocube is a loaded die, and it was loaded the same way for every game: the roller took no setting, a rolled
@@ -31,7 +105,7 @@ one shirt colour, a weapon) whatever its world. A game now loads the dice. `docs
   direction or the kit's pole, the era from the kit, the genre from the quick goal and the ramps from the kit card.
 - **Quick figures are rolled in it.** A quick game's foe, tower archer, gunner, farmhand and guard it names none of
   are rolled in its setting (the goal's facet kept: a farmhand does not fight) and wear the kit's underlayer; a modern
-  or future era leaves the fantasy weapon out and says so. The stock presets are gone. Racers are rolled in it too,
+  or future era's arms and kit are Era gear's, above. The stock presets are gone. Racers are rolled in it too,
   the field drawn by the genre's archetype lean. The run's readout carries a `cast` law: what was rolled, what the era
   left out, and an adopted hero drawn in another tradition (kept as it is).
 - **A role is a pool of people.** A quick game rolls up to three figures per role (`CAST_POOL`), cycled over its

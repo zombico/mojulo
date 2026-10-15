@@ -720,7 +720,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   through the fist, its tip forward and down (a raised forearm carries it upright: the hand has no roll, so the rest
   hold is the one the arm's swing reads best from); a staff or a bow near upright, its lower end just above the floor; a
   shield along the forearm, its face outward; `back` across the shoulder blades (a blade hilt-up over the right
-  shoulder); `hip` at the left hip. The gear is rigid on its bone, so the stand, the clips, the preview and the skinned
+  shoulder); `hip` at the left hip. Firearms: `pistol`, `carbine`, `shotgun` (generic, no make or model; styles
+  `service`, the default, and `future`, smooth with a lit band) at low ready in a hand, muzzle forward and down; slung on
+  `back` muzzle down; a pistol on `hip` holstered at the right thigh (a long gun has no hip). The gear is rigid on its bone, so the stand, the clips, the preview and the skinned
   GLB carry it. An anime hero's gear takes `stylize: 0.7` unless its build says. The readout's `hero.gear` names each
   slot's item, hold, bone, length (m) and share of the figure's height.
   THE SWING. A swing word as the gesture: `chop`, `thrust`, `rising` (a low-to-high diagonal), `cleave` (two hands),
