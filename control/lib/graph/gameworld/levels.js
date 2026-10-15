@@ -295,6 +295,8 @@ function groundSampler(faces, groups = /:(top|ground)$/) {
 
 // a racer's chase camera: close and low behind a kart-sized machine
 export const RACER_CAMERA = Object.freeze({ dist: 5.2, height: 2, lead: 1.5, lookH: 0.5 });
+// a supercar's chase: low and close behind, the road ahead filling the frame (a car's length and a half back)
+export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, lookH: 0.9 });
 
 /**
  * The call that makes one stage a game level: `create_sketch` of the stage with the hero as the pilot, the systems'
@@ -345,14 +347,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
     const aloft = ends.seat.rule.engine === false;
     const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${aloft ? '' : 'W / S  throttle (it holds) · '}A / D  bank · Space / Shift  nose up / down · mouse  pitch${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = { ...craftPilot(ends.airMap, ends.seat), events: P.events || {} };
-  } else if (ride?.ref || ride?.racer) {
+  } else if (ride?.ref || ride?.racer || ride?.figure) {
     // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind; or a racer
     // (quick.racers): the first of the field, in the machine its driver reads as, followed close (a kart is small)
     const P = playerWorld({ heroRef: 'none', id: 'car', title: name, controls: `W  throttle · S  brake, hold to reverse · A / D  steer${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
     pilotPart = {
-      figures: { ride: ride.racer ? { racer: ride.racer } : { vehicleRef: ride.ref, targetH: RIDE_H } },
+      figures: { ride: ride.figure ?? (ride.racer ? { racer: ride.racer } : { vehicleRef: ride.ref, targetH: RIDE_H }) },
       entities: [{ id: 'car', pilotable: true, rule: ride.rule, body: { type: 'figure-rig', figure: 'ride' }, transform: { pos: ends.spawn, heading: ends.heading } }],
-      camera: ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
+      camera: ride.racer ? { rule: 'follow', target: 'car', ...RACER_CAMERA } : ride.figure ? { rule: 'follow', target: 'car', ...SUPERCAR_CAMERA } : { rule: 'follow', target: 'car', dist: 11, height: 4.5, lead: 5, lookH: 1.2 },
       events: P.events || {},
     };
   } else if (heroRef) {

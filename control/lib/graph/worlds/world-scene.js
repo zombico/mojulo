@@ -647,6 +647,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
           payload.figures[name] = racerOf(rawSpec.racer).S.figure;
           continue;
         }
+        // SUPERCAR bodies (car-designer/supercar-figure.js): a figures-map entry may be a composed supercar's recipe
+        // (`supercar`: { preset?, seed?, surface?, mood? }, what a quick race's field of supercars writes), delivered as
+        // its vehicle rig (live overlay and juice with it), lit in the race's mood when it names one.
+        // Absent ⇒ no supercar is resolved, byte-identical.
+        if (rawSpec.supercar && typeof rawSpec.supercar === 'object') {
+          const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
+          payload.figures[name] = supercarFigure(rawSpec.supercar);
+          continue;
+        }
         // figureRef (figure-emotes.plan.md): a figures-map entry may reference a STORED
         // kind:'figure' sketch instead of re-declaring the body — the entry inherits the
         // recipe's pose/proto/garment/motion and its own fields override. This is how a
@@ -1016,9 +1025,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // A level with a CLOCK (the clock mechanic) has a sky that turns with it: night darkens it, and its seasons swap the
   // climate. It takes the weather even when the manifest names none (clear air).
   const clockMech = sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics) ? sketch.manifest.game.mechanics.find((m) => m && m.kind === 'clock') : null;
-  if (payload && ((sketch.manifest.weather != null && sketch.manifest.weather !== false) || clockMech)) {
+  // (a roadway in a wet mood brings its rain when the manifest names no weather: roads/race-mood.js)
+  const moodWeather = sketch.manifest.kind === 'roadway' && typeof sketch.manifest.mood === 'string' && sketch.manifest.weather == null ? (await import('@/lib/graph/roads/race-mood.js')).RACE_MOODS[sketch.manifest.mood]?.weather ?? null : null;
+  const weatherSpec = sketch.manifest.weather ?? moodWeather;
+  if (payload && ((weatherSpec != null && weatherSpec !== false) || clockMech)) {
     const seed = Number.isFinite(Number(sketch.manifest.seed)) ? Number(sketch.manifest.seed) : seedOfRef(sketch.ref);
-    const W = readWeather(sketch.manifest.weather != null && sketch.manifest.weather !== false ? sketch.manifest.weather : { climate: { clear: 1 } }, 'weather');
+    const W = readWeather(weatherSpec != null && weatherSpec !== false ? weatherSpec : { climate: { clear: 1 } }, 'weather');
     // the air is the STYLE's (era/air.js: fog colour and body, the shade, what a state's air is): a kit's style card, or a
     // sixth-gen look's reference; a world with neither gets one made of its haze at emit. `weather.air` tunes either.
     const kit = sketch.manifest.kit ?? (sketch.manifest.stage && sketch.manifest.stage.kit);

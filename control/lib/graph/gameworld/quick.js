@@ -69,6 +69,11 @@ import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
 import { shooterPole, readPole } from './shooter-pole.js';
 import { poleArmory, roleLoadout } from './weapon-roles.js';
 import { racerSpec, solveRoster, racerRule } from '../car-designer/roster.js';
+import { composeSupercar, SUPERCAR_LIBRARY } from '../car-designer/vehicle-library.js';
+import { supercarRule } from '../car-designer/supercar-figure.js';
+import { paintHex, liveryOf } from '../car-designer/vehicle-livery.js';
+import { solveLiveries } from '../color-theorist/livery.js';
+import { RACE_MOOD_IDS, RACE_MOODS, moodOf, moodGround } from '../roads/race-mood.js';
 import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
@@ -130,7 +135,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -159,7 +164,29 @@ export function readQuick(Q) {
     if (list === null ? !(Q.racers >= 2 && Q.racers <= 8) : !(Array.isArray(list) && list.length >= 2 && list.length <= 8)) throw fail('.racers is how many racers (2 to 8), or a list of them: each an archetype, a brief in words, or { archetype?, build?, age?, brief?, facets?, seed?, parts?, shade? }');
     if (list) list.forEach((r, k) => { try { racerSpec(r, k); } catch (e) { throw fail(`.racers[${k}]: ${e.message.replace(/^car-designer: /, '')}`); } });
   }
-  for (const k of ['vehicle', 'tuning', 'conditions']) if (Q[k] !== undefined && !Q.ride && !(Q.racers !== undefined && k !== 'vehicle')) throw fail(`.${k} is how the ride drives: name a ride`);
+  if (Q.supercars !== undefined) {
+    if (Q.goal !== 'race') throw fail('.supercars belongs to the race goal');
+    if (Q.ride !== undefined || Q.hero || Q.racers !== undefined) throw fail('.supercars and a ride, hero or racers: your car is the first of the field');
+    if (Q.rivals !== undefined) throw fail('.supercars is the whole field (yours first): no rivals beside it');
+    if (Q.vehicle !== undefined) throw fail('.vehicle: a supercar drives on its own frame, the sports class');
+    if (Q.climb || Q.building !== undefined || Q.run !== undefined) throw fail('.supercars race a lap or a roadway: no climb, building or run');
+    if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.supercars are followed from behind (camera third-person)');
+    const list = Number.isInteger(Q.supercars) ? null : Q.supercars;
+    if (list === null ? !(Q.supercars >= 2 && Q.supercars <= 8) : !(Array.isArray(list) && list.length >= 2 && list.length <= 8)) throw fail(`.supercars is how many cars (2 to 8), or a list of them: each { preset?: ${Object.keys(SUPERCAR_LIBRARY).join(' | ')}, paint?, livery?, seed? }`);
+    if (list) list.forEach((c, k) => {
+      const at = `.supercars[${k}]`;
+      if (!isObj(c)) throw fail(`${at} is { preset?, paint?, livery?, seed? }`);
+      for (const key of Object.keys(c)) if (!['preset', 'paint', 'livery', 'seed'].includes(key)) throw fail(`${at}.${key} is not one of preset, paint, livery, seed`);
+      if (c.preset !== undefined && !SUPERCAR_LIBRARY[c.preset]) throw fail(`${at}.preset is one of ${Object.keys(SUPERCAR_LIBRARY).join(', ')}`);
+      if (c.seed !== undefined && !Number.isInteger(c.seed)) throw fail(`${at}.seed is a whole number`);
+      try { if (c.paint !== undefined) paintHex(c.paint); liveryOf(c.livery, c.paint ?? 'scarlet'); } catch (e) { throw fail(`${at}: ${e.message.replace(/^vehicle-odm: /, '')}`); }
+    });
+  }
+  if (Q.mood !== undefined) {
+    if (!RACE_MOODS[Q.mood]) throw fail(`.mood is one of ${RACE_MOOD_IDS.map((m) => `${m} (${RACE_MOODS[m].reads})`).join('; ')}`);
+    if (Q.roadway === undefined) throw fail('.mood lights a roadway: name one (a course preset, a spec or { intent })');
+  }
+  for (const k of ['vehicle', 'tuning', 'conditions']) if (Q[k] !== undefined && !Q.ride && !((Q.racers !== undefined || Q.supercars !== undefined) && k !== 'vehicle')) throw fail(`.${k} is how the ride drives: name a ride`);
   if (Q.vehicle !== undefined && !VEHICLES[Q.vehicle]) throw fail(`.vehicle is one of ${Object.entries(VEHICLES).map(([k, v]) => `${k} (${v.words})`).join('; ')}`);
   if (Q.tuning !== undefined && !TUNINGS.includes(Q.tuning)) throw fail(`.tuning is ${TUNINGS.join(' or ')}`);
   if (Q.conditions !== undefined && !(Q.conditions in CONDITIONS)) throw fail(`.conditions is one of ${Object.keys(CONDITIONS).join(', ')}`);
@@ -262,7 +289,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
   // a loop is laid on the trail's land: the longest trail, so a lap is a stretch worth driving
-  const loop = quick.goal === 'race' && (quick.track === 'loop' || ((quick.rivals || quick.racers) && quick.track !== 'trail'));
+  const loop = quick.goal === 'race' && (quick.track === 'loop' || ((quick.rivals || quick.racers || quick.supercars) && quick.track !== 'trail'));
   // an arena too: its trail the longest, with no beat that cuts the land or stands a stone on it
   const nodes = { path: { trail: loop || quick.goal === 'deathmatch' ? { run: RACE.run, beats: RACE.beats } : {} }, ...(quick.climb ? { top: { meru: {} } } : {}) };
   // a run's pool: trails each laid from its own seed, two more than a run draws
@@ -275,8 +302,10 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // (a dogfight is a flight with no course: the foes are its goal)
   const dogfight = quick.goal === 'shoot' && quick.craft !== undefined;
   const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? 'trainer' }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
-  const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
-    : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
+  // (the race's mood: the roadway lit in it, roads/race-mood.js)
+  const mood = quick.mood ? { mood: quick.mood } : {};
+  const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape, ...mood } } }
+    : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true, ...mood } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
       // a deathmatch's arena: its words, a spawn for each in the match
@@ -413,7 +442,27 @@ export function goalMechanics(quick, ends) {
 /** A sneak's guards on a stage: `count` posts on the trail's beats (spread from start to end, never the first few
  * metres), each facing back down the trail toward the start, its gaze sweeping. [{ id, at, heading }]. */
 /** A race's rivals' ids (quick.rivals of them). */
-export const raceRivals = (quick) => Array.from({ length: quick.racers !== undefined ? (Array.isArray(quick.racers) ? quick.racers.length : quick.racers) - 1 : quick.rivals ?? 0 }, (_, k) => `rival-${k + 1}`);
+const fieldSize = (f) => (Array.isArray(f) ? f.length : f);
+export const raceRivals = (quick) => Array.from({ length: quick.racers !== undefined ? fieldSize(quick.racers) - 1 : quick.supercars !== undefined ? fieldSize(quick.supercars) - 1 : quick.rivals ?? 0 }, (_, k) => `rival-${k + 1}`);
+
+/** A field of supercars (quick.supercars): each a composed card (the library's in turn unless named), its livery its
+ * own or solved (color-theorist/livery.js) against what the race is seen on (the mood's road, kerb, verge and sky),
+ * its rule the sports class at its own frame, at the race's tuning (arcade unless named) and conditions, and its
+ * figure the recipe the page draws it by, lit in the race's mood. → { field: [{ spec, figure, rule }] } */
+export function quickSupercars(quick, seed = 1) {
+  const given = Array.isArray(quick.supercars) ? quick.supercars : Array.from({ length: quick.supercars }, () => ({}));
+  const presets = Object.keys(SUPERCAR_LIBRARY), unpainted = given.filter((c) => c.paint === undefined).length;
+  const solved = unpainted ? solveLiveries({ n: unpainted, seed, ...(quick.mood ? { against: moodGround(moodOf(quick.mood)) } : {}) }).liveries : [];
+  let u = 0;
+  const field = given.map((c, k) => {
+    const L = c.paint === undefined ? solved[u++] : null;
+    const surface = L ? { paint: L.paint, livery: c.livery ?? { pattern: L.pattern, secondary: L.secondary } } : { paint: c.paint, ...(c.livery ? { livery: c.livery } : {}) };
+    const spec = { preset: c.preset ?? presets[k % presets.length], seed: c.seed ?? seed * 31 + 7 * k + 1, surface, ...(quick.mood ? { mood: quick.mood } : {}) };
+    const design = composeSupercar({ preset: spec.preset, seed: spec.seed, surface: { ...surface, quality: 'game' } }).design;
+    return { spec, figure: { supercar: spec }, rule: { ...supercarRule(design, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } };
+  });
+  return { field };
+}
 
 /** A field of racers (quick.racers): the roster solved and balanced (car-designer/roster.js), each racer's recipe (what
  * its figure resolves through) and the drive rule its own machine plays by, at the race's tuning (arcade unless named)
@@ -447,7 +496,7 @@ export function raceCast(quick, ends, ride) {
   rivals.forEach((id, k) => {
     // (a field of racers: each rival in its own machine, on its own rule)
     const mine = ride.field?.[k + 1];
-    figures[id] = mine ? { racer: mine.spec } : { vehicleRef: ride.ref, targetH: RIDE_H };
+    figures[id] = mine ? (mine.figure ?? { racer: mine.spec }) : { vehicleRef: ride.ref, targetH: RIDE_H };
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
     const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: !!loop, lane: k % 2 ? -RACE.lane : RACE.lane, pace };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k), heading: h } });
@@ -473,7 +522,7 @@ function roadwayCast(rivals, T, ride) {
   const figures = {}, entities = [];
   rivals.forEach((id, k) => {
     const mine = ride.field?.[k + 1];
-    figures[id] = mine ? { racer: mine.spec } : { vehicleRef: ride.ref, targetH: RIDE_H };
+    figures[id] = mine ? (mine.figure ?? { racer: mine.spec }) : { vehicleRef: ride.ref, targetH: RIDE_H };
     const pace = r3(RACE.pace[0] - ((RACE.pace[0] - RACE.pace[1]) * k) / Math.max(1, rivals.length - 1));
     const rule = { ...(mine ? mine.rule : ride.rule), type: 'racer', line, closed: T.closed, lane: k % 2 ? -RACE.roadLane : RACE.roadLane, pace, collideRadius: mine ? mine.rule.collideRadius : RACE.body, ...(ramps.length ? { ramps } : {}) };
     entities.push({ id, team: 'rivals', rule, body: { type: 'figure-rig', figure: id }, transform: { pos: slot(k).at, heading: slot(k).heading } });

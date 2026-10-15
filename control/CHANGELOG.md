@@ -244,6 +244,17 @@ genre on the quick path.
   each paint clear of the road, the kerb, the grass and the sky, and of the others, for colour-blind eyes too; the
   patterns rotate through the field. Its laws advise and none refuse.
 
+### Race moods and the supercar on the grid
+
+- A quick race takes `supercars`: a field (2 to 8, or a list of `{ preset?, paint?, livery? }`) of the composed
+  supercars, each on the sports class's rule at its own frame, its livery solved against the ground it races on unless
+  given. A `figures` entry `{ supercar: { preset, seed, surface, mood? } }` draws one as a vehicle rig anywhere.
+- A race on a roadway takes a `mood`: `golden`, `dusk`, `night`, `rain` or `night-rain`. The track is re-lit under the
+  mood's key and ambient, its sky and haze turn with it, street lights stand lit along the road after dark (their pools
+  baked on the road, their heads glowing, some in neon at night), the cars' lamps come on, and a wet mood darkens the
+  road, lays a reflective film over it that throws the lamps back, and brings the rain. A roadway level takes `mood`
+  too. Absent, every race is byte-identical.
+
 ### Historic recipes: other eras by the same principles
 
 The historic solver lays later eras the way it lays the ancient ones: a town's form, what its builders had at that
