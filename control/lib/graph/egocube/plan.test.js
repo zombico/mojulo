@@ -70,6 +70,26 @@ describe('a rolled beast\'s value', () => {
   });
 });
 
+describe('a rolled beast\'s topology, from its frame\'s notes', () => {
+  const plan = (a, seed, humanity) => planFromSheet(rollEgocube({ seed, facets: { ancestry: a, ...(humanity ? { humanity } : {}) } })).create.spec.plan;
+  it('a cat\'s thin tail is carried lifted, a heavy tail held level: neither hangs to the floor as a third leg', () => {
+    for (const [a, seed] of [['feline', 4], ['draconic', 3]]) {
+      const P = plan(a, seed), tip = P.joints.tail5[2], root = P.joints.tail0[2];
+      expect(tip, a).toBeGreaterThan(0.5 * root);
+    }
+  });
+  it('wings on the arms are flight feathers on the hand and forearm; a second pair of arms is rigged under the first', () => {
+    const bird = planFromSheet(rollEgocube({ seed: 3, facets: { ancestry: 'avian', humanity: 0.3 } }));
+    expect(bird.create.spec.plan.segments.filter((g) => /^wing/.test(g.name))).toHaveLength(5);
+    expect(bird.ledger.find((r) => /wings on the arms/.test(r.line)).at).toMatch(/wingPrim/);
+    const bug = plan('insectoid', 2);
+    expect(bug.segments.map((g) => g.name)).toEqual(expect.arrayContaining(['upperArm2R', 'foreArm2R', 'hand2R']));
+    expect(bug.rig.bones.find((b) => b.perSide).perSide.map((b) => b.id)).toContain('upperArm2$S');
+    expect(bug.dials.lean.parts).toContain('upperArm2L');
+    expect(() => expandPlan(bug)).not.toThrow();
+  });
+});
+
 describe('planFromSheet', () => {
   it('compiles every people into a call its door accepts (seeds 1–2; the deep sweep takes 1–10) into a call its door accepts', () => {
     for (const anc of [...Object.keys(LINEAGES), ...HUMAN_IDS]) for (let seed = 1; seed <= 2; seed++) {

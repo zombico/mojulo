@@ -231,6 +231,27 @@ field; a pack was a box. Plate is now drawn the way games draw armour.
   trim and from the coat it lies on), and a beast's pauldron and breastplate wear it instead of a cloth colour.
 - **An egocube lineup of dressed figures no longer overflows** while framing its cameras (a spread of every corner).
 
+- **A rolled beast is built masses first.** The egocube's creature door draws a chest over a waist over the hips by
+  pole and build (a keel or a bust, the shoulder line from the pole), each big limb swelling to a muscle belly, the
+  trunk in the finer ring family; a drawn creature keeps its flat markings (spots, streaks) through the tuft filter.
+- **Heads derived from the nearest skull.** `creature-heads/derive.js` re-draws a library head by moving its rows (the
+  slots and row ids kept, so every region, skin map and ornament still lands): `felid` from the wolf (the muzzle pulled
+  in, the skull rounder, the eyes brought to the face, broad ears), `beaked` from the wolf (the muzzle drawn to a point
+  in horn), `mandibled` from the bear (a short face pitched down, compound eyes, mandibles, antennae). The feline, avian
+  and insectoid peoples wear them; a people with no head wears a neutral felid skull as its stand-in, not the dragon's.
+- **A rolled beast's value.** A black coat is drawn at L* 24 at least (`BODY_MIN_L`, its hue kept), so it holds on the
+  dark stage; the eyes are the face's one saturated accent (a people's eye colours, the one furthest in hue from the
+  coat); a dressed beast's underside is a pale throat and belly (`style.drawn.markings.ventral: 'panel'`), its limbs
+  left in the coat.
+- **A beast with enough of a person in it is clothed.** At humanity 0.25 and over (`CLOTHED_H`) the designed dress is
+  the cut, which reads the anatomy (breeches over furred legs, a short coat over a tail, no sleeves on wings, a kilt
+  over plated legs); below it the beast is adorned as before. A muscle swell on a part cloth lies over is the cloth's
+  to carry, so the skin no longer shows through the breeches in diamonds.
+- **Topology from the frame's notes.** A cat's thin tail is carried lifted in an S and a heavy tail held level behind
+  (neither hangs to the floor as a third leg); wings on the arms are five flight feathers trailing from the hand and
+  forearm; a second pair of arms is built, rigged and folded forward under the first. A drawn creature's joint bridges
+  find a bone's own segment, not a feather riding it.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

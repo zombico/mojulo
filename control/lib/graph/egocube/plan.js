@@ -44,10 +44,13 @@ export const HEIGHT = Object.freeze({ lithe: 1.95, canonical: 1.9, heroic: 2.0, 
 export const AGE_SCALE = Object.freeze({ child: 0.6, youth: 0.94, adult: 1, seasoned: 1, elder: 0.97 });
 /** girth (radii across) by build */
 export const GIRTH = Object.freeze({ lithe: 0.88, canonical: 1, heroic: 1.08, stout: 1.15, brute: 1.25 });
-/** tails: radii base → tip and a length factor; a tail hangs (a calm animal) */
+/** tails: radii base → tip, a length factor and how it is CARRIED (`carry`, its joints at 2 m from the root; absent, it
+ * hangs): a cat's thin tail lifts in an S, a heavy tail is held level behind as the counterweight; a tail that hangs to
+ * the floor reads as a third leg */
+const HANG = [[0, -0.17, 0.95], [0, -0.36, 0.83], [0, -0.52, 0.67], [0, -0.64, 0.5], [0, -0.72, 0.35], [0, -0.76, 0.22]];
 export const TAILS = Object.freeze({
-  thin: { r: [0.045, 0.04, 0.035, 0.028, 0.02, 0.01], len: 1.35 },
-  thick: { r: [0.13, 0.11, 0.09, 0.065, 0.042, 0.016], len: 1.25 },
+  thin: { r: [0.045, 0.04, 0.035, 0.028, 0.02, 0.01], len: 1.35, carry: [[0, -0.17, 0.95], [0, -0.33, 0.85], [0, -0.5, 0.79], [0, -0.63, 0.83], [0, -0.7, 0.95], [0, -0.69, 1.08]] },
+  thick: { r: [0.13, 0.11, 0.09, 0.065, 0.042, 0.016], len: 1.25, carry: [[0, -0.17, 0.95], [0, -0.36, 0.85], [0, -0.55, 0.74], [0, -0.74, 0.65], [0, -0.92, 0.6], [0, -1.08, 0.59]] },
   brush: { r: [0.07, 0.12, 0.14, 0.13, 0.095, 0.035], len: 1 },
   stub: { r: [0.08, 0.09, 0.08, 0.06, 0.04, 0.02], len: 0.3 },
 });
@@ -85,6 +88,10 @@ function headOf(sheet) {
   if (named) return { id: named.word, provisional: false };
   return headFor(sheet.facets.ancestry) || { id: STAND_IN_HEAD, provisional: true, standIn: true };
 }
+
+/** what the frame's notes add to the biped: wings on the arms, a second pair of arms */
+const noted = (sheet, re) => Object.values(sheet.notes).flat().some((n) => re.test(n.line));
+function topologyOf(sheet) { return { wings: noted(sheet, /wings on the arms/), arms2: noted(sheet, /second pair of arms/) }; }
 
 function expressionOf(sheet) {
   const x = {};
@@ -125,13 +132,13 @@ export const MASS = Object.freeze({
   pole: { male: { chest: 0.3, shoulder: 0.33, hips: 0.22, keel: 0.02, bust: 0 }, female: { chest: 0.26, shoulder: 0.27, hips: 0.25, keel: 0, bust: 0.03 } },
   waist: { lithe: 0.6, heroic: 0.6, canonical: 0.68, stout: 0.86, brute: 0.82 },
 });
-function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 'canonical' }) {
+function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 'canonical', wings = false, arms2 = false }) {
   const P = (p) => mul(p, k), R = (r) => (Array.isArray(r) ? r.map((x) => r3(x * k * g)) : r3(r * k * g));
   const M = MASS.pole[pole] ?? MASS.pole.male, Wst = M.chest * (MASS.waist[build] ?? MASS.waist.canonical);
   // the shoulder joint sits just inside the shoulder line (the template's 0.37 inside its 0.40)
   const J = Object.fromEntries(Object.entries(BIPED_TEMPLATE[legs]).map(([n, p]) => [n, P(UPPER[n] && n !== 'neckBase' && n !== 'neckTop' ? [p[0] * g * (M.shoulder / 0.4), p[1], p[2]] : p)]));
   const T = tail && TAILS[tail];
-  if (T) J.tail = [[0, -0.17, 0.95], [0, -0.36, 0.83], [0, -0.52, 0.67], [0, -0.64, 0.5], [0, -0.72, 0.35], [0, -0.76, 0.22]]
+  if (T) J.tail = (T.carry ?? HANG)
     .map((p, i, a) => P(i === 0 ? p : add(a[0], mul(add(p, mul(a[0], -1)), T.len))));
   const FINGERS = ['A', 'B', 'C', 'D'].slice(0, fingers);
   const FG = { spread: 0.04 * k * g, prox: 0.075 * k, dist: 0.06 * k, proxDir: [0, 0.7, -0.6], distDir: [0, 0.5, -0.85], clawDir: [0, 0.35, -0.95] };
@@ -165,6 +172,28 @@ function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 
       limb(`finger${X}2R`, `finger${X}m`, `finger${X}e`, 0.019, 0.015, { over: [0.5, 0.5] }, 'Hands', `finger${X}1R`, null),
     ]),
   ];
+  // TOPOLOGY from the frame's notes. Wings on the arms: five flight feathers, flat vanes (thin across, broad front to
+  // back) trailing down and back from the hand (the primaries) and the forearm (the secondaries)
+  const extraArms = [];
+  if (wings) {
+    const along = (t) => add(J.elbow, mul(add(J.knuckles, mul(J.elbow, -1)), t));
+    const VANES = [['wingPrim1', 'hand', 0.92, [0.1, -0.08, -0.4], [0.042, 0.02]], ['wingPrim2', 'hand', 0.8, [0.13, -0.14, -0.4], [0.044, 0.02]], ['wingPrim3', 'foreArm', 0.66, [0.14, -0.19, -0.38], [0.075, 0.045]],
+      ['wingSec1', 'foreArm', 0.45, [0.125, -0.22, -0.35], [0.075, 0.045]], ['wingSec2', 'foreArm', 0.22, [0.105, -0.23, -0.31], [0.075, 0.045]]];
+    for (const [i, [n, bone, t, d, [wA, wB]]] of VANES.entries()) {
+      J[`${n}b`] = along(t); J[`${n}t`] = add(J[`${n}b`], mul(d, k * 1.05));
+      segments.push({ name: `${n}R`, kind: 'segment', from: `${n}b`, to: `${n}t`, rA: [r3(0.008 * k), r3(wA * k)], rB: [r3(0.005 * k), r3(wB * k)], group: i % 2 ? 'FlightAlt' : 'Flight', tint: '#cccccc', mirror: 'name', bind: { bone: `${bone}R` } });
+      extraArms.push(`${n}R`, `${n}L`);
+    }
+  }
+  // a second pair of arms, smaller, under the first and folded forward at rest (an insect's working hands)
+  if (arms2) {
+    Object.assign(J, { shoulder2: P([0.17 * g, 0.03, 1.27]), elbow2: P([0.29 * g, 0.09, 1.1]), wrist2: P([0.23 * g, 0.27, 1.07]), knuckles2: P([0.19 * g, 0.34, 1.03]) });
+    segments.push(
+      limb('upperArm2R', 'shoulder2', 'elbow2', 0.055, 0.044, { over: [0.6, 0.6], mid: 0.45, rMid: R([0.052, 0.054]) }, 'Arms', 'torso', 'foreArm2R'),
+      limb('foreArm2R', 'elbow2', 'wrist2', 0.046, 0.034, { over: [0.6, 0.6] }, 'Arms', 'upperArm2R', 'hand2R'),
+      limb('hand2R', 'wrist2', 'knuckles2', [0.04, 0.03], [0.045, 0.02], { over: [0.4, 0.3] }, 'Hands', 'foreArm2R', null));
+    extraArms.push('upperArm2R', 'upperArm2L', 'foreArm2R', 'foreArm2L', 'hand2R', 'hand2L');
+  }
   // claws: three at each toe tip, one at each finger tip; blunt and short, or long
   const W = 1 / 3, THIRDS = [W, W, W], c = claws === 'long' ? 1.9 : 1, FT = J.toeTip, footDir = [0, 0.9, -0.3];
   const claw = (name, base, dir, length, radius, pin) => ({ name, kind: 'claw', base, dir, length: r3(length * k * c), radius: r3(radius * k), pin, group: 'Claws', tint: '#333333', stretch: 'clawLength' });
@@ -175,13 +204,14 @@ function biped({ k, g, legs, tail, fingers, claws, ruff, pole = 'male', build = 
     ...FINGERS.map((X, i) => { const { e } = fingerJoints(i); const parent = `finger${X}2R`;
       return claw(`clawH${i}R`, add(e, mul(unit(FG.distDir), 0.006 * k)), FG.clawDir, 0.035, 0.009, { parent, face: `${parent}/st1-st2.k0.b`, weights: THIRDS, tangentEdge: [`${parent}/st1.front`, `${parent}/st2.front`], handedness: 1 }); }),
   ];
-  return { J, joints, segments, details, FINGERS, fingerJoints, hasTail: !!T };
+  for (const n of [...['wingPrim1', 'wingPrim2', 'wingPrim3', 'wingSec1', 'wingSec2'].flatMap((w) => [`${w}b`, `${w}t`]), 'shoulder2', 'elbow2', 'wrist2', 'knuckles2']) if (J[n]) joints[n] = J[n];
+  return { J, joints, segments, details, FINGERS, fingerJoints, hasTail: !!T, extraArms, arms2 };
 }
 
-function dialsAndRig({ J, FINGERS, fingerJoints, hasTail }, stance) {
+function dialsAndRig({ J, FINGERS, fingerJoints, hasTail, extraArms = [], arms2 = false }, stance) {
   const legParts = ['thighR', 'thighL', 'shinR', 'shinL', 'metaR', 'metaL', 'toesR', 'toesL'];
   const fingerParts = FINGERS.flatMap((X) => ['R', 'L'].flatMap((S) => [`finger${X}1${S}`, `finger${X}2${S}`]));
-  const armParts = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'handR', 'handL', ...fingerParts];
+  const armParts = ['upperArmR', 'upperArmL', 'foreArmR', 'foreArmL', 'handR', 'handL', ...fingerParts, ...extraArms];
   const all5 = { st0: 1, st1: 1, st2: 1, back: 1, tip: 1 };
   const tailLinks = [1, 2, 3, 4].map((t) => ({ pivot: `tail${t}/back`, parts: [1, 2, 3, 4].filter((j) => j >= t).map((j) => `tail${j}`) }));
   const dials = {
@@ -203,6 +233,8 @@ function dialsAndRig({ J, FINGERS, fingerJoints, hasTail }, stance) {
     jawHinge: { at: 'head.jawOpen.pivot', rides: 'head' }, jawTip: { at: 'head.jaw.tip', rides: 'head' },
     hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.hock }, shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist },
     knuckles$S: { at: J.knuckles, rides: 'foreArm$S' }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
+    // the second pair rides the torso, held folded (its own bones skin it; no clip key poses it yet)
+    ...(arms2 ? { shoulder2$S: { at: J.shoulder2, rides: 'torso' }, elbow2$S: { at: J.elbow2, rides: 'torso' }, wrist2$S: { at: J.wrist2, rides: 'torso' }, knuckles2$S: { at: J.knuckles2, rides: 'torso' } } : {}),
   };
   for (const S of ['R', 'L']) for (const [i, X] of FINGERS.entries()) { const { k, m, e } = fingerJoints(i); const f = (p) => (S === 'R' ? p : [-p[0], p[1], p[2]]);
     rigJoints[`finger${X}k${S}`] = { at: f(k), rides: `hand${S}` }; rigJoints[`finger${X}m${S}`] = { at: f(m), rides: `hand${S}` }; rigJoints[`finger${X}e${S}`] = { at: f(e), rides: `hand${S}` }; }
@@ -217,6 +249,7 @@ function dialsAndRig({ J, FINGERS, fingerJoints, hasTail }, stance) {
       { perSide: [
         { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S' },
         ...FINGERS.flatMap((X) => [{ id: `finger${X}1$S`, head: `finger${X}k$S`, tail: `finger${X}m$S` }, { id: `finger${X}2$S`, head: `finger${X}m$S`, tail: `finger${X}e$S` }]),
+        ...(arms2 ? [{ id: 'upperArm2$S', head: 'shoulder2$S', tail: 'elbow2$S' }, { id: 'foreArm2$S', head: 'elbow2$S', tail: 'wrist2$S' }, { id: 'hand2$S', head: 'wrist2$S', tail: 'knuckles2$S' }] : []),
         { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shin$S', head: 'knee$S', tail: 'ankle$S' }, { id: 'meta$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
       ] },
       ...(hasTail ? [0, 1, 2, 3, 4].map((t) => ({ id: `tail${t}`, head: `tail${t}`, tail: `tail${t + 1}` })) : []),
@@ -297,7 +330,8 @@ function creature(sheet, title) {
   const legs = hasDerive(sheet, 'legs = digitigrade') ? 'digitigrade' : 'plantigrade';
   const head = headOf(sheet);
   const cover = coverOf(hints.cover, k, !!hints.tail && !!TAILS[hints.tail]);
-  const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff, pole: f.pole, build: f.build });
+  const topo = topologyOf(sheet);
+  const body = biped({ k, g, legs, tail: hints.tail, fingers: FINGER_COUNT[f.ancestry] || 4, claws: hints.claws, ruff: cover.ruff, pole: f.pole, build: f.build, ...topo });
   const stance = stanceOf(sheet);
   const { dials, rig, clips } = dialsAndRig(body, stance);
   const skin = legible(sheet.ancestry.colours.Skin), reptile = head && HEAD_LIBRARY[head.id].family === 'reptile';
@@ -307,7 +341,7 @@ function creature(sheet, title) {
     Torso: skin, Pelvis: skin, Neck: skin, Tail: skin, Legs: shade(skin, -0.03), Feet: shade(skin, -0.06), Arms: shade(skin, -0.03),
     Hands: reptile ? shade(skin, -0.08) : '#4a4440', Claws: reptile ? '#efe9d8' : '#3a3430',
     Fur: shade(skin, 0.04), FurAlt: shade(skin, -0.06), Scales: shade(skin, -0.05), ScalesAlt: shade(skin, 0.05), Chitin: shade(skin, -0.05), ChitinAlt: shade(skin, 0.06),
-    Pad: '#4a4440', PadInner: '#3a3530', Crease: shade(skin, -0.25),
+    Pad: '#4a4440', PadInner: '#3a3530', Crease: shade(skin, -0.25), Flight: shade(skin, -0.12), FlightAlt: shade(skin, 0.06),
     Leather: shadowSide ? '#6b5a4a' : '#6e4a2e', Satchel: shadowSide ? '#7a6a58' : '#7d5634', Stitch: '#d8d0bc', Wrap: '#d8d0bc', Metal: '#8e9196',
     Emblem: f.archetype === 'ruler' ? '#d5aa3a' : '#b9a46a',
   };
@@ -337,7 +371,7 @@ function creature(sheet, title) {
     adorn: adornOf(kitOf(sheet), k, groups),
     palette,
   };
-  return { plan, k, legs, head, stance, cover, kit: kitOf(sheet) };
+  return { plan, k, legs, head, stance, cover, kit: kitOf(sheet), topo };
 }
 
 // ══════════ the hero door ══════════
@@ -397,8 +431,10 @@ function ledgerOf(sheet, door, built) {
       if (ch === 'cover' && !built.cover.tiles.length) { at = null; pending = 'no cover hint for this people'; }
       if (ch === 'wear' && !['seasoned', 'elder'].includes(sheet.facets.age)) { at = null; pending = 'no wear dials yet'; }
       if (ch === 'structure' && built.head.standIn) { at = null; pending = `no library head for ${sheet.facets.ancestry} yet: the ${built.head.id} head stands in; draw one from the nearest (creature-heads)`; }
-      if (ch === 'ornament' && /horns|antennae|tusks|wings|crest|frill/.test(n.line) && !(built.head?.id === 'dragon' && /horns|crest/.test(n.line))) { at = null; pending = 'an ornament the library head and the body plan do not carry yet'; }
-      if (ch === 'silhouette' && /wings|crest|frill|a pair/.test(n.line)) { at = null; pending = 'not in the body plan yet (wings, a crest, a familiar)'; }
+      if (ch === 'ornament' && /horns|antennae|tusks|wings|crest|frill/.test(n.line) && !(built.head?.id === 'dragon' && /horns|crest/.test(n.line)) && !(built.head?.id === 'mandibled' && /antennae/.test(n.line))) { at = null; pending = 'an ornament the library head and the body plan do not carry yet'; }
+      if (ch === 'silhouette' && /wings|crest|frill|a pair/.test(n.line) && !(built.topo?.wings && /wings on the arms/.test(n.line))) { at = null; pending = 'not in the body plan yet (folded wings, a crest, a familiar)'; }
+      if (built.topo?.wings && /wings on the arms/.test(n.line)) at = 'plan.segments wingPrim1-3, wingSec1-2 (flight feathers on the hand and forearm)';
+      if (built.topo?.arms2 && /second pair of arms/.test(n.line)) at = 'plan.segments upperArm2, foreArm2, hand2 (rigged)';
     }
     rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });
   }

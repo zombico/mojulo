@@ -117,7 +117,8 @@ export function secondTone(hex) {
 
 /** each part's chain: its depth from the trunk along its bind's `prev`, and its chain's length */
 function chains(plan) {
-  const segs = plan.segments || [], byBone = new Map(segs.map((g) => [typeof g.bind === 'object' ? g.bind?.bone ?? g.name : g.name, g]));
+  const segs = plan.segments || [], byBone = new Map();
+  for (const g of segs) { const b = typeof g.bind === 'object' ? g.bind?.bone ?? g.name : g.name; if (!byBone.has(b) || g.name === b) byBone.set(b, g); }
   const depth = new Map(), last = new Set();
   for (const g of segs) { let d = 0, x = g; while (x && typeof x.bind === 'object' && x.bind?.prev && byBone.has(x.bind.prev) && d < 12) { x = byBone.get(x.bind.prev); d++; } depth.set(g.name, d); }
   for (const g of segs) if (['segment', 'loft'].includes(g.kind) && !(typeof g.bind === 'object' && g.bind?.next && byBone.has(g.bind.next))) last.add(g.name.replace(/[RL]$/, ''));

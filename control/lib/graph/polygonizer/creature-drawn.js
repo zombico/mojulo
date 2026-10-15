@@ -60,7 +60,9 @@ export const drawnTarget = (plan) => {
 
 export function creatureJoints(plan, targetSpec = DEFAULT_TARGET) {
   const target = readTarget(targetSpec), ppm = pxPerMetre(target, planHeight(plan));
-  const segs = plan.segments || [], byBone = new Map(segs.map((g) => [boneOf(g), g]));
+  // a bone's segment is the one named for it (a feather or a plate riding the hand's bone is not the hand)
+  const segs = plan.segments || [], byBone = new Map();
+  for (const g of segs) { const b = boneOf(g); if (!byBone.has(b) || g.name === b) byBone.set(b, g); }
   const out = [];
   for (const U of segs) {
     if (!['segment', 'loft'].includes(U.kind) || !right(U) || typeof U.bind !== 'object' || !U.bind?.next) continue;
