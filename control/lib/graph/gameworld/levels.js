@@ -14,6 +14,7 @@
  *   gameStages(G)                          → [{ level, node, section, index, manifest }] every stage, the start level first
  *   stageEnds(manifest)                    → { spawn, heading, exit, exitFrom } read off the laid stage
  *   roadwayEnds(manifest)                  → the same, read off a roadway's contract (roads/contract.js)
+ *   airspaceEnds(manifest)                 → the same, read off an airspace's map and course (skyscape/)
  *   stageLevelOrder(G, stage, { ref, heroRef, mechanics, title }) → the create_sketch call that makes it
  *   gameStore(G, book)                     → the create_game store: the hero, the gear, the campaign
  *
@@ -45,6 +46,12 @@ import { designCity } from '../city/plan/design.js';
 import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
 import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
+import { airspaceOf } from '../skyscape/airspace.js';
+import { planCourse } from '../skyscape/course.js';
+import { mapLaws } from '../skyscape/map.js';
+import { spaceLaws } from '../skyscape/space.js';
+import { flyCourse } from '../skyscape/autopilot.js';
+import { seatCraft, craftPilot } from '../skyscape/craft.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -66,6 +73,8 @@ export function gameStages(world) {
     if (R.city) { out.push(...cityStages(level, R.city, G.topology === 'interconnected')); continue; }
     // a roadway level is one stage: the track (roads/track.js), its manifest the roadway kind's
     if (R.roadway) { out.push({ level, node: 'roadway', section: 'roadway', index: 0, manifest: { kind: 'roadway', ...R.roadway, seed: R.seed } }); continue; }
+    // an airspace level is one stage: the flight map (skyscape/airspace.js), its manifest the airspace kind's
+    if (R.airspace) { out.push({ level, node: 'airspace', section: 'airspace', index: 0, manifest: { kind: 'airspace', ...R.airspace, seed: R.seed } }); continue; }
     const laid = layLevel(R.level);
     // the level's buildings stand on the section they name, or on its first trail
     const home = (b) => b.node ?? laid.stages.find((s) => s.section === 'trail')?.node;
@@ -136,6 +145,33 @@ function cityLevelOrder(G, stage, { title, map = null, cityRefs = {} } = {}) {
   const refs = Object.fromEntries(Object.entries(cityRefs).filter(([id]) => id !== stage.node));
   const manifest = { ...stage.manifest, title: name, level: { ...stage.manifest.level, ...(Object.keys(refs).length ? { refs } : {}), ...(ways.length ? { ways } : {}) } };
   return { tool: 'create_sketch', args: { title: name, manifest } };
+}
+
+/** An airspace stage's anchors, read off its map and its course (skyscape/): the first pad's threshold to start on,
+ * looking down it, the course's finish (the runway's touchdown zone) to end at. Not data: the map, the ground, the
+ * course and the laws (the map's and the course's) ride along for the pilot and the goal (as airMap, airField, course and
+ * airLaws: a stage's `field` is its flattened ground, set per call). Drawn once per manifest. */
+const AIR_ENDS = new Map();
+export function airspaceEnds(manifest) {
+  const key = JSON.stringify(manifest);
+  if (AIR_ENDS.has(key)) return AIR_ENDS.get(key);
+  if (AIR_ENDS.size > 8) AIR_ENDS.clear();
+  let map, field;
+  try { ({ map, field } = airspaceOf(manifest)); } catch (e) { throw new Error(`levels: ${e.message}`); }
+  const course = manifest.course ? planCourse(map, field, { ...(manifest.course === true ? {} : manifest.course), seed: manifest.seed ?? 1 }) : null;
+  const F = map.rings.field, seat = seatCraft(map, field, course, { assist: manifest.assist }), [sx, sy] = seat.transform.pos;
+  const exit = field.port ?? course?.finish?.at ?? course?.gates.at(-1).at ?? [0, F.hy, field.groundAt(0, F.hy)];
+  const out = { spawn: [sx, sy, seat.ground], heading: seat.transform.heading, exit, exitFrom: course?.finish ? 'the runway' : 'the last gate', planar: false, beats: [], hazards: [] };
+  // and the course flown by its own craft (skyscape/autopilot.js): the flight's walkability, a machine gate
+  // (a trench run's proof is its line: down the middle, waypoints a little narrower than the trench, trench.js)
+  const run = course ?? (field.line?.length ? { gates: field.line.map((at) => ({ at, radius: field.trench.w / 2 - 5 })), laps: 1, finish: null } : null);
+  const flown = run ? flyCourse(map, field, run, { rule: seat.rule }) : null;
+  // a space map's own laws (space.js: turn room in three dimensions, the rocks clear of the course)
+  const laws = [...(map.form === 'void' ? spaceLaws(map, field, course, seat.transform) : mapLaws(map)), ...(course ? course.laws : []), ...(flown ? [{ law: 'flown', ok: flown.flown, note: flown.flown ? `flown by its own craft on its rule: every ${field.port ? 'waypoint down the trench' : 'gate'} in order${flown.landing ? `, then landed on the runway at ${flown.landing.sink} m/s and stopped` : ''}, in ${flown.time} s` : `not flown by its own craft: ${flown.reason}` }] : [])]
+    .map((l) => ({ concern: 'airspace', law: l.law, holds: l.ok, says: l.note }));
+  for (const [k, v] of Object.entries({ ground: (x, y) => field.groundAt(x, y), rocks: null, airMap: map, airField: field, course, seat, airLaws: laws })) Object.defineProperty(out, k, { value: v, enumerable: false });
+  AIR_ENDS.set(key, out);
+  return out;
 }
 
 /** A roadway stage's anchors, read off its contract (roads/contract.js): the pole of its grid to start on, facing the
@@ -269,7 +305,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
   if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
-  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stageEnds(stage.manifest);
+  const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
   const concerns = concernIds(cubeOfWorld(G).cube);
@@ -302,7 +338,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   const after = mechanics?.destruction && mechanics.destruction !== 'none' ? [{ kind: 'aftermath', slice: AFTERMATH_SLICE }] : [];
   const game = { levelRef: ref, mechanics: [...doorMechs, ...(lane ? placed.map((m) => onLane(m, lane)) : placed), ...after], fall: { mode: 'respawn' }, ...(ways && ways.arrive.length ? { arrive: ways.arrive.map((a) => a.from) } : {}) };
   let pilotPart;
-  if (ride?.ref || ride?.racer) {
+  if (stage.section === 'airspace') {
+    // THE CRAFT (skyscape/craft.js): an airspace is flown, whoever the hero is: the map's craft on the fly rule its class
+    // gives, the map's reach its bound, seated on the departure threshold (a craft with no engine launched aloft, high
+    // enough to glide to the first gate), followed from behind by a chase camera that banks with it
+    const aloft = ends.seat.rule.engine === false;
+    const P = playerWorld({ heroRef: 'none', id: 'player', title: name, controls: `${aloft ? '' : 'W / S  throttle (it holds) · '}A / D  bank · Space / Shift  nose up / down · mouse  pitch${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
+    pilotPart = { ...craftPilot(ends.airMap, ends.seat), events: P.events || {} };
+  } else if (ride?.ref || ride?.racer) {
     // THE RIDE (ride.js): the hero is a vehicle, on the drive rule its build derived, followed from behind; or a racer
     // (quick.racers): the first of the field, in the machine its driver reads as, followed close (a kart is small)
     const P = playerWorld({ heroRef: 'none', id: 'car', title: name, controls: `W  throttle · S  brake, hold to reverse · A / D  steer${mechanics?.legend ? ` · ${mechanics.legend}` : ''}` });
@@ -350,15 +393,14 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   }
   // EXTRA: what a goal stands in the stage beside the pilot (a defence's foes and towers: quick.js), the play it
   // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
-  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? }, posts?, pads?, inputs?, camera? }
+  // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? }, camera?, posts?, pads?, inputs? }
+  // (`camera`: laid over the pilot's own: a shooter's over the shoulder, a dogfight's mouse look)
   let extraPlay = null, blocks = null, posts = null, pads = null;
   if (extra) {
     const X = extra(ends), p0 = pilotPart.entities[0];
     const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
     const figures = { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) };
-    pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])] };
-    // a goal's own framing of a chase camera (a shooter's over the shoulder): its numbers over the follow camera's
-    if (X.camera && pilotPart.camera?.rule === 'follow') pilotPart = { ...pilotPart, camera: { ...pilotPart.camera, ...X.camera } };
+    pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])], ...(X.camera && pilotPart.camera ? { camera: { ...pilotPart.camera, ...X.camera } } : {}) };
     extraPlay = X.play ?? null;
     blocks = X.blocks?.length ? X.blocks : null;
     posts = X.posts ?? null;
@@ -405,7 +447,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
-  const laws = stage.section === 'roadway' ? ends.roadLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
+  const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
 }
 

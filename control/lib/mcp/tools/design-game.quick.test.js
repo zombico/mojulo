@@ -51,6 +51,79 @@ describe('design_game quick', () => {
     expect(stored('s-game').theme).toMatchObject({ accent: '#7a2f8e' });
   }, 240_000);
 
+  it('fly: an airspace flown by its craft, the course\'s gates as laps in three dimensions, the runway the finish', async () => {
+    const out = await designGameHandler({ quick: { goal: 'fly', craft: 'trainer', airspace: { map: { form: 'island', field: 2400 } }, world: { id: 'skies' } }, ref: 'f' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('f-level-run-0');
+    expect(L.kind).toBe('airspace');
+    expect(L.entities[0]).toMatchObject({ id: 'player', pilotable: true, rule: { type: 'fly', lever: true } });
+    expect(L.entities[0].rule.bound.hx).toBeGreaterThan(1200);   // the map's reach
+    expect(L.camera).toMatchObject({ rule: 'follow', target: 'player', rollFollow: 1 });
+    const laps = L.game.mechanics.find((m) => m.kind === 'laps');
+    expect(laps.checkpoints.length).toBeGreaterThan(3);
+    expect(laps.checkpoints.every((c) => c.planar === false)).toBe(true);
+    // the gates stand in the air, the finish on the runway
+    expect(laps.checkpoints[0].at[2]).toBeGreaterThan(laps.checkpoints.at(-1).at[2]);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('f-level-run-0'), { live: true });
+    expect(payload.terrain.hazeHeight).toBeGreaterThan(0);
+    expect(payload.entities[0].id).toBe('player');
+    // the gates' and the pads' zones watch the pilot itself (else no gate counts on the page), and the finish is a landing
+    const zones = payload.events.sources.filter((q) => q.type === 'zone');
+    expect(zones.length).toBeGreaterThan(laps.checkpoints.length);
+    expect(zones.every((q) => q.watch === payload.entities[0].id)).toBe(true);
+    expect(laps.checkpoints.at(-1).land).toBe(true);
+    expect(laps.respawn).toHaveLength(laps.checkpoints.length);
+    const page = emitThreeWorld({ ...payload, inline: true });
+    expect(page).toContain('LEAVING THE AREA');   // the flight HUD
+    expect(page).toContain('MISSED GATE');        // and the course's guidance, read off the craft's rule
+    expect(L.entities[0].rule.course.gates).toHaveLength(laps.checkpoints.length - 1);
+    expect(L.entities[0].rule.course.land.aim).toHaveLength(3);
+  }, 240_000);
+
+  it('fly in space: a space craft\'s map is space (rocks, stars, no ground), its gates a race with nothing to land on', async () => {
+    const out = await designGameHandler({ quick: { goal: 'fly', craft: 'fighter', airspace: { space: { asteroids: 'sparse' } }, world: { id: 'belt' } }, ref: 'sp' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('sp-level-run-0');
+    expect(L.ground).toBeUndefined();
+    expect(L.entities[0].rule).toMatchObject({ type: 'fly', gravity: false, lift: false, space: true });
+    const laps = L.game.mechanics.find((m) => m.kind === 'laps');
+    expect(laps.land).toBeUndefined();
+    expect(laps.checkpoints.at(-1).land).toBeUndefined();
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sp-level-run-0'), { live: true });
+    expect(payload.sky.space).toBe(true);
+    expect(payload.meta.laws.filter((l) => !l.ok)).toEqual([]);
+  }, 240_000);
+
+  it('shoot with a craft: a dogfight in space, the wing of fighters its foes, a crash coming back at the start', async () => {
+    const out = await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', foes: 3, world: { id: 'df' } }, ref: 'df' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('df-level-run-0');
+    expect(L.kind).toBe('airspace');
+    expect(mechanicsOf('df-level-run-0')).toEqual(['fail-on-death', 'respawn', 'defeat-all']);
+    expect(L.entities.filter((e) => /^foe-/.test(e.id))).toHaveLength(3);
+    expect(L.entities[0]).toMatchObject({ id: 'player', weapon: { fireClass: 'sight' }, rule: { type: 'fly', space: true } });
+    expect(L.camera.mouseLook).toBe(true);
+    expect(L.game.mechanics.find((m) => m.kind === 'laps')).toBeUndefined();
+    // the craft's fight: missiles and flares, a boost, a roll; each foe carrying its own missiles
+    expect(L.entities[0].rule).toMatchObject({ missiles: { count: 6 }, boost: { thrust: 2 }, roll: { side: 30 } });
+    expect(L.entities.filter((e) => /^foe-/.test(e.id)).every((e) => e.rule.missiles && e.rule.missiles.count > 0)).toBe(true);
+    // in waves: the wings asleep, the waves mechanic their terminal
+    await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', foes: 2, waves: 3, world: { id: 'wv' } }, ref: 'wv' });
+    const V = stored('wv-level-run-0');
+    expect(mechanicsOf('wv-level-run-0')).toEqual(['fail-on-death', 'respawn', 'waves']);
+    expect(V.game.mechanics.find((m) => m.kind === 'waves')).toMatchObject({ clear: true, waves: [{ foes: ['foe-1', 'foe-2'] }, { foes: ['foe-3', 'foe-4'] }, { foes: ['foe-5', 'foe-6'] }] });
+    expect(V.entities.filter((e) => /^foe-/.test(e.id)).every((e) => e.dormant)).toBe(true);
+  }, 240_000);
+
+  it('shoot with a craft in a trench: the station its ground, the port its goal, turrets on the rims', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', airspace: { space: { trench: true } }, world: { id: 'tr' } }, ref: 'tr' });
+    const L = stored('tr-level-run-0');
+    expect(L.entities.map((e) => e.id).filter((id) => /^foe-/.test(id))).toEqual(['foe-port']);
+    expect(L.entities.some((e) => /^turret-/.test(e.id))).toBe(true);
+    expect(L.game.mechanics.find((m) => m.kind === 'defeat-all')).toMatchObject({ who: 'foe-*', count: 1 });
+    expect(L.entities[0].rule.roofs).toHaveLength(1);
+  }, 240_000);
+
   it('survive and avoid: a countdown; hazards on the water the trail crosses, and hp to lose', async () => {
     await designGameHandler({ quick: { goal: 'survive', seconds: 30, world: { id: 'hold' } }, ref: 'h' });
     expect(mechanicsOf('h-level-run-0')).toEqual(['survive']);

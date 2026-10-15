@@ -130,6 +130,29 @@ import { emitThreeWorld } from './scene-three.js';
 // Re-pinned 2026-10-14 (merge of 1012-consolidate into the racer line): the drive rule's engine source (D5) meets the
 // shoot plan's and game audio's fixtures; with the engine source set aside, all 68 fixtures are byte-identical to
 // 1012-consolidate's. The same 13, and the shoot plan's shoot-live.
+// Re-pinned 2026-10-14 (skyscape: flight in play): the fly rule's opt-in dials (engine, lever, gravity, lift,
+// launchSpeed, bound), the follow rule's opt-in `rollFollow`, and one line in the page's camera drive that rolls a
+// follow camera about its view axis when it carries a roll (never set without rollFollow). On the `controllable`
+// fixture 11 lines are replaced (the fly rule's own, each now reading its dial) and 25 added; nothing else moves. A page
+// with a flying body also gets the flight HUD; no fixture flies. The same 13, and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: landing, crashes, assist): the fly rule's opt-in `assist` ('arcade' never stalls and
+// levels the wings faster, 'sim' holds the bank). On the `controllable` fixture 2 lines are replaced and 5 added, all
+// the rule's own; nothing else moves (the flight block's touchdown, roofs and respawn are emitted only with a flying
+// body, which no fixture holds). The same 13, and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: space): the fly rule's bound takes `hz` (above and below, the turn-back's nose toward
+// the centre's height) and the lever a `leverStart`; on the `controllable` fixture 3 lines are replaced and 2 added, all
+// the rule's own, every one reading an absent key the old way. The same 13, and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: the trench): the fly rule reads its ground without gravity when `space` is set (a
+// station's surface, a trench's walls); on the `controllable` fixture 1 line is replaced, the rule's own. The same 13,
+// and shoot-live.
+// Re-pinned 2026-10-14 (skyscape: air combat): the mind's space seek keeps `rule.clearance` over the ground (read under
+// it and ahead); on the `controllable` fixture 13 lines are added and none changed, gated on the key. The same 13, and
+// shoot-live.
+// Re-pinned 2026-10-14 (skyscape: missiles, boost, roll): the weapon system's opt-in `rule.missiles` (a lock, homing
+// rounds, flares; `noGround` and `hitsAs` on a round), the fly rule's opt-in `boost` and `roll`, the input's `missile`
+// and `flare` (and the pilot scheme's two vehicle actions for them). On the `controllable` fixture 7 lines are replaced
+// (the input's zero, thrust, tilt, the ground test, a burst's hit count, the exports, the scheme) and 101 added; every
+// replaced line reads an absent key the old way. The same 13, and shoot-live.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

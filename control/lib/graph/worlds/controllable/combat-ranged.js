@@ -497,6 +497,7 @@ export function buildCombatRanged(E) {
         const p = ps[i];
         p.age += dt;
         const prev = [p.pos[0], p.pos[1], p.pos[2]];   // travel segment start (for the wall-hit test)
+        if (p.homing) steerHoming(state, p, dt);   // a missile (stepMissiles) turns toward its target
         p.vel[2] -= (p.gravity || 0) * dt;
         p.pos[0] += p.vel[0] * dt; p.pos[1] += p.vel[1] * dt; p.pos[2] += p.vel[2] * dt;
         let hitId = null;
@@ -534,7 +535,7 @@ export function buildCombatRanged(E) {
           const wt = nearestWallT(prev, p.pos, state.colliders);
           if (wt != null) { const hp = lerp3(prev, p.pos, wt); p.pos[0] = hp[0]; p.pos[1] = hp[1]; p.pos[2] = hp[2]; wall = true; }
         }
-        const ground = p.pos[2] <= 0;
+        const ground = !p.noGround && p.pos[2] <= 0;   // a missile (noGround) flies on over and under z = 0
         if (hitId != null || ground || wall || p.age >= (p.fuse || 4)) {
           if (ground) p.pos[2] = 0;
           burstProjectile(state, p);
@@ -571,7 +572,7 @@ export function buildCombatRanged(E) {
         if (Number.isFinite(tg.poise) && tg.staggerT == null) armReaction(tg, 'stagger');
         continue;
       }
-      tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + 1;
+      tg.hitFlash = state.time; tg.hits = (tg.hits || 0) + (p.hitsAs || 1);   // a missile (hitsAs) counts as that many hits (what hp-pools and fail-on-death charge)
       tg.lastHitBy = p.owner;   // match-layer attribution (the round remembers its shooter)
       tg.lastHitDmg = p.damage || 0; tg.lastHitHead = false; tg.lastHitDmgN = tg.hits;   // what the burst dealt, for the hit fact
       const mst = matchStat(state, p.owner);
@@ -638,6 +639,71 @@ export function buildCombatRanged(E) {
     if (e.weapon && !suppressed && e.rule && e.rule.type === 'ai') stepWeapon(e, { fire: e.aiFire ? 1 : 0 }, dt, state);
     else if (e.weapon && !suppressed && e.tackleT == null && firesForPilot) stepWeapon(e, input, dt, state);   // a tackle owns the body — no firing mid-charge
   }, 10);
+  // MISSILES (opt-in `rule.missiles`: skyscape/dogfight.js): { count?, lockTime?, cone?, range?, speed?, turn?, damage?,
+  // splash?, prox?, fuse?, cooldown?, flares?, flareTime?, flareAt?, hitsAs? } (`hitsAs`: the hits a burst counts). Each step the body's LOCK builds on the hittable foe nearest
+  // its aim axis (within `cone`° and `range`; a teamless pilot locks only a teamed body, a team never its own), held
+  // for `lockTime` s to lock. The trigger (the pilot's input.missile press edge; a mind's: locked and cooled) launches a
+  // projectile at its own speed plus `speed`, `noGround`, homing on the locked foe at `turn` rad/s (unlocked, it flies
+  // straight). FLARES (`flares` of them): the pilot's input.flare press; a mind's when a missile homing on it is near.
+  // A flare burning (`flareTime` s) breaks every lock on the body (steerHoming). Facts: mlock { target, t, locked },
+  // missilesLeft, flaresLeft, flareT, incoming (the nearest homing round's distance, else null).
+  function stepMissiles(e, input, dt, state) {
+    const m = e.rule && e.rule.missiles; if (!m) return;
+    if (!state.projectiles) { state.projectiles = []; state.bursts = []; state.projSeq = 0; state.burstSeq = 0; }
+    if (e.missilesLeft == null) { e.missilesLeft = m.count ?? 4; e.flaresLeft = m.flares ?? 0; e.missileCd = 0; e.flareT = 0; e.mlock = null; }
+    e.missileCd = Math.max(0, e.missileCd - dt); e.flareT = Math.max(0, e.flareT - dt);
+    const t = e.transform, aim = fwd3(t.heading, t.pitch || 0), cone = (m.cone ?? 12) * Math.PI / 180, range = m.range ?? 1200;
+    let best = null, bestA = cone;
+    if (!e.downed && !e.gone) for (const tg of state.entities) {
+      if (tg === e || tg.gone || tg.downed || !(tg.body && tg.body.hittable)) continue;
+      if (e.team ? tg.team === e.team : !tg.team) continue;
+      const v = sub(tg.transform.pos, t.pos), d = Math.hypot(v[0], v[1], v[2]);
+      if (d < 1 || d > range) continue;
+      const a = Math.acos(clamp((v[0] * aim[0] + v[1] * aim[1] + v[2] * aim[2]) / d, -1, 1));
+      if (a < bestA) { bestA = a; best = tg; }
+    }
+    if (best && e.mlock && e.mlock.target === best.id) e.mlock.t += dt; else e.mlock = best ? { target: best.id, t: 0 } : null;
+    const locked = !!(e.mlock && e.mlock.t >= (m.lockTime ?? 1.2));
+    if (e.mlock) e.mlock.locked = locked;
+    const ai = e.rule.type === 'ai';
+    const press = ai ? locked : (!!input.missile && !e.missilePrev);
+    e.missilePrev = !!input.missile;
+    if (press && e.missileCd <= 0 && e.missilesLeft > 0) {
+      const sp = (e.airspeed || 0) + (m.speed ?? 200);
+      state.projectiles.push({
+        id: 'proj-' + (state.projSeq++), owner: e.id, pos: [t.pos[0] + aim[0] * 4, t.pos[1] + aim[1] * 4, t.pos[2] + aim[2] * 4], vel: [aim[0] * sp, aim[1] * sp, aim[2] * sp],
+        gravity: 0, splashRadius: m.splash ?? 10, projRadius: 1.5, prox: m.prox ?? 8, damage: m.damage ?? 3, impact: 0, born: state.time, age: 0, armTime: 0.25,
+        fuse: m.fuse ?? 8, noGround: true, hitsAs: m.hitsAs ?? 1, homing: locked ? { target: e.mlock.target, turn: m.turn ?? 2.2 } : null, missile: true,
+        fxColor: m.fxColor ?? null, fxScale: null, smokeTrail: true,
+      });
+      e.missilesLeft -= 1; e.missileCd = m.cooldown ?? (ai ? 8 : 0.6); e.lastMissile = state.time;
+      if (locked) e.mlock.t = 0;   // the next one locks afresh
+    }
+    // what is coming for this body
+    let near = null;
+    for (const p of state.projectiles) if (p.homing && p.homing.target === e.id) { const d = Math.hypot(p.pos[0] - t.pos[0], p.pos[1] - t.pos[1], p.pos[2] - t.pos[2]); if (near == null || d < near) near = d; }
+    e.incoming = near;
+    const flare = ai ? (near != null && near < (m.flareAt ?? 400)) : (!!input.flare && !e.flarePrev);
+    e.flarePrev = !!input.flare;
+    if (flare && e.flaresLeft > 0 && !(e.flareT > 0)) { e.flaresLeft -= 1; e.flareT = m.flareTime ?? 1.2; e.lastFlare = state.time; }
+  }
+  // a homing round: turned toward its target's centre at its turn rate (its speed kept), until the target is gone or
+  // burns a flare (the lock broken: it flies on straight)
+  function steerHoming(state, p, dt) {
+    const tg = state.byId && state.byId[p.homing.target];
+    if (!tg || tg.gone || tg.downed) { p.homing = null; return; }
+    if (tg.flareT > 0) { p.homing = null; p.decoyed = true; return; }
+    const sp = Math.hypot(p.vel[0], p.vel[1], p.vel[2]) || 1, v = sub(tg.transform.pos, p.pos), d = Math.hypot(v[0], v[1], v[2]) || 1;
+    const c = [p.vel[0] / sp, p.vel[1] / sp, p.vel[2] / sp], w = [v[0] / d, v[1] / d, v[2] / d];
+    const ang = Math.acos(clamp(c[0] * w[0] + c[1] * w[1] + c[2] * w[2], -1, 1)), k = ang > 1e-6 ? Math.min(1, (p.homing.turn * dt) / ang) : 1;
+    const n = [c[0] + (w[0] - c[0]) * k, c[1] + (w[1] - c[1]) * k, c[2] + (w[2] - c[2]) * k], nl = Math.hypot(n[0], n[1], n[2]) || 1;
+    p.vel[0] = (n[0] / nl) * sp; p.vel[1] = (n[1] / nl) * sp; p.vel[2] = (n[2] / nl) * sp;
+  }
+  E.registerEntityAction('missiles', (e, input, dt, state, world, owns) => {
+    if (!(e.rule && e.rule.missiles) || owns.reaction || owns.drop || owns.cine) return;
+    const firesForPilot = !e.pilotable || state.pilotId === e.id;
+    stepMissiles(e, e.rule.type === 'ai' ? {} : firesForPilot ? input : {}, dt, state);
+  }, 11);
   // a body owner (reaction / drop / clash / cine) interrupts a held weapon charge.
   registerEntityAssert('charge-cancel', (e, dt, owns) => {
     if (e.weapon && (owns.reaction || owns.drop || owns.clash || owns.cine)) cancelWeaponCharge(e.weapon);
@@ -651,5 +717,5 @@ export function buildCombatRanged(E) {
     stepProjectiles(state, dt);
   }, 30);
 
-  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, HAND, HEAD_BAND, OVERDRIVE });
+  Object.assign(E, { initWeapon, cancelWeaponCharge, tickWeapon, stepWeapon, stepProjectiles, burstProjectile, muzzleAt, bodyExposure, HAND, HEAD_BAND, OVERDRIVE, stepMissiles });
 }

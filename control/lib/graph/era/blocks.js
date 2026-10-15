@@ -225,7 +225,7 @@ export const PRIMITIVES = Object.freeze({
       const r = p.r, V = [[r, 0, r], [-r, 0, r], [0, r, r], [0, -r, r]], top = [0, 0, 2 * r], bot = [0, 0, 0], O = [V[0], V[2], V[1], V[3]];
       for (let k = 0; k < 4; k++) { const a = O[k], b = O[(k + 1) % 4]; face(out, [a, b, top], add3(add3(a, b), [0, 0, r]), ex.part, ex.value, ex.extra); face(out, [b, a, bot], add3(add3(a, b), [0, 0, -r]), ex.part, ex.value, ex.extra); }
     } },
-  ring: { read: 'a hoop of radius r, its section `tube` thick, round its axis', rails: { r: R(0.1, 30), tube: R(0.02, 3), sides: R(6, 32, true) },
+  ring: { read: 'a hoop of radius r, its section `tube` thick, round its axis', rails: { r: R(0.1, 60), tube: R(0.02, 3), sides: R(6, 32, true) },
     least: (p) => 2 * p.tube,
     build(out, p, ex) {
       const ax = unit(AXES[p.axis ?? 'z']), [t1, t2] = basis(ax), n = p.sides ?? 16, P = (k) => { const a = (2 * Math.PI * k) / n; return add3(add3([0, 0, 0], t1, p.r * Math.cos(a)), t2, p.r * Math.sin(a)); };

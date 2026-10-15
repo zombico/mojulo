@@ -22,6 +22,10 @@ describe('the genres and the suggestion', () => {
     expect(suggestGenres('a cosy farming game where you plant crops and harvest before the seasons turn').map((g) => g.id)[0]).toBe('farming');
     expect(suggestGenres('race your car through the checkpoints')[0].id).toBe('racing');
     expect(suggestGenres('a quiet painting of a lighthouse')).toEqual([]);
+    // flight's three: a sim, a space shooter, air combat
+    expect(suggestGenres('a trench run in a starfighter: blow up the exhaust port of the battle station')[0].id).toBe('space-shooter');
+    expect(suggestGenres('a dogfight between fighter jets over the mountains, shoot down the enemy planes')[0].id).toBe('air-combat');
+    expect(suggestGenres('fly a glider through ring gates and land on the runway')[0].id).toBe('flight-sim');
   });
 });
 
@@ -115,4 +119,13 @@ describe('the bible shows it', () => {
     expect(html).toMatch(/<b>Landmarks at eye level<\/b>[^<]*<span class="muted">\(asked, not yet laid/);
     expect(gameworldBibleHtml(world())).not.toContain('id="intent"');
   }, 120_000);
+});
+
+describe('a dogfight\'s genre', () => {
+  it('is a space shooter with a space craft, air combat with an atmosphere one, a flight sim when it only flies', () => {
+    expect(cubeOfWorld({ quick: { goal: 'shoot', craft: 'fighter' } }).from).toBe('space-shooter');
+    expect(cubeOfWorld({ quick: { goal: 'shoot', craft: 'jet' } }).from).toBe('air-combat');
+    expect(cubeOfWorld({ quick: { goal: 'fly', craft: 'jet' } }).from).toBe('flight-sim');
+    expect(cubeOfWorld({ quick: { goal: 'shoot' } }).from).toBe('shooter');
+  });
 });

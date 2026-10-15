@@ -160,6 +160,30 @@ const MECHANICS = {
 
   // hp ≤ 0 → fail (a lethality opt-in terminal, split from hazard-damage). Owns the hp var init so a
   // level can be lethal with or without hazards; the shared `hp` default dedupes with hazard-damage.
+  // A CRASH brought back (a flight that is not a race: skyscape/dogfight.js): each `crash` (the page's: a rock flown
+  // into, a touchdown off every pad) answered by `respawn:0` carrying the start's `spot`, `heading` and `aloft` (the
+  // page carries it out, as for laps' respawns), and with `hurt` that much off the player's hp (fail-on-death's).
+  respawn: {
+    role: 'emitter', requires: [],
+    lower(p, ctx) {
+      // a point ([x, y, z]) or { spot, heading?, aloft? }; absent, the level's spawn
+      const R = Array.isArray(p.at) ? { spot: p.at } : p.at ?? (Array.isArray(ctx.spawn) ? { spot: ctx.spawn } : null);
+      if (!R || !Array.isArray(R.spot) || R.spot.length !== 3) throw new Error(`respawn[${ctx.i}]: at is { spot: [x, y, z], heading?, aloft? }: where a crash comes back`);
+      const hurt = Number.isFinite(p.hurt) && p.hurt > 0 ? p.hurt : 0;
+      return {
+        world: {
+          reactions: [
+            { on: 'crash', do: 'emit', type: 'respawn:0', spot: R.spot, heading: R.heading ?? 0, aloft: R.aloft ? 1 : 0 },
+            ...(hurt ? [{ on: 'crash', do: 'inc', var: 'hp', by: -hurt, min: 0 }] : []),
+            // nothing to land on in a fight: a touchdown after flying (the page's) is a crash too, unless declined
+            ...(p.touchdown === 'land' ? [] : [{ on: 'touchdown', do: 'emit', type: 'crash', why: 'ground' }]),
+          ],
+          hud: [{ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }],
+        },
+      };
+    },
+  },
+
   'fail-on-death': {
     role: 'terminal', ends: ['fail'], requires: ['character'],
     lower(p, ctx) {
@@ -361,6 +385,12 @@ const MECHANICS = {
   // lead (the player's passes less its own) and an ahead flag; the place is one more than the rivals ahead (a tie goes
   // to whoever passed first). The finish is `race:won` at a place of `win` or better (1 by default), else `race:lost`;
   // the best place is kept too.
+  // A FLIGHT (`land`, `respawn`; absent, nothing below changes): a checkpoint may be a box (`half: [hx, hy, hz]`) and the
+  // last one `land: true`, passed only by a `touchdown` (the page's: a craft's wheels meet the ground, `hard: 1` when it
+  // sank faster than its gear takes) while inside it. `land.pads` are the boxes a craft may set down in; a touchdown
+  // outside them all, or a hard one, is a `crash`. `respawn` (one per checkpoint, in order: where a craft comes back
+  // when it crashes having last passed the one before — the first is its start) answers a crash with `respawn:<k>`, its
+  // reaction carrying the point's `spot`, `heading` and `aloft`, which the page carries out.
   laps: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
@@ -383,10 +413,51 @@ const MECHANICS = {
       // the rivals' zones watch what their ids share (rival-1, rival-2 … → rival-*)
       let share = rivals[0] ?? '';
       for (const r of rivals) while (!r.startsWith(share)) share = share.slice(0, -1);
+      const zoneOf = (c) => (Array.isArray(c.half) && c.half.length === 3 ? { half: c.half } : { radius: Number.isFinite(c.radius) ? c.radius : 3 });
+      // a flight: in a pad's box or not (the bus has no conjunctions, so each box keeps its own flag and a touchdown is
+      // judged against each), what a touchdown is, and where a crash comes back
+      const land = p.land && Array.isArray(p.land.pads) ? p.land.pads.filter((q) => q && Array.isArray(q.at) && Array.isArray(q.half)) : null;
+      if (land) {
+        // off every pad: the count of the pads' boxes it is not in equals their number
+        const landed = `__landed_${i}`, offs = `__off_${i}`;
+        world.vars[offs] = land.length;
+        land.forEach((q, k) => {
+          const zone = `pad_${i}_${k}`;
+          world.sources.push({ type: 'zone', zone, at: q.at, half: q.half, planar: false, watch: ctx.player });
+          world.reactions.push({ on: 'enter', match: { zone }, do: 'inc', var: offs, by: -1 }, { on: 'exit', match: { zone }, do: 'inc', var: offs, by: 1 });
+        });
+        world.reactions.push(
+          { on: 'touchdown', match: { hard: 1 }, do: 'emit', type: 'crash', why: 'hard' },
+          { on: 'touchdown', match: { hard: 0 }, if: { var: offs, eq: land.length }, do: 'emit', type: 'crash', why: 'off' },
+          { on: 'touchdown', match: { hard: 0 }, if: { var: offs, lt: land.length }, do: 'emit', type: landed },
+        );
+        world.hud.push({ on: 'crash', text: 'crashed', as: 'toast', ttl: 1.6 }, { on: landed, text: 'landed', as: 'toast', ttl: 1.2 });
+      }
+      const respawn = Array.isArray(p.respawn) && p.respawn.length === cps.length ? p.respawn : null;
+      const resp = `__resp_${i}`;
+      if (respawn) {
+        world.vars[resp] = 0;
+        // `respawn:<k>`, carrying its point (the log keeps an event's type, so the page reads the point off this reaction)
+        respawn.forEach((r, k) => world.reactions.push({ on: 'crash', if: { var: resp, eq: k }, do: 'emit', type: `respawn:${k}`, spot: r.spot, heading: r.heading ?? 0, aloft: r.aloft ? 1 : 0 }));
+      }
       cps.forEach((c, j) => {
         const zone = `cp_${i}_${j}`;
-        world.sources.push({ type: 'zone', zone, at: c.at, radius: Number.isFinite(c.radius) ? c.radius : 3, planar: c.planar !== false, watch: ctx.player });
+        world.sources.push({ type: 'zone', zone, at: c.at, ...zoneOf(c), planar: c.planar !== false, watch: ctx.player });
         const due = { var: next, eq: j };
+        if (respawn && j < last) world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'set', var: resp, to: j + 1 });
+        if (land && c.land && j === last) {
+          // landed on: inside this box when the wheels touch (its flag), and due
+          const inBox = `__inbox_${i}`, touched = `__touched_${i}`;
+          world.vars[inBox] = 0;
+          world.reactions.push(
+            { on: 'enter', match: { zone }, do: 'set', var: inBox, to: 1 },
+            { on: 'exit', match: { zone }, do: 'set', var: inBox, to: 0 },
+            { on: `__landed_${i}`, if: { var: inBox, eq: 1 }, do: 'emit', type: touched },
+          );
+          if (rivals.length) world.reactions.push({ on: touched, if: due, do: 'emit', type: pass });
+          world.reactions.push({ on: touched, if: due, do: 'emit', type: 'lap' });
+          return;
+        }
         if (j < last) {
           // the emit first: the set after it moves the guard on
           world.reactions.push({ on: 'enter', match: { zone }, if: due, do: 'emit', type: 'checkpoint', at: j });
@@ -399,7 +470,7 @@ const MECHANICS = {
         // the rivals' passes: one zone for them all, each rival its own next checkpoint
         if (rivals.length) {
           const rz = `rcp_${i}_${j}`;
-          world.sources.push({ type: 'zone', zone: rz, at: c.at, radius: Number.isFinite(c.radius) ? c.radius : 3, planar: c.planar !== false, watch: `${share}*` });
+          world.sources.push({ type: 'zone', zone: rz, at: c.at, ...zoneOf(c), planar: c.planar !== false, watch: `${share}*` });
           rivals.forEach((r) => {
             const rnext = `__cp_${i}_${r}`, rdue = { var: rnext, eq: j };
             world.reactions.push({ on: 'enter', match: { zone: rz, entity: r }, if: rdue, do: 'emit', type: `__rpass_${i}_${r}` });
@@ -488,46 +559,56 @@ const MECHANICS = {
   // WAVES (a terminal: success and fail). Foes minted asleep (dormant) wake in waves and walk `path` to the base; one
   // that arrives costs a life and is sent away, one that falls pays `bounty` into the purse. Every foe accounted for:
   // success; no lives left: fail. `waves`: [{ after: s, foes: [id], every?: s }], after the previous wave's last foe.
+  // HUNTING waves (no `path`: a dogfight's wings, skyscape/dogfight.js): the woken foes fight with their own minds, no
+  // base, no lives; every one down is success. `clear: true`: each wave waits for the one before to be shot down
+  // (then its `after`).
   waves: {
     role: 'terminal', ends: ['success', 'fail'], requires: [],
     lower(p, ctx) {
       const waves = Array.isArray(p.waves) ? p.waves : [];
       const path = Array.isArray(p.path) ? p.path.filter((q) => Array.isArray(q) && q.length >= 2) : [];
       if (!waves.length || !waves.every((w) => w && Array.isArray(w.foes) && w.foes.length && w.foes.every((f) => typeof f === 'string' && f))) throw new Error(`waves[${ctx.i}]: needs waves: [{ after?, foes: [id, …], every? }] (foes minted dormant)`);
-      if (!path.length) throw new Error(`waves[${ctx.i}]: needs path: [[x, y], …], the foes' walk to the base`);
+      const hunt = !path.length && (p.hunt === true || p.path === undefined);
+      if (!path.length && !hunt) throw new Error(`waves[${ctx.i}]: needs path: [[x, y], …], the foes' walk to the base (or none, to hunt)`);
       const i = ctx.i, lives = Number.isInteger(p.lives) && p.lives > 0 ? p.lives : 5, total = waves.reduce((n, w) => n + w.foes.length, 0);
       const L = `__lives_${i}`, done = `__done_${i}`, who = typeof p.who === 'string' && p.who ? p.who : 'foe-*';
       const purse = p.purse && typeof p.purse.var === 'string' ? p.purse : null, bounty = Number.isFinite(p.bounty) ? p.bounty : 1;
       const speed = Number.isFinite(p.speed) && p.speed > 0 ? p.speed : 2.2;
-      const steps = [];
+      const steps = [], clears = [];
+      let cum = 0;
       waves.forEach((w, k) => {
-        steps.push({ await: { timer: Number.isFinite(w.after) ? w.after : k ? 8 : 4 } }, { do: 'emit', type: 'wave', n: k + 1, of: waves.length });
+        // (clear: after the wave before is down: a watch on the downs so far says so)
+        if (p.clear && k) { const ev = `__wave_clear_${i}_${k}`; clears.push({ type: ev, when: { var: done, gte: cum } }); steps.push({ await: { on: ev } }); }
+        steps.push({ await: { timer: Number.isFinite(w.after) ? w.after : k ? (p.clear ? 2 : 8) : (hunt ? 1 : 4) } }, { do: 'emit', type: 'wave', n: k + 1, of: waves.length });
         w.foes.forEach((f, j) => {
-          if (j) steps.push({ await: { timer: Number.isFinite(w.every) ? w.every : 1.6 } });
-          steps.push({ do: 'ctrl', op: 'spawn', who: f }, { do: 'ctrl', op: 'walk', who: f, points: path.map((q) => [q[0], q[1]]), speed, then: 'stay' });
+          if (j) steps.push({ await: { timer: Number.isFinite(w.every) ? w.every : (hunt ? 0.4 : 1.6) } });
+          steps.push({ do: 'ctrl', op: 'spawn', who: f }, ...(hunt ? [] : [{ do: 'ctrl', op: 'walk', who: f, points: path.map((q) => [q[0], q[1]]), speed, then: 'stay' }]));
         });
+        cum += w.foes.length;
       });
       const world = {
-        vars: { [L]: lives, [done]: 0, ...(purse ? { [purse.var]: Number.isFinite(purse.start) ? purse.start : 0 } : {}) },
+        vars: { ...(hunt ? {} : { [L]: lives }), [done]: 0, ...(purse ? { [purse.var]: Number.isFinite(purse.start) ? purse.start : 0 } : {}) },
         initial: [{ type: `__waves_go_${i}` }],
         sequences: [{ id: `__waves_${i}`, trigger: { on: `__waves_go_${i}` }, steps }],
         reactions: [
-          { on: 'arrive', match: { entity: who, last: 1 }, do: 'emit', type: 'leak', entity: 'event.entity' },
-          { on: 'leak', do: 'inc', var: L, by: -1, min: 0 },
-          { on: 'leak', do: 'inc', var: done, by: 1 },
-          { on: 'leak', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+          ...(hunt ? [] : [
+            { on: 'arrive', match: { entity: who, last: 1 }, do: 'emit', type: 'leak', entity: 'event.entity' },
+            { on: 'leak', do: 'inc', var: L, by: -1, min: 0 },
+            { on: 'leak', do: 'inc', var: done, by: 1 },
+            { on: 'leak', do: 'ctrl', op: 'vanish', who: 'event.entity' },
+          ]),
           { on: 'down', match: { entity: who }, do: 'inc', var: done, by: 1 },
           ...(purse ? [{ on: 'down', match: { entity: who }, do: 'inc', var: purse.var, by: bounty }] : []),
         ],
-        watches: [{ type: 'base:fallen', when: { var: L, lte: 0 } }, { type: 'waves:cleared', when: { var: done, gte: total } }],
+        watches: [...(hunt ? [] : [{ type: 'base:fallen', when: { var: L, lte: 0 } }]), { type: 'waves:cleared', when: { var: done, gte: total } }, ...clears],
         hud: [
-          { var: L, label: 'Lives', as: 'counter', max: lives },
+          ...(hunt ? [{ var: done, label: 'Down', as: 'counter', max: total }] : [{ var: L, label: 'Lives', as: 'counter', max: lives }]),
           ...(purse ? [{ var: purse.var, label: typeof purse.label === 'string' ? purse.label : 'Gold', as: 'counter' }] : []),
           { on: 'wave', text: 'Wave {event.n} of {event.of}', ttl: 2 },
           { on: 'leak', text: 'one got through', as: 'toast', ttl: 1.2, color: 'harm' },
         ],
       };
-      return { world, on: { 'waves:cleared': { end: 'success' }, 'base:fallen': { end: 'fail' } } };
+      return { world, on: { 'waves:cleared': { end: 'success' }, ...(hunt ? {} : { 'base:fallen': { end: 'fail' } }) } };
     },
   },
 

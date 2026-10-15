@@ -1226,6 +1226,19 @@ export function buildMind(E) {
     }
     if (!isSpace && world && world.colliders) block(t, r, eye, world);
     if (!isSpace) standOnGround(t, r, eye, world);
+    // a flier over ground (`rule.clearance`, air combat: skyscape/dogfight.js) keeps that far over it: the ground under
+    // it and where it will be in a couple of seconds read, the climb toward the higher at up to its speed, and never
+    // below half the clearance (a mind is not a body the ground stops)
+    if (isSpace && r.clearance > 0 && world && world.ground) {
+      const look = Math.max(speed, 1) * 2, ax = t.pos[0] + Math.cos(t.heading) * look, ay = t.pos[1] + Math.sin(t.heading) * look;
+      const g0 = world.ground([t.pos[0], t.pos[1], t.pos[2] + 1e4]), g1 = world.ground([ax, ay, t.pos[2] + 1e4]);
+      const g = Math.max(g0 ?? -Infinity, g1 ?? -Infinity);
+      if (Number.isFinite(g) && t.pos[2] < g + r.clearance) {
+        t.pos[2] = Math.min(g + r.clearance, t.pos[2] + speed * dt);
+        if (g0 != null && t.pos[2] < g0 + r.clearance / 2) t.pos[2] = g0 + r.clearance / 2;
+        t.pitch = Math.max(t.pitch || 0, 0.3);
+      }
+    }
     if (moveMag > 0) { e.locomotion = clip; e.gaitPhase = (e.gaitPhase || 0) + (e.backStep ? -moveMag : moveMag) / strideLen; e.moving = true; }
     else e.moving = false;
     e.backStep = false;

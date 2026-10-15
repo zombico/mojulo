@@ -76,6 +76,7 @@ import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
 import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
+import { assembleAirspace } from '@/lib/graph/skyscape/airspace';
 import { resolveTerrainCities } from '@/lib/graph/terrain/terrain-city';
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
 import { assembleInteriorWorldScene } from '@/lib/graph/interior/scene';
@@ -848,6 +849,9 @@ export const WORLD_KINDS = {
     walk: true, title: 'mojulo terrain world',
     resolve: async (m, ctx) => assembleTerrainWorld({ ...m, from: await resolveTerrainFrom(m), ...(m.cities ? { cities: await resolveTerrainCities(m.cities) } : {}) }, { title: ctx.title, live: !!ctx.live }),
   },
+  // a flight game's level (skyscape/airspace.js): a map planned by the pilot's eye (field, reach, backdrop, a haze that
+  // hides the edge) and scapeshift's ground laid on it, meshed round the camera by the terrain channel on the live page
+  airspace: { walk: true, title: 'mojulo airspace', resolve: (m, ctx) => assembleAirspace(m, { title: ctx.title, live: !!ctx.live }) },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host
   // entities, so an entities-only manifest renders without piggybacking on another kind.
   // fogBoxes: the manifest's own AABB collision hull doubles as the fog occluder — the same

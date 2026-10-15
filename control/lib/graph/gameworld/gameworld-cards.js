@@ -40,6 +40,8 @@ import { TUNE_KEYS, HERO_MOVE_NAMES, PALETTE as HERO_PALETTE, HERO_CASTS, PROPOR
 import { LOOK_TABLES } from '../polygonizer/anime-looks.js';
 import { HAIR_STYLE_NAMES } from '../polygonizer/humanoid-hair.js';
 import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.js';
+import { CRAFT } from '../skyscape/eye.js';
+import { MAP_FORMS } from '../skyscape/map.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -257,26 +259,27 @@ function quickCard() {
     '',
     `goal: ${Object.entries(QUICK_GOALS).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'levers, optional:',
-    `  climb: true   a climb after the trail (reach: the exit is its top); pickup: '<word>' for collect (coin, key, star…); seconds: n for survive`,
-    `  sneak: guards: n (3), guard: { <hero-door words> }, alarms: n (1)   rhythm: music: ${RHYTHM_MOODS.join(' | ')}, misses: n`,
-    '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { <hero-door words> }   puzzle: boulders: n (2)',
-    '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { <hero-door words> }   (a clock: night falls)',
-    '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { <hero-door words> }',
-    '  shoot: foes: n (4), foe (as battle\'s)',
+    `  climb: true   a climb after the trail (reach: exit at its top); pickup: '<word>' for collect (coin, key…); seconds: n for survive`,
+    `  sneak: guards: n (3), guard: { … as hero }, alarms: n (1)   rhythm: music: ${RHYTHM_MOODS.join(' | ')}, misses: n`,
+    '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { … as hero }   puzzle: boulders: n (2)',
+    '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { … as hero }   (night falls)',
+    '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { … as hero }',
+    '  shoot: foes: n (4), foe (as battle\'s); craft: a dogfight (waves)',
     '  deathmatch: bots: n (3), frags: n (10), seconds: n, arena: \'<words>\', pole: realistic..stylized (0..1), weapons: true, mode: team | control, foe',
-    `  ride: ${Object.keys(RIDES).join(' | ')}   the hero is a vehicle (W / S / A / D); no hero, climb or building with it`,
-    '  race: track: trail | loop (a loop laid on the trail\'s land), laps: n (3 round a loop), rivals: n (1-7, with a ride: a place to finish in)',
-    `  hero: { <hero-door words> } looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' })); absent: you are the camera`,
-    `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: third person with a hero, first person without (and for shoot, deathmatch); top-down and side need a hero`,
-    `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
+    `  ride: ${Object.keys(RIDES).join(' | ')}   the hero drives it (W/S/A/D); no hero, climb or building`,
+    '  race: track: trail | loop (laid on the trail\'s land), laps: n (3 round a loop), rivals: n (1-7, with a ride)',
+    `  fly: craft: ${Object.keys(CRAFT).join(' | ')}, assist: arcade | sim, laps, airspace: { map: { form: ${Object.keys(MAP_FORMS).join(' | ')} } }`,
+    `  hero: { <hero-door words> } looks, gear, the motion's feel (get_solid_vocab({ id: 'layered' }))`,
+    `  camera: 'third-person' | 'first-person' | 'top-down' | 'side'   absent: first person without a hero or to shoot, else third (fly: behind); top-down, side need a hero`,
+    `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the shell's skin`,
     "  music: 'auto' | '<mood>', sfx: 'auto' | '<palette>'   a score per level, the goal's sounds",
-    `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world: what each takes)`,
+    `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world)`,
     '',
-    'THE ANSWER: the readout of the gameworld written and run: its stage a level with the goal on the stage\'s anchors, the',
-    'store the goal needs, the game in the play shell and its play link. Walkable by construction;',
-    'whether it can be beaten is the creator\'s to judge in play: nothing proved it.',
-    'GROWING: an ordinary gameworld. Patch in the hero\'s pages (design_game({ ref, patch })) and the same sketch becomes',
-    'the book, with every page, review and gate (gameworld-guide). Levels composed by hand stay create_game\'s.',
+    'THE ANSWER: the gameworld written and run: its stage as a level, the goal on the stage\'s anchors, the store it',
+    'needs, the game in the play shell and its play link. Walkable by construction; whether it can be beaten is the creator\'s',
+    'to judge in play: nothing proved it.',
+    'GROWING: an ordinary gameworld. Patch in the hero\'s pages (design_game({ ref, patch })) and it becomes the book',
+    '(gameworld-guide). Hand-composed levels stay create_game\'s.',
   );
 }
 
@@ -332,10 +335,10 @@ function nextCard() {
 function intentCard() {
   return lines(
     'WHAT GAME IT IS — intent: { from?, cube?, why? }. Say it before the world: the levels are laid for it.',
-    'A genre is a preset cube to start from (from), never a lock: cube overrides any value ({ space: { camera: \'top-down\' } };',
-    'facets reality, space, power, soul, mind, time; a value it does not know is refused naming the ones it does), and a',
-    'world may mix what two genres ask. design_game reads the brief and suggests (intent.suggest);',
-    'a world that writes none is read from what it already says (its camera, topology, quick goal), and shown.',
+    'A genre (from) is a preset cube, never a lock: cube overrides any value ({ space: { camera: \'top-down\' } }; facets',
+    'reality, space, power, soul, mind, time; an unknown value is refused, naming the known ones). A world may mix two genres.',
+    'design_game suggests from the brief (intent.suggest); a world that writes none is read from what it says (camera,',
+    'topology, quick goal), and shown.',
     '',
     `genres: ${Object.entries(GENRES).map(([k, g]) => `${k} (${g.why})`).join('; ')}.`,
     '',

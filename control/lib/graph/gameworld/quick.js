@@ -5,7 +5,7 @@
  * game's own decoration (glyph forms chosen by the pickup's word, sparkles, the exit's marker) and the shell's theme.
  *
  *   gameworld.quick: {
- *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle',
+ *     goal: 'reach' | 'collect' | 'survive' | 'avoid' | 'race' | 'sneak' | 'rhythm' | 'defend' | 'puzzle' | 'farm' | 'battle' | 'fly',
  *     hero?: <a hero-door spec> | false,    // false or absent: first person, you are the camera
  *     ride?: 'car' | 'coupe' | 'van',        // the hero is a vehicle (ride.js): driven, its feel derived from its build
  *     climb?: true,                         // a climb after the trail, the exit at its top
@@ -38,6 +38,9 @@
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
  *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (plain ones by default)
  *     boulders?: n,                         // puzzle: how many boulders to push onto their plates (2, at most 4)
+ *     craft?: 'glider' | 'trainer' | 'jet', // fly: the aircraft (skyscape/eye.js CRAFT); the map and the course are its
+ *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
+ *     airspace?: { map?, ground?, course? }, // fly: the flight map (an island by default), as an airspace level takes it
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
@@ -69,6 +72,9 @@ import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
+import { CRAFT } from '../skyscape/eye.js';
+import { flightLaps } from '../skyscape/course.js';
+import { dogfightCast, waveIds, WING } from '../skyscape/dogfight.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -86,9 +92,12 @@ export const QUICK_GOALS = Object.freeze({
   battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
   deathmatch: 'an arena on the trail\'s land: you and bots who fight whom they see; first to the frag limit, or the place at the horn',
+  fly: 'fly the ring gates in order and land; best time kept',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
 // supplies (health given, rounds given)
+/** A dogfight's costs: what a hit on the craft takes off its hp, and what a crash does. */
+export const DOGFIGHT = Object.freeze({ hit: 4, crash: 25 });
 export const SHOOT = Object.freeze({
   hp: 100, hit: 8, health: 30, rounds: 24, foeHp: 4,
   rifle: { fireClass: 'sight', auto: false, cooldown: 0.3, magazine: 12, reserve: 36, reload: 1.5, damage: 1, impact: 1, range: 60, coreAngle: 1.5 },
@@ -120,7 +129,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -174,7 +183,21 @@ export function readQuick(Q) {
   if (Q.goal === 'deathmatch' && Q.seconds !== undefined && Q.seconds < 10) throw fail('.seconds is a deathmatch\'s time limit, 10 to 600');
   if (Q.goal === 'deathmatch' && (Q.building !== undefined || Q.ride || Q.climb || Q.run !== undefined)) throw fail('.deathmatch fights in an arena on a trail\'s land: no building, ride, climb or run');
   if (Q.goal === 'deathmatch' && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.deathmatch aims from the eye or over the shoulder: camera first-person or third-person');
-  for (const k of ['track', 'laps', 'rivals']) if (Q.goal !== 'race' && Q[k] !== undefined) throw fail(`.${k} belongs to the race goal`);
+  for (const k of ['track', 'rivals']) if (Q.goal !== 'race' && Q[k] !== undefined) throw fail(`.${k} belongs to the race goal`);
+  if (Q.laps !== undefined && Q.goal !== 'race' && Q.goal !== 'fly') throw fail('.laps belongs to the race and fly goals');
+  // a flight: the fly goal, or a shooter with a craft (a dogfight: skyscape/dogfight.js)
+  const flies = Q.goal === 'fly' || (Q.goal === 'shoot' && Q.craft !== undefined);
+  for (const k of ['craft', 'assist', 'airspace']) if (Q.goal !== 'fly' && Q.goal !== 'shoot' && Q[k] !== undefined) throw fail(`.${k} belongs to the fly goal (and shoot, for a dogfight)`);
+  for (const k of ['assist', 'airspace']) if (Q.goal === 'shoot' && Q.craft === undefined && Q[k] !== undefined) throw fail(`.${k}: a shooter flies only with a craft (name .craft for a dogfight)`);
+  if (flies) {
+    if (Q.craft !== undefined && !CRAFT[Q.craft]) throw fail(`.craft is one of ${Object.entries(CRAFT).map(([k, v]) => `${k} (${v.label})`).join('; ')}`);
+    if (Q.airspace !== undefined && !(isObj(Q.airspace) && Object.keys(Q.airspace).every((k) => ['map', 'ground', 'space', 'course'].includes(k)))) throw fail('.airspace is { map?, ground?, space?, course? }: the flight map as an airspace level takes it (space: { asteroids } for a space craft)');
+    if (Q.assist !== undefined && !['arcade', 'sim'].includes(Q.assist)) throw fail(".assist is 'arcade' (never stalls, the wings level quickly) or 'sim' (the bank holds where it is put)");
+    if (Q.airspace?.map?.craft !== undefined) throw fail('.airspace.map.craft: name the aircraft once, as .craft');
+    for (const k of ['hero', 'ride', 'racers', 'climb', 'building', 'run', 'roadway']) if (Q[k] !== undefined && Q[k] !== false) throw fail(`.${k}: a flight is flown in its aircraft over its own map (no ${k})`);
+    if (Q.camera !== undefined && Q.camera !== 'third-person') throw fail('.fly is followed from behind (camera third-person)');
+    if (Q.laps !== undefined && Q.craft === 'glider') throw fail('.laps: a glider cannot climb back round, its course is flown once, downhill');
+  }
   if (Q.track !== undefined && !['trail', 'loop'].includes(Q.track)) throw fail('.track is trail (end to end) or loop (round a loop laid on the trail\'s land)');
   if (Q.roadway !== undefined) {
     if (Q.goal !== 'race') throw fail('.roadway belongs to the race goal');
@@ -197,7 +220,9 @@ export function readQuick(Q) {
   if (Q.sfx !== undefined && Q.sfx !== 'auto' && !SFX_PALETTE_NAMES.includes(Q.sfx)) throw fail(`.sfx is 'auto' (the palette the music implies) or a palette: ${SFX_PALETTE_NAMES.join(', ')}`);
   if (Q.goal !== 'rhythm' && Q.music !== undefined && Q.music !== 'auto' && !Object.prototype.hasOwnProperty.call(SCORE_MOODS, Q.music) && !Object.prototype.hasOwnProperty.call(CLUB_MOODS, Q.music)) throw fail(`.music is 'auto' (each level's place and play pick its score) or a mood: ${Object.keys(SCORE_MOODS).join(', ')}; electronic: ${Object.keys(CLUB_MOODS).join(', ')}`);
   if (Q.misses !== undefined && !(Number.isInteger(Q.misses) && Q.misses >= 1 && Q.misses <= 99)) throw fail('.misses is how many presses off the beat end the run, 1 to 99');
-  for (const k of ['waves', 'lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
+  for (const k of ['lives', 'pads', 'tower']) if (Q.goal !== 'defend' && Q[k] !== undefined) throw fail(`.${k} belongs to the defend goal`);
+  // (waves: a defence's, or a dogfight's wings: shoot with a craft)
+  if (Q.waves !== undefined && Q.goal !== 'defend' && !(Q.goal === 'shoot' && Q.craft !== undefined)) throw fail('.waves belongs to the defend goal (and shoot with a craft: a dogfight\'s wings)');
   if (Q.foe !== undefined && Q.goal !== 'defend' && Q.goal !== 'battle' && Q.goal !== 'shoot' && Q.goal !== 'deathmatch') throw fail('.foe belongs to the defend, battle, shoot and deathmatch goals');
   if (Q.waves !== undefined && !(Number.isInteger(Q.waves) && Q.waves >= 1 && Q.waves <= DEFEND.perWave.length)) throw fail(`.waves is 1 to ${DEFEND.perWave.length}`);
   if (Q.lives !== undefined && !(Number.isInteger(Q.lives) && Q.lives >= 1 && Q.lives <= 20)) throw fail('.lives is 1 to 20');
@@ -219,7 +244,7 @@ export function readQuick(Q) {
   const most = Q.goal === 'shoot' ? 8 : BATTLE.foeHp.length;
   if (Q.foes !== undefined && !(Number.isInteger(Q.foes) && Q.foes >= 1 && Q.foes <= most)) throw fail(`.foes is 1 to ${most}`);
   if (Q.goal === 'shoot' && (Q.building !== undefined || Q.ride)) throw fail('.shoot fights along a trail on foot: no building, no ride');
-  if (Q.goal === 'shoot' && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
+  if (Q.goal === 'shoot' && !flies && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   return Q;
@@ -231,7 +256,7 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // the camera is the world's setting, not the goal's: it moves up to the world, where both run paths read it
   const { camera: named, ...quick } = given;
   // a shooter aims: without a camera named, from the eye
-  const camera = named ?? (quick.goal === 'shoot' || quick.goal === 'deathmatch' ? 'first-person' : undefined);
+  const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
   if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
@@ -245,12 +270,16 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   // (in words, `{ intent }`: trackscape's door, roads/trackscape-compose.js — the course designed, drawn in the words'
   // look and dressed where a driver looks)
   const worded = isObj(quick.roadway) && typeof quick.roadway.intent === 'string' ? composeTrack(quick.roadway.intent, { seed: s0 }) : null;
-  const levels = worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
+  // a flight: the level is an airspace (skyscape/), its map flown by the craft, its course its laps
+  // (a dogfight is a flight with no course: the foes are its goal)
+  const dogfight = quick.goal === 'shoot' && quick.craft !== undefined;
+  const flight = quick.goal === 'fly' || dogfight ? { run: { name: name ?? id, airspace: { ...(quick.airspace ?? {}), ...(dogfight ? { course: false } : {}), map: { ...(quick.airspace?.map ?? {}), craft: quick.craft ?? 'trainer' }, ...(quick.assist ? { assist: quick.assist } : {}), ...(quick.laps ? { course: { ...(isObj(quick.airspace?.course) ? quick.airspace.course : {}), laps: quick.laps } } : {}) } } } : null;
+  const levels = flight ?? (worded ? { run: { name: name ?? id, roadway: { form: worded.form, course: worded.course, kit: worded.kit, scape: worded.scape } } }
     : quick.roadway ? { run: { name: name ?? id, roadway: { course: quick.roadway, dress: true } } } : quick.run
     ? Object.fromEntries(Array.from({ length: quick.run + 2 }, (_, k) => [`stretch-${k + 1}`, { name: `${name ?? id} ${k + 1}`, seed: s0 + 101 * (k + 1), walk: { nodes: { path: { trail: {} } } } }]))
     : { run: quick.building ? { name: name ?? id, building: quick.building } : { name: name ?? id, walk: { nodes, ...(quick.climb ? { edges: [{ from: 'path', to: 'top' }] } : {}) },
       // a deathmatch's arena: its words, a spawn for each in the match
-      ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } };
+      ...(quick.goal === 'deathmatch' ? { arena: { words: quick.arena ?? (quick.pole !== undefined ? shooterPole(quick.pole).arena : DEATHMATCH.arena), spawns: (quick.bots ?? DEATHMATCH.bots) + 1, ...(quick.weapons ? { weapons: poleArmory(quick.pole).slice(1) } : {}), ...(deathmatchSides(quick) ? { teams: 2 } : {}) } } : {}) } });
   return {
     id, name: name ?? id, ...(seed !== undefined ? { seed } : {}), mode: 'autonomous', ...rest, ...(camera ? { camera } : {}),
     style: { ...(style ?? {}), kit },
@@ -272,6 +301,12 @@ export function goalMechanics(quick, ends) {
     }
     case 'survive':
       return [{ kind: 'survive', seconds: quick.seconds ?? 45 }];
+    case 'fly': {
+      // the course's gates in three dimensions, then a landing on the runway (skyscape/course.js), round `laps` times; a
+      // crash comes back at the last gate passed
+      if (!ends.course) throw new Error('gameworld: quick.fly needs a course on its airspace (course: true)');
+      return [flightLaps(ends.course, ends.airMap, ends.airField, ends.seat)];
+    }
     case 'race': {
       // the trail's beats in order are the checkpoints, its end the finish; spaced when the intent asks (a beat nearer
       // the last kept, or the start, than `ends.spacing` is passed by)
@@ -313,6 +348,19 @@ export function goalMechanics(quick, ends) {
       ];
     }
     case 'shoot': {
+      // a dogfight (a craft: skyscape/dogfight.js): every fighter down, each hit on the craft costs hp, a crash costs
+      // more and comes back at the start
+      if (ends.airMap) {
+        const p = ends.seat.transform;
+        return [
+          { kind: 'fail-on-death', startHp: SHOOT.hp, hits: DOGFIGHT.hit },
+          { kind: 'respawn', at: { spot: p.pos, heading: p.heading, aloft: 1 }, hurt: DOGFIGHT.crash },
+          // a dogfight in waves: wing after wing, each woken when the one before is down (dogfight.js waveIds)
+          ...(quick.waves && !ends.airField.port ? [{ kind: 'waves', waves: waveIds(quick.waves, quick.foes ?? WING.n), clear: true }] : [
+          // a trench run (a station's trench: skyscape/trench.js) is won by its port alone; a dogfight by the wing
+          { kind: 'defeat-all', who: 'foe-*', count: ends.airField.port ? 1 : Math.max(1, Math.min(WING.max, quick.foes ?? WING.n)), label: ends.airField.port ? 'Port' : 'Down' }]),
+        ];
+      }
       // every foe down; each hit on you costs hp; the supplies between the posts
       const posts = shootPosts(quick, ends), drops = shootDrops(posts, ends);
       return [
@@ -543,6 +591,8 @@ export function shootDrops(posts, ends) {
  * intent's: its `cover` concern stands them by these posts, lay-concerns.js). `ref`: their figure; `hero`: the player
  * has a body (its eye over its feet). → { figures, entities, posts, pilot } (stageLevelOrder's `extra`). */
 export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
+  // with a craft, a dogfight: the wing of fighters and the craft's cannon (skyscape/dogfight.js)
+  if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
   const posts = shootPosts(quick, ends), figures = {}, entities = [];
   posts.forEach((p) => {
     figures[p.id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };

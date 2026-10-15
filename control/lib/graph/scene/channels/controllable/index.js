@@ -191,10 +191,186 @@ ${commanderSource()}
 window.__mojCommanderPorts = __mojCmd;   // headless verification: ports + current notes
 ` : '';
   const commanderStep = commandedIds.length ? '__mojCmd.step(__world);\n    ' : '';
+  // FLIGHT HUD (skyscape): a body on the fly rule gets the instruments a pilot reads (airspeed in knots, height over the
+  // ground and over the datum, climb, heading, the throttle) and the warnings (STALL, the map's bound). Read off the
+  // piloted body's facts each frame. No flying body ⇒ '' (byte-identical).
+  const flyHudBlock = (entities || []).some((e) => e && e.rule && e.rule.type === 'fly') ? `(function () {
+  var el = document.createElement('div');
+  el.style.cssText = 'position:absolute;left:16px;bottom:16px;min-width:210px;padding:8px 12px;border-radius:8px;background:rgba(8,14,22,0.5);box-shadow:inset 0 0 0 1px rgba(120,200,255,0.22);pointer-events:none;z-index:9;font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe3ff;white-space:pre';
+  document.body.appendChild(el);
+  var pad = function (v, n) { v = String(v); while (v.length < n) v = ' ' + v; return v; };
+  // a flight's game (the laps mechanic's land / respawn): each touchdown told to the bus with whether it sank harder
+  // than the gear takes (rule.sinkMax), and its respawn carried out; a city's roofs (rule.roofs) counted as ground, so a
+  // tower is hit, not flown through
+  // a touchdown counts once the craft has flown (over ARM m above the ground): not the first frames' settling on the pad
+  var roofs = null, wasAir = null, lastVs = 0, hooked = false, armed = false, ARM = 3;
+  function roofAt(x, y) {
+    for (var k = 0; k < roofs.length; k++) {
+      var r = roofs[k], i = Math.floor((x - r.x0) / r.cell), j = Math.floor((y - r.y0) / r.cell);
+      if (i >= 0 && j >= 0 && i < r.nx && j < r.ny) { var v = r.h[j * r.nx + i]; if (v) return r.base + v / 10; }
+    }
+    return null;
+  }
+  // space (rule.space): no ground under the craft but a roof grid's (a station's), the view out to the stars, and its
+  // rocks (rule.obstacles: x, y, z, r flat) a crash when flown into
+  var spaced = false, rocks = null, clearOfRocks = true;
+  function rockHit(q) { for (var k = 0; k < rocks.length; k += 4) { var dx = q[0] - rocks[k], dy = q[1] - rocks[k + 1], dz = q[2] - rocks[k + 2], r = rocks[k + 3] + 2; if (dx * dx + dy * dy + dz * dz <= r * r) return true; } return false; }
+  // an armed craft fires its guns on Z as well as the (pointer-locked) left mouse, its missile on the right mouse (R is
+  // the scheme's); F is its boost
+  var fireKeyed = false;
+  function hook(p) {
+    if (!fireKeyed) {
+      fireKeyed = true;
+      window.addEventListener('keydown', function (ev) { if (ev.code === 'KeyZ') __fireDown = true; });
+      window.addEventListener('keyup', function (ev) { if (ev.code === 'KeyZ') __fireDown = false; });
+      renderer.domElement.addEventListener('mousedown', function (ev) { if (ev.button === 2 && document.pointerLockElement === renderer.domElement) window.__mojAltFire = true; });
+      window.addEventListener('mouseup', function (ev) { if (ev.button === 2) window.__mojAltFire = false; });
+      renderer.domElement.addEventListener('contextmenu', function (ev) { ev.preventDefault(); });
+    }
+    if (p.rule.space && !spaced) {
+      spaced = true; rocks = p.rule.obstacles || null;
+      __ground = function (pos) { return roofs ? roofAt(pos[0], pos[1]) : null; };   // eslint-disable-line no-func-assign
+      if (camera.far < 40000) { camera.far = 40000; camera.updateProjectionMatrix(); }
+    }
+    if (p.rule.roofs && !roofs) {
+      roofs = p.rule.roofs.map(function (r) { var b = atob(r.q), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return { x0: r.x0, y0: r.y0, cell: r.cell, nx: r.nx, ny: r.ny, base: r.base, h: new Uint16Array(u.buffer) }; });
+      var g0 = __ground;
+      if (!p.rule.space) __ground = function (pos) { var g = g0(pos), t = roofAt(pos[0], pos[1]); return t !== null && (g === null || t > g) ? t : g; };   // eslint-disable-line no-func-assign
+    }
+    var B = window.__mojBus; if (hooked || !B || !B.bus) return; hooked = true;
+    var prev = B.bus.processEvents;
+    B.bus.processEvents = function (state, events) {
+      var n0 = state.log.length, out = prev(state, events);
+      for (var i = n0; i < state.log.length; i++) {
+        var ev = state.log[i]; if (!ev || typeof ev.type !== 'string' || ev.type.indexOf('respawn:') !== 0) continue;
+        // the point rides on the reaction that emitted it (the log keeps the type)
+        var R = (state.reactions || []).find(function (r) { return r.do === 'emit' && r.type === ev.type; });
+        var c = __world.byId[__world.pilotId]; if (!c || !R || !Array.isArray(R.spot)) continue;
+        ev = R;
+        c.transform.pos = ev.spot.slice(); c.transform.heading = ev.heading || 0; c.transform.pitch = 0; c.bank = 0;
+        c.airborne = !!ev.aloft; c.stalled = false; c.airspeed = ev.aloft ? (c.rule.cruise || c.rule.launchSpeed || c.rule.stallSpeed * 1.6) : 0;
+        if (c.rule.lever) c.lever = ev.aloft ? (c.rule.leverStart || 0.75) : 0;
+        wasAir = !!ev.aloft; lastVs = 0; armed = !!ev.aloft;
+      }
+      return out;
+    };
+  }
+  // the course's guidance (rule.course): the next gate bracketed on screen (an arrow at the edge when it is off it), a
+  // gate flown past outside its ring called out, and on the way to the runway the glide-slope lights (PAPI-like: four,
+  // white above the slope, red below) and the centreline
+  // the missile lock's bracket: round the body the lock is building on, its ring filling, red when locked
+  var lk = document.createElement('div'), LV = new THREE.Vector3();
+  lk.style.cssText = 'position:absolute;pointer-events:none;z-index:9;display:none;transform:translate(-50%,-50%);font:600 10px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:center;white-space:nowrap';
+  document.body.appendChild(lk);
+  function lockMark(p) {
+    var L = p.mlock, tg = L && __world.byId[L.target];
+    if (!tg) { lk.style.display = 'none'; return; }
+    var r = renderer.domElement.getBoundingClientRect(), q = tg.transform.pos;
+    LV.set(q[0], q[1], q[2]).project(camera);
+    if (LV.z > 1 || Math.abs(LV.x) > 1 || Math.abs(LV.y) > 1) { lk.style.display = 'none'; return; }
+    var need = (p.rule.missiles && p.rule.missiles.lockTime) || 1.2, f = Math.min(1, L.t / need), col = L.locked ? '#ff4d4d' : '#9fe3ff';
+    lk.style.display = ''; lk.style.left = (r.left + (LV.x + 1) / 2 * r.width) + 'px'; lk.style.top = (r.top + (1 - LV.y) / 2 * r.height) + 'px';
+    lk.innerHTML = '<div style="width:44px;height:44px;margin:0 auto 2px;border:2px solid ' + col + ';border-radius:4px;transform:rotate(45deg) scale(' + (1.6 - 0.6 * f) + ')"></div><span style="color:' + col + '">' + (L.locked ? 'LOCK' : Math.round(100 * f) + '%') + '</span>';
+  }
+  // the weapons' line: missiles and flares left, the boost's charge, a homing round's warning
+  function arms(p) {
+    var m = p.rule.missiles, out = '';
+    if (m) out += '\\nMSL ' + (p.missilesLeft == null ? (m.count || 4) : p.missilesLeft) + '  FLR ' + (p.flaresLeft == null ? (m.flares || 0) : p.flaresLeft) + (p.flareT > 0 ? ' <span style="color:#ffd166">FLARE</span>' : '');
+    if (p.rule.boost) { var full = p.rule.boost.time || 3, e2 = p.boostE == null ? full : p.boostE, n = Math.round(8 * e2 / full); out += (m ? '  ' : '\\n') + 'BST ' + '▮'.repeat(n) + '▯'.repeat(8 - n); }
+    if (p.incoming != null) out += '\\n<span style="color:#ff4d4d">INCOMING · ' + Math.round(p.incoming) + ' m</span>';
+    return out;
+  }
+  var mk = document.createElement('div'), miss = 0, missN = 0, prevSide = null, prevNext = -1, ownNext = 0, cpVar = null, V3 = new THREE.Vector3();
+  mk.style.cssText = 'position:absolute;pointer-events:none;z-index:9;display:none;font:600 11px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:#ffd166;text-align:center;transform:translate(-50%,-50%);white-space:nowrap';
+  document.body.appendChild(mk);
+  function nextOf(C, q) {
+    var B = window.__mojBus, v = B && B.state && B.state.vars;
+    if (v && cpVar === null) { cpVar = ''; for (var k in v) if (/^__cp_\\d+$/.test(k)) { cpVar = k; break; } }
+    if (v && cpVar) return v[cpVar];
+    // no game on the page: counted here, each gate when the craft is inside its ring
+    var G = C.gates[ownNext];
+    if (G && Math.hypot(q[0] - G[0], q[1] - G[1], q[2] - G[2]) <= G[3]) ownNext++;
+    return ownNext;
+  }
+  function guide(p) {
+    var C = p.rule.course; if (!C) { mk.style.display = 'none'; return ''; }
+    var q = p.transform.pos, n = nextOf(C, q), G = C.gates[n], L = C.land, out = '';
+    if (n !== prevNext) { prevNext = n; prevSide = null; }
+    var tgt = G ? [G[0], G[1], G[2]] : L ? L.aim : null;
+    if (G) {
+      // flown past: the gate's plane crossed (its heading the way through) outside its ring
+      var side = (q[0] - G[0]) * Math.cos(G[4]) + (q[1] - G[1]) * Math.sin(G[4]);
+      if (prevSide !== null && prevSide < 0 && side >= 0 && Math.hypot(q[0] - G[0], q[1] - G[1], q[2] - G[2]) > G[3]) { miss = performance.now(); missN = n + 1; }
+      prevSide = side;
+    }
+    if (tgt) {
+      var d = Math.hypot(tgt[0] - q[0], tgt[1] - q[1], tgt[2] - q[2]), r = renderer.domElement.getBoundingClientRect();
+      V3.set(tgt[0], tgt[1], tgt[2]).project(camera);
+      var label = (G ? 'GATE ' + (n + 1) : 'RUNWAY') + ' ' + (d >= 1000 ? (d / 1000).toFixed(1) + ' km' : Math.round(d) + ' m');
+      var behind = V3.z > 1, on = !behind && Math.abs(V3.x) < 0.92 && Math.abs(V3.y) < 0.88;
+      mk.style.display = '';
+      if (on) {
+        mk.style.left = (r.left + (V3.x + 1) / 2 * r.width) + 'px'; mk.style.top = (r.top + (1 - V3.y) / 2 * r.height) + 'px';
+        mk.innerHTML = '<div style="width:34px;height:34px;margin:0 auto 3px;border:2px solid #ffd166;border-radius:50%;box-shadow:0 0 6px rgba(0,0,0,.5)"></div>' + label;
+      } else {
+        // off the screen: an arrow at its edge, pointing the way to turn
+        var ax = behind ? -V3.x : V3.x, ay = behind ? -V3.y : V3.y, m = Math.max(Math.abs(ax) / 0.9, Math.abs(ay) / 0.85) || 1;
+        ax /= m; ay /= m;
+        mk.style.left = (r.left + (ax + 1) / 2 * r.width) + 'px'; mk.style.top = (r.top + (1 - ay) / 2 * r.height) + 'px';
+        mk.innerHTML = '<div style="font-size:22px;transform:rotate(' + (90 - Math.atan2(ay, ax) * 180 / Math.PI) + 'deg)">▲</div>' + label;
+      }
+    } else mk.style.display = 'none';
+    if (performance.now() - miss < 3000) out += '\\n<span style="color:#ff6b6b">MISSED GATE ' + missN + ' · turn back</span>';
+    if (!G && L) {
+      // the approach: the angle over the aim point against the slope, and the side of the centreline
+      var ax2 = Math.cos(L.heading), ay2 = Math.sin(L.heading), along = (q[0] - L.aim[0]) * ax2 + (q[1] - L.aim[1]) * ay2;
+      var dist = Math.max(1, -along), ang = Math.atan2(q[2] - L.aim[2], dist) * 180 / Math.PI, gs = Math.atan(L.glide) * 180 / Math.PI;
+      var lights = '';
+      for (var i = 0; i < 4; i++) lights += '<span style="color:' + (ang > gs - 0.5 + i / 3 ? '#ffffff' : '#ff4d4d') + '">●</span>';
+      var xte = (q[0] - L.aim[0]) * -ay2 + (q[1] - L.aim[1]) * ax2;
+      var loc = Math.abs(xte) < 12 ? 'on the centreline' : (xte > 0 ? 'centreline ▶' : '◀ centreline') + ' ' + Math.round(Math.abs(xte)) + ' m';
+      out += '\\nGS ' + lights + '  ' + (along < 0 ? loc : '');
+    }
+    return out;
+  }
+  function tick() {
+    var p = __world.pilotId && __world.byId[__world.pilotId];
+    if (p && p.rule && p.rule.type === 'fly') {
+      hook(p);
+      if (rocks && window.__mojBus && window.__mojBus.bus) {
+        var hit = rockHit(p.transform.pos);
+        if (hit && clearOfRocks) { var Bk = window.__mojBus; Bk.bus.processEvents(Bk.state, [{ type: 'crash', entity: p.id, why: 'rock' }]); }
+        clearOfRocks = !hit;
+      }
+      var q0 = p.transform.pos, g0 = __ground([q0[0], q0[1], q0[2]]);
+      if (p.airborne && g0 !== null && q0[2] - g0 > ARM) armed = true;
+      if (wasAir === null) wasAir = !!p.airborne;
+      if (p.airborne) lastVs = p.climbRate || 0;
+      else if (wasAir && armed && window.__mojBus && window.__mojBus.bus) {
+        armed = false;
+        var sink = Math.max(0, -lastVs), B = window.__mojBus;
+        // in space there is nothing to land on: a station's surface or a trench wall met is a crash
+        B.bus.processEvents(B.state, [p.rule.space ? { type: 'crash', entity: p.id, why: 'surface' } : { type: 'touchdown', entity: p.id, hard: sink > (p.rule.sinkMax || 3) ? 1 : 0, sink: Math.round(sink * 10) / 10 }]);
+      }
+      wasAir = !!p.airborne;
+      var q = p.transform.pos, g = __ground([q[0], q[1], q[2]]), agl = g === null ? null : q[2] - g;
+      var brg = ((90 - p.transform.heading * 180 / Math.PI) % 360 + 360) % 360;
+      var warn = p.stalled ? '\\n<span style="color:#ff6b6b">STALL</span>' : p.outOfBounds ? '\\n<span style="color:#ffb347">LEAVING THE AREA · turn back</span>' : '';
+      el.style.display = '';
+      el.innerHTML = 'SPD ' + pad(Math.round((p.airspeed || 0) * 1.94384), 4) + ' kt   HDG ' + pad(Math.round(brg), 3) + '\\n'
+        + 'ALT ' + pad(Math.round(q[2]), 5) + ' m    AGL ' + (agl === null ? '   --' : pad(Math.round(agl), 5)) + ' m\\n'
+        + 'V/S ' + pad((p.climbRate || 0).toFixed(1), 5) + ' m/s  THR ' + pad(Math.round((p.throttle || 0) * 100), 3) + '%' + warn + guide(p) + arms(p);
+      lockMark(p);
+    } else { el.style.display = 'none'; mk.style.display = 'none'; lk.style.display = 'none'; }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+` : '';
   return `
 const __CW = ${emissionSource()};
 const __world = __CW.createWorld({ entities: ${safeJson(entities)}, camera: ${safeJson(camera)}, pilot: ${safeJson(pilot)}${spectate ? ', spectate: true' : ''}, ai: ${safeJson(ai)}, colliders: ${safeJson(colliders)}${breakables ? `, breakables: ${safeJson(breakables)}` : ''}, match: ${safeJson(match)}${wreckExplodes ? `, wreckExplodes: ${safeJson(wreckExplodes)}` : ''}${tutorial ? `, tutorial: ${safeJson(tutorial)}` : ''}${aiDifficulty ? `, aiDifficulty: ${safeJson(aiDifficulty)}` : ''}${lock ? `, lock: ${safeJson(lock)}` : ''} });
-${commanderBlock}${(() => {
+${commanderBlock}${flyHudBlock}${(() => {
     const pooled = poolFigureBuffers(figures || {});
     if (!pooled.pool.length) return `const __FIG = ${safeJson(figures || {})};   // name → packed baked figure frames (pos/col b64, origin, invScale, foot)`;
     return `const __FIGPOOL = ${safeJson(pooled.pool)};   // shared packed buffers (deduped across figures — livery variants)
@@ -1144,6 +1320,7 @@ function __driveCamera(dt) {
   }
   camera.position.set(px, py, pz);
   camera.lookAt(look[0], look[1], look[2]);
+  if (c.roll) camera.rotateZ(-c.roll);   // a follow camera banking with its target (rollFollow): about the view axis
 }
 ${driveSurface ? `// surface hook (roads/surface.js): what a car's tyres are on, for the vehicle classes' rule
 const __surfaceT = ${safeJson(driveSurface)};
@@ -1464,6 +1641,8 @@ function __readInput() {
     tackle,                          // tackle (Shift): the platform rule's invincible offensive dash (opt-in r.tackle)
     aiToggle,                        // AI attack switch (G): ai-ambient suits stand down / wake up
     lock,                            // target lock (C): lock.js acquires / cycles / releases on the edge
+    missile: __k('missile') || window.__mojAltFire ? 1 : 0,   // a craft's missile (R, or the right mouse, pointer-locked: the flight block's)
+    flare: __k('flare') ? 1 : 0,     // a craft's flare (X)
     lookDX: __lookDX, lookDY: __lookDY,
   };
   __lookDX = 0; __lookDY = 0;

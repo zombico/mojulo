@@ -43,6 +43,8 @@ export const SPACE = Object.freeze({
         circuit: { status: 'built', lowers: 'lib/graph/gameworld/lay-concerns.js', godot: false, note: 'an oval laid on the first trail\'s land (flattened, a low wall down its middle), its start the finish; a race goes round it' },
         // merged 10-12 (structure rails, broadened): a level that is a building, laid from its use
         building: { status: 'built', lowers: 'lib/graph/gameworld/levels.js', godot: false, note: 'a level that is a building: rooms laid from a use (tavern, keep, temple, crypt, library, lab, the town\'s six), walked from its way in to its goal room, up its stairs' },
+        // built 10-14 (skyscape): a flight map, its ground meshed round the camera, its edge hidden in haze
+        airspace: { status: 'built', lowers: 'lib/graph/skyscape/airspace.js', godot: false, note: 'a flight map: a field, a reach to turn back in, a backdrop and a haze that hides the edge (island, basin, canyon, plain); scapeshift\'s ground, a runway and a gate course' },
       },
     },
     // what stands on a walk's ground (merged 10-12): buildings walked into from the trail, a town's street along it

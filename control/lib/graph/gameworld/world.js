@@ -44,6 +44,10 @@
                                          // in place of `walk`: the level is a roadway built for driving (roads/track.js)
                                          // — a lap or a stage, by preset name or course spec, on its own ground; a
                                          // race on it reads its contract (its checkpoints, grid and racing line)
+       airspace?: { map?: { form?, field?, craft?, ceiling? }, ground?: { land?, heartbeat?, scale?, pads?, geocube? }, course?: true | { gates?, laps?, land? } },
+                                         // in place of `walk`: the level is a flight map (skyscape/airspace.js) — its
+                                         // rings, its ground laid by scapeshift, a runway (one by default) and a gate
+                                         // course (by default); a flight on it flies the course and lands
  *     } },
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
@@ -102,6 +106,7 @@ import { COURSE_PRESETS } from '../roads/course.js';
 import { SETS, TRACK_BLOCKS } from '../roads/set-pieces.js';
 import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
 import { readFront } from '../game/play-front.js';
+import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -153,7 +158,9 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', 'front', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace'];
+// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
 // kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
 // the roadway's own tiles; and
@@ -395,7 +402,16 @@ export function readGameworld(W) {
       if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
       if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
     }
-    if (L.roadway !== undefined) {
+    if (L.airspace !== undefined) {
+      // an airspace level: a flight map on its own ground (skyscape/), checked as the kind checks it
+      if (L.walk !== undefined || L.building !== undefined || L.city !== undefined || L.roadway !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city, a roadway or an airspace, one of them`);
+      if (L.places !== undefined || L.ground !== undefined) throw new Error(`gameworld: ${at}: an airspace lays its own ground and holds no town`);
+      const As = L.airspace;
+      if (!isObj(As)) throw new Error(`gameworld: ${at}.airspace is { ${AIRSPACE_LEVEL_KEYS.join(', ')} } (every one optional)`);
+      for (const k of Object.keys(As)) if (!AIRSPACE_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.airspace.${k} is not an airspace level setting (${AIRSPACE_LEVEL_KEYS.join(', ')})`);
+      const errs = validateAirspace({ kind: 'airspace', ...As });
+      if (errs.length) throw new Error(`gameworld: ${at}.${errs[0]}`);
+    } else if (L.roadway !== undefined) {
       // a roadway level: a track built for driving (roads/track.js), laid on its own ground
       if (L.walk !== undefined || L.building !== undefined || L.city !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city or a roadway, one of them`);
       if (L.places !== undefined || L.ground !== undefined) throw new Error(`gameworld: ${at}: a roadway lays its own ground and holds no town`);
@@ -539,6 +555,12 @@ export function resolveLevel(world, id) {
   const style = over(G.style, L.style), seed = L.seed ?? levelSeed(G.seed, id);
   const ledger = differences(G.style, L.style, 'level', id);
 
+  // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
+  if (L.airspace) {
+    // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
+    const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
+  }
   // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
   if (L.roadway) {
     const { course = 'kart-oval', dress, form, kit, scape } = L.roadway;
