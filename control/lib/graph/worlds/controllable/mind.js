@@ -474,7 +474,39 @@ export function buildMind(E) {
   }
   function goTo(e, r, dt, world, goal, speed) {
     const t = e.transform;
+    // FLOORS (opt-in `rule.floors`): a goal on another floor is reached by a flight (floorWay); on the flight itself it
+    // walks straight up or down the steps
+    if (Array.isArray(r.floors) && r.floors.length) {
+      goal = floorWay(e, r, goal);
+      if (e.flight) { walkToward(e, r, Math.atan2(goal[1] - t.pos[1], goal[0] - t.pos[0]), dt, world, speed); return; }
+    }
     if (!navTo(e, r, dt, world, goal, speed)) walkToward(e, r, Math.atan2(goal[1] - t.pos[1], goal[0] - t.pos[0]), dt, world, speed);
+  }
+  // FLOORS: `rule.floors` [{ area: [x0, y0, x1, y1], z, flights: [{ bottom: [x, y], top: [x, y] }] }], each a floor over
+  // the ground (a tower's top, gameworld/lay-concerns.js towerFloor) and the stair up to it. A point is on a floor when it
+  // stands over its area within 0.6 m of its height (a body's feet, or its eye on the ground below the floor's height).
+  const floorAt = (F, p, footZ) => F.findIndex((f) => p[0] >= f.area[0] && p[0] <= f.area[2] && p[1] >= f.area[1] && p[1] <= f.area[3] && footZ >= f.z - 0.6);
+  // floorWay(e, r, goal) — where to walk now for a goal: the goal itself on the same floor; else, from the ground, the
+  // foot of the goal floor's nearest flight and then up it to its top; from a floor, its nearest flight's top and then
+  // down it to its foot (a floor to another goes down and up). `e.flight` is the flight being walked ({ to, k, f }).
+  function floorWay(e, r, goal) {
+    const F = r.floors, t = e.transform, me = floorAt(F, t.pos, t.pos[2] - (r.eye ?? 0)), there = floorAt(F, goal, Number.isFinite(goal[2]) ? goal[2] : 0);
+    const d = (p) => Math.hypot(p[0] - t.pos[0], p[1] - t.pos[1]);
+    if (e.flight) {
+      const fl = F[e.flight.f].flights[e.flight.k], to = e.flight.to === 'up' ? fl.top : fl.bottom;
+      if (d(to) > 0.5) return [to[0], to[1], goal[2]];
+      e.flight = null;
+    }
+    if (me === there) return goal;
+    const f = me >= 0 ? me : there, near = (p) => F[f].flights.reduce((b, x, k) => (Math.hypot(x[p][0] - t.pos[0], x[p][1] - t.pos[1]) < Math.hypot(F[f].flights[b][p][0] - t.pos[0], F[f].flights[b][p][1] - t.pos[1]) ? k : b), 0);
+    if (me < 0) {   // on the ground: to the foot, then up
+      const k = near('bottom'), fl = F[f].flights[k];
+      if (d(fl.bottom) <= 0.8) { e.flight = { f, k, to: 'up' }; return [fl.top[0], fl.top[1], goal[2]]; }
+      return [fl.bottom[0], fl.bottom[1], 0];
+    }
+    const k = near('top'), fl = F[f].flights[k];   // on a floor: to its stair's top, then down
+    if (d(fl.top) <= 0.8) { e.flight = { f, k, to: 'down' }; return [fl.bottom[0], fl.bottom[1], goal[2]]; }
+    return [fl.top[0], fl.top[1], F[f].z];
   }
   // wanderStep — WANDER: legs to seeded points within `wanderRadius` (12) of home at `wanderSpeedMul` (0.5) of its
   // speed, a pause between legs (`pause` [lo, hi] s); during a pause it holds `pauseLoco` when one is given.

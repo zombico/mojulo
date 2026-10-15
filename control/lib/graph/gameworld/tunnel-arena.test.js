@@ -38,8 +38,8 @@ describe('the arena tunnel', () => {
   }, 60_000);
 
   it('a word the grammar cannot show is a gap, named with what would close it', () => {
-    const r = tunnelArena('a figure eight mirrored arena with towers for capture the flag', { seed: 1, spawns: 4 });
-    expect(r.gaps.map((g) => g.trait).sort()).toEqual(['ctf', 'figure-eight', 'floors', 'mirror']);
+    const r = tunnelArena('a figure eight mirrored arena with bridges for capture the flag', { seed: 1, spawns: 4 });
+    expect(r.gaps.map((g) => g.trait).sort()).toEqual(['bridges', 'ctf', 'figure-eight', 'mirror']);
     expect(r.gaps.find((g) => g.trait === 'mirror').why).toMatch(/right-hand peeks/);
     expect(r.gaps.every((g) => g.why && g.proposal)).toBe(true);
     expect([r.held, r.complete]).toEqual([true, false]);
@@ -57,6 +57,24 @@ describe('the arena tunnel', () => {
     expect(JSON.stringify(tunnelArena('a three-lane arena', { seed: 1, spawns: 4, teams: 2 }).plan.bases)).toBe(JSON.stringify(bases));
     expect(tunnelArena('a three-lane arena', { seed: 1, spawns: 4 }).plan.bases).toBeUndefined();
   }, 60_000);
+
+  it('high ground: a turned pair of towers, a stair up each, a power position out of sight of every spawn', () => {
+    const r = tunnelArena('a three-lane arena with towers', { seed: 1, spawns: 4 });
+    expect(r.complete).toBe(true);
+    const towers = r.plan.pieces.filter((q) => q.form === 'tower');
+    expect(towers).toHaveLength(2);
+    expect([towers[1].u, towers[1].v, ...towers[1].dir]).toEqual([-towers[0].u, -towers[0].v, ...towers[0].dir.map((x) => (x ? -x : 0))]);
+    expect(r.plan.floors.map((f) => f.z)).toEqual([2.5, 2.5]);
+    const laws = r.passes.at(-1).laws.failed;
+    expect(laws).toEqual([]);
+    // the armor on the tops
+    const armor = r.plan.drops.filter((d) => d.gives === 'armor');
+    expect(armor.every((d) => d.h === 2.5)).toBe(true);
+    // a small arena cannot keep a top out of sight of its spawns: it says so, tower by tower, and lays none
+    const small = tunnelArena('a small arena with towers', { seed: 1, spawns: 4 });
+    expect(small.passes.flatMap((p) => p.changed ?? []).some((c) => /stood elsewhere \(spawns-unseen-from-high\)/.test(c))).toBe(true);
+    expect(small.passes.at(-1).traits.failed.map((t) => t.id)).toEqual(['floors']);
+  }, 120_000);
 
   it('the grammar is half-turn symmetric whatever it is asked', () => {
     const D = arenaDomain();

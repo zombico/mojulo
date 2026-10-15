@@ -13,6 +13,7 @@ import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
+import { groundOf } from '@/lib/graph/playscape/terrain.js';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
 // person); the goal placed on the stage's own anchors; the game made in one call, walkable and not proved beatable.
@@ -455,18 +456,35 @@ describe('design_game quick', () => {
     expect(sim.bus.vars[`__cps_${k}_red`] + sim.bus.vars[`__cps_${k}_blue`]).toBeGreaterThan(0);
   }, 300_000);
 
+  it('deathmatch with towers: high ground the bots climb, the armor on the tops', async () => {
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, pole: 0.3, weapons: true, arena: 'a three-lane arena with towers', world: { id: 'towers', style: { kit: 'trail-valley' } } }, ref: 'tw' });
+    const L = stored('tw-level-run-0'), bot = L.entities.find((e) => e.id === 'bot-1'), sup = L.game.mechanics.find((m) => m.kind === 'supplies');
+    expect(bot.rule.floors).toHaveLength(2);
+    const z0 = L.entities.find((e) => e.id === 'bot-2').transform.pos[2];
+    expect(sup.drops.filter((d) => d.gives === 'armor').every((d) => Math.abs(d.at[2] - z0 - 2.5) < 0.01)).toBe(true);
+    expect(bot.rule.floors.every((f) => bot.rule.perches.some((p) => Math.abs(p[2] - f.z) < 1e-6))).toBe(true);
+    // played headless (the page's ground: the land and the tops of what stands on it): bots stand on the high ground
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('tw-level-run-0'));
+    const land = stageEnds(L).ground, ground = (q) => groundOf(payload.colliders, land(q[0], q[1]))(q);
+    const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground });
+    let up = 0;
+    for (let t = 0; t < 90; t += 1 / 30) { sim.frame(1 / 30); for (const id of ['bot-1', 'bot-2', 'bot-3']) if (sim.world.byId[id].transform.pos[2] > z0 + 2) up++; }
+    expect(up).toBeGreaterThan(0);
+  }, 300_000);
+
   it('deathmatch: the arena from its words (tunnel-arena.js), a word it cannot lay said as advice', async () => {
-    const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, arena: 'a small ring arena with towers', world: { id: 'ring', style: { kit: 'trail-valley' } } }, ref: 'rg' });
+    const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, arena: 'a small ring arena with catwalks', world: { id: 'ring', style: { kit: 'trail-valley' } } }, ref: 'rg' });
     const L = stored('rg-level-run-0');
-    expect(stored('rg').levels.run.arena).toEqual({ words: 'a small ring arena with towers', spawns: 3 });
+    expect(stored('rg').levels.run.arena).toEqual({ words: 'a small ring arena with catwalks', spawns: 3 });
     expect(L.game.mechanics[0].spawns).toHaveLength(3);
     // a ring: the court's walls round the middle; 26 m across
     const walls = L.blocks.filter((b) => b.form === 'wall');
     expect(Math.max(...walls.map((b) => b.length))).toBeCloseTo(26.6, 1);
-    // towers are not laid yet: said, with what would close it; every other law holds
+    // catwalks are not laid yet: said, with what would close it; every other law holds
     const advice = JSON.stringify(out).match(/arena: [^"]*/g) ?? [];
     expect(advice).toHaveLength(1);
-    expect(advice[0]).toMatch(/'towers' is not laid yet/);
+    expect(advice[0]).toMatch(/'catwalks' is not laid yet/);
   }, 240_000);
 
   it('says what is wrong', () => {

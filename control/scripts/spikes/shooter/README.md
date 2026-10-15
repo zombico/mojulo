@@ -174,7 +174,7 @@ Every value below is something a laid site can be measured for, the way the loop
 | **sightlines** | partial (stealth only) | `blindSpots` checks a guard's sight. Needed: the sightline-length histogram over the map, matched to the weapon set's bands (the probe measures it today) |
 | **cover tiers and density** | partial | full walls and crates at posts only. Needed: half cover (with a crouch to use it), and the probe's law (a hidden spot within 3 m of most exposed spots) |
 | **spawns** | stack 2 | spawn zones on the map and spawn safety as a law (no enemy sightline into a spawn, a minimum distance to the nearest power position); the farthest-spawn pick exists |
-| **verticality, power positions** | parts only | storeys, stairs, ladders, lifts and jump pads exist (`era/storeys.js`, `playscape/objects`), but nav is one floor (`nav.js`: "stairs, multi-level floors and space are out of scope"). A power position is high ground that sees much and is reached by few routes |
+| **verticality, power positions** | built (phase 9) | towers with stairs in the arena grammar, `power-position` and `spawns-unseen-from-high` laws, minds that walk between floors by flights (`rule.floors`) |
 | **item placement by risk** | absent | health in safe pockets, armor and power weapons in contested space (high betweenness, exposed, at a height). Item timing comes from respawn timers |
 | **symmetry** | built (turned) | every arena is turned half round its centre; a team map's bases sit at the ends. A mirror is a named gap: it unbalances the right-hand peeks |
 | **objectives** | absent | flag stands and control zones are sites, placed by symmetry |
@@ -260,6 +260,11 @@ shooter map is plausibly a floormap with a combat program, as `program: { use }`
   but in a match the long gun is still fired about once. A chaser closes faster than a retreat opens; fights start
   where minds meet (under 18 m); and the long gun's drop is exposed and far from where minds walk. Open: a reason to
   fight far (arenas whose fights start far, minds that pick the perch before the gun).
+
+- **Phase 9, floors and high ground**: towers (a block and a stair a body climbs) where a top sees the most, with
+  laws for reaching the tops, the power position and spawns out of a top's sight; minds walk between floors by the
+  flights (`rule.floors`); the armor on the tops. Open: bridges and catwalks (a floor walked under), towers in small
+  or close-quarters arenas (a top there sees the spawns or there is no room), Godot's floors.
 
 ## A build order, if this goes ahead
 

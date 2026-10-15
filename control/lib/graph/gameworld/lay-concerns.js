@@ -134,9 +134,29 @@ export function arenaOn(arena, ends) {
  * thick? } and crates { form: 'crate', u, v, stack }, in the arena's own frame) as terrain asks, each one collider,
  * placed by `at(u, v)`. */
 export function arenaAsks(pieces, at) {
-  return pieces.map((q) => (q.form === 'wall'
+  return pieces.flatMap((q) => (q.form === 'tower' ? towerAsks(q, at) : [q.form === 'wall'
     ? { form: 'wall', at: at(q.u, q.v), N: q.along === 'v' ? [1, 0] : [0, 1], length: q.length, height: q.height, thick: q.thick ?? 0.5, value: 0.55, whole: true }
-    : { form: 'crate', at: at(q.u, q.v), stack: q.stack ?? 1, value: 0.42, whole: true }));
+    : { form: 'crate', at: at(q.u, q.v), stack: q.stack ?? 1, value: 0.42, whole: true }]));
+}
+// a TOWER (high ground): a block `w` × `d`, `h` high, and a stair up its side toward `dir` ([±1, 0] or [0, ±1] in the
+// arena's frame), steps of TOWER.rise or less (a body's step climbs them), `TOWER.tread` deep, TOWER.stair wide
+export const TOWER = Object.freeze({ rise: 0.25, tread: 0.5, stair: 1.6, w: 5, d: 5, h: 2.5 });
+function towerSteps(q) { const n = Math.max(2, Math.ceil(q.h / TOWER.rise - 1e-9)); return { n, rise: q.h / n }; }
+function towerAsks(q, at) {
+  const { n, rise } = towerSteps(q), face = q.dir[0] ? q.w / 2 : q.d / 2, out = [{ form: 'pillar', at: at(q.u, q.v), size: [q.w, q.d], height: q.h, value: 0.5, whole: true }];
+  for (let k = 1; k < n; k++) {
+    const off = face + (n - k - 0.5) * TOWER.tread;
+    out.push({ form: 'pillar', at: at(q.u + q.dir[0] * off, q.v + q.dir[1] * off), size: q.dir[0] ? [TOWER.tread, TOWER.stair] : [TOWER.stair, TOWER.tread], height: rise * k, value: 0.5, whole: true });
+  }
+  return out;
+}
+// where a body on each tower's top looks from (its middle, eye high)
+const towerPosts = (pieces) => pieces.filter((q) => q.form === 'tower').map((q) => [q.u, q.v, q.h + 1.6]);
+/** A tower's floor in its arena's frame: its top's area (in by a body's width), its height, and its flight (the floor
+ * before the first step, and the top inside its last). → { area: [u0, v0, u1, v1], z, flights: [{ bottom, top }] } */
+export function towerFloor(q) {
+  const { n } = towerSteps(q), face = q.dir[0] ? q.w / 2 : q.d / 2, along = (d) => [r3(q.u + q.dir[0] * d), r3(q.v + q.dir[1] * d)];
+  return { area: [r3(q.u - q.w / 2 + 0.4), r3(q.v - q.d / 2 + 0.4), r3(q.u + q.w / 2 - 0.4), r3(q.v + q.d / 2 - 0.4)], z: q.h, flights: [{ bottom: along(face + (n - 1) * TOWER.tread + 0.9), top: along(face - 0.9) }] };
 }
 // where the spawns may stand: round the inside of the wall, a corner first, ARENA.inset from it, every 3.5 m; then
 // the floor inside it every 3 m (a pocket behind a blocker hides a spawn as well as a corner does)
@@ -149,10 +169,11 @@ function spawnRing(H) {
 /** The spawns on an arena's floor (its own frame, the floor at 0): `n` of them, turned pairs off the ring inside its
  * wall and the floor within it, a corner first, then the farthest from those taken, each pair out of sight of every spawn taken (eye to chest).
  * When the floor holds no more pairs out of sight, the rest are the farthest left, and the law says so. → [[u, v]] */
-export function arenaSpawns(pieces, half, n) {
+export function arenaSpawns(pieces, half, n, posts = towerPosts(pieces)) {
   const boxes = askBoxes(arenaAsks(pieces, (u, v) => [u, v, 0])), eye = (p) => [p[0], p[1], 1.6], chest = (p) => [p[0], p[1], 1.2];
   const clear = (p) => !boxes.some((B) => p[0] > B.min[0] - 0.8 && p[0] < B.max[0] + 0.8 && p[1] > B.min[1] - 0.8 && p[1] < B.max[1] + 0.8);
-  const unseen = (p, q) => blocked(eye(p), chest(q), boxes) && blocked(eye(q), chest(p), boxes);
+  const hid = (p) => posts.every((o) => blocked(o, chest(p), boxes));   // out of sight of every tower top
+  const unseen = (p, q) => blocked(eye(p), chest(q), boxes) && blocked(eye(q), chest(p), boxes) && hid(p) && hid(q);
   const ring = spawnRing(half).map(([u, v]) => [[u, v], [-u, -v]]).filter(([p, q]) => clear(p) && clear(q));
   const spawns = [];
   const far = (p) => (spawns.length ? Math.min(...spawns.map((s) => Math.hypot(s[0] - p[0], s[1] - p[1]))) : 0);
@@ -172,10 +193,11 @@ export function arenaSpawns(pieces, half, n) {
  * base B's are A's turned half round the centre, so neither side has the better ground. Each spawn out of sight of
  * every spawn of the other base (eye to chest); a base's own may see each other. When the end holds no more out of
  * sight, the rest are the farthest left, and the law says so. → { spawns: [[u, v]] (A's then B's), bases: [[i…], [i…]] } */
-export function arenaBases(pieces, half, per) {
+export function arenaBases(pieces, half, per, posts = towerPosts(pieces)) {
   const boxes = askBoxes(arenaAsks(pieces, (u, v) => [u, v, 0])), eye = (p) => [p[0], p[1], 1.6], chest = (p) => [p[0], p[1], 1.2];
   const clear = (p) => !boxes.some((B) => p[0] > B.min[0] - 0.8 && p[0] < B.max[0] + 0.8 && p[1] > B.min[1] - 0.8 && p[1] < B.max[1] + 0.8);
-  const unseen = (p, q) => blocked(eye(p), chest(q), boxes) && blocked(eye(q), chest(p), boxes);
+  const hid = (p) => posts.every((o) => blocked(o, chest(p), boxes));
+  const unseen = (p, q) => blocked(eye(p), chest(q), boxes) && blocked(eye(q), chest(p), boxes) && hid(p) && hid(q);
   const d = half - ARENA.inset, turn = (p) => [r3(-p[0]), r3(-p[1])];
   const end = [];
   for (let u = -d; u <= d + 1e-9; u += 2) for (let v = -d; v <= -d / 3; v += 2) { const p = [r3(u), r3(v)]; if (clear(p) && clear(turn(p))) end.push(p); }
@@ -198,7 +220,8 @@ export function arenaBases(pieces, half, per) {
 export function arenaLayout(arena) {
   const [cx, cy] = arena.centre, z = arena.z ?? 0, P = arena.plan;
   const at = (u, v) => [r3(cx + u), r3(cy + v), z];
-  return { blocks: arenaAsks(P.pieces, at), spawns: P.spawns.map(([u, v]) => at(u, v)), drops: P.drops.map((d) => ({ at: at(d.u, d.v), gives: d.gives, ...(d.slot ? { slot: d.slot } : {}) })), longest: P.longest, ...(P.armory ? { armory: P.armory } : {}), ...(P.bases ? { bases: P.bases } : {}) };
+  return { blocks: arenaAsks(P.pieces, at), spawns: P.spawns.map(([u, v]) => at(u, v)), drops: P.drops.map((d) => ({ at: d.h ? [...at(d.u, d.v).slice(0, 2), r3(z + d.h)] : at(d.u, d.v), gives: d.gives, ...(d.slot ? { slot: d.slot } : {}) })), longest: P.longest, ...(P.armory ? { armory: P.armory } : {}), ...(P.bases ? { bases: P.bases } : {}),
+    ...(P.floors ? { floors: P.floors.map((F) => ({ area: [r3(cx + F.area[0]), r3(cy + F.area[1]), r3(cx + F.area[2]), r3(cy + F.area[3])], z: r3(z + F.z), flights: F.flights.map((f) => ({ bottom: at(...f.bottom), top: [...at(...f.top).slice(0, 2), r3(z + F.z)] })) })) } : {}) };
 }
 
 export function groundLays(ids, level, F, { arena = null } = {}) {
@@ -321,6 +344,7 @@ export function askBoxes(blocks) {
       return [{ min: [x - h[0], y - h[1], z], max: [x + h[0], y + h[1], z + (b.height ?? 2.5)] }];
     }
     if (b.form === 'crate') { const sz = b.size ?? [1, 1, 1]; return [{ min: [x - sz[0] / 2, y - sz[1] / 2, z], max: [x + sz[0] / 2, y + sz[1] / 2, z + sz[2] * (b.stack ?? 1)] }]; }
+    if (b.form === 'pillar') { const sz = b.size ?? [0.8, 0.8]; return [{ min: [x - sz[0] / 2, y - sz[1] / 2, z], max: [x + sz[0] / 2, y + sz[1] / 2, z + (b.height ?? 3)] }]; }
     return [];
   });
 }
@@ -573,6 +597,20 @@ function arenaLaws(arena, blocks, ends) {
   const peeks = arenaPeeks(arena, blocks), ph = [0, 0];
   for (const q of peeks) if (q.toward) ph[q.half]++;
   out.push({ concern: 'arena', law: 'peeks-fair', holds: Math.abs(ph[0] - ph[1]) <= 1, says: `right-hand peeks into the other half: ${ph[0]} from one, ${ph[1]} from the other` });
+  // HIGH GROUND (towers, the arena's floors): each top reached by its flight from the first spawn; each a power position
+  // (its top sees a quarter more of the floor than the floor at its stair's foot does); no spawn in sight of a top
+  const F = arena.floors ?? [];
+  if (F.length) {
+    const unreached = F.filter((f) => f.flights.some((x) => !spawns.length || !way(spawns[0], [x.bottom[0], x.bottom[1], z], world))).length;
+    out.push({ concern: 'arena', law: 'floors-reached', holds: !unreached, says: unreached ? `${unreached} of the ${F.length} tops has no way to its stair from the first spawn` : `every top (${F.length}) is reached up its stair from the first spawn` });
+    const sees = (o) => floor.filter((p) => !blocked(o, [p[0], p[1], z + 1.2], boxes)).length / (floor.length || 1);
+    const mid = (f) => [(f.area[0] + f.area[2]) / 2, (f.area[1] + f.area[3]) / 2];
+    const pw = F.map((f) => [sees([...mid(f), f.z + 1.6]), sees([f.flights[0].bottom[0], f.flights[0].bottom[1], z + 1.6])]);
+    out.push({ concern: 'arena', law: 'power-position', holds: pw.every(([a, b]) => a >= 1.25 * b), says: `a top sees ${pw.map(([a]) => `${Math.round(100 * a)}%`).join(', ')} of the floor, its stair's foot ${pw.map(([, b]) => `${Math.round(100 * b)}%`).join(', ')}` });
+    const spotted = [];
+    F.forEach((f, k) => spawns.forEach((sp, j) => { if (!blocked([...mid(f), f.z + 1.6], [sp[0], sp[1], z + 1.2], boxes)) spotted.push(`top ${k + 1} sees spawn ${j + 1}`); }));
+    out.push({ concern: 'arena', law: 'spawns-unseen-from-high', holds: !spotted.length, says: spotted.length ? spotted.join(', ') : 'no spawn in sight of a top' });
+  }
   // nothing of the stage's own (rock, a stand of trees' trunks) standing on the floor
   const own = (ends.colliders ?? []).filter((c) => !String(c.of ?? '').startsWith('bound:') && !String(c.of ?? '').startsWith('block:') && floor.some((p) => boxNear(c, p, 0.5) && c.max[2] > z + 0.4)).length;
   const rocky = ends.rocks ? floor.filter((p) => { const r = ends.rocks(p[0], p[1]); return r != null && r > z + 0.4; }).length : 0;

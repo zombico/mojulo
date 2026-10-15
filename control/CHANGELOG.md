@@ -205,6 +205,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - Without `respawn`, armor, overdrive or `takers`, supplies lower byte for byte as before. The page's hashes re-pinned
   (reverting only `mind.js` passes them all).
 
+### Shooter: floors and high ground (phase 9)
+
+- **Towers in the arena grammar** (`tunnel-arena.js`). "towers", "high ground", "platforms", "verticality" lay a
+  turned pair of towers. Each is a block 2.5 m high with a stair up one side, in steps of 0.25 m a body climbs. Each
+  stands where its top sees the most of the floor, with its stair toward the middle (else another way round), and
+  2 m clear of every other box. Where none fits, a smaller tower stands 1.5 m clear. "bridges" and "catwalks" are a
+  gap.
+- **Three high-ground laws.** `floors-reached`: each top is reached up its stair from the first spawn.
+  `power-position`: a top sees a quarter more of the floor than its stair's foot does. `spawns-unseen-from-high`:
+  no spawn is in sight of a top, and spawns are chosen out of sight of the tops. A tower that fails is stood
+  elsewhere, never there again. A small arena cannot keep a top out of sight of its spawns: the log says so, tower
+  by tower, and lays none. A close-quarters arena has no room for one.
+- **Minds walk between floors** (`rule.floors`: each floor's area, height and flights). A goal on a top is reached
+  by walking round to the stair's foot and up it; a goal on the ground from a top goes down the stair, never off
+  the side. `towerFloor` gives a tower's floor. Phase 8's perches can stand on a top.
+- **The armor goes on the tops**, worth the climb and the exposure. The quick deathmatch gives its bots the arena's
+  floors, and with weapons the tops as perches.
+- `askBoxes` knows a pillar, which is what a tower is made of. Sims stand bodies on box tops with
+  `groundOf(colliders, land)`, as the page's raycast does.
+- Measured (`weapons: true`, three-lane arena with towers, matches to 5): pole 0.3 141 s, bots on the high ground
+  4% of the time, 7 hits landed from it; pole 0.7 130 s, 6%, 18 hits. The armor on the tops was taken once a match.
+- Without towers, every arena lays as before. Minds without `floors` walk as before. The page's hashes were
+  re-pinned: reverting only `mind.js` and `cast.js` passes them.
+
 ### Shooter: minds that make their gun's range (phase 8)
 
 - **A gun for the range by its sweet spot.** Among the held guns whose band holds the distance, a mind takes the

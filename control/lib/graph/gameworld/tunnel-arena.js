@@ -23,11 +23,13 @@
  *            is most open, each with its partner; one that cut a way is taken away and never stood there again: the
  *            laws shape the arena, not a hand
  *
+ *   towers   (high ground) turned pairs of towers, a stair up each (steps a body climbs), where a top sees the most of
+ *            the floor, the spawns out of sight of every top; the minds walk between floors by the flights (`floors`)
  *   bases    (a team map) two bases at the ends, the second the first turned half round, no spawn of one in sight of
  *            the other's
  *
  * A trait the grammar cannot show is a GAP, named with what would close it (a figure of eight, a mirror, capture the
- * flag, floors and high ground), never filled silently.
+ * flag, a bridge), never filled silently.
  *
  *   ARENA_TRAITS                              the traits, by the words that name them
  *   composeArena(candidate, seed)             → { half, pieces } the grammar's layout
@@ -39,7 +41,7 @@
  * Pure; seeded dice only.
  */
 import { tunnel } from './tunnel.js';
-import { ARENA, arenaAsks, arenaSpawns, arenaBases, arenaLongest, arenaSightlines, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
+import { ARENA, TOWER, towerFloor, arenaAsks, arenaSpawns, arenaBases, arenaLongest, arenaSightlines, askBoxes, concernLaws, lineBlocked } from './lay-concerns.js';
 import { WEAPON_ROLES, bandShare, servedRoles } from './weapon-roles.js';
 import { mulberry32 } from '../vegetation/grow.js';
 
@@ -69,7 +71,8 @@ export const ARENA_TRAITS = Object.freeze({
   team: S(['team', 'teams', 'bases', 'two sides', 'team deathmatch', 'tdm', 'control point', 'king of the hill', 'objective'], 'a team map: a base at each end, the floor turned half round so neither side has the better ground', { teams: 2 }),
   mirror: G(['mirrored', 'mirror', 'mirror-image'], 'two halves mirrored across the middle', { why: 'a mirror hands one side the right-hand peeks into the other (the peeks-fair law counts them): a team map here is turned half round its centre instead, each base at an end, which is as fair and keeps the peeks even', proposal: 'a mirror whose wall ends are set so each side peeks the other as often from its gun\'s side' }),
   ctf: G(['ctf', 'capture the flag', 'flags', 'flag'], 'capture the flag: a flag at each base', { why: 'a flag carried is a body following a body: the cast cannot yet carry one (a team map and a control point are laid)', proposal: 'a `carry` op on the cast (a thing held to a body, dropped where it falls) and a capture mechanic over it' }),
-  floors: G(['floors', 'multi-level', 'storeys', 'stories', 'towers', 'tower', 'balcony', 'balconies', 'bridges', 'high ground', 'ramps'], 'more than one floor: high ground, ramps, a bridge', { why: 'the arena is one floor: the minds path on one floor at a time (nav.js)', proposal: 'raised platforms on ramps (stairs from era/storeys.js), and a nav that joins floors by their flights' }),
+  floors: S(['floors', 'multi-level', 'storeys', 'stories', 'towers', 'tower', 'high ground', 'platforms', 'platform', 'stairs', 'ramps', 'verticality', 'vertical'], 'high ground: a pair of towers, a stair up each, where their tops see the most', { towers: 1 }),
+  bridges: G(['bridge', 'bridges', 'catwalk', 'catwalks', 'balcony', 'balconies'], 'a floor over a way: a bridge, a catwalk', { why: 'a floor here is a tower\'s top reached by its stair; a floor walked under (a bridge between two tops) is not laid yet', proposal: 'a slab between two tops at their height, the ways under it kept, and a flight at each end' }),
 });
 
 /** The grammar's layout for a candidate: { half, pieces } in the arena's own frame. */
@@ -110,6 +113,34 @@ export function composeArena(c, seed = 1) {
       lanes.push({ u0, u1, mid: uc });
     }
   }
+  // TOWERS (high ground): `towers` turned pairs, each where its top sees the most of the floor, its stair running out
+  // toward the middle (else another way round), the whole of it (block and stair) clear of the walls, its partner and
+  // every other box by 2 m (a way round); where none fits, a smaller tower 1.5 m clear; stood before the tweaks' breaks
+  for (let k = 0; k < (c.towers ?? 0); k++) {
+    let best = null;
+    for (const [tw, clear] of [[TOWER.w, 2], [4, 1.5]]) {   // a smaller tower, closer in, where the full one does not fit
+      if (best) break;
+      const T = { ...TOWER, w: tw, d: tw }, B0 = askBoxes(arenaAsks(P, (u, v) => [u, v, 0])), floorPts = [];
+      for (let u = -H + 2; u <= H - 2; u += 4) for (let v = -H + 2; v <= H - 2; v += 4) if (!B0.some((B) => u > B.min[0] - 0.5 && u < B.max[0] + 0.5 && v > B.min[1] - 0.5 && v < B.max[1] + 0.5)) floorPts.push([u, v, 1.2]);
+      for (let u = -H + 5; u <= H - 5; u += 2) for (let v = 2; v <= H - 5; v += 2) {
+        if ((c.cutTowers ?? []).some(([a, b]) => Math.hypot(a - u, b - v) < 2)) continue;
+        // the stair toward the middle along the longer way to it first, then the other ways round
+        const toward = Math.abs(u) > Math.abs(v) ? [-Math.sign(u), 0] : [0, -1], dirs = [toward, [toward[1], toward[0]], [-toward[1], -toward[0]], [-toward[0], -toward[1]]].filter((d) => d[0] || d[1]);
+        for (const dir of dirs) {
+          const q = { form: 'tower', u, v, w: T.w, d: T.d, h: T.h, dir }, mine = askBoxes(arenaAsks([q, { ...q, u: -u, v: -v, dir: [-dir[0], -dir[1]] }], (x, y) => [x, y, 0]));
+          const ok = mine.every((M) => M.min[0] > -H + clear && M.max[0] < H - clear && M.min[1] > -H + clear && M.max[1] < H - clear
+            && !B0.some((B) => M.min[0] < B.max[0] + clear && M.max[0] > B.min[0] - clear && M.min[1] < B.max[1] + clear && M.max[1] > B.min[1] - clear))
+            && !(mine.slice(0, mine.length / 2).some((M) => mine.slice(mine.length / 2).some((N) => M.min[0] < N.max[0] + clear && M.max[0] > N.min[0] - clear && M.min[1] < N.max[1] + clear && M.max[1] > N.min[1] - clear)));
+          if (!ok) continue;
+          const top = [u, v, T.h + 1.6], seen = floorPts.filter((f) => !lineBlocked(top, f, [...B0, ...mine])).length;
+          if (!best || seen > best.seen) best = { q, seen };
+          break;
+        }
+      }
+    }
+    if (!best) break;
+    P.push(best.q, { ...best.q, u: -best.q.u, v: -best.q.v, dir: best.q.dir.map((x) => (x ? -x : 0)) });
+  }
   for (const [u, v, along, length] of c.breaks ?? []) pair(u, v, along, length);
   // crates at seeded places, off the walls and the spawns' ring, in turned pairs
   const dice = mulberry32((seed * 7919 + 13) >>> 0), boxes = () => askBoxes(arenaAsks(P, (u, v) => [u, v, 0]));
@@ -135,8 +166,8 @@ function barest(built) {
 
 // the supplies, placed by RISK: every free spot on the floor (2 m apart, clear of the boxes and the spawns) is scored
 // by how much of the floor sees it (a 4 m grid, eye to eye). Health goes where the fewest see (a pocket to recover in),
-// armor and the overdrive where the most do (contested: worth a fight), rounds between. Each a turned pair, no two
-// within 4 m. Asked `weapons` (roles the arena serves), each gun goes where the clear lines from it fall most in its
+// armor and the overdrive where the most do (contested: worth a fight; with towers, the armor on their tops), rounds
+// between. Each a turned pair, no two within 4 m. Asked `weapons` (roles the arena serves), each gun goes where the clear lines from it fall most in its
 // band, after the rest. → [{ u, v, gives, seen, slot? }] (seen: the share of the floor that sees it)
 function arenaDrops(built, c, weapons = []) {
   const H = c.half, boxes = askBoxes(arenaAsks(built.pieces, (u, v) => [u, v, 0]));
@@ -153,7 +184,9 @@ function arenaDrops(built, c, weapons = []) {
   const taken = [], apart = (q) => taken.every((t) => Math.hypot(t.u - q.u, t.v - q.v) >= 4 && Math.hypot(t.u + q.u, t.v + q.v) >= 4);
   const pick = (list, gives) => { const q = list.find(apart) ?? list[0]; taken.push(q); return [{ u: q.u, v: q.v, gives, seen: q.seen }, { u: -q.u, v: -q.v, gives, seen: q.seen }]; };
   const most = [...spots].reverse(), mid = [...spots.slice(Math.floor(spots.length / 2)), ...spots.slice(0, Math.floor(spots.length / 2)).reverse()];
-  const items = [...pick(spots, 'health'), ...pick(most, 'armor'), ...pick(most, 'overdrive'), ...pick(mid, 'ammo')];
+  // high ground (towers): the armor is on the tops, worth the climb and the exposure
+  const tops = (built.floors ?? []).map((f) => ({ u: r2((f.area[0] + f.area[2]) / 2), v: r2((f.area[1] + f.area[3]) / 2), gives: 'armor', seen: 1, h: f.z }));
+  const items = [...pick(spots, 'health'), ...(tops.length ? tops : pick(most, 'armor')), ...pick(most, 'overdrive'), ...pick(mid, 'ammo')];
   for (const role of weapons) {
     const band = WEAPON_ROLES[role].band, fit = (q) => bandShare(q.lines, band);
     const by = [...spots].sort((a, b) => fit(b) - fit(a) || b.seen - a.seen || a.u - b.u || a.v - b.v);
@@ -166,7 +199,7 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
   const frame = (H, extra) => ({ centre: [0, 0], half: H, z: 0, ...extra });
   return {
     id: 'arena', TRAITS: ARENA_TRAITS,
-    start: (seed, base) => ({ half: ARENA.half, topology: 'lanes', lanes: 3, gapEnd: 3, gapMid: 5, court: 0.33, many: 0.45, sight: null, stagger: false, teams: 0, breaks: [], cut: [], setBy: {}, ...(base ?? {}) }),
+    start: (seed, base) => ({ half: ARENA.half, topology: 'lanes', lanes: 3, gapEnd: 3, gapMid: 5, court: 0.33, many: 0.45, sight: null, stagger: false, teams: 0, towers: 0, cutTowers: [], breaks: [], cut: [], setBy: {}, ...(base ?? {}) }),
     pull(cand, T, id) {
       if (T.gap) return { gap: T.gap };
       const c = clone(cand), changed = [];
@@ -181,17 +214,19 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
       // a team map: two bases, one at each end, the contenders' half and a spare each (arenaBases); else spawns for all
       const B = cand.teams ? arenaBases(L.pieces, H, Math.max(2, Math.ceil(spawns / 2)) + 1) : null;
       const sp = B ? B.spawns : arenaSpawns(L.pieces, H, spawns), blocks = arenaAsks(L.pieces, (u, v) => [u, v, 0]);
-      const built = { ...L, spawns: sp, blocks, ...(B ? { bases: B.bases } : {}) };
+      const floors = L.pieces.filter((q) => q.form === 'tower').map(towerFloor);
+      const built = { ...L, spawns: sp, blocks, ...(B ? { bases: B.bases } : {}), ...(floors.length ? { floors } : {}) };
       built.line = arenaLongest(frame(H), askBoxes(blocks));
       // the guns asked: each one the arena's clear lines serve (its band holds enough of them), laid where its lines meet
       if (weapons?.length) built.armory = servedRoles(arenaSightlines(frame(H), askBoxes(blocks)), weapons);
       built.drops = arenaDrops(built, cand, (built.armory ?? []).filter((a) => a.served).map((a) => a.role));
-      built.laws = concernLaws(['arena'], { ends: { spawn: [0, 0, 0] }, blocks, arena: frame(H, { spawns: sp.map(([u, v]) => [u, v, 0]), longest: 2 * H, ...(B ? { bases: B.bases } : {}) }) }).filter((l) => l.law !== 'floor-clear');
+      built.laws = concernLaws(['arena'], { ends: { spawn: [0, 0, 0] }, blocks, arena: frame(H, { spawns: sp.map(([u, v]) => [u, v, 0]), longest: 2 * H, ...(B ? { bases: B.bases } : {}), ...(floors.length ? { floors } : {}) }) }).filter((l) => l.law !== 'floor-clear');
       return built;
     },
     measure(T, id, built, cand) {
       const H = built.half, long = built.line.longest;
       if (T.set.half) return { ok: H === T.set.half, value: `${2 * H} m across` };
+      if (T.set.towers) return { ok: (built.floors?.length ?? 0) >= 2, value: `${built.floors?.length ?? 0} tops` };
       if (T.set.teams) return { ok: !!built.bases && built.bases.every((b) => b.length >= 2), value: built.bases ? `two bases of ${built.bases[0].length}` : 'no bases' };
       if (T.set.topology === 'ring') return { ok: cand.topology === 'ring', value: cand.topology };
       if (T.set.lanes) return { ok: cand.topology === 'lanes' && built.lanes.length === T.set.lanes, value: `${built.lanes.length} lanes` };
@@ -226,6 +261,10 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
           else if (c.stagger && c.setBy.sight !== 'close') { c.stagger = false; changed.push('lanes unstaggered (routes loop)'); }
           else if (c.topology === 'ring') { c.court = r2(clamp('court', c.court - 0.05)); c.many = r2(clamp('many', c.many - 0.15)); changed.push(`court ${c.court}, many ${c.many} (routes loop: room round the court)`); }
           else { c.gapMid = r2(clamp('gapMid', c.gapMid + 1)); c.gapEnd = r2(clamp('gapEnd', c.gapEnd + 0.5)); changed.push(`gaps ${c.gapEnd} / ${c.gapMid} (routes loop)`); }
+        } else if (['floors-reached', 'power-position', 'spawns-unseen-from-high'].includes(l.law)) {
+          // a tower that fails its ground: stood elsewhere (never there again)
+          const tw = built.pieces.find((q) => q.form === 'tower' && q.v >= 0);
+          if (tw) { (c.cutTowers ||= []).push([tw.u, tw.v]); changed.push(`the tower at [${tw.u}, ${tw.v}] stood elsewhere (${l.law})`); }
         } else if (l.law === 'cover-near') {
           // asked sparse: a short wall where the floor is barest, not more crates
           if (c.setBy.many === 'sparse') { const p = barest(built); (c.breaks ||= []).push([p[0], p[1], 'u', 3]); changed.push(`a wall at [${p}] (cover near, kept sparse)`); }
@@ -239,7 +278,7 @@ export function arenaDomain({ spawns = 8, weapons = null } = {}) {
       }
       return { candidate: c, changed: changed.length ? changed : [`reseed ${seed + 1}`], reseed: changed.length ? undefined : seed + 1 };
     },
-    plan: (cand, built) => ({ half: built.half, pieces: built.pieces, spawns: built.spawns, drops: built.drops, longest: 2 * built.half, topology: cand.topology, ...(cand.topology === 'lanes' ? { lanes: cand.lanes } : {}), ...(built.armory ? { armory: built.armory } : {}), ...(built.bases ? { bases: built.bases } : {}) }),
+    plan: (cand, built) => ({ half: built.half, pieces: built.pieces, spawns: built.spawns, drops: built.drops, longest: 2 * built.half, topology: cand.topology, ...(cand.topology === 'lanes' ? { lanes: cand.lanes } : {}), ...(built.armory ? { armory: built.armory } : {}), ...(built.bases ? { bases: built.bases } : {}), ...(built.floors ? { floors: built.floors } : {}) }),
   };
 }
 
