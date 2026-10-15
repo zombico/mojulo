@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rollEgocube } from './egocube.js';
 import { outfitFromSheet, adornFromSheet, outfitPalette } from './outfit.js';
-import { planFromSheet } from './plan.js';
+import { planFromSheet, CLOTHED_H } from './plan.js';
 import { compileOutfit, outfitLaws, OUTFIT_KIND_NAMES } from '../polygonizer/outfit-plan.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { hexLch } from '../polygonizer/station-loft-shade.js';
@@ -67,9 +67,15 @@ describe('the outfit, designed from the sheet', () => {
     // the bird's scaled shins banded on the tarsus; chitin strapped between its plates; a planned beast is adorned
     expect(adornFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'avian' } })).outfit.pieces.map((p) => p.kind)).toContain('anklets');
     expect(adornFromSheet(rollEgocube({ seed: 2, facets: { ancestry: 'insectoid' } })).outfit.pieces.map((p) => p.kind)).toContain('harness');
-    const call = planFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'draconic' } }), { dress: 'designed' }), plan = call.create.spec.plan;
-    expect(plan.outfit.cut).toBeUndefined();
-    expect(() => expandPlan(compileOutfit(plan))).not.toThrow();
+    // the door adorns a people near the beast, and clothes one with enough of a person in it, from the cut
+    const at = (humanity) => planFromSheet(rollEgocube({ seed: 1, facets: { ancestry: 'draconic', humanity } }), { dress: 'designed' }).create.spec.plan;
+    const beast = at(CLOTHED_H - 0.05), kin = at(CLOTHED_H + 0.2);
+    expect(beast.outfit.cut).toBeUndefined();
+    expect(kin.outfit.cut.language).toBeTruthy();
+    for (const plan of [beast, kin]) expect(() => expandPlan(compileOutfit(plan))).not.toThrow();
+    // cloth carries the mass beneath it: no muscle swell on a part a garment lies over (it would push the skin through)
+    const clothed = compileOutfit(kin), parts = new Set(clothed.garments.flatMap((g) => [g.part].flat()).map((n) => n.replace(/[RL]$/, '')));
+    for (const V of clothed.body.volume ?? []) expect(parts.has(V[0].replace(/[RL]$/, '')), V[0]).toBe(false);
   });
 
   it('a cut still compiles onto a creature when an author asks: second skin painted, cloth fitted, the worn pieces over it', () => {

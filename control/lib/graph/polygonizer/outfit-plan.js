@@ -396,7 +396,13 @@ export function compileOutfit(plan) {
     const covered = new Set([...C.garments.flatMap((E) => (E.fit === 'skirt' || whole(E) ? E.part : [])), ...C.paint.filter((P) => !/_/.test([P.part].flat()[0]) && whole(P)).flatMap((P) => [P.part].flat())]);
     const hidden = (D) => (D.parts || []).every((n) => covered.has(n.replace(/[RL]$/, '')));
     if (body?.tiles || body?.locks) { const keep = (L) => { const k = L.filter((D) => !hidden(D)); return k.length ? k : undefined; };
-      const { tiles, locks, ...restBody } = body; body = { ...restBody, ...(tiles && keep(tiles) ? { tiles: keep(tiles) } : {}), ...(locks && keep(locks) ? { locks: keep(locks) } : {}) }; } }
+      const { tiles, locks, ...restBody } = body; body = { ...restBody, ...(tiles && keep(tiles) ? { tiles: keep(tiles) } : {}), ...(locks && keep(locks) ? { locks: keep(locks) } : {}) }; }
+    // and a muscle swell (`volume`) on a part cloth lies over is the cloth's to carry: the swell would push the skin
+    // through a garment fitted to the part's own rings (a thigh's belly through the breeches)
+    const clothed = new Set(C.garments.flatMap((E) => [E.part].flat()).map((n) => String(n).replace(/[RL]$/, '')));
+    if (body?.volume?.some((V) => clothed.has(String(V[0]).replace(/[RL]$/, '')))) {
+      const volume = body.volume.filter((V) => !clothed.has(String(V[0]).replace(/[RL]$/, '')));
+      const { volume: _v, ...restBody } = body; body = { ...restBody, ...(volume.length ? { volume } : {}) }; } }
   // ONE BUCKLE AT THE WAIST: where a belt is worn, a sash ties with a knot of its own cloth instead of a second buckle
   const waistBuckle = (A) => A.signature?.kind === 'buckle' && !/mantle|cloak/i.test(A.id);   // (a belt rides the pelvis or the cloth over it)
   if (adorn.filter(waistBuckle).length > 1) for (let i = 0; i < adorn.length; i++) { const A = adorn[i]; if (!waistBuckle(A) || !/sash/i.test(A.id)) continue;

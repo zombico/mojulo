@@ -439,17 +439,23 @@ export function contrastPair(roll, change, rollEgocube) {
   return { change, a: { facets: a.facets, reads: a.reads }, b: { facets: b.facets, reads: b.reads }, moved, note: 'A first reading of each sheet, side by side: how one facet moves the choices, not what to choose. Neither is a body to copy.' };
 }
 
+/** the humanity a creature is CLOTHED at (every designed creature in the trials, insect-kin at 0.34 among them, wore
+ * cloth); below it, ADORNED */
+export const CLOTHED_H = 0.25;
+
 /** `dress: 'designed'`: the outfit DESIGNED from the sheet (outfit.js: its archetype, role, order, motivation, age and
- * lineage, the visual-interest laws run over it) in place of the stock kit by role. A creature is ADORNED on a body
- * DRAWN for its target (adornFromSheet, creature-drawn.js): its frame shows; a person wears the cut as the hero's outfit
+ * lineage, the visual-interest laws run over it) in place of the stock kit by role. A creature is CLOTHED from the cut
+ * at humanity CLOTHED_H and over, else ADORNED, on a body DRAWN for its target (adornFromSheet, creature-drawn.js): its frame shows; a person wears the cut as the hero's outfit
  * build. Absent, the kit as before. */
 export function planFromSheet(sheet, { title, dress } = {}) {
   const door = sheet.ancestry.door;
   const name = title || `${sheet.facets.ancestry} ${sheet.facets.role}, ${sheet.reading.reads === 'shadow' ? sheet.reading.shadow : `the ${sheet.facets.archetype}`} (egocube seed ${sheet.seed})`;
   if (door === 'creature') {
     const built = creature(sheet, name);
-    // a beast is adorned, not clothed: its frame shows (outfit.js adornFromSheet)
-    if (dress === 'designed') { const { outfit, laws } = adornFromSheet(sheet, { coat: legible(sheet.ancestry.colours.Skin) }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
+    // a people near the beast is adorned, not clothed: its frame shows (outfit.js adornFromSheet); one with enough of a
+    // person in it is clothed from the cut, which reads its anatomy (breeches over furred legs, a short coat over a tail,
+    // no sleeves on wings, a kilt over plated legs)
+    if (dress === 'designed') { const coat = legible(sheet.ancestry.colours.Skin), { outfit, laws } = sheet.facets.humanity >= CLOTHED_H ? outfitFromSheet(sheet, { coat }) : adornFromSheet(sheet, { coat }); built.plan = { ...built.plan, adorn: [], outfit, style: { ...(built.plan.style || {}), drawn: { markings: { pattern: 'both', ventral: 'panel' } } } }; built.outfit = { outfit, laws }; }
     return { door, thesis: thesisOf(sheet, door, built), create: { as: 'creature', title: name, spec: { plan: built.plan } },
       after: [{ op: 'set', path: '/dials/lean', value: built.stance.lean }], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
   }
