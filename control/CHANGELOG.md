@@ -40,10 +40,23 @@ asymmetric life; it only needs to animate), and how a mascot differs from the Eg
   for a mascot (`cartoony`, `mascot`, `sonic-like` …) with no person's facet, lineage or years is a mascot. A mascot
   never ages: years, chapters and lineages are refused. `create_character({ egocube })` makes the same body the
   `mascot` door makes. A stored egocube keeps the sheet it was rolled to.
+- **The face and its expressions** (`lib/graph/egocube/mascot-face.js`): a mouth with a tongue, two lips over it, a lid
+  over each eye and a brow over it. Each moving feature is a lens on its own bone, turned by a rig chain (`lidR`,
+  `lidL`, `lipU`, `lipD`, `browLiftR`, `browLiftL`, `browR`, `browL`), so an expression is bone motion that plays in the
+  World and exports in the skinned GLB. The sheet's `expression` facet is the rest face, built into the geometry: happy,
+  grin, content, determined, smirk (the face at rest is not symmetric), surprised, sad, angry, sleepy. Every other
+  expression is a clip of its name, beside a `blink`; the hop and the cheer change face as they go.
+- **Human mascots**: the `being` facet (`critter` or `human`) draws a person in a mascot's proportions. The head is skin,
+  the hair one chunky form in the accent's family, with a nose, ears and blushing cheeks. The hue goes on the shirt and
+  the trousers take the accent or a darker shirt colour; the `skin` facet gives skin and hair. Two new hooks: `cap` (a
+  high crown in the shirt's colour, a bill, an emblem) and `moustache`. A snout, a tail, spines or paws on a person is a
+  fault unless asked. `mario-like` now reads as a capped, gloved person.
 - Gates: machine, the mascot tests (the laws as numbers: heads tall by form, eye size and height, the accent's hook,
-  the palette's accord, every hook and form compiling, every energy's idle posed with planted feet). The eyes gate has
+  the palette's accord, every hook and form compiling, every energy's idle posed with planted feet; the face's parts
+  and chains, each expression's channels from the rest face, the blink shutting the lids, the smirk at rest, the mouth on
+  a snout; a person's parts and palette, the cap, the human fault). The eyes gate has
   not run: during the build the first readings were seen only as flat-lit contact sheets
-  (`docs/examples/mascot/render-mascots.mjs`), never in the World page's light.
+  (`docs/examples/mascot/render-mascots.mjs`, `--faces` for the expressions), never in the World page's light.
 
 ### Shoot plan: a keyframed camera you can see in the world
 

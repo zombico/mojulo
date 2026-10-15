@@ -12,7 +12,8 @@
  *
  * Pure and deterministic: the same sheet, the same call. No dice: the sheet already threw them.
  */
-import { readMascotDerive, HUES } from './mascot.js';
+import { readMascotDerive, HUES, SKINS } from './mascot.js';
+import { buildFace, EXPRESSION_IDS } from './mascot-face.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
@@ -93,11 +94,21 @@ export function mascotPalette(sheet, k = { saturation: 0, value: 0 }) {
     : sheet.accord === 'harmony' ? hsl(body, ([h, s, l]) => [(h + 18) % 360, clamp(s + 0.08, 0, 1), clamp(l - 0.14, 0.2, 0.8)])
       : hsl(body, ([h, s]) => [(h + 165) % 360, clamp(Math.max(s, 0.72), 0, 1), 0.5]);
   const belly = f.hue === 'yellow' ? mix(body, '#fff4cf', 0.55) : grey ? mix(body, CREAM, 0.3) : mix(CREAM, body, 0.12);
+  const human = f.being === 'human', skin = SKINS[f.skin] ?? SKINS.peach;
+  // the face's own: a dark mouth, a warm tongue; the brows dark (a person's in the hair's colour)
+  const face = { Mouth: '#3a1622', Tongue: '#e8707a', Brow: human ? hsl(skin.hair, ([h, s, l]) => [h, s, clamp(l - 0.05, 0.08, 0.5)]) : hsl(body, ([h, s, l]) => [h, s * 0.6, clamp(l - 0.32, 0.1, 0.35)]) };
+  // a person: skin and hair as given, the hue on the shirt, the accent (or its darker self) on the trousers
+  if (human) return {
+    Skin: skin.skin, Nose: hsl(skin.skin, ([h, s, l]) => [(h + 352) % 360, clamp(s + 0.12, 0, 1), clamp(l - 0.04, 0, 1)]), Hair: skin.hair, Body: body,
+    Bottom: sheet.accord === 'harmony' ? hsl(body, ([h, s, l]) => [h, s * 0.8, clamp(l - 0.22, 0.12, 0.6)]) : accent, Accent: accent,
+    Shoe: '#5e3a22', Sole: '#3a2416', Glove: f.extremities === 'gloves' ? '#f7f6f1' : skin.skin, Emblem: '#f7f6f1',
+    Sclera: '#ffffff', Pupil: '#17182b', Cheek: '#ec7a7f', Tip: skin.hair, Belly: belly, ...face,
+  };
   return {
     Body: body, Belly: belly, Accent: accent, Shoe: f.extremities === 'paws' ? body : accent,
     Sole: f.extremities === 'paws' ? belly : f.extremities === 'gloves' ? '#f4efe4' : hsl(accent, ([h, s, l]) => [h, s, clamp(l - 0.12, 0.1, 0.9)]),
     Glove: f.extremities === 'gloves' ? '#f7f6f1' : body, Tip: hsl(body, ([h, s, l]) => [h, s * 0.4, 0.16]),
-    Sclera: '#ffffff', Pupil: '#17182b', Cheek: '#ec5a63',
+    Sclera: '#ffffff', Pupil: '#17182b', Cheek: '#ec5a63', Emblem: '#f7f6f1', Hair: body, ...face,
     ...(f.promise === 'pride' ? { Jersey: accent } : {}),
   };
 }
@@ -173,39 +184,49 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     shoulder: sh, elbow: V(elbow), wrist: V(wrist), knuckles: V(knuckles),
   };
   const hand = M.hand, limb = hand * LIMB_OF_HAND[f.extremities], legR = orb ? limb * 0.9 : limb * 1.15;
-  const body = orb ? [] : [{ name: 'body', kind: 'trunk', mirror: 'plane', group: 'Body',
+  const human = f.being === 'human', gloves = f.extremities === 'gloves';
+  // the groups: a critter is its body's colour all over; a person is skin, a shirt in the hue, trousers, hair
+  const G = human ? { head: 'Skin', body: 'Body', leg: 'Bottom', upperArm: 'Body', foreArm: gloves ? 'Body' : 'Skin', hand: 'Glove', fur: 'Hair', face: 'Skin' }
+    : { head: 'Body', body: 'Body', leg: 'Body', upperArm: 'Body', foreArm: 'Body', hand: 'Glove', fur: 'Body', face: f.eyes === 'joined' ? 'Belly' : 'Body' };
+  const body = orb ? [] : [{ name: 'body', kind: 'trunk', mirror: 'plane', group: G.body,
     // a pear (law 6: the mass low), its top drawn in under the head (law 3: no neck)
     stations: [0, 0.18, 0.4, 0.62, 0.82, 1].map((t, i) => { const rr = M.bodyR * [0.62, 0.93, 1, 0.94, 0.8, 0.55][i]; return { z: r4(hipZ - M.bodyR * 0.45 + t * (M.bodyH + M.bodyR * 0.45)), r: [r4(rr * wx), r4(rr * 0.92)] }; }),
     caps: { back: [0, 0, r4(hipZ - M.bodyR * 0.62)], tip: [0, 0, r4(neckZ + M.bodyR * 0.2)] },
     bind: { bone: 'torso', blend: { back: { pelvis: 1 }, st0: { pelvis: 1 }, st1: { pelvis: 1 }, st2: { pelvis: 0.5, torso: 0.5 }, tip: { torso: 0.6, head: 0.4 } } } }];
   // the shoe: an egg from the heel to past the toe, its sole on the ground (law 6: big feet carry the pose)
   const heel = [hipX, r4(-fl * 0.95), r4(fh)], toe = [hipX, r4(fl * 1.05), r4(fh)];
+  const hooks = hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur: G.fur });
+  const face = faceOf(f, H, k, { headBind, orb, human, hooks, G });
   const segments = [
     ...body,
-    ballTrunk('head', H.C[2], H.rz, H.rx, H.ry, 11, 'Body', headBind),
-    { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: r4(legR), rB: r4(legR * 0.92), mirror: 'name', group: 'Body', bind: { bone: 'thighR', prev: 'pelvis', next: 'shinR' } },
-    { name: 'shinR', kind: 'segment', from: 'knee', to: 'ankle', rA: r4(legR * 0.92), rB: r4(legR * 0.85), mirror: 'name', group: 'Body', bind: { bone: 'shinR', prev: 'thighR', next: 'metaR' } },
+    ballTrunk('head', H.C[2], H.rz, H.rx, H.ry, 11, G.head, headBind),
+    { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: r4(legR), rB: r4(legR * 0.92), mirror: 'name', group: G.leg, bind: { bone: 'thighR', prev: 'pelvis', next: 'shinR' } },
+    { name: 'shinR', kind: 'segment', from: 'knee', to: 'ankle', rA: r4(legR * 0.92), rB: r4(legR * 0.85), mirror: 'name', group: G.leg, bind: { bone: 'shinR', prev: 'thighR', next: 'metaR' } },
     shape('shoeR', heel, toe, [r4(fw), r4(fh)], 'egg', { group: 'Shoe', bind: 'metaR' }),
-    { name: 'upperArmR', kind: 'segment', from: 'shoulder', to: 'elbow', rA: r4(limb), rB: r4(limb * 0.92), mirror: 'name', group: 'Body', bind: { bone: 'upperArmR', prev: 'torso', next: 'foreArmR' } },
-    { name: 'foreArmR', kind: 'segment', from: 'elbow', to: 'wrist', rA: r4(limb * 0.92), rB: r4(limb * (f.extremities === 'gloves' ? 1.5 : 0.9)), mirror: 'name', group: 'Body', bind: { bone: 'foreArmR', prev: 'upperArmR', next: 'handR' } },
-    shape('handR', V(sub(wrist, mul(armDir, hand * 0.4))), V(add(wrist, mul(armDir, hand * 2))), r4(hand), 'ball', { group: 'Glove', bind: 'handR' }),
+    { name: 'upperArmR', kind: 'segment', from: 'shoulder', to: 'elbow', rA: r4(limb), rB: r4(limb * 0.92), mirror: 'name', group: G.upperArm, bind: { bone: 'upperArmR', prev: 'torso', next: 'foreArmR' } },
+    { name: 'foreArmR', kind: 'segment', from: 'elbow', to: 'wrist', rA: r4(limb * 0.92), rB: r4(limb * (gloves ? 1.5 : 0.9)), mirror: 'name', group: G.foreArm, bind: { bone: 'foreArmR', prev: 'upperArmR', next: 'handR' } },
+    shape('handR', V(sub(wrist, mul(armDir, hand * 0.4))), V(add(wrist, mul(armDir, hand * 2))), r4(hand), 'ball', { group: G.hand, bind: 'handR' }),
     ...eyes(f, H, k),
-    ...(f.eyes === 'dots' ? [lens('cheekR', H, 44, -24, 0.13, 0.11, 0.006, 'Cheek', headBind)] : []),
-    ...hookParts(f, H, { M, hipZ, neckZ, headBind, orb }),
+    ...(f.eyes === 'dots' || human ? [lens('cheekR', H, 44, -24, human ? 0.11 : 0.13, human ? 0.08 : 0.11, 0.006, 'Cheek', headBind)] : []),
+    ...(human ? personParts(f, H, { headBind }) : []),
+    ...hooks,
+    ...face.segments,
   ];
   const joints = Object.fromEntries(Object.entries(J).map(([n, p]) => [n, V(p)]));
   for (const s of segments) for (const [n, p] of Object.entries(s.joints || {})) joints[n] = V(p);
   for (const s of segments) delete s.joints;
-  // the parts each dial turns, by what was built: the head's own (bound with it) and everything above the legs
-  const twin = (n) => `${n.slice(0, -1)}L`;
-  const bound = Object.fromEntries(segments.flatMap((x) => { const b = typeof x.bind === 'string' ? x.bind : x.bind?.bone; return x.mirror === 'name' ? [[x.name, b], [twin(x.name), b]] : [[x.name, b]]; }));
+  // the parts each dial turns, by what was built: the head's own (bound with it or to a feature of its face) and
+  // everything above the legs
+  const twin = (n) => n.replace(/R$/, 'L'), faceBones = new Set(face.bones.map((b) => b.id));
+  const bound = Object.fromEntries(segments.flatMap((x) => { const b = typeof x.bind === 'string' ? x.bind : x.bind?.bone; return x.mirror === 'name' ? [[x.name, b], [twin(x.name), twin(b)]] : [[x.name, b]]; }));
   const names = Object.keys(bound);
-  const { rig, clips, dials } = rigOf(f, { J, H, hipZ, neckZ, top, orb, k, headParts: names.filter((n) => bound[n] === 'head'), upper: names.filter((n) => !/^(thigh|shin|shoe)[RL]$/.test(n)) });
+  const { rig, clips, dials } = rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts: names.filter((n) => bound[n] === 'head' || faceBones.has(bound[n])), upper: names.filter((n) => !/^(thigh|shin|shoe)[RL]$/.test(n)) });
   const paint = [
-    ...(orb ? [] : [{ part: 'body', t: [0, 0.42], run: [0.12, 0.8], group: 'Belly' }]),
-    ...(f.promise === 'pride' && !orb ? [{ part: 'body', t: [0.42, 1], run: [0.3, 1], group: 'Jersey' }, { part: 'body', t: [0, 0.42], run: [0.55, 1], group: 'Jersey' }] : []),
-    ...(f.eyes === 'joined' ? [{ part: 'head', t: [0, 0.36], run: [0.1, 0.42], group: 'Belly' }] : []),
-    ...(f.extremities === 'gloves' ? [{ part: 'foreArm', run: [0.7, 1], group: 'Glove' }] : []),
+    ...(orb || human ? [] : [{ part: 'body', t: [0, 0.42], run: [0.12, 0.8], group: 'Belly' }]),
+    ...(human && !orb ? [{ part: 'body', run: [0, 0.42], group: 'Bottom' }] : []),   // trousers to the waist
+    ...(f.promise === 'pride' && !orb && !human ? [{ part: 'body', t: [0.42, 1], run: [0.3, 1], group: 'Jersey' }, { part: 'body', t: [0, 0.42], run: [0.55, 1], group: 'Jersey' }] : []),
+    ...(f.eyes === 'joined' && !human ? [{ part: 'head', t: [0, 0.36], run: [0.1, 0.42], group: 'Belly' }] : []),
+    ...(gloves ? [{ part: 'foreArm', run: [0.7, 1], group: 'Glove' }] : []),
     { part: 'shoe', t: [0.7, 1], group: 'Sole' },
     ...(f.hook === 'ears' && f.accent === 'spike' ? [{ part: 'ear', run: [0.6, 1], group: 'Tip' }] : []),
   ];
@@ -218,6 +239,45 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     palette: mascotPalette(sheet, k),
   };
   return { plan, H, height };
+}
+
+/** The R eye's centre and size, in head radii and degrees: what the lids and the brows are placed by. */
+function eyeOf(f, k) {
+  const X = EYE_FORMS[f.eyes], s = k.size, [pw, ph] = X.pupil.map((x) => x * s * k.pupil);
+  const az = X.az + 2.5 * k.gap, el = X.el + 7 * k.lift;
+  return X.w ? { az, el, w: X.w * s, h: X.h * s, lidOut: 0.075 } : { az, el, w: pw * 1.15, h: ph * 1.15, lidOut: 0.06 };
+}
+
+/** The face that acts (mascot-face.js): the lids, the mouth and its lips, the brows, at the sheet's rest expression. The
+ *  mouth sits low on the face (law 4), on a snout when there is one. */
+function faceOf(f, H, k, { headBind, orb, human, hooks, G }) {
+  const snout = hooks.find((x) => x.name === 'snout');
+  let E = H, el = human ? -36 : f.eyes === 'joined' ? -38 : f.eyes === 'dots' ? -22 : orb ? -20 : -30;
+  if (snout) {
+    const A = snout.caps.back, B = snout.caps.tip, C = A.map((x, i) => x + (B[i] - x) * 0.62), r = snout.stations[3].r;
+    E = { C, rx: r[0] * 0.92, ry: Math.hypot(...B.map((x, i) => x - C[i])), rz: r[1] * 0.95 }; el = -38;
+  }
+  const size = f.eyes === 'dots' ? [0.13, 0.085] : orb ? [0.15, 0.1] : [0.2, 0.13];
+  return buildFace({
+    H, eye: eyeOf(f, k), mouth: { E, el, w: size[0], h: size[1] }, rest: f.expression, ride: headBind,
+    brows: { on: human || !(orb || f.eyes === 'dots'), h: f.accent === 'block' ? 0.045 : 0.032 },
+    groups: { lid: G.head, lip: snout ? 'Body' : G.face, brow: 'Brow' },
+  });
+}
+
+/** A person's features (being: human): a nose in the accent's family, ears, and hair as one chunky form. */
+function personParts(f, H, { headBind }) {
+  const R = H.rz, at = onHeadAt(H), b = f.accent === 'block', sp = f.accent === 'spike';
+  const nose = sp ? shape('nose', at(0, 0.85, -0.12), at(0, 1.22, -0.2), r4(0.11 * R), 'cone', { group: 'Nose', bind: headBind, tip: 0.2 })
+    : shape('nose', at(0, 0.82, -0.14), at(0, 1.2, -0.16), r4(0.15 * R), b ? 'egg' : 'ball', { group: 'Nose', bind: headBind, e: b ? 4 : undefined });
+  const ear = shape('humanEarR', at(0.86, -0.04, -0.08), at(1.12, -0.12, -0.02), [r4(0.1 * R), r4(0.16 * R)], 'ball', { group: 'Skin', bind: headBind });
+  // the hair: the head's ellipsoid again, a little larger and set up and back, so it shows over the crown and the
+  // back and sinks below the face (a capped head wears its cap instead; a spiky one adds its spikes as the hook)
+  const hair = f.hook === 'cap' ? [] : [{ name: 'hair', kind: 'trunk', mirror: 'plane', group: 'Hair', bind: headBind,
+    stations: Array.from({ length: 9 }, (_, i) => { const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / 9, rz = H.rz * 1.05;
+      return { z: r4(H.C[2] + 0.1 * H.rz + rz * Math.sin(a)), yc: r4(-0.17 * H.ry), r: [r4(H.rx * 1.05 * Math.cos(a)), r4(H.ry * 1.03 * Math.cos(a))], ...(b ? { e: 3.2 } : {}) }; }),
+    caps: { back: [0, r4(-0.17 * H.ry), r4(H.C[2] + 0.1 * H.rz - H.rz * 1.05)], tip: [0, r4(-0.17 * H.ry), r4(H.C[2] + 0.1 * H.rz + H.rz * 1.05)] } }];
+  return [nose, ear, ...hair];
 }
 
 /** The eyes (law 4): the white, the pupil turned a little toward the nose, one glint up and out. */
@@ -233,9 +293,9 @@ function eyes(f, H, k) {
 }
 
 /** The hook (law 2), drawn in the accent's family (law 5): pointed, round or squared. Each part carries its joints. */
-function hookParts(f, H, { M, hipZ, neckZ, headBind, orb }) {
+function hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur = 'Body' }) {
   const R = H.rz, at = onHeadAt(H), spike = f.accent === 'spike', block = f.accent === 'block', e = block ? 4 : undefined;
-  const g = (group = 'Body', bind = headBind) => ({ group, bind, e });
+  const g = (group = fur, bind = headBind) => ({ group, bind, e });
   switch (f.hook) {
     case 'ears': {
       if (spike) return [shape('earR', at(0.42, -0.06, 0.62), at(0.74, -0.14, 1.6), [r4(0.2 * R), r4(0.08 * R)], 'cone', { ...g(), tip: 0.1 })];
@@ -252,8 +312,26 @@ function hookParts(f, H, { M, hipZ, neckZ, headBind, orb }) {
     }
     case 'snout': return [shape('snout', at(0, 0.3, -0.38), at(0, 1.75, -0.2), [r4(0.62 * R), r4(0.55 * R)], 'egg', g())];
     case 'tuft': {
-      if (f.accent === 'round') return [shape('tuft', at(0, 0.1, 0.88), at(0, 0.38, 1.45), r4(0.24 * R), 'bud', g('Accent'))];
-      return [shape('tuft', at(0, 0.05, 0.85), at(0, 0.5, 1.45), r4(0.15 * R), block ? 'egg' : 'cone', { ...g('Accent'), tip: 0.06 })];
+      const tuft = f.being === 'human' ? 'Hair' : 'Accent';
+      if (f.accent === 'round') return [shape('tuft', at(0, 0.1, 0.9), at(0, 0.38, 1.47), r4(0.24 * R), 'bud', g(tuft))];
+      return [shape('tuft', at(0, 0.05, 0.9), at(0, 0.5, 1.5), r4(0.15 * R), block ? 'egg' : 'cone', { ...g(tuft), tip: 0.06 })];
+    }
+    case 'cap': {
+      // a dome over the crown, a bill forward of it, an emblem on its front: the hook in the accent
+      const capG = f.being === 'human' ? 'Body' : 'Accent';   // a person's cap matches the shirt
+      // the crown set high (its rim above the brows) and its rim standing a little off the head
+      const lift = 0.4, cz = H.rz * 0.85, Cap = { C: [0, r4(-0.04 * H.ry), r4(H.C[2] + lift * H.rz)], rx: H.rx * 1.04, ry: H.ry * 1.04, rz: cz };
+      const dome = { name: 'cap', kind: 'trunk', mirror: 'plane', group: capG, bind: headBind,
+        stations: Array.from({ length: 6 }, (_, i) => { const a = (Math.PI / 2) * (i / 6) + 0.02;
+          return { z: r4(Cap.C[2] + cz * Math.sin(a)), yc: Cap.C[1], r: [r4(Cap.rx * Math.cos(a)), r4(Cap.ry * Math.cos(a))], ...(block ? { e: 3 } : {}) }; }),
+        caps: { back: [0, Cap.C[1], r4(Cap.C[2] - 0.05 * H.rz)], tip: [0, Cap.C[1], r4(Cap.C[2] + cz)] } };
+      const bill = shape('bill', at(0, 0.62, lift + 0.04), at(0, 1.5, lift - 0.06), [r4(0.62 * R), r4(0.07 * R)], spike ? 'cone' : 'egg', { group: capG, bind: headBind, tip: 0.3, ts: [0.08, 0.3, 0.55, 0.75, 0.9, 0.97] });
+      const emblem = lens('emblem', Cap, 0, 35, 0.2, 0.2, 0.004, 'Emblem', headBind);
+      return [dome, bill, emblem];
+    }
+    case 'moustache': {
+      const grp = f.being === 'human' ? 'Hair' : 'Brow';
+      return [shape('moustacheR', at(0.02, 0.92, -0.38), at(0.5, 0.75, -0.42), [r4(0.17 * R), r4(0.12 * R)], 'egg', { group: grp, bind: headBind })];
     }
     case 'antenna': return [
       { name: 'stalk', kind: 'segment', from: 'stalkA', to: 'stalkB', joints: { stalkA: at(0, -0.05, 0.92), stalkB: at(0, 0.05, 1.6) }, rA: r4(0.035 * R), rB: r4(0.03 * R), mirror: 'plane', group: 'Body', bind: headBind },
@@ -282,7 +360,7 @@ function hookParts(f, H, { M, hipZ, neckZ, headBind, orb }) {
 
 // ══════════ the rig, the clips, the dials (laws 9, 10) ══════════
 
-function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, headParts, upper }) {
+function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper }) {
   const bodyTop = orb ? H.C[2] : neckZ;
   const rig = {
     joints: {
@@ -290,6 +368,7 @@ function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, headParts, upper }) {
       headBase: { at: [0, 0, r4(orb ? H.C[2] + H.rz * 0.2 : neckZ + H.rz * 0.15)] }, headTop: { at: [0, 0, top] },
       hip$S: { at: J.hip }, knee$S: { at: J.knee }, ankle$S: { at: J.ankle }, toeBase$S: { at: J.toeBase }, toeTip$S: { at: J.toeTip },
       shoulder$S: { at: J.shoulder }, elbow$S: { at: J.elbow }, wrist$S: { at: J.wrist }, knuckles$S: { at: J.knuckles, rides: 'foreArm$S' },
+      ...face.joints,   // the face's pivots and tips, riding the head (the orb's ride its body)
     },
     bones: [
       { id: 'pelvis', head: 'pelvisHub', tail: 'navel', aux: ['hipL', 'hipR'] }, { id: 'torso', head: 'navel', tail: 'neckHub', aux: ['shoulderL', 'shoulderR'] },
@@ -298,7 +377,9 @@ function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, headParts, upper }) {
         { id: 'upperArm$S', head: 'shoulder$S', tail: 'elbow$S' }, { id: 'foreArm$S', head: 'elbow$S', tail: 'wrist$S' }, { id: 'hand$S', head: 'wrist$S', tail: 'knuckles$S' },
         { id: 'thigh$S', head: 'hip$S', tail: 'knee$S' }, { id: 'shin$S', head: 'knee$S', tail: 'ankle$S' }, { id: 'meta$S', head: 'ankle$S', tail: 'toeBase$S' }, { id: 'toes$S', head: 'toeBase$S', tail: 'toeTip$S' },
       ] },
+      ...face.bones,
     ],
+    chains: face.chains,
     legs: Object.fromEntries(['R', 'L'].map((S) => [S, { hip: `hip${S}`, knee: `knee${S}`, hock: `ankle${S}`, toeBase: `toeBase${S}`, toeTip: `toeTip${S}`, pole: [0, 1, 0] }])),
     reach: 'clamp',
   };
@@ -314,10 +395,28 @@ function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, headParts, upper }) {
     sturdy: [{ ...READY, stance: r4(stance * 1.2) }, { ...READY, stance: r4(stance * 1.2), crouch: 0.09 }],
     swaying: [READY, { ...READY, spine: { sideBend: ['left', 0.35] } }, READY, { ...READY, spine: { sideBend: ['right', 0.35] } }],
   };
+  // the face in motion: an expression is its channels' differences from the rest face (mascot-face.js)
+  const X = (name) => (name === f.expression ? {} : face.channels(name));
+  // a `head` word aims the head's crown in the figure's frame: z up, y front (y: 1 would put the face to the floor). The
+  // face's chains turn in the world's axes, so an expression turns the head only a little (a cock, never a nod)
+  const EMOTE = {
+    happy: { ...READY, crouch: 0.06, armL: { x: -0.7, y: 0.25, z: -0.55 }, armR: { x: 0.7, y: 0.25, z: -0.55 } },
+    grin: { ...READY, armL: { x: -0.8, y: 0.2, z: -0.4 }, armR: { x: 0.8, y: 0.2, z: -0.4 } },
+    content: { ...READY, head: { x: 0.15, y: 0.05, z: 1 } },
+    determined: { ...READY, crouch: 0.14, armL: { x: -0.35, y: 0.75, z: -0.4 }, armR: { x: 0.35, y: 0.75, z: -0.4 }, elbowL: 'half', elbowR: 'half' },
+    smirk: { ...READY, head: { x: -0.18, y: 0, z: 1 } },
+    surprised: { ...READY, spine: { arch: 0.25 }, armL: { x: -0.75, y: 0.3, z: 0.35 }, armR: { x: 0.75, y: 0.3, z: 0.35 } },
+    sad: { ...READY, spine: { curl: 0.1 }, crouch: 0.06, armL: { x: -0.2, y: 0.15, z: -0.95 }, armR: { x: 0.2, y: 0.15, z: -0.95 } },
+    angry: { ...READY, crouch: 0.1, spine: { curl: 0.05 }, armL: { x: -0.45, y: 0.2, z: -0.85 }, armR: { x: 0.45, y: 0.2, z: -0.85 }, elbowL: 'half', elbowR: 'half' },
+    sleepy: { ...READY, crouch: 0.06, spine: { curl: 0.06 } },
+  };
   const clips = {
     idle: IDLE[f.energy],
-    hop: [READY, { ...READY, crouch: 0.35 }, { ...up, crouch: 0, lift: hopLift, support: 'none' }, { ...READY, crouch: 0.2 }, READY],
-    cheer: [READY, { ...up, crouch: 0.12 }, { ...READY, crouch: 0.02 }, { ...up, crouch: 0.12 }],
+    hop: [READY, { ...READY, crouch: 0.35, ...X('determined') }, { ...up, crouch: 0, lift: hopLift, support: 'none', ...X('surprised') }, { ...READY, crouch: 0.2, ...X('grin') }, READY],
+    cheer: [READY, { ...up, crouch: 0.12, ...X('grin') }, { ...READY, crouch: 0.02, ...X('happy') }, { ...up, crouch: 0.12, ...X('grin') }],
+    blink: [READY, { ...READY, ...face.blink() }, READY],
+    // one clip per expression: into it, held (the World's selector names them; an engine reads them as bone tracks)
+    ...Object.fromEntries(EXPRESSION_IDS.map((e) => [e, [READY, { ...EMOTE[e], ...X(e) }, { ...EMOTE[e], ...X(e) }]])),
     // the hand clear of the face: the whole arm swings out and back, the elbow nearly straight
     wave: [READY, { ...READY, armR: { x: 0.72, y: 0.25, z: 0.65 } }, { ...READY, armR: { x: 0.97, y: 0.2, z: 0.15 } }, { ...READY, armR: { x: 0.72, y: 0.25, z: 0.65 } }],
   };

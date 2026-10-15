@@ -7,6 +7,7 @@ import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { compileLayered } from '../polygonizer/station-loft.js';
 import { validateRig } from '../polygonizer/station-loft-rig.js';
 import { poseLayered } from '../polygonizer/hero-gesture.js';
+import { EXPRESSION_IDS, EXPRESSION_FACE } from './mascot-face.js';
 
 const sheetOf = (facets, seed = 1) => rollMascot({ facets, seed });
 const hueOf = (hex) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255); const mx = Math.max(r, g, b), d = mx - Math.min(r, g, b); const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
@@ -104,7 +105,7 @@ describe('the mascot body (the laws as numbers)', () => {
         const { report } = poseLayered(mesh, recipe, key, { R });
         for (const leg of Object.values(report?.legs ?? {})) expect(leg.reach, `${energy} ${JSON.stringify(key)}`).not.toBe('clamped');
       }
-      expect(Object.keys(plan.clips)).toEqual(['idle', 'hop', 'cheer', 'wave']);
+      expect(Object.keys(plan.clips)).toEqual(expect.arrayContaining(['idle', 'hop', 'cheer', 'wave', 'blink', ...EXPRESSION_IDS]));
     }
   }, 60000);
   it('lands every note, sets the promise\'s pose after the mint, and is pure', () => {
@@ -143,5 +144,65 @@ describe('the egocube\'s mascot tuning', () => {
     const spiky = [1, 2, 3, 4, 5, 6].filter((seed) => sheetOf({ promise: 'speed' }, seed).facets.accent === 'spike').length;
     const softSpiky = [1, 2, 3, 4, 5, 6].filter((seed) => sheetOf({ promise: 'comfort' }, seed).facets.accent === 'spike').length;
     expect(spiky).toBeGreaterThan(softSpiky);
+  });
+});
+
+describe('the mascot\'s face: a mouth and expressions as bone motion', () => {
+  const built = (facets) => { const { plan } = mascotPlan(sheetOf({ hook: 'none', form: 'sprout', eyes: 'pair', ...facets })); const recipe = expandPlan(plan); return { plan, recipe, mesh: compileLayered(recipe) }; };
+  const centre = (mesh, part) => { const v = mesh.vertices.filter((_, i) => mesh.provenance[i].part === part); return [0, 1, 2].map((k) => v.reduce((t, p) => t + p[k], 0) / v.length); };
+  it('builds a mouth, a tongue, two lips, the lids and the brows, each moving part on its own bone', () => {
+    const { plan, recipe } = built({ expression: 'happy' });
+    for (const p of ['mouth', 'tongue', 'lipU', 'lipD', 'lidR', 'lidL', 'browR', 'browL']) expect(plan.segments.some((x) => x.name === p), p).toBe(true);
+    const R = validateRig(recipe.rig);
+    for (const c of ['lidR', 'lidL', 'lipU', 'lipD', 'browLiftR', 'browR']) expect(R.chains[c], c).toBeTruthy();
+    for (const g of ['Mouth', 'Tongue', 'Brow']) expect(plan.palette[g], g).toMatch(/^#/);
+  });
+  it('rests on the sheet\'s expression, and its clips are the other expressions\' differences from it', () => {
+    const { plan } = built({ expression: 'happy' });
+    expect(Object.keys(plan.clips.happy[1]).some((k) => /^(lid|lip|brow)/.test(k))).toBe(false);   // the rest face moves nothing
+    expect(plan.clips.surprised[1].lipU).toBeLessThan(0);   // the upper lip lifts off the mouth
+    expect(plan.clips.sad[1].lipD).toBeLessThan(0);         // the lower lip rises over it
+    expect(plan.clips.angry[1].browR).toBeGreaterThan(0);   // the inner ends drop
+    expect(Object.keys(EXPRESSION_FACE)).toEqual(EXPRESSION_IDS);
+  });
+  it('shuts the eyes in the blink: each lid comes down over its eye, and the face stays on the head', () => {
+    const { plan, recipe, mesh } = built({ expression: 'content' });
+    const shut = poseLayered(mesh, recipe, plan.clips.blink[1]).mesh;
+    for (const S of ['R', 'L']) {
+      const open = centre(mesh, `lid${S}`), closed = centre(shut, `lid${S}`), eye = centre(mesh, `eye${S}`);
+      expect(closed[2]).toBeLessThan(open[2]);
+      expect(Math.abs(closed[2] - eye[2])).toBeLessThan(Math.abs(open[2] - eye[2]) + 1e-9);
+    }
+    const ready = poseLayered(mesh, recipe, plan.clips.blink[0]).mesh;   // the ready pose the blink is keyed on
+    centre(shut, 'mouth').forEach((x, k) => expect(x).toBeCloseTo(centre(ready, 'mouth')[k], 9));
+  });
+  it('rests an asymmetric face asymmetrically: the smirk raises one brow', () => {
+    const { mesh } = built({ expression: 'smirk' });
+    expect(centre(mesh, 'browR')[2]).toBeGreaterThan(centre(mesh, 'browL')[2] + 0.005);
+  });
+  it('puts the mouth on a snout when there is one', () => {
+    const { plan } = mascotPlan(sheetOf({ hook: 'snout', form: 'toon' }));
+    const snout = plan.segments.find((x) => x.name === 'snout'), mouth = plan.segments.find((x) => x.name === 'mouth');
+    expect(mouth.stations[1].at[1]).toBeGreaterThan(snout.caps.back[1]);
+  });
+});
+
+describe('a human mascot: a person in a mascot\'s proportions', () => {
+  it('draws a person: skin, hair, a nose and ears, the hue on the clothes, still head-heavy', () => {
+    const sheet = rollMascot({ brief: 'a cheerful girl mascot', facets: { form: 'toon', hook: 'none', skin: 'tan' } });
+    expect(sheet.facets.being).toBe('human');
+    const { plan, H, height } = mascotPlan(sheet);
+    for (const p of ['nose', 'humanEarR', 'hair']) expect(plan.segments.some((x) => x.name === p), p).toBe(true);
+    expect(plan.segments.find((x) => x.name === 'head').group).toBe('Skin');
+    expect(plan.segments.find((x) => x.name === 'body').group).toBe('Body');
+    expect(plan.palette.Skin).toBe('#d9a271');
+    expect(height / (2 * H.rz)).toBeLessThan(3.8);
+  });
+  it('reads a familiar human style, wears its cap in the shirt\'s colour, and redraws a beast\'s hook unless asked', () => {
+    const { plan } = mascotPlan(rollMascot({ brief: 'mario-like' }));
+    expect(plan.segments.find((x) => x.name === 'cap').group).toBe('Body');
+    expect(plan.segments.some((x) => x.name === 'hair')).toBe(false);
+    for (let seed = 1; seed <= 6; seed++) expect(['snout', 'tail', 'spines']).not.toContain(sheetOf({ being: 'human' }, seed).facets.hook);
+    expect(sheetOf({ being: 'human', hook: 'tail' }).faults).toEqual([expect.objectContaining({ id: 'human-beast', held: true })]);
   });
 });

@@ -197,5 +197,11 @@ describe('create_character as a mascot (docs/mascot.md)', () => {
     const made = SketchRepository.getByRef('cc_ego_mascot_made').manifest;
     expect(JSON.stringify(made.plan)).toBe(JSON.stringify(m.plan));
     expect(made.dials).toEqual(m.dials);
+    // a person drawn as a mascot mints through the same door, its face rigged: the expressions are clips
+    const h = await createCharacterHandler({ as: 'mascot', spec: { brief: 'a mario-like mascot' }, ref: 'cc_mascot_human' });
+    expect(h.mascot.facets).toMatchObject({ being: 'human', hook: 'cap' });
+    const hm = SketchRepository.getByRef('cc_mascot_human').manifest;
+    expect(Object.keys(hm.plan.clips)).toEqual(expect.arrayContaining(['blink', 'happy', 'surprised', 'sad', 'angry']));
+    expect(hm.plan.rig.chains.lipU).toBeTruthy();
   }, 300_000);
 });

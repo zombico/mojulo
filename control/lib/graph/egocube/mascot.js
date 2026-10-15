@@ -18,7 +18,8 @@
 import { mulberry32 } from '../vegetation/grow.js';
 
 export const MAX_ATTEMPTS = 8;
-export const MASCOT_KEYS = Object.freeze(['promise', 'form', 'accent', 'eyes', 'hook', 'extremities', 'energy', 'hue']);
+/** The facets, in the order their dice are thrown: a new facet goes last, so an older seed throws the older ones alike. */
+export const MASCOT_KEYS = Object.freeze(['promise', 'form', 'accent', 'eyes', 'hook', 'extremities', 'energy', 'hue', 'being', 'skin', 'expression']);
 
 /** Channel id → what a note there says. In the order a sheet prints them. */
 export const MASCOT_CHANNELS = Object.freeze({
@@ -53,25 +54,25 @@ const v = (reads, notes = {}, derives = {}, lean = {}) => Object.freeze({ reads,
 export const PROMISES = Object.freeze({
   speed: v('speed: it is already moving', { promise: 'speed: everything points back from a forward centre', motion: 'impatient at rest: a foot taps', frame: 'longer legs, a lighter body' },
     { frame: ['proportion.legs +', 'proportion.body -'], motion: ['motion.lean +'] },
-    { form: { sprout: 3 }, accent: { spike: 4 }, eyes: { joined: 3 }, hook: { quills: 4, ears: 1.5 }, extremities: { gloves: 3 }, energy: { zippy: 6 }, hue: { blue: 4, red: 1.5, teal: 1.5 } }),
+    { form: { sprout: 3 }, accent: { spike: 4 }, eyes: { joined: 3 }, hook: { quills: 4, ears: 1.5 }, extremities: { gloves: 3 }, energy: { zippy: 6 }, hue: { blue: 4, red: 1.5, teal: 1.5 }, expression: { determined: 3, grin: 3 } }),
   cheer: v('cheer: glad to see you', { promise: 'cheer: open, up-turned, nothing guarded', face: 'eyes wide and lifted', motion: 'it bounces in place' },
     { face: ['eyes.size +'], motion: ['motion.bounce +'] },
-    { form: { orb: 1.5, sprout: 1.5 }, accent: { round: 4 }, eyes: { pair: 3 }, hook: { antenna: 2, tuft: 2, ears: 1.5 }, energy: { bouncy: 6 }, hue: { yellow: 4, orange: 2, pink: 2 } }),
+    { form: { orb: 1.5, sprout: 1.5 }, accent: { round: 4 }, eyes: { pair: 3 }, hook: { antenna: 2, tuft: 2, ears: 1.5 }, energy: { bouncy: 6 }, hue: { yellow: 4, orange: 2, pink: 2 }, expression: { happy: 4, grin: 3 } }),
   mischief: v('mischief: up to something', { promise: 'mischief: one thing about it is not quite trustworthy', face: 'the pupils small and sharp', motion: 'it sways, weight on one hip' },
     { face: ['eyes.pupil -'], motion: ['motion.lean -'] },
-    { accent: { spike: 2.5 }, eyes: { pair: 2, dots: 2 }, hook: { ears: 3, tail: 3, tuft: 1.5 }, extremities: { paws: 2.5 }, energy: { swaying: 4, zippy: 1.5 }, hue: { purple: 4, green: 2.5, orange: 1.5 } }),
+    { accent: { spike: 2.5 }, eyes: { pair: 2, dots: 2 }, hook: { ears: 3, tail: 3, tuft: 1.5 }, extremities: { paws: 2.5 }, energy: { swaying: 4, zippy: 1.5 }, hue: { purple: 4, green: 2.5, orange: 1.5 }, expression: { smirk: 6, grin: 2 } }),
   might: v('might: small, and stronger than it looks', { promise: 'might: low and planted, the mass up front', frame: 'a big body for its size, short legs', extremities: 'big fists' },
     { frame: ['proportion.body +', 'proportion.width +', 'proportion.legs -'], extremities: ['extremities.hands +'], motion: ['motion.stance +'] },
-    { form: { toon: 3 }, accent: { block: 5 }, eyes: { pair: 2 }, hook: { spines: 2.5, ears: 1.5, tuft: 1.5 }, extremities: { gloves: 2, paws: 2 }, energy: { sturdy: 6 }, hue: { red: 4, brown: 2, orange: 2 } }),
+    { form: { toon: 3 }, accent: { block: 5 }, eyes: { pair: 2 }, hook: { spines: 2.5, ears: 1.5, tuft: 1.5 }, extremities: { gloves: 2, paws: 2 }, energy: { sturdy: 6 }, hue: { red: 4, brown: 2, orange: 2 }, expression: { determined: 5, angry: 2 } }),
   comfort: v('comfort: something to hold', { promise: 'comfort: no edge anywhere; it could be hugged', frame: 'round all over, the head wide', motion: 'it sways slowly' },
     { frame: ['proportion.width +'], face: ['eyes.lift -'] },
-    { form: { orb: 4, sprout: 2 }, accent: { round: 6 }, eyes: { pair: 2, dots: 3 }, hook: { ears: 4, none: 2, tail: 1.5 }, extremities: { nubs: 4, paws: 2 }, energy: { swaying: 3, floaty: 3 }, hue: { pink: 4, white: 2.5, brown: 2, yellow: 1.5 } }),
+    { form: { orb: 4, sprout: 2 }, accent: { round: 6 }, eyes: { pair: 2, dots: 3 }, hook: { ears: 4, none: 2, tail: 1.5 }, extremities: { nubs: 4, paws: 2 }, energy: { swaying: 3, floaty: 3 }, hue: { pink: 4, white: 2.5, brown: 2, yellow: 1.5 }, expression: { content: 5, happy: 2, sleepy: 2 } }),
   pride: v('pride: it carries a crowd\'s colours', { promise: 'pride: it stands for a team and wears its colours', face: 'huge eyes, read from the back row', silhouette: 'a big head that reads from the stands' },
     { frame: ['proportion.head +'], face: ['eyes.size +'], motion: ['motion.stance +'] },
-    { form: { toon: 5 }, accent: { round: 2, block: 2 }, eyes: { pair: 4 }, hook: { ears: 2.5, tuft: 2, quills: 1 }, extremities: { gloves: 5 }, energy: { bouncy: 3, sturdy: 2 }, hue: { red: 2, blue: 2, green: 1.5, orange: 1.5 } }),
+    { form: { toon: 5 }, accent: { round: 2, block: 2 }, eyes: { pair: 4 }, hook: { ears: 2.5, tuft: 2, quills: 1 }, extremities: { gloves: 5 }, energy: { bouncy: 3, sturdy: 2 }, hue: { red: 2, blue: 2, green: 1.5, orange: 1.5 }, expression: { grin: 4, happy: 2 } }),
   wonder: v('wonder: it is from somewhere else', { promise: 'wonder: curious, a little strange, weightless', face: 'eyes set wide and high', motion: 'it floats' },
     { face: ['eyes.gap +', 'eyes.size +'] },
-    { form: { orb: 3, sprout: 2 }, accent: { round: 3 }, eyes: { pair: 2, dots: 2 }, hook: { antenna: 5, ears: 1.5 }, extremities: { nubs: 3 }, energy: { floaty: 6 }, hue: { teal: 4, purple: 3, white: 2 } }),
+    { form: { orb: 3, sprout: 2 }, accent: { round: 3 }, eyes: { pair: 2, dots: 2 }, hook: { antenna: 5, ears: 1.5 }, extremities: { nubs: 3 }, energy: { floaty: 6 }, hue: { teal: 4, purple: 3, white: 2 }, expression: { surprised: 4, happy: 2 } }),
 });
 
 export const FORMS = Object.freeze({
@@ -98,6 +99,8 @@ export const HOOKS = Object.freeze({
   quills: v('quills', { silhouette: 'a fan of quills swept back off the head' }, {}),
   snout: v('a snout', { silhouette: 'a big round snout forward of the face; the eyes climb above it' }, { face: ['eyes.lift +'] }),
   tuft: v('a tuft', { silhouette: 'one tuft or curl on the crown' }, {}),
+  cap: v('a cap', { silhouette: 'a cap with a big bill and an emblem on its crown, in the accent' }, {}),
+  moustache: v('a moustache', { silhouette: 'a big moustache under the nose, wider than the mouth' }, {}),
   antenna: v('an antenna', { silhouette: 'an antenna off the crown, a bulb at its tip' }, {}),
   tail: v('a tail', { silhouette: 'a tail that reads beside the body from the front' }, {}),
   spines: v('spines', { silhouette: 'a row of spines down the back of the head and the back' }, {}),
@@ -117,13 +120,37 @@ export const ENERGIES = Object.freeze({
   swaying: v('swaying', { motion: 'the idle sways side to side' }, {}),
 });
 
+/** What it is: a critter (any body) or a HUMAN in a mascot's proportions (a person drawn by the mascot's laws: a big head,
+ *  a small body, big eyes, a nose and ears, hair as one chunky form, the hue on the clothes). */
+export const BEINGS = Object.freeze({
+  critter: v('a critter', {}, {}),
+  human: v('a human, drawn as a mascot', { frame: 'a person in a mascot\'s proportions: the head as big as the body', face: 'a nose and ears; hair as one chunky form, in the accent\'s family', palette: 'skin and hair as given; the hue on the clothes' }, {}),
+});
+/** A human mascot's skin, with the hair it comes with unless the brief says (law 7: owned, simple colours). */
+export const SKINS = Object.freeze({
+  porcelain: { skin: '#f6dcc8', hair: '#e2b45a' }, peach: { skin: '#f2c49f', hair: '#7a4a26' }, tan: { skin: '#d9a271', hair: '#3a2416' },
+  olive: { skin: '#c68e5e', hair: '#241712' }, brown: { skin: '#9b6440', hair: '#1c120d' }, deep: { skin: '#6b4128', hair: '#141010' },
+});
+/** The face at rest (mascot-face.js EXPRESSION_FACE): the clips make the others. */
+export const EXPRESSIONS = Object.freeze({
+  happy: v('happy', { face: 'at rest: a smile, the eyes open' }, {}),
+  grin: v('grinning', { face: 'at rest: a wide open grin' }, {}),
+  content: v('content', { face: 'at rest: a closed smile, the lids a little down' }, {}),
+  determined: v('determined', { face: 'at rest: the brows down at the middle, the mouth set' }, {}),
+  smirk: v('smirking', { face: 'at rest: one brow up, one lid down: the face is not symmetric' }, {}),
+  surprised: v('surprised', { face: 'at rest: brows up, the mouth an O' }, {}),
+  sad: v('sad', { face: 'at rest: the brows up at the middle, the mouth turned down' }, {}),
+  angry: v('angry', { face: 'at rest: the brows down hard at the middle, the teeth set' }, {}),
+  sleepy: v('sleepy', { face: 'at rest: the lids heavy, the mouth closed' }, {}),
+});
+
 /** The hues a mascot owns: the body colour. Saturated and value-separated by design (law 7). */
 export const HUES = Object.freeze({
   red: '#e0302c', orange: '#f08a1c', yellow: '#f6cf2a', green: '#4fb848', teal: '#25b3b0', blue: '#1f5fd6',
   purple: '#8a4fd0', pink: '#f28fb4', brown: '#9a6238', white: '#f2efe8',
 });
 
-const TABLES = { promise: PROMISES, form: FORMS, accent: ACCENTS, eyes: EYES, hook: HOOKS, extremities: EXTREMITIES, energy: ENERGIES, hue: HUES };
+const TABLES = { promise: PROMISES, form: FORMS, accent: ACCENTS, eyes: EYES, hook: HOOKS, extremities: EXTREMITIES, energy: ENERGIES, hue: HUES, being: BEINGS, skin: SKINS, expression: EXPRESSIONS };
 const KNOWN = Object.fromEntries(Object.entries(TABLES).map(([k, t]) => [k, Object.keys(t)]));
 
 /** The seed's priors before a promise leans them: weights per value (an absent value weighs 0). */
@@ -132,10 +159,13 @@ export const PRIORS = Object.freeze({
   form: { orb: 1, sprout: 1.5, toon: 1.5 },
   accent: { round: 1.5, spike: 1, block: 1 },
   eyes: { pair: 2, joined: 1, dots: 1 },
-  hook: { none: 0.5, ears: 1.5, quills: 0.5, snout: 0.75, tuft: 1, antenna: 0.75, tail: 1, spines: 0.5 },
+  hook: { none: 0.5, ears: 1.5, quills: 0.5, snout: 0.75, tuft: 1, antenna: 0.75, tail: 1, spines: 0.5, cap: 0.5, moustache: 0.25 },
   extremities: { nubs: 1, gloves: 1.5, paws: 1 },
   energy: { bouncy: 1, zippy: 1, floaty: 1, sturdy: 1, swaying: 1 },
   hue: Object.fromEntries(Object.keys(HUES).map((h) => [h, 1])),
+  being: { critter: 3, human: 1 },
+  skin: Object.fromEntries(Object.keys(SKINS).map((k) => [k, 1])),
+  expression: { happy: 2, grin: 1.5, content: 1.5, determined: 1, smirk: 1, surprised: 1, sad: 0.3, angry: 0.3, sleepy: 0.5 },
 });
 
 /** Incoherent rolls: drawn again unless every facet in `on` was asked for. A table to grow at the eyes gate. */
@@ -148,6 +178,10 @@ export const FAULTS = Object.freeze([
     why: 'the orb\'s ball swallows a tail or spines: the hook would not read from the front' },
   { id: 'orb-gloves', on: ['form', 'extremities'], when: (f) => f.form === 'orb' && f.extremities === 'gloves',
     why: 'gloves need arms to hang from; the orb has stubs' },
+  { id: 'human-beast', on: ['being', 'hook'], when: (f) => f.being === 'human' && ['snout', 'tail', 'spines'].includes(f.hook),
+    why: 'a snout, a tail or spines on a person is a brief (a costume), not a roll' },
+  { id: 'human-paws', on: ['being', 'extremities'], when: (f) => f.being === 'human' && f.extremities === 'paws',
+    why: 'a person has hands, gloved or bare, not paws' },
 ]);
 
 // ══════════ the brief ══════════
@@ -160,16 +194,16 @@ export const MASCOT_LEXICON = Object.freeze({
   'platformer': {}, 'plushie': { promise: 'comfort' }, 'plush': { promise: 'comfort' },
   'team mascot': { promise: 'pride' }, 'sports mascot': { promise: 'pride' }, 'school mascot': { promise: 'pride' },
   // familiar names, as styles
-  'sonic-like': { promise: 'speed', form: 'sprout', accent: 'spike', eyes: 'joined', hook: 'quills', extremities: 'gloves', energy: 'zippy', hue: 'blue' },
-  'sonic': { promise: 'speed', form: 'sprout', accent: 'spike', eyes: 'joined', hook: 'quills', extremities: 'gloves', energy: 'zippy', hue: 'blue' },
-  'kirby-like': { promise: 'comfort', form: 'orb', accent: 'round', eyes: 'pair', hook: 'none', extremities: 'nubs', energy: 'floaty', hue: 'pink' },
-  'kirby': { promise: 'comfort', form: 'orb', accent: 'round', eyes: 'pair', hook: 'none', extremities: 'nubs', energy: 'floaty', hue: 'pink' },
-  'mario-like': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'tuft', extremities: 'gloves', energy: 'bouncy', hue: 'red' },
-  'mario': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'tuft', extremities: 'gloves', energy: 'bouncy', hue: 'red' },
-  'yoshi-like': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'snout', extremities: 'paws', energy: 'bouncy', hue: 'green' },
-  'yoshi': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'snout', extremities: 'paws', energy: 'bouncy', hue: 'green' },
-  'pikachu-like': { promise: 'cheer', form: 'sprout', accent: 'spike', eyes: 'dots', hook: 'ears', extremities: 'nubs', energy: 'bouncy', hue: 'yellow' },
-  'pikachu': { promise: 'cheer', form: 'sprout', accent: 'spike', eyes: 'dots', hook: 'ears', extremities: 'nubs', energy: 'bouncy', hue: 'yellow' },
+  'sonic-like': { promise: 'speed', form: 'sprout', accent: 'spike', eyes: 'joined', hook: 'quills', extremities: 'gloves', energy: 'zippy', hue: 'blue', expression: 'smirk' },
+  'sonic': { promise: 'speed', form: 'sprout', accent: 'spike', eyes: 'joined', hook: 'quills', extremities: 'gloves', energy: 'zippy', hue: 'blue', expression: 'smirk' },
+  'kirby-like': { promise: 'comfort', form: 'orb', accent: 'round', eyes: 'pair', hook: 'none', extremities: 'nubs', energy: 'floaty', hue: 'pink', expression: 'happy' },
+  'kirby': { promise: 'comfort', form: 'orb', accent: 'round', eyes: 'pair', hook: 'none', extremities: 'nubs', energy: 'floaty', hue: 'pink', expression: 'happy' },
+  'mario-like': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'cap', extremities: 'gloves', energy: 'bouncy', hue: 'red', being: 'human', expression: 'happy' },
+  'mario': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'cap', extremities: 'gloves', energy: 'bouncy', hue: 'red', being: 'human', expression: 'happy' },
+  'yoshi-like': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'snout', extremities: 'paws', energy: 'bouncy', hue: 'green', expression: 'happy' },
+  'yoshi': { promise: 'cheer', form: 'toon', accent: 'round', eyes: 'pair', hook: 'snout', extremities: 'paws', energy: 'bouncy', hue: 'green', expression: 'happy' },
+  'pikachu-like': { promise: 'cheer', form: 'sprout', accent: 'spike', eyes: 'dots', hook: 'ears', extremities: 'nubs', energy: 'bouncy', hue: 'yellow', expression: 'happy' },
+  'pikachu': { promise: 'cheer', form: 'sprout', accent: 'spike', eyes: 'dots', hook: 'ears', extremities: 'nubs', energy: 'bouncy', hue: 'yellow', expression: 'happy' },
   // the promise
   'fast': { promise: 'speed' }, 'speedy': { promise: 'speed' }, 'quick': { promise: 'speed' }, 'racing': { promise: 'speed' },
   'happy': { promise: 'cheer' }, 'cheerful': { promise: 'cheer' }, 'joyful': { promise: 'cheer' }, 'friendly': { promise: 'cheer' },
@@ -190,6 +224,18 @@ export const MASCOT_LEXICON = Object.freeze({
   // extremities, eyes, energy
   'gloved': { extremities: 'gloves' }, 'stubby': { extremities: 'nubs' }, 'pawed': { extremities: 'paws' },
   'bouncy': { energy: 'bouncy' }, 'zippy': { energy: 'zippy' }, 'floaty': { energy: 'floaty' }, 'floating': { energy: 'floaty' }, 'sturdy': { energy: 'sturdy' }, 'wobbly': { energy: 'swaying' },
+  // a person, drawn as a mascot
+  'human': { being: 'human' }, 'person': { being: 'human' }, 'people': { being: 'human' }, 'boy': { being: 'human' }, 'girl': { being: 'human' },
+  'kid': { being: 'human' }, 'man': { being: 'human' }, 'woman': { being: 'human' }, 'plumber': { being: 'human', hook: 'cap' },
+  'critter': { being: 'critter' }, 'creature': { being: 'critter' }, 'animal': { being: 'critter' },
+  'capped': { hook: 'cap' }, 'cap': { hook: 'cap' }, 'hat': { hook: 'cap' }, 'moustache': { hook: 'moustache' }, 'mustache': { hook: 'moustache' }, 'mustached': { hook: 'moustache' },
+  'pale': { skin: 'porcelain' }, 'fair': { skin: 'porcelain' }, 'freckled': { skin: 'peach' }, 'tanned': { skin: 'tan' }, 'olive-skinned': { skin: 'olive' },
+  'brown-skinned': { skin: 'brown' }, 'dark-skinned': { skin: 'deep' },
+  // the face at rest
+  'smiling': { expression: 'happy' }, 'grinning': { expression: 'grin' }, 'content': { expression: 'content' }, 'calm': { expression: 'content' },
+  'determined': { expression: 'determined' }, 'serious': { expression: 'determined' }, 'smug': { expression: 'smirk' }, 'smirking': { expression: 'smirk' },
+  'surprised': { expression: 'surprised' }, 'amazed': { expression: 'surprised' }, 'sad': { expression: 'sad' }, 'gloomy': { expression: 'sad' },
+  'angry': { expression: 'angry' }, 'grumpy': { expression: 'angry' }, 'drowsy': { expression: 'sleepy' },
   // hues
   ...Object.fromEntries(Object.keys(HUES).map((h) => [h, { hue: h }])),
 });
@@ -262,6 +308,7 @@ function sources(f) {
     { from: `promise.${f.promise}`, ...PROMISES[f.promise] }, { from: `form.${f.form}`, ...FORMS[f.form] },
     { from: `eyes.${f.eyes}`, ...EYES[f.eyes] }, { from: `hook.${f.hook}`, ...HOOKS[f.hook] }, { from: `accent.${f.accent}`, ...ACCENTS[f.accent] },
     { from: `extremities.${f.extremities}`, ...EXTREMITIES[f.extremities] }, { from: `energy.${f.energy}`, ...ENERGIES[f.energy] },
+    { from: `being.${f.being}`, ...BEINGS[f.being] }, { from: `expression.${f.expression}`, ...EXPRESSIONS[f.expression] },
   ];
 }
 
@@ -277,7 +324,7 @@ function compose(f) {
       (derives[ch] ||= []).push(d);
     }
   }
-  (notes.palette ||= []).push({ line: `${f.hue}: the body's colour, owned`, from: `hue.${f.hue}` });
+  (notes.palette ||= []).push(f.being === 'human' ? { line: `${f.hue}: the clothes' colour, owned; ${f.skin} skin`, from: `hue.${f.hue}` } : { line: `${f.hue}: the body's colour, owned`, from: `hue.${f.hue}` });
   const ordered = (o) => Object.fromEntries(MASCOT_CHANNEL_IDS.filter((c) => o[c]).map((c) => [c, o[c]]));
   return { notes: ordered(notes), derives: ordered(derives) };
 }
@@ -306,7 +353,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     facets: Object.fromEntries(MASCOT_KEYS.map((k) => [k, f[k]])),
     given: MASCOT_KEYS.filter((k) => k in given),
     accord,
-    reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}`],
+    reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],
     notes, derives,
     unread: { words: fromBrief.unread },
     faults: broken.map((x) => ({ id: x.id, why: x.why, held: x.on.every((k) => asked.has(k)) })),

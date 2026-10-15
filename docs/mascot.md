@@ -85,10 +85,13 @@ every facet throws its die whether or not it is used.
 | `form` | orb (one head: the head is the body), sprout (about two), toon (about three) | 3, 10 |
 | `accent` | round, spike, block | 5: harmony when round, contrast otherwise |
 | `eyes` | pair, joined, dots | 4 |
-| `hook` | none, ears, quills, snout, tuft, antenna, tail, spines | 2: the one feature that breaks the outline |
+| `hook` | none, ears, quills, snout, tuft, antenna, tail, spines, cap, moustache | 2: the one feature that breaks the outline |
 | `extremities` | nubs (stub arms, oval feet), gloves (white gloves, big shoes), paws (mitts and paws in the body's colour) | 6 |
 | `energy` | bouncy, zippy, floaty, sturdy, swaying | 9: the idle |
-| `hue` | red, orange, yellow, green, teal, blue, purple, pink, brown, white | 7 |
+| `hue` | red, orange, yellow, green, teal, blue, purple, pink, brown, white | 7: the body's colour, or a person's clothes |
+| `being` | critter, human | a person drawn by the same laws (below) |
+| `skin` | porcelain, peach, tan, olive, brown, deep | 7: a person's skin, with its hair |
+| `expression` | happy, grin, content, determined, smirk, surprised, sad, angry, sleepy | 4, 9: the face at rest; the clips make the others |
 
 The promise sets the priors of the others. Speed leans toward spikes, the sprout form, joined eyes, gloves and a zippy
 idle in blue; comfort toward round, the orb, nubs and a swaying idle in pink. A brief word (`speedy`, `cuddly`,
@@ -96,7 +99,40 @@ idle in blue; comfort toward round, the orb, nubs and a swaying idle in pink. A 
 joined, quills, gloves, zippy and blue. A name is read as a style; nothing of the named design is copied.
 
 **Faults** are drawn again unless every facet in them was asked for: a soft promise (comfort, cheer) with a spiky
-accent, quills on a round accent, a tail or spines that the orb's ball would swallow, gloves on the orb's stubs.
+accent, quills on a round accent, a tail or spines that the orb's ball would swallow, gloves on the orb's stubs, and a
+snout, a tail, spines or paws on a person.
+
+## Human mascots
+
+A person can be a mascot too: Mario is one. The laws hold unchanged: one to three and a half heads tall, big eyes at
+the middle of the head, a round core, big hands and shoes, an owned palette. What changes is what the parts are. The
+head is skin; the hair is one chunky form (the head's ellipsoid again, a little larger, set up and back, so it covers
+the crown and sinks below the face), squared on a blocky accent and spiked when the hook is quills. A nose stands in the
+middle of the face in the accent's family (a ball, a point, a block); ears sit at the sides; the cheeks blush. The hue
+goes on the shirt, and the trousers take the accent (contrast) or the shirt's darker self (harmony). A cap is the
+person's classic hook: a high crown in the shirt's colour, a bill and an emblem. Brief words: `human`, `person`, `boy`,
+`girl`, `kid`, `man`, `woman`; `mario-like` reads as a capped, gloved, red person. The skin is a facet of its own
+(`skin`), as given, never derived from anything else.
+
+## The face and its expressions
+
+Law 4 says a mouth is drawn only when it acts. A mascot's mouth acts all the time, so it has one, low on the face (on
+the snout when there is one), and the face is rigged:
+
+- **Lids**: a lens of the face's colour over each eye, on its own bone. Open, it is turned up into the head and hidden
+  (its pivot is forward of the head's centre, so turning it up sinks it); turned down, it covers the eye.
+- **The mouth**: a dark lens with a tongue in it, and two lips of the face's colour over it. The upper lip turned down
+  hides the mouth from the top, and what shows is the bowl of the mouth under the lip's arc: a smile. The lower lip
+  turned up hides it from the bottom: a frown. Both lips apart make an O, and both meeting make a closed line.
+- **Brows**: a bar over each eye that lifts and tilts. They are drawn on a person and on most critters, but not on the
+  orb or on dot eyes, where the lids and the mouth carry the face.
+
+Every moving feature turns on a bone (rig chains `lidR`, `lidL`, `lipU`, `lipD`, `browLiftR`, `browLiftL`, `browR`,
+`browL`), so an expression is bone motion. It plays in the World's clips and exports in the skinned GLB like the
+walk does. The rest face is the sheet's `expression`, built into the geometry, so a still shows it. Each other
+expression is a clip of the same name (a body pose with its face), and there is a `blink`. The hop and the cheer change
+face as they go. Expressions turn the head only a little, because the face's chains turn in the figure's axes and a
+nodding head would slide its lids and lips off the face.
 
 ## From a sheet to a body
 
@@ -128,7 +164,10 @@ ledger says where each note landed.
   name) with no person's facet, years or lineage rolls a mascot; `tuning: 'person'` keeps the Egocube's method. `cute`,
   `kawaii` and `chibi` ask for nothing on their own: a cute knight is a person.
 - Revise in place with `update_character` patch ops: `/dials/lean`, `/dials/tilt`, or `/plan/...` for a measure.
+- The clips: `idle` (by energy), `hop`, `cheer`, `wave`, `blink`, and one per expression (`happy`, `grin`, `content`,
+  `determined`, `smirk`, `surprised`, `sad`, `angry`, `sleepy`).
 - The contact sheet for the eyes gate, from a repo checkout (`control/`):
   `MOJULO_SPIKE_OUT=/abs/dir node ../docs/examples/mascot/render-mascots.mjs 'sonic-like|kirby-like'`, one row per brief:
   the front, the three-quarter and the side at rest, then idle, cheer, the top of the hop and the wave. It is flat-lit
-  and diagnostic; the World page's character light is the look.
+  and diagnostic; the World page's character light is the look. `--faces` draws the faces close up instead: the rest
+  face, then every expression.
