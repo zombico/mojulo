@@ -12,54 +12,18 @@
  * import script rebuilding in place. Deterministic: same rows → same pack
  * bytes; the folder is wholly derived and clean-emitted on every build.
  */
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
-import { createHash } from 'node:crypto';
-import { manifestIdentity } from './engine-score.js';
-import { SketchRepository } from '@/lib/db/repositories/sketches';
-import { renderBed } from './engine-audio.js';
-import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
-import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { extractEngineScore, levelSoundtrack } from './engine-score.js';
 import { assessPortability } from './engine-portability.js';
 import { emitUnrealProject, emitUnrealGame, UNREAL_LEG_VERSION } from './unreal-project.js';
+import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, bedWriter, emitFolder } from './engines/pack.js';
 
-const hashOf = (m) => createHash('sha256').update(JSON.stringify(manifestIdentity(m))).digest('hex').slice(0, 16);
-
-function refuse(sketch, ref) {
-  const manifest = sketch?.manifest ?? {};
-  if (manifest.engine === 'pixelizer' || manifest.kind === 'pixelizer') {
-    throw new Error(`refused: '${ref}' is a pixelizer game — a 2D reducer is not a scene (export-unreal.plan.md)`);
-  }
-  return manifest;
-}
-
-// Same seam as the Godot and Unity legs: resolveWorldScene → facesToGlb →
-// engine score. One realizer — no parallel exporter math.
-async function resolveLevel(levelSketch, { clips, posture = null, lit = false }) {
-  // `lit` (lit-handoff.plan.md): the UNSHADED payload + real PBR materials, so the engine lights it
-  const { payload, kind } = await resolveWorldScene(levelSketch, lit ? { unshaded: true } : {});
-  if (!payload) {
-    throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
-  }
-  const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(lit ? { lit: true } : {}) });
-  const score = extractEngineScore(levelSketch, payload, { posture, engine: 'unreal' });
-  return { kind, exported, score, soundtrack: levelSoundtrack(levelSketch, payload) };
-}
+const refuse = (sketch, ref) => refusePixelizer(sketch, ref, 'a 2D reducer is not a scene (export-unreal.plan.md)');
 
 async function writePack({ outDir, binaries, emitted, portability }) {
-  await fs.rm(outDir, { recursive: true, force: true });
-  await fs.mkdir(outDir, { recursive: true });
-  const written = [];
-  const writeOut = async (rel, data) => {
-    const abs = path.join(outDir, rel);
-    await fs.mkdir(path.dirname(abs), { recursive: true });
-    await fs.writeFile(abs, data);
-    written.push({ file: rel, bytes: Buffer.byteLength(data) });
-  };
-  for (const b of binaries) await writeOut(b.rel, b.bytes);
-  for (const f of emitted.files) await writeOut(f.file, f.text);
-  await writeOut('portability.json', JSON.stringify(portability, null, 2));
+  const { written } = await emitFolder({ outDir, files: [
+    ...binaries.map((b) => ({ rel: b.rel, data: b.bytes })),
+    ...emitted.files.map((f) => ({ rel: f.file, data: f.text })),
+    { rel: 'portability.json', data: JSON.stringify(portability, null, 2) },
+  ] });
   return written;
 }
 
@@ -67,23 +31,18 @@ async function writePack({ outDir, binaries, emitted, portability }) {
  * per-handoff greybox/final declaration (engine-score.js); absent, the
  * world manifest's own `posture` still applies as the durable default. */
 export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
-  const sketch = SketchRepository.getByRef(ref);
-  if (!sketch) throw new Error(`sketch '${ref}' not found`);
+  const sketch = loadSketch(ref);
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — game scope is the U1 track (export-unreal.plan.md)`);
-  const { kind, exported, score, soundtrack } = await resolveLevel(sketch, { clips, posture, lit });
+  const { kind, exported, score, soundtrack } = await resolveLevel(sketch, { engine: 'unreal', clips, posture, lit });
   log(`resolved '${ref}' (kind ${kind}) — GLB ${exported.byteLength} bytes, ${exported.animationCount ?? 0} animations`);
   const binaries = [
     { rel: 'model.glb', bytes: exported.bytes },
     { rel: 'score.json', bytes: JSON.stringify(score, null, 2) },
     { rel: `recipe/${ref}.json`, bytes: JSON.stringify(manifest, null, 2) },
   ];
-  let audioFile = null;
-  if (score.soundtrack) {
-    binaries.push({ rel: `audio/${score.soundtrack}.wav`, bytes: await renderBed(score.soundtrack, { recipe: soundtrack?.recipe, log }) });
-    audioFile = `audio/${score.soundtrack}.wav`;
-  }
-  const manifestHash = hashOf(manifest);
+  const audioFile = await bedWriter({ binaries, log }).put(score.soundtrack, null, { recipe: soundtrack?.recipe });
+  const manifestHash = packHash(manifest);
   const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'unreal' });
   const emitted = emitUnrealProject({
     ref, score, manifestHash, audioFile, lit,
@@ -92,10 +51,7 @@ export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', postur
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
     scope: 'world', ref, dir: outDir, manifestHash, legVersion: UNREAL_LEG_VERSION,
-    glbStats: {
-      bytes: exported.byteLength, nodes: exported.nodeCount, triangles: exported.triangleCount,
-      animations: exported.animationCount ?? 0, cameras: exported.cameraCount ?? 0, entities: exported.entityCount ?? 0,
-    },
+    glbStats: worldGlbStats(exported),
     written, ledger: emitted.ledger, portability,
   };
 }
@@ -107,35 +63,26 @@ export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', postur
  * game declares menu music (Unity's dedupe silently dropped it when the menu
  * bed was already some level's soundtrack). */
 export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
-  const sketch = SketchRepository.getByRef(ref);
-  if (!sketch) throw new Error(`sketch '${ref}' not found`);
-  const manifest = refuse(sketch, ref);
-  if (manifest.kind !== 'game') throw new Error(`'${ref}' is kind '${manifest.kind ?? '?'}' — world scope is buildUnrealWorldPack`);
-  const packPosture = posture ?? manifest.posture ?? null;
+  const manifest = refuse(loadSketch(ref), ref);
+  const specs = gameLevels(manifest, ref);
+  const posturePack = packPosture(posture, manifest);
 
   const music = manifest.music ?? {};
   const battle = Array.isArray(music.battle) ? music.battle : [];
-  const beds = new Map(); // beatsRef -> wav bytes (rendered once, written per rel)
   const binaries = [];
-  const bed = async (beatsRef, rel, recipe = null) => {
-    if (!beds.has(beatsRef)) beds.set(beatsRef, await renderBed(beatsRef, { recipe, log }));
-    if (!binaries.some((b) => b.rel === rel)) binaries.push({ rel, bytes: beds.get(beatsRef) });
-  };
+  const beds = bedWriter({ binaries, log });
 
   const levels = [];
   const glbStats = { levels: {} };
-  const specs = Array.isArray(manifest.levels) ? manifest.levels : [];
-  if (!specs.length) throw new Error(`game '${ref}' declares no levels`);
   for (let i = 0; i < specs.length; i++) {
     const spec = specs[i];
-    const lvSketch = SketchRepository.getByRef(spec.ref);
-    if (!lvSketch) throw new Error(`game '${ref}' level '${spec.ref}' not found`);
-    const { exported, score, soundtrack } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit });
+    const lvSketch = loadSketch(spec.ref);
+    const { exported, score, soundtrack } = await resolveLevel(lvSketch, { engine: 'unreal', clips, posture: posturePack, lit });
     // The battle rotation, stamped into DATA (the shipped Unity/Godot
     // behavior): a level without its own soundtrack gets the game's rotation
     // pick baked into its sidecar copy — the kernel never knows a rotation.
     if (!score.soundtrack && battle.length) score.soundtrack = battle[i % battle.length];
-    if (score.soundtrack) await bed(score.soundtrack, `audio/${score.soundtrack}.wav`, score.soundtrack === soundtrack?.id ? soundtrack.recipe : null);
+    await beds.put(score.soundtrack, null, { recipe: score.soundtrack === soundtrack?.id ? soundtrack.recipe : null });
     binaries.push({ rel: `levels/${spec.ref}/model.glb`, bytes: exported.bytes });
     binaries.push({ rel: `levels/${spec.ref}/score.json`, bytes: JSON.stringify(score, null, 2) });
     binaries.push({ rel: `recipe/${spec.ref}.json`, bytes: JSON.stringify(lvSketch.manifest, null, 2) });
@@ -145,12 +92,12 @@ export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture
     levels.push({ ref: spec.ref, title: spec.title, gate: spec.gate, score });
     log(`level '${spec.ref}' resolved — GLB ${exported.byteLength} bytes${score.soundtrack ? `, bed ${score.soundtrack}` : ''}`);
   }
-  if (music.menu) await bed(music.menu, 'audio/menu.wav');
+  await beds.put(music.menu, 'audio/menu.wav');
 
   binaries.push({ rel: 'game.json', bytes: JSON.stringify(manifest, null, 2) });
   binaries.push({ rel: 'recipe/game.json', bytes: JSON.stringify(manifest, null, 2) });
 
-  const manifestHash = hashOf(manifest);
+  const manifestHash = packHash(manifest);
   const portability = assessPortability({ manifest, levels, engine: 'unreal' });
   const emitted = emitUnrealGame({ lit,
     ref, manifest, levels, manifestHash,

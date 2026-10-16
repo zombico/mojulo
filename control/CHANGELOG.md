@@ -52,6 +52,12 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   optional workers (`lib/workers/find.js`: `MOJULO_LUNE`, `MOJULO_ROJO`, a Roblox toolchain manager's or cargo's bin).
 - The bus corpus gains words beyond ASCII (`text`: a spawn id hashed over UTF-16 code units, accented and astral words
   matched and stored) and the one place UTF-16 order and code point order part (`text-order`).
+- **One pack pipeline.** `scene/engines/pack.js` holds what every pack is built from: the row and its pixelizer
+  refusal, the recipe's hash, the level seam (resolveWorldScene → facesToGlb → the engine's score, the bus, the
+  level's sound), a game's levels and posture, the music beds, and the clean emit that keeps the developer's folder.
+  The Godot, Unity and Unreal legs compose it and keep only their own layout, sidecars and music policy; Blender and
+  the arcade leg take its front. Every pack is byte-identical but one: a Unity game whose menu music is also a
+  level's now ships `audio/menu.wav` (the importer probes it; the old dedupe dropped it, as Unreal's already did not).
 
 ### Desktop export: a game as an app, the engines as translations
 

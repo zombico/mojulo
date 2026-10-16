@@ -12,42 +12,25 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
-import { manifestIdentity } from './engine-score.js';
-import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { renderBed, renderSound } from './engine-audio.js';
-import { levelSound } from './engine-sound.js';
-import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
-import { facesToGlb } from '@/lib/graph/scene/scene-gltf';
-import { extractEngineScore, extractBus, levelSoundtrack } from './engine-score.js';
 import { synthesizeLevel } from '../game/level-synth.js';
 import { normalizeLevelContract } from '../game/level-contract.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
 import { bakeFps, bakeImport } from './godot-bake.js';
 import { isHumanoidRig, humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
-import { tposeRig, withProfileJoints } from '../figures/rig-tpose.js';
+import { withProfileJoints } from '../figures/rig-tpose.js';
+import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder, figureClipNames, layeredFigure } from './engines/pack.js';
+
+export { layeredFigure };
 
 // cwd-anchored (the control process and the CLI both run from control/) —
 // lib files may be bundled, so import.meta-relative paths are not reliable.
 const kernelDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-kernel');
 
-const hashOf = (m) => createHash('sha256').update(JSON.stringify(manifestIdentity(m))).digest('hex').slice(0, 16);
 const toDb = (v) => (Number.isFinite(v) && v > 0 ? 20 * Math.log10(v) : null);
 
-function refuse(sketch, ref) {
-  const manifest = sketch?.manifest ?? {};
-  if (manifest.engine === 'pixelizer' || manifest.kind === 'pixelizer') {
-    throw new Error(`refused: '${ref}' is a pixelizer game — a 2D reducer is not a scene; it takes the arcade leg (export_game { target: 'godot' } on the game row)`);
-  }
-  return manifest;
-}
-
-/** A world's rigged LAYERED figure (station-loft-rig packLayeredRig: `layered: true`) as [name, figure], else null. */
-export const layeredFigure = (payload) => Object.entries(payload?.figures || {}).find(([, f]) => f?.rig === true && f.layered === true) ?? null;
-
-/** The clips of a figure the pack's GLB carries: every one under '_all', those a list names, none otherwise. */
-const figureClipNames = (clips, f) => (clips === '_all' ? Object.keys(f?.clips || {}) : Array.isArray(clips) ? clips.filter((c) => f?.clips?.[c]) : []);
+const refuse = (sketch, ref) => refusePixelizer(sketch, ref, "a 2D reducer is not a scene; it takes the arcade leg (export_game { target: 'godot' } on the game row)");
 
 /** The clip a figure's scene plays: `idle` when it has one, else the first clip with more than one key, else the first
  * (a one-key stand holds). */
@@ -116,27 +99,6 @@ export function frameFigure(cam, f, clipNames = [], mpu = 1) {
   return { ...cam, translation: [0, 1, 2].map((c) => C[c] + d * B[c]) };
 }
 
-async function resolveLevel(levelSketch, { clips, posture = null, lit = false, figure = false, humanoid = false }) {
-  // `lit` (lit-handoff.plan.md): the UNSHADED payload + real PBR materials, so the engine lights it
-  const { payload, kind } = await resolveWorldScene(levelSketch, { ...(lit ? { unshaded: true } : {}), ...(figure && clips ? { face: true } : {}) });
-  if (!payload) {
-    throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
-  }
-  // a standalone world whose figure is a rigged layered solid ships it SKINNED (one mesh, its clips: the bytes export_model
-  // { clips, skinned: true } writes) instead of rigid per-bone parts, when the GLB carries at least one of its clips;
-  // every other payload as before
-  const found = figure ? layeredFigure(payload) : null;
-  const fig = found && figureClipNames(clips, found[1]).length ? found : null;
-  // a HUMANOID figure (`humanoid`, the world pack) ships the engine skeleton export_model { humanoid: true, rest: 'tpose' }
-  // writes: re-rested in the VRM T-pose, its joints VRM-named and nested, every clip re-expressed (the same motion), so
-  // the pack's BoneMap (godot-humanoid.js) can hand it to Godot's retargeter; `fig` stays the authored pack
-  const engine = fig && humanoid && Array.isArray(fig[1].bones) && isHumanoidRig(fig[1].bones) ? (fig[1].tpose ? fig[1] : tposeRig(fig[1])) : null;
-  const glbPayload = engine ? { ...payload, figures: { ...payload.figures, [fig[0]]: engine } } : payload;
-  const exported = facesToGlb(glbPayload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(engine ? { humanoid: true } : {}), ...(lit ? { lit: true } : {}) });
-  const score = extractEngineScore(levelSketch, payload, { posture, engine: 'godot' });
-  return { kind, exported, score, fig, engine, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload), sound: levelSound(payload.audio, levelSketch.ref) };
-}
-
 /** A level's sound into the pack (engine-sound.js): every take of every one-shot to audio/sfx/<id>_<n>.wav and the fight
  * score to audio/<ref>-combat.wav, each rendered once per pack (`seen`: levels of one game share a cue's file). */
 async function packSound(sound, { binaries, seen, log }) {
@@ -169,13 +131,6 @@ export const OWNED_DIR = 'game';
  * + a kernel dir copied verbatim. Shared with the arcade leg (godot-arcade.js),
  * which brings its own kernel and no engine-score portability. */
 export async function writePack({ outDir, binaries, emitted, portability = null, kernelSrc = kernelDir() }) {
-  // `game/` is the developer's (OWNED_DIR): a re-mint keeps it whole, and writes its seed files only where missing
-  const owned = path.join(outDir, OWNED_DIR), kept = `${outDir}.${OWNED_DIR}-${process.pid}`;
-  const hasOwned = await fs.stat(owned).then((st) => st.isDirectory(), () => false);
-  if (hasOwned) { await fs.rm(kept, { recursive: true, force: true }); await fs.rename(owned, kept); }
-  await fs.rm(outDir, { recursive: true, force: true });
-  await fs.mkdir(outDir, { recursive: true });
-  if (hasOwned) await fs.rename(kept, owned);
   // every GLB whose clips' keys fall between Godot's default samples imports at its own bake rate (bakeFps)
   const files = emitted.files.slice();
   for (const b of binaries) {
@@ -186,23 +141,15 @@ export async function writePack({ outDir, binaries, emitted, portability = null,
     if (at >= 0) files[at] = { ...files[at], text: files[at].text.replace('\n[params]\n\n', `\n[params]\n\nanimation/fps=${fps}\n`) };
     else files.push({ file: `${b.rel}.import`, text: bakeImport(fps) });
   }
-  const written = [];
-  const writeOut = async (rel, data) => {
-    const abs = path.join(outDir, rel);
-    await fs.mkdir(path.dirname(abs), { recursive: true });
-    await fs.writeFile(abs, data);
-    written.push({ file: rel, bytes: Buffer.byteLength(data) });
-  };
-  for (const b of binaries) await writeOut(b.rel, b.bytes);
-  for (const f of files) {
-    if (f.seed && await fs.stat(path.join(outDir, f.file)).then(() => true, () => false)) continue;   // the developer's copy wins
-    await writeOut(f.file, f.text);
-  }
+  // `game/` is the developer's (OWNED_DIR): a re-mint keeps it whole, and writes its seed files only where missing
+  const { written, writeOut } = await emitFolder({ outDir, keep: OWNED_DIR, files: [
+    ...binaries.map((b) => ({ rel: b.rel, data: b.bytes })),
+    ...files.map((f) => ({ rel: f.file, data: f.text, ...(f.seed ? { seed: true } : {}) })),
+  ] });
   if (portability) await writeOut('portability.json', JSON.stringify(portability, null, 2));
-  const src = kernelSrc;
-  await fs.cp(src, path.join(outDir, 'kernel'), { recursive: true });
-  for (const k of await fs.readdir(src)) {
-    written.push({ file: `kernel/${k}`, bytes: (await fs.stat(path.join(src, k))).size });
+  await fs.cp(kernelSrc, path.join(outDir, 'kernel'), { recursive: true });
+  for (const k of await fs.readdir(kernelSrc)) {
+    written.push({ file: `kernel/${k}`, bytes: (await fs.stat(path.join(kernelSrc, k))).size });
   }
   return written;
 }
@@ -215,12 +162,11 @@ export async function kernelVersion() {
  * per-handoff greybox/final declaration (engine-score.js); absent, the
  * world manifest's own `posture` still applies as the durable default. */
 export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture = null, lit = false, humanoid = false, log = () => {} }) {
-  const sketch = SketchRepository.getByRef(ref);
-  if (!sketch) throw new Error(`sketch '${ref}' not found`);
+  const sketch = loadSketch(ref);
   const manifest = refuse(sketch, ref);
   if (manifest.kind === 'game') throw new Error(`'${ref}' is a game — use buildGodotGamePack`);
   const version = await kernelVersion();
-  const { kind, exported, score, fig, engine, bus, soundtrack, sound } = await resolveLevel(sketch, { clips, posture, lit, figure: true, humanoid });
+  const { kind, exported, score, fig, engine, bus, soundtrack, sound } = await resolveLevel(sketch, { engine: 'godot', clips, posture, lit, figure: true, humanoid });
   // the figure's scene (godot-project.js FIGURE_VIEW_GD): the clip it plays and the authored view that frames it (the
   // score's 'three-quarter' camera, else its first). The ANIME hero's figure adds its clips' designed durations (`s` on
   // the packed clip; hero-gesture heroClipSeconds) and whether its mesh carries the face (anime-face-rig.js; its scene is
@@ -253,24 +199,17 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
     ...(bus ? [{ rel: 'bus.json', bytes: JSON.stringify(bus) }] : []),
     { rel: `recipe/${ref}.json`, bytes: JSON.stringify(manifest, null, 2) },
   ];
-  let audioFile = null;
-  if (score.soundtrack) {
-    binaries.push({ rel: `audio/${score.soundtrack}.wav`, bytes: await renderBed(score.soundtrack, { recipe: soundtrack?.recipe, log }) });
-    audioFile = `audio/${score.soundtrack}.wav`;
-  }
+  const audioFile = await bedWriter({ binaries, log }).put(score.soundtrack, null, { recipe: soundtrack?.recipe });
   await packSound(sound, { binaries, seen: new Set(), log });
   const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'godot' });
   const emitted = emitGodotProject({
-    ref, score, manifestHash: hashOf(manifest), glbFile: 'model.glb', audioFile,
+    ref, score, manifestHash: packHash(manifest), glbFile: 'model.glb', audioFile,
     kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, figure, portability,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
-    scope: 'world', ref, dir: outDir, manifestHash: hashOf(manifest), kernelVersion: version,
-    glbStats: {
-      bytes: exported.byteLength, nodes: exported.nodeCount, triangles: exported.triangleCount,
-      animations: exported.animationCount ?? 0, cameras: exported.cameraCount ?? 0, entities: exported.entityCount ?? 0,
-    },
+    scope: 'world', ref, dir: outDir, manifestHash: packHash(manifest), kernelVersion: version,
+    glbStats: worldGlbStats(exported),
     written, ledger: emitted.ledger, portability, sceneChecks: [], ...(figure ? { figure } : {}),
   };
 }
@@ -278,8 +217,7 @@ export async function buildGodotWorldPack({ ref, outDir, clips = '_all', posture
 /** A game → menu + gated levels + music beds pack at outDir. `posture`
  * (or the game manifest's own) stamps every level pack-wide. */
 export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture = null, lit = false, log = () => {} }) {
-  const sketch = SketchRepository.getByRef(ref);
-  if (!sketch) throw new Error(`sketch '${ref}' not found`);
+  const sketch = loadSketch(ref);
   // A pixelizer game is a reducer, not a scene: it takes the arcade leg
   // (its own kernel, no GLB, a replay probe instead of the scene gates).
   if (sketch.manifest?.engine === 'pixelizer' && sketch.manifest?.kind === 'game') {
@@ -287,27 +225,15 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     return buildGodotArcadePack({ ref, outDir, log });
   }
   const manifest = refuse(sketch, ref);
-  if (manifest.kind !== 'game') throw new Error(`'${ref}' is not a game (kind '${manifest.kind ?? 'none'}')`);
-  const levelSpecs = Array.isArray(manifest.levels) ? manifest.levels : [];
-  if (!levelSpecs.length) throw new Error(`game '${ref}' declares no levels`);
-  // pack-wide declaration: explicit wins, else the GAME manifest's durable
-  // default; a level manifest's own posture still applies absent both.
-  const packPosture = posture ?? manifest.posture ?? null;
+  const levelSpecs = gameLevels(manifest, ref);
+  const posturePack = packPosture(posture, manifest);
   const version = await kernelVersion();
 
   const music = manifest.music ?? {};
   const battle = Array.isArray(music.battle) ? music.battle : [];
   const battleDb = toDb(music.battleVolume);
   const binaries = [];
-  const beds = new Map();
-  const bed = async (beatsRef, recipe = null) => {
-    if (!beatsRef) return null;
-    if (!beds.has(beatsRef)) {
-      binaries.push({ rel: `audio/${beatsRef}.wav`, bytes: await renderBed(beatsRef, { recipe, log }) });
-      beds.set(beatsRef, `audio/${beatsRef}.wav`);
-    }
-    return beds.get(beatsRef);
-  };
+  const beds = bedWriter({ binaries, log });
 
   const seen = new Set();
   const levels = [];
@@ -315,12 +241,11 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
   const sceneChecks = [];
   for (let i = 0; i < levelSpecs.length; i++) {
     const spec = levelSpecs[i];
-    const lvSketch = SketchRepository.getByRef(spec.ref);
-    if (!lvSketch) throw new Error(`level '${spec.ref}' not found`);
-    const { exported, score, bus, soundtrack, sound } = await resolveLevel(lvSketch, { clips, posture: packPosture, lit, figure: true });
+    const lvSketch = loadSketch(spec.ref);
+    const { exported, score, bus, soundtrack, sound } = await resolveLevel(lvSketch, { engine: 'godot', clips, posture: posturePack, lit, figure: true });
     log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}' — GLB ${exported.byteLength} bytes`);
     const own = score.soundtrack;
-    const audioFile = own ? await bed(own, soundtrack?.recipe) : await bed(battle[i % Math.max(battle.length, 1)]);
+    const audioFile = own ? await beds.put(own, null, { recipe: soundtrack?.recipe }) : await beds.put(battle[i % Math.max(battle.length, 1)]);
     await packSound(sound, { binaries, seen, log });
     binaries.push({ rel: `levels/${spec.ref}/model.glb`, bytes: exported.bytes });
     binaries.push({ rel: `levels/${spec.ref}/score.json`, bytes: JSON.stringify(score, null, 2) });
@@ -336,28 +261,26 @@ export async function buildGodotGamePack({ ref, outDir, clips = '_all', posture 
     glbStats.levels[spec.ref] = { bytes: exported.byteLength, triangles: exported.triangleCount, animations: exported.animationCount ?? 0, ...(exported.skinnedFigures ? { skinned: exported.skinnedFigures } : {}) };
     sceneChecks.push(`res://levels/${spec.ref}/level.tscn`);
   }
-  const menuFile = await bed(music.menu);
+  const menuFile = await beds.put(music.menu);
   // the stingers (game music.victory / music.defeat): one pass each, played by kernel/game.gd when a level ends
   const stingers = [];
   for (const k of ['victory', 'defeat']) {
-    if (!music[k]) continue;
-    binaries.push({ rel: `audio/stinger-${k}.wav`, bytes: await renderBed(music[k], { loop: false, log }) });
-    stingers.push(k);
+    if (await beds.put(music[k], `audio/stinger-${k}.wav`, { loop: false })) stingers.push(k);
   }
   binaries.push({ rel: 'game.json', bytes: JSON.stringify(manifest, null, 2) });
   binaries.push({ rel: 'recipe/game.json', bytes: JSON.stringify(manifest, null, 2) });
 
   const portability = assessPortability({ manifest, levels: levels.map((l) => ({ ref: l.ref, score: l.score })), engine: 'godot' });
   const emitted = emitGodotGame({
-    ref, title: manifest.title ?? ref, manifestHash: hashOf(manifest), levels,
+    ref, title: manifest.title ?? ref, manifestHash: packHash(manifest), levels,
     store: Array.isArray(manifest.store?.slices) && manifest.store.slices.length > 0,
     music: { menuFile, menuDb: toDb(music.menuVolume), stingers },
-    shellExtras: ['menu', 'setup', 'difficulty', 'theme', 'front'].filter((k) => manifest[k] != null),
+    shellExtras: shellExtras(manifest),
     kernelVersion: version, remint: `node scripts/export-godot.mjs --ref ${ref}`, portability,
   });
   const written = await writePack({ outDir, binaries, emitted, portability });
   return {
-    scope: 'game', ref, dir: outDir, manifestHash: hashOf(manifest), kernelVersion: version,
+    scope: 'game', ref, dir: outDir, manifestHash: packHash(manifest), kernelVersion: version,
     glbStats, written, ledger: emitted.ledger, portability, sceneChecks,
   };
 }
