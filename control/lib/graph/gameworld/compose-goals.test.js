@@ -68,9 +68,14 @@ describe('composed goals: what a level is played for, read from the prompt', () 
     expect(w.brief.goal).toBeUndefined();
     expect(Object.values(w.levels).every((l) => l.goal === undefined)).toBe(true);
     expect(fingerprint(w)).toBe('31e98788');
-    expect(fingerprint(runSteps(w, { ref: 'gw' }).map((s) => s.order))).toBe('7617ee3d');
-    expect(fingerprint(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order))).toBe('c42f5e2b');
-    expect(fingerprint(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order))).toBe('35dcc6ea');
+    // (the game order now asks for the audit, its levels being reach-exit (first-frame checks, runner.js): the orders
+    // without that one flag are the print taken before levels could carry a goal)
+    const orders = runSteps(w, { ref: 'gw' }).map((s) => s.order);
+    expect(orders.at(-1).auto_audit).toBe(true);
+    const unaudited = (os) => os.map((o) => (o && 'auto_audit' in o ? (({ auto_audit: _a, ...x }) => x)(o) : o));
+    expect(fingerprint(unaudited(orders))).toBe('7617ee3d');
+    expect(fingerprint(unaudited(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).map((s) => s.order)))).toBe('c42f5e2b');
+    expect(fingerprint(unaudited(runSteps(MEADOWMARK_HERO, { ref: 'gw' }).map((s) => s.order)))).toBe('35dcc6ea');
   }, 300000);
 
   it('a dungeon is indoors: building levels in a room kit, the goals laid in their rooms, made by the run', () => {

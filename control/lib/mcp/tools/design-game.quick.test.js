@@ -68,7 +68,10 @@ describe('design_game quick', () => {
     expect(L.figures.hero).toMatchObject({ heroRef: 'm-hero', clips: { forward: 'run', turn: 'walk', idle: 'idle', leap: 'leap', squat: 'squat' } });
     expect(L.figures.hero.library).toBeUndefined();
     expect(L.entities[0].rule.collideHeight).toBeCloseTo(H.plan.mascot.height, 2);
-    expect(L.camera.dist).toBeLessThan(5.5);
+    // a mascot smaller than a person keeps a person's follow distance and stands small in the frame; the page's stand-off
+    // shrinks with its capsule (egocube/mascot-pilot.js, controllable/follow-pull-in.js): the scaled-down camera put the eye in its head
+    expect(L.camera.dist).toBe(5.5);
+    expect(L.camera.lookH).toBeLessThan(1.1);
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('m-level-run-0'));
     expect(Object.keys(payload.figures.hero.clips)).toEqual(expect.arrayContaining(['forward', 'turn', 'leap']));
     // a run again remakes nothing; a mascot made with create_character is adopted as the pilot by its ref
