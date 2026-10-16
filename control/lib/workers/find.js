@@ -95,7 +95,7 @@ export function workersPresent({ host = HOST, findSlicer, chromiumCandidates = [
       without: 'the data pack and importer are still written' },
     { id: 'unreal', found: findUnreal(host), env: 'MOJULO_UNREAL', uses: 'the advisory Unreal import gate',
       without: 'the data pack and plugin are still written' },
-    { id: 'electron', found: findElectron(host), env: 'MOJULO_ELECTRON', uses: 'the desktop app gate on an exported game (scripts/export-desktop.mjs)',
+    { id: 'electron', found: findElectron(host), env: 'MOJULO_ELECTRON', uses: 'the desktop app gate on an exported game (export_game target desktop, scripts/export-desktop.mjs)',
       without: 'the app folder is still written; the gate skips, or uses the folder\'s own install after npm install' },
     { id: 'slicer', found: slicer ? slicer.bin : null, env: 'MOJULO_SLICER', uses: 'slicing a print export (PrusaSlicer, SuperSlicer, OrcaSlicer, Bambu Studio)',
       without: 'the STL / 3MF and its print measure are still written; nothing is sliced' },

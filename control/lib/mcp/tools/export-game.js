@@ -43,6 +43,8 @@ import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { outcomeDirFor, outcomeUrlFor } from '@/lib/outcomes-paths';
 import { handoffForContext, fitsForContext } from '@/lib/mcp/hosts/handoff';
 import { ELECTRON_TARGET, DESKTOP_GITIGNORE, desktopMainJs, desktopPackageJson, desktopReadmeLines } from '@/lib/graph/game/desktop-shell';
+import { runDesktopGate, smokePages } from '@/lib/graph/game/desktop-gate';
+import { findElectron } from '@/lib/workers/find';
 
 // The recipe-hash style of image_render_requests.manifest_hash — short, stable,
 // enough to tie a published render back to the exact recipe that minted it.
@@ -257,6 +259,26 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
   return lines.join('\n');
 }
 
+// The desktop export's machine gate, run in the tool when this host has Electron (lib/workers/find.js, the CLI's own
+// search: MOJULO_ELECTRON, the folder's node_modules/.bin/electron, `electron` on the PATH): main.js in its
+// `--mojulo-smoke` mode loads the shell and the first level hidden (desktop-gate.js). Advisory: it stamps what it saw and
+// never fails the export. Bounded: the app reports by DESKTOP_SMOKE_MS and is killed 15 s after. No Electron: skipped,
+// and the answer says so; mojulo never installs it. `find` / `run` are injectable for tests.
+export const DESKTOP_SMOKE_MS = 60_000;
+export async function desktopSmoke({ dir, files, find = findElectron, run = runDesktopGate } = {}) {
+  const electron = find(undefined, { dir });
+  if (!electron) {
+    return { ran: false, skipped: 'no Electron on this host (MOJULO_ELECTRON, the folder\'s node_modules/.bin/electron, or `electron` on the PATH): the app folder is written, the smoke did not run' };
+  }
+  const pages = smokePages(files);
+  const t0 = Date.now();
+  const gate = await run({ dir, electron, pages, timeoutMs: DESKTOP_SMOKE_MS + 15_000, env: { MOJULO_SMOKE_TIMEOUT_MS: String(DESKTOP_SMOKE_MS) } });
+  const ms = Date.now() - t0;
+  if (!gate.ran) return { ran: false, skipped: gate.skipped, electron };
+  const { ran: _ran, ...report } = gate;
+  return { ran: true, ...report, ok: report.ok === true, electron, ms, eyes_gate: 'not run: the smoke saw pages load hidden, not how the game looks or plays (npm install && npm start, then play a level)' };
+}
+
 // Every folder export says the next move on THIS host (remote-worker exports P4): the
 // single-file pixelizer game is a page; a shell game is a folder that needs an HTTP server,
 // so its door is the branch or the disk, never a single download.
@@ -267,7 +289,8 @@ function withHandoff(result, context, artifact) {
   return result;
 }
 
-export async function exportGameHandler(input, context = {}) {
+// `deps.smoke`: false skips the desktop smoke (the CLI runs its own, with --electron / --no-gate); { find, run } inject it.
+export async function exportGameHandler(input, context = {}, deps = {}) {
   if (!input || typeof input !== 'object') throw new Error('export_game requires { ref }');
   const { ref, target, posture = null, cdn: cdnInput = false } = input;
   // The Claude plugin profile (lib/mcp/plugin-profile.js) writes only self-contained pages, and so does a desktop
@@ -434,13 +457,14 @@ export async function exportGameHandler(input, context = {}) {
     await write('main.js', desktopMainJs(app));
     await write('.gitignore', DESKTOP_GITIGNORE);
   };
-  const desktopResult = () => (desktop ? {
+  const desktopResult = async () => (desktop ? {
     target: 'desktop',
     desktop: {
       electron: ELECTRON_TARGET,
       play: `cd ${dir} && npm install && npm start`,
       package: 'npm run package (an unsigned app for this machine, under dist/)',
-      gate: `node scripts/export-desktop.mjs --ref ${ref} launches it hidden and reports what failed to load`,
+      gate: `node scripts/export-desktop.mjs --ref ${ref} runs the smoke below from a shell (--electron <path> to name the binary)`,
+      ...(deps.smoke === false ? {} : { smoke: await desktopSmoke({ dir, files, ...(deps.smoke || {}) }) }),
     },
     ...(cdnInput && !pluginBuild ? { cdn_note: '`cdn: true` was ignored: a desktop app inlines three.js so it plays offline.' } : {}),
   } : {});
@@ -458,7 +482,7 @@ export async function exportGameHandler(input, context = {}) {
       preview_url: `${outcomeUrlFor(ref)}game.html`,
       files, total_bytes: totalBytes,
       note: 'Single-file reducer game — game.html plays anywhere, file:// included.',
-      ...desktopResult(),
+      ...(await desktopResult()),
     }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
   }
 
@@ -635,7 +659,7 @@ export async function exportGameHandler(input, context = {}) {
     } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
     ...(pluginBuild && cdnInput ? { cdn_note: '`cdn: true` was ignored: the Claude plugin build of mojulo writes only self-contained pages.' } : {}),
-    ...desktopResult(),
+    ...(await desktopResult()),
   }, context, { kind: 'folder', name: 'game.html', path: dir, dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
 }
 

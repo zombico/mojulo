@@ -97,4 +97,17 @@ describe('desktop-gate', () => {
     expect(parseSmoke('no line')).toBe(null);
     expect(await runDesktopGate({ dir: '/x', electron: null, pages: [] })).toMatchObject({ ran: false, skipped: expect.stringMatching(/MOJULO_ELECTRON/) });
   });
+
+  it('lays `env` over the environment for the app it launches (a stand-in Electron that prints the report)', async () => {
+    if (process.platform === 'win32') return;
+    const { runDesktopGate } = await import('./desktop-gate.js');
+    // `node -e` as the binary: argv is [dir, --mojulo-smoke, ...pages]; it echoes the bound back as the report
+    const d = mkdtempSync(path.join(tmpdir(), 'desk-gate-'));
+    const bin = path.join(d, 'electron');
+    writeFileSync(bin, `#!${process.execPath}\nprocess.stdout.write('MOJULO_SMOKE ' + JSON.stringify({ ok: true, t: process.env.MOJULO_SMOKE_TIMEOUT_MS, pages: process.argv.slice(4) }) + '\\n');\n`, { mode: 0o755 });
+    const fake = { d, bin };
+    const r = await runDesktopGate({ dir: fake.d, electron: fake.bin, pages: ['game.html'], timeoutMs: 20000, env: { MOJULO_SMOKE_TIMEOUT_MS: '60000' } });
+    expect(r).toMatchObject({ ran: true, exit: 0, ok: true, t: '60000', pages: ['game.html'] });
+    rmSync(d, { recursive: true, force: true });
+  });
 });
