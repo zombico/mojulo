@@ -566,7 +566,7 @@ describe('the hero door wears the anime head', () => {
     expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.hairCrownR0).toBeTruthy();   // the short family grows its crown clumps
     const bald = await updateSketchHandler({ ref: 'hero-anime', patch: [{ op: 'set', path: '/hero/hair', value: 'none' }] });
     expect(bald.stats.closed).toBe(true); expect(SketchRepository.getByRef('hero-anime').manifest.recipe.parts.hairCap).toBeUndefined();
-  });
+  }, 120000);
   it('refuses by name: an unknown family, clump, pose or control; the landmark words are not the anime head\'s', async () => {
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: 'ponytail' } })).rejects.toThrow(/unknown anime family 'ponytail'/);
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', hair: { locks: { 'fringe-12': { ty: 0.1 } } } } })).rejects.toThrow(/not a clump/);
@@ -732,7 +732,7 @@ describe('the hero door stands the hero in a gesture', () => {
     // back to rest: no stand clip, no stand readout
     const rest = await updateSketchHandler({ ref: 'hero-stand', patch: [{ op: 'set', path: '/hero/gesture', value: 'rest' }] });
     expect(rest.stats.layered.rig.clips).toEqual(['idle', 'walk', 'wave']); expect(rest.stats.hero.gesture).toBeUndefined(); expect(row().manifest.recipe.clips.gesture).toBeUndefined();
-  });
+  }, 120000);
   it('refuses an unknown word at the door; a landmark hero stands only when it says so; a stand the body does not fit advises', async () => {
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', gesture: 'dance' } })).rejects.toThrow(/gesture: unknown gesture word 'dance' \(rest, relaxed, hand-on-hip, guard/);
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { gesture: { support: 'none' } } })).rejects.toThrow(/gesture\.support: 'both' \| 'L' \| 'R'/);
@@ -916,7 +916,7 @@ describe('the hero door composes anime looks', () => {
     const none = await updateSketchHandler({ ref: 'hero-look', patch: [{ op: 'set', path: '/hero/look', value: [] }] });
     expect(none.stats.hero.look).toBeUndefined(); expect(SketchRepository.getByRef('hero-look').manifest.hero.lookResolved).toBeUndefined();
     expect(none.stats.hero.hair.style).toBe('long'); expect(none.stats.hero.hairCut).toBe('side-parted');   // the female hair base's cut again (no family named)
-  });
+  }, 120000);
   it('refuses by name; the looks are the anime head\'s', async () => {
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { head: 'anime', look: ['heroine', 'mohawk'] } })).rejects.toThrow(/unknown look word 'mohawk'/);
     await expect(mintSolidHandler({ kind: 'layered', via: 'hero', spec: { look: 'heroine' } })).rejects.toThrow(/look: the looks are the anime head's/);

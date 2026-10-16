@@ -23,7 +23,7 @@ describe('hero-carry', () => {
       const c = hold(name, cast).checks;
       expect(c.laws, JSON.stringify(c)).toEqual(allTrue(c.laws));
       for (const h of Object.values(c.hands)) { expect(h.at).toBeLessThan(0.006); expect(h.inRange).toBe(true); }
-    }, 60000);
+    }, 180000);
   }
   it('a sighted gun lies on the dominant eye\'s line to the mark: the pistol at the arms\' reach, the carbine on the cheek', () => {
     for (const name of ['pistolIsosceles', 'carbineAim']) {

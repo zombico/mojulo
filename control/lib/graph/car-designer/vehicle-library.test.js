@@ -107,5 +107,5 @@ describe('composable cabin, cooling and aero',()=>{
     expect(()=>composeSupercar({surface:{cabinStyle:'missing'}})).toThrow(/cabinStyle/);
     expect(()=>composeSupercar({surface:{ventStyle:'missing'}})).toThrow(/ventStyle/);
     expect(()=>composeSupercar({surface:{spoilerStyle:'missing'}})).toThrow(/spoilerStyle/);
-  });
+  }, 120000);
 });

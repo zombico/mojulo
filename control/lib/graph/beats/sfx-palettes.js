@@ -150,6 +150,8 @@ export const MECHANIC_SFX = {
   clock: { dawn: 'chime', dusk: 'chime' },
   crops: { planted: 'thud', harvested: 'pickup', 'crops:late': 'lose' },
   aftermath: { 'broke:*': 'thud' },
+  frags: { kill: 'down', 'frags:won': 'goal', 'frags:lost': 'lose' },
+  control: { 'control:won': 'goal', 'control:lost': 'lose' },
 };
 
 // shift every pitched gesture by `k` semitones (note names only; Hz, materials sized in metres and noise stay put)

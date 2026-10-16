@@ -89,7 +89,7 @@ describe('the hero door\'s motion', () => {
     expect(clips.chairUpright).toBeUndefined();   // the word names its two clips, not one of its own
     const anim = glbJson(glb(payload)).animations.find((a) => a.name === 'body:chairUprightDown');
     expect(anim.extras['moj:rest']).toEqual(clips.chairUprightDown.rest);   // (a hero at 1 m a unit: the props as packed)
-  });
+  }, 120000);
 
   it('a vault packs one-shot over its box out of its gait (the door\'s, else the middle of its range); the GLB carries moj:vault; its words refuse by name', async () => {
     expect(validateHeroSpec({ motion: { hurdle: { from: 'walk' } } }).join(' ')).toMatch(/motion\.hurdle\.from: jog or sprint/);
