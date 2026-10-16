@@ -29,6 +29,7 @@
  *   finishFor(group, resolved)             the finish a palette group wears
  *   bakeChannels(mesh)                     per vertex { sky, occlusion, edge, height, rise }
  *   bakeTint(mesh, bake, { glows })        per face its corners' multipliers (the face-tint shape), or null
+ *   bakeSampler(mesh, bake, { glows })     { tint, groupTint(fi, group) }: a face's corners under any group's finish
  *   stackTints(a, b)                       two tints as one (corner by corner, the product)
  *
  * Pure, deterministic: fixed arithmetic over the mesh, no dice.
@@ -217,20 +218,29 @@ export function finishColour(F, ch, s = 1) {
 
 /** Per face of `mesh`, its three corners' [r, g, b] multipliers under `bake` (the face-tint shape: the World faces and the
  * rig pack carry it), or null for no bake. `glows`: the emissive groups, left untouched. */
-export function bakeTint(mesh, bake, { glows = [] } = {}) {
+export function bakeTint(mesh, bake, opts = {}) { return bakeSampler(mesh, bake, opts)?.tint ?? null; }
+
+/** The bake as a SAMPLER: `tint` (bakeTint's, each face under its own group's finish) and `groupTint(fi, group)`, face
+ * `fi`'s corners under ANOTHER group's finish (a field paint cell's: a gold charge on a cloth tabard bakes as gilt), null
+ * for an emissive group. The channels are read once. Null for no bake. */
+export function bakeSampler(mesh, bake, { glows = [] } = {}) {
   const B = resolveBake(bake); if (!B) return null;
   const ch = bakeChannels(mesh), lit = new Set(glows), fin = new Map();
-  return mesh.faces.map((t, fi) => {
-    const g = mesh.groups[fi]; if (lit.has(g)) return null;
+  const groupTint = (fi, g) => {
+    if (lit.has(g)) return null;
     let F = fin.get(g); if (!F) fin.set(g, F = finishFor(g, B));
-    return t.map((vi) => finishColour(F, { sky: ch.sky[vi], occlusion: ch.occlusion[vi], edge: ch.edge[vi], height: ch.height[vi], rise: ch.rise[vi] }, B.strength));
-  });
+    return mesh.faces[fi].map((vi) => finishColour(F, { sky: ch.sky[vi], occlusion: ch.occlusion[vi], edge: ch.edge[vi], height: ch.height[vi], rise: ch.rise[vi] }, B.strength));
+  };
+  return { tint: mesh.faces.map((_, fi) => groupTint(fi, mesh.groups[fi])), groupTint };
 }
+
+/** One face's two tints (either null) as one, corner by corner: the product. */
+export function stackFace(a, b) { if (!a) return b ?? null; if (!b) return a; return a.map((c, k) => c.map((x, j) => r4(x * b[k][j]))); }
 
 /** Two tints (either may be null, or hold null faces) as one: corner by corner, channel by channel, the product. */
 export function stackTints(a, b) {
   if (!a) return b ?? null; if (!b) return a;
-  return a.map((ta, fi) => { const tb = b[fi]; if (!ta) return tb ?? null; if (!tb) return ta; return ta.map((c, k) => c.map((x, j) => r4(x * tb[k][j]))); });
+  return a.map((ta, fi) => stackFace(ta, b[fi]));
 }
 
 /** The readout: each group's finish (a word, or 'inline'), and the occlusion's reach in metres. */

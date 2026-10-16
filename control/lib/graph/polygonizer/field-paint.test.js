@@ -97,6 +97,15 @@ describe('on a hero', () => {
     const gold = painted.faces.filter((f) => !plain.faces.some((g) => g.fill === f.fill)).length;
     expect(gold).toBeGreaterThan(0);
   }, 120000);
+  it('with the bake, a cell bakes under its own group\'s finish, in the World and the pack', async () => {
+    const fieldPaint = [{ part: 'torso', chart: 'ring', shape: 'circle', at: [0.5, 0.6], size: [0.3, 0.3], group: 'Emblem', color: '#d9b25a' }];
+    const as = (finish) => WORLD_KINDS.layered.resolve({ ...m, fieldPaint, bake: { finish: { Emblem: finish } } }, { title: 't' });
+    const metal = await as('metal'), cloth = await as('cloth');
+    // the emblem is the only group whose finish differs: under the face's finish (Top's) the two would be one
+    expect(JSON.stringify(metal.faces)).not.toBe(JSON.stringify(cloth.faces));
+    expect(metal.figures.body.parts.map((P) => P?.col)).not.toEqual(cloth.figures.body.parts.map((P) => P?.col));
+    expect(metal.faces.length).toBe(cloth.faces.length);
+  }, 120000);
   it('the mint refuses bad field paint by name', async () => {
     await expect(createLayeredHandler({ recipe: { parts: {} }, fieldPaint: [{ part: 'x', group: 'Y', shape: 'blob' }] })).rejects.toThrow(/fieldPaint refused:\n - fieldPaint\[0\]\.shape/);
   });

@@ -1,6 +1,6 @@
 // surface-bake: the bake stack's laws on one dressed hero (a ranger: a pauldron over the shoulder, a belt, a bracer).
 import { describe, it, expect } from 'vitest';
-import { FINISHES, FINISH_NAMES, validateBake, resolveBake, finishFor, finishColour, bakeChannels, bakeTint, stackTints, bakeReadout } from './surface-bake.js';
+import { FINISHES, FINISH_NAMES, validateBake, resolveBake, finishFor, finishColour, bakeChannels, bakeTint, bakeSampler, stackTints, bakeReadout } from './surface-bake.js';
 import { heroRecord, expandLayeredManifest, planLayered, createLayeredHandler } from '../../mcp/tools/layered.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 
@@ -91,6 +91,11 @@ describe('the channels on a dressed hero', () => {
     const half = T.map((f) => f && f.map(() => [0.5, 0.5, 0.5])), S = stackTints(half, T), fi = T.findIndex(Boolean);
     expect(S[fi][0][0]).toBeCloseTo(T[fi][0][0] * 0.5, 4);
     expect(stackTints(null, T)).toBe(T); expect(stackTints(T, null)).toBe(T);
+    // the sampler: a face under its own group is the tint; under another group's finish it differs; a glow is null
+    const S2 = bakeSampler(mesh, true, { glows: ['Leather'] }), top = mesh.groups.indexOf('Top');
+    expect(S2.groupTint(top, 'Top')).toEqual(T[top]);
+    expect(S2.groupTint(top, 'Plate')).not.toEqual(T[top]);
+    expect(S2.groupTint(top, 'Leather')).toBeNull();
     const R = bakeReadout(mesh, { finish: { Leather: 'scale' } });
     expect(R.finish.Leather).toBe('scale'); expect(R.finish.Iron).toBe('metal'); expect(R.finish.Top).toBe('cloth');
     expect(R.reach).toBeGreaterThan(0.04); expect(R.reach).toBeLessThan(0.09);

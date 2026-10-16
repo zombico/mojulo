@@ -34,8 +34,8 @@ colour per corner, the same in every pose and in the World page, the skinned GLB
 
 Paint by ring bands is the ring's height: a trim on a coarse ring is that ring's band, and an emblem smaller than a band
 is nothing. `fieldPaint` draws shapes on a layered row's surface and cuts them into its faces (the swimsuit's seat
-panels, made general), so a heraldic charge sits on a tabard, a dragon wears scale rows and belly scutes, and a hem
-band is as thin as it is drawn, on the rings the body already has.
+panels, made general), so a heraldic charge can sit on a tabard, a hide can wear scale rows and belly scutes, and a
+hem band is as thin as it is drawn, on the rings the body already has. Nothing wears it unless its recipe says so.
 
 - **`fieldPaint: [{ part, chart, shape | pattern, at, size, rotate, group, color, only }]`** on the manifest (the hero
   door and `create_character` take it; patch `/fieldPaint`). A chart is a projection from a side over the named parts
@@ -44,6 +44,7 @@ band is as thin as it is drawn, on the rings the body already has.
   square and brick cells, and bands. Entries paint in order; `only` repaints only the groups it names.
 - The World's faces and the skinned pack carry the same cells (each corner's skin blended from its face's). The mint
   reads out the faces and cells each entry touched, and says when one touches nothing.
+- **With `bake`, each cell bakes under its own group's finish**: a gold charge on a cloth tabard shines as gilt.
 - Absent `fieldPaint`, every face and pack is byte-identical.
 
 ### Shoot plan: a keyframed camera you can see in the world
