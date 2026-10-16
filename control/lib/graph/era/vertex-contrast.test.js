@@ -118,15 +118,28 @@ describe('contrast: each term moves what it should', () => {
       expect(g).toBeGreaterThanOrEqual(b);
     }
   });
-  it('leaves what lights itself, the air and unlit textures alone', () => {
+  it('leaves what lights itself, the air and a plant\'s exported tile alone', () => {
     const q = [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]];
     const kept = [
       { corners: q, fill: '#ff9a3c', emissive: [1, 0.6, 0.2] },
       { corners: q, fill: '#3a3028', group: 'stage:fixture' },
       { corners: q, fill: '#9ab0c0', group: 'isekai:ridge' },
-      { corners: q, fill: '#ffffff', texture: 'tile-a', uv: [[0, 0], [1, 0], [1, 1], [0, 1]] },
+      { corners: q, fill: '#6a7a4a', texture: 'bark', uv: [[0, 0], [1, 0], [1, 1], [0, 1]], plainFill: '#6a7a4a' },
     ];
     const out = contrastFaces(kept, vc({ ...readContrast('wii') }));
     out.forEach((f, i) => expect(f).toBe(kept[i]));
+  });
+  it('multiplies a painted tile by the shaping: its paint kept, its corners the multiplier from white', () => {
+    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]];
+    const card = { corners: [[0, 0, 0], [1, 0, 0], [1, 0, 2], [0, 0, 2]], normal: [0, -1, 0], fill: '#64474e', texture: 'card:grass', uv, group: 'isekai:grass' };
+    const ground = { corners: [[-2, -2, 0], [3, -2, 0], [3, 3, 0], [-2, 3, 0]], normal: [0, 0, 1], fill: '#5a9a3a', group: 'isekai:ground' };
+    const [c] = contrastFaces([card, ground], vc({ foot: { height: 1.6, depth: 0.5 } }));
+    expect(c).toMatchObject({ textureLit: true, texture: 'card:grass', fill: '#64474e' });
+    expect(lum(c.cornerFills[0])).toBeLessThan(lum(c.cornerFills[3]));   // darker at the root
+    expect(c.cornerFills[3]).toBe('#ffffff');
+    for (const h of c.cornerFills) expect(new Set([h.slice(1, 3), h.slice(3, 5), h.slice(5, 7)]).size).toBe(1);   // value only: a grey
+    // a texture one of whose faces cannot be multiplied is left whole
+    const held = contrastFaces([card, { ...card, plainFill: '#64474e' }, ground], vc({ foot: { height: 1.6, depth: 0.5 } }));
+    expect(held[0]).toBe(card);
   });
 });

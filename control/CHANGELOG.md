@@ -28,6 +28,9 @@ once over the finished faces of every world the cube paints.
 - **One pass for every piece.** A stage on the cube, the `geocube` specimens and a city painted by it carry the
   resolved contrast on their payload; the World page, the `.glb` (and so Godot, Unity and Unreal) and USD apply it
   right after the AO bake, which it takes over (its occlusion is tinted to the shade and folded in).
+- **Painted tiles are multiplied, not skipped.** A tile drawn unlit (a pixel-locked rock or cliff, a grass card)
+  keeps its paint and takes the shaping's value as texel × vertex colour, the era's own combine; its hue stays its
+  ramps'. A texture is taken this way only when every face drawn with it can be.
 - **The land hands its crease and ridge to the cube.** Under a cube with `contrast`, local meru's own crevice and
   ridge go to zero; its blend, smoothing and sun stay.
 - **A preset to start from: `valley-morning`**, a bright pastoral day with `contrast: 'wii'`.

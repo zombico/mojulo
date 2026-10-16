@@ -16,6 +16,11 @@
  * Every term is a multiplier on the baked colour, in linear light; every darkening leans to the shade colour, never to
  * black. Under a tone (`mode: 'value'`) only value moves: the tone's ramps colour it on the page.
  *
+ * A painted tile (a textured face drawn unlit: a pixel-locked rock, a grass card) keeps its paint and is MULTIPLIED by
+ * the shaping's value, the era's texel × vertex colour: it becomes `textureLit` with the multiplier, a grey from
+ * white, as its corner colours (its `fill` stays its own); its hue is its ramps', so the shaping leaves it. A texture is taken this way only when every face drawn with it can be, so no
+ * texture is half multiplied; a face with a `plainFill` (an instanced plant's export colour) keeps its texture as it is.
+ *
  *   CONTRAST_PRESETS          the starters (`wii`)
  *   readContrast(spec)        'wii' | { from?, …terms } | false | absent → the checked terms, or null
  *   contrastFaces(faces, vc)  a face list shaped by a resolved contrast (geocube.js cubeContrast resolves one)
@@ -29,7 +34,7 @@ const no = (msg) => { throw new Error(`contrast: ${msg}`); };
 
 /** The starters. Numbers are read off the era's frames by eye: the eyes gate's to move. */
 export const CONTRAST_PRESETS = Object.freeze({
-  wii: Object.freeze({ hemi: 0.55, foot: Object.freeze({ height: 1.6, depth: 0.4 }), crevice: 0.55, ridge: 0.35, contact: 0.7, warmCool: 0.45, variation: 0.3 }),
+  wii: Object.freeze({ hemi: 0.55, foot: Object.freeze({ height: 0.9, depth: 0.45 }), crevice: 0.55, ridge: 0.35, contact: 0.7, warmCool: 0.45, variation: 0.5 }),
 });
 export const CONTRAST_TERMS = Object.freeze(['hemi', 'foot', 'crevice', 'ridge', 'contact', 'warmCool', 'variation']);
 const UNIT_TERMS = CONTRAST_TERMS.filter((k) => k !== 'foot');
@@ -72,11 +77,12 @@ const lin = (c) => c.map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055
 const srgb = (c) => c.map((v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055));
 const toHex = (c) => '#' + c.map((v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, '0')).join('');
 const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-// a colour's hue at unit luminance, its channels held to [0.25, 2.5] so a saturated sky cannot blow a channel out
+// a colour's hue at unit luminance, half its chroma and each channel held to [0.5, 1.8]: a lean, never a cast (a
+// saturated shade at full chroma keeps four times its blue, and a pale tile under it turns lavender)
 function hat(hex) {
   const c = lin(hexRgb(hex)), l = lum(c);
   if (l < 1e-5) return [1, 1, 1];
-  const h = c.map((v) => Math.max(0.25, Math.min(2.5, v / l))), hl = lum(h);
+  const h = c.map((v) => Math.max(0.5, Math.min(1.8, 0.5 + 0.5 * v / l))), hl = lum(h);
   return h.map((v) => v / hl);
 }
 const mixv = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -107,11 +113,13 @@ const normalOf = (f) => (Array.isArray(f.outNormal) ? unit(f.outNormal) : Array.
 // a corner welded to its neighbours at a centimetre (the emitter's de-collide nudge is a twentieth of that)
 const keyOf = (c) => `${Math.round(c[0] * 100)},${Math.round(c[1] * 100)},${Math.round(c[2] * 100)}`;
 
+const WHITE = '#ffffff';
+// what a face is to the shaping: false (left alone), 'colour' (its baked colour shaped), 'tile' (a painted tile multiplied)
 function shapedFace(f) {
   if (!f || !Array.isArray(f.corners) || f.corners.length < 3) return false;
   if (f.emissive || f.glow || f.crystal || f.metal || f.water || SELF_LIT.has(f.group)) return false;
-  if (typeof f.texture === 'string' && !f.textureLit) return false;
-  return HEX.test(f.fill ?? '') || (Array.isArray(f.cornerFills) && f.cornerFills.length && f.cornerFills.every((h) => HEX.test(h)));
+  if (typeof f.texture === 'string' && !f.textureLit) return Array.isArray(f.uv) && !f.plainFill ? 'tile' : false;
+  return HEX.test(f.fill ?? '') || (Array.isArray(f.cornerFills) && f.cornerFills.length && f.cornerFills.every((h) => HEX.test(h))) ? 'colour' : false;
 }
 
 /** Concavity at every welded corner (ruleLand's measure on any soup): −0.5 a sharp ridge … +0.5 a sharp crease. */
@@ -173,8 +181,11 @@ function floorFinder(faces, idx, normals) {
  */
 export function contrastFaces(faces, vc) {
   if (!vc || !Array.isArray(faces) || !faces.length) return faces;
+  // a texture is multiplied only when every face drawn with it can be: one left out would be multiplied by its own fill
+  const how = faces.map(shapedFace), held = new Set();
+  faces.forEach((f, i) => { if (f && typeof f.texture === 'string' && !f.textureLit && how[i] !== 'tile') held.add(f.texture); });
   const idx = [];
-  faces.forEach((f, i) => { if (shapedFace(f)) idx.push(i); });
+  faces.forEach((f, i) => { if (how[i] === 'colour' || (how[i] === 'tile' && !held.has(f.texture))) idx.push(i); });
   if (!idx.length) return faces;
   const normals = new Array(faces.length);
   for (const i of idx) normals[i] = normalOf(faces[i]);
@@ -182,24 +193,30 @@ export function contrastFaces(faces, vc) {
   const sky = hat(vc.sky), ground = hat(vc.ground), shade = hat(vc.shade), key = hat(vc.key), toLight = unit(vc.toLight);
   const cav = vc.crevice > 0 || vc.ridge > 0 ? concavity(faces, idx, normals) : null;
   const foot = vc.foot && vc.foot.depth > 0 ? vc.foot : null, floorOf = foot ? floorFinder(faces, idx, normals) : null;
-  const dark = (m, x) => { if (x <= 0) return; const t = Math.min(1, x); for (let j = 0; j < 3; j++) m[j] *= (1 - t) + t * DEEP * shade[j]; };
+  // a darkening drops value and leans halfway to the shade's hue: a shadow keeps the surface's saturation, cooled
+  const lean = shade.map((v) => 0.5 + 0.5 * v);
+  const dark = (m, x) => { if (x <= 0) return; const t = Math.min(1, x); for (let j = 0; j < 3; j++) m[j] *= (1 - t) + t * DEEP * lean[j]; };
   const out = faces.slice();
   for (const i of idx) {
-    const f = faces[i], n = normals[i], cs = f.corners;
-    // a corner past the end of a shorter `cornerFills` takes the face's fill (faceListToMesh's rule), else the first
-    const own = HEX.test(f.fill ?? '') ? f.fill : f.cornerFills[0];
-    const fills = cs.map((_, k) => (Array.isArray(f.cornerFills) && HEX.test(f.cornerFills[k] ?? '') ? f.cornerFills[k] : own));
+    const f = faces[i], n = normals[i], cs = f.corners, tile = how[i] === 'tile';
+    // a corner past the end of a shorter `cornerFills` takes the face's fill (faceListToMesh's rule), else the first; a
+    // painted tile is shaped from white, so its corners carry the multiplier alone
+    const own = tile ? WHITE : HEX.test(f.fill ?? '') ? f.fill : f.cornerFills[0];
+    const fills = tile ? cs.map(() => WHITE) : cs.map((_, k) => (Array.isArray(f.cornerFills) && HEX.test(f.cornerFills[k] ?? '') ? f.cornerFills[k] : own));
     const vao = vc.contact > 0 && Array.isArray(f.vao) && f.vao.length ? f.vao : null;
     const vaoMean = vao ? vao.reduce((s, x) => s + x, 0) / vao.length : 1;
     // the terms that hold over the whole face
     const m0 = [1, 1, 1];
     if (vc.hemi > 0) {
-      // what faces the sky keeps its value (the exposure is the light's); what turns from it darkens toward the ground
-      const t = 0.5 + 0.5 * n[2], L = 1 - vc.hemi * 0.5 * (1 - t), tint = toward(mixv(ground, sky, t), vc.hemi * 0.35);
+      // what faces the sky keeps its value (the exposure is the light's); what turns from it darkens toward the ground, a
+      // side a little, an underside most
+      const t = 0.5 + 0.5 * n[2], L = 1 - vc.hemi * 0.5 * (1 - t) * (1 - t), tint = toward(mixv(ground, sky, t), vc.hemi * 0.2);
       for (let j = 0; j < 3; j++) m0[j] *= L * tint[j];
     }
     if (vc.warmCool > 0 && !value) {
-      const tint = toward(mixv(shade, key, smooth(0, 0.5, dot(n, toLight))), vc.warmCool * 0.3);
+      // a two-sided card (a grass blade) is lit from whichever side the key is on
+      const ndl = f.doubleSided ? Math.abs(dot(n, toLight)) : dot(n, toLight);
+      const tint = toward(mixv(shade, key, smooth(0, 0.5, ndl)), vc.warmCool * 0.3);
       for (let j = 0; j < 3; j++) m0[j] *= tint[j];
     }
     const wall = 1 - Math.max(0, n[2]);
@@ -216,18 +233,21 @@ export function contrastFaces(faces, vc) {
       }
       if (vao) dark(m, (vc.contact * (1 - (k < vao.length ? vao[k] : vaoMean))) / (1 - DEEP));
       if (vc.variation > 0) {
-        const s = 4, nz = vnoise((c[0] + c[2] * 0.37) / s, (c[1] - c[2] * 0.21) / s, vc.seed | 0);
-        const g = 1 + vc.variation * 0.3 * (nz - 0.5);
+        // patches about six metres across, up to a quarter of the value apart at full variation
+        const s = 6, nz = vnoise((c[0] + c[2] * 0.37) / s, (c[1] - c[2] * 0.21) / s, vc.seed | 0);
+        const g = 1 + vc.variation * 0.5 * (nz - 0.5);
         for (let j = 0; j < 3; j++) m[j] *= g;
       }
-      if (value) { const s = lum(m); m[0] = s; m[1] = s; m[2] = s; }
+      // a painted tile's colours are its ramps' (the colour theorist's): on it, as under a tone, only value moves
+      if (value || tile) { const s = lum(m); m[0] = s; m[1] = s; m[2] = s; }
       const base = lin(hexRgb(fills[k])), o = [base[0] * m[0], base[1] * m[1], base[2] * m[2]], l = lum(o);
-      const r = l > KNEE ? shoulder(l) / l : 1;
+      // a tile's multiplier only clamps: its paint is its exposure, so a white corner stays white
+      const r = !tile && l > KNEE ? shoulder(l) / l : 1;
       return toHex(srgb(o.map((v) => Math.min(1, v * r))));
     });
     const mean = [0, 1, 2].map((j) => cornerFills.reduce((a, h) => a + hexRgb(h)[j], 0) / cornerFills.length);
     const { vao: _vao, ...rest } = f;
-    out[i] = { ...(vao ? rest : f), fill: toHex(mean), cornerFills };
+    out[i] = tile ? { ...(vao ? rest : f), textureLit: true, cornerFills } : { ...(vao ? rest : f), fill: toHex(mean), cornerFills };
   }
   return out;
 }
