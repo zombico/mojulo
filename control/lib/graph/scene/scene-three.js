@@ -44,6 +44,7 @@ import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '
 import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP } from './view-cube-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces, sampleAmbientAt } from '../effects/ao-bake.js';
+import { contrastFaces } from '../era/vertex-contrast.js';
 import {
   actionsChannelScript, audioChannelScript, castShadowScript, channelRuntimeSection, channelSetupSection,
   controllableChannelScript, eventsChannelScript, fxChannelScript, gameChannelScript,
@@ -210,7 +211,7 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null, vertexContrast = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -296,9 +297,11 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const aoPhantoms = aoOpts && repEntries.length
     ? repEntries.flatMap(({ r, tpl }) => instanceOccluderFaces(tpl, r.transforms))
     : [];
-  const expanded = aoOpts
+  const expanded2 = aoOpts
     ? bakeAmbientOcclusion(expanded1, aoPhantoms.length ? { ...aoOpts, extraOccluders: aoPhantoms } : aoOpts)
     : expanded1;
+  // the geocube's vertex contrast (era/vertex-contrast.js), right after the AO bake whose `vao` it folds in
+  const expanded = vertexContrast ? contrastFaces(expanded2, vertexContrast) : expanded2;
   const mesh = faceListToMesh(expanded, { decollide: false }); // global bound for the camera-framing fallback
 
   // Pack each repeat template ONCE (transforms ride as flat arrays; the page lowers each entry
@@ -314,7 +317,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   const packed0 = repEntries
     .map(({ r }, i) => ({ r, i }))
     .map(({ r, i }) => {
-      const tplFaces = aoOpts ? bakeAmbientOcclusion(repEntries[i].tpl, aoOpts) : repEntries[i].tpl;
+      const tpl0 = aoOpts ? bakeAmbientOcclusion(repEntries[i].tpl, aoOpts) : repEntries[i].tpl;
+      const tplFaces = vertexContrast ? contrastFaces(tpl0, vertexContrast) : tpl0;
       const gm = faceListToMesh(tplFaces);
       return gm.positions.length ? { r, gm, i } : null;
     })

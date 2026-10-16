@@ -34,7 +34,9 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // raised from 3200 when the laws card took dare-height, motif-small and doodads-apart (one line each)
 // 3600 -> 3800 (2026-10-14): a kit line for airless-plain (the airless world the color theorist's vacuum palettes
 // asked for); the hub lists every kit by design
-export const STAGE_CARD_BODY_CEILING = 3800;
+// 3800 -> 4000 (2026-10-16): the geocube card took the cube's `contrast` key and the valley-morning preset (one line
+// each); the card was within 50 bytes of the old ceiling after the palette line
+export const STAGE_CARD_BODY_CEILING = 4000;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -244,6 +246,7 @@ export function geocubeCard() {
     '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (the stage\'s, below), sky? { zenith, horizon, fog? } (the outside\'s; the reference\'s dome where none) }',
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
     '  register  { steps (0 continuous … 8 bands), key (the median value, 0..1) }',
+    '  contrast? "wii" | { from?, hemi, foot, crevice, ridge, contact, warmCool, variation } | false: Wii-era shading in the vertex',
     '  palette   a pick_palette spec: the color theorist decides the colours, seeded where the cube is stored (a preset\'s character with it); the solve writes colour, shade, register.key, the moon and light.sky. A colour you write is a lock; trim, water and sand stay as written. false: as written. A gameworld\'s style.palette is its levels\' cubes\', and a world on a cube alone takes the cube\'s for its HUD.',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
     '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
@@ -256,7 +259,7 @@ export function geocubeCard() {
   return {
     id: 'geocube', name: 'Geocube (a level\'s look, forged first)', family: 'world', entry: 'create_sketch', generated: true,
     summary: 'One style for a level\'s inside and outside: forge the cube, check its room and island specimens, then build the level on it.',
-    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen"',
+    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen", "a Wii-era look", "vertex colour contrast"',
     body: lines.join('\n'),
   };
 }

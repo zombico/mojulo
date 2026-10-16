@@ -14,6 +14,9 @@
  *             its character (GEOCUBE_PALETTES); without a seed (a recipe minted before, or 'auto' not yet stamped)
  *             the cube's own colours stand, as they always did
  *   register  the tone's bands (`steps`, 0 continuous) and its key
+ *   contrast  how the light is shaped in the vertex across the whole world (vertex-contrast.js: `'wii'`, the terms, or
+ *             absent for none): the sky over, the ground under, the foot of a wall, crease and contact in the shade's
+ *             colour, warm lit against cool shade, a slow drift of value. The land hands its crease and ridge to it
  *   surfaces  the patterns of the wall, the floor and the accent (surface-textures.js tile specs)
  *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall
  *   outside   the base (an isekai card), the landform's tiers and island, and `land`: the polygon land's rules; and
@@ -31,6 +34,8 @@
  *   assembleGeocubeScene(m)    the `geocube` world kind: { cube, show: 'room' | 'land' } → its specimen
  *   withGeocube(manifest)      a stage recipe's `geocube`: the cube lowered under the recipe's own keys
  *   pickTerrain(cube, ask, hint)   which terrain a level gets, and from whom: → { name, from, offered, wanted? }
+ *   cubeContrast(cube, side)       the cube's `contrast` resolved against its light and colour, as a payload carries it
+ *   geocubeContrastOf(manifest)    the resolved contrast of the cube a world manifest is painted by, or null
  */
 import { SIXTH_GEN, SIXTH_GEN_REFERENCES, SIXTH_GEN_LOOK_IDS, resolveLook } from './sixth-gen.js';
 import { rampFrom, resample } from './look-facets.js';
@@ -42,6 +47,8 @@ import { tileFamilyOf } from './tile-specs.js';
 import { fingerprint } from '../gameworld/review.js';
 import { DEFAULT_ERA, eraError } from './eras.js';
 import { DEFAULT_TARGET, readTarget } from './target.js';
+import { readContrast } from './vertex-contrast.js';
+import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
 import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
@@ -104,6 +111,23 @@ export const GEOCUBE_PRESETS = Object.freeze({
       'Distance turns grey-green in the air.',
     ],
   },
+  'valley-morning': {
+    id: 'valley-morning', title: 'Valley morning', reads: 'Limestone, red roofs, a green valley',
+    light: { reference: 'island-noon', outsideFog: 1.6 },
+    colour: { stone: '#b8aa8c', floor: '#9a7a58', trim: '#e6dcc4', accent: '#b8442c', grass: '#64a83a', foliage: '#3a7a32', water: '#3a8cb8', sand: '#d6c49a', shade: 236 },
+    register: { steps: 0, key: 0.5 },
+    contrast: 'wii',
+    surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: LAND },
+    why: [
+      'The contrast lives in the vertex: the sky on every top, the ground under every overhang.',
+      'A wall is darker at its foot and lighter toward the eaves.',
+      'Creases and contacts fall into a blue-violet shade, never black.',
+      'The lit side warms toward the sun; the shade side cools.',
+      'One accent, the red of the roofs; the valley green carries the rest.',
+    ],
+  },
 });
 
 /**
@@ -117,6 +141,7 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'gothic-night': { anchor: 'tiered', uses: [{ use: 'crypt', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'keep', enter: 'door' }, { use: 'guardhouse', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'dwelling', enter: 'door' }] },
   'island-noon': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'hall', enter: 'walk' }, { use: 'temple', enter: 'door' }] },
   'jungle-haze': { anchor: 'timber-hall', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'dwelling', enter: 'door' }, { use: 'temple', enter: 'walk' }] },
+  'valley-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
 });
 /**
  * Each preset's character in the color theorist's terms: what the stamp (color-theorist/stamp.js) writes into a cube on
@@ -128,9 +153,10 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'gothic-night': { intent: 'a cold stone night lit by fire', key: 'low', heat: -0.7, weight: 0.6, activity: -0.4, scheme: 'mono-accent', hues: { rock: 255 }, lock: { accent: '#8a1c1c' } },
   'island-noon': { intent: 'stucco, terracotta and a hard sun', key: 'high', heat: 0.6, weight: -0.3, activity: 0.3, scheme: 'complementary', hues: { sky: 232, rock: 72, soil: 38, ground: 118, foliage: 132, accent: '#3a80d0' } },
   'jungle-haze': { intent: 'olive concrete, mud and a soft hazy sun', key: 'mid', heat: 0.15, weight: 0.2, activity: -0.6, scheme: 'analogous', hue: '#767a64', hues: { sky: 120, accent: '#8a5f34' } },
+  'valley-morning': { intent: 'limestone, red roofs and a green valley in the morning', key: 'high', heat: 0.35, weight: -0.1, activity: 0.2, scheme: 'complementary', hues: { sky: 225, rock: 52, soil: 36, ground: 112, foliage: 128, accent: '#b8442c' } },
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
-const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3] });
+const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4] });
 // a written colour with a role of its own is a lock the solve fits the rest round; trim, water and sand are kept as written
 const LOCK_ROLE = Object.freeze({ stone: 'rock', floor: 'soil', grass: 'ground', foliage: 'foliage', accent: 'accent' });
 /** A palette the cube is solved from: a spec with its seed (stamped at authoring time). */
@@ -144,7 +170,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1, palette: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1, palette: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -216,6 +242,8 @@ export function readGeocube(spec) {
   only(c.register, ['steps', 'key'], 'register');
   if (!(Number.isInteger(c.register.steps) && c.register.steps >= 0 && c.register.steps <= 8)) no('register.steps is the tone\'s bands, 0 (continuous) to 8');
   if (!(c.register.key > 0 && c.register.key < 1)) no('register.key is the median value the tone brings the light to, 0..1');
+  // contrast (optional): the shaping in the vertex; absent or false ⇒ none
+  if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
   // surfaces
   only(c.surfaces, ['wall', 'floor', 'accent'], 'surfaces');
   for (const k of ['wall', 'floor', 'accent']) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
@@ -356,9 +384,47 @@ function lowerOutside(cube0, terrain) {
   // the look's id carries its content's print, so a cube's changes register a new look and a re-read the same one
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land } });
-  const L = cube.outside.land;
+  // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
+  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {};
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
-    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)) } }) } };
+    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own } }) } };
+}
+
+/**
+ * The cube's `contrast` resolved against its own light and colour, as a world payload carries it (`vertexContrast`):
+ * the terms, and the colours they lean to (the cube's sky, else the reference's; the side's ground, the cube's shade, the key: the sun, or
+ * the moon with none), the key's direction, a seed from the cube's id, and the mode (`value` under a tone: only value
+ * moves). null when the cube has none. `side`: 'inside' (the ground is the floor) or 'outside' (the grass).
+ */
+export function cubeContrast(cube, side, { terrain, value = false } = {}) {
+  const C = readContrast(cube.contrast);
+  if (!C) return null;
+  const k = side === 'outside' && terrain !== undefined ? onTerrain(cube, terrain) : cube;
+  // the sky: the cube's own (a solved palette's), else the reference's dome
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(k.light.reference)], sun = ref.light.key;
+  const dome = k.light.sky ? { zenith: rgbOf(k.light.sky.zenith), horizon: rgbOf(k.light.sky.horizon) } : ref.air.dome;
+  const lit = sun ?? k.light.moon;
+  let seed = 2166136261;
+  for (const ch of k.id) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return { ...C, sky: hexOf(dome.zenith.map((v, j) => (v + dome.horizon[j]) / 2)), ground: side === 'outside' ? k.colour.grass : k.colour.floor,
+    shade: shadeHex(shadeHue(k)), key: lit.color, toLight: sunDir(lit.elevation, lit.azimuth ?? 225).map((v) => Math.round(v * 1e5) / 1e5),
+    seed: seed % 100000, mode: value ? 'value' : 'colour' };
+}
+
+/**
+ * The resolved contrast of the cube a world manifest is painted by: a stage's `geocube` (its outside with `meru` or a
+ * `trail`, else its inside), the geocube kind's `cube` (its `show`), a city's `paint.geocube` (outside). null when no cube
+ * paints it or the cube has no contrast. `value`: the payload carries a tone.
+ */
+export function geocubeContrastOf(manifest, { value = false } = {}) {
+  const m = manifest ?? {};
+  const spec = m.kind === 'geocube' ? m.cube : m.kind === 'city' ? m.paint?.geocube : m.geocube;
+  if (spec === undefined || spec === null) return null;
+  const cube = readGeocube(spec);
+  if (!readContrast(cube.contrast)) return null;
+  const side = m.kind === 'geocube' ? (m.show === 'land' ? 'outside' : 'inside') : m.kind === 'city' || m.meru !== undefined || m.trail !== undefined ? 'outside' : 'inside';
+  const terrain = side === 'outside' && m.kind === 'stage' && m.terrain !== undefined ? readTerrainAsk(cube, m.terrain).name : undefined;
+  return cubeContrast(cube, side, { terrain, value });
 }
 
 /** The cube lowered into one side: 'inside' (the bare room) or 'outside' (the landform, on one of its terrains). */
@@ -455,6 +521,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
-    ...(cube.palette?.id ? { palette: { id: cube.palette.id, reads: cube.palette.reads } } : {}), ...(cube.light.sky ? { sky: cube.light.sky } : {}) };
+    ...(cube.palette?.id ? { palette: { id: cube.palette.id, reads: cube.palette.reads } } : {}), ...(cube.light.sky ? { sky: cube.light.sky } : {}),
+    ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}) };
   return payload;
 }

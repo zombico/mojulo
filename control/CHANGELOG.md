@@ -43,6 +43,30 @@ A test agent ran the main game loops headless and the demos came out bad. Each f
 - **Which tradition.** A fighter's `tradition` is how it strikes (boxing, karate …); the setting's is how a body is
   drawn (anime, western). The cards and the readout say which.
 
+### Vertex contrast: the geocube lights the whole world in the vertex
+
+A geocube can now carry `contrast`, the shaping a Wii-era level baked into its vertex colours: the sky's colour on what
+faces up and the ground's on what faces down, walls darker toward the floor, crease and contact shadows tinted to the
+cube's shade (never black), a warm lit side against a cool shade side, and a slow seeded drift of value. Light stays
+each kind's bake under the cube's reference; colour stays the cube's ramps and tone; contrast is its own concern, run
+once over the finished faces of every world the cube paints.
+
+- **`contrast` on the cube.** `'wii'`, `{ hemi, foot: { height, depth }, crevice, ridge, contact, warmCool,
+  variation }`, or `false`. `lib/graph/era/vertex-contrast.js` reads it, resolves it against the cube (sky, ground,
+  shade and key colours, the key's direction) and shapes any face list (`contrastFaces`). Under a tone (a cube's
+  inside) only value moves, so the tone's ramps keep the colour.
+- **One pass for every piece.** A stage on the cube, the `geocube` specimens and a city painted by it carry the
+  resolved contrast on their payload; the World page, the `.glb` (and so Godot, Unity and Unreal) and USD apply it
+  right after the AO bake, which it takes over (its occlusion is tinted to the shade and folded in).
+- **Painted tiles are multiplied, not skipped.** A tile drawn unlit (a pixel-locked rock or cliff, a grass card)
+  keeps its paint and takes the shaping's value as texel × vertex colour, the era's own combine; its hue stays its
+  ramps'. A texture is taken this way only when every face drawn with it can be.
+- **The land hands its crease and ridge to the cube.** Under a cube with `contrast`, local meru's own crevice and
+  ridge go to zero; its blend, smoothing and sun stay.
+- **A preset to start from: `valley-morning`**, a bright pastoral day with `contrast: 'wii'`.
+- A cube without `contrast` (every existing preset, every minted row) lowers, renders and exports byte for byte as
+  before.
+
 ### Level demo: a game level from a sentence
 
 - **`design_game({ compose: { prompt, levels?, seed?, name? } })`.** The interpreter as a door: a few words become a
