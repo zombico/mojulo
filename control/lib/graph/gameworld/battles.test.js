@@ -30,6 +30,10 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
     expect(first.game.mechanics.map((m) => m.kind)).toEqual(expect.arrayContaining(['reach-exit', 'party', 'fail-on-death']));
     // the store carries the party, as the game starts
     const game = S.find((s) => s.key === 'game');
+    // and the bag: its potions as the game starts, gold in it, carried by the bag mechanic
+    expect(game.order.store.slices.find((x) => x.name === 'bag')).toEqual({ name: 'bag', kind: 'inventory', init: { items: { potion: 2 } } });
+    expect(first.play.rpg.rules.gold).toBe('held:bag:gold');
+    expect(first.game.mechanics).toContainEqual({ kind: 'bag', slice: 'bag' });
     expect(game.order.store.slices.find((x) => x.kind === 'party')).toMatchObject({ name: 'party', init: { roster: { hero: { name: 'Hero', level: 1, stats: { lv: 1, 'cls.fighter': 1, 'skill.power-strike': 1 } } } } });
   });
 

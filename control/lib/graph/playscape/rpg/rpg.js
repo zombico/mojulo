@@ -5,10 +5,11 @@
  * and is left as it is.
  *
  *   play.rpg: {
- *     party:      [{ id, name?, class, level?, joins?: '<flag>', bonus?: { <stat>: n }, classes?: [class ids] }]
+ *     party:      [{ id, name?, class, level?, joins?: '<flag>', bonus?: { <stat>: n }, classes?: [class ids], gear? }]
  *                 the battle order; a member with `joins` is in once that flag is set (or `rpg-join:<id>` is emitted);
- *                 `classes` limits what they may switch to (default: every class of the world)
- *     classes?:   [ids] | { <id>: { name?, about?, base?, growth?, skills?: [entry], opens?: '<flag>' } | true }
+ *                 `classes` limits what they may switch to (default: every class of the world); `gear`: { <slot>: item }
+ *                 what they wear as the party starts (default: their class's `start`)
+ *     classes?:   [ids] | { <id>: { name?, about?, base?, growth?, skills?: [entry], opens?: '<flag>', start? } | true }
  *                 the world's classes (default: every preset). entry = { skill, at?: rank } learned at that class rank,
  *                 or { skill, cost: n, requires?: [skill] } bought on the class's tree with its points
  *     skills?:    { <id>: { name?, about?, mp?, target?, power?, stat?, scale?, element?, heal?, revive?, cure?, status?,
@@ -19,6 +20,9 @@
  *                 skills?, drops?: [{ item, chance }], boss? } }
  *     items?:     [ids] | { <item>: { name?, heal?, mp?, revive?, cure?, hurt?, element?, target? } }   what an item
  *                 does in a fight (its count is the bag's: held:bag:<item>); default: every preset
+ *     gear?:      [ids] | { <item>: { name?, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? } }
+ *                 what a member may wear, one item a slot, its numbers added to theirs (default: every preset); worn
+ *                 items come from the bag and go back to it (held:bag:<item>); a class switch takes off what it forbids
  *     encounters?: [{ id, foes: [foe ids], at?: [x, y], who?: '<entity>', near?, flee? }]
  *                 at: walking up to it starts the fight (a visible foe: `who` is the one standing there, and it falls
  *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`
@@ -41,7 +45,7 @@
  *   lowerRpg(play)      → { vars, rpg: cfg } or null (absent: zero bytes)
  *   RPG_RULES, RPG_TARGETS, RPG_STATUSES
  */
-import { CLASS_PRESETS, SKILL_PRESETS, FOE_PRESETS, ITEM_PRESETS } from './presets.js';
+import { CLASS_PRESETS, SKILL_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS, GEAR_SLOTS } from './presets.js';
 import { RPG_STATS, rpgInit, rpgMirror } from './kernel.js';
 import { itemKey } from '../ui/items.js';
 
@@ -83,6 +87,13 @@ function readStatBlock(v, where, fallback) {
   keysOnly(v, RPG_STATS, where);
   for (const k of Object.keys(v)) optNum(v[k], `${where}.${k}`);
   return { ...fallback, ...v };
+}
+
+// what is worn: { <slot>: item }
+function readWorn(v, where) {
+  if (!isObj(v)) throw err(`${where} is { ${GEAR_SLOTS.join('?, ')}? }: the item worn in each slot`);
+  keysOnly(v, GEAR_SLOTS, where);
+  return Object.fromEntries(Object.entries(v).map(([slot, it]) => { if (typeof it !== 'string' || !it) throw err(`${where}.${slot} is an item`); return [slot, itemKey(it)]; }));
 }
 
 function readSkill(k, d, where) {
@@ -151,7 +162,7 @@ export function readRpg(play) {
   const P = play && play.rpg;
   if (P === undefined) return null;
   if (!isObj(P)) throw err(' is { party, classes?, skills?, foes?, items?, encounters?, random?, rules? }');
-  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'encounters', 'random', 'rules'], '');
+  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'rules'], '');
 
   // the rules
   const Ru = P.rules ?? {};
@@ -173,7 +184,7 @@ export function readRpg(play) {
   const party0 = P.party.map((p, i) => {
     const at = `.party[${i}]`;
     if (!isObj(p)) throw err(`${at} is { id, name?, class, level?, joins?, bonus?, classes? }`);
-    keysOnly(p, ['id', 'name', 'class', 'level', 'joins', 'bonus', 'classes'], at);
+    keysOnly(p, ['id', 'name', 'class', 'level', 'joins', 'bonus', 'classes', 'gear'], at);
     id(p.id, `${at}.id`);
     if (seen.has(p.id)) throw err(`${at}.id '${p.id}' is in the party twice`);
     seen.add(p.id);
@@ -183,7 +194,8 @@ export function readRpg(play) {
     if (p.bonus !== undefined) { if (!isObj(p.bonus)) throw err(`${at}.bonus is { <stat>: n } on top of their class`); keysOnly(p.bonus, RPG_STATS, `${at}.bonus`); for (const k of Object.keys(p.bonus)) if (!num(p.bonus[k])) throw err(`${at}.bonus.${k} is a number`); }
     const classes = p.classes === undefined ? null : listOf(p.classes, `${at}.classes`, 'class ids').map((c, k) => id(c, `${at}.classes[${k}]`));
     if (classes && !classes.includes(p.class)) throw err(`${at}.classes leaves out their own class '${p.class}'`);
-    return { id: p.id, name: typeof p.name === 'string' && p.name ? p.name : words(p.id), cls: p.class, level: p.level ?? 1, joins: p.joins ?? null, bonus: { ...(p.bonus ?? {}) }, classes };
+    const gear = p.gear === undefined ? null : readWorn(p.gear, `${at}.gear`);
+    return { id: p.id, name: typeof p.name === 'string' && p.name ? p.name : words(p.id), cls: p.class, level: p.level ?? 1, joins: p.joins ?? null, bonus: { ...(p.bonus ?? {}) }, classes, gear };
   });
   if (party0.every((p) => p.joins)) throw err('.party: someone is in from the start (a member without joins)');
 
@@ -194,7 +206,7 @@ export function readRpg(play) {
   for (const [k, d0] of Object.entries(givenClasses)) {
     const at = `.classes.${k}`, d = d0 ?? CLASS_PRESETS[k];
     if (!d) throw err(`${at}: '${k}' is no preset class (${Object.keys(CLASS_PRESETS).join(', ')}): define it ({ base, growth, skills })`);
-    if (d0) keysOnly(d0, ['name', 'about', 'base', 'growth', 'skills', 'opens'], at);
+    if (d0) keysOnly(d0, ['name', 'about', 'base', 'growth', 'skills', 'opens', 'start'], at);
     if (d.opens !== undefined && !FLAG.test(d.opens)) throw err(`${at}.opens is the flag that opens the class`);
     const skills = listOf(d.skills, `${at}.skills`, '{ skill, at? } or { skill, cost, requires? }').map((e, i) => {
       const w = `${at}.skills[${i}]`;
@@ -212,7 +224,7 @@ export function readRpg(play) {
       if (e.at !== undefined && !(Number.isInteger(e.at) && e.at >= 1)) throw err(`${w}.at is the class rank it comes at, 1 or more`);
       return { skill: e.skill, at: e.at ?? 1 };
     });
-    classes[k] = { name: d.name ?? words(k), about: d.about ?? '', base: readStatBlock(d.base, `${at}.base`, DEFAULT_BASE), growth: readStatBlock(d.growth, `${at}.growth`, DEFAULT_GROWTH), skills, opens: d.opens ?? null };
+    classes[k] = { name: d.name ?? words(k), about: d.about ?? '', base: readStatBlock(d.base, `${at}.base`, DEFAULT_BASE), growth: readStatBlock(d.growth, `${at}.growth`, DEFAULT_GROWTH), skills, opens: d.opens ?? null, start: d.start === undefined ? {} : readWorn(d.start, `${at}.start`) };
   }
   for (const [k, C] of Object.entries(classes)) for (const e of C.skills) for (const r of e.requires ?? []) if (!C.skills.some((x) => x.skill === r)) throw err(`.classes.${k}: '${e.skill}' requires '${r}', which is not on that class's tree`);
 
@@ -252,6 +264,25 @@ export function readRpg(play) {
     if (own) items[k].name = own;
   }
 
+  // the gear a member may wear (default: every preset; any a start or a member names), and who may wear it
+  const gearGiven = table(P.gear, '.gear') ?? Object.fromEntries(Object.keys(GEAR_PRESETS).map((k) => [k, null]));
+  for (const w of [...Object.values(classes).map((c) => c.start), ...party0.map((p) => p.gear ?? {})]) for (const it of Object.values(w)) if (!(it in gearGiven)) gearGiven[it] = null;
+  for (const f of Object.values(foes)) for (const d of f.drops) if (!(d.item in gearGiven) && GEAR_PRESETS[d.item]) gearGiven[d.item] = null;
+  const gear = {};
+  for (const [k0, d0] of Object.entries(gearGiven)) {
+    const k = itemKey(k0), d = d0 ?? GEAR_PRESETS[k], at = `.gear.${k0}`;
+    if (!d) throw err(`${at}: '${k0}' is no preset gear (${Object.keys(GEAR_PRESETS).join(', ')}): define it ({ slot, atk?, def?, … })`);
+    keysOnly(d, ['name', 'slot', ...RPG_STATS, 'classes'], at);
+    if (!GEAR_SLOTS.includes(d.slot)) throw err(`${at}.slot is ${GEAR_SLOTS.join(', ')}`);
+    for (const st of RPG_STATS) if (d[st] !== undefined && !num(d[st])) throw err(`${at}.${st} is a number it adds`);
+    if (items[k]) throw err(`${at}: '${k}' is a battle item too; an item is worn or used, not both`);
+    const own = isObj(play.items) && isObj(play.items[k0]) && typeof play.items[k0].name === 'string' ? play.items[k0].name : null;
+    gear[k] = { name: own ?? d.name ?? words(k), slot: d.slot, mods: Object.fromEntries(RPG_STATS.filter((st) => d[st]).map((st) => [st, d[st]])), classes: d.classes ? [...d.classes] : null };
+  }
+  for (const [where, w] of [...Object.entries(classes).map(([c, C]) => [`.classes.${c}.start`, C.start]), ...party0.map((p, i) => [`.party[${i}].gear`, p.gear ?? {}])]) {
+    for (const [slot, it] of Object.entries(w)) if (gear[it].slot !== slot) throw err(`${where}.${slot}: ${gear[it].name} is worn as ${gear[it].slot}`);
+  }
+
   // the encounters
   const encSeen = new Set(), encounters = {}, met = [];
   E.forEach((e, i) => {
@@ -289,7 +320,7 @@ export function readRpg(play) {
     random = { sets: R0.sets.map((s) => [...s]), every: R0.every ?? 9, chance: R0.chance ?? 0.3, after: R0.after ?? 6, in: zones };
   }
 
-  return { seed: rules.seed, party: party0, classes, skills, foes, items, encounters, random, met, rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
+  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;

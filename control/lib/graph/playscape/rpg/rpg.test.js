@@ -6,6 +6,7 @@ import { lowerPlay } from '../ui/direction.js';
 import { createBusState, processEvents, watchEvents } from '../../worlds/event-bus.js';
 import { eventsChannelScript } from '../../scene/channels/events.js';
 import { rpgScript, rpgPage, RPG_CSS } from '../../scene/channels/rpg-channel.js';
+import { menuControls } from '../../scene/channels/interact-channel.js';
 import { buildGameStoreKernel } from '../../game/store-kernel.js';
 import { composeMechanics } from '../../game/mechanics.js';
 import { rpgInit, rpgSave, rpgLoad, rpgSwitchClass, rpgBuy } from './kernel.js';
@@ -84,7 +85,8 @@ function page(play, vars = {}, game = null) {
   const document = { createElement: el, head: el(), body: el() };
   const window = { addEventListener: (_, f) => keys.push(f), ...(game ? { __mojGame: game } : {}) };
   const queue = [];
-  const api = new Function('document', 'window', '__busState', '__inputQueue', 'RPG_CSS_TEXT', 'cfg', 'K', `return (${rpgPage.toString()})(cfg, K);`)(document, window, bus, queue, RPG_CSS, ev.rpg, new Function(`return (${buildRpg.toString()})();`)());
+  const ctl = { ...menuControls(), layout: () => 'xbox', select: 8 };
+  const api = new Function('document', 'window', '__busState', '__inputQueue', 'RPG_CSS_TEXT', 'cfg', 'K', 'ctl', `return (${rpgPage.toString()})(cfg, K, ctl);`)(document, window, bus, queue, RPG_CSS, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl);
   let t = 0;
   const frames = (n = 1) => { for (let i = 0; i < n; i++) { t += 100; api.step(t); } };
   const press = (code) => { for (const f of keys) f({ code, repeat: false, preventDefault() {}, stopImmediatePropagation() {} }); };
@@ -144,11 +146,44 @@ describe('the page: the battle window and the party menu', () => {
     expect(P.api.state().mode).toBeNull();
   });
 
+  it('a pad: its select opens the party menu, its confirm (wherever its layout prints it) acts in it', () => {
+    const P = page(PLAY), pads = [], buttons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
+    const accept = Number(Object.entries(menuControls().pad.xbox.b).find(([, a]) => a === 'accept')[0]);
+    const was = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+    Object.defineProperty(globalThis, 'navigator', { value: { getGamepads: () => pads }, configurable: true });
+    try {
+      pads.push({ connected: true, id: 'Xbox Wireless Controller', buttons, axes: [0, 0, 0, 0] });
+      const press = (i) => { buttons[i].pressed = true; P.frames(); buttons[i].pressed = false; P.frames(); };
+      press(8);   // select
+      expect(P.api.state().mode).toBe('field');
+      press(15);  // the d-pad's right: the Class tab
+      press(accept);
+      expect(P.api.state().mode).toBe('field');
+      press(8);
+      expect(P.api.state().mode).toBeNull();
+    } finally { if (was) Object.defineProperty(globalThis, 'navigator', was); else delete globalThis.navigator; }
+  });
+
   it('the page carries the channel only when the events have rpg, and its script parses', () => {
     const L = level(PLAY);
     expect(eventsChannelScript(L.ev)).toContain('__stepRpg(t)');
     expect(() => new Function(rpgScript())).not.toThrow();
     expect(() => new Function(eventsChannelScript(L.ev))).not.toThrow();
+  });
+});
+
+describe('the party menu: Equip', () => {
+  it('a slot, then what the bag holds for it: worn, the old one back in the bag, both said on the bus and kept', () => {
+    const out = [], g = { contract: { party: { slice: 'party' } }, onStart: (cb) => cb({}, 1), emit: (e) => out.push(e) };
+    const P = page(PLAY, { 'held:bag:iron-sword': 1 }, g);
+    P.frames();
+    P.press('KeyP'); P.press('ArrowRight'); P.press('ArrowRight');   // Equip
+    P.press('Enter');   // into its slots: Weapon first
+    P.press('Enter');   // its choices: — (take off), Iron Sword
+    P.press('ArrowDown'); P.press('Enter');
+    expect(P.api.R.m.ayla.gear.weapon).toBe('iron-sword');
+    expect(P.queue).toEqual([{ type: 'out:bag:iron-sword:1' }, { type: 'in:bag:bronze-sword:1' }]);
+    expect(out.map((e) => [e.stat, e.value])).toEqual([['gear.weapon.iron-sword', 1], ['gear.weapon.bronze-sword', 0]]);
   });
 });
 

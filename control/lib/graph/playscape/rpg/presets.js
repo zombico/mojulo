@@ -8,6 +8,10 @@
  *   SKILL_PRESETS   id → { name, about, mp, target, power?, stat?, scale?, element?, heal?, revive?, cure?, status?, buff?, carry? }
  *   FOE_PRESETS     id → { name, hp, mp?, atk, def, mag, spd, xp, gold, cp?, weak?, resist?, absorb?, immune?, skills?, drops?, boss? }
  *   ITEM_PRESETS    id → { name, heal?, mp?, revive?, cure?, hurt?, element?, target }
+ *   GEAR_PRESETS    id → { name, slot: weapon | armor | accessory, atk?, def?, mag?, spd?, hp?, mp?, classes? }
+ *                   worn by one member in its slot, its numbers added to theirs; classes: who may wear it (any, unnamed)
+ *   GEAR_SLOTS      the slots, in the order the party menu lists them
+ *   a class's `start`: { <slot>: gear } what a member of it wears when the party starts
  *   ELEMENTS        the element words the presets use (any lower-case word is an element)
  *
  * Numbers are tuned so a party of three at level 1 beats a pack of three starters with a potion or two to spare, and
@@ -23,31 +27,37 @@ export const CLASS_PRESETS = Object.freeze({
     name: 'Fighter', about: 'the front line: hits hard, takes hits, no magic',
     base: st(34, 0, 11, 8, 2, 6), growth: st(8, 0, 2.6, 1.8, 0.3, 0.9),
     skills: [{ skill: 'power-strike', at: 1 }, { skill: 'cleave', at: 3 }, { skill: 'rally', cost: 1 }, { skill: 'berserk', cost: 2, requires: ['rally'] }],
+    start: { weapon: 'bronze-sword', armor: 'leather-armor' },
   },
   knight: {
     name: 'Knight', about: 'the shield: high defence, guards the weak, a holy blade later',
     base: st(38, 4, 9, 11, 4, 4), growth: st(9, 0.6, 2.1, 2.4, 0.6, 0.6),
     skills: [{ skill: 'guard-up', at: 1 }, { skill: 'shield-bash', at: 2 }, { skill: 'protect', cost: 1 }, { skill: 'holy-blade', cost: 2, requires: ['shield-bash'] }],
+    start: { weapon: 'bronze-sword', armor: 'chain-mail' },
   },
   mage: {
     name: 'Mage', about: 'the caster: elemental magic, a sleep spell, frail',
     base: st(22, 14, 5, 4, 12, 6), growth: st(4.5, 3.2, 0.8, 0.9, 2.8, 0.9),
     skills: [{ skill: 'fire', at: 1 }, { skill: 'blizzard', at: 2 }, { skill: 'thunder', at: 3 }, { skill: 'sleep', cost: 1 }, { skill: 'firestorm', cost: 2, requires: ['fire'] }, { skill: 'focus', cost: 1 }],
+    start: { weapon: 'oak-staff', armor: 'robe' },
   },
   cleric: {
     name: 'Cleric', about: 'the healer: mends, cures and raises; a little holy light',
     base: st(26, 12, 7, 6, 10, 5), growth: st(5.5, 2.8, 1.2, 1.2, 2.4, 0.8),
     skills: [{ skill: 'heal', at: 1 }, { skill: 'cure', at: 2 }, { skill: 'protect', at: 3 }, { skill: 'raise', cost: 2 }, { skill: 'heal-all', cost: 2, requires: ['heal'] }, { skill: 'holy', cost: 3, requires: ['raise'] }],
+    start: { weapon: 'oak-staff', armor: 'robe' },
   },
   rogue: {
     name: 'Rogue', about: 'the quick one: acts first, poisons, slows',
     base: st(26, 4, 9, 5, 4, 11), growth: st(5.5, 0.6, 2.0, 1.1, 0.6, 2.0),
     skills: [{ skill: 'poison-blade', at: 1 }, { skill: 'trip', at: 2 }, { skill: 'backstab', cost: 1 }, { skill: 'smoke', cost: 1 }],
+    start: { weapon: 'dagger', armor: 'leather-armor' },
   },
   monk: {
     name: 'Monk', about: 'the fist: no gear, strong blows, heals itself',
     base: st(32, 4, 12, 6, 5, 8), growth: st(7.5, 0.5, 2.8, 1.3, 0.8, 1.4),
     skills: [{ skill: 'chakra', at: 1 }, { skill: 'flurry', at: 2 }, { skill: 'pressure-point', cost: 1 }, { skill: 'focus', cost: 1 }],
+    start: { weapon: 'cestus', armor: 'gi' },
   },
 });
 
@@ -118,4 +128,21 @@ export const ITEM_PRESETS = Object.freeze({
   remedy: { name: 'Remedy', cure: ['poison', 'sleep', 'silence'], target: 'ally' },
   feather: { name: 'Revival Feather', revive: true, target: 'ally' },
   firebomb: { name: 'Firebomb', hurt: 25, element: 'fire', target: 'foes' },
+});
+
+export const GEAR_SLOTS = Object.freeze(['weapon', 'armor', 'accessory']);
+const BLADES = ['fighter', 'knight', 'rogue'], CASTERS = ['mage', 'cleric'], HEAVY = ['fighter', 'knight'];
+export const GEAR_PRESETS = Object.freeze({
+  'bronze-sword': { name: 'Bronze Sword', slot: 'weapon', atk: 4, classes: BLADES },
+  'iron-sword': { name: 'Iron Sword', slot: 'weapon', atk: 9, classes: BLADES },
+  dagger: { name: 'Dagger', slot: 'weapon', atk: 3, spd: 2, classes: ['rogue', 'fighter', 'mage'] },
+  'oak-staff': { name: 'Oak Staff', slot: 'weapon', atk: 1, mag: 3, classes: CASTERS },
+  'silver-staff': { name: 'Silver Staff', slot: 'weapon', atk: 2, mag: 7, classes: CASTERS },
+  cestus: { name: 'Cestus', slot: 'weapon', atk: 4, classes: ['monk'] },
+  'leather-armor': { name: 'Leather Armor', slot: 'armor', def: 3 },
+  'chain-mail': { name: 'Chain Mail', slot: 'armor', def: 6, spd: -1, classes: HEAVY },
+  robe: { name: 'Robe', slot: 'armor', def: 2, mag: 2 },
+  gi: { name: 'Gi', slot: 'armor', def: 3, spd: 1, classes: ['monk'] },
+  'swift-ring': { name: 'Swift Ring', slot: 'accessory', spd: 3 },
+  'mana-charm': { name: 'Mana Charm', slot: 'accessory', mp: 8 },
 });

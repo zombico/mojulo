@@ -42,7 +42,7 @@ import { designCity } from '../city/plan/design.js';
 import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
 import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
-import { battleRoster, laidBattles, PARTY_SLICE } from './battles.js';
+import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -600,7 +600,12 @@ export function gameStore(world, book) {
   // the world remembers what broke (a game that lets things break): each level keeps its breaks here
   if (book?.mechanics?.destruction && book.mechanics.destruction !== 'none') slices.push({ name: AFTERMATH_SLICE, kind: 'flags' });
   // party battles (battles.js): the party, its levels, classes and skills, carried from level to level
-  if (G.battles) slices.push({ name: PARTY_SLICE, kind: 'party', init: { roster: battleRoster(G) } });
+  if (G.battles) {
+    slices.push({ name: PARTY_SLICE, kind: 'party', init: { roster: battleRoster(G) } });
+    // and its bag: items, the gear not worn, gold (a keyed map's bag is the same slice, its keys beside them)
+    const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: { ...BAG_START } };
+    if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init };
+  }
   return { slices };
 }
 

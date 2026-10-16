@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readRpg } from './rpg.js';
-import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, buildRpg } from './kernel.js';
+import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, buildRpg } from './kernel.js';
 
 const trio = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'bram', class: 'mage' }, { id: 'cass', class: 'cleric' }], ...extra } });
 
@@ -191,5 +191,44 @@ describe('classes you switch between', () => {
     R = rpgInit(cfg);
     rpgStart(cfg, R, 'a', { 'flag-met-mira': 1 });
     expect(R.b.ids).toEqual(['ayla', 'mira']);
+  });
+});
+
+describe('gear: one item a slot, from the bag and back to it', () => {
+  it('a member starts in their class\'s gear, its numbers on theirs; worn from the bag, swapped back to it, taken off', () => {
+    const cfg = trio(), R = rpgInit(cfg), v = { 'held:bag:iron-sword': 1, 'held:bag:silver-staff': 1 };
+    expect(R.m.ayla.gear).toEqual({ weapon: 'bronze-sword', armor: 'leather-armor' });
+    const bare = cfg.classes.fighter.base.atk;
+    expect(rpgStatsOf(cfg, R, 'ayla').atk).toBe(bare + 4);
+    expect(rpgGearOf(cfg, R, 'ayla', v)[0]).toMatchObject({ slot: 'weapon', item: 'bronze-sword', can: [{ item: 'iron-sword', count: 1 }] });
+    expect(rpgEquip(cfg, R, 'ayla', 'silver-staff', v)).toBe('class');
+    expect(rpgEquip(cfg, R, 'ayla', 'iron-sword', v)).toBe('');
+    expect(rpgStatsOf(cfg, R, 'ayla').atk).toBe(bare + 9);
+    expect([v['held:bag:iron-sword'], v['held:bag:bronze-sword']]).toEqual([0, 1]);
+    expect(rpgUnequip(cfg, R, 'ayla', 'armor', v)).toBe('');
+    expect(v['held:bag:leather-armor']).toBe(1);
+    expect(rpgUnequip(cfg, R, 'ayla', 'armor', v)).toBe('empty');
+  });
+
+  it('a class switch takes off what the new class forbids; what is worn is carried', () => {
+    const cfg = trio(), R = rpgInit(cfg), v = {};
+    expect(rpgSwitchClass(cfg, R, 'ayla', 'mage', v)).toBe('');
+    expect(R.m.ayla.gear).toEqual({ armor: 'leather-armor' });
+    expect(v['held:bag:bronze-sword']).toBe(1);
+    const saved = rpgSave(cfg, R).ayla;
+    expect(saved['gear.armor.leather-armor']).toBe(1);
+    const R2 = rpgInit(cfg);
+    rpgLoad(cfg, R2, { ayla: { stats: saved } });
+    expect(R2.m.ayla.gear).toEqual({ armor: 'leather-armor' });
+  });
+
+  it('no wearing in a fight; a world\'s own gear is read, a wrong slot refused', () => {
+    const cfg = trio({ encounters: [{ id: 'a', foes: ['slime'] }] }), R = rpgInit(cfg), v = { 'held:bag:iron-sword': 1 };
+    rpgStart(cfg, R, 'a', v);
+    expect(rpgEquip(cfg, R, 'ayla', 'iron-sword', v)).toBe('battle');
+    const own = trio({ gear: { 'moon-blade': { slot: 'weapon', atk: 12, mag: 4, classes: ['knight'] } } });
+    expect(own.gear['moon-blade']).toEqual({ name: 'Moon Blade', slot: 'weapon', mods: { atk: 12, mag: 4 }, classes: ['knight'] });
+    expect(() => trio({ gear: { cape: { slot: 'back', def: 1 } } })).toThrow(/slot is weapon, armor, accessory/);
+    expect(() => readRpg({ rpg: { party: [{ id: 'a', class: 'fighter', gear: { armor: 'iron-sword' } }] } })).toThrow(/Iron Sword is worn as weapon/);
   });
 });

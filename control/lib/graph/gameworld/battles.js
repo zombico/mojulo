@@ -15,7 +15,8 @@
  *     foe?: <hero-door spec>,   how a foe on the map looks (a plain one, by default)
  *     rest?: false,        no rest at each stage's start (default: E there restores HP and MP)
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
- *     classes?, skills?, foes?, items?, rules?,   play.rpg's own (playscape/rpg/rpg.js), laid over the presets
+ *     classes?, skills?, foes?, items?, gear?, rules?,   play.rpg's own (playscape/rpg/rpg.js), laid over the presets
+ *   The party and the bag (its items, the gear not worn, and its gold: held:bag:gold) are carried level to level.
  *   }
  * A world that writes none but whose intent fights turn by turn (its cube's power.combat) is laid with the defaults.
  *
@@ -37,10 +38,13 @@ export const PACKS = Object.freeze([
 export const JOINER_CLASSES = Object.freeze(['mage', 'cleric', 'rogue', 'knight', 'monk']);
 export const BATTLE_FOE = Object.freeze({ cast: 'male', palette: { Top: '#6b2222' }, gear: { right: { item: 'dagger' } } });
 export const PARTY_SLICE = 'party';
+// the bag the party's items, gear and gold are carried in (the bag mechanic), and what it holds as the game starts
+export const BAG_SLICE = 'bag';
+export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'rules'];
-const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes'];
+const KEYS = ['party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'rules'];
+const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: battles${m}`);
 const words = (s) => s.replace(/-/g, ' ').replace(/\b[a-z]/g, (c) => c.toUpperCase());
@@ -95,7 +99,7 @@ export function battleParty(G) {
   const P = G.battles?.party ?? {}, out = [];
   const at = (id, cls, name, joins) => {
     const m = P[id] ?? {};
-    return { id, name: m.name ?? name, class: m.class ?? cls, ...(m.level !== undefined ? { level: m.level } : {}), ...(m.bonus ? { bonus: m.bonus } : {}), ...(m.classes ? { classes: m.classes } : {}), ...(joins ? { joins } : {}) };
+    return { id, name: m.name ?? name, class: m.class ?? cls, ...(m.level !== undefined ? { level: m.level } : {}), ...(m.bonus ? { bonus: m.bonus } : {}), ...(m.classes ? { classes: m.classes } : {}), ...(m.gear ? { gear: m.gear } : {}), ...(joins ? { joins } : {}) };
   };
   out.push(at('hero', 'fighter', 'Hero', null));
   let k = 0;
@@ -106,8 +110,9 @@ export function battleParty(G) {
 /** The play.rpg every stage shares, less its encounters. */
 export function battleBase(G) {
   const B = G.battles ?? {};
-  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
-  return { party: battleParty(G), ...own, rules: { defeat: 'fail', ...(B.rules ?? {}) } };
+  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  // gold is the bag's (held:bag:gold), so it is carried as every item is
+  return { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
 }
 
 // the beats a pack may stand on: along the way, the exit and the trailhead left free
@@ -154,8 +159,8 @@ export function battleCast(G, stage, ends, { ref, packs = [], from = 0, seed = 1
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   const rpg = { ...base, ...(encounters.length ? { encounters } : {}), ...(random ? { random } : {}), rules: { ...base.rules, seed } };
   const rest = B.rest === false ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
-  // the party carried (the party mechanic); a wiped party fails the level under defeat: 'fail' (the hp it sets to 0)
-  const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
+  // the party and the bag carried (the party and bag mechanics); a wiped party fails the level under defeat: 'fail'
+  const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, { kind: 'bag', slice: BAG_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
   return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}) }, mechanics };
 }
 

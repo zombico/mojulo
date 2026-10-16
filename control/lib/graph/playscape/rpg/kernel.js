@@ -28,6 +28,7 @@
  *   round(cfg, R, picks, vars)        → beats; picks: { <member>: { act, skill?, item?, target? } }
  *   close(cfg, R, vars)               → the bus events the battle ends on: rpg-won / rpg-fled / rpg-lost, alone and :<encounter>
  *   switchClass / buy / rest / classesOf / treeOf / statsOf / partyOf / mirror
+ *   gearOf / equip / unequip          what each member wears (one item a slot, from the bag and back to it)
  *   save(cfg, R) / load(cfg, R, roster, vars)   the run as the store's party slice keeps it (numbers only), and back
  *
  *   beat: { text, kind?: 'hurt' | 'heal' | 'miss' | 'ko' | 'status' | 'level' | 'learn' | 'spoils' | 'end',
@@ -79,7 +80,9 @@ export function buildRpg() {
   function init(cfg) {
     const R = { m: {}, joined: {}, opened: {}, n: 0, won: 0, b: null };
     for (const p of cfg.party) {
-      const M = { cls: p.cls, level: p.level, xp: xpFor(cfg, p.level), hp: 0, mp: 0, poison: 0, learned: {}, cl: {} };
+      const M = { cls: p.cls, level: p.level, xp: xpFor(cfg, p.level), hp: 0, mp: 0, poison: 0, learned: {}, cl: {}, gear: {} };
+      const start = p.gear || cfg.classes[p.cls].start || {};
+      for (const slot in start) if (canWear(cfg, p.id, p.cls, start[slot])) M.gear[slot] = start[slot];
       openClass(M, p.cls);
       learnAt(cfg, M, p.cls, p.name, null);
       R.m[p.id] = M;
@@ -100,7 +103,9 @@ export function buildRpg() {
   /** A member's stats now: the current class's base + growth × (level − 1) + their own bonus; in a battle, its buffs. */
   function statsOf(cfg, R, id) {
     const p = memberOf(cfg, id), M = R.m[id], C = cfg.classes[M.cls], out = {};
-    for (const k of STATS) out[k] = Math.max(k === 'hp' ? 1 : 0, Math.round(C.base[k] + C.growth[k] * (M.level - 1) + (p.bonus[k] || 0)));
+    const worn = {};
+    for (const slot in M.gear) { const G = cfg.gear[M.gear[slot]]; if (G) for (const k in G.mods) worn[k] = (worn[k] || 0) + G.mods[k]; }
+    for (const k of STATS) out[k] = Math.max(k === 'hp' ? 1 : 0, Math.round(C.base[k] + C.growth[k] * (M.level - 1) + (p.bonus[k] || 0) + (worn[k] || 0)));
     const s = R.b && R.b.side[id];
     if (s) for (const k in BUFFABLE) out[k] = Math.max(0, Math.round(out[k] * buffMul(s.buffs, k)));
     return out;
@@ -506,6 +511,8 @@ export function buildRpg() {
     M.cls = cls;
     openClass(M, cls);
     learnAt(cfg, M, cls, p.name, null);
+    // what the class forbids comes off, back to the bag
+    for (const slot in M.gear) if (!canWear(cfg, id, cls, M.gear[slot])) { if (vars) vars['held:bag:' + M.gear[slot]] = (vars['held:bag:' + M.gear[slot]] || 0) + 1; delete M.gear[slot]; }
     const S = statsOf(cfg, R, id);
     M.hp = Math.min(M.hp, S.hp); M.mp = Math.min(M.mp, S.mp);
     if (vars) mirror(cfg, R, vars);
@@ -540,11 +547,56 @@ export function buildRpg() {
     return '';
   }
 
+  // ── gear ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+  // a member may wear an item: it is gear, and their class is one it allows
+  function canWear(cfg, id, cls, item) {
+    const G = cfg.gear[item];
+    return !!G && (!G.classes || G.classes.indexOf(cls) >= 0);
+  }
+  /** Each slot: what is worn, and what the bag holds that the member may wear there. */
+  function gearOf(cfg, R, id, vars) {
+    const M = R.m[id], out = [];
+    for (const slot of ['weapon', 'armor', 'accessory']) {
+      const can = [];
+      for (const k in cfg.gear) if (cfg.gear[k].slot === slot && canWear(cfg, id, M.cls, k) && vars && vars['held:bag:' + k] > 0) can.push({ item: k, name: cfg.gear[k].name, count: vars['held:bag:' + k] });
+      out.push({ slot, item: M.gear[slot] || null, name: M.gear[slot] ? cfg.gear[M.gear[slot]].name : null, can });
+    }
+    return out;
+  }
+  // HP and MP held to the maxima after the stats moved
+  function holdTo(cfg, R, id) { const M = R.m[id], S = statsOf(cfg, R, id); M.hp = Math.min(M.hp, S.hp); M.mp = Math.min(M.mp, S.mp); }
+  /** Wear an item from the bag (what was in its slot back to the bag). → '' or why not (battle, unknown, class, bag). */
+  function equip(cfg, R, id, item, vars) {
+    const M = R.m[id], G = cfg.gear[item];
+    if (R.b) return 'battle';
+    if (!M || !G) return 'unknown';
+    if (!canWear(cfg, id, M.cls, item)) return 'class';
+    if (!(vars && vars['held:bag:' + item] > 0)) return 'bag';
+    vars['held:bag:' + item] -= 1;
+    const was = M.gear[G.slot];
+    if (was) vars['held:bag:' + was] = (vars['held:bag:' + was] || 0) + 1;
+    M.gear[G.slot] = item;
+    holdTo(cfg, R, id);
+    mirror(cfg, R, vars);
+    return '';
+  }
+  /** Take off what a slot holds, back to the bag. → '' or why not (battle, empty). */
+  function unequip(cfg, R, id, slot, vars) {
+    const M = R.m[id];
+    if (R.b) return 'battle';
+    if (!M || !M.gear[slot]) return 'empty';
+    if (vars) vars['held:bag:' + M.gear[slot]] = (vars['held:bag:' + M.gear[slot]] || 0) + 1;
+    delete M.gear[slot];
+    holdTo(cfg, R, id);
+    if (vars) mirror(cfg, R, vars);
+    return '';
+  }
+
   // ── carried between levels (the store's party slice: a roster whose stats are numbers) ─────────────────────────
   /**
    * A member as the store keeps it: flat numeric stats. lv, xp, hp, mp, psn; in (joined by an event); cls.<class> 1
    * for the current class; cp.<class> and sp.<class> for each class taken; skill.<skill> 1 for each learned; open.<class>
-   * 1 for each class opened by an event. → { <member>: { <key>: n } }
+   * 1 for each class opened by an event; gear.<slot>.<item> 1 for what is worn. → { <member>: { <key>: n } }
    */
   function save(cfg, R) {
     const out = {};
@@ -554,6 +606,7 @@ export function buildRpg() {
       for (const c in M.cl) { s['cp.' + c] = M.cl[c].cp; s['sp.' + c] = M.cl[c].sp; }
       for (const k in M.learned) s['skill.' + k] = 1;
       for (const c in R.opened) s['open.' + c] = 1;
+      for (const slot in M.gear) s['gear.' + slot + '.' + M.gear[slot]] = 1;
       out[p.id] = s;
     }
     return out;
@@ -573,6 +626,11 @@ export function buildRpg() {
       openClass(M, M.cls);
       M.learned = {};
       for (const k in s) if (k.indexOf('skill.') === 0 && s[k] === 1 && cfg.skills[k.slice(6)]) M.learned[k.slice(6)] = 1;
+      M.gear = {};
+      for (const k in s) {
+        const g = /^gear\.([a-z]+)\.(.+)$/.exec(k);
+        if (g && s[k] === 1 && cfg.gear[g[2]] && cfg.gear[g[2]].slot === g[1]) M.gear[g[1]] = g[2];
+      }
       learnAt(cfg, M, M.cls, p.name, null);
       const S = statsOf(cfg, R, p.id);
       M.hp = Math.max(0, Math.min(S.hp, typeof s.hp === 'number' ? s.hp : S.hp));
@@ -595,7 +653,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, save, load, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf };
+  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf };
 }
 
 const _rpg = buildRpg();
@@ -619,3 +677,6 @@ export const rpgXpFor = _rpg.xpFor;
 export const rpgAimOf = _rpg.aimOf;
 export const rpgSave = _rpg.save;
 export const rpgLoad = _rpg.load;
+export const rpgGearOf = _rpg.gearOf;
+export const rpgEquip = _rpg.equip;
+export const rpgUnequip = _rpg.unequip;

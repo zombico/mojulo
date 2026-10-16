@@ -13,10 +13,13 @@
  *
  * It reads the bus's log for `rpg-battle:<encounter>`, `rpg-rest`, `rpg-join:<member>`, `rpg-open:<class>`, and pushes
  * `rpg-won` / `rpg-fled` / `rpg-lost` (alone and `:<encounter>`) as a battle closes. With the party mechanic (the level
- * contract's game.party) the party is loaded from the store's slice as the level starts, and kept there as it changes. Keys: arrows / WASD, Enter / Space / E accept,
- * Escape / Backspace back, P the party menu. window.__mojRpg drives it headless (a test, the audit).
+ * contract's game.party) the party is loaded from the store's slice as the level starts, and kept there as it changes.
+ * Keys: the menu control scheme (arrows / WASD, Enter / Space / E accept, Escape / Backspace back, [ ] tabs; a pad in
+ * its printed layout); P or the pad's select opens the party menu. window.__mojRpg drives it headless (a test, the audit).
  */
 import { buildRpg } from '../../playscape/rpg/kernel.js';
+import { menuControls, padLayoutSource } from './interact-channel.js';
+import { DEVICES } from '../../controls/devices.js';
 
 export const RPG_CSS = `
 .moj-rpg{position:fixed;inset:0;pointer-events:none;z-index:31;font:14px/1.35 var(--moj-font,system-ui,sans-serif);color:var(--moj-ink,#eef2ff);display:none}
@@ -60,7 +63,7 @@ export const RPG_CSS = `
  * The page: run in the events channel's scope (it reads __busState, __inputQueue). cfg: EVENTS.rpg; K: the kernel.
  * → { step(t), … } the frame's step, and the handles window.__mojRpg exposes.
  */
-export function rpgPage(cfg, K) {
+export function rpgPage(cfg, K, ctl) {
   const R = K.init(cfg), V = () => __busState.vars;
   K.mirror(cfg, R, V());
   const st = document.createElement('style'); st.textContent = RPG_CSS_TEXT; document.head.appendChild(st);
@@ -72,7 +75,8 @@ export function rpgPage(cfg, K) {
   // mode: null | 'battle' | 'field'; the battle's own phase: intro | command | play | end
   let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, level = 'cmd', f = 0, pend = null, pops = [], dirty = true;
   let fm = 0, ftab = 0, flevel = 'members', ff = 0, fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
-  const TABS = ['Status', 'Class', 'Skills'];
+  const TABS = ['Status', 'Class', 'Equip', 'Skills'], SLOT = { weapon: 'Weapon', armor: 'Armor', accessory: 'Accessory' };
+  let fslot = null;   // the Equip tab's slot being chosen for
   // CARRIED (the party mechanic: the level contract's game.party): the roster loaded as the level starts, and each
   // number that changed since put back as a setStat after a fight, a class switch, a skill bought, a rest
   const carry = { hooked: false, slice: null, sent: null };
@@ -93,8 +97,23 @@ export function rpgPage(cfg, K) {
     const G = window.__mojGame;
     if (!carry.slice || !G || !carry.sent) return;
     const now = K.save(cfg, R);
-    for (const m in now) for (const k in now[m]) if (!carry.sent[m] || carry.sent[m][k] !== now[m][k]) G.emit({ type: 'setStat', slice: carry.slice, id: m, stat: k, value: now[m][k] });
+    for (const m in now) {
+      for (const k in now[m]) if (!carry.sent[m] || carry.sent[m][k] !== now[m][k]) G.emit({ type: 'setStat', slice: carry.slice, id: m, stat: k, value: now[m][k] });
+      // a number gone (an item taken off): 0, so the store forgets it
+      for (const k in carry.sent[m] || {}) if (!(k in now[m]) && carry.sent[m][k] !== 0) G.emit({ type: 'setStat', slice: carry.slice, id: m, stat: k, value: 0 });
+    }
     carry.sent = now;
+  }
+  // THE BAG: what the kernel moves in or out of it (a fight's spoils and items used, gear worn or taken off) said on the
+  // bus as every bag transfer is (in:bag:<item>:<n> / out:…), so the bag mechanic carries it. Counted from just before.
+  let bagSnap = null;
+  const bagNow = () => { const v = V(), out = {}; for (const k in v) if (k.indexOf('held:bag:') === 0) out[k.slice(9)] = Number(v[k]) || 0; return out; };
+  function bagFrom() { bagSnap = bagNow(); }
+  function bagSay() {
+    if (!bagSnap) return;
+    const now = bagNow();
+    for (const k of Object.keys(Object.assign({}, bagSnap, now))) { const d = (now[k] || 0) - (bagSnap[k] || 0); if (d) __inputQueue.push({ type: (d > 0 ? 'in' : 'out') + ':bag:' + k + ':' + Math.abs(d) }); }
+    bagSnap = null;
   }
 
   const memberName = (id) => { for (const p of cfg.party) if (p.id === id) return p.name; return id; };
@@ -105,6 +124,7 @@ export function rpgPage(cfg, K) {
   function startBattle(enc) {
     if (R.b || mode === 'battle') return false;
     if (mode === 'field') closeField();
+    bagFrom();
     const out = K.start(cfg, R, enc, V());
     if (!out.length) return false;
     mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; picks = {}; mi = 0; level = 'cmd'; f = 0; pend = null;
@@ -148,7 +168,7 @@ export function rpgPage(cfg, K) {
     }
     if (phase === 'end') {
       const ev = K.close(cfg, R, V());
-      keep();
+      keep(); bagSay();
       for (const e of ev) __inputQueue.push(e);
       mode = null; phase = null; root.classList.remove('on'); root.innerHTML = '';
       release(); dirty = true;
@@ -213,8 +233,15 @@ export function rpgPage(cfg, K) {
   function fieldRows() {
     const id = members()[fm];
     if (!id) return [];
-    if (ftab === 1) return K.classesOf(cfg, R, id, V()).map((c) => ({ label: c.name, right: c.current ? 'current' : !c.open ? 'locked' : c.rank ? 'rank ' + c.rank : 'new', ok: c.open && !c.current, go: () => { const why = K.switchClass(cfg, R, id, c.id, V()); fmsg = why ? WHY[why] || why : memberName(id) + ' is now a ' + c.name + '.'; if (!why) { keep(); __inputQueue.push({ type: 'rpg-class:' + id + ':' + c.id }); } } }));
-    if (ftab === 2) return K.treeOf(cfg, R, id).map((e) => ({
+    if (TABS[ftab] === 'Class') return K.classesOf(cfg, R, id, V()).map((c) => ({ label: c.name, right: c.current ? 'current' : !c.open ? 'locked' : c.rank ? 'rank ' + c.rank : 'new', ok: c.open && !c.current, go: () => { bagFrom(); const why = K.switchClass(cfg, R, id, c.id, V()); bagSay(); fmsg = why ? WHY[why] || why : memberName(id) + ' is now a ' + c.name + '.'; if (!why) { keep(); __inputQueue.push({ type: 'rpg-class:' + id + ':' + c.id }); } } }));
+    if (TABS[ftab] === 'Equip') {
+      const G = K.gearOf(cfg, R, id, V());
+      if (!fslot) return G.map((g) => ({ label: SLOT[g.slot], right: g.name || '—', ok: true, go: () => { fslot = g.slot; ff = 0; } }));
+      const g = G.find((x) => x.slot === fslot);
+      const wear = (fn) => () => { bagFrom(); const why = fn(); bagSay(); if (!why) keep(); fmsg = why ? WHY[why] || why : ''; fslot = null; ff = 0; };
+      return [{ label: '—', right: '', ok: !!g.item, go: wear(() => K.unequip(cfg, R, id, fslot, V())) }, ...g.can.map((c) => ({ label: c.name, right: '×' + c.count, ok: true, go: wear(() => K.equip(cfg, R, id, c.item, V())) }))];
+    }
+    if (TABS[ftab] === 'Skills') return K.treeOf(cfg, R, id).map((e) => ({
       label: e.name, ok: e.state === 'buy', dim: e.state === 'locked' || e.state === 'later',
       right: e.state === 'learned' ? '✓' : e.state === 'buy' ? e.cost + ' CP' : e.state === 'later' ? 'rank ' + e.at : e.why === 'requires' ? 'needs ' + e.need.map((n) => cfg.skills[n].name).join(', ') : e.cost + ' CP',
       go: () => { const why = K.buy(cfg, R, id, e.skill); fmsg = why ? WHY[why] || why : memberName(id) + ' learned ' + e.name + '.'; if (!why) keep(); },
@@ -230,15 +257,17 @@ export function rpgPage(cfg, K) {
     h += '</div>';
     if (M) {
       const S = K.statsOf(cfg, R, id), C = cfg.classes[M.cls], cl = M.cl[M.cls], next = M.level < cfg.rules.cap ? K.xpFor(cfg, M.level + 1) - M.xp : 0;
-      if (ftab === 0) {
+      if (TABS[ftab] === 'Status') {
         h += '<div class="t">' + esc(memberName(id)) + ' · ' + esc(C.name) + ' rank ' + cl.lv + '</div><table>';
         h += '<tr><td>Level</td><td>' + M.level + '</td><td>Next</td><td>' + next + ' XP</td></tr><tr><td>HP</td><td>' + M.hp + '/' + S.hp + '</td><td>MP</td><td>' + M.mp + '/' + S.mp + '</td></tr>';
         h += '<tr><td>Attack</td><td>' + S.atk + '</td><td>Defence</td><td>' + S.def + '</td></tr><tr><td>Magic</td><td>' + S.mag + '</td><td>Speed</td><td>' + S.spd + '</td></tr><tr><td>Class pts</td><td>' + cl.sp + '</td><td>' + (M.poison ? 'Poisoned' : '') + '</td><td></td></tr></table>';
-        h += '<div class="note">Skills: ' + (K.usable(cfg, R, id).map((s) => esc(cfg.skills[s].name)).join(', ') || 'none') + '</div>';
+        h += '<div class="note">' + (K.usable(cfg, R, id).map((s) => esc(cfg.skills[s].name)).join(', ') || '—') + '</div>';
+        h += '<div class="note">' + (Object.values(M.gear).map((g) => esc(cfg.gear[g].name)).join(', ') || '—') + '</div>';
       } else {
         const rows = fieldRows();
         ff = Math.max(0, Math.min(ff, rows.length - 1));
-        if (ftab === 2) h += '<div class="t">' + esc(C.name) + ' skills · ' + cl.sp + ' CP</div>';
+        if (TABS[ftab] === 'Skills') h += '<div class="t">' + esc(C.name) + ' · ' + cl.sp + ' CP</div>';
+        if (TABS[ftab] === 'Equip' && fslot) h += '<div class="t">' + SLOT[fslot] + '</div>';
         rows.forEach((o, i) => { h += '<div class="opt' + ((o.dim != null ? o.dim : !o.ok) ? ' off' : '') + (flevel === 'list' && i === ff ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + '</span><span>' + esc(o.right) + '</span></div>'; });
       }
     }
@@ -247,8 +276,10 @@ export function rpgPage(cfg, K) {
   }
 
   // ── input ──
-  const KEYS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', Enter: 'accept', Space: 'accept', KeyE: 'accept', Escape: 'back', Backspace: 'back' };
+  // the menu control scheme (controls/schemes.js menu), the same keys and pad roles every menu answers to
+  const KEYS = (ctl && ctl.keys) || {};
   function act(a) {
+    if (a === 'tabNext' || a === 'tabPrev') { if (mode !== 'field') return; a = a === 'tabNext' ? 'right' : 'left'; }
     if (mode === 'battle') {
       if (phase !== 'command') { if (a === 'accept') advance(); return; }
       const L = cmdList(), n = L.length;
@@ -265,12 +296,13 @@ export function rpgPage(cfg, K) {
         else if (a === 'down' && n) fm = (fm + 1) % n;
         else if (a === 'left') ftab = (ftab + TABS.length - 1) % TABS.length;
         else if (a === 'right') ftab = (ftab + 1) % TABS.length;
-        else if (a === 'accept' && ftab > 0 && rows.length) { flevel = 'list'; ff = 0; }
+        else if (a === 'accept' && ftab > 0 && rows.length) { flevel = 'list'; ff = 0; fslot = null; }
         else if (a === 'back') return closeField();
       } else {
         if (a === 'up' && rows.length) ff = (ff + rows.length - 1) % rows.length;
         else if (a === 'down' && rows.length) ff = (ff + 1) % rows.length;
         else if (a === 'accept' && rows[ff]) { if (rows[ff].ok) rows[ff].go(); else fmsg = ''; }
+        else if (fslot && (a === 'back' || a === 'left' || a === 'right')) { if (a === 'back') { fslot = null; ff = 0; } }
         else if (a === 'back' || a === 'left' || a === 'right') { flevel = 'members'; if (a !== 'back') ftab = (ftab + (a === 'right' ? 1 : TABS.length - 1)) % TABS.length; }
       }
       fmsg = a === 'accept' ? fmsg : '';
@@ -296,10 +328,34 @@ export function rpgPage(cfg, K) {
       if (aim && level === 'target') { const L = cmdList(), i = L.findIndex((x) => x.target === aim.getAttribute('data-aim')); if (i >= 0) { f = i; act('accept'); } }
       return;
     }
-    if (t) { ftab = Number(t.getAttribute('data-tab')); flevel = 'members'; dirty = true; return; }
-    if (m) { fm = Number(m.getAttribute('data-m')); flevel = 'members'; dirty = true; return; }
+    if (t) { ftab = Number(t.getAttribute('data-tab')); flevel = 'members'; fslot = null; dirty = true; return; }
+    if (m) { fm = Number(m.getAttribute('data-m')); flevel = 'members'; fslot = null; dirty = true; return; }
     if (o) { ff = Number(o.getAttribute('data-i')); flevel = 'list'; act('accept'); }
   });
+
+  // the pad: the first connected one, read in its own printed layout; an action fires on the press edge, and its
+  // select button opens and closes the party menu
+  let padPrev = {};
+  function padNow() {
+    const ps = navigator.getGamepads ? navigator.getGamepads() : [], now = {};
+    let g = null;
+    for (let i = 0; i < ps.length; i++) if (ps[i] && ps[i].connected) { g = ps[i]; break; }
+    if (!g || !ctl) return now;
+    const P = ctl.pad[ctl.layout(g.id)] || ctl.pad.xbox || {};
+    for (const i in P.b || {}) { const b = g.buttons[i]; if (b && (b.pressed || b.value > 0.5)) now[P.b[i]] = 1; }
+    for (const [ax, sg, a] of P.a || []) if ((g.axes[ax] || 0) * sg > 0.6) now[a] = 1;
+    const sb = g.buttons[ctl.select];
+    if (sb && sb.pressed) now.party = 1;
+    return now;
+  }
+  function pad() {
+    const now = padNow();
+    for (const a in now) if (!padPrev[a]) {
+      if (a === 'party') { if (mode === 'field') closeField(); else if (!mode) openField(); }
+      else if (mode) act(a);
+    }
+    padPrev = now;
+  }
 
   function hold() { window.__mojFreeze = true; window.__mojMenuOpen = true; }
   function release() { window.__mojFreeze = false; window.__mojMenuOpen = false; }
@@ -342,6 +398,7 @@ export function rpgPage(cfg, K) {
     lastT = now;
     hookCarry();
     listen();
+    if (typeof navigator !== 'undefined') pad();
     walk();
     if (mode === 'battle' && (phase === 'intro' || phase === 'play')) { bt += dt; if (bt >= BEAT) advance(); }
     if (mode) { hold(); root.classList.add('on'); }
@@ -358,9 +415,10 @@ export function rpgPage(cfg, K) {
 
 /** The channel's script, inside the events channel: the kernel, the page, its step called each frame (`__stepRpg`). */
 export function rpgScript() {
+  const { keys, pad } = menuControls();
   return `
 // RPG: party battles over the field, the party menu on P (playscape/rpg)
 const RPG_CSS_TEXT = ${JSON.stringify(RPG_CSS)};
-const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})());
+const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})(), { keys: ${JSON.stringify(keys)}, pad: ${JSON.stringify(pad)}, layout: ${padLayoutSource()}, select: ${DEVICES.gamepad.buttons.select} });
 function __stepRpg(t) { __rpg.step(t); }`;
 }

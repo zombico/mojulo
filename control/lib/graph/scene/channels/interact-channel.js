@@ -61,8 +61,8 @@ const K = buildControlsKernel();
 const LAYOUTS = Object.keys(DEVICES.gamepad.layouts);
 
 // the menu scheme, resolved at build: key code → action (the pilot's interact accepts too: the key that opened a
-// menu picks in it), and per pad layout the buttons and half axes → action
-function menuControls() {
+// menu picks in it), and per pad layout the buttons and half axes → action (the rpg channel reads the same)
+export function menuControls() {
   const keys = K.codeMap(K.resolve(SCHEMES.menu, { keyboard: DEVICES.keyboard }), 'keyboard');
   const it = K.resolve(SCHEMES.pilot, { keyboard: DEVICES.keyboard, gamepad: DEVICES.gamepad });
   for (const c of it.bind.keyboard.interact) if (!keys[c]) keys[c] = 'accept';
@@ -165,6 +165,9 @@ window.__mojMenus = { open: () => (__menuOpen ? __menuOpen.id : null), act: __me
 }
 
 /** The usable places of a world's zone sources: zone → { id, prompt }. */
+/** The pad layout reader the page runs (controls-kernel.js padLayout), for a channel that polls the pad itself. */
+export const padLayoutSource = () => K.padLayout.toString();
+
 export const usesOf = (sources) => Object.fromEntries((sources || []).filter((s) => s && s.type === 'zone' && s.use).map((s) => [s.zone, { id: s.use, prompt: s.prompt || '' }]));
 
 export function reachScript(uses) {
