@@ -6,7 +6,7 @@
  * web step and runs every mind itself. Both print one canonical snapshot a frame: each mind's pose to 1e-9, its trigger,
  * clip and the state it decides by (cover, memory and search, its roll, swing and charge, its loadout slot, its path),
  * every hittable body's hp, hits and reaction, and the rounds in flight. The cover law (worlds/controllable/
- * cover.test.js) is its first scenarios. scripts/godot-mind-conformance.mjs runs the Godot side.
+ * cover.test.js) is its first scenarios. scripts/conformance.mjs --engine godot --corpus mind runs the Godot side.
  *
  *   SCENARIOS                  the hand scenarios: one case per procedure (a motivation, a perception, cover, the
  *                              blade, the roll, the loadout, a tier, a boss, space, the boost, the switch)

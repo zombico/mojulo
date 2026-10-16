@@ -1,26 +1,20 @@
 /**
- * THE GODOT MARKS — one portability source. What a Godot export runs, said once, and read by both the export check
- * (engine-portability.js, engine-score.js's ledger) and the cosmos registry (cosmos/facets, read-sources.js), so the
- * ruler and the export cannot disagree.
- *
- *   built         the kernel runs it as the web does (or, for a look, carries it whole)
- *   approximated  it runs, simpler or in part: the `how` says what stays the web's
- *   absent        nothing in the kernel runs it: the export names it, never drops it silently
+ * THE GODOT MARKS — what a Godot export runs, said once, and read by both the export check (engine-portability.js,
+ * engine-score.js's ledger) and the cosmos registry (cosmos/facets, read-sources.js), so the ruler and the export
+ * cannot disagree. One engine's marks module (engines/marks.js says the shape and the vocabulary; every engine with a
+ * runtime kernel exports these same tables over the same keys).
  *
  * Every table here is CLOSED against the thing it marks: a new page input, controllable rule, events key, gait shape,
- * system kind or mind axis without a mark fails godot-marks.test.js. Flip a mark in the step that builds its kernel
- * part, never before (the ratchet then asks for the conformance scenario that names it).
+ * system kind or mind axis without a mark fails the ratchet (engines/marks.test.js for every engine, godot-marks.test.js
+ * for what only Godot proves). Flip a mark in the step that builds its kernel part, never before (the ratchet then
+ * asks for the conformance scenario that names it).
  *
  * Pure data and small reads. No module with a builder in it is imported, so the cosmos facets can read it.
  */
-
-export const GODOT_MARKS = Object.freeze(['built', 'approximated', 'absent']);
-const RANK = { built: 0, approximated: 1, absent: 2 };
-/** The worse of marks: absent over approximated over built; none → built. */
-export const worstMark = (...marks) => marks.flat().reduce((w, m) => (RANK[m] > RANK[w] ? m : w), 'built');
+import { markRow, optionRow, TRAVERSAL_RULE } from './engines/marks.js';
 
 const B = 'built', P = 'approximated', A = 'absent';
-const m = (godot, how) => Object.freeze({ godot, ...(how ? { how } : {}) });
+const m = markRow('godot');
 
 // ── the controllable runtime's rules (worlds/controllable/compose.js RULES) ──────────────────────────────────────────
 // The pilot's walk and platform rules run in kernel/rules.gd (since 0.23.0), held equal to the web's frame by frame (the
@@ -105,12 +99,9 @@ export function platformLost(rule) {
   return [...new Set(Object.keys(rule).filter((k) => rule[k] != null && rule[k] !== false && PLATFORM_KEYS.lost[k]).map((k) => PLATFORM_KEYS.lost[k]))].sort();
 }
 
-// space.camera's values, by the camera rule each lowers to (gameworld/cameras.js)
-export const CAMERA_RULE = Object.freeze({ 'third-person': 'follow', 'first-person': 'eye', 'top-down': 'overhead', side: 'side', fixed: 'fixed' });
-
 // ── the World page's inputs (scene-three.js emitThreeWorld: a resolved payload spreads into it) ─────────────────────
 // `option` rows are how the page is drawn, not what the world is: they carry nothing to an engine.
-const OPTION = Object.freeze({ godot: B, option: true });
+const OPTION = optionRow('godot');
 export const PAGE_MARKS = Object.freeze({
   faces: m(B, 'model.glb (scene-gltf.js), unlit with COLOR_0'),
   cameras: m(B, 'the GLB\'s cameras'),
@@ -173,23 +164,14 @@ export const PAGE_MARKS = Object.freeze({
 });
 
 // ── a rigged figure's page overlays (scene/channels/controllable: what the page does to a figure beyond its clips) ──
-// The skinned figure and its clips ride the GLB (PAGE_MARKS.figures); these are read off each figure in payload.figures.
+// The skinned figure and its clips ride the GLB (PAGE_MARKS.figures); these are read off each figure in payload.figures
+// (engines/marks.js figureOverlays).
 export const FIGURE_MARKS = Object.freeze({
   live: m(A, 'a vehicle\'s live overlay (the front wheels steering, the body leaning, squatting and diving off the drive) is the page\'s: the car holds its rest pose'),
   juice: m(A, 'a racer\'s juice (flames, smoke, sparks, dust, the landing ring, the lamps lit by its status) is the page\'s'),
   beams: m(A, 'the headlamps\' pool on the road (a dark race mood) is not drawn'),
   trails: m(A, 'the tail lamps\' ribbons (a race after dark) are not drawn'),
 });
-/** The overlays a payload's figures carry (FIGURE_MARKS' keys, sorted). */
-export function figureOverlays(figures) {
-  const on = new Set();
-  for (const f of Object.values(figures && typeof figures === 'object' ? figures : {})) {
-    if (!f || !f.rig) continue;
-    if (f.live) on.add('live');
-    if (f.juice) { on.add('juice'); if (f.juice.beams) on.add('beams'); if (f.juice.trails) on.add('trails'); }
-  }
-  return [...on].sort();
-}
 
 // ── the events manifest's keys (the page reads the whole object; what travels rides bus.json or score.json) ──────────
 // `carried` rows ride the export (bus.json's fragment, cast, stats, inputs; score.json's hud, hudStyle, menus, looks).
@@ -232,8 +214,7 @@ export const SYSTEM_MARKS = Object.freeze({
   place: m(B, 'a pad wakes what stands asleep there through the cast, and the towers it wakes fire (kernel/mind.gd sentry)'),
 });
 
-// ── space.traversal (playscape/objects ENTRIES): the runtime rule each lowers to, if any ─────────────────────────────
-export const TRAVERSAL_RULE = Object.freeze({ door: null, platform: 'mover', lift: 'mover', catapult: 'launcher', bridge: null, ladder: 'platform', stairs: null });
+// ── space.traversal (playscape/objects ENTRIES): by the runtime rule each lowers to (engines/marks.js TRAVERSAL_RULE) ──
 const TRAVERSAL_HOW = Object.freeze({
   door: m(P, 'a door is a trigger; its leaf does not swing'),
   bridge: m(B, 'a static deck: a floor face and its collider'),
@@ -266,3 +247,91 @@ export const MIND_WEB = Object.freeze({
   aggressiveness: { opportunist: m(P, 'kernel/mind.gd: the counter-charge runs; when the pilot is in it the page plays a shove-down set piece, the kernel the plain counter') },
 });
 export const mindMark = (axis, value) => MIND_WEB[axis]?.[value] ?? m(B, 'kernel/mind.gd runs it as the web\'s mind does (the mind corpus)');
+
+// ── the bus contract (bus-abi.js): which facts kernel/level.gd feeds the bus and which effects it draws ──────────────
+// The bus itself is one reducer on every kernel (kernel/bus.gd, held equal by the bus corpus), so a row lacking here is
+// never the logic: it is a fact nothing feeds in, or an effect nothing draws. Change a row in the step that builds its
+// adapter. Approximated is the bus's `partial` (bus-abi.js busCoverage buckets it so).
+export const BUS_MARKS = Object.freeze({
+  facts: Object.freeze({
+    zone: m(B, 'kernel/bus.gd derive_zone_events over the walker, in recipe units'),
+    use: m(B, 'E inside a usable zone; the prompt shows the place\'s word'),
+    start: m(B),
+    timer: m(B),
+    contact: m(A, 'Godot runs its own physics; no body reports to the bus yet'),
+    input: m(B, 'level.gd: a key by the character it types (as the page\'s KeyboardEvent.key), a click anywhere'),
+    aim: m(P, 'kernel/level.gd aim_input: the ray meets the bus\'s markers and the level\'s box colliders (since 0.22.0); the page\'s also meets the GLB\'s meshes, so a shot through a mesh with no collider hits on Godot'),
+    cast: m(B, 'kernel/cast.gd castFacts'),
+    hit: m(B, 'kernel/combat.gd deals the hero\'s hits (its blade, its rounds, their splash; a fall\'s blast hits nobody) and kernel/cast.gd tells the bus'),
+    struck: m(B, 'kernel/cast.gd: a beam is a moment that lands after its distance (the web\'s land rule), and its target hears struck'),
+    stats: m(B, 'kernel/stats.gd, conformance-tested equal to the web\'s stats kernel'),
+    menu: m(B, 'level.gd: arrows or W / S, Enter / Space / E, Esc'),
+    seen: m(B, 'kernel/mind.gd counts sightings (perceive) and kernel/cast.gd facts says them (since 0.26.0)'),
+    beat: m(B, 'kernel/level.gd _beat_tick from the music player\'s position and score.beat, the page\'s clock as one function (beats/beat-clock.js); equal on the bus at the harness\'s fixed step'),
+  }),
+  effects: Object.freeze({
+    logic: m(B, 'the reducer itself, conformance-tested equal'),
+    guarded: m(B, 'kernel/bus.gd _reaction_match reads if as buildBus reactionMatch does, conformance-tested equal (since 0.19.0)'),
+    warp: m(B),
+    impulse: m(P, 'the bus entity moves; no Godot body is linked to it'),
+    hud: m(B, 'kernel/hud.gd: the slots, text / counter / bar / clock, banners, stacking toasts, legends, in the guide\'s tokens, font, frame and plate (score.hudStyle); the register\'s motion, sound, cursor and light and a stylized border stay the web\'s'),
+    menus: m(B, 'level.gd: the open one centred on the guide\'s panel, its {var} words filled, a row per choice; keys, a gamepad (d-pad or stick, A, B) and the pointer'),
+    parts: m(B, 'kernel/hud.gd gates a row by its part id and draws its state (disabled, alert, focus, active)'),
+    phase: m(B, 'kernel/hud.gd reads the phase var against a row\'s when'),
+    weather: m(B, 'kernel/weather.gd force(): the newest force eased in over its blend, held, eased back (fog, colour, light; falls and lightning stay web)'),
+    cast: m(P, 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk has no collider push-out or ground snap; transits stay on the web'),
+    rearm: m(B, 'kernel/cast.gd rearm into the weapon\'s reserve, which kernel/combat.gd\'s reload draws from (since 0.22.0), held equal by the combat corpus'),
+    stats: m(B, 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace'),
+    entities: m(B, 'kernel/level.gd _sync_markers draws each as the page does (an unlit sphere, its radius and colour, where the bus puts it, shown while on; since 0.22.0)'),
+    shot: m(B, 'kernel/level.gd sets kernel/rules.gd\'s shot rule aside the page\'s camera rule (unshot hands it back) and kernel/cast.gd finishes the walks, as worlds/controllable cast.js does (since 0.23.0)'),
+  }),
+});
+
+// ── what a lowered mechanic hands the SHELL beside its world (the bus carries the world; engine-portability.js finds a
+// mechanic's mark by lowering it and reading these with the bus rows it uses) ───────────────────────────────────────
+export const MECHANIC_EXTRAS = Object.freeze({
+  doors: m(B, 'a door between levels: kernel/game.gd applies the transit and enters the linked level by its own door (godot-game-shell.test.js)'),
+  keep: m(B, 'the kept numbers ride the envelope and kernel/game.gd keeps their bests in user://bests.json'),
+  aftermath: m(A, 'what broke is the web\'s: nothing breaks in Godot (breakables_held)'),
+  bag: m(P, 'the store carries the inventory between levels; the web shell\'s fill of the level\'s bag from it at start is not ported'),
+});
+
+// ── the ledger rows an export writes (engine-score.js), each with what it costs a Godot export ──────────────────────
+// The rows that only say what travels are engines/marks.js LEDGER_INFO; the rest flag. `core` marks what a game turns
+// on (the verdict reads it). An unknown ledger key fails the ratchet: a row nobody reads is a silent drop by another name.
+const ledger = (godot, flag) => Object.freeze({ godot, flag });
+export const LEDGER_MARKS = Object.freeze({
+  bodies_solid: ledger(P, 'solid bodies (body.collide) push the walkers out of them on the web; in Godot the pilot passes through them'),
+  skipped_movers: ledger(A, 'mover/platform integrator channels do not travel'),
+  skipped_physics: ledger(A, 'live physics channels do not travel'),
+  skipped_fx: ledger(A, 'camera-facing fx (billboards, glows) are not drawn'),
+  skipped_sprite_sfx: ledger(A, 'sprite sfx are not drawn'),
+  sky_approximated: ledger(A, 'the backdrop image the page loads by URL is not carried'),
+  weather_partial: ledger(P, 'the weather plays its fog, colour and light; rain, snow, dust, petals and lightning stay the web\'s'),
+  tone_graded_on_page: ledger(B, 'the tone is graded in Godot as on the page (kernel/tone.gdshader)'),
+  breakables_held: ledger(P, 'what breaks on the web is held whole'),
+  crystal_light_performed: ledger(P, 'the crystal light plays, its stones at rest (movers do not travel)'),
+  looks_carried: ledger(P, 'the cast\'s looks ride as data: nothing wears one until a script calls looks.wear'),
+});
+
+// the shell keys a game manifest may carry, and what each costs (kernel/game.gd: a level list, gates, the store, the
+// save); an unknown game key is named, never dropped. engines/marks.js SHELL_INFO says what carries nothing to judge.
+export const SHELL_MARKS = Object.freeze({
+  menu: ledger(P, 'the menu\'s entries are played as a level list'),
+  theme: ledger(P, 'the theme skins the HUD only'),
+  setup: ledger(A, 'the pre-level setup screen does not travel'),
+  difficulty: ledger(A, 'the difficulty pick does not travel'),
+  front: ledger(A, 'the title and credits do not travel'),
+  run: ledger(B, 'a run draws its order with the web shell\'s roll and keeps the deepest (kernel/game.gd)'),
+  links: ledger(B, 'door links travel: a door applies what the session gathered and enters the linked level (kernel/game.gd)'),
+  shell: ledger(P, 'the light play shell is played as the kernel\'s level list'),
+});
+
+// ── what the score's ledger says beside the reading's rows (engine-score.js), for a Godot export ────────────────────
+export const READING_NOTES = Object.freeze({
+  rules_carried: 'the motion and camera rules the level\'s entities run, by type (pilot: the player\'s; camera: the camera\'s; lost: the opt-in moves of the pilot\'s platform rule the kernel does not run); kernel/rules.gd runs the pilot\'s walk or platform rule, kernel/walker.gd follow and eye (godot-marks.js RULE_MARKS)',
+  channels_carried: 'the page channels the world fills that a Godot export does not carry whole (godot-marks.js PAGE_MARKS says what each loses)',
+  figures_carried: 'the page overlays the world\'s rigged figures carry that a Godot export does not run: the figure and its clips ride the GLB (godot-marks.js FIGURE_MARKS says what each loses)',
+  events_carried: 'the events keys bus.json and score.json drop or carry in part (godot-marks.js EVENT_MARKS)',
+  bus_carried: 'the world\'s behaviour (cues, chapters, menu picks, mechanics) rides bus.json; an engine kernel runs it with its port of the bus (Godot: kernel/bus.gd, conformance-tested equal to the web). `godot` lists the facts it takes and the effects it gives: built is performed, partial in part, absent not (the logic still runs; nothing feeds or draws that row)',
+});

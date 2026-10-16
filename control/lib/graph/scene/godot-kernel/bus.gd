@@ -3,7 +3,7 @@ extends RefCounted
 # mojulo lowers (cues, chapters, menu picks, mechanics) arrives as a bus fragment: reactions, watches, sequences,
 # timers, vars. This script runs that fragment the way the web page does, so behaviour travels as data and one
 # reducer performs it on both sides. The port is held EQUAL to the web reducer by a conformance corpus
-# (scripts/godot-bus-conformance.mjs): the same event script gives the same canonical state string, frame by frame.
+# (scripts/conformance.mjs --engine godot --corpus bus): the same event script gives the same canonical state string, frame by frame.
 #
 # JS semantics, made explicit: Godot reads every JSON number as a float, so numbers are compared as numbers, printed
 # the way JSON.stringify prints them, and hashed over UTF-16 code units. Read the fragment with kernel/json_exact.gd:

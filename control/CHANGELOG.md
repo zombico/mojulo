@@ -13,6 +13,46 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Engine legs: the engines as translations, declared
+
+Every engine pack is a translation of the web game. Which engines exist, what each one carries, and how each is
+held equal to the web are now said once, in an engine registry, instead of in a Godot-shaped column threaded
+through the code. Roblox joins as the second engine with a runtime kernel.
+
+- **The engine registry** (`lib/graph/scene/engines/registry.js`): one row per engine (Godot, Roblox, Unity, Unreal,
+  Blender), its kind (a runtime kernel, a scene project, an art pass), its marks module and the folder its pack lands
+  in. The desktop packager's ignore list reads the folders, so a Roblox pack beside a desktop app stays out of it.
+- **Marks per engine.** A mark row is keyed by its engine (`{ godot: 'built', how }`, `{ roblox: 'absent', how }`),
+  every table in one vocabulary (built, approximated, absent), the bus rows among them. Each engine with a runtime
+  kernel has its own marks module over the same closed keys (`godot-marks.js`, new `roblox-marks.js`); what no engine
+  owns (the camera and traversal rules, the drawing options, the ledger's information rows) is in
+  `scene/engines/marks.js`. `bus-abi.js` is the contract alone: which rows an engine performs is its marks' `BUS_MARKS`.
+- **The score reads the engine it is for.** `extractEngineScore(…, { engine })` reads the level against that engine's
+  marks; Godot packs are byte-identical. Unity and Unreal packs no longer carry Godot's reading rows, Godot's bus
+  column, or a flag naming "the Godot kernel": their kernels run no bus, and their portability reads as before.
+- **The cosmos counts every engine.** A facet value carries its mark in each engine (a sourced setting's `marks`
+  reader runs once per engine; a value no one marked for Roblox reads as absent, while Godot still throws).
+  `dryRun` returns `engines: { godot, roblox }`; the sweep, its CLI and the hillclimb page give each engine its
+  column and its scoreboard. Roblox starts at zero worlds, and its scoreboard ranks what to build first.
+- **The ratchet, per engine** (`scene/engines/marks.test.js`): every engine's tables are closed against the same
+  sources (`scene/engines/mark-sources.js`), the cosmos registry agrees with each engine's export tables, and a young
+  kernel marks nothing built until a conformance test proves it.
+- **One conformance protocol.** `scene/engines/conformance.js` says what each corpus holds equal (bus, combat, mind,
+  rules, scenes: its scenarios, the kernel modules it needs by module id, the web's runs) and compares any engine's
+  output to the web's frame by frame; `scene/engines/runners.js` says how each engine's kernel is laid out and run
+  headless. `node scripts/conformance.mjs --engine godot|roblox --corpus <name>` replaces the five
+  `godot-*-conformance.mjs` scripts (their Godot runners moved to `scripts/conformance/godot/`); it refuses, naming
+  the module, a corpus the engine's kernel does not have yet. The sound meter's corpus keeps its own runner.
+- **The Roblox kernel's first modules**, in Luau (`scene/roblox-kernel/`): the event bus, the stats and the game store,
+  ported from the web runtime and laid out as the Godot kernel's modules, with `js.luau` saying once how JS reads a
+  value (null and undefined, an empty array and an empty object, numbers printed as JSON prints them, UTF-16 hashing and
+  order) and `json.luau` reading JSON as JSON.parse does. Pure Luau with no host API: the same modules run under Lune
+  and in a place. The bus corpus runs equal to the web on them, frame by frame, stats and store scenarios included,
+  and every planted bug is caught (`MOJULO_LUNE`, `scene/engines/conformance.test.js`). Lune and Rojo join the
+  optional workers (`lib/workers/find.js`: `MOJULO_LUNE`, `MOJULO_ROJO`, a Roblox toolchain manager's or cargo's bin).
+- The bus corpus gains words beyond ASCII (`text`: a spawn id hashed over UTF-16 code units, accented and astral words
+  matched and stored) and the one place UTF-16 order and code point order part (`text-order`).
+
 ### Desktop export: a game as an app, the engines as translations
 
 A game plays in the browser; that build is the game itself. It now also ships as a desktop app, and the copy

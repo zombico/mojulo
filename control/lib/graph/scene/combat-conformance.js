@@ -5,7 +5,7 @@
  * flat ground) and records where the hero stood after each step; the Godot side replays those poses (its walker is
  * its own) and runs its own strike, contacts and hits. Both print the same snapshot for every frame: the hero's swing
  * (its time, clip, cooldown, combo window, direction, counts), every body's hp, hits, last hitter and fall, and the
- * facts the cast tells the bus (hit:<id>, down). scripts/godot-combat-conformance.mjs runs the Godot side.
+ * facts the cast tells the bus (hit:<id>, down). scripts/conformance.mjs --engine godot --corpus combat runs the Godot side.
  *
  *   SCENARIOS                  the hand scenarios: each names what it exercises
  *   randomScenarios(n, seed)   seeded worlds and inputs

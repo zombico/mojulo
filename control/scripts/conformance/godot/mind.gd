@@ -2,7 +2,7 @@ extends SceneTree
 # The Godot side of the mind conformance corpus (lib/graph/scene/mind-conformance.js): each scenario's cast, combat and
 # minds from bus.json, the pilot's pose replayed from the web's trace, kernel/mind.gd deciding for every mind (with
 # kernel/nav.gd's paths) and kernel/combat.gd firing and swinging for it; one snapshot a frame.
-# scripts/godot-mind-conformance.mjs copies this beside the kernel in a scratch project, runs it headless and compares.
+# scripts/conformance.mjs --engine godot --corpus mind copies this beside the kernel in a scratch project, runs it headless and compares.
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>
 

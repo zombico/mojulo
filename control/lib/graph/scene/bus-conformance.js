@@ -4,7 +4,7 @@
  * in the web page's order (scene/channels/events.js): the walkers' zone facts join the incoming events, then
  * process, the watch fixpoint, timers, sagas and the fixpoint again. Its snapshot is the canonical state
  * (`hashState`) plus the character intents and warps the frame queued. Both kernels must print the same string for
- * every frame. scripts/godot-bus-conformance.mjs runs the Godot side and compares.
+ * every frame. scripts/conformance.mjs --engine godot --corpus bus runs the Godot side and compares.
  *
  *   SCENARIOS                   the hand scenarios: each names what it exercises
  *   randomScenarios(n, seed)    seeded scenarios over a small vocabulary (globs, refs, sagas, caps, float sums)
@@ -23,7 +23,7 @@ import { lowerPlay } from '../playscape/ui/direction.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { buildGameStoreKernel } from '../game/store-kernel.js';
 import { buildStats } from '../playscape/stats/kernel.js';
-import { MECHANIC_SAMPLES, MECHANIC_MARKS } from './engine-portability.js';
+import { MECHANIC_SAMPLES, mechanicMarks } from './engine-portability.js';
 
 // a scenario's frame: { events?: [...], dt?: seconds, walkers?: [{ id, position }] }
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -258,7 +258,7 @@ function mechanicScenario(kind) {
   }
   return { id: `mechanic-${kind}`, about: `the ${kind} mechanic lowered from its sample and played through its zones and the events it hears`, config: clone(ev), entities: clone(ev.entities || []), frames };
 }
-export const mechanicScenarios = () => Object.keys(MECHANIC_MARKS).filter((k) => MECHANIC_MARKS[k].godot !== 'absent').map(mechanicScenario);
+export const mechanicScenarios = () => Object.keys(mechanicMarks('godot')).filter((k) => mechanicMarks('godot')[k].godot !== 'absent').map(mechanicScenario);
 
 // Godot's JSON parser rounds some decimals to a neighbouring double (kernel/json_exact.gd reads them exactly): a 60 Hz
 // step summed onto a 0.3 s period, and values JS prints in full (1.3000000000000003), hold the read to the web's
@@ -359,7 +359,36 @@ const RESERVED = {
   frames: [{ events: [{ type: 'go' }] }],
 };
 
-export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED, RESERVED];
+// words beyond ASCII: what a kernel reads as code units and what it reads as code points (both must read the web's)
+const TEXT = {
+  id: 'text',
+  about: 'words beyond ASCII: a spawn id hashed over UTF-16 code units, accented and astral words matched by globs and stored',
+  config: {
+    vars: { ñame: 1, zed: 2 },
+    reactions: [
+      { on: 'drop', do: 'spawn', type: 'gem', at: 'event.at' },
+      { on: 'drop', do: 'set', var: 'note', to: 'event.word' },
+      { on: 'tag', match: { who: 'é*' }, do: 'inc', var: 'é', by: 1 },
+      { on: 'tag', match: { who: '*😀' }, do: 'inc', var: 'smile', by: 1 },
+    ],
+  },
+  entities: [{ id: 'café', on: true }],
+  frames: [
+    { events: [{ type: 'drop', at: [1, 2, 0], word: 'naïve 😀' }] },
+    { events: [{ type: 'tag', who: 'école' }, { type: 'tag', who: 'big😀' }, { type: 'tag', who: 'eco' }] },
+  ],
+};
+// the one place UTF-16 order and code point order part: an astral character (a surrogate pair, D800–DFFF) sorts
+// before U+E000–U+FFFF by code units, after them by code points; the state's keys must sort the web's way
+const TEXT_ORDER = {
+  id: 'text-order',
+  about: 'keys sorted by UTF-16 code units: an astral word before a fullwidth one, as the web sorts them',
+  config: { vars: { 'Ａlpha': 1, '😀beta': 2, plain: 3 } },
+  entities: [],
+  frames: [{ events: [] }],
+};
+
+export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED, RESERVED, TEXT, TEXT_ORDER];
 
 // ── seeded scenarios over a small vocabulary ──────────────────────────────────────────────────────────────────────
 export function randomScenarios(n = 24, seed = 7) {

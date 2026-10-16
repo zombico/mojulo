@@ -9,7 +9,8 @@ import { corpus, runRules, scenarioById, SCENARIOS } from './rules-conformance.j
 import { extractEngineScore } from './engine-score.js';
 import { playBoth } from './godot-harness.js';
 import { playScript } from '../game/level-equivalence.js';
-import { runGodotRules, compare } from '../../../scripts/godot-rules-conformance.mjs';
+import { runCorpus } from './engines/runners.js';
+import { compare } from './engines/conformance.js';
 
 const GODOT = process.env.MOJULO_GODOT;
 const quad = (x0, y0, x1, y1, z = 0) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]] });
@@ -112,9 +113,9 @@ describe('the motion rules the Godot kernel runs', () => {
   it.skipIf(!GODOT)('kernel/rules.gd is equal to the web\'s rules over the corpus, frame by frame, at the five seeds (MOJULO_GODOT)', () => {
     for (const seed of [1, 2, 3, 11, 12]) {
       const sc = corpus({ seed });
-      const { out, errors } = runGodotRules(sc, GODOT);
+      const { out, errors } = runCorpus('godot', 'rules', sc, { bin: GODOT });
       expect(errors, `seed ${seed}`).toEqual([]);
-      const rows = compare(sc, out, { seed });
+      const rows = compare('rules', sc, out, { seed });
       expect(rows.filter((r) => !r.equal), `seed ${seed}`).toEqual([]);
       expect(rows.reduce((n, r) => n + r.frames, 0)).toBeGreaterThan(1500);
     }
@@ -143,8 +144,8 @@ describe('the motion rules the Godot kernel runs', () => {
   it.skipIf(!GODOT)('every planted bug in the rules is caught by the corpus (MOJULO_GODOT)', () => {
     const sc = corpus();
     for (const p of PLANTS) {
-      const { out } = runGodotRules(sc, GODOT, { mutate: [{ file: 'rules.gd', from: p.from, to: p.to }] });
-      expect(compare(sc, out).some((r) => !r.equal), p.name).toBe(true);
+      const { out } = runCorpus('godot', 'rules', sc, { bin: GODOT, mutate: [{ file: 'rules.gd', from: p.from, to: p.to }] });
+      expect(compare('rules', sc, out).some((r) => !r.equal), p.name).toBe(true);
     }
   }, 1800000);
 

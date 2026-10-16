@@ -1,16 +1,17 @@
-// THE RATCHET: what a Godot export runs is said once (godot-marks.js) and read by both the export and the cosmos
-// registry, so it cannot drift. Each table is closed against what it marks: a new page input, controllable rule,
+// THE RATCHET, Godot's part: what a Godot export runs is said once (godot-marks.js) and read by both the export and the
+// cosmos registry, so it cannot drift (engines/marks.test.js holds every engine's tables to the same keys). Each table is closed against what it marks: a new page input, controllable rule,
 // events key, bus verb, ledger row, mechanic or cosmos value with no mark fails here, before anyone ships it. And a
 // cosmos mark that disagrees with the export's tables fails here too. No Godot needed.
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { GODOT_MARKS, worstMark, PLATFORM_KEYS, platformLost, RULE_MARKS, CAMERA_RULE, PAGE_MARKS, EVENT_MARKS, EVENT_CARRIED, SYSTEM_MARKS, LINK_MARKS, gaitMark, traversalMark, mindMark, FIGURE_MARKS, figureOverlays } from './godot-marks.js';
+import { PLATFORM_KEYS, platformLost, RULE_MARKS, PAGE_MARKS, EVENT_MARKS, EVENT_CARRIED, SYSTEM_MARKS, LINK_MARKS, gaitMark, traversalMark, mindMark, FIGURE_MARKS, BUS_MARKS, LEDGER_MARKS, SHELL_MARKS } from './godot-marks.js';
+import { MARKS, worstMark, CAMERA_RULE, figureOverlays, LEDGER_INFO } from './engines/marks.js';
 import { supercarFigure } from '../car-designer/supercar-figure.js';
 import { bakeJuice } from '../car-designer/juice.js';
-import { MECHANIC_MARKS, MECHANIC_SAMPLES, GODOT_MECHANICS, GODOT_RULES, LEDGER_MARKS, SHELL_MARKS, assessPortability, exportVerdict, kitMark } from './engine-portability.js';
+import { mechanicMarks, MECHANIC_SAMPLES, carriedMechanics, carriedRules, assessPortability, exportVerdict, kitMark } from './engine-portability.js';
 import { BUS_ABI, BUS_VERBS, CAST_OPS, VERB_ROW, ctrlRow, busCoverage } from './bus-abi.js';
-import { extractEngineScore, godotReading } from './engine-score.js';
+import { extractEngineScore, engineReading } from './engine-score.js';
 import { corpus } from './bus-conformance.js';
 import { composeControllable, EMISSION_ENGINE } from '../worlds/controllable/compose.js';
 import { MECHANIC_KINDS } from '../game/mechanics.js';
@@ -23,7 +24,8 @@ import { ENTRIES } from '../playscape/objects/index.js';
 import { LINK_KINDS } from '../era/floormap.js';
 
 const SRC = (rel) => fs.readFileSync(path.join(process.cwd(), rel), 'utf8');
-const marked = (row) => row && GODOT_MARKS.includes(row.godot);
+const marked = (row) => row && MARKS.includes(row.godot);
+const MECHANIC_MARKS = mechanicMarks('godot'), GODOT_MECHANICS = carriedMechanics('godot'), GODOT_RULES = carriedRules('godot');
 
 describe('every thing a world can ask of an engine carries a Godot mark', () => {
   it('every World page input (scene-three.js emitThreeWorld: a payload spreads into it)', () => {
@@ -93,7 +95,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     expect(EVENT_MARKS.quests.godot).toBe('built');
     // an events key nobody marked is not dropped silently: the ledger names it and the verdict reads it as lost
     const payload = { entities: [{ id: 'hero', rule: { type: 'walk' }, transform: { pos: [0, 0, 1] } }], events: { reactions: [{ on: 'a', do: 'emit', type: 'b' }], futureKey: [{ x: 1 }], scenes: [{ id: 's' }] } };
-    expect(godotReading(payload).events).toEqual(['futureKey']);
+    expect(engineReading(payload, 'godot').events).toEqual(['futureKey']);
     const p = assessPortability({ manifest: {}, levels: [{ ref: 'r', score: extractEngineScore({ ref: 'r', manifest: {} }, payload) }], engine: 'godot' });
     expect(p.flags.join('\n')).toMatch(/events 'futureKey' is not marked/);
     expect(p.verdict).toBe('hollow');
@@ -115,8 +117,8 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
     const src = SRC('lib/graph/scene/engine-score.js');
     const keys = [...new Set([...src.matchAll(/ledger\.([a-z_]+) =/g), ...src.matchAll(/skip\('([a-z_]+)'/g)].map((x) => x[1]))];
     expect(keys.length).toBeGreaterThan(20);
-    expect(keys.filter((k) => !LEDGER_MARKS[k])).toEqual([]);
-    for (const [k, row] of Object.entries({ ...LEDGER_MARKS, ...SHELL_MARKS })) if (!row.info) { expect(GODOT_MARKS, k).toContain(row.godot); expect(row.flag, k).toBeTruthy(); }
+    expect(keys.filter((k) => !LEDGER_MARKS[k] && !LEDGER_INFO.includes(k))).toEqual([]);
+    for (const [k, row] of Object.entries({ ...LEDGER_MARKS, ...SHELL_MARKS })) { expect(MARKS, k).toContain(row.godot); expect(row.flag, k).toBeTruthy(); }
   });
 
   it('every mechanic, found by lowering a sample of it', () => {
@@ -152,7 +154,7 @@ describe('every thing a world can ask of an engine carries a Godot mark', () => 
 
   it('every cosmos value (an unmarked one throws when the registry is read)', () => {
     const reg = capabilityRegistry();
-    for (const [f, settings] of Object.entries(reg)) for (const [s, { values }] of Object.entries(settings)) for (const [v, row] of Object.entries(values)) expect(GODOT_MARKS, `${f}.${s}=${v}`).toContain(row.godot);
+    for (const [f, settings] of Object.entries(reg)) for (const [s, { values }] of Object.entries(settings)) for (const [v, row] of Object.entries(values)) expect(MARKS, `${f}.${s}=${v}`).toContain(row.godot);
   });
 });
 
@@ -256,7 +258,7 @@ const EVIDENCE = {
 describe('a built mark names the Godot leg that proves it', () => {
   const builtOf = (rows) => Object.entries(rows).filter(([, r]) => r.godot === 'built' && !r.option).map(([k]) => k);
   const tables = {
-    bus: [...Object.entries(BUS_ABI.facts).filter(([, r]) => r.godot === 'built').map(([k]) => `fact:${k}`), ...Object.entries(BUS_ABI.effects).filter(([, r]) => r.godot === 'built').map(([k]) => `effect:${k}`)],
+    bus: [...Object.entries(BUS_MARKS.facts).filter(([, r]) => r.godot === 'built').map(([k]) => `fact:${k}`), ...Object.entries(BUS_MARKS.effects).filter(([, r]) => r.godot === 'built').map(([k]) => `effect:${k}`)],
     rule: builtOf(RULE_MARKS), event: builtOf(EVENT_MARKS), page: builtOf(PAGE_MARKS),
   };
   for (const [table, built] of Object.entries(tables)) {

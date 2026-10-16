@@ -32,7 +32,7 @@ const SCRIPT_ERR = /SCRIPT ERROR|Parse Error|Failed to load script|Cannot open f
 export function writeHarnessPack(dir, payload, { ref = 'harness', godot, mutate = [] } = {}) {
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const score = extractEngineScore({ ref, manifest: {} }, payload);
+  const score = extractEngineScore({ ref, manifest: {} }, payload, { engine: 'godot' });
   const bus = extractBus(payload);
   const { files } = emitGodotProject({ ref, score, manifestHash: 'harness', kernelVersion: 'harness' });
   for (const f of files) {

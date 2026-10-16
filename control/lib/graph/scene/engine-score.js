@@ -24,7 +24,8 @@ import { busCoverage } from './bus-abi.js';
 import { extractCombat } from './combat-score.js';
 import { extractMinds } from './mind-score.js';
 import { levelSound } from './engine-sound.js';
-import { PAGE_MARKS, EVENT_MARKS, RULE_MARKS, CAMERA_LOST, platformLost, aiLost, weaponLost, figureOverlays } from './godot-marks.js';
+import { figureOverlays } from './engines/marks.js';
+import { DEFAULT_ENGINE, marksOf } from './engines/registry.js';
 
 export const MOJULO_UNITS = '1 mojulo unit = 1 meter';
 
@@ -132,20 +133,21 @@ function locomotionFor(figures, figKey, unitScale = 1) {
 // THE BUS (godot-bus): a world's behaviour as the event-bus fragment every cue, chapter, menu pick and mechanic lowers
 // to. It travels beside the score as `bus.json`, versioned and in recipe units (the kernels convert a walker's metres
 // back), and an engine kernel runs it with its port of the one reducer (Godot: kernel/bus.gd, held equal to the web's by
-// scripts/godot-bus-conformance.mjs). Only the bus's own channels ride, and the stats that run inside it: the page's
+// scripts/conformance.mjs --engine godot --corpus bus). Only the bus's own channels ride, and the stats that run inside it: the page's
 // (hud, menus, style) are read elsewhere. Absent behaviour (no reactions, watches, sequences or timers) ⇒ null, and no file.
 export const BUS_VERSION = 'bus/1';
 const BUS_CHANNELS = ['reactions', 'watches', 'sequences', 'timers', 'vars', 'sources', 'initial', 'entities', 'budget', 'depthCap'];
 
-// THE GODOT READING (godot-marks.js): what of a payload an engine kernel is asked to run beyond its geometry. The
-// rules its entities run (the pilot's, the camera's, the cast's), the page channels it fills that do not travel whole,
-// and the events keys an export drops or carries in part. Each is a ledger row only when something in it does not run
-// whole, so a world the kernel runs whole keeps its score byte-identical; engine-portability
-// reads them against the marks. A channel another ledger row already names (movers, physics, fx, sprite sfx, the sky,
+// THE ENGINE READING (the engine's marks module, engines/registry.js): what of a payload an engine kernel is asked to
+// run beyond its geometry. The rules its entities run (the pilot's, the camera's, the cast's), the page channels it
+// fills that do not travel whole, and the events keys an export drops or carries in part. Each is a ledger row only
+// when something in it does not run whole, so a world the kernel runs whole keeps its score byte-identical;
+// engine-portability reads them against the same marks. A channel another ledger row already names (movers, physics, fx, sprite sfx, the sky,
 // the tone, the weather, breakables, the crystal light) is left to that row.
 const LEDGERED = new Set(['movers', 'physics', 'fx', 'spriteSfx', 'bg', 'backdrop', 'tone', 'weather', 'breakables', 'crystalLight']);
 const filled = (v) => v != null && v !== false && (Array.isArray(v) ? v.length > 0 : typeof v === 'object' ? Object.keys(v).length > 0 : true);
-export function godotReading(payload) {
+export function engineReading(payload, engine = DEFAULT_ENGINE) {
+  const { PAGE_MARKS, EVENT_MARKS, CAMERA_LOST, platformLost, aiLost, weaponLost } = marksOf(engine);
   // the pilot: the entity the level marks pilotable (a car on the drive rule is one), else the walker the score seats
   const player = (payload?.entities ?? []).find((e) => e?.pilotable === true)?.id ?? playerOf(payload), by = {};
   for (const e of payload?.entities ?? []) {
@@ -154,7 +156,7 @@ export function godotReading(payload) {
     const r = (by[t] ||= { count: 0 });
     r.count++;
     if (e.isCamera) r.camera = true;
-    // a mind's opt-in moves the kernel does not run (godot-marks.js AI_LOST)
+    // a mind's opt-in moves the kernel does not run (the engine's AI_LOST)
     const aiL = [...aiLost(e.rule), ...weaponLost(e)];
     if (aiL.length) r.lost = [...new Set([...(r.lost || []), ...aiL])].sort();
     if (player != null && e.id === player) {
@@ -163,9 +165,9 @@ export function godotReading(payload) {
       if (lost.length) r.lost = lost;
     }
   }
-  const channels = Object.keys(payload || {}).filter((k) => PAGE_MARKS[k] && !PAGE_MARKS[k].option && PAGE_MARKS[k].godot !== 'built' && !LEDGERED.has(k) && filled(payload[k])).sort();
+  const channels = Object.keys(payload || {}).filter((k) => PAGE_MARKS[k] && !PAGE_MARKS[k].option && PAGE_MARKS[k][engine] !== 'built' && !LEDGERED.has(k) && filled(payload[k])).sort();
   const ev = payload?.events && typeof payload.events === 'object' ? payload.events : {};
-  const events = Object.keys(ev).filter((k) => filled(ev[k]) && EVENT_MARKS[k]?.godot !== 'built').sort();
+  const events = Object.keys(ev).filter((k) => filled(ev[k]) && EVENT_MARKS[k]?.[engine] !== 'built').sort();
   // the camera the page drives (payload.camera: { rule, target, … }), beside any camera entity
   const camRule = payload?.camera && typeof payload.camera.rule === 'string' ? payload.camera.rule : null;
   if (camRule) {
@@ -299,7 +301,10 @@ export function levelSoundtrack(sketch, payload) {
   return null;
 }
 
-export function extractEngineScore(sketch, payload, { posture = null } = {}) {
+// `engine`: the engine the score is read for (engines/registry.js); its ledger reads the level against that engine's marks.
+// An engine without marks (Unity, Unreal) gets no reading rows and no bus coverage: its kernel runs neither.
+export function extractEngineScore(sketch, payload, { posture = null, engine = DEFAULT_ENGINE } = {}) {
+  const M = marksOf(engine);
   const manifest = sketch?.manifest ?? {};
   const extras = levelSceneExtras(payload) ?? {};
   const declared = resolvePosture(posture, manifest);
@@ -418,15 +423,18 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   // solid bodies (body.collide: the world pass that pushes walkers out of them) are the web's: named, never dropped
   const solids = (payload.entities ?? []).filter((e) => e?.body?.collide && !e.isCamera).length;
   if (solids) ledger.bodies_solid = { count: solids, note: 'solid bodies (body.collide) push the walkers and the cast\'s walks out of their eggs on the web (controllable core.js stepBodyCollisions); the Godot kernel does not run that pass' };
-  const reading = godotReading(payload);
+  const reading = M ? engineReading(payload, engine) : null;
   const pilot = pilotRow(payload);
   const drivers = driverRows(payload);
   const blendNodes = blendOnlyNodes(payload.faces);
-  // only when some rule does not run whole: a world the kernel walks whole keeps its score byte-identical
-  if (Object.entries(reading.rules).some(([t, r]) => RULE_MARKS[t]?.godot !== 'built' || r.lost || r.unwatched != null || ((t === 'walk' || t === 'platform') && r.count > (r.pilot ? 1 : 0)))) ledger.rules_carried = { by: reading.rules, note: 'the motion and camera rules the level\'s entities run, by type (pilot: the player\'s; camera: the camera\'s; lost: the opt-in moves of the pilot\'s platform rule the kernel does not run); kernel/rules.gd runs the pilot\'s walk or platform rule, kernel/walker.gd follow and eye (godot-marks.js RULE_MARKS)' };
-  if (reading.channels.length) ledger.channels_carried = { keys: reading.channels, note: 'the page channels the world fills that a Godot export does not carry whole (godot-marks.js PAGE_MARKS says what each loses)' };
-  if (reading.figures.length) ledger.figures_carried = { keys: reading.figures, note: 'the page overlays the world\'s rigged figures carry that a Godot export does not run: the figure and its clips ride the GLB (godot-marks.js FIGURE_MARKS says what each loses)' };
-  if (reading.events.length) ledger.events_carried = { keys: reading.events, note: 'the events keys bus.json and score.json drop or carry in part (godot-marks.js EVENT_MARKS)' };
+  if (reading) {
+    const N = M.READING_NOTES;
+    // only when some rule does not run whole: a world the kernel walks whole keeps its score byte-identical
+    if (Object.entries(reading.rules).some(([t, r]) => M.RULE_MARKS[t]?.[engine] !== 'built' || r.lost || r.unwatched != null || ((t === 'walk' || t === 'platform') && r.count > (r.pilot ? 1 : 0)))) ledger.rules_carried = { by: reading.rules, note: N.rules_carried };
+    if (reading.channels.length) ledger.channels_carried = { keys: reading.channels, note: N.channels_carried };
+    if (reading.figures.length) ledger.figures_carried = { keys: reading.figures, note: N.figures_carried };
+    if (reading.events.length) ledger.events_carried = { keys: reading.events, note: N.events_carried };
+  }
 
   // The contract tier (world-contract-tiers W1): what this payload DECLARES and what the next
   // tier would need — one ledger row every pack carries, so a missing declaration is read in
@@ -439,9 +447,11 @@ export function extractEngineScore(sketch, payload, { posture = null } = {}) {
   }
   if (bus) {
     const n = (k) => (Array.isArray(bus.fragment[k]) ? bus.fragment[k].length : 0);
-    // what the behaviour takes and gives, and what the Godot kernel performs of it (bus-abi.js)
-    const { godot } = busCoverage(payload.events);
-    ledger.bus_carried = { reactions: n('reactions'), watches: n('watches'), sequences: n('sequences'), timers: n('timers'), version: BUS_VERSION, godot, note: 'the world\'s behaviour (cues, chapters, menu picks, mechanics) rides bus.json; an engine kernel runs it with its port of the bus (Godot: kernel/bus.gd, conformance-tested equal to the web). `godot` lists the facts it takes and the effects it gives: built is performed, partial in part, absent not (the logic still runs; nothing feeds or draws that row)' };
+    // what the behaviour takes and gives, and what the engine's kernel performs of it (bus-abi.js)
+    const counts = { reactions: n('reactions'), watches: n('watches'), sequences: n('sequences'), timers: n('timers'), version: BUS_VERSION };
+    ledger.bus_carried = M
+      ? { ...counts, [engine]: busCoverage(payload.events, engine)[engine], note: M.READING_NOTES.bus_carried }
+      : { ...counts, note: 'the world\'s behaviour (cues, chapters, menu picks, mechanics) rides bus.json; this engine\'s kernel does not run the bus: re-orchestrate it in-engine' };
   }
 
   return {

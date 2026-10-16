@@ -28,21 +28,23 @@ export const PLANTS = {
 
 describe.skipIf(!GODOT)('every planted bug is caught by its corpus (MOJULO_GODOT)', () => {
   it('the bus and the stats (bus-conformance corpus)', async () => {
-    const { runGodotBus, compare } = await import('../../../scripts/godot-bus-conformance.mjs');
+    const { runCorpus } = await import('./engines/runners.js');
+    const { compare } = await import('./engines/conformance.js');
     const scenarios = busCorpus({ random: 24, seed: 7 });
     for (const p of PLANTS.bus) {
-      const { out } = runGodotBus(scenarios, GODOT, { mutate: [p] });
-      const caught = !out || compare(scenarios, out).some((r) => !r.equal);
+      const { out } = runCorpus('godot', 'bus', scenarios, { bin: GODOT, mutate: [p] });
+      const caught = !out || compare('bus', scenarios, out).some((r) => !r.equal);
       expect(caught, `${p.file}: ${p.name}`).toBe(true);
     }
   }, 900000);
 
   it('the cast and the fight (combat-conformance corpus)', async () => {
-    const { runGodotCombat, compare } = await import('../../../scripts/godot-combat-conformance.mjs');
+    const { runCorpus } = await import('./engines/runners.js');
+    const { compare } = await import('./engines/conformance.js');
     const opts = { random: 12, seed: 1 }, scenarios = combatCorpus(opts);
     for (const p of PLANTS.combat) {
-      const { out } = runGodotCombat(scenarios, GODOT, { mutate: [p] });
-      const caught = !out || compare(scenarios, out, opts).some((r) => !r.equal);
+      const { out } = runCorpus('godot', 'combat', scenarios, { bin: GODOT, mutate: [p] });
+      const caught = !out || compare('combat', scenarios, out, opts).some((r) => !r.equal);
       expect(caught, `${p.file}: ${p.name}`).toBe(true);
     }
   }, 900000);

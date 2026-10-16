@@ -7,7 +7,8 @@ import { describe, it, expect } from 'vitest';
 import { corpus, runMinds, scenarioById, SCENARIOS } from './mind-conformance.js';
 import { extractMinds } from './mind-score.js';
 import { extractBus } from './engine-score.js';
-import { runGodotMinds, compare } from '../../../scripts/godot-mind-conformance.mjs';
+import { runCorpus } from './engines/runners.js';
+import { compare } from './engines/conformance.js';
 
 const GODOT = process.env.MOJULO_GODOT;
 const at = (sc, i) => JSON.parse(runMinds(scenarioById(sc)).snaps[i]);
@@ -48,9 +49,9 @@ describe('the mind in Godot', () => {
   it.skipIf(!GODOT)('kernel/mind.gd and nav.gd are equal to the web\'s, frame by frame, at the five seeds (MOJULO_GODOT)', () => {
     for (const seed of [1, 2, 3, 11, 12]) {
       const sc = corpus({ seed });
-      const { out, errors } = runGodotMinds(sc, GODOT);
+      const { out, errors } = runCorpus('godot', 'mind', sc, { bin: GODOT });
       expect(errors, `seed ${seed}`).toEqual([]);
-      const rows = compare(sc, out, { seed });
+      const rows = compare('mind', sc, out, { seed });
       expect(rows.filter((r) => !r.equal), `seed ${seed}`).toEqual([]);
       expect(rows.length).toBe(sc.length);
     }
@@ -86,8 +87,8 @@ describe('the mind in Godot', () => {
   it.skipIf(!GODOT)('every planted bug in the mind, the paths and the fight is caught (MOJULO_GODOT)', () => {
     const c = corpus();
     for (const p of PLANTS) {
-      const { out } = runGodotMinds(c, GODOT, { mutate: [{ file: p.file, from: p.from, to: p.to }] });
-      expect(compare(c, out).some((r) => !r.equal), p.name).toBe(true);
+      const { out } = runCorpus('godot', 'mind', c, { bin: GODOT, mutate: [{ file: p.file, from: p.from, to: p.to }] });
+      expect(compare('mind', c, out).some((r) => !r.equal), p.name).toBe(true);
     }
   }, 3600000);
 });

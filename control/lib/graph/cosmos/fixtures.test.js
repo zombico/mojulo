@@ -23,7 +23,7 @@ describe('cosmos fixtures', () => {
     for (const f of anchors) {
       const r = dryRun(f.cube);
       expect({ id: f.id, verdict: r.verdict, blocked: r.blocked, gaps: r.gaps }).toEqual({ id: f.id, verdict: 'makeable', blocked: [], gaps: [] });
-      expect(r.godot.lost.map((l) => `${l.facet}.${l.setting}=${l.value}`), f.id).toEqual(GODOT_LOST[f.id]);
+      expect(r.engines.godot.lost.map((l) => `${l.facet}.${l.setting}=${l.value}`), f.id).toEqual(GODOT_LOST[f.id]);
     }
   });
 

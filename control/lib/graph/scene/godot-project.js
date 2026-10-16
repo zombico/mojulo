@@ -23,7 +23,7 @@
  */
 
 import { GREYBOX_HANDOFF_SENTENCE } from './engine-score.js';
-import { GODOT_MECHANICS, exportVerdict } from './engine-portability.js';
+import { carriedMechanics, exportVerdict } from './engine-portability.js';
 import { godotBoneMapTres, godotBoneMapFile } from './godot-humanoid.js';
 
 const MECHANICS_VOCAB = ['reach-exit', 'collect', 'hazard-damage', 'fail-on-death', 'survive'];
@@ -311,7 +311,7 @@ function levelLedger(score, { gameMode = false } = {}) {
   // kernel/combat.gd's hits) and ends through its contract, as engine-portability.js credits them
   const onBus = !!score.ledger?.bus_carried;
   const interpreted = kinds.filter((k) => MECHANICS_VOCAB.includes(k));
-  const bused = onBus ? kinds.filter((k) => !MECHANICS_VOCAB.includes(k) && GODOT_MECHANICS.includes(k)) : [];
+  const bused = onBus ? kinds.filter((k) => !MECHANICS_VOCAB.includes(k) && carriedMechanics('godot').includes(k)) : [];
   const unknown = kinds.filter((k) => !MECHANICS_VOCAB.includes(k) && !bused.includes(k));
   if (interpreted.length) {
     ledger.interpreted_mechanics = { count: interpreted.length, kinds: [...new Set(interpreted)], note: 'performed live by kernel/level.gd' };

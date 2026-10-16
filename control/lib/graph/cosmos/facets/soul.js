@@ -23,7 +23,7 @@ export const SOUL = Object.freeze({
     cast: { source: { module: 'lib/graph/polygonizer/figure-cast.js', table: 'CAST_PRESETS', godot: { all: 'built' } } },
     vibe: { source: { module: 'lib/graph/gameworld/hero-vibe.js', table: 'VIBES', godot: { all: 'built' } } },
     // the suit plays its idle and walk; a jump or a stop happens without its clip; nothing plays a pose (gaitMark)
-    gaits: { multi: true, source: { module: 'lib/graph/polygonizer/hero-motion.js', table: 'MOTION_GAITS', godot: { module: 'lib/graph/scene/godot-marks.js', read: 'gaitMarks' } } },
+    gaits: { multi: true, source: { module: 'lib/graph/polygonizer/hero-motion.js', table: 'MOTION_GAITS', marks: 'gaitMarks' } },
     equipment: { multi: true, source: { module: 'lib/graph/equipment/expand.js', table: 'EQUIPMENT_ITEMS', godot: { all: 'built' } } },
     // a creature's body and clips ride the GLB; how it behaves is a mind's, and the kernel has none
     species: { multi: true, source: { module: 'lib/graph/fauna/species.js', table: 'SPECIES', godot: { all: 'approximated' } } },

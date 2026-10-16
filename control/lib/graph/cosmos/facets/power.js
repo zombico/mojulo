@@ -1,11 +1,10 @@
 /**
  * POWER: the verbs and rules, whoever holds them. Shape as in reality.js. `multi` settings take a list.
- * `godot` is each value's Godot mark (scene/godot-marks.js, the one portability source): a sourced setting reads it
- * from the tables the export reads (a mechanic's is found by lowering it and reading the bus rows it uses), a hand
- * value writes it.
+ * Each value carries its mark in every engine with a runtime kernel (scene/engines/registry.js): a sourced setting's
+ * `marks` names the reader (cosmos/read-sources.js) that reads it from each engine's own tables, the ones its export
+ * reads (a mechanic's is found by lowering it and reading the bus rows it uses); a hand value, or a sourced setting's
+ * `godot: { all }`, writes one engine's mark by that engine's id.
  */
-const PORT = 'lib/graph/scene/engine-portability.js';
-const MARKS = 'lib/graph/scene/godot-marks.js';
 // a moment on the cast's clock (kernel/cast.gd), struck when a beam lands, drawn simpler than the page
 const MOMENT = { all: 'approximated', how: 'a moment on the cast\'s clock (kernel/cast.gd), drawn simpler than the page' };
 export const POWER = Object.freeze({
@@ -14,14 +13,14 @@ export const POWER = Object.freeze({
   settings: {
     mechanics: {
       multi: true,
-      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', godot: { module: PORT, read: 'mechanicMarks' } },
-      // a mechanic's mark is found by lowering it (engine-portability.js MECHANIC_MARKS): unseen waits on `seen`, on-beat
+      source: { module: 'lib/graph/game/mechanics.js', table: 'MECHANIC_KINDS', marks: 'mechanicMarks' },
+      // a mechanic's mark is found by lowering it (engine-portability.js mechanicMarks): unseen waits on `seen`, on-beat
       // on `beat`, push and crops draw bus entities, supplies rearms; laps and score keep their bests in kernel/game.gd
     },
-    kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS', godot: { module: PORT, read: 'kitMarks' } } },
+    kit: { source: { module: 'lib/graph/game/kits.js', table: 'KITS', marks: 'kitMarks' } },
     rules: {
       multi: true,
-      source: { module: 'lib/graph/worlds/controllable/compose.js', read: 'engineRules', godot: { module: MARKS, read: 'ruleMarks' } },
+      source: { module: 'lib/graph/worlds/controllable/compose.js', read: 'engineRules', marks: 'ruleMarks' },
     },
     combat: {
       multi: true,
@@ -41,7 +40,7 @@ export const POWER = Object.freeze({
     // resource, stamina, unlock, transform, equip: stats, cues, HUD and menus on the bus, fired by their keys
     systems: {
       multi: true,
-      source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS', godot: { module: MARKS, read: 'systemMarks' } },
+      source: { module: 'lib/graph/gameworld/actions.js', table: 'SYSTEM_KINDS', marks: 'systemMarks' },
       // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
       // defence's towers. Free placement anywhere on a grid is not built.
       planned: {
@@ -50,6 +49,6 @@ export const POWER = Object.freeze({
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
     stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
-    idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', godot: { module: MARKS, read: 'idiomMarks' } } },
+    idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' } },
   },
 });

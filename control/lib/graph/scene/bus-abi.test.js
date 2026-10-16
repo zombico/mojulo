@@ -9,12 +9,12 @@ const entities = [{ id: 'hero', pilotable: true, rule: { type: 'walk' }, transfo
 const lowered = (play) => lowerPlay({ entities, play }, { player: 'hero' });
 
 describe('the bus contract', () => {
-  it('names every row with a status per kernel, the web building all of them', () => {
+  it('names every row, the web building all of them; each engine\'s column is its own (its marks\' BUS_MARKS)', () => {
     for (const side of ['facts', 'effects']) {
       for (const [id, row] of Object.entries(BUS_ABI[side])) {
         expect(row.about, id).toBeTruthy();
         expect(row.web, id).toBe('built');
-        expect(['built', 'partial', 'absent'], id).toContain(row.godot);
+        expect(Object.keys(row).sort(), id).toEqual(['about', 'web']);
       }
     }
   });

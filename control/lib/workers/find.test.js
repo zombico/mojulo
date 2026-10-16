@@ -36,7 +36,7 @@ describe('the worker finders', () => {
 
   it('every worker says its env var, what it runs and what still happens without it; an empty host finds none it must find', () => {
     const W = workersPresent({ host: host(), findSlicer, chromiumCandidates: ['/c/chrome'], ffmpegCached: '/cache/ffmpeg' });
-    expect(W.map((w) => w.id)).toEqual(['blender', 'godot', 'unity', 'unreal', 'electron', 'slicer', 'openscad', 'ffmpeg', 'chromium']);
+    expect(W.map((w) => w.id)).toEqual(['blender', 'godot', 'lune', 'rojo', 'unity', 'unreal', 'electron', 'slicer', 'openscad', 'ffmpeg', 'chromium']);
     for (const w of W) {
       expect(w.uses, w.id).toBeTruthy();
       expect(w.without, w.id).toBeTruthy();

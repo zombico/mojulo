@@ -60,13 +60,13 @@ describe('dryRun', () => {
   it('says what would not survive a Godot export', () => {
     // win-when travels since the Godot kernel runs the bus, defeat-all with the fight whose hits it counts (kernel
     // 0.17.0), the systems with their keys and a cue's beams and blasts (0.18.0), drawn simpler; a glide stays on the web
-    const g = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['melee', 'ranged'], systems: ['stamina'], beams: ['orb'], explosions: ['chain'], mechanics: ['reach-exit', 'win-when', 'defeat-all'] } }).godot;
+    const g = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, combat: ['melee', 'ranged'], systems: ['stamina'], beams: ['orb'], explosions: ['chain'], mechanics: ['reach-exit', 'win-when', 'defeat-all'] } }).engines.godot;
     expect({ ok: g.ok, lost: g.lost }).toEqual({ ok: true, lost: [] });
     // approximated travels, and is said: the fight's set pieces, the moments drawn simpler
     expect(g.approximated.map((x) => `${x.setting}=${x.value}`)).toEqual(expect.arrayContaining(['combat=melee', 'beams=orb', 'explosions=chain']));
     const r = dryRun({ ...CRAWLER, power: { ...CRAWLER.power, rules: ['walk', 'glide'] } });
-    expect(r.godot.ok).toBe(false);
-    expect(r.godot.lost).toEqual([{ facet: 'power', setting: 'rules', value: 'glide' }]);
+    expect(r.engines.godot.ok).toBe(false);
+    expect(r.engines.godot.lost).toEqual([{ facet: 'power', setting: 'rules', value: 'glide' }]);
   });
   it('checks only what is set: an empty cube is makeable at depth 0', () => {
     const r = dryRun({});

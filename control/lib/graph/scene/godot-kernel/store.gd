@@ -2,7 +2,7 @@ extends RefCounted
 # mojulo-godot kernel — the GAME STORE, a literal port of buildGameStoreKernel (lib/graph/game/store-kernel.js): five
 # slice kinds (character, inventory, party, progression, flags) changed only by typed events, one atomic write per
 # level (the outcome envelope, checked against the level's contract), and the gates that open the level list. Held
-# EQUAL to the web store by the conformance corpus (scripts/godot-bus-conformance.mjs, the store scenarios): the same
+# EQUAL to the web store by the conformance corpus (scripts/conformance.mjs --engine godot --corpus bus, the store scenarios): the same
 # schema and the same writes give the same state and the same errors, word for word.
 #
 #   var K = preload("res://kernel/store.gd").new()

@@ -1,7 +1,7 @@
 extends SceneTree
 # The Godot side of the combat conformance corpus (lib/graph/scene/combat-conformance.js): each scenario's cast and
 # combat from bus.json, the hero's pose replayed from the web's trace, kernel/combat.gd's strike, contacts and hits,
-# and kernel/cast.gd's facts; one snapshot a frame. scripts/godot-combat-conformance.mjs copies this beside the kernel
+# and kernel/cast.gd's facts; one snapshot a frame. scripts/conformance.mjs --engine godot --corpus combat copies this beside the kernel
 # in a scratch project, runs it headless and compares.
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>

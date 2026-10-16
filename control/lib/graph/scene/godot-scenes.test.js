@@ -10,7 +10,8 @@ import { playBoth } from './godot-harness.js';
 import { playScript } from '../game/level-equivalence.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { buildSceneRunner } from '../playscape/ui/scene-runner.js';
-import { runGodotScenes, compare } from '../../../scripts/godot-scenes-conformance.mjs';
+import { runCorpus } from './engines/runners.js';
+import { compare } from './engines/conformance.js';
 
 const GODOT = process.env.MOJULO_GODOT;
 const quad = { corners: [[-30, -30, 0], [30, -30, 0], [30, 30, 0], [-30, 30, 0]] };
@@ -71,9 +72,10 @@ describe('scenes and quests in Godot', () => {
 
   it.skipIf(!GODOT)('kernel/scenes.gd and quests.gd are equal to the web\'s, step by step, at the five seeds (MOJULO_GODOT)', () => {
     for (const seed of [1, 2, 3, 11, 12]) {
-      const { out, errors } = runGodotScenes(corpus({ seed }), GODOT);
+      const c = corpus({ seed });
+      const { out, errors } = runCorpus('godot', 'scenes', c, { bin: GODOT });
       expect(errors, `seed ${seed}`).toEqual([]);
-      const rows = compare(out, { seed });
+      const rows = compare('scenes', c, out, { seed });
       expect(rows.filter((r) => !r.equal), `seed ${seed}`).toEqual([]);
       expect(rows.length).toBeGreaterThan(8);
     }
@@ -90,8 +92,8 @@ describe('scenes and quests in Godot', () => {
   it.skipIf(!GODOT)('every planted bug in the runner and the journal is caught (MOJULO_GODOT)', () => {
     const c = corpus();
     for (const p of PLANTS) {
-      const { out } = runGodotScenes(c, GODOT, { mutate: [{ file: p.file, from: p.from, to: p.to }] });
-      expect(compare(out).some((r) => !r.equal), p.name).toBe(true);
+      const { out } = runCorpus('godot', 'scenes', c, { bin: GODOT, mutate: [{ file: p.file, from: p.from, to: p.to }] });
+      expect(compare('scenes', c, out).some((r) => !r.equal), p.name).toBe(true);
     }
   }, 900000);
 

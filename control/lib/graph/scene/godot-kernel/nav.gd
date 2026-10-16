@@ -5,7 +5,7 @@ extends RefCounted
 # height, foot band and cell; rebuilt when the collider set changes). A box blocks a cell when it overlaps the cell's
 # centre circle inflated by the body radius and its z band meets the body's (a body walks under a raised slab and over
 # a box it stands on). One floor at the body's height. Deterministic: ties broken by cell index. Held equal to the web's
-# by scripts/godot-mind-conformance.mjs (the mind corpus walks it).
+# by scripts/conformance.mjs --engine godot --corpus mind (the mind corpus walks it).
 #
 #   path(world, from, to, opts) → [[x, y], …] corners after `from` ending at `to`, [] when the line is clear, or null
 #                                 when no path exists (opts: { radius, height, footZ, step, cell })

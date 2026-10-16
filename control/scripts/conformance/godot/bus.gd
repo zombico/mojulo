@@ -1,6 +1,6 @@
 extends SceneTree
 # The Godot side of the bus conformance corpus (lib/graph/scene/bus-conformance.js): runs every scenario through
-# kernel/bus.gd in the web page's frame order and writes each frame's snapshot. scripts/godot-bus-conformance.mjs
+# kernel/bus.gd in the web page's frame order and writes each frame's snapshot. scripts/conformance.mjs --engine godot --corpus bus
 # copies this beside the kernel in a scratch project, runs it headless and compares.
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>

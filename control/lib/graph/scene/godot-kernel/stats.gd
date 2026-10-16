@@ -1,6 +1,6 @@
 extends RefCounted
 # mojulo-godot kernel — THE STATS: a literal port of the web's stats kernel (lib/graph/playscape/stats/kernel.js
-# buildStats), held equal to it by the bus conformance corpus (scripts/godot-bus-conformance.mjs). Levels climb on xp,
+# buildStats), held equal to it by the bus conformance corpus (scripts/conformance.mjs --engine godot --corpus bus). Levels climb on xp,
 # resources are spent, purchases are guarded and atomic, epochs are reached, tech nodes rank up and open their
 # subtrees, modifiers stack on stats, derived stats follow what they are made of, and a phenomenon's number is read off
 # a formula. It runs inside the bus's watch fixpoint (bus.gd _watch_fix, as the page's __watchFix does): each pass

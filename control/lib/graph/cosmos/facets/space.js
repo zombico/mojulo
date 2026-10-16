@@ -1,12 +1,12 @@
 /**
  * SPACE: where the levels are, how they join, and the camera that plays them. Shape as in reality.js.
  */
-import { RULE_MARKS, CAMERA_RULE } from '../../scene/godot-marks.js';
+import { CAMERA_RULE } from '../../scene/engines/marks.js';
+import { marksAcross } from '../../scene/engines/registry.js';
 
 const NO_MODE = 'no gameplay camera of this kind was found in controllable, game or playscape (10-10)';
-// a camera's Godot mark is its rule's (scene/godot-marks.js RULE_MARKS through CAMERA_RULE)
-const cam = (id) => RULE_MARKS[CAMERA_RULE[id]].godot;
-const MARKS = 'lib/graph/scene/godot-marks.js';
+// a camera's mark in each engine is its rule's (the engine's RULE_MARKS through CAMERA_RULE)
+const cam = (id) => marksAcross((M, e) => M.RULE_MARKS[CAMERA_RULE[id]][e]);
 
 export const SPACE = Object.freeze({
   id: 'space',
@@ -14,17 +14,17 @@ export const SPACE = Object.freeze({
   settings: {
     camera: {
       values: {
-        'third-person': { status: 'built', godot: cam('third-person'), lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the `follow` chase camera' },
+        'third-person': { status: 'built', ...cam('third-person'), lowers: 'lib/graph/worlds/controllable/rules-basic.js', note: 'the `follow` chase camera' },
         // built 10-12: the `fixed` camera rule (rules-basic.js: stations, the nearest focus holds the shot, a cut with a hold)
         // and a gameworld's camera 'fixed' (a station over each place of the way). A floormap's room cameras are not yet fed in.
-        fixed: { status: 'built', godot: cam('fixed'), lowers: 'lib/graph/gameworld/levels.js', note: 'fixed cameras over the way, cutting as the hero passes (camera: fixed; needs a hero); a floormap\'s room cameras not yet fed in' },
+        fixed: { status: 'built', ...cam('fixed'), lowers: 'lib/graph/gameworld/levels.js', note: 'fixed cameras over the way, cutting as the hero passes (camera: fixed; needs a hero); a floormap\'s room cameras not yet fed in' },
         // built 10-11: the `overhead` camera and the `move: 'world'` pilot, chosen by a gameworld's `camera`. Godot carries no camera
         // mode yet (its walker is first person, or a spring arm behind a suit), so a top-down game loses it on export.
-        'top-down': { status: 'built', godot: cam('top-down'), lowers: 'lib/graph/gameworld/levels.js', note: 'the ¾ `overhead` camera (north up), the hero moving in the screen\'s frame' },
+        'top-down': { status: 'built', ...cam('top-down'), lowers: 'lib/graph/gameworld/levels.js', note: 'the ¾ `overhead` camera (north up), the hero moving in the screen\'s frame' },
         // built 10-11: the `side` camera and the `move: 'lane'` pilot held to a trail's own spine (2.5D: the lane bends with
         // the trail). A climb has no spine, so a side game is trails only. Godot carries no camera mode yet.
-        side: { status: 'built', godot: cam('side'), lowers: 'lib/graph/gameworld/levels.js', note: 'the `side` camera over a hero held to the trail\'s own line; trails only (a climb has no line to run)' },
-        'first-person': { status: 'built', godot: cam('first-person'), lowers: 'lib/graph/gameworld/levels.js', note: 'the `eye` camera: mouse look with pitch, the hero\'s body hidden, or the walker with no hero' },
+        side: { status: 'built', ...cam('side'), lowers: 'lib/graph/gameworld/levels.js', note: 'the `side` camera over a hero held to the trail\'s own line; trails only (a climb has no line to run)' },
+        'first-person': { status: 'built', ...cam('first-person'), lowers: 'lib/graph/gameworld/levels.js', note: 'the `eye` camera: mouse look with pitch, the hero\'s body hidden, or the walker with no hero' },
       },
     },
     topology: {
@@ -61,8 +61,8 @@ export const SPACE = Object.freeze({
         street: { status: 'built', lowers: 'lib/graph/era/stage-buildings.js', godot: 'built', note: 'a town\'s first houses along the trail, in the town\'s own order, the hall walked into' },
       },
     },
-    links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS', godot: { module: MARKS, read: 'linkMarks' } } },
+    links: { source: { module: 'lib/graph/era/floormap.js', table: 'LINK_KINDS', marks: 'linkMarks' } },
     // the runtime rule each object lowers to (a lift and a moving deck: mover; a catapult: launcher; a ladder: a climb)
-    traversal: { source: { module: 'lib/graph/playscape/objects/index.js', table: 'ENTRIES', godot: { module: MARKS, read: 'traversalMarks' } } },
+    traversal: { source: { module: 'lib/graph/playscape/objects/index.js', table: 'ENTRIES', marks: 'traversalMarks' } },
   },
 });

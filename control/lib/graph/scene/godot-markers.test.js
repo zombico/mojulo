@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { busCoverage } from './bus-abi.js';
 import { extractBus } from './engine-score.js';
 import { playBoth } from './godot-harness.js';
-import { MECHANIC_MARKS } from './engine-portability.js';
+import { mechanicMarks } from './engine-portability.js';
 
 const GODOT = process.env.MOJULO_GODOT;
 const quad = { corners: [[-20, -20, 0], [20, -20, 0], [20, 20, 0], [-20, 20, 0]] };
@@ -30,7 +30,7 @@ describe('the bus\'s entities as markers', () => {
   it('the row is built; pushes, crops and supplies follow it', () => {
     expect(busCoverage(markerLevel().events).godot.built).toEqual(expect.arrayContaining(['effect:entities', 'effect:logic']));
     expect(busCoverage(markerLevel().events).godot.partial).toEqual(['fact:aim']);
-    for (const k of ['push', 'crops']) expect(MECHANIC_MARKS[k].godot, k).not.toBe('absent');
+    for (const k of ['push', 'crops']) expect(mechanicMarks('godot')[k].godot, k).not.toBe('absent');
     expect(extractBus(markerLevel()).inputs.map((i) => i.on)).toEqual(['key', 'key', 'key', 'pick']);
   });
 

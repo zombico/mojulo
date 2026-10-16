@@ -42,11 +42,12 @@ describe('the combat conformance corpus', () => {
   });
 
   it.skipIf(!GODOT)('the Godot kernel is equal to the web, frame by frame (MOJULO_GODOT)', async () => {
-    const { runGodotCombat, compare } = await import('../../../scripts/godot-combat-conformance.mjs');
+    const { runCorpus } = await import('./engines/runners.js');
+    const { compare } = await import('./engines/conformance.js');
     const opts = { random: 12, seed: 1 }, scenarios = corpus(opts);
-    const { out, errors } = runGodotCombat(scenarios, GODOT);
+    const { out, errors } = runCorpus('godot', 'combat', scenarios, { bin: GODOT });
     expect(errors).toEqual([]);
-    const rows = compare(scenarios, out, opts);
+    const rows = compare('combat', scenarios, out, opts);
     expect(rows.filter((r) => !r.equal)).toEqual([]);
     expect(rows.length).toBe(scenarios.length);
   }, 300000);

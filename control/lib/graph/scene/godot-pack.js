@@ -133,7 +133,7 @@ async function resolveLevel(levelSketch, { clips, posture = null, lit = false, f
   const engine = fig && humanoid && Array.isArray(fig[1].bones) && isHumanoidRig(fig[1].bones) ? (fig[1].tpose ? fig[1] : tposeRig(fig[1])) : null;
   const glbPayload = engine ? { ...payload, figures: { ...payload.figures, [fig[0]]: engine } } : payload;
   const exported = facesToGlb(glbPayload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(fig ? { skinned: true } : {}), ...(engine ? { humanoid: true } : {}), ...(lit ? { lit: true } : {}) });
-  const score = extractEngineScore(levelSketch, payload, { posture });
+  const score = extractEngineScore(levelSketch, payload, { posture, engine: 'godot' });
   return { kind, exported, score, fig, engine, bus: extractBus(payload), soundtrack: levelSoundtrack(levelSketch, payload), sound: levelSound(payload.audio, levelSketch.ref) };
 }
 

@@ -6,7 +6,7 @@ extends RefCounted
 # ray against eggs and spheres, cover, frontal shields, lob rounds swept along their flight and their splash; and
 # the reaction a poise-bearing body plays (armReaction / stepReaction: stagger, topple, the flat hold, the getup and
 # its wake guard; a killing blow floors it, and its fall blasts a stagger around it). Held EQUAL to the web frame by frame by
-# scripts/godot-combat-conformance.mjs. Since 0.26.0 the minds fight here too (kernel/mind.gd decides; its trigger,
+# scripts/conformance.mjs --engine godot --corpus combat. Since 0.26.0 the minds fight here too (kernel/mind.gd decides; its trigger,
 # blade and charge are this file's), and a thrusting body holds a semi or lob shot as the web's does. What stays on
 # the web: the combo's stun, scaling and juggle, the clash and the other set pieces, boost armor, the hero's other
 # loadout slots. A hit

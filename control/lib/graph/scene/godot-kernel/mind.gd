@@ -12,7 +12,7 @@ extends RefCounted
 #   strike       the counter (the opportunist's charge), the blade commit with its timeout and give-up, the trigger
 #   engage       spacing by the tool in hand (rush · skirmish · siege), the juke, group slots, space
 # then the detune: aim wobble after every decision. A world's tier (aiDifficulty) and a body's `rule.mind` tune it; a
-# boss crosses health phases and adapts. Held EQUAL to the web frame by frame by scripts/godot-mind-conformance.mjs
+# boss crosses health phases and adapts. Held EQUAL to the web frame by frame by scripts/conformance.mjs --engine godot --corpus mind
 # (lib/graph/scene/mind-conformance.js; the cover law, worlds/controllable/cover.test.js, among its scenarios).
 #
 #   var M = preload("res://kernel/mind.gd").new()

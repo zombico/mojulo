@@ -1,7 +1,7 @@
 extends SceneTree
 # The Godot side of the rules conformance corpus (lib/graph/scene/rules-conformance.js): each scenario's pilot stepped by
 # kernel/rules.gd over its triangles and colliders with its held input, one canonical snapshot a frame.
-# scripts/godot-rules-conformance.mjs copies this beside the kernel in a scratch project, runs it headless and compares.
+# scripts/conformance.mjs --engine godot --corpus rules copies this beside the kernel in a scratch project, runs it headless and compares.
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>
 

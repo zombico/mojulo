@@ -6,7 +6,8 @@ import { beatsDue } from '../beats/beat-clock.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { playScript } from '../game/level-equivalence.js';
 import { extractEngineScore } from './engine-score.js';
-import { busCoverage, BUS_ABI } from './bus-abi.js';
+import { busCoverage } from './bus-abi.js';
+import { BUS_MARKS } from './godot-marks.js';
 import { playBoth } from './godot-harness.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import fs from 'node:fs';
@@ -88,7 +89,7 @@ describe('the beat clock', () => {
     expect(last.vars.score).toBeGreaterThan(0);
     expect(last.log.some((l) => l.type === 'beat:miss')).toBe(true);
     expect(busCoverage(p.events).godot.built).toContain('fact:beat');
-    expect(BUS_ABI.facts.beat.godot).toBe('built');
+    expect(BUS_MARKS.facts.beat.godot).toBe('built');
   });
 
   it.skipIf(!GODOT)('a headless Godot keeps the beat: the same beats, hits and misses, frame by frame (MOJULO_GODOT)', () => {

@@ -43,7 +43,7 @@ async function resolveLevel(levelSketch, { clips, posture = null, lit = false })
     throw new Error(`'${levelSketch.ref}': kind '${levelSketch.manifest?.kind ?? kind ?? '?'}' resolves to no traversable scene`);
   }
   const exported = facesToGlb(payload, { generator: `mojulo ${levelSketch.ref}`, ...(clips ? { clips } : {}), ...(lit ? { lit: true } : {}) });
-  const score = extractEngineScore(levelSketch, payload, { posture });
+  const score = extractEngineScore(levelSketch, payload, { posture, engine: 'unreal' });
   return { kind, exported, score, soundtrack: levelSoundtrack(levelSketch, payload) };
 }
 
@@ -84,7 +84,7 @@ export async function buildUnrealWorldPack({ ref, outDir, clips = '_all', postur
     audioFile = `audio/${score.soundtrack}.wav`;
   }
   const manifestHash = hashOf(manifest);
-  const portability = assessPortability({ manifest, levels: [{ ref, score }] });
+  const portability = assessPortability({ manifest, levels: [{ ref, score }], engine: 'unreal' });
   const emitted = emitUnrealProject({
     ref, score, manifestHash, audioFile, lit,
     remint: `node scripts/export-unreal.mjs --ref ${ref}${lit ? ' --lit' : ''}`,
@@ -151,7 +151,7 @@ export async function buildUnrealGamePack({ ref, outDir, clips = '_all', posture
   binaries.push({ rel: 'recipe/game.json', bytes: JSON.stringify(manifest, null, 2) });
 
   const manifestHash = hashOf(manifest);
-  const portability = assessPortability({ manifest, levels });
+  const portability = assessPortability({ manifest, levels, engine: 'unreal' });
   const emitted = emitUnrealGame({ lit,
     ref, manifest, levels, manifestHash,
     remint: `node scripts/export-unreal.mjs --ref ${ref}`,
