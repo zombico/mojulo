@@ -2,7 +2,7 @@
 /**
  * Writes lib/graph/historic/slot-table.js: each culture's statue slots as its entry card says them, planned live
  * (entries.js `liveSlotText`). The entry cards read the table so a catalog load does not plan every city. Run it after a
- * change to a culture, its layout or statues.js; slot-table.deep.test.js fails until it is run.
+ * change to a culture, its form, its monuments or statues.js; slot-table.deep.test.js fails until it is run.
  *
  *   node scripts/gen-historic-slots.mjs
  */
@@ -10,7 +10,7 @@ import { writeFileSync } from 'node:fs';
 import { register } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-// the historic layouts reach the recipe book, which imports through `@/`
+// the historic solver reaches the recipe book, which imports through `@/`
 register(new URL('./mcp-stdio-loader.mjs', import.meta.url).href);
 const { HISTORIC_CULTURES } = await import('../lib/graph/historic/historic-city.js');
 const { liveSlotText } = await import('../lib/graph/historic/entries.js');

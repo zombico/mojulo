@@ -16,7 +16,9 @@
  * shape: every block has a `many` dial (0…1, little to many) its parts can appear at (`many: 0.5`) or count by.
  *
  *   readBlock(block, library?)            → the block, checked (throws naming what is wrong)
- *   buildBlock(block, { params, seed, ring, library, many }) → { faces, parts, params, box, ring, counted }
+ *   buildBlock(block, { params, seed, ring, library, many, bevel }) → { faces, parts, params, box, ring, counted }
+ *                                         (`bevel`, opt-in: a share of each drawn part's least size its capped prisms
+ *                                         are bevelled by; absent, nothing changes)
  *   blockLaws(block, built)               → [{ law, want, ok, value }]
  *   blockPaint(kitId, finish)             → a structure paint with the technology groups resolved by a finish
  *
@@ -118,8 +120,10 @@ const vec = (v, P, d = [0, 0, 0]) => (v === undefined ? d : v.map((x) => expr(x,
 // ── the primitives ──────────────────────────────────────────────────────────────────────────────────────────────────
 // each builds in its own frame (base at the origin, up z) and says its least span (the eye spot's measure)
 const ring2 = (n, r, a0 = 0) => Array.from({ length: n }, (_, k) => { const a = a0 + (2 * Math.PI * k) / n; return [r * Math.cos(a), r * Math.sin(a)]; });
-/** A prism: a convex 2-D outline swept from a to b (its plane square to the sweep), capped at both ends. */
+/** A prism: a convex 2-D outline swept from a to b (its plane square to the sweep), capped at both ends. With
+ *  `ex.bevel` (metres, opt-in) a capped prism is drawn bevelled instead (bevelPrism). */
 function prism(out, a, b, outline, ex, caps = true) {
+  if (caps && ex.bevel) { bevelPrism(out, a, b, outline, ex); return; }
   const ax = sub(b, a), n = unit(ax), [t1, t2] = basis(n), at = (o, [u, v]) => add3(add3(o, t1, u), t2, v);
   const A = outline.map((p) => at(a, p)), B = outline.map((p) => at(b, p));
   for (let k = 0; k < outline.length; k++) {
@@ -127,6 +131,50 @@ function prism(out, a, b, outline, ex, caps = true) {
     face(out, q, sub(c, add3(a, n, dot(sub(c, a), n))), ex.part, ex.value, ex.extra);
   }
   if (caps) { face(out, A, n.map((v) => -v), ex.part, ex.value, ex.extra); face(out, B, n, ex.part, Math.min(1, ex.value + 0.04), ex.extra); }
+}
+// a convex outline counter-clockwise, its edges' inward normals, and the outline moved inward by d along them
+const ccw = (o) => (o.reduce((s, p, i) => { const q = o[(i + 1) % o.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0) < 0 ? o.slice().reverse() : o);
+const inwardOf = (o) => o.map((p, i) => { const q = o[(i + 1) % o.length], dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1; return [-dy / l, dx / l]; });
+function inset(o, d) {
+  const N = inwardOf(o);
+  return o.map((p, i) => { const a = N[(i + o.length - 1) % o.length], b = N[i], k = d / (1 + a[0] * b[0] + a[1] * b[1]); return [p[0] + (a[0] + b[0]) * k, p[1] + (a[1] + b[1]) * k]; });
+}
+/**
+ * A bevelled prism: the outline's corners rounded (a polygon of six sides or fewer: a box, a panel, a fin; a rounder
+ * outline is round already) and both ends eased into their caps over `segs` steps, so a light smoothed across creases
+ * has a shoulder to grade. Drawn inside the plain prism's bounds: nothing grows. The bevel is `ex.bevel` metres, held
+ * under half the sweep and under the outline's inradius; `ex.segs` (1–3) the steps of each round.
+ */
+function bevelPrism(out, a, b, outline0, ex) {
+  const outline = ccw(outline0), L = Math.hypot(...sub(b, a)), segs = ex.segs ?? 2;
+  const c2 = outline.reduce((s, p) => [s[0] + p[0] / outline.length, s[1] + p[1] / outline.length], [0, 0]);
+  const inr = Math.min(...inwardOf(outline).map((n, i) => (c2[0] - outline[i][0]) * n[0] + (c2[1] - outline[i][1]) * n[1]));
+  const rho = outline.length <= 6 ? Math.min(ex.bevel, 0.8 * inr) : 0;
+  const e = Math.min(rho > 0 ? 0.7 * rho : ex.bevel, 0.45 * L, 0.45 * inr);
+  if (e < 0.004) { prism(out, a, b, outline0, { ...ex, bevel: 0 }); return; }
+  const Q = rho > 0 ? inset(outline, rho) : outline, N = inwardOf(outline), n = Q.length;
+  // the outline drawn s inward: round corners of radius rho − s about Q's corners, or Q moved in by s
+  const ringOf = (s) => (rho > 0
+    ? Q.flatMap((q, i) => {
+      const o1 = N[(i + n - 1) % n].map((v) => -v), o2 = N[i].map((v) => -v), a1 = Math.atan2(o1[1], o1[0]);
+      let da = Math.atan2(o2[1], o2[0]) - a1; while (da < 0) da += 2 * Math.PI; while (da > Math.PI) da -= 2 * Math.PI;
+      return Array.from({ length: segs + 1 }, (_, j) => { const t = a1 + (da * j) / segs; return [q[0] + (rho - s) * Math.cos(t), q[1] + (rho - s) * Math.sin(t)]; });
+    })
+    : inset(outline, s));
+  const stations = [];
+  for (let j = 0; j <= segs; j++) { const th = (Math.PI / 2) * (j / segs); stations.push([e * (1 - Math.cos(th)), e * (1 - Math.sin(th))]); }
+  for (let j = segs; j >= 0; j--) { const th = (Math.PI / 2) * (j / segs); stations.push([L - e * (1 - Math.cos(th)), e * (1 - Math.sin(th))]); }
+  const ax = sub(b, a), nx = unit(ax), [t1, t2] = basis(nx), at = (t, [u, v]) => add3(add3(add3(a, nx, t), t1, u), t2, v);
+  const rings = stations.map(([t, s]) => ringOf(s).map((p) => at(t, p)));
+  for (let r = 0; r + 1 < rings.length; r++) {
+    const A = rings[r], B = rings[r + 1], m = A.length;
+    for (let k = 0; k < m; k++) {
+      const k1 = (k + 1) % m, q = [A[k], A[k1], B[k1], B[k]], c = q.reduce((s, p) => add3(s, p, 0.25), [0, 0, 0]);
+      face(out, q, sub(c, add3(a, nx, dot(sub(c, a), nx))), ex.part, ex.value, ex.extra);
+    }
+  }
+  face(out, rings[0], nx.map((v) => -v), ex.part, ex.value, ex.extra);
+  face(out, rings[rings.length - 1], nx, ex.part, Math.min(1, ex.value + 0.04), ex.extra);
 }
 const AXES = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] };
 const R = (lo, hi, i) => (i ? [lo, hi, 'i'] : [lo, hi]);
@@ -225,7 +273,7 @@ export const PRIMITIVES = Object.freeze({
       const r = p.r, V = [[r, 0, r], [-r, 0, r], [0, r, r], [0, -r, r]], top = [0, 0, 2 * r], bot = [0, 0, 0], O = [V[0], V[2], V[1], V[3]];
       for (let k = 0; k < 4; k++) { const a = O[k], b = O[(k + 1) % 4]; face(out, [a, b, top], add3(add3(a, b), [0, 0, r]), ex.part, ex.value, ex.extra); face(out, [b, a, bot], add3(add3(a, b), [0, 0, -r]), ex.part, ex.value, ex.extra); }
     } },
-  ring: { read: 'a hoop of radius r, its section `tube` thick, round its axis', rails: { r: R(0.1, 30), tube: R(0.02, 3), sides: R(6, 32, true) },
+  ring: { read: 'a hoop of radius r, its section `tube` thick, round its axis', rails: { r: R(0.1, 60), tube: R(0.02, 3), sides: R(6, 32, true) },
     least: (p) => 2 * p.tube,
     build(out, p, ex) {
       const ax = unit(AXES[p.axis ?? 'z']), [t1, t2] = basis(ax), n = p.sides ?? 16, P = (k) => { const a = (2 * Math.PI * k) / n; return add3(add3([0, 0, 0], t1, p.r * Math.cos(a)), t2, p.r * Math.sin(a)); };
@@ -311,7 +359,7 @@ const place = (f, at, yaw) => ({ ...f, corners: f.corners.map((p) => add3(yawed(
  * tile (marks, never counted) and a signature part's loss recorded; child blocks built in their own frames and set in.
  * → { faces, parts: [{ id, role, prim|block, least, shown: 'geometry'|'tile'|'absent', n }], params, box, ring, counted }
  */
-export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many, at = [0, 0, 0], yaw = 0, depth = 0 } = {}) {
+export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many, at = [0, 0, 0], yaw = 0, depth = 0, bevel = 0 } = {}) {
   readBlock(B, library);
   if (depth > 6) throw new Error(`blocks: '${B.id}' nests blocks more than six deep`);
   // a held block is judged at arm's length unless a ring is asked for
@@ -337,9 +385,12 @@ export function buildBlock(B, { params = {}, seed = 1, ring, library = {}, many,
         rec.least = r3(Pr.least(q));
         const ex = { part: 'body', value: p.value ?? 0.6, extra: { group: p.group ?? 'tech:body', mass: `${B.id}/${p.id}${rep.n > 1 ? `#${k}` : ''}`, role: p.role ?? null, piece: p.id } };
         if (rec.least < eye - 1e-9) { rec.shown = 'tile'; ex.extra = { ...ex.extra, tile: true }; ex.part = 'bond'; }
+        // (a bevel's steps by the part's size, as the supercar's detail: a small part a chamfer, a large one rounded;
+        // a part under the eye spot too, the caller having asked: a machine seen closer than its ring)
+        if (bevel > 0) { ex.bevel = bevel * rec.least; ex.segs = rec.least >= 0.2 ? 2 : 1; }
         Pr.build(local, q, ex, eye);
       } else {
-        const child = buildBlock(library[p.block], { params: p.params ?? {}, seed: subSeed(seed, `${p.id}:${k}`), ring: rg, library, many: P.many, depth: depth + 1 });
+        const child = buildBlock(library[p.block], { params: p.params ?? {}, seed: subSeed(seed, `${p.id}:${k}`), ring: rg, library, many: P.many, depth: depth + 1, bevel });
         rec.least = r3(Math.min(...child.parts.filter((c) => c.shown === 'geometry').map((c) => c.least), Infinity));
         rec.children = child.parts;
         if (!child.parts.some((c) => c.shown === 'geometry')) rec.shown = 'tile';

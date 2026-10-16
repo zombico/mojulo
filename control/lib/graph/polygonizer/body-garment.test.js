@@ -13,6 +13,7 @@ const worn = (opts) => { const plan = humanoidPlan({ detail: 'swimsuit', ...opts
 const isGarment = (n) => /_/.test(n);
 const centre = (st) => { const v = Object.values(st.points); return [0, 1, 2].map((i) => v.reduce((s, p) => s + p[i], 0) / v.length); };
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const mean3 = (ps) => [0, 1, 2].map((k) => ps.reduce((s, p) => s + p[k], 0) / ps.length);
 
 describe('absent is zero bytes', () => {
   it('no outfit, null outfit: the plan and the recipe are the swimsuit hero\'s', () => {
@@ -115,5 +116,94 @@ describe('the outfit words follow the body', () => {
   it('deterministic: the same words, the same recipe', () => {
     const a = JSON.stringify(worn({ preset: 'female', outfit: ['trousers', 'tee', 'boots'] }).recipe);
     expect(JSON.stringify(worn({ preset: 'female', outfit: ['trousers', 'tee', 'boots'] }).recipe)).toBe(a);
+  });
+});
+
+// THE KERNEL GROWS (outfit/principles.js, the update law): `proportional` keeps the body's ratios, `dense` rounds a coarse
+// ring, `fit: 'panel'` hangs open cloth over an arc of the leg hull. Each is absent → the piece as before.
+describe('proportional, dense and panels', () => {
+  const ring = (P, part, id) => { const st = P[part].stations.find((s) => s.id === id); const pts = P[part].slots.map((sl) => st.points[sl]);
+    let g = 0; for (let i = 0; i < pts.length; i++) g += dist(pts[i], pts[(i + 1) % pts.length]); return g; };
+  const shin = (extra) => worn({ preset: 'female', outfit: [{ id: 'leg', part: 'shank', run: [0, 0.94], ease: 0.012, group: 'Bottom', ...extra }] }).recipe.parts;
+  it('proportional: the cloth keeps the body\'s calf-to-ankle ratio, where one ease everywhere does not', () => {
+    const plain = shin(), prop = shin({ proportional: 0.1 });
+    const body = (P, id) => ring(P, 'shankR', id), cloth = (P, id) => ring(P, 'leg_shankR', id);
+    const [calf, ankle] = ['st1', 'st1_st2_50'];
+    const r = (P) => cloth(P, ankle) / cloth(P, calf), rb = body(plain, ankle) / body(plain, calf);
+    expect(Math.abs(r(prop) - rb)).toBeLessThan(0.01);
+    expect(r(plain) - rb).toBeGreaterThan(0.03);
+  });
+  it('dense: a six-sided limb\'s cloth is resampled to twelve, the body\'s own points kept, t addressed as before', () => {
+    const P = shin({ dense: true });
+    expect(P.leg_shankR.slots).toHaveLength(12); expect(P.shankR.slots).toHaveLength(6);
+    expect(P.leg_shankR.slotT.back).toBe(3);   // the dense ring's back is the body family's back (t on ring6's half)
+    // the inserted points bow out past the chord between their neighbours (the ring is rounder, never inside the body)
+    const st = P.leg_shankR.stations[1], c = centre(st), sl = P.leg_shankR.slots;
+    for (let k = 1; k < 12; k += 2) { const a = st.points[sl[k - 1]], b = st.points[sl[(k + 1) % 12]], m = st.points[sl[k]];
+      expect(dist(m, c)).toBeGreaterThan(dist([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], c) - 1e-9); }
+  });
+  it('a panel hangs over its arc from the waist to its hem, closed and skinned, with a root to flow from', () => {
+    const { recipe, mesh } = worn({ preset: 'female', core: 'structured', outfit: [{ id: 'tail', fit: 'panel', part: ['pelvis', 'thigh'], from: { part: 'pelvis', u: 6 }, to: { part: 'thigh', run: 1 }, around: [160, 200], ease: 0.01, rigidity: 'soft', group: 'Outer' }] });
+    const P = recipe.parts.tail_panel; expect(P).toBeTruthy(); expect(failures(mesh).filter((n) => n.startsWith('tail'))).toEqual([]);
+    expect(P.rigidity).toBe('soft'); expect(P.root).toHaveLength(3);
+    const pts = P.stations.flatMap((st) => Object.values(st.points));
+    expect(pts.every((p) => p[1] < 0)).toBe(true);   // all of it behind the figure (the back arc; +y is the front)
+    expect(P.stations[0].points.p0[2]).toBeGreaterThan(P.stations[11].points.p0[2] + 0.2);   // it falls
+    expect(validateGarments([{ id: 'x', fit: 'panel', part: 'pelvis', from: { part: 'pelvis', u: 6 }, to: { part: 'thigh', run: 1 }, around: [200, 160], ease: 0, group: 'Top' }])[0]).toMatch(/around/);
+    expect(validateGarments([{ id: 'x', part: 'torso', ease: 0, group: 'Top', proportional: 0 }])[0]).toMatch(/proportional/);
+  });
+  it('a cape hangs from the shoulders round the back and the arms: round, clear of what it covers, draping on the arms', () => {
+    const cape = { id: 'cloak', fit: 'cape', part: ['torso', 'upperArm', 'pelvis', 'thigh', 'shank'], from: { part: 'torso', run: 1 }, to: { part: 'shank', run: 0.3 }, around: [70, 290], ease: 0.02, flare: [0, 0.1], rigidity: 'soft', group: 'Outer' };
+    const { recipe, mesh } = worn({ preset: 'male', core: 'structured', outfit: [cape] });
+    const P = recipe.parts.cloak_cape; expect(P).toBeTruthy(); expect(failures(mesh).filter((n) => n.startsWith('cloak'))).toEqual([]);
+    expect(P.rigidity).toBe('soft');
+    const z = (st) => Object.values(st.points)[0][2], top = P.stations[0], hem = P.stations[P.stations.length - 1];
+    expect(z(top)).toBeGreaterThan(z(hem) + 0.8);   // shoulders to calf
+    // no root: it flows as a curtain, a string per share of its width (hero-flow.js)
+    expect(P.root).toBeUndefined();
+    // it DRAPES ON THE ARMS: the cloth over an arm takes that arm's weight, the cloth down the spine none
+    const armW = (key) => Object.entries(P.bind.blend[key] || {}).filter(([b]) => /^(upperArm|foreArm)/.test(b)).reduce((t, [, w]) => t + w, 0);
+    const sideKey = Object.keys(P.bind.blend).filter((k) => /^st[1-4]\.p\d+R$/.test(k)).sort((a, b) => armW(b) - armW(a))[0];
+    expect(armW(sideKey)).toBeGreaterThan(0.3);
+    for (let i = 0; i < P.stations.length; i++) expect(armW(`st${i}.p6R`), `st${i}.p6R`).toBeLessThan(0.02);
+    // it WRAPS: on every ring the arc's ends come forward of its middle by a body's depth (a board lies in one plane)
+    for (const st of P.stations) expect(st.points.p0[1] - st.points.p6R[1]).toBeGreaterThan(0.1);
+    // clear of what it covers: no point of the body under its arc (behind the arc's ends) stands outside its outer face
+    const shoulders = recipe.parts.torso.stations.flatMap((st) => Object.values(st.points)).filter((p) => Math.abs(p[2] - z(top)) < 0.08);
+    const cy = (Math.min(...shoulders.map((p) => p[1])) + Math.max(...shoulders.map((p) => p[1]))) / 2, rOf = (p) => Math.hypot(p[0], p[1] - cy), angle = (p) => (Math.atan2(p[0], p[1] - cy) * 180 / Math.PI + 360) % 360;
+    const body = ['torso', 'upperArmR', 'upperArmL', 'pelvis', 'thighR', 'thighL'].flatMap((n) => recipe.parts[n].stations.flatMap((st) => Object.values(st.points)));
+    let poke = 0, seen = 0;
+    for (let i = 1; i < P.stations.length; i++) { const zi = z(P.stations[i]), outer = Object.entries(P.stations[i].points).filter(([sl]) => /^p\d+[RL]?$/.test(sl)).map(([, p]) => p).slice(0, 13);
+      for (const b of body.filter((q) => Math.abs(q[2] - zi) < 0.02 && angle(q) > 100 && angle(q) < 260)) { const near = outer.reduce((a, p) => (Math.abs(angle(p) - angle(b)) < Math.abs(angle(a) - angle(b)) ? p : a));
+        seen++; if (rOf(b) > rOf(near) + 0.005) poke++; } }
+    expect(seen).toBeGreaterThan(20); expect(poke).toBe(0);
+    expect(validateGarments([{ ...cape, around: undefined }])[0]).toMatch(/around/);
+  });
+  it('a hood rises from the shoulders over the head: round over it, open at the face, falling to the nape, turning with the head', () => {
+    const hb = humanoidPlan({ preset: 'female', detail: 'swimsuit' }).joints.headBase, head = { at: [0, 0, hb[2] + 0.11], r: [0.13, 0.13, 0.11] };
+    const hood = { id: 'cowl', fit: 'hood', part: ['torso', 'upperArm', 'neck'], from: { part: 'torso', run: 1 }, head, around: [70, 290], open: 50, ease: 0.02, group: 'Outer' };
+    const { recipe, mesh } = worn({ preset: 'female', core: 'structured', outfit: [hood] });
+    const P = recipe.parts.cowl_hood; expect(P).toBeTruthy(); expect(failures(mesh).filter((n) => n.startsWith('cowl'))).toEqual([]);
+    const z = (st) => mean3(Object.values(st.points))[2], top = P.stations.at(-1);
+    expect(z(top)).toBeGreaterThan(head.at[2] + head.r[2]);   // over the crown
+    // round over the head: every point of the head's volume behind the face's opening lies inside its outer face
+    let seen = 0, out = 0;
+    for (const st of P.stations) { const zi = z(st), f = 1 - ((zi - head.at[2]) / head.r[2]) ** 2; if (f <= 0.05) continue;
+      for (let a = 80; a <= 280; a += 20) { const t = a * Math.PI / 180, q = [Math.sin(t) * head.r[0] * Math.sqrt(f), Math.cos(t) * head.r[1] * Math.sqrt(f)];
+        const near = Object.values(st.points).reduce((b, p) => (Math.abs(Math.atan2(p[0], p[1]) - Math.atan2(q[0], q[1])) < Math.abs(Math.atan2(b[0], b[1]) - Math.atan2(q[0], q[1])) ? p : b));
+        seen++; if (Math.hypot(...q) > Math.hypot(near[0], near[1]) + 0.002) out++; } }
+    expect(seen).toBeGreaterThan(30); expect(out).toBe(0);
+    // open at the face: at the eyes' height no point of it lies within the opening (±50° of the front)
+    const eyes = P.stations.reduce((b, st) => (Math.abs(z(st) - head.at[2]) < Math.abs(z(b) - head.at[2]) ? st : b));
+    for (const p of Object.values(eyes.points)) expect(Math.abs(Math.atan2(p[0], p[1]) * 180 / Math.PI)).toBeGreaterThan(49);
+    // it falls: from its widest ring down no ring is narrower than the one above it
+    const width = (st) => Math.max(...Object.values(st.points).map((p) => Math.abs(p[0])));
+    const w = P.stations.map(width), widest = w.indexOf(Math.max(...w.slice(0, -1)));
+    for (let i = 0; i < widest; i++) expect(w[i]).toBeGreaterThanOrEqual(w[i + 1] - 1e-6);
+    // it turns with the head: the crown is the head's, the foot the shoulders'
+    expect(Object.keys(P.bind.blend.tip)).toEqual(['head']);
+    expect(P.bind.blend['st0.p6R'].head ?? 0).toBe(0);
+    expect(validateGarments([{ ...hood, head: undefined }])[0]).toMatch(/head/);
+    expect(validateGarments([{ ...hood, open: 200 }])[0]).toMatch(/open/);
   });
 });

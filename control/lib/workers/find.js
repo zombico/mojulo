@@ -1,6 +1,6 @@
 /**
  * Where this host's optional workers are: the programs mojulo runs itself when they are present (Blender, Godot, Unity,
- * Unreal, a slicer, ffmpeg, a Chromium browser, OpenSCAD-in-WASM). One place for each search order, so the export
+ * Unreal, Electron, a slicer, ffmpeg, a Chromium browser, OpenSCAD-in-WASM). One place for each search order, so the export
  * scripts and `version({ workers: true })` find the same binary. Absence degrades a loop, never breaks one: each entry
  * says what still happens without it.
  *
@@ -58,6 +58,16 @@ export function findUnreal({ env, exists, readdir } = HOST) {
 }
 
 /**
+ * $MOJULO_ELECTRON, else the exported folder's own install (`npm install` in a desktop export), else `electron` on PATH.
+ * mojulo never installs Electron: it is the exported folder's devDependency.
+ */
+export function findElectron({ env, exists, which } = HOST, { dir } = {}) {
+  if (env.MOJULO_ELECTRON) return env.MOJULO_ELECTRON;
+  const own = dir ? path.join(dir, 'node_modules', '.bin', process.platform === 'win32' ? 'electron.cmd' : 'electron') : null;
+  return own && exists(own) ? own : which('electron');
+}
+
+/**
  * Every worker, `{ id, found, env, uses, without }`: the path found (or null), the variable that points at it, what
  * it runs, and what still happens without it. `slicer`, `ffmpeg` and `chromium` take their finders from the modules
  * that run them (passed in, so this file stays free of their imports).
@@ -85,6 +95,8 @@ export function workersPresent({ host = HOST, findSlicer, chromiumCandidates = [
       without: 'the data pack and importer are still written' },
     { id: 'unreal', found: findUnreal(host), env: 'MOJULO_UNREAL', uses: 'the advisory Unreal import gate',
       without: 'the data pack and plugin are still written' },
+    { id: 'electron', found: findElectron(host), env: 'MOJULO_ELECTRON', uses: 'the desktop app gate on an exported game (scripts/export-desktop.mjs)',
+      without: 'the app folder is still written; the gate skips, or uses the folder\'s own install after npm install' },
     { id: 'slicer', found: slicer ? slicer.bin : null, env: 'MOJULO_SLICER', uses: 'slicing a print export (PrusaSlicer, SuperSlicer, OrcaSlicer, Bambu Studio)',
       without: 'the STL / 3MF and its print measure are still written; nothing is sliced' },
     { id: 'openscad', found: openscad, env: null, uses: 'meshing `scad` rows (an OpenSCAD program as the recipe)',

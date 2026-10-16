@@ -26,6 +26,18 @@ describe('emitThreeWorld — instanced repeats', () => {
     expect(packed[0].pos.length).toBeLessThan(2000); // …one small template
   });
 
+  it('stretches an instance per axis only when one asks, and the uniform line keeps its bytes otherwise', () => {
+    const box = [{ corners: [[-0.5, -0.5, 1], [0.5, -0.5, 1], [0.5, 0.5, 1], [-0.5, 0.5, 1]], fill: '#bbbbbb' }];
+    const axis = emitThreeWorld({ faces: [floor()], repeats: [{ template: box, transforms: [{ pos: [0, 0, 0], scale: [20, 30, 120] }, { pos: [40, 0, 0], scale: 2 }] }] });
+    const packed = JSON.parse(axis.match(/const REPEATS = (\[.*?\]);\n/s)[1]);
+    expect(packed[0].t[0].slice(4)).toEqual([20, 30, 120]);
+    expect(packed[0].t[1].slice(4)).toEqual([2]);
+    expect(axis).toContain('S.set(t[4], t[5] ?? t[4], t[6] ?? t[4])');
+    const uniform = emitThreeWorld({ faces: [floor()], repeats: [{ template: box, transforms: [{ pos: [0, 0, 0], scale: 2 }] }] });
+    expect(uniform).toContain('S.set(t[4], t[4], t[4])');
+    expect(uniform).not.toContain('t[5] ?? t[4]');
+  });
+
   it('instancing beats expansion on payload size at scale', () => {
     const transforms = grid(500, 2);
     const instanced = emitThreeWorld({ faces: [floor()], repeats: [{ template: tree(), transforms }] });

@@ -184,6 +184,7 @@ export const TOOL_ANNOTATIONS = {
   bind_mesh_render: ['Bind a refined mesh', ADDITIVE],
   mint_diagram: ['Mint a diagram', ADDITIVE],
   mint_building: ['Mint a building', ADDITIVE],
+  design_interior: ['Design an interior', ADDITIVE],
   render_handoff: ['Run the render worker loop', DESTRUCTIVE], // the union of its ops: pull claims, reject overturns
   request_image_render: ['Queue an image render', ADDITIVE_IDEMPOTENT], // deduped per manifest hash
   pull_image_render: ['Claim an image render', ADDITIVE],
@@ -218,6 +219,8 @@ export const TOOL_ANNOTATIONS = {
   forge_motion: ['Forge a motion clip', ADDITIVE],
   stitch_motion: ['Stitch clips into a film', ADDITIVE],
   get_motion_vocab: ['Motion vocabulary cards', READ],
+  create_shoot_plan: ['Create a shoot plan', DESTRUCTIVE], // replaces the world's plan
+  update_shoot_plan: ['Update a shoot plan', DESTRUCTIVE],
   create_beats: ['Create beats', ADDITIVE],
   get_beats_vocab: ['Beats vocabulary cards', READ],
   get_beats: ['Get beats', READ],
@@ -235,6 +238,8 @@ export const TOOL_ANNOTATIONS = {
   design_game: ['Design and make a game', DESTRUCTIVE],
   // previews unless `apply`; applied, it sets one level's ground (the same call again changes nothing)
   tune_ground: ['Tune a level\'s ground', DESTRUCTIVE_IDEMPOTENT],
+  // solves and answers; stores nothing
+  pick_palette: ['Pick a palette', READ],
   create_game: ['Create a game', ADDITIVE],
   get_game_vocab: ['Game vocabulary cards', READ],
   get_play_vocab: ['Play vocabulary cards', READ],

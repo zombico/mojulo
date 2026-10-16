@@ -40,10 +40,11 @@
  *
  * Pure and deterministic: functions of the mesh, the recipe and the light alone.
  */
-import { hexToRgb, rgbToHex, resolveToon, resolveToonLight } from './vexar.js';
+import { hexToRgb, rgbToHex, resolveToon, resolveToonLight, CHARACTER_LIGHT_UNLIT } from './vexar.js';
 import { layeredSeat } from './station-loft-faces.js';
 import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
+import { faceHex } from './face-hex.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -51,7 +52,6 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const len = (a) => dmath.hypot(a[0], a[1], a[2]);
 const unit = (a) => { const l = len(a); return l > 1e-300 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 1]; };
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
-const FALLBACK = '#8a8f96';
 const deepFreeze = (o) => { for (const v of Object.values(o)) if (v && typeof v === 'object') deepFreeze(v); return Object.freeze(o); };
 
 /** The anime hero's default character light (the read-time default; frozen, shared). */
@@ -125,8 +125,49 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
   const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
   if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
-  return anime ? (painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)]) : null;
+  // a CREATURE (a layered plan that is no hero and no built animal: create_character's `as: 'creature'`, drawn or designed
+  // by hand) takes the character light too, as a hero does: the toon step (a drawn one's markings stepped in it), the ink,
+  // the metal's gloss when it wears plate. A carved creature (a statue) keeps the stone's light
+  if (!anime) { if (!isCreature(manifest)) return null;
+    const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
+    return wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base; }
+  const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
+  return wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
 }
+/** A DRAWN CREATURE'S SHADE BY VALUE: the derived shade multiplies the colour, so a dark or saturated one (a beast's deep
+ * cloth, a black coat) steps by a few L* and its shadow side does not read; each palette group whose derived shade
+ * steps less than SHADE_STEP takes a shade SHADE_STEP darker in L* (floored at SHADE_FLOOR, never closer than 6 to its
+ * lit tone), its chroma kept a little, its hue turned toward violet as the hair's is: the form reads as the heroes' does */
+export const SHADE_STEP = 13, SHADE_FLOOR = 12;
+/** a drawn creature's step sits a little toward the key (N·L > CREATURE_STEP is lit), so each form turns a shadow shape
+ * toward the eye on the side away from the key, as a cel painter places it, not only round its back */
+export const CREATURE_STEP = 0.15;
+/** the key a drawn creature is lit by: the character key turned 35° toward the side. A hero stands turned in its stance
+ * (hero-gesture.js), so the key crosses its front; a creature stands square to the key, which lit it head on (the front
+ * all one tone, the shadow round its back). Turned, the shadow line crosses the front as it does on the hero */
+export const CREATURE_KEY = Object.freeze([0.8, 0.36, 0.55]);
+/** the groups of a creature's own body (its segments' and its cover's, and the library heads' skin groups): shaded as a
+ * hero's skin is, darker and RICHER (never a grey: a cream coat's shade is a warm tan, a blue hide's a deep blue) */
+const CREATURE_SKIN = ['Fur', 'FurAlt', 'Scales', 'ScalesAlt', 'Chitin', 'ChitinAlt', 'Flight', 'FlightAlt', 'Skull', 'Body', 'Jowl', 'Jaw', 'Snout', 'Lip', 'Brow', 'Lids', 'Ears', 'Folds', 'Web', 'Cheek', 'Throat', 'Cap', 'CapAlt'];
+export function creatureSkin(plan = {}) { return [...new Set([...(plan.segments || []).map((g) => g.group).filter(Boolean), ...CREATURE_SKIN])]; }
+export function valueShades(palette = {}, unlit = [], skin = []) {
+  const out = {};
+  for (const [g, hex] of Object.entries(palette || {})) {
+    if (unlit.includes(g) || typeof hex !== 'string' || !/^#[0-9a-f]{6}$/i.test(hex)) continue;
+    const [L, C, h] = hexLch(hex);
+    if (skin.includes(g)) { out[g] = lchHex(Math.max(SHADE_FLOOR, L - Math.max(SHADE_STEP + 3, 0.22 * L)), C * 1.2 + 6, hueToward(h, 6)); continue; }
+    if (L - hexLch(derivedShade(g, hex))[0] >= SHADE_STEP) continue;
+    out[g] = lchHex(Math.max(L - SHADE_STEP, Math.min(SHADE_FLOOR, L - 6)), C * 0.9, hueToward(h, 12));
+  }
+  return out;
+}
+/** a creature's manifest: a layered plan worn by no hero, not a built animal (`fauna`, `species`, kind `animal`), not carved */
+export const isCreature = (m) => !!m?.plan && !m.hero && m.kind !== 'animal' && !m.fauna && !m.species && !m.plan.statue && !m.statue;
+/** WORKED METAL'S HOT SPOT: a hero that wears plate (an armour build, or a designed piece in the `metal` role) takes a
+ * gloss on its metal groups, a small lit spot where the plate turns full to the key, so a crowned plate reads as a curve
+ * and not one flat tone. A hero wearing none keeps the light it had. */
+export const METAL_HIGHLIGHT = deepFreeze(resolveToonLight({ highlight: { OutfitMetal: { kind: 'gloss', threshold: 0.9 }, Plate: { kind: 'gloss', threshold: 0.9 } } }).highlight);
+const wearsMetal = (hero, plan = null) => (hero ? hero.adorn?.type === 'armor' || !!hero.stylism || /"colour":"metal"/.test(JSON.stringify(hero.outfit ?? null)) : /"colour":"metal"/.test(JSON.stringify(plan?.outfit ?? null)));
 
 // ─── shading normals ──────────────────────────────────────────────────────
 const partOf = (mesh, fi) => mesh.provenance[mesh.faces[fi][0]].part;
@@ -479,7 +520,8 @@ function mixLinear(a, b, k) {
   const A = hexToRgb(a), B = hexToRgb(b);
   return rgbToHex(A.map((x, i) => 255 * srgbC(linC(x / 255) + (linC(B[i] / 255) - linC(x / 255)) * k)));
 }
-export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null } = {}) {
+const tintMean = (hex, tt) => { const m = [0, 1, 2].map((c) => (tt[0][c] + tt[1][c] + tt[2][c]) / 3), c = hexToRgb(hex); return rgbToHex(c.map((x, k) => Math.max(0, Math.min(255, x * m[k])))); };
+export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normals = null, palette = null, dz = 0, rest = mesh, neckShade = wearsAnimeFace(null, mesh), hairTop = wearsAnimeFace(null, mesh), glows = null, tint = null } = {}) {
   const N = normals || layeredShadingNormals(mesh);
   const pal = palette && typeof palette === 'object' ? palette : {};
   const glow = new Set(Array.isArray(glows) ? glows : []);   // the recipe's emissive groups: full-bright, never split (still inked)
@@ -503,7 +545,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
   // tones, its crease and the bare seat's cleft in a darker shade
   const panels = seatPanels(rest);
   // the swimsuit's tones: the first Swim face's fill and shade
-  const swim = panels ? (() => { const fi = mesh.groups.indexOf('Swim'); if (fi < 0) return null; const h = pal.Swim || mesh.parts[partOf(mesh, fi)]?.tint || FALLBACK; return { hex: h, shade: shadeFill(light, 'Swim', h) }; })() : null;
+  const swim = panels ? (() => { const fi = mesh.groups.indexOf('Swim'); if (fi < 0) return null; const h = faceHex(pal, 'Swim', mesh.parts[partOf(mesh, fi)]); return { hex: h, shade: shadeFill(light, 'Swim', h) }; })() : null;
   const VREF = mesh.vertices.map((v, vi) => ({ p: [v[0], v[1], v[2] + dz], vi }));
   const nV = mesh.vertices.length; const edges = new Map();   // min·nV + max → [{ s, p, a, b }] along min → max
   const shadeCache = new Map();
@@ -592,7 +634,9 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
     if (!(l > 1e-14)) return null;   // a degenerate triangle has no face
     const outNormal = [n[0] / l, n[1] / l, n[2] / l];
     const partName = partOf(mesh, fi); const part = mesh.parts[partName]; const g = mesh.groups[fi];
-    const hex = pal[g] || part?.tint || FALLBACK;
+    // `tint` (a drawn creature's markings, face-tint.js's form): the face's base taken through its corners' mean multiplier,
+    // so the light steps the marked colour and its own shade; absent ⇒ as before
+    const tt = tint?.[fi], hex = tt ? tintMean(faceHex(pal, g, part), tt) : faceHex(pal, g, part);
     if (unlit.has(g)) return { fi, tri, outNormal, partName, fill: hex, mark: true };
     if (glow.has(g)) return { fi, tri, outNormal, partName, fill: hex };
     const sk = `${g}|${hex}`; let shade = shadeCache.get(sk); if (shade === undefined) shadeCache.set(sk, shade = shadeFill(light, g, hex));

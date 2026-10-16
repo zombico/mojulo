@@ -45,6 +45,21 @@ describe('blocks: built at a ring', () => {
     }
   });
 
+  it('a bevel, asked for, rounds a capped prism inside its plain bounds and keeps it closed; absent, nothing changes', () => {
+    // one outline per way a bevel reads it: a box's corners rounded, a drum's round outline eased at its ends only
+    const demo = { box: { size: [0.6, 0.4, 0.3] }, drum: { r: 0.3, h: 0.5 } };
+    const edges = (fs) => { const n = new Map(); for (const f of fs) f.corners.forEach((p, i) => { const k = [p.join(), f.corners[(i + 1) % f.corners.length].join()].sort().join('|'); n.set(k, (n.get(k) ?? 0) + 1); }); return [...n.values()]; };
+    for (const [id, p] of Object.entries(demo)) {
+      const B = one(id, p), plain = buildBlock(B, { ring: 'near' }), bev = buildBlock(B, { ring: 'near', bevel: 0.3 });
+      expect(JSON.stringify(buildBlock(B, { ring: 'near', bevel: 0 }))).toBe(JSON.stringify(plain));
+      expect(bev.faces.length, id).toBeGreaterThan(plain.faces.length * 3);
+      for (let i = 0; i < 3; i++) { expect(bev.box.lo[i], id).toBeGreaterThanOrEqual(plain.box.lo[i] - 1e-3); expect(bev.box.hi[i], id).toBeLessThanOrEqual(plain.box.hi[i] + 1e-3); }
+      expect(edges(bev.faces).every((c) => c === 2), `${id} closed`).toBe(true);
+      // a corner is cut: no vertex of the bevelled block at the plain block's corner
+      expect(bev.faces.some((f) => f.corners.some((c) => c.every((v, i) => Math.abs(v - plain.box.hi[i]) < 1e-3))), id).toBe(false);
+    }
+  });
+
   it('what is under the eye spot goes to the tile and is not counted; a lost signature is said', () => {
     const near = buildBlock(L['comms-mast'], { seed: 2, library: L, ring: 'near' }), far = buildBlock(L['comms-mast'], { seed: 2, library: L, ring: 'far' });
     expect(far.counted).toBeLessThan(near.counted);

@@ -20,8 +20,9 @@
 import { TIERS, normalizeTier } from '../agent-tasks/tiers.js';
 import { getPack } from './packs.js';
 
-// Tools whose tier waits on their own branch (characters). Listed, untiered: no `_meta` for them.
-export const TIER_DEFERRED = Object.freeze(['create_character', 'bind_character_sheet', 'update_character']);
+// Tools whose tier waits on their own branch. Listed, untiered: no `_meta` for them. (None: the character tools took
+// theirs in the character stitch.)
+export const TIER_DEFERRED = Object.freeze([]);
 
 export const TOOL_TIERS = Object.freeze({
   // ── orientation ──
@@ -42,7 +43,12 @@ export const TOOL_TIERS = Object.freeze({
   get_solid_vocab: 'ride',
   measure_solid: 'ride',
   mint_building: 'fill',
+  design_interior: 'judge',
   edit_solid: 'fill',
+  // the Characters ring: a character is authored and revised (judge); a sheet's PNG is filed by ref (ride)
+  create_character: 'judge',
+  update_character: 'judge',
+  bind_character_sheet: 'ride',
   mint_solid: 'judge', // fill for furniture and gear; an `scad` program is authoring, so the ceiling wins
   fabricate_solid: 'judge',
   verify_machina: 'design',
@@ -57,16 +63,12 @@ export const TOOL_TIERS = Object.freeze({
   // ── games (Play) ──
   get_game_vocab: 'ride',
   get_play_vocab: 'ride',
-  list_game_projects: 'ride',
-  get_game_project: 'ride',
-  bind_to_game_project: 'ride',
   export_game: 'ride',
   bake_sprite_sheet: 'ride',
-  create_game_project: 'fill',
-  update_game_project: 'fill',
   create_pixelizer_game: 'fill',
   create_sprite_sheet: 'judge',
   tune_ground: 'judge',
+  pick_palette: 'fill',
   create_game: 'design',
   design_game: 'design',
 

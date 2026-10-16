@@ -55,6 +55,12 @@ export const VIEW_KINDS = OBJECT_RENDER_KINDS.filter((k) => !SOLID_KINDS.include
  */
 export const TURNTABLE_KINDS = SCENE_RENDER_KINDS;
 
+/**
+ * Kinds the diagram bucket holds that are not diagrams: a gameworld is a game's book, read and played, and it lives
+ * on the Worlds shelf of projects (/worlds). The diagrams shelf subtracts it.
+ */
+export const BOOK_KINDS_IN_DIAGRAMS = ['gameworld'];
+
 /** Buckets with a home of their own; never shelved here. */
 export const NON_LIBRARY_BUCKETS = ['beats', 'voice', 'game'];
 
@@ -79,7 +85,7 @@ export const LIBRARY_SHELVES = [
   { key: 'views', bucket: 'object', kinds: VIEW_KINDS, view: 'wall' },
   { key: 'characters', bucket: 'illustration', kinds: CHARACTER_KINDS, view: 'cast' },
   { key: 'images', bucket: 'illustration', excludeKinds: [...CHARACTER_KINDS, ...TURNTABLE_KINDS], view: 'masonry' },
-  { key: 'diagrams', bucket: 'diagram', view: 'rows' },
+  { key: 'diagrams', bucket: 'diagram', excludeKinds: BOOK_KINDS_IN_DIAGRAMS, view: 'rows' },
   { key: 'materials', registry: true },
 ];
 
@@ -149,7 +155,7 @@ export function shelfCountsFromTallies({ buckets = {}, kinds = {} } = {}) {
     views,
     characters,
     images: Math.max(0, (buckets.illustration || 0) - characters - turntables),
-    diagrams: buckets.diagram || 0,
+    diagrams: Math.max(0, (buckets.diagram || 0) - sum(BOOK_KINDS_IN_DIAGRAMS)),
   };
 }
 

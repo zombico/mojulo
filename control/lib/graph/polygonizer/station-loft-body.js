@@ -19,7 +19,10 @@
  *   locks     FUR AS SHAPES: a few bold blades in shingled rows over a surface window (a ruff, a mane, a tail's brush,
  *             the back of an elbow), each leaving the skin at `lift` and bending to lie along a growth direction
  *             (`flow`, a world vector), tapering to a point and flicking outward at the tip (`curl`, mirrored by side),
- *             the rows' lengths graded from the first to the last; any creature's, by its part names
+ *             the rows' lengths graded from the first to the last, or `layers` read off the window's own surface (each
+ *             layer's tips over the next one's roots, every other layer offset), each lock a `clump` of fanned blades of
+ *             graded length (a drawn tuft); never under what the plan wears; any
+ *             creature's, by its part names
  *
  * `detailBody(src, body, dials)` builds at render time (the dragon's way: a mesh and loose parts, nothing written);
  * `bakeBody(src, body)` writes the same parts into the recipe as pinned L2 parts on the refined rest L1, so the World
@@ -136,30 +139,89 @@ function rigidTiles(L1, name, side, T, idBase, dom, keep = [], RIGID_W = RIGID) 
  * rings, its half-width `width` (m) at the root tapering to a point, its thickness `thick` (m; a quarter of the width by
  * default), its length graded from `length[0]` (the first row) to `length[1]` (the last), jittered by `jitter`. It leaves
  * the skin at `lift` (1 standing straight out, 0 lying flat) and bends to lie along `flow` (a world direction, laid onto
- * the skin; absent, down the part's s), its tip flicked outward by `curl` (in lengths, away from the midline). */
-function locks(L1, name, side, K, idBase, dom) {
-  const out = {}, anchors = {}; const [s0, s1] = K.s, [t0, t1] = K.t, rows = Math.max(1, K.rows ?? 1), n = Math.max(1, K.count ?? 4), N = Math.max(2, K.segments ?? 5);
-  const [L0, L9] = Array.isArray(K.length) ? K.length : [K.length, K.length], lift = clamp(K.lift ?? 0.6, 0, 1);
+ * the skin; absent, down the part's s), its tip flicked outward by `curl` (in lengths, away from the midline);
+ * `share: true` reads s and t as shares (of the part's length; of the ring half, 0 the front, 1 the back). Its
+ * section by `profile`: 'blade' (the default, a tuft), 'feather', 'quill', 'spine' (PROFILES_LOCK). */
+/** a lock's section down its length (u 0 the root → 1 the tip): its half-width and its half-thickness. `blade` (the
+ * default): a tuft of fur, tapering to a point; `feather`: broad and flat, full to near its end, its tip rounded off;
+ * `quill`: a thin round needle; `spine`: a stout cone (a reptile's dorsal spike, a horn's row); `bump`: a low round dome
+ * standing straight off the skin, six-sided (a reptile's osteoderm, a tubercle; its `length` is its height) */
+const PROFILES_LOCK = Object.freeze({
+  blade: (w, th, u) => [w * (1 - u) ** 0.8, th * (1 - u)],
+  feather: (w, th, u) => [w * (0.65 + 0.35 * Math.sin(Math.PI * Math.min(1, 0.3 + u))), th * (1 - 0.5 * u)],
+  quill: (w, th, u) => [w * (1 - u) ** 1.5, w * (1 - u) ** 1.5],
+  spine: (w, th, u) => [w * (1 - u) ** 1.2, w * 0.8 * (1 - u) ** 1.2],
+  bump: (w, th, u) => [w * Math.sqrt(1 - u * u), w * Math.sqrt(1 - u * u)],
+});
+export const LOCK_PROFILES = Object.freeze(Object.keys(PROFILES_LOCK));
+/** a clump's blades: where each roots across the lock (in half-widths, alternating sides), its share of the longest
+ * blade's length, and how far the blades fan from the lock's own direction (per offset, in its widths) */
+const CLUMP_AT = [0, -1, 1, -2, 2], CLUMP_LEN = [1, 0.66, 0.8, 0.46, 0.56], CLUMP_FAN = 0.32;
+/** LAYERS (`layers: true | { overlap }`): a coat laid as layers along the contour, the rows and the count read off the
+ * window's own surface (its length down s, its arc round t) and the lock's footprint, so each layer's tips lie over the
+ * next one's roots (`overlap`, 0.5 by default; below 0 the rows stand apart, a pattern of bumps) and a row's locks sit
+ * side by side; every other layer is a brick over it (one lock fewer, each in a gap of the layer before) and each lock
+ * wobbles a little in both, so the layers read as a pattern, never a column */
+function layout(L1, name, side, K, [L0, L9], lift) {
+  if (!K.layers) return { rows: Math.max(1, K.rows ?? 1), n: Math.max(1, K.count ?? 4) };
+  const [s0, s1] = K.s, [t0, t1] = K.t, ov = K.layers.overlap ?? 0.5, arc = (pts) => pts.slice(1).reduce((a, p, i) => a + dmath.hypot(...sub(p, pts[i])), 0);
+  const along = arc(Array.from({ length: 7 }, (_, i) => frameAt(L1, name, [s0 + (s1 - s0) * i / 6, (t0 + t1) / 2], side).origin));
+  const round = arc(Array.from({ length: 7 }, (_, i) => frameAt(L1, name, [(s0 + s1) / 2, t0 + (t1 - t0) * i / 6], side).origin));
+  const foot = Math.max(2 * K.width, (L0 + L9) / 2 * (0.4 + 0.6 * (1 - lift)));
+  return { rows: clamp(1 + Math.floor(along / (foot * (1 - ov))), 1, 8), n: clamp(Math.round(round / (2 * K.width * Math.max(1.1, 1 - ov))), 1, 12) };
+}
+function locks(L1, name, side, K, idBase, dom, chain = 0) {
+  const out = {}, anchors = {}; const [s0, s1] = K.s, [t0, t1] = K.t, N = Math.max(2, K.segments ?? 5);
+  const [L0, L9] = Array.isArray(K.length) ? K.length : [K.length, K.length], lift = clamp(K.lift ?? 0.6, 0, 1), { rows, n } = layout(L1, name, side, K, [L0, L9], lift);
   const hash = (str) => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return h >>> 0; };
+  const wob = K.wobble ?? (K.layers ? 0.15 : 0), stand = K.profile === 'bump';
   for (let j = 0; j < rows; j++) for (let i = 0; i < n; i++) {
-    const id = `${idBase}.${i}.${j}`, rng = mulberry32(hash(id)), [r1, r2, r3] = [rng(), rng(), rng()];
-    const sc = s0 + (rows === 1 ? 0.5 : j / (rows - 1)) * (s1 - s0), tc = t0 + (i + 0.5 + (j % 2 ? 0.5 : 0) + (K.wobble ?? 0) * (r1 - 0.5)) / (n + (j % 2 ? 0.5 : 0)) * (t1 - t0);
+    // a window over a CHAIN of parts (a tail's links) carries its brick on, link to link: the offset row follows the last
+    const id = `${idBase}.${i}.${j}`, rng = mulberry32(hash(id)), [r1, r2, r3] = [rng(), rng(), rng()], odd = (j + chain) % 2;
+    // LAYERED, a brick: an offset layer has one lock fewer, each in the gap between two of the layer before (VVVVVV /
+    // VVVVV / VVVVVV); otherwise the offset layer is shifted half a lock
+    if (K.layers && odd && n > 1 && i >= n - 1) continue;
+    const sc = clamp(s0 + (rows === 1 ? 0.5 : j / (rows - 1)) * (s1 - s0) + (K.layers && rows > 1 ? (rng() - 0.5) * 0.25 * (s1 - s0) / (rows - 1) : 0), s0, s1);
+    const tc = K.layers ? t0 + (i + 0.5 + (odd && n > 1 ? 0.5 : 0) + wob * (r1 - 0.5)) / n * (t1 - t0) : t0 + (i + 0.5 + (odd ? 0.5 : 0) + wob * (r1 - 0.5)) / (n + (odd ? 0.5 : 0)) * (t1 - t0);
     if (tc > t1 + 1e-9) continue;
     const F = frameAt(L1, name, [sc, tc], side), nrm = F.normal, c = F.origin;
-    let f = K.flow ? sub(K.flow, mul(nrm, dot(K.flow, nrm))) : sub(frameAt(L1, name, [clamp(sc + 0.25, s0, sMax(L1[name])), tc], side).origin, c);
+    // absent `flow`: ALONG THE CONTOUR, down the part's own s as the surface curves (`against: true` up it: a trunk's
+    // and a neck's s rise, and their coat lies down)
+    let f = K.flow ? sub(K.flow, mul(nrm, dot(K.flow, nrm))) : K.against ? sub(c, frameAt(L1, name, [clamp(sc - 0.25, 0, sMax(L1[name])), tc], side).origin) : sub(frameAt(L1, name, [clamp(sc + 0.25, s0, sMax(L1[name])), tc], side).origin, c);
+    if (K.against && !K.flow) f = mul(f, -1);
     f = dmath.hypot(...f) > 1e-6 ? unit(f) : unit(sub([0, 0, -1], mul(nrm, -nrm[2])));
     let b = unit([f[1] * nrm[2] - f[2] * nrm[1], f[2] * nrm[0] - f[0] * nrm[2], f[0] * nrm[1] - f[1] * nrm[0]]); if (b[0] * (c[0] || (side === 'L' ? -1 : 1)) < 0) b = mul(b, -1);   // outward
     const L = (L0 + (L9 - L0) * (rows === 1 ? 0 : j / (rows - 1))) * (1 + (K.jitter ?? 0) * (2 * r2 - 1)), w = K.width * (1 + 0.5 * (K.jitter ?? 0) * (2 * r3 - 1)), th = K.thick ?? w * 0.25;
     // the spine: from straight out (lift 1) toward the flow, laid on it by the tip; the flick grows with the square of u
-    const a0 = (1 - lift) * Math.PI / 2, spine = [sub(c, mul(nrm, 0.003))]; let p0 = spine[0];
-    for (let k = 1; k <= N; k++) { const u = k / N, a = a0 + (Math.PI / 2 - a0) * u, d = add(mul(nrm, dmath.cos(a)), mul(f, dmath.sin(a)));
-      p0 = add(p0, mul(d, L / N)); spine.push(add(p0, mul(b, (K.curl ?? 0) * L * u * u))); }
-    const rings = spine.slice(0, -1).map((p, k) => { const u = k / N, d = unit(sub(spine[k + 1], p)), up = unit([b[1] * d[2] - b[2] * d[1], b[2] * d[0] - b[0] * d[2], b[0] * d[1] - b[1] * d[0]]), ww = w * (1 - u) ** 0.8, tt = th * (1 - u);
-      return [add(p, mul(b, ww)), add(p, mul(up, tt)), add(p, mul(b, -ww)), add(p, mul(up, -tt))]; });
-    out[id] = { ...loftParts(rings, sub(c, mul(nrm, 0.006)), spine[N]), group: K.group[(i + j) % K.group.length], bone: dom(sc).bone };
+    const blade = (root, fl, out2, L1b, wb, thb, curl) => { const a0 = (1 - lift) * Math.PI / 2, spine = [sub(root, mul(nrm, 0.003))]; let p0 = spine[0];
+      for (let k = 1; k <= N; k++) { const u = k / N, a = stand ? 0 : a0 + (Math.PI / 2 - a0) * u, d = stand ? nrm : add(mul(nrm, dmath.cos(a)), mul(fl, dmath.sin(a)));
+        p0 = add(p0, mul(d, L1b / N)); spine.push(add(p0, mul(out2, curl * L1b * u * u))); }
+      const rings = spine.slice(0, -1).map((p, k) => { const u = k / N, d = unit(sub(spine[k + 1], p)), up = unit([out2[1] * d[2] - out2[2] * d[1], out2[2] * d[0] - out2[0] * d[2], out2[0] * d[1] - out2[1] * d[0]]), [ww, tt] = PROFILES_LOCK[K.profile ?? 'blade'](wb, thb, u);
+        return stand ? [0, 1, 2, 3, 4, 5].map((q) => add(p, add(mul(out2, ww * dmath.cos(q * Math.PI / 3)), mul(up, tt * dmath.sin(q * Math.PI / 3))))) : [add(p, mul(out2, ww)), add(p, mul(up, tt)), add(p, mul(out2, -ww)), add(p, mul(up, -tt))]; });
+      return loftParts(rings, sub(root, mul(nrm, 0.006)), spine[N]); };
+    out[id] = { ...blade(c, f, b, L, w, th, K.curl ?? 0), group: K.group[(i + j) % K.group.length], bone: dom(sc).bone };
+    // a CLUMP: the lock is the clump's longest blade, its others fanned either side of it from one root, shorter by turns
+    // (long, short, middling: a drawn tuft's rhythm, never a row of equals), each flicking away from the centre, the
+    // colours alternating; varied in length and width by its own dice
+    for (let m = 1; m < Math.min(CLUMP_AT.length, K.clump ?? 1); m++) { const o = CLUMP_AT[m], side2 = o < 0 ? mul(b, -1) : b, r = [rng(), rng()];
+      const fl = unit(add(f, mul(b, o * CLUMP_FAN))), root = add(c, mul(b, o * 0.55 * w));
+      out[`${id}.c${m}`] = { ...blade(root, fl, side2, L * CLUMP_LEN[m] * (0.88 + 0.24 * r[0]), w * (0.7 + 0.25 * r[1]), th, (K.curl ?? 0) * (1 + 0.4 * Math.abs(o)) + 0.06), group: K.group[(i + j + m) % K.group.length], bone: dom(sc).bone };
+      anchors[`${id}.c${m}`] = { part: name, at: [sc, tc], side }; }
     anchors[id] = { part: name, at: [sc, tc], side };
   }
   return { locks: out, anchors };
+}
+/** UNDER WHAT IS WORN: the windows an adornment covers on its carrier (a share window read in the carrier's units; a
+ * window with no t, or `t: 'wrap'`, all the way round) and the first half of each part it reaches `over`; a lock rooted
+ * there, or within a little of it, is not grown (a tuft would push through the bracer, the pauldron, the belt) */
+const UNDER_PAD_S = 0.3, UNDER_PAD_T = 0.1;
+function underOf(L1, kit = []) {
+  const W = [];
+  for (const A of kit) { if (!A?.part || !Array.isArray(A.s) || !L1[A.part]) continue; const P = L1[A.part], h = H(P);
+    const t = Array.isArray(A.t) ? (A.share ? A.t.map((x) => x * h) : A.t) : null;
+    W.push({ part: A.part, s: A.share ? A.s.map((x) => x * sMax(P)) : A.s, t, side: A.side || 'R', h });
+    for (const o of A.over || []) if (L1[o]) W.push({ part: o, s: [0, 0.5 * sMax(L1[o])], t: null }); }
+  return (p, [s, t], side) => W.some((w) => w.part === p && s >= w.s[0] - UNDER_PAD_S && s <= w.s[1] + UNDER_PAD_S && (!w.t || (w.side === side && t >= w.t[0] - UNDER_PAD_T * w.h && t <= w.t[1] + UNDER_PAD_T * w.h)));
 }
 /** COLLAR round station j of a compiled part (rings read from its named points) */
 function collar(L1, p, j, height, width = 0.35) { const P = L1[p]; const ring = (i) => P.slots.map((sl) => P.points[`${p}/${P.stations[i].id}.${sl}`]);
@@ -176,7 +238,7 @@ function stud(r, h, m = 8) { const ring = (rr, z) => ringAt([0, 0, z], [0, 0, 1]
 // ─── the build ───
 /** Detail a layered recipe with BODY DATA. Returns the refined recipe `r`, the compiled mesh at `dials`, the detail
  * `parts` (world points), `anchors` (each part's carrier address, for a bake) and `stats`. */
-export function detailBody(src, body, dials = {}, { binds = false } = {}) {
+export function detailBody(src, body, dials = {}, { binds = false, under = [] } = {}) {
   const r = detailRecipe(src, body, { binds }); const mesh = compileLayered(r, dials); const L1 = mesh.parts; const parts = {}, anchors = {}; const stats = { gatedTiles: 0 };
   const RIGID_W = body.rigid ?? RIGID; const C = body.creases || {};
   for (const [a, b, group] of C.joints || []) Object.assign(parts, creases(L1, a, b, `crease.${a}-${b}`, { lift: C.lift, width: C.width, floor: C.floor, group: group ?? C.group }));
@@ -194,9 +256,17 @@ export function detailBody(src, body, dials = {}, { binds = false } = {}) {
   for (const T of body.tiles || []) for (const p of T.parts) { const dom = dominance(src.parts[p]); for (const side of ['R', 'L']) { const g = rigidTiles(L1, p, side, T, T.id ? `tile.${T.id}.${p}.${side}` : `tile.${p}.${side}`, dom, keep, RIGID_W);
     for (const k of Object.keys(g.tiles)) if (parts[k]) throw new Error(`body: tile ${k} is grown twice — give each tile window on ${p} its own id`);
     Object.assign(parts, g.tiles); Object.assign(anchors, g.anchors); stats.gatedTiles += g.gated; } }
-  for (const K of body.locks || []) for (const p of K.parts) { const dom = dominance(src.parts[p]); for (const side of K.sides ?? ['R', 'L']) { const g = locks(L1, p, side, K, `lock.${K.id ?? 'fur'}.${p}.${side}`, dom);
+  // `share: true`: a lock window's s as a share of its part's length and t as a share of the ring half (0 the front, 1 the
+  // back), the measure body paint and adornment use: one window reads alike on parts whose stations or slots differ
+  // a window over a chain of parts counts its links by name (a pair's R and L are one link: their bricks mirror); a lock
+  // under an adornment the plan wears is not grown
+  const covered = body.locks?.length && under.length ? underOf(L1, under) : null;
+  for (const K0 of body.locks || []) { const links = [...new Set(K0.parts.map((p) => p.replace(/[RL]$/, '')))];
+    for (const p of K0.parts) { const dom = dominance(src.parts[p]), K = K0.share ? { ...K0, s: K0.s.map((x) => x * sMax(L1[p])), t: K0.t.map((x) => x * H(L1[p])) } : K0;
+    for (const side of K.sides ?? ['R', 'L']) { const g = locks(L1, p, side, K, `lock.${K.id ?? 'fur'}.${p}.${side}`, dom, links.indexOf(p.replace(/[RL]$/, '')));
+    if (covered) for (const [k, a] of Object.entries(g.anchors)) if (covered(a.part, a.at, a.side)) { delete g.locks[k]; delete g.anchors[k]; stats.underLocks = (stats.underLocks ?? 0) + 1; }
     for (const k of Object.keys(g.locks)) if (parts[k]) throw new Error(`body: lock ${k} is grown twice — give each lock window on ${p} its own id`);
-    Object.assign(parts, g.locks); Object.assign(anchors, g.anchors); } }
+    Object.assign(parts, g.locks); Object.assign(anchors, g.anchors); } } }
   for (const S of body.rows || []) { const P = L1[S.part], dom = dominance(src.parts[S.part]); const t = P.slotT?.[S.t] ?? H(P); const R = radius(L1, S.part); const kind = S.shape ?? 'spur';
     for (let s = S.s[0], i = 0; s <= S.s[1] + 1e-9; s += S.step, i++) { if (dom(s).w < RIGID_W) continue; const f = symmetricFrameAt(L1, S.part, [s, t]); const m = kind === 'stud' ? stud(S.r, S.h ?? S.r * 0.6, S.m) : spur(S.r ?? R * S.size, S.rake);
       const id = `${kind === 'spur' ? 'spine' : kind}.${S.part}.${i}`; parts[id] = { group: S.group ?? 'Spine', points: Object.fromEntries(Object.entries(m.points).map(([k, o]) => [k, placeSurfaceOffset(f, o)])), faces: m.faces }; anchors[id] = { part: S.part, at: [s, t], side: 'R' }; } }
@@ -217,8 +287,8 @@ export function bakePart(L1, part, pin, layer = 2, { follow = false } = {}) {
 /** the pin a generated part rides: its own (strips, pads, spurs) or its anchor's address on the rest carrier */
 export const pinOf = (L1, name, part, anchors) => part.pin ?? (anchors[name] ? address(L1, anchors[name].part, anchors[name].at[0], anchors[name].at[1], anchors[name].side) : null);
 /** BODY DATA into the recipe: the refined L1 (bind blends extended) and every detail as a pinned L2 part */
-export function bakeBody(src, body) {
-  const B = detailBody(src, body, {}, { binds: true }); const out = B.r; const L1 = compileLayered(out, {}, { details: false, creases: false }).parts;
+export function bakeBody(src, body, { under = [] } = {}) {
+  const B = detailBody(src, body, {}, { binds: true, under }); const out = B.r; const L1 = compileLayered(out, {}, { details: false, creases: false }).parts;
   for (const [name, part] of Object.entries(B.parts)) { const pin = pinOf(L1, name, part, B.anchors); if (!pin) throw new Error(`body: ${name} has no carrier address`); out.parts[name] = bakePart(L1, part, pin, 2, { follow: true }); }
   return { recipe: out, built: B };
 }
@@ -232,7 +302,8 @@ export function validateBody(body, parts) {
   for (const [i, v] of (body.volume || []).entries()) if (!Array.isArray(v) || v.length !== 4) errs.push(`body.volume[${i}]: [part, slotWeights, stationWeights, metres]`); else need(v[0], `body.volume[${i}]`);
   for (const [i, j] of (body.creases?.joints || []).entries()) if (!Array.isArray(j) || j.length < 2) errs.push(`body.creases.joints[${i}]: [partA, partB, group?]`); else { need(j[0], `body.creases.joints[${i}]`); need(j[1], `body.creases.joints[${i}]`); }
   for (const [i, T] of (body.tiles || []).entries()) { if (!Array.isArray(T.parts) || !Array.isArray(T.s) || !Array.isArray(T.t) || !Array.isArray(T.grid) || !Array.isArray(T.group) || !Number.isFinite(T.height) || !Number.isFinite(T.inset)) errs.push(`body.tiles[${i}]: { parts, s: [s0, s1], t: [t0, t1], grid: [ns, nt], height, inset, group: [names] }`); else T.parts.forEach((p) => need(p, `body.tiles[${i}]`)); }
-  for (const [i, K] of (body.locks || []).entries()) { if (!Array.isArray(K.parts) || !Array.isArray(K.s) || !Array.isArray(K.t) || !Array.isArray(K.group) || !(Number.isFinite(K.length) || (Array.isArray(K.length) && K.length.length === 2 && K.length.every(Number.isFinite))) || !Number.isFinite(K.width)) errs.push(`body.locks[${i}]: { parts, s: [s0, s1], t: [t0, t1], rows?, count?, length: m | [first row, last row], width, thick?, lift?, flow?: [x, y, z], curl?, jitter?, segments?, sides?, group: [names] }`); else K.parts.forEach((p) => need(p, `body.locks[${i}]`)); }
+  for (const [i, K] of (body.locks || []).entries()) { if (!Array.isArray(K.parts) || !Array.isArray(K.s) || !Array.isArray(K.t) || !Array.isArray(K.group) || !(Number.isFinite(K.length) || (Array.isArray(K.length) && K.length.length === 2 && K.length.every(Number.isFinite))) || !Number.isFinite(K.width)) errs.push(`body.locks[${i}]: { parts, s: [s0, s1], t: [t0, t1], rows?, count?, layers?, clump?, length: m | [first row, last row], width, thick?, lift?, flow?: [x, y, z], curl?, jitter?, segments?, sides?, group: [names] }`); else { K.parts.forEach((p) => need(p, `body.locks[${i}]`)); if (K.profile !== undefined && !LOCK_PROFILES.includes(K.profile)) errs.push(`body.locks[${i}].profile: ${LOCK_PROFILES.map((x) => `'${x}'`).join(' | ')}`);
+    if (K.layers !== undefined && K.layers !== true && !(K.layers && typeof K.layers === 'object' && (K.layers.overlap === undefined || (Number.isFinite(K.layers.overlap) && K.layers.overlap < 1)))) errs.push(`body.locks[${i}].layers: true | { overlap: < 1 }`); } }
   for (const [i, P] of (body.pads || []).entries()) { if (!P.part || !Number.isFinite(P.s) || !Number.isFinite(P.r) || !P.toward || !(P.toward.world || P.toward.flex || P.toward.away)) errs.push(`body.pads[${i}]: { part, s, r, toward: { world } | { flex: [a, b], drive? } | { away: [a, b] } }`); else need(P.part, `body.pads[${i}]`); }
   for (const [i, S] of (body.rows || []).entries()) { if (!S.part || !Array.isArray(S.s) || !(S.step > 0)) errs.push(`body.rows[${i}]: { part, t, s: [s0, s1], step, shape?: 'spur' | 'stud', r }`); else need(S.part, `body.rows[${i}]`); }
   for (const [i, C] of (body.collars || []).entries()) { if (!C.part || !Number.isFinite(C.height)) errs.push(`body.collars[${i}]: { part, at: <station id>, height, width? }`); else need(C.part, `body.collars[${i}]`); }

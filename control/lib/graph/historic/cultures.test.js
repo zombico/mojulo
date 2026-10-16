@@ -4,19 +4,16 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { HISTORIC_CULTURES } from './cultures/index.js';
-import { LAYOUTS } from './layouts/index.js';
+import { FORMS } from './form/towns.js';
 import { HISTORIC_STYLES } from './style/index.js';
 import { planHistoricCity } from './historic-city.js';
 import { cultureDepth, depthText } from './depth.js';
 import { entryCard } from './entries.js';
 
-const layoutOf = (K) => K.layout || 'ring-canal';
 
 describe('the historic culture checklist', () => {
-  it("every culture's layout is registered", () => {
-    for (const [id, K] of Object.entries(HISTORIC_CULTURES)) {
-      expect(layoutOf(K) === 'ring-canal' || !!LAYOUTS[layoutOf(K)], `${id}: layout '${layoutOf(K)}' is not in layouts/index.js`).toBe(true);
-    }
+  it("every culture's town has a form: its own, or the one its card names", () => {
+    for (const [id, K] of Object.entries(HISTORIC_CULTURES)) expect(!!FORMS[id] || !!FORMS[K.form], `${id}: no form in form/towns.js, and its card names none`).toBe(true);
   });
 
   it('every style card belongs to a registered culture', () => {
@@ -31,28 +28,25 @@ describe('the historic culture checklist', () => {
     }
   });
 
-  it('finds depth, never claims it: the polis is Lindos’s record, kit and layout under its own style card', () => {
-    expect(cultureDepth('polis')).toEqual({ depth: 0, owns: ['style'], borrows: { record: 'lindos', assets: 'lindos', layout: 'lindos' } });
+  it('finds depth, never claims it: the polis is Lindos’s record, kit and form under its own style card', () => {
+    expect(cultureDepth('polis')).toEqual({ depth: 0, owns: ['style'], borrows: { record: 'lindos', assets: 'lindos', form: 'lindos' } });
     expect(cultureDepth('thebes').depth).toBe(3);
   });
 
-  it('every layout lays out a card spread from its culture under a new id (depth 0 works on any of them)', () => {
-    const firsts = {};
-    for (const [id, K] of Object.entries(HISTORIC_CULTURES)) firsts[layoutOf(K)] ||= id;
-    for (const [layout, like] of Object.entries(firsts)) {
-      HISTORIC_CULTURES.depth0 = { ...HISTORIC_CULTURES[like], label: 'Depth zero', record: null };
-      try {
-        const plan = planHistoricCity({ culture: 'depth0', seed: 3 });
-        expect(plan.stats.culture, layout).toBe('depth0');
-        expect(plan.boxes.length, layout).toBeGreaterThan(0);
-        expect(cultureDepth('depth0').borrows.layout, layout).toBe(like);
-      } finally { delete HISTORIC_CULTURES.depth0; }
-    }
+  it('a card spread from a culture, naming its form, is laid out under a new id (depth 0 works on any of them)', () => {
+    const like = Object.keys(FORMS)[0];
+    HISTORIC_CULTURES.depth0 = { ...HISTORIC_CULTURES[like], form: like, label: 'Depth zero', record: null };
+    try {
+      const plan = planHistoricCity({ culture: 'depth0', seed: 3 });
+      expect(plan.stats.culture).toBe('depth0');
+      expect(plan.boxes.length).toBeGreaterThan(0);
+      expect(cultureDepth('depth0').borrows.form).toBe(like);
+    } finally { delete HISTORIC_CULTURES.depth0; }
   }, 120_000);
 
-  it('refuses a layout id nobody registered', () => {
-    HISTORIC_CULTURES.nowhere = { ...HISTORIC_CULTURES.polis, layout: 'floating-islands' };
-    try { expect(() => planHistoricCity({ culture: 'nowhere' })).toThrow(/unknown layout 'floating-islands' — one of 'ring-canal', 'river-axis'/); }
+  it('refuses a card that names no form it can be laid out by', () => {
+    HISTORIC_CULTURES.nowhere = { ...HISTORIC_CULTURES.polis, form: 'floating-islands' };
+    try { expect(() => planHistoricCity({ culture: 'nowhere' })).toThrow(/nowhere has no form, and its card names none/); }
     finally { delete HISTORIC_CULTURES.nowhere; }
   });
 });
@@ -64,7 +58,7 @@ describe('the scaffold (scripts/new-culture.mjs, dry)', () => {
       '--place', 'Testland, the coast', '--region', 'greece', '--aliases', 'testland,test town', '--dry');
     expect(out).toMatch(/import \{ POLIS \} from '\.\/lindos\.js';/);
     expect(out).toMatch(/\.\.\.POLIS,/);
-    for (const line of ['label:', 'years: \\[-500, -300\\]', 'readAt: null', "period: 'Classical'", 'place:', "region: 'greece'", 'aliases:', 'record: null', 'land: null'])
+    for (const line of ['label:', 'years: \\[-500, -300\\]', 'readAt: null', "period: 'Classical'", 'place:', "region: 'greece'", 'aliases:', 'record: null', 'land: null', "form: POLIS.form \\?\\? 'polis'"])
       expect(out).toMatch(new RegExp(`\\n  ${line}`));
     expect(out).toMatch(/import \{ TESTLAND \} from '\.\/testland\.js';\n {2}testland: TESTLAND,/);
   });

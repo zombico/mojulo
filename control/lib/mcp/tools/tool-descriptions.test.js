@@ -99,8 +99,9 @@ const DESCRIPTION_ALLOWLIST = {
   // export_game re-pinned 2026-09-03 (1253 → 1378) to bless the Unity Y1
   // clause that rode the third-engine-leg commit (`target:'unity'` routing —
   // the growth predates the greybox seam, which added only input-schema
-  // bytes, not description). Shrink-only from here.
-  export_game: 1378,
+  // bytes, not description). Shrink-only from here. Lowered 2026-10-15 (1378 -> 1290, 1015-desktop-export): the
+  // desktop target's clause rode in on a tighter wording of the rest.
+  export_game: 1290,
   // export_model re-pinned 2026-07-17: the STL print-handoff format
   // (format:'glb'|'stl' + scale → mm) rides the same tool. Re-pinned
   // 2026-08-11 to bless the animated-GLB clause (interchange.plan.md I1:
@@ -373,7 +374,34 @@ const DESCRIPTION_ALLOWLIST = {
 // Re-pinned 2026-10-13 (208_700 -> 209_300; measured 209,092) for the game menus line merged onto 1012-consolidate: create_cover's `format` (a game's key art,
 // capsule, box, icon) and `art` (an uploaded stash picture as the illustration, the plugin profile's way to real art),
 // and create_game's `front` (the light shell's title over a cover, start menu, credits, end). No new tool.
-const PAYLOAD_CEILING = 209_300;
+// Re-pinned 2026-10-14 (209_300 -> 203_900; measured 203,721) for UI on rails, merged over the game menus: the five
+// game-project tools retired (RETIRED_PACKS' pack_game_projects, still callable by name), and project_ref's
+// descriptions cut to a legacy line.
+// Re-pinned 2026-10-14 (203_900 -> 204_200; measured 203,928) for the character stitch merged over UI on rails:
+// create_character's `egocube` and `years` (a character made from a stored Egocube sheet, at an age on its thread),
+// update_character's merge said in its description. No new tool.
+// Re-pinned 2026-10-14 (204_200 -> 207_600; measured 207,398) for the shoot plan merged over the character stitch: two NEW tools,
+// create_shoot_plan and update_shoot_plan (a world's cameras as visible keyed objects in After Effects terms, its set
+// pieces, transitions, portals and event cuts; on its branch they measured +3,564 over its base), and forge_motion's
+// 'plan' motion.
+// Re-pinned 2026-10-14 (207_600 -> 209_900; measured 209,677) for 1014-interior-designer merged over the shoot plan:
+// design_interior, the interior designer's door in the building pack (one new listed tool, its schema trimmed to names
+// and shapes; on its branch it measured +2,279 over its base).
+// Re-pinned 2026-10-14 (209_900 -> 212_600; measured 212,339) for the color theorist: one new tool, pick_palette (a palette
+// solved for what a world is: key, chroma, scheme, ramps, checks), and a `palette` on create_game (the HUD solved
+// under the theme) and create_cover (a spec beside the { bg, accent, ink } it took).
+// Re-pinned 2026-10-14 (212_600 -> 212_900; measured 212,673) for the color theorist's C2: design_interior's `palette`
+// (a room's 60-30-10 solved, its card's forms kept) and pick_palette naming it and a stage's art.palette.from.
+// Re-pinned 2026-10-14 (212_900 -> 213_400; measured 213,128) for the color theorist's C3: pick_palette's `shift` (a
+// palette moved, its identity kept) and `script` (a world's palette moved level by level along an arc).
+// Re-pinned 2026-10-14 (213_400 -> 213_700; measured 213,449) for the color theorist's air: pick_palette's `air` (thin,
+// none: a void for a sky) and `preset` (moon, asteroid-belt, mars, icy-moon, station, deep-space).
+// Lowered 2026-10-15 (213_700 -> 210_800; measured 210,537) for 1015-tool-consolidation: the shoot plan folded into forge_motion.
+// Raised 2026-10-15 (210_800 -> 211_100; measured 210,856) for the flight palette: four earth presets in pick_palette's
+// `preset` enum (the palette's own list, a place a flight world names) and its line naming them.
+// Raised 2026-10-15 (211_100 -> 211_300; measured 211,171) for the level demo: design_game's `compose` (the interpreter as a
+// door: a world read from a few words), one schema property and its clause in the description. No new tool.
+const PAYLOAD_CEILING = 211_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

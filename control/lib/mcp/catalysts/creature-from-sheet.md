@@ -14,10 +14,10 @@
   "parameters": [
     {
       "name": "sheet",
-      "description": "The Egocube roll: the arguments to scripts/egocube-roll.mjs (a brief, `--set ancestry=<people>`, a seed, a custom `--lineages` file), or the printed sheet itself. Omit to roll one with the operator."
+      "description": "The Egocube: a stored egocube's ref (create_sketch kind 'egocube'), its roll (a brief, facets such as ancestry, a seed, lineages), or the sheet itself. Omit to roll one with the operator."
     }
   ],
-  "mcpTools": { "mojulo": ["create_character", "get_solid_vocab", "update_sketch", "measure_solid", "export_model"] }
+  "mcpTools": { "mojulo": ["create_sketch", "create_character", "update_character", "get_solid_vocab", "measure_solid", "export_model"] }
 }
 ---
 
@@ -27,21 +27,24 @@ An Egocube sheet (docs/egocube.md) says what a character's body, face, stance an
 each note names its source (`archetype.caregiver/shadow`, `ancestry.lupine`, `age.seasoned`) and the dials or passes
 that can carry it, never an amount. You are the designer. The sheet is the brief; the plan is yours.
 
-The roll runs from a shell today (no MCP tool yet), from `control/` (paths below are from `control/`; `docs/` is at
-the repo root, one level up):
+The sheet is a kind: `create_sketch({ kind: 'egocube', roll: { facets: { ancestry: 'feline' }, seed: 4 } })` rolls it
+and keeps it (card `egocube`); its stored manifest is the sheet you read. `create_character({ egocube: '<ref>' })` makes
+the stock reading of it in one call: use that as the baseline to beat, then design your own plan below. The audit and
+the contrast pairs run from a repo checkout only (they are dev scripts, not shipped), from `control/`:
 
 ```sh
-node scripts/egocube-roll.mjs --set ancestry=feline --seed 4            # the sheet
 node scripts/egocube-roll.mjs --set ancestry=feline --seed 4 --audit plan.json   # your plan, audited against it
 node scripts/egocube-roll.mjs --set ancestry=lupine --seed 3 --contrast archetype=ruler   # a contrast pair (below)
 ```
+
+Without a checkout, ledger the notes by hand: each note `carried` (and where) or `missing` (and why).
 
 ## The invariants — read first
 
 - **Design, never copy.** A served example (a contrast pair, the Pale Warden) shows how a note moves a choice. It is
   not a body to re-skin. The audit's `sameness` row flags a plan whose joint table is a served example's, rescaled.
 - **The plan is the artifact.** `create_character({ as: 'creature', spec: { plan } })` stores it; every fix is
-  `update_sketch` on `/plan/...` or `/dials/...`. Never re-mint for a change.
+  `update_character` with patch ops on `/plan/...` or `/dials/...`. Never re-mint for a change.
 - **Two gates, never conflated.** The audit and the mint's gates are the machine gate. Looking is the eyes gate, and
   only the operator passes it. Say which ran and what was seen.
 - **Every note lands or is named.** Finish with the audit's ledger: each sheet note `carried`, or `missing` with the
@@ -105,7 +108,9 @@ loop's own card (`creature-from-plan`) holds the ring-plan forms and the art dir
 
 ## Deriving a head (the wolf, from the bear)
 
-Library skulls (`lib/graph/creature-heads/`): `dragon` (reptile), `bear` and `wolf` (mammal). A head plan's cranium
+Library skulls (`lib/graph/creature-heads/`): `dragon` (reptile), `bear` and `wolf` (mammal), and three DERIVED from
+them by row moves (`derive.js` HEAD_DERIVATIONS: `felid` from the wolf, `beaked` from the wolf, `mandibled` from the
+bear), which the automatic door wears and a designer can start from. A head plan's cranium
 and jaw are station ROWS `[id, y, { slot: z | [x, z] }]`; every region, skin map, tile window and ornament is
 addressed by station and slot PARAMETERS (`[s, t]`), so moving a row moves everything addressed to it with it.
 
@@ -149,6 +154,23 @@ with no stop, the upper tip cap dropped below the palate for a hook, a hard `Bea
 nostril moved onto the beak's base; mandibles are two flattened `head`-space sweeps either side of a short cranium
 whose front collapses into a clypeus, with a curl control to open them. Draw the new skull as a file beside the others
 when it is good.
+
+## Painting the hide (`skin`)
+
+Detail that does not change the outline (a scale's edge, a feather row, the lie of fur, a chitin seam) is PAINTED, not
+built: the plan's `skin` is a list of regions `{ parts, pattern, cell, contrast?, t?, run?, fade? }`, patterns
+`scales` · `plates` · `bands` · `feathers` · `fur` · `segments` (polygonizer/skin-paint.js). It is value only, so the
+character light's two tones, the markings and the ink fall over it. Detail that DOES change the outline (spines, a ruff,
+crest plates) stays geometry: `body.locks` (profiles `blade` a tuft, `feather`, `quill`, `spine`, `bump`; `share: true`
+windows), `body.tiles`, ornaments. Lay them ALONG THE CONTOUR (no `flow`: down the part as it curves; `against` on a trunk
+or a neck), and stand one against the body only for contrast (a crest of spines with its own `flow` and a high `lift`).
+Fur is DEPICTED, not patterned: a few `clump: 3–5` locks where fur breaks the outline (a ruff, the cheeks, the backs of
+the elbow and knee, a tail's brush), the body between smooth; an even cover reads as scales. `layers` (a brick of rows
+read off the surface) is for what IS a pattern: a reptile's `bump` osteoderms, a feather cape. Nothing grows under a
+worn piece. Choose by anatomy, as the cover note says it: a reptile's head
+in fine `plates`, its limbs and back in `scales`, `bands` down the belly (`t: [0, 0.3]`); a bird's crown in small
+`feathers` with the beak left bare (`run` on the cranium); fur `fur` with the muzzle bare. Toon reads need BOLD cells:
+4–5 cm on a limb at 2 m, 3 cm on a head; anything under a few pixels at the target is dropped.
 
 ## The lessons (each learned building the first ones; the audit checks the ones a machine can)
 

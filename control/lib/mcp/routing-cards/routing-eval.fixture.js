@@ -51,10 +51,16 @@ export const FIXTURE = [
   ['record the hero clearing the chasm and show me the clip', 'forge_motion'],
   ['check the player can actually get from the door to the goal', 'forge_motion'],
   ['merge those short clips into a single movie file', 'stitch_motion'],
+  ['set up a 35mm camera that dollies down the street and show me its path', 'forge_motion'],
+  ['put easy ease on the second camera keyframe and make the lens 85', 'forge_motion'],
   ['a roguelike where my gear persists across floors', 'create_game'],
   // level ground: a gameworld level's land shaped on its grid, apart from its look
   ['put a cliff along the east side of my first level and a gorge across the middle', 'tune_ground'],
   ['the walk in my level is too flat, make the climbs bigger', 'tune_ground'],
+  ['my games all look the same, give this one colours of its own', 'pick_palette'],
+  ['what colours should a cold, quiet drowned town at dusk be', 'pick_palette'],
+  ['make the colours go from day to night as the levels go on', 'pick_palette'],
+  ['colours for a space sim out in the asteroid belt', 'pick_palette'],
   ['turn my notes into a picture book for kids', 'mint_stash'],
   ['lay out a comic page of my hero fighting the dragon', 'create_sketch'],
   ['an AI-painted portrait I will render with an image model', 'create_sketch'],
@@ -62,6 +68,10 @@ export const FIXTURE = [
   ['stage the two drawn characters in one scene and cut between their rooms', 'create_sketch'],
   ['make a pixel-art cutscene of my hero character', 'get_catalyst'],
   ['design me a two-storey house with a porch', 'mint_building'],
+  // interior designer: a room of a house decorated, styled, its pieces placed
+  ['decorate the lounge in my house in a warm japandi look', 'design_interior'],
+  ['where should the couch and armchairs go in my 14 by 18 living room with one window', 'design_interior'],
+  ['show my bedroom as quiet luxury and then as coastal so I can compare', 'design_interior'],
   ['a furnished apartment I can walk through', 'mint_building'],
   ['frame the house and give me an IFC model for Revit', 'mint_building'],
   // the structure book's outcomes: drawings and a build, asked for without the word "house" leading
@@ -84,7 +94,7 @@ export const FIXTURE = [
   // 3.1.0: the animal, creature, hero and armour rows below enter on create_character, the Characters
   // ring's door (the same recipes mint_solid makes).
   // The animal realm of the figure system (figure-inception-quality.plan.md
-  // phase 4). The PICTURE row already routes a non-humanoid creature here, so
+  // phase 4). The CHARACTER row routes a creature and an animal here, so
   // these pin that a NAMED real animal lands on the solid family rather than
   // drifting to the painted-picture or part-graph neighbours.
   ['a wolf I can 3D print', 'create_character'],
@@ -95,38 +105,64 @@ export const FIXTURE = [
   // stroke (layered): a drawn outline / line / brush on an existing creature or hero becomes a recipe op
   ['I sketched the outline I want for the dragon head, make it match my drawing', 'update_sketch'],
   ['let me draw a ridge along the brow instead of guessing station numbers', 'update_sketch'],
+  // egocube: a character's design rolled once and kept, then made in any game at any age (create_character { egocube })
+  ['I want to design a character once and use her in two different games, a farm girl who grows up to be a knight', 'create_sketch'],
+  ['make my egocube character as she is at twenty six', 'create_character'],
+  // mascot: a cartoony, head-heavy character rolled from a promise (create_character { as: 'mascot' })
+  ['I need a speedy blue cartoon guy with spikes for my platformer', 'create_character'],
+  ['a round pink blob mascot with big eyes that floats around', 'create_character'],
   // hero (layered): a human character as a rigged mesh in one art-style register
   ['a low-poly hero for my game with a face and a ponytail I can rig', 'create_character'],
   ['a boxy pixel knight that walks and exports skinned', 'create_character'],
-  // hero tune: proportion by word and percentage on an existing hero (hero-tune)
-  ['make her shoulders broader and her legs a bit longer', 'create_character'],
+  // hero tune: proportion by word and percentage on an existing hero (hero-tune). Revising a character you have is
+  // update_character's (the studio body's CHARACTER row, the hero card's "iterate by word"); a new one is create_character's
+  ['make her shoulders broader and her legs a bit longer', 'update_character'],
   ['a stockier version of the same hero, fuller arms and thighs', 'create_character'],
-  ['tune my character\'s body proportions by percent, smaller head', 'create_character'],
+  ['tune my character\'s body proportions by percent, smaller head', 'update_character'],
   // face tune: the face proportion lab's words on the hero's fitted head (face-tune)
-  ['give my hero a broader jaw and larger eyes', 'create_character'],
-  ['a longer face with a smaller nose and a bob haircut on the same character', 'create_character'],
+  ['give my hero a broader jaw and larger eyes', 'update_character'],
+  ['a longer face with a smaller nose and a bob haircut on the same character', 'update_character'],
   // hair library: a hairstyle by word and its controls (hair-library)
-  ['give my hero an undercut, then try a ponytail with a longer tail', 'create_character'],
+  ['give my hero an undercut, then try a ponytail with a longer tail', 'update_character'],
   // hero detail: the dragon's detail and adornment passes on the hero, by word (hero-detail)
-  ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'create_character'],
+  ['dress my hero in a quilted jerkin with a belt, a baldric and one pauldron', 'update_character'],
   // anime form: the Anime Form Studio's head worn by the hero (`head: 'anime'`), its clumps directed by name
   ['an anime heroine with a long layered cut and one bang swept over her eye', 'create_character'],
   // anime looks: presets composed by word (`look: ['rival', 'tareme']`)
   ['start from the rival look, then give him droopy eyes and messy hair', 'create_character'],
   // armor (layered hero adorn build): worn armour from a style and dials (armor)
-  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'create_character'],
-  ['only armour the shoulders and chest for now, full plate later', 'create_character'],
+  ['suit my character up like a samurai general, black lacquer and a gold moon on the helmet', 'update_character'],
+  ['only armour the shoulders and chest for now, full plate later', 'update_character'],
   // character fidelity (1011): a hero drawn for its target screen and in its level's light, revised by update_character
   ['my hero looks faceted on a 4k screen, give him the polygons it needs', 'update_character'],
   ['light my knight the way the gothic night level is lit so he fits in', 'update_character'],
   // world weather: a climate for any world's sky (weather)
   ['make it rain in my world and let a thunderstorm roll in now and then', 'compose_world'],
   ['a snowy pass where a blizzard starts when I walk in, with a dust storm world elsewhere', 'compose_world'],
-  // historic entries: a real place at its period mints through its encyclopedia entry's starter
-  ['walk me through ancient Thebes', 'create_sketch'],
-  ['what did a Sumerian city look like', 'create_sketch'],
-  ['show me the pyramids of Giza when they were new', 'create_sketch'],
+  // one door per intent (tool consolidation): revising a character lands on update_character whatever
+  // part of it changes; a camera plan is one door however the ask is put
+  ['the knight I made last week, give him a beard and a scar across the cheek', 'update_character'],
+  ['make my hero look a bit older and heavier set', 'update_character'],
+  ['change her hair to a short bob and keep everything else', 'update_character'],
+  ['the opening shot is too slow, speed the camera up as it goes through the gate', 'forge_motion'],
+  ['add another camera looking down from the bell tower and cut to it at the end', 'forge_motion'],
+  // ...the game's ground and colours asked as "my game" (which door owns them is measured, not assumed)
+  ['the second level of my game is too flat, give it some real hills', 'tune_ground'],
+  ['my platformer feels drab, can it have warmer colours', 'pick_palette'],
+  // asset receipts: asked in plain words
+  // share a finished game (desktop export): the completion offer's options all enter on export_game
+  ['the game is done, how do I get it to my friends', 'export_game'],
+  ['wrap my finished racer as a program I can double-click on my laptop', 'export_game'],
+  ['stamp my exported model so people can tell I made it', 'sign_asset'],
+  ['is this glb really the one I exported, or has someone changed it', 'verify_asset'],
+  // (historic places left the routing eval in 1015: deemphasized, a historical view rather than an ask the surface
+  // offers directly, so "walk me through Thebes" is not a route to hold)
 ];
+
+// Rows the routing gets wrong today and that stay on purpose: the report lists them apart from new misses, and the
+// score still counts them. A row leaves this set when its route is fixed. A row for an ask mojulo no longer offers
+// leaves the fixture instead (the historic rows, 1015).
+export const KNOWN_MISSES = new Set([]);
 
 // Adjacency collisions: pairs of cards that share heavy surface vocabulary
 // ("walk", "dungeon", "world", "animated") where a loose membership gate lets
@@ -138,6 +174,7 @@ export const COLLISION_FIXTURE = [
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
+  ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],
   ['put a health bar and a countdown on screen in my level', 'get_play_vocab'],
   // ...while the audit itself must still win its own turf (the control)

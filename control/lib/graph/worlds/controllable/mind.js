@@ -34,6 +34,7 @@ export function buildMind(E) {
   const {
     clamp, fwdXY, rightXY, fwd3, TAU, sightBlocked, resolveBlocking, RULES,
     meleeSwingSpec, breakGuards, registerPreStep, registerStateInit, registerNormalize, armSwitchReady, navPath, navClear,
+    muzzleAt, bodyExposure,
   } = E;
 
   // entity dressing: a body tagged `food: true` is what a forager grazes (absent → no field: every other world is
@@ -473,7 +474,39 @@ export function buildMind(E) {
   }
   function goTo(e, r, dt, world, goal, speed) {
     const t = e.transform;
+    // FLOORS (opt-in `rule.floors`): a goal on another floor is reached by a flight (floorWay); on the flight itself it
+    // walks straight up or down the steps
+    if (Array.isArray(r.floors) && r.floors.length) {
+      goal = floorWay(e, r, goal);
+      if (e.flight) { walkToward(e, r, Math.atan2(goal[1] - t.pos[1], goal[0] - t.pos[0]), dt, world, speed); return; }
+    }
     if (!navTo(e, r, dt, world, goal, speed)) walkToward(e, r, Math.atan2(goal[1] - t.pos[1], goal[0] - t.pos[0]), dt, world, speed);
+  }
+  // FLOORS: `rule.floors` [{ area: [x0, y0, x1, y1], z, flights: [{ bottom: [x, y], top: [x, y] }] }], each a floor over
+  // the ground (a tower's top, gameworld/lay-concerns.js towerFloor) and the stair up to it. A point is on a floor when it
+  // stands over its area within 0.6 m of its height (a body's feet, or its eye on the ground below the floor's height).
+  const floorAt = (F, p, footZ) => F.findIndex((f) => p[0] >= f.area[0] && p[0] <= f.area[2] && p[1] >= f.area[1] && p[1] <= f.area[3] && footZ >= f.z - 0.6);
+  // floorWay(e, r, goal) — where to walk now for a goal: the goal itself on the same floor; else, from the ground, the
+  // foot of the goal floor's nearest flight and then up it to its top; from a floor, its nearest flight's top and then
+  // down it to its foot (a floor to another goes down and up). `e.flight` is the flight being walked ({ to, k, f }).
+  function floorWay(e, r, goal) {
+    const F = r.floors, t = e.transform, me = floorAt(F, t.pos, t.pos[2] - (r.eye ?? 0)), there = floorAt(F, goal, Number.isFinite(goal[2]) ? goal[2] : 0);
+    const d = (p) => Math.hypot(p[0] - t.pos[0], p[1] - t.pos[1]);
+    if (e.flight) {
+      const fl = F[e.flight.f].flights[e.flight.k], to = e.flight.to === 'up' ? fl.top : fl.bottom;
+      if (d(to) > 0.5) return [to[0], to[1], goal[2]];
+      e.flight = null;
+    }
+    if (me === there) return goal;
+    const f = me >= 0 ? me : there, near = (p) => F[f].flights.reduce((b, x, k) => (Math.hypot(x[p][0] - t.pos[0], x[p][1] - t.pos[1]) < Math.hypot(F[f].flights[b][p][0] - t.pos[0], F[f].flights[b][p][1] - t.pos[1]) ? k : b), 0);
+    if (me < 0) {   // on the ground: to the foot, then up
+      const k = near('bottom'), fl = F[f].flights[k];
+      if (d(fl.bottom) <= 0.8) { e.flight = { f, k, to: 'up' }; return [fl.top[0], fl.top[1], goal[2]]; }
+      return [fl.bottom[0], fl.bottom[1], 0];
+    }
+    const k = near('top'), fl = F[f].flights[k];   // on a floor: to its stair's top, then down
+    if (d(fl.top) <= 0.8) { e.flight = { f, k, to: 'down' }; return [fl.bottom[0], fl.bottom[1], goal[2]]; }
+    return [fl.top[0], fl.top[1], F[f].z];
   }
   // wanderStep — WANDER: legs to seeded points within `wanderRadius` (12) of home at `wanderSpeedMul` (0.5) of its
   // speed, a pause between legs (`pause` [lo, hi] s); during a pause it holds `pauseLoco` when one is given.
@@ -528,6 +561,209 @@ export function buildMind(E) {
     }
     wanderStep(e, r, dt, world, { speedMul: 0.35, pause: [4, 7], pauseLoco: 'graze' });
   }
+  // ── PEEK (opt-in `rule.peek`: true | { reach, hold }): a mind that knows where its foe was but cannot see it does not
+  // walk out into its line: it sidesteps, to the nearest spot within `reach` (2 m) either side from which its eye sees
+  // that place and its muzzle clears the edge, the one with the least of its body in the foe's sight (a tie to its gun's
+  // side); it holds there `hold` (2.5) s, firing when it sees, and steps back to where it stood when nothing shows. With
+  // a gun in hand (`weapon.hand`) the muzzle is off its eye's line, so past an edge on the gun's side it is ready to fire
+  // with less of itself out: the right-hand peeker's advantage falls out of where the gun is, not out of a rule.
+  // peekSpot(e, r, world, at) — the spot to peek from, toward a foe last seen at `at` → { at, side, exposure } | null
+  function peekSpot(e, r, world, at) {
+    const t = e.transform, w = e.weapon, cs = world.colliders, reach = (r.peek && r.peek.reach) || 2;
+    const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
+    const foeEye = [at[0], at[1], at[2] + 1.6], foeChest = [at[0], at[1], at[2] + 1.2];
+    const face = Math.atan2(at[1] - t.pos[1], at[0] - t.pos[0]), hr = rightXY(face), hand = w && w.hand === 'left' ? -1 : 1;
+    const probe = { ...e, transform: { ...t, heading: face } };
+    let best = null;
+    for (let k = 0.1; k <= reach + 1e-9; k = Math.round((k + 0.1) * 10) / 10) {
+      for (const side of [hand, -hand]) {
+        const p = [t.pos[0] + hr[0] * k * side, t.pos[1] + hr[1] * k * side, t.pos[2]];
+        // room to stand there: no box at its body
+        if (cs.some((c) => p[0] > c.min[0] - 0.3 && p[0] < c.max[0] + 0.3 && p[1] > c.min[1] - 0.3 && p[1] < c.max[1] + 0.3 && c.max[2] > p[2] - (r.eye ?? 0) + 0.3)) continue;
+        probe.transform = { ...t, pos: p, heading: face };
+        const eye = [p[0], p[1], p[2] + eyeH(e)];
+        if (sightBlocked(eye, foeChest, cs) || sightBlocked(muzzleAt(probe, w), foeChest, cs)) continue;
+        const exposure = bodyExposure(probe, [p[0], p[1], p[2] - (r.eye ?? 0)], foeEye, cs);
+        if (!best || exposure < best.exposure - 1e-9) best = { at: p, side, exposure, k };
+      }
+      if (best) return best;   // the nearest step that clears: the least out, its gun's side first
+    }
+    return null;
+  }
+  // peekStep(e, r, dt, world) — the peek, while it owns the body: true
+  function peekStep(e, r, dt, world) {
+    const ls = e.lastSeen, now = (world && world.time) || 0, t = e.transform;
+    if (!ls || !world || !world.colliders || !e.weapon || now - ls.t > (r.memorySpan ?? 8)) { e.peek = null; return false; }
+    if (!e.peek || e.peek.seenT !== ls.t) {
+      const P = peekSpot(e, r, world, ls.pos);
+      if (!P) { e.peek = null; return false; }
+      e.peek = { ...P, from: t.pos.slice(), seenT: ls.t, t: now };
+    }
+    const P = e.peek, face = Math.atan2(ls.pos[1] - t.pos[1], ls.pos[0] - t.pos[0]);
+    turnToward(t, face, r, dt); e.aiFire = 0;
+    const back = now - P.t > ((r.peek && r.peek.hold) || 2.5), goal = back ? P.from : P.at;
+    const dx = goal[0] - t.pos[0], dy = goal[1] - t.pos[1], d = Math.hypot(dx, dy);
+    if (d > 0.01) {
+      // a sidestep, facing the foe the while
+      const step = Math.min(d, (r.speed ?? 6) * 0.8 * dt);
+      t.pos[0] += (dx / d) * step; t.pos[1] += (dy / d) * step;
+      if (world.colliders) block(t, r, r.eye ?? 0, world);
+      standOnGround(t, r, r.eye ?? 0, world);
+      e.moving = true; e.locomotion = 'forward'; e.gaitPhase = (e.gaitPhase || 0) + step / (r.stride ?? 2.4);
+    } else e.moving = false;
+    if (back && d <= 0.01) { e.peek = null; e.lastSeen = null; return false; }   // back behind it, nothing seen: let it go
+    e.peekHolding = !back;
+    return true;
+  }
+
+  // ── FRAG (`rule.mind.motivation: 'frag'`): a match player. Everyone not on its team is its foe (`rule.target`, else
+  // 'enemy' on a team, 'all' without one). It fights whom it can SEE, never the nearest body behind a wall; seen, the
+  // one that shot it last (for `fragGrudge`, 3 s) and the one it already fights count closer. Seeing no one it never
+  // stands: it follows its freshest LEAD, the place the shot that hit it came from, a gunshot it heard (within
+  // `hearRange`, 35, in the last half second) or where it last saw a foe, for `leadSpan` (6 s); with none, a HUNCH:
+  // every `hunchEvery` (8) s a rival picked by its seeded dice, walked toward. While it shoots it strafes, side to side
+  // on its juke clock (`strafe`, 0.6 of its speed; 0 stands).
+  const fragPolicy = (e, r) => r.target ?? (e.team ? 'enemy' : 'all');
+  const fragFoe = (e, o, policy) => o !== e && !o.isCamera && !o.downed && !o.gone && !o.invincible && o.body && o.body.hittable && !(policy === 'enemy' && e.team && o.team === e.team);
+  // canSee(e, r, o, world, wide) — in sight range, in its facing cone (unless wide: the one it fights, the one that shot
+  // it), and a clear line eye to eye; no side effects (perceive records the sighting)
+  function canSee(e, r, o, world, wide) {
+    const t = e.transform, q = o.transform.pos, dx = q[0] - t.pos[0], dy = q[1] - t.pos[1];
+    if (Math.hypot(dx, dy) > (r.sightRange ?? 120)) return false;
+    if (!wide) { const off = Math.atan2(dy, dx) - t.heading; if (Math.abs(Math.atan2(Math.sin(off), Math.cos(off))) > (r.sightCone ?? 1.2)) return false; }
+    const eyeH = (b) => (b.rule && b.rule.collideHeight != null ? b.rule.collideHeight : 24) * 0.75 - ((b.rule && b.rule.eye) || 0);
+    return !(world.colliders && sightBlocked([t.pos[0], t.pos[1], t.pos[2] + eyeH(e)], [q[0], q[1], q[2] + eyeH(o)], world.colliders));
+  }
+  function fragNotice(e, r, world) {
+    if (!world || !world.byId) return null;
+    const now = world.time || 0, t = e.transform, policy = fragPolicy(e, r);
+    // a hit says who and where from: a grudge, and a lead to the shooter
+    if ((e.hits || 0) > (e.fragHits || 0)) {
+      e.fragHits = e.hits;
+      const by = e.lastHitBy && world.byId[e.lastHitBy];
+      if (by && by !== e) { e.fragGrudge = { id: by.id, t: now }; e.fragLead = { pos: by.transform.pos.slice(), t: now }; }
+    }
+    const grudge = e.fragGrudge && now - e.fragGrudge.t < (r.fragGrudge ?? 3) ? e.fragGrudge.id : null;
+    let best = null, bc = Infinity;
+    for (const id in world.byId) {
+      const o = world.byId[id];
+      if (!fragFoe(e, o, policy)) continue;
+      const mine = o.id === e.fragTarget || o.id === grudge;
+      if (!canSee(e, r, o, world, mine)) continue;
+      let c = Math.hypot(o.transform.pos[0] - t.pos[0], o.transform.pos[1] - t.pos[1]);
+      if (o.id === e.fragTarget) c *= 0.6;
+      if (o.id === grudge) c *= 0.3;   // being shot turns it, unless the one it fights is much closer
+      if (c < bc) { bc = c; best = o; }
+    }
+    e.fragTarget = best ? best.id : null;
+    return best;
+  }
+  // ITEMS (opt-in `rule.items`: [{ at, gives, back }], the arena's supplies as the mind knows them): hurt (under
+  // `itemsBelow`, 0.6, of its hp) it goes for the nearest health or armor, short of rounds (fewer than a magazine left)
+  // for ammo, and an overdrive within 12 m it takes on the way. It remembers when it took each (it stood on it) and
+  // does not go back before its `back`: item timing, a match's map knowledge. → the item's place, or null
+  // rangeNeed(e, lo) — the distance a carried gun wants (a held slot whose band starts 12 m or more out, with rounds: the
+  // long gun): halfway from its band's near edge to its sweet spot, and half a metre; 0 when it carries none
+  function rangeNeed(e, lo) {
+    let need = 0;
+    if (!lo || !e.loadoutWeapons) return 0;
+    for (let i = 0; i < lo.length; i++) {
+      const b = lo[i] && lo[i].band, g = e.loadoutWeapons[i];
+      if (!Array.isArray(b) || b[0] < 12 || !g || (e.loadoutHeld && !e.loadoutHeld[i]) || (g.ammo <= 0 && g.reserve === 0)) continue;
+      const sw = lo[i].approach && Number.isFinite(lo[i].approach.standoff) ? lo[i].approach.standoff : b[0] + 1;
+      need = Math.max(need, (b[0] + Math.max(b[0] + 1, sw)) / 2 + 0.5);
+    }
+    return need;
+  }
+  // allyOnLine(e, from, target, world) — a standing body of its own side within a body's width of the line from `from`
+  // to the target, before it (opt-in `rule.clearLine`: it holds its fire rather than shoot through a teammate)
+  function allyOnLine(e, from, target, world) {
+    const q = target.transform.pos, lx = q[0] - from[0], ly = q[1] - from[1], L = Math.hypot(lx, ly) || 1e-6;
+    for (const id in (world && world.byId) || {}) {
+      const o = world.byId[id];
+      if (o === e || o === target || o.team !== e.team || o.downed || o.gone || !(o.body && o.body.hittable)) continue;
+      const ox = o.transform.pos[0] - from[0], oy = o.transform.pos[1] - from[1], along = (ox * lx + oy * ly) / L;
+      if (along > 0 && along < L && Math.abs(ox * ly - oy * lx) / L < 0.8) return true;
+    }
+    return false;
+  }
+  function itemGoal(e, r, world) {
+    const items = r.items, now = (world && world.time) || 0, t = e.transform;
+    if (!Array.isArray(items) || !items.length || !e.body) return null;
+    const took = e.itemTook || (e.itemTook = {});
+    items.forEach((it, k) => { if (Math.hypot(it.at[0] - t.pos[0], it.at[1] - t.pos[1]) < 1.2) took[k] = now; });
+    const hurt = e.hpMax > 0 && Number.isFinite(e.body.hp) && e.body.hp < (r.itemsBelow ?? 0.6) * e.hpMax;
+    const w = e.weapon, dry = !!w && w.reserve != null && w.ammo + w.reserve < w.magazine;
+    // a weapon (`gives: 'weapon'`, its loadout `slot`): wanted while not yet carried, or carried and nearly dry, within
+    // `gunReach` (18 m): farther, the hunt comes first
+    const lo = e.pilotRule && Array.isArray(e.pilotRule.loadout) ? e.pilotRule.loadout : Array.isArray(r.loadout) ? r.loadout : null;
+    const gun = (it) => {
+      const i = !lo || !e.loadoutWeapons ? -1 : Number.isInteger(it.slot) ? it.slot : lo.findIndex((c) => c && c.name === it.slot), g = i >= 0 ? e.loadoutWeapons[i] : null;
+      return !!g && ((e.loadoutHeld && !e.loadoutHeld[i]) || (g.reserve != null && g.ammo + g.reserve < g.magazine));
+    };
+    let best = null, bd = Infinity;
+    items.forEach((it, k) => {
+      if (took[k] != null && now - took[k] < (it.back ?? Infinity)) return;
+      const d = Math.hypot(it.at[0] - t.pos[0], it.at[1] - t.pos[1]);
+      const want = ((it.gives === 'health' || it.gives === 'armor') && hurt) || (it.gives === 'ammo' && dry) || (it.gives === 'overdrive' && d < 12) || (it.gives === 'weapon' && d < (r.gunReach ?? 18) && gun(it));
+      if (want && d < bd) { bd = d; best = it; }
+    });
+    return best ? best.at : null;
+  }
+  // fragRoam(e, r, dt, world) — no foe in sight: an item it wants first, then hear, then follow the freshest lead, else
+  // a hunch
+  function fragRoam(e, r, dt, world) {
+    const t = e.transform, now = (world && world.time) || 0, span = r.leadSpan ?? 6;
+    const item = itemGoal(e, r, world);
+    if (item) { e.aiFire = 0; e.seekingItem = true; goTo(e, r, dt, world, item, r.speed ?? 6); return; }
+    e.seekingItem = false;
+    // a PERCH (opt-in `rule.perches: [[x, y, z?], …]`, spots where long lines meet): carrying a gun that wants distance
+    // (`keepRange`), no foe in sight and nothing it wants, it holds the nearest perch and watches, turning slowly, rather
+    // than hunt into a close fight
+    const lo = e.pilotRule && Array.isArray(e.pilotRule.loadout) ? e.pilotRule.loadout : Array.isArray(r.loadout) ? r.loadout : null;
+    if (r.keepRange && Array.isArray(r.perches) && r.perches.length && rangeNeed(e, lo)) {
+      const pk = r.perches.reduce((p, q) => (Math.hypot(q[0] - t.pos[0], q[1] - t.pos[1]) < Math.hypot(p[0] - t.pos[0], p[1] - t.pos[1]) ? q : p));
+      e.aiFire = 0; e.perched = Math.hypot(pk[0] - t.pos[0], pk[1] - t.pos[1]) <= 1;
+      if (!e.perched) { goTo(e, r, dt, world, pk, r.speed ?? 6); return; }
+      e.moving = false; t.heading += (r.turn ?? 3) * 0.25 * dt; return;
+    }
+    e.perched = false;
+    // an OBJECTIVE (opt-in `rule.objective: { at, radius? }`, a point its side holds): no foe in sight and nothing it
+    // wants, it goes there and stands on it (within `radius`, 2 m), turning to look round
+    const O = r.objective;
+    if (O && Array.isArray(O.at)) {
+      e.aiFire = 0;
+      if (Math.hypot(O.at[0] - t.pos[0], O.at[1] - t.pos[1]) > (O.radius ?? 2)) { goTo(e, r, dt, world, O.at, r.speed ?? 6); return; }
+      e.moving = false; t.heading += (r.turn ?? 3) * 0.3 * dt; return;
+    }
+    if (world && world.byId) {
+      let heard = null, hd = r.hearRange ?? 35;
+      for (const id in world.byId) {
+        const o = world.byId[id], s = o.lastShot;
+        if (o === e || !s || now - s.t > 0.5 || !s.from) continue;
+        const d = Math.hypot(s.from[0] - t.pos[0], s.from[1] - t.pos[1]);
+        if (d < hd) { hd = d; heard = s.from; }
+      }
+      if (heard && !(e.fragLead && now - e.fragLead.t < 0.5)) e.fragLead = { pos: heard.slice(), t: now };
+    }
+    // where it last saw a foe is a lead too, as old as the sighting
+    if (e.lastSeen && (!e.fragLead || e.lastSeen.t > e.fragLead.t)) e.fragLead = { pos: e.lastSeen.pos.slice(), t: e.lastSeen.t };
+    let goal = e.fragLead && now - e.fragLead.t < span ? e.fragLead.pos : null;
+    if (goal && Math.hypot(goal[0] - t.pos[0], goal[1] - t.pos[1]) < 2) { e.fragLead = null; e.lastSeen = null; goal = null; }
+    if (!goal) {
+      if (!e.fragHunch || now >= e.fragHunch.until) {
+        const foes = [];
+        for (const id in (world && world.byId) || {}) { const o = world.byId[id]; if (fragFoe(e, o, fragPolicy(e, r))) foes.push(o); }
+        const n = e.fragHunchN = (e.fragHunchN || 0) + 1;
+        e.fragHunch = foes.length ? { id: foes[Math.floor(hash01(e.id, 7919 + n) * foes.length)].id, until: now + (r.hunchEvery ?? 8) } : null;
+      }
+      const h = e.fragHunch && world.byId[e.fragHunch.id];
+      if (h && !h.downed && !h.gone) goal = h.transform.pos;
+    }
+    if (!goal) { e.moving = false; return; }
+    e.aiFire = 0;
+    goTo(e, r, dt, world, goal, r.speed ?? 6);
+  }
   // idle(e, r, dt, world, motive) — IDLE by motivation; a mind without one stands
   function idle(e, r, dt, world, motive) {
     // GROUP (group.js): a member out of the fight keeps its formation slot behind the leader
@@ -539,6 +775,7 @@ export function buildMind(E) {
     if (motive === 'guard' || motive === 'escort') return returnToPost(e, r, dt, world);
     if (motive === 'wander' || motive === 'territorial') return wanderStep(e, r, dt, world, { speedMul: r.wanderSpeedMul ?? 0.5, pause: [r.wanderPause ?? 2, (r.wanderPause ?? 2) * 2] });
     if (motive === 'forage') return grazeStep(e, r, dt, world);
+    if (motive === 'frag') return fragRoam(e, r, dt, world);
     e.moving = false;
   }
 
@@ -681,15 +918,18 @@ export function buildMind(E) {
     }
     // NOTICE.
     const ward = motive === 'escort' ? wardOf(e, r, world) : null;
-    let target = pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);
+    let target = motive === 'frag' ? fragNotice(e, r, world) : pickTarget(e, world, r.target ?? (motive === 'escort' ? (e.team ? 'enemy' : 'all') : undefined), ward);
     // COVER: hurt or reloading, it takes cover (opt-in `rule.cover`) from the one it fights, seen or not (it knows where
     // the fire came from)
     if (r.cover && target && target !== e && takeCover(e, r, dt, world, target)) { e.reactionEnded = false; return; }
     const percept = r.mind && r.mind.perception;
     if (percept && target && target !== e && !perceive(e, r, target, world) && e.groupFocus !== target.id) {
       target = null;
-      if (percept === 'memory' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
+      if (r.peek && peekStep(e, r, dt, world)) { e.reactionEnded = false; return; }
+      if (percept === 'memory' && motive !== 'frag' && recall(e, r, dt, world)) { e.reactionEnded = false; return; }
     }
+    // a match player that sees no one peeks where it last saw a foe before it goes looking
+    if (!target && motive === 'frag' && r.peek && peekStep(e, r, dt, world)) { e.reactionEnded = false; return; }
     if (!target || target === e) { e.reactionEnded = false; idle(e, r, dt, world, motive); return; }
     // GUARD: it holds its post. A target farther than `guardRadius` (20) from the post is not its business: it goes
     // back to the post (LOST: return-to-post) and stands there (IDLE: post).
@@ -805,15 +1045,32 @@ export function buildMind(E) {
       // ENGAGE: the RANGED ROTATION (a duelist's repertoire): with two or more trigger guns (throw slots skipped) it
       // advances the pick every `weaponRotate` s (6), so its spacing shifts with the tool in hand. One gun: it just
       // selects it.
+      // (a slot not yet picked up, `held: false`, is not in its hands)
       const ranged = [];
-      for (let i = 0; i < e.loadoutWeapons.length; i++) if (e.loadoutWeapons[i] && !lo[i].throw) ranged.push(i);
+      for (let i = 0; i < e.loadoutWeapons.length; i++) if (e.loadoutWeapons[i] && !lo[i].throw && (!e.loadoutHeld || e.loadoutHeld[i])) ranged.push(i);
       if (ranged.length) {
-        if (e.aiRangedPick == null) { const cur = ranged.indexOf(e.loadoutIdx || 0); e.aiRangedPick = cur >= 0 ? cur : 0; }
-        if (ranged.length > 1) {
-          e.aiWeaponT = (e.aiWeaponT || 0) + dt;
-          if (e.aiWeaponT >= (r.weaponRotate ?? 6)) { e.aiWeaponT = 0; e.aiRangedPick = (e.aiRangedPick + 1) % ranged.length; }
+        let want;
+        if (ranged.some((i) => Array.isArray(lo[i].band))) {
+          // BANDS (opt-in, a slot's `band: [near, far]` metres, gameworld/weapon-roles.js): the gun for the range, not a
+          // rotation. Of the held guns with rounds whose band holds the distance, the one whose SWEET SPOT (its slot's
+          // `approach.standoff`, else its band's middle) is nearest it; the gun in hand is kept while the distance stays
+          // within 2 m of its band, unless another in band is nearer its sweet spot by 2 m (a switch costs its ready time).
+          const band = (i) => (Array.isArray(lo[i].band) ? lo[i].band : [0, Infinity]);
+          const sweet = (i) => (lo[i].approach && Number.isFinite(lo[i].approach.standoff) ? lo[i].approach.standoff : (band(i)[0] + Math.min(band(i)[1], band(i)[0] + 40)) / 2);
+          const dry = (i) => { const w = e.loadoutWeapons[i]; return w.ammo <= 0 && w.reserve === 0; };
+          const off = (i) => { const [a, b] = band(i); return dist2d < a ? a - dist2d : dist2d > b ? dist2d - b : 0; };
+          const fit = (i) => off(i) * 10 + Math.abs(dist2d - sweet(i));
+          const cur = e.loadoutIdx || 0;
+          if (ranged.includes(cur) && !dry(cur) && off(cur) <= 2 && !ranged.some((i) => i !== cur && !dry(i) && off(i) === 0 && fit(i) < fit(cur) - 2)) want = cur;
+          else want = ranged.reduce((p, q) => ((dry(q) ? 1 : 0) < (dry(p) ? 1 : 0) || ((dry(q) ? 1 : 0) === (dry(p) ? 1 : 0) && fit(q) < fit(p) - 1e-9) ? q : p));
+        } else {
+          if (e.aiRangedPick == null) { const cur = ranged.indexOf(e.loadoutIdx || 0); e.aiRangedPick = cur >= 0 ? cur : 0; }
+          if (ranged.length > 1) {
+            e.aiWeaponT = (e.aiWeaponT || 0) + dt;
+            if (e.aiWeaponT >= (r.weaponRotate ?? 6)) { e.aiWeaponT = 0; e.aiRangedPick = (e.aiRangedPick + 1) % ranged.length; }
+          }
+          want = ranged[e.aiRangedPick % ranged.length];
         }
-        const want = ranged[e.aiRangedPick % ranged.length];
         if (!e.weapon || (e.loadoutIdx || 0) !== want) {
           e.loadoutIdx = want; e.weapon = e.loadoutWeapons[want];
           if (e.body && lo[want].figure) e.body.figure = lo[want].figure;
@@ -821,9 +1078,21 @@ export function buildMind(E) {
         }
       }
     }
-    // aim: turn toward the target, pitch at its egg centre
-    const rem = turnToward(t, Math.atan2(dy, dx), r, dt);
+    // aim: turn toward the target, pitch at its egg centre. A travelling round (a lob: a launcher, a grenade) is LED: aimed
+    // where the target will be when it gets there, its flight time ahead along the target's pace (its steps, smoothed;
+    // a jump of more than 5 m in a frame, a respawn, starts it over). A hitscan round needs no lead.
     const w = e.weapon;
+    let ax = dx, ay = dy;
+    if (w && w.fireClass === 'lob' && w.projectileSpeed > 0 && !r.space) {
+      const q = target.transform.pos, lp = e.leadPrev;
+      if (lp && lp.id === target.id && dt > 0 && Math.hypot(q[0] - lp.at[0], q[1] - lp.at[1]) < 5) {
+        const vx = (q[0] - lp.at[0]) / dt, vy = (q[1] - lp.at[1]) / dt, v = e.leadVel || [vx, vy];
+        e.leadVel = [v[0] * 0.7 + vx * 0.3, v[1] * 0.7 + vy * 0.3];
+      } else e.leadVel = null;
+      e.leadPrev = { id: target.id, at: [q[0], q[1]] };
+      if (e.leadVel) { const tf = dist2d / w.projectileSpeed; ax = dx + e.leadVel[0] * tf; ay = dy + e.leadVel[1] * tf; }
+    }
+    const rem = turnToward(t, Math.atan2(ay, ax), r, dt);
     const tb = target.body || {};
     const tcz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 0);
     t.pitch = clamp(Math.atan2((target.transform.pos[2] + tcz) - (t.pos[2] + (w ? w.eye || 0 : 0)), dist2d), -1.2, 1.2);
@@ -926,14 +1195,53 @@ export function buildMind(E) {
       e.boosting = true; e.thrust = 1;
     } else {
       let moveF = 0;
-      if (dist2d > standoff && facing) moveF = speed * dt;
+      // a peek holds its spot while it fights from it (it does not walk out of the edge it peeked)
+      const holding = r.peek && e.peek && ((world && world.time) || 0) - e.peek.t < ((r.peek && r.peek.hold) || 2.5);
+      if (dist2d > standoff && facing && !holding) moveF = speed * dt;
+      // KEEP RANGE (opt-in `rule.keepRange`): carrying a gun that wants distance (a held slot whose band starts 12 m or
+      // more out, with rounds: the long gun), closer than its band it backs off, still fighting with the gun for the
+      // range, until it is there and the gun for the range is that one. Backed into a wall (under half a metre in a
+      // second) it gives it up for 3 s.
+      if (r.keepRange && lo && e.loadoutWeapons && facing && !holding) {
+        if (e.backOffT > 0) e.backOffT -= dt;
+        const need = rangeNeed(e, lo);
+        if (need && dist2d < need && !(e.backOffT > 0)) {
+          const B = e.backing || (e.backing = { from: [t.pos[0], t.pos[1]], t: 0 });
+          B.t += dt;
+          if (B.t >= 1) { if (Math.hypot(t.pos[0] - B.from[0], t.pos[1] - B.from[1]) < 0.5) e.backOffT = 3; e.backing = null; }
+          moveF = -speed * 0.8 * dt;
+        } else e.backing = null;
+      }
       if (moveF) { t.pos[0] += f2[0] * moveF; t.pos[1] += f2[1] * moveF; }
-      moveMag = moveF;
+      moveMag = Math.abs(moveF);
+      if (moveF < 0) e.backStep = true;   // the walk clip run backwards (gait.js wraps a negative phase)
+      // FRAG: it strafes as it shoots, side to side on its juke clock; not with a slot that `plant`s (a gun a run throws
+      // wide: it stands to shoot)
+      const planted = !!(aSlot && aSlot.plant);
+      if (motive === 'frag' && facing && w && (r.strafe ?? 0.6) > 0 && !holding && !planted) {
+        const side = nextJuke(e, r, dt), ss = speed * (r.strafe ?? 0.6) * dt;
+        t.pos[0] += rt2[0] * side * ss; t.pos[1] += rt2[1] * side * ss;
+        moveMag = Math.max(moveMag, ss);
+      }
     }
     if (!isSpace && world && world.colliders) block(t, r, eye, world);
     if (!isSpace) standOnGround(t, r, eye, world);
-    if (moveMag > 0) { e.locomotion = clip; e.gaitPhase = (e.gaitPhase || 0) + moveMag / strideLen; e.moving = true; }
+    // a flier over ground (`rule.clearance`, air combat: skyscape/dogfight.js) keeps that far over it: the ground under
+    // it and where it will be in a couple of seconds read, the climb toward the higher at up to its speed, and never
+    // below half the clearance (a mind is not a body the ground stops)
+    if (isSpace && r.clearance > 0 && world && world.ground) {
+      const look = Math.max(speed, 1) * 2, ax = t.pos[0] + Math.cos(t.heading) * look, ay = t.pos[1] + Math.sin(t.heading) * look;
+      const g0 = world.ground([t.pos[0], t.pos[1], t.pos[2] + 1e4]), g1 = world.ground([ax, ay, t.pos[2] + 1e4]);
+      const g = Math.max(g0 ?? -Infinity, g1 ?? -Infinity);
+      if (Number.isFinite(g) && t.pos[2] < g + r.clearance) {
+        t.pos[2] = Math.min(g + r.clearance, t.pos[2] + speed * dt);
+        if (g0 != null && t.pos[2] < g0 + r.clearance / 2) t.pos[2] = g0 + r.clearance / 2;
+        t.pitch = Math.max(t.pitch || 0, 0.3);
+      }
+    }
+    if (moveMag > 0) { e.locomotion = clip; e.gaitPhase = (e.gaitPhase || 0) + (e.backStep ? -moveMag : moveMag) / strideLen; e.moving = true; }
     else e.moving = false;
+    e.backStep = false;
 
     // STRIKE: the trigger. Engaged = on aim within `fireArc`°, in range, sightline clear; space gates on the full 3D
     // aim. Burst/pause cadence; the tuning's latency shortens bursts, lengthens gaps, and holds a fresh sighting for
@@ -945,8 +1253,11 @@ export function buildMind(E) {
       const a = fwd3(t.heading, t.pitch || 0);
       onAim = (a[0] * (dx / dist3d) + a[1] * (dy / dist3d) + a[2] * (dz / dist3d)) >= Math.cos(fireArc);
     } else onAim = Math.abs(rem) <= fireArc;
+    // a gun in hand (`weapon.hand`) fires from its muzzle, at the target's chest: what clears the edge is the gun
+    const tchest = w && w.hand ? [target.transform.pos[0], target.transform.pos[1], target.transform.pos[2] + tcz] : null;
     const engaged = !!w && onAim && rangeD <= (w.range || 400)
-      && !sightBlocked(origin, target.transform.pos, world && world.colliders);
+      && !(tchest ? sightBlocked(muzzleAt(e, w), tchest, world && world.colliders) : sightBlocked(origin, target.transform.pos, world && world.colliders))
+      && !(r.clearLine && e.team && allyOnLine(e, origin, target, world));
     if (engaged) {
       const burstOn = (r.burst ?? 1.1) * (dif ? dif.burstMul : 1);
       const cycle = burstOn + (r.pause ?? 0.9) * (dif ? dif.pauseMul : 1);
@@ -964,7 +1275,60 @@ export function buildMind(E) {
       t.pitch = clamp((t.pitch || 0) + Math.sin(e.aiWobT * dif.wobbleHz * 0.77 * TAU + 1.3) * dif.aimWobble * 0.6, -1.2, 1.2);
     }
   }
-  Object.assign(RULES, { ai });
+  // ── KIT (opt-in `rule.kit`): what a stylized shooter's mind does with its body and its abilities, after it decides
+  // each frame. All on the world clock, no dice:
+  //   hop       (true | a jump speed) under fire (hit in the last second), a jump, `hopEvery` (1.4) s apart
+  //   dash      ({ cooldown }) a fresh hit rolls it off the line, square to whoever shot it (no invincibility: a dash
+  //             is a move, not a shield)
+  //   heal      ({ amount, cooldown, below }) under `below` (0.4) of its hp, `amount` back
+  //   ultimate  ({ per, for }) charged `per` (to 100) by every hit it lands (combat-ranged.js), spent on a foe it sees:
+  //             overdrive (its rounds hit harder) for `for` s, and its hp full
+  const KIT_GRAVITY = 20;
+  function kitStep(e, r, dt, world) {
+    const K = r.kit, t = e.transform, now = (world && world.time) || 0;
+    if (e.downed || e.gone) { e.hopZ = 0; e.hopVz = 0; return; }
+    const fresh = (e.hits || 0) > (e.kitHits || 0);
+    if (fresh) { e.kitHits = e.hits; e.kitHitT = now; }
+    const underFire = e.kitHitT != null && now - e.kitHitT < 1;
+    for (const k of ['kitHopCd', 'kitDashCd', 'kitHealCd']) if (e[k] > 0) e[k] = Math.max(0, e[k] - dt);
+    if (K.dash && fresh && !(e.kitDashCd > 0) && e.dodgeT == null) {
+      const by = e.lastHitBy && world.byId && world.byId[e.lastHitBy], from = by ? by.transform.pos : null;
+      const away = from ? Math.atan2(t.pos[1] - from[1], t.pos[0] - from[0]) : t.heading, side = (e.kitDashes || 0) % 2 ? 1 : -1;
+      rollOff(e, r, null, [Math.cos(away + side * Math.PI / 2), Math.sin(away + side * Math.PI / 2)], rightXY(t.heading));
+      e.dodgeSpent = true; e.kitDashCd = (K.dash && K.dash.cooldown) || 3; e.kitDashes = (e.kitDashes || 0) + 1;
+    }
+    if (K.heal && e.body && Number.isFinite(e.body.hp) && e.hpMax > 0 && !(e.kitHealCd > 0) && e.body.hp < (K.heal.below ?? 0.4) * e.hpMax) {
+      e.body.hp = Math.min(e.hpMax, e.body.hp + (K.heal.amount ?? 50)); e.kitHealCd = K.heal.cooldown ?? 10; e.kitHeals = (e.kitHeals || 0) + 1;
+    }
+    if (K.ultimate && (e.kitCharge || 0) >= 100 && e.fragTarget) {
+      (e.statuses || (e.statuses = {})).overdrive = { t0: now, until: now + (K.ultimate.for ?? 6) };
+      e.kitCharge = 0; e.kitUlts = (e.kitUlts || 0) + 1;
+      if (e.hpMax > 0 && e.body) e.body.hp = e.hpMax;
+    }
+    // the hop: a jump off the ground it stands on, its height kept over the ground under it (the height it added last
+    // frame taken off first, so it never stacks, ground or no ground)
+    if (K.hop) {
+      if (e.hopApplied) { t.pos[2] -= e.hopApplied; e.hopApplied = 0; }
+      if (!(e.hopZ > 0) && underFire && !(e.kitHopCd > 0) && e.dodgeT == null) { e.hopVz = K.hop === true ? 6.5 : K.hop; e.hopZ = 1e-3; e.kitHopCd = r.hopEvery ?? 1.4; e.kitHops = (e.kitHops || 0) + 1; }
+      if (e.hopZ > 0) {
+        e.hopZ += e.hopVz * dt; e.hopVz -= KIT_GRAVITY * dt;
+        if (e.hopZ <= 0) { e.hopZ = 0; e.hopVz = 0; }
+        standOnGround(t, r, r.eye ?? 0, world);
+        t.pos[2] += e.hopZ; e.hopApplied = e.hopZ;
+        // the mind aimed from the ground: aim again from where the hop has it (its foe's egg centre)
+        const tg = e.fragTarget && world.byId ? world.byId[e.fragTarget] : null;
+        if (tg && e.weapon) {
+          const q = tg.transform.pos, tb = tg.body || {}, cz = tb.egg ? (Number.isFinite(tb.egg.cz) ? tb.egg.cz : tb.egg.c) : (tb.radius || 0);
+          t.pitch = clamp(Math.atan2((q[2] + cz) - (t.pos[2] + (e.weapon.eye || 0)), Math.hypot(q[0] - t.pos[0], q[1] - t.pos[1]) || 1e-6), -1.2, 1.2);
+        }
+      }
+    }
+  }
+  function aiWithKit(e, input, dt, world) {
+    ai(e, input, dt, world);
+    if (e.rule && e.rule.kit) kitStep(e, e.rule, dt, world);
+  }
+  Object.assign(RULES, { ai: aiWithKit });
 
   // AI ATTACK TOGGLE: the G press edge flips the world switch every mind gates on.
   registerPreStep('ai-toggle', (state, input) => {
@@ -975,5 +1339,5 @@ export function buildMind(E) {
     state.aiTuning = AI_DIFFICULTY[spec.aiDifficulty] || null;
   });
 
-  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf, mindPickTarget: pickTarget, mindThreatOf: threatOf });
+  Object.assign(E, { AI_DIFFICULTY, MIND_SKILL, MIND_AGGRESSIVENESS, mindTuning: tuningOf, mindPickTarget: pickTarget, mindThreatOf: threatOf, mindPeekSpot: peekSpot });
 }

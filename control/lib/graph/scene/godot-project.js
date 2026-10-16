@@ -461,7 +461,7 @@ const figureLedger = (f) => (f.anime ? {
   figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
 } : {
   figure_skinned: {
-    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, one second each — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
+    note: `one skinned mesh (${f.joints} joints) carrying its ${f.clips.length} clips, each at its own length — the GLB export_model { clips: '_all', skinned: true } writes (lit: true under --lit); level.tscn plays '${f.clip}' on a loop under the authored ${f.viewName} view, which frames the figure at rest, with no walker (figure.gd extends the kernel's level); model.glb.import turns LOD generation off (and mesh compression, which Godot never puts on a skinned surface)`,
   },
   figure_normals: { note: 'the skinned mesh carries no NORMAL or TANGENT yet: the default export travels as its baked look, unlit, and under --lit an engine light has no normals to shade it with' },
 });
@@ -500,8 +500,8 @@ rest (a clip that reaches overhead can leave the frame).${f.clips.includes('gest
 \`${f.clip}\` is the figure's own loop, not the stand the World page opens on
 (the clip \`gesture\`).` : ''} It is one skinned mesh
 (${f.joints} joints) carrying its ${f.clips.length} clips (${f.clips.map((c) => `\`${c}\``).join(', ')}) on the
-imported AnimationPlayer as \`${f.name}_<clip>\`, one second each (the World
-page plays a clip over three): set \`clip\` (\`${f.name}:<clip>\`) and \`view\`
+imported AnimationPlayer as \`${f.name}_<clip>\`, each at its own length (the World
+page plays a clip over three seconds): set \`clip\` (\`${f.name}:<clip>\`) and \`view\`
 (an index into the score's cameras) on the \`Level\` node of \`level.tscn\` to
 play another. \`model.glb.import\` imports it with LOD generation off.`);
 

@@ -22,6 +22,8 @@
  *       bridge?: { head?, proportions?, toon? }, // explicit crossings out of the tradition
  *     },
  *     hero?: {
+ *       ref?,                                    // a hero made on its own (create_character), adopted: the run makes
+ *                                              // none and pins this one; its own looks and motion play
  *       looks?: { body?, head?, hair?, colour?, underlayer?, base? },
  *       motion?,                                 // the feel (hero-vibe.js): vibe words, axes, custom clips
  *       actions?,                                // what it can do (actions.js)
@@ -86,7 +88,7 @@ const NOT_LOOKS = Object.freeze({
  * the systems numbered from the actions (mechanics.js): their stats and their HUD.
  * They share the world's `review` field with the world's own parts. */
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
-const HERO_KEYS = ['looks', 'motion', 'actions', 'adornment'];
+const HERO_KEYS = ['ref', 'looks', 'motion', 'actions', 'adornment'];
 const KEYS = ['direction', 'hero', 'cast'];
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -200,9 +202,11 @@ export function readCharacters(C) {
     if (!isObj(C.hero)) throw err(`hero is { ${HERO_KEYS.join(', ')} }`);
     for (const k of Object.keys(C.hero)) {
       if (!HERO_KEYS.includes(k)) throw err(`hero.${k} is not part of the hero's page (${HERO_KEYS.join(', ')})${NOT_LOOKS[k] ? `; ${NOT_LOOKS[k]}` : LOOKS_ELEMENTS[k] ? `; ${k} is a looks page (hero.looks.${k})` : ''}`);
-      if (k !== 'looks' && C.hero[k] !== undefined && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
+      if (k !== 'looks' && k !== 'ref' && C.hero[k] !== undefined && !isObj(C.hero[k])) throw err(`hero.${k} is an object`);
     }
+    if (C.hero.ref !== undefined && !(typeof C.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(C.hero.ref))) throw err('hero.ref is the sketch ref of a hero made with create_character (the run adopts it and makes none)');
     out.hero = {};
+    if (C.hero.ref !== undefined) out.hero.ref = C.hero.ref;
     if (C.hero.looks !== undefined) out.hero.looks = readLooks(C.hero.looks);
     if (C.hero.motion !== undefined) out.hero.motion = readMotion(C.hero.motion);
     if (C.hero.actions !== undefined) out.hero.actions = readActions(C.hero.actions);

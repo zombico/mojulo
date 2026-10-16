@@ -6,7 +6,7 @@
  *
  *   1. the game — a `kind:'game'`/`engine:'pixelizer'` sketch (sk_brickster)
  *      whose manifest is a RECIPE; lands in the `game` bucket → the Arcade
- *      (/arcade) + Maker gallery, playable at /api/sketches/<ref>/game.
+ *      (/play), playable at /api/sketches/<ref>/game.
  *   2. the project — a `Brickster` game project with the sketch bound as its
  *      `rules` member, so the game ALSO surfaces on /maker/games (the Game
  *      Developer projects gallery) and its arcade cabinet carries a project chip.
@@ -65,7 +65,7 @@ const row = SketchRepository.getByRef(REF);
 console.log(`${gameExisted ? 'updated' : 'created'} game ${row.ref}  (bucket: ${row.bucket})`);
 console.log(`${projectExisted ? 'reused ' : 'created'} project ${projectRef}  (rules: ${REF})`);
 console.log(`  inspect: /sketches/${row.ref}`);
-console.log(`  arcade:  /arcade/${row.ref}`);
+console.log('  play:    /play');
 console.log(`  project: /games/${projectRef}   (listed on /maker/games)`);
 console.log(`  play:    /api/sketches/${row.ref}/game`);
 

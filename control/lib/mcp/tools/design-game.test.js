@@ -8,7 +8,8 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchRevisionRepository } from '@/lib/db/repositories/sketch-revisions';
 import { updateSketchHandler } from './sketches.js';
 import { designGameHandler } from './design-game.js';
-import { MEADOWMARK, MEADOWMARK_HERO, gameworldOf } from '@/lib/graph/gameworld/index';
+import { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, gameworldOf } from '@/lib/graph/gameworld/index';
+import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
 
 // The rail's door: write the gameworld, take the verdicts, run what is ready through the real handlers, and say what
 // to do next. A run with nothing changed makes nothing; a hand edit is left unless forced.
@@ -31,9 +32,11 @@ describe('design_game', () => {
     expect(step(out, 'review')).toMatchObject({ card: 'gameworld-next', parts: expect.arrayContaining(['hero:base']) });
     expect(step(out, 'run')).toEqual({ step: 'run', card: 'gameworld-next' });
     expect(stored('gw').kind).toBe('gameworld');
-    // a world without a hero runs nothing
+    // a world before its people, gated and unreviewed: its levels and game wait on its parts, and nothing is made
     const ground = await designGameHandler({ world: MEADOWMARK, ref: 'gw-ground', run: true });
-    expect(ground.ran).toEqual([]);
+    expect(ground.ran.length).toBeGreaterThan(1);
+    expect(ground.ran.every((r) => r.action === 'waiting')).toBe(true);
+    expect(ground.made).toBeUndefined();
   });
 
   it('gated: a run makes the hero and pins its base; the rest waits for the creator; a second run makes nothing', async () => {
@@ -168,4 +171,53 @@ describe('design_game, autonomous', () => {
     expect(action(forced, 'gear-sword')).toBe('remake');
     expect(stored('gw-gear-sword').build.dials).toBeUndefined();
   }, 300_000);
+});
+
+describe('design_game: the hero a run plays (character stitch)', () => {
+  beforeEach(() => { closeDb(); });
+
+  it('a world that populates its gear finishes its run, and the anime hero keeps its light', async () => {
+    const world = { ...HALDEN_REACH, characters: MEADOWMARK_HERO.characters, mechanics: MEADOWMARK_HERO.mechanics, equipment: { ...MEADOWMARK_HERO.equipment, populate: true }, mode: 'autonomous' };
+    const out = await designGameHandler({ world, ref: 'gp', run: true });
+    const stock = out.ran.filter((r) => r.key.startsWith('stock-'));
+    expect(stock.length).toBeGreaterThan(0);
+    expect(stock.every((r) => r.action === 'make')).toBe(true);
+    expect(Object.keys(gameworldOf(stored('gp')).made)).toEqual(expect.arrayContaining(['hero', stock[0].key]));
+    expect(stored('gp-hero').toon).toEqual({ light: true });
+    // the hero a game plays runs on its own calibrated jog, its feet at the jog's stride
+    expect(stored('gp-hero').hero.motion.jog).toBeTruthy();
+    const level = stored(Object.entries(gameworldOf(stored('gp')).made).find(([k]) => k.startsWith('level-'))[1].ref);
+    const pilot = level.entities.find((e) => e.pilotable);
+    expect(level.figures[pilot.body.figure].clips).toMatchObject({ forward: 'jog', turn: 'walk', idle: 'Idle_Loop' });
+    expect(pilot.rule.stride).toBe(1.72);
+  }, 600_000);
+
+  it('a hand edit to the hero is said on its base and plays: the equipped hero is built over it', async () => {
+    await designGameHandler({ world: AUTO, ref: 'ge', run: true });
+    await updateCharacterHandler({ ref: 'ge-hero', spec: { palette: { Top: '#123456' } } });
+    const again = await designGameHandler({ ref: 'ge', run: true });
+    expect(action(again, 'hero')).toBe('edited');
+    expect(again.parts.find((p) => p.id === 'hero:base').advises).toEqual([expect.stringMatching(/^the hero was edited by hand since the run/)]);
+    expect(action(again, 'hero-equipped')).toBe('remake');
+    expect(stored('ge-hero-equipped').hero.palette.Top).toBe('#123456');
+  }, 600_000);
+
+  it('a hero made on its own is adopted by ref: pinned, never made, and it plays', async () => {
+    await createCharacterHandler({ as: 'hero', spec: { cast: 'female', head: 'anime', palette: { Top: '#0f5c4a' } }, title: 'solo', ref: 'solo' });
+    const world = { ...AUTO, characters: { ...AUTO.characters, hero: { ...AUTO.characters.hero, ref: 'solo' } } };
+    const out = await designGameHandler({ world, ref: 'ga', run: true });
+    expect(action(out, 'hero')).toBe('adopt');
+    expect(stored('ga-hero')).toBeUndefined();
+    expect(gameworldOf(stored('ga')).characters.hero.looks.base).toMatchObject({ ref: 'solo' });
+    expect(out.parts.find((p) => p.id === 'hero:motion').advises).toEqual(expect.arrayContaining([expect.stringMatching(/the hero is adopted \('solo'\)/)]));
+    if (stored('ga-hero-equipped')) expect(stored('ga-hero-equipped').hero.palette.Top).toBe('#0f5c4a');
+    const again = await designGameHandler({ ref: 'ga', run: true });
+    expect(action(again, 'hero')).toBe('keep');
+    // a quick game takes one the same way
+    const quick = await designGameHandler({ quick: { goal: 'reach', hero: { ref: 'solo' }, world: { id: 'adopt' } }, ref: 'qa', run: true });
+    expect(action(quick, 'hero')).toBe('adopt');
+    expect(stored('qa-hero')).toBeUndefined();
+    const level = Object.entries(quick.made).find(([k]) => k.startsWith('level-'))[1];
+    expect(JSON.stringify(stored(level))).toContain('"heroRef":"solo"');
+  }, 600_000);
 });

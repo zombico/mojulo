@@ -17,6 +17,7 @@
 
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { assembleFractalCityScene, planFractalCity } from '@/lib/graph/city/fractal-city';
+import { assembleRoadwayScene } from '@/lib/graph/roads/roadway';
 import { pairLanes, laneCapacity, laneTurns, buildSignals, deriveClearance, carFootprint, rectsTouch, TRAFFIC } from '@/lib/graph/scene/channels/traffic-model';
 import { resolveCityInsets } from '@/lib/graph/worlds/city-insets';
 import { assembleFractalCondoScene } from '@/lib/graph/architecture/fractal-condo';
@@ -25,6 +26,7 @@ import { assembleEdificeScene, planEdifice } from '@/lib/graph/architecture/edif
 import { assembleDungeonScene } from '@/lib/graph/architecture/dungeon-designer';
 import { assembleStageScene } from '@/lib/graph/era/stage';
 import { assembleGeocubeScene } from '@/lib/graph/era/geocube';
+import { assembleEgocubeScene } from '@/lib/graph/egocube/kind.js';
 import { assembleHeartbeatScene } from '@/lib/graph/level/heartbeat-scene';
 import { assembleCityScene } from '@/lib/graph/city/plan/scene';
 import { assembleHistoricKindScene } from '@/lib/graph/historic/historic-kind';
@@ -50,6 +52,11 @@ import { faunaBones, packFaunaRig } from '@/lib/graph/fauna/rig';
 import { bugBones, packBugRig } from '@/lib/graph/bugs/rig';
 import { heroFaceRig } from '@/lib/graph/polygonizer/anime-face-rig';
 import { facePaintOf } from '@/lib/graph/polygonizer/face-paint';
+import { skinPaintOf } from '@/lib/graph/polygonizer/skin-paint';
+import { readTarget, pxPerMetre, DEFAULT_TARGET } from '@/lib/graph/era/target';
+import { planHeight } from '@/lib/graph/era/cast-density';
+/** pixels a metre a creature is drawn at (its drawn target, else the default): the skin's level of detail */
+const skinPpm = (plan) => { try { return pxPerMetre(readTarget((typeof plan.style?.drawn === 'object' && plan.style.drawn.target) || DEFAULT_TARGET), planHeight(plan)); } catch { return Infinity; } };
 import { paintFaceRig, paintFaceBase } from '@/lib/graph/polygonizer/face-paint-rig';
 import { heroFaceTracks } from '@/lib/graph/polygonizer/anime-face-tracks';
 import { westernFaceRig } from '@/lib/graph/polygonizer/western-face-rig';
@@ -74,8 +81,10 @@ import { assembleAssemblerScene, collectAssemblerWrapSources } from '@/lib/graph
 import { assembleInstanceStudio } from '@/lib/graph/meta-fabricator';
 import { assembleRoomScene, assemblePaintedLandscapeScene } from '@/lib/graph/scene/scene-css3d';
 import { assembleTerrainWorld, resolveTerrainFrom } from '@/lib/graph/terrain/terrain-world';
+import { assembleAirspace } from '@/lib/graph/skyscape/airspace';
 import { resolveTerrainCities } from '@/lib/graph/terrain/terrain-city';
 import { assembleFloorWorldScene, assembleHouseWorldScene, storeyLevels } from '@/lib/graph/polygonizer/floorplan-structure';
+import { assembleInteriorWorldScene } from '@/lib/graph/interior/scene';
 import { assembleRestaurantWorldScene } from '@/lib/graph/polygonizer/floorplan-restaurant';
 import { assembleStoreWorldScene } from '../retail/store-world.js';
 import { assembleMallWorldScene } from '../polygonizer/floorplan-mall.js';
@@ -481,6 +490,12 @@ export const WORLD_KINDS = {
     ao: true,
     resolve: (m, ctx) => assembleGeocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, assembleStageScene),
   },
+  // an egocube (egocube/kind.js): a character's design sheet rolled once and kept, shown as its character at each age of
+  // its thread, side by side; characters are made from it by ref (create_character { egocube })
+  egocube: {
+    title: 'mojulo egocube',
+    resolve: (m, ctx) => assembleEgocubeScene(m, { title: ctx.title, unshaded: ctx.unshaded }, (lm, c) => WORLD_KINDS.layered.resolve(lm, c)),
+  },
   // a heartbeat (era/heartbeat.js, level/heartbeat-scene.js): the flow of a level's land apart from its look, shown as a
   // walkable greybox on a reference level. A level lays it with ground.heartbeat and paints it with its kit or geocube.
   heartbeat: {
@@ -538,6 +553,21 @@ export const WORLD_KINDS = {
       const stack = storeyLevels(m);
       if (stack) return assembleHouseWorldScene({ ...m, ...stack }, opts);
       return assembleFloorWorldScene(m, opts);
+    },
+  },
+  // a room of a house, fitted out (lib/graph/interior/): the house is read from its own row (`house`, a ref; an exported
+  // interior may carry it inline), the room's program solved and skinned, and the house built with that room fitted out.
+  // The house row is never written; an edit to the house flows into every interior over it.
+  interior: {
+    title: 'mojulo interior',
+    walk: true,
+    ownsWalk: true,   // the resolver places the walker in the room
+    ao: true,
+    resolve: (m, ctx) => {
+      const house = typeof m.house === 'string' ? SketchRepository.getByRef(m.house)?.manifest : m.house;
+      if (!house) throw new Error(`interior: no house '${m.house}' — mint_building makes one; an interior decorates a room of a house`);
+      if (house.kind !== 'floorplan') throw new Error(`interior: '${m.house}' is a ${house.kind}, not a house (kind 'floorplan')`);
+      return assembleInteriorWorldScene(m, house, { title: ctx.title, view: ctx.view });
     },
   },
   restaurant: {
@@ -634,8 +664,10 @@ export const WORLD_KINDS = {
       const castLight = castLight0 ? withBands(castLight0, resolveToon(ctx.toon)?.bands) : null;
       const character = castLight && (m.toon ?? m.scene?.toon)?.light == null ? null : resolveCharacterLight(m, ctx);
       const figLight = castLight && !character ? castLight : light;
-      const normals = character ? layeredShadingNormals(shown, m.recipe, stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) : null;
-      const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive }) : null;
+      const normals = character ? layeredShadingNormals(shown, m.recipe, { ...(stand ? { rest: mesh, rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}), ...(!m.hero && m.plan?.style?.drawn ? { crease: drawnCrease(m.plan), proxy: false } : {}) }) : null;
+      // a drawn creature's markings (creature-silhouette.js), stepped by the character light as its own colours
+      const marks = character && !m.hero && m.plan?.style?.drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
+      const pieces = character ? characterLitPieces(shown, { light: character, normals, palette: m.recipe?.palette, dz: restDz, rest: mesh, glows: m.recipe?.emissive, ...(marks ? { tint: marks } : {}) }) : null;
       // SMOOTH under the studio light (a hero without the character light and the anime head: the landmark head, no head;
       // an anime hero with the light turned off keeps the old bake): the faces carry
       // the key at their corners from the welded normals (STUDIO_SMOOTH_CREASE: the skin at 70°, the rest at 35°), so the
@@ -666,7 +698,11 @@ export const WORLD_KINDS = {
       // flagged part and no ink carries no layer: its faces and pack are the ones before the layers.
       // the PAINTED FACE (face-paint.js): the anime head's features as a texture on its face; absent ⇒ null, byte-identical
       // (under a level's cast light too: the studio-lit faces carry it the same way)
-      const facePaint = character || m.hero?.painterly ? facePaintOf(mesh, m.recipe?.palette) : null;
+      const facePaint0 = character || m.hero?.painterly ? facePaintOf(mesh, m.recipe?.palette) : null;
+      // a creature's SKIN TEXTURE (skin-paint.js, the plan's `skin`): its scales, plates and scutes painted as the face is,
+      // under the character light. Absent ⇒ byte-identical
+      const skinPaint = !facePaint0 && character && !m.hero && Array.isArray(m.plan?.skin) && m.plan.skin.length ? skinPaintOf(mesh, m.plan.skin, { ppm: skinPpm(m.plan) }) : null;
+      const facePaint = facePaint0 ?? skinPaint;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
         : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
@@ -730,7 +766,7 @@ export const WORLD_KINDS = {
         let clipsIn = m.recipe.clips, speeds = null;
         if (m.recipe.locomotion) { const L = locomotionClips(m.recipe.locomotion, R); clipsIn = { ...m.recipe.clips, ...L.clips }; seconds = { ...(seconds || {}), ...L.seconds }; speeds = L.speeds; }
         // (the painted face's texture rides the pack: with its drawings for an export, its authored face alone for the page)
-        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : null);
+        const paintPack = face?.pack ?? (m.hero?.painterly && facePaint ? paintFaceBase(m, facePaint) : skinPaint ?? null);
         // (over every clip the pack plays: the door's motion compiles clips the recipe does not list, each holding the
         // authored face with its blinks)
         if (face?.meta) Object.assign(face.meta, face.K ? heroFaceTracks(m.hero, clipsIn, seconds, face.authored, face.K) : heroFaceTracks(m.hero, clipsIn, seconds, face.authored));
@@ -813,6 +849,10 @@ export const WORLD_KINDS = {
   // clouds: the deck rides over the terrain (no boxes to clip; the band clears the mesh's tallest
   // vertex). The ?render=raymarch backend returns before the channel layer, so it carries no deck.
   'painted-landscape': { walk: true, clouds: true, ...view(assemblePaintedLandscapeScene, 'mojulo terrain') },
+  // a road built for driving, authored in metres (roads/roadway.js): alignment + cross-section kernel, markings,
+  // barriers; the payload carries the lane graph a driving game reads. `?view=` picks the opening shot: a preset
+  // name, or `s<station>[-<lane id>]` (the map's deep link).
+  roadway: { walk: true, title: 'mojulo roadway', resolve: (m, ctx) => assembleRoadwayScene(m, { title: ctx.title, view: ctx.view }) },
   // a painted scene made ground at real scale: the live page meshes it around the camera (the
   // terrain channel's LOD), everything else (exports, stills) gets the baked world. `from: { ref }` resolves to the
   // stored painted-landscape, so a promoted painting follows its source's edits.
@@ -820,6 +860,9 @@ export const WORLD_KINDS = {
     walk: true, title: 'mojulo terrain world',
     resolve: async (m, ctx) => assembleTerrainWorld({ ...m, from: await resolveTerrainFrom(m), ...(m.cities ? { cities: await resolveTerrainCities(m.cities) } : {}) }, { title: ctx.title, live: !!ctx.live }),
   },
+  // a flight game's level (skyscape/airspace.js): a map planned by the pilot's eye (field, reach, backdrop, a haze that
+  // hides the edge) and scapeshift's ground laid on it, meshed round the camera by the terrain channel on the live page
+  airspace: { walk: true, title: 'mojulo airspace', resolve: (m, ctx) => assembleAirspace(m, { title: ctx.title, live: !!ctx.live }) },
   // standalone controllable stage: a bare floor (or manifest.faces) that exists only to host
   // entities, so an entities-only manifest renders without piggybacking on another kind.
   // fogBoxes: the manifest's own AABB collision hull doubles as the fog occluder — the same

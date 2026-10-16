@@ -18,7 +18,9 @@
  * `gameworldBibleHtml(world)` is pure (the same world, the same page). Each plate is fenced `<!--plate:name-->…
  * <!--/plate-->` so a script can swap its SVG for an image (`out-sheet.mjs gameworld --raster`).
  */
+import { readGeocube, geocubeRamps } from '../era/geocube.js';
 import { inferCity } from '../city/plan/card.js';
+import { trackCourse } from '../roads/track.js';
 import { designCity } from '../city/plan/design.js';
 import { cityPlanSvg } from '../city/plan/book-html.js';
 import { cubeOfWorld, intentReport, GENRES } from './intent.js';
@@ -53,6 +55,8 @@ import { CRAFTED } from './world.js';
 import { weatherCardHtml } from './weather-card.js';
 import { airOfKit } from './style-guide.js';
 import { storyReport } from './runner.js';
+import { airspaceOf } from '../skyscape/airspace.js';
+import { planCourse } from '../skyscape/course.js';
 
 export const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export const plate = (name, svg) => `<!--plate:${name}-->${svg}<!--/plate-->`;
@@ -104,7 +108,7 @@ function craftHtml(G, cid, kit, seed, stamp = () => '') {
   }).join('')}</div></div>`).join('');
 }
 const show = (v) => (v === null || v === undefined ? '—' : typeof v === 'object' ? esc(v.id ?? (v.seed !== undefined ? `seeded ${v.seed}` : 'its own')) : esc(v));
-const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building' };
+const SECTION_WORDS = { trail: 'trail', meru: 'climb', building: 'building', roadway: 'roadway', airspace: 'airspace' };
 
 // the plates a world's parts are drawn as
 function castleAxon(c, paint, w = 1000, h = 700) {
@@ -134,6 +138,24 @@ function buildLevel(G, id) {
   if (R.city) {
     const d = designCity(inferCity(R.city.plan).recipe);
     return { R, laid: { stages: [{ node: 'city', section: 'city' }], order: ['city'] }, town: null, paint, walk: [{ node: 'city', section: 'city', svg: cityPlanSvg(d, { width: 460 }) }] };
+  }
+  // an airspace level: its field in plan, the course's line through its gates, the runway (skyscape/)
+  if (R.airspace) {
+    const { map, field } = airspaceOf({ kind: 'airspace', ...R.airspace, seed: R.seed });
+    const C = R.airspace.course ? planCourse(map, field, { ...(R.airspace.course === true ? {} : R.airspace.course), seed: R.seed }) : null;
+    const F = map.rings.field, k = 280 / (2 * Math.max(F.hx, F.hy)), X = (x) => (10 + (x + F.hx) * k).toFixed(1), Y = (y) => (10 + (F.hy - y) * k).toFixed(1);
+    const line = C ? `<path d="${C.gates.map((g, i) => `${i ? 'L' : 'M'}${X(g.at[0])} ${Y(g.at[1])}`).join(' ')}${C.open ? '' : ' Z'}" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 3"/>${C.gates.map((g) => `<circle cx="${X(g.at[0])}" cy="${Y(g.at[1])}" r="3.5" fill="none" stroke="currentColor" stroke-width="1.5"/>`).join('')}` : '';
+    const pads = field.pads.map((p) => `<rect x="${X(p.x0)}" y="${Y(p.y1)}" width="${((p.x1 - p.x0) * k).toFixed(1)}" height="${((p.y1 - p.y0) * k).toFixed(1)}" fill="currentColor"/>`).join('');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(20 + 2 * F.hx * k).toFixed(0)} ${(20 + 2 * F.hy * k).toFixed(0)}" width="300"><rect x="10" y="10" width="${(2 * F.hx * k).toFixed(1)}" height="${(2 * F.hy * k).toFixed(1)}" fill="none" stroke="currentColor" stroke-opacity="0.35"/>${line}${pads}</svg>`;
+    return { R, laid: { stages: [{ node: 'airspace', section: 'airspace' }], order: ['airspace'] }, town: null, paint, walk: [{ node: 'airspace', section: 'airspace', svg }] };
+  }
+  // a roadway level: its course in plan, its line and its corners (the track's own map comes later)
+  if (R.roadway) {
+    const c = trackCourse({ form: R.roadway.form, course: R.roadway.course }), pts = c.alignment.stations({ fine: 6, coarse: 12 });
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(...xs) - x0 || 1, h = Math.max(...ys) - y0 || 1, k = 280 / Math.max(w, h);
+    const d = pts.map((p, i) => `${i ? 'L' : 'M'}${(10 + (p.x - x0) * k).toFixed(1)} ${(10 + (y0 + h - p.y) * k).toFixed(1)}`).join(' ') + (c.closed ? ' Z' : '');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${(20 + w * k).toFixed(0)} ${(20 + h * k).toFixed(0)}" width="300"><path d="${d}" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>`;
+    return { R, laid: { stages: [{ node: 'roadway', section: 'roadway' }], order: ['roadway'] }, town: null, paint, walk: [{ node: 'roadway', section: 'roadway', svg }] };
   }
   const laid = layLevel(R.level), st = structureStyle(R.style.kit, R.seed);
   const town = R.town ? designTown(st, R.seed, R.town) : null;
@@ -241,7 +263,11 @@ export function gameworldBibleHtml(world) {
 <dl class="vocab">${[['trees', N.trees], ['grass', N.grass], ['water', N.water.read], ['sky', N.sky.read], ['light', N.light], ['air', N.air], ['far', N.far]].map(([t, v]) => `<dt>${t}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
 <details><summary>Its principles</summary><ul class="principles">${N.principles.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></details></article>`;
   }).join('');
-  const keyHtml = kits.map((k) => { const K = colorKey(k); return `<article class="card" id="key-${esc(k)}"><div class="card-h"><span class="eyebrow">Color key</span><h3>${esc(k)}</h3></div><div class="key">${K.ramps.map((r) => `<div class="key-row"><div class="ramp">${r.stops.map((h) => `<i style="background:${h}" title="${h}"></i>`).join('')}</div><div><b>${esc(r.name)}</b>${r.shared ? ` <span class="muted">(its ${esc(r.shared)})</span>` : ''}<p class="muted">${esc(r.paints)}</p></div></div>`).join('')}</div></article>`; }).join('');
+  // the cubes the levels stand on (era/geocube.js): each its key colours and its sky, and where its colours came from
+  const cubes = [...new Map(order.filter((id) => built[id].R.level?.geocube !== undefined).map((id) => readGeocube(built[id].R.level.geocube)).map((c) => [c.palette?.id ?? c.id, c])).values()];
+  const ramp = (stops) => `<div class="ramp">${stops.map((h) => `<i style="background:${h}" title="${h}"></i>`).join('')}</div>`;
+  const cubeHtml = cubes.map((c) => `<article class="card" id="cube-${esc(c.palette?.id ?? c.id)}"><div class="card-h"><span class="eyebrow">Geocube</span><h3>${esc(c.title)}</h3><p class="muted">${c.palette?.id ? `solved by the color theorist: ${esc(c.palette.id)}, ${esc(c.palette.reads)}` : 'its own colours'}</p></div><div class="key">${Object.entries(geocubeRamps(c)).map(([name, stops]) => `<div class="key-row">${ramp(stops)}<div><b>${esc(name)}</b></div></div>`).join('')}${c.light.sky ? `<div class="key-row">${ramp([c.light.sky.zenith, c.light.sky.horizon, ...(c.light.sky.fog ? [c.light.sky.fog] : [])])}<div><b>sky</b><p class="muted">zenith, horizon${c.light.sky.fog ? ', fog' : ''}</p></div></div>` : ''}</div></article>`).join('');
+  const keyHtml = cubeHtml + kits.map((k) => { const K = colorKey(k); return `<article class="card" id="key-${esc(k)}"><div class="card-h"><span class="eyebrow">Color key</span><h3>${esc(k)}</h3></div><div class="key">${K.ramps.map((r) => `<div class="key-row"><div class="ramp">${r.stops.map((h) => `<i style="background:${h}" title="${h}"></i>`).join('')}</div><div><b>${esc(r.name)}</b>${r.shared ? ` <span class="muted">(its ${esc(r.shared)})</span>` : ''}<p class="muted">${esc(r.paints)}</p></div></div>`).join('')}</div></article>`; }).join('');
   const gr = guide.ground, row = (o) => Object.entries(o).map(([k, v]) => `${esc(k)} ${show(v)}`).join(' · ') || 'its card\'s own';
   const groundHtml = `<article class="card" id="guide-ground"><div class="card-h"><span class="eyebrow">The ground's character</span><h3>Handed down</h3><p class="muted">How every level's ground rises, falls and is climbed, unless it says otherwise.</p></div><dl class="vocab"><dt>trails</dt><dd>${row(gr.trail)}</dd><dt>climbs</dt><dd>${row(gr.meru)}</dd></dl></article>`;
 
@@ -282,7 +308,7 @@ ${briefText(world.brief) ? `<details class="brief" open><summary>${Array.isArray
     const walk = b.walk.map((w, k) => `<figure class="sec"><div class="sec-im">${plate(`walk-${id}-${w.node}`, w.svg)}</div><figcaption><i>${k + 1}</i> ${esc(w.node)} · ${SECTION_WORDS[w.section]}</figcaption></figure>${k < b.walk.length - 1 ? '<div class="seam" aria-hidden="true">→</div>' : ''}`).join('');
     const places = b.town ? `<div class="places"><figure>${plate(`town-${id}`, townMapSvg(b.town, b.paint, null, { px: 3, labels: true }))}<figcaption>The town${b.town.castle ? ' and its castle' : ''}, by ${esc(G.civilizations[R.built.town].name)}${R.built.castle && R.built.castle !== R.built.town ? ` and ${esc(G.civilizations[R.built.castle].name)}` : ''} · ${b.town.laws.filter((l) => !l.ok).length ? `${b.town.laws.filter((l) => !l.ok).length} laws advise` : 'every law holds'}</figcaption></figure>${b.town.castle ? `<figure>${plate(`castle-${id}`, castleAxon(b.town.castle, b.paint))}<figcaption>The castle standing, by ${esc(G.civilizations[R.built.castle].name)}</figcaption></figure>` : ''}</div>` : '';
     return `<section class="part level" id="level-${esc(id)}"><div class="level-h"><span class="eyebrow">Level ${i + 1}${id === G.start ? ' · start' : ''} ${stamp(`level:${id}`)}</span><h2>${esc(R.name)}</h2><p class="muted mono">${esc(R.style.kit)} · seed ${R.seed} · ${b.laid.order.length} section${b.laid.order.length === 1 ? '' : 's'}</p></div>
-<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
+<div class="level-grid"><div><h4>${R.building ? 'The building' : R.city ? 'The city' : R.roadway ? 'The roadway' : R.airspace ? 'The airspace' : 'The walk'}</h4><div class="walk">${walk}</div>${places ? `<h4>On its ground</h4>${places}` : ''}</div><aside class="local">${stampOf(`level:${id}`)?.note ? `<div class="review-note"><span class="eyebrow">Sent back</span><p>${esc(stampOf(`level:${id}`).note)}</p></div>` : ''}<h4>Local</h4>${ledger}${ownStyle.join('')}</aside></div></section>`;
   }).join('\n');
 
   // THE CAST AND THE STORY (story.js): who else is in the world, and each moment with where it bound, or why it could not

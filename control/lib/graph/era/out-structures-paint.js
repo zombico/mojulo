@@ -55,6 +55,8 @@ const BASE = {
 export const STRUCTURE_PAINTS = Object.freeze({
   'isekai-meadow': {}, 'isekai-garden': {}, 'isekai-sakura': {}, 'isekai-bamboo': {},
   'nature-trail': { 'str:plaster': ['rope'] }, 'jungle-mgs3': { 'str:plaster': ['rope'] },
+  // airless: shells of painted hull plate over the regolith's stone
+  'airless-plain': { 'str:shell': ['timber'], 'str:motif': ['rope'], 'str:plaster': ['timber'], 'town:grass': ['soil'] },
   'alien-night': { 'str:shell': ['rock'], 'str:motif': ['rock'], 'str:plaster': ['rock'], 'str:tile': ['rock'], 'str:shingle': ['timber'], 'str:slate': ['timber'] },
 });
 const resolve = (kitId, names) => { for (const n of names) { try { return { name: n, stops: madeRamp(kitId, n) }; } catch { /* the next */ } } return { name: 'stone', stops: madeRamp(kitId, 'stone') }; };

@@ -128,7 +128,7 @@ export const LINEAGES = Object.freeze({
   },
   feline: {
     reads: 'feline (cat-kin)', humanity: [0.3, 0.7], cover: { tawny: '#b08a52', grey: '#8a8a88', black: '#1e1c1c', cream: '#e6d6b8', ginger: '#c0703a' },
-    built: 'no feline head yet: it borrows the wolf skull (creature-heads, provisional) until one is drawn',
+    built: 'the felid head (creature-heads/derive.js: the wolf skull with the muzzle pulled in)',
     cues: [
       { at: 1, ch: 'eyes', line: 'slit pupils; a bright iris', derives: ['sculpt.catchlight +'] },
       { at: 0.95, ch: 'ornament', line: 'cat ears high on the head' },
@@ -162,7 +162,7 @@ export const LINEAGES = Object.freeze({
   },
   avian: {
     reads: 'avian (bird-kin)', humanity: [0.2, 0.6], cover: { umber: '#5a4632', slate: '#4a5260', snow: '#e8e6e0', crimson: '#9a2a24', iridescent: '#2a4a4a' },
-    built: 'the feathered wing (docs/examples/wings) on the vulture; no beaked humanoid head yet',
+    built: 'the beaked head (creature-heads/derive.js: the wolf muzzle drawn to a point); the feathered wing (docs/examples/wings) on the vulture',
     cues: [
       { at: 1, ch: 'eyes', line: 'round eyes, set to the side, unblinking' },
       { at: 0.9, ch: 'hair', line: 'feathers instead of hair: {pick}', pick: ['a crest', 'swept-back plumes', 'a short cap'], derives: ['pass = hair'] },
@@ -173,7 +173,7 @@ export const LINEAGES = Object.freeze({
   },
   insectoid: {
     reads: 'insectoid', humanity: [0.1, 0.4], cover: { chitin: '#2a2a22', jade: '#3a6a4a', amber: '#9a6a20', cobalt: '#22385a' },
-    built: 'words only: the bug builder (lib/graph/bugs) makes insects, not upright kin',
+    built: 'the mandibled head (creature-heads/derive.js: the bear skull shortened and pitched down); the bug builder (lib/graph/bugs) makes insects, not upright kin',
     cues: [
       { at: 1, ch: 'eyes', line: 'compound eyes, no lids' },
       { at: 0.6, ch: 'ornament', line: 'antennae {pick}', pick: ['long and thin', 'feathered', 'short and clubbed'], derives: ['pass = ornaments'] },

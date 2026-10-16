@@ -1,11 +1,4 @@
 {
-  "common": {
-    "servicesMap": "Mapa ng Serbisyo",
-    "back": "Bumalik"
-  },
-  "actions": {
-    "start": "Simulan"
-  },
   "settings": {
     "title": "Mga Setting",
     "mojulo": {
@@ -54,117 +47,6 @@
       }
     }
   },
-  "apps": {
-    "title": "Apps",
-    "subtitle": "Apps the agent has materialized through the App paradigm. Lifecycle, env vars, and live MCP introspection — read from the contextmap and the local runner.",
-    "loading": "Nag-load…",
-    "refresh": "Refresh",
-    "empty": "No apps yet — ask your Claude Code agent to scaffold one.",
-    "backToList": "Back to Apps",
-    "notFound": "App not found.",
-    "openPreview": "Open preview",
-    "openMcp": "Open MCP",
-    "actions": {
-      "start": "Simulan",
-      "stop": "Stop",
-      "starting": "Starting…",
-      "stopping": "Stopping…"
-    },
-    "status": {
-      "running": "Tumatakbo",
-      "stopped": "Stopped",
-      "crashed": "Crashed",
-      "unknown": "Hindi alam"
-    },
-    "table": {
-      "headers": {
-        "name": "Name",
-        "materialized": "Materialized",
-        "runner": "Runner",
-        "status": "Status",
-        "actions": "Actions"
-      }
-    },
-    "detail": {
-      "graph": {
-        "subtitle": "Ang creation map ng app na ito — bawat tool call na bumuo nito, bilang mga station sa iisang linya."
-      },
-      "metadata": "Metadata",
-      "artifactPath": "Artifact path",
-      "materializationRef": "Materialization ref",
-      "adapter": "Adapter",
-      "appName": "App name",
-      "host": "Host",
-      "materializedAt": "Materialized at",
-      "viewGraph": "View graph",
-      "bindings": "Bindings",
-      "binding": {
-        "runner": "Runner",
-        "durability": "Durability",
-        "inference": "Inference",
-        "mcpSelf": "MCP self"
-      },
-      "mcpPanel": {
-        "title": "App MCP",
-        "url": "MCP URL",
-        "offline": "MCP offline — start the app to see its tool list.",
-        "loading": "Loading tools…",
-        "error": "Could not reach the app MCP: {error}",
-        "registeredTools": "Registered tools",
-        "noTools": "No tools registered.",
-        "declaredPurpose": "Declared purpose"
-      },
-      "envPanel": {
-        "title": "Environment variables",
-        "explainer": "Values are written directly to the artifact's .env file. They are not logged, not stored in the control-plane database, and not echoed back to this view.",
-        "addKey": "Key",
-        "addValue": "Value",
-        "add": "Add",
-        "delete": "Burahin",
-        "deleteConfirm": "Delete env var \"{key}\"?",
-        "noKeys": "No env vars set yet.",
-        "valueHidden": "•••••",
-        "edit": "I-edit",
-        "save": "I-save",
-        "cancel": "Kanselahin",
-        "newKeyPlaceholder": "MY_KEY",
-        "newValuePlaceholder": "value"
-      },
-      "provenance": {
-        "title": "Provenance",
-        "subtitle": "Principles attached to this app's materialization commit.",
-        "none": "No principles recorded."
-      }
-    }
-  },
-  "graph": {
-    "title": "App Creation Map",
-    "subtitle": "How an app comes together. Each box is a piece; each arrow shows what causes what.",
-    "subtitleTechnical": "How an app is composed in the mojulo paradigm. Stations are the pieces; lines are the MCP tools that snap them together. Validated against the live MCP registry and contextmap schema on every refresh.",
-    "technicalToggle": "Technical",
-    "loading": "Nag-load…",
-    "refresh": "Refresh",
-    "overlay": {
-      "appCount": "{count, plural, =0 {No apps made yet} =1 {1 app made} other {# apps made}}",
-      "lastMaterialized": "Last one made",
-      "viewApps": "View running apps"
-    },
-    "validation": {
-      "ok": "Everything still checks out.",
-      "okTechnical": "Manifest valid: {tools} tools, {nodeKinds} node kinds, {edgeKinds} edge kinds, {sourceEvents} source events all resolve.",
-      "failed": "{count, plural, =1 {1 thing in the map no longer matches reality} other {# things in the map no longer match reality}}"
-    },
-    "legend": {
-      "input": "What you decide",
-      "inputTechnical": "Input",
-      "mcpTool": "A tool the agent calls",
-      "mcpToolTechnical": "MCP tool",
-      "filesystem": "Files on disk",
-      "filesystemTechnical": "Filesystem",
-      "dbRow": "Entry in memory",
-      "dbRowTechnical": "DB row"
-    }
-  },
   "login": {
     "subtitle": "Sign in to continue",
     "username": "Username",
@@ -178,7 +60,6 @@
     "title": "Plan",
     "subtitle": "Proposed work — sessions that became spikes. Forged and run from your host agent.",
     "navLabel": "Plan",
-    "newPlan": "New Plan",
     "total": "{count} plans",
     "count": "{count} plans",
     "filteredCount": "{count} of {total}",
@@ -221,13 +102,6 @@
     "executionEmpty": "Hindi pa naexecute.",
     "stepOk": "ok",
     "stepFailed": "nabigo",
-    "newPlanTitle": "New Plan",
-    "newPlanIntro": "Ang mga plano ay ginawa sa iyong host agent (Claude Code / Codex). Ilarawan ang intent, kopyahin ang starter prompt, at i-paste ito sa isang bagong agent session — papasok ang agent sa plan mode at ginagawa ang trabaho. Ina-update ang page na ito habang ginagawa at nire-revise ang plano.",
-    "intentLabel": "Ano ang gusto mong i-plan? (opsyonal)",
-    "intentPlaceholder": "hal. webhook trigger runtime para sa composer",
-    "promptLabel": "Starter prompt",
-    "copyPrompt": "Kopyahin ang prompt",
-    "copied": "Nakopya",
     "close": "Isara"
   },
   "research": {
@@ -269,17 +143,6 @@
     "kindSnippet": "Snippet",
     "kindSketch": "Sketch",
     "viewSketch": "View diagram",
-    "composerHeading": "Idagdag sa notebook",
-    "composerStub": "Preview lamang — ang binding ay nangyayari sa pamamagitan ng iyong host agent para sa ngayon.",
-    "composerPlaceholder": "I-paste ang link, ihulog ang file, o magsulat ng nota…",
-    "newBook": "Bagong libro",
-    "newBookTitle": "Bagong research book",
-    "newBookIntro": "Ang mga libro ay nagsisimula sa iyong host agent (Claude Code / Codex). Ilarawan ang paksa, kopyahin ang starter prompt, at i-paste ito sa bagong agent session — papasok ang agent sa research mode at ginagawa ang trabaho. Ina-update ang page habang lumalaki ang libro.",
-    "intentLabel": "Ano ang gusto mong i-research? (opsyonal)",
-    "intentPlaceholder": "hal. kung paano ang iba ay nag-tunnel ng local MCP servers",
-    "promptLabel": "Starter prompt",
-    "copyPrompt": "Kopyahin ang prompt",
-    "copied": "Nakopya",
     "close": "Isara"
   },
   "displayModes": {
@@ -310,34 +173,33 @@
   "home": {
     "title": "Workshop Home",
     "groups": {
-      "ideate": "Ideate",
-      "operate": "Operate",
-      "studio": "Studio"
+      "make": "Gumawa",
+      "media": "Media",
+      "play": "Maglaro",
+      "ideate": "Ideate"
     },
     "drawer": {
       "open": "Buksan ang navigation",
       "close": "Isara ang navigation"
     },
     "tiles": {
-      "mcpSkills": "Mga konektadong serbisyo",
-      "apps": "Apps",
-      "sketch": "Sketches",
       "plan": "Mga plano",
       "outputs": "Mga output",
       "research": "Pananaliksik",
       "stash": "Stashes",
-      "illustrations": "Mga ilustrasyon",
       "worlds": "Mga mundo",
       "objects": "Mga Bagay",
       "motion": "Motion",
       "beats": "Beats",
       "voice": "Tunog",
-      "games": "Developer ng Laro",
-      "arcade": "Arcade",
-      "settings": "Mga Setting",
       "library": "Library",
       "renderBay": "Render Bay",
-      "dashboard": "Pang-alahukan"
+      "dashboard": "Pang-alahukan",
+      "places": "Mga lugar",
+      "characters": "Mga Karakter",
+      "images": "Mga Larawan",
+      "play": "Maglaro",
+      "elements": "Mga Elemento"
     },
     "agentStatus": {
       "liveLabel": "Live",
@@ -354,14 +216,7 @@
     "dashboard": {
       "title": "Pang-alahukan",
       "open": "Buksan ang floor →"
-    },
-    "ask": {
-      "title": "Hilingin sa agent",
-      "body": "Ang paggawa ay nangyayari sa iyong MCP agent."
     }
-  },
-  "breadcrumbs": {
-    "home": "Home"
   },
   "sketches": {
     "notFoundTitle": "Sketch na hindi makita",
@@ -398,10 +253,6 @@
     "refresh": "i-refresh",
     "statusOpen": "buksan",
     "statusResolved": "nalutas @ rev {rev}",
-    "annotateHint": "Ang mga marka ay isinusulat mula sa iyong agent (annotate_beats — nakaangkla sa isang bar, track, o cue); ang panel na ito ay nag-render sa kanila. Kopyahin ang revision prompt upang magmarka ang agent o kumilos sa kanila.",
-    "copyRevisionPrompt": "Kopyahin ang revision prompt",
-    "copied": "Nakopya ✓",
-    "copyFailed": "Hindi makopya sa clipboard.",
     "exportWav": "I-export ang .wav",
     "exportMidi": "I-export ang .mid",
     "anchor": {
@@ -414,18 +265,9 @@
   },
   "gameDev": {
     "galleryTitle": "Developer ng Laro",
-    "gallerySubtitle": "Isang proyekto bawat laro — ang mga panuntunan, level, karakter, audio, at art nito sa iisang shelf.",
-    "galleryEmpty": "Wala pang game project. Patakbuhin ang create_game_project mula sa iyong host agent para magsimula.",
-    "copyStarterPrompt": "Kopyahin ang starter prompt",
     "loading": "Naglo-load ng mga proyekto…",
-    "noMembersYet": "Wala pang miyembro",
     "notFound": "Wala ang proyektong iyon — maaaring na-archive na ito o mali ang ref.",
     "backToProjects": "Bumalik sa Developer ng Laro",
-    "copyWorkPrompt": "Kopyahin ang work prompt",
-    "copyAddPrompt": "idagdag",
-    "copyMintPrompt": "i-mint ang laro",
-    "copied": "Nakopya",
-    "playable": "Nalalaro",
     "missing": "Missing",
     "missingBody": "Wala na ang artifact ng miyembrong ito. Pinapanatili ng proyekto ang slot; i-rebind o alisin ito mula sa iyong host agent.",
     "noRules": "Wala pang na-mint na laro — nasa pre-production ang proyekto.",
@@ -468,13 +310,6 @@
     "emptyFolder": "Wala pang laman dito."
   },
   "arcade": {
-    "title": "Mojulo Arcade",
-    "subtitle": "Mga nalalarong standalone na laro, na-mint mula sa workshop. Pumili ng cabinet at maglaro.",
-    "loading": "Naglo-load ng mga cabinet…",
-    "emptyState": "Wala pang laro sa floor. Patakbuhin ang create_game mula sa iyong host agent para i-mint ang unang cabinet.",
-    "copyStarterPrompt": "Kopyahin ang starter prompt",
-    "copied": "Nakopya",
-    "play": "Maglaro",
     "levelCount": "{count, plural, one {# level} other {# na level}}",
     "shipped": "Nailabas na"
   },
@@ -484,7 +319,7 @@
     "subtitle": "Bawat artifact na na-mint ng agent — mga scene, model, karakter, material, larawan, diagram. Isang shelf bawat paraan ng pagtingin; iisang recipe store sa ilalim.",
     "shelves": {
       "recent": "Kamakailan",
-      "scenes": "Mga mundo",
+      "scenes": "Mga eksena",
       "turntables": "Mga turntable",
       "models": "Mga Model",
       "views": "Mga view",
@@ -525,10 +360,6 @@
     }
   },
   "maker": {
-    "hub": {
-      "title": "Mojulo Maker",
-      "subtitle": "Ang studio: mga ilustrasyon, nalalakarang mundo, 3D na bagay, motion, beats, voice, at tapos nang output. Isang tuned na creative surface, kapatid ng Sketches (tuned para sa mga diagram). Bawat piraso ay iisang sketch primitive — i-stash, i-reference, at i-diff ito sa alinmang paraan."
-    },
     "beats": {
       "title": "Beats",
       "subtitle": "Mga synthesized soundtrack, komposisyon, at sound effects — pumili ng isa at pindutin ang play. Sumulat ng mga bago mula sa iyong agent sa pamamagitan ng create_beats."
@@ -546,11 +377,7 @@
       "tuned": "Tuned (recipe unchanged)",
       "reset": "i-reset",
       "playingAt": "Sample sa kumpiyansa {c} / lalim {d}",
-      "noSamples": "Walang rendered samples pa — kopyahin ang speak command at hayaan ang iyong agent na mag-bind ng ilang puntos (kasamang edges).",
-      "copyBlend": "Kopyahin ang blend",
-      "copyCommand": "Kopyahin ang speak command",
-      "copyPrompt": "Kopyahin ang starter prompt",
-      "copied": "Nakopya!",
+      "noSamples": "Wala pang na-render na sample.",
       "loading": "Naglo-load ng voice registers…",
       "empty": "Walang voice registers pa. Hilingin sa iyong agent na mag-mint ng isa gamit ang create_voice.",
       "unresolvable": "Ang register na ito ay hindi na nalulutas — ang bank nito ay maaaring nagbago. I-mint ito muli sa pamamagitan ng create_voice."
@@ -602,10 +429,6 @@
     "kindNovel": "Novella",
     "kindVisualGuide": "Visual guide",
     "kindUnknown": "Hindi alam",
-    "actions": {
-      "archive": "Archive",
-      "unarchive": "Unarchive"
-    },
     "sourceLabel": "Mula",
     "sourceUnknown": "(stash removed)",
     "lensLabel": "Lens",
@@ -614,7 +437,7 @@
   },
   "stashes": {
     "title": "Stashes",
-    "subtitle": "Renameable buckets of typed material the agent has gathered. Minted via the mint_stash MCP tool.",
+    "subtitle": "Mga lalagyan ng may-uring materyal na naipon ng agent.",
     "total": "{count, plural, =0 {No stashes} =1 {1 stash} other {# stashes}}",
     "count": "{count, plural, =0 {No matches} =1 {1 stash} other {# stashes}}",
     "filteredCount": "{count} ng {total} na ipinakita",
@@ -631,17 +454,6 @@
     "drawerCount": "{count, plural, =0 {no drawers} =1 {1 drawer} other {# drawers}}",
     "createdAt": "Created {timestamp}",
     "updatedAt": "Updated {timestamp}",
-    "actions": {
-      "rename": "Rename",
-      "edit": "I-edit",
-      "archive": "Archive",
-      "unarchive": "Unarchive",
-      "save": "I-save",
-      "cancel": "Kanselahin",
-      "titleEmpty": "Title cannot be empty",
-      "renameFailed": "Rename failed",
-      "statusChangeFailed": "Could not change status"
-    },
     "detail": {
       "loading": "Loading stash…",
       "notFoundTitle": "Stash not found",
@@ -673,66 +485,7 @@
         "sketch": "Sketch"
       },
       "sketchFailed": "Sketch failed to load.",
-      "openSketch": "Open sketch",
-      "newDrawer": "New drawer",
-      "newDrawerPlaceholder": "Drawer name",
-      "drawerSaveError": "Could not save drawer",
-      "drawerRenameError": "Could not rename drawer",
-      "renameDrawerLabel": "Rename drawer",
-      "moveError": "Could not move item",
-      "archive": "Archive",
-      "archiveError": "Could not archive item",
-      "archiveWarning": "This item appears in {cookCount, plural, =1 {1 cook} other {# cooks}}. Citations resolve to the archived content. Proceed?",
-      "archiveProceed": "Archive anyway",
-      "archiveCancel": "Kanselahin",
-      "addItem": "+ Add",
-      "agentTypesFooter": "Scripts and contextmap pointers are added by your agent.",
-      "picker": {
-        "text": "New text block",
-        "image": "Upload image",
-        "svg": "Add SVG",
-        "link": "Paste link",
-        "sketch": "Pick sketch"
-      },
-      "panel": {
-        "save": "I-save",
-        "cancel": "Kanselahin",
-        "saving": "Sinisave…",
-        "saveError": "Could not save",
-        "titleLabel": "Title (optional)",
-        "titlePlaceholder": "Short label",
-        "sourceUrlLabel": "Source URL (optional)",
-        "sourceUrlPlaceholder": "https://…",
-        "format": "Format",
-        "formatMarkdown": "Markdown",
-        "formatHtml": "HTML",
-        "formatPlain": "Plain text",
-        "bodyLabel": "Body",
-        "bodyPlaceholder": "Type or paste…",
-        "preview": "Paunang-tingin",
-        "previewEmpty": "Type to preview.",
-        "tooLong": "Content exceeds the {limit, number} character cap.",
-        "imagePick": "Choose an image",
-        "imageDrop": "or drop a file here",
-        "imageTooLarge": "Image exceeds the {limit, number} MB cap.",
-        "imageBadMime": "Not an image file ({mime}).",
-        "imageBadDimensions": "Could not read image dimensions.",
-        "altLabel": "Alt text (optional)",
-        "altPlaceholder": "What's in the image?",
-        "svgPaste": "Paste SVG",
-        "svgUpload": "or upload .svg",
-        "svgBadShape": "SVG body must start with <?xml or <svg.",
-        "urlLabel": "URL",
-        "urlPlaceholder": "https://…",
-        "urlInvalid": "URL doesn't parse.",
-        "urlTitleRequired": "Title is required for link items.",
-        "descriptionLabel": "Description (optional)",
-        "descriptionPlaceholder": "Why this matters…",
-        "sketchSearchPlaceholder": "Search sketches…",
-        "sketchEmpty": "No sketches yet. Ask your agent to mint one with create_sketch.",
-        "sketchNoMatch": "No sketches match this search.",
-        "sketchPicked": "Picked"
-      }
+      "openSketch": "Open sketch"
     }
   },
   "sketchesIndex": {
@@ -753,12 +506,6 @@
     "downloadPng": "Download PNG",
     "invalidManifest": "Rendrant could not parse this sketch.",
     "frameFailed": "Hindi na-load ang view na ito.",
-    "renameLabel": "Rename sketch",
-    "renamePlaceholder": "Sketch title",
-    "renameSave": "I-save",
-    "renameSaveNew": "Save as new sketch",
-    "renameCancel": "Kanselahin",
-    "renameEmpty": "Title cannot be empty",
     "associationTags": {
       "plan": "Plan",
       "research": "Pananaliksik"
@@ -771,45 +518,21 @@
       "selectPrompt": "Select a track on the left to play.",
       "invalidManifest": "This recipe could not be parsed.",
       "openNewTab": "Open Studio",
-      "renameLabel": "Rename track",
-      "renamePlaceholder": "Track title",
-      "renameSaveNew": "Save as new track",
       "exportWav": "I-export ang .wav",
       "exportMidi": "I-export ang .mid"
     },
     "folder": {
-      "newFolderButton": "New folder",
-      "newFolderTitle": "New folder",
-      "namePlaceholder": "Folder name",
       "create": "Create",
       "cancel": "Kanselahin",
-      "rename": "Rename folder",
-      "renameSave": "I-save",
       "delete": "Delete folder",
-      "deleteConfirm": "Delete this folder? Sketches inside it will move back to root.",
       "rootCrumb": "All sketches",
       "back": "Bumalik",
       "sketchCount": "{count, plural, =0 {empty} =1 {1 sketch} other {# sketches}}",
       "foldersHeader": "Folders",
       "rootHeader": "Sketches",
-      "inFolderHint": "New sketches you mint while viewing this folder will land here automatically.",
-      "emptyFolder": "This folder is empty. Mint a sketch or move one here from root.",
+      "emptyFolder": "Walang laman ang folder na ito.",
       "moveSourceFolder": "In {name}",
       "moveSourceRoot": "At root"
-    },
-    "select": {
-      "enter": "Pumili",
-      "exit": "Done",
-      "count": "{count, plural, =0 {None selected} =1 {1 selected} other {# selected}}",
-      "moveTo": "Move to…",
-      "moveToRoot": "Move to root",
-      "moveSuccess": "{count, plural, =1 {1 sketch moved} other {# sketches moved}}",
-      "moveError": "Move failed: {error}",
-      "selectAll": "Piliin ang lahat",
-      "clear": "I-clear",
-      "delete": "Burahin",
-      "deleteConfirm": "{count, plural, =1 {Delete 1 sketch?} other {Delete # sketches?}} This cannot be undone.",
-      "deleteError": "Delete failed: {error}"
     },
     "viewToggle": {
       "split": "Split view",
@@ -820,72 +543,6 @@
       "move": "Move",
       "delete": "Burahin",
       "deleteOneConfirm": "Delete \"{title}\"? This cannot be undone."
-    }
-  },
-  "map": {
-    "title": "Map",
-    "subtitle": "The whole fleet on two planes — apps on the ground, MCP servers and connected services on air, with service-to-MCP wiring.",
-    "loading": "Nag-load…",
-    "refresh": "Refresh",
-    "error": "Failed to load the fleet map",
-    "empty": "Nothing on the map yet — scaffold an app or declare your MCP inventory.",
-    "counts": {
-      "apps": "Apps",
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "legend": {
-      "air": "Air",
-      "ground": "Ground",
-      "servers": "MCP servers",
-      "services": "Connected services",
-      "apps": "Apps"
-    }
-  },
-  "mcpSkills": {
-    "title": "Mga konektadong serbisyo",
-    "subtitle": "Connected services: host skills and materialized MCP-orbit workflows, shown against the MCP servers they call.",
-    "loading": "Loading...",
-    "refresh": "Refresh",
-    "error": "Failed to load connected services",
-    "empty": "No connected services yet. Declare host skills or materialize an MCP-orbit composition.",
-    "backToList": "Back to Connected Services",
-    "backToService": "Back to connected service",
-    "notFound": "Connected service not found.",
-    "viewGraph": "View graph",
-    "present": "Present",
-    "missing": "Missing",
-    "counts": {
-      "servers": "MCP servers",
-      "services": "Connected services"
-    },
-    "table": {
-      "name": "Name",
-      "form": "Form",
-      "calls": "Calls",
-      "updated": "Updated"
-    },
-    "forms": {
-      "catalyst": "Catalyst skill",
-      "manual": "Manual skill",
-      "orbit": "MCP-orbit"
-    },
-    "detail": {
-      "metadata": "Metadata",
-      "name": "Name",
-      "ref": "Ref",
-      "kind": "Uri",
-      "form": "Form",
-      "updated": "Updated",
-      "hostPath": "Host path",
-      "catalyst": "Catalyst",
-      "composition": "Composition",
-      "calls": "Calls",
-      "noCalls": "No MCP calls declared.",
-      "needs": "Needs",
-      "components": "Components",
-      "knobs": "Knobs",
-      "graphSubtitle": "Derived from the Connected Services mirror, materialized compositions, and current MCP inventory."
     }
   },
   "observability": {
@@ -921,13 +578,9 @@
   "renderBay": {
     "title": "Render Bay",
     "subtitle": "Lahat ng ginagawa ng mojulo, sa iisang lugar: ang durable image-render queue, mga GI bake, at ang mga cook at export sa disk. Apat na paraan ng pagsasabing \"may ginagawa\" na dati ay walang iisang tahanan.",
-    "readOnly": "Nagre-render ng state ang bay. Bawat aksyon dito ay isang prompt na kokopyahin sa iyong agent — ang pagtanggap ng render, pag-bake muli ng mundo, at pag-mint ng export ay lahat nangyayari sa MCP tools, hindi sa page na ito.",
     "refresh": "Refresh",
     "loading": "Nag-load…",
     "allLanes": "Lahat ng lane",
-    "copyPrompt": "Kopyahin ang prompt",
-    "copied": "Nakopya",
-    "copyFailed": "Hindi makopya — piliin ang teksto at kopyahin ito nang manu-mano",
     "showing": "ipinapakita ang {shown} sa {total}",
     "queue": {
       "title": "Render queue",
@@ -993,8 +646,6 @@
   },
   "home3d": {
     "openArtifact": "Buksan ang artifact →",
-    "copied": "Nakopya",
-    "copyFailed": "Hindi makopya — piliin ang teksto at kopyahin ito nang manu-mano",
     "shelves": "Library",
     "bays": "Workshop",
     "outliner": {
@@ -1050,9 +701,6 @@
       "triHint": "bilang ng triangle: export_model"
     },
     "inspector": {
-      "askTitle": "Hilingin sa agent",
-      "askBody": "Nagre-render ng state ang dashboard; hindi ito nagbabago ng anuman. Ang pagbabago ng recipe na ito ay nangyayari sa iyong host agent.",
-      "askCopy": "Kopyahin ang prompt",
       "bound": "Mga naka-bind na artifact",
       "boundEmpty": "Wala pang naka-bind — walang render, mesh, o export sa disk para sa recipe na ito.",
       "openFolder": "Buksan ang outcome folder · {size}",
@@ -1110,8 +758,6 @@
     "empty": "Walang tumutugma sa facet o paghahanap na ito.",
     "emptyShelf": "Wala pang na-mint sa {shelf}.",
     "emptyShelfHint": "Hilingin sa iyong agent na gumawa ng isa — nasa get_sketch_vocab ang bokabularyo.",
-    "copied": "Nakopya",
-    "copyFailed": "Hindi makopya — piliin nang manu-mano",
     "notExportable": "Walang mesh export — ang artifact na ito ay nire-render bilang diagram, hindi bilang nalalakarang model.",
     "stack": "×{n}",
     "seed": "seed {seed}",
@@ -1127,8 +773,6 @@
     "svg": "SVG",
     "png": "PNG",
     "paintedLine": "painted · external worker · nananatiling soberano ang scaffold recipe",
-    "mintMissing": "Hilingin sa agent: i-mint ang {piece}",
-    "mintPrompt": "Para sa mojulo character na \"{name}\" (tingnan ang artifact {ref}), i-mint ang nawawalang {piece}. Gamitin ang tamang tool (create_sprite_sheet / bind_character_sheet / figure tools) — basahin muna ang get_sketch_vocab.",
     "facets": {
       "scenes": {
         "walkable": "Nalalakaran",

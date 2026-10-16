@@ -10,7 +10,7 @@
  * culture actually shares by identity (the kit it runs on) is its depth (./depth.js).
  *
  * The BRIEF (`drawable`) lists, for a culture or a draft, what each relation offers at its year: patterns, skins,
- * assets, the layout, and the source's record entries in use then. A drawn record entry stays the source's: for the
+ * assets, the form its town is laid out by, and the source's record entries in use then. A drawn record entry stays the source's: for the
  * new culture it is a PARALLEL to verify, never its basis. Pure.
  */
 import { HISTORIC_CULTURES } from './cultures/index.js';
@@ -23,7 +23,7 @@ export const KINDS = {
   contemporary: 'the same culture at the same time, elsewhere',
   variant: 'a generic or sibling version',
 };
-export const PARTS = ['palette', 'skins', 'patterns', 'assets', 'layout', 'record', 'dress'];
+export const PARTS = ['palette', 'skins', 'patterns', 'assets', 'form', 'record', 'dress'];
 
 /**
  * Which record entries a relation carries. A tradition travels as its materials and methods; particular buildings
@@ -79,7 +79,7 @@ export function yearOf(K) {
 
 /**
  * The brief: for a culture id or a draft card (`{ draws, readAt | years }`), what each relation offers at its year.
- * `[{ from, kind, note, year, patterns?, skins?, assets?, layout?, palette?, record?: { id, inUse: [{ id, name, kind,
+ * `[{ from, kind, note, year, patterns?, skins?, assets?, form?, palette?, record?: { id, inUse: [{ id, name, kind,
  * confidence, where }] } }]` — only the parts the relation carries.
  */
 export function drawable(culture) {
@@ -93,7 +93,7 @@ export function drawable(culture) {
     if (parts.has('skins')) out.skins = [...new Set(Object.values(S.skins?.kinds || {}))];
     if (parts.has('patterns')) out.patterns = [...(S.patterns || [])];
     if (parts.has('assets')) out.assets = Object.entries(S.assets || {}).map(([id, a]) => ({ id, read: a.read || '' }));
-    if (parts.has('layout')) out.layout = S.layout || 'ring-canal';
+    if (parts.has('form')) out.form = S.form ?? r.from;   // the culture whose form (../form/towns.js) lays its town
     // `dress`: the garments its people wore at this year, which the new culture's people wear where its own record has none
     if (parts.has('dress') && S.record && year !== null) out.dress = inUseAt(S.record.entries, year, 'dress').map((e) => ({ id: e.id, name: e.name, wearer: e.wearer, confidence: e.confidence }));
     if (parts.has('record') && S.record && year !== null) {
@@ -112,7 +112,7 @@ export function briefText(culture) {
   for (const r of rows) {
     out.push(`### From ${r.from} (${r.kind}: ${KINDS[r.kind] || r.kind})${r.note ? ` — ${r.note}` : ''}`, '');
     if (r.missing) { out.push(`- ${r.from} is not a registered culture.`, ''); continue; }
-    if (r.layout) out.push(`- Layout: \`${r.layout}\``);
+    if (r.form) out.push(`- Form: \`${r.form}\` (its town's principles, ./form/towns.js: name it as the card's \`form\` until the culture has its own)`);
     if (r.patterns) out.push(`- Patterns: ${r.patterns.join(', ')}`);
     if (r.skins) out.push(`- Wall skins: ${r.skins.join(', ')}`);
     if (r.palette) out.push(`- Palette roles: ${r.palette.join(', ')}`);

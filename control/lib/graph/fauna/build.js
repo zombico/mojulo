@@ -354,7 +354,8 @@ function scaleLegs(P) {
   const J = P.joints, legJ = new Set(P.legs.flatMap((r) => [r[1], r[2]]));
   const sy = J.shoulder?.[1] ?? 0.5, hy = J.hip?.[1] ?? -0.5, isFore = (n) => Math.abs(J[n][1] - sy) <= Math.abs(J[n][1] - hy);
   const top = (fore) => Math.max(...[...legJ].filter((n) => isFore(n) === fore).map((n) => J[n][2]));
-  const tf = top(true), th = top(false), dz = (tf * (ls.fore - 1) + th * (ls.hind - 1)) / 2;
+  // a biped (a bird) has no fore chain: the body rises by its hind legs' growth alone
+  const tf = top(true), th = top(false), rise = [[tf, ls.fore], [th, ls.hind]].filter(([t]) => Number.isFinite(t)), dz = rise.reduce((s, [t, k]) => s + t * (k - 1), 0) / rise.length;
   const up = (p) => [p[0], p[1], p[2] + dz];
   for (const n of Object.keys(J)) if (legJ.has(n)) { const T = isFore(n) ? tf : th; J[n] = [J[n][0], J[n][1], J[n][2] * (T + dz) / T]; } else J[n] = up(J[n]);
   for (const st of P.torso) st.at = up(st.at);

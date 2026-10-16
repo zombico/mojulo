@@ -37,6 +37,7 @@ import { barkTile } from '../vegetation/tiles.js';
 import { plantPool } from '../vegetation/pool.js';
 import { FLAT_LIGHT } from '../polygonizer/vexar.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
+import { recolourCard, recolourFaces } from '../color-theorist/recolour.js';
 
 export const JUNGLE_STYLES = Object.freeze({ 'jungle-mgs3': JUNGLE_MGS3 });
 
@@ -45,7 +46,8 @@ const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
-const isCard = (f) => typeof f.texture === 'string' && f.texture.startsWith('card:');
+// (a card recoloured by a palette wears its even twin: color-theorist/recolour.js)
+const isCard = (f) => typeof f.texture === 'string' && /^(even:)?card:/.test(f.texture);
 
 /** A crown clump: one card tipped toward flat (seen from below, the canopy) and one standing across it. */
 function clump(out, c, yaw, size, tilt, tint, group) {
@@ -580,8 +582,10 @@ export function jungleLayers(st, seed = 1, keep = null) {
 
 /** manifest → World payload, for a stage whose kit is a jungle kit. */
 export function assembleJungleScene(manifest = {}, ctx = {}) {
-  const st = JUNGLE_STYLES[manifest.style || 'jungle-mgs3'];
-  if (!st) throw new Error(`stage: unknown jungle style '${manifest.style}' (known: ${Object.keys(JUNGLE_STYLES).join(', ')})`);
+  const st0 = JUNGLE_STYLES[manifest.style || 'jungle-mgs3'];
+  if (!st0) throw new Error(`stage: unknown jungle style '${manifest.style}' (known: ${Object.keys(JUNGLE_STYLES).join(', ')})`);
+  // a palette (color-theorist, as nature.js): the card's light, air and grade, every surface at its own lightness
+  const P = manifest.palette && manifest.palette.roles ? manifest.palette : null, st = P ? recolourCard(st0, P) : st0;
   const seed = Number.isFinite(manifest.seed) ? manifest.seed : 1;
   const { site, giants, colossi, rocks, puddles, raw, dir, shadow } = jungleLayers(st, seed, manifest._keepOut ?? null), key = st.light.key;
   const sun = { dir, rgb: hexRgb(key.color), gain: st.light.sunGain, bounce: st.light.bounce, bounceGain: st.light.bounceGain, shadow };
@@ -594,14 +598,15 @@ export function assembleJungleScene(manifest = {}, ctx = {}) {
     return { ...f, normal: n, outNormal: n, tint: f.tint.map((v) => v * lift) };
   });
   const marks = jungleMarks(st, site, dir, seed, giants, puddles);
+  const worn = P ? recolourFaces(faced, P) : faced;
   const lit = ctx.unshaded
-    ? faced.map(({ tint, cls, ...f }) => ({ ...f, fill: rgbHex(tint) }))
-    : bakeStageLight(faced, [], ambient, marks, sun).map(({ cls, detail, colossus, ...f }) => f);
+    ? worn.map(({ tint, cls, ...f }) => ({ ...f, fill: rgbHex(tint) }))
+    : bakeStageLight(worn, [], ambient, marks, sun).map(({ cls, detail, colossus, ...f }) => f);
   const decals = [...contactShadows(st, site, [...giants.map((g) => ({ x: g.x, y: g.y, h: g.h * 0.5 })), ...colossi.map((c) => ({ x: c.x, y: c.y, h: c.R * 22 }))], rocks), ...plantShadows(st, site, raw)];
   const grade = (rgb) => hexRgb(gradeHex(rgbHex(rgb.map((v) => v / 255)), st.grade)).map((v) => Math.round(v * 255));
   const y0 = 2, x0 = site.trailX(y0), y1 = 22, x1 = site.trailX(y1);
   const eye = [x0, y0, site.ground(x0, y0) + 1.7];
-  const faces = [...gradeFaces(lit, st.grade), ...decals, ...puddleFaces(st, site, puddles), ...(st.shafts ? shaftFaces(st, site, shadow, dir, seed) : [])];
+  const faces = [...gradeFaces(lit, st.grade), ...decals, ...(P ? recolourFaces(puddleFaces(st, site, puddles), P) : puddleFaces(st, site, puddles)), ...(st.shafts ? shaftFaces(st, site, shadow, dir, seed) : [])];
   return {
     faces,
     cutouts: [...new Set(faces.filter(isCard).map((f) => f.texture))].sort(),
@@ -612,7 +617,7 @@ export function assembleJungleScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || 'mojulo stage · jungle',
     bg: gradeHex(rgbHex(st.air.dome.horizon.map((v) => v / 255)), st.grade),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: { zenith: grade(st.air.dome.zenith), horizon: grade(st.air.dome.horizon), day: 1, stars: 0, seed: 1 },
+    sky: { zenith: grade(st.air.dome.zenith), horizon: grade(st.air.dome.horizon), day: st.air.void ? 0 : 1, stars: st.air.void ? 1 : 0, seed: 1 },   // (a palette in vacuum: the void, the stars out)
     glow: false,
     walk: manifest.walk === false ? false : { speed: 5, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
   };

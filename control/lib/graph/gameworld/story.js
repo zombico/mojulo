@@ -125,6 +125,8 @@ export function bindStory(G, stages, { castRefs = {}, layout } = {}) {
     // a building level (or a building's inside) lays its rooms from a program at read: no places to bind to yet
     if (stage.section === 'building' || stage.section === 'interior') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a building: a moment binds to a walk's stages for now` }); continue; }
     if (stage.section === 'city') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a city's segment: a moment binds to a walk's stages for now` }); continue; }
+    if (stage.section === 'roadway') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is a roadway: a moment binds to a walk's stages for now` }); continue; }
+    if (stage.section === 'airspace') { unplaced.push({ id: m.id, why: `the stage ${stage.level}/${stage.node} is an airspace: a moment binds to a walk's stages for now` }); continue; }
     const missing = (m.who ?? []).filter((w) => !cast[w]);
     if (missing.length) { unplaced.push({ id: m.id, why: `${missing.map((w) => `'${w}'`).join(', ')} not in the cast (cast: ${Object.keys(cast).join(', ') || 'none'})` }); continue; }
     const cam = G.camera === 'side' && stage.manifest.trail !== undefined ? stageLane(stage) : null;

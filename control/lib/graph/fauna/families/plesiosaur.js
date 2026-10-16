@@ -35,10 +35,10 @@ export const family = {
     hoof: '#3c4548', belly: '#cfcbb8',
   },
   joints: {
-    neckBase: [0, 6.62, 2.56], neckTop: [0, 6.9, 2.58],
+    neckBase: [0, 5.9, 4.2], neckTop: [0, 6.2, 4.14],
     // the flippers: root on the flank low on the trunk, swept back and a little down, lying flat
-    foreRoot: [0.75, 0.55, 1.9], foreMid: [1.3, 0.25, 1.83], foreTip: [2.05, -0.2, 1.78],
-    hindRoot: [0.7, -0.65, 1.9], hindMid: [1.15, -0.95, 1.83], hindTip: [1.8, -1.35, 1.79],
+    foreRoot: [0.75, 0.55, 1.9], foreMid: [1.4, 0.2, 1.83], foreTip: [2.35, -0.35, 1.76],
+    hindRoot: [0.7, -0.65, 1.9], hindMid: [1.25, -1.0, 1.83], hindTip: [2.0, -1.5, 1.77],
   },
   torso: [
     { at: [0, -1.25, 2.0], r: [0.4, 0.3] },
@@ -68,7 +68,7 @@ export const family = {
     cheekBunch: { amp: 0.01, map: [['st3.cheek', 1, [0.5, 0, 0.8]], ['st2.cheek', 0.6, [0.5, 0, 0.8]]] },
     cornerRetract: { amp: 0.015, map: [['st3.lip', 0.8, [0.1, -1, 0.3]], ['st4.lip', 0.5, [0.1, -1, 0.3]]] },
   },
-  headScale: 0.9, nape: [0, -0.1, -0.03],
+  headScale: 1.25, nape: [0, -0.1, -0.03], headPitch: -10, legBulk: 1.3,
   eyeAt: [2.1, 2.0], eyeR: 0.016, orbit: { reach: [0.005, 0.006, 0.007], bulk: [0.001, 0.002], thickness: 0.002 }, pupil: 'round', irisAngle: 40, orbitFallback: true,
   browStrip: [[1.6, 1.4], [1.9, 1.3], [2.2, 1.3], [2.5, 1.4], [2.8, 1.5]],
   foldStrip: [[5.5, 2.2], [5.0, 2.9], [4.4, 3.6], [3.8, 4.2], [3.3, 4.7]],
@@ -77,24 +77,24 @@ export const family = {
   headOrnaments: teeth([3.4, 3.9, 4.4, 4.9, 5.4], 5.0, 0.035),
   headTiles: [], bodyTiles: [],
   // the neck [y, z, r] from inside the trunk's front to the head, and the short tail [y, z, [half-width, half-height]]
-  neckStations: [[0.9, 2.02, 0.32], [1.6, 2.1, 0.24], [2.6, 2.2, 0.2], [3.6, 2.3, 0.18], [4.6, 2.4, 0.16], [5.6, 2.5, 0.14], [6.7, 2.57, 0.125]],
+  neckStations: [[0.9, 2.02, 0.32], [1.7, 2.22, 0.25], [2.6, 2.62, 0.21], [3.4, 3.15, 0.19], [4.2, 3.7, 0.17], [5.05, 4.08, 0.15], [5.95, 4.2, 0.13]],
   tailStations: [[-1.1, 2.0, [0.26, 0.22]], [-1.6, 1.99, [0.18, 0.17]], [-2.05, 1.97, [0.09, 0.09]], [-2.4, 1.95, [0.04, 0.045]], [-2.6, 1.94, [0.015, 0.02]]],
   markings: [{ on: 'torso', kind: 'belly', group: 'Belly', from: 0.62 }],
   scale: 1,
 };
 family.extraSegments = [
-  { name: 'longNeck', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true, stations: loftOf(family.neckStations), caps: { back: [0, 0.75, 2.0], tip: [0, 6.85, 2.58] } },
+  { name: 'longNeck', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true, stations: loftOf(family.neckStations), caps: { back: [0, 0.75, 2.0], tip: [0, 6.1, 4.18] } },
   { name: 'tailTaper', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', up: true, stations: loftOf(family.tailStations), caps: { back: [0, -1.0, 2.0], tip: [0, -2.7, 1.94] } },
 ];
 
 export const species = {
   // ELASMOSAURUS (Elasmosaurus platyurus), Late Cretaceous, Western Interior Seaway. Thesis: in black silhouette a
-  // SMALL head on a VERY long straight neck (~2/3 of the total length) in front of a broad, flat, turtle-like body ·
+  // SMALL head on a VERY long neck carried in a swan's curve (~2/3 of the total length) in front of a broad, flat, turtle-like body ·
   // FOUR big swept-back flipper paddles of near-equal size, lying flat · a short tapering tail · a small skull with
   // needle teeth · ~10.3 m total length, the neck ~7 m (Sachs, Kear & Everhart 2013, PLoS ONE 8(8): e70877, the
   // revised holotype: total length ~10.3 m, 72 cervical vertebrae).
   // kept v4 (blind judges, both orders: A v4 over v2 65/60%; B v4 over v1 60/62%)
-  elasmosaurus: { family: 'plesiosaur', name: 'an Elasmosaurus', scale: 1 },
+  elasmosaurus: { family: 'plesiosaur', name: 'an Elasmosaurus', scale: 1.1 },
 };
 
 export const about = {

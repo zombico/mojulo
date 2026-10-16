@@ -53,6 +53,11 @@ export const CONCERNS = Object.freeze([
     asks: 'racing needs a line: checkpoints spaced so each leg is a stretch worth taking (twelve metres or more), a way wide enough to take at speed, the finish in sight of the last bend',
   },
   {
+    id: 'arena', name: 'An arena to fight in',
+    when: ['power.mechanics=frags'],
+    asks: 'a match needs a bounded floor that loops: every way between two spawns with another round it, no spawn in sight of another, cover a few steps from anywhere, no line across the whole floor, lanes for short and long fights',
+  },
+  {
     id: 'loop', name: 'A track that comes round',
     when: ['space.levelForm=circuit'],
     asks: 'going round needs a track that comes back to its start: a closed line on level land, wide enough to pass on, nothing standing on it, the infield closed so the way round is the way',

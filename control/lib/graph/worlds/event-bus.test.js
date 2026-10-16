@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { createBusState, processEvents, stepTime, hashState } from './event-bus.js';
+import { createBusState, processEvents, stepTime, tickTimers, hashState } from './event-bus.js';
 
 // ── HARNESS CONTRACT (event-bus.plan.md → "Harness contract") ──────────────────────────────────
 // The bus's value is invisible until many events fire at scale and nothing breaks. These seven
@@ -69,6 +69,14 @@ describe('4. caps are LOUD (no silent swallow)', () => {
     expect(state.metrics.processed).toBe(2);
     expect(state.metrics.dropped).toBeGreaterThan(0);
     expect(state.log.some((r) => r.op === 'cap' && r.reason === 'budget')).toBe(true);
+  });
+
+  it('the budget is a drain\'s, not the bus\'s life: a bus ticked for ten minutes still hears every tick', () => {
+    const state = createBusState({ vars: { n: 0 }, timers: [{ every: 0.1, emit: { type: 'tick' } }], reactions: [{ on: 'tick', do: 'inc', var: 'n', by: 1 }], budget: 64 }, []);
+    for (let k = 0; k < 30 * 600; k++) processEvents(state, tickTimers(state, 1 / 30));
+    expect(state.vars.n).toBe(6000);
+    expect(state.metrics.dropped).toBe(0);
+    expect(state.metrics.processed).toBe(6000);
   });
 });
 

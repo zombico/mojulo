@@ -10,6 +10,9 @@
 // byte-for-byte by sketches.mint-golden.test.js.
 
 
+import { draftSection } from '@/lib/graph/interior/section';
+import { compileInterior } from '@/lib/graph/interior/compile';
+import { readStructure } from '@/lib/graph/structure/read';
 import { resolveArt } from '../../graph/era/art-direction.js';
 import { resolvePlayUi } from '../../graph/playscape/ui/direction.js';
 import path from 'node:path';
@@ -62,6 +65,8 @@ import { improveFloorplanManifest, assessHouseManifest } from '@/lib/graph/polyg
 import { validateStoreManifest } from '@/lib/graph/retail/store-world.js';
 import { isGameworldKind, normalizeGameworldManifest, gameworldOf } from '@/lib/graph/gameworld/gameworld-kind.js';
 import { readGameworld, heroOrders } from '@/lib/graph/gameworld/index';
+import './palette-ledger.js';
+import { stampWorldPalette, stampGeocubes, stampInteriorPalette, resolveArtPalette, resolveTonePalette, stampLookPalette, stampTerrainPalette, resolveStagePalette } from '@/lib/graph/color-theorist/stamp.js';
 import { validateHouseConstruction } from '@/lib/graph/construction/house-frame.js';
 import { buildingNext, buildingRead, buildingClearance, buildingSays } from '@/lib/mcp/tools/building-next';
 import { solidNext, checkedAsk } from '@/lib/mcp/tools/solid-next';
@@ -75,6 +80,7 @@ import { ensureExactKernel } from '@/lib/graph/polygonizer/field-exact';
 import { stampAuthoredMotion } from '@/lib/graph/polygonizer/motion-stamp.js';
 import { planScad, persistedScadLedger } from '@/lib/graph/scad/scad-render';
 import { planLayered, expandLayeredManifest, heroPlanOf, heroReadout, validateHeroSpec } from '@/lib/mcp/tools/layered';
+import { rollStored } from '@/lib/graph/egocube/kind.js';
 import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeWork } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
@@ -333,8 +339,9 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
   let finalized;
   if (isGameworldKind(manifest?.kind)) {
     // A gameworld (the game book's recipe) bypasses the diagram pipeline: the stored manifest is the recipe as
-    // written, read by the gameworld reader, whose teaching errors are the refusal.
-    finalized = gameworldManifest(manifest);
+    // written, read by the gameworld reader, whose teaching errors are the refusal. Its palette is settled here, at
+    // authoring time (color-theorist/stamp.js): a new world that names no kit or look gets one rolled for it.
+    finalized = gameworldManifest(stampWorldPalette(stampGeocubes(manifest)));
   } else if (isMotionComicKind(manifest?.kind)) {
     // Motion comics (the click-gated presentation, motion-comic.plan.md)
     // bypass the diagram pipeline like image-outcomes kinds: the stored
@@ -425,6 +432,9 @@ export function mintSketch({ title, manifest, ref, folderRef, bucket } = {}) {
     // language once it is furnished (`furnishing: 'composed'`). `layout: null` / `furnishing: null` opt out.
     if (finalized.layout === undefined) finalized = { ...finalized, layout: 'varied' };
     if (finalized.furnishing === undefined) finalized = { ...finalized, furnishing: 'composed' };
+    // and finished: its doors, windows, floors and walls drawn by the style's roll with its other picks
+    // (`finishes: 'auto'`, floorplan-styles.js); `finishes: null` opts out
+    if (finalized.finishes === undefined && finalized.style != null && finalized.style !== false) finalized = { ...finalized, finishes: 'auto' };
     // metal cladding and roof sheet (metal-surfaces S5): a bad spec refuses here, naming the metals, not first at /world
     const roofMetal = finalized.roof && typeof finalized.roof === 'object' ? finalized.roof.metal : null;
     for (const [k, v] of [['facadeMetal', finalized.facadeMetal], ['roofMetal', finalized.roofMetal], ['roof.metal', roofMetal]]) {
@@ -480,6 +490,8 @@ function persistSketch({ title, manifest, ref, folderRef, bucket }) {
     // or mall says its occupancy and its program's grade
     ...buildingSays(read),
     ...programSays(sketch.manifest),
+    // a historic scene's field guide: what the solver chose, the record behind it, the `form` knob for each
+    ...(sketch.manifest?.kind === 'historic' ? { guideUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/bible` } : {}),
     ...(design ? { design } : {}),
     ...(inferred?.length ? { inferred } : {}),
     ...(next ? { next } : {}),
@@ -550,15 +562,39 @@ function isWorldRecipe(manifest) {
 
 // Creation from an exported world recipe pays the same gates as a whole-manifest edit.
 // This does not reinterpret it as authoring knobs or import assets from another filesystem.
+// An interior over a room described in words: the floor plan first. Its house section is drafted (interior/section.js),
+// the interior compiled against the draft (so a bad recipe mints nothing), the house minted as a house row of its own,
+// and the interior pointed at it and at its room.
+function mintInteriorSection(manifest, title) {
+  const drafted = draftSection(manifest.house.section);
+  compileInterior({ ...manifest, house: drafted.house, room: manifest.room ?? drafted.glyph }, drafted.house);
+  const minted = mintSketch({ title: `${title || 'room'} · house`, manifest: drafted.house });
+  const stored = SketchRepository.getByRef(minted.ref)?.manifest || drafted.house;
+  const r = drafted.rect;
+  const card = readStructure(stored).rooms.find((x) => Math.abs(x.rect.x - r.x) < 0.05 && Math.abs(x.rect.y - r.y) < 0.05 && Math.abs(x.rect.w - r.w) < 0.05 && Math.abs(x.rect.h - r.h) < 0.05);
+  return { ...manifest, house: minted.ref, room: card ? card.tag : (manifest.room ?? drafted.glyph) };
+}
+
 async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch, touched = new Set(), readout = 'full', restore = false, solveOps = [] }) {
+  if (manifest.kind === 'interior' && manifest.house && typeof manifest.house === 'object' && manifest.house.section) {
+    try { manifest = mintInteriorSection(manifest, title ?? existingSketch?.title); } catch (err) { throw new Error(`Invalid world manifest (kind 'interior'): ${err.message}`); }
+  }
   // a room stage's art direction (era/art-direction.js): 'propose' / 'auto' and any item sent back ('reroll') are
   // rolled here, at authoring time, and stored as numbers; the build only ever reads numbers
-  manifest = resolveArt(manifest);
+  // (an art palette or a tone given a palette spec, `{ from }`, solved into their ramps first: color-theorist)
+  manifest = resolveArt(resolveArtPalette(resolveTonePalette(resolveStagePalette(manifest))));
+  // an interior's palette (color-theorist/stamp.js): rolled for a new room that names no style, kept by an edit
+  manifest = stampTerrainPalette(stampLookPalette(stampInteriorPalette(manifest, existingSketch?.manifest ?? null)));
+  // every geocube it names given its palette's seed: the color theorist decides a cube's colours; a cube an edit
+  // leaves as it was is left (color-theorist/stamp.js)
+  manifest = stampGeocubes(manifest, existingSketch?.manifest ?? null);
   // a world's UI direction (playscape/ui/direction.js): the same gate for its play block's UI, filled here and stored
   manifest = resolvePlayUi(manifest);
   // the gaits an edit authors (a figure's walk, a hero's, a world figure's) are stored by value as they are minted now;
   // a motion the edit left as stored keeps its bytes, and a restore comes back as it was exported (motion-stamp.js)
   if (!restore) manifest = stampAuthoredMotion(manifest, existingSketch?.manifest ?? null);
+  // an egocube's sheet (egocube/kind.js) is rolled where it is written and stored by value; a roll left as stored keeps it
+  if (manifest?.kind === 'egocube') manifest = rollStored(manifest, existingSketch?.manifest ?? null);
   let nextManifest, workbenchStats, prevWorkbenchStats, scadStats, prevScadStats, layeredStats;
   // World recipes are not stations/marks diagrams (0813 persona sims: the diagram
   // validator demanded viewBox/stations from a world manifest, so iterating a world
@@ -940,12 +976,26 @@ export async function updateSketchHandler(input) {
 
   let nextManifest;
   let gameNote;
+  let versusLaws = null;
+  let versusFighters = null;
   let workbenchStats = null;
   let layeredStats = null;
   let prevWorkbenchStats = null;
   let scadStats = null;
   let prevScadStats = null;
-  if (manifest !== undefined && manifest?.kind === 'game') {
+  if (manifest !== undefined && manifest?.kind === 'game' && manifest.engine === 'versus') {
+    // A versus game (a fighter, lib/graph/versus) is its own simulation: no store, no levels to resolve. Its gate is
+    // that every fighter is a character from the store (measured, its fight read off its sheet) and compiles (weapon,
+    // tunes, own specials), the game names its arenas, and every rule reads.
+    const { versusGate } = await import('../../graph/versus/versus-character.js');
+    const { ok, errors, laws, fighters } = await versusGate(manifest);
+    if (!ok) throw new Error(`Invalid versus game: ${errors.join('; ')}`);
+    nextManifest = manifest;
+    // each fighter's laws (versus-laws.js): the machine gate's stamp, advice only
+    if (laws.length) versusLaws = laws;
+    // each fighter's character, and what its sheet chose for the fight and why
+    if (fighters?.length) versusFighters = fighters;
+  } else if (manifest !== undefined && manifest?.kind === 'game') {
     // Game recipes are not stations/marks diagrams either (edit-3d-recipes.plan.md
     // Phase 1) — the diagram fallback demanded viewBox from a game manifest, so
     // tweaking a level list or difficulty meant re-minting + re-binding project
@@ -986,7 +1036,8 @@ export async function updateSketchHandler(input) {
       );
     }
   } else if (manifest !== undefined && isGameworldKind(manifest?.kind)) {
-    nextManifest = gameworldManifest(manifest);   // the same gate as at mint
+    // the same gate as at mint; an edit keeps the palette the world had (and never gives an old world one)
+    nextManifest = gameworldManifest(stampWorldPalette(stampGeocubes(manifest, existingSketch?.manifest ?? null), existingSketch?.manifest ?? {}));
   } else if (manifest !== undefined && isMotionComicKind(manifest?.kind)) {
     // Same gate as mintSketch — update is the accrete-cheaply surface, so it
     // pays the same normalization + store checks.
@@ -1074,6 +1125,8 @@ export async function updateSketchHandler(input) {
     ...(design ? { design } : {}),
     ...(next ? { next } : {}),
     ...(gameNote ? { note: gameNote } : {}),
+    ...(versusLaws ? { laws: versusLaws } : {}),
+    ...(versusFighters ? { fighters: versusFighters } : {}),
     ...(workbenchStats ? { stats: slimReadout(workbenchStats, prevWorkbenchStats, { readout, touched, cuts: touchedCuts(manifest, touched), archivedRev: revision?.archived_rev }) } : {}),
     ...(scadStats ? { stats: slimScadReadout(scadStats, prevScadStats, { readout, touched, archivedRev: revision?.archived_rev }) } : {}),
     ...(layeredStats ? { stats: { ...layeredStats, ...(revision ? { archived_rev: revision.archived_rev } : {}) } } : {}),

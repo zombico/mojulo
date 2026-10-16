@@ -99,7 +99,7 @@ export const species = {
   // thick tail tapering from a broad flattened base (~40% of total length) · dark brown, paler throat · 0.25 m at the
   // shoulder (ADW / Smithsonian: total length 0.89–1.30 m, tail 0.30–0.50 m, 5–14 kg; shoulder ~0.25 m).
   riverOtter: {
-    eyeStyle: 'set', // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
+    eyeStyle: 'set', eyeSet: { sink: 0.1 }, // set eye (seated, lidded) beat the goggle orbit in both judge orders, 2026-10-06
     family: 'mustelid', name: 'a North American river otter', scale: 1,
   },  // EUROPEAN BADGER (Meles meles). Thesis: a heavy, low, WIDE wedge of a body (broad and flat-backed, the head the
   // narrow point of the wedge) on short thick legs with long fore claws · ONE signature: the WHITE FACE with a BLACK
@@ -179,9 +179,9 @@ export const species = {
     extraSegments: [
       // the plume: out of the rump, up and back, then arching forward over the rump, wide and bushy
       { name: 'tailPlume', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane',
-        stations: loftOf([[-0.38, 0.20, 0.06], [-0.50, 0.30, 0.13], [-0.58, 0.46, 0.17], [-0.58, 0.64, 0.19], [-0.50, 0.80, 0.17], [-0.40, 0.88, 0.12]]),
+        stations: loftOf([[-0.38, 0.20, 0.05], [-0.47, 0.27, 0.085], [-0.53, 0.37, 0.105], [-0.53, 0.48, 0.11], [-0.48, 0.57, 0.095], [-0.41, 0.62, 0.065]]),
         bandGroups: { 'st1-st2': ['Mane', 'Coat', 'Coat', 'Coat', 'Coat', 'Mane'], 'st2-st3': ['Mane', 'Mane', 'Coat', 'Coat', 'Mane', 'Coat'], 'st3-st4': ['Coat', 'Mane', 'Coat', 'Mane', 'Coat', 'Coat'], 'st4-st5': ['Mane', 'Coat', 'Mane', 'Coat', 'Coat', 'Mane'] },
-        caps: { back: [0, -0.35, 0.18], tip: [0, -0.33, 0.90] }, capGroups: { back: 'Coat', tip: 'Mane' } },
+        caps: { back: [0, -0.35, 0.18], tip: [0, -0.36, 0.64] }, capGroups: { back: 'Coat', tip: 'Mane' } },
     ],
     // the white: a cap over the shoulders and nape, two stripes down the back to the rump
     markings: [

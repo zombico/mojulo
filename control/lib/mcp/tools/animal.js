@@ -218,7 +218,7 @@ export async function createAnimalHandler(input) {
     const { plan, readout } = assembleBug(B);
     const motion = bugMotionSpec(B, species || null, input.motion);
     const res = await createLayeredPlanHandler({
-      title, plan: motion ? withBugMotion(plan, B, species || null, motion.gaits, motion.keys, motion) : plan, plan_audit: { source: 'agent' }, ...carved,
+      title, plan: motion ? withBugMotion(plan, B, species || null, motion.gaits, motion.keys, motion) : plan, plan_audit: { source: 'agent' }, ...carved, ...(species ? { species } : {}),
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
     return { ...res, species: species || null, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: legStance(readout.legPairs * 2), legs: readout.legPairs * 2, length_m: readout.length,
@@ -236,7 +236,7 @@ export async function createAnimalHandler(input) {
     // plays and the skinned GLB / Godot export. Absent ⇒ the plan is the species' own, byte-identical.
     const motion = motionSpec(species, input.motion);
     const res = await createLayeredPlanHandler({
-      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys, motion) : speciesPlan(species), plan_audit: { source: 'agent' }, ...carved,
+      title, plan: motion ? withMotion(speciesPlan(species), species, motion.gaits, motion.keys, motion) : speciesPlan(species), plan_audit: { source: 'agent' }, ...carved, species,
       ...(ref ? { ref } : {}), ...(folderRef ? { folder_ref: folderRef } : {}),
     });
     return { ...res, species, ...(resolvedFrom ? { resolved_from: resolvedFrom } : {}), stance: stanceOf(species), ...(motion ? { motion: { gaits: motion.gaits, ...(motion.behaviors ? { behaviors: Object.fromEntries(motion.behaviors.map((b) => [b, resolveBehavior(species, b, { variant: motion.variants?.[b] }).line])) } : {}) } } : {}) };

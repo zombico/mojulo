@@ -55,6 +55,8 @@ export function checkRecord(entries) {
     const span = spanOf(e);
     if (!span || !isYear(span.from)) add('error', e.id, `no ${e.kind === 'type' ? 'built' : 'attested'}.from year`);
     else if (span.to !== null && span.to !== undefined && (!isYear(span.to) || span.to < span.from)) add('error', e.id, 'span ends before it starts');
+    // a tradition's row may give its dates region by region (../ledger/: read up the place's region chain)
+    for (const [r, s] of Object.entries(e.spread || {})) if (!s || !isYear(s.from) || (s.to !== null && s.to !== undefined && (!isYear(s.to) || s.to < s.from))) add('error', e.id, `spread.${r} is not a span`);
     if (e.kind === 'material') {
       if (!Array.isArray(e.role) || !e.role.length) add('error', e.id, 'no structural role');
       else for (const r of e.role) if (!MATERIAL_ROLES.includes(r)) add('warn', e.id, `unknown role '${r}'`);

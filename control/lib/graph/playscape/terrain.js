@@ -29,7 +29,8 @@
  *   fromColliders(colliders, pick, { course?, hp?, bond? }) → { terrain, colliders }   the picked boxes made breakable,
  *                                                     the rest untouched; a box off the floor (a lintel) bonds laterally
  *   standBlocks(asks, { seed? })                      → { faces, colliders } forms that stand solid and never break (a
- *                                                     level's cover: walls and crates), drawn and colliding
+ *                                                     level's cover: walls and crates), drawn and colliding; an ask's
+ *                                                     `whole: true` makes the form one collider (its courses still drawn)
  *   groundOf(colliders, floor?)                       → pos → the top a walker stands on (reads the LIVE list)
  *   blockPieces(block, { pattern?, count?, seed? })   → cleave chunks for the swap
  */
@@ -172,7 +173,11 @@ export function standBlocks(asks, { seed = 1 } = {}) {
   asks.forEach((ask, i) => {
     const T = breakableTerrain({ id: `block-${i}`, ...ask }, { seed: seed + i, value: Number.isFinite(ask.value) ? ask.value : 0.62 });
     for (const f of T.faces) faces.push(f);
-    for (const b of T.blocks) colliders.push({ min: b.min, max: b.max, of: `block:${b.of}` });
+    // `whole`: the form is one collider (an arena's wall: it never breaks, so its courses need not each be a box)
+    if (ask.whole === true && T.blocks.length) {
+      const min = [0, 1, 2].map((k) => Math.min(...T.blocks.map((b) => b.min[k]))), max = [0, 1, 2].map((k) => Math.max(...T.blocks.map((b) => b.max[k])));
+      colliders.push({ min, max, of: `block:block-${i}` });
+    } else for (const b of T.blocks) colliders.push({ min: b.min, max: b.max, of: `block:${b.of}` });
   });
   return { faces, colliders };
 }

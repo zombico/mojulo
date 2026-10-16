@@ -1124,6 +1124,8 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
     // Playscape added the launcher: 'launch' (the throw, after the carry) and 'launch-lock' (a locked throw takes the steering),
     // and the ladder: the 'climb' body owner (a body on a climbable is the climb's, after a drop has landed it),
     // and breakable terrain: the 'break' pass (this tick's shots, bursts and swings take hp off the blocks they reach).
+    // Skyscape added 'missiles' after 'weapon' (a craft's lock, launch and flares: combat-ranged.js stepMissiles; a no-op
+    // without rule.missiles).
     const cw = composeControllable(EMISSION);
     expect(cw.pipelineOrder()).toEqual({
       preSteps: ['match-over-zero', 'ai-toggle', 'groups', 'pilot-swap', 'carry-snapshot', 'launch-lock', 'lock'],
@@ -1131,7 +1133,7 @@ describe('step pipeline (controllable-split.plan.md S3) — the registered slot 
       bodyOwners: ['dormant', 'reaction', 'clash', 'cine', 'drop', 'climb', 'cast'],
       entityAsserts: ['charge-cancel', 'spawn-guard'],
       suppressedTicks: ['boost-recovery'],
-      entityActions: ['weapon', 'melee', 'tackle'],
+      entityActions: ['weapon', 'missiles', 'melee', 'tackle'],
       worldPasses: ['body-collisions', 'carry', 'launch', 'projectiles', 'break', 'death-burst', 'match', 'lock', 'tutorial'],
     });
   });

@@ -1,8 +1,9 @@
 // equipment/expand — an equipment `build` on a workbench manifest, expanded into plain monomers on every read.
 //
 //   build: { type: 'equipment', item, style, dials?, parts?, gem?, seed?, laws? }
-//     item    dagger | sword | greatsword | staff | bow | shield
-//     style   a seeded sample name (styles.js) or an inline style card
+//     item    dagger | sword | greatsword | staff | bow | shield, or a firearm: pistol | carbine | shotgun
+//     style   a seeded sample name (styles.js) or an inline style card; a firearm's are its own (firearm.js:
+//             service, the default, or future)
 //     dials   { stylize 0–1, mass, focus, ornament } over the card's own
 //     parts   slot → variant ({ blade: 'leaf', head: 'claw', … }); for staff / bow / shield also focus, bark, limbs,
 //             twigs, leaves, wings
@@ -18,9 +19,13 @@ import { SWORDS, buildSword } from './sword.js';
 import { ITEMS, GEMLESS_HEADS, buildItem } from './items.js';
 import { CRYSTAL_GEMS } from '../polygonizer/crystal-optics.js';
 import { r3 } from './shapes.js';
+import { FIREARM_ITEMS, FIREARM_STYLES, DEFAULT_FIREARM_STYLE, isFirearm, validateFirearmCard, firearmCardOf, buildFirearm } from './firearm.js';
 
 export { LAWS_VERSION };
 export const EQUIPMENT_ITEMS = Object.freeze([...Object.keys(SWORDS), ...Object.keys(ITEMS)]);
+/** every item a build may name: the myth's (EQUIPMENT_ITEMS, the samples' catalogue) and the firearms (firearm.js) */
+export const GEAR_ITEMS = Object.freeze([...EQUIPMENT_ITEMS, ...FIREARM_ITEMS]);
+export { FIREARM_ITEMS, FIREARM_STYLES, isFirearm };
 export const FOCI = Object.freeze({ dagger: ['guard', 'pommel', 'blade', 'none'], sword: ['guard', 'pommel', 'blade', 'none'], greatsword: ['guard', 'pommel', 'blade', 'none'],
   staff: ['head', 'none'], bow: ['riser', 'tips', 'curve', 'none'], shield: ['boss', 'none'] });
 const CUTS = ['natural', 'brilliant', 'cabochon'];
@@ -38,7 +43,8 @@ export function validateBuild(build) {
   const errs = [];
   if (!build || typeof build !== 'object') return ['build: { type: "equipment", item, style, … }'];
   if (build.type !== 'equipment') errs.push(`build.type: '${build.type}' — the workbench knows 'equipment'`);
-  if (!EQUIPMENT_ITEMS.includes(build.item)) errs.push(`build.item: '${build.item}' is not one of ${EQUIPMENT_ITEMS.join(', ')}`);
+  if (isFirearm(build.item)) return [...errs, ...firearmErrors(build)];
+  if (!EQUIPMENT_ITEMS.includes(build.item)) errs.push(`build.item: '${build.item}' is not one of ${GEAR_ITEMS.join(', ')}`);
   const style = build.style ?? 'historical';
   if (typeof style === 'string') { if (!SEEDED_STYLES[style]) errs.push(`build.style: '${style}' is not a sample (${Object.keys(SEEDED_STYLES).join(', ')}); or pass an inline card`); }
   else errs.push(...validateStyleCard(style, 'build.style'));
@@ -66,6 +72,17 @@ export function validateBuild(build) {
   return errs;
 }
 
+// A firearm's words: its own cards (no blade language, no stone); the dials and the seed are taken and change nothing.
+function firearmErrors(build) {
+  const errs = [], style = build.style ?? DEFAULT_FIREARM_STYLE;
+  if (typeof style === 'string') { if (!FIREARM_STYLES[style]) errs.push(`build.style: '${style}' is not a firearm sample (${Object.keys(FIREARM_STYLES).join(', ')}); or pass an inline firearm card`); }
+  else errs.push(...validateFirearmCard(style, 'build.style'));
+  for (const k of ['parts', 'gem']) if (build[k] !== undefined && build[k] !== null) errs.push(`build.${k}: a firearm takes none (its style card is its look)`);
+  if (build.seed !== undefined && !Number.isInteger(build.seed)) errs.push('build.seed: an integer');
+  if (build.laws !== undefined && build.laws !== LAWS_VERSION) errs.push(`build.laws: ${build.laws} is unknown — this kernel carries laws ${LAWS_VERSION}`);
+  return errs;
+}
+
 // What only the RESOLVED words can say (the card's language under the build's parts, the card's stone under the
 // build's gem): a staff head that cradles a stone needs one to resolve, and a bow needs a limb to bend.
 function resolvedErrors(build) {
@@ -84,6 +101,10 @@ function resolvedErrors(build) {
 export function expandEquipment(build) {
   const errs = validateBuild(build);
   if (errs.length) throw new Error(`Invalid equipment build:\n- ${errs.join('\n- ')}`);
+  if (isFirearm(build.item)) {
+    const style = build.style ?? DEFAULT_FIREARM_STYLE, out = buildFirearm(build.item, firearmCardOf(style));
+    return { monomers: out.monomers, sockets: out.sockets, trace: { item: build.item, style: typeof style === 'string' ? style : style.id || 'inline', dials: { stylize: 0, mass: 1, ornament: 0, focus: 'none' }, laws: build.laws ?? LAWS_VERSION, ...out.trace } };
+  }
   const card = cardOf(build.style ?? 'historical');
   const item = build.item, seed = build.seed ?? 1, parts = build.parts || {};
   const lang = { ...(card.language?.[item] || {}), ...parts };

@@ -27,6 +27,19 @@
 //      (each row's top tucked at its own standoff, its bottom edge out by a row's thickness — never piled outward),
 //      held by lacing that IS the ornament and covers the field (law 12 over law 11).
 //
+// Armour AS GAMES DRAW IT (not history's): the designed plate pieces (polygonizer/outfit-plan.js `pauldron`, `chestPlate`,
+// `bracers`) obey these now; this build takes them at laws version 2.
+//  13. WITHIN THE FIGURE. No plate stands past the figure's own width at its height (the arms at rest included) by more
+//      than its thickness (station-loft-adorn.js `within`: the plate's stand-off scaled down as one, its shape kept). A
+//      broad shoulder line is cloth under the plate (a mantle), not plate carried out past the arm. A detached genre's
+//      plates `hover` (alien): the gap is theirs, the rest stays within.
+//  14. SEGMENTED AND LAYERED, NEVER WHOLE. No plate covers a whole part: a pauldron is a cop over lames down the arm, a
+//      cuirass a breastplate over a fauld that tapers to the waist, a bracer two bands; what is beneath shows between and
+//      at the sides. Each plate is HOLLOW (a thin wall; its thickness shows only at a rolled edge; its inside and the
+//      liner under it in shade) and FAIRER than the body (no muscle bumps on steel).
+//  15. ORNAMENT ON THE EDGE OR IN THE SURFACE. The edge in the trim, rivets at a lame's ends, a motif EMBOSSED (the
+//      focal, raised) or ENGRAVED (the rest, cut in): never a knob, boss or spike standing on a plate's field.
+//
 // Pure arithmetic; no dice. ARMOR_LAWS_VERSION is stamped on every minted build: a change to any curve here that moves
 // a kit's bytes is a new version, and the expander keeps the old one for rows minted under it.
 

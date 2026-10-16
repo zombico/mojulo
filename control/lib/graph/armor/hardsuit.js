@@ -16,7 +16,7 @@ import { r4, edgeTrim } from './plate.js';
 
 export const HARDSUIT_ORDER = Object.freeze([[0.0, 'helm'], [0.2, 'cuirass'], [0.3, 'pauldron'], [0.4, 'vambrace'], [0.5, 'greave'], [0.55, 'boot'], [0.6, 'belt'],
   [0.7, 'thigh'], [0.8, 'upperArm'], [0.9, 'gauntlet'], [1.0, 'pack']]);
-export const HELMS = Object.freeze(['power', 'trooper', 'faceplate']);
+export const HELMS = Object.freeze(['power', 'trooper', 'faceplate', 'none']);
 export const HARD_PAULDRONS = Object.freeze(['dome', 'cap', 'segmented']);
 export const CHESTS = Object.freeze(['plain', 'reactor']);
 
@@ -42,7 +42,8 @@ export function hardSuit(dials, ctx, lang = {}) {
   const other = (S) => (S === 'R' ? 'L' : 'R'), focalSide = lang.focalSide ?? 'R';
   const trace = { worn: [] };
   const PIECES = {
-    helm: () => { const H = { ...HELM_SHAPES[lang.helm ?? 'trooper'] };
+    helm: () => { if (lang.helm === 'none') return [];   // bareheaded (no piece, so `worn` leaves it out)
+      const H = { ...HELM_SHAPES[lang.helm ?? 'trooper'] };
       // law 2: a stylized helm is bigger and rounder off the head; its visor is the face
       return [{ id: 'cranium-helm', mode: 'shell', part: 'cranium', s: [6.6, 8], t: 'wrap', nt: 8, ns: 1, mugen: 0.002, thick: r4(minF), rad: r4(0.01 * k), group: 'Suit', rigid: true, stack: false,
         signature: { kind: 'helm', group: 'Helm', visorGroup: lang.helm === 'trooper' ? 'Visor' : 'Lens', grilleGroup: 'Trim', ...H, pad: r4(H.pad * k * Math.sqrt(bulk)), muzzle: r4(H.muzzle * k * law.focal ** 0.5), flare: r4(H.flare * law.flare / 1.5),

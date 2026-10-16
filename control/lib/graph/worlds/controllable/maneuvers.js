@@ -136,8 +136,10 @@ export function buildManeuvers(E) {
     const lo = Array.isArray(r.loadout) && r.loadout.length ? r.loadout : null;
     if (lo) {
       let want = null;
-      if (input.cycle) want = ((e.loadoutIdx || 0) + 1) % lo.length;
-      else if (input.slot >= 1 && input.slot <= lo.length) want = input.slot - 1;
+      // a slot not yet picked up (`held: false`, the cast's arm) is skipped by the cycle and deaf to its key
+      const H = e.loadoutHeld;
+      if (input.cycle) { want = ((e.loadoutIdx || 0) + 1) % lo.length; if (H) { let k = 0; while (!H[want] && k++ < lo.length) want = (want + 1) % lo.length; } }
+      else if (input.slot >= 1 && input.slot <= lo.length && (!H || H[input.slot - 1])) want = input.slot - 1;
       e.switched = false;
       if (want != null && want !== (e.loadoutIdx || 0) && e.swingT == null && e.dodgeT == null && e.tackleT == null) {
         e.loadoutIdx = want;
@@ -272,8 +274,12 @@ export function buildManeuvers(E) {
     if (lo) {
       ent.loadoutIdx = 0;
       ent.loadoutWeapons = lo.map((c) => initWeapon(c && c.weapon ? c.weapon : null));
-      ent.weapon = ent.loadoutWeapons[0];
-      if (ent.body && lo[0].figure) ent.body.figure = lo[0].figure;
+      // PICKUPS (opt-in): a slot `held: false` is not carried until it is picked up (the cast's arm); the first held
+      // slot starts in hand. Without one, every slot is carried and slot 0 starts, as before.
+      let i0 = 0;
+      if (lo.some((c) => c && c.held === false)) { ent.loadoutHeld = lo.map((c) => !(c && c.held === false)); i0 = Math.max(0, ent.loadoutHeld.indexOf(true)); ent.loadoutIdx = i0; }
+      ent.weapon = ent.loadoutWeapons[i0];
+      if (ent.body && lo[i0].figure) ent.body.figure = lo[i0].figure;
     }
   });
 

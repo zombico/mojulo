@@ -106,7 +106,7 @@ export const species = {
   pondTurtle: {
     family: 'testudine', name: 'a red-eared slider', scale: PT, legBulk: 0.65,
     joints: {
-      neckBase: [0, 0.42, 0.25], neckTop: [0, 0.86, 0.31],
+      neckBase: [0, 0.42, 0.25], neckTop: [0, 0.66, 0.3],
       shoulder: [0.30, 0.34, 0.22], elbow: [0.50, 0.42, 0.15], carpus: [0.55, 0.48, 0.06], forePaw: [0.55, 0.49, 0.03], foreToe: [0.60, 0.62, 0.012],
       hip: [0.28, -0.34, 0.22], stifle: [0.48, -0.42, 0.15], hock: [0.53, -0.50, 0.06], hindPaw: [0.53, -0.51, 0.03], hindToe: [0.60, -0.65, 0.012],
     },
@@ -121,7 +121,7 @@ export const species = {
       { at: [0, 0.54, 0.24], r: [0.30, 0.07], top: 0.03 * PT },
     ],
     torsoCaps: { back: [0, -0.62, 0.24], tip: [0, 0.60, 0.25] },
-    neckRA: [0.06, 0.06], neckRB: [0.045, 0.045], neckRMid: [0.05, 0.05],
+    neckRA: [0.075, 0.07], neckRB: [0.058, 0.055], neckRMid: [0.065, 0.062],
     tail: [[0, -0.55, 0.20, 0.04], [0, -0.66, 0.14, 0.022], [0, -0.74, 0.09, 0.008]],
     legs: [
       ['upperArmR', 'shoulder', 'elbow', [0.10, 0.09], [0.08, 0.07], 'Sock', [0.4, 0.4]],

@@ -84,6 +84,6 @@ Each is drawn one way and flagged in the record:
 - Roofs: tegulae and imbrices, antefixes, ridge tiles, a soffit under the eaves.
 - `festival: true` dresses the forum for a procession day: gilded shields on the basilicas' piers, garlands on the
   temple fronts (Livy 9.40.16). An ordinary day shows none.
-- The site (`layouts/forum.js`): a measured plan laid out from the record's sizes. The frame's x runs from the
-  Tabularium (the real north-west) to the Regia (the real south-east). The positions are the sizes set against each
-  other as the plan stands, rounded, not surveyed coordinates, and the ground is level.
+- The site: the measured plan of the square (once `layouts/forum.js`) left with the hand layouts in favour of the
+  solver. Rome round its forum is now solved from its form (`form/towns.js`); the temple of Castor and the Curia
+  are its monuments (`monuments/index.js`), built from the record's numbers as before.

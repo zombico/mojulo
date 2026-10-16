@@ -84,13 +84,15 @@ function posMapFor(path, readBoundMeshFaces, buildPosMap) {
  * fallback returns null for any non-room manifest). Async because the workbench path
  * resolves label-wrap textures (which may render referenced sketches to SVG).
  */
-/** A hero as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
+/** A hero (or a mascot) as a figure-rig body: the layered kind's packed rig, its clips renamed for the runtime's states. */
 async function heroFigure(name, spec) {
   let manifest;
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
-    if (!src || src.manifest?.kind !== 'layered' || !src.manifest.hero) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero (a layered sketch minted through the hero door)`);
+    // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump)
+    const { isMascotPlan } = await import('@/lib/graph/egocube/mascot-pilot.js');
+    if (!src || src.manifest?.kind !== 'layered' || !(src.manifest.hero || isMascotPlan(src.manifest.plan))) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero or mascot (make one with create_character { as: 'hero' } or { as: 'mascot' }; any other creature or an animal is not a pilot yet)`);
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
@@ -130,6 +132,13 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     }
     const { applyMapRef } = await import('@/lib/graph/worlds/map-ref.js');
     sketch = { ...sketch, manifest: applyMapRef(sketch.manifest, src.manifest) };
+  }
+
+  // a stage drawn in a composed look (a gameworld's look words or palette) carries the recipes that make it: composed here, once per
+  // process, before anything reads its kit (color-theorist/look.js). Absent `looks` ⇒ byte-identical.
+  if (Array.isArray(sketch.manifest?.looks)) {
+    const { ensureLooks } = await import('@/lib/graph/color-theorist/look.js');
+    ensureLooks(sketch.manifest.looks);
   }
 
   // a city segment's level reads its city by ref (city/plan/ref.js): merged before it is lowered as a level; and a city's
@@ -637,11 +646,30 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
         // `figure-rig` body (station-loft-rig.js packLayeredRig: the same keys and blend as every rig body), without
         // the static solid or the clip preview. `clips` names which of the hero's clips plays each runtime state
         // ({ forward: 'run', idle: 'idleRelaxed', leap: 'leap' }): the body plays the hero's own clip under the
-        // runtime's name. `library` names an outside animation library (figures/library: Quaternius's CC0 one ships) whose
-        // clips fill the states the hero has no clip for, retargeted onto its rig. Absent ⇒ no hero is resolved,
-        // byte-identical.
+        // runtime's name. `library` names an outside animation library (figures/library: Quaternius's CC0 one ships)
+        // whose clips, retargeted onto its rig, play the states `clips` hands to them (playerStates, when the world was
+        // written: the library's for the states it names, the hero's own door gaits where it carries them). Absent ⇒
+        // no hero is resolved, byte-identical.
         if (rawSpec.hero || typeof rawSpec.heroRef === 'string') {
           payload.figures[name] = await heroFigure(name, rawSpec);
+          continue;
+        }
+        // RACER bodies (car-designer/roster.js): a figures-map entry may be a cartoon racer's recipe (`racer`: { facets,
+        // brief?, seed, parts?, shade? }, what a quick race's field writes): the driver read off its Egocube sheet, its machine
+        // solved from the parts library, delivered as the vehicle rig it bakes (its live overlay and juice with it).
+        // Absent ⇒ no racer is resolved, byte-identical.
+        if (rawSpec.racer && typeof rawSpec.racer === 'object') {
+          const { racerOf } = await import('@/lib/graph/car-designer/roster.js');
+          payload.figures[name] = racerOf(rawSpec.racer).S.figure;
+          continue;
+        }
+        // SUPERCAR bodies (car-designer/supercar-figure.js): a figures-map entry may be a composed supercar's recipe
+        // (`supercar`: { preset?, seed?, surface?, mood? }, what a quick race's field of supercars writes), delivered as
+        // its vehicle rig (live overlay and juice with it), lit in the race's mood when it names one.
+        // Absent ⇒ no supercar is resolved, byte-identical.
+        if (rawSpec.supercar && typeof rawSpec.supercar === 'object') {
+          const { supercarFigure } = await import('@/lib/graph/car-designer/supercar-figure.js');
+          payload.figures[name] = supercarFigure(rawSpec.supercar);
           continue;
         }
         // figureRef (figure-emotes.plan.md): a figures-map entry may reference a STORED
@@ -1013,9 +1041,12 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // A level with a CLOCK (the clock mechanic) has a sky that turns with it: night darkens it, and its seasons swap the
   // climate. It takes the weather even when the manifest names none (clear air).
   const clockMech = sketch.manifest.game && Array.isArray(sketch.manifest.game.mechanics) ? sketch.manifest.game.mechanics.find((m) => m && m.kind === 'clock') : null;
-  if (payload && ((sketch.manifest.weather != null && sketch.manifest.weather !== false) || clockMech)) {
+  // (a roadway in a wet mood brings its rain when the manifest names no weather: roads/race-mood.js)
+  const moodWeather = sketch.manifest.kind === 'roadway' && typeof sketch.manifest.mood === 'string' && sketch.manifest.weather == null ? (await import('@/lib/graph/roads/race-mood.js')).RACE_MOODS[sketch.manifest.mood]?.weather ?? null : null;
+  const weatherSpec = sketch.manifest.weather ?? moodWeather;
+  if (payload && ((weatherSpec != null && weatherSpec !== false) || clockMech)) {
     const seed = Number.isFinite(Number(sketch.manifest.seed)) ? Number(sketch.manifest.seed) : seedOfRef(sketch.ref);
-    const W = readWeather(sketch.manifest.weather != null && sketch.manifest.weather !== false ? sketch.manifest.weather : { climate: { clear: 1 } }, 'weather');
+    const W = readWeather(weatherSpec != null && weatherSpec !== false ? weatherSpec : { climate: { clear: 1 } }, 'weather');
     // the air is the STYLE's (era/air.js: fog colour and body, the shade, what a state's air is): a kit's style card, or a
     // sixth-gen look's reference; a world with neither gets one made of its haze at emit. `weather.air` tunes either.
     const kit = sketch.manifest.kit ?? (sketch.manifest.stage && sketch.manifest.stage.kit);
@@ -1077,6 +1108,15 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     if (!v.ok) throw new Error(`game channel contract is invalid:\n- ${v.errors.join('\n- ')}`);
     payload.game = normalizeLevelContract(game);
   }
+  // a side-view fight on the world (an arena, versus/versus-arena.js): the plane, the walls, the roster solved here,
+  // the level wire's names; the page's versus channel fights on it. Absent ⇒ nothing (scene/channels/versus.js).
+  if (payload && sketch.manifest.versus && typeof sketch.manifest.versus === 'object') {
+    const { versusArenaData } = await import('@/lib/graph/versus/versus-page.js');
+    const { withCharacters, characterBodies } = await import('@/lib/graph/versus/versus-character.js');
+    const measured = await withCharacters(sketch.manifest.versus);
+    // a character fights in its own body: its rig's parts, carried once per character (none: nothing added)
+    payload.versus = versusArenaData({ ...measured, bodies: await characterBodies(measured.roster) });
+  }
 
   // UNSHADED honesty (interchange.plan.md I5): FLAT_LIGHT only reaches the kinds that shade
   // through the ctx.light seam onto the vexar Lambert solve (workbench / assembler / manji-tree,
@@ -1127,6 +1167,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const { worldMarks } = await import('@/lib/graph/strength/world-marks');
     const marks = worldMarks(payload, manifest, { mmPerUnit: (payload.metersPerUnit ?? 1) * 1000 });
     if (marks.length) payload.marks = marks;
+  }
+
+  // generic, opt-in SHOOT PLAN (lib/graph/shoot/): cameras keyed in After Effects terms and a cut list, drawn by the
+  // World page as objects (frustum, point of interest, motion path, a dot per frame). Not a face, so no mesh export
+  // carries it; renderers read the plan itself. A key may follow something that moves on a schedule (a walker, a car,
+  // a mover), read off this payload. Absent, or nothing readable ⇒ payload untouched.
+  if (payload && manifest.shoot && typeof manifest.shoot === 'object') {
+    const { normalizeShoot, lowerShoot } = await import('@/lib/graph/shoot/plan');
+    const { shootSubjects, worldIsLive } = await import('@/lib/graph/shoot/subjects');
+    const subjects = shootSubjects(payload);
+    const { plan } = normalizeShoot(manifest.shoot, { subjects });
+    // a live world (entities, physics) plays as it goes: the page runs the plan on its clock instead of rewinding it
+    if (plan) payload.shoot = lowerShoot(plan, { subjects, live: worldIsLive(payload) });
   }
 
   return { payload, kind };

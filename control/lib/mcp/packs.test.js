@@ -18,6 +18,7 @@ import {
   PACKS,
   RETIRED_PACKS,
   RETIRED_OFFICE_TOOLS,
+  RETIRED_TOOLS,
   SPINE,
   FOLDED,
   PACK_DESCRIPTION_CEILING,
@@ -60,7 +61,9 @@ import { join } from 'node:path';
 // Re-pinned 2026-10-10 (31_300 -> 32_400; measured 32,335) for the Characters ring: pack_character, listed first.
 // Re-pinned 2026-10-12 (32_400 -> 32_500; measured 32,463) for asset receipts: pack_stash's description names
 // sign_asset / verify_asset.
-const PACKS_PAYLOAD_CEILING = 32_500;
+// Re-pinned 2026-10-14 (32_500 -> 32_600; measured 32,557) for 1014-interior-designer: pack_building lists
+// design_interior beside mint_building and names it in its description.
+const PACKS_PAYLOAD_CEILING = 32_600;
 
 let server;
 let listTools;
@@ -126,10 +129,12 @@ describe('pack registry shape', () => {
     }
   });
 
-  it('the retired office packs never list, and none of their members is homed in a live pack', () => {
-    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services']);
+  it('the retired packs never list, and none of their members is homed in a live pack', () => {
+    expect(RETIRED_PACKS.map((p) => p.id)).toEqual(['pack_runtime', 'pack_connected_services', 'pack_game_projects', 'pack_folded_doors']);
+    expect(RETIRED_OFFICE_TOOLS).not.toContain('create_game_project');
+    expect(RETIRED_TOOLS).toEqual(expect.arrayContaining([...RETIRED_OFFICE_TOOLS, 'create_game_project', 'list_game_projects', 'create_shoot_plan', 'update_shoot_plan']));
     const live = new Set(PACKS.flatMap((p) => [p.id, ...p.members]));
-    for (const name of RETIRED_OFFICE_TOOLS) expect(live.has(name), name).toBe(false);
+    for (const name of RETIRED_TOOLS) expect(live.has(name), name).toBe(false);
     for (const pack of RETIRED_PACKS) expect(live.has(pack.id), pack.id).toBe(false);
   });
 

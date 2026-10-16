@@ -40,6 +40,7 @@ export const MOTIVATIONS = Object.freeze({
   escort:      'stays with an ally',
   ambient:     'no goal: it is there to be met (the practice dummy)',
   sentry:      'never moves: turns to the nearest foe in range and fires (a tower, a turret)',
+  frag:        'plays a match: fights whom it sees (who shot it first), hunts the noise when it sees no one, strafes as it shoots',
 });
 
 /**

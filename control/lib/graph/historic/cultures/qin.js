@@ -4,11 +4,13 @@
  *  - no outer city wall (none has been found): the town is its palace enclosure and its walled wards;
  *  - straight roofs of grey unglazed tile; red columns as the standard (unattested) reading;
  *  - Epang's front hall only begun, across the river; the market a Han analogue.
- * Colours from the style card's sampled palette (../style/qin.js). Laid out by ../layouts/qin.js ('wei-wards').
+ * Colours from the style card's sampled palette (../style/qin.js). Its town is solved
+ * from its form (../form/towns.js).
  */
 import { QIN_ASSETS } from '../assets/qin.js';
 import { QIN_STYLE } from '../style/qin.js';
-import { QIN_READ_AT, QIN_RECORD, QIN_SOURCES } from '../record/qin.js';
+import { QIN_READ_AT } from '../record/qin.js';
+import { RECORDS } from '../ledger/records.js';
 
 const S = QIN_STYLE.palette, WARD = QIN_STYLE.kit.wall.ward;
 
@@ -21,8 +23,7 @@ export const QIN = {
   region: 'china',
   aliases: ['xianyang', 'qin shi huang', 'first emperor', 'warring states', 'terracotta army'],   // what people call it (search)
   soundtrack: 'qin',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
-  record: { id: 'qin', entries: QIN_RECORD, sources: QIN_SOURCES },   // the encyclopedia entry's basis
-  layout: 'wei-wards',
+  record: RECORDS.qin,   // the encyclopedia entry's basis
   palette: {
     ground: S.loess,               // the loess the town stands on
     lane: '#c3a175',               // beaten loess lanes, darker with traffic

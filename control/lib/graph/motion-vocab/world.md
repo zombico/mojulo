@@ -19,6 +19,10 @@ WORLD motions apply the SAME camera motions (turntable / orbit / push_in / dolly
 
 `shot.motion`: same names as the camera family. `shot.params`: same camera params, plus `{ width, height }` for the render canvas. A World is RASTER-NATIVE — there is NO durable flipbook SVG; it exports a looping `.gif` (the preview: 480 wide and at most 12 fps, `gif_width` to change the width) and, on `export:'mp4'|'both'`, a downloadable `.mp4`/H.264 (the better form for a smooth fly-through). Heavier than the SVG paths (headless Chromium + SwiftShader renders each frame), so keep frame counts modest.
 
+## Shot — plan (the world's shoot plan)
+
+`shot.motion: 'plan'` renders the cameras and cut list a world carries (written with `shoot`; manual `get_motion_vocab({ id: 'shoot' })`). Each frame is captured from its shot's camera with the world stepped to that frame's own clock, so a cut between two shots of one span replays the action, and a camera following a car finds it where the plan put it. `shot.fps` (default: the plan's), `shot.params`: `{ shot: <name | index> }` for one shot alone, `{ width, height }`. Exports as the other camera shots do (`gif` / `mp4` / `both`).
+
 ## Shot — traversal (an input-script run)
 
 `shot.motion: 'traversal'` drives the world's LIVE channels (controllable entities, physics, events) exactly as the interactive page would, instead of a camera path over passive time:

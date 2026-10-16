@@ -27,14 +27,19 @@ const HOUSE = { kind: 'floorplan', seed: 5, storeys: 2, roof: 'hip', windows: tr
 const bible = (ref, q = '') => GET(new NextRequest(`http://localhost/api/sketches/${ref}/bible${q}`), { params: Promise.resolve({ ref }) });
 
 describe('GET /bible', () => {
-  it('the character bible of a world with a character book, the world bible otherwise, the same bytes the sheets make', async () => {
-    const hero = await bible('gw_hero');
-    expect(hero.status).toBe(200);
-    expect(hero.headers.get('content-type')).toMatch(/text\/html/);
-    expect(await hero.text()).toBe(characterBibleHtml(MEADOWMARK_HERO));
+  it('the world bible of every world, its character bible on asking, the same bytes the sheets make', async () => {
+    const world = await bible('gw_hero');
+    expect(world.status).toBe(200);
+    expect(world.headers.get('content-type')).toMatch(/text\/html/);
+    // a world with a hero keeps its world bible: the map, the land, the civilizations, each level
+    expect(await world.text()).toBe(gameworldBibleHtml(MEADOWMARK_HERO));
+    expect(await (await bible('gw_hero', '?book=characters')).text()).toBe(characterBibleHtml(MEADOWMARK_HERO));
     expect(await (await bible('gw_ground')).text()).toBe(gameworldBibleHtml(MEADOWMARK));
+    expect((await bible('gw_ground', '?book=characters')).status).toBe(422);
+    expect((await bible('gw_hero', '?book=elsewhere')).status).toBe(400);
     expect((await bible('gw_hero', '?download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark\.html"/);
-  }, 60_000);
+    expect((await bible('gw_hero', '?book=characters&download=1')).headers.get('content-disposition')).toMatch(/attachment; filename="Meadowmark-characters\.html"/);
+  }, 120_000);
 
   it('a house is its structure book, its World framed; a downloaded book leaves the World out', async () => {
     const res = await bible('sk_house');

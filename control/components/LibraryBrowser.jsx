@@ -5,9 +5,9 @@
  *
  * Nothing renders here. A left rail lists All sketches, Unfiled and every folder,
  * then the shelves with their whole-store counts; the body is one table of rows
- * (name, kind, minted, ref) with open / move / delete on hover; the strip under
- * the table shows the focused row's facts and actions and turns into the bulk
- * bar when rows are checked. Seeing a sketch is what /sketches/<ref> is for.
+ * (name, kind, minted, ref) with open on hover; the strip under the table shows
+ * the focused row's facts and downloads. Seeing a sketch is what /sketches/<ref>
+ * is for. View-only: the agent files, renames and deletes over MCP.
  *
  * The shelf model is untouched: a shelf is still a FETCH SCOPE (library-shelves.js),
  * so every typed shelf lists its whole bucket and only `recent` is capped. The
@@ -15,8 +15,7 @@
  * with the table; the shelf counts are whole-store tallies from /api/sketches/counts.
  *
  * Search spans all folders (a row shows where it lives), as the gallery did.
- * SketchGallery keeps the beats route and lends its folder modals, download links
- * and icons.
+ * SketchGallery keeps the beats route and lends its download links and icons.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -24,18 +23,10 @@ import { useTranslations } from 'next-intl';
 import WorkshopShell from '@/components/WorkshopShell';
 import MaterialShelf from '@/components/MaterialShelf';
 import {
-  CloseIcon,
-  DiskIcon,
   ExternalLinkIcon,
   FileIcon,
   FolderIcon,
-  FolderPlusIcon,
-  MoveToFolderModal,
-  NewFolderModal,
-  PencilIcon,
-  PlusIcon,
   SketchDownloads,
-  TrashIcon,
 } from '@/components/SketchGallery';
 import {
   CHARACTER_KINDS,
@@ -145,12 +136,6 @@ const railLabel =
 const iconButton =
   'inline-flex h-7 w-7 items-center justify-center rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)] text-[color:var(--ink-secondary)] hover:border-[color:var(--live-idle)] hover:text-[color:var(--live)] disabled:opacity-50';
 
-const button =
-  'inline-flex h-[30px] items-center gap-1.5 rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-bench)] px-3 text-xs text-[color:var(--ink-primary)] hover:border-[color:var(--bay-rail-lit)] disabled:opacity-50';
-
-const dangerButton =
-  'inline-flex h-[30px] items-center gap-1.5 rounded-[var(--radius-control)] border border-red-900 bg-red-950/40 px-3 text-xs text-red-300 hover:bg-red-900/50 disabled:opacity-50';
-
 function SortHeader({ col, label, sort, onSort, className }) {
   const active = sort.key === col;
   return (
@@ -172,7 +157,6 @@ function SortHeader({ col, label, sort, onSort, className }) {
 export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = false }) {
   const t = useTranslations('sketchesIndex');
   const tFolder = useTranslations('sketchesIndex.folder');
-  const tSelect = useTranslations('sketchesIndex.select');
   const tLibrary = useTranslations('library');
   const tShelves = useTranslations('library.shelves');
 
@@ -186,19 +170,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
   const [sort, setSort] = useState(SORT_DEFAULT);
   const [folderScope, setFolderScope] = useState(null);
   const [focusRef, setFocusRef] = useState(null);
-  const [checked, setChecked] = useState(() => new Set());
-
-  const [showNewFolder, setShowNewFolder] = useState(false);
-  const [folderBusy, setFolderBusy] = useState(false);
-  const [moveRefs, setMoveRefs] = useState(null);   // refs the move picker acts on
-  const [moveBusy, setMoveBusy] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [actionError, setActionError] = useState('');
-
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [draftTitle, setDraftTitle] = useState('');
-  const [renameBusy, setRenameBusy] = useState(false);
-  const [renameError, setRenameError] = useState('');
 
   /* ── data ─────────────────────────────────────────────────────────────── */
 
@@ -210,10 +181,8 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
       const data = await jsonOrThrow(await fetch(scope ? `/api/sketches?bucket=${scope}` : '/api/sketches'));
       setSketches(data.sketches || []);
       setFolders(data.folders || []);
-      return data;
     } catch (e) {
       setError(e.message);
-      return null;
     } finally {
       setLoading(false);
     }
@@ -298,16 +267,8 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
 
   // Leaving the rows behind clears what pointed at them.
   useEffect(() => {
-    setChecked(new Set());
     setFocusRef(null);
-    setActionError('');
   }, [shelf, folderScope]);
-
-  useEffect(() => {
-    setEditingTitle(false);
-    setDraftTitle('');
-    setRenameError('');
-  }, [focusRef]);
 
   const changeShelf = useCallback((next) => {
     setShelf(next);
@@ -318,217 +279,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
       window.history.replaceState(null, '', url);
     }
   }, []);
-
-  /* ── actions ──────────────────────────────────────────────────────────── */
-
-  const toggleChecked = useCallback((ref) => {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(ref)) next.delete(ref);
-      else next.add(ref);
-      return next;
-    });
-  }, []);
-
-  const createFolder = useCallback(
-    async (name) => {
-      const trimmed = (name || '').trim();
-      if (!trimmed) return null;
-      setFolderBusy(true);
-      setActionError('');
-      try {
-        const body = await jsonOrThrow(
-          await fetch('/api/sketches/folders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: trimmed }),
-          }),
-        );
-        await load();
-        setShowNewFolder(false);
-        return body?.folder?.ref || null;
-      } catch (e) {
-        setActionError(e.message);
-        return null;
-      } finally {
-        setFolderBusy(false);
-      }
-    },
-    [load],
-  );
-
-  const renameFolder = useCallback(
-    async (folder) => {
-      const next = window.prompt(tFolder('rename'), folder.name);
-      if (!next || !next.trim() || next.trim() === folder.name) return;
-      setFolderBusy(true);
-      setActionError('');
-      try {
-        await jsonOrThrow(
-          await fetch(`/api/sketches/folders/${encodeURIComponent(folder.ref)}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: next.trim() }),
-          }),
-        );
-        await load();
-      } catch (e) {
-        setActionError(e.message);
-      } finally {
-        setFolderBusy(false);
-      }
-    },
-    [load, tFolder],
-  );
-
-  const deleteFolder = useCallback(
-    async (folder) => {
-      if (!window.confirm(tFolder('deleteConfirm'))) return;
-      setFolderBusy(true);
-      setActionError('');
-      try {
-        await jsonOrThrow(
-          await fetch(`/api/sketches/folders/${encodeURIComponent(folder.ref)}`, { method: 'DELETE' }),
-        );
-        setFolderScope(null);
-        await load();
-      } catch (e) {
-        setActionError(e.message);
-      } finally {
-        setFolderBusy(false);
-      }
-    },
-    [load, tFolder],
-  );
-
-  const moveTo = useCallback(
-    async (folderRef) => {
-      if (!moveRefs || moveRefs.length === 0) return;
-      setMoveBusy(true);
-      setActionError('');
-      try {
-        await jsonOrThrow(
-          await fetch('/api/sketches/move', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refs: moveRefs, folderRef }),
-          }),
-        );
-        setMoveRefs(null);
-        setChecked(new Set());
-        await load();
-      } catch (e) {
-        setActionError(tSelect('moveError', { error: e.message }));
-      } finally {
-        setMoveBusy(false);
-      }
-    },
-    [load, moveRefs, tSelect],
-  );
-
-  const deleteRefs = useCallback(
-    async (refs) => {
-      if (refs.length === 0) return;
-      if (!window.confirm(tSelect('deleteConfirm', { count: refs.length }))) return;
-      setDeleteBusy(true);
-      setActionError('');
-      try {
-        await jsonOrThrow(
-          await fetch('/api/sketches/delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refs }),
-          }),
-        );
-        if (focusRef && refs.includes(focusRef)) setFocusRef(null);
-        setChecked((prev) => {
-          const next = new Set(prev);
-          for (const r of refs) next.delete(r);
-          return next;
-        });
-        await load();
-      } catch (e) {
-        setActionError(tSelect('deleteError', { error: e.message }));
-      } finally {
-        setDeleteBusy(false);
-      }
-    },
-    [focusRef, load, tSelect],
-  );
-
-  const startRename = useCallback(() => {
-    if (!focused) return;
-    setDraftTitle(focused.title || '');
-    setRenameError('');
-    setEditingTitle(true);
-  }, [focused]);
-
-  const cancelRename = useCallback(() => {
-    setEditingTitle(false);
-    setDraftTitle('');
-    setRenameError('');
-  }, []);
-
-  const saveRename = useCallback(async () => {
-    if (!focused) return;
-    const next = draftTitle.trim();
-    if (!next) {
-      setRenameError(t('renameEmpty'));
-      return;
-    }
-    if (next === focused.title) {
-      cancelRename();
-      return;
-    }
-    setRenameBusy(true);
-    setRenameError('');
-    try {
-      await jsonOrThrow(
-        await fetch(`/api/sketches/${encodeURIComponent(focused.ref)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: next }),
-        }),
-      );
-      cancelRename();
-      await load();
-    } catch (e) {
-      setRenameError(e.message);
-    } finally {
-      setRenameBusy(false);
-    }
-  }, [cancelRename, draftTitle, focused, load, t]);
-
-  // Save-as-new: the row is a summary without the recipe, so read the whole
-  // manifest by ref first, then mint a copy under the new title in the folder
-  // the rail is showing (the root when it shows every folder or Unfiled).
-  const saveAsNew = useCallback(async () => {
-    if (!focused) return;
-    const next = draftTitle.trim();
-    if (!next) {
-      setRenameError(t('renameEmpty'));
-      return;
-    }
-    setRenameBusy(true);
-    setRenameError('');
-    try {
-      const { manifest } = await jsonOrThrow(await fetch(`/api/sketches/${encodeURIComponent(focused.ref)}`));
-      const body = await jsonOrThrow(
-        await fetch('/api/sketches', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: next, manifest, folder_ref: currentFolder?.ref || null }),
-        }),
-      );
-      cancelRename();
-      const data = await load();
-      if (body?.ref && data?.sketches?.some((s) => s.ref === body.ref)) setFocusRef(body.ref);
-    } catch (e) {
-      setRenameError(e.message);
-    } finally {
-      setRenameBusy(false);
-    }
-  }, [cancelRename, currentFolder, draftTitle, focused, load, t]);
 
   /* ── render ───────────────────────────────────────────────────────────── */
 
@@ -563,14 +313,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
           <span className="font-mono text-[10.5px] text-[color:var(--ink-muted)]">{railCounts.byFolder.get(f.ref) || 0}</span>
         </button>
       ))}
-      <button
-        type="button"
-        onClick={() => setShowNewFolder(true)}
-        className={`${railRow(false)} text-[color:var(--live)] hover:text-[color:var(--live)]`}
-      >
-        <FolderPlusIcon className="h-3.5 w-3.5 shrink-0" />
-        {tFolder('newFolderButton')}
-      </button>
 
       <div className={railLabel}>{tLibrary('rail.shelves')}</div>
       {LIBRARY_SHELVES.map((s) => (
@@ -594,16 +336,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
     <div className="flex shrink-0 flex-wrap items-center gap-2 px-6 pb-3 pt-4">
       <h1 className="text-lg font-semibold text-[color:var(--ink-primary)]">{heading}</h1>
       <span className="text-xs text-[color:var(--ink-muted)]">· {tShelves(shelf)}</span>
-      {currentFolder && !searching && (
-        <span className="flex items-center gap-1">
-          <button type="button" onClick={() => renameFolder(currentFolder)} disabled={folderBusy} aria-label={tFolder('rename')} title={tFolder('rename')} className={iconButton}>
-            <PencilIcon className="h-3 w-3" />
-          </button>
-          <button type="button" onClick={() => deleteFolder(currentFolder)} disabled={folderBusy} aria-label={tFolder('delete')} title={tFolder('delete')} className={iconButton}>
-            <TrashIcon className="h-3 w-3" />
-          </button>
-        </span>
-      )}
       {!onRegistryShelf && (
         <div className="ml-auto flex items-center gap-2">
           <input
@@ -622,7 +354,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-[color:var(--bay-rail)]">
       <div className="flex h-7 shrink-0 items-center gap-3 border-b border-[color:var(--bay-rail-lit)] px-4 font-mono text-[10px] uppercase tracking-[0.14em] text-[color:var(--ink-muted)]">
         <span className="w-4" />
-        <span className="w-4" />
         <SortHeader col="name" label={tLibrary('columns.name')} sort={sort} onSort={changeSort} className="min-w-0 flex-1" />
         <SortHeader col="kind" label={tLibrary('columns.kind')} sort={sort} onSort={changeSort} className="w-24" />
         <SortHeader col="minted" label={tLibrary('columns.minted')} sort={sort} onSort={changeSort} className="w-24" />
@@ -639,7 +370,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
         ) : (
           rows.map((s) => {
             const isFocused = s.ref === focusRef;
-            const isChecked = checked.has(s.ref);
             const kindKey = kindKeyOf(s);
             const home = s.folderRef ? folderByRef.get(s.folderRef) : null;
             return (
@@ -652,14 +382,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
                     : 'hover:bg-[color:var(--bay-bench)]'
                 }`}
               >
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={() => toggleChecked(s.ref)}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={s.title}
-                  className={`h-3.5 w-3.5 shrink-0 accent-teal-400 ${isChecked ? '' : 'opacity-30 group-hover:opacity-100'}`}
-                />
                 <FileIcon className={`h-3.5 w-3.5 shrink-0 ${isFocused ? 'text-[color:var(--live)]' : 'text-[color:var(--ink-muted)]'}`} />
                 <span className="flex min-w-0 flex-1 items-center gap-2">
                   <span className="truncate text-[color:var(--ink-primary)]">{s.title}</span>
@@ -681,12 +403,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
                   <a href={`/sketches/${encodeURIComponent(s.ref)}`} target="_blank" rel="noreferrer" aria-label={t('openNewTab')} title={t('openNewTab')} className={iconButton}>
                     <ExternalLinkIcon className="h-3 w-3" />
                   </a>
-                  <button type="button" onClick={() => setMoveRefs([s.ref])} aria-label={t('rowAction.move')} title={t('rowAction.move')} className={iconButton}>
-                    <FolderIcon className="h-3 w-3" />
-                  </button>
-                  <button type="button" onClick={() => deleteRefs([s.ref])} disabled={deleteBusy} aria-label={t('rowAction.delete')} title={t('rowAction.delete')} className={iconButton}>
-                    <TrashIcon className="h-3 w-3" />
-                  </button>
                 </span>
               </div>
             );
@@ -698,63 +414,10 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
 
   const strip = (
     <div className="flex min-h-[64px] shrink-0 items-center gap-4 border-t border-[color:var(--bay-rail-lit)] bg-[color:var(--bay-bench)] px-6 py-3">
-      {checked.size > 0 ? (
-        <>
-          <span className="text-sm text-[color:var(--ink-primary)]">{tSelect('count', { count: checked.size })}</span>
-          <button type="button" onClick={() => setChecked(new Set(rows.map((s) => s.ref)))} className="text-xs text-[color:var(--live)]">
-            {tSelect('selectAll')}
-          </button>
-          <button type="button" onClick={() => setChecked(new Set())} className="text-xs text-[color:var(--ink-secondary)]">
-            {tSelect('clear')}
-          </button>
-          <div className="ml-auto flex items-center gap-2">
-            <button type="button" disabled={moveBusy} onClick={() => setMoveRefs(Array.from(checked))} className={button}>
-              <FolderIcon className="h-3 w-3" />
-              {tSelect('moveTo')}
-            </button>
-            <button type="button" disabled={deleteBusy} onClick={() => deleteRefs(Array.from(checked))} className={dangerButton}>
-              <TrashIcon className="h-3 w-3" />
-              {tSelect('delete')}
-            </button>
-          </div>
-        </>
-      ) : focused ? (
+      {focused ? (
         <>
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            {editingTitle ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={draftTitle}
-                  onChange={(e) => setDraftTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); saveRename(); }
-                    else if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
-                  }}
-                  disabled={renameBusy}
-                  autoFocus
-                  placeholder={t('renamePlaceholder')}
-                  aria-label={t('renameLabel')}
-                  className="h-8 min-w-0 flex-1 rounded-[var(--radius-control)] border border-[color:var(--bay-rail)] bg-[color:var(--bay-floor)] px-3 text-sm font-medium text-[color:var(--ink-primary)] focus:border-[color:var(--live)] focus:outline-none disabled:opacity-60"
-                />
-                <button type="button" onClick={saveRename} disabled={renameBusy || !draftTitle.trim()} aria-label={t('renameSave')} title={t('renameSave')} className={iconButton}>
-                  <DiskIcon className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={saveAsNew} disabled={renameBusy || !draftTitle.trim()} aria-label={t('renameSaveNew')} title={t('renameSaveNew')} className={`${iconButton} w-auto gap-0.5 px-1.5`}>
-                  <PlusIcon className="h-3 w-3" />
-                  <DiskIcon className="h-3.5 w-3.5" />
-                </button>
-                <button type="button" onClick={cancelRename} disabled={renameBusy} aria-label={t('renameCancel')} title={t('renameCancel')} className={iconButton}>
-                  <CloseIcon className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ) : (
-              <button type="button" onClick={startRename} title={t('renameLabel')} className="group flex max-w-full items-center gap-2 text-left">
-                <span className="truncate text-sm font-medium text-[color:var(--ink-primary)] group-hover:text-[color:var(--live)]">{focused.title}</span>
-                <PencilIcon className="h-3 w-3 shrink-0 text-[color:var(--ink-muted)] group-hover:text-[color:var(--live)]" />
-              </button>
-            )}
-            {renameError && <p className="text-xs text-red-400">{renameError}</p>}
+            <p className="truncate text-sm font-medium text-[color:var(--ink-primary)]">{focused.title}</p>
             <p className="truncate font-mono text-[11px] text-[color:var(--ink-muted)]">
               {focused.ref}
               {' · '}
@@ -769,14 +432,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             <SketchDownloads sketch={focused} t={t} />
-            <button type="button" onClick={() => setMoveRefs([focused.ref])} disabled={moveBusy} className={button}>
-              <FolderIcon className="h-3 w-3" />
-              {tSelect('moveTo')}
-            </button>
-            <button type="button" onClick={() => deleteRefs([focused.ref])} disabled={deleteBusy} className={dangerButton}>
-              <TrashIcon className="h-3 w-3" />
-              {tSelect('delete')}
-            </button>
           </div>
         </>
       ) : (
@@ -791,9 +446,9 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
         {rail}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {header}
-          {(error || actionError) && (
+          {error && (
             <div className="mx-6 mb-3 rounded border border-red-700 bg-red-900/30 px-4 py-2 text-sm text-red-400">
-              {error || actionError}
+              {error}
             </div>
           )}
           {shelfByKey(shelf).capped && !searching && (
@@ -811,22 +466,6 @@ export default function LibraryBrowser({ initialShelf = 'recent', authEnabled = 
           )}
         </div>
       </div>
-
-      {showNewFolder && (
-        <NewFolderModal tFolder={tFolder} busy={folderBusy} onCancel={() => setShowNewFolder(false)} onCreate={createFolder} />
-      )}
-      {moveRefs && (
-        <MoveToFolderModal
-          tFolder={tFolder}
-          tSelect={tSelect}
-          folders={folders}
-          currentFolderRef={currentFolder?.ref || null}
-          count={moveRefs.length}
-          busy={moveBusy}
-          onCancel={() => setMoveRefs(null)}
-          onChoose={moveTo}
-        />
-      )}
     </WorkshopShell>
   );
 }

@@ -33,9 +33,12 @@ import { gridX, gridY } from '../polygonizer/landform.js';
 import { composeCloudDeck } from '../effects/effects-clouds.js';
 import { resolveTerrainWind, windPageChannel } from '../vegetation/wind.js';
 import { grassLadder } from '../vegetation/grass.js';
+import { resolveGrassContact, validateGrassContact } from '../vegetation/grass-contact.js';
+import { wildflowerLadder, flowerRamp, WILDFLOWER_KINDS } from '../vegetation/wildflowers.js';
 import { outTrailSite, streamFaces, outTrailPayload, outTrailCamera } from './out-trail.js';
 import { boundFaces } from './out-bounds.js';
 import { placeIkebana, ikebanaFaces, ikebanaFill, SOFT_GROUP } from './ikebana-place.js';
+import { placeShrubs, validateShrubs, SHRUB_GROUP } from './shrubs.js';
 
 export { ISEKAI_STYLES };
 const smooth = (a, b, v) => { const t = Math.max(0, Math.min(1, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -275,11 +278,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // IKEBANA (a card's `ikebana`, ikebana-place.js): arrangements painted along the banks, standing on the land; what
   // the grass keeps clear of is the trees and every blocking stem
   const ike = st.ikebana ? placeIkebana(st, site, seed) : null, ikeRaw = ike ? ikebanaFaces(st, ike) : [];
-  const near = ike ? [...trees, ...ike.avoid] : trees;
+  // SHRUBS (a card's `shrubs`, shrubs.js): bushes through the grass by the trail, in flower, in fruit or green; drawn the
+  // ikebana's way, and the grass kept off their feet
+  const shrubErr = validateShrubs(manifest.shrubs); if (shrubErr.length) throw new Error(`isekai: ${shrubErr.join('; ')}`);
+  const shr = placeShrubs(st.shrubs, manifest.shrubs, site, { rocks, trees, unit: st.rubble.unit, reserved: site.reserved }, seed);
+  const shrRaw = ikebanaFaces(st, shr).map((f) => ({ ...f, group: SHRUB_GROUP }));
+  const near = [...trees, ...(ike ? ike.avoid : []), ...shr.avoid];
   // THE GLOW (a card's `glow`): every lantern crown a light, baked into the ground round it and lifting the cel band
   const Gl = st.glow, glowLights = Gl ? trees.filter((t) => t.crownAt).map((t) => ({ at: t.crownAt, color: Gl.color, intensity: t.hero ? Gl.trees.hero : Gl.trees.intensity, radius: Gl.trees.radius * (t.hero ? 1.6 : 1) })) : [];
   const glowAt = (p) => { let g = 0; for (const l of glowLights) { const d = Math.hypot(l.at[0] - p[0], l.at[1] - p[1], l.at[2] - p[2]); if (d < l.radius) g = Math.max(g, l.intensity * (1 - d / l.radius) ** 2); } return g; };
-  const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...ikeRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
+  const solid = [...ground.faces, ...ribbon, ...boulders.flatMap((b) => [...b.sides, ...b.cap]), ...wood, ...ikeRaw, ...shrRaw, ...(grove ? [...grove.culms, ...grove.sprays] : []), ...(sak ? [...sak.wood, ...sak.clumps, ...sak.sprigs] : [])];
   // a spray (or a sprig) stops the sun only where its leaves (its flowers) are painted: the floor under it is dappled
   const cardMask = grove ? 'spray' : sak ? 'sprig' : null;
   const shadow = makeSunShadow(solid, dir, cardMask ? { cell: 0.6, maskOf: (f) => (f.cel === cardMask ? isekaiMask(isekaiKeyOf(st, cardMask, true)) : null) } : { cell: 0.6 });
@@ -314,7 +322,8 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     }
   }
   const Lp = st.lip;
-  for (const l of ground.lips) {
+  // (a card with no grass, an airless one's, drapes no fringe over its cliff lips and stands no blades)
+  for (const l of st.grass ? ground.lips : []) {
     drape(fringes, l.a, l.b, addv(l.a, mul(l.down, Lp.fringe * 2)), addv(l.b, mul(l.down, Lp.fringe * 2)), Lp.fringe, Lp.out, l.out, null, Lp.scale, 'isekai:lip');
     fringes[fringes.length - 1].lit = lit(mean([l.a, l.b]), [0, 0, 1]) && dot(l.out, dir) > -0.35;
   }
@@ -338,9 +347,9 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   // PETALS: litter under each sakura, flat cutout cards, the band by the shade each lies in
   if (st.trees.petals) for (const f of petalFaces(st, site, trees)) draw(f, 'petals', shadow(addv(mean(f.corners), [0, 0, 0.3]), [0, 0, 1]) > 0);
   // the arrangements: each face its part's ramp in the kit's skin, a stop up where the sun reaches it
-  for (const f of ikeRaw) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
+  for (const f of [...ikeRaw, ...shrRaw]) { const { part: _p, value: _v, ...rest } = f; cel.push({ ...rest, fill: rgbHex(ikebanaFill(st, f, lit(mean(f.corners), f.normal), dot(f.normal, dir) < -0.2).map((v) => v / 255)) }); }
   // grass: crossed blade cards, the band by the shadow at the root
-  const tufts = grassTufts(st, site, near, rocks, sun, seed), G = st.grass.cards;
+  const tufts = st.grass ? grassTufts(st, site, near, rocks, sun, seed) : [], G = st.grass?.cards;
   tufts.forEach((t, i) => {
     const raw = [], h = t.scale * G.height;
     crossed(raw, [t.pos[0], t.pos[1], t.pos[2] - 0.03], Math.PI * hash3(i, 61, S + 157), h * G.width, h, isekaiKeyOf(st, 'blades', t.lit), [1, 1, 1], 'isekai:grass', t.level === 'L1' ? 3 : 2);
@@ -348,7 +357,7 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
   });
   // the FIELD: within `reach` of the trail the meadow stands as one sea of blades, a tuft on a jittered grid every
   // `every` metres (never on the ribbon, a rock or a trunk), the band by the shadow at its root
-  const F = st.grass.field;
+  const F = st.grass?.field;
   if (F) {
     let i = 0;
     for (let y = 0.2; y < site.D; y += F.every) for (let x = 0; x < site.W; x += F.every, i++) {
@@ -439,15 +448,16 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
     title: ctx.title || manifest.title || `mojulo stage · ${st.id.replace('-', ' ')}`,
     bg: rgbHex(sky[sky.length - 1].map((v) => v / 255)),
     haze: { color: st.air.fog.color, density: st.air.fog.density },
-    sky: st.night ? nightSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) },
+    sky: st.night ? nightSky(st, dir) : st.void ? voidSky(st, dir) : { zenith: sky[0], horizon: sky[sky.length - 1], day: 1, stars: 0, seed: 1, ...(st.sun ? { sun: { dir: dir.map(r5), size: st.sun.size, glow: st.sun.glow } } : {}), ...(st.companion ? { moon: domeAt(st.companion) } : {}) },
     glow: !!Gl,
     pack: true,
-    ...(manifest.wind ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind, seed) } : {}),
-    walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: 1.7, gravity: 22, radius: 0.4 },
+    ...((manifest.wind || manifest.grass) && st.grass ? { liveGrass: liveGrassConfig(st, site, rocks, near, shadow, manifest.wind || true, seed, manifest.grass) } : {}),
+    walk: manifest.walk === false ? false : { speed: 6, spawn: eye.map(r5), minEye: WALK_EYE, gravity: 22, radius: 0.4 },
     ...(site.out ? outTrailPayload(site) : {}),
   };
   // the arrangements on the page: the soft group is walked through; what blocks is a collider and every arrangement an
   // anchor an engine can find
+  if (shr.anchors.length) Object.assign(payload, { colliders: [...(payload.colliders ?? []), ...shr.colliders], anchors: [...(payload.anchors ?? []), ...shr.anchors] });
   if (ike) Object.assign(payload, { soft: [SOFT_GROUP], colliders: [...(payload.colliders ?? []), ...ike.colliders], anchors: [...(payload.anchors ?? []), ...ike.anchors] });
   return payload;
 }
@@ -462,6 +472,13 @@ export function assembleIsekaiScene(manifest = {}, ctx = {}) {
 function domeAt({ azimuth, elevation, size = 4, phase = 0.6 }) {
   const d = sunDir(elevation, azimuth), az = Math.atan2(d[1], d[0]), el = Math.asin(Math.max(-1, Math.min(1, d[2])));
   return { u: r5((az + Math.PI / 2) / Math.PI + 0.5), h: r5(el / (Math.PI / 2)), phase, size };
+}
+/** THE VOID (a card's `void`: a world with no air): the sky the palette's void, the stars out by day, the sun a white
+ *  disc where the key comes from, and a world hanging where the card puts it. */
+function voidSky(st, dir) {
+  const V = st.void, sky = st.palette.sky;
+  return { zenith: sky[0], horizon: sky[sky.length - 1], day: 0, stars: V.stars ?? 1, seed: 1,
+    sun: { dir: dir.map(r5), size: st.sun?.size ?? 1, glow: V.glow ?? 0.5 }, ...(V.companion ? { moon: { ...domeAt(V.companion), ...(V.companion.color ? { color: V.companion.color } : {}) } } : {}) };
 }
 function nightSky(st, dir) {
   const N = st.night, sky = st.palette.sky, az = Math.atan2(dir[1], dir[0]), el = Math.asin(Math.max(-1, Math.min(1, dir[2])));
@@ -536,6 +553,67 @@ export function layerFaces(st, site, dir = [0, 0, 1]) {
   return out;
 }
 
+const WALK_EYE = 1.7;
+// the material pole's grass: the root `ao` (its colour × this at the ground), the sun's `back` light through a blade seen
+// against it, the `dry` share of tufts gone to straw at the tips
+// the wildflowers' defaults: a card's `live.flowers`, then a recipe's `grass.flowers`, over these
+const FLOWERS_DEFAULT = Object.freeze({ size: 1, lift: 1, share: 0.12, mix: Object.freeze({ daisy: 3, buttercup: 2, clover: 2, lupine: 1, poppy: 1 }), variants: 2 });
+const REAL_GRASS = Object.freeze({ ao: 0.45, back: 0.7, dry: 0.22 });
+const GRASS_KEYS = ['look', 'contact', 'density', 'height', 'flowers'];
+/**
+ * `grass` on an isekai stage: the live field's own dials, beside `wind` (and standing it in the default wind without one).
+ * { look?: 'banded' | 'material' (default the kit's pole), contact?: true | false | { body?, press?, recover?, wave?,
+ * land? } (vegetation/grass-contact.js), density? (tufts a square metre), height?: [lo, hi] (metres) } → error strings.
+ */
+export function validateIsekaiGrass(g) {
+  if (g === undefined || g === null || g === true) return [];
+  if (typeof g !== 'object' || Array.isArray(g) || Object.keys(g).some((k) => !GRASS_KEYS.includes(k))) return ['grass must be true or { look?, contact?, density?, height? }'];
+  const e = [];
+  if (g.look !== undefined && !['banded', 'material'].includes(g.look)) e.push("grass.look must be 'banded' (the ramp's stops, locked) or 'material' (a material under light)");
+  if (g.density !== undefined && !(Number.isFinite(g.density) && g.density >= 0.5 && g.density <= 12)) e.push('grass.density must be 0.5–12 (tufts a square metre)');
+  if (g.height !== undefined && !(Array.isArray(g.height) && g.height.length === 2 && g.height.every((v) => Number.isFinite(v) && v >= 0.1 && v <= 2.5) && g.height[0] <= g.height[1])) e.push('grass.height must be [lo, hi], 0.1–2.5 m, lo ≤ hi');
+  const F = g.flowers;
+  if (F !== undefined && F !== true && F !== false) {
+    if (!F || typeof F !== 'object' || Array.isArray(F) || Object.keys(F).some((k) => !['share', 'mix'].includes(k))) e.push('grass.flowers must be true, false or { share?, mix? }');
+    else {
+      if (F.share !== undefined && !(Number.isFinite(F.share) && F.share >= 0 && F.share <= 1)) e.push('grass.flowers.share must be 0–1 (the share of tufts in flower)');
+      if (F.mix !== undefined && (!F.mix || typeof F.mix !== 'object' || Array.isArray(F.mix) || Object.entries(F.mix).some(([k, v]) => !WILDFLOWER_KINDS.includes(k) || !(Number.isFinite(v) && v >= 0)) || !Object.values(F.mix).some((v) => v > 0))) e.push(`grass.flowers.mix must weigh some of ${WILDFLOWER_KINDS.join(', ')} (numbers ≥ 0, one over 0)`);
+    }
+  }
+  return [...e, ...validateGrassContact(g.contact)];
+}
+
+/**
+ * The WILDFLOWERS in the live grass (scene/channels/stage-grass.js): a `share` of the tufts carries the flowers of a kind
+ * drawn by its weight in `mix` (vegetation/wildflowers.js). The flowers' ramp is the grass's stops, then each ramp a
+ * petal or an eye takes in the kit's palette; a part's window is the ramp's upper stops in the sun, its lower in shade.
+ */
+function flowerConfig(st, F, seed) {
+  const ramp = [...st.palette.grass], at = new Map();
+  const win = (name) => {
+    if (!at.has(name)) { at.set(name, ramp.length); ramp.push(...st.palette[name]); }
+    const a = at.get(name), n = st.palette[name].length; return { lit: [a + 1, a + n - 1], shade: [a, a + n - 2] };
+  };
+  const templates = [], kinds = [];
+  for (const [kind, weight] of Object.entries(F.mix)) {
+    const petal = flowerRamp(kind, 'petal', st.palette); if (!(weight > 0) || !petal) continue;
+    const eye = flowerRamp(kind, 'eye', st.palette) ?? petal, variants = [];
+    for (let v = 0; v < (F.variants ?? 2); v++) {
+      const lad = wildflowerLadder(kind, { seed: seed * 13 + 101 * v + kind.length, size: F.size, lift: F.lift }), ids = {};
+      for (const lv of ['L2', 'L1', 'L0']) {
+        const P = lad[lv].flatMap((t) => t.p.flat()), plo = [0, 1, 2].map((k) => Math.min(...P.filter((_, i) => i % 3 === k))), phi = [0, 1, 2].map((k) => Math.max(...P.filter((_, i) => i % 3 === k)));
+        const sc = plo.map((l, k) => Math.max(1e-9, (phi[k] - l) / 65535));
+        templates.push({ lo: plo.map(r5), sc, q: b64(Int16Array.from(P, (x, i) => Math.round((x - plo[i % 3]) / sc[i % 3]) - 32768)),
+          seg: b64(Uint8Array.from(lad[lv].flatMap((t) => [0, 1, 2].map(() => ({ stem: 0, petal: 1, eye: 2 })[t.part])))), v: b64(Uint8Array.from(lad[lv].flatMap((t) => t.v.map((x) => Math.round(x * 255))))), tris: lad[lv].length });
+        ids[lv] = templates.length - 1;
+      }
+      variants.push(ids);
+    }
+    kinds.push({ kind, weight, petal: win(petal), eye: win(eye), variants });
+  }
+  return kinds.length ? { share: F.share, ramp, kinds, templates } : null;
+}
+
 const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).toString('base64'), t: a.constructor.name });
 /**
  * The LIVE GRASS the World page stands round the walker with `wind` (scene/channels/stage-grass.js): the ground as the
@@ -544,8 +622,9 @@ const b64 = (a) => ({ __b64: Buffer.from(a.buffer, a.byteOffset, a.byteLength).t
  * only: the colour is the ramp's, by height), the grass ramp and its lit and shade windows, the wind and its grass taker,
  * and the crowns that sway.
  */
-export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1) {
-  const L = st.live, g = site.grid, nx = g.nx, ny = g.ny, x0 = gridX(g, 0), y0 = gridY(g, 0), cell = gridX(g, 1) - x0;
+export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1, grass = undefined) {
+  const errs = validateIsekaiGrass(grass); if (errs.length) throw new Error(`isekai: ${errs.join('; ')}`);
+  const G = grass && grass !== true ? grass : {}, L = st.live, g = site.grid, nx = g.nx, ny = g.ny, x0 = gridX(g, 0), y0 = gridY(g, 0), cell = gridX(g, 1) - x0;
   let lo = Infinity, hi = -Infinity; for (const z of g.z) { lo = Math.min(lo, z); hi = Math.max(hi, z); }
   const zsc = Math.max(1e-6, (hi - lo) / 65535), zq = Int16Array.from(g.z, (z) => Math.round((z - lo) / zsc) - 32768);
   const m = new Uint8Array((nx - 1) * (ny - 1)), node = (i, j) => [gridX(g, i), gridY(g, j), g.z[j * nx + i]];
@@ -573,12 +652,20 @@ export function liveGrassConfig(st, site, rocks, trees, shadow, wind, seed = 1) 
     variants.push(ids);
   }
   const spec = resolveTerrainWind(wind === true ? { debris: false } : { ...wind, debris: false });
-  const W = windPageChannel(spec, { grassKinds: [L.kind] }), T = st.tiles.blades;
+  const W = windPageChannel(spec, { grassKinds: [L.kind] }), T = st.tiles.blades, contact = resolveGrassContact(G.contact, L.contact);
+  // opt-in: a recipe asks (`grass.flowers`), the card's `live.flowers` its defaults
+  const fl = !G.flowers ? null : flowerConfig(st, { ...FLOWERS_DEFAULT, ...(L.flowers || {}), ...(G.flowers && G.flowers !== true ? G.flowers : {}) }, seed);
   return {
     grid: { x0: r5(x0), y0: r5(y0), cell: r5(cell), nx, ny, zlo: r5(lo), zsc, z: b64(zq), m: b64(m) },
     ramp: st.palette.grass, win: L.win || { lit: [T.lit[0], T.lit[T.lit.length - 1]], shade: [T.shade[0], T.shade[T.shade.length - 1]] },
-    templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: L.density, height: L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
-    sheen: L.sheen, part: L.part, taker: W.grass[0],
+    templates, variants, size: 1.2, radius: L.radius, near: L.near, tile: L.tile, density: G.density ?? L.density, height: G.height ?? L.height, px: L.px, drawTris: L.drawTris, seed: seed | 0,
+    sheen: L.sheen, taker: W.grass[0],
+    // CONTACT: what walks, lands or strikes in the grass lays it (vegetation/grass-contact.js); `contact: false` ⇒ none
+    ...(contact ? { contact: { ...contact, eye: WALK_EYE } } : {}),
+    // WILDFLOWERS on a share of the tufts, riding their tufts (`grass.flowers: false` ⇒ none)
+    ...(fl ? { flowers: fl } : {}),
+    // the MATERIAL pole draws the grass as a material under light: by the look's pole unless the recipe says
+    ...((G.look ?? poleOf(st)) === 'material' ? { real: { ...REAL_GRASS, ...(L.real || {}), sun: sunDir(st.light.key.elevation, st.light.key.azimuth).map(r5), sunColor: hexRgb(st.light.key.color).map((v) => Math.round(v * 255)) } } : {}),
     // the sakura's PETALS: falling from under each crown, and the CARPET lying round the walker
     ...(L.petals && st.trees.form === 'blossom' ? { petals: petalConfig(st, site, rocks, trees, shadow, L.petals, seed) } : {}), cards: ['isekai:grass'], crowns: L.crowns ? { groups: ['isekai:crown', 'isekai:wood'], ...L.crowns } : null, wind: W,
   };

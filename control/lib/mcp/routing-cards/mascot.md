@@ -1,0 +1,11 @@
+---
+{
+  "id": "mascot",
+  "name": "Make a cartoon mascot (a promise on a head-heavy, round, big-eyed body that animates)",
+  "summary": "A mascot rolled from a few words into a sheet (promise, form, accent, eyes, hook, extremities, energy, hue) and compiled to a rigged body: one to three heads tall, a round core with a spiky, round or blocky accent, big eyes, big hands and feet, an owned palette, an idle that never stands still.",
+  "when": "\"a mascot for my game\", \"a Mario-like little guy in a cap\", \"something cartoony like Sonic\", \"a Kirby-like round guy\", \"a cute platformer hero\", \"a team mascot\", \"a toon critter that bounces\", \"a plushie character that can animate\"",
+  "entry": "create_character",
+  "form": "character"
+}
+---
+→ `create_character({ as: 'mascot', spec: { brief: 'a sonic-like mascot', facets?, seed? } })`. Facets (optional): promise (speed, cheer, mischief, might, comfort, pride, wonder), form (orb, sprout, toon), accent (round, spike, block: harmony or contrast), eyes (pair, joined, dots), hook (ears, quills, snout, tuft, antenna, tail, spines, cap, moustache), extremities (nubs, gloves, paws), energy, hue, being (critter, human), skin, expression (the rest face), adorn (collar, scarf, bow, belt, medal, bandana, pack, bands), style (toon, or anime: chibi SD). A real species: name it ('a fox mascot', facets.animal: 'greatHornedOwl'). It mints a rigged creature with a mouth, lids and brows; clips idle, hop, cheer, wave, blink and one per expression (happy, grin, sad, angry, surprised …); revise with `update_character` patch ops. To keep it, an egocube (`roll.tuning: 'mascot'`); a person's egocube makes its mascot with `create_character({ egocube, output: 'mascot' })`. A person in RPG proportions is card `hero`. Family: `get_creative_toolset({ form: 'character' })`.

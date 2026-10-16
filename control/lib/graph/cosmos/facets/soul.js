@@ -8,11 +8,15 @@ export const SOUL = Object.freeze({
     hero: {
       values: {
         hero: { status: 'built', lowers: 'lib/mcp/tools/create-character.js' },
-        creature: { status: 'built', lowers: 'lib/mcp/tools/create-character.js' },
-        animal: { status: 'built', lowers: 'lib/mcp/tools/create-character.js' },
+        // makeable and rigged, not yet a game's pilot: a world's figure takes a hero alone (heroRef, world-scene.js)
+        creature: { status: 'partial', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no creatureRef' },
+        animal: { status: 'partial', effort: 'M', lowers: 'lib/mcp/tools/create-character.js', note: 'made and rigged through create_character; not pilotable: a world figure takes a hero (heroRef), no animalRef' },
         // built 10-12: a quick game's `ride` (car, coupe, van) mints its build and pilots every stage on the drive rule,
         // its feel derived from the build's parts. Godot has no drive rule.
-        vehicle: { status: 'built', godot: false, lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only, no fly rule yet' },
+        vehicle: { status: 'built', godot: false, lowers: 'lib/graph/gameworld/ride.js', note: 'a quick game\'s ride: a car, coupe or van built by the vehicle designer and driven (rules-drive.js); quick games only' },
+        // built 10-14 (skyscape): a flight's aircraft, a class's envelope on the fly rule (a glider, a trainer, a jet).
+        // Its body is a placeholder slab until the aircraft roster; Godot has no fly rule.
+        aircraft: { status: 'built', godot: false, lowers: 'lib/graph/skyscape/craft.js', note: 'a quick flight\'s craft (glider, trainer, jet, and the space fighter): its class on the fly rule (rules-fly.js), seated on its runway, launched aloft or flying in space; its body a slab until the aircraft roster' },
       },
     },
     cast: { source: { module: 'lib/graph/polygonizer/figure-cast.js', table: 'CAST_PRESETS' } },

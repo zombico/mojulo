@@ -8,6 +8,7 @@
  *     links:[{ from, to, width?, height? }],         // a doorway where two rooms share a wall
  *     lights?: 'auto' | [{ at:[x,y,z], color?, intensity?, radius?, fixture? }],
  *     dirt?: { age, damp, soot, traffic, seed } }    // scales the causes in dirt.js; absent ⇒ DIRT_DEFAULTS
+ *   stands?: { room?, from?, rows?, fill?, seed? }    // an audience facing a room's one open side (stands.js)
  *
  * The level is three layers that never share a material: FLOOR, a JUNCTION band (a recessed gutter in front of
  * the plinth, rubble fallen into it) and WALL; the kit's pairing sets them apart. Dirt is baked per corner by
@@ -59,6 +60,7 @@ import { readInterceptors, intercept } from './interceptors.js';
 import { normalizeJets } from '../materials/jet.js';
 import { readStoreys, placeStairs, storeyCut, stairFaces, inStairs, boxInStairs, assembleStoreys } from './storeys.js';
 import { resolveTerrainWind } from '../vegetation/wind.js';
+import { standsRepeats } from './stands.js';
 
 // ── kit cards ────────────────────────────────────────────────────────────────
 export const STAGE_KITS = ({
@@ -249,6 +251,7 @@ STAGE_KITS['isekai-bamboo'] = Object.freeze({ shell: 'isekai', style: 'isekai-ba
 STAGE_KITS['isekai-sakura'] = Object.freeze({ shell: 'isekai', style: 'isekai-sakura' });
 // The ALIEN-NIGHT kit: another world at night in the same look — the moon the key, lantern plants lighting the ground.
 STAGE_KITS['alien-night'] = Object.freeze({ shell: 'isekai', style: 'alien-night' });
+STAGE_KITS['airless-plain'] = Object.freeze({ shell: 'isekai', style: 'airless-plain' });
 STAGE_KITS['isekai-garden'] = Object.freeze({ shell: 'isekai', style: 'isekai-garden' });
 Object.freeze(STAGE_KITS);
 /** The proportions each room kit is built by (tile-specs.js PROPORTION_RAILS): a part it inherits but never draws (the
@@ -960,9 +963,12 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
   ].filter((a) => a.kind !== 'part' || bounds[a.id])
     .map((a) => ({ id: a.id, kind: a.kind, room: a.room ?? roomAt(plan, a.at), ...a, ...(bounds[a.id] ? { box: bounds[a.id], node: a.id } : {}) }));
   const colliders = stageColliders(plan, geom, anchors);
+  // a set's audience (stands.js, opt-in): tiers and people facing the open side, stamped as instanced repeats
+  const stands = manifest.stands !== undefined ? standsRepeats(manifest.stands, manifest.rooms) : null;
   return {
     faces,
     ...(cutouts.length ? { cutouts } : {}),
+    ...(stands && stands.repeats.length ? { repeats: stands.repeats } : {}),
     // the page sends its textured geometry welded, its baked colour in 8 bits (scene-three.js `pack`): half the bytes
     pack: true,
     // the ends by which this map links to others, and its items (doors.js): only when the recipe names them

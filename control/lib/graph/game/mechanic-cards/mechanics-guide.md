@@ -48,7 +48,9 @@ built from mechanics is auto-verifiable by the completability gate without a han
 
 `reach-exit` · `survive` · `collect` · `hazard-damage` · `fail-on-death`, plus the `fall` policy,
 plus the combat trio (mechanics-vocab V1): `win-when` (generic predicate win) · `hp-pool`
-(per-entity health, the `enemy:down` producer) · `defeat-all` (count downs to victory).
+(per-entity health, the `enemy:down` producer) · `defeat-all` (count downs to victory), and a match:
+`frags` (a deathmatch: kills credited, the fallen back, a frag or time limit, two sides with `teams`; it owns the
+player's death) and `control` (a point two sides hold for time).
 Read each card for its parameter manual. (`melee-strike` — a declarative attack — is named
 future vocabulary, waiting on the entity-anchored zone; AI behavior stays runtime by doctrine.)
 

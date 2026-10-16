@@ -16,10 +16,13 @@ import { drawLayersScript } from './draw-layers.js';
 import { fieldChannelScript } from './field.js';
 import { fxChannelScript } from './fx.js';
 import { gameChannelScript } from './game.js';
+import { versusChannelScript } from './versus.js';
 import { glowSpriteScript } from './glow.js';
 import { heatSphereChannelScript } from './heat-sphere.js';
 import { inkDecalScript } from './ink-decal.js';
 import { marksChannelScript } from './marks.js';
+import { shootChannelScript } from './shoot.js';
+import { shootSetScript } from './shoot-set.js';
 import { moverChannelScript } from './mover.js';
 import { pickChannelScript } from './pick.js';
 import { planetChannelScript } from './planet.js';
@@ -220,6 +223,14 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // assigns the scene-three-emitted `let stepMarks` (the strength sensor's pointer)
     sep: '',                           // appended row: zero bytes when absent (char-net holds)
     provides: ['__mojMarks'] },        // the pointer count, for probes
+  { key: 'shoot', anchor: 'post-step', script: shootChannelScript,
+    normalizeIn: 'emitThreeWorld',     // gizmo scale off the mesh bounds; never emitted on capture runs
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojShoot'] },        // camera/shot counts, the program clock's now(), look() and seek(), for probes
+  { key: 'shootSet', anchor: 'post-step', script: shootSetScript,
+    normalizeIn: 'emitThreeWorld',     // the plan's set pieces; emitted on capture runs too (picture, not gizmo)
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojShootSet'] },     // piece count and the ids showing now, for probes
   { key: 'audio', anchor: 'post-overlays', script: audioChannelScript,
     normalizeIn: 'emitThreeWorld',     // capture-gated: never emitted on capture runs
     requiresOptional: ['__BUS', '__mojCtrl'] },   // + walkOn (a registry let) for the gait loop
@@ -227,6 +238,10 @@ export const SETUP_CHANNELS = [
     normalizeIn: 'emitThreeWorld',     // emitted in capture runs too — the envelope stays observable
     provides: ['__mojGame'],           // reads `_capture`, defined by the page one line earlier
     requiresOptional: ['__BUS'] },
+  { key: 'versus', anchor: 'post-capture', script: versusChannelScript,
+    normalizeIn: 'emitThreeWorld',     // a side-view fight on an arena (lib/graph/versus); it owns the camera
+    sep: '',                           // appended row: zero bytes when absent (char-net holds)
+    provides: ['__mojVersus'] },       // the match and its phase, for probes
 ];
 
 // load-time contract assertion (S1): a row's hard `requires` must be provided by an
@@ -308,6 +323,9 @@ export { glowSpriteScript } from './glow.js';
 export { splatChannelScript } from './splats.js';
 export { spriteSfxChannelScript } from './sprite-sfx.js';
 export { marksChannelScript, normalizeMarks } from './marks.js';
+export { shootChannelScript } from './shoot.js';
+export { shootSetScript } from './shoot-set.js';
+export { versusChannelScript } from './versus.js';
 export { specularChannelScript } from './specular.js';
 export { pickChannelScript } from './pick.js';
 export { signageChannelScript } from './signage.js';

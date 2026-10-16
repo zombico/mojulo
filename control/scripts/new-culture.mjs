@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 /**
- * Scaffold a historic culture at depth 0: a card spread from an existing culture (its kit and layout, in the new
+ * Scaffold a historic culture at depth 0: a card spread from an existing culture (its kit and form, in the new
  * card's own colours), registered in lib/graph/historic/cultures/index.js, with a README naming its next step.
  * On the first run it renders, the `historic` kind mints it, and it is an encyclopedia entry (BASIS: no record
  * yet). The guide: docs/historic/README.md.
  *
  *   node scripts/new-culture.mjs <id> --like <culture> --label "<label>" --years <from>,<to>
  *        --period "<name>" [--read-at <year>] (--place "<where>" | --invented) --region <region>
- *        --aliases "<word>,<word>,…" [--draws <culture>:<kind>[:<part>+<part>],…] [--dry]
+ *        --aliases "<word>,<word>,…" [--draws <culture>:<kind>[:<part>+<part>],…] [--styles <tradition>,…] [--dry]
+ *
+ * `--styles` names the building traditions it builds in (tradition records, lib/graph/historic/ledger/records.js
+ * TRADITIONS: timber framing …). They are written on the card (`styles`): the ledger reaches their rows at its region
+ * and year, and its kit may speak the inventory styles built from them (lib/graph/historic/inventory/).
  *
  * `--draws` names the cultures it draws on through history (kinds: continues, inherits, contact, contemporary,
  * variant; parts default by kind). They are written on the card (`draws`), the patterns they carry join the card's,
@@ -66,8 +70,8 @@ if (!aliases.length || aliases.some((a) => a.length < 3)) die('--aliases: comma-
 if (!/^[a-z][a-z0-9-]*$/.test(args.region)) die('--region is an id: lowercase letters, digits, hyphens');
 
 // the relations: <culture>:<kind>[:<part>+<part>], parts by kind unless named
-const DEFAULT_PARTS = { continues: ['patterns', 'skins', 'record'], inherits: ['patterns'], contact: ['patterns'], contemporary: ['skins', 'patterns', 'record'], variant: ['palette', 'skins', 'patterns', 'assets', 'layout', 'record'] };
-const PART_IDS = ['palette', 'skins', 'patterns', 'assets', 'layout', 'record'];
+const DEFAULT_PARTS = { continues: ['patterns', 'skins', 'record'], inherits: ['patterns'], contact: ['patterns'], contemporary: ['skins', 'patterns', 'record'], variant: ['palette', 'skins', 'patterns', 'assets', 'form', 'record'] };
+const PART_IDS = ['palette', 'skins', 'patterns', 'assets', 'form', 'record'];
 const draws = (args.draws ? String(args.draws).split(',') : []).map((d) => {
   const [from, kind, parts] = d.trim().split(':');
   if (!reg[from]) die(`--draws: '${from}' is not a culture (one of ${Object.keys(reg).join(', ')})`);
@@ -76,6 +80,15 @@ const draws = (args.draws ? String(args.draws).split(',') : []).map((d) => {
   for (const x of p) if (!PART_IDS.includes(x)) die(`--draws ${from}: part '${x}' is not one of ${PART_IDS.join(', ')}`);
   return { from, kind, parts: p };
 });
+
+// the styles: tradition records, read through the ledger (the loader resolves its imports)
+let styles = [];
+if (args.styles) {
+  register(pathToFileURL(resolve('scripts/mcp-stdio-loader.mjs')));
+  const { TRADITIONS } = await import(pathToFileURL(resolve(HIST, 'ledger/records.js')).href);
+  styles = String(args.styles).split(',').map((x) => x.trim()).filter(Boolean);
+  for (const x of styles) if (!TRADITIONS.includes(x)) die(`--styles: '${x}' is not a tradition record (one of ${TRADITIONS.join(', ')})`);
+}
 
 const CONST = id.toUpperCase().replace(/-/g, '_'), base = reg[like];
 // one import per source file, each constant once (the base and the cultures drawn on)
@@ -92,12 +105,12 @@ const cardFile = join(HIST, `cultures/${id}.js`);
 if (existsSync(cardFile)) die(`${cardFile} exists`);
 
 const card = `/**
- * ${args.label} — DEPTH 0: a card on ${like}'s kit and layout, drawn in its own colours (docs/historic/README.md).
+ * ${args.label} — DEPTH 0: a card on ${like}'s kit and form, drawn in its own colours (docs/historic/README.md).
  * Scaffolded by scripts/new-culture.mjs. Deepen it in order:
- *  - its palette and skins, from reference images (every layout draws the card's palette);
+ *  - its palette and skins, from reference images (the solver draws the card's palette);
  *  - depth 1: its record (record/${id}.js) and style card (style/${id}.js, registered in style/index.js);
  *  - depth 2: its own assets through the asset loop (assets/${id}.js, then \`assets\` here);
- *  - depth 3: its own layout (layouts/${id}.js, registered in layouts/index.js, then \`layout\` here).
+ *  - depth 3: its own form (a row in form/towns.js, and its monument in monuments/: then drop \`form\` here).
  */
 ${importLines}
 
@@ -111,12 +124,15 @@ export const ${CONST} = {
   region: ${q(args.region)},
   aliases: [${aliases.map(q).join(', ')}],   // what people call it (search)
   record: null,                    // none yet: its entry claims nothing as attested until record/${id}.js lands
-  land: null,                      // no farm or works scenes until its own (\`land\`: an id in farmstead.js / workshops.js)
+  land: null,                      // no farm or works until its own (\`land\`: an id in land-kits.js)
+  form: ${base.constant}.form ?? ${q(like)},   // its town is laid out by ${like}'s form (form/towns.js) until its own
   palette: { ...${base.constant}.palette },   // ${like}'s colours until this culture's own are set${draws.length ? `
   // history (../lineage.js): what it draws on; the brief of what each offers is in its README
   draws: [
 ${draws.map((d) => `    { from: ${q(d.from)}, kind: ${q(d.kind)}, parts: [${d.parts.map(q).join(', ')}] },`).join('\n')}
-  ],` : ''}${draws.some((d) => d.parts.includes('patterns')) ? `
+  ],` : ''}${styles.length ? `
+  // the building traditions it builds in (ledger/records.js TRADITIONS): reached at its region and year
+  styles: [${styles.map(q).join(', ')}],` : ''}${draws.some((d) => d.parts.includes('patterns')) ? `
   patterns: [...new Set([${patternSources.map((c) => `...${c}.patterns`).join(', ')}])],` : ''}
 };
 `;
@@ -140,7 +156,7 @@ if (draws.length) {
 const readmeDir = join('..', 'docs/historic', id), readme = join(readmeDir, 'README.md');
 const doc = `# ${args.label}
 
-Depth 0: a card on ${like}'s kit and layout (\`control/${cardFile}\`). The method, the depths and how a culture lands
+Depth 0: a card on ${like}'s kit and form (\`control/${cardFile}\`). The method, the depths and how a culture lands
 on the release-candidate trunk: [../README.md](../README.md).
 
 ## Next
@@ -149,7 +165,7 @@ on the release-candidate trunk: [../README.md](../README.md).
 2. Depth 1: the record (\`record/${id}.js\`, cited, with confidence) and the style card (\`style/${id}.js\`, a machine
    check per principle). Set \`record\` on the card.
 3. Depth 2: its own assets, through the asset loop.
-4. Depth 3: its own layout.
+4. Depth 3: its own form (the principles its town is laid out by, cited to its record) and its monument.
 
 ${brief ? `## Draws on (the brief)
 
@@ -171,7 +187,7 @@ if (args.dry) {
 writeFileSync(cardFile, card);
 writeFileSync(INDEX, index);
 if (!existsSync(readme)) { mkdirSync(readmeDir, { recursive: true }); writeFileSync(readme, doc); }
-console.log(`new-culture: '${id}' at depth 0 on ${like}'s kit and layout
+console.log(`new-culture: '${id}' at depth 0 on ${like}'s kit and form
   ${cardFile}
   ${INDEX} (registered)
   docs/historic/${id}/README.md

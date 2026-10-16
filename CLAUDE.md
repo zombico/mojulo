@@ -69,7 +69,10 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
 
 `tools/list` cannot be drawerized, so it is budgeted. The per-description ceiling and the flat payload pin
 live in `tool-descriptions.test.js`; the packs payload pin lives in `packs.test.js`. If a legitimate
-addition crosses a pin, re-pin it in the same commit with a comment saying why. New tool checklist: register in ring order in
+addition crosses a pin, re-pin it in the same commit with a comment saying why. A door is an intent the user voices:
+a new capability is first an argument on the door that owns its intent, a routing card and a vocab drawer. A new listed
+tool needs a phrasing no listed door owns, as a `routing-eval.fixture.js` row (a `create` / `compose` tool without one
+fails `routing-cards.test.js`), and gate 2b showing the fold would route worse. New tool checklist: register in ring order in
 `server.js`; exactly one pack home in `packs.js`; one line and a verb in `tool-lines.js` (the tool index, the form
 bodies and the pack menus are generated from it), plus its form's `tools` in `context.js` if creative; a routing card (ceiling in `routing-cards/loader.js`) plus a `routing-eval.fixture.js` row if creative; the
 `RING10_TOOLS` list in `context.test.js`; its row in `tool-annotations.js`. An unlisted tool is unreachable from the agent (CLI and plan steps only), so a fold rewrites every pointer to the old name. `forward_context` is a routing index, not a glossary; its bodies
@@ -165,6 +168,8 @@ Pointers only; each target carries its own design notes.
   encyclopedia entry); adding or deepening one: [docs/historic/README.md](docs/historic/README.md), `/historic-culture`.
 - Room furniture: [furnishings/roster.js](control/lib/graph/furnishings/roster.js) names every piece (one row, the
   words people say, its handles into the floorplan, preset, net and room-asset tables); a new piece is a row first.
+- Flight parts: [craft-shelf/](control/lib/graph/craft-shelf/) (the ODM inventory of aircraft and spacecraft parts → whole
+  craft by archetype; a new part is a row first); the flight-game map is [docs/flight-games.md](docs/flight-games.md).
 - Vegetation: [vegetation/](control/lib/graph/vegetation/) (grown trees, palms, bamboo; pooled like `rock-pool.js`);
   read [docs/vegetation.md](docs/vegetation.md) before changing a preset or a level of detail.
 - Beats [graph/beats/](control/lib/graph/beats/), voice [graph/voice/](control/lib/graph/voice/), image

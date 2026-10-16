@@ -1,8 +1,8 @@
 /**
  * New Kingdom Thebes (Egypt, c. 1550–1070 BCE; read at c. 1250, the Ramesside town) as a composition of
  * shared patterns (../patterns.js): what it builds, in what colours, at what scale. A big visual read —
- * the cited notes behind it live in ../record/egypt.js. Laid out by ../layouts/thebes.js ('river-axis'):
- * the Nile along the town, the temple of Amun on an axis from its river quay.
+ * the cited notes behind it live in ../record/egypt.js. Its town is solved from its form
+ * (../form/towns.js): the Nile along the town, the temple of Amun (../monuments/) on an axis from its river quay.
  *
  * Kept to what a New Kingdom town had (../record/egypt.js): no pan-bedded (wavy-course) brick and no
  * Karnak first pylon or great enclosure wall (Late Period / 30th Dynasty); no lime whitewash (Ptolemaic —
@@ -11,8 +11,7 @@
  * Ramesses II; the ram-sphinx avenue before it is Karnak's.
  */
 import { EGYPT_ASSETS } from '../assets/egypt.js';
-import { EGYPT_RECORD, EGYPT_SOURCES } from '../record/egypt.js';
-import { EGYPT_INDUSTRY_RECORD } from '../record/egypt-industry.js';
+import { RECORDS } from '../ledger/records.js';
 
 export const THEBES = {
   label: 'New Kingdom Thebes',
@@ -21,14 +20,13 @@ export const THEBES = {
   period: 'New Kingdom',
   place: 'Thebes, Upper Egypt',
   region: 'egypt',
-  land: 'egypt',                  // its farm and works: New Kingdom Egypt's (../farmstead.js, ../workshops.js)
+  land: 'egypt',                  // its farm and works: New Kingdom Egypt's (../land-kits.js)
   // history (../lineage.js): the Egyptian building tradition a millennium on from Giza's
   draws: [{ from: 'giza', kind: 'continues', parts: ['patterns', 'skins', 'record', 'dress'], note: 'the same land and building tradition, a millennium later (and its dress, before the New Kingdom\'s)' }],
   aliases: ['waset', 'luxor', 'karnak', 'ramesside', 'ramesses', 'pharaoh', 'temple of amun'],   // what people call it (search)
   soundtrack: 'egypt',                // its period music (../soundtrack.js), opt-in on a world: audio.soundtrack 'default'
   // what its town, land, farm and works stand on (the encyclopedia entry's basis)
-  record: { id: 'egypt', entries: [...EGYPT_RECORD, ...EGYPT_INDUSTRY_RECORD], sources: EGYPT_SOURCES },
-  layout: 'river-axis',
+  record: RECORDS.egypt,
   palette: {
     ground: '#c9b48e',            // the desert-edge earth under the town
     lane: '#b9a07c',              // beaten Nile mud, paler with traffic

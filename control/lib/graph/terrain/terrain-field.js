@@ -15,6 +15,8 @@ import { paintedTerrainState } from '../polygonizer/painted-landscape.js';
 import { terrainKernel } from './terrain-kernel.js';
 import { atlasField, validateAtlas } from './terrain-atlas.js';
 import * as dmath from '../../util/dmath.js';
+import { readPaletteSpec, solvePalette } from '../color-theorist/solve.js';
+import { terrainRamps } from '../color-theorist/ground.js';
 
 export const TERRAIN_DEFAULTS = Object.freeze({ span: 2400, relief: 1, horizon: 'plain' });
 export const HORIZON_MODES = Object.freeze(['plain', 'sea', 'none']);
@@ -27,7 +29,8 @@ const rampOf = (p) => ({ stops: [p.shadow, p.base, p.mid, p.highlight].map(rgbAr
 /** Errors (strings) for a terrain spec; [] when it builds. `from` is checked by painted-landscape's own validator. */
 export function validateTerrainSpec(spec, at = 'terrain') {
   const e = [];
-  if (!spec || typeof spec !== 'object') return [`${at} must be an object { from | world, span?, relief?, horizon?, detail? }`];
+  if (!spec || typeof spec !== 'object') return [`${at} must be an object { from | world, span?, relief?, horizon?, detail?, palette? }`];
+  if (spec.palette !== undefined) { try { readPaletteSpec(spec.palette, `${at}.palette`); } catch (err) { e.push(err.message); } }
   if (spec.world !== undefined) {
     // a composed world (terrain-atlas.js): its features size it, so span / relief / horizon / detail do not apply
     e.push(...validateAtlas(spec.world, `${at}.world`));
@@ -88,7 +91,8 @@ export function terrainField(spec) {
     beds: st.strata ? { b: st.strata.layers.map((l) => l.b), hard: st.strata.layers.map((l) => (l.hard ? 1 : 0)), tanD: st.strata.tanD, cx: st.strata.cx, cy: st.strata.cy } : null,
     detail: { octaves, norm: octaves.reduce((a, o) => a + o[1], 0) || 1, rock: d.rock ?? 0.06 * L0, soil: d.soil ?? 0.012 * L0, seed: seedNum },
     light: [P.light.x, P.light.y, P.light.z], lambert: P.lambert,
-    ramps: { soil: rampOf(P.palette), stone: rampOf(P.stone), scree: rampOf(P.scree), beds: P.beds.map(rampOf) },
+    // the grounds' colours: the painting's, or a palette's (color-theorist/ground.js); the kernel mixes them the same
+    ramps: spec.palette ? terrainRamps(solvePalette(spec.palette === 'auto' ? {} : spec.palette), P.beds.length) : { soil: rampOf(P.palette), stone: rampOf(P.stone), scree: rampOf(P.scree), beds: P.beds.map(rampOf) },
   };
   if (spec.planet) {
     // the painting at the north pole of a sphere; continents past it, relative to the painting's horizon base

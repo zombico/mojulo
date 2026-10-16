@@ -65,6 +65,9 @@ const PILOT = {
     { id: 'weapon3', label: 'weapon 3', group: 'combat', in: ARMED, bind: { keyboard: ['Digit3'] } },
     { id: 'weapon4', label: 'weapon 4', group: 'combat', in: ARMED, bind: { keyboard: ['Digit4'] } },
     { id: 'weapon5', label: 'weapon 5', group: 'combat', in: ARMED, bind: { keyboard: ['Digit5'] } },
+    // a craft's (the fly rule's missiles: combat-ranged.js stepMissiles): a homing missile on the lock, a flare to break one
+    { id: 'missile', label: 'missile', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyR'], mouse: ['right'], gamepad: ['rb'] } },
+    { id: 'flare', label: 'flare', group: 'combat', in: ['vehicle'], bind: { keyboard: ['KeyX'], gamepad: ['lb'] } },
     { id: 'lock', label: 'target lock', group: 'combat', in: ARMED, bind: { keyboard: ['KeyC'], mouse: ['middle'], gamepad: ['rs'], xr: ['right.thumbstick'] } },
     { id: 'swapSuit', label: 'switch suit', group: 'world', in: MOVE, bind: { keyboard: ['KeyT'], gamepad: ['up'], xr: ['left.secondary'] } },
     { id: 'aiToggle', label: 'AI attack on / off', group: 'world', in: MOVE, bind: { keyboard: ['KeyG'], gamepad: ['select'] } },

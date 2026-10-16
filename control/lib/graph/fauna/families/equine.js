@@ -227,11 +227,11 @@ export const species = {
         ['hindHoofR', 'hindCoronet', 'hindHoof', [0.07, 0.05], [0.08, 0.03], 'Hoof', [0.3, 0.3]],
       ],
       extraSegments: [
-        // the ONE hump: a level loft riding the mid-back, its top at ~2.1 m
+        // the ONE hump: a level loft riding the mid-back, its top at ~2.2 m
         { name: 'hump', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
-          { at: [0, -0.48, 1.80], r: [0.12, 0.05] }, { at: [0, -0.28, 1.80], r: [0.21, 0.22] }, { at: [0, -0.06, 1.80], r: [0.24, 0.34] },
-          { at: [0, 0.18, 1.80], r: [0.21, 0.24] }, { at: [0, 0.40, 1.80], r: [0.12, 0.06] },
-        ], caps: { back: [0, -0.56, 1.80], tip: [0, 0.48, 1.80] } },
+          { at: [0, -0.48, 1.86], r: [0.12, 0.05] }, { at: [0, -0.28, 1.86], r: [0.22, 0.23] }, { at: [0, -0.06, 1.86], r: [0.25, 0.35] },
+          { at: [0, 0.18, 1.86], r: [0.22, 0.25] }, { at: [0, 0.40, 1.86], r: [0.12, 0.06] },
+        ], caps: { back: [0, -0.56, 1.86], tip: [0, 0.48, 1.86] } },
         // the long neck: forward and DOWN from the chest, then up to the head (a U)
         { name: 'neckDown', kind: 'loft', slots: 'ring12', group: 'Coat', mirror: 'plane', stations: [
           { at: [0, 0.58, 1.62], r: [0.15, 0.20] }, { at: [0, 0.84, 1.46], r: [0.11, 0.14] }, { at: [0, 1.06, 1.38], r: [0.09, 0.11] },
@@ -366,12 +366,12 @@ export const species = {
       },
       // a level woolly barrel, no hump; the brown patches on the rump and flank (markings)
       torso: [
-        { at: [0, -0.84, 1.52], r: [0.22, 0.26] },
-        { at: [0, -0.60, 1.52], r: [0.30, 0.34] },
-        { at: [0, -0.25, 1.52], r: [0.33, 0.36] },
-        { at: [0, 0.10, 1.52], r: [0.33, 0.37] },
-        { at: [0, 0.40, 1.52], r: [0.30, 0.36] },
-        { at: [0, 0.62, 1.52], r: [0.22, 0.30] },
+        { at: [0, -0.84, 1.52], r: [0.189, 0.26] },
+        { at: [0, -0.60, 1.52], r: [0.258, 0.34] },
+        { at: [0, -0.25, 1.52], r: [0.284, 0.36] },
+        { at: [0, 0.10, 1.52], r: [0.284, 0.37] },
+        { at: [0, 0.40, 1.52], r: [0.258, 0.36] },
+        { at: [0, 0.62, 1.52], r: [0.189, 0.30] },
       ],
       torsoCaps: { back: [0, -0.96, 1.54], tip: [0, 0.74, 1.52] },
       neckRA: [0.22, 0.27], neckRB: [0.10, 0.12], neckRMid: [0.15, 0.18],

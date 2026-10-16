@@ -241,6 +241,12 @@ if (typeof groundBelow === 'function') {
   const __tRay = groundBelow;
   groundBelow = function (x, y, zFrom) { const g = __tRay(x, y, zFrom), t = __tGroundZ(x, y); __tStat.ray = g === null ? null : g - t; /* the drawn ground's offset from the kernel's, for diagnosis */ return (g === null || g < t - 0.5) ? t : g; };   // eslint-disable-line no-func-assign
 }
+// the controllable bodies' ground (a craft over the terrain, skyscape): the same rule as the walk's, so a fast body
+// never falls through a chunk that is still coarse or not yet built under it
+if (typeof __ground === 'function') {
+  const __cRay = __ground;
+  __ground = function (pos) { const g = __cRay(pos), t = __tGroundZ(pos[0], pos[1]); return (g === null || g < t - 0.5) ? t : g; };   // eslint-disable-line no-func-assign
+}
 window.__mojTerrain.groundZ = __tGroundZ;
 // the coarse levels exist before the first frame, so there is always ground
 if (!__tPL) { for (let l = 0; l <= 2; l++) for (let i = 0; i < (1 << l); i++) for (let j = 0; j < (1 << l); j++) __tChunks.set(__tKey(-1, l, i, j), { mesh: __tBuild(-1, l, i, j), f: -1, level: l, ix: i, iy: j, used: 0 }); }

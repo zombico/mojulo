@@ -7,6 +7,7 @@ import { heroRecord, heroPlanOf } from '../../mcp/tools/layered.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { compileLayered, auditLayered } from '../polygonizer/station-loft.js';
 import { bindLayered } from '../polygonizer/station-loft-rig.js';
+import { dressSilhouette, SILHOUETTE_BANDS } from '../polygonizer/dress-silhouette.js';
 
 const build = (style, more = {}) => ({ type: 'outfit', style, ...more });
 const wear = (spec) => { const hero = heroRecord({ detail: 'swimsuit', ...spec }); const plan = heroPlanOf(hero); const recipe = expandPlan(plan); return { hero, plan, recipe, mesh: compileLayered(recipe) }; };
@@ -144,7 +145,8 @@ describe('the passes', () => {
   it('the top drapes from what holds it out: under the bust the shirt comes in no faster than its drape', () => {
     const { recipe } = wear({ cast: 'female', outfit: build('blouse') });
     const T = recipe.parts.top_torso, front = (id) => T.stations.find((s) => s.id === id).points.front[1];
-    expect(front('st1')).toBeGreaterThan(front('st2') - 0.35 * Math.abs(T.stations.find((s) => s.id === 'st2').points.front[2] - T.stations.find((s) => s.id === 'st1').points.front[2]) - 0.01);
+    // slack 1 → 1.5 cm: the girth targets (09180c24) cinch the under-bust ring by design, 1.5 mm past the old slack
+    expect(front('st1')).toBeGreaterThan(front('st2') - 0.35 * Math.abs(T.stations.find((s) => s.id === 'st2').points.front[2] - T.stations.find((s) => s.id === 'st1').points.front[2]) - 0.015);
   });
   it('deterministic: the same words, the same recipe', () => {
     const a = JSON.stringify(wear({ cast: 'female', outfit: build('casual') }).recipe);
@@ -203,5 +205,56 @@ describe('the outer layer, fit by zone, and the detail on the garment\'s roles',
     const { mesh } = wear({ cast: 'female', outfit: { ...coat, detail: [{ prim: 'embroidery', role: 'hem', motif: 'wave' }, { prim: 'embroidery', role: 'back', motif: 'knot', group: 'Accent' }] } });
     expect(groupsOf(mesh).has('Accent')).toBe(true);
     expect(Object.keys(mesh.parts || {}).some((n) => /^adorn\.emb\d+hem$/.test(n))).toBe(false);
+  });
+});
+
+// LAW 2 as it stands: cloth hugs and tapers; a hem falls away only where it is cut to; the flow is in panels cut to hang.
+describe('law 2: the cut, the panels and the dressed silhouette', () => {
+  const pieces = (lang) => expandOutfit(build('casual', { language: lang }), { have: STRUCT, scale: 1 }).garments;
+  it('trousers taper by default: no hang at the hem; straight and wide fall away, wide the most; skinny lies closest', () => {
+    const shin = (cut) => pieces({ bottom: { cut } }).find((E) => E.id === 'bottomShin');
+    expect(shin(undefined).flare).toBeUndefined(); expect(shin('tapered').flare).toBeUndefined();
+    expect(shin('wide').flare[1]).toBeGreaterThan(shin('straight').flare[1]);
+    expect(shin('skinny').ease).toBeLessThan(shin('tapered').ease);
+    expect(validateOutfitBuild(build('casual', { language: { bottom: { cut: 'baggy' } } }))[0]).toMatch(/bottom\.cut: 'baggy'/);
+  });
+  it('every copy piece keeps the body\'s ratios on a dense ring; a skirt, a shoe and a panel are their own constructions', () => {
+    for (const E of expandOutfit(build('traveler'), { have: STRUCT, scale: 1 }).garments) {
+      if (E.fit) { expect(E.proportional).toBeUndefined(); continue; }
+      expect(E.proportional).toBeGreaterThan(0); expect(E.dense).toBe(true);
+    }
+  });
+  it('panels: an arc per panel at its place, two tails side by side apart, the belt over their tops, a hem trim, a tone', () => {
+    const X = expandOutfit(build('casual', { language: { panels: [{ at: 'back', length: 'knee', split: 2 }, { at: 'sides', length: 'mini', width: 0.3 }] } }), { have: STRUCT, scale: 1 });
+    const P = X.garments.filter((E) => E.fit === 'panel'), mid = (E) => (E.around[0] + E.around[1]) / 2;
+    expect(P.map((E) => E.id)).toEqual(['panel0a', 'panel0b', 'panel1R', 'panel1L']);
+    expect(P[0].around[1]).toBeLessThan(P[1].around[0]);   // a gap between the tails
+    expect(mid(P[2])).toBe(90); expect(mid(P[3])).toBe(270);
+    expect(P.every((E) => E.rigidity === 'soft')).toBe(true);
+    expect(X.kit.find((A) => A.id === 'belt').over).toEqual(expect.arrayContaining(P.map((E) => `${E.id}_panel`)));
+    expect(X.paint.filter((Q) => /_panel$/.test(Q.part)).length).toBe(4); expect(X.tones.Panel).toMatch(/^#/);
+    expect(validateOutfitBuild(build('casual', { language: { panels: [{ at: 'up', length: 'knee' }] } }))[0]).toMatch(/panels\[0\]\.at/);
+  });
+  it('the dressed silhouette: the dials\' own cut keeps the waist and the taper; a loose top and a wide leg are said, never refused', () => {
+    const read = (lang) => wear({ cast: 'female', head: 'anime', outfit: build('casual', lang ? { language: lang } : {}) }).recipe;
+    const fine = dressSilhouette(read({ top: { fit: 'eased' } })), loose = dressSilhouette(read({ top: { fit: 'loose' }, bottom: { cut: 'wide' } }));
+    expect(fine.advice).toEqual([]); expect(fine.waist.cloth).toBeLessThan(fine.waist.body + SILHOUETTE_BANDS.waist);
+    expect(Math.abs(fine.taper.cloth - fine.taper.body)).toBeLessThan(SILHOUETTE_BANDS.taper);
+    expect(loose.advice.map((a) => a.split(':')[0]).sort()).toEqual(['taper', 'waist']);
+    expect(dressSilhouette({ parts: {} })).toBeNull();
+  });
+});
+
+describe('law 10: the drawn figure', () => {
+  it('on an anime hero a top or trousers with no fit of their own lie close (knit a second skin, woven fitted); a fit word, the outer layer and a skirt keep theirs; elsewhere as before', () => {
+    const X = (style, lang, drawn = 'anime') => expandOutfit(build(style, lang ? { language: lang } : {}), { have: STRUCT, scale: 1, drawn });
+    expect(X('casual').trace.fits).toEqual({ top: 'skin', bottom: 'fitted' });
+    expect(X('casual').garments.some((E) => E.id === 'top')).toBe(false);   // painted, no shell
+    expect(X('casual', { top: { fit: 'loose' } }).trace.fits.top).toBe('loose');
+    expect(X('casual', { bottom: { cut: 'wide' } }).trace.fits.bottom).toBe('eased');   // a cut to fall away keeps it
+    expect(X('traveler').trace.fits.outer).toBe('fitted');   // its card's own word
+    expect(X('sundress').garments.find((E) => E.id === 'skirt').fit).toBe('skirt');
+    expect(X('casual', null, null)).toEqual(expandOutfit(build('casual'), { have: STRUCT, scale: 1 }));
+    expect(X('casual', null, null).trace.fits).toBeUndefined();
   });
 });

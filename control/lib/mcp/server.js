@@ -29,7 +29,7 @@ import { hostCapabilities } from '@/lib/mcp/hosts/registry';
 import { instrumentedInvoke } from '@/lib/mcp/telemetry';
 // Pure data, imports nothing — safe to import statically (tool modules must
 // stay dynamic; see ensureToolsRegistered).
-import { PACKS, SPINE, RETIRED_OFFICE_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
+import { PACKS, SPINE, RETIRED_TOOLS, packsModeEnabled, packToolEntry, installedPacks, isToolInstalled, installNotice, homePackForTool } from '@/lib/mcp/packs';
 // Titles + behavior hints for every tool; pure data like packs.js.
 import { toolAnnotations } from '@/lib/mcp/tool-annotations';
 import { toolTier } from '@/lib/mcp/tool-tiers';
@@ -77,7 +77,7 @@ export { getServerVersion };
 export const SERVER_INSTRUCTIONS = `Mojulo is a **3D factory with a media studio** on the operator's machine: a stateful MCP server over its own SQLite store. The agent makes things by conversation, and each one is a tiny deterministic recipe: the recipe is the source, renders are derived and regenerate on every read. Mojulo is the agent-driven upstream that feeds Godot, Unity, Unreal, Blender and the slicer. It does not rival them on rendering, and it is not merely an exporter.
 
 What it makes, by what people do with it:
-- **Play**: games, composed by \`design_game\` from worlds, characters (\`create_character\`: heroes, creatures, animals), gear and sound. Godot first-class.
+- **Play**: games, composed by \`design_game\` from worlds, characters (\`create_character\`: heroes, creatures, animals), gear and sound. It plays in the browser or as a desktop app; the engines get a translation, Godot the fullest.
 - **Print**: solids at true scale, \`mint_solid\` then \`export_model\` (STL or 3MF, mm, z-up); a house is \`mint_building\`.
 - **Read**: diagrams, illustrations, science views, covers and publications: \`create_sketch\`, \`create_view\`, \`cook\`.
 - **Hear**: scores, sound effects and voices: \`create_beats\`, \`create_voice\`.
@@ -132,7 +132,7 @@ export function cliInstructionsAddendum({ hostIds, cmd = 'mojulo' } = {}) {
 }
 
 const registeredTools = new Map();
-const RETIRED_OFFICE = new Set(RETIRED_OFFICE_TOOLS);
+const RETIRED = new Set(RETIRED_TOOLS);
 
 export function registerTool(tool) {
   if (!tool || !tool.name || typeof tool.handler !== 'function') {
@@ -142,9 +142,9 @@ export function registerTool(tool) {
   // that legitimately run long (heavy render bakes, gif encodes). See the soft
   // timeout in lib/mcp/telemetry.js. Optional `aliasOf` names the tool a
   // deprecated alias forwards to; the alias takes that tool's annotations.
-  // The office wing's tools left the surface in 3.1.0 (RETIRED_PACKS in packs.js): still callable
-  // by name, never listed.
-  if (RETIRED_OFFICE.has(tool.name)) tool.listed = false;
+  // A retired pack's tools (RETIRED_PACKS in packs.js: the office wing, game projects) are still
+  // callable by name, never listed.
+  if (RETIRED.has(tool.name)) tool.listed = false;
   registeredTools.set(tool.name, tool);
 }
 
@@ -601,6 +601,7 @@ async function registerAllTools() {
   const { registerSketchTools } = await import('@/lib/mcp/tools/sketches');
   const { registerDiagramTools } = await import('@/lib/mcp/tools/diagram');
   const { registerBuildingTools } = await import('@/lib/mcp/tools/building');
+  const { registerInteriorTools } = await import('@/lib/mcp/tools/interior');
   const { registerRenderHandoffTools } = await import('@/lib/mcp/tools/render-handoff');
   const { registerMeshHandoffTools } = await import('@/lib/mcp/tools/mesh-handoff');
   const { registerRenderDoorTools } = await import('@/lib/mcp/tools/render-door');
@@ -623,10 +624,12 @@ async function registerAllTools() {
   const { registerMeasureViewTools } = await import('@/lib/mcp/tools/measure-view');
   const { registerMachinaTools } = await import('@/lib/mcp/tools/machina');
   const { registerMotionTools } = await import('@/lib/mcp/tools/motion');
+  const { registerShootPlanTools } = await import('@/lib/mcp/tools/shoot-plan');
   const { registerBeatsTools } = await import('@/lib/mcp/tools/beats');
   const { registerVoiceTools } = await import('@/lib/mcp/tools/voice');
   const { registerDesignGameTools } = await import('@/lib/mcp/tools/design-game');
   const { registerTuneGroundTools } = await import('@/lib/mcp/tools/tune-ground');
+  const { registerPickPaletteTools } = await import('@/lib/mcp/tools/pick-palette');
   const { registerGameTools } = await import('@/lib/mcp/tools/create-game');
   const { registerGameProjectTools } = await import('@/lib/mcp/tools/game-projects');
   const { registerPixelizerGameTools } = await import('@/lib/mcp/tools/pixelizer-game');
@@ -766,6 +769,9 @@ async function registerAllTools() {
   // mint_building — one door for the house (layout → dwelling → construction → BIM); mints
   // through the same mintSketch as create_sketch kind 'floorplan', so both store the same row.
   registerBuildingTools();
+  // design_interior — the interior designer's door: one room of a house fitted out (lib/graph/interior/), beside the
+  // building door whose house it decorates; mints through create_sketch's world-recipe path.
+  registerInteriorTools();
   // The render handoff (render-handoff.plan.md) — durable request → pull →
   // submit → accept for the external image worker; registered right after the
   // sketch tools it extends (get_image_render_packet / bind_image_render).
@@ -839,6 +845,9 @@ async function registerAllTools() {
   // ships subject-agnostic camera motions; performance motions land in Phase 2.
   // See lite-template/integration/0609/motion-as-mcp-concern.plan.md.
   registerMotionTools();
+  // the shoot plan (lib/graph/shoot/): cameras as visible, keyed objects in a world, in After Effects words; motion's
+  // authored sibling — forge_motion renders what it plans
+  registerShootPlanTools();
   // Mojulo Beats — the AUDIO mint, sibling to the visual mints: seeded
   // generative soundtracks, explicit-score compositions, and gesture-built
   // foley cues, all synthesized-WebAudio recipes (no media bytes stored).
@@ -860,6 +869,8 @@ async function registerAllTools() {
   registerDesignGameTools();
   // tune_ground: a gameworld level's ground in its own space (dials and edits on a grid), beside the rail that made it
   registerTuneGroundTools();
+  // pick_palette: the color theorist's door, colours solved for what a world is (a gameworld's style, a game, a cover)
+  registerPickPaletteTools();
   registerGameTools();
   // Game projects register immediately after the game mint — the project
   // layer that ties one game's artifacts together (game-developer.plan.md).

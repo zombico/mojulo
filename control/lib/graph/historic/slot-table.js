@@ -3,12 +3,13 @@
  * the live plan of entries.js `liveSlotText`, held equal to it by slot-table.deep.test.js.
  */
 export const SLOT_TABLE = Object.freeze({
-  "forum": "curia (3), basilica-aemilia (19), castor (2), ficus, octavian-equestrian (equestrian), sibyls-hercules (3), hercules-tunicatus, columna-octavian, venus-cloacina, vortumnus, caesar-loricata, juturna (equestrian), concord-statues (2)",
+  "forum": "temple-of-castor (2), curia-julia (3), pp-equestrian:0–3 (equestrian)",
   "giza": "gz-sphinx:0 (form sphinx)",
-  "lindos": "ln-statue:0–13",
-  "polis": "ln-statue:0–13",
-  "pompeii": "pp-equestrian:1, 5 (equestrian), pp-statue:0–1",
+  "lindos": "ln-statue:0–3",
+  "polis": "ln-statue:0–4",
+  "pompeii": "pp-equestrian:0–7 (equestrian)",
   "qin": "",
-  "sumer": "",
-  "thebes": "eg-colossus:0–1, eg-sphinx-row:0–3 (form criosphinx)",
+  "rothenburg": "",
+  "sumer": "guardians:0 (form bull), votive-row:0",
+  "thebes": "eg-colossus:0–1, eg-sphinx-row:0–2 (form criosphinx)",
 });

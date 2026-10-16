@@ -190,6 +190,59 @@ export const FIXTURES = Object.freeze([
     },
   },
   {
+    id: 'arena-shooter',
+    name: 'Arena shooter',
+    anchor: false,
+    why: 'a deathmatch: bots that fight whom they see and hunt the noise, frags and respawns, an arena that loops',
+    cube: {
+      reality: { era: 'gen-6', medium: '3d' },
+      space: { camera: 'first-person', topology: 'linear', levelForm: 'arena' },
+      power: { combat: ['ranged'], mechanics: ['frags', 'supplies'] },
+      soul: { hero: 'hero' },
+      mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh', squad: 'free-for-all' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
+    id: 'flight-sim',
+    name: 'Flight sim',
+    anchor: false,
+    why: 'an aircraft over a map: take off, fly the ring gates in order, land, on the clock',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['fly', 'follow'], mechanics: ['laps'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
+    id: 'space-shooter',
+    name: 'Space shooter',
+    anchor: false,
+    why: 'a starfighter: asteroids, a wing of fighters to shoot down, a trench run to its port',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['fly', 'follow', 'ai'], combat: ['ranged'], mechanics: ['defeat-all', 'fail-on-death', 'respawn'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
+    id: 'air-combat',
+    name: 'Air combat',
+    anchor: false,
+    why: 'a jet over a map: a dogfight, a crash that costs, the ground to keep clear of',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'third-person', topology: 'linear', levelForm: 'airspace' },
+      power: { rules: ['fly', 'follow', 'ai'], combat: ['ranged'], mechanics: ['defeat-all', 'fail-on-death', 'respawn'] },
+      soul: { hero: 'aircraft' },
+      time: { progression: 'linear' },
+    },
+  },
+  {
     id: 'rhythm',
     name: 'Rhythm runner',
     anchor: false,
@@ -241,6 +294,18 @@ export const FIXTURES = Object.freeze([
       power: { systems: ['place', 'resource'], mechanics: ['waves'], stats: ['buy'] },
       mind: { motivation: 'hunt', aggressiveness: 'relentless', squad: 'pack' },
       time: { progression: 'linear' },
+    },
+  },
+  // the fighter (10-15): a side-on one-on-one in rounds, its own simulation on a stage arena
+  {
+    id: 'versus-fighter',
+    name: 'Versus fighter',
+    anchor: false,
+    why: 'two fighters face each other from the side, one on one, in rounds: normals, specials, throws and blocks',
+    cube: {
+      reality: { medium: '3d' },
+      space: { camera: 'side', levelForm: 'arena' },
+      power: { combat: ['versus'], mechanics: ['hp-pool'] },
     },
   },
   {

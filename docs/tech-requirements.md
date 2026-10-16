@@ -144,6 +144,10 @@ them rather than say "never":
 - `check_for_updates`, when your agent calls it (one npm registry version lookup).
 - An exported page built with `cdn: true` loads three.js from `cdn.jsdelivr.net` when opened; the
   default export is self-contained.
+- A desktop export (`export_game { target: 'desktop' }`) only writes files. Your `npm install` in
+  that folder fetches Electron from the npm registry and its binary from `github.com`, and
+  `npm run package` fetches `@electron/packager` through npx. The app itself refuses every http(s)
+  request; outside links open in your browser.
 - `mint_solid` with `via: 'prompt'`: the prompt goes to the LLM provider the caller names, with
   the operator's key for it.
 
@@ -168,6 +172,25 @@ Source of truth: fact 3 of the substrate facts in
 
 ---
 
+## A game in the browser, or as a desktop app
+
+The browser build is the game itself: `export_game` writes a self-contained folder (`game.html`,
+the levels with three.js inlined, the score, the recipes) that any static server plays, GitHub
+Pages included. `target: 'desktop'` writes the same folder plus `package.json`, `main.js` and
+`.gitignore`, which make it an Electron app:
+
+| Step | Command in the folder | What it needs |
+|---|---|---|
+| Play | `npm install && npm start` | Node and npm. Electron is the folder's own devDependency (`ELECTRON_TARGET` in [desktop-shell.js](../control/lib/graph/game/desktop-shell.js)), about 300 MB unpacked on macOS arm64 (Electron 44.7.0, measured). mojulo never installs it. |
+| Package | `npm run package` | `@electron/packager` through npx; writes an app for this machine under `dist/` (310 MB for a toy game on macOS arm64). |
+| Gate | `node scripts/export-desktop.mjs --ref <game>` (from a checkout's `control/`) | `MOJULO_ELECTRON`, the folder's own install, or `electron` on the PATH. Loads the shell and the first level hidden; reports pages that failed, console errors and files the folder lacks. Advisory. |
+
+The window serves the folder over its own `game://` scheme, so the levels' shared figure and
+geometry banks load without a web server (a browser opening `game.html` from disk does not load
+them). Saves stay in the app's own storage. The app is **unsigned**: signing and notarizing it
+(Apple Developer ID, a Windows code-signing certificate) are yours, and until then macOS
+Gatekeeper and Windows SmartScreen warn on first open. Verified: macOS arm64, Electron 44.7.
+
 ## Engine extensions: Godot, Unity, Unreal, Blender
 
 The rule for all four legs: **mojulo emits a pack; you supply the engine.** Every export works with
@@ -181,7 +204,7 @@ environment variable named in each row.
 
 | Engine | What mojulo emits | You need | Version target | Gate env var | Leg |
 |---|---|---|---|---|---|
-| **Godot** (first-class) | A real Godot 4 project: `project.godot`, the versioned `mojulo-godot` kernel scripts, the GLB, `score.json`, export presets. Playable when the gameplay is declarative. | Godot **4.5 or newer** to open the pack. Free, open source. | Gate verified against Godot 4.7 | `MOJULO_GODOT` (default `/Applications/Godot.app/Contents/MacOS/Godot`) | kernel [0.2.1](../control/lib/graph/scene/godot-kernel/VERSION) |
+| **Godot** (the fullest translation) | A real Godot 4 project: `project.godot`, the versioned `mojulo-godot` kernel scripts, the GLB, `score.json`, export presets. Playable when the gameplay is declarative. | Godot **4.5 or newer** to open the pack. Free, open source. | Gate verified against Godot 4.7 | `MOJULO_GODOT` (default `/Applications/Godot.app/Contents/MacOS/Godot`) | kernel [0.2.1](../control/lib/graph/scene/godot-kernel/VERSION) |
 | **Unity** (gated leg) | A data pack: GLB + `score.json` + audio + recipe, a C# editor importer, runtime scripts (walker, mechanics, menu), deterministic `.meta` files, and a T-numbered `IMPORT-GUIDE.md`. | **Unity 6 (6000.2.x)**, URP template, the `com.unity.cloud.gltfast` package installed from Package Manager (the gate pins 6.9.1). The editor must be **activated** (signed in); an unactivated editor is reported by name and the gate skips. | `UNITY_EDITOR_TARGET` in [unity-project.js](../control/lib/graph/scene/unity-project.js) | `MOJULO_UNITY` (auto-found under `/Applications/Unity/Hub/Editor/`) | 0.4.0 |
 | **Unreal** (gated leg) | A data pack: GLB + `score.json` + audio + recipe, a dependency-free editor Python importer, `IMPORT-GUIDE.md`. **Game** packs add the `MojuloKernel` C++ plugin your project compiles. | **UE 5.4 or newer**; proven against **5.8.0**. Plugins: `Interchange glTF` (on by default since 5.3) and `Python Editor Script Plugin` (you enable it). Game packs compile C++, so: **full Xcode on macOS** (Xcode 26+ also needs `xcodebuild -downloadComponent MetalToolchain`) or **Visual Studio on Windows**. | `UNREAL_EDITOR_TARGET` in [unreal-project.js](../control/lib/graph/scene/unreal-project.js) | `MOJULO_UNREAL` (auto-found under `/Users/Shared/Epic Games/`); `MOJULO_UNREAL_TIMEOUT_MS` watchdog, default 15 min | 0.4.2 |
 | **Blender** (art pass + worker) | An art-pass pack (GLB + `pack.json` + two Python scripts + `ARTPASS-GUIDE.md`), and separately the GI-bake and render workers that bind results back as vertex colours. No add-on, no socket. | **Blender 4.x or newer**; 5.2 LTS verified. | `BLENDER_TARGET` in [blender-project.js](../control/lib/graph/scene/blender-project.js) | `MOJULO_BLENDER` (default `/Applications/Blender.app/Contents/MacOS/Blender`) | 0.1.0 |
@@ -190,9 +213,10 @@ What the engines themselves cost in disk and licensing is theirs, not mojulo's: 
 are multi-gigabyte installs with their own accounts and license terms; Godot and Blender are free
 and open source. The site should say that plainly instead of implying the engines come along.
 
-**Honesty rule for copy** (from `get_substrate`): ladder it as "Godot first-class, Unity and
-Unreal as gated legs, Blender as an art pass." Never "identical across all four." Every pack ships
-an honest-loss ledger naming what did not travel.
+**Honesty rule for copy** (from `get_substrate`): ladder it as "plays in the browser or as a
+desktop app; Godot the fullest engine translation, Unity and Unreal as gated legs, Blender as an art
+pass." Never "identical across all four." Every pack ships an honest-loss ledger naming what did not
+travel.
 
 ### Everything else that exports without an engine
 
@@ -370,8 +394,10 @@ you installed yourself are yours to remove.
 - A RAM or CPU minimum. None has been measured.
 - "Works on Windows and Linux" without the qualifier that engine gates are verified on macOS only.
 - That Unity, Unreal, Godot, or Blender are included, downloaded, or configured by mojulo.
-- "Identical output across all four engines." Godot is first-class; the others are gated legs with
-  honest-loss ledgers.
+- "Identical output across all four engines." The browser build is the game; Godot is the fullest
+  translation of it, the others gated legs with honest-loss ledgers.
+- A signed, notarized or store-ready desktop app. The desktop export is unsigned; signing is the
+  operator's.
 - "Watertight" or "manifold" STL. Say "print-ready at true scale" for literal objects.
 - "Zero network" or "no telemetry" alone. Say "no external telemetry", describe the local
   tool-call log, and list the explicit outbound actions above.

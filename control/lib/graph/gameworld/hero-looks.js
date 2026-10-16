@@ -64,7 +64,11 @@ function rampTones(ramps = []) {
 export function underlayerFor(G, D = resolveDirection(G)) {
   const own = G.characters?.hero?.looks?.underlayer ?? null;
   const rail = (D?.from === 'world' ? UNDERLAYERS[D.kit] : null) ?? FALLBACK, ledger = [];
-  if (own) ledger.push({ scope: 'looks', at: 'hero.looks.underlayer', key: 'underlayer', world: rail.style, local: own.style ?? 'casual' });
+  // an inline card is ledgered by its id (an Egocube's designed cut is `designed`), never as the whole card
+  const styleName = (st) => (st && typeof st === 'object' ? st.id ?? 'an inline card' : st ?? 'casual');
+  if (own) ledger.push({ scope: 'looks', at: 'hero.looks.underlayer', key: 'underlayer', world: rail.style, local: styleName(own.style) });
+  // the base wears its underlayer plain (ornament 0): a creator's own that asked for more is told, not quietly changed
+  if (own?.dials?.ornament) ledger.push({ scope: 'looks', at: 'hero.looks.underlayer.dials.ornament', key: 'underlayer ornament', world: 0, local: own.dials.ornament, note: 'the base wears its underlayer at ornament 0; adornment is its own page' });
   const build = own ? { ...own, dials: { ...(own.dials || {}), ornament: 0 } }
     : { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: { ...rail.language } } : {}) };
   // the clothes wear the direction: the leading element's tint on the top, the supporting one's on the bottom; the
@@ -74,6 +78,9 @@ export function underlayerFor(G, D = resolveDirection(G)) {
     const hex = D?.[k] ? ELEMENT_TINT[D[k].toLowerCase()] : undefined;
     if (hex) { tones[group] = hex; toneFrom[group] = `the ${k === 'primary' ? 'leading' : 'supporting'} element, ${D[k]}`; }
   }
+  // a creator's underlayer that names its own tones (an inline card's `tones`: an Egocube's designed cut) keeps them
+  const ownTones = own?.style && typeof own.style === 'object' && own.style.tones && typeof own.style.tones === 'object' ? own.style.tones : null;
+  if (ownTones) for (const g of Object.keys(tones)) if (ownTones[g]) { delete tones[g]; toneFrom[g] = 'the creator\'s underlayer, its own'; }
   return { build, read: own ? 'the creator\'s own underlayer' : rail.read, ledger, tones, toneFrom };
 }
 

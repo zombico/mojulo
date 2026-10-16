@@ -85,9 +85,6 @@ const KNOB_MOVES = {
   // glabella and the bridge's sides a share of it, so the nose stands off the eyes with volume at its root
   noseBridge: (k, P) => { const d = (k - 1) * 0.045 * headHeight(P); for (const [n, w] of [['nasion', 1], ['bridge', 0.85], ['noseSide', 0.5], ['glabella', 0.45], ['browInner', 0.2]]) P[n][1] += d * w; },
 };
-/** Knobs with no fitted counterpart (the ear and eye are pinned details; the neck is the body's). */
-export const FIT_INERT_KNOBS = ['earSize', 'eyeSize', 'neckGirth'];
-
 function deformed(F, knobs, jaw = 0) {
   const half = Object.fromEntries(Object.entries(F.BASE).filter(([k]) => !k.endsWith('L')).map(([k, p]) => [k.replace(/R$/, ''), [...p]]));
   // the forehead upright (FIT_FOREHEAD), under the knobs: `foreheadSlope` leans it from there

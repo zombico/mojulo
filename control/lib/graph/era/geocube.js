@@ -3,10 +3,16 @@
  * is the same stone, the same shade and the same air as its hall. A cube holds the core look and nothing placed:
  *
  *   light     the sixth-gen reference both sides share (`reference`), the moon a night outside takes (`moon`), how
- *             thick the outside's air is against the reference's (`outsideFog`), and the inside's `shadows` (the
- *             stage's: torch, sun, cells; the gen-6 upgrades by default)
+ *             thick the outside's air is against the reference's (`outsideFog`), the inside's `shadows` (the
+ *             stage's: torch, sun, cells; the gen-6 upgrades by default), and the outside's `sky` (zenith, horizon,
+ *             fog; the reference's dome and fog colour where it names none)
  *   colour    key colours, each a ramp (look-facets.js rampFrom): stone, floor, trim, accent, grass, foliage, water,
  *             and optionally sand; `shade` is the hue every ramp's dark end leans to (degrees, blue by default)
+ *   palette   the color theorist's spec (color-theorist/solve.js) the colours are SOLVED from: with a seed, the colours,
+ *             the tone's key, the moon and the sky come from the solve (cubeColours), a written colour with a role of
+ *             its own is a lock the solve fits the rest round, and the other written keys win. A preset's palette is
+ *             its character (GEOCUBE_PALETTES); without a seed (a recipe minted before, or 'auto' not yet stamped)
+ *             the cube's own colours stand, as they always did
  *   register  the tone's bands (`steps`, 0 continuous) and its key
  *   contrast  how the light is shaped in the vertex across the whole world (vertex-contrast.js: `'wii'`, the terms, or
  *             absent for none): the sky over, the ground under, the foot of a wall, crease and contact in the shade's
@@ -43,6 +49,9 @@ import { DEFAULT_ERA, eraError } from './eras.js';
 import { DEFAULT_TARGET, readTarget } from './target.js';
 import { readContrast } from './vertex-contrast.js';
 import { sunDir } from './sun.js';
+import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
+import { cubeColours } from '../color-theorist/adapters.js';
+import { oklch, lchOf, hexToRgb, rgbToHex } from '../color-theorist/oklab.js';
 
 const TWO_BASES = [{ form: 'mound', height: 6, foot: 11, summit: 6.5 }, { form: 'mound', height: 5, foot: 4.8, summit: 2.2, up: { turns: 1 } }];
 const ISLE = { geology: true, walk: 'base' };
@@ -134,6 +143,25 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'jungle-haze': { anchor: 'timber-hall', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'dwelling', enter: 'door' }, { use: 'temple', enter: 'walk' }] },
   'valley-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
 });
+/**
+ * Each preset's character in the color theorist's terms: what the stamp (color-theorist/stamp.js) writes into a cube on
+ * the preset at authoring time, with its seed, so a stored cube carries the spec it is solved from and a change here
+ * never moves it. The preset's own hex stays as what an unseeded cube reads, so a recipe minted before keeps its
+ * colours. Kept beside the presets so a preset's own bytes do not move.
+ */
+export const GEOCUBE_PALETTES = Object.freeze({
+  'gothic-night': { intent: 'a cold stone night lit by fire', key: 'low', heat: -0.7, weight: 0.6, activity: -0.4, scheme: 'mono-accent', hues: { rock: 255 }, lock: { accent: '#8a1c1c' } },
+  'island-noon': { intent: 'stucco, terracotta and a hard sun', key: 'high', heat: 0.6, weight: -0.3, activity: 0.3, scheme: 'complementary', hues: { sky: 232, rock: 72, soil: 38, ground: 118, foliage: 132, accent: '#3a80d0' } },
+  'jungle-haze': { intent: 'olive concrete, mud and a soft hazy sun', key: 'mid', heat: 0.15, weight: 0.2, activity: -0.6, scheme: 'analogous', hue: '#767a64', hues: { sky: 120, accent: '#8a5f34' } },
+  'valley-morning': { intent: 'limestone, red roofs and a green valley in the morning', key: 'high', heat: 0.35, weight: -0.1, activity: 0.2, scheme: 'complementary', hues: { sky: 225, rock: 52, soil: 36, ground: 112, foliage: 128, accent: '#b8442c' } },
+});
+// each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
+const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4] });
+// a written colour with a role of its own is a lock the solve fits the rest round; trim, water and sand are kept as written
+const LOCK_ROLE = Object.freeze({ stone: 'rock', floor: 'soil', grass: 'ground', foliage: 'foliage', accent: 'accent' });
+/** A palette the cube is solved from: a spec with its seed (stamped at authoring time). */
+export const seededPalette = (p) => isObj(p) && Number.isInteger(p.seed);
+
 /** A cube's building seeds: its own, else its preset's (a variant reads its preset's), else none. */
 export function cubeBuildings(cube) {
   return cube.buildings ?? GEOCUBE_BUILDINGS[cube.id] ?? GEOCUBE_BUILDINGS[String(cube.id).replace(/-variant$/, '')] ?? null;
@@ -142,7 +170,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1, palette: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -158,20 +186,45 @@ export function readGeocube(spec) {
   if (spec.from !== undefined) {
     const { from, ...rest } = spec;
     if (!GEOCUBE_PRESETS[from]) no(`from: '${from}' is not a preset (presets: ${Object.keys(GEOCUBE_PRESETS).join(', ')})`);
-    return readGeocube(merge(structuredClone(GEOCUBE_PRESETS[from]), { id: `${from}-variant`, ...rest }));
+    const base = structuredClone(GEOCUBE_PRESETS[from]);
+    // solved: the preset's own colours, tone key, moon colour and colour principles give way to the palette (the
+    // stamp writes the preset's character into it, GEOCUBE_PALETTES); what the variant writes still wins
+    if (seededPalette(rest.palette)) {
+      delete base.colour; delete base.register.key;
+      if (base.light.moon) delete base.light.moon.color;
+      base.why = base.why.filter((_, i) => !COLOUR_WHY[from]?.includes(i));
+    }
+    return readGeocube(merge(base, { id: `${from}-variant`, ...rest }));
   }
   only(spec, Object.keys(KEYS), 'cube');
   const c = structuredClone(spec);
-  for (const k of ['light', 'colour', 'register', 'surfaces', 'inside', 'outside', 'why']) if (c[k] === undefined) no(`${k} is missing`);
+  // the palette: a seeded spec solves the colours; 'auto' or an unseeded spec waits for its seed (the stamp's), and the
+  // cube's own colours stand until then; false is the cube's own colours
+  // (a cube already read carries its palette's `id` beside the spec: its colours are the solve's, read as written)
+  const solved = isObj(c.palette) && c.palette.id !== undefined;
+  if (c.palette !== undefined && !solved) {
+    try { c.palette = readPaletteSpec(c.palette, 'palette'); } catch (e) { no(e.message); }
+    if (c.palette === false) delete c.palette;
+  }
+  const P = !solved && seededPalette(c.palette) ? c.palette : null;
+  for (const k of ['light', 'surfaces', 'inside', 'outside', ...(P ? [] : ['colour', 'register', 'why'])]) if (c[k] === undefined) no(`${k} is missing${P ? '' : ['colour', 'register', 'why'].includes(k) ? ' (or a seeded palette to solve it from)' : ''}`);
+  if (P) { c.colour ??= {}; c.register ??= { steps: 0 }; c.why ??= []; }
   if (typeof c.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(c.id)) no('id is a lowercase slug');
   c.title ??= c.id; c.reads ??= ''; c.era ??= DEFAULT_ERA; c.target ??= { ...DEFAULT_TARGET };
   if (eraError(c.era)) no(eraError(c.era));
   try { readTarget(c.target); } catch (e) { no(e.message); }
   // light
-  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows'], 'light');
+  only(c.light, ['reference', 'moon', 'outsideFog', 'shadows', 'sky'], 'light');
   c.light.shadows ??= SHADOWS;
   if (!SIXTH_GEN_LOOK_IDS.includes(c.light.reference)) no(`light.reference '${c.light.reference}' is not one (${SIXTH_GEN_LOOK_IDS.join(', ')})`);
   const ref = SIXTH_GEN_REFERENCES[resolveLook(c.light.reference)];
+  if (P) solveInto(c, P, ref);
+  if (c.light.sky !== undefined) {
+    if (!isObj(c.light.sky)) no('light.sky is { zenith, horizon, fog? }: the outside\'s sky, #rrggbb each');
+    only(c.light.sky, ['zenith', 'horizon', 'fog'], 'light.sky');
+    for (const k of ['zenith', 'horizon']) if (!HEX.test(c.light.sky[k] ?? '')) no(`light.sky.${k} is a #rrggbb colour`);
+    if (c.light.sky.fog !== undefined && !HEX.test(c.light.sky.fog)) no('light.sky.fog is a #rrggbb colour');
+  }
   if (!ref.light.key && !c.light.moon) no(`light.moon is needed: '${c.light.reference}' has no sun, so the outside is lit by a moon { color, elevation, azimuth, gain }`);
   if (c.light.moon) {
     only(c.light.moon, ['color', 'elevation', 'azimuth', 'gain'], 'light.moon');
@@ -231,6 +284,32 @@ export function readGeocube(spec) {
   // why
   if (!Array.isArray(c.why) || !c.why.length || !c.why.every((w) => typeof w === 'string' && w.length && w.length <= 200)) no('why is the principles, one line each (200 characters at most)');
   return c;
+}
+
+// the solves, by spec: a cube is read many times a build, and the same spec solves the same palette
+const SOLVED = new Map();
+function solveOnce(spec) {
+  const k = JSON.stringify(spec);
+  if (!SOLVED.has(k)) { if (SOLVED.size >= 64) SOLVED.clear(); SOLVED.set(k, solvePalette(spec)); }
+  return SOLVED.get(k);
+}
+// a colour at another's value: the palette's hue and chroma (quietened), the reference's lightness. A night's sky and
+// water take the reference's dark and the palette's hue, so a cold night stays dark whatever the palette's sky is
+const atValueOf = (hex, rgb) => { const [, C, h] = lchOf(hexToRgb(hex)), [L] = lchOf(rgb); return rgbToHex(oklch(L, Math.min(C, 0.06), h)); };
+/** The cube's colours, tone key, moon and sky solved from its palette: what the cube writes wins key by key, and a
+ * written colour with a role of its own is locked in the solve. Writes into `c`; `P` is the seeded spec. */
+function solveInto(c, P, ref) {
+  const locks = Object.fromEntries(Object.entries(c.colour).filter(([k, v]) => LOCK_ROLE[k] && HEX.test(v ?? '')).map(([k, v]) => [LOCK_ROLE[k], v]));
+  const K = solveOnce(Object.keys(locks).length ? { ...P, lock: { ...locks, ...(P.lock ?? {}) } } : P), S = cubeColours(K);
+  const night = !ref.light.key, dome = ref.air.dome;
+  const colour = { ...S.colour, ...(night ? { water: atValueOf(S.colour.water, dome.zenith) } : {}) };
+  c.colour = { ...colour, ...c.colour };
+  c.register = { ...c.register, key: c.register.key ?? S.key };
+  if (c.light.moon) c.light.moon = { ...c.light.moon, color: c.light.moon.color ?? S.moon };
+  c.light.sky ??= night ? { zenith: atValueOf(S.sky.zenith, dome.zenith), horizon: atValueOf(S.sky.horizon, dome.horizon), fog: atValueOf(S.sky.fog, hexToRgb(ref.air.fog.color)) } : S.sky;
+  c.why = [...c.why, `Its colours are the color theorist's (${K.id}): ${K.read.says}, in a ${K.read.key} key.`,
+    ...(K.read.moonlit ? ['The moon is the cool light and the dark is warm: a cold night inverts the palette.'] : [])];
+  c.palette = { ...P, id: K.id, reads: `${K.read.scheme}, a ${K.read.key} key` };
 }
 
 const rgbOf = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -293,13 +372,14 @@ function lowerOutside(cube0, terrain) {
   const base = cube.outside.base, card = ISEKAI_STYLES[base], sw = SWATCHES[base], land0 = sw.land;
   const ref = SIXTH_GEN_REFERENCES[resolveLook(cube.light.reference)], shadow = shadeHue(cube);
   const fit = (hex, name) => resample(rampFrom(rgbOf(hex), 7, { shadow }), land0[name].length);
-  const dome = ref.air.dome, sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
+  // the sky: the cube's own (a solved cube's is its palette's), else the reference's dome
+  const S = cube.light.sky, dome = S ? { zenith: rgbOf(S.zenith), horizon: rgbOf(S.horizon) } : ref.air.dome, sky = [dome.zenith, dome.zenith.map((v, k) => (v + dome.horizon[k]) / 2), dome.horizon].map((c) => c.map(Math.round));
   const land = { ...land0, rock: fit(cube.colour.stone, 'rock'), soil: fit(cube.colour.floor, 'soil'), grass: fit(cube.colour.grass, 'grass'),
     foliage: fit(cube.colour.foliage, 'foliage'), far: resample(sky.slice(1).concat([dome.horizon]), land0.far.length), sky: resample(sky, land0.sky.length),
     ...(cube.colour.sand ? { sand: resample(rampFrom(rgbOf(cube.colour.sand), 7, { shadow }), land0.soil.length) } : {}) };
   const key = ref.light.key ? { color: ref.light.key.color, elevation: ref.light.key.elevation, azimuth: ref.light.key.azimuth ?? 225 } : { color: cube.light.moon.color, elevation: cube.light.moon.elevation, azimuth: cube.light.moon.azimuth };
   const light = { ...card.light, key, ambient: ref.light.ambient, ...(ref.light.key ? {} : { sunGain: cube.light.moon.gain }) };
-  const air = { ...card.air, fog: { color: ref.air.fog.color, density: +(ref.air.fog.density * cube.light.outsideFog).toFixed(5) } };
+  const air = { ...card.air, fog: { color: S?.fog ?? ref.air.fog.color, density: +(ref.air.fog.density * cube.light.outsideFog).toFixed(5) } };
   const lookCard = { ...card, palette: land, light, air, water: { fill: geocubeRamps(cube).water[2] }, principles: cube.why };
   // the look's id carries its content's print, so a cube's changes register a new look and a re-read the same one
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
@@ -312,7 +392,7 @@ function lowerOutside(cube0, terrain) {
 
 /**
  * The cube's `contrast` resolved against its own light and colour, as a world payload carries it (`vertexContrast`):
- * the terms, and the colours they lean to (the reference's sky, the side's ground, the cube's shade, the key: the sun, or
+ * the terms, and the colours they lean to (the cube's sky, else the reference's; the side's ground, the cube's shade, the key: the sun, or
  * the moon with none), the key's direction, a seed from the cube's id, and the mode (`value` under a tone: only value
  * moves). null when the cube has none. `side`: 'inside' (the ground is the floor) or 'outside' (the grass).
  */
@@ -320,7 +400,9 @@ export function cubeContrast(cube, side, { terrain, value = false } = {}) {
   const C = readContrast(cube.contrast);
   if (!C) return null;
   const k = side === 'outside' && terrain !== undefined ? onTerrain(cube, terrain) : cube;
-  const ref = SIXTH_GEN_REFERENCES[resolveLook(k.light.reference)], dome = ref.air.dome, sun = ref.light.key;
+  // the sky: the cube's own (a solved palette's), else the reference's dome
+  const ref = SIXTH_GEN_REFERENCES[resolveLook(k.light.reference)], sun = ref.light.key;
+  const dome = k.light.sky ? { zenith: rgbOf(k.light.sky.zenith), horizon: rgbOf(k.light.sky.horizon) } : ref.air.dome;
   const lit = sun ?? k.light.moon;
   let seed = 2166136261;
   for (const ch of k.id) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
@@ -391,7 +473,7 @@ export function readTerrainAsk(cube, terrain) {
 /** What a stage painted by a cube got: the cube, the terrain, from whom, and what the cube offered. */
 export function geocubePaint(manifest) {
   const cube = readGeocube(manifest.geocube), T = manifest.terrain === undefined ? pickTerrain(cube) : readTerrainAsk(cube, manifest.terrain);
-  return { geocube: cube.id, terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}) };
+  return { geocube: cube.id, ...(cube.palette?.id ? { palette: cube.palette.id } : {}), terrain: T.name, from: T.from, offered: T.offered, ...(T.wanted ? { wanted: T.wanted } : {}), ...(manifest.kit !== undefined && manifest.trail !== undefined ? { kit: manifest.kit, note: 'the recipe\'s own kit over the cube\'s paint' } : {}) };
 }
 
 // the accent wall: the cube's wall re-tiled in the accent's pattern (a toned room keeps its value twins, so it does too)
@@ -439,6 +521,7 @@ export function assembleGeocubeScene(manifest, ctx, assemble) {
   if (show === 'room') withAccent(payload, cube.inside.accentWall, cube.surfaces.accent);
   else withIslandCamera(payload);
   payload.geocube = { id: cube.id, title: cube.title, reads: cube.reads, show, why: cube.why, ramps: geocubeRamps(cube), era: cube.era, density: geocubeDensity(cube),
+    ...(cube.palette?.id ? { palette: { id: cube.palette.id, reads: cube.palette.reads } } : {}), ...(cube.light.sky ? { sky: cube.light.sky } : {}),
     ...(readContrast(cube.contrast) ? { contrast: readContrast(cube.contrast) } : {}) };
   return payload;
 }

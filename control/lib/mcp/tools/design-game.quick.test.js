@@ -8,10 +8,12 @@ import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { designGameHandler } from './design-game.js';
 import { suggestScore, levelScoreContext } from '@/lib/graph/beats/score-suggest';
 import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { emitThreeWorld } from '@/lib/graph/scene/scene-three';
 import { readQuick } from '@/lib/graph/gameworld/quick.js';
 import { simLevel } from '@/lib/graph/game/level-sim.js';
 import { composeLive } from '@/lib/graph/worlds/controllable/compose.js';
 import { stageEnds } from '@/lib/graph/gameworld/levels.js';
+import { groundOf } from '@/lib/graph/playscape/terrain.js';
 
 // The quick path: a simple LOOP (one level, one goal), never a simple picture: any hero the door draws, or none (first
 // person); the goal placed on the stage's own anchors; the game made in one call, walkable and not proved beatable.
@@ -37,6 +39,12 @@ describe('design_game quick', () => {
     // the light play shell, and a playtest of the same game
     expect(stored('q-game').shell).toBe('play');
     expect(out.next.find((n) => n.step === 'play')).toMatchObject({ gate: 'eyes', card: 'gameworld-next', playtest: '/api/sketches/q-game/playtest' });
+    // complete: the call that made the game asks how to share it; later readouts carry only what the host allows
+    expect(out.share.ask).toMatch(/ask the operator/);
+    expect(out.share.options.map((o) => o.id)).toEqual(['play', 'desktop', 'web', 'godot']);
+    const again = await designGameHandler({ ref: 'q' }, { host: 'grok-chat' });
+    expect(again.share).toBeUndefined();
+    expect(again.next.find((n) => n.step === 'share')).toMatchObject({ can: { play: 'no', desktop: 'no', web: 'no', godot: 'no' }, card: 'gameworld-next' });
   }, 240_000);
 
   it('reach with a climb and a hero the door draws: the hero pilots both stages, the climb\'s exit is its top, in volume', async () => {
@@ -47,6 +55,109 @@ describe('design_game quick', () => {
     expect(stored('s-level-run-1').figures.hero.heroRef).toBe('s-hero');
     expect(stored('s-level-run-1').game.mechanics[0]).toMatchObject({ kind: 'reach-exit', planar: false });
     expect(stored('s-game').theme).toMatchObject({ accent: '#7a2f8e' });
+  }, 240_000);
+
+  it('reach with a mascot on foot: minted through the creature door in the game\'s setting, piloted by its own body', async () => {
+    const out = await designGameHandler({ quick: { goal: 'reach', hero: { mascot: { brief: 'a sonic-like mascot' } }, world: { id: 'zoom', style: { kit: 'isekai-meadow' } } }, ref: 'm' });
+    expect(out.ran.map((r) => r.key)).toEqual(['hero', 'level-run-0', 'game']);
+    const H = stored('m-hero');
+    expect(H.plan.mascot).toMatchObject({ form: expect.any(String), height: expect.any(Number) });
+    expect(H.plan.mascot.height).toBeLessThan(1.2);
+    const L = stored('m-level-run-0');
+    // its own clips play the runtime's states (no library), its capsule and its camera are its body's
+    expect(L.figures.hero).toMatchObject({ heroRef: 'm-hero', clips: { forward: 'run', turn: 'walk', idle: 'idle', leap: 'leap', squat: 'squat' } });
+    expect(L.figures.hero.library).toBeUndefined();
+    expect(L.entities[0].rule.collideHeight).toBeCloseTo(H.plan.mascot.height, 2);
+    expect(L.camera.dist).toBeLessThan(5.5);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('m-level-run-0'));
+    expect(Object.keys(payload.figures.hero.clips)).toEqual(expect.arrayContaining(['forward', 'turn', 'leap']));
+    // a run again remakes nothing; a mascot made with create_character is adopted as the pilot by its ref
+    expect((await designGameHandler({ ref: 'm' })).ran ?? []).toEqual([]);
+    await designGameHandler({ quick: { goal: 'reach', hero: { ref: 'm-hero' }, world: { id: 'zoom2', style: { kit: 'isekai-meadow' } } }, ref: 'm2' });
+    expect(stored('m2-level-run-0').figures.hero.clips.forward).toBe('run');
+    expect(() => readQuick({ goal: 'reach', hero: { mascot: { colour: 'blue' } } })).toThrow(/hero\.mascot is true .* \{ brief\?, facets\?, seed\? \}/);
+  }, 240_000);
+
+  it('fly: an airspace flown by its craft, the course\'s gates as laps in three dimensions, the runway the finish', async () => {
+    const out = await designGameHandler({ quick: { goal: 'fly', craft: 'trainer', airspace: { map: { form: 'island', field: 2400 } }, world: { id: 'skies' } }, ref: 'f' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('f-level-run-0');
+    expect(L.kind).toBe('airspace');
+    expect(L.entities[0]).toMatchObject({ id: 'player', pilotable: true, rule: { type: 'fly', lever: true } });
+    expect(L.entities[0].rule.bound.hx).toBeGreaterThan(1200);   // the map's reach
+    expect(L.camera).toMatchObject({ rule: 'follow', target: 'player', rollFollow: 1 });
+    const laps = L.game.mechanics.find((m) => m.kind === 'laps');
+    expect(laps.checkpoints.length).toBeGreaterThan(3);
+    expect(laps.checkpoints.every((c) => c.planar === false)).toBe(true);
+    // the gates stand in the air, the finish on the runway
+    expect(laps.checkpoints[0].at[2]).toBeGreaterThan(laps.checkpoints.at(-1).at[2]);
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('f-level-run-0'), { live: true });
+    expect(payload.terrain.hazeHeight).toBeGreaterThan(0);
+    expect(payload.entities[0].id).toBe('player');
+    // the gates' and the pads' zones watch the pilot itself (else no gate counts on the page), and the finish is a landing
+    const zones = payload.events.sources.filter((q) => q.type === 'zone');
+    expect(zones.length).toBeGreaterThan(laps.checkpoints.length);
+    expect(zones.every((q) => q.watch === payload.entities[0].id)).toBe(true);
+    expect(laps.checkpoints.at(-1).land).toBe(true);
+    expect(laps.respawn).toHaveLength(laps.checkpoints.length);
+    const page = emitThreeWorld({ ...payload, inline: true });
+    expect(page).toContain('LEAVING THE AREA');   // the flight HUD
+    expect(page).toContain('MISSED GATE');        // and the course's guidance, read off the craft's rule
+    expect(L.entities[0].rule.course.gates).toHaveLength(laps.checkpoints.length - 1);
+    expect(L.entities[0].rule.course.land.aim).toHaveLength(3);
+  }, 240_000);
+
+  it('fly in a palette: the world names a preset, its seed is rolled and stored, the land, sky and haze are the palette\'s', async () => {
+    await designGameHandler({ quick: { goal: 'fly', craft: 'trainer', airspace: { map: { form: 'island', field: 2400 } }, world: { id: 'coast', style: { palette: { preset: 'coastal-noon' } } } }, ref: 'fp' });
+    const L = stored('fp-level-run-0');
+    expect(L.palette).toMatchObject({ preset: 'coastal-noon', seed: expect.any(Number) });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('fp-level-run-0'), { live: true });
+    expect(payload.meta.ground.palette).toMatch(/^pal-/);
+    expect(payload.haze.color).toBe(payload.bg);
+  }, 240_000);
+
+  it('fly in space: a space craft\'s map is space (rocks, stars, no ground), its gates a race with nothing to land on', async () => {
+    const out = await designGameHandler({ quick: { goal: 'fly', craft: 'fighter', airspace: { space: { asteroids: 'sparse' } }, world: { id: 'belt' } }, ref: 'sp' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('sp-level-run-0');
+    expect(L.ground).toBeUndefined();
+    expect(L.entities[0].rule).toMatchObject({ type: 'fly', gravity: false, lift: false, space: true });
+    const laps = L.game.mechanics.find((m) => m.kind === 'laps');
+    expect(laps.land).toBeUndefined();
+    expect(laps.checkpoints.at(-1).land).toBeUndefined();
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sp-level-run-0'), { live: true });
+    expect(payload.sky.space).toBe(true);
+    expect(payload.meta.laws.filter((l) => !l.ok)).toEqual([]);
+  }, 240_000);
+
+  it('shoot with a craft: a dogfight in space, the wing of fighters its foes, a crash coming back at the start', async () => {
+    const out = await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', foes: 3, world: { id: 'df' } }, ref: 'df' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('df-level-run-0');
+    expect(L.kind).toBe('airspace');
+    expect(mechanicsOf('df-level-run-0')).toEqual(['fail-on-death', 'respawn', 'defeat-all']);
+    expect(L.entities.filter((e) => /^foe-/.test(e.id))).toHaveLength(3);
+    expect(L.entities[0]).toMatchObject({ id: 'player', weapon: { fireClass: 'sight' }, rule: { type: 'fly', space: true } });
+    expect(L.camera.mouseLook).toBe(true);
+    expect(L.game.mechanics.find((m) => m.kind === 'laps')).toBeUndefined();
+    // the craft's fight: missiles and flares, a boost, a roll; each foe carrying its own missiles
+    expect(L.entities[0].rule).toMatchObject({ missiles: { count: 6 }, boost: { thrust: 2 }, roll: { side: 30 } });
+    expect(L.entities.filter((e) => /^foe-/.test(e.id)).every((e) => e.rule.missiles && e.rule.missiles.count > 0)).toBe(true);
+    // in waves: the wings asleep, the waves mechanic their terminal
+    await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', foes: 2, waves: 3, world: { id: 'wv' } }, ref: 'wv' });
+    const V = stored('wv-level-run-0');
+    expect(mechanicsOf('wv-level-run-0')).toEqual(['fail-on-death', 'respawn', 'waves']);
+    expect(V.game.mechanics.find((m) => m.kind === 'waves')).toMatchObject({ clear: true, waves: [{ foes: ['foe-1', 'foe-2'] }, { foes: ['foe-3', 'foe-4'] }, { foes: ['foe-5', 'foe-6'] }] });
+    expect(V.entities.filter((e) => /^foe-/.test(e.id)).every((e) => e.dormant)).toBe(true);
+  }, 240_000);
+
+  it('shoot with a craft in a trench: the station its ground, the port its goal, turrets on the rims', async () => {
+    await designGameHandler({ quick: { goal: 'shoot', craft: 'fighter', airspace: { space: { trench: true } }, world: { id: 'tr' } }, ref: 'tr' });
+    const L = stored('tr-level-run-0');
+    expect(L.entities.map((e) => e.id).filter((id) => /^foe-/.test(id))).toEqual(['foe-port']);
+    expect(L.entities.some((e) => /^turret-/.test(e.id))).toBe(true);
+    expect(L.game.mechanics.find((m) => m.kind === 'defeat-all')).toMatchObject({ who: 'foe-*', count: 1 });
+    expect(L.entities[0].rule.roofs).toHaveLength(1);
   }, 240_000);
 
   it('survive and avoid: a countdown; hazards on the water the trail crosses, and hp to lose', async () => {
@@ -86,7 +197,8 @@ describe('design_game quick', () => {
 
   it('sneak: guards with sight keep the trail, sweeping; a sighting ends it', async () => {
     const out = await designGameHandler({ quick: { goal: 'sneak', guards: 2, world: { id: 'creep', style: { kit: 'trail-valley' } } }, ref: 'k' });
-    expect(out.ran.map((r) => r.key)).toEqual(['guard', 'level-run-0', 'game']);
+    // (two guards, each a roll of its own in the game's setting: gameworld/cast-setting.js)
+    expect(out.ran.map((r) => r.key)).toEqual(['guard', 'guard-2', 'level-run-0', 'game']);
     const L = stored('k-level-run-0');
     expect(mechanicsOf('k-level-run-0')).toEqual(['unseen', 'reach-exit']);
     const guards = L.entities.filter((e) => e.team === 'guards');
@@ -155,9 +267,70 @@ describe('design_game quick', () => {
     expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
     expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
   }, 240_000);
-  it('defend: foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
+  it('a race on a roadway: the level is the track itself, rivals on its grid and racing line, its barriers solid', async () => {
+    const out = await designGameHandler({ quick: { goal: 'race', ride: 'coupe', vehicle: 'kart', tuning: 'arcade', rivals: 3, roadway: 'kart-sprint', world: { id: 'sprint', style: { kit: 'trail-valley' } } }, ref: 'rw' });
+    expect(out.ran.map((r) => r.key)).toEqual(['ride', 'level-run-0', 'game']);
+    expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
+    const L = stored('rw-level-run-0');
+    expect(L).toMatchObject({ kind: 'roadway', form: 'circuit', course: 'kart-sprint', dress: true });
+    expect(L.entities.map((e) => e.id)).toEqual(['car', 'rival-1', 'rival-2', 'rival-3']);
+    expect(L.entities[0].rule).toMatchObject({ type: 'drive', vehicle: 'kart', tuning: 'arcade', air: true, surfaceGrip: true });
+    expect(L.entities[1]).toMatchObject({ team: 'rivals', rule: { type: 'racer', closed: true, collideRadius: 0.9, vehicle: 'kart', lateralGrip: true } });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('rw-level-run-0'));
+    // the page carries what the tyres are on, and its engine reads it
+    expect(payload.driveSurface.pts.length).toBeGreaterThan(100);
+    expect(emitThreeWorld({ ...payload })).toMatch(/surface: __surface/);
+    expect(payload.roadway).toMatchObject({ form: 'circuit', class: 'kart', closed: true });
+    expect(payload.colliders.length).toBeGreaterThan(300);
+    expect(payload.events.hud.find((h) => h.label === 'Place')).toMatchObject({ as: 'counter', max: 4 });
+    expect(payload.game.keep.map((k) => k.label)).toEqual(['Time', 'Place']);
+  }, 240_000);
+  it('a field of racers: each in the machine its driver reads as, on its own physics, balanced; nothing to mint', async () => {
+    const racers = ['hero', 'a grumpy old wizard', { archetype: 'innocent', build: 'brute' }];
+    const out = await designGameHandler({ quick: { goal: 'race', racers, laps: 1, roadway: 'kart-oval', world: { id: 'cartoon', style: { kit: 'trail-valley' } } }, ref: 'cr' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    expect(out.ran.find((r) => r.key === 'level-run-0').advises ?? []).toEqual([]);
+    const L = stored('cr-level-run-0');
+    expect(L.entities.map((e) => e.id)).toEqual(['car', 'rival-1', 'rival-2']);
+    // the recipe, not the machine: each figure a racer's spec, the brief and the facets as given
+    expect(L.figures.ride.racer.facets).toEqual({ archetype: 'hero' });
+    expect(L.figures['rival-1'].racer.brief).toBe('a grumpy old wizard');
+    expect(L.figures['rival-2'].racer.facets).toEqual({ archetype: 'innocent', build: 'brute' });
+    // each on its own derived rule, arcade; the pilot followed close
+    expect(new Set(L.entities.map((e) => e.rule.mass)).size).toBe(3);
+    expect(L.entities[0].rule).toMatchObject({ type: 'drive', vehicle: 'racer', tuning: 'arcade' });
+    expect(L.entities[1].rule).toMatchObject({ type: 'racer', vehicle: 'racer', closed: true });
+    expect(L.camera.dist).toBeLessThan(6);
+    // the page resolves each recipe to its machine: a live vehicle rig with its juice
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('cr-level-run-0'));
+    for (const k of ['ride', 'rival-1', 'rival-2']) expect(payload.figures[k]).toMatchObject({ rig: true, live: expect.any(Object), juice: expect.any(Object) });
+    const page = emitThreeWorld({ ...payload });
+    expect(page).toMatch(/__updateRacerJuice/);
+    expect(page).not.toMatch(/__rjLightsTick/);   // (a kart throws no light of its own)
+  }, 240_000);
+  it('a field of supercars at night in the rain: liveried, each on its own frame, the track lit by its lamps and wet', async () => {
+    const out = await designGameHandler({ quick: { goal: 'race', supercars: 2, laps: 1, roadway: 'kart-oval', mood: 'night-rain', world: { id: 'gt', style: { kit: 'trail-valley' } } }, ref: 'sc' });
+    expect(out.ran.map((r) => r.key)).toEqual(['level-run-0', 'game']);
+    const L = stored('sc-level-run-0');
+    expect(L).toMatchObject({ kind: 'roadway', mood: 'night-rain' });
+    expect(L.figures.ride.supercar).toMatchObject({ mood: 'night-rain', surface: { paint: expect.stringMatching(/^#[0-9a-f]{6}$/) } });
+    expect(L.figures.ride.supercar.surface.paint).not.toBe(L.figures['rival-1'].supercar.surface.paint);
+    expect(L.entities[1].rule).toMatchObject({ type: 'racer', vehicle: 'sports', closed: true });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sc-level-run-0'));
+    for (const k of ['ride', 'rival-1']) expect(payload.figures[k]).toMatchObject({ rig: true, live: expect.any(Object), juice: expect.any(Object) });
+    expect(payload.sky.day).toBe(0);
+    expect(payload.faces.some((f) => f.glow)).toBe(true);
+    expect(payload.weather).toBeTruthy();
+    const page = emitThreeWorld({ ...payload });
+    expect(page).toMatch(/wet road: the sky and the lamps/);
+    // the cars' own light: the headlamps' pool, the tail lamps' ribbons
+    expect(payload.figures.ride.juice).toMatchObject({ beams: expect.any(Object), trails: expect.any(Object) });
+    expect(page).toMatch(/__rjLightsTick/);
+  }, 240_000);
+  it('defend:foes in waves walk the trail to the base; a pad builds a sentry tower for gold, and it fells them', async () => {
     const out = await designGameHandler({ quick: { goal: 'defend', waves: 1, pads: 2, world: { id: 'hold', style: { kit: 'trail-valley' } } }, ref: 'd' });
-    expect(out.ran.map((r) => r.key)).toEqual(['foe', 'tower', 'level-run-0', 'game']);
+    // (the foes a pool of three rolls, the two pads' archers two)
+    expect(out.ran.map((r) => r.key)).toEqual(['foe', 'foe-2', 'foe-3', 'tower', 'tower-2', 'level-run-0', 'game']);
     const L = stored('d-level-run-0');
     expect(mechanicsOf('d-level-run-0')).toEqual(['waves']);
     expect(L.entities.filter((e) => e.team === 'wave')).toHaveLength(3);
@@ -305,6 +478,186 @@ describe('design_game quick', () => {
     expect(P.weapon.reserve).toBe(before + 24);
   }, 240_000);
 
+  it('deathmatch: an arena laid on the trail\'s land whose laws hold, bots that fight each other, frags to a limit', async () => {
+    const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, world: { id: 'arena', style: { kit: 'trail-valley' } } }, ref: 'dm' });
+    // every arena law holds: no advice from it
+    expect(JSON.stringify(out)).not.toMatch(/arena: /);
+    const L = stored('dm-level-run-0');
+    expect(mechanicsOf('dm-level-run-0')).toEqual(['frags', 'supplies']);
+    expect(L.camera).toMatchObject({ rule: 'eye', mouseLook: true });
+    expect(L.entities.map((e) => e.id)).toEqual(['player', 'bot-1', 'bot-2', 'bot-3']);
+    expect(L.entities[1].rule.mind.motivation).toBe('frag');
+    const frags = L.game.mechanics[0];
+    expect(frags).toMatchObject({ rivals: ['bot-1', 'bot-2', 'bot-3'], frags: 3 });
+    expect(frags.spawns).toHaveLength(4);   // one for each in the match
+    // the arena's walls are one collider each; the cover on the trail's beats stands aside for it
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('dm-level-run-0'));
+    expect(payload.colliders.filter((c) => c.of.startsWith('block:')).length).toBe(L.blocks.length);
+    expect(L.blocks.every((b) => b.whole)).toBe(true);
+    // played headless with the player standing aside: the bots find each other and the match reaches its limit
+    const land = stageEnds(L).ground;
+    const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (q) => land(q[0], q[1]) });
+    let t = 0;
+    for (; t < 150 && !sim.bus.vars.__frags_over_0; t += 1 / 30) sim.frame(1 / 30);
+    expect(sim.bus.log.filter((r) => r.type === 'kill').length).toBeGreaterThanOrEqual(3);
+    expect(sim.bus.log.map((r) => r.type)).toContain('frags:lost');
+  }, 240_000);
+
+  it('deathmatch on the shooter pole: realistic walks and peeks with a killing gun; stylized jumps, dashes, mends and has a kit', async () => {
+    const out = {};
+    for (const pole of ['realistic', 'stylized']) {
+      await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, pole, world: { id: `pole-${pole}`, style: { kit: 'trail-valley' } } }, ref: `pl-${pole}` });
+      const L = stored(`pl-${pole}-level-run-0`), [player, bot] = L.entities;
+      out[pole] = { L, player, bot, mechs: mechanicsOf(`pl-${pole}-level-run-0`) };
+    }
+    const R = out.realistic, S = out.stylized;
+    expect(R.mechs).toEqual(['frags', 'supplies']);
+    expect(S.mechs).toEqual(['frags', 'supplies', 'regen', 'abilities']);
+    expect([R.player.rule.type, S.player.rule.type]).toEqual(['walk', 'platform']);
+    expect(S.player.rule).toMatchObject({ airJumps: 1, dodge: true });
+    expect(R.player.weapon.damage * 4).toBeGreaterThanOrEqual(R.bot.body.hp - 1);   // four rounds drop a body
+    expect(S.bot.body.hp).toBe(200);
+    expect([R.bot.rule.peek, S.bot.rule.peek]).toEqual([true, false]);
+    expect(R.L.game.mechanics[0]).toMatchObject({ damage: true, hp: 100 });
+    // played headless with the player aside: each reaches its limit, the realistic one on fewer rounds a kill
+    const rounds = {};
+    for (const pole of ['realistic', 'stylized']) {
+      const { payload } = await resolveWorldScene(SketchRepository.getByRef(`pl-${pole}-level-run-0`));
+      const land = stageEnds(out[pole].L).ground;
+      const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+      const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (q) => land(q[0], q[1]) });
+      for (let t = 0; t < 180 && !sim.bus.vars.__frags_over_0; t += 1 / 30) sim.frame(1 / 30);
+      const kills = sim.bus.log.filter((r) => r.type === 'kill').length, hits = ['bot-1', 'bot-2', 'bot-3'].reduce((n, id) => n + sim.bus.log.filter((r) => r.type === `hit:${id}`).length, 0);
+      expect(kills, pole).toBeGreaterThanOrEqual(3);
+      rounds[pole] = hits / kills;
+    }
+    expect(rounds.realistic).toBeLessThan(rounds.stylized);
+  }, 300_000);
+
+  it('deathmatch with weapons: the pole\'s guns laid where the arena serves them, picked up, fired', async () => {
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, pole: 0.5, weapons: true, world: { id: 'guns', style: { kit: 'trail-valley' } } }, ref: 'gn' });
+    expect(stored('gn').levels.run.arena.weapons).toEqual(['close', 'long', 'area']);
+    const L = stored('gn-level-run-0'), [player, bot] = L.entities;
+    const sup = L.game.mechanics.find((m) => m.kind === 'supplies'), guns = sup.drops.filter((d) => d.gives === 'weapon');
+    expect(guns.length).toBeGreaterThan(0);
+    expect(guns.every((d) => d.respawn === 30 && ['close', 'long', 'area'].includes(d.slot))).toBe(true);
+    // the rifle in hand, a slot for each gun laid, to be picked up; the player on the rule that carries a loadout
+    const slots = ['mid', ...new Set(guns.map((d) => d.slot))];
+    for (const who of [player, bot]) {
+      expect(who.rule.loadout.map((c) => c.name)).toEqual(slots);
+      expect(who.rule.loadout.map((c) => c.held)).toEqual(slots.map((_, k) => (k ? false : undefined)));
+    }
+    expect(player.rule.type).toBe('platform');
+    expect(bot.rule.items.filter((it) => it.gives === 'weapon').map((it) => it.slot).sort()).toEqual(guns.map((d) => d.slot).sort());
+    // played headless with the player aside: the bots pick guns up and fire them
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('gn-level-run-0'));
+    const land = stageEnds(L).ground;
+    const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (q) => land(q[0], q[1]) });
+    let picked = 0;
+    for (let t = 0; t < 120 && !sim.bus.vars.__frags_over_0; t += 1 / 30) {
+      sim.frame(1 / 30);
+      for (const id of ['bot-1', 'bot-2', 'bot-3']) { const b = sim.world.byId[id]; if ((b.loadoutIdx || 0) > 0 && b.lastShot && b.lastShot.t >= sim.world.time - 1 / 30 - 1e-6) picked++; }
+    }
+    expect(sim.bus.log.filter((r) => r.type === 'supply:weapon').length).toBeGreaterThan(0);
+    expect(picked).toBeGreaterThan(0);   // rounds fired from a gun picked up
+  }, 300_000);
+
+  it('deathmatch with two sides: team bases, a side\'s frags; control: a point both sides go for', async () => {
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 4, pole: 0.5, mode: 'control', world: { id: 'sides', style: { kit: 'trail-valley' } } }, ref: 'sd' });
+    expect(stored('sd').levels.run.arena.teams).toBe(2);
+    const L = stored('sd-level-run-0'), byId = Object.fromEntries(L.entities.map((e) => [e.id, e]));
+    expect(['player', 'bot-1', 'bot-2', 'bot-3', 'bot-4'].map((id) => byId[id].team)).toEqual(['red', 'blue', 'red', 'blue', 'red']);
+    const frags = L.game.mechanics.find((m) => m.kind === 'frags'), cp = L.game.mechanics.find((m) => m.kind === 'control');
+    expect(frags.teams).toEqual({ red: ['player', 'bot-2', 'bot-4'], blue: ['bot-1', 'bot-3'] });
+    expect(Object.keys(frags.spawns)).toEqual(['red', 'blue']);
+    expect(cp).toMatchObject({ teams: frags.teams, hold: 60, radius: 4 });
+    expect(byId['bot-1'].rule).toMatchObject({ clearLine: true, objective: { at: cp.at } });
+    // each side starts at its own base
+    const near = (id, side) => frags.spawns[side].some((q) => Math.hypot(q[0] - byId[id].transform.pos[0], q[1] - byId[id].transform.pos[1]) < 0.01);
+    expect(['bot-1', 'bot-3'].every((id) => near(id, 'blue')) && ['bot-2', 'bot-4'].every((id) => near(id, 'red'))).toBe(true);
+    // played headless with the player aside: both sides stand on the point, and one scores on it
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('sd-level-run-0'));
+    const land = stageEnds(L).ground;
+    const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground: (q) => land(q[0], q[1]) });
+    const k = L.game.mechanics.indexOf(cp), on = { red: 0, blue: 0 };
+    for (let t = 0; t < 60; t += 1 / 30) { sim.frame(1 / 30); for (const sd of ['red', 'blue']) if (sim.bus.vars[`__cpn_${k}_${sd}`] > 0) on[sd]++; }
+    expect(on.red > 0 && on.blue > 0).toBe(true);
+    expect(sim.bus.vars[`__cps_${k}_red`] + sim.bus.vars[`__cps_${k}_blue`]).toBeGreaterThan(0);
+  }, 300_000);
+
+  it('deathmatch with towers: high ground the bots climb, the armor on the tops', async () => {
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 3, frags: 3, pole: 0.3, weapons: true, arena: 'a three-lane arena with towers', world: { id: 'towers', style: { kit: 'trail-valley' } } }, ref: 'tw' });
+    const L = stored('tw-level-run-0'), bot = L.entities.find((e) => e.id === 'bot-1'), sup = L.game.mechanics.find((m) => m.kind === 'supplies');
+    expect(bot.rule.floors).toHaveLength(2);
+    const z0 = L.entities.find((e) => e.id === 'bot-2').transform.pos[2];
+    expect(sup.drops.filter((d) => d.gives === 'armor').every((d) => Math.abs(d.at[2] - z0 - 2.5) < 0.01)).toBe(true);
+    expect(bot.rule.floors.every((f) => bot.rule.perches.some((p) => Math.abs(p[2] - f.z) < 1e-6))).toBe(true);
+    // played headless (the page's ground: the land and the tops of what stands on it): bots stand on the high ground
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('tw-level-run-0'));
+    const land = stageEnds(L).ground, ground = (q) => groundOf(payload.colliders, land(q[0], q[1]))(q);
+    const ents = payload.entities.map((e) => (e.id === 'player' ? { ...e, body: { ...e.body, hittable: false } } : e));
+    const sim = simLevel({ entities: ents, events: payload.events, colliders: payload.colliders }, { ground });
+    let up = 0;
+    for (let t = 0; t < 90; t += 1 / 30) { sim.frame(1 / 30); for (const id of ['bot-1', 'bot-2', 'bot-3']) if (sim.world.byId[id].transform.pos[2] > z0 + 2) up++; }
+    expect(up).toBeGreaterThan(0);
+  }, 300_000);
+
+  it('deathmatch over the shoulder: a hero played third-person, the camera off its right shoulder, its rounds converged', async () => {
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', hero: { cast: 'male' }, camera: 'third-person', world: { id: 'over', style: { kit: 'trail-valley' } } }, ref: 'ov' });
+    const L = stored('ov-level-run-0');
+    expect(L.camera).toMatchObject({ rule: 'follow', target: 'hero', dist: 2.8, shoulder: 0.75, lead: 10 });
+    expect(L.entities[0].weapon.converge).toBe(true);
+    // first person (the default) keeps the eye and the plain round
+    await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, frags: 3, pole: 'stylized', world: { id: 'eye', style: { kit: 'trail-valley' } } }, ref: 'ey' });
+    expect(stored('ey-level-run-0').entities[0].weapon.converge).toBeUndefined();
+  }, 300_000);
+
+  it('deathmatch: the arena from its words (tunnel-arena.js), a word it cannot lay said as advice', async () => {
+    const out = await designGameHandler({ quick: { goal: 'deathmatch', bots: 2, arena: 'a small ring arena with catwalks', world: { id: 'ring', style: { kit: 'trail-valley' } } }, ref: 'rg' });
+    const L = stored('rg-level-run-0');
+    expect(stored('rg').levels.run.arena).toEqual({ words: 'a small ring arena with catwalks', spawns: 3 });
+    expect(L.game.mechanics[0].spawns).toHaveLength(3);
+    // a ring: the court's walls round the middle; 26 m across
+    const walls = L.blocks.filter((b) => b.form === 'wall');
+    expect(Math.max(...walls.map((b) => b.length))).toBeCloseTo(26.6, 1);
+    // catwalks are not laid yet: said, with what would close it; every other law holds
+    const advice = JSON.stringify(out).match(/arena: [^"]*/g) ?? [];
+    expect(advice).toHaveLength(1);
+    expect(advice[0]).toMatch(/'catwalks' is not laid yet/);
+  }, 240_000);
+
+  it('fight: each fighter designed by the character loop (a sheet made into a character) or adopted, fought in its own body on an arena', async () => {
+    const { heroRecord } = await import('./layered.js');
+    SketchRepository.create({ ref: 'mira', title: 'Mira', manifest: { kind: 'layered', hero: heroRecord({ cast: 'female', palette: { Top: '#2a8f6a' } }) } });
+    const quick = { goal: 'fight', roster: [{ id: 'kai', role: 'frontline', archetype: 'hero', facets: { motivation: 0.1 } }, { id: 'mira', hero: { ref: 'mira' }, style: 'rushdown' }], arenas: [{ id: 'plaza', kit: 'island-plaza' }], world: { id: 'duel' } };
+    const out = await designGameHandler({ quick, ref: 'du' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['fighter-kai-sheet', 'make'], ['fighter-kai', 'make'], ['level-arena-plaza', 'make'], ['game', 'make']]);
+    // the sheet is an egocube; the character it made records it
+    expect(stored('du-fighter-kai-sheet')).toMatchObject({ kind: 'egocube', sheet: { facets: { role: 'frontline', archetype: 'hero' } } });
+    expect(stored('du-fighter-kai')).toMatchObject({ kind: 'layered', hero: expect.any(Object), egocube: { ref: 'du-fighter-kai-sheet' } });
+    expect(stored('du-game').roster).toEqual([{ id: 'kai', hero: { ref: 'du-fighter-kai' } }, { id: 'mira', hero: { ref: 'mira' }, style: 'rushdown' }]);
+    // the readout: what the sheet chose for the fight and why, and each fighter's law stamp
+    const [kai, mira] = out.fight.fighters;
+    expect(kai).toMatchObject({ id: 'kai', character: 'du-fighter-kai', sheet: 'du-fighter-kai-sheet', laws: { held: expect.any(Number) } });
+    expect(kai.reads.map((r) => r.word).filter(Boolean)).toEqual(expect.arrayContaining(['grappler', 'reversal']));
+    expect(mira).not.toHaveProperty('sheet');
+    // the arena fights them in their own bodies
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('du-level-arena-plaza'));
+    const [K, M] = payload.versus.roster;
+    expect(K).toMatchObject({ character: 'du-fighter-kai', archetype: 'grappler', name: 'The Hero' });
+    expect(M).toMatchObject({ character: 'mira', archetype: 'rushdown', color: '#2a8f6a' });
+    expect(Object.keys(payload.versus.bodies).sort()).toEqual(['du-fighter-kai', 'mira']);
+    expect(payload.versus.bodies.mira.parts.some((p) => p && p.pos && p.col)).toBe(true);
+    // a rerun keeps what did not move; the character edited by hand is left as it is
+    const again = await designGameHandler({ ref: 'du', run: true });
+    expect(again.ran.filter((r) => r.key.startsWith('fighter-')).map((r) => r.action)).toEqual(['keep', 'keep']);
+    await expect(designGameHandler({ quick: { goal: 'fight', roster: [{ id: 'x', hero: { ref: 'ghost' } }], world: { id: 'nobody' } }, ref: 'nb' }))
+      .rejects.toThrow(/roster\[0\]\.hero\.ref 'ghost' is not a stored character/);
+  }, 480_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);
@@ -329,5 +682,17 @@ describe('design_game quick', () => {
     expect(() => readQuick({ goal: 'shoot', camera: 'top-down' })).toThrow(/first-person or third-person/);
     expect(() => readQuick({ goal: 'shoot', foes: 9 })).toThrow(/foes is 1 to 8/);
     expect(() => readQuick({ goal: 'reach', foes: 2 })).toThrow(/battle and shoot goals/);
+    expect(() => readQuick({ goal: 'reach', bots: 2 })).toThrow(/bots belongs to the deathmatch goal/);
+    expect(() => readQuick({ goal: 'deathmatch', bots: 9 })).toThrow(/1 to 7/);
+    expect(() => readQuick({ goal: 'deathmatch', frags: 0 })).toThrow(/frag limit/);
+    expect(() => readQuick({ goal: 'deathmatch', seconds: 5 })).toThrow(/10 to 600|5 to 600/);
+    expect(() => readQuick({ goal: 'deathmatch', building: { use: 'tavern' } })).toThrow(/arena on a trail/);
+    expect(() => readQuick({ goal: 'shoot', arena: 'a ring' })).toThrow(/arena belongs to the deathmatch goal/);
+    expect(() => readQuick({ goal: 'deathmatch', pole: 'arcade' })).toThrow(/pole is 'realistic', 'stylized'/);
+    expect(() => readQuick({ goal: 'shoot', pole: 1 })).toThrow(/pole belongs to the deathmatch goal/);
+    expect(() => readQuick({ goal: 'deathmatch', weapons: true })).toThrow(/weapons rides the shooter pole/);
+    expect(() => readQuick({ goal: 'deathmatch', mode: 'ctf' })).toThrow(/mode is free-for-all, team, control/);
+    expect(() => readQuick({ goal: 'shoot', mode: 'team' })).toThrow(/mode belongs to the deathmatch goal/);
+    expect(() => readQuick({ goal: 'deathmatch', pole: 0, weapons: 'all' })).toThrow(/weapons: true/);
   });
 });

@@ -7,15 +7,12 @@ import {
   RENDER_LANES,
   STALE_IN_FLIGHT_SECONDS,
   bakeGates,
-  bakePrompt,
   bakeViewHref,
   classifyOutputFile,
   collapseByRef,
   formatBytes,
   groupQueueByStage,
   isStalled,
-  queueGroupPrompt,
-  queuePrompt,
   queueStatusMeta,
   queueTotals,
   tallyOutputKinds,
@@ -142,41 +139,6 @@ describe('collapseByRef', () => {
   });
 });
 
-describe('queueGroupPrompt', () => {
-  const clip = (target) => req({ id: `irq_${target}`, ref: 'sk_clip', target });
-
-  it('asks by ref, because pull_image_render drains a ref', () => {
-    const [group] = collapseByRef([clip('key-0'), clip('key-1')]);
-    const prompt = queueGroupPrompt(group);
-    expect(prompt).toContain('pull_image_render({ ref: "sk_clip" })');
-    expect(prompt).toContain('key-0, key-1');
-    expect(prompt).toContain('2 queued renders');
-  });
-
-  it('falls back to the single-request prompt when there is nothing folded', () => {
-    const [group] = collapseByRef([clip('key-0')]);
-    expect(queueGroupPrompt(group)).toBe(queuePrompt(clip('key-0')));
-  });
-
-  it('re-pulls rejected renders by request id, not by ref', () => {
-    // A repaint must land back on the SAME row, which is per-request.
-    const [group] = collapseByRef([
-      { ...clip('a'), status: 'rejected' },
-      { ...clip('b'), status: 'rejected' },
-    ]);
-    expect(queueGroupPrompt(group)).toContain('pull_image_render({ request_id })');
-  });
-
-  it('is silent on a settled group', () => {
-    const [group] = collapseByRef([
-      { ...clip('a'), status: 'accepted' },
-      { ...clip('b'), status: 'accepted' },
-    ]);
-    expect(queueGroupPrompt(group)).toBeNull();
-    expect(queueGroupPrompt(null)).toBeNull();
-  });
-});
-
 describe('queueTotals', () => {
   it('rolls whole-table status counts into stages', () => {
     const totals = queueTotals({ pending: 66, in_flight: 6, accepted: 279 });
@@ -209,32 +171,6 @@ describe('isStalled', () => {
   });
 });
 
-describe('queuePrompt', () => {
-  it('names the accept AND reject tools on the eyes gate, with the request id', () => {
-    const prompt = queuePrompt(req({ status: 'submitted' }));
-    expect(prompt).toContain('accept_image_render');
-    expect(prompt).toContain('reject_image_render');
-    expect(prompt).toContain('irq_0000000000000001');
-  });
-
-  it('warns the accepting agent not to self-accept', () => {
-    expect(queuePrompt(req({ status: 'submitted' }))).toMatch(/not the worker/i);
-  });
-
-  it('is silent on settled rows so nothing invites a resurrection', () => {
-    expect(queuePrompt(req({ status: 'accepted' }))).toBeNull();
-    expect(queuePrompt(req({ status: 'expired' }))).toBeNull();
-    expect(queuePrompt(req({ status: 'cancelled' }))).toBeNull();
-    expect(queuePrompt(null)).toBeNull();
-  });
-
-  it('offers a repaint against the same row after a rejection', () => {
-    const prompt = queuePrompt(req({ status: 'rejected' }));
-    expect(prompt).toContain('irq_0000000000000001');
-    expect(prompt).toContain('submit_image_render');
-  });
-});
-
 describe('bake gates', () => {
   const bake = { ref: 'sk_world_gi', from: 'sk_world', matchRate: 0.94, floorBlackFrac: 0.03 };
 
@@ -256,14 +192,6 @@ describe('bake gates', () => {
   it('points the eyes gate at the artifact under its baked display mode', () => {
     expect(bakeViewHref(bake)).toBe('/sketches/sk_world_gi?display=baked');
     expect(bakeViewHref(null)).toBeNull();
-  });
-
-  it('re-bakes from the SOURCE world, not the baked variant', () => {
-    expect(bakePrompt(bake)).toContain('--ref sk_world ');
-  });
-
-  it('falls back to the row itself when a bake recoloured in place', () => {
-    expect(bakePrompt({ ref: 'sk_arena' })).toContain('--ref sk_arena ');
   });
 
   it('survives a bake row with no measurements', () => {

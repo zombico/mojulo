@@ -9,7 +9,7 @@
 //   language  plate: { pauldron: 'spaulder' | 'bell', focalSide: 'R' | 'L', fnSide: 'R' | 'L' } — the focal shoulder and
 //             the arm that carries function (a bow arm takes the first bracer)
 //             lamellar: { crest: 'crescent' | 'kuwagata' | 'sun' }
-//             hardsuit: { helm: 'power' | 'trooper' | 'faceplate', pauldron: 'dome' | 'cap' | 'segmented', chest:
+//             hardsuit: { helm: 'power' | 'trooper' | 'faceplate' | 'none' (bareheaded: an anime head wears none yet), pauldron: 'dome' | 'cap' | 'segmented', chest:
 //             'plain' | 'reactor', pack: 'power' | 'none', segments: 1–3 (the panel lines), focal: 'helm' | 'pauldron' |
 //             'reactor', focalSide }
 //   tones     group → '#hex': the piece groups (plate: Plate, Trim, Rivet, Accent, Leather; lamellar: Lacquer, Odoshi,
@@ -21,7 +21,7 @@
 export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
 export const SIDES = Object.freeze(['R', 'L']);
-const HARD = { helm: ['power', 'trooper', 'faceplate'], pauldron: ['dome', 'cap', 'segmented'], chest: ['plain', 'reactor'], pack: ['power', 'none'], focal: ['helm', 'pauldron', 'reactor'] };
+const HARD = { helm: ['power', 'trooper', 'faceplate', 'none'], pauldron: ['dome', 'cap', 'segmented'], chest: ['plain', 'reactor'], pack: ['power', 'none'], focal: ['helm', 'pauldron', 'reactor'] };
 
 export const SEEDED_ARMOR = Object.freeze({
   knight: {

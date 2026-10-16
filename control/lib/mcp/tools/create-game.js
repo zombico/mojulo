@@ -22,6 +22,7 @@ import { listingRows, DETAIL_PROPERTY } from '@/lib/mcp/vocab-listing';
 import { registerTool } from '@/lib/mcp/server';
 import { RENDER_TOOL_TIMEOUT_MS } from '@/lib/mcp/telemetry';
 import { isToolRefusal } from '@/lib/errors/tool-refusal';
+import { shareForContext } from '@/lib/mcp/hosts/handoff';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { SketchFolderRepository } from '@/lib/db/repositories/sketch-folders';
 import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/repositories/game-projects';
@@ -30,7 +31,7 @@ import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
 import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
-import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES } from '@/lib/graph/gameworld/gameworld-cards';
+import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES, quickGoalCardById, genreCardById } from '@/lib/graph/gameworld/gameworld-cards';
 import { gameworldSamples } from '@/lib/graph/gameworld/samples';
 import { getMechanicVocabCatalog } from '@/lib/graph/game/mechanic-cards/loader';
 import { getKitVocabCatalog } from '@/lib/graph/game/kit-cards/loader';
@@ -41,6 +42,9 @@ import { getIdiomVocabCatalog } from '@/lib/graph/game/idiom-cards/loader';
 import { playCards, playIndex, playRung, PLAY_RUNGS } from '@/lib/graph/playscape/ui/cards';
 import { suggestScore, levelScoreContext, sceneStyle } from '@/lib/graph/beats/score-suggest';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
+import { readPaletteSpec, solvePalette } from '@/lib/graph/color-theorist/solve.js';
+import { gameTheme } from '@/lib/graph/color-theorist/adapters.js';
+import { freshPaletteSeed } from '@/lib/graph/color-theorist/stamp.js';
 
 // The field score each level calls for (beats/score-suggest.js), for the levels with no soundtrack of their own, and
 // their action sounds ('auto') where they have none: one
@@ -76,7 +80,20 @@ function suggestLevelMusic(levelRefs, gameRef) {
 
 const levelSrc = (ref) => `/api/sketches/${encodeURIComponent(ref)}/world`;
 
-export async function mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
+/** The shell's colours (color-theorist): a palette's HUD under the theme's own tokens; with neither, a palette rolled
+ * for this game (its ref's when it has one), so no two games share the stock navy HUD; `palette: false` keeps it.
+ * → { theme, palette } (the theme to store, what it was solved from) */
+export function themeOf(theme, palette, ref) {
+  if (palette === false) return { theme, palette: null };
+  if (palette === undefined && theme !== undefined) return { theme, palette: null };
+  let spec = palette === undefined ? {} : readPaletteSpec(palette, 'palette');
+  if (spec === 'auto') spec = {};
+  if (spec.seed === undefined) spec = { ...spec, seed: ref ? (seedOfRef(ref) % 2147483646) + 1 : freshPaletteSeed(spec) };
+  const K = solvePalette(spec);
+  return { theme: { ...gameTheme(K), ...(theme ?? {}) }, palette: { id: K.id, spec: K.spec, scheme: K.read.scheme, key: K.read.key } };
+}
+
+export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -92,10 +109,11 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   if (projectRef !== null && projectRef !== undefined) {
     if (typeof projectRef !== 'string' || !projectRef) throw new Error('`project_ref` must be a non-empty gp_ ref if provided');
     if (!GameProjectRepository.getByRef(projectRef)) {
-      throw new Error(`Game project '${projectRef}' not found — create_game_project first, or list_game_projects to find it`);
+      throw new Error(`Game project '${projectRef}' not found (game projects are retired: leave project_ref out, or name one made before)`);
     }
   }
 
+  const { theme, palette: solved } = themeOf(themeIn, palette, ref);
   const manifest = { kind: 'game', title, store, levels, ...(links !== undefined ? { links } : {}), ...(menu !== undefined ? { menu } : {}), ...(music !== undefined ? { music } : {}), ...(theme !== undefined ? { theme } : {}), ...(setup !== undefined ? { setup } : {}), ...(difficulty !== undefined ? { difficulty } : {}), ...(shell !== undefined ? { shell } : {}), ...(run !== undefined ? { run } : {}), ...(front !== undefined ? { front } : {}) };
   const { ok, errors } = validateGameManifest(manifest);
   if (!ok) throw new Error(`Invalid game manifest:\n - ${errors.join('\n - ')}`);
@@ -163,18 +181,21 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
     ...(levelMusic ? { music: levelMusic } : {}),
+    ...(solved ? { palette: solved } : {}),
     ...(project ? { project } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),
   };
 }
 
-export async function createGameHandler(input) {
+export async function createGameHandler(input, context = {}) {
   if (!input || typeof input !== 'object') {
     throw new Error("create_game requires an object: { title, store: { slices }, levels: [{ ref, title?, gate? }] }");
   }
-  const { title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, front, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
+  const { title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, ref, folder_ref: folderRef, audits, allow_unaudited: allowUnaudited, auto_audit: autoAudit, project_ref: projectRef } = input;
   try {
-    return await mintGame({ title, store, levels, links, menu, music, theme, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    const out = await mintGame({ title, store, levels, links, menu, music, theme, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited: !!allowUnaudited, autoAudit: !!autoAudit, projectRef });
+    // the game is complete: now is when the operator is asked how to share it (share-offer.js)
+    return { ...out, share: shareForContext(context, { ref: out.ref, playUrl: out.playUrl }) };
   } catch (err) {
     if (isToolRefusal(err)) throw err; // REF_EXISTS already names its next move
     // Error-as-drawer: a failed mint points at the store-schema manuals.
@@ -190,6 +211,9 @@ export async function getGameVocabHandler(input) {
     return { ok: true, ...gameworldSamples(samples, { ...(n !== undefined ? { n } : {}), ...(seed !== undefined ? { seed } : {}) }), _telemetrySignal: { id_requested: true, found: true } };
   }
   if (id && rail.has(id)) return { ok: true, card: rail.get(id), _telemetrySignal: { id_requested: true, found: true } };
+  // a quick goal's card and a genre's card: served by id, named on their index cards, not listed
+  const sub = id ? quickGoalCardById(id) ?? genreCardById(id) : null;
+  if (sub) return { ok: true, card: sub, _telemetrySignal: { id_requested: true, found: true } };
   const slices = getGameVocabCatalog();
   const mechanics = getMechanicVocabCatalog();
   const kits = getKitVocabCatalog();
@@ -200,7 +224,7 @@ export async function getGameVocabHandler(input) {
   if (id) {
     const card = slices.get(id) || mechanics.get(id) || kits.get(id) || glyphs.get(id) || sfx.get(id) || hud.get(id) || idioms.get(id);
     if (!card) {
-      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
+      throw new Error(`get_game_vocab: unknown card '${id}'. Known: ${[...rail.keys(), 'gameworld-quick-<goal>', 'gameworld-intent-<genre>', ...slices.keys(), ...mechanics.keys(), ...kits.keys(), ...glyphs.keys(), ...sfx.keys(), ...hud.keys(), ...idioms.keys()].join(', ')}. Find one by intent via semantic_search({ kinds: ['game_vocab', 'game_mechanic', 'game_kit', 'game_hud', 'game_idiom'], query: '<your ask>' }).`);
     }
     return { ok: true, card, _telemetrySignal: { id_requested: true, found: true } };
   }
@@ -298,6 +322,9 @@ export function registerGameTools() {
           type: 'object',
           description: "Optional presentation skin: { accent?, accent2?, ink?, bg?, panel?, line? (hex colors), font?: 'system'|'mono'|'serif'|'display', style?: 'hud'|'clean' }. The tokens skin the shell (menu / setup / score screens) AND ride game-init to every level, so each level's HUD widgets (events.hud — see get_game_vocab({ id: 'hud-guide' })) share the look. style:'hud' turns on the stylized treatment (mono type, cold accents, corner brackets, accent glow); absent → the default clean look. Pure presentation; never gates play.",
         },
+        palette: {
+          description: "Optional colours for the shell, solved for what the game is (pick_palette): a palette spec { seed, heat?, weight?, activity?, scheme?, key?, hue?, hues?, lock? }; its HUD tokens sit under `theme`'s own. Left out with no `theme`, a palette is rolled for the game; false keeps the stock HUD.",
+        },
         setup: {
           type: 'object',
           description: "Optional pre-level setup presentation, per party slice: { <sliceName>: { style: 'hangar', label?, cards?: { <memberId>: { portrait?: <sketchRef>, preview?: <sketchRef>, stats?: { <label>: value }, blurb? } } } | { style: 'count', label?, blurb? } }. 'hangar' renders the full-page single-pick selector (portrait card rail + the selected member's preview World self-rotating in a side panel beside its stats) — applies when a level consumes the slice with pick.max 1. 'count' asks only HOW MANY and draws that many members at random (seeded per session). Slices without presentation keep the plain picker. Refs resolve at serve time like menu/music refs.",
@@ -315,7 +342,7 @@ export function registerGameTools() {
         front: { type: 'object', description: "The light shell's title and credits: { cover?: <cover ref> | { art }, layout?, tagline?, press?, menu?: [continue|play|levels|options|credits], credits?: { roll: [{ role, names }], thanks? }, end? }. get_game_vocab({ id: 'front' })." },
         ref: { type: 'string', description: 'Optional stable sketch ref for the game.' },
         folder_ref: { type: 'string', description: 'Optional sketch folder to file under.' },
-        project_ref: { type: 'string', description: 'Optional game-project ref (gp_… from create_game_project): binds the minted game as that project\'s ACTIVE rules member, so it appears in the /games/<ref> studio and its arcade cabinet carries the project chip. Levels/music are not copied — they surface as implied members.' },
+        project_ref: { type: 'string', description: 'Legacy: a gp_ game project (retired) to bind the game to.' },
         audits: {
           type: 'object',
           description: "Completability evidence per level: { <levelRef>: { motion_ref } }. motion_ref is a forge_motion TRAVERSAL of that level (world_ref = the level) whose run reached the win condition — its final probe carries game.result:'success'. The gate verifies the stored probe. A level with no audit is refused unless allow_unaudited.",

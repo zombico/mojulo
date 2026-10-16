@@ -1,0 +1,72 @@
+import { describe, it, expect } from 'vitest';
+import { versusSource, VERSUS_PAGE_MODULES } from './versus-page.js';
+import { compileFighter } from './versus-compile.js';
+import { solveFighter } from './versus-solver.js';
+
+// the page's runtime (versus-runtime.client.js) is a classic script; it is loaded here the way the page inlines it,
+// with a canvas that draws nothing, so its overlay clocks can be read against its steps
+
+const src = [...VERSUS_PAGE_MODULES, 'versus-runtime.client.js'].map(versusSource).join('\n');
+const load = () => new Function('window', 'navigator', `${src}\nRT.muted = true;\nreturn { newMatch, stepMatch, drawHud, drawEffects };`)({}, {});
+// a 2D context that accepts every call and returns itself (a gradient, a measure)
+const canvas = () => {
+  const g = new Proxy(function () {}, { get: (_t, k) => (k === 'width' ? 0 : g), set: () => true, apply: () => g });
+  return g;
+};
+
+describe('versus runtime: the overlay keeps the match\'s time, not the screen\'s', () => {
+  const F = compileFighter(solveFighter({ id: 'kata', archetype: 'all-rounder' }).recipe);
+  const watch = (drawsPerStep, steps) => {
+    const R = load();
+    const g = canvas();
+    const m = R.newMatch({ fighters: [F, F], names: ['A', 'B'], colors: ['#e0503a', '#3a9be0'], schemes: ['modern', 'modern'], mode: 'watch', level: 1, rules: {}, seed: 5 });
+    const seen = [];
+    for (let k = 0; k < steps; k++) {
+      R.stepMatch(m);
+      for (let d = 0; d < drawsPerStep; d++) { R.drawEffects(g, m, () => [0, 0], 1); R.drawHud(g, 1280, 720, m); }
+      seen.push([m.banner && m.banner.n > 0 ? `${m.banner.t}:${m.banner.n}` : '', m.flash && m.flash.n > 0 ? `${m.flash.text}:${m.flash.n}` : '', m.superFlash, m.sparks.length, Math.round(m.shake * 1000), Math.round(m.lag[0])]);
+    }
+    return seen;
+  };
+
+  it('a banner, a toast, the sparks, the shake and the trailing health last the same steps however often they are drawn', () => {
+    const still = watch(0, 900);
+    const fast = watch(5, 900);
+    expect(fast).toEqual(still);
+    // FIGHT! lasts its 40 steps, a frame of sim per step, not per picture
+    const fight = still.filter(([b]) => b.startsWith('FIGHT!')).length;
+    expect(fight).toBe(40);
+    expect(still.some(([, , , sparks]) => sparks > 0)).toBe(true);
+  });
+});
+
+describe('versus runtime: the bodies move, they never pop', () => {
+  const F = compileFighter(solveFighter({ id: 'kata', archetype: 'all-rounder' }).recipe);
+  const loadPoses = () => new Function('window', 'navigator', `${src}\nRT.muted = true;\nreturn { newMatch, stepMatch, drawnPose, poseOf, rigJoints };`)({}, {});
+  it('every state change eases in from the body drawn before it: no joint jumps in a step (a move moves at its own speed)', () => {
+    const R = loadPoses();
+    const m = R.newMatch({ fighters: [F, F], names: ['A', 'B'], colors: ['#e0503a', '#3a9be0'], schemes: ['modern', 'modern'], mode: 'watch', level: 3, rules: {}, seed: 7 });
+    let worst = 0, raw = 0, prev = null, reactions = 0, rounds = 0;
+    for (let k = 0; k < 4000; k++) {
+      const was = m.s.p.map((p) => !!p.mv), round = m.s.round;
+      R.stepMatch(m);
+      const now = [0, 1].map((i) => ({ drawn: R.drawnPose(m, i).J, bare: R.rigJoints(F.body, R.poseOf(m.s.p[i], F, m.t + i * 40, m.s.rules)), mv: !!m.s.p[i].mv }));
+      if (prev && round === m.s.round) for (let i = 0; i < 2; i++) {   // (a new round is a cut, drawn as it stands)
+        if (now[i].mv || was[i]) continue;   // a move's frames are its frame data
+        for (const j of Object.keys(now[i].drawn)) {
+          worst = Math.max(worst, Math.hypot(now[i].drawn[j][0] - prev[i].drawn[j][0], now[i].drawn[j][1] - prev[i].drawn[j][1]));
+          raw = Math.max(raw, Math.hypot(now[i].bare[j][0] - prev[i].bare[j][0], now[i].bare[j][1] - prev[i].bare[j][1]));
+        }
+      }
+      if (m.s.p.some((p) => p.rx)) reactions++;
+      rounds = m.s.round;
+      prev = now;
+    }
+    expect(reactions).toBeGreaterThan(0);
+    // the state's own poses jump (a hit landing, a body meeting the floor); drawn, they travel
+    expect(raw).toBeGreaterThan(worst * 1.5);
+    // (a heavy blow still flings an arm fast: the impact is struck at once and held through the freeze)
+    expect(worst).toBeLessThan(F.body.height * 0.3);
+    expect(rounds).toBeGreaterThan(1);
+  });
+});

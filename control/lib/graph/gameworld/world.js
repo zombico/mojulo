@@ -40,6 +40,14 @@
                                          // civilization's language, painted by the level's geocube, played by its
                                          // segments from `from` (the core's) to `to` (the farthest): a line of them
                                          // along the way in a linear world, all of them joined at their portals in a map
+       roadway?: { form?: 'circuit' | 'stage', course?, dress?, kit?: true | '<kit id>', scape?: true | { set?, seed?, landmark?, surrounds? } },
+                                         // in place of `walk`: the level is a roadway built for driving (roads/track.js)
+                                         // — a lap or a stage, by preset name or course spec, on its own ground; a
+                                         // race on it reads its contract (its checkpoints, grid and racing line)
+       airspace?: { map?: { form?, field?, craft?, ceiling? }, ground?: { land?, heartbeat?, scale?, pads?, geocube? }, course?: true | { gates?, laps?, land? } },
+                                         // in place of `walk`: the level is a flight map (skyscape/airspace.js) — its
+                                         // rings, its ground laid by scapeshift, a runway (one by default) and a gate
+                                         // course (by default); a flight on it flies the course and lands
  *     } },
  *     links?: [ { from, to, kind?: 'road' | 'gate' } ],
  *     start?: '<level id>',
@@ -72,6 +80,8 @@ import { craftTech } from './tech-crafter.js';
 import { readTechDirection, USES_BY_LIST } from './tech-direction.js';
 import { INTEREST } from '../playscape/objects/laws.js';
 import { composeLook } from './tunnel-land.js';
+import { readPaletteSpec, solvePalette, scriptShift } from '../color-theorist/solve.js';
+import { paletteLook } from '../color-theorist/look.js';
 import { STARTER_BLOCKS } from '../era/tech-blocks.js';
 import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
@@ -80,7 +90,9 @@ import { readMade } from './made.js';
 import { readQuick } from './quick.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
-import { LAID, groundLays, fieldSite, boardSite, loopSite } from './lay-concerns.js';
+import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
+import { tunnelArena } from './tunnel-arena.js';
+import { WEAPON_ROLES } from './weapon-roles.js';
 import { levelFrame, GROUND_CELL } from '../level/ground.js';
 import { sequentialOrder } from '../level/sequential.js';
 import { CAMERAS } from './cameras.js';
@@ -89,7 +101,13 @@ import { readWeather } from '../weather/weather.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STRUCTURE_RAILS, hasStructureRails } from '../era/out-structures.js';
 import { civilizationGrammar } from '../city/plan/civilization.js';
+import { TRACK_FORMS } from '../roads/track.js';
+import { COURSE_PRESETS } from '../roads/course.js';
+import { SETS, TRACK_BLOCKS } from '../roads/set-pieces.js';
+import { LANDS, SETTLEMENTS } from '../roads/surrounds.js';
+import { RACE_MOOD_IDS } from '../roads/race-mood.js';
 import { readFront } from '../game/play-front.js';
+import { validateAirspace, isSpace } from '../skyscape/airspace.js';
 
 /** The style: the ground, and who builds on it unless a place says otherwise. */
 export const WORLD_STYLE = Object.freeze({
@@ -99,10 +117,12 @@ export const WORLD_STYLE = Object.freeze({
   meru: 'how a climb is built: its preset',
   land: `the land's forms, each a variant and a step from little to many (${LAND_FORM_IDS.join(', ')}); the kit's own where left out`,
   weather: 'the sky: a climate\'s name or { climate, dwell?, blend?, start?, surface? }; a level or section may name its own',
-  geocube: 'a geocube that paints the level once (era/geocube.js): its look on every section naming no kit; the level\'s keys win',
+  geocube: 'a geocube that paints the level once: its look on every section naming no kit; the level\'s keys win',
   terrain: 'which of the geocube\'s terrains (its heartbeat\'s when left out, else the cube\'s own)',
   look: 'the look in words ("a grounded frontier of rust plains…", or { intent, seed? }): tunnelled from the kit, the ground drawn in it',
   pixel: 'the pixel look: true (4) or 2 to 8 screen pixels a drawn one',
+  // (a spec recolours the kit or the look, and skins the game's HUD; false keeps the kit's own: color-theorist/)
+  palette: 'pick_palette\'s spec, or false',
 });
 /** A civilization: what it builds, and how. */
 export const CIVILIZATION = Object.freeze({
@@ -139,7 +159,16 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', 'front', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace'];
+// an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
+const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
+// a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
+// kit (roads/track-kit.js): true, the world's (or the level's) look; a kit's id; a look in words ({ look }); absent,
+// the roadway's own tiles; and
+// its scape (roads/trackscape-dress.js): true, or { set?: 'gt' | 'kart', seed?, landmark?, surrounds? }, the track dressed
+// where a driver looks (its surrounds: the land beyond the venue, roads/surrounds.js); and its mood
+// (roads/race-mood.js: golden, dusk, night, rain, night-rain: the light it is raced in)
+const ROADWAY_LEVEL_KEYS = ['form', 'course', 'dress', 'kit', 'scape', 'mood'];
 // a city level (city/plan/): the plan's own settings, who builds it, and the segments it is entered at and left from
 const CITY_LEVEL_KEYS = ['grammar', 'seed', 'board', 'spine', 'districts', 'sites', 'transit', 'lots', 'segments', 'cars', 'play', 'look', 'paint', 'civilization', 'from', 'to'];
 const BUILDING_KEYS = ['use', 'seed', 'rooms', 'add', 'kit', 'geocube', 'goal', 'from', 'civilization', 'ref'];
@@ -172,6 +201,7 @@ function readStyle(s, at) {
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'look') out.look = intentOf(v, `${at}.look`);
+    else if (k === 'palette') { try { out.palette = readPaletteSpec(v, `${at}.palette`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }
     else if (k === 'pixel') { if (!(v === true || (Number.isInteger(v) && v >= 2 && v <= 8))) throw new Error(`gameworld: ${at}.pixel is true or 2 to 8`); out.pixel = v === true ? 4 : v; }
     else if (GROUPS[k]) out[k] = group(k, v, `${at}.${k}`);
     else out[k] = v;
@@ -243,8 +273,40 @@ const once = (key, fn) => { if (!TUNNELS.has(key)) { if (TUNNELS.size > 256) TUN
 /** A look from words, on a base kit: the kit id it registers under, and what its tunnel did. */
 const lookFor = (look, base, seed, name) => {
   const L = once(JSON.stringify(['l', look, base, seed, name]), () => composeLook(look.intent, { seed: look.seed ?? seed, base, name }));
+  composedFrom(L.id, base, { look: look.intent, seed: look.seed ?? seed, base, name });
   return { kit: L.id, look: { ...look, base: L.base, id: L.id, tunnel: logOf(L.record) } };
 };
+/** A level's cube in the level's palette (the world's, moved by the level's shift): the color theorist decides the
+ * cube's colours from the same spec the HUD and the bible read, so the room, the land and the game are one solve. A
+ * world with no palette (or `false`) leaves the cube as it is. */
+export const cubeInPalette = (cube, palette) => {
+  if (cube === undefined || !isObj(palette)) return cube;
+  const { script: _s, ...p } = palette;
+  return { ...(typeof cube === 'string' ? { from: cube } : cube), palette: p };
+};
+
+/** A palette on a kit (color-theorist/look.js): the kit id the recoloured look registers under, and what it read. */
+const paletteFor = (spec, base, name) => {
+  // a nature or jungle kit is painted by its card, not by ramps: its kit stays, and its stages carry the palette
+  // (levels.js; color-theorist/recolour.js)
+  if (['nature', 'jungle'].includes(stageKit(base)?.shell)) {
+    const K = solvePalette(spec === 'auto' ? {} : spec);
+    return { colours: { palette: K.id, base, scheme: K.read.scheme, key: K.read.key, painted: true } };
+  }
+  const P = once(JSON.stringify(['p', spec, base, name]), () => {
+    try { return paletteLook(spec === 'auto' ? {} : spec, { base, name }); } catch (e) { throw new Error(`gameworld: ${e.message}`); }
+  });
+  composedFrom(P.id, base, { palette: spec === 'auto' ? {} : spec, base, name });
+  return { kit: P.id, colours: { palette: P.contract.id, look: P.id, base: P.base, scheme: P.contract.read.scheme, key: P.contract.read.key, laws: P.laws.filter((l) => !l.ok).map((l) => l.law), tweaks: P.tweaks } };
+};
+// THE RECIPES of the looks a world composed, by the kit id each registers under: a stored stage names its kit by id, and
+// the look registry is the process's own, so a stage drawn in a composed look (from words, a palette, or both) carries
+// the chain that composes its kit again (`looks`, read by the scene: color-theorist/look.js ensureLooks).
+// Content-addressed like the registry.
+const COMPOSED = new Map();
+function composedFrom(id, base, recipe) { if (!COMPOSED.has(id)) COMPOSED.set(id, [...(COMPOSED.get(base) ?? []), { id, ...recipe }]); }
+/** The recipes that compose a kit id, base first, when the world composed it (else null: a written kit). */
+export const looksOfKit = (id) => COMPOSED.get(id) ?? null;
 /** What a tunnel did, for the bible and the graph: the traits it read, its passes, its gaps. */
 const logOf = (r) => ({ intent: r.intent, seed: r.seed, traits: r.read.traits.map((t) => t.id), unread: r.read.unread, passes: r.passes.length, tweaks: r.passes.flatMap((p) => p.changed ?? []), gaps: r.gaps.map(({ trait, why, proposal }) => ({ trait, why, proposal })), held: r.held, complete: r.complete });
 // a civilization's tunnels: its building language from its words, its things from theirs, in its library
@@ -331,6 +393,8 @@ export function readGameworld(W) {
   civ(style.civilization, 'style.civilization');
   // a look in words is tunnelled from the kit it names (or the meadow) into a look of its own, drawn as a kit is
   if (style.look) Object.assign(style, lookFor(style.look, style.kit, seed, W.id));
+  // a palette recolours the kit the world is drawn in (or the look its words composed): the stock kit is its start
+  if (style.palette) Object.assign(style, paletteFor(style.palette, style.kit, W.id));
   // what a civilization says in words is tunnelled through its blocks, on the world's kit
   for (const id of civIds) if (civilizations[id].builds || civilizations[id].technology) civilizations[id] = tunnelCivilization(civilizations[id], id, style.kit, seed);
   if (!isObj(W.levels) || !Object.keys(W.levels).length) throw new Error('gameworld: levels is { <id>: { walk, … } }, at least one');
@@ -340,7 +404,39 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
-    if (L.city !== undefined) {
+    // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
+    if (L.arena !== undefined) {
+      const A = L.arena, words = typeof A === 'string' ? A : A?.words;
+      if (!(typeof words === 'string' && words.trim()) || (isObj(A) && Object.keys(A).some((k) => !['words', 'spawns', 'weapons', 'teams'].includes(k)))) throw new Error(`gameworld: ${at}.arena is the arena in a few words ("a tight three-lane arena with long sightlines"), or { words, spawns, weapons, teams }`);
+      if (isObj(A) && A.teams !== undefined && A.teams !== 2) throw new Error(`gameworld: ${at}.arena.teams is 2: a team map, a base at each end`);
+      if (isObj(A) && A.weapons !== undefined && !(Array.isArray(A.weapons) && A.weapons.every((w) => WEAPON_ROLES[w]))) throw new Error(`gameworld: ${at}.arena.weapons is the guns laid on its floor, roles of ${Object.keys(WEAPON_ROLES).join(', ')} (each laid where the arena's lines serve it)`);
+      if (isObj(A) && A.spawns !== undefined && !(Number.isInteger(A.spawns) && A.spawns >= 2 && A.spawns <= 8)) throw new Error(`gameworld: ${at}.arena.spawns is how many spawns it lays, 2 to 8`);
+      if (L.walk === undefined) throw new Error(`gameworld: ${at}.arena is laid on a walk's first trail`);
+    }
+    if (L.airspace !== undefined) {
+      // an airspace level: a flight map on its own ground (skyscape/), checked as the kind checks it
+      if (L.walk !== undefined || L.building !== undefined || L.city !== undefined || L.roadway !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city, a roadway or an airspace, one of them`);
+      if (L.places !== undefined || L.ground !== undefined) throw new Error(`gameworld: ${at}: an airspace lays its own ground and holds no town`);
+      const As = L.airspace;
+      if (!isObj(As)) throw new Error(`gameworld: ${at}.airspace is { ${AIRSPACE_LEVEL_KEYS.join(', ')} } (every one optional)`);
+      for (const k of Object.keys(As)) if (!AIRSPACE_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.airspace.${k} is not an airspace level setting (${AIRSPACE_LEVEL_KEYS.join(', ')})`);
+      const errs = validateAirspace({ kind: 'airspace', ...As });
+      if (errs.length) throw new Error(`gameworld: ${at}.${errs[0]}`);
+    } else if (L.roadway !== undefined) {
+      // a roadway level: a track built for driving (roads/track.js), laid on its own ground
+      if (L.walk !== undefined || L.building !== undefined || L.city !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building, a city or a roadway, one of them`);
+      if (L.places !== undefined || L.ground !== undefined) throw new Error(`gameworld: ${at}: a roadway lays its own ground and holds no town`);
+      const Rw = L.roadway;
+      if (!isObj(Rw)) throw new Error(`gameworld: ${at}.roadway is { ${ROADWAY_LEVEL_KEYS.join(', ')} } (every one optional)`);
+      for (const k of Object.keys(Rw)) if (!ROADWAY_LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.roadway.${k} is not a roadway level setting (${ROADWAY_LEVEL_KEYS.join(', ')})`);
+      if (Rw.form !== undefined && !TRACK_FORMS.includes(Rw.form)) throw new Error(`gameworld: ${at}.roadway.form is ${TRACK_FORMS.join(' or ')} (a lap, or end to end)`);
+      if (Rw.course !== undefined && !(isObj(Rw.course) || COURSE_PRESETS[Rw.course])) throw new Error(`gameworld: ${at}.roadway.course is a preset (${Object.keys(COURSE_PRESETS).join(', ')}) or a course spec ({ pis, … } or { class, length, … })`);
+      if (Rw.dress !== undefined && Rw.dress !== true && Rw.dress !== false && !isObj(Rw.dress)) throw new Error(`gameworld: ${at}.roadway.dress is true, false or { trees?, rocks?, clear? }`);
+      if (Rw.mood !== undefined && !RACE_MOOD_IDS.includes(Rw.mood)) throw new Error(`gameworld: ${at}.roadway.mood is one of ${RACE_MOOD_IDS.join(', ')}`);
+      if (Rw.kit !== undefined && Rw.kit !== true && Rw.kit !== false && typeof Rw.kit !== 'string' && !(isObj(Rw.kit) && typeof Rw.kit.look === 'string')) throw new Error(`gameworld: ${at}.roadway.kit is true (the world's look), a kit's id, or a look in words ({ look })`);
+      const SU = Rw.scape?.surrounds, okSurrounds = SU === undefined || SU === true || SU === false || (isObj(SU) && Object.keys(SU).every((k) => ['land', 'settlement', 'seed'].includes(k)) && (SU.land === undefined || LANDS[SU.land]) && (SU.settlement === undefined || SETTLEMENTS.includes(SU.settlement)));
+      if (Rw.scape !== undefined && Rw.scape !== true && Rw.scape !== false && !(isObj(Rw.scape) && Object.keys(Rw.scape).every((k) => ['set', 'seed', 'landmark', 'surrounds'].includes(k)) && (Rw.scape.set === undefined || SETS[Rw.scape.set]) && (Rw.scape.landmark === undefined || TRACK_BLOCKS[Rw.scape.landmark]) && okSurrounds)) throw new Error(`gameworld: ${at}.roadway.scape is true or { set?: ${Object.keys(SETS).join(' | ')}, seed?, landmark?, surrounds?: false | { land?: ${Object.keys(LANDS).join(' | ')}, settlement?: ${SETTLEMENTS.join(' | ')}, seed? } }`);
+    } else if (L.city !== undefined) {
       // a city level: a planned city (city/plan/), built in its civilization's language, played by its segments
       if (L.walk !== undefined || L.building !== undefined) throw new Error(`gameworld: ${at}: a level is a walk, a building or a city, one of them`);
       if (L.places !== undefined) throw new Error(`gameworld: ${at}.places: a city level holds its own buildings (a town stands on a walk)`);
@@ -371,6 +467,13 @@ export function readGameworld(W) {
     if (L.seed !== undefined && !Number.isFinite(L.seed)) throw new Error(`gameworld: ${at}.seed is a number`);
     const st = readStyle(L.style, `${at}.style`);
     if (st.look) Object.assign(st, lookFor(st.look, st.kit ?? style.kit, seed, `${W.id}-${id}`));
+    // a level's palette: its own; the world's moved (`{ shift }`); or the world's script's shift for this level. It
+    // recolours the kit the world started from (the level's own, else the world's base, not the world's recoloured kit)
+    const own = st.palette, moved = isObj(own) && Object.keys(own).every((k) => k === 'shift');
+    if ((moved || (own === undefined && style.palette?.script)) && !isObj(style.palette)) throw new Error(`gameworld: ${at}.style.palette { shift } moves the world's palette: give the world style.palette`);
+    const shift = moved ? own.shift : own === undefined && style.palette?.script ? scriptShift(style.palette.script, ids.indexOf(id), ids.length) : null;
+    if (shift) { const { script: _s, ...world } = style.palette; st.palette = { ...world, shift }; }
+    if (st.palette) Object.assign(st, paletteFor(st.palette, st.kit ?? style.colours?.base ?? style.kit, `${W.id}-${id}`));
     if (st.civilization !== undefined) civ(st.civilization, `${at}.style.civilization`);
     if (L.places !== undefined) {
       if (!isObj(L.places)) throw new Error(`gameworld: ${at}.places is { town?, castle?, buildings? }`);
@@ -464,6 +567,21 @@ export function resolveLevel(world, id) {
   const style = over(G.style, L.style), seed = L.seed ?? levelSeed(G.seed, id);
   const ledger = differences(G.style, L.style, 'level', id);
 
+  // an airspace level: its map, its ground (a runway when it names no pads) and its course (planned unless declined)
+  if (L.airspace) {
+    // (a space map has no ground: its rocks are `space`; its assist rides as on any airspace)
+    const { map = {}, ground = {}, course = true, space, assist } = L.airspace, inSpace = isSpace(L.airspace);
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, airspace: { map, ...(inSpace ? (space ? { space } : {}) : { ground: { ...ground, pads: ground.pads ?? [{ kind: 'runway', at: [0.5, 0.25] }] } }), ...(course ? { course } : {}), ...(assist ? { assist } : {}) } };
+  }
+  // a roadway level: its course and its form (a lap unless its course runs end to end), laid by levels.js
+  if (L.roadway) {
+    const { course = 'kart-oval', dress, form, kit, scape, mood } = L.roadway;
+    const open = form === undefined && (course === 'rally-stage' || (isObj(course) && course.closed === false));
+    // the kit: the look's words (composed again wherever the track is drawn) or the kit's id
+    const drawn = kit === true ? (style.look ? { look: style.look.intent, base: style.look.base, ...(Number.isInteger(style.look.seed) ? { seed: style.look.seed } : Number.isInteger(G.seed) ? { seed: G.seed } : {}) } : style.kit) : kit || null;
+    return { id, name: L.name ?? id, seed, style, built: null, ledger, level: null, town: null, roadway: { form: form ?? (open ? 'stage' : 'circuit'), course, ...(dress ? { dress } : {}), ...(drawn ? { kit: drawn } : {}), ...(scape ? { scape } : {}), ...(mood ? { mood } : {}) } };
+  }
+
   // a city level: its plan, built in its civilization's language (unless it names a grammar document of its own), painted
   // by the level's geocube, cut into the segments it is played by (levels.js lays them)
   if (L.city) {
@@ -473,7 +591,7 @@ export function resolveLevel(world, id) {
     const grammar = isObj(plan.grammar) ? plan.grammar : civilizationGrammar(anchor, kit, seed, typeof plan.grammar === 'string' ? { base: plan.grammar } : {});
     // its buildings walked into, not entered by a door: a door's inside is not a level of this world yet
     const sg = plan.segments === undefined || plan.segments === true ? {} : plan.segments;
-    const city = { ...plan, seed: plan.seed ?? seed, grammar, segments: { ...sg, enter: { walk: 2, door: 0, ...(sg.enter ?? {}) } }, ...(plan.paint === undefined && style.geocube !== undefined ? { paint: { geocube: style.geocube } } : {}) };
+    const city = { ...plan, seed: plan.seed ?? seed, grammar, segments: { ...sg, enter: { walk: 2, door: 0, ...(sg.enter ?? {}) } }, ...(plan.paint === undefined && style.geocube !== undefined ? { paint: { geocube: cubeInPalette(style.geocube, style.palette) } } : {}) };
     return { id, name: L.name ?? id, seed, style, built: { city: civId }, ledger, level: null, town: null, city: { plan: city, civilization: civId, ...(from !== undefined ? { from } : {}), ...(to !== undefined ? { to } : {}) } };
   }
 
@@ -503,12 +621,15 @@ export function resolveLevel(world, id) {
   // the sky: the level's own (the world's or its override), each section's stage takes it; a node's own is the ledger's
   // the level's own ground (level/ground.js): its grid, its dials and its edits, laid on its trails when it is laid out
   const level = { ...L.walk, kit: style.kit, seed, nodes, ...(style.weather ? { weather: style.weather } : {}), ...(L.ground !== undefined ? { ground: L.ground } : {}),
-    ...(style.geocube !== undefined ? { geocube: style.geocube } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
+    ...(style.geocube !== undefined ? { geocube: cubeInPalette(style.geocube, style.palette) } : {}), ...(style.terrain !== undefined ? { terrain: style.terrain } : {}) };
   let lv = readLevel(level);
   // what game it is (intent.js): the ground laid for its concerns (lay-concerns.js), under the level's own; a world
   // whose cube lays nothing on the ground is as it was
-  const ids = concernIds(cubeOfWorld(G).cube), lays = ids.some((c) => LAID[c]?.includes('ground')) ? groundLays(ids, lv, levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d)) : null;
-  let field = null, board = null, loop = null;
+  const ids = concernIds(cubeOfWorld(G).cube);
+  // the arena its cube asks for, tunnelled from the level's words (tunnel-arena.js): its plan sizes the ground laid
+  const arenaRun = ids.includes('arena') ? tunnelArena(typeof L.arena === 'string' ? L.arena : L.arena?.words ?? 'an arena', { seed, spawns: (isObj(L.arena) && L.arena.spawns) || 8, ...(isObj(L.arena) && L.arena.weapons ? { weapons: L.arena.weapons } : {}), ...(isObj(L.arena) && L.arena.teams ? { teams: L.arena.teams } : {}) }) : null;
+  const lays = ids.some((c) => LAID[c]?.includes('ground')) ? groundLays(ids, lv, levelFrame(lv, sequentialOrder(lv), lv.ground?.cell ?? GROUND_CELL.d), { arena: arenaRun?.plan ?? null }) : null;
+  let field = null, board = null, loop = null, arena = null;
   if (lays?.laid.length) {
     const g = L.ground ?? {};
     level.ground = { ...g, ...(lays.tune ? { tune: { ...lays.tune, ...(g.tune ?? {}) } } : {}), ...(lays.edits.length ? { edits: [...(g.edits ?? []), ...lays.edits] } : {}) };
@@ -517,6 +638,10 @@ export function resolveLevel(world, id) {
     if (lays.laid.includes('fields')) field = fieldSite(F2)?.centre ?? null;
     if (lays.laid.includes('board')) board = boardSite(F2)?.centre ?? null;
     if (lays.laid.includes('loop')) loop = loopSite(F2);
+    if (lays.laid.includes('arena')) {
+      const site = arenaSite(F2, arenaRun.plan.half), R = arenaRun;
+      arena = site && { ...site, plan: R.plan, tunnel: { words: R.intent, held: R.held, complete: R.complete, passes: R.passes.length, gaps: R.gaps.map((g) => ({ trait: g.trait, word: g.word, why: g.why, proposal: g.proposal })) } };
+    }
   }
   for (const [nid, n] of Object.entries(L.walk.nodes || {})) if (n && n.weather !== undefined && !same(lv.nodes[nid].weather, style.weather)) ledger.push({ scope: 'section', at: `${id}/${nid}`, key: 'weather', world: style.weather ?? null, local: lv.nodes[nid].weather });
 
@@ -551,7 +676,7 @@ export function resolveLevel(world, id) {
   });
   // the town's street on the walk: the town's recipe (its castle aside: the street is its houses), in its language
   const street = P.street && town ? (() => { const { castle: _k, anchor, ...recipe } = town, S = P.street === true ? {} : P.street; return { ...S, ...(anchor !== undefined ? { anchor } : {}), recipe }; })() : null;
-  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}) } : {}) };
+  return { id, name: L.name ?? id, seed, style, built, ledger, level, town, ...(buildings.length ? { buildings } : {}), ...(street ? { street } : {}), ...(lays?.laid.length ? { laid: lays.laid, ...(field ? { field } : {}), ...(board ? { board } : {}), ...(loop ? { loop } : {}), ...(arena ? { arena } : {}) } : {}) };
 }
 
 /** Every level of a world, resolved, in the order listed: `{ world, levels: [resolved…] }`. */

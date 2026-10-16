@@ -2,8 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { runSteps, decide, childRef, readMade, readGameworld, fingerprint, MEADOWMARK, MEADOWMARK_HERO } from './index.js';
 
 describe('the runner\'s plan', () => {
-  it('a world without a hero makes nothing; with one, the hero first, the systems and every filled class after', () => {
-    expect(runSteps(MEADOWMARK, { ref: 'gw' })).toEqual([]);
+  it('a world before its people lays its levels, waiting on its parts; with a hero, the hero first, the systems and every filled class after', () => {
+    // no character book: each stage a level walked in first person, then the game; gated and unreviewed, all wait
+    const W = runSteps(MEADOWMARK, { ref: 'gw' });
+    expect(W.length).toBeGreaterThan(1);
+    expect(W.at(-1).key).toBe('game');
+    expect(W.every((s) => s.ready === false && s.waiting.length > 0)).toBe(true);
+    // autonomous: settled by the machine gate, every level and the game ready at once
+    expect(runSteps({ ...MEADOWMARK, mode: 'autonomous', review: undefined }, { ref: 'gw' }).every((s) => s.ready)).toBe(true);
     const S = runSteps(MEADOWMARK_HERO, { ref: 'gw' });
     expect(S.map((s) => s.key)).toEqual(['hero', 'hero-equipped', 'systems', 'gear-dagger', 'gear-sword', 'gear-greatsword', 'gear-staff', 'gear-bow', 'gear-shield', 'level-meadow-ascent-0', 'level-meadow-ascent-1', 'level-meadow-ascent-2', 'level-shell-shore-0', 'level-shell-shore-1', 'game']);
     expect(S[0]).toMatchObject({ ref: 'gw-hero', ready: true });

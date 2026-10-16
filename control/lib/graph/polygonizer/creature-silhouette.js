@@ -21,6 +21,8 @@
  *       countershade: the VENTRAL side (the front and underside of the trunk and neck, the inside of the limbs, under the
  *                     jaw) and the DORSAL side (the back, the top of the head, the outside of the limbs) take the two
  *                     tones, the lighter ventral;
+ *                     `ventral: 'panel'` keeps it to a strip down the trunk's front (the throat and the belly) and under
+ *                     the jaw, the limbs in the coat (a roll's beast: a dark body lightened all down its front reads as cloth);
  *       points:       the ends of each limb chain (its last part), the tail's last links and the ears take the darker
  *                     tone of a light body, the lighter of a dark one;
  *       per FACE, by its rest centroid and normal, so a border runs along the mesh's own edges: crisp, and ragged by
@@ -37,6 +39,7 @@
  */
 import { figureMask, heightFrame } from './silhouette-gates.js';
 import { hexLch, lchHex } from './station-loft-shade.js';
+import { faceHex } from './face-hex.js';
 
 export const MONO_DL = 12, SPLIT_DL = 24, JAG = 0.18;
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -94,7 +97,8 @@ export const MONO_SHARE = 0.8;
 /** the body's dominant lightness (the area-weighted median over its layer-1 surface), and each tone's area */
 function bodyTones(mesh, plan) {
   const V = mesh.vertices, partOf = (fi) => mesh.provenance[mesh.faces[fi][0]].part, L = [];
-  mesh.faces.forEach((t, fi) => { const P = mesh.parts[partOf(fi)]; if (!P || (P.layer ?? 1) !== 1) return; const hex = plan.palette?.[mesh.groups[fi]] || P.tint; if (!/^#[0-9a-f]{6}$/i.test(hex ?? '')) return;
+  // the body's own surface: not a garment over it, nor a second skin painted on it
+  mesh.faces.forEach((t, fi) => { const P = mesh.parts[partOf(fi)]; if (!P || (P.layer ?? 1) !== 1 || P.garment || (Array.isArray(P.painted) && P.painted.includes(mesh.groups[fi]))) return; const hex = plan.palette?.[mesh.groups[fi]] || P.tint; if (!/^#[0-9a-f]{6}$/i.test(hex ?? '')) return;
     const [a, b, c] = t.map((vi) => V[vi]), area = Math.hypot(...cross(sub(b, a), sub(c, a))) / 2; L.push([hexLch(hex)[0], area]); });
   if (!L.length) return null;
   const total = L.reduce((t, [, a]) => t + a, 0); L.sort((x, y) => x[0] - y[0]);
@@ -113,7 +117,8 @@ export function secondTone(hex) {
 
 /** each part's chain: its depth from the trunk along its bind's `prev`, and its chain's length */
 function chains(plan) {
-  const segs = plan.segments || [], byBone = new Map(segs.map((g) => [typeof g.bind === 'object' ? g.bind?.bone ?? g.name : g.name, g]));
+  const segs = plan.segments || [], byBone = new Map();
+  for (const g of segs) { const b = typeof g.bind === 'object' ? g.bind?.bone ?? g.name : g.name; if (!byBone.has(b) || g.name === b) byBone.set(b, g); }
   const depth = new Map(), last = new Set();
   for (const g of segs) { let d = 0, x = g; while (x && typeof x.bind === 'object' && x.bind?.prev && byBone.has(x.bind.prev) && d < 12) { x = byBone.get(x.bind.prev); d++; } depth.set(g.name, d); }
   for (const g of segs) if (['segment', 'loft'].includes(g.kind) && !(typeof g.bind === 'object' && g.bind?.next && byBone.has(g.bind.next))) last.add(g.name.replace(/[RL]$/, ''));
@@ -124,31 +129,47 @@ export function markingTint(mesh, plan, markings) {
   if (!markings || markings.pattern === 'none') return null;
   const pattern = markings.pattern ?? 'both', palette = plan.palette ?? {}, V = mesh.vertices, F = mesh.faces;
   const partOf = (fi) => mesh.provenance[F[fi][0]].part;
-  const body = new Set(Object.entries(mesh.parts).filter(([, p]) => (p.layer ?? 1) === 1).map(([n]) => n));
-  const cover = new Set([...F.keys()].filter((fi) => body.has(partOf(fi))).map((fi) => mesh.groups[fi]));
+  // the BODY's own faces: not a garment worn over it, nor what a second skin painted on it (cloth takes no markings)
+  const body = new Set(Object.entries(mesh.parts).filter(([, p]) => (p.layer ?? 1) === 1 && !p.garment).map(([n]) => n));
+  const painted = (fi) => { const p = mesh.parts[partOf(fi)]; return Array.isArray(p?.painted) && p.painted.includes(mesh.groups[fi]); };
+  const cover = new Set([...F.keys()].filter((fi) => body.has(partOf(fi)) && !painted(fi)).map((fi) => mesh.groups[fi]));
   for (const g of ['Fur', 'FurAlt']) cover.add(g);
-  const baseOf = (fi) => palette[mesh.groups[fi]] || mesh.parts[partOf(fi)]?.tint || '#8a8f96';
+  const baseOf = (fi) => faceHex(palette, mesh.groups[fi], mesh.parts[partOf(fi)]);
   // only the body's MAIN tone takes a marking: what already stands apart from it (dark paws, a pale belly the plan
   // painted) keeps its colour
   const tones = bodyTones(mesh, plan), mainTone = (hex) => !tones || Math.abs(hexLch(hex)[0] - tones.mid) <= MONO_DL;
   const { last } = chains(plan), tails = Object.keys(mesh.parts).filter((n) => /^tail\d+$/.test(n)).sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
+  // `ventral: 'panel'`: the countershade a pale throat and belly only (the half-width each trunk part's own)
+  const panel = markings.ventral === 'panel', widths = new Map();
+  const halfW = (part) => { if (!widths.has(part)) { let w = 0; F.forEach((t, fi) => { if (partOf(fi) === part) for (const vi of t) w = Math.max(w, Math.abs(V[vi][0])); }); widths.set(part, w); } return widths.get(part); };
   const pointy = (part) => { const base = familyOf(part).replace(/^lock\.|^tile\./, ''); return last.has(part.replace(/[RL]$/, '')) || /^(ear|earInner)$/.test(base) || tails.slice(-2).includes(part); };
   return F.map((t, fi) => {
     const part = partOf(fi), g = mesh.groups[fi];
-    if (!cover.has(g) || part.startsWith('adorn.')) return null;
+    if (!cover.has(g) || part.startsWith('adorn.') || mesh.parts[part]?.garment || painted(fi)) return null;
     const P = t.map((vi) => V[vi]), c = [0, 1, 2].map((k) => (P[0][k] + P[1][k] + P[2][k]) / 3), n = unit(cross(sub(P[1], P[0]), sub(P[2], P[0])));
     const base = baseOf(fi); if (!mainTone(base)) return null;
-    const light = hexLch(base)[0] >= 55, two = markings.colour ?? secondTone(base);
+    const light = hexLch(base)[0] >= 55;
+    // a panel is always the paler throat and belly; the points take the second tone
+    const paler = () => { const [L, C, h] = hexLch(base); return lchHex(Math.min(92, L + (light ? 12 : SPLIT_DL)), C * 0.8, h); };
+    let two = markings.colour ?? secondTone(base);
     const jag = JAG * (hash(`${part}/${fi}`) - 0.5);
     let marked = false;
     if (pattern === 'points' || pattern === 'both') marked = pointy(part);
     if (!marked && (pattern === 'countershade' || pattern === 'both')) {
       const fam = familyOf(part), side = c[0] >= 0 ? 1 : -1;
-      const ventral = /^(cranium|jaw)$/.test(part) ? [0, 0.35, -1] : /[RL]$/.test(part) && !TRUNK.test(fam) ? [-side, 0.4, -0.2] : [0, 0.85, -0.5];
-      const v = dot(n, unit(ventral)) + jag;
-      marked = light ? v < -0.1 : v > 0.1;   // a light body darkens its dorsal side, a dark one lightens its ventral
+      if (panel) {
+        // a PANEL: only the throat and the belly, a strip down the trunk's front, and under the jaw; the limbs keep the coat
+        const head = /^(cranium|jaw)$/.test(part);
+        if (head) marked = dot(n, unit([0, 0.35, -1])) + jag > 0.35;
+        else if (TRUNK.test(fam)) marked = dot(n, unit([0, 1, -0.25])) + jag > 0.3 && Math.abs(c[0]) < (0.36 + jag) * halfW(part);
+      } else {
+        const ventral = /^(cranium|jaw)$/.test(part) ? [0, 0.35, -1] : /[RL]$/.test(part) && !TRUNK.test(fam) ? [-side, 0.4, -0.2] : [0, 0.85, -0.5];
+        const v = dot(n, unit(ventral)) + jag;
+        marked = light ? v < -0.1 : v > 0.1;   // a light body darkens its dorsal side, a dark one lightens its ventral
+      }
     }
     if (!marked) return null;
+    if (panel && !markings.colour && !pointy(part)) two = paler();
     const [a, b] = [hexRgb(base), hexRgb(two)], m = [0, 1, 2].map((k) => +(a[k] > 0.02 ? Math.min(4, b[k] / a[k]) : 1).toFixed(4));
     return [m, m, m];
   });

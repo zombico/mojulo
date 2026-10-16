@@ -17,6 +17,7 @@ const ATTACKS = [1, 5];   // defensive and up: everyone but the passive strikes 
 
 export const STRATEGIES = Object.freeze({
   idle: [
+    { id: 'roam-to-fight', line: 'heads for the fight: the shot that hit it, a gunshot it heard, a hunch where a rival is', when: { motivation: ['frag'] }, status: 'built', lowers: MIND },
     { id: 'post', line: 'holds its post', when: { motivation: ['guard'] }, status: 'built', lowers: MIND },
     { id: 'patrol', line: 'walks its waypoints', needs: ['route'], status: 'built', lowers: TUTORIAL },
     { id: 'graze', line: 'wanders from food to food', when: { motivation: ['forage'] }, status: 'built', lowers: MIND },
@@ -26,6 +27,7 @@ export const STRATEGIES = Object.freeze({
   ],
   notice: [
     { id: 'flee', line: 'turns and runs inside its fear radius', when: { motivation: ['flee'] }, status: 'built', lowers: MIND },
+    { id: 'fight-the-seen', line: 'fights whom it sees, who shot it first, and stays on its foe', needs: ['ranged'], when: { motivation: ['frag'], aggr: [2, 5] }, status: 'built', lowers: MIND },
     { id: 'warn', line: 'warns before it attacks', when: { motivation: ['territorial'] }, status: 'built', lowers: MIND },
     { id: 'open-fire', line: 'opens with fire, after its reaction time', needs: ['ranged'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
     { id: 'close-in', line: 'closes to blade range', needs: ['melee'], when: { aggr: [2, 5] }, unless: { motivation: ['ambient', 'forage', 'escort'] }, status: 'built', lowers: MIND },
@@ -37,6 +39,7 @@ export const STRATEGIES = Object.freeze({
     { id: 'siege', line: 'holds back and lobs', needs: ['lob'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'rush', line: 'presses in with a spray weapon', needs: ['area'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'kite', line: 'backs off while it shoots (the arena commander\'s posture)', needs: ['ranged', 'commanded'], when: { aggr: ATTACKS }, status: 'built', lowers: 'lib/graph/worlds/controllable/commander.js', note: 'a commander\'s kite posture, spaced by the mind' },
+    { id: 'strafe', line: 'strafes side to side as it shoots', needs: ['ranged'], when: { motivation: ['frag'], aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'skirmish', line: 'holds mid range and weaves', needs: ['ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'brawl', line: 'fights at blade range', needs: ['melee'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'hold', line: 'stands its ground', status: 'built' },
@@ -55,6 +58,7 @@ export const STRATEGIES = Object.freeze({
   ],
   lost: [
     { id: 'return-to-post', line: 'goes back to its post', when: { motivation: ['guard'] }, status: 'built', lowers: MIND },
+    { id: 'peek', line: 'sidesteps to the nearest spot that clears its gun past the edge, its gun\'s side first, and back', needs: ['ranged'], when: { motivation: ['frag'] }, status: 'built', lowers: MIND },
     { id: 'search-last-seen', line: 'searches where it last saw the target', needs: ['memory'], status: 'built', lowers: MIND },
     { id: 'switch-tools', line: 'gives up the blade for guns a while', needs: ['melee', 'ranged'], when: { aggr: ATTACKS }, status: 'built', lowers: MIND },
     { id: 'forget', line: 'lets it go', status: 'built' },

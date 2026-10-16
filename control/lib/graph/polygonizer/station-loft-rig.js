@@ -44,6 +44,7 @@ import { characterLitPieces, drawLayer } from './station-loft-shade.js';
 import { castLightFactor } from './vexar.js';
 import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
+import { faceHex } from './face-hex.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
 export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift'];
@@ -643,7 +644,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
   else mesh.faces.forEach((tri, fi) => {
     const votes = {}; for (const vi of tri) votes[skin.dominant[vi]] = (votes[skin.dominant[vi]] || 0) + 1;
     const bi = Number(Object.entries(votes).sort((a, b) => b[1] - a[1] || a[0] - b[0])[0][0]);
-    const part = mesh.parts[mesh.provenance[tri[0]].part]; const hex = pal[mesh.groups[fi]] || part.tint || '#8a8f96'; let base = colOf.get(hex); if (!base) colOf.set(hex, base = faceColorLinear({ fill: hex }));
+    const part = mesh.parts[mesh.provenance[tri[0]].part]; const hex = faceHex(pal, mesh.groups[fi], part); let base = colOf.get(hex); if (!base) colOf.set(hex, base = faceColorLinear({ fill: hex }));
     const p = tri.map((vi) => { const v = mesh.vertices[vi]; return [v[0], v[1], v[2] + dz]; }); const nrm = cross(sub(p[1], p[0]), sub(p[2], p[0])); const nl = len(nrm); const lit = glow.has(mesh.groups[fi]); const shade = lit ? 1 : 0.55 + 0.45 * Math.max(0, nl > 1e-12 ? dot(mul(nrm, 1 / nl), L) : 0);
     // THE PAINTED FACE on the plain path (a hero under a level's cast light): a painted face's corners carry the texture
     // and the light alone (white under it), and one over a region its shells, as characterRigParts does. Absent ⇒ as before.
@@ -717,8 +718,12 @@ export function auditRig(mesh, skin, R, poses = [{}]) {
   for (const pose of poses) {
     const { nodes, report } = rigNodesAt(R, pose); const frames = boneFrames(R, rest, nodes);
     for (const f of frames) { out.maxLengthError = Math.max(out.maxLengthError, f.lengthError); for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) out.maxOrthoError = Math.max(out.maxOrthoError, Math.abs(dot(f.m[a], f.m[b]) - (a === b ? 1 : 0))); }
-    // a planted toe stays where the pose plants it (plantedFoot: at rest, or where the stance and stagger put it)
-    for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) { const at = plantedFoot(R, l, pose); out.maxPlantedDrift = Math.max(out.maxPlantedDrift, len(sub(nodes[l.toeBase], at.toeBase)), len(sub(nodes[l.toeTip], at.toeTip))); }
+    // a planted toe stays where the pose plants it (plantedFoot: at rest, or where the stance and stagger put it); a leg
+    // given a `feet` target (a gait's footfall, a swing foot on its arc) stands at that target, its toe tip turned with it
+    for (const [S, l] of Object.entries(R.legs)) if (report.legs[S]?.planted) {
+      const target = Array.isArray(pose.feet?.[S]) ? pose.feet[S] : null;
+      out.maxPlantedDrift = Math.max(out.maxPlantedDrift, ...(target ? [len(sub(nodes[l.toeBase], target))] : ((at) => [len(sub(nodes[l.toeBase], at.toeBase)), len(sub(nodes[l.toeTip], at.toeTip))])(plantedFoot(R, l, pose))));
+    }
     out.poses.push({ pose, legs: report.legs });
   }
   return out;
