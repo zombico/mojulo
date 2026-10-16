@@ -43,6 +43,144 @@ bible.
 - **The interpreter names a cube.** A world composed from a prompt starts from the cube its words point at, with a
   palette read from the prompt, and the brief says which word decided it.
 
+### Era gear: outfits and gear for modern and future worlds
+
+A modern or future game's people stood with empty hands and their role's kit left off: the gear was a myth's (sword,
+dagger, bow, staff, shield, a ranger's quiver). The era now dresses and arms them. `docs/egocube.md`, The setting.
+
+- **Firearms as gear** (`lib/graph/equipment/firearm.js`): `pistol`, `carbine`, `shotgun`, generic proxies with no make
+  or model, built from the same boxes the carry holds pose round (`equipment/firearm-shapes.js`, moved out of
+  `hero-carry.js` byte for byte). Their own cards: `service` (the default: square-edged gunmetal and black polymer, a
+  wooden shotgun stock) and `future` (smooth and pale, a lit band down each side), or an inline card. A myth's sample, a
+  stone or parts are refused by name. Sockets `grip`, `tip`, `stock`. They are their own family (`FIREARM_ITEMS`;
+  `GEAR_ITEMS` is both), so the myth catalogue, its samples and their pins are untouched; a pin per firearm card ×
+  firearm.
+- **The firearm hold** (`hero-gear.js`). In a hand at low ready: the grip along the fist, the muzzle forward and down,
+  tilted further until it clears the floor. On the back slung muzzle down, its side to the back. A pistol on the hip is
+  holstered at the right thigh; a long gun on the hip is refused (`gear.hip: a carbine is a long gun`).
+- **The era's wardrobe: a look per person** (`egocube/outfit.js` `ERA_LOOKS`). A modern or future person rolls a LOOK
+  off its own seed and facets, leaned by its archetype and role, so a crowd is several looks, never one cut:
+  - modern: a leather jacket (`biker`), `tactical` clothes (cargo trousers), `fatigues`, a `suit`, an `operative`'s long
+    coat, `streetwear`, `casual`;
+  - future: ARMOUR, the hardsuit family's samples worn over their bodysuit in place of clothes and kit (a `trooper`'s
+    plates and T-visor helm, a segmented `powersuit` with its faceplate and reactor, `heavy` power armour; a rank of
+    troopers one plate and one helm), a `flightsuit`, a `runner`'s cropped jacket, a `corporate` long coat, `athleisure`.
+    On the anime head a hardsuit is bareheaded (its helm is not fitted to that head yet): the armour's `helm: 'none'`
+    (`armor/hardsuit.js`, new; absent, every suit as it was), the focal a shoulder's emblem.
+
+  Each look is a new seeded outfit card (`outfit/styles.js`, appended: the pinned cards are untouched), the garments
+  whose tones it owns (a leather jacket is black hide whatever the world's colours; the rest take the world's), how much
+  of the role's kit it wears (`full`, `light` with no armour, `concealed` with nothing over the clothes but a satchel or
+  wrist units: a suit, a long coat), its vest's cut by role and its gear's colourway (black, coyote, olive). A rank still
+  shares its first member's uniform; a quick figure dresses as its look, not the kit's underlayer. The designed dress
+  takes the look's card as its cut (an armour look keeps its hardsuit), and a look with no accent worn gets an ID band on
+  the arm.
+- **Each era its silhouette** (`stylism`, on the look): a modern look is drawn GROUNDED in the modern vocabulary, its
+  outline its own or a plain one (a biker's wedge, an operative's needle, streetwear's barrel: a puffer); a future look
+  HEROIC in the sci-fi vocabulary, sleek (a flight suit's sculpted wedge, a runner's and a corporate coat's needle). A
+  rank shares its first member's silhouette with its uniform and the look's own tones.
+- **The era's kit** (`ERA_GEAR`): the role's pieces as its look wears them, in place of the ranger's kit:
+  - modern: a carrier and kneepads, pouches, a chest rig, a pack, a satchel;
+  - future: a hardshell in the metal with floating plates, cells on the belt, wrist units.
+
+  The designed dress drops the travelling cloak and the mantle of office, and the outlaw's focal is a medallion. Three
+  catalogue pieces, each built on a window a myth piece proved:
+  - `vest`, in four cuts: a `carrier` (the cuirass with its lames), a `slick` plate (one plate high on the chest), a
+    chest `rig` (harness straps and a row of front magazine pouches, no plate), a `hardshell` (the whole front);
+  - `pouches` (a duty belt, a pouch at each hip);
+  - `kneepads` (on a hero's shank or a creature's shin).
+
+  A myth's or a rustic world's people, and every roll with no setting, are as they were.
+- The visual-interest laws advise against the tonal uniforms (tactical, fatigues, the flight and hard suits): the colour
+  laws (three values, the accent on the focal) only; they advise, they do not refuse.
+- **Quick figures carry the era's arms**: a foe a pistol, a gunner and a tower archer a carbine, a guard a carbine with a
+  pistol holstered, a future world's in the future card; the role's era pieces are worn over the kit's underlayer. The
+  setting's "no gear yet" lines are gone, and `KITLESS_ERAS` with them (`KIT_ERAS` names the eras that dress their own).
+- The `layered` card's gear section and the `equipment` card name the firearms.
+- **The eyes gate has not run.** The character-rolls lineup draws a row per era.
+- Not yet: a game book's equipment table is the myth's classes (no firearm class for a modern book); helmets and visors
+  are the armour's only.
+
+### Mascots on foot
+
+A mascot drove a racer and stood still everywhere else: it had no walk, no run, and no game would take it as a pilot.
+`docs/mascot.md`, On foot.
+
+- **Gaits** (`lib/graph/egocube/mascot-gait.js`): `walk` and `run` clips on every mascot, sized by its own legs.
+  - The stride is a share of the leg, cut to what the leg reaches with the root sunk a little, and centred where the
+    ankle passes under the hip (a big shoe puts the toe well ahead of it).
+  - The cycle is a pendulum of that leg (√(leg / 0.9) s).
+  - A walk keeps a foot down at every key; a run flies twice a cycle.
+  - The swing foot lifts high but never past what the leg can fold.
+  - The arms swing against the legs, and the energy flavours it: bouncy bobs, zippy leans and trails its arms, sturdy
+    waddles, swaying sways, floaty barely touches down.
+
+  `squat` and `leap` wind up and hold a game's jump. `mascotGaits(plan)` gives each gait's stride, cycle, travel and
+  speed. The clips walk in place on the rig's `feet` and `sink` channels.
+- **The rig audit measures a foot given a `feet` target from that target** (`station-loft-rig.js` `auditRig`): a gait's
+  footfall is where the pose puts it, not drift. A pose with no target is measured as before.
+- **A mascot is a humanoid** (`figure-humanoid-map.js`): a creature-door biped's `shin` is the lower leg and its `meta`
+  the foot. A mascot (and a digitigrade creature on the same legs) moulds to the T-pose and exports as a humanoid with its
+  gaits.
+- **A mascot is a pilot** (`egocube/mascot-pilot.js`):
+  - `heroRef` may name a stored mascot (its plan carries `mascot`: energy, form, height, head);
+  - it keeps its own size, and the game's speed, jump and step stay the game's;
+  - its clips play the runtime's states, its stride is the run's travel (the cycle at most four a second);
+  - its capsule is its height and its head, and the follow camera and the first-person eye are framed on it;
+  - `playerWorld` takes `pilot`, `stageLevelOrder` passes it.
+- **A quick game's mascot hero**: `quick.hero: { mascot: true | { brief?, facets?, seed? } }`.
+  - It is rolled in the game's setting (its tradition the mascot's style) and minted through the creature door.
+  - A re-run remakes it by its plan.
+  - `quick.hero: { ref }` adopts one made with `create_character { as: 'mascot' }`.
+  - The `gameworld-quick` card says so.
+- **Fixed: a quick game's adopted hero had no lookup** (`heroRefOf` read only a book's `characters.hero.ref`), so its own
+  gaits were never read.
+- **The eyes gate has not run.** The mascot contact sheet does not draw the gaits yet.
+- Not yet:
+  - a game's other figures as mascots;
+  - a mascot hero's hit egg in a shooter;
+  - an orb that rolls;
+  - foot IK on slopes.
+
+### Character rolls: each game's best shot at its own people
+
+The Egocube is a loaded die, and it was loaded the same way for every game: the roller took no setting, a rolled
+person always landed on the western landmark head, and a quick game stood up the same stock figures (a male body,
+one shirt colour, a weapon) whatever its world. A game now loads the dice. `docs/egocube.md`, The setting.
+
+- **The setting** (`lib/graph/egocube/setting.js`): `{ tradition, era, genre, ramps, lean }`, read and validated. Its
+  genre (a quick game's goal) and era lean the priors of both rollers, person and mascot, as multipliers; what the
+  operator asks for beats it, and a roll with no setting is byte-identical to before. `rollEgocube`, `rollMascot`,
+  the fate thread, a person's mascot output and the stored egocube (`roll.setting`) all take it.
+- **The tradition lands on the body.** An anime setting's person wears the anime head, its proportions and the
+  character light; the sheet's face-at-rest and eye derives land on the anime head's own expression amounts and its
+  graphic face (`sculpt`), its hair on the anime families. A mascot takes the tradition as its style. Its clothes are
+  the world's ramps, walked until cloth no longer reads as the skin under it.
+- **A game's setting** (`lib/graph/gameworld/cast-setting.js`): `settingOfGame` reads the tradition from the book's
+  direction or the kit's pole, the era from the kit, the genre from the quick goal and the ramps from the kit card.
+- **Quick figures are rolled in it.** A quick game's foe, tower archer, gunner, farmhand and guard it names none of
+  are rolled in its setting (the goal's facet kept: a farmhand does not fight) and wear the kit's underlayer; a modern
+  or future era's arms and kit are Era gear's, above. The stock presets are gone. Racers are rolled in it too,
+  the field drawn by the genre's archetype lean. The run's readout carries a `cast` law: what was rolled, what the era
+  left out, and an adopted hero drawn in another tradition (kept as it is).
+- **A role is a pool of people.** A quick game rolls up to three figures per role (`CAST_POOL`), cycled over its
+  members, so a crowd of foes is three faces, never one: `guard`, `guard-2`, `guard-3` (the first at the role's own
+  ref). A RANK (guards, tower archers, a defence's and a battle's foes, a shooter's gunners) shares the first member's
+  uniform (its clothes, their colours, its gear) on a face of its own, as affiliation echoes the lived channels;
+  farmhands and a deathmatch's bots are each their own. A game's own figure spec is still one figure for all.
+- **Fixed: a figure rig whose two extra bones were nearest each other** (a bust pair) took each other as parents, and
+  moulding it to the T-pose threw (`rig-tpose.js`); every bone of such a loop now rides its nearest humanoid bone. A
+  rig with no loop moulds as before.
+- **Mascot racers.** A race leans hard toward mascots: a racer the setting's die (or its entry's `tuning: 'mascot'`)
+  makes a mascot is driven by that person's mascot, seated in the cockpit by the rig's own seat channel in place of the
+  chibi stand-in (`lib/graph/car-designer/mascot-driver.js`). The machine and its physics are still read off the
+  person, so the field's balance is unchanged; faces hidden in the shell are left out, the mascot keeps its fine rings
+  and its own colours, and it is counted apart from the machine's face budget. The driver-seen law looks for its crown.
+- **Fixed: a deathmatch's bots had no body.** The figure step left the deathmatch out, so its bots fell back to the
+  stock placeholder figure.
+- **The eyes gate has not run.** `docs/examples/character-rolls/render-lineup.mjs` draws a flat-lit contact sheet, one
+  row per scenario and a last row with no setting.
+
 ### Desktop export: a game as an app, the engines as translations
 
 A game plays in the browser; that build is the game itself. It now also ships as a desktop app, and the copy

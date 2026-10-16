@@ -33,8 +33,12 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
+import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { rideBuild, rideRule } from './ride.js';
+import { rollMascot } from '../egocube/mascot.js';
+import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
+import { isMascotPlan, mascotPilot } from '../egocube/mascot-pilot.js';
 import { seedOfRef } from '../beats/field-cue.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
@@ -66,9 +70,9 @@ const keepJog = (patch) => patch && patch.map((op) => (op.op === 'set' && op.pat
 // the door gaits a pilot carries (player.js plays its own jog and walk over the library's)
 const gaitsOf = (spec) => (spec && isObj(spec.motion) ? Object.keys(spec.motion) : null);
 
-/** The hero's ref: the one the world adopts (`characters.hero.ref`, made with create_character), else the one a run
- * makes at `<ref>-hero`. */
-export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? childRef(ref, 'hero');
+/** The hero's ref: the one the world adopts (`characters.hero.ref`, or a quick game's `quick.hero.ref`, made with
+ * create_character), else the one a run makes at `<ref>-hero`. */
+export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? (typeof world.quick?.hero?.ref === 'string' ? world.quick.hero.ref : null) ?? childRef(ref, 'hero');
 
 /** The steps of a run, in the order they are made (the hero first: the others name it, or wait on its pinned base). */
 export function runSteps(world, { ref, lookup } = {}) {
@@ -194,12 +198,23 @@ function quickSteps(world, G, ref, lookup) {
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;
   const heroRef = adopted ?? (Q.hero ? childRef(ref, 'hero') : null);
+  const setting = settingOfGame(G, Q);
+  // a MASCOT on foot (egocube/mascot-pilot.js): rolled from its words in the game's setting (its tradition its style),
+  // minted through the creature door as create_character { as: 'mascot' } mints one, and piloted by its own body
+  let pilot = adopted && isMascotPlan(lookup?.head?.plan) ? mascotPilot(lookup.head.plan) : null;
   if (adopted) steps.push({ key: 'hero', ref: heroRef, ready: true, adopt: true, order: { adopt: heroRef }, print: fingerprint({ adopt: heroRef }) });
-  else if (Q.hero) {
+  else if (isObj(Q.hero) && Q.hero.mascot !== undefined) {
+    const words = Q.hero.mascot === true ? {} : Q.hero.mascot, seed = words.seed ?? (Number.isInteger(G.seed) ? G.seed : 1);
+    const P = mascotPlanFromSheet(rollMascot({ ...words, seed, setting }), { title: `${G.name ?? G.id} hero` });
+    const dials = Object.fromEntries((P.after || []).filter((op) => op.op === 'set' && /^\/dials\/[^/]+$/.test(op.path)).map((op) => [op.path.slice(7), op.value]));
+    const mint = { kind: 'layered', via: 'plan', title: P.create.title, spec: { ...P.create.spec, ...(Object.keys(dials).length ? { dials } : {}) } };
+    steps.push({ key: 'hero', ref: heroRef, ready: true, order: { mascot: words, mint, motion: null }, print: fingerprint({ mascot: mint.spec }) });
+    pilot = mascotPilot(P.create.spec.plan);
+  } else if (Q.hero) {
     const spec = playJog(Q.hero), mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} hero`, spec, ...(Q.hero.head === 'anime' ? { toon: { light: true } } : {}) };
     steps.push({ key: 'hero', ref: heroRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
   }
-  const heroGaits = gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(Q.hero) : null);
+  const heroGaits = pilot ? null : gaitsOf(adopted ? lookup?.heroSpec : Q.hero ? playJog(Q.hero) : null);
   // a ride (ride.js): the vehicle's build, minted as its own sketch; every stage drives it
   const rideRef = Q.ride ? childRef(ref, 'ride') : null;
   if (rideRef) {
@@ -207,7 +222,8 @@ function quickSteps(world, G, ref, lookup) {
     steps.push({ key: 'ride', ref: rideRef, ready: true, order: { title: build.title, manifest: build }, print: fingerprint({ ride: Q.ride, seed }) });
   }
   // a field of racers (quick.racers): solved here, each a recipe its figure resolves through (nothing to mint); yours first
-  const racers = Q.racers !== undefined ? quickRacers(Q, Number.isInteger(G.seed) ? G.seed : 1) : null;
+  // the field rolled in the game's setting (cast-setting.js): its genre leans who races, its tradition how they are drawn
+  const racers = Q.racers !== undefined ? quickRacers(Q, Number.isInteger(G.seed) ? G.seed : 1, setting) : null;
   // a field of supercars (quick.supercars): each a recipe its figure resolves through, its livery solved; yours first
   const supercars = Q.supercars !== undefined ? quickSupercars(Q, Number.isInteger(G.seed) ? G.seed : 1) : null;
   const ride = rideRef ? { ref: rideRef, rule: quickRideRule(Q, rideRule(Q.ride, Number.isInteger(G.seed) ? G.seed : 1)) }
@@ -216,28 +232,51 @@ function quickSteps(world, G, ref, lookup) {
   // (the field's balance as a level law, in the concerns' shape: advice in the run's readout, never a refusal)
   const B = racers?.balance, nameOf = (i) => racers.field[i].archetype;
   const balance = racers ? { concern: 'racers', law: 'balance', holds: B.holds, says: B.holds ? `each of the ${racers.field.length} machines has something over every rival, none best at everything${racers.changes.length ? ` (leaned: ${racers.changes.map((c) => `the ${c.archetype}'s ${c.family} ${c.from} → ${c.to}`).join('; ')})` : ''}` : [...B.bettered.map((x) => `the ${nameOf(x.i)}'s machine bettered everywhere by the ${nameOf(x.by)}'s`), ...B.everything.map((i) => `the ${nameOf(i)}'s machine best at everything`)].join('; ') } : null;
-  // a defence's foe and tower archer: one figure each, minted as a hero is
+  // the figures: each minted as a hero is, the game's own spec or, when it names none, one rolled in the game's setting
+  // (cast-setting.js: its tradition, era, genre and colours), so a sakura farm and a moon arena stand up their own people
+  const cast = [];
+  const stepOf = (key, F) => {
+    const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${key}`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
+    return { key, ready: true, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
+  };
+  // a role's figures: the game's own spec (one figure for all), or a POOL rolled in its setting, each its own roll,
+  // cycled over the members (quick.js refAt), the first at the role's own ref; a RANK (guards, archers, foot soldiers)
+  // shares the first's uniform and keeps its own face, as affiliation echoes the lived channels (docs/egocube.md)
+  const castOf = (key, own, { as = key, n = 1, rank = false } = {}) => {
+    if (own) { const r = childRef(ref, key); steps.push({ ...stepOf(key, { spec: own, ...(own.head === 'anime' ? { toon: { light: true } } : {}) }), ref: r }); return r; }
+    const refs = [];
+    let first = null;
+    for (let i = 0; i < Math.max(1, Math.min(CAST_POOL, n)); i++) {
+      const k = i ? `${key}-${i + 1}` : key, F = quickFigure(G, Q, as, setting, { variant: i, ...(rank && first ? { uniform: first.spec } : {}) });
+      first ??= F;
+      refs.push(childRef(ref, k));
+      steps.push({ ...stepOf(k, F), ref: refs[i] });
+    }
+    cast.push({ key, n: refs.length, rank, reads: first.sheet.reads, pending: first.pending });
+    return refs.length === 1 ? refs[0] : refs;
+  };
+  // a defence's foes and tower archers, a battle's foes, a shooter's gunners and a deathmatch's bots
   const figRefs = {};
   // (a dogfight's foes are fighters, not figures: skyscape/dogfight.js)
-  if (Q.goal === 'defend' || Q.goal === 'battle' || (Q.goal === 'shoot' && Q.craft === undefined)) {
-    for (const [key, spec] of Q.goal === 'defend' ? [['foe', Q.foe ?? QUICK_FOE], ['tower', Q.tower ?? QUICK_TOWER]] : [['foe', Q.foe ?? (Q.goal === 'shoot' || Q.goal === 'deathmatch' ? QUICK_GUNNER : QUICK_FOE)]]) {
-      figRefs[key] = childRef(ref, key);
-      const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} ${key}`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
-      steps.push({ key, ref: figRefs[key], ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
-    }
-  }
-  // a farm's farmhands: one figure
-  if (Q.goal === 'farm' && (Q.folk ?? 2) > 0) {
-    const spec = Q.farmhand ?? QUICK_FARMHAND, mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} farmhand`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
-    figRefs.farmhand = childRef(ref, 'farmhand');
-    steps.push({ key: 'farmhand', ref: figRefs.farmhand, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
-  }
-  // a sneak's guards: one figure, minted as a hero is (the game's own spec, or a plain one)
-  const guardRef = Q.goal === 'sneak' ? childRef(ref, 'guard') : null;
-  if (guardRef) {
-    const spec = Q.guard ?? QUICK_GUARD, mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} guard`, spec, ...(spec.head === 'anime' ? { toon: { light: true } } : {}) };
-    steps.push({ key: 'guard', ref: guardRef, ready: true, order: { spec, mint, motion: null }, print: fingerprint({ spec, ...lit(mint.toon) }) });
-  }
+  if (Q.goal === 'defend') {
+    figRefs.foe = castOf('foe', Q.foe, { n: CAST_POOL, rank: true });
+    figRefs.tower = castOf('tower', Q.tower, { n: Q.pads ?? 4, rank: true });
+  } else if (Q.goal === 'battle') figRefs.foe = castOf('foe', Q.foe, { n: Q.foes ?? 3, rank: true });
+  else if (Q.goal === 'shoot' && Q.craft === undefined) figRefs.foe = castOf('foe', Q.foe, { as: 'gunner', n: CAST_POOL, rank: true });
+  // (a deathmatch's bots are each for themselves: no uniform)
+  else if (Q.goal === 'deathmatch') figRefs.foe = castOf('foe', Q.foe, { as: 'gunner', n: Q.bots ?? CAST_POOL });
+  // a farm's farmhands, each their own person
+  if (Q.goal === 'farm' && (Q.folk ?? 2) > 0) figRefs.farmhand = castOf('farmhand', Q.farmhand, { n: Q.folk ?? 2 });
+  // a sneak's guards, a rank
+  const guardRef = Q.goal === 'sneak' ? castOf('guard', Q.guard, { n: Q.guards ?? 3, rank: true }) : null;
+  // what the setting rolled, and an adopted hero drawn in another tradition, as advice in the run's readout (a level
+  // law, in the concerns' shape), never a refusal
+  const castLaws = [];
+  if (cast.length) castLaws.push({ concern: 'cast', law: 'setting', holds: cast.every((c) => !c.pending.length),
+    says: `rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}): ${cast.map((c) => `the ${c.key}${c.n > 1 ? ` (${c.n} rolls${c.rank ? ', one uniform' : ''})` : ''}, ${c.reads.slice(0, 2).join('; ')}${c.pending.length ? ` (${c.pending.join('; ')})` : ''}`).join(' · ')}` });
+  const adoptedTradition = adopted && lookup?.heroSpec ? (lookup.heroSpec.head === 'anime' ? 'anime' : 'western') : null;
+  if (adoptedTradition && setting.tradition && adoptedTradition !== setting.tradition) castLaws.push({ concern: 'cast', law: 'tradition', holds: false,
+    says: `the adopted hero is drawn ${adoptedTradition}; the game is ${setting.tradition}. It is kept as it is: update_character can move its head and proportions to the game's tradition` });
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   const gameRef = childRef(ref, 'game'), scoreOf = (s, i) => goalAudio(Q, { manifest: s.manifest ?? {}, final: stages.length > 1 && i === stages.length - 1, game: seedOfRef(gameRef) });
@@ -245,8 +284,8 @@ function quickSteps(world, G, ref, lookup) {
     if (s.building?.ref) return;
     const audio = scoreOf(s, i);
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
-    const laws = balance ? [...(L.laws ?? []), balance] : L.laws;
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), ...(pilot ? { pilot } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
+    const extraLaws = [...(balance ? [balance] : []), ...castLaws], laws = extraLaws.length ? [...(L.laws ?? []), ...extraLaws] : L.laws;
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(laws ? { laws } : {}) });
   });
   const links = gameLinks(stages, levelRefs);

@@ -11,6 +11,10 @@
 //   forearm (shield) its height along the forearm, its face outward, its back grip at the hand
 //   back    across the shoulder blades on the torso: a blade hilt-up over the right shoulder, anything else head-up
 //   hip     at the left hip on the pelvis, hilt forward and up, the tip back and down
+//   firearm (pistol, carbine, shotgun) at LOW READY in the hand: the grip's line along the fist's (the thumb's side up
+//           the grip toward the bore), the muzzle down along the arm and forward out of it, its end kept above the
+//           floor; on the back slung across the shoulder blades muzzle down, its side flat to the back; a pistol on the
+//           hip in a holster at the RIGHT thigh (the strong side), muzzle down, the grip back. A long gun has no hip.
 // Gear is placed at the REST pose and carried by its bone's frame, so the stand, the clips, the rig preview and the
 // skinned export carry it the same way. The mounting rules come from the mecha arm's hold families (a fixed rotation
 // per class, the grip on the wrist line, attach at rest then pose). Pure: no dice, no clock.
@@ -25,7 +29,11 @@ import { rigNodesAt } from './station-loft-rig.js';
 import { DEFAULT_LIGHT } from './vexar.js';
 
 export const GEAR_SLOTS = Object.freeze(['right', 'left', 'back', 'hip']);
-const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm' });
+const HOLD_OF = Object.freeze({ dagger: 'blade', sword: 'blade', greatsword: 'blade', staff: 'haft', bow: 'bow', shield: 'forearm', pistol: 'firearm', carbine: 'firearm', shotgun: 'firearm' });
+/** the firearm's muzzle forward of straight down along the arm at low ready (°), more when the floor asks */
+const READY = 25;
+/** the firearms carried on the hip (a holster): the pistol alone */
+const HOLSTERED = new Set(['pistol']);
 const TILT = Object.freeze({ blade: 45, haft: 75, bow: 78 });
 const FLOOR = 0.03;   // m a lower end keeps above the rest floor
 const BLADES = new Set(['dagger', 'sword', 'greatsword']);
@@ -69,6 +77,7 @@ export function validateGear(gear) {
     if (spec === null) continue;
     if (!spec || typeof spec !== 'object' || Array.isArray(spec)) { errs.push(`gear.${slot}: an item's build words { item, style?, dials?, parts?, gem?, seed? }`); continue; }
     errs.push(...validateBuild({ ...spec, type: 'equipment' }).map((e) => `gear.${slot}: ${e}`));
+    if (slot === 'hip' && HOLD_OF[spec.item] === 'firearm' && !HOLSTERED.has(spec.item)) errs.push(`gear.hip: a ${spec.item} is a long gun, carried in a hand or slung on the back (only a pistol is holstered)`);
   }
   return errs;
 }
@@ -107,7 +116,14 @@ export function gearMounts(hero, R) {
       const w = J[`wrist${S}`], kn = J[`knuckles${S}`], el = J[`elbow${S}`];
       // through the fist: a mitten's middle, or the hand's own grip (the circle its fingers close on)
       const a = unit(sub(kn, w)); const f = perp([0, 1, 0], a); const h = gripCentre(R, S) ?? lerp3(w, kn, 0.55);
-      if (hold === 'forearm') {
+      if (hold === 'firearm') {
+        // low ready: the bore down the arm (a) and forward (f) by READY, more until the muzzle clears the floor; the
+        // grip's line (item +y) forward along the fist's hole, so the item's x falls across
+        const muzzle = e.sockets.tip.origin, o0 = grip.origin; let deg = READY;
+        for (; deg < 80; deg += 5) { const th = deg * Math.PI / 180, Zt = unit(add(mul(a, dmath.cos(th)), mul(f, dmath.sin(th)))); if (h[2] + dot(Zt, [0, 0, 1]) * k * (muzzle[2] - o0[2]) - Math.abs(k * (muzzle[1] - o0[1])) > FLOOR) break; }
+        const th = deg * Math.PI / 180, Z = unit(add(mul(a, dmath.cos(th)), mul(f, dmath.sin(th)))), Y = perp(f, Z), X = cross(Y, Z);
+        M = fromColumns(X, Y, Z); o = o0; t = h; b = `hand${S}`;
+      } else if (hold === 'forearm') {
         const u = unit(sub(el, w)); const out0 = perp([S === 'R' ? 1 : -1, 0, 0], u);
         const Z = u, Y = mul(out0, -1), X = cross(Y, Z);   // the face (item −y) outward, the height up the forearm
         M = fromColumns(X, Y, Z); o = grip.origin; t = h; b = `foreArm${S}`;
@@ -123,6 +139,16 @@ export function gearMounts(hero, R) {
         const Z = unit(add(mul(f, dmath.cos(th)), mul(a, sg * dmath.sin(th)))); const X = unit(sub(mul(a, dmath.cos(th)), mul(f, sg * dmath.sin(th))));
         M = fromColumns(X, cross(Z, X), Z); t = h; b = `hand${S}`;
       }
+    } else if (slot === 'back' && hold === 'firearm') {
+      // slung across the shoulder blades, muzzle down to the left, its side (item x) flat to the back
+      const c = add(lerp3(J.navel, J.neckHub, 0.62), [0, -0.13 * height / CANON_HEIGHT, 0]);
+      const Z = unit([-0.5, 0, -0.866]), X = [0, 1, 0], Y = cross(Z, X);
+      M = fromColumns(X, Y, Z); o = [0, 0, (e.trace.back + e.trace.back + len) / 2]; t = c; b = 'torso';
+    } else if (slot === 'hip' && hold === 'firearm') {
+      // a holster at the right thigh: muzzle down, the grip back (item +y forward), the slide's middle at the hip's side
+      const hip = J.hipR, out = Math.sign(hip[0] || 1); const c = add(hip, mul([out * 0.12, 0, -0.1], height / CANON_HEIGHT));
+      const Z = [0, 0, -1], Y = [0, 1, 0], X = cross(Y, Z);
+      M = fromColumns(X, Y, Z); o = [0, 0, (e.trace.back + e.trace.back + len) / 2]; t = c; b = 'pelvis';
     } else if (slot === 'back') {
       const c = add(lerp3(J.navel, J.neckHub, 0.62), [0, -0.15 * height / CANON_HEIGHT, 0]);
       const Z = BLADES.has(item) ? unit([-0.5, 0, -0.866]) : item === 'shield' ? [0, 0, 1] : unit([0.4, 0, 0.917]);

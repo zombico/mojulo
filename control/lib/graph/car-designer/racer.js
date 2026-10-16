@@ -5,6 +5,7 @@
  *
  *   racerFromSheet(egocubeSheet, { seed? })  → { vehicle (the vehicle sheet, its facets read off the driver), driver
  *        (a seated stand-in's sizes), palette (the outfit's), archetype, order, side, reads: [{ facet, value, why }] }
+ *        (`racer.mascot: { plan }`, set by roster.js for a mascot racer: the driver seated is that mascot, mascot-driver.js)
  *   solveRacer(racer, { parts?, seed?, shade? }) → { frame, chosen: [{ family, id, why }], suggestions: { family: [{
  *        id, score, why }] }, faces: { root, wheels, bones }, figure, anchors: [{ kind, at, dir, part }], juice,
  *        status, motion, physics, census, laws, changes }
@@ -51,6 +52,7 @@ import { BODIES, PARTS, HERO_OF } from './parts.js';
 import { JUICE, STATUS, MOTION, bakeJuice } from './juice.js';
 import { VEHICLES } from '../roads/vehicles.js';
 import { packVehicleFigure } from '../vehicle-designer/vehicle-rig.js';
+import { mascotDriver } from './mascot-driver.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { shadeRacerFaces, rimLamps, LAMP_RIM } from './racer-shade.js';
 
@@ -341,7 +343,8 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}
     return { placed, anchors, wheels };
   };
 
-  const stand = standIn(F, R.driver);
+  // the driver in the seat: the racer's mascot when it has one (mascot-driver.js), else the chibi stand-in
+  const stand = R.mascot ? mascotDriver(R.mascot.plan, F, R.driver, body) : standIn(F, R.driver);
   const camera = [0, F.hipY - 4.2, stand.head[2] + 1.0];
   const occludes = (from, to, skip) => {
     const blockers = [];
@@ -365,7 +368,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}
       }
     }
     // driver-seen: the top of the head from the chase camera
-    const headTop = [stand.head[0], stand.head[1], stand.head[2] + R.driver.head * 0.32], by = occludes(camera, headTop, null);
+    const headTop = stand.crown ?? [stand.head[0], stand.head[1], stand.head[2] + R.driver.head * 0.32], by = occludes(camera, headTop, null);
     const blocker = by.find((x) => x !== 'body'), onMast = blocker && PARTS[blocker]?.mount === 'mast' && !mastAside;
     law('driver-seen', !by.length, by.length ? `the head hidden by ${by.join(', ')}` : 'the head seen from the chase camera', blocker ? (onMast ? { mast: true, part: blocker, why: `${blocker} moved beside the seat, out of the driver's eye line` } : { part: blocker, shrink: 0.82, why: `${blocker} lowered under the driver's eye line from the chase camera` }) : null);
     // rear-reads: every exhaust tip from behind
@@ -382,8 +385,9 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}
     // touches: every part within a few centimetres of its mount
     const bodyBox = boxOf(body.faces);
     for (const p of state.placed) { const m = p.mount === 'hub' ? null : p.mount === 'stacks' ? state.placed.find((q) => q.family === 'engine')?.box : bodyBox; if (!m) continue; const sep = Math.max(...[0, 1, 2].map((i) => Math.max(m.lo[i] - p.box.hi[i], p.box.lo[i] - m.hi[i]))); if (sep > 0.05) law('touches', false, `${p.id} ${r4(sep)} m off its ${p.mount}`); }
-    const n = body.faces.length + state.placed.reduce((s, p) => s + p.faces.length, 0) + state.wheels.reduce((s, w) => s + w.faces.length, 0) + stand.faces.length;
-    law('budget', n <= FACE_BUDGET, `${n} faces`);
+    // (a mascot driver is its own designed body, on its fine rings: counted apart, the machine's budget the machine's)
+    const n = body.faces.length + state.placed.reduce((s, p) => s + p.faces.length, 0) + state.wheels.reduce((s, w) => s + w.faces.length, 0) + (R.mascot ? 0 : stand.faces.length);
+    law('budget', n <= FACE_BUDGET, `${n} faces${R.mascot ? ` (the mascot driver's ${stand.count} apart)` : ''}`);
     return out;
   };
   // place, judge, fix: up to six rounds
@@ -418,7 +422,7 @@ export function solveRacer(R, { parts: pins = {}, seed = 1, shade = 'cel' } = {}
   if (shade === 'smooth') { bevelled = { bevel: BEVEL }; shape(); state = place(); }
 
   // ── paint, bones, the figure ──
-  const PAL = paintOf(R), liv = v.livery, mid = (f) => f.corners.reduce((s, p) => add(s, p.map((x) => x / f.corners.length)), [0, 0, 0]);
+  const PAL = { ...paintOf(R), ...(stand.palette || {}) }, liv = v.livery, mid = (f) => f.corners.reduce((s, p) => add(s, p.map((x) => x / f.corners.length)), [0, 0, 0]);
   const bodyFaces = body.faces.map((f) => { const m = mid(f), zm = (body.botAt(m[1]) + body.topAt(m[1])) / 2; return { ...f, slot: liv === 'two-tone' && m[2] < zm ? 'tech:skin' : liv === 'striped' && Math.abs(m[0]) < F.W * 0.18 && m[2] > zm ? 'tech:skin' : 'tech:body' }; });
   const slotOf = (p, f) => (p.family === 'tail' && f.group === 'tech:light' ? 'lamp:brake' : p.family === 'seat' && f.group !== 'tech:trim' ? 'seat' : f.group);   // (a thin part, a mark at the eye spot, keeps its colour)
   const paint = shade === 'smooth'

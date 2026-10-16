@@ -86,6 +86,73 @@ export const SEEDED_OUTFITS = Object.freeze({
     "language": { "top": { "family": "woven", "sleeve": "threeQuarter", "hem": "tunic" }, "bottom": { "family": "woven", "leg": "long" }, "feet": "boots", "tuck": false, "focal": "belt" },
     "tones": { "Top": "#8a9a5b", "Bottom": "#4a3f33", "Shoes": "#3a2a1e", "Leather": "#6a4327", "Buckle": "#c9a55a" }
   },
+  // THE MODERN AND FUTURE WARDROBE (the setting's era: egocube/outfit.js ERA_LOOKS rolls one per person): a leather
+  // jacket, tactical clothes, fatigues, a suit, an operative's coat, streetwear; a flight suit, a runner's cropped jacket,
+  // a corporate long coat. Each is a cut in the same grammar; what it is MADE of is its tones (a leather jacket is a short
+  // fitted jacket in black hide)
+  biker: {
+    "id": "biker",
+    "dials": { "stylize": 0.25, "fit": 0.35, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "short", "hem": "hip" }, "bottom": { "family": "woven", "leg": "long", "cut": "skinny", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "waist", "open": true, "fit": "fitted", "collar": true }, "feet": "boots", "tuck": false, "focal": "collar" },
+    "tones": { "Outer": "#1e1b19", "Top": "#d9d5cc", "Bottom": "#2f3d57", "Shoes": "#1a1612", "Leather": "#1e1b19", "Buckle": "#c9c9c9" }
+  },
+  tactical: {
+    "id": "tactical",
+    "dials": { "stylize": 0.2, "fit": 0.55, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted" }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "fit": "eased", "girth": { "thigh": 6, "knee": 4 } },
+      "feet": "boots", "tuck": true, "focal": "belt" },
+    "tones": { "Top": "#3f4436", "Bottom": "#75664c", "Shoes": "#2b241c", "Leather": "#2b2622", "Buckle": "#5c5c58" }
+  },
+  fatigues: {
+    "id": "fatigues",
+    "dials": { "stylize": 0.15, "fit": 0.6, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight", "girth": { "thigh": 5 } },
+      "feet": "boots", "tuck": false, "focal": "placket" },
+    "tones": { "Top": "#5b6442", "Bottom": "#4f5638", "Shoes": "#231d17", "Button": "#3a3d2a", "Leather": "#2b2622", "Buckle": "#5c5c58" }
+  },
+  suit: {
+    "id": "suit",
+    "dials": { "stylize": 0.1, "fit": 0.35, "coverage": 1, "ornament": 3 },
+    "language": { "top": { "family": "woven", "sleeve": "long", "hem": "hip", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "hip", "open": false, "fit": "fitted", "collar": true }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#24272f", "Top": "#eef0f3", "Bottom": "#24272f", "Shoes": "#141110", "Button": "#2a2a2a", "Leather": "#141110", "Buckle": "#b9b9b9" }
+  },
+  operative: {
+    "id": "operative",
+    "dials": { "stylize": 0.3, "fit": 0.25, "coverage": 1, "ornament": 1 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "skinny", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "knee", "open": false, "fit": "fitted", "collar": true }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#2e2b28", "Top": "#17181c", "Bottom": "#17181c", "Shoes": "#111111", "Leather": "#111111", "Buckle": "#8d8d8d" }
+  },
+  streetwear: {
+    "id": "streetwear",
+    "dials": { "stylize": 0.3, "fit": 0.75, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "loose" }, "bottom": { "family": "woven", "leg": "long", "cut": "wide", "fit": "loose" },
+      "feet": "shoes", "tuck": false, "focal": "collar" },
+    "tones": { "Top": "#8b919b", "Bottom": "#2c323d", "Shoes": "#f1f1f1", "Trim": "#f1f1f1" }
+  },
+  flightsuit: {
+    "id": "flightsuit",
+    "dials": { "stylize": 0.3, "fit": 0.2, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "collar": true }, "bottom": { "family": "knit", "leg": "long", "cut": "straight", "fit": "fitted" },
+      "feet": "boots", "tuck": true, "focal": "belt" },
+    "tones": { "Top": "#3c4a5c", "Bottom": "#3c4a5c", "Shoes": "#20242a", "Trim": "#e0a43a", "Leather": "#20242a", "Buckle": "#c9ced6" }
+  },
+  runner: {
+    "id": "runner",
+    "dials": { "stylize": 0.45, "fit": 0.3, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "skin" }, "bottom": { "family": "woven", "leg": "long", "cut": "skinny", "fit": "fitted" },
+      "outer": { "family": "woven", "sleeve": "elbow", "hem": "waist", "open": true, "fit": "fitted", "collar": true }, "feet": "boots", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#b8325f", "Top": "#141519", "Bottom": "#141519", "Shoes": "#141519", "Trim": "#38e0d0", "Leather": "#141519", "Buckle": "#38e0d0" }
+  },
+  corporate: {
+    "id": "corporate",
+    "dials": { "stylize": 0.25, "fit": 0.3, "coverage": 1, "ornament": 2 },
+    "language": { "top": { "family": "knit", "sleeve": "long", "hem": "hip", "fit": "fitted", "collar": true }, "bottom": { "family": "woven", "leg": "long", "cut": "straight" },
+      "outer": { "family": "woven", "sleeve": "long", "hem": "knee", "open": true, "fit": "fitted", "collar": true }, "feet": "shoes", "tuck": true, "focal": "collar" },
+    "tones": { "Outer": "#e8eaee", "Top": "#2a2e36", "Bottom": "#2a2e36", "Shoes": "#e8eaee", "Trim": "#7fb2ff", "Leather": "#2a2e36", "Buckle": "#c9ced6" }
+  },
 });
 
 const FAMILY = ['knit', 'woven'], SLEEVE = ['none', 'cap', 'short', 'elbow', 'threeQuarter', 'long'], HEM = ['crop', 'waist', 'hip', 'tunic'];

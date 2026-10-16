@@ -4,7 +4,8 @@
  * (notes and derives per channel, the facets, the reads, what the brief left unread, the faults) and its own facets.
  *
  *   readMascot(spec)                                        throws on an unknown facet or value, naming the known ones
- *   rollMascot({ brief?, facets?, seed = 1, path })         → the sheet (`tuning: 'mascot'`)
+ *   rollMascot({ brief?, facets?, seed = 1, path, setting? })   → the sheet (`tuning: 'mascot'`); a game's setting
+ *                                                           (setting.js) sets the style by its tradition and leans the rest
  *   readMascotBrief(brief)                                  → { facets, read, unread, asks } (`asks`: a mascot word was read)
  *
  * A facet is decided by, in order: an explicit `facets` entry, a brief word, the promise's lean, the seed. Every facet
@@ -18,6 +19,7 @@
 import { mulberry32 } from '../vegetation/grow.js';
 import { ANIMAL_WORDS, animalCard, animalFacets } from './mascot-animals.js';
 import { ADORNS, ORB_ADORNS } from './mascot-adorn.js';
+import { readSetting, leanOf, leanPriors } from './setting.js';
 
 export const MAX_ATTEMPTS = 8;
 /** The facets, in the order their dice are thrown: a new facet goes last, so an older seed throws the older ones alike. */
@@ -323,13 +325,14 @@ function pick(rand, weights) {
 /** A facet's priors leaned by the promise: each named value's weight multiplied. */
 const leaned = (facet, promise) => Object.fromEntries(Object.entries(PRIORS[facet]).map(([val, w]) => [val, w * (PROMISES[promise].lean[facet]?.[val] ?? 1)]));
 
-/** Every facet's die, thrown in a fixed order (the promise first: it leans the rest). */
-function throwDice(rand, given) {
+/** Every facet's die, thrown in a fixed order (the promise first: it leans the rest). `lean` is the game's setting's
+ * (setting.js), multiplied over the promise's; absent, the priors as they were. */
+function throwDice(rand, given, lean = {}) {
   const f = {};
-  f.promise = pick(rand, PRIORS.promise);
+  f.promise = pick(rand, leanPriors(PRIORS.promise, lean.promise));
   const promise = given.promise ?? f.promise;
   for (const k of MASCOT_KEYS.slice(1)) {
-    let w = leaned(k, promise);
+    let w = leanPriors(leaned(k, promise), lean[k]);
     // the orb has no neck, waist or wrists: its piece is a bow or nothing (the die still throws once)
     if (k === 'adorn' && (given.form ?? f.form) === 'orb') w = Object.fromEntries(Object.entries(w).filter(([a]) => ORB_ADORNS.includes(a)));
     // an anime mascot asked for (its style die is thrown last) rests open and bright, and wears the ahoge as its hook
@@ -385,19 +388,22 @@ function compose(f, card = null) {
 export const accordOf = (accent) => (accent === 'round' ? 'harmony' : 'contrast');
 
 /** Roll one mascot sheet. `path` names it in a cast (it keys the seed). */
-export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = 'mascot' } = {}) {
+export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = 'mascot', setting } = {}) {
   readMascot(asked0);
+  if (setting !== undefined) readSetting(setting);
+  // the game's tradition is the mascot's style (a rule, under anything the operator asked for); its genre leans the rest
+  const set = setting?.tradition ? { style: setting.tradition === 'anime' ? 'anime' : 'toon' } : {}, lean = leanOf(setting, 'mascot');
   const fromBrief = readMascotBrief(brief);
   readMascot(fromBrief.facets);
   const named = { ...fromBrief.facets, ...asked0 };
   // an animal decides the facets its card names, under whatever the operator asked for (it is an ask too)
   const card = named.animal && named.animal !== 'none' ? animalCard(named.animal) : null;
-  const given = { ...(card ? animalFacets(card) : {}), ...named };
+  const given = { ...set, ...(card ? animalFacets(card) : {}), ...named };
   delete given.animal;
   const asked = new Set(Object.keys(given));
   let f, attempt = 0, broken = [];
   for (; attempt < MAX_ATTEMPTS; attempt++) {
-    f = { ...throwDice(mulberry32(hashSeed(`${seed}::mascot::${path}::${attempt}`)), given), ...given };
+    f = { ...throwDice(mulberry32(hashSeed(`${seed}::mascot::${path}::${attempt}`)), given, lean), ...given };
     broken = FAULTS.filter((x) => x.when(f));
     if (broken.every((x) => x.on.every((k) => asked.has(k)))) break;
   }
@@ -408,6 +414,7 @@ export function rollMascot({ brief = '', facets: asked0 = {}, seed = 1, path = '
     tuning: 'mascot', path, seed, attempt,
     facets: { ...Object.fromEntries(MASCOT_KEYS.map((k) => [k, f[k]])), ...(card ? { animal: card.id } : {}) },
     given: [...MASCOT_KEYS.filter((k) => k in named), ...(card ? ['animal'] : [])],
+    ...(setting !== undefined ? { setting } : {}),   // the game it was rolled for
     accord,
     ...(card ? { animal: card } : {}),   // the resolved card, kept by value: its kit is what the body draws
     reads: [PROMISES[f.promise].reads, FORMS[f.form].reads, `${ACCENTS[f.accent].reads}; ${HOOKS[f.hook].reads}`, `${EYES[f.eyes].reads}; ${EXTREMITIES[f.extremities].reads}`, `${ENERGIES[f.energy].reads}, in ${f.hue}${f.style === 'anime' ? ', drawn anime super-deformed' : ''}`, f.being === 'human' ? `${BEINGS.human.reads}, ${f.skin} skin, ${EXPRESSIONS[f.expression].reads}` : `${BEINGS.critter.reads}, ${EXPRESSIONS[f.expression].reads}`],

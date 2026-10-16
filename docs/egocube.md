@@ -76,6 +76,49 @@ square, triangle), material. Every character belongs to one. A world of one fact
 race invading another is two factions with opposed languages under one light, and the hero and villain can be
 designed from opposite ends because their factions are.
 
+### The setting: a game loads the dice
+
+A game says a good deal about its people before anyone asks for one: its world's look, its era, what is played in
+it. The **setting** ([setting.js](../control/lib/graph/egocube/setting.js)) carries that to every roll made for the
+game, person and mascot alike, so each game gets its best shot at characters drawn in its own look. It is read off
+the game by `settingOfGame` ([gameworld/cast-setting.js](../control/lib/graph/gameworld/cast-setting.js)):
+
+| Word | Read from | What it does |
+|---|---|---|
+| `tradition` | the book's direction; else the kit's pole (banded anime, material western, the rule the book already ledgers a hero against) | a RULE: an anime game's person wears the anime head, its proportions and the character light, and the sheet's graphic-face derives land on its `sculpt`; a mascot's style |
+| `era` | the kit (`ERA_OF_KIT`) | leans the roles the era has people for (no casters in the modern world); a modern or future person wears the era's clothes and its role's kit (below, Era gear), and a quick figure carries the era's arms |
+| `genre` | the quick game's goal | leans who stands in it (`GENRES`: farmhands are non-combatants, a firefight has no children) and how far it leans toward a mascot |
+| `ramps` | the kit card's ramps, made and grown things first | the clothes' colours: the top by archetype, the bottom by role, each walked along its ramp until it no longer reads as the skin under it |
+
+A lean is a multiplier on the seed's priors, never a verdict: what the operator asks for (a facet, a brief word)
+beats the setting, and a roll with no setting is the roll it always was, byte for byte. A stored cube keeps the
+setting it was rolled in (`roll.setting`). A quick game's figures it names none of (its foe, guard, farmhand, tower
+archer, gunner) are rolled in its setting, a few to a role (a rank in one uniform, each with its own face), and wear
+the kit's underlayer with its era's kit over it, and its racers are rolled in it (a race
+leans to mascots: a mascot racer's driver is the person's mascot, seated in the machine read off the person); the run's
+readout says what was rolled and an adopted hero drawn in another tradition (kept as it is).
+
+**Era gear.** A myth's or a rustic world's people wear the myth's kit (the stock jerkin and a ranger's kit, or the
+designed outfit's quiver, baldric, pauldron and cloak). A modern or a future world's people roll a LOOK, each person its
+own off its seed and facets, leaned by its archetype and role ([outfit.js](../control/lib/graph/egocube/outfit.js)
+`ERA_LOOKS`, `eraLookOf`):
+
+| Era | Looks (each a seeded outfit card) | Leaned toward |
+|---|---|---|
+| modern | biker (a leather jacket), tactical, fatigues, suit, operative (a long coat), streetwear, casual | a frontline hero to tactical, a ruler at work to a suit, an outlaw flanker to the leather jacket, an operator to the coat |
+| future | trooper, powersuit, heavy (hardsuits: armour over a bodysuit), flightsuit, runner (a cropped jacket), corporate (a long coat), athleisure | the rank and file to the trooper, a hero or a builder to the segmented powersuit, an outlaw to the runner, a ruler or a sage to corporate |
+
+Each era draws its looks to its own silhouette (the stylism tuner): a modern world grounded and boxy, a future one
+heroic and sleek. A future armour look wears a hardsuit (armor/styles.js) in place of clothes and kit, bareheaded on the
+anime head. A look owns some garments' tones (the leather jacket is black hide in any world; a suit is its own colour); the rest
+take the world's. It wears as much of the role's kit (`ERA_GEAR`) as fits it: all of it, no armour, or nothing over
+the clothes (a suit, a long coat). Its vest is cut by role (a plate carrier, a slick plate, a chest rig, a hardshell), in
+its gear's colourway. The travelling cloak and the mantle of office are left off, and the outlaw's baldric is a
+medallion. The pieces (`vest`, `pouches`, `kneepads` in the outfit catalogue) are built on windows the myth's pieces
+proved; the colour laws advise against the tonal uniforms, as a uniform is meant to be. A quick
+figure carries the era's arms: a foe a pistol, a gunner and a tower archer a carbine, a guard a carbine with a pistol
+holstered; a future world's in the future card ([equipment/firearm.js](../control/lib/graph/equipment/firearm.js)).
+
 ## One Egocube: the facets
 
 The setting is not rolled per character: the world is shared and the faction is assigned. The rest is.
@@ -431,6 +474,11 @@ A fate thread is a separate call on a sheet that already exists, never part of t
   nothing. The bands above map onto what exists.
 - **Archetype looks are anime-only**: `look` is refused on the landmark head, so the western face takes notes
   through `face`, `expression` and stance.
-- **Factions**: the gameworld has one world kit; a faction layer is new.
+- **Factions**: the gameworld has one world kit; a faction layer is new. A game's setting is one language for its
+  whole cast today.
+- **Era gear**: a game book's equipment table (`gameworld/equipment.js`) is still the myth's classes, a row per sword,
+  bow and shield; a modern game's book has no firearm class to fill. Helmets and visors are the armour's only.
+- **A quick game's crowd is three faces**: a role rolls a pool of at most three (`CAST_POOL`), cycled over its members;
+  a larger crowd repeats them.
 - **No free text on `create_character`**: notes reach it through the catalyst and the character book.
 - **Non-hero cast**: waits on story-cast and party landing; on this branch the book still refuses `characters.cast`.

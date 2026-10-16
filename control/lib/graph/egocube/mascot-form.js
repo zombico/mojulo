@@ -16,6 +16,7 @@ import { readMascotDerive, HUES, SKINS } from './mascot.js';
 import { buildFace, EXPRESSION_IDS } from './mascot-face.js';
 import { animalPalette } from './mascot-animals.js';
 import { mascotAdorn } from './mascot-adorn.js';
+import { gaitClips } from './mascot-gait.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
 
 const r4 = (x) => Math.round(x * 1e4) / 1e4 + 0;
@@ -300,6 +301,8 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
     symmetry: { plane: 'x=0', policy: 'midline parts: right half authored, left half mirrored by name; limbs: right authored, left mirrored in x with R ↔ L renamed' },
     style: { slots: 'ring20', limbSlots: 'ring12', e: 2 },   // law 8: fine rings, so a smooth form reads smooth
     joints, segments, dials, rig, clips, paint,
+    // what a game reads it as on foot (mascot-pilot.js): its energy (the gaits' flavour), form, height and head
+    mascot: { energy: f.energy, form: f.form, height, headR: r4(Math.max(H.rx, H.ry)) },
     // the signature piece (mascot-adorn.js, Ad1–Ad6): worn over the body by the core adornment layer
     ...((A0) => (A0.length ? { adorn: A0 } : {}))(mascotAdorn(f, { R: H.rz, orb })),
     palette: A ? coatPalette(sheet, k, A, f) : mascotPalette(sheet, k),
@@ -585,6 +588,11 @@ function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper }) {
     ...Object.fromEntries(EXPRESSION_IDS.map((e) => [e, [READY, { ...EMOTE[e], ...X(e) }, { ...EMOTE[e], ...X(e) }]])),
     // the hand clear of the face: the whole arm swings out and back, the elbow nearly straight
     wave: [READY, { ...READY, armR: { x: 0.72, y: 0.25, z: 0.65 } }, { ...READY, armR: { x: 0.97, y: 0.2, z: 0.15 } }, { ...READY, armR: { x: 0.72, y: 0.25, z: 0.65 } }],
+    // on foot (mascot-gait.js): the walk and the run, sized by its own legs and flavoured by its energy; a game's jump
+    // winds up in the squat and holds the leap through its flight (playscape/player.js states)
+    ...gaitClips(J, f.energy, arms),
+    squat: [READY, { ...READY, crouch: 0.35, ...X('determined') }],
+    leap: [{ ...up, crouch: 0, lift: r4(0.12 * top), support: 'none', ...X('grin') }],
   };
   const dials = {
     lean: { min: -12, max: 20, rest: 0, doc: 'degrees the body, the head and the arms hinge forward about the hips; the legs stay planted', op: 'hinge', parts: upper, pivot: orb ? 'head/back' : 'body/back', axis: 'x', sign: -1 },
@@ -600,7 +608,7 @@ function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper }) {
 const AT = Object.freeze({
   promise: 'the facets the promise leaned (the whole sheet)', frame: 'plan.joints, plan.segments (head, body, limbs): the form\'s measures',
   face: 'plan.segments eye*, pupil*, glint*, cheek* (lenses hugging the head)', silhouette: 'the round core and the hook\'s segments',
-  extremities: 'plan.segments hand*, shoe*, the limbs\' radii', palette: 'plan.palette, plan.paint', motion: 'plan.clips idle, hop, cheer, wave; the lean and tilt dials',
+  extremities: 'plan.segments hand*, shoe*, the limbs\' radii', palette: 'plan.palette, plan.paint', motion: 'plan.clips idle, hop, cheer, wave, walk, run; the lean and tilt dials',
 });
 /** the lean and the tilt a promise sets after the mint (law 9: the asymmetric life) */
 export const PROMISE_POSE = Object.freeze({ speed: { lean: 8 }, cheer: { tilt: 6 }, mischief: { lean: -4, tilt: -9 }, might: { lean: 4 }, comfort: {}, pride: {}, wonder: { tilt: 5 } });

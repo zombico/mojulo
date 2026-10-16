@@ -108,6 +108,15 @@ describe('the T-pose mold', () => {
     expect(T.filter((t) => t.role === 'aim').map((t) => t.vrm).sort()).toEqual(['leftLowerArm', 'leftLowerLeg', 'leftUpperArm', 'leftUpperLeg', 'rightLowerArm', 'rightLowerLeg', 'rightUpperArm', 'rightUpperLeg']);
   });
 
+  it('two extra bones nearest each other (a bust pair) ride a humanoid bone, never each other', () => {
+    const pair = [{ id: 'bustL', head: [0.05, 0.1, 1.3], tail: [-0.05, 0.1, 1.3] }, { id: 'bustR', head: [-0.05, 0.1, 1.3], tail: [0.05, 0.1, 1.3] }];
+    const bones = [...flat.bones, ...pair], T = tposeFrames(bones), n = flat.bones.length;
+    const { names } = humanoidBonesFor(bones);
+    for (const k of [n, n + 1]) expect(names.has(T[k].parent)).toBe(true);
+    // a rig with no such loop moulds as it did
+    expect(JSON.stringify(tposeFrames(flat.bones))).toBe(JSON.stringify(tposeFrames(flat.bones)));
+  });
+
   it('refuses a rig that is not humanoid', () => {
     expect(() => tposeFrames([{ id: 'spine', head: [0, 0, 1], tail: [1, 0, 1] }])).toThrow(/not a humanoid rig/);
   });

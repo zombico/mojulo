@@ -15,13 +15,17 @@
  * plantigrade, a tail by kind, three or four fingers), cover from the lineage's plan hints (fur, scales, chitin as
  * tiles, a ruff as a mass first), a dress kit from the role, the archetype's reading and the order, and its colours
  * from the sheet. The hero door gets the cast, a tune for the build, the western expression channels, the gesture,
- * the hair and the swatches. Pure and deterministic: the same sheet, the same call.
+ * the hair and the swatches; a sheet rolled in an anime game's setting (setting.js) gets the anime head, its
+ * proportions, the character light (`create.toon`), its graphic face and its own expression and hair words, and a sheet
+ * rolled in any setting is clothed in its world's colours. Pure and deterministic: the same sheet, the same call.
  */
 import { readDerive, dialKey } from './channels.js';
+import { ARCHETYPE_IDS, ROLES } from './facets.js';
 import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
+import { ANIME_SCULPT } from '../polygonizer/anime-sculpt.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
-import { outfitFromSheet, adornFromSheet, heroOutfitOf } from './outfit.js';
+import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
@@ -506,9 +510,75 @@ function creature(sheet, title) {
 export const BUILD_TUNE = Object.freeze({ lithe: { shoulders: 0.92, waist: 0.92, hips: 0.95 }, canonical: {}, heroic: { shoulders: 1.12, legs: 1.05, depth: 1.05 }, stout: { stature: 0.92, waist: 1.12, depth: 1.1 }, brute: { shoulders: 1.2, waist: 1.1, depth: 1.15, upperArm: 1.2, forearm: 1.2, thigh: 1.15 } });
 const HAIR_STYLE = Object.freeze({ male: { bound: 'taper', mid: 'crop', free: 'swept' }, female: { bound: 'bun', mid: 'bob', free: 'long' } });
 const WAVE = Object.freeze({ straight: 0.6, wavy: 1.2, curly: 1.5, coily: 1.6 });
+/** the anime head's own vocabulary for the same readings: its hair families, and its curl as crown volume (it draws
+ * clumps, not a wave) */
+const ANIME_HAIR_STYLE = Object.freeze({ male: { bound: 'short', mid: 'short', free: 'long' }, female: { bound: 'hime', mid: 'bob', free: 'long' } });
+const ANIME_VOLUME = Object.freeze({ straight: null, wavy: 1.05, curly: 1.1, coily: 1.15 });
+/** the western face-at-rest derives as the anime head's expression amounts (anime-form.js ANIME_EXPRESSION_DEFS): its
+ * brow is one attitude (+ the outer end up, set and hard; - the inner end up, open or worried), its mouth a smile, its
+ * eyes a lid (aperture is the sculpt's lid cover there, so only a narrowing lands, as a little blink) */
+function animeExpression(d) {
+  const has = (x) => d.includes(x), out = {};
+  const brow = has('expression.browTilt +') ? 0.5 : has('expression.browTilt -') ? -0.5 : has('expression.browRaise +') ? -0.25 : has('expression.browRaise -') ? 0.25 : 0;
+  if (brow) out.brow = brow;
+  if (has('expression.mouthCorner +')) out.smile = 0.4;
+  if (has('expression.aperture -')) out.blink = 0.15;
+  return out;
+}
+/** eras whose people wear their era's clothes and kit (outfit.js ERA_GEAR, ERA_LOOKS) in place of the stock jerkin and
+ * the ranger's kit: the clothes an outfit build in the look's card, the role's gear as the look wears it over them */
+export const KIT_ERAS = Object.freeze(Object.keys(ERA_GEAR));
+
+/** a modern or future person's clothes: its rolled look's card at ornament 0, the role's gear worn over it in the
+ * outfit's palette (the setting's tones as its base and secondary, the look's gear colour its leather) */
+function eraOutfit(sheet, f, era, tones, look) {
+  const pieces = lookGear(ERA_GEAR[era], look, f.role).map(({ why: _w, ...p }) => p);
+  const own = outfitPalette(sheet, sheet.ancestry.colours.Skin);
+  const palette = { ...own, ...(tones.Top ? { base: tones.Top } : {}), ...(tones.Bottom ? { secondary: tones.Bottom } : {}), leather: look.gear };
+  return { type: 'outfit', style: look.style, dials: { ornament: 0 }, ...(pieces.length ? { pieces, intent: { palette } } : {}) };
+}
+
+/** when cloth reads as the skin it is worn over: within 25 L* of it and within 35° of its hue (timber and soil ramps
+ * are skin-hued), or within 18 L* whatever its hue (outfit.js outfitPalette's step); a grey (chroma under 8) has no hue */
+const readsAsSkin = (hex, skin) => {
+  const [L, C, H] = hexLch(hex), [Ls, , Hs] = hexLch(skin), dH = Math.abs(((H - Hs + 540) % 360) - 180);
+  return Math.abs(L - Ls) < 18 || (C >= 8 && dH < 35 && Math.abs(L - Ls) < 25);
+};
+
+/**
+ * The clothes' tones in a game's setting (none without one: the stock clothed body, as before). From its RAMPS: the top
+ * from the ramp the archetype falls on, the bottom from the one the role does (so a cast in one world wears its colours,
+ * not one shirt), each from its middle stop, a stop lighter or darker as the sheet's palette derives say, then walked
+ * along the ramp, away from the skin, until it no longer reads as skin; a ramp with no such stop gives way to the next.
+ * A world with no ramps (a room kit), or none that clears the skin: the outfit's own palette by archetype (outfit.js).
+ */
+function settingTones(sheet, f, d) {
+  if (!sheet.setting) return {};
+  const skin = sheet.ancestry.colours.Skin, ramps = sheet.setting.ramps ?? [], own = () => outfitPalette(sheet, skin);
+  const away = hexLch(skin)[0] > 50 ? -1 : 1;
+  const shift = (group) => (d.includes(`palette.${group} +`) ? 1 : d.includes(`palette.${group} -`) ? -1 : 0);
+  const tone = (r, k) => {
+    let i = clamp(Math.floor(r.stops.length / 2) + k, 0, r.stops.length - 1);
+    while (readsAsSkin(r.stops[i], skin) && i + away >= 0 && i + away < r.stops.length) i += away;
+    return readsAsSkin(r.stops[i], skin) ? null : r.stops[i];
+  };
+  // (the bottom a clear step from the top too: 10 L*, or the two read as one garment)
+  const from = (start, k, not = null) => { for (let j = 0; j < ramps.length; j++) { const t = tone(ramps[(start + j) % ramps.length], k); if (t && !(not && Math.abs(hexLch(t)[0] - hexLch(not)[0]) < 10)) return t; } return null; };
+  const top = ARCHETYPE_IDS.indexOf(f.archetype) % Math.max(1, ramps.length);
+  const bottom = ramps.length > 1 ? (top + 1 + (Object.keys(ROLES).indexOf(f.role) % (ramps.length - 1))) % ramps.length : top;
+  const Top = from(top, shift('Top')) ?? own().base;
+  // no ramp gives a bottom apart from the top: the top's own hue a tonal step darker or lighter, whichever clears the
+  // skin, so the pair stays in the world's colours
+  const [Lt, Ct, Ht] = hexLch(Top);
+  const tonal = [Lt - 22, Lt + 22, Lt + 34].filter((L) => L >= 8 && L <= 92).map((L) => lchHex(L, Ct * 0.8, Ht)).find((t) => !readsAsSkin(t, skin));
+  return { Top, Bottom: from(bottom, shift('Bottom'), Top) ?? tonal ?? own().secondary };
+}
 
 function hero(sheet) {
   const f = sheet.facets, d = Object.values(sheet.derives).flat();
+  // the game's tradition is the body's rule (setting.js): an anime game's person wears the anime head, its proportions
+  // and the character light, and the sheet's graphic-face derives land on its sculpt
+  const anime = sheet.setting?.tradition === 'anime', era = sheet.setting?.era;
   const tune = { ...BUILD_TUNE[f.build] };
   // a thread node's growth (thread.js) is lowered as amounts below, never as a step per dial over the adult cast
   const grown = sheet.growth ?? null, fromGrowth = new Set(grown?.keys ?? []);
@@ -519,26 +589,41 @@ function hero(sheet) {
     tune.stature = r3(clamp((tune.stature ?? 1) * grown.stature, 0.85, 1.15));
     tune.head = r3(clamp((tune.head ?? 1) * (grown.head / grown.stature), 0.85, 1.15));
   }
-  const expression = {};
-  for (const x of d.map(readDerive).filter((r) => r.family === 'expression')) {
+  const expression = anime ? animeExpression(d) : {};
+  if (!anime) for (const x of d.map(readDerive).filter((r) => r.family === 'expression')) {
     const [lo, hi] = CHANNEL_RANGES[x.key], mid = x.key === 'aperture' ? 1 : 0;
     expression[x.key] = r3(mid + (x.dir === '+' ? (hi - mid) : (lo - mid)) * 0.5);
   }
+  const sculpt = {};
+  if (anime) for (const x of d.map(readDerive).filter((r) => r.family === 'sculpt')) {
+    const mid = ANIME_SCULPT.DEFAULT[x.key], [lo, hi] = ANIME_SCULPT.RANGES[x.key];
+    sculpt[x.key] = r3(mid + (x.dir === '+' ? (hi - mid) : (lo - mid)) * 0.5);
+  }
   const gesture = d.map(readDerive).find((r) => r.family === 'gesture')?.word;
   const texture = (sheet.notes.hair || []).map((n) => n.line.match(/^(straight|wavy|curly|coily) hair$/)?.[1]).find(Boolean) || 'straight';
-  const style = HAIR_STYLE[f.pole][f.order < 1 / 3 ? 'bound' : f.order > 2 / 3 ? 'free' : 'mid'];
+  const kept = f.order < 1 / 3 ? 'bound' : f.order > 2 / 3 ? 'free' : 'mid';
+  const style = (anime ? ANIME_HAIR_STYLE : HAIR_STYLE)[f.pole][kept];
+  const hair = anime ? { style, ...(ANIME_VOLUME[texture] ? { volume: ANIME_VOLUME[texture] } : {}), ...(f.age === 'elder' ? { length: 0.85 } : {}) }
+    : { style, wave: WAVE[texture], ...(f.age === 'elder' ? { length: 0.8 } : {}) };
+  const tones = settingTones(sheet, f, d), eraKit = KIT_ERAS.includes(era), look = eraKit ? eraLookOf(sheet) : null;
+  // an armour look wears its hardsuit (bareheaded on the anime head) in place of clothes and kit
+  const armor = look?.armor ? lookArmor(look, { anime }) : null;
   const spec = {
     // a child is its pole's child build (a child's radii on her or his own landmarks); the bare 'child' word kept adult radii and the male head
     cast: f.age === 'child' ? { pole: f.pole, build: 'child' } : f.pole,
+    ...(anime ? { head: 'anime', proportions: 'anime' } : {}),
     ...(Object.keys(tune).length ? { tune } : {}),
     ...(Object.keys(expression).length ? { expression } : {}),
+    ...(Object.keys(sculpt).length ? { sculpt } : {}),
     ...(gesture && gesture !== 'rest' ? { gesture } : {}),
-    hair: { style, wave: WAVE[texture], ...(f.age === 'elder' ? { length: 0.8 } : {}) },
-    palette: { Skin: sheet.ancestry.colours.Skin, ...(sheet.ancestry.colours.Hair ? { Hair: f.age === 'elder' ? shade(sheet.ancestry.colours.Hair, 0.45) : sheet.ancestry.colours.Hair } : {}) },
-    detail: 'clothed',
-    ...(['flanker', 'ranged', 'frontline'].includes(f.role) ? { adorn: 'ranger' } : {}),
+    hair,
+    palette: { Skin: sheet.ancestry.colours.Skin, ...(sheet.ancestry.colours.Hair ? { Hair: f.age === 'elder' ? shade(sheet.ancestry.colours.Hair, 0.45) : sheet.ancestry.colours.Hair } : {}), ...tones, ...(look ? lookTones(look) : {}), ...(armor?.palette ?? {}) },
+    ...(armor ? { adorn: armor.adorn } : eraKit ? { outfit: eraOutfit(sheet, f, era, tones, look) } : { detail: 'clothed' }),
+    // the era's silhouette (stylism/): a modern world grounded and boxy, a future one heightened and sleek
+    ...(look?.stylism ? { stylism: look.stylism } : {}),
+    ...(['flanker', 'ranged', 'frontline'].includes(f.role) && !eraKit ? { adorn: 'ranger' } : {}),
   };
-  return { spec, style, texture };
+  return { spec, style, texture, anime, eraKit, era, look };
 }
 
 // ══════════ the ledger and the thesis ══════════
@@ -551,6 +636,7 @@ function ledgerOf(sheet, door, built) {
   const rows = [];
   for (const [ch, notes] of Object.entries(sheet.notes)) for (const n of notes) {
     let at = (door === 'creature' ? CREATURE_AT : HERO_AT)[ch];
+    if (door === 'hero' && built.anime && (ch === 'rest' || ch === 'eyes')) at = 'spec.expression, spec.sculpt (the anime head\'s graphic face)';
     // a designed dress lands where it is worn: the creature's outfit, the hero's outfit build (its cut and its pieces)
     if (built.outfit && (ch === 'dress' || ch === 'silhouette')) at = door === 'creature' ? (ch === 'dress' ? 'plan.outfit' : 'the form and plan.outfit') : (ch === 'dress' ? 'spec.outfit (the cut and its pieces)' : 'spec.tune, spec.outfit.pieces');
     let pending = at ? null : door === 'hero' && ['cover', 'ornament'].includes(ch) ? 'the hero grammar has no pass for it' : ch === 'wear' ? 'no wear dials yet' : 'no landing in this door yet';
@@ -565,6 +651,8 @@ function ledgerOf(sheet, door, built) {
     }
     rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });
   }
+  // the era's clothes and the role's kit in it: said, so the ledger shows where the dress came from
+  if (built.eraKit && !built.outfit) rows.push({ channel: 'dress', line: `the ${sheet.facets.role}'s ${built.era} clothes and kit: the ${built.look.id} look`, from: `setting.era.${built.era}`, at: built.look.armor ? 'spec.adorn (the look\'s hardsuit)' : 'spec.outfit (the look\'s card and the role\'s pieces), spec.stylism (the era\'s silhouette)' });
   return rows;
 }
 
@@ -625,7 +713,8 @@ export function planFromSheet(sheet, { title, dress } = {}) {
   const built = hero(sheet);
   // a person, dressed by the same principles: the cut as the hero's outfit build, in place of the stock clothed body
   // (the designed dress replaces the stock clothed body and the archer's kit a role was given: its pieces are its own)
-  if (dress === 'designed') { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, adorn: _a, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
-  return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec }, after: [], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
+  // (an armour look keeps its hardsuit: the designed dress is cloth)
+  if (dress === 'designed' && !built.look?.armor) { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, adorn: _a, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
+  return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec, ...(built.anime ? { toon: { light: true } } : {}) }, after: [], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
 }
 

@@ -14,9 +14,10 @@
  *   playerStates(clips, library?, gaits?)  runtime state → clip: the hero's own door gaits first (its calibrated jog
  *                           forward, its walk turning), then the library's where it has one, else the hero's own clips
  *                           (forward jogs, runs or walks, idle idles relaxed, leap and boost the jump's flight, squat)
- *   playerWorld({ hero, heroRef, gaits?, id?, library?, level?, controls?, title? })
+ *   playerWorld({ hero, heroRef, gaits?, id?, library?, level?, controls?, title?, pilot? })
  *                           a controllable world manifest: the hero as the pilot (the platform rule: WASD and Space),
- *                           a follow camera, a test course, and the controls as a `legend` idiom on the HUD
+ *                           a follow camera, a test course, and the controls as a `legend` idiom on the HUD; `pilot` a
+ *                           mascot's measures (egocube/mascot-pilot.js): its own clips, its capsule, stride and camera
  *
  * The figures map takes the hero inline (`hero`) or stored (`heroRef`, world-scene.js), so the same manifest plays a
  * hero minted once at the door.
@@ -103,15 +104,17 @@ export function testCourse() {
 }
 
 /** A controllable world with the hero as the pilot. */
-export function playerWorld({ hero, heroRef, gaits, id = 'hero', library = 'quaternius-ual', level, controls, title, clips, rule } = {}) {
+export function playerWorld({ hero, heroRef, gaits, id = 'hero', library: lib = 'quaternius-ual', level, controls, title, clips: given, rule, pilot = null } = {}) {
   if (!hero && !heroRef) throw new Error('player: give a hero (inline, as the hero door takes it) or a heroRef');
+  // a MASCOT pilot (egocube/mascot-pilot.js): its own clips (no library), its body's capsule, stride and camera
+  const library = pilot ? null : lib, clips = pilot ? pilot.clips : given;
   const spec = hero ? playerHero(hero) : null;
   // the hero's own door gaits: given for a stored hero (`gaits`, its `motion` keys), read off an inline one
   const own = (gaits ?? (spec?.motion && typeof spec.motion === 'object' ? Object.keys(spec.motion) : [])).filter((g) => g in HERO_GAIT_STRIDE);
   const states = clips || playerStates(spec ? [...Object.keys(spec.clips), ...own, 'idle', 'walk', 'wave'] : [...own, 'idle', 'walk'], library || null, own);
   // the game's run speed stands; the stride is the clip forward plays, so its feet keep pace with the ground
   const base = (library && LIBRARY_STRIDE[library]) || { speed: 4, stride: 3.2 };
-  const pace = HERO_GAIT_STRIDE[states.forward] ? { speed: base.speed, stride: HERO_GAIT_STRIDE[states.forward] } : base;
+  const pace = pilot ? { speed: base.speed, stride: pilot.rule.stride } : HERO_GAIT_STRIDE[states.forward] ? { speed: base.speed, stride: HERO_GAIT_STRIDE[states.forward] } : base;
   const L = level || testCourse();
   const ground = { size: 40, cell: 2, colorA: '#8a8c90', colorB: '#94969a' };
   const floor = [];
@@ -128,11 +131,11 @@ export function playerWorld({ hero, heroRef, gaits, id = 'hero', library = 'quat
       id, pilotable: true,
       // a person, not a suit: a jog of under 4 m/s, a hop of about a metre, a short wind-up; the stride is the run
       // cycle's length at that speed, so the feet keep pace with the ground
-      rule: { type: 'platform', speed: pace.speed, turn: 2.6, jumpSpeed: 6.5, jumpWindup: library ? 0.15 : 0.08, stride: pace.stride, eye: 0, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(rule || {}) },
+      rule: { type: 'platform', speed: pace.speed, turn: 2.6, jumpSpeed: 6.5, jumpWindup: library ? 0.15 : 0.08, stride: pace.stride, eye: 0, collideRadius: pilot ? pilot.rule.collideRadius : 0.3, collideHeight: pilot ? pilot.rule.collideHeight : 1.7, step: 0.3, ...(rule || {}) },
       body: { type: 'figure-rig', figure: id },
       transform: { pos: [0, -4, 0], heading: Math.PI / 2 },
     }],
-    camera: { rule: 'follow', target: id, dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 },
+    camera: { rule: 'follow', target: id, ...(pilot ? pilot.camera : { dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 }) },
     ...(legend ? { events: compose(...lowerIdioms([{ kind: 'legend', text: legend, slot: 'bottom', ttl: 12 }])) } : {}),
   };
 }

@@ -25,10 +25,12 @@
  *     racers?: n | [<racer>, …],            // race: a field of cartoon racers (2 to 8), each in the machine its driver
  *                                           // reads as (car-designer/roster.js), the first yours, the rest your rivals:
  *                                           // n drawn, or each an archetype, a brief in words, or { archetype?, build?,
- *                                           // age?, brief?, facets?, seed?, parts?, shade? }; balanced, each on its own
- *                                           // physics (shade 'smooth': bevelled parts, smooth light; 'cel' the default)
+ *                                           // age?, brief?, facets?, seed?, parts?, shade?, tuning? }; balanced, each
+ *                                           // on its own physics (shade 'smooth': bevelled parts, smooth light; 'cel' the
+ *                                           // default), each driver rolled in the game's setting
  *     guards?: n,                           // sneak: how many guards keep the trail (1 to 8, 3), on its beats
- *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (a plain one by default)
+ *     guard?: <a hero-door spec>,           // sneak: what a guard looks like (by default, rolled in the game's setting:
+ *                                           // gameworld/cast-setting.js)
  *     alarms?: n,                           // sneak: how many sightings end it (1: the first)
  *     music?: '<mood>' | 'auto',            // rhythm: the field score whose beat it runs to (wayfarer). Any other goal:
  *                                           // a field score under each level, one identity across the game ('auto':
@@ -37,13 +39,13 @@
  *                                           // palette the score implies; arcade, foley, orchestral, synth; beats/sfx-palettes.js)
  *     misses?: n,                           // rhythm: how many presses off the beat end it (none: no limit)
  *     waves?: n, lives?: n, pads?: n,       // defend: how many waves (3), lives (5), tower pads by the trail (4)
- *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (plain ones by default)
+ *     foe?, tower?: <a hero-door spec>      // defend: what a foe and a tower's archer look like (rolled by default)
  *     boulders?: n,                         // puzzle: how many boulders to push onto their plates (2, at most 4)
  *     craft?: 'glider' | 'trainer' | 'jet', // fly: the aircraft (skyscape/eye.js CRAFT); the map and the course are its
  *     assist?: 'arcade' | 'sim',            // fly: never stalls, wings level quickly | the bank holds (absent: between)
  *     airspace?: { map?, ground?, course? }, // fly: the flight map (an island by default), as an airspace level takes it
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
- *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
+ *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks (rolled by default)
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
@@ -111,7 +113,6 @@ export const SHOOT = Object.freeze({
 });
 // a person's hit volume (an egg: `a` its half-width, `c` its half-height), stood on its feet
 const PERSON = Object.freeze({ a: 0.35, c: 0.9 });
-export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a5530' }, gear: { right: { item: 'bow' } } });
 // a battle's numbers: the hero's hp and blow, each foe's (the later ones tougher)
 // a race's numbers: the trail a loop is laid on (its run, seconds: the longest; its beats, none that cuts the land or
 // stands a stone on it: no pit, no stream, no landmark), laps round it, metres between its checkpoints, the grid (the first row's distance behind the
@@ -124,17 +125,12 @@ export const DEATHMATCH = Object.freeze({ bots: 3, frags: 10, respawn: 3, arena:
 // a deathmatch's modes: everyone for themselves; two sides to a frag limit; two sides holding a point for time
 export const DEATHMATCH_MODES = Object.freeze(['free-for-all', 'team', 'control']);
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
-export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
 export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 6 });
-export const QUICK_FOE = Object.freeze({ cast: 'male', palette: { Top: '#6b2222' }, gear: { right: { item: 'dagger' } } });
-export const QUICK_TOWER = Object.freeze({ cast: 'female', palette: { Top: '#2e5c3a' }, gear: { right: { item: 'bow' } } });
 // a defence's numbers: what a tower costs, the purse it starts with, what a felled foe pays, foes in a wave
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-// a guard when the game names none: plain, armed
-export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
 const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
@@ -144,7 +140,12 @@ export function readQuick(Q) {
   if (!isObj(Q)) throw fail(` is { goal: ${Object.keys(QUICK_GOALS).join(' | ')}, hero?, climb?, pickup?, seconds?, theme? }`);
   for (const k of Object.keys(Q)) if (!KEYS.includes(k)) throw fail(`.${k} is not part of a quick game (${KEYS.join(', ')})`);
   if (!QUICK_GOALS[Q.goal]) throw fail(`.goal is one of ${Object.entries(QUICK_GOALS).map(([k, v]) => `${k} (${v})`).join('; ')}`);
-  if (Q.hero !== undefined && Q.hero !== false && !isObj(Q.hero)) throw fail('.hero is a hero-door spec (get_solid_vocab({ id: \'layered\' })), { ref } for a hero made with create_character, or false for first person');
+  if (Q.hero !== undefined && Q.hero !== false && !isObj(Q.hero)) throw fail('.hero is a hero-door spec (get_solid_vocab({ id: \'layered\' })), { ref } for a hero or mascot made with create_character, { mascot: true | { brief?, facets?, seed? } } for a mascot on foot, or false for first person');
+  if (isObj(Q.hero) && Q.hero.mascot !== undefined) {
+    const M = Q.hero.mascot;
+    if (Object.keys(Q.hero).length !== 1) throw fail('.hero { mascot } is a mascot on foot alone (its words are the mascot\'s: brief, facets, seed)');
+    if (!(M === true || (isObj(M) && Object.keys(M).every((k) => ['brief', 'facets', 'seed'].includes(k))))) throw fail('.hero.mascot is true (rolled in the game\'s setting) or { brief?, facets?, seed? } (docs/mascot.md)');
+  }
   if (isObj(Q.hero) && Q.hero.ref !== undefined && (Object.keys(Q.hero).length !== 1 || !(typeof Q.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(Q.hero.ref)))) throw fail('.hero { ref } adopts a hero made with create_character, by its sketch ref alone (its words are its own row\'s)');
   if (Q.climb !== undefined && typeof Q.climb !== 'boolean') throw fail('.climb is true or false');
   if (Q.ride !== undefined) {
@@ -467,8 +468,8 @@ export function quickSupercars(quick, seed = 1) {
 /** A field of racers (quick.racers): the roster solved and balanced (car-designer/roster.js), each racer's recipe (what
  * its figure resolves through) and the drive rule its own machine plays by, at the race's tuning (arcade unless named)
  * and conditions. → { field: [{ spec, archetype, rule }], balance, changes } */
-export function quickRacers(quick, seed = 1) {
-  const { racers, balance, changes } = solveRoster(quick.racers, { seed });
+export function quickRacers(quick, seed = 1, setting) {
+  const { racers, balance, changes } = solveRoster(quick.racers, { seed, ...(setting ? { setting } : {}) });
   const field = racers.map((r) => ({ spec: r.spec, archetype: r.archetype, rule: { ...racerRule(r.S, { tuning: quick.tuning ?? 'arcade', conditions: quick.conditions ?? 'dry' }), eye: 0 } }));
   return { field, balance, changes };
 }
@@ -592,13 +593,16 @@ export function farmPlots(quick, ends) {
 
 /** A farm's farmhands: `folk` (2) standing by the start, each keeping a day (play.routines): out to the plots at seven,
  * home at the start at six in the evening. `ref`: their figure. → { figures, entities, play } (stageLevelOrder's `extra`) */
+/** A cast's figure for its k-th member: `ref` one figure for all, or a pool (runner.js: each a roll of its own) cycled. */
+export const refAt = (ref, k) => (Array.isArray(ref) ? ref[k % ref.length] : ref);
+
 export function farmCast(quick, ends, ref) {
   const n = quick.folk ?? 2, plots = farmPlots(quick, ends), s = ends.spawn;
   const field = plots.reduce((a, p) => [a[0] + p[0] / plots.length, a[1] + p[1] / plots.length], [0, 0]);
   const figures = {}, entities = [], routines = [];
   for (let k = 1; k <= n; k++) {
     const id = `farmhand-${k}`;
-    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    figures[id] = { heroRef: refAt(ref, k - 1), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({ id, rule: { type: 'static', speed: 1.6, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: [r3(s[0] + 2 * k), r3(s[1] - 2), s[2]], heading: 0 } });
     routines.push({ who: id, plan: [{ hour: 7, to: `field-${k}` }, { hour: 18, to: 'home' }] });
   }
@@ -615,7 +619,7 @@ export function battleCast(quick, ends, ref) {
   const figures = {}, entities = [], foes = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
-    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    figures[id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])) } });
     foes.push({ who: id, at: [b.at[0], b.at[1]], name: `Foe ${k + 1}`, hp: BATTLE.foeHp[k], atk: BATTLE.foeAtk[k] });
   });
@@ -644,8 +648,8 @@ export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
   // with a craft, a dogfight: the wing of fighters and the craft's cannon (skyscape/dogfight.js)
   if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
   const posts = shootPosts(quick, ends), figures = {}, entities = [];
-  posts.forEach((p) => {
-    figures[p.id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+  posts.forEach((p, k) => {
+    figures[p.id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({
       id: p.id, team: 'foes',
       rule: { type: 'ai', mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, sightRange: 30, sightCone: 1.1, memorySpan: 6, navCell: 0.5, cover: { radius: 7, hold: 2.5 }, standoff: 12, speed: 3, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
@@ -737,7 +741,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   const teamRule = S ? { clearLine: true, ...(quick.mode === 'control' ? { objective: { at: deathmatchPoint(ends), radius: 2.5 } } : {}) } : {};
   bots.forEach((id, k) => {
     const at = spot(id, k + 1);
-    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    figures[id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({
       id, ...(S ? { team: sideOf(id) } : {}),
       rule: { ...teamRule, type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), items: deathmatchDrops(quick, ends).map((d) => ({ at: d.at, gives: d.gives, back: d.respawn, ...(d.slot ? { slot: d.slot } : {}) })), ...(ends.arena.floors ? { floors: ends.arena.floors } : {}), ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, 1.4), keepRange: true, perches: [...ends.arena.drops.filter((d) => d.slot === 'long').map((d) => d.at), ...(ends.arena.floors ?? []).map((f) => [r3((f.area[0] + f.area[2]) / 2), r3((f.area[1] + f.area[3]) / 2), f.z])] } : {}), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
@@ -773,14 +777,14 @@ export function defendCast(quick, ends, refs) {
   const figures = {}, entities = [], cues = [];
   const x = ends.exit, back = along.length ? along[along.length - 1].at : ends.spawn, face = Math.atan2(back[1] - x[1], back[0] - x[0]);
   for (let k = 1; k <= foes; k++) {
-    figures[`foe-${k}`] = fig(refs.foe);
+    figures[`foe-${k}`] = fig(refAt(refs.foe, k - 1));
     entities.push({ id: `foe-${k}`, dormant: true, team: 'wave', rule: { type: 'static', speed: 2.2, ...body }, body: { type: 'figure-rig', figure: `foe-${k}`, hittable: true, hp: DEFEND.hp, poise: 2, radius: 0.6 }, transform: { pos: [x[0], x[1], x[2]], heading: r3(face) } });
   }
   // the pads beside the road, on land level with it (the intent's road-to-base concern, lay-concerns.js padSites)
   const posts = beatPosts(ends, quick.pads ?? 4), pads = padSites(posts, ends);
   posts.forEach((p, k) => {
     const h = Math.atan2(p.from[1], p.from[0]), at = pads[k], id = `tower-${k + 1}`;
-    figures[id] = fig(refs.tower);
+    figures[id] = fig(refAt(refs.tower, k));
     entities.push({
       id, dormant: true, team: 'defense',
       rule: { type: 'ai', mind: { motivation: 'sentry' }, foes: 'wave', range: 13, turnRate: 5, dodge: false, ...body },

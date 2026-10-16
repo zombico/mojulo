@@ -202,6 +202,32 @@ export const OUTFIT_KINDS = Object.freeze({
         signature: { kind: 'studs', r: r3(0.005 * B.k), h: r3(0.003 * B.k), count: 1, from: -2, to: -2, m: 6, group: G({ colour: 'trim' }) } })),
       plate(S, `${base}${S}`, cuirass ? [0.46, 0.74] : [0.54, 0.84], [0, w(cuirass ? 0.3 : 0.34)], { ns: 8, mugen: r3(0.006 * B.k + lames.length * step), crown: r3(0.018 * B.k), keel: r3(0.01 * B.k), rim: { group: G({ colour: 'trim' }), at: 'both', ends: false },
         signature: S === (I.side ?? 'R') ? armourMotif(p, B, G) : { kind: 'motif', name: p.trim?.motif ?? p.motif ?? 'key', mode: 'border', w: r3(0.0025 * B.k), lift: r3(0.0004 * B.k), group: G({ colour: 'shade' }) } })]) }; } },
+  // MODERN AND FUTURE GEAR (the setting's era: egocube/outfit.js ERA_GEAR), each built on a window a myth piece proved.
+  // A VEST in four cuts (`cut`), each on a window a myth piece proved, with a flat panel on the back where a pack sits:
+  //   carrier    the chest plate's cuirass cut in the outfit's cloth (no emblem: a stitched border), its lames
+  //   slick      one plate high on the chest, a lame under it: a low-profile plate
+  //   rig        no plate: the harness's straps over the shoulders and a row of magazine pouches across the front
+  //   hardshell  the cuirass covering the whole front (a future's moulded shell, in the metal)
+  // `cover` as the chest plate's (a carrier 0.85 unless it says)
+  vest: { layer: 4, cls: 'stiff', colour: 'secondary', compile: (p, B, G, I) => { const id = p.id ?? 'vest', cut = p.cut ?? 'carrier';
+    const back = { id: `${id}Back`, mode: 'shell', part: 'torso', s: [1.6, 2.6], t: [3.2, 4], nt: 4, ns: 2, mugen: r3(0.03 * B.k), thick: r3(0.01 * B.k), group: G(p), signature: { kind: 'pack', w: r3(0.34 * B.k), h: r3(0.36 * B.k), d: r3(0.035 * B.k), lift: 0, chamfer: r3(0.015 * B.k), soft: false, flap: false, group: G(p) } };
+    const role = p.role === 'focal' ? 'support' : p.role;
+    if (cut === 'rig') {
+      const straps = OUTFIT_KINDS.harness.compile({ ...p, id: `${id}Strap`, mounted: true, studs: 2 }, B, G).adorn;
+      const pouches = ['R', 'L'].flatMap((S) => [[0.04, 0.17], [0.19, 0.32]].map((t, i) => ({ id: `${id}Pouch${S}${i}`, mode: 'shell', part: 'torso', side: S, share: true, s: [0.4, 0.54], t, nt: 3, ns: 2, mugen: r3(0.012 * B.k), thick: r3(0.008 * B.k), group: G(p),
+        signature: { kind: 'pack', w: r3(0.075 * B.k), h: r3(0.11 * B.k), d: r3(0.045 * B.k), lift: 0, chamfer: r3(0.012 * B.k), soft: false, flap: 0.35, group: G(p) } })));
+      return { adorn: [...straps, ...pouches] };
+    }
+    const front = cut === 'slick' ? OUTFIT_KINDS.chestPlate.compile({ ...p, id, cover: p.cover ?? 0.65, motif: 'dots', role }, B, G, I)
+      : OUTFIT_KINDS.chestPlate.compile({ ...p, id, cut: 'cuirass', cover: p.cover ?? (cut === 'hardshell' ? 0.95 : 0.85), motif: 'dots', role }, B, G, I);
+    return { adorn: [...front.adorn, back] }; } },
+  // POUCHES: a duty belt on the hip line with a pouch at each hip (the satchel's window, small)
+  pouches: { layer: 5, cls: 'stiff', colour: 'leather', compile: (p, B, G, I) => { const id = p.id ?? 'pouches';
+    const belt = OUTFIT_KINDS.belt.compile({ ...p, id: `${id}Belt` }, B, G, I).adorn;
+    return { adorn: [...belt, ...['R', 'L'].map((S) => ({ id: `${id}${S}`, mode: 'shell', part: 'pelvis', side: S, s: [0.8, 1.3], t: [1.6, 2.2], nt: 4, ns: 2, mugen: r3(0.02 * B.k), thick: r3(0.008 * B.k), group: G(p), signature: { kind: 'pack', w: r3(0.1 * B.k), h: r3(0.11 * B.k), d: r3(0.055 * B.k), lift: 0, chamfer: r3(0.015 * B.k), soft: false, flap: 0.3, group: G(p) } }))] }; } },
+  // KNEEPADS: a rigid cap over each knee (the top of the lower leg: a hero's shank, a creature's shin)
+  kneepads: { layer: 4, cls: 'rigid', colour: 'secondary', compile: (p, B, G) => ({ adorn: ['R', 'L'].map((S) => ({ id: `${p.id ?? 'kneepad'}${S}`, mode: 'band', part: `${B.names.has('shank') ? 'shank' : 'shin'}${S}`, share: true, s: [0.0, 0.13], t: 'wrap', nt: 10, ns: 2, mugen: r3(0.008 * B.k), thick: r3(0.014 * B.k), rad: r3(0.03 * B.k), group: G(p), rigid: true, edge: 'roll', crown: r3(0.006 * B.k), interior: G({ colour: 'shade' }),
+    signature: { kind: 'studs', r: r3(0.007 * B.k), h: r3(0.004 * B.k), count: 2, m: 6, group: G({ colour: 'trim' }) } })) }) },
   // L6: what is CARRIED
   satchel: { layer: 6, cls: 'stiff', colour: 'leather', compile: (p, B, G, I) => { const S = p.side ?? I.side ?? 'R';
     return { adorn: [{ id: `${p.id ?? 'satchel'}${S}`, mode: 'shell', part: 'pelvis', side: S, s: [0.8, 1.3], t: [1.6, 2.2], nt: 4, ns: 2, mugen: r3(0.02 * B.k), thick: r3(0.008 * B.k), group: G({ colour: 'leather' }), signature: { kind: 'pack', w: r3(0.2 * B.k), h: r3(0.2 * B.k), d: r3(0.09 * B.k), lift: 0, chamfer: r3(0.03 * B.k), soft: true, group: G(p) } }] }; } },

@@ -70,3 +70,9 @@ Fresh items need no card at all: `{ item: 'staff', style: 'brutal', parts: { hea
 ## The readout
 
 `stats.equipment` names the item, style, laws, resolved dials and variants, the **focal** (where, which stone, its size, its share of its host or face, flush or boss), the **sockets** a figure mounts gear by (`grip` with its axis, `tip`, `focal`, a bow's `nockTop` / `nockBottom`, a shield's back `grip`), the item's length and its readability floor.
+
+**Firearms** (a modern or a future world's arms) are their own family on the same build: `item: 'pistol' | 'carbine' |
+'shotgun'`, `style: 'service'` (the default: square-edged, gunmetal and black polymer, a wooden shotgun stock) or
+`'future'` (smooth, pale, a lit band down each side), or an inline card `{ roles: { metal, body, furniture, lit? }, round }`.
+Generic proxies, no make or model; no parts, no stone. Sockets `grip`, `tip` (the muzzle), `stock`. They are the same
+boxes the hero's carry holds pose round, and a hero wears them as `gear` (the hero card's gear section).

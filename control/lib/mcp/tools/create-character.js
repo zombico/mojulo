@@ -69,7 +69,8 @@ async function createFromEgocube({ egocube, years, dress, output, as, spec, titl
   const dials = dialsAfter(C.after);
   const own = { ...C.create.spec, ...(spec || {}), ...(Object.keys(dials).length ? { dials } : {}) };
   const made = { ref: egocube, rev: (SketchRevisionRepository.head(egocube)?.rev ?? 0) + 1, print: egocubePrint(row.manifest), ...(C.node.years !== undefined ? { years: C.node.years } : {}) };
-  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, egocube: made }, title: title ?? C.create.title, ref, folder_ref: folderRef }));
+  // an anime game's person wears the character light (egocube/plan.js), a mint argument beside the spec as a book hero's
+  const out = throughDoor(await mintSolidHandler({ ...CHARACTER_DOORS[C.create.as].route(own), spec: { ...own, egocube: made }, ...(C.create.toon ? { toon: C.create.toon } : {}), title: title ?? C.create.title, ref, folder_ref: folderRef }));
   const landed = (C.ledger || []).filter((r) => r.at).length;
   return { ...out, ...(C.modelSheet ? { modelSheet: C.modelSheet } : {}), ...(C.mascot ? { mascot: C.mascot } : {}), egocube: { ...made, ...(C.output ? { output: C.output } : {}), node: C.node, notes: `${landed} of ${(C.ledger || []).length} design notes land on a dial`, pending: (C.ledger || []).filter((r) => r.pending).map((r) => `${r.channel}: ${r.line} (${r.pending})`) } };
 }

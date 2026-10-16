@@ -61,8 +61,9 @@ function withPin(world, pin) {
   return { ...world, characters: { ...world.characters, hero: { ...hero, looks: { ...(hero.looks ?? {}), base: pin } } } };
 }
 
-/** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures */
-const HERO_STEP = /^(hero|hero-equipped|guard|foe|tower|farmhand|cast-.+)$/;
+/** the steps a hero is made for, through the hero door (hero-mint.js): the book's hero and cast, a quick game's figures
+ * (each role a pool of rolls: `guard`, `guard-2` …, runner.js) */
+const HERO_STEP = /^(hero|hero-equipped|(guard|foe|tower|farmhand)(-\d+)?|cast-.+)$/;
 const HERO_NOTE = { hero: 'the book\'s base', 'hero-equipped': 'the hero equipped' };
 
 /** Make or remake one step; → the record to keep. */
@@ -70,6 +71,8 @@ async function realize(step, action) {
   const { key, ref, order } = step;
   if (HERO_STEP.test(key)) {
     if (action === 'make') await mintSolidHandler({ ...heroMintArgs(order.mint), ref });
+    // (a quick game's mascot hero, runner.js: a ring plan through the creature door, remade by its plan whole)
+    else if (order.mascot) await updateSketchHandler({ ref, patch: [{ op: 'set', path: '/plan', value: order.mint.spec.plan }], note: 'design_game: the mascot hero' });
     else await updateSketchHandler({ ref, patch: heroRemakeOps(order, SketchRepository.getByRef(ref)?.manifest), note: `design_game: ${HERO_NOTE[key] ?? (key.startsWith('cast-') ? 'a cast member' : `the ${key}`)}` });
     // the book's base is the revision as made: pinned before the motion branches from it
     const pin = key === 'hero' ? pinBase({ ref, rev: headRev(ref), manifest: SketchRepository.getByRef(ref).manifest }) : null;

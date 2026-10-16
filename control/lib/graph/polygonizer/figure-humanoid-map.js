@@ -57,6 +57,9 @@ export const HERO_BONE_TO_VRM = Object.freeze({
   ...Object.fromEntries(Object.entries(SIDE).flatMap(([S, s]) => [
     [`upperArm${S}`, `${s}UpperArm`], [`foreArm${S}`, `${s}LowerArm`], [`hand${S}`, `${s}Hand`],
     [`thigh${S}`, `${s}UpperLeg`], [`shank${S}`, `${s}LowerLeg`], [`foot${S}`, `${s}Foot`], [`toes${S}`, `${s}Toes`],
+    // a creature-door biped's digitigrade leg (a mascot's, egocube/mascot-form.js): the shin is the lower leg and the
+    // metatarsus, from the hock, the foot, as a game maps a hock onto a humanoid
+    [`shin${S}`, `${s}LowerLeg`], [`meta${S}`, `${s}Foot`],
     ...Object.entries(DIGIT_VRM).flatMap(([d, parts]) => parts.map((p, i) => [`${d}${i + 1}${S}`, `${s}${d[0].toUpperCase()}${d.slice(1)}${p}`])),
   ])),
 });
