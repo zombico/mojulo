@@ -16,9 +16,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [3.1.1] - 2026-10-16
 
-The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and was
-unpublished the same day; no `mojulo-ui` 3.1.0 exists. Where this changelog and the code say 3.1.0 for a change, it
-first ships here.
+The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
+deprecated (npm refuses to unpublish a package others depend on); no `mojulo-ui` 3.1.0 exists. Where this changelog
+and the code say 3.1.0 for a change, it first ships here.
 
 3.1 turns mojulo toward games: a sentence becomes a playable game in a named genre, with its own world, its own
 people and its own look, played in the browser, shipped as a desktop app or exported to an engine. The detailed
