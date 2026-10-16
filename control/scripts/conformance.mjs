@@ -6,7 +6,7 @@
  * frame's canonical snapshot. Advisory like every engine gate: it needs the engine (Godot: $MOJULO_GODOT or the app;
  * Roblox: Lune, $MOJULO_LUNE or on the PATH).
  *
- *   node scripts/conformance.mjs --engine godot|roblox --corpus bus|combat|mind|rules|scenes [--random 24] [--seed 7] [--only <id>] [--json]
+ *   node scripts/conformance.mjs --engine godot|roblox --corpus bus|combat|mind|rules|scenes|level [--random 24] [--seed 7] [--only <id>] [--json]
  *
  * Exit 0 when every frame of every scenario is equal; 1 with the first difference of each unequal scenario; 2 when the
  * engine is not found or its kernel does not have the corpus's modules yet.

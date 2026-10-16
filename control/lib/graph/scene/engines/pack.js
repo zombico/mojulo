@@ -9,6 +9,7 @@
  *   resolveLevel(sketch, opts)            resolveWorldScene → facesToGlb → the engine's score, the bus, the level's sound
  *   worldGlbStats(exported)               a world pack's GLB readout
  *   gameLevels(manifest, ref)             a game's level list, or a thrown reason
+ *   levelContract(manifest)               a level's game contract as the web shell reads it, or null
  *   packPosture(posture, manifest)        explicit wins, else the game's own; a level's own posture applies absent both
  *   shellExtras(manifest)                 the shell keys a game carries that a pack's ledger names
  *   bedWriter({ binaries, log })          WAV beds rendered once per music (and loop), written at every path asked for
@@ -28,6 +29,8 @@ import { levelSound } from '../engine-sound.js';
 import { renderBed } from '../engine-audio.js';
 import { isHumanoidRig } from '../../polygonizer/figure-humanoid-map.js';
 import { tposeRig } from '../../figures/rig-tpose.js';
+import { synthesizeLevel } from '../../game/level-synth.js';
+import { normalizeLevelContract } from '../../game/level-contract.js';
 
 export function loadSketch(ref) {
   const sketch = SketchRepository.getByRef(ref);
@@ -83,6 +86,13 @@ export function gameLevels(manifest, ref) {
   const levels = Array.isArray(manifest.levels) ? manifest.levels : [];
   if (!levels.length) throw new Error(`game '${ref}' declares no levels`);
   return levels;
+}
+
+/** A level's game contract, as game-resolve.js reads it: synthesized from its mechanics (and its chapters' carry rows),
+ * normalized; null when the level carries no `game` channel. */
+export function levelContract(manifest) {
+  const { game } = synthesizeLevel(manifest || {});
+  return game && typeof game === 'object' ? normalizeLevelContract(game) : null;
 }
 
 /** The pack-wide posture: explicit wins, else the game manifest's durable default; a level's own applies absent both. */

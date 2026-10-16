@@ -10,7 +10,7 @@ const LUNE = process.env.MOJULO_LUNE;
 
 describe('the neutral half', () => {
   it('names each corpus\'s kernel modules by module id, and every engine with marks has a runner', () => {
-    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'rules', 'scenes']);
+    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'level', 'rules', 'scenes']);
     for (const c of Object.values(CORPORA)) expect(c.kernel).toContain('bus');
     expect(Object.keys(RUNNERS).sort()).toEqual([...MARKED_ENGINES].sort());
   });
@@ -68,6 +68,31 @@ describe('the Roblox kernel is equal to the web (MOJULO_LUNE)', () => {
     for (const p of PLANTS) {
       const { out } = runCorpus('roblox', 'bus', scenarios, { bin: LUNE, mutate: [{ file: p.file, from: p.from, to: p.to }] });
       expect(!out || compare('bus', scenarios, out).some((r) => !r.equal), p.name).toBe(true);
+    }
+  });
+
+  it.skipIf(!LUNE)('kernel/level.luau and game.luau play every level of the level corpus equal to the web over its track (MOJULO_LUNE)', () => {
+    const scenarios = scenariosOf('level', { random: 6, seed: 7 });
+    const { out, errors } = runCorpus('roblox', 'level', scenarios, { bin: LUNE });
+    expect(errors).toEqual([]);
+    expect(compare('level', scenarios, out).filter((r) => !r.equal)).toEqual([]);
+  });
+
+  const LEVEL_PLANTS = [
+    { file: 'game.luau', name: 'an end heard after the level ended', from: 'if not ch.ended then\n\t\t\t\t\tch.ended = true', to: 'if true then\n\t\t\t\t\tch.ended = true' },
+    { file: 'game.luau', name: 'a door left by more than once', from: 'if not ch.ended and not ch.leaving then', to: 'if not ch.ended then' },
+    { file: 'game.luau', name: 'the exit not named', from: 'ch.exit = x', to: 'ch.exit = nil' },
+    { file: 'game.luau', name: 'an {event} left unnamed', from: 'o[k] = ev.type', to: 'o[k] = v' },
+    { file: 'game.luau', name: 'the patterns read in sorted order, not as written', from: 'local pats = js.keys(on)', to: 'local pats = js.sortedKeys(on)' },
+    { file: 'game.luau', name: 'a kept number unrounded', from: 'js.round(n * s * 1000) / 1000', to: 'n * s' },
+    { file: 'level.luau', name: 'the session\'s start events dropped', from: 'L.first = game.start(L.channel)', to: 'L.first = arr()' },
+    { file: 'level.luau', name: 'the warps the bus queued never handed back', from: 'return { ops = ctrl.ops, warps = ctrl.warps, bodies = bodies }', to: 'return { ops = ctrl.ops, warps = obj(), bodies = bodies }' },
+  ];
+  it.skipIf(!LUNE)('every planted bug in the level step and the game channel is caught (MOJULO_LUNE)', () => {
+    const scenarios = scenariosOf('level', { random: 0 });
+    for (const p of LEVEL_PLANTS) {
+      const { out } = runCorpus('roblox', 'level', scenarios, { bin: LUNE, mutate: [{ file: p.file, from: p.from, to: p.to }] });
+      expect(!out || compare('level', scenarios, out).some((r) => !r.equal), p.name).toBe(true);
     }
   });
 });

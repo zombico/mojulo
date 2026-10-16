@@ -13,16 +13,14 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { renderBed, renderSound } from './engine-audio.js';
-import { synthesizeLevel } from '../game/level-synth.js';
-import { normalizeLevelContract } from '../game/level-contract.js';
 import { emitGodotProject, emitGodotGame } from './godot-project.js';
 import { assessPortability } from './engine-portability.js';
 import { bakeFps, bakeImport } from './godot-bake.js';
 import { isHumanoidRig, humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
 import { withProfileJoints } from '../figures/rig-tpose.js';
-import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder, figureClipNames, layeredFigure } from './engines/pack.js';
+import { loadSketch, refusePixelizer, packHash, resolveLevel, worldGlbStats, gameLevels, packPosture, shellExtras, bedWriter, emitFolder, figureClipNames, layeredFigure, levelContract } from './engines/pack.js';
 
-export { layeredFigure };
+export { layeredFigure, levelContract };
 
 // cwd-anchored (the control process and the CLI both run from control/) —
 // lib files may be bundled, so import.meta-relative paths are not reliable.
@@ -117,12 +115,6 @@ async function packSound(sound, { binaries, seen, log }) {
   }
 }
 
-/** A level's game contract, as game-resolve.js reads it: synthesized from its mechanics (and its chapters' carry rows),
- * normalized; null when the level carries no `game` channel. */
-export function levelContract(manifest) {
-  const { game } = synthesizeLevel(manifest || {});
-  return game && typeof game === 'object' ? normalizeLevelContract(game) : null;
-}
 
 export const OWNED_DIR = 'game';
 

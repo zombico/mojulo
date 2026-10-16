@@ -36,7 +36,8 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   column and its scoreboard. Roblox starts at zero worlds, and its scoreboard ranks what to build first.
 - **The ratchet, per engine** (`scene/engines/marks.test.js`): every engine's tables are closed against the same
   sources (`scene/engines/mark-sources.js`), the cosmos registry agrees with each engine's export tables, and a young
-  kernel marks nothing built until a conformance test proves it.
+  kernel marks a row only with the part of the place that carries it: a Roblox row not absent says how, and a built one
+  names the kernel module or place file that performs it, which must be there.
 - **One conformance protocol.** `scene/engines/conformance.js` says what each corpus holds equal (bus, combat, mind,
   rules, scenes: its scenarios, the kernel modules it needs by module id, the web's runs) and compares any engine's
   output to the web's frame by frame; `scene/engines/runners.js` says how each engine's kernel is laid out and run
@@ -58,6 +59,35 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   The Godot, Unity and Unreal legs compose it and keep only their own layout, sidecars and music policy; Blender and
   the arcade leg take its front. Every pack is byte-identical but one: a Unity game whose menu music is also a
   level's now ships `audio/menu.wav` (the importer probes it; the old dedupe dropped it, as Unreal's already did not).
+- **`export_game { target: 'roblox' }`**: a game as a Roblox place, written as a Rojo project under `<ref>/roblox/`
+  (`rojo build default.project.json -o game.rbxl`, then Play in Studio). The place carries the Roblox kernel as
+  ModuleScripts; each level's bus.json and contract.json as the exact JSON text the kernel decodes; a greybox per level
+  (every upward face of the level's mesh rastered into floor slabs, each box collider a wall); and a thin server that
+  plays the levels in order, one player driving (set Max Players to 1: a script cannot). A Roblox Humanoid walks the
+  player, its pace, jump and pull from the pilot's rule; the HUD is drawn as words (readouts in their slots, banners
+  and toasts as moments); the bus's own entities are drawn as the page draws them; a key reaches the bus by the page's
+  name for it; the outcome is applied to the store and the next open level starts. The level's look rides beside the
+  project as `model.glb` for Studio's 3D Importer. What does not travel (a cast, combat, minds, menus, scenes, the
+  web's walk feel, link travel, saves between sessions) is the portability report's, with each value's Roblox mark.
+- **The level step and the game channel, in Luau** (`roblox-kernel/level.luau`, `game.luau`): where the bodies stand
+  becomes zone facts, the bus runs in the page's frame order, its warps are handed back, and the page's game channel
+  hears the log (the first pattern as written maps an event; an emit gathered and its `{event}` named, an end and its
+  exit, a door left by once, the kept numbers rounded as the page rounds them). Held equal by a new **level corpus**
+  (`scene/level-conformance.js`): real levels composed from their mechanics (pickups, hazards, a death, doors and named
+  exits, a carried chapter, a kept score, laps on foot, a fall off the ground's edge and its warp back), walked in the
+  web runtime and replayed under Lune frame by frame, its planted bugs caught. `json.luau` now keeps the order an
+  object's keys were written in (`js.keys`), which the channel's first-match reading needs.
+- **The Roblox gate** (`node scripts/export-roblox.mjs --ref <game>`, `scene/roblox-gate.js`): Rojo builds the place
+  and Lune opens it, checks its tree, compiles its scripts and plays every level from the place's own kernel and data
+  over the track the web recorded for it, frame by frame against the web, and checks the kernel it carries is the one
+  the corpora hold equal. Advisory: without `MOJULO_ROJO` and `MOJULO_LUNE` the pack is emitted and the gate says why
+  it skipped. The eyes gate is the operator's, in Studio.
+- **Roblox marks, the first ones flipped**: the bus's logic, guards, warps, zones, timers, start and stats, the game
+  channel and the colliders built; the walk and platform rules, the follow and eye cameras, the faces (as the greybox),
+  the HUD (as words), key inputs and the play shell's level list approximated. Mechanics follow from the bus rows they
+  use: reach-exit, fail-on-death and win-when built; collect, survive, hazard-damage, laps, score, clock and the rest
+  of the zone family approximated; anything that needs a cast, hits, sight or a beat absent. The hillclimb page's
+  Roblox scoreboard ranks the rest.
 
 ### Desktop export: a game as an app, the engines as translations
 

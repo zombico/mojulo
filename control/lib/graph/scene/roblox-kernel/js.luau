@@ -17,6 +17,8 @@
 --   js.fnv(s)                  FNV-1a over UTF-16 code units, base 36
 --   js.glob(value, pat)        the bus's glob: '*' a run of anything but a line terminator
 --   js.truthy, js.toNumber, js.strictEq, js.rel, js.str, js.finite, js.isNum, js.lt (UTF-16 string order), js.dup
+--   js.keys(o)                 Object.keys(o): the order the JSON text gave its keys (json.decode records it), as a JS
+--                              object enumerates them; an object no text made reads its keys sorted
 
 local js = {}
 
@@ -29,6 +31,8 @@ local ARR = { __js = "array" }
 local OBJ = { __js = "object" }
 js.ARR = ARR
 js.OBJ = OBJ
+-- the order a decoded object's keys were written in (js.keys)
+local ORDER = setmetatable({}, { __mode = "k" })
 
 function js.arr(t: { any }?): { any }
 	return setmetatable(t or {}, ARR) :: any
@@ -115,6 +119,7 @@ function js.dup(v: any): any
 	for k, x in pairs(v) do
 		out[k] = js.dup(x)
 	end
+	ORDER[out] = ORDER[v]
 	return setmetatable(out, getmetatable(v))
 end
 
@@ -127,6 +132,7 @@ function js.copy(v: any): any
 	for k, x in pairs(v) do
 		out[k] = x
 	end
+	ORDER[out] = ORDER[v]
 	return setmetatable(out, getmetatable(v))
 end
 
@@ -440,6 +446,37 @@ function OMap:keys(): { string }
 	local ints, rest = {}, {}
 	for _, k in ipairs(self._keys) do
 		if indexKey(k) then table.insert(ints, k) else table.insert(rest, k) end
+	end
+	table.sort(ints, function(a, b) return (indexKey(a) :: number) < (indexKey(b) :: number) end)
+	for _, k in ipairs(rest) do
+		table.insert(ints, k)
+	end
+	return ints
+end
+
+-- ── the order a decoded object's keys were written in (a Lua table keeps none): json.decode records it, js.keys reads
+-- it the way Object.keys does (integer-like keys first, ascending, then the rest as written). Where the port's answer
+-- depends on that order, as the game channel's first matching `on` pattern does, it reads js.keys.
+function js.setKeyOrder(o: any, keys: { string })
+	ORDER[o] = keys
+end
+function js.keys(o: any): { string }
+	local written = ORDER[o]
+	if not written then
+		return sortedKeys(o)
+	end
+	local ints, rest, seen = {}, {}, {}
+	for _, k in ipairs(written) do
+		if o[k] ~= nil and not seen[k] then
+			seen[k] = true
+			if indexKey(k) then table.insert(ints, k) else table.insert(rest, k) end
+		end
+	end
+	-- a key set after the text was read follows, sorted (a port never relies on it)
+	for _, k in ipairs(sortedKeys(o)) do
+		if not seen[k] then
+			if indexKey(k) then table.insert(ints, k) else table.insert(rest, k) end
+		end
 	end
 	table.sort(ints, function(a, b) return (indexKey(a) :: number) < (indexKey(b) :: number) end)
 	for _, k in ipairs(rest) do

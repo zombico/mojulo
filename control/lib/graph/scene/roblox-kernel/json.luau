@@ -2,7 +2,8 @@
 -- mojulo-roblox kernel — JSON, read the way JSON.parse reads it. A score, a bus fragment, a corpus arrive as JSON
 -- text; the reader keeps what a Lua table would lose: null stays js.NULL (a table cannot hold nil), arrays and
 -- objects keep their tags (an empty one stays what it was), and a number is the double its digits name (tonumber is
--- correctly rounded; Roblox's HttpService:JSONDecode and Lune's serde both drop nulls).
+-- correctly rounded; Roblox's HttpService:JSONDecode and Lune's serde both drop nulls), and an object's keys keep the
+-- order they were written in (js.keys reads it).
 --
 -- Pure Luau, no host API. A kernel module: the loader hands it the kernel (K.js).
 --
@@ -75,6 +76,8 @@ function json.decode(text: string): any
 		local c = string.sub(text, i, i)
 		if c == "{" then
 			local o = js.obj()
+			local order = {}
+			js.setKeyOrder(o, order)
 			i += 1
 			ws()
 			if string.sub(text, i, i) == "}" then
@@ -92,6 +95,9 @@ function json.decode(text: string): any
 					fail(i, "expected ':'")
 				end
 				i += 1
+				if o[k] == nil then
+					table.insert(order, k)
+				end
 				o[k] = value()
 				ws()
 				local d = string.sub(text, i, i)

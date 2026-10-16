@@ -19,6 +19,7 @@ import * as combatC from '../combat-conformance.js';
 import * as mindC from '../mind-conformance.js';
 import * as rulesC from '../rules-conformance.js';
 import * as scenesC from '../scenes-conformance.js';
+import * as levelC from '../level-conformance.js';
 
 const byId = (scenarios, run) => Object.fromEntries(scenarios.map((sc) => [sc.id, run(sc)]));
 
@@ -37,6 +38,12 @@ export const CORPORA = Object.freeze({
     module: 'lib/graph/scene/mind-conformance.js', kernel: ['bus', 'json', 'cast', 'combat', 'rules', 'nav', 'mind', 'group'],
     scenarios: (opts) => mindC.corpus(opts),
     web: (scenarios, opts) => byId(scenarios, (sc) => mindC.runMinds(mindC.scenarioById(sc.id, opts)).snaps),
+  },
+  // a whole level over the track an engine's bodies walk: the bus in the page's order and the game channel
+  level: {
+    module: 'lib/graph/scene/level-conformance.js', kernel: ['bus', 'json', 'stats', 'game', 'level'],
+    scenarios: (opts) => levelC.corpus(opts),
+    web: (scenarios) => byId(scenarios, levelC.runLevel),
   },
   rules: {
     module: 'lib/graph/scene/rules-conformance.js', kernel: ['bus', 'json', 'rules'],

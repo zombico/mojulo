@@ -191,7 +191,7 @@ them). Saves stay in the app's own storage. The app is **unsigned**: signing and
 (Apple Developer ID, a Windows code-signing certificate) are yours, and until then macOS
 Gatekeeper and Windows SmartScreen warn on first open. Verified: macOS arm64, Electron 44.7.
 
-## Engine extensions: Godot, Unity, Unreal, Blender
+## Engine extensions: Godot, Roblox, Unity, Unreal, Blender
 
 The rule for all four legs: **mojulo emits a pack; you supply the engine.** Every export works with
 nothing installed (the pack plus a step-by-step import guide are written, and the machine gate
@@ -205,17 +205,18 @@ environment variable named in each row.
 | Engine | What mojulo emits | You need | Version target | Gate env var | Leg |
 |---|---|---|---|---|---|
 | **Godot** (the fullest translation) | A real Godot 4 project: `project.godot`, the versioned `mojulo-godot` kernel scripts, the GLB, `score.json`, export presets. Playable when the gameplay is declarative. | Godot **4.5 or newer** to open the pack. Free, open source. | Gate verified against Godot 4.7 | `MOJULO_GODOT` (default `/Applications/Godot.app/Contents/MacOS/Godot`) | kernel [0.2.1](../control/lib/graph/scene/godot-kernel/VERSION) |
+| **Roblox** (the young translation) | A Rojo project: the Luau kernel (bus, stats, store, game channel, level step), held equal to the web by the conformance corpora under Lune, as ModuleScripts; each level's data and a greybox of Parts; a server script that plays the levels with a Humanoid walking the player; the GLB beside it for Studio's 3D Importer. Games only. | **Rojo 7** to build the place (`rojo build`) and **Roblox Studio** to play it; set the place's Max Players to 1. The gate also needs **Lune 0.11** or newer. Both free. | Verified with Rojo 7.7 and Lune 0.11 (no Studio run in the gate) | `MOJULO_ROJO`, `MOJULO_LUNE` (else `PATH`, `~/.rokit`, `~/.aftman`, `~/.foreman`, `~/.cargo`) | [roblox-kernel](../control/lib/graph/scene/roblox-kernel/) |
 | **Unity** (gated leg) | A data pack: GLB + `score.json` + audio + recipe, a C# editor importer, runtime scripts (walker, mechanics, menu), deterministic `.meta` files, and a T-numbered `IMPORT-GUIDE.md`. | **Unity 6 (6000.2.x)**, URP template, the `com.unity.cloud.gltfast` package installed from Package Manager (the gate pins 6.9.1). The editor must be **activated** (signed in); an unactivated editor is reported by name and the gate skips. | `UNITY_EDITOR_TARGET` in [unity-project.js](../control/lib/graph/scene/unity-project.js) | `MOJULO_UNITY` (auto-found under `/Applications/Unity/Hub/Editor/`) | 0.4.0 |
 | **Unreal** (gated leg) | A data pack: GLB + `score.json` + audio + recipe, a dependency-free editor Python importer, `IMPORT-GUIDE.md`. **Game** packs add the `MojuloKernel` C++ plugin your project compiles. | **UE 5.4 or newer**; proven against **5.8.0**. Plugins: `Interchange glTF` (on by default since 5.3) and `Python Editor Script Plugin` (you enable it). Game packs compile C++, so: **full Xcode on macOS** (Xcode 26+ also needs `xcodebuild -downloadComponent MetalToolchain`) or **Visual Studio on Windows**. | `UNREAL_EDITOR_TARGET` in [unreal-project.js](../control/lib/graph/scene/unreal-project.js) | `MOJULO_UNREAL` (auto-found under `/Users/Shared/Epic Games/`); `MOJULO_UNREAL_TIMEOUT_MS` watchdog, default 15 min | 0.4.2 |
 | **Blender** (art pass + worker) | An art-pass pack (GLB + `pack.json` + two Python scripts + `ARTPASS-GUIDE.md`), and separately the GI-bake and render workers that bind results back as vertex colours. No add-on, no socket. | **Blender 4.x or newer**; 5.2 LTS verified. | `BLENDER_TARGET` in [blender-project.js](../control/lib/graph/scene/blender-project.js) | `MOJULO_BLENDER` (default `/Applications/Blender.app/Contents/MacOS/Blender`) | 0.1.0 |
 
 What the engines themselves cost in disk and licensing is theirs, not mojulo's: Unreal and Unity
 are multi-gigabyte installs with their own accounts and license terms; Godot and Blender are free
-and open source. The site should say that plainly instead of implying the engines come along.
+and open source; Roblox Studio is free and needs a Roblox account, Rojo and Lune are free and open source. The site should say that plainly instead of implying the engines come along.
 
 **Honesty rule for copy** (from `get_substrate`): ladder it as "plays in the browser or as a
-desktop app; Godot the fullest engine translation, Unity and Unreal as gated legs, Blender as an art
-pass." Never "identical across all four." Every pack ships an honest-loss ledger naming what did not
+desktop app; Godot the fullest engine translation, Roblox the young one, Unity and Unreal as gated legs,
+Blender as an art pass." Never "identical across all five." Every pack ships an honest-loss ledger naming what did not
 travel.
 
 ### Everything else that exports without an engine
@@ -393,9 +394,11 @@ you installed yourself are yours to remove.
 
 - A RAM or CPU minimum. None has been measured.
 - "Works on Windows and Linux" without the qualifier that engine gates are verified on macOS only.
-- That Unity, Unreal, Godot, or Blender are included, downloaded, or configured by mojulo.
-- "Identical output across all four engines." The browser build is the game; Godot is the fullest
+- That Unity, Unreal, Godot, Roblox Studio, Rojo, Lune or Blender are included, downloaded, or configured by mojulo.
+- "Identical output across all five engines." The browser build is the game; Godot is the fullest
   translation of it, the others gated legs with honest-loss ledgers.
+- That a Roblox export plays like the web build. The bus and its outcome are held equal; the player is a Roblox
+  Humanoid, and a cast, combat, minds, menus and scenes are not in the Roblox kernel yet.
 - A signed, notarized or store-ready desktop app. The desktop export is unsigned; signing is the
   operator's.
 - "Watertight" or "manifold" STL. Say "print-ready at true scale" for literal objects.
