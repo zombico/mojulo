@@ -33,8 +33,8 @@ then everyone acts in speed order. The battle runs in place over the field, in t
   `rpg-lost:<id>`): a beaten foe falls on the map, and a wiped party fails the level (or retries the fight).
 - **Starter presets** (`lib/graph/playscape/rpg/presets.js`): classes, skills and foes that a world can name
   without defining them. A world's own definitions take their place.
-- **The quick path** takes `quick: { goal: 'battle', party: … }`. Without it, a quick battle is the same as before,
-  and `play.battle` itself is unchanged.
+- **A level carries it as `play.rpg`.** It is not on the quick path, which stays one simple goal: its one-on-one
+  `goal: 'battle'` and `play.battle` are unchanged.
 - **The `quest` border flavor**: the classic RPG window, a deep blue gradient plate with a white double rule.
 
 ### Shoot plan: a keyframed camera you can see in the world

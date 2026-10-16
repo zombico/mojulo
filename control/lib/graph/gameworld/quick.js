@@ -41,10 +41,6 @@
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
- *     party?: true | n | [<class>],         // battle: a party of classed characters in place of the lone hero (play.rpg,
- *                                           // playscape/rpg): true three (fighter, mage, cleric), n the first n of four,
- *                                           // or the classes named; each foe on the trail a pack, fought in rounds; P the
- *                                           // party menu (switch class, buy skills)
  *     theme?: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? },   // the game shell's skin (create_game)
  *     camera?: 'third-person' | 'first-person' | 'top-down' | 'side' | 'fixed',   // written to the world's own `camera` (cameras.js)
  *     run?: n,                              // RUNS: a pool of n + 2 trails (each its own seed), a run draws n of them in a
@@ -71,7 +67,6 @@ import { SCORE_MOODS } from '../beats/field-score.js';
 import { CLUB_MOODS } from '../beats/club-score.js';
 import { suggestScore, levelScoreContext } from '../beats/score-suggest.js';
 import { SFX_PALETTE_NAMES } from '../beats/sfx-palettes.js';
-import { CLASS_PRESETS } from '../playscape/rpg/presets.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
@@ -86,7 +81,7 @@ export const QUICK_GOALS = Object.freeze({
   defend: 'foes walk the trail in waves to your base (its start); build archers\' towers on the pads beside it (E, for gold) and hold',
   puzzle: 'push the boulders on a grid by the trail\'s start onto their plates (walk into one to push it a cell)',
   farm: 'plant the plots by the start (E), let the days ripen them, harvest and sell: make the gold before the day runs out',
-  battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare. With party, a party of classes fights packs in rounds (skills, items, levels, P to switch class)',
+  battle: 'foes stand on the trail; walk up to one and the fight is turn by turn (attack, guard, flee): beat them all, with hp to spare',
   shoot: 'armed foes hold the trail behind low walls, hunting you by sight and ducking into cover when hurt or reloading; shoot them all (click), with hp to spare: health and rounds lie along the way',
 });
 // a shooter's numbers: the player's hp and what a hit takes, its rifle and spare rounds, the foes' guns and hp, the
@@ -107,12 +102,6 @@ export const QUICK_GUNNER = Object.freeze({ cast: 'male', palette: { Top: '#4a55
 // and a car's body on a roadway (its radius: the barriers stop it; the ride's own rule carries none)
 export const RACE = Object.freeze({ run: 25, beats: ['reveal', 'pocket', 'rest', 'reveal', 'pocket'], laps: 3, leg: 20, gridFront: 4, gridRow: 6, gridSide: 2, lane: 1.2, pace: [0.86, 0.72], roadLane: 0.8, body: 0.9 });
 export const BATTLE = Object.freeze({ hp: 20, atk: 2, foeHp: [4, 6, 8, 10, 12, 14], foeAtk: [1, 2, 2, 3, 3, 4] });
-// a party battle's: the classes and names it draws from, the packs met along the trail (each tougher), the potions it
-// starts with (playscape/rpg/presets.js names every class and foe)
-export const PARTY_BATTLE = Object.freeze({
-  classes: ['fighter', 'mage', 'cleric', 'rogue'], names: ['Ayla', 'Bram', 'Cass', 'Dane'], potions: 2,
-  packs: [['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'], ['bandit', 'goblin', 'bat'], ['shaman', 'goblin', 'goblin']],
-});
 export const QUICK_FARMHAND = Object.freeze({ cast: 'male', palette: { Top: '#8a6a3a' } });
 // a farm's numbers: seed and sale, the purse it starts with, how fast its day runs (game minutes a second)
 export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 6 });
@@ -124,7 +113,7 @@ export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3,
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
 // a guard when the game names none: plain, armed
 export const QUICK_GUARD = Object.freeze({ cast: 'male', palette: { Top: '#3a4660' }, gear: { right: { item: 'sword' } } });
-const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'party'];
+const KEYS = ['goal', 'hero', 'ride', 'racers', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
 
@@ -213,11 +202,6 @@ export function readQuick(Q) {
   if (Q.goal === 'shoot' && (Q.building !== undefined || Q.ride)) throw fail('.shoot fights along a trail on foot: no building, no ride');
   if (Q.goal === 'shoot' && Q.camera !== undefined && Q.camera !== 'first-person' && Q.camera !== 'third-person') throw fail('.shoot aims from the eye or over the shoulder: camera first-person or third-person');
   if (Q.goal === 'battle' && Q.building !== undefined) throw fail('.battle stands its foes on a trail: no building');
-  if (Q.party !== undefined) {
-    const P = PARTY_BATTLE.classes;
-    if (Q.goal !== 'battle') throw fail('.party belongs to the battle goal');
-    if (!(Q.party === true || (Number.isInteger(Q.party) && Q.party >= 1 && Q.party <= 4) || (Array.isArray(Q.party) && Q.party.length >= 1 && Q.party.length <= 4 && Q.party.every((c) => CLASS_PRESETS[c])))) throw fail(`.party is true (three), how many (1 to 4), or the classes (1 to 4 of ${Object.keys(CLASS_PRESETS).join(', ')}); the first four are ${P.join(', ')}`);
-  }
   if (Q.run !== undefined && (Q.building !== undefined || Q.climb)) throw fail('.run draws trails: no climb, no building');
   return Q;
 }
@@ -316,8 +300,7 @@ export function goalMechanics(quick, ends) {
       ];
     }
     case 'battle':
-      // a party's fights are counted by the battle kernel (rpg.won); a lost one sets hp to 0 (playscape/rpg/rpg.js)
-      return [{ kind: 'fail-on-death', startHp: BATTLE.hp }, { kind: 'win-when', when: { var: quick.party ? 'rpg.won' : 'won', gte: Math.min(quick.foes ?? 3, along.length || 1) }, event: 'battles:won', hud: 'Won' }];
+      return [{ kind: 'fail-on-death', startHp: BATTLE.hp }, { kind: 'win-when', when: { var: 'won', gte: Math.min(quick.foes ?? 3, along.length || 1) }, event: 'battles:won', hud: 'Won' }];
     case 'sneak':
       return [{ kind: 'unseen', ...(quick.alarms > 1 ? { alarms: quick.alarms } : {}) }, exit];
     case 'avoid': {
@@ -489,19 +472,7 @@ export function battleCast(quick, ends, ref) {
     entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])) } });
     foes.push({ who: id, at: [b.at[0], b.at[1]], name: `Foe ${k + 1}`, hp: BATTLE.foeHp[k], atk: BATTLE.foeAtk[k] });
   });
-  if (quick.party) return { figures, entities, play: partyPlay(quick, foes) };
   return { figures, entities, play: { battle: { hero: { atk: BATTLE.atk, hp: 'hp' }, foes } } };
-}
-
-/** A party battle's play: the party (quick.party), each foe on the trail a pack to walk up to, potions in the bag. */
-export function partyPlay(quick, foes) {
-  const P = PARTY_BATTLE, classes = Array.isArray(quick.party) ? quick.party : P.classes.slice(0, quick.party === true ? 3 : quick.party);
-  const party = classes.map((c, i) => ({ id: P.names[i].toLowerCase(), name: P.names[i], class: c }));
-  const encounters = foes.map((f, k) => ({ id: `pack-${k + 1}`, foes: [...P.packs[Math.min(k, P.packs.length - 1)]], at: f.at, who: f.who }));
-  return {
-    rpg: { party, encounters },
-    cues: [{ id: 'party-supplies', when: { start: true }, then: { set: 'held:bag:potion', to: P.potions } }],
-  };
 }
 
 /** A shooter's posts: `foes` (4) on the trail's beats (lay-concerns.js beatPosts), each a foe's id. */

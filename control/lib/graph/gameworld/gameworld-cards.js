@@ -261,7 +261,7 @@ function quickCard() {
     `  sneak: guards: n (3), guard: { <hero-door words> }, alarms: n (1)   rhythm: music: ${RHYTHM_MOODS.join(' | ')}, misses: n`,
     '  defend: waves: n (3), lives: n (5), pads: n (4), foe / tower: { <hero-door words> }   puzzle: boulders: n (2)',
     '  farm: plots: n (6), target: gold (40), days: n (6), folk: n (2), farmhand: { <hero-door words> }   (a clock: night falls)',
-    '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { <hero-door words> }, party: true | n | [classes] (a classed party fights packs in rounds; P switches class)',
+    '  run: n   a pool of n + 2 trails; each run draws n, a death ends it (any trail goal)   battle: foes: n (3), foe: { <hero-door words> }',
     '  shoot: foes: n (4), foe: { <hero-door words> }   first person by default (or third-person); walls to take cover behind',
     `  ride: ${Object.keys(RIDES).join(' | ')}   the hero is a vehicle, driven (W / S / A / D); no hero, climb or building with it`,
     '  race: track: trail | loop (a loop laid on the trail\'s land), laps: n (3 round a loop), rivals: n (1-7, with a ride: a place to finish in)',

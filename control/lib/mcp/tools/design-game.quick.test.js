@@ -300,36 +300,6 @@ describe('design_game quick', () => {
     expect(W.byId['foe-1'].downed).toBe(true);
   }, 240_000);
 
-  it('battle with a party: walk up to a pack, the party fights it in rounds (playscape/rpg), it falls and counts', async () => {
-    await designGameHandler({ quick: { goal: 'battle', foes: 2, party: true, world: { id: 'party', style: { kit: 'trail-valley' } } }, ref: 'pb' });
-    const L = stored('pb-level-run-0');
-    expect(L.play.battle).toBeUndefined();
-    expect(L.play.rpg.party.map((p) => p.class)).toEqual(['fighter', 'mage', 'cleric']);
-    expect(L.play.rpg.encounters.map((e) => [e.id, e.who, e.foes])).toEqual([['pack-1', 'foe-1', ['slime', 'slime']], ['pack-2', 'foe-2', ['wolf', 'bat']]]);
-    const { payload } = await resolveWorldScene(SketchRepository.getByRef('pb-level-run-0'));
-    expect(payload.events.rpg.encounters['pack-1'].foes).toEqual(['slime', 'slime']);
-    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, hero = W.byId[W.pilotId], v = sim.bus.vars;
-    sim.run(0.2);
-    expect(v['held:bag:potion']).toBe(2);
-    const e1 = L.play.rpg.encounters[0];
-    hero.transform.pos = [e1.at[0], e1.at[1], hero.transform.pos[2]];
-    sim.run(0.5);
-    expect(sim.bus.log.some((e) => e.type === 'rpg-battle:pack-1')).toBe(true);
-    // the page's kernel on the payload's own cfg: the party wins it, and the close goes back on the bus
-    const { rpgInit, rpgStart, rpgRound, rpgTargets, rpgClose } = await import('@/lib/graph/playscape/rpg/kernel.js');
-    const cfg = payload.events.rpg, R = rpgInit(cfg);
-    rpgStart(cfg, R, 'pack-1', v);
-    for (let r = 0; r < 20 && R.b.phase === 'command'; r++) {
-      const picks = Object.fromEntries(R.b.ids.map((m) => [m, { act: 'attack', target: rpgTargets(cfg, R, { act: 'attack' })[0]?.id }]));
-      rpgRound(cfg, R, picks, v);
-    }
-    expect(R.b.phase).toBe('won');
-    sim.run(0.5, { 0: rpgClose(cfg, R, v) });
-    expect(W.byId['foe-1'].downed).toBe(true);
-    expect([v['rpg.won'], v['rpg-done-pack-1']]).toEqual([1, 1]);
-    expect(v.gold).toBeGreaterThan(0);
-  }, 240_000);
-
   it('shoot: armed foes hunt you from behind low walls and duck into cover; you shoot them down, rounds and health on the way', async () => {
     await designGameHandler({ quick: { goal: 'shoot', foes: 2, world: { id: 'gunfight', style: { kit: 'trail-valley' } } }, ref: 's2' });
     const L = stored('s2-level-run-0');
