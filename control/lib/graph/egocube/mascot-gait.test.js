@@ -5,6 +5,8 @@ import { rollMascot, FORMS, ENERGIES } from './mascot.js';
 import { mascotPlan } from './mascot-form.js';
 import { gaitMeasures, mascotGaits, KEYS, DUTY } from './mascot-gait.js';
 import { mascotPilot, isMascotPlan, MAX_CYCLES, PERSON_HEIGHT } from './mascot-pilot.js';
+import { followPullIn } from '../scene/channels/controllable/follow-pull-in.js';
+import { verticalFov } from '../scene/scene-three.js';
 import { expandPlan } from '../polygonizer/station-loft-plan.js';
 import { validateRig, rigNodesAt } from '../polygonizer/station-loft-rig.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
@@ -79,13 +81,38 @@ describe('mascot gaits', () => {
       expect(P.rule.collideRadius).toBeLessThan(h / 2 + 1e-9);
       expect(P.rule.stride).toBeGreaterThanOrEqual(P.gaits.run.travel - 1e-3);
       expect(4 / P.rule.stride).toBeLessThanOrEqual(MAX_CYCLES + 1e-9);
-      expect(P.camera.dist).toBeLessThanOrEqual(5.5 * Math.max(0.45, h / PERSON_HEIGHT) + 1e-3);
+      // a person's distances below a person's height (was scaled down with it, which filled the frame with a small hero)
+      expect(P.camera.dist).toBe(Math.round(5500 * Math.max(1, h / PERSON_HEIGHT)) / 1000);
       expect(P.eye).toBeLessThan(h);
       expect(P.clips).toMatchObject({ forward: 'run', turn: 'walk', idle: 'idle', leap: 'leap', squat: 'squat' });
       for (const c of Object.values(P.clips)) expect(plan.clips[c]).toBeDefined();
     }
     expect(isMascotPlan({ clips: { run: [] } })).toBe(false);
     expect(() => mascotPilot({})).toThrow(/not a mascot/);
+  });
+  it('its follow camera frames a small hero small, outside it, its whole body in view; a person is framed as before', () => {
+    // the share of the frame's height a subject `h` tall fills, seen through the page's follow camera (the rule's chase
+    // line on level ground, drawn in by the page's pull-in with nothing in the way) at the World page's default fov
+    const vf = verticalFov(55, 1120 / 780) * Math.PI / 360;
+    const frame = (cam, h, radius) => {
+      const dx = cam.dist + cam.lead, dz = cam.height - cam.lookH, full = Math.hypot(dx, dz);
+      const cd = followPullIn(full, full, cam.lead, dx / full, radius, h, 0.1);
+      const eye = [cam.lead - dx * cd, cam.lookH + dz * cd], f = [dx / full, -dz / full];   // the eye, and its view to the look point
+      const ndc = (z) => { const rx = -eye[0], rz = z - eye[1]; return (rz * f[0] - rx * f[1]) / (rx * f[0] + rz * f[1]) / Math.tan(vf); };
+      return { behind: -eye[0], top: ndc(h), bottom: ndc(0), share: (ndc(h) - ndc(0)) / 2 };
+    };
+    const person = frame({ dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 }, 1.7, 0.3);
+    const small = [...Object.values(BY_FORM), ...['a fox', 'a frog', 'a panda'].map((brief) => mascotPlan(rollMascot({ brief, seed: 1 })).plan)];
+    for (const plan of small) {
+      const P = mascotPilot(plan), F = frame(P.camera, P.rule.collideHeight, P.rule.collideRadius);
+      expect(F.behind).toBeGreaterThan(P.rule.collideRadius + 1);   // the eye well clear of its back
+      expect(F.share).toBeLessThan(person.share);
+      if (P.height <= 1) {
+        expect(F.share, `${P.height} m`).toBeGreaterThan(0.08);
+        expect(F.share, `${P.height} m`).toBeLessThan(0.35);
+        expect(F.bottom).toBeGreaterThan(-1);   // its feet in the frame
+      }
+    }
   });
 });
 

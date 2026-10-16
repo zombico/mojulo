@@ -156,6 +156,10 @@ import { emitThreeWorld } from './scene-three.js';
 // and `flare` (and the pilot scheme's two vehicle actions for them). On the `controllable` fixture 7 lines are replaced
 // (the input's zero, thrust, tilt, the ground test, a burst's hit count, the exports, the scheme) and 101 added; every
 // replaced line reads an absent key the old way. The same 13, and shoot-live.
+// Re-pinned 2026-10-15 (follow camera: the subject's own stand-off): the page's wall pull-in reads its stand-off and
+// floor off the followed body (controllable/follow-pull-in.js, inlined by source) in place of a fixed 3 m and 0.15, so
+// a small hero's camera never ends inside it. On every one of the 14 fixtures that embed the controllable runtime the
+// diff is that region alone, the same 2 lines replaced and 11 added; a person's and a suit's framing is unchanged.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 
