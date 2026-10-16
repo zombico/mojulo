@@ -83,6 +83,7 @@ import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeW
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
+import { validateFieldPaint } from '@/lib/graph/polygonizer/field-paint';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import { strengthSpecErrors } from '@/lib/graph/strength/index';
 import { inferHouse } from '@/lib/graph/structure/infer';
@@ -675,6 +676,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
       // the bake stack (surface-bake.js) refuses by word on an edit as at mint
       const bakeErrs = under('/bake') ? validateBake(manifest.bake) : [];
       if (bakeErrs.length) throw new Error(`bake refused:\n - ${bakeErrs.join('\n - ')}`);
+      const fieldErrs = under('/fieldPaint') ? validateFieldPaint(manifest.fieldPaint) : [];
+      if (fieldErrs.length) throw new Error(`fieldPaint refused:\n - ${fieldErrs.join('\n - ')}`);
       let planned = planLayered(manifest);
       // strokes (layered-strokes.js): validate, record each new stroke's camera, run the `solve` ops against the
       // compiled mesh (a solve that moved a dial re-plans), then re-resolve every stroke into the ledger

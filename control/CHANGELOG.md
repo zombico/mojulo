@@ -30,6 +30,22 @@ colour per corner, the same in every pose and in the World page, the skinned GLB
 - **It stacks** with the tiered head's face tint and a drawn creature's markings instead of replacing them.
 - Absent `bake`, every face and pack is byte-identical.
 
+### Field paint: shapes cut into a character's faces
+
+Paint by ring bands is the ring's height: a trim on a coarse ring is that ring's band, and an emblem smaller than a band
+is nothing. `fieldPaint` draws shapes on a layered row's surface and cuts them into its faces (the swimsuit's seat
+panels, made general), so a heraldic charge sits on a tabard, a dragon wears scale rows and belly scutes, and a hem
+band is as thin as it is drawn, on the rings the body already has.
+
+- **`fieldPaint: [{ part, chart, shape | pattern, at, size, rotate, group, color, only }]`** on the manifest (the hero
+  door and `create_character` take it; patch `/fieldPaint`). A chart is a projection from a side over the named parts
+  (exact in every triangle, on any part, worn pieces included) or a body part's own `ring` (paint that wraps).
+- **Shapes**: rect, circle, diamond, shield, cross, star, any motif filled, or convex polygons; **patterns**: hex, scale,
+  square and brick cells, and bands. Entries paint in order; `only` repaints only the groups it names.
+- The World's faces and the skinned pack carry the same cells (each corner's skin blended from its face's). The mint
+  reads out the faces and cells each entry touched, and says when one touches nothing.
+- Absent `fieldPaint`, every face and pack is byte-identical.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

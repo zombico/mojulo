@@ -61,11 +61,11 @@ export const FINISH_NAMES = Object.freeze(Object.keys(FINISHES));
  * wins; every other group is `matte`. */
 export const FINISH_BY_GROUP = Object.freeze([
   [/^(Trim|Accent|Gold|Gilt|Brass|Bronze|Crest|Kanamono)/, 'gilt'],
-  [/^(Plate|Iron|Steel|Silver|Rivet|Helm|Metal|Chain|Mail)/, 'metal'],
+  [/^(Plate|Iron|Steel|Silver|Rivet|Helm|Metal|Chain|Mail|Lacquer)/, 'metal'],
   [/^(Leather|Strap|Belt|Shoes|Boot|Wrap|Bracer)/, 'leather'],
   [/^(Top|Bottom|Cloth|Tabard|Quilt|Cuff|Odoshi|Cape|Cloak|Hem|Patch|Swim|Suit|Glove|Sleeve|Robe)/, 'cloth'],
   [/^(Skin|Lip|Navel|EarInner)/, 'skin'],
-  [/^(Scale|Scales|Belly|Hide|Scute|Wing|Membrane)/, 'scale'],
+  [/^(Scale|Scales|Hide|Scute|Wing|Membrane)/, 'scale'],
 ]);
 
 const isNum = (x) => typeof x === 'number' && Number.isFinite(x);

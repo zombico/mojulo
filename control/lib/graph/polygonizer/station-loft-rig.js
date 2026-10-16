@@ -45,6 +45,7 @@ import { castLightFactor } from './vexar.js';
 import * as dmath from '../../util/dmath.js';
 import { withMath } from '../../util/math-scope.js';
 import { faceHex } from './face-hex.js';
+import { cellTriangles } from './field-paint.js';
 
 export const VAJRA_CORE = ['pelvisHub', 'navel', 'neckHub', 'headBase', 'headTop', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
 export const RIG_CHANNELS = ['crouch', 'lift', 'support', 'heelL', 'heelR', 'stance', 'stagger', 'seat', 'seatL', 'seatR', 'feet', 'sink', 'body', 'flow', 'facing', 'splayL', 'splayR', 'shift'];
@@ -627,7 +628,9 @@ function faceRowOf(face) {
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null } = {}) {
+  // `fields` (field-paint.js fieldPaintOf, on the rest mesh; the plain path): a face an entry touches is packed as its
+  // cells, each corner's colour, joints and weights blended from the face's by its weights. Absent ⇒ byte-identical.
   // `tint` (face-tint.js): per face, its corners' colour multipliers in sRGB, taken to linear here. Absent ⇒ byte-identical.
   const tk = (fi, k, c) => (tint?.[fi] ? tint[fi][k][c] ** 2.2 : 1);
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
@@ -652,11 +655,30 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     const painted = pp && pp.painted(fi), b = painted ? [1, 1, 1] : base, ri = painted ? pp.regionOf.get(fi) : undefined;
     // a CAST light (era/cast-light.js: the level's key, tinted ambient and bounce, per channel) in place of the studio
     // key's grey Lambert; the same normals choose the corner's shade
-    const colourAt = (vi, k) => {
-      if (cast && !lit) { const n = normals ? normals[fi][k] : vN && vN[vi] ? vN[vi] : nl > 1e-12 ? mul(nrm, 1 / nl) : [0, 0, 1]; const f = castLightFactor(n, cast); return [b[0] * f[0] * tk(fi, k, 0), b[1] * f[1] * tk(fi, k, 1), b[2] * f[2] * tk(fi, k, 2)]; }
-      const s = lit ? shade : normals ? 0.55 + 0.45 * Math.max(0, dot(normals[fi][k], L)) : vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; return [b[0] * s * tk(fi, k, 0), b[1] * s * tk(fi, k, 1), b[2] * s * tk(fi, k, 2)];
+    const colourAt = (vi, k, b0 = b) => {
+      if (cast && !lit) { const n = normals ? normals[fi][k] : vN && vN[vi] ? vN[vi] : nl > 1e-12 ? mul(nrm, 1 / nl) : [0, 0, 1]; const f = castLightFactor(n, cast); return [b0[0] * f[0] * tk(fi, k, 0), b0[1] * f[1] * tk(fi, k, 1), b0[2] * f[2] * tk(fi, k, 2)]; }
+      const s = lit ? shade : normals ? 0.55 + 0.45 * Math.max(0, dot(normals[fi][k], L)) : vN && vN[vi] ? 0.55 + 0.45 * Math.max(0, dot(vN[vi], L)) : shade; return [b0[0] * s * tk(fi, k, 0), b0[1] * s * tk(fi, k, 1), b0[2] * s * tk(fi, k, 2)];
     };
     const P = parts[bi];
+    // THE FIELD PAINT's cells (not on a painted face, nor one carrying the face's rows): each corner blended from the
+    // face's three by its weights, its colour from the cell's group
+    const fc = fields && !painted && ri === undefined && !(rowAt && tri.some((vi) => rowAt({ vi }))) ? fields.cut(fi) : null;
+    if (fc) {
+      for (const cell of fc) {
+        const hx = faceHex(pal, cell.group, part); let cb = colOf.get(hx); if (!cb) colOf.set(hx, cb = faceColorLinear({ fill: hx }));
+        const corner = tri.map((vi, k) => colourAt(vi, k, cb)), glowing = glow.has(cell.group);
+        for (const T of cellTriangles(cell.ring)) {
+          P.faces++;
+          for (const { w } of T) {
+            P.pos.push(...[0, 1, 2].map((q) => w[0] * p[0][q] + w[1] * p[1][q] + w[2] * p[2][q]));
+            P.col.push(...(glowing ? cb : [0, 1, 2].map((q) => w[0] * corner[0][q] + w[1] * corner[1][q] + w[2] * corner[2][q])));
+            const { jnt, wgt } = blendSkin(skin, tri, w); P.jnt.push(...jnt); P.wgt.push(...wgt);
+            if (P.uv) P.uv.push(...pp.white);
+          }
+        }
+      }
+      return;
+    }
     if (ri !== undefined) {
       const H = [pp.hidden[0], pp.hidden[1], pp.hidden[2] + dz];
       for (const st of pp.regions[ri].states) {
@@ -700,6 +722,16 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white } } : {}),
   };
+}
+
+/** the skin at a point of face `tri` by its weights `w` over the face's corners: every corner's joints weighted, the four
+ * heaviest kept (ties to the lower joint) and renormalised */
+function blendSkin(skin, tri, w) {
+  const acc = new Map();
+  tri.forEach((vi, k) => { if (!(w[k] > 0)) return; skin.joints[vi].forEach((j, q) => { const x = skin.weights[vi][q] * w[k]; if (x > 0) acc.set(j, (acc.get(j) || 0) + x); }); });
+  const top = [...acc].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 4), sum = top.reduce((t, e) => t + e[1], 0) || 1;
+  while (top.length < 4) top.push([0, 0]);
+  return { jnt: top.map((e) => e[0]), wgt: top.map((e) => e[1] / sum) };
 }
 
 /** a part's face rows as the pack carries them: `i` (u32 vertex indices, ascending) and `d` (float32 rows) in base64 */
