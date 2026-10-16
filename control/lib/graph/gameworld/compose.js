@@ -9,6 +9,10 @@
  * machine gate (review.js), the prompt and every decision kept in its `brief`, ready for the creator to approve or
  * send back.
  *
+ * Words also say what a level is played for (relics to collect, a boss at the end, health: a level's `goal`, quick.js
+ * levelGoalMechanics) and whether it is indoors (a dungeon, a crypt: building levels in a room kit); none, and every
+ * level is a walk to its exit, as before.
+ *
  *   composeGameworld({ prompt, name?, id?, levels?: 1…6, seed? }) → a gameworld recipe
  *
  * Pure: the same prompt and seed compose the same world.
@@ -68,7 +72,19 @@ export const LEXICON = Object.freeze({
   snowy: { weather: 'alpine' }, snow: { weather: 'alpine' }, alpine: { weather: 'alpine' }, dusty: { weather: 'desert' }, autumn: { weather: 'autumn' },
   // how big
   small: { levels: 2 }, short: { levels: 2 }, epic: { levels: 5 }, vast: { levels: 5 }, long: { levels: 4 },
+  // what a level is played for (a level's goal, quick.js levelGoalMechanics): what lies along the way to pick up, a boss
+  // at the end, health to lose
+  relic: { 'goal.collect': 'relic' }, treasure: { 'goal.collect': 'treasure' }, coin: { 'goal.collect': 'coin' }, gem: { 'goal.collect': 'gem' }, jewel: { 'goal.collect': 'jewel' }, collect: { 'goal.collect': true },
+  boss: { 'goal.boss': true }, bosses: { 'goal.boss': true },
+  health: { 'goal.health': true }, lives: { 'goal.health': true }, heart: { 'goal.health': true }, hp: { 'goal.health': true },
+  // indoors: the levels are buildings (a crypt by default), laid room by room in a room kit
+  dungeon: { building: 'crypt' }, crypt: { building: 'crypt' }, vault: { building: 'crypt' }, interior: { building: 'crypt' },
+  catacomb: { building: 'crypt', 'building.kit': 'catacomb' }, tomb: { building: 'crypt', 'building.kit': 'catacomb' },
 });
+// what a building is when the prompt is indoors and a word names one (read only then): its use, and the room kit it is
+// dressed in unless a word named that (a temple's nave; else the dungeon's stone)
+const ROOM_USE_WORDS = Object.freeze({ keep: 'keep', castle: 'keep', temple: 'temple', shrine: 'temple' });
+const ROOM_KIT_OF_USE = Object.freeze({ temple: 'gothic-nave' });
 
 // the cube a word points at (era/geocube.js): one style for the level's inside and outside, its colours the color
 // theorist's (the stamp seeds its palette, and the world takes it). The first word to name one decides it
@@ -98,7 +114,8 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (typeof prompt !== 'string' || !prompt.trim()) throw new Error('gameworld: compose needs a prompt: a few words about the world');
   const P = readPrompt(prompt), rand = mulberry32((seed * 2654435761) >>> 0 || 1);
   const style = { trail: {}, land: {} }, langs = [];
-  let fort = null, meru = null, kit = null, count = null, weather = null;
+  let fort = null, meru = null, kit = null, count = null, weather = null, room = null, roomKit = null;
+  const goal = {};
   for (const { word } of P.read) {
     const r = LEXICON[word] ?? LEXICON[word.replace(/s$/, '')];
     for (const [k, v] of Object.entries(r)) {
@@ -108,6 +125,10 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       else if (k === 'meru') meru ??= v;
       else if (k === 'weather') weather ??= typeof v === 'string' ? v : { climate: v };
       else if (k === 'levels') count ??= v;
+      // (a word naming what is collected wins over one that only says to collect)
+      else if (k.startsWith('goal.')) { const g = k.slice(5); goal[g] = g === 'collect' && typeof goal.collect === 'string' ? goal.collect : v; }
+      else if (k === 'building') room ??= v;
+      else if (k === 'building.kit') roomKit ??= v;
       // the first word to decide a thing decides it (the more particular word comes first: basalt cliffs)
       else if (k.startsWith('trail.')) style.trail[k.slice(6)] ??= v;
       else if (k.startsWith('land.')) { const f = k.slice(5), [variant, many] = v, o = style.land[f] || {}; style.land[f] = { ...(variant && o.variant === undefined ? { variant } : {}), ...(many != null && o.many === undefined ? { many } : {}), ...o }; }
@@ -173,12 +194,25 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   // a word is unread when neither the lexicon nor any tunnel read it
   const unreadBy = [landDomain(), buildingDomain(), techDomain(), ...Object.values(CRAFTED).map((k) => craftDomain(k))].map((d) => new Set(readIntent(d, prompt).unread)), tunnelled = { has: (w) => !unreadBy.every((u) => u.has(w)) };
   const world = { id: wid, name: title, seed, mode: 'autonomous', brief: { prompt, read: P.read, unread: P.unread.filter((w) => !tunnelled.has(w)), tunnels }, style, civilizations, levels: {}, links: [] };
+  // indoors (a dungeon, a crypt…): the levels are buildings of one use in a room kit; where the prompt also names the
+  // ground outside (a kit or a land form), the first level is that ground, the way in, and the later ones the building
+  const indoors = room ? (() => {
+    const useWord = P.words.find((w) => ROOM_USE_WORDS[w] ?? ROOM_USE_WORDS[w.replace(/s$/, '')]), use = useWord ? ROOM_USE_WORDS[useWord] ?? ROOM_USE_WORDS[useWord.replace(/s$/, '')] : room;
+    const outside = P.read.some((r) => r.decides.some((d) => d === 'kit' || d.startsWith('land.')));
+    return { use, kit: roomKit ?? ROOM_KIT_OF_USE[use] ?? 'gothic-stone', useWord, from: outside && n > 1 ? 1 : 0 };
+  })() : null;
+  const goals = Object.keys(goal).length ? goal : null;
   const decided = [];
   for (let i = 0; i < n; i++) {
     const lid = `${wid}-${i + 1}`.slice(0, 48), last = i === n - 1, climb = i % 2 === 0;
+    // the level's goal: what is collected and the health on every level, the boss at the end of the last
+    const lg = goals ? (({ boss, ...g }) => ({ ...g, ...(boss && last ? { boss } : {}) }))(goals) : null;
+    const lgoal = lg && Object.keys(lg).length ? { goal: lg } : {};
+    const inside = indoors && i >= indoors.from;
     const nodes = { [`${SUFFIX[i] ?? 'stage'}-a`]: { trail: true }, [`${SUFFIX[i] ?? 'stage'}-b`]: { trail: true }, ...(climb ? { lookout: { meru: true } } : {}) };
-    const L = { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes } };
-    if (i > 0) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
+    const L = inside ? { name: `${cap(indoors.use)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, building: { use: indoors.use, kit: indoors.kit }, ...lgoal }
+      : { name: `${cap(landscape)} ${SUFFIX[i] ?? `stage ${i + 1}`}`, walk: { nodes }, ...lgoal };
+    if (i > 0 && !inside) L.places = { town: true, ...(last || n === 1 ? { castle: civIds[1] ? { civilization: civIds[1] } : true } : {}) };
     // the agent checks its own work: a level whose town's laws advise is laid again on the next seed
     let s = seed * 100 + i * 7 + 1, tries = 0, laws = [];
     for (; tries < 6; tries++, s++) {
@@ -191,6 +225,17 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     if (i > 0) world.links.push({ from: `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
   }
   world.brief.levels = decided;
+  // what the levels are played for, and which are buildings: said only when a word decided it
+  if (goals) world.brief.goal = { ...goals, ...(goals.boss ? { boss: `${wid}-${n}`.slice(0, 48) } : {}) };
+  if (indoors) {
+    world.brief.indoors = { use: indoors.use, kit: indoors.kit, levels: Object.keys(world.levels).slice(indoors.from) };
+    // the word that named the use is read (as a cube's word is): it decides the building's use
+    if (indoors.useWord) {
+      const r = world.brief.read.find((x) => x.word === indoors.useWord);
+      if (r) r.decides = [...r.decides, 'building.use']; else world.brief.read.push({ word: indoors.useWord, decides: ['building.use'] });
+      world.brief.unread = world.brief.unread.filter((x) => x !== indoors.useWord);
+    }
+  }
   // the cube: the one the words name, else the kit's nearest, drawn on the kit's own card so its flora stay; the
   // color theorist decides its colours when it is stored (color-theorist/stamp.js)
   const cubeWord = P.words.find((w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')]);

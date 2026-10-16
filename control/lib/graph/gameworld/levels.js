@@ -15,8 +15,9 @@
  *   stageEnds(manifest)                    → { spawn, heading, exit, exitFrom } read off the laid stage
  *   roadwayEnds(manifest)                  → the same, read off a roadway's contract (roads/contract.js)
  *   airspaceEnds(manifest)                 → the same, read off an airspace's map and course (skyscape/)
- *   stageLevelOrder(G, stage, { ref, heroRef, pilot?, mechanics, title }) → the create_sketch call that makes it (`pilot`
- *                               a mascot hero's measures, egocube/mascot-pilot.js)
+ *   stageLevelOrder(G, stage, { ref, heroRef, pilot?, mechanics, title, goal?, goalCast? }) → the create_sketch call
+ *                               that makes it (`pilot` a mascot hero's measures, egocube/mascot-pilot.js; `goal` and
+ *                               `goalCast` a goal's mechanics and what it stands, on a trail or in a building's rooms)
  *   gameStore(G, book)                     → the create_game store: the hero, the gear, the campaign
  *
  * Pure (the stage is assembled to read its ends; nothing is stored).
@@ -305,10 +306,10 @@ export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, 
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, cityRefs = {} } = {}) {
+export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, story, carryFrom, party });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, story, carryFrom, party });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -401,13 +402,16 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilo
   // brings (its cues), the blocks it stands (a shooter's cover) and what it gives the pilot (a shooter's rifle).
   // `extra(ends)` → { figures?, entities?, play?, blocks?, pilot?: { rule?, body?, weapon? }, camera?, posts?, pads?, inputs? }
   // (`camera`: laid over the pilot's own: a shooter's over the shoulder, a dogfight's mouse look)
+  // (a level's own goal, `goalCast`: quick.js levelGoalCast, the same shape, or null when it stands nothing; its play
+  // laid beside the systems' own, never over it)
   let extraPlay = null, blocks = null, posts = null, pads = null;
-  if (extra) {
-    const X = extra(ends), p0 = pilotPart.entities[0];
+  const X = extra ? extra(ends) : goalCast ? goalCast(ends) : null;
+  if (X) {
+    const p0 = pilotPart.entities[0];
     const pilot = X.pilot ? { ...p0, ...X.pilot, rule: { ...p0.rule, ...(X.pilot.rule ?? {}) }, body: { ...p0.body, ...(X.pilot.body ?? {}) } } : p0;
     const figures = { ...(pilotPart.figures ?? {}), ...(X.figures ?? {}) };
     pilotPart = { ...pilotPart, ...(Object.keys(figures).length ? { figures } : {}), entities: [pilot, ...pilotPart.entities.slice(1), ...(X.entities ?? [])], ...(X.camera && pilotPart.camera ? { camera: { ...pilotPart.camera, ...X.camera } } : {}) };
-    extraPlay = X.play ?? null;
+    extraPlay = X.play ? (extra ? X.play : besidePlay(mechanics?.play, X.play)) : null;
     blocks = X.blocks?.length ? X.blocks : null;
     posts = X.posts ?? null;
     // keys it brings (a bag on I): the pilot's inputs
@@ -455,6 +459,16 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilo
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : stage.section === 'airspace' ? ends.airLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop, arena: ends.arena }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
+}
+
+/** A level goal's play laid beside a play the level already has (the systems'): its menus and cues after the play's
+ * own, its items with them; the goal's play alone when there is none. */
+function besidePlay(base, add) {
+  if (!base) return add;
+  const out = { ...base, ...add };
+  for (const k of ['menus', 'cues', 'spots']) if (add[k] && base[k]) out[k] = [...base[k], ...add[k]];
+  if (add.items && base.items) out.items = { ...base.items, ...add.items };
+  return out;
 }
 
 /** The story's share of a stage, on its pilot and its play: the level's scenes and the story's moments (with their
@@ -645,6 +659,8 @@ export function gameStore(world, book) {
   // a map world whose doors are keyed carries the items in a bag and the hero's powers in `powers`
   const pk = new Set(powerKeys(G).map((p) => p.id));
   if (G.topology === 'interconnected' && G.links.some((l) => l.key && !pk.has(l.key))) slices.push({ name: 'bag', kind: 'inventory' });
+  // a level whose goal collects picks up into the bag (its own goal: quick.js levelGoalMechanics)
+  else if (G.ids.some((id) => G.levels[id].goal?.collect)) slices.push({ name: 'bag', kind: 'inventory' });
   if (pk.size) slices.push({ name: 'powers', kind: 'inventory' });
   // the world's scenes read and set flags: a story slice carries them from level to level
   if (storyCarried(G)) slices.push({ name: STORY_SLICE, kind: 'flags' });
@@ -731,7 +747,7 @@ export function buildingStage(B) {
  * (the stage is metres, as the hero is); without one, the level's own first-person walker. A building by ref is not
  * made here: the game plays it as it was made.
  */
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, story = null, carryFrom = null, party = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, story = null, carryFrom = null, party = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
@@ -742,16 +758,29 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const beats = plan.rooms.filter((r) => r.id !== plan._program.entry && r.id !== plan._program.goal)
     .map((r) => ({ beat: r.id, at: [r.x + r.w / 2, r.y + r.d / 2, floors ? floors.get(r.id) : 0] }));
   const ends = { spawn, heading, exit: lowered.game.mechanics.at(-1).at, exitFrom: `the ${stage.building.use}'s goal room`, beats, planar: false };
+  // (the goal room's floor, under the exit at the walker's eye: where a level goal's boss stands)
+  const exit0 = ends.exit;
+  Object.defineProperty(ends, 'bossAt', { value: [exit0[0], exit0[1], r3(exit0[2] - eye)], enumerable: false });
   // a quick goal: its mechanics beside the building's own goal (which keeps its route through the doorways)
   if (goal) {
     const own = goal(ends), extra = own.filter((x) => x.kind !== 'reach-exit');
     base = { ...base, level: { ...base.level, ...(extra.length ? { mechanics: extra } : {}), ...(own.some((x) => x.kind === 'reach-exit') ? {} : { exit: false }) } };
   }
-  if (!heroRef) return { tool: 'create_sketch', args: { title: name, manifest: base }, ends };
-  const controls = `W / S  run · A / D  turn · Space  jump${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
+  // a level's own goal's cast (quick.js levelGoalCast): its play beside the systems', its keys the walker's; a figure
+  // it stands (a boss) beside the pilot, so the level's lowering keeps them (structure/level.js keeps a recipe's own
+  // pilot): the stage's own first-person walker, when no hero pilots it
+  const X = goalCast ? goalCast(ends) : null;
+  if (X?.play) base = { ...base, play: besidePlay(base.play, X.play) };
+  if (!heroRef) {
+    if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [walker, ...X.entities], camera: lowered.camera };
+    if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
+    return { tool: 'create_sketch', args: { title: name, manifest: base }, ends };
+  }
+  const controls = `W / S  run · A / D  turn · Space  jump${X?.legend ? ` · ${X.legend}` : ''}${mechanics?.legend ? ` · ${mechanics.legend}` : ''}`;
   const P = playerWorld({ heroRef, ...(heroGaits ? { gaits: heroGaits } : {}), ...(pilot ? { pilot } : {}), id: 'hero', title: name, controls });
-  const events = { ...(P.events || {}), ...(mechanics?.inputs?.length ? { inputs: [...(P.events?.inputs ?? []), ...mechanics.inputs] } : {}) };
-  const pilot0 = { figures: P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }], camera: P.camera, events };
+  const inputs = [...(P.events?.inputs ?? []), ...(mechanics?.inputs ?? []), ...(X?.inputs ?? [])];
+  const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
+  const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }, ...(X?.entities ?? [])], camera: P.camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
   const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party });
   const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}) };
