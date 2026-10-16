@@ -61,6 +61,8 @@ const ease = (t) => t * t * (3 - 2 * t);
 const accel = (t) => t * t;
 // the share of a recovery the follow-through takes (the body carried on past contact before it comes home)
 const FOLLOW_SHARE = 0.4;
+// and where a kick's landing is (the knee coming down folded before the foot steps back into the guard)
+const LAND_SHARE = 0.7;
 // a push box's half-width in trunk radii in the air (a body in flight is pushed as a column about its pelvis)
 const PUSH_HALF = 1.45;
 // on the ground two bodies stop where their trunks would touch, as the round body stands them, and this much apart (mm)
@@ -124,8 +126,8 @@ function clipProfile(boxes, pr) {
 
 /**
  * Lay a move's frames: the pose eases guard → load, then accelerates load → strike over startup, holds through the
- * active frames, is carried on to its `follow` (if it has one) over the first part of recovery and eases back over
- * the rest (a spinning move's whole turns kept, so it comes home facing as it went); the limb's hurtbox is out from the load to the end of the active frames plus a third of
+ * active frames, is carried on to its `follow` (if it has one) over the first part of recovery, down through its
+ * `land` (a kick's knee coming down folded), and eases back over the rest (a spinning move's whole turns kept, so it comes home facing as it went); the limb's hurtbox is out from the load to the end of the active frames plus a third of
  * recovery (the whiff window a poke is punished in); an armed move's, through all of it. An armed move hits with
  * its blade too (and marks it, for clashes); the blade is a hurtbox only where the weapon's `hurt` says. A profile clips the hurtboxes in its window.
  */
@@ -147,9 +149,16 @@ function layFrames(body, m, shape, weapon = null, rests = REST_POSES) {
     if (f < m.startup) pose = f <= loadAt ? lerpPose(rest, shape.load, ease(f / loadAt)) : lerpPose(shape.load, shape.strike, accel((f - loadAt) / (m.startup - loadAt)));
     else if (f <= lastActive) pose = shape.strike;
     else {
+      // the recovery's keys: past contact to the follow, down through the landing (if it has them), home
       const k = f - lastActive, span = Math.max(1, n - lastActive);
-      const fAt = shape.follow ? Math.min(span - 1, Math.max(1, Math.round(span * FOLLOW_SHARE))) : 0;
-      pose = k <= fAt ? lerpPose(shape.strike, shape.follow, ease(k / fAt)) : lerpPose(last, home, ease((k - fAt) / Math.max(1, span - fAt)));
+      const keys = [[0, shape.strike]];
+      if (shape.follow) keys.push([Math.min(span - 1, Math.max(1, Math.round(span * FOLLOW_SHARE))), shape.follow]);
+      if (shape.land) keys.push([Math.min(span - 1, Math.max(keys[keys.length - 1][0] + 1, Math.round(span * LAND_SHARE))), shape.land]);
+      keys.push([span, home]);
+      let i = 1;
+      while (i < keys.length - 1 && k > keys[i][0]) i++;
+      const [k0, a] = keys[i - 1], [k1, b] = keys[i];
+      pose = lerpPose(a, b, ease((k - k0) / Math.max(1, k1 - k0)));
     }
     const J = rigJoints(body, pose);
     const out = f >= loadAt && f <= limbOut;
@@ -404,27 +413,31 @@ const sameKey = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const kneeBent = (leg, d) => [leg[0] + d, leg[1] - d * 1.6, ...leg.slice(2)];
 
 /**
- * A standing strike's keys with the whole body behind them, so every family moves as a body and not as a limb:
+ * A strike's keys with the whole body behind them, so every family moves as a body and not as a limb (a crouching
+ * one by lowBody, a jumping one by airBody). Standing:
  *   a kick: THE KNEE LEADS. Its load is raised to a chamber at least the strike's height, the shin folded under it,
  *     and after contact it re-chambers before the foot comes down (unless it swings `through`, or is a `straight`-leg
  *     kick that rises with the knee locked). The trunk leans away from a high kick, the head kept on the target. The
  *     weight comes over the standing leg (its foot under the hips, flat, the knee giving), the hips turn into the kick (a lead-leg kick opens the far hip forward, toward
  *     the camera; a rear-leg kick turns them over, away from it), and a rear-leg kick swings its arm down against
- *     the leg. A turn or an arm the family authored is kept; an authored standing leg keeps its line, bent at least
+ *     the leg; coming home, its knee comes down folded (a `land` key) before the foot steps back into the guard.
+ *     A turn or an arm the family authored is kept; an authored standing leg keeps its line, bent at least
  *     as far.
  *   a punch: the drive is the body's, on top of whatever the arm does. The body coils back in the load; at the
  *     strike its hips drive forward and down onto the bending lead knee, and a rear hand brings the back knee in and
  *     its heel up.
  * The side view changes with it (the boxes follow the body, as they follow every pose).
  */
-export function strikeBody(fam, rest = POSES.guard) {
-  if (fam.stance !== 'stand') return fam;
+export function strikeBody(fam, rests = REST_POSES) {
+  if (fam.stance === 'crouch') return lowBody(fam, rests.crouch ?? POSES.crouch);
+  if (fam.stance === 'air') return airBody(fam);
+  const rest = rests.stand ?? POSES.guard;
   const k = KICK_LIMB.exec(fam.limb), h = HAND_LIMB.exec(fam.limb);
   if (!k && !h) return fam;
   // a key the family left as a guard has it (the genre's or the fighter's own)
   const left = (p, key) => p[key] === undefined || sameKey(p[key], rest[key]) || sameKey(p[key], POSES.guard[key]);
   const load = { ...fam.load }, strike = { ...fam.strike };
-  let follow = fam.follow ? { ...fam.follow } : undefined;
+  let follow = fam.follow ? { ...fam.follow } : undefined, land;
   if (k) {
     const S = k[2], K = `leg${S}`, U = `leg${S === 'F' ? 'B' : 'F'}`;
     const high = strike[K][0] >= 60 && k[1] !== 'knee';
@@ -437,6 +450,10 @@ export function strikeBody(fam, rest = POSES.guard) {
       if (!fam.through && !fam.straight) {
         if (!follow) follow = { ...load };
         else if (follow[K][0] < t - 10) follow[K] = [t - 6, Math.min(follow[K][1], t - 120), follow[K][2] ?? 90];
+      } else if (fam.through && follow) {
+        // swung through, the leg still folds before it comes home (a straight leg swung down would land under the
+        // standing foot, and the body would stand on it)
+        follow[K] = [follow[K][0], Math.min(follow[K][1], follow[K][0] - 110), follow[K][2] ?? 90];
       }
     }
     // the weight comes over the standing leg: its foot under the hips, flat, the knee giving under the kick (an
@@ -452,6 +469,12 @@ export function strikeBody(fam, rest = POSES.guard) {
       if (S === 'B' && strike.twist === undefined) strike.twist = -20;
     }
     if (S === 'B' && high && left(strike, 'armB')) strike.armB = [-35, -20];
+    // coming home, the knee comes down folded before the foot steps back into the guard: a leg swung straight down
+    // from a high kick would pass under the standing foot and the body would stand on it
+    if (high && !fam.land) {
+      const r = rest[K] ?? POSES.guard[K], from = (follow ?? strike)[K];
+      land = { ...rest, [U]: (follow ?? strike)[U], [K]: [(from[0] + r[0]) / 2, Math.min(r[1], (from[0] + r[0]) / 2 - 100), r[2] ?? 90] };
+    }
   } else {
     // (on top of what the punch says: the drive is the body's, whatever the arm does)
     const S = h[2], hip = (p) => p.hip ?? rest.hip ?? [0, 0];
@@ -463,13 +486,76 @@ export function strikeBody(fam, rest = POSES.guard) {
     if (S === 'B') { const b = at(strike, 'legB'); strike.legB = [b[0] + 6, b[1] - 8, Math.min(b[2] ?? 90, 64)]; }
     if (follow) follow.hip = [hip(follow)[0] + 35, hip(follow)[1] - 15];
   }
+  return { ...fam, load, strike, ...(follow ? { follow } : {}), ...(land ? { land } : {}) };
+}
+
+/**
+ * A crouching strike's body: it stays low. A kick (a low kick, a sweep) raises its knee before the shin swings and
+ * folds it again after contact, keeps the trunk over it, the standing knee folds deeper, the hips turn into it by its leg, and the hand on the far side of the kick goes down to the floor; a
+ * punch (or a head) drives the hips forward and the trunk over it, coiled back first. A key the family authored is
+ * kept, and the drive goes on top.
+ */
+function lowBody(fam, rest) {
+  const k = KICK_LIMB.exec(fam.limb), h = HAND_LIMB.exec(fam.limb) ?? (fam.limb === 'head' ? [, , 'F'] : null);
+  if (!k && !h) return fam;
+  const left = (p, key) => p[key] === undefined || sameKey(p[key], rest[key]) || sameKey(p[key], POSES.crouch[key]);
+  const load = { ...fam.load }, strike = { ...fam.strike };
+  let follow = fam.follow ? { ...fam.follow } : undefined;
+  const hip = (p) => p.hip ?? rest.hip ?? [0, 0];
+  if (k) {
+    const S = k[2], K = `leg${S}`, U = `leg${S === 'F' ? 'B' : 'F'}`, A = `arm${S === 'F' ? 'B' : 'F'}`;
+    // the knee comes up before the shin swings: a leg swung through straight down would reach under the standing
+    // foot, and the body (standing on its lowest foot) would pop up off the floor
+    // (low as the body is, the knee comes level with the hip before the shin passes under it)
+    const t = Math.max(load[K][0], 96);
+    load[K] = [t, Math.min(load[K][1], t - 100), load[K][2] ?? 90];
+    // and folds again after contact, on the way home, for the same reason
+    follow = follow ?? { ...strike };
+    follow[K] = [t - 4, Math.min(follow[K][1], t - 105), follow[K][2] ?? 90];
+    strike.torso = Math.max(strike.torso ?? rest.torso ?? 0, 30);
+    for (const p of [strike, ...(follow ? [follow] : [])]) {
+      p[U] = kneeBent(p[U] ?? rest[U], 6);
+      if (left(p, A)) p[A] = [8, 4];
+    }
+    if (strike.sway === undefined) { strike.sway = S === 'F' ? 40 : -50; load.sway ??= -strike.sway * 0.3; }
+  } else {
+    load.hip = [hip(load)[0] - 20, hip(load)[1]];
+    load.torso = (load.torso ?? rest.torso ?? 0) - 4;
+    strike.hip = [hip(strike)[0] + 40, hip(strike)[1] - 10];
+    strike.torso = (strike.torso ?? rest.torso ?? 0) + 6;
+    if (h[2] === 'B' && strike.twist === undefined) strike.twist = -40;
+  }
   return { ...fam, load, strike, ...(follow ? { follow } : {}) };
+}
+
+/**
+ * A jumping strike's body: a kick tucks both knees in the load (the striking one chambered, the other drawn up) and
+ * keeps the other knee tucked at contact; a punch turns the shoulders into it, the rear hand the furthest. A key the
+ * family authored is kept.
+ */
+function airBody(fam) {
+  const k = KICK_LIMB.exec(fam.limb), h = HAND_LIMB.exec(fam.limb);
+  if (!k && !h) return fam;
+  const left = (p, key) => p[key] === undefined || sameKey(p[key], POSES.jump[key]);
+  const load = { ...fam.load }, strike = { ...fam.strike };
+  if (k && k[1] !== 'knee') {
+    const S = k[2], K = `leg${S}`, U = `leg${S === 'F' ? 'B' : 'F'}`;
+    const t = Math.max(load[K][0], Math.min(strike[K][0] + 6, 120));
+    load[K] = [t, Math.min(load[K][1], t - 120), load[K][2] ?? 90];
+    if (left(load, U)) load[U] = [S === 'F' ? 50 : 80, S === 'F' ? -80 : -50, 70];
+    if (left(strike, U)) strike[U] = [S === 'F' ? 40 : 70, S === 'F' ? -90 : -60, 70];
+  } else if (h) {
+    if (strike.twist === undefined) strike.twist = h[2] === 'B' ? -45 : 12;
+    if (load.twist === undefined) load.twist = h[2] === 'B' ? 15 : -6;
+    strike.torso = (strike.torso ?? 0) + 8;
+  }
+  return { ...fam, load, strike };
 }
 
 /** A normal slot (`stand.M`) with its family, strength and tune → a compiled move. */
 export function compileNormal(body, slot, { family, strength, tune } = {}, weapon = null, rests = REST_POSES) {
   if (!FAMILIES[family]) throw new Error(`versus: ${slot} family '${family}' is not one of ${Object.keys(FAMILIES).join(', ')}`);
-  const fam = strikeBody(FAMILIES[family], rests.stand);
+  const fam = strikeBody(FAMILIES[family], rests);
   const [stance, letter] = slot.split('.');
   if (fam.stance !== stance) throw new Error(`versus: ${slot} wants a ${stance} family; '${family}' is a ${fam.stance} move`);
   const T = readTune(tune, slot);

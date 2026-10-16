@@ -124,16 +124,20 @@ describe('versus: every strike moves as a body', () => {
   const highKick = (side, flag) => kicks.find(([, f]) => f.limb.endsWith(side) && f.strike[`leg${side}`][0] >= 80 && !!f[flag] === false && !f.through && !f.straight);
   const knee = (leg) => leg[0] - leg[1];   // how far the knee is bent (degrees between the thigh and the shin)
 
-  it('a kick\'s knee leads: it chambers at least to the strike\'s height with the shin folded, and re-chambers after', () => {
+  it('a kick\'s knee leads: it chambers at least to the strike\'s height with the shin folded, re-chambers after, and lands folded', () => {
     const [, fam] = highKick('F');
     const b = strikeBody(fam);
     expect(b.load.legF[0]).toBeGreaterThanOrEqual(Math.min(fam.strike.legF[0] + 8, 125) - 1e-9);
     expect(knee(b.load.legF)).toBeGreaterThanOrEqual(115);
     expect(knee(b.follow.legF)).toBeGreaterThanOrEqual(110);
+    expect(knee(b.land.legF)).toBeGreaterThanOrEqual(100);
+    expect(b.land.legF[0]).toBeLessThan(b.follow.legF[0]);
     // one that swings through the target, or rises straight, does neither
     const [, through] = kicks.find(([, f]) => f.through);
     const leg = (f) => `leg${f.limb.slice(-1)}`;
-    expect(strikeBody(through).follow[leg(through)]).toEqual(through.follow[leg(through)]);
+    // (swung through, the leg keeps its line past the target, not pulled back up, and folds to come home)
+    expect(strikeBody(through).follow[leg(through)][0]).toBe(through.follow[leg(through)][0]);
+    expect(knee(strikeBody(through).follow[leg(through)])).toBeGreaterThanOrEqual(110);
     const [, straight] = kicks.find(([, f]) => f.straight);
     expect(strikeBody(straight).load[`leg${straight.limb.slice(-1)}`]).toEqual(straight.load[`leg${straight.limb.slice(-1)}`]);
   });
@@ -164,8 +168,8 @@ describe('versus: every strike moves as a body', () => {
     expect(b.strike.legB[2]).toBeLessThanOrEqual(64);   // the back heel up
   });
 
-  it('a crouching or air move is left as it is written', () => {
-    const [, low] = Object.entries(FAMILIES).find(([, f]) => f.stance !== 'stand');
-    expect(strikeBody(low)).toBe(low);
+  it('a standing strike with neither a hand nor a leg (a headbutt) is left as it is written', () => {
+    const [, other] = Object.entries(FAMILIES).find(([, f]) => f.stance === 'stand' && !/^(toe|ankle|knee|fist|elbow)/.test(f.limb));
+    expect(strikeBody(other)).toBe(other);
   });
 });

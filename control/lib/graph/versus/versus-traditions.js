@@ -49,7 +49,7 @@ const KF = { torso: 4, head: -6, armF: [50, 135], armB: [44, 150], legF: [36, 14
 const KF_LOW = tr(POSES.crouch, { torso: 18, armF: [50, 135], armB: [44, 150], hands: [0.35, 0.05] });
 
 // ── capoeira: the ginga, low and rocking, an arm across the face, the other back toward the floor ───────────
-const CAP = { torso: 24, head: 10, armF: [70, 170], armB: [-30, 10], legF: [40, -2, 90], legB: [-36, -44, 66], hip: [0, -70], hands: [-0.1, 0.9] };
+const CAP = { torso: 24, head: 10, armF: [70, 170], armB: [-30, 10], legF: [44, -10, 90], legB: [-33, -38, 70], hip: [0, -70], hands: [-0.1, 0.9] };
 const CAP_LOW = tr(POSES.crouch, { torso: 36, armF: [60, 170], armB: [-10, -20], hands: [-0.1, 1] });
 
 // ── savate: upright and bladed, the hands mid-high, the shoe as a weapon ────────────────────────────────────
@@ -208,9 +208,9 @@ const TRADITION_LIST = {
       },
       'leg-kick': {
         stance: 'crouch', limb: 'ankleB', tempo: 1.05, guard: 'low', says: 'a low kick: the shin into the thigh, blocked low',
-        load: tr(THAI_LOW, { sway: 14 }),
-        strike: tr(THAI_LOW, { torso: 10, legB: [70, 72, 90], armB: [-30, -20], sway: -60, twist: -30 }),
-        follow: tr(THAI_LOW, { legB: [40, 40, 90], sway: -80 }),
+        load: tr(THAI_LOW, { legB: [80, -20, 80], sway: 18 }),
+        strike: tr(THAI_LOW, { torso: 34, head: 20, legB: [72, 74, 90], legF: [64, -26, 80], armB: [-40, -30], sway: -65, twist: -35 }),
+        follow: tr(THAI_LOW, { torso: 32, legB: [48, 30, 90], legF: [64, -26, 80], sway: -90, twist: -45 }),
       },
       'flying-knee': {
         stance: 'air', limb: 'kneeF', tempo: 1, says: 'a flying knee: both hands reach for the head, the knee drives up into it',
@@ -294,8 +294,8 @@ const TRADITION_LIST = {
       },
       'chapa-baixa': {
         stance: 'crouch', limb: 'ankleF', tempo: 1, guard: 'low', says: 'a chapa baixa: a low push with the sole, a hand on the floor',
-        load: tr(CAP_LOW, { legF: [92, -30, 140], armB: [-60, -70] }),
-        strike: tr(CAP_LOW, { torso: 40, legF: [76, 78, 170], armB: [-20, -10], sway: 50 }),
+        load: tr(CAP_LOW, { legF: [92, -30, 140], armB: [10, 4] }),
+        strike: tr(CAP_LOW, { torso: 40, legF: [76, 78, 170], armB: [8, 2], sway: 50 }),
         follow: tr(CAP_LOW, { legF: [88, -20, 140], sway: 30 }),
       },
       rasteira: {

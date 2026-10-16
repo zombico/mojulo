@@ -149,7 +149,14 @@ its own body on an arena; the stick figures are the simulation's own dummies, dr
   punch the body coils back in the load, and at the strike the hips drive forward and down onto a bending lead
   knee, a rear hand bringing the back knee in and its heel up. The lead-leg kicks had their hips turned the wrong
   way; they open now. The savate kicks are three distinct paths: the fouetté whips round high to the head, the
-  chassé drives level from a knee pulled to the chest, and the revers chambers through its turn.
+  chassé drives level from a knee pulled to the chest, and the revers chambers through its turn. A high kick comes
+  home through a `land` key (the knee down and folded before the foot steps back into the guard), and a kick swung
+  `through` folds after it. Crouching strikes stay low: a low kick or a sweep raises the knee before the shin swings
+  and folds it again after, keeps the trunk over it, sinks the standing knee and puts the far hand to the floor; a
+  crouching punch drives the hips. Jumping kicks tuck both knees, and air punches turn the shoulders into the blow.
+  The figure stands on its lowest foot, so a swinging leg that reached under the standing foot used to lift the
+  whole body off the floor mid-kick; the sweep now holds that no kick of any family ever does, and that every
+  tradition's guard and crouch stand on both feet (the capoeira ginga's back foot was floating).
 - **Fighting traditions** (`versus-traditions.js`, a page module; `tradition` on a recipe, an intent or a roster
   entry). Boxing, karate, taekwondo, Muay Thai, kung fu, capoeira, savate and brawling. Each is a guard (where the
   hands are, how low and wide it stands, its crouch and walk), an idle rhythm (a boxer's bounce on bent knees, the

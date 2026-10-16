@@ -51,6 +51,35 @@ describe('versus traditions, swept', () => {
     expect(Object.keys(NORMAL_FAMILIES).every((f) => FAMILIES[f] === NORMAL_FAMILIES[f])).toBe(true);
   });
 
+  it('every tradition\'s guard and crouch stand on both feet', () => {
+    const F = compileFighter(solveFighter({ id: 'k' }).recipe), off = [];
+    for (const t of Object.keys(TRADITIONS)) {
+      const r = traditionRests(t);
+      for (const [k, pose] of [['guard', r.stand], ['crouch', r.crouch]]) {
+        const J = rigJoints(F.body, pose), low = (X) => Math.min(J[`ankle${X}`][1], J[`toe${X}`][1]);
+        if (Math.max(low('F'), low('B')) > 25) off.push(`${t} ${k}: a foot ${Math.round(Math.max(low('F'), low('B')))}mm up`);
+      }
+    }
+    expect(off).toEqual([]);
+  });
+
+  it('no kick lifts the body off the floor it stands on: the swinging leg never reaches under the standing foot', () => {
+    const F = compileFighter(solveFighter({ id: 'k' }).recipe), H = F.body.height, lifted = [];
+    for (const [id, fam] of Object.entries(FAMILIES)) {
+      if (fam.stance === 'air' || !/^(toe|ankle|knee)/.test(fam.limb)) continue;
+      const m = compileNormal(F.body, `${fam.stance}.M`, { family: id }, null, traditionRests(homeOf[id]) ?? undefined);
+      // the kicking foot below the standing one: the body stands on the kick
+      const S = fam.limb.slice(-1), U = S === 'F' ? 'B' : 'F';
+      let under = 0;
+      for (let f = 1; f <= m.total; f++) {
+        const J = rigJoints(F.body, m.frames[f].pose), low = (X) => Math.min(J[`ankle${X}`][1], J[`toe${X}`][1]);
+        under = Math.max(under, low(U) - low(S));
+      }
+      if (under > H * 0.03) lifted.push(`${id} ${Math.round(under)}mm under`);
+    }
+    expect(lifted).toEqual([]);
+  });
+
   it('every tradition fights the next one, CPU against CPU, and blows land both ways', () => {
     const words = Object.keys(TRADITIONS);
     for (const [k, t] of words.entries()) {
