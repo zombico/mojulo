@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { quickWorld, readQuick } from './quick.js';
 import { runSteps } from './runner.js';
+import { settingOfGame } from './cast-setting.js';
+import { readGameworld } from './world.js';
 
 describe('quick: the fight goal', () => {
   // two fighters designed by the character loop (a sheet each) and one character already made
@@ -12,7 +14,8 @@ describe('quick: the fight goal', () => {
     const steps = runSteps(world, { ref: 'gw_fight' });
     expect(steps.map((s) => s.key)).toEqual(['fighter-fighter-1-sheet', 'fighter-fighter-1', 'fighter-bear-sheet', 'fighter-bear', 'level-arena-plaza', 'level-arena-nave', 'game']);
     const [sheet, made] = steps;
-    expect(sheet.order.manifest).toEqual({ kind: 'egocube', roll: { facets: { archetype: 'hero' }, seed: expect.any(Number) } });
+    // each sheet rolled in the game's setting (cast-setting.js), as every other quick goal's people are
+    expect(sheet.order.manifest).toEqual({ kind: 'egocube', roll: { facets: { archetype: 'hero' }, seed: expect.any(Number), setting: settingOfGame(readGameworld(world), world.quick) } });
     expect(made.order).toMatchObject({ egocube: sheet.ref, title: expect.stringMatching(/^dojo-fight · The (Hero|Bully)$/) });
     const roster = [{ id: 'fighter-1', hero: { ref: made.ref } }, { id: 'bear', hero: { ref: steps[3].ref }, style: 'grappler' }, { id: 'mira', hero: { ref: 'mira-ref' }, style: 'rushdown' }];
     expect(steps[4].order.manifest).toMatchObject({ kind: 'stage', kit: 'island-plaza', versus: { roster, rules: { rounds: 1, timer: 60 } } });

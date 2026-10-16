@@ -3,10 +3,13 @@
  * (egocube/setting.js), so a farm in a sakura valley and a deathmatch on the moon each roll their own.
  *
  *   tradition   the book's direction when it names one; else the world's, by its kit's pole (characters.js TRADITIONS:
- *               banded is anime, material western), the same rule that ledgers a book hero against its world
- *   era         the kit's (ERA_OF_KIT); a kit with no row names none
+ *               banded is anime, material western), the same rule that ledgers a book hero against its world. How a
+ *               body is DRAWN; a fighter's own `tradition` (versus-traditions.js) is how it strikes, another word
+ *   era         the kit's (ERA_OF_KIT); a kit with no row names none. A palette or a look recolours the kit under an id
+ *               of its own (world.js looksOfKit): its era and pole are still the stock kit's it was made from
  *   genre       the quick game's goal
- *   ramps       the kit card's ramps the clothes are dressed from, the world's own materials first (CLOTHES_RAMPS)
+ *   ramps       the kit card's ramps the clothes are dressed from, the world's own materials first (CLOTHES_RAMPS): the
+ *               look's own, so a palette's colours dress them
  *
  *   settingOfGame(G, quick?)  → the setting; `G` a read world (readGameworld's), `quick` the world's quick spec
  *   quickFigure(G, quick, key, setting?, { variant?, uniform? })  → { spec, toon?, sheet, pending } a quick game's figure
@@ -23,6 +26,7 @@ import { readSetting } from '../egocube/setting.js';
 import { rollEgocube } from '../egocube/egocube.js';
 import { planFromSheet, KIT_ERAS } from '../egocube/plan.js';
 import { fingerprint } from './review.js';
+import { looksOfKit } from './world.js';
 
 /** The era each kit's world is in: who it has people for. A kit with no row says nothing. */
 export const ERA_OF_KIT = Object.freeze({
@@ -36,12 +40,15 @@ export const ERA_OF_KIT = Object.freeze({
 export const CLOTHES_RAMPS = Object.freeze(['timber', 'stone', 'foliage', 'soil', 'rock', 'grass']);
 
 /** A game's setting, from its book, its kit and its goal. */
+// the stock kit a world's look was composed from (a palette or a look registers an id of its own over it, base first)
+const stockKit = (kit) => looksOfKit(kit)?.[0]?.base ?? kit;
+
 export function settingOfGame(G, quick = null) {
-  const kit = G?.style?.kit, out = {};
+  const kit = G?.style?.kit, stock = kit && stockKit(kit), out = {};
   const book = G?.characters?.direction?.tradition;
   if (book) out.tradition = book;
-  else if (kit) out.tradition = Object.keys(TRADITIONS).find((t) => TRADITIONS[t].pole === poleOf(kit));
-  if (kit && ERA_OF_KIT[kit]) out.era = ERA_OF_KIT[kit];
+  else if (kit) out.tradition = Object.keys(TRADITIONS).find((t) => TRADITIONS[t].pole === poleOf(stock));
+  if (stock && ERA_OF_KIT[stock]) out.era = ERA_OF_KIT[stock];
   if (quick?.goal) out.genre = quick.goal;
   if (kit && hasKitCard(kit)) {
     const ramps = kitCard(kit).ramps;

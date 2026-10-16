@@ -6,6 +6,8 @@ import { readGameworld } from './world.js';
 import { quickWorld, quickRacers } from './quick.js';
 import { runSteps } from './runner.js';
 import { KIT_ERAS } from '../egocube/plan.js';
+import { readSetting, tuningOf, leanOf } from '../egocube/setting.js';
+import { rollEgocube } from '../egocube/egocube.js';
 import { ERA_LOOKS } from '../egocube/outfit.js';
 import { FIREARM_ITEMS } from '../equipment/firearm.js';
 import { validateHeroSpec } from '@/lib/mcp/tools/layered.js';
@@ -101,5 +103,43 @@ describe("a game's setting", () => {
     const F = quickRacers(W.quick, 1, S);
     expect(F.field.every((r) => r.spec.setting?.genre === 'race')).toBe(true);
     expect(quickRacers(W.quick, 1).field.every((r) => r.spec.setting === undefined)).toBe(true);
+  });
+});
+
+describe('the setting read right, and the fighters rolled in it', () => {
+  it('a palette or a look on a kit keeps the stock kit\'s era and pole; the clothes take the recoloured ramps', () => {
+    for (const kit of Object.keys(ERA_OF_KIT).filter((k) => ['isekai-sakura', 'alien-night', 'isekai-bamboo'].includes(k))) {
+      const own = settingOfGame(read(world({ goal: 'reach' }, { kit })));
+      const painted = settingOfGame(read(world({ goal: 'reach' }, { kit, palette: { seed: 5 } })));
+      expect(painted).toMatchObject({ era: own.era, tradition: own.tradition });
+      expect(painted.ramps).not.toEqual(own.ramps);
+      const worded = settingOfGame(read(world({ goal: 'reach' }, { kit, look: { intent: 'rust red rocks and pale grass' } })));
+      expect(worded).toMatchObject({ era: own.era, tradition: own.tradition });
+    }
+  });
+
+  it('the fight genre: a fighter is always a person, never a bystander or a child', () => {
+    const S = readSetting({ genre: 'fight' });
+    for (let seed = 1; seed <= 200; seed++) expect(tuningOf(S, seed, `fighter-${seed}`)).toBe('person');
+    const lean = leanOf(S, 'person');
+    expect(lean.role['non-combatant']).toBe(0);
+    expect(lean.age.child).toBe(0);
+  });
+
+  it('a fight game\'s fighters are rolled in its setting; a roster\'s named facets win', () => {
+    for (const kit of ['isekai-sakura', 'alien-night']) {
+      const W = world({ goal: 'fight', roster: ['hero', { id: 'bear', role: 'frontline', build: 'brute', style: 'grappler' }] }, { kit });
+      const setting = settingOfGame(read(W), W.quick), sheets = runSteps(W, { ref: 'gw' }).filter((s) => s.key.endsWith('-sheet'));
+      expect(setting).toMatchObject({ genre: 'fight', era: ERA_OF_KIT[kit] });
+      for (const s of sheets) expect(s.order.manifest.roll.setting).toEqual(setting);
+      const bear = rollEgocube(sheets[1].order.manifest.roll);
+      expect(bear.facets).toMatchObject({ role: 'frontline', build: 'brute' });
+      expect(bear.ancestry.door).toBe('hero');
+    }
+    // every default fighter over many worlds rolls a person in its setting (the runner throws on any other body)
+    for (let seed = 1; seed <= 40; seed++) {
+      const steps = runSteps({ ...world({ goal: 'fight' }, { kit: 'alien-night' }), seed }, { ref: `gw${seed}` });
+      for (const s of steps.filter((x) => x.key.endsWith('-sheet'))) expect(rollEgocube(s.order.manifest.roll).ancestry.door).toBe('hero');
+    }
   });
 });
