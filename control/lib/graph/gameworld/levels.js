@@ -42,7 +42,7 @@ import { designCity } from '../city/plan/design.js';
 import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
 import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
-import { battleRoster, PARTY_SLICE } from './battles.js';
+import { battleRoster, laidBattles, PARTY_SLICE } from './battles.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -586,7 +586,7 @@ function stageWays(stage, ends, plan) {
  * `book` is resolveBook's.
  */
 export function gameStore(world, book) {
-  const G = readGameworld(world), S = book?.mechanics?.play.stats;
+  const G = laidBattles(readGameworld(world)), S = book?.mechanics?.play.stats;
   const stats = S ? Object.fromEntries(S.stats.filter((x) => Number.isFinite(x.base ?? x.value)).map((x) => [x.id, x.base ?? x.value])) : {};
   const slices = [{ name: 'hero', kind: 'character', ...(Object.keys(stats).length ? { init: { stats } } : {}) }];
   if (resolveEquipment(G).rows.some((r) => r.build)) slices.push({ name: 'gear', kind: 'inventory' });

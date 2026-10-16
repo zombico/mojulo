@@ -30,7 +30,7 @@ export const CONCERNS = Object.freeze([
   {
     id: 'encounters', name: 'Encounters along the way',
     when: ['power.combat=turn-based'],
-    asks: 'turn-based fights happen where the party walks up to a foe: packs one at a time along the way, tougher further on, with quiet ground between them and a place to rest',
+    asks: 'turn-based fights happen where the party walks up to a foe: packs one at a time along the way, tougher further on, with quiet ground between them and a place to rest (laid by battles.js, the world\'s battles or their defaults)',
   },
   {
     id: 'watchers', name: 'Lines of sight to break',

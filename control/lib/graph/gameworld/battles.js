@@ -17,8 +17,9 @@
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
  *     classes?, skills?, foes?, items?, rules?,   play.rpg's own (playscape/rpg/rpg.js), laid over the presets
  *   }
+ * A world that writes none but whose intent fights turn by turn (its cube's power.combat) is laid with the defaults.
  *
- * Pure. `readBattles(v, characters)` reads the shape and throws, teaching; `battleBase(G)` is the play.rpg every stage
+ * Pure. `laidBattles(G)` the world with them laid; `readBattles(v, characters)` reads the shape and throws, teaching; `battleBase(G)` is the play.rpg every stage
  * shares (its party, classes, skills, foes, items, rules); `battlePlan(G, stages)` the packs each stage meets;
  * `battleCast(G, stage, ends, { ref, packs, from })` what a stage stands and plays; `battleRoster(G)` the party slice's
  * roster as the game starts.
@@ -27,6 +28,7 @@ import { readRpg } from '../playscape/rpg/rpg.js';
 import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { playerStates } from '../playscape/player.js';
+import { cubeOfWorld } from './intent.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -77,6 +79,15 @@ export function readBattles(v, characters = null) {
   readRpg({ rpg: battleBase({ battles: out, characters }) });
   for (const p of [...(packs ?? []), ...(boss ? [boss] : [])]) readRpg({ rpg: { ...battleBase({ battles: out, characters }), encounters: [{ id: 'check', foes: p }] } });
   return out;
+}
+
+/** The world as the run lays it: a world whose cube fights turn by turn (power.combat turn-based: the jrpg genre, or
+ * its own cube) and writes no battles is laid with the defaults, the encounters concern laid as the cover concern is.
+ * A quick world is its own (its goal says what it fights). */
+export function laidBattles(G) {
+  if (G.battles !== undefined || G.quick) return G;
+  const c = cubeOfWorld(G).cube.power?.combat;
+  return (Array.isArray(c) ? c.includes('turn-based') : c === 'turn-based') ? { ...G, battles: {} } : G;
 }
 
 /** The party: the hero first, then each cast member who joins, in the cast's order. */
@@ -142,7 +153,7 @@ export function battleCast(G, stage, ends, { ref, packs = [], from = 0, seed = 1
   });
   const random = B.random ? { sets: packs.length ? packs.map((p) => [...p]) : [PACKS[0]], ...B.random } : null;
   const rpg = { ...base, ...(encounters.length ? { encounters } : {}), ...(random ? { random } : {}), rules: { ...base.rules, seed } };
-  const rest = B.rest === false ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'The party rests: HP and MP restored', as: 'toast' }] }];
+  const rest = B.rest === false ? [] : [{ id: 'rpg-rest-spot', when: { use: { at: [ends.spawn[0], ends.spawn[1]], r: 2.5 }, prompt: 'rest' }, then: [{ emit: 'rpg-rest' }, { say: 'Rested', as: 'toast' }] }];
   // the party carried (the party mechanic); a wiped party fails the level under defeat: 'fail' (the hp it sets to 0)
   const mechanics = [{ kind: 'party', slice: PARTY_SLICE }, ...(rpg.rules.defeat === 'fail' ? [{ kind: 'fail-on-death', startHp: 1 }] : [])];
   return { figures, entities, play: { rpg, ...(rest.length ? { cues: rest } : {}) }, mechanics };

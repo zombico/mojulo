@@ -43,6 +43,17 @@ describe('battles: the book\'s party battles, laid on its trails', () => {
     expect(L[0].order.manifest.game.mechanics.some((m) => m.kind === 'fail-on-death')).toBe(false);
   });
 
+  it('a world that fights turn by turn is laid with them, written or not; P is in the level\'s legend', () => {
+    const jrpg = { ...MEADOWMARK_HERO, intent: { from: 'jrpg' } };
+    const S = runSteps(jrpg, { ref: 'gw' });
+    expect(S.some((s) => s.key === 'foe')).toBe(true);
+    const L = levels(jrpg);
+    expect(L.flatMap((s) => s.order.manifest.play.rpg.encounters ?? []).length).toBeGreaterThan(0);
+    expect(JSON.stringify(L[0].order.manifest.events)).toContain('P  party');
+    // an intent that fights in real time is not
+    expect(runSteps({ ...MEADOWMARK_HERO, intent: { from: 'shooter' } }, { ref: 'gw' }).some((s) => s.key === 'foe')).toBe(false);
+  });
+
   it('absent, nothing changes: no foe, no rpg, no party slice', () => {
     const S = runSteps(MEADOWMARK_HERO, { ref: 'gw' });
     expect(S.some((s) => s.key === 'foe')).toBe(false);

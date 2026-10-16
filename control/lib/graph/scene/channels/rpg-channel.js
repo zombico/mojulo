@@ -51,7 +51,6 @@ export const RPG_CSS = `
 .moj-rpg-field .tab.sel{opacity:1;background:var(--moj-accent,#ffd76a);color:var(--moj-panel,#0e163a);border-color:var(--moj-accent,#ffd76a)}
 .moj-rpg-field table{border-collapse:collapse;font-size:13px}.moj-rpg-field td{padding:1px 10px 1px 0}
 .moj-rpg-field .note{font-size:12px;opacity:.75;margin-top:6px}
-.moj-rpg-hint{position:fixed;right:16px;bottom:16px;z-index:12;pointer-events:none;font:12px var(--moj-font,system-ui);color:var(--moj-ink,#eef2ff);opacity:.7}
 @media (max-width:560px){.moj-rpg-bottom{flex-direction:column}.moj-rpg-cmd{width:auto;min-height:0}.moj-rpg-msg{bottom:auto;top:76px}.moj-rpg-field{flex-direction:column}.moj-rpg-field .mem{width:auto}}
 `;
 
@@ -66,7 +65,6 @@ export function rpgPage(cfg, K) {
   K.mirror(cfg, R, V());
   const st = document.createElement('style'); st.textContent = RPG_CSS_TEXT; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-hud moj-rpg'; document.body.appendChild(root);
-  const hint = document.createElement('div'); hint.className = 'moj-rpg-hint'; hint.textContent = 'P  party'; document.body.appendChild(hint);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
   const WHY = { battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
@@ -188,12 +186,12 @@ export function rpgPage(cfg, K) {
       const hp = shown[x.uid] != null ? shown[x.uid] : x.hp;
       h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + popsFor(x.uid) + '</div>';
     });
-    h += '</div><div class="moj-w moj-rpg-msg">' + esc(msg || (active ? 'What will ' + memberName(active) + ' do?' : '')) + '</div><div class="moj-rpg-bottom"><div class="moj-w moj-rpg-cmd">';
+    h += '</div>' + (msg ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '') + '<div class="moj-rpg-bottom"><div class="moj-w moj-rpg-cmd">';
     if (phase === 'command') {
       h += '<div class="t">' + esc(memberName(active)) + (level !== 'cmd' ? ' · ' + (level === 'target' ? 'target' : CMD[level]) : '') + '</div>';
       L.forEach((o, i) => { h += '<div class="opt' + (o.ok ? '' : ' off') + (i === f ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + '</span><span>' + esc(o.right || '') + '</span></div>'; });
-      if (!L.length) h += '<div class="opt off">(none)</div>';
-    } else h += '<div class="t">' + (phase === 'end' ? 'accept to go on' : '&nbsp;') + '</div>';
+      if (!L.length) h += '<div class="opt off">—</div>';
+    } else h += '<div class="t">&nbsp;</div>';
     h += '</div><div class="moj-w moj-rpg-party">';
     if (b) for (const m of b.ids) {
       const M = R.m[m], S = K.statsOf(cfg, R, m), hp = shown[m] != null ? shown[m] : M.hp, mp = shown[m + ':mp'] != null ? shown[m + ':mp'] : M.mp;
@@ -244,7 +242,7 @@ export function rpgPage(cfg, K) {
         rows.forEach((o, i) => { h += '<div class="opt' + ((o.dim != null ? o.dim : !o.ok) ? ' off' : '') + (flevel === 'list' && i === ff ? ' on-f' : '') + '" data-i="' + i + '"><span>' + esc(o.label) + '</span><span>' + esc(o.right) + '</span></div>'; });
       }
     }
-    h += '<div class="note">' + esc(fmsg || (flevel === 'members' ? '◀ ▶ tabs · accept to choose · back to close' : 'accept · back')) + '</div></div></div>';
+    h += (fmsg ? '<div class="note">' + esc(fmsg) + '</div>' : '') + '</div></div>';
     root.innerHTML = h;
   }
 

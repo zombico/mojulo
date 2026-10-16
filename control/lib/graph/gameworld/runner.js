@@ -31,7 +31,7 @@ import { heroOrders, castOrders } from './hero-looks.js';
 import { mechanicsOrders } from './mechanics.js';
 import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
-import { battlePlan, battleCast as partyCast, roomOf, BATTLE_FOE } from './battles.js';
+import { battlePlan, battleCast as partyCast, roomOf, laidBattles, BATTLE_FOE } from './battles.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
 import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, bagPlay, raceCast, quickRideRule, quickRacers, QUICK_GUARD, QUICK_FOE, QUICK_TOWER, QUICK_FARMHAND, QUICK_GUNNER, quickStore } from './quick.js';
@@ -69,8 +69,9 @@ export const heroRefOf = (world, ref) => world.characters?.hero?.ref ?? childRef
 /** The steps of a run, in the order they are made (the hero first: the others name it, or wait on its pinned base). */
 export function runSteps(world, { ref, lookup } = {}) {
   if (typeof ref !== 'string' || !ref) throw new Error('runner: the steps are made at refs derived from the gameworld\'s own ref');
-  const G = readGameworld(world);
-  if (world.quick) return quickSteps(world, G, ref, lookup);
+  if (world.quick) return quickSteps(world, readGameworld(world), ref, lookup);
+  // a turn-based world is laid with its battles, written or not (battles.js)
+  const G = laidBattles(readGameworld(world));
   const O = heroOrders(G);
   if (!O) return [];
   // an adopted hero (characters.hero.ref) is pinned, never made: the step says so (`adopt`), and it plays as it is
@@ -140,7 +141,7 @@ export function runSteps(world, { ref, lookup } = {}) {
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
-    const fights = plan?.[i] ? { extra: (ends) => partyCast(G, s, ends, { ref: foeRef, packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }) } : {};
+    const fights = plan?.[i] ? { extra: (ends) => partyCast(G, s, ends, { ref: foeRef, packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }), legend: 'P  party' } : {};
     const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
