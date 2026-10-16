@@ -5,7 +5,8 @@
  *
  *   {
  *     tradition?: 'anime' | 'western',   a RULE: the body's head, proportions and light (gameworld/characters.js
- *                                        TRADITIONS); a mascot's style
+ *                                        TRADITIONS); a mascot's style. How a body is DRAWN: a fighter's own
+ *                                        tradition (versus-traditions.js: boxing, karate …) is how it strikes
  *     era?:       'myth' | 'rustic' | 'modern' | 'future',   leans the roles an era has people for
  *     genre?:     a quick game's goal (gameworld/quick.js QUICK_GOALS): leans who stands in it, and how far toward a mascot
  *     ramps?:     [{ name, stops: [hex] }]   the world's colour ramps: the clothes are dressed from them
@@ -57,6 +58,9 @@ export const GENRES = Object.freeze({
   battle:     { weight: 0.3, mascot: { promise: { might: 3, pride: 1.5 } }, person: { role: { frontline: 2, flanker: 2, caster: 2 }, archetype: { hero: 1.5, outlaw: 1.5, ruler: 1.5 }, age: combat } },
   shoot:      { weight: 0.1, mascot: { promise: { might: 3 } }, person: { role: { ranged: 4, frontline: 2, flanker: 2 }, archetype: { outlaw: 2, hero: 2, ruler: 1.5 }, age: combat } },
   deathmatch: { weight: 0.1, mascot: { promise: { might: 3, mischief: 2 } }, person: { role: { ranged: 4, flanker: 3, frontline: 2 }, archetype: { outlaw: 3, hero: 2, jester: 1.5 }, age: combat } },
+  // a versus fighter (versus/): every fighter is a person on the hero door (no mascot until non-human fighters exist),
+  // never a bystander or a child; the rushdown and the grappler first, the archetypes a fighting game casts
+  fight:      { weight: 0, mascot: {}, person: { role: { frontline: 3, flanker: 3, ranged: 1.5, caster: 1.5, 'non-combatant': 0 }, archetype: { hero: 2, outlaw: 2, ruler: 1.5, jester: 1.5, magician: 1.5 }, build: { heroic: 1.5, brute: 1.5, lithe: 1.5 }, age: combat } },
   fly:        { weight: 0.4, mascot: { promise: { speed: 3, wonder: 2 } }, person: { archetype: { explorer: 3, hero: 2 }, role: { ranged: 2 } } },
 });
 

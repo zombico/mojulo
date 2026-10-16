@@ -202,9 +202,14 @@ function quickSteps(world, G, ref, lookup) {
     // every fighter a character: a sheet (an egocube) made into one through the character loop, or one already made;
     // then each arena a stage world the fight runs on (a level), then the game that picks among them
     const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
+    // the game's setting (cast-setting.js), as every other quick goal's people are rolled in: its tradition how a
+    // fighter's body is drawn (its own `tradition` is how it strikes), its era and the world's colours; the fight genre
+    // leans the roll toward fighters and never to a mascot, and the roster's own facets win
+    const setting = settingOfGame(G, Q);
     const roster = [];
-    for (const { over, roll, hero, ...own } of fightFighters(Q, seed)) {
+    for (const { over, roll: own0, hero, ...own } of fightFighters(Q, seed)) {
       if (hero) { roster.push({ ...own, hero, ...over }); continue; }
+      const roll = { ...own0, setting };
       const sheet = rollEgocube(roll);
       // a person takes the hero door; a people below it (a lineage) is the creature loop's, not a fighter yet
       if (sheet.ancestry.door !== 'hero') throw new Error(`gameworld: quick.roster: '${own.id}' rolls a ${sheet.ancestry.id} body below the hero door: a non-human fighter comes with the creature bodies (not yet)`);

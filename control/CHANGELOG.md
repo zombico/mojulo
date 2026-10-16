@@ -13,6 +13,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Cast setting coherence: every quick game's people rolled in its setting, read right
+
+- **A palette keeps its world's era.** A quick game that names a palette or a look kept its tradition and clothes but
+  lost its era: the setting read the recoloured look's id, which no era row names. It now reads the era and the
+  tradition's pole from the stock kit the look was made from; the clothes still take the palette's colours.
+- **Fighters are rolled in the game's setting.** A fight game's fighters were rolled bare while every other quick
+  goal's people took the world's tradition, era and colours. A `fight` genre leans the roll toward fighters (no
+  bystanders, no children) and never toward a mascot; a roster's own facets still win. A fight game made before remakes
+  its fighters on its next run.
+- **Which tradition.** A fighter's `tradition` is how it strikes (boxing, karate …); the setting's is how a body is
+  drawn (anime, western). The cards and the readout say which.
+
 ### Level demo: a game level from a sentence
 
 - **`design_game({ compose: { prompt, levels?, seed?, name? } })`.** The interpreter as a door: a few words become a

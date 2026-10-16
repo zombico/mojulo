@@ -22,7 +22,9 @@
  *   fighterName(sheet)           the name the HUD shows: the archetype, or the shadow it has become
  *
  * An entry's own fight words (`style`, `signature`, `weapon`, `library`, `normals`, `specials`, `super`, `tune`) lay
- * over what the sheet says. Pure and deterministic.
+ * over what the sheet says. An entry's `tradition` is a FIGHTING tradition (versus-traditions.js: how it stands and
+ * strikes), not the drawing one a game's setting carries (egocube/setting.js: anime, western), which the run rolls
+ * every sheet in (gameworld/runner.js). Pure and deterministic.
  */
 import { ARCHETYPES, ROLES, BUILDS, AGES } from '../egocube/facets.js';
 import { ARCHETYPES as STYLES, SIGNATURES } from './versus-solver.js';
