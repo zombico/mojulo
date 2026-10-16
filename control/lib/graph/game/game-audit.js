@@ -162,7 +162,7 @@ export function compileMechanicAudit(contract, { fps = 12 } = {}) {
  */
 export async function auditLevel({ ref, store, contract, motionRef, allowUnaudited = false, autoRun = null }) {
   const dryRun = dryRunContract(store, contract);
-  let completable = null; let result = null; let reason; let autoAuditPlan;
+  let completable = null; let result = null; let reason; let autoAuditPlan; let waived = false;
   if (motionRef) {
     const ev = readTraversalAudit(motionRef, ref);
     if (!ev.ok) { completable = false; reason = ev.reason; }
@@ -179,6 +179,9 @@ export async function auditLevel({ ref, store, contract, motionRef, allowUnaudit
       } catch (e) {
         completable = false; reason = `auto-audit failed to run: ${e.message}`;
       }
+      // under the waiver a run that did not prove the level is stamped, not refused (all gates advise and stamp): it
+      // promotes as unaudited, its reason saying what the run saw. A hand-supplied traversal that lost still refuses.
+      if (completable !== true && allowUnaudited) { waived = true; reason += ' (not proved; promoted under allow_unaudited)'; }
     } else if (allowUnaudited) {
       reason = 'promoted WITHOUT a completability audit (allow_unaudited)';
     } else if (compiled.ok) {
@@ -187,6 +190,6 @@ export async function auditLevel({ ref, store, contract, motionRef, allowUnaudit
       reason = `no completability evidence — run forge_motion({ subject:{ world_ref:'${ref}' }, shot:{ motion:'traversal', waypoints|ticks } }) to the win condition and pass its motion_ref, or set allow_unaudited:true`;
     }
   }
-  const promotable = dryRun.ok && (completable === true || (completable === null && allowUnaudited));
+  const promotable = dryRun.ok && (completable === true || ((completable === null || waived) && allowUnaudited));
   return { ref, dryRun, completable, result, reason, promotable, autoAuditPlan };
 }

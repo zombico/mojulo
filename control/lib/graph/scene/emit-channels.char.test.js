@@ -160,6 +160,10 @@ import { emitThreeWorld } from './scene-three.js';
 // floor off the followed body (controllable/follow-pull-in.js, inlined by source) in place of a fixed 3 m and 0.15, so
 // a small hero's camera never ends inside it. On every one of the 14 fixtures that embed the controllable runtime the
 // diff is that region alone, the same 2 lines replaced and 11 added; a person's and a suit's framing is unchanged.
+// Re-pinned 2026-10-15 (first-frame checks): a CAPTURE page's bridge gained `view()` (the camera as rendered: eye,
+// direction, fov, aspect), which the first-frame check reads (lib/graph/game/first-frame-check.js). Emitted only when
+// `capture` is set: the five capture fixtures (capture-bare, capture-controllable, kitchen-sink-capture, fog-effects,
+// shoot-set-capture) gain 6 lines and change none; every live page stays byte-identical.
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 

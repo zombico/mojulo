@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runSteps, decide, childRef, readMade, readGameworld, fingerprint, MEADOWMARK, MEADOWMARK_HERO } from './index.js';
+import { quickWorld } from './quick.js';
+import { composeGameworld } from './compose.js';
 
 describe('the runner\'s plan', () => {
   it('a world before its people lays its levels, waiting on its parts; with a hero, the hero first, the systems and every filled class after', () => {
@@ -35,6 +37,20 @@ describe('the runner\'s plan', () => {
     const game = runSteps(W, { ref: 'gw' }).find((s) => s.key === 'game');
     expect(game.order.store.slices).toContainEqual({ name: 'aftermath', kind: 'flags' });
     expect(levels(MEADOWMARK_HERO).some((s) => s.order.manifest.game.mechanics.some((m) => m.kind === 'aftermath'))).toBe(false);
+  });
+
+  it('the game order audits the reach and survive levels (auto_audit) and keeps the waiver for the goals the audit cannot prove', () => {
+    const order = (w) => runSteps(w, { ref: 'gw' }).find((s) => s.key === 'game').order;
+    // moving to the exit (a quick reach, a book's levels, a world composed from words) and lasting out a clock
+    for (const goal of ['reach', 'survive']) expect(order(quickWorld({ id: 'q', quick: { goal } })), goal).toMatchObject({ auto_audit: true, allow_unaudited: true });
+    expect(order({ ...MEADOWMARK_HERO, mode: 'autonomous', review: undefined })).toMatchObject({ auto_audit: true, allow_unaudited: true });
+    expect(order(composeGameworld({ prompt: 'a sunny island coast', levels: 1, seed: 3 }))).toMatchObject({ auto_audit: true, allow_unaudited: true });
+    // a goal the audit cannot prove yet: picking up, hiding, keeping a beat, a course, a fight with foes
+    for (const goal of ['collect', 'sneak', 'rhythm', 'race', 'defend', 'battle']) {
+      const o = order(quickWorld({ id: 'q', quick: { goal } }));
+      expect(o.allow_unaudited, goal).toBe(true);
+      expect(o.auto_audit, goal).toBeUndefined();
+    }
   });
 
   it('pure: the same world, the same steps and prints', () => {

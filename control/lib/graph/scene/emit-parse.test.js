@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE,
-  CAPTURE_COMPILE_WALK_TO, PROBE_FIELDS, WORLD_ROOT_SELECTOR, WORLD_HIDE_SELECTORS,
+  CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW, PROBE_FIELDS, WORLD_ROOT_SELECTOR, WORLD_HIDE_SELECTORS,
 } from './capture-contract.js';
 import { EMIT_FIXTURES } from './emit-fixtures.js';
 import { emitThreeWorld } from './scene-three.js';
@@ -76,6 +76,7 @@ describe('capture page publishes the capture-contract names', () => {
       expect(html).toContain(`${m}(spec)`);
     }
     expect(html).toContain(`${CAPTURE_PROBE}()`);
+    expect(html).toContain(`${CAPTURE_VIEW}()`);
   });
 
   it('probe shape and screenshot selectors', () => {
