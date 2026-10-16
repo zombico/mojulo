@@ -28,6 +28,8 @@ colour per corner, the same in every pose and in the World page, the skinned GLB
   `matte`, chosen by the group's name (Plate → metal, Trim → gilt, Leather → leather, Top → cloth …), named per group in
   `finish`, or written inline as data. Emissive groups keep their colour.
 - **It stacks** with the tiered head's face tint and a drawn creature's markings instead of replacing them.
+- **The anime look keeps its own light.** Under the character light (the anime head's crisp step) the bake stays off;
+  `bake: { characterLight: true }` lays it over the step's tones, corner by corner, when asked.
 - Absent `bake`, every face and pack is byte-identical.
 
 ### Field paint: shapes cut into a character's faces

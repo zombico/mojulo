@@ -35,14 +35,15 @@ and `export_model` see the compiled mesh itself (every closed part exact, whatev
 from the smooth L1 hull's normals instead of flat facets, so the light sweeps the underlying form while
 grown detail keeps its silhouette — the toon read. `except` names focal parts (a horn, a ridge) that keep
 their own faceted shading. Absent, the bake is unchanged.
-`bake: true | { finish?: { <group> | '*': word | finish }, strength?: 0–1 }` (any layered row; not `toon.bake`) is the
+`bake: true | { finish?: { <group> | '*': word | finish }, strength?: 0–1, characterLight? }` (any layered row; not `toon.bake`) is the
 BAKE STACK: hand-painted light baked into every corner from the rest geometry, the same in every pose, on the World, the
 rig pack and every export. Channels: sky (facing up), occlusion (cavities and contact between parts: a plate over the
 body, a belt over a tabard), edge (rims), height (over the figure), rise (over the part: each plate light at its top).
 A group's finish by its name (Plate / Iron / Lacquer → metal, Trim / Gold → gilt, Leather → leather, Top / Cloth → cloth,
 Skin → skin, Scale / Hide → scale, else matte), or named in `finish`, or inline `{ sky: [[facing, ×], …], occlusion, edge,
 height, rise, tint: [r, g, b] }`. Emissive groups keep their colour; it stacks over the head's face tint and a drawn
-creature's markings. Patch `/bake`. Absent, every byte is identical.
+creature's markings. Under the CHARACTER LIGHT (the anime look's step) the bake is off: that light is designed as it
+is; `characterLight: true` lays the bake over its tones per corner. Patch `/bake`. Absent, every byte is identical.
 `fieldPaint: [{ part, chart?, shape | pattern, at?, size?, rotate?, group, color?, only? }]` (any layered row) is FIELD
 PAINT: shapes cut into the faces, so a line crosses a face at any angle and finer than a ring (band paint is the ring's
 height). `part` a name, a list or a prefix `'adorn.torso-tabard*'`; `chart` `front` (default) | `back` | `left` |

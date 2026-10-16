@@ -5,8 +5,12 @@
  *
  * `bake` on a layered manifest (beside `toon` and `hullShade`; not `toon.bake`, the ink's GLB geometry):
  *   true                       every group its finish by name, at full strength
- *   { finish?, strength? }     `finish`: { <group> | '*': a FINISH word or an inline finish } over the name table;
- *                              `strength` 0–1 scales every channel's pull away from the base colour (default 1)
+ *   { finish?, strength?, characterLight? }
+ *                              `finish`: { <group> | '*': a FINISH word or an inline finish } over the name table;
+ *                              `strength` 0–1 scales every channel's pull away from the base colour (default 1);
+ *                              `characterLight: true` lays it over the CHARACTER LIGHT too (station-loft-shade.js: the
+ *                              anime look's crisp step), which otherwise keeps its own light untouched: that look is
+ *                              designed as it is, so a bake only reaches it when asked (bakePieces)
  *
  * The CHANNELS, per corner, geometry alone:
  *   sky        the welded surface normal's facing up (−1 down … 1 up): the painted top-light, the sky's band on metal
@@ -29,13 +33,14 @@
  *   finishFor(group, resolved)             the finish a palette group wears
  *   bakeChannels(mesh)                     per vertex { sky, occlusion, edge, height, rise }
  *   bakeTint(mesh, bake, { glows })        per face its corners' multipliers (the face-tint shape), or null
- *   bakeSampler(mesh, bake, { glows })     { tint, groupTint(fi, group) }: a face's corners under any group's finish
+ *   bakeSampler(mesh, bake, { glows })     { tint, groupTint(fi, group), characterLight }: a face's corners under any group's finish
+ *   bakePieces(pieces, mesh, tint)         the bake over the character light's pieces (only with `characterLight`)
  *   stackTints(a, b)                       two tints as one (corner by corner, the product)
  *
  * Pure, deterministic: fixed arithmetic over the mesh, no dice.
  */
 
-const FIELDS = ['finish', 'strength'];
+const FIELDS = ['finish', 'strength', 'characterLight'];
 const FINISH_KEYS = ['sky', 'occlusion', 'edge', 'height', 'rise', 'tint'];
 
 /** The finishes. Each multiplier stays near 1 where a surface faces sideways in the open: the palette's colour is the
@@ -95,6 +100,7 @@ export function validateBake(bake) {
   const errs = [];
   for (const k of Object.keys(bake)) if (!FIELDS.includes(k)) errs.push(`bake.${k}: not a bake word (${FIELDS.join(', ')})`);
   if (bake.strength !== undefined && !(isNum(bake.strength) && bake.strength >= 0 && bake.strength <= 1)) errs.push('bake.strength: a number 0–1');
+  if (bake.characterLight !== undefined && typeof bake.characterLight !== 'boolean') errs.push('bake.characterLight: true lays the bake over the character light (the anime look\'s step); absent or false keeps that light as it is');
   if (bake.finish !== undefined) {
     if (!isPlain(bake.finish)) errs.push('bake.finish: { <group> | \'*\': a finish word or an inline finish }');
     else for (const [g, F] of Object.entries(bake.finish)) errs.push(...finishErrors(F, `bake.finish.${g}`));
@@ -108,7 +114,7 @@ export function resolveBake(bake) {
   const errs = validateBake(bake);
   if (errs.length) throw new Error(`bake refused:\n - ${errs.join('\n - ')}\nThe bake — manual: get_solid_vocab({ id: 'layered' }) (the Spec section).`);
   const B = bake === true ? {} : bake;
-  return { finish: B.finish ?? {}, strength: B.strength ?? 1 };
+  return { finish: B.finish ?? {}, strength: B.strength ?? 1, characterLight: B.characterLight === true };
 }
 
 const finishOf = (F) => (typeof F === 'string' ? FINISHES[F] : { ...FINISHES.matte, ...F });
@@ -231,7 +237,34 @@ export function bakeSampler(mesh, bake, { glows = [] } = {}) {
     let F = fin.get(g); if (!F) fin.set(g, F = finishFor(g, B));
     return mesh.faces[fi].map((vi) => finishColour(F, { sky: ch.sky[vi], occlusion: ch.occlusion[vi], edge: ch.edge[vi], height: ch.height[vi], rise: ch.rise[vi] }, B.strength));
   };
-  return { tint: mesh.faces.map((_, fi) => groupTint(fi, mesh.groups[fi])), groupTint };
+  return { tint: mesh.faces.map((_, fi) => groupTint(fi, mesh.groups[fi])), groupTint, characterLight: B.characterLight };
+}
+
+/** A character-light piece corner's weights over its parent face `tri` (station-loft-shade.js refs: a vertex `vi`, a point
+ * `s` along the edge a → b, barycentric `bary` pairs, or the `mix` of other refs) */
+function refWeights(tri, r) {
+  if (r.vi !== undefined) return tri.map((vi) => (vi === r.vi ? 1 : 0));
+  if (r.bary) return tri.map((vi) => r.bary.find(([x]) => x === vi)?.[1] ?? 0);
+  if (r.mix) { const w = [0, 0, 0]; for (const x of r.mix) refWeights(tri, x).forEach((v, k) => { w[k] += v / r.mix.length; }); return w; }
+  return tri.map((vi) => (vi === r.a ? 1 - r.s : vi === r.b ? r.s : 0));
+}
+const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const rgbHex = (c) => `#${c.map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join('')}`;
+const times = (hex, m) => rgbHex(hexRgb(hex).map((x, c) => x * m[c]));
+/** The bake laid over the CHARACTER LIGHT's pieces (opt-in, `bake.characterLight`): each piece keeps its step's tone
+ * (lit, shade, highlight, a soft band's grading) and takes the bake per corner as `soft` (its corners' colours, which the
+ * static faces carry as cornerFills and the rig pack as vertex colour), its fill the corners' mean. The graphic face's
+ * marks and an emissive face (no tint) keep their own. `tint`: per face, its corners' multipliers (bakeTint, stacked). */
+export function bakePieces(pieces, mesh, tint) {
+  if (!tint) return pieces;
+  return pieces.map((pc) => {
+    const T = tint[pc.fi]; if (!T || pc.mark) return pc;
+    const tri = mesh.faces[pc.fi];
+    const at = (r) => { const w = refWeights(tri, r); return [0, 1, 2].map((c) => w[0] * T[0][c] + w[1] * T[1][c] + w[2] * T[2][c]); };
+    const soft = pc.refs.map((r, k) => times(pc.soft ? pc.soft[k] : pc.fill, at(r)));
+    const mean = [0, 1, 2].map((c) => pc.refs.reduce((t, r) => t + at(r)[c], 0) / pc.refs.length);
+    return { ...pc, fill: times(pc.fill, mean), soft };
+  });
 }
 
 /** One face's two tints (either null) as one, corner by corner: the product. */
@@ -248,5 +281,5 @@ export function bakeReadout(mesh, bake) {
   const B = resolveBake(bake); if (!B) return null;
   const groups = {}; for (const g of new Set(mesh.groups)) { const own = B.finish[g] ?? B.finish['*']; groups[g] = own !== undefined ? (typeof own === 'string' ? own : 'inline') : (FINISH_BY_GROUP.find(([re]) => re.test(g))?.[1] ?? 'matte'); }
   let lo = Infinity, hi = -Infinity; for (const v of mesh.vertices) { if (v[2] < lo) lo = v[2]; if (v[2] > hi) hi = v[2]; }
-  return { strength: B.strength, finish: groups, reach: r4(OCCLUSION_REACH * (hi - lo)) };
+  return { strength: B.strength, finish: groups, reach: r4(OCCLUSION_REACH * (hi - lo)), ...(B.characterLight ? { characterLight: true } : {}) };
 }

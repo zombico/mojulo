@@ -11,7 +11,7 @@ const OPEN = { sky: 0, occlusion: 0, edge: 0, height: 1, rise: 0.5 };
 describe('the bake words', () => {
   it('names what it refuses, and no bake is null', () => {
     for (const b of [undefined, null, false]) expect(resolveBake(b)).toBeNull();
-    expect(resolveBake(true)).toEqual({ finish: {}, strength: 1 });
+    expect(resolveBake(true)).toEqual({ finish: {}, strength: 1, characterLight: false });
     expect(validateBake({ shine: 1 })[0]).toMatch(/bake.shine: not a bake word/);
     expect(validateBake({ strength: 2 })[0]).toMatch(/strength: a number 0–1/);
     expect(validateBake({ finish: { Plate: 'chrome' } })[0]).toMatch(/'chrome' is not a finish \(metal, gilt/);
@@ -116,6 +116,24 @@ describe('the bake on the World and the rig pack', () => {
     expect(cols(baked)).not.toEqual(cols(plain));
     await expect(WORLD_KINDS.layered.resolve({ ...m, bake: { finish: { Top: 'velvet' } } }, { title: 't' })).rejects.toThrow(/'velvet' is not a finish/);
   }, 120000);
+  it('the character light keeps its own light unless the bake asks for it (characterLight)', async () => {
+    const anime = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', head: 'anime' }) });
+    const plain = await WORLD_KINDS.layered.resolve(anime, { title: 't' });
+    // a bake alone leaves the anime look's step exactly as it is, in the faces and the pack
+    expect(JSON.stringify(await WORLD_KINDS.layered.resolve({ ...anime, bake: true }, { title: 't' }))).toBe(JSON.stringify(plain));
+    // asked for, it lays over the step: the same pieces, their corners baked
+    const over = await WORLD_KINDS.layered.resolve({ ...anime, bake: { characterLight: true } }, { title: 't' });
+    expect(over.faces.length).toBe(plain.faces.length);
+    expect(over.faces.filter((f, i) => JSON.stringify(f) !== JSON.stringify(plain.faces[i])).length).toBeGreaterThan(plain.faces.length / 4);
+    expect(over.faces.filter((f) => f.cornerFills).length).toBeGreaterThan(plain.faces.filter((f) => f.cornerFills).length);
+    // the graphic face's marks keep their own colour
+    plain.faces.forEach((f, i) => { if (f.noInk) expect(over.faces[i].fill).toBe(f.fill); });
+    expect(over.figures.body.parts.map((P) => P?.col)).not.toEqual(plain.figures.body.parts.map((P) => P?.col));
+    // on the studio light the word changes nothing
+    const { m } = built(RANGER);
+    expect(JSON.stringify(await WORLD_KINDS.layered.resolve({ ...m, bake: { characterLight: true } }, { title: 't' }))).toBe(JSON.stringify(await WORLD_KINDS.layered.resolve({ ...m, bake: true }, { title: 't' })));
+    expect(validateBake({ characterLight: 'yes' })[0]).toMatch(/bake.characterLight: true lays/);
+  }, 240000);
   it('the mint refuses a bad bake by name', async () => {
     await expect(createLayeredHandler({ recipe: { parts: {} }, bake: { strength: 3 } })).rejects.toThrow(/bake refused:\n - bake.strength/);
   });
