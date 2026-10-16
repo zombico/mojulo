@@ -28,16 +28,33 @@ dagger, bow, staff, shield, a ranger's quiver). The era now dresses and arms the
 - **The firearm hold** (`hero-gear.js`). In a hand at low ready: the grip along the fist, the muzzle forward and down,
   tilted further until it clears the floor. On the back slung muzzle down, its side to the back. A pistol on the hip is
   holstered at the right thigh; a long gun on the hip is refused (`gear.hip: a carbine is a long gun`).
-- **The era's kit** (`egocube/outfit.js` `ERA_GEAR`). A modern or future person wears its era's clothes (an outfit build
-  in `ERA_STYLE`: modern casual, future athleisure) in place of the stock jerkin, and its role's pieces over them in place
-  of the ranger's kit:
+- **The era's wardrobe: a look per person** (`egocube/outfit.js` `ERA_LOOKS`). A modern or future person rolls a LOOK
+  off its own seed and facets, leaned by its archetype and role, so a crowd is several looks, never one cut:
+  - modern: a leather jacket (`biker`), `tactical` clothes (cargo trousers), `fatigues`, a `suit`, an `operative`'s long
+    coat, `streetwear`, `casual`;
+  - future: a `hardsuit` (a hardshell over a flight suit), a `flightsuit`, a `runner`'s cropped jacket, a `corporate`
+    long coat, `athleisure`.
+
+  Each look is a new seeded outfit card (`outfit/styles.js`, appended: the pinned cards are untouched), the garments
+  whose tones it owns (a leather jacket is black hide whatever the world's colours; the rest take the world's), how much
+  of the role's kit it wears (`full`, `light` with no armour, `concealed` with nothing over the clothes but a satchel or
+  wrist units: a suit, a long coat), its vest's cut by role and its gear's colourway (black, coyote, olive). A rank still
+  shares its first member's uniform; a quick figure dresses as its look, not the kit's underlayer. The designed dress
+  takes the look's card as its cut, and a look with no accent worn gets an ID band on the arm.
+- **The era's kit** (`ERA_GEAR`): the role's pieces as its look wears them, in place of the ranger's kit:
   - modern: a carrier and kneepads, pouches, a chest rig, a pack, a satchel;
   - future: a hardshell in the metal with floating plates, cells on the belt, wrist units.
 
-  The designed dress reads the era too: no quiver, baldric, travelling cloak or mantle of office, the outlaw's focal a
-  medallion. Three catalogue pieces, each built on a window a myth piece proved: `vest` (the cuirass cut as a plate
-  carrier, a flat back panel), `pouches` (a duty belt, a pouch at each hip), `kneepads` (on a hero's shank or a
-  creature's shin). A myth's or a rustic world's people, and every roll with no setting, are as they were.
+  The designed dress drops the travelling cloak and the mantle of office, and the outlaw's focal is a medallion. Three
+  catalogue pieces, each built on a window a myth piece proved:
+  - `vest`, in four cuts: a `carrier` (the cuirass with its lames), a `slick` plate (one plate high on the chest), a
+    chest `rig` (harness straps and a row of front magazine pouches, no plate), a `hardshell` (the whole front);
+  - `pouches` (a duty belt, a pouch at each hip);
+  - `kneepads` (on a hero's shank or a creature's shin).
+
+  A myth's or a rustic world's people, and every roll with no setting, are as they were.
+- The visual-interest laws advise against the tonal uniforms (tactical, fatigues, the flight and hard suits): the colour
+  laws (three values, the accent on the focal) only; they advise, they do not refuse.
 - **Quick figures carry the era's arms**: a foe a pistol, a gunner and a tower archer a carbine, a guard a carbine with a
   pistol holstered, a future world's in the future card; the role's era pieces are worn over the kit's underlayer. The
   setting's "no gear yet" lines are gone, and `KITLESS_ERAS` with them (`KIT_ERAS` names the eras that dress their own).

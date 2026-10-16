@@ -25,7 +25,7 @@ import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
 import { ANIME_SCULPT } from '../polygonizer/anime-sculpt.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
-import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR } from './outfit.js';
+import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
@@ -525,18 +525,17 @@ function animeExpression(d) {
   if (has('expression.aperture -')) out.blink = 0.15;
   return out;
 }
-/** eras whose people wear their era's clothes and kit (outfit.js ERA_GEAR) in place of the stock jerkin and the ranger's
- * kit: the clothes an outfit build in the era's style (ERA_STYLE), the role's gear its designed pieces over it */
+/** eras whose people wear their era's clothes and kit (outfit.js ERA_GEAR, ERA_LOOKS) in place of the stock jerkin and
+ * the ranger's kit: the clothes an outfit build in the look's card, the role's gear as the look wears it over them */
 export const KIT_ERAS = Object.freeze(Object.keys(ERA_GEAR));
-export const ERA_STYLE = Object.freeze({ modern: 'casual', future: 'athleisure' });
 
-/** a modern or future person's clothes: the era's style at ornament 0, the role's gear worn over it in the outfit's
- * palette (the setting's tones as its base and secondary) */
-function eraOutfit(sheet, f, era, tones) {
-  const pieces = (ERA_GEAR[era].gear[f.role] ?? []).map(({ why: _w, ...p }) => p);
+/** a modern or future person's clothes: its rolled look's card at ornament 0, the role's gear worn over it in the
+ * outfit's palette (the setting's tones as its base and secondary, the look's gear colour its leather) */
+function eraOutfit(sheet, f, era, tones, look) {
+  const pieces = lookGear(ERA_GEAR[era], look, f.role).map(({ why: _w, ...p }) => p);
   const own = outfitPalette(sheet, sheet.ancestry.colours.Skin);
-  const palette = { ...own, ...(tones.Top ? { base: tones.Top } : {}), ...(tones.Bottom ? { secondary: tones.Bottom } : {}) };
-  return { type: 'outfit', style: ERA_STYLE[era], dials: { ornament: 0 }, ...(pieces.length ? { pieces, intent: { palette } } : {}) };
+  const palette = { ...own, ...(tones.Top ? { base: tones.Top } : {}), ...(tones.Bottom ? { secondary: tones.Bottom } : {}), leather: look.gear };
+  return { type: 'outfit', style: look.style, dials: { ornament: 0 }, ...(pieces.length ? { pieces, intent: { palette } } : {}) };
 }
 
 /** when cloth reads as the skin it is worn over: within 25 L* of it and within 35° of its hue (timber and soil ramps
@@ -606,7 +605,7 @@ function hero(sheet) {
   const style = (anime ? ANIME_HAIR_STYLE : HAIR_STYLE)[f.pole][kept];
   const hair = anime ? { style, ...(ANIME_VOLUME[texture] ? { volume: ANIME_VOLUME[texture] } : {}), ...(f.age === 'elder' ? { length: 0.85 } : {}) }
     : { style, wave: WAVE[texture], ...(f.age === 'elder' ? { length: 0.8 } : {}) };
-  const tones = settingTones(sheet, f, d), eraKit = KIT_ERAS.includes(era);
+  const tones = settingTones(sheet, f, d), eraKit = KIT_ERAS.includes(era), look = eraKit ? eraLookOf(sheet) : null;
   const spec = {
     // a child is its pole's child build (a child's radii on her or his own landmarks); the bare 'child' word kept adult radii and the male head
     cast: f.age === 'child' ? { pole: f.pole, build: 'child' } : f.pole,
@@ -616,11 +615,11 @@ function hero(sheet) {
     ...(Object.keys(sculpt).length ? { sculpt } : {}),
     ...(gesture && gesture !== 'rest' ? { gesture } : {}),
     hair,
-    palette: { Skin: sheet.ancestry.colours.Skin, ...(sheet.ancestry.colours.Hair ? { Hair: f.age === 'elder' ? shade(sheet.ancestry.colours.Hair, 0.45) : sheet.ancestry.colours.Hair } : {}), ...tones },
-    ...(eraKit ? { outfit: eraOutfit(sheet, f, era, tones) } : { detail: 'clothed' }),
+    palette: { Skin: sheet.ancestry.colours.Skin, ...(sheet.ancestry.colours.Hair ? { Hair: f.age === 'elder' ? shade(sheet.ancestry.colours.Hair, 0.45) : sheet.ancestry.colours.Hair } : {}), ...tones, ...(look ? lookTones(look) : {}) },
+    ...(eraKit ? { outfit: eraOutfit(sheet, f, era, tones, look) } : { detail: 'clothed' }),
     ...(['flanker', 'ranged', 'frontline'].includes(f.role) && !eraKit ? { adorn: 'ranger' } : {}),
   };
-  return { spec, style, texture, anime, eraKit, era };
+  return { spec, style, texture, anime, eraKit, era, look };
 }
 
 // ══════════ the ledger and the thesis ══════════
@@ -649,7 +648,7 @@ function ledgerOf(sheet, door, built) {
     rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });
   }
   // the era's clothes and the role's kit in it: said, so the ledger shows where the dress came from
-  if (built.eraKit && !built.outfit) rows.push({ channel: 'dress', line: `the ${sheet.facets.role}'s ${built.era} clothes and kit`, from: `setting.era.${built.era}`, at: 'spec.outfit (the era\'s style and the role\'s pieces)' });
+  if (built.eraKit && !built.outfit) rows.push({ channel: 'dress', line: `the ${sheet.facets.role}'s ${built.era} clothes and kit: the ${built.look.id} look`, from: `setting.era.${built.era}`, at: 'spec.outfit (the look\'s card and the role\'s pieces)' });
   return rows;
 }
 

@@ -99,17 +99,21 @@ leans to mascots: a mascot racer's driver is the person's mascot, seated in the 
 readout says what was rolled and an adopted hero drawn in another tradition (kept as it is).
 
 **Era gear.** A myth's or a rustic world's people wear the myth's kit (the stock jerkin and a ranger's kit, or the
-designed outfit's quiver, baldric, pauldron and cloak). A modern or a future world's people wear their era's
-([outfit.js](../control/lib/graph/egocube/outfit.js) `ERA_GEAR`, [plan.js](../control/lib/graph/egocube/plan.js)
-`ERA_STYLE`):
-- the clothes an outfit build in the era's style (modern casual, future athleisure), not the jerkin;
-- the role's pieces over it:
-  - modern: a frontline's plate carrier and kneepads, a flanker's pouches, a ranged chest rig, a support's pack, a
-    tech's satchel;
-  - future: a hardshell in the metal with plates standing off the shoulders, cells on the belt, wrist units;
-- the travelling cloak and the mantle of office left off, and the outlaw's baldric a medallion.
+designed outfit's quiver, baldric, pauldron and cloak). A modern or a future world's people roll a LOOK, each person its
+own off its seed and facets, leaned by its archetype and role ([outfit.js](../control/lib/graph/egocube/outfit.js)
+`ERA_LOOKS`, `eraLookOf`):
 
-The pieces (`vest`, `pouches`, `kneepads` in the outfit catalogue) are built on windows the myth's pieces proved. A quick
+| Era | Looks (each a seeded outfit card) | Leaned toward |
+|---|---|---|
+| modern | biker (a leather jacket), tactical, fatigues, suit, operative (a long coat), streetwear, casual | a frontline hero to tactical, a ruler at work to a suit, an outlaw flanker to the leather jacket, an operator to the coat |
+| future | hardsuit, flightsuit, runner (a cropped jacket), corporate (a long coat), athleisure | a frontline to the hardsuit, an outlaw to the runner, a ruler or a sage to corporate |
+
+A look owns some garments' tones (the leather jacket is black hide in any world; a suit is its own colour); the rest
+take the world's. It wears as much of the role's kit (`ERA_GEAR`) as fits it: all of it, no armour, or nothing over
+the clothes (a suit, a long coat). Its vest is cut by role (a plate carrier, a slick plate, a chest rig, a hardshell), in
+its gear's colourway. The travelling cloak and the mantle of office are left off, and the outlaw's baldric is a
+medallion. The pieces (`vest`, `pouches`, `kneepads` in the outfit catalogue) are built on windows the myth's pieces
+proved; the colour laws advise against the tonal uniforms, as a uniform is meant to be. A quick
 figure carries the era's arms: a foe a pistol, a gunner and a tower archer a carbine, a guard a carbine with a pistol
 holstered; a future world's in the future card ([equipment/firearm.js](../control/lib/graph/equipment/firearm.js)).
 

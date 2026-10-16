@@ -120,13 +120,17 @@ describe('the outfit, designed from the sheet', () => {
 });
 
 describe("the era's kit (a modern or future world's people)", () => {
-  it('a designed outfit in each era passes the visual-interest laws with one focal, its gear the era\'s', async () => {
-    const { ERA_GEAR } = await import('./outfit.js');
+  it('a designed outfit in each era is its look\'s card, passes the visual-interest laws with one focal, its gear the look\'s', async () => {
+    const { ERA_GEAR, eraLookOf, lookGear } = await import('./outfit.js');
+    const { SEEDED_OUTFITS } = await import('../outfit/styles.js');
     for (const era of Object.keys(ERA_GEAR)) for (const role of ['frontline', 'support']) {
-      const sheet = rollEgocube({ seed: 3, facets: { role, archetype: 'hero' }, setting: { era } }), { outfit, laws } = outfitFromSheet(sheet);
-      expect(laws.filter((l) => !l.ok).map((l) => `${era} ${role}: ${l.law}: ${l.why}`)).toEqual([]);
+      const sheet = rollEgocube({ seed: 3, facets: { role, archetype: 'hero' }, setting: { era } }), { outfit, laws } = outfitFromSheet(sheet), look = eraLookOf(sheet);
+      // a uniform is tonal by design: only the colour laws may advise against it (they advise, never refuse)
+      const COLOUR_LAWS = ['three values, unequal', 'accent on the focal', 'repetition with variation'];
+      expect(laws.filter((l) => !l.ok && !COLOUR_LAWS.includes(l.law)).map((l) => `${era} ${role}: ${l.law}: ${l.why}`)).toEqual([]);
       expect(outfit.pieces.filter((p) => p.role === 'focal')).toHaveLength(1);
-      expect(outfit.pieces.map((p) => p.kind)).toContain(ERA_GEAR[era].gear[role][0].kind);
+      expect(outfit.cut.language).toEqual(SEEDED_OUTFITS[look.style].language);
+      for (const g of lookGear(ERA_GEAR[era], look, role)) expect(outfit.pieces.map((p) => p.kind)).toContain(g.kind);
     }
   });
   it('its pieces compile on a hero body: the carrier front and back, the pouches at both hips, a pad over each knee', async () => {
@@ -135,5 +139,10 @@ describe("the era's kit (a modern or future world's people)", () => {
     const hero = heroRecord({ cast: 'female', outfit: { type: 'outfit', style: 'casual', dials: { ornament: 0 }, pieces: [{ kind: 'vest' }, { kind: 'pouches' }, { kind: 'kneepads' }], intent: { palette } } });
     const ids = new Set(JSON.stringify(expandLayeredManifest({ kind: 'layered', hero })).match(/"(vest|pouches|kneepad)[A-Za-z0-9]*"/g).map((x) => x.slice(1, -1)));
     for (const id of ['vestR', 'vestL', 'vestBack', 'pouchesR', 'pouchesL', 'pouchesBelt', 'kneepadR', 'kneepadL']) expect(ids).toContain(id);
+    // the vest's cuts are different things: a carrier's lames, a slick plate's one, a rig's straps and pouches, no plate
+    const cutIds = (cut) => new Set(JSON.stringify(expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', outfit: { type: 'outfit', style: 'tactical', pieces: [{ kind: 'vest', cut }], intent: { palette } } }) })).match(/"vest[A-Za-z0-9]*"/g));
+    const [carrier, slick, rig] = ['carrier', 'slick', 'rig'].map(cutIds);
+    expect(carrier.has('"vestRLame1"')).toBe(true); expect(slick.has('"vestRLame1"')).toBe(false); expect(slick.has('"vestR"')).toBe(true);
+    expect(rig.has('"vestR"')).toBe(false); expect(rig.has('"vestPouchR0"')).toBe(true); expect(rig.has('"vestStrapR"')).toBe(true);
   });
 });

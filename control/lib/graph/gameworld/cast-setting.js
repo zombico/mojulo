@@ -21,7 +21,7 @@ import { UNDERLAYERS } from './hero-looks.js';
 import { poleOf } from '../era/style/pole.js';
 import { readSetting } from '../egocube/setting.js';
 import { rollEgocube } from '../egocube/egocube.js';
-import { planFromSheet } from '../egocube/plan.js';
+import { planFromSheet, KIT_ERAS } from '../egocube/plan.js';
 import { fingerprint } from './review.js';
 
 /** The era each kit's world is in: who it has people for. A kit with no row says nothing. */
@@ -80,12 +80,13 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
   const sheet = rollEgocube({ facets: F.facets, seed, path: variant ? `quick/${key}/${variant + 1}` : `quick/${key}`, setting });
   const P = planFromSheet(sheet), pending = P.ledger.filter((r) => r.pending && r.from.startsWith('setting.')).map((r) => `${r.channel}: ${r.pending}`);
   let spec = P.create.spec;
-  const rail = UNDERLAYERS[G.style?.kit];
+  // (a modern or future person dresses as its rolled look, egocube/outfit.js ERA_LOOKS: the look is its world's wardrobe,
+  // so the kit's underlayer is not laid over it)
+  const rail = KIT_ERAS.includes(setting.era) ? null : UNDERLAYERS[G.style?.kit];
   if (rail) {
     // the world's underlayer in place of the stock clothed body and the role's kit (the base a book hero wears)
-    // (a modern or future person's era pieces, its role's kit, are worn over it: plan.js eraOutfit)
-    const { detail: _d, adorn: _a, ...rest } = spec, worn = spec.outfit?.pieces ? { pieces: spec.outfit.pieces, intent: spec.outfit.intent } : {};
-    spec = { ...rest, outfit: { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: rail.language } : {}), ...worn } };
+    const { detail: _d, adorn: _a, ...rest } = spec;
+    spec = { ...rest, outfit: { type: 'outfit', style: rail.style, dials: { ornament: 0 }, ...(Object.keys(rail.language).length ? { language: rail.language } : {}) } };
   }
   // a rank's member wears the first's uniform (its clothes, their colours, its kit and gear) on a face of its own
   if (uniform) {

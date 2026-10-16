@@ -44,6 +44,7 @@
 import { conceptOf, dressByConcept } from './concept.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { outfitLaws, ARCHETYPE_SHAPES } from '../polygonizer/outfit-plan.js';
+import { SEEDED_OUTFITS } from '../outfit/styles.js';
 
 export const SHAPE = Object.freeze({ ruler: 'bell', sage: 'bell', magician: 'bell', caregiver: 'bell', innocent: 'bell', lover: 'needle', hero: 'wedge', explorer: 'wedge', outlaw: 'needle', jester: 'needle', everyman: 'column', creator: 'column' });
 export const HUES = Object.freeze({ ruler: [30, 300], sage: [36, 262], magician: [32, 288], hero: [40, 25], outlaw: [28, 150], caregiver: [52, 62], explorer: [44, 98], innocent: [82, 90], everyman: [44, 235], jester: [52, 335], lover: [46, 12], creator: [44, 192] });
@@ -68,9 +69,9 @@ export const OFFICE = Object.freeze({ mantle: ['ruler', 'sage', 'magician', 'her
 export const ERA_GEAR = Object.freeze({
   modern: {
     gear: {
-      frontline: [{ kind: 'vest', why: 'a plate carrier takes the round on the chest' }, { kind: 'kneepads', why: 'the frontline kneels behind cover' }],
+      frontline: [{ kind: 'vest', colour: 'leather', why: 'a plate carrier takes the round on the chest' }, { kind: 'kneepads', colour: 'leather', why: 'the frontline kneels behind cover' }],
       flanker: [{ kind: 'pouches', why: 'a flanker carries its reloads on the belt, light' }],
-      ranged: [{ kind: 'vest', cover: 0.6, why: 'a chest rig: the magazines where the support hand finds them' }],
+      ranged: [{ kind: 'vest', cut: 'rig', colour: 'leather', why: 'a chest rig: the magazines where the support hand finds them' }],
       support: [{ kind: 'pack', colour: 'secondary', why: 'what the medic hands out is carried on the back' }],
       controller: [{ kind: 'pouches', why: 'the tools of the trade, on the belt' }],
       caster: [{ kind: 'satchel', why: 'the tech keeps its kit at the hip' }],
@@ -81,9 +82,9 @@ export const ERA_GEAR = Object.freeze({
   },
   future: {
     gear: {
-      frontline: [{ kind: 'vest', cover: 0.95, colour: 'metal', why: 'a hardshell over the chest' }, { kind: 'pauldron', pair: true, float: true, why: 'the plates stand off the shoulders' }],
-      flanker: [{ kind: 'pouches', why: 'a flanker carries its cells on the belt, light' }, { kind: 'kneepads', why: 'the knees taken on landing' }],
-      ranged: [{ kind: 'vest', cover: 0.7, colour: 'metal', why: 'a chest shell where the cells ride' }],
+      frontline: [{ kind: 'vest', cut: 'hardshell', colour: 'metal', why: 'a hardshell over the chest' }, { kind: 'pauldron', pair: true, float: true, why: 'the plates stand off the shoulders' }],
+      flanker: [{ kind: 'pouches', why: 'a flanker carries its cells on the belt, light' }, { kind: 'kneepads', colour: 'leather', why: 'the knees taken on landing' }],
+      ranged: [{ kind: 'vest', cut: 'slick', colour: 'metal', why: 'a chest shell where the cells ride' }],
       support: [{ kind: 'pack', colour: 'secondary', why: 'the field kit on the back' }],
       controller: [{ kind: 'bracers', colour: 'metal', why: 'the wrist units it works the machines through' }],
       caster: [{ kind: 'bracers', colour: 'metal', why: 'the wrist units it works the machines through' }],
@@ -95,6 +96,60 @@ export const ERA_GEAR = Object.freeze({
 });
 /** the era's kit for a sheet (null for a myth's or a rustic world's people, and with no setting) */
 export const eraKitOf = (sheet) => ERA_GEAR[sheet.setting?.era] ?? null;
+
+/**
+ * THE ERA'S LOOKS: what a modern or future world's people dress as, so a crowd is a leather jacket, a suit, fatigues and
+ * an operative's coat, not one cut. Each look is a seeded outfit card (outfit/styles.js) and how the role's kit sits in it:
+ *   style    the card
+ *   owns     the garments whose tones are the look's own, never the world's (a leather jacket is black hide in any
+ *            world; a suit is its suit's colour): the card's tones for them
+ *   kit      how much of the role's ERA_GEAR it wears: 'full' all of it, 'light' no armour (no vest, kneepads or
+ *            plates), 'concealed' nothing worn over the clothes but a satchel or wrist units (a suit, a long coat)
+ *   vest     the vest's cut by role over the role's own (carrier, slick, rig, hardshell: outfit-plan.js)
+ *   gear     the gear's colourway (the leather role: straps, pouches, a carrier, the boots): black, coyote, olive
+ *   archetype, role   the leans that roll it (a weight per value; anything unnamed weighs 0.5)
+ * Rolled once per person off the sheet's own seed and facets (eraLookOf), so a rank's members and a crowd vary.
+ */
+export const ERA_LOOKS = Object.freeze({
+  modern: {
+    biker: { style: 'biker', owns: ['Outer'], kit: 'light', gear: '#24201c', archetype: { outlaw: 4, jester: 2, explorer: 2, hero: 1.5 }, role: { flanker: 2.5, frontline: 1.5 } },
+    tactical: { style: 'tactical', owns: ['Bottom'], kit: 'full', gear: '#26282b', vest: { flanker: 'slick' }, archetype: { hero: 2, everyman: 2, ruler: 1.5 }, role: { frontline: 4, ranged: 3, flanker: 2, support: 1.5 } },
+    fatigues: { style: 'fatigues', owns: ['Top', 'Bottom'], kit: 'full', gear: '#6e6046', vest: { frontline: 'slick' }, archetype: { everyman: 3, caregiver: 2, hero: 1.5 }, role: { support: 3, frontline: 2.5, ranged: 2 } },
+    suit: { style: 'suit', owns: ['Outer', 'Top', 'Bottom'], kit: 'concealed', gear: '#141110', archetype: { ruler: 4, sage: 2, magician: 2, lover: 2 }, role: { controller: 3, 'non-combatant': 2, support: 1 } },
+    operative: { style: 'operative', owns: ['Outer', 'Top', 'Bottom'], kit: 'concealed', gear: '#111111', archetype: { magician: 2.5, outlaw: 2, explorer: 2, ruler: 1.5, lover: 1.5 }, role: { flanker: 3, controller: 2.5, ranged: 1.5 } },
+    streetwear: { style: 'streetwear', kit: 'light', gear: '#2c2c2c', archetype: { innocent: 3, jester: 3, creator: 2.5, everyman: 2 }, role: { 'non-combatant': 3, support: 2, caster: 2 } },
+    casual: { style: 'casual', kit: 'light', gear: '#4a3a2a', archetype: { everyman: 2.5, caregiver: 2.5, innocent: 2 }, role: { 'non-combatant': 3, support: 2 } },
+  },
+  future: {
+    hardsuit: { style: 'flightsuit', kit: 'full', gear: '#2a2f38', archetype: { hero: 3, ruler: 2 }, role: { frontline: 5, ranged: 2 } },
+    flightsuit: { style: 'flightsuit', kit: 'full', gear: '#20262e', vest: { frontline: 'slick', flanker: 'rig', ranged: 'rig' }, archetype: { explorer: 3, hero: 2, everyman: 2 }, role: { ranged: 2.5, flanker: 2, support: 2.5 } },
+    runner: { style: 'runner', owns: ['Outer'], kit: 'light', gear: '#141519', archetype: { outlaw: 4, jester: 3, lover: 1.5 }, role: { flanker: 3, controller: 2 } },
+    corporate: { style: 'corporate', owns: ['Outer'], kit: 'concealed', gear: '#2a2e36', archetype: { ruler: 4, sage: 3, magician: 2.5, creator: 2 }, role: { controller: 3, caster: 2.5, 'non-combatant': 2 } },
+    athleisure: { style: 'athleisure', kit: 'light', gear: '#2b2f3a', archetype: { everyman: 2.5, caregiver: 2.5, innocent: 2 }, role: { 'non-combatant': 3, support: 2 } },
+  },
+});
+const ARMOUR = new Set(['vest', 'kneepads', 'pauldron', 'chestPlate']);
+const KEPT_CONCEALED = new Set(['satchel', 'bracers']);
+/** a 32-bit FNV-1a of a string: the look's die, off the sheet's seed and facets */
+const fnv = (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h; };
+/** The look a modern or future person dresses as ({ id, ...ERA_LOOKS row }), rolled off its seed and facets; null for a
+ * myth's or a rustic world's people. */
+export function eraLookOf(sheet) {
+  const looks = ERA_LOOKS[sheet.setting?.era]; if (!looks) return null;
+  const f = sheet.facets, rows = Object.entries(looks).map(([id, L]) => [id, (L.archetype?.[f.archetype] ?? 0.5) * (L.role?.[f.role] ?? 0.5)]);
+  const total = rows.reduce((a, [, w]) => a + w, 0), u = (fnv(`${sheet.seed}|${JSON.stringify(f)}`) / 2 ** 32) * total;
+  let acc = 0; const id = (rows.find(([, w]) => (acc += w) > u) ?? rows[rows.length - 1])[0];
+  return { id, ...looks[id] };
+}
+/** The role's era gear as the look wears it: its kit's share, the vest in the look's cut. */
+export function lookGear(kit, look, role) {
+  const gear = (kit?.gear[role] ?? []).filter((g) => (look.kit === 'full' ? true : look.kit === 'light' ? !ARMOUR.has(g.kind) : KEPT_CONCEALED.has(g.kind)));
+  return gear.map((g) => (g.kind === 'vest' && look.vest?.[role] ? { ...g, cut: look.vest[role] } : { ...g }));
+}
+/** A card's garments → the palette's roles, as the derived cut assigns them (60 / 30 / 10: the largest field the base). */
+const lookColours = (L) => (L.outer ? { Outer: 'base', Top: 'secondary', Bottom: ['knee', 'midi', 'maxi'].includes(L.outer.hem) ? 'leather' : 'base' } : { Top: 'base', Bottom: 'secondary' });
+/** The owned garments' tones off the look's card (its leather jacket, its suit). */
+export const lookTones = (look) => { const T = SEEDED_OUTFITS[look.style]?.tones ?? {}; return Object.fromEntries((look.owns ?? []).filter((g) => T[g]).map((g) => [g, T[g]])); };
 /** a tail that is a must-see (a stub reads as body) */
 const SEEN_TAILS = new Set(['thin', 'thick', 'brush']);
 const GOLD = '#c9a24a', SILVER = '#b7bcc4', BRONZE = '#8c6239';
@@ -250,8 +305,10 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   const tail = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan?.tail : null, tailSeen = SEEN_TAILS.has(tail);
   // the sheet's own silhouette word when the archetype reads that way; the archetype's otherwise
   const said = deriveOf(sheet, 'silhouette ='), silhouette = said && (ARCHETYPE_SHAPES[a] || []).includes(said) ? said : SHAPE[a] ?? 'column';
-  const pieces = [], cut = cutFromSheet(sheet, { silhouette, tailSeen }), kit = eraKitOf(sheet);
-  const roleGear = kit ? kit.gear[f.role] ?? [] : ROLE_GEAR[f.role] ?? [], focalOf = kit ? { ...FOCAL, ...kit.focal } : FOCAL, dropped = new Set(kit?.drop ?? []);
+  const pieces = [], kit = eraKitOf(sheet), look = kit && sheet.ancestry?.door !== 'creature' ? eraLookOf(sheet) : null;
+  // a modern or future person's cut is its look's card (a leather jacket, a suit, fatigues), its fit the sheet's
+  const cut = ((C) => (look ? { ...C, language: { ...SEEDED_OUTFITS[look.style].language }, colours: lookColours(SEEDED_OUTFITS[look.style].language), notes: [...C.notes, `the ${look.id} look: the ${look.style} card`] } : C))(cutFromSheet(sheet, { silhouette, tailSeen }));
+  const roleGear = look ? lookGear(kit, look, f.role) : kit ? kit.gear[f.role] ?? [] : ROLE_GEAR[f.role] ?? [], focalOf = kit ? { ...FOCAL, ...kit.focal } : FOCAL, dropped = new Set(kit?.drop ?? []);
   const long = ['knee', 'midi', 'maxi'].includes(cut.language.outer?.hem);
   // the station on the shoulders when no long coat already carries it; a sash where the cloth meets at the waist
   if (OFFICE.mantle.includes(a) && !long && !dropped.has('mantle')) pieces.push({ kind: 'mantle', clasp: false, why: `the ${a}'s station on the shoulder line` });
@@ -269,6 +326,9 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   if (own) Object.assign(own, { role: 'focal', ...(focalKind === 'pauldron' || focalKind === 'baldric' ? { colour: own.colour ?? 'secondary' } : {}) });
   else pieces.push({ kind: focalKind, role: 'focal', why: focalKind === 'chain' ? 'the chain of office, near the face' : `the ${a}'s emblem, near the face` });
   if (hasDerive(sheet, 'armor.ornament +')) for (const p of pieces) if (p.kind === 'pauldron' && p.role === 'focal') p.colour = 'secondary';
+  // a look with no accent worn (a uniform's focal is its carrier, in its gear colour) wears an ID band on the arm in it:
+  // the accent a crowd of one colour is told apart by
+  if (look && !pieces.some((p) => (p.colour ?? defaultColour(p.kind)) === 'accent')) pieces.push({ kind: 'armRings', colour: 'accent', role: 'detail', why: 'an ID band on the arm: the accent a crowd in one uniform is told apart by' });
   // order: a free character wears one asymmetric note; a bound one keeps it to one
   const asym = (p) => ['satchel', 'baldric'].includes(p.kind) || (p.kind === 'pauldron' && !p.pair);
   if (free && !pieces.some(asym)) pieces.push(OFFICE.mantle.includes(a) && !kit ? { kind: 'baldric', colour: 'trim', why: `the sash of office worn across the chest: the free ${a}'s one asymmetric note` } : { kind: 'satchel', why: 'what it carries, on one hip: its asymmetric note' });
@@ -292,8 +352,9 @@ export function outfitFromSheet(sheet, { coat } = {}) {
     else if (pieces.length < room) pieces.push({ kind: 'wraps', colour: 'trim', role: 'detail', why: 'the trim repeated small at the wrists, tying the outfit together' });
     // no room for one more: a piece already worn takes the trim
     else for (const r of pieces.filter((p) => p.role !== 'focal' && ['collar', 'baldric', 'sash', 'belt', 'bracers'].includes(p.kind))) { if (trims() >= 2) break; r.colour = 'trim'; } }
-  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin), ...(concept ? { concept: concept.word } : {}) },
-    cut: { language: cut.language, dials: cut.dials, colours: cut.colours, notes: cut.notes }, pieces };
+  const palette = outfitPalette(sheet, coat ?? sheet.ancestry?.colours?.Skin);
+  const outfit = { intent: { silhouette, symmetry: free ? 'asymmetric' : 'symmetric', side, palette: look ? { ...palette, leather: look.gear } : palette, ...(concept ? { concept: concept.word } : {}) },
+    cut: { language: cut.language, dials: cut.dials, colours: cut.colours, notes: cut.notes }, pieces, ...(look ? { look: { id: look.id, tones: lookTones(look) } } : {}) };
   const laws = outfitLaws(outfit, { order: f.order, archetype: a, mustSee: tailSeen ? ['tail'] : [] });
   return { outfit, laws, ...(concept ? { concept: { ...concept, agreed } } : {}) };
 }
@@ -395,7 +456,7 @@ export function adornFromSheet(sheet, { coat } = {}) {
  * and the designed pieces over it (`pieces`, in the intent's palette), which the cut alone dropped */
 export function heroOutfitOf(outfit) {
   const P = outfit.intent.palette, C = outfit.cut.colours || {}, L = outfit.cut.language;
-  const tones = { Top: P[C.Top ?? 'base'], Bottom: P[C.Bottom ?? 'secondary'], ...(L.outer ? { Outer: P[C.Outer ?? 'base'] } : {}), Trim: P.trim, Button: P.trim, Buckle: P.trim, Leather: P.leather, Shoes: P.leather };
+  const tones = { Top: P[C.Top ?? 'base'], Bottom: P[C.Bottom ?? 'secondary'], ...(L.outer ? { Outer: P[C.Outer ?? 'base'] } : {}), Trim: P.trim, Button: P.trim, Buckle: P.trim, Leather: P.leather, Shoes: P.leather, ...(outfit.look?.tones ?? {}) };
   // the designed pieces ride the build (layered.js wears them over the cut, as a creature wears them); their reasons are
   // the outfit's readout, not the recipe's
   const pieces = (outfit.pieces || []).map(({ why: _w, ...p }) => p);

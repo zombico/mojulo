@@ -6,6 +6,7 @@ import { readGameworld } from './world.js';
 import { quickWorld, quickRacers } from './quick.js';
 import { runSteps } from './runner.js';
 import { KIT_ERAS } from '../egocube/plan.js';
+import { ERA_LOOKS } from '../egocube/outfit.js';
 import { FIREARM_ITEMS } from '../equipment/firearm.js';
 import { validateHeroSpec } from '@/lib/mcp/tools/layered.js';
 
@@ -47,8 +48,8 @@ describe("a game's setting", () => {
     const guard = runSteps(W, { ref: 'q' }).find((s) => s.key === 'guard');
     expect(guard.order.spec.gear).toEqual(QUICK_FIGURES.guard.era.future);
     expect(Object.values(guard.order.spec.gear).every((g) => FIREARM_ITEMS.includes(g.item) && g.style === 'future')).toBe(true);
-    // the frontline's era kit worn over the world's underlayer
-    expect(guard.order.spec.outfit).toMatchObject({ type: 'outfit', style: 'athleisure', pieces: expect.arrayContaining([expect.objectContaining({ kind: 'vest' })]) });
+    // dressed as its rolled look (the era's wardrobe, not the kit's underlayer)
+    expect(Object.values(ERA_LOOKS.future).map((L) => L.style)).toContain(guard.order.spec.outfit.style);
     expect(validateHeroSpec(guard.order.spec)).toEqual([]);
     const law = lawsOf(runSteps(W, { ref: 'q' })).find((l) => l.law === 'setting');
     expect(law.says ?? '').not.toMatch(/yet/);

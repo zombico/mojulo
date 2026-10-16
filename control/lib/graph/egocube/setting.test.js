@@ -5,7 +5,9 @@ import { describe, it, expect } from 'vitest';
 import { readSetting, leanOf, leanPriors, tuningOf, mascotWeight, GENRES, ERAS } from './setting.js';
 import { rollEgocube } from './egocube.js';
 import { rollMascot } from './mascot.js';
-import { planFromSheet, KIT_ERAS, ERA_STYLE } from './plan.js';
+import { planFromSheet, KIT_ERAS } from './plan.js';
+import { ERA_LOOKS, eraLookOf, lookGear, ERA_GEAR } from './outfit.js';
+import { SEEDED_OUTFITS } from '../outfit/styles.js';
 import { rollStored, egocubeCreate, readEgocubeKind } from './kind.js';
 import { mascotOfPerson } from './mascot-from-person.js';
 import { ANIME_SCULPT } from '../polygonizer/anime-sculpt.js';
@@ -111,15 +113,44 @@ describe('the tradition, carried to the body', () => {
     expect(roomy.create.spec.palette.Top).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('a modern or future person wears the era\'s clothes and the role\'s era kit, in place of the jerkin and the ranger\'s kit', () => {
+  it('a modern or future person wears its rolled look and the role\'s kit as the look wears it, never the jerkin or the ranger\'s kit', () => {
     const era = KIT_ERAS[0], role = 'frontline';
-    const P = planFromSheet(rollEgocube({ seed: 2, facets: { role }, setting: { era } }), { dress: undefined });
+    const sheet = rollEgocube({ seed: 2, facets: { role }, setting: { era } }), P = planFromSheet(sheet, { dress: undefined }), look = eraLookOf(sheet);
     expect(P.create.spec.adorn).toBeUndefined();
     expect(P.create.spec.detail).toBeUndefined();
-    expect(P.create.spec.outfit).toMatchObject({ type: 'outfit', style: ERA_STYLE[era], pieces: expect.arrayContaining([expect.objectContaining({ kind: 'vest' })]) });
+    expect(P.create.spec.outfit.style).toBe(look.style);
+    expect((P.create.spec.outfit.pieces ?? []).map((p) => p.kind)).toEqual(lookGear(ERA_GEAR[era], look, role).map((g) => g.kind));
     expect(P.ledger).toContainEqual(expect.objectContaining({ channel: 'dress', from: `setting.era.${era}`, at: expect.stringMatching(/spec\.outfit/) }));
     expect(P.ledger.some((r) => r.pending && r.from.startsWith('setting.'))).toBe(false);
     expect(planFromSheet(rollEgocube({ seed: 2, facets: { role } })).create.spec.adorn).toBe('ranger');
+  });
+
+  it('a crowd of one role is several looks, leaned by who each one is', () => {
+    const era = KIT_ERAS[0], styles = new Set();
+    for (let seed = 1; seed <= 10; seed++) styles.add(eraLookOf(rollEgocube({ seed, facets: { role: 'frontline' }, setting: { era } })).id);
+    expect(styles.size).toBeGreaterThan(2);
+    // a ruler who works the room is most often in a suit; a frontline hero most often in tactical clothes
+    const count = (facets) => { const n = {}; for (let seed = 1; seed <= 24; seed++) { const id = eraLookOf(rollEgocube({ seed, facets, setting: { era } })).id; n[id] = (n[id] ?? 0) + 1; } return Object.entries(n).sort((a, b) => b[1] - a[1])[0][0]; };
+    expect(count({ archetype: 'ruler', role: 'controller' })).toBe('suit');
+    expect(count({ archetype: 'hero', role: 'frontline' })).toBe('tactical');
+    for (const looks of Object.values(ERA_LOOKS)) for (const L of Object.values(looks)) expect(SEEDED_OUTFITS[L.style]).toBeDefined();
+  });
+
+  it('a look wears the kit it can: a suit nothing over its clothes, tactical clothes the whole carrier; its own tones stand', () => {
+    const kit = ERA_GEAR.modern;
+    expect(lookGear(kit, { ...ERA_LOOKS.modern.suit }, 'frontline')).toEqual([]);
+    expect(lookGear(kit, { ...ERA_LOOKS.modern.biker }, 'frontline').map((g) => g.kind)).toEqual([]);
+    expect(lookGear(kit, { ...ERA_LOOKS.modern.tactical }, 'frontline').map((g) => g.kind)).toEqual(['vest', 'kneepads']);
+    expect(lookGear(kit, { ...ERA_LOOKS.modern.tactical }, 'flanker')).toEqual(kit.gear.flanker.map((g) => ({ ...g })));
+    expect(lookGear(kit, { ...ERA_LOOKS.modern.fatigues }, 'frontline')[0]).toMatchObject({ kind: 'vest', cut: 'slick' });
+    // a biker's jacket is black hide in any world
+    for (let seed = 1; seed <= 30; seed++) {
+      const sheet = rollEgocube({ seed, facets: { archetype: 'outlaw', role: 'flanker' }, setting: { era: 'modern', ramps: [{ name: 'timber', stops: ['#3b2a1a', '#7a5a3a', '#c8a070'] }] } });
+      if (eraLookOf(sheet).id !== 'biker') continue;
+      expect(planFromSheet(sheet).create.spec.palette.Outer).toBe(SEEDED_OUTFITS.biker.tones.Outer);
+      return;
+    }
+    throw new Error('no outlaw flanker rolled the biker look in 30 seeds');
   });
 
   it('a designed dress in a modern or future world carries the era\'s kit, never the myth\'s', () => {
@@ -128,7 +159,6 @@ describe('the tradition, carried to the body', () => {
       const P = planFromSheet(rollEgocube({ seed: 5, facets: { role: 'ranged', archetype: 'outlaw' }, setting: { era } }), { dress: 'designed' });
       const kinds = P.create.spec.outfit.pieces.map((p) => p.kind);
       expect(kinds.filter((k) => myth.has(k))).toEqual([]);
-      expect(kinds).toContain('vest');
     }
     // with no setting the same roll keeps the ranger's quiver
     const kinds = planFromSheet(rollEgocube({ seed: 5, facets: { role: 'ranged', archetype: 'outlaw' } }), { dress: 'designed' }).create.spec.outfit.pieces.map((p) => p.kind);

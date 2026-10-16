@@ -27,7 +27,7 @@ export const TRADITION_IDS = Object.freeze(['anime', 'western']);
 export const SETTING_KEYS = Object.freeze(['tradition', 'era', 'genre', 'ramps', 'lean']);
 
 /** Eras: what kind of world the people live in: who it has people for, and (a modern or future one) what they wear and carry
- * (outfit.js ERA_GEAR, plan.js ERA_STYLE, the quick figures' firearms in cast-setting.js QUICK_FIGURES). */
+ * (outfit.js ERA_GEAR and ERA_LOOKS, the quick figures' firearms in cast-setting.js QUICK_FIGURES). */
 export const ERAS = Object.freeze({
   myth:   { reads: 'a world of myth: swords, spells and familiars', person: {} },
   rustic: { reads: 'a rustic world: work, weather and village life; a little magic at most',
