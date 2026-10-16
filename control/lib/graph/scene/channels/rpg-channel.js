@@ -12,7 +12,8 @@
  *   RANDOM ENCOUNTERS: a roll every `every` metres the pilot walks, in the random zones (or anywhere).
  *
  * It reads the bus's log for `rpg-battle:<encounter>`, `rpg-rest`, `rpg-join:<member>`, `rpg-open:<class>`, and pushes
- * `rpg-won` / `rpg-fled` / `rpg-lost` (alone and `:<encounter>`) as a battle closes. Keys: arrows / WASD, Enter / Space / E accept,
+ * `rpg-won` / `rpg-fled` / `rpg-lost` (alone and `:<encounter>`) as a battle closes. With the party mechanic (the level
+ * contract's game.party) the party is loaded from the store's slice as the level starts, and kept there as it changes. Keys: arrows / WASD, Enter / Space / E accept,
  * Escape / Backspace back, P the party menu. window.__mojRpg drives it headless (a test, the audit).
  */
 import { buildRpg } from '../../playscape/rpg/kernel.js';
@@ -74,6 +75,29 @@ export function rpgPage(cfg, K) {
   let mode = null, phase = null, beats = [], bi = 0, bt = 0, shown = {}, msg = '', picks = {}, mi = 0, level = 'cmd', f = 0, pend = null, pops = [], dirty = true;
   let fm = 0, ftab = 0, flevel = 'members', ff = 0, fmsg = '', seen = 0, walked = 0, lastPos = null, rolls = 0, lastT = 0;
   const TABS = ['Status', 'Class', 'Skills'];
+  // CARRIED (the party mechanic: the level contract's game.party): the roster loaded as the level starts, and each
+  // number that changed since put back as a setStat after a fight, a class switch, a skill bought, a rest
+  const carry = { hooked: false, slice: null, sent: null };
+  function hookCarry() {
+    const G = window.__mojGame;
+    if (carry.hooked || !G) return;
+    carry.hooked = true;
+    const P = G.contract && G.contract.party;
+    if (!P || typeof P.slice !== 'string') return;
+    carry.slice = P.slice;
+    G.onStart(function (params) {
+      const sl = params && params[P.slice];
+      if (sl && sl.roster) K.load(cfg, R, sl.roster, V());
+      carry.sent = K.save(cfg, R); dirty = true;
+    });
+  }
+  function keep() {
+    const G = window.__mojGame;
+    if (!carry.slice || !G || !carry.sent) return;
+    const now = K.save(cfg, R);
+    for (const m in now) for (const k in now[m]) if (!carry.sent[m] || carry.sent[m][k] !== now[m][k]) G.emit({ type: 'setStat', slice: carry.slice, id: m, stat: k, value: now[m][k] });
+    carry.sent = now;
+  }
 
   const memberName = (id) => { for (const p of cfg.party) if (p.id === id) return p.name; return id; };
   const commanders = () => (R.b ? R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep) : []);
@@ -126,6 +150,7 @@ export function rpgPage(cfg, K) {
     }
     if (phase === 'end') {
       const ev = K.close(cfg, R, V());
+      keep();
       for (const e of ev) __inputQueue.push(e);
       mode = null; phase = null; root.classList.remove('on'); root.innerHTML = '';
       release(); dirty = true;
@@ -190,11 +215,11 @@ export function rpgPage(cfg, K) {
   function fieldRows() {
     const id = members()[fm];
     if (!id) return [];
-    if (ftab === 1) return K.classesOf(cfg, R, id, V()).map((c) => ({ label: c.name, right: c.current ? 'current' : !c.open ? 'locked' : c.rank ? 'rank ' + c.rank : 'new', ok: c.open && !c.current, go: () => { const why = K.switchClass(cfg, R, id, c.id, V()); fmsg = why ? WHY[why] || why : memberName(id) + ' is now a ' + c.name + '.'; if (!why) __inputQueue.push({ type: 'rpg-class:' + id + ':' + c.id }); } }));
+    if (ftab === 1) return K.classesOf(cfg, R, id, V()).map((c) => ({ label: c.name, right: c.current ? 'current' : !c.open ? 'locked' : c.rank ? 'rank ' + c.rank : 'new', ok: c.open && !c.current, go: () => { const why = K.switchClass(cfg, R, id, c.id, V()); fmsg = why ? WHY[why] || why : memberName(id) + ' is now a ' + c.name + '.'; if (!why) { keep(); __inputQueue.push({ type: 'rpg-class:' + id + ':' + c.id }); } } }));
     if (ftab === 2) return K.treeOf(cfg, R, id).map((e) => ({
       label: e.name, ok: e.state === 'buy', dim: e.state === 'locked' || e.state === 'later',
       right: e.state === 'learned' ? '✓' : e.state === 'buy' ? e.cost + ' CP' : e.state === 'later' ? 'rank ' + e.at : e.why === 'requires' ? 'needs ' + e.need.map((n) => cfg.skills[n].name).join(', ') : e.cost + ' CP',
-      go: () => { const why = K.buy(cfg, R, id, e.skill); fmsg = why ? WHY[why] || why : memberName(id) + ' learned ' + e.name + '.'; },
+      go: () => { const why = K.buy(cfg, R, id, e.skill); fmsg = why ? WHY[why] || why : memberName(id) + ' learned ' + e.name + '.'; if (!why) keep(); },
     }));
     return [];
   }
@@ -288,9 +313,9 @@ export function rpgPage(cfg, K) {
       const ty = log[i] && log[i].type;
       if (typeof ty !== 'string' || ty.indexOf('rpg-') !== 0) continue;
       if (ty.indexOf('rpg-battle:') === 0) startBattle(ty.slice(11));
-      else if (ty === 'rpg-rest') K.rest(cfg, R, V());
-      else if (ty.indexOf('rpg-join:') === 0) { R.joined[ty.slice(9)] = 1; }
-      else if (ty.indexOf('rpg-open:') === 0) { R.opened[ty.slice(9)] = 1; }
+      else if (ty === 'rpg-rest') { K.rest(cfg, R, V()); keep(); }
+      else if (ty.indexOf('rpg-join:') === 0) { R.joined[ty.slice(9)] = 1; keep(); }
+      else if (ty.indexOf('rpg-open:') === 0) { R.opened[ty.slice(9)] = 1; keep(); }
     }
     seen = log.length;
   }
@@ -317,6 +342,7 @@ export function rpgPage(cfg, K) {
   function step(t) {
     const now = typeof t === 'number' ? t : 0, dt = lastT ? Math.max(0, Math.min(now - lastT, 1000)) : 0;   // real time: a slow frame still moves the playback on
     lastT = now;
+    hookCarry();
     listen();
     walk();
     if (mode === 'battle' && (phase === 'intro' || phase === 'play')) { bt += dt; if (bt >= BEAT) advance(); }

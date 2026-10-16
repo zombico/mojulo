@@ -164,6 +164,10 @@ export function validateLevelContract(game, schema) {
   if (game.bag !== undefined && !(game.bag && typeof game.bag.slice === 'string' && consumed(game.bag.slice) && ['worn', 'holders'].every((k) => game.bag[k] === undefined || (typeof game.bag[k] === 'string' && consumed(game.bag[k]))))) {
     errors.push('game.bag is { slice, worn?, holders? }: slices the level consumes (the bag and what is worn carried in, what its chests hold kept), each kept as it changes');
   }
+  // PARTY: the party slice the battle party is carried in (the party mechanic, playscape/rpg): loaded at the start, kept
+  if (game.party !== undefined && !(game.party && typeof game.party.slice === 'string' && consumed(game.party.slice))) {
+    errors.push('game.party is { slice }: a party slice the level consumes (the battle party carried in, kept as it changes)');
+  }
   // AFTERMATH: the flags slice the level keeps its broken blocks in (the aftermath mechanic), restored on entry
   if (game.aftermath !== undefined && !(game.aftermath && typeof game.aftermath.slice === 'string' && (game.consumes || []).some((c) => c && c.slice === game.aftermath.slice))) {
     errors.push('game.aftermath is { slice }: a flags slice the level consumes (its broken blocks, kept and restored)');

@@ -304,6 +304,11 @@ export function rpgCues(play) {
     cues.push({ id: `rpg-meet-${e.id}`, when: { enter: { at: e.at, r: e.near } }, if: [{ var: 'rpg.battle', eq: 0 }, { var: doneVar(e.id), eq: 0 }], then: { emit: `rpg-battle:${e.id}` } });
     cues.push({ id: `rpg-beaten-${e.id}`, when: { on: `rpg-won:${e.id}` }, then: [{ set: doneVar(e.id), to: 1 }, ...(e.who ? [{ kill: e.who }] : [])] });
   }
+  // a member who joins on a flag: in the fights once the flag is set here or carried in (scenes.js flag events)
+  for (const p of cfg.party) if (p.joins) {
+    cues.push({ id: `rpg-join-${p.id}`, when: { on: `flag:${p.joins}` }, then: { emit: `rpg-join:${p.id}` } });
+    cues.push({ id: `rpg-joined-${p.id}`, when: { on: `flag-carried:${p.joins}` }, then: { emit: `rpg-join:${p.id}` } });
+  }
   if (cfg.rules.defeat === 'fail') cues.push({ id: 'rpg-defeat', when: { on: 'rpg-lost' }, then: { set: 'hp', to: 0 } });
   return cues;
 }

@@ -6,6 +6,9 @@ import { lowerPlay } from '../ui/direction.js';
 import { createBusState, processEvents, watchEvents } from '../../worlds/event-bus.js';
 import { eventsChannelScript } from '../../scene/channels/events.js';
 import { rpgScript, rpgPage, RPG_CSS } from '../../scene/channels/rpg-channel.js';
+import { buildGameStoreKernel } from '../../game/store-kernel.js';
+import { composeMechanics } from '../../game/mechanics.js';
+import { rpgInit, rpgSave, rpgLoad, rpgSwitchClass, rpgBuy } from './kernel.js';
 
 const ENTITIES = [{ id: 'hero', rule: { type: 'walk' }, transform: { pos: [0, 0, 0] }, body: { type: 'mesh', shape: 'box', size: [0.6, 0.6, 1.7] } }];
 const PARTY = [{ id: 'ayla', class: 'fighter' }, { id: 'bram', name: 'Bram the Wise', class: 'mage', level: 2 }];
@@ -72,14 +75,14 @@ describe('play.rpg: read and lowered', () => {
 });
 
 // the page function, run headless: a DOM just big enough (elements with class lists and innerHTML, key listeners)
-function page(play, vars = {}) {
+function page(play, vars = {}, game = null) {
   const ev = lowerPlay({ entities: ENTITIES, play }, { player: 'hero' });
   const bus = createBusState(ev, []);
   Object.assign(bus.vars, vars);
   const el = () => ({ className: '', innerHTML: '', textContent: '', classList: { add() {}, remove() {} }, appendChild() {}, addEventListener() {} });
   const keys = [];
   const document = { createElement: el, head: el(), body: el() };
-  const window = { addEventListener: (_, f) => keys.push(f) };
+  const window = { addEventListener: (_, f) => keys.push(f), ...(game ? { __mojGame: game } : {}) };
   const queue = [];
   const api = new Function('document', 'window', '__busState', '__inputQueue', 'RPG_CSS_TEXT', 'cfg', 'K', `return (${rpgPage.toString()})(cfg, K);`)(document, window, bus, queue, RPG_CSS, ev.rpg, new Function(`return (${buildRpg.toString()})();`)());
   let t = 0;
@@ -146,5 +149,58 @@ describe('the page: the battle window and the party menu', () => {
     expect(eventsChannelScript(L.ev)).toContain('__stepRpg(t)');
     expect(() => new Function(rpgScript())).not.toThrow();
     expect(() => new Function(eventsChannelScript(L.ev))).not.toThrow();
+  });
+});
+
+describe('the party carried between levels (the party mechanic)', () => {
+  const S = buildGameStoreKernel();
+  // a game channel just big enough: the contract's party slice, the params it starts with, what is emitted
+  const game = (params) => { const out = []; return { contract: { party: { slice: 'party' } }, onStart: (cb) => cb(params, 1), emit: (e) => out.push(e), out }; };
+
+  it('the kernel saves a run as numbers and loads it back the same', () => {
+    const cfg = readRpg(PLAY), R = rpgInit(cfg);
+    R.m.ayla.level = 4; R.m.ayla.xp = 50; R.m.ayla.cl.fighter = { cp: 12, lv: 3, sp: 2 };
+    rpgSwitchClass(cfg, R, 'ayla', 'mage', {});
+    R.m.ayla.cl.mage.sp = 1;
+    expect(rpgBuy(cfg, R, 'ayla', 'sleep')).toBe('');
+    R.opened.knight = 1;
+    const saved = rpgSave(cfg, R);
+    expect(Object.values(saved.ayla).every((v) => typeof v === 'number')).toBe(true);
+    expect(saved.ayla).toMatchObject({ lv: 4, xp: 50, 'cls.mage': 1, 'cls.fighter': 0, 'cp.fighter': 12, 'sp.fighter': 2, 'skill.sleep': 1, 'skill.fire': 1, 'open.knight': 1 });
+    const R2 = rpgInit(cfg);
+    rpgLoad(cfg, R2, { ayla: { stats: saved.ayla } });
+    expect(rpgSave(cfg, R2).ayla).toEqual(saved.ayla);
+    expect(R2.m.ayla.cl.fighter.lv).toBe(3);
+  });
+
+  it('the mechanic: consumes the party slice, produces setStat into it, names it for the page', () => {
+    const schema = { slices: [{ name: 'party', kind: 'party' }, { name: 'campaign', kind: 'progression' }] };
+    const c = composeMechanics([{ kind: 'reach-exit', at: [1, 0, 0] }, { kind: 'party' }], { storeSchema: schema });
+    expect(c).toMatchObject({ party: { slice: 'party' }, consumes: [{ slice: 'party' }], produces: [{ type: 'setStat', slice: 'party' }] });
+    expect(() => composeMechanics([{ kind: 'reach-exit', at: [1, 0, 0] }, { kind: 'party' }], { storeSchema: { slices: [{ name: 'campaign', kind: 'progression' }] } })).toThrow(/party/);
+  });
+
+  it('a level loads the roster, keeps what changed, and the next level starts where it was left', () => {
+    const cfg = readRpg(PLAY), roster = Object.fromEntries(Object.entries(rpgSave(cfg, rpgInit(cfg))).map(([id, stats]) => [id, { name: id, stats }]));
+    const schema = { slices: [{ name: 'party', kind: 'party', init: { roster } }] };
+    let store = S.createStore(schema);
+    // level one: Ayla becomes a knight
+    const g1 = game({ party: store.party });
+    const P1 = page(PLAY, {}, g1);
+    P1.frames();
+    P1.press('KeyP'); P1.press('ArrowRight'); P1.press('Enter'); P1.press('ArrowDown'); P1.press('Enter');
+    expect(P1.api.R.m.ayla.cls).toBe('knight');
+    expect(g1.out.map((e) => e.stat).sort()).toEqual(['cls.fighter', 'cls.knight', 'cp.knight', 'sp.knight', 'skill.guard-up'].sort());
+    expect(g1.out.every((e) => e.type === 'setStat' && e.slice === 'party' && e.id === 'ayla')).toBe(true);
+    const r = S.applyEvents(schema, store, g1.out);
+    expect(r.ok).toBe(true);
+    store = r.state;
+    // level two: carried in
+    const g2 = game({ party: store.party });
+    const P2 = page(PLAY, {}, g2);
+    P2.frames();
+    expect(P2.api.R.m.ayla.cls).toBe('knight');
+    expect(P2.bus.vars['rpg.ayla.class']).toBe('knight');
+    expect(g2.out).toEqual([]);
   });
 });

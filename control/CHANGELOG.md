@@ -33,8 +33,14 @@ then everyone acts in speed order. The battle runs in place over the field, in t
   `rpg-lost:<id>`): a beaten foe falls on the map, and a wiped party fails the level (or retries the fight).
 - **Starter presets** (`lib/graph/playscape/rpg/presets.js`): classes, skills and foes that a world can name
   without defining them. A world's own definitions take their place.
-- **A level carries it as `play.rpg`.** It is not on the quick path, which stays one simple goal: its one-on-one
-  `goal: 'battle'` and `play.battle` are unchanged.
+- **The game book lays it: `battles`** on a gameworld (`design_game({ world })`, card `gameworld-battles`). The
+  party is the hero and the cast who join it, each in a class. Packs of foes stand on the trails' beats, met in
+  order across the game and tougher further on, with an optional boss at the end. One foe figure is made for them
+  all. Each stage has a rest at its start (E restores HP and MP). Optional random encounters. It is not on the
+  quick path, which stays one simple goal: its one-on-one `goal: 'battle'` and `play.battle` are unchanged.
+- **The party is carried between levels.** The new `party` game mechanic keeps each member's level, XP, HP and
+  MP, class, class ranks and points, and learned skills in the store's `party` slice. The level loads them as it
+  starts and saves only what changed, after every fight, class switch, skill bought and rest.
 - **The `quest` border flavor**: the classic RPG window, a deep blue gradient plate with a white double rule.
 
 ### Shoot plan: a keyframed camera you can see in the world

@@ -28,6 +28,7 @@
  *   round(cfg, R, picks, vars)        → beats; picks: { <member>: { act, skill?, item?, target? } }
  *   close(cfg, R, vars)               → the bus events the battle ends on: rpg-won / rpg-fled / rpg-lost, alone and :<encounter>
  *   switchClass / buy / rest / classesOf / treeOf / statsOf / partyOf / mirror
+ *   save(cfg, R) / load(cfg, R, roster, vars)   the run as the store's party slice keeps it (numbers only), and back
  *
  *   beat: { text, kind?: 'hurt' | 'heal' | 'miss' | 'ko' | 'status' | 'level' | 'learn' | 'spoils' | 'end',
  *           target?, amount?, hp?, who?, mp? }   (hp: the target's after it; mp: the actor's after it spends)
@@ -539,6 +540,50 @@ export function buildRpg() {
     return '';
   }
 
+  // ── carried between levels (the store's party slice: a roster whose stats are numbers) ─────────────────────────
+  /**
+   * A member as the store keeps it: flat numeric stats. lv, xp, hp, mp, psn; in (joined by an event); cls.<class> 1
+   * for the current class; cp.<class> and sp.<class> for each class taken; skill.<skill> 1 for each learned; open.<class>
+   * 1 for each class opened by an event. → { <member>: { <key>: n } }
+   */
+  function save(cfg, R) {
+    const out = {};
+    for (const p of cfg.party) {
+      const M = R.m[p.id], s = { lv: M.level, xp: M.xp, hp: M.hp, mp: M.mp, psn: M.poison ? 1 : 0, in: R.joined[p.id] ? 1 : 0 };
+      for (const c in cfg.classes) s['cls.' + c] = M.cls === c ? 1 : 0;
+      for (const c in M.cl) { s['cp.' + c] = M.cl[c].cp; s['sp.' + c] = M.cl[c].sp; }
+      for (const k in M.learned) s['skill.' + k] = 1;
+      for (const c in R.opened) s['open.' + c] = 1;
+      out[p.id] = s;
+    }
+    return out;
+  }
+  /** The run as the store carried it in (save's shape, under roster.<member>.stats); a member it lacks starts fresh. */
+  function load(cfg, R, roster, vars) {
+    if (!roster || typeof roster !== 'object') return;
+    for (const p of cfg.party) {
+      const m = roster[p.id], s = m && m.stats;
+      if (!s || typeof s.lv !== 'number') continue;
+      const M = R.m[p.id];
+      M.level = Math.max(1, Math.min(cfg.rules.cap, Math.round(s.lv)));
+      M.xp = Math.max(0, s.xp || 0);
+      for (const c in cfg.classes) if (s['cls.' + c] === 1) M.cls = c;
+      M.cl = {};
+      for (const c in cfg.classes) if (typeof s['cp.' + c] === 'number') M.cl[c] = { cp: s['cp.' + c], lv: classLevel(cfg, s['cp.' + c]), sp: s['sp.' + c] || 0 };
+      openClass(M, M.cls);
+      M.learned = {};
+      for (const k in s) if (k.indexOf('skill.') === 0 && s[k] === 1 && cfg.skills[k.slice(6)]) M.learned[k.slice(6)] = 1;
+      learnAt(cfg, M, M.cls, p.name, null);
+      const S = statsOf(cfg, R, p.id);
+      M.hp = Math.max(0, Math.min(S.hp, typeof s.hp === 'number' ? s.hp : S.hp));
+      M.mp = Math.max(0, Math.min(S.mp, typeof s.mp === 'number' ? s.mp : S.mp));
+      M.poison = s.psn === 1 ? 1 : 0;
+      if (s.in === 1) R.joined[p.id] = 1;
+      for (const k in s) if (k.indexOf('open.') === 0 && s[k] === 1 && cfg.classes[k.slice(5)]) R.opened[k.slice(5)] = 1;
+    }
+    if (vars) mirror(cfg, R, vars);
+  }
+
   /** The party onto the bus: rpg.<member>.hp / .mp / .level / .class, rpg.battle (1 while a fight is up), rpg.won. */
   function mirror(cfg, R, vars) {
     if (!vars) return;
@@ -550,7 +595,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf };
+  return { STATS, roll: rnd, save, load, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf };
 }
 
 const _rpg = buildRpg();
@@ -572,3 +617,5 @@ export const rpgBuy = _rpg.buy;
 export const rpgMirror = _rpg.mirror;
 export const rpgXpFor = _rpg.xpFor;
 export const rpgAimOf = _rpg.aimOf;
+export const rpgSave = _rpg.save;
+export const rpgLoad = _rpg.load;

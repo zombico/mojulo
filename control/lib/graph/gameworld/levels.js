@@ -42,6 +42,7 @@ import { designCity } from '../city/plan/design.js';
 import { planTrack, trackCensus, trackLaws } from '../roads/track.js';
 import { planScapedTrack } from '../roads/trackscape-dress.js';
 import { trackContract, trackSurface } from '../roads/contract.js';
+import { battleRoster, PARTY_SLICE } from './battles.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -353,6 +354,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
     // keys it brings (a bag on I): the pilot's inputs
     if (X.inputs?.length) pilotPart = { ...pilotPart, events: { ...(pilotPart.events ?? {}), inputs: [...(pilotPart.events?.inputs ?? []), ...X.inputs] } };
     pads = X.pads ?? null;
+    // the game mechanics it brings (battles.js: the party carried, the defeat)
+    if (X.mechanics?.length) game.mechanics = [...game.mechanics, ...X.mechanics];
   }
   // LOOP (the intent's `loop` concern): a low wall down the oval's middle
   if (ends.loop) blocks = [...(blocks ?? []), ...loopBlocks(ends.loop, ends)];
@@ -386,12 +389,21 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, mech
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
   }
   let play;
-  ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? { ...(mechanics?.play ?? {}), ...extraPlay } : mechanics?.play ?? null, { story, carryFrom, party }));
+  ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party }));
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
   const laws = stage.section === 'roadway' ? ends.roadLaws : concerns.length ? concernLaws(concerns, { ends, blocks: blocks ?? [], posts: posts ?? [], watchers: watched ?? [], pads: pads ?? [], raised, jump, mechanics: game.mechanics, loop: ends.loop }) : [];
   return { tool: 'create_sketch', args: { title: name, manifest }, ends, ...(laws.length ? { laws } : {}) };
+}
+
+// the systems' play and what a goal or the battles bring: the lists (cues, menus, parts, spots) one after the other, the
+// rest the extra's (a quick goal has no systems, so its play is the extra's own, as it was)
+const PLAY_LISTS = ['cues', 'menus', 'parts', 'spots', 'routines'];
+function mergePlay(base, extra) {
+  const out = { ...base, ...extra };
+  for (const k of PLAY_LISTS) if (Array.isArray(base[k]) && Array.isArray(extra[k])) out[k] = [...base[k], ...extra[k]];
+  return out;
 }
 
 /** The story's share of a stage, on its pilot and its play: the level's scenes and the story's moments (with their
@@ -587,6 +599,8 @@ export function gameStore(world, book) {
   if (storyCarried(G)) slices.push({ name: STORY_SLICE, kind: 'flags' });
   // the world remembers what broke (a game that lets things break): each level keeps its breaks here
   if (book?.mechanics?.destruction && book.mechanics.destruction !== 'none') slices.push({ name: AFTERMATH_SLICE, kind: 'flags' });
+  // party battles (battles.js): the party, its levels, classes and skills, carried from level to level
+  if (G.battles) slices.push({ name: PARTY_SLICE, kind: 'party', init: { roster: battleRoster(G) } });
   return { slices };
 }
 

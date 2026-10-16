@@ -10,6 +10,9 @@ import { updateSketchHandler } from './sketches.js';
 import { designGameHandler } from './design-game.js';
 import { MEADOWMARK, MEADOWMARK_HERO, HALDEN_REACH, gameworldOf } from '@/lib/graph/gameworld/index';
 import { createCharacterHandler, updateCharacterHandler } from './create-character.js';
+import { resolveWorldScene } from '@/lib/graph/worlds/world-scene';
+import { simLevel } from '@/lib/graph/game/level-sim.js';
+import { rpgInit, rpgStart, rpgRound, rpgTargets, rpgClose } from '@/lib/graph/playscape/rpg/kernel.js';
 
 // The rail's door: write the gameworld, take the verdicts, run what is ready through the real handlers, and say what
 // to do next. A run with nothing changed makes nothing; a hand edit is left unless forced.
@@ -217,5 +220,34 @@ describe('design_game: the hero a run plays (character stitch)', () => {
     expect(stored('qa-hero')).toBeUndefined();
     const level = Object.entries(quick.made).find(([k]) => k.startsWith('level-'))[1];
     expect(JSON.stringify(stored(level))).toContain('"heroRef":"solo"');
+  }, 600_000);
+});
+
+describe('design_game: party battles on the book path (battles)', () => {
+  beforeEach(() => { closeDb(); });
+
+  it('a run lays packs on the trails, the store carries the party, and a pack walked up to is fought and falls', async () => {
+    const out = await designGameHandler({ world: { ...AUTO, battles: { per: 1, rules: { defeat: 'retry' } } }, ref: 'gb', run: true });
+    expect(action(out, 'foe')).toBe('make');
+    expect(stored('gb-game').store.slices).toContainEqual(expect.objectContaining({ name: 'party', kind: 'party' }));
+    const L = stored('gb-level-meadow-ascent-0');
+    expect(L.play.rpg.party.map((p) => p.id)).toEqual(['hero']);
+    expect(L.game.mechanics.map((m) => m.kind)).toContain('party');
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('gb-level-meadow-ascent-0'));
+    expect(payload.game.party).toEqual({ slice: 'party' });
+    expect(payload.game.consumes).toContainEqual({ slice: 'party' });
+    const enc = L.play.rpg.encounters[0], cfg = payload.events.rpg;
+    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, hero = W.byId[W.pilotId], v = sim.bus.vars;
+    hero.transform.pos = [enc.at[0], enc.at[1], hero.transform.pos[2]];
+    sim.run(0.5);
+    expect(sim.bus.log.some((e) => e.type === `rpg-battle:${enc.id}`)).toBe(true);
+    // the page's kernel on the payload's own cfg: the hero alone fights the first pack, and wins it
+    const R = rpgInit(cfg);
+    rpgStart(cfg, R, enc.id, v);
+    for (let r = 0; r < 30 && R.b.phase === 'command'; r++) rpgRound(cfg, R, { hero: { act: 'attack', target: rpgTargets(cfg, R, { act: 'attack' })[0]?.id } }, v);
+    expect(R.b.phase).toBe('won');
+    sim.run(0.5, { 0: rpgClose(cfg, R, v) });
+    expect(W.byId[enc.who].downed).toBe(true);
+    expect(v[`rpg-done-${enc.id}`]).toBe(1);
   }, 600_000);
 });
