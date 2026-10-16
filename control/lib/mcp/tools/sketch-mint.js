@@ -86,6 +86,7 @@ import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-fac
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import { strengthSpecErrors } from '@/lib/graph/strength/index';
+import { bodyTypeErrors } from '@/lib/graph/worlds/controllable/body-types';
 import { inferHouse } from '@/lib/graph/structure/infer';
 import {
   classifyPromptForCards,
@@ -700,6 +701,9 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   // a condo-complex's `furnishing` is checked by name, as a floorplan's is (the render reads any other value as none)
   const houseErrors = validateHouseConstruction(manifest);
   if (houseErrors.length) throw new Error(`Invalid world manifest (kind '${manifest.kind}'): ${houseErrors.join('; ')}`);
+  // any world's `entities` are controllable bodies: a type the page does not draw is refused, as compose_world refuses it
+  const bodyErrors = bodyTypeErrors(manifest.entities);
+  if (bodyErrors.length) throw new Error(`Invalid world manifest (kind '${manifest.kind}'): ${bodyErrors.join('; ')}`);
   try {
     await resolveWorldScene({ ref, title: title ?? existingSketch?.title ?? 'world', manifest });
   } catch (err) {
