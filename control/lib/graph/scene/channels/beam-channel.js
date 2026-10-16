@@ -24,6 +24,9 @@ import { GLYPHS_SRC, SPRAY_SRC } from './moment-channel.js';
 export function beamSpecs(events) {
   const out = [];
   for (const r of (events && events.reactions) || []) if (r && r.do === 'ctrl' && r.op === 'beam' && r.spec && !out.includes(r.spec)) out.push(r.spec);
+  // a party battle's juice: the attacks its steps fly (playscape/rpg/juice.js)
+  const fx = events && events.rpg && events.rpg.juice && events.rpg.juice.fx;
+  for (const B of Object.values((fx && fx.beams) || {})) if (!out.includes(B)) out.push(B);
   return out;
 }
 

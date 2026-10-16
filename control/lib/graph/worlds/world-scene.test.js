@@ -317,6 +317,18 @@ describe('world-scene — the play block on a world with its own events', () => 
       expect(payload.events.stats?.stats?.power, events ? 'with events' : 'without').toEqual({ base: 10 });
     }
   });
+
+  it('keeps play.rpg (the battle kernel\'s cfg) the same way, and the page carries its channel', async () => {
+    const floor = [{ corners: [[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]], fill: '#888888' }];
+    const base = { kind: 'controllable', faces: floor, entities: [{ id: 'hero', pilotable: true, rule: { type: 'platform' }, transform: { pos: [0, 0, 0] } }] };
+    const play = { rpg: { party: [{ id: 'ayla', class: 'fighter' }], encounters: [{ id: 'pack', foes: ['slime'], at: [3, 0] }] } };
+    const legend = { hud: [{ kind: 'text', slot: 'bottom', text: 'W / S  run' }] };
+    for (const events of [undefined, legend]) {
+      const { payload } = await resolveWorldScene(sketch({ ...base, ...(events ? { events } : {}), play }));
+      expect(payload.events.rpg?.encounters?.pack, events ? 'with events' : 'without').toEqual({ foes: ['slime'], flee: true });
+      expect(emitThreeWorld(payload)).toContain('__stepRpg(t)');
+    }
+  });
 });
 
 describe('world-scene — generic opt-in weather channel', () => {

@@ -48,6 +48,7 @@ import { HAIR_STYLE_NAMES } from '../polygonizer/humanoid-hair.js';
 import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.js';
 import { CRAFT } from '../skyscape/eye.js';
 import { MAP_FORMS } from '../skyscape/map.js';
+import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -75,6 +76,7 @@ function guide() {
     '  adornment   what does the hero carry, and why? an item exists because a power needs it (gameworld-adornment)',
     '  systems     the numbers and the HUD, derived from the actions, each with its reason (gameworld-systems)',
     '  equipment   the gear classes, in one gear language; they matter once a stat makes them matter (gameworld-equipment)',
+    '  battles     turn-based? the party, its classes, its packs of foes (gameworld-battles)',
     '',
     'PRINCIPLES:',
     '  - Ask, then derive. Before a page, ask the creator what only they know (who the hero is, what the verb of the game',
@@ -94,7 +96,7 @@ function guide() {
     '    levels: { <id>: { name?, walk: { nodes: { <id>: { trail: {} } | { meru: {} } }, edges?: [{ from, to }] } } },',
     '    characters?: { direction: { tradition, primary?, secondary?, motif? },',
     '      hero: { looks?: { body?, head?, hair?, colour?, underlayer? }, motion?, actions?, adornment? } },',
-    '    equipment?: { style?, classes? }, mechanics?: { scale?, powers?, stats?, hud?, ui? } }',
+    '    equipment?: { style?, classes? }, mechanics?: { scale?, powers?, stats?, hud?, ui? }, battles? }',
     '  patch ops are { op: \'set\' | \'remove\' | \'add\', path: \'/characters/hero/motion\', value } (JSON Pointer; no \'replace\').',
     '  A refusal names the field and the shape it wants.',
     '',
@@ -340,6 +342,36 @@ const quickShared = () => [
   'the book, with every page, review and gate (gameworld-guide). Several levels from a sentence: compose (gameworld-guide).',
 ];
 
+function battlesCard() {
+  return lines(
+    'THE BATTLES — party battles, turn by turn, laid on the book\'s levels: battles { party?, packs?, per?, boss?, foe?, rest?,',
+    '  random?, classes?, skills?, foes?, items?, rules? }. Absent: no battles (a turn-based cube asks for them: the',
+    '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
+    '',
+    `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
+    `        <cast id>: { class } }. Unnamed: the hero a fighter, those who join in turn ${JOINER_CLASSES.join(', ')}.`,
+    `        Classes: ${BATTLE_CLASSES.join(', ')}, or the world's own (classes). A member switches class on P, outside a`,
+    '        fight; each class keeps its own rank, points and skill tree; learned skills stay.',
+    `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
+    '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
+    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map; walk up to one to fight.',
+    'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
+    '        random fights on the trails, drawn from the stage\'s packs.',
+    'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
+    '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
+    'rules   { turns: rounds (every member picks, then all act by speed) | timeline (each acts when its gauge fills: the',
+    '        quick more often), defeat: fail (the level) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
+    'juice   what the moments feel like: { on: { <happening>: juice }, also?, <name>: [steps] } over the defaults (false:',
+    '        none); on: the most specific happening\'s juice plays, also: every happening\'s layers over it (weak, resist);',
+    '        steps puff, beam, shake (on the map), flash, jolt, pop (the window), hold, emit (a bus event any cue answers).',
+    '        Happenings: hit, crit, weak, element:<el>, skill:<id>, cast:<skill>, ko:<foe>, start:boss, victory … ; each',
+    '        beat also says rpg-on:<happening> on the bus, for the world\'s own systems. A skill\'s own: juice: { cast, land }.',
+    'A world whose intent fights turn by turn is laid with battles, written or not.',
+    'CARRIED: the party (levels, xp, classes, ranks, skills, gear) in the store\'s party slice, the bag (items, gear not',
+    '  worn, gold) in its bag slice, two potions to start.',
+  );
+}
+
 function quickCard() {
   return lines(
     quickHead(),
@@ -476,6 +508,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
+  ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight', battlesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins', storyCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];

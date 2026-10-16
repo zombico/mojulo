@@ -44,7 +44,7 @@ import { buildNav } from '../worlds/controllable/nav.js';
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
 
-export const LAID = Object.freeze({ fields: ['ground', 'stage'], drivable: ['ground'], loop: ['ground', 'stage'], circuit: ['stage'], cover: ['stage'], watchers: ['stage'], 'road-to-base': ['stage'], board: ['ground', 'stage'], reachable: ['stage'], arena: ['ground', 'stage'] });
+export const LAID = Object.freeze({ fields: ['ground', 'stage'], drivable: ['ground'], loop: ['ground', 'stage'], circuit: ['stage'], cover: ['stage'], watchers: ['stage'], 'road-to-base': ['stage'], board: ['ground', 'stage'], reachable: ['stage'], arena: ['ground', 'stage'], encounters: ['stage'] });
 export const SIGHT = 14;             // metres a watcher's sight is measured over (a sneak guard's sightRange)
 export const EYE = 1.275;            // a person's eye over its feet (the minds' collideHeight 1.7 × 0.75)
 export const SPACING = 12;           // metres a checkpoint keeps from the last

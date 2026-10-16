@@ -13,6 +13,67 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Party battles: turn-based combat with classes you can switch
+
+Turn-based combat was one hero against one foe (Attack, Guard, Flee). A world can now carry `play.rpg`: a party of
+up to four classed characters against encounters of several foes, fought in rounds. Every member picks a command,
+then everyone acts in speed order. The battle runs in place over the field, in the world's own UI guide.
+
+- **The battle kernel** (`lib/graph/playscape/rpg/kernel.js`) follows the stats kernel: a pure closure, emitted
+  into the page only when a world declares `play.rpg`, so a world without it keeps every byte. It covers Attack,
+  Skill, Item, Guard and Flee; elements (weak, resist, immune, absorb); critical hits and misses; poison, sleep,
+  silence and knockouts; buffs that last some rounds; and foes that use their own skills. The spoils are XP, gold,
+  class points and item drops. Its dice are seeded, so a fight replays the same way.
+- **Classes are switched, not fixed.** A member's level is their own, and their stats follow their current class.
+  Each class keeps its own class level and its own skill points. Skills are learned at a class level or bought on
+  that class's tree. Learned skills are kept for good, and a skill marked `carry` can be used from any class. A
+  class can open on a story flag. Outside battle, the party menu (P) switches classes and buys skills.
+- **Encounters** are visible foes on the map (walk up to one), optional random encounters by distance walked, or
+  any cue that emits `rpg-battle:<id>`. The outcome comes back on the bus (`rpg-won:<id>`, `rpg-fled:<id>`,
+  `rpg-lost:<id>`): a beaten foe falls on the map, and a wiped party fails the level (or retries the fight).
+- **Starter presets** (`lib/graph/playscape/rpg/presets.js`): classes, skills and foes that a world can name
+  without defining them. A world's own definitions take their place.
+- **The game book lays it: `battles`** on a gameworld (`design_game({ world })`, card `gameworld-battles`). The
+  party is the hero and the cast who join it, each in a class. Packs of foes stand on the trails' beats, met in
+  order across the game and tougher further on, with an optional boss at the end. One foe figure is made for them
+  all. Each stage has a rest at its start (E restores HP and MP). Optional random encounters. It is not on the
+  quick path, which stays one simple goal: its one-on-one `goal: 'battle'` and `play.battle` are unchanged.
+- **The party is carried between levels.** The new `party` game mechanic keeps each member's level, XP, HP and
+  MP, class, class ranks and points, and learned skills in the store's `party` slice. The level loads them as it
+  starts and saves only what changed, after every fight, class switch, skill bought and rest.
+- **Gear per member.** One item per slot (weapon, armor, accessory), each adding its numbers to the member's.
+  Every class starts in its own gear, and the party menu's Equip tab wears what the bag holds. A class switch
+  takes off whatever the new class forbids.
+- **A timeline turn order** (`rules.turns: 'timeline'`) beside the default rounds. Each actor acts when their
+  gauge fills at their speed, so the quick act more often. The window shows who comes next.
+- **The bag is carried too.** On the book path, items, unworn gear and gold travel in the store's bag slice
+  (two potions to start).
+- **A world whose intent fights turn by turn** (the jrpg genre, or `power.combat: turn-based`) gets battles
+  without writing `battles`.
+- **Menus use the shared menu controls**, so they work with a gamepad in its printed layout. The pad's select
+  button opens the party menu.
+- **The `quest` border flavor**: the classic RPG window, a deep blue gradient plate with a white double rule.
+
+### Battle juice: what a fight's moments feel like, composed and extendable
+
+Party battles now have juice by default: a blow jolts its row and sparks on the foe, a crit flashes, shakes and
+holds, and fire bursts on the foe on the map. A defeated foe smokes, and a boss arrives with a red flash and a
+pause. All of it is data in `play.rpg.juice` (`lib/graph/playscape/rpg/juice.js`), and a world composes and
+extends it without code.
+
+- **Steps**, a closed set: `puff`, `beam` and `shake` on the map (at the target's or the actor's figure); `flash`,
+  `jolt` and `pop` in the window; `hold` (the beat lingers); and `emit` (a bus event any cue answers).
+- **Juices are named lists of steps** that can name other juices. Presets ship (`JUICE_PRESETS`), a world's own
+  juices replace or add to them, and a cycle is refused with its path.
+- **Bindings to the fight's happenings.** `on` plays one juice per beat, the most specific happening winning
+  (`skill:<id>`, `crit`, `element:<el>`, `hit` …). `also` layers every matching happening on top, which is how a
+  weakness's emphasis sits over the element's burst. A skill can carry its own `juice: { cast, land }`, and
+  `juice: false` turns it all off.
+- **Extendable in-game.** Every beat says `rpg-on:<happening>` on the bus for each of its keys, so a world's cues
+  can answer a crit, a `ko:drake` or an `element:fire` with anything a cue can do.
+- During a fight the world's clock keeps running for its moments alone (entities stay frozen), so puffs, beams and
+  shakes play out on the map. The moment and beam channels are emitted for the kinds the juice uses.
+
 ### Loop fixes: what a run of the main game loops found, fixed at the root
 
 A test agent ran the main game loops headless and the demos came out bad. Each finding is fixed where it starts.

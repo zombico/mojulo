@@ -214,6 +214,13 @@ describe('stylized borders: elements composed, flavors as named sets, pixelated 
     expect(() => readPixel(5)).toThrow(/0, 2, 3, 4/);
   });
 
+  it('the quest window: a shaded plate under a double rule, in the guide\'s tokens only', () => {
+    const css = borderCss({ elements: readBorder('quest').elements, plate: 'solid' });
+    expect(css).toMatch(/linear-gradient\(180deg,color-mix\(in srgb,var\(--moj-accent2\)/);
+    expect(css).toContain('border:4px double var(--moj-line)');
+    expect(css).not.toMatch(/#[0-9a-f]{3,6}\b/i);
+  });
+
   it('a flavor sets the face, its dials and a tint, each sourced; the operator\'s pins and tint: false win', () => {
     const g = resolvePlayUi(WORLD({ parts, ui: { border: 'mech-cockpit' } }, { tone: 'noir' }), seeded).play.ui.guide;
     expect(g).toMatchObject({ font: 'display', border: { flavor: 'mech-cockpit' }, dials: { motion: 'stepped' } });

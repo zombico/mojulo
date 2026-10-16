@@ -30,8 +30,9 @@ export const POWER = Object.freeze({
         // combo's juggle and every AI's attack stay on the web
         melee: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
         ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
-        // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars
-        'turn-based': { status: 'built', godot: false, lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
+        // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars;
+        // 10-16: play.rpg (playscape/rpg) is the party's: a kernel the page runs, rounds in speed order
+        'turn-based': { status: 'built', godot: false, lowers: 'lib/graph/playscape/rpg/rpg.js', note: 'a party of classed characters (classes switched, each with its own rank and skill tree) against packs of foes in rounds: attack, skills, items, guard, flee; elements, statuses, xp, levels, gold and drops (play.rpg); the one-on-one play.battle remains' },
         // built 10-15: a one-on-one fight from the side as its own frame simulation (versus/versus-core.js: 60 Hz, integer
         // millimetres; normals, specials, supers, throws, blocking, rounds), played by two local players or the CPU. A
         // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js). Web only.

@@ -41,6 +41,7 @@ import { questProgram } from './quests.js';
 import { withPartyCues } from './party.js';
 import { withRoutineCues } from './routines.js';
 import { withBattle } from './battles.js';
+import { withRpg, lowerRpg } from '../rpg/rpg.js';
 
 export const UI_ITEMS = Object.freeze(['guide', 'motion', 'parts', 'layout', 'wireframes']);
 const ROLLED = ['guide', 'motion'];
@@ -222,7 +223,7 @@ export const uiPending = (ui) => UI_ITEMS.filter((k) => !(isObj(ui) && isObj(ui.
  */
 export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   // chapters (chapters.js) and scenes (scenes.js) lower to cues, so the play below reads them as its own
-  const play = withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(manifest && manifest.play)))));
+  const play = withRpg(withBattle(withRoutineCues(withPartyCues(withSceneCues(withChapterCues(manifest && manifest.play))))));
   if (!isObj(play)) return null;
   phasesOf(play);
   // the cues (cues.js) and the menus' picks (menus.js) ride beside the parts' rows: their hud rows after, their bus
@@ -232,8 +233,8 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   const cues = lowerCues(play, { anchors: [...spotAnchors(play), ...stood], player, places }) || {}, menus = lowerMenus(play, { places }) || {};
   const hud = [...lowerParts(play.parts, phasesOf(play)), ...(cues.hud || []), ...(menus.hud || [])];
   const out = hud.length ? { hud } : {};
-  const stats = lowerStats(play);
-  const vars = { ...(stats ? stats.vars : {}), ...(cues.vars || {}), ...(menus.vars || {}) };
+  const stats = lowerStats(play), rpg = lowerRpg(play);
+  const vars = { ...(rpg ? rpg.vars : {}), ...(stats ? stats.vars : {}), ...(cues.vars || {}), ...(menus.vars || {}) };
   if (Object.keys(vars).length) out.vars = vars;
   const chapters = chapterBus(play) || {}, flags = sceneBus(play) || {};
   if (flags.vars) out.vars = { ...(out.vars || {}), ...flags.vars };
@@ -248,7 +249,11 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   // (a stat op rides the same ctrl queue; the stats kernel takes it, so it alone needs no cast)
   const castOn = (r) => (r.do === 'ctrl' && !(r.op in STAT_OPS)) || (CAST_WHEN[r.on] && r.match && 'entity' in r.match);
   if (stats) out.stats = stats.stats;
+  if (rpg) out.rpg = rpg.rpg;   // the battle kernel's cfg: the page's rpg channel (scene/channels/rpg-channel.js)
   if ((out.reactions || []).some(castOn)) out.cast = true;
+  // a battle whose juice puffs, flies or shakes on the map hands its ops to the characters, as a cue's would
+  const fx = rpg && rpg.rpg.juice.fx;
+  if (fx && (fx.puffs.length || fx.shake || Object.keys(fx.beams).length)) out.cast = true;
   // the looks its statuses wear, by status name (the first a name is given wins; the laws say when two differ)
   const looks = {};
   for (const t of [...readCues(play).flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))]) if (t.kind === 'cast' && t.op === 'status' && !looks[t.is]) looks[t.is] = t.look;
