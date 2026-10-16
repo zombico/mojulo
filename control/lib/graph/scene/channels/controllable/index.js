@@ -9,6 +9,7 @@ import { suitShadowBlock } from './suit-shadows.js';
 import { buildControlsKernel } from '../../../controls/controls-kernel.js';
 import { SCHEMES } from '../../../controls/schemes.js';
 import { DEVICES } from '../../../controls/devices.js';
+import { followPullIn } from './follow-pull-in.js';
 
 // In-page script: the CONTROLLABLE channel — the unified "control a thing in a world" primitive
 // (controllable-world.plan.md). One model (entities = transform + rule + body; the camera is an
@@ -1342,6 +1343,7 @@ function __syncEntity(e, dt) {
 // filter, so it collides on level geometry but never on suit bodies.
 const __camRay = new THREE.Raycaster();
 let __camCd = 1;   // current eye distance as a fraction of the full follow distance (1 = no pull-in)
+const __followPullIn = ${followPullIn.toString()};
 function __driveCamera(dt) {
   const c = __world.camera; if (!c) return;
   const p = c.transform.pos;
@@ -1364,8 +1366,12 @@ function __driveCamera(dt) {
         if (isOwn) continue;   // never pull in on an entity body (suits) — world geometry only
         hitD = hit.distance; break;   // nearest world surface between subject and eye
       }
-      const skin = 3;   // stand-off so the near plane never poked through the blocking wall
-      const target = Math.max(0.15, Math.min(1, (hitD - skin) / full));
+      // the stand-off and the floor are the subject's own (follow-pull-in.js): its far side across the ground from the
+      // look point (its collide volume, capsule or body radius), its capsule height, and the near plane kept off it
+      const tg = __world.byId[c.rule.target], tb = (tg && tg.body) || {};
+      const lead = tg ? Math.hypot(look[0] - tg.transform.pos[0], look[1] - tg.transform.pos[1]) : 0;
+      const rad = (tg && tg.collideVol && tg.collideVol.a) || (tg && tg.rule && tg.rule.collideRadius) || (tb.egg ? tb.egg.a : tb.radius) || 0;
+      const target = __followPullIn(full, hitD, lead, Math.hypot(ux, uy), rad, (tg && tg.rule && tg.rule.collideHeight) || 0, camera.near);
       // pull IN instantly (never flash the wall); ease OUT so leaving cover doesn't snap the framing.
       if (target < __camCd) __camCd = target;
       else __camCd += (target - __camCd) * (1 - Math.exp(-6 * (dt || 0)));

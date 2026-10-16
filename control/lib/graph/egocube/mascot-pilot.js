@@ -8,8 +8,10 @@
  *   stride   the ground one cycle of the run covers at the game's speed: the gait's travel (mascot-gait.js), lengthened
  *            so the cycle never plays faster than MAX_CYCLES a second (past that its feet skate, as a cartoon's do)
  *   capsule  its height, its head's half-width (the widest part of a mascot is its head), no wider than half its height
- *   camera   the follow camera framed on it: a person's distances times its height over a person's (never under
- *            CAMERA_MIN of them), looking at its head; a first-person eye at its eyes
+ *   camera   the follow camera framed on it, looking at its head. One smaller than a person plays in a person's world
+ *            and keeps a person's distances, so it stands small in the frame with the world round it (the page's
+ *            stand-off shrinks with its capsule height, controllable/follow-pull-in.js); a taller one, a person's
+ *            distances times its height over a person's. A first-person eye at its eyes
  *   egg      the hit egg round it (a body a shot or a blow finds)
  *
  *   isMascotPlan(plan)                  → a stored plan a mascot was minted from
@@ -22,7 +24,6 @@ import { mascotGaits } from './mascot-gait.js';
 const r3 = (x) => Math.round(x * 1000) / 1000 + 0;
 export const PERSON_HEIGHT = 1.7;
 export const MAX_CYCLES = 4;
-export const CAMERA_MIN = 0.45;
 /** a person's follow camera (playscape/player.js): what a mascot's is scaled from */
 const FOLLOW = Object.freeze({ dist: 5.5, height: 2.4, lookH: 1.1, lead: 1.5 });
 
@@ -34,7 +35,7 @@ export function mascotPilot(plan, { speed = 4 } = {}) {
   const has = (c) => !!plan.clips[c];
   const clips = { forward: 'run', idle: 'idle', turn: 'walk', strafe: 'run', ...(has('leap') ? { leap: 'leap', boost: 'leap' } : {}), ...(has('squat') ? { squat: 'squat' } : {}) };
   const stride = r3(Math.max(gaits.run.travel, speed / MAX_CYCLES));
-  const s = Math.max(CAMERA_MIN, h / PERSON_HEIGHT);
+  const s = Math.max(1, h / PERSON_HEIGHT);
   return {
     height: h, clips, gaits,
     rule: { stride, collideRadius: r3(Math.min(h / 2, Math.max(0.12, M.headR))), collideHeight: r3(h) },
