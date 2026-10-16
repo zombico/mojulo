@@ -231,6 +231,216 @@ no store SDK, holds no app ID and uploads nothing; the same seam serves Steam, G
   `provenance.json` of which generators made what, and the recipes kept out of the packaged app.
 - `docs/desktop-handoff.md` says what mojulo guarantees and what the developer owns, with Steam as the worked example.
 
+### Fighting game: a side-view versus fighter on composable rails
+
+A one-on-one fighter in the Street Fighter line (a 2D fight plane, local two players) as rails a designer composes
+from, in `lib/graph/versus/`. The fight is its own pure simulation, not controllable rules. Every fighter in a game
+is a character designed by the character loop (an Egocube sheet made into one with `create_character`), fought in
+its own body on an arena; the stick figures are the simulation's own dummies, drawn only where no body is at hand.
+
+- **A quick game that fights** (`design_game({ quick: { goal: 'fight', roster?, arenas?, rounds?, timer?, rules? } })`):
+  the run makes the fighters (below), the arenas and one `kind: 'game'`, `engine: 'versus'` row, played at
+  `/api/sketches/<ref>/game` and exported by `export_game` as one `game.html`. A fight is seen from the side and takes
+  no hero, trail, building or ride.
+- **Fighters designed by the character loop** (`versus-sheet.js`). A roster entry is the sheet that designs a
+  fighter (an archetype word, a brief in words, or `{ brief?, facets?, seed?, archetype?, role?, build?, age?, name?,
+  color? }`, the Egocube's words) or `{ hero: { ref } }`, a character already made; with no roster, four sheets, a
+  frontline, a flanker, a caster and a support of four different archetypes. The run rolls each sheet as an
+  `egocube` row and makes its character from it through `create_character`, so every fighter is revised the way any
+  character is (`update_character`), and a rerun keeps a fighter edited by hand (a changed sheet remakes one that
+  was not, in its own row). The fight is read off the same sheet, with a reason for each choice: the role is the
+  style (the frontline grapples, the flanker rushes down, the ranged and the caster keep the screen, the rest are
+  all-rounders), the archetype gives a signature word and its shadow, as motivation turns it, another (the hero's
+  reversal, the bully's heavy body, the magician's fireball, the tyrant's grab), the build makes it heavy or light
+  over the drive's word, a child is light; the HUD names the archetype, or the shadow it has become. The entry's own
+  fight words (`style`, `signature`, `weapon`, `library`, `normals`, `specials`, `super`, `tune`) lay over the
+  reading. The game stores its characters by ref; the fight is read from the sheet at the revision the character
+  was made from. `design_game` and `update_sketch` answer with each fighter's reading and law stamp. A stick fighter
+  (a fight style where the character belongs) and a game without arenas are refused by name; a sheet whose people
+  is below the hero door (a lineage the creature loop builds) is refused until the creature bodies come.
+- **Scapeshift arenas: the fight in 3D on a stage** (`versus-arena.js`, `versus-arena.client.js`,
+  `scene/channels/versus.js`). An arena is a `stage` recipe of a few words: one long, shallow room on a stage kit
+  (the plaza, the nave, the crypt, the lab, the catacomb), its camera side left open, the fight plane six metres in,
+  so the camera stands on the floor square to it. The World page's opt-in `versus` channel fights on it: the stick
+  figures as solid limbs with an ink hull, the camera keeping both fighters in frame and stopping at the walls, the
+  health, timer, banners, sparks and fireballs drawn over the picture. A kit that stands a set piece at the centre
+  (the plaza's fountain) is undressed so the floor is clear. Absent, the channel adds nothing to any page (the
+  emission pin holds for every other fixture; a `versus` fixture is pinned beside them).
+- **Stands: a set's audience** (`era/stands.js`, the stage's `stands` key, opt-in): tiers along the wall across
+  from a room's one open side, a barrier in front, and people on them facing the open side, built only where the
+  camera sees. Each person is the city's pedestrian at its smallest detail, baked once per pose, build and dress and
+  stamped as instanced repeats with a tint (`shade` sets the crowd back behind what plays in front). The figures
+  gain two cheering poses. Absent, a stage is as it was.
+- **Arenas as levels.** The quick fight makes its arenas (`arenas: [{ id, name?, kit?, look?, width?, depth?,
+  height?, crowd? }]`, a plaza and a nave if none are named; a fight always has them) as stage worlds
+  beside the game, and the game's stage select picks among them. The front hosts the chosen arena's World page in a
+  frame and speaks the game shell's own level wire to it (ready, init with the picks, outcome back); an arena opened
+  on its own fights its first two fighters against the CPU. A tap shorter than a slow frame still counts.
+  Hosted, an arena fights by the game's rules as they are now, whole (a system dropped from the game stays
+  dropped), and only its walls are its own; the rules and roster it was made with are for the arena alone.
+- **Extending a spawned game by editing its recipe** (no code; `update_sketch` now gates a versus game by compiling
+  every fighter and reading the rules, where it used to refuse it as a level game). A roster intent carries a
+  `weapon`, its own `library` of specials and supers (the shipped record's shape, `from` a shipped one, built from
+  primitives: projectile, travel, airborne, invuln windows, armor, a low or high profile that clips the hurtboxes,
+  a riposte that catches and answers, hits, knock, command throw), slot overrides and a `tune` on any move (frames,
+  damage, intended advantage, guard, knock; the stun is still solved from the advantage). The full rules block
+  passes through, with opt-in `systems` (parry, burst, guard crush); absent, the fight is the same to the byte.
+  The gate reads everything the fight reads: a special's motion (any numpad digits), the cast, the body dials and
+  the movement (whole numbers in range), and a tune key the move would never read (a throw's chip, a fireball's
+  guard, an airborne special's recovery) is refused by name rather than ignored; `hits` on a normal, `adv` on a
+  super and a throw's `meter` (a command grab gains its own 50, no longer the throw's 80) now do what they say.
+  `update_sketch` answers with each fighter's law stamp (`laws`: held, of, broken), advice that refuses nothing,
+  and the replay fingerprint covers the whole state.
+- **A character's body as a fighter's** (`versus-character.js`): a game names its fighters as characters (`{ id,
+  hero: { ref }, style?, signature?, … }`). The body is the character's, measured off its own skeleton into the
+  fight's body dials (height, arm, leg, torso, girth), calibrated so the default male hero is the fight's canonical
+  body, so a long-armed character reaches further and its boxes and law stamp follow. Its top's colour is its colour
+  unless the entry names one. The game stores the ref, never the measure: the fighter follows the character's
+  edits, measured again where the game is served (the play route, `export_game`, an arena's World page, the
+  `update_sketch` gate and `design_game`'s mint), and a ref the store does not hold as a character is refused by
+  name. Where no body is at hand (the flat page) the stick figure draws it in its proportions and colour.
+- **The fighter in 3D** (`versus-figure.js`, `versus-arena.client.js`). On an arena every body is posed in the
+  round on the vajra's skeleton (its joints and frame): the trunk and the head along the sim's lines, the hands and the
+  feet placed by a two-bone solve on the sim's own points, so its side view is the sim's figure (to a millimetre at
+  every frame of every move and state, whichever way it faces) and what hits is where the boxes are. Around that it
+  stands as the genre does: bladed, the hips and more the chest turned toward the camera with the lead on the far
+  side, the elbows down and out, the knees forward, the lead hand before its shoulder and the rear by the chin; a
+  strike turns the body back as far as the limb needs (a rear straight squares the shoulders, a roundhouse turns the
+  hips over); a body falling or down lies square. A stick fighter is drawn on it as inked limbs with depth, its far
+  side darker. A character's own body rides the same figure: an arena whose roster has a character carries its rig
+  once (its layered rig's bones and rigid parts, no clips), and each bone rides its segment (pelvis, torso, neck, head,
+  upper arm, forearm, thigh, shin, foot; a finger its forearm, a fold its lower limb, a tail the pelvis), turned by the
+  segment's frame on the character's own skeleton so every joint stays closed. Its colours are relit by the arena's
+  key as it turns (the rest light the pack baked in taken back out by each face's rest normal) and it is inked. A
+  game hosting the arena sends which pick is a character; one the arena has no body for (a roster grown since it was
+  made) is the stick figure. Without a character, an arena carries no bodies. The sim's boxes still come from its own
+  figure; moves authored in the vajra's words come next.
+- **Reactions: how a body takes what happens to it** (`versus-react.js`). The sim now records what a body is
+  reacting to (`rx`: the kind, where the blow landed from the box that hit against the body's own, how hard by its
+  damage, a counter), and the page turns it into a timed clip over the state's own length: a high hit snaps the head
+  back and flings the arms, a body hit folds the trunk over the blow, a low one buckles the lead knee and drops the
+  hips, a crouching one jolts the shoulders; heavier blows and counters carry further and hold longer, the impact
+  struck at once and held through the hit's freeze, every one home by the end of its stun. A broken guard is blown
+  open then sways; a block rocks back into the guard. In the air the body falls by what put it there (launched it
+  tumbles back, knocked down it jack-knifes, swept its legs go out from under it, thrown it is turned over, hit in
+  the air it hangs limp), resting its lowest point on the sim's height so it comes down onto the floor; it lands with
+  a slam and a bounce, lies on its back, rolls to a side and pushes up to a knee, and rises from the knee; a broken
+  throw hops back, a body being thrown is held, struggling. The whole body pitches about its pelvis for tumbles and
+  lying (`pitch`, `lie`, in the side view too), and the round body turns further (`twist`, `spin`, `bank`). Every
+  state change eases in from the body drawn before it (the joints blend, not the angles, over a few steps; a second
+  hit in a stun starts it over), so nothing pops. The sim's boxes are unchanged: a reacting body is hurt where its
+  stance's boxes are; the replay fingerprint covers the new record.
+- **The fighting stance: a body shown to the screen** (`stance: { open, hips, tilt }`, on the fighter recipe and a
+  roster entry). A fighter does not stand square to its opponent: its chest is opened toward the camera (`open`,
+  degrees), its hips less (`hips`), and its trunk leans onto the back hip so the shoulder line tilts (`tilt`), so a
+  part of the torso reads in the silhouette. Each style has its own (a rushdown opens widest and leans in, a grappler
+  stays square and low), and the sheet moves it with a reason each: confidence opens the chest, weight plants the
+  hips and sits into the back hip, energy and poise lean it, a brute's or a stout build's stays shut, a lithe one's
+  opens. The 3D figure still matches the sim's side view: the chest and hips turn back, and the lean straightens,
+  only as far as the limbs need to reach where the sim put the hands and feet. Walking forward rolls the shoulder
+  into the step and sways the trunk, walking back turns it away; the idle guard breathes in the same turn.
+- **Bodies that stop short of each other** (the push boxes). On the ground a push box is the trunk as the round body
+  stands it: from the pelvis through the shoulders to the head, as far forward as the guard leans it, thickened by
+  the stance's opened chest (the lead shoulder forward, the rear one back), so two characters walked into each other
+  stop with their trunks a few centimetres apart instead of through each other (they overlapped by about a fifth of a
+  metre; a test poses the characters' own meshes where the sim leaves them). In the air the push box is the column it
+  was, so jumps still cross over. A throw reaches the same arm's length past the chest, a wall stops the box itself,
+  and pushback at a wall reads the body's back. The drawn bodies ease over more steps when their joints have far to
+  go, a second blow that throws a body another way starts its ease over, and a new round is a cut.
+- **Strikes with weight** (`versus-library.js`, `versus-compile.js`). A move's keys are now load, strike and `follow`:
+  the strike accelerates into contact (slow out of the load, fastest at the hit), and after the active frames the
+  body is carried on past contact to its follow before it comes home (a cross carries the shoulder over, a karate kick
+  re-chambers, a Thai kick turns the body through). The kinetic chain is keyed on the round body: the hips (`sway`)
+  then the chest (`twist`) turn into the blow, and two new 3D-only channels, `hands` and `feet` (each hand's and
+  foot's depth as a share of its own shoulder's or hip's, 0 the centre line), swing a hook across to the centre and
+  pull a karate rear fist back to the hip. The side view, and so every box, never sees them. The shared families gained
+  their follow-throughs and turns. The 3D figure meets a turn its limbs cannot follow with the nearest turn that
+  reaches, either way, so the arena still draws every hand and foot where the sim's boxes are (a sweep over every
+  frame of every family holds it).
+- **Every strike moves as a body** (`strikeBody`, `versus-compile.js`): a pass every standing normal goes through, so
+  each of them moves the whole body, not a limb. In a kick the knee leads: the load is raised to a chamber at least
+  the strike's height with the shin folded, and after contact the leg re-chambers before the foot comes down (a kick
+  that swings `through`, the Thai kick and the meia-lua, does not; a `straight`-leg kick, the axe kick, rises with
+  the knee locked). The trunk leans away from a high kick with the head kept on the target. The weight comes over a
+  standing leg that gives at the knee, its foot under the hips. The hips turn into the kick, a lead leg opening the
+  far hip forward and a rear leg turning them over, and a rear-leg kick swings its arm down against the leg. In a
+  punch the body coils back in the load, and at the strike the hips drive forward and down onto a bending lead
+  knee, a rear hand bringing the back knee in and its heel up. The lead-leg kicks had their hips turned the wrong
+  way; they open now. The savate kicks are three distinct paths: the fouetté whips round high to the head, the
+  chassé drives level from a knee pulled to the chest, and the revers chambers through its turn. A high kick comes
+  home through a `land` key (the knee down and folded before the foot steps back into the guard), and a kick swung
+  `through` folds after it. Crouching strikes stay low: a low kick or a sweep raises the knee before the shin swings
+  and folds it again after, keeps the trunk over it, sinks the standing knee and puts the far hand to the floor; a
+  crouching punch drives the hips. Jumping kicks tuck both knees, and air punches turn the shoulders into the blow.
+  The figure stands on its lowest foot, so a swinging leg that reached under the standing foot used to lift the
+  whole body off the floor mid-kick; the sweep now holds that no kick of any family ever does, and that every
+  tradition's guard and crouch stand on both feet (the capoeira ginga's back foot was floating).
+- **Fighting traditions** (`versus-traditions.js`, a page module; `tradition` on a recipe, an intent or a roster
+  entry). Boxing, karate, taekwondo, Muay Thai, kung fu, capoeira, savate and brawling. Each is a guard (where the
+  hands are, how low and wide it stands, its crouch and walk), an idle rhythm (a boxer's bounce on bent knees, the
+  ginga's rock), its stance against the style's (a Thai boxer square, a taekwondo player side-on), and its own punches
+  and kicks in every slot: the cross, the lead hook and the shovel hook; the kizami-zuki, the gyaku-zuki with its
+  hikite and the re-chambering mawashi-geri; the cut kick, the side kick, the axe kick (an overhead) and the tornado
+  kick; the teep, the elbow, the Thai round kick, the low kick and the flying knee; the palm strike, the tiger claw,
+  the crane kick and the butterfly kick; the bênção, the martelo, the meia-lua de compasso, the cabeçada and the
+  rasteira; the fouetté, the chassé and the spinning revers; the headbutt, the body blow, the haymaker, the shoulder
+  charge and the elbow drop. Every family of every tradition is in one namespace, so any fighter may take any move
+  in a slot. A spinning move turns its back in the load and completes its turn at contact, so the hit lands square.
+  A family may push further, hit harder or carry the body in (`push`, `damage`, `travel`). The solver fills the slots
+  from the tradition, swaps a signature's kicks or punches among the tradition's own moves (and says when it throws
+  none to swap), finds its anti-air, and moves the stance its way; each is said in the notes. A tradition word alone
+  is a roster entry (a sheet rolled to fight that way). The page stands a fighter in its tradition's guard, crouch and
+  walk, its moves start and come home there, its idle boxes are measured on it, and its reactions come home to it.
+  Without a tradition a fighter compiles to the genre's own guard; nothing is added to it. Every tradition holds
+  its fighter's laws and fights a CPU match in which blows land both ways (`versus-traditions.deep.test.js`).
+- **Weapons** (`WEAPONS`: knife, sword, katana, axe, spear, staff, claws, or dials): a blade on the grip hand that
+  its strikes hit with. The blade is disjointed (no hurtbox while it swings) and pays for it: its length is taxed
+  in frames, mostly recovery, the arm and blade stay out through a whiff's recovery (hurtable at the tip unless
+  `hurt: 'none'`), and two blades that meet clash. A law, `disjoint-pays`, flags a blade that pays nothing. Drawn in
+  2D and 3D.
+- **The playable page** (`versus-page.js`, `versus-play.client.js`, `versus-runtime.client.js`): one self-contained HTML file, the pure modules
+  inlined. Title, mode select (versus, versus CPU at four levels, training, CPU vs CPU), character select where each
+  player picks a fighter and a scheme, stage select, rounds with ROUND / FIGHT / K.O. / TIME, mirrored health bars,
+  meter, combo counter, the result (rematch, character select, mode select) and a continue after a loss to the CPU.
+  Two players share a keyboard (WASD + J K L U I; arrows + 1 2 3 4 5) or use two gamepads. The sim steps at a fixed
+  60 Hz. B draws the solved boxes; training shows the last move's frame data and a dummy that stands, crouches,
+  blocks, jumps or fights. Without arenas the fight is drawn flat on a backdrop with a crowd band. The overlay keeps
+  the match's time, not the screen's: banners, toasts (COUNTER, PARRY …), the super's dimming, the shake, the sparks
+  and the trailing red of a health bar count the sim's steps, so they last as long at 144 Hz as at 60, and hold still
+  through a pause.
+
+- **The fight as a function of two pads** (`versus-core.js`): `stepVersus(state, [pad1, pad2], ctx)` at 60 Hz in
+  integer frames and millimetres, no clock or dice, so a pad log replays a match to the byte and a snapshot is a
+  clone. Walking, crouching, jumping with prejump, dashes, auto-facing, push boxes, walls and the screen's span;
+  strikes hitbox against hurtbox for both players at once (trades), blocking by holding back (a low crouched, an
+  overhead stood), chip, pushback that the attacker takes at a wall, hitstop, counter hits, damage scaling,
+  knockdowns, launches and juggles, wake-up, throws with a tech window, command throws, fireballs that trade with
+  each other, invincibility, meter, supers with a freeze, and rounds (intro, timer, KO, time over, best of three).
+- **The move record** (`versus-library.js`, `versus-compile.js`): every move is one record (what it hits with on the
+  rig, its poses guard → load → strike → guard, its startup / active / recovery, what it does on contact). Normals
+  are a family (jab, straight, hook, uppercut, front kick, roundhouse, knee, crouching jab and punch, low kick,
+  sweep, crouching uppercut, air punch, air kick, air stomp) at a strength (L / M / H); the designer writes the
+  intended advantage and the stun is solved from it. Hitboxes and hurtboxes are solved from the stick figure's
+  striking segment and body each frame (the limb's hurtbox is out while it is), so a longer arm reaches further with
+  the same key, and reach costs frames. Specials: fireball, the rising reversal, rush, spin, leaping overhead,
+  command grab, each at L / M / H; supers are their bigger selves.
+- **Buttons are not moves** (`versus-input.js`): a scheme reads buttons into a moveset slot, so every character plays
+  in every scheme and each player picks their own. Modern (L / M / H, Special + direction, Special + H the super,
+  Throw), classic (motions: 236, 623, 214, 22, 41236, 236236), simple (one attack button and an auto-combo). A
+  buffer keeps presses through hitstop.
+- **Intent → a character** (`versus-solver.js`): an archetype (all-rounder, rushdown, zoner, grappler), a cast and
+  signature words (kicks, punches, fire, reversal, grab, overhead, heavy, light) fill every slot, close the loop the
+  archetype leaves open (no reversal: an anti-air normal), and write down what each word did. A default roster of
+  four dummies is solved from one line each (`versus-roster.js`).
+- **The fighter in the cosmos.** The cube's `combat` gains `versus` (built, web only: `versus-core.js`), and a genre
+  probe, "Versus fighter" (side camera, an arena, versus combat), dry-runs makeable; a Godot export would lose its
+  side camera and its fight (`docs/tool-surface/hillclimb.md`).
+- **The machine gate** (`versus-laws.js`, `versus-match.js`, `versus-cpu.js`): laws on each fighter (the throw is
+  shorter than any poke, a fast jab exists, a jump is answered, an invincible special loses on block, a jump clears
+  the fireball, a fireball is minus on block, reach costs frames), and a deterministic CPU that plays the loop, so
+  the roster fights itself headless and reports win rates, the longest combo and the most a combo took.
+
+
 ### Tool consolidation: one door per intent
 
 What a user asks lands on one tool. A new capability is a routing card and an argument on the door that owns

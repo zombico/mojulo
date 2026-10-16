@@ -187,7 +187,7 @@ function menuModeLines(menu) {
 }
 
 function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryBank, desktop = false }) {
-  const modeLines = engine === 'pixelizer' ? [] : menuModeLines(manifest.menu);
+  const modeLines = engine === 'pixelizer' || engine === 'versus' ? [] : menuModeLines(manifest.menu);
   const lines = [
     `# ${manifest.title}`,
     '',
@@ -201,6 +201,7 @@ function buildReadme({ manifest, ref, hash, files, engine, figureBank, geometryB
     `- manifest sha256/16: \`${hash}\``,
     ...(engine === 'pixelizer'
       ? [`- engine: pixelizer (single-file 2D reducer game)`]
+      : engine === 'versus' ? [`- engine: versus (single-file side-view fighter; roster of ${(manifest.roster || []).length || 'the default'} fighters)`]
       : [`- levels: ${(manifest.levels || []).length} minted level worlds (one \`recipe/<ref>.json\` each)`]),
     '',
     '## How to play',
@@ -458,6 +459,22 @@ export async function exportGameHandler(input, context = {}) {
       files, total_bytes: totalBytes,
       note: 'Single-file reducer game — game.html plays anywhere, file:// included.',
       ...desktopResult(),
+    }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
+  }
+
+  // ── versus branch: a fighter's page is single-file too ──
+  if (manifest.engine === 'versus') {
+    const { emitVersusPage } = await import('@/lib/graph/versus/versus-page');
+    const { withCharacters } = await import('@/lib/graph/versus/versus-character');
+    await write('game.html', emitVersusPage(await withCharacters(manifest), { title: sketch.title }));
+    await writeRecipe('recipe/game.json', manifest);
+    await write('README.md', buildReadme({ manifest, ref, hash, files, engine: 'versus' }));
+    const totalBytes = files.reduce((n, f) => n + f.bytes, 0);
+    return withHandoff({
+      ok: true, ref, engine: 'versus', dir,
+      preview_url: `${outcomeUrlFor(ref)}game.html`,
+      files, total_bytes: totalBytes,
+      note: 'Single-file versus fighter: game.html plays anywhere, file:// included, two players on one keyboard or two pads.',
     }, context, { kind: 'page', name: 'game.html', path: path.join(dir, 'game.html'), dir, bytes: totalBytes, download_url: `${outcomeUrlFor(ref)}game.html`, recipe: 'recipe/' });
   }
 

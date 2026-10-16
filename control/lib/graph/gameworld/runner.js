@@ -33,13 +33,15 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
 import { isMascotPlan, mascotPilot } from '../egocube/mascot-pilot.js';
 import { seedOfRef } from '../beats/field-cue.js';
+import { rollEgocube } from '../egocube/egocube.js';
+import { fighterName } from '../versus/versus-sheet.js';
 import { solvePalette } from '../color-theorist/solve.js';
 import { gameTheme } from '../color-theorist/adapters.js';
 
@@ -195,6 +197,28 @@ function worldSteps(world, G, ref) {
  * Nothing waits: a quick game has no book to review. */
 function quickSteps(world, G, ref, lookup) {
   const Q = world.quick, steps = [];
+  // a fight is its own simulation (versus/): one game row, its roster solved where it plays
+  if (Q.goal === 'fight') {
+    // every fighter a character: a sheet (an egocube) made into one through the character loop, or one already made;
+    // then each arena a stage world the fight runs on (a level), then the game that picks among them
+    const title = G.name ?? G.id, seed = Number.isInteger(G.seed) ? G.seed : 1;
+    const roster = [];
+    for (const { over, roll, hero, ...own } of fightFighters(Q, seed)) {
+      if (hero) { roster.push({ ...own, hero, ...over }); continue; }
+      const sheet = rollEgocube(roll);
+      // a person takes the hero door; a people below it (a lineage) is the creature loop's, not a fighter yet
+      if (sheet.ancestry.door !== 'hero') throw new Error(`gameworld: quick.roster: '${own.id}' rolls a ${sheet.ancestry.id} body below the hero door: a non-human fighter comes with the creature bodies (not yet)`);
+      const sheetKey = `fighter-${own.id}-sheet`, key = `fighter-${own.id}`, sheetRef = childRef(ref, sheetKey), charRef = childRef(ref, key);
+      const manifest = { kind: 'egocube', roll }, name = own.name ?? fighterName(sheet);
+      steps.push({ key: sheetKey, ref: sheetRef, ready: true, order: { title: `${title} · ${name} (sheet)`, manifest }, print: fingerprint(manifest) });
+      steps.push({ key, ref: charRef, ready: true, order: { egocube: sheetRef, title: `${title} · ${name}` }, print: fingerprint({ roll }) });
+      roster.push({ ...own, hero: { ref: charRef }, ...over });
+    }
+    const arenas = fightArenas(Q, { title, roster }).map((a) => ({ ...a, key: `level-arena-${a.id}`, ref: childRef(ref, `level-arena-${a.id}`) }));
+    const levels = arenas.map((a) => ({ key: a.key, ref: a.ref, ready: true, order: { title: a.manifest.title, manifest: a.manifest }, print: fingerprint(a.manifest) }));
+    const game = quickVersus(Q, { title, theme: Q.theme ?? paletteTheme(G), arenas: arenas.map((a) => ({ ref: a.ref, name: a.name })), roster });
+    return [...steps, ...levels, { key: 'game', ref: childRef(ref, 'game'), ready: true, order: game, print: fingerprint(game) }];
+  }
   // `hero: { ref }` adopts a hero made with create_character: pinned to nothing (a quick game has no book), never made
   const adopted = isObj(Q.hero) && typeof Q.hero.ref === 'string' ? Q.hero.ref : null;
   const heroRef = adopted ?? (Q.hero ? childRef(ref, 'hero') : null);

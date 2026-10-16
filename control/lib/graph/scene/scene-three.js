@@ -51,7 +51,7 @@ import {
   physicsChannelScript, pickChannelScript, shadowDecalScript, skyDomeScript,
   specularChannelScript, splatChannelScript, spriteSfxChannelScript, marksChannelScript, normalizeMarks, shootChannelScript, shootSetScript, toonInkScript, walkersChannelScript, carsChannelScript, walkModeScript, waterMeshScript, liquidMeshScript, shallowsChannelScript, jetChannelScript, aquaPatchScript, wetSandScript, softGroundScript,
   rigPreviewChannelScript, drawLayersScript, drawLayerGroup,
-  strokeOverlayChannelScript,
+  strokeOverlayChannelScript, versusChannelScript,
 } from './channels/index.js';
 import { xrModeScript } from './channels/xr.js';
 import { statusElements, transitKinds } from './channels/status-channel.js';
@@ -210,7 +210,7 @@ function packTex(g) {
   return { pos: b64(new Float32Array(pos)), uv: b64(new Float32Array(uv)), c8: b64(new Uint8Array(col)), idx: b64(wide ? new Uint32Array(idx) : new Uint16Array(idx)), ...(wide ? { wide: true } : {}) };
 }
 
-export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null } = {}) {
+export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 1120, height: 780 }, title = 'mojulo world', bg = '#0e1014', inline = false, cdn = false, glow = true, light = null, sky = null, textures = {}, wireframe = false, walk = false, spin = false, hud = true, picks = [], tracers = [], planets = [], movers = [], comets = [], fields = [], surfaces = [], heatSpheres = [], starSurfaces = [], buildups = [], transports = [], deforms = [], raymarch = null, decollide = true, capture = false, signs = [], physics = null, actions = [], entities = [], camera = null, pilot = null, spectate = null, ai = null, colliders = null, breakables = null, breakPieces = null, hangar = null, match = null, shadows = null, smoke = null, wreckExplodes = null, tutorial = null, aiDifficulty = null, lock = null, commander = null, figures = {}, events = null, fog = null, ao = null, repeats = [], splats = [], audio = null, fx = null, effects = [], spriteSfx = [], marks = [], driveSurface = null, shoot = null, game = null, backdrop = null, walkers = [], cars = [], carMeshes = {}, signals = null, trafficLanes = null, trafficConstants = null, xr = null, toon = null, stream = null, haze = null, strokeOverlay = null, terrain = null, crystalLight = null, fire = null, metersPerUnit = null, cutouts = null, doors = null, items = null, shallows = null, wetSand = null, softGround = null, jets = null, jetLight = null, sway = null, flicker = null, motes = null, wetRoad = null, weather = null, tone = null, liveGrass = null, pack = false, soft = null, pixel = null , versus = null } = {}) {
   // a terrain world meshes its own ground in the page; the baked world faces it carries for exporters are not drawn
   if (terrain && terrain.K) faces = faces.filter((f) => f.group !== 'terrain-bake');
   // backdrop (opt-in, pure presentation): a page-background IMAGE behind a TRANSPARENT canvas
@@ -682,6 +682,7 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // envelope must stay observable for completability audits); absent game interpolates '' so
   // no-game worlds are byte-identical to today.
   const gameBlock = game ? gameChannelScript(game) : '';
+  const versusBlock = versus && !capture ? versusChannelScript(versus) : '';
 
   // controllable channel (opt-in, LIVE): the unified control primitive. Present when the manifest
   // carries `entities` (or a `camera` spec). When it owns a camera entity it disables OrbitControls.
@@ -899,7 +900,7 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
     sky: skyBlock + hazeBlock, water: blendBlock + waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
     splats: splatBlock, layers: layersBlock, toon: toonBlock, crystal: crystalBlock, metal: metalBlock,
-    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock,
+    fx: fxBlock, spriteSfx: spriteSfxBlock, marks: marksBlock, shoot: shootBlock, shootSet: shootSetBlock, audio: audioBlock, game: gameBlock, versus: versusBlock,
   };
 
   return `<!doctype html>
@@ -954,7 +955,7 @@ ${spin ? `  /* ?spin=1 is the EMBED read (a preview pane iframes this page): fil
 </style></head><body>
   <div id="wrap"><canvas id="c"></canvas>
     <div class="hud" id="hud"></div>
-    ${game ? '' : `<div class="hint">${hintText}</div>`}
+    ${game || versusBlock ? '' : `<div class="hint">${hintText}</div>`}
     ${hasPicks ? '<div class="mol-popup" id="molPopup" hidden></div>' : ''}
     ${hasSigns ? '<div class="moj-signs" id="mojSigns"></div>' : ''}
   </div>
@@ -1289,7 +1290,7 @@ ${channelRuntimeSection(chBlocks)}${walkersBlock}${rigPreviewBlock}${strokeOverl
 // channel stepped to t) instead of running the rAF loop — a deterministic still/thumbnail that doesn't
 // depend on how long the page has been open (and doesn't fight headless virtual-time budgets). Orbit
 // still works: the camera re-renders on control change. No ?t → the normal live loop, unchanged.
-${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''} }
+${fxNorm ? 'let stepFx = () => {};\n' : ''}${spriteSfxList.length ? 'let stepSpriteSfx = () => {};\n' : ''}${marksList.length ? 'let stepMarks = () => {};\n' : ''}${shootBlock ? 'let stepShoot = () => {}, __shClock = (t) => t;\n' : ''}${shootSetBlock ? 'let stepShootSet = () => {}, __shSetShot = 0, __shSetT = null;\n' : ''}${versusBlock ? 'let stepFight = () => {};\n' : ''}function __mojStep(t) { ${mojStepCalls()}${weatherBlock ? ' stepWeather(t);' : ''}${walkersBlock ? ' stepWalkers(t);' : ''}${rigPreviewBlock ? ' stepRigPreview(t);' : ''}${carsBlock ? ' stepCars(t);' : ''}${crystalLightBlock ? ' stepCrystalLight(t);' : ''}${doorsBlock ? ' stepDoors(t);' : ''}${shallowsBlock ? ' stepShallows(t);' : ''}${jetBlock ? ' stepJets(t);' : ''}${wetSandBlock ? ' stepWetSand(t);' : ''}${softGroundBlock ? ' stepSoftGround(t);' : ''}${fireBlock ? ' stepFire(t);' : ''}${fxNorm ? ' stepFx(t);' : ''}${spriteSfxList.length ? ' stepSpriteSfx(t);' : ''}${marksList.length ? ' stepMarks(t);' : ''}${shootBlock ? ' stepShoot(t);' : ''}${shootSetBlock ? ' stepShootSet(t);' : ''}${versusBlock ? ' stepFight(t);' : ''} }
 ${channelSetupSection('post-step', setupBlocks)}${fog ? `
 // ---- effects layer: volumetric fog composited over the rasterized world ----
 const __fogU = { uCamPos:{value:new THREE.Vector3()}, uCamBasis:{value:new THREE.Matrix3()}, uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uFov:{value:1}, ${fogExtras} };

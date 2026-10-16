@@ -16,6 +16,7 @@ import { normalizeShallows } from '../materials/shallows.js';
 import { resolveWorldAudio } from '../beats/beats-world.js';
 import { normalizeShoot, lowerShoot } from '../shoot/plan.js';
 import { shootSubjects } from '../shoot/subjects.js';
+import { versusArenaData } from '../versus/versus-page.js';
 
 const quad = (fill = '#888888', extra = {}) => ({ corners: [[0, 0, 0], [2, 0, 0], [2, 0, 2], [0, 0, 2]], fill, ...extra });
 const floor = (fill = '#445566', extra = {}) => ({ corners: [[0, 0, 0], [4, 0, 0], [4, 4, 0], [0, 4, 0]], fill, ...extra });
@@ -251,6 +252,8 @@ export const EMIT_FIXTURES = [
   ['fog-effects', { faces: [floor()], fog: FOG, effects: [EFFECT, EFFECT], capture: true }],
   ['audio', { faces: [floor()], audio: resolveWorldAudio({ soundtrack: SOUNDTRACK, wind: true, footsteps: true }) }],
   ['game', { faces: [floor()], game: GAME }],
+  // versus (a side-view fight on an arena): the fight block, its own frame step (`stepFight`), the camera owned
+  ['versus', { faces: [floor()], versus: versusArenaData({ plane: 2.2, half: 6, roster: [{ id: 'a', archetype: 'all-rounder' }, { id: 'b', archetype: 'grappler' }] }) }],
   // fx (game-ui-language.plan.md U2): standing states + one-shot gestures on entities by id.
   // No events here → the bus-wrap path stays inert (pins the no-__BUS branch); the with-bus
   // branch is pinned by kitchen-sink, which co-resides fx with events + controllable.

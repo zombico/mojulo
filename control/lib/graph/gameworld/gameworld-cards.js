@@ -19,6 +19,7 @@ import { UNDERLAYERS } from './hero-looks.js';
 import { AXES, VIBES } from './hero-vibe.js';
 import { IDIOMS, SYSTEM_KINDS, STAGES, TRAVERSAL_MOVES } from './actions.js';
 import { RAILS } from './adornment-kit.js';
+import { TRADITIONS as FIGHT_TRADITIONS } from '../versus/versus-traditions.js';
 import { CLASS_SLOTS } from './equipment.js';
 import { SCALE, EPOCH_LEVEL, GAINED, GEAR_STAT, GEAR_BY } from './mechanics.js';
 import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
@@ -284,6 +285,19 @@ const QUICK_LEVERS = {
   puzzle: () => ['  boulders: n (1..4, 2)   no climb, building or ride'],
   farm: () => [`  plots: n (1..12, 6), target: gold (10..500, 40), days: n (2..30, 6), folk: n (0..6, 2), farmhand: ${HERO_WORDS}   a clock: night falls`],
   battle: () => [`  foes: n (3), foe: ${HERO_WORDS}`],
+  fight: () => [
+    '  roster (1..12): every fighter a CHARACTER, designed by the character loop. A sheet (an Egocube: egocube card) the run',
+    '    makes into one: an archetype word, a brief in words, or { brief?, facets?, seed?, archetype?, role?, build?, age?,',
+    '    name?, color? }; or { hero: { ref } }, one made with create_character. The fight is read off the sheet (role the',
+    '    style, archetype and its shadow the signature, build heavy or light), the entry\'s own words over it: style',
+    '    (grappler | rushdown | zoner | all-rounder), signature, weapon, library, normals, specials, super, tune, and',
+    `    tradition (${Object.keys(FIGHT_TRADITIONS).join(' | ')}): how it stands and strikes, its punches and kicks in every`,
+    '    slot (a tradition word alone is a fighter: a sheet rolled to fight that way).',
+    '    Absent: four sheets, one per style. Revise a fighter with update_character; the fight follows on read',
+    '  arenas: [{ id, name?, kit?, look?, width?, depth?, height?, crowd? }] (1..8)   the stage worlds it is fought on in 3D',
+    '  rounds: n (1..3, 2) to win; timer: s (30..99, 99) a round; rules: { systems?: [parry | burst | guard], … } the sim\'s dials',
+    '  its own simulation, seen from the side: only theme and camera side beside these (no hero, trail, building, ride or run)',
+  ],
   shoot: () => [
     `  foes: n (4), foe: ${HERO_WORDS}   first person by default (or third-person); walls to take cover behind`,
     `  craft: ${Object.keys(CRAFT).join(' | ')}   a dogfight instead: waves: n of fighters, assist, airspace (as fly's); followed from behind`,

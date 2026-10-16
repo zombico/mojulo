@@ -629,6 +629,35 @@ describe('design_game quick', () => {
     expect(advice[0]).toMatch(/'catwalks' is not laid yet/);
   }, 240_000);
 
+  it('fight: each fighter designed by the character loop (a sheet made into a character) or adopted, fought in its own body on an arena', async () => {
+    const { heroRecord } = await import('./layered.js');
+    SketchRepository.create({ ref: 'mira', title: 'Mira', manifest: { kind: 'layered', hero: heroRecord({ cast: 'female', palette: { Top: '#2a8f6a' } }) } });
+    const quick = { goal: 'fight', roster: [{ id: 'kai', role: 'frontline', archetype: 'hero', facets: { motivation: 0.1 } }, { id: 'mira', hero: { ref: 'mira' }, style: 'rushdown' }], arenas: [{ id: 'plaza', kit: 'island-plaza' }], world: { id: 'duel' } };
+    const out = await designGameHandler({ quick, ref: 'du' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['fighter-kai-sheet', 'make'], ['fighter-kai', 'make'], ['level-arena-plaza', 'make'], ['game', 'make']]);
+    // the sheet is an egocube; the character it made records it
+    expect(stored('du-fighter-kai-sheet')).toMatchObject({ kind: 'egocube', sheet: { facets: { role: 'frontline', archetype: 'hero' } } });
+    expect(stored('du-fighter-kai')).toMatchObject({ kind: 'layered', hero: expect.any(Object), egocube: { ref: 'du-fighter-kai-sheet' } });
+    expect(stored('du-game').roster).toEqual([{ id: 'kai', hero: { ref: 'du-fighter-kai' } }, { id: 'mira', hero: { ref: 'mira' }, style: 'rushdown' }]);
+    // the readout: what the sheet chose for the fight and why, and each fighter's law stamp
+    const [kai, mira] = out.fight.fighters;
+    expect(kai).toMatchObject({ id: 'kai', character: 'du-fighter-kai', sheet: 'du-fighter-kai-sheet', laws: { held: expect.any(Number) } });
+    expect(kai.reads.map((r) => r.word).filter(Boolean)).toEqual(expect.arrayContaining(['grappler', 'reversal']));
+    expect(mira).not.toHaveProperty('sheet');
+    // the arena fights them in their own bodies
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('du-level-arena-plaza'));
+    const [K, M] = payload.versus.roster;
+    expect(K).toMatchObject({ character: 'du-fighter-kai', archetype: 'grappler', name: 'The Hero' });
+    expect(M).toMatchObject({ character: 'mira', archetype: 'rushdown', color: '#2a8f6a' });
+    expect(Object.keys(payload.versus.bodies).sort()).toEqual(['du-fighter-kai', 'mira']);
+    expect(payload.versus.bodies.mira.parts.some((p) => p && p.pos && p.col)).toBe(true);
+    // a rerun keeps what did not move; the character edited by hand is left as it is
+    const again = await designGameHandler({ ref: 'du', run: true });
+    expect(again.ran.filter((r) => r.key.startsWith('fighter-')).map((r) => r.action)).toEqual(['keep', 'keep']);
+    await expect(designGameHandler({ quick: { goal: 'fight', roster: [{ id: 'x', hero: { ref: 'ghost' } }], world: { id: 'nobody' } }, ref: 'nb' }))
+      .rejects.toThrow(/roster\[0\]\.hero\.ref 'ghost' is not a stored character/);
+  }, 480_000);
+
   it('says what is wrong', () => {
     expect(() => readQuick({ goal: 'win' })).toThrow(/goal is one of reach/);
     expect(() => readQuick({ goal: 'reach', pickup: 'coin' })).toThrow(/pickup belongs to the collect goal/);

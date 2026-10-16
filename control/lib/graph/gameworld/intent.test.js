@@ -26,6 +26,8 @@ describe('the genres and the suggestion', () => {
     expect(suggestGenres('a trench run in a starfighter: blow up the exhaust port of the battle station')[0].id).toBe('space-shooter');
     expect(suggestGenres('a dogfight between fighter jets over the mountains, shoot down the enemy planes')[0].id).toBe('air-combat');
     expect(suggestGenres('fly a glider through ring gates and land on the runway')[0].id).toBe('flight-sim');
+    // a fighter's words are not a fighter jet's
+    expect(suggestGenres('a street fighter style fighting game: a roster of four, special moves and combos')[0].id).toBe('versus-fighter');
   });
 });
 

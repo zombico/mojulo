@@ -32,6 +32,10 @@ export const POWER = Object.freeze({
         ranged: { status: 'built', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
         // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars
         'turn-based': { status: 'built', godot: false, lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
+        // built 10-15: a one-on-one fight from the side as its own frame simulation (versus/versus-core.js: 60 Hz, integer
+        // millimetres; normals, specials, supers, throws, blocking, rounds), played by two local players or the CPU. A
+        // quick game's goal fight; the World page draws it on a stage arena (scene/channels/versus.js). Web only.
+        versus: { status: 'built', godot: false, lowers: 'lib/graph/versus/versus-core.js', note: 'a 1v1 fighter from the side: a frame simulation of normals, specials, supers, throws, blocks and rounds, two local players or the CPU (quick goal fight), fought on a stage arena' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS' } },
