@@ -45,6 +45,7 @@ import { conceptOf, dressByConcept } from './concept.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { outfitLaws, ARCHETYPE_SHAPES } from '../polygonizer/outfit-plan.js';
 import { SEEDED_OUTFITS } from '../outfit/styles.js';
+import { SEEDED_ARMOR } from '../armor/styles.js';
 
 export const SHAPE = Object.freeze({ ruler: 'bell', sage: 'bell', magician: 'bell', caregiver: 'bell', innocent: 'bell', lover: 'needle', hero: 'wedge', explorer: 'wedge', outlaw: 'needle', jester: 'needle', everyman: 'column', creator: 'column' });
 export const HUES = Object.freeze({ ruler: [30, 300], sage: [36, 262], magician: [32, 288], hero: [40, 25], outlaw: [28, 150], caregiver: [52, 62], explorer: [44, 98], innocent: [82, 90], everyman: [44, 235], jester: [52, 335], lover: [46, 12], creator: [44, 192] });
@@ -100,32 +101,44 @@ export const eraKitOf = (sheet) => ERA_GEAR[sheet.setting?.era] ?? null;
 /**
  * THE ERA'S LOOKS: what a modern or future world's people dress as, so a crowd is a leather jacket, a suit, fatigues and
  * an operative's coat, not one cut. Each look is a seeded outfit card (outfit/styles.js) and how the role's kit sits in it:
- *   style    the card
+ *   style    the card; or `armor`, a seeded armour card (armor/styles.js: a hardsuit) worn over its bodysuit in place of
+ *            clothes and kit: a trooper's plates, a segmented power suit, heavy power armour
+ *   stylism  the silhouette the era draws it to (stylism/: the genre's vocabulary, a register, an outline): a modern world
+ *            grounded and boxy, a future one heightened and sleek
  *   owns     the garments whose tones are the look's own, never the world's (a leather jacket is black hide in any
  *            world; a suit is its suit's colour): the card's tones for them
  *   kit      how much of the role's ERA_GEAR it wears: 'full' all of it, 'light' no armour (no vest, kneepads or
- *            plates), 'concealed' nothing worn over the clothes but a satchel or wrist units (a suit, a long coat)
+ *            plates), 'concealed' nothing worn over the clothes but a satchel or wrist units (a suit, a long coat),
+ *            'armor' none (the hardsuit is the kit)
  *   vest     the vest's cut by role over the role's own (carrier, slick, rig, hardshell: outfit-plan.js)
  *   gear     the gear's colourway (the leather role: straps, pouches, a carrier, the boots): black, coyote, olive
  *   archetype, role   the leans that roll it (a weight per value; anything unnamed weighs 0.5)
  * Rolled once per person off the sheet's own seed and facets (eraLookOf), so a rank's members and a crowd vary.
  */
+// the eras' silhouettes (stylism/): a modern world GROUNDED, its shapes boxy and plain; a future one HEROIC, its shapes
+// sculpted and sleek, its detail rich
+// (a modern look with no outline keeps its own: the solver's column is a long coat, which a suit or fatigues are not)
+const MODERN = (silhouette) => ({ genre: 'modern', register: 'grounded', detail: 'considered', ...(silhouette ? { silhouette } : {}) });
+const FUTURE = (silhouette) => ({ genre: 'scifi', register: 'heroic', detail: 'rich', silhouette });
 export const ERA_LOOKS = Object.freeze({
   modern: {
-    biker: { style: 'biker', owns: ['Outer'], kit: 'light', gear: '#24201c', archetype: { outlaw: 4, jester: 2, explorer: 2, hero: 1.5 }, role: { flanker: 2.5, frontline: 1.5 } },
-    tactical: { style: 'tactical', owns: ['Bottom'], kit: 'full', gear: '#26282b', vest: { flanker: 'slick' }, archetype: { hero: 2, everyman: 2, ruler: 1.5 }, role: { frontline: 4, ranged: 3, flanker: 2, support: 1.5 } },
-    fatigues: { style: 'fatigues', owns: ['Top', 'Bottom'], kit: 'full', gear: '#6e6046', vest: { frontline: 'slick' }, archetype: { everyman: 3, caregiver: 2, hero: 1.5 }, role: { support: 3, frontline: 2.5, ranged: 2 } },
-    suit: { style: 'suit', owns: ['Outer', 'Top', 'Bottom'], kit: 'concealed', gear: '#141110', archetype: { ruler: 4, sage: 2, magician: 2, lover: 2 }, role: { controller: 3, 'non-combatant': 2, support: 1 } },
-    operative: { style: 'operative', owns: ['Outer', 'Top', 'Bottom'], kit: 'concealed', gear: '#111111', archetype: { magician: 2.5, outlaw: 2, explorer: 2, ruler: 1.5, lover: 1.5 }, role: { flanker: 3, controller: 2.5, ranged: 1.5 } },
-    streetwear: { style: 'streetwear', kit: 'light', gear: '#2c2c2c', archetype: { innocent: 3, jester: 3, creator: 2.5, everyman: 2 }, role: { 'non-combatant': 3, support: 2, caster: 2 } },
-    casual: { style: 'casual', kit: 'light', gear: '#4a3a2a', archetype: { everyman: 2.5, caregiver: 2.5, innocent: 2 }, role: { 'non-combatant': 3, support: 2 } },
+    biker: { style: 'biker', owns: ['Outer'], kit: 'light', gear: '#24201c', stylism: MODERN('wedge'), archetype: { outlaw: 4, jester: 2, explorer: 2, hero: 1.5 }, role: { flanker: 2.5, frontline: 1.5 } },
+    tactical: { style: 'tactical', owns: ['Bottom'], kit: 'full', gear: '#26282b', vest: { flanker: 'slick' }, stylism: MODERN(), archetype: { hero: 2, everyman: 2, ruler: 1.5 }, role: { frontline: 4, ranged: 3, flanker: 2, support: 1.5 } },
+    fatigues: { style: 'fatigues', owns: ['Top', 'Bottom'], kit: 'full', gear: '#6e6046', vest: { frontline: 'slick' }, stylism: MODERN(), archetype: { everyman: 3, caregiver: 2, hero: 1.5 }, role: { support: 3, frontline: 2.5, ranged: 2 } },
+    suit: { style: 'suit', owns: ['Outer', 'Top', 'Bottom'], kit: 'concealed', gear: '#141110', stylism: MODERN(), archetype: { ruler: 4, sage: 2, magician: 2, lover: 2 }, role: { controller: 3, 'non-combatant': 2, support: 1 } },
+    operative: { style: 'operative', owns: ['Outer', 'Top', 'Bottom'], kit: 'concealed', gear: '#111111', stylism: MODERN('needle'), archetype: { magician: 2.5, outlaw: 2, explorer: 2, ruler: 1.5, lover: 1.5 }, role: { flanker: 3, controller: 2.5, ranged: 1.5 } },
+    streetwear: { style: 'streetwear', kit: 'light', gear: '#2c2c2c', stylism: MODERN('barrel'), archetype: { innocent: 3, jester: 3, creator: 2.5, everyman: 2 }, role: { 'non-combatant': 3, support: 2, caster: 2 } },
+    casual: { style: 'casual', kit: 'light', gear: '#4a3a2a', stylism: MODERN(), archetype: { everyman: 2.5, caregiver: 2.5, innocent: 2 }, role: { 'non-combatant': 3, support: 2 } },
   },
   future: {
-    hardsuit: { style: 'flightsuit', kit: 'full', gear: '#2a2f38', archetype: { hero: 3, ruler: 2 }, role: { frontline: 5, ranged: 2 } },
-    flightsuit: { style: 'flightsuit', kit: 'full', gear: '#20262e', vest: { frontline: 'slick', flanker: 'rig', ranged: 'rig' }, archetype: { explorer: 3, hero: 2, everyman: 2 }, role: { ranged: 2.5, flanker: 2, support: 2.5 } },
-    runner: { style: 'runner', owns: ['Outer'], kit: 'light', gear: '#141519', archetype: { outlaw: 4, jester: 3, lover: 1.5 }, role: { flanker: 3, controller: 2 } },
-    corporate: { style: 'corporate', owns: ['Outer'], kit: 'concealed', gear: '#2a2e36', archetype: { ruler: 4, sage: 3, magician: 2.5, creator: 2 }, role: { controller: 3, caster: 2.5, 'non-combatant': 2 } },
-    athleisure: { style: 'athleisure', kit: 'light', gear: '#2b2f3a', archetype: { everyman: 2.5, caregiver: 2.5, innocent: 2 }, role: { 'non-combatant': 3, support: 2 } },
+    // ARMOUR: the hardsuit family's samples (armor/styles.js), a rank of troopers in one plate and one helm
+    trooper: { armor: 'fantasy-space', kit: 'armor', archetype: { everyman: 3, ruler: 1.5, hero: 1 }, role: { frontline: 4, ranged: 3, flanker: 1.5 } },
+    powersuit: { armor: 'armored-hero', kit: 'armor', archetype: { hero: 4, creator: 3, ruler: 1.5 }, role: { frontline: 2.5, flanker: 2, ranged: 1.5 } },
+    heavy: { armor: 'grim-scifi', kit: 'armor', archetype: { hero: 1.5, outlaw: 1.5, everyman: 1.5 }, role: { frontline: 3 } },
+    flightsuit: { style: 'flightsuit', kit: 'full', gear: '#20262e', vest: { frontline: 'slick', flanker: 'rig', ranged: 'rig' }, stylism: FUTURE('wedge'), archetype: { explorer: 3, hero: 2, everyman: 2 }, role: { ranged: 2.5, flanker: 2, support: 2.5 } },
+    runner: { style: 'runner', owns: ['Outer'], kit: 'light', gear: '#141519', stylism: FUTURE('needle'), archetype: { outlaw: 4, jester: 3, lover: 1.5 }, role: { flanker: 3, controller: 2 } },
+    corporate: { style: 'corporate', owns: ['Outer'], kit: 'concealed', gear: '#2a2e36', stylism: FUTURE('needle'), archetype: { ruler: 4, sage: 3, magician: 2.5, creator: 2 }, role: { controller: 3, caster: 2.5, 'non-combatant': 2 } },
+    athleisure: { style: 'athleisure', kit: 'light', gear: '#2b2f3a', stylism: FUTURE('hourglass'), archetype: { everyman: 2.5, caregiver: 2.5, innocent: 2 }, role: { 'non-combatant': 3, support: 2 } },
   },
 });
 const ARMOUR = new Set(['vest', 'kneepads', 'pauldron', 'chestPlate']);
@@ -143,13 +156,24 @@ export function eraLookOf(sheet) {
 }
 /** The role's era gear as the look wears it: its kit's share, the vest in the look's cut. */
 export function lookGear(kit, look, role) {
+  if (look.kit === 'armor') return [];
   const gear = (kit?.gear[role] ?? []).filter((g) => (look.kit === 'full' ? true : look.kit === 'light' ? !ARMOUR.has(g.kind) : KEPT_CONCEALED.has(g.kind)));
   return gear.map((g) => (g.kind === 'vest' && look.vest?.[role] ? { ...g, cut: look.vest[role] } : { ...g }));
 }
 /** A card's garments → the palette's roles, as the derived cut assigns them (60 / 30 / 10: the largest field the base). */
 const lookColours = (L) => (L.outer ? { Outer: 'base', Top: 'secondary', Bottom: ['knee', 'midi', 'maxi'].includes(L.outer.hem) ? 'leather' : 'base' } : { Top: 'base', Bottom: 'secondary' });
-/** The owned garments' tones off the look's card (its leather jacket, its suit). */
-export const lookTones = (look) => { const T = SEEDED_OUTFITS[look.style]?.tones ?? {}; return Object.fromEntries((look.owns ?? []).filter((g) => T[g]).map((g) => [g, T[g]])); };
+/** The owned garments' tones off the look's card (its leather jacket, its suit); an armour look's bodysuit its card's. */
+export const lookTones = (look) => {
+  if (look.armor) { const T = SEEDED_ARMOR[look.armor]?.tones ?? {}; return Object.fromEntries(['Top', 'Bottom', 'Shoes'].filter((g) => T[g]).map((g) => [g, T[g]])); }
+  const T = SEEDED_OUTFITS[look.style]?.tones ?? {}; return Object.fromEntries((look.owns ?? []).filter((g) => T[g]).map((g) => [g, T[g]]));
+};
+/** An armour look's build: its card, bareheaded on the anime head (a helm is not fitted to it yet), the focal then moved
+ * from the helm to a shoulder, the emblem in the card's trim. → { adorn, palette } */
+export function lookArmor(look, { anime = false } = {}) {
+  const card = SEEDED_ARMOR[look.armor], helmed = card.language.focal === 'helm';
+  return { adorn: { type: 'armor', style: look.armor, ...(anime ? { language: { helm: 'none', ...(helmed ? { focal: 'pauldron' } : {}) } } : {}) },
+    palette: anime && helmed && !card.tones.Emblem ? { Emblem: card.tones.Trim } : {} };
+}
 /** a tail that is a must-see (a stub reads as body) */
 const SEEN_TAILS = new Set(['thin', 'thick', 'brush']);
 const GOLD = '#c9a24a', SILVER = '#b7bcc4', BRONZE = '#8c6239';
@@ -305,7 +329,7 @@ export function outfitFromSheet(sheet, { coat } = {}) {
   const tail = sheet.ancestry?.door === 'creature' ? sheet.ancestry?.plan?.tail : null, tailSeen = SEEN_TAILS.has(tail);
   // the sheet's own silhouette word when the archetype reads that way; the archetype's otherwise
   const said = deriveOf(sheet, 'silhouette ='), silhouette = said && (ARCHETYPE_SHAPES[a] || []).includes(said) ? said : SHAPE[a] ?? 'column';
-  const pieces = [], kit = eraKitOf(sheet), look = kit && sheet.ancestry?.door !== 'creature' ? eraLookOf(sheet) : null;
+  const pieces = [], kit = eraKitOf(sheet), rolled = kit && sheet.ancestry?.door !== 'creature' ? eraLookOf(sheet) : null, look = rolled?.armor ? null : rolled;
   // a modern or future person's cut is its look's card (a leather jacket, a suit, fatigues), its fit the sheet's
   const cut = ((C) => (look ? { ...C, language: { ...SEEDED_OUTFITS[look.style].language }, colours: lookColours(SEEDED_OUTFITS[look.style].language), notes: [...C.notes, `the ${look.id} look: the ${look.style} card`] } : C))(cutFromSheet(sheet, { silhouette, tailSeen }));
   const roleGear = look ? lookGear(kit, look, f.role) : kit ? kit.gear[f.role] ?? [] : ROLE_GEAR[f.role] ?? [], focalOf = kit ? { ...FOCAL, ...kit.focal } : FOCAL, dropped = new Set(kit?.drop ?? []);

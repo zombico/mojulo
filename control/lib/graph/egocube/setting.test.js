@@ -8,6 +8,7 @@ import { rollMascot } from './mascot.js';
 import { planFromSheet, KIT_ERAS } from './plan.js';
 import { ERA_LOOKS, eraLookOf, lookGear, ERA_GEAR } from './outfit.js';
 import { SEEDED_OUTFITS } from '../outfit/styles.js';
+import { SEEDED_ARMOR } from '../armor/styles.js';
 import { rollStored, egocubeCreate, readEgocubeKind } from './kind.js';
 import { mascotOfPerson } from './mascot-from-person.js';
 import { ANIME_SCULPT } from '../polygonizer/anime-sculpt.js';
@@ -133,7 +134,22 @@ describe('the tradition, carried to the body', () => {
     const count = (facets) => { const n = {}; for (let seed = 1; seed <= 24; seed++) { const id = eraLookOf(rollEgocube({ seed, facets, setting: { era } })).id; n[id] = (n[id] ?? 0) + 1; } return Object.entries(n).sort((a, b) => b[1] - a[1])[0][0]; };
     expect(count({ archetype: 'ruler', role: 'controller' })).toBe('suit');
     expect(count({ archetype: 'hero', role: 'frontline' })).toBe('tactical');
-    for (const looks of Object.values(ERA_LOOKS)) for (const L of Object.values(looks)) expect(SEEDED_OUTFITS[L.style]).toBeDefined();
+    for (const looks of Object.values(ERA_LOOKS)) for (const L of Object.values(looks)) expect(L.armor ? SEEDED_ARMOR[L.armor] : SEEDED_OUTFITS[L.style]).toBeDefined();
+  });
+
+  it('a future armour look wears its hardsuit over its bodysuit, bareheaded on the anime head; a rank is one plate', () => {
+    const sheetOf = (archetype, setting = { era: 'future' }) => { for (let seed = 1; seed <= 60; seed++) { const s = rollEgocube({ seed, facets: { role: 'frontline', archetype }, setting }); if (eraLookOf(s).armor) return s; } throw new Error('no armour look in 60 seeds'); };
+    const sheet = sheetOf('hero'), look = eraLookOf(sheet), P = planFromSheet(sheet);
+    expect(P.create.spec.adorn).toMatchObject({ type: 'armor', style: look.armor });
+    expect(P.create.spec.outfit).toBeUndefined();
+    expect(P.create.spec.palette.Top).toBe(SEEDED_ARMOR[look.armor].tones.Top);
+    expect(planFromSheet(sheet, { dress: 'designed' }).create.spec.adorn).toMatchObject({ type: 'armor', style: look.armor });
+    expect(validateHeroSpec(P.create.spec)).toEqual([]);
+    const anime = sheetOf('hero', { era: 'future', tradition: 'anime' }), A = planFromSheet(anime).create.spec;
+    expect(A.adorn.language).toMatchObject({ helm: 'none' });
+    expect(validateHeroSpec(A)).toEqual([]);
+    // the cloth looks draw their era's silhouette: grounded and boxy, heroic and sleek
+    for (const [era, genre] of [['modern', 'modern'], ['future', 'scifi']]) for (const L of Object.values(ERA_LOOKS[era])) if (!L.armor) expect(L.stylism.genre).toBe(genre);
   });
 
   it('a look wears the kit it can: a suit nothing over its clothes, tactical clothes the whole carrier; its own tones stand', () => {

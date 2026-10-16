@@ -125,6 +125,7 @@ describe("the era's kit (a modern or future world's people)", () => {
     const { SEEDED_OUTFITS } = await import('../outfit/styles.js');
     for (const era of Object.keys(ERA_GEAR)) for (const role of ['frontline', 'support']) {
       const sheet = rollEgocube({ seed: 3, facets: { role, archetype: 'hero' }, setting: { era } }), { outfit, laws } = outfitFromSheet(sheet), look = eraLookOf(sheet);
+      if (look.armor) { expect(outfit.look).toBeUndefined(); continue; }   // a hardsuit is armour, not a cut (plan.js keeps it)
       // a uniform is tonal by design: only the colour laws may advise against it (they advise, never refuse)
       const COLOUR_LAWS = ['three values, unequal', 'accent on the focal', 'repetition with variation'];
       expect(laws.filter((l) => !l.ok && !COLOUR_LAWS.includes(l.law)).map((l) => `${era} ${role}: ${l.law}: ${l.why}`)).toEqual([]);

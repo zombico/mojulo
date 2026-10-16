@@ -25,7 +25,7 @@ import { CHANNEL_RANGES } from '../polygonizer/humanoid-head.js';
 import { ANIME_SCULPT } from '../polygonizer/anime-sculpt.js';
 import { HEAD_LIBRARY, headPlan, headFor } from '../creature-heads/index.js';
 import { PLAN_SCHEMA } from '../polygonizer/station-loft-plan.js';
-import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones } from './outfit.js';
+import { outfitFromSheet, adornFromSheet, heroOutfitOf, outfitPalette, ERA_GEAR, eraLookOf, lookGear, lookTones, lookArmor } from './outfit.js';
 import { hexLch, lchHex } from '../polygonizer/station-loft-shade.js';
 import { mulberry32 } from '../polygonizer/floorplan-glyphs.js';
 
@@ -606,6 +606,8 @@ function hero(sheet) {
   const hair = anime ? { style, ...(ANIME_VOLUME[texture] ? { volume: ANIME_VOLUME[texture] } : {}), ...(f.age === 'elder' ? { length: 0.85 } : {}) }
     : { style, wave: WAVE[texture], ...(f.age === 'elder' ? { length: 0.8 } : {}) };
   const tones = settingTones(sheet, f, d), eraKit = KIT_ERAS.includes(era), look = eraKit ? eraLookOf(sheet) : null;
+  // an armour look wears its hardsuit (bareheaded on the anime head) in place of clothes and kit
+  const armor = look?.armor ? lookArmor(look, { anime }) : null;
   const spec = {
     // a child is its pole's child build (a child's radii on her or his own landmarks); the bare 'child' word kept adult radii and the male head
     cast: f.age === 'child' ? { pole: f.pole, build: 'child' } : f.pole,
@@ -615,8 +617,10 @@ function hero(sheet) {
     ...(Object.keys(sculpt).length ? { sculpt } : {}),
     ...(gesture && gesture !== 'rest' ? { gesture } : {}),
     hair,
-    palette: { Skin: sheet.ancestry.colours.Skin, ...(sheet.ancestry.colours.Hair ? { Hair: f.age === 'elder' ? shade(sheet.ancestry.colours.Hair, 0.45) : sheet.ancestry.colours.Hair } : {}), ...tones, ...(look ? lookTones(look) : {}) },
-    ...(eraKit ? { outfit: eraOutfit(sheet, f, era, tones, look) } : { detail: 'clothed' }),
+    palette: { Skin: sheet.ancestry.colours.Skin, ...(sheet.ancestry.colours.Hair ? { Hair: f.age === 'elder' ? shade(sheet.ancestry.colours.Hair, 0.45) : sheet.ancestry.colours.Hair } : {}), ...tones, ...(look ? lookTones(look) : {}), ...(armor?.palette ?? {}) },
+    ...(armor ? { adorn: armor.adorn } : eraKit ? { outfit: eraOutfit(sheet, f, era, tones, look) } : { detail: 'clothed' }),
+    // the era's silhouette (stylism/): a modern world grounded and boxy, a future one heightened and sleek
+    ...(look?.stylism ? { stylism: look.stylism } : {}),
     ...(['flanker', 'ranged', 'frontline'].includes(f.role) && !eraKit ? { adorn: 'ranger' } : {}),
   };
   return { spec, style, texture, anime, eraKit, era, look };
@@ -648,7 +652,7 @@ function ledgerOf(sheet, door, built) {
     rows.push({ channel: ch, line: n.line, from: n.from, ...(at ? { at } : { pending }) });
   }
   // the era's clothes and the role's kit in it: said, so the ledger shows where the dress came from
-  if (built.eraKit && !built.outfit) rows.push({ channel: 'dress', line: `the ${sheet.facets.role}'s ${built.era} clothes and kit: the ${built.look.id} look`, from: `setting.era.${built.era}`, at: 'spec.outfit (the look\'s card and the role\'s pieces)' });
+  if (built.eraKit && !built.outfit) rows.push({ channel: 'dress', line: `the ${sheet.facets.role}'s ${built.era} clothes and kit: the ${built.look.id} look`, from: `setting.era.${built.era}`, at: built.look.armor ? 'spec.adorn (the look\'s hardsuit)' : 'spec.outfit (the look\'s card and the role\'s pieces), spec.stylism (the era\'s silhouette)' });
   return rows;
 }
 
@@ -709,7 +713,8 @@ export function planFromSheet(sheet, { title, dress } = {}) {
   const built = hero(sheet);
   // a person, dressed by the same principles: the cut as the hero's outfit build, in place of the stock clothed body
   // (the designed dress replaces the stock clothed body and the archer's kit a role was given: its pieces are its own)
-  if (dress === 'designed') { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, adorn: _a, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
+  // (an armour look keeps its hardsuit: the designed dress is cloth)
+  if (dress === 'designed' && !built.look?.armor) { const { outfit, laws } = outfitFromSheet(sheet, { coat: sheet.ancestry.colours.Skin }); const { detail: _d, adorn: _a, ...spec } = built.spec; built.spec = { ...spec, outfit: heroOutfitOf(outfit) }; built.outfit = { outfit, laws }; }
   return { door, thesis: thesisOf(sheet, door, built), create: { as: 'hero', title: name, spec: built.spec, ...(built.anime ? { toon: { light: true } } : {}) }, after: [], ledger: ledgerOf(sheet, door, built), ...(built.outfit ? { outfit: built.outfit } : {}) };
 }
 

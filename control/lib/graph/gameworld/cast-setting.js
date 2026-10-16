@@ -90,9 +90,11 @@ export function quickFigure(G, quick, key, setting = settingOfGame(G, quick), { 
   }
   // a rank's member wears the first's uniform (its clothes, their colours, its kit and gear) on a face of its own
   if (uniform) {
-    const { outfit: _o, detail: _d, adorn: _a, gear: _g, ...own } = spec;
-    spec = { ...own, ...Object.fromEntries(['outfit', 'detail', 'adorn', 'gear'].filter((k) => uniform[k] !== undefined).map((k) => [k, uniform[k]])),
-      palette: { ...own.palette, ...Object.fromEntries(['Top', 'Bottom'].filter((g) => uniform.palette?.[g]).map((g) => [g, uniform.palette[g]])) } };
+    // (the silhouette too, and the look's owned tones: a rank of troopers is one plate, one helm)
+    const { outfit: _o, detail: _d, adorn: _a, gear: _g, stylism: _s, ...own } = spec;
+    const { Outer: _out, Emblem: _em, Shoes: _sh, ...ownPalette } = own.palette;
+    spec = { ...own, ...Object.fromEntries(['outfit', 'detail', 'adorn', 'gear', 'stylism'].filter((k) => uniform[k] !== undefined).map((k) => [k, uniform[k]])),
+      palette: { ...ownPalette, ...Object.fromEntries(['Top', 'Bottom', 'Outer', 'Emblem', 'Shoes'].filter((g) => uniform.palette?.[g]).map((g) => [g, uniform.palette[g]])) } };
     return { spec, ...(P.create.toon ? { toon: P.create.toon } : {}), sheet: { print: fingerprint(sheet), reads: sheet.reads }, pending };
   }
   const gear = F.era?.[setting.era] ?? F.gear;

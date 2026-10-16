@@ -106,9 +106,11 @@ own off its seed and facets, leaned by its archetype and role ([outfit.js](../co
 | Era | Looks (each a seeded outfit card) | Leaned toward |
 |---|---|---|
 | modern | biker (a leather jacket), tactical, fatigues, suit, operative (a long coat), streetwear, casual | a frontline hero to tactical, a ruler at work to a suit, an outlaw flanker to the leather jacket, an operator to the coat |
-| future | hardsuit, flightsuit, runner (a cropped jacket), corporate (a long coat), athleisure | a frontline to the hardsuit, an outlaw to the runner, a ruler or a sage to corporate |
+| future | trooper, powersuit, heavy (hardsuits: armour over a bodysuit), flightsuit, runner (a cropped jacket), corporate (a long coat), athleisure | the rank and file to the trooper, a hero or a builder to the segmented powersuit, an outlaw to the runner, a ruler or a sage to corporate |
 
-A look owns some garments' tones (the leather jacket is black hide in any world; a suit is its own colour); the rest
+Each era draws its looks to its own silhouette (the stylism tuner): a modern world grounded and boxy, a future one
+heroic and sleek. A future armour look wears a hardsuit (armor/styles.js) in place of clothes and kit, bareheaded on the
+anime head. A look owns some garments' tones (the leather jacket is black hide in any world; a suit is its own colour); the rest
 take the world's. It wears as much of the role's kit (`ERA_GEAR`) as fits it: all of it, no armour, or nothing over
 the clothes (a suit, a long coat). Its vest is cut by role (a plate carrier, a slick plate, a chest rig, a hardshell), in
 its gear's colourway. The travelling cloak and the mantle of office are left off, and the outlaw's baldric is a

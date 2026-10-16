@@ -32,15 +32,23 @@ dagger, bow, staff, shield, a ranger's quiver). The era now dresses and arms the
   off its own seed and facets, leaned by its archetype and role, so a crowd is several looks, never one cut:
   - modern: a leather jacket (`biker`), `tactical` clothes (cargo trousers), `fatigues`, a `suit`, an `operative`'s long
     coat, `streetwear`, `casual`;
-  - future: a `hardsuit` (a hardshell over a flight suit), a `flightsuit`, a `runner`'s cropped jacket, a `corporate`
-    long coat, `athleisure`.
+  - future: ARMOUR, the hardsuit family's samples worn over their bodysuit in place of clothes and kit (a `trooper`'s
+    plates and T-visor helm, a segmented `powersuit` with its faceplate and reactor, `heavy` power armour; a rank of
+    troopers one plate and one helm), a `flightsuit`, a `runner`'s cropped jacket, a `corporate` long coat, `athleisure`.
+    On the anime head a hardsuit is bareheaded (its helm is not fitted to that head yet): the armour's `helm: 'none'`
+    (`armor/hardsuit.js`, new; absent, every suit as it was), the focal a shoulder's emblem.
 
   Each look is a new seeded outfit card (`outfit/styles.js`, appended: the pinned cards are untouched), the garments
   whose tones it owns (a leather jacket is black hide whatever the world's colours; the rest take the world's), how much
   of the role's kit it wears (`full`, `light` with no armour, `concealed` with nothing over the clothes but a satchel or
   wrist units: a suit, a long coat), its vest's cut by role and its gear's colourway (black, coyote, olive). A rank still
   shares its first member's uniform; a quick figure dresses as its look, not the kit's underlayer. The designed dress
-  takes the look's card as its cut, and a look with no accent worn gets an ID band on the arm.
+  takes the look's card as its cut (an armour look keeps its hardsuit), and a look with no accent worn gets an ID band on
+  the arm.
+- **Each era its silhouette** (`stylism`, on the look): a modern look is drawn GROUNDED in the modern vocabulary, its
+  outline its own or a plain one (a biker's wedge, an operative's needle, streetwear's barrel: a puffer); a future look
+  HEROIC in the sci-fi vocabulary, sleek (a flight suit's sculpted wedge, a runner's and a corporate coat's needle). A
+  rank shares its first member's silhouette with its uniform and the look's own tones.
 - **The era's kit** (`ERA_GEAR`): the role's pieces as its look wears them, in place of the ranger's kit:
   - modern: a carrier and kneepads, pouches, a chest rig, a pack, a satchel;
   - future: a hardshell in the metal with floating plates, cells on the belt, wrist units.
