@@ -1,9 +1,9 @@
-# 3.1.0 development log
+# 3.1 development log
 
-This is the detailed working log behind the 3.1.0 summary in [CHANGELOG.md](CHANGELOG.md), kept as each
-theme was written. 3.1.0 was first dated 2026-10-10 and shipped on 2026-10-16 with the work that followed;
-both halves are here, newest first. A theme marked "in progress", "under way", "planned" or "being built on
-this branch" records where that work stood when 3.1.0 shipped. Add nothing new here: later work goes under
+This is the detailed working log behind the 3.1.1 summary in [CHANGELOG.md](CHANGELOG.md), kept as each
+theme was written. It was gathered as 3.1.0, first dated 2026-10-10, and shipped on 2026-10-16 as 3.1.1 (a
+stale 3.1.0 build reached npm and was withdrawn); both halves are here, newest first. A theme marked "in
+progress", "under way", "planned" or "being built on this branch" records where that work stood when it shipped. Add nothing new here: later work goes under
 Unreleased in CHANGELOG.md.
 
 ## Work from 2026-10-10 to 2026-10-16

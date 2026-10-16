@@ -9,12 +9,16 @@ format are the stable surface, and the chatbot factory is no longer part of
 mojulo. From `3.1.0` the connected-service and app tools are no longer listed:
 they still answer by name (the CLI, plan steps, skills that name them). The dashboard package, `mojulo-ui`, is released at the same version.
 Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
-[CHANGELOG-2.x.md](CHANGELOG-2.x.md); the detailed log behind 3.1.0 is
+[CHANGELOG-2.x.md](CHANGELOG-2.x.md); the detailed log behind 3.1.1 is
 [CHANGELOG-3.1.md](CHANGELOG-3.1.md).
 
 ## [Unreleased]
 
-## [3.1.0] - 2026-10-16
+## [3.1.1] - 2026-10-16
+
+The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and was
+unpublished the same day; no `mojulo-ui` 3.1.0 exists. Where this changelog and the code say 3.1.0 for a change, it
+first ships here.
 
 3.1 turns mojulo toward games: a sentence becomes a playable game in a named genre, with its own world, its own
 people and its own look, played in the browser, shipped as a desktop app or exported to an engine. The detailed
@@ -22,8 +26,8 @@ log behind this summary, theme by theme, is [CHANGELOG-3.1.md](CHANGELOG-3.1.md)
 
 ### Upgrading from 3.0
 
-- **Update the Claude plugin.** It runs `npx -y mojulo@3.1.0`; an unpinned `npx -y mojulo` moves to 3.1.0 once it
-  is npm `latest`. `mojulo-ui` 3.1.0 is the matching dashboard. No new Node requirement and no new dependency.
+- **Update the Claude plugin.** It runs `npx -y mojulo@3.1.1`; an unpinned `npx -y mojulo` moves to 3.1.1 once it
+  is npm `latest`. `mojulo-ui` 3.1.1 is the matching dashboard. No new Node requirement and no new dependency.
 - **Retired from the tool list, still callable by name**, so a plan step, script or skill that names one keeps
   working:
   - the office wing: apps, runtime daemons, the contextmap, mcp-orbit, triggers and primitive binding
