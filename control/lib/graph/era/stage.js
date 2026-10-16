@@ -269,6 +269,16 @@ export const STAGE_KIT_ALIASES = Object.freeze({ 'delfino-plaza': 'island-plaza'
 export const resolveKitId = (id) => STAGE_KIT_ALIASES[id] || id;
 /** A kit by id: a written kit, or a composed look (era/style/looks.js), which is open ground in the isekai shell. */
 export const stageKit = (id) => STAGE_KITS[id] ?? (lookOf(id) ? { shell: 'isekai', style: id } : undefined);
+/** The shells whose kits are OPEN GROUND: a trail, a climb, a level's land and its natural world are drawn from their
+ * style cards (gameworld/nature.js SHELLS). A kit with another shell (the nave, the plaza, the lab) or none (the crypt's
+ * stone, the catacomb) is a ROOM kit: a building's, never a level's ground. */
+export const GROUND_SHELLS = Object.freeze(['nature', 'jungle', 'isekai']);
+/** Whether a kit (an id, an alias or a composed look) is open ground. */
+export const isGroundKit = (id) => GROUND_SHELLS.includes(stageKit(resolveKitId(id))?.shell);
+/** The written ground kits, for a refusal or a card to list. */
+export const GROUND_KITS = Object.freeze(Object.keys(STAGE_KITS).filter((k) => GROUND_SHELLS.includes(STAGE_KITS[k].shell)));
+/** What to say to a room kit given as ground: the door that builds it. */
+export const roomKitDoor = (id) => `'${id}' is a room kit, not open ground: a dungeon, a crypt or an interior is a building level, levels.<id>.building: { use: 'crypt', kit: '${resolveKitId(id)}' } (a quick game: quick.building)`;
 const VARIANTS = ['a', 'b', 'c', 'd'];
 
 /** The recipe's own tiles (`tiles: { wall: { gen, … } }`, tile-specs.js) over the kit's, surface by surface: each spec
@@ -841,7 +851,7 @@ export function assembleStageScene(manifest = {}, ctx = {}) {
     return P;
   }
   const kit = stageKit(resolveKitId(manifest.kit));
-  if (kit && manifest.tiles && ['nature', 'jungle', 'isekai'].includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
+  if (kit && manifest.tiles && GROUND_SHELLS.includes(kit.shell)) throw new Error(`stage: tiles: kit '${manifest.kit}' is open ground, painted by its style card; tiles are for a room kit`);
   // a recipe's `trail` (out-trail.js) is the trail grammar's: open ground drawn by the nature or isekai builder
   if (manifest.trail !== undefined && !(kit && ['nature', 'isekai'].includes(kit.shell))) throw new Error(`stage: trail: kit '${manifest.kit}' ${kit && kit.shell === 'jungle' ? 'lays its own trail (the grammar is not on the jungle yet)' : 'is not open ground'}; a trail is for ${Object.keys(STAGE_KITS).filter((k) => ['nature', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')}`);
   // a recipe's `meru` (local-meru/scene.js) builds a level that goes up, laid on from the trail it follows, on an isekai kit

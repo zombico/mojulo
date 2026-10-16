@@ -24,6 +24,8 @@ describe('design_game compose', () => {
     expect(W.style.palette).toEqual(W.style.geocube.palette);
     expect(out.composed).toMatchObject({ prompt: PROMPT, cube: { id: 'island-noon', word: 'sunny' } });
     expect(out.composed.read).toEqual(expect.arrayContaining([expect.stringMatching(/^sunny: .*geocube/)]));
+    // the run is offered: a composed world has no characters, and its levels and game are still a run away
+    expect(out.next).toEqual(expect.arrayContaining([{ step: 'run', card: 'gameworld-next' }]));
   });
 
   it('refuses a world, a patch or a quick game beside it, and a compose without words', async () => {

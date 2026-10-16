@@ -93,6 +93,8 @@ const COLLISION_MARGIN = 0.01;
 describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', () => {
   let EmbeddingsRepository;
   let catalog;
+  // a row with a mode: a retrieved card that routes to the tool says that mode (the tool name alone is not the answer)
+  const teachesMode = (results, entry, mode) => results.some((r) => { const c = catalog.get(r.source_ref); return c?.entry === entry && new RegExp(`\\b${mode}\\b`).test(c.body); });
 
   beforeAll(async () => {
     const embeddings = await import('@/lib/db/repositories/embeddings');
@@ -130,7 +132,7 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
     `every fixture phrasing surfaces its entry tool in the top-${TOP_K} cards`,
     async () => {
       const misses = [];
-      for (const [phrasing, expectedEntry] of FIXTURE) {
+      for (const [phrasing, expectedEntry, mode] of FIXTURE) {
         const results = await EmbeddingsRepository.search(phrasing, {
           kinds: ['routing'],
           limit: TOP_K,
@@ -142,6 +144,8 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
               .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
               .join(', ')}]`,
           );
+        } else if (mode && !teachesMode(results, expectedEntry, mode)) {
+          misses.push(`"${phrasing}" → ${expectedEntry}'s retrieved card does not teach its ${mode} mode`);
         }
       }
       expect(misses, `routing misses:\n${misses.join('\n')}`).toEqual([]);
@@ -177,7 +181,7 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
     async () => {
       const misses = [];
       const margins = [];
-      for (const [phrasing, expectedEntry] of COLLISION_FIXTURE) {
+      for (const [phrasing, expectedEntry, mode] of COLLISION_FIXTURE) {
         const results = await EmbeddingsRepository.search(phrasing, {
           kinds: ['routing'],
           limit: TOP_K,
@@ -192,6 +196,8 @@ describe.skipIf(!modelPresent)('routing-card retrieval eval (real embedder)', ()
               .map((r) => `${r.source_ref}:${r.score.toFixed(3)}`)
               .join(', ')}]`,
           );
+        } else if (mode && !teachesMode(results.slice(0, 1), expectedEntry, mode)) {
+          misses.push(`"${phrasing}" → the rank-0 card for ${expectedEntry} does not teach its ${mode} mode`);
         } else if (margin < COLLISION_MARGIN) {
           misses.push(
             `"${phrasing}" → right card at rank 0 but margin ${margin.toFixed(4)} < ${COLLISION_MARGIN} ` +

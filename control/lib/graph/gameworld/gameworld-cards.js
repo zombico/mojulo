@@ -28,7 +28,7 @@ import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
 import { PROGRAM_IDS } from '../era/programs.js';
-import { STAGE_KITS, resolveKitId } from '../era/stage.js';
+import { STAGE_KITS, resolveKitId, GROUND_KITS } from '../era/stage.js';
 import { STRUCTURE_KITS } from '../era/out-structures.js';
 import { ISEKAI_STYLES } from '../era/isekai.js';
 import { SEEDED_STYLES } from '../equipment/styles.js';
@@ -62,8 +62,8 @@ function guide() {
     'THE GAME BOOK — design a game top down, then let the rail make it. You DESIGN; design_game makes, keeps and remakes.',
     '',
     'SIZE THE ASK first (you infer it). One level, a simple goal (reach, collect, survive, avoid), no powers, stats or',
-    'progression: the QUICK path, one call; read gameworld-quick only. A hero with abilities, gear, levelling, several',
-    'levels or a story: the book below. Quick grows into the book in place.',
+    'progression: the QUICK path, one call; read gameworld-quick only. Several levels, no hero: COMPOSE,',
+    '{ compose: { prompt } }, then run. A hero, powers, gear or a story: the book below.',
     '',
     'THE LOOP (each page answers ONE question, from the brief and the pages above it; never from a default):',
     '  intent      what game is it? its cube; the world is laid for it (gameworld-intent)',
@@ -112,11 +112,12 @@ function worldCard() {
     '',
     `style: ${Object.entries(WORLD_STYLE).map(([k, v]) => `${k} (${v})`).join('; ')}.`,
     'kits (the outdoor stage kits a world is drawn in), and what each takes:',
-    ...Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).map((k) => `  ${k.padEnd(14)} ${[ISEKAI_STYLES[resolveKitId(k)] ? 'a look in words' : null, STRUCTURE_KITS.includes(resolveKitId(k)) ? 'civilizations' : null].filter(Boolean).join(', ') || 'the kit as it is (no look, no civilizations)'}`),
+    ...GROUND_KITS.map((k) => `  ${k.padEnd(14)} ${[ISEKAI_STYLES[resolveKitId(k)] ? 'a look in words' : null, STRUCTURE_KITS.includes(resolveKitId(k)) ? 'civilizations' : null].filter(Boolean).join(', ') || 'the kit as it is (no look, no civilizations)'}`),
     'civilizations: { <id>: { name, builds: \'<words>\', technology?: { things?, vehicles?, structures?, weapons? } } }: words',
     '  (each list { <id>: \'<words>\' }); anchor, fort, town, castle default from the kit, best left out (see the bible).',
-    `levels: { <id>: { name?, style?, walk: { nodes: { <id>: { ${LEVEL_SECTIONS.join(': {} } | { ')}: {} } }, edges?: [{ from, to }] }, ground?, places?, scenes? } }:`,
+    `levels: { <id>: { name?, style?, walk: { nodes: { <id>: { ${LEVEL_SECTIONS.join(': {} } | { ')}: {} } }, edges?: [{ from, to }] }, ground?, places?, scenes?, goal? } }:`,
     '  a walk is one line of sections (a trail, then a climb), joined by edges in order; a level overrides its world where it says.',
+    '  goal?: { collect?: true | \'<pickup>\', boss?: true, health?: true }: what the level is played for, else reaching its exit.',
     '  scenes: the level\'s directed moments (get_play_vocab({ id: \'ui-scenes\' })), each with stage?: \'<node>\' (its first stage by default);',
     '    the hero is \'hero\', the stage\'s places are spots (start, exit, pocket, pocket-2…, landmark…); scenes that read or set flags',
     '    (if, sets) ride a \'story\' flags slice from level to level.',
@@ -330,13 +331,13 @@ const quickShared = () => [
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
   `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
   "  music: 'auto' | '<mood>', sfx: 'auto' | '<palette>'   a score per level, the goal's sounds",
-  `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')} (gameworld-world says what each takes)`,
+  `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${GROUND_KITS.join(', ')} (gameworld-world says what each takes)`,
   '',
   'THE ANSWER: the readout of the one-level gameworld written and run: its stage as a level with the goal on the stage\'s own',
   'anchors, the store the goal needs, and the game in the light play shell (title, level, result), with its play link.',
   'Walkable by construction; whether it can be beaten is the creator\'s to judge in play, and nothing proved it.',
   'GROWING: it is an ordinary gameworld. Patch in the hero\'s pages (design_game({ ref, patch })) and the same sketch becomes',
-  'the book, with every page, review and gate (gameworld-guide). Levels composed by hand stay create_game\'s.',
+  'the book, with every page, review and gate (gameworld-guide). Several levels from a sentence: compose (gameworld-guide).',
 ];
 
 function quickCard() {
@@ -411,7 +412,7 @@ function nextCard() {
     '  share      the game is complete: ask the creator how they want to share it before exporting anything. `can` is',
     '             what this host allows per option (here | carry | ask | no); the call that made the game carries the',
     '             whole offer (`share`: each option\'s call and why). Where nothing can leave the host, the recipe is the handoff.',
-    '  run        run: true makes the hero, and every step that is ready.',
+    '  run        run: true makes every step that is ready: the hero first; a world with no characters (a composed one), its levels and the game.',
     '  rerun      after a change, run again: what moved is remade, a hand edit is left (force: true overwrites it).',
     '  adornment  the page is empty: the bible proposes what the hero carries from the power verbs, with reasons; write',
     '             your own at `path` (gameworld-adornment); its items seed the equipment table.',

@@ -33,7 +33,7 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
@@ -57,6 +57,22 @@ const lit = (toon) => (toon ? { light: toon } : { toon: null });
  * may have, the ref cut short with its print to keep it apart. */
 /** The game's HUD from the world's palette (color-theorist): one set of colours for the land and the shell. */
 const paletteTheme = (G) => (G.style?.palette ? gameTheme(solvePalette(G.style.palette === 'auto' ? {} : G.style.palette)) : null);
+
+/** The goals the completability audit proves today (game/game-audit.js compileMechanicAudit): a level won by moving to
+ * its exit (reach-exit) or by lasting out its clock (survive), with no other mechanic in it. A game whose every level
+ * is one asks create_game for `auto_audit`: each level is walked to its exit or stood still past its clock in the
+ * headless browser, and the readout says which were proved. A game with any other goal (collect, sneak, rhythm, race,
+ * fight, defend, battle, farm, puzzle, shoot …) or a building played by ref keeps `allow_unaudited` alone: the audit
+ * only walks to an exit or stands still, and cannot pick up, hide, keep a beat, drive a course or win a fight yet.
+ * `allow_unaudited` stays on beside `auto_audit`: with no browser installed the audit is skipped (never downloaded
+ * for), and a walk that does not prove a level stamps it rather than refusing the game (create-game.js mintGame).
+ * (The flag moves the game order's print, so a game made before it is remade once on the next run, as it was.) */
+const PROVABLE = new Set(['reach-exit', 'survive']);
+const provable = (order) => { const k = (order?.manifest?.game?.mechanics ?? []).map((m) => m?.kind); return k.length > 0 && k.every((x) => PROVABLE.has(x)); };
+export function auditOrder(steps, stages) {
+  const levels = steps.filter((s) => s.key.startsWith('level-'));
+  return levels.length && stages.every((s) => !s.building?.ref) && levels.every((s) => provable(s.order)) ? { auto_audit: true } : {};
+}
 
 export function childRef(ref, part) {
   const plain = `${ref}-${part}`;
@@ -111,6 +127,8 @@ export function runSteps(world, { ref, lookup } = {}) {
     const C = castOrders(G, id), order = { spec: C.mint.args.spec, mint: C.mint.args, motion: C.motion?.args.patch ?? null };
     steps.push({ key: `cast-${id}`, ref: childRef(ref, `cast-${id}`), ready: true, order, print: fingerprint({ spec: order.spec, motion: order.motion, ...lit(order.mint.toon) }) });
   }
+  // a level goal's boss (levels.<id>.goal.boss): its figure made with the cast
+  if (bossed(G)) steps.push(bossStep(G, ref, { ready: true }));
   const MO = mechanicsOrders(G, B.mechanics, { heroRef });
   if (MO) steps.push({ key: 'systems', ref: childRef(ref, 'systems'), ready: ready.systems.ready, ...waits(ready.systems), order: MO.args, print: fingerprint(MO.args) });
   const EO = equipmentOrders(G, ready.equipment);
@@ -124,7 +142,7 @@ export function runSteps(world, { ref, lookup } = {}) {
   }
   // the levels: each stage a world the hero pilots (holding its gear when the equipped hero is made), with the systems'
   // play block; then the game over them in the play shell (play-shell.js), its store compiled from the book. Walkable by construction; beatability is
-  // the creator's, in play (create_game records the levels as unaudited).
+  // audited where the audit can prove it (auditOrder), else the creator's, in play (create_game records the levels as unaudited).
   const equipped = steps.find((s) => s.key === 'hero-equipped');
   const pilot = equipped ? childRef(ref, 'hero-equipped') : heroRef;
   const heroGaits = gaitsOf(equipped ? equipped.order.spec : adopted ? lookup?.heroSpec : { ...hero.spec, ...(hero.motion ? motionFields(hero.motion) : {}) });
@@ -140,16 +158,17 @@ export function runSteps(world, { ref, lookup } = {}) {
   const carryFrom = { items: store.slices.filter((x) => x.kind === 'inventory').map((x) => x.name), campaign: 'campaign', levels: last };
   // the cast who join the hero (characters.cast.<id>.joins): every stage carries them, asleep until they join
   const party = Object.entries(G.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins }));
+  const lastOf = lastStages(stages);
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...goalArgs(G, s, lastOf, ref), ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
     const links = gameLinks(stages, levelRefs);
     const theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, B), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ready: ready.systems.ready, ...waits(ready.systems), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -169,6 +188,25 @@ export function storyReport(world, { ref = 'gw' } = {}) {
   return { bound, unplaced, ...(unset ? { unset } : {}) };
 }
 
+/** LEVEL GOALS (a level's `goal`, world.js): each stage its goal's mechanics and its cast (quick.js levelGoalMechanics,
+ * levelGoalCast), the boss at the end of its level's last stage (`lastOf`: each level's last stage that takes a goal);
+ * a level with none passes nothing, so it lays as it always did (reach its exit). */
+const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
+const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
+function goalArgs(G, s, lastOf, ref) {
+  const goal = G.levels[s.level]?.goal;
+  if (!goal) return {};
+  const last = lastOf[s.level] === s.index, boss = goal.boss ? childRef(ref, 'foe') : null;
+  return { goal: (ends) => levelGoalMechanics(goal, ends, { last }), goalCast: (ends) => levelGoalCast(goal, ends, { last, ref: boss }), ...(goal.collect ? { legend: 'I  bag' } : {}) };
+}
+/** The boss's figure: a foe rolled in the game's setting as a quick battle's are (cast-setting.js), made through the
+ * hero door at `<ref>-foe` (the door makes a `foe` step a figure: design-game.js), one for every boss in the world. */
+function bossStep(G, ref, ready) {
+  const Q = { goal: 'battle' }, F = quickFigure(G, Q, 'foe', settingOfGame(G, Q));
+  const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} boss`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
+  return { key: 'foe', ref: childRef(ref, 'foe'), ...ready, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
+}
+
 /** A world before its people's steps: no character book, so no hero and no systems. Each stage a level walked in first
  * person (the walker stageLevelOrder lays when no hero is named), then the game over them in the play shell. A level
  * waits on the world's own parts and its level's (review.js): settled at once in autonomous mode (a composed world),
@@ -179,14 +217,17 @@ function worldSteps(world, G, ref) {
   const ground = ['world', 'nature', 'civilizations', 'key'];
   const steps = [], stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
+  // a level goal's boss (levels.<id>.goal.boss): its figure made first, on the world's own parts
+  if (bossed(G)) steps.push(bossStep(G, ref, settled(ground)));
+  const lastOf = lastStages(stages);
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: null, ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: null, ...goalArgs(G, s, lastOf, ref), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
     const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);
-    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
     steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
   }
   return steps;
@@ -320,7 +361,7 @@ function quickSteps(world, G, ref, lookup) {
   const links = gameLinks(stages, levelRefs);
   // a run draws its levels: none waits on another
   const lvls = gameLevels(stages, levelRefs, map).map((l) => (Q.run ? (({ gate: _g, ...x }) => x)(l) : l));
-  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
+  const game = { title: G.name ?? G.id, store: quickStore(Q), levels: lvls, ...(links.length ? { links } : {}), allow_unaudited: true, ...auditOrder(steps, stages), ...(Q.theme || paletteTheme(G) ? { theme: Q.theme ?? paletteTheme(G) } : {}), shell: 'play', ...(Q.run ? { run: { length: Q.run } } : {}), ...(G.front ? { front: G.front } : {}) };
   steps.push({ key: 'game', ref: gameRef, ready: true, order: game, print: fingerprint(game) });
   return steps;
 }

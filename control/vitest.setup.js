@@ -16,3 +16,8 @@ process.env.MOJULO_PACKS ||= 'creative';
 // measures core alone (the empty book snapshot) unless it opts in. Bundled-book
 // suites set MOJULO_BUNDLED_BOOK per case (lib/graph/views/recipe-book/bundled.test.js).
 process.env.MOJULO_BUNDLED_BOOK ||= 'off';
+
+// A design_game run audits its reach and survive levels and reads every level's opening frame in a headless browser
+// when one is installed (lib/graph/game/first-frame-check.js levelBrowser). Off under test, so a suite that runs
+// design_game never launches Chrome by accident; a suite that means to render injects its own finder or sets this.
+process.env.MOJULO_GAME_BROWSER ||= 'off';

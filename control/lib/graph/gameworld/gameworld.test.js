@@ -20,7 +20,9 @@ describe('gameworld', () => {
     bad(W({ colour: 1 }), /'colour' is not a world setting/);
     bad(W({ characters: [{ name: 'hero' }] }), /characters is \{ direction, hero, cast \}/);
     bad(W({ mechanics: { jump: 1 } }), /mechanics: jump is not part of the mechanics/);
-    bad(W({ style: { kit: 'gothic-stone' } }), /not an outdoor stage kit/);
+    bad(W({ style: { kit: 'gothic-stone' } }), /room kit, not open ground.*building: \{ use: 'crypt', kit: 'gothic-stone' \}/);
+    // a room kit with a shell of its own (the nave) is refused the same way: it passed the old check and crashed the readout
+    bad(W({ style: { kit: 'gothic-nave' } }), /room kit, not open ground/);
     bad(W({ style: { trail: { beats: [] } } }), /trail.beats is not a trail setting a world hands down/);
     bad(W({ style: { weather: 'sleet' } }), /gameworld: style.weather 'sleet' is neither a climate/);
     bad(W({ style: { weather: { climate: { rain: 1, hail: 2 } } } }), /style.weather.climate.hail is not a state/);

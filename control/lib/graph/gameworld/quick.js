@@ -71,7 +71,7 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
-import { STAGE_KITS } from '../era/stage.js';
+import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
@@ -378,7 +378,8 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
-  if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
+  // one rule for open ground (era/stage.js isGroundKit): a room kit had a shell, passed, and failed deep in the stage
+  if (!isGroundKit(kit)) throw fail(`: style.kit ${STAGE_KITS[resolveKitId(kit)] ? roomKitDoor(kit).replace('levels.<id>.building', 'quick.building').replace(' (a quick game: quick.building)', '') : `'${kit}' is not a stage kit`} (open ground: ${GROUND_KITS.join(', ')})`);
   // a loop is laid on the trail's land: the longest trail, so a lap is a stretch worth driving
   const loop = quick.goal === 'race' && (quick.track === 'loop' || ((quick.rivals || quick.racers || quick.supercars) && quick.track !== 'trail'));
   // an arena too: its trail the longest, with no beat that cuts the land or stands a stone on it
@@ -709,11 +710,62 @@ export function battleCast(quick, ends, ref) {
   const figures = {}, entities = [], foes = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
-    figures[id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-    entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])) } });
+    standFoe(figures, entities, id, refAt(ref, k), b.at, back);
     foes.push({ who: id, at: [b.at[0], b.at[1]], name: `Foe ${k + 1}`, hp: BATTLE.foeHp[k], atk: BATTLE.foeAtk[k] });
   });
   return { figures, entities, play: { battle: { hero: { atk: BATTLE.atk, hp: 'hp' }, foes } } };
+}
+
+// a foe fought turn by turn: its figure, standing at `at`, facing `back` (the way the hero comes)
+function standFoe(figures, entities, id, ref, at, back) {
+  figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+  entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: at, heading: r3(Math.atan2(back[1] - at[1], back[0] - at[0])) } });
+}
+
+/**
+ * A LEVEL'S GOAL in a whole gameworld (a level's `goal`, world.js): quick's goals laid together on a level's stages,
+ * through the same mechanics a quick game's goal uses.
+ *   collect   what lies along each stage's beats picked up into the bag (the collect goal's pickups, its bag on I)
+ *   boss      a foe at the end of the level's last stage, fought turn by turn (a battle's foe, the last one's hp): its
+ *             fall ends the level, in place of the exit
+ *   health    hp on the HUD, the level lost at none (fail-on-death), the stage's hazards hurting (avoid's)
+ * Numbers: the hero's hp a battle's, a hazard's bite a quarter of it, the boss the last foe's hp, a blow short of its
+ * atk, so a fight fought by attacks alone is won with hp to spare.
+ */
+export const LEVEL_GOAL = Object.freeze({ hp: BATTLE.hp, hit: BATTLE.atk, hazard: BATTLE.hp / 4, boss: { hp: BATTLE.foeHp.at(-1), atk: BATTLE.foeAtk.at(-1) - 1 } });
+export const LEVEL_GOAL_PARTS = Object.freeze(['collect', 'boss', 'health']);
+
+/** A level goal's mechanics on one stage (`ends`: stageEnds'); `last`: the level's last stage, where its boss stands. */
+export function levelGoalMechanics(goal, ends, { last = false } = {}) {
+  const exit = { kind: 'reach-exit', at: ends.exit, radius: 2.5, ...(ends.planar ? {} : { planar: false }), ...(ends.via ? { via: ends.via } : {}) };
+  const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
+  const boss = !!goal.boss && last, out = [];
+  if (goal.collect) {
+    const pickups = along.map((b) => ({ item: goal.collect === true ? 'gem' : goal.collect, at: b.at, radius: 1.6 }));
+    out.push(...(pickups.length ? [{ kind: 'collect', into: 'bag', pickups }] : []), { kind: 'bag', slice: 'bag' });
+  }
+  const hazards = goal.health ? (ends.hazards ?? []).map((h) => ({ at: h.at, radius: 2.2, damage: LEVEL_GOAL.hazard })) : [];
+  if (hazards.length) out.push({ kind: 'hazard-damage', startHp: LEVEL_GOAL.hp, hazards });
+  // the boss's blows take the hp a battle's fail-on-death owns; health shows it on the HUD (a hit's cost named)
+  if (goal.health || boss) out.push({ kind: 'fail-on-death', startHp: LEVEL_GOAL.hp, ...(goal.health ? { hits: LEVEL_GOAL.hit } : {}) });
+  out.push(boss ? { kind: 'win-when', when: { var: 'won', gte: 1 }, event: 'battles:won' } : exit);
+  return out;
+}
+
+/** What a level goal stands in a stage beside the pilot (stageLevelOrder's `goalCast`, its `extra`'s shape): the boss
+ * at the end of the last stage (`ref`: its figure), the bag's menu on I (and its `legend`). Null when it stands nothing. */
+export function levelGoalCast(goal, ends, { last = false, ref = null } = {}) {
+  const bag = goal.collect ? bagPlay({ pickup: goal.collect === true ? 'gem' : goal.collect }) : null;
+  const boss = goal.boss && last && ref;
+  if (!bag && !boss) return null;
+  const figures = {}, entities = [], play = { ...(bag ? bag.play : {}) };
+  if (boss) {
+    // (it stands on the floor: a building's exit is at its walker's eye, `bossAt` its floor)
+    const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead'), at = ends.bossAt ?? ends.exit;
+    standFoe(figures, entities, 'boss', ref, at, along.at(-1)?.at ?? ends.spawn);
+    play.battle = { hero: { atk: BATTLE.atk, hp: 'hp' }, foes: [{ who: 'boss', at: [at[0], at[1]], name: 'The boss', hp: LEVEL_GOAL.boss.hp, atk: LEVEL_GOAL.boss.atk }] };
+  }
+  return { ...(boss ? { figures, entities } : {}), play, ...(bag ? { inputs: bag.inputs, legend: 'I  bag' } : {}) };
 }
 
 /** A shooter's posts: `foes` (4) on the trail's beats (lay-concerns.js beatPosts), each a foe's id. */

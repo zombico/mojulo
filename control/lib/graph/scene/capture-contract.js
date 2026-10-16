@@ -22,6 +22,9 @@ export const CAPTURE_FRAME = 'frame';
 export const CAPTURE_STEP = 'step';
 export const CAPTURE_PROBE = 'probe';
 export const CAPTURE_COMPILE_WALK_TO = 'compileWalkTo';
+// the camera as RENDERED (after a follow camera's wall pull-in, which the camera entity never sees): { eye, dir, fov,
+// aspect }. The first-frame check (lib/graph/game/first-frame-check.js) judges where the eye really is with it.
+export const CAPTURE_VIEW = 'view';
 
 // probe() result shape (top level) and per-entity fields — the assertion surface
 export const PROBE_FIELDS = ['t', 'entities', 'hud', 'bodies'];

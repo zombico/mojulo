@@ -3,7 +3,7 @@
   "id": "game",
   "name": "Make a game — levels composed into a playable whole",
   "summary": "A playable shell owning a typed store + levels that are worlds carrying a game contract.",
-  "when": "\"make a game\", \"a playable dungeon crawler I walk around in\", \"a dungeon crawler where loot carries between levels\", \"a roguelike where my gear persists across floors and runs\", \"a level I move through and explore myself\", \"a game I can actually play\", \"a campaign with unlockable levels\", \"a customizable squad that persists\", \"a tactics game with a persistent army\"",
+  "when": "\"make a game\", \"a roguelike where my gear persists across floors and runs\", \"a level I move through and explore myself\", \"a game I can actually play\", \"a campaign with unlockable levels\", \"a customizable squad that persists\", \"a tactics game with a persistent army\"",
   "entry": "create_game",
   "form": "game"
 }
