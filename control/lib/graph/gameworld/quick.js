@@ -71,7 +71,7 @@
  * Pure. `readQuick` reads the shape; `quickWorld` writes the gameworld; `goalMechanics` places the goal on a stage's own
  * anchors (levels.js `stageEnds`); `quickStore` the store the goal needs.
  */
-import { STAGE_KITS } from '../era/stage.js';
+import { STAGE_KITS, isGroundKit, GROUND_KITS, roomKitDoor, resolveKitId } from '../era/stage.js';
 import { COURSE_PRESETS } from '../roads/course.js';
 import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
@@ -378,7 +378,8 @@ export function quickWorld({ quick: given, id, name, seed, style, ...rest } = {}
   const camera = named ?? ((quick.goal === 'shoot' && quick.craft === undefined) || quick.goal === 'deathmatch' ? 'first-person' : quick.goal === 'fight' ? 'side' : undefined);
   if (typeof id !== 'string') throw fail(': the world needs an id (a short lower-case name)');
   const kit = style?.kit ?? 'trail-valley';
-  if (!STAGE_KITS[kit]?.shell) throw fail(`: style.kit '${kit}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((k) => STAGE_KITS[k].shell).join(', ')})`);
+  // one rule for open ground (era/stage.js isGroundKit): a room kit had a shell, passed, and failed deep in the stage
+  if (!isGroundKit(kit)) throw fail(`: style.kit ${STAGE_KITS[resolveKitId(kit)] ? roomKitDoor(kit).replace('levels.<id>.building', 'quick.building').replace(' (a quick game: quick.building)', '') : `'${kit}' is not a stage kit`} (open ground: ${GROUND_KITS.join(', ')})`);
   // a loop is laid on the trail's land: the longest trail, so a lap is a stretch worth driving
   const loop = quick.goal === 'race' && (quick.track === 'loop' || ((quick.rivals || quick.racers || quick.supercars) && quick.track !== 'trail'));
   // an arena too: its trail the longest, with no beat that cuts the land or stands a stone on it

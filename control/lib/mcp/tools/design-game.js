@@ -210,7 +210,13 @@ function readout(ref, world, context = {}) {
     // how to share it, by what this host can do; the call that made the game carries the whole offer (`share`)
     next.push({ step: 'share', can: shareBrief(shareForContext(context, { ref: world.made.game.ref })), card: 'gameworld-next' });
   }
+  // the run, whenever a run can make something: a world with a character book (its hero first), and a world before its
+  // people (a composed world: runner.js worldSteps lays its levels and the game) once its parts are settled. The run
+  // used to be offered only with characters, so a composed world stalled after compose
+  const worldFirst = !world.characters && !world.quick && Object.keys(world.levels ?? {}).length > 0;
+  const settled = (st) => st === 'approved' || st === 'auto';
   if (world.characters) next.push({ step: world.made?.hero ? 'rerun' : 'run', card: 'gameworld-next' });
+  else if (worldFirst && stamps.every((x) => settled(x.status))) next.push({ step: world.made?.game ? 'rerun' : 'run', card: 'gameworld-next' });
   if (world.characters?.hero?.actions && !world.characters.hero.adornment) next.push({ step: 'adornment', path: '/characters/hero/adornment', card: 'gameworld-adornment' });
   if (steps) for (const [k, s] of Object.entries(steps)) if (!s.ready) next.push({ step: 'wait', on: k, waiting: s.waiting.map((w) => `${w.id} (${w.status})`), card: 'gameworld-next' });
   // the numbers the systems derive, readable without the bible (the sheet needs a browser)

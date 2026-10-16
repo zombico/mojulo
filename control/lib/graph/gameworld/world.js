@@ -65,7 +65,7 @@
  * `resolveLevel(world, id)` answers the level recipe `layLevel` reads, the town's recipe (its castle in it), the
  * level's whole style, who built what, and its ledger. Pure: the same world resolves the same levels.
  */
-import { STAGE_KITS, resolveKitId, stageKit } from '../era/stage.js';
+import { STAGE_KITS, resolveKitId, stageKit, isGroundKit, GROUND_KITS, roomKitDoor } from '../era/stage.js';
 import { readScenes } from '../playscape/ui/scenes.js';
 import { readStory, readGameQuests } from './story.js';
 import { readOutTrail } from '../era/out-trail.js';
@@ -196,7 +196,9 @@ function readStyle(s, at) {
     if (!WORLD_STYLE[k]) throw new Error(`gameworld: ${at}.${k} is not part of the style (${Object.keys(WORLD_STYLE).join(', ')})${CIVILIZATION[k] ? `; ${k} belongs to a civilization` : ''}`);
     if (k === 'kit') {
       const id = resolveKitId(v);
-      if (!stageKit(id) || !stageKit(id).shell) throw new Error(`gameworld: ${at}.kit '${v}' is not an outdoor stage kit (${Object.keys(STAGE_KITS).filter((x) => STAGE_KITS[x].shell).join(', ')})`);
+      // one rule for open ground (era/stage.js isGroundKit): a room kit passed the old "has a shell" check and crashed the
+      // natural world's reader on every readout
+      if (!isGroundKit(id)) throw new Error(`gameworld: ${at}.kit ${stageKit(id) ? roomKitDoor(v) : `'${v}' is not a stage kit`} (open ground: ${GROUND_KITS.join(', ')})`);
       out.kit = id;
     } else if (k === 'land') out.land = readLand(v, `${at}.land`);
     else if (k === 'weather') { try { out.weather = readWeather(v, `${at}.weather`); } catch (e) { throw new Error(`gameworld: ${e.message}`); } }

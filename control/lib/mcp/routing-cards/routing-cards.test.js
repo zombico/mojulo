@@ -156,3 +156,16 @@ describe('routing eval held-out set — frozen', () => {
     expect(new Set(HOLDOUT.map(([p]) => p)).size).toBe(HOLDOUT.length);
   });
 });
+
+describe('fixture rows with a mode', () => {
+  it('each names a tool whose routing card teaches that mode (the tool name alone passed any call of it)', async () => {
+    const { getRoutingCardCatalog } = await import('./loader.js');
+    const cards = [...getRoutingCardCatalog().values()];
+    const rows = [...FIXTURE, ...COLLISION_FIXTURE].filter((r) => r[2]);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const [phrasing, tool, mode] of rows) {
+      const teaches = cards.some((c) => c.entry === tool && new RegExp(`\\b${mode}\\b`).test(c.body));
+      expect(teaches, `"${phrasing}": no ${tool} card teaches ${mode}`).toBe(true);
+    }
+  });
+});

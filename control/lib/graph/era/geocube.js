@@ -37,7 +37,7 @@ import { rampFrom, resample } from './look-facets.js';
 import { ISEKAI_STYLES } from './isekai.js';
 import { SWATCHES } from './style/swatches.js';
 import { registerLook } from './style/looks.js';
-import { STAGE_KITS } from './stage.js';
+import { STAGE_KITS, isGroundKit } from './stage.js';
 import { tileFamilyOf } from './tile-specs.js';
 import { fingerprint } from '../gameworld/review.js';
 import { DEFAULT_ERA, eraError } from './eras.js';
@@ -221,7 +221,7 @@ export function readGeocube(spec) {
   for (const k of ['wall', 'floor', 'accent']) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
   // inside
   only(c.inside, ['bones', 'size', 'accentWall'], 'inside');
-  if (!STAGE_KITS[c.inside.bones] || ['nature', 'jungle', 'isekai'].includes(STAGE_KITS[c.inside.bones].shell)) no(`inside.bones '${c.inside.bones}' is not a room kit (${Object.keys(STAGE_KITS).filter((k) => !['nature', 'jungle', 'isekai'].includes(STAGE_KITS[k].shell)).join(', ')})`);
+  if (!STAGE_KITS[c.inside.bones] || isGroundKit(c.inside.bones)) no(`inside.bones '${c.inside.bones}' is not a room kit (${Object.keys(STAGE_KITS).filter((k) => !isGroundKit(k)).join(', ')})`);
   c.inside.size ??= [12, 12, 6]; c.inside.accentWall ??= '+y';
   if (!(Array.isArray(c.inside.size) && c.inside.size.length === 3 && c.inside.size.every((v) => v >= 3 && v <= 40))) no('inside.size is [w, d, h] metres, each 3..40');
   if (!WALLS.includes(c.inside.accentWall)) no(`inside.accentWall is one of ${WALLS.join(', ')}`);

@@ -7,6 +7,9 @@
 //     entry tool. (forward-context-grammar.plan.md, re-scoped audit #2.)
 //
 // Keep phrasings colloquial and OFF-card (verbatim card quotes prove nothing).
+// A row may carry a third element, the MODE the tool must be called in (design_game's `compose`): the tool name
+// alone is not the answer when one door has several ways in. routing-cards.test.js checks the tool's card teaches
+// the mode; gate 2a checks the retrieved card does; gate 2b asks the model for it.
 // When adding a creative capability, add 1–2 rows here — both gates pick them
 // up automatically.
 
@@ -170,11 +173,13 @@ export const KNOWN_MISSES = new Set([]);
 // gate 2b includes them as plain routing rows (they are the hard cases).
 export const COLLISION_FIXTURE = [
   // a playable artifact vs the walkability audit — both are "walk in a world"
-  ['a playable dungeon crawler I can actually walk around in', 'create_game'],
+  // a dungeon crawler is a world of levels from a sentence: design_game's compose, not create_game's hand assembly
+  ['a playable dungeon crawler I can actually walk around in', 'design_game', 'compose'],
   ['I want to make a game where my character unlocks new powers as she explores', 'design_game'],
   ['set up my hero with a sword, a level-up system and a health bar', 'design_game'],
   ['a quick one-level game where I collect coins and reach the exit', 'design_game'],
-  ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game'],
+  ['make me a game world from this sentence: a sunny island coast with a timber village', 'design_game', 'compose'],
+  ['a full game with 3 levels: a haunted forest, a ruined castle and a mountain peak', 'design_game', 'compose'],
   ['when I click the lever in my crypt the gate should swing open', 'get_play_vocab'],
   ['put a health bar and a countdown on screen in my level', 'get_play_vocab'],
   // ...while the audit itself must still win its own turf (the control)

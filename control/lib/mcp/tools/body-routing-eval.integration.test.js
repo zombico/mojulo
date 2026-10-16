@@ -131,11 +131,13 @@ async function buildPreamble(surface) {
 // nearly every row), so the names surface asks which tool does the work: whether a name alone points at the door.
 const NAMES_QUESTION = 'Which of these tools does the work this ask needs? Name the one that does it, not one you would read first.';
 
-const routingPrompt = (phrasing) => `You are an agent driving the mojulo MCP server on the operator's machine. ${preamble}
+// a row with a MODE (the fixture's third element) also asks which of the tool's ways in this ask takes
+const MODE_ASK = ' Then, after a space, the option you would lead the call with for this ask (its key, e.g. `some_tool option`), if it takes one.';
+const routingPrompt = (phrasing, mode) => `You are an agent driving the mojulo MCP server on the operator's machine. ${preamble}
 
 The user says: "${phrasing}"
 
-${SURFACE === 'names' ? NAMES_QUESTION : 'Which mojulo tool do you call FIRST for this ask?'} Reply with ONLY the tool name, nothing else. Do not invoke any tools — answer in plain text.`;
+${SURFACE === 'names' ? NAMES_QUESTION : 'Which mojulo tool do you call FIRST for this ask?'} Reply with ONLY the tool name${mode ? '' : ', nothing else'}.${mode ? MODE_ASK : ''} Do not invoke any tools — answer in plain text.`;
 
 // Behavioral rows — the moves the grammar plan makes expressible. Transcript-
 // style: the model is mid-session and must name the next move.
@@ -232,14 +234,15 @@ describe.skipIf(!enabled || !cliPresent)(
         // a held-out row carries its accept set; its first door stands as `expected`
         const routingRows = SET === 'holdout'
           ? HOLDOUT.map(([phrasing, accept]) => [phrasing, accept[0], accept])
-          : [...FIXTURE, ...COLLISION_FIXTURE].map(([phrasing, expected]) => [phrasing, expected, [expected, ...(ACCEPT_OVERRIDES.get(phrasing) || [])]]);
+          : [...FIXTURE, ...COLLISION_FIXTURE].map(([phrasing, expected, mode]) => [phrasing, expected, [expected, ...(ACCEPT_OVERRIDES.get(phrasing) || [])], mode]);
         const jobs = [
-          ...routingRows.map(([phrasing, expected, accept]) => ({
+          ...routingRows.map(([phrasing, expected, accept, mode]) => ({
             kind: 'routing',
             phrasing,
             expected,
             accept,
-            prompt: routingPrompt(phrasing),
+            ...(mode ? { mode } : {}),
+            prompt: routingPrompt(phrasing, mode),
           })),
           ...(SET === 'holdout' ? [] : BEHAVIORAL.map((c) => ({ kind: 'behavioral', case: c, prompt: behavioralPrompt(c) }))),
         ];
@@ -249,7 +252,9 @@ describe.skipIf(!enabled || !cliPresent)(
         const rows = routing.map((r) => {
           const got = firstTool(r.out);
           const accepted = new Set(r.accept);
-          return { phrasing: r.phrasing, expected: r.expected, got, ok: accepted.has(got), ...(KNOWN_MISSES.has(r.phrasing) ? { known: true } : {}), raw: r.out.slice(0, 160) };
+          // a mode row is right only when the reply names the mode too (the tool alone passed any design_game call)
+          const modeOk = !r.mode || new RegExp(`\\b${r.mode}\\b`).test(r.out);
+          return { phrasing: r.phrasing, expected: r.mode ? `${r.expected} ${r.mode}` : r.expected, got, ok: accepted.has(got) && modeOk, ...(KNOWN_MISSES.has(r.phrasing) ? { known: true } : {}), raw: r.out.slice(0, 160) };
         });
         const misses = rows.filter((r) => !r.ok).map(({ ok, ...m }) => m);
         const score = (routing.length - misses.length) / routing.length;

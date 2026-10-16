@@ -74,7 +74,7 @@ export const TOOL_LINES = {
   translate_modeler_lingo: L('orient', 'Modeler words (blockout, kitbash, retopo, bake, rig, LOD) → what mojulo does and the `export_model` handoff for the rest.'),
 
   // ── games ─────────────────────────────────────────────────────────────────
-  design_game: L('compose', 'THE GAME RAIL: design a game top down (hero, powers, gear, systems); `run: true` makes each ready step through `create_sketch` and the doors.'),
+  design_game: L('compose', 'THE GAME RAIL: a world and its levels from a sentence (`compose: { prompt }`), one level (`quick`), or a game designed top down (hero, powers, gear, systems); `run: true` makes each ready step.'),
   pick_palette: L('orient', "Colours solved for what a world is by colour theory (key, chroma, scheme, ramps, checks); pass the spec to design_game, create_game, create_cover."),
   tune_ground: L('update', "A gameworld level's ground on a top-down grid: amplitude and depth dials, cliffs, gorges, raises by cell; a map and hotspots back."),
   create_game: L('compose', 'A playable game: a shell with a typed store and levels that are worlds. Store design: `get_game_vocab`; revise: `update_sketch`.'),
