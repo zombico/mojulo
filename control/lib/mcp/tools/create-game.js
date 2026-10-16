@@ -93,7 +93,7 @@ export function themeOf(theme, palette, ref) {
   return { theme: { ...gameTheme(K), ...(theme ?? {}) }, palette: { id: K.id, spec: K.spec, scheme: K.read.scheme, key: K.read.key } };
 }
 
-export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, projectRef = null } = {}) {
+export async function mintGame({ title, store, levels, links, menu, music, theme: themeIn, palette, setup, difficulty, shell, run, front, ref, folderRef, audits, allowUnaudited = false, autoAudit = false, runTraversal = null, firstFrame = null, projectRef = null } = {}) {
   if (!title || typeof title !== 'string') throw new Error('`title` is required (string)');
   if (ref !== undefined) {
     if (typeof ref !== 'string' || !/^[A-Za-z0-9_-]{1,64}$/.test(ref)) {
@@ -134,7 +134,16 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   // auto_audit is an explicit render request: on a host with no browser its headless
   // run may download Chrome for Testing, and the result says so (browser_download).
   let browserDownload = null;
-  const traverse = autoAudit ? (runTraversal || (await import('@/lib/graph/game/auto-audit-runner')).runLevelTraversal) : null;
+  // Both flags (design_game's runner sends them: gameworld/runner.js): the audit runs where it can, the waiver stands
+  // where it cannot. It runs only on a browser already installed (never the Chrome download an explicit audit may
+  // make), and a run that does not prove a level stamps it rather than refusing the game (game-audit.js auditLevel).
+  let autoSkipped = null;
+  if (autoAudit && allowUnaudited && !runTraversal) {
+    const { levelBrowser } = await import('@/lib/graph/game/first-frame-check');
+    const found = await levelBrowser();
+    if (!found.path) autoSkipped = found.why;
+  }
+  const traverse = autoAudit && !autoSkipped ? (runTraversal || (await import('@/lib/graph/game/auto-audit-runner')).runLevelTraversal) : null;
   const autoRun = traverse
     ? async (arg) => {
         const { value, fetched } = await withChromiumFetch(() => traverse(arg));
@@ -171,6 +180,12 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     project = { ref: projectRef, url: `/games/${encodeURIComponent(projectRef)}` };
   }
 
+  // the first frame of each level (first-frame-check.js), with the audit that has frames: advice, never a refusal.
+  // An injected traversal runner has no frames, so the check rides only the real one (or an injected check).
+  const eyes = autoAudit && (firstFrame || !runTraversal)
+    ? await (firstFrame || (await import('@/lib/graph/game/first-frame-check')).firstFrameCheck)(finalized.levels.map((l) => l.ref))
+    : null;
+
   const levelMusic = suggestLevelMusic(finalized.levels.map((l) => l.ref), sketch.ref);
   return {
     ok: true,
@@ -179,7 +194,8 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     playUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/game`,
     playtestUrl: `/api/sketches/${encodeURIComponent(sketch.ref)}/playtest`,
     levels: finalized.levels.map((l) => l.ref),
-    audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
+    audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: autoSkipped && a.autoAuditPlan && a.completable === null ? `${a.reason}; auto-audit skipped: ${autoSkipped}` : a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
+    ...(eyes ? { first_frame: eyes } : {}),
     ...(levelMusic ? { music: levelMusic } : {}),
     ...(solved ? { palette: solved } : {}),
     ...(project ? { project } : {}),

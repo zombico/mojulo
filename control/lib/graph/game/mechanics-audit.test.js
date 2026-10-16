@@ -95,6 +95,28 @@ describe('create_game — auto_audit through the real mint (injected runner)', (
     expect(out.audits[0].note).toMatch(/auto-audit/);
   });
 
+  it('with allow_unaudited beside it (design_game\'s runner), a lost auto-run is stamped, not refused', async () => {
+    SketchRepository.create({ ref: 'crypt-1', title: 'crypt-1', manifest: reachExitLevel('crypt-1') });
+    const runTraversal = async () => ({ game: { ended: true, result: 'fail' } });
+    const firstFrame = async (refs) => ({ gate: 'machine', status: 'pass', levels: refs.map((ref) => ({ ref, status: 'pass', says: [] })) });
+    const out = await mintGame({
+      title: 'Stamped', store: { slices: [{ name: 'campaign', kind: 'progression' }] },
+      levels: [{ ref: 'crypt-1' }], ref: 'stamped-game', autoAudit: true, allowUnaudited: true, runTraversal, firstFrame,
+    });
+    expect(out.ok).toBe(true);
+    expect(out.audits[0]).toMatchObject({ ref: 'crypt-1', audited: false, completable: false, result: 'fail' });
+    expect(out.audits[0].note).toMatch(/ended in 'fail'.*not proved; promoted under allow_unaudited/);
+    // the first frame rides the audit's result (an injected check here; the real one renders in the browser)
+    expect(out.first_frame).toMatchObject({ gate: 'machine', status: 'pass', levels: [{ ref: 'crypt-1' }] });
+  });
+
+  it('an injected traversal runner has no frames: no first-frame check unless one is injected', async () => {
+    SketchRepository.create({ ref: 'crypt-1', title: 'crypt-1', manifest: reachExitLevel('crypt-1') });
+    const runTraversal = async () => ({ game: { ended: true, result: 'success' } });
+    const out = await mintGame({ title: 'No frames', store: { slices: [{ name: 'campaign', kind: 'progression' }] }, levels: [{ ref: 'crypt-1' }], ref: 'nf-game', autoAudit: true, runTraversal });
+    expect(out.first_frame).toBeUndefined();
+  });
+
   it('auto_audit still refuses a level whose auto-run loses', async () => {
     SketchRepository.create({ ref: 'crypt-1', title: 'crypt-1', manifest: reachExitLevel('crypt-1') });
     const runTraversal = async () => ({ game: { ended: true, result: 'fail' } });

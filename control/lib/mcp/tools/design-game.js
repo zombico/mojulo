@@ -34,6 +34,7 @@ import { quickWorld } from '@/lib/graph/gameworld/quick.js';
 import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
 import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
+import { firstFrameReadout } from '@/lib/graph/game/first-frame-check.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -124,10 +125,13 @@ async function realize(step, action) {
     return {};
   }
   if (key === 'game') {
-    // the game over the levels: create_game (the levels unaudited, recorded), its manifest whole in place
+    // the game over the levels: create_game (each level audited where the runner asked, else unaudited, recorded), its
+    // manifest whole in place
     const { title, store, levels, links, theme, shell } = order;
-    if (action === 'make') await createGameHandler({ ...order, ref });
-    else {
+    if (action === 'make') {
+      const minted = await createGameHandler({ ...order, ref });
+      return order.auto_audit ? { audits: (minted.audits ?? []).map((a) => ({ ref: a.ref, audited: a.audited, note: a.note })) } : {};
+    } else {
       // (a game made with no theme was given one at mint: a remake keeps it)
       const kept = theme ?? SketchRepository.getByRef(ref)?.manifest?.theme;
       await updateSketchHandler({ ref, title, manifest: { kind: 'game', title, store, levels, ...(links ? { links } : {}), ...(kept ? { theme: kept } : {}), ...(shell ? { shell } : {}) } });
@@ -166,7 +170,8 @@ async function runWorld(ref, world, { force = false } = {}) {
     const advises = (step.laws ?? []).filter((l) => !l.holds).map((l) => `${l.concern}: ${l.says}`);
     ran.push({ key: step.key, ref: step.ref, action, ...(step.waiting ? { waiting: step.waiting.map((w) => `${w.id} (${w.status})`) } : {}), ...(advises.length ? { advises } : {}) });
     if (action !== 'make' && action !== 'remake') return;
-    const { pin } = await realize(step, action);
+    const { pin, audits } = await realize(step, action);
+    if (audits) ran[ran.length - 1].audits = audits;   // the game's level audits, as create_game recorded them
     made[step.key] = { ref: step.ref, order: step.print, stored: storedPrint(step.ref) };
     if (pin && W.characters) W = withPin(W, pin);   // a quick game's hero has no book to pin it in
   };
@@ -351,11 +356,13 @@ async function afterWrite(ref, { approve, revise, note, run, force, compare, bef
     comparison = { reference: compare, ...compareWorlds(W, REFERENCES[compare]) };
   }
   const full = { ...readout(ref, W, context), ...(await fightReadout(W)) };
+  // a run's levels on their opening frame (machine gate, game/first-frame-check.js): { first_frame } or nothing
+  const eyes = await firstFrameReadout(W, ran);
   // the run that made (or remade) the game completed it: the whole share offer rides this call, once
   const completed = W.made?.game && ran?.some((r) => r.key === 'game' && (r.action === 'make' || r.action === 'remake'));
   const share = completed ? { share: shareForContext(context, { ref: W.made.game.ref }) } : {};
-  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...(comparison ? { comparison } : {}), ...share };
-  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...(comparison ? { comparison } : {}), ...share };
+  if (shape !== 'changed') return { ok: true, ...full, ...(ran ? { ran } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
+  return { ok: true, readout: 'changed', ...changedOnly(full, before ? readout(ref, before, context) : null), ...(ran ? { ran: ran.filter((r) => r.action !== 'keep' && r.action !== 'waiting') } : {}), ...eyes, ...(comparison ? { comparison } : {}), ...share };
 }
 
 /** A fight's readout (quick goal fight, once made): each fighter's character, the sheet it came from and what the sheet

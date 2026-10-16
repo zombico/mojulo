@@ -39,7 +39,7 @@ import path from 'node:path';
 
 import { faceListToMesh, decollideFaces, faceColorLinear, collectGlowSprites, collectShadowDecals, collectWaterMesh } from '../figures/face-mesh.js';
 import { b64, safeJson, escapeHtml, VENDOR_IMPORTMAP, CDN_IMPORTMAP, inlineImportmap } from './emit-util.js';
-import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO } from './capture-contract.js';
+import { CAPTURE_GLOBAL, CAPTURE_READY, CAPTURE_FRAME, CAPTURE_STEP, CAPTURE_PROBE, CAPTURE_COMPILE_WALK_TO, CAPTURE_VIEW } from './capture-contract.js';
 import { MSG_PAUSE as GAME_MSG_PAUSE, MSG_CONTROLS as GAME_MSG_CONTROLS } from '../game/level-contract.js';
 import { MSG_VIEW, MSG_VIEW_READY, MSG_FOCUS, VIEW_DIRS, STATIC_GROUP, STATIC_METAL_GROUP } from './view-cube-contract.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
@@ -1453,7 +1453,13 @@ if (_capture) {
       }
       return out;
     },
-    // WAYPOINT COMPILER (renderer-convergence step 3): compile "walk to [x,y]" into the tick
+    ${capture ? `// view()    — the camera as rendered (a follow camera's wall pull-in included): where the eye is, where it looks.
+    // Emitted on a capture page only (the first-frame check reads it), so a live page carries not one byte of it.
+    ${CAPTURE_VIEW}() {
+      const d = camera.getWorldDirection(new THREE.Vector3());
+      return { eye: camera.position.toArray(), dir: d.toArray(), fov: camera.fov, aspect: camera.aspect };
+    },
+    ` : ''}// WAYPOINT COMPILER (renderer-convergence step 3): compile "walk to [x,y]" into the tick
     // script Phase-3 traversals replay. Greedy closed-loop steering against the LIVE rule —
     // each tick reads the entity's real heading/position, aims, steps, records the input. The
     // returned ticks ARE the recipe (replaying them from a fresh load reproduces this run
