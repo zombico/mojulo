@@ -29,6 +29,7 @@ import { GameProjectRepository, GameProjectMemberRepository } from '@/lib/db/rep
 import { validateGameManifest, normalizeGameManifest } from '@/lib/graph/game/game-manifest';
 import { resolveGame } from '@/lib/graph/game/game-resolve';
 import { auditLevel } from '@/lib/graph/game/game-audit';
+import { undressedReadout } from '@/lib/graph/game/level-dress';
 import { withChromiumFetch } from '@/lib/graph/scene/chromium-consent';
 import { getGameVocabCatalog } from '@/lib/graph/game/slice-cards/loader';
 import { gameworldCards, GAMEWORLD_CARD_IDS, SAMPLE_PAGES, quickGoalCardById, genreCardById } from '@/lib/graph/gameworld/gameworld-cards';
@@ -172,6 +173,8 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
   }
 
   const levelMusic = suggestLevelMusic(finalized.levels.map((l) => l.ref), sketch.ref);
+  // advice (level-dress.js): a level that is plain mesh bodies on the stage's default checkerboard is a greybox
+  const undressed = undressedReadout(finalized.levels.map((l) => l.ref), (r) => SketchRepository.getByRef(r));
   return {
     ok: true,
     ref: sketch.ref,
@@ -181,6 +184,7 @@ export async function mintGame({ title, store, levels, links, menu, music, theme
     levels: finalized.levels.map((l) => l.ref),
     audits: auditReports.map((a) => ({ ref: a.ref, completable: a.completable, result: a.result, audited: a.completable === true, note: a.reason, ...(a.autoAuditPlan ? { audit_plan: a.autoAuditPlan } : {}) })),
     ...(levelMusic ? { music: levelMusic } : {}),
+    ...(undressed ? { undressed } : {}),
     ...(solved ? { palette: solved } : {}),
     ...(project ? { project } : {}),
     ...(browserDownload ? { browser_download: browserDownload } : {}),

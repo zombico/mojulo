@@ -24,13 +24,15 @@ export function parseSmoke(stdout) {
   try { return JSON.parse(line.slice(MARK.length)); } catch { return null; }
 }
 
-export function runDesktopGate({ dir, electron, pages, timeoutMs = 120000, log = () => {} }) {
+// `env`: variables laid over this process's for the app (export_game bounds the app's own report with
+// MOJULO_SMOKE_TIMEOUT_MS); absent, the app sees this process's environment as before.
+export function runDesktopGate({ dir, electron, pages, timeoutMs = 120000, env: extraEnv = {}, log = () => {} }) {
   if (!electron) {
     return Promise.resolve({ ran: false, skipped: 'no Electron: set MOJULO_ELECTRON, put electron on the PATH, or run npm install in the folder' });
   }
   return new Promise((resolve) => {
     // an editor's terminal (VS Code, itself Electron) exports ELECTRON_RUN_AS_NODE, which would run main.js as plain Node
-    const env = { ...process.env };
+    const env = { ...process.env, ...extraEnv };
     delete env.ELECTRON_RUN_AS_NODE;
     const child = spawn(electron, [dir, '--mojulo-smoke', ...pages], { cwd: dir, env, stdio: ['ignore', 'pipe', 'pipe'], shell: process.platform === 'win32' });
     let stdout = '';

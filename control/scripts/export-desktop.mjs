@@ -6,6 +6,9 @@
  * console errors and files the folder lacks. Mirrors export-godot.mjs / export-unity.mjs: env-located binary,
  * stdout-JSON handback, stderr logs.
  *
+ * export_game runs the same gate itself when lib/workers/find.js finds Electron (answered as `desktop.smoke`); this
+ * script is the shell's way to run it, with an explicit --electron or none (--no-gate).
+ *
  * Rung 0 (no Electron here): emit-only. The folder plays after `npm install && npm start`; the gate says why it
  * skipped. mojulo never installs Electron.
  *
@@ -43,7 +46,8 @@ const { runDesktopGate, smokePages } = await import('../lib/graph/game/desktop-g
 
 let result;
 try {
-  result = await exportGameHandler({ ref: args.ref, target: 'desktop' });
+  // the tool's own smoke is skipped here: this script runs it below, with --electron and --no-gate
+  result = await exportGameHandler({ ref: args.ref, target: 'desktop' }, {}, { smoke: false });
 } catch (e) {
   fail(e?.message ?? String(e));
 }

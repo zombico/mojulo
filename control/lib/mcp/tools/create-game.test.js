@@ -178,6 +178,37 @@ describe('get_game_vocab', () => {
   });
 });
 
+describe('create_game — the undressed advice (level-dress.js)', () => {
+  const stage = (ref, extra) => SketchRepository.create({ ref, title: ref, manifest: { kind: 'controllable', game: contract(ref), ...extra } });
+  const box = (id) => ({ id, body: { type: 'mesh', shape: 'box', size: [1, 1, 1] }, transform: { pos: [0, 0, 0] } });
+
+  it('flags a level of plain shapes on the default ground, and still mints the game', async () => {
+    stage('grey-1', { entities: [box('a'), { id: 'b', body: { type: 'mesh', radius: 0.5 } }, { id: 'cam', rule: { type: 'follow' } }], ground: { colorA: '#ffffff' } });
+    stage('grey-2', {});
+    const out = await createGameHandler({ title: 'Greybox', store: STORE, levels: [{ ref: 'grey-1' }, { ref: 'grey-2' }], ref: 'greybox-game', allow_unaudited: true });
+    expect(out.ok).toBe(true);
+    expect(SketchRepository.getByRef('greybox-game')).toBeTruthy();
+    expect(out.undressed.levels).toEqual([
+      { level: 'grey-1', why: expect.stringMatching(/3 bodies are all plain boxes\/spheres on the default checkerboard ground/) },
+      { level: 'grey-2', why: expect.stringMatching(/no bodies/) },
+    ]);
+    expect(out.undressed.next).toMatch(/design_game/);
+    expect(out.undressed.note).toMatch(/not a refusal/);
+  });
+
+  it('a dressed level is not flagged: its own ground, a figure body, a mapRef map with faces, or another kind', async () => {
+    const floor = [{ corners: [[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], fill: '#888' }];
+    stage('own-ground', { faces: floor, entities: [box('a')] });
+    stage('hero-body', { entities: [box('a'), { id: 'hero', body: { type: 'figure-rig', figure: 'hero' } }] });
+    SketchRepository.create({ ref: 'the-map', title: 'map', manifest: { kind: 'controllable', faces: floor } });
+    stage('on-map', { mapRef: 'the-map', entities: [box('a')] });
+    mintLevel('orbit-1', contract('orbit-1'));
+    const out = await mintGame({ title: 'Dressed', store: STORE, levels: ['own-ground', 'hero-body', 'on-map', 'orbit-1'].map((ref) => ({ ref })), ref: 'dressed-game', allowUnaudited: true });
+    expect(out.ok).toBe(true);
+    expect(out.undressed).toBeUndefined();
+  });
+});
+
 describe('registration — the tools are listed and invokable', () => {
   it('create_game + get_game_vocab register and appear in tools/list', async () => {
     const { ensureToolsRegistered, isToolListed } = await import('@/lib/mcp/server');

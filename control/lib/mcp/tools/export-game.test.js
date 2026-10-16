@@ -144,6 +144,9 @@ describe('export_game — world/level games', () => {
   });
 });
 
+// the desktop tests never launch a real Electron: the finder is injected (absent unless a test says so)
+const NO_ELECTRON = { smoke: { find: () => null } };
+
 describe("export_game — target 'desktop'", () => {
   it('writes the web folder plus the three files that make it an Electron app, the same bytes each time', async () => {
     const floor = [{ corners: [[-50, -50, 0], [50, -50, 0], [50, 50, 0], [-50, 50, 0]], fill: '#565' }];
@@ -158,7 +161,7 @@ describe("export_game — target 'desktop'", () => {
       manifest: { kind: 'game', title: 'Desk Run', store: { slices: [{ name: 'flags', kind: 'flags' }] }, levels: [{ ref: 'sk_eg_desk_lv', title: 'One' }] },
     });
 
-    const result = await exportGameHandler({ ref: 'sk_eg_desk', target: 'desktop', cdn: true });
+    const result = await exportGameHandler({ ref: 'sk_eg_desk', target: 'desktop', cdn: true }, {}, NO_ELECTRON);
     expect(result.ok).toBe(true);
     expect(result.target).toBe('desktop');
     const names = result.files.map((f) => f.file);
@@ -177,7 +180,7 @@ describe("export_game — target 'desktop'", () => {
 
     const before = Object.fromEntries(['package.json', 'main.js', '.gitignore', 'README.md', 'game.html']
       .map((f) => [f, readFileSync(path.join(result.dir, f))]));
-    await exportGameHandler({ ref: 'sk_eg_desk', target: 'desktop' });
+    await exportGameHandler({ ref: 'sk_eg_desk', target: 'desktop' }, {}, NO_ELECTRON);
     for (const [f, bytes] of Object.entries(before)) expect(readFileSync(path.join(result.dir, f)).equals(bytes), f).toBe(true);
   });
 
@@ -188,8 +191,38 @@ describe("export_game — target 'desktop'", () => {
     expect(web.files.map((f) => f.file).sort()).toEqual(['README.md', 'game.html', 'recipe/game.json']);
     expect(web.desktop).toBeUndefined();
     expect(readFileSync(path.join(web.dir, 'README.md'), 'utf8')).not.toContain('desktop app');
-    const desk = await exportGameHandler({ ref: 'sk_eg_brick_desk', target: 'desktop' });
+    const desk = await exportGameHandler({ ref: 'sk_eg_brick_desk', target: 'desktop' }, {}, NO_ELECTRON);
     expect(desk.files.map((f) => f.file).sort()).toEqual(['.gitignore', 'README.md', 'game.html', 'main.js', 'package.json', 'recipe/game.json']);
     expect(desk.desktop.gate).toMatch(/export-desktop\.mjs --ref sk_eg_brick_desk/);
+  });
+
+  it('no Electron on this host: the smoke is skipped and the answer says so; the export still succeeds', async () => {
+    SketchRepository.create({ title: 'Smoke Off', manifest: { kind: 'game', engine: 'pixelizer', reducer: 'brickster', title: 'Smoke Off' }, ref: 'sk_eg_smoke_off' });
+    let ran = false;
+    const desk = await exportGameHandler({ ref: 'sk_eg_smoke_off', target: 'desktop' }, {}, { smoke: { find: () => null, run: async () => { ran = true; return { ran: true }; } } });
+    expect(desk.ok).toBe(true);
+    expect(ran).toBe(false);
+    expect(desk.desktop.smoke).toEqual({ ran: false, skipped: expect.stringMatching(/no Electron on this host.*the smoke did not run/) });
+    // the CLI runs its own gate, so it asks for none
+    const cli = await exportGameHandler({ ref: 'sk_eg_smoke_off', target: 'desktop' }, {}, { smoke: false });
+    expect(cli.desktop.smoke).toBeUndefined();
+  });
+
+  it('Electron found: the same smoke runs over the shell and the first level, bounded, and its report is answered', async () => {
+    const floor = [{ corners: [[-5, -5, 0], [5, -5, 0], [5, 5, 0], [-5, 5, 0]], fill: '#565' }];
+    SketchRepository.create({ title: 'smoke level', ref: 'sk_eg_smoke_lv', manifest: { kind: 'controllable', faces: floor, game: { levelRef: 'sk_eg_smoke_lv', produces: { results: ['success'], events: [] } } } });
+    SketchRepository.create({ title: 'Smoke On', ref: 'sk_eg_smoke_on', manifest: { kind: 'game', title: 'Smoke On', store: { slices: [{ name: 'flags', kind: 'flags' }] }, levels: [{ ref: 'sk_eg_smoke_lv' }] } });
+    const seen = {};
+    const find = (host, opts) => { seen.findDir = opts.dir; return '/fake/electron'; };
+    const run = async (arg) => { Object.assign(seen, arg); return { ran: true, exit: 1, ok: false, electron: '33.0.0', pages: [{ page: 'game.html', loaded: true, failed: [], errors: [] }, { page: 'levels/sk_eg_smoke_lv.html', loaded: true, failed: [], errors: ['boom'] }], missing: [] }; };
+    const desk = await exportGameHandler({ ref: 'sk_eg_smoke_on', target: 'desktop' }, {}, { smoke: { find, run } });
+    expect(seen.findDir).toBe(desk.dir);
+    expect(seen).toMatchObject({ dir: desk.dir, electron: '/fake/electron', pages: ['game.html', 'levels/sk_eg_smoke_lv.html'], timeoutMs: 75_000, env: { MOJULO_SMOKE_TIMEOUT_MS: '60000' } });
+    // advisory: a failed smoke is reported, the export is not failed
+    expect(desk.ok).toBe(true);
+    expect(desk.desktop.smoke).toMatchObject({ ran: true, ok: false, exit: 1, electron: '/fake/electron', pages: [{ page: 'game.html' }, { page: 'levels/sk_eg_smoke_lv.html', errors: ['boom'] }], ms: expect.any(Number), eyes_gate: expect.stringMatching(/^not run/) });
+    // Electron found but it would not start: skipped, with its reason
+    const broken = await exportGameHandler({ ref: 'sk_eg_smoke_on', target: 'desktop' }, {}, { smoke: { find, run: async () => ({ ran: false, skipped: 'Electron did not start: ENOENT' }) } });
+    expect(broken.desktop.smoke).toEqual({ ran: false, skipped: 'Electron did not start: ENOENT', electron: '/fake/electron' });
   });
 });
