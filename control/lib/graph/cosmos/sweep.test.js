@@ -5,7 +5,6 @@ import { capabilityRegistry } from './registry.js';
 import { EFFORT_WEIGHT } from './packages.js';
 import { validateCube, dryRun } from './cosmos.js';
 import { FIXTURES } from './fixtures.js';
-import { capabilityRegistry } from './registry.js';
 
 describe('rollCube', () => {
   it('rolls valid cubes, and the same seed rolls the same cube', () => {
