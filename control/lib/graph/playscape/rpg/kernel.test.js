@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readRpg } from './rpg.js';
-import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, buildRpg } from './kernel.js';
+import { rpgInit, rpgStart, rpgOptions, rpgTargets, rpgRound, rpgClose, rpgRest, rpgStatsOf, rpgUsable, rpgClassesOf, rpgSwitchClass, rpgTreeOf, rpgBuy, rpgXpFor, rpgGearOf, rpgEquip, rpgUnequip, rpgSave, rpgLoad, rpgPreview, buildRpg } from './kernel.js';
 
 const trio = (extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'bram', class: 'mage' }, { id: 'cass', class: 'cleric' }], ...extra } });
 
@@ -230,5 +230,39 @@ describe('gear: one item a slot, from the bag and back to it', () => {
     expect(own.gear['moon-blade']).toEqual({ name: 'Moon Blade', slot: 'weapon', mods: { atk: 12, mag: 4 }, classes: ['knight'] });
     expect(() => trio({ gear: { cape: { slot: 'back', def: 1 } } })).toThrow(/slot is weapon, armor, accessory/);
     expect(() => readRpg({ rpg: { party: [{ id: 'a', class: 'fighter', gear: { armor: 'iron-sword' } }] } })).toThrow(/Iron Sword is worn as weapon/);
+  });
+});
+
+describe('the timeline (rules.turns: timeline): each acts when its gauge fills', () => {
+  const tl = (party, foes) => readRpg({ rpg: { party, encounters: [{ id: 'a', foes }], rules: { turns: 'timeline' } } });
+
+  it('one member picks at a time; the turns go as the preview said; the quick act more often; it replays the same', () => {
+    const cfg = tl([{ id: 'ayla', class: 'fighter' }, { id: 'dane', class: 'rogue', bonus: { spd: 20 } }], ['golem']);
+    const run = () => {
+      const R = rpgInit(cfg), v = {}, order = [];
+      rpgStart(cfg, R, 'a', v);
+      for (let t = 0; t < 8 && R.b.phase === 'command'; t++) {
+        const seen = rpgPreview(cfg, R, 3).map((x) => x.who);
+        expect(seen[0]).toBe(R.b.turn);
+        order.push(R.b.turn);
+        rpgRound(cfg, R, { [R.b.turn]: { act: 'guard' } }, v);
+      }
+      return order;
+    };
+    const order = run();
+    expect(order).toEqual(run());
+    const n = (who) => order.filter((x) => x === who).length;
+    expect(n('dane')).toBeGreaterThan(n('ayla'));
+  });
+
+  it('a pick only for the one whose turn it is; the foes between turns act in the same call', () => {
+    const cfg = tl([{ id: 'ayla', class: 'fighter' }], ['wolf', 'bat']);
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'a', v);
+    expect(R.b.turn).toBe('ayla');
+    const beats = rpgRound(cfg, R, { ayla: { act: 'attack', target: 'f0' } }, v);
+    expect(beats[0].text).toBe('Ayla attacks!');
+    expect(beats.some((b) => /^(Wolf|Bat) (attacks|uses)/.test(b.text)) || R.b.turn === 'ayla').toBe(true);
+    expect(() => readRpg({ rpg: { party: [{ id: 'a', class: 'fighter' }], rules: { turns: 'atb' } } })).toThrow(/turns is rounds or timeline/);
   });
 });

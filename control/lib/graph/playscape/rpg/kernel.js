@@ -25,7 +25,11 @@
  *   start(cfg, R, enc, vars)          → beats; enc: an encounter id, or { id, foes } (a random one)
  *   options(cfg, R, member, vars)     → { commands, skills, items } what the member may pick this round
  *   targets(cfg, R, pick)             → [{ id, name }] who a pick may aim at ([] when it aims at a side or itself)
- *   round(cfg, R, picks, vars)        → beats; picks: { <member>: { act, skill?, item?, target? } }
+ *   round(cfg, R, picks, vars)        → beats; picks: { <member>: { act, skill?, item?, target? } }. In rounds (the
+ *                                       default) every standing member picks, then all act in speed order; on the
+ *                                       timeline (rules.turns: 'timeline') the member whose turn it is (b.turn) picks,
+ *                                       and the turns after it play out until the next member's
+ *   preview(cfg, R, n)                → the next n turns on the timeline [{ who, name, party }]
  *   close(cfg, R, vars)               → the bus events the battle ends on: rpg-won / rpg-fled / rpg-lost, alone and :<encounter>
  *   switchClass / buy / rest / classesOf / treeOf / statsOf / partyOf / mirror
  *   gearOf / equip / unequip          what each member wears (one item a slot, from the bag and back to it)
@@ -147,8 +151,15 @@ export function buildRpg() {
     R.b = { enc: id, r: hash(cfg.seed + ':' + id + ':' + R.n), round: 0, foes, side, ids, phase: 'command', fails: 0, flee: E.flee !== false };
     const names = foes.map((f) => f.name);
     const said = names.length === 1 ? names[0] + ' appears!' : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' appear!';
+    const out = [{ text: said, kind: 'start' }];
+    // the timeline: every gauge starts part full (by a die, more for the quick), and whoever is up first acts
+    if (isTimeline(cfg)) {
+      R.b.ct = {};
+      for (const a of actors(R)) R.b.ct[a] = Math.min(GAUGE - 1, spdOf(cfg, R, a) * 2 + rnd(R.b) * GAUGE * 0.4);
+      advance(cfg, R, vars, out);
+    }
     mirror(cfg, R, vars);
-    return [{ text: said, kind: 'start' }];
+    return out;
   }
 
   const living = (R) => R.b.ids.filter((m) => R.m[m].hp > 0);
@@ -368,23 +379,93 @@ export function buildRpg() {
     return { act: 'attack', target: L[Math.floor(rnd(b) * L.length)] };
   }
 
+  // the party tries to run: → true when it got away (the battle over)
+  function flee(cfg, R, vars, out) {
+    const b = R.b;
+    if (!b.flee) { out.push({ text: 'There is no escape!', kind: 'miss' }); return false; }
+    const ps = living(R).reduce((s, m) => s + statsOf(cfg, R, m).spd, 0) / Math.max(1, living(R).length);
+    const fs = livingFoes(R).reduce((s, f) => s + foeStats(f).spd, 0) / Math.max(1, livingFoes(R).length);
+    const chance = clamp(0.5 + 0.05 * (ps - fs) + 0.15 * b.fails, 0.1, 0.95);
+    if (rnd(b) < chance) { b.phase = 'fled'; out.push({ text: 'The party got away!', kind: 'end' }); mirror(cfg, R, vars); return true; }
+    b.fails++;
+    out.push({ text: 'Couldn\'t get away!', kind: 'miss' });
+    return false;
+  }
+
+  // ── the timeline (rules.turns: 'timeline'): each one's gauge fills at its speed, and it acts when it is full ────────
+  const GAUGE = 100;
+  const isTimeline = (cfg) => cfg.rules.turns === 'timeline';
+  const spdOf = (cfg, R, who) => { const U = unit(cfg, R, who); return Math.max(1, U ? U.S.spd : 1); };
+  const actors = (R) => [...living(R), ...livingFoes(R).map((f) => f.uid)];
+  // who acts next on gauges ct (copied when only looked at): the first to fill, the party first on a tie
+  function nextOn(cfg, R, ct) {
+    let who = null, wait = Infinity;
+    for (const a of actors(R)) { const t = (GAUGE - ct[a]) / spdOf(cfg, R, a); if (t < wait - 1e-9) { wait = t; who = a; } }
+    if (who == null) return null;
+    for (const a of actors(R)) ct[a] += spdOf(cfg, R, a) * Math.max(0, wait);
+    return who;
+  }
+  /** The next n turns as the gauges stand: [{ who, name, party }] (the turn-order bar). */
+  function preview(cfg, R, n) {
+    const b = R.b, out = [];
+    if (!b || !isTimeline(cfg) || b.turn == null) return out;
+    const ct = Object.assign({}, b.ct);
+    out.push({ who: b.turn, name: nameOf(cfg, R, b.turn), party: !!b.side[b.turn] });
+    ct[b.turn] -= GAUGE;
+    while (out.length < n) { const w = nextOn(cfg, R, ct); if (w == null) break; out.push({ who: w, name: nameOf(cfg, R, w), party: !!b.side[w] }); ct[w] -= GAUGE; }
+    return out;
+  }
+  // an actor's turn spent: its gauge emptied, its own tick
+  function endTurn(cfg, R, who, out) { R.b.ct[who] -= GAUGE; tick(cfg, R, unit(cfg, R, who), out); }
+  // the battle over? (won, or lost) → true, its beats said
+  function settled(cfg, R, vars, out) {
+    if (!livingFoes(R).length) { victory(cfg, R, vars, out); return true; }
+    if (!living(R).length) { R.b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end' }); mirror(cfg, R, vars); return true; }
+    return false;
+  }
+  // the foes' turns (and the turns of members who sleep) until a member who can choose is up, or the battle is over
+  function advance(cfg, R, vars, out) {
+    const b = R.b;
+    b.turn = null;
+    for (let guard = 0; guard < 200; guard++) {
+      if (settled(cfg, R, vars, out)) return;
+      const who = nextOn(cfg, R, b.ct);
+      if (who == null) return;
+      if (b.side[who]) {
+        b.side[who].guard = 0;
+        if (R.m[who].hp > 0 && !b.side[who].st.sleep) { b.turn = who; mirror(cfg, R, vars); return; }
+        act(cfg, R, who, { act: 'guard' }, vars, out);
+      } else {
+        const f = b.foes.find((x) => x.uid === who);
+        act(cfg, R, who, f.st.sleep ? { act: 'sleep' } : foePick(cfg, R, f), vars, out);
+      }
+      endTurn(cfg, R, who, out);
+    }
+  }
+  // one member's turn on the timeline: their pick, then everyone after them until the next member who chooses
+  function turn(cfg, R, picks, vars) {
+    const b = R.b, out = [], who = b.turn;
+    if (who == null) return out;
+    const pick = picks[who] || { act: 'guard' };
+    b.round++;
+    if (pick.act === 'flee') { if (flee(cfg, R, vars, out)) return out; }
+    else act(cfg, R, who, pick, vars, out);
+    endTurn(cfg, R, who, out);
+    advance(cfg, R, vars, out);
+    if (b.phase === 'command') mirror(cfg, R, vars);
+    return out;
+  }
+
   function round(cfg, R, picks, vars) {
     const b = R.b, out = [];
     if (!b || b.phase !== 'command') return out;
+    if (isTimeline(cfg)) return turn(cfg, R, picks, vars);
     b.round++;
     for (const m of b.ids) b.side[m].guard = 0;
     const fleeing = b.ids.some((m) => R.m[m].hp > 0 && picks[m] && picks[m].act === 'flee');
     let order = [];
     if (fleeing) {
-      if (!b.flee) out.push({ text: 'There is no escape!', kind: 'miss' });
-      else {
-        const ps = living(R).reduce((s, m) => s + statsOf(cfg, R, m).spd, 0) / Math.max(1, living(R).length);
-        const fs = livingFoes(R).reduce((s, f) => s + foeStats(f).spd, 0) / Math.max(1, livingFoes(R).length);
-        const chance = clamp(0.5 + 0.05 * (ps - fs) + 0.15 * b.fails, 0.1, 0.95);
-        if (rnd(b) < chance) { b.phase = 'fled'; out.push({ text: 'The party got away!', kind: 'end' }); mirror(cfg, R, vars); return out; }
-        b.fails++;
-        out.push({ text: 'Couldn\'t get away!', kind: 'miss' });
-      }
+      if (flee(cfg, R, vars, out)) return out;
     } else for (const m of living(R)) order.push({ who: m, key: statsOf(cfg, R, m).spd * (0.75 + 0.5 * rnd(b)), i: order.length, pick: picks[m] || { act: 'guard' } });
     const nm = order.length;
     for (const f of livingFoes(R)) order.push({ who: f.uid, key: foeStats(f).spd * (0.75 + 0.5 * rnd(b)), i: nm + order.length, foe: f });
@@ -404,22 +485,23 @@ export function buildRpg() {
   }
 
   // the round's end: poison bites, sleepers may wake, silences and buffs wear off
+  // one actor's turn (or round) ending: poison bites, a sleeper may wake, silences and buffs wear off
+  function tick(cfg, R, T, out) {
+    if (!T || T.hp <= 0) return;
+    if (T.party ? T.M.poison : T.st.poison) {
+      const n = Math.max(1, Math.floor(T.S.hp / 10));
+      T.hp = Math.max(0, T.hp - n);
+      out.push({ text: T.name + ' takes ' + n + ' poison damage.', kind: 'hurt', target: T.who, amount: n, hp: T.hp });
+      if (T.hp <= 0) { fall(cfg, R, T, out); return; }
+    }
+    if (T.st.sleep && rnd(R.b) < WAKE) { T.st.sleep = 0; out.push({ text: T.name + ' wakes up.', kind: 'status', target: T.who }); }
+    if (T.st.silence && --T.st.silence <= 0) T.st.silence = 0;
+    for (let i = T.buffs.length - 1; i >= 0; i--) if (--T.buffs[i].rounds <= 0) T.buffs.splice(i, 1);
+  }
+  // the round's end: every one's tick
   function roundEnd(cfg, R, out) {
-    const b = R.b;
-    const tick = (T, poisoned) => {
-      if (T.hp <= 0) return;
-      if (poisoned) {
-        const n = Math.max(1, Math.floor(T.S.hp / 10));
-        T.hp = Math.max(0, T.hp - n);
-        out.push({ text: T.name + ' takes ' + n + ' poison damage.', kind: 'hurt', target: T.who, amount: n, hp: T.hp });
-        if (T.hp <= 0) { fall(cfg, R, T, out); return; }
-      }
-      if (T.st.sleep && rnd(b) < WAKE) { T.st.sleep = 0; out.push({ text: T.name + ' wakes up.', kind: 'status', target: T.who }); }
-      if (T.st.silence && --T.st.silence <= 0) T.st.silence = 0;
-      for (let i = T.buffs.length - 1; i >= 0; i--) if (--T.buffs[i].rounds <= 0) T.buffs.splice(i, 1);
-    };
-    for (const m of b.ids) tick(unit(cfg, R, m), R.m[m].poison);
-    for (const f of b.foes) tick(unit(cfg, R, f.uid), f.st.poison);
+    for (const m of R.b.ids) tick(cfg, R, unit(cfg, R, m), out);
+    for (const f of R.b.foes) tick(cfg, R, unit(cfg, R, f.uid), out);
   }
 
   function victory(cfg, R, vars, out) {
@@ -653,7 +735,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf };
+  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf };
 }
 
 const _rpg = buildRpg();
@@ -678,5 +760,6 @@ export const rpgAimOf = _rpg.aimOf;
 export const rpgSave = _rpg.save;
 export const rpgLoad = _rpg.load;
 export const rpgGearOf = _rpg.gearOf;
+export const rpgPreview = _rpg.preview;
 export const rpgEquip = _rpg.equip;
 export const rpgUnequip = _rpg.unequip;

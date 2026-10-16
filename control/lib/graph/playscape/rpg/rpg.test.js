@@ -130,6 +130,24 @@ describe('the page: the battle window and the party menu', () => {
     expect(P.queue[1].type).toBe(P.queue[0].type.split(':')[0]);
   });
 
+  it('a join and a fight that arrive together: the one who joins fights', () => {
+    const P = page({ rpg: { party: [...PARTY, { id: 'mira', class: 'cleric', joins: 'met-mira' }], encounters: PLAY.rpg.encounters } });
+    processEvents(P.bus, [{ type: 'rpg-join:mira' }, { type: 'rpg-battle:wolves' }]);
+    P.frames();
+    expect(P.api.R.b.ids).toEqual(['ayla', 'bram', 'mira']);
+  });
+
+  it('on the timeline the window asks only the one whose turn it is, and shows who comes next', () => {
+    const P = page({ rpg: { ...PLAY.rpg, rules: { turns: 'timeline' } } });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames(12);
+    const s = P.api.state();
+    expect(s.phase).toBe('command');
+    expect(s.member).toBe(P.api.R.b.turn);
+    P.press('Enter'); P.press('Enter');   // attack the first: the turn is spent at once
+    expect(P.api.state().phase).toBe('play');
+  });
+
   it('the party menu on P: a class switched, a skill bought, nothing during a fight', () => {
     const P = page(PLAY);
     P.press('KeyP');

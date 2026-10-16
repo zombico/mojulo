@@ -41,6 +41,17 @@ then everyone acts in speed order. The battle runs in place over the field, in t
 - **The party is carried between levels.** The new `party` game mechanic keeps each member's level, XP, HP and
   MP, class, class ranks and points, and learned skills in the store's `party` slice. The level loads them as it
   starts and saves only what changed, after every fight, class switch, skill bought and rest.
+- **Gear per member.** One item per slot (weapon, armor, accessory), each adding its numbers to the member's.
+  Every class starts in its own gear, and the party menu's Equip tab wears what the bag holds. A class switch
+  takes off whatever the new class forbids.
+- **A timeline turn order** (`rules.turns: 'timeline'`) beside the default rounds. Each actor acts when their
+  gauge fills at their speed, so the quick act more often. The window shows who comes next.
+- **The bag is carried too.** On the book path, items, unworn gear and gold travel in the store's bag slice
+  (two potions to start).
+- **A world whose intent fights turn by turn** (the jrpg genre, or `power.combat: turn-based`) gets battles
+  without writing `battles`.
+- **Menus use the shared menu controls**, so they work with a gamepad in its printed layout. The pad's select
+  button opens the party menu.
 - **The `quest` border flavor**: the classic RPG window, a deep blue gradient plate with a white double rule.
 
 ### Shoot plan: a keyframed camera you can see in the world

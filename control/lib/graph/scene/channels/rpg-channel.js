@@ -30,6 +30,7 @@ export const RPG_CSS = `
 .moj-rpg-foe.down{opacity:.3;text-decoration:line-through}
 .moj-rpg-foe .bar,.moj-rpg-row .bar{height:4px;margin-top:3px;background:rgba(255,255,255,.15);border-radius:2px;overflow:hidden}
 .moj-rpg-foe .bar i,.moj-rpg-row .bar i{display:block;height:100%;background:var(--moj-accent,#ffd76a)}
+.moj-rpg-turns{display:flex;gap:4px;justify-content:center;width:100%;margin-top:4px;font-size:11px}.moj-rpg-turns span{padding:1px 6px;border-radius:3px;background:rgba(0,0,0,.35)}.moj-rpg-turns span:first-child{outline:1px solid var(--moj-accent,#ffd76a)}.moj-rpg-turns .f{opacity:.7}
 .moj-rpg-msg{position:absolute;left:50%;bottom:184px;transform:translateX(-50%);width:min(560px,calc(100vw - 32px));min-height:38px}
 .moj-rpg-bottom{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:10px;width:min(720px,calc(100vw - 32px));align-items:stretch}
 .moj-rpg-cmd{width:200px;flex:none;min-height:150px}
@@ -117,7 +118,8 @@ export function rpgPage(cfg, K, ctl) {
   }
 
   const memberName = (id) => { for (const p of cfg.party) if (p.id === id) return p.name; return id; };
-  const commanders = () => (R.b ? R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep) : []);
+  // who picks now: every standing member in rounds; on the timeline, the one whose turn it is
+  const commanders = () => (!R.b ? [] : R.b.turn !== undefined ? (R.b.turn != null ? [R.b.turn] : []) : R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep));
   const busy = () => (window.__mojMenus && window.__mojMenus.open && window.__mojMenus.open()) || (window.__mojScenes && window.__mojScenes.on && window.__mojScenes.on());
 
   // ── the battle ──
@@ -206,6 +208,8 @@ export function rpgPage(cfg, K, ctl) {
       const hp = shown[x.uid] != null ? shown[x.uid] : x.hp;
       h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + popsFor(x.uid) + '</div>';
     });
+    const next = K.preview(cfg, R, 6);
+    if (next.length) h += '<div class="moj-rpg-turns">' + next.map((x) => '<span class="' + (x.party ? 'p' : 'f') + '">' + esc(x.name) + '</span>').join('') + '</div>';
     h += '</div>' + (msg ? '<div class="moj-w moj-rpg-msg">' + esc(msg) + '</div>' : '') + '<div class="moj-rpg-bottom"><div class="moj-w moj-rpg-cmd">';
     if (phase === 'command') {
       h += '<div class="t">' + esc(memberName(active)) + (level !== 'cmd' ? ' · ' + (level === 'target' ? 'target' : CMD[level]) : '') + '</div>';
@@ -252,7 +256,7 @@ export function rpgPage(cfg, K, ctl) {
     const ids = members(), id = ids[fm], M = R.m[id];
     let h = '<div class="moj-w moj-rpg-field"><div class="mem"><div class="t">Party</div>';
     ids.forEach((m, i) => { const S = K.statsOf(cfg, R, m); h += '<div class="opt' + (i === fm && flevel === 'members' ? ' on-f' : '') + '" data-m="' + i + '"><span>' + esc(memberName(m)) + '<small>Lv ' + R.m[m].level + '</small></span><span>' + R.m[m].hp + '/' + S.hp + '</span></div>'; });
-    h += '<div class="note">' + esc(cfg.rules.gold) + ': ' + (V()[cfg.rules.gold] || 0) + '</div></div><div class="pane"><div class="tabs">';
+    h += '<div class="note">Gold ' + (V()[cfg.rules.gold] || 0) + '</div></div><div class="pane"><div class="tabs">';
     TABS.forEach((t, i) => { h += '<span class="tab' + (i === ftab ? ' sel' : '') + '" data-tab="' + i + '">' + t + '</span>'; });
     h += '</div>';
     if (M) {
@@ -361,17 +365,20 @@ export function rpgPage(cfg, K, ctl) {
   function release() { window.__mojFreeze = false; window.__mojMenuOpen = false; }
 
   // ── the bus, and the walk ──
+  // the bus's new events: joins, openings and rests first, then a battle (the bus sorts what arrives together, so a
+  // cue's join and its fight may come in either order)
   function listen() {
-    const log = __busState.log;
+    const log = __busState.log, fights = [];
     for (let i = seen; i < log.length; i++) {
       const ty = log[i] && log[i].type;
       if (typeof ty !== 'string' || ty.indexOf('rpg-') !== 0) continue;
-      if (ty.indexOf('rpg-battle:') === 0) startBattle(ty.slice(11));
+      if (ty.indexOf('rpg-battle:') === 0) fights.push(ty.slice(11));
       else if (ty === 'rpg-rest') { K.rest(cfg, R, V()); keep(); }
       else if (ty.indexOf('rpg-join:') === 0) { R.joined[ty.slice(9)] = 1; keep(); }
       else if (ty.indexOf('rpg-open:') === 0) { R.opened[ty.slice(9)] = 1; keep(); }
     }
     seen = log.length;
+    for (const enc of fights) startBattle(enc);
   }
   function walk() {
     const Rn = cfg.random, w = window.__mojCtrl && window.__mojCtrl.world;

@@ -268,9 +268,13 @@ function battlesCard() {
     '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map; walk up to one to fight.',
     'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
     '        random fights on the trails, drawn from the stage\'s packs.',
-    'rules   { defeat: fail (the level, the default) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
-    'CARRIED: the party, its levels, xp, classes, ranks and skills, goes from level to level in the store\'s party slice',
-    '  (the party mechanic); gold goes into the gold var, drops into the bag.',
+    'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
+    '        Equip tab (P) wears what the bag holds. gear: the world\'s own, { <item>: { slot, atk?, def?, …, classes? } }.',
+    'rules   { turns: rounds (every member picks, then all act by speed) | timeline (each acts when its gauge fills: the',
+    '        quick more often), defeat: fail (the level) | retry, switch: anywhere | never, carry: class | all, cap, xp, cp, sp }.',
+    'A world whose intent fights turn by turn is laid with battles, written or not.',
+    'CARRIED: the party (levels, xp, classes, ranks, skills, gear) in the store\'s party slice, the bag (items, gear not',
+    '  worn, gold) in its bag slice, two potions to start.',
   );
 }
 
