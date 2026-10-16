@@ -33,6 +33,7 @@ import { inkBake, inkGeoNormals, inkCentroid, inkBuried } from './ink-geometry.j
 import { drawLayerGroup } from './channels/draw-layers.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
+import { contrastFaces } from '../era/vertex-contrast.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras, levelAddress, zRotationQuat } from './scene-gltf-level.js';
 import { vrmSpacePack, humanoidParents, withProfileJoints } from '../figures/rig-tpose.js';
 import { humanoidBonesFor } from '../polygonizer/figure-humanoid-map.js';
@@ -1143,7 +1144,7 @@ class GlbBuilder {
 /** a vault's extras in the export's units (metres × mpu): the box, the take-off and landing distances, the run */
 const vaultExtras = (v, mpu) => { const m = (x) => Math.round(x * mpu * 1e4) / 1e4; return { ...v, box: { h: m(v.box.h), d: m(v.box.d), w: m(v.box.w) }, entry: { ...v.entry, takeoff: m(v.entry.takeoff) }, exit: { ...v.exit, landing: m(v.exit.landing) }, travel: m(v.travel) }; };
 export function facesToGlb(payload = {}, { generator, clips = null, skinned = false, quantize = false, humanoid = false, lit = false, roughness = 0.85 } = {}) {
-  const { faces = [], textures = {}, light = null, ao = null, repeats = [], figures = null } = payload || {};
+  const { faces = [], textures = {}, light = null, ao = null, vertexContrast = null, repeats = [], figures = null } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   // rig-figure selection: only packed rigs qualify (figure-frames stacks / polygomer statics have
   // no clips to bake and stay out, matching the static path).
@@ -1193,9 +1194,12 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   const aoPhantoms = aoOpts && repeatList.length
     ? repeatList.flatMap((r, i) => instanceOccluderFaces(repExpanded[i], r.transforms))
     : [];
-  const expanded = aoOpts
+  const expanded2 = aoOpts
     ? bakeAmbientOcclusion(expanded1, aoPhantoms.length ? { ...aoOpts, extraOccluders: aoPhantoms } : aoOpts)
     : expanded1;
+  // the geocube's vertex contrast (era/vertex-contrast.js), at the World page's seam: right after the AO bake
+  const shape = (fs) => (vertexContrast ? contrastFaces(fs, vertexContrast) : fs);
+  const expanded = shape(expanded2);
 
   // Opaque/lit geometry, one node per render group (mirrors emitThreeWorld's grouping so a
   // Blender import shows the same toggleable walls/shells as named objects).
@@ -1421,7 +1425,7 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
   // per-node materials).
   repeatList.forEach((r, i) => {
     // a textured plant face exports as its plain lit colour (plainFaces): instanced prototypes carry no texture yet
-    const gm = faceListToMesh(plainFaces(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]));
+    const gm = faceListToMesh(plainFaces(shape(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i])));
     if (!gm.positions.length) return;
     const name = r.group || `repeat-${i}`;
     const mat = b.unlitMaterial({ name });

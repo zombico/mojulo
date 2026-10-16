@@ -38,6 +38,7 @@
 import { faceListToMesh, decollideFaces, collectWaterMesh, collectShadowDecals, plainFaces } from '../figures/face-mesh.js';
 import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { bakeAmbientOcclusion, instanceOccluderFaces } from '../effects/ao-bake.js';
+import { contrastFaces } from '../era/vertex-contrast.js';
 import { levelCameras, levelEntityNodes, levelSceneExtras } from './scene-gltf-level.js';
 import { buildZip } from './zip-writer.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
@@ -218,7 +219,7 @@ function textureSidecar(key, dataUrl, namer) {
  * facesToUsdz packs them into the one file.
  */
 export function facesToUsda(payload = {}, { generator = 'mojulo scene-usd', title = null, metersPerUnit = 1 } = {}) {
-  const { faces = [], textures = {}, light = null, ao = null, repeats = [] } = payload || {};
+  const { faces = [], textures = {}, light = null, ao = null, vertexContrast = null, repeats = [] } = payload || {};
   const repeatList = (Array.isArray(repeats) ? repeats : []).filter((r) => r && Array.isArray(r.template) && r.template.length && Array.isArray(r.transforms) && r.transforms.length);
   if ((!Array.isArray(faces) || !faces.length) && !repeatList.length) return null;
 
@@ -231,9 +232,12 @@ export function facesToUsda(payload = {}, { generator = 'mojulo scene-usd', titl
   const aoPhantoms = aoOpts && repeatList.length
     ? repeatList.flatMap((r, i) => instanceOccluderFaces(repExpanded[i], r.transforms))
     : [];
-  const expanded = aoOpts
+  const expanded2 = aoOpts
     ? bakeAmbientOcclusion(expanded1, aoPhantoms.length ? { ...aoOpts, extraOccluders: aoPhantoms } : aoOpts)
     : expanded1;
+  // the geocube's vertex contrast (era/vertex-contrast.js), at the World page's seam: right after the AO bake
+  const shape = (fs) => (vertexContrast ? contrastFaces(fs, vertexContrast) : fs);
+  const expanded = shape(expanded2);
 
   const primNamer = makeNamer();
   const lookNamer = makeNamer();
@@ -366,7 +370,7 @@ export function facesToUsda(payload = {}, { generator = 'mojulo scene-usd', titl
   // instanced repeats → PointInstancer (one prototype mesh, N transforms)
   let instancerCount = 0;
   repeatList.forEach((r, i) => {
-    const gm = faceListToMesh(plainFaces(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i]));   // plant textures → plain colour
+    const gm = faceListToMesh(plainFaces(shape(aoOpts ? bakeAmbientOcclusion(repExpanded[i], aoOpts) : repExpanded[i])));   // plant textures → plain colour
     if (!gm.positions.length) return;
     const name = primNamer(r.group || `repeat-${i}`);
     const protoIx = indexSoup(gm.positions, gm.colors, 3);

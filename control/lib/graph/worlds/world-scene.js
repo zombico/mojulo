@@ -43,6 +43,7 @@ import { readWeather } from '@/lib/graph/weather/weather';
 // a clock's four seasons, by climate (weather/weather.js CLIMATES)
 const SEASON_CLIMATES = ['spring-blossom', 'temperate', 'autumn', 'alpine'];
 import { airCard } from '@/lib/graph/era/air';
+import { geocubeContrastOf } from '@/lib/graph/era/geocube';
 import { seedOfRef } from '@/lib/graph/beats/field-cue';
 import { normalizeHud, validateHudStyle } from '@/lib/graph/game/hud-widgets';
 import { lowerGlyphBodies } from '@/lib/graph/game/glyph-forms';
@@ -407,6 +408,19 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   const aoSetting = sketch.manifest.ao ?? desc.ao;
   if (payload && !unshaded && aoSetting && Array.isArray(payload.faces) && payload.faces.length) {
     payload.ao = typeof aoSetting === 'object' ? aoSetting : {};
+  }
+
+  // the geocube's VERTEX CONTRAST (era/vertex-contrast.js): a world painted by a cube with `contrast` (a stage's
+  // `geocube`, the geocube kind's `cube`, a city's `paint.geocube`) carries it resolved, and the emitters shape the
+  // finished faces with it right after the AO bake, which it takes over (its occlusion tinted to the cube's shade). It
+  // asks for that bake when it has a contact term, unless the manifest says `ao: false`. Under a tone only value moves.
+  // UNSHADED skips it (it is baked shaping). Absent (no cube, or a cube with no contrast) ⇒ no key, byte-identical.
+  if (payload && !unshaded && Array.isArray(payload.faces) && payload.faces.length) {
+    const vc = geocubeContrastOf(sketch.manifest, { value: !!payload.tone });
+    if (vc) {
+      payload.vertexContrast = vc;
+      if (vc.contact > 0 && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
+    }
   }
 
   // generic, opt-in page BACKDROP image: `backdrop: '<url>'` on any mesh-world manifest paints

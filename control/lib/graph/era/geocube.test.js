@@ -4,7 +4,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { GEOCUBE_PRESETS, readGeocube, lowerGeocube, geocubeRamps } from './geocube.js';
+import { GEOCUBE_PRESETS, readGeocube, lowerGeocube, geocubeRamps, cubeContrast, geocubeContrastOf } from './geocube.js';
+import { resolveWorldScene } from '../worlds/world-scene.js';
+import { facesToGlb } from '../scene/scene-gltf.js';
 import { assembleStageScene } from './stage.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
 
@@ -74,5 +76,41 @@ describe('stage: a level built on a cube', () => {
     const p = assembleStageScene({ kind: 'stage', geocube: 'jungle-haze', meru: { tiers: [{ form: 'mound', height: 9, foot: 14, summit: 5 }] } }, {});
     expect(p.faces.some((f) => f.aoFlat)).toBe(true);
     expect(p.faces.some((f) => f.group === 'isekai:water')).toBe(true);   // the cube's island stays unless the meru says
+  });
+});
+
+describe('geocube: its contrast, the shaping in the vertex', () => {
+  const ROOM = [{ id: 'a', x: 0, y: 0, w: 6, d: 6, h: 4 }];
+  it('reads a cube\'s contrast and refuses a bad one; a cube without one shapes nothing', () => {
+    expect(readGeocube('valley-morning').contrast).toBe('wii');
+    expect(() => readGeocube({ from: 'island-noon', contrast: 'ps2' })).toThrow(/geocube: contrast: 'ps2' is not a preset/);
+    expect(geocubeContrastOf({ kind: 'stage', geocube: 'island-noon', rooms: ROOM })).toBeNull();
+    expect(geocubeContrastOf({ kind: 'stage', geocube: { from: 'valley-morning', contrast: false }, rooms: ROOM })).toBeNull();
+    expect(geocubeContrastOf({ kind: 'stage', rooms: ROOM })).toBeNull();
+  });
+  it('resolves against the cube: the inside leans to its floor, the outside to its grass, both to its shade', () => {
+    const c = readGeocube('valley-morning');
+    const inside = cubeContrast(c, 'inside', { value: true }), outside = cubeContrast(c, 'outside');
+    expect(inside).toMatchObject({ ground: c.colour.floor, mode: 'value', hemi: 0.55 });
+    expect(outside).toMatchObject({ ground: c.colour.grass, mode: 'colour' });
+    expect(outside.shade).toBe(inside.shade);
+    expect(outside.toLight[2]).toBeGreaterThan(0);   // the sun is up
+    expect(geocubeContrastOf({ kind: 'city', paint: { geocube: 'valley-morning' } })).toMatchObject({ ground: c.colour.grass });
+    expect(geocubeContrastOf({ kind: 'geocube', cube: 'valley-morning', show: 'land' })).toMatchObject({ ground: c.colour.grass });
+    expect(geocubeContrastOf({ kind: 'geocube', cube: 'valley-morning' })).toMatchObject({ ground: c.colour.floor });
+  });
+  it('the land hands its crease and ridge to the cube; a cube without contrast keeps its own', () => {
+    expect(lowerGeocube(readGeocube('valley-morning'), 'outside').meru.shading).toMatchObject({ crevice: 0, ridge: 0, smooth: true, blend: 0.6 });
+    expect(lowerGeocube(readGeocube({ from: 'valley-morning', contrast: false }), 'outside').meru.shading).toMatchObject({ crevice: 0.6, ridge: 0.35 });
+  });
+  it('a world on the cube carries it to the emitters, and the export is shaped by it', async () => {
+    const shaped = await resolveWorldScene({ title: 't', manifest: { kind: 'stage', geocube: 'valley-morning', rooms: ROOM } });
+    expect(shaped.payload.vertexContrast).toMatchObject({ mode: 'value', crevice: 0.55 });   // the inside is toned
+    expect(shaped.payload.ao).toEqual({});
+    const plain = await resolveWorldScene({ title: 't', manifest: { kind: 'stage', geocube: { from: 'valley-morning', contrast: false }, rooms: ROOM } });
+    expect(plain.payload.vertexContrast).toBeUndefined();
+    const a = facesToGlb(shaped.payload), b = facesToGlb(plain.payload), c = facesToGlb({ ...shaped.payload, vertexContrast: undefined });
+    expect(Buffer.from(a.bytes ?? a).equals(Buffer.from(b.bytes ?? b))).toBe(false);
+    expect(Buffer.from(c.bytes ?? c).equals(Buffer.from(b.bytes ?? b))).toBe(true);   // absent ⇒ the same bytes
   });
 });

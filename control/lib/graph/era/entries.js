@@ -240,6 +240,7 @@ export function geocubeCard() {
     '  light     { reference (a look id), moon? { color, elevation, azimuth, gain } (a look with no sun needs it), outsideFog? (× the reference\'s fog), shadows? (the stage\'s, below) }',
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
     '  register  { steps (0 continuous … 8 bands), key (the median value, 0..1) }',
+    '  contrast? "wii" | { from?, hemi, foot: { height, depth }, crevice, ridge, contact, warmCool, variation } | false: Wii-era shading in the vertex over all it paints; the land hands it crevice and ridge',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
     '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
      'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
@@ -251,7 +252,7 @@ export function geocubeCard() {
   return {
     id: 'geocube', name: 'Geocube (a level\'s look, forged first)', family: 'world', entry: 'create_sketch', generated: true,
     summary: 'One style for a level\'s inside and outside: forge the cube, check its room and island specimens, then build the level on it.',
-    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen"',
+    when: '"geocube", "the look of my level", "style guide for a level", "make the inside and outside match", "a level with its own style", "test the lighting first", "island specimen", "room specimen", "a Wii-era look", "vertex colour contrast"',
     body: lines.join('\n'),
   };
 }

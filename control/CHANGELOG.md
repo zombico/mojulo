@@ -13,6 +13,27 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Vertex contrast: the geocube lights the whole world in the vertex
+
+A geocube can now carry `contrast`, the shaping a Wii-era level baked into its vertex colours: the sky's colour on what
+faces up and the ground's on what faces down, walls darker toward the floor, crease and contact shadows tinted to the
+cube's shade (never black), a warm lit side against a cool shade side, and a slow seeded drift of value. Light stays
+each kind's bake under the cube's reference; colour stays the cube's ramps and tone; contrast is its own concern, run
+once over the finished faces of every world the cube paints.
+
+- **`contrast` on the cube.** `'wii'`, `{ hemi, foot: { height, depth }, crevice, ridge, contact, warmCool,
+  variation }`, or `false`. `lib/graph/era/vertex-contrast.js` reads it, resolves it against the cube (sky, ground,
+  shade and key colours, the key's direction) and shapes any face list (`contrastFaces`). Under a tone (a cube's
+  inside) only value moves, so the tone's ramps keep the colour.
+- **One pass for every piece.** A stage on the cube, the `geocube` specimens and a city painted by it carry the
+  resolved contrast on their payload; the World page, the `.glb` (and so Godot, Unity and Unreal) and USD apply it
+  right after the AO bake, which it takes over (its occlusion is tinted to the shade and folded in).
+- **The land hands its crease and ridge to the cube.** Under a cube with `contrast`, local meru's own crevice and
+  ridge go to zero; its blend, smoothing and sun stay.
+- **A preset to start from: `valley-morning`**, a bright pastoral day with `contrast: 'wii'`.
+- A cube without `contrast` (every existing preset, every minted row) lowers, renders and exports byte for byte as
+  before.
+
 ### Game audio: scene-scored soundtracks and action SFX
 
 Four faults stood between the beats composer and a game's levels; with them fixed, each level can be given the
