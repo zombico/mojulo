@@ -13,6 +13,24 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Loop fixes: what a run of the main game loops found, fixed at the root
+
+A test agent ran the main game loops headless and the demos came out bad. Each finding is fixed where it starts.
+
+- **One rule for outdoor ground.** A room kit (gothic-nave, the crypt's, the catacomb's) passed as a level's open
+  ground, so a dungeon became a trail, and a gameworld level on one crashed every readout ("Cannot read properties of
+  undefined"). One predicate now says which kits are ground; a room kit is refused with the door that builds it
+  (`building: { use: 'crypt', kit }`), and the cards list only ground kits.
+- **A composed world is run.** design_game offered the run only to a world with characters; a composed world now gets
+  it, and its levels read their goals from the words (relics to collect, a boss, health).
+- **The follow camera keeps out of a small hero.** Its pull-in on a wall and its distance scale with the hero.
+- **An unknown hero body is refused**, with the body types that draw; the figure-rig hero path is on the card.
+- **First frames are looked at.** The audit and every design_game run render each level's opening frame: one colour
+  over most of it, or the eye inside a body, fails; a hero too small or too large on screen warns.
+- **Smaller.** create_game warns on undressed levels; export_game runs the desktop smoke check when Electron is
+  there; design_game's move-to-exit and survive levels are audited; multi-level asks route to compose, and the evals
+  check the mode as well as the tool.
+
 ### Cast setting coherence: every quick game's people rolled in its setting, read right
 
 - **A palette keeps its world's era.** A quick game that names a palette or a look kept its tradition and clothes but
