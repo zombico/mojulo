@@ -13,7 +13,7 @@
  * Pure: the colours, the documents and the specimens are read from the tables. Every word shown is the table's own.
  */
 import { GEOCUBE_PRESETS, readGeocube, geocubeRamps, geocubeTerrains } from '../era/geocube.js';
-import { STAGE_KITS } from '../era/stage.js';
+import { STAGE_KITS, isGroundKit } from '../era/stage.js';
 import { SWATCHES } from '../era/style/swatches.js';
 import { GRAMMAR_IDS, resolveGrammar } from '../city/plan/grammars.js';
 import { inferCity } from '../city/plan/card.js';
@@ -39,7 +39,7 @@ function coloursIn(v, out = []) {
 
 // a room kit is drawn as one bare room; open ground is drawn as itself
 const ROOM = Object.freeze({ id: 'room', x: 0, y: 0, w: 12, d: 12, h: 6, open: ['-y', '+x'] });
-const isOpenGround = (kit) => ['isekai', 'nature', 'jungle'].includes(STAGE_KITS[kit]?.shell);
+const isOpenGround = (kit) => !!STAGE_KITS[kit] && isGroundKit(kit);   // the one rule (era/stage.js)
 const grammarCity = (id, look) => ({ kind: 'city', ...inferCity({ seed: 3, grammar: id, board: { cols: 8, rows: 6 } }).recipe, ...(look ? {} : { fidelity: 'massing' }) });
 
 const FAMILIES = {

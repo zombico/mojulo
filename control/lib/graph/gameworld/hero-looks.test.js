@@ -3,6 +3,7 @@ import { readGameworld, heroLooks, composeHero, heroOrders, underlayerFor, UNDER
 import { validateHeroSpec } from '../../mcp/tools/layered.js';
 import { applyManifestPatch } from '../../mcp/tools/manifest-patch.js';
 import { validateOutfitBuild } from '../outfit/expand.js';
+import { isGroundKit } from '../era/stage.js';
 
 const world = (characters, style) => readGameworld({ id: 'w', seed: 8, ...(style ? { style } : {}), levels: { a: { walk: { nodes: { t: { trail: true } } } } }, characters });
 const anime = (hero, d = {}) => world({ direction: { tradition: 'anime', ...d }, hero });
@@ -52,7 +53,8 @@ describe('the hero\'s looks', () => {
 
 describe('the underlayer', () => {
   it('is chosen by the world\'s setting, at ornament 0, and every build it names is a real outfit', () => {
-    for (const [kit, row] of Object.entries(UNDERLAYERS)) {
+    // a world's ground is open ground (era/stage.js isGroundKit); a room kit's row is a building's, not a world's
+    for (const [kit, row] of Object.entries(UNDERLAYERS).filter(([k]) => isGroundKit(k))) {
       const G = world({ direction: { tradition: 'anime' } }, { kit });
       const U = underlayerFor(G);
       expect(U.build.dials).toEqual({ ornament: 0 });
