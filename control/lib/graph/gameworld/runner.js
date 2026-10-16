@@ -33,7 +33,7 @@ import { equipmentOrders, equippedHero } from './equipment.js';
 import { gearOrders } from './world-gear.js';
 import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan, stageEnds, stageSpots, stageLane } from './levels.js';
 import { bindStory } from './story.js';
-import { quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
+import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
@@ -111,6 +111,8 @@ export function runSteps(world, { ref, lookup } = {}) {
     const C = castOrders(G, id), order = { spec: C.mint.args.spec, mint: C.mint.args, motion: C.motion?.args.patch ?? null };
     steps.push({ key: `cast-${id}`, ref: childRef(ref, `cast-${id}`), ready: true, order, print: fingerprint({ spec: order.spec, motion: order.motion, ...lit(order.mint.toon) }) });
   }
+  // a level goal's boss (levels.<id>.goal.boss): its figure made with the cast
+  if (bossed(G)) steps.push(bossStep(G, ref, { ready: true }));
   const MO = mechanicsOrders(G, B.mechanics, { heroRef });
   if (MO) steps.push({ key: 'systems', ref: childRef(ref, 'systems'), ready: ready.systems.ready, ...waits(ready.systems), order: MO.args, print: fingerprint(MO.args) });
   const EO = equipmentOrders(G, ready.equipment);
@@ -140,10 +142,11 @@ export function runSteps(world, { ref, lookup } = {}) {
   const carryFrom = { items: store.slices.filter((x) => x.kind === 'inventory').map((x) => x.name), campaign: 'campaign', levels: last };
   // the cast who join the hero (characters.cast.<id>.joins): every stage carries them, asleep until they join
   const party = Object.entries(G.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins }));
+  const lastOf = lastStages(stages);
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...goalArgs(G, s, lastOf, ref), ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {
@@ -169,6 +172,25 @@ export function storyReport(world, { ref = 'gw' } = {}) {
   return { bound, unplaced, ...(unset ? { unset } : {}) };
 }
 
+/** LEVEL GOALS (a level's `goal`, world.js): each stage its goal's mechanics and its cast (quick.js levelGoalMechanics,
+ * levelGoalCast), the boss at the end of its level's last stage (`lastOf`: each level's last stage that takes a goal);
+ * a level with none passes nothing, so it lays as it always did (reach its exit). */
+const bossed = (G) => G.ids.some((id) => G.levels[id].goal?.boss);
+const lastStages = (stages) => { const out = {}; for (const s of stages) if (s.section !== 'interior' && !s.building?.ref) out[s.level] = s.index; return out; };
+function goalArgs(G, s, lastOf, ref) {
+  const goal = G.levels[s.level]?.goal;
+  if (!goal) return {};
+  const last = lastOf[s.level] === s.index, boss = goal.boss ? childRef(ref, 'foe') : null;
+  return { goal: (ends) => levelGoalMechanics(goal, ends, { last }), goalCast: (ends) => levelGoalCast(goal, ends, { last, ref: boss }), ...(goal.collect ? { legend: 'I  bag' } : {}) };
+}
+/** The boss's figure: a foe rolled in the game's setting as a quick battle's are (cast-setting.js), made through the
+ * hero door at `<ref>-foe` (the door makes a `foe` step a figure: design-game.js), one for every boss in the world. */
+function bossStep(G, ref, ready) {
+  const Q = { goal: 'battle' }, F = quickFigure(G, Q, 'foe', settingOfGame(G, Q));
+  const mint = { kind: 'layered', via: 'hero', title: `${G.name ?? G.id} boss`, spec: F.spec, ...(F.toon ? { toon: F.toon } : {}) };
+  return { key: 'foe', ref: childRef(ref, 'foe'), ...ready, order: { spec: F.spec, mint, motion: null }, print: fingerprint({ spec: F.spec, ...lit(mint.toon) }) };
+}
+
 /** A world before its people's steps: no character book, so no hero and no systems. Each stage a level walked in first
  * person (the walker stageLevelOrder lays when no hero is named), then the game over them in the play shell. A level
  * waits on the world's own parts and its level's (review.js): settled at once in autonomous mode (a composed world),
@@ -179,9 +201,12 @@ function worldSteps(world, G, ref) {
   const ground = ['world', 'nature', 'civilizations', 'key'];
   const steps = [], stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
+  // a level goal's boss (levels.<id>.goal.boss): its figure made first, on the world's own parts
+  if (bossed(G)) steps.push(bossStep(G, ref, settled(ground)));
+  const lastOf = lastStages(stages);
   stages.forEach((s, i) => {
     if (s.building?.ref) return;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: null, ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: null, ...goalArgs(G, s, lastOf, ref), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {

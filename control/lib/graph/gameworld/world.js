@@ -32,6 +32,9 @@
  *       walk: { layout?, root?, nodes, edges?, spawn? },   // the level graph (level/graph.js) less its kit and seed
  *       ground?: { cell?, tune?, edits? },   // the level's ground on a top-down grid of cells (level/ground.js)
  *       places?: { town?: true | { civilization?, … }, castle?: true | false | { civilization?, … } },
+ *       goal?: { collect?: true | '<pickup>', boss?: true, health?: true },   // the level's own goal on its walk or
+ *                                         // building (quick.js levelGoalMechanics): pickups along it, a boss at its end
+ *                                         // fought turn by turn, hp on the HUD; none: reach the exit
  *       building?: { use, seed?, rooms?, add?, kit? | geocube?, goal?, from?, civilization? } | { ref, goal? },
  *                                         // in place of `walk`: the level is a building (era/programs.js), laid by its
  *                                         // civilization's language, entered at its way in, played to its goal room
@@ -87,7 +90,7 @@ import { readBlock, FINISHES } from '../era/blocks.js';
 import { readCharacters } from './characters.js';
 import { readEquipment } from './equipment.js';
 import { readMade } from './made.js';
-import { readQuick } from './quick.js';
+import { readQuick, LEVEL_GOAL_PARTS } from './quick.js';
 import { readIntent, cubeOfWorld } from './intent.js';
 import { concernIds } from './concerns.js';
 import { LAID, groundLays, fieldSite, boardSite, loopSite, arenaSite } from './lay-concerns.js';
@@ -159,7 +162,7 @@ export const NATIVE = 'native';
 const ID = /^[a-z][a-z0-9-]{0,47}$/;
 // mode, review and brief are the workflow's (review.js, compose.js): read there, carried here
 const KEYS = ['id', 'name', 'seed', 'mode', 'review', 'brief', 'made', 'quick', 'intent', 'camera', 'topology', 'style', 'civilizations', 'levels', 'links', 'start', 'characters', 'equipment', 'mechanics', 'story', 'quests', 'front', ...RESERVED];
-const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace'];
+const LEVEL_KEYS = ['name', 'seed', 'style', 'walk', 'ground', 'places', 'scenes', 'building', 'city', 'roadway', 'arena', 'airspace', 'goal'];
 // an airspace level (skyscape/airspace.js): the map, its ground and its course, as the airspace kind takes them
 const AIRSPACE_LEVEL_KEYS = ['map', 'ground', 'space', 'course', 'assist'];
 // a roadway level (roads/track.js): a lap or a stage, its course (a preset's name or a spec), the land dressed, and its
@@ -406,6 +409,17 @@ export function readGameworld(W) {
     if (!ID.test(id)) throw new Error(`gameworld: level '${id}': an id is a short lower-case name (letters, digits, hyphens)`);
     if (!isObj(L)) throw new Error(`gameworld: ${at} is { ${LEVEL_KEYS.join(', ')} }`);
     for (const k of Object.keys(L)) if (!LEVEL_KEYS.includes(k)) throw new Error(`gameworld: ${at}.${k} is not a level setting (settings: ${LEVEL_KEYS.join(', ')})`);
+    // the level's own goal (quick.js levelGoalMechanics): quick's goals laid together on a walk's stages or a building's
+    // rooms; a quick game's goal is its own (quick.goal), and a building by ref is played as it was made
+    if (L.goal !== undefined) {
+      const Gl = L.goal, shape = `${at}.goal is { collect?: true | '<pickup word>', boss?: true, health?: true }, at least one`;
+      if (W.quick !== undefined && W.quick !== null) throw new Error(`gameworld: ${at}.goal: a quick game's goal is quick.goal`);
+      if (L.walk === undefined && (L.building === undefined || L.building?.ref !== undefined)) throw new Error(`gameworld: ${at}.goal is laid on a walk's stages or a building's rooms`);
+      if (!isObj(Gl) || !Object.keys(Gl).length) throw new Error(`gameworld: ${shape}`);
+      for (const k of Object.keys(Gl)) if (!LEVEL_GOAL_PARTS.includes(k)) throw new Error(`gameworld: ${at}.goal.${k} is not a level goal (${LEVEL_GOAL_PARTS.join(', ')})`);
+      if (Gl.collect !== undefined && Gl.collect !== true && !(typeof Gl.collect === 'string' && /^[a-z][a-z-]{0,23}$/.test(Gl.collect))) throw new Error(`gameworld: ${at}.goal.collect is true (gems) or what lies along the way, one lower-case word (relic, coin, key…)`);
+      for (const k of ['boss', 'health']) if (Gl[k] !== undefined && Gl[k] !== true) throw new Error(`gameworld: ${at}.goal.${k} is true`);
+    }
     // a match's arena in words (tunnel-arena.js), or { words, spawns }: laid where the world's cube asks for one
     if (L.arena !== undefined) {
       const A = L.arena, words = typeof A === 'string' ? A : A?.words;
