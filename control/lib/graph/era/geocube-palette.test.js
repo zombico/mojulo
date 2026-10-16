@@ -105,6 +105,9 @@ describe('the stamp: a cube is seeded where it is stored', () => {
     const stored = stampGeocubes(old, null, fresh);
     expect(stampGeocubes({ ...old, title: 'b' }, stored, fresh).geocube).toEqual(stored.geocube);
     expect(stampGeocubes({ ...old, geocube: 'island-noon' }, stored, fresh).geocube.from).toBe('island-noon');
+    // an edit that writes another seed keeps it
+    const reseeded = { ...stored.geocube, palette: { ...stored.geocube.palette, seed: 7 } };
+    expect(stampGeocubes({ ...old, geocube: reseeded }, stored, fresh).geocube.palette.seed).toBe(7);
   });
 });
 

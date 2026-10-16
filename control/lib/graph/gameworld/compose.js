@@ -198,10 +198,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
   if (cubeId) {
     style.geocube = GEOCUBE_PRESETS[cubeId].outside.base === style.kit ? cubeId : { from: cubeId, outside: { base: style.kit } };
     world.brief.cube = { id: cubeId, ...(cubeWord ? { word: cubeWord } : { from: `the kit, ${style.kit}` }) };
-    if (cubeWord) {
-      const r = world.brief.read.find((x) => x.word === cubeWord);
-      if (r) r.decides = [...r.decides, 'geocube']; else world.brief.read.push({ word: cubeWord, decides: ['geocube'] });
-      world.brief.unread = world.brief.unread.filter((w) => w !== cubeWord);
+    // every word that names a cube is read: the first decides it, one naming the same cube agrees, another gives way
+    const cubeOf = (w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')];
+    for (const w of [...new Set(P.words.filter(cubeOf))]) {
+      const says = cubeOf(w) === cubeId ? 'geocube' : `geocube (gave way to ${cubeWord})`, r = world.brief.read.find((x) => x.word === w);
+      if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
+      world.brief.unread = world.brief.unread.filter((x) => x !== w);
     }
   } else world.brief.cube = { id: null, why: `no cube has ${style.kit}'s air` };
   readGameworld(world);

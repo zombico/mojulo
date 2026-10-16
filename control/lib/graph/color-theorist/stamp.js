@@ -142,9 +142,9 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 function stampCube(v, was, fresh) {
   if (!isCube(v)) return v;
   if (was !== undefined && same(v, was)) return v;                       // left as it was by the edit
-  if (was !== undefined && seededPalette(was?.palette) && same(unstamped(v), unstamped(was))) return was;   // re-sent
   const cube = typeof v === 'string' ? { from: v } : v, p = cube.palette;
-  if (p === false || seededPalette(p)) return v;
+  if (p === false || seededPalette(p)) return v;                         // a seed written (or a new one) is kept
+  if (was !== undefined && seededPalette(was?.palette) && same(unstamped(v), unstamped(was))) return was;   // re-sent
   const intent = cube.from !== undefined ? GEOCUBE_PALETTES[cube.from] ?? {} : {}, q = isObj(p) ? p : {};
   return { ...cube, palette: { ...intent, ...q, seed: fresh({ ...intent, ...q }) } };
 }
