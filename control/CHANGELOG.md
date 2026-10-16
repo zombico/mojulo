@@ -13,6 +13,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Level demo: a game level from a sentence
+
+- **`design_game({ compose: { prompt, levels?, seed?, name? } })`.** The interpreter as a door: a few words become a
+  whole gameworld (its kit, land, builders, geocube, levels and their towns), stored as `world` is, its palette
+  stamped, and answered with the brief: each word read and what it decided, the cube, the words nothing read.
+- **A world before its people makes its levels.** A gameworld with no character book used to make nothing on a run.
+  Its levels are now made at once, walked in first person, with the game over them. A world that gains a book later
+  remakes them with its hero; a world with a book is unchanged.
+- **`level-demo.gif`** (`docs/images/src/level-demo/`): a sentence read into a world, its geocube's island and room,
+  its map and walk, and the level, re-shot end to end from the runner.
+
 ### Geocube palettes: the color theorist decides the cube
 
 A geocube's colours were hand-picked and a palette's were solved, and a world that named both kept the palette only

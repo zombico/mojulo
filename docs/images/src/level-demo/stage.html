@@ -1,0 +1,50 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:900px;height:500px;background:#0e1118;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased}
+#bar{position:absolute;left:0;top:0;width:900px;height:56px;background:#161b26;border-bottom:1px solid #263042;display:flex;align-items:center;padding:0 18px;gap:12px}
+#who{flex:none;font:600 11px/1 ui-monospace,"SF Mono",Menlo,monospace;color:#7f8ba3;letter-spacing:.06em;text-transform:uppercase;border:1px solid #33405a;border-radius:4px;padding:5px 7px}
+#prompt{font-size:16px;color:#e9edf5;white-space:nowrap;overflow:hidden}
+#cur{display:inline-block;width:8px;height:18px;background:#8fb4ff;vertical-align:-3px;margin-left:2px}
+#view{position:absolute;left:300px;top:56px;width:600px;height:444px;background:#0e1118;overflow:hidden}
+#view img{position:absolute;left:0;top:0;width:600px;height:444px;object-fit:cover}
+#view img.sheet{object-fit:contain;background:#181d28;padding:14px}
+#side{position:absolute;left:0;top:56px;width:300px;height:444px;background:#121722;border-right:1px solid #263042}
+#card{position:absolute;left:12px;top:70px;width:276px;max-height:300px;overflow:hidden;background:#0e1118;border:1px solid #2b3549;border-radius:8px;padding:10px 10px 11px;font:10px/1.6 ui-monospace,"SF Mono",Menlo,monospace;color:#b9c3d6}
+#card .h{display:flex;justify-content:space-between;color:#7f8ba3;font-size:10.5px;margin-bottom:6px;letter-spacing:.02em}
+#card .h b{color:#c9d6f0;font-weight:600}
+#card .ln{white-space:pre;border-radius:3px;padding:0 4px;margin:0 -4px;overflow:hidden;text-overflow:ellipsis}
+#card .new{background:rgba(64,190,120,.20);color:#c9f5da}
+#card .dim{opacity:.35}
+#card .k{color:#8fb4ff}#card .s{color:#e8c48a}#card .w{color:#f1f4fa;font-weight:600}
+#card .sw{display:flex;align-items:center;gap:6px;margin:2px 0}
+#card .sw span{width:44px;color:#7f8ba3}
+#card .sw i{display:inline-block;width:18px;height:11px}
+#cap{position:absolute;left:12px;bottom:14px;width:276px;background:#0e1118;border:1px solid #2b3549;border-radius:8px;padding:9px 11px;font-size:12.5px;line-height:1.45;color:#d5dcea}
+#cap .t{display:block;font:600 10.5px ui-monospace,"SF Mono",Menlo,monospace;color:#7fd3a3;margin-bottom:4px}
+#cap .r{display:block}
+#busy{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:13px ui-monospace,"SF Mono",Menlo,monospace;color:#7f8ba3}
+#end{position:absolute;inset:0;background:rgba(10,12,18,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center}
+#end .a{font-size:34px;font-weight:700;color:#f1f4fa;letter-spacing:-.01em}
+#end .b{font-size:15.5px;color:#aab6cc;line-height:1.5}
+#end .c{font:600 13px ui-monospace,"SF Mono",Menlo,monospace;color:#8fb4ff;letter-spacing:.12em}
+</style></head><body>
+<div id="bar"><span id="who">you → agent</span><div id="prompt"><span id="ptxt"></span><span id="cur"></span></div></div>
+<div id="side"></div><div id="view"><img id="ia"><img id="ib"><div id="busy"></div></div>
+<div id="card"></div><div id="cap"></div><div id="end"></div>
+<script>
+// a frame: { prompt, cursor, a, b (images, crossfaded by mix), aSheet/bSheet (drawn whole, not cropped), card, cap,
+// busy, end } with an opacity for each that fades
+const img = (el, src, sheet) => { el.style.display = src ? '' : 'none'; if (src && el.getAttribute('src') !== src) el.src = src; el.className = sheet ? 'sheet' : ''; };
+window.setFrame = (f) => {
+  const ia = document.getElementById('ia'), ib = document.getElementById('ib');
+  img(ia, f.a, f.aSheet); img(ib, f.b, f.bSheet);
+  ib.style.opacity = f.mix ?? 0; ia.style.opacity = f.aOp ?? 1;
+  document.getElementById('ptxt').textContent = f.prompt || '';
+  document.getElementById('cur').style.visibility = f.cursor ? 'visible' : 'hidden';
+  const card = document.getElementById('card'); card.style.display = f.card ? '' : 'none'; card.style.opacity = f.cardOp ?? 1; if (f.card) card.innerHTML = f.card;
+  const cap = document.getElementById('cap'); cap.style.display = f.cap ? '' : 'none'; cap.style.opacity = f.capOp ?? 1; if (f.cap) cap.innerHTML = f.cap;
+  document.getElementById('busy').textContent = f.busy || '';
+  const end = document.getElementById('end'); end.style.display = f.end ? '' : 'none'; end.style.opacity = f.endOp ?? 1; if (f.end) end.innerHTML = f.end;
+  return Promise.all([ia, ib].filter(i => i.style.display !== 'none').map(i => i.decode().catch(() => {})));
+};
+</script></body></html>
