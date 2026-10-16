@@ -28,6 +28,8 @@
  *                 when the fight is won); without at, a cue starts it: `then: { emit: 'rpg-battle:<id>' }`
  *     random?:    { sets: [[foe ids]], every?: metres, chance?, after?: metres, in?: [{ at: [x, y], r }] }
  *                 a roll every `every` metres walked (in those zones, or anywhere), none in the first `after`
+ *     juice?:     false | { on?: { <happening>: juice }, <name>: [steps] }   what the fight's moments feel like, over the
+ *                 defaults (juice.js); a skill's own `juice` too. Every beat says rpg-on:<happening> on the bus
  *     rules?:     { gold?: '<var>', defeat?: 'fail' | 'retry', switch?: 'anywhere' | 'never', carry?: 'class' | 'all',
  *                 foeHp?: 'bar' | 'hidden', turns?: 'rounds' | 'timeline', size?: 1-4, cap?: n, xp?: { base, growth },
  *                 cp?: [n], sp?: n, seed?: n }   turns: every member picks then all act in speed order (rounds), or
@@ -49,6 +51,7 @@
  */
 import { CLASS_PRESETS, SKILL_PRESETS, FOE_PRESETS, ITEM_PRESETS, GEAR_PRESETS, GEAR_SLOTS } from './presets.js';
 import { RPG_STATS, rpgInit, rpgMirror } from './kernel.js';
+import { readJuice } from './juice.js';
 import { itemKey } from '../ui/items.js';
 
 export const RPG_TARGETS = Object.freeze(['foe', 'foes', 'ally', 'allies', 'self']);
@@ -99,7 +102,7 @@ function readWorn(v, where) {
 }
 
 function readSkill(k, d, where) {
-  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry'], where);
+  keysOnly(d, ['name', 'about', 'mp', 'target', 'power', 'stat', 'scale', 'element', 'heal', 'revive', 'cure', 'status', 'buff', 'carry', 'juice'], where);
   optNum(d.mp, `${where}.mp`); optNum(d.power, `${where}.power`); optNum(d.scale, `${where}.scale`);
   const heal = !!d.heal, revive = !!d.revive;
   const target = d.target ?? (heal || revive || d.cure ? 'ally' : 'foe');
@@ -125,7 +128,7 @@ function readSkill(k, d, where) {
   const power = d.power ?? 0, harm = !heal && !revive && (power > 0 || scale > 0);
   if (!harm && !heal && !revive && !cure.length && !status && !buff) throw err(`${where} does nothing: give it power (a blow or a spell), heal, revive, cure, status or buff`);
   return {
-    name: d.name ?? words(k), about: d.about ?? '', mp: d.mp ?? 0, target, power, stat, scale, harm,
+    id: k, name: d.name ?? words(k), about: d.about ?? '', mp: d.mp ?? 0, target, power, stat, scale, harm,
     element: d.element !== undefined ? id(d.element, `${where}.element`) : null, heal, revive, cure, status, buff, carry: !!d.carry,
   };
 }
@@ -164,7 +167,7 @@ export function readRpg(play) {
   const P = play && play.rpg;
   if (P === undefined) return null;
   if (!isObj(P)) throw err(' is { party, classes?, skills?, foes?, items?, encounters?, random?, rules? }');
-  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'rules'], '');
+  keysOnly(P, ['party', 'classes', 'skills', 'foes', 'items', 'gear', 'encounters', 'random', 'rules', 'juice'], '');
 
   // the rules
   const Ru = P.rules ?? {};
@@ -322,7 +325,9 @@ export function readRpg(play) {
     random = { sets: R0.sets.map((s) => [...s]), every: R0.every ?? 9, chance: R0.chance ?? 0.3, after: R0.after ?? 6, in: zones };
   }
 
-  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
+  // the juice: the defaults, the world's own, each skill's own (juice.js)
+  const juice = readJuice(P.juice, { skills: Object.fromEntries(Object.entries(skillsGiven).map(([k, d0]) => [k, { juice: (d0 ?? SKILL_PRESETS[k]).juice }])) });
+  return { seed: rules.seed, party: party0, classes, skills, foes, items, gear, encounters, random, met, juice, rules: { ...rules, xp: { ...rules.xp }, cp: [...rules.cp] } };
 }
 
 const doneVar = (enc) => `rpg-done-${enc}`;

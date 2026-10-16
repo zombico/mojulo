@@ -15,7 +15,7 @@
  *     foe?: <hero-door spec>,   how a foe on the map looks (a plain one, by default)
  *     rest?: false,        no rest at each stage's start (default: E there restores HP and MP)
  *     random?: { every?, chance?, after? },   random encounters on the trails, drawn from that stage's packs
- *     classes?, skills?, foes?, items?, gear?, rules?,   play.rpg's own (playscape/rpg/rpg.js), laid over the presets
+ *     classes?, skills?, foes?, items?, gear?, juice?, rules?,   play.rpg's own (playscape/rpg/rpg.js), over the presets
  *   The party and the bag (its items, the gear not worn, and its gold: held:bag:gold) are carried level to level.
  *   }
  * A world that writes none but whose intent fights turn by turn (its cube's power.combat) is laid with the defaults.
@@ -43,7 +43,7 @@ export const BAG_SLICE = 'bag';
 export const BAG_START = Object.freeze({ potion: 2 });
 // where battles are fought: a stage walked along a trail (its beats); a building, a city and a roadway have none
 const FOUGHT = (s) => !['building', 'interior', 'city', 'roadway'].includes(s.section);
-const KEYS = ['party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'rules'];
+const KEYS = ['party', 'packs', 'per', 'boss', 'foe', 'rest', 'random', 'classes', 'skills', 'foes', 'items', 'gear', 'juice', 'rules'];
 const MEMBER_KEYS = ['class', 'name', 'level', 'bonus', 'classes', 'gear'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: battles${m}`);
@@ -110,7 +110,7 @@ export function battleParty(G) {
 /** The play.rpg every stage shares, less its encounters. */
 export function battleBase(G) {
   const B = G.battles ?? {};
-  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
+  const own = Object.fromEntries(['classes', 'skills', 'foes', 'items', 'gear', 'juice'].filter((k) => B[k] !== undefined).map((k) => [k, B[k]]));
   // gold is the bag's (held:bag:gold), so it is carried as every item is
   return { party: battleParty(G), ...own, rules: { defeat: 'fail', gold: 'held:bag:gold', ...(B.rules ?? {}) } };
 }

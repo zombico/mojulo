@@ -6,6 +6,7 @@ import { lowerPlay } from '../ui/direction.js';
 import { createBusState, processEvents, watchEvents } from '../../worlds/event-bus.js';
 import { eventsChannelScript } from '../../scene/channels/events.js';
 import { rpgScript, rpgPage, RPG_CSS } from '../../scene/channels/rpg-channel.js';
+import { juiceKeys } from './juice.js';
 import { menuControls } from '../../scene/channels/interact-channel.js';
 import { buildGameStoreKernel } from '../../game/store-kernel.js';
 import { composeMechanics } from '../../game/mechanics.js';
@@ -76,21 +77,23 @@ describe('play.rpg: read and lowered', () => {
 });
 
 // the page function, run headless: a DOM just big enough (elements with class lists and innerHTML, key listeners)
-function page(play, vars = {}, game = null) {
+function page(play, vars = {}, game = null, more = {}) {
   const ev = lowerPlay({ entities: ENTITIES, play }, { player: 'hero' });
   const bus = createBusState(ev, []);
   Object.assign(bus.vars, vars);
-  const el = () => ({ className: '', innerHTML: '', textContent: '', classList: { add() {}, remove() {} }, appendChild() {}, addEventListener() {} });
+  const el = () => ({ className: '', innerHTML: '', textContent: '', style: { setProperty() {} }, offsetWidth: 0, classList: { add() {}, remove() {} }, appendChild() {}, addEventListener() {} });
   const keys = [];
   const document = { createElement: el, head: el(), body: el() };
-  const window = { addEventListener: (_, f) => keys.push(f), ...(game ? { __mojGame: game } : {}) };
+  const window = { addEventListener: (_, f) => keys.push(f), ...(game ? { __mojGame: game } : {}), ...more };
   const queue = [];
   const ctl = { ...menuControls(), layout: () => 'xbox', select: 8 };
-  const api = new Function('document', 'window', '__busState', '__inputQueue', 'RPG_CSS_TEXT', 'cfg', 'K', 'ctl', `return (${rpgPage.toString()})(cfg, K, ctl);`)(document, window, bus, queue, RPG_CSS, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl);
+  const api = new Function('document', 'window', '__busState', '__inputQueue', 'RPG_CSS_TEXT', 'cfg', 'K', 'ctl', `return (${rpgPage.toString()})(cfg, K, ctl, ${juiceKeys.toString()});`)(document, window, bus, queue, RPG_CSS, ev.rpg, new Function(`return (${buildRpg.toString()})();`)(), ctl);
   let t = 0;
   const frames = (n = 1) => { for (let i = 0; i < n; i++) { t += 100; api.step(t); } };
   const press = (code) => { for (const f of keys) f({ code, repeat: false, preventDefault() {}, stopImmediatePropagation() {} }); };
-  return { api, bus, queue, frames, press, window };
+  // what the page said on the bus, less the juice's happenings (rpg-on:<key>)
+  const said = () => queue.filter((e) => !e.type.startsWith('rpg-on:'));
+  return { api, bus, queue, said, frames, press, window };
 }
 
 describe('the page: the battle window and the party menu', () => {
@@ -125,9 +128,10 @@ describe('the page: the battle window and the party menu', () => {
     }
     expect(P.api.state().mode).toBeNull();
     expect(P.window.__mojFreeze).toBe(false);
-    expect(P.queue.map((e) => e.type)).toHaveLength(2);
-    expect(P.queue[0].type).toMatch(/^rpg-(won|lost|fled):wolves$/);
-    expect(P.queue[1].type).toBe(P.queue[0].type.split(':')[0]);
+    const said = P.said();
+    expect(said.map((e) => e.type)).toHaveLength(2);
+    expect(said[0].type).toMatch(/^rpg-(won|lost|fled):wolves$/);
+    expect(said[1].type).toBe(said[0].type.split(':')[0]);
   });
 
   it('a join and a fight that arrive together: the one who joins fights', () => {
@@ -159,7 +163,7 @@ describe('the page: the battle window and the party menu', () => {
     P.press('Enter');
     expect(P.api.R.m.ayla.cls).toBe('knight');
     expect(P.bus.vars['rpg.ayla.class']).toBe('knight');
-    expect(P.queue).toEqual([{ type: 'rpg-class:ayla:knight' }]);
+    expect(P.said()).toEqual([{ type: 'rpg-class:ayla:knight' }]);
     P.press('Escape'); P.press('Escape');
     expect(P.api.state().mode).toBeNull();
   });
@@ -190,6 +194,41 @@ describe('the page: the battle window and the party menu', () => {
   });
 });
 
+describe('the juice on the page', () => {
+  // a controllable world just big enough: the figures, the clock, the cast ops it is handed
+  const ctrl = () => { const ops = []; return { ops, world: { pilotId: 'hero', time: 0, byId: { hero: {}, 'wolf-1': {} } }, cast: (o) => ops.push(...o) }; };
+
+  it('each beat says its happenings and plays its binding: the start shakes, a blow puffs at the foe\'s figure; the clock runs', () => {
+    const C = ctrl(), P = page(PLAY, {}, null, { __mojCtrl: C });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames();
+    expect(P.queue.map((e) => e.type)).toContain('rpg-on:start');
+    expect(C.ops).toContainEqual({ op: 'shake', k: 0.25, for: 0.4 });
+    P.frames(8);
+    P.press('Enter'); P.press('Enter');                       // Ayla attacks the first wolf
+    for (let i = 0; i < 3; i++) P.press('ArrowDown');
+    P.press('Enter');                                        // Bram guards
+    P.frames(80);   // the whole round played back
+    expect(P.queue.map((e) => e.type)).toEqual(expect.arrayContaining(['rpg-on:skill:attack', 'rpg-on:hit']));
+    // a blow on a wolf puffs at the pack's figure; one on a member who has none, at the pilot's
+    const hits = C.ops.filter((o) => o.op === 'puff').map((o) => o.who);
+    expect(hits).toContain('wolf-1');
+    expect(hits.every((w) => w === 'wolf-1' || w === 'hero')).toBe(true);
+    expect(C.world.time).toBeGreaterThan(1);
+  });
+
+  it('extended in-game: a juice\'s emit and the beat\'s happenings reach the world\'s own cues', () => {
+    const play = { ...PLAY, rpg: { ...PLAY.rpg, juice: { on: { start: [{ emit: 'drums' }] }, also: { start: [{ emit: 'horns' }] } } }, cues: [{ id: 'drums', when: { on: 'drums' }, then: { set: 'tense', to: 1 } }, { id: 'counted', when: { on: 'rpg-on:start' }, then: { add: 'fights', by: 1 } }] };
+    const P = page(play, { tense: 0, fights: 0 }, null, { __mojCtrl: ctrl() });
+    processEvents(P.bus, [{ type: 'rpg-battle:wolves' }]);
+    P.frames();
+    processEvents(P.bus, P.queue.splice(0));
+    expect([P.bus.vars.tense, P.bus.vars.fights]).toEqual([1, 1]);
+    // the winning juice and the layer over it both play
+    expect(P.bus.log.map((e) => e.type)).toEqual(expect.arrayContaining(['drums', 'horns']));
+  });
+});
+
 describe('the party menu: Equip', () => {
   it('a slot, then what the bag holds for it: worn, the old one back in the bag, both said on the bus and kept', () => {
     const out = [], g = { contract: { party: { slice: 'party' } }, onStart: (cb) => cb({}, 1), emit: (e) => out.push(e) };
@@ -200,7 +239,7 @@ describe('the party menu: Equip', () => {
     P.press('Enter');   // its choices: — (take off), Iron Sword
     P.press('ArrowDown'); P.press('Enter');
     expect(P.api.R.m.ayla.gear.weapon).toBe('iron-sword');
-    expect(P.queue).toEqual([{ type: 'out:bag:iron-sword:1' }, { type: 'in:bag:bronze-sword:1' }]);
+    expect(P.said()).toEqual([{ type: 'out:bag:iron-sword:1' }, { type: 'in:bag:bronze-sword:1' }]);
     expect(out.map((e) => [e.stat, e.value])).toEqual([['gear.weapon.iron-sword', 1], ['gear.weapon.bronze-sword', 0]]);
   });
 });

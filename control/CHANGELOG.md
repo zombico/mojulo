@@ -54,6 +54,26 @@ then everyone acts in speed order. The battle runs in place over the field, in t
   button opens the party menu.
 - **The `quest` border flavor**: the classic RPG window, a deep blue gradient plate with a white double rule.
 
+### Battle juice: what a fight's moments feel like, composed and extendable
+
+Party battles now have juice by default: a blow jolts its row and sparks on the foe, a crit flashes, shakes and
+holds, and fire bursts on the foe on the map. A defeated foe smokes, and a boss arrives with a red flash and a
+pause. All of it is data in `play.rpg.juice` (`lib/graph/playscape/rpg/juice.js`), and a world composes and
+extends it without code.
+
+- **Steps**, a closed set: `puff`, `beam` and `shake` on the map (at the target's or the actor's figure); `flash`,
+  `jolt` and `pop` in the window; `hold` (the beat lingers); and `emit` (a bus event any cue answers).
+- **Juices are named lists of steps** that can name other juices. Presets ship (`JUICE_PRESETS`), a world's own
+  juices replace or add to them, and a cycle is refused with its path.
+- **Bindings to the fight's happenings.** `on` plays one juice per beat, the most specific happening winning
+  (`skill:<id>`, `crit`, `element:<el>`, `hit` …). `also` layers every matching happening on top, which is how a
+  weakness's emphasis sits over the element's burst. A skill can carry its own `juice: { cast, land }`, and
+  `juice: false` turns it all off.
+- **Extendable in-game.** Every beat says `rpg-on:<happening>` on the bus for each of its keys, so a world's cues
+  can answer a crit, a `ko:drake` or an `element:fire` with anything a cue can do.
+- During a fight the world's clock keeps running for its moments alone (entities stay frozen), so puffs, beams and
+  shakes play out on the map. The moment and beam channels are emitted for the kinds the juice uses.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

@@ -18,6 +18,7 @@
  * its printed layout); P or the pad's select opens the party menu. window.__mojRpg drives it headless (a test, the audit).
  */
 import { buildRpg } from '../../playscape/rpg/kernel.js';
+import { juiceKeys } from '../../playscape/rpg/juice.js';
 import { menuControls, padLayoutSource } from './interact-channel.js';
 import { DEVICES } from '../../controls/devices.js';
 
@@ -46,6 +47,10 @@ export const RPG_CSS = `
 .moj-rpg-row .v{font-variant-numeric:tabular-nums;text-align:right}
 .moj-rpg-pop{position:absolute;left:50%;top:-4px;transform:translateX(-50%);font-weight:800;font-size:18px;text-shadow:0 1px 2px #000,0 0 6px #000;pointer-events:none;animation:moj-rpg-pop .9s ease-out forwards}
 .moj-rpg-pop.heal{color:#7dffa5}.moj-rpg-pop.miss{color:#c9c9c9;font-size:14px}
+.moj-rpg-pop.small{font-size:13px;opacity:.85}.moj-rpg-pop.big{font-size:24px}.moj-rpg-pop.crit{font-size:28px;color:#ffe07a}
+.moj-rpg-flash{position:fixed;inset:0;pointer-events:none;z-index:32;opacity:0}
+.moj-rpg .jolt,.moj-rpg.jolt{animation:moj-rpg-jolt .28s linear}
+@keyframes moj-rpg-jolt{0%,100%{transform:translateX(0)}20%{transform:translateX(calc(var(--k,1) * -6px))}40%{transform:translateX(calc(var(--k,1) * 5px))}60%{transform:translateX(calc(var(--k,1) * -3px))}80%{transform:translateX(calc(var(--k,1) * 2px))}}
 @keyframes moj-rpg-pop{0%{opacity:0;margin-top:6px}15%{opacity:1}100%{opacity:0;margin-top:-26px}}
 .moj-rpg-field{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;display:flex;gap:12px}
 .moj-rpg-field .mem{width:200px;flex:none}
@@ -64,11 +69,12 @@ export const RPG_CSS = `
  * The page: run in the events channel's scope (it reads __busState, __inputQueue). cfg: EVENTS.rpg; K: the kernel.
  * → { step(t), … } the frame's step, and the handles window.__mojRpg exposes.
  */
-export function rpgPage(cfg, K, ctl) {
+export function rpgPage(cfg, K, ctl, jk) {
   const R = K.init(cfg), V = () => __busState.vars;
   K.mirror(cfg, R, V());
   const st = document.createElement('style'); st.textContent = RPG_CSS_TEXT; document.head.appendChild(st);
   const root = document.createElement('div'); root.className = 'moj-hud moj-rpg'; document.body.appendChild(root);
+  const flashEl = document.createElement('div'); flashEl.className = 'moj-rpg-flash'; document.body.appendChild(flashEl);
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
   const CMD = { attack: 'Attack', skill: 'Skill', item: 'Item', guard: 'Guard', flee: 'Flee' };
   const WHY = { battle: 'Not during a fight.', rules: 'Classes are fixed here.', same: 'Already that class.', locked: 'That class is not open yet.', member: 'Not a class they can take.', sp: 'Not enough class points.', requires: 'Learn what it builds on first.', learned: 'Already learned.', class: 'Take that class first.', unknown: '' };
@@ -122,6 +128,51 @@ export function rpgPage(cfg, K, ctl) {
   const commanders = () => (!R.b ? [] : R.b.turn !== undefined ? (R.b.turn != null ? [R.b.turn] : []) : R.b.ids.filter((m) => R.m[m].hp > 0 && !R.b.side[m].st.sleep));
   const busy = () => (window.__mojMenus && window.__mojMenus.open && window.__mojMenus.open()) || (window.__mojScenes && window.__mojScenes.on && window.__mojScenes.on());
 
+  // ── the juice (playscape/rpg/juice.js): each beat says its happenings on the bus, and plays the most specific
+  // binding's steps: moments and attacks at the figures on the map, the window's flash, jolt and number, a hold ──
+  const J = (cfg.juice && cfg.juice.on) || {};
+  let linger = 0, popStyle = null, jolts = {};
+  const W = () => window.__mojCtrl && window.__mojCtrl.world;
+  // the figure on the map a combatant stands for: a member's own (the pilot when they have none), a foe's pack figure
+  function figureOf(who) {
+    const w = W();
+    if (!w || who == null || !R.b) return null;
+    if (R.b.side[who]) return w.byId[who] ? who : w.pilotId || null;
+    const m = (cfg.met || []).find((x) => x.id === R.b.enc);
+    return m && m.who && w.byId[m.who] && !w.byId[m.who].gone ? m.who : null;
+  }
+  function cast(ops) { try { if (window.__mojCtrl && window.__mojCtrl.cast) window.__mojCtrl.cast(ops); } catch (e) { /* a figure gone: no moment */ } }
+  function flash(color, secs) {
+    flashEl.style.transition = 'none'; flashEl.style.background = color || '#ffffff'; flashEl.style.opacity = '0.75';
+    void flashEl.offsetWidth;
+    flashEl.style.transition = 'opacity ' + (secs || 0.12) + 's ease-out'; flashEl.style.opacity = '0';
+  }
+  function step1(s, b) {
+    if (s.puff) { const f = figureOf(s.at === 'actor' ? b.by || b.who : b.target); if (f) cast([{ op: 'puff', who: f, is: s.puff, ...(s.color ? { color: s.color } : {}), ...(s.scale ? { scale: s.scale } : {}) }]); }
+    else if (s.beam) { const a = figureOf(b.by || b.who), t = figureOf(b.target); if (a && t && a !== t) cast([{ op: 'beam', who: a, to: t, spec: cfg.juice.fx.beams[s.beam], land: s.land, ...(s.color ? { color: s.color } : {}) }]); }
+    else if (s.shake) cast([{ op: 'shake', k: s.shake, for: s.for || 0.4 }]);
+    else if (s.flash !== undefined) flash(s.flash, s.for);
+    else if (s.jolt) {
+      const who = s.jolt === 'actor' ? b.by || b.who : b.target;
+      if (s.jolt === 'window') { root.style.setProperty('--k', s.k || 1); root.classList.remove('jolt'); void root.offsetWidth; root.classList.add('jolt'); }
+      else if (who != null) jolts[who] = s.k || 1;
+    }
+    else if (s.pop) popStyle = s;
+    else if (s.hold) linger += s.hold * 1000;
+    else if (s.emit) __inputQueue.push({ type: s.emit });
+  }
+  function juice(b) {
+    linger = 0; popStyle = null;
+    const keys = jk ? jk(b) : [];
+    for (const k of keys) __inputQueue.push({ type: 'rpg-on:' + k });
+    for (const k of keys) if (J[k]) { for (const s of J[k]) step1(s, b); break; }
+    // layered over it: every happening of the beat with an also adds its steps
+    const A = (cfg.juice && cfg.juice.also) || {};
+    for (const k of keys) if (A[k]) for (const s of A[k]) step1(s, b);
+  }
+  // a beat shown: its juice, its number, its numbers moved
+  function show(b) { juice(b); pop(b); note(b); }
+
   // ── the battle ──
   function startBattle(enc) {
     if (R.b || mode === 'battle') return false;
@@ -130,7 +181,7 @@ export function rpgPage(cfg, K, ctl) {
     const out = K.start(cfg, R, enc, V());
     if (!out.length) return false;
     mode = 'battle'; phase = 'intro'; beats = out; bi = 0; bt = 0; shown = {}; picks = {}; mi = 0; level = 'cmd'; f = 0; pend = null;
-    msg = out[0].text; dirty = true;
+    msg = out[0].text; show(out[0]); dirty = true;
     return true;
   }
   function pickNow(pick) {
@@ -149,20 +200,20 @@ export function rpgPage(cfg, K, ctl) {
     const out = K.round(cfg, R, picks, V());
     picks = {}; mi = 0; level = 'cmd'; f = 0; pend = null;
     beats = out; bi = 0; bt = 0; phase = 'play'; shown = before;
-    if (out.length) msg = out[0].text, pop(out[0]), note(out[0]);
+    if (out.length) { msg = out[0].text; show(out[0]); }
     dirty = true;
   }
   function note(b) { if (b && b.target != null && b.hp != null) shown[b.target] = b.hp; if (b && b.who != null && b.mp != null) shown[b.who + ':mp'] = b.mp; }
   function pop(b) {
     if (!b || b.target == null) return;
     const txt = b.kind === 'miss' ? 'miss' : b.kind === 'hurt' ? String(b.amount) : b.kind === 'heal' && b.amount ? '+' + b.amount : '';
-    if (txt) pops.push({ at: b.target, txt, cls: b.kind === 'heal' ? 'heal' : b.kind === 'miss' ? 'miss' : '' });
+    if (txt) pops.push({ at: b.target, txt, cls: (b.kind === 'heal' ? 'heal' : b.kind === 'miss' ? 'miss' : '') + (popStyle && popStyle.pop !== 'normal' ? ' ' + popStyle.pop : ''), color: popStyle && popStyle.color });
   }
   function advance() {
     if (phase === 'intro') { phase = 'command'; msg = ''; dirty = true; if (!commanders().length) resolve(); return; }
     if (phase === 'play') {
       bi++; bt = 0;
-      if (bi < beats.length) { msg = beats[bi].text; pop(beats[bi]); note(beats[bi]); dirty = true; return; }
+      if (bi < beats.length) { msg = beats[bi].text; show(beats[bi]); dirty = true; return; }
       shown = {};
       if (R.b.phase === 'command') { phase = 'command'; msg = ''; if (!commanders().length) return resolve(); }
       else phase = 'end';
@@ -206,7 +257,7 @@ export function rpgPage(cfg, K, ctl) {
     let h = '<div class="moj-w moj-rpg-foes">';
     if (b) b.foes.forEach((x) => {
       const hp = shown[x.uid] != null ? shown[x.uid] : x.hp;
-      h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + popsFor(x.uid) + '</div>';
+      h += '<div class="moj-rpg-foe' + (hp <= 0 ? ' down' : '') + (aimAt === x.uid ? ' on-f' : '') + joltOf(x.uid) + '" data-aim="' + x.uid + '">' + esc(x.name) + (cfg.rules.foeHp === 'bar' ? '<div class="bar"><i style="width:' + Math.round(100 * Math.max(0, hp) / x.max) + '%"></i></div>' : '') + popsFor(x.uid) + '</div>';
     });
     const next = K.preview(cfg, R, 6);
     if (next.length) h += '<div class="moj-rpg-turns">' + next.map((x) => '<span class="' + (x.party ? 'p' : 'f') + '">' + esc(x.name) + '</span>').join('') + '</div>';
@@ -220,12 +271,14 @@ export function rpgPage(cfg, K, ctl) {
     if (b) for (const m of b.ids) {
       const M = R.m[m], S = K.statsOf(cfg, R, m), hp = shown[m] != null ? shown[m] : M.hp, mp = shown[m + ':mp'] != null ? shown[m + ':mp'] : M.mp;
       const s = b.side[m].st, tag = M.poison ? ' psn' : s.sleep ? ' slp' : s.silence ? ' sil' : '';
-      h += '<div class="moj-rpg-row' + (m === active ? ' act' : '') + (hp <= 0 ? ' down' : '') + (aimAt === m ? ' on-f' : '') + '" data-aim="' + m + '"><span class="n">' + esc(memberName(m)) + '<small>' + esc(cfg.classes[M.cls].name) + tag + '</small></span><span class="v">' + hp + '/' + S.hp + ' HP</span><span class="v">' + mp + '/' + S.mp + ' MP</span>' + popsFor(m) + '</div>';
+      h += '<div class="moj-rpg-row' + (m === active ? ' act' : '') + (hp <= 0 ? ' down' : '') + (aimAt === m ? ' on-f' : '') + joltOf(m) + '" data-aim="' + m + '"><span class="n">' + esc(memberName(m)) + '<small>' + esc(cfg.classes[M.cls].name) + tag + '</small></span><span class="v">' + hp + '/' + S.hp + ' HP</span><span class="v">' + mp + '/' + S.mp + ' MP</span>' + popsFor(m) + '</div>';
     }
     root.innerHTML = h + '</div></div>';
-    pops = [];
+    pops = []; jolts = {};
   }
-  function popsFor(id) { return pops.filter((p) => p.at === id).map((p) => '<span class="moj-rpg-pop ' + p.cls + '">' + esc(p.txt) + '</span>').join(''); }
+  function popsFor(id) { return pops.filter((p) => p.at === id).map((p) => '<span class="moj-rpg-pop ' + p.cls + '"' + (p.color ? ' style="color:' + esc(p.color) + '"' : '') + '>' + esc(p.txt) + '</span>').join(''); }
+  // a row's jolt, drawn once with the beat that asked for it
+  const joltOf = (id) => (jolts[id] ? ' jolt" style="--k:' + jolts[id] : '');
 
   // ── the party menu ──
   function openField() {
@@ -407,7 +460,9 @@ export function rpgPage(cfg, K, ctl) {
     listen();
     if (typeof navigator !== 'undefined') pad();
     walk();
-    if (mode === 'battle' && (phase === 'intro' || phase === 'play')) { bt += dt; if (bt >= BEAT) advance(); }
+    if (mode === 'battle' && (phase === 'intro' || phase === 'play')) { bt += dt; if (bt >= BEAT + linger) advance(); }
+    // the world holds still in a fight, but its moments (a juice's puffs, beams and shakes) play on: their clock runs
+    if (mode === 'battle' && W()) W().time = (W().time || 0) + dt / 1000;
     if (mode) { hold(); root.classList.add('on'); }
     if (mode && (dirty || pops.length)) { if (mode === 'battle') drawBattle(); else drawField(); dirty = false; }
   }
@@ -426,6 +481,6 @@ export function rpgScript() {
   return `
 // RPG: party battles over the field, the party menu on P (playscape/rpg)
 const RPG_CSS_TEXT = ${JSON.stringify(RPG_CSS)};
-const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})(), { keys: ${JSON.stringify(keys)}, pad: ${JSON.stringify(pad)}, layout: ${padLayoutSource()}, select: ${DEVICES.gamepad.buttons.select} });
+const __rpg = (${rpgPage.toString()})(EVENTS.rpg, (${buildRpg.toString()})(), { keys: ${JSON.stringify(keys)}, pad: ${JSON.stringify(pad)}, layout: ${padLayoutSource()}, select: ${DEVICES.gamepad.buttons.select} }, ${juiceKeys.toString()});
 function __stepRpg(t) { __rpg.step(t); }`;
 }

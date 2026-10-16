@@ -27,6 +27,9 @@ export function momentKinds(events) {
     // a beam's impact (a puff kind or an explosion) and shake, where it lands
     if (r.op === 'beam' && r.spec) { if (r.spec.impactSpec) { add('explosion'); if (r.spec.impactSpec.shake) add('shake'); } else if (r.spec.impact) add(r.spec.impact); if (r.spec.shake) add('shake'); }
   }
+  // a party battle's juice (playscape/rpg/juice.js): the moments its steps puff, and its shakes
+  const fx = events && events.rpg && events.rpg.juice && events.rpg.juice.fx;
+  if (fx) { for (const k of fx.puffs || []) if (MOMENTS[k]) add(k); if (fx.shake) add('shake'); }
   return out;
 }
 

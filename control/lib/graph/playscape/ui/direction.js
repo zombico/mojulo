@@ -251,6 +251,9 @@ export function lowerPlay(manifest, { anchors = [], player = null } = {}) {
   if (stats) out.stats = stats.stats;
   if (rpg) out.rpg = rpg.rpg;   // the battle kernel's cfg: the page's rpg channel (scene/channels/rpg-channel.js)
   if ((out.reactions || []).some(castOn)) out.cast = true;
+  // a battle whose juice puffs, flies or shakes on the map hands its ops to the characters, as a cue's would
+  const fx = rpg && rpg.rpg.juice.fx;
+  if (fx && (fx.puffs.length || fx.shake || Object.keys(fx.beams).length)) out.cast = true;
   // the looks its statuses wear, by status name (the first a name is given wins; the laws say when two differ)
   const looks = {};
   for (const t of [...readCues(play).flatMap((c) => c.then), ...readMenus(play).flatMap((m) => m.picks.flatMap((p) => p.then))]) if (t.kind === 'cast' && t.op === 'status' && !looks[t.is]) looks[t.is] = t.look;

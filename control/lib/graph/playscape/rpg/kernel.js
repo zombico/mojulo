@@ -151,7 +151,7 @@ export function buildRpg() {
     R.b = { enc: id, r: hash(cfg.seed + ':' + id + ':' + R.n), round: 0, foes, side, ids, phase: 'command', fails: 0, flee: E.flee !== false };
     const names = foes.map((f) => f.name);
     const said = names.length === 1 ? names[0] + ' appears!' : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' appear!';
-    const out = [{ text: said, kind: 'start' }];
+    const out = [{ text: said, kind: 'start', boss: foes.some((f) => f.F.boss) || undefined }];
     // the timeline: every gauge starts part full (by a die, more for the quick), and whoever is up first acts
     if (isTimeline(cfg)) {
       R.b.ct = {};
@@ -227,7 +227,7 @@ export function buildRpg() {
 
   function hurt(cfg, R, A, T, fx, out) {
     const b = R.b, phys = fx.stat === 'atk';
-    if (phys && !T.st.sleep && rnd(b) < MISS) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who }); return; }
+    if (phys && !T.st.sleep && rnd(b) < MISS) { out.push({ text: A.name + ' misses ' + T.name + '.', kind: 'miss', target: T.who, by: A.who }); return; }
     let raw = fx.power + A.S[fx.stat] * fx.scale - (phys ? T.S.def / 2 : T.S.mag / 4);
     raw *= 0.875 + 0.25 * rnd(b);
     let crit = false;
@@ -238,19 +238,19 @@ export function buildRpg() {
     if (em < 0) {
       const S = T.S, was = T.hp;
       T.hp = Math.min(S.hp, T.hp + n);
-      out.push({ text: T.name + ' absorbs it and recovers ' + (T.hp - was) + ' HP.', kind: 'heal', target: T.who, amount: T.hp - was, hp: T.hp });
+      out.push({ text: T.name + ' absorbs it and recovers ' + (T.hp - was) + ' HP.', kind: 'heal', target: T.who, amount: T.hp - was, hp: T.hp, absorb: true, by: A.who, skill: fx.id || undefined, element: fx.element || undefined });
       return;
     }
     T.hp = Math.max(0, T.hp - n);
     if (T.st.sleep && phys && n > 0) { T.st.sleep = 0; }
     const tag = crit ? 'A critical hit! ' : em === 2 ? 'It\'s super effective! ' : em === 0 ? 'No effect. ' : em === 0.5 ? 'It resists. ' : '';
-    out.push({ text: tag + T.name + ' takes ' + n + ' damage.', kind: 'hurt', target: T.who, amount: n, hp: T.hp, crit: crit || undefined });
+    out.push({ text: tag + T.name + ' takes ' + n + ' damage.', kind: 'hurt', target: T.who, amount: n, hp: T.hp, crit: crit || undefined, by: A.who, skill: fx.id || undefined, element: fx.element || undefined, mul: em !== 1 ? em : undefined });
     if (T.hp <= 0) fall(cfg, R, T, out);
   }
   function fall(cfg, R, T, out) {
     T.st.sleep = 0; T.st.silence = 0; T.buffs.length = 0;
     if (T.party) T.M.poison = 0; else T.st.poison = 0;
-    out.push({ text: T.party ? T.name + ' falls!' : T.name + ' is defeated!', kind: 'ko', target: T.who });
+    out.push({ text: T.party ? T.name + ' falls!' : T.name + ' is defeated!', kind: 'ko', target: T.who, foe: T.party ? undefined : T.side.kind });
   }
   function heal(cfg, R, A, T, fx, out) {
     const b = R.b;
@@ -258,13 +258,13 @@ export function buildRpg() {
       if (T.hp > 0) return;
       const n = fx.heal ? Math.round((fx.power + A.S.mag * fx.scale) * (0.875 + 0.25 * rnd(b))) : Math.ceil(T.S.hp / 4);
       T.hp = clamp(n, 1, T.S.hp);
-      out.push({ text: T.name + ' is revived!', kind: 'heal', target: T.who, amount: T.hp, hp: T.hp });
+      out.push({ text: T.name + ' is revived!', kind: 'heal', target: T.who, amount: T.hp, hp: T.hp, by: A ? A.who : undefined, skill: fx.id || undefined });
       return;
     }
     if (T.hp <= 0) { out.push({ text: 'It has no effect on ' + T.name + '.', kind: 'miss', target: T.who }); return; }
     const n = Math.max(1, Math.round((fx.power + (A ? A.S.mag * fx.scale : 0)) * (0.875 + 0.25 * rnd(b)))), was = T.hp;
     T.hp = Math.min(T.S.hp, T.hp + n);
-    out.push({ text: T.name + ' recovers ' + (T.hp - was) + ' HP.', kind: 'heal', target: T.who, amount: T.hp - was, hp: T.hp });
+    out.push({ text: T.name + ' recovers ' + (T.hp - was) + ' HP.', kind: 'heal', target: T.who, amount: T.hp - was, hp: T.hp, by: A ? A.who : undefined, skill: fx.id || undefined });
   }
   function afflict(cfg, R, T, fx, out) {
     const s = fx.status;
@@ -326,7 +326,7 @@ export function buildRpg() {
     }
   }
 
-  const ATTACK = { name: 'Attack', mp: 0, target: 'foe', power: 0, stat: 'atk', scale: 1, harm: true, element: null, heal: false, revive: false, cure: [], status: null, buff: null };
+  const ATTACK = { id: 'attack', name: 'Attack', mp: 0, target: 'foe', power: 0, stat: 'atk', scale: 1, harm: true, element: null, heal: false, revive: false, cure: [], status: null, buff: null };
 
   function act(cfg, R, who, pick, vars, out) {
     const A = unit(cfg, R, who);
@@ -341,7 +341,7 @@ export function buildRpg() {
       if (A.st.silence && S.mp > 0) { out.push({ text: A.name + ' is silenced and cannot cast.', kind: 'miss', who }); return; }
       if (A.mp < S.mp) { out.push({ text: A.name + ' has too little MP.', kind: 'miss', who }); return; }
       A.mp -= S.mp;
-      out.push({ text: A.name + ' uses ' + S.name + '!', who, mp: A.mp, skill: pick.skill });
+      out.push({ text: A.name + ' uses ' + S.name + '!', kind: 'cast', who, mp: A.mp, skill: pick.skill, target: pick.target });
       apply(cfg, R, A, S, S.target, pick.target, out);
       return;
     }
@@ -349,9 +349,9 @@ export function buildRpg() {
       const I = cfg.items[pick.item], key = 'held:bag:' + pick.item;
       if (!I || !vars || !(vars[key] > 0)) { out.push({ text: A.name + ' has none left.', kind: 'miss', who }); return; }
       vars[key] -= 1;
-      out.push({ text: A.name + ' uses ' + I.name + '!', who, item: pick.item });
+      out.push({ text: A.name + ' uses ' + I.name + '!', kind: 'cast', who, item: pick.item, target: pick.target });
       // an item's number is its own: no stat behind it (a bomb's blast still meets the target's guard and element)
-      const fx = { stat: 'mag', scale: 0, power: I.hurt || I.heal || 0, harm: !!I.hurt, heal: !!I.heal && !I.hurt, revive: !!I.revive, cure: I.cure || [], element: I.element || null, status: null, buff: null };
+      const fx = { id: null, stat: 'mag', scale: 0, power: I.hurt || I.heal || 0, harm: !!I.hurt, heal: !!I.heal && !I.hurt, revive: !!I.revive, cure: I.cure || [], element: I.element || null, status: null, buff: null };
       if (fx.harm || fx.heal || fx.revive || fx.cure.length) apply(cfg, R, A, fx, I.target, pick.target, out);
       if (I.mp) for (const m of I.target === 'allies' ? living(R) : [pick.target]) {
         const T = unit(cfg, R, m);
@@ -420,7 +420,7 @@ export function buildRpg() {
   // the battle over? (won, or lost) → true, its beats said
   function settled(cfg, R, vars, out) {
     if (!livingFoes(R).length) { victory(cfg, R, vars, out); return true; }
-    if (!living(R).length) { R.b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end' }); mirror(cfg, R, vars); return true; }
+    if (!living(R).length) { R.b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end', lost: true }); mirror(cfg, R, vars); return true; }
     return false;
   }
   // the foes' turns (and the turns of members who sleep) until a member who can choose is up, or the battle is over
@@ -476,9 +476,9 @@ export function buildRpg() {
       else act(cfg, R, o.who, o.pick, vars, out);
     }
     if (!livingFoes(R).length) return victory(cfg, R, vars, out);
-    if (!living(R).length) { b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end' }); mirror(cfg, R, vars); return out; }
+    if (!living(R).length) { b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end', lost: true }); mirror(cfg, R, vars); return out; }
     roundEnd(cfg, R, out);
-    if (!living(R).length) { b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end' }); mirror(cfg, R, vars); return out; }
+    if (!living(R).length) { b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end', lost: true }); mirror(cfg, R, vars); return out; }
     if (!livingFoes(R).length) return victory(cfg, R, vars, out);
     mirror(cfg, R, vars);
     return out;
