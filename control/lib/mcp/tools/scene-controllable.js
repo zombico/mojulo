@@ -9,8 +9,8 @@
  *
  * An entity = a transform + a RULE that updates it each frame + a BODY. The CAMERA is just an entity.
  * Rules: glide (free flight) · walk (ground-locked, tank-steer, drives a gait) · follow (chase camera)
- * · clock (autonomous frame playback) · static. Bodies: mesh (sphere/box) · figure-frames (a baked
- * human figure) · none.
+ * · clock (autonomous frame playback) · static. Bodies: the list in worlds/controllable/body-types.js
+ * (BODY_TYPES); any other type is refused at mint.
  *
  * Stored manifest: { kind:'controllable', entities, camera?, figures?, ground?|faces?, worldFraming?, … }
  */
@@ -21,6 +21,7 @@ import { applyMapRef } from '@/lib/graph/worlds/map-ref';
 import { composeMatchLevel, lightenMatchLevel, MATCH_MODES } from '@/lib/graph/worlds/match-modes';
 import { synthesizeLevel } from '@/lib/graph/game/level-synth';
 import { validateLevelContract } from '@/lib/graph/game/level-contract';
+import { bodyTypeErrors, heroRefError } from '@/lib/graph/worlds/controllable/body-types';
 
 // 'ai' is the engine's autonomous-combatant rule (seat brains — target policy, boost/juke); the
 // match-mode builders author it and an operator may hand-place one beside their pilotable bodies.
@@ -114,9 +115,25 @@ export function mintControllableWorld({ title, entities, camera, figures, faces,
     if (!e || typeof e !== 'object') throw new Error('each entity must be an object');
     const rt = e.rule && e.rule.type;
     if (rt && !KNOWN_RULES.has(rt)) throw new Error(`entity '${e.id || '?'}' has unknown rule '${rt}' (known: ${[...KNOWN_RULES].join(', ')})`);
-    if (e.body && e.body.type === 'figure-frames' && !figNames.has(e.body.figure)) {
-      throw new Error(`entity '${e.id || '?'}' references figure '${e.body.figure}' which is not declared in figures{}`);
+  }
+  // a body the page cannot draw is refused, naming the types it can (worlds/controllable/body-types.js): an unknown
+  // type used to mint ok:true and play an invisible hero
+  const bodyErrors = bodyTypeErrors(manifest.entities);
+  if (bodyErrors.length) throw new Error(bodyErrors.join('\n'));
+  for (const e of manifest.entities) {
+    const bt = e.body && e.body.type;
+    // a figure body draws the figures{} entry it names; a loadout body draws its loadout's figures instead
+    const loadout = Array.isArray(e.rule && e.rule.loadout) && e.rule.loadout.length;
+    if ((bt === 'figure-frames' || ((bt === 'figure-rig' || bt === 'polygomer') && !loadout)) && !figNames.has(e.body.figure)) {
+      throw new Error(`entity '${e.id || '?'}' references figure '${e.body.figure}' which is not declared in figures{} (declared: ${[...figNames].join(', ') || 'none'})`);
     }
+  }
+  // a stored hero must be one that pilots (a hero or a mascot), checked here as the render would, so it never mints
+  // a world whose /world link then fails
+  for (const [name, spec] of Object.entries(effective.figures || {})) {
+    if (!spec || typeof spec !== 'object' || typeof spec.heroRef !== 'string') continue;
+    const refused = heroRefError(name, spec.heroRef, SketchRepository.getByRef(spec.heroRef));
+    if (refused) throw new Error(refused);
   }
   if (camera && camera.target && !manifest.entities.some((e) => e.id === camera.target)) {
     throw new Error(`camera target '${camera.target}' is not an entity id`);

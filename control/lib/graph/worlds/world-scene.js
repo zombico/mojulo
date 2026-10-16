@@ -89,9 +89,10 @@ async function heroFigure(name, spec) {
   if (typeof spec.heroRef === 'string') {
     const { SketchRepository } = await import('@/lib/db/repositories/sketches');
     const src = SketchRepository.getByRef(spec.heroRef);
-    // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump)
-    const { isMascotPlan } = await import('@/lib/graph/egocube/mascot-pilot.js');
-    if (!src || src.manifest?.kind !== 'layered' || !(src.manifest.hero || isMascotPlan(src.manifest.plan))) throw new Error(`figures.${name}: heroRef '${spec.heroRef}' is not a stored hero or mascot (make one with create_character { as: 'hero' } or { as: 'mascot' }; any other creature or an animal is not a pilot yet)`);
+    // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump); the same check the minting doors run
+    const { heroRefError } = await import('@/lib/graph/worlds/controllable/body-types.js');
+    const refused = heroRefError(name, spec.heroRef, src);
+    if (refused) throw new Error(refused);
     manifest = src.manifest;
   } else {
     const { heroRecord, expandLayeredManifest } = await import('@/lib/mcp/tools/layered.js');
