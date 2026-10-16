@@ -13,6 +13,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character bake stack: painted light and finishes on a character's surface
+
+A layered row (a hero, a creature, a ring-plan animal) can carry `bake`: hand-painted light baked into its corners,
+read off its own rest geometry, so a knight's plate shines along a sky band and darkens under the pauldron and the belt,
+its tabard falls darker toward the hem, and its trims catch light on their edges. No texture, no UVs: polygons and a
+colour per corner, the same in every pose and in the World page, the skinned GLB and every export.
+
+- **`bake: true | { finish?, strength? }`** on the manifest (beside `toon` and `hullShade`; the hero door and
+  `create_character` take it, `update_character` / `update_sketch` patch `/bake`). Five channels per corner, geometry
+  only: sky (the surface's facing up), occlusion (cavities in a part and contact between parts), edge (convex rims and
+  ridges), height over the figure, and rise over each part (every plate light at its top, dark at its foot).
+- **Finishes** turn the channels into colour per palette group: `metal`, `gilt`, `leather`, `cloth`, `skin`, `scale`,
+  `matte`, chosen by the group's name (Plate → metal, Trim → gilt, Leather → leather, Top → cloth …), named per group in
+  `finish`, or written inline as data. Emissive groups keep their colour.
+- **It stacks** with the tiered head's face tint and a drawn creature's markings instead of replacing them.
+- Absent `bake`, every face and pack is byte-identical.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

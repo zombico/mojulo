@@ -39,6 +39,7 @@ import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/w
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { heroCastLight } from '@/lib/graph/era/cast-light';
 import { faceTint } from '@/lib/graph/polygonizer/face-tint';
+import { bakeTint, stackTints } from '@/lib/graph/polygonizer/surface-bake';
 import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
 import { TIERED_SMOOTH_CREASE, TIERED_FACE_SMOOTH, TIERED_FACE_TINT, tieredPole } from '@/lib/graph/polygonizer/tiered-form';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
@@ -676,7 +677,10 @@ export const WORLD_KINDS = {
       // and its landmark head's normals toward the head's ellipsoid (tiered-form.js TIERED_FACE_SMOOTH)
       const ellipsoid = m.hero?.form === 'tiered' && (m.hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0;
       // and its skin's occlusion and blush (face-tint.js), read off the rest mesh: the same per corner in any pose
-      const tint = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
+      // and the BAKE STACK (surface-bake.js, opt-in `bake`): painted light per corner, read off the rest mesh, stacked
+      // over the head's tint or a drawn creature's markings (their product). Absent ⇒ the tint is the one before it
+      const baked = m.bake ? bakeTint(mesh, m.bake, { glows: m.recipe?.emissive }) : null;
+      const tint = stackTints(ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null, baked);
       const smooth = !character && ((m.hero && (m.hero.head !== 'anime' || figLight !== light)) || m.smooth === true || drawn) && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease, proxy: false, ellipsoid, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
       // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
       // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
@@ -693,7 +697,7 @@ export const WORLD_KINDS = {
       const facePaint = character || m.hero?.painterly ? facePaintOf(mesh, m.recipe?.palette) : null;
       const faces = character
         ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
-        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
+        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(facePaint ? { paint: facePaint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
@@ -771,7 +775,7 @@ export const WORLD_KINDS = {
         // (a bug's motion carries its bauplan: bugs/rig.js derives the skeleton and clips from it, packed the same way)
         const bugMotion = !!m.recipe.motion.bug;
         const B = bugMotion ? bugBones(m.recipe.motion) : faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
-        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}) });
+        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}) });
         scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It

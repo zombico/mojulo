@@ -55,8 +55,10 @@ export function swimCells(corners, pan) {
  * it under the character light. Absent ⇒ byte-identical. */
 /** a colour times [r, g, b] */
 const tintHex = (hex, m) => { const [r, g, b] = hexToRgb(hex); return rgbToHex([r * m[0], g * m[1], b * m[2]].map((x) => Math.max(0, Math.min(255, x)))); };
-export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh, normals = null, tint = null, paint = null } = {}) {
-  // `tint` (face-tint.js): per face, its corners' colour multipliers (a face's occlusion and blush); absent ⇒ as before
+export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh, normals = null, tint = null, paint = null, cornerTint = false } = {}) {
+  // `tint` (face-tint.js): per face, its corners' colour multipliers (a face's occlusion and blush); absent ⇒ as before.
+  // `cornerTint` (the bake stack, surface-bake.js): the tint rides the corners even without smooth normals (each corner
+  // the face normal's shade of its own tinted colour), and a swimsuit cell takes it by its weights in the face
   const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
   const glows = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []);   // emissive groups: full-bright, not shaded
   const faces = [], panels = seatPanels(rest);
@@ -75,15 +77,17 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
     const at = (h, w) => shadeHex(h, unit([0, 1, 2].map((k) => w[0] * cn[0][k] + w[1] * cn[1][k] + w[2] * cn[2][k])), light);
     if (cut) {
       // the swimsuit's cells in its own colour, the rest in the face's
-      const hexes = [hex, palette.Swim || hex], fills = hexes.map((h) => shadeHex(h, outNormal, light));
+      const hexes = [hex, palette.Swim || hex], fills = hexes.map((h) => shadeHex(h, outNormal, light)), tc = cornerTint ? tint?.[i] : null;
+      // (a baked tint at a cell's corner: the face's corners' blended by its weights)
+      const tw = (h, w) => (tc ? tintHex(h, [0, 1, 2].map((c) => w[0] * tc[0][c] + w[1] * tc[1][c] + w[2] * tc[2][c])) : h);
       for (const c of cut) {
-        const h = hexes[c.inside ? 1 : 0], cf = cn ? c.w.map((w) => at(h, w)) : null;
+        const h = hexes[c.inside ? 1 : 0], cf = cn ? c.w.map((w) => at(tw(h, w), w)) : tc ? c.w.map((w) => shadeHex(tw(h, w), outNormal, light)) : null;
         faces.push({ corners: c.corners, fill: fills[c.inside ? 1 : 0], ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal }); groupOf.push(c.inside ? 'Swim' : g);
       }
       return;
     }
     const tt = tint?.[i], th = (k) => (tt ? tintHex(hex, tt[k]) : hex);
-    const cf = cn ? cn.map((n, k) => shadeHex(th(k), n, light)) : null;
+    const cf = cn ? cn.map((n, k) => shadeHex(th(k), n, light)) : tt && cornerTint && !glows.has(g) ? [0, 1, 2].map((k) => shadeHex(th(k), outNormal, light)) : null;
     const fill = glows.has(g) ? hex : shadeHex(tt ? tintHex(hex, [0, 1, 2].map((c) => (tt[0][c] + tt[1][c] + tt[2][c]) / 3)) : hex, outNormal, light);
     // `paint` (face-paint.js facePaintOf): a face the painted face's texture covers carries it, its fill the light alone
     if (paint?.painted(i)) { faces.push({ corners, fill: paint.light(fill), ...(cf ? { cornerFills: [...cf, cf[2]].map(paint.light) } : {}), group: group || partName, outNormal, texture: paint.key, uv: tri.map((vi) => paint.uvAt({ vi })), textureLit: true }); groupOf.push(g); return; }

@@ -62,6 +62,7 @@ import { validateGenki, genkiStand } from '@/lib/graph/polygonizer/anime-genki';
 import { LOOK_TABLES, validateLook, resolveLook, composeAnime, heroHeadPole as headPoleOf, animeHeroEffective as animeEffective } from '@/lib/graph/polygonizer/anime-looks';
 import { ANIME_SCULPT, ANIME_SCULPT_KEYS, SCULPT_SHAPE_KEYS, validateAnimeSculpt, resolveAnimeSculpt, sparseSculpt, animeSculptWarnings, describeAnimeSculpt } from '@/lib/graph/polygonizer/anime-sculpt';
 import { layeredStats, persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
+import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
 import { validateRig, bindLayered, auditRig, layeredClip, rigNodesAt } from '@/lib/graph/polygonizer/station-loft-rig';
 import { faunaBones, motionGaits, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { bugBones, bugMotionGaits, bugMotionBehaviors } from '@/lib/graph/bugs/rig';
@@ -227,7 +228,7 @@ function resolveHeroWords(hero) {
 export const HERO_FORMS = Object.freeze(['tiered']);
 export const HERO_FIELDS = ['cast', 'register', 'tune', 'body', 'girth', 'headScale', 'scale', 'palette', 'head', 'face', 'hair', 'expression', 'headPreset', 'look', 'proportions', 'detail', 'adorn', 'paint', 'outfit', 'gesture', 'sculpt', 'clips', 'blink', 'gear', 'core', 'statue', 'genki', 'motion', 'target', 'geocube', 'form', 'painterly', 'laws'];
 /** what the hero door takes beside a hero's own words: the mint's (the layered kind's top-level keys) and `vibe` */
-export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'rim', 'strokes', 'vibe', 'egocube']);
+export const HERO_DOOR_KEYS = Object.freeze(['title', 'ref', 'folder_ref', 'toon', 'dials', 'channels', 'units', 'facing', 'seat', 'hullShade', 'bake', 'rim', 'strokes', 'vibe', 'egocube']);
 /** where a word the hero door does not take belongs: the words agents guess, then the nearest known word */
 const KEY_HOMES = Object.freeze({
   build: "a build is the cast's: cast: { pole: 'female' | 'male', build: '<build>' }",
@@ -239,6 +240,7 @@ const KEY_HOMES = Object.freeze({
   weapon: "held things are gear: gear: { right: { item: 'sword' } }", item: "held things are gear: gear: { right: { item } }", items: 'held things are gear: gear: { right, left, back, hip }',
   pose: 'the stand is gesture', stance: 'the stand is gesture (or a ready stance in motion)', animation: 'moves are motion (gaits and moves by word) or clips (your own keys)', animations: 'moves are motion or clips', walk: 'a walk is motion: motion: { walk }',
   wings: "a body beyond a person is a creature (create_character as: 'creature', a ring plan) or an animal (as: 'animal')", tail: "a body beyond a person is a creature (as: 'creature') or an animal (as: 'animal')", horns: "a body beyond a person is a creature (as: 'creature')",
+  bake: "the bake is the row's, beside toon: update_character { patch: [{ op: 'set', path: '/bake', value: true | { finish, strength } }] }",
   plan: "a ring plan is a creature's (create_character as: 'creature'); the hero door makes its own", recipe: "a recipe is a creature's (as: 'creature', or mint_solid kind 'layered')", species: "a species is an animal (create_character as: 'animal')",
 });
 // the optimal-string-alignment distance: a swapped pair of letters ('hiar') is one edit, as people type it
@@ -843,7 +845,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, rim, strokes, statue, species, egocube, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, bake, rim, strokes, statue, species, egocube, ref, folder_ref: folderRef } = input;
   // a CREATURE carved (statue/creature.js): stored beside a plan that is not a hero, carved by the layered resolve on
   // every read; a hero's statue is its own build (/hero/statue)
   if (statue !== undefined) {
@@ -851,6 +853,8 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     const errs = validateCreatureStatue(statue);
     if (errs.length) throw new Error(`layered: ${errs.join('; ')}`);
   }
+  const bakeErrs = validateBake(bake);
+  if (bakeErrs.length) throw new Error(`bake refused:\n - ${bakeErrs.join('\n - ')}\nThe bake — manual: get_solid_vocab({ id: 'layered' }) (the Spec section).`);
   const lightErrs = toon && typeof toon === 'object' ? toonLightErrors(toon.light) : [];
   if (lightErrs.length) throw new Error(`toon refused:\n - ${lightErrs.join('\n - ')}\nThe character light — manual: get_solid_vocab({ id: 'layered' }) (the Spec section).`);
   // a toon the dial reads is stored as given; so is an explicit OPT-OUT the character light reads (`light: false`, or
@@ -872,6 +876,7 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     // the shader-look dials (opt-in, rigged recipes): hull-smooth bake normals and the figure rim —
     // stored as authored; the layered world resolve validates shapes on read
     ...(hullShade === true || (hullShade && typeof hullShade === 'object') ? { hullShade } : {}),
+    ...(bake === true || (bake && typeof bake === 'object') ? { bake } : {}),   // the bake stack (surface-bake.js): painted light per corner, on every read
     ...(Array.isArray(rim) && rim.length === 5 && rim.every(Number.isFinite) ? { rim } : {}),
     ...(strokes !== undefined ? { strokes } : {}),   // drawn lines as the authoring record (layered-strokes.js); usually stored later by update_sketch
     ...(statue !== undefined ? { statue } : {}),   // a creature carved (above); absent ⇒ byte-identical

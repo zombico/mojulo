@@ -27,7 +27,7 @@ A solid whose recipe is a **station/slot construction**, not a coordinate list.
   declared; out-of-range and unknown dials refuse.
 
 Spec: `{ title?, recipe, dials?, channels?, units? ('m'), facing? ('+y'), seat? (true: lowest point on
-the grid), grid?, toon? (+ toon.light?), hullShade?, rim? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
+the grid), grid?, toon? (+ toon.light?), hullShade?, rim?, bake? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
 and `export_model` see the compiled mesh itself (every closed part exact, whatever its shape; a recipe
 `palette: { <group>: '#hex' }` colours faces by group, else the part's `tint`). Patch a dial:
 `update_character { ref, patch: [{ op: 'set', path: '/dials/jawOpen', value: 30 }] }` (a character; `update_sketch` takes the same ops on any layered row).
@@ -35,6 +35,14 @@ and `export_model` see the compiled mesh itself (every closed part exact, whatev
 from the smooth L1 hull's normals instead of flat facets, so the light sweeps the underlying form while
 grown detail keeps its silhouette — the toon read. `except` names focal parts (a horn, a ridge) that keep
 their own faceted shading. Absent, the bake is unchanged.
+`bake: true | { finish?: { <group> | '*': word | finish }, strength?: 0–1 }` (any layered row; not `toon.bake`) is the
+BAKE STACK: hand-painted light baked into every corner from the rest geometry, the same in every pose, on the World, the
+rig pack and every export. Channels: sky (facing up), occlusion (cavities and contact between parts: a plate over the
+body, a belt over a tabard), edge (rims), height (over the figure), rise (over the part: each plate light at its top).
+A group's finish by its name (Plate / Iron → metal, Trim / Gold → gilt, Leather → leather, Top / Cloth → cloth, Skin →
+skin, Scale / Belly → scale, else matte), or named in `finish`, or inline `{ sky: [[facing, ×], …], occlusion, edge,
+height, rise, tint: [r, g, b] }`. Emissive groups keep their colour; it stacks over the head's face tint and a drawn
+creature's markings. Patch `/bake`. Absent, every byte is identical.
 `rim: [r, g, b, strength, power]` (rigged recipes) adds a cool/warm fresnel edge light to the figure's
 clip preview on the World page (ms-contrast's rim, adopted); pairs with `hullShade` for the full toon
 read. `toon: { ink: true, bake: true }` on the manifest additionally bakes the outline into the GLB
