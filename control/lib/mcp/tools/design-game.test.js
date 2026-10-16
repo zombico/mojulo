@@ -32,9 +32,11 @@ describe('design_game', () => {
     expect(step(out, 'review')).toMatchObject({ card: 'gameworld-next', parts: expect.arrayContaining(['hero:base']) });
     expect(step(out, 'run')).toEqual({ step: 'run', card: 'gameworld-next' });
     expect(stored('gw').kind).toBe('gameworld');
-    // a world without a hero runs nothing
+    // a world before its people, gated and unreviewed: its levels and game wait on its parts, and nothing is made
     const ground = await designGameHandler({ world: MEADOWMARK, ref: 'gw-ground', run: true });
-    expect(ground.ran).toEqual([]);
+    expect(ground.ran.length).toBeGreaterThan(1);
+    expect(ground.ran.every((r) => r.action === 'waiting')).toBe(true);
+    expect(ground.made).toBeUndefined();
   });
 
   it('gated: a run makes the hero and pins its base; the rest waits for the creator; a second run makes nothing', async () => {

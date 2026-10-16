@@ -24,7 +24,7 @@
  *
  * Every run of the same world and the same store decides the same: no dice, no clock.
  */
-import { fingerprint } from './review.js';
+import { fingerprint, reviewState } from './review.js';
 import { readGameworld } from './world.js';
 import { resolveBook, characterReady } from './character-review.js';
 import { heroOrders, castOrders } from './hero-looks.js';
@@ -75,6 +75,8 @@ export function runSteps(world, { ref, lookup } = {}) {
   if (typeof ref !== 'string' || !ref) throw new Error('runner: the steps are made at refs derived from the gameworld\'s own ref');
   const G = readGameworld(world);
   if (world.quick) return quickSteps(world, G, ref, lookup);
+  // a world before its people (no character book: a world composed from a prompt) makes its levels at once
+  if (world.characters === undefined) return worldSteps(world, G, ref);
   const O = heroOrders(G);
   if (!O) return [];
   // an adopted hero (characters.hero.ref) is pinned, never made: the step says so (`adopt`), and it plays as it is
@@ -159,6 +161,29 @@ export function storyReport(world, { ref = 'gw' } = {}) {
   const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
   const { bound, unplaced, unset } = bindStory(G, gameStages(world), { castRefs, layout: { stageEnds, stageSpots, stageLane } });
   return { bound, unplaced, ...(unset ? { unset } : {}) };
+}
+
+/** A world before its people's steps: no character book, so no hero and no systems. Each stage a level walked in first
+ * person (the walker stageLevelOrder lays when no hero is named), then the game over them in the play shell. A level
+ * waits on the world's own parts and its level's (review.js): settled at once in autonomous mode (a composed world),
+ * by the creator's verdicts when gated. A world that gains a book is run by runSteps' own path, its levels remade. */
+function worldSteps(world, G, ref) {
+  const stamps = reviewState(world), at = (id) => stamps.find((x) => x.id === id);
+  const settled = (ids) => { const waiting = ids.filter(at).map((id) => ({ id, status: at(id).status })).filter((x) => !['approved', 'auto'].includes(x.status)); return waiting.length ? { ready: false, waiting } : { ready: true }; };
+  const ground = ['world', 'nature', 'civilizations', 'key'];
+  const steps = [], stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
+  const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
+  stages.forEach((s, i) => {
+    if (s.building?.ref) return;
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: null, ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s) });
+    steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ...settled([...ground, `level:${s.level}`]), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
+  });
+  if (stages.length) {
+    const links = gameLinks(stages, levelRefs), theme = paletteTheme(G);
+    const game = { title: G.name ?? G.id, store: gameStore(world, resolveBook(world)), levels: gameLevels(stages, levelRefs, map), ...(links.length ? { links } : {}), allow_unaudited: true, ...(theme ? { theme } : {}), shell: 'play', ...(G.front ? { front: G.front } : {}) };
+    steps.push({ key: 'game', ref: childRef(ref, 'game'), ...settled(stamps.map((x) => x.id)), order: game, print: fingerprint(game) });
+  }
+  return steps;
 }
 
 /** A quick game's steps: its hero if it has one (any hero-door spec, minted as given), each stage a level with the

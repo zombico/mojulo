@@ -399,7 +399,9 @@ const DESCRIPTION_ALLOWLIST = {
 // Lowered 2026-10-15 (213_700 -> 210_800; measured 210,537) for 1015-tool-consolidation: the shoot plan folded into forge_motion.
 // Raised 2026-10-15 (210_800 -> 211_100; measured 210,856) for the flight palette: four earth presets in pick_palette's
 // `preset` enum (the palette's own list, a place a flight world names) and its line naming them.
-const PAYLOAD_CEILING = 211_100;
+// Raised 2026-10-15 (211_100 -> 211_300; measured 211,171) for the level demo: design_game's `compose` (the interpreter as a
+// door: a world read from a few words), one schema property and its clause in the description. No new tool.
+const PAYLOAD_CEILING = 211_300;
 
 async function listedTools() {
   const { ensureToolsRegistered, listTools } = await import('@/lib/mcp/server');

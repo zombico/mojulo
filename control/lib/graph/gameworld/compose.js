@@ -3,7 +3,9 @@
  * lexicon of what they say about the ground (a kit, a building language, a fortification, the land's forms and how
  * much of each, the ground's character); what no word decides, the seed does, inside the same rails a creator would
  * choose from. Then the agent checks its own work: a level whose town's laws advise is laid again on the next seed,
- * up to a few times, before it is handed over. The world comes back in autonomous mode, every part stamped by its
+ * up to a few times, before it is handed over. Its levels stand on the geocube the words point at (CUBE_WORDS, else
+ * the kit's nearest), drawn on the kit's own card, its colours left to the color theorist where the world is stored.
+ * The world comes back in autonomous mode, every part stamped by its
  * machine gate (review.js), the prompt and every decision kept in its `brief`, ready for the creator to approve or
  * send back.
  *
@@ -24,6 +26,7 @@ import { craftDomain, craftKindOf, CRAFT_TRAITS } from './tech-crafter.js';
 import { motifOf } from './tech-direction.js';
 import { ELEMENT_WORDS } from './element-words.js';
 import { CRAFTED } from './world.js';
+import { GEOCUBE_PRESETS } from '../era/geocube.js';
 
 /**
  * What a word says about the ground. Each reading sets parts of a world's style or its civilizations: `kit`,
@@ -66,6 +69,16 @@ export const LEXICON = Object.freeze({
   // how big
   small: { levels: 2 }, short: { levels: 2 }, epic: { levels: 5 }, vast: { levels: 5 }, long: { levels: 4 },
 });
+
+// the cube a word points at (era/geocube.js): one style for the level's inside and outside, its colours the color
+// theorist's (the stamp seeds its palette, and the world takes it). The first word to name one decides it
+export const CUBE_WORDS = Object.freeze({
+  night: 'gothic-night', dark: 'gothic-night', gothic: 'gothic-night', crypt: 'gothic-night', haunted: 'gothic-night', moonlit: 'gothic-night', torchlit: 'gothic-night',
+  island: 'island-noon', coast: 'island-noon', sea: 'island-noon', shore: 'island-noon', beach: 'island-noon', sunny: 'island-noon', tropical: 'island-noon', noon: 'island-noon',
+  jungle: 'jungle-haze', haze: 'jungle-haze', hazy: 'jungle-haze', swamp: 'jungle-haze', overgrown: 'jungle-haze', humid: 'jungle-haze',
+});
+// a kit's nearest cube when no word names one; an airless plain has none (every cube has air)
+const KIT_CUBE = Object.freeze({ 'isekai-meadow': 'island-noon', 'isekai-sakura': 'island-noon', 'isekai-garden': 'island-noon', 'isekai-bamboo': 'jungle-haze', 'alien-night': 'gothic-night' });
 
 const STOP = new Set(['with', 'from', 'into', 'over', 'under', 'that', 'this', 'their', 'there', 'where', 'some', 'very']);
 const SUFFIX = ['approach', 'crossing', 'heights', 'hold', 'reach', 'end'];
@@ -178,6 +191,21 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
     if (i > 0) world.links.push({ from: `${wid}-${i}`.slice(0, 48), to: lid, kind: last && n > 2 ? 'gate' : 'road' });
   }
   world.brief.levels = decided;
+  // the cube: the one the words name, else the kit's nearest, drawn on the kit's own card so its flora stay; the
+  // color theorist decides its colours when it is stored (color-theorist/stamp.js)
+  const cubeWord = P.words.find((w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')]);
+  const cubeId = cubeWord ? CUBE_WORDS[cubeWord] ?? CUBE_WORDS[cubeWord.replace(/s$/, '')] : KIT_CUBE[style.kit] ?? null;
+  if (cubeId) {
+    style.geocube = GEOCUBE_PRESETS[cubeId].outside.base === style.kit ? cubeId : { from: cubeId, outside: { base: style.kit } };
+    world.brief.cube = { id: cubeId, ...(cubeWord ? { word: cubeWord } : { from: `the kit, ${style.kit}` }) };
+    // every word that names a cube is read: the first decides it, one naming the same cube agrees, another gives way
+    const cubeOf = (w) => CUBE_WORDS[w] ?? CUBE_WORDS[w.replace(/s$/, '')];
+    for (const w of [...new Set(P.words.filter(cubeOf))]) {
+      const says = cubeOf(w) === cubeId ? 'geocube' : `geocube (gave way to ${cubeWord})`, r = world.brief.read.find((x) => x.word === w);
+      if (r) r.decides = [...r.decides, says]; else world.brief.read.push({ word: w, decides: [says] });
+      world.brief.unread = world.brief.unread.filter((x) => x !== w);
+    }
+  } else world.brief.cube = { id: null, why: `no cube has ${style.kit}'s air` };
   readGameworld(world);
   return world;
 }

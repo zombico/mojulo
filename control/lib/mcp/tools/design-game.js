@@ -30,8 +30,9 @@ import {
 import { sameness, grounding, authorship, compareWorlds, REFERENCES } from '@/lib/graph/gameworld/advice.js';
 import { intentReport } from '@/lib/graph/gameworld/intent.js';
 import { quickWorld } from '@/lib/graph/gameworld/quick.js';
+import { composeGameworld } from '@/lib/graph/gameworld/compose.js';
 import './palette-ledger.js';
-import { stampWorldPalette } from '@/lib/graph/color-theorist/stamp.js';
+import { stampWorldPalette, stampGeocubes } from '@/lib/graph/color-theorist/stamp.js';
 
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -197,7 +198,7 @@ function readout(ref, world, context = {}) {
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });
-  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, intent, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
+  return { ref, url: `/sketches/${encodeURIComponent(ref)}`, ...(Array.isArray(world.brief?.read) ? { composed: composedOf(world.brief) } : {}), intent, advice, ...(numbers ? { numbers } : {}), bible: `/api/sketches/${encodeURIComponent(ref)}/bible`, ...(world.characters ? { characterBible: `/api/sketches/${encodeURIComponent(ref)}/bible?book=characters` } : {}), mode, parts, ...(steps ? { steps: Object.fromEntries(Object.entries(steps).map(([k, s]) => [k, s.ready ? 'ready' : 'waiting'])) } : {}), ...(Object.keys(made).length ? { made } : {}), ...(told ? { story: { bound: told.bound.length, unplaced: told.unplaced.length, ...(told.unset?.length ? { unset: told.unset } : {}) } } : {}), next };
 }
 
 /** The verdicts as the review to write. */
@@ -219,16 +220,29 @@ function reviewWith(world, { approve, revise, note }) {
   return review;
 }
 
+// the words a world is composed from: { prompt, levels?, seed?, name? }
+function composedWorld(c) {
+  if (!isObj(c) || typeof c.prompt !== 'string' || !c.prompt.trim()) throw new Error('design_game: compose is { prompt, levels?, seed?, name? }: the few words the world is read from');
+  for (const k of Object.keys(c)) if (!['prompt', 'levels', 'seed', 'name'].includes(k)) throw new Error(`design_game: compose.${k} is not a setting (prompt, levels, seed, name)`);
+  if (c.levels !== undefined && !(Number.isInteger(c.levels) && c.levels >= 1 && c.levels <= 6)) throw new Error('design_game: compose.levels is 1 to 6');
+  if (c.seed !== undefined && !(Number.isInteger(c.seed) && c.seed >= 1)) throw new Error('design_game: compose.seed is a whole number from 1');
+  return composeGameworld({ prompt: c.prompt, ...(c.levels !== undefined ? { levels: c.levels } : {}), ...(c.seed !== undefined ? { seed: c.seed } : {}), ...(c.name !== undefined ? { name: String(c.name) } : {}) });
+}
+// what a composed world's words decided (its brief): each word read and what it decided, the cube, what nothing read
+const composedOf = (b) => ({ prompt: b.prompt, read: b.read.map((r) => `${r.word}: ${r.decides.join(', ')}`), ...(b.cube ? { cube: b.cube } : {}), ...(b.unread?.length ? { unread: b.unread } : {}) });
+
 export async function designGameHandler(input, context = {}) {
-  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, patch?, approve?, revise?, note?, run?, force?, example?, compare? }');
-  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick, readout: shape } = input;
+  if (!isObj(input)) throw new Error('design_game takes { ref?, title?, world?, compose?, patch?, approve?, revise?, note?, run?, force?, example?, compare? }');
+  const { ref: given, title, world: written, patch, approve, revise, note, run: asked, force, example, compare, quick, compose, readout: shape } = input;
   if (shape !== undefined && shape !== 'full' && shape !== 'changed') throw new Error("design_game: readout is 'full' (the default) or 'changed'");
   // the world as it stood before this call, for readout: 'changed'
   const prior = given ? SketchRepository.getByRef(given) : null;
   const before = prior && isGameworldKind(prior.manifest?.kind) ? gameworldOf(prior.manifest) : null;
   // the quick path: one level, one goal; its gameworld is written here, and it is run at once (nothing to review)
   if (quick !== undefined && written !== undefined) throw new Error('design_game: `quick` writes the world itself; pass the world\'s own settings (id, name, style …) beside the goal as quick.world, or a whole `world` without quick');
-  const world = quick !== undefined ? quickWorld({ ...(isObj(quick.world) ? quick.world : {}), quick: Object.fromEntries(Object.entries(quick).filter(([k]) => k !== 'world')) }) : written;
+  // the interpreter (gameworld/compose.js): a few words read into a whole world, stored as `world` is
+  if (compose !== undefined && (written !== undefined || patch !== undefined || quick !== undefined)) throw new Error('design_game: `compose` writes the world from its words; give it alone, then edit the world with `patch`');
+  const world = compose !== undefined ? composedWorld(compose) : quick !== undefined ? quickWorld({ ...(isObj(quick.world) ? quick.world : {}), quick: Object.fromEntries(Object.entries(quick).filter(([k]) => k !== 'world')) }) : written;
   const run = asked ?? (quick !== undefined ? true : undefined);
   // a reference, made on request (the creator asked to see one): a gameworld of its own, never mixed into theirs
   if (example !== undefined) {
@@ -249,7 +263,7 @@ export async function designGameHandler(input, context = {}) {
       if (!isGameworldKind(exists.manifest?.kind)) throw new Error(`design_game: '${ref}' is a '${exists.manifest?.kind}', not a gameworld`);
       // the runner's record stays with the recipe unless the new one brings its own; the same recipe again writes nothing
       // (and its palette: a recipe re-sent whole keeps the colours it was given, so the same recipe writes nothing)
-      const next = stampWorldPalette(world.made === undefined && exists.manifest.made ? { ...manifest, made: exists.manifest.made } : manifest, exists.manifest);
+      const next = stampWorldPalette(stampGeocubes(world.made === undefined && exists.manifest.made ? { ...manifest, made: exists.manifest.made } : manifest, exists.manifest), exists.manifest);
       if (JSON.stringify(next) !== JSON.stringify(exists.manifest) || (title && title !== exists.title)) {
         await updateSketchHandler({ ref, ...(title ? { title } : {}), manifest: next });
       }
@@ -331,7 +345,7 @@ export function registerDesignGameTools() {
       + '(`force` overwrites). Answers each part\'s stamp, the steps, what was made, the advice, the next moves as step ids '
       + '(`readout: \'changed\'` for only what moved). Read '
       + 'get_game_vocab({ id: \'gameworld-guide\' }) first. `example` makes a reference only when the creator asks; '
-      + '`compare` reads one against a world once made.',
+      + '`compare` reads one against a made world. `compose: { prompt }`: a world from words.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -348,6 +362,7 @@ export function registerDesignGameTools() {
         compare: { type: 'string' },
         readout: { type: 'string', enum: ['full', 'changed'] },
         quick: { type: 'object', description: 'One level, one goal (gameworld-quick).' },
+        compose: { type: 'object', description: '{ prompt, levels?, seed?, name? }' },
       },
       required: [],
     },

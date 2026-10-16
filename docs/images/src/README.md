@@ -7,12 +7,14 @@ kernel change instead of patched by hand.
 | Image | Runner | Takes |
 |---|---|---|
 | `../interior-demo.gif` | `interior-demo/run.mjs` | about 3 min (three Cycles stills) |
+| `../level-demo.gif` | `level-demo/run.mjs` | about 5 min (two levels made, eight stills) |
 | `../dresser-shop-sheet.png` | `dresser-sheet/run.mjs` | about 30 s |
 | `../dresser-manual-flow.png`, `../dresser-manual-viewer.png` | `dresser-manual/run.mjs` | about 30 s |
 | `../sheet-metal-sheet.png` | `sheet-metal/run.mjs` | about 15 s |
 
 ```bash
 node docs/images/src/interior-demo/run.mjs /tmp/mj-interior
+node docs/images/src/level-demo/run.mjs /tmp/mj-level
 node docs/images/src/dresser-sheet/run.mjs /tmp/mj-dresser
 node docs/images/src/dresser-manual/run.mjs /tmp/mj-manual
 node docs/images/src/sheet-metal/run.mjs /tmp/mj-sheet-metal
@@ -25,7 +27,8 @@ Each writes its image into the work directory you give it; copy it into `docs/im
 - `control/` installed (`npm install`): the runners drive `control/scripts/mcp-stdio.mjs` and borrow its
   `puppeteer-core`.
 - Chrome: the macOS default, or `CHROME_BIN`. World pages need real WebGL.
-- ffmpeg on `PATH`, or `FFMPEG` (the GIF encode, the sheet's crop).
+- ffmpeg on `PATH`, or `FFMPEG` (the GIF encode, the sheet's crop). Mojulo's own download works:
+  `FFMPEG=~/.mojulo/ffmpeg/ffmpeg-darwin-arm64`.
 - Blender for the GIF's Cycles stills: `MOJULO_BLENDER`, or the macOS default.
 - Nothing in `~/.mojulo`: without `MOJULO_DATA_DIR`, each run mints into a fresh data dir under its work directory.
 
@@ -66,3 +69,13 @@ DXF is not one outline with the holes and bend marks inside it, or if its length
 
 World-page cameras are in the page's own units: a floorplan in feet with y negated, a workbench in mm.
 `blender-bake --camera/--look` take the recipe frame and scale by `metersPerUnit`.
+
+**level-demo.** `design_game({ compose })` reads a sentence into a gameworld (its kit, land, builders, geocube and
+levels), and the runner pins the palette seed the stamp rolled (`PALETTE_SEED`), on the world and on its cube, so the
+GIF re-shoots the same. The world bible is rendered from the stored world (`bible.mjs`, which also writes the cube as
+solved) and three of its sections are shot: the brief, the world map cropped to what it draws, and the first level's
+walk. The geocube kind shows the world's own cube as an island and a room through their own shots. Then `run: true`
+makes the levels (a world with no character book is walked in first person) and the first level's World page is shot
+through the capture mode, since a playable page opens on its walker whatever shot is asked: its cliff-top view, that
+view pulled back and up (`AERIAL`), and its orbit pulled in (`ORBIT_IN`). `compose.mjs` lays it out through its own
+`stage.html`; `node level-demo/compose.mjs <workDir>` re-composes from `facts.json` without re-rendering.
