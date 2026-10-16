@@ -13,6 +13,30 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Party battles: turn-based combat with classes you can switch
+
+Turn-based combat was one hero against one foe (Attack, Guard, Flee). A world can now carry `play.rpg`: a party of
+up to four classed characters against encounters of several foes, fought in rounds. Every member picks a command,
+then everyone acts in speed order. The battle runs in place over the field, in the world's own UI guide.
+
+- **The battle kernel** (`lib/graph/playscape/rpg/kernel.js`) follows the stats kernel: a pure closure, emitted
+  into the page only when a world declares `play.rpg`, so a world without it keeps every byte. It covers Attack,
+  Skill, Item, Guard and Flee; elements (weak, resist, immune, absorb); critical hits and misses; poison, sleep,
+  silence and knockouts; buffs that last some rounds; and foes that use their own skills. The spoils are XP, gold,
+  class points and item drops. Its dice are seeded, so a fight replays the same way.
+- **Classes are switched, not fixed.** A member's level is their own, and their stats follow their current class.
+  Each class keeps its own class level and its own skill points. Skills are learned at a class level or bought on
+  that class's tree. Learned skills are kept for good, and a skill marked `carry` can be used from any class. A
+  class can open on a story flag. Outside battle, the party menu (P) switches classes and buys skills.
+- **Encounters** are visible foes on the map (walk up to one), optional random encounters by distance walked, or
+  any cue that emits `rpg-battle:<id>`. The outcome comes back on the bus (`rpg-won:<id>`, `rpg-fled:<id>`,
+  `rpg-lost:<id>`): a beaten foe falls on the map, and a wiped party fails the level (or retries the fight).
+- **Starter presets** (`lib/graph/playscape/rpg/presets.js`): classes, skills and foes that a world can name
+  without defining them. A world's own definitions take their place.
+- **The quick path** takes `quick: { goal: 'battle', party: … }`. Without it, a quick battle is the same as before,
+  and `play.battle` itself is unchanged.
+- **The `quest` border flavor**: the classic RPG window, a deep blue gradient plate with a white double rule.
+
 ### Shoot plan: a keyframed camera you can see in the world
 
 A world can carry a shoot plan: cameras keyed in After Effects terms (a two-node camera with a point of interest, a

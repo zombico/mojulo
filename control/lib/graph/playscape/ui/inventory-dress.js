@@ -38,7 +38,7 @@ export const INVENTORY_LOOKS = Object.freeze({
   tactical: { about: 'a net overlay: hexagons, outlined slots, a glow, the play blurred', tile: 'regular', shape: 'hex', slots: 'outline', card: 'side', badge: 'corner', kinds: 'tinted', focus: 'glow', backdrop: 'blur' },
 });
 export const LOOK_IDS = Object.keys(INVENTORY_LOOKS);
-export const FLAVOR_LOOK = Object.freeze({ cozy: 'satchel', covert: 'loadout', 'mech-cockpit': 'armory', futurepunk: 'tactical' });
+export const FLAVOR_LOOK = Object.freeze({ cozy: 'satchel', covert: 'loadout', 'mech-cockpit': 'armory', futurepunk: 'tactical', quest: 'classic' });
 
 // readDress's flavor when only the shape is checked (authoring, before the guide knows its border): 'flavor' passes
 export const ANY_FLAVOR = '*';

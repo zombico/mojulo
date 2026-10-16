@@ -8,6 +8,7 @@ import { inventoryCss } from '../../playscape/ui/inventory-dress.js';
 import { MENU_CSS, menuScript, reachScript, usesOf } from './interact-channel.js';
 import { sceneScript } from './scene-channel.js';
 import { questScript } from './quest-channel.js';
+import { rpgScript } from './rpg-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
 import { momentKinds, momentScript } from './moment-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
@@ -203,6 +204,7 @@ export function eventsChannelScript(events) {
   const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
+  const rpg = !!(events.rpg && typeof events.rpg === 'object');   // play.rpg: party battles and the party menu
   const hudBlock = widgets.length || menus ? hudScript(widgets, events.style, events.register, menus) + (menus ? menuScript(menus) : '') : 'function __syncHud() {}';
   return `
 const EVENTS = ${safeJson(events)};
@@ -357,9 +359,9 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
 ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
-  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''} __updateAim();
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }
-window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript() : ''}${quests ? questScript() : ''}`;
+window.__mojBus = { bus: __BUS, state: __busState, markers: __markerMeshes, sync: __syncBus };${scenes ? sceneScript() : ''}${quests ? questScript() : ''}${rpg ? rpgScript() : ''}`;
 }

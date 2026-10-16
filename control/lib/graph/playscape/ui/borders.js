@@ -8,6 +8,8 @@
  *   futurepunk    corner ticks, a notch, a dot grid, a glow; a clean sans; a cyan tint; eased motion
  *   mech-cockpit  a hazard band, a side bar, a notch; a heavy display face; a warning-orange tint; stepped motion
  *   cozy          a soft edge, a stitch, vine tendrils; a serif face; a warm tint; eased motion
+ *   quest         the classic console-RPG window: a deep blue gradient plate, a white double rule, round corners;
+ *                 a clean face; snapped motion
  *
  * Elements draw in the guide's tokens only (line, accent, accent2, bg), so colour stays the guide's: the black-and-
  * white law holds, and a flavor's tint is a token proposal recorded with its source, never paint in the art.
@@ -37,6 +39,8 @@ export const BORDER_ELEMENTS = Object.freeze({
   stitch: { slot: 'outline', about: 'a dashed stitch just inside the edge' },
   glow: { slot: 'shadow', about: 'a soft outer and inner glow in the accent (inner only under a notch)' },
   soft: { slot: 'shadow', about: 'round corners and a soft lower bevel' },
+  gradient: { slot: 'bg', about: 'the plate shaded top to bottom, the second accent faint at the top, the background at the foot' },
+  double: { slot: 'outline', about: 'a double rule for the edge, in the line colour' },
 });
 export const ELEMENT_IDS = Object.keys(BORDER_ELEMENTS);
 const STACKING = new Set(['bg', 'shadow']);
@@ -61,6 +65,11 @@ export const BORDER_FLAVORS = Object.freeze({
     about: 'the hearth: a soft edge, a stitch, vine tendrils, a serif face, a warm tint',
     elements: ['soft', 'stitch', 'tendrils'], font: 'serif', dials: { motion: 'ease', frame: 'hairline', plate: 'solid' },
     tint: { panel: '#3a2a20', bg: '#22170f', line: '#c99a6a', ink: '#fff1df', accent: '#ffb35c', accent2: '#8fc46a' },
+  },
+  quest: {
+    about: 'the classic console-RPG window: a deep blue gradient plate, a white double rule, round corners, a clean face',
+    elements: ['gradient', 'double', 'soft'], font: 'system', dials: { motion: 'snap', frame: 'rule', plate: 'solid' },
+    tint: { panel: '#1a2a7a', bg: '#060b30', line: '#eef1ff', ink: '#ffffff', accent: '#ffe07a', accent2: '#6f9cff' },
   },
 });
 export const FLAVOR_IDS = Object.keys(BORDER_FLAVORS);
@@ -109,6 +118,7 @@ const BG = {
   dotgrid: (n) => [`radial-gradient(${mix('line', 55)} ${n ? n / 2 : 0.8}px,transparent ${n ? n / 2 + 0.01 : 1.2}px) 0 0/${n ? 3 * n : 7}px ${n ? 3 * n : 7}px`],
   hazard: (n) => [`repeating-linear-gradient(-45deg,var(--moj-accent2) 0 ${n ? 2 * n : 5}px,var(--moj-bg) ${n ? 2 * n : 5}px ${n ? 4 * n : 10}px) top/100% ${n ? 2 * n : 5}px no-repeat`],
   sidebar: (n) => [`${fill('accent2')} left/${n ? 2 * n : 6}px 100% no-repeat`],
+  gradient: () => [`linear-gradient(180deg,color-mix(in srgb,var(--moj-accent2) 28%,var(--moj-panel)) 0%,var(--moj-panel) 45%,color-mix(in srgb,var(--moj-bg) 70%,var(--moj-panel)) 100%)`],
 };
 
 /**
@@ -127,6 +137,7 @@ export function borderCss({ elements = [], pixel = 0, plate = 'flat' } = {}, sco
   if (has('soft')) shadows.push(`inset 0 -${n || 3}px 0 ${mix('bg', 55)}`);
   if (shadows.length) rules.push(`${w}{box-shadow:${shadows.join(',')}}`);
   if (has('soft')) rules.push(`${w}{border-radius:${n ? 0 : 14}px}`);
+  if (has('double')) rules.push(`${w}{border:${n ? Math.max(3, n) : 4}px double var(--moj-line)}`);
   if (has('stitch')) rules.push(`${w}{outline:${n || 1.5}px dashed ${mix('line', 80)};outline-offset:-${n ? 2 * n : 5}px}`);
   if (has('notch')) { const c = n ? 3 * n : 9; rules.push(`${w}{border-radius:0;clip-path:polygon(0 0,calc(100% - ${c}px) 0,100% ${c}px,100% 100%,${c}px 100%,0 calc(100% - ${c}px))}`); }
   if (has('brackets')) rules.push(`${w}{position:relative;overflow:visible}${w}::before{content:'';position:absolute;inset:-4px -7px;border:${n || 1.5}px solid var(--moj-accent);-webkit-mask:${fill('bg')} left/9px 100% no-repeat,${fill('bg')} right/9px 100% no-repeat;mask:${fill('bg')} left/9px 100% no-repeat,${fill('bg')} right/9px 100% no-repeat;pointer-events:none}`);
