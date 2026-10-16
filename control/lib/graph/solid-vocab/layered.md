@@ -27,7 +27,7 @@ A solid whose recipe is a **station/slot construction**, not a coordinate list.
   declared; out-of-range and unknown dials refuse.
 
 Spec: `{ title?, recipe, dials?, channels?, units? ('m'), facing? ('+y'), seat? (true: lowest point on
-the grid), grid?, toon? (+ toon.light?), hullShade?, rim? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
+the grid), grid?, toon? (+ toon.light?), hullShade?, rim?, bake?, fieldPaint? }`. The stored manifest is the recipe plus dial values; the World, `measure_solid`
 and `export_model` see the compiled mesh itself (every closed part exact, whatever its shape; a recipe
 `palette: { <group>: '#hex' }` colours faces by group, else the part's `tint`). Patch a dial:
 `update_character { ref, patch: [{ op: 'set', path: '/dials/jawOpen', value: 30 }] }` (a character; `update_sketch` takes the same ops on any layered row).
@@ -35,6 +35,24 @@ and `export_model` see the compiled mesh itself (every closed part exact, whatev
 from the smooth L1 hull's normals instead of flat facets, so the light sweeps the underlying form while
 grown detail keeps its silhouette — the toon read. `except` names focal parts (a horn, a ridge) that keep
 their own faceted shading. Absent, the bake is unchanged.
+`bake: true | { finish?: { <group> | '*': word | finish }, strength?: 0–1, characterLight? }` (any layered row; not `toon.bake`) is the
+BAKE STACK: hand-painted light baked into every corner from the rest geometry, the same in every pose, on the World, the
+rig pack and every export. Channels: sky (facing up), occlusion (cavities and contact between parts: a plate over the
+body, a belt over a tabard), edge (rims), height (over the figure), rise (over the part: each plate light at its top).
+A group's finish by its name (Plate / Iron / Lacquer → metal, Trim / Gold → gilt, Leather → leather, Top / Cloth → cloth,
+Skin → skin, Scale / Hide → scale, else matte), or named in `finish`, or inline `{ sky: [[facing, ×], …], occlusion, edge,
+height, rise, tint: [r, g, b] }`. Emissive groups keep their colour; it stacks over the head's face tint and a drawn
+creature's markings. Under the CHARACTER LIGHT (the anime look's step) the bake is off: that light is designed as it
+is; `characterLight: true` lays the bake over its tones per corner. Patch `/bake`. Absent, every byte is identical.
+`fieldPaint: [{ part, chart?, shape | pattern, at?, size?, rotate?, group, color?, only? }]` (any layered row) is FIELD
+PAINT: shapes cut into the faces, so a line crosses a face at any angle and finer than a ring (band paint is the ring's
+height). `part` a name, a list or a prefix `'adorn.torso-tabard*'`; `chart` `front` (default) | `back` | `left` |
+`right` | `top` | `bottom` (a projection over the parts' box, x to the viewer's right, y up: any part, a worn shell too)
+or `ring` (a body part's rings: x round it, 0.5 the front, y along it, 0 → 1); `at` / `size` shares of the chart;
+`shape` rect | circle | diamond | shield | cross | star | `{ motif, w? }` (a motif filled) | `{ poly }` | `{ polys }`
+(convex, in −1…1); or `pattern` `{ cells: hex | scale | square | brick, grid: [nx, ny], gap? }` | `{ bands, gap?,
+axis? }`. Painted in order; `only` repaints only those groups; `color` names the group's colour. The studio's faces and
+the rig pack carry the cells (the character light does not yet). The mint reads out what each entry touched.
 `rim: [r, g, b, strength, power]` (rigged recipes) adds a cool/warm fresnel edge light to the figure's
 clip preview on the World page (ms-contrast's rim, adopted); pairs with `hullShade` for the full toon
 read. `toon: { ink: true, bake: true }` on the manifest additionally bakes the outline into the GLB

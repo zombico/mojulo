@@ -19,6 +19,7 @@ import { seatPanels, clipCells } from './seat-panels.js';
 import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 import * as dmath from '../../util/dmath.js';
 import { faceHex } from './face-hex.js';
+import { cellTriangles } from './field-paint.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -55,8 +56,13 @@ export function swimCells(corners, pan) {
  * it under the character light. Absent ⇒ byte-identical. */
 /** a colour times [r, g, b] */
 const tintHex = (hex, m) => { const [r, g, b] = hexToRgb(hex); return rgbToHex([r * m[0], g * m[1], b * m[2]].map((x) => Math.max(0, Math.min(255, x)))); };
-export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh, normals = null, tint = null, paint = null } = {}) {
-  // `tint` (face-tint.js): per face, its corners' colour multipliers (a face's occlusion and blush); absent ⇒ as before
+export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = true, group = null, dz: seatAt = null, rest = mesh, normals = null, tint = null, paint = null, cornerTint = false, fields = null, cellTint = null } = {}) {
+  // `fields` (field-paint.js fieldPaintOf, on the rest mesh): a face an entry touches is cut into its cells, each in its
+  // group's colour (over the swimsuit's cut when it has one); absent, or a face no entry touches ⇒ as before. `cellTint(fi,
+  // group)` (the bake's sampler): a cell's corners tinted under its own group's finish, in place of its face's tint
+  // `tint` (face-tint.js): per face, its corners' colour multipliers (a face's occlusion and blush); absent ⇒ as before.
+  // `cornerTint` (the bake stack, surface-bake.js): the tint rides the corners even without smooth normals (each corner
+  // the face normal's shade of its own tinted colour), and a swimsuit cell takes it by its weights in the face
   const dz = Number.isFinite(seatAt) ? seatAt : layeredSeat(mesh, seat); const palette = recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {};
   const glows = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []);   // emissive groups: full-bright, not shaded
   const faces = [], panels = seatPanels(rest);
@@ -73,17 +79,37 @@ export function layeredFaces(mesh, recipe = {}, { light = DEFAULT_LIGHT, seat = 
     // the smooth key at a point of the face by its weights over the corners (the corners' normals blended)
     const cn = normals && !glows.has(g) ? normals[i] : null;
     const at = (h, w) => shadeHex(h, unit([0, 1, 2].map((k) => w[0] * cn[0][k] + w[1] * cn[1][k] + w[2] * cn[2][k])), light);
+    const fc = fields && !paint?.painted(i) ? fields.cut(i, cut ? cut.map((c) => ({ ring: c.w.map((w) => ({ w })), group: c.inside ? 'Swim' : g })) : null) : null;
+    if (fc) {
+      // the field paint's cells: each in its group's colour (the face's own, the swimsuit's as above), lit and tinted at
+      // its corners by their weights over the face's
+      const tf = cornerTint || cn ? tint?.[i] : null, hexOf = (grp) => (grp === g || (grp === 'Swim' && !palette.Swim) ? hex : faceHex(palette, grp, part));
+      for (const cell of fc) {
+        const tc = cellTint ? cellTint(i, cell.group) : tf;
+        const tw = (h, w) => (tc ? tintHex(h, [0, 1, 2].map((c) => w[0] * tc[0][c] + w[1] * tc[1][c] + w[2] * tc[2][c])) : h);
+        const h = hexOf(cell.group), lit = glows.has(cell.group), avg = tc ? tintHex(h, [0, 1, 2].map((c) => (tc[0][c] + tc[1][c] + tc[2][c]) / 3)) : h;
+        const fill = lit ? h : shadeHex(avg, outNormal, light);
+        for (const T of cellTriangles(cell.ring)) {
+          const cs = T.map(({ w }) => [0, 1, 2].map((k) => w[0] * corners[0][k] + w[1] * corners[1][k] + w[2] * corners[2][k]));
+          const cf = lit ? null : cn ? T.map(({ w }) => at(tw(h, w), w)) : tc ? T.map(({ w }) => shadeHex(tw(h, w), outNormal, light)) : null;
+          faces.push({ corners: cs, fill, ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal }); groupOf.push(cell.group);
+        }
+      }
+      return;
+    }
     if (cut) {
       // the swimsuit's cells in its own colour, the rest in the face's
-      const hexes = [hex, palette.Swim || hex], fills = hexes.map((h) => shadeHex(h, outNormal, light));
+      const hexes = [hex, palette.Swim || hex], fills = hexes.map((h) => shadeHex(h, outNormal, light)), tc = cornerTint ? tint?.[i] : null;
+      // (a baked tint at a cell's corner: the face's corners' blended by its weights)
+      const tw = (h, w) => (tc ? tintHex(h, [0, 1, 2].map((c) => w[0] * tc[0][c] + w[1] * tc[1][c] + w[2] * tc[2][c])) : h);
       for (const c of cut) {
-        const h = hexes[c.inside ? 1 : 0], cf = cn ? c.w.map((w) => at(h, w)) : null;
+        const h = hexes[c.inside ? 1 : 0], cf = cn ? c.w.map((w) => at(tw(h, w), w)) : tc ? c.w.map((w) => shadeHex(tw(h, w), outNormal, light)) : null;
         faces.push({ corners: c.corners, fill: fills[c.inside ? 1 : 0], ...(cf ? { cornerFills: [...cf, cf[2]] } : {}), group: group || partName, outNormal }); groupOf.push(c.inside ? 'Swim' : g);
       }
       return;
     }
     const tt = tint?.[i], th = (k) => (tt ? tintHex(hex, tt[k]) : hex);
-    const cf = cn ? cn.map((n, k) => shadeHex(th(k), n, light)) : null;
+    const cf = cn ? cn.map((n, k) => shadeHex(th(k), n, light)) : tt && cornerTint && !glows.has(g) ? [0, 1, 2].map((k) => shadeHex(th(k), outNormal, light)) : null;
     const fill = glows.has(g) ? hex : shadeHex(tt ? tintHex(hex, [0, 1, 2].map((c) => (tt[0][c] + tt[1][c] + tt[2][c]) / 3)) : hex, outNormal, light);
     // `paint` (face-paint.js facePaintOf): a face the painted face's texture covers carries it, its fill the light alone
     if (paint?.painted(i)) { faces.push({ corners, fill: paint.light(fill), ...(cf ? { cornerFills: [...cf, cf[2]].map(paint.light) } : {}), group: group || partName, outNormal, texture: paint.key, uv: tri.map((vi) => paint.uvAt({ vi })), textureLit: true }); groupOf.push(g); return; }

@@ -84,6 +84,8 @@ import { rollStored } from '@/lib/graph/egocube/kind.js';
 import { splitSolveOps, prepareStrokes, applySolves, strokesLedger, carryStrokeWork } from '@/lib/mcp/tools/layered-strokes';
 import { persistedLayeredLedger } from '@/lib/graph/polygonizer/station-loft-faces';
 import { toonLightErrors } from '@/lib/graph/polygonizer/vexar';
+import { validateBake } from '@/lib/graph/polygonizer/surface-bake';
+import { validateFieldPaint } from '@/lib/graph/polygonizer/field-paint';
 import { manifestWantsExact } from '@/lib/graph/polygonizer/field-exact-reach';
 import { strengthSpecErrors } from '@/lib/graph/strength/index';
 import { bodyTypeErrors } from '@/lib/graph/worlds/controllable/body-types';
@@ -683,6 +685,11 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
       // the character light (`toon.light`) refuses by field on an edit as at mint, instead of being dropped at read
       const lightErrs = under('/toon') && manifest.toon && typeof manifest.toon === 'object' ? toonLightErrors(manifest.toon.light) : [];
       if (lightErrs.length) throw new Error(`toon refused:\n - ${lightErrs.join('\n - ')}`);
+      // the bake stack (surface-bake.js) refuses by word on an edit as at mint
+      const bakeErrs = under('/bake') ? validateBake(manifest.bake) : [];
+      if (bakeErrs.length) throw new Error(`bake refused:\n - ${bakeErrs.join('\n - ')}`);
+      const fieldErrs = under('/fieldPaint') ? validateFieldPaint(manifest.fieldPaint) : [];
+      if (fieldErrs.length) throw new Error(`fieldPaint refused:\n - ${fieldErrs.join('\n - ')}`);
       let planned = planLayered(manifest);
       // strokes (layered-strokes.js): validate, record each new stroke's camera, run the `solve` ops against the
       // compiled mesh (a solve that moved a dial re-plans), then re-resolve every stroke into the ledger

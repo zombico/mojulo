@@ -39,6 +39,8 @@ import { assembleWorkbenchScene, collectWrapSources } from '@/lib/graph/worlds/w
 import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { heroCastLight } from '@/lib/graph/era/cast-light';
 import { faceTint } from '@/lib/graph/polygonizer/face-tint';
+import { bakeSampler, stackTints, stackFace, bakePieces } from '@/lib/graph/polygonizer/surface-bake';
+import { fieldPaintOf, fieldColours } from '@/lib/graph/polygonizer/field-paint';
 import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
 import { TIERED_SMOOTH_CREASE, TIERED_FACE_SMOOTH, TIERED_FACE_TINT, tieredPole } from '@/lib/graph/polygonizer/tiered-form';
 import { studioSceneFromFaces, WORKBENCH_LIGHT } from '@/lib/graph/worlds/workbench';
@@ -632,9 +634,13 @@ export const WORLD_KINDS = {
       // surfaces tagged; its base below. Absent ⇒ byte-identical.
       const creature = !m.hero && m.statue ? m.statue : null;
       if (creature) { const errs = validateCreatureStatue(creature); if (errs.length) throw new Error(`layered: ${errs.join('; ')}`); m = { ...m, recipe: carveCreatureRecipe(m.recipe, creature) }; }
+      // FIELD PAINT (field-paint.js, opt-in `fieldPaint`): the colours its entries name join the palette. Absent ⇒ as before
+      if (Array.isArray(m.fieldPaint) && m.fieldPaint.length) { const fcol = fieldColours(m.fieldPaint); if (Object.keys(fcol).length) m = { ...m, recipe: { ...m.recipe, palette: { ...(m.recipe.palette || {}), ...fcol } } }; }
       // The compiled mesh IS the solid: every closed part exact, whatever its shape (station-loft-faces.js),
       // on the workbench studio through the same faces seam the scad kind rides.
       const mesh = compileLayered(m.recipe, m.dials || {}, m.channels || {});
+      // and its cut, read off the rest mesh: the studio's faces and the plain pack take the same cells
+      const fields = Array.isArray(m.fieldPaint) && m.fieldPaint.length ? fieldPaintOf(mesh, m.fieldPaint) : null;
       const rigged = !!(m.recipe?.rig && m.recipe?.clips && Object.keys(m.recipe.clips).length);
       // a minted animal with MOTION (fauna/rig.js): its species' skeleton and gaits, packed below as the rig figure
       const motioned = !rigged && !!(m.recipe?.motion?.gaits?.length || m.recipe?.motion?.behaviors?.length);
@@ -684,7 +690,16 @@ export const WORLD_KINDS = {
       // and its landmark head's normals toward the head's ellipsoid (tiered-form.js TIERED_FACE_SMOOTH)
       const ellipsoid = m.hero?.form === 'tiered' && (m.hero.head ?? 'landmark') === 'landmark' ? TIERED_FACE_SMOOTH : 0;
       // and its skin's occlusion and blush (face-tint.js), read off the rest mesh: the same per corner in any pose
-      const tint = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
+      // and the BAKE STACK (surface-bake.js, opt-in `bake`): painted light per corner, read off the rest mesh, stacked
+      // over the head's tint or a drawn creature's markings (their product). Absent ⇒ the tint is the one before it
+      const bakeS = m.bake ? bakeSampler(mesh, m.bake, { glows: m.recipe?.emissive }) : null, baked = bakeS?.tint ?? null;
+      const under = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
+      const tint = stackTints(under, baked);
+      // a field paint cell bakes under its OWN group's finish (a gold charge on a cloth tabard as gilt), over the same tint
+      const cellTint = bakeS && fields ? (fi, grp) => stackFace(under?.[fi] ?? null, bakeS.groupTint(fi, grp)) : null;
+      // UNDER THE CHARACTER LIGHT (the anime look's step) the bake stays off unless `bake.characterLight` asks for it: then
+      // each piece keeps its tone and takes the bake per corner (bakePieces). Absent ⇒ the pieces as they were
+      const litPieces = pieces && bakeS?.characterLight ? bakePieces(pieces, mesh, tint) : pieces;
       const smooth = !character && ((m.hero && (m.hero.head !== 'anime' || figLight !== light)) || m.smooth === true || drawn) && !light.flat ? layeredShadingNormals(shown, m.recipe, { crease, proxy: false, ellipsoid, rest: mesh, ...(stand ? { rigid: rigidParts(mesh, rig.skin, rig.R, 'head') } : {}) }) : null;
       // The character ink: a character-lit figure wears the silhouette hull by default (characterInk — no crease or
       // boundary lines, a width set by the figure's height), unless the manifest says `toon.ink: false`; its own ink
@@ -704,8 +719,8 @@ export const WORLD_KINDS = {
       const skinPaint = !facePaint0 && character && !m.hero && Array.isArray(m.plan?.skin) && m.plan.skin.length ? skinPaintOf(mesh, m.plan.skin, { ppm: skinPpm(m.plan) }) : null;
       const facePaint = facePaint0 ?? skinPaint;
       const faces = character
-        ? characterLitFaces(shown, m.recipe, { pieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
-        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
+        ? characterLitFaces(shown, m.recipe, { pieces: litPieces, group: rigged || motioned ? 'body' : null, hairInk: !!ink, ...(facePaint ? { paint: facePaint } : {}) })
+        : layeredFaces(shown, m.recipe, { light: figLight, seat, group: rigged || motioned ? 'body' : null, ...(stand ? { dz: restDz, rest: mesh } : {}), ...(smooth ? { normals: smooth } : {}), ...(tint ? { tint } : {}), ...(baked ? { cornerTint: true } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}), ...(facePaint ? { paint: facePaint } : {}) });
       // HELD GEAR (hero-gear.js): a hero's `gear` is placed on its bones at rest and carried by the stand's frames, baked
       // by the studio light turned into each item's frame, in the body's group (a clip preview hides it with the body;
       // the pack carries it). Absent ⇒ nothing here, byte-identical.
@@ -773,7 +788,7 @@ export const WORLD_KINDS = {
         // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
         // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
         const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;
-        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(pieces, mesh, dz) : pieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
+        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {
@@ -783,7 +798,7 @@ export const WORLD_KINDS = {
         // (a bug's motion carries its bauplan: bugs/rig.js derives the skeleton and clips from it, packed the same way)
         const bugMotion = !!m.recipe.motion.bug;
         const B = bugMotion ? bugBones(m.recipe.motion) : faunaBones(m.recipe.motion.species), skin = bindLayered(mesh, m.recipe, B);
-        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}) });
+        const pack = (bugMotion ? packBugRig : packFaunaRig)(mesh, skin, m.recipe.motion, { dz: restDz, hullShade: m.hullShade || null, ...(smooth ? { normals: smooth } : {}), ...(m.recipe.palette && typeof m.recipe.palette === 'object' ? { palette: m.recipe.palette } : {}), ...(baked ? { tint } : {}), ...(fields ? { fields } : {}), ...(cellTint ? { cellTint } : {}) });
         scene.figures = { body: { ...pack, embodies: 'body', preview: { clips: Object.keys(pack.clips), hide: 'body', period: pack.clips[Object.keys(pack.clips)[0]]?.s || 1 } } };
       }
       // the stroke overlay (opt-in `channels.strokes`, stroke-affordances): the World page draws on this solid. It

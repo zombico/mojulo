@@ -13,6 +13,42 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Character bake stack: painted light and finishes on a character's surface
+
+A layered row (a hero, a creature, a ring-plan animal) can carry `bake`: hand-painted light baked into its corners,
+read off its own rest geometry, so a knight's plate shines along a sky band and darkens under the pauldron and the belt,
+its tabard falls darker toward the hem, and its trims catch light on their edges. No texture, no UVs: polygons and a
+colour per corner, the same in every pose and in the World page, the skinned GLB and every export.
+
+- **`bake: true | { finish?, strength? }`** on the manifest (beside `toon` and `hullShade`; the hero door and
+  `create_character` take it, `update_character` / `update_sketch` patch `/bake`). Five channels per corner, geometry
+  only: sky (the surface's facing up), occlusion (cavities in a part and contact between parts), edge (convex rims and
+  ridges), height over the figure, and rise over each part (every plate light at its top, dark at its foot).
+- **Finishes** turn the channels into colour per palette group: `metal`, `gilt`, `leather`, `cloth`, `skin`, `scale`,
+  `matte`, chosen by the group's name (Plate → metal, Trim → gilt, Leather → leather, Top → cloth …), named per group in
+  `finish`, or written inline as data. Emissive groups keep their colour.
+- **It stacks** with the tiered head's face tint and a drawn creature's markings instead of replacing them.
+- **The anime look keeps its own light.** Under the character light (the anime head's crisp step) the bake stays off;
+  `bake: { characterLight: true }` lays it over the step's tones, corner by corner, when asked.
+- Absent `bake`, every face and pack is byte-identical.
+
+### Field paint: shapes cut into a character's faces
+
+Paint by ring bands is the ring's height: a trim on a coarse ring is that ring's band, and an emblem smaller than a band
+is nothing. `fieldPaint` draws shapes on a layered row's surface and cuts them into its faces (the swimsuit's seat
+panels, made general), so a heraldic charge can sit on a tabard, a hide can wear scale rows and belly scutes, and a
+hem band is as thin as it is drawn, on the rings the body already has. Nothing wears it unless its recipe says so.
+
+- **`fieldPaint: [{ part, chart, shape | pattern, at, size, rotate, group, color, only }]`** on the manifest (the hero
+  door and `create_character` take it; patch `/fieldPaint`). A chart is a projection from a side over the named parts
+  (exact in every triangle, on any part, worn pieces included) or a body part's own `ring` (paint that wraps).
+- **Shapes**: rect, circle, diamond, shield, cross, star, any motif filled, or convex polygons; **patterns**: hex, scale,
+  square and brick cells, and bands. Entries paint in order; `only` repaints only the groups it names.
+- The World's faces and the skinned pack carry the same cells (each corner's skin blended from its face's). The mint
+  reads out the faces and cells each entry touched, and says when one touches nothing.
+- **With `bake`, each cell bakes under its own group's finish**: a gold charge on a cloth tabard shines as gilt.
+- Absent `fieldPaint`, every face and pack is byte-identical.
+
 ### Party battles: turn-based combat with classes you can switch
 
 Turn-based combat was one hero against one foe (Attack, Guard, Flee). A world can now carry `play.rpg`: a party of
