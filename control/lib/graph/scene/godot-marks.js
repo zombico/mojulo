@@ -279,7 +279,7 @@ export const BUS_MARKS = Object.freeze({
     parts: m(B, 'kernel/hud.gd gates a row by its part id and draws its state (disabled, alert, focus, active)'),
     phase: m(B, 'kernel/hud.gd reads the phase var against a row\'s when'),
     weather: m(B, 'kernel/weather.gd force(): the newest force eased in over its blend, held, eased back (fog, colour, light; falls and lightning stay web)'),
-    cast: m(P, 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk has no collider push-out or ground snap; transits stay on the web'),
+    cast: m(P, 'kernel/cast.gd: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam (level.gd draws them simpler than the page); a walk stands on the level\'s land and is pushed out of its boxes as the web\'s; transits stay on the web'),
     rearm: m(B, 'kernel/cast.gd rearm into the weapon\'s reserve, which kernel/combat.gd\'s reload draws from (since 0.22.0), held equal by the combat corpus'),
     stats: m(B, 'kernel/stats.gd inside the bus\'s watch fixpoint; bound bodies onto the cast and the walker\'s pace'),
     entities: m(B, 'kernel/level.gd _sync_markers draws each as the page does (an unlit sphere, its radius and colour, where the bus puts it, shown while on; since 0.22.0)'),

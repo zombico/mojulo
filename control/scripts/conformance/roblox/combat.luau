@@ -43,7 +43,7 @@ local function snapshot(st, F, ids, events)
 	local bodies = obj()
 	for _, id in ipairs(ids) do
 		local e = st.byId[id]
-		local b = obj({ hp = N(e.hp), hits = e.hits or 0, by = N(e.lastHitBy), downed = e.downed == true, hittable = js.truthy(e.hittable), invincible = js.truthy(e.invincible) })
+		local b = obj({ hp = N(e.hp), hits = e.hits or 0, by = N(e.lastHitBy), downed = e.downed == true, pos = js.arr({ nano(e.pos[1]), nano(e.pos[2]), nano(e.pos[3]) }), hittable = js.truthy(e.hittable), invincible = js.truthy(e.invincible) })
 		if js.finite(e.poise) then
 			b.poise = e.poise
 			b.staggerT = N(e.staggerT)
@@ -113,6 +113,8 @@ for _, sc in ipairs(corpus) do
 	local st = cast.create(sc.cast)
 	local F = combat.new()
 	F:arm(st, sc.combat)
+	-- the web world's land: flat ground (the corpus's FLAT) and the scenario's boxes, for the walks
+	st.walkWorld = { ground = function() return 0.0 end, colliders = F.colliders }
 	cast.facts(st)
 	local hero = st.byId.hero
 	local snaps = arr()

@@ -258,6 +258,10 @@ export function extractBus(payload) {
     // where it stands below its pos (the web's feet: its rule's eye, else half its box, else its radius): a beam
     // leaves its hand and lands at its feet
     ...((f) => (f ? { foot: f } : {}))(Number.isFinite(e.rule?.eye) ? e.rule.eye : Array.isArray(e.body?.size) ? e.body.size[2] / 2 : Number.isFinite(e.body?.radius) ? e.body.radius : 0),
+    // the body a walk carries (cast.js stepRoute: the rule's eye, collideHeight, collideRadius and step), where the rule
+    // is not the walk's default: a walk is pushed out of the colliders and stood on the ground by these
+    ...((w) => (Object.keys(w).length ? { walk: w } : {}))(Object.fromEntries([['eye', 'eye', 0], ['height', 'collideHeight', 1.8], ['radius', 'collideRadius', 0.3], ['step', 'step', 0.35]]
+      .filter(([, k, d]) => Number.isFinite(e.rule?.[k]) && e.rule[k] !== d).map(([n, k]) => [n, e.rule[k]]))),
   })) : null;
   // the stats a world's play declares (playscape/stats: the kernel's cfg), which run inside the bus's watch fixpoint
   // (Godot: kernel/stats.gd, held equal by the same corpus); their vars start in the fragment's. Absent ⇒ no key.

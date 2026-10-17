@@ -28,7 +28,7 @@ import { mulberry32 } from '../vegetation/grow.js';
 import { buildBus } from '../worlds/event-bus.js';
 import { buildStats } from '../playscape/stats/kernel.js';
 import { composeMechanics } from '../game/mechanics.js';
-import { levelSim, keyEvents, steer, gameChannel, faceGround, winScript, playScript, keyEntities, frameKey, SIM_DT } from '../game/level-equivalence.js';
+import { levelSim, keyEvents, steer, gameChannel, faceGround, pageGroundFaces, winScript, playScript, keyEntities, frameKey, SIM_DT } from '../game/level-equivalence.js';
 import { extractBus } from './engine-score.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 
@@ -133,7 +133,7 @@ export function levelScenario(spec) {
   const payload = levelPayload(spec), m = { events: payload.events }, contract = payload.game;
   const sim = levelSim(payload), pilot = sim.world.byId[sim.world.pilotId];
   // the walk rule holds its height off the ground's edge; an engine's body falls: gravity laid on where no face is below
-  const below = faceGround(payload.faces);
+  const below = faceGround(pageGroundFaces(payload.faces || []));
   let vz = 0;
   const ch = gameChannel(contract, spec.params || {});
   let first = ch.start(sim);
@@ -417,7 +417,7 @@ export function castRun(id) {
   return out;
 }
 
-// the ground's faces as triangles (a fan per face, as faceGround reads them)
+// the ground's faces as triangles (a fan per face, as faceGround reads them), the page's (pageGroundFaces)
 const trisOf = (faces) => faces.flatMap((f) => (f.corners || []).slice(1, -1).map((_, i) => [f.corners[0], f.corners[i + 1], f.corners[i + 2]]));
 
 // what an engine is handed for a played payload: the pilot's pose and the input each frame, the bodies its key names
@@ -426,7 +426,7 @@ function castFrames(payload, run, frames, { id, about, params = {} }) {
   const rest = run.ids.slice(1);
   const feet = Object.fromEntries(rest.map((k) => [k, ((e) => (e && e.rule && Number.isFinite(e.rule.eye) ? e.rule.eye : 0))(payload.entities.find((e) => e.id === k))]));
   return {
-    id, about, bus: clone(extractBus(payload)), contract: clone(payload.game || {}), params: clone(params), ground: clone(trisOf(payload.faces || [])), ids: rest, feet,
+    id, about, bus: clone(extractBus(payload)), contract: clone(payload.game || {}), params: clone(params), ground: clone(trisOf(pageGroundFaces(payload.faces || []))), ids: rest, feet,
     frames: frames.map((f, i) => ({ pilot: run.poses[i], input: clone(f || {}), ...(f && (f.keys || f.events) ? { events: clone([...keyEvents(payload, f.keys), ...(f.events || [])]) } : {}), dt: SIM_DT })),
   };
 }

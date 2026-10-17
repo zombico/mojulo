@@ -2016,6 +2016,13 @@ func _drain_bus(_delta: float) -> void:
 func _build_cast() -> void:
 	cast = CastScript.new()
 	cast_state = cast.create(cast_rows)
+	# a walk stands on the land the minds stand on and is pushed out of the level's boxes, as the web's (in recipe units)
+	var mpu := float(score.get("metersPerUnit", 1.0))
+	var boxes := []
+	for c in score.get("colliders", []):
+		if c is Dictionary and c.get("min") is Array and c.get("max") is Array:
+			boxes.append({"min": (c["min"] as Array).map(func(v): return float(v) / mpu), "max": (c["max"] as Array).map(func(v): return float(v) / mpu)})
+	cast_state["walkWorld"] = {"ground": _mind_ground, "colliders": boxes}
 	var who := player_id()
 	for e in cast_state["entities"]:
 		if e["id"] == who:

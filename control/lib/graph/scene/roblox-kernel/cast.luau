@@ -2,9 +2,10 @@
 -- mojulo-roblox kernel — the CAST: what the bus may do to a character, and what a character tells the bus back. A port
 -- of the web's character world (lib/graph/worlds/controllable/cast.js castOps / castFacts / stepRoute) over plain data,
 -- in the bus's frame (z-up, recipe units, heading in radians), laid out as the Godot kernel's cast.gd is (the same
--- module in another language). What the port leaves to the web: a walk's collider push-out and ground snap (a
--- character walks its straight lines on the ground it stands on) and transits (the look of a coming or going). Stuck is
--- still found (a second closing less than a sixth of the pace). Puffs, explosions (a chain scattered by the web's own
+-- module in another language). A walk steps its straight lines, pushed out of the colliders and stood on the ground as
+-- the web's stepRoute does, when the host hands the cast its world (st.walkWorld: { ground: function(pos) → z | nil,
+-- colliders }); what the port leaves to the web is transits (the look of a coming or going). Stuck is still found (a
+-- second closing less than a sixth of the pace). Puffs, explosions (a chain scattered by the web's own
 -- dice) and beams are moments on the cast's clock, as the web keeps them: a beam lands at its hit time and its target
 -- hears `struck`. Held EQUAL to the web by the combat and mind conformance corpora, run under Lune.
 --
@@ -13,7 +14,10 @@
 -- object's key order), faded, moving, hp / hpMax, foot. The facts' last read rides the state (st._factsPrev), never
 -- the module. Pure Luau, no host API. A kernel module: the loader hands it the kernel (K.js).
 --
---   local st = cast.create(rows)        rows: [{ id, pos, heading?, dormant?, hp?, speed?, foot? }] (K.json.decode)
+--   local st = cast.create(rows)        rows: [{ id, pos, heading?, dormant?, hp?, speed?, foot?, walk? }] (K.json.decode)
+--                                       walk: { eye?, height?, radius?, step? } the rule's own, where not the web's walk
+--                                       defaults (0, 1.8, 0.3, 0.35)
+--   st.walkWorld = { ground?, colliders? }   the host's land, for the walks (absent: a walk stays at its height)
 --   cast.ops(st, ops)                   the bus's queued `ctrl` intents (bus.takeCtrl), in order (a spawn's `among`
 --                                       picks the spot farthest from the living; its `guard` holds it unhittable)
 --   cast.step(st, dt)                   routes walk; the world clock moves
@@ -84,6 +88,9 @@ function cast.create(rows)
 			e.hpMax = r.hp
 		end
 		e.foot = fin(r.foot) and r.foot or 0.0
+		-- the body a walk carries (the web's stepRoute reads the rule: its eye ?? 0, collideHeight ?? 1.8, …)
+		local wk = js.isObj(js.get(r, "walk")) and r.walk or {}
+		e.walk = { eye = fin(wk.eye) and wk.eye or 0.0, height = fin(wk.height) and wk.height or 1.8, radius = fin(wk.radius) and wk.radius or 0.3, step = fin(wk.step) and wk.step or 0.35 }
 		table.insert(st.entities, e)
 		st.byId[e.id] = e
 	end
@@ -217,7 +224,7 @@ local function reversed(t)
 end
 
 -- a dumb path: turn toward the point, step, arrive within reach; `then` at the last point
-local function stepRoute(e, dt)
+local function stepRoute(e, dt, world)
 	local R = e.route
 	local p = R.points[R.i + 1]
 	local dx = p[1] - e.pos[1]
@@ -269,6 +276,18 @@ local function stepRoute(e, dt)
 	local stp = minf(R.speed * dt, d)
 	e.pos[1] += dx / d * stp
 	e.pos[2] += dy / d * stp
+	if world ~= nil then
+		local wk = e.walk
+		if world.colliders ~= nil and K.rules then
+			K.rules.resolveBlocking(e.pos, e.pos[3] - wk.eye, wk.height, wk.radius, world.colliders, wk.step)
+		end
+		if world.ground ~= nil then
+			local g = world.ground({ e.pos[1], e.pos[2], (e.pos[3] - wk.eye) + wk.height })
+			if g ~= nil then
+				e.pos[3] = g + wk.eye
+			end
+		end
+	end
 	e.moving = true
 end
 
@@ -298,7 +317,8 @@ function cast.ops(st, list)
 				R.i = #R.points - 1
 				w.pos[1] = R.points[R.i + 1][1]
 				w.pos[2] = R.points[R.i + 1][2]
-				stepRoute(w, 0.0)
+				-- the web steps it in the world's state: its colliders, no ground hook
+				stepRoute(w, 0.0, st.walkWorld and { colliders = st.walkWorld.colliders } or nil)
 			end
 			continue
 		end
@@ -491,7 +511,7 @@ function cast.step(st, dt)
 			if e.downed or e.gone then
 				e.route = nil
 			else
-				stepRoute(e, dt)
+				stepRoute(e, dt, st.walkWorld)
 			end
 		end
 	end

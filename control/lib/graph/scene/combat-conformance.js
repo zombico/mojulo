@@ -156,6 +156,13 @@ export const SCENARIOS = [
     frames: withOps(frames(idle(10), press(), idle(30)), 2, [{ op: 'spawn', who: 'hero', guard: 5 }]),
   },
   {
+    id: 'walk-on-the-ground',
+    about: 'a walk minted below the ground stands on it from its first step, and is pushed round a box in its way at its own radius, height and step',
+    colliders: [{ min: [2.5, 2.0, 0], max: [3.5, 2.9, 2] }],
+    entities: [hero({ strikeReach: 1.2, strikeDamage: 1, strikeDur: 0.3 }), foe('w', [0, 3, -0.4], {}, { rule: { type: 'static', speed: 2, collideHeight: 1.7, collideRadius: 0.4, step: 0.3 } })],
+    frames: withOps(frames(idle(150)), 2, [{ op: 'walk', who: 'w', points: [[6, 3]] }]),
+  },
+  {
     id: 'asleep',
     about: 'a body minted asleep is not hittable',
     entities: [hero({ strikeReach: 1.6, strikeDamage: 2, strikeDur: 0.4 }), foe('sleeper', [1.3, 0, 0], {}, { dormant: true }), foe('woke', [1.3, 0.5, 0])],
@@ -224,6 +231,8 @@ function snapshot(world, ids, events) {
     const e = world.byId[id];
     bodies[id] = {
       hp: e.body && Number.isFinite(e.body.hp) ? e.body.hp : null, hits: e.hits || 0, by: e.lastHitBy || null, downed: !!e.downed,
+      // where it stands (a walk's steps, its ground and its push-out), to 1e-9
+      pos: e.transform.pos.map(nano),
       hittable: !!(e.body && e.body.hittable), invincible: !!e.invincible,
       ...(Number.isFinite(e.poise) ? { poise: e.poise, staggerT: e.staggerT ?? null, react: e.reactClip, pause: e.downPauseT ?? null } : {}),
       ...(Number.isFinite(e.shieldHp) ? { shield: e.shieldHp, broken: !!e.shieldBroken } : {}),

@@ -19,8 +19,11 @@
  *
  *   SIM_DT, POS_Q, HEAD_Q
  *   faceGround(faces)                 → (pos) => z | null   the page's ground hook (channels/controllable __ground): the
- *                                       nearest face straight below pos + 0.05, over the payload's faces
- *   levelSim(payload)                 → simLevel(...) with the page's ground and colliders
+ *                                       nearest face straight below pos + 0.05, over the faces given
+ *   pageGroundFaces(faces)            → [face]   the faces the page's ground ray meets: the opaque ones as the page meshes
+ *                                       them (surface cards realized, de-collided: a face stacked on coplanar others is
+ *                                       lifted), then the water and the blend tiles as they are
+ *   levelSim(payload)                 → simLevel(...) with the page's ground (faceGround over pageGroundFaces) and colliders
  *   keyEntities(payload)              → [id]   the entities a key carries: the pilot first, then every one with a rule
  *   frameKey(sim, ids)                → string
  *   winScript(payload, { seconds })   → { frames: [input], keys: [key], outcome, at }   steered and recorded
@@ -36,6 +39,8 @@
  * Deterministic: a fixed step, the bus's own order, the world's seeded rules, the steering a pure function of state.
  */
 import { simLevel } from './level-sim.js';
+import { decollideFaces } from '../figures/face-mesh.js';
+import { expandSurfaceCards } from '../architecture/facade-card.js';
 import { hashState } from '../worlds/event-bus.js';
 
 export const SIM_DT = 1 / 30;
@@ -85,8 +90,27 @@ export function faceGround(faces = []) {
   };
 }
 
+// The faces the page's ground ray meets, as scene-three emitThreeWorld meshes them: water and blend faces drawn in their
+// own passes, the rest with their surface cards realized and de-collided once over the whole set (a bound DCC mesh's
+// `mesh:` faces exempt), so a patch stacked on coplanar ground stands where the page draws it, lifted. The engines stand
+// on the same: Godot's land is the GLB, which scene-gltf de-collides at the same seam. Cached per face list (a big
+// level's de-collide is seconds, and a run builds its sim more than once).
+const pageFaces = new WeakMap();
+export function pageGroundFaces(faces = []) {
+  if (pageFaces.has(faces)) return pageFaces.get(faces);
+  const opaque = [], own = [], bound = [];
+  for (const f of faces) {
+    if (f && (f.water || f.blend)) own.push(f);
+    else if (f && typeof f.group === 'string' && f.group.startsWith('mesh:')) bound.push(f);
+    else opaque.push(f);
+  }
+  const out = [...decollideFaces(expandSurfaceCards(opaque)), ...bound, ...own];
+  pageFaces.set(faces, out);
+  return out;
+}
+
 export function levelSim(payload) {
-  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders, camera: payload.camera }, { ground: faceGround(payload.faces), beat: payload.audio?.beat || null, powers: payload.game?.powers || null });
+  return simLevel({ entities: payload.entities || [], events: payload.events || {}, colliders: payload.colliders, camera: payload.camera }, { ground: faceGround(pageGroundFaces(payload.faces || [])), beat: payload.audio?.beat || null, powers: payload.game?.powers || null });
 }
 
 // an input frame's `keys` ([the key as the page names it]) are what the page's key listener turns into bus events:

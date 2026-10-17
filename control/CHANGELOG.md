@@ -146,6 +146,18 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   same port: a walk's turn in the web's `((x % τ) + τ) % τ` (Godot's `fposmod` parts by an ulp on about one heading in
   sixteen), the spawn's `among` measured in doubles (not a float32 `Vector2`), an empty `land` lands never, a null
   wait time or beat read as the web reads it.
+- **The harness stands where the page stands.** The level harness (`game/level-equivalence.js`, the web side of every
+  engine comparison) raycast the recipe's raw faces, while the page meshes them first: surface cards realized, then
+  de-collided, which lifts a patch stacked on coplanar ground a step for every face under it. A kart track's patch
+  sits 1.27 cm above its raw height on the page, and so in Godot, whose land is the GLB the same pass wrote; the
+  harness read the raw 0.05, so the fixture matrix blamed Godot. `pageGroundFaces` gives the harness, the level
+  corpus's fall and the levelcast corpus's land the page's faces. The kart racers now hold equal for their first
+  thirty seconds where they parted in one, and the supercar race is frame-equal start to finish.
+- **A walk stands on the ground, on both engines.** The cast's walk (`cast.gd`, `cast.luau`) is pushed out of the
+  level's boxes and stood on its land as the web's `stepRoute` does, at the body's own eye, height, radius and step
+  (a cast row carries them as `walk` where the rule is not the walk's default). A farmhand minted below the ground
+  stood there in Godot; the farming fixture is now frame-equal. The combat corpus prints where each body stands, and
+  a scenario walks a body up from below the ground and round a box (`walk-on-the-ground`), with plants per engine.
 - **A round's hit says what it dealt, on both engines.** The web's `hit:<id>` fact carries `dmg`, `harm` and `head` for
   a ranged hit (a round or its splash) so the bus can take it from an hp of its own; `cast.gd` and `cast.luau` dropped
   them. The combat corpus's snapshot now prints them (every ranged scenario carries them), and both kernels are equal

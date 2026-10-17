@@ -117,6 +117,7 @@ function level.fromBus(doc: any, contract: any, params: any, opts: any?): any
 	-- the cast, and the fight and the minds over it (the level with neither runs the bus alone, as before)
 	if js.isArr(get(doc, "cast")) and #doc.cast > 0 and K.cast then
 		L.cast = K.cast.create(js.dup(doc.cast))
+		local g = groundOf(opts and (opts :: any).ground)
 		local cb, md = get(doc, "combat"), get(doc, "minds")
 		if (js.isObj(cb) or js.isObj(md)) and K.combat then
 			local F = K.combat.new()
@@ -124,7 +125,6 @@ function level.fromBus(doc: any, contract: any, params: any, opts: any?): any
 			if js.isObj(md) then
 				F:armMinds(L.cast, js.dup(md))
 			end
-			local g = groundOf(opts and (opts :: any).ground)
 			if g then
 				F.groundFn = g
 			end
@@ -133,6 +133,8 @@ function level.fromBus(doc: any, contract: any, params: any, opts: any?): any
 			-- guards only watch ships minds and no fight)
 			L.hero = js.isObj(cb) and type(get(cb, "hero")) == "string" and cb.hero or nil
 		end
+		-- a walk stands on the level's land and is pushed out of its boxes (the fight's, the web world's colliders)
+		L.cast.walkWorld = { ground = g, colliders = L.fight and L.fight.colliders or nil }
 		K.cast.facts(L.cast)   -- the first read seeds: nothing the world was minted with fires
 	end
 	if js.isArr(get(doc, "scenes")) and #doc.scenes > 0 and K.scenes then

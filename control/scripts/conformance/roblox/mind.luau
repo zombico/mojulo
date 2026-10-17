@@ -103,6 +103,8 @@ for _, sc in ipairs(corpus) do
 	local F = combat.new()
 	F:arm(st, sc.combat)
 	F:armMinds(st, sc.minds)
+	-- the web world's land: flat ground (the corpus's FLAT) and the scenario's boxes, for the walks
+	st.walkWorld = { ground = function() return 0.0 end, colliders = F.colliders }
 	local hero = st.byId.p
 	cast.facts(st)
 	local snaps = arr()

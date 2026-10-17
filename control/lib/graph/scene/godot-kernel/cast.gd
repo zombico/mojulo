@@ -1,14 +1,18 @@
 extends RefCounted
 # mojulo-godot kernel — the CAST: what the bus may do to a character, and what a character tells the bus back. A port of
 # the web's character world (lib/graph/worlds/controllable/cast.js castOps / castFacts / stepRoute) over plain data, in
-# the bus's frame (z-up, recipe units, heading in radians); level.gd draws each character from it. What the port leaves
-# to the web: a walk's collider push-out and ground snap (a character walks its straight lines on the ground it stands
-# on) and transits (the look of a coming or going). Stuck is still found (a second closing less than a sixth of the
+# the bus's frame (z-up, recipe units, heading in radians); level.gd draws each character from it. A walk steps its
+# straight lines, pushed out of the colliders and stood on the ground as the web's stepRoute does, when the host hands
+# the cast its world (st.walkWorld: { ground: Callable(pos) → z | null, colliders }); what the port leaves to the web
+# is transits (the look of a coming or going). Stuck is still found (a second closing less than a sixth of the
 # pace). Puffs, explosions (a chain scattered by the web's own dice) and beams are moments on the cast's clock, as the
 # web keeps them: a beam lands at its hit time and its target hears `struck` (since 0.18.0).
 #
 #   var C = preload("res://kernel/cast.gd").new()
-#   var st = C.create(rows)              rows: [{ id, pos, heading?, dormant?, hp?, speed? }]
+#   var st = C.create(rows)              rows: [{ id, pos, heading?, dormant?, hp?, speed?, foot?, walk? }]
+#                                        walk: { eye?, height?, radius?, step? } the rule's own, where not the web's
+#                                        walk defaults (0, 1.8, 0.3, 0.35)
+#   st.walkWorld = { ground?, colliders? }   the host's land, for the walks (absent: a walk stays at its height)
 #   C.ops(st, ops)                       the bus's queued `ctrl` intents (bus.take_ctrl), in order (a spawn's `among`
 #                                        picks the spot farthest from the living; its `guard` holds it unhittable)
 #   C.step(st, dt)                       routes walk; the world clock moves
@@ -18,6 +22,11 @@ extends RefCounted
 const Bus := preload("res://kernel/bus.gd")
 const Js := preload("res://kernel/js.gd")
 const DEG := PI / 180.0
+
+
+# a row's number, else the web's default
+static func _or(d: Dictionary, k: String, dflt: float) -> float:
+	return float(d[k]) if Js.finite(d.get(k)) else dflt
 
 
 func create(rows: Array) -> Dictionary:
@@ -37,6 +46,9 @@ func create(rows: Array) -> Dictionary:
 			e["hp"] = float(r["hp"])
 			e["hpMax"] = float(r["hp"])
 		e["foot"] = float(r["foot"]) if Js.finite(r.get("foot")) else 0.0
+		# the body a walk carries (the web's stepRoute reads the rule: its eye ?? 0, collideHeight ?? 1.8, …)
+		var wk: Dictionary = r["walk"] if r.get("walk") is Dictionary else {}
+		e["walk"] = {"eye": _or(wk, "eye", 0.0), "height": _or(wk, "height", 1.8), "radius": _or(wk, "radius", 0.3), "step": _or(wk, "step", 0.35)}
 		st["entities"].append(e)
 		st["byId"][e["id"]] = e
 	return st
@@ -68,7 +80,9 @@ func ops(st: Dictionary, list: Array) -> void:
 				R["i"] = (R["points"] as Array).size() - 1
 				w["pos"][0] = float(R["points"][R["i"]][0])
 				w["pos"][1] = float(R["points"][R["i"]][1])
-				_step_route(w, 0.0)
+				# the web steps it in the world's state: its colliders, no ground hook
+				var ww = st.get("walkWorld")
+				_step_route(w, 0.0, {"colliders": ww.get("colliders")} if ww is Dictionary else null)
 			continue
 		if op == "puff" and not Js.truthy(o.get("who")) and o.get("at") is Array:
 			_puff(st, o, _pt3(o["at"], 0.0), st["time"])
@@ -190,7 +204,7 @@ func ops(st: Dictionary, list: Array) -> void:
 
 
 # a dumb path: turn toward the point, step, arrive within reach; `then` at the last point
-func _step_route(e: Dictionary, dt: float) -> void:
+func _step_route(e: Dictionary, dt: float, world = null) -> void:
 	var r: Dictionary = e["route"]
 	var p: Array = r["points"][r["i"]]
 	var dx: float = p[0] - e["pos"][0]
@@ -236,6 +250,15 @@ func _step_route(e: Dictionary, dt: float) -> void:
 	var stp := minf(r["speed"] * dt, d)
 	e["pos"][0] += dx / d * stp
 	e["pos"][1] += dy / d * stp
+	if world is Dictionary:
+		var wk: Dictionary = e["walk"]
+		var eye := float(wk["eye"])
+		if world.get("colliders") is Array:
+			load("res://kernel/rules.gd").resolve_blocking(e["pos"], float(e["pos"][2]) - eye, float(wk["height"]), float(wk["radius"]), world["colliders"], float(wk["step"]))
+		if world.get("ground") is Callable:
+			var g = world["ground"].call([e["pos"][0], e["pos"][1], (float(e["pos"][2]) - eye) + float(wk["height"])])
+			if g != null:
+				e["pos"][2] = float(g) + eye
 	e["moving"] = true
 
 
@@ -249,7 +272,7 @@ func step(st: Dictionary, dt: float) -> void:
 			if e["downed"] or e["gone"]:
 				e["route"] = null
 			else:
-				_step_route(e, dt)
+				_step_route(e, dt, st.get("walkWorld"))
 
 
 # ── moments (the web's cast.js moment / puff / beam) ─────────────────────────────────────────────────────────────

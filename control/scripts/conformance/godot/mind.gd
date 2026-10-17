@@ -24,6 +24,8 @@ func _init() -> void:
 		var K = Combat.new()
 		K.arm(st, sc["combat"])
 		K.arm_minds(st, sc["minds"])
+		# the web world's land: flat ground (the corpus's FLAT) and the scenario's boxes, for the walks
+		st["walkWorld"] = {"ground": func(_p): return 0.0, "colliders": K.colliders if K.colliders != null else []}
 		var hero: Dictionary = st["byId"]["p"]
 		C.facts(st)
 		var snaps := []

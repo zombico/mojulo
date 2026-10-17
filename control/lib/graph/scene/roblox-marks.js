@@ -167,7 +167,7 @@ export const BUS_MARKS = Object.freeze({
     stats: m(P, 'kernel/stats.luau runs them; the bodies bound to them (hpMax, speed) do not move the Humanoid'),
     hud: m(P, 'kernel/hud.luau as words (MojuloClient): each readout a line in its slot (a bar, a counter and a clock written out), each banner and toast a moment, each legend for its time; the page\'s look and a part\'s gate are not drawn'),
     entities: m(B, 'MojuloServer draws each as the page does (a sphere of its radius and colour where the bus puts it, shown while on)'),
-    cast: m(P, 'kernel/cast.luau: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam, each body a box (MojuloServer): the moments (a puff, a blast, a beam, a shake) and a transfigure\'s look are not drawn; a walk has no collider push-out or ground snap; transits stay on the web'),
+    cast: m(P, 'kernel/cast.luau: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam, each body a box (MojuloServer): the moments (a puff, a blast, a beam, a shake) and a transfigure\'s look are not drawn; a walk stands on the place\'s land and is pushed out of the fight\'s boxes; transits stay on the web'),
     rearm: m(B, 'kernel/cast.luau rearm into the weapon\'s reserve, which kernel/combat.luau\'s reload draws from, held equal by the combat corpus'),
     ...absent(['impulse', 'menus', 'parts', 'phase', 'weather', 'shot']),
   }),

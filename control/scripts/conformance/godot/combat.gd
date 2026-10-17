@@ -23,6 +23,8 @@ func _init() -> void:
 		var st: Dictionary = C.create(sc["cast"])
 		var K = Combat.new()
 		K.arm(st, sc["combat"])
+		# the web world's land: flat ground (the corpus's FLAT) and the scenario's boxes, for the walks
+		st["walkWorld"] = {"ground": func(_p): return 0.0, "colliders": K.colliders if K.colliders != null else []}
 		C.facts(st)
 		var hero: Dictionary = st["byId"]["hero"]
 		var snaps := []
@@ -55,7 +57,7 @@ func _snapshot(st: Dictionary, K, ids: Array, events: Array) -> String:
 	var bodies := {}
 	for id in ids:
 		var e: Dictionary = st["byId"][id]
-		var b := {"hp": e.get("hp"), "hits": e.get("hits", 0), "by": e.get("lastHitBy"), "downed": bool(e["downed"]), "hittable": bool(e.get("hittable", false)), "invincible": Js.truthy(e.get("invincible"))}
+		var b := {"hp": e.get("hp"), "hits": e.get("hits", 0), "by": e.get("lastHitBy"), "downed": bool(e["downed"]), "pos": (e["pos"] as Array).map(_nano), "hittable": bool(e.get("hittable", false)), "invincible": Js.truthy(e.get("invincible"))}
 		if Js.finite(e.get("poise")):
 			b["poise"] = e["poise"]
 			b["staggerT"] = e["staggerT"]
