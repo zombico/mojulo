@@ -47,6 +47,17 @@ describe('the land: reading the words', () => {
   });
 });
 
+describe('the land: the upland-morning preset', () => {
+  it('is valley-morning\'s look on a terrain ground, with the land words on', () => {
+    const up = readGeocube('upland-morning'), valley = readGeocube('valley-morning'), low = lowerGeocube(up, 'outside');
+    expect(up.colour).toEqual(valley.colour);
+    expect(low.meru.ground).toMatchObject({ span: 45, height: 3.5, from: { heartbeat: 'rocky-irregular' } });
+    expect(low.meru.shading).toMatchObject({ mix: 1, facet: 4, valley: 0.7 });
+    // a variant may take its ground away, as any cube's terrain may
+    expect(lowerGeocube(readGeocube({ from: 'upland-morning', outside: { ...up.outside, ground: undefined, terrains: { bare: { ground: false } } } }), 'outside', 'bare').meru).not.toHaveProperty('ground');
+  });
+});
+
 describe('the land: ground, a terrain world under the plain', () => {
   const grounded = build({ shading: true, ground: { from: ROCKY, span: 45, height: 3.5 } });
   it('lifts the plain by the terrain, never sinks it, and leaves the seam where the walker starts', () => {

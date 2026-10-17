@@ -64,6 +64,10 @@ const STONE = { gen: 'stone-brick', stone: [150, 150, 150], mortar: [88, 88, 88]
 const FLAGS = { gen: 'flagstone', stone: [140, 140, 140], mortar: [58, 58, 58], gravel: [96, 96, 96], cells: 5, mortarThick: 0.05, wobble: 2.2, vary: 22, grain: 12, lost: 0.04, cracked: 0.2, seed: 17 };
 const ROCK = { gen: 'rock', style: 'cave', base: [170, 170, 170], seed: 1 };
 const LAND = { smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 };
+// the upland's ground: a rocky heartbeat at the level's own scale (local-meru/ground.js), and the land words that
+// read it: surfaces mixed at their seams, rock in planes, the valleys' shade
+const UPLAND = { from: { heartbeat: 'rocky-irregular', splatch: 'verdure-trio', seed: 'g2' }, span: 45, height: 3.5 };
+const UPLAND_LAND = { ...LAND, mix: 1, facet: 4, valley: 0.7 };
 // the gen-6 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
 // torch's own soft edge ('soft') costs about four times the bake for what the half-metre cells already blur.
 const SHADOWS = { torch: 'hard', sun: 1.5, cells: 0.5 };
@@ -133,6 +137,24 @@ export const GEOCUBE_PRESETS = Object.freeze({
       'One accent, the red of the roofs; the valley green carries the rest.',
     ],
   },
+  'upland-morning': {
+    id: 'upland-morning', title: 'Upland morning', reads: 'Limestone and red roofs on a rocky green upland',
+    light: { reference: 'island-noon', outsideFog: 1.6 },
+    colour: { stone: '#b8aa8c', floor: '#9a7a58', trim: '#e6dcc4', accent: '#b8442c', grass: '#64a83a', foliage: '#3a7a32', water: '#3a8cb8', sand: '#d6c49a', shade: 236 },
+    register: { steps: 0, key: 0.5 },
+    contrast: 'wii',
+    surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
+    inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: UPLAND_LAND, ground: UPLAND },
+    why: [
+      'The contrast lives in the vertex: the sky on every top, the ground under every overhang.',
+      'A wall is darker at its foot and lighter toward the eaves.',
+      'Creases and contacts fall into a blue-violet shade, never black.',
+      'The lit side warms toward the sun; the shade side cools.',
+      'One accent, the red of the roofs; the upland green carries the rest.',
+      'The ground is a terrain\'s own, at the level\'s scale: the mounds rise out of its swells, grass meets rock in a curve.',
+    ],
+  },
 });
 
 /**
@@ -147,6 +169,7 @@ export const GEOCUBE_BUILDINGS = Object.freeze({
   'island-noon': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'hall', enter: 'walk' }, { use: 'temple', enter: 'door' }] },
   'jungle-haze': { anchor: 'timber-hall', uses: [{ use: 'lab', enter: 'door' }, { use: 'workshop', enter: 'walk' }, { use: 'dwelling', enter: 'door' }, { use: 'temple', enter: 'walk' }] },
   'valley-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'shop', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }] },
+  'upland-morning': { anchor: 'tiered', uses: [{ use: 'dwelling', enter: 'door' }, { use: 'tavern', enter: 'door' }, { use: 'temple', enter: 'door' }, { use: 'tower', enter: 'walk' }, { use: 'guardhouse', enter: 'door' }] },
 });
 /**
  * Each preset's character in the color theorist's terms: what the stamp (color-theorist/stamp.js) writes into a cube on
@@ -159,9 +182,10 @@ export const GEOCUBE_PALETTES = Object.freeze({
   'island-noon': { intent: 'stucco, terracotta and a hard sun', key: 'high', heat: 0.6, weight: -0.3, activity: 0.3, scheme: 'complementary', hues: { sky: 232, rock: 72, soil: 38, ground: 118, foliage: 132, accent: '#3a80d0' } },
   'jungle-haze': { intent: 'olive concrete, mud and a soft hazy sun', key: 'mid', heat: 0.15, weight: 0.2, activity: -0.6, scheme: 'analogous', hue: '#767a64', hues: { sky: 120, accent: '#8a5f34' } },
   'valley-morning': { intent: 'limestone, red roofs and a green valley in the morning', key: 'high', heat: 0.35, weight: -0.1, activity: 0.2, scheme: 'complementary', hues: { sky: 225, rock: 52, soil: 36, ground: 112, foliage: 128, accent: '#b8442c' } },
+  'upland-morning': { intent: 'limestone, red roofs and a rocky green upland in the morning', key: 'high', heat: 0.3, weight: 0, activity: 0.25, scheme: 'complementary', hues: { sky: 222, rock: 50, soil: 34, ground: 108, foliage: 126, accent: '#b8442c' } },
 });
 // each preset's principles that name its colours: under a solved palette they give way to the palette's own reading
-const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4] });
+const COLOUR_WHY = Object.freeze({ 'gothic-night': [0, 1, 2, 3], 'island-noon': [0, 1], 'jungle-haze': [0, 2, 3], 'valley-morning': [2, 4], 'upland-morning': [2, 4] });
 // a written colour with a role of its own is a lock the solve fits the rest round; trim, water and sand are kept as written
 const LOCK_ROLE = Object.freeze({ stone: 'rock', floor: 'soil', grass: 'ground', foliage: 'foliage', accent: 'accent' });
 /** A palette the cube is solved from: a spec with its seed (stamped at authoring time). */
