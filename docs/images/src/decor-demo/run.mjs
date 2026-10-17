@@ -1,5 +1,5 @@
 // decor-demo.gif, end to end: a homeowner uploads their floor plan and asks, in their own words, for ideas for
-// living in it, one change and a walkthrough. A real agent session does it and its record is kept (session.json);
+// living in it, a change to one room (its walls and its layout) and a walkthrough. A real agent session does it and its record is kept (session.json);
 // capture.mjs then films what it made with forge_motion, mojulo's Observe door, and compose.mjs sets it in a chat with
 // the session's own time, tokens and cost on the last slide.
 //
@@ -31,7 +31,7 @@ mkdirSync(path.join(data, 'outcomes'), { recursive: true });
 // The asks, in a homeowner's words: no style names, no tool names. The first carries the plan.
 const ASKS = [
   { text: 'We just moved in, here\'s our floor plan! Can you put it into mojulo and come up with some ideas for how we could live in it? We like warm, natural and a bit cozy. Show us the living room, the dining room and the big bedroom.', image: 'floor-plan.png' },
-  { text: 'We have people over a lot. Can the dining room seat eight?' },
+  { text: 'Could the living room walls be a soft sage green? And we\'d love the furniture rearranged so the sofa looks out the windows instead of at the TV.' },
   { text: 'Love it. Can you make us a walkthrough video of the three rooms?' },
 ];
 // Headless print mode cannot answer a question back, so the agent is told to choose; and a chat reply is short.

@@ -45,17 +45,20 @@ draws it as its own A-101 sheet, cropped to the drawing, so the upload is mojulo
 sees as a recipe. A real Claude Code session in print mode (`claude -p`, `--resume` for each later ask, the plan as an
 image in the first message), with mojulo as its only tool server and no built-in tools, takes three asks in a
 homeowner's words (no style names, no tool names): ideas for living in the house (the living room, the dining room
-and the big bedroom), the dining room seating eight, and a walkthrough video. The agent reads the plan, builds the
-house, designs the rooms, films them and stitches the film itself; the runner only watches. `run.mjs` writes the
-record, `session.json`: each ask's calls, reply, time and tokens, and the recipes the session left. `capture.mjs` then
-replays the calls that made something (the house, the rooms, the videos), in order, into a fresh data dir, stops if a
-replayed recipe differs from the session's, and films what each ask made with `forge_motion`: the house as a slow
-orbit, each room as a walk at eye height (facing the wall the ask changed, a `surface` edge, else looking into the room
-toward its focal wall; a room designed before is filmed before the ask too, from the same place), and the agent's own
-film as it made it. Because it is a replay, a kernel fix re-films the committed session with no new conversation.
+and the big bedroom), sage green walls in the living room with the sofa turned to the windows, and a walkthrough
+video. The agent reads the plan, builds the house, designs and revises the rooms, films them and stitches the film
+itself; the runner only watches. `run.mjs` writes the record, `session.json`: each ask's calls, reply, time and tokens,
+and the recipes the session left. `capture.mjs` then replays the calls that made something (the house, the rooms, the
+videos), in order, into a fresh data dir, stops if a replayed recipe differs from the session's, and films what each
+ask made with `forge_motion`: the house as a slow orbit, a new room as a walk at eye height looking into the room
+toward its focal wall (or at the wall an ask dressed), a change to a room as one eye-level shot from the room's far
+corner, aimed at what moved (the pieces whose `at` or `facing` in `design_interior`'s replies changed, else the wall
+the ask dressed), filmed before and after from the same place, and the agent's own film as it made it. Because it is
+a replay, a kernel fix re-films the committed session with no new conversation.
 `compose.mjs` sets it in a generic chat (the plan attached to the first ask, each kind of tool call a plain-language
 chip, a call mojulo turned back shown as "tried again", the reply cut to its opening and the first sentence of each
-bullet) and ends on the session's own numbers: the agent's working time, every token it read and wrote, and its cost
+bullet), plays a change as a before and after swept in by a glowing line with seeded sparkles (and back, and in
+again), and ends on the session's own numbers: the agent's working time, every token it read and wrote, and its cost
 at list price. The cost is the last ask's `total_cost_usd`, since print mode carries it across a `--resume`; it depends
 on how warm the prompt cache is, so a first run of the day costs more. `MODEL` picks the model (default Sonnet 5.5).
 Every run is a new conversation, so the replies, the choices and the numbers change from run to run. `session.json`

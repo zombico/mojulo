@@ -1,8 +1,8 @@
 # Mojulo
 
-![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom, makes the dining room seat eight when asked, and films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/decor-demo.gif)
+![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/decor-demo.gif)
 
-<sub>One real Claude Code session on Sonnet 5.5: a floor plan in, three rooms designed, one changed, a walkthrough out; under two minutes of agent time, 25 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
+<sub>One real Claude Code session on Sonnet 5.5: a floor plan in, three rooms designed, one repainted and rearranged, a walkthrough out; just over two minutes of agent time, 30 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
 
 Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
 

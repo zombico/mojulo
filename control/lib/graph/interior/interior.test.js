@@ -173,6 +173,17 @@ describe('the fit-out, on the house kernel', () => {
   });
 });
 
+describe('the reply', () => {
+  it('says where each piece stands and the way it faces, so a move can be told and checked', async () => {
+    const { interiorReadout } = await import('../../mcp/tools/interior.js');
+    const r = interiorReadout(lounge());
+    const sofa = r.pieces.find((p) => p.id === 'conversation.sofa');
+    expect(sofa.at).toHaveLength(2);
+    expect(sofa.at.every((v) => v >= 0)).toBe(true);
+    expect(['N', 'E', 'S', 'W']).toContain(sofa.facing);
+  });
+});
+
 describe('the review', () => {
   it('says what the laws measure, advisory', () => {
     const { solved } = compileInterior(lounge(), HOUSE);

@@ -19,6 +19,9 @@ html,body{width:960px;height:540px;background:#0f1117;overflow:hidden;font-famil
 .att{display:inline-block;flex:none;font-size:11.5px;color:#cfd6e4;background:#232a3a;border:1px solid #34405a;border-radius:7px;padding:3px 8px;margin-right:8px}
 .att::before{content:"▦ ";color:#8fb4ff}
 .pair img.pl{object-fit:contain;background:#fff}
+#bar{position:absolute;top:0;width:4px;height:500px;margin-left:-2px;background:#fff8e6;box-shadow:0 0 10px 3px rgba(255,222,140,.95),0 0 38px 14px rgba(255,190,90,.45)}
+#spark{position:absolute;inset:0;pointer-events:none}
+#spark i{position:absolute;border-radius:50%;background:radial-gradient(circle,#fff 0,#ffe9a8 35%,rgba(255,205,110,0) 70%)}
 .chip.ok::before{content:"✓ ";color:#6fcf97}
 .work{font-size:11.5px;color:#8b93a6}
 #input{position:absolute;left:12px;bottom:14px;width:396px;height:42px;background:#1a1e28;border:1px solid #2e3546;border-radius:12px;padding:0 12px;display:flex;align-items:center;font-size:13px;color:#e7e9ee;white-space:nowrap;overflow:hidden}
@@ -48,14 +51,18 @@ html,body{width:960px;height:540px;background:#0f1117;overflow:hidden;font-famil
 </style></head><body>
 <div id="top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span id="ttl"><b>Your agent</b> · a chat with mojulo connected</span><span id="conn"><i></i>mojulo</span></div>
 <div id="chat"><div id="log"></div><div id="input"></div></div>
-<div id="view"><img id="ia"><img id="ib"><div id="tag"></div><div id="obs">observe · forge_motion</div></div>
+<div id="view"><img id="ia"><img id="ib"><div id="bar"></div><div id="spark"></div><div id="tag"></div><div id="obs">observe · forge_motion</div></div>
 <div id="end"></div>
 <script>
 window.setFrame = (f) => {
   const ia = document.getElementById('ia'), ib = document.getElementById('ib');
   ia.style.display = f.a ? '' : 'none'; if (f.a && ia.getAttribute('src') !== f.a) ia.src = f.a;
   ib.style.display = f.b ? '' : 'none'; if (f.b && ib.getAttribute('src') !== f.b) ib.src = f.b;
-  ib.style.opacity = f.mix ?? 0;
+  ib.style.opacity = f.wipe != null ? 1 : f.mix ?? 0;
+  // the reveal: the after shows to the left of a glowing line that sweeps across, sparkles in its wake
+  ib.style.clipPath = f.wipe != null ? `inset(0 ${(100 - f.wipe * 100).toFixed(2)}% 0 0)` : '';
+  const bar = document.getElementById('bar'); bar.style.display = f.wipe != null && f.wipe > 0 && f.wipe < 1 ? '' : 'none'; bar.style.left = `${(f.wipe ?? 0) * 540}px`;
+  document.getElementById('spark').innerHTML = (f.sparks || []).map(([x, y, r, o]) => `<i style="left:${x - r}px;top:${y - r}px;width:${2 * r}px;height:${2 * r}px;opacity:${o}"></i>`).join('');
   document.getElementById('log').innerHTML = f.log || '';
   document.getElementById('input').innerHTML = f.input ? `${f.input}${f.cursor ? '<span id="cur"></span>' : ''}` : `<span class="ph">Message your agent…</span>`;
   const tag = document.getElementById('tag'); tag.style.display = f.tag ? '' : 'none'; tag.innerHTML = f.tag || '';

@@ -20,6 +20,14 @@ const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 const HOLD = 3;
 // the agent's film: this many of its frames, spread over its length
 const FILM = 26;
+// the reveal: this many GIF frames for the line to cross, and the sparkles it leaves (seeded, so a re-compose is the same)
+const REVEAL = 24;
+function mulberry32(a) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function sparks(p, seed) {
+  if (p <= 0 || p >= 1) return [];
+  const r = mulberry32(seed), x = p * 540;
+  return Array.from({ length: 16 }, () => { const d = r() * 60; return [x - d + 6, r() * 500, 1.5 + r() * 4.5, Math.max(0, 1 - d / 60) * (0.5 + r() * 0.5)]; });
+}
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const ROOM = { lounge: 'Living room', living: 'Living room', bedroom: 'Bedroom', dining: 'Dining room', kitchen: 'Kitchen', office: 'Office' };
 const roomName = (r) => ROOM[r] || (r ? r[0].toUpperCase() + r.slice(1) : 'Room');
@@ -50,8 +58,8 @@ function chips(tools) {
 /** The agent's reply cut to fit the bubble: the opening of its first paragraph, then the first sentence of each of
  * its bullet points while they fit (they carry what was done). Markdown goes, and a sketch link reads as "in your sketches". */
 function reply(text, max = 330) {
-  const plain = (s) => s.replace(/(?:\bat\s+)?`?\/outcomes\/[\w-]+\/?(?:[\w.-]+)?`?(?:\s*\(`?[\w.-]+`?\))?/g, 'in your videos').replace(/\s*\(`?\/sketches\/[\w-]+`?\)/g, '').replace(/(?:\bat\s+)?`?\/sketches\/[\w-]+`?/g, 'in your sketches')
-    .replace(/,?\s*`?sk_[\w-]+`?,?/g, '').replace(/\*\*|__|`/g, '').replace(/\s+/g, ' ').trim();
+  const plain = (s) => s.replace(/\s*\((?:the file is )?`?[\w.-]+\.(?:mp4|gif|html)`?\)/g, '').replace(/(?:\bat\s+)?`?\/outcomes\/[\w-]+\/?(?:[\w.-]+)?`?(?:\s*\(`?[\w.-]+`?\))?/g, 'in your videos').replace(/\s*\(`?\/sketches\/[\w-]+`?\)/g, '').replace(/(?:\bat\s+)?`?\/sketches\/[\w-]+`?/g, 'in your sketches')
+    .replace(/,?\s*`?sk_[\w-]+`?,?/g, '').replace(/\*\*|__|`/g, '').replace(/\s+/g, ' ').replace(/(\w): in your (sketches|videos)\./g, '$1. It is in your $2.').trim();
   const paras = text.replace(/```[\s\S]*?```/g, '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   const lead = plain(paras.find((p) => !/^\s*[-*]\s+/.test(p)) || '');
   const split = (p) => p.split(/(?<=[.!?])\s+(?=[A-Z])/);
@@ -61,7 +69,9 @@ function reply(text, max = 330) {
   if (sentences[1] && out.length + sentences[1].length < (hasBullets ? 170 : 260)) out += ` ${sentences[1].trim()}`;
   // a bullet's first sentence, or, when that is only its link ("House: in your sketches."), the label and the next one
   const first = (b) => { const [a, n] = split(b), m = a.match(/^(.{1,40}?): in your sketches\.$/); return m && n ? `${m[1]}: ${n}` : a; };
-  const bullets = text.split('\n').filter((l) => /^\s*[-*]\s+/.test(l)).map((l) => first(plain(l.replace(/^\s*[-*]\s+/, ''))));
+  // a bullet that is only a link says nothing in a picture: left out
+  const bullets = text.split('\n').filter((l) => /^\s*[-*]\s+/.test(l)).map((l) => first(plain(l.replace(/^\s*[-*]\s+/, ''))))
+    .filter((b) => !/^.{1,40}?: in your (?:sketches|videos)\.?$/.test(b));
   let n = out.length, shown = 0;
   for (const b of bullets) { if (n + b.length > max) break; out += `\n· ${b}`; n += b.length; shown++; }
   return out + (shown < bullets.length || sentences.length > 2 ? '\n…' : '');
@@ -118,7 +128,7 @@ export async function compose(work) {
     // still as it stands
     const out = shots.turns[ti] || [];
     const changed = out.find((x) => x.kind === 'room' && x.before);
-    if (changed) { view = { frames: [clip(changed.before)[0]], tag: `${roomName(changed.room)} <span>· so far</span>` }; vi = 0; }
+    if (changed) { view = { frames: [clip(changed.before)[0]], tag: `${roomName(changed.room)} <span>· before</span>` }; vi = 0; }
     const cs = chips(turn.tools), WORK = 24;
     for (let i = 1; i <= WORK; i++) {
       const n = Math.ceil(cs.length * i / WORK);
@@ -130,9 +140,28 @@ export async function compose(work) {
     const ideas = out.filter((x) => x.kind === 'room' && !x.before).length;
     for (const x of out) {
       if (x.kind === 'house') cut(clip(x.clip), 'Your house <span>· built from the plan</span>', 18);
-      if (x.kind === 'room') {
+      if (x.kind === 'room' && x.before) {
+        // the change, from one place: the before and the after play in step while a glowing line sweeps the after in
+        const b = clip(x.before), a = clip(x.after), name = roomName(x.room);
+        const tag = (w) => `${name} <span>· ${w}</span>`;
+        const sweep = (from, to, n, k0, label) => {
+          for (let j = 0; j < n; j++) {
+            const k = k0 == null ? null : k0 + Math.floor(j / HOLD), p = from + (to - from) * ease(j / (n - 1));
+            F.push({ log: logHtml(), a: k == null ? b.at(-1) : at(b, k), b: k == null ? a.at(-1) : at(a, k), wipe: p, sparks: sparks(p, ti * 1000 + j + (k0 == null ? 500 : 0)), tag: tag(label) });
+          }
+        };
+        sweep(0, 1, REVEAL, 0, 'before → after');
+        view = { frames: a, tag: tag('after') }; vi = REVEAL;
+        for (let i = 0; i < 26; i++) F.push({ log: logHtml(), ...show() });
+        // and back, and in again: the same moment, the two rooms
+        sweep(1, 0, 12, null, 'before');
+        for (let i = 0; i < 6; i++) F.push({ log: logHtml(), a: b.at(-1), tag: tag('before') });
+        sweep(0, 1, 12, null, 'after');
+        view = { frames: [a.at(-1)], tag: tag('after') }; vi = 0;
+        rooms.set(x.tag, { name, last: a.at(-1) });
+      } else if (x.kind === 'room') {
         const frames = clip(x.after);
-        cut(frames, `${roomName(x.room)} <span>· ${x.before ? 'after' : 'an idea'}</span>`, x.before ? 30 : ideas > 2 ? 18 : 24);
+        cut(frames, `${roomName(x.room)} <span>· an idea</span>`, ideas > 2 ? 18 : 24);
         rooms.set(x.tag, { name: roomName(x.room), last: frames.at(-1) });
       }
       if (x.kind === 'film') {

@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](control/package.json)
 
-![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom, makes the dining room seat eight when asked, and films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](docs/images/decor-demo.gif)
+![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](docs/images/decor-demo.gif)
 
 Mojulo is a **3D factory with a media studio** for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio) builds things to play, print, read, hear and watch (games, objects, walkable worlds, pictures, scores) by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read (byte for byte on the same platform), and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
 
@@ -135,33 +135,36 @@ style names and no tool names. The first carries a picture of the floor plan and
 rooms off the drawing, to the inch, and builds the house with `mint_building`:
 
 ```json
-{ "width": 46.67, "height": 34.67, "windows": true, "view": "cutaway",
+{ "width": 46.67, "height": 34.67, "windows": true, "furnish": true, "view": "cutaway",
   "rooms": [ { "x": 0, "y": 0, "w": 22.33, "h": 16.33, "glyph": "L" }, { "x": 22.33, "y": 0, "w": 10, "h": 16.33, "glyph": "K" },
-             { "x": 32.33, "y": 0, "w": 14.33, "h": 16.33, "glyph": "D" }, { "x": 0, "y": 16.33, "w": 46.67, "h": 4, "glyph": "H" },
-             { "x": 0, "y": 20.33, "w": 15.33, "h": 14.33, "glyph": "B" }, { "x": 15.33, "y": 20.33, "w": 9, "h": 14.33, "glyph": "W" },
-             { "x": 24.33, "y": 20.33, "w": 22.33, "h": 14.33, "glyph": "B" } ] }
+             { "x": 32.33, "y": 0, "w": 14.34, "h": 16.33, "glyph": "D" }, { "x": 0, "y": 16.33, "w": 46.67, "h": 4, "glyph": "H" },
+             { "x": 0, "y": 20.33, "w": 15.33, "h": 14.34, "glyph": "B" }, { "x": 15.33, "y": 20.33, "w": 9, "h": 14.34, "glyph": "W" },
+             { "x": 24.33, "y": 20.33, "w": 22.34, "h": 14.34, "glyph": "B" } ] }
 ```
 
 Then it calls `design_interior` for the living room, the dining room and the big bedroom, turning "warm, natural and a
 bit cozy" into a style, a palette, finishes and furniture at true size, keeping the walkways clear and saying what it
 could not fit. Each room is its own small recipe over the house, never written into it, so a second scheme for a room
-sits beside the first. "Can the dining room seat eight?" is one revision of that room; mojulo lengthens the table to
-seat eight and says what no longer fits (the sideboard):
+sits beside the first. "Could the living room walls be a soft sage green, and the sofa look out the windows?" is a
+revision of that room: the walls repainted, the room's focal point turned to the view, and the seating moved by id.
+This is the living room after it:
 
 ```json
-{ "kind": "interior", "house": "sk_f8u1c1kg0k", "room": "dining",
-  "style": { "name": "modern-farmhouse", "accent": "warm-minimal" },
-  "brief": { "uses": ["dine", "store"], "seats": 8, "tags": ["entertaining"] },
-  "pieces": [ { "id": "dining.table", "size": ["2400mm", "1000mm", null] }, { "id": "display.bookcase-1", "omit": true } ] }
+{ "kind": "interior", "house": "sk_8c79eurf5c", "room": "lounge", "focal": "view",
+  "style": { "name": "modern-organic", "accent": "wabi-sabi" },
+  "surface": { "walls": { "paint": "sage" }, "accentWall": false },
+  "pieces": [ { "id": "conversation.sofa", "at": [2700, 3000], "facing": "N" }, { "id": "conversation.coffee-table", "at": [2700, 1850], "facing": "N" },
+              { "id": "conversation.chair-1", "at": [900, 3300], "facing": "N" }, { "id": "conversation.chair-2", "at": [4400, 1850], "facing": "W" }, … ] }
 ```
 
-"Make us a walkthrough video" is the agent's own camera work: `forge_motion` over each room, `stitch_motion` joining
-the three into one 12-second MP4. The session took under two minutes of agent time and 25 cents at API list price, with
-a warm prompt cache (a cold one costs more). Its whole record, every call, reply and token count, is
-[session.json](docs/images/src/decor-demo/session.json), and [the runner](docs/images/src/decor-demo/) re-runs it; the
-GIF's room shots are `forge_motion` too, filmed from a replay of the session's calls. The plan in the GIF is mojulo's
-own A-101 sheet of a house, standing in for a homeowner's upload; the agent only ever sees the picture. Every room
-opens at `/world` to walk, exports as a `.glb`, or goes to Blender for a Cycles render.
+The GIF films that change from eye level in the room's far corner, before and after from the same place, aimed at
+what moved. "Make us a walkthrough video" is the agent's own camera work: `forge_motion` over each room and
+`stitch_motion` joining the three into one MP4. The session took just over two minutes of agent time and 30 cents at
+API list price, with a warm prompt cache (a cold one costs more). Its whole record, every call, reply and token count,
+is [session.json](docs/images/src/decor-demo/session.json), and [the runner](docs/images/src/decor-demo/) re-runs it;
+the GIF's room shots are `forge_motion` too, filmed from a replay of the session's calls. The plan in the GIF is
+mojulo's own A-101 sheet of a house, standing in for a homeowner's upload; the agent only ever sees the picture. Every
+room opens at `/world` to walk, exports as a `.glb`, or goes to Blender for a Cycles render.
 
 ### 3. "Build an oak dining table and show me how it goes together"
 

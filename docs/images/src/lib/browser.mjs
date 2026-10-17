@@ -96,9 +96,9 @@ export async function snapHtml(htmlFile, outPng, { width, height, dpr = 1 }) {
 export function runJson(env, args) {
   const dir = mkdtempSync(path.join(tmpdir(), 'mj-out-')), file = path.join(dir, 'out.json');
   const fd = openSync(file, 'w');
-  const r = spawnSync(process.execPath, args, { cwd: CONTROL, env, stdio: ['ignore', fd, 'pipe'], encoding: 'utf8' });
+  const r = spawnSync(process.execPath, args, { cwd: CONTROL, env, stdio: ['ignore', fd, 'pipe'], encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   closeSync(fd);
   const out = readFileSync(file, 'utf8'); const i = out.indexOf('{');
-  if (r.status !== 0 || i < 0) throw new Error(`${args.join(' ')}\n${(r.stderr || out).slice(-2000)}`);
+  if (r.status !== 0 || i < 0) throw new Error(`${args.join(' ')}\nexit ${r.status}${r.signal ? ` (killed by ${r.signal})` : ''}, ${out.length} bytes out\n${r.error ? `${r.error.code || r.error.message}\n` : ''}${(r.stderr || out).slice(-2000)}`);
   return JSON.parse(out.slice(i, out.lastIndexOf('}') + 1));
 }

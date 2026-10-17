@@ -214,7 +214,8 @@ export async function decodeMp4Frames(mp4Path) {
     const bin = await resolveFfmpeg();
     await runFfmpeg(bin, ['-y', '-i', mp4Path, path.join(tmpDir, 'f_%06d.png')]);
     const names = (await fs.readdir(tmpDir)).filter((n) => n.endsWith('.png')).sort();
-    return Promise.all(names.map((n) => fs.readFile(path.join(tmpDir, n))));
+    // awaited here: the frames are read before `finally` takes the folder away
+    return await Promise.all(names.map((n) => fs.readFile(path.join(tmpDir, n))));
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }

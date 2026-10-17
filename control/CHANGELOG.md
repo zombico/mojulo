@@ -19,10 +19,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - The README and the npm page lead with `docs/images/decor-demo.gif` in place of `lounge-handoff-demo.gif` (which
   the long tour keeps). It is one real Claude Code session, recorded rather than staged: a homeowner uploads their
   floor plan as a picture and asks, in their own words, for ideas for living in it (warm, natural, a bit cozy: the
-  living room, the dining room and the big bedroom), then for the dining room to seat eight, then for a walkthrough
-  video. The agent reads the plan, builds the house with `mint_building`, designs each room with `design_interior`,
-  and films and stitches the walkthrough itself; the last slide is the session's own working time, tokens and cost
-  at API list price. README section 2 walks through it.
+  living room, the dining room and the big bedroom), then for sage green living-room walls and the sofa turned to the
+  windows, then for a walkthrough video. The agent reads the plan, builds the house with `mint_building`, designs and
+  then repaints and rearranges the rooms with `design_interior`, and films and stitches the walkthrough itself. The
+  change is shown from eye level, aimed at what moved, as a before and after swept in by a glowing line; the last
+  slide is the session's own working time, tokens and cost at API list price. README section 2 walks through it.
 - `docs/images/src/decor-demo/` re-runs it end to end: `plan.mjs` draws the uploaded plan (`house.json` as its own
   A-101 sheet), `run.mjs` drives `claude -p` (`--resume` per ask, the plan as an image in the first message) with
   mojulo as the only tool server, `capture.mjs` films from a replay of the session's calls, checked against the
@@ -30,6 +31,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   encodes the GIF. `session.json` is the record of the session the GIF shows: every call, reply, token count and the
   recipes it left. The media helpers launch Chromium without its sandbox when they run as root, as in a Linux
   container.
+- `design_interior`'s reply says where each piece stands: `at` (its centre, mm from the room's corner) and `facing`
+  beside its id and size, so the next call can move a piece by id knowing where it is, and a reader can tell what a
+  revision moved.
 - `design_interior`: a dining room has its chairs. They tuck a little under the table, and the placement check
   counted the table they tuck under as in their way, so every chair was left out ("collides with dining.table") and a
   dining room was a table, a rug and a sideboard. `brief.seats` now seats that many where the room fits them.
