@@ -4,6 +4,7 @@ import { CONCERNS, concernsOf } from './concerns.js';
 import { QUICK_GOALS } from './quick.js';
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { capabilityRegistry } from '../cosmos/registry.js';
+import { dryRun } from '../cosmos/cosmos.js';
 import { reviewParts } from './review.js';
 
 // WHAT GAME IT IS: a world says its game as a cosmos cube; a genre is a preset to start from; each cube value raises
@@ -127,5 +128,34 @@ describe('a dogfight\'s genre', () => {
     expect(cubeOfWorld({ quick: { goal: 'shoot', craft: 'jet' } }).from).toBe('air-combat');
     expect(cubeOfWorld({ quick: { goal: 'fly', craft: 'jet' } }).from).toBe('flight-sim');
     expect(cubeOfWorld({ quick: { goal: 'shoot' } }).from).toBe('shooter');
+  });
+});
+
+// A TARGET: the engine the game is meant for. Advice only: the readout says what of the cube that engine does not carry,
+// as the export's own marks say; nothing is refused or rewritten, and dropping the target drops the advice.
+describe('a target', () => {
+  // the genres whose cube Roblox carries whole, and those it loses values from (chosen from the catalog, not listed)
+  const lossOf = (id) => dryRunOf(id).engines.roblox.lost.length;
+  const dryRunOf = (id) => dryRun(cubeOfWorld(world({ intent: { from: id } })).cube);
+  const losing = Object.keys(GENRES).find((id) => lossOf(id) > 0);
+
+  it('is an engine with marks, alone or beside a genre; another is refused, naming the engines it can be', () => {
+    expect(readIntent({ target: 'roblox' })).toMatchObject({ target: 'roblox', from: null });
+    expect(readIntent({ from: losing, target: 'godot' }).target).toBe('godot');
+    expect(() => readIntent({ target: 'unity' })).toThrow(/target is an engine.*roblox/);
+  });
+
+  it('names what the engine does not carry and what it carries in part, from the same marks the export reads', () => {
+    const r = intentReport(world({ intent: { from: losing, target: 'roblox' } }));
+    const read = dryRunOf(losing).engines.roblox;
+    expect(r.target).toMatchObject({ engine: 'roblox', carries: false, lost: read.lost.map((x) => `${x.facet}.${x.setting}=${x.value}`), partly: read.approximated.map((x) => `${x.facet}.${x.setting}=${x.value}`) });
+    expect(r.target.says).toMatch(/do not carry to Roblox.*the choice is the creator's/);
+  });
+
+  it('rewrites nothing: the cube is the same with it and without, and without it there is no advice', () => {
+    const plain = world({ intent: { from: losing } }), aimed = world({ intent: { from: losing, target: 'roblox' } });
+    expect(cubeOfWorld(aimed).cube).toEqual(cubeOfWorld(plain).cube);
+    expect(intentReport(plain).target).toBeUndefined();
+    expect(intentReport(aimed).verdict).toBe(intentReport(plain).verdict);
   });
 });

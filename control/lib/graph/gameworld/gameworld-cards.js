@@ -25,6 +25,7 @@ import { WORLD_STYLE, CIVILIZATION, LINK_KINDS, TOPOLOGIES } from './world.js';
 import { MODES, STAMPS } from './review.js';
 import { SAMPLE_PAGES, SAMPLE_MAX, DERIVE } from './samples.js';
 import { LOOKS } from '../playscape/elements/elements.js';
+import { MARKED_ENGINES } from '../scene/engines/registry.js';
 import { BEAM_NAMES } from '../playscape/elements/beams.js';
 import { PROGRAM_IDS } from '../era/programs.js';
 import { STAGE_KITS, resolveKitId } from '../era/stage.js';
@@ -402,6 +403,8 @@ function nextCard() {
     '             your own at `path` (gameworld-adornment); its items seed the equipment table.',
     '  intent     the world has not said what game it is: write intent (gameworld-intent); `suggest` names the genres',
     '             its brief\'s words point at. Until then its cube is read from what it says, and its concerns follow.',
+    '  target     the intent names an engine (intent.target) and `lost` are values it does not carry: advice, not a',
+    '             refusal (gameworld-intent). Change one or keep it; the export says the same.',
     '  wait       step `on` waits on those parts (their stamps in brackets).',
     '  advice     read `advice`: a choice the brief does not explain, or one that reads as a fixture or a sample, is the',
     '             creator\'s to confirm.',
@@ -410,7 +413,7 @@ function nextCard() {
 
 function intentCard() {
   return lines(
-    'WHAT GAME IT IS — intent: { from?, cube?, why? }. Say it before the world: the levels are laid for it.',
+    'WHAT GAME IT IS — intent: { from?, cube?, why?, target? }. Say it before the world: the levels are laid for it.',
     'A genre (from) is a preset cube, never a lock: cube overrides any value ({ space: { camera: \'top-down\' } }; facets',
     'reality, space, power, soul, mind, time; an unknown value is refused, naming the known ones). A world may mix two genres.',
     'design_game suggests from the brief (intent.suggest); a world that writes none is read from what it says (camera,',
@@ -422,6 +425,11 @@ function intentCard() {
     'CONCERNS: what the cube asks of the world, raised by its values (a farm with guns asks both):',
     ...CONCERNS.map((c) => `  ${c.id.padEnd(14)}${c.when.join(' | ')}`),
     'The readout\'s intent.concerns names each, and whether the levels lay it (laid) and check it (checked) yet.',
+    '',
+    `TARGET — intent.target: ${MARKED_ENGINES.map((e) => `'${e}'`).join(' | ')} (alone, or beside from and cube): the engine the game`,
+    'is meant for. ADVICE ONLY: the readout\'s intent.target lists the cube\'s values that engine does not carry (lost)',
+    'and carries in part (partly), as its marks say; nothing is refused or rewritten, and dropping the target drops the',
+    'advice. export_game { target } writes the game whatever it holds, and its portability report names the same losses.',
   );
 }
 
@@ -461,7 +469,7 @@ const CARDS = [
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins', storyCard],
-  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
+  ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));
 export { SAMPLE_PAGES };

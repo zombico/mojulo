@@ -16,7 +16,7 @@
  *
  * Pure data and small reads. No module with a builder in it is imported, so the cosmos facets can read it.
  */
-import { markRow, optionRow, PAGE_OPTIONS } from './engines/marks.js';
+import { markRow, optionRow, PAGE_OPTIONS, TRAVERSAL_RULE } from './engines/marks.js';
 
 const A = 'absent', P = 'approximated', B = 'built';
 const m = markRow('roblox');
@@ -136,10 +136,40 @@ export const EVENT_MARKS = Object.freeze({
 });
 
 // ── a figure's gaits, power.systems, space.traversal, space.links, the mind ─────────────────────────────────────────
-export const gaitMark = () => m(A, YET);
-export const SYSTEM_MARKS = absent(['resource', 'stamina', 'unlock', 'transform', 'equip', 'place']);
-export const traversalMark = () => m(A, YET);
-export const LINK_MARKS = absent(['open', 'door', 'stair', 'gap']);
+// a gait: the Humanoid's own walk, jump and stop stand in for the web's; a pose, a stance, a seat, a roll or a vault no
+export function gaitMark(name, row) {
+  if (!row || typeof row !== 'object') return m(A, 'not a gait');
+  if (row.base !== undefined) return name === 'walk' ? m(P, 'the Humanoid walks at the rule\'s pace; the figure\'s walk clip does not play') : m(A, 'the Humanoid has one pace: only the walk');
+  if (row.from !== undefined) return m(P, 'the Humanoid stops; the stop clip does not play');
+  if (row.vault !== undefined || row.family !== undefined || row.seconds === undefined) return m(A, 'no pose, stance, seat or vault: the cast stands as block figures');
+  return ({ jump: 1, jumpForward: 1, jumpBack: 1, runningJump: 1 })[name] ? m(P, 'the Humanoid jumps (the rule\'s jumpSpeed); the clip does not play') : m(A, 'no air jump and no roll on the Humanoid');
+}
+export const SYSTEM_MARKS = Object.freeze({
+  resource: m(P, 'a stat resource and its keys (kernel/stats.luau inside the bus); its HUD as words'),
+  stamina: m(P, 'one stat pool spent by every action (kernel/stats.luau); the bodies bound to it do not move the Humanoid'),
+  unlock: m(A, 'a power\'s move does not merge into the Humanoid\'s walk'),
+  transform: m(A, 'a form\'s look does not travel (block figures)'),
+  equip: m(P, 'powers from carried gear: their stats and cues run (kernel/stats.luau, kernel/bus.luau); the gear is not drawn'),
+  place: m(P, 'a pad wakes what stands asleep there through the cast, and the towers it wakes fire (kernel/mind.luau sentry)'),
+});
+const TRAVERSAL_HOW = Object.freeze({
+  door: m(A, 'a door is not a trigger in the place (the page\'s doors do not travel)'),
+  bridge: m(P, 'a static deck: a floor slab the Humanoid walks'),
+  platform: m(P, 'a static deck travels as a floor slab; a moving one is a mover and stands at rest'),
+  stairs: m(P, 'treads as floor slabs the Humanoid climbs'),
+});
+export function traversalMark(entry) {
+  if (TRAVERSAL_HOW[entry]) return TRAVERSAL_HOW[entry];
+  const rule = TRAVERSAL_RULE[entry];
+  if (rule === undefined || !RULE_MARKS[rule]) return m(A, 'not marked');
+  return m(RULE_MARKS[rule].roblox, `lowers to the ${rule} rule: ${RULE_MARKS[rule].how}`);
+}
+export const LINK_MARKS = Object.freeze({
+  open: m(P, 'an opening in the greybox and its look'),
+  door: m(A, 'a doorway is not a trigger in the place'),
+  stair: m(P, 'treads as floor slabs the Humanoid climbs'),
+  gap: m(P, 'jumped by the Humanoid'),
+});
 // the mind: kernel/mind.luau runs the web's mind (mind.gd's port), held equal by the mind corpus. What stays the web's
 // is named here, as Godot's marks name it
 const MIND_WEB = Object.freeze({

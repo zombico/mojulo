@@ -27,12 +27,12 @@ export const POWER = Object.freeze({
       values: {
         // the hero's swings and rounds, adjudicated by kernel/combat.gd (held equal to the web's); the set pieces, the
         // combo's juggle and every AI's attack stay on the web
-        melee: { status: 'built', godot: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
-        ranged: { status: 'built', godot: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
+        melee: { status: 'built', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-melee.js' },
+        ranged: { status: 'built', godot: 'approximated', roblox: 'approximated', lowers: 'lib/graph/worlds/controllable/combat-ranged.js' },
         // built 10-12: play.battle (playscape/ui/battles.js) composes a fight of a cue, a talk menu and guarded hp vars
         // Godot: a battle's menu, guarded vars and the foe's beat run on the bus, the world frozen while it is up (II5,
         // godot-story-rows.test.js: equal frame by frame)
-        'turn-based': { status: 'built', godot: 'built', lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
+        'turn-based': { status: 'built', godot: 'built', roblox: 'absent', lowers: 'lib/graph/playscape/ui/battles.js', note: 'walk up to a foe: a battle menu (its hp and yours; attack, guard, flee), the foe answering a beat later; one on one, no party turns, skills or items yet' },
       },
     },
     beams: { multi: true, source: { module: 'lib/graph/playscape/elements/beams.js', table: 'BEAMS', godot: MOMENT } },
@@ -44,11 +44,11 @@ export const POWER = Object.freeze({
       // built 10-12: a pad the player uses (E) wakes what stands asleep there, paid from a var (a cue's if and add): a
       // defence's towers. Free placement anywhere on a grid is not built.
       planned: {
-        place: { status: 'built', godot: 'built', lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
+        place: { status: 'built', godot: 'built', roblox: 'approximated', lowers: 'lib/graph/playscape/ui/cues.js', note: 'on pads: a cue (use, if: gold, add, spawn) wakes what was minted asleep there; a defence\'s towers (quick goal defend); free placement on a grid not yet' },
       },
     },
     // every stat op runs in Godot (kernel/stats.gd, held equal to the web's)
-    stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
+    stats: { multi: true, source: { module: 'lib/graph/playscape/stats/stats.js', table: 'STAT_THEN', godot: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' }, roblox: { module: 'lib/graph/playscape/stats/kernel.js', table: 'STAT_OPS' } } },
     idiom: { source: { module: 'lib/graph/gameworld/actions.js', table: 'IDIOMS', marks: 'idiomMarks' } },
   },
 });

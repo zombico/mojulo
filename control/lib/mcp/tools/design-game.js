@@ -194,6 +194,8 @@ function readout(ref, world, context = {}) {
   // what game it is (gameworld/intent.js): the cube the world is, and what that asks of the world
   const intent = intentReport(world);
   if (!intent.written && !world.quick) next.push({ step: 'intent', ...(intent.suggest ? { suggest: intent.suggest.map((g) => g.id) } : {}), card: 'gameworld-intent' });
+  // the engine the intent names, and what of the world it does not carry: advice, never a refusal
+  if (intent.target && !intent.target.carries) next.push({ step: 'target', engine: intent.target.engine, lost: intent.target.lost, card: 'gameworld-intent' });
   const same = sameness(world), questions = grounding(world), own = authorship(world);
   const advice = { authorship: own.line, ...(same.length ? { sameness: same } : {}), ...(questions.length ? { questions } : {}) };
   if (same.length || questions.length) next.push({ step: 'advice', card: 'gameworld-next' });

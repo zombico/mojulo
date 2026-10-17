@@ -146,6 +146,19 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   same port: a walk's turn in the web's `((x % τ) + τ) % τ` (Godot's `fposmod` parts by an ulp on about one heading in
   sixteen), the spawn's `among` measured in doubles (not a float32 `Vector2`), an empty `land` lands never, a null
   wait time or beat read as the web reads it.
+- **A target, as advice** (`intent.target: 'roblox' | 'godot'` on a gameworld). The world names the engine the game is
+  meant for, alone or beside its genre and cube; `design_game`'s readout (`intent.target`, a `target` next step) and
+  the game bible then say which of the cube's values that engine does not carry and which it carries in part, read
+  from the same marks the export reads. Nothing is refused and nothing rewritten: the game still makes and exports
+  whatever it holds, and dropping the target drops the advice. An engine without marks is refused as a target, naming
+  the engines it can be.
+- **The Roblox marks made true across the registry.** A facet value marked inline for Godot read as absent on Roblox
+  (its young kernel's default), so the 3D medium, a linear game, a stage kit or melee read as lost: the advice and the
+  hillclimb page's Roblox scoreboard said so. Each is now marked for Roblox as the place carries it (the voxel look
+  and coloured floors for kits, looks and level forms; the Humanoid for the hero, its walk, jump and stop; the fight
+  for melee, ranged and gear; the stats kernel's own table; scenes, quests and talk as words; links, traversal and
+  systems by what the greybox and the kernel do), and what the place does not do stays absent (pixel, weather, the
+  top-down, side and fixed cameras, hubs and doors between levels, drive and fly, runs, the shot camera).
 - **A Roblox place that looks like its level** (`scene/roblox-look.js`), built from the recipe on the operator's machine:
   nothing is uploaded and no account is needed. The floor slabs wear their faces' colours, each a Roblox material its
   texture or group names (grass, rock, bark, brick, slate, soil…), a textured face its tint times its texture's mean
