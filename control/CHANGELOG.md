@@ -17,11 +17,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 ### Look materials: armour as material, metal in the cube's light
 
 - **`materials` on a geocube.** A hero whose `geocube` names a cube with `materials` wears real materials on its armour,
-  outfit and dress: plate as planished steel, a lamellar's kanamono as gold, leather as leather, a hardsuit as painted
+  outfit and dress: plate as brushed steel, a lamellar's kanamono as gold, leather as leather, a hardsuit as painted
   satin, each metal group's metal read from the tone its card already wrote. `materials: { <group>: <material> }`
   overrides one. Plate then shades as live metal on the World page, in its clips too (the rig pack carries the metal
-  channel per part), and exports as PBR. Absent, every hero is as before. The character-lit (anime) rig does not carry
-  metal yet.
+  channel per part), and exports as PBR. Absent, every hero is as before.
+- **Anime heroes draw their materials.** Under the character light (an anime hero whose manifest names `toon.light`)
+  the materials are drawn, not reflected: metal steps higher and shades darker (gold leaning red-orange, steel blue)
+  with a small gloss tinted by the metal's measured colour, lacquer takes a small sharp gloss, leather a warm shade and
+  a dull band, glass a white glint, rubber a deeper shade (`materials/toon-materials.js`). Such a hero wears no live
+  metal. An anime hero in the cube's cast light wears the live metal as any hero does.
 - **`contrast.metal`: metal in the cube's light.** Metal faces take the cube's occlusion (the foot of a wall, a crease,
   contact) as a multiplier the live metal shader and the GLB carry, and the live metal reflects the cube's own world
   (its sky over a daylit dome, its ground leaned toward grey) instead of the studio's dim room. A hero on such a cube

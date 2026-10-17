@@ -45,7 +45,7 @@ import { layeredSeat } from './station-loft-faces.js';
 import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
 import { faceHex } from './face-hex.js';
-import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
+import { toonMaterials } from '../materials/toon-materials.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -125,7 +125,7 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   const painterly = anime && !!manifest.hero.painterly;
   // (and keeps the painted face's brow block, the `Brow` group, unlit as the ink is)
   const brow = (l) => (!painterly || (l.unlit ?? []).includes('Brow') ? l : { ...l, unlit: [...(l.unlit ?? []), 'Brow'] });
-  if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l); }
+  if (own) { const l = anime && own.highlight === undefined ? { ...own, highlight: ANIME_HAIR_HIGHLIGHT[animePole(manifest.hero)] } : own; return withToonMaterials(brow(painterly && l.soft === undefined ? { ...l, soft: PAINTERLY_SOFT } : l), manifest, anime); }
   // a CREATURE (a layered plan that is no hero and no built animal: create_character's `as: 'creature'`, drawn or designed
   // by hand) takes the character light too, as a hero does: the toon step (a drawn one's markings stepped in it), the ink,
   // the metal's gloss when it wears plate. A carved creature (a statue) keeps the stone's light
@@ -133,7 +133,15 @@ export function resolveCharacterLight(manifest, ctx = {}) {
     const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
     return wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base; }
   const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
-  return wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
+  const lit = wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
+  return withToonMaterials(lit, manifest, anime);
+}
+/** A hero wearing its cube's MATERIALS (recipe.surfaces, materials/dress-materials.js) under the character light takes them
+ * DRAWN: each group's step, shade and highlight from its material (materials/toon-materials.js), over the plate's plain
+ * gloss and over a named light's own for those groups. Absent ⇒ the light as it was. */
+function withToonMaterials(l, manifest, anime) {
+  const T = anime ? toonMaterials(manifest.recipe?.surfaces, manifest.recipe?.palette) : null;
+  return T ? { ...l, thresholds: { ...(l.thresholds || {}), ...T.thresholds }, shade: { ...(l.shade || {}), ...T.shade }, highlight: { ...(l.highlight || {}), ...T.highlight } } : l;
 }
 /** A DRAWN CREATURE'S SHADE BY VALUE: the derived shade multiplies the colour, so a dark or saturated one (a beast's deep
  * cloth, a black coat) steps by a few L* and its shadow side does not read; each palette group whose derived shade
@@ -670,7 +678,7 @@ export function characterLitPieces(mesh, { light = ANIME_CHARACTER_LIGHT, normal
       if (sets) { const own = lit[0] ? hex : shade; return { fi, tri, outNormal, partName, panel: { kind: 'strand', sets }, fills: [own, darker(own, St.R.tone)] }; }
     }
     if (soft && hi) colour = hex;   // above the band: the base
-    else if (hi) { colour = H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // no lighter tone: one tone
+    else if (hi) { colour = H.R.colour || H.colours.get(hex); if (colour === undefined) H.colours.set(hex, colour = pal[`${g}Highlight`] || derivedHighlight(hex)); if (!colour) hi = null; }   // (a material's rule carries its own: toon-materials.js)   // no lighter tone: one tone
     // on a soft face the lit side of the step is the band (BAND, graded at emission) until the band's top line
     const own = soft ? BAND : hex;
     let f;
@@ -824,19 +832,7 @@ export function characterLitFaces(mesh, recipe = {}, { light = ANIME_CHARACTER_L
   const P = pieces || characterLitPieces(mesh, { light, normals: normals || layeredShadingNormals(mesh, recipe), palette: recipe.palette, dz: layeredSeat(mesh, seat), glows: recipe.emissive });
   // `paint` (face-paint.js facePaintOf): a piece of a painted face carries the texture, its corners' [s, t] and its fill as
   // the light alone (texel × light on the page); absent ⇒ every face as before
-  const faces = P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }), tex = paint?.painted(c.fi); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: tex ? paint.light(c.fill) : c.fill, ...(c.soft ? { cornerFills: tex ? c.soft.map(paint.light) : c.soft } : {}), group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}), ...(tex ? { texture: paint.key, uv: c.refs.map(paint.uvAt), textureLit: true } : {}) }; });
-  // `recipe.surfaces` (group → material, as layeredFaces reads it): each piece of a group that has one carries its
-  // material's channel keys (a metal's `metal`, a shelf row's `spec` / `pbr`); the toon fill stays. Absent ⇒ as before
-  if (recipe.surfaces && typeof recipe.surfaces === 'object') {
-    const glow = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []), mats = new Map();
-    P.forEach((c, k) => {
-      const g = mesh.groups[c.fi]; if (glow.has(g) || faces[k].texture) return;
-      const spec = recipe.surfaces[g] ?? recipe.surfaces['*']; if (!spec) return;
-      if (!mats.has(g)) mats.set(g, resolveMaterial(spec));
-      tagFacesWithMaterial([faces[k]], mats.get(g));
-    });
-  }
-  return faces;
+  return P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }), tex = paint?.painted(c.fi); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: tex ? paint.light(c.fill) : c.fill, ...(c.soft ? { cornerFills: tex ? c.soft.map(paint.light) : c.soft } : {}), group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}), ...(tex ? { texture: paint.key, uv: c.refs.map(paint.uvAt), textureLit: true } : {}) }; });
 }
 
 // ─── the draw layers ──────────────────────────────────────────────────────
