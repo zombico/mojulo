@@ -30,6 +30,7 @@ import { obox } from '../era/props.js';
 import { gridX, gridY, landformGrid, bakeGrid, applyLandform, gridSample } from '../polygonizer/landform.js';
 import { bakeLand, ruleLand } from './shading.js';
 import { reliefField, reliefGrain } from '../noise/relief.js';
+import { groundField } from './ground.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor } from './plan.js';
 
 const TAU = Math.PI * 2;
@@ -81,16 +82,32 @@ function reliefOn(p, R, seed) {
   return { plain, flank: isle && p.recipe.island.walk === 'base' ? field : null };
 }
 
-/** The ground's height: the followed trail's last row eased to the level, every mound risen from it, the stairs cut. */
-function groundOf(p, seed) {
+/** The recipe's terrain ground under the plain (ground.js), faded out round every tower on the level ground. */
+function groundOn(p, seed) {
+  const field = groundField(p.recipe.ground, p.tiers[0].centre, seed), posts = p.tiers.filter((t) => t.form !== 'mound').map((t) => ({ c: t.centre, r: t.half * 1.6 }));
+  return (x, y) => {
+    let w = 1;
+    for (const q of posts) w *= smooth(q.r, q.r + 4, Math.hypot(x - q.c[0], y - q.c[1]));
+    return w > 0 ? field(x, y) * w : 0;
+  };
+}
+
+/**
+ * The ground's height: the followed trail's last row eased to the level, every mound risen from it, the stairs cut.
+ * The recipe's `ground` (a terrain world's field) lifts the plain under the seam's fade like the relief; `bare` leaves
+ * it out (what the island's geology reads as raised land: the mounds and the high shore, not the ground's hills).
+ */
+function groundOf(p, seed, bare = false) {
   const z0 = p.join.at[2], site = p.join.site, D = site ? site.D : p.join.at[1], N = p.join.N;
   const mounds = p.tiers.filter((t) => t.form === 'mound'), stairs = p.links.filter((L) => L.via === 'stair');
   const lump = (x, y) => 0.35 * (vnoise(x * 0.09, y * 0.09, seed + 311) - 0.5);
   const R = p.recipe.relief, relief = R ? reliefOn(p, R, seed) : null;
+  const terrain = p.recipe.ground && !bare ? groundOn(p, seed) : null;
   return (x, y) => {
     const along = (x - p.join.at[0]) * N[0] + (y - p.join.at[1]) * N[1];
     if (along < -0.01 && site) return site.ground(x, D);
-    const level = z0 + (relief ? lump(x, y) + relief.plain(x, y) : lump(x, y)) * smooth(0, SEAM, y - D);
+    const plain = relief ? lump(x, y) + relief.plain(x, y) : lump(x, y);
+    const level = z0 + (terrain ? plain + terrain(x, y) : plain) * smooth(0, SEAM, y - D);
     let h = site ? site.ground(x, D) + (level - site.ground(x, D)) * smooth(0, SEAM, y - D) : level;
     if (relief?.flank) { const f = relief.flank(x, y) * smooth(0, SEAM, y - D); for (const t of mounds) h = Math.max(h, moundAt(t, x, y) + f); }
     else for (const t of mounds) h = Math.max(h, moundAt(t, x, y));
@@ -129,8 +146,8 @@ function islandGround(heightAt, S) {
  * the mountain, the high shore and the boulders are one faceted rock. The level plain, the beach and the seabed keep
  * their own height.
  */
-function islandGeology(st, S, heightAt, seed) {
-  const L = st.landform, R = S.reach, raised = (x, y) => smooth(S.z0 + 0.4, S.z0 + 2, heightAt(x, y));
+function islandGeology(st, S, heightAt, seed, raisedOf = heightAt) {
+  const L = st.landform, R = S.reach, raised = (x, y) => smooth(S.z0 + 0.4, S.z0 + 2, raisedOf(x, y));
   const g = landformGrid({ x0: S.c[0] - R, x1: S.c[0] + R, y0: S.c[1] - R, y1: S.c[1] + R, res: Math.round((2 * R) / L.cell) + 1 });
   bakeGrid(g, heightAt);
   applyLandform(g, [
@@ -143,6 +160,40 @@ function islandGeology(st, S, heightAt, seed) {
   }
   const ground = (x, y) => gridSample(g, x, y);
   return { ground, raised: (x, y) => raised(x, y) > 0.5, scree: g.scree.filter((r) => raised(r.x, r.y) > 0.5).slice(0, 24).map((r) => ({ ...r, z0: ground(r.x, r.y) })) };
+}
+
+// the valley's horizon: eight bearings, read out to 32 m in doublings over the ground smoothed a metre wide (the
+// rock's jags are crevice and ridge's to read, not the valley's)
+const BEARINGS = [[1, 0], [-1, 0], [0, 1], [0, -1], [Math.SQRT1_2, Math.SQRT1_2], [-Math.SQRT1_2, Math.SQRT1_2], [Math.SQRT1_2, -Math.SQRT1_2], [-Math.SQRT1_2, -Math.SQRT1_2]];
+const REACHES = [2, 4, 8, 16, 32], SMOOTH_CELLS = 2;
+const sine = (t) => t / Math.sqrt(1 + t * t);
+function blurred(g) {
+  const { nx, ny } = g, a = new Float64Array(nx * ny), b = new Float64Array(nx * ny), R = SMOOTH_CELLS;
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { let s = 0, n = 0; for (let d = -R; d <= R; d++) { const k = i + d; if (k >= 0 && k < nx) { s += g.z[j * nx + k]; n++; } } a[j * nx + i] = s / n; }
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { let s = 0, n = 0; for (let d = -R; d <= R; d++) { const k = j + d; if (k >= 0 && k < ny) { s += a[k * nx + i]; n++; } } b[j * nx + i] = s / n; }
+  return b;
+}
+/**
+ * How much sky each ground corner loses to the land round it, beyond what an even slope of its own grade loses (0 on
+ * a plain or an even slope … about 0.3 at the foot of a wall, more down a gully), on the ground grid: per bearing, the
+ * sine of the highest angle the land rises to, less the sine of the slope's own rise that way, averaged.
+ * → { at(corner) → 0..1, or null off the ground (a boulder's top, a wall's head: half a metre and more off it) }.
+ */
+export function valleyOf(g) {
+  const sm = blurred(g), occ = new Float64Array(g.nx * g.ny);
+  for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+    const x = gridX(g, i), y = gridY(g, j), z = sm[j * g.nx + i];
+    let s = 0;
+    for (const [bx, by] of BEARINGS) {
+      const k = (gridSample(g, x + bx, y + by, sm) - gridSample(g, x - bx, y - by, sm)) / 2;
+      let t = 0;
+      for (const r of REACHES) { const u = (gridSample(g, x + bx * r, y + by * r, sm) - z) / r; if (u > t) t = u; }
+      const o = sine(t) - sine(k > 0 ? k : 0);
+      if (o > 0) s += o;
+    }
+    occ[j * g.nx + i] = s / BEARINGS.length;
+  }
+  return { at: (c) => (Math.abs(c[2] - gridSample(g, c[0], c[1], g.z)) > 0.5 ? null : gridSample(g, c[0], c[1], occ)) };
 }
 
 /** The sea: a sheet of quads at the waterline, clear over the shallows and deep where the bed falls away. */
@@ -164,6 +215,56 @@ function seaFaces(st, S, heightAt, grid) {
   return out;
 }
 
+/**
+ * Rock in planes (shading `facet`, metres): the grid's rock quads grown into facets (from each unclaimed quad in row
+ * order, across shared edges, while a neighbour's normal is within ~25° of the first quad's and its centre within half
+ * the span), each facet's plane its quads' area-weighted centre and normal; then every grid corner all of whose quads
+ * are rock is drawn to the mean of its facets' planes (vertically: the ground stays a heightfield; at most half a metre,
+ * a plane steeper than ~78° left out). A corner shared with grass stays, so the land's seams do not move. The rock is
+ * then planes of stone in its geometry: its light, crease and contact read planes, not the grid's jags. Three passes,
+ * each regrowing the facets on the last one's rock, straighten it about a third (one pass, about a seventh).
+ */
+const FACET_COS = 0.9, FACET_MOVE = 0.5, FACET_STEEP = 0.2, FACET_PASSES = 3;
+function planarise(g, z, at, isCliff, span) {
+  const qx = g.nx - 1, qy = g.ny - 1, Q = new Array(qx * qy).fill(null);
+  for (let j = 0; j < qy; j++) for (let i = 0; i < qx; i++) {
+    const cs = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], n = facet(cs, [0, 0, 1]);
+    if (isCliff(cs, n)) Q[j * qx + i] = { n, c: mean(cs), a: Math.hypot(...cross(sub(cs[2], cs[0]), sub(cs[3], cs[1]))) / 2, f: -1 };
+  }
+  const planes = [], r2 = (span / 2) * (span / 2);
+  for (let k = 0; k < Q.length; k++) {
+    const q0 = Q[k]; if (!q0 || q0.f >= 0) continue;
+    const id = planes.length, members = [k]; q0.f = id;
+    for (let m = 0; m < members.length; m++) {
+      const kk = members[m], i = kk % qx, j = (kk / qx) | 0;
+      for (const [ni, nj] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+        if (ni < 0 || nj < 0 || ni >= qx || nj >= qy) continue;
+        const q = Q[nj * qx + ni];
+        if (!q || q.f >= 0 || dot(q.n, q0.n) < FACET_COS) continue;
+        const d = sub(q.c, q0.c); if (dot(d, d) > r2) continue;
+        q.f = id; members.push(nj * qx + ni);
+      }
+    }
+    let n = [0, 0, 0], c = [0, 0, 0], A = 0;
+    for (const kk of members) { const q = Q[kk]; n = add(n, mul(q.n, q.a)); c = add(c, mul(q.c, q.a)); A += q.a; }
+    planes.push({ n: unit(n), c: mul(c, 1 / (A || 1)) });
+  }
+  const out = Float64Array.from(z);
+  for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) {
+    const ids = new Set(); let all = true;
+    for (const [a, b] of [[i - 1, j - 1], [i, j - 1], [i - 1, j], [i, j]]) {
+      if (a < 0 || b < 0 || a >= qx || b >= qy) continue;
+      const q = Q[b * qx + a]; if (!q) { all = false; break; } ids.add(q.f);
+    }
+    if (!all || !ids.size) continue;
+    const x = gridX(g, i), y = gridY(g, j), z0 = z[j * g.nx + i];
+    let s = 0, k = 0;
+    for (const id of ids) { const P = planes[id]; if (P.n[2] < FACET_STEEP) continue; s += P.c[2] - (P.n[0] * (x - P.c[0]) + P.n[1] * (y - P.c[1])) / P.n[2]; k++; }
+    if (k) { const dz = s / k - z0; out[j * g.nx + i] = z0 + Math.max(-FACET_MOVE, Math.min(FACET_MOVE, dz)); }
+  }
+  z.set(out);
+}
+
 /** The ground grid's faces on the followed trail's lattice (or a plain one standing alone), cliff and grass. */
 function groundFaces(st, p, heightAt, S = null) {
   const site = p.join.site, c = p.tiers[0].centre;
@@ -175,17 +276,20 @@ function groundFaces(st, p, heightAt, S = null) {
   const z = new Float64Array(g.nx * g.ny);
   for (let j = 0; j < g.ny; j++) for (let i = 0; i < g.nx; i++) z[j * g.nx + i] = heightAt(gridX(g, i), gridY(g, j));
   const at = (i, j) => [gridX(g, i), gridY(g, j), z[j * g.nx + i]], sc = st.tiles.cliff.scale, out = [];
+  // the cliff rule: steeper than the card's slope.rock is cliff; on a geology island, so is every face of the raised
+  // land that is not a flat bench or top, so a mountain reads as rock, never as a turned (lathed) mound
+  const isCliff = (cs, n) => n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1]));
+  const F = p.recipe.shading ? p.recipe.shading.facet : 0;
+  if (F > 0) for (let pass = 0; pass < FACET_PASSES; pass++) planarise(g, z, at, isCliff, F);
   for (let j = 0; j + 1 < g.ny; j++) for (let i = 0; i + 1 < g.nx; i++) {
     const cs = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], n = facet(cs, [0, 0, 1]);
-    // the cliff rule: steeper than the card's slope.rock is cliff; on a geology island, so is every face of the raised
-    // land that is not a flat bench or top, so a mountain reads as rock, never as a turned (lathed) mound
-    if (n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1]))) {
+    if (isCliff(cs, n)) {
       const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0;
       out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), cel: 'cliff', celN: n, uv: cs.map((q) => [r5(q[h] / sc), r5(q[2] / sc)]), group: 'isekai:cliff' });
     } else if (S && mean(cs)[2] < S.sea + 0.6) out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.trail, group: 'isekai:sand', flat: n[2] });   // the beach and the seabed
     else out.push({ corners: cs.map(P), normal: n.map(r5), outNormal: n.map(r5), tint: st.tint.ground, group: 'isekai:ground', flat: n[2] });
   }
-  return { faces: out, grid: g };
+  return { faces: out, grid: { ...g, z } };
 }
 
 /** The walks: the approach, a path across each terrace, every spiral's shelf and wall, every stair's blocks. */
@@ -309,7 +413,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   // the island, when the recipe has one: its high side by default to the left of the wide view, which sees both shores
   const S = p.recipe.island ? islandOf(p, p.recipe.island, Math.atan2(-p.join.N[0], p.join.N[1])) : null;
   const shore = S ? islandGround(groundOf(p, seed), S) : null;
-  if (S && S.geology) S.geo = islandGeology(st, S, shore, seed);
+  if (S && S.geology) S.geo = islandGeology(st, S, shore, seed, p.recipe.ground ? islandGround(groundOf(p, seed, true), S) : shore);
   const heightAt = S ? (S.geo ? S.geo.ground : shore) : groundOf(p, seed), ground = groundFaces(st, p, heightAt, S), walk = walkFaces(st, p, heightAt, made, !!S && S.walk === 'base');
   const built = [...p.tiers.filter((t) => t.form === 'tower').flatMap((t) => towerFaces(t, made, seed)), ...p.links.filter((L) => L.via === 'climb').flatMap((L) => ladderFaces(L.climb, made))];
   // a few boulders round the first tier's foot, off the approach
@@ -357,7 +461,8 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     const isLand = (f) => f.group in landTint;
     const soft = plain.filter(isLand).map((f) => ({ ...f, tint: landTint[f.group] }));
     const grain = p.recipe.relief ? reliefGrain(p.recipe.relief, seed, ground.grid.dx) : null;
-    land = ruleLand(bakeLand([...soft, ...rockFaces], ambient, sun, SH), SH, landTint, grain ? { at: grain, amount: p.recipe.relief.grain } : null);
+    land = ruleLand(bakeLand([...soft, ...rockFaces], ambient, sun, SH), SH, landTint, { ...(grain ? { grain: { at: grain, amount: p.recipe.relief.grain } } : {}),
+      cell: ground.grid.dx, seed: seed + 517, ...(SH.valley > 0 ? { valley: valleyOf(ground.grid) } : {}) });
     baked = bakeStageLight(plain.filter((f) => !isLand(f)), [], ambient, undefined, sun);
   } else baked = bakeStageLight(plain, [], ambient, undefined, sun);
   // sand takes the trail's ramp: a card has no sand of its own yet
@@ -388,7 +493,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     localMeru: {
       id: `local-meru:${p.recipe.id}`, ...(J.from ? { after: J.from } : {}),
       tiers: p.tiers.map((t) => ({ id: t.id, form: t.form, up: t.up.via, base: t.base, top: t.top })),
-      meru: p.meru.stack, made: { kit: made.kitId, tokens: made.tokens }, ...(p.recipe.relief ? { relief: p.recipe.relief.id } : {}),
+      meru: p.meru.stack, made: { kit: made.kitId, tokens: made.tokens }, ...(p.recipe.relief ? { relief: p.recipe.relief.id } : {}), ...(p.recipe.ground ? { ground: { heartbeat: p.recipe.ground.from.heartbeat ?? null, span: p.recipe.ground.span, height: p.recipe.ground.height } } : {}),
       laws: localMeruLaws(p).map(({ law, ok, value }) => ({ law, ok, value })),
     },
   };

@@ -14,6 +14,26 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Sixth-gen land: ground, mix, facets, valley
+
+Four opt-in words on a local meru (and a geocube's outside), each absent unless asked, so every cube and stage
+renders byte-identically without them.
+
+- **`ground`: a terrain world under the level.** `meru.ground` / geocube `outside.ground` takes a painted scene
+  (`{ from: { heartbeat, splatch, seed }, span, height, at }`) through the `terrain` kind's field (its landform,
+  erosion and fracture detail) and lays it under the plain: its lowest point under the level is the datum, its range
+  scaled to `height`, eased in from the seam. The island's geology still reads only the mounds and the high shore as
+  raised land.
+- **`shading.mix`: surfaces mixed per corner.** Each corner takes rock, grass and sand by how much of each lies round
+  it, spread `mix` metres and drawn back to a soft, noisy edge, on both sides of a seam: grass meets rock in a curve,
+  not in the grid's steps.
+- **`shading.facet`: rock in planes.** The rock's grid heights are drawn onto facet planes about `facet` metres wide
+  before the land is lit, so a cliff reads as planes of stone instead of a checkerboard of half-metre quads; the
+  grass's corners stay where they are.
+- **`shading.valley`: the sky a hollow loses.** The foot of a slope, a hollow and a gully darken toward the shade by
+  how much sky the land round them hides, read over tens of metres and beyond what an even slope of the same grade
+  hides.
+
 ### Perlin spike: relief for the geocube land
 
 - **One noise module.** `lib/graph/noise/noise.js`: 2D gradient noise on the terrain kernel's integer hash and

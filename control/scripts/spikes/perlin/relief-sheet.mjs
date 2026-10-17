@@ -8,6 +8,8 @@
  *
  * `none` is the cube as it ships. RELIEF_JSON='{"from":"eroded","height":3}' adds an own relief as `own`.
  * CAMERA=seam|wide|top shoots from that payload camera instead of the island's.
+ * VARIANTS='{"name":{"land":{"facet":3},"ground":{…}}}' renders named changes to the cube's outside instead of the
+ * cards (`land` merges over the cube's own land).
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -23,7 +25,8 @@ const { resolveChromium, launchChromium, CHROMIUM_LAUNCH_ARGS, CHROMIUM_WEBGL_AR
 
 const [cubeId = 'valley-morning', ...asked] = process.argv.slice(2);
 const camera = process.env.CAMERA || null;
-const cards = asked.length ? asked : ['none', ...Object.keys(RELIEF_CARDS)];
+const variants = process.env.VARIANTS ? JSON.parse(process.env.VARIANTS) : null;
+const cards = variants ? Object.keys(variants) : asked.length ? asked : ['none', ...Object.keys(RELIEF_CARDS)];
 const own = process.env.RELIEF_JSON ? JSON.parse(process.env.RELIEF_JSON) : null;
 if (own) cards.push('own');
 
@@ -36,8 +39,9 @@ const browser = await launchChromium({ executablePath: await resolveChromium(), 
 const shots = [];
 try {
   for (const card of cards) {
-    const relief = card === 'none' ? undefined : card === 'own' ? own : card;
-    const cube = { from: cubeId, outside: { ...base, ...(relief ? { relief } : {}) } };
+    const relief = variants || card === 'none' ? undefined : card === 'own' ? own : card;
+    const V = variants ? variants[card] : null;
+    const cube = { from: cubeId, outside: { ...base, ...(relief ? { relief } : {}), ...(V ? { ...V, ...(V.land ? { land: { ...base.land, ...V.land } } : {}) } : {}) } };
     const t0 = Date.now();
     const { payload } = await resolveWorldScene({ title: `${cubeId} · ${card}`, manifest: { kind: 'geocube', cube, show: 'land', walk: false } });
     if (camera) { const k = payload.cameras.findIndex((c) => c.name === camera); if (k < 0) throw new Error(`no camera '${camera}' (${payload.cameras.map((c) => c.name).join(', ')})`); payload.cameras = [payload.cameras[k], ...payload.cameras.filter((_, i) => i !== k)]; }
@@ -51,7 +55,7 @@ try {
     const el = await page.$('#wrap'), file = `${cubeId}-${card}${camera ? `-${camera}` : ''}.png`;
     writeFileSync(path.join(outDir, file), Buffer.from(el ? await el.screenshot({ type: 'png' }) : await page.screenshot({ type: 'png' })));
     await page.close();
-    const reads = card === 'none' ? 'the cube as it ships' : card === 'own' ? JSON.stringify(own) : RELIEF_CARDS[card].reads;
+    const reads = V ? JSON.stringify(V) : card === 'none' ? 'the cube as it ships' : card === 'own' ? JSON.stringify(own) : RELIEF_CARDS[card].reads;
     shots.push({ card, file, reads, faces: payload.faces.length, ms: Date.now() - t0 });
     console.log(`${card.padEnd(9)} ${String(payload.faces.length).padStart(6)} faces  ${Date.now() - t0} ms  → ${file}`);
   }
