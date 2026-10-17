@@ -76,6 +76,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   between poses the behavior solver already solves for its own body (every bone slerped between them), on any body
   with legs (`{ reactions: 'all' }`, or the words in a motion list). A cast's beast is made with them, and on the level
   map its hit, topple and get-up play them. An animal without them builds byte-identically.
+- **Legless beasts and mascots take a blow too.** A snake or an octopus flinches by rearing back from its coil into its
+  strike coil and falls laid out flat (the flatter of on its belly or on its side for that body); a swimmer has none
+  yet. A cast's mascot is made with `flinch` (squashed down, the arms thrown up, the surprised face), `fall` (tipped
+  over its feet onto its back, eyes shut, its head on the floor) and `rise` (back up through a crouch), and plays them
+  on the field (`mascotPlan`'s `reactions`; every other mascot is minted as it was).
+- **Keyed one-shots and a body tipped over its feet** (`polygonizer/station-loft-rig.js`): a plan clip may be
+  `{ once: true, keys }`, packed 0 … 1 inclusive as a function clip with `once` is (a fall that ends lying down); a key's
+  `body: { pitch?, roll?, up? }` without `at` turns the figure about the floor under its feet. Clips that use neither
+  are byte-identical.
 
 ## [3.1.1] - 2026-10-16
 

@@ -363,9 +363,14 @@ export function rigNodesAt(R, pose = {}) {
   // `body: { pitch?, roll?, at, up? }` (a roll's: hero-jump.js) turns the whole posed figure rigidly about the point `at`
   // — first `roll` degrees to its right (the head toward +x), then `pitch` degrees forward (the head toward +y), so a
   // forward roll tilted onto a shoulder goes over it diagonally — then raises it `up` metres. Absent ⇒ nothing moves.
+  // Without `at` (a keyed clip's: a fall), it turns about the floor under its feet, the body falling over them, and only
+  // when it turns or rises at all
   const B = pose.body;
-  if (B && typeof B === 'object' && Array.isArray(B.at)) {
-    const pv = B.at, up = Number.isFinite(B.up) ? B.up : 0;
+  const tipped = B && typeof B === 'object' && B.at === undefined && ((Number.isFinite(B.pitch) && B.pitch) || (Number.isFinite(B.roll) && B.roll) || (Number.isFinite(B.up) && B.up));
+  if (B && typeof B === 'object' && (Array.isArray(B.at) || tipped)) {
+    const feet = Object.values(R.legs || {}).map((L) => nodes[L.hock]).filter(Boolean), floor = Math.min(...Object.values(R.legs || {}).map((L) => nodes[L.toeBase]?.[2] ?? Infinity));
+    const pv = Array.isArray(B.at) ? B.at : feet.length ? [feet.reduce((s, p) => s + p[0], 0) / feet.length, feet.reduce((s, p) => s + p[1], 0) / feet.length, Number.isFinite(floor) ? floor : 0] : [0, 0, 0];
+    const up = Number.isFinite(B.up) ? B.up : 0;
     // the rotation itself (the basis turned as the points are), and the upright solve, ride the map unenumerated for
     // boneFrames: each bone's frame is the upright one turned by it
     const turn = (v) => { let q = v; if (Number.isFinite(B.roll) && B.roll) q = rotAxis(q, [0, 0, 0], 1, B.roll); if (Number.isFinite(B.pitch) && B.pitch) q = rotAxis(q, [0, 0, 0], 0, -B.pitch); return q; };
@@ -425,8 +430,14 @@ export function skinLayered(mesh, skin, frames) {
   return mesh.vertices.map((v, i) => { const out = [0, 0, 0]; for (let k = 0; k < 4; k++) { const w = skin.weights[i][k]; if (!w) continue; const f = frames[skin.joints[i][k]]; const p = add(f.head, mv(f.m, sub(v, f.restHead))); out[0] += w * p[0]; out[1] += w * p[1]; out[2] += w * p[2]; } return out; });
 }
 
-/** Keyposes → phase → pose: vajra words resolved per key, every numeric channel smoothstep-blended, strings held. */
+/** Keyposes → phase → pose: vajra words resolved per key, every numeric channel smoothstep-blended, strings held. A
+ * clip given as `{ once: true, keys }` is a ONE-SHOT (no loop back to its first key; sampled 0 … 1 inclusive by the
+ * packer, as a function clip carrying `once` is): a fall that ends lying down. */
 export function layeredClip(keyposes, R, { loop = true } = {}) {
+  if (keyposes && !Array.isArray(keyposes) && typeof keyposes === 'object' && Array.isArray(keyposes.keys)) {
+    if (keyposes.once !== true) throw new Error('station-loft-rig: a clip object is { once: true, keys }: a one-shot');
+    const fn = layeredClip(keyposes.keys, R, { loop: false }); fn.once = true; return fn;
+  }
   if (!Array.isArray(keyposes) || !keyposes.length) throw new Error('station-loft-rig: a clip needs keyposes');
   const core = Object.fromEntries(VAJRA_CORE.map((k) => [k, { x: R.joints[k][0], y: R.joints[k][1], z: R.joints[k][2] }]));
   const keys = keyposes.map((k) => { const own = {}; const vajra = {}; for (const [n, v] of Object.entries(k)) if (handChannel(R, n)) own[n] = handValue(R, n, v); else if (RIG_CHANNELS.includes(n) || n in R.chains) own[n] = v; else vajra[n] = v; return { ...withMath(dmath, () => resolvePose(vajra, core)), ...own }; });
@@ -707,7 +718,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     // (the posed nodes, raised by dz, keep every turn rigNodesAt records — the body's, a stance's facing, the legs' splay —
     // so each bone's frame here is the one the skin is posed with: dropping the facing left a turned stance's head and
     // jaw on different spins, the seam under the chin open in the export)
-    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = typeof clip === 'function' && clip.once === true; const flat = [];
+    const fn = typeof clip === 'function' ? clip : layeredClip(clip, R); const K = typeof clip === 'function' && clip.keys > 0 ? clip.keys : keys; const once = fn.once === true; const flat = [];
     for (let k = 0; k < K; k++) { const { nodes } = rigNodesAt(R, fn(once ? k / (K - 1) : k / K)); const shifted = Object.fromEntries(Object.entries(nodes).map(([n, v]) => [n, [v[0], v[1], v[2] + dz]])); for (const m of ['$body', '$facing', '$legYaw']) if (nodes[m]) Object.defineProperty(shifted, m, { value: nodes[m], enumerable: false }); for (const f of boneFrames(R, rest, shifted)) flat.push(...f.q.map(r4), ...f.head.map(r4)); }
     packedClips[name] = { k: K, b: flat, ...(seconds?.[name] > 0 ? { s: seconds[name] } : {}), ...(speeds?.[name] > 0 ? { v: speeds[name] } : {}), ...(once ? { once: true } : {}), ...(typeof clip === 'function' && clip.air ? { air: clip.air } : {}), ...(typeof clip === 'function' && clip.roll ? { roll: clip.roll } : {}), ...(typeof clip === 'function' && clip.stop ? { stop: clip.stop } : {}), ...(typeof clip === 'function' && clip.move ? { move: clip.move } : {}), ...(typeof clip === 'function' && clip.rest ? { rest: clip.rest } : {}), ...(typeof clip === 'function' && clip.vault ? { vault: clip.vault } : {}), ...(typeof clip === 'function' && clip.held ? { held: clip.held } : {}) };
     // a held thing's PROPS (hero-motion.js: a hold's or a guard's things at rest on their hand's bone, raised by dz): each its

@@ -46,7 +46,8 @@ repertoire: `{ behaviors: ['relax'], variants: { relax: 'curl' } }`. A floating 
 ground's level. A behavior the species is not posed doing yet is refused, naming the ones it is.
 REACTIONS ride it too, on any body with legs: `flinch` (dropped low on bent legs, the head thrown up, back to the
 stand), `fall` (onto its side, gathering speed) and `rise` (back up onto its feet), each a one-shot between poses its own
-body solves (`['walk', 'trot', 'flinch', 'fall', 'rise']`, or `{ reactions: 'all' }`). A legless body has none yet.
+body solves (`['walk', 'trot', 'flinch', 'fall', 'rise']`, or `{ reactions: 'all' }`). A legless body takes them on its
+own coil: it rears back into its strike coil to flinch and falls laid out flat; a swimmer has none yet.
 
 ## The maker door — a NEW fish or snake from parameters
 

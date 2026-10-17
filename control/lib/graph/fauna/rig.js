@@ -95,7 +95,7 @@ export const motionGaits = (id) => Object.keys(locomotionFor(SPECIES[id].family,
 
 /** The behaviors a species can be minted with: those whose strategy is posed (behavior/pose.js `posable`). */
 export const motionBehaviors = (id) => Object.keys(BEHAVIORS).filter((b) => posable(id, b).ok);
-/** The reactions species `id` can take a blow with (behavior/react.js): a flinch, a fall and a rise on legs, none without. */
+/** The reactions species `id` can take a blow with (behavior/react.js): a flinch, a fall and a rise; none for a swimmer. */
 export const motionReactions = (id) => reactsOf(id);
 
 /**

@@ -19,8 +19,8 @@
  *                          a jog to cross the field, and the moves its rig can solve (a stance, a strike, the reactions,
  *                          the fall); a showcase pose is a person's
  *   beastGaitsOf(species)→ [walk, run]: the two gaits a beast crosses the field in (fauna/locomotion), slowest first
- *   beastMovesOf(species)→ { motion: [gaits…, reactions…], states }: a beast's animal `motion` (its two gaits and, on
- *                          legs, its flinch, fall and rise: fauna/behavior/react.js) and the field states they play
+ *   beastMovesOf(species)→ { motion: [gaits…, reactions…], states }: a beast's animal `motion` (its two gaits and its
+ *                          flinch, fall and rise: fauna/behavior/react.js) and the field states they play
  *
  * Pure. First readings, for the eyes gate.
  */
@@ -75,7 +75,7 @@ export function beastGaitsOf(species) {
   return [...new Set([walk, run])];
 }
 
-/** A beast's motion: its two gaits and, on legs, its reactions; and the field states the reactions play. */
+/** A beast's motion: its two gaits and its reactions (a swimmer has none); and the field states the reactions play. */
 export function beastMovesOf(species) {
   const reacts = motionReactions(species);
   return {

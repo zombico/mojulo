@@ -7,12 +7,14 @@
  *   fall     the stand onto its side, the head to the ground, gathering speed as it goes (a body falling)
  *   rise     the fall played back the other way, slower: from its side up onto its feet
  *
- * A body standing on its legs (four or two: capabilities.js `support`) has them; a legless one (a snake, an octopus)
- * has none yet. Opt-in by a minted animal's `motion` (`reactions`, fauna/rig.js); absent, every species builds
- * byte-identically. Pure and deterministic.
+ * A body standing on its legs (four or two: capabilities.js `support`) has them; so does a LEGLESS one (a snake, an
+ * octopus), on its own three poses: coiled at rest, reared back into its strike coil to flinch, and laid out flat on the
+ * ground to fall (whichever of on its belly or on its side lies flatter for that body). A swimmer has none yet (it
+ * never stands on the field). Opt-in by a minted animal's `motion` (`reactions`, fauna/rig.js); absent, every species
+ * builds byte-identically. Pure and deterministic.
  *
  *   REACTIONS, REACTION_SECONDS
- *   reactsOf(id)                          → the reaction words species `id` has ([] for a legless body)
+ *   reactsOf(id)                          → the reaction words species `id` has ([] for a swimmer)
  *   reactionFrames(id, word, n = 24)      → n frames over the one-shot, 0 … 1 inclusive (a gait frame's shape)
  */
 import { prepare, poseStrategy } from './pose.js';
@@ -22,7 +24,23 @@ import { capabilitiesOf } from './capabilities.js';
 const POSES = Object.freeze({
   four: { stand: { support: 'stand', head: 'level' }, recoil: { support: 'crouch', head: 'high' }, down: { support: 'side', head: 'ground' } },
   two: { stand: { support: 'upright', head: 'level' }, recoil: { support: 'crouch', head: 'high' }, down: { support: 'side', head: 'ground' } },
+  // no legs: `down` is chosen per body (posesOf)
+  none: { stand: { support: 'coil', head: 'forward' }, recoil: { support: 'coil-strike', head: 'high' }, down: null },
 });
+/** A body's three poses: its support's, a legless body's `down` the flatter of lying on its belly or its side. */
+function posesOf(id, ctx) {
+  const cap = capabilitiesOf(id), P = cap.support === 'none' && cap.legless ? POSES.none : POSES[cap.support];
+  if (!P) return null;
+  const posed = (p) => poseStrategy(ctx, still(p), 0);
+  const out = { stand: posed(P.stand), recoil: posed(P.recoil) };
+  if (P.down) out.down = posed(P.down);
+  else {
+    const top = (f) => Math.max(...Object.values(f.bones).flatMap((b) => [b.head[2], b.tail[2]]));
+    const belly = posed({ support: 'belly-flat', head: 'ground' }), side = posed({ support: 'side', head: 'ground' });
+    out.down = top(side) < top(belly) ? side : belly;
+  }
+  return out;
+}
 const still = (p) => ({ ...p, tail: 'rest', loop: 'stare' });
 
 const smooth = (u) => u * u * (3 - 2 * u);
@@ -37,8 +55,8 @@ export const REACTIONS = Object.freeze({
 });
 export const REACTION_SECONDS = Object.freeze({ flinch: 0.5, fall: 0.9, rise: 1.3 });
 
-/** The reaction words species `id` has: all of them on legs, none yet without. */
-export const reactsOf = (id) => (POSES[capabilitiesOf(id).support] ? Object.keys(REACTIONS) : []);
+/** The reaction words species `id` has: all of them on legs or legless on the ground, none yet for a swimmer. */
+export const reactsOf = (id) => { const c = capabilitiesOf(id); return POSES[c.support] && (c.support !== 'none' || c.legless) ? Object.keys(REACTIONS) : []; };
 
 // ─── blending two posed frames ───────────────────────────────────────────────────────────────────────────────────
 const lerp3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
@@ -80,9 +98,8 @@ function blend(A, B, t) {
 export function reactionFrames(id, word, n = 24) {
   const keys = REACTIONS[word];
   if (!keys) throw new Error(`fauna react: no reaction '${word}' (the reactions: ${Object.keys(REACTIONS).join(', ')})`);
-  const P = POSES[capabilitiesOf(id).support];
-  if (!P) throw new Error(`fauna react: '${id}' has no legs to take a blow on yet (no reactions)`);
-  const ctx = prepare(id), posed = Object.fromEntries(Object.entries(P).map(([k, p]) => [k, poseStrategy(ctx, still(p), 0)]));
+  if (!reactsOf(id).length) throw new Error(`fauna react: '${id}' swims and does not take a blow on the field yet (no reactions)`);
+  const ctx = prepare(id), posed = posesOf(id, ctx);
   const at = (u) => {
     if (u <= keys[0][0]) return posed[keys[0][1]];
     for (let i = 1; i < keys.length; i++) {

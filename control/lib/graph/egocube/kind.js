@@ -16,7 +16,8 @@
  * place of `roll`, rolled into `castSheet` where it is written and stored by value as a sheet is. Its nodes are its
  * members, by path; its preview is the cast standing in a line; a member is made by its path (`member`), and a member
  * on the hero door is made with its MOVES (moves.js): its stance, its attack, its reactions and its win, as clips; one
- * below it with a walk, a jog and the moves its rig solves; a beast with its two gaits and its reactions.
+ * below it with a walk, a jog and the moves its rig solves; a beast with its two gaits and its reactions; a mascot with
+ * its flinch, fall and rise.
  *
  * `roll` is rollEgocube's arguments (with `years` and `chapters`, rollThread's: a fate thread). The sheet (or the
  * thread) is ROLLED WHERE IT IS WRITTEN and stored by value (`rollStored`): a later change to the Egocube's tables never
@@ -134,7 +135,8 @@ export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
   // its body is its own (mascot-form.js), not dressed: its promise and its one piece are its look
   const mascot = node.sheet.tuning === 'mascot' ? node.sheet : out === 'mascot' ? mascotOfPerson(node.sheet) : null;
   if (mascot) {
-    const P = mascotPlanFromSheet(mascot, { ...(title ? { title } : {}) });
+    // (a cast's mascot takes a blow too: its flinch, fall and rise, mascot-form.js)
+    const P = mascotPlanFromSheet(mascot, { ...(title ? { title } : {}), ...(node.member ? { reactions: true } : {}) });
     return { node: { ...(node.path ? { path: node.path } : {}), years: node.years, band: node.band }, ...of, output: 'mascot', create: P.create, after: P.after, ledger: P.ledger, modelSheet: modelSheet(mascot, P),
       ...(mascot.mapping ? { mascot: { facets: mascot.facets, mapping: mascot.mapping } } : {}) };
   }
