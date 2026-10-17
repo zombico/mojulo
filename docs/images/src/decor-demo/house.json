@@ -1,4 +1,4 @@
-{ "title": "Maple Street house", "ref": "maple_street", "manifest": { "width": 50, "height": 38, "seed": 7, "furnish": true, "windows": true, "ceilings": true, "view": "cutaway",
+{ "title": "Maple Street house", "ref": "maple_street", "manifest": { "width": 50, "height": 38, "seed": 7, "windows": true,
   "rooms": [
    { "x": 2, "y": 2, "w": 22, "h": 16, "glyph": "L" },
    { "x": 24, "y": 2, "w": 10, "h": 16, "glyph": "K" },

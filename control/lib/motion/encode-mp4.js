@@ -2,8 +2,9 @@
  * Motion — the STITCHER encoder: N already-forged motion clips → one long-form
  * MP4/H.264, the broadly-playable, downloadable container the GIF path can't be.
  *
- * Each source clip is recovered to its own array of self-contained frame SVGs
- * (the same `frameSvgs` the GIF encoder consumes). This module:
+ * Each source clip is recovered to its own frames: self-contained frame SVGs (the
+ * same `frameSvgs` the GIF encoder consumes), or PNG buffers (`framePngs`) for a
+ * raster clip such as a three.js World motion. This module:
  *   1. picks ONE output canvas W×H (letterbox — no clip is cropped or distorted);
  *   2. rasters every clip's frames onto that canvas via the bundled sharp;
  *   3. RESAMPLES each clip to the single output fps (a clip keeps its real-time
@@ -48,10 +49,15 @@ export function planClip(frames, fps, outFps) {
   return { outCount, indices };
 }
 
-/** Intrinsic pixel size of an SVG frame (frames within a clip share a viewBox). */
-async function svgSize(svg, density) {
+/** A clip's frames as sharp inputs: its SVGs at `density`, or its PNG buffers as they are. */
+const clipFrames = (c, density) => (c.frameSvgs?.length
+  ? c.frameSvgs.map((svg) => [Buffer.from(svg), { density }])
+  : (c.framePngs || []).map((png) => [png, {}]));
+
+/** Intrinsic pixel size of a frame (frames within a clip share a size). */
+async function frameSize([input, options]) {
   const sharp = await loadSharp();
-  const meta = await sharp(Buffer.from(svg), { density }).metadata();
+  const meta = await sharp(input, options).metadata();
   return { w: meta.width || 1, h: meta.height || 1 };
 }
 
@@ -60,7 +66,7 @@ const even = (n) => (n % 2 ? n + 1 : n);
 /**
  * Encode an ordered list of clips into one MP4.
  *
- * @param {Array<{ frameSvgs:string[], fps:number, ref?:string, title?:string }>} clips
+ * @param {Array<{ frameSvgs?:string[], framePngs?:Buffer[], fps:number, ref?:string, title?:string }>} clips
  * @param {string} outPath  destination .mp4
  * @param {object} [opts]
  * @param {number} [opts.fps=24]     output (constant) frame rate
@@ -73,29 +79,28 @@ export async function encodeStitchMp4(clips, outPath, opts = {}) {
   const sharp = await loadSharp();
   const { fps = 24, width = 720, bg = '#000000', density = 160 } = opts;
   if (!clips.length) throw new Error('encodeStitchMp4: no clips');
-  for (const c of clips) {
-    if (!c.frameSvgs?.length) throw new Error(`clip ${c.ref || '?'} recovered no frames`);
-  }
+  const frames = clips.map((c) => clipFrames(c, density));
+  frames.forEach((f, i) => { if (!f.length) throw new Error(`clip ${clips[i].ref || '?'} recovered no frames`); });
 
   // ── output canvas: width fixed, height = tallest clip aspect so nothing is
   // cropped; every clip is letterboxed (fit:contain) into this exact W×H. ──
   const W = even(Math.round(width));
   let maxAspect = 0; // h/w
-  for (const c of clips) {
-    const { w, h } = await svgSize(c.frameSvgs[0], density);
+  for (const f of frames) {
+    const { w, h } = await frameSize(f[0]);
     maxAspect = Math.max(maxAspect, h / w);
   }
   const H = even(Math.round(W * (maxAspect || 1)));
 
-  const rasterFrame = (svg) =>
-    sharp(Buffer.from(svg), { density })
+  const rasterFrame = ([input, options]) =>
+    sharp(input, options)
       .resize({ width: W, height: H, fit: 'contain', background: bg })
       .flatten({ background: bg })
       .png()
       .toBuffer();
 
   // ── plan + raster (raster each unique source frame once, reuse for dups) ──
-  const perClip = clips.map((c) => planClip(c.frameSvgs.length, c.fps || fps, fps));
+  const perClip = clips.map((c, i) => planClip(frames[i].length, c.fps || fps, fps));
   const totalFrames = perClip.reduce((s, p) => s + p.outCount, 0);
   const durationSec = totalFrames / fps;
 
@@ -104,13 +109,12 @@ export async function encodeStitchMp4(clips, outPath, opts = {}) {
   try {
     let seq = 0;
     for (let ci = 0; ci < clips.length; ci++) {
-      const clip = clips[ci];
       const plan = perClip[ci];
       const rasters = new Map(); // source-index → PNG buffer (raster-once cache)
       for (const srcIdx of plan.indices) {
         if (!rasters.has(srcIdx)) {
           // eslint-disable-next-line no-await-in-loop -- bounded by frame budget
-          rasters.set(srcIdx, await rasterFrame(clip.frameSvgs[srcIdx]));
+          rasters.set(srcIdx, await rasterFrame(frames[ci][srcIdx]));
         }
         seq += 1;
         // eslint-disable-next-line no-await-in-loop
@@ -197,4 +201,21 @@ export async function encodeFramesMp4(pngBuffers, outPath, opts = {}) {
   const { size } = await fs.stat(outPath);
   const totalFrames = pngBuffers.length;
   return { outPath, totalFrames, fps, durationSec: totalFrames / fps, bytes: size };
+}
+
+/**
+ * Decode an MP4 back to its frames as PNG buffers, in order: how a stitch takes a World clip that was already baked
+ * to video, instead of rendering every frame through headless WebGL again (one H.264 pass more, at the clip's own size).
+ */
+export async function decodeMp4Frames(mp4Path) {
+  const tmpDir = path.join(os.tmpdir(), `moj-decode-${randomUUID().slice(0, 8)}`);
+  await fs.mkdir(tmpDir, { recursive: true });
+  try {
+    const bin = await resolveFfmpeg();
+    await runFfmpeg(bin, ['-y', '-i', mp4Path, path.join(tmpDir, 'f_%06d.png')]);
+    const names = (await fs.readdir(tmpDir)).filter((n) => n.endsWith('.png')).sort();
+    return Promise.all(names.map((n) => fs.readFile(path.join(tmpDir, n))));
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
 }

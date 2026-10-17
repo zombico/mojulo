@@ -14,25 +14,32 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### README demo: redecorating a house
+### README demo: a floor plan to rooms you can live in
 
 - The README and the npm page lead with `docs/images/decor-demo.gif` in place of `lounge-handoff-demo.gif` (which
-  the long tour keeps). It is one real Claude Code session, recorded rather than staged: a homeowner's three asks in
-  their own words (a warm, cozy living room like a cabin; the bigger bedroom calm like a hotel; one wall forest green
-  and a velvet sofa) over a house they were handed, a seven-room floorplan with its own furniture. The agent finds the
-  house and calls `design_interior` itself; `forge_motion` records each room before and after as a walk at eye
-  height; the last slide is the session's own working time, tokens and cost at API list price. README section 2 walks
-  through it with the living room's stored recipe.
-- `docs/images/src/decor-demo/` re-runs it end to end: `run.mjs` drives `claude -p` (`--resume` per ask) with mojulo as
-  the only tool server, `compose.mjs` sets it in a generic chat and encodes the GIF, and `session.json` is the record
-  of the session the GIF shows: every call, reply, token count and the recipes it left. `capture.mjs` films from a
-  replay of those calls, checked against the stored recipes, so a kernel fix re-shoots the same session; each walk
-  faces the wall the ask changed, else the room's focal wall. The media helpers launch Chromium without its sandbox
-  when they run as root, as in a Linux container.
+  the long tour keeps). It is one real Claude Code session, recorded rather than staged: a homeowner uploads their
+  floor plan as a picture and asks, in their own words, for ideas for living in it (warm, natural, a bit cozy: the
+  living room, the dining room and the big bedroom), then for the dining room to seat eight, then for a walkthrough
+  video. The agent reads the plan, builds the house with `mint_building`, designs each room with `design_interior`,
+  and films and stitches the walkthrough itself; the last slide is the session's own working time, tokens and cost
+  at API list price. README section 2 walks through it.
+- `docs/images/src/decor-demo/` re-runs it end to end: `plan.mjs` draws the uploaded plan (`house.json` as its own
+  A-101 sheet), `run.mjs` drives `claude -p` (`--resume` per ask, the plan as an image in the first message) with
+  mojulo as the only tool server, `capture.mjs` films from a replay of the session's calls, checked against the
+  recipes it stored, so a kernel fix re-shoots the same session, and `compose.mjs` sets it in a generic chat and
+  encodes the GIF. `session.json` is the record of the session the GIF shows: every call, reply, token count and the
+  recipes it left. The media helpers launch Chromium without its sandbox when they run as root, as in a Linux
+  container.
+- `design_interior`: a dining room has its chairs. They tuck a little under the table, and the placement check
+  counted the table they tuck under as in their way, so every chair was left out ("collides with dining.table") and a
+  dining room was a table, a rug and a sideboard. `brief.seats` now seats that many where the room fits them.
 - `design_interior`: a plain cloth asked by name on a piece (`finish: { fabric: 'velvet' }`, also linen, canvas,
   bouclé, twill) changes the cloth and keeps the scheme's colour. It used to drop the colour, so the piece wore the
   preset's own (velvet's emerald): "make the sofa velvet" turned the sofa green. A room that names such a fabric
   renders in its scheme's colour now; a patterned cloth (tartan, ticking …) and a full fabric spec are as they were.
+- `stitch_motion` joins World clips (a furnished room, a city, a level), which it used to refuse. A World clip its
+  forge baked to MP4 is decoded from that video, so a stitch of three room clips takes seconds rather than a fresh
+  headless render of every frame; one without an MP4 is rendered again from its recipe.
 
 ## [3.1.1] - 2026-10-16
 

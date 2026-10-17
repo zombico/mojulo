@@ -1,8 +1,8 @@
 # Mojulo
 
-![One real chat with an agent that has mojulo connected. A homeowner asks, in their own words, for a warm and cozy living room like a cabin, then a calm bedroom like a hotel, then one wall in forest green and a velvet sofa. The agent finds the house they were handed and redecorates each room on the same plan; mojulo records each room before and after as a walk-through, and the last slide shows the session's own time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/decor-demo.gif)
+![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom, makes the dining room seat eight when asked, and films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/decor-demo.gif)
 
-<sub>One real Claude Code session on Sonnet 5.5: three asks, about a minute and a half of agent time, 34 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
+<sub>One real Claude Code session on Sonnet 5.5: a floor plan in, three rooms designed, one changed, a walkthrough out; under two minutes of agent time, 25 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
 
 Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
 
@@ -56,7 +56,7 @@ npx mojulo init
 
 # 2. In an agent session, just ask:
 #      what is this?                      → mojulo orients itself, out loud
-#      make my living room warm and cozy  → a room of your house, redecorated
+#      here's my floor plan, ideas?       → the house built from it, rooms designed
 #      build an oak table, exploded       → a jointed frame; see how it goes together
 #      build a New York-style city        → a world; walk it at /world
 #      turn that into a game              → a game; export it for Godot

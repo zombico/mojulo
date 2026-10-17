@@ -6,7 +6,7 @@ kernel change instead of patched by hand.
 
 | Image | Runner | Takes |
 |---|---|---|
-| `../decor-demo.gif` | `decor-demo/run.mjs` | about 6 min (a real agent session, then the walk-throughs); `capture.mjs` alone about 4 min |
+| `../decor-demo.gif` | `decor-demo/run.mjs` | about 10 min (a real agent session, then the filming); `capture.mjs` alone about 5 min |
 | `../interior-demo.gif` | `interior-demo/run.mjs` | about 3 min (three Cycles stills) |
 | `../level-demo.gif` | `level-demo/run.mjs` | about 5 min (two levels made, eight stills) |
 | `../dresser-shop-sheet.png` | `dresser-sheet/run.mjs` | about 30 s |
@@ -16,6 +16,7 @@ kernel change instead of patched by hand.
 ```bash
 node docs/images/src/decor-demo/run.mjs /tmp/mj-decor
 node docs/images/src/decor-demo/capture.mjs /tmp/mj-decor docs/images/src/decor-demo/session.json   # re-film the committed session
+node docs/images/src/decor-demo/plan.mjs /tmp/mj-decor                                              # the plan alone
 node docs/images/src/interior-demo/run.mjs /tmp/mj-interior
 node docs/images/src/level-demo/run.mjs /tmp/mj-level
 node docs/images/src/dresser-sheet/run.mjs /tmp/mj-dresser
@@ -39,24 +40,26 @@ Each writes its image into the work directory you give it; copy it into `docs/im
 
 ## What each one does
 
-**decor-demo.** The house a homeowner is handed: `house.json`, a seven-room floorplan with its own furniture, minted
-as is. Then a real Claude Code session in print mode (`claude -p`, `--resume` for each later ask), with mojulo as its
-only tool server and no built-in tools, takes three asks in a homeowner's words (no style names, no tool names):
-make the living room warm and cozy, make the bigger bedroom calm like a hotel, paint a living-room wall forest green
-and make the sofa velvet. The agent finds the house, picks the styles and fabrics and calls `design_interior` itself;
-the runner only watches. `run.mjs` writes the record, `session.json`: each ask's calls, reply, time and tokens, and
-the recipes the session left. `capture.mjs` then replays the calls that wrote, in order, into a fresh data dir, stops
-if a replayed recipe differs from the session's, and around each ask films the room it settled on with
-`forge_motion`: a walk across the room at eye height, facing the wall the ask changed (a `surface` edge) or else the
-room's focal wall, once before the ask (over the house as handed over, or the room so far) and once after. Because it
-is a replay, a kernel fix re-films the committed session with no new conversation. `compose.mjs` sets it in a generic
-chat (each kind of tool call a plain-language chip, a call mojulo turned back shown as "tried again", the reply cut to
-its opening and the first sentence of each bullet) and ends on the session's own numbers: the agent's working time,
-every token it read and wrote, and its cost at list price. The cost is the last ask's `total_cost_usd`, since print
-mode carries it across a `--resume`; it depends on how warm the prompt cache is, so a first run of the day costs more.
-`MODEL` picks the model (default Sonnet 5.5). Every run is a new conversation, so the replies, the choices and the
-numbers change from run to run. `session.json` here is the session the committed GIF shows;
-`node decor-demo/compose.mjs <workDir>` re-composes a filmed work dir.
+**decor-demo.** A homeowner's floor plan, as a picture: `plan.mjs` mints `house.json` (a seven-room house) and
+draws it as its own A-101 sheet, cropped to the drawing, so the upload is mojulo's plan of a house the agent never
+sees as a recipe. A real Claude Code session in print mode (`claude -p`, `--resume` for each later ask, the plan as an
+image in the first message), with mojulo as its only tool server and no built-in tools, takes three asks in a
+homeowner's words (no style names, no tool names): ideas for living in the house (the living room, the dining room
+and the big bedroom), the dining room seating eight, and a walkthrough video. The agent reads the plan, builds the
+house, designs the rooms, films them and stitches the film itself; the runner only watches. `run.mjs` writes the
+record, `session.json`: each ask's calls, reply, time and tokens, and the recipes the session left. `capture.mjs` then
+replays the calls that made something (the house, the rooms, the videos), in order, into a fresh data dir, stops if a
+replayed recipe differs from the session's, and films what each ask made with `forge_motion`: the house as a slow
+orbit, each room as a walk at eye height (facing the wall the ask changed, a `surface` edge, else looking into the room
+toward its focal wall; a room designed before is filmed before the ask too, from the same place), and the agent's own
+film as it made it. Because it is a replay, a kernel fix re-films the committed session with no new conversation.
+`compose.mjs` sets it in a generic chat (the plan attached to the first ask, each kind of tool call a plain-language
+chip, a call mojulo turned back shown as "tried again", the reply cut to its opening and the first sentence of each
+bullet) and ends on the session's own numbers: the agent's working time, every token it read and wrote, and its cost
+at list price. The cost is the last ask's `total_cost_usd`, since print mode carries it across a `--resume`; it depends
+on how warm the prompt cache is, so a first run of the day costs more. `MODEL` picks the model (default Sonnet 5.5).
+Every run is a new conversation, so the replies, the choices and the numbers change from run to run. `session.json`
+here is the session the committed GIF shows; `node decor-demo/compose.mjs <workDir>` re-composes a filmed work dir.
 
 **interior-demo.** `design_interior` three times on one ref (the Japandi room from a section, then mid-century
 with a velvet sofa, then `brief: { tags: ['no-tv'] }`), exporting `world.html` after each and capturing it through

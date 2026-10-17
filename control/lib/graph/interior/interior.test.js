@@ -86,6 +86,13 @@ describe('the functional solver graph', () => {
     if (conv) expect(conv.refused?.length).toBeGreaterThan(0);
     for (const g of readout.gaps) expect(g.why).toBeTruthy();
   });
+  it('lays a dining room: chairs tucked under the table on both long sides, as many as the seats asked', () => {
+    const dining = { kind: 'floorplan', title: 'dining', windows: true, rooms: [{ x: 0, y: 0, w: 14, h: 20, glyph: 'D' }], doors: [{ x: 7, y: 20, edge: 'S', entry: true }] };
+    const chairs = (brief) => compileInterior({ kind: 'interior', house: dining, room: 'dining', ...(brief ? { brief } : {}) }, dining).solved.placed.filter((p) => p.piece === 'dining-chair');
+    const laid = chairs();
+    expect(new Set(laid.map((c) => c.facing)).size).toBe(2);
+    expect(chairs({ seats: 8 })).toHaveLength(8);
+  });
   it('lays a bedroom: the bed’s head to a wall and a nightstand beside it', () => {
     const { solved } = compileInterior({ kind: 'interior', house: HOUSE, room: 'bedroom' }, HOUSE);
     const bed = solved.placed.find((p) => p.id === 'sleep.bed');

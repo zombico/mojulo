@@ -2,46 +2,33 @@
  "note": "The session behind docs/images/decor-demo.gif, as run.mjs recorded it: each ask, the calls the agent made, its reply, and what print mode reported. recipes are the rows it left; capture.mjs replays the calls and checks it gets them back.",
  "when": "2026-10-17",
  "model": "claude-sonnet-5-5",
- "house": "maple_street",
- "totals": {
-  "ms": 86223,
-  "input": 34,
-  "output": 7648,
-  "cacheRead": 1590689,
-  "cacheWrite": 25706,
-  "calls": 20,
-  "cost": 0.3384409,
-  "tokens": 1624077
- },
  "turns": [
   {
-   "prompt": "We just moved into the Maple Street house, it's already in mojulo. The living room feels cold and empty. Can you make it warm and cozy, like a cabin? Lots of wood, soft fabrics, warm colours, somewhere to curl up with a book.",
-   "durationMs": 38489,
-   "apiMs": 27299,
-   "numTurns": 14,
+   "prompt": "We just moved in, here's our floor plan! Can you put it into mojulo and come up with some ideas for how we could live in it? We like warm, natural and a bit cozy. Show us the living room, the dining room and the big bedroom.",
+   "image": "floor-plan.png",
+   "durationMs": 31057,
+   "apiMs": 22769,
+   "numTurns": 8,
    "usage": {
-    "input": 18,
-    "output": 3763,
-    "cacheRead": 796782,
-    "cacheWrite": 17093
+    "input": 10,
+    "output": 3013,
+    "cacheRead": 432347,
+    "cacheWrite": 16614
    },
-   "costUsdSoFar": 0.1857162,
+   "costUsdSoFar": 0.13984069999999998,
    "tools": [
     {
-     "name": "semantic_search",
+     "name": "get_sketch_vocab",
      "error": false,
-     "ref": null,
      "room": null,
      "tag": null,
      "input": {
-      "query": "Maple Street house floorplan",
-      "limit": 10
+      "id": "house-layout"
      }
     },
     {
      "name": "get_sketch_vocab",
      "error": false,
-     "ref": null,
      "room": null,
      "tag": null,
      "input": {
@@ -49,977 +36,548 @@
      }
     },
     {
-     "name": "semantic_search",
+     "name": "mint_building",
      "error": false,
-     "ref": null,
+     "ref": "sk_f8u1c1kg0k",
      "room": null,
      "tag": null,
      "input": {
-      "query": "Maple Street",
-      "limit": 10
-     }
-    },
-    {
-     "name": "get_creative_toolset",
-     "error": false,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "form": "building"
+      "title": "Our new home",
+      "manifest": {
+       "width": 46.67,
+       "height": 34.67,
+       "view": "cutaway",
+       "windows": true,
+       "rooms": [
+        {
+         "x": 0,
+         "y": 0,
+         "w": 22.33,
+         "h": 16.33,
+         "glyph": "L"
+        },
+        {
+         "x": 22.33,
+         "y": 0,
+         "w": 10,
+         "h": 16.33,
+         "glyph": "K"
+        },
+        {
+         "x": 32.33,
+         "y": 0,
+         "w": 14.33,
+         "h": 16.33,
+         "glyph": "D"
+        },
+        {
+         "x": 0,
+         "y": 16.33,
+         "w": 46.67,
+         "h": 4,
+         "glyph": "H"
+        },
+        {
+         "x": 0,
+         "y": 20.33,
+         "w": 15.33,
+         "h": 14.33,
+         "glyph": "B"
+        },
+        {
+         "x": 15.33,
+         "y": 20.33,
+         "w": 9,
+         "h": 14.33,
+         "glyph": "W"
+        },
+        {
+         "x": 24.33,
+         "y": 20.33,
+         "w": 22.33,
+         "h": 14.33,
+         "glyph": "B"
+        }
+       ]
+      }
      }
     },
     {
      "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "house": "maple-street",
-      "room": "living"
-     }
-    },
-    {
-     "name": "get_stash",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "stash_ref": "maple-street"
-     }
-    },
-    {
-     "name": "design_interior",
      "error": false,
-     "ref": "sk_kl7hjlhbra",
+     "ref": "sk_iubq170g29",
      "room": "lounge",
      "tag": "101",
      "input": {
-      "house": "maple_street",
-      "room": "living"
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "house": "maple",
-      "room": "living"
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "house": "maple-street-house",
-      "room": "living"
-     }
-    },
-    {
-     "name": "annotate_beats",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "ref": "maple-street"
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "ref": "sk_kl7hjlhbra",
+      "house": "sk_f8u1c1kg0k",
+      "room": "lounge",
+      "title": "Lounge: warm and cozy",
       "style": {
-       "name": "modern-farmhouse",
-       "accent": "seventies",
-       "palette": {
-        "upholstery": "rust",
-        "rug": "cream"
-       }
+       "name": "modern-organic",
+       "accent": "wabi-sabi"
       },
-      "palette": {
-       "seed": 7,
-       "heat": 0.8,
-       "weight": 0.4,
-       "activity": -0.4,
-       "scheme": "analogous",
-       "intent": "warm cozy cabin: honey wood, rust, cream, amber"
-      },
-      "focal": "fireplace",
       "brief": {
        "uses": [
         "converse",
+        "media",
         "read",
         "display",
         "anchor",
-        "light-task",
-        "media"
-       ],
-       "tags": [
-        "entertaining",
-        "pets"
-       ]
-      },
-      "surface": {
-       "walls": {
-        "style": "shiplap",
-        "paint": "honey-oak"
-       },
-       "trim": {
-        "paint": "walnut"
-       },
-       "floor": {
-        "pattern": "plank",
-        "colours": [
-         "#9a6b3f",
-         "#7d5330"
-        ]
-       },
-       "accentWall": false,
-       "features": [
-        {
-         "type": "fireplace",
-         "wall": "E",
-         "at": 0.5
-        }
-       ]
-      },
-      "pieces": [
-       {
-        "id": "conversation.sofa",
-        "like": "tuxedo",
-        "finish": {
-         "fabric": "boucle"
-        }
-       },
-       {
-        "id": "conversation.chair-1",
-        "finish": {
-         "fabric": "wool"
-        }
-       },
-       {
-        "id": "conversation.chair-2",
-        "omit": true
-       },
-       {
-        "id": "reading.chair",
-        "like": "wingback",
-        "finish": {
-         "fabric": "velvet"
-        }
-       },
-       {
-        "id": "conversation.rug",
-        "size": [
-         2600,
-         3400,
-         null
-        ]
-       },
-       {
-        "id": "media.console",
-        "finish": {
-         "timber": "walnut"
-        }
-       },
-       {
-        "id": "conversation.coffee-table",
-        "finish": {
-         "timber": "oak"
-        }
-       }
-      ]
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "ref": "sk_kl7hjlhbra",
-      "style": {
-       "name": "modern-farmhouse",
-       "accent": "seventies",
-       "palette": {
-        "upholstery": "rust",
-        "rug": "cream"
-       }
-      },
-      "palette": {
-       "seed": 7,
-       "heat": 0.8,
-       "weight": 0.4,
-       "activity": -0.4,
-       "scheme": "analogous",
-       "intent": "warm cozy cabin: honey wood, rust, cream, amber"
-      },
-      "focal": "fireplace",
-      "brief": {
-       "uses": [
-        "converse",
-        "read",
-        "display",
-        "anchor",
-        "light-task",
-        "media"
-       ],
-       "tags": [
-        "entertaining",
-        "pets"
-       ]
-      },
-      "surface": {
-       "walls": {
-        "style": "shiplap",
-        "paint": "#c99a5e"
-       },
-       "trim": {
-        "paint": "#5a3a22"
-       },
-       "floor": {
-        "pattern": "plank",
-        "colours": [
-         "#9a6b3f",
-         "#7d5330"
-        ]
-       },
-       "accentWall": false,
-       "features": [
-        {
-         "type": "fireplace",
-         "wall": "E",
-         "at": 0.5
-        }
-       ]
-      },
-      "pieces": [
-       {
-        "id": "conversation.sofa",
-        "like": "tuxedo",
-        "finish": {
-         "fabric": "boucle"
-        }
-       },
-       {
-        "id": "conversation.chair-1",
-        "finish": {
-         "fabric": "wool"
-        }
-       },
-       {
-        "id": "conversation.chair-2",
-        "omit": true
-       },
-       {
-        "id": "reading.chair",
-        "like": "wingback",
-        "finish": {
-         "fabric": "velvet"
-        }
-       },
-       {
-        "id": "conversation.rug",
-        "size": [
-         2600,
-         3400,
-         null
-        ]
-       },
-       {
-        "id": "media.console",
-        "finish": {
-         "timber": "walnut"
-        }
-       },
-       {
-        "id": "conversation.coffee-table",
-        "finish": {
-         "timber": "oak"
-        }
-       }
-      ]
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": false,
-     "ref": "sk_kl7hjlhbra",
-     "room": "lounge",
-     "tag": "101",
-     "input": {
-      "ref": "sk_kl7hjlhbra",
-      "style": {
-       "name": "modern-farmhouse",
-       "accent": "seventies",
-       "palette": {
-        "upholstery": "rust",
-        "rug": "cream"
-       }
-      },
-      "palette": {
-       "seed": 7,
-       "heat": 0.8,
-       "weight": 0.4,
-       "activity": -0.4,
-       "scheme": "analogous",
-       "intent": "warm cozy cabin: honey wood, rust, cream, amber"
-      },
-      "focal": "fireplace",
-      "brief": {
-       "uses": [
-        "converse",
-        "read",
-        "display",
-        "anchor",
-        "light-task",
-        "media"
-       ],
-       "tags": [
-        "entertaining",
-        "pets"
-       ]
-      },
-      "surface": {
-       "walls": {
-        "style": "shiplap",
-        "paint": "#c99a5e"
-       },
-       "trim": {
-        "paint": "#5a3a22"
-       },
-       "floor": {
-        "pattern": "plank",
-        "colours": [
-         "#9a6b3f",
-         "#7d5330"
-        ]
-       },
-       "accentWall": false,
-       "features": [
-        {
-         "type": "fireplace",
-         "wall": "E",
-         "at": 0.5
-        }
-       ]
-      },
-      "pieces": [
-       {
-        "id": "conversation.sofa",
-        "like": "tuxedo",
-        "finish": {
-         "fabric": "boucle"
-        }
-       },
-       {
-        "id": "conversation.chair-1",
-        "finish": {
-         "fabric": "tartan"
-        }
-       },
-       {
-        "id": "conversation.chair-2",
-        "omit": true
-       },
-       {
-        "id": "reading.chair",
-        "like": "wingback",
-        "finish": {
-         "fabric": "velvet"
-        }
-       },
-       {
-        "id": "conversation.rug",
-        "size": [
-         2600,
-         3400,
-         null
-        ]
-       },
-       {
-        "id": "media.console",
-        "finish": {
-         "timber": "walnut"
-        }
-       },
-       {
-        "id": "conversation.coffee-table",
-        "finish": {
-         "timber": "oak"
-        }
-       }
-      ]
-     }
-    }
-   ],
-   "reply": "I've redone the lounge (101, about 6.5 × 4.6 m) as a warm cabin. You can see it at `/sketches/sk_kl7hjlhbra`. It's a new design over your Maple Street house, so the house itself is unchanged.\n\n- **Walls and floor:** honey-toned shiplap with dark walnut trim, over wide plank flooring in two brown tones.\n- **Fireplace:** there's now a fireplace on the east wall, and the room is arranged around it. The TV is gone because there was no room for the media console in front of the hearth. That suits a cabin, but I can put a screen on another wall if you want one.\n- **Seating:** a bouclé sofa and a tartan armchair face the fire. The colours are rust, cream and amber.\n- **Reading corner:** a velvet wingback with its own floor lamp and side table, plus two bookcases.\n- **Not applied:** the rug didn't take my larger size and stayed at 2.0 × 3.0 m. There's no throw blanket, since I only had furniture pieces to work with.\n\nI can also make it more rustic with a darker wood palette, or move the reading chair closer to the window."
-  },
-  {
-   "prompt": "That's so much better. Now the bigger bedroom: calm and light, like a nice hotel.",
-   "durationMs": 19840,
-   "apiMs": 40569,
-   "numTurns": 4,
-   "usage": {
-    "input": 6,
-    "output": 1742,
-    "cacheRead": 289113,
-    "cacheWrite": 3894
-   },
-   "costUsdSoFar": 0.2476355,
-   "tools": [
-    {
-     "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "house": "maple_street",
-      "room": "nonexistent-room-probe"
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": false,
-     "ref": "sk_0pc86bilnf",
-     "room": "bedroom",
-     "tag": "105",
-     "input": {
-      "house": "maple_street",
-      "room": "105",
-      "title": "Bedroom 105 — hotel calm",
-      "style": {
-       "name": "quiet-luxury",
-       "accent": "warm-minimal"
-      },
-      "palette": {
-       "seed": 11,
-       "heat": 0,
-       "weight": -0.6,
-       "activity": -0.8,
-       "scheme": "mono-accent",
-       "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
-      },
-      "brief": {
-       "uses": [
-        "sleep",
-        "dress",
-        "read",
         "light-task"
        ],
-       "bed": "king"
-      },
-      "surface": {
-       "walls": {
-        "style": "paint",
-        "paint": "#eeeae2"
-       },
-       "trim": {
-        "paint": "#ffffff"
-       },
-       "floor": {
-        "pattern": "plank",
-        "colours": [
-         "#cdb99a",
-         "#c2ad8c"
-        ]
-       }
-      },
-      "pieces": [
-       {
-        "id": "sleep.bed",
-        "finish": {
-         "fabric": "linen"
-        }
-       }
-      ]
+       "tags": [
+        "entertaining"
+       ]
+      }
      }
     },
     {
      "name": "design_interior",
      "error": false,
-     "ref": "sk_ogknpciab0",
+     "ref": "sk_soa4fokoco",
+     "room": "dining",
+     "tag": "103",
+     "input": {
+      "house": "sk_f8u1c1kg0k",
+      "room": "dining",
+      "title": "Dining: gathering table",
+      "style": {
+       "name": "modern-farmhouse",
+       "accent": "warm-minimal"
+      },
+      "brief": {
+       "uses": [
+        "dine",
+        "display",
+        "store"
+       ],
+       "tags": [
+        "entertaining"
+       ]
+      }
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_aa07a5ak73",
      "room": "bedroom",
      "tag": "107",
      "input": {
-      "house": "maple_street",
+      "house": "sk_f8u1c1kg0k",
       "room": "107",
-      "title": "Bedroom 107 — hotel calm",
-      "style": {
-       "name": "quiet-luxury",
-       "accent": "warm-minimal"
-      },
-      "palette": {
-       "seed": 11,
-       "heat": 0,
-       "weight": -0.6,
-       "activity": -0.8,
-       "scheme": "mono-accent",
-       "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
-      },
+      "title": "Big bedroom: nest",
+      "style": "warm-minimal",
       "brief": {
        "uses": [
         "sleep",
         "dress",
         "read",
-        "light-task"
+        "store"
        ],
        "bed": "king"
-      },
-      "surface": {
-       "walls": {
-        "style": "paint",
-        "paint": "#eeeae2"
-       },
-       "trim": {
-        "paint": "#ffffff"
-       },
-       "floor": {
-        "pattern": "plank",
-        "colours": [
-         "#cdb99a",
-         "#c2ad8c"
-        ]
-       }
-      },
+      }
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_iubq170g29",
+     "room": "lounge",
+     "tag": "101",
+     "input": {
+      "ref": "sk_iubq170g29",
       "pieces": [
        {
-        "id": "sleep.bed",
-        "finish": {
-         "fabric": "linen"
-        }
+        "id": "conversation.sofa",
+        "piece": "sofa",
+        "size": [
+         "2200mm",
+         null,
+         null
+        ],
+        "like": "sofa",
+        "at": [
+         2700,
+         1400
+        ],
+        "facing": "S"
+       },
+       {
+        "id": "conversation.coffee-table",
+        "piece": "coffee-table",
+        "at": [
+         2700,
+         2500
+        ],
+        "facing": "S"
+       },
+       {
+        "id": "conversation.rug",
+        "piece": "rug",
+        "size": [
+         "3000mm",
+         "2400mm",
+         null
+        ],
+        "at": [
+         2700,
+         2200
+        ]
        }
       ]
      }
     }
    ],
-   "reply": "The house has two bedrooms, and I didn't know which one you meant. I went by size and designed the bigger one, room 107 at about 6.5 × 4.0 m. You can see it at `/sketches/sk_ogknpciab0`. It's a calm, light hotel look in the quiet-luxury style, with warm-minimal accents. The walls are soft off-white with white trim, the floor is pale oat planks, and the bed has linen. It has a king bed with a nightstand on each side, a large rug, a dresser, and a reading chair with a floor lamp by the windows.\n\n- **Smaller bedroom:** I also ran 105 (about 4.3 × 4.0 m) in the same style while checking sizes. It's at `/sketches/sk_0pc86bilnf`, and you can ignore it.\n- **Bed size:** the king bed was clamped to 2.0 m wide, so it's slightly narrower than a true king.\n- **Right-hand path:** the walkway down the bed's right side came out tight, and the tool flagged it.\n- **Side table:** the reading chair has no side table because there was no space for one.\n- **Lighting:** there are only two light sources, the ceiling light and one lamp. I could add a third for a layered hotel glow.\n\nIf you meant the other bedroom, say so and I'll swap them over."
+   "reply": "I put your plan into mojulo as a house and furnished the three rooms you asked for, but I haven't looked at any of the renders, so I can't say how they look. The house is at `/sketches/sk_f8u1c1kg0k`. I entered the rooms as drawn, with the lounge, kitchen and dining along the top, the hallway across the middle, and the two bedrooms and bathroom below. I let mojulo place the doors itself, so they may not match yours. Each room design is a separate sketch over the house, so you can try other schemes without changing the plan.\n\n- **Living room** (`/sketches/sk_iubq170g29`): modern-organic with wabi-sabi touches, so natural timber, soft upholstery and an earthy palette. It has a media console and TV on the hallway wall, an armchair, side table and floor lamp for reading, and a bookcase. The automatic layout wouldn't place the sofa because it blocked the kitchen door. I put it in by hand, with a coffee table and rug, facing the TV. The room's readout still lists the seating and rug as gaps, so check the sofa placement when you open it.\n- **Dining room** (`/sketches/sk_soa4fokoco`): modern farmhouse with warm-minimal accents. It has a 7-foot farmhouse table with six Windsor chairs on a rug, a sideboard and a bookcase, and the table faces the big east windows.\n- **Big bedroom** (`/sketches/sk_aa07a5ak73`): warm-minimal, with a king bed (trimmed to 2000 mm wide to fit the bed size range) flanked by two nightstands, plus a rug, a dresser, a sideboard, and an armchair with a floor lamp. It's arranged to look out the south windows.\n\nAll three rooms currently read as under-lit, with only the ceiling light and at most one lamp, so adding lamps would help the cozy feel. I can try other styles, swap the pieces around, or do the kitchen and the smaller bedroom next."
   },
   {
-   "prompt": "Last thing: paint one wall of the living room a deep forest green, and make the sofa velvet.",
-   "durationMs": 27894,
-   "apiMs": 57662,
-   "numTurns": 5,
+   "prompt": "We have people over a lot. Can the dining room seat eight?",
+   "image": null,
+   "durationMs": 13423,
+   "apiMs": 32279,
+   "numTurns": 2,
    "usage": {
-    "input": 10,
-    "output": 2143,
-    "cacheRead": 504794,
-    "cacheWrite": 4719
+    "input": 4,
+    "output": 960,
+    "cacheRead": 191715,
+    "cacheWrite": 2558
    },
-   "costUsdSoFar": 0.3384409,
+   "costUsdSoFar": 0.1788522,
    "tools": [
     {
      "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "ref": "sk_kl7hjlhbra",
-      "surface": {
-       "W": {
-        "style": "paint",
-        "paint": "#1f4a32"
-       }
-      },
-      "pieces": [
-       {
-        "id": "conversation.sofa",
-        "finish": {
-         "fabric": "velvet"
-        }
-       }
-      ]
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": true,
-     "ref": null,
-     "room": null,
-     "tag": null,
-     "input": {
-      "ref": "sk_kl7hjlhbra",
-      "surface": {
-       "W": {
-        "style": "paint",
-        "paint": "#1f4a32"
-       }
-      },
-      "pieces": [
-       {
-        "id": "conversation.sofa",
-        "finish": {
-         "fabric": "velvet"
-        }
-       },
-       {
-        "id": "media.console",
-        "omit": true
-       },
-       {
-        "id": "conversation.coffee-table",
-        "finish": {
-         "timber": "wood"
-        }
-       }
-      ]
-     }
-    },
-    {
-     "name": "design_interior",
      "error": false,
-     "ref": "sk_kl7hjlhbra",
-     "room": "lounge",
-     "tag": "101",
+     "ref": "sk_soa4fokoco",
+     "room": "dining",
+     "tag": "103",
      "input": {
-      "ref": "sk_kl7hjlhbra",
-      "surface": {
-       "W": {
-        "style": "paint",
-        "paint": "#1f4a32"
-       }
-      },
-      "pieces": [
-       {
-        "id": "conversation.sofa",
-        "finish": {
-         "fabric": "velvet"
-        }
-       },
-       {
-        "id": "media.console",
-        "finish": null,
-        "omit": true
-       },
-       {
-        "id": "conversation.coffee-table",
-        "finish": {
-         "timber": "oak"
-        }
-       }
-      ]
-     }
-    },
-    {
-     "name": "design_interior",
-     "error": false,
-     "ref": "sk_kl7hjlhbra",
-     "room": "lounge",
-     "tag": "101",
-     "input": {
-      "ref": "sk_kl7hjlhbra",
-      "style": {
-       "name": "modern-farmhouse",
-       "accent": "seventies",
-       "palette": {
-        "upholstery": "rust",
-        "rug": "cream"
-       }
-      },
-      "focal": "fireplace",
-      "surface": {
-       "walls": {
-        "style": "shiplap",
-        "paint": "#c99a5e"
-       },
-       "trim": {
-        "paint": "#5a3a22"
-       },
-       "W": {
-        "style": "paint",
-        "paint": "#1f4a32"
-       },
-       "floor": {
-        "pattern": "plank",
-        "colours": [
-         "#9a6b3f",
-         "#7d5330"
-        ]
-       },
-       "accentWall": false,
-       "features": [
-        {
-         "type": "fireplace",
-         "wall": "E",
-         "at": 0.5
-        }
+      "ref": "sk_soa4fokoco",
+      "brief": {
+       "uses": [
+        "dine",
+        "store"
+       ],
+       "seats": 8,
+       "tags": [
+        "entertaining"
        ]
       },
       "pieces": [
        {
-        "id": "conversation.sofa",
-        "like": "tuxedo",
-        "finish": {
-         "fabric": "velvet"
-        }
+        "id": "dining.table",
+        "size": [
+         "2400mm",
+         "1000mm",
+         null
+        ]
        },
        {
-        "id": "conversation.chair-1",
-        "finish": {
-         "fabric": "tartan"
-        }
-       },
-       {
-        "id": "conversation.chair-2",
+        "id": "display.bookcase-1",
         "omit": true
-       },
-       {
-        "id": "reading.chair",
-        "like": "wingback",
-        "finish": {
-         "fabric": "velvet"
-        }
-       },
-       {
-        "id": "media.console",
-        "omit": true
-       },
-       {
-        "id": "media.tv",
-        "omit": true
-       },
-       {
-        "id": "conversation.coffee-table",
-        "finish": {
-         "timber": "oak"
-        }
        }
       ]
      }
     }
    ],
-   "reply": "The living room (`/sketches/sk_kl7hjlhbra`) now has the west wall painted deep forest green and a velvet sofa. I haven't looked at a render, only the tool's readout.\n\n- **Which wall:** you didn't say which wall, so I chose the west one, opposite the fireplace. It should sit behind the sofa and give the room a dark backdrop. I couldn't confirm that from the readout, and I don't know where the three windows are. If it ends up on the wrong wall, tell me which one you want.\n- **Rest of the cabin:** my first attempt dropped the fireplace and brought the TV back, so I reapplied everything. The fireplace, shiplap walls, plank floor and tartan armchair are all in place again. The reading corner also has its velvet wingback.\n- **TV:** the TV is still out of the room, as before."
+   "reply": "Yes, the dining room can seat eight, but it's a tight fit and it cost us the sideboard. I updated the design at `/sketches/sk_soa4fokoco`, though I haven't looked at the render.\n\nThe room is about 13.5 × 15.5 ft. The table is now 2740 mm (about 9 ft) long and 1000 mm wide, with eight Windsor chairs around it. I asked for a 2400 mm table, but mojulo stretched it to 2740 mm to fit eight seats. The rug grew to match.\n\n- **Sideboard:** it's gone. With the bigger table, no bare wall had room for it, and the layout flags this as a gap. I also removed the bookcase to free up space. If you want storage in here, a slim shelf or a console in the kitchen doorway area is the thing to try next.\n- **Lighting:** the room still has only its ceiling light, so a pendant over the table or a wall sconce would help the warm, cozy feel.\n\nFor parties with more than eight, the lounge seating could handle the overflow, or the table could move toward the east windows. I can try either."
+  },
+  {
+   "prompt": "Love it. Can you make us a walkthrough video of the three rooms?",
+   "image": null,
+   "durationMs": 64122,
+   "apiMs": 42601,
+   "numTurns": 6,
+   "usage": {
+    "input": 8,
+    "output": 1281,
+    "cacheRead": 398562,
+    "cacheWrite": 4307
+   },
+   "costUsdSoFar": 0.24876240000000002,
+   "tools": [
+    {
+     "name": "get_motion_vocab",
+     "error": false,
+     "room": null,
+     "tag": null,
+     "input": {
+      "id": "world"
+     }
+    },
+    {
+     "name": "forge_motion",
+     "error": false,
+     "motion_ref": "mo_3d4818031a04",
+     "mp4_path": "/outcomes/mo_3d4818031a04/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Lounge tour",
+      "subject": {
+       "world_ref": "sk_iubq170g29"
+      },
+      "shot": {
+       "motion": "orbit",
+       "params": {
+        "from": 0,
+        "to": 90,
+        "width": 960,
+        "height": 540
+       },
+       "frames": 48,
+       "fps": 12
+      },
+      "export": "mp4"
+     }
+    },
+    {
+     "name": "forge_motion",
+     "error": false,
+     "motion_ref": "mo_8777abda4044",
+     "mp4_path": "/outcomes/mo_8777abda4044/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Dining tour",
+      "subject": {
+       "world_ref": "sk_soa4fokoco"
+      },
+      "shot": {
+       "motion": "orbit",
+       "params": {
+        "from": 0,
+        "to": 90,
+        "width": 960,
+        "height": 540
+       },
+       "frames": 48,
+       "fps": 12
+      },
+      "export": "mp4"
+     }
+    },
+    {
+     "name": "forge_motion",
+     "error": false,
+     "motion_ref": "mo_e12a42084897",
+     "mp4_path": "/outcomes/mo_e12a42084897/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Big bedroom tour",
+      "subject": {
+       "world_ref": "sk_aa07a5ak73"
+      },
+      "shot": {
+       "motion": "orbit",
+       "params": {
+        "from": 0,
+        "to": 90,
+        "width": 960,
+        "height": 540
+       },
+       "frames": 48,
+       "fps": 12
+      },
+      "export": "mp4"
+     }
+    },
+    {
+     "name": "stitch_motion",
+     "error": false,
+     "motion_ref": "mo_44c335090b00",
+     "mp4_path": "/outcomes/mo_44c335090b00/motion.mp4",
+     "room": null,
+     "tag": null,
+     "input": {
+      "title": "Home tour: lounge, dining, big bedroom",
+      "clips": [
+       "mo_3d4818031a04",
+       "mo_8777abda4044",
+       "mo_e12a42084897"
+      ],
+      "fps": 12,
+      "width": 960
+     }
+    }
+   ],
+   "reply": "The walkthrough video is ready at `/outcomes/mo_44c335090b00/` (`motion.mp4`). It's a 12-second MP4 that shows the lounge, then the dining room (with the eight-seat table), then the big bedroom, four seconds each. I haven't watched it, so I can't speak to how it looks.\n\nIt isn't a true walk-through. Each room gets a slow camera orbit of a quarter turn around the furnished room, and I joined the three clips with plain cuts. A real walking path from room to room would mean a hand-built camera route through the whole house. I can try that if you'd like, or lengthen the orbits. The three single-room clips are also saved at `/outcomes/mo_3d4818031a04/`, `/outcomes/mo_8777abda4044/` and `/outcomes/mo_e12a42084897/`."
   }
  ],
  "recipes": {
-  "sk_kl7hjlhbra": {
-   "kind": "interior",
-   "house": "maple_street",
-   "room": "living",
-   "palette": {
-    "seed": 7,
-    "heat": 0.8,
-    "weight": 0.4,
-    "activity": -0.4,
-    "scheme": "analogous",
-    "intent": "warm cozy cabin: honey wood, rust, cream, amber"
-   },
-   "style": {
-    "name": "modern-farmhouse",
-    "accent": "seventies",
-    "palette": {
-     "upholstery": "rust",
-     "rug": "cream"
+  "sk_f8u1c1kg0k": {
+   "kind": "floorplan",
+   "title": "Our new home",
+   "width": 46.67,
+   "height": 34.67,
+   "view": "cutaway",
+   "windows": true,
+   "rooms": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 22.33,
+     "h": 16.33,
+     "glyph": "L"
+    },
+    {
+     "x": 22.33,
+     "y": 0,
+     "w": 10,
+     "h": 16.33,
+     "glyph": "K"
+    },
+    {
+     "x": 32.33,
+     "y": 0,
+     "w": 14.33,
+     "h": 16.33,
+     "glyph": "D"
+    },
+    {
+     "x": 0,
+     "y": 16.33,
+     "w": 46.67,
+     "h": 4,
+     "glyph": "H"
+    },
+    {
+     "x": 0,
+     "y": 20.33,
+     "w": 15.33,
+     "h": 14.33,
+     "glyph": "B"
+    },
+    {
+     "x": 15.33,
+     "y": 20.33,
+     "w": 9,
+     "h": 14.33,
+     "glyph": "W"
+    },
+    {
+     "x": 24.33,
+     "y": 20.33,
+     "w": 22.33,
+     "h": 14.33,
+     "glyph": "B"
     }
+   ],
+   "seed": 1201217964,
+   "style": "auto",
+   "layout": "varied",
+   "furnishing": "composed",
+   "finishes": "auto"
+  },
+  "sk_iubq170g29": {
+   "kind": "interior",
+   "house": "sk_f8u1c1kg0k",
+   "room": "lounge",
+   "style": {
+    "name": "modern-organic",
+    "accent": "wabi-sabi"
    },
    "brief": {
     "uses": [
      "converse",
+     "media",
      "read",
      "display",
      "anchor",
-     "light-task",
-     "media"
+     "light-task"
     ],
     "tags": [
-     "entertaining",
-     "pets"
-    ]
-   },
-   "focal": "fireplace",
-   "surface": {
-    "walls": {
-     "style": "shiplap",
-     "paint": "#c99a5e"
-    },
-    "trim": {
-     "paint": "#5a3a22"
-    },
-    "W": {
-     "style": "paint",
-     "paint": "#1f4a32"
-    },
-    "floor": {
-     "pattern": "plank",
-     "colours": [
-      "#9a6b3f",
-      "#7d5330"
-     ]
-    },
-    "accentWall": false,
-    "features": [
-     {
-      "type": "fireplace",
-      "wall": "E",
-      "at": 0.5
-     }
+     "entertaining"
     ]
    },
    "pieces": [
     {
      "id": "conversation.sofa",
-     "like": "tuxedo",
-     "finish": {
-      "fabric": "velvet"
-     }
+     "piece": "sofa",
+     "size": [
+      "2200mm",
+      null,
+      null
+     ],
+     "like": "sofa",
+     "at": [
+      2700,
+      1400
+     ],
+     "facing": "S"
     },
     {
-     "id": "conversation.chair-1",
-     "finish": {
-      "fabric": "tartan"
-     }
-    },
-    {
-     "id": "conversation.chair-2",
-     "omit": true
-    },
-    {
-     "id": "reading.chair",
-     "like": "wingback",
-     "finish": {
-      "fabric": "velvet"
-     }
+     "id": "conversation.coffee-table",
+     "piece": "coffee-table",
+     "at": [
+      2700,
+      2500
+     ],
+     "facing": "S"
     },
     {
      "id": "conversation.rug",
+     "piece": "rug",
      "size": [
-      2600,
-      3400,
+      "3000mm",
+      "2400mm",
+      null
+     ],
+     "at": [
+      2700,
+      2200
+     ]
+    }
+   ]
+  },
+  "sk_soa4fokoco": {
+   "kind": "interior",
+   "house": "sk_f8u1c1kg0k",
+   "room": "dining",
+   "style": {
+    "name": "modern-farmhouse",
+    "accent": "warm-minimal"
+   },
+   "brief": {
+    "uses": [
+     "dine",
+     "store"
+    ],
+    "seats": 8,
+    "tags": [
+     "entertaining"
+    ]
+   },
+   "pieces": [
+    {
+     "id": "dining.table",
+     "size": [
+      "2400mm",
+      "1000mm",
       null
      ]
     },
     {
-     "id": "media.console",
-     "finish": null,
-     "omit": true
-    },
-    {
-     "id": "conversation.coffee-table",
-     "finish": {
-      "timber": "oak"
-     }
-    },
-    {
-     "id": "media.tv",
+     "id": "display.bookcase-1",
      "omit": true
     }
    ]
   },
-  "sk_0pc86bilnf": {
+  "sk_aa07a5ak73": {
    "kind": "interior",
-   "house": "maple_street",
-   "room": "105",
-   "style": {
-    "name": "quiet-luxury",
-    "accent": "warm-minimal"
-   },
-   "palette": {
-    "seed": 11,
-    "heat": 0,
-    "weight": -0.6,
-    "activity": -0.8,
-    "scheme": "mono-accent",
-    "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
-   },
-   "brief": {
-    "uses": [
-     "sleep",
-     "dress",
-     "read",
-     "light-task"
-    ],
-    "bed": "king"
-   },
-   "surface": {
-    "walls": {
-     "style": "paint",
-     "paint": "#eeeae2"
-    },
-    "trim": {
-     "paint": "#ffffff"
-    },
-    "floor": {
-     "pattern": "plank",
-     "colours": [
-      "#cdb99a",
-      "#c2ad8c"
-     ]
-    }
-   },
-   "pieces": [
-    {
-     "id": "sleep.bed",
-     "finish": {
-      "fabric": "linen"
-     }
-    }
-   ]
-  },
-  "sk_ogknpciab0": {
-   "kind": "interior",
-   "house": "maple_street",
+   "house": "sk_f8u1c1kg0k",
    "room": "107",
-   "style": {
-    "name": "quiet-luxury",
-    "accent": "warm-minimal"
-   },
-   "palette": {
-    "seed": 11,
-    "heat": 0,
-    "weight": -0.6,
-    "activity": -0.8,
-    "scheme": "mono-accent",
-    "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
-   },
+   "style": "warm-minimal",
    "brief": {
     "uses": [
      "sleep",
      "dress",
      "read",
-     "light-task"
+     "store"
     ],
     "bed": "king"
-   },
-   "surface": {
-    "walls": {
-     "style": "paint",
-     "paint": "#eeeae2"
-    },
-    "trim": {
-     "paint": "#ffffff"
-    },
-    "floor": {
-     "pattern": "plank",
-     "colours": [
-      "#cdb99a",
-      "#c2ad8c"
-     ]
-    }
-   },
-   "pieces": [
-    {
-     "id": "sleep.bed",
-     "finish": {
-      "fabric": "linen"
-     }
-    }
-   ]
+   }
   }
  }
 }
