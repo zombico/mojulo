@@ -46,7 +46,7 @@ describe('the casting page: the people rolled for the game, as many as it asks f
     expect(L.play.party).toEqual(expect.arrayContaining([{ who: 'party-1' }, { who: 'party-2' }]));
     expect(L.play.carry).toBeUndefined();   // no joins flag to carry between levels
     // the wolf walks beside them on its own trot and walk, no library (a walker: it follows, it never pilots)
-    expect(L.figures.red).toEqual({ heroRef: 'gw-cast-red', walker: true, clips: { forward: 'trot', turn: 'walk', strafe: 'trot' } });
+    expect(L.figures.red).toEqual({ heroRef: 'gw-cast-red', walker: true, clips: { forward: 'trot', turn: 'walk', strafe: 'trot' }, moves: { stagger: 'flinch', topple: 'fall', getup: 'rise' } });
     expect(L.play.party).toContainEqual({ who: 'red' });
     // the hero's own figure is as it was
     expect(levels(runSteps(W({ scale: 'hero' }), { ref: 'gw' }))[0].order.manifest.play.party).toBeUndefined();

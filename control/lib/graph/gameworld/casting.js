@@ -36,7 +36,7 @@
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
 import { settingOfGame } from './cast-setting.js';
-import { moveSetOf, fieldStatesOf, creatureMovesOf, beastGaitsOf } from '../egocube/moves.js';
+import { moveSetOf, fieldStatesOf, creatureMovesOf, beastGaitsOf, beastMovesOf } from '../egocube/moves.js';
 import { cubeOfWorld } from './intent.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -136,13 +136,14 @@ export const CLASS_GAPS = Object.freeze({ ranged: 'no archer class: a rogue stan
 /**
  * A member's figure on the level map: `moves` the runtime states its own moves play (a person over the library's walk
  * and idle), or `own` its own clips by state for a body the library does not fit (a beast its two gaits, a mascot its
- * run, walk and idle, a beast-kin below the hero door its walk and jog), with `moves` beside them where it has some.
+ * run, walk and idle, a beast-kin below the hero door its walk and jog), with `moves` beside them where it has some
+ * (a beast's flinch, fall and rise).
  * Null for a beast whose species the fauna does not know (no gait to rig).
  */
 export function fieldOf(m) {
   if (m.body === 'beast') {
-    let g; try { g = beastGaitsOf(m.beast.species); } catch { return null; }
-    return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) } };
+    let g, M; try { g = beastGaitsOf(m.beast.species); M = beastMovesOf(m.beast.species); } catch { return null; }
+    return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) }, ...(Object.keys(M.states).length ? { moves: M.states } : {}) };
   }
   if (m.body === 'mascot') return { own: { forward: 'run', idle: 'idle', turn: 'walk', strafe: 'run' }, moves: { stagger: 'surprised' } };
   if (m.sheet.ancestry?.door === 'hero') return { moves: fieldStatesOf(moveSetOf(m.sheet.facets).moves) };

@@ -71,6 +71,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   a showcase pose is a person's). On the field each walks on its own clips with no library (casting.js `fieldOf`): the
   mascot its run, walk and idle, the creature its jog and its moves, the beast its gaits. A figures-map entry marked
   `walker: true` (it follows or stands, never pilots) may be any rigged character (`heroRefError`'s `walker`).
+- **A beast takes a blow** (`lib/graph/fauna/behavior/react.js`): new animal motion words `flinch` (dropped low, the
+  head thrown up, back to the stand), `fall` (onto its side, gathering speed) and `rise` (back up), each a one-shot
+  between poses the behavior solver already solves for its own body (every bone slerped between them), on any body
+  with legs (`{ reactions: 'all' }`, or the words in a motion list). A cast's beast is made with them, and on the level
+  map its hit, topple and get-up play them. An animal without them builds byte-identically.
 
 ## [3.1.1] - 2026-10-16
 

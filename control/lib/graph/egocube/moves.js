@@ -19,11 +19,13 @@
  *                          a jog to cross the field, and the moves its rig can solve (a stance, a strike, the reactions,
  *                          the fall); a showcase pose is a person's
  *   beastGaitsOf(species)→ [walk, run]: the two gaits a beast crosses the field in (fauna/locomotion), slowest first
+ *   beastMovesOf(species)→ { motion: [gaits…, reactions…], states }: a beast's animal `motion` (its two gaits and, on
+ *                          legs, its flinch, fall and rise: fauna/behavior/react.js) and the field states they play
  *
  * Pure. First readings, for the eyes gate.
  */
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
-import { motionGaits } from '../fauna/rig.js';
+import { motionGaits, motionReactions } from '../fauna/rig.js';
 
 export const READY_OF_ROLE = Object.freeze({ frontline: 'guard', flanker: 'low', support: 'centre', controller: 'centre', caster: 'centre', ranged: 'athletic' });
 export const ATTACK_OF_ROLE = Object.freeze({ frontline: 'cross', flanker: 'jab', ranged: 'jab', controller: 'josephPoint', caster: 'jotaroPoint', support: 'fistToSky' });
@@ -71,4 +73,13 @@ export function beastGaitsOf(species) {
   const all = motionGaits(species), walk = all.includes('walk') ? 'walk' : all[0];
   const run = all.slice(all.indexOf(walk) + 1).find((g) => !['fly', 'glide', 'stalk', 'swim', 'soar'].includes(g)) ?? walk;
   return [...new Set([walk, run])];
+}
+
+/** A beast's motion: its two gaits and, on legs, its reactions; and the field states the reactions play. */
+export function beastMovesOf(species) {
+  const reacts = motionReactions(species);
+  return {
+    motion: [...beastGaitsOf(species), ...reacts],
+    states: reacts.length ? { stagger: 'flinch', topple: 'fall', getup: 'rise' } : {},
+  };
 }

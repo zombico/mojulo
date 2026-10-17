@@ -79,7 +79,7 @@ describe('a cast as a cube (cast.js)', () => {
   it('lowers each member to its door, and refuses years on a cast and a member on one character', () => {
     const S = rollStored(CAST);
     expect(egocubeCreate(S).node.path).toBe('hero');
-    expect(egocubeCreate(S, { member: 'hero/red' }).create).toEqual({ as: 'animal', spec: { species: 'wolf', motion: ['walk', 'trot'] }, title: 'hero/red · wolf' });
+    expect(egocubeCreate(S, { member: 'hero/red' }).create).toEqual({ as: 'animal', spec: { species: 'wolf', motion: ['walk', 'trot', 'flinch', 'fall', 'rise'] }, title: 'hero/red · wolf' });
     expect(egocubeCreate(S, { member: 'hero/rival' }).member).toEqual({ path: 'hero/rival', relation: 'rival', body: 'person' });
     // a member on the hero door is made with its moves; every word is one the hero door takes
     const rival = egocubeCreate(S, { member: 'hero/rival' });

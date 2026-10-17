@@ -489,5 +489,6 @@ A fate thread is a separate call on a sheet that already exists, never part of t
   saturation are carried as `unread`, for the eyes; the roll holds motivation alone. There are four person silhouette
   words (column, needle, barrel, bell), so a party of more than four people repeats one (a beast or a mascot does not).
 - **Rolled members on the level map**: a person plays its own hit, fall, rise and swing over the library's walk; a
-  beast walks on its two gaits, a mascot on its own run, a beast-kin below the hero door on its jog and its moves. A
-  beast has no reactions of its own yet, and a mascot's hit is its surprised face.
+  beast walks on its two gaits and flinches, falls and rises on its own body, a mascot runs on its own clips, a
+  beast-kin below the hero door jogs and plays its moves. A legless beast has no reactions yet, and a mascot's hit is
+  its surprised face.

@@ -279,6 +279,7 @@ describe('design_game: party battles on the book path (battles)', () => {
     expect(own('kin').forward).toEqual(own('kin').jog);
     expect(own('kin').topple).toEqual(own('kin').knockedOutDown);
     expect(own('pet').forward).toEqual(own('pet').trot);
+    expect([own('pet').stagger, own('pet').topple, own('pet').getup]).toEqual([own('pet').flinch, own('pet').fall, own('pet').rise]);
     const again = await designGameHandler({ ref: 'gc', run: true });
     expect([action(again, 'casting'), action(again, 'cast-party-1')]).toEqual(['keep', 'keep']);
   }, 900_000);

@@ -32,7 +32,7 @@ import { ZOO_BUILDS } from '@/lib/graph/polygonizer/figure-animal-build';
 import { QUADRUPED_ARCHETYPES } from '@/lib/graph/polygonizer/figure-animal';
 import { groundedFeet } from '@/lib/graph/polygonizer/figure-animal-foot';
 import { SPECIES as FAUNA, speciesPlan, stanceOf } from '@/lib/graph/fauna/species';
-import { withMotion, motionGaits, motionBehaviors, checkBehaviors } from '@/lib/graph/fauna/rig';
+import { withMotion, motionGaits, motionBehaviors, motionReactions, checkBehaviors } from '@/lib/graph/fauna/rig';
 import { BEHAVIORS, resolveBehavior } from '@/lib/graph/fauna/behavior/index';
 import { resolveAnimalName } from '@/lib/graph/fauna/entries';
 import { FAMILIES } from '@/lib/graph/fauna/families';
@@ -65,28 +65,32 @@ const SPECIES = [...new Set([...Object.keys(FAUNA), ...Object.keys(BUG_SPECIES),
 const legStance = (n) => ({ 6: 'hexapod', 8: 'octopod', 10: 'decapod', 14: 'isopod' }[n] || (n > 14 ? 'myriapod' : `${n}-legged`));
 
 /**
- * `motion` → `{ gaits, keys }` (plus `behaviors` and `variants` when any are named) or null: `true` / 'all' (every
- * gait the species has), a word or a list of them (gait words and behavior words, `['walk', 'relax']`), or
- * `{ gaits?, behaviors?, variants?, keys? }` (`behaviors: 'all'` for every behavior the species can be posed doing;
- * `gaits` defaults to every gait only when no behavior is named). Throws a teaching error naming what it can do.
+ * `motion` → `{ gaits, keys }` (plus `behaviors`, `variants` and `reactions` when any are named) or null: `true` / 'all'
+ * (every gait the species has), a word or a list of them (gait, behavior and reaction words, `['walk', 'relax',
+ * 'flinch']`), or `{ gaits?, behaviors?, variants?, reactions?, keys? }` (`behaviors: 'all'` for every behavior the
+ * species can be posed doing, `reactions: 'all'` its flinch, fall and rise; `gaits` defaults to every gait only when
+ * no behavior or reaction is named). Throws a teaching error naming what it can do.
  */
 export function motionSpec(species, motion) {
   if (motion === undefined || motion === null || motion === false) return null;
-  const have = motionGaits(species), does = motionBehaviors(species);
-  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}`;
+  const have = motionGaits(species), does = motionBehaviors(species), reacts = motionReactions(species);
+  const say = `'${species}' moves: ${have.join(', ')}; does: ${does.join(', ') || 'none posed yet'}; reacts: ${reacts.join(', ') || 'none yet'}`;
   const words = typeof motion === 'string' && motion !== 'all' ? [motion] : Array.isArray(motion) ? motion : null;
-  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter((w) => !BEHAVIORS[w]), behaviors: words.filter((w) => BEHAVIORS[w]) } : motion;
-  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait or behavior word, a list of them, or { gaits, behaviors, keys } — ${say}`);
+  const REACTION_WORDS = ['flinch', 'fall', 'rise'];
+  const o = motion === true || motion === 'all' ? {} : words ? { gaits: words.filter((w) => !BEHAVIORS[w] && !REACTION_WORDS.includes(w)), behaviors: words.filter((w) => BEHAVIORS[w]), reactions: words.filter((w) => REACTION_WORDS.includes(w)) } : motion;
+  if (!o || typeof o !== 'object') throw new Error(`\`motion\` must be true, a gait, behavior or reaction word, a list of them, or { gaits, behaviors, reactions, keys } — ${say}`);
   const behaviors = o.behaviors === 'all' ? does : o.behaviors === undefined ? [] : [o.behaviors].flat();
-  const gaits = o.gaits === undefined ? (behaviors.length ? [] : have) : [o.gaits].flat();
+  const reactions = o.reactions === 'all' ? reacts : o.reactions === undefined ? [] : [o.reactions].flat();
+  for (const w of reactions) if (!reacts.includes(w)) throw new Error(`no reaction '${w}' — ${say}`);
+  const gaits = o.gaits === undefined ? (behaviors.length || reactions.length ? [] : have) : [o.gaits].flat();
   for (const g of gaits) if (!have.includes(g)) throw new Error(`no gait '${g}' — ${say}`);
   const variants = o.variants ?? {};
   if (typeof variants !== 'object' || Array.isArray(variants)) throw new Error('`motion.variants` is { <behavior>: <strategy> }');
   try { checkBehaviors(species, behaviors, variants); } catch (err) { throw new Error(`${err.message} — ${say}`); }
-  if (!gaits.length && !behaviors.length) throw new Error(`\`motion\` names no clip — ${say}`);
+  if (!gaits.length && !behaviors.length && !reactions.length) throw new Error(`\`motion\` names no clip — ${say}`);
   const keys = o.keys ?? 24;
   if (!Number.isInteger(keys) || keys < 4 || keys > 96) throw new Error('`motion.keys` must be an integer in [4, 96] (frames per stride)');
-  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}) };
+  return { gaits, keys, ...(behaviors.length ? { behaviors } : {}), ...(Object.keys(variants).length ? { variants } : {}), ...(reactions.length ? { reactions } : {}) };
 }
 
 /**

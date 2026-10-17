@@ -16,7 +16,7 @@
  * place of `roll`, rolled into `castSheet` where it is written and stored by value as a sheet is. Its nodes are its
  * members, by path; its preview is the cast standing in a line; a member is made by its path (`member`), and a member
  * on the hero door is made with its MOVES (moves.js): its stance, its attack, its reactions and its win, as clips; one
- * below it with a walk, a jog and the moves its rig solves; a beast with its two gaits.
+ * below it with a walk, a jog and the moves its rig solves; a beast with its two gaits and its reactions.
  *
  * `roll` is rollEgocube's arguments (with `years` and `chapters`, rollThread's: a fate thread). The sheet (or the
  * thread) is ROLLED WHERE IT IS WRITTEN and stored by value (`rollStored`): a later change to the Egocube's tables never
@@ -38,7 +38,7 @@ import { rollMascot, asksForMascot, MASCOT_KEYS } from './mascot.js';
 import { mascotPlanFromSheet, modelSheet } from './mascot-form.js';
 import { mascotOfPerson } from './mascot-from-person.js';
 import { rollCast, readCastRequest } from './cast.js';
-import { moveSetOf, creatureMovesOf, beastGaitsOf } from './moves.js';
+import { moveSetOf, creatureMovesOf, beastMovesOf } from './moves.js';
 import { motionPlan } from '../polygonizer/hero-motion.js';
 import { fingerprint } from '../gameworld/review.js';
 
@@ -125,8 +125,8 @@ export function egocubeCreate(m, { years, dress, title, output, member } = {}) {
   // a beast (cast.js): a real species, through the animal door; its temperament is the cast's reading of it
   if (node.member?.body === 'beast') {
     const { species } = node.member.beast;
-    // (with its two gaits rigged, so it can cross a level's map beside its keeper)
-    return { node: { path: node.path, band: 'beast' }, ...of, create: { as: 'animal', spec: { species, motion: beastGaitsOf(species) }, title: title ?? `${node.path} · ${species}` }, after: [], ledger: [] };
+    // (with its two gaits rigged, so it can cross a level's map beside its keeper, and on legs its flinch, fall and rise)
+    return { node: { path: node.path, band: 'beast' }, ...of, create: { as: 'animal', spec: { species, motion: beastMovesOf(species).motion }, title: title ?? `${node.path} · ${species}` }, after: [], ledger: [] };
   }
   const out = output ?? m.output ?? 'character';
   if (!OUTPUTS.includes(out)) throw new Error(`egocube: output is ${OUTPUTS.map((o) => `'${o}'`).join(' or ')}`);
