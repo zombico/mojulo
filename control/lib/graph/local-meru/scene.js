@@ -29,6 +29,7 @@ import { P, r5, hexRgb, rgbHex, crossed } from '../era/geom.js';
 import { obox } from '../era/props.js';
 import { gridX, gridY, landformGrid, bakeGrid, applyLandform, gridSample } from '../polygonizer/landform.js';
 import { bakeLand, ruleLand } from './shading.js';
+import { reliefField, reliefGrain } from '../noise/relief.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor } from './plan.js';
 
 const TAU = Math.PI * 2;
@@ -60,17 +61,39 @@ const stairAt = (L, x, y) => {
   return q.z;
 };
 
+/**
+ * The recipe's relief on the plain: its field, faded out round every tower that stands on the level ground. On an
+ * island the plain stands only `sea` over the water, so a hollow would drown the grass in beach: there the relief
+ * only lifts the plain.
+ */
+function reliefOn(p, R, seed) {
+  const field = reliefField(R, seed), posts = p.tiers.filter((t) => t.form !== 'mound').map((t) => ({ c: t.centre, r: t.half * 1.6 }));
+  const isle = !!p.recipe.island;
+  const plain = (x, y) => {
+    let w = 1;
+    for (const q of posts) w *= smooth(q.r, q.r + 4, Math.hypot(x - q.c[0], y - q.c[1]));
+    if (w <= 0) return 0;
+    const h = field(x, y);
+    return (isle && h < 0 ? 0 : h) * w;
+  };
+  // where the island draws the mountain as land (walk 'base': no shelf or stair cut into a flank), the relief runs up
+  // the mounds too, whole, so the raised land the geology breaks is already broken ground and not a turned mound
+  return { plain, flank: isle && p.recipe.island.walk === 'base' ? field : null };
+}
+
 /** The ground's height: the followed trail's last row eased to the level, every mound risen from it, the stairs cut. */
 function groundOf(p, seed) {
   const z0 = p.join.at[2], site = p.join.site, D = site ? site.D : p.join.at[1], N = p.join.N;
   const mounds = p.tiers.filter((t) => t.form === 'mound'), stairs = p.links.filter((L) => L.via === 'stair');
   const lump = (x, y) => 0.35 * (vnoise(x * 0.09, y * 0.09, seed + 311) - 0.5);
+  const R = p.recipe.relief, relief = R ? reliefOn(p, R, seed) : null;
   return (x, y) => {
     const along = (x - p.join.at[0]) * N[0] + (y - p.join.at[1]) * N[1];
     if (along < -0.01 && site) return site.ground(x, D);
-    const level = z0 + lump(x, y) * smooth(0, SEAM, y - D);
+    const level = z0 + (relief ? lump(x, y) + relief.plain(x, y) : lump(x, y)) * smooth(0, SEAM, y - D);
     let h = site ? site.ground(x, D) + (level - site.ground(x, D)) * smooth(0, SEAM, y - D) : level;
-    for (const t of mounds) h = Math.max(h, moundAt(t, x, y));
+    if (relief?.flank) { const f = relief.flank(x, y) * smooth(0, SEAM, y - D); for (const t of mounds) h = Math.max(h, moundAt(t, x, y) + f); }
+    else for (const t of mounds) h = Math.max(h, moundAt(t, x, y));
     for (const L of stairs) { const z = stairAt(L, x, y); if (z !== null && z < h) h = Math.max(z - 0.02, p.tiers.find((t) => t.id === L.tier).base); }
     return h;
   };
@@ -333,7 +356,8 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   if (SH) {
     const isLand = (f) => f.group in landTint;
     const soft = plain.filter(isLand).map((f) => ({ ...f, tint: landTint[f.group] }));
-    land = ruleLand(bakeLand([...soft, ...rockFaces], ambient, sun, SH), SH, landTint);
+    const grain = p.recipe.relief ? reliefGrain(p.recipe.relief, seed, ground.grid.dx) : null;
+    land = ruleLand(bakeLand([...soft, ...rockFaces], ambient, sun, SH), SH, landTint, grain ? { at: grain, amount: p.recipe.relief.grain } : null);
     baked = bakeStageLight(plain.filter((f) => !isLand(f)), [], ambient, undefined, sun);
   } else baked = bakeStageLight(plain, [], ambient, undefined, sun);
   // sand takes the trail's ramp: a card has no sand of its own yet
@@ -364,7 +388,7 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     localMeru: {
       id: `local-meru:${p.recipe.id}`, ...(J.from ? { after: J.from } : {}),
       tiers: p.tiers.map((t) => ({ id: t.id, form: t.form, up: t.up.via, base: t.base, top: t.top })),
-      meru: p.meru.stack, made: { kit: made.kitId, tokens: made.tokens },
+      meru: p.meru.stack, made: { kit: made.kitId, tokens: made.tokens }, ...(p.recipe.relief ? { relief: p.recipe.relief.id } : {}),
       laws: localMeruLaws(p).map(({ law, ok, value }) => ({ law, ok, value })),
     },
   };

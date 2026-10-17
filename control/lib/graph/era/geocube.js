@@ -19,9 +19,10 @@
  *             colour, warm lit against cool shade, a slow drift of value. The land hands its crease and ridge to it
  *   surfaces  the patterns of the wall, the floor and the accent (surface-textures.js tile specs)
  *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall
- *   outside   the base (an isekai card), the landform's tiers and island, and `land`: the polygon land's rules; and
+ *   outside   the base (an isekai card), the landform's tiers and island, `land`: the polygon land's rules, and
+ *             `relief` (optional): the plain's own ground, a relief card or { from, …changes } (noise/relief.js); and
  *             its TERRAINS: the cube's own outside is one (named by `terrain`, 'default' unless named), `terrains`
- *             the others, each a few changes to it ({ reads?, base?, land?, colour? }: a shore, a highland). A level
+ *             the others, each a few changes to it ({ reads?, base?, land?, relief?, colour? }: a shore, a highland). A level
  *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
  *   why       the principles, one line each, carried into the outside's look card for whatever builds next
  *   era       the look's generation (eras.js; gen-6 by default): its light and surface conventions, at any resolution
@@ -48,6 +49,7 @@ import { fingerprint } from '../gameworld/review.js';
 import { DEFAULT_ERA, eraError } from './eras.js';
 import { DEFAULT_TARGET, readTarget } from './target.js';
 import { readContrast } from './vertex-contrast.js';
+import { readRelief } from '../noise/relief.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
@@ -174,6 +176,8 @@ const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
+// a relief checked where the cube names it: its own words, said as the cube's
+const reliefOrNo = (v, at) => { try { readRelief(v); } catch (e) { no(`${at}: ${e.message.replace(/^relief: /, '')}`); } };
 const only = (o, keys, at) => { for (const k of Object.keys(o)) if (!keys.includes(k)) no(`${at}.${k} is not a setting (${at}: ${keys.join(', ')})`); };
 
 /** A preset id, a whole document, or { from: preset, …changes } (merged key by key; arrays are replaced) → the cube. */
@@ -254,15 +258,17 @@ export function readGeocube(spec) {
   if (!(Array.isArray(c.inside.size) && c.inside.size.length === 3 && c.inside.size.every((v) => v >= 3 && v <= 40))) no('inside.size is [w, d, h] metres, each 3..40');
   if (!WALLS.includes(c.inside.accentWall)) no(`inside.accentWall is one of ${WALLS.join(', ')}`);
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'terrain', 'terrains'], 'outside');
+  if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {
-    if (!isObj(c.outside.terrains)) no('outside.terrains is { <name>: { reads?, base?, land?, colour? } }: the cube\'s other terrains');
+    if (!isObj(c.outside.terrains)) no('outside.terrains is { <name>: { reads?, base?, land?, relief?, colour? } }: the cube\'s other terrains');
     for (const [name, t] of Object.entries(c.outside.terrains)) {
       const at = `outside.terrains.${name}`;
       if (!/^[a-z][a-z0-9-]{0,31}$/.test(name) || name === (c.outside.terrain ?? 'default')) no(`${at}: a terrain's name is a lowercase slug, not the cube's own ('${c.outside.terrain ?? 'default'}')`);
-      if (!isObj(t)) no(`${at} is { reads?, base?, land?, colour? }`);
-      only(t, ['reads', 'base', 'land', 'colour'], at);
+      if (!isObj(t)) no(`${at} is { reads?, base?, land?, relief?, colour? }`);
+      only(t, ['reads', 'base', 'land', 'relief', 'colour'], at);
+      if (t.relief !== undefined && t.relief !== false) reliefOrNo(t.relief, `${at}.relief`);
       if (t.base !== undefined && (!ISEKAI_STYLES[t.base] || !SWATCHES[t.base])) no(`${at}.base '${t.base}' is not an isekai card (${Object.keys(ISEKAI_STYLES).filter((k) => SWATCHES[k]).join(', ')})`);
       if (t.land !== undefined && t.land !== false) only(t.land, ['smooth', 'crevice', 'ridge', 'blend', 'sun'], `${at}.land`);
       if (t.colour !== undefined) {
@@ -364,7 +370,7 @@ function onTerrain(cube, name) {
   const t = cube.outside.terrains?.[name];
   if (!t) no(`terrain '${name}' is not one of ${cube.id}'s (terrains: ${geocubeTerrains(cube).map((x) => x.name).join(', ')})`);
   return { ...cube, id: `${cube.id}-${name}`, reads: t.reads ?? cube.reads, colour: { ...cube.colour, ...(t.colour ?? {}) },
-    outside: { ...cube.outside, base: t.base ?? cube.outside.base, land: t.land ?? cube.outside.land } };
+    outside: { ...cube.outside, base: t.base ?? cube.outside.base, land: t.land ?? cube.outside.land, ...(t.relief !== undefined ? { relief: t.relief } : {}) } };
 }
 
 function lowerOutside(cube0, terrain) {
@@ -385,9 +391,9 @@ function lowerOutside(cube0, terrain) {
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land } });
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
-  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {};
+  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
-    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own } }) } };
+    ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own } }), ...(R !== undefined && R !== false ? { relief: R } : {}) } };
 }
 
 /**

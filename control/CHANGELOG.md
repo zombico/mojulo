@@ -14,6 +14,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Perlin spike: relief for the geocube land
+
+- **One noise module.** `lib/graph/noise/noise.js`: 2D gradient noise on the terrain kernel's integer hash and
+  8-direction table (the same values as `terrain-kernel.js gn`), its analytic gradient, fractal sums in four flavours
+  (`fbm`, `ridged`, `billow`, `damped`: detail suppressed where the slope is already steep, the eroded look) with
+  octaves rotated off the lattice, domain warp and terraces. Only + − × ÷, floor and imul on the height path, so a
+  field is the same in every engine.
+- **`relief` on a geocube's outside.** `outside.relief` (and `outside.terrains.<name>.relief`) names a relief card
+  (`rolling`, `craggy`, `eroded`, `terraced`, `dune`) or `{ from, …changes }`; the stage's meru carries it and the
+  local meru lays it on the plain under the seam fade. On an island it only lifts the plain (a hollow would drown the
+  grass in beach), and where the island draws its mountain as land (`walk: 'base'`) it runs up the mounds too, so the
+  geology breaks already-broken ground. Octaves are set in metres, not by the mesh. A cube without relief lowers and
+  renders byte-identically. The geocube routing card names the word.
+- **Grain in the vertex.** The relief's octaves finer than the land's cells go to colour only, filtered over each
+  corner's footprint (`relief.grain`), so the polygon land's light carries detail its geometry cannot.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

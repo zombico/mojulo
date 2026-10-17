@@ -12,6 +12,8 @@
  *   ridge    the same measure, convex, lifts it a little: the lit lip a facet catches
  *   blend    a different surface a corner or two away carries its colour over the seam (grass takes on stone at the
  *            cliff foot, sand at the beach); rock keeps its own
+ *   grain    (with a relief) the relief's octaves finer than the land's cells move the value of ground and sand, so
+ *            the light carries detail the geometry is too coarse to hold; rock and trail keep their own
  */
 import { bakeStageLight } from '../era/stage.js';
 import { hexRgb, rgbHex } from '../era/geom.js';
@@ -77,9 +79,12 @@ function shapeOf(faces) {
   }));
 }
 
-const K = 5, DEEP = 0.35, LIFT = 0.22;
-/** The rules into each corner colour, in linear light. `tints` is each surface's albedo (0..1 sRGB) for the blend. */
-export function ruleLand(faces, S, tints) {
+const K = 5, DEEP = 0.35, LIFT = 0.22, GRAIN = 0.35, GRAINED = new Set(['isekai:ground', 'isekai:sand']);
+/**
+ * The rules into each corner colour, in linear light. `tints` is each surface's albedo (0..1 sRGB) for the blend;
+ * `grain` ({ at(x, y) → about [−1, 1], amount 0..1 }, or null) the relief's fine octaves for the value.
+ */
+export function ruleLand(faces, S, tints, grain = null) {
   const s = lin(hexRgb(S.shade)), sl = lum(s) || 1, shade = s.map((v) => v / sl);
   const T = Object.fromEntries(Object.entries(tints).map(([g, t]) => [g, lin(t)]));
   const shape = shapeOf(faces);
@@ -94,6 +99,7 @@ export function ruleLand(faces, S, tints) {
         const w = S.blend * (near[0] === 0 ? 0.55 : 0.22), o = T[near[1]];
         m = m.map((v, j) => v * ((1 - w) + w * o[j] / Math.max(own[j], 1e-4)));
       }
+      if (grain && GRAINED.has(f.group)) { const c = f.corners[k], g = 1 + grain.amount * GRAIN * grain.at(c[0], c[1]); m = m.map((v) => v * g); }
       return rgbHex(srgb(lin(hexRgb(hex)).map((v, j) => Math.min(1, v * m[j]))));
     });
     const mean = [0, 1, 2].map((j) => cornerFills.reduce((a, h) => a + hexRgb(h)[j], 0) / cornerFills.length);
