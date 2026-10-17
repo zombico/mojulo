@@ -178,6 +178,11 @@ export function runSteps(world, { ref, lookup } = {}) {
   const carryFrom = { items: store.slices.filter((x) => x.kind === 'inventory').map((x) => x.name), campaign: 'campaign', levels: last };
   // the cast who join the hero (characters.cast.<id>.joins): every stage carries them, asleep until they join
   const party = Object.entries(GL.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins }));
+  // a casting page's people on the field (casting.js): each plays its own moves; its first party and the familiars walk
+  // beside the hero from the start (one the page gives a joins flag joins on it, above); a body that does not walk the
+  // field yet is left off it
+  const castFigures = CG ? Object.fromEntries(CG.members.map((M) => [M.id, M.field])) : null;
+  if (CG) for (const M of CG.members) if ((M.bond === 'party' || M.bond === 'familiar') && !M.joins && M.field) party.push({ id: M.id, ref: castRefs[M.id], joins: null });
   const lastOf = lastStages(stages);
   // the packs each stage meets, numbered across the game (battles.js)
   const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(stageEnds(stages[i].manifest))) : null, packFrom = [];
@@ -186,7 +191,7 @@ export function runSteps(world, { ref, lookup } = {}) {
     if (s.building?.ref) return;
     const st = told?.byStage[`${s.level}/${s.node}`];
     const fights = plan?.[i] ? { extra: (ends) => partyCast(G, s, ends, { ref: foeRef, packs: plan[i], from: packFrom[i], seed: (Number.isInteger(G.seed) ? G.seed : 1) * 101 + i }), legend: 'P  party' } : {};
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...goalArgs(G, s, lastOf, ref), ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef: pilot, ...goalArgs(G, s, lastOf, ref), ...(heroGaits ? { heroGaits } : {}), mechanics: B.mechanics, carryFrom, ...(map ? { map: map[i] } : {}), ...(st ? { story: st } : {}), ...(party.length ? { party } : {}), ...(castFigures ? { castFigures } : {}), ...cityRefsOf(stages, levelRefs, s), ...fights });
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: ready.systems.ready, ...waits(ready.systems), order: L.args, print: fingerprint(L.args), ...(L.laws ? { laws: L.laws } : {}) });
   });
   if (stages.length) {

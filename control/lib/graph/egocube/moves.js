@@ -12,7 +12,9 @@
  * A non-combatant gets no ready, no attack and no topple: a hit and its win. Absent from every character but a cast's
  * member on the hero door (egocube/kind.js `egocubeCreate`).
  *
- *   moveSetOf(facets) → { motion: { <word>: true }, moves: { ready?, attack?, react: [..], win } }
+ *   moveSetOf(facets)    → { motion: { <word>: true }, moves: { ready?, attack?, react: [..], win } }
+ *   fieldStatesOf(moves) → the controllable runtime's states its own moves play on the level map (a hit's lurch, the
+ *                          topple and the rise, a swing), for a figure's `clips` beside its library's
  *
  * Pure. First readings, for the eyes gate.
  */
@@ -34,4 +36,14 @@ export function moveSetOf(f) {
   };
   const words = [moves.ready, moves.attack, ...moves.react, moves.win].filter(Boolean);
   return { motion: Object.fromEntries([...new Set(words)].map((w) => [w, true])), moves };
+}
+
+/** The runtime's states (worlds/controllable: combat-hit.js, combat-melee.js) a member's own moves play on the field. */
+export function fieldStatesOf(moves) {
+  const react = new Set(moves.react);
+  return {
+    stagger: react.has('stagger') ? 'stagger' : 'hitHigh',
+    ...(react.has('knockedOut') ? { topple: 'knockedOutDown', getup: 'knockedOutUp' } : {}),
+    ...(moves.attack ? { swing_neutral: moves.attack, swing_forward: moves.attack } : {}),
+  };
 }

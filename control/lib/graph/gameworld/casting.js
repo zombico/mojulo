@@ -17,13 +17,16 @@
  * Each member becomes a cast member of the book (`laidCasting`): one egocube row holds the cast (the proposal: the
  * members standing in a line), and each member is made from it by path (create_character { egocube, member }). A
  * journey cast waits on its page's approval (`characters:cast`) before a body is made. The first party fights in the
- * party battles from the start, each in the class its sheet reads as (`classOf`); with `joins`, it walks the field once
- * that flag is set, as a written member does. A familiar of the hero or of a party member fights beside its keeper and
+ * party battles from the start, each in the class its sheet reads as (`classOf`), and walks the field beside the hero
+ * from the start; with `joins`, once that flag is set, as a written member does. On the level map each member plays
+ * its own moves (its hit, its fall and rise, its swing) over the library's walk. A familiar of the hero or of a party member fights beside its keeper and
  * picks for itself (play.rpg `auto`).
  *
  *   castingRequest(G)    → { request, scale, from }     the rollCast request (the game's setting in it) and why that scale
  *   castingOf(G)         → { request, scale, from, sheet, anchor, members } or null (no casting page); a member is
- *                          { id, path, of, name, relation, bond?, body, cls?, joins? }
+ *                          { id, path, of, name, relation, bond?, body, cls?, joins?, field }: `field` its figure on
+ *                          the level map ({ clips }: the runtime's states its own moves play), or null for a body that
+ *                          does not walk it yet (a beast, a body below the hero door, a mascot)
  *   castingIds(casting)  → [{ id, key, bond }]          the member ids a page makes, without rolling
  *   laidCasting(G)       → G with the rolled members in characters.cast, as { name, joins? } (their ids in characters.rolled)
  *   scaleOfWords(text)   → { scale?, n?, familiar?, bodies?, words }   what a prompt's words ask of the cast
@@ -33,6 +36,7 @@
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
 import { settingOfGame } from './cast-setting.js';
+import { moveSetOf, fieldStatesOf } from '../egocube/moves.js';
 import { cubeOfWorld } from './intent.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -156,7 +160,8 @@ export function castingOf(G) {
   const members = sheet.order.slice(1).map((path) => {
     // (an id a written member holds, from a scale the prompt chose, takes '-cast': the written member is the book's)
     const m = sheet.members[path], id = written(G).has(castIdOf(path)) ? `${castIdOf(path)}-cast` : castIdOf(path), key0 = path.split('/').slice(1).join('/'), book = own[key0] ?? {};
-    return { id, path, of: m.of, name: book.name ?? nameOf(m), relation: m.relation, ...(m.bond ? { bond: m.bond } : {}), body: m.body, ...(m.bond ? { cls: classOf(m) } : {}), ...(book.joins ? { joins: book.joins } : {}) };
+    const walks = (m.body === 'person' || m.body === 'beastkin') && m.sheet.ancestry?.door === 'hero';
+    return { id, path, of: m.of, name: book.name ?? nameOf(m), relation: m.relation, ...(m.bond ? { bond: m.bond } : {}), body: m.body, ...(m.bond ? { cls: classOf(m) } : {}), ...(book.joins ? { joins: book.joins } : {}), field: walks ? { clips: fieldStatesOf(moveSetOf(m.sheet.facets).moves) } : null };
   });
   return { ...Q, sheet, anchor: { cls: classOf(sheet.members[sheet.anchor]) }, members };
 }

@@ -114,6 +114,9 @@ async function heroFigure(name, spec) {
     if (!clips[clip]) throw new Error(`figures.${name}: clips.${state} names '${clip}', which the hero does not have (it has ${Object.keys(pack.clips).join(', ')}${lib ? `; the ${lib.id} library has ${Object.keys(lib.clips).join(', ')}` : ''})`);
     clips[state] = clips[clip];
   }
+  // its OWN MOVES (`moves`: state → a clip of its own, egocube/moves.js `fieldStatesOf`): a state plays the hero's own
+  // clip when it has it, over the library's; one it lacks keeps what the state played (absent ⇒ the same figure)
+  for (const [state, clip] of Object.entries(spec.moves || {})) if (pack.clips[clip]) clips[state] = pack.clips[clip];
   return { ...pack, clips };
 }
 

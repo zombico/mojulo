@@ -59,6 +59,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `create_character` says which (`egocube.moves`). One character from a single egocube is made as before.
 - **The combat states play a hero's own reactions** (`playscape/player.js` `playerStates`): `stagger`, `topple` and
   `getup` map to its `stagger` (or `hitHigh`), `knockedOutDown` and `knockedOutUp` when it has them.
+- **The level map plays each member's own moves.** A casting page's member carries its `field`: the runtime states its
+  own moves play (`egocube/moves.js` `fieldStatesOf`: the hit's lurch, the topple and the rise, a swing as its attack).
+  A figures-map hero takes `moves` beside `clips` (`worlds/world-scene.js`): each state plays the hero's own clip over
+  the library's when it has it, and keeps the library's when not. Its first party and its familiars walk beside the hero
+  from the start (`play.party` members may now leave out `joins`: woken as the level starts, no flag carried); a beast,
+  a mascot or a body below the hero door is left off the field until it can walk it. A level with no casting page is
+  byte-identical.
 
 ## [3.1.1] - 2026-10-16
 

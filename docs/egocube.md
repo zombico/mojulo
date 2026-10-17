@@ -488,5 +488,5 @@ A fate thread is a separate call on a sheet that already exists, never part of t
 - **The cast laws a person's sheet cannot measure**: palette spread and the bookends' value, shape language and
   saturation are carried as `unread`, for the eyes; the roll holds motivation alone. There are four person silhouette
   words (column, needle, barrel, bell), so a party of more than four people repeats one (a beast or a mascot does not).
-- **Rolled members on the level map** play the shared library's loops; their own moves play on their page, and a
-  hero's reactions play the controllable runtime's stagger, topple and get-up where its clip names are known.
+- **Rolled members on the level map** play their own hit, fall, rise and swing over the library's walk and idle; a
+  beast, a mascot or a body below the hero door is not on the field yet.

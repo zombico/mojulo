@@ -264,6 +264,14 @@ describe('design_game: party battles on the book path (battles)', () => {
     // the hero's familiar fights beside it, picking for itself
     expect(stored('gc-level-meadow-ascent-0').play.rpg.party.map((p) => [p.id, p.auto?.keeper ?? null])).toEqual([['hero', null], ['party-1', null], ['pet', 'hero']]);
     expect(out.parts.find((p) => p.id === 'characters:cast')).toBeTruthy();
+    // on the level map the member walks beside the hero from the start and plays its own moves over the library's
+    const level = SketchRepository.getByRef('gc-level-meadow-ascent-0');
+    expect(level.manifest.play.party).toContainEqual({ who: 'party-1' });
+    const { payload } = await resolveWorldScene(level);
+    const fig = payload.figures['party-1'];
+    expect(fig.clips.topple).toEqual(fig.clips.knockedOutDown);
+    expect(fig.clips.getup).toEqual(fig.clips.knockedOutUp);
+    expect(fig.clips.stagger).toBeTruthy();
     const again = await designGameHandler({ ref: 'gc', run: true });
     expect([action(again, 'casting'), action(again, 'cast-party-1')]).toEqual(['keep', 'keep']);
   }, 900_000);
