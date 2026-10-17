@@ -176,6 +176,7 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 
 ## What you can make
 
+- **"Here's our floor plan, some ideas for living in it?"** → the agent reads the rooms off the picture and builds the house at its drawn sizes, then designs the rooms you name: a style, a palette, finishes and furniture at true size, walkways kept, what would not fit said. "Paint the walls sage and turn the sofa to the windows" revises the same room, and "a walkthrough video" is the agent filming each room and stitching one MP4. The GIF at the top is that session, as it ran.
 - **"Model me a bracket that fits this shelf"** → a solid at literal scale on the workbench: lathes, sweeps, extrudes, fields; a hole is a line in the recipe; parts seat by declared relation. Measured without exporting, then out as print-ready STL or 3MF with process-aware print advisories — the conversation ends at the printer.
 - **"A posed archer" / "a wolf, mid-stride"** → figures and animals on one armature, with gaits and emotes; rigs export as glTF clips, skinned meshes, or VRM humanoids.
 - **"A six-storey building with a set-back penthouse" / "a walkable city at dusk"** → furnished floorplans that stack, bespoke buildings, caves and dungeons, cities, transit hubs, campuses, landscapes — every one a place you can walk, and every one exportable.
