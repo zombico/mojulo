@@ -7,7 +7,10 @@
  *
  *   battles?: {
  *     party?: { hero?: { class?, name?, level?, bonus?, classes? }, <cast id>: { … } }
- *                          each member's class (hero: fighter; those who join, in turn: mage, cleric, rogue, knight, monk)
+ *                          each member's class (hero: fighter; those who join, in turn: mage, cleric, rogue, knight, monk;
+ *                          a casting page's (casting.js): the hero and its first party each the class their sheet reads as,
+ *                          the rolled party in from the start unless the page gives one a joins flag; a rolled
+ *                          familiar beside its keeper, picking for itself: play.rpg `auto`)
  *     packs?: [[foe ids]], the packs met along the way, in walking order across the game's trail stages; past the last,
  *                          the last again (default PACKS)
  *     per?: n,             packs on each trail stage (2), on its beats
@@ -30,6 +33,7 @@ import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
 import { playerStates } from '../playscape/player.js';
 import { cubeOfWorld } from './intent.js';
+import { castingOf, castingIds } from './casting.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -61,10 +65,13 @@ export function readBattles(v, characters = null) {
   if (!isObj(v)) throw err(' is { party?, packs?, per?, boss?, foe?, rest?, random?, classes?, skills?, foes?, items?, rules? }');
   for (const k of Object.keys(v)) if (!KEYS.includes(k)) throw err(`.${k} is not part of the battles (${KEYS.join(', ')})`);
   const cast = characters?.cast ?? {};
+  // (a casting page's first party may be named too: its ids are read from its words, without rolling, at the largest
+  // scale when the page names none, since the prompt's words decide it)
+  const rolled = characters?.casting ? new Set(castingIds({ scale: 'journey', ...characters.casting }).filter((x) => x.bond === 'party').map((x) => x.id)) : new Set();
   if (v.party !== undefined) {
     if (!isObj(v.party)) throw err('.party is { hero?: { class }, <cast id>: { class } }: each member\'s class');
     for (const [id, m] of Object.entries(v.party)) {
-      if (id !== 'hero' && !cast[id]?.joins) throw err(`.party.${id}: the party is the hero and the cast who join it (characters.cast.<id>.joins)${cast[id] ? `; give ${id} a joins flag` : ''}`);
+      if (id !== 'hero' && !cast[id]?.joins && !rolled.has(id)) throw err(`.party.${id}: the party is the hero and the cast who join it (characters.cast.<id>.joins)${cast[id] ? `; give ${id} a joins flag` : ''}`);
       if (!isObj(m)) throw err(`.party.${id} is { class?, name?, level?, bonus?, classes? }`);
       for (const k of Object.keys(m)) if (!MEMBER_KEYS.includes(k)) throw err(`.party.${id}.${k} is not part of a member (${MEMBER_KEYS.join(', ')})`);
     }
@@ -101,9 +108,17 @@ export function battleParty(G) {
     const m = P[id] ?? {};
     return { id, name: m.name ?? name, class: m.class ?? cls, ...(m.level !== undefined ? { level: m.level } : {}), ...(m.bonus ? { bonus: m.bonus } : {}), ...(m.classes ? { classes: m.classes } : {}), ...(m.gear ? { gear: m.gear } : {}), ...(joins ? { joins } : {}) };
   };
-  out.push(at('hero', 'fighter', 'Hero', null));
+  const C = G.characters?.casting ? castingOf(G) : null, laid = new Set(G.characters?.rolled ?? []);
+  out.push(at('hero', C ? C.anchor.cls : 'fighter', 'Hero', null));
   let k = 0;
-  for (const [id, c] of Object.entries(G.characters?.cast ?? {})) if (c.joins) out.push(at(id, JOINER_CLASSES[k++ % JOINER_CLASSES.length], c.name ?? words(id), c.joins));
+  for (const [id, c] of Object.entries(G.characters?.cast ?? {})) if (c.joins && !laid.has(id)) out.push(at(id, JOINER_CLASSES[k++ % JOINER_CLASSES.length], c.name ?? words(id), c.joins));
+  for (const M of C?.members ?? []) if (M.bond === 'party') out.push(at(M.id, M.cls, M.name, M.joins ?? null));
+  // a familiar of the hero or of a first-party member fights beside its keeper, picking for itself
+  const keeperOf = (M) => (M.of === C.sheet.anchor ? 'hero' : C.members.find((K) => K.path === M.of)?.id);
+  for (const M of C?.members ?? []) {
+    const keeper = M.bond === 'familiar' && keeperOf(M);
+    if (keeper && out.some((x) => x.id === keeper)) out.push({ ...at(M.id, M.cls, M.name, M.joins ?? null), auto: { keeper } });
+  }
   return out;
 }
 

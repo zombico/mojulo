@@ -266,3 +266,31 @@ describe('the timeline (rules.turns: timeline): each acts when its gauge fills',
     expect(() => readRpg({ rpg: { party: [{ id: 'a', class: 'fighter' }], rules: { turns: 'atb' } } })).toThrow(/turns is rounds or timeline/);
   });
 });
+
+describe('a familiar: a party member that picks for itself (auto)', () => {
+  const pair = (fam, extra = {}) => readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'kit', class: fam, auto: { keeper: 'ayla' } }], ...extra } });
+
+  it('mends its keeper first when hurt, and asks the player for no command', () => {
+    const cfg = pair('cleric', { encounters: [{ id: 'pack', foes: ['golem'] }] });
+    const R = rpgInit(cfg), v = {};
+    rpgStart(cfg, R, 'pack', v);
+    R.m.ayla.hp = 3;
+    const beats = rpgRound(cfg, R, { ayla: { act: 'guard' } }, v);
+    expect(beats).toContainEqual(expect.objectContaining({ kind: 'cast', who: 'kit', skill: 'heal', target: 'ayla' }));
+    expect(buildRpg.toString()).toContain('allyPick');
+  });
+
+  it('strikes a weakness when it can, and plays its own turns on the timeline', () => {
+    const cfg = pair('mage', { encounters: [{ id: 'pack', foes: ['slime'] }], rules: { turns: 'timeline' } });
+    const R = rpgInit(cfg), v = {};
+    const beats = rpgStart(cfg, R, 'pack', v);
+    for (let t = 0; t < 6 && R.b.phase === 'command'; t++) { expect(R.b.turn).not.toBe('kit'); beats.push(...rpgRound(cfg, R, { ayla: { act: 'guard' } }, v)); }
+    expect(beats).toContainEqual(expect.objectContaining({ who: 'kit', skill: 'fire' }));
+  });
+
+  it('is read and refused by name', () => {
+    expect(() => readRpg({ rpg: { party: [{ id: 'kit', class: 'mage', auto: true }] } })).toThrow(/someone takes the player's commands/);
+    expect(() => pair('mage').party && readRpg({ rpg: { party: [{ id: 'ayla', class: 'fighter' }, { id: 'kit', class: 'mage', auto: { keeper: 'zed' } }] } })).toThrow(/keeper 'zed' is not in the party/);
+    expect(trio().party.every((p) => !('auto' in p))).toBe(true);   // absent, the cfg is as it was
+  });
+});

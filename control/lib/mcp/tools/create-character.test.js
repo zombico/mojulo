@@ -7,6 +7,7 @@ import { updateSketchHandler } from './sketch-mint.js';
 import { mintSolidHandler } from './mint-solid.js';
 import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { createSketchHandler } from './sketches.js';
+import { WORLD_KINDS } from '@/lib/graph/worlds/world-kinds.js';
 
 // create_character is a door, not a kind: a character minted through it is the same stored recipe mint_solid makes
 // from the same spec. Each pair mints under two refs and compares the stored manifests byte for byte.
@@ -177,6 +178,27 @@ describe('create_character from an egocube: one sheet, many games', () => {
     await updateSketchHandler({ ref: 'cc_ego', patch: [{ op: 'set', path: '/roll/seed', value: 4 }] });
     const u = await updateCharacterHandler({ ref: 'cc_wren26', spec: { hair: 'bob' } });
     expect(u.egocube.moved).toMatch(/has moved since this character was made from it/);
+  }, 600_000);
+
+  it('a cast\'s cube makes each member by its path: a person through its door, a beast through the animal door', async () => {
+    const cast = { seed: 2, cast: { rival: { relation: 'rival', body: 'person' }, red: { relation: 'party', body: 'beast', species: 'wolf' } } };
+    const made = await createSketchHandler({ title: 'Cast', ref: 'cc_cast', manifest: { kind: 'egocube', cast } });
+    expect(made.ok).toBe(true);
+    expect(SketchRepository.getByRef('cc_cast').manifest.castSheet.order).toEqual(['hero', 'hero/rival', 'hero/red']);
+    const r = await createCharacterHandler({ egocube: 'cc_cast', member: 'hero/rival', ref: 'cc_cast_rival' });
+    expect(r.egocube).toMatchObject({ ref: 'cc_cast', member: { path: 'hero/rival', relation: 'rival', body: 'person' } });
+    expect(SketchRepository.getByRef('cc_cast_rival').manifest.egocube).toMatchObject({ ref: 'cc_cast', member: 'hero/rival' });
+    // made with its moves: its page's clip picker plays them (the rig preview's figure)
+    expect(r.egocube.moves.react).toEqual(['hitHigh', 'stagger', 'knockedOut']);
+    const scene = await WORLD_KINDS.layered.resolve(SketchRepository.getByRef('cc_cast_rival').manifest, { title: 'rival' });
+    const clips = Object.keys(Object.values(scene.figures).find((f) => f?.rig && f.preview).clips);
+    expect(clips).toEqual(expect.arrayContaining(['idle', 'walk', 'hitHigh', 'stagger', 'knockedOutDown', 'knockedOutUp', r.egocube.moves.win]));
+    const w = await createCharacterHandler({ egocube: 'cc_cast', member: 'hero/red', title: 'animal · wolf', ref: 'cc_cast_red' });
+    await mintSolidHandler({ kind: 'animal', spec: { species: 'wolf' }, title: 'animal · wolf', ref: 'cc_cast_red_solid' });
+    expect(manifestOf('cc_cast_red')).toBe(manifestOf('cc_cast_red_solid'));
+    expect(w.egocube.member).toMatchObject({ path: 'hero/red', bond: 'party', body: 'beast' });
+    await expect(createCharacterHandler({ egocube: 'cc_cast', member: 'hero/nobody' })).rejects.toThrow(/has no member 'hero\/nobody'/);
+    await expect(createCharacterHandler({ egocube: 'cc_cast', years: 20 })).rejects.toThrow(/made by path \(member\)/);
   }, 600_000);
 });
 

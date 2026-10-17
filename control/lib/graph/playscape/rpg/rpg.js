@@ -5,10 +5,14 @@
  * and is left as it is.
  *
  *   play.rpg: {
- *     party:      [{ id, name?, class, level?, joins?: '<flag>', bonus?: { <stat>: n }, classes?: [class ids], gear? }]
+ *     party:      [{ id, name?, class, level?, joins?: '<flag>', bonus?: { <stat>: n }, classes?: [class ids], gear?,
+ *                 auto?: true | { keeper } }]
  *                 the battle order; a member with `joins` is in once that flag is set (or `rpg-join:<id>` is emitted);
  *                 `classes` limits what they may switch to (default: every class of the world); `gear`: { <slot>: item }
- *                 what they wear as the party starts (default: their class's `start`)
+ *                 what they wear as the party starts (default: their class's `start`); `auto`: a FAMILIAR (second party: a
+ *                 stand, a summon, a companion) that picks for itself, smart-reactive and never on the dice: it mends the
+ *                 hurt (its keeper first), raises the fallen, strikes a weakness, finishes the weakest foe, else the
+ *                 hardest hitter. The page asks no command of it
  *     classes?:   [ids] | { <id>: { name?, about?, base?, growth?, skills?: [entry], opens?: '<flag>', start? } | true }
  *                 the world's classes (default: every preset). entry = { skill, at?: rank } learned at that class rank,
  *                 or { skill, cost: n, requires?: [skill] } bought on the class's tree with its points
@@ -189,7 +193,7 @@ export function readRpg(play) {
   const party0 = P.party.map((p, i) => {
     const at = `.party[${i}]`;
     if (!isObj(p)) throw err(`${at} is { id, name?, class, level?, joins?, bonus?, classes? }`);
-    keysOnly(p, ['id', 'name', 'class', 'level', 'joins', 'bonus', 'classes', 'gear'], at);
+    keysOnly(p, ['id', 'name', 'class', 'level', 'joins', 'bonus', 'classes', 'gear', 'auto'], at);
     id(p.id, `${at}.id`);
     if (seen.has(p.id)) throw err(`${at}.id '${p.id}' is in the party twice`);
     seen.add(p.id);
@@ -200,9 +204,13 @@ export function readRpg(play) {
     const classes = p.classes === undefined ? null : listOf(p.classes, `${at}.classes`, 'class ids').map((c, k) => id(c, `${at}.classes[${k}]`));
     if (classes && !classes.includes(p.class)) throw err(`${at}.classes leaves out their own class '${p.class}'`);
     const gear = p.gear === undefined ? null : readWorn(p.gear, `${at}.gear`);
-    return { id: p.id, name: typeof p.name === 'string' && p.name ? p.name : words(p.id), cls: p.class, level: p.level ?? 1, joins: p.joins ?? null, bonus: { ...(p.bonus ?? {}) }, classes, gear };
+    if (p.auto !== undefined && p.auto !== true && !(isObj(p.auto) && Object.keys(p.auto).every((k) => k === 'keeper') && typeof p.auto.keeper === 'string')) throw err(`${at}.auto is true, or { keeper: '<member id>' }: a familiar that picks for itself`);
+    const auto = p.auto === undefined ? null : { keeper: p.auto === true ? null : p.auto.keeper };
+    return { id: p.id, name: typeof p.name === 'string' && p.name ? p.name : words(p.id), cls: p.class, level: p.level ?? 1, joins: p.joins ?? null, bonus: { ...(p.bonus ?? {}) }, classes, gear, ...(auto ? { auto } : {}) };
   });
   if (party0.every((p) => p.joins)) throw err('.party: someone is in from the start (a member without joins)');
+  if (party0.every((p) => p.auto)) throw err('.party: someone takes the player\'s commands (a member without auto)');
+  for (const p of party0) if (p.auto?.keeper != null && !seen.has(p.auto.keeper)) throw err(`.party: ${p.id}'s keeper '${p.auto.keeper}' is not in the party`);
 
   // the classes: the world's (or every preset), and each member's own
   const givenClasses = table(P.classes, '.classes') ?? Object.fromEntries(Object.keys(CLASS_PRESETS).map((k) => [k, null]));

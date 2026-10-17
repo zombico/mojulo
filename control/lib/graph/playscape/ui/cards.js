@@ -174,6 +174,7 @@ function cuesCard() {
     '  skills?, foes?, items?, rules? }: a party of classes (switched on P, each its own rank and skill tree) against packs in',
     '  rounds; skills, items, elements, statuses, xp, gold, drops. Presets fill any class, skill or foe named and not defined.',
     '  A cue emits rpg-battle:<id> or rpg-rest; rpg-won / rpg-fled / rpg-lost (and :<id>) come back. (playscape/rpg/rpg.js)',
+    '  A member with auto: true | { keeper } is a familiar: it picks for itself (mends its keeper, strikes a weakness).',
     '  juice: { on: { <happening>: [steps] }, also?, <name>: [steps] } composes each moment\'s feel (playscape/rpg/juice.js);',
     '  each beat says rpg-on:<happening> (hit, crit, element:fire, ko:slime …) on the bus for cues to answer.',
     `example: ${JSON.stringify(ex.cues)}`,

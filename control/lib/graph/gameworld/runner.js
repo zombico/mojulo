@@ -36,6 +36,7 @@ import { gameStages, stageLevelOrder, gameStore, gameLevels, gameLinks, mapPlan,
 import { bindStory } from './story.js';
 import { levelGoalMechanics, levelGoalCast, quickVersus, fightArenas, fightFighters, goalMechanics, goalAudio, guardPosts, defendCast, farmCast, battleCast, shootCast, deathmatchCast, deathmatchLegend, bagPlay, raceCast, quickRideRule, quickRacers, quickSupercars, quickStore } from './quick.js';
 import { settingOfGame, quickFigure, CAST_POOL } from './cast-setting.js';
+import { castingOf, laidCasting } from './casting.js';
 import { rideBuild, rideRule } from './ride.js';
 import { rollMascot } from '../egocube/mascot.js';
 import { mascotPlanFromSheet } from '../egocube/mascot-form.js';
@@ -129,6 +130,18 @@ export function runSteps(world, { ref, lookup } = {}) {
     const C = castOrders(G, id), order = { spec: C.mint.args.spec, mint: C.mint.args, motion: C.motion?.args.patch ?? null };
     steps.push({ key: `cast-${id}`, ref: childRef(ref, `cast-${id}`), ready: true, order, print: fingerprint({ spec: order.spec, motion: order.motion, ...lit(order.mint.toon) }) });
   }
+  // the casting page (casting.js): the cast rolled as one egocube row (the proposal: its members in a line), then each
+  // member made from it by path; a journey cast's members wait on the page's approval (characters:cast)
+  const CG = castingOf(G);
+  if (CG) {
+    const castRef = childRef(ref, 'casting'), manifest = { kind: 'egocube', cast: CG.request }, gate = CG.scale === 'journey' ? ready.cast : { ready: true };
+    steps.push({ key: 'casting', ref: castRef, ready: true, order: { title: `${G.name ?? G.id} · cast`, manifest }, print: fingerprint(manifest) });
+    for (const M of CG.members) {
+      const order = { egocube: castRef, member: M.path, title: `${G.name ?? G.id} · ${M.name}` };
+      steps.push({ key: `cast-${M.id}`, ref: childRef(ref, `cast-${M.id}`), ready: gate.ready, ...waits(gate), order, print: fingerprint({ cast: manifest, member: M.path }) });
+    }
+  }
+  const GL = laidCasting(G);   // the rolled members in the book's cast: the story places them, the field party carries them
   // party battles (battles.js): one foe figure, minted as a hero is, standing for every pack on the map (and for a
   // level goal's boss, which is made at the same ref); without battles, a level goal's boss is made with the cast
   const foeRef = G.battles ? childRef(ref, 'foe') : null;
@@ -157,14 +170,14 @@ export function runSteps(world, { ref, lookup } = {}) {
   const stages = gameStages(world), levelRefs = stages.map((s) => s.building?.ref ?? childRef(ref, `level-${s.level}-${s.index}`));
   const map = G.topology === 'interconnected' ? mapPlan(G, stages, levelRefs) : null;
   // the story bound to the stages as laid: each stage its moments and people (none: nothing passed, nothing changes)
-  const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
-  const told = G.story ? bindStory(G, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane } }) : null;
+  const castRefs = Object.fromEntries(Object.keys(GL.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
+  const told = G.story ? bindStory(GL, stages, { castRefs, layout: { stageEnds, stageSpots, stageLane } }) : null;
   // where a scene's has and done read: the store's inventories, its campaign, each level by its last stage's ref
   const store = gameStore(world, B), last = {};
   stages.forEach((s, i) => { last[s.level] = levelRefs[i]; });
   const carryFrom = { items: store.slices.filter((x) => x.kind === 'inventory').map((x) => x.name), campaign: 'campaign', levels: last };
   // the cast who join the hero (characters.cast.<id>.joins): every stage carries them, asleep until they join
-  const party = Object.entries(G.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins }));
+  const party = Object.entries(GL.characters?.cast ?? {}).filter(([, m]) => m.joins).map(([id, m]) => ({ id, ref: castRefs[id], joins: m.joins }));
   const lastOf = lastStages(stages);
   // the packs each stage meets, numbered across the game (battles.js)
   const plan = G.battles ? battlePlan(G, stages, (i) => roomOf(stageEnds(stages[i].manifest))) : null, packFrom = [];
@@ -192,7 +205,7 @@ const cityRefsOf = (stages, refs, s) => (s.section === 'city' ? { cityRefs: Obje
  * unset? (with quests: the steps whose flag nothing in the story sets) }, or null when the world has no story and no
  * quests. What design_game and the bible report. */
 export function storyReport(world, { ref = 'gw' } = {}) {
-  const G = readGameworld(world);
+  const G = laidCasting(readGameworld(world));
   if (!G.story && !G.quests) return null;
   const castRefs = Object.fromEntries(Object.keys(G.characters?.cast ?? {}).map((id) => [id, childRef(ref, `cast-${id}`)]));
   const { bound, unplaced, unset } = bindStory(G, gameStages(world), { castRefs, layout: { stageEnds, stageSpots, stageLane } });

@@ -14,6 +14,52 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### RPG improvements: a cast rolled for the game, familiars that fight on their own, moves per character
+
+- **The cast roller** (`lib/graph/egocube/cast.js`, `rollCast`): an anchor Egocube and the people rolled against it,
+  as docs/egocube.md designs it. Relations (shadow, rival, foil, mentor, party, familiar, lieutenant, mastermind, rank,
+  and the journey's herald, threshold guardian, trickster, shapeshifter, ally) aim a target distance from the anchor on
+  the archetype wheel, the role, the build and the age, and pull motivation and order; `complement` proposes the roles
+  and archetypes a party lacks. The laws are checked as each member is rolled (party silhouettes distinct, a shadow in
+  its anchor's shape and a rival in another, the size ladder, the bookends on motivation); a broken law draws the later
+  member again, never the anchor nor an ask, and one still broken is kept and named. Seeds are keyed by path and members
+  roll in order, so a cast only grows. `castOfScale` is the completeness ladder: hero, rival, party, journey.
+- **Beasts, beast-kin and mascots in a cast.** `bond: 'party'` is first party (Kimahri, Red XIII); `bond: 'familiar'`
+  is second party, kept by its parent and wearing its accent (a stand, a summon, a poke-companion). A body is a person,
+  beast-kin (a beast lineage), a beast (a real species, through the animal door) or a mascot (chibi); unasked, a party
+  member's and a familiar's body is thrown on the setting's odds (a myth has beast-kin at its fires), `bodies` leans them.
+- **`rollEgocube` takes `lean`, `pull` and `redraw`**: a relation's multipliers on the priors, motivation and order drawn
+  near a target on each attempt's own die (never an ask), and the attempts a cast's re-draw starts at. Absent, every
+  sheet is byte-identical.
+- **A cast is a cube**: `create_sketch({ kind: 'egocube', cast: { anchor, cast, factions, setting, bodies, seed } })`
+  rolls and keeps the cast (`castSheet`); its preview is the members standing in a line, a beast among them as the animal
+  kind makes it. `create_character({ egocube, member: 'hero/rival' })` makes one member through its door (a beast through
+  the animal door); the character records the member it was made from. New routing card `cast`.
+- **The casting page** (`lib/graph/gameworld/casting.js`, `characters.casting`): the book's people rolled for the game in
+  its setting (a turn-based world reads as a battle), as many as it asks for: `scale` hero | rival | party | journey, or,
+  absent, the world's prompt words (saga, a party of four, rival, familiar, chibi, beastfolk), else a party for a world
+  that fights turn by turn. The run writes one egocube row (`<ref>-casting`) and makes each member from it
+  (`<ref>-cast-<id>`); a journey cast's members wait on the new `characters:cast` review part (the sheets are the
+  proposal). The first party fights in the battle party from the start, and the hero with it, each in the class its sheet
+  reads as (`classOf`) instead of the rotation; a `joins` flag on a member brings it to the field as a written companion.
+  The story, the bible and the field party read the rolled members as cast members. A book without the page is untouched.
+- **Familiars that fight on their own** (`play.rpg` party `auto: true | { keeper }`): a second-party member picks for
+  itself when its turn comes, from the field as it stands and never on the dice: it mends the hurt (its keeper first),
+  raises the fallen, strikes a weakness, finishes the weakest foe, else hits the one that hits hardest. The page asks no
+  command of it, on rounds or on the timeline, and it takes no place of the party's `size`. A casting page's familiar
+  of the hero or of a first-party member fights beside its keeper. The kernel and the rpg channel are emitted into every
+  page with `play.rpg`, so those pages' text moves; a party with no `auto` member plays the same battles.
+- **Reactions for every hero, lifted from the versus fighter** (`lib/graph/polygonizer/hero-react.js`): new motion words
+  `hitHigh`, `hitBody`, `hitLow` and `stagger`, a `react` move family. The fight's own impact poses and its stagger
+  (`versus/versus-react.js`) are read onto the hero's rig through `planeToVajra` (the fight plane's segment angles as
+  the hero's joints), not copied: struck fast, held through the blow, given back slowly, the feet planted, home on the
+  stand. With the rest `knockedOut` (the topple and the rise) a hero can now take a hit, fall and get up.
+- **A cast member is made with its moves** (`lib/graph/egocube/moves.js`, `moveSetOf`): its ready stance and its attack
+  by its role, its reactions, and its win by its archetype, as hero motion words, so its page's clip picker plays them;
+  `create_character` says which (`egocube.moves`). One character from a single egocube is made as before.
+- **The combat states play a hero's own reactions** (`playscape/player.js` `playerStates`): `stagger`, `topple` and
+  `getup` map to its `stagger` (or `hitHigh`), `knockedOutDown` and `knockedOutUp` when it has them.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
