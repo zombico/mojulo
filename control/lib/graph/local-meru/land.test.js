@@ -53,6 +53,7 @@ describe('the land: the upland-morning preset', () => {
     expect(up.colour).toEqual(valley.colour);
     expect(low.meru.ground).toMatchObject({ span: 45, height: 3.5, from: { heartbeat: 'rocky-irregular' } });
     expect(low.meru.shading).toMatchObject({ mix: 1, facet: 4, valley: 0.7 });
+    expect(low.meru.island).toMatchObject({ geology: true, walk: 'base', seabed: 'merged' });
     // a variant may take its ground away, as any cube's terrain may
     expect(lowerGeocube(readGeocube({ from: 'upland-morning', outside: { ...up.outside, ground: undefined, terrains: { bare: { ground: false } } } }), 'outside', 'bare').meru).not.toHaveProperty('ground');
   });
@@ -71,6 +72,22 @@ describe('the land: ground, a terrain world under the plain', () => {
   });
   it('keeps the geology to the raised land: the terrain\'s hills are ground, not a new mountain of rock', () => {
     expect(of(grounded, 'isekai:cliff').length).toBeLessThan(of(base, 'isekai:cliff').length * 1.5);
+  });
+});
+
+describe('the land: a merged seabed', () => {
+  it('draws the flat seabed in large quads: the same floor, the land untouched, a third of the faces', () => {
+    expect(readLocalMeru({ island: true }).island.seabed).toBe('grid');
+    expect(() => readLocalMeru({ island: { seabed: 'coarse' } })).toThrow(/island.seabed is 'grid'/);
+    const merged = build({ shading: true, island: { ...ISLE, seabed: 'merged' } });
+    expect(merged.faces.length).toBeLessThan(base.faces.length * 0.5);
+    for (const g of ['isekai:ground', 'isekai:cliff']) expect(of(merged, g).map((f) => f.corners)).toEqual(of(base, g).map((f) => f.corners));
+    // the sand covers the same floor: its area is the grid's, and every large quad lies flat on the bed
+    const area = (p) => of(p, 'isekai:sand').reduce((a, f) => a + Math.abs((f.corners[2][0] - f.corners[0][0]) * (f.corners[2][1] - f.corners[0][1])), 0);
+    expect(area(merged)).toBeCloseTo(area(base), 6);
+    const big = of(merged, 'isekai:sand').filter((f) => Math.abs(f.corners[2][0] - f.corners[0][0]) > 0.75);
+    expect(big.length).toBeGreaterThan(10);
+    expect(big.every((f) => f.corners.every((c) => Math.abs(c[2] - big[0].corners[0][2]) < 1e-4))).toBe(true);
   });
 });
 

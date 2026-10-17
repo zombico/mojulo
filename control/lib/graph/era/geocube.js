@@ -68,6 +68,8 @@ const LAND = { smooth: true, crevice: 0.6, ridge: 0.35, blend: 0.6 };
 // read it: surfaces mixed at their seams, rock in planes, the valleys' shade
 const UPLAND = { from: { heartbeat: 'rocky-irregular', splatch: 'verdure-trio', seed: 'g2' }, span: 45, height: 3.5 };
 const UPLAND_LAND = { ...LAND, mix: 1, facet: 4, valley: 0.7 };
+// and its island's flat seabed drawn as a few large quads (most of the faces, under the deep water)
+const UPLAND_ISLE = { ...ISLE, seabed: 'merged' };
 // the gen-6 shadows: torch shadows, a soft sun edge, surfaces cut to half a metre so a shadow has corners. The
 // torch's own soft edge ('soft') costs about four times the bake for what the half-metre cells already blur.
 const SHADOWS = { torch: 'hard', sun: 1.5, cells: 0.5 };
@@ -145,7 +147,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
     contrast: 'wii',
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
-    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: ISLE, land: UPLAND_LAND, ground: UPLAND },
+    outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: UPLAND_ISLE, land: UPLAND_LAND, ground: UPLAND },
     why: [
       'The contrast lives in the vertex: the sky on every top, the ground under every overhang.',
       'A wall is darker at its foot and lighter toward the eaves.',

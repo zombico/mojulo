@@ -79,6 +79,8 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  *   geology true: the raised land (the mountain, the high shore) goes through the card's landform (joints, talus:
  *           polygonizer/landform.js), and every face of it that is not a flat bench or top is rock
  *   walk    'all' (every way up drawn) or 'base' (only the approach to the foot: the mountain as land, not a climb)
+ *   seabed  'grid' (the land's half-metre quads all the way out, as it always was) or 'merged' (the flat seabed past the
+ *           beach drawn as a few large quads: under the deep water it reads the same, and it was most of the faces)
  */
 /**
  * RELIEF (`relief: '<card>' | { from?, … }`, opt-in): the plain's own ground (noise/relief.js): rolling, craggy,
@@ -122,7 +124,7 @@ function readShading(v) {
   if (!(typeof S.valley === 'number' && S.valley >= 0 && S.valley <= 1)) throw new Error('local-meru: shading.valley is 0..1');
   return S;
 }
-export const ISLAND = Object.freeze({ shore: null, beach: 9, sea: 0.7, depth: 3, high: Object.freeze({ azimuth: null, height: 4.5, span: 110 }), geology: false, walk: 'all' });
+export const ISLAND = Object.freeze({ shore: null, beach: 9, sea: 0.7, depth: 3, high: Object.freeze({ azimuth: null, height: 4.5, span: 110 }), geology: false, walk: 'all', seabed: 'grid' });
 function readIsland(v) {
   if (v === undefined || v === false || v === null) return null;
   if (v !== true && (typeof v !== 'object' || Array.isArray(v))) throw new Error('local-meru: island is true or { shore, beach, sea, depth, high }');
@@ -138,6 +140,7 @@ function readIsland(v) {
   if (I.high.azimuth !== null && !Number.isFinite(I.high.azimuth)) throw new Error('local-meru: island.high.azimuth is degrees, or null');
   if (typeof I.geology !== 'boolean') throw new Error('local-meru: island.geology is true (the card\'s landform on the raised land) or false');
   if (!['all', 'base'].includes(I.walk)) throw new Error("local-meru: island.walk is 'all' (every way up) or 'base' (only the approach to the foot)");
+  if (!['grid', 'merged'].includes(I.seabed)) throw new Error("local-meru: island.seabed is 'grid' (half-metre quads to the edge) or 'merged' (the flat seabed in large quads)");
   return I;
 }
 

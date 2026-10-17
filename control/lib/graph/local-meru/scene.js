@@ -265,6 +265,27 @@ function planarise(g, z, at, isCliff, span) {
   z.set(out);
 }
 
+/**
+ * The flat seabed (island `seabed: 'merged'`): the grid cells whose four corners lie on the bed, gathered greedily in
+ * row order into rectangles up to BED_SPAN cells a side. Their edges meet the finer cells round them along the bed's
+ * own line at the bed's own height, so the floor stays one plane with no gap. → { flat (per cell), rects }.
+ */
+const BED_SPAN = 32, BED_EPS = 1e-6;
+function seabedCells(g, z, bed) {
+  const qx = g.nx - 1, qy = g.ny - 1, on = (i, j) => Math.abs(z[j * g.nx + i] - bed) < BED_EPS;
+  const flat = new Uint8Array(qx * qy), used = new Uint8Array(qx * qy), rects = [];
+  for (let j = 0; j < qy; j++) for (let i = 0; i < qx; i++) flat[j * qx + i] = on(i, j) && on(i + 1, j) && on(i + 1, j + 1) && on(i, j + 1) ? 1 : 0;
+  for (let j = 0; j < qy; j++) for (let i = 0; i < qx; i++) {
+    if (!flat[j * qx + i] || used[j * qx + i]) continue;
+    let w = 1; while (w < BED_SPAN && i + w < qx && flat[j * qx + i + w] && !used[j * qx + i + w]) w++;
+    let h = 1;
+    grow: while (h < BED_SPAN && j + h < qy) { for (let k = 0; k < w; k++) if (!flat[(j + h) * qx + i + k] || used[(j + h) * qx + i + k]) break grow; h++; }
+    for (let b = 0; b < h; b++) for (let k = 0; k < w; k++) used[(j + b) * qx + i + k] = 1;
+    rects.push({ i0: i, j0: j, i1: i + w, j1: j + h });
+  }
+  return { flat, rects };
+}
+
 /** The ground grid's faces on the followed trail's lattice (or a plain one standing alone), cliff and grass. */
 function groundFaces(st, p, heightAt, S = null) {
   const site = p.join.site, c = p.tiers[0].centre;
@@ -281,7 +302,13 @@ function groundFaces(st, p, heightAt, S = null) {
   const isCliff = (cs, n) => n[2] < st.slope.rock || (S && S.geo && n[2] < 0.92 && S.geo.raised(mean(cs)[0], mean(cs)[1]));
   const F = p.recipe.shading ? p.recipe.shading.facet : 0;
   if (F > 0) for (let pass = 0; pass < FACET_PASSES; pass++) planarise(g, z, at, isCliff, F);
+  const bed = S && S.seabed === 'merged' ? seabedCells(g, z, S.bed) : null;
+  if (bed) for (const R of bed.rects) {
+    const cs = [at(R.i0, R.j0), at(R.i1, R.j0), at(R.i1, R.j1), at(R.i0, R.j1)];
+    out.push({ corners: cs.map(P), normal: [0, 0, 1], outNormal: [0, 0, 1], tint: st.tint.trail, group: 'isekai:sand', flat: 1 });
+  }
   for (let j = 0; j + 1 < g.ny; j++) for (let i = 0; i + 1 < g.nx; i++) {
+    if (bed && bed.flat[j * (g.nx - 1) + i]) continue;
     const cs = [at(i, j), at(i + 1, j), at(i + 1, j + 1), at(i, j + 1)], n = facet(cs, [0, 0, 1]);
     if (isCliff(cs, n)) {
       const h = Math.abs(n[0]) > Math.abs(n[1]) ? 1 : 0;

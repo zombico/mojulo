@@ -30,8 +30,12 @@ renders byte-identically without them.
 - **`shading.facet`: rock in planes.** The rock's grid heights are drawn onto facet planes about `facet` metres wide
   before the land is lit, so a cliff reads as planes of stone instead of a checkerboard of half-metre quads; the
   grass's corners stay where they are.
+- **`island.seabed: 'merged'`: the flat seabed in large quads.** Past the beach an island's floor is one plane under
+  deep water, yet it was drawn in the land's half-metre quads and was most of the faces. Merged, it is a few dozen
+  quads: the upland island goes from 31,944 faces to 10,395 and builds in under half the time, its renders matching the
+  grid's to within 13/255 on 0.04% of pixels. `'grid'` (the default) draws it as before.
 - **`upland-morning`, a geocube preset with them on.** Valley-morning's look (its colours, light and contrast) on a
-  rocky upland: a `rocky-irregular` ground at 45 m and 3.5 m, mix, facet and valley. The shipped presets are unchanged.
+  rocky upland: a `rocky-irregular` ground at 45 m and 3.5 m, mix, facet and valley. Its island merges its seabed. The shipped presets are unchanged.
   The geocube card took an `outside` line naming relief, ground and the land words (its ceiling re-pinned 4000 → 4600).
 - **`shading.valley`: the sky a hollow loses.** The foot of a slope, a hollow and a gully darken toward the shade by
   how much sky the land round them hides, read over tens of metres and beyond what an even slope of the same grade
