@@ -6,7 +6,10 @@
  * its part, with the Lune conformance test that holds the kernel part equal to the web (the registry's `proof`), never
  * before; a built row names the kernel module or the place file that performs it (the ratchet checks the file is
  * there). The place a Roblox export writes (roblox-pack.js): the bus, its stats, the store and the game channel
- * (kernel/*.luau), a greybox from the level's faces and colliders, and a Roblox Humanoid walking the player. The
+ * (kernel/*.luau), a greybox from the level's faces and colliders, and a Roblox Humanoid walking the player; a level
+ * whose bus.json carries a cast plays it whole in the kernel (kernel/level.luau over the cast, the fight, the minds,
+ * the scenes and the journal, held equal by the levelcast corpus with the Humanoid's pose as its input), each body
+ * drawn as a box (MojuloServer). The
  * Roblox authoring flow offers only what is marked built or approximated here, so an absent row is a value the flow
  * does not offer, not a value it drops.
  *
@@ -23,7 +26,8 @@ const absent = (keys, how = YET) => Object.freeze(Object.fromEntries(keys.map((k
 
 // ── the controllable runtime's rules (worlds/controllable/compose.js RULES) ──────────────────────────────────────────
 export const RULE_MARKS = Object.freeze({
-  ...absent(['glide', 'overhead', 'side', 'fixed', 'shot', 'mover', 'launcher', 'drive', 'racer', 'fly', 'patrol', 'ai']),
+  ...absent(['glide', 'overhead', 'side', 'fixed', 'shot', 'mover', 'launcher', 'drive', 'racer', 'fly', 'patrol']),
+  ai: m(B, 'kernel/mind.luau: the web mind (every motivation, perception and memory, cover, pathing in kernel/nav.luau, groups in kernel/group.luau, the blade, the roll, the charge, the loadout, the tier, a boss\'s phases), firing and swinging through kernel/combat.luau, held equal by the mind and levelcast corpora; each body drawn as a box (MojuloServer); the commander and the pilot\'s shove-down set piece stay the web\'s'),
   walk: m(P, HUMANOID),
   platform: m(P, `${HUMANOID}; roblox-marks.js PLATFORM_KEYS says what of the rule it takes`),
   follow: m(P, 'Roblox\'s own Classic camera follows the character (the rule\'s distance, height and lead are not read); a follow pulled in to the eye is first person'),
@@ -31,8 +35,8 @@ export const RULE_MARKS = Object.freeze({
   clock: m(P, 'a figure-frames body\'s self-playing loop feeds nothing the bus reads; the body is the look\'s (model.glb), not the place\'s, and its frames do not play'),
 });
 
-// the platform rule's keys, where the place runs each: the Humanoid takes its pace, jump and pull; the rest of the
-// web's feel and its moves are not run
+// the platform rule's keys, where the place runs each: the Humanoid takes its pace, jump and pull; the strike is the
+// fight's (kernel/combat.luau, the left mouse button its fire); the rest of the web's feel and its moves are not run
 const FEEL = 'the web\'s walk feel (the Humanoid\'s own)';
 const PLATFORM_FEEL = ['turn', 'strafe', 'boostSpeed', 'fallGravity', 'maxFall', 'snap', 'step', 'coyote', 'buffer', 'jumpCut', 'airControl', 'boostMax',
   'jumpBoostCost', 'turnMode', 'lookSens', 'move', 'lane', 'moveYaw', 'faceRate', 'jumpWindup', 'collideRadius', 'collideHeight', 'stride', 'turnStepMin',
@@ -44,16 +48,24 @@ const PLATFORM_MOVES = {
   dodge: 'the dodge', dodgeBoostCost: 'the dodge', dodgeDur: 'the dodge', dodgeOverheat: 'the dodge', dodgeSpeed: 'the dodge', dodgeTurns: 'the dodge', doubleTapWindow: 'the dodge',
   tackle: 'the tackle', tackleDur: 'the tackle', tackleSpeed: 'the tackle', tackleCone: 'the tackle', tackleDamage: 'the tackle', tackleReach: 'the tackle',
   loadout: 'a loadout\'s other slots', switchReady: 'a loadout\'s other slots', cleaveStep: 'the great cleave\'s step', clashRetreat: 'the clash',
-  strike: 'the strike', strikeCone: 'the strike', strikeContact: 'the strike', strikeCooldown: 'the strike', strikeDamage: 'the strike', strikeDur: 'the strike', strikeFx: 'the strike',
-  strikeImpact: 'the strike', strikeLaunch: 'the strike', strikeReach: 'the strike', combo: 'the strike', comboCooldown: 'the strike', comboWindow: 'the strike',
 };
 export const PLATFORM_KEYS = Object.freeze({
   ported: ['type', 'speed', 'eye', 'jumpSpeed', 'gravity'],
-  fight: [],
+  fight: ['strike', 'strikeCone', 'strikeContact', 'strikeCooldown', 'strikeDamage', 'strikeDur', 'strikeFx', 'strikeImpact', 'strikeLaunch', 'strikeReach', 'combo', 'comboCooldown', 'comboWindow'],
   lost: Object.freeze({ ...Object.fromEntries(PLATFORM_FEEL.map((k) => [k, FEEL])), ...PLATFORM_MOVES }),
 });
-export const AI_LOST = Object.freeze({});
-export const WEAPON_LOST = Object.freeze({});
+// the `ai` rule's opt-in moves kernel/mind.luau does not run (it is mind.gd's port, so it leaves what that leaves):
+// the match player and the arena shooter's moves. Named per level, as the platform rule's are.
+export const AI_LOST = Object.freeze({
+  floors: 'floors and their stairs', peek: 'peeking round an edge', items: 'items and their timing', keepRange: 'keeping a long gun\'s range',
+  perches: 'perches', objective: 'an objective to hold', clearLine: 'holding fire past a teammate', clearance: 'a flier\'s ground clearance',
+  hearRange: 'the match player (frag)', leadSpan: 'the match player (frag)', hunchEvery: 'the match player (frag)', fragGrudge: 'the match player (frag)',
+});
+// a weapon's opt-in behaviour kernel/combat.luau does not run: the arena shooter's and the dogfight's guns
+export const WEAPON_LOST = Object.freeze({
+  spread: 'spread and bloom', recoil: 'recoil', falloff: 'damage falloff', headshot: 'headshots', hand: 'the gun\'s hand (its muzzle off the eye)',
+  converge: 'the round to the crosshair', band: 'the gun for the range (bands)',
+});
 export const CAMERA_LOST = Object.freeze({});
 /** The opt-in moves a platform rule asks for that the place does not run, by name (its feel is the Humanoid's, said
  * once by the rule's mark, so a plain platform rule loses no named move). */
@@ -61,8 +73,21 @@ export function platformLost(rule) {
   if (!rule || rule.type !== 'platform') return [];
   return [...new Set(Object.keys(rule).filter((k) => rule[k] != null && rule[k] !== false && PLATFORM_MOVES[k]).map((k) => PLATFORM_MOVES[k]))].sort();
 }
-export const aiLost = () => [];
-export const weaponLost = () => [];
+/** What a body's weapons (its own, its loadout's) and its rule ask for that the kernel's fight does not run. */
+export function weaponLost(e) {
+  const ws = [e && e.weapon, ...((e && e.rule && Array.isArray(e.rule.loadout) ? e.rule.loadout : []).map((c) => c && c.weapon))].filter(Boolean);
+  const out = ws.flatMap((w) => Object.keys(w).filter((k) => w[k] != null && w[k] !== false && WEAPON_LOST[k]).map((k) => WEAPON_LOST[k]));
+  if (e && e.rule && e.rule.missiles) out.push('homing missiles and flares');
+  return [...new Set(out)].sort();
+}
+/** The opt-in moves an `ai` rule asks for that the kernel's mind does not run, by name (each once). */
+export function aiLost(rule) {
+  if (!rule || rule.type !== 'ai') return [];
+  const out = Object.keys(rule).filter((k) => rule[k] != null && rule[k] !== false && AI_LOST[k]).map((k) => AI_LOST[k]);
+  if (rule.mind && rule.mind.motivation === 'frag') out.push('the match player (frag)');
+  if (Array.isArray(rule.loadout) && rule.loadout.some((c) => c && (Array.isArray(c.band) || c.held === false || c.plant))) out.push('the gun for the range (bands)');
+  return [...new Set(out)].sort();
+}
 
 // ── the World page's inputs (scene-three.js emitThreeWorld) ──────────────────────────────────────────────────────────
 const OPTION = optionRow('roblox');
@@ -73,14 +98,16 @@ export const PAGE_MARKS = Object.freeze({
   walk: m(P, 'the player stands at the seat, its feet on the greybox; the walk\'s eye is added back for the zones'),
   pilot: m(P, HUMANOID),
   camera: m(P, 'Roblox\'s Classic camera, or first person for an eye camera or a follow pulled in to the eye'),
-  entities: m(P, 'the pilot walks; the other bodies stand where the recipe put them for the zones, their rules not run'),
+  entities: m(P, 'the pilot walks; a level\'s cast moves as the kernel puts it (kernel/cast.luau, the minds), each body an anchored box (MojuloServer), downed laid flat, sent away hidden; a level with no cast: its bodies stand where the recipe put them for the zones'),
   events: m(B, 'kernel/bus.luau, held equal to the web by the bus and level corpora (Lune)'),
   game: m(B, 'kernel/game.luau, the page\'s game channel, held equal by the level corpus; MojuloServer applies the outcome to the store'),
+  ai: m(B, 'the world switch: off, every mind stands down until G (kernel/combat.luau; MojuloServer hands it the press)'),
+  aiDifficulty: m(B, 'the class tier tunes every mind (kernel/mind.luau)'),
   ...absent([
     'cameras', 'bg', 'backdrop', 'sky', 'light', 'glow', 'textures', 'cutouts', 'soft', 'repeats', 'ao',
     'picks', 'tracers', 'planets', 'movers', 'comets', 'fields', 'surfaces', 'heatSpheres', 'starSurfaces',
     'buildups', 'transports', 'deforms', 'raymarch', 'signs', 'physics', 'actions',
-    'spectate', 'ai', 'aiDifficulty', 'commander', 'lock', 'match', 'hangar', 'breakables', 'breakPieces',
+    'spectate', 'commander', 'lock', 'match', 'hangar', 'breakables', 'breakPieces',
     'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'figures', 'fog', 'haze', 'splats', 'audio', 'fx',
     'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'walkers', 'cars', 'carMeshes', 'signals',
     'trafficLanes', 'trafficConstants', 'xr', 'toon', 'stream', 'strokeOverlay', 'terrain', 'crystalLight', 'fire',
@@ -99,7 +126,10 @@ export const EVENT_MARKS = Object.freeze({
   stats: m(P, 'kernel/stats.luau inside the bus\'s watch fixpoint, held equal by the bus corpus; the bodies bound to them (hpMax, speed) do not move the Humanoid'),
   inputs: m(P, 'a key the player presses reaches the bus by the page\'s name for it (MojuloClient: letters, digits, Space, Enter, Escape, the arrows); a click, a pick and a shot do not'),
   hud: m(P, 'kernel/hud.luau writes the rows as words (MojuloClient draws them); the page\'s widgets, motion and gates are not drawn'),
-  ...absent(['cast', 'style', 'register', 'menus', 'looks', 'scenes', 'quests']),
+  cast: m(B, 'bus.json cast rows (kernel/cast.luau), held equal by the combat, mind and levelcast corpora; MojuloServer draws each body as a box'),
+  scenes: m(P, 'bus.json scenes (kernel/scenes.luau, the page\'s runner ported): the beats, the line and the choices as words in a box (MojuloClient; Space, Enter or E goes on, Esc skips, the arrows and 1-4 choose); the bars and the shots are not drawn (the camera is Roblox\'s)'),
+  quests: m(P, 'bus.json quests (kernel/quests.luau): a word as one begins, moves on, ends (MojuloServer); there is no journal to open'),
+  ...absent(['style', 'register', 'menus', 'looks']),
 });
 
 // ── a figure's gaits, power.systems, space.traversal, space.links, the mind ─────────────────────────────────────────
@@ -107,9 +137,16 @@ export const gaitMark = () => m(A, YET);
 export const SYSTEM_MARKS = absent(['resource', 'stamina', 'unlock', 'transform', 'equip', 'place']);
 export const traversalMark = () => m(A, YET);
 export const LINK_MARKS = absent(['open', 'door', 'stair', 'gap']);
-export const mindMark = () => m(A, YET);
+// the mind: kernel/mind.luau runs the web's mind (mind.gd's port), held equal by the mind corpus. What stays the web's
+// is named here, as Godot's marks name it
+const MIND_WEB = Object.freeze({
+  commander: { builtin: m(A, 'the commander is the page\'s: a commanded mind keeps its authored strategy'), agent: m(A, 'the commander is the page\'s (its hook and http ports)') },
+  motivation: { frag: m(A, 'the match player (sight, leads, hearing, hunches, the strafe) is the web\'s: kernel/mind.luau hunts as `hunt` does') },
+  aggressiveness: { opportunist: m(P, 'kernel/mind.luau: the counter-charge runs; when the pilot is in it the page plays a shove-down set piece, the kernel the plain counter') },
+});
+export const mindMark = (axis, value) => MIND_WEB[axis]?.[value] ?? m(B, 'kernel/mind.luau runs it as the web\'s mind does (the mind corpus)');
 
-// ── the bus contract (bus-abi.js): no fact fed, no effect drawn, until the Roblox bus runs ───────────────────────────
+// ── the bus contract (bus-abi.js): which facts the place feeds the bus and which effects it draws ─────────────────────
 export const BUS_MARKS = Object.freeze({
   facts: Object.freeze({
     zone: m(B, 'kernel/level.luau derives them from where the Humanoid stands (its feet, the rule\'s eye above), in recipe units'),
@@ -117,7 +154,11 @@ export const BUS_MARKS = Object.freeze({
     timer: m(B, 'kernel/bus.luau at the web\'s fixed step (MojuloServer steps it at 30 Hz)'),
     input: m(P, 'a key, by the page\'s name for it (MojuloClient); a click does not reach the bus'),
     stats: m(B, 'kernel/stats.luau, held equal to the web\'s stats kernel by the bus corpus'),
-    ...absent(['use', 'contact', 'aim', 'cast', 'hit', 'struck', 'menu', 'seen', 'beat']),
+    cast: m(B, 'kernel/cast.luau facts, read before the bus as the page reads them (kernel/level.luau)'),
+    hit: m(B, 'kernel/combat.luau deals the hits (the hero\'s blade on the left mouse button, its rounds and their splash, the minds\' own) and kernel/cast.luau tells the bus, a round\'s with what it dealt'),
+    struck: m(B, 'kernel/cast.luau: a beam is a moment that lands after its distance, and its target hears struck'),
+    seen: m(B, 'kernel/mind.luau counts sightings and kernel/cast.luau facts says them'),
+    ...absent(['use', 'contact', 'aim', 'menu', 'beat']),
   }),
   effects: Object.freeze({
     logic: m(B, 'the reducer itself (kernel/bus.luau), held equal'),
@@ -126,7 +167,9 @@ export const BUS_MARKS = Object.freeze({
     stats: m(P, 'kernel/stats.luau runs them; the bodies bound to them (hpMax, speed) do not move the Humanoid'),
     hud: m(P, 'kernel/hud.luau as words (MojuloClient): each readout a line in its slot (a bar, a counter and a clock written out), each banner and toast a moment, each legend for its time; the page\'s look and a part\'s gate are not drawn'),
     entities: m(B, 'MojuloServer draws each as the page does (a sphere of its radius and colour where the bus puts it, shown while on)'),
-    ...absent(['impulse', 'menus', 'parts', 'phase', 'weather', 'cast', 'rearm', 'shot']),
+    cast: m(P, 'kernel/cast.luau: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam, each body a box (MojuloServer): the moments (a puff, a blast, a beam, a shake) and a transfigure\'s look are not drawn; a walk has no collider push-out or ground snap; transits stay on the web'),
+    rearm: m(B, 'kernel/cast.luau rearm into the weapon\'s reserve, which kernel/combat.luau\'s reload draws from, held equal by the combat corpus'),
+    ...absent(['impulse', 'menus', 'parts', 'phase', 'weather', 'shot']),
   }),
 });
 

@@ -88,14 +88,9 @@ func set_camera_rig(distance: float, pivot_height: float) -> void:
 	head.make_current()
 
 
-var _harness := false   # the level-equivalence harness steps a ruled pilot itself (sim_step); the live tick stands by
-
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--mojulo-sim="):
-			_harness = true
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -115,11 +110,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# a pilot walked by its rule is stepped by the level's frame (kernel/level.gd _frame), after the bus, live and in the
+	# harness alike: its keys are read there (a menu up reads none)
 	if rule != null:
-		if sim_input == null and not _harness:
-			# a menu up: the page reads no input at all (controllable index.js), and the world stands at no time
-			var i := _key_input()
-			rule_step({} if frozen else i, delta)
 		return
 	if not is_on_floor():
 		velocity.y -= gravity * delta
@@ -273,6 +266,7 @@ func _show_pose(before: Vector3, delta: float) -> void:
 # the keys as the page's pilot scheme reads them: W/S forward, A/D turn (a strafe under a look), Q/E strafe, Space jumps
 var _was_jump := false
 var _look := Vector2.ZERO
+var _was_g := false
 func _key_input() -> Dictionary:
 	var k := func(a: int, b: int) -> float: return 1.0 if (Input.is_physical_key_pressed(a) or Input.is_physical_key_pressed(b)) else 0.0
 	var space := Input.is_physical_key_pressed(KEY_SPACE)
@@ -286,6 +280,11 @@ func _key_input() -> Dictionary:
 		"lift": (1.0 if space else 0.0) - (1.0 if Input.is_physical_key_pressed(KEY_SHIFT) else 0.0),
 		"boost": 1.0 if Input.is_physical_key_pressed(KEY_F) else 0.0,
 	}
+	# the AI switch (G), on its press as the page reads it
+	var g := Input.is_physical_key_pressed(KEY_G)
+	if g and not _was_g:
+		i["aiToggle"] = 1
+	_was_g = g
 	_was_jump = space
 	_look = Vector2.ZERO
 	return i

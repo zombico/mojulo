@@ -6,6 +6,8 @@ extends SceneTree
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>
 
+const Js := preload("res://kernel/js.gd")
+
 var Bus = null
 
 
@@ -53,23 +55,27 @@ func _snapshot(st: Dictionary, K, ids: Array, events: Array) -> String:
 	var bodies := {}
 	for id in ids:
 		var e: Dictionary = st["byId"][id]
-		var b := {"hp": e.get("hp"), "hits": e.get("hits", 0), "by": e.get("lastHitBy"), "downed": bool(e["downed"]), "hittable": bool(e.get("hittable", false)), "invincible": Bus.truthy(e.get("invincible"))}
-		if Bus.finite(e.get("poise")):
+		var b := {"hp": e.get("hp"), "hits": e.get("hits", 0), "by": e.get("lastHitBy"), "downed": bool(e["downed"]), "hittable": bool(e.get("hittable", false)), "invincible": Js.truthy(e.get("invincible"))}
+		if Js.finite(e.get("poise")):
 			b["poise"] = e["poise"]
 			b["staggerT"] = e["staggerT"]
 			b["react"] = e["reactClip"]
 			b["pause"] = e["downPauseT"]
-		if Bus.finite(e.get("shieldHp")):
+		if Js.finite(e.get("shieldHp")):
 			b["shield"] = e["shieldHp"]
-			b["broken"] = Bus.truthy(e.get("shieldBroken"))
+			b["broken"] = Js.truthy(e.get("shieldBroken"))
 		bodies[id] = b
 	var facts := []
 	for ev in events:
 		var x := {"type": ev["type"], "entity": ev["entity"]}
 		if String(ev["type"]).begins_with("hit:") or ev["type"] == "struck":
 			x["by"] = ev.get("by")
+		if ev.has("dmg"):
+			x["dmg"] = ev["dmg"]
+			x["harm"] = ev["harm"]
+			x["head"] = ev["head"]
 		facts.append(x)
-	var hero := {"swingT": h.get("swingT"), "clip": h.get("swingClip"), "cd": h.get("strikeCdT", 0), "combo": h.get("comboT", 0), "chain": Bus.truthy(h.get("swingCombo")), "dir": h.get("lastSwingDir"), "swings": h.get("swingCount", 0), "dealt": h.get("meleeHitCount", 0)}
+	var hero := {"swingT": h.get("swingT"), "clip": h.get("swingClip"), "cd": h.get("strikeCdT", 0), "combo": h.get("comboT", 0), "chain": Js.truthy(h.get("swingCombo")), "dir": h.get("lastSwingDir"), "swings": h.get("swingCount", 0), "dealt": h.get("meleeHitCount", 0), "untouchable": Js.truthy(h.get("invincible"))}
 	if h.get("weapon") is Dictionary:
 		var w := {}
 		for k in WEAPON_STATE:
@@ -87,11 +93,11 @@ func _snapshot(st: Dictionary, K, ids: Array, events: Array) -> String:
 			x["hit"] = m["hit"]
 			x["to"] = (m["to"] as Array).map(_nano)
 			x["target"] = m.get("target")
-			x["struck"] = Bus.truthy(m.get("struck"))
+			x["struck"] = Js.truthy(m.get("struck"))
 		if m.get("k") != null:
 			x["k"] = m["k"]
 			x["for"] = m["for"]
 		if m.get("scale") != null:
 			x["scale"] = m["scale"]
 		moments.append(x)
-	return Bus.ss({"hero": hero, "bodies": bodies, "rounds": rounds, "moments": moments, "facts": facts})
+	return Js.ss({"hero": hero, "bodies": bodies, "rounds": rounds, "moments": moments, "facts": facts})

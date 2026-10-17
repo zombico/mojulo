@@ -63,27 +63,38 @@ describe('the mind in Godot', () => {
     { file: 'mind.gd', name: 'cover searched on the wrong ring', from: 'float(ring) * 0.26', to: 'float(ring) * 0.3' },
     { file: 'mind.gd', name: 'the trigger\'s cadence', from: 'fmod(float(e["aiClock"]), cycle) <= burst_on', to: 'fmod(float(e["aiClock"]), cycle) < burst_on * 0.9' },
     { file: 'mind.gd', name: 'no reaction delay', from: '	else:\n		e["aiClock"] = -float(dif["reactDelay"])', to: '	else:\n		e["aiClock"] = 0.0 * float(dif["reactDelay"])' },
-    { file: 'mind.gd', name: 'a sentry holding its trigger', from: 'e["sentryPull"] = on_aim and not truthy(e.get("sentryPull"))', to: 'e["sentryPull"] = on_aim' },
+    { file: 'mind.gd', name: 'a sentry holding its trigger', from: 'e["sentryPull"] = on_aim and not Js.truthy(e.get("sentryPull"))', to: 'e["sentryPull"] = on_aim' },
     { file: 'mind.gd', name: 'no downswing', from: '"back", true, false)', to: '"neutral", true, false)' },
     { file: 'mind.gd', name: 'a roll the wrong way', from: 'roll_off(e, r, dif, [-uy * sd, ux * sd], rt)', to: 'roll_off(e, r, dif, [uy * sd, -ux * sd], rt)' },
     { file: 'mind.gd', name: 'the search\'s sweep', from: 'sin(float(e["searchT"]) * 2.1) * 1.4', to: 'sin(float(e["searchT"]) * 2.0) * 1.4' },
-    { file: 'mind.gd', name: 'a wanderer\'s dice', from: 'h = _imul(h, 16777619)', to: 'h = _imul(h, 16777617)' },
+    { file: 'mind.gd', name: 'a wanderer\'s dice', from: 'h = Js.imul(h, 16777619)', to: 'h = Js.imul(h, 16777617)' },
     { file: 'mind.gd', name: 'a lookout that does not scan', from: 'sin((now * TAU_) / nf(r, "scanPeriod", 6.0))', to: 'cos((now * TAU_) / nf(r, "scanPeriod", 6.0))' },
     { file: 'mind.gd', name: 'a shift beat cut short', from: 'e["phaseShiftT"] = float(ps[e["mindPhase"]]["shift"])', to: 'e["phaseShiftT"] = float(ps[e["mindPhase"]]["shift"]) * 0.5' },
     { file: 'mind.gd', name: 'the warning skipped', from: 'if float(e["warnT"]) < nf(r, "warnTime", 1.2):', to: 'if float(e["warnT"]) < 0.0:' },
-    { file: 'mind.gd', name: 'the aim at the feet', from: 'return float(egg["cz"]) if fin(egg.get("cz")) else float(egg.get("c", 0.0))', to: 'return 0.0' },
+    { file: 'mind.gd', name: 'the aim at the feet', from: 'return float(egg["cz"]) if Js.finite(egg.get("cz")) else float(egg.get("c", 0.0))', to: 'return 0.0' },
     { file: 'nav.gd', name: 'corners cut', from: 'if di != 0 and dj != 0 and (block[j * nx + ni] != 0 or block[nj * nx + i] != 0):', to: 'if false:' },
     { file: 'nav.gd', name: 'no string pull', from: 'while b > a + 1 and not _line_open(g, cells[a], cells[b]):', to: 'while b > a + 1:' },
-    { file: 'combat.gd', name: 'a lob fired mid-thrust', from: 'if Bus.truthy(e.get("boosting")) and not can_boost_fire:', to: 'if false:' },
+    { file: 'combat.gd', name: 'a lob fired mid-thrust', from: 'if Js.truthy(e.get("boosting")) and not can_boost_fire:', to: 'if false:' },
     { file: 'combat.gd', name: 'no recovery edge', from: '		e["reactionEnded"] = true', to: '		e["reactionEnded"] = false' },
     { file: 'group.gd', name: 'a token too many', from: 'for i in mini(K, order.size()):', to: 'for i in mini(K + 1, order.size()):' },
     { file: 'group.gd', name: 'a fan spread too wide', from: '_nf(p, "arc", 1.6)', to: '_nf(p, "arc", 1.7)' },
     { file: 'group.gd', name: 'a herd that will not scatter', from: 'g["alarm"] = threat["id"] if threat != null else null', to: 'g["alarm"] = null\n\tthreat = null' },
     { file: 'group.gd', name: 'slots dealt in the wrong order', from: 'members.sort_custom(func(a, b): return String(a["id"]) < String(b["id"]))', to: 'members.sort_custom(func(a, b): return String(a["id"]) > String(b["id"]))' },
     { file: 'combat.gd', name: 'a counter that only rocks', from: 'arm_reaction(victim, "topple", true)', to: 'arm_reaction(victim, "stagger", true)' },
+    { file: 'cast.gd', name: 'a respawned mind remembers its last sighting', from: 'e["lastSeen"] = null; e["searchT"] = null;', to: 'e["searchT"] = null;' },
     { file: 'cast.gd', name: 'a sighting the bus never hears', from: 'if cur["n"] > int(p.get("n", 0)):', to: 'if false:' },
     { file: 'combat.gd', name: 'a stowed gun that does not reload', from: '			if lw is Dictionary:\n				tick_weapon(lw, dt)', to: '			if lw is Dictionary and is_same(lw, e["weapon"]):\n				tick_weapon(lw, dt)' },
   ];
+  // a hitscan's cover is traced to where the ray enters the egg (combat-ranged.js), not to the body's centre: the seeded
+  // scenario that told the two apart (the Roblox port found it; Godot traced to the centre until 0.29.0)
+  it.skipIf(!GODOT)('a shot whose ray enters the egg above a low wall hits as the web\'s does (MOJULO_GODOT)', () => {
+    const opts = { random: 40, seed: 3 }, scenarios = corpus(opts).filter((s) => s.id === 'random-3-28');
+    expect(scenarios).toHaveLength(1);
+    const { out, errors } = runCorpus('godot', 'mind', scenarios, { bin: GODOT });
+    expect(errors).toEqual([]);
+    expect(compare('mind', scenarios, out, opts).filter((r) => !r.equal)).toEqual([]);
+  }, 600000);
+
   it.skipIf(!GODOT)('every planted bug in the mind, the paths and the fight is caught (MOJULO_GODOT)', () => {
     const c = corpus();
     for (const p of PLANTS) {

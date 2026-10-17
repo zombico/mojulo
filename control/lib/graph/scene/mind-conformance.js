@@ -15,7 +15,7 @@
  *   runMinds(sc)               → { snaps, trace } on the web engine
  *
  * A frame may poke a field before its step (`poke: [{ id, key, value }]`, a dotted key into the entity: the cover law's
- * "it has been hit"). What stays out of the corpus because the kernel leaves it to the web: a clash of blades and the
+ * "it has been hit"), and hand the cast ops after it (`ops`, as the bus's ctrl verb would: a vanish, a spawn). What stays out of the corpus because the kernel leaves it to the web: a clash of blades and the
  * other set pieces (the pilot's shove-down after a counter-charge), the commander.
  */
 import { mulberry32 } from '../vegetation/grow.js';
@@ -37,6 +37,7 @@ const pilot = (pos = [0, 0, 0], heading = 0, extra = {}) => ({ id: 'p', pilotabl
 const mind = (id, pos, heading, rule, extra = {}) => ({ id, rule: { type: 'ai', speed: 3, turn: 4, dodge: false, eye: 0, collideRadius: 0.3, collideHeight: 1.7, ...rule }, body: { type: 'mesh', hittable: true, hp: 30, egg: { ...PERSON }, ...(extra.body || {}) }, transform: { pos, heading, pitch: 0 }, ...Object.fromEntries(Object.entries(extra).filter(([k]) => k !== 'body')) });
 const run = (...parts) => parts.flatMap(([n, input]) => Array.from({ length: n }, () => ({ input: { ...input } })));
 const poke = (frames, at, list) => { frames[at] = { ...frames[at], poke: list }; return frames; };
+const withOps = (frames, at, ops) => { frames[at] = { ...frames[at], ops: [...(frames[at].ops || []), ...ops] }; return frames; };
 const WALL = [{ min: [-4, 3.5, 0], max: [-0.6, 4, 2] }];
 
 export const SCENARIOS = [
@@ -57,6 +58,9 @@ export const SCENARIOS = [
   { id: 'sight-memory-search', about: 'seen, then out of its sight range: it goes where it last saw the pilot, searches there, and forgets',
     entities: [pilot([6, 0, 0], 0), mind('s', [0, 0, 0], 0, { mind: { motivation: 'hunt', perception: 'memory' }, speed: 2, sightRange: 8, standoff: 2, memorySpan: 6, searchTime: 2 })],
     frames: run([10, {}], [280, { forward: 1 }]) },
+  { id: 'respawn-forgets', about: 'a mind sent away and spawned again is a fresh life: what it saw before is gone, so it does not go looking where the pilot was',
+    entities: [pilot([6, 0, 0], 0), mind('s', [0, 0, 0], 0, { mind: { motivation: 'hunt', perception: 'memory' }, speed: 2, sightRange: 8, standoff: 2, memorySpan: 6, searchTime: 2 })],
+    frames: withOps(withOps(run([10, {}], [30, { forward: 1 }], [80, {}]), 10, [{ op: 'vanish', who: 's' }]), 40, [{ op: 'spawn', who: 's', at: [-4, 0] }]) },
   { id: 'sight-cone', about: 'sight only: behind it, the pilot is not seen; in front, it is (a fresh sighting counted once)',
     entities: [pilot([-6, 1.5, 0], 0), mind('c', [0, 0, 0], 0, { mind: { motivation: 'hunt', perception: 'sight' }, standoff: 2, sightCone: 0.8, speed: 1 })],
     frames: run([20, {}], [90, { forward: 1 }], [60, {}]) },
@@ -223,6 +227,7 @@ export function runMinds(sc) {
     const h = world.byId.p;
     trace.push({ pos: h.transform.pos.slice(), heading: h.transform.heading, pitch: h.transform.pitch || 0, grounded: !!h.grounded });
     snaps.push(snapshotOf(world, mindIds, bodyIds, c.events));
+    if (f.ops) CW.castOps(world, clone(f.ops));
   }
   return { snaps, trace, mindIds, bodyIds };
 }
@@ -236,7 +241,7 @@ export function corpus({ random = 12, seed = 1 } = {}) {
     const { trace, mindIds, bodyIds } = runMinds(sc);
     return clone({
       id: sc.id, about: sc.about, cast: bus.cast, combat: bus.combat, minds: extractMinds(payload, 'p'), mindIds, bodyIds,
-      frames: sc.frames.map((f, i) => ({ input: f.input, dt: f.dt || DT, pilot: trace[i], ...(f.poke ? { poke: f.poke } : {}) })),
+      frames: sc.frames.map((f, i) => ({ input: f.input, dt: f.dt || DT, pilot: trace[i], ...(f.poke ? { poke: f.poke } : {}), ...(f.ops ? { ops: f.ops } : {}) })),
     });
   });
 }

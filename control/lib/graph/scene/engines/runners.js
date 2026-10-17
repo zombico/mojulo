@@ -25,8 +25,8 @@ export const RUNNERS = Object.freeze({
   godot: {
     find: findGodot,
     kernelDir: 'lib/graph/scene/godot-kernel',
-    file: (m) => (m === 'json' ? 'json_exact.gd' : `${m}.gd`),
-    always: [],
+    file: (m) => ({ json: 'json_exact.gd', game: 'game_channel.gd', level: null }[m] ?? `${m}.gd`),
+    always: ['js', 'json'],
     script: (corpus) => `scripts/conformance/godot/${corpus}.gd`,
     entry: 'conformance.gd',
     prepare: (dir, corpus) => writeFileSync(path.join(dir, 'project.godot'), `config_version=5\n\n[application]\nconfig/name="${corpus}-conformance"\n`),
@@ -54,12 +54,14 @@ export function runnerOf(engine) {
 /** The kernel files a corpus needs in an engine, and those the engine's kernel does not have yet. */
 export function kernelFiles(engine, corpus) {
   const r = runnerOf(engine);
-  const files = [...new Set([...r.always, ...corpusOf(corpus).kernel].map(r.file))];
+  // a module id an engine's kernel has no file for (null) is the runner's own: Godot's level step
+  const files = [...new Set([...r.always, ...corpusOf(corpus).kernel].map(r.file).filter(Boolean))];
   return { files, missing: files.filter((f) => !existsSync(path.join(CONTROL, r.kernelDir, f))) };
 }
 
 export function runCorpus(engine, corpus, scenarios, { bin = runnerOf(engine).find(), mutate = [] } = {}) {
-  const r = runnerOf(engine);
+  const r = runnerOf(engine), c = corpusOf(corpus);
+  if (c.engines && !c.engines.includes(engine)) return { out: null, errors: [`the ${corpus} corpus has no ${engine} runner (it runs on ${c.engines.join(', ')})`], status: null };
   if (!bin) return { out: null, errors: [`no ${engine} runner found (see lib/workers/find.js)`], status: null };
   const { files, missing } = kernelFiles(engine, corpus);
   if (missing.length) return { out: null, errors: [`not in the ${engine} kernel yet: ${missing.join(', ')}`], status: null };

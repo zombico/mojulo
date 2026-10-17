@@ -22,6 +22,7 @@ extends RefCounted
 const Nav := preload("res://kernel/nav.gd")
 const Rules := preload("res://kernel/rules.gd")
 const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 const TAU_ := TAU
 
 # ── TUNING (mind.js MIND_SKILL / MIND_AGGRESSIVENESS / AI_DIFFICULTY) ───────────────────────────────────────────────
@@ -72,35 +73,7 @@ static func nf(d, k: String, x: float) -> float:
 # `d.k || x` for a number
 static func orf(d, k: String, x: float) -> float:
 	var v = d.get(k) if d is Dictionary else null
-	return float(v) if Bus.truthy(v) and (v is float or v is int) else x
-
-
-static func truthy(v) -> bool:
-	return Bus.truthy(v)
-
-
-static func fin(v) -> bool:
-	return Bus.finite(v)
-
-
-static func hyp(a: float, b: float) -> float:
-	return sqrt(a * a + b * b)
-
-
-static func hyp3(a: float, b: float, c: float) -> float:
-	return sqrt(a * a + b * b + c * c)
-
-
-static func fwd_xy(h: float) -> Array:
-	return [cos(h), sin(h), 0.0]
-
-
-static func right_xy(h: float) -> Array:
-	return [sin(h), -cos(h), 0.0]
-
-
-static func fwd3(h: float, p: float) -> Array:
-	return [cos(p) * cos(h), cos(p) * sin(h), sin(p)]
+	return float(v) if Js.truthy(v) and (v is float or v is int) else x
 
 
 static func jmod(a: float, b: float) -> float:
@@ -133,66 +106,18 @@ static func _index_key(s: String) -> bool:
 	return true
 
 
-static func _s32(x: int) -> int:
-	x &= 0xFFFFFFFF
-	return x - 0x100000000 if x >= 0x80000000 else x
-
-
-static func _imul(a: int, b: int) -> int:
-	var ah := (a >> 16) & 0xFFFF
-	var al := a & 0xFFFF
-	var bh := (b >> 16) & 0xFFFF
-	var bl := b & 0xFFFF
-	return _s32(al * bl + (((ah * bl + al * bh) << 16) & 0xFFFFFFFF))
-
-
 # seeded per body (its id and a counter through an FNV-style hash): the same world wanders the same way every run
 static func hash01(id: String, n: int) -> float:
 	var s := id + ":" + str(n)
 	var buf := s.to_utf16_buffer()
-	var h := _s32(2166136261)
+	var h := Js.s32(2166136261)
 	for i in range(0, buf.size(), 2):
-		h = _s32(h ^ (buf[i] | (buf[i + 1] << 8)))
-		h = _imul(h, 16777619)
-	h = _s32(h ^ ((h & 0xFFFFFFFF) >> 13))
-	h = _imul(h, 0x5bd1e995)
-	h = _s32(h ^ ((h & 0xFFFFFFFF) >> 15))
+		h = Js.s32(h ^ (buf[i] | (buf[i + 1] << 8)))
+		h = Js.imul(h, 16777619)
+	h = Js.s32(h ^ ((h & 0xFFFFFFFF) >> 13))
+	h = Js.imul(h, 0x5bd1e995)
+	h = Js.s32(h ^ ((h & 0xFFFFFFFF) >> 15))
 	return float(h & 0xFFFFFFFF) / 4294967296.0
-
-
-# ── the world's geometry (core.js resolveBlocking / sightBlocked, the ground hook) ────────────────────────────────────
-static func _seg_aabb_t(a: Array, b: Array, mn: Array, mx: Array):
-	var t0 := 0.0
-	var t1 := 1.0
-	for k in 3:
-		var d: float = float(b[k]) - float(a[k])
-		if absf(d) < 1e-9:
-			if float(a[k]) < float(mn[k]) or float(a[k]) > float(mx[k]):
-				return null
-		else:
-			var tn: float = (float(mn[k]) - float(a[k])) / d
-			var tf: float = (float(mx[k]) - float(a[k])) / d
-			if tn > tf:
-				var s := tn
-				tn = tf
-				tf = s
-			if tn > t0:
-				t0 = tn
-			if tf < t1:
-				t1 = tf
-			if t0 > t1:
-				return null
-	return t0
-
-
-static func sight_blocked(a: Array, b: Array, colliders) -> bool:
-	if not (colliders is Array):
-		return false
-	for c in colliders:
-		var t = _seg_aabb_t(a, b, c["min"], c["max"])
-		if t != null and t > 1e-3 and t < 1.0 - 1e-3:
-			return true
-	return false
 
 
 # core.js resolveBlocking: push a cylinder (foot z, height, radius) out of every box its z band meets, the shallowest
@@ -228,7 +153,7 @@ static func phases_of(m) -> Array:
 func tuning_of(e: Dictionary, world: Dictionary):
 	var base = world.get("aiTuning")
 	var m = e["rule"].get("mind")
-	if not truthy(m):
+	if not Js.truthy(m):
 		return base
 	var t: Dictionary = (MIND_SKILL["ace"] as Dictionary).duplicate()
 	t.merge(NEUTRAL_AGGRESSION, true)
@@ -242,9 +167,9 @@ func tuning_of(e: Dictionary, world: Dictionary):
 
 
 static func _layer(t: Dictionary, src: Dictionary) -> void:
-	if truthy(src.get("skill")) and MIND_SKILL.has(src["skill"]):
+	if Js.truthy(src.get("skill")) and MIND_SKILL.has(src["skill"]):
 		t.merge(MIND_SKILL[src["skill"]], true)
-	if truthy(src.get("aggressiveness")) and MIND_AGGRESSIVENESS.has(src["aggressiveness"]):
+	if Js.truthy(src.get("aggressiveness")) and MIND_AGGRESSIVENESS.has(src["aggressiveness"]):
 		for k in AGGR_KEYS:
 			t.erase(k)
 		if MIND_AGGRESSIVENESS[src["aggressiveness"]] != null:
@@ -267,7 +192,7 @@ func step_phase(e: Dictionary, r: Dictionary, dt: float) -> bool:
 		if e.get("cineT") == null:
 			e["invincible"] = false
 	var ps := phases_of(r.get("mind"))
-	if ps.is_empty() or not (fin(e.get("hpMax")) and float(e["hpMax"]) > 0.0) or not fin(e.get("hp")) or truthy(e.get("downed")):
+	if ps.is_empty() or not (Js.finite(e.get("hpMax")) and float(e["hpMax"]) > 0.0) or not Js.finite(e.get("hp")) or Js.truthy(e.get("downed")):
 		return false
 	var frac := float(e["hp"]) / float(e["hpMax"])
 	var next: int = int(e["mindPhase"]) + 1 if e.get("mindPhase") != null else 0
@@ -295,17 +220,17 @@ static func adapts(m) -> bool:
 
 func step_adapt(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> void:
 	if not (e.get("adapt") is Dictionary):
-		e["adapt"] = {"clock": 0.0, "melee": [0.0, 0.0], "ranged": [0.0, 0.0], "foeId": null, "foeHp": null, "hp": float(e["hp"]) if fin(e.get("hp")) else 0.0, "benched": null, "benchT": 0.0, "log": []}
+		e["adapt"] = {"clock": 0.0, "melee": [0.0, 0.0], "ranged": [0.0, 0.0], "foeId": null, "foeHp": null, "hp": float(e["hp"]) if Js.finite(e.get("hp")) else 0.0, "benched": null, "benchT": 0.0, "log": []}
 	var a: Dictionary = e["adapt"]
 	var mode := "melee" if (e.get("swingT") != null or nf(e, "meleeCommitT", 0.0) > 0.0) else "ranged"
-	if fin(e.get("hp")):
+	if Js.finite(e.get("hp")):
 		if float(e["hp"]) < float(a["hp"]):
 			a[mode][1] += float(a["hp"]) - float(e["hp"])
 		a["hp"] = float(e["hp"])
 	var foe = world["byId"].get(a["foeId"]) if a["foeId"] != null else null
-	if foe != null and fin(foe.get("hp")) and a["foeHp"] != null and float(foe["hp"]) < float(a["foeHp"]):
+	if foe != null and Js.finite(foe.get("hp")) and a["foeHp"] != null and float(foe["hp"]) < float(a["foeHp"]):
 		a[mode][0] += float(a["foeHp"]) - float(foe["hp"])
-	a["foeHp"] = float(foe["hp"]) if foe != null and fin(foe.get("hp")) else null
+	a["foeHp"] = float(foe["hp"]) if foe != null and Js.finite(foe.get("hp")) else null
 	if float(a["benchT"]) > 0.0:
 		a["benchT"] = float(a["benchT"]) - dt
 		if float(a["benchT"]) <= 0.0:
@@ -337,7 +262,7 @@ static func swing_spec(sc: Dictionary, r: Dictionary, dir: String, combo: bool) 
 	else:
 		yaw = SIDE_STRIKE_YAW if dir == "left" else (-SIDE_STRIKE_YAW if dir == "right" else 0.0)
 	return {
-		"clip": "%s_%s" % [String(sv["swingSet"]) if truthy(sv.get("swingSet")) else (String(sc["swingSet"]) if truthy(sc.get("swingSet")) else "swing"), dir],
+		"clip": "%s_%s" % [String(sv["swingSet"]) if Js.truthy(sv.get("swingSet")) else (String(sc["swingSet"]) if Js.truthy(sc.get("swingSet")) else "swing"), dir],
 		"params": {
 			"reach": float(nn(sv, "strikeReach", nn(sc, "strikeReach", nn(r, "strikeReach", nn(r, "speed", 6))))),
 			"damage": float(nn(sv, "strikeDamage", nn(sc, "strikeDamage", nn(r, "strikeDamage", 0)))),
@@ -356,7 +281,7 @@ static func swing_spec(sc: Dictionary, r: Dictionary, dir: String, combo: bool) 
 
 
 static func break_guards(e: Dictionary) -> void:
-	if truthy(e.get("spawnGuard")):
+	if Js.truthy(e.get("spawnGuard")):
 		e["spawnGuard"] = false
 	if nf(e, "wakeGuardT", 0.0) > 0.0:
 		e["wakeGuardT"] = 0.0
@@ -382,15 +307,15 @@ func begin_swing_dir(e: Dictionary, sc: Dictionary, r: Dictionary, dir: String, 
 	e["swingDur"] = float(nn(sc, "strikeDur", nn(r, "strikeDur", 0.9)))
 	e["swingCd"] = float(nn(sc, "strikeCooldown", nn(r, "strikeCooldown", 0)))
 	var lunge = nn(sc, "strikeLunge", r.get("strikeLunge"))
-	if truthy(lunge):
+	if Js.truthy(lunge):
 		e["swingLunge"] = float(lunge)
-	elif truthy(e.get("swingLunge")):
+	elif Js.truthy(e.get("swingLunge")):
 		e["swingLunge"] = 0.0
 	break_guards(e)
 
 
 func begin_swing(e: Dictionary, sc: Dictionary, r: Dictionary, dif) -> void:
-	var no_topple: bool = dif is Dictionary and truthy(dif.get("noTopple"))
+	var no_topple: bool = dif is Dictionary and Js.truthy(dif.get("noTopple"))
 	if r.get("meleeCombo") != false or no_topple:
 		e["aiSwingAlt"] = int(nn(e, "aiSwingAlt", 0)) + 1
 		var alt: int = e["aiSwingAlt"] % 3
@@ -411,7 +336,7 @@ func begin_swing(e: Dictionary, sc: Dictionary, r: Dictionary, dif) -> void:
 
 # ── PRESSED: the roll ───────────────────────────────────────────────────────────────────────────────────────────────
 static func dodge_exhaust(e: Dictionary, r: Dictionary) -> void:
-	if nf(r, "dodgeBoostCost", 2.0) <= 0.0 or not truthy(nn(r, "dodgeOverheat", true)):
+	if nf(r, "dodgeBoostCost", 2.0) <= 0.0 or not Js.truthy(nn(r, "dodgeOverheat", true)):
 		return
 	var bm := nf(r, "boostMax", 0.0)
 	var win := bm / nf(r, "overheatRegen", bm / 7.5) if bm > 0.0 else 7.5
@@ -433,19 +358,19 @@ func roll_off(e: Dictionary, r: Dictionary, dif, dir: Array, rt: Array) -> void:
 
 # ── NOTICE: who ─────────────────────────────────────────────────────────────────────────────────────────────────────
 static func _hittable_body(o: Dictionary) -> bool:
-	return truthy(o.get("hittable"))
+	return Js.truthy(o.get("hittable"))
 
 
 func pick_target(e: Dictionary, world: Dictionary, policy, skip = null):
 	var target = null
 	if policy == "all" or policy == "enemy":
-		var team_aware: bool = policy == "enemy" and truthy(e.get("team"))
+		var team_aware: bool = policy == "enemy" and Js.truthy(e.get("team"))
 		var bd := INF
 		for id in world["order"]:
 			var o: Dictionary = world["byId"][id]
-			if is_same(o, e) or (skip != null and is_same(o, skip)) or truthy(o.get("isCamera")) or truthy(o.get("downed")) or truthy(o.get("invincible")) or not _hittable_body(o):
+			if is_same(o, e) or (skip != null and is_same(o, skip)) or Js.truthy(o.get("isCamera")) or Js.truthy(o.get("downed")) or Js.truthy(o.get("invincible")) or not _hittable_body(o):
 				continue
-			if team_aware and truthy(o.get("team")) and o["team"] == e["team"]:
+			if team_aware and Js.truthy(o.get("team")) and o["team"] == e["team"]:
 				continue
 			var ddx: float = o["pos"][0] - e["pos"][0]
 			var ddy: float = o["pos"][1] - e["pos"][1]
@@ -462,14 +387,14 @@ func threat_of(e: Dictionary, world: Dictionary):
 	var best = null
 	if world.get("pilotId") != null and world["byId"].has(world["pilotId"]) and not is_same(world["byId"][world["pilotId"]], e):
 		best = world["byId"][world["pilotId"]]
-	var bd := hyp(best["pos"][0] - e["pos"][0], best["pos"][1] - e["pos"][1]) if best != null else INF
+	var bd := Js.hypot2(best["pos"][0] - e["pos"][0], best["pos"][1] - e["pos"][1]) if best != null else INF
 	for id in world["order"]:
 		var o: Dictionary = world["byId"][id]
-		if is_same(o, e) or truthy(o.get("downed")) or not (o.get("rule") is Dictionary) or not (o["rule"].get("mind") is Dictionary) or o["rule"]["mind"].get("motivation") != "hunt":
+		if is_same(o, e) or Js.truthy(o.get("downed")) or not (o.get("rule") is Dictionary) or not (o["rule"].get("mind") is Dictionary) or o["rule"]["mind"].get("motivation") != "hunt":
 			continue
-		if truthy(e.get("team")) and o.get("team") == e["team"]:
+		if Js.truthy(e.get("team")) and o.get("team") == e["team"]:
 			continue
-		var d := hyp(o["pos"][0] - e["pos"][0], o["pos"][1] - e["pos"][1])
+		var d := Js.hypot2(o["pos"][0] - e["pos"][0], o["pos"][1] - e["pos"][1])
 		if d < bd:
 			bd = d
 			best = o
@@ -500,7 +425,7 @@ static func next_juke(e: Dictionary, r: Dictionary, dt: float) -> int:
 	if float(e["aiJukeClock"]) >= jp:
 		e["aiJukeClock"] = 0.0
 		e["aiJukeSide"] = -1 if int(nn(e, "aiJukeSide", 0)) == 1 else 1
-	return int(e["aiJukeSide"]) if truthy(e.get("aiJukeSide")) else 1
+	return int(e["aiJukeSide"]) if Js.truthy(e.get("aiJukeSide")) else 1
 
 
 func walk_toward(e: Dictionary, r: Dictionary, want: float, dt: float, world: Dictionary, speed: float) -> float:
@@ -508,7 +433,7 @@ func walk_toward(e: Dictionary, r: Dictionary, want: float, dt: float, world: Di
 	var rem := turn_toward(e, want, r, dt)
 	var stp := 0.0
 	if absf(rem) < 1.1:
-		var f := fwd_xy(float(e["heading"]))
+		var f := Js.fwd_xy(float(e["heading"]))
 		stp = speed * dt
 		e["pos"][0] += f[0] * stp
 		e["pos"][1] += f[1] * stp
@@ -531,20 +456,20 @@ func nav_to(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, goal: Ar
 		return false
 	var eye := nf(r, "eye", 0.0)
 	var opts := {"radius": orf(r, "collideRadius", 0.5), "height": nf(r, "collideHeight", 24.0), "footZ": float(e["pos"][2]) - eye, "step": nf(r, "step", 0.35)}
-	if fin(r.get("navCell")) and float(r["navCell"]) > 0.0:
+	if Js.finite(r.get("navCell")) and float(r["navCell"]) > 0.0:
 		opts["cell"] = float(r["navCell"])
 	if Nav.clear(world, e["pos"], goal, opts):
 		e["navPath"] = null
 		return false
 	var cell: float
-	if truthy(opts.get("cell")):
+	if Js.truthy(opts.get("cell")):
 		cell = float(opts["cell"])
-	elif truthy(world.get("navCell")):
+	elif Js.truthy(world.get("navCell")):
 		cell = float(world["navCell"])
 	else:
 		cell = maxf(1.0, float(opts["radius"]))
 	e["navT"] = orf(e, "navT", 0.0) - dt
-	var moved: bool = e.get("navGoal") == null or hyp(float(goal[0]) - e["navGoal"][0], float(goal[1]) - e["navGoal"][1]) > cell
+	var moved: bool = e.get("navGoal") == null or Js.hypot2(float(goal[0]) - e["navGoal"][0], float(goal[1]) - e["navGoal"][1]) > cell
 	if e.get("navPath") == null or float(e["navT"]) <= 0.0 or moved:
 		e["navPath"] = Nav.path(world, e["pos"], goal, opts)
 		e["navGoal"] = [float(goal[0]), float(goal[1])]
@@ -552,8 +477,8 @@ func nav_to(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, goal: Ar
 	var p = e["navPath"]
 	if p == null or (p as Array).is_empty():
 		return false
-	var reach := maxf(float(opts["radius"]), float(opts["cell"]) * 0.6) if truthy(opts.get("cell")) else maxf(1.0, float(opts["radius"]))
-	while (p as Array).size() > 1 and hyp(p[0][0] - e["pos"][0], p[0][1] - e["pos"][1]) < reach:
+	var reach := maxf(float(opts["radius"]), float(opts["cell"]) * 0.6) if Js.truthy(opts.get("cell")) else maxf(1.0, float(opts["radius"]))
+	while (p as Array).size() > 1 and Js.hypot2(p[0][0] - e["pos"][0], p[0][1] - e["pos"][1]) < reach:
 		(p as Array).pop_front()
 	var wp: Array = p[0]
 	walk_toward(e, r, atan2(wp[1] - e["pos"][1], wp[0] - e["pos"][0]), dt, world, speed)
@@ -574,7 +499,7 @@ func perceive(e: Dictionary, r: Dictionary, target: Dictionary, world: Dictionar
 	var now: float = world.get("time", 0.0)
 	var dx: float = q[0] - e["pos"][0]
 	var dy: float = q[1] - e["pos"][1]
-	if hyp(dx, dy) > nf(r, "sightRange", 120.0):
+	if Js.hypot2(dx, dy) > nf(r, "sightRange", 120.0):
 		return false
 	var ls = e.get("lastSeen")
 	var recent: bool = ls is Dictionary and ls["id"] == target["id"] and now - float(ls["t"]) < 0.5
@@ -582,7 +507,7 @@ func perceive(e: Dictionary, r: Dictionary, target: Dictionary, world: Dictionar
 		var off := atan2(dy, dx) - float(e["heading"])
 		if absf(atan2(sin(off), cos(off))) > nf(r, "sightCone", 1.2):
 			return false
-	if world.get("colliders") is Array and sight_blocked([e["pos"][0], e["pos"][1], float(e["pos"][2]) + eye_h(e)], [q[0], q[1], float(q[2]) + eye_h(target)], world["colliders"]):
+	if world.get("colliders") is Array and Js.sight_blocked([e["pos"][0], e["pos"][1], float(e["pos"][2]) + eye_h(e)], [q[0], q[1], float(q[2]) + eye_h(target)], world["colliders"]):
 		return false
 	if not recent:
 		e["sightings"] = int(nn(e, "sightings", 0)) + 1
@@ -604,7 +529,7 @@ func take_cover(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, targ
 		e["coverUntil"] = now + nf(cfg, "hold", 2.5)
 		e["lastSeen"] = {"pos": (target["pos"] as Array).duplicate(), "t": now, "id": target["id"]}
 	var w = e.get("weapon")
-	var fear: bool = (w is Dictionary and truthy(w.get("reloading"))) or (e.get("coverUntil") != null and now < float(e["coverUntil"]))
+	var fear: bool = (w is Dictionary and Js.truthy(w.get("reloading"))) or (e.get("coverUntil") != null and now < float(e["coverUntil"]))
 	if not fear or not (world.get("colliders") is Array):
 		e["coverAt"] = null
 		return false
@@ -618,13 +543,13 @@ func take_cover(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, targ
 	var hides := func(p: Array) -> bool:
 		var ddx: float = p[0] - q[0]
 		var ddy: float = p[1] - q[1]
-		var dn := hyp(ddx, ddy)
+		var dn := Js.hypot2(ddx, ddy)
 		if dn == 0.0:
 			dn = 1.0
 		var sx := (-ddy / dn) * flank
 		var sy := (ddx / dn) * flank
 		for pt in [[p[0], p[1], up], [p[0], p[1], top], [p[0] + sx, p[1] + sy, up], [p[0] - sx, p[1] - sy, up]]:
-			if not sight_blocked(from, [pt[0], pt[1], float(p[2]) + pt[2]], cs):
+			if not Js.sight_blocked(from, [pt[0], pt[1], float(p[2]) + pt[2]], cs):
 				return false
 		return true
 	if e.get("coverAt") == null or not hides.call(e["coverAt"]):
@@ -651,7 +576,7 @@ func take_cover(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, targ
 					continue
 				if not hides.call(p):
 					continue
-				var dd := hyp(x - q[0], y - q[1])
+				var dd := Js.hypot2(x - q[0], y - q[1])
 				if dd < bd:
 					bd = dd
 					best = p
@@ -660,7 +585,7 @@ func take_cover(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, targ
 	if e["coverAt"] == null:
 		return false
 	var c: Array = e["coverAt"]
-	if hyp(c[0] - e["pos"][0], c[1] - e["pos"][1]) > 0.4:
+	if Js.hypot2(c[0] - e["pos"][0], c[1] - e["pos"][1]) > 0.4:
 		go_to(e, r, dt, world, c, nf(r, "speed", 6.0) * 1.2)
 	else:
 		e["moving"] = false
@@ -680,7 +605,7 @@ func recall(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> bool:
 	var dx: float = ls["pos"][0] - e["pos"][0]
 	var dy: float = ls["pos"][1] - e["pos"][1]
 	e["aiFire"] = 0
-	if e.get("searchT") == null and hyp(dx, dy) > maxf(1.5, orf(r, "collideRadius", 0.0)):
+	if e.get("searchT") == null and Js.hypot2(dx, dy) > maxf(1.5, orf(r, "collideRadius", 0.0)):
 		if not nav_to(e, r, dt, world, ls["pos"], nf(r, "speed", 6.0)):
 			walk_toward(e, r, atan2(dy, dx), dt, world, nf(r, "speed", 6.0))
 		e["searchFrom"] = e["heading"]
@@ -698,16 +623,16 @@ func recall(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> bool:
 
 
 func ward_of(e: Dictionary, r: Dictionary, world: Dictionary):
-	if truthy(r.get("escort")) and world["byId"].has(r["escort"]):
+	if Js.truthy(r.get("escort")) and world["byId"].has(r["escort"]):
 		return world["byId"][r["escort"]]
-	if truthy(e.get("team")):
+	if Js.truthy(e.get("team")):
 		var best = null
 		var bd := INF
 		for id in world["order"]:
 			var o: Dictionary = world["byId"][id]
-			if is_same(o, e) or truthy(o.get("isCamera")) or o.get("team") != e["team"]:
+			if is_same(o, e) or Js.truthy(o.get("isCamera")) or o.get("team") != e["team"]:
 				continue
-			var d := hyp(o["pos"][0] - e["pos"][0], o["pos"][1] - e["pos"][1])
+			var d := Js.hypot2(o["pos"][0] - e["pos"][0], o["pos"][1] - e["pos"][1])
 			if d < bd:
 				bd = d
 				best = o
@@ -740,9 +665,9 @@ func return_to_post(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) 
 	var dx: float = float(p[0]) - e["pos"][0]
 	var dy: float = float(p[1]) - e["pos"][1]
 	var arrive := nf(r, "followDist", 6.0) if r.get("mind") is Dictionary and r["mind"].get("motivation") == "escort" else nf(r, "arrive", 1.5)
-	if hyp(dx, dy) <= arrive:
+	if Js.hypot2(dx, dy) <= arrive:
 		e["moving"] = false
-		if fin(r.get("scan")) and float(r["scan"]) > 0.0:
+		if Js.finite(r.get("scan")) and float(r["scan"]) > 0.0:
 			if e.get("scanFrom") == null:
 				e["scanFrom"] = e["heading"]
 			var now: float = world.get("time", 0.0)
@@ -763,7 +688,7 @@ func wander_step(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, o: 
 	if nf(e, "wanderPauseT", 0.0) > 0.0:
 		e["wanderPauseT"] = float(e["wanderPauseT"]) - dt
 		e["moving"] = false
-		if truthy(o.get("pauseLoco")):
+		if Js.truthy(o.get("pauseLoco")):
 			e["locomotion"] = o["pauseLoco"] if float(e["wanderPauseT"]) > 0.0 else "forward"
 		return
 	if not (e.get("wanderGoal") is Array):
@@ -771,11 +696,11 @@ func wander_step(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, o: 
 		var n: int = e["wanderN"]
 		var a := hash01(String(e["id"]), 2 * n) * TAU_
 		var d := sqrt(hash01(String(e["id"]), 2 * n + 1)) * nf(r, "wanderRadius", 12.0)
-		e["wanderGoal"] = [float(home[0]) + cos(a) * d, float(home[1]) + sin(a) * d, float(home[2]) if home.size() > 2 and truthy(home[2]) else 0.0]
+		e["wanderGoal"] = [float(home[0]) + cos(a) * d, float(home[1]) + sin(a) * d, float(home[2]) if home.size() > 2 and Js.truthy(home[2]) else 0.0]
 		e["wanderLegT"] = 0.0
 	var g: Array = e["wanderGoal"]
 	e["wanderLegT"] = float(e["wanderLegT"]) + dt
-	if hyp(g[0] - e["pos"][0], g[1] - e["pos"][1]) < 1.0 or float(e["wanderLegT"]) > 20.0:
+	if Js.hypot2(g[0] - e["pos"][0], g[1] - e["pos"][1]) < 1.0 or float(e["wanderLegT"]) > 20.0:
 		e["wanderGoal"] = null
 		var pz: Array = o["pause"]
 		e["wanderPauseT"] = float(pz[0]) + hash01(String(e["id"]), -int(e["wanderN"])) * (float(pz[1]) - float(pz[0]))
@@ -792,7 +717,7 @@ func graze_step(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> v
 		e["locomotion"] = "graze"
 		if float(e["grazeT"]) <= 0.0:
 			e["locomotion"] = "forward"
-			if truthy(e.get("grazeFood")):
+			if Js.truthy(e.get("grazeFood")):
 				if not (e.get("grazed") is Dictionary):
 					e["grazed"] = {}
 				e["grazed"][e["grazeFood"]] = now
@@ -803,14 +728,14 @@ func graze_step(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> v
 	var bd := INF
 	for id in world["order"]:
 		var o: Dictionary = world["byId"][id]
-		if is_same(o, e) or not truthy(o.get("food")):
+		if is_same(o, e) or not Js.truthy(o.get("food")):
 			continue
 		if e.get("grazed") is Dictionary and e["grazed"].get(o["id"]) != null and now - float(e["grazed"][o["id"]]) < nf(r, "regrow", 30.0):
 			continue
 		var q: Array = o["pos"]
-		if hyp(q[0] - float(home[0]), q[1] - float(home[1])) > nf(r, "forageRadius", 20.0):
+		if Js.hypot2(q[0] - float(home[0]), q[1] - float(home[1])) > nf(r, "forageRadius", 20.0):
 			continue
-		var d := hyp(q[0] - e["pos"][0], q[1] - e["pos"][1])
+		var d := Js.hypot2(q[0] - e["pos"][0], q[1] - e["pos"][1])
 		if d < bd:
 			bd = d
 			food = o
@@ -827,9 +752,9 @@ func graze_step(e: Dictionary, r: Dictionary, dt: float, world: Dictionary) -> v
 
 
 func idle(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, motive) -> void:
-	if truthy(e.get("groupId")) and e.get("groupSlot") is Array:
+	if Js.truthy(e.get("groupId")) and e.get("groupSlot") is Array:
 		var gs: Array = e["groupSlot"]
-		var d := hyp(gs[0] - e["pos"][0], gs[1] - e["pos"][1])
+		var d := Js.hypot2(gs[0] - e["pos"][0], gs[1] - e["pos"][1])
 		if d > 1.5:
 			go_to(e, r, dt, world, [gs[0], gs[1], e["pos"][2]], nf(r, "speed", 6.0))
 		else:
@@ -848,10 +773,9 @@ func idle(e: Dictionary, r: Dictionary, dt: float, world: Dictionary, motive) ->
 	e["moving"] = false
 
 
-
 # ── the rule ────────────────────────────────────────────────────────────────────────────────────────────────────────
 static func spacing_of(w, ov) -> String:
-	if ov is Dictionary and truthy(ov.get("style")):
+	if ov is Dictionary and Js.truthy(ov.get("style")):
 		return String(ov["style"])
 	if not (w is Dictionary):
 		return "skirmish"
@@ -861,7 +785,7 @@ static func spacing_of(w, ov) -> String:
 func _egg_cz(o: Dictionary) -> float:
 	if o.get("egg") is Dictionary:
 		var egg: Dictionary = o["egg"]
-		return float(egg["cz"]) if fin(egg.get("cz")) else float(egg.get("c", 0.0))
+		return float(egg["cz"]) if Js.finite(egg.get("cz")) else float(egg.get("c", 0.0))
 	return orf(o, "radius", 0.0)
 
 
@@ -883,9 +807,9 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	e["boosting"] = false
 	if nf(e, "aiBoostRestT", 0.0) > 0.0:
 		e["aiBoostRestT"] = maxf(0.0, float(e["aiBoostRestT"]) - dt)
-	var f := fwd_xy(float(e["heading"]))
-	var rt := right_xy(float(e["heading"]))
-	var space := truthy(r.get("space"))
+	var f := Js.fwd_xy(float(e["heading"]))
+	var rt := Js.right_xy(float(e["heading"]))
+	var space := Js.truthy(r.get("space"))
 	var cols = world.get("colliders")
 
 	# COMMITMENTS: the roll
@@ -907,12 +831,12 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 			var gd = ground_at(world, e["pos"]) if not space else null
 			if gd != null:
 				e["pos"][2] = float(gd) + eye
-			e["locomotion"] = e["dodgeClip"] if truthy(e.get("dodgeClip")) else "dodge_sideroll"
+			e["locomotion"] = e["dodgeClip"] if Js.truthy(e.get("dodgeClip")) else "dodge_sideroll"
 			e["moving"] = true
-			e["invincible"] = not truthy(e.get("dodgeSpent"))
+			e["invincible"] = not Js.truthy(e.get("dodgeSpent"))
 			e["gaitPhase"] = 0.0
 			var ang := minf(1.0, float(e["dodgeT"])) * nf(r, "dodgeTurns", 1.0) * TAU_
-			var sg := float(e["dodgeSign"]) if truthy(e.get("dodgeSign")) else 1.0
+			var sg := float(e["dodgeSign"]) if Js.truthy(e.get("dodgeSign")) else 1.0
 			e["tumble"] = {"axis": [f[0] * sg, f[1] * sg, 0.0], "angle": ang}
 			return
 	# the charge
@@ -929,7 +853,7 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 				var td: Array = e["tackleDir"]
 				e["pos"][0] += td[0] * tsp
 				e["pos"][1] += td[1] * tsp
-				if space and td.size() > 2 and truthy(td[2]):
+				if space and td.size() > 2 and Js.truthy(td[2]):
 					e["pos"][2] += td[2] * tsp
 			if not space and cols is Array:
 				block(e, r, eye, world)
@@ -946,15 +870,15 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	# the swing
 	if e.get("swingT") != null:
 		e["swingT"] = float(e["swingT"]) + dt / orf(e, "swingDur", 0.9)
-		e["locomotion"] = e["swingClip"] if truthy(e.get("swingClip")) else "swing_neutral"
+		e["locomotion"] = e["swingClip"] if Js.truthy(e.get("swingClip")) else "swing_neutral"
 		e["moving"] = true
 		e["gaitPhase"] = minf(1.0, float(e["swingT"]))
 		e["aiFire"] = 0
-		var lunge_to = world["byId"].get(e["lungeTo"]) if truthy(e.get("lungeTo")) else null
+		var lunge_to = world["byId"].get(e["lungeTo"]) if Js.truthy(e.get("lungeTo")) else null
 		var sp = e.get("strikeParams")
-		var lunge_room: bool = lunge_to == null or hyp(lunge_to["pos"][0] - e["pos"][0], lunge_to["pos"][1] - e["pos"][1]) > (float(sp["reach"]) if sp is Dictionary else 1.0) * 0.5
-		if truthy(e.get("swingLunge")) and sp is Dictionary and float(e["swingT"]) < float(sp["to"]) and lunge_room:
-			var lf := fwd_xy(float(e["heading"]))
+		var lunge_room: bool = lunge_to == null or Js.hypot2(lunge_to["pos"][0] - e["pos"][0], lunge_to["pos"][1] - e["pos"][1]) > (float(sp["reach"]) if sp is Dictionary else 1.0) * 0.5
+		if Js.truthy(e.get("swingLunge")) and sp is Dictionary and float(e["swingT"]) < float(sp["to"]) and lunge_room:
+			var lf := Js.fwd_xy(float(e["heading"]))
 			var ls := float(e["swingLunge"]) * dt
 			e["pos"][0] += lf[0] * ls
 			e["pos"][1] += lf[1] * ls
@@ -963,11 +887,11 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 		if not space:
 			stand_on_ground(e, r, nf(r, "eye", 0.0), world)
 		if float(e["swingT"]) >= 1.0:
-			if truthy(e.get("aiComboWant")) and not truthy(e.get("swingCombo")) and e.get("aiComboCfg") is Dictionary:
+			if Js.truthy(e.get("aiComboWant")) and not Js.truthy(e.get("swingCombo")) and e.get("aiComboCfg") is Dictionary:
 				e["aiComboWant"] = false
 				begin_swing_dir(e, e["aiComboCfg"], e["aiComboRule"] if e.get("aiComboRule") is Dictionary else r, "back", true, false)
 			else:
-				var was_combo := truthy(e.get("swingCombo"))
+				var was_combo := Js.truthy(e.get("swingCombo"))
 				e["swingT"] = null
 				e["locomotion"] = "forward"
 				e["moving"] = false
@@ -986,22 +910,22 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	var motive = mind.get("motivation") if mind is Dictionary else null
 	if motive == "flee":
 		e["reactionEnded"] = false
-		if truthy(e.get("groupAlarm")) and e.get("groupSlot") is Array:
+		if Js.truthy(e.get("groupAlarm")) and e.get("groupSlot") is Array:
 			var gs: Array = e["groupSlot"]
 			walk_toward(e, r, atan2(gs[1] - e["pos"][1], gs[0] - e["pos"][0]), dt, world, nf(r, "fleeSpeed", speed * 1.6))
 			return
-		var threat = pick_target(e, world, r["target"]) if truthy(r.get("target")) else threat_of(e, world)
+		var threat = pick_target(e, world, r["target"]) if Js.truthy(r.get("target")) else threat_of(e, world)
 		if threat == null or is_same(threat, e):
-			if truthy(e.get("groupId")) and e.get("groupSlot") is Array:
+			if Js.truthy(e.get("groupId")) and e.get("groupSlot") is Array:
 				idle(e, r, dt, world, motive)
 			else:
 				e["moving"] = false
 			return
 		var fx: float = e["pos"][0] - threat["pos"][0]
 		var fy: float = e["pos"][1] - threat["pos"][1]
-		if hyp(fx, fy) < nf(r, "fearRadius", 18.0):
+		if Js.hypot2(fx, fy) < nf(r, "fearRadius", 18.0):
 			walk_toward(e, r, atan2(fy, fx), dt, world, nf(r, "fleeSpeed", speed * 1.6))
-		elif truthy(e.get("groupId")) and e.get("groupSlot") is Array:
+		elif Js.truthy(e.get("groupId")) and e.get("groupSlot") is Array:
 			idle(e, r, dt, world, motive)
 		else:
 			e["moving"] = false
@@ -1009,8 +933,8 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	var live_ph = phases_of(mind)[e["mindPhase"]] if mind is Dictionary and e.get("mindPhase") != null else null
 	var temper = null
 	if mind is Dictionary:
-		temper = live_ph["aggressiveness"] if live_ph is Dictionary and truthy(live_ph.get("aggressiveness")) else mind.get("aggressiveness")
-	if temper == "passive" or (temper == "defensive" and not (fin(e.get("hpMax")) and float(e["hpMax"]) > 0.0 and fin(e.get("hp")) and float(e["hp"]) < float(e["hpMax"]))):
+		temper = live_ph["aggressiveness"] if live_ph is Dictionary and Js.truthy(live_ph.get("aggressiveness")) else mind.get("aggressiveness")
+	if temper == "passive" or (temper == "defensive" and not (Js.finite(e.get("hpMax")) and float(e["hpMax"]) > 0.0 and Js.finite(e.get("hp")) and float(e["hp"]) < float(e["hpMax"]))):
 		e["reactionEnded"] = false
 		idle(e, r, dt, world, motive)
 		return
@@ -1019,17 +943,17 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 		e["moving"] = false
 		var best = null
 		var w0 = e.get("weapon")
-		var bd: float = nf(r, "range", float(w0["range"]) if w0 is Dictionary and fin(w0.get("range")) and float(w0["range"]) < 400.0 else 16.0)
+		var bd: float = nf(r, "range", float(w0["range"]) if w0 is Dictionary and Js.finite(w0.get("range")) and float(w0["range"]) < 400.0 else 16.0)
 		for id in world["order"]:
 			var o: Dictionary = world["byId"][id]
-			if is_same(o, e) or truthy(o.get("isCamera")) or truthy(o.get("downed")) or truthy(o.get("gone")) or not _hittable_body(o):
+			if is_same(o, e) or Js.truthy(o.get("isCamera")) or Js.truthy(o.get("downed")) or Js.truthy(o.get("gone")) or not _hittable_body(o):
 				continue
-			if truthy(r.get("foes")):
+			if Js.truthy(r.get("foes")):
 				if o.get("team") != r["foes"]:
 					continue
-			elif truthy(e.get("team")) and o.get("team") == e["team"]:
+			elif Js.truthy(e.get("team")) and o.get("team") == e["team"]:
 				continue
-			var d := hyp(o["pos"][0] - e["pos"][0], o["pos"][1] - e["pos"][1])
+			var d := Js.hypot2(o["pos"][0] - e["pos"][0], o["pos"][1] - e["pos"][1])
 			if d < bd:
 				bd = d
 				best = o
@@ -1043,20 +967,20 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 		var weye: float = orf(w0, "eye", 0.0) if w0 is Dictionary else 0.0
 		e["pitch"] = clampf(atan2((float(q[2]) + tcz) - (float(e["pos"][2]) + weye), bd if bd != 0.0 else 1e-6), -1.2, 1.2)
 		var on_aim: bool = w0 is Dictionary and absf(rem0) <= (nf(r, "fireArc", 6.0) * PI) / 180.0
-		e["sentryPull"] = on_aim and not truthy(e.get("sentryPull"))
+		e["sentryPull"] = on_aim and not Js.truthy(e.get("sentryPull"))
 		e["aiFire"] = 1 if e["sentryPull"] else 0
 		return
 	# NOTICE
 	var ward = ward_of(e, r, world) if motive == "escort" else null
 	var policy = r.get("target")
 	if policy == null and motive == "escort":
-		policy = "enemy" if truthy(e.get("team")) else "all"
+		policy = "enemy" if Js.truthy(e.get("team")) else "all"
 	var target = pick_target(e, world, policy, ward)
-	if truthy(r.get("cover")) and target != null and not is_same(target, e) and take_cover(e, r, dt, world, target):
+	if Js.truthy(r.get("cover")) and target != null and not is_same(target, e) and take_cover(e, r, dt, world, target):
 		e["reactionEnded"] = false
 		return
 	var percept = mind.get("perception") if mind is Dictionary else null
-	if truthy(percept) and target != null and not is_same(target, e) and not perceive(e, r, target, world) and e.get("groupFocus") != target["id"]:
+	if Js.truthy(percept) and target != null and not is_same(target, e) and not perceive(e, r, target, world) and e.get("groupFocus") != target["id"]:
 		target = null
 		if percept == "memory" and recall(e, r, dt, world):
 			e["reactionEnded"] = false
@@ -1068,16 +992,16 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	# GUARD / ESCORT: a target farther than `guardRadius` from the post is not its business
 	if motive == "guard" or motive == "escort":
 		var pp := post_of(e, r, world)
-		if hyp(target["pos"][0] - float(pp[0]), target["pos"][1] - float(pp[1])) > nf(r, "guardRadius", 20.0):
+		if Js.hypot2(target["pos"][0] - float(pp[0]), target["pos"][1] - float(pp[1])) > nf(r, "guardRadius", 20.0):
 			e["reactionEnded"] = false
-			e["aiClock"] = -float(dif["reactDelay"]) if dif is Dictionary and truthy(dif.get("reactDelay")) else 0.0
+			e["aiClock"] = -float(dif["reactDelay"]) if dif is Dictionary and Js.truthy(dif.get("reactDelay")) else 0.0
 			return_to_post(e, r, dt, world)
 			return
 	# TERRITORIAL: warned first, then attacked
 	if motive == "territorial":
 		var home := home_of(e, r)
 		var q: Array = target["pos"]
-		if hyp(q[0] - float(home[0]), q[1] - float(home[1])) > nf(r, "territory", 16.0):
+		if Js.hypot2(q[0] - float(home[0]), q[1] - float(home[1])) > nf(r, "territory", 16.0):
 			e["warnFor"] = null
 			e["reactionEnded"] = false
 			idle(e, r, dt, world, motive)
@@ -1097,19 +1021,19 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 			e["locomotion"] = "forward"
 	if e.get("adapt") is Dictionary and e["adapt"]["foeId"] != target["id"]:
 		e["adapt"]["foeId"] = target["id"]
-		e["adapt"]["foeHp"] = float(target["hp"]) if fin(target.get("hp")) else null
+		e["adapt"]["foeHp"] = float(target["hp"]) if Js.finite(target.get("hp")) else null
 	# PATHING
 	if nav_to(e, r, dt, world, target["pos"], speed):
 		e["reactionEnded"] = false
 		return
 	var dx: float = target["pos"][0] - e["pos"][0]
 	var dy: float = target["pos"][1] - e["pos"][1]
-	var dist2d := hyp(dx, dy)
+	var dist2d := Js.hypot2(dx, dy)
 	if dist2d == 0.0:
 		dist2d = 1e-6
 
 	# PRESSED: just recovered from a stagger
-	if truthy(e.get("reactionEnded")):
+	if Js.truthy(e.get("reactionEnded")):
 		e["reactionEnded"] = false
 		if r.get("dodge") != false and nf(e, "dodgeCdT", 0.0) <= 0.0:
 			e["aiDodgeSide"] = -1 if int(nn(e, "aiDodgeSide", 0)) == 1 else 1
@@ -1123,7 +1047,7 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 			e["moving"] = true
 			return
 	# blades crossed: roll back off the clash line
-	if truthy(e.get("clashRetreat")):
+	if Js.truthy(e.get("clashRetreat")):
 		e["clashRetreat"] = false
 		if r.get("dodge") != false and nf(e, "dodgeCdT", 0.0) <= 0.0:
 			e["aiDodgeSide"] = -1 if int(nn(e, "aiDodgeSide", 0)) == 1 else 1
@@ -1138,17 +1062,17 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 			return
 
 	# STRIKE: the counter (the opportunist's tackleGuard)
-	if dif is Dictionary and truthy(dif.get("tackleGuard")) and nf(e, "tackleCdT", 0.0) <= 0.0 and not (nf(e, "aiBoostRestT", 0.0) > 0.0) \
-			and target.get("swingT") != null and target.get("strikeParams") != null and target.get("staggerT") == null and not truthy(target.get("downed")) \
+	if dif is Dictionary and Js.truthy(dif.get("tackleGuard")) and nf(e, "tackleCdT", 0.0) <= 0.0 and not (nf(e, "aiBoostRestT", 0.0) > 0.0) \
+			and target.get("swingT") != null and target.get("strikeParams") != null and target.get("staggerT") == null and not Js.truthy(target.get("downed")) \
 			and (f[0] * dx + f[1] * dy) / dist2d >= cos(nf(r, "tackleGuardCone", 1.1)):
 		var tspeed := float(nn(r, "tackleSpeed", nn(r, "boostSpeed", speed * 3.5)))
 		var mdz0: float = target["pos"][2] - e["pos"][2]
-		var tdist := hyp3(dx, dy, mdz0) if space else dist2d
+		var tdist := Js.hypot3(dx, dy, mdz0) if space else dist2d
 		if tdist < nf(r, "tackleReach", 8.0) + tspeed * nf(r, "tackleDur", 2.0) * 0.6:
 			var ux := dx / dist2d
 			var uy := dy / dist2d
 			if space:
-				var n3 := hyp3(dx, dy, mdz0)
+				var n3 := Js.hypot3(dx, dy, mdz0)
 				if n3 == 0.0:
 					n3 = 1e-6
 				e["tackleDir"] = [dx / n3, dy / n3, mdz0 / n3]
@@ -1175,19 +1099,19 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 		e["meleeGiveUpT"] = maxf(0.0, float(e["meleeGiveUpT"]) - dt)
 	var bench = e["adapt"]["benched"] if e.get("adapt") is Dictionary else null
 	var melee_cfg = null
-	if (truthy(r.get("meleeSeek")) or bench == "ranged") and bench != "melee" and lo != null and nf(e, "strikeCdT", 0.0) <= 0.0 and not (nf(e, "meleeGiveUpT", 0.0) > 0.0):
+	if (Js.truthy(r.get("meleeSeek")) or bench == "ranged") and bench != "melee" and lo != null and nf(e, "strikeCdT", 0.0) <= 0.0 and not (nf(e, "meleeGiveUpT", 0.0) > 0.0):
 		for c in lo:
 			if c is Dictionary and c.get("strike") == "melee":
 				melee_cfg = c
 				break
 	var melee_reach: float = float(nn(melee_cfg, "strikeReach", nn(r, "strikeReach", speed))) if melee_cfg != null else 0.0
-	var target_reeling: bool = target.get("staggerT") != null and truthy(target.get("staggerT")) and not truthy(target.get("downed"))
+	var target_reeling: bool = target.get("staggerT") != null and Js.truthy(target.get("staggerT")) and not Js.truthy(target.get("downed"))
 	var melee_vreach := nf(r, "meleeVReach", nf(r, "collideHeight", 24.0) * 1.5)
 	var mdz: float = target["pos"][2] - e["pos"][2]
 	var target_high := not space and absf(mdz) > melee_vreach
-	var melee_dist := hyp3(dx, dy, mdz) if space else dist2d
-	var target_safe := not (dif is Dictionary and truthy(dif.get("tackleGuard"))) or target.get("dodgeT") != null or target_reeling
-	var melee_commit: bool = melee_cfg != null and not truthy(target.get("downed")) and not target_high and target_safe and (not truthy(e.get("groupId")) or truthy(e.get("groupToken"))) \
+	var melee_dist := Js.hypot3(dx, dy, mdz) if space else dist2d
+	var target_safe := not (dif is Dictionary and Js.truthy(dif.get("tackleGuard"))) or target.get("dodgeT") != null or target_reeling
+	var melee_commit: bool = melee_cfg != null and not Js.truthy(target.get("downed")) and not target_high and target_safe and (not Js.truthy(e.get("groupId")) or Js.truthy(e.get("groupToken"))) \
 			and (melee_dist < melee_reach * 3.0 or (target_reeling and melee_dist < melee_reach * 9.0))
 	if melee_commit:
 		e["meleeCommitT"] = orf(e, "meleeCommitT", 0.0) + dt
@@ -1201,14 +1125,14 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 		if int(nn(e, "loadoutIdx", 0)) != idx:
 			e["loadoutIdx"] = idx
 			e["weapon"] = e["loadoutWeapons"][idx] if e.get("loadoutWeapons") is Array else null
-			if truthy(melee_cfg.get("figure")):
+			if Js.truthy(melee_cfg.get("figure")):
 				e["figure"] = melee_cfg["figure"]
 			arm_switch_ready(e, r, melee_cfg)
 	elif e.get("loadoutWeapons") is Array and lo != null:
 		var ranged: Array = []
 		var lws: Array = e["loadoutWeapons"]
 		for i in lws.size():
-			if lws[i] != null and not truthy(lo[i].get("throw")):
+			if lws[i] != null and not Js.truthy(lo[i].get("throw")):
 				ranged.append(i)
 		if not ranged.is_empty():
 			if e.get("aiRangedPick") == null:
@@ -1220,10 +1144,10 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 					e["aiWeaponT"] = 0.0
 					e["aiRangedPick"] = (int(e["aiRangedPick"]) + 1) % ranged.size()
 			var want: int = ranged[int(e["aiRangedPick"]) % ranged.size()]
-			if not truthy(e.get("weapon")) or int(nn(e, "loadoutIdx", 0)) != want:
+			if not Js.truthy(e.get("weapon")) or int(nn(e, "loadoutIdx", 0)) != want:
 				e["loadoutIdx"] = want
 				e["weapon"] = lws[want]
-				if truthy(lo[want].get("figure")):
+				if Js.truthy(lo[want].get("figure")):
 					e["figure"] = lo[want]["figure"]
 				arm_switch_ready(e, r, lo[want])
 	# aim: turn toward the target, pitch at its egg centre
@@ -1235,15 +1159,15 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 
 	# ENGAGE: spacing
 	var dz: float = target["pos"][2] - e["pos"][2]
-	var dist3d := hyp3(dx, dy, dz)
+	var dist3d := Js.hypot3(dx, dy, dz)
 	if dist3d == 0.0:
 		dist3d = 1e-6
 	var range_d := dist3d if space else dist2d
 	var a_slot = lo[int(nn(e, "loadoutIdx", 0))] if lo != null and int(nn(e, "loadoutIdx", 0)) < (lo as Array).size() else null
 	var a_ov = null
-	if a_slot is Dictionary and truthy(a_slot.get("approach")):
+	if a_slot is Dictionary and Js.truthy(a_slot.get("approach")):
 		a_ov = a_slot["approach"]
-	elif truthy(r.get("approach")):
+	elif Js.truthy(r.get("approach")):
 		a_ov = r["approach"]
 	var a_prof: Array = SPACING.get(spacing_of(w, a_ov), [1.0, 0.7, 1.0])
 	var blade_only: bool = not (w is Dictionary) and lo != null and not (lo as Array).is_empty()
@@ -1269,15 +1193,15 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 		base_standoff = blade_reach * 0.8
 	else:
 		base_standoff = speed * 8.0
-	var standoff: float = (float(a_ov["standoff"]) if a_ov is Dictionary and fin(a_ov.get("standoff")) else base_standoff * float(a_prof[0])) if w is Dictionary else base_standoff
+	var standoff: float = (float(a_ov["standoff"]) if a_ov is Dictionary and Js.finite(a_ov.get("standoff")) else base_standoff * float(a_prof[0])) if w is Dictionary else base_standoff
 	standoff *= float(dif["standoffMul"]) if dif is Dictionary else 1.0
-	var close_bias: float = (float(a_ov["close"]) if a_ov is Dictionary and fin(a_ov.get("close")) else float(a_prof[1])) * (float(dif["closeMul"]) if dif is Dictionary else 1.0)
-	var weave_mul: float = float(a_ov["weave"]) if a_ov is Dictionary and fin(a_ov.get("weave")) else float(a_prof[2])
-	var f2 := fwd_xy(float(e["heading"]))
-	var rt2 := right_xy(float(e["heading"]))
+	var close_bias: float = (float(a_ov["close"]) if a_ov is Dictionary and Js.finite(a_ov.get("close")) else float(a_prof[1])) * (float(dif["closeMul"]) if dif is Dictionary else 1.0)
+	var weave_mul: float = float(a_ov["weave"]) if a_ov is Dictionary and Js.finite(a_ov.get("weave")) else float(a_prof[2])
+	var f2 := Js.fwd_xy(float(e["heading"]))
+	var rt2 := Js.right_xy(float(e["heading"]))
 	var facing := absf(rem) < 1.1
 	var boost_burst := false
-	if truthy(r.get("boost")) and not (nf(e, "aiBoostRestT", 0.0) > 0.0):
+	if Js.truthy(r.get("boost")) and not (nf(e, "aiBoostRestT", 0.0) > 0.0):
 		var bb := nf(r, "boostBurst", 2.5) * (float(dif["boostBurstMul"]) if dif is Dictionary else 1.0)
 		var brest := nf(r, "boostRest", 1.6) * (float(dif["boostRestMul"]) if dif is Dictionary else 1.0)
 		var cyc := maxf(0.1, bb + brest)
@@ -1287,7 +1211,7 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	var clip := "forward"
 	if melee_commit:
 		if melee_dist > melee_reach * 0.85:
-			var can_boost: bool = (truthy(r.get("boost")) or truthy(r.get("boostSpeed"))) and not (nf(e, "aiBoostRestT", 0.0) > 0.0)
+			var can_boost: bool = (Js.truthy(r.get("boost")) or Js.truthy(r.get("boostSpeed"))) and not (nf(e, "aiBoostRestT", 0.0) > 0.0)
 			var spd := (nf(r, "boostSpeed", speed * 3.5) if can_boost else speed) * dt
 			if facing:
 				if space:
@@ -1318,11 +1242,11 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 			begin_swing(e, melee_cfg, r, dif)
 			e["lungeTo"] = target["id"]
 			e["meleeCommitT"] = 0.0
-	elif truthy(e.get("groupId")) and e.get("groupSlot") is Array and not space and not (truthy(e.get("groupToken")) and blade_only):
+	elif Js.truthy(e.get("groupId")) and e.get("groupSlot") is Array and not space and not (Js.truthy(e.get("groupToken")) and blade_only):
 		var gs: Array = e["groupSlot"]
 		var gx: float = gs[0] - e["pos"][0]
 		var gy: float = gs[1] - e["pos"][1]
-		var gdist := hyp(gx, gy)
+		var gdist := Js.hypot2(gx, gy)
 		var sp := nf(e, "groupSpacing", 3.0)
 		var sx := 0.0
 		var sy := 0.0
@@ -1332,14 +1256,14 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 				continue
 			var ox: float = e["pos"][0] - o["pos"][0]
 			var oy: float = e["pos"][1] - o["pos"][1]
-			var od := hyp(ox, oy)
+			var od := Js.hypot2(ox, oy)
 			if od > 1e-6 and od < sp:
 				sx += (ox / od) * (sp - od) / sp
 				sy += (oy / od) * (sp - od) / sp
 		if gdist > 0.6 or sx != 0.0 or sy != 0.0:
 			var mx := (gx / gdist if gdist > 0.6 else 0.0) + sx * 1.5
 			var my := (gy / gdist if gdist > 0.6 else 0.0) + sy * 1.5
-			var mn := hyp(mx, my)
+			var mn := Js.hypot2(mx, my)
 			if mn == 0.0:
 				mn = 1.0
 			var stp := minf(speed * dt, gdist + 0.5)
@@ -1358,7 +1282,7 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 			var mvx: float = rt2[0] * side * weave_mul + ux * bias
 			var mvy: float = rt2[1] * side * weave_mul + uy * bias
 			var mvz := v_weave + uz * bias
-			var mn := hyp3(mvx, mvy, mvz)
+			var mn := Js.hypot3(mvx, mvy, mvz)
 			if mn == 0.0:
 				mn = 1.0
 			mvx /= mn
@@ -1385,7 +1309,7 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 		var bias := close_bias if dist2d > standoff else (-close_bias if dist2d < standoff * 0.55 else 0.0)
 		var mvx: float = rt2[0] * side * weave_mul + f2[0] * bias
 		var mvy: float = rt2[1] * side * weave_mul + f2[1] * bias
-		var mn := hyp(mvx, mvy)
+		var mn := Js.hypot2(mvx, mvy)
 		if mn == 0.0:
 			mn = 1.0
 		mvx /= mn
@@ -1421,20 +1345,20 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 	var origin := [e["pos"][0], e["pos"][1], float(e["pos"][2]) + weye2]
 	var on_aim2: bool
 	if space:
-		var a3 := fwd3(float(e["heading"]), orf(e, "pitch", 0.0))
+		var a3 := Js.fwd3(float(e["heading"]), orf(e, "pitch", 0.0))
 		on_aim2 = (a3[0] * (dx / dist3d) + a3[1] * (dy / dist3d) + a3[2] * (dz / dist3d)) >= cos(fire_arc)
 	else:
 		on_aim2 = absf(rem) <= fire_arc
-	var engaged: bool = w is Dictionary and on_aim2 and range_d <= orf(w, "range", 400.0) and not sight_blocked(origin, target["pos"], cols)
+	var engaged: bool = w is Dictionary and on_aim2 and range_d <= orf(w, "range", 400.0) and not Js.sight_blocked(origin, target["pos"], cols)
 	if engaged:
 		var burst_on := nf(r, "burst", 1.1) * (float(dif["burstMul"]) if dif is Dictionary else 1.0)
 		var cycle := burst_on + nf(r, "pause", 0.9) * (float(dif["pauseMul"]) if dif is Dictionary else 1.0)
 		e["aiClock"] = orf(e, "aiClock", 0.0) + dt
 		e["aiFire"] = 1 if float(e["aiClock"]) >= 0.0 and fmod(float(e["aiClock"]), cycle) <= burst_on else 0
 	else:
-		e["aiClock"] = -float(dif["reactDelay"]) if dif is Dictionary and truthy(dif.get("reactDelay")) else 0.0
+		e["aiClock"] = -float(dif["reactDelay"]) if dif is Dictionary and Js.truthy(dif.get("reactDelay")) else 0.0
 	# DETUNE: the tuning's accuracy, a sinusoidal wobble after every decision
-	if dif is Dictionary and truthy(dif.get("aimWobble")):
+	if dif is Dictionary and Js.truthy(dif.get("aimWobble")):
 		e["aiWobT"] = orf(e, "aiWobT", 0.0) + dt
 		var wob_y := sin(float(e["aiWobT"]) * float(dif["wobbleHz"]) * TAU_) * float(dif["aimWobble"])
 		e["heading"] = float(e["heading"]) + wob_y - orf(e, "aiWobPrev", 0.0)
@@ -1444,5 +1368,5 @@ func ai(e: Dictionary, dt: float, world: Dictionary) -> void:
 
 # maneuvers.js armSwitchReady: a mind pays the loadout switch's ready-time too
 static func arm_switch_ready(e: Dictionary, r: Dictionary, sc) -> void:
-	e["readyMax"] = float(sc["switchReady"]) if sc is Dictionary and fin(sc.get("switchReady")) else nf(r, "switchReady", 1.0)
+	e["readyMax"] = float(sc["switchReady"]) if sc is Dictionary and Js.finite(sc.get("switchReady")) else nf(r, "switchReady", 1.0)
 	e["readyT"] = e["readyMax"]

@@ -22,6 +22,7 @@ const STORE_SAVE := "user://store.json"
 const StoreScript := preload("res://kernel/store.gd")
 const JsonExact := preload("res://kernel/json_exact.gd")
 const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 
 var title := "mojulo game"
 var levels: Array = []  # [{ref, title, gate, exits?}]: gate is the manifest's gate object, or null
@@ -76,7 +77,7 @@ func _ready() -> void:
 			completed[ref] = true
 	if store != null and FileAccess.file_exists(STORE_SAVE):
 		var save = JsonExact.parse(FileAccess.get_file_as_string(STORE_SAVE))
-		if save is Dictionary and Bus.strict_eq(save.get("contractVersion"), StoreScript.CONTRACT_VERSION) and save.get("storeState") is Dictionary:
+		if save is Dictionary and Js.strict_eq(save.get("contractVersion"), StoreScript.CONTRACT_VERSION) and save.get("storeState") is Dictionary:
 			state = save["storeState"]
 			run_log = save.get("runLog", []) if save.get("runLog") is Array else []
 
@@ -279,33 +280,14 @@ func _run_outcome(envelope: Dictionary) -> void:
 	to_menu()
 
 
-# the run's order, rolled from its number: the web shell's roll (a mulberry32 over n * 2654435761), its 32-bit
-# arithmetic held exactly in 64-bit ints
-static func _u32(x: int) -> int:
-	return x & 0xFFFFFFFF
-
-
-static func _s32(x: int) -> int:
-	x &= 0xFFFFFFFF
-	return x - 0x100000000 if x >= 0x80000000 else x
-
-
-static func _imul(a: int, b: int) -> int:
-	var ah := (a >> 16) & 0xFFFF
-	var al := a & 0xFFFF
-	var bh := (b >> 16) & 0xFFFF
-	var bl := b & 0xFFFF
-	return _s32(al * bl + (((ah * bl + al * bh) << 16) & 0xFFFFFFFF))
-
-
 func roll(n: int) -> Array:
-	var a := _u32(n * 2654435761)
+	var a := Js.u32(n * 2654435761)
 	var pool: Array = levels.map(func(l): return l["ref"])
 	for i in range(pool.size() - 1, 0, -1):
-		a = _s32(a + 0x6d2b79f5)
-		var t := _imul(_u32(a) ^ (_u32(a) >> 15), 1 | _u32(a))
-		t = _s32(t + _imul(_u32(t) ^ (_u32(t) >> 7), 61 | _u32(t))) ^ t
-		var r := float(_u32(_u32(t) ^ (_u32(t) >> 14))) / 4294967296.0
+		a = Js.s32(a + 0x6d2b79f5)
+		var t := Js.imul(Js.u32(a) ^ (Js.u32(a) >> 15), 1 | Js.u32(a))
+		t = Js.s32(t + Js.imul(Js.u32(t) ^ (Js.u32(t) >> 7), 61 | Js.u32(t))) ^ t
+		var r := float(Js.u32(Js.u32(t) ^ (Js.u32(t) >> 14))) / 4294967296.0
 		var j := int(floor(r * (i + 1)))
 		var x = pool[i]
 		pool[i] = pool[j]
@@ -335,7 +317,7 @@ func keep_bests(ref: String, envelope: Dictionary) -> Array:
 		print("moj: kept %s %s%s" % [k.get("label"), str(v), (" · new best!" if prior != null else "") if better else (" · best %s" % str(prior) if prior != null else "")])
 	var f := FileAccess.open(BESTS, FileAccess.WRITE)
 	if f != null:
-		f.store_string(Bus.ss(bests))
+		f.store_string(Js.ss(bests))
 		f.close()
 	return out
 
@@ -364,5 +346,5 @@ func _save_store() -> void:
 	var f := FileAccess.open(STORE_SAVE, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(Bus.ss({"contractVersion": StoreScript.CONTRACT_VERSION, "storeState": state, "runLog": run_log}))
+	f.store_string(Js.ss({"contractVersion": StoreScript.CONTRACT_VERSION, "storeState": state, "runLog": run_log}))
 	f.close()

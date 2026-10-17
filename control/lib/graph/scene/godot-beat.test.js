@@ -30,18 +30,18 @@ function godotClock(runs, mutate = null) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mojulo-beatclock-'));
   try {
     fs.cpSync(KERNEL, path.join(dir, 'kernel'), { recursive: true });
-    if (mutate) { const p = path.join(dir, 'kernel', 'level.gd'), src = fs.readFileSync(p, 'utf8'); if (!src.includes(mutate.from)) throw new Error(`plant does not apply: ${mutate.from}`); fs.writeFileSync(p, src.replace(mutate.from, mutate.to)); }
+    if (mutate) { const p = path.join(dir, 'kernel', mutate.file), src = fs.readFileSync(p, 'utf8'); if (!src.includes(mutate.from)) throw new Error(`plant does not apply: ${mutate.from}`); fs.writeFileSync(p, src.replace(mutate.from, mutate.to)); }
     fs.writeFileSync(path.join(dir, 'project.godot'), 'config_version=5\n\n[application]\nconfig/name="beat-clock"\n');
     fs.writeFileSync(path.join(dir, 'runs.json'), JSON.stringify(runs));
     fs.writeFileSync(path.join(dir, 'probe.gd'), `extends SceneTree
-const Level := preload("res://kernel/level.gd")
+const Beat := preload("res://kernel/beat.gd")
 func _init() -> void:
 	var runs = JSON.parse_string(FileAccess.get_file_as_string("res://runs.json"))
 	for r in runs:
 		var n := 0
 		var line := []
 		for t in r["readings"]:
-			var due: Array = Level.beats_due(n, float(t), float(r["every"]))
+			var due: Array = Beat.beats_due(n, float(t), float(r["every"]))
 			n = int(due[1])
 			var ns := []
 			for e in due[0]:
@@ -103,11 +103,11 @@ describe('the beat clock', () => {
 
   // each plant in the kernel's beat breaks the equality: the harness catches it
   const PLANTS = [
-    { name: 'the lead dropped', from: 't += float(b.get("lead", 0.0))', to: 't += 0.0' },
-    { name: 'a stale beat said', from: 'if t - n * every < every:', to: 'if true:' },
-    { name: 'the cap of four lifted', from: 'while n * every <= t and k < 4:', to: 'while n * every <= t and k < 40:' },
-    { name: 'off by one beat', from: 'var beat_n := 0', to: 'var beat_n := 1' },
-    { name: 'the clock a frame late', from: '_beat_tick(float(sim_frame) * delta if sim else -1.0)', to: '_beat_tick(float(sim_frame - 1) * delta if sim else -1.0)' },
+    { file: 'level.gd', name: 'the lead dropped', from: 't += float(b.get("lead", 0.0))', to: 't += 0.0' },
+    { file: 'beat.gd', name: 'a stale beat said', from: 'if t - n * every < every:', to: 'if true:' },
+    { file: 'beat.gd', name: 'the cap of four lifted', from: 'while n * every <= t and k < 4:', to: 'while n * every <= t and k < 40:' },
+    { file: 'level.gd', name: 'off by one beat', from: 'var beat_n := 0', to: 'var beat_n := 1' },
+    { file: 'level.gd', name: 'the clock a frame late', from: 'rec.get("events", []), float(sim_frame) * SIM_DT)', to: 'rec.get("events", []), float(sim_frame - 1) * SIM_DT)' },
   ];
   it('the seeded clock corpus reaches a stale beat and the cap', () => {
     // per reading: how far the next beat moved, and how many were said
@@ -127,7 +127,7 @@ describe('the beat clock', () => {
     const runs = SEEDS.map(clockReadings), want = runs.map(webClock);
     for (const p of PLANTS) {
       const clockCaught = JSON.stringify(godotClock(runs, p)) !== JSON.stringify(want);
-      const levelCaught = clockCaught || (() => { const { web, godot } = playBoth(beatLevel(), presses(90), { godot: GODOT, mutate: [{ file: 'level.gd', from: p.from, to: p.to }] }); return JSON.stringify(bus(godot.keys)) !== JSON.stringify(bus(web.keys)); })();
+      const levelCaught = clockCaught || (() => { const { web, godot } = playBoth(beatLevel(), presses(90), { godot: GODOT, mutate: [{ file: p.file, from: p.from, to: p.to }] }); return JSON.stringify(bus(godot.keys)) !== JSON.stringify(bus(web.keys)); })();
       expect(levelCaught, p.name).toBe(true);
     }
   }, 900000);

@@ -388,7 +388,26 @@ const TEXT_ORDER = {
   frames: [{ events: [] }],
 };
 
-export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED, RESERVED, TEXT, TEXT_ORDER];
+// a glob's `*` is a JS regex's `.*`: it runs over anything but a line terminator (\n, \r, U+2028, U+2029), and the
+// pattern ends at the end of the string (no final newline let through, as PCRE's `$` lets it)
+const GLOB_LINES = {
+  id: 'glob-lines',
+  about: 'a glob stops at line terminators and matches to the very end, as the web\'s regex does',
+  config: {
+    reactions: [
+      { on: 'say', match: { line: 'go*' }, do: 'inc', var: 'go', by: 1 },
+      { on: 'say', match: { line: '*end' }, do: 'inc', var: 'end', by: 1 },
+      { on: 'say', match: { line: 'a*b' }, do: 'inc', var: 'ab', by: 1 },
+    ],
+  },
+  entities: [],
+  frames: [
+    { events: [{ type: 'say', line: 'go far' }, { type: 'say', line: 'go\nfar' }, { type: 'say', line: 'go\rfar' }, { type: 'say', line: 'go\u2028far' }] },
+    { events: [{ type: 'say', line: 'the end' }, { type: 'say', line: 'the end\n' }, { type: 'say', line: 'a\u2029b' }, { type: 'say', line: 'a\tb' }] },
+  ],
+};
+
+export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED, RESERVED, TEXT, TEXT_ORDER, GLOB_LINES];
 
 // ── seeded scenarios over a small vocabulary ──────────────────────────────────────────────────────────────────────
 export function randomScenarios(n = 24, seed = 7) {

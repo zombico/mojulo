@@ -144,6 +144,18 @@ export const SCENARIOS = [
     frames: EXPLOSION_NAMES.reduce((fr, is, i) => withOps(fr, 5 + i * 20, [explode(i % 2 ? 'target' : [i, -i, 0], is, i % 3 ? undefined : 1.5)]), quiet(EXPLOSION_NAMES.length * 20 + 120)),
   },
   {
+    id: 'guard-and-overdrive',
+    about: 'a spawn guard holds the hero unhittable until its first round leaves; an overdrive makes its rounds hit 1.5 times as hard, until it is lifted',
+    entities: [gunner({ fireClass: 'sight', damage: 2, cooldown: 0.1, magazine: 30, eye: 0, range: 40 }), foe('a', [6, 0, 0], { hp: 100 })],
+    frames: withOps(withOps(withOps(frames(idle(10), press(), idle(20), press(), idle(20), press(), idle(20), press(), idle(20)), 2, [{ op: 'spawn', who: 'hero', guard: 5 }]), 25, [{ op: 'status', who: 'hero', is: 'overdrive' }]), 70, [{ op: 'lift', who: 'hero', is: 'overdrive' }]),
+  },
+  {
+    id: 'guard-spent-by-a-swing',
+    about: 'a spawn guard is spent by the hero\'s first swing as by a round',
+    entities: [hero({ strikeReach: 1.6, strikeDamage: 2, strikeDur: 0.4 }), foe('a', [1.3, 0, 0])],
+    frames: withOps(frames(idle(10), press(), idle(30)), 2, [{ op: 'spawn', who: 'hero', guard: 5 }]),
+  },
+  {
     id: 'asleep',
     about: 'a body minted asleep is not hittable',
     entities: [hero({ strikeReach: 1.6, strikeDamage: 2, strikeDur: 0.4 }), foe('sleeper', [1.3, 0, 0], {}, { dormant: true }), foe('woke', [1.3, 0.5, 0])],
@@ -221,6 +233,8 @@ function snapshot(world, ids, events) {
   return canon({
     hero: {
       swingT: h.swingT ?? null, clip: h.swingClip ?? null, cd: h.strikeCdT || 0, combo: h.comboT || 0, chain: !!h.swingCombo, dir: h.lastSwingDir ?? null, swings: h.swingCount || 0, dealt: h.meleeHitCount || 0,
+      // its protection (a spawn's guard, spent by acting a weapon): whether it can be hit, not how the guard is kept
+      untouchable: !!h.invincible,
       ...(w ? { weapon: Object.fromEntries(WEAPON_STATE.map((k) => [k, w[k] ?? null])) } : {}),
     },
     bodies,
@@ -229,7 +243,8 @@ function snapshot(world, ids, events) {
     rounds: (world.projectiles || []).map((p) => [p.pos.map(nano), p.vel.map(nano), p.age]),
     // the cast's moments (puffs, blasts, beams, shakes), their places to 1e-9 (a chain's dice are a sine)
     moments: (world.moments || []).map((m) => ({ is: m.is, t0: m.t0, at: m.at.map(nano), ...(m.until != null ? { until: m.until } : {}), ...(m.hit != null ? { hit: m.hit, to: m.to.map(nano), target: m.target ?? null, struck: !!m.struck } : {}), ...(m.k != null ? { k: m.k, for: m.for } : {}), ...(m.scale != null ? { scale: m.scale } : {}) })),
-    facts: events.map((ev) => ({ type: ev.type, entity: ev.entity, ...(ev.type.startsWith('hit:') || ev.type === 'struck' ? { by: ev.by } : {}) })),
+    // a round's hit carries what it dealt (dmg, harm, head), so the bus can take it from an hp of its own
+    facts: events.map((ev) => ({ type: ev.type, entity: ev.entity, ...(ev.type.startsWith('hit:') || ev.type === 'struck' ? { by: ev.by } : {}), ...('dmg' in ev ? { dmg: ev.dmg, harm: ev.harm, head: ev.head } : {}) })),
   });
 }
 

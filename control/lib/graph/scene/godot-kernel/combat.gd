@@ -20,6 +20,7 @@ extends RefCounted
 const Bus := preload("res://kernel/bus.gd")
 const MindScript := preload("res://kernel/mind.gd")
 const GroupScript := preload("res://kernel/group.gd")
+const Js := preload("res://kernel/js.gd")
 var strike = null
 var look := false
 var colliders = null
@@ -28,7 +29,7 @@ var projectiles := []
 
 func arm(st: Dictionary, combat: Dictionary) -> void:
 	strike = combat.get("strike") if combat.get("strike") is Dictionary else null
-	look = Bus.truthy(combat.get("look"))
+	look = Js.truthy(combat.get("look"))
 	colliders = combat.get("colliders") if combat.get("colliders") is Array else null
 	projectiles = []
 	var bodies: Dictionary = combat.get("bodies", {}) if combat.get("bodies") is Dictionary else {}
@@ -60,20 +61,7 @@ func arm(st: Dictionary, combat: Dictionary) -> void:
 			e["downPauseT"] = null
 		if e.has("shieldHp"):
 			e["shieldBroken"] = false
-		e["noDestroy"] = Bus.truthy(b.get("noDestroy"))
-
-
-# ── vectors (core.js) ────────────────────────────────────────────────────────────────────────────────────────────
-static func _fwd_xy(h: float) -> Array:
-	return [cos(h), sin(h), 0.0]
-
-
-static func _right_xy(h: float) -> Array:
-	return [sin(h), -cos(h), 0.0]
-
-
-static func _fwd3(h: float, p: float) -> Array:
-	return [cos(p) * cos(h), cos(p) * sin(h), sin(p)]
+		e["noDestroy"] = Js.truthy(b.get("noDestroy"))
 
 
 static func _sub(a: Array, b: Array) -> Array:
@@ -84,57 +72,13 @@ static func _lerp3(a: Array, b: Array, t: float) -> Array:
 	return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 
 
-# JS Math.hypot: the root of the summed squares
-static func _hypot3(a: float, b: float, c: float) -> float:
-	return sqrt(a * a + b * b + c * c)
-
-
-static func _hypot2(a: float, b: float) -> float:
-	return sqrt(a * a + b * b)
-
-
-static func _fin(v) -> bool:
-	return Bus.finite(v)
-
-
 # JS `x || d` for a number: 0, null and NaN fall through
 static func _or(v, d: float) -> float:
-	return float(v) if _fin(v) and float(v) != 0.0 else d
-
-
-# ── cover (core.js segAabbT / sightBlocked / nearestWallT) ─────────────────────────────────────────────────────────
-static func _seg_aabb_t(a: Array, b: Array, mn: Array, mx: Array):
-	var t0 := 0.0
-	var t1 := 1.0
-	for k in 3:
-		var d: float = b[k] - a[k]
-		if absf(d) < 1e-9:
-			if a[k] < float(mn[k]) or a[k] > float(mx[k]):
-				return null
-		else:
-			var tn: float = (float(mn[k]) - a[k]) / d
-			var tf: float = (float(mx[k]) - a[k]) / d
-			if tn > tf:
-				var s := tn
-				tn = tf
-				tf = s
-			if tn > t0:
-				t0 = tn
-			if tf < t1:
-				t1 = tf
-			if t0 > t1:
-				return null
-	return t0
+	return float(v) if Js.finite(v) and float(v) != 0.0 else d
 
 
 func _sight_blocked(a: Array, b: Array) -> bool:
-	if colliders == null:
-		return false
-	for c in colliders:
-		var t = _seg_aabb_t(a, b, c["min"], c["max"])
-		if t != null and t > 1e-3 and t < 1.0 - 1e-3:
-			return true
-	return false
+	return Js.sight_blocked(a, b, colliders)
 
 
 func _nearest_wall_t(a: Array, b: Array):
@@ -142,7 +86,7 @@ func _nearest_wall_t(a: Array, b: Array):
 		return null
 	var best = null
 	for c in colliders:
-		var t = _seg_aabb_t(a, b, c["min"], c["max"])
+		var t = Js.seg_aabb_t(a, b, c["min"], c["max"])
 		if t != null and t > 1e-3 and (best == null or t < best):
 			best = t
 	return best
@@ -178,7 +122,7 @@ static func hit_egg(origin: Array, dir: Array, tg: Dictionary):
 	var egg: Dictionary = tg["egg"]
 	var a := float(egg["a"])
 	var cc := float(egg["c"])
-	var cz := a if _flat(tg) else (float(egg["cz"]) if _fin(egg.get("cz")) else cc)
+	var cz := a if _flat(tg) else (float(egg["cz"]) if Js.finite(egg.get("cz")) else cc)
 	var p: Array = tg["pos"]
 	var C := [float(p[0]), float(p[1]), float(p[2]) + cz]
 	var ez := _egg_axis(tg)
@@ -202,7 +146,7 @@ static func point_in_egg(pt: Array, tg: Dictionary, pad: float) -> bool:
 	var egg: Dictionary = tg["egg"]
 	var a := float(egg["a"]) + pad
 	var cc := float(egg["c"]) + pad
-	var cz := a if _flat(tg) else (float(egg["cz"]) if _fin(egg.get("cz")) else float(egg["c"]))
+	var cz := a if _flat(tg) else (float(egg["cz"]) if Js.finite(egg.get("cz")) else float(egg["c"]))
 	var ez := _egg_axis(tg)
 	var p: Array = tg["pos"]
 	var u := [pt[0] - float(p[0]), pt[1] - float(p[1]), pt[2] - (float(p[2]) + cz)]
@@ -213,12 +157,12 @@ static func point_in_egg(pt: Array, tg: Dictionary, pad: float) -> bool:
 
 # a frontal shield eats a hit whose source lies in its arc; breaking it staggers the body
 static func _shield_covers(tg: Dictionary, src: Array) -> bool:
-	if _or(tg.get("shieldHp"), 0.0) == 0.0 or Bus.truthy(tg.get("shieldBroken")):
+	if _or(tg.get("shieldHp"), 0.0) == 0.0 or Js.truthy(tg.get("shieldBroken")):
 		return false
-	var front := _fwd_xy(float(tg["heading"]))
+	var front := Js.fwd_xy(float(tg["heading"]))
 	var ix: float = src[0] - float(tg["pos"][0])
 	var iy: float = src[1] - float(tg["pos"][1])
-	var m := _hypot2(ix, iy)
+	var m := Js.hypot2(ix, iy)
 	if m == 0.0:
 		m = 1e-6
 	return (ix * front[0] + iy * front[1]) / m >= cos(_or(tg.get("shieldArc"), PI * 0.6) / 2.0)
@@ -237,9 +181,9 @@ static func _absorb_shield(tg: Dictionary, src: Array, drain: float) -> bool:
 
 # ── the reaction (combat-hit.js armReaction / stepReaction, without the combo) ───────────────────────────────────────
 static func arm_reaction(tg: Dictionary, kind: String, force: bool = false) -> void:
-	if not _fin(tg.get("poise")):
+	if not Js.finite(tg.get("poise")):
 		return
-	var dead := _fin(tg.get("hp")) and float(tg["hp"]) <= 0.0
+	var dead := Js.finite(tg.get("hp")) and float(tg["hp"]) <= 0.0
 	if dead:
 		kind = "topple"
 	var in_knockdown: bool = tg["staggerT"] != null and tg["reactClip"] in ["topple", "downpause", "getup"]
@@ -252,7 +196,7 @@ static func arm_reaction(tg: Dictionary, kind: String, force: bool = false) -> v
 	tg["reactClip"] = "topple" if kind == "topple" else "stagger"
 	tg["reactDur"] = _or(tg.get("toppleDur"), sd * 1.3) if kind == "topple" else sd
 	if dead:
-		if Bus.truthy(tg.get("noDestroy")) and _fin(tg.get("hpMax")):
+		if Js.truthy(tg.get("noDestroy")) and Js.finite(tg.get("hpMax")):
 			tg["hp"] = float(tg["hpMax"])
 		else:
 			tg["downed"] = true
@@ -260,7 +204,7 @@ static func arm_reaction(tg: Dictionary, kind: String, force: bool = false) -> v
 
 # one frame of a poise-bearing body's reaction; true while it reels (its rule and arms wait)
 static func step_reaction(e: Dictionary, dt: float) -> bool:
-	if not _fin(e.get("poise")):
+	if not Js.finite(e.get("poise")):
 		return false
 	if _or(e.get("wakeGuardT"), 0.0) > 0.0:
 		e["wakeGuardT"] = maxf(0.0, float(e["wakeGuardT"]) - dt)
@@ -269,7 +213,7 @@ static func step_reaction(e: Dictionary, dt: float) -> bool:
 		if float(e["poise"]) < float(e["poiseMax"]):
 			e["poise"] = minf(float(e["poiseMax"]), float(e["poise"]) + _or(e.get("poiseRegen"), 0.0) * dt)
 		return false
-	var hold := float(e["downPause"]) if _fin(e.get("downPause")) else 2.0
+	var hold := float(e["downPause"]) if Js.finite(e.get("downPause")) else 2.0
 	if e["reactClip"] == "topple" and e["downPauseT"] != null:
 		e["downPauseT"] = float(e["downPauseT"]) + dt
 		if float(e["downPauseT"]) >= hold:
@@ -291,7 +235,7 @@ static func step_reaction(e: Dictionary, dt: float) -> bool:
 	e["staggerT"] = float(e["staggerT"]) + dt / _or(e.get("reactDur"), _or(e.get("staggerDur"), 1.3))
 	if float(e["staggerT"]) >= 1.0:
 		if e["reactClip"] == "topple":
-			if not Bus.truthy(e.get("downed")):
+			if not Js.truthy(e.get("downed")):
 				e["downPauseT"] = 0.0
 			e["staggerT"] = 1.0
 			e["locomotion"] = "topple"
@@ -303,7 +247,7 @@ static func step_reaction(e: Dictionary, dt: float) -> bool:
 		e["staggerT"] = null
 		e["downPauseT"] = null
 		# back on its feet: the recovery EDGE a mind consumes (it rolls out on it), its clip the one it returns to
-		e["locomotion"] = e["staggerReturn"] if Bus.truthy(e.get("staggerReturn")) else "forward"
+		e["locomotion"] = e["staggerReturn"] if Js.truthy(e.get("staggerReturn")) else "forward"
 		e["reactionEnded"] = true
 		if rose and _or(e.get("wakeGuard"), 0.0) > 0.0:
 			e["wakeGuardT"] = float(e["wakeGuard"])
@@ -324,13 +268,21 @@ static func _hit(tg: Dictionary, by: String) -> void:
 	tg["lastHitBy"] = by
 
 
+# what a round dealt, for the cast's hit fact (dmg, harm, head): the count it was dealt at, so a later swing's hit
+# carries none (combat-ranged.js; no headshot or falloff here: WEAPON_LOST)
+static func _dealt(tg: Dictionary, dmg: float) -> void:
+	tg["lastHitDmg"] = dmg
+	tg["lastHitHead"] = false
+	tg["lastHitDmgN"] = tg["hits"]
+
+
 static func _hurt(tg: Dictionary, dmg: float) -> void:
-	if _fin(tg.get("hp")):
+	if Js.finite(tg.get("hp")):
 		tg["hp"] = maxf(0.0, float(tg["hp"]) - dmg)
 
 
 static func _hittable(tg: Dictionary) -> bool:
-	return not Bus.truthy(tg.get("invincible")) and Bus.truthy(tg.get("hittable"))
+	return not Js.truthy(tg.get("invincible")) and Js.truthy(tg.get("hittable"))
 
 
 # ── melee (combat-melee.js) ──────────────────────────────────────────────────────────────────────────────────────
@@ -355,10 +307,10 @@ static func melee_contacts(e: Dictionary, entities: Array) -> Array:
 		if struck.has(tg["id"]):
 			continue
 		var v := _sub(tg["pos"], origin)
-		var d := _hypot3(v[0], v[1], v[2])
+		var d := Js.hypot3(v[0], v[1], v[2])
 		if d < 1e-3 or d > float(P["reach"]) + lat_r(tg):
 			continue
-		var flat := _hypot2(v[0], v[1])
+		var flat := Js.hypot2(v[0], v[1])
 		if flat == 0.0:
 			flat = 1e-6
 		if (v[0] * aim[0] + v[1] * aim[1]) / flat < float(P["cosCone"]):
@@ -381,7 +333,7 @@ static func step_melee(e: Dictionary, entities: Array) -> void:
 		var tg: Dictionary = c["tg"]
 		e["struckThisSwing"][tg["id"]] = true
 		if c["kind"] == "ally":
-			if _fin(tg.get("poise")) and tg["staggerT"] == null:
+			if Js.finite(tg.get("poise")) and tg["staggerT"] == null:
 				arm_reaction(tg, "stagger")
 			continue
 		if c["kind"] == "clash":
@@ -389,7 +341,7 @@ static func step_melee(e: Dictionary, entities: Array) -> void:
 		e["meleeHitCount"] = int(e.get("meleeHitCount", 0)) + 1
 		_hit(tg, e["id"])
 		_hurt(tg, float(P["damage"]))
-		var topples: bool = (Bus.truthy(P["topple"]) if P.get("topple") != null else e.get("swingClip") == "swing_back") and (Bus.truthy(e.get("swingCombo")) if Bus.truthy(P.get("combo")) else true)
+		var topples: bool = (Js.truthy(P["topple"]) if P.get("topple") != null else e.get("swingClip") == "swing_back") and (Js.truthy(e.get("swingCombo")) if Js.truthy(P.get("combo")) else true)
 		arm_reaction(tg, "topple" if topples else "stagger", topples)
 
 
@@ -398,8 +350,8 @@ static func step_melee(e: Dictionary, entities: Array) -> void:
 func strike_step(e: Dictionary, input: Dictionary, dt: float, grounded: bool) -> void:
 	if strike == null:
 		return
-	var fire := Bus.truthy(input.get("fire"))
-	var edge := fire and not Bus.truthy(e.get("strikePrev"))
+	var fire := Js.truthy(input.get("fire"))
+	var edge := fire and not Js.truthy(e.get("strikePrev"))
 	e["strikePrev"] = fire
 	var depth := int(strike.get("combo", 0))
 	var cd := float(strike.get("cooldown", 0.0))
@@ -413,6 +365,8 @@ func strike_step(e: Dictionary, input: Dictionary, dt: float, grounded: bool) ->
 		var spec: Dictionary = strike["swings"][dir]
 		e["swingT"] = 0.0
 		e["swingClip"] = spec["clip"]
+		# attacking spends any protection (the web's combat-melee.js)
+		MindScript.break_guards(e)
 		e["swingCombo"] = combo_click
 		e["comboT"] = 0.0
 		e["swingCount"] = int(e.get("swingCount", 0)) + 1
@@ -420,7 +374,7 @@ func strike_step(e: Dictionary, input: Dictionary, dt: float, grounded: bool) ->
 		e["strikeParams"] = spec["params"]
 		e["lastSwingDir"] = dir
 	elif e.get("swingT") != null:
-		var was_combo := Bus.truthy(e.get("swingCombo"))
+		var was_combo := Js.truthy(e.get("swingCombo"))
 		e["swingT"] = float(e["swingT"]) + dt / float(strike["dur"])
 		if float(e["swingT"]) >= 1.0 or not grounded:
 			if float(e["swingT"]) >= 1.0 and depth > 0 and not was_combo:
@@ -440,18 +394,18 @@ static func tick_weapon(w: Dictionary, dt: float) -> void:
 		w["cooldownT"] = maxf(0.0, float(w["cooldownT"]) - dt)
 	if float(w["energyMax"]) > 0.0:
 		var rr: float = float(w["energyRegen"])
-		if Bus.truthy(w["energyLock"]) and w.get("energyOverheatRegen") != null:
+		if Js.truthy(w["energyLock"]) and w.get("energyOverheatRegen") != null:
 			rr = float(w["energyOverheatRegen"])
 		if rr > 0.0:
 			w["energy"] = minf(float(w["energyMax"]), (float(w["energy"]) if w.get("energy") != null else float(w["energyMax"])) + rr * dt)
-		if Bus.truthy(w["energyLock"]) and float(w["energy"]) >= float(w["energyMax"]) * maxf(0.0, minf(1.0, float(w["energyUnlockFrac"]))):
+		if Js.truthy(w["energyLock"]) and float(w["energy"]) >= float(w["energyMax"]) * maxf(0.0, minf(1.0, float(w["energyUnlockFrac"]))):
 			w["energy"] = minf(float(w["energyMax"]), float(w["energy"]))
 			w["energyLock"] = false
-	if float(w["ammo"]) <= 0.0 and not Bus.truthy(w["reloading"]) and not dry(w):
+	if float(w["ammo"]) <= 0.0 and not Js.truthy(w["reloading"]) and not dry(w):
 		w["reloading"] = true
 		w["reloadT"] = float(w["reload"])
 		w["burstLeft"] = 0
-	if Bus.truthy(w["reloading"]):
+	if Js.truthy(w["reloading"]):
 		w["reloadT"] = float(w["reloadT"]) - dt
 		if float(w["reloadT"]) <= 0.0:
 			# a reload draws from the reserve (since 0.22.0, combat-ranged.js): all of it when it is less than a magazine;
@@ -470,7 +424,7 @@ static func dry(w: Dictionary) -> bool:
 
 
 static func _cancel_charge(w: Dictionary) -> void:
-	if not Bus.truthy(w.get("charging")):
+	if not Js.truthy(w.get("charging")):
 		return
 	w["charging"] = false
 	w["chargeT"] = 0.0
@@ -485,37 +439,37 @@ static func _nn(w: Dictionary, k: String, d: float) -> float:
 
 func step_weapon(e: Dictionary, input: Dictionary, dt: float, st: Dictionary) -> void:
 	var w: Dictionary = e["weapon"]
-	var fire_held := Bus.truthy(input.get("fire"))
-	if Bus.truthy(w["reloading"]) or (float(w["energyMax"]) > 0.0 and Bus.truthy(w["energyLock"])) or float(e.get("readyT", 0.0)) > 0.0:
+	var fire_held := Js.truthy(input.get("fire"))
+	if Js.truthy(w["reloading"]) or (float(w["energyMax"]) > 0.0 and Js.truthy(w["energyLock"])) or float(e.get("readyT", 0.0)) > 0.0:
 		_cancel_charge(w)
 		w["prevFire"] = fire_held
 		return
-	var edge := fire_held and not Bus.truthy(w["prevFire"])
-	var release := not fire_held and Bus.truthy(w["prevFire"])
+	var edge := fire_held and not Js.truthy(w["prevFire"])
+	var release := not fire_held and Js.truthy(w["prevFire"])
 	var energy_ready := not (float(w["energyMax"]) > 0.0) or float(w["energy"]) > 0.0
 	# NO FIRE WHILE BOOSTING (since 0.26.0, a mind's boost juke): a thrusting body cannot line up a semi or lob shot; an
 	# auto weapon keeps streaming (`boostFire` overrides the class), and a charge keeps flowing through the thrust
-	var can_boost_fire: bool = Bus.truthy(w["boostFire"]) if w.get("boostFire") != null else Bus.truthy(w["auto"])
-	if Bus.truthy(e.get("boosting")) and not can_boost_fire:
-		var charge_flow: bool = float(w["chargeTime"]) > 0.0 and not Bus.truthy(w["auto"]) and ((Bus.truthy(w["charging"]) and fire_held) \
+	var can_boost_fire: bool = Js.truthy(w["boostFire"]) if w.get("boostFire") != null else Js.truthy(w["auto"])
+	if Js.truthy(e.get("boosting")) and not can_boost_fire:
+		var charge_flow: bool = float(w["chargeTime"]) > 0.0 and not Js.truthy(w["auto"]) and ((Js.truthy(w["charging"]) and fire_held) \
 				or (edge and float(w["cooldownT"]) <= 0.0 and float(w["burstLeft"]) <= 0.0 and float(w["ammo"]) > 0.0 and energy_ready) \
-				or (Bus.truthy(w["charging"]) and release and Bus.truthy(w["chargeReady"])))
+				or (Js.truthy(w["charging"]) and release and Js.truthy(w["chargeReady"])))
 		if not charge_flow:
 			_cancel_charge(w)
 			w["prevFire"] = fire_held
 			return
 	var forced := false
 	var charged := false
-	if float(w["chargeTime"]) > 0.0 and not Bus.truthy(w["auto"]):
+	if float(w["chargeTime"]) > 0.0 and not Js.truthy(w["auto"]):
 		var ready_pull: bool = float(w["cooldownT"]) <= 0.0 and float(w["burstLeft"]) <= 0.0 and float(w["ammo"]) > 0.0 and energy_ready
-		if Bus.truthy(w["charging"]) and fire_held:
+		if Js.truthy(w["charging"]) and fire_held:
 			w["chargeT"] = minf(float(w["chargeTime"]), _or(w.get("chargeT"), 0.0) + dt)
 			w["chargeFrac"] = maxf(0.0, minf(1.0, float(w["chargeT"]) / float(w["chargeTime"])))
 			w["chargeReady"] = float(w["chargeFrac"]) >= 1.0
 			w["prevFire"] = true
 			return
-		if Bus.truthy(w["charging"]) and release:
-			charged = Bus.truthy(w["chargeReady"])
+		if Js.truthy(w["charging"]) and release:
+			charged = Js.truthy(w["chargeReady"])
 			_cancel_charge(w)
 			if charged:
 				forced = true
@@ -535,13 +489,14 @@ func step_weapon(e: Dictionary, input: Dictionary, dt: float, st: Dictionary) ->
 	w["prevFire"] = fire_held
 	var impact: float = _nn(w, "chargedImpact", _nn(w, "impact", 0.0)) if charged else _or(w.get("impact"), 0.0)
 	var shot_range: float = float(w["range"]) * _or(w.get("chargedRangeMul"), 1.0) if charged else float(w["range"])
-	var damage: float = _nn(w, "chargedDamage", _nn(w, "damage", 0.0)) if charged else _or(w.get("damage"), 0.0)
-	if not Bus.truthy(w["auto"]) and not forced and edge and float(w["cooldownT"]) <= 0.0 and float(w["burstLeft"]) <= 0.0 and float(w["ammo"]) > 0.0:
+	# OVERDRIVE (a status, the cast's `status { is: 'overdrive' }`): its rounds hit 1.5 times as hard
+	var damage: float = (_nn(w, "chargedDamage", _nn(w, "damage", 0.0)) if charged else _or(w.get("damage"), 0.0)) * (1.5 if e.get("statuses") is Dictionary and (e["statuses"] as Dictionary).has("overdrive") else 1.0)
+	if not Js.truthy(w["auto"]) and not forced and edge and float(w["cooldownT"]) <= 0.0 and float(w["burstLeft"]) <= 0.0 and float(w["ammo"]) > 0.0:
 		w["burstLeft"] = w["burst"]
-	var want: bool = energy_ready and float(w["ammo"]) > 0.0 and float(w["cooldownT"]) <= 0.0 and (forced or (fire_held if Bus.truthy(w["auto"]) else float(w["burstLeft"]) > 0.0))
+	var want: bool = energy_ready and float(w["ammo"]) > 0.0 and float(w["cooldownT"]) <= 0.0 and (forced or (fire_held if Js.truthy(w["auto"]) else float(w["burstLeft"]) > 0.0))
 	if want:
 		_shoot(e, w, st, charged, forced, impact, shot_range, damage)
-	if float(w["ammo"]) <= 0.0 and not Bus.truthy(w["reloading"]) and not dry(w):
+	if float(w["ammo"]) <= 0.0 and not Js.truthy(w["reloading"]) and not dry(w):
 		w["reloading"] = true
 		w["reloadT"] = float(w["reload"])
 
@@ -558,9 +513,11 @@ func _shoot(e: Dictionary, w: Dictionary, st: Dictionary, charged: bool, forced:
 			w["burstLeft"] = 0
 	if charged:
 		w["chargedShots"] = int(_or(w.get("chargedShots"), 0.0)) + 1
-	if not Bus.truthy(w["auto"]) and not forced:
+	# a round leaving spends any protection (the web's combat-ranged.js)
+	MindScript.break_guards(e)
+	if not Js.truthy(w["auto"]) and not forced:
 		w["burstLeft"] = float(w["burstLeft"]) - 1.0
-	if Bus.truthy(w["auto"]):
+	if Js.truthy(w["auto"]):
 		w["cooldownT"] = 1.0 / _or(w.get("rof"), 10.0)
 	else:
 		w["cooldownT"] = 1.0 / _or(w.get("burstRof"), 8.0) if float(w["burstLeft"]) > 0.0 else _or(w.get("cooldown"), 0.5)
@@ -568,18 +525,18 @@ func _shoot(e: Dictionary, w: Dictionary, st: Dictionary, charged: bool, forced:
 	var h := float(e["heading"])
 	var pitch := _or(e.get("pitch"), 0.0)
 	var origin := [float(p[0]), float(p[1]), float(p[2]) + float(w["eye"])]
-	var aim := _fwd3(h, pitch)
+	var aim := Js.fwd3(h, pitch)
 	var mo = w.get("muzzleOffset")
-	var hf := _fwd_xy(h)
-	var hr := _right_xy(h)
+	var hf := Js.fwd_xy(h)
+	var hr := Js.right_xy(h)
 	var from: Array = origin.duplicate()
 	if mo is Dictionary:
-		var r_mul := -1.0 if Bus.truthy(w.get("muzzleAlt")) and int(w["shots"]) % 2 == 0 else 1.0
+		var r_mul := -1.0 if Js.truthy(w.get("muzzleAlt")) and int(w["shots"]) % 2 == 0 else 1.0
 		var mf := _or(mo.get("f"), 0.0)
 		var mr := _or(mo.get("r"), 0.0)
 		from = [float(p[0]) + hf[0] * mf + hr[0] * mr * r_mul, float(p[1]) + hf[1] * mf + hr[1] * mr * r_mul, float(p[2]) + _nn(mo, "u", float(w["eye"]))]
 	if w["fireClass"] == "lob":
-		var dir := _fwd3(h, pitch + _or(w.get("lobAngle"), 0.0) * PI / 180.0)
+		var dir := Js.fwd3(h, pitch + _or(w.get("lobAngle"), 0.0) * PI / 180.0)
 		var sp := _or(w.get("projectileSpeed"), 60.0)
 		projectiles.append({"owner": e["id"], "pos": from.duplicate(), "vel": [dir[0] * sp, dir[1] * sp, dir[2] * sp], "gravity": _or(w.get("projectileGravity"), 0.0), "splashRadius": _or(w.get("splashRadius"), 0.0), "projRadius": _or(w.get("projRadius"), 0.5), "prox": _or(w.get("proximity"), 0.0), "damage": _or(w.get("damage"), 0.0), "impact": impact, "age": 0.0, "armTime": _or(w.get("armTime"), 0.0), "fuse": _or(w.get("fuse"), 4.0)})
 		return
@@ -592,7 +549,7 @@ func _shoot(e: Dictionary, w: Dictionary, st: Dictionary, charged: bool, forced:
 			continue
 		var friendly: bool = e.get("team") is String and tg.get("team") is String and tg["team"] == e["team"]
 		var v := _sub(tg["pos"], origin)
-		var d := _hypot3(v[0], v[1], v[2])
+		var d := Js.hypot3(v[0], v[1], v[2])
 		if d < 1e-3 or d > shot_range:
 			continue
 		var mode = null
@@ -617,11 +574,14 @@ func _shoot(e: Dictionary, w: Dictionary, st: Dictionary, charged: bool, forced:
 			if mode != null and not _sight_blocked(from, tg["pos"]) and (friend == null or hd < friend["d"]):
 				friend = {"d": hd, "tg": tg}
 			continue
-		if mode != null and _sight_blocked(from, tg["pos"]):
+		# COVER: a box on the muzzle → target sightline eats the shot. An egg is traced to where the ray enters it (a head
+		# over a low wall is hit; the legs behind it are not); a legacy sphere to its centre (combat-ranged.js)
+		var hit_at: Array = [origin[0] + aim[0] * hd, origin[1] + aim[1] * hd, origin[2] + aim[2] * hd] if tg.get("egg") is Dictionary and mode == "core" else tg["pos"]
+		if mode != null and _sight_blocked(from, hit_at):
 			mode = null
 		if mode != null and (best == null or hd < best["d"]):
 			best = {"d": hd, "tg": tg}
-	if friend != null and (best == null or friend["d"] <= best["d"]) and impact > 0.0 and _fin(friend["tg"].get("poise")) and friend["tg"]["staggerT"] == null:
+	if friend != null and (best == null or friend["d"] <= best["d"]) and impact > 0.0 and Js.finite(friend["tg"].get("poise")) and friend["tg"]["staggerT"] == null:
 		friend["tg"]["poise"] = float(friend["tg"]["poise"]) - impact
 		if float(friend["tg"]["poise"]) <= 0.0:
 			arm_reaction(friend["tg"], "stagger")
@@ -629,14 +589,15 @@ func _shoot(e: Dictionary, w: Dictionary, st: Dictionary, charged: bool, forced:
 		return
 	var tg: Dictionary = best["tg"]
 	_hit(tg, e["id"])
+	_dealt(tg, damage)
 	if _absorb_shield(tg, origin, damage):
 		return
 	_hurt(tg, damage)
-	if _fin(tg.get("poise")) and tg["staggerT"] == null and impact > 0.0:
+	if Js.finite(tg.get("poise")) and tg["staggerT"] == null and impact > 0.0:
 		tg["poise"] = float(tg["poise"]) - impact
 		if float(tg["poise"]) <= 0.0:
 			arm_reaction(tg, "stagger")
-	if _fin(tg.get("hp")) and float(tg["hp"]) <= 0.0:
+	if Js.finite(tg.get("hp")) and float(tg["hp"]) <= 0.0:
 		arm_reaction(tg, "stagger")
 
 
@@ -650,7 +611,7 @@ func step_projectiles(st: Dictionary, dt: float) -> void:
 		p["pos"] = [p["pos"][0] + p["vel"][0] * dt, p["pos"][1] + p["vel"][1] * dt, p["pos"][2] + p["vel"][2] * dt]
 		var hit_id = null
 		if float(p["age"]) >= float(p["armTime"]):
-			var seg := _hypot3(p["pos"][0] - prev[0], p["pos"][1] - prev[1], p["pos"][2] - prev[2])
+			var seg := Js.hypot3(p["pos"][0] - prev[0], p["pos"][1] - prev[1], p["pos"][2] - prev[2])
 			var det := float(p["projRadius"]) + float(p["prox"])
 			for tg in st["entities"]:
 				if tg["id"] == p["owner"] or not _hittable(tg):
@@ -666,7 +627,7 @@ func step_projectiles(st: Dictionary, dt: float) -> void:
 						hit = point_in_egg(pt, tg, det)
 					else:
 						var v := _sub(tg["pos"], pt)
-						hit = _hypot3(v[0], v[1], v[2]) <= _or(tg.get("radius"), 0.5) + det
+						hit = Js.hypot3(v[0], v[1], v[2]) <= _or(tg.get("radius"), 0.5) + det
 					if hit:
 						hit_pt = pt
 					k2 += 1
@@ -700,20 +661,21 @@ func _burst(st: Dictionary, p: Dictionary) -> void:
 				continue
 		else:
 			var v := _sub(tg["pos"], p["pos"])
-			if _hypot3(v[0], v[1], v[2]) > R + _or(tg.get("radius"), 0.5):
+			if Js.hypot3(v[0], v[1], v[2]) > R + _or(tg.get("radius"), 0.5):
 				continue
 		if owner_team is String and tg.get("team") is String and tg["team"] == owner_team:
-			if _fin(tg.get("poise")) and tg["staggerT"] == null:
+			if Js.finite(tg.get("poise")) and tg["staggerT"] == null:
 				arm_reaction(tg, "stagger")
 			continue
 		_hit(tg, p["owner"])
+		_dealt(tg, float(p["damage"]) if Js.truthy(p.get("damage")) else 0.0)
 		if _absorb_shield(tg, p["pos"], float(p["damage"])):
 			continue
 		_hurt(tg, float(p["damage"]))
-		if _fin(tg.get("hp")) and float(tg["hp"]) <= 0.0:
+		if Js.finite(tg.get("hp")) and float(tg["hp"]) <= 0.0:
 			arm_reaction(tg, "stagger")
 		elif float(p["impact"]) > 0.0:
-			if _fin(tg.get("poise")) and tg["staggerT"] == null:
+			if Js.finite(tg.get("poise")) and tg["staggerT"] == null:
 				tg["poise"] = float(tg["poise"]) - float(p["impact"])
 				if float(tg["poise"]) <= 0.0:
 					arm_reaction(tg, "stagger")
@@ -726,27 +688,27 @@ func _burst(st: Dictionary, p: Dictionary) -> void:
 # stays the web's
 func _death_bursts(st: Dictionary) -> void:
 	for e in st["entities"]:
-		if Bus.truthy(e.get("gone")) or not Bus.truthy(e.get("downed")) or Bus.truthy(e.get("deathBurstDone")):
+		if Js.truthy(e.get("gone")) or not Js.truthy(e.get("downed")) or Js.truthy(e.get("deathBurstDone")):
 			continue
 		e["deathBurstDone"] = true
 		var egg = e.get("egg")
 		var hgt := 24.0
 		if egg is Dictionary:
-			hgt = (float(egg["cz"]) if _fin(egg.get("cz")) else float(egg["c"])) + float(egg["c"])
+			hgt = (float(egg["cz"]) if Js.finite(egg.get("cz")) else float(egg["c"])) + float(egg["c"])
 		var R: float = floor(hgt * 0.54 * 10.0 + 0.5) / 10.0
 		var cz := hgt * 0.5
 		if egg is Dictionary:
-			cz = float(egg["cz"]) if _fin(egg.get("cz")) else float(egg["c"])
+			cz = float(egg["cz"]) if Js.finite(egg.get("cz")) else float(egg["c"])
 		var pos := [float(e["pos"][0]), float(e["pos"][1]), float(e["pos"][2]) + cz]
 		for tg in st["entities"]:
-			if is_same(tg, e) or Bus.truthy(tg.get("downed")) or not _hittable(tg):
+			if is_same(tg, e) or Js.truthy(tg.get("downed")) or not _hittable(tg):
 				continue
 			if tg.get("egg") is Dictionary:
 				if not point_in_egg(pos, tg, R):
 					continue
 			else:
 				var v := _sub(tg["pos"], pos)
-				if _hypot3(v[0], v[1], v[2]) > R + _or(tg.get("radius"), 0.5):
+				if Js.hypot3(v[0], v[1], v[2]) > R + _or(tg.get("radius"), 0.5):
 					continue
 			if _absorb_shield(tg, pos, 0.0):
 				continue
@@ -765,7 +727,7 @@ var _frame_world = null
 func step(st: Dictionary, hero, input: Dictionary, dt: float, grounded: bool, pose = null, part := "all") -> void:
 	if part != "minds":
 		# the minds' world switch (the web's ai-toggle pre-step: the G press flips it), then their frame's world
-		if mind != null and Bus.truthy(input.get("aiToggle")):
+		if mind != null and Js.truthy(input.get("aiToggle")):
 			mind_off = not mind_off
 		_frame_world = mind_world(st, hero) if mind != null else null
 		# the groups give their members slots before the bodies step (the web's `groups` pre-step)
@@ -806,7 +768,6 @@ func step(st: Dictionary, hero, input: Dictionary, dt: float, grounded: bool, po
 	_death_bursts(st)
 
 
-
 # ── THE MINDS (since 0.26.0): bodies on the web's `ai` rule decide in kernel/mind.gd and fight with this file's trigger
 # and blade, in the web engine's order for each body: its timers (its weapons and cooldowns), its owners (asleep, or
 # reacting: the rule and the weapon wait), the rule, then its trigger (its own, never the pilot's) and its blade.
@@ -829,7 +790,7 @@ func arm_minds(st: Dictionary, minds: Dictionary) -> void:
 	mind = MindScript.new()
 	groups = GroupScript.new()
 	mind_ids = {}
-	mind_off = Bus.truthy(minds.get("off"))
+	mind_off = Js.truthy(minds.get("off"))
 	mind_tier = minds.get("tier") if minds.get("tier") is Dictionary else null
 	# the walls a mind sees past and paths round (the fight's own, when it has them)
 	if colliders == null and minds.get("colliders") is Array:
@@ -891,16 +852,16 @@ func _step_mind(st: Dictionary, e: Dictionary, dt: float, world: Dictionary) -> 
 	if _or(e.get("readyT"), 0.0) > 0.0:
 		e["readyT"] = maxf(0.0, float(e["readyT"]) - dt)
 	# owners: asleep (the cast's dormant), the reaction, the cast (a route it walks, a spot it holds, felled by a cue)
-	var owned := Bus.truthy(e.get("dormant"))
+	var owned := Js.truthy(e.get("dormant"))
 	owned = step_reaction(e, dt) or owned
-	owned = owned or Bus.truthy(e.get("castDown")) or e.get("route") != null or Bus.truthy(e.get("held"))
+	owned = owned or Js.truthy(e.get("castDown")) or e.get("route") != null or Js.truthy(e.get("held"))
 	if owned and e.get("weapon") is Dictionary:
 		_cancel_charge(e["weapon"])
 	if owned:
 		return
 	mind.ai(e, dt, world)
 	if e.get("weapon") is Dictionary:
-		step_weapon(e, {"fire": 1 if Bus.truthy(e.get("aiFire")) else 0}, dt, st)
+		step_weapon(e, {"fire": 1 if Js.truthy(e.get("aiFire")) else 0}, dt, st)
 	if e.get("swingT") != null:
 		step_melee(e, st["entities"])
 	if e.get("tackleT") != null:
@@ -917,28 +878,28 @@ func step_tackle(e: Dictionary, st: Dictionary) -> void:
 	var reach: float = float(r["tackleReach"]) if r.get("tackleReach") != null else 8.0
 	var dmg: float = float(r["tackleDamage"]) if r.get("tackleDamage") != null else 15.0
 	var cos_cone := cos((float(r["tackleCone"]) if r.get("tackleCone") != null else 70.0) * PI / 180.0)
-	var aim := _fwd_xy(float(e["heading"]))
+	var aim := Js.fwd_xy(float(e["heading"]))
 	var p: Array = e["pos"]
 	var origin := [float(p[0]), float(p[1]), float(p[2]) + (float(r["eye"]) if r.get("eye") != null else 0.0)]
 	if not (e.get("tackleHits") is Dictionary):
 		e["tackleHits"] = {}
 	for tg in st["entities"]:
-		if is_same(tg, e) or Bus.truthy(tg.get("invincible")) or not _hittable(tg):
+		if is_same(tg, e) or Js.truthy(tg.get("invincible")) or not _hittable(tg):
 			continue
 		if e["tackleHits"].has(tg["id"]):
 			continue
 		var v := _sub(tg["pos"], origin)
-		var d := _hypot3(v[0], v[1], v[2])
+		var d := Js.hypot3(v[0], v[1], v[2])
 		if d < 1e-3 or d > reach + lat_r(tg):
 			continue
-		var flat := _hypot2(v[0], v[1])
+		var flat := Js.hypot2(v[0], v[1])
 		if flat == 0.0:
 			flat = 1e-6
 		if (v[0] * aim[0] + v[1] * aim[1]) / flat < cos_cone:
 			continue
 		e["tackleHits"][tg["id"]] = true
 		if e.get("team") is String and tg.get("team") is String and tg["team"] == e["team"]:
-			if _fin(tg.get("poise")) and tg["staggerT"] == null:
+			if Js.finite(tg.get("poise")) and tg["staggerT"] == null:
 				arm_reaction(tg, "stagger")
 			_end_tackle(e)
 			return
@@ -948,7 +909,7 @@ func step_tackle(e: Dictionary, st: Dictionary) -> void:
 			return
 		e["tackleHitCount"] = int(e.get("tackleHitCount", 0)) + 1
 		_hit(tg, e["id"])
-		if _fin(tg.get("hp")):
+		if Js.finite(tg.get("hp")):
 			_hurt(tg, dmg)
 		arm_reaction(tg, "stagger")
 		_end_tackle(e)
@@ -969,15 +930,15 @@ static func _tackle_counter(tackler: Dictionary, victim: Dictionary) -> void:
 	victim["comboT"] = 0.0
 	victim["struckThisSwing"] = {}
 	_hit(victim, tackler["id"])
-	var dmg: float = float(tackler["rule"]["counterDamage"]) if tackler.get("rule") is Dictionary and _fin(tackler["rule"].get("counterDamage")) else 0.0
-	if dmg > 0.0 and _fin(victim.get("hp")):
+	var dmg: float = float(tackler["rule"]["counterDamage"]) if tackler.get("rule") is Dictionary and Js.finite(tackler["rule"].get("counterDamage")) else 0.0
+	if dmg > 0.0 and Js.finite(victim.get("hp")):
 		victim["hp"] = maxf(0.0, float(victim["hp"]) - dmg)
 		if float(victim["hp"]) <= 0.0:
-			if Bus.truthy(victim.get("noDestroy")) and _fin(victim.get("hpMax")):
+			if Js.truthy(victim.get("noDestroy")) and Js.finite(victim.get("hpMax")):
 				victim["hp"] = float(victim["hpMax"])
 			else:
 				victim["downed"] = true
-	var bm: float = float(tackler["rule"]["boostMax"]) if tackler.get("rule") is Dictionary and _fin(tackler["rule"].get("boostMax")) and float(tackler["rule"]["boostMax"]) > 0.0 else 0.0
+	var bm: float = float(tackler["rule"]["boostMax"]) if tackler.get("rule") is Dictionary and Js.finite(tackler["rule"].get("boostMax")) and float(tackler["rule"]["boostMax"]) > 0.0 else 0.0
 	if bm > 0.0:
 		tackler["boost"] = bm
 		tackler["boostLock"] = false
@@ -986,7 +947,7 @@ static func _tackle_counter(tackler: Dictionary, victim: Dictionary) -> void:
 	var pt: Array = tackler["pos"]
 	var ux: float = pv[0] - pt[0]
 	var uy: float = pv[1] - pt[1]
-	var ul := _hypot2(ux, uy)
+	var ul := Js.hypot2(ux, uy)
 	if ul == 0.0:
 		ul = 1e-6
 	victim["heading"] = atan2(-uy / ul, -ux / ul)

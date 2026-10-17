@@ -16,34 +16,34 @@ extends RefCounted
 #                                        (once per hit kernel/combat.gd counted) · faded { is } · struck { by, beam? }
 
 const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 const DEG := PI / 180.0
-var _prev = null
 
 
 func create(rows: Array) -> Dictionary:
 	var st := {"time": 0.0, "entities": [], "byId": {}, "moments": []}
 	for r in rows:
-		if not (r is Dictionary) or not Bus.truthy(r.get("id")):
+		if not (r is Dictionary) or not Js.truthy(r.get("id")):
 			continue
 		var p: Array = r.get("pos", [0, 0, 0]) if r.get("pos") is Array else [0, 0, 0]
 		var e := {
 			"id": String(r["id"]), "pos": [float(p[0]), float(p[1]), float(p[2]) if p.size() > 2 else 0.0],
-			"heading": float(r.get("heading", 0.0)) if Bus.finite(r.get("heading")) else 0.0,
-			"dormant": Bus.truthy(r.get("dormant")), "gone": Bus.truthy(r.get("dormant")), "downed": false, "castDown": false,
-			"route": null, "held": false, "pose": null, "speed": float(r["speed"]) if Bus.finite(r.get("speed")) else 2.5,
+			"heading": float(r.get("heading", 0.0)) if Js.finite(r.get("heading")) else 0.0,
+			"dormant": Js.truthy(r.get("dormant")), "gone": Js.truthy(r.get("dormant")), "downed": false, "castDown": false,
+			"route": null, "held": false, "pose": null, "speed": float(r["speed"]) if Js.finite(r.get("speed")) else 2.5,
 			"arrivals": 0, "arrivedAt": null, "arrivedLast": false, "stucks": 0, "statuses": {}, "faded": [], "moving": false,
 		}
-		if Bus.finite(r.get("hp")):
+		if Js.finite(r.get("hp")):
 			e["hp"] = float(r["hp"])
 			e["hpMax"] = float(r["hp"])
-		e["foot"] = float(r["foot"]) if Bus.finite(r.get("foot")) else 0.0
+		e["foot"] = float(r["foot"]) if Js.finite(r.get("foot")) else 0.0
 		st["entities"].append(e)
 		st["byId"][e["id"]] = e
 	return st
 
 
 static func _pt3(p: Array, z: float) -> Array:
-	return [float(p[0]), float(p[1]), float(p[2]) if p.size() > 2 and Bus.finite(p[2]) else z]
+	return [float(p[0]), float(p[1]), float(p[2]) if p.size() > 2 and Js.finite(p[2]) else z]
 
 
 func ops(st: Dictionary, list: Array) -> void:
@@ -52,7 +52,7 @@ func ops(st: Dictionary, list: Array) -> void:
 			continue
 		var op = o.get("op")
 		if op == "shake":
-			_moment(st, {"is": "shake", "at": [0.0, 0.0, 0.0], "k": float(o["k"]) if Bus.finite(o.get("k")) else 0.5, "for": float(o["for"]) if Bus.finite(o.get("for")) else 0.4})
+			_moment(st, {"is": "shake", "at": [0.0, 0.0, 0.0], "k": float(o["k"]) if Js.finite(o.get("k")) else 0.5, "for": float(o["for"]) if Js.finite(o.get("for")) else 0.4})
 			continue
 		# a skipped scene (scene-runner.js): every walk lands where it was going, its last point, its face and pose, and
 		# the arrive fact; a looping walk keeps walking (since 0.23.0)
@@ -70,10 +70,10 @@ func ops(st: Dictionary, list: Array) -> void:
 				w["pos"][1] = float(R["points"][R["i"]][1])
 				_step_route(w, 0.0)
 			continue
-		if op == "puff" and not Bus.truthy(o.get("who")) and o.get("at") is Array:
+		if op == "puff" and not Js.truthy(o.get("who")) and o.get("at") is Array:
 			_puff(st, o, _pt3(o["at"], 0.0), st["time"])
 			continue
-		var e = st["byId"].get(Bus.js_string(o.get("who", Bus.UNDEF)))
+		var e = st["byId"].get(Js.js_string(o.get("who", Js.UNDEF)))
 		if e == null:
 			continue
 		if op == "puff":
@@ -83,7 +83,7 @@ func ops(st: Dictionary, list: Array) -> void:
 			_beam(st, e, o)
 			continue
 		if op == "transfigure":
-			var b = st["byId"].get(Bus.js_string(o.get("into", Bus.UNDEF)))
+			var b = st["byId"].get(Js.js_string(o.get("into", Js.UNDEF)))
 			if b == null or is_same(b, e) or e["gone"]:
 				continue
 			ops(st, [{"op": "spawn", "who": b["id"], "at": (e["pos"] as Array).duplicate(), "face": e["heading"] / DEG}, {"op": "vanish", "who": e["id"]}])
@@ -91,6 +91,11 @@ func ops(st: Dictionary, list: Array) -> void:
 		match op:
 			"spawn":
 				e["dormant"] = false; e["gone"] = false; e["downed"] = false; e["castDown"] = false; e["route"] = null; e["held"] = false; e["pose"] = null
+				# a fresh life: what its mind knew and was doing goes (a sighting, a search, a cover spot, a path, a crossed
+				# health phase); the hits it took before are not a new hit
+				if e.get("rule") is Dictionary and e["rule"].get("type") == "ai":
+					e["lastSeen"] = null; e["searchT"] = null; e["coverAt"] = null; e["coverUntil"] = null; e["navPath"] = null; e["mindPhase"] = null
+					e["coverHits"] = int(e.get("hits", 0))
 				if e.has("hpMax"):
 					e["hp"] = e["hpMax"]
 					e["hittable"] = true
@@ -103,9 +108,9 @@ func ops(st: Dictionary, list: Array) -> void:
 							continue
 						var dmin := INF
 						for x in st["entities"]:
-							if is_same(x, e) or x["downed"] or x["gone"] or x["dormant"] or not Bus.truthy(x.get("hittable")):
+							if is_same(x, e) or x["downed"] or x["gone"] or x["dormant"] or not Js.truthy(x.get("hittable")):
 								continue
-							dmin = minf(dmin, Vector2(float(x["pos"][0]) - float(sp[0]), float(x["pos"][1]) - float(sp[1])).length())
+							dmin = minf(dmin, Js.hypot2(float(x["pos"][0]) - float(sp[0]), float(x["pos"][1]) - float(sp[1])))   # in doubles (a Vector2 is float32)
 						if dmin > bd:
 							bd = dmin
 							best = sp
@@ -113,10 +118,10 @@ func ops(st: Dictionary, list: Array) -> void:
 						e["pos"] = _pt3(best, e["pos"][2])
 				elif o.get("at") is Array:
 					e["pos"] = _pt3(o["at"], e["pos"][2])
-				if Bus.finite(o.get("face")):
+				if Js.finite(o.get("face")):
 					e["heading"] = float(o["face"]) * DEG
 				# the spawn guard: unhittable its seconds (the wake guard's clock: combat.gd ticks a poised body's, step the rest)
-				if Bus.finite(o.get("guard")) and float(o["guard"]) > 0.0:
+				if Js.finite(o.get("guard")) and float(o["guard"]) > 0.0:
 					e["wakeGuardT"] = float(o["guard"])
 					e["invincible"] = true
 			"vanish":
@@ -129,7 +134,7 @@ func ops(st: Dictionary, list: Array) -> void:
 				if op == "hurt":
 					if not has_hp:
 						continue
-					e["hp"] = maxf(0.0, e["hp"] - (float(o["by"]) if Bus.finite(o.get("by")) else 1.0))
+					e["hp"] = maxf(0.0, e["hp"] - (float(o["by"]) if Js.finite(o.get("by")) else 1.0))
 					if e["hp"] > 0.0:
 						continue
 				if has_hp:
@@ -139,14 +144,14 @@ func ops(st: Dictionary, list: Array) -> void:
 				if e["downed"] or not e.has("hp"):
 					continue
 				var mx: float = e.get("hpMax", e["hp"])
-				e["hp"] = minf(mx, e["hp"] + float(o["by"])) if Bus.finite(o.get("by")) else mx
+				e["hp"] = minf(mx, e["hp"] + float(o["by"])) if Js.finite(o.get("by")) else mx
 			"rearm":
 				# rounds for the weapon in its hand (since 0.22.0, worlds/controllable/cast.js): `by` more in its reserve, or
 				# with no reserve or no by, the magazine full
 				var w = e.get("weapon")
 				if e["downed"] or not (w is Dictionary):
 					continue
-				if w.get("reserve") != null and Bus.finite(o.get("by")):
+				if w.get("reserve") != null and Js.finite(o.get("by")):
 					w["reserve"] = float(w["reserve"]) + maxf(0.0, float(o["by"]))
 				else:
 					w["ammo"] = w["magazine"]; w["reloading"] = false; w["reloadT"] = 0.0
@@ -155,7 +160,7 @@ func ops(st: Dictionary, list: Array) -> void:
 					continue
 				var points := []
 				for p in o["points"]:
-					if p is Array and p.size() >= 2 and Bus.finite(p[0]) and Bus.finite(p[1]):
+					if p is Array and p.size() >= 2 and Js.finite(p[0]) and Js.finite(p[1]):
 						points.append([float(p[0]), float(p[1])])
 				if points.is_empty():
 					continue
@@ -165,18 +170,18 @@ func ops(st: Dictionary, list: Array) -> void:
 				e["held"] = false; e["pose"] = null
 				e["route"] = {
 					"points": points, "names": names, "i": 0, "back": false, "best": INF, "watch": 0.0,
-					"speed": float(o["speed"]) if Bus.finite(o.get("speed")) and float(o["speed"]) > 0 else e["speed"],
-					"turn": float(o["turn"]) if Bus.finite(o.get("turn")) and float(o["turn"]) > 0 else 8.0,
-					"reach": float(o["reach"]) if Bus.finite(o.get("reach")) and float(o["reach"]) > 0 else 0.3,
+					"speed": float(o["speed"]) if Js.finite(o.get("speed")) and float(o["speed"]) > 0 else e["speed"],
+					"turn": float(o["turn"]) if Js.finite(o.get("turn")) and float(o["turn"]) > 0 else 8.0,
+					"reach": float(o["reach"]) if Js.finite(o.get("reach")) and float(o["reach"]) > 0 else 0.3,
 					"then": o["then"] if o.get("then") == "loop" or o.get("then") == "back" else "stay",
-					"face": float(o["face"]) * DEG if Bus.finite(o.get("face")) else null, "pose": o["pose"] if o.get("pose") is String else null,
+					"face": float(o["face"]) * DEG if Js.finite(o.get("face")) else null, "pose": o["pose"] if o.get("pose") is String else null,
 				}
 			"stop":
 				e["route"] = null; e["held"] = false; e["moving"] = false
 			"status":
 				if not (o.get("is") is String) or e["gone"]:
 					continue
-				e["statuses"][o["is"]] = {"t0": st["time"], "until": st["time"] + float(o["for"]) if Bus.finite(o.get("for")) and float(o["for"]) > 0 else null}
+				e["statuses"][o["is"]] = {"t0": st["time"], "until": st["time"] + float(o["for"]) if Js.finite(o.get("for")) and float(o["for"]) > 0 else null}
 			"lift":
 				for k in (e["statuses"] as Dictionary).keys():
 					if o.get("is") == null or o.get("is") == k:
@@ -225,7 +230,8 @@ func _step_route(e: Dictionary, dt: float) -> void:
 		e["moving"] = false
 		return
 	var want := atan2(dy, dx)
-	var dh := fposmod(want - e["heading"] + PI, TAU) - PI
+	# the web's ((x % τ) + τ) % τ − π, `%` as C fmod (fposmod rounds differently: the added τ is the web's)
+	var dh := fmod(fmod(want - e["heading"] + PI, TAU) + TAU, TAU) - PI
 	e["heading"] = fmod(e["heading"] + clampf(dh, -r["turn"] * dt, r["turn"] * dt), TAU)
 	var stp := minf(r["speed"] * dt, d)
 	e["pos"][0] += dx / d * stp
@@ -236,7 +242,7 @@ func _step_route(e: Dictionary, dt: float) -> void:
 func step(st: Dictionary, dt: float) -> void:
 	st["time"] += dt
 	for e in st["entities"]:
-		if not Bus.finite(e.get("poise")) and Bus.finite(e.get("wakeGuardT")) and float(e["wakeGuardT"]) > 0.0:
+		if not Js.finite(e.get("poise")) and Js.finite(e.get("wakeGuardT")) and float(e["wakeGuardT"]) > 0.0:
 			e["wakeGuardT"] = maxf(0.0, float(e["wakeGuardT"]) - dt)
 			e["invincible"] = float(e["wakeGuardT"]) > 0.0
 		if e["route"] != null:
@@ -271,7 +277,7 @@ static func _feet(e: Dictionary) -> Array:
 # hash), one after another; a scale sizes it and its spread
 static func _puff(st: Dictionary, o: Dictionary, at: Array, t0: float) -> void:
 	var X = o.get("spec") if o.get("spec") is Dictionary else null
-	var sc := float(o["scale"]) if Bus.finite(o.get("scale")) else 1.0
+	var sc := float(o["scale"]) if Js.finite(o.get("scale")) else 1.0
 	var C = X.get("chain") if X != null and X.get("chain") is Dictionary else null
 	var n := int(C["count"]) if C != null else 1
 	for j in n:
@@ -291,9 +297,9 @@ static func _puff(st: Dictionary, o: Dictionary, at: Array, t0: float) -> void:
 			m["color"] = o["color"]
 		_moment(st, m)
 	var k := 0.0
-	if Bus.finite(o.get("shake")) and float(o["shake"]) > 0.0:
+	if Js.finite(o.get("shake")) and float(o["shake"]) > 0.0:
 		k = float(o["shake"])
-	elif X != null and Bus.truthy(X.get("shake")):
+	elif X != null and Js.truthy(X.get("shake")):
 		k = float(X["shake"])
 	if k != 0.0:
 		_moment(st, {"is": "shake", "at": at.duplicate(), "k": minf(1.0, k * sqrt(sc)), "for": 0.4 + float(C["stagger"]) * (n - 1) if C != null else 0.4, "t0": t0})
@@ -314,7 +320,8 @@ static func _beam(st: Dictionary, e: Dictionary, o: Dictionary) -> void:
 		return
 	var to: Array = (T["pos"] as Array).duplicate() if T != null else _pt3(o["to"], 0.0)
 	var D := sqrt((to[0] - from[0]) * (to[0] - from[0]) + (to[1] - from[1]) * (to[1] - from[1]) + (to[2] - from[2]) * (to[2] - from[2]))
-	var land_rule: Array = o["land"] if o.get("land") is Array and not (o["land"] as Array).is_empty() else [[0, 0]]
+	# the least a + b × distance of `land` (an empty list lands never: Math.min over nothing is Infinity, as the web's)
+	var land_rule: Array = o["land"] if o.get("land") is Array else [[0, 0]]
 	var best := INF
 	for ab in land_rule:
 		best = minf(best, float(ab[0]) + float(ab[1]) * D)
@@ -326,26 +333,28 @@ static func _beam(st: Dictionary, e: Dictionary, o: Dictionary) -> void:
 		m["color"] = o["color"]
 	_moment(st, m)
 	var land := _feet(T) if T != null else to
-	if Bus.truthy(spec.get("impact")):
+	if Js.truthy(spec.get("impact")):
 		var imp := {"is": spec["impact"]}
 		if spec.get("impactSpec") is Dictionary:
 			imp["spec"] = spec["impactSpec"]
 		if o.has("color"):
 			imp["color"] = o["color"]
 		_puff(st, imp, land, hit)
-	if Bus.truthy(spec.get("shake")):
+	if Js.truthy(spec.get("shake")):
 		_moment(st, {"is": "shake", "at": land, "k": spec["shake"], "for": 0.4, "t0": hit})
 
 
-# edge-detected happenings, as bus events with `entity` (the first read seeds: nothing a world was minted with fires)
+# edge-detected happenings, as bus events with `entity` (the first read seeds: nothing a world was minted with fires). What
+# the last read saw rides the cast's own state (st._factsPrev, the web's castFacts `prev`), never this module.
 func facts(st: Dictionary) -> Array:
-	var seed: bool = _prev == null
+	var prev = st.get("_factsPrev")
+	var seed: bool = prev == null
 	var next := {}
 	var events := []
 	for e in st["entities"]:
 		var cur := {"d": e["downed"], "g": e["gone"], "a": e["arrivals"], "s": e["stucks"], "h": int(e.get("hits", 0)), "n": int(e.get("sightings", 0))}
 		next[e["id"]] = cur
-		var p = null if seed else _prev.get(e["id"])
+		var p = null if seed else prev.get(e["id"])
 		if p == null:
 			continue
 		if cur["d"] and not p["d"]:
@@ -365,7 +374,13 @@ func facts(st: Dictionary) -> Array:
 		if cur["n"] > int(p.get("n", 0)):
 			events.append({"type": "seen", "entity": e["id"], "target": e.get("seenId")})
 		for k in range(int(p.get("h", 0)), cur["h"]):
-			events.append({"type": "hit:" + String(e["id"]), "entity": e["id"], "by": e.get("lastHitBy")})
+			var hv := {"type": "hit:" + String(e["id"]), "entity": e["id"], "by": e.get("lastHitBy")}
+			# what a round dealt rides the fact the count it was dealt at (cast.js: the bus can take it from an hp of its own)
+			if Js.finite(e.get("lastHitDmg")) and e.get("lastHitDmgN") == cur["h"]:
+				hv["dmg"] = e["lastHitDmg"]
+				hv["harm"] = 0.0 - float(e["lastHitDmg"])
+				hv["head"] = 1 if Js.truthy(e.get("lastHitHead")) else 0
+			events.append(hv)
 		for k in (e["statuses"] as Dictionary).keys():
 			var u = e["statuses"][k]["until"]
 			if u != null and st["time"] >= u:
@@ -376,12 +391,12 @@ func facts(st: Dictionary) -> Array:
 		e["faded"] = []
 	# a beam that has reached its character
 	for M in st["moments"]:
-		if M["is"] == "beam" and M.get("target") != null and not Bus.truthy(M.get("struck")) and st["time"] >= float(M["hit"]):
+		if M["is"] == "beam" and M.get("target") != null and not Js.truthy(M.get("struck")) and st["time"] >= float(M["hit"]):
 			M["struck"] = true
 			if not seed:
 				var ev := {"type": "struck", "entity": M["target"], "by": M["by"]}
 				if M.get("name") != null:
 					ev["beam"] = M["name"]
 				events.append(ev)
-	_prev = next
+	st["_factsPrev"] = next
 	return events

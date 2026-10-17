@@ -13,6 +13,7 @@ extends RefCounted
 # seconds, or Esc, skips to the end (or to a choice, which stays the player's).
 
 const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 const RATE := 40.0
 const HOLD := 0.6
 const BARS := 4.0
@@ -27,18 +28,19 @@ func create(program) -> Dictionary:
 
 static func _cmp(op: String, a, b) -> bool:
 	match op:
+		# JS's relational operators: a number's text compares as its number, two strings by their code units
 		"gte":
-			return Bus.is_num(a) and Bus.is_num(b) and float(a) >= float(b)
+			return Js.rel(a, b, ">=")
 		"gt":
-			return Bus.is_num(a) and Bus.is_num(b) and float(a) > float(b)
+			return Js.rel(a, b, ">")
 		"lte":
-			return Bus.is_num(a) and Bus.is_num(b) and float(a) <= float(b)
+			return Js.rel(a, b, "<=")
 		"lt":
-			return Bus.is_num(a) and Bus.is_num(b) and float(a) < float(b)
+			return Js.rel(a, b, "<")
 		"eq":
-			return Bus.strict_eq(a, b)
+			return Js.strict_eq(a, b)
 		"ne":
-			return not Bus.strict_eq(a, b)
+			return not Js.strict_eq(a, b)
 	return false
 
 
@@ -75,14 +77,15 @@ func _advance(S: Dictionary, out: Dictionary) -> void:
 		A["line"] = null
 		A["t"] = 0.0
 		var beats: Array = A["sc"]["beats"]
-		if int(A["i"]) >= beats.size():
+		# the web's `if (!b)`: past the last beat, or a beat that is not there (null), ends the scene
+		if int(A["i"]) >= beats.size() or not Js.truthy(beats[int(A["i"])]):
 			_end(S, out)
 			return
 		var b: Dictionary = beats[int(A["i"])]
 		match String(b["kind"]):
 			"shot":
 				out["ops"].append({"op": "shot", "shot": b["shot"]})
-				if Bus.truthy(b.get("for")):
+				if Js.truthy(b.get("for")):
 					A["wait"] = {"time": float(b["for"])}
 					return
 			"fire":
@@ -107,7 +110,7 @@ func _advance(S: Dictionary, out: Dictionary) -> void:
 
 # a choice: its question stays as the line (its own, or the last said), the answer waits
 static func _choose(A: Dictionary, b: Dictionary) -> void:
-	A["line"] = b["ask"] if Bus.truthy(b.get("ask")) else (A["said"] if A["said"] != null else null)
+	A["line"] = b["ask"] if Js.truthy(b.get("ask")) else (A["said"] if A["said"] != null else null)
 	A["typed"] = float(_len(A["line"]["text"])) if A["line"] != null else 0.0
 	A["choice"] = b
 	A["sel"] = 0
@@ -167,7 +170,7 @@ func step(S: Dictionary, dt: float, ctl = null) -> Dictionary:
 			if not String(t).begins_with("scene:"):
 				continue
 			var sc = S["byId"].get(String(t).substr(6))
-			if sc == null or (not Bus.strict_eq(sc.get("once"), false) and Bus.truthy(S["played"].get(sc["id"]))) or not _holds(sc, c.get("vars")):
+			if sc == null or (not Js.strict_eq(sc.get("once"), false) and Js.truthy(S["played"].get(sc["id"]))) or not _holds(sc, c.get("vars")):
 				continue
 			S["played"][sc["id"]] = int(S["played"].get(sc["id"], 0)) + 1
 			S["active"] = {"sc": sc, "i": -1, "wait": null, "line": null, "t": 0.0, "typed": 0.0, "holdT": 0.0, "said": null, "choice": null, "sel": 0}
@@ -176,33 +179,34 @@ func step(S: Dictionary, dt: float, ctl = null) -> Dictionary:
 			break
 	else:
 		var A: Dictionary = S["active"]
-		A["holdT"] = float(A["holdT"]) + dt if (Bus.truthy(c.get("held")) and A["choice"] == null) else 0.0
-		if A["choice"] == null and (Bus.truthy(c.get("skip")) or float(A["holdT"]) >= HOLD):
+		A["holdT"] = float(A["holdT"]) + dt if (Js.truthy(c.get("held")) and A["choice"] == null) else 0.0
+		if A["choice"] == null and (Js.truthy(c.get("skip")) or float(A["holdT"]) >= HOLD):
 			_skip(S, out)
 		else:
 			var w = A["wait"]
 			var go: bool = w == null
-			if w is Dictionary and w.has("time"):
+			# the web's `w.time != null` (a null time is no timed wait) and `w.event` (an empty one is none)
+			if w is Dictionary and w.get("time") != null and not Js.is_undef(w.get("time")):
 				A["t"] = float(A["t"]) + dt
-				go = float(A["t"]) >= float(w["time"])
-			elif w is Dictionary and w.has("event"):
+				go = Js.rel(A["t"], w["time"], ">=")
+			elif w is Dictionary and Js.truthy(w.get("event")):
 				go = w["event"] in heard
-			elif w is Dictionary and w.has("choice"):
+			elif w is Dictionary and Js.truthy(w.get("choice")):
 				var n: int = (A["choice"]["options"] as Array).size()
 				var mv = c.get("move")
-				if Bus.truthy(mv):
+				if Js.truthy(mv):
 					A["sel"] = (int(A["sel"]) + (1 if float(mv) > 0 else -1) + n) % n
 				var pk = c.get("pick")
 				var k := -1
-				if Bus.is_num(pk) and float(pk) == floor(float(pk)) and int(pk) >= 0 and int(pk) < n:
+				if Js.is_num(pk) and float(pk) == floor(float(pk)) and int(pk) >= 0 and int(pk) < n:
 					k = int(pk)
-				elif Bus.truthy(c.get("next")):
+				elif Js.truthy(c.get("next")):
 					k = int(A["sel"])
 				if k >= 0:
 					_answer(S, out, k)
 			elif w is Dictionary and w.has("click"):
 				A["typed"] = float(A["typed"]) + dt * RATE
-				if Bus.truthy(c.get("next")):
+				if Js.truthy(c.get("next")):
 					if float(A["typed"]) < _len(A["line"]["text"]):
 						A["typed"] = float(_len(A["line"]["text"]))
 					else:
@@ -234,7 +238,7 @@ func view(S: Dictionary) -> Dictionary:
 	var line = null
 	if L != null:
 		line = {"who": L.get("who"), "name": L.get("name"), "text": _slice(L["text"], int(floor(float(A["typed"])))), "full": float(A["typed"]) >= _len(L["text"])}
-		if Bus.truthy(L.get("expression")):
+		if Js.truthy(L.get("expression")):
 			line["expression"] = L["expression"]
 	var choice = null
 	if A != null and A["choice"] != null:

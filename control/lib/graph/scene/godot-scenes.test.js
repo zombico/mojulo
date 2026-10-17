@@ -87,6 +87,7 @@ describe('scenes and quests in Godot', () => {
     { file: 'scenes.gd', name: 'a line cut by code points', from: 'return buf.slice(0, m * 2).get_string_from_utf16()', to: 'return String(s).substr(0, n)' },
     { file: 'scenes.gd', name: 'a scene played again and again', from: '	S["played"][sc["id"]] = int(S["played"].get(sc["id"], 0)) + 1', to: '	pass' },
     { file: 'scenes.gd', name: 'a choice that only moves down', from: 'A["sel"] = (int(A["sel"]) + (1 if float(mv) > 0 else -1) + n) % n', to: 'A["sel"] = (int(A["sel"]) + 1) % n' },
+    { file: 'scenes.gd', name: 'a condition that reads only numbers', from: '\t\t"gte":\n\t\t\treturn Js.rel(a, b, ">=")', to: '\t\t"gte":\n\t\t\treturn Js.is_num(a) and Js.is_num(b) and float(a) >= float(b)' },
     { file: 'quests.gd', name: 'every step shown at once', from: '			if not d:\n				break', to: '			pass' },
   ];
   it.skipIf(!GODOT)('every planted bug in the runner and the journal is caught (MOJULO_GODOT)', () => {

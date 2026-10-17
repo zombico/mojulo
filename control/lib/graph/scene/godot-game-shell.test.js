@@ -132,7 +132,7 @@ function sortKeys(v) {
 const DRIVER = `extends Node
 # the plan's runner: pops its next step at each level and each menu
 const JsonExact := preload("res://kernel/json_exact.gd")
-const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 var plan: Array = []
 var i := 0
 func _ready() -> void:
@@ -155,12 +155,12 @@ func next_at_menu() -> void:
 `;
 const STUB = `extends Node
 const JsonExact := preload("res://kernel/json_exact.gd")
-const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 func _ready() -> void:
 	var ref: String = Game.current
 	var contract = JsonExact.parse(FileAccess.get_file_as_string("res://levels/%s/contract.json" % ref))
 	var params: Dictionary = Game.session_params(contract)
-	print("[shell] start %s %s seed=%d" % [ref, Bus.ss(params), Game.session_seed()])
+	print("[shell] start %s %s seed=%d" % [ref, Js.ss(params), Game.session_seed()])
 	_step.call_deferred(ref, contract)
 func _step(ref: String, contract: Dictionary) -> void:
 	while true:
@@ -262,7 +262,7 @@ describe('the shell\'s travel', () => {
   const PLANTS = [
     { game: 'map', name: 'no arrive told', from: '		start_level(String(to), from)', to: '		start_level(String(to))' },
     { game: 'doors', name: 'a door\'s carry without its entry', from: '	carry["__entry"] = {"door": to["door"], "from": current}', to: '	pass' },
-    { game: 'run', name: 'a run drawn from the next number', from: '	var a := _u32(n * 2654435761)', to: '	var a := _u32((n + 1) * 2654435761)' },
+    { game: 'run', name: 'a run drawn from the next number', from: '	var a := Js.u32(n * 2654435761)', to: '	var a := Js.u32((n + 1) * 2654435761)' },
     { game: 'kept', name: 'a low best kept from a failed run', from: 'or envelope.get("result") == "success")', to: 'or true)' },
   ];
   it.skipIf(!GODOT)('every planted bug in the shell\'s travel is caught (MOJULO_GODOT)', () => {

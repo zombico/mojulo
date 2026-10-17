@@ -12,6 +12,8 @@ extends RefCounted
 #   clear(world, from, to, opts) → true when the grid line between the two points is walkable
 # `world` is a Dictionary with `colliders` (an Array of { min, max } or null), `navCell` and the cache `navCache`.
 
+const Js := preload("res://kernel/js.gd")
+
 const MAX_CELLS := 250000
 const SQRT2 := 1.4142135623730951
 
@@ -276,11 +278,11 @@ static func _pop(heap: Array) -> Array:
 
 
 static func _opts(world: Dictionary, from: Array, to: Array, opts: Dictionary) -> Dictionary:
-	var radius := maxf(0.01, float(opts.get("radius", 0.0)) if _truthy(opts.get("radius")) else 0.5)
+	var radius := maxf(0.01, float(opts.get("radius", 0.0)) if Js.truthy(opts.get("radius")) else 0.5)
 	var cell := 0.0
-	if _truthy(opts.get("cell")):
+	if Js.truthy(opts.get("cell")):
 		cell = float(opts["cell"])
-	elif _truthy(world.get("navCell")):
+	elif Js.truthy(world.get("navCell")):
 		cell = float(world["navCell"])
 	else:
 		cell = maxf(1.0, radius)
@@ -291,16 +293,6 @@ static func _opts(world: Dictionary, from: Array, to: Array, opts: Dictionary) -
 		"step": float(opts["step"]) if opts.get("step") != null else 0.35,
 		"cell": cell,
 	}
-
-
-static func _truthy(v) -> bool:
-	if v == null:
-		return false
-	if v is bool:
-		return v
-	if v is float or v is int:
-		return v != 0 and not is_nan(float(v))
-	return true
 
 
 static func _has_colliders(world: Dictionary) -> bool:

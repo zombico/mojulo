@@ -6,6 +6,8 @@ extends SceneTree
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>
 
+const Js := preload("res://kernel/js.gd")
+
 var Bus = null
 
 
@@ -31,6 +33,8 @@ func _init() -> void:
 			K.step(st, hero, f["input"], float(f["dt"]), bool(f["pilot"]["grounded"]), f["pilot"])
 			C.step(st, float(f["dt"]))
 			snaps.append(_snapshot(st, K, sc["mindIds"], sc["bodyIds"], C.facts(st)))
+			if f.get("ops") is Array:
+				C.ops(st, f["ops"])
 		results[sc["id"]] = snaps
 	var out := FileAccess.open(args[1], FileAccess.WRITE)
 	out.store_string(JSON.stringify(results))
@@ -63,14 +67,14 @@ func _snapshot(st: Dictionary, K, mind_ids: Array, body_ids: Array, events: Arra
 		var e: Dictionary = st["byId"][id]
 		var m := {
 			"pos": (e["pos"] as Array).map(_nano), "heading": _nano(e["heading"]), "pitch": _nano(e.get("pitch", 0.0)),
-			"fire": 1 if Bus.truthy(e.get("aiFire")) else 0, "loco": e.get("locomotion"), "moving": Bus.truthy(e.get("moving")),
+			"fire": 1 if Js.truthy(e.get("aiFire")) else 0, "loco": e.get("locomotion"), "moving": Js.truthy(e.get("moving")),
 			"cover": (e["coverAt"] as Array).map(_nano) if e.get("coverAt") is Array else null,
 			"seen": _nano(e["lastSeen"]["t"]) if e.get("lastSeen") is Dictionary else null, "sightings": int(e.get("sightings", 0)),
-			"search": _nano(e.get("searchT")), "dodge": _nano(e.get("dodgeT")), "dodgeCd": _nano(e["dodgeCdT"] if Bus.truthy(e.get("dodgeCdT")) else 0.0),
-			"swing": _nano(e.get("swingT")), "strikeCd": _nano(e["strikeCdT"] if Bus.truthy(e.get("strikeCdT")) else 0.0),
-			"slot": int(e["loadoutIdx"]) if Bus.truthy(e.get("loadoutIdx")) else 0, "ready": _nano(e["readyT"] if Bus.truthy(e.get("readyT")) else 0.0),
+			"search": _nano(e.get("searchT")), "dodge": _nano(e.get("dodgeT")), "dodgeCd": _nano(e["dodgeCdT"] if Js.truthy(e.get("dodgeCdT")) else 0.0),
+			"swing": _nano(e.get("swingT")), "strikeCd": _nano(e["strikeCdT"] if Js.truthy(e.get("strikeCdT")) else 0.0),
+			"slot": int(e["loadoutIdx"]) if Js.truthy(e.get("loadoutIdx")) else 0, "ready": _nano(e["readyT"] if Js.truthy(e.get("readyT")) else 0.0),
 			"phase": e.get("mindPhase"), "path": (e["navPath"] as Array).size() if e.get("navPath") is Array else null,
-			"warn": e.get("warnFor"), "graze": _nano(e["grazeT"] if Bus.truthy(e.get("grazeT")) else 0.0),
+			"warn": e.get("warnFor"), "graze": _nano(e["grazeT"] if Js.truthy(e.get("grazeT")) else 0.0),
 		}
 		if e.get("weapon") is Dictionary:
 			var w: Dictionary = e["weapon"]
@@ -83,8 +87,8 @@ func _snapshot(st: Dictionary, K, mind_ids: Array, body_ids: Array, events: Arra
 	var bodies := {}
 	for id in body_ids:
 		var e: Dictionary = st["byId"][id]
-		bodies[id] = {"hp": _nano(e["hp"]) if Bus.finite(e.get("hp")) else null, "hits": int(e.get("hits", 0)), "downed": Bus.truthy(e.get("downed")),
-			"stagger": _nano(e.get("staggerT")), "react": e.get("reactClip") if Bus.finite(e.get("poise")) else null}
+		bodies[id] = {"hp": _nano(e["hp"]) if Js.finite(e.get("hp")) else null, "hits": int(e.get("hits", 0)), "downed": Js.truthy(e.get("downed")),
+			"stagger": _nano(e.get("staggerT")), "react": e.get("reactClip") if Js.finite(e.get("poise")) else null}
 	var rounds := []
 	for p in K.projectiles:
 		rounds.append([(p["pos"] as Array).map(_nano), (p["vel"] as Array).map(_nano)])
@@ -92,4 +96,4 @@ func _snapshot(st: Dictionary, K, mind_ids: Array, body_ids: Array, events: Arra
 	for ev in events:
 		if ev["type"] == "seen":
 			seen.append([ev["entity"], ev.get("target")])
-	return Bus.ss({"minds": minds, "bodies": bodies, "rounds": rounds, "seen": seen})
+	return Js.ss({"minds": minds, "bodies": bodies, "rounds": rounds, "seen": seen})

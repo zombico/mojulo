@@ -80,16 +80,16 @@ describe('a level\'s travel', () => {
   }, 600000);
 
   const PLANTS = [
-    { name: 'no exit on the envelope', from: '	if end_exit != "":\n		env["exit"] = end_exit', to: '	pass' },
-    { name: 'the arrive not heard', from: '		bus_pending.append({"type": "arrive:" + from})', to: '		pass' },
+    { name: 'no exit on the envelope', from: '	if channel.get("exit") != null:\n		env["exit"] = channel["exit"]', to: '	pass' },
+    { file: 'game_channel.gd', name: 'the arrive not heard', from: '		out.append({"type": "arrive:" + arrive})', to: '		pass' },
     { name: 'entered facing out', from: '				walker.ent["heading"] = float(d.get("heading", 0.0))', to: '				walker.ent["heading"] = float(d.get("heading", 0.0)) + PI' },
-    { name: 'kept unscaled', from: '* (float(k["scale"]) if k.get("scale") != null else 1.0)', to: '* 1.0' },
+    { file: 'game_channel.gd', name: 'kept unscaled', from: 'var s := Js.to_number(k["scale"]) if Js.truthy(k.get("scale")) else 1.0', to: 'var s := 1.0' },
   ];
   it.skipIf(!GODOT)('every planted bug in a level\'s travel is caught (MOJULO_GODOT)', () => {
     const strip = (env) => { try { const { contractVersion, levelRef, seed, ...rest } = JSON.parse(env); return rest; } catch { return null; } };
     for (const p of PLANTS) {
       const params = p.name.includes('arrive') ? { arrive: 'town' } : p.name.includes('entered') ? { __entry: { door: 'cellar', from: 'hall' } } : null;
-      const { web, godot } = playBoth(travelLevel(), east(), { godot: GODOT, params, mutate: [{ file: 'level.gd', from: p.from, to: p.to }] });
+      const { web, godot } = playBoth(travelLevel(), east(), { godot: GODOT, params, mutate: [{ file: p.file ?? 'level.gd', from: p.from, to: p.to }] });
       const same = upto(web, godot).equal && JSON.stringify(strip(line(godot.text, 'mojulo-envelope'))) === JSON.stringify(web.envelope);
       expect(same, p.name).toBe(false);
     }

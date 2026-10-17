@@ -10,6 +10,7 @@ extends RefCounted
 #   G.step(st, dt, mind, world)          before the bodies step (the web's `groups` pre-step)
 
 const Mind := preload("res://kernel/mind.gd")
+const Js := preload("res://kernel/js.gd")
 
 const PLANS := {
 	"pack-hunt": ["fan-out", {"pattern": "encircle", "when": {"dist": 22}, "radius": 9, "close": 1.2}, {"pattern": "close", "when": {"t": 4}}],
@@ -67,7 +68,7 @@ static func pattern(name: String, c: Dictionary) -> Array:
 				out.append([F[0] + cos(a) * R, F[1] + sin(a) * R])
 		"encircle":
 			var R0 := _nf(p, "radius", maxf(6.0, (sp * n) / TAU))
-			var R := maxf(_nf(p, "min", 2.5), R0 - (float(p["close"]) if Mind.truthy(p.get("close")) else 0.0) * float(c["stageT"]))
+			var R := maxf(_nf(p, "min", 2.5), R0 - (float(p["close"]) if Js.truthy(p.get("close")) else 0.0) * float(c["stageT"]))
 			for i in n:
 				var a: float = c["base"] + (float(i) * TAU) / n
 				out.append([F[0] + cos(a) * R, F[1] + sin(a) * R])
@@ -133,7 +134,7 @@ static func _rule_mind(m: Dictionary) -> Dictionary:
 func _step_herd(st: Dictionary, g: Dictionary, cfg: Dictionary, members: Array, leader: Dictionary, spacing: float, mind, world: Dictionary) -> void:
 	var threat = st["byId"].get(g["alarm"]) if g.get("alarm") != null else null
 	if threat != null:
-		var all_far := Mind.truthy(threat.get("downed"))
+		var all_far := Js.truthy(threat.get("downed"))
 		if not all_far:
 			all_far = true
 			for m in members:
@@ -171,7 +172,7 @@ func _step_herd(st: Dictionary, g: Dictionary, cfg: Dictionary, members: Array, 
 func step(st: Dictionary, dt: float, mind, world: Dictionary) -> void:
 	var any := false
 	for e in st["entities"]:
-		if Mind.truthy(_rule_mind(e).get("group")):
+		if Js.truthy(_rule_mind(e).get("group")):
 			any = true
 			break
 	if not any:
@@ -179,7 +180,7 @@ func step(st: Dictionary, dt: float, mind, world: Dictionary) -> void:
 	var by_group := {}
 	for e in st["entities"]:
 		var gm = _rule_mind(e).get("group")
-		if not Mind.truthy(gm) or Mind.truthy(e.get("downed")):
+		if not Js.truthy(gm) or Js.truthy(e.get("downed")):
 			continue
 		var id := String(gm) if gm is String else String(gm["id"])
 		if not by_group.has(id):
@@ -199,7 +200,7 @@ func step(st: Dictionary, dt: float, mind, world: Dictionary) -> void:
 			groups[id] = {"id": id, "stage": 0, "stageT": 0.0, "tokenT": 0.0, "assign": {}, "assignN": 0, "seen": null, "alarm": null, "engaged": false, "base": null, "tokens": null}
 		var g: Dictionary = groups[id]
 		var leader: Dictionary = members[0]
-		if Mind.truthy(cfg.get("leader")):
+		if Js.truthy(cfg.get("leader")):
 			for m in members:
 				if m["id"] == cfg["leader"]:
 					leader = m
@@ -212,7 +213,7 @@ func step(st: Dictionary, dt: float, mind, world: Dictionary) -> void:
 		var focus = null
 		for m in [leader] + members:
 			var tm = _rule_mind(m).get("aggressiveness")
-			if tm == "passive" or (tm == "defensive" and not (Mind.fin(m.get("hpMax")) and float(m["hpMax"]) > 0.0 and Mind.fin(m.get("hp")) and float(m["hp"]) < float(m["hpMax"]))):
+			if tm == "passive" or (tm == "defensive" and not (Js.finite(m.get("hpMax")) and float(m["hpMax"]) > 0.0 and Js.finite(m.get("hp")) and float(m["hp"]) < float(m["hpMax"]))):
 				continue
 			focus = mind.pick_target(m, world, m["rule"].get("target"))
 			if focus != null and not is_same(focus, m):
@@ -240,7 +241,7 @@ func step(st: Dictionary, dt: float, mind, world: Dictionary) -> void:
 			if g["seen"] == null:
 				known = true
 				for m in members:
-					if Mind.truthy(_rule_mind(m).get("perception")):
+					if Js.truthy(_rule_mind(m).get("perception")):
 						known = false
 						break
 			else:
@@ -253,12 +254,12 @@ func step(st: Dictionary, dt: float, mind, world: Dictionary) -> void:
 		else:
 			var hd := float(leader["heading"])
 			F = [A[0] + cos(hd) * 10.0, A[1] + sin(hd) * 10.0]
-			stages = [{"pattern": cfg["travel"] if Mind.truthy(cfg.get("travel")) else "column"}]
-			if Mind.truthy(g.get("engaged")):
+			stages = [{"pattern": cfg["travel"] if Js.truthy(cfg.get("travel")) else "column"}]
+			if Js.truthy(g.get("engaged")):
 				g["stage"] = 0
 				g["stageT"] = 0.0
 				g["base"] = null
-		if not Mind.truthy(g.get("engaged")) and focus != null and known:
+		if not Js.truthy(g.get("engaged")) and focus != null and known:
 			g["base"] = null
 		g["engaged"] = focus != null and known
 		var dist := _hyp(F[0] - A[0], F[1] - A[1])
@@ -316,10 +317,10 @@ func step(st: Dictionary, dt: float, mind, world: Dictionary) -> void:
 			g["tokenT"] = _nf(cfg, "tokenEvery", 2.0)
 		for m in members:
 			m["groupId"] = id
-			m["groupToken"] = Mind.truthy(g["engaged"]) and (g["tokens"] as Array).has(m["id"])
-			m["groupFocus"] = focus["id"] if Mind.truthy(g["engaged"]) else null
+			m["groupToken"] = Js.truthy(g["engaged"]) and (g["tokens"] as Array).has(m["id"])
+			m["groupFocus"] = focus["id"] if Js.truthy(g["engaged"]) else null
 			m["groupPattern"] = pat
 			m["groupSpacing"] = spacing
 			var gs = g["seen"]
-			if gs is Dictionary and Mind.truthy(_rule_mind(m).get("perception")) and (not (m.get("lastSeen") is Dictionary) or float(m["lastSeen"]["t"]) < float(gs["t"])):
+			if gs is Dictionary and Js.truthy(_rule_mind(m).get("perception")) and (not (m.get("lastSeen") is Dictionary) or float(m["lastSeen"]["t"]) < float(gs["t"])):
 				m["lastSeen"] = {"pos": (gs["pos"] as Array).duplicate(), "t": gs["t"], "id": gs["id"]}

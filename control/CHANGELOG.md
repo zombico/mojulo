@@ -67,8 +67,9 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   player, its pace, jump and pull from the pilot's rule; the HUD is drawn as words (readouts in their slots, banners
   and toasts as moments); the bus's own entities are drawn as the page draws them; a key reaches the bus by the page's
   name for it; the outcome is applied to the store and the next open level starts. The level's look rides beside the
-  project as `model.glb` for Studio's 3D Importer. What does not travel (a cast, combat, minds, menus, scenes, the
-  web's walk feel, link travel, saves between sessions) is the portability report's, with each value's Roblox mark.
+  project as `model.glb` for Studio's 3D Importer. What does not travel (menus, the web's walk feel, link travel, saves
+  between sessions; a cast, its fight and its scenes since the whole level, below) is the portability report's, with
+  each value's Roblox mark.
 - **The level step and the game channel, in Luau** (`roblox-kernel/level.luau`, `game.luau`): where the bodies stand
   becomes zone facts, the bus runs in the page's frame order, its warps are handed back, and the page's game channel
   hears the log (the first pattern as written maps an event; an emit gathered and its `{event}` named, an end and its
@@ -86,8 +87,69 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   channel and the colliders built; the walk and platform rules, the follow and eye cameras, the faces (as the greybox),
   the HUD (as words), key inputs and the play shell's level list approximated. Mechanics follow from the bus rows they
   use: reach-exit, fail-on-death and win-when built; collect, survive, hazard-damage, laps, score, clock and the rest
-  of the zone family approximated; anything that needs a cast, hits, sight or a beat absent. The hillclimb page's
-  Roblox scoreboard ranks the rest.
+  of the zone family approximated; a door, a use and a beat absent (a cast, hits and sight came with the whole level,
+  below). The hillclimb page's Roblox scoreboard ranks the rest.
+
+- **The Godot kernel, principled** (kernel 0.29.0). Every step below is held by Godot 4.7.2 headless: the five corpora
+  and the level corpus equal to the web, every planted bug caught.
+  - `kernel/js.gd` says JS value semantics once (truthiness, `===`, ToNumber, the relational operators, String(v),
+    numbers as JSON prints them, the deterministic stringify, FNV-1a over UTF-16, the glob, Math.imul and
+    Math.round, a heading's vectors, a segment against a box); the copies in the bus, the minds, the fight, the
+    rules, the nav and the game shell are gone, and every module calls it.
+  - Two JS rules the old copies missed: dictionary keys sort by UTF-16 code units (an astral word before a fullwidth
+    one, the bus corpus's `text-order`, now equal), and a glob's `*` stops at line terminators and matches to the
+    very end, as a JS regex does (new scenario `glob-lines`). A string compared with `<` compares code units too.
+  - `kernel/game_channel.gd`: the page's game channel, out of `level.gd` and held equal by the level corpus (now run
+    on Godot too, with its own plants). It settles three ways Godot's outcome drifted from the page's: a level's
+    `initial` events are not mapped through the contract (the page's channel listens only once the bus has
+    started), a kept number's `scale: 0` is no scale, and a var holding a number's text is kept as its number.
+  - `kernel/beat.gd`: the music's beat clock, out of `level.gd`.
+  - One frame, live and in the harness (`level.gd _frame`, its order written beside it): the frame's presses, the
+    beat, the bus and the fight's first half, then the drivers, the pilot by its rule and the fight's second half.
+    Live play steps it on the physics tick with the keys as the pilot's input, where it used to step the pilot on its
+    own tick before the bus heard where it stood; a ruled walker no longer steps itself.
+  - The cast's edge-detected facts remember the last read in the cast's state, not in the module.
+  - One input a frame, for the pilot's rule and the fight: A / D turn and Q / E strafe as the page binds them (the
+    fight read A / D as a strafe, so a swing picked a side the page would not), and a recorded `fire` and `aiToggle`
+    now reach the fight in the harness; G toggles the AI live.
+- **The web harness freezes as the page does.** The level sim (`game/level-sim.js`, the truth the engine harnesses play
+  against) walked the pilot on under a menu: it read the menus one step late, and its frozen step passed a zero `dt`,
+  which the world's step reads as 1/60. The page steps no world while a menu is up, from the step right after the bus
+  that opened it; the sim now does too, and a level that opens a menu under a held key plays equal in both engines
+  frame by frame (`godot-frame.test.js`).
+
+- **The Roblox kernel, whole** (`scene/roblox-kernel/`): the motion and camera rules (`rules.luau`), the cast, the fight,
+  navigation, the minds and their groups (`cast.luau`, `combat.luau`, `nav.luau`, `mind.luau`, `group.luau`), and the
+  scene runner and quest journal (`scenes.luau`, `quests.luau`), ported from the Godot kernel and held equal to the web
+  under Lune by the same corpora (rules, combat, mind, scenes), default and seeded, with planted bugs in every module
+  (`engines/roblox-rules.test.js`, `roblox-combat.test.js`, `roblox-scenes.test.js`); the corpus holes the plants found
+  are listed in those tests as survivors, so a scenario that closes one says so. Every corpus now has its kernel in
+  both engines.
+- **A whole level in the Roblox place.** `level.luau` builds a level's cast, fight, minds, scenes and journal from its
+  bus.json and steps them in the page's frame order, with the Humanoid's pose as the pilot (a Humanoid has moved by the
+  time the server steps, so the fight runs in one call where Godot splits it round its own pilot). A new **levelcast
+  corpus** (`level-conformance.js castCorpus`) plays real composed levels on the web (guards that spot the pilot, a
+  melee fight, an ambush that bites, a cast cued by the bus and a scene) and feeds Lune only the pilot's pose: the bus
+  and every other body equal frame by frame, with plants for the order (`engines/roblox-levelcast.test.js`; the
+  corpus has no Godot runner, `runCorpus` says so). The place ships every kernel module; the server draws each body as
+  an anchored box (downed laid flat, sent away hidden), the left mouse button is the fight's fire, G the minds' world
+  switch, and a scene's line and choices show in a box at the bottom. The place gate plays a cast level whole from the
+  place's own kernel (`sneak-game` equal to the web). Marks flipped with it: the `ai` rule, the world switch and the
+  tier, the cast's facts, hits, beams and sightings, the rearm and the cast rows built; the cast's effects (a box
+  each, its moments undrawn), the bodies, scenes (words, no bars or shots) and quests (a word, no journal)
+  approximated; the platform rule's strike runs in the fight. hp-pool, defeat-all and unseen now travel.
+- **Where the Roblox ports found Godot off the web** (each now a scenario, with a plant per engine). A swing or a
+  round spends the hero's guard (`guard-and-overdrive`, `guard-spent-by-a-swing`: a spawn guard held the hero
+  unhittable for its whole clock); an overdrive's rounds hit 1.5 times as hard; a respawned mind is a fresh life, its
+  last sighting forgotten (`respawn-forgets`; the mind corpus now takes cast ops as the combat corpus does); a scene's
+  condition compares as JS does, a number's text as its number (`scenes-text-var`). Below what a corpus can see, the
+  same port: a walk's turn in the web's `((x % τ) + τ) % τ` (Godot's `fposmod` parts by an ulp on about one heading in
+  sixteen), the spawn's `among` measured in doubles (not a float32 `Vector2`), an empty `land` lands never, a null
+  wait time or beat read as the web reads it.
+- **A round's hit says what it dealt, on both engines.** The web's `hit:<id>` fact carries `dmg`, `harm` and `head` for
+  a ranged hit (a round or its splash) so the bus can take it from an hp of its own; `cast.gd` and `cast.luau` dropped
+  them. The combat corpus's snapshot now prints them (every ranged scenario carries them), and both kernels are equal
+  again.
 
 ### Desktop export: a game as an app, the engines as translations
 

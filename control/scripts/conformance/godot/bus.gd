@@ -5,6 +5,8 @@ extends SceneTree
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>
 
+const Js := preload("res://kernel/js.gd")
+
 
 func _init() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -34,9 +36,9 @@ func _init() -> void:
 			var ctrl: Dictionary = bus.take_ctrl(st)
 			var bodies := ""
 			if bus.stats != null:
-				bodies = "|" + bus.ss(st.get("_statBodyOps", []))
+				bodies = "|" + Js.ss(st.get("_statBodyOps", []))
 				st["_statBodyOps"] = []
-			snaps.append(bus.hash_state(st) + "|" + bus.ss(ctrl) + bodies)
+			snaps.append(bus.hash_state(st) + "|" + Js.ss(ctrl) + bodies)
 		results[sc["id"]] = snaps
 	var out := FileAccess.open(args[1], FileAccess.WRITE)
 	out.store_string(JSON.stringify(results))
@@ -51,13 +53,13 @@ func _run_store(K, Bus, sc: Dictionary) -> Array:
 	var out := []
 	for op in sc["ops"]:
 		if op.has("gate"):
-			out.append(Bus.ss(K.eval_gate(schema, state, op["gate"])))
+			out.append(Js.ss(K.eval_gate(schema, state, op["gate"])))
 			continue
 		if op.has("reachable"):
-			out.append(Bus.ss(K.reachable(schema, state, op["reachable"])))
+			out.append(Js.ss(K.reachable(schema, state, op["reachable"])))
 			continue
 		if op.has("travel"):
-			out.append(Bus.ss(K.travel(schema, state, op["travel"]["levels"], op["travel"]["from"], op["travel"]["exit"])))
+			out.append(Js.ss(K.travel(schema, state, op["travel"]["levels"], op["travel"]["from"], op["travel"]["exit"])))
 			continue
 		var r: Dictionary
 		if op.has("transit"):
@@ -71,5 +73,5 @@ func _run_store(K, Bus, sc: Dictionary) -> Array:
 		var snap := {"ok": r["ok"], "state": state}
 		if not r["ok"]:
 			snap["errors"] = r["errors"]
-		out.append(Bus.ss(snap))
+		out.append(Js.ss(snap))
 	return out

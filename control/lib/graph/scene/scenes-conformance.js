@@ -50,6 +50,8 @@ export const SCENARIOS = [
     { ctl: { move: 1 } }, { ctl: { move: 1 } }, { ctl: { move: -1 } }, { ctl: { next: 1 } }, ...run([30, {}]), { ctl: { next: 1 } }, ...run([20, {}]),
     { ctl: { next: 1 } }, { ctl: { next: 1 } }, ...run([30, {}]), { ctl: { next: 1 } }, ...run([10, {}]),
     { heard: ['scene:again'] }, { ctl: { skip: 1 } }, ...run([5, {}]), { ctl: { pick: 1 } }, ...run([10, {}]), { heard: ['scene:again'] }, ...run([20, {}]), { ctl: { pick: 7 } }, { ctl: { skip: 1 } }, ...run([5, { ctl: { held: 1 } }]), { ctl: { next: 1 } }, ...run([5, {}])] },
+  { id: 'scenes-text-var', about: 'a condition read as JS reads it: a var holding a number\'s text compares as its number, a word as no number', frames: [
+    { heard: ['scene:offer'], vars: { gold: 'lots' } }, ...run([3, {}]), { heard: ['scene:offer'], vars: { gold: '3' } }, ...run([30, {}]), { ctl: { next: 1 } }, ...run([5, {}])] },
 ];
 
 const TYPES = ['scene:arrival', 'scene:offer', 'scene:again', 'scene:nobody', 'scene-heard:arrival:2', 'scene-heard:arrival:9', 'bell', 'scene-end:arrival'];

@@ -30,6 +30,9 @@ const HudScript := preload("res://kernel/hud.gd")
 const StatsScript := preload("res://kernel/stats.gd")
 const SoundScript := preload("res://kernel/sound.gd")
 const JsonExact := preload("res://kernel/json_exact.gd")
+const Js := preload("res://kernel/js.gd")
+const GameChannel := preload("res://kernel/game_channel.gd")
+const Beat := preload("res://kernel/beat.gd")
 const HAZARD_COOLDOWN := 0.8
 
 var score: Dictionary = {}
@@ -83,9 +86,12 @@ var bus_incoming: Array = []         # the frame's incoming events (an event toa
 var bus_prompt: Label = null
 # THE CONTRACT (since 0.9.0): levels/<ref>/contract.json, the level's game contract as the web shell reads it. Its `on`
 # maps bus events to typed store events (kept for the outcome) or ends the level; its `chapters` name the flags whose
-# chapters are carried in from the store; a level ends with ONE envelope that Game applies atomically.
+# chapters are carried in from the store; a level ends with ONE envelope that Game applies atomically. The page's game
+# channel reads it (kernel/game_channel.gd, held equal by the level corpus): what it gathered, how it ended, the door.
 var contract: Dictionary = {}
-var outcome_events: Array = []
+var channel: Dictionary = {}         # GameChannel.create(contract, params), anew at each start
+var channel_seen := 0                # log entries the channel has heard (the level's initial events are not: the page's
+                                     # channel listens only once the bus has started)
 var bus_pending: Array = []          # events for the bus's first frame (chapters carried in)
 # SCENES and QUESTS (since 0.23.0): bus.json's `scenes` played by kernel/scenes.gd as the page's runner plays them (after
 # the bus and its ops: the runner hears the log, its beats go back to the bus, its camera ops to the camera and the
@@ -102,8 +108,6 @@ var quest_words: Array = []
 var quest_t := 0.0
 var journal_open := false
 var params: Dictionary = {}          # the session's params (Game.session_params, the shell's game-init; a sim's own)
-var end_exit := ""                   # the way the level was left, when its contract names several (envelope.exit)
-var door_leaving := false            # a door crossed: the level leaves by it once (the page's st.leaving)
 var door_tried := ""                 # a door crossed with no game to load the next level (the page's st.doorTried)
 var bus_frag: Dictionary = {}
 # MENUS (since 0.10.0): score.menus, the pages a world's play declares. The open one is the last whose bus var
@@ -829,7 +833,7 @@ func _dump(tag: String) -> void:
 			rows.append("%s:%s%s(%.2f,%.2f)%s" % [e["id"], "gone" if e["gone"] else "here", ":down" if e["downed"] else "", e["pos"][0], e["pos"][1], (":hp%d" % int(e["hp"])) if e.has("hp") else ""])
 		print("[mojulo-cast] %s %s" % [tag, " ".join(rows)])
 	if bus != null:
-		print("[mojulo-bus] %s events=%d vars=%s menu=%s banner=%s" % [tag, bus_state["metrics"]["processed"], bus.ss(bus_state["vars"]), ("%s:%d" % [s_(menu_open["id"]), menu_focus]) if menu_open != null else "", hud_ui.banner_text() if hud_ui != null else ""])
+		print("[mojulo-bus] %s events=%d vars=%s menu=%s banner=%s" % [tag, bus_state["metrics"]["processed"], Js.ss(bus_state["vars"]), ("%s:%d" % [s_(menu_open["id"]), menu_focus]) if menu_open != null else "", hud_ui.banner_text() if hud_ui != null else ""])
 		print("[mojulo-hud] %s %s" % [tag, hud_ui.dump() if hud_ui != null else ""])
 		if menu_open != null:
 			print("[mojulo-menu] %s %s" % [tag, menu_text()])
@@ -842,10 +846,11 @@ func _dump(tag: String) -> void:
 	print(line)
 
 
-func _physics_process(_delta: float) -> void:
-	# the drivers step on the physics tick beside the pilot (the harness steps both itself, at its own step)
-	if not drivers.is_empty() and sim_frame < 0 and state == "playing" and not (walker != null and walker._harness):
-		step_drivers(_delta if menu_open == null and not journal_open else 0.0)
+func _physics_process(delta: float) -> void:
+	# LIVE PLAY runs the same frame as the harness, on the physics tick: the keys as the pilot's input (a menu up reads
+	# none), no recorded presses, the music's own clock
+	if sim_frame < 0 and _live_frame():
+		_frame(delta, {} if walker.frozen else walker._key_input(), [], [], -1.0)
 	if probe_frames <= 0 or walker == null:
 		return
 	probe_frame += 1
@@ -1192,21 +1197,9 @@ func _beat_tick(at: float) -> void:
 	var every := float(b.get("every", 0.0))
 	if every <= 0.0:
 		return
-	var due := beats_due(beat_n, t, every)
+	var due := Beat.beats_due(beat_n, t, every)
 	bus_pending.append_array(due[0])
 	beat_n = int(due[1])
-
-
-# beats/beat-clock.js beatsDue, line for line: [events, the next beat] at clock reading t
-static func beats_due(n: int, t: float, every: float) -> Array:
-	var out: Array = []
-	var k := 0
-	while n * every <= t and k < 4:
-		k += 1
-		if t - n * every < every:
-			out.append({"type": "beat", "n": n})
-		n += 1
-	return [out, n]
 
 
 func _start_music() -> void:
@@ -1374,49 +1367,86 @@ func _sim_add_eye(id: String, p: Array) -> Array:
 const SIM_DT := 1.0 / 30.0   # the harness's step, the web level-sim's exactly (the engine's fixed-fps delta is not)
 
 
+# a level the frame drives live: a pilot the kernel walks by its rule (the legacy body walks itself on its own tick), and
+# never in a harness run (--mojulo-sim), whose frames are the recording's alone, before it starts as after
+var _harness_run = null
+func _live_frame() -> bool:
+	if _harness_run == null:
+		_harness_run = false
+		for a in OS.get_cmdline_user_args():
+			if a.begins_with("--mojulo-sim="):
+				_harness_run = true
+	return walker != null and walker.rule != null and not _harness_run
+
+
 func _process(delta: float) -> void:
 	_step_edit(delta)
 	var sim := sim_frame >= 0 and sim_frame < sim_frames.size()
 	if sim:
-		delta = SIM_DT
-	if sim and walker != null:
-		walker.sim_input = sim_frames[sim_frame]
-	if sim and sim_frames[sim_frame] is Dictionary:
-		for k in (sim_frames[sim_frame] as Dictionary).get("keys", []):
-			press_key(String(k))
-		for ev in (sim_frames[sim_frame] as Dictionary).get("events", []):
-			bus_pending.append((ev as Dictionary).duplicate(true))
-	_beat_tick(float(sim_frame) * delta if sim else -1.0)
-	# the world steps in the frame its level ends, as the page's steps after the events that end it
+		var f = sim_frames[sim_frame]
+		var rec: Dictionary = f if f is Dictionary else {}
+		if walker != null:
+			walker.sim_input = rec
+		_frame(SIM_DT, rec, rec.get("keys", []), rec.get("events", []), float(sim_frame) * SIM_DT)
+		_sim_print()
+		sim_frame += 1
+	elif not _live_frame():
+		# the legacy body steps itself on the physics tick; its level plays on this one
+		frame_input = {} if walker == null or walker.frozen else walker._key_input()
+		_beat_tick(-1.0)
+		_play(delta)
+
+
+# THE FRAME, in the page's written order (scene/channels/events.js, then the world's step; game/level-sim.js), one for
+# live play and the harness alike:
+#   1 the frame's presses and raw events join the bus's queue (a menu pick as the page's menu sends it)
+#   2 the music's beat, at the clock's reading (the harness's fixed step, else the music player's position)
+#   3 the play: the address, the bus (zone facts, its frame, the cast's ops, the cast, the fight's first half: the hero),
+#     the legacy mechanics; the level's end heard
+#   4 the world steps, in the frame its level ends as the page's does: the drivers, the pilot by its rule, then the
+#     fight's second half (the minds see the pilot where its step left it)
+var frame_input: Dictionary = {}   # the frame's one input (the pilot's axes, fire, the AI switch): the rule and the fight read it
+func _frame(delta: float, input: Dictionary, keys: Array, events: Array, beat_at: float) -> void:
+	frame_input = input
+	for k in keys:
+		press_key(String(k))
+	for ev in events:
+		bus_pending.append((ev as Dictionary).duplicate(true))
+	_beat_tick(beat_at)
 	var was_playing := state == "playing"
 	_play(delta)
-	if sim:
-		if was_playing:
-			step_drivers(delta if menu_open == null and not journal_open else 0.0)
-		if was_playing and walker != null:
+	if not was_playing:
+		return
+	step_drivers(delta if menu_open == null and not journal_open else 0.0)
+	if walker != null:
+		if walker.rule != null:
+			walker.rule_step(input, delta)
+		elif sim_frame >= 0:
 			walker.sim_step(delta)
-		# the second half of the fight's frame: the minds, the rounds, the falls, the pilot where its step left it
-		if combat_rest >= 0.0:
-			var me3 = cast_state["byId"].get(player_id() if player_id() != "" else "player")
-			if me3 != null and walker.rule != null:
-				me3["pos"] = walker.recipe_pos().duplicate()
-				me3["heading"] = walker.recipe_heading()
-			elif me3 != null:
-				me3["pos"] = _bus_pos(walker.global_position)
-				if combat_doc is Dictionary:
-					me3["pos"][2] += float(combat_doc.get("eye", 0.0))
-				var bz3 := walker.global_transform.basis.z
-				me3["heading"] = atan2(bz3.z, -bz3.x)
-			combat.step(cast_state, me3, {}, combat_rest, _pilot_grounded(), null, "minds")
-			combat_rest = -1.0
-		print("[mojulo-sim] %d %s %s" % [sim_frame, state, sim_key()])
-		if walker != null and walker.cam_rule != null:
-			# the page's camera as the rule left it, and the node as drawn, in the recipe's frame (godot-rules.test.js)
-			var cp: Array = walker.cam["pos"]
-			var cl = walker.cam["lookAt"]
-			var np := _bus_pos(walker.cam_node.global_position)
-			print("[mojulo-cam] %d %.4f,%.4f,%.4f %s %.4f,%.4f,%.4f" % [sim_frame, cp[0], cp[1], cp[2], ("%.4f,%.4f,%.4f" % [cl[0], cl[1], cl[2]]) if cl is Array else "null", np[0], np[1], np[2]])
-		sim_frame += 1
+	if combat_rest >= 0.0:
+		var me3 = cast_state["byId"].get(player_id() if player_id() != "" else "player")
+		if me3 != null and walker.rule != null:
+			me3["pos"] = walker.recipe_pos().duplicate()
+			me3["heading"] = walker.recipe_heading()
+		elif me3 != null:
+			me3["pos"] = _bus_pos(walker.global_position)
+			if combat_doc is Dictionary:
+				me3["pos"][2] += float(combat_doc.get("eye", 0.0))
+			var bz3 := walker.global_transform.basis.z
+			me3["heading"] = atan2(bz3.z, -bz3.x)
+		combat.step(cast_state, me3, {}, combat_rest, _pilot_grounded(), null, "minds")
+		combat_rest = -1.0
+
+
+# the harness's lines for a frame: the canonical key, and the page's camera as the rule left it with the node as drawn,
+# in the recipe's frame (godot-rules.test.js)
+func _sim_print() -> void:
+	print("[mojulo-sim] %d %s %s" % [sim_frame, state, sim_key()])
+	if walker != null and walker.cam_rule != null:
+		var cp: Array = walker.cam["pos"]
+		var cl = walker.cam["lookAt"]
+		var np := _bus_pos(walker.cam_node.global_position)
+		print("[mojulo-cam] %d %.4f,%.4f,%.4f %s %.4f,%.4f,%.4f" % [sim_frame, cp[0], cp[1], cp[2], ("%.4f,%.4f,%.4f" % [cl[0], cl[1], cl[2]]) if cl is Array else "null", np[0], np[1], np[2]])
 
 
 func _play(delta: float) -> void:
@@ -1539,18 +1569,11 @@ func _start_bus() -> void:
 	_enter_by_door()
 	if bus_frag.get("initial") is Array and not (bus_frag["initial"] as Array).is_empty():
 		bus.process_events(bus_state, bus_frag["initial"])
-	# a chapter the store already holds is applied at once, with no presentation (the web's game channel does the same)
-	var ch = contract.get("chapters")
-	if ch is Dictionary:
-		var slice = params.get(ch.get("slice"), {})
-		var flags: Dictionary = slice.get("flags", {}) if slice is Dictionary else {}
-		for c in ch.get("carried", []):
-			if c is Dictionary and bus.truthy(flags.get(c.get("key"))):
-				bus_pending.append({"type": c["event"]})
-	# ARRIVAL (a map game): the level travelled in from, heard as arrive:<ref> on the first frame, after the chapters
-	var from = params.get("arrive")
-	if from is String and contract.get("arrive") is Array and from in contract["arrive"]:
-		bus_pending.append({"type": "arrive:" + from})
+	# the page's game channel, made with the session: a chapter the store already holds is applied at once, with no
+	# presentation, then the level travelled in from (a map game), heard as arrive:<ref> on the first frame
+	channel = GameChannel.create(contract, params)
+	channel_seen = bus_state["log"].size()
+	bus_pending.append_array(GameChannel.start(channel))
 	# the powers the consumed slice holds apply at start (the web's game channel does the same)
 	var pw = contract.get("powers")
 	if pw is Dictionary:
@@ -1688,8 +1711,8 @@ func _step_bus(delta: float, pos: Vector3) -> void:
 			combat.mind_clock = float(cast_state["time"])
 		cast.step(cast_state, minf(delta, 0.05))
 		if combat != null and (me2 != null or combat.mind != null):
-			# the harness steps the pilot after the bus (below in _process): the minds, who see it, wait for that step
-			var split := sim_frame >= 0 and combat.mind != null and walker != null
+			# the frame steps the pilot after the bus (_frame): the minds, who see it, wait for that step
+			var split := combat.mind != null and walker != null and (sim_frame >= 0 or _live_frame())
 			combat.step(cast_state, me2, _combat_input(), minf(delta, 0.05), _pilot_grounded(), null, "hero" if split else "all")
 			if split:
 				combat_rest = minf(delta, 0.05)
@@ -1782,7 +1805,7 @@ func aim_input(on: String, screen = null) -> void:
 		if on == "fire" and inp.get("from") is String and cast != null and cast_state["byId"].has(inp["from"]):
 			var e = cast_state["byId"][inp["from"]]
 			var h := float(e.get("heading", 0.0))
-			var pit := 0.0 if BusScript.truthy(inp.get("level")) else float(e.get("pitch", 0.0))
+			var pit := 0.0 if Js.truthy(inp.get("level")) else float(e.get("pitch", 0.0))
 			var eye := float(inp["eye"]) if Bus_finite(inp.get("eye")) else 1.4
 			origin = to_yup([e["pos"][0], e["pos"][1], float(e["pos"][2]) + eye]) * bus_units
 			dir = to_yup([cos(pit) * cos(h), cos(pit) * sin(h), sin(pit)]).normalized()
@@ -1912,16 +1935,19 @@ func _draw_moments() -> void:
 		moment_nodes[i].visible = false
 
 
-# the hero's input in the web's words: fire (the left mouse button, or the probe's hold), forward (W / S) and strafe
-# (D / A); a frozen walker (a menu is up) swings nothing
+# the hero's input in the web's words, read from the frame's one input (the keys live, the recording in the harness): fire
+# (the left mouse button, the probe's hold, or the recording's), forward (W / S), turn (A / D) and strafe (Q / E), as the
+# page binds them (controls/schemes.js), and the AI switch; a frozen walker (a menu is up) swings nothing
 func _combat_input() -> Dictionary:
 	if walker.frozen:
 		return {"fire": false, "forward": 0.0, "strafe": 0.0, "turn": 0.0}
-	var key := func(a: int, b: int) -> bool: return Input.is_physical_key_pressed(a) or Input.is_physical_key_pressed(b)
-	var fwd := (1.0 if key.call(KEY_W, KEY_UP) else 0.0) - (1.0 if key.call(KEY_S, KEY_DOWN) else 0.0)
-	var side := (1.0 if key.call(KEY_D, KEY_RIGHT) else 0.0) - (1.0 if key.call(KEY_A, KEY_LEFT) else 0.0)
-	var fire := combat_fire or (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT))
-	return {"fire": fire, "forward": fwd, "strafe": side, "turn": 0.0}
+	var i := frame_input
+	var axis := func(k: String) -> float: return float(i[k]) if Js.finite(i.get(k)) else 0.0
+	var mouse := sim_frame < 0 and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	var out := {"fire": combat_fire or mouse or Js.truthy(i.get("fire")), "forward": axis.call("forward"), "strafe": axis.call("strafe"), "turn": axis.call("turn")}
+	if Js.truthy(i.get("aiToggle")):
+		out["aiToggle"] = true
+	return out
 
 
 # a new swing plays its clip on the suit when the figure carries it (swing_<dir>, beside its idle); the suit's
@@ -1949,7 +1975,7 @@ func _stat_bodies() -> void:
 		return
 	var who := player_id()
 	for o in q:
-		if o.get("who") == who and bus.finite(o.get("speed")) and float(o["speed"]) > 0:
+		if o.get("who") == who and Js.finite(o.get("speed")) and float(o["speed"]) > 0:
 			walker.speed = float(o["speed"])
 	if cast != null:
 		StatsScript.apply_bodies(bus_state, cast_state)
@@ -1961,8 +1987,6 @@ func _stat_bodies() -> void:
 func _drain_bus(_delta: float) -> void:
 	var log: Array = bus_state["log"]
 	var from := bus_seen
-	var on: Dictionary = contract.get("on", {}) if contract.get("on") is Dictionary else {}
-	var end_with := ""
 	for i in range(bus_seen, log.size()):
 		var e: Dictionary = log[i]
 		if not e.has("type"):
@@ -1971,34 +1995,20 @@ func _drain_bus(_delta: float) -> void:
 		if sound != null:
 			sound.hear(String(e["type"]))
 		_announce(String(e["type"]), e)
-		# the contract's on: the first pattern that matches maps the event (scene/channels/game.js, the same rule)
-		for pat in on:
-			if not bus.glob(e["type"], pat):
-				continue
-			var act = on[pat]
-			# once the level has ended in this drain, nothing more is gathered (the page's st.ended); a door is left once
-			var over: bool = state != "playing" or end_with != ""
-			if act is Dictionary and act.get("emit") is Dictionary:
-				if not over:
-					var o: Dictionary = (act["emit"] as Dictionary).duplicate(true)
-					for k in o:
-						if o[k] is String and o[k] == "{event}":
-							o[k] = e["type"]
-					outcome_events.append(o)
-			elif act is Dictionary and act.has("end"):
-				if not over:
-					end_with = String(act["end"])
-					end_exit = String(act["exit"]) if act.get("exit") is String else ""
-			elif act is Dictionary and act.get("door") is String:
-				if not over and not door_leaving:
-					_door(String(act["door"]))
-			break
 	bus_seen = log.size()
-	if end_with != "" and state == "playing":
-		if end_with == "success":
-			_complete()
-		else:
-			_fail(end_with)
+	# the contract's on, as the page's game channel hears it: once the level has ended nothing more is gathered; a door
+	# is left once
+	if not channel.is_empty() and state == "playing":
+		var had_door = channel["door"]
+		GameChannel.hear(channel, log, channel_seen)
+		channel_seen = log.size()
+		if channel["door"] != null and had_door == null:
+			_door(String(channel["door"]))
+		if channel["result"] != null:
+			if String(channel["result"]) == "success":
+				_complete()
+			else:
+				_fail(String(channel["result"]))
 	if hud_ui != null:
 		hud_ui.sync(bus_state["vars"], log, from, bus_incoming, bus_clock)
 
@@ -2140,7 +2150,7 @@ func _announce(type: String, e: Dictionary) -> void:
 func _sync_menus() -> void:
 	var open = null
 	for m in score.get("menus", []) if score.get("menus") is Array else []:
-		if m is Dictionary and bus.strict_eq(bus_state["vars"].get(m.get("var")), 1):
+		if m is Dictionary and Js.strict_eq(bus_state["vars"].get(m.get("var")), 1):
 			open = m
 	if open != menu_open:
 		menu_open = open
@@ -2215,12 +2225,12 @@ func _menu_entries(m: Dictionary) -> Array:
 		"shop":
 			var stock: Array = m.get("stock", [])
 			for i in stock.size():
-				out.append(["%s  %s" % [s_(stock[i].get("item")), bus.js_string(stock[i].get("price"))], i])
+				out.append(["%s  %s" % [s_(stock[i].get("item")), Js.js_string(stock[i].get("price"))], i])
 			out.append([s_(m.get("currency")), -1])
 		"chest":
 			var holds: Array = m.get("holds", [])
 			for i in holds.size():
-				out.append(["%s  ×%s" % [s_(holds[i].get("item")), bus.js_string(holds[i].get("count", 1))], i])
+				out.append(["%s  ×%s" % [s_(holds[i].get("item")), Js.js_string(holds[i].get("count", 1))], i])
 		"save":
 			for i in _menu_count(m):
 				out.append(["Slot %d" % (i + 1), i])
@@ -2228,7 +2238,7 @@ func _menu_entries(m: Dictionary) -> Array:
 			var rows: Array = m.get("rows", [])
 			for i in rows.size():
 				var v = bus_state["vars"].get(rows[i].get("var"))
-				out.append(["%s  %s" % [s_(rows[i].get("label")), bus.js_string(v) if v != null else "0"], i])
+				out.append(["%s  %s" % [s_(rows[i].get("label")), Js.js_string(v) if v != null else "0"], i])
 		"map":
 			out.append(["(the map)", -1])
 	if m.get("picks") is Array:
@@ -2240,7 +2250,7 @@ func _menu_entries(m: Dictionary) -> Array:
 	for e in out:
 		for hit in rx.search_all(e[0]):
 			var v = bus_state["vars"].get(hit.get_string(1))
-			e[0] = (e[0] as String).replace(hit.get_string(0), bus.js_string(v) if v != null else "0")
+			e[0] = (e[0] as String).replace(hit.get_string(0), Js.js_string(v) if v != null else "0")
 	return out
 
 
@@ -2343,34 +2353,27 @@ func _game() -> Node:
 # the level's one outcome: what its bus mapped (contract.on), with the result (level-contract.js, the envelope), the
 # way it was left when it names one, and its kept numbers (game.keep: each var off the bus, scaled, to 1e-3)
 func outcome_envelope(result: String) -> Dictionary:
-	var env := {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": _game().session_seed() if _game() != null else 1, "result": result, "events": outcome_events.duplicate(true)}
-	if end_exit != "":
-		env["exit"] = end_exit
-	if contract.get("keep") is Array and bus != null:
-		var kept := []
-		for k in contract["keep"]:
-			var v = bus_state["vars"].get(k["var"])
-			var x := (float(v) if bus.is_num(v) else 0.0) * (float(k["scale"]) if k.get("scale") != null else 1.0)
-			var row := {"label": k["label"], "value": floor(x * 1000.0 + 0.5) / 1000.0, "best": k["best"]}
-			if k.get("unit") is String:
-				row["unit"] = k["unit"]
-			kept.append(row)
+	var gathered: Array = (channel.get("events", []) as Array).duplicate(true)
+	var env := {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": _game().session_seed() if _game() != null else 1, "result": result, "events": gathered}
+	if channel.get("exit") != null:
+		env["exit"] = channel["exit"]
+	var kept = GameChannel.kept(channel, bus_state["vars"]) if not channel.is_empty() and bus != null else null
+	if kept != null:
 		env["stats"] = {"kept": kept}
 	if sim_frame >= 0:
-		print("[mojulo-envelope] " + BusScript.ss(env))
+		print("[mojulo-envelope] " + Js.ss(env))
 	return env
 
 
 # a DOOR crossed (the door mechanic): the level leaves by it once, carrying what the session gathered (result
 # 'transit'); the game loads the level it links to. With no game, the door stays shut and says so (the page's door()).
 func _door(id: String) -> void:
-	if state != "playing" or door_leaving:
+	if state != "playing":
 		return
-	var env := {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": _game().session_seed() if _game() != null else 1, "result": "transit", "events": outcome_events.duplicate(true)}
+	var env := {"contractVersion": 1, "levelRef": s_(contract.get("levelRef", score.get("ref"))), "seed": _game().session_seed() if _game() != null else 1, "result": "transit", "events": (channel.get("events", []) as Array).duplicate(true)}
 	if sim_frame >= 0:
-		print("[mojulo-door] %s %s" % [id, BusScript.ss(env)])
+		print("[mojulo-door] %s %s" % [id, Js.ss(env)])
 	if _game() != null:
-		door_leaving = true
 		_game().level_transit(id, env, contract)
 	else:
 		door_tried = id
@@ -2439,7 +2442,6 @@ func _reset() -> void:
 	walker.global_position = walker.spawn
 	walker.velocity = Vector3.ZERO
 	state = "playing"
-	outcome_events = []
 	if bus != null:
 		bus_state = bus.create_bus_state(bus_frag, bus_frag.get("entities", []) if bus_frag.get("entities") is Array else [])
 		bus_seen = 0
@@ -2539,7 +2541,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		return
 	if event.physical_keycode == KEY_E and bus != null:
 		bus_interact = true
-
 
 
 # ── scenes ───────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2748,7 +2749,6 @@ func toggle_journal(open: bool) -> void:
 
 func quest_view() -> Array:
 	return QuestsScript.view(quest_prog, bus_state["vars"]) if quest_prog != null else []
-
 
 
 # ── the look (since 0.23.0) ─────────────────────────────────────────────────────────────────────────────────────────
@@ -3040,7 +3040,6 @@ func _step_edit(delta: float) -> void:
 			var q := g.basis.get_rotation_quaternion()
 			print("[mojulo-edit] %d %.4f,%.4f,%.4f %.5f,%.5f,%.5f,%.5f %.4f" % [j, g.origin.x, g.origin.y, g.origin.z, q.x, q.y, q.z, q.w, edit_cam.fov])
 	edit_t += delta
-
 
 
 # the ground a mind stands on: the land's faces the pilot walks (kernel/rules.gd), else the score's flat ground; null

@@ -4,8 +4,13 @@
 -- contract.json decoded from its data module, stepped over the track the web recorded for that level. Writes what it
 -- found; the web side compares the frames.
 --
+-- A level whose track is `cast` (its bus.json carries a cast) is played whole: the pilot's pose fed each frame, the
+-- cast, the fight, the minds and the scenes run by the place's kernel, each frame's line the bus's hash and every other
+-- ruled body's quantized pose (the levelcast corpus's, level-conformance.js).
+--
 --   lune run place-check.luau <place.rbxl> <tracks.json> <out.json>
---   tracks.json: { [level ref]: { frames: [{ walkers, events?, dt }], params? } }
+--   tracks.json: { [level ref]: { frames: [{ walkers, events?, dt }], params? }
+--                             | { cast: true, frames: [{ pilot, input, events?, dt }], ids, feet, ground, params? } }
 --   out.json:    { problems: [string], kernel: { [module]: source }, levels: { [ref]: [frame line] } }
 
 local fs = require("@lune/fs")
@@ -32,7 +37,10 @@ local function child(parent, path: { string })
 end
 
 -- ── the tree ─────────────────────────────────────────────────────────────────────────────────────────────────────
-local MODULES = { "js", "json", "stats", "bus", "store", "game", "level", "hud" }
+-- the whole level's modules (the cast, the fight and the minds, the scenes and the journal) load when the place ships
+-- them, in load order; a level with a cast needs them all
+local MODULES = { "js", "json", "stats", "bus", "store", "game", "rules", "nav", "mind", "group", "cast", "combat", "scenes", "quests", "level", "hud" }
+local WHOLE = { rules = true, nav = true, mind = true, group = true, cast = true, combat = true, scenes = true, quests = true }
 local kernelFolder = child(place:GetService("ReplicatedStorage"), { "MojuloKernel" })
 local sources = {}
 if not kernelFolder then
@@ -41,11 +49,17 @@ else
 	for _, m in MODULES do
 		local s = kernelFolder:FindFirstChild(m)
 		if not s or s.ClassName ~= "ModuleScript" then
-			problem("MojuloKernel." .. m .. " is not a ModuleScript")
+			if not WHOLE[m] then
+				problem("MojuloKernel." .. m .. " is not a ModuleScript")
+			end
 		else
 			sources[m] = s.Source
 		end
 	end
+end
+local whole = true
+for m in WHOLE do
+	whole = whole and sources[m] ~= nil
 end
 local server = child(place:GetService("ServerScriptService"), { "MojuloServer" })
 if not server or server.ClassName ~= "Script" then
@@ -76,7 +90,9 @@ local K = {}
 local loaded = kernelFolder ~= nil
 for _, m in MODULES do
 	if not sources[m] then
-		loaded = false
+		if not WHOLE[m] then
+			loaded = false
+		end
 		continue
 	end
 	local ok, chunk = pcall(luau.load, sources[m], { debugName = "MojuloKernel." .. m })
@@ -86,6 +102,27 @@ for _, m in MODULES do
 		continue
 	end
 	K[m] = m == "js" and chunk() or chunk()(K)
+end
+
+-- a whole level's frame: the bus's hash, then each other ruled body's pose in quanta (level-equivalence.js frameKey:
+-- 5 cm, 0.05 rad, half up; its feet; a heading wrapped as JS wraps it)
+local TAU = math.pi * 2
+local function q(v, k)
+	return string.format("%d", math.floor(v / k + 0.5))
+end
+local function castKey(L, ids, feet)
+	local js = K.js
+	local parts = { K.bus.hashState(L.bus) }
+	for _, id in ipairs(ids) do
+		local e = K.level.body(L, id)
+		if e == nil then
+			table.insert(parts, id .. ":none")
+			continue
+		end
+		local up = js.finite(js.get(feet, id)) and feet[id] or 0
+		table.insert(parts, string.format("%s:%s,%s,%s,%s", id, q(e.pos[1], 0.05), q(e.pos[2], 0.05), q(e.pos[3] - up, 0.05), q(math.fmod(math.fmod(e.heading or 0, TAU) + TAU, TAU), 0.05)))
+	end
+	return table.concat(parts, "|")
 end
 
 local levels = {}
@@ -124,7 +161,25 @@ if loaded and manifestScript then
 		if not track then
 			continue
 		end
-		local L = K.level.fromBus(raw.bus and json.decode(raw.bus) or nil, raw.contract and json.decode(raw.contract) or js.obj(), js.isObj(js.get(track, "params")) and track.params or js.obj())
+		local bus = raw.bus and json.decode(raw.bus) or nil
+		local params = js.isObj(js.get(track, "params")) and track.params or js.obj()
+		if js.truthy(js.get(track, "cast")) then
+			if not whole then
+				problem("Levels." .. spec.ref .. " has a cast, and the place's kernel does not ship the whole level (cast, combat, mind, nav, group, rules, scenes, quests)")
+				continue
+			end
+			local L = K.level.fromBus(bus, raw.contract and json.decode(raw.contract) or js.obj(), params, { ground = track.ground })
+			local lines = js.arr()
+			for _, f in ipairs(track.frames) do
+				local p = f.pilot
+				local walkers = js.arr({ js.obj({ id = p.id, transform = js.obj({ pos = js.arr({ p.pos[1], p.pos[2], p.pos[3] }) }), heading = p.heading, pitch = p.pitch, grounded = p.grounded }) })
+				K.level.step(L, walkers, js.dup(js.isArr(js.get(f, "events")) and f.events or js.arr()), f.dt, js.dup(f.input))
+				table.insert(lines, castKey(L, track.ids, track.feet))
+			end
+			levels[spec.ref] = lines
+			continue
+		end
+		local L = K.level.fromBus(bus, raw.contract and json.decode(raw.contract) or js.obj(), params)
 		local lines = js.arr()
 		for _, f in ipairs(track.frames) do
 			local r = K.level.step(L, js.dup(f.walkers), js.dup(js.isArr(js.get(f, "events")) and f.events or js.arr()), js.truthy(js.get(f, "dt")) and f.dt or 0)

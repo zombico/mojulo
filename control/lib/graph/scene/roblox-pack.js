@@ -16,7 +16,7 @@ import { loadSketch, refusePixelizer, packHash, resolveLevel, gameLevels, packPo
 import { assessPortability } from './engine-portability.js';
 import { emitRobloxGame, greyboxModel, levelData } from './roblox-project.js';
 
-export const KERNEL_MODULES = ['js', 'json', 'stats', 'bus', 'store', 'game', 'level', 'hud'];
+export const KERNEL_MODULES = ['js', 'json', 'stats', 'bus', 'store', 'game', 'rules', 'nav', 'mind', 'group', 'cast', 'combat', 'scenes', 'quests', 'level', 'hud'];
 const kernelDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'roblox-kernel');
 const placeDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'roblox-place');
 const PLACE_SCRIPTS = [['MojuloServer.server.luau', 'src/server'], ['MojuloClient.client.luau', 'src/client']];

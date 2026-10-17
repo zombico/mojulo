@@ -175,10 +175,11 @@ describe('a young kernel offers only what it proves', () => {
     }
     // the ledger and the shell: no row built yet but the play shell's level list, approximated
     expect(Object.entries({ ...M.LEDGER_MARKS, ...M.SHELL_MARKS }).filter(([, r]) => r.roblox !== 'absent').map(([k]) => k)).toEqual(['shell']);
-    // what the place carries reads through: the zone mechanics a Humanoid can walk to, never a cast's
+    // what the place carries reads through: the zone mechanics a Humanoid can walk to, and with the cast whole in the
+    // kernel the fight's and the watchers'; never a door, a beat, a use or a bag
     const carried = carriedMechanics('roblox');
-    for (const k of ['reach-exit', 'collect', 'survive', 'laps']) expect(carried, k).toContain(k);
-    for (const k of ['hp-pool', 'frags', 'unseen']) expect(carried, k).not.toContain(k);
+    for (const k of ['reach-exit', 'collect', 'survive', 'laps', 'hp-pool', 'defeat-all', 'unseen']) expect(carried, k).toContain(k);
+    for (const k of ['door', 'on-beat', 'crops', 'bag']) expect(carried, k).not.toContain(k);
   });
   it('worstMark and figureOverlays are the engines\' shared reads', () => {
     expect(worstMark('built', ['approximated'], 'built')).toBe('approximated');

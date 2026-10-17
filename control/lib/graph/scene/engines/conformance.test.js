@@ -10,7 +10,7 @@ const LUNE = process.env.MOJULO_LUNE;
 
 describe('the neutral half', () => {
   it('names each corpus\'s kernel modules by module id, and every engine with marks has a runner', () => {
-    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'level', 'rules', 'scenes']);
+    expect(Object.keys(CORPORA)).toEqual(['bus', 'combat', 'mind', 'level', 'rules', 'scenes', 'levelcast']);
     for (const c of Object.values(CORPORA)) expect(c.kernel).toContain('bus');
     expect(Object.keys(RUNNERS).sort()).toEqual([...MARKED_ENGINES].sort());
   });
@@ -26,14 +26,15 @@ describe('the neutral half', () => {
     expect(firstDifference('abcdef', 'abcxef')).toMatchObject({ at: 3 });
   });
 
-  it('names what a kernel lacks before it runs anything', () => {
-    expect(kernelFiles('godot', 'bus').files).toEqual(['bus.gd', 'json_exact.gd', 'store.gd', 'stats.gd']);
+  it('names what a kernel needs before it runs anything, and every corpus has its kernel', () => {
+    expect(kernelFiles('godot', 'bus').files).toEqual(['js.gd', 'json_exact.gd', 'bus.gd', 'store.gd', 'stats.gd']);
     expect(kernelFiles('godot', 'bus').missing).toEqual([]);
     expect(kernelFiles('roblox', 'bus')).toEqual({ files: ['js.luau', 'bus.luau', 'json.luau', 'store.luau', 'stats.luau'], missing: [] });
-    expect(kernelFiles('roblox', 'rules').missing).toEqual(['rules.luau']);
-    const r = runCorpus('roblox', 'rules', [], { bin: '/nonexistent/lune' });
-    expect(r).toMatchObject({ out: null, status: null });
-    expect(r.errors[0]).toMatch(/not in the roblox kernel yet: rules\.luau/);
+    expect(kernelFiles('roblox', 'rules')).toEqual({ files: ['js.luau', 'bus.luau', 'json.luau', 'rules.luau'], missing: [] });
+    // every corpus has its kernel in both engines (a module a corpus names that an engine lacks is refused by name)
+    for (const [c, def] of Object.entries(CORPORA)) for (const e of def.engines ?? ['godot', 'roblox']) expect(kernelFiles(e, c).missing, `${e} ${c}`).toEqual([]);
+    expect(runCorpus('godot', 'levelcast', []).errors[0]).toMatch(/the levelcast corpus has no godot runner/);
+    expect(runCorpus('roblox', 'bus', [], { bin: null }).errors[0]).toMatch(/no roblox runner found/);
     expect(runCorpus('godot', 'bus', [], { bin: null }).errors[0]).toMatch(/no godot runner found/);
   });
 });

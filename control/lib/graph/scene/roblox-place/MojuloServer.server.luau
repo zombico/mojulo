@@ -1,8 +1,10 @@
 -- mojulo — the place's server: plays the game's levels in order, one player driving. The kernel (ReplicatedStorage.
 -- MojuloKernel) is the web runtime's bus, stats, store and game channel ported to Luau and held equal to it by the
 -- conformance corpora; this script is only the presenter: it reports where the player stands, applies the warps the
--- bus hands back, and finishes a level by its outcome. A Roblox Humanoid walks the player (the web's walk feel is not
--- ported), so a level is equal to the web in what it DOES with where the player stands, not in how the player moves.
+-- bus hands back, draws the level's characters where the kernel's cast puts them, and finishes a level by its outcome.
+-- A Roblox Humanoid walks the player (the web's walk feel is not ported), so a level is equal to the web in what it
+-- DOES with where the player stands, not in how the player moves: the pilot is the kernel's input (the levelcast
+-- corpus feeds it the same way), and the cast, the fight, the minds and the scenes run in the kernel.
 --
 -- Frames: the recipe is z-up in metres (its bus in recipe units, metersPerUnit apart); Roblox is y-up in studs.
 --   Roblox (X, Y, Z) = (x, z, -y) × STUDS   (a proper rotation: +y north is -Z, Roblox's forward)
@@ -20,8 +22,19 @@ local MAX_STEPS = 4             -- a slow frame catches up at most this many ste
 local KERNEL = ReplicatedStorage:WaitForChild("MojuloKernel")
 local K = {}
 K.js = require(KERNEL:WaitForChild("js"))
-for _, name in { "json", "stats", "bus", "store", "game", "level", "hud" } do
-	K[name] = require(KERNEL:WaitForChild(name))(K)
+-- the whole level's modules (the cast, the fight and the minds, the scenes, the journal) when the place ships them; a
+-- place without them plays its levels' bus alone
+local WHOLE = { rules = true, nav = true, mind = true, group = true, cast = true, combat = true, scenes = true, quests = true }
+for _, name in { "json", "stats", "bus", "store", "game", "rules", "nav", "mind", "group", "cast", "combat", "scenes", "quests", "level", "hud" } do
+	local m
+	if WHOLE[name] then
+		m = KERNEL:FindFirstChild(name)
+	else
+		m = KERNEL:WaitForChild(name)
+	end
+	if m then
+		K[name] = require(m)(K)
+	end
 end
 local js, json = K.js, K.json
 local arr, obj, get, truthy = js.arr, js.obj, js.get, js.truthy
@@ -43,6 +56,9 @@ sayRemote.Parent = remotes
 local hudRemote = Instance.new("RemoteEvent")
 hudRemote.Name = "Hud"
 hudRemote.Parent = remotes
+local fireRemote = Instance.new("RemoteEvent")   -- the left mouse button held (true) or let go (false): the fight's fire
+fireRemote.Name = "Fire"
+fireRemote.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 -- ── the frames ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -66,6 +82,11 @@ local spec, data, L = nil, nil, nil
 local accum, pending, finished, doorSaid = 0, {}, false, false
 local H, clock, shownHud = nil, 0, nil
 local markers = {}               -- bus entity id → its Part
+local bodies = {}                -- cast body id → its Part
+local fireHeld = false           -- the client's left mouse button
+local aiToggle = false           -- G pressed since the last step: the world switch (the minds stand down or wake)
+local sceneCtl = {}              -- the frame's presses to a scene playing (Space / Enter / E, Esc, the arrows, 1-4)
+local shownLine = nil            -- the scene's line last sent
 
 -- the bus's own entities drawn as the page draws them: a sphere of its radius and colour where the bus puts it, shown
 -- while it is on (a pickup taken goes; a spawn appears)
@@ -96,6 +117,92 @@ local function syncMarkers()
 		m.Position = toWorld(e.position)
 		m.Transparency = e.on == false and 1 or 0
 	end
+end
+
+-- the level's characters as the kernel's cast puts them: an anchored box each, sized from its body (bus.json's
+-- combat egg or radius, the cast row's feet), else about 1.7 m tall; hidden when sent away, tinted and laid down when
+-- felled. The pilot is the player's own character.
+local DOWNED = Color3.fromRGB(120, 60, 60)
+local function bodySize(id: string): (number, number)
+	local cb = data and data.bus and get(data.bus, "combat")
+	local b = js.isObj(cb) and js.isObj(get(cb, "bodies")) and get(cb.bodies, id) or nil
+	local egg = js.isObj(b) and get(b, "egg") or nil
+	if js.isObj(egg) and js.finite(get(egg, "a")) and js.finite(get(egg, "c")) then
+		return 2 * egg.a, 2 * egg.c
+	end
+	local e = K.level.body(L, id)
+	local foot = e and js.finite(e.foot) and e.foot or 0
+	local r = js.isObj(b) and js.finite(get(b, "radius")) and b.radius or 0.3
+	return 2 * r, foot > 0.3 and 2 * foot or 1.7
+end
+local function syncCast(list)
+	local box = workspace:FindFirstChild("MojuloLevel")
+	if not box or not list then
+		return
+	end
+	local pilot = data and get(data.level, "pilot")
+	local m = mpu * STUDS
+	for _, e in ipairs(list) do
+		if js.isObj(pilot) and e.id == pilot.id then
+			continue
+		end
+		local part = bodies[e.id]
+		local w, h = bodySize(e.id)
+		if not part then
+			part = Instance.new("Part")
+			part.Name = "cast-" .. e.id
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.Material = Enum.Material.SmoothPlastic
+			part.Size = Vector3.new(w * m, h * m, w * m)
+			part.Color = Color3.fromRGB(214, 140, 64)
+			part:SetAttribute("color", part.Color)
+			part.Parent = box
+			bodies[e.id] = part
+		end
+		local foot = js.finite(e.foot) and e.foot or 0
+		local feet = toWorld({ e.pos[1], e.pos[2], e.pos[3] - foot })
+		if e.downed then
+			-- felled: lying along its heading, its middle a half-width off the ground
+			local c = feet + Vector3.new(0, w * m / 2, 0)
+			part.CFrame = CFrame.lookAt(c, c + forward(e.heading or 0)) * CFrame.Angles(math.pi / 2, 0, 0)
+			part.Color = DOWNED
+		else
+			local c = feet + Vector3.new(0, h * m / 2, 0)
+			part.CFrame = CFrame.lookAt(c, c + forward(e.heading or 0))
+			part.Color = part:GetAttribute("color") or part.Color
+		end
+		part.Transparency = e.gone and 1 or 0
+	end
+end
+
+-- the land a mind stands on: the nearest surface straight down from pos + 5 cm (recipe units), the level's own parts
+-- only (the player and the cast are not ground)
+local function groundAt(p)
+	local box = workspace:FindFirstChild("MojuloLevel")
+	if not box then
+		return nil
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local skip = {}
+	for _, part in bodies do
+		table.insert(skip, part)
+	end
+	for _, part in markers do
+		table.insert(skip, part)
+	end
+	if player and player.Character then
+		table.insert(skip, player.Character)
+	end
+	params.FilterDescendantsInstances = skip
+	local from = toWorld({ p[1], p[2], p[3] + 0.05 })
+	local hit = workspace:Raycast(from, Vector3.new(0, -4096, 0), params)
+	if not hit then
+		return nil
+	end
+	return hit.Position.Y / (mpu * STUDS)
 end
 
 local function rule()
@@ -193,10 +300,11 @@ local function startLevel(i: number, params)
 			session[s] = js.dup(state[s])
 		end
 	end
-	L = K.level.fromBus(data.bus, data.contract, session)
+	local pilotId = js.isObj(get(data.level, "pilot")) and data.level.pilot.id or nil
+	L = K.level.fromBus(data.bus, data.contract, session, { ground = groundAt, pilot = pilotId })
 	accum, pending, finished, doorSaid = 0, {}, false, false
 	H, clock, shownHud = K.hud.create(get(data.level, "hud")), 0, nil
-	markers = {}
+	markers, bodies, sceneCtl, shownLine = {}, {}, {}, nil
 	if player and player.Character then
 		place(player.Character)
 	end
@@ -272,15 +380,30 @@ local function step()
 	local pilot = data.level.pilot
 	local character = player and player.Character
 	local feet = character and feetOf(character)
-	if js.isObj(pilot) and feet then
+	local hrp = character and character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local hum = character and character:FindFirstChildOfClass("Humanoid")
+	local heading = 0
+	local input = obj()
+	if js.isObj(pilot) and feet and hrp and hum then
 		local p = toRecipe(feet)
 		p[3] += eye()
-		table.insert(walkers, obj({ id = pilot.id, transform = obj({ pos = p }) }))
+		-- Roblox forward (cos h, 0, -sin h): the heading back in the recipe's frame
+		local look = hrp.CFrame.LookVector
+		heading = math.atan2(-look.Z, look.X)
+		table.insert(walkers, obj({ id = pilot.id, transform = obj({ pos = p }), heading = heading, pitch = 0, grounded = hum.FloorMaterial ~= Enum.Material.Air }))
+		-- the fight's input as the page's keys give it: the move along and across the facing, the mouse's fire
+		local mv = hum.MoveDirection
+		input = obj({ forward = mv:Dot(forward(heading)), strafe = mv:Dot(Vector3.new(math.sin(heading), 0, math.cos(heading))), turn = 0, fire = fireHeld })
 	end
-	-- the level's other bodies stand where the recipe put them (their own rules do not run here yet)
-	for _, e in ipairs(js.isArr(get(data.level, "entities")) and data.level.entities or {}) do
-		if not js.isObj(pilot) or e.id ~= pilot.id then
-			table.insert(walkers, obj({ id = e.id, transform = obj({ pos = js.copy(e.pos) }) }))
+	input.scene = sceneCtl
+	input.aiToggle = aiToggle
+	sceneCtl, aiToggle = {}, false
+	-- a level without a cast: its other bodies stand where the recipe put them (the cast's own are the kernel's)
+	if not L.cast then
+		for _, e in ipairs(js.isArr(get(data.level, "entities")) and data.level.entities or {}) do
+			if not js.isObj(pilot) or e.id ~= pilot.id then
+				table.insert(walkers, obj({ id = e.id, transform = obj({ pos = js.copy(e.pos) }) }))
+			end
 		end
 	end
 	local extra = arr()
@@ -289,9 +412,35 @@ local function step()
 	end
 	pending = {}
 	local n0 = #L.bus.log
-	local r = K.level.step(L, walkers, extra, DT)
+	local r = K.level.step(L, walkers, extra, DT, input)
 	clock += DT
 	syncMarkers()
+	syncCast(r.cast)
+	-- a swing roots the body, as the web's platform rule halts its drive while one runs
+	local me = js.isObj(pilot) and K.level.body(L, pilot.id) or nil
+	if hum and me then
+		hum.WalkSpeed = me.swingT ~= nil and 0 or (js.finite(get(rule(), "speed")) and rule().speed or 6) * mpu * STUDS
+	end
+	-- the scene's text box, a line at a time (its speaker's name, the line as it types on); the journal's words
+	if player and r.scene then
+		local ln = get(r.scene, "line")
+		local text = js.isObj(ln) and ((truthy(get(ln, "name")) and js.str(ln.name) .. ": " or "") .. js.str(get(ln, "text"))) or ""
+		local ch = get(r.scene, "choice")
+		if js.isObj(ch) then
+			local opts = {}
+			for i, o in ipairs(js.isArr(get(ch, "options")) and ch.options or {}) do
+				table.insert(opts, (i - 1 == ch.sel and "> " or "") .. i .. " " .. js.str(o))
+			end
+			text ..= "   " .. table.concat(opts, "   ")
+		end
+		if text ~= shownLine then
+			shownLine = text
+			hudRemote:FireClient(player, "scene", text)
+		end
+	end
+	for _, n in ipairs(r.quests or {}) do
+		say((n.kind == "begun" and "new quest: " or n.kind == "done" and "quest complete: " or "done: ") .. js.str(n.name) .. (n.kind == "step" and truthy(get(n, "text")) and (" · " .. js.str(n.text)) or ""))
+	end
 	-- the HUD as words: the readouts when they change, each banner and toast as it fires
 	if player then
 		local lines = K.hud.lines(H, L.bus.vars, clock)
@@ -344,6 +493,31 @@ keyRemote.OnServerEvent:Connect(function(who: Player, key)
 	end
 	for _, ev in ipairs(K.level.keyEvents(L, key)) do
 		table.insert(pending, ev)
+	end
+	-- G flips the world switch, as the page's does: every mind stands down, or wakes
+	if key == "g" then
+		aiToggle = true
+	end
+	-- a scene's presses, as the page reads them: Space, Enter or E go on, Esc skips, the arrows (or W / S) move a
+	-- choice, 1-4 pick one
+	if L.scenes then
+		if key == " " or key == "Enter" or key == "e" then
+			sceneCtl.next = true
+		elseif key == "Escape" then
+			sceneCtl.skip = true
+		elseif key == "ArrowUp" or key == "w" then
+			sceneCtl.move = -1
+		elseif key == "ArrowDown" or key == "s" then
+			sceneCtl.move = 1
+		elseif #key == 1 and key >= "1" and key <= "4" then
+			sceneCtl.pick = tonumber(key) - 1
+		end
+	end
+end)
+
+fireRemote.OnServerEvent:Connect(function(who: Player, down)
+	if who == player and type(down) == "boolean" then
+		fireHeld = down
 	end
 end)
 

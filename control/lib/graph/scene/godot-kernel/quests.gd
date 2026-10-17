@@ -8,13 +8,14 @@ extends RefCounted
 #   news(program, flags) → [{ kind: 'begun' | 'step' | 'done', name, text? }]           for flags set just now
 
 const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 
 
 static func view(program, vars) -> Array:
-	var on := func(f) -> bool: return vars is Dictionary and Bus.truthy(vars.get("flag-" + String(f)))
+	var on := func(f) -> bool: return vars is Dictionary and Js.truthy(vars.get("flag-" + String(f)))
 	var out := []
 	for q in (program if program is Array else []):
-		if Bus.truthy(q.get("starts")) and not on.call(q["starts"]):
+		if Js.truthy(q.get("starts")) and not on.call(q["starts"]):
 			continue
 		var steps := []
 		for s in q["steps"]:
@@ -33,11 +34,11 @@ static func news(program, flags) -> Array:
 	var out := []
 	for f in (flags if flags is Array else []):
 		for q in (program if program is Array else []):
-			if Bus.strict_eq(q.get("starts"), f):
+			if Js.strict_eq(q.get("starts"), f):
 				out.append({"kind": "begun", "name": q["name"]})
 			var j := -1
 			for k in (q["steps"] as Array).size():
-				if Bus.strict_eq(q["steps"][k]["flag"], f):
+				if Js.strict_eq(q["steps"][k]["flag"], f):
 					j = k
 					break
 			if j >= 0:

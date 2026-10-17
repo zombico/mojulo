@@ -4,7 +4,7 @@ extends Node
 # Game apply its outcome, then starts the second level and reads what was carried in. Prints [mojulo-game] lines
 # for lib/graph/scene/godot-bus-level.test.js. The place comes from the user args: -- <x> <y> (z-up metres).
 
-const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 
 var f := 0
 var at := Vector2.ZERO
@@ -39,13 +39,13 @@ func _process(_delta: float) -> void:
 		get_tree().current_scene.bus_interact = true
 	elif f == 40:
 		var lv = get_tree().current_scene
-		print("[mojulo-game] played state=%s events=%s" % [lv.state, lv.bus.ss(lv.outcome_events)])
+		print("[mojulo-game] played state=%s events=%s" % [lv.state, Js.ss(lv.channel.get("events", []))])
 	elif f == 160:
-		print("[mojulo-game] after gates=%s store=%s saved=%s" % [_gates(), Bus.ss(g.state), str(FileAccess.file_exists("user://store.json"))])
+		print("[mojulo-game] after gates=%s store=%s saved=%s" % [_gates(), Js.ss(g.state), str(FileAccess.file_exists("user://store.json"))])
 		g.start_level(g.levels[1]["ref"])
 	elif f == 180:
 		var lv = get_tree().current_scene
-		print("[mojulo-game] carried vars=%s" % lv.bus.ss(lv.bus_state["vars"]))
+		print("[mojulo-game] carried vars=%s" % Js.ss(lv.bus_state["vars"]))
 		for p in ["user://store.json", "user://progress.cfg"]:
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(p))
 		get_tree().quit(0)

@@ -16,6 +16,7 @@ extends RefCounted
 #   H.banner_text() · H.dump()               the newest standing banner; the drawn widgets, for the probes
 
 const Bus := preload("res://kernel/bus.gd")
+const Js := preload("res://kernel/js.gd")
 const SLOTS := ["top-left", "top", "top-right", "center", "bottom-left", "bottom", "bottom-right"]
 const UI_STATES := ["hidden", "shown", "focus", "active", "disabled", "alert"]
 const SEMANTIC := {"harm": "#ff5a4d", "value": "#ffd700", "goal": "#3ff56f"}
@@ -197,7 +198,7 @@ func build(layer: CanvasLayer, rows: Array, style: Dictionary, the_bus) -> void:
 			it["until"] = 0.0
 		else:
 			el.add_child(_label(String(w.get("text", "")), 12, 500, Color(c, 0.85)))
-			if Bus.finite(w.get("ttl")):
+			if Js.finite(w.get("ttl")):
 				it["timed"] = float(w["ttl"])
 		_col(slot).add_child(el)
 		items.append(it)
@@ -207,11 +208,11 @@ func build(layer: CanvasLayer, rows: Array, style: Dictionary, the_bus) -> void:
 func on(w: Dictionary, vars: Dictionary) -> bool:
 	if w.get("id") is String:
 		var id: String = w["id"]
-		if Bus.strict_eq(vars.get("ui-" + id), 0) or Bus.strict_eq(vars.get("ui-" + id + "-state"), 0):
+		if Js.strict_eq(vars.get("ui-" + id), 0) or Js.strict_eq(vars.get("ui-" + id + "-state"), 0):
 			return false
 	if w.get("when") is Array:
 		var p = vars.get("phase")
-		var ph := int(p) if Bus.is_num(p) else 0
+		var ph := int(p) if Js.is_num(p) else 0
 		var hit := false
 		for k in w["when"]:
 			if int(k) == ph:
@@ -228,7 +229,7 @@ static func _clock(n: float) -> String:
 
 static func _fmt_delta(n: float) -> String:
 	var r := roundf(n * 100.0) / 100.0
-	return ("+" if r > 0 else "") + Bus.num_str(r)
+	return ("+" if r > 0 else "") + Js.num_str(r)
 
 
 # hud-widgets.js hudSubst: {name} reads a var (unknown: the braces stay), {event.<field>} the firing event,
@@ -249,13 +250,13 @@ static func subst(text: String, vars: Dictionary, ctx: Dictionary = {}) -> Strin
 		var v = null
 		if key.begins_with("event."):
 			v = (ctx.get("event", {}) as Dictionary).get(key.substr(6))
-			out += text.substr(i, a - i) + (Bus.js_string(v) if v != null else "")
+			out += text.substr(i, a - i) + (Js.js_string(v) if v != null else "")
 		elif key == "delta" or key == "value":
 			v = ctx.get(key)
-			out += text.substr(i, a - i) + (Bus.js_string(v) if v != null else "")
+			out += text.substr(i, a - i) + (Js.js_string(v) if v != null else "")
 		else:
 			v = vars.get(key)
-			out += text.substr(i, a - i) + (Bus.js_string(v) if v != null and not Bus.strict_eq(v, Bus.UNDEF) else text.substr(a, b - a + 1))
+			out += text.substr(i, a - i) + (Js.js_string(v) if v != null and not Js.strict_eq(v, Js.UNDEF) else text.substr(a, b - a + 1))
 		i = b + 1
 	return out
 
@@ -298,7 +299,7 @@ func sync(vars: Dictionary, log: Array, from: int, incoming: Array, t: float) ->
 		if it.has("until") and it["until"] <= t:
 			stands = false
 		el.visible = stands
-		var st = UI_STATES[int(vars.get("ui-%s-state" % w["id"]))] if w.get("id") is String and Bus.is_num(vars.get("ui-%s-state" % w["id"])) and int(vars.get("ui-%s-state" % w["id"])) < UI_STATES.size() else null
+		var st = UI_STATES[int(vars.get("ui-%s-state" % w["id"]))] if w.get("id") is String and Js.is_num(vars.get("ui-%s-state" % w["id"])) and int(vars.get("ui-%s-state" % w["id"])) < UI_STATES.size() else null
 		el.modulate = Color(1, 1, 1, 0.4) if st == "disabled" else Color(1, 1, 1, 1)
 		var border: Color = Color.html(SEMANTIC["harm"]) if st == "alert" else tok["accent"] if st == "focus" or st == "active" else Color(0, 0, 0, 0)
 		if it.get("st") != st:
@@ -306,18 +307,18 @@ func sync(vars: Dictionary, log: Array, from: int, incoming: Array, t: float) ->
 			el.add_theme_stylebox_override("panel", plate_style(border))
 		if it.has("val"):
 			var raw = vars.get(w.get("var"))
-			var n = raw if raw != null and not Bus.strict_eq(raw, Bus.UNDEF) else 0
+			var n = raw if raw != null and not Js.strict_eq(raw, Js.UNDEF) else 0
 			var text := ""
 			if it.has("fill"):
 				var mx = vars.get(w["max"], 0) if w.get("max") is String else w.get("max", 0)
-				var mxf := float(mx) if Bus.is_num(mx) else 0.0
-				var nf := float(n) if Bus.is_num(n) else 0.0
+				var mxf := float(mx) if Js.is_num(mx) else 0.0
+				var nf := float(n) if Js.is_num(n) else 0.0
 				(it["fill"] as ProgressBar).value = clampf(nf / mxf, 0.0, 1.0) if mxf > 0 else 0.0
 				text = "%d/%d" % [int(ceil(nf)), int(ceil(mxf))]
 			elif w.get("as") == "clock":
-				text = _clock(float(n) if Bus.is_num(n) else 0.0)
+				text = _clock(float(n) if Js.is_num(n) else 0.0)
 			else:
-				text = Bus.js_string(n)
+				text = Js.js_string(n)
 			if it["val"].text != text:
 				it["val"].text = text
 	# the log since the last frame: banners fire (replace), event toasts spawn
@@ -327,14 +328,14 @@ func sync(vars: Dictionary, log: Array, from: int, incoming: Array, t: float) ->
 			continue
 		for it in items:
 			var w: Dictionary = it["w"]
-			if w.get("kind") == "banner" and bus.glob(ev["type"], w.get("on")) and on(w, vars):
+			if w.get("kind") == "banner" and Js.glob(ev["type"], w.get("on")) and on(w, vars):
 				it["text"].text = subst(String(w.get("text", "")), vars)
 				it["until"] = t + float(w.get("ttl", 2.0))
 				it["el"].visible = true
 				last_banner = it
 		for tw in toasts:
 			var w: Dictionary = tw["w"]
-			if w.get("on") is String and bus.glob(ev["type"], w["on"]) and on(w, vars):
+			if w.get("on") is String and Js.glob(ev["type"], w["on"]) and on(w, vars):
 				var src := {}
 				for k in range(incoming.size() - 1, -1, -1):
 					if incoming[k] is Dictionary and incoming[k].get("type") == ev["type"]:
@@ -347,7 +348,7 @@ func sync(vars: Dictionary, log: Array, from: int, incoming: Array, t: float) ->
 		if not (w.get("var") is String):
 			continue
 		var raw = vars.get(w["var"])
-		var v := float(raw) if Bus.is_num(raw) else 0.0
+		var v := float(raw) if Js.is_num(raw) else 0.0
 		if tw["prev"] == null:
 			tw["prev"] = v
 		elif v != tw["prev"]:

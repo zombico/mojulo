@@ -1,7 +1,8 @@
 -- mojulo — the player's side: the keys a level listens for, sent to the server's bus by the names the web page gives
 -- them (its KeyboardEvent.key: a letter in lower case, a digit, ' ', Enter, Escape, the arrows), and the words the
 -- server says (a level's title, its outcome) shown a moment at the top of the screen, and the level's HUD as words: its
--- readouts in their slots, its banners and toasts a moment in the centre.
+-- readouts in their slots, its banners and toasts a moment in the centre. The left mouse button is the fight's fire
+-- (held and let go, as the page's mouse), and a scene's line of dialogue shows in a box at the bottom while it plays.
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -11,6 +12,7 @@ local remotes = ReplicatedStorage:WaitForChild("MojuloRemotes")
 local keyRemote = remotes:WaitForChild("Key") :: RemoteEvent
 local sayRemote = remotes:WaitForChild("Say") :: RemoteEvent
 local hudRemote = remotes:WaitForChild("Hud") :: RemoteEvent
+local fireRemote = remotes:WaitForChild("Fire") :: RemoteEvent
 
 local NAMES = {
 	Space = " ", Return = "Enter", Escape = "Escape", Tab = "Tab", Backspace = "Backspace",
@@ -29,12 +31,25 @@ local function keyOf(code: Enum.KeyCode): string?
 end
 
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-	if processed or input.UserInputType ~= Enum.UserInputType.Keyboard then
+	if processed then
+		return
+	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		fireRemote:FireServer(true)
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.Keyboard then
 		return
 	end
 	local key = keyOf(input.KeyCode)
 	if key then
 		keyRemote:FireServer(key)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input: InputObject)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		fireRemote:FireServer(false)
 	end
 end)
 
@@ -108,8 +123,25 @@ local function line(parent: Instance, text: string, order: number): TextLabel
 	return l
 end
 
+-- the scene's text box: its line as it types on, at the bottom; empty, hidden
+local sceneBox = Instance.new("TextLabel")
+sceneBox.AnchorPoint = Vector2.new(0.5, 1)
+sceneBox.Position = UDim2.new(0.5, 0, 1, -40)
+sceneBox.Size = UDim2.new(0, 720, 0, 64)
+sceneBox.BackgroundColor3 = Color3.fromRGB(12, 16, 26)
+sceneBox.BackgroundTransparency = 0.1
+sceneBox.TextColor3 = Color3.fromRGB(223, 232, 248)
+sceneBox.TextSize = 20
+sceneBox.TextWrapped = true
+sceneBox.Font = Enum.Font.GothamMedium
+sceneBox.Visible = false
+sceneBox.Parent = gui
+
 hudRemote.OnClientEvent:Connect(function(what: string, payload)
-	if what == "lines" then
+	if what == "scene" then
+		sceneBox.Text = type(payload) == "string" and payload or ""
+		sceneBox.Visible = sceneBox.Text ~= ""
+	elseif what == "lines" then
 		for _, f in columns do
 			for _, c in f:GetChildren() do
 				if c:IsA("TextLabel") and c:GetAttribute("moment") ~= true then

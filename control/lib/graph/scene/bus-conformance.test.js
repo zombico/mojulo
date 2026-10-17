@@ -39,7 +39,7 @@ describe('the bus conformance corpus', () => {
     for (const k of ['"ne":', '"lte":', '"gt":', '"entity":', '"all":', '"any":', '"count":', '"do":"spawn"', '"do":"impulse"', '"do":"ctrl"', '"await":{"timer"', '"while":', '"walkers":', '"if":', '"budget":', '"depthCap":', 'event.missing']) {
       expect(text, k).toContain(k);
     }
-    expect(SCENARIOS.map((s) => s.id)).toEqual(['billiards', 'vault', 'storm', 'verbs', 'floats', 'undefined', 'numbers', 'guarded', 'reserved', 'text', 'text-order']);
+    expect(SCENARIOS.map((s) => s.id)).toEqual(['billiards', 'vault', 'storm', 'verbs', 'floats', 'undefined', 'numbers', 'guarded', 'reserved', 'text', 'text-order', 'glob-lines']);
     // words beyond ASCII reach the hash and the key order: an astral key sorts before a fullwidth one by code units
     const snap0 = (id) => runScenario(all.find((s) => s.id === id));
     expect(snap0('text').join('')).toMatch(/gem-[0-9a-z]+/);

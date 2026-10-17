@@ -5,7 +5,8 @@
  * compared character for character. The engine never sees the web's answer, and a planted bug in its kernel copy
  * must make some scenario unequal (the corpus is only as good as what it catches).
  *
- *   CORPORA[name]                   { module, kernel: [module id], web(scenarios, opts) → { [id]: [string] } }
+ *   CORPORA[name]                   { module, kernel: [module id], engines?, web(scenarios, opts) → { [id]: [string] } }
+ *     engines  the engines with a runner for it (absent: every engine with a runtime kernel)
  *     kernel   the kernel modules the corpus needs, by module id (the same map in every engine: runners.js names the
  *              file each id is in that engine)
  *   scenariosOf(name, opts)         the corpus's scenarios, as plain JSON (what the engine's runner reads)
@@ -42,6 +43,8 @@ export const CORPORA = Object.freeze({
   // a whole level over the track an engine's bodies walk: the bus in the page's order and the game channel
   level: {
     module: 'lib/graph/scene/level-conformance.js', kernel: ['bus', 'json', 'stats', 'game', 'level'],
+    // Godot's channel is kernel/game_channel.gd and its step is the runner's own (kernel/level.gd is the scene); the
+    // Roblox step is kernel/level.luau
     scenarios: (opts) => levelC.corpus(opts),
     web: (scenarios) => byId(scenarios, levelC.runLevel),
   },
@@ -60,6 +63,16 @@ export const CORPORA = Object.freeze({
       for (const j of scenesC.QUEST_SCENARIOS) out[j.id] = scenesC.runQuests(j, c.quests);
       return out;
     },
+  },
+  // a whole level with its cast, fight, minds and scenes over the pilot's fed poses (an engine whose own body is the
+  // pilot: a Roblox Humanoid): the bus and every other ruled body, frame by frame. The Roblox step is kernel/level.luau
+  // a whole level with its cast, fight and minds, the pilot fed from the web's run: the Roblox place's case (its player is
+  // a Humanoid); Godot's whole-level equality is its own harness (level-equivalence.godot.test.js)
+  levelcast: {
+    engines: ['roblox'],
+    module: 'lib/graph/scene/level-conformance.js', kernel: ['bus', 'json', 'stats', 'game', 'rules', 'nav', 'mind', 'group', 'cast', 'combat', 'scenes', 'quests', 'level'],
+    scenarios: () => levelC.castCorpus(),
+    web: (scenarios) => byId(scenarios, levelC.runLevelCast),
   },
 });
 

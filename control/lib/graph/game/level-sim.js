@@ -19,7 +19,9 @@
  * held (the world steps on).
  *
  * A MENU UP FREEZES THE WORLD, as the page's does (channels/interact-channel.js __syncMenus: a menu whose var is 1 is
- * open, read after the frame; the next frame's clock is 0 for the bus's timers and sagas and for the world's step).
+ * open, read after the bus): the world does not step at all while one is up (the page's stepControllable skips it; a
+ * zero dt would not do, stepWorld reads it as 1/60), from the step right after the bus that opened it, and the next
+ * frame's clock is 0 for the bus's timers and sagas.
  *
  * Deterministic: a fixed dt (1/30 s), the bus's own content order, the world's seeded rules.
  */
@@ -85,9 +87,10 @@ export function simLevel({ entities = [], events = {}, colliders, camera } = {},
       if (o.ops.length) E.castOps(world, o.ops);
       held = SR.view(scn).on;
     }
-    E.stepWorld(world, held ? {} : input, live, hooks);
-    t += live;
+    // the page reads its menus after the bus (__syncMenus) and steps no world while one is up
     frozen = menuVars.some((v) => bus.vars[v] === 1);
+    if (!frozen) E.stepWorld(world, held ? {} : input, live, hooks);
+    t += live;
   };
   const run = (seconds, at = {}) => {
     const due = Object.keys(at).map(Number).sort((a, b) => a - b);
