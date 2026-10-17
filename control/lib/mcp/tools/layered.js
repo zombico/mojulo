@@ -51,7 +51,7 @@ import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } 
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext } from '@/lib/graph/polygonizer/hero-dress';
-import { isArmorBuild, armorReadout, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
+import { isArmorBuild, armorReadout, armorFamily, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { MATERIAL_WORDS as STATUE_MATERIAL_WORDS, CROP_WORDS as STATUE_CROP_WORDS, BASE_WORDS as STATUE_BASE_WORDS } from '@/lib/graph/statue/principles';
@@ -82,6 +82,7 @@ import { targetError, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/
 import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
 import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
+import { dressSurfaces } from '@/lib/graph/materials/dress-materials';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
 import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
@@ -171,7 +172,16 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
 function expandHeroAwarePlan(plan, hero) {
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
-  return expandAware(plan, hero);
+  return withDressMaterials(expandAware(plan, hero), hero);
+}
+/** A hero whose `geocube` names `materials` wears them (materials/dress-materials.js): its armour, outfit and dress groups
+ * as `recipe.surfaces`, shaded as materials by the World page and the exporters. Absent: the recipe as it was. */
+function withDressMaterials(recipe, hero) {
+  if (!hero?.geocube) return recipe;
+  const M = readGeocube(hero.geocube).materials;
+  if (M === undefined || M === false) return recipe;
+  const surfaces = dressSurfaces({ palette: recipe.palette || {}, family: armorFamily(hero.adorn), overrides: M === true ? null : M });
+  return surfaces ? { ...recipe, surfaces } : recipe;
 }
 function statueRecipeOf(recipe, plan, hero) {
   const { recipe: carved, trace } = statueRecipe(recipe, plan, hero.statue, { female: femaleOf(hero) });

@@ -15,6 +15,11 @@ import { resolveMetalSurface, metalLut, LUT_A, DAMASCUS_TYPES } from '../../mate
 
 // the studio a metal reflects, in linear light: a dome (zenith → horizon), a darker ground, a softbox
 const STUDIO = { zen: [0.52, 0.55, 0.59], hor: [0.19, 0.2, 0.21], gnd: [0.06, 0.058, 0.056], box: [0.62, -0.62, 0.48], sunE: 0.18 };
+// a cube's world as the studio a metal reflects (`shade`): its sky over a daylit dome and horizon and its ground leaned
+// to GROUND_CHROMA of its chroma, at an outdoor scene's luminances rather than the studio's dim room
+const OUTDOOR = { zen: 0.62, hor: 0.42, gnd: 0.15 }, GROUND_CHROMA = 0.35, ZEN_CHROMA = 0.55, HOR_CHROMA = 0.25;
+// a colour's hue at a share of its chroma (its luminance kept): the lean a reflected sky or ground takes
+const leanOf = (c, k) => { const l = lum(c); return c.map((v) => l + k * (v - l)); };
 const lin = (c) => { const v = c > 1 ? c / 255 : c; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
 const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 const toLum = (c, L) => { const l = lum(c) || 1; return c.map((v) => +(v * L / l).toFixed(4)); };
@@ -40,7 +45,7 @@ function foldSurfaces(keys, parsed) {
   const kept = [...keep].sort((a, b) => a - b), slot = new Map(kept.map((i, j) => [i, j]));
   return { kept, to: keys.map((_, i) => (slot.has(i) ? slot.get(i) : slot.get(kept.find((k) => metalOf[k] === metalOf[i])))) };
 }
-export function metalChannelInputs(keys, { sky = null, unit = 1 } = {}) {
+export function metalChannelInputs(keys, { sky = null, unit = 1, shade = false, ground = null, air = null } = {}) {
   const metals = []; const rowOf = {}; let rows = 0;
   const all = keys.map((key) => resolveMetalSurface(JSON.parse(key)));
   const { kept, to } = foldSurfaces(keys, all), S = kept.map((i) => all[i]);
@@ -52,9 +57,18 @@ export function metalChannelInputs(keys, { sky = null, unit = 1 } = {}) {
       // a pattern-welded surface: [type, folds, scale, 0] for figure 8 (materials/damascus.js is the field's definition)
       ...(s.pattern ? { D: [DAMASCUS_TYPES.indexOf(s.pattern.type), s.pattern.folds, s.pattern.scale, 0] } : {}) }; });
   const tinted = sky && Array.isArray(sky.zenith) && sky.zenith.length >= 3 && Array.isArray(sky.horizon) && sky.horizon.length >= 3;
-  const zen = tinted ? toLum(sky.zenith.slice(0, 3).map(lin), lum(STUDIO.zen)) : STUDIO.zen, hor = tinted ? toLum(sky.horizon.slice(0, 3).map(lin), lum(STUDIO.hor)) : STUDIO.hor;
-  const gnd = tinted ? toLum(hor, lum(STUDIO.gnd)) : STUDIO.gnd;
-  return { index: Object.fromEntries(keys.map((k, i) => [k, to[i]])), unit: Number.isFinite(unit) && unit > 0 ? unit : 1, surfaces, lut: { h: rows, b64: Buffer.from(rgba).toString('base64') }, zen, hor, gnd, box: STUDIO.box, sunE: STUDIO.sunE, ...(kept.length < keys.length ? { folded: keys.length - kept.length } : {}) };
+  // (under a cube's `shade`: the cube's air, its sky's mean colour, where the page has no sky of its own)
+  const hexLin = (h) => (typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => lin(parseInt(h.slice(i, i + 2), 16))) : null);
+  const airC = shade && !tinted ? hexLin(air) : null, zL = shade ? OUTDOOR.zen : lum(STUDIO.zen), hL = shade ? OUTDOOR.hor : lum(STUDIO.hor);
+  const zen = tinted ? toLum(sky.zenith.slice(0, 3).map(lin), zL) : airC ? toLum(leanOf(airC, ZEN_CHROMA), zL) : shade ? toLum(STUDIO.zen, zL) : STUDIO.zen;
+  const hor = tinted ? toLum(sky.horizon.slice(0, 3).map(lin), hL) : airC ? toLum(leanOf(airC, HOR_CHROMA), hL) : shade ? toLum(STUDIO.hor, hL) : STUDIO.hor;
+  // `shade` (a cube's contrast `metal` term): the floor the metal reflects is the cube's own ground, a little brighter than
+  // the studio's dark floor, and the faces' vertex colour (their occlusion) multiplies the metal
+  const own = shade ? hexLin(ground) : null;
+  // (a lean, not a cast: the ground's hue at GROUND_CHROMA of its chroma, as the contrast's own hat() leans, so a green
+  // valley tints the steel's lower half without painting the plate green)
+  const gnd = own ? toLum(leanOf(own, GROUND_CHROMA), OUTDOOR.gnd) : shade ? toLum(hor, OUTDOOR.gnd) : tinted ? toLum(hor, lum(STUDIO.gnd)) : STUDIO.gnd;
+  return { index: Object.fromEntries(keys.map((k, i) => [k, to[i]])), unit: Number.isFinite(unit) && unit > 0 ? unit : 1, surfaces, lut: { h: rows, b64: Buffer.from(rgba).toString('base64') }, zen, hor, gnd, box: STUDIO.box, sunE: STUDIO.sunE, ...(kept.length < keys.length ? { folded: keys.length - kept.length } : {}), ...(shade ? { shade: true } : {}) };
 }
 // copper's age as the channel's two cover dials: the brown past interference, and the verdigris share
 function ageCover(age) { const d = 90 * Math.sqrt(Math.max(0, age) / 0.25); const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); }; return [+ss(110, 380, d).toFixed(4), +ss(4, 40, age).toFixed(4)]; }
@@ -153,6 +167,10 @@ const FRAG_MAIN = [
   '}',
   '#include <tonemapping_fragment>',
 ].join('\\n');
+// a cube's contrast `metal` term (inputs.shade): the face's vertex colour, the occlusion the contrast left on white,
+// multiplies the metal before it is tone-mapped; without it the shader is the one before
+const TONEMAP_AT = '  vec3 x = col * 1.1;';
+const SHADED_TONEMAP = '  #ifdef USE_COLOR\\n  col *= vColor.rgb;\\n  #endif\\n  vec3 x = col * 1.1;';
 
 export function metalChannelScript({ toLight, inputs }) {
   const S = inputs.surfaces.length;
@@ -178,7 +196,7 @@ const __metPatch = (m, grp) => {
     if (prev) prev.call(m.material, sh, r); Object.assign(sh.uniforms, __metUni);
     sh.vertexShader = 'attribute vec4 aMetT;\\nattribute float aMetD;\\nattribute vec3 aMetN;\\nattribute vec3 aMetP;\\nvarying vec4 vMetT;\\nvarying float vMetD;\\nvarying vec3 vMetWp;\\nvarying vec3 vMetN;\\nvarying vec3 vMetP;\\n' + sh.vertexShader.replace('#include <begin_vertex>',
       '#include <begin_vertex>\\nvMetWp = (modelMatrix * vec4(transformed, 1.0)).xyz; vMetT = vec4(normalize(mat3(modelMatrix) * aMetT.xyz), aMetT.w); vMetD = aMetD; vMetN = mat3(modelMatrix) * aMetN; vMetP = aMetP;');
-    sh.fragmentShader = '${FRAG_FNS}\\nuniform vec4 uMetA[${S}]; uniform vec4 uMetB[${S}]; uniform vec4 uMetC[${S}]; uniform vec4 uMetD[${S}];\\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>', '${FRAG_MAIN}');
+    sh.fragmentShader = '${FRAG_FNS}\\nuniform vec4 uMetA[${S}]; uniform vec4 uMetB[${S}]; uniform vec4 uMetC[${S}]; uniform vec4 uMetD[${S}];\\n' + sh.fragmentShader.replace('#include <tonemapping_fragment>', '${inputs.shade ? FRAG_MAIN.replace(TONEMAP_AT, SHADED_TONEMAP) : FRAG_MAIN}');
   };
   m.material.customProgramCacheKey = () => 'metal' + (prev ? String(prev) : '');
   m.material.needsUpdate = true;

@@ -18,6 +18,9 @@
  *             absent for none): the sky over, the ground under, the foot of a wall, crease and contact in the shade's
  *             colour, warm lit against cool shade, a slow drift of value. The land hands its crease and ridge to it
  *   surfaces  the patterns of the wall, the floor and the accent (surface-textures.js tile specs)
+ *   materials (optional) what the cube's people wear is made of: true (materials/dress-materials.js: plate as worked
+ *             steel, kanamono as gold, leather as leather, by the armour's family and each metal group's own tone),
+ *             or { <group>: <material> } over that; a hero takes it through its `geocube`. Absent: tones, as always
  *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall
  *   outside   the base (an isekai card), the landform's tiers and island, `land`: the polygon land's rules (with
  *             `mix`, `facet` and `valley`, local-meru/plan.js SHADING), `relief` (optional): the plain's own ground, a
@@ -53,6 +56,7 @@ import { DEFAULT_TARGET, readTarget } from './target.js';
 import { readContrast } from './vertex-contrast.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
+import { materialsErrors } from '../materials/dress-materials.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
 import { cubeColours } from '../color-theorist/adapters.js';
@@ -144,7 +148,8 @@ export const GEOCUBE_PRESETS = Object.freeze({
     light: { reference: 'island-noon', outsideFog: 1.6 },
     colour: { stone: '#b8aa8c', floor: '#9a7a58', trim: '#e6dcc4', accent: '#b8442c', grass: '#64a83a', foliage: '#3a7a32', water: '#3a8cb8', sand: '#d6c49a', shade: 236 },
     register: { steps: 0, key: 0.5 },
-    contrast: 'wii',
+    contrast: { from: 'wii', metal: 1 },
+    materials: true,
     surfaces: { wall: STONE, floor: FLAGS, accent: ROCK },
     inside: { bones: 'gothic-stone', size: [12, 12, 6], accentWall: '+y' },
     outside: { base: 'isekai-meadow', tiers: TWO_BASES, island: UPLAND_ISLE, land: UPLAND_LAND, ground: UPLAND },
@@ -155,6 +160,7 @@ export const GEOCUBE_PRESETS = Object.freeze({
       'The lit side warms toward the sun; the shade side cools.',
       'One accent, the red of the roofs; the upland green carries the rest.',
       'The ground is a terrain\'s own, at the level\'s scale: the mounds rise out of its swells, grass meets rock in a curve.',
+      'What people wear is made of something: plate is worked steel, gilt is gold, and metal sits in the same light as the stone.',
     ],
   },
 });
@@ -201,7 +207,7 @@ export function cubeBuildings(cube) {
 const HEX = /^#[0-9a-f]{6}$/i;
 const COLOURS = ['stone', 'floor', 'trim', 'accent', 'grass', 'foliage', 'water'];
 const WALLS = ['+x', '-x', '+y', '-y'];
-const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1, palette: 1 };
+const KEYS = { id: 1, title: 1, reads: 1, era: 1, target: 1, light: 1, colour: 1, register: 1, contrast: 1, surfaces: 1, inside: 1, outside: 1, why: 1, buildings: 1, palette: 1, materials: 1 };
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const merge = (a, b) => (isObj(a) && isObj(b) ? Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b)])].map((k) => [k, k in b ? merge(a[k], b[k]) : a[k]])) : b === undefined ? a : b);
 const no = (msg) => { throw new Error(`geocube: ${msg}`); };
@@ -279,6 +285,7 @@ export function readGeocube(spec) {
   if (!(c.register.key > 0 && c.register.key < 1)) no('register.key is the median value the tone brings the light to, 0..1');
   // contrast (optional): the shaping in the vertex; absent or false ⇒ none
   if (c.contrast !== undefined) { try { readContrast(c.contrast); } catch (e) { no(e.message); } }
+  if (c.materials !== undefined) { const e = materialsErrors(c.materials); if (e.length) no(e.join('; ')); }
   // surfaces
   only(c.surfaces, ['wall', 'floor', 'accent'], 'surfaces');
   for (const k of ['wall', 'floor', 'accent']) tileFamilyOf(c.surfaces[k], `geocube surfaces.${k}`);
@@ -458,6 +465,13 @@ export function cubeContrast(cube, side, { terrain, value = false } = {}) {
  */
 export function geocubeContrastOf(manifest, { value = false } = {}) {
   const m = manifest ?? {};
+  // a hero on a cube whose contrast names `metal`: its metal alone takes the cube's occlusion (`only: 'metal'`); the rest
+  // of it is lit by the cube's cast light, as before (era/cast-light.js)
+  if (m.kind === 'layered') {
+    if (!m.hero?.geocube) return null;
+    const cube = readGeocube(m.hero.geocube), C = readContrast(cube.contrast);
+    return C && C.metal > 0 ? { ...cubeContrast(cube, 'outside', { value }), only: 'metal' } : null;
+  }
   const spec = m.kind === 'geocube' ? m.cube : m.kind === 'city' ? m.paint?.geocube : m.geocube;
   if (spec === undefined || spec === null) return null;
   const cube = readGeocube(spec);

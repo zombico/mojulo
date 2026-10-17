@@ -14,6 +14,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Look materials: armour as material, metal in the cube's light
+
+- **`materials` on a geocube.** A hero whose `geocube` names a cube with `materials` wears real materials on its armour,
+  outfit and dress: plate as planished steel, a lamellar's kanamono as gold, leather as leather, a hardsuit as painted
+  satin, each metal group's metal read from the tone its card already wrote. `materials: { <group>: <material> }`
+  overrides one. Plate then shades as live metal on the World page, in its clips too (the rig pack carries the metal
+  channel per part), and exports as PBR. Absent, every hero is as before. The character-lit (anime) rig does not carry
+  metal yet.
+- **`contrast.metal`: metal in the cube's light.** Metal faces take the cube's occlusion (the foot of a wall, a crease,
+  contact) as a multiplier the live metal shader and the GLB carry, and the live metal reflects the cube's own world
+  (its sky over a daylit dome, its ground leaned toward grey) instead of the studio's dim room. A hero on such a cube
+  takes it on its metal alone. Absent, metal is shaded as it was. `upland-morning` turns both on.
+
 ### Sixth-gen land: ground, mix, facets, valley
 
 Four opt-in words on a local meru (and a geocube's outside), each absent unless asked, so every cube and stage

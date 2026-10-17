@@ -429,7 +429,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const vc = geocubeContrastOf(sketch.manifest, { value: !!payload.tone });
     if (vc) {
       payload.vertexContrast = vc;
-      if (vc.contact > 0 && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
+      // (a hero's metal-only shaping asks no bake: its plate takes the foot and the crease, its body keeps its light)
+      if (vc.contact > 0 && !vc.only && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
     }
   }
 

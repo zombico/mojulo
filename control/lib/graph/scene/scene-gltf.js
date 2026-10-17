@@ -1308,7 +1308,9 @@ export function facesToGlb(payload = {}, { generator, clips = null, skinned = fa
     }
     let metIdx = 0;
     for (const [key, bucket] of metalBuckets) {
-      const bm = faceListToMesh(bucket.map(({ metal, ...f }) => ({ ...f, fill: '#ffffff', cornerFills: undefined, vao: undefined })), { decollide: false, withNormals: true });
+      // a metal face a cube's contrast shaped (`metalShade`) keeps its occlusion as COLOR_0, which glTF multiplies into the
+      // metal's base colour; any other is white, the material carrying the metal alone
+      const bm = faceListToMesh(bucket.map(({ metal, metalShade, ...f }) => (metalShade ? { ...f, vao: undefined } : { ...f, fill: '#ffffff', cornerFills: undefined, vao: undefined })), { decollide: false, withNormals: true });
       if (!bm.positions.length) continue;
       const surface = resolveMetalSurface(JSON.parse(key)); const nodeName = metalBuckets.size > 1 ? `${name}:metal${metIdx++}` : `${name}:metal`;
       const mat = b.pbrMaterial({ metallic: 1, roughness: Math.max(0.05, surface.roughness), baseColor: surface.normal.map((v) => +v.toFixed(4)), alpha: groupAlpha, name: nodeName });

@@ -897,9 +897,13 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // metal (metal-surfaces S3): emitted only when some group carries metal faces — one studio, one lookup texture and
   // one program for every metal surface on the page, the studio's dome tinted by the scene's sky when it has one.
   // Absent → zero bytes.
-  const metKeys = [...new Set(groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces))].sort();
+  // (and a rigged figure's bone parts that carry metal: a hero wearing its cube's materials, rig-bake.js `metal`)
+  const rigMetal = Object.values(packedFigures).flatMap((f) => (f && f.rig === true && Array.isArray(f.parts) ? f.parts.flatMap((p) => (p && p.metal ? p.metal.surfaces : [])) : []));
+  const metKeys = [...new Set([...groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces), ...rigMetal])].sort();
   const metalBlock = metKeys.length ? metalChannelScript({ toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight,
-    inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit }) }) : '';
+    inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit,
+      // a cube's contrast with its `metal` term: the metal multiplies in the occlusion its faces carry, over the cube's ground
+      ...(vertexContrast && vertexContrast.metal > 0 ? { shade: true, ground: vertexContrast.ground, air: vertexContrast.sky } : {}) }) }) : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: blendBlock + waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,

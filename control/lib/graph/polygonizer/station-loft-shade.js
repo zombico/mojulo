@@ -45,6 +45,7 @@ import { layeredSeat } from './station-loft-faces.js';
 import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
 import { faceHex } from './face-hex.js';
+import { resolveMaterial, tagFacesWithMaterial } from './materials.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -823,7 +824,19 @@ export function characterLitFaces(mesh, recipe = {}, { light = ANIME_CHARACTER_L
   const P = pieces || characterLitPieces(mesh, { light, normals: normals || layeredShadingNormals(mesh, recipe), palette: recipe.palette, dz: layeredSeat(mesh, seat), glows: recipe.emissive });
   // `paint` (face-paint.js facePaintOf): a piece of a painted face carries the texture, its corners' [s, t] and its fill as
   // the light alone (texel × light on the page); absent ⇒ every face as before
-  return P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }), tex = paint?.painted(c.fi); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: tex ? paint.light(c.fill) : c.fill, ...(c.soft ? { cornerFills: tex ? c.soft.map(paint.light) : c.soft } : {}), group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}), ...(tex ? { texture: paint.key, uv: c.refs.map(paint.uvAt), textureLit: true } : {}) }; });
+  const faces = P.map((c) => { const layer = drawLayer(mesh, c, { hairInk }), tex = paint?.painted(c.fi); return { corners: c.refs.map((r) => [r.p[0], r.p[1], r.p[2]]), fill: tex ? paint.light(c.fill) : c.fill, ...(c.soft ? { cornerFills: tex ? c.soft.map(paint.light) : c.soft } : {}), group: group || c.part, outNormal: [...c.outNormal], ...(c.mark ? { noInk: true } : {}), ...(layer ? { layer } : {}), ...(tex ? { texture: paint.key, uv: c.refs.map(paint.uvAt), textureLit: true } : {}) }; });
+  // `recipe.surfaces` (group → material, as layeredFaces reads it): each piece of a group that has one carries its
+  // material's channel keys (a metal's `metal`, a shelf row's `spec` / `pbr`); the toon fill stays. Absent ⇒ as before
+  if (recipe.surfaces && typeof recipe.surfaces === 'object') {
+    const glow = new Set(Array.isArray(recipe.emissive) ? recipe.emissive : []), mats = new Map();
+    P.forEach((c, k) => {
+      const g = mesh.groups[c.fi]; if (glow.has(g) || faces[k].texture) return;
+      const spec = recipe.surfaces[g] ?? recipe.surfaces['*']; if (!spec) return;
+      if (!mats.has(g)) mats.set(g, resolveMaterial(spec));
+      tagFacesWithMaterial([faces[k]], mats.get(g));
+    });
+  }
+  return faces;
 }
 
 // ─── the draw layers ──────────────────────────────────────────────────────

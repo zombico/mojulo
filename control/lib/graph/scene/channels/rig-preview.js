@@ -52,6 +52,10 @@ export function rigPreviewChannelScript(previews, bank, { toonInk = null, layers
   // controllable channel's __rimPatch by design — this channel never depends on the controllable
   // block being emitted. No rim anywhere ⇒ both interpolations are '' ⇒ byte-identical page.
   const hasRim = Object.values(bank || {}).some((f) => f && Array.isArray(f.rim));
+  // metal (a hero wearing its cube's materials): a bone part carrying `metal` takes the metal channel's patch, as a
+  // static group does. No metal part ⇒ '' ⇒ byte-identical
+  const metalHook = Object.values(bank || {}).some((f) => f && Array.isArray(f.parts) && f.parts.some((p) => p && p.metal))
+    ? `\n    if (part.metal && typeof __metPatch === 'function') __metPatch(mesh, part);` : '';
   const rimBlock = hasRim ? `
 const __rpRim = (m, rim) => {
   const prev = m.material.onBeforeCompile;
@@ -191,7 +195,7 @@ ${painted ? `function __rpTex(fig) {   // the painted face's atlas, once per fig
     const map = fig.paintTex && part.uv ? __rpTex(fig) : null;
     if (map) geo.setAttribute('uv', new THREE.BufferAttribute(decodeF32(part.uv), 2));` : ''}
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${painted ? ', ...(map ? { map } : {})' : ''} }));${rimHook}${inkHook}${layerHook}
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide${painted ? ', ...(map ? { map } : {})' : ''} }));${metalHook}${rimHook}${inkHook}${layerHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;
     group.add(mesh);
