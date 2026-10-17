@@ -68,11 +68,18 @@ describe('the shell', () => {
 });
 
 describe('the floors wear their faces\' looks', () => {
-  it('the slabs are the same with a look as without: each wears the look most of its cells carry', () => {
+  it('the slabs cover the same cells at the same heights with a look as without, split where the look changes', () => {
     const faces = [quad(0, 0, 3, 1, 0, { fill: '#ff0000' }), quad(3, 0, 4, 1, 0, { fill: '#0000ff' })];
     const plain = floorSlabs(faces), worn = floorSlabs(faces, { lookOf: (f) => faceLook(f) });
-    expect(worn.map(({ min, max }) => ({ min, max }))).toEqual(plain);
-    expect(worn[0].look.color).toEqual([1, 0, 0]);
+    expect(plain).toHaveLength(1);
+    expect(worn.map(({ min, max, look }) => ({ min, max, color: look.color }))).toEqual([
+      { min: [0, 0, -0.2], max: [3, 1, 0], color: [1, 0, 0] }, { min: [3, 0, -0.2], max: [4, 1, 0], color: [0, 0, 1] }]);
+  });
+
+  it('a ground\'s shadow decal never colours the floor', () => {
+    const soil = quad(0, 0, 2, 2, 0, { fill: '#7a5230' });
+    const worn = floorSlabs([soil, quad(0, 0, 1, 1, 0.01, { decal: true, group: 'trail:shadow' })], { lookOf: (f) => faceLook(f) });
+    expect(worn.every((s) => s.look.color.join() === faceLook(soil).color.join())).toBe(true);
   });
 
   it('with a look, the colliders are the physics only, unseen as on the page, and the look rides in the greybox', () => {
@@ -82,5 +89,28 @@ describe('the floors wear their faces\' looks', () => {
     expect(model.Children.find((c) => c.Name === 'wall-0').Properties.Transparency).toBe(1);
     expect(model.Children.find((c) => c.Name === 'Look').Children.length).toBe(look.boxes);
     expect(model.Children.find((c) => c.Name === 'floor-0').Properties.CanCollide).toBeUndefined();
+  });
+});
+
+describe('a blend tile over the ground', () => {
+  it('its look holds the cells it covers, as the page draws it on top; the slabs are the same', () => {
+    const soil = { corners: [[0, 0, 0], [4, 0, 0], [4, 1, 0], [0, 1, 0]], fill: '#7a5230' };
+    const grass = { corners: [[0, 0, 0], [3, 0, 0], [3, 1, 0], [0, 1, 0]], fill: '#4a8a30', blend: true };
+    const worn = floorSlabs([soil, grass], { lookOf: (f) => faceLook(f) });
+    expect(worn.map((s) => [s.min[0], s.max[0], s.look.color.join()])).toEqual([[0, 3, faceLook(grass).color.join()], [3, 4, faceLook(soil).color.join()]]);
+    // faded out (its corner alpha under a half), the tile lets the ground show through
+    const faded = floorSlabs([soil, { ...grass, cornerAlpha: [0.2, 0.2, 0.2, 0.2] }], { lookOf: (f) => faceLook(f) });
+    expect(faded[0].look.color).toEqual(faceLook(soil).color);
+  });
+
+  it('a tile floating a layer over its ground still colours it, and a faded one\'s own cells wear the ground', () => {
+    const soil = { corners: [[0, 0, 0], [4, 0, 0], [4, 1, 0], [0, 1, 0]], fill: '#7a5230' };
+    const grass = { corners: [[0, 0, 0.15], [4, 0, 0.15], [4, 1, 0.15], [0, 1, 0.15]], fill: '#4a8a30', blend: true };
+    const lookOf = (f) => faceLook(f);
+    const worn = floorSlabs([soil, grass], { lookOf });
+    expect(worn.map(({ min, max }) => ({ min, max }))).toEqual(floorSlabs([soil, grass]));
+    expect(worn.every((s) => s.look.color.join() === faceLook(grass).color.join())).toBe(true);
+    const faded = floorSlabs([soil, { ...grass, cornerAlpha: [0, 0, 0, 0] }], { lookOf });
+    expect(faded.every((s) => s.look.color.join() === faceLook(soil).color.join())).toBe(true);
   });
 });

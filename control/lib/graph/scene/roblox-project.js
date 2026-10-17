@@ -33,6 +33,7 @@ export const STUDS = 1 / 0.28;
 export const CELL = 0.5;
 export const LAYER = 0.1;
 const SLAB = 0.2;          // a floor slab's depth below its surface, metres
+const NEAR = 0.3;          // metres: how far a blend tile lies from the ground it colours
 const UP = 0.6;            // a face counts as floor when its normal's z is at least this
 const MAX_PARTS = 8000;    // above it, the floor grid coarsens (a vast terrain reads in bigger cells)
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;   // + 0: never a -0
@@ -42,73 +43,84 @@ export const toStuds = (p) => [r4(p[0] * STUDS), r4(p[2] * STUDS), r4(-p[1] * ST
 /** Every upward face, rastered: the cells whose centre it covers (and the cell of its centroid) at its height there,
  * quantized to LAYER; each height's cells merged into rectangles (runs along x, then equal runs down y). With `lookOf`
  * (face → { color, material, transparency? }: roblox-look.js faceLook) a cell takes the look of the first face to mark it
- * at that height and a slab wears the look most of its cells carry (a tie to the first in key order): the slabs merge by
- * height alone, so the look never coarsens what the player stands on. */
+ * at that height, a blend tile's over the ground it lies on (within NEAR) where the tile shows (its corner alpha there at
+ * least a half: the page draws the blend on top, faded per corner, so a meadow's grass over its soil and the path's soil
+ * through it; a ground's shadow decal never shows), and a faded tile's own cells the ground's look beneath; a run then
+ * breaks where the look changes, so the slabs cover the same cells at the same heights, in more rectangles. */
 export function floorSlabs(faces = [], { mpu = 1, cell = CELL, lookOf = null } = {}) {
   const layers = new Map();   // q → Set('ix,iy')
   const looks = new Map();    // look key → look
-  const cellLook = new Map(); // 'q:ix,iy' → look key, the first face's at that height
-  let look = null, lk = '';
-  const mark = (ix, iy, z) => {
+  const cellLook = new Map(); // 'q:ix,iy' → look key, the first ground face's at that height
+  const tiles = new Map();    // 'ix,iy' → [[z, look key, shows]] the blend tiles over that cell, in face order
+  let look = null, lk = '', blend = false;
+  const mark = (ix, iy, z, shows = true) => {
     const q = Math.round(z / LAYER), c = `${q}:${ix},${iy}`;
     (layers.get(q) || layers.set(q, new Set()).get(q)).add(`${ix},${iy}`);
-    if (lookOf && !cellLook.has(c)) cellLook.set(c, lk);
+    if (!lookOf) return;
+    if (blend) (tiles.get(`${ix},${iy}`) || tiles.set(`${ix},${iy}`, []).get(`${ix},${iy}`)).push([z, lk, shows]);
+    else if (!cellLook.has(c)) cellLook.set(c, lk);
+  };
+  // a cell's look: the first blend tile lying within NEAR of it where the tile shows, else the ground's there (at its
+  // height, or the nearest within NEAR: a tile floats a hair over its ground and may round to the next layer)
+  const lookAt = (q, ix, iy) => {
+    const z = q * LAYER, t = (tiles.get(`${ix},${iy}`) || []).find((e) => Math.abs(e[0] - z) <= NEAR);
+    if (t && t[2]) return t[1];
+    let g = cellLook.get(`${q}:${ix},${iy}`);
+    for (let d = 1; g === undefined && d <= Math.round(NEAR / LAYER); d++) g = cellLook.get(`${q - d}:${ix},${iy}`) ?? cellLook.get(`${q + d}:${ix},${iy}`);
+    return g ?? (t ? t[1] : undefined);
   };
   for (const f of faces) {
     const c = f && Array.isArray(f.corners) ? f.corners : null;
     if (!c || c.length < 3) continue;
-    if (lookOf) { look = lookOf(f); lk = `${look.color.join(',')}|${look.material}|${look.transparency ?? ''}`; if (!looks.has(lk)) looks.set(lk, look); }
+    if (lookOf) { look = lookOf(f); lk = `${look.color.join(',')}|${look.material}|${look.transparency ?? ''}`; blend = !!f.blend || !!f.decal; if (!looks.has(lk)) looks.set(lk, look); }
     for (let i = 1; i + 1 < c.length; i++) {
       const t = [c[0], c[i], c[i + 1]];
       if (!t.every((p) => Array.isArray(p) && p.length >= 3 && p.every(Number.isFinite))) continue;
       const [a, b, d] = t.map((p) => [p[0] * mpu, p[1] * mpu, p[2] * mpu]);
+      // a blend tile's fade at this triangle's corners (the page's per-corner alpha), else opaque; a decal never shows
+      const al = f.decal ? [0, 0, 0] : blend && Array.isArray(f.cornerAlpha) && f.cornerAlpha.length === c.length ? [f.cornerAlpha[0], f.cornerAlpha[i], f.cornerAlpha[i + 1]].map((x) => (Number.isFinite(x) ? x : 1)) : [1, 1, 1];
       const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = d[0] - a[0], vy = d[1] - a[1], vz = d[2] - a[2];
       const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, n = Math.hypot(nx, ny, nz);
       if (!(n > 1e-12) || Math.abs(nz) / n < UP) continue;   // either winding: a floor faces up or down the same
       const det = (b[1] - d[1]) * (a[0] - d[0]) + (d[0] - b[0]) * (a[1] - d[1]);
       if (Math.abs(det) < 1e-12) continue;
-      const height = (x, y) => {
+      // the height over (x, y) and the tile's alpha there, or null outside the triangle
+      const at = (x, y) => {
         const u = ((b[1] - d[1]) * (x - d[0]) + (d[0] - b[0]) * (y - d[1])) / det;
         const v = ((d[1] - a[1]) * (x - d[0]) + (a[0] - d[0]) * (y - d[1])) / det;
         const w = 1 - u - v;
-        return u < -1e-9 || v < -1e-9 || w < -1e-9 ? null : u * a[2] + v * b[2] + w * d[2];
+        return u < -1e-9 || v < -1e-9 || w < -1e-9 ? null : [u * a[2] + v * b[2] + w * d[2], u * al[0] + v * al[1] + w * al[2]];
       };
       const x0 = Math.floor(Math.min(a[0], b[0], d[0]) / cell), x1 = Math.floor(Math.max(a[0], b[0], d[0]) / cell);
       const y0 = Math.floor(Math.min(a[1], b[1], d[1]) / cell), y1 = Math.floor(Math.max(a[1], b[1], d[1]) / cell);
       let hit = false;
       for (let ix = x0; ix <= x1; ix++) {
         for (let iy = y0; iy <= y1; iy++) {
-          const z = height((ix + 0.5) * cell, (iy + 0.5) * cell);
-          if (z != null) { mark(ix, iy, z); hit = true; }
+          const h = at((ix + 0.5) * cell, (iy + 0.5) * cell);
+          if (h != null) { mark(ix, iy, h[0], h[1] >= 0.5); hit = true; }
         }
       }
       // a face smaller than a cell still stands somewhere: its centroid's cell
-      if (!hit) mark(Math.floor((a[0] + b[0] + d[0]) / 3 / cell), Math.floor((a[1] + b[1] + d[1]) / 3 / cell), (a[2] + b[2] + d[2]) / 3);
+      if (!hit) mark(Math.floor((a[0] + b[0] + d[0]) / 3 / cell), Math.floor((a[1] + b[1] + d[1]) / 3 / cell), (a[2] + b[2] + d[2]) / 3, (al[0] + al[1] + al[2]) / 3 >= 0.5);
     }
   }
   const slabs = [];
-  // the look most of a slab's cells carry (a tie to the first key in order)
-  const lookIn = (q, r) => {
-    const n = new Map();
-    for (let iy = r.y0; iy <= r.y1; iy++) for (let ix = r.x0; ix <= r.x1; ix++) { const k = cellLook.get(`${q}:${ix},${iy}`); n.set(k, (n.get(k) || 0) + 1); }
-    let best = null, bn = -1;
-    for (const k of [...n.keys()].sort()) if (n.get(k) > bn) { best = k; bn = n.get(k); }
-    return looks.get(best);
-  };
   for (const q of [...layers.keys()].sort((x, y) => x - y)) {
     const cells = layers.get(q);
     const rows = new Map();   // iy → sorted ix
     for (const k of cells) { const [ix, iy] = k.split(',').map(Number); (rows.get(iy) || rows.set(iy, []).get(iy)).push(ix); }
-    const open = new Map();   // 'x0,x1' → { x0, x1, y0, y1 } the run still growing down y
-    const close = (r) => slabs.push({ min: [r.x0 * cell, r.y0 * cell, q * LAYER - SLAB], max: [(r.x1 + 1) * cell, (r.y1 + 1) * cell, q * LAYER], ...(lookOf ? { look: lookIn(q, r) } : {}) });
+    const open = new Map();   // 'x0,x1,look' → { x0, x1, y0, y1, k } the run still growing down y
+    const close = (r) => slabs.push({ min: [r.x0 * cell, r.y0 * cell, q * LAYER - SLAB], max: [(r.x1 + 1) * cell, (r.y1 + 1) * cell, q * LAYER], ...(lookOf ? { look: looks.get(r.k) } : {}) });
     let prev = null;
     for (const iy of [...rows.keys()].sort((x, y) => x - y)) {
       const xs = rows.get(iy).sort((x, y) => x - y), runs = [];
-      for (let i = 0; i < xs.length; i++) { let j = i; while (j + 1 < xs.length && xs[j + 1] === xs[j] + 1) j++; runs.push([xs[i], xs[j]]); i = j; }
+      // a run: neighbouring cells of one look (without a look, of one height only)
+      const lk = lookOf ? xs.map((ix) => lookAt(q, ix, iy)) : null;
+      for (let i = 0; i < xs.length; i++) { let j = i; while (j + 1 < xs.length && xs[j + 1] === xs[j] + 1 && (!lk || lk[j + 1] === lk[i])) j++; runs.push([xs[i], xs[j], lk ? lk[i] : '']); i = j; }
       const next = new Map();
-      for (const [x0, x1] of runs) {
-        const key = `${x0},${x1}`, r = prev === iy - 1 ? open.get(key) : null;
-        if (r) { r.y1 = iy; open.delete(key); next.set(key, r); } else next.set(key, { x0, x1, y0: iy, y1: iy });
+      for (const [x0, x1, k] of runs) {
+        const key = `${x0},${x1},${k}`, r = prev === iy - 1 ? open.get(key) : null;
+        if (r) { r.y1 = iy; open.delete(key); next.set(key, r); } else next.set(key, { x0, x1, y0: iy, y1: iy, k });
       }
       for (const r of open.values()) close(r);
       open.clear();
@@ -140,8 +152,10 @@ const FLOOR = [0.64, 0.66, 0.7], WALL = [0.42, 0.45, 0.52];
  * unseen as on the page, and the look's decoration rides in the Model as its `Look` child. */
 export function greyboxModel({ faces = [], colliders = [], mpu = 1, lookOf = null, look = null }) {
   const walls = colliders.filter((c) => c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3);
-  let cell = CELL, floors = floorSlabs(faces, { mpu, cell, lookOf });
-  while (floors.length + walls.length > MAX_PARTS && cell < 8) { cell *= 2; floors = floorSlabs(faces, { mpu, cell, lookOf }); }
+  // the grid coarsens on the physics alone (the slabs merged by height), so a look never changes where the player stands
+  let cell = CELL;
+  while (floorSlabs(faces, { mpu, cell }).length + walls.length > MAX_PARTS && cell < 8) cell *= 2;
+  const floors = floorSlabs(faces, { mpu, cell, lookOf });
   const lookProps = (l) => (l ? { Material: l.material, ...(l.transparency ? { Transparency: l.transparency } : {}) } : {});
   const children = [
     ...floors.map((s, i) => partOf(`floor-${i}`, s.min, s.max, s.look ? s.look.color : FLOOR, lookProps(s.look))),
