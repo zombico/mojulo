@@ -35,6 +35,7 @@ import { meruMarks } from '../polygonizer/meru.js';
 import { LOCAL_MERU_PRESETS } from './presets.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from './ground.js';
+import { readCrystals } from './crystals.js';
 
 const r5 = (x) => Math.round(x * 1e5) / 1e5 + 0;
 const P = (p) => p.map(r5);
@@ -64,7 +65,7 @@ export const LOCAL_MERU = Object.freeze({
   tiers: [{ form: 'mound' }, { form: 'tower' }],
 });
 
-const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1, island: 1, shading: 1, relief: 1, ground: 1 };
+const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, mound: 1, path: 1, tower: 1, island: 1, shading: 1, relief: 1, ground: 1, crystals: 1 };
 
 /**
  * ISLAND (`island: true | { … }`, opt-in): the plain becomes an island in a sea. Past `shore` metres from the first
@@ -93,6 +94,9 @@ const KEYS = { id: 1, after: 1, going: 1, approach: 1, preset: 1, tiers: 1, moun
  * the datum, so it only rises from the plain. The seam eases into it as into the relief; the mounds rise over it.
  */
 /**
+ * CRYSTALS (`crystals: '<gem>' | { gem, where?, count?, size?, glow?, seed? }`, opt-in): seeded clusters of real gems out
+ * of the cliff faces or in the ground's hollows, off the walks (crystals.js).
+ *
  * SHADING (`shading: true | { … }`, opt-in): the land lit by polygons. Cliffs and boulders are baked like the ground,
  * not drawn as a lit and a shaded tile; rock is lit once per facet; ground, sand and trail are smoothed across the
  * grid (each corner lit by the mean normal round it); the land keeps its continuous light (no lock to the card's
@@ -152,7 +156,7 @@ function tiersOfOld(recipe) {
 
 /** A recipe read against the defaults; anything it does not know is refused with what it does. */
 export function readLocalMeru(recipe = {}) {
-  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers, island, shading, relief, ground)`);
+  for (const k of Object.keys(recipe)) if (!KEYS[k]) throw new Error(`local-meru: '${k}' is not a setting (settings: id, after, going, approach, preset, tiers, island, shading, relief, ground, crystals)`);
   if (recipe.island !== undefined && recipe.after) throw new Error('local-meru: an island stands alone in its sea; it follows no trail (drop after, or island)');
   const old = recipe.mound || recipe.path || recipe.tower;
   if (old && recipe.tiers) throw new Error('local-meru: say the level as `tiers`, or as mound/path/tower, not both');
@@ -199,8 +203,8 @@ export function readLocalMeru(recipe = {}) {
   const approach = o.approach ?? null;
   if (approach !== null && !(approach >= 0)) throw new Error("local-meru: approach must be metres at or above 0 (null: clear of the first tier's foot)");
   const island = readIsland(recipe.island), shading = readShading(recipe.shading), relief = recipe.relief === undefined || recipe.relief === false ? null : readRelief(recipe.relief);
-  const ground = readGround(recipe.ground);
-  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers, ...(island ? { island } : {}), ...(shading ? { shading } : {}), ...(relief ? { relief } : {}), ...(ground ? { ground } : {}) };
+  const ground = readGround(recipe.ground), crystals = readCrystals(recipe.crystals);
+  return { id: recipe.id || 'meru', after: recipe.after || null, going: { ...LOCAL_MERU.going, ...(recipe.going || {}) }, approach, tiers, ...(island ? { island } : {}), ...(shading ? { shading } : {}), ...(relief ? { relief } : {}), ...(ground ? { ground } : {}), ...(crystals ? { crystals } : {}) };
 }
 
 /**

@@ -14,6 +14,17 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Level age and crystals: a cube's metal tells its age, its land grows crystals
+
+- **`materials: { age }`.** A cube's materials take an age, `new`, `worn`, `old` or `ancient`: copper, brass and bronze
+  tarnish brown and then turn verdigris green by their measured film law, and steel dulls and then blackens to forged
+  scale. The painted tone of each aged group follows, so the toon light, the paint and the live metal agree. A group the
+  cube names ages too, unless it names its own film or finish. Gold does not age. Absent, metal is bright, as before.
+- **`outside.crystals`.** A cube's island grows crystals: `'amethyst'`, or `{ gem, where: 'crags' | 'hollows', count,
+  size, glow, seed }`. Seeded clusters stand out of the cliff faces or sit in the land's hollows, off the trail and the
+  seam. They are real gems (the crystal channel shades them live, each throwing its own light, and the GLB carries them
+  as see-through). Absent, the land is as before.
+
 ### Look materials: armour as material, metal in the cube's light
 
 - **`materials` on a geocube.** A hero whose `geocube` names a cube with `materials` wears real materials on its armour,

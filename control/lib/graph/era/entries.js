@@ -39,7 +39,9 @@ import { ISEKAI_GARDEN } from './style/isekai-garden.js';
 // 4000 -> 4600 (2026-10-17): the geocube card took its `outside` line (relief, ground and the land words mix, facet,
 // valley had no line on the card) and the upland-morning preset; it stood at 3999 before them
 // 4600 -> 4800 (2026-10-17): the geocube card took its `materials` line and contrast's `metal` term (look materials)
-export const STAGE_CARD_BODY_CEILING = 4800;
+// 4800 -> 5000 (2026-10-17): the geocube card took `materials.age` and `outside.crystals` (level age and crystals);
+// it stood at 4873 with them
+export const STAGE_CARD_BODY_CEILING = 5000;
 
 // the open-ground kits name their style card by id (kit.style); the room kits carry theirs as `dress`
 const GROUND_STYLES = Object.fromEntries([NATURE_TRAIL, JUNGLE_MGS3, ISEKAI_MEADOW, ISEKAI_BAMBOO, ISEKAI_SAKURA, ALIEN_NIGHT, AIRLESS_PLAIN, ISEKAI_GARDEN].map((s) => [s.id, s]));
@@ -250,11 +252,11 @@ export function geocubeCard() {
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
     '  register  { steps (0 continuous … 8 bands), key (the median value, 0..1) }',
     '  contrast? "wii" | { from?, hemi, foot, crevice, ridge, contact, warmCool, variation, metal } | false: Wii-era shading in the vertex (metal: metal takes the occlusion too)',
-    '  materials? true | { <group>: <material> }: what its people wear is made of (plate as worked steel, kanamono as gold, leather); a hero takes it through its geocube',
+    '  materials? true | { age?, <group>: <material> }: what its people wear is made of (plate as worked steel, kanamono as gold, leather); age new | worn | old | ancient tarnishes bronze to verdigris, blackens steel; a hero takes it through its geocube',
     '  palette   a pick_palette spec: the color theorist decides the colours, seeded where the cube is stored (a preset\'s character with it); the solve writes colour, shade, register.key, the moon and light.sky. A colour you write is a lock; trim, water and sand stay as written. false: as written. A gameworld\'s style.palette is its levels\' cubes\', and a world on a cube alone takes the cube\'s for its HUD.',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
     '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',
-    '  outside   { base (an isekai card), tiers, island, land (LAND RULES), relief? rolling | craggy | eroded | terraced | dune | { from, … }, ground? { from: <painted-landscape: heartbeat, splatch, seed>, span (m; 40–60 reads at a level\'s scale), height (m) }, terrain?, terrains? }',
+    '  outside   { base (an isekai card), tiers, island, land (LAND RULES), relief? rolling | craggy | eroded | terraced | dune | { from, … }, ground? { from: <painted-landscape: heartbeat, splatch, seed>, span (m; 40–60 reads at a level\'s scale), height (m) }, crystals? <gem> | { gem, where: crags | hollows, count, size (m), glow }, terrain?, terrains? }',
      'SHADOWS    the inside\'s: { torch: "off" | "hard" | "soft", sun: soft edge degrees, cells: metres }; a cube gives hard torch shadows, a 1.5° sun and half-metre cells. Any stage can take them.',
     'LAND RULES polygon only, from the land\'s shape: crevice darkens what is concave toward the cube\'s shade colour (never black); ridge lifts a convex lip; blend carries a neighbouring surface\'s colour over a seam. Rock takes no pixels. Opt-in: mix (m) surfaces mixed per corner, facet (m) rock in planes, valley (0..1) hollows darken.', '',
     'PRESETS', ...Object.values(P).map((c) => `  - ${c.id}: ${c.reads}; ${c.light.reference} light, ${c.inside.bones} bones, ${c.outside.base} land`), '',

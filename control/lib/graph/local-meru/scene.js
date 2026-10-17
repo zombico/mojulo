@@ -31,6 +31,7 @@ import { gridX, gridY, landformGrid, bakeGrid, applyLandform, gridSample } from 
 import { bakeLand, ruleLand } from './shading.js';
 import { reliefField, reliefGrain } from '../noise/relief.js';
 import { groundField } from './ground.js';
+import { crystalSites, landCrystalFaces } from './crystals.js';
 import { planLocalMeru, localMeruLaws, moundHeightAt, moundRadius, planFactor } from './plan.js';
 
 const TAU = Math.PI * 2;
@@ -494,7 +495,13 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
   } else baked = bakeStageLight(plain, [], ambient, undefined, sun);
   // sand takes the trail's ramp: a card has no sand of its own yet
   const lockOf = (g) => st.lock[g === 'isekai:sand' ? 'isekai:trail' : g];
-  const faces = [...land, ...lockFaces([...baked, ...cel], (f) => made.ramps[f.group] || (lockOf(f.group) ? st.palette[lockOf(f.group)] : null)), ...(S ? seaFaces(st, S, heightAt, ground.grid) : [])];
+  // the land's crystals (`crystals`): live gems out of its crags or in its hollows, off the walks and the seam; unbaked
+  const CR = p.recipe.crystals, gems = CR ? landCrystalFaces(CR, crystalSites(CR, ground.faces, { seed,
+    valley: CR.where === 'hollows' ? valleyOf(ground.grid) : null,
+    avoid: [...walk.faces, ...walk.wall].map((f) => mean(f.corners)),
+    // the boulders' rule: clear of the seam, and off the trail's own ground; on an island, over the sea
+    keep: (q) => Math.abs((q[0] - p.join.at[0]) * -p.join.N[1] + (q[1] - p.join.at[1]) * p.join.N[0]) >= 3 && !(p.join.site && q[1] < p.join.site.D + 2) && !(S && q[2] < S.sea + 1) })) : [];
+  const faces = [...land, ...lockFaces([...baked, ...cel], (f) => made.ramps[f.group] || (lockOf(f.group) ? st.palette[lockOf(f.group)] : null)), ...(S ? seaFaces(st, S, heightAt, ground.grid) : []), ...gems];
   const cutouts = [...new Set(faces.filter((f) => /^isekai:.*:(blades)-/.test(f.texture || '')).map((f) => f.texture))].sort();
   // the frames: from the seam to the top; the whole level from off its flank; at each climb; from the top back
   const J = p.join, eye = [J.at[0], J.at[1], J.at[2] + 1.7], top = p.top, sky = st.palette.sky;
@@ -520,7 +527,8 @@ export function assembleLocalMeruScene(manifest = {}, ctx = {}) {
     localMeru: {
       id: `local-meru:${p.recipe.id}`, ...(J.from ? { after: J.from } : {}),
       tiers: p.tiers.map((t) => ({ id: t.id, form: t.form, up: t.up.via, base: t.base, top: t.top })),
-      meru: p.meru.stack, made: { kit: made.kitId, tokens: made.tokens }, ...(p.recipe.relief ? { relief: p.recipe.relief.id } : {}), ...(p.recipe.ground ? { ground: { heartbeat: p.recipe.ground.from.heartbeat ?? null, span: p.recipe.ground.span, height: p.recipe.ground.height } } : {}),
+      meru: p.meru.stack, made: { kit: made.kitId, tokens: made.tokens }, ...(p.recipe.relief ? { relief: p.recipe.relief.id } : {}),
+      ...(CR ? { crystals: { gem: CR.gem, where: CR.where, stones: new Set(gems.map((f) => f.crystal.stone)).size } } : {}), ...(p.recipe.ground ? { ground: { heartbeat: p.recipe.ground.from.heartbeat ?? null, span: p.recipe.ground.span, height: p.recipe.ground.height } } : {}),
       laws: localMeruLaws(p).map(({ law, ok, value }) => ({ law, ok, value })),
     },
   };

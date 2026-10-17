@@ -82,7 +82,7 @@ import { targetError, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/
 import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
 import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
-import { dressSurfaces } from '@/lib/graph/materials/dress-materials';
+import { dressSurfaces, agedTones } from '@/lib/graph/materials/dress-materials';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
 import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
@@ -175,13 +175,16 @@ function expandHeroAwarePlan(plan, hero) {
   return withDressMaterials(expandAware(plan, hero), hero);
 }
 /** A hero whose `geocube` names `materials` wears them (materials/dress-materials.js): its armour, outfit and dress groups
- * as `recipe.surfaces`, shaded as materials by the World page and the exporters. Absent: the recipe as it was. */
+ * as `recipe.surfaces`, shaded as materials by the World page and the exporters, at the cube's `age`. Absent: the recipe
+ * as it was. */
 function withDressMaterials(recipe, hero) {
   if (!hero?.geocube) return recipe;
   const M = readGeocube(hero.geocube).materials;
   if (M === undefined || M === false) return recipe;
   const surfaces = dressSurfaces({ palette: recipe.palette || {}, family: armorFamily(hero.adorn), overrides: M === true ? null : M });
-  return surfaces ? { ...recipe, surfaces } : recipe;
+  // an aged level (`materials: { age }`) repaints its aged groups' tones toward the aged metal
+  const aged = surfaces && M !== true ? agedTones(recipe.palette || {}, surfaces, M.age) : null;
+  return surfaces ? { ...recipe, ...(aged ? { palette: { ...recipe.palette, ...aged } } : {}), surfaces } : recipe;
 }
 function statueRecipeOf(recipe, plan, hero) {
   const { recipe: carved, trace } = statueRecipe(recipe, plan, hero.statue, { female: femaleOf(hero) });

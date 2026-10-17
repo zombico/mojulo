@@ -20,12 +20,15 @@
  *   surfaces  the patterns of the wall, the floor and the accent (surface-textures.js tile specs)
  *   materials (optional) what the cube's people wear is made of: true (materials/dress-materials.js: plate as worked
  *             steel, kanamono as gold, leather as leather, by the armour's family and each metal group's own tone),
- *             or { <group>: <material> } over that; a hero takes it through its `geocube`. Absent: tones, as always
+ *             or { age?, <group>: <material> } over that (`age`: new, worn, old or ancient: copper alloys tarnish
+ *             and turn green, steel dulls and blackens); a hero takes it through its `geocube`. Absent: tones, as always
  *   inside    the bones (a room kit, bare), the specimen room's size, the accent wall
  *   outside   the base (an isekai card), the landform's tiers and island, `land`: the polygon land's rules (with
  *             `mix`, `facet` and `valley`, local-meru/plan.js SHADING), `relief` (optional): the plain's own ground, a
- *             relief card or { from, …changes } (noise/relief.js), and `ground` (optional): a terrain world's field
- *             under the plain ({ from: <painted-landscape recipe>, span?, height?, at? }, local-meru/ground.js); and
+ *             relief card or { from, …changes } (noise/relief.js), `ground` (optional): a terrain world's field
+ *             under the plain ({ from: <painted-landscape recipe>, span?, height?, at? }, local-meru/ground.js),
+ *             `crystals` (optional): gems grown out of its crags or in its hollows (a gem's name, or { gem, where?,
+ *             count?, size?, glow?, seed? }, local-meru/crystals.js); and
  *             its TERRAINS: the cube's own outside is one (named by `terrain`, 'default' unless named), `terrains`
  *             the others, each a few changes to it ({ reads?, base?, land?, relief?, ground?, colour? }: a shore, a highland). A level
  *             asks for one, or its heartbeat names the one it was made for, and the answer says which it got
@@ -56,6 +59,7 @@ import { DEFAULT_TARGET, readTarget } from './target.js';
 import { readContrast } from './vertex-contrast.js';
 import { readRelief } from '../noise/relief.js';
 import { readGround } from '../local-meru/ground.js';
+import { readCrystals } from '../local-meru/crystals.js';
 import { materialsErrors } from '../materials/dress-materials.js';
 import { sunDir } from './sun.js';
 import { solvePalette, readPaletteSpec } from '../color-theorist/solve.js';
@@ -296,9 +300,10 @@ export function readGeocube(spec) {
   if (!(Array.isArray(c.inside.size) && c.inside.size.length === 3 && c.inside.size.every((v) => v >= 3 && v <= 40))) no('inside.size is [w, d, h] metres, each 3..40');
   if (!WALLS.includes(c.inside.accentWall)) no(`inside.accentWall is one of ${WALLS.join(', ')}`);
   // outside
-  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'terrain', 'terrains'], 'outside');
+  only(c.outside, ['base', 'tiers', 'island', 'land', 'relief', 'ground', 'crystals', 'terrain', 'terrains'], 'outside');
   if (c.outside.relief !== undefined) reliefOrNo(c.outside.relief, 'outside.relief');
   if (c.outside.ground !== undefined) groundOrNo(c.outside.ground, 'outside.ground');
+  if (c.outside.crystals !== undefined) { try { readCrystals(c.outside.crystals); } catch (e) { no(`outside${e.message.replace(/^local-meru: /, '.')}`); } }
   if (c.outside.terrain !== undefined && !(typeof c.outside.terrain === 'string' && /^[a-z][a-z0-9-]{0,31}$/.test(c.outside.terrain))) no('outside.terrain is the name of the cube\'s own terrain, a lowercase slug');
   if (c.outside.terrains !== undefined) {
     if (!isObj(c.outside.terrains)) no('outside.terrains is { <name>: { reads?, base?, land?, relief?, ground?, colour? } }: the cube\'s other terrains');
@@ -431,10 +436,10 @@ function lowerOutside(cube0, terrain) {
   const id = `geocube-${cube.id}-${fingerprint([base, lookCard]).slice(0, 6)}`;
   registerLook({ id, base, read: cube.reads || cube.title, card: lookCard, swatches: { ...sw, land } });
   // a cube with contrast owns the crease and the ridge (vertex-contrast.js); the land keeps its blend, smoothing and sun
-  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground;
+  const L = cube.outside.land, own = readContrast(cube.contrast) ? { crevice: 0, ridge: 0 } : {}, R = cube.outside.relief, G = cube.outside.ground, X = cube.outside.crystals;
   return { kind: 'stage', kit: id, meru: { tiers: cube.outside.tiers, island: cube.outside.island,
     ...(L === false ? {} : { shading: { ...L, shade: shadeHex(shadeHue(cube)), ...own } }), ...(R !== undefined && R !== false ? { relief: R } : {}),
-    ...(G !== undefined && G !== false ? { ground: G } : {}) } };
+    ...(G !== undefined && G !== false ? { ground: G } : {}), ...(X !== undefined && X !== false ? { crystals: X } : {}) } };
 }
 
 /**
