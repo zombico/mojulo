@@ -254,15 +254,15 @@ describe('design_game: party battles on the book path (battles)', () => {
   }, 600_000);
 
   it('a casting page: the cast rolled as one row, each member made from it by path, the first party and the familiar in the battle party', async () => {
-    const casting = { scale: 'party', n: 1, cast: { party: { relation: 'party', n: 1, body: 'person' }, pet: { relation: 'familiar', body: 'beast', species: 'wolf' } } };
+    const casting = { scale: 'party', n: 1, cast: { party: { relation: 'party', n: 1, body: 'person' }, sprite: { relation: 'party', body: 'mascot' }, kin: { relation: 'party', body: 'beastkin', facets: { ancestry: 'lupine', humanity: 0.2 } }, pet: { relation: 'familiar', body: 'beast', species: 'wolf' } } };
     const world = { ...AUTO, characters: { ...AUTO.characters, casting }, battles: { per: 1 } };
     const out = await designGameHandler({ world, ref: 'gc', run: true });
     expect([action(out, 'casting'), action(out, 'cast-party-1'), action(out, 'cast-pet')]).toEqual(['make', 'make', 'make']);
-    expect(stored('gc-casting')).toMatchObject({ kind: 'egocube', castSheet: { order: ['hero', 'hero/party-1', 'hero/pet'] } });
+    expect(stored('gc-casting')).toMatchObject({ kind: 'egocube', castSheet: { order: ['hero', 'hero/party-1', 'hero/sprite', 'hero/kin', 'hero/pet'] } });
     expect(stored('gc-cast-party-1')).toMatchObject({ kind: 'layered', egocube: { ref: 'gc-casting', member: 'hero/party-1' } });
     expect(stored('gc-cast-pet')).toMatchObject({ species: 'wolf' });   // the animal door's row
     // the hero's familiar fights beside it, picking for itself
-    expect(stored('gc-level-meadow-ascent-0').play.rpg.party.map((p) => [p.id, p.auto?.keeper ?? null])).toEqual([['hero', null], ['party-1', null], ['pet', 'hero']]);
+    expect(stored('gc-level-meadow-ascent-0').play.rpg.party.map((p) => [p.id, p.auto?.keeper ?? null])).toEqual([['hero', null], ['party-1', null], ['sprite', null], ['kin', null], ['pet', 'hero']]);
     expect(out.parts.find((p) => p.id === 'characters:cast')).toBeTruthy();
     // on the level map the member walks beside the hero from the start and plays its own moves over the library's
     const level = SketchRepository.getByRef('gc-level-meadow-ascent-0');
@@ -272,6 +272,13 @@ describe('design_game: party battles on the book path (battles)', () => {
     expect(fig.clips.topple).toEqual(fig.clips.knockedOutDown);
     expect(fig.clips.getup).toEqual(fig.clips.knockedOutUp);
     expect(fig.clips.stagger).toBeTruthy();
+    // the mascot, the beast-kin on the creature loop's rig and the wolf walk beside them on their own clips, no library
+    expect(level.manifest.play.party).toEqual(expect.arrayContaining([{ who: 'sprite' }, { who: 'kin' }, { who: 'pet' }]));
+    const own = (id) => payload.figures[id].clips;
+    expect(own('sprite').forward).toEqual(own('sprite').run);
+    expect(own('kin').forward).toEqual(own('kin').jog);
+    expect(own('kin').topple).toEqual(own('kin').knockedOutDown);
+    expect(own('pet').forward).toEqual(own('pet').trot);
     const again = await designGameHandler({ ref: 'gc', run: true });
     expect([action(again, 'casting'), action(again, 'cast-party-1')]).toEqual(['keep', 'keep']);
   }, 900_000);

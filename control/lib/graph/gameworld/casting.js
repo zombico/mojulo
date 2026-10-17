@@ -19,14 +19,14 @@
  * journey cast waits on its page's approval (`characters:cast`) before a body is made. The first party fights in the
  * party battles from the start, each in the class its sheet reads as (`classOf`), and walks the field beside the hero
  * from the start; with `joins`, once that flag is set, as a written member does. On the level map each member plays
- * its own moves (its hit, its fall and rise, its swing) over the library's walk. A familiar of the hero or of a party member fights beside its keeper and
- * picks for itself (play.rpg `auto`).
+ * its own moves (its hit, its fall and rise, its swing): a person over the library's walk, a beast, a mascot or a
+ * beast-kin on its own gaits. A familiar of the hero or of a party member fights beside its keeper and picks for itself
+ * (play.rpg `auto`).
  *
  *   castingRequest(G)    → { request, scale, from }     the rollCast request (the game's setting in it) and why that scale
  *   castingOf(G)         → { request, scale, from, sheet, anchor, members } or null (no casting page); a member is
  *                          { id, path, of, name, relation, bond?, body, cls?, joins?, field }: `field` its figure on
- *                          the level map ({ clips }: the runtime's states its own moves play), or null for a body that
- *                          does not walk it yet (a beast, a body below the hero door, a mascot)
+ *                          the level map (`fieldOf`)
  *   castingIds(casting)  → [{ id, key, bond }]          the member ids a page makes, without rolling
  *   laidCasting(G)       → G with the rolled members in characters.cast, as { name, joins? } (their ids in characters.rolled)
  *   scaleOfWords(text)   → { scale?, n?, familiar?, bodies?, words }   what a prompt's words ask of the cast
@@ -36,7 +36,7 @@
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
 import { settingOfGame } from './cast-setting.js';
-import { moveSetOf, fieldStatesOf } from '../egocube/moves.js';
+import { moveSetOf, fieldStatesOf, creatureMovesOf, beastGaitsOf } from '../egocube/moves.js';
 import { cubeOfWorld } from './intent.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -133,6 +133,22 @@ export function classOf(m) {
 /** The roles the presets have no class of their own for: the class stands in, and the readout says so. */
 export const CLASS_GAPS = Object.freeze({ ranged: 'no archer class: a rogue stands in', controller: 'no summoner class: a mage stands in' });
 
+/**
+ * A member's figure on the level map: `moves` the runtime states its own moves play (a person over the library's walk
+ * and idle), or `own` its own clips by state for a body the library does not fit (a beast its two gaits, a mascot its
+ * run, walk and idle, a beast-kin below the hero door its walk and jog), with `moves` beside them where it has some.
+ * Null for a beast whose species the fauna does not know (no gait to rig).
+ */
+export function fieldOf(m) {
+  if (m.body === 'beast') {
+    let g; try { g = beastGaitsOf(m.beast.species); } catch { return null; }
+    return { own: { forward: g.at(-1), turn: g[0], strafe: g.at(-1) } };
+  }
+  if (m.body === 'mascot') return { own: { forward: 'run', idle: 'idle', turn: 'walk', strafe: 'run' }, moves: { stagger: 'surprised' } };
+  if (m.sheet.ancestry?.door === 'hero') return { moves: fieldStatesOf(moveSetOf(m.sheet.facets).moves) };
+  return { own: { forward: 'jog', idle: 'idle', turn: 'walk', strafe: 'jog' }, moves: fieldStatesOf(creatureMovesOf(m.sheet.facets).moves) };
+}
+
 const RELATION_NAMES = { rival: 'The Rival', foil: 'The Foil', mentor: 'The Mentor', shadow: 'The Shadow', lieutenant: 'The Lieutenant', mastermind: 'The Mastermind', herald: 'The Herald', 'threshold-guardian': 'The Guardian', trickster: 'The Trickster', shapeshifter: 'The Shapeshifter' };
 /** A name for the box until the book gives one: a beast by its species, a mascot by its promise, a party member by its
  * archetype's reading (the shadow's name when it reads as its shadow), the rest by their relation. */
@@ -160,8 +176,7 @@ export function castingOf(G) {
   const members = sheet.order.slice(1).map((path) => {
     // (an id a written member holds, from a scale the prompt chose, takes '-cast': the written member is the book's)
     const m = sheet.members[path], id = written(G).has(castIdOf(path)) ? `${castIdOf(path)}-cast` : castIdOf(path), key0 = path.split('/').slice(1).join('/'), book = own[key0] ?? {};
-    const walks = (m.body === 'person' || m.body === 'beastkin') && m.sheet.ancestry?.door === 'hero';
-    return { id, path, of: m.of, name: book.name ?? nameOf(m), relation: m.relation, ...(m.bond ? { bond: m.bond } : {}), body: m.body, ...(m.bond ? { cls: classOf(m) } : {}), ...(book.joins ? { joins: book.joins } : {}), field: walks ? { clips: fieldStatesOf(moveSetOf(m.sheet.facets).moves) } : null };
+    return { id, path, of: m.of, name: book.name ?? nameOf(m), relation: m.relation, ...(m.bond ? { bond: m.bond } : {}), body: m.body, ...(m.bond ? { cls: classOf(m) } : {}), ...(book.joins ? { joins: book.joins } : {}), field: fieldOf(m) };
   });
   return { ...Q, sheet, anchor: { cls: classOf(sheet.members[sheet.anchor]) }, members };
 }

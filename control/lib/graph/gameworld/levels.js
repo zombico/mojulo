@@ -480,8 +480,11 @@ function mergePlay(base, extra) {
  * pilot part and play back. */
 /** A cast member's figure on the field: the hero it is made as, the library's walk and idle, and, for a casting page's
  * member (casting.js `field`), its own MOVES by state (its hit, its fall and rise, its swing: world-scene.js plays each
- * the hero has over the library's). */
-const castFigure = (ref, own) => ({ heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' }, ...(own?.clips ? { moves: own.clips } : {}) });
+ * the hero has over the library's). A body the library does not fit (a beast, a mascot, a beast-kin on the creature
+ * loop's rig) walks on its OWN clips, a `walker` (it follows or stands; it never pilots). */
+const castFigure = (ref, field) => (field?.own
+  ? { heroRef: ref, walker: true, clips: field.own, ...(field.moves ? { moves: field.moves } : {}) }
+  : { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' }, ...(field?.moves ? { moves: field.moves } : {}) });
 
 function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   // SCENES (the level's, playscape/ui/scenes.js): the ones this stage plays, its places as spots to frame and walk to,

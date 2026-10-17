@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { readEgocubeKind, rollStored, egocubeNodes, egocubeCreate, egocubePrint, assembleEgocubeScene, LINEUP_GAP } from './kind.js';
 import { rollEgocube } from './egocube.js';
 import { WORLD_KINDS } from '../worlds/world-kinds.js';
-import { moveSetOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE } from './moves.js';
+import { moveSetOf, creatureMovesOf, beastGaitsOf, READY_OF_ROLE, ATTACK_OF_ROLE, WIN_OF_ARCHETYPE } from './moves.js';
 import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
 import { ROLES, ARCHETYPE_IDS } from './facets.js';
 
@@ -79,7 +79,7 @@ describe('a cast as a cube (cast.js)', () => {
   it('lowers each member to its door, and refuses years on a cast and a member on one character', () => {
     const S = rollStored(CAST);
     expect(egocubeCreate(S).node.path).toBe('hero');
-    expect(egocubeCreate(S, { member: 'hero/red' }).create).toEqual({ as: 'animal', spec: { species: 'wolf' }, title: 'hero/red · wolf' });
+    expect(egocubeCreate(S, { member: 'hero/red' }).create).toEqual({ as: 'animal', spec: { species: 'wolf', motion: ['walk', 'trot'] }, title: 'hero/red · wolf' });
     expect(egocubeCreate(S, { member: 'hero/rival' }).member).toEqual({ path: 'hero/rival', relation: 'rival', body: 'person' });
     // a member on the hero door is made with its moves; every word is one the hero door takes
     const rival = egocubeCreate(S, { member: 'hero/rival' });
@@ -105,5 +105,16 @@ describe('a cast member\'s moves (moves.js)', () => {
     expect(Object.keys(READY_OF_ROLE).every((r) => ROLES[r])).toBe(true);
     expect(moveSetOf({ role: 'frontline', archetype: 'hero' }).moves).toEqual({ ready: 'guard', attack: 'cross', react: ['hitHigh', 'stagger', 'knockedOut'], win: 'fistToSky' });
     expect(moveSetOf({ role: 'non-combatant', archetype: 'ruler' }).motion).toEqual({ hitHigh: true, crossedArms: true });
+  });
+
+  it('a member below the hero door walks and jogs and keeps the moves its rig solves; a beast its two gaits', () => {
+    expect(creatureMovesOf({ role: 'frontline', archetype: 'hero' }).motion).toEqual({ walk: true, jog: true, guard: true, cross: true, hitHigh: true, stagger: true, knockedOut: true });
+    expect(creatureMovesOf({ role: 'caster', archetype: 'magician' }).moves).toEqual({ ready: 'centre', react: ['hitHigh', 'stagger', 'knockedOut'] });   // a showcase pose is a person's
+    const S = rollStored({ kind: 'egocube', cast: { seed: 2, cast: { kin: { relation: 'party', body: 'beastkin', facets: { ancestry: 'lupine', humanity: 0.2 } } } } });
+    const kin = egocubeCreate(S, { member: 'hero/kin' });
+    expect(kin.create.as).toBe('creature');
+    expect(Object.keys(kin.create.spec.plan.locomotion)).toEqual(expect.arrayContaining(['walk', 'jog', 'hitHigh', 'knockedOut']));
+    expect(beastGaitsOf('wolf')).toEqual(['walk', 'trot']);
+    expect(beastGaitsOf('baldEagle')).toEqual(['walk', 'hop']);   // a flier crosses the field on its feet
   });
 });

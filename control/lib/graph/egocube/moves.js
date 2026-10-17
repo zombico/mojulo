@@ -14,10 +14,17 @@
  *
  *   moveSetOf(facets)    → { motion: { <word>: true }, moves: { ready?, attack?, react: [..], win } }
  *   fieldStatesOf(moves) → the controllable runtime's states its own moves play on the level map (a hit's lurch, the
- *                          topple and the rise, a swing), for a figure's `clips` beside its library's
+ *                          topple and the rise, a swing), for a figure's `moves` beside its library's
+ *   creatureMovesOf(f)   → the same for a body below the hero door (a beast-kin on the creature loop's rig): a walk and
+ *                          a jog to cross the field, and the moves its rig can solve (a stance, a strike, the reactions,
+ *                          the fall); a showcase pose is a person's
+ *   beastGaitsOf(species)→ [walk, run]: the two gaits a beast crosses the field in (fauna/locomotion), slowest first
  *
  * Pure. First readings, for the eyes gate.
  */
+import { MOTION_GAITS } from '../polygonizer/hero-motion.js';
+import { motionGaits } from '../fauna/rig.js';
+
 export const READY_OF_ROLE = Object.freeze({ frontline: 'guard', flanker: 'low', support: 'centre', controller: 'centre', caster: 'centre', ranged: 'athletic' });
 export const ATTACK_OF_ROLE = Object.freeze({ frontline: 'cross', flanker: 'jab', ranged: 'jab', controller: 'josephPoint', caster: 'jotaroPoint', support: 'fistToSky' });
 export const WIN_OF_ARCHETYPE = Object.freeze({
@@ -46,4 +53,22 @@ export function fieldStatesOf(moves) {
     ...(react.has('knockedOut') ? { topple: 'knockedOutDown', getup: 'knockedOutUp' } : {}),
     ...(moves.attack ? { swing_neutral: moves.attack, swing_forward: moves.attack } : {}),
   };
+}
+
+/** The families a creature's rig solves (a showcase pose reaches for a person's shoulders and hands). */
+const CREATURE_FAMILIES = new Set(['stance', 'strike', 'react']);
+/** A beast-kin below the hero door: its walk and jog, and the moves of its set its rig can solve. */
+export function creatureMovesOf(f) {
+  const { moves } = moveSetOf(f), ok = (w) => w && (MOTION_GAITS[w]?.motion === 'rest' || CREATURE_FAMILIES.has(MOTION_GAITS[w]?.family));
+  const own = { ...(ok(moves.ready) ? { ready: moves.ready } : {}), ...(ok(moves.attack) ? { attack: moves.attack } : {}), react: moves.react.filter(ok) };
+  const words = ['walk', 'jog', own.ready, own.attack, ...own.react].filter(Boolean);
+  return { motion: Object.fromEntries([...new Set(words)].map((w) => [w, true])), moves: own };
+}
+
+/** The two gaits a beast crosses the field in: its walk (else its slowest), and the next one that keeps its feet down
+ * or hops (not a flight or a glide, not a stalk); one gait when it has no other. */
+export function beastGaitsOf(species) {
+  const all = motionGaits(species), walk = all.includes('walk') ? 'walk' : all[0];
+  const run = all.slice(all.indexOf(walk) + 1).find((g) => !['fly', 'glide', 'stalk', 'swim', 'soar'].includes(g)) ?? walk;
+  return [...new Set([walk, run])];
 }

@@ -440,7 +440,7 @@ function storyCard() {
     '  and fight what is hittable and not their own). Before it they stand where the story puts them, or are not there.',
     'A casting page\'s first party and familiars walk beside the hero from the start (a joins flag on one makes it a',
     '  companion as above), and every rolled member plays its own moves on the field (its hit, its fall and rise, its',
-    '  swing) over the library\'s walk; a beast, a mascot or a body below the hero door is not on the field yet.',
+    '  swing) over the library\'s walk; a beast, a mascot or a beast-kin below the hero door walks on its own gaits.',
   );
 }
 

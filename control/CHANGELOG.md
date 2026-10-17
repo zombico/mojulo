@@ -63,9 +63,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   own moves play (`egocube/moves.js` `fieldStatesOf`: the hit's lurch, the topple and the rise, a swing as its attack).
   A figures-map hero takes `moves` beside `clips` (`worlds/world-scene.js`): each state plays the hero's own clip over
   the library's when it has it, and keeps the library's when not. Its first party and its familiars walk beside the hero
-  from the start (`play.party` members may now leave out `joins`: woken as the level starts, no flag carried); a beast,
-  a mascot or a body below the hero door is left off the field until it can walk it. A level with no casting page is
-  byte-identical.
+  from the start (`play.party` members may now leave out `joins`: woken as the level starts, no flag carried). A level
+  with no casting page is byte-identical.
+- **Beasts, mascots and beast-kin walk the level map too.** A cast's beast is made with its two gaits rigged
+  (`moves.js` `beastGaitsOf`: the wolf's walk and trot, a bird's walk and hop), and a beast-kin below the hero door with a
+  walk, a jog and the moves its creature rig solves (`creatureMovesOf`: a stance, a strike, the reactions and the fall;
+  a showcase pose is a person's). On the field each walks on its own clips with no library (casting.js `fieldOf`): the
+  mascot its run, walk and idle, the creature its jog and its moves, the beast its gaits. A figures-map entry marked
+  `walker: true` (it follows or stands, never pilots) may be any rigged character (`heroRefError`'s `walker`).
 
 ## [3.1.1] - 2026-10-16
 

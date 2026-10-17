@@ -194,7 +194,7 @@ describe('create_character from an egocube: one sheet, many games', () => {
     const clips = Object.keys(Object.values(scene.figures).find((f) => f?.rig && f.preview).clips);
     expect(clips).toEqual(expect.arrayContaining(['idle', 'walk', 'hitHigh', 'stagger', 'knockedOutDown', 'knockedOutUp', r.egocube.moves.win]));
     const w = await createCharacterHandler({ egocube: 'cc_cast', member: 'hero/red', title: 'animal · wolf', ref: 'cc_cast_red' });
-    await mintSolidHandler({ kind: 'animal', spec: { species: 'wolf' }, title: 'animal · wolf', ref: 'cc_cast_red_solid' });
+    await mintSolidHandler({ kind: 'animal', spec: { species: 'wolf', motion: ['walk', 'trot'] }, title: 'animal · wolf', ref: 'cc_cast_red_solid' });   // with its two gaits rigged
     expect(manifestOf('cc_cast_red')).toBe(manifestOf('cc_cast_red_solid'));
     expect(w.egocube.member).toMatchObject({ path: 'hero/red', bond: 'party', body: 'beast' });
     await expect(createCharacterHandler({ egocube: 'cc_cast', member: 'hero/nobody' })).rejects.toThrow(/has no member 'hero\/nobody'/);

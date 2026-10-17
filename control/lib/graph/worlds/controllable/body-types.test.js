@@ -34,4 +34,10 @@ describe('BODY_TYPES', () => {
     expect(heroRefError('h', 'r', { manifest: { kind: 'layered', plan: {} } })).toMatch(/not a stored hero or mascot/);
     expect(heroRefError('h', 'r', null)).toMatch(/not a stored sketch/);
   });
+
+  it('a walker (it follows or stands, never pilots) may be an animal or a creature on its own rig', () => {
+    expect(heroRefError('h', 'r', { manifest: { kind: 'layered', species: 'wolf' } }, { walker: true })).toBeNull();
+    expect(heroRefError('h', 'r', { manifest: { kind: 'layered', plan: {} } }, { walker: true })).toBeNull();
+    expect(heroRefError('h', 'r', { manifest: { kind: 'animal' } }, { walker: true })).toMatch(/animal mascot/);   // no rig
+  });
 });

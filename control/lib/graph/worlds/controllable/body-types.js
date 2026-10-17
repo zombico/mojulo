@@ -11,8 +11,10 @@
  *   BODY_TYPES               type → what it is (the teaching line a refusal prints)
  *   BODY_TYPE_NAMES          the types, in that order
  *   bodyTypeErrors(entities) one line per entity whose body.type is not a type here ([] when all are)
- *   heroRefError(name, ref, row)  why a figures-map `heroRef` cannot pilot (null when it can): a stored hero or a
- *                            mascot only; an animal is pointed at the animal mascot, which can
+ *   heroRefError(name, ref, row, { walker? })  why a figures-map `heroRef` cannot pilot (null when it can): a stored
+ *                            hero or a mascot only; an animal is pointed at the animal mascot, which can. A `walker`
+ *                            (a figure that follows or stands, never the pilot: a cast's beast, a creature) may be any
+ *                            layered character with a rig: an animal rigged with its gaits, a creature
  */
 
 import { isMascotPlan } from '../../egocube/mascot-pilot.js';
@@ -48,9 +50,9 @@ export function bodyTypeErrors(entities) {
 const isAnimalRow = (m) => !!m && (m.kind === 'animal' || (m.kind === 'layered' && !m.hero && !!(m.fauna || m.species)));
 
 /** Why a figures-map entry's `heroRef` cannot be the hero (null when it can): a stored hero or a mascot pilots. */
-export function heroRefError(name, ref, row) {
+export function heroRefError(name, ref, row, { walker = false } = {}) {
   const m = row && row.manifest;
-  if (m && m.kind === 'layered' && (m.hero || isMascotPlan(m.plan))) return null;
+  if (m && m.kind === 'layered' && (m.hero || isMascotPlan(m.plan) || walker)) return null;
   if (!m) return `figures.${name}: heroRef '${ref}' is not a stored sketch (make the hero with create_character { as: 'hero' } or { as: 'mascot' })`;
   if (isAnimalRow(m)) {
     return `figures.${name}: heroRef '${ref}' is an animal, and an animal is not a pilot yet (its rig has no run and jump the platform rule plays). `

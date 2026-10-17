@@ -92,7 +92,7 @@ async function heroFigure(name, spec) {
     const src = SketchRepository.getByRef(spec.heroRef);
     // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump); the same check the minting doors run
     const { heroRefError } = await import('@/lib/graph/worlds/controllable/body-types.js');
-    const refused = heroRefError(name, spec.heroRef, src);
+    const refused = heroRefError(name, spec.heroRef, src, { walker: spec.walker === true });
     if (refused) throw new Error(refused);
     manifest = src.manifest;
   } else {
