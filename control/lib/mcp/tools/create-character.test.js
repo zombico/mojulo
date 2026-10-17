@@ -136,10 +136,26 @@ describe('update_character revises what update_sketch revises', () => {
 
   it('a creature takes patch ops, and refuses a hero\'s words by name', async () => {
     await createCharacterHandler({ as: 'creature', spec: { plan: RING_PLAN }, title: 'beast', ref: 'uc_beast' });
-    await expect(updateCharacterHandler({ ref: 'uc_beast', target: '1080p' })).rejects.toThrow(/'uc_beast' is a creature; spec, target and geocube are a hero's words today.*\/plan\//);
+    await expect(updateCharacterHandler({ ref: 'uc_beast', target: '1080p' })).rejects.toThrow(/'uc_beast' is a creature; spec and target are a hero's words today \(a creature takes geocube alone\).*\/plan\//);
     const r = await updateCharacterHandler({ ref: 'uc_beast', title: 'renamed beast' });
     expect(r.ok).toBe(true);
   }, 120_000);
+
+  it('a creature takes its level by word: the cube dresses it in its plan\'s materials, at the cube\'s age; null undresses it', async () => {
+    const plan = { ...RING_PLAN, materials: { Torso: { metal: 'bronze', finish: 'polished' } } };
+    await createCharacterHandler({ as: 'creature', spec: { plan, geocube: 'upland-morning' }, title: 'bronze beast', ref: 'uc_bronze' });
+    const m0 = SketchRepository.getByRef('uc_bronze').manifest;
+    expect(m0.geocube).toBe('upland-morning');
+    expect(m0.recipe.surfaces.Torso).toEqual({ metal: 'bronze', finish: 'polished' });
+    await updateCharacterHandler({ ref: 'uc_bronze', geocube: { from: 'upland-morning', materials: { age: 'ancient' } } });
+    expect(SketchRepository.getByRef('uc_bronze').manifest.recipe.surfaces.Torso.film).toEqual({ age: 60 });
+    await updateCharacterHandler({ ref: 'uc_bronze', geocube: null });
+    const m2 = SketchRepository.getByRef('uc_bronze').manifest;
+    expect(m2).not.toHaveProperty('geocube');
+    expect(m2.recipe).not.toHaveProperty('surfaces');
+    // a bad material on the plan, and a cube on a bare recipe, refuse by name
+    await expect(createCharacterHandler({ as: 'creature', spec: { plan: { ...RING_PLAN, materials: { Torso: 'golden' } } }, ref: 'uc_bad' })).rejects.toThrow(/plan.materials.Torso: unknown material 'golden'/);
+  }, 240_000);
 
   it('a species is an animal to the door: titled by what it is, and named so on an edit', async () => {
     const r = await createCharacterHandler({ as: 'animal', spec: { species: 'wolf' }, ref: 'uc_wolf' });

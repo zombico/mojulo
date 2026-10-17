@@ -24,6 +24,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   family's table would be wrong: `grim-scifi`'s trim is blasted steel, `armored-hero`'s faceplate brushed stainless, the
   rest of a hardsuit painted. They are worn only on a level that names `materials`, under the level's own overrides and
   age, so sci-fi heroes now take live metal, the cube's light and its age where their designer said metal.
+- **Creatures wear their level's materials.** A creature names its level beside its plan (`spec: { plan, geocube }`, or
+  `update_character { geocube }`). Where the cube names `materials`, its horn, hoof, beak and shell take a satin gloss,
+  its outfit's metal and leather theirs, and its plan's own `materials` (as an armour card's) say the rest, all at the
+  cube's age. A creature keeps its character light, so its materials are drawn: a metal steps higher, shades darker
+  and glints. A creature's tones are its parts' tints. Absent a level, a creature is as before.
 - **`outside.crystals`.** A cube's island grows crystals: `'amethyst'`, or `{ gem, where: 'crags' | 'hollows', count,
   size, glow, seed }`. Seeded clusters stand out of the cliff faces or sit in the land's hollows, off the trail and the
   seam. They are real gems (the crystal channel shades them live, each throwing its own light, and the GLB carries them

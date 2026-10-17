@@ -46,6 +46,7 @@ import { seatPanels, clipCells, SEAT_CLEFT } from './seat-panels.js';
 import * as dmath from '../../util/dmath.js';
 import { faceHex } from './face-hex.js';
 import { toonMaterials } from '../materials/toon-materials.js';
+import { recipeTones } from '../materials/dress-materials.js';
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -131,16 +132,17 @@ export function resolveCharacterLight(manifest, ctx = {}) {
   // the metal's gloss when it wears plate. A carved creature (a statue) keeps the stone's light
   if (!anime) { if (!isCreature(manifest)) return null;
     const base = { ...resolveToonLight({ toLight: CREATURE_KEY }), threshold: CREATURE_STEP, shade: valueShades(manifest.recipe?.palette ?? manifest.plan.palette, CHARACTER_LIGHT_UNLIT, creatureSkin(manifest.plan)) };
-    return wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base; }
+    return withToonMaterials(wearsMetal(null, manifest.plan) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base, manifest, true); }
   const base = painterly ? brow({ ...ANIME_LIGHT_OF[animePole(manifest.hero)], soft: PAINTERLY_SOFT }) : ANIME_LIGHT_OF[animePole(manifest.hero)];
   const lit = wearsMetal(manifest.hero) ? { ...base, highlight: { ...(base.highlight || {}), ...METAL_HIGHLIGHT } } : base;
   return withToonMaterials(lit, manifest, anime);
 }
-/** A hero wearing its cube's MATERIALS (recipe.surfaces, materials/dress-materials.js) under the character light takes them
- * DRAWN: each group's step, shade and highlight from its material (materials/toon-materials.js), over the plate's plain
- * gloss and over a named light's own for those groups. Absent ⇒ the light as it was. */
-function withToonMaterials(l, manifest, anime) {
-  const T = anime ? toonMaterials(manifest.recipe?.surfaces, manifest.recipe?.palette) : null;
+/** A hero (or a creature) wearing its cube's MATERIALS (recipe.surfaces, materials/dress-materials.js) under the
+ * character light takes them DRAWN: each group's step, shade and highlight from its material (materials/toon-materials.js),
+ * over the plate's plain gloss and over a named light's own for those groups. Absent ⇒ the light as it was. */
+function withToonMaterials(l, manifest, drawn) {
+  // a creature's tones are its parts' tints (it has no palette); a hero's its palette's
+  const T = drawn ? toonMaterials(manifest.recipe?.surfaces, manifest.hero ? manifest.recipe?.palette : recipeTones(manifest.recipe)) : null;
   return T ? { ...l, thresholds: { ...(l.thresholds || {}), ...T.thresholds }, shade: { ...(l.shade || {}), ...T.shade }, highlight: { ...(l.highlight || {}), ...T.highlight } } : l;
 }
 /** A DRAWN CREATURE'S SHADE BY VALUE: the derived shade multiplies the colour, so a dark or saturated one (a beast's deep

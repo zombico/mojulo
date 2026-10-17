@@ -7,6 +7,7 @@
  *   metalForTone(hex)             the metal a tone reads as: gold, brass, bronze, copper or steel, by hue and lightness
  *   dressSurfaces({ palette, family, card, overrides })   → recipe.surfaces for the groups the palette paints, or null
  *   agedTones(palette, surfaces, age)                → the painted tones of the groups an age changed, or null
+ *   recipeTones(recipe)                              → each group's tone: its palette's, else its parts' tint (a creature's)
  *
  * AGE (`overrides.age`, a cube's `materials: { age }`): new, worn, old or ancient, on the table's metals (copper alloys
  * by their tarnish law, metal-surface.js copperAge: brown at 5 years, turning at 20, verdigris at 60; steel dulled,
@@ -71,6 +72,10 @@ export function agedSurface(m, age, named = false) {
   return m;
 }
 
+// a creature's own body (the mascot and drawn bodies' groups, egocube/mascot-form.js): keratin and shell take a satin
+// gloss; what else it wears of metal or leather its outfit's groups (above) or its plan's `materials` say
+export const CREATURE_MATERIALS = Object.freeze({ Horn: 'satin', Hoof: 'satin', Beak: 'satin', Shell: 'satin' });
+
 const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
 /** The metal a tone reads as: a light warm yellow is gold, a darker one brass, an orange-brown bronze, a red-brown copper,
  * anything greyer steel. */
@@ -115,6 +120,19 @@ export function dressSurfaces({ palette = {}, family = null, card = null, overri
     out[g] = agedSurface(t, age, g in own);
   }
   return Object.keys(out).length ? out : null;
+}
+
+const HEX3 = /^#[0-9a-f]{3}$/i, HEX6 = /^#[0-9a-f]{6}$/i;
+/** The tone each group of a recipe is painted in: its palette's, else the first tint a part in it carries (a creature's
+ * parts carry their own tints, no palette), as #rrggbb. */
+export function recipeTones(recipe = {}) {
+  const out = {};
+  for (const part of Object.values(recipe.parts || {})) {
+    const g = part?.group, t = part?.tint;
+    if (typeof g !== 'string' || g in out || typeof t !== 'string') continue;
+    if (HEX6.test(t)) out[g] = t.toLowerCase(); else if (HEX3.test(t)) out[g] = `#${[1, 2, 3].map((i) => t[i] + t[i]).join('')}`.toLowerCase();
+  }
+  return { ...out, ...(recipe.palette && typeof recipe.palette === 'object' ? recipe.palette : {}) };
 }
 
 // how far an aged group's painted tone moves to its aged colour (OKLab), so the card's own tone still shows through

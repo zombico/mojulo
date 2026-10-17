@@ -667,7 +667,8 @@ async function prepareWorldRecipe({ manifest, ref, title, existingSketch, patch,
   if (manifest.kind === 'layered') {
     const under = (root) => patch === undefined || [...touched].some((t) => String(t) === root || String(t).startsWith(`${root}/`));
     const heroTouched = !!manifest.hero && (restore ? !manifest.plan : under('/hero'));
-    const planTouched = restore ? !!manifest.plan && !manifest.recipe : under('/plan');
+    // a creature's level (`/geocube`) dresses its recipe as its plan does: either re-expands it
+    const planTouched = restore ? !!manifest.plan && !manifest.recipe : under('/plan') || (!manifest.hero && !!manifest.plan && under('/geocube'));
     const heroWarnings = [];
     let strokeWarnings = [];
     try {

@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 import { toonMaterials, TOON_MATERIAL } from './toon-materials.js';
 import { lchOf, hexToRgb } from '../color-theorist/oklab.js';
-import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
+import { heroRecord, expandLayeredManifest, planMaterialsErrors } from '../../mcp/tools/layered.js';
+import { recipeTones, CREATURE_MATERIALS } from './dress-materials.js';
 import { resolveCharacterLight } from '../polygonizer/station-loft-shade.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 
@@ -36,6 +37,11 @@ describe('toon materials: the lowering', () => {
     for (const k of ['thresholds', 'shade', 'highlight']) expect(T[k]).not.toHaveProperty('Odoshi');
   });
 
+  it('keeps a coloured tone\'s hue in a steel shade (an orange body worked in steel never shades magenta)', () => {
+    const [, , h0] = lch('#ee6611'), [, , h1] = lch(toonMaterials({ Body: { metal: 'steel', finish: 'brushed' } }, { Body: '#ee6611' }).shade.Body);
+    expect(Math.abs(((h1 - h0 + 540) % 360) - 180)).toBeLessThan(25);
+  });
+
   it('is null with nothing to lower: no surfaces, or none the palette paints', () => {
     expect(toonMaterials(null, palette)).toBeNull();
     expect(toonMaterials({ Plate: { metal: 'steel' } }, {})).toBeNull();
@@ -59,4 +65,37 @@ describe('toon materials: an anime hero under the character light', () => {
     expect(payload.faces.filter((f) => f.metal)).toHaveLength(0);
     expect((payload.figures?.body?.parts ?? []).filter((p) => p?.metal)).toHaveLength(0);
   }, 120000);
+});
+
+describe('toon materials: a creature on its level', () => {
+  const PLAN = {
+    schema: 'layered-plan-v1', frame: { up: '+z', front: '+y' }, joints: { hip: [0.2, 0, 1], knee: [0.22, 0.1, 0.5], toe: [0.22, 0.3, 0.05] },
+    segments: [
+      { name: 'torso', kind: 'trunk', stations: [{ z: 0.9, r: [0.3, 0.22] }, { z: 1.3, r: [0.32, 0.24] }, { z: 1.7, r: [0.2, 0.16] }], caps: { back: [0, 0, 0.8], tip: [0, 0, 1.8] }, group: 'Torso', tint: '#a85' },
+      { name: 'thighR', kind: 'segment', from: 'hip', to: 'knee', rA: 0.14, rB: 0.1, group: 'Horn', tint: '#ddd3bd', mirror: 'name' },
+    ],
+  };
+  const creature = (plan, geocube) => expandLayeredManifest({ kind: 'layered', plan, ...(geocube ? { geocube } : {}) });
+
+  it('reads its tones off its parts\' tints, and wears its body\'s horn and its plan\'s materials, drawn in its light', () => {
+    const plain = creature(PLAN);
+    expect(recipeTones(plain.recipe)).toMatchObject({ Torso: '#aa8855', Horn: '#ddd3bd' });
+    expect(plain.recipe).not.toHaveProperty('surfaces');
+    const worn = creature({ ...PLAN, materials: { Torso: { metal: 'bronze', finish: 'polished' } } }, 'upland-morning');
+    expect(worn.recipe.surfaces).toEqual({ Horn: CREATURE_MATERIALS.Horn, Torso: { metal: 'bronze', finish: 'polished' } });
+    const L = resolveCharacterLight(worn), L0 = resolveCharacterLight(plain);
+    expect(L.thresholds.Torso).toBe(TOON_MATERIAL.metal.threshold);
+    expect(L.highlight.Horn).toMatchObject({ kind: 'gloss', threshold: TOON_MATERIAL.satin.gloss });
+    expect(L0.thresholds?.Torso).toBeUndefined();
+    // at the level's age its bronze turns, its painted tone with it
+    const old = creature({ ...PLAN, materials: { Torso: { metal: 'bronze' } } }, { from: 'upland-morning', materials: { age: 'ancient' } });
+    expect(old.recipe.surfaces.Torso.film).toEqual({ age: 60 });
+    expect(old.recipe.palette.Torso).not.toBe('#aa8855');
+  });
+
+  it('refuses a bad material or an age on the plan by name', () => {
+    expect(planMaterialsErrors({ Torso: 'golden' })[0]).toMatch(/plan.materials.Torso: unknown material 'golden'/);
+    expect(planMaterialsErrors({ age: 'old' })[0]).toMatch(/age is the level's/);
+    expect(() => creature({ ...PLAN, materials: { Torso: 'golden' } })).toThrow(/plan refused: plan.materials.Torso/);
+  });
 });

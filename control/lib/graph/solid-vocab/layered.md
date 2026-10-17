@@ -762,6 +762,11 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   outline, and are left as they are. `geocube` (a cube preset, document or `{ from, … }`) bakes the hero in the cube's
   light: the key (its sun, or its moon), the shade in the cube's ambient colour, warm bounce off its floor, a rim from
   its sky, the cube's bands; the cube's target when `target` is not named. Absent: today's studio light and mesh.
+  A CREATURE names its level beside its plan (`spec: { plan, geocube }`; `update_character { geocube }`, null removes
+  it): where the cube names `materials`, its horn, hoof, beak and shell take a satin gloss, its outfit's metal and
+  leather theirs, and its plan's own `materials` (`{ Body: { metal: 'steel', finish: 'brushed' } }`, as an armour
+  card's) the rest, all at the cube's `age`, drawn in its character light (a metal steps higher, shades darker, glints).
+  The creature keeps its own light.
   `hero.density` on the readout: each part's radius in pixels, sides, the sides it wants and its error, the worst, the
   parts still over after a split, and the era's conventions still `planned`. Revise either with `update_character`.
   THE TIERED DRESS (`form: 'tiered'`). What the hero wears and carries is drawn for its target too (the default target

@@ -30,7 +30,8 @@ export const TOON_MATERIAL = Object.freeze({
   glass: Object.freeze({ gloss: 0.88 }),
   rubber: Object.freeze({ shadeL: 0.55 }),
 });
-const WARM = 40, STEEL = 255;
+// GREY_C: the chroma under which a tone reads as grey (a steel's own colour), so its shade may lean cool
+const WARM = 40, STEEL = 255, GREY_C = 0.08;
 const lchHex = (hex) => lchOf(hexToRgb(hex));
 const hexOf = (L, C, h) => rgbToHex(oklch(L, C, h));
 const gloss = (threshold, colour, band = 1) => ({ kind: 'gloss', threshold, band: [0, band], colour });
@@ -61,8 +62,10 @@ export function toonMaterials(surfaces, palette = {}) {
       const M = TOON_MATERIAL.metal, s = resolveMetalSurface(spec), warm = s.metal !== 'steel' && s.metal !== 'stainless' && s.metal !== 'aluminium' && s.metal !== 'titanium' && s.metal !== 'chrome' && s.metal !== 'nickel' && s.metal !== 'silver';
       const [, mC, mh] = lchHex(s.hex);
       thresholds[g] = M.threshold;
-      // the shade leans the way a painter leans the metal: warm metals toward red-orange, the greys toward blue
-      shade[g] = hexOf(L * M.shadeL, Math.max(C * M.shadeC, warm ? 0.04 : 0.02), warm ? mixHue(h, WARM, M.lean / 90) : mixHue(h, STEEL, 0.5));
+      // the shade leans the way a painter leans the metal: warm metals toward red-orange, the greys toward blue (a grey
+      // tone half way, a coloured one hardly: an orange body worked in steel keeps its orange in shade, never magenta)
+      const cool = 0.5 * Math.max(0, 1 - C / GREY_C);
+      shade[g] = hexOf(L * M.shadeL, Math.max(C * M.shadeC, warm ? 0.04 : 0.02), warm ? mixHue(h, WARM, M.lean / 90) : mixHue(h, STEEL, cool));
       highlight[g] = gloss(M.gloss, hexOf(M.glossL, Math.max(mC, 0.02) * M.glossC, mC > 0.02 ? mh : STEEL));
     } else if (kind === 'satin') {
       highlight[g] = gloss(TOON_MATERIAL.satin.gloss, lifted(tone, TOON_MATERIAL.satin.glossLift));

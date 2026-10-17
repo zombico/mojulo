@@ -82,7 +82,7 @@ import { targetError, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/
 import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
 import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
-import { dressSurfaces, agedTones } from '@/lib/graph/materials/dress-materials';
+import { dressSurfaces, agedTones, materialsErrors, recipeTones, CREATURE_MATERIALS } from '@/lib/graph/materials/dress-materials';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
 import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
@@ -162,28 +162,40 @@ export function expandLayeredManifest(manifest, { from = 'auto' } = {}) {
   if (!manifest?.plan && !manifest?.hero) return manifest;
   const hero = manifest.hero && from !== 'plan' ? normalizeHero(manifest.hero) : manifest.hero;
   const plan = manifest.hero && from !== 'plan' ? heroPlanOf(hero) : manifest.plan;
-  const recipe = expandHeroAwarePlan(plan, hero);
+  const recipe = expandHeroAwarePlan(plan, hero, hero ? null : manifest.geocube);
   const known = new Set(Object.keys(recipe.dials || {}));
   const dials = Object.fromEntries(Object.entries(manifest.dials || {}).filter(([k]) => known.has(k)));
   return { ...manifest, ...(hero ? { hero } : {}), plan, recipe, dials: resolveLayeredDials(recipe.dials || {}, dials) };
 }
 /** expandPlan, except that an armour's head piece (a helm, a kabuto, a theme's helm) on the anime head refuses by
  * name: the piece is addressed on the landmark cranium, which the anime head does not carry. */
-function expandHeroAwarePlan(plan, hero) {
+function expandHeroAwarePlan(plan, hero, geocube = null) {
+  // a creature's plan may name its own materials (worn where its level names `materials`): checked whenever it is expanded
+  const own = !hero && plan?.materials !== undefined ? planMaterialsErrors(plan.materials) : [];
+  if (own.length) throw new Error(`plan refused: ${own.join('; ')}`);
   // a STATUE (statue/expand.js): the expanded recipe cut to its format, carved in its material, its surface tagged
   if (hero?.statue) return statueRecipeOf(expandAware(plan, hero), plan, hero);
-  return withDressMaterials(expandAware(plan, hero), hero);
+  return withDressMaterials(expandAware(plan, hero), hero, plan, geocube);
+}
+/** A creature plan's own `materials` ({ <group>: <material> | false }, as an armour card's) checked → error strings. */
+export function planMaterialsErrors(m) {
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return ['plan.materials is { <group>: <material> } (a shelf name, { metal, finish? }, or false)'];
+  return Object.keys(m).includes('age') ? ['plan.materials: age is the level\'s (its geocube\'s materials), not the body\'s'] : materialsErrors(m, 'plan.materials');
 }
 /** A hero whose `geocube` names `materials` wears them (materials/dress-materials.js): its armour, outfit and dress groups
- * as `recipe.surfaces`, shaded as materials by the World page and the exporters, at the cube's `age`. Absent: the recipe
- * as it was. */
-function withDressMaterials(recipe, hero) {
-  if (!hero?.geocube) return recipe;
-  const M = readGeocube(hero.geocube).materials;
+ * as `recipe.surfaces`, shaded as materials by the World page and the exporters, at the cube's `age`. A CREATURE does
+ * the same through the manifest's own `geocube` (it has no hero record): its body's horn and shell (CREATURE_MATERIALS)
+ * and its plan's `materials` standing where a hero's armour card does. Absent: the recipe as it was. */
+function withDressMaterials(recipe, hero, plan = null, geocube = null) {
+  const G = hero ? hero.geocube : geocube;
+  if (!G) return recipe;
+  const M = readGeocube(G).materials;
   if (M === undefined || M === false) return recipe;
-  const surfaces = dressSurfaces({ palette: recipe.palette || {}, family: armorFamily(hero.adorn), card: armorMaterials(hero.adorn), overrides: M === true ? null : M });
+  // a creature's groups are painted by its parts' tints (no palette): those are its tones
+  const tones = hero ? recipe.palette || {} : recipeTones(recipe);
+  const surfaces = dressSurfaces({ palette: tones, family: hero ? armorFamily(hero.adorn) : null, card: hero ? armorMaterials(hero.adorn) : { ...CREATURE_MATERIALS, ...(plan?.materials ?? {}) }, overrides: M === true ? null : M });
   // an aged level (`materials: { age }`) repaints its aged groups' tones toward the aged metal
-  const aged = surfaces && M !== true ? agedTones(recipe.palette || {}, surfaces, M.age) : null;
+  const aged = surfaces && M !== true ? agedTones(tones, surfaces, M.age) : null;
   return surfaces ? { ...recipe, ...(aged ? { palette: { ...recipe.palette, ...aged } } : {}), surfaces } : recipe;
 }
 function statueRecipeOf(recipe, plan, hero) {
@@ -871,17 +883,30 @@ export async function createLayeredPlanHandler(input, internal = {}) {
     const { source, prompt, job_id, token, seed, image_sha256 } = input.plan_audit;
     provenance = { kind: PLAN_PROVENANCE_KIND, plan_audit: { source, ...(prompt ? { prompt } : {}), ...(job_id != null ? { job_id } : {}), ...(token != null ? { token } : {}), ...(seed != null ? { seed } : {}), ...(image_sha256 != null ? { image_sha256 } : {}) } };
   }
+  const cubeErrs = creatureCubeErrors(input);
+  if (cubeErrs.length) throw new Error(`layered refused:\n - ${cubeErrs.join('\n - ')}`);
   let recipe;
-  try { recipe = expandHeroAwarePlan(input.plan, input.hero); }
+  try { recipe = expandHeroAwarePlan(input.plan, input.hero, input.hero ? null : input.geocube); }
   catch (err) { throw new Error(`${err.message} — manual: get_solid_vocab({ id: 'layered' }).`); }
   return createLayeredHandler({ ...input, recipe, ...(provenance ? { provenance } : {}) }, internal);
+}
+
+/** A creature's `geocube` (the level it lives in, as a hero's record names one): a plan's, never a hero's (the hero
+ * names it in its record) nor a bare recipe's (no plan to dress) → error strings. */
+function creatureCubeErrors(input) {
+  if (input.geocube === undefined || input.geocube === null) return [];
+  if (input.hero) return ["geocube: a hero names its cube in its record (hero.geocube, create_character's spec)"];
+  if (!input.plan) return ['geocube: a creature takes its level through its plan (the plan door): a bare recipe has no plan to dress'];
+  try { readGeocube(input.geocube); return []; } catch (e) { return [e.message]; }
 }
 
 export async function createLayeredHandler(input, { onPlanned } = {}) {
   if (!input || typeof input !== 'object' || !input.recipe || typeof input.recipe !== 'object' || !input.recipe.parts) {
     throw new Error("The layered kind needs `recipe` — { frame, parts: { <name>: { layer, slots, stations, caps | pin, offsets, faces } }, dials?, creases? }. Read get_solid_vocab({ id: 'layered' }); the worked recipe is docs/examples/dragon-layered/recipe.json.");
   }
-  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, bake, fieldPaint, rim, strokes, statue, species, egocube, ref, folder_ref: folderRef } = input;
+  const { title, recipe, plan, hero, provenance, dials, channels, units, facing, seat, toon, hullShade, bake, fieldPaint, rim, strokes, statue, species, egocube, geocube, ref, folder_ref: folderRef } = input;
+  const cubeErrs = creatureCubeErrors(input);
+  if (cubeErrs.length) throw new Error(`layered refused:\n - ${cubeErrs.join('\n - ')}`);
   // a CREATURE carved (statue/creature.js): stored beside a plan that is not a hero, carved by the layered resolve on
   // every read; a hero's statue is its own build (/hero/statue)
   if (statue !== undefined) {
@@ -920,7 +945,8 @@ export async function createLayeredHandler(input, { onPlanned } = {}) {
     ...(strokes !== undefined ? { strokes } : {}),   // drawn lines as the authoring record (layered-strokes.js); usually stored later by update_sketch
     ...(statue !== undefined ? { statue } : {}),   // a creature carved (above); absent ⇒ byte-identical
     ...(typeof species === 'string' && species ? { species } : {}),   // the species a ring plan was minted as (animal.js): the row is an animal; never read by the resolve
-    ...(egocube && typeof egocube === 'object' && typeof egocube.ref === 'string' ? { egocube } : {}),   // the sheet it was made from { ref, rev, print, years? } (create_character { egocube }); never read by the resolve
+    ...(egocube && typeof egocube === 'object' && typeof egocube.ref === 'string' ? { egocube } : {}),
+    ...(geocube !== undefined && geocube !== null ? { geocube } : {}),   // a creature's level (above): its materials, drawn in its light   // the sheet it was made from { ref, rev, print, years? } (create_character { egocube }); never read by the resolve
   };
   const planned = planLayered(manifest); const { stats } = planned;
   if (typeof onPlanned === 'function') onPlanned({ mesh: planned.mesh, recipe: manifest.recipe, stats, dials: manifest.dials, channels: manifest.channels });
