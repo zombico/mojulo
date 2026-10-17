@@ -131,6 +131,14 @@ describe('the skin: a style card worn', () => {
     const chair = mixed.find((i) => /chair/.test(i.name) && i.compose);
     if (chair) expect(chair.compose.finish.timber).toBe(STYLE_CARDS['mid-century'].timber);
   });
+  it('a plain cloth asked by name changes the cloth and keeps the scheme’s colour; a patterned one keeps its own', () => {
+    const p = { id: 'conversation.sofa', piece: 'sofa', w: 2130, d: 940, h: 820 };
+    const card = styleCard({ name: 'modern-farmhouse', palette: { upholstery: 'rust' } });
+    const plain = skinPiece(p, card).compose.finish.fabric;
+    const velvet = skinPiece(p, card, { finish: { fabric: 'velvet' } }).compose.finish.fabric;
+    expect(velvet).toEqual({ preset: 'velvet', warp: plain.warp });
+    expect(skinPiece(p, card, { finish: { fabric: 'tartan' } }).compose.finish.fabric).toBe('tartan');
+  });
 });
 
 describe('the fit-out, on the house kernel', () => {

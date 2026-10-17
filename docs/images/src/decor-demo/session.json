@@ -1,5 +1,5 @@
 {
- "note": "The session behind docs/images/decor-demo.gif, as run.mjs recorded it: each ask, the calls the agent made, its reply, and what print mode reported. totals is what the last slide shows.",
+ "note": "The session behind docs/images/decor-demo.gif, as run.mjs recorded it: each ask, the calls the agent made, its reply, and what print mode reported. recipes are the rows it left; capture.mjs replays the calls and checks it gets them back.",
  "when": "2026-10-17",
  "model": "claude-sonnet-5-5",
  "house": "maple_street",
@@ -31,6 +31,7 @@
      "name": "semantic_search",
      "error": false,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "query": "Maple Street house floorplan",
@@ -41,6 +42,7 @@
      "name": "get_sketch_vocab",
      "error": false,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "id": "interior"
@@ -50,6 +52,7 @@
      "name": "semantic_search",
      "error": false,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "query": "Maple Street",
@@ -60,6 +63,7 @@
      "name": "get_creative_toolset",
      "error": false,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "form": "building"
@@ -69,6 +73,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "house": "maple-street",
@@ -79,6 +84,7 @@
      "name": "get_stash",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "stash_ref": "maple-street"
@@ -88,6 +94,7 @@
      "name": "design_interior",
      "error": false,
      "ref": "sk_kl7hjlhbra",
+     "room": "lounge",
      "tag": "101",
      "input": {
       "house": "maple_street",
@@ -98,6 +105,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "house": "maple",
@@ -108,6 +116,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "house": "maple-street-house",
@@ -118,6 +127,7 @@
      "name": "annotate_beats",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "ref": "maple-street"
@@ -127,6 +137,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "ref": "sk_kl7hjlhbra",
@@ -237,6 +248,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "ref": "sk_kl7hjlhbra",
@@ -347,6 +359,7 @@
      "name": "design_interior",
      "error": false,
      "ref": "sk_kl7hjlhbra",
+     "room": "lounge",
      "tag": "101",
      "input": {
       "ref": "sk_kl7hjlhbra",
@@ -473,6 +486,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "house": "maple_street",
@@ -483,6 +497,7 @@
      "name": "design_interior",
      "error": false,
      "ref": "sk_0pc86bilnf",
+     "room": "bedroom",
      "tag": "105",
      "input": {
       "house": "maple_street",
@@ -539,6 +554,7 @@
      "name": "design_interior",
      "error": false,
      "ref": "sk_ogknpciab0",
+     "room": "bedroom",
      "tag": "107",
      "input": {
       "house": "maple_street",
@@ -611,6 +627,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "ref": "sk_kl7hjlhbra",
@@ -634,6 +651,7 @@
      "name": "design_interior",
      "error": true,
      "ref": null,
+     "room": null,
      "tag": null,
      "input": {
       "ref": "sk_kl7hjlhbra",
@@ -667,6 +685,7 @@
      "name": "design_interior",
      "error": false,
      "ref": "sk_kl7hjlhbra",
+     "room": "lounge",
      "tag": "101",
      "input": {
       "ref": "sk_kl7hjlhbra",
@@ -701,6 +720,7 @@
      "name": "design_interior",
      "error": false,
      "ref": "sk_kl7hjlhbra",
+     "room": "lounge",
      "tag": "101",
      "input": {
       "ref": "sk_kl7hjlhbra",
@@ -786,5 +806,220 @@
    ],
    "reply": "The living room (`/sketches/sk_kl7hjlhbra`) now has the west wall painted deep forest green and a velvet sofa. I haven't looked at a render, only the tool's readout.\n\n- **Which wall:** you didn't say which wall, so I chose the west one, opposite the fireplace. It should sit behind the sofa and give the room a dark backdrop. I couldn't confirm that from the readout, and I don't know where the three windows are. If it ends up on the wrong wall, tell me which one you want.\n- **Rest of the cabin:** my first attempt dropped the fireplace and brought the TV back, so I reapplied everything. The fireplace, shiplap walls, plank floor and tartan armchair are all in place again. The reading corner also has its velvet wingback.\n- **TV:** the TV is still out of the room, as before."
   }
- ]
+ ],
+ "recipes": {
+  "sk_kl7hjlhbra": {
+   "kind": "interior",
+   "house": "maple_street",
+   "room": "living",
+   "palette": {
+    "seed": 7,
+    "heat": 0.8,
+    "weight": 0.4,
+    "activity": -0.4,
+    "scheme": "analogous",
+    "intent": "warm cozy cabin: honey wood, rust, cream, amber"
+   },
+   "style": {
+    "name": "modern-farmhouse",
+    "accent": "seventies",
+    "palette": {
+     "upholstery": "rust",
+     "rug": "cream"
+    }
+   },
+   "brief": {
+    "uses": [
+     "converse",
+     "read",
+     "display",
+     "anchor",
+     "light-task",
+     "media"
+    ],
+    "tags": [
+     "entertaining",
+     "pets"
+    ]
+   },
+   "focal": "fireplace",
+   "surface": {
+    "walls": {
+     "style": "shiplap",
+     "paint": "#c99a5e"
+    },
+    "trim": {
+     "paint": "#5a3a22"
+    },
+    "W": {
+     "style": "paint",
+     "paint": "#1f4a32"
+    },
+    "floor": {
+     "pattern": "plank",
+     "colours": [
+      "#9a6b3f",
+      "#7d5330"
+     ]
+    },
+    "accentWall": false,
+    "features": [
+     {
+      "type": "fireplace",
+      "wall": "E",
+      "at": 0.5
+     }
+    ]
+   },
+   "pieces": [
+    {
+     "id": "conversation.sofa",
+     "like": "tuxedo",
+     "finish": {
+      "fabric": "velvet"
+     }
+    },
+    {
+     "id": "conversation.chair-1",
+     "finish": {
+      "fabric": "tartan"
+     }
+    },
+    {
+     "id": "conversation.chair-2",
+     "omit": true
+    },
+    {
+     "id": "reading.chair",
+     "like": "wingback",
+     "finish": {
+      "fabric": "velvet"
+     }
+    },
+    {
+     "id": "conversation.rug",
+     "size": [
+      2600,
+      3400,
+      null
+     ]
+    },
+    {
+     "id": "media.console",
+     "finish": null,
+     "omit": true
+    },
+    {
+     "id": "conversation.coffee-table",
+     "finish": {
+      "timber": "oak"
+     }
+    },
+    {
+     "id": "media.tv",
+     "omit": true
+    }
+   ]
+  },
+  "sk_0pc86bilnf": {
+   "kind": "interior",
+   "house": "maple_street",
+   "room": "105",
+   "style": {
+    "name": "quiet-luxury",
+    "accent": "warm-minimal"
+   },
+   "palette": {
+    "seed": 11,
+    "heat": 0,
+    "weight": -0.6,
+    "activity": -0.8,
+    "scheme": "mono-accent",
+    "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
+   },
+   "brief": {
+    "uses": [
+     "sleep",
+     "dress",
+     "read",
+     "light-task"
+    ],
+    "bed": "king"
+   },
+   "surface": {
+    "walls": {
+     "style": "paint",
+     "paint": "#eeeae2"
+    },
+    "trim": {
+     "paint": "#ffffff"
+    },
+    "floor": {
+     "pattern": "plank",
+     "colours": [
+      "#cdb99a",
+      "#c2ad8c"
+     ]
+    }
+   },
+   "pieces": [
+    {
+     "id": "sleep.bed",
+     "finish": {
+      "fabric": "linen"
+     }
+    }
+   ]
+  },
+  "sk_ogknpciab0": {
+   "kind": "interior",
+   "house": "maple_street",
+   "room": "107",
+   "style": {
+    "name": "quiet-luxury",
+    "accent": "warm-minimal"
+   },
+   "palette": {
+    "seed": 11,
+    "heat": 0,
+    "weight": -0.6,
+    "activity": -0.8,
+    "scheme": "mono-accent",
+    "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
+   },
+   "brief": {
+    "uses": [
+     "sleep",
+     "dress",
+     "read",
+     "light-task"
+    ],
+    "bed": "king"
+   },
+   "surface": {
+    "walls": {
+     "style": "paint",
+     "paint": "#eeeae2"
+    },
+    "trim": {
+     "paint": "#ffffff"
+    },
+    "floor": {
+     "pattern": "plank",
+     "colours": [
+      "#cdb99a",
+      "#c2ad8c"
+     ]
+    }
+   },
+   "pieces": [
+    {
+     "id": "sleep.bed",
+     "finish": {
+      "fabric": "linen"
+     }
+    }
+   ]
+  }
+ }
 }

@@ -1,7 +1,7 @@
-// Compose decor-demo.gif from what run.mjs leaves in the work dir: facts.json (the asks, the session's turns
-// with their tool calls, replies, time, tokens and cost) and clips/<name>/NNN.png (forge_motion MP4s as frames).
+// Compose decor-demo.gif from the work dir: session.json (the asks, the session's turns with their tool calls,
+// replies, time, tokens and cost), shots.json and clips/<name>/NNN.png (capture.mjs: forge_motion MP4s as frames).
 //
-//   node docs/images/src/decor-demo/compose.mjs <workDir>      # re-compose without re-running the session
+//   node docs/images/src/decor-demo/compose.mjs <workDir>      # re-compose without re-filming
 //
 // The chat is a generic facsimile, not any one app: the asks as typed, each tool call as a plain-language chip,
 // and the agent's own reply, cut at a sentence when it runs long. Frames are 960×540 through stage.html, then
@@ -18,7 +18,7 @@ const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 // almost free. A 3D frame is what the GIF's bytes go on.
 const HOLD = 3;
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const ROOM = { lounge: 'Living room', bedroom: 'Bedroom', dining: 'Dining room', kitchen: 'Kitchen', office: 'Office' };
+const ROOM = { lounge: 'Living room', living: 'Living room', bedroom: 'Bedroom', dining: 'Dining room', kitchen: 'Kitchen', office: 'Office' };
 const roomName = (r) => ROOM[r] || (r ? r[0].toUpperCase() + r.slice(1) : 'Room');
 
 /** A tool call in the words a homeowner would use. A call mojulo turned back (a guessed name, a colour it does not
@@ -65,10 +65,10 @@ const k = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${Math.rou
 /** The session's spend. Each print-mode run reports its own `usage` and `duration_ms`; its `total_cost_usd` runs on
  * across a --resume, so the session's cost is the last run's. */
 export function totals(turns) {
-  const t = { ms: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0, cost: turns.at(-1).costUsd };
+  const t = { ms: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, calls: 0, cost: turns.at(-1).costUsdSoFar };
   for (const x of turns) {
     t.ms += x.durationMs; t.calls += x.tools.length;
-    t.input += x.usage.input_tokens; t.output += x.usage.output_tokens; t.cacheRead += x.usage.cache_read_input_tokens; t.cacheWrite += x.usage.cache_creation_input_tokens;
+    for (const key of ['input', 'output', 'cacheRead', 'cacheWrite']) t[key] += x.usage[key];
   }
   t.tokens = t.input + t.output + t.cacheRead + t.cacheWrite;
   return t;
@@ -76,7 +76,8 @@ export function totals(turns) {
 const MODEL_NAME = { 'claude-sonnet-5-5': 'Sonnet 5.5', 'claude-opus-5-5': 'Opus 5.5', 'claude-haiku-5-5': 'Haiku 5.5', 'claude-fable-5-1': 'Fable 5.1' };
 
 export async function compose(work) {
-  const facts = JSON.parse(readFileSync(path.join(work, 'facts.json'), 'utf8'));
+  const facts = JSON.parse(readFileSync(path.join(work, 'session.json'), 'utf8'));
+  const shots = JSON.parse(readFileSync(path.join(work, 'shots.json'), 'utf8'));
   const clip = (name) => { const dir = path.join(work, 'clips', name); return readdirSync(dir).filter((f) => f.endsWith('.png')).sort().map((f) => pathToFileURL(path.join(dir, f)).href); };
   const at = (frames, i) => frames[Math.min(i, frames.length - 1)];
 
@@ -86,20 +87,19 @@ export async function compose(work) {
   const logHtml = (extra = '') => log.join('') + extra;
 
   // the house as handed over
-  const house = clip('house');
+  const house = clip(shots.house);
   for (let i = 0; i < 24; i++) F.push({ log: '', a: at(house, Math.floor(i / HOLD)), tag: 'Maple Street house <span>· as handed over</span>' });
   let view = { frames: house, tag: 'Maple Street house <span>· as handed over</span>' };
 
   const rooms = new Map();   // tag → { name, before: the house's frame, after: the latest frames }
   facts.turns.forEach((turn, ti) => {
-    // the room this ask settled on: its last interior call that went through
-    const designed = turn.tools.filter((x) => x.name === 'design_interior' && !x.error).at(-1);
-    const tag = designed?.tag, name = roomName(designed?.room);
+    // the room this ask settled on, filmed before and after from one place (capture.mjs)
+    const shot = shots.turns[ti];
+    const tag = shot?.tag, name = roomName(shot?.room);
     const seen = tag && rooms.get(tag);
-    const before = designed && (seen ? seen.after : clip(`${tag}-before`));
-    const after = designed && clip(`${tag}-${ti + 1}`);
+    const before = shot && clip(shot.before), after = shot && clip(shot.after);
     const tagB = `${name} <span>· ${seen ? 'so far' : 'before'}</span>`, tagA = `${name} <span>· after</span>`;
-    const ask = facts.asks[ti];
+    const ask = turn.prompt;
     let vi = 0;
     const show = (fr) => ({ a: at(fr.frames, Math.floor(vi++ / HOLD)), tag: fr.tag });
     // typed
@@ -123,7 +123,7 @@ export async function compose(work) {
       const from = view; vi = 0;
       for (let i = 1; i <= 6; i++) F.push({ log: logHtml(), a: at(from.frames, from.frames.length - 1), b: at(after, 0), mix: ease(i / 6), tag: tagA });
       view = { frames: after, tag: tagA };
-      rooms.set(tag, { name, before: seen ? seen.before : at(before, before.length - 1), after });
+      rooms.set(tag, { name, before: seen ? seen.before : at(before, before.length - 1), after });   // the grid: first before, last after
     }
     for (let i = 0; i < 40; i++) F.push({ log: logHtml(), ...show(view) });
   });

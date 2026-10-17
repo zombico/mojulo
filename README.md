@@ -153,13 +153,15 @@ second scheme for the same room sits beside the first. This is the living room a
 ```
 
 "Paint one wall forest green, and make the sofa velvet" is the `W` wall and one `finish` on the sofa, addressed by its
-id. A revision replaces each field it names whole, so the agent's first try at it, a `surface` with only the green
-wall, dropped the fireplace; it saw that in the readout and sent the room's other walls back with it. The
-walk-throughs are `forge_motion`, mojulo's own camera, over the house as handed over and over each new room. The
-session took about a minute and a half of agent time and 34 cents at API list price, with a warm prompt cache (a cold
-one costs more). Its whole record, every call, reply and token count, is
-[session.json](docs/images/src/decor-demo/session.json), and [the runner](docs/images/src/decor-demo/) re-runs it. The
-same room opens at `/world` to walk, exports as a `.glb`, or goes to Blender for a Cycles render.
+id; velvet is a change of cloth, so the sofa keeps the room's rust. A revision replaces each field it names whole, so
+the agent's first try at it, a `surface` with only the green wall, dropped the fireplace; it saw that in the readout
+and sent the room's other walls back with it. The walk-throughs are `forge_motion`, mojulo's own camera, facing the
+wall each ask changed (else the room's focal wall), over the house as handed over and over each new room. They are
+filmed from a replay of the session's own calls, which gives back the recipes it stored, so a kernel fix re-shoots
+the same session without asking the agent again. The session took about a minute and a half of agent time and 34
+cents at API list price, with a warm prompt cache (a cold one costs more). Its whole record, every call, reply and
+token count, is [session.json](docs/images/src/decor-demo/session.json), and [the runner](docs/images/src/decor-demo/)
+re-runs it. The same room opens at `/world` to walk, exports as a `.glb`, or goes to Blender for a Cycles render.
 
 ### 3. "Build an oak dining table and show me how it goes together"
 

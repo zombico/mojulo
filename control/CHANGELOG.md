@@ -25,8 +25,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   through it with the living room's stored recipe.
 - `docs/images/src/decor-demo/` re-runs it end to end: `run.mjs` drives `claude -p` (`--resume` per ask) with mojulo as
   the only tool server, `compose.mjs` sets it in a generic chat and encodes the GIF, and `session.json` is the record
-  of the session the GIF shows: every call, reply and token count. The media helpers launch Chromium without its
-  sandbox when they run as root, as in a Linux container.
+  of the session the GIF shows: every call, reply, token count and the recipes it left. `capture.mjs` films from a
+  replay of those calls, checked against the stored recipes, so a kernel fix re-shoots the same session; each walk
+  faces the wall the ask changed, else the room's focal wall. The media helpers launch Chromium without its sandbox
+  when they run as root, as in a Linux container.
+- `design_interior`: a plain cloth asked by name on a piece (`finish: { fabric: 'velvet' }`, also linen, canvas,
+  bouclé, twill) changes the cloth and keeps the scheme's colour. It used to drop the colour, so the piece wore the
+  preset's own (velvet's emerald): "make the sofa velvet" turned the sofa green. A room that names such a fabric
+  renders in its scheme's colour now; a patterned cloth (tartan, ticking …) and a full fabric spec are as they were.
 
 ## [3.1.1] - 2026-10-16
 
