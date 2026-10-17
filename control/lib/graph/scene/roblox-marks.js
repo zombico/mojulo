@@ -6,10 +6,11 @@
  * its part, with the Lune conformance test that holds the kernel part equal to the web (the registry's `proof`), never
  * before; a built row names the kernel module or the place file that performs it (the ratchet checks the file is
  * there). The place a Roblox export writes (roblox-pack.js): the bus, its stats, the store and the game channel
- * (kernel/*.luau), a greybox from the level's faces and colliders, and a Roblox Humanoid walking the player; a level
+ * (kernel/*.luau), a greybox from the level's faces and colliders with its look (the floors in their faces' colours and
+ * materials, the rest voxelized: roblox-look.js), and a Roblox Humanoid walking the player; a level
  * whose bus.json carries a cast plays it whole in the kernel (kernel/level.luau over the cast, the fight, the minds,
  * the scenes and the journal, held equal by the levelcast corpus with the Humanoid's pose as its input), each body
- * drawn as a box (MojuloServer). The
+ * drawn as a block figure (MojuloServer). The
  * Roblox authoring flow offers only what is marked built or approximated here, so an absent row is a value the flow
  * does not offer, not a value it drops.
  *
@@ -27,7 +28,7 @@ const absent = (keys, how = YET) => Object.freeze(Object.fromEntries(keys.map((k
 // ── the controllable runtime's rules (worlds/controllable/compose.js RULES) ──────────────────────────────────────────
 export const RULE_MARKS = Object.freeze({
   ...absent(['glide', 'overhead', 'side', 'fixed', 'shot', 'mover', 'launcher', 'drive', 'racer', 'fly', 'patrol']),
-  ai: m(B, 'kernel/mind.luau: the web mind (every motivation, perception and memory, cover, pathing in kernel/nav.luau, groups in kernel/group.luau, the blade, the roll, the charge, the loadout, the tier, a boss\'s phases), firing and swinging through kernel/combat.luau, held equal by the mind and levelcast corpora; each body drawn as a box (MojuloServer); the commander and the pilot\'s shove-down set piece stay the web\'s'),
+  ai: m(B, 'kernel/mind.luau: the web mind (every motivation, perception and memory, cover, pathing in kernel/nav.luau, groups in kernel/group.luau, the blade, the roll, the charge, the loadout, the tier, a boss\'s phases), firing and swinging through kernel/combat.luau, held equal by the mind and levelcast corpora; each body a block figure (MojuloServer); the commander and the pilot\'s shove-down set piece stay the web\'s'),
   walk: m(P, HUMANOID),
   platform: m(P, `${HUMANOID}; roblox-marks.js PLATFORM_KEYS says what of the rule it takes`),
   follow: m(P, 'Roblox\'s own Classic camera follows the character (the rule\'s distance, height and lead are not read); a follow pulled in to the eye is first person'),
@@ -93,22 +94,24 @@ export function aiLost(rule) {
 const OPTION = optionRow('roblox');
 export const PAGE_MARKS = Object.freeze({
   ...Object.fromEntries(PAGE_OPTIONS.map((k) => [k, OPTION])),
-  faces: m(P, 'the greybox (roblox-project.js): every upward face as floor slabs on a grid, in grey; the look rides beside the project as model.glb for Studio\'s 3D Importer, the place carries no mesh'),
-  colliders: m(B, 'each box collider an anchored Part (roblox-project.js greyboxModel)'),
+  faces: m(P, 'the greybox and its look (roblox-project.js, roblox-look.js): every upward face as floor slabs on a grid, each in its faces\' colour and a Roblox material named by its texture; the rest of the level voxelized into decoration boxes of their faces\' colours (no body or ray meets them); smooth shapes come out in voxels, a backdrop and ground cover drawn as cards are left to the sky and the slabs; the mesh rides beside the project as model.glb for Studio\'s 3D Importer'),
+  colliders: m(B, 'each box collider an anchored Part, unseen as on the page (roblox-project.js greyboxModel)'),
+  textures: m(P, 'a texture travels as its mean colour (alpha-weighted, times the face\'s tint) and a material its name picks (roblox-look.js); the image itself does not'),
+  figures: m(P, 'a rigged figure stands as a block figure of its body\'s size (MojuloServer): its mesh, clips, face and ink are not carried'),
   walk: m(P, 'the player stands at the seat, its feet on the greybox; the walk\'s eye is added back for the zones'),
   pilot: m(P, HUMANOID),
   camera: m(P, 'Roblox\'s Classic camera, or first person for an eye camera or a follow pulled in to the eye'),
-  entities: m(P, 'the pilot walks; a level\'s cast moves as the kernel puts it (kernel/cast.luau, the minds), each body an anchored box (MojuloServer), downed laid flat, sent away hidden; a level with no cast: its bodies stand where the recipe put them for the zones'),
+  entities: m(P, 'the pilot walks; a level\'s cast moves as the kernel puts it (kernel/cast.luau, the minds), each body a block figure (MojuloServer: a mind in a foe\'s red, the rest in blue), downed laid flat, sent away hidden; a level with no cast: its bodies stand where the recipe put them for the zones'),
   events: m(B, 'kernel/bus.luau, held equal to the web by the bus and level corpora (Lune)'),
   game: m(B, 'kernel/game.luau, the page\'s game channel, held equal by the level corpus; MojuloServer applies the outcome to the store'),
   ai: m(B, 'the world switch: off, every mind stands down until G (kernel/combat.luau; MojuloServer hands it the press)'),
   aiDifficulty: m(B, 'the class tier tunes every mind (kernel/mind.luau)'),
   ...absent([
-    'cameras', 'bg', 'backdrop', 'sky', 'light', 'glow', 'textures', 'cutouts', 'soft', 'repeats', 'ao',
+    'cameras', 'bg', 'backdrop', 'sky', 'light', 'glow', 'cutouts', 'soft', 'repeats', 'ao',
     'picks', 'tracers', 'planets', 'movers', 'comets', 'fields', 'surfaces', 'heatSpheres', 'starSurfaces',
     'buildups', 'transports', 'deforms', 'raymarch', 'signs', 'physics', 'actions',
     'spectate', 'commander', 'lock', 'match', 'hangar', 'breakables', 'breakPieces',
-    'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'figures', 'fog', 'haze', 'splats', 'audio', 'fx',
+    'wreckExplodes', 'shadows', 'smoke', 'tutorial', 'fog', 'haze', 'splats', 'audio', 'fx',
     'effects', 'spriteSfx', 'marks', 'driveSurface', 'shoot', 'walkers', 'cars', 'carMeshes', 'signals',
     'trafficLanes', 'trafficConstants', 'xr', 'toon', 'stream', 'strokeOverlay', 'terrain', 'crystalLight', 'fire',
     'doors', 'items', 'shallows', 'wetSand', 'softGround', 'jets', 'jetLight', 'sway', 'flicker', 'motes', 'wetRoad',
@@ -167,7 +170,7 @@ export const BUS_MARKS = Object.freeze({
     stats: m(P, 'kernel/stats.luau runs them; the bodies bound to them (hpMax, speed) do not move the Humanoid'),
     hud: m(P, 'kernel/hud.luau as words (MojuloClient): each readout a line in its slot (a bar, a counter and a clock written out), each banner and toast a moment, each legend for its time; the page\'s look and a part\'s gate are not drawn'),
     entities: m(B, 'MojuloServer draws each as the page does (a sphere of its radius and colour where the bus puts it, shown while on)'),
-    cast: m(P, 'kernel/cast.luau: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam, each body a box (MojuloServer): the moments (a puff, a blast, a beam, a shake) and a transfigure\'s look are not drawn; a walk stands on the place\'s land and is pushed out of the fight\'s boxes; transits stay on the web'),
+    cast: m(P, 'kernel/cast.luau: spawn, vanish, kill, hurt, heal, walk, stop, status, lift, transfigure, shake, puff and explosion, beam, each body a block figure (MojuloServer): the moments (a puff, a blast, a beam, a shake) and a transfigure\'s look are not drawn; a walk stands on the place\'s land and is pushed out of the fight\'s boxes; transits stay on the web'),
     rearm: m(B, 'kernel/cast.luau rearm into the weapon\'s reserve, which kernel/combat.luau\'s reload draws from, held equal by the combat corpus'),
     ...absent(['impulse', 'menus', 'parts', 'phase', 'weather', 'shot']),
   }),

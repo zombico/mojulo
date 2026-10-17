@@ -82,7 +82,7 @@ local spec, data, L = nil, nil, nil
 local accum, pending, finished, doorSaid = 0, {}, false, false
 local H, clock, shownHud = nil, 0, nil
 local markers = {}               -- bus entity id → its Part
-local bodies = {}                -- cast body id → its Part
+local bodies = {}                -- cast body id → its block figure ({ model, parts })
 local fireHeld = false           -- the client's left mouse button
 local aiToggle = false           -- G pressed since the last step: the world switch (the minds stand down or wake)
 local sceneCtl = {}              -- the frame's presses to a scene playing (Space / Enter / E, Esc, the arrows, 1-4)
@@ -119,10 +119,13 @@ local function syncMarkers()
 	end
 end
 
--- the level's characters as the kernel's cast puts them: an anchored box each, sized from its body (bus.json's
--- combat egg or radius, the cast row's feet), else about 1.7 m tall; hidden when sent away, tinted and laid down when
--- felled. The pilot is the player's own character.
+-- the level's characters as the kernel's cast puts them: a block figure each (legs, torso, arms, head), sized from its
+-- body (bus.json's combat egg or radius, the cast row's feet), else about 1.7 m tall; a mind (the `ai` rule) in a foe's
+-- red, the rest in blue; hidden when sent away, laid down and darkened when felled. The pilot is the player's own
+-- character. Decoration: nothing collides with a figure or meets it with a ray.
 local DOWNED = Color3.fromRGB(120, 60, 60)
+local SKIN = Color3.fromRGB(232, 196, 160)
+local FOE, FRIEND = Color3.fromRGB(196, 72, 60), Color3.fromRGB(72, 116, 196)
 local function bodySize(id: string): (number, number)
 	local cb = data and data.bus and get(data.bus, "combat")
 	local b = js.isObj(cb) and js.isObj(get(cb, "bodies")) and get(cb.bodies, id) or nil
@@ -135,6 +138,34 @@ local function bodySize(id: string): (number, number)
 	local r = js.isObj(b) and js.finite(get(b, "radius")) and b.radius or 0.3
 	return 2 * r, foot > 0.3 and 2 * foot or 1.7
 end
+-- the figure's blocks: name, size and offset of its centre from the feet (x right, y up), each a share of the body's
+-- width w and height h
+local BLOCKS = {
+	{ "leg-l", { 0.42, 0.45, 0.5 }, { -0.25, 0.225 } }, { "leg-r", { 0.42, 0.45, 0.5 }, { 0.25, 0.225 } },
+	{ "torso", { 1.0, 0.33, 0.5 }, { 0, 0.615 } },
+	{ "arm-l", { 0.25, 0.38, 0.4 }, { -0.625, 0.59 } }, { "arm-r", { 0.25, 0.38, 0.4 }, { 0.625, 0.59 } },
+	{ "head", { 0.6, 0.2, 0.6 }, { 0, 0.88 } },
+}
+local function figure(id: string, w: number, h: number, color: Color3)
+	local model = Instance.new("Model")
+	model.Name = "cast-" .. id
+	local parts = {}
+	for _, b in BLOCKS do
+		local p = Instance.new("Part")
+		p.Name = b[1]
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Material = Enum.Material.SmoothPlastic
+		p.Size = Vector3.new(b[2][1] * w, b[2][2] * h, b[2][3] * w)
+		p.Color = b[1] == "head" and SKIN or string.sub(b[1], 1, 3) == "leg" and color:Lerp(Color3.new(0, 0, 0), 0.35) or color
+		p:SetAttribute("color", p.Color)
+		p.Parent = model
+		parts[b[1]] = { part = p, off = Vector3.new(b[3][1] * w, b[3][2] * h, 0) }
+	end
+	return { model = model, parts = parts }
+end
 local function syncCast(list)
 	local box = workspace:FindFirstChild("MojuloLevel")
 	if not box or not list then
@@ -146,34 +177,30 @@ local function syncCast(list)
 		if js.isObj(pilot) and e.id == pilot.id then
 			continue
 		end
-		local part = bodies[e.id]
+		local fig = bodies[e.id]
 		local w, h = bodySize(e.id)
-		if not part then
-			part = Instance.new("Part")
-			part.Name = "cast-" .. e.id
-			part.Anchored = true
-			part.CanCollide = false
-			part.CanQuery = false
-			part.Material = Enum.Material.SmoothPlastic
-			part.Size = Vector3.new(w * m, h * m, w * m)
-			part.Color = Color3.fromRGB(214, 140, 64)
-			part:SetAttribute("color", part.Color)
-			part.Parent = box
-			bodies[e.id] = part
+		if not fig then
+			local body = K.level.body(L, e.id)
+			local foe = body and type(body.rule) == "table" and body.rule.type == "ai"
+			fig = figure(e.id, w * m, h * m, foe and FOE or FRIEND)
+			fig.model.Parent = box
+			bodies[e.id] = fig
 		end
 		local foot = js.finite(e.foot) and e.foot or 0
 		local feet = toWorld({ e.pos[1], e.pos[2], e.pos[3] - foot })
+		local base
 		if e.downed then
-			-- felled: lying along its heading, its middle a half-width off the ground
-			local c = feet + Vector3.new(0, w * m / 2, 0)
-			part.CFrame = CFrame.lookAt(c, c + forward(e.heading or 0)) * CFrame.Angles(math.pi / 2, 0, 0)
-			part.Color = DOWNED
+			-- felled: lying along its heading, a quarter of its width off the ground
+			local c = feet + Vector3.new(0, w * m / 4, 0)
+			base = CFrame.lookAt(c, c + forward(e.heading or 0)) * CFrame.Angles(math.pi / 2, 0, 0)
 		else
-			local c = feet + Vector3.new(0, h * m / 2, 0)
-			part.CFrame = CFrame.lookAt(c, c + forward(e.heading or 0))
-			part.Color = part:GetAttribute("color") or part.Color
+			base = CFrame.lookAt(feet, feet + forward(e.heading or 0))
 		end
-		part.Transparency = e.gone and 1 or 0
+		for _, b in fig.parts do
+			b.part.CFrame = base * CFrame.new(b.off)
+			b.part.Color = e.downed and DOWNED or b.part:GetAttribute("color") or b.part.Color
+			b.part.Transparency = e.gone and 1 or 0
+		end
 	end
 end
 
@@ -187,8 +214,8 @@ local function groundAt(p)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	local skip = {}
-	for _, part in bodies do
-		table.insert(skip, part)
+	for _, fig in bodies do
+		table.insert(skip, fig.model)
 	end
 	for _, part in markers do
 		table.insert(skip, part)

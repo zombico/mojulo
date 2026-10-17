@@ -7,11 +7,14 @@
  *   StarterPlayer…MojuloClient        the player's keys to the bus, the level's words on screen
  *   ServerStorage.Mojulo              manifest (the level list, the store), Levels/<ref>/data (the level's own data, its
  *                                     bus.json and contract.json as the exact JSON text the kernel decodes) and
- *                                     Levels/<ref>/Greybox (Parts: what the level stands on and walls it in)
+ *                                     Levels/<ref>/Greybox (Parts: what the level stands on and walls it in, and its
+ *                                     Look: the rest of the level voxelized, decoration only, roblox-look.js)
  *
  * The GREYBOX is what a Humanoid collides with: every upward face of the level's mesh rastered onto a grid of cells
- * (CELL metres, heights in LAYER steps) and merged into slabs, plus each of the score's box colliders as a wall. The
- * level's look rides beside the project as model.glb (Studio's 3D Importer); the place itself carries no mesh.
+ * (CELL metres, heights in LAYER steps) and merged into slabs, plus each of the score's box colliders as a wall. With a
+ * look (roblox-look.js) the slabs wear their faces' colours and materials, the walls are unseen (the page draws no
+ * collider) and the voxelized rest rides inside as `Look`. The mesh rides beside the project as model.glb (Studio's 3D
+ * Importer); the place itself carries no mesh.
  *
  * Frames: the recipe is z-up in metres; Roblox is y-up in studs (STUDS a metre): (X, Y, Z) = (x, z, -y) × STUDS.
  *
@@ -37,16 +40,24 @@ const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;   // + 0: never a -0
 export const toStuds = (p) => [r4(p[0] * STUDS), r4(p[2] * STUDS), r4(-p[1] * STUDS)];
 
 /** Every upward face, rastered: the cells whose centre it covers (and the cell of its centroid) at its height there,
- * quantized to LAYER; each height's cells merged into rectangles (runs along x, then equal runs down y). */
-export function floorSlabs(faces = [], { mpu = 1, cell = CELL } = {}) {
+ * quantized to LAYER; each height's cells merged into rectangles (runs along x, then equal runs down y). With `lookOf`
+ * (face → { color, material, transparency? }: roblox-look.js faceLook) a cell takes the look of the first face to mark it
+ * at that height and a slab wears the look most of its cells carry (a tie to the first in key order): the slabs merge by
+ * height alone, so the look never coarsens what the player stands on. */
+export function floorSlabs(faces = [], { mpu = 1, cell = CELL, lookOf = null } = {}) {
   const layers = new Map();   // q → Set('ix,iy')
+  const looks = new Map();    // look key → look
+  const cellLook = new Map(); // 'q:ix,iy' → look key, the first face's at that height
+  let look = null, lk = '';
   const mark = (ix, iy, z) => {
-    const q = Math.round(z / LAYER);
+    const q = Math.round(z / LAYER), c = `${q}:${ix},${iy}`;
     (layers.get(q) || layers.set(q, new Set()).get(q)).add(`${ix},${iy}`);
+    if (lookOf && !cellLook.has(c)) cellLook.set(c, lk);
   };
   for (const f of faces) {
     const c = f && Array.isArray(f.corners) ? f.corners : null;
     if (!c || c.length < 3) continue;
+    if (lookOf) { look = lookOf(f); lk = `${look.color.join(',')}|${look.material}|${look.transparency ?? ''}`; if (!looks.has(lk)) looks.set(lk, look); }
     for (let i = 1; i + 1 < c.length; i++) {
       const t = [c[0], c[i], c[i + 1]];
       if (!t.every((p) => Array.isArray(p) && p.length >= 3 && p.every(Number.isFinite))) continue;
@@ -76,12 +87,20 @@ export function floorSlabs(faces = [], { mpu = 1, cell = CELL } = {}) {
     }
   }
   const slabs = [];
+  // the look most of a slab's cells carry (a tie to the first key in order)
+  const lookIn = (q, r) => {
+    const n = new Map();
+    for (let iy = r.y0; iy <= r.y1; iy++) for (let ix = r.x0; ix <= r.x1; ix++) { const k = cellLook.get(`${q}:${ix},${iy}`); n.set(k, (n.get(k) || 0) + 1); }
+    let best = null, bn = -1;
+    for (const k of [...n.keys()].sort()) if (n.get(k) > bn) { best = k; bn = n.get(k); }
+    return looks.get(best);
+  };
   for (const q of [...layers.keys()].sort((x, y) => x - y)) {
     const cells = layers.get(q);
     const rows = new Map();   // iy → sorted ix
     for (const k of cells) { const [ix, iy] = k.split(',').map(Number); (rows.get(iy) || rows.set(iy, []).get(iy)).push(ix); }
     const open = new Map();   // 'x0,x1' → { x0, x1, y0, y1 } the run still growing down y
-    const close = (r) => slabs.push({ min: [r.x0 * cell, r.y0 * cell, q * LAYER - SLAB], max: [(r.x1 + 1) * cell, (r.y1 + 1) * cell, q * LAYER] });
+    const close = (r) => slabs.push({ min: [r.x0 * cell, r.y0 * cell, q * LAYER - SLAB], max: [(r.x1 + 1) * cell, (r.y1 + 1) * cell, q * LAYER], ...(lookOf ? { look: lookIn(q, r) } : {}) });
     let prev = null;
     for (const iy of [...rows.keys()].sort((x, y) => x - y)) {
       const xs = rows.get(iy).sort((x, y) => x - y), runs = [];
@@ -102,7 +121,7 @@ export function floorSlabs(faces = [], { mpu = 1, cell = CELL } = {}) {
 }
 
 const IDENTITY = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-function part(name, min, max, color) {
+export function partOf(name, min, max, color, extra = {}) {
   const c = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
   // a box's extent along each Roblox axis: X from x, Y from z, Z from y (a size has no sign)
   const size = [max[0] - min[0], max[2] - min[2], max[1] - min[1]].map((s) => r4(Math.max(s, 0.01) * STUDS));
@@ -110,22 +129,26 @@ function part(name, min, max, color) {
     Name: name, ClassName: 'Part',
     Properties: {
       Anchored: true, Size: size, CFrame: { CFrame: { position: toStuds(c), orientation: IDENTITY } },
-      Color: color, Material: 'SmoothPlastic', TopSurface: 'Smooth', BottomSurface: 'Smooth',
+      Color: color, Material: 'SmoothPlastic', TopSurface: 'Smooth', BottomSurface: 'Smooth', ...extra,
     },
   };
 }
 const FLOOR = [0.64, 0.66, 0.7], WALL = [0.42, 0.45, 0.52];
 
-/** The level's greybox: floor slabs (coarsened until they fit MAX_PARTS) and the score's colliders as walls. */
-export function greyboxModel({ faces = [], colliders = [], mpu = 1 }) {
+/** The level's greybox: floor slabs (coarsened until they fit MAX_PARTS) and the score's colliders as walls. With
+ * `lookOf` the slabs wear their faces' looks; with `look` (roblox-look.js lookModel) the walls are the physics only,
+ * unseen as on the page, and the look's decoration rides in the Model as its `Look` child. */
+export function greyboxModel({ faces = [], colliders = [], mpu = 1, lookOf = null, look = null }) {
   const walls = colliders.filter((c) => c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3);
-  let cell = CELL, floors = floorSlabs(faces, { mpu, cell });
-  while (floors.length + walls.length > MAX_PARTS && cell < 8) { cell *= 2; floors = floorSlabs(faces, { mpu, cell }); }
+  let cell = CELL, floors = floorSlabs(faces, { mpu, cell, lookOf });
+  while (floors.length + walls.length > MAX_PARTS && cell < 8) { cell *= 2; floors = floorSlabs(faces, { mpu, cell, lookOf }); }
+  const lookProps = (l) => (l ? { Material: l.material, ...(l.transparency ? { Transparency: l.transparency } : {}) } : {});
   const children = [
-    ...floors.map((s, i) => part(`floor-${i}`, s.min, s.max, FLOOR)),
-    ...walls.map((w, i) => part(typeof w.of === 'string' && w.of ? `wall-${i}-${w.of}` : `wall-${i}`, w.min, w.max, WALL)),
+    ...floors.map((s, i) => partOf(`floor-${i}`, s.min, s.max, s.look ? s.look.color : FLOOR, lookProps(s.look))),
+    ...walls.map((w, i) => partOf(typeof w.of === 'string' && w.of ? `wall-${i}-${w.of}` : `wall-${i}`, w.min, w.max, WALL, look ? { Transparency: 1 } : {})),
+    ...(look ? [look.model] : []),
   ];
-  return { model: { ClassName: 'Model', Children: children }, floors: floors.length, walls: walls.length, cell };
+  return { model: { ClassName: 'Model', Children: children }, floors: floors.length, walls: walls.length, cell, ...(look ? { look: look.boxes, voxel: look.voxel } : {}) };
 }
 
 /** A Luau long-bracket string holding text exactly (the level of `=` chosen so the closer never occurs in it). */
@@ -185,12 +208,15 @@ function readme({ ref, title, levels, portability, remint }) {
     '  to the web runtime by the conformance corpora. Not yours to edit: an export writes it again.',
     '- `ServerScriptService.MojuloServer`: plays the levels in order; a Roblox Humanoid walks the player (the web\'s walk feel',
     '  is not ported, so a level is equal in what it does with where the player stands, not in how the player moves).',
-    '- `ServerStorage.Mojulo.Levels.<ref>.Greybox`: what the level stands on (its mesh\'s upward faces as slabs) and its walls.',
-    '  The look is `levels/<ref>/model.glb`, beside the project, for Studio\'s 3D Importer; the place carries no mesh.',
+    '- `ServerStorage.Mojulo.Levels.<ref>.Greybox`: what the level stands on (its mesh\'s upward faces as slabs, in their colours',
+    '  and materials) and its walls (unseen, as on the web); its `Look` is the rest of the level voxelized into coloured boxes,',
+    '  decoration only (nothing collides with it or meets it with a ray). Built from the recipe: nothing is uploaded.',
+    '  The mesh itself is `levels/<ref>/model.glb`, beside the project, for Studio\'s 3D Importer; the place carries no mesh.',
+    '- The cast stands as block figures (a mind in red, the rest in blue); their meshes and clips do not travel.',
     '',
     `## Levels (${levels.length})`,
     '',
-    ...levels.map((l) => `- \`${l.ref}\` — ${l.title}: ${l.floors} floor slabs, ${l.walls} walls (cells of ${l.cell} m)`),
+    ...levels.map((l) => `- \`${l.ref}\` — ${l.title}: ${l.floors} floor slabs, ${l.walls} walls (cells of ${l.cell} m)${l.look != null ? `, ${l.look} look boxes (voxels of ${l.voxel} m)` : ''}`),
     '',
     '## What did not travel',
     '',
@@ -219,6 +245,6 @@ export function emitRobloxGame({ ref, title, manifest, levels, portability, remi
     files.push({ file: `src/data/Levels/${l.ref}/data.luau`, text: `-- the level's data as JSON text, decoded by the kernel (kernel/json.luau keeps what JSON.parse keeps)\nreturn {\n${rows.join('\n')}\n}\n` });
     files.push({ file: `src/data/Levels/${l.ref}/Greybox.model.json`, text: `${JSON.stringify(l.greybox.model)}\n` });
   }
-  files.push({ file: 'README.md', text: readme({ ref, title, levels: levels.map((l) => ({ ref: l.ref, title: l.title, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell })), portability, remint }) });
+  files.push({ file: 'README.md', text: readme({ ref, title, levels: levels.map((l) => ({ ref: l.ref, title: l.title, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell, look: l.greybox.look, voxel: l.greybox.voxel })), portability, remint }) });
   return { files };
 }

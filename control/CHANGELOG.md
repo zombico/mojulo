@@ -146,6 +146,15 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   same port: a walk's turn in the web's `((x % τ) + τ) % τ` (Godot's `fposmod` parts by an ulp on about one heading in
   sixteen), the spawn's `among` measured in doubles (not a float32 `Vector2`), an empty `land` lands never, a null
   wait time or beat read as the web reads it.
+- **A Roblox place that looks like its level** (`scene/roblox-look.js`), built from the recipe on the operator's machine:
+  nothing is uploaded and no account is needed. The floor slabs wear their faces' colours, each a Roblox material its
+  texture or group names (grass, rock, bark, brick, slate, soil…), a textured face its tint times its texture's mean
+  colour; they still merge by height alone, so the look never coarsens what the player stands on. The rest of the
+  level (walls, rocks, trees, props) is voxelized into boxes of one colour and material each, the voxel coarsening to
+  fit a part budget; ground cover the page draws as cards, ground shadows, blend tiles and a backdrop are left to the
+  slabs and the sky. The look is decoration only: no body collides with it and no ray meets it, which the place gate
+  now checks part by part. Colliders become unseen, as on the page. The cast stands as block figures (a mind in red,
+  the rest in blue) instead of boxes. Marks: the faces, textures and figures approximated; colliders built.
 - **The harness stands where the page stands.** The level harness (`game/level-equivalence.js`, the web side of every
   engine comparison) raycast the recipe's raw faces, while the page meshes them first: surface cards realized, then
   de-collided, which lifts a patch stacked on coplanar ground a step for every face under it. A kart track's patch

@@ -1,6 +1,7 @@
 /**
  * THE ROBLOX PACK: a game → a Rojo project (roblox-project.js) at outDir, built on the pack pipeline (engines/pack.js).
- * Each level resolves through the seam every engine shares; the place gets its greybox, its data and the Roblox kernel
+ * Each level resolves through the seam every engine shares; the place gets its greybox and its look (roblox-look.js: the
+ * floors in their faces' colours and materials, the rest of the level voxelized), its data and the Roblox kernel
  * (copied verbatim from lib/graph/scene/roblox-kernel, the modules the conformance corpora hold equal), and the folder
  * gets the level's GLB and score beside the project for reference and Studio's 3D Importer. Deterministic: same rows →
  * same bytes.
@@ -15,6 +16,7 @@ import path from 'node:path';
 import { loadSketch, refusePixelizer, packHash, resolveLevel, gameLevels, packPosture, emitFolder, levelContract } from './engines/pack.js';
 import { assessPortability } from './engine-portability.js';
 import { emitRobloxGame, greyboxModel, levelData } from './roblox-project.js';
+import { lookModel } from './roblox-look.js';
 
 export const KERNEL_MODULES = ['js', 'json', 'stats', 'bus', 'store', 'game', 'rules', 'nav', 'mind', 'group', 'cast', 'combat', 'scenes', 'quests', 'level', 'hud'];
 const kernelDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'roblox-kernel');
@@ -48,8 +50,9 @@ export async function buildRobloxGamePack({ ref, outDir, posture = null, log = (
     const lvSketch = loadSketch(spec.ref);
     const { payload, exported, score, bus } = await resolveLevel(lvSketch, { engine: 'roblox', posture: posturePack });
     const mpu = Number(payload.metersPerUnit) > 0 ? Number(payload.metersPerUnit) : 1;
-    const greybox = greyboxModel({ faces: payload.faces || [], colliders: score.colliders || [], mpu });
-    log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}': ${greybox.floors} floor slabs, ${greybox.walls} walls`);
+    const look = lookModel(payload.faces || [], { mpu, textures: payload.textures || {} });
+    const greybox = greyboxModel({ faces: payload.faces || [], colliders: score.colliders || [], mpu, lookOf: look.lookOf, look });
+    log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}': ${greybox.floors} floor slabs, ${greybox.walls} walls, ${greybox.look} look boxes (${greybox.voxel} m voxels)`);
     binaries.push({ rel: `levels/${spec.ref}/model.glb`, bytes: exported.bytes });
     binaries.push({ rel: `levels/${spec.ref}/score.json`, bytes: JSON.stringify(score, null, 2) });
     binaries.push({ rel: `recipe/${spec.ref}.json`, bytes: JSON.stringify(lvSketch.manifest, null, 2) });
@@ -64,7 +67,7 @@ export async function buildRobloxGamePack({ ref, outDir, posture = null, log = (
   return {
     scope: 'game', ref, dir: outDir, manifestHash: packHash(manifest), written,
     ledger: Object.fromEntries(levels.map((l) => [l.ref, l.score.ledger])), portability,
-    levels: levels.map((l) => ({ ref: l.ref, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell })),
+    levels: levels.map((l) => ({ ref: l.ref, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell, look: l.greybox.look, voxel: l.greybox.voxel })),
     payloads,
   };
 }

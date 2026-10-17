@@ -1,8 +1,8 @@
 -- The Roblox export's place gate, run under Lune (scripts/export-roblox.mjs). Opens the place Rojo built, checks its
--- tree (the kernel's modules, the server and client scripts, each level's data and greybox), compiles every script,
--- and plays each level FROM THE PLACE: its kernel loaded from the ModuleScripts' own source, its bus.json and
--- contract.json decoded from its data module, stepped over the track the web recorded for that level. Writes what it
--- found; the web side compares the frames.
+-- tree (the kernel's modules, the server and client scripts, each level's data and greybox, its look decoration only),
+-- compiles every script, and plays each level FROM THE PLACE: its kernel loaded from the ModuleScripts' own source,
+-- its bus.json and contract.json decoded from its data module, stepped over the track the web recorded for that level.
+-- Writes what it found; the web side compares the frames.
 --
 -- A level whose track is `cast` (its bus.json carries a cast) is played whole: the pilot's pose fed each frame, the
 -- cast, the fight, the minds and the scenes run by the place's kernel, each frame's line the bus's hash and every other
@@ -150,6 +150,20 @@ if loaded and manifestScript then
 			end
 			if parts == 0 then
 				problem("Levels." .. spec.ref .. ".Greybox has no anchored Part")
+			end
+			-- the look is decoration: nothing collides with it, no ray meets it, nothing touches it, so it cannot move where
+			-- anyone stands (roblox-look.js)
+			local look = box:FindFirstChild("Look")
+			if look then
+				local felt = 0
+				for _, p in look:GetChildren() do
+					if p.ClassName ~= "Part" or not p.Anchored or p.CanCollide or p.CanQuery or p.CanTouch then
+						felt += 1
+					end
+				end
+				if felt > 0 then
+					problem("Levels." .. spec.ref .. ".Greybox.Look has " .. felt .. " part(s) a body or a ray can meet")
+				end
 			end
 		end
 		local raw = luau.load(mod.Source)()
