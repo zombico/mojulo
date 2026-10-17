@@ -253,6 +253,25 @@ describe('design_game: party battles on the book path (battles)', () => {
     expect(v[`rpg-done-${enc.id}`]).toBe(1);
   }, 600_000);
 
+  it('minigames heard in the prompt: a keeper is made, a stall stands on a trail, the level\'s page plays its round', async () => {
+    const out = await designGameHandler({ world: { ...AUTO, battles: { per: 1, rules: { defeat: 'retry' } }, brief: { prompt: 'a jrpg with a fishing pond' } }, ref: 'gm', run: true });
+    expect(action(out, 'keeper')).toBe('make');
+    expect(stored('gm-keeper')).toMatchObject({ kind: 'layered' });
+    const ref = out.ran.filter((r) => r.key.startsWith('level-')).map((r) => r.ref).find((r) => stored(r).play?.minigames);
+    const L = stored(ref), g = L.play.minigames[0];
+    expect(g).toMatchObject({ id: 'fishing', game: 'fishing', purse: 'held:bag:gold' });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef(ref));
+    expect(payload.events.minigames.games.map((x) => x.id)).toEqual(['fishing']);
+    expect(payload.events.rpg).toBeDefined();
+    // the hero walks up to the keeper and presses interact: the round is asked for on the bus
+    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, hero = W.byId[W.pilotId];
+    hero.transform.pos = [g.at.at[0], g.at.at[1], hero.transform.pos[2]];
+    sim.run(0.3);
+    const use = payload.events.reactions.find((r) => r.do === 'emit' && r.type === 'minigame:fishing');
+    sim.run(0.2, { 0: [{ type: use.on }] });
+    expect(sim.bus.log.some((e) => e.type === 'minigame:fishing')).toBe(true);
+  }, 600_000);
+
   it('a casting page: the cast rolled as one row, each member made from it by path, the first party and the familiar in the battle party', async () => {
     const casting = { scale: 'party', n: 1, cast: { party: { relation: 'party', n: 1, body: 'person' }, sprite: { relation: 'party', body: 'mascot' }, kin: { relation: 'party', body: 'beastkin', facets: { ancestry: 'lupine', humanity: 0.2 } }, pet: { relation: 'familiar', body: 'beast', species: 'wolf' } } };
     const world = { ...AUTO, characters: { ...AUTO.characters, casting }, battles: { per: 1 } };

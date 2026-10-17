@@ -49,6 +49,7 @@ import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.
 import { CRAFT } from '../skyscape/eye.js';
 import { MAP_FORMS } from '../skyscape/map.js';
 import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
+import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -76,7 +77,7 @@ function guide() {
     '  adornment   what does the hero carry, and why? an item exists because a power needs it (gameworld-adornment)',
     '  systems     the numbers and the HUD, derived from the actions, each with its reason (gameworld-systems)',
     '  equipment   the gear classes, in one gear language; they matter once a stat makes them matter (gameworld-equipment)',
-    '  battles     turn-based? the party, its classes, its packs of foes (gameworld-battles)',
+    '  battles     turn-based? the party, its classes, its packs of foes, minigames (gameworld-battles)',
     '',
     'PRINCIPLES:',
     '  - Ask, then derive. Before a page, ask the creator what only they know (who the hero is, what the verb of the game',
@@ -370,6 +371,12 @@ function battlesCard() {
     'A world whose intent fights turn by turn is laid with battles, written or not.',
     'CARRIED: the party (levels, xp, classes, ranks, skills, gear) in the store\'s party slice, the bag (items, gear not',
     '  worn, gold) in its bag slice, two potions to start.',
+    '',
+    `MINIGAMES — the games inside the game, battles or not: minigames: true (all) | false | [${MINIGAME_IDS.join(' | ')} |`,
+    '  { game, id?, title?, goal?, gold?, prize?, flag? }]. Absent: heard in the prompt (minigames, carnival, fishing,',
+    '  arcade, match-3), else none. Each has a keeper a few steps up a trail stage, spread across the game; E there plays a',
+    '  round in a pixel window over the field (it holds still). Its score pays gold (gold: a point) into the carried bag;',
+    '  goal is the score that wins; the first win gives its prize (an item) and sets its flag (a scene or quest reads it).',
   );
 }
 
@@ -521,7 +528,7 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
-  ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight', battlesCard],
+  ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in town', battlesCard],
   ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];

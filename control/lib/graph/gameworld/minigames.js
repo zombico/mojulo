@@ -1,0 +1,130 @@
+/**
+ * MINIGAMES — the book's games inside the game: a fishing pond by the road, a blocks cabinet, a match stall, each kept
+ * by someone standing at it. Walk up, press interact, and a round comes up in a pixel window over the field
+ * (playscape/ui/minigames.js, the arcade cabinet's own reducers); what it scores pays gold into the bag the party
+ * carries, and the first win gives its prize. They may have nothing to do with the journey, as minigames often don't.
+ *
+ *   minigames?: true | false | [{ game, id?, title?, goal?, gold?, prize?, flag? }]
+ *     true    the three (fishing, blocks, match); false: none, whatever the prompt says
+ *     game    blocks | match | fishing (playscape/ui/minigames.js MINIGAMES)
+ *   Absent: read from the world's prompt (minigames, carnival, fishing, arcade, match-3 …), else none.
+ *
+ * Each game stands on a stage walked along a trail, spread across the game in order: a keeper a few steps on from the
+ * stage's start, beside the way. A building, a city, a roadway, an airspace or an arena keeps none.
+ *
+ * Pure. `readMinigameBook(v)` the concern read (throws, teaching); `minigamesOfWords(text)` what a prompt asks for;
+ * `minigamePlan(G, stages)` the games each stage keeps; `minigameCast(G, stage, ends, { ref, games, bag })` what a stage
+ * stands and plays; `mergeExtras(a, b)` two stage extras as one.
+ */
+import { MINIGAMES, MINIGAME_IDS, readMinigames } from '../playscape/ui/minigames.js';
+import { playerStates } from '../playscape/player.js';
+
+export const MINIGAME_KEEPER = Object.freeze({ cast: 'female', palette: { Top: '#2f6b55' } });
+const KEEPER_LINE = Object.freeze({ fishing: 'Care to cast a line?', blocks: 'One round on the cabinet?', match: 'Fancy a round of match?' });
+// what a prompt's words ask for: a game each, or all three
+const WORDS = Object.freeze({
+  fishing: ['fishing', 'angling', 'angler'],
+  blocks: ['arcade', 'tetris', 'falling-blocks'],
+  match: ['match-3', 'match3', 'bejeweled', 'gem-matching'],
+  all: ['minigame', 'minigames', 'mini-game', 'mini-games', 'sidegames', 'side-games', 'carnival', 'casino'],
+});
+const ITEM_KEYS = ['game', 'id', 'title', 'goal', 'gold', 'prize', 'flag'];
+// where a keeper can stand: a stage walked along a trail
+const KEPT = (s) => !['building', 'interior', 'city', 'roadway', 'airspace', 'arena'].includes(s.section);
+const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const err = (m) => new Error(`gameworld: minigames${m}`);
+const r3 = (v) => Math.round(v * 1000) / 1000;
+
+// ids game-wide: the game's own word, then -2, -3 for a second of the same
+function withIds(list) {
+  const seen = {};
+  return list.map((g) => {
+    if (g.id) return g;
+    seen[g.game] = (seen[g.game] ?? 0) + 1;
+    return { ...g, id: seen[g.game] === 1 ? g.game : `${g.game}-${seen[g.game]}` };
+  });
+}
+
+/** The concern as written, read: a list of games with their ids, or null (none). */
+export function readMinigameBook(v) {
+  if (v === undefined || v === false) return null;
+  if (v === true) return withIds(MINIGAME_IDS.map((game) => ({ game })));
+  if (!Array.isArray(v) || !v.length) throw err(` is true, false, or a list of { game, id?, title?, goal?, gold?, prize?, flag? } (game: ${MINIGAME_IDS.join(', ')})`);
+  const list = v.map((g, i) => {
+    if (typeof g === 'string') g = { game: g };
+    if (!isObj(g)) throw err(`[${i}] is { game, id?, … } or a game's name (${MINIGAME_IDS.join(', ')})`);
+    for (const k of Object.keys(g)) if (!ITEM_KEYS.includes(k)) throw err(`[${i}].${k} is not part of a minigame here (${ITEM_KEYS.join(', ')})`);
+    return { ...g };
+  });
+  const out = withIds(list);
+  // the play's own reading, so a wrong game, goal or prize is said where it was written
+  try { readMinigames({ minigames: out }); } catch (e) { throw err(e.message.replace(/^play\.minigames/, '')); }
+  return out;
+}
+
+/** What a prompt's words ask for: the games named (all three for "minigames", "carnival" …), or null. */
+export function minigamesOfWords(text) {
+  const W = new Set(String(text ?? '').toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean));
+  const hit = (k) => WORDS[k].some((w) => W.has(w));
+  if (hit('all')) return { games: readMinigameBook(true), words: WORDS.all.filter((w) => W.has(w)) };
+  const games = MINIGAME_IDS.filter(hit);
+  return games.length ? { games: readMinigameBook(games), words: games.flatMap((g) => WORDS[g].filter((w) => W.has(w))) } : null;
+}
+
+/** The games each stage keeps: { [stage index]: [game] }, spread over the stages a keeper can stand on, in order. */
+export function minigamePlan(G, stages) {
+  const games = G.minigames ?? [];
+  const kept = stages.map((s, i) => [s, i]).filter(([s]) => KEPT(s) && !s.building?.ref).map(([, i]) => i);
+  if (!games.length || !kept.length) return null;
+  const plan = {};
+  games.forEach((g, k) => {
+    const i = kept[Math.min(kept.length - 1, Math.floor((k * kept.length) / games.length))];
+    (plan[i] ??= []).push(g);
+  });
+  return plan;
+}
+
+// a stall's place: a few steps on from the start toward the way on, beside it where there is land to stand on
+function stallAt(ends, j) {
+  const s = ends.spawn, ahead = [...(ends.beats ?? []).filter((b) => b.beat !== 'exit').map((b) => b.at), ends.exit];
+  const far = ahead.find((a) => Math.hypot(a[0] - s[0], a[1] - s[1]) > 4) ?? ends.exit;
+  const dx = far[0] - s[0], dy = far[1] - s[1], d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
+  const along = Math.min(5 + 3 * j, d * 0.8);
+  const ground = typeof ends.ground === 'function' ? ends.ground : () => null;
+  for (const side of j % 2 ? [-2.2, 2.2, 0] : [2.2, -2.2, 0]) {
+    const x = s[0] + ux * along - uy * side, y = s[1] + uy * along + ux * side, z = ground(x, y);
+    if (side === 0 || (z != null && Math.abs(z - s[2]) < 1.2)) return { at: [r3(x), r3(y), r3(z ?? s[2])], face: r3(Math.atan2(s[1] - y, s[0] - x)) };
+  }
+  return null;
+}
+
+/**
+ * A stage's minigames: each a keeper standing at its stall, facing back toward the start; interact there and its round
+ * comes up. Gold goes into the carried bag (`bag`: the bag mechanic, when nothing else on the stage carries it).
+ * → { figures, entities, play: { minigames, cues }, mechanics } (the stage's extra: levels.js stageLevelOrder)
+ */
+export function minigameCast(G, stage, ends, { ref, games = [], bag = true } = {}) {
+  const figures = {}, entities = [], minigames = [], cues = [];
+  games.forEach((g, j) => {
+    const p = stallAt(ends, j);
+    if (!p) return;
+    const id = `keeper-${g.id}`;
+    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.face } });
+    minigames.push({ ...g, at: { at: [p.at[0], p.at[1]], r: 2 }, purse: 'held:bag:gold' });
+    cues.push({ id: `keeper-${g.id}-hello`, when: { near: { at: [p.at[0], p.at[1]], r: 3 } }, once: true, then: { say: KEEPER_LINE[g.game] ?? `${MINIGAMES[g.game].name}?`, as: 'toast' } });
+  });
+  if (!minigames.length) return null;
+  return { figures, entities, play: { minigames, cues }, mechanics: bag ? [{ kind: 'bag', slice: 'bag' }] : [] };
+}
+
+/** Two stage extras as one: their figures, entities, plays (lists joined) and mechanics (each kind once). */
+export function mergeExtras(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const play = { ...(a.play ?? {}), ...(b.play ?? {}) };
+  for (const k of ['cues', 'minigames', 'spots', 'menus']) if (a.play?.[k] && b.play?.[k]) play[k] = [...a.play[k], ...b.play[k]];
+  const mechanics = [...(a.mechanics ?? [])];
+  for (const m of b.mechanics ?? []) if (!mechanics.some((x) => x.kind === m.kind && x.slice === m.slice)) mechanics.push(m);
+  return { ...a, ...b, figures: { ...(a.figures ?? {}), ...(b.figures ?? {}) }, entities: [...(a.entities ?? []), ...(b.entities ?? [])], play, mechanics };
+}

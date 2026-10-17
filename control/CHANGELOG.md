@@ -14,7 +14,7 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
-### RPG improvements: a cast rolled for the game, familiars that fight on their own, moves per character
+### RPG improvements: a cast rolled for the game, familiars that fight on their own, moves per character, minigames
 
 - **The cast roller** (`lib/graph/egocube/cast.js`, `rollCast`): an anchor Egocube and the people rolled against it,
   as docs/egocube.md designs it. Relations (shadow, rival, foil, mentor, party, familiar, lieutenant, mastermind, rank,
@@ -85,6 +85,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `{ once: true, keys }`, packed 0 … 1 inclusive as a function clip with `once` is (a fall that ends lying down); a key's
   `body: { pitch?, roll?, up? }` without `at` turns the figure about the floor under its feet. Clips that use neither
   are byte-identical.
+- **Minigames: the games inside the game** (`playscape/ui/minigames.js`, `scene/channels/minigame-channel.js`).
+  `play.minigames: [{ id, game, at?, prompt?, goal?, gold?, purse?, prize?, flag? }]`: interact at its place (or emit
+  `minigame:<id>`) and a round comes up in a pixel window over the field, the world held still as in a battle; `blocks`
+  and `match` are the arcade cabinet's own reducers (brickster, the philosopher's stone trial), `fishing` a new one
+  (`pixelizer/fishing-core.js`, `fishing-skin.js`: hold the line over a darting fish until it is landed, a few casts a
+  round, five fish from minnow to golden koi). Its score pays gold into the party's purse (a bag transfer when the purse
+  is the bag's, so it is carried), keeps `minigame-best-<id>`, and says `minigame-won:<id>` or `minigame-lost:<id>`; the
+  first win gives its prize and sets its flag. The page inlines only the games a level plays; a level without one
+  carries not a byte of them.
+- **Minigames in the game book** (`gameworld/minigames.js`): `minigames: true | false | [game | { game, … }]`, or heard
+  in the prompt (minigames, carnival, fishing, arcade, match-3). A keeper (one figure, made as the foe is) stands a few
+  steps up a trail stage for each, spread across the game; the winnings go into the carried bag (the battles' bag, or
+  its own). A world that asks for none makes the same steps it did.
 
 ## [3.1.1] - 2026-10-16
 

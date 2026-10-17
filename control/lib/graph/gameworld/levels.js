@@ -690,6 +690,8 @@ export function gameStore(world, book) {
     const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: { ...BAG_START } };
     if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init };
   }
+  // the minigames' winnings (minigames.js): gold in a bag carried from level to level
+  if (G.minigames && !slices.some((x) => x.name === BAG_SLICE)) slices.push({ name: BAG_SLICE, kind: 'inventory' });
   return { slices };
 }
 
