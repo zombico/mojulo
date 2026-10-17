@@ -1,0 +1,20 @@
+{ "title": "Maple Street house", "ref": "maple_street", "manifest": { "width": 50, "height": 38, "seed": 7, "furnish": true, "windows": true, "ceilings": true, "view": "cutaway",
+  "rooms": [
+   { "x": 2, "y": 2, "w": 22, "h": 16, "glyph": "L" },
+   { "x": 24, "y": 2, "w": 10, "h": 16, "glyph": "K" },
+   { "x": 34, "y": 2, "w": 14, "h": 16, "glyph": "D" },
+   { "x": 2, "y": 18, "w": 46, "h": 4, "glyph": "H" },
+   { "x": 2, "y": 22, "w": 15, "h": 14, "glyph": "B" },
+   { "x": 17, "y": 22, "w": 9, "h": 14, "glyph": "W" },
+   { "x": 26, "y": 22, "w": 22, "h": 14, "glyph": "B" }
+  ], "doors": [
+   { "x": 2, "y": 20, "room": 3, "edge": "W", "entry": true },
+   { "x": 13, "y": 18, "room": 0, "edge": "S" },
+   { "x": 29, "y": 18, "room": 1, "edge": "S" },
+   { "x": 34, "y": 10, "room": 1, "edge": "E" },
+   { "x": 41, "y": 18, "room": 2, "edge": "S" },
+   { "x": 9, "y": 22, "room": 4, "edge": "N" },
+   { "x": 21, "y": 22, "room": 5, "edge": "N" },
+   { "x": 33, "y": 22, "room": 6, "edge": "N" }
+  ] }
+}

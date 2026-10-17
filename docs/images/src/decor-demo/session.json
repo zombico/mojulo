@@ -1,0 +1,790 @@
+{
+ "note": "The session behind docs/images/decor-demo.gif, as run.mjs recorded it: each ask, the calls the agent made, its reply, and what print mode reported. totals is what the last slide shows.",
+ "when": "2026-10-17",
+ "model": "claude-sonnet-5-5",
+ "house": "maple_street",
+ "totals": {
+  "ms": 86223,
+  "input": 34,
+  "output": 7648,
+  "cacheRead": 1590689,
+  "cacheWrite": 25706,
+  "calls": 20,
+  "cost": 0.3384409,
+  "tokens": 1624077
+ },
+ "turns": [
+  {
+   "prompt": "We just moved into the Maple Street house, it's already in mojulo. The living room feels cold and empty. Can you make it warm and cozy, like a cabin? Lots of wood, soft fabrics, warm colours, somewhere to curl up with a book.",
+   "durationMs": 38489,
+   "apiMs": 27299,
+   "numTurns": 14,
+   "usage": {
+    "input": 18,
+    "output": 3763,
+    "cacheRead": 796782,
+    "cacheWrite": 17093
+   },
+   "costUsdSoFar": 0.1857162,
+   "tools": [
+    {
+     "name": "semantic_search",
+     "error": false,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "query": "Maple Street house floorplan",
+      "limit": 10
+     }
+    },
+    {
+     "name": "get_sketch_vocab",
+     "error": false,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "id": "interior"
+     }
+    },
+    {
+     "name": "semantic_search",
+     "error": false,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "query": "Maple Street",
+      "limit": 10
+     }
+    },
+    {
+     "name": "get_creative_toolset",
+     "error": false,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "form": "building"
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "house": "maple-street",
+      "room": "living"
+     }
+    },
+    {
+     "name": "get_stash",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "stash_ref": "maple-street"
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_kl7hjlhbra",
+     "tag": "101",
+     "input": {
+      "house": "maple_street",
+      "room": "living"
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "house": "maple",
+      "room": "living"
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "house": "maple-street-house",
+      "room": "living"
+     }
+    },
+    {
+     "name": "annotate_beats",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "ref": "maple-street"
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "ref": "sk_kl7hjlhbra",
+      "style": {
+       "name": "modern-farmhouse",
+       "accent": "seventies",
+       "palette": {
+        "upholstery": "rust",
+        "rug": "cream"
+       }
+      },
+      "palette": {
+       "seed": 7,
+       "heat": 0.8,
+       "weight": 0.4,
+       "activity": -0.4,
+       "scheme": "analogous",
+       "intent": "warm cozy cabin: honey wood, rust, cream, amber"
+      },
+      "focal": "fireplace",
+      "brief": {
+       "uses": [
+        "converse",
+        "read",
+        "display",
+        "anchor",
+        "light-task",
+        "media"
+       ],
+       "tags": [
+        "entertaining",
+        "pets"
+       ]
+      },
+      "surface": {
+       "walls": {
+        "style": "shiplap",
+        "paint": "honey-oak"
+       },
+       "trim": {
+        "paint": "walnut"
+       },
+       "floor": {
+        "pattern": "plank",
+        "colours": [
+         "#9a6b3f",
+         "#7d5330"
+        ]
+       },
+       "accentWall": false,
+       "features": [
+        {
+         "type": "fireplace",
+         "wall": "E",
+         "at": 0.5
+        }
+       ]
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "like": "tuxedo",
+        "finish": {
+         "fabric": "boucle"
+        }
+       },
+       {
+        "id": "conversation.chair-1",
+        "finish": {
+         "fabric": "wool"
+        }
+       },
+       {
+        "id": "conversation.chair-2",
+        "omit": true
+       },
+       {
+        "id": "reading.chair",
+        "like": "wingback",
+        "finish": {
+         "fabric": "velvet"
+        }
+       },
+       {
+        "id": "conversation.rug",
+        "size": [
+         2600,
+         3400,
+         null
+        ]
+       },
+       {
+        "id": "media.console",
+        "finish": {
+         "timber": "walnut"
+        }
+       },
+       {
+        "id": "conversation.coffee-table",
+        "finish": {
+         "timber": "oak"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "ref": "sk_kl7hjlhbra",
+      "style": {
+       "name": "modern-farmhouse",
+       "accent": "seventies",
+       "palette": {
+        "upholstery": "rust",
+        "rug": "cream"
+       }
+      },
+      "palette": {
+       "seed": 7,
+       "heat": 0.8,
+       "weight": 0.4,
+       "activity": -0.4,
+       "scheme": "analogous",
+       "intent": "warm cozy cabin: honey wood, rust, cream, amber"
+      },
+      "focal": "fireplace",
+      "brief": {
+       "uses": [
+        "converse",
+        "read",
+        "display",
+        "anchor",
+        "light-task",
+        "media"
+       ],
+       "tags": [
+        "entertaining",
+        "pets"
+       ]
+      },
+      "surface": {
+       "walls": {
+        "style": "shiplap",
+        "paint": "#c99a5e"
+       },
+       "trim": {
+        "paint": "#5a3a22"
+       },
+       "floor": {
+        "pattern": "plank",
+        "colours": [
+         "#9a6b3f",
+         "#7d5330"
+        ]
+       },
+       "accentWall": false,
+       "features": [
+        {
+         "type": "fireplace",
+         "wall": "E",
+         "at": 0.5
+        }
+       ]
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "like": "tuxedo",
+        "finish": {
+         "fabric": "boucle"
+        }
+       },
+       {
+        "id": "conversation.chair-1",
+        "finish": {
+         "fabric": "wool"
+        }
+       },
+       {
+        "id": "conversation.chair-2",
+        "omit": true
+       },
+       {
+        "id": "reading.chair",
+        "like": "wingback",
+        "finish": {
+         "fabric": "velvet"
+        }
+       },
+       {
+        "id": "conversation.rug",
+        "size": [
+         2600,
+         3400,
+         null
+        ]
+       },
+       {
+        "id": "media.console",
+        "finish": {
+         "timber": "walnut"
+        }
+       },
+       {
+        "id": "conversation.coffee-table",
+        "finish": {
+         "timber": "oak"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_kl7hjlhbra",
+     "tag": "101",
+     "input": {
+      "ref": "sk_kl7hjlhbra",
+      "style": {
+       "name": "modern-farmhouse",
+       "accent": "seventies",
+       "palette": {
+        "upholstery": "rust",
+        "rug": "cream"
+       }
+      },
+      "palette": {
+       "seed": 7,
+       "heat": 0.8,
+       "weight": 0.4,
+       "activity": -0.4,
+       "scheme": "analogous",
+       "intent": "warm cozy cabin: honey wood, rust, cream, amber"
+      },
+      "focal": "fireplace",
+      "brief": {
+       "uses": [
+        "converse",
+        "read",
+        "display",
+        "anchor",
+        "light-task",
+        "media"
+       ],
+       "tags": [
+        "entertaining",
+        "pets"
+       ]
+      },
+      "surface": {
+       "walls": {
+        "style": "shiplap",
+        "paint": "#c99a5e"
+       },
+       "trim": {
+        "paint": "#5a3a22"
+       },
+       "floor": {
+        "pattern": "plank",
+        "colours": [
+         "#9a6b3f",
+         "#7d5330"
+        ]
+       },
+       "accentWall": false,
+       "features": [
+        {
+         "type": "fireplace",
+         "wall": "E",
+         "at": 0.5
+        }
+       ]
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "like": "tuxedo",
+        "finish": {
+         "fabric": "boucle"
+        }
+       },
+       {
+        "id": "conversation.chair-1",
+        "finish": {
+         "fabric": "tartan"
+        }
+       },
+       {
+        "id": "conversation.chair-2",
+        "omit": true
+       },
+       {
+        "id": "reading.chair",
+        "like": "wingback",
+        "finish": {
+         "fabric": "velvet"
+        }
+       },
+       {
+        "id": "conversation.rug",
+        "size": [
+         2600,
+         3400,
+         null
+        ]
+       },
+       {
+        "id": "media.console",
+        "finish": {
+         "timber": "walnut"
+        }
+       },
+       {
+        "id": "conversation.coffee-table",
+        "finish": {
+         "timber": "oak"
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "reply": "I've redone the lounge (101, about 6.5 × 4.6 m) as a warm cabin. You can see it at `/sketches/sk_kl7hjlhbra`. It's a new design over your Maple Street house, so the house itself is unchanged.\n\n- **Walls and floor:** honey-toned shiplap with dark walnut trim, over wide plank flooring in two brown tones.\n- **Fireplace:** there's now a fireplace on the east wall, and the room is arranged around it. The TV is gone because there was no room for the media console in front of the hearth. That suits a cabin, but I can put a screen on another wall if you want one.\n- **Seating:** a bouclé sofa and a tartan armchair face the fire. The colours are rust, cream and amber.\n- **Reading corner:** a velvet wingback with its own floor lamp and side table, plus two bookcases.\n- **Not applied:** the rug didn't take my larger size and stayed at 2.0 × 3.0 m. There's no throw blanket, since I only had furniture pieces to work with.\n\nI can also make it more rustic with a darker wood palette, or move the reading chair closer to the window."
+  },
+  {
+   "prompt": "That's so much better. Now the bigger bedroom: calm and light, like a nice hotel.",
+   "durationMs": 19840,
+   "apiMs": 40569,
+   "numTurns": 4,
+   "usage": {
+    "input": 6,
+    "output": 1742,
+    "cacheRead": 289113,
+    "cacheWrite": 3894
+   },
+   "costUsdSoFar": 0.2476355,
+   "tools": [
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "house": "maple_street",
+      "room": "nonexistent-room-probe"
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_0pc86bilnf",
+     "tag": "105",
+     "input": {
+      "house": "maple_street",
+      "room": "105",
+      "title": "Bedroom 105 — hotel calm",
+      "style": {
+       "name": "quiet-luxury",
+       "accent": "warm-minimal"
+      },
+      "palette": {
+       "seed": 11,
+       "heat": 0,
+       "weight": -0.6,
+       "activity": -0.8,
+       "scheme": "mono-accent",
+       "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
+      },
+      "brief": {
+       "uses": [
+        "sleep",
+        "dress",
+        "read",
+        "light-task"
+       ],
+       "bed": "king"
+      },
+      "surface": {
+       "walls": {
+        "style": "paint",
+        "paint": "#eeeae2"
+       },
+       "trim": {
+        "paint": "#ffffff"
+       },
+       "floor": {
+        "pattern": "plank",
+        "colours": [
+         "#cdb99a",
+         "#c2ad8c"
+        ]
+       }
+      },
+      "pieces": [
+       {
+        "id": "sleep.bed",
+        "finish": {
+         "fabric": "linen"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_ogknpciab0",
+     "tag": "107",
+     "input": {
+      "house": "maple_street",
+      "room": "107",
+      "title": "Bedroom 107 — hotel calm",
+      "style": {
+       "name": "quiet-luxury",
+       "accent": "warm-minimal"
+      },
+      "palette": {
+       "seed": 11,
+       "heat": 0,
+       "weight": -0.6,
+       "activity": -0.8,
+       "scheme": "mono-accent",
+       "intent": "calm light hotel bedroom: white linen, pale oat, soft grey-blue"
+      },
+      "brief": {
+       "uses": [
+        "sleep",
+        "dress",
+        "read",
+        "light-task"
+       ],
+       "bed": "king"
+      },
+      "surface": {
+       "walls": {
+        "style": "paint",
+        "paint": "#eeeae2"
+       },
+       "trim": {
+        "paint": "#ffffff"
+       },
+       "floor": {
+        "pattern": "plank",
+        "colours": [
+         "#cdb99a",
+         "#c2ad8c"
+        ]
+       }
+      },
+      "pieces": [
+       {
+        "id": "sleep.bed",
+        "finish": {
+         "fabric": "linen"
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "reply": "The house has two bedrooms, and I didn't know which one you meant. I went by size and designed the bigger one, room 107 at about 6.5 × 4.0 m. You can see it at `/sketches/sk_ogknpciab0`. It's a calm, light hotel look in the quiet-luxury style, with warm-minimal accents. The walls are soft off-white with white trim, the floor is pale oat planks, and the bed has linen. It has a king bed with a nightstand on each side, a large rug, a dresser, and a reading chair with a floor lamp by the windows.\n\n- **Smaller bedroom:** I also ran 105 (about 4.3 × 4.0 m) in the same style while checking sizes. It's at `/sketches/sk_0pc86bilnf`, and you can ignore it.\n- **Bed size:** the king bed was clamped to 2.0 m wide, so it's slightly narrower than a true king.\n- **Right-hand path:** the walkway down the bed's right side came out tight, and the tool flagged it.\n- **Side table:** the reading chair has no side table because there was no space for one.\n- **Lighting:** there are only two light sources, the ceiling light and one lamp. I could add a third for a layered hotel glow.\n\nIf you meant the other bedroom, say so and I'll swap them over."
+  },
+  {
+   "prompt": "Last thing: paint one wall of the living room a deep forest green, and make the sofa velvet.",
+   "durationMs": 27894,
+   "apiMs": 57662,
+   "numTurns": 5,
+   "usage": {
+    "input": 10,
+    "output": 2143,
+    "cacheRead": 504794,
+    "cacheWrite": 4719
+   },
+   "costUsdSoFar": 0.3384409,
+   "tools": [
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "ref": "sk_kl7hjlhbra",
+      "surface": {
+       "W": {
+        "style": "paint",
+        "paint": "#1f4a32"
+       }
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "finish": {
+         "fabric": "velvet"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": true,
+     "ref": null,
+     "tag": null,
+     "input": {
+      "ref": "sk_kl7hjlhbra",
+      "surface": {
+       "W": {
+        "style": "paint",
+        "paint": "#1f4a32"
+       }
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "finish": {
+         "fabric": "velvet"
+        }
+       },
+       {
+        "id": "media.console",
+        "omit": true
+       },
+       {
+        "id": "conversation.coffee-table",
+        "finish": {
+         "timber": "wood"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_kl7hjlhbra",
+     "tag": "101",
+     "input": {
+      "ref": "sk_kl7hjlhbra",
+      "surface": {
+       "W": {
+        "style": "paint",
+        "paint": "#1f4a32"
+       }
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "finish": {
+         "fabric": "velvet"
+        }
+       },
+       {
+        "id": "media.console",
+        "finish": null,
+        "omit": true
+       },
+       {
+        "id": "conversation.coffee-table",
+        "finish": {
+         "timber": "oak"
+        }
+       }
+      ]
+     }
+    },
+    {
+     "name": "design_interior",
+     "error": false,
+     "ref": "sk_kl7hjlhbra",
+     "tag": "101",
+     "input": {
+      "ref": "sk_kl7hjlhbra",
+      "style": {
+       "name": "modern-farmhouse",
+       "accent": "seventies",
+       "palette": {
+        "upholstery": "rust",
+        "rug": "cream"
+       }
+      },
+      "focal": "fireplace",
+      "surface": {
+       "walls": {
+        "style": "shiplap",
+        "paint": "#c99a5e"
+       },
+       "trim": {
+        "paint": "#5a3a22"
+       },
+       "W": {
+        "style": "paint",
+        "paint": "#1f4a32"
+       },
+       "floor": {
+        "pattern": "plank",
+        "colours": [
+         "#9a6b3f",
+         "#7d5330"
+        ]
+       },
+       "accentWall": false,
+       "features": [
+        {
+         "type": "fireplace",
+         "wall": "E",
+         "at": 0.5
+        }
+       ]
+      },
+      "pieces": [
+       {
+        "id": "conversation.sofa",
+        "like": "tuxedo",
+        "finish": {
+         "fabric": "velvet"
+        }
+       },
+       {
+        "id": "conversation.chair-1",
+        "finish": {
+         "fabric": "tartan"
+        }
+       },
+       {
+        "id": "conversation.chair-2",
+        "omit": true
+       },
+       {
+        "id": "reading.chair",
+        "like": "wingback",
+        "finish": {
+         "fabric": "velvet"
+        }
+       },
+       {
+        "id": "media.console",
+        "omit": true
+       },
+       {
+        "id": "media.tv",
+        "omit": true
+       },
+       {
+        "id": "conversation.coffee-table",
+        "finish": {
+         "timber": "oak"
+        }
+       }
+      ]
+     }
+    }
+   ],
+   "reply": "The living room (`/sketches/sk_kl7hjlhbra`) now has the west wall painted deep forest green and a velvet sofa. I haven't looked at a render, only the tool's readout.\n\n- **Which wall:** you didn't say which wall, so I chose the west one, opposite the fireplace. It should sit behind the sofa and give the room a dark backdrop. I couldn't confirm that from the readout, and I don't know where the three windows are. If it ends up on the wrong wall, tell me which one you want.\n- **Rest of the cabin:** my first attempt dropped the fireplace and brought the TV back, so I reapplied everything. The fireplace, shiplap walls, plank floor and tartan armchair are all in place again. The reading corner also has its velvet wingback.\n- **TV:** the TV is still out of the room, as before."
+  }
+ ]
+}

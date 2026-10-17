@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](control/package.json)
 
-![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
+![One real chat with an agent that has mojulo connected. A homeowner asks, in their own words, for a warm and cozy living room like a cabin, then a calm bedroom like a hotel, then one wall in forest green and a velvet sofa. The agent finds the house they were handed and redecorates each room on the same plan; mojulo records each room before and after as a walk-through, and the last slide shows the session's own time, tokens and API cost](docs/images/decor-demo.gif)
 
 Mojulo is a **3D factory with a media studio** for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio) builds things to play, print, read, hear and watch (games, objects, walkable worlds, pictures, scores) by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read (byte for byte on the same platform), and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
 
@@ -128,18 +128,38 @@ module standoffs() {
 
 with `parts: { tray: 'tray();', standoffs: 'standoffs();' }`. OpenSCAD itself meshes it on every read, in-process as WebAssembly with the Manifold backend, so booleans are exact and every edge is sharp. `color()` is the tint; each named part is a render group a hinge in `movers` can swing. The same ref serves the orbit view, the `.glb`, the engine packs and `model.stl` at 91 × 62 × 14 mm as written; `model.scad` hands the source back unchanged. Change `wall_h` with `update_sketch` and the readout names the one part that moved. For what OpenSCAD cannot say, a blended join, a stroked dent, seeded noise, the source calls `mojulo_field("<id>")` and a field solid from the same recipe is baked in at that spot.
 
-### 2. "Build a 20 by 24 ft living room with a door on the south wall"
+### 2. "The living room feels cold and empty. Can you make it warm and cozy?"
 
-That is the GIF at the top. The agent calls `create_sketch { title, manifest: { kind: 'floorplan', … } }` and the stored manifest is this:
+That is the GIF at the top: one real Claude Code session on Sonnet 5.5, three asks in a homeowner's words, with no
+style names and no tool names. The house was already there, a seven-room floorplan with its own furniture. The agent
+finds it and calls `design_interior` for each room: it turns "like a cabin, lots of wood, warm colours" into a style,
+a palette, shiplap walls, plank floors and a fireplace to sit round, keeps the walkways clear, and says what it could
+not fit. Each room it designs is its own small recipe over the house, and the house itself is never written, so a
+second scheme for the same room sits beside the first. This is the living room after the third ask:
 
 ```json
-{ "kind": "floorplan", "width": 24, "height": 28,
-  "rooms": [ { "x": 2, "y": 2, "w": 20, "h": 24, "glyph": "L" } ],
-  "doors": [ { "x": 12, "y": 26, "room": 0, "edge": "S" } ],
-  "furnish": true, "view": "cutaway", "seed": 7 }
+{ "kind": "interior", "house": "maple_street", "room": "living", "focal": "fireplace",
+  "style": { "name": "modern-farmhouse", "accent": "seventies", "palette": { "upholstery": "rust", "rug": "cream" } },
+  "palette": { "seed": 7, "heat": 0.8, "weight": 0.4, "activity": -0.4, "scheme": "analogous", "intent": "warm cozy cabin: honey wood, rust, cream, amber" },
+  "brief": { "uses": ["converse", "read", "display", "anchor", "light-task", "media"], "tags": ["entertaining", "pets"] },
+  "surface": { "walls": { "style": "shiplap", "paint": "#c99a5e" }, "trim": { "paint": "#5a3a22" },
+               "W": { "style": "paint", "paint": "#1f4a32" }, "floor": { "pattern": "plank", "colours": ["#9a6b3f", "#7d5330"] },
+               "accentWall": false, "features": [ { "type": "fireplace", "wall": "E", "at": 0.5 } ] },
+  "pieces": [ { "id": "conversation.sofa", "like": "tuxedo", "finish": { "fabric": "velvet" } },
+              { "id": "conversation.chair-1", "finish": { "fabric": "tartan" } }, { "id": "conversation.chair-2", "omit": true },
+              { "id": "reading.chair", "like": "wingback", "finish": { "fabric": "velvet" } },
+              { "id": "conversation.rug", "size": [2600, 3400, null] }, { "id": "conversation.coffee-table", "finish": { "timber": "oak" } },
+              { "id": "media.console", "omit": true }, { "id": "media.tv", "omit": true } ] }
 ```
 
-The `L` glyph and the seed furnish it: sofa, two chairs, rug, lamp, windows. "Add pot lights to the ceiling" adds `"potLights": true` and nothing else changes. `"levels": [...]` stacks it into a building with stairs through the slabs. The same recipe walks in the browser at `/world`, exports as a `.glb`, or goes to Blender as an art-pass pack, where a Cycles bake can write traced light back into the mesh's own vertex colours so the lit result runs anywhere at zero runtime cost.
+"Paint one wall forest green, and make the sofa velvet" is the `W` wall and one `finish` on the sofa, addressed by its
+id. A revision replaces each field it names whole, so the agent's first try at it, a `surface` with only the green
+wall, dropped the fireplace; it saw that in the readout and sent the room's other walls back with it. The
+walk-throughs are `forge_motion`, mojulo's own camera, over the house as handed over and over each new room. The
+session took about a minute and a half of agent time and 34 cents at API list price, with a warm prompt cache (a cold
+one costs more). Its whole record, every call, reply and token count, is
+[session.json](docs/images/src/decor-demo/session.json), and [the runner](docs/images/src/decor-demo/) re-runs it. The
+same room opens at `/world` to walk, exports as a `.glb`, or goes to Blender for a Cycles render.
 
 ### 3. "Build an oak dining table and show me how it goes together"
 

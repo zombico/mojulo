@@ -18,8 +18,11 @@ const { default: puppeteer } = await import(pathToFileURL(req.resolve('puppeteer
 const CHROME = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const GL_ARGS = ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'swiftshader'}`, '--ignore-gpu-blocklist'];
 
+// Chromium cannot keep its sandbox as root (a Linux container), so it runs without one there.
+const ROOT_ARGS = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
+
 export const launch = (gl = false) =>
-  puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--allow-file-access-from-files', ...(gl ? GL_ARGS : [])] });
+  puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--allow-file-access-from-files', ...ROOT_ARGS, ...(gl ? GL_ARGS : [])] });
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

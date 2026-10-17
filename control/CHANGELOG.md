@@ -14,6 +14,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### README demo: redecorating a house
+
+- The README and the npm page lead with `docs/images/decor-demo.gif` in place of `lounge-handoff-demo.gif` (which
+  the long tour keeps). It is one real Claude Code session, recorded rather than staged: a homeowner's three asks in
+  their own words (a warm, cozy living room like a cabin; the bigger bedroom calm like a hotel; one wall forest green
+  and a velvet sofa) over a house they were handed, a seven-room floorplan with its own furniture. The agent finds the
+  house and calls `design_interior` itself; `forge_motion` records each room before and after as a walk at eye
+  height; the last slide is the session's own working time, tokens and cost at API list price. README section 2 walks
+  through it with the living room's stored recipe.
+- `docs/images/src/decor-demo/` re-runs it end to end: `run.mjs` drives `claude -p` (`--resume` per ask) with mojulo as
+  the only tool server, `compose.mjs` sets it in a generic chat and encodes the GIF, and `session.json` is the record
+  of the session the GIF shows: every call, reply and token count. The media helpers launch Chromium without its
+  sandbox when they run as root, as in a Linux container.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
