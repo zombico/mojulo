@@ -20,6 +20,10 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   tarnish brown and then turn verdigris green by their measured film law, and steel dulls and then blackens to forged
   scale. The painted tone of each aged group follows, so the toon light, the paint and the live metal agree. A group the
   cube names ages too, unless it names its own film or finish. Gold does not age. Absent, metal is bright, as before.
+- **Armour cards name their materials.** A style card's `materials` says what its pieces are made of where its
+  family's table would be wrong: `grim-scifi`'s trim is blasted steel, `armored-hero`'s faceplate brushed stainless, the
+  rest of a hardsuit painted. They are worn only on a level that names `materials`, under the level's own overrides and
+  age, so sci-fi heroes now take live metal, the cube's light and its age where their designer said metal.
 - **`outside.crystals`.** A cube's island grows crystals: `'amethyst'`, or `{ gem, where: 'crags' | 'hollows', count,
   size, glow, seed }`. Seeded clusters stand out of the cliff faces or sit in the land's hollows, off the trail and the
   seam. They are real gems (the crystal channel shades them live, each throwing its own light, and the GLB carries them

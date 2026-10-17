@@ -779,8 +779,10 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
     (red lacquer, gold horns) or `shiro` (white lacing, a sun disc); or the hard-suits `grim-scifi` (massive power
     armour, glowing lenses, a power pack), `fantasy-space` (minimal trooper plates, a T-visor helmet) or `armored-hero`
     (a segmented suit, a faceplate helm, a glowing chest reactor). Or an inline card
-    `{ family: 'plate' | 'lamellar' | 'hardsuit', dials, language, tones, emissive? }`: a new direction is a new card,
-    not code. A card's `emissive` groups render full-bright.
+    `{ family: 'plate' | 'lamellar' | 'hardsuit', dials, language, tones, emissive?, materials? }`: a new direction is a
+    new card, not code. A card's `emissive` groups render full-bright; its `materials` (`{ Trim: { metal: 'steel',
+    finish: 'blasted' } }`) say what its pieces are made of where its family's differ, worn on a level that names
+    `materials`.
   - `dials`:
     - `stylize` 0 → 1 grows the focal piece fastest, stands plates further off the body, flares openings, and makes
       lames, rows and lacing fewer and bigger.

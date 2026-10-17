@@ -51,7 +51,7 @@ import { HAIR_KEYS, HAIR_STYLE_NAMES, resolveHair, validateHair, hairWarnings } 
 import { validateCast, resolveCast, CAST_KEYS, CAST_PRESET_NAMES } from '@/lib/graph/polygonizer/figure-cast';
 import { isOutfitBuild, outfitReadout, outfitTones, OUTFIT_LAWS_VERSION } from '@/lib/graph/outfit/expand';
 import { DETAIL_WORDS, KIT_WORDS, validateDress, validateDressPaint, PAINT_WORDS, validateOutfit, OUTFIT_WORDS, dressPlan, kitPalette, dressContext } from '@/lib/graph/polygonizer/hero-dress';
-import { isArmorBuild, armorReadout, armorFamily, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
+import { isArmorBuild, armorReadout, armorFamily, armorMaterials, ARMOR_LAWS_VERSION } from '@/lib/graph/armor/expand';
 import { validateStatueBuild, normalizeStatue, statueHero, statueHair, statueRecipe, STATUE_LAWS_VERSION, STATUE_STYLES } from '@/lib/graph/statue/expand';
 import { validateCreatureStatue } from '@/lib/graph/statue/creature';
 import { MATERIAL_WORDS as STATUE_MATERIAL_WORDS, CROP_WORDS as STATUE_CROP_WORDS, BASE_WORDS as STATUE_BASE_WORDS } from '@/lib/graph/statue/principles';
@@ -181,7 +181,7 @@ function withDressMaterials(recipe, hero) {
   if (!hero?.geocube) return recipe;
   const M = readGeocube(hero.geocube).materials;
   if (M === undefined || M === false) return recipe;
-  const surfaces = dressSurfaces({ palette: recipe.palette || {}, family: armorFamily(hero.adorn), overrides: M === true ? null : M });
+  const surfaces = dressSurfaces({ palette: recipe.palette || {}, family: armorFamily(hero.adorn), card: armorMaterials(hero.adorn), overrides: M === true ? null : M });
   // an aged level (`materials: { age }`) repaints its aged groups' tones toward the aged metal
   const aged = surfaces && M !== true ? agedTones(recipe.palette || {}, surfaces, M.age) : null;
   return surfaces ? { ...recipe, ...(aged ? { palette: { ...recipe.palette, ...aged } } : {}), surfaces } : recipe;

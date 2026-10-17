@@ -5,7 +5,7 @@
  *
  *   FAMILY_MATERIALS              family → group → material (a shelf name, a metal surface, or { metal: 'tone', finish })
  *   metalForTone(hex)             the metal a tone reads as: gold, brass, bronze, copper or steel, by hue and lightness
- *   dressSurfaces({ palette, family, overrides })   → recipe.surfaces for the groups the palette paints, or null
+ *   dressSurfaces({ palette, family, card, overrides })   → recipe.surfaces for the groups the palette paints, or null
  *   agedTones(palette, surfaces, age)                → the painted tones of the groups an age changed, or null
  *
  * AGE (`overrides.age`, a cube's `materials: { age }`): new, worn, old or ancient, on the table's metals (copper alloys
@@ -101,12 +101,13 @@ export function materialsErrors(spec, at = 'materials') {
 }
 
 /**
- * The surfaces a dressed hero wears: for every group its palette paints, the family's material, else the dress's, else
- * an override's (`false` leaves a group as paint). → { <group>: material } or null when no group has one.
+ * The surfaces a dressed hero wears: for every group its palette paints, the cube's override, else the armour card's
+ * own (`card`, armor/styles.js `materials`), else the family's, else the dress's (`false` leaves a group as paint).
+ * → { <group>: material } or null when no group has one.
  */
-export function dressSurfaces({ palette = {}, family = null, overrides = null } = {}) {
+export function dressSurfaces({ palette = {}, family = null, card = null, overrides = null } = {}) {
   const { age = null, ...own } = overrides && typeof overrides === 'object' ? overrides : {};
-  const table = { ...DRESS, ...(family && FAMILY_MATERIALS[family] ? FAMILY_MATERIALS[family] : {}) };
+  const table = { ...DRESS, ...(family && FAMILY_MATERIALS[family] ? FAMILY_MATERIALS[family] : {}), ...(card && typeof card === 'object' ? card : {}) };
   const out = {};
   for (const [g, m] of Object.entries({ ...table, ...own })) {
     if (m === false || !(g in palette)) continue;

@@ -17,6 +17,11 @@
 //             beneath (Top, Bottom, Shoes) — law 10: one clear value step between them. Suggested beneath the
 //             operator's own palette.
 //   emissive  groups that render full-bright (lenses, a visor slit, a reactor) — law 5: the glow spends on the focal
+//   materials (optional) group → a material (a shelf name, a metal surface { metal, finish? }, or false: paint): what
+//             this card's pieces are made of where it differs from its family's (materials/dress-materials.js), worn
+//             only where a level names `materials` (a geocube's), under that level's own overrides and age
+
+import { validateMaterialRef } from '../polygonizer/materials.js';
 
 export const ARMOR_FAMILIES = Object.freeze(['plate', 'lamellar', 'hardsuit']);
 export const PAULDRONS = Object.freeze(['spaulder', 'bell']);
@@ -61,7 +66,8 @@ export const SEEDED_ARMOR = Object.freeze({
     "dials": { "stylize": 0.7, "mass": 1.35, "coverage": 1, "ornament": 2 },
     "language": { "helm": "power", "pauldron": "dome", "chest": "plain", "pack": "power", "segments": 1, "focal": "pauldron", "focalSide": "L" },
     "tones": { "Plate": "#8c7a5b", "Helm": "#8c7a5b", "Trim": "#3d3a36", "Emblem": "#2f2c28", "Lens": "#ffb238", "Suit": "#1b1c1f", "Top": "#1b1c1f", "Bottom": "#1b1c1f", "Shoes": "#161616" },
-    "emissive": ["Lens"]
+    "emissive": ["Lens"],
+    "materials": { "Trim": { "metal": "steel", "finish": "blasted" } }
   },
   // minimal trooper plates over a dark bodysuit, a smooth helmet with a T-visor (the helm is the focal)
   "fantasy-space": {
@@ -81,7 +87,8 @@ export const SEEDED_ARMOR = Object.freeze({
     "dials": { "stylize": 0.55, "mass": 1.05, "coverage": 1, "ornament": 1 },
     "language": { "helm": "faceplate", "pauldron": "segmented", "chest": "reactor", "pack": "none", "segments": 2, "focal": "reactor" },
     "tones": { "Plate": "#6b7580", "Helm": "#6b7580", "Face": "#c9ced3", "Trim": "#d9772b", "Lens": "#eef6ff", "Reactor": "#bfe8ff", "Suit": "#2a2a2e", "Top": "#2a2a2e", "Bottom": "#2a2a2e", "Shoes": "#222226" },
-    "emissive": ["Lens", "Reactor"]
+    "emissive": ["Lens", "Reactor"],
+    "materials": { "Face": { "metal": "stainless", "finish": "brushed" } }
   },
 });
 
@@ -109,5 +116,13 @@ export function validateArmorCard(card, at = 'style') {
   }
   for (const [g, v] of Object.entries(card.tones || {})) if (!isHex(v)) errs.push(`${at}.tones.${g}: a "#rrggbb" colour`);
   if (card.emissive !== undefined && !(Array.isArray(card.emissive) && card.emissive.every((g) => typeof g === 'string'))) errs.push(`${at}.emissive: a list of group names`);
+  if (card.materials !== undefined) {
+    if (!card.materials || typeof card.materials !== 'object' || Array.isArray(card.materials)) errs.push(`${at}.materials: { <group>: <material> } (a shelf name, { metal, finish? }, or false)`);
+    else for (const [g, m] of Object.entries(card.materials)) {
+      if (!/^[A-Z][A-Za-z]*$/.test(g)) errs.push(`${at}.materials.${g}: a piece group name (Plate, Trim, Face …)`);
+      const e = m === false ? null : validateMaterialRef(m);
+      if (e) errs.push(`${at}.materials.${g}: ${e}`);
+    }
+  }
   return errs;
 }

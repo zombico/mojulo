@@ -8,6 +8,8 @@ import { FAMILY_MATERIALS, metalForTone, dressSurfaces, materialsErrors, agedSur
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { readGeocube } from '../era/geocube.js';
+import { validateArmorCard, SEEDED_ARMOR } from '../armor/styles.js';
+import { armorMaterials } from '../armor/expand.js';
 
 describe('dress materials: the table', () => {
   it('reads a metal off its tone: light gilt gold, dark gilt brass, orange-brown bronze, red-brown copper, grey steel', () => {
@@ -79,6 +81,27 @@ describe('dress materials: age', () => {
   });
 });
 
+describe('dress materials: an armour card\'s own', () => {
+  it('sits over its family\'s, under the cube\'s, and ages with the level', () => {
+    const palette = { Plate: '#8c7a5b', Trim: '#3d3a36', Suit: '#1b1c1f' }, card = { Trim: { metal: 'steel', finish: 'blasted' } };
+    expect(dressSurfaces({ family: 'hardsuit', palette })).toMatchObject({ Plate: 'satin', Trim: 'satin' });
+    expect(dressSurfaces({ family: 'hardsuit', card, palette })).toMatchObject({ Plate: 'satin', Trim: card.Trim, Suit: 'rubber' });
+    expect(dressSurfaces({ family: 'hardsuit', card, palette, overrides: { Trim: 'satin' } }).Trim).toBe('satin');
+    expect(dressSurfaces({ family: 'hardsuit', card, palette, overrides: { age: 'old' } }).Trim).toEqual({ metal: 'steel', finish: 'mill' });
+    expect(dressSurfaces({ family: 'hardsuit', card: { Trim: false }, palette })).not.toHaveProperty('Trim');
+  });
+
+  it('is checked on the card, and the samples that name metal carry it', () => {
+    expect(validateArmorCard({ family: 'hardsuit', materials: { Trim: { metal: 'steel' } } })).toEqual([]);
+    expect(validateArmorCard({ family: 'hardsuit', materials: { Trim: 'golden' } })[0]).toMatch(/style.materials.Trim: unknown material 'golden'/);
+    expect(validateArmorCard({ family: 'hardsuit', materials: 'steel' })[0]).toMatch(/style.materials: \{ <group>: <material> \}/);
+    expect(validateArmorCard({ family: 'hardsuit', materials: { trim: 'satin' } })[0]).toMatch(/a piece group name/);
+    for (const [id, card] of Object.entries(SEEDED_ARMOR)) expect(validateArmorCard(card, id)).toEqual([]);
+    expect(armorMaterials({ type: 'armor', style: 'grim-scifi' })).toEqual({ Trim: { metal: 'steel', finish: 'blasted' } });
+    expect(armorMaterials({ type: 'armor', style: 'knight' })).toBeNull();
+  });
+});
+
 describe('dress materials: a hero on a cube that names them', () => {
   const KNIGHT = { type: 'armor', style: 'knight' };
   const recipeOf = (geocube) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', adorn: KNIGHT, ...(geocube ? { geocube } : {}) }) }).recipe;
@@ -94,6 +117,12 @@ describe('dress materials: a hero on a cube that names them', () => {
     expect(aged.surfaces.Plate).toEqual({ metal: 'steel', finish: 'mill' });
     expect(aged.palette.Plate).not.toBe(worn.palette.Plate);
     expect(aged.palette.Trim).toBe(worn.palette.Trim);
+    // a sci-fi hero: painted shell, its card's metal where the card names it; nothing off a cube without materials
+    const suit = (style, geocube) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', adorn: { type: 'armor', style }, geocube }) }).recipe;
+    expect(suit('grim-scifi', 'upland-morning').surfaces).toMatchObject({ Plate: 'satin', Trim: { metal: 'steel', finish: 'blasted' } });
+    expect(suit('armored-hero', 'upland-morning').surfaces.Face).toEqual({ metal: 'stainless', finish: 'brushed' });
+    expect(suit('fantasy-space', 'upland-morning').surfaces.Trim).toBe('satin');
+    expect(suit('grim-scifi', 'valley-morning')).not.toHaveProperty('surfaces');
   });
 
   it('shades its plate as live metal in the world', async () => {
