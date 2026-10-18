@@ -216,7 +216,8 @@ function gnathion(field, L) {
 
 // The alae: a caliper would take the cheek (wider than the nose at its base), so read the front depth y(x) across the
 // nose at the alae's height and take the alar-facial groove — the first local minimum of y walking out from the
-// midline past the wing's crest — as the alare, the wing's lateral edge seen from the front.
+// midline past the wing's crest — as the alare, the wing's lateral edge seen from the front; without a groove, the
+// knee where the wing turns into the cheek.
 function alarPair(field, L) {
   const z = L.alaR.z, s = L.s, xs = range(0, 0.03 * s, 61);
   const ys = xs.map((x) => { const p = rayIn(field, { x, y: 0, z }, [0, 1, 0]); return p ? p.y : null; });
@@ -228,5 +229,41 @@ function alarPair(field, L) {
       return [{ x: -xs[i], y: ys[i], z }, { x: xs[i], y: ys[i], z }];
     }
   }
-  return [null, null];   // no groove: the wings run into the cheek with no edge to read
+  // no groove: the alare is still where the wing turns into the cheek — the strongest concave bend of y(x) past the
+  // crest (the knee); none either (no crest), and the wings run into the cheek with no edge to read
+  if (crest < 0) return [null, null];
+  let knee = -1, best = 0;
+  for (let i = crest + 1; i < xs.length - 1; i++) {
+    if (ys[i - 1] == null || ys[i] == null || ys[i + 1] == null) continue;
+    const bend = ys[i - 1] - 2 * ys[i] + ys[i + 1];
+    if (bend > best) { best = bend; knee = i; }
+  }
+  return knee < 0 ? [null, null] : [{ x: -xs[knee], y: ys[knee], z }, { x: xs[knee], y: ys[knee], z }];
+}
+
+/**
+ * THROUGH-HOLES — lines straight across the head (along x) that meet no skin, though skin closes round them on every
+ * side in the side view (above, below, before and behind): a hole you could see through from the side. The open air
+ * round the head's outline is not one. `step` is the grid in the side view, in head heights `H`. Returns the holes'
+ * { y, z } (local frame), empty when the head is closed.
+ */
+export function throughHoles(head, { step = 0.01, reach = 0.25 } = {}) {
+  const { field, bounds, landmarks: L } = head;
+  const H = L.H, minStep = 0.002 * H;
+  // a line meets skin: march it by the field's own distance (sphere tracing — the summed wave never overestimates
+  // the distance, so a step of f(p) cannot jump the surface), at least `minStep` a step
+  const solid = (y, z) => {
+    for (let x = bounds.min.x; x <= bounds.max.x;) { const d = field({ x, y, z }); if (d < 0) return true; x += Math.max(d, minStep); }
+    return false;
+  };
+  const h = step * H, R = reach * H, memo = new Map();
+  const at = (y, z) => { const k = `${y.toFixed(9)},${z.toFixed(9)}`; if (!memo.has(k)) memo.set(k, solid(y, z)); return memo.get(k); };
+  const cells = [];
+  for (let z = bounds.min.z + h; z < bounds.max.z; z += h) for (let y = bounds.min.y + h; y < bounds.max.y; y += h) {
+    if (at(y, z)) continue;
+    // closed round on every side within `reach` (head heights): skin above, below, before and behind
+    const closed = [[0, 1], [0, -1], [1, 0], [-1, 0]].every(([sy, sz]) => { for (let r = 2 * h; r <= R; r += 2 * h) if (at(y + sy * r, z + sz * r)) return true; return false; });
+    if (closed) cells.push({ y, z });
+  }
+  return cells;
 }

@@ -44,6 +44,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   cheek's control point: a cheek balloon is anchored at the jaw's corner (pinned to it, so the cheek's wall follows
   an opening jaw), bulges there, and tapers to the mouth's corner above and below. A balloon keeps its volume, so a
   smile that shortens it bulges the cheek; the zygomaticus thickens the same way.
+- **A closed head.** The cheek's side is walled by the buccinator (upper molars, lower molars riding the jaw, the
+  raphe between) and sealed to the chin by the depressor anguli oris; the parotid fills behind the ramus, a fill sits
+  before the ear, the upper lip's body rises to the nose's base and a columella closes the nose beneath. The field
+  lane reports `through-holes` (`throughHoles`, lines straight across the head that meet no skin though skin closes
+  round them): none at rest, smiling, or with the jaw open to its limit, on either pole. The philtrum is its columns
+  alone (the carved groove read as a line). The al-al caliper reads the wing's knee when there is no groove.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

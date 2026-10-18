@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { rayIn, caliper, headSection, headFieldOf, headMeasures, MM } from './head-field-view.js';
+import { rayIn, caliper, headSection, headFieldOf, headMeasures, throughHoles, MM } from './head-field-view.js';
 import { DIMORPH } from './figure-rig.js';
 
 const ellipsoid = (r) => (p) => Math.hypot(p.x / r.x, p.y / r.y, p.z / r.z) - 1;   // zero set exact; sign right
@@ -32,6 +32,18 @@ describe('sections', () => {
     expect([u, v]).toEqual(['y', 'z']);
     expect(segments.length).toBeGreaterThan(60);
     for (const [a, b] of segments) expect(Math.abs(Math.hypot(a / r.y, b / r.z) - 1)).toBeLessThan(0.02);
+  });
+});
+
+describe('through-holes', () => {
+  const bounds = { min: { x: -0.1, y: -0.1, z: -0.1 }, max: { x: 0.1, y: 0.1, z: 0.1 } }, landmarks = { H: 0.2 };
+  it('a ring seen side-on has one through its middle; a ball has none', () => {
+    // a torus about the x axis (its hole runs along x, the side view's line of sight)
+    const ring = (p) => Math.hypot(Math.hypot(p.y, p.z) - 0.05, p.x) - 0.02;
+    const holes = throughHoles({ field: ring, bounds, landmarks });
+    expect(holes.length).toBeGreaterThan(0);
+    for (const q of holes) expect(Math.hypot(q.y, q.z)).toBeLessThan(0.03);
+    expect(throughHoles({ field: (p) => Math.hypot(p.x, p.y, p.z) - 0.07, bounds, landmarks })).toEqual([]);
   });
 });
 

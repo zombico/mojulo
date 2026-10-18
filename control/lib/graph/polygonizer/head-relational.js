@@ -214,9 +214,9 @@ export function tunedPoints(P, tune = ZERO_TUNE) {
  * Deterministic: the same relations solve to the same tune.
  */
 export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance = 0.5, damping = 0.9 } = {}) {
-  // a channel whose error grows after its step halves its gain, and earns it back while its error shrinks (a channel
-  // pulled by a neighbour still settling must not run away, nor stall once it has); no point moves further than LIMIT
-  const LIMIT = 0.06;
+  // a channel that OVERSHOOTS (its error changes sign) halves its gain, and earns it back otherwise — an error that
+  // grows on the same side was a neighbour's push, not the channel's own step; no point moves further than LIMIT
+  const LIMIT = 0.08;
   let tune = { ...ZERO_TUNE }, residual = null, last = null, n = 0;
   const gain = Object.fromEntries(Object.keys(TUNE_CHANNELS).map((k) => [k, damping]));
   for (; n < steps; n++) {
@@ -230,7 +230,7 @@ export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance 
     for (const [k, c] of Object.entries(TUNE_CHANNELS)) {
       const e = residual[k];
       if (e == null || Math.abs(e) <= tolerance) continue;
-      if (last && last[k] != null) gain[k] = Math.abs(e) > Math.abs(last[k]) ? gain[k] / 2 : Math.min(damping, gain[k] * 1.5);
+      if (last && last[k] != null) gain[k] = Math.sign(e) !== Math.sign(last[k]) && Math.abs(e) > tolerance ? gain[k] / 2 : Math.min(damping, gain[k] * 1.5);
       const step = (gain[k] * e * MM_V) / (c.pair ? 2 : 1);
       next[k] = clampTo(c.point ? tune[k] - step : tune[k] + step, LIMIT);
     }
@@ -284,7 +284,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // (the chin and the floor face forward and down: their bone steps toward the head's centre, `stepIn`, never
   // sideways as a width bead's does — a sideways step left the tubercles proud and cleft the chin)
   w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.025, 0.05, 0.025], [J, J, J], { stepIn: true });
-  w('floor', at(P.goL, { x: 0.06 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.06 }), [0.04, 0.07, 0.04], [J, J, J], { stepIn: true });
+  w('floor', at(P.goL, { x: 0.05 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.05 }), [0.05, 0.075, 0.05], [J, J, J], { stepIn: true });
   // THE BROW — frontozygomatic to frontozygomatic through the glabella, its radius the sex's ridge
   const rb = 0.03 + 0.02 * R.brow;
   w('brow', P.fzL, at(P.g, { y: -rb }), P.fzR, [0.035, rb, 0.035]);
@@ -318,6 +318,21 @@ export function coreVajras(P, rel = RELATIONS) {
     // ZYGOMATICUS MAJOR — the smile's muscle: the cheekbone's side → the belly across the cheek → the mouth's corner
     // (the modiolus). At rest a thin strap under the balloon; `smile` pulls its insertion toward its origin, and as a
     // balloon it keeps its volume, so it thickens as it shortens.
+    // THE CHEEK'S WALL — the buccinator: from the upper molars (fixed to the face) and the lower molars (riding the
+    // jaw) to the mouth's corner, closed at the back by the raphe between them. A frame that stretches with the jaw,
+    // so the side of the mouth stays covered however far it opens (the balloon covers the cheek's face, not its side).
+    const mUp = inX(at(go, { y: 0.12, z: P.sto.z - go.z + 0.045 }), 0.03), mLo = inX(at(go, { y: 0.12, z: P.sto.z - go.z - 0.05 }), 0.03);
+    soft(`buccUp${s}`, mUp, inX(at(mid(mUp, ch), { y: 0.0 }), 0.012), at(ch, { x: -Math.sign(ch.x) * 0.006, y: -0.035 }), [0.035, 0.032, 0.022], [null, null, corner]);
+    soft(`buccLo${s}`, mLo, inX(at(mid(mLo, ch), { y: 0.0 }), 0.012), at(ch, { x: -Math.sign(ch.x) * 0.006, y: -0.035 }), [0.035, 0.032, 0.022], [J, [`loMid${s}`], corner]);
+    soft(`raphe${s}`, mUp, mid(mUp, mLo), mLo, [0.035, 0.032, 0.035], [null, ['jawHalf'], J]);
+    // the depressor anguli oris: the mandible's front → the corner — seals the lower cheek to the chin however far
+    // the jaw drops
+    soft(`depressor${s}`, at(inX(P[`ment${s}`], 0.03), { y: -0.01, z: 0.01 }), at(mid(P[`ment${s}`], ch), { y: -0.025 }), at(ch, { x: -Math.sign(ch.x) * 0.006, y: -0.03, z: -0.01 }), [0.03, 0.032, 0.022], [J, [`loMid${s}`], corner]);
+    // in front of the ear: the joint's cover, between the jaw's joint and the vault (the ear will sit on it)
+    soft(`preauricular${s}`, at(P[`condyle${s}`], { y: -0.01 }), inX(at(P[`porion${s}`], { y: -0.045, z: 0.02 }), 0.04), inX(at(P[`eu${s}`], { y: -0.06, z: -0.2 }), 0.1), [0.045, 0.06, 0.06]);
+    // behind the ramus, under the ear: the parotid's fill, from under the ear down behind the jaw's angle, so the
+    // ramus gliding forward as the mouth opens leaves no gap behind it
+    soft(`parotid${s}`, inX(at(P[`condyle${s}`], { y: -0.05, z: -0.02 }), 0.02), inX(at(mid(P[`condyle${s}`], go), { y: -0.07 }), 0.03), inX(at(go, { y: -0.05, z: 0.03 }), 0.04), [0.045, 0.05, 0.04]);
     V.push({ name: `zygomaticus${s}`, a: inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), c: at(mid(malar, ch, 0.5), { y: -0.025 }), b: at(ch, { y: -0.02 }), r: [0.018, 0.016, 0.014], group: 'soft', muscle: true, balloon: true, drive: [null, [`zyg${s}`], corner] });
     // the lids: corner → over the globe → corner, upper and lower
     // the lid margins: rolls along the opening's arcs, lying on the globe (canthus → apex → canthus); their centre
@@ -330,9 +345,16 @@ export function coreVajras(P, rel = RELATIONS) {
   // down and in. It rides on the bone and does not move the bone.
   soft('browPad', at(P.fzL, { y: -0.012 }), at(P.g, { y: -0.03, z: -0.004 }), at(P.fzR, { y: -0.012 }), [0.022, 0.02, 0.022], [['browL'], ['browC'], ['browR']]);
   // the SOFT features: no bone under them to stand off — the external nose and the lips are their own tissue
+  // THE UPPER LIP'S BODY — orbicularis oris above the mouth: wing base → under the subnasale → wing base, in front of
+  // the teeth, so the lip rises to meet the nose's base (without it the skin under the nose fell ~2 cm behind the
+  // subnasale, a notch you could see through from the side once the cheeks drew back)
+  soft('upperLipBody', at(P.alL, { y: -0.03, z: -0.03 }), { x: 0, y: P.sn.y - 0.022, z: (P.sn.z + P.ls.z) / 2 + 0.01 }, at(P.alR, { y: -0.03, z: -0.03 }), [0.022, 0.03, 0.022], [['bowL'], null, ['bowR']]);
   // THE NOSE — nasion → rhinion → tip, the alae across the base through the subnasale
   v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
   v('alae', at(P.alL, { y: -0.02 }), at(P.sn, { y: -0.02, z: 0.005 }), at(P.alR, { y: -0.02 }), [0.022, 0.018, 0.022], 'nose');
+  // THE COLUMELLA — the strip under the tip from the subnasale to the tip's underside, so the nose is closed beneath
+  // (without it the air under the tip showed through from the side)
+  v('columella', at(P.sn, { y: -0.004, z: 0.006 }), at(mid(P.sn, P.prn, 0.55), { y: -0.012, z: -0.008 }), at(P.prn, { y: -0.032, z: -0.012 }), [0.01, 0.011, 0.014], 'nose');
   // THE SIDEWALLS — from each wing up to the mid-bridge: angled cones, wide at the flare and narrowing as they rise,
   // so the nose is a pyramid (a ridge with two walls) and the wings read as wings where the walls meet them
   for (const s of ['L', 'R']) v(`noseWall${s}`, at(P[`al${s}`], { y: -0.024, z: 0.008 }), at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.012, y: -0.022 }), at(P.rhinion, { y: -0.022 }), [0.02, 0.015, 0.012], 'nose');
@@ -347,10 +369,10 @@ export function coreVajras(P, rel = RELATIONS) {
     v(`philtrum${s}`, at(P.sn, { x: (s === 'L' ? -1 : 1) * 0.012, y: -0.006, z: -0.012 }), at(mid(P.sn, P[`bow${s}`]), { x: (s === 'L' ? -1 : 1) * 0.004, y: -0.006 }), at(P[`bow${s}`], { y: -0.008 }), [0.005, 0.005, 0.006], 'lips', [null, null, [`bow${s}`]]);
   }
   // THE CARVES — grooves cut from the skin at the end (`carve`), riding what they part: the lip line between the
-  // lips (the corners and half the jaw), the philtrum between its columns, the mentolabial sulcus over the chin
+  // lips (the corners and half the jaw) and the mentolabial sulcus over the chin. (The philtrum is its columns alone:
+  // a carved groove between them read as a line, and cut through the lip under the nose.)
   const cut = (name, a, c, b, r, drive) => V.push({ name, a, c, b, r, group: 'carve', ...(drive ? { drive } : {}) });
   cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 }, at(P.chR, { y: 0.002 }), [0.003, 0.005, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);
-  cut('philtrumGroove', at(P.sn, { y: 0.002, z: -0.016 }), { x: 0, y: (P.sn.y + P.ls.y) / 2 + 0.003, z: (P.sn.z + P.ls.z) / 2 }, at(P.ls, { y: -0.004, z: 0.012 }), [0.003, 0.004, 0.003]);
   cut('mentolabial', at(P.loMidL, { x: -0.02, y: -0.03, z: -0.035 }), { x: 0, y: P.pg.y - 0.008, z: (P.li.z + P.pg.z) / 2 + 0.006 }, at(P.loMidR, { x: 0.02, y: -0.03, z: -0.035 }), [0.006, 0.01, 0.006], [J, J, J]);
   return V;
 }
