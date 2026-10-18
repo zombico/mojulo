@@ -1,17 +1,14 @@
 /**
  * SKIN ON THE HEAD — the epidermis cube's skin relief (skin-relief.js) laid on a relational head as a SHADING layer: a
- * normal perturbed per point, never geometry, shown by the zoom (`SKIN_ZOOM`). From portrait distance the creases
- * show, from a close-up the keratin lines and pores, the finest net and grain only in a macro shot; past its range a
- * layer is held back (not aliased), so a whole-head view is untouched.
+ * normal perturbed per point, never geometry, shown by the zoom (`SKIN_ZOOM`). From a close-up the keratin lines and
+ * pores show, the finest net and grain only in a macro shot; past its range a layer is held back (not aliased), so a
+ * whole-head or portrait view is untouched. It lays no creases: no crow's feet, no wrinkles.
  *
  *   the chart     millimetres on the head: around its vertical axis (u, the arc at the face's radius) and up it (v).
  *                 Good on the face and the sides; it stretches under the chin and over the crown.
  *   the regions   from the relations: the nose along its dorsum, the eyelids about the eyes, the forehead above the
  *                 brow, the chin about pogonion, the cheek elsewhere; blended where they meet, the tension's
  *                 direction mirrored left to right.
- *   the tethers   from the relational rig, so the face's actions move them: CROW'S FEET fanning from each outer
- *                 canthus (a smile squints them), UNDER-EYE lines along the lower lid, FOREHEAD lines parallel to the
- *                 brow's bridge (a raised brow folds them).
  *
  *   skinOnHead(head, skin) → { shade(p, n, mmPerPixel) → { normal, cavity }, normal(…), height(p, mmPerPixel), chart(p),
  *                              regions(p), tethers }
@@ -19,7 +16,6 @@
  * `head` is `relationalHead`'s; `skin` the cube's (`readEpidermis(…).skin`); points in the head's units (STAND).
  */
 import { skinRelief, skinZoomWeights, SKIN_REGIONS } from './skin-relief.js';
-import { rayIn } from '../polygonizer/head-field-view.js';
 
 const MM_V = 230;   // millimetres in a head height (V)
 
@@ -31,29 +27,9 @@ export function skinOnHead(head, skin) {
   const cy = (P.g.y + P.op.y) / 2, r0 = (P.g.y - cy) * MM_V;
   const chartV = (q) => { const phi = Math.atan2(q.x, q.y - cy); return { u: phi * r0, v: q.z * MM_V, phi }; };
   const chart = (p) => chartV({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
-  // a point on the face's front at (x, z) in V, for tethers drawn across it
-  const front = (x, z) => { const h = rayIn(head.field, { x: x * sc, y: 0, z: z * sc }, [0, 1, 0]); return { x, y: h ? h.y / sc : P.g.y, z }; };
-
-  // THE TETHERS, from the rig: the actions squint and fold them. Their depths are the head's (a crow's foot 0.1–0.3 mm
-  // deep at sixty, by profilometry), deeper than the swatch study's, which reads them at a macro's scale
-  const act = (k) => Math.max(0, Math.min(1, Number(head.actions?.[k]) || 0));
+  // (no creases: the head carries no crow's feet or wrinkles — the operator found them incongruous with its design;
+  // the creases tier stays in skin-relief.js for the swatch study)
   const tethers = [];
-  for (const [k, s] of ['L', 'R'].entries()) {
-    const rig = R.eyeRigs?.[k], squint = Math.min(1, act('smile') + act(`smile${s}`) + 0.6 * (rig?.channels.lower ?? 0));
-    const ex = chartV(P[`ex${s}`]), out = s === 'R' ? 0 : 180;
-    tethers.push({ kind: 'radial', pivot: { u: ex.u, v: ex.v }, span: [out - 42, out + 40], reach: [3, 20], count: 8, depth: 170, squint, name: `crow's feet ${s}` });
-    if (rig) {
-      const path = [0.12, 0.3, 0.5, 0.7, 0.92].map((t) => { const c = rig.margins.lower(t).c; return chartV({ ...c, z: c.z - 0.032 }); });
-      tethers.push({ kind: 'along', path, reach: [0, 4], count: 5, depth: 90, squint, name: `under-eye ${s}` });
-    }
-  }
-  if (R.bridge) {
-    const B = R.bridge, L = B.sides.L, Rs = B.sides.R, bz = B.bridge[1].z;
-    const z = (zz) => (zz + bz) / 2 + 0.008;
-    const path = [[L.tail.x, z(L.tail.z) - 0.012], [L.arc.K.x, z(L.arc.K.z)], [0, z((L.arc.K.z + Rs.arc.K.z) / 2) + 0.006], [Rs.arc.K.x, z(Rs.arc.K.z)], [Rs.tail.x, z(Rs.tail.z) - 0.012]]
-      .map(([x, zz]) => chartV(front(x, zz)));
-    tethers.push({ kind: 'along', path, reach: [0, 14], count: 8, depth: 150, squint: act('browRaise'), name: 'forehead' });
-  }
 
   // THE REGIONS: each one's share at a point (V), from the relations
   const seg = (q, a, b) => {

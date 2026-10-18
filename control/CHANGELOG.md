@@ -49,17 +49,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `seed`).
 - **Skin on the head, by zoom.** The relief lies on the relational head as a shading layer (`epidermis/skin-head.js`):
   a perturbed normal and a cavity darkening per point, never geometry. Each layer shows over its own range of
-  millimetres per pixel (`SKIN_ZOOM`): creases from a portrait, keratin lines and pores from a close-up, the micro
-  layer in a macro shot. Coarser than its range a layer is held back rather than aliased, so a whole-head view is
-  untouched, and a crease seen through coarse pixels widens to them as the soft line it is.
+  millimetres per pixel (`SKIN_ZOOM`): keratin lines and pores from a close-up, the micro layer in a macro shot.
+  Coarser than its range a layer is held back rather than aliased, so a whole-head or portrait view is untouched.
   - **Where it lies:** a millimetre chart runs around the head's vertical axis. The regions come from the relations
     (nose, eyelids, forehead, chin, cheek), blended where they meet and with the tension mirrored left to right.
-  - **Tethers from the rig:** crow's feet fan from each outer canthus, and a smile squints them; under-eye lines
-    run along the lower lid; forehead lines run parallel to the brow's bridge, and a raised brow lifts and folds
-    them. Their depths are realistic: a crow's foot is about 0.1–0.3 mm deep at sixty.
-  - **Along lines:** lines along a tether are now staggered pieces, not ruled across it.
+  - **No creases:** the head carries no crow's feet or wrinkles, which read as incongruous with its design. The
+    creases tier stays in the swatch study, and lines along a tether are staggered pieces there.
   - **Field lane:** `--skin` shades the field lane with it, and each panel names its zoom and the layers it shows.
-    `--crop macro` frames the crow's feet, and a row of `--acts` may carry its own `crop`, which makes a zoom strip.
+    `--crop macro` frames the outer canthus, and a row of `--acts` may carry its own `crop`, which makes a zoom strip.
 
 ### Relational head: the face as superposed vajras
 

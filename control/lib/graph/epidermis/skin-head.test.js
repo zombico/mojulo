@@ -1,7 +1,7 @@
 /**
- * skin-head — the skin on a relational head: the zoom decides what shows (a whole-head view untouched, the creases
- * from a portrait, the keratin from a close-up, the micro in a macro); the regions come from the relations; the
- * tethers ride the rig's actions; the layer is deterministic.
+ * skin-head — the skin on a relational head: the zoom decides what shows (a whole-head view untouched, the keratin
+ * from a close-up, the micro in a macro); the regions come from the relations; no creases; the layer is
+ * deterministic.
  */
 import { describe, expect, it } from 'vitest';
 
@@ -37,12 +37,8 @@ describe('the skin on the head', () => {
     expect(top(at('g', { z: 0.12 }))).toBe('forehead');
     expect(top(at('zyR'))).toBe('cheek');
   });
-  it('rides the rig: a smile squints the crow\'s feet, a raised brow lifts and folds the forehead', () => {
-    const t = (s, name) => s.tethers.find((x) => x.name === name);
-    const smile = skinOnHead(relationalHead({ sex: 'male', actions: { smile: 1 } }), skin);
-    expect(t(smile, "crow's feet R").squint).toBeGreaterThan(t(S, "crow's feet R").squint + 0.5);
-    const raised = skinOnHead(relationalHead({ sex: 'male', actions: { browRaise: 1 } }), skin);
-    expect(t(raised, 'forehead').squint).toBe(1);
-    expect(t(raised, 'forehead').path[2].v).toBeGreaterThan(t(S, 'forehead').path[2].v + 1);   // mm
+  it('lays no creases: no crow\'s feet, no wrinkles, whatever the face does', () => {
+    expect(S.tethers).toHaveLength(0);
+    expect(skinOnHead(relationalHead({ sex: 'male', actions: { smile: 1, browRaise: 1 } }), skin).tethers).toHaveLength(0);
   });
 });

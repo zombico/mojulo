@@ -284,7 +284,7 @@ for (const { sex, actions: row } of ROWS) {
     }
     svgParts.push(`<text x="${x + 10}" y="${y0 + CH - 12}" font-family="monospace" font-size="15" fill="#555">${sex} · ${source}${source === 'relational' ? ` ${layer}` : ''}${actLabel} · ${v.name}</text>`);
     if (skin) {
-      const z = skinZoomWeights(cam.mmPerPixel), on = Object.entries(z).filter(([, w]) => w > 0.01).map(([k, w]) => (w > 0.99 ? k : `${k} ${Math.round(w * 100)}%`));
+      const z = skinZoomWeights(cam.mmPerPixel), on = Object.entries(z).filter(([k, w]) => w > 0.01 && (k !== 'creases' || skin.tethers.length)).map(([k, w]) => (w > 0.99 ? k : `${k} ${Math.round(w * 100)}%`));
       svgParts.push(`<text x="${x + 10}" y="${y0 + 20}" font-family="monospace" font-size="14" fill="#333">${crop ?? 'head'} · ${cam.mmPerPixel.toFixed(3)} mm/px${skin ? ' · skin: ' + (on.join(', ') || 'none at this zoom') : ''}</text>`);
     }
   }
