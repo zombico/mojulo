@@ -107,16 +107,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   premolars and the first molar, 1 to 3 mm all round), its dorsum a hair under the lower teeth's edges. The palate
   roofs the mouth on the midline above the upper teeth (the cavity had opened into a hollow there). As the jaw opens an oral cavity is carved behind the lips along the arch
   (each side through the incisors, the canine and the first premolar, down the middle and across the back, reaching
-  both arches' edges, narrowing inside the cheeks), and the teeth and the tongue, joined after it and clipped to its
+  both arches' edges, narrowing inside the cheeks; beside the incisors each station is two beads up and down the line
+  between the crowns' edges, since one round bead tilted by the open jaw reached forward through the skin under the
+  lower lip's ends), and the teeth and the tongue, joined after it and clipped to its
   neighbourhood (another carve never bares them), line it: the open mouth shows the upper incisors under the lip, the
   lower row and the tongue. A septum fills the nose's midline (a
-  pocket there opened to a line seen through from the side as the cheek moved). The through-hole lane counts the
-  parted lips seen from the side in front of the mouth's corners, where a wide jaw or a smile draws the corners back
-  behind them (4 of 44 states over the jaw's range in tenths, plain and smiling); at rest, smiling, and open to the
-  limit with or without a smile there are none.
+  pocket there opened to a line seen through from the side as the cheek moved). The through-hole lane finds none over
+  the jaw's range in tenths, plain and smiling.
 - **A soft mentolabial fold.** The fold between the lower lip and the chin is a broad, shallow hollow curving with the
   lip and thinning away at its ends, its edge blended over ~3 mm (carves take their own edge: the lip line stays crisp).
   Cut as a thin tube with the lip line's sharp edge, it read as a chevron scored into the skin.
+- **The lower lip and its fold as the jaw opens.** The fold flattens as the mouth opens (its carve rides the jaw and
+  lifts forward out of the skin), and the lower lip stretches down over the lower incisors and settles back (its body
+  and centre by up to 6 mm at the limit, its fullest beads by less), so it no longer rolls out over a deep crescent:
+  at jaw 0.6 the male's midline reads lip 2 mm ahead of the chin and the fold 2 mm behind it (was 4 mm ahead and 4 mm
+  behind), at the limit lip to chin is one line. The tissue over the mandible (the chin's, the angle's, half the
+  masseter's and the buccal's) now rides the jaw, so a swung chin keeps its own tissue depth.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

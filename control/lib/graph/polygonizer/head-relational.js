@@ -174,6 +174,8 @@ export const TISSUE_MM = Object.freeze({
   temporal: 10, condyle: 9, masseter: 18, go: 12, buccal: 15, philtrum: 12, mentolabial: 11, pg: 11, gn: 8, me: 7,
 });
 const MM_V = 1 / 230;   // a millimetre in head heights
+/** the tissue markers on the mandible, and how much of the jaw's motion each rides */
+const JAW_TISSUE = Object.freeze({ mentolabial: 1, pg: 1, gn: 1, me: 1, go: 1, masseter: 0.5, buccal: 0.5 });
 
 /** the markers' positions on the skin, from the core points: [{ p, t }] with t in V */
 function tissueMarkers(P) {
@@ -191,7 +193,7 @@ function tissueMarkers(P) {
       [mid(P[`fz${s}`], P[`eu${s}`], 0.4), 'temporal'], [P[`condyle${s}`], 'condyle'],
       [mid(P[`go${s}`], P[`malar${s}`], 0.45), 'masseter'], [mid(P[`ch${s}`], P[`go${s}`], 0.35), 'buccal']);
   }
-  return m.map(([p, k]) => ({ p, t: T(k) }));
+  return m.map(([p, k]) => ({ p, t: T(k), k }));
 }
 
 /**
@@ -447,7 +449,7 @@ export function coreVajras(P, rel = RELATIONS) {
   const lowC = { x: 0, y: P.li.y - 0.034, z: P.li.z - 0.008 };
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`ch${s}`].x), lm = P[`loMid${s}`];
-    v(`lowerLipBody${s}`, at(P[`ch${s}`], { x: -sg * 0.012, y: -0.028, z: -0.01 }), { x: lm.x, y: lm.y - 0.026, z: lm.z - 0.012 }, lowC, [0.01, 0.015, 0.018], 'lipBody', [[`corner${s}`], [`loMid${s}`], J]);
+    v(`lowerLipBody${s}`, at(P[`ch${s}`], { x: -sg * 0.012, y: -0.028, z: -0.01 }), { x: lm.x, y: lm.y - 0.026, z: lm.z - 0.012 }, lowC, [0.01, 0.015, 0.018], 'lipBody', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
   }
   // THE NOSE — nasion → rhinion → tip
   v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
@@ -501,7 +503,7 @@ export function coreVajras(P, rel = RELATIONS) {
   const upC = at(P.ls, { y: -0.024, z: -0.002 }), loC = at(P.li, { y: -0.028 }), F = R.lipFullness;
   for (const s of ['L', 'R']) {
     v(`upperLip${s}`, at(P[`ch${s}`], { y: -0.014 }), at(P[`bow${s}`], { y: -0.016, z: -0.008 }), upC, [0.006, 0.016 * F, 0.022 * F], 'lips', [[`corner${s}`], [`bow${s}`], null]);
-    v(`lowerLip${s}`, at(P[`ch${s}`], { y: -0.014, z: -0.002 }), at(P[`loMid${s}`], { y: -0.02 }), loC, [0.006, 0.02 * F, 0.026 * F], 'lips', [[`corner${s}`], [`loMid${s}`], J]);
+    v(`lowerLip${s}`, at(P[`ch${s}`], { y: -0.014, z: -0.002 }), at(P[`loMid${s}`], { y: -0.02 }), loC, [0.006, 0.02 * F, 0.026 * F], 'lips', [[`corner${s}`], [`loMid${s}`], ['lipStretch']]);
     // the philtral columns: two ridges from the nose's base down to the bow's peaks
     v(`philtrum${s}`, at(P.sn, { x: (s === 'L' ? -1 : 1) * 0.012, y: -0.006, z: -0.012 }), at(mid(P.sn, P[`bow${s}`]), { x: (s === 'L' ? -1 : 1) * 0.004, y: -0.006 }), at(P[`bow${s}`], { y: -0.008 }), [0.005, 0.005 * pk, 0.006 * pk], 'lips', [null, null, [`bow${s}`]]);
   }
@@ -524,7 +526,8 @@ export function coreVajras(P, rel = RELATIONS) {
   const mlC = { x: 0, y: P.pg.y + 0.008, z: (P.li.z + P.pg.z) / 2 + 0.006 };
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`loMid${s}`].x), end = at(P[`loMid${s}`], { x: sg * 0.026, y: -0.036, z: -0.032 });
-    cut(`mentolabial${s}`, end, { x: sg * 0.03, y: (end.y + mlC.y) / 2 + 0.004, z: mlC.z + 0.25 * (end.z - mlC.z) }, mlC, [0.005, 0.014, 0.019], [J, J, J], 0.014);
+    const FO = ['foldOpen'];
+    cut(`mentolabial${s}`, end, { x: sg * 0.03, y: (end.y + mlC.y) / 2 + 0.004, z: mlC.z + 0.25 * (end.z - mlC.z) }, mlC, [0.005, 0.014, 0.019], [FO, FO, FO], 0.014);
   }
   // THE TEETH — the upper dental arch, anchored at the incisal point: each side seven crowns on a curved arch (the
   // central and lateral incisors, the canine, two premolars, two molars: `DENTITION`, placed out from the midline and
@@ -631,13 +634,19 @@ export function actionDrivers(P, acts = {}, rel = RELATIONS) {
   const pose = jawPose(P, rel, a('jaw'));
   const jawAt = (t) => pose.at(t);
   const D = { jaw: jawAt(1), jawHalf: jawAt(0.5) };
+  // the mentolabial fold flattens as the jaw opens (the lower lip stretched down over the chin): its carve rides the
+  // jaw and lifts out of the skin, forward and a little down, so less of it cuts
+  D.foldOpen = (p) => add(jawAt(1)(p), { x: 0, y: 0.92, z: -0.39 }, 0.05 * a('jaw'));
+  // and the lower lip stretches down over the lower incisors and flattens against them: its centre rides the jaw and
+  // settles back (its fullest beads, `loMid`, by less), so it does not roll out over the chin as the mouth opens
+  D.lipStretch = (p) => add(jawAt(1)(p), { x: 0, y: -1, z: 0 }, 0.025 * a('jaw'));
   for (const s of ['L', 'R']) {
     const sm = side('smile', s), ch = P[`ch${s}`], o = P[`zy${s}`];
     // the smile's pull: from the corner toward the muscle's origin, 10 mm at full
     const pull = (() => { const d = { x: o.x - ch.x, y: o.y - ch.y, z: o.z - ch.z }, l = Math.hypot(d.x, d.y, d.z) || 1; return { x: d.x / l, y: d.y / l, z: d.z / l }; })();
     D[`corner${s}`] = (p) => add(jawAt(0.45)(p), pull, 0.045 * sm);
     D[`bow${s}`] = (p) => add(jawAt(0.1)(p), pull, 0.02 * sm);
-    D[`loMid${s}`] = (p) => add(jawAt(0.75)(p), pull, 0.02 * sm);
+    D[`loMid${s}`] = (p) => add(add(jawAt(0.75)(p), pull, 0.02 * sm), { x: 0, y: -1, z: 0 }, 0.02 * a('jaw'));
     D[`zyg${s}`] = (p) => add(p, pull, 0.02 * sm);
     // the balloon's bulge: pushed by the corner into the cheekbone, it bunches UP and FORWARD (not along the pull,
     // which runs back toward the bone); a little of the jaw; its swell is its own volume
@@ -723,19 +732,27 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // lower's (as the jaw has moved them) and reaches both, so the teeth, joined after it, line its top and its bottom
     // as a row seen through the opening. It narrows toward the back, inside the cheeks. (A lens between the lips alone
     // left the teeth buried in the lip; a tube down the midline showed only the central pair.)
-    const station = (tooth, s, k, cap = Infinity) => {
+    // (`half` +1 / -1: the station as two beads half its radius, up and down the line between the edges, reaching the
+    // same crowns: one round bead reaches as far across that line as along it, and tilted forward-down by an open jaw
+    // it broke through the skin below the lower lip's ends)
+    const station = (tooth, s, k, cap = Infinity, half = 0) => {
       const u = Vn[`upper${tooth}${s}`], l = Vn[`lower${tooth}${s}`];
       const ue = { x: u.b.x, y: u.b.y, z: u.b.z - u.r[2] }, le = { x: l.b.x, y: l.b.y, z: l.b.z + l.r[2] };
-      return [{ x: (ue.x + le.x) / 2, y: (ue.y + le.y) / 2 - 0.004, z: (ue.z + le.z) / 2 }, Math.max(0.004, Math.min(cap, k * (0.5 * Math.hypot(ue.y - le.y, ue.z - le.z) + 0.003)))];
+      const r = Math.max(0.004, Math.min(cap, k * (0.5 * Math.hypot(ue.y - le.y, ue.z - le.z) + 0.003)));
+      const q = { x: (ue.x + le.x) / 2, y: (ue.y + le.y) / 2 - 0.004, z: (ue.z + le.z) / 2 };
+      if (!half) return [q, r];
+      const n = Math.hypot(ue.y - le.y, ue.z - le.z) || 1, o = (half * r) / 2;
+      return [{ ...q, y: q.y + (o * (ue.y - le.y)) / n, z: q.z + (o * (ue.z - le.z)) / n }, r / 2];
     };
     // (both sides pass through a shared midline station between the central incisors: chains parting from the lips
     // straight to each side's incisor left a tent of tissue standing between them)
     const [cl, rl] = station('Central', 'L', 1), [cr] = station('Central', 'R', 1), midSt = { x: 0, y: (cl.y + cr.y) / 2, z: (cl.z + cr.z) / 2 };
-    const oral = ['L', 'R'].map((s) => {
+    const oral = ['L', 'R'].flatMap((s) => [1, -1].map((half) => {
       // (the side stations are capped: tall at full opening, they reached the side of the lower face and opened it)
-      const st = [['Central', 1], ['Lateral', 1, 0.05], ['Canine', 0.9, 0.042], ['Premolar1', 0.7, 0.036]].map(([t, k, cap]) => station(t, s, k, cap));
-      return { beads: [c, midSt, ...st.map(([q]) => q)], r: [rc, rl, ...st.map(([, r]) => r)] };
-    });
+      const [ct, cr0] = station('Central', s, 1);
+      const st = [['Lateral', 1, 0.05], ['Canine', 0.9, 0.042], ['Premolar1', 0.7, 0.036]].map(([t, k, cap]) => station(t, s, k, cap, half));
+      return { beads: [c, midSt, ct, ...st.map(([q]) => q)], r: [rc, rl, cr0, ...st.map(([, r]) => r)] };
+    }));
     // and down the middle, back to between the premolars: the side chains diverge along the arch, and a pillar of tissue
     // stood between them from the palate to the floor
     const [pl, pr] = ['L', 'R'].map((s) => station('Premolar1', s, 0.7, 0.036)), back = { x: 0, y: (pl[0].y + pr[0].y) / 2, z: (pl[0].z + pr[0].z) / 2 };
@@ -771,7 +788,11 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     for (const m of markers) { const w = 1 / ((p.x - m.p.x) ** 2 + (p.y - m.p.y) ** 2 + (p.z - m.p.z) ** 2 + eps2); sw += w; st += w * m.t; }
     return st / sw;
   };
-  const markersV = tissueMarkers(P), depthV = depthOf(markersV, 0.04 ** 2);
+  // the tissue over the mandible rides it: the jaw's markers move with the jaw (the chin's, the angle's fully, the
+  // masseter's and the buccal's, half on the ramus, by half), so the skin over a swung chin keeps the chin's tissue
+  // (left at rest, the chin's bone landed where the map read thinner tissue, and a pocket opened under the lip)
+  const jawMarkers = actions?.jaw ? jawPose(Pt, rel, actions.jaw) : null;
+  const markersV = tissueMarkers(P).map((m) => (jawMarkers && JAW_TISSUE[m.k] ? { ...m, p: jawMarkers.at(JAW_TISSUE[m.k])(m.p) } : m)), depthV = depthOf(markersV, 0.04 ** 2);
   // A skin-authored bead's bone is its radius less the tissue at its centre. Where the tissue is thicker than the
   // mass (the jaw's corner under the masseter, the arch), the bone keeps a floor radius and its centre steps INWARD
   // by the shortfall, so the skin still lands where the bead's surface was: sideways for a lateral bead (the widths
