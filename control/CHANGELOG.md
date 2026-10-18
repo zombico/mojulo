@@ -14,6 +14,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Relational head: the face as superposed vajras
+
+- **The head field, seen as it is.** `/head-study --field` meshes the protoform head's field with surface nets
+  instead of the latitude rings, so the turntable shows what the field holds. It overlays the head's landmarks, cuts
+  sections through the head (the profile, and across at the brow, the nose base and the mouth), and prints caliper
+  measurements read off the field itself: head length and breadth, face and jaw width, face and nose height, nose width
+  and protrusion, mouth width, and their indices.
+
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 
 - **`materials: { age }`.** A cube's materials take an age, `new`, `worn`, `old` or `ancient`: copper, brass and bronze

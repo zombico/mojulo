@@ -1,6 +1,6 @@
 ---
 name: head-study
-description: Render the protoform HUMAN head (male and/or female) as a skull-shape turntable — an azimuth sweep (front → ¾ → lateral → back) plus top-down and under views, cropped to the head, filled and as the blueprint ring-wave wireframe — so the head reads correctly from EVERY angle. Use before/after tuning the head field (figure-head.js), the sex pole (`DIMORPH.head`), a head knob (browRidge, jawWidth, chinPoint, noseSize, cheekbone, foreheadSlope, earSize, eyeSize, neckGirth), the `face` dials (jaw, mouth, brow), or a wig on the new skull. The human sibling of /skull-study. Invoke as `/head-study [male] [female] [--proto '{…}'] [--pose '{…}'] [--hair <wig>]`.
+description: Render the protoform HUMAN head (male and/or female) as a skull-shape turntable — an azimuth sweep (front → ¾ → lateral → back) plus top-down and under views, cropped to the head, filled and as the blueprint ring-wave wireframe — so the head reads correctly from EVERY angle. Use before/after tuning the head field (figure-head.js), the sex pole (`DIMORPH.head`), a head knob (browRidge, jawWidth, chinPoint, noseSize, cheekbone, foreheadSlope, earSize, eyeSize, neckGirth), the `face` dials (jaw, mouth, brow), or a wig on the new skull. The human sibling of /skull-study. `--field` reads the FIELD itself (surface nets, profile and cuts, calipers) instead of the latitude march. Invoke as `/head-study [male] [female] [--field] [--proto '{…}'] [--pose '{…}'] [--hair <wig>]`.
 ---
 
 # head-study
@@ -31,7 +31,27 @@ plus per-view PNGs under `<out>/<sex>/png/`.
 | `7-top` | dorsal skull, symmetry, **the crown is CLOSED** (no hole) |
 | `8-under` | jaw + chin underside, the throat dome the neck enters, **no step, no hole** |
 
-Options:
+## The field lane (`--field`)
+
+The turntable above is the head as the latitude march shows it: star-shaped and coarse, so it facets the face and
+flattens every undercut. Tune the FIELD against the field lane, not against the march:
+
+```bash
+node .claude/skills/head-study/study.mjs --field [male] [female] [--proto '{…}'] [--face '{…}'] \
+     [--cells N] [--no-marks] [--out dir]
+```
+
+Then **Read `<out>/sheet.png`** (default `/tmp/head-study-field`). Per sex, one row of views (front, front ¾, ¾,
+lateral, rear ¾, under) of the field surface-netted (`head-field-view.js`, `field-mesh.js`) and lit in clay, with the
+landmarks (blue) and the caliper points (red) over it; then the mid-sagittal profile with the caliper points named,
+the transverse cuts at the brow, the eyes, the nose base and the mouth from above, and the caliper table read off
+the field itself (also `measures.json`): g-op, eu-eu, zy-zy, go-go, n-gn, n-sn, al-al, sn-prn, the g-sn-pg profile
+angle, the nasion depth, and the cephalic, facial, jaw and nasal indices with their classes. Millimetres are at the
+canonical stature (1 unit = 1.8 m), so read the indices for proportion. A reading of `—` means the field has no such
+feature to read (al-al: no alar-facial groove). `--proto` takes the head knobs only; `--cells 220` for a close read
+(~20 s for both poles at the default 160).
+
+Options (the march turntable):
 - `male` / `female` — which poles (default both).
 - `--proto '{"jawWidth":1.2}'` — extra `proto` dials merged over the pole (headScale, browRidge,
   jawWidth, chinPoint, noseSize, cheekbone, foreheadSlope, neckGirth …).
