@@ -203,6 +203,7 @@ If you have a concept PR you believe in, **fork it**. Mojulo is Apache 2.0 for e
 cd control
 npm install
 npm test
+npm run test:e2e   # whole worlds and games walked in headless Chrome: run it when you touch the gameworld, city, game or structure kernels
 ```
 
 It runs in CI on every PR via [.github/workflows/test.yml](.github/workflows/test.yml) — Linux + macOS on Node 22.
@@ -239,7 +240,7 @@ New tests should follow the existing pattern in the package they cover.
 
 **A core PR** (this repo):
 
-1. `npm test` passes in `control/`.
+1. `npm test` passes in `control/` (and `npm run test:e2e`, if you touched the gameworld, city, game or structure kernels).
 2. `node --check` passes on any `.js`/`.mjs` you edited (CI enforces this).
 3. If you touched `control/messages/en.json`, run `node control/scripts/validate-locale.mjs en <code>` for the locales you have changes for (the `/sync-locales` workflow handles propagation if you don't).
 4. New strings in JSX are i18n-wrapped per [CLAUDE.md](CLAUDE.md).

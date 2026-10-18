@@ -5,7 +5,8 @@
  * walk levels in headless Chrome did, one by one, until a single file set the tier's floor at several minutes.
  * The e2e tier (vitest.e2e.config.js) holds them now. These checks keep it that way:
  *
- *   1. the e2e suites stay in `npm test` (CI runs it) and out of `npm run test:critical`;
+ *   1. the e2e suites run in `npm run test:e2e` (CI runs it in its own job) and in neither `npm test` nor
+ *      `npm run test:critical`;
  *   2. no critical-tier suite walks a level in the real browser: a mint with `autoAudit: true` there injects a
  *      stub `runTraversal`, the way the gate's orchestration is tested (lib/graph/game/mechanics-audit.test.js).
  *
@@ -18,7 +19,7 @@ import { dirname, matchesGlob, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import base from '../../vitest.config.js';
 import critical from '../../vitest.critical.config.js';
-import { E2E } from '../../vitest.e2e.config.js';
+import e2e, { E2E } from '../../vitest.e2e.config.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const matches = (file, globs) => globs.some((g) => matchesGlob(file, g));
@@ -29,8 +30,9 @@ const tier = ({ test }) => [...new Set(test.include.flatMap((g) => globSync(g, {
 describe('test tiers', () => {
   const CRITICAL = tier(critical);
 
-  it('the e2e suites run in npm test and not in test:critical', () => {
-    expect(E2E.filter((f) => !matches(f, base.test.include) || matches(f, base.test.exclude))).toEqual([]);
+  it('the e2e suites run in test:e2e, and in neither npm test nor test:critical', () => {
+    expect(E2E.filter((f) => !matches(f, e2e.test.include) || matches(f, e2e.test.exclude))).toEqual([]);
+    expect(E2E.filter((f) => !matches(f, base.test.exclude))).toEqual([]);
     expect(E2E.filter((f) => CRITICAL.includes(f))).toEqual([]);
   });
 

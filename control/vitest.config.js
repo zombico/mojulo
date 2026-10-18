@@ -6,6 +6,41 @@ import { dirname, resolve } from 'node:path';
 // through modules that use the Next.js-style alias (notably lib/mcp/*).
 const here = dirname(fileURLToPath(import.meta.url));
 
+// The e2e tier (`npm run test:e2e`, vitest.e2e.config.js): whole worlds made through the real MCP handlers, and
+// games minted with `autoAudit: true`, whose gate walks every level in headless Chrome. Together they were a third
+// of the suite's time, so `npm test` leaves them out and CI runs them once, in their own job, rather than on every
+// leg of the matrix. Listed here so both configs read one list; the e2e config re-exports it.
+// A list, not a suffix: a rename would collide with every branch still editing these files.
+export const E2E = [
+  'lib/mcp/tools/gameworld-city.test.js',
+  'lib/mcp/tools/building-level.test.js',
+  'lib/mcp/tools/design-game.test.js',
+  'lib/mcp/tools/design-game.quick.test.js',
+  'lib/graph/car-designer/racer-live.test.js',
+];
+
+// What no tier but its own runs (the e2e config takes this, less the e2e suites themselves).
+export const EXCLUDE = [
+  '**/node_modules/**',
+  '.next/**',
+  'data/**',
+  'lite-template/**',
+  // Generative illustration spikes: render SVGs to
+  // lite-template/integration/**/spike-output for visual review, not
+  // load-bearing assertions, and dump ~hundreds of MB per full run. Run
+  // one on demand: npx vitest run --config '' path/to/foo.spike.gen.test.js
+  // Covers both spike families: *.spike.gen.test.js and *.spike.test.js.
+  '**/*.gen.test.js',
+  '**/*.spike.test.js',
+  // The deep tier: exhaustive sweeps (every word at its range ends, every named preset built) that take minutes
+  // and only say something when the module they sweep changed. `npm run test:deep` runs them all;
+  // `npm run test:deep:changed` runs only those whose imports touch a changed file; CI runs them all.
+  '**/*.deep.test.js',
+  // The Godot tier's matrix (`npm run test:godot`, vitest.godot.config.js): every cosmos fixture made into a game,
+  // exported and played in both engines. Minutes, and only with MOJULO_GODOT.
+  '**/*.godot.test.js',
+];
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -26,25 +61,6 @@ export default defineConfig({
     hookTimeout: 30000,
     setupFiles: ['./vitest.setup.js'],
     include: ['{lib,app,components,middleware,scripts}/**/*.test.js', 'middleware.test.js'],
-    exclude: [
-      '**/node_modules/**',
-      '.next/**',
-      'data/**',
-      'lite-template/**',
-      // Generative illustration spikes: render SVGs to
-      // lite-template/integration/**/spike-output for visual review, not
-      // load-bearing assertions, and dump ~hundreds of MB per full run. Run
-      // one on demand: npx vitest run --config '' path/to/foo.spike.gen.test.js
-      // Covers both spike families: *.spike.gen.test.js and *.spike.test.js.
-      '**/*.gen.test.js',
-      '**/*.spike.test.js',
-      // The deep tier: exhaustive sweeps (every word at its range ends, every named preset built) that take minutes
-      // and only say something when the module they sweep changed. `npm run test:deep` runs them all;
-      // `npm run test:deep:changed` runs only those whose imports touch a changed file; CI runs them all.
-      '**/*.deep.test.js',
-      // The Godot tier's matrix (`npm run test:godot`, vitest.godot.config.js): every cosmos fixture made into a game,
-      // exported and played in both engines. Minutes, and only with MOJULO_GODOT.
-      '**/*.godot.test.js',
-    ],
+    exclude: [...EXCLUDE, ...E2E],
   },
 });

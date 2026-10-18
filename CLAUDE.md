@@ -87,7 +87,7 @@ cp .env.example .env         # first time
 npm install
 npm run dev                  # must stay --webpack; Turbopack melts down watching control/data/
 npm run build                # --webpack too: Turbopack ignores next.config's webpack rules and fails on an absent pack or recall runtime
-npx vitest run               # the whole suite; *.spike.gen.test.js are excluded and gitignored
+npx vitest run               # the whole suite but the e2e tier; *.spike.gen.test.js are excluded and gitignored
 npm run test:critical        # the contracts only (MCP surface, pins, guards, db, scripts), no geometry-heavy suites
 npm run test:deep:changed    # the *.deep.test.js sweeps whose imports touch an uncommitted change (none if none do)
 npm run test:e2e             # whole worlds through the real handlers, games whose audit walks each level in headless Chrome
@@ -101,7 +101,8 @@ entry points `chdir` there and `getServerVersion` reads `package.json` from cwd.
 
 Test tiers: while iterating, run the test folder next to the change; before a commit, `test:critical`, that
 folder and `test:deep:changed`, plus `test:e2e` when the change touches the gameworld, city, game or structure
-kernels; the whole suite once before merging into the release candidate (CI runs it and `test:deep`).
+kernels; the whole suite and `test:e2e` once before merging into the release candidate (CI runs both and `test:deep`,
+the e2e tier in its own job on one leg).
 
 Test the concept, not the catalog. Species, presets, cultures, landmarks and climates are inputs to procedures:
 a test picks one case per distinct procedure (a rig topology, a family, a code path), chosen in code from the
@@ -110,7 +111,7 @@ adds nothing) on it. No test iterates a whole catalog, in any tier; a new entry 
 runs through. Build the smallest input that still exercises the concept (a small board, a short run, one city).
 An exhaustive sweep over a word's range ends goes in a `*.deep.test.js` beside the law
 tests, importing only the modules it sweeps, so `--changed` can select it. A suite that makes whole worlds or
-mints with `autoAudit: true` goes on the `E2E` list in `vitest.e2e.config.js`, never in critical (guarded by
+mints with `autoAudit: true` goes on the `E2E` list in `vitest.config.js`, never in critical or `npm test` (guarded by
 `lib/mcp/test-tiers.test.js`); test the audit gate itself with a stub `runTraversal`.
 
 Byte-pin conventions: `*.char.test.js` and `*.trace.test.js` are characterization pins; `__snapshots__/`

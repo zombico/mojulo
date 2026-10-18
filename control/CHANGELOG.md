@@ -631,6 +631,15 @@ renders byte-identically without them.
   forge baked to MP4 is decoded from that video, so a stitch of three room clips takes seconds rather than a fresh
   headless render of every frame; one without an MP4 is rendered again from its recipe.
 
+### Test tiers: the e2e suites run once, in their own CI job
+
+- `npm test` leaves out the e2e tier: the whole worlds made through the real handlers and the games whose audit walks
+  each level in headless Chrome (the `E2E` list, now in `vitest.config.js`). Measured on one full run, they were a
+  third of the suite's time, and CI ran them on every leg of its matrix. CI runs them once now, in an `e2e` job on
+  Ubuntu with Node 22 (`npm run test:e2e`); the byte pins they rest on still run on every leg.
+- `lib/mcp/test-tiers.test.js` holds the new shape: the e2e suites run in `test:e2e` and in neither `npm test` nor
+  `test:critical`. CLAUDE.md and CONTRIBUTING.md say when to run the tier.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is
