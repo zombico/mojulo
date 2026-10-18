@@ -20,7 +20,9 @@ const { resolveMetalSurface } = await import('../../../lib/graph/materials/metal
 
 const out = process.argv[2] || 'proving-ground';
 mkdirSync(out, { recursive: true });
-// each effect: what the caster's cue does, every `every` seconds
+// each effect: what the caster's cue does, every `every` seconds; `start`: a cue once at the start (a status worn the
+// whole take); `cast`: extra casters (id → pos) the cue may fire from
+const WALLS = { wallL: [-2.6, 3.4, 0.5], wallR: [1.4, 3.6, 0.5] };
 export const EFFECTS = {
   hadou: { every: 3.2, then: { beam: { who: 'caster', to: 'target', is: 'orb', color: '#5ab8ff' } } },
   laser: { every: 2.6, then: { beam: { who: 'caster', to: 'target', is: 'laser', color: '#ff3a4a' } } },
@@ -28,6 +30,13 @@ export const EFFECTS = {
   lightning: { every: 2.2, then: { puff: { who: 'target', is: 'strike' } } },
   blast: { every: 3, then: { explode: { who: 'target', is: 'blast' } } },
   fireworks: { every: 3.4, then: { puff: { who: 'target', is: 'fireworks' } } },
+  // noise: lightning and flame drawn by the page's noise; walls with spell circles; a hex shield; an itano circus
+  'lightning-beam': { every: 2.4, then: { beam: { who: 'caster', to: 'target', is: 'lightning' } } },
+  fireball: { every: 3, then: { beam: { who: 'caster', to: 'target', is: 'fireball' } } },
+  'sigil-wall': { every: 3.6, cast: WALLS, then: [{ beam: { who: 'wallL', to: 'target', is: 'sigil' } }, { beam: { who: 'wallR', to: 'target', is: 'sigil', color: '#ff7ad0' } }] },
+  shield: { every: 1.7, start: { status: { who: 'target', is: 'warded', look: 'ward' } }, then: { beam: { who: 'caster', to: 'target', is: 'orb', color: '#ffb04a' } } },
+  itano: { every: 3.4, then: { beam: { who: 'caster', to: 'target', is: 'itano' } } },
+  'itano-laser': { every: 2.8, then: { beam: { who: 'caster', to: 'target', is: 'itano-laser' } } },
 };
 const want = process.argv.slice(3).length ? process.argv.slice(3) : Object.keys(EFFECTS);
 
@@ -62,14 +71,16 @@ const wall = box(-12, 4.5, 12, 5.2, 2.4, '#3a3834', 'wall');
 const steel = resolveMetalSurface({ metal: 'steel', finish: 'brushed' });
 const pillars = [[-2, -1.6], [2, -1.6], [-2, 2.6], [2, 2.6]].flatMap(([x, y], k) => tagFacesWithMetal(box(x - 0.25, y - 0.25, x + 0.25, y + 0.25, 2.6, steel.hex, `pillar${k}`), steel));
 
-const entities = [
+const base = [
   { id: 'caster', rule: { type: 'walk' }, transform: { pos: [-4, 0, 0] }, body: { type: 'none' } },
   { id: 'target', rule: { type: 'static' }, transform: { pos: [4, 0, 0] }, body: { type: 'none' } },
 ];
 const camera = { name: 'arena', worldFraming: { cameraPosition: [0, -8.6, 2.7], lookAt: [0, 0.6, 1.0], horizontalFov: 64, pictureCenter: [560, 390] } };
 for (const name of want) {
   const E = EFFECTS[name]; if (!E) throw new Error(`no effect '${name}' (have ${Object.keys(EFFECTS).join(', ')})`);
-  const events = lowerPlay({ entities, play: { cues: [{ id: 'go', when: { start: true }, then: E.then }, { id: 'again', when: { every: E.every }, then: E.then }] } }, { player: 'caster' });
+  const entities = [...base, ...Object.entries(E.cast || {}).map(([id, pos]) => ({ id, rule: { type: 'static' }, transform: { pos }, body: { type: 'none' } }))];
+  const cues = [...(E.start ? [{ id: 'wear', when: { start: true }, then: E.start }] : []), { id: 'go', when: { start: true }, then: E.then }, { id: 'again', when: { every: E.every }, then: E.then }];
+  const events = lowerPlay({ entities, play: { cues } }, { player: 'caster' });
   // three takes: the floor and the light (<effect>), the light alone (-light), neither (-off)
   for (const [tag, ev] of [['', { ...events, fxLight: true, fxStyle: true }], ['-light', { ...events, fxLight: true }], ['-off', events]]) {
     const html = emitThreeWorld({ faces: [...floor, ...wall, ...pillars, ...figures], cameras: [camera], entities, events: ev,

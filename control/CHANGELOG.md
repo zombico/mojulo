@@ -14,6 +14,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Effects noise: flames and lightning, spell circles, a hex shield, an itano circus
+
+- **Noise on the World page.** The terrain's gradient noise reaches the page twice: its own source for strand spines,
+  and a GLSL twin on the same integer hash for effect shaders. Nothing carries either unless an attack or a look asks.
+- **Lightning and flame.** A strand's `jag` throws lightning across its spine (noise, ends pinned), re-struck `flicker`
+  times a second with `forks` branches. Its `fire` draws its head as flame: noise turbulence torn back from its
+  flight, white to yellow to red. New presets `lightning` and `fireball`. Under `fxStyle` the attack's colour picks the
+  material by rule: a warm bolt burns (its echoes a trail of smaller flames), a pale ray crackles.
+- **Spell circles.** `charge.form: 'circle'` opens a sigil square to the target: rings, a rune band turning one way,
+  a hexagram turning the other, an overshoot as it opens. The strands leave from it, so a wall or a floating caster can
+  fire from a circle (preset `sigil`).
+- **A hex shield.** A look's `shield { r, cells }` raises a half-sphere of hex cells round the feet, with a fresnel rim
+  and a noise shimmer, and a ripple runs out from wherever a beam lands on it (preset look `ward`).
+- **An itano circus.** A strand's `fan` launches each copy its own seeded way round the line, then curves it back in to
+  land together. Presets `itano` (missiles with smoke trails) and `itano-laser` (homing rays).
+
 ### Effects: light and a style floor, by rule
 
 - **`fxLight: true`.** On a world whose cues fire beams, puffs or explosions, every effect lights what is round it,
