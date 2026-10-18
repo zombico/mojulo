@@ -58,6 +58,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   off the head with its back welded to the skin, and the outer ear folds off it at the antihelix (`earProtrusion`).
   `earlobe` sets the lobule from free (0, tilted off the head) to attached (1, tilted into the cheek, where it fuses).
   `--crop ear` frames the right ear.
+- **Expressive eyes.** The relational head's eyes are a rig of their own (`head-relational-eye.js`): a globe whose
+  cornea, iris and pupil turn with the gaze; the lids as a skin shell over the globe and its cornea (a shut lid shows
+  the gaze), the opening carved between two lid curves, each with its own height, peak (inner to outer) and shape
+  (flat and tense to peaked); the upper lid following the gaze's pitch; a crease riding the lid, a hood over it and a
+  pretarsal roll that swells in a squint. `eyes` takes a word (`neutral`, `wide`, `angry`, `sad`, `sleepy`, `happy`,
+  `suspicious`, `focused`, `closed`), channels over it and a side's own; blink, a smile's squint and the brows drive
+  the same channels. The field lane paints the sclera, iris and pupil, takes `--eyes` and rows with their own `eyes`,
+  and frames `--crop eyes` and `--crop eye`; a crop meshes only its own box.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

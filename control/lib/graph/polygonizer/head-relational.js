@@ -727,7 +727,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const r = eyeRig(Pt, s, c, rel.fissure);
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
-    return { near, channels: c, gaze: r.gaze,
+    return { near, channels: c, gaze: r.gaze, lids: (p) => r.lids(V(p)) * sc,
       opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)) };
   }) : [];
@@ -737,7 +737,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     for (const e of ears) { const c = e.carve(p); if (c !== Infinity) d = smax(d, -c, 0.004 * sc); }
     for (const e of eyeRigs) {
       if (!e.near(p)) continue;
-      // the opening carved to the globe, the margins and folds laid on, the crease cut, the globe set in
+      // the lids' mass on the skin, the opening carved through it to the globe, the margins and folds laid on, the
+      // crease cut, the globe set in
+      d = smin(d, e.lids(p), 0.008 * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
       if (e.crease) d = smax(d, -e.crease(p), 0.002 * sc);

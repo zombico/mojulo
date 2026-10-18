@@ -21,6 +21,7 @@
 //                   focused, closed) or '{"word":"angry","gazeYaw":15,"L":{"open":0.6}}' (head-relational-eye.js);
 //                   a row of --acts may carry its own `eyes`
 //   --crop eyes     frame both eyes (the brow's line to the cheek's top)
+//   --crop eye      frame the right eye close
 //   --crop face     frame the face (the chin to above the brow, cheek to cheek) instead of the whole head
 //   --crop ear      frame the right ear (read it in the front ¾, the ¾, the lateral and the rear ¾)
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
@@ -102,6 +103,16 @@ function camera(az, elev, bounds) {
   };
 }
 
+// a crop meshes only its own box (a margin round the camera's frame; deep along the view so nothing is cut short):
+// faster, and the same cells spent on what is seen
+function cropBounds(head) {
+  const L = head.landmarks, P = head.points || {}, B = head.bounds;
+  if (crop === 'eye' && P.enR) return { min: { x: P.enR.x - 0.008, y: P.eyeR.y - 0.03, z: P.eyeR.z - 0.016 }, max: { x: P.exR.x + 0.008, y: P.eyeR.y + 0.012, z: P.eyeR.z + 0.018 } };
+  if (crop === 'eyes' && P.exL) return { min: { x: P.exL.x - 0.01, y: B.min.y * 0.2 + L.tragionR.y * 0.8, z: P.eyeR.z - 0.03 }, max: { x: P.exR.x + 0.01, y: B.max.y, z: P.eyeR.z + 0.032 } };
+  if (crop === 'ear') { const T = L.tragionR, E = L.earTopR, eh = E.z - T.z; return { min: { x: T.x - 0.9 * eh, y: T.y - 1.5 * eh, z: T.z - 1.4 * eh }, max: { x: B.max.x, y: T.y + 0.6 * eh, z: E.z + 0.3 * eh } }; }
+  if (crop === 'face') return { min: { x: B.min.x, y: L.tragionR.y, z: B.min.z }, max: { x: B.max.x, y: B.max.y, z: L.glabella.z + 0.02 } };
+  return B;
+}
 // the painted parts (the eyes' globes); everything else is clay
 const PAINT = { sclera: [232, 228, 220], iris: [64, 104, 140], pupil: [18, 18, 20] };
 function rasterize(faces, cam, paint = null) {
@@ -149,9 +160,13 @@ for (const { sex, actions: row } of ROWS) {
   const L = head.landmarks;
   const ET = L.earTopR, TR = L.tragionR, eh = ET.z - TR.z;
   const EL = head.points?.exL, ER = head.points?.exR, EY = head.points?.eyeR;
-  const frame = crop === 'eyes' && EL ? {
-    min: { x: EL.x - 0.004, y: L.tragionR.y, z: EY.z - 0.022 },
-    max: { x: ER.x + 0.004, y: L.noseTip.y, z: EY.z + 0.024 },
+  const EN = head.points?.enR;
+  const frame = crop === 'eye' && EN ? {
+    min: { x: EN.x - 0.002, y: EY.y - 0.002, z: EY.z - 0.009 },
+    max: { x: ER.x + 0.002, y: EY.y + 0.002, z: EY.z + 0.01 },
+  } : crop === 'eyes' && EL ? {
+    min: { x: EL.x - 0.004, y: EY.y - 0.004, z: EY.z - 0.016 },
+    max: { x: ER.x + 0.004, y: EY.y + 0.004, z: EY.z + 0.016 },
   } : crop === 'ear' ? {
     min: { x: TR.x - 0.6 * eh, y: TR.y - 1.3 * eh, z: TR.z - 1.25 * eh },
     max: { x: TR.x + 0.9 * eh, y: TR.y + 0.4 * eh, z: ET.z + 0.15 * eh },
@@ -163,7 +178,7 @@ for (const { sex, actions: row } of ROWS) {
   const eyeLabel = eyes ? ' · eyes ' + (typeof eyes === 'string' ? eyes : JSON.stringify(eyes).replace(/"/g, '')) : '';
   const actLabel = (actions && Object.keys(actions).length ? ' · ' + Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ') : acts && !eyes ? ' · rest' : '') + eyeLabel;
   const t0 = Date.now();
-  const faces = headFieldMesh(head, { cells });
+  const faces = headFieldMesh(crop ? { ...head, bounds: cropBounds(head) } : head, { cells });
   if (head.paint) for (const f of faces) {
     const c = f.corners.reduce((m, q) => ({ x: m.x + q.x / 4, y: m.y + q.y / 4, z: m.z + q.z / 4 }), { x: 0, y: 0, z: 0 });
     f.paint = head.paint(c);

@@ -98,8 +98,8 @@ function bump(t, a, shape) {
 /**
  * The eye for side `s` of the relational points `P` (V units; `en`, `ex`, `eye` the inner and outer canthi and the
  * pupil's point at rest) under its channels `c` (`resolveEye`) and the head's `fissure` relation. Returns
- * { opening, rims, folds, globe, paint } — signed fields in V (negative inside): the opening to carve from the skin,
- * the lid margins and folds to add to it, the crease to carve, the globe to set in; `paint(p)` names the globe's part
+ * { opening, lids, rims, crease, globe, paint } — signed fields in V (negative inside): the lids' mass to add to the
+ * skin, the opening to carve through it, the margins and folds to lay on, the crease to cut, the globe to set in; `paint(p)` names the globe's part
  * at a surface point ('pupil' | 'iris' | 'sclera') or null.
  */
 export function eyeRig(P, s, c, fissure) {
@@ -132,7 +132,9 @@ export function eyeRig(P, s, c, fissure) {
   const span = ex.x - en.x;
   const opening = shut ? null : (p) => {
     const t = (p.x - en.x) / span, tc = clamp(t, 0, 1);
-    return Math.max(p.z - upZ(tc), loZ(tc) - p.z, Math.abs(t - tc) * Math.abs(span), gc.y - p.y);
+    // between the canthi: negative inside (the nearer canthus's distance), positive past them
+    const across = t === tc ? -Math.min(t, 1 - t) * Math.abs(span) : Math.abs(t - tc) * Math.abs(span);
+    return Math.max(p.z - upZ(tc), loZ(tc) - p.z, across, gc.y - p.y);
   };
   // the curves as bead chains (ONE min each, so they do not bead): the margins on the ride, the upper thickest at
   // the lash line's middle; the crease and the hood above the upper; the pretarsal roll under the lower
@@ -153,6 +155,15 @@ export function eyeRig(P, s, c, fissure) {
   const hood = c.hood > 0.02 ? chainF(ts.map((t) => ({ c: pt(t, creaseZ(t) + 0.008, 0, 0.004 + 0.012 * c.hood), r: (0.004 + 0.012 * c.hood) * (0.25 + 0.75 * taper(t)) }))) : null;
   const roll = chainF(ts.map((t) => ({ c: pt(t, loZ(t) - 0.012 - 0.004 * c.lower, 0, 0.002 + 0.006 * c.lower), r: (0.003 + 0.007 * c.lower) * taper(t) })));
   const rims = (p) => SM.min(chainF(upperRim)(p), chainF(lowerRim)(p), roll(p), hood ? hood(p) : Infinity);
+  // THE LIDS' MASS: a skin shell over the globe — and over the cornea's bulge, so a shut lid shows the gaze — across
+  // the eye's region (an ellipse about it, the canthi's span and a fissure and a crease high), in front of the globe's
+  // centre. The opening is carved through it; where the opening closes, the lid stays.
+  const LID_T = 0.012, ax = Math.abs(span) / 2 + 0.012, az = fissure * 0.9 + 0.03, cx = (en.x + ex.x) / 2, cz = (en.z + ex.z) / 2 + 0.006;
+  const lids = (p) => {
+    const reg = (Math.hypot((p.x - cx) / ax, (p.z - cz) / az) - 1) * Math.min(ax, az);
+    const shell = SM.min(dist(p, gc) - (GLOBE.r + LID_T), dist(p, cc) - (GLOBE.cornea + LID_T));
+    return Math.max(shell, reg, gc.y + 0.01 - p.y);
+  };
   // THE PAINT: about the gaze axis, on the globe's surface
   const irisR = GLOBE.iris, pupilR = GLOBE.pupil * c.pupil;
   const paint = (p) => {
@@ -163,5 +174,5 @@ export function eyeRig(P, s, c, fissure) {
     return rad < pupilR ? 'pupil' : rad < irisR ? 'iris' : 'sclera';
   };
   const bound = { c: { x: e.x, y: e.y, z: e.z }, r: 0.16 };
-  return { opening, rims, crease, globe, paint, bound, gaze: d };
+  return { opening, lids, rims, crease, globe, paint, bound, gaze: d };
 }
