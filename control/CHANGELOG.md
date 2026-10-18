@@ -93,14 +93,22 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   below the mouth's corner it runs (0.05, to the lower lip's edge; ~0.12 carries it past below the lip toward the jaw).
   The fold's top is anchored on the cheek behind the wing, level with the alar crease, so it has a broad base and sits
   back from the lip; its middle rides the zygomaticus up and back as the cheek bunches over it in a smile.
-- **The teeth.** The incisal point (`inc`, where the incisors meet behind the stomion, `incisorShow` below it: ~2.3 mm,
-  ~3.2 mm female) anchors the dental arches and is where the jaw's opening is measured. The upper arch runs each side
-  from the first molar through the canine to the central incisors, crowns standing up from the occlusal plane; the lower
-  arch is its mirror across that plane, a touch narrower and `overjet` (~3 mm) behind, riding the jaw. As the jaw opens
-  an oral cavity is carved behind the lips, from between them back past the incisors to behind the canines, reaching
-  the upper teeth's edge and the lower's, and the teeth, joined after it, line its top and bottom: a smile on a parted
-  mouth shows the upper incisors. A septum fills the nose's midline (a pocket there opened to a line seen through from
-  the side as the cheek moved).
+- **The teeth.** The incisal point (`inc`, where the incisors meet behind the stomion, `incisorShow` below it: ~5.5 mm,
+  ~6.4 mm female, ~2 mm of incisor under the full upper lip as it parts) anchors the dental arches and is where the
+  jaw's opening is measured. The upper arch is seven crowns a side on a curved arch (`DENTITION`: central and lateral
+  incisors, canine, two premolars, two molars, each placed out from the midline and back from the incisors' faces, the
+  arch narrowing into its curve at the front and running nearly straight back along the molars; `archWidth` scales
+  it), each crown its own upright vajra from the cervix to its edge or cusps on the occlusal plane, the incisors
+  leaning forward and thin at the edge. The lower arch is the upper's mirror across that plane, a touch narrower and
+  `overjet` (~3 mm) behind, riding the jaw, and the tongue lies on the floor inside it, two halves from behind the
+  lower incisors back between the molars. As the jaw opens an oral cavity is carved behind the lips along the arch
+  (each side through the incisors, the canine and the first premolar, down the middle and across the back, reaching
+  both arches' edges, narrowing inside the cheeks), and the teeth and the tongue, joined after it, line it: the open
+  mouth shows the upper incisors under the lip, the lower row and the tongue. A septum fills the nose's midline (a
+  pocket there opened to a line seen through from the side as the cheek moved). The through-hole lane counts the
+  parted lips seen from the side in front of the mouth's corners, where a wide jaw or a smile draws the corners back
+  behind them (3 of 44 states over the jaw's range in tenths, plain and smiling); at rest, smiling, and open to the
+  limit with or without a smile there are none.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

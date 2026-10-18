@@ -79,7 +79,9 @@ export const RELATIONS = Object.freeze({
   condyleGlide: 0.045,  // the condyle's glide forward and down the articular eminence at full / v-me (~10 mm)
   overjet: 0.012,       // the lower incisors behind the upper / v-me (~3 mm): the lower arch is the upper's mirror
                         // across the occlusal plane, set back by this
-  incisorShow: 0.01,    // the upper incisors' edge below the stomion / v-me (~2.3 mm: what shows as the lips part)
+  incisorShow: 0.024,   // the upper incisors' edge below the stomion / v-me (~5.5 mm: the full upper lip hangs ~3 mm
+                        // below the stomion, and ~2 mm of incisor shows under it as the lips part)
+  archWidth: 1,         // the dental arch's width, as a share of the canon's (`DENTITION`)
   // ── masses (radii as shares of v-me)
   brow: 1,              // brow-ridge radius multiplier (the strongest sex cue)
   // ── the wave: the skin is the level set of the SUM of every mass's wave exp(−d/k); k is its wavelength (in V).
@@ -92,7 +94,7 @@ export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios the female canon moves (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
   male: Object.freeze({}),
-  female: Object.freeze({ incisorShow: 0.014, lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
+  female: Object.freeze({ archWidth: 0.96, incisorShow: 0.028, lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
 });
 
 /**
@@ -280,6 +282,22 @@ function probeOf(head, name) {
   return best;
 }
 const TUNE_CACHE = new Map();
+
+/**
+ * THE DENTITION — the upper permanent teeth, one side, from the midline (mm, adult means after the dental canon): `x`
+ * out from the midline and `d` back from the central incisors' labial faces to the crown's labial face, the crown's
+ * half-thickness `r`, its height `h`, its edge's radius as a share of `r` (thin incisal edges, a pointed canine, broad
+ * occlusal tables) and how far its edge leans forward of its cervix.
+ */
+export const DENTITION = Object.freeze({
+  Central: { x: 4.3, d: 0, r: 3.4, h: 10.5, edge: 0.7, lean: 1.2 },
+  Lateral: { x: 11.2, d: 3, r: 3.1, h: 9, edge: 0.7, lean: 1 },
+  Canine: { x: 16.8, d: 7.5, r: 3.9, h: 10, edge: 0.6, lean: 0.6 },
+  Premolar1: { x: 20.3, d: 13.5, r: 4.3, h: 8, edge: 0.95, lean: 0 },
+  Premolar2: { x: 22.3, d: 20, r: 4.4, h: 7.5, edge: 0.95, lean: 0 },
+  Molar1: { x: 24.8, d: 27.5, r: 5.2, h: 7, edge: 0.95, lean: 0 },
+  Molar2: { x: 25.8, d: 37.5, r: 5, h: 6.5, edge: 0.95, lean: 0 },
+});
 
 /**
  * The core vajras over the points: three points (proximal, centre, distal) and three radii in V, and a blend group.
@@ -500,20 +518,34 @@ export function coreVajras(P, rel = RELATIONS) {
   // (the line parts the lips as far forward as their fullness carries them, and as deep)
   cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);
   cut('mentolabial', at(P.loMidL, { x: -0.02, y: -0.03, z: -0.035 }), { x: 0, y: P.pg.y - 0.008, z: (P.li.z + P.pg.z) / 2 + 0.006 }, at(P.loMidR, { x: 0.02, y: -0.03, z: -0.035 }), [0.006, 0.01, 0.006], [J, J, J]);
-  // THE TEETH — the upper dental arch, anchored at the incisal point: each side the first molar → the canine → the
-  // central incisors, crowns standing up from the occlusal plane (from the incisal point back to the molars, rising a
-  // little: the curve of Spee). The lower arch is its MIRROR across that plane, a touch narrower so it sits inside the
-  // upper and `overjet` behind it, riding the jaw. They join the skin after the mouth is carved, so they show only as
-  // the lips part.
-  const inc = P.inc, occ = (y) => inc.z + ((inc.y - y) * 0.01) / 0.18;
-  const tooth = (x, y, r) => ({ x, y, z: occ(y) + r });
+  // THE TEETH — the upper dental arch, anchored at the incisal point: each side seven crowns on a curved arch (the
+  // central and lateral incisors, the canine, two premolars, two molars: `DENTITION`, placed out from the midline and
+  // back from the incisors' faces, the arch narrowing into its curve at the front and running nearly straight back
+  // along the molars; `archWidth` scales it). Each crown is its own vajra, upright: the cervix at the gum → the crown →
+  // the edge or the cusps on the occlusal plane (from the incisal point back to the molars, rising a little: the curve
+  // of Spee); the incisors lean their edges forward and thin to them. The lower arch is the upper's MIRROR across that
+  // plane, a touch narrower so it sits inside the upper and `overjet` behind it, riding the jaw. They join the skin after
+  // the mouth is carved, so they show only as the lips part.
+  const inc = P.inc, occ = (y) => inc.z + ((inc.y - y) * 0.01) / 0.18, labial = inc.y + 0.006, mmv = (v) => v * MM_V;
   const lower = (q) => ({ x: q.x * 0.94, y: q.y - R.overjet, z: 2 * occ(q.y) - q.z });
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`ch${s}`].x);
-    const up = [tooth(sg * 0.1, inc.y - 0.18, 0.02), tooth(sg * 0.07, inc.y - 0.035, 0.014), tooth(0, inc.y - 0.006, 0.012)];
-    V.push({ name: `upperTeeth${s}`, a: up[0], c: up[1], b: up[2], r: [0.02, 0.014, 0.012], group: 'teeth' });
-    const lo = up.map(lower);
-    V.push({ name: `lowerTeeth${s}`, a: lo[0], c: lo[1], b: lo[2], r: [0.02, 0.014, 0.012], group: 'teeth', drive: [J, J, J] });
+    for (const [name, t] of Object.entries(DENTITION)) {
+      const r = mmv(t.r), yc = labial - mmv(t.d) - r, x = sg * mmv(t.x) * R.archWidth, lean = mmv(t.lean), z0 = occ(yc);
+      const rr = [0.8 * r, r, t.edge * r];
+      const up = [{ x, y: yc - lean, z: z0 + mmv(t.h) - rr[0] }, { x, y: yc, z: z0 + mmv(t.h) * 0.5 }, { x, y: yc + lean, z: z0 + rr[2] }];
+      V.push({ name: `upper${name}${s}`, a: up[0], c: up[1], b: up[2], r: rr, group: 'teeth' });
+      const lo = up.map(lower);
+      V.push({ name: `lower${name}${s}`, a: lo[0], c: lo[1], b: lo[2], r: rr, group: 'teeth', drive: [J, J, J] });
+    }
+  }
+  // THE TONGUE — on the floor of the mouth inside the lower arch, riding the jaw: two halves from just behind the lower
+  // incisors back between the molars, its back risen a little above the lower teeth's biting plane. It joins with the
+  // teeth after the mouth is carved, so it lies in an open mouth and closes the mouth's middle seen from the side.
+  const occL = (y) => 2 * occ(y + R.overjet) - occ(y + R.overjet), tongueTop = 0.012, ti = labial - R.overjet - mmv(6);
+  for (const s of ['L', 'R']) {
+    const sg = Math.sign(P[`ch${s}`].x), t = (dx, dy, r) => ({ x: sg * dx, y: ti - dy, z: occL(ti - dy) + tongueTop - r });
+    V.push({ name: `tongue${s}`, a: t(0.006, 0, 0.022), c: t(0.03, 0.07, 0.04), b: t(0.035, 0.15, 0.045), r: [0.022, 0.04, 0.045], group: 'teeth', drive: [J, J, J] });
   }
   return V;
 }
@@ -665,16 +697,29 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const rc = Math.min(0.5 * gap + 0.004, 0.06);
     const out = (q) => ({ x: 0.6 * q.x, y: c.y + 0.6 * (q.y - c.y), z: c.z + 0.6 * (q.z - c.z) });
     const L = inC(Vn.upperLipL.a), Rr = inC(Vn.upperLipR.a);
-    // THE ORAL CAVITY behind the lips: from between them back past the incisors to behind the canines, at each station
-    // between the upper teeth's edge and the lower's (as the jaw has moved them), reaching both — so the teeth,
-    // joined after it, line its top and its bottom (the lens between the lips alone left them buried in the lip)
-    const edge = (w, i, sgn) => { const q = [w.a, w.c, w.b][i]; return { x: 0, y: q.y, z: q.z + sgn * w.r[i] }; };
-    const station = (i, dy) => {
-      const u = edge(Vn.upperTeethL, i, -1), l = edge(Vn.lowerTeethL, i, 1);
-      return [{ x: 0, y: (u.y + l.y) / 2 + dy, z: (u.z + l.z) / 2 }, Math.max(0.004, 0.5 * Math.hypot(u.y - l.y, u.z - l.z) + 0.003)];
+    // THE ORAL CAVITY behind the lips: each side a chain from between them along the arch, through the central and
+    // lateral incisors, the canine and the first premolar; at each tooth it sits between the upper crown's edge and the
+    // lower's (as the jaw has moved them) and reaches both, so the teeth, joined after it, line its top and its bottom
+    // as a row seen through the opening. It narrows toward the back, inside the cheeks. (A lens between the lips alone
+    // left the teeth buried in the lip; a tube down the midline showed only the central pair.)
+    const station = (tooth, s, k, cap = Infinity) => {
+      const u = Vn[`upper${tooth}${s}`], l = Vn[`lower${tooth}${s}`];
+      const ue = { x: u.b.x, y: u.b.y, z: u.b.z - u.r[2] }, le = { x: l.b.x, y: l.b.y, z: l.b.z + l.r[2] };
+      return [{ x: (ue.x + le.x) / 2, y: (ue.y + le.y) / 2 - 0.004, z: (ue.z + le.z) / 2 }, Math.max(0.004, Math.min(cap, k * (0.5 * Math.hypot(ue.y - le.y, ue.z - le.z) + 0.003)))];
     };
-    const [o1, r1] = station(2, -0.004), [o2, r2] = station(1, -0.01);
-    return { beads: [L, out(L), c, out(Rr), Rr], r: [0.004, 0.75 * rc, rc, 0.75 * rc, 0.004], oral: { beads: [c, o1, o2], r: [rc, r1, r2] } };
+    // (both sides pass through a shared midline station between the central incisors: chains parting from the lips
+    // straight to each side's incisor left a tent of tissue standing between them)
+    const [cl, rl] = station('Central', 'L', 1), [cr] = station('Central', 'R', 1), midSt = { x: 0, y: (cl.y + cr.y) / 2, z: (cl.z + cr.z) / 2 };
+    const oral = ['L', 'R'].map((s) => {
+      // (the side stations are capped: tall at full opening, they reached the side of the lower face and opened it)
+      const st = [['Central', 1], ['Lateral', 1, 0.05], ['Canine', 0.9, 0.042], ['Premolar1', 0.7, 0.036]].map(([t, k, cap]) => station(t, s, k, cap));
+      return { beads: [c, midSt, ...st.map(([q]) => q)], r: [rc, rl, ...st.map(([, r]) => r)] };
+    });
+    // and down the middle, back to between the premolars: the side chains diverge along the arch, and a pillar of tissue
+    // stood between them from the palate to the floor
+    const [pl, pr] = ['L', 'R'].map((s) => station('Premolar1', s, 0.7, 0.036)), back = { x: 0, y: (pl[0].y + pr[0].y) / 2, z: (pl[0].z + pr[0].z) / 2 };
+    oral.push({ beads: [c, midSt, back], r: [rc, rl, pl[1]] }, { beads: [pl[0], back, pr[0]], r: [pl[1], pl[1], pr[1]] });
+    return { beads: [L, out(L), c, out(Rr), Rr], r: [0.004, 0.75 * rc, rc, 0.75 * rc, 0.004], oral };
   })() : null;
   // THE EYES' OPENINGS — an almond in the face's plane, the intersection of two discs: the upper lid's arc (a circle
   // through the canthi and the upper lid's apex, as moved) and the lower's. Read back from the lid rolls, so a blink
@@ -718,8 +763,11 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const bonds = vajras.map((w) => {
     const beads = w.skin ? [w.a, w.c, w.b].map((q, i) => boneBead(q, w.r[i], w.stepIn)) : [[w.a, w.r[0]], [w.c, w.r[1]], [w.b, w.r[2]]];
     const [a, c, b] = beads.map(([q]) => S(q)), [ra, rc, rb] = beads.map(([, r]) => r * sc);
-    return { group: w.group, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)) };
+    return { group: w.group, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)), lo: { x: Math.min(a.x, c.x, b.x) - Math.max(ra, rc, rb), y: Math.min(a.y, c.y, b.y) - Math.max(ra, rc, rb), z: Math.min(a.z, c.z, b.z) - Math.max(ra, rc, rb) }, hi: { x: Math.max(a.x, c.x, b.x) + Math.max(ra, rc, rb), y: Math.max(a.y, c.y, b.y) + Math.max(ra, rc, rb), z: Math.max(a.z, c.z, b.z) + Math.max(ra, rc, rb) } };
   });
+  // the teeth are many small crowns: a box about them all, so the field skips them away from the mouth
+  const teethBonds = bonds.filter((b) => b.group === 'teeth'), tm = 0.02 * sc;
+  const teethBox = teethBonds.length ? { lo: { x: Math.min(...teethBonds.map((b) => b.lo.x)) - tm, y: Math.min(...teethBonds.map((b) => b.lo.y)) - tm, z: Math.min(...teethBonds.map((b) => b.lo.z)) - tm }, hi: { x: Math.max(...teethBonds.map((b) => b.hi.x)) + tm, y: Math.max(...teethBonds.map((b) => b.hi.y)) + tm, z: Math.max(...teethBonds.map((b) => b.hi.z)) + tm } } : null;
   const orbits = ['L', 'R'].map((s) => ({ c: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.01 }), r: 0.075 * sc }));
   // the globe and its cornea: the sclera's sphere, and the cornea's smaller sphere proud of it to the eye point
   const globes = ['L', 'R'].map((s) => {
@@ -742,8 +790,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const kw = rel.skinWave * sc;
   const mouthF = mouth ? (() => {
     const chain = (ch) => { const q = ch.beads.map(S), r = ch.r.map((v) => v * sc); return (p) => { let d = Infinity; for (let i = 0; i < q.length - 1; i++) d = SM.min(d, sdRoundCone(p, q[i], q[i + 1], r[i], r[i + 1])); return d; }; };
-    const lens = chain(mouth), oral = chain(mouth.oral);
-    return (p) => SM.min(lens(p), oral(p));
+    const lens = chain(mouth), oral = mouth.oral.map(chain);
+    return (p) => { let d = lens(p); for (const o of oral) d = SM.min(d, o(p)); return d; };
   })() : null;
   const field = (p) => {
     if (!skin) {
@@ -756,8 +804,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // (log-sum-exp about the nearest, so the sum never overflows)
     const t = depth(p), es = [], g = {};
     let lo = Infinity;
+    const nearTeeth = teethBox && p.x >= teethBox.lo.x && p.x <= teethBox.hi.x && p.y >= teethBox.lo.y && p.y <= teethBox.hi.y && p.z >= teethBox.lo.z && p.z <= teethBox.hi.z;
     for (const b of bonds) {
-      if (b.group === 'carve') continue;
+      if (b.group === 'carve' || (b.group === 'teeth' && !nearTeeth)) continue;
       const e = b.f(p);
       if (b.group === 'bone' || b.group === 'soft') { const v = b.group === 'bone' ? e - t : e; es.push(v); if (v < lo) lo = v; }
       else g[b.group] = g[b.group] === undefined ? e : smin(g[b.group], e, BLEND[b.group] * sc);
@@ -805,5 +854,5 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // the jaw as opened (when it is): the hinge's angle, the condyle's glide and the incisors' opening, in ° and mm
   const jp = actions?.jaw ? jawPose(Pt, rel, actions.jaw) : null;
   const jaw = jp ? { deg: Math.round(jp.deg * 10) / 10, glide: Math.round(jp.glide * 2300) / 10, opening: Math.round(jp.opening * 2300) / 10, limit: Math.round(rel.jawOpen * 2300) / 10 } : null;
-  return { field, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw };
+  return { field, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, jaw, mouth };
 }
