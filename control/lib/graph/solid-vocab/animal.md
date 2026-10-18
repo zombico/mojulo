@@ -44,6 +44,10 @@ dozes on its feet, a raccoon sits up, an otter eats floating on its back). Mix t
 or `{ behaviors: 'all' }` for every one it does; naming behaviors and no gaits carries no gait. Another way from its
 repertoire: `{ behaviors: ['relax'], variants: { relax: 'curl' } }`. A floating behavior's water surface is the
 ground's level. A behavior the species is not posed doing yet is refused, naming the ones it is.
+REACTIONS ride it too, on any body with legs: `flinch` (dropped low on bent legs, the head thrown up, back to the
+stand), `fall` (onto its side, gathering speed) and `rise` (back up onto its feet), each a one-shot between poses its own
+body solves (`['walk', 'trot', 'flinch', 'fall', 'rise']`, or `{ reactions: 'all' }`). A legless body takes them on its
+own coil: it rears back into its strike coil to flinch and falls laid out flat; a swimmer has none yet.
 
 ## The maker door — a NEW fish or snake from parameters
 
@@ -84,7 +88,7 @@ create_character({ as: 'animal', title: 'Anaconda', spec: { maker: 'serpent', pa
 spec: {
   maker?:     'fish'|'serpent', params?: { …maker params, see the maker door },
   species?:   <a species id or a common name — the roster is the 'animals' card>,
-  motion?:    true | <word> | [<gait and behavior words>] | { gaits?, behaviors?, variants?, keys? },   // species only
+  motion?:    true | <word> | [<gait, behavior and reaction words>] | { gaits?, behaviors?, variants?, reactions?, keys? },   // species only
   archetype?: 'rodent'|'canine'|'feline'|'stumpy'|'equine'|'gazelle'|'sauropod'|
               'theropod'|'raptor'|'avian'|'ursine'|'raccoon',
   opts?:      { …figure-body knobs for the archetype door — see below },

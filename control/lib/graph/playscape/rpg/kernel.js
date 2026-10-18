@@ -122,13 +122,15 @@ export function buildRpg() {
   }
   function buffMul(buffs, k) { let p = 0; for (const b of buffs) if (b.stat === k) p += b.pct; return Math.max(0.25, 1 + p); }
 
-  /** The members who are in: joined (their flag set, or `rpg-join`), the first `rules.size` of them. */
+  /** The members who are in: joined (their flag set, or `rpg-join`), the first `rules.size` of them; a familiar (auto)
+   * comes with them and takes no place of its own. */
   function partyOf(cfg, R, vars) {
     const out = [];
+    let n = 0;
     for (const p of cfg.party) {
       if (p.joins && !R.joined[p.id] && !(vars && vars['flag-' + p.joins] === 1)) continue;
+      if (!p.auto) { if (n >= cfg.rules.size) continue; n++; }
       out.push(p.id);
-      if (out.length >= cfg.rules.size) break;
     }
     return out;
   }
@@ -379,6 +381,33 @@ export function buildRpg() {
     return { act: 'attack', target: L[Math.floor(rnd(b) * L.length)] };
   }
 
+  // ── a familiar (a party member with `auto`): it picks for itself when its turn comes, from the field as it stands,
+  // never on the dice (the battle's dice are the same with it or without it). Mend the hurt (its keeper first), raise the
+  // fallen, strike a weakness, finish the weakest foe, else hit the one that hits hardest ─────────────────────────────
+  const isAuto = (cfg, id) => { const p = memberOf(cfg, id); return !!(p && p.auto); };
+  function allyPick(cfg, R, id, vars) {
+    const p = memberOf(cfg, id), keeper = p.auto.keeper, S = (k) => cfg.skills[k];
+    const ok = options(cfg, R, id, vars).skills.filter((x) => x.ok).map((x) => x.id);
+    const ratio = (m) => R.m[m].hp / Math.max(1, statsOf(cfg, R, m).hp);
+    const hurt = living(R).filter((m) => ratio(m) < 0.4).sort((a, c) => (a === keeper ? -1 : c === keeper ? 1 : ratio(a) - ratio(c)));
+    const mend = ok.find((k) => S(k).heal && (S(k).target === 'ally' || S(k).target === 'allies'));
+    if (mend && hurt.length) return { act: 'skill', skill: mend, target: hurt[0] };
+    const fallen = R.b.ids.filter((m) => R.m[m].hp <= 0), raise = ok.find((k) => S(k).revive);
+    if (raise && fallen.length) return { act: 'skill', skill: raise, target: fallen.indexOf(keeper) >= 0 ? keeper : fallen[0] };
+    const foes = livingFoes(R);
+    for (const k of ok) {
+      const el = S(k).element;
+      if (!el || (S(k).target !== 'foe' && S(k).target !== 'foes')) continue;
+      for (const f of foes) if (has(f.F.weak, el)) return { act: 'skill', skill: k, target: f.uid };
+    }
+    let aim = null;
+    for (const f of foes) if (f.hp / f.max < 0.3 && (!aim || f.hp < aim.hp)) aim = f;
+    if (!aim) for (const f of foes) if (!aim || foeStats(f).atk > foeStats(aim).atk) aim = f;
+    return { act: 'attack', target: aim ? aim.uid : null };
+  }
+  // a member's pick when it acts: a familiar's own, else the player's (a guard when none was given)
+  const pickOf = (cfg, R, who, picks, vars) => (isAuto(cfg, who) ? allyPick(cfg, R, who, vars) : picks[who] || { act: 'guard' });
+
   // the party tries to run: → true when it got away (the battle over)
   function flee(cfg, R, vars, out) {
     const b = R.b;
@@ -433,8 +462,8 @@ export function buildRpg() {
       if (who == null) return;
       if (b.side[who]) {
         b.side[who].guard = 0;
-        if (R.m[who].hp > 0 && !b.side[who].st.sleep) { b.turn = who; mirror(cfg, R, vars); return; }
-        act(cfg, R, who, { act: 'guard' }, vars, out);
+        if (R.m[who].hp > 0 && !b.side[who].st.sleep && !isAuto(cfg, who)) { b.turn = who; mirror(cfg, R, vars); return; }
+        act(cfg, R, who, isAuto(cfg, who) && R.m[who].hp > 0 ? allyPick(cfg, R, who, vars) : { act: 'guard' }, vars, out);
       } else {
         const f = b.foes.find((x) => x.uid === who);
         act(cfg, R, who, f.st.sleep ? { act: 'sleep' } : foePick(cfg, R, f), vars, out);
@@ -473,7 +502,7 @@ export function buildRpg() {
     for (const o of order) {
       if (!livingFoes(R).length || !living(R).length) break;
       if (o.foe) { if (o.foe.hp > 0) act(cfg, R, o.who, o.foe.st.sleep ? { act: 'sleep' } : foePick(cfg, R, o.foe), vars, out); }
-      else act(cfg, R, o.who, o.pick, vars, out);
+      else act(cfg, R, o.who, isAuto(cfg, o.who) ? pickOf(cfg, R, o.who, picks, vars) : o.pick, vars, out);
     }
     if (!livingFoes(R).length) return victory(cfg, R, vars, out);
     if (!living(R).length) { b.phase = 'lost'; out.push({ text: 'The party has fallen…', kind: 'end', lost: true }); mirror(cfg, R, vars); return out; }
@@ -735,7 +764,7 @@ export function buildRpg() {
     vars['rpg.won'] = R.won;
   }
 
-  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf };
+  return { STATS, roll: rnd, save, load, gearOf, equip, unequip, preview, init, start, options, targets, round, close, rest, statsOf, partyOf, usable, classesOf, switchClass, treeOf, buy, mirror, xpFor, classLevel, aimOf, isAuto };
 }
 
 const _rpg = buildRpg();

@@ -32,6 +32,8 @@
  *     cast?: { <id>: { name?, looks?, motion? } }, // the other people: each a looks and a motion page, as the hero's,
  *                                              // styled by the same direction (no actions, adornment or gear: those
  *                                              // are the player's); placed in levels by the story (story.js)
+ *     casting?: { scale?, n?, anchor?, cast?, factions?, bodies?, seed? },   // the people ROLLED as one cast for the
+ *                                              // game, as many as it asks for (casting.js); reviewed as characters:cast
  *   }
  *
  * Pure. `readCharacters` reads the shape alone (the world reader calls it, so it never reads the world back);
@@ -42,6 +44,7 @@ import { poleOf } from '../era/style/pole.js';
 import { readActions } from './actions.js';
 import { readMotion } from './hero-vibe.js';
 import { readAdornment } from './adornment.js';
+import { readCastRequest, castOfScale, SCALES } from '../egocube/cast.js';
 
 /** Western and anime: the two traditions every character and world is tuned to; a hero is drawn in one of them. */
 export const TRADITIONS = Object.freeze({
@@ -89,7 +92,9 @@ const NOT_LOOKS = Object.freeze({
  * They share the world's `review` field with the world's own parts. */
 export const CHARACTER_PART_IDS = Object.freeze(['characters:direction', ...Object.keys(LOOKS_ELEMENTS).map((k) => `hero:${k}`), 'hero:base', 'hero:motion', 'hero:actions', 'hero:adornment', 'equipment', 'mechanics:stats', 'mechanics:hud']);
 const HERO_KEYS = ['ref', 'looks', 'motion', 'actions', 'adornment'];
-const KEYS = ['direction', 'hero', 'cast'];
+const KEYS = ['direction', 'hero', 'cast', 'casting'];
+/** The casting page's part: present only in a book that has one (casting.js). */
+export const CAST_PART = 'characters:cast';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const isHex = (v) => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
@@ -192,12 +197,38 @@ function readCast(c) {
   return out;
 }
 
-/** Read a world's characters and say what is wrong. → { direction, hero?, cast? }. */
+const CASTING_KEYS = ['scale', 'n', 'anchor', 'cast', 'factions', 'bodies', 'seed'];
+/** The casting page (casting.js): its words, read through the cast roller's, a name and a joins flag the book's own. */
+function readCasting(c, written) {
+  if (!isObj(c)) throw err(`casting is { ${CASTING_KEYS.join(', ')} }: the people rolled for the game (scale: ${Object.keys(SCALES).join(' | ')})`);
+  for (const k of Object.keys(c)) if (!CASTING_KEYS.includes(k)) throw err(`casting.${k} is not part of the casting page (${CASTING_KEYS.join(', ')})`);
+  if (c.scale !== undefined && !SCALES[c.scale]) throw err(`casting.scale is ${Object.keys(SCALES).join(', ')}: how complete a game, and the cast it asks for`);
+  if (c.n !== undefined && !(Number.isInteger(c.n) && c.n >= 1 && c.n <= 7)) throw err('casting.n is the party besides the hero, 1 to 7');
+  if (c.anchor !== undefined && !(isObj(c.anchor) && Object.keys(c.anchor).every((k) => ['brief', 'facets', 'faction'].includes(k)))) throw err('casting.anchor is the hero as a sheet: { brief?, facets?, faction? }');
+  if (c.cast !== undefined && !isObj(c.cast)) throw err('casting.cast is { <key>: { relation, … } }: relations over the scale\'s');
+  const cast = {};
+  for (const [key, m] of Object.entries(c.cast ?? {})) {
+    if (isObj(m) && m.name !== undefined && !(typeof m.name === 'string' && m.name.trim() && m.name.length <= 40)) throw err(`casting.cast.${key}.name is the name the box shows`);
+    if (isObj(m) && m.joins !== undefined && !(typeof m.joins === 'string' && /^[a-z][a-z0-9-]{0,47}$/.test(m.joins))) throw err(`casting.cast.${key}.joins is the flag that brings them to the hero on the field`);
+    cast[key] = isObj(m) ? Object.fromEntries(Object.entries(m).filter(([k]) => k !== 'name' && k !== 'joins')) : m;
+  }
+  const own = { ...castOfScale(c.scale ?? 'hero', { n: c.n ?? 3 }), ...cast };
+  try { readCastRequest({ anchor: c.anchor, cast: own, factions: c.factions, bodies: c.bodies, seed: c.seed }); }
+  catch (e) { throw err(`casting: ${e.message.replace(/^cast: /, '')}`); }
+  for (const key of Object.keys(own)) {
+    const ids = own[key].n ? Array.from({ length: own[key].n }, (_, i) => `${key}-${i + 1}`) : [key];
+    for (const id of ids.map((x) => x.replace(/\//g, '-'))) if (written?.[id]) throw err(`casting: '${id}' is a written cast member's id too; give the rolled one another key`);
+  }
+  return c;
+}
+
+/** Read a world's characters and say what is wrong. → { direction, hero?, cast?, casting? }. */
 export function readCharacters(C) {
   if (!isObj(C)) throw err(`characters is { ${KEYS.join(', ')} }: the direction first, then the hero`);
   for (const k of Object.keys(C)) if (!KEYS.includes(k)) throw err(`'${k}' is not part of the character book (${KEYS.join(', ')})`);
   const out = { direction: readDirection(C.direction) };
   if (C.cast !== undefined && C.cast !== null) out.cast = readCast(C.cast);
+  if (C.casting !== undefined) out.casting = readCasting(C.casting, out.cast);
   if (C.hero !== undefined) {
     if (!isObj(C.hero)) throw err(`hero is { ${HERO_KEYS.join(', ')} }`);
     for (const k of Object.keys(C.hero)) {

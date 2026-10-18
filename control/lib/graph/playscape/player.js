@@ -58,14 +58,17 @@ export const HERO_GAIT_STRIDE = Object.freeze({ jog: 1.72, walk: 1.14 });
 
 /**
  * Which clip plays each runtime state. Without a library, the hero's own by the clips it has (forward jogs, runs or
- * walks, idle idles relaxed, leap and boost hold the jump's flight, squat winds up). With one, the library's where it
+ * walks, idle idles relaxed, leap and boost hold the jump's flight, squat winds up; stagger, topple and getup its
+ * reactions, a cast member's moves). With one, the library's where it
  * names one, except where the hero carries its own door GAIT (`gaits`: its calibrated `jog` and `walk`, hero-motion.js):
  * those play forward, strafe and turn, and the library fills the rest (the idle and the jump).
  */
 export function playerStates(clipNames, library = null, gaits = []) {
   const has = new Set(clipNames), pick = (...xs) => xs.find((x) => has.has(x));
   const forward = pick('jog', 'run', 'walk'), idle = pick('idleRelaxed', 'idle'), leap = pick('leap');
-  const own = Object.fromEntries(Object.entries({ forward, idle, leap, boost: leap, squat: pick('squat'), turn: pick('walk', 'run'), strafe: forward }).filter(([, v]) => v));
+  // a blow taken (hero-react.js and the knocked-out rest): the combat states play the hero's own reactions when it has them
+  const hurt = { stagger: pick('stagger', 'hitHigh'), topple: pick('knockedOutDown'), getup: pick('knockedOutUp') };
+  const own = Object.fromEntries(Object.entries({ forward, idle, leap, boost: leap, squat: pick('squat'), turn: pick('walk', 'run'), strafe: forward, ...hurt }).filter(([, v]) => v));
   if (!library) return own;
   if (!LIBRARY_STATES[library]) throw new Error(`player: no states for the library '${library}' (libraries: ${Object.keys(LIBRARY_STATES).join(', ')})`);
   const gait = new Set(gaits);

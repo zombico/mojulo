@@ -482,6 +482,111 @@ renders byte-identically without them.
 - **Grain in the vertex.** The relief's octaves finer than the land's cells go to colour only, filtered over each
   corner's footprint (`relief.grain`), so the polygon land's light carries detail its geometry cannot.
 
+### RPG improvements: a cast rolled for the game, familiars that fight on their own, moves per character, minigames
+
+- **The cast roller** (`lib/graph/egocube/cast.js`, `rollCast`): an anchor Egocube and the people rolled against it,
+  as docs/egocube.md designs it. Relations (shadow, rival, foil, mentor, party, familiar, lieutenant, mastermind, rank,
+  and the journey's herald, threshold guardian, trickster, shapeshifter, ally) aim a target distance from the anchor on
+  the archetype wheel, the role, the build and the age, and pull motivation and order; `complement` proposes the roles
+  and archetypes a party lacks. The laws are checked as each member is rolled (party silhouettes distinct, a shadow in
+  its anchor's shape and a rival in another, the size ladder, the bookends on motivation); a broken law draws the later
+  member again, never the anchor nor an ask, and one still broken is kept and named. Seeds are keyed by path and members
+  roll in order, so a cast only grows. `castOfScale` is the completeness ladder: hero, rival, party, journey.
+- **Beasts, beast-kin and mascots in a cast.** `bond: 'party'` is first party (Kimahri, Red XIII); `bond: 'familiar'`
+  is second party, kept by its parent and wearing its accent (a stand, a summon, a poke-companion). A body is a person,
+  beast-kin (a beast lineage), a beast (a real species, through the animal door) or a mascot (chibi); unasked, a party
+  member's and a familiar's body is thrown on the setting's odds (a myth has beast-kin at its fires), `bodies` leans them.
+- **`rollEgocube` takes `lean`, `pull` and `redraw`**: a relation's multipliers on the priors, motivation and order drawn
+  near a target on each attempt's own die (never an ask), and the attempts a cast's re-draw starts at. Absent, every
+  sheet is byte-identical.
+- **A cast is a cube**: `create_sketch({ kind: 'egocube', cast: { anchor, cast, factions, setting, bodies, seed } })`
+  rolls and keeps the cast (`castSheet`); its preview is the members standing in a line, a beast among them as the animal
+  kind makes it. `create_character({ egocube, member: 'hero/rival' })` makes one member through its door (a beast through
+  the animal door); the character records the member it was made from. New routing card `cast`.
+- **The casting page** (`lib/graph/gameworld/casting.js`, `characters.casting`): the book's people rolled for the game in
+  its setting (a turn-based world reads as a battle), as many as it asks for: `scale` hero | rival | party | journey, or,
+  absent, the world's prompt words (saga, a party of four, rival, familiar, chibi, beastfolk), else a party for a world
+  that fights turn by turn. The run writes one egocube row (`<ref>-casting`) and makes each member from it
+  (`<ref>-cast-<id>`); a journey cast's members wait on the new `characters:cast` review part (the sheets are the
+  proposal). The first party fights in the battle party from the start, and the hero with it, each in the class its sheet
+  reads as (`classOf`) instead of the rotation; a `joins` flag on a member brings it to the field as a written companion.
+  The story, the bible and the field party read the rolled members as cast members. A book without the page is untouched.
+- **Familiars that fight on their own** (`play.rpg` party `auto: true | { keeper }`): a second-party member picks for
+  itself when its turn comes, from the field as it stands and never on the dice: it mends the hurt (its keeper first),
+  raises the fallen, strikes a weakness, finishes the weakest foe, else hits the one that hits hardest. The page asks no
+  command of it, on rounds or on the timeline, and it takes no place of the party's `size`. A casting page's familiar
+  of the hero or of a first-party member fights beside its keeper. The kernel and the rpg channel are emitted into every
+  page with `play.rpg`, so those pages' text moves; a party with no `auto` member plays the same battles.
+- **Reactions for every hero, lifted from the versus fighter** (`lib/graph/polygonizer/hero-react.js`): new motion words
+  `hitHigh`, `hitBody`, `hitLow` and `stagger`, a `react` move family. The fight's own impact poses and its stagger
+  (`versus/versus-react.js`) are read onto the hero's rig through `planeToVajra` (the fight plane's segment angles as
+  the hero's joints), not copied: struck fast, held through the blow, given back slowly, the feet planted, home on the
+  stand. With the rest `knockedOut` (the topple and the rise) a hero can now take a hit, fall and get up.
+- **A cast member is made with its moves** (`lib/graph/egocube/moves.js`, `moveSetOf`): its ready stance and its attack
+  by its role, its reactions, and its win by its archetype, as hero motion words, so its page's clip picker plays them;
+  `create_character` says which (`egocube.moves`). One character from a single egocube is made as before.
+- **The combat states play a hero's own reactions** (`playscape/player.js` `playerStates`): `stagger`, `topple` and
+  `getup` map to its `stagger` (or `hitHigh`), `knockedOutDown` and `knockedOutUp` when it has them.
+- **The level map plays each member's own moves.** A casting page's member carries its `field`: the runtime states its
+  own moves play (`egocube/moves.js` `fieldStatesOf`: the hit's lurch, the topple and the rise, a swing as its attack).
+  A figures-map hero takes `moves` beside `clips` (`worlds/world-scene.js`): each state plays the hero's own clip over
+  the library's when it has it, and keeps the library's when not. Its first party and its familiars walk beside the hero
+  from the start (`play.party` members may now leave out `joins`: woken as the level starts, no flag carried). A level
+  with no casting page is byte-identical.
+- **Beasts, mascots and beast-kin walk the level map too.** A cast's beast is made with its two gaits rigged
+  (`moves.js` `beastGaitsOf`: the wolf's walk and trot, a bird's walk and hop), and a beast-kin below the hero door with a
+  walk, a jog and the moves its creature rig solves (`creatureMovesOf`: a stance, a strike, the reactions and the fall;
+  a showcase pose is a person's). On the field each walks on its own clips with no library (casting.js `fieldOf`): the
+  mascot its run, walk and idle, the creature its jog and its moves, the beast its gaits. A figures-map entry marked
+  `walker: true` (it follows or stands, never pilots) may be any rigged character (`heroRefError`'s `walker`).
+- **A beast takes a blow** (`lib/graph/fauna/behavior/react.js`): new animal motion words `flinch` (dropped low, the
+  head thrown up, back to the stand), `fall` (onto its side, gathering speed) and `rise` (back up), each a one-shot
+  between poses the behavior solver already solves for its own body (every bone slerped between them), on any body
+  with legs (`{ reactions: 'all' }`, or the words in a motion list). A cast's beast is made with them, and on the level
+  map its hit, topple and get-up play them. An animal without them builds byte-identically.
+- **Legless beasts and mascots take a blow too.** A snake or an octopus flinches by rearing back from its coil into its
+  strike coil and falls laid out flat (the flatter of on its belly or on its side for that body); a swimmer has none
+  yet. A cast's mascot is made with `flinch` (squashed down, the arms thrown up, the surprised face), `fall` (tipped
+  over its feet onto its back, eyes shut, its head on the floor) and `rise` (back up through a crouch), and plays them
+  on the field (`mascotPlan`'s `reactions`; every other mascot is minted as it was).
+- **Keyed one-shots and a body tipped over its feet** (`polygonizer/station-loft-rig.js`): a plan clip may be
+  `{ once: true, keys }`, packed 0 … 1 inclusive as a function clip with `once` is (a fall that ends lying down); a key's
+  `body: { pitch?, roll?, up? }` without `at` turns the figure about the floor under its feet. Clips that use neither
+  are byte-identical.
+- **Minigames: the games inside the game** (`playscape/ui/minigames.js`, `scene/channels/minigame-channel.js`).
+  `play.minigames: [{ id, game, at?, prompt?, goal?, gold?, purse?, prize?, flag? }]`: interact at its place (or emit
+  `minigame:<id>`) and a round comes up in a pixel window over the field, the world held still as in a battle; `blocks`
+  and `match` are the arcade cabinet's own reducers (brickster, the philosopher's stone trial), `fishing` a new one
+  (`pixelizer/fishing-core.js`, `fishing-skin.js`: hold the line over a darting fish until it is landed, a few casts a
+  round, five fish from minnow to golden koi). Its score pays gold into the party's purse (a bag transfer when the purse
+  is the bag's, so it is carried), keeps `minigame-best-<id>`, and says `minigame-won:<id>` or `minigame-lost:<id>`; the
+  first win gives its prize and sets its flag. The page inlines only the games a level plays; a level without one
+  carries not a byte of them.
+- **Minigames in the game book** (`gameworld/minigames.js`): `minigames: true | false | [game | { game, … }]`, or heard
+  in the prompt (minigames, carnival, fishing, arcade, match-3). A keeper (one figure, made as the foe is) stands at each,
+  spread across the game; the winnings go into the carried bag (the battles' bag, or its own). A world that asks for
+  none makes the same steps it did.
+- **An arcade in the inn.** A game's `where: 'inside' | 'trail'` (blocks and match inside by default, fishing on a
+  trail, each on the other when the world has none of its kind) puts its keeper in a building's room: a tavern's snug
+  or taproom, a hall's hall, a shop's floor, a library's reading room (`ROOMS_KEPT`), in the corner farthest from the
+  way in, a building level or the inside of one entered by its door alike. A building level now takes a stage's extra
+  (its rooms and use on its ends, its mechanics the level's); a building without one is the level it was.
+- **One way to stand people on a stage** (`gameworld/stage-figures.js`): a figure on the shared library or on its own
+  clips, a person's body numbers, the entity of one who stands, and a stage's extras composed, where battles, minigames,
+  the story's cast, guards and every quick goal's figures each wrote their own. Every run's orders are unchanged.
+- **A quick game's cast** (quick.js `cast`, casting.js `castingPage`): any quick goal on foot takes the casting page
+  (less the journey; `true` a party of one), rolled in the game's setting and made as the book makes it (one cast row,
+  each member by path). Its party and familiars walk beside the hero from the start on the escort motive and fight what
+  it fights, on the pilot's side in a team game; a rival with a person's body stands as the first foe in a battle, a
+  shooter or a deathmatch; the readout says where each went. A quick game without one makes the steps it did.
+- **Every person a run makes can take a blow on its own rig** (a world's `moves: true`, a quick game's lever; egocube/moves.js
+  `REACT_MOTION`, `reactStatesOf`): the hero (through its motion page), the battles' foe, a keeper, and every quick
+  figure (foes, guards, towers, farmhands) are made with their own hit, stagger, fall and rise, and each figure standing
+  for one plays them over the library's (levels.js stageLevelOrder `moves`); a mascot hero its own flinch, fall and rise.
+- **Beast foes** (`foe: { species }` on the book's battles, a quick battle or a defence; stage-figures.js `foeFigure`): the
+  foe is made through the animal door with its two gaits and its reactions (design_game realizes an `animal` order) and
+  stands, walks and takes a blow on its own body; a shooter's or a deathmatch's foes keep a person's hands.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

@@ -50,6 +50,8 @@ import { METAL_NAMES, FINISHES, FINISH_NAMES } from '../materials/metal-surface.
 import { CRAFT } from '../skyscape/eye.js';
 import { MAP_FORMS } from '../skyscape/map.js';
 import { PACKS, JOINER_CLASSES, BATTLE_CLASSES } from './battles.js';
+import { MINIGAME_IDS } from '../playscape/ui/minigames.js';
+import { ROOMS_KEPT } from './minigames.js';
 
 const lines = (...xs) => xs.flat().join('\n');
 const words = (o) => Object.keys(o).join(', ');
@@ -77,7 +79,7 @@ function guide() {
     '  adornment   what does the hero carry, and why? an item exists because a power needs it (gameworld-adornment)',
     '  systems     the numbers and the HUD, derived from the actions, each with its reason (gameworld-systems)',
     '  equipment   the gear classes, in one gear language; they matter once a stat makes them matter (gameworld-equipment)',
-    '  battles     turn-based? the party, its classes, its packs of foes (gameworld-battles)',
+    '  battles     turn-based? the party, its classes, its packs of foes, minigames (gameworld-battles)',
     '',
     'PRINCIPLES:',
     '  - Ask, then derive. Before a page, ask the creator what only they know (who the hero is, what the verb of the game',
@@ -332,6 +334,10 @@ const quickShared = () => [
   `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
+  '  cast: true | { scale?: hero | rival | party, n?, cast?, bodies?, … }   on foot: people rolled for the game (the casting',
+  '    page, gameworld-story); party and familiars walk beside you and fight what you fight, a rival is the first foe',
+  '  moves: true   every person made (hero, foes, guards) takes a blow on its own rig: hit, stagger, fall, rise',
+  '  foe: { species }   battle and defend: the foes are a beast (a wolf pack) on its own gaits and reactions',
   `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
   "  music: 'auto' | '<mood>', sfx: 'auto' | '<palette>'   a score per level, the goal's sounds",
   `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${GROUND_KITS.join(', ')} (gameworld-world says what each takes)`,
@@ -350,12 +356,14 @@ function battlesCard() {
     '  encounters concern). The fights are play.rpg (get_play_vocab({ id: \'ui-cues\' }), PARTY BATTLES).',
     '',
     `party   the hero and each cast member who joins (characters.cast.<id>.joins), each a class: { hero: { class, name? },`,
-    `        <cast id>: { class } }. Unnamed: the hero a fighter, those who join in turn ${JOINER_CLASSES.join(', ')}.`,
+    `        <cast id>: { class } }. Unnamed: the hero a fighter, those who join in turn ${JOINER_CLASSES.join(', ')};`,
+    '        with characters.casting, the hero and its first party each the class their sheet reads as.',
     `        Classes: ${BATTLE_CLASSES.join(', ')}, or the world's own (classes). A member switches class on P, outside a`,
     '        fight; each class keeps its own rank, points and skill tree; learned skills stay.',
     `packs   the packs met along the way, walked in order across the game's trail stages (default: ${PACKS.slice(0, 3).map((p) => `[${p.join(', ')}]`).join(', ')} …);`,
     '        per: n on each trail stage (2), on its beats, as many as it has room for. boss: a pack, the last stage\'s',
-    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map; walk up to one to fight.',
+    '        last, with no escape. foe: { <hero-door words> } how a foe stands on the map, or { species }: a beast on its',
+    '        own gaits (a wolf pack); walk up to one to fight.',
     'rest    E at each stage\'s start restores HP and MP (rest: false for none). random: { every?, chance?, after? }',
     '        random fights on the trails, drawn from the stage\'s packs.',
     'gear    one item a slot (weapon, armor, accessory), its numbers on the member\'s; each class starts in its own; the',
@@ -370,6 +378,16 @@ function battlesCard() {
     'A world whose intent fights turn by turn is laid with battles, written or not.',
     'CARRIED: the party (levels, xp, classes, ranks, skills, gear) in the store\'s party slice, the bag (items, gear not',
     '  worn, gold) in its bag slice, two potions to start.',
+    'MOVES: moves: true on the world, and every person the run makes (the hero, the foe, a keeper) is made with its own',
+    '  hit, stagger, fall and rise, and plays them on the map over the library\'s; a cast member always is.',
+    '',
+    `MINIGAMES — the games inside the game, battles or not: minigames: true (all) | false | [${MINIGAME_IDS.join(' | ')} |`,
+    '  { game, id?, where?, title?, goal?, gold?, prize?, flag? }]. Absent: heard in the prompt (minigames, carnival,',
+    '  fishing, arcade, match-3), else none. Each has a keeper, spread across the game: where: inside, in a building\'s room',
+    `  (${Object.entries(ROOMS_KEPT).map(([u, r]) => `${u} ${r.join('/')}`).join(', ')}; blocks and match by default) or trail, a few`,
+    '  steps up a trail stage (fishing). E there plays a round in a pixel window over the field (it holds still).',
+    '  Its score pays gold (gold: a point) into the carried bag;',
+    '  goal is the score that wins; the first win gives its prize (an item) and sets its flag (a scene or quest reads it).',
   );
 }
 
@@ -411,6 +429,15 @@ function storyCard() {
     'characters.cast: { <id>: { name?, looks?, motion? } }: each person a looks page and a motion page, as the hero has',
     '  (no actions, adornment or gear: those are the player\'s), drawn in the same direction. design_game makes each one',
     '  after the hero, at <ref>-cast-<id>.',
+    'characters.casting: { scale?, n?, anchor?: { brief?, facets? }, cast?, factions?, bodies?, seed? }: the people ROLLED',
+    '  for the game, against the hero (anchor), in the world\'s setting. scale is how complete a game: hero | rival |',
+    '  party (n besides the hero) | journey (a mastermind, its lieutenant and troops, a mentor, a rival, a party); absent,',
+    '  the prompt\'s words decide (saga, party of four, rival), else a party for a turn-based world. cast: { <key>:',
+    '  { relation, bond?, body?, name?, joins? } } over the scale\'s (relations: rival, foil, mentor, shadow, party,',
+    '  familiar, lieutenant, mastermind, rank, herald, trickster …; keys are paths: \'emperor/dragon\'). bond party fights',
+    '  in the battle party in the class its sheet reads as; familiar is kept by its parent. body person | beastkin |',
+    '  beast (a species) | mascot (chibi); unasked, the setting rolls it. One egocube row holds the cast (<ref>-casting:',
+    '  the members in a line); each member is <ref>-cast-<id> (id: the path, dashed). A journey waits on characters:cast.',
     'story: [{ id, who?: [cast id], where: { level, stage?, place? }, stand?: { <who>: place }, when, if?, sets?, once?, beats }]',
     '  where   the level it happens in, its stage (its first by default), the place it is about. A place is a stage\'s',
     '          start, exit, pocket, pocket-2…, landmark…, or a kind (pocket: the first pocket).',
@@ -429,6 +456,9 @@ function storyCard() {
     'A COMPANION: characters.cast.<id>.joins: \'<flag>\'. Once the flag is set (an answer: { say: \'Come with me.\', sets:',
     '  [\'joined-teodor\'] }) they follow the hero, there and in every level after (the escort behaviour: they keep near',
     '  and fight what is hittable and not their own). Before it they stand where the story puts them, or are not there.',
+    'A casting page\'s first party and familiars walk beside the hero from the start (a joins flag on one makes it a',
+    '  companion as above), and every rolled member plays its own moves on the field (its hit, its fall and rise, its',
+    '  swing) over the library\'s walk; a beast, a mascot or a beast-kin below the hero door walks on its own gaits.',
   );
 }
 
@@ -516,8 +546,8 @@ const CARDS = [
   ['gameworld-adornment', 'The adornment', 'what the hero carries, and why', 'my hero\'s weapon, what she carries', adornmentCard],
   ['gameworld-equipment', 'The equipment', 'the gear classes in one gear language', 'the weapons in my game, a gear set', equipmentCard],
   ['gameworld-systems', 'The systems', 'the numbers and the HUD, derived from the actions', 'stats, levels, a skill tree, the HUD', systemsCard],
-  ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight', battlesCard],
-  ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins', storyCard],
+  ['gameworld-battles', 'The battles', 'party battles turn by turn: classes the party switches, packs along the way, carried level to level', 'a JRPG, turn-based battles, a party of classes, a job system, class switching, a skill tree, random encounters, a boss fight, minigames, a fishing minigame, an arcade in the inn', battlesCard],
+  ['gameworld-story', 'The cast and the story', 'other people, and the moments they are in, bound to the world as it is built', 'a mayor who greets you, a story written first, characters in my levels, what happens where, dialogue choices, quests, a journal, a companion, a party member who joins, a cast rolled for my game, a party, a rival, a villain and his lieutenant, a familiar or summon, beastfolk or a mascot in the party', storyCard],
   ['gameworld-next', 'The next moves', "design_game's readout steps: review, play, share, run, rerun, intent, target, wait, advice", 'what do I do next, approve the parts, is it playable', nextCard],
 ];
 export const GAMEWORLD_CARD_IDS = Object.freeze(CARDS.map(([id]) => id));

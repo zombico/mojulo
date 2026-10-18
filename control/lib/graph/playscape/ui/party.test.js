@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createBusState, processEvents, watchEvents, syncToCtrl } from '../../worlds/event-bus.js';
 import { composeLive } from '../../worlds/controllable/compose.js';
 import { lowerPlay } from './direction.js';
-import { readParty } from './party.js';
+import { readParty, partyCues, partyFlags } from './party.js';
 import { sceneContract } from './scenes.js';
 
 const CW = composeLive(), DT = 1 / 30;
@@ -58,10 +58,22 @@ describe('the party', () => {
     expect(g.flags.names).toEqual(['joined-teo']);
   });
 
+  it('a member with no joins flag is with the pilot from the start: woken as the level starts, no flag to carry', () => {
+    const play = { party: [{ who: 'mira' }, { who: 'teo', joins: 'joined-teo' }] };
+    expect(partyCues(play)[0]).toEqual({ id: 'party-mira-start', when: { start: true }, then: { spawn: 'mira' } });
+    expect(partyFlags(play)).toEqual(['joined-teo']);
+    const L = level([{ who: 'teo' }], TEO({ dormant: true }));
+    L.hero.transform.pos = [-15, 0, 0];
+    L.run(10);
+    expect(L.teo().dormant).toBeFalsy();
+    expect(far(L)).toBeLessThan(4.5);
+  });
+
   it('teaches a bad member', () => {
     const bad = (party) => () => readParty({ party });
-    expect(bad({})).toThrow(/is a list of \{ who, joins, at\? \}/);
-    expect(bad([{ who: 'teo' }])).toThrow(/joins is the flag/);
+    expect(bad({})).toThrow(/is a list of \{ who, joins\?, at\? \}/);
+    expect(bad([{ who: 'teo', joins: 'Joined' }])).toThrow(/joins is the flag/);
+    expect(bad([{ who: 'teo', at: 'start' }])).toThrow(/with the pilot from the start waits nowhere/);
     expect(bad([{ who: 'teo', joins: 'x', role: 'tank' }])).toThrow(/role is not part of a member/);
     expect(bad([{ who: 'teo', joins: 'x' }, { who: 'teo', joins: 'y' }])).toThrow(/'teo' appears twice/);
   });

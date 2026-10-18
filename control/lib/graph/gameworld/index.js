@@ -4,7 +4,7 @@
  */
 export { readGameworld, resolveLevel, resolveWorld, levelSeed, WORLD_STYLE, CIVILIZATION, CRAFTED, LINK_KINDS, RESERVED, OPEN_SLOTS, NATIVE } from './world.js';
 export { craftTech, craftKindOf, craftDomain, CRAFT_KINDS, CRAFT_KIND_IDS, CRAFT_TRAITS } from './tech-crafter.js';
-export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS } from './characters.js';
+export { readCharacters, resolveDirection, TRADITIONS, BRIDGE, FROM, LOOKS_ELEMENTS, CHARACTER_PART_IDS, CAST_PART } from './characters.js';
 export { resolveBook, characterParts, characterState, approveCharacter, characterReady } from './character-review.js';
 export { readActions, resolveActions, IDIOMS, SYSTEM_KINDS, STAGES } from './actions.js';
 export { heroLooks, composeHero, heroOrders, underlayerFor, UNDERLAYERS, ELEMENT_TINT } from './hero-looks.js';

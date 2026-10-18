@@ -727,7 +727,12 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   touch-down and apex in seconds, and the height a ballistic flight of that air time reaches; a double jump's `kick`,
   the height it happens at, the upward speed it adds and the second apex) — the skinned GLB's `extras['moj:jump']` and
   the engine score's `locomotion.jumps`. In every gait and jump a raised, bent arm folds with its ELBOW DOWN (the
-  shoulder rolls with the raise; never the forearm across the chest). Absent, the hero and every export are as before.
+  shoulder rolls with the raise; never the forearm across the chest). MOVES ride it too, each a one-shot ending on its
+  pose: the stances (`athletic`, `low`, `centre`, `guard`, `fencing`, `hitting`), the strikes (`jab`, `cross`, `thrust`,
+  each `…Left`), the showcase poses (`fistToSky`, `crossedArms`, …) and the REACTIONS, the versus fighter's own on any
+  hero (`hitHigh`, `hitBody`, `hitLow`, `stagger`: struck fast, given back slowly, the feet planted, home on the stand);
+  the rest `knockedOut` is the topple (`knockedOutDown`) and the rise (`knockedOutUp`). A cast's member is made with its
+  move set (moveSetOf). Absent, the hero and every export are as before.
   Patch `/hero/motion` (set it to an object first), then `/hero/motion/<gait or jump>`.
 <!-- /section -->
 <!-- section: hero-gear | Gear and the swing | held and carried items by slot, and a swing word as the stand -->

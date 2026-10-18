@@ -92,7 +92,7 @@ async function heroFigure(name, spec) {
     const src = SketchRepository.getByRef(spec.heroRef);
     // a hero, or a MASCOT on foot (egocube/mascot-pilot.js: its own walk, run and jump); the same check the minting doors run
     const { heroRefError } = await import('@/lib/graph/worlds/controllable/body-types.js');
-    const refused = heroRefError(name, spec.heroRef, src);
+    const refused = heroRefError(name, spec.heroRef, src, { walker: spec.walker === true });
     if (refused) throw new Error(refused);
     manifest = src.manifest;
   } else {
@@ -114,6 +114,9 @@ async function heroFigure(name, spec) {
     if (!clips[clip]) throw new Error(`figures.${name}: clips.${state} names '${clip}', which the hero does not have (it has ${Object.keys(pack.clips).join(', ')}${lib ? `; the ${lib.id} library has ${Object.keys(lib.clips).join(', ')}` : ''})`);
     clips[state] = clips[clip];
   }
+  // its OWN MOVES (`moves`: state → a clip of its own, egocube/moves.js `fieldStatesOf`): a state plays the hero's own
+  // clip when it has it, over the library's; one it lacks keeps what the state played (absent ⇒ the same figure)
+  for (const [state, clip] of Object.entries(spec.moves || {})) if (pack.clips[clip]) clips[state] = pack.clips[clip];
   return { ...pack, clips };
 }
 
@@ -946,7 +949,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   // events.style wins over the play block's. Its cues (playscape/ui/cues.js) bring their reactions, watches, zones
   // and sequences beside it. Absent `play` ⇒ not a byte changes.
   const playEv = payload && sketch.manifest.play ? lowerPlay(sketch.manifest, { anchors: payload.anchors, player: Array.isArray(sketch.manifest.entities) ? deriveLevelPlayer(sketch.manifest).player : null }) : null;
-  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, rpg: _playRpg, ...playBus } = playEv || {};
+  const { style: _playStyle, register: _playRegister, menus: _playMenus, cast: _playCast, looks: _playLooks, scenes: _playScenes, quests: _playQuests, rpg: _playRpg, minigames: _playMini, ...playBus } = playEv || {};
   let ev = payload && mergeEventManifests(mergeEventManifests(sketch.manifest.events, Object.keys(playBus).length ? playBus : null), mechEvents);
   if (ev && playEv) {
     if (playEv.style && ev.style === undefined) ev = { ...ev, style: playEv.style };
@@ -960,6 +963,7 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     // legend) would otherwise lose it
     if (playEv.stats) ev = { ...ev, stats: playEv.stats };
     if (playEv.rpg) ev = { ...ev, rpg: playEv.rpg };   // the battle kernel's cfg (playscape/rpg), the same way
+    if (playEv.minigames) ev = { ...ev, minigames: playEv.minigames };   // the games inside the game (playscape/ui/minigames.js)
   }
   // a mechanic that moves the cast (waves: spawn and walk on the ctrl verb) reaches the characters as a play's cues do
   const ctrlIn = (list) => Array.isArray(list) && list.some((r) => r && r.do === 'ctrl');

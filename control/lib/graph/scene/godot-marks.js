@@ -189,6 +189,7 @@ export const EVENT_MARKS = Object.freeze({
   scenes: m(B, 'bus.json scenes (kernel/scenes.gd, the page\'s runner ported): the beats, the bars, the text box and the choices; its shots direct the camera when the level has the page\'s camera, as on the page'),
   quests: m(B, 'bus.json quests (kernel/quests.gd): the journal (J) and a word as one begins, moves on, ends'),
   fxLight: m(A, 'the light a world\'s beams, puffs and explosions throw on it (scene/effect-light.js) is the page\'s: the moments the kernel strikes light nothing'),
+  minigames: m(A, 'the games inside the game (playscape/ui/minigames.js: blocks, match, fishing in a pixel window) are the page\'s: minigame-won and minigame-lost never come back'),
   fxStyle: m(A, 'the style floor (scene/effect-style.js) raises the page\'s beams and explosions as it draws them: the moments travel as authored'),
 });
 /** The events keys an export carries (bus.json or score.json), whatever their mark. */

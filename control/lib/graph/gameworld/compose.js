@@ -20,6 +20,7 @@
 import { mulberry32 } from '../vegetation/grow.js';
 import { LAND_FORMS } from '../era/out-land.js';
 import { readGameworld, resolveLevel } from './world.js';
+import { minigamesOfWords } from './minigames.js';
 import { structureStyle } from '../era/out-structures.js';
 import { designTown } from '../era/out-town.js';
 import { readIntent } from './tunnel.js';
@@ -251,6 +252,12 @@ export function composeGameworld({ prompt, name, id, levels, seed = 1 } = {}) {
       world.brief.unread = world.brief.unread.filter((x) => x !== w);
     }
   } else world.brief.cube = { id: null, why: `no cube has ${style.kit}'s air` };
+  // the games inside the game the words ask for (minigames.js): read, laid once the world has its people
+  for (const w of minigamesOfWords(prompt)?.words ?? []) {
+    const r = world.brief.read.find((x) => x.word === w);
+    if (r) r.decides = [...r.decides, 'minigames']; else world.brief.read.push({ word: w, decides: ['minigames'] });
+    world.brief.unread = world.brief.unread.filter((x) => x !== w);
+  }
   readGameworld(world);
   return world;
 }

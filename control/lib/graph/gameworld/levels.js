@@ -29,7 +29,7 @@ import { artPalette, natureColours } from '../color-theorist/adapters.js';
 import { layLevel } from '../level/index.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { withGeocube } from '../era/geocube.js';
-import { playerWorld, playerStates } from '../playscape/player.js';
+import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
@@ -55,6 +55,7 @@ import { spaceLaws } from '../skyscape/space.js';
 import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
+import { mergeExtras, libraryFigure, fieldFigure, stand, PERSON_BODY } from './stage-figures.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -307,10 +308,31 @@ export const SUPERCAR_CAMERA = Object.freeze({ dist: 8.5, height: 2.7, lead: 5, 
  * play block and inputs (when the world has systems), and `game: { levelRef, mechanics: [reach-exit], fall }`.
  * `mechanics` is resolveMechanics' result (or null); `ref` the level's own sketch ref (its levelRef).
  */
-export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
+/**
+ * (`moves`: { <ref>: states } the figures a run made with their own reactions, by the made ref they stand for (the
+ * world's `moves`): each figure of the level standing for one, the pilot's included, plays them over the library's.)
+ */
+export function stageLevelOrder(G, stage, opts = {}) {
+  const L = levelOrder(G, stage, opts);
+  return opts.moves ? withOwnMoves(L, opts.moves) : L;
+}
+function withOwnMoves(L, byRef) {
+  const m = L.args?.manifest;
+  if (!m?.figures) return L;
+  let changed = false;
+  const figures = Object.fromEntries(Object.entries(m.figures).map(([id, f]) => {
+    const st = f && !f.moves && f.heroRef ? byRef[f.heroRef] : null;
+    if (!st) return [id, f];
+    changed = true;
+    return [id, { ...f, moves: st }];
+  }));
+  return changed ? { ...L, args: { ...L.args, manifest: { ...m, figures } } } : L;
+}
+
+function levelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal, map = null, story = null, carryFrom = null, party = null, castFigures = null, guards = null, audio = null, ride = null, extra = null, legend = null, goalCast = null, cityRefs = {} } = {}) {
   // a building level, or the inside of a building entered by its door: laid from its program (buildingLevelOrder)
   if (stage.section === 'city') return cityLevelOrder(G, stage, { title, map, cityRefs });
-  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, story, carryFrom, party });
+  if (stage.section === 'building' || stage.section === 'interior') return buildingLevelOrder(G, stage, { ref, heroRef, heroGaits, pilot, mechanics, title, goal: stage.section === 'interior' ? null : goal, goalCast: stage.section === 'interior' ? null : goalCast, extra, story, carryFrom, party, castFigures });
   const ends = stage.section === 'roadway' ? roadwayEnds(stage.manifest) : stage.section === 'airspace' ? airspaceEnds(stage.manifest) : stageEnds(stage.manifest);
   // what game it is (intent.js): the stage's share of its concerns (lay-concerns.js), on its anchors before any goal
   // reads them: the field the ground was flattened for, a race's checkpoint spacing; cover stands after the goal's cast
@@ -393,8 +415,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilo
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
     for (const [k, g] of watchers.entries()) {
       // (a pool of guards' figures, each its own roll, cycled: quick.js refAt)
-      figures[g.id] = { heroRef: Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
+      figures[g.id] = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
+      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, ...PERSON_BODY };
       entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
     }
     pilotPart = { ...pilotPart, figures, entities };
@@ -456,7 +478,7 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilo
     if (Object.keys(grants).length) game.powers = { slice: 'powers', target: pilotPart.entities[0].id, grants };
   }
   let play;
-  ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party }));
+  ({ pilotPart, play } = storyPart(G, stage, ends, lane, pilotPart, extraPlay ? mergePlay(mechanics?.play ?? {}, extraPlay) : mechanics?.play ?? null, { story, carryFrom, party, castFigures }));
   const manifest = { ...stage.manifest, title: name, ...pilotPart, ...(play ? { play } : {}), ...(blocks ? { blocks } : {}), ...(mechanics?.destruction ? { destruction: mechanics.destruction } : {}), ...(audio ? { audio } : {}), ...(G.style?.pixel ? { pixel: G.style.pixel } : {}), game };
   // the concerns' laws over what was laid (lay-concerns.js): advisory, for the run's readout
   // a roadway's laws are its own (its census: roads/track.js trackLaws); a trail's, its concerns'
@@ -478,7 +500,10 @@ function mergePlay(base, extra) {
 /** The story's share of a stage, on its pilot and its play: the level's scenes and the story's moments (with their
  * places as spots), the cast who stand in them, the party who join, the quests' journal. Nothing to add: the same
  * pilot part and play back. */
-function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, carryFrom = null, party = null } = {}) {
+// (a cast member's figure on the field: stage-figures.js fieldFigure, its own moves over the library's, or a body the
+// library does not fit on its own clips)
+
+function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   // SCENES (the level's, playscape/ui/scenes.js): the ones this stage plays, its places as spots to frame and walk to,
   // and the story slice carried when the world's scenes use flags
   const scenes = [...(G.scenes?.[stage.level] ?? []).filter((s) => (s.stage ?? (stage.index === 0 ? stage.node : null)) === stage.node).map(({ stage: _, ...s }) => s), ...(story?.scenes ?? [])];
@@ -487,37 +512,43 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   if (story?.cast?.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
     for (const c of story.cast) {
-      if (!c.ref) continue;
-      figures[c.id] = { heroRef: c.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-      entities.push({ id: c.id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: c.id }, transform: { pos: c.at, heading: c.heading } });
+      // (a rolled body that does not walk the field yet, a beast or a mascot, is not stood in it)
+      if (!c.ref || castFigures?.[c.id] === null) continue;
+      stand({ figures, entities }, c.id, fieldFigure(c.ref, castFigures?.[c.id]), c.at, c.heading);
     }
     pilotPart = { ...pilotPart, figures, entities };
   }
   // THE PARTY (playscape/ui/party.js): each cast member who joins on a flag, in every stage, on the escort motive. One
   // the story stands here waits at its stand until it joins; elsewhere it is minted asleep behind the start and wakes
   // when the flag is set or carried in.
-  const joiners = (party ?? []).filter((p) => p.ref), members = [], stands = [];
+  const joiners = (party ?? []).filter((p) => p.ref && castFigures?.[p.id] !== null), members = [], stands = [];
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
+    // (on the pilot's own side when it has one: a team game's; else a side of their own)
+    const side = pilot.team ?? 'party';
     joiners.forEach((p, i) => {
-      figures[p.id] ??= { heroRef: p.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+      figures[p.id] ??= fieldFigure(p.ref, castFigures?.[p.id]);
       const rule = { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
       const k = entities.findIndex((e) => e.id === p.id);
       if (k >= 0) {
-        entities[k] = { ...entities[k], rule, team: 'party' };
-        stands.push({ id: `stand-${p.id}`, at: entities[k].transform.pos.slice(0, 2) });
-        members.push({ who: p.id, joins: p.joins, at: `stand-${p.id}` });
+        // one the story stands here: waits at its stand until it joins, or (with the pilot from the start) follows at once
+        entities[k] = { ...entities[k], rule, team: side };
+        if (p.joins) {
+          stands.push({ id: `stand-${p.id}`, at: entities[k].transform.pos.slice(0, 2) });
+          members.push({ who: p.id, joins: p.joins, at: `stand-${p.id}` });
+        } else members.push({ who: p.id });
       } else {
         const back = 2 + i * 1.2, aside = (i % 2 ? -1 : 1) * 1.2, s = ends.spawn;
         const at = [r3(s[0] - Math.cos(h) * back - Math.sin(h) * aside), r3(s[1] - Math.sin(h) * back + Math.cos(h) * aside), s[2]];
-        entities.push({ id: p.id, rule, team: 'party', dormant: true, body: { type: 'figure-rig', figure: p.id }, transform: { pos: at, heading: h } });
-        members.push({ who: p.id, joins: p.joins });
+        entities.push({ id: p.id, rule, team: side, dormant: true, body: { type: 'figure-rig', figure: p.id }, transform: { pos: at, heading: h } });
+        members.push({ who: p.id, ...(p.joins ? { joins: p.joins } : {}) });
       }
     });
     pilotPart = { ...pilotPart, figures, entities };
   }
   let play = basePlay;
-  if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), carry: STORY_SLICE };
+  // (a party all with the pilot from the start carries no flag between levels)
+  if (members.length) play = { ...(play ?? {}), party: members, ...(stands.length ? { spots: [...(play?.spots ?? []), ...stands] } : {}), ...(members.some((m) => m.joins) ? { carry: STORY_SLICE } : {}) };
   // THE QUESTS (story.js, playscape/ui/quests.js): every stage keeps the journal, its flags carried in the story slice
   if (G.quests?.length) play = { ...(play ?? {}), quests: levelQuests(G.quests), carry: STORY_SLICE };
   if (scenes.length) {
@@ -677,6 +708,8 @@ export function gameStore(world, book) {
     const bag = slices.findIndex((x) => x.name === BAG_SLICE), init = { items: { ...BAG_START } };
     if (bag < 0) slices.push({ name: BAG_SLICE, kind: 'inventory', init }); else slices[bag] = { ...slices[bag], init };
   }
+  // the minigames' winnings (minigames.js): gold in a bag carried from level to level
+  if (G.minigames && !slices.some((x) => x.name === BAG_SLICE)) slices.push({ name: BAG_SLICE, kind: 'inventory' });
   return { slices };
 }
 
@@ -758,7 +791,7 @@ export function buildingStage(B) {
  * (the stage is metres, as the hero is); without one, the level's own first-person walker. A building by ref is not
  * made here: the game plays it as it was made.
  */
-function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, story = null, carryFrom = null, party = null } = {}) {
+function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = null, mechanics = null, title, goal = null, goalCast = null, extra = null, story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   const name = title ?? `${G.name ?? G.id} · ${stage.level}`;
   let base = { ...stage.manifest, title: name, ...(mechanics?.play ? { play: mechanics.play } : {}) };
   const lowered = withBuildingLevel(base, ref), walker = lowered.entities[0], eye = walker.rule.eye ?? EYE_FALLBACK;
@@ -772,6 +805,9 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // (the goal room's floor, under the exit at the walker's eye: where a level goal's boss stands)
   const exit0 = ends.exit;
   Object.defineProperty(ends, 'bossAt', { value: [exit0[0], exit0[1], r3(exit0[2] - eye)], enumerable: false });
+  // its rooms (each its box and floor) and its use, for a stage's extra to stand things in (a minigame's stall)
+  Object.defineProperty(ends, 'rooms', { value: plan.rooms.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.w, d: r.d, z: floors ? floors.get(r.id) : 0 })), enumerable: false });
+  Object.defineProperty(ends, 'use', { value: stage.building.use, enumerable: false });
   // a quick goal: its mechanics beside the building's own goal (which keeps its route through the doorways)
   if (goal) {
     const own = goal(ends), extra = own.filter((x) => x.kind !== 'reach-exit');
@@ -780,8 +816,10 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   // a level's own goal's cast (quick.js levelGoalCast): its play beside the systems', its keys the walker's; a figure
   // it stands (a boss) beside the pilot, so the level's lowering keeps them (structure/level.js keeps a recipe's own
   // pilot): the stage's own first-person walker, when no hero pilots it
-  const X = goalCast ? goalCast(ends) : null;
+  // (and the stage's extra beside it: the minigames' stalls in its rooms, their mechanics the level's)
+  const X = mergeExtras(goalCast ? goalCast(ends) : null, extra ? extra(ends) : null);
   if (X?.play) base = { ...base, play: mergePlay(base.play, X.play) };
+  if (extra && X?.mechanics?.length) base = { ...base, level: { ...base.level, mechanics: [...(base.level?.mechanics ?? []), ...X.mechanics.filter((m) => !(base.level?.mechanics ?? []).some((x) => x.kind === m.kind && x.slice === m.slice))] } };
   if (!heroRef) {
     if (X?.entities?.length) base = { ...base, figures: { ...(base.figures ?? {}), ...X.figures }, entities: [walker, ...X.entities], camera: lowered.camera };
     if (X?.inputs?.length) base = { ...base, events: { ...(base.events ?? {}), inputs: [...(base.events?.inputs ?? []), ...X.inputs] } };
@@ -793,7 +831,7 @@ function buildingLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilot = 
   const events = { ...(P.events || {}), ...(inputs.length > (P.events?.inputs?.length ?? 0) ? { inputs } : {}) };
   const pilot0 = { figures: X?.figures ? { ...P.figures, ...X.figures } : P.figures, entities: [{ ...P.entities[0], transform: { pos: spawn, heading } }, ...(X?.entities ?? [])], camera: P.camera, events };
   // the story's share (its quests, its party; its moments bind to a building's start and goal), as a stage's
-  const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party });
+  const play0 = base.play ?? null, { pilotPart, play } = storyPart(G, stage, ends, null, pilot0, play0, { story, carryFrom, party, castFigures });
   const manifest = { ...base, ...pilotPart, ...(play !== play0 ? { play } : {}) };
   return { tool: 'create_sketch', args: { title: name, manifest }, ends };
 }

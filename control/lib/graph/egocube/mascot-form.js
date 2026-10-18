@@ -7,7 +7,8 @@
  * animates (10). Every amount is a FIRST READING the character loop iterates in place (`update_character` patch ops),
  * never a verdict.
  *
- *   mascotPlan(sheet, { title? })          → { plan, H, height }   the ring plan, the head (centre and radii), the height
+ *   mascotPlan(sheet, { title?, reactions? }) → { plan, H, height }   the ring plan, the head (centre and radii), the height;
+ *                                          `reactions` adds the one-shots flinch, fall and rise (a cast's mascot)
  *   mascotPlanFromSheet(sheet, { title? }) → { door: 'creature', thesis, create, after, ledger }
  *
  * Pure and deterministic: the same sheet, the same call. No dice: the sheet already threw them.
@@ -205,7 +206,7 @@ function ballTrunk(name, cz, rz, rx, ry, n, group, bind) {
 }
 
 /** The ring plan: { plan, H, height }. */
-export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
+export function mascotPlan(sheet, { title = 'a mascot', reactions = false } = {}) {
   const f = sheet.facets, { M, k } = measuresOf(sheet), orb = f.form === 'orb';
   // a wide promise widens the head and the body; an anime head is wider than tall (S1)
   const wx = (1 + 0.05 * Math.round(Math.log(k.width) / Math.log(1 + STEP))) * (f.style === 'anime' ? 1.07 : 1);
@@ -280,7 +281,7 @@ export function mascotPlan(sheet, { title = 'a mascot' } = {}) {
   const twin = (n) => n.replace(/R$/, 'L'), faceBones = new Set(face.bones.map((b) => b.id));
   const bound = Object.fromEntries(segments.flatMap((x) => { const b = typeof x.bind === 'string' ? x.bind : x.bind?.bone; return x.mirror === 'name' ? [[x.name, b], [twin(x.name), twin(b)]] : [[x.name, b]]; }));
   const names = Object.keys(bound);
-  const { rig, clips, dials } = rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts: names.filter((n) => bound[n] === 'head' || faceBones.has(bound[n])), upper: names.filter((n) => !/^(thigh|shin|shoe)[RL]$/.test(n)) });
+  const { rig, clips, dials } = rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, reactions, headParts: names.filter((n) => bound[n] === 'head' || faceBones.has(bound[n])), upper: names.filter((n) => !/^(thigh|shin|shoe)[RL]$/.test(n)) });
   const paint = [
     ...(orb || human ? [] : [{ part: 'body', t: [0, 0.42], run: [0.12, 0.8], group: 'Belly' }]),
     ...(human && !orb ? [{ part: 'body', run: [0, 0.42], group: 'Bottom' }] : []),   // trousers to the waist
@@ -528,7 +529,7 @@ function hookParts(f, H, { M, hipZ, neckZ, headBind, orb, fur = 'Body' }) {
 
 // ══════════ the rig, the clips, the dials (laws 9, 10) ══════════
 
-function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper }) {
+function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper, reactions = false }) {
   const bodyTop = orb ? H.C[2] : neckZ;
   const rig = {
     joints: {
@@ -593,6 +594,19 @@ function rigOf(f, { J, H, hipZ, neckZ, top, orb, k, face, headParts, upper }) {
     ...gaitClips(J, f.energy, arms),
     squat: [READY, { ...READY, crouch: 0.35, ...X('determined') }],
     leap: [{ ...up, crouch: 0, lift: r4(0.12 * top), support: 'none', ...X('grin') }],
+    // REACTIONS (opt-in: a cast's mascot, egocube/kind.js): a blow taken, cartoon-sized. The flinch squashes down and
+    // throws the arms up with the surprised face, and comes back; the fall tips it over its feet onto its back, eyes
+    // shut, its head (its widest part) on the floor; the rise rolls it back up through a crouch. One-shots, each
+    ...(reactions ? (() => {
+      const hit = { ...READY, crouch: 0.22, spine: { arch: 0.3 }, armL: { x: -0.75, y: 0.3, z: 0.5 }, armR: { x: 0.75, y: 0.3, z: 0.5 }, ...X('surprised') };
+      const lie = { ...READY, crouch: 0.05, body: { pitch: -85, up: r4(H.ry) }, armL: { x: -0.95, y: 0, z: 0.3 }, armR: { x: 0.95, y: 0, z: 0.3 }, ...X('sleepy') };
+      const sat = { ...READY, crouch: 0.3, body: { pitch: -30, up: r4(0.3 * H.ry) }, ...X('sad') };
+      return {
+        flinch: { once: true, keys: [READY, hit, hit, READY] },
+        fall: { once: true, keys: [READY, { ...hit, body: { pitch: -15 } }, lie] },
+        rise: { once: true, keys: [lie, sat, { ...READY, crouch: 0.25, ...X('determined') }, READY] },
+      };
+    })() : {}),
   };
   const dials = {
     lean: { min: -12, max: 20, rest: 0, doc: 'degrees the body, the head and the arms hinge forward about the hips; the legs stay planted', op: 'hinge', parts: upper, pivot: orb ? 'head/back' : 'body/back', axis: 'x', sign: -1 },
@@ -637,11 +651,11 @@ export function modelSheet(sheet, P) {
 }
 
 /** The first create_character call for a mascot sheet: { door, thesis, create, after, ledger }. */
-export function mascotPlanFromSheet(sheet, { title } = {}) {
+export function mascotPlanFromSheet(sheet, { title, reactions = false } = {}) {
   if (sheet?.tuning !== 'mascot') throw new Error('mascot: a mascot sheet (rollMascot) compiles here');
   const f = sheet.facets;
   const name = title || `${f.hue} ${f.promise} mascot (mascot seed ${sheet.seed})`;
-  const { plan, H, height } = mascotPlan(sheet, { title: name });
+  const { plan, H, height } = mascotPlan(sheet, { title: name, ...(reactions ? { reactions } : {}) });
   const heads = Math.round((height / (2 * H.rz)) * 10) / 10;
   const thesis = `${f.form}, ${heads} heads · a round core, a ${f.accent} accent (${sheet.accord}) · ${f.eyes} eyes · ${f.hook === 'none' ? 'no hook' : f.hook} · ${f.extremities} · ${f.energy} · ${Math.round(height * 100) / 100} m`;
   const lean = (sheet.derives.motion || []).includes('motion.lean +') ? 4 : 0;

@@ -111,6 +111,9 @@ export const FIXTURE = [
   // egocube: a character's design rolled once and kept, then made in any game at any age (create_character { egocube })
   ['I want to design a character once and use her in two different games, a farm girl who grows up to be a knight', 'create_sketch'],
   ['make my egocube character as she is at twenty six', 'create_character'],
+  // cast: the people around a hero rolled as one cast (egocube/cast.js), each then made by its path
+  ['roll the other characters for my story: a rival, a mentor, and a villain with his lieutenant', 'create_sketch'],
+  ['make the rival from my cast sheet', 'create_character'],
   // mascot: a cartoony, head-heavy character rolled from a promise (create_character { as: 'mascot' })
   ['I need a speedy blue cartoon guy with spikes for my platformer', 'create_character'],
   ['a round pink blob mascot with big eyes that floats around', 'create_character'],
