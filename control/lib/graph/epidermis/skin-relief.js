@@ -22,10 +22,13 @@
  * Dials: `region` (a `SKIN_REGIONS` name or its numbers), `age` 0 … 1 (deeper, coarser, more directional furrows;
  * more and deeper creases; larger pores; a fainter fine net), `squint` 0 … 1 (a compression across the creases that
  * deepens them), `pores` and `creases` (scales; 0 grows none), `angle` (the tension direction in degrees from +u,
- * over the region's), `tethers` (in chart mm), `seed`. Real scales: furrows 20–80 µm deep, plateaus 0.3–0.8 mm,
+ * over the region's), `tethers` (in chart mm; a tether's own `squint` over the skin's), `weights` (each layer's share,
+ * 0 … 1: the zoom's fade; its `footprint`, a pixel's mm, widens what is finer), `seed`. Real scales: furrows 20–80 µm deep, plateaus 0.3–0.8 mm,
  * pores 0.03–0.15 mm across, fine lines 0.06–0.15 mm wide.
  *
- *   skinRelief(spec) → { at(u, v) → { h, rough, furrow, pore, crease }, lines, dir(u, v) }
+ *   skinRelief(spec) → { at(u, v, weights?) → { h, rough, furrow, pore, crease, cavity }, lines, dir(u, v) }
+ *                       (`cavity` 0 … 0.7: how much a shading darkens there, the grooves' and pores' shadow)
+ *   skinZoomWeights(mmPerPixel) → { creases, keratin, micro }   each layer's share at a zoom (`SKIN_ZOOM`)
  *
  * Pure and deterministic: lattice hashes and seeded dice, no clock. An absent layer adds nothing.
  */
@@ -49,6 +52,19 @@ export const SKIN_REGIONS = Object.freeze({
   eyelid: { cell: 0.32, aniso: 1.6, furrow: 20, pore: 0.015, poreShare: 0.15, angle: 0, net: 0.85 },
   chin: { cell: 0.45, aniso: 1.2, furrow: 18, pore: 0.055, poreShare: 0.6, angle: 0 },
 });
+
+/**
+ * THE ZOOM RANGES: the scale, in mm per pixel, over which each layer fades in, [absent at, whole at]. A crease shows
+ * from portrait distance; the keratin lines and pores from a close-up; the finest net and grain only in a macro shot.
+ * Finer than its range, a layer would alias into noise, so it is held back rather than drawn.
+ */
+export const SKIN_ZOOM = Object.freeze({ creases: [1.6, 0.7], keratin: [0.25, 0.11], micro: [0.07, 0.035] });
+
+/** Each layer's share at a zoom (mm per pixel): 0 coarser than its range, 1 finer, smooth between. */
+export function skinZoomWeights(mmPerPixel) {
+  const ramp = ([a, b]) => { const t = Math.max(0, Math.min(1, (a - mmPerPixel) / (a - b))); return t * t * (3 - 2 * t); };
+  return { creases: ramp(SKIN_ZOOM.creases), keratin: ramp(SKIN_ZOOM.keratin), micro: ramp(SKIN_ZOOM.micro) };
+}
 
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const UM = 0.001;   // a micrometre in mm
@@ -95,13 +111,13 @@ function family(u, v, a, sp, s) {
 /**
  * The crease lines of one tether, as polylines in the chart (mm) with their depth (mm) and width. A RADIAL tether
  * fans `count` lines from its `pivot` across `span` (degrees), from `reach[0]` to `reach[1]` mm out; an ALONG tether
- * lays them beside its `path`, at offsets within `reach[1]` either side. More, and deeper, with age; deeper in a
+ * lays them beside its `path`, at offsets within `reach[1]` either side, each a staggered piece of its length. More, and deeper, with age; deeper in a
  * squint. Each line wobbles, tapers, and sometimes forks.
  */
 export function creaseLines(tether, { age = 0.35, squint = 0, scale = 1, seed = 1 } = {}, index = 0) {
   const dice = streamOf(seed, 'crease', `${index}`);
   const n = Math.round((tether.count ?? 6) * (0.45 + 0.9 * age) * scale);
-  const depth = (tether.depth ?? 60) * UM * (0.12 + 1.5 * age * age) * (1 + 1.1 * squint);
+  const depth = (tether.depth ?? 60) * UM * (0.12 + 1.5 * age * age) * (1 + 1.1 * (tether.squint ?? squint));
   const lines = [];
   const wobble = (pts, amp) => {
     const ph = dice() * 6.283, fr = 0.5 + dice();
@@ -130,7 +146,8 @@ export function creaseLines(tether, { age = 0.35, squint = 0, scale = 1, seed = 
     const path = tether.path, reach = (tether.reach ?? [0, 4])[1];
     for (let i = 0; i < n; i++) {
       const off = (i % 2 ? -1 : 1) * reach * ((Math.floor(i / 2) + 0.5 + (dice() - 0.5) * 0.6) / Math.ceil(n / 2));
-      const t0 = dice() * 0.35, t1 = 0.65 + dice() * 0.35;
+      // (a piece of the tether's length, staggered: real lines along a tether break and overlap, they do not rule)
+      const t0 = dice() * 0.55, t1 = Math.min(1, t0 + 0.3 + dice() * 0.45);
       const pts = Array.from({ length: 13 }, (_, k) => {
         const t = t0 + ((t1 - t0) * k) / 12, f = t * (path.length - 1), i0 = Math.min(path.length - 2, Math.floor(f)), w = f - i0;
         const p = { u: path[i0].u + (path[i0 + 1].u - path[i0].u) * w, v: path[i0].v + (path[i0 + 1].v - path[i0].v) * w };
@@ -187,21 +204,29 @@ export function skinRelief(spec = {}) {
     const a = Math.atan2(s2, c2) / 2;
     return { x: Math.cos(a), y: Math.sin(a) };
   };
-  const at = (u, v) => {
-    let h = 0, rough = 0.5, furrowShare = 0, pore = 0, crease = 0;
-    if (tier === 0) return { h, rough, furrow: 0, pore: 0, crease: 0 };
-    const near = lines.length ? nearestLine(lines, u, v) : null;
+  // (`w` weighs each layer 0 … 1, the zoom's fade: a layer finer than the pixels shows is held back, not aliased)
+  const W1 = { creases: 1, keratin: 1, micro: 1, ...(spec.weights || {}) };
+  const at = (u, v, w = W1) => {
+    let h = 0, rough = 0.5, furrowShare = 0, pore = 0, crease = 0, cavity = 0;
+    const wc = tier >= 1 ? w.creases ?? 1 : 0, wk = tier >= 2 ? w.keratin ?? 1 : 0, wm = tier >= 3 ? w.micro ?? 1 : 0;
+    if (!(wc > 0 || wk > 0 || wm > 0)) return { h, rough, furrow: 0, pore: 0, crease: 0, cavity: 0 };
+    const near = lines.length && (wc > 0 || wk > 0) ? nearestLine(lines, u, v) : null;
     // the creases: a thin groove tapered at its ends, the skin bunched in low shoulders beside it; the tether's trough
-    if (near && near.line) {
-      const L = near.line, taper = Math.pow(Math.sin(Math.PI * clamp01(near.s)), 0.6), x = near.d / L.width;
-      crease = taper * Math.exp(-x * x);
-      h += -L.depth * crease + 0.22 * L.depth * taper * Math.exp(-((x - 2.2) ** 2) / 1.2);
+    if (wc > 0 && near && near.line) {
+      // (seen through pixels coarser than it, a crease widens to their footprint, its depth eased to keep its
+      // shadow's weight: from afar it reads as the soft line it is, not as broken dots)
+      const L = near.line, Lw = Math.hypot(L.width, 0.5 * (w.footprint ?? 0)), Ld = L.depth * (L.width / Lw);
+      const taper = Math.pow(Math.sin(Math.PI * clamp01(near.s)), 0.6), x = near.d / Lw;
+      crease = taper * Math.exp(-x * x) * wc;
+      cavity += 0.45 * crease * Math.min(1, Ld / 0.06);
+      h += wc * (-Ld * taper * Math.exp(-x * x) + 0.22 * Ld * taper * Math.exp(-((x - 2.2) ** 2) / 1.2));
       // its faint companions, a fine line either side
-      const c1 = near.d - 0.32 - 1.5 * L.width;
-      h -= 0.22 * L.depth * taper * Math.exp(-((c1 / (0.5 * L.width)) ** 2));
+      const c1 = near.d - 0.32 - 1.5 * Lw;
+      h -= wc * 0.22 * Ld * taper * Math.exp(-((c1 / (0.5 * Lw)) ** 2));
     }
-    for (const T of troughs) { const q = nearestLine([T], u, v); h -= T.depth * Math.exp(-((q.d / T.width) ** 2)); }
-    if (tier >= 2) {
+    if (wc > 0) for (const T of troughs) { const q = nearestLine([T], u, v); h -= wc * T.depth * Math.exp(-((q.d / T.width) ** 2)); }
+    if (wk > 0) {
+      let hk = 0;
       // the primary lines: two crossing families about the tension, a weaker one across; a furrow is a V
       // (a fading line narrows as it shallows)
       const groove = (d, k, w) => { const wk = w * (0.45 + 0.55 * k); return Math.abs(d) < wk ? k * (1 - Math.abs(d) / wk) ** 2 : 0; };
@@ -211,14 +236,14 @@ export function skinRelief(spec = {}) {
       const d = dirAt(u, v, near), c = cells(u, v, cell * 0.42, A, d.x, d.y, s0 + 5), e = (c.f2 - c.f1) * 0.5, wm = 0.6 * fW;
       const m = e < wm ? (R.net ?? 0.45) * (1 - e / wm) ** 2 : 0;
       furrowShare = Math.max(g, m);
-      h -= furrow * (g + m * (1 - g));
+      hk -= furrow * (g + m * (1 - g));
       // the pores: at the two families' crossings, round
       // (near the crossing, not on it; most small, a few large)
       if (poreScale > 0 && hash3(f1.n, f2.n, s0 + 7) < R.poreShare * Math.min(1, poreScale)) {
         const z = hash3(f2.n, f1.n, s0 + 9), r = poreR * (0.45 + 1.1 * z * z) * Math.max(1, poreScale);
         const j1 = f1.d - cell * 0.25 * (hash3(f1.n, f2.n, s0 + 13) - 0.5), j2 = f2.d - cell * 0.25 * (hash3(f2.n, f1.n, s0 + 17) - 0.5);
         const q2 = (j1 * j1 + j2 * j2) / (sinX * sinX);
-        if (q2 < 9 * r * r) { pore = Math.exp(-q2 / (r * r)); h -= poreD * (0.6 + 0.6 * z) * pore; }
+        if (q2 < 9 * r * r) { pore = Math.exp(-q2 / (r * r)); hk -= poreD * (0.6 + 0.6 * z) * pore; }
       }
       // (a pore-dense skin's scatter among the lines)
       if (poreScale > 0 && R.poreGap) {
@@ -227,22 +252,24 @@ export function skinRelief(spec = {}) {
           if (hash3(i, j, s0 + 41) >= R.gapShare * Math.min(1, poreScale)) continue;
           const px = (i + 0.15 + 0.7 * hash3(i, j, s0 + 43)) * G, py = (j + 0.15 + 0.7 * hash3(i, j, s0 + 47)) * G;
           const z = hash3(j, i, s0 + 49), r = poreR * (0.45 + 1.1 * z * z) * Math.max(1, poreScale), q2 = (u - px) ** 2 + (v - py) ** 2;
-          if (q2 < 9 * r * r) { const p2 = Math.exp(-q2 / (r * r)); if (p2 > pore) { h -= poreD * (0.6 + 0.6 * z) * (p2 - pore); pore = p2; } }
+          if (q2 < 9 * r * r) { const p2 = Math.exp(-q2 / (r * r)); if (p2 > pore) { hk -= poreD * (0.6 + 0.6 * z) * (p2 - pore); pore = p2; } }
         }
       }
-      rough = 0.42 + 0.35 * furrowShare + 0.2 * pore;
+      h += wk * hk;
+      furrowShare *= wk; pore *= wk;
+      cavity += 0.12 * furrowShare + 0.3 * pore;
+      rough = 0.5 + wk * (-0.08 + 0.35 * furrowShare + 0.2 * pore);
     }
-    if (tier >= 3) {
+    if (wm > 0) {
       // the finest net and the corneum's grain
       const c2 = cells(u, v, cell2, 1 + (A - 1) * 0.3, Math.cos(theta), Math.sin(theta), s0 + 31);
       const e2 = (c2.f2 - c2.f1) * 0.5, w2 = 0.015 + 0.02 * cell2;
       const f2 = e2 < w2 ? (1 - e2 / w2) ** 2 : 0;
-      h += -furrow2 * f2 * (1 - 0.7 * furrowShare);
       const g = vnoise(u / 0.045, v / 0.045, s0 + 53) - 0.5;
-      h += g * 2.5 * UM;
-      rough = Math.min(1, rough + 0.12 * f2 + 0.12 * g);
+      h += wm * (-furrow2 * f2 * (1 - 0.7 * furrowShare) + g * 2.5 * UM);
+      rough = Math.min(1, rough + wm * (0.12 * f2 + 0.12 * g));
     }
-    return { h, rough, furrow: furrowShare, pore, crease };
+    return { h, rough, furrow: furrowShare, pore, crease, cavity: Math.min(0.7, cavity) };
   };
   return { at, lines, dir: (u, v) => dirAt(u, v, lines.length ? nearestLine(lines, u, v) : null) };
 }

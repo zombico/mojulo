@@ -93,6 +93,14 @@ Then **Read `<out>/sheet.png`** (default `/tmp/head-study-skin`); each panel's b
 - age on crow's feet, and a squint;
 - lines along a tether (under-eye, forehead), and 5 mm close-ups of pores.
 
+On the head, `--field --skin` lays the same relief on the relational head as a shading layer. Each layer shows
+only at its zoom (`SKIN_ZOOM`, in mm per pixel), and each panel says which layers are on. Read it as a zoom strip:
+
+```bash
+node .claude/skills/head-study/study.mjs --field male --source relational --skin --epidermis '{"skin":{"age":0.6}}' \
+     --acts '[{"crop":"face"},{"crop":"eyes","smile":1},{"crop":"eye","smile":1},{"crop":"macro","smile":1}]'
+```
+
 Tune a region's numbers (`SKIN_REGIONS`) or the age's against it. Skin that reads as leather or dried mud means
 the primary lines are too even, too deep or too cellular. Skin that reads as scratched glass means they are too
 straight and regular.
