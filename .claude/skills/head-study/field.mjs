@@ -12,6 +12,9 @@
 //   --face          the face dials: '{"jaw":20}', mouth, brow.
 //   --cells         surface-net cells along the head's longest side (default 160; 220 for a close read).
 //   --no-marks      the surface alone, no landmark or caliper overlay.
+//   --source        protoform (default: figure-head.js) | relational (head-relational.js: vajras placed by relations)
+//   --layer         skin (default) | skull — the relational head's layers
+//   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
 //   --out           output dir (default /tmp/head-study-field): sheet.png, sheet.svg, measures.json.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -25,10 +28,11 @@ const P = (f) => path.join(REPO, 'control/lib/graph/polygonizer', f);
 const sharp = createRequire(path.join(REPO, 'control/package.json'))('sharp');
 const { headFieldOf, headFieldMesh, headSections, headMeasures } = await import(P('head-field-view.js'));
 const { HEAD_KNOB_NAMES } = await import(P('figure-head.js'));
+const { relationalHead, RELATION_NAMES } = await import(P('head-relational.js'));
 const { DIMORPH } = await import(P('figure-rig.js'));
 
 const args = process.argv.slice(2);
-let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true;
+let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin';
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -37,6 +41,9 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--face') { face = JSON.parse(args[++i]); continue; }
   if (a === '--cells') { cells = Number(args[++i]); continue; }
   if (a === '--no-marks') { marks = false; continue; }
+  if (a === '--source') { source = args[++i]; continue; }
+  if (a === '--rel') { rel = JSON.parse(args[++i]); continue; }
+  if (a === '--layer') { layer = args[++i]; continue; }
   if (a === '--field') continue;
   if (a === 'male' || a === 'female') { sexes.push(a); continue; }
   console.error(`head-study --field: unknown argument "${a}"`);
@@ -45,6 +52,9 @@ for (let i = 0; i < args.length; i++) {
 if (!sexes.length) sexes.push('male', 'female');
 const unknown = Object.keys(proto).filter((k) => !HEAD_KNOB_NAMES.includes(k));
 if (unknown.length) { console.error(`head-study --field: not a head knob: ${unknown.join(', ')} (have ${HEAD_KNOB_NAMES.join(', ')})`); process.exit(1); }
+const badRel = Object.keys(rel).filter((k) => !RELATION_NAMES.includes(k));
+if (badRel.length) { console.error(`head-study --field: not a relation: ${badRel.join(', ')} (have ${RELATION_NAMES.join(', ')})`); process.exit(1); }
+if (!['protoform', 'relational'].includes(source)) { console.error(`head-study --field: --source protoform | relational`); process.exit(1); }
 mkdirSync(out, { recursive: true });
 
 // az 0 = face-on (camera on +y), + turns the camera toward the figure's right; elev degrees
@@ -100,17 +110,18 @@ function rasterize(faces, cam) {
 }
 
 const LANDMARK_SKIP = new Set(['H', 's', 'earC', 'centre', 'cranium']);
+const seen = new Set();
 const svgParts = [];
 const report = {};
 let y0 = 0;
 const PANEL_H = 520, PROF_W = 760, CUT_W = 760;
 for (const sex of sexes) {
-  const head = headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
+  const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
   const t0 = Date.now();
   const faces = headFieldMesh(head, { cells });
   const meas = headMeasures(head);
   const secs = headSections(head);
-  report[sex] = { cells, quads: faces.length, mm: meas.mm, index: meas.index, classes: meas.classes };
+  report[sex] = { source, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
   console.log(`${sex}: ${faces.length} quads at ${cells} cells, ${Date.now() - t0} ms`);
 
   for (const [col, v] of VIEWS.entries()) {
@@ -124,7 +135,7 @@ for (const sex of sexes) {
       // a point is drawn where the surface does not hide it (a small depth tolerance: points sit ON the skin)
       const vis = (p) => { const [px, py, d] = cam.project(p); const o = Math.floor(py) * CW + Math.floor(px); return px >= 0 && px < CW && py >= 0 && py < CH && d >= zbuf[o] - 0.004 ? [px, py] : null; };
       for (const [k, p] of Object.entries(head.landmarks)) {
-        if (LANDMARK_SKIP.has(k) || !p || typeof p !== 'object') continue;
+        if (LANDMARK_SKIP.has(k) || !p || typeof p !== 'object' || !Number.isFinite(p.x)) continue;
         const q = vis(p); if (q) svgParts.push(`<circle cx="${x + q[0]}" cy="${y0 + q[1]}" r="2.6" fill="#3a6fb0" opacity="0.8"/>`);
       }
       for (const [, p] of Object.entries(meas.points)) {
@@ -132,7 +143,7 @@ for (const sex of sexes) {
         const q = vis(p); if (q) svgParts.push(`<circle cx="${x + q[0]}" cy="${y0 + q[1]}" r="3.4" fill="none" stroke="#c0392b" stroke-width="1.6"/>`);
       }
     }
-    svgParts.push(`<text x="${x + 10}" y="${y0 + CH - 12}" font-family="monospace" font-size="15" fill="#555">${sex} · ${v.name}</text>`);
+    svgParts.push(`<text x="${x + 10}" y="${y0 + CH - 12}" font-family="monospace" font-size="15" fill="#555">${sex} · ${source}${source === 'relational' ? ` ${layer}` : ''} · ${v.name}</text>`);
   }
 
   // second row: the profile (face to the right), the transverse cuts from above (face up), the table
@@ -162,7 +173,7 @@ for (const sex of sexes) {
   // measures table
   const tx = PROF_W + CUT_W, TABLE_W = VIEWS.length * CW - tx;
   svgParts.push(`<rect x="${tx}" y="${py0}" width="${TABLE_W}" height="${PANEL_H}" fill="#f4f2ee"/>`);
-  const rows = [`${sex} — calipers on the field`, '', ...Object.entries(meas.mm).map(([k, v]) => `${k.padEnd(13)} ${v == null ? '—' : String(v).padStart(6)}${k === 'g-sn-pg' ? '°' : ' mm'}`),
+  const rows = [`${sex} · ${source} — calipers on the field`, '', ...Object.entries(meas.mm).map(([k, v]) => { const t = head.targets?.[k]; return `${k.padEnd(13)} ${v == null ? '—' : String(v).padStart(6)}${k === 'g-sn-pg' ? '° ' : ' mm'}${t != null ? `  target ${String(t).padStart(5)}  Δ ${v == null ? '—' : (v - t > 0 ? '+' : '') + (Math.round((v - t) * 10) / 10)}` : ''}`; }),
     '', ...Object.entries(meas.index).map(([k, v]) => `${(k + ' index').padEnd(13)} ${v == null ? '—' : String(v).padStart(6)}  ${meas.classes[k] || ''}`),
     '', `mm at the canonical stature`, `(1 unit = 1.8 m)`, `al-al — : no alar groove to read`];
   rows.forEach((t, i) => svgParts.push(`<text x="${tx + 16}" y="${py0 + 30 + i * 20}" font-family="monospace" font-size="${i ? 15 : 16}" fill="#333">${t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`));
