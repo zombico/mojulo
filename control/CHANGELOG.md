@@ -70,8 +70,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   proud of the cheilion, with the alveolar arch's ends on the corners besides: the mouth sat flat in a trough between
   two mounds. The masses now end at the modiolus, which the tune sets back until the skin at the corner is on the
   cheilion (`mod`), and the arch curves back behind the corners, so the lips stand on a ~12 mm arc in front of the
-  cheeks. The upper lip's two cones are set back by what their overlap adds, so the white lip slopes forward from the
-  subnasale to the vermilion instead of bulging ahead of it.
+  cheeks.
+- **The lips' bodies and the cheek's fold.** The upper lip is the philtrum's body under the nose, set behind the
+  philtral columns, and a thin plate each side out to just above the mouth's corner; the lower lip is a body from corner
+  to corner behind its vermilion, riding the jaw, standing forward down to the mentolabial fold. They are their own
+  group (`lipBody`), joined to the skin by a smooth minimum like the nose and the vermilion rather than summed with the
+  cheeks, so they keep their shapes and do not swell the corners or fill the fold. The cheek takes a fold: a thin roll
+  from beside the wing's base, past the mouth's corner, down to the jowl, summed into the cheek as the edge where its fat
+  stops against the lip; it rides the cheek's bulge, so a smile deepens it, and the jaw at its foot.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

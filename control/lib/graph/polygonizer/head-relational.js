@@ -362,6 +362,11 @@ export function coreVajras(P, rel = RELATIONS) {
     // behind the ramus, under the ear: the parotid's fill, from under the ear down behind the jaw's angle, so the
     // ramus gliding forward as the mouth opens leaves no gap behind it
     soft(`parotid${s}`, inX(at(P[`condyle${s}`], { y: -0.05, z: -0.02 }), 0.02), inX(at(mid(P[`condyle${s}`], go), { y: -0.07 }), 0.03), inX(at(go, { y: -0.05, z: 0.03 }), 0.04), [0.045, 0.05, 0.04]);
+    // THE CHEEK'S FOLD — the nasolabial fold's cheek side, on into the jowl: a thin roll from beside the wing's base,
+    // past the mouth's corner (outside it, clear of the modiolus), down to the jowl over the jaw's line. Summed with
+    // the cheek, it is the edge where the cheek's fat stops against the lip; its middle rides the cheek's bulge (a
+    // smile deepens the fold), its foot the jaw
+    soft(`fold${s}`, at(P[`al${s}`], { x: Math.sign(ch.x) * 0.012, y: -0.034, z: -0.012 }), { x: ch.x + Math.sign(ch.x) * 0.04, y: ch.y - 0.026, z: ch.z + 0.006 }, { x: ch.x + Math.sign(ch.x) * 0.012, y: ch.y - 0.03, z: ch.z - 0.085 }, [0.01, 0.012, 0.016], [null, [`bulge${s}`], J]);
     V.push({ name: `zygomaticus${s}`, a: inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), c: at(mid(malar, ch, 0.5), { y: -0.025 }), b: at(md, { y: -0.02 }), r: [0.018, 0.016, 0.014], group: 'soft', muscle: true, balloon: true, drive: [null, [`zyg${s}`], corner] });
     // the lids: corner → over the globe → corner, upper and lower
     // the lid margins: rolls along the opening's arcs, lying on the globe (canthus → apex → canthus); their centre
@@ -374,15 +379,26 @@ export function coreVajras(P, rel = RELATIONS) {
   // down and in. It rides on the bone and does not move the bone.
   soft('browPad', at(P.fzL, { y: -0.012 }), at(P.g, { y: -0.03, z: -0.004 }), at(P.fzR, { y: -0.012 }), [0.022, 0.02, 0.022], [['browL'], ['browC'], ['browR']]);
   // the SOFT features: no bone under them to stand off — the external nose and the lips are their own tissue
-  // THE UPPER LIP'S BODY — orbicularis oris above the mouth, in front of the teeth, as two halves meeting on the
-  // midline (the philtrum is where they meet): each a cone from under the wing's base, down and forward through the
-  // white lip, to its cupid's bow peak. Angled so, the lip slopes forward from the subnasale to the vermilion, and its
-  // tops stop under the alar bar, so the nose sits ON the lip. (One span from wing base to wing base was fattest under
-  // the subnasale, rose over it and melted the nose's base into a bulb; without a body at all the skin under the nose
-  // fell ~2 cm behind the subnasale, a notch you could see through from the side.)
+  // THE UPPER LIP'S BODY — orbicularis oris above the mouth, in front of the teeth: the philtrum's body under the nose
+  // down to just above the cupid's bow, set behind the philtral columns so they stand proud of it, and a thin plate
+  // each side from it out to just above the mouth's corner (following the corner when it moves), so the lip is one
+  // plate from corner to corner between the cheeks' folds. Its top stops under the alar bar, so the nose sits ON the
+  // lip. (One span from wing base to wing base rose over the subnasale and melted the nose's base into a bulb; two
+  // cones run in to the bow made a narrow muzzle; thick sides from the wings to the corners read as ropes — the line
+  // they marked is the cheek's fold, below; without a body the skin under the nose fell ~2 cm behind the subnasale.)
+  const philMid = { x: 0, y: (P.sn.y + P.ls.y) / 2 - 0.02, z: (P.sn.z + P.ls.z) / 2 };
+  v('philtrumBody', { x: 0, y: P.sn.y - 0.016, z: P.sn.z - 0.014 }, philMid, { x: 0, y: P.ls.y - 0.024, z: P.ls.z + 0.014 }, [0.016, 0.022, 0.018], 'lipBody');
   for (const s of ['L', 'R']) {
-    const sg = Math.sign(P[`al${s}`].x);
-    soft(`upperLipBody${s}`, at(P[`al${s}`], { x: -sg * 0.01, y: -0.04, z: -0.035 }), { x: sg * 0.014, y: (P.sn.y + P.ls.y) / 2 - 0.034, z: (P.sn.z + P.ls.z) / 2 }, { x: sg * 0.006, y: P[`bow${s}`].y - 0.028, z: P[`bow${s}`].z + 0.006 }, [0.018, 0.02, 0.018], [null, null, [`bow${s}`]]);
+    const sg = Math.sign(P[`ch${s}`].x), ch = P[`ch${s}`];
+    v(`upperLipPlate${s}`, philMid, { x: sg * 0.06, y: P.sn.y - 0.01, z: philMid.z - 0.008 }, { x: ch.x - sg * 0.022, y: ch.y - 0.022, z: ch.z + 0.012 }, [0.016, 0.015, 0.009], 'lipBody', [null, [`bow${s}`], [`corner${s}`]]);
+  }
+  // THE LOWER LIP'S BODY — orbicularis oris below the mouth, behind and below the lower vermilion: corner → under the
+  // lip's fullest → the centre above the mentolabial fold, each side; it rides the jaw as the lower lip does, so the
+  // lower lip is a box standing forward from the corners down to the fold
+  const lowC = { x: 0, y: P.li.y - 0.034, z: P.li.z - 0.008 };
+  for (const s of ['L', 'R']) {
+    const sg = Math.sign(P[`ch${s}`].x), lm = P[`loMid${s}`];
+    v(`lowerLipBody${s}`, at(P[`ch${s}`], { x: -sg * 0.012, y: -0.028, z: -0.01 }), { x: lm.x, y: lm.y - 0.026, z: lm.z - 0.012 }, lowC, [0.01, 0.015, 0.018], 'lipBody', [[`corner${s}`], [`loMid${s}`], J]);
   }
   // THE NOSE — nasion → rhinion → tip
   v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
@@ -551,9 +567,9 @@ const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034 });
 const LID = Object.freeze({ up: 0.006, lo: 0.004, y: 0.006 });
 
 /** the blend width per group, in V (the bone melts broadly; the nose and the lips keep their lobes) */
-const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lips: 0.01 };
+const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lipBody: 0.05, lips: 0.01 };
 /** how each soft feature joins the skin */
-const JOIN = { soft: 0.04, nose: 0.02, lips: 0.012 };
+const JOIN = { soft: 0.04, nose: 0.02, lipBody: 0.016, lips: 0.012 };
 /** the head's layers: the skull alone, or the skin over it */
 export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
 
@@ -686,7 +702,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     let sum = 0;
     for (const v of es) sum += SM.exp(-(v - lo) / k);
     let d = lo - k * SM.log(sum);
-    for (const k of ['nose', 'lips']) d = smin(d, g[k], JOIN[k] * sc);
+    for (const k of ['nose', 'lipBody', 'lips']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
     // the grooves, the mouth, and the eyes' openings cut through to the globes, which sit in them
     for (const c of carves) d = smax(d, -c.f(p), 0.003 * sc);
     if (mouthF) d = smax(d, -mouthF(p), 0.006 * sc);
