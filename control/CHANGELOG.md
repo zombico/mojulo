@@ -66,6 +66,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   `suspicious`, `focused`, `closed`), channels over it and a side's own; blink, a smile's squint and the brows drive
   the same channels. The field lane paints the sclera, iris and pupil, takes `--eyes` and rows with their own `eyes`,
   and frames `--crop eyes` and `--crop eye`; a crop meshes only its own box.
+- **A gaze target.** `eyes: { look: { x, y, z } }` (metres from between the eyes: +x the figure's right, +y ahead,
+  +z up) aims each eye from its own centre, so a near target converges them and a far one leaves them parallel; the
+  lids follow, and a word or a side's own gaze composes with it. The head reports its `vergence`.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

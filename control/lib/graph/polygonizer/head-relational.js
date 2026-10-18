@@ -32,7 +32,7 @@
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { headMeasures, rayIn } from './head-field-view.js';
 import { EAR_OUTLINE, EAR_HINGE } from './head-ear.js';
-import { GLOBE, eyeRig, resolveEye } from './head-relational-eye.js';
+import { GLOBE, eyeRig, resolveEye, lookAngles } from './head-relational-eye.js';
 import { SM } from '../../util/math-scope.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
@@ -722,7 +722,16 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const act = (k) => Math.max(0, Math.min(1, Number(actions?.[k]) || 0));
   const eyeRigs = skin ? ['L', 'R'].map((s) => {
     const sm = Math.min(1, act('smile') + act(`smile${s}`)), bl = Math.min(1, act('blink') + act(`blink${s}`));
-    const c = resolveEye(eyes, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
+    // a gaze target (`look`, metres from between the eyes) becomes this eye's yaw and pitch, aimed from its own centre;
+    // a side's own gaze still wins over it
+    let spec = eyes;
+    if (eyes && typeof eyes === 'object' && eyes.look) {
+      const mid = { x: (Pt.eyeL.x + Pt.eyeR.x) / 2, y: (Pt.eyeL.y + Pt.eyeR.y) / 2, z: (Pt.eyeL.z + Pt.eyeR.z) / 2 };
+      const M = 1 / (HEAD_V * 1.8);   // metres → head heights
+      const to = { x: mid.x + eyes.look.x * M, y: mid.y + eyes.look.y * M, z: mid.z + eyes.look.z * M };
+      spec = { ...eyes, ...lookAngles({ ...Pt[`eye${s}`], y: Pt[`eye${s}`].y - GLOBE.back }, to) };
+    }
+    const c = resolveEye(spec, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
     c.open *= 1 - bl;
     const r = eyeRig(Pt, s, c, rel.fissure);
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
@@ -770,5 +779,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     'g-op': mm(P.g, P.op), 'eu-eu': mm(P.euL, P.euR), 'zy-zy': mm(P.zyL, P.zyR), 'go-go': mm(P.goL, P.goR),
     'n-gn': mm(P.n, P.gn), 'n-sn': mm(P.n, P.sn), 'sn-prn': mm(P.sn, P.prn), 'al-al': mm(P.alL, P.alR), 'nasion depth': Math.round((P.g.y - P.n.y) * 2300) / 10,
   } : null;
-  return { field, paint, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels) };
+  // the eyes' gaze, and their vergence (the angle between the two lines of sight; 0 parallel, larger the nearer)
+  const vergence = eyeRigs.length === 2 ? Math.round((Math.acos(Math.max(-1, Math.min(1, eyeRigs[0].gaze.x * eyeRigs[1].gaze.x + eyeRigs[0].gaze.y * eyeRigs[1].gaze.y + eyeRigs[0].gaze.z * eyeRigs[1].gaze.z))) * 1800) / Math.PI) / 10 : null;
+  return { field, paint, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels), vergence };
 }

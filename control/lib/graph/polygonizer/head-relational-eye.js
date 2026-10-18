@@ -15,7 +15,7 @@
  *   the opening   the almond between the two curves, carved through the skin to the globe.
  *
  * Channels (`EYE_CHANNELS`, per eye; `EYE_EXPRESSIONS` are words over them) compose: a word, then channels over it,
- * then a side's own over those; the head's ACTIONS (blink, a smile's squint, a brow's lift) add on top. All V units
+ * then a gaze TARGET (`look`, aimed from each eye's own centre, so near targets converge), then a side's own; the head's ACTIONS (blink, a smile's squint, a brow's lift) add on top. All V units
  * (head heights), the relational head's frame (+x the figure's right, +y the face, +z up). Pure, deterministic.
  */
 import { smin, sdRoundCone } from './vajra.js';
@@ -35,7 +35,7 @@ export const EYE_CHANNELS = Object.freeze({
   crease: [0.5, 0, 1],            // the upper lid's crease, how deep
   hood: [0.25, 0, 1],             // the fold above the crease: 0 deep-set (the crease shows) … 1 hooded (it hides)
   pupil: [1, 0.5, 1.7],           // the pupil's size over its rest
-  gazeYaw: [0, -35, 35],
+  gazeYaw: [0, -35, 35],          // (or `look`: a target the eyes aim at, each from its own centre)
   gazePitch: [0, -30, 30],
   lidFollow: [0.65, 0, 1],        // the share of the gaze's pitch the upper lid follows
 });
@@ -64,7 +64,7 @@ const rest = Object.fromEntries(EYE_CHANNEL_NAMES.map((k) => [k, EYE_CHANNELS[k]
  */
 export function resolveEye(spec, side, adds = {}) {
   const s = typeof spec === 'string' ? { word: spec } : spec || {};
-  const { word = 'neutral', L, R, ...ch } = s;
+  const { word = 'neutral', L, R, look, ...ch } = s;   // (`look` is the head's: it arrives as each side's gaze)
   const v = { ...rest, ...(EYE_EXPRESSIONS[word] || {}), ...ch, ...((side === 'L' ? L : R) || {}) };
   for (const [k, d] of Object.entries(adds)) v[k] = (v[k] ?? rest[k]) + d;
   return Object.fromEntries(EYE_CHANNEL_NAMES.map((k) => [k, clamp(Number(v[k]) || 0, EYE_CHANNELS[k][1], EYE_CHANNELS[k][2])]));
@@ -78,11 +78,25 @@ export function eyeSpecErrors(spec, at = 'eyes') {
   const errs = [];
   for (const [k, v] of Object.entries(spec)) {
     if (k === 'word') { if (!EYE_EXPRESSIONS[v]) errs.push(`${at}.word: one of ${EYE_EXPRESSION_NAMES.join(', ')}`); continue; }
+    if (k === 'look') {
+      if (!v || typeof v !== 'object' || !['x', 'y', 'z'].every((a) => Number.isFinite(v[a]))) errs.push(`${at}.look: { x, y, z } in metres from between the eyes (+x the figure's right, +y ahead, +z up)`);
+      continue;
+    }
     if (k === 'L' || k === 'R') { errs.push(...eyeSpecErrors({ ...v }, `${at}.${k}`).filter((e) => !e.includes('.word'))); continue; }
     if (!EYE_CHANNELS[k]) { errs.push(`${at}.${k}: not a channel (${EYE_CHANNEL_NAMES.join(', ')})`); continue; }
     if (!Number.isFinite(v)) errs.push(`${at}.${k}: a number in ${EYE_CHANNELS[k][1]} … ${EYE_CHANNELS[k][2]}`);
   }
   return errs;
+}
+
+/**
+ * THE GAZE TARGET — the yaw and pitch (degrees) that turn an eye whose globe is centred at `from` toward `to` (both
+ * in the head's frame): each eye aims from its own centre, so a near target converges the pair and a far one leaves
+ * them parallel. Unclamped; `resolveEye` clamps to the eye's range.
+ */
+export function lookAngles(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y, dz = to.z - from.z;
+  return { gazeYaw: (Math.atan2(dx, dy) * 180) / Math.PI, gazePitch: (Math.atan2(dz, Math.hypot(dx, dy)) * 180) / Math.PI };
 }
 
 /**
