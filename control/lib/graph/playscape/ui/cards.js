@@ -333,6 +333,9 @@ function beamsCard() {
     `  sparks: a spray at every head; impact: a puff kind where it lands (${PUFFS.join(', ')}); shake: 0..1.`,
     `PRESETS (what they do): ${BEAM_NAMES.join(', ')}.`,
     'VALUES FIRST: a white core, a black ink edge (edge: ink | both), a coloured glow; ?values greys the page.',
+    'ON THE WORLD, by rule: fxLight: true, every beam, puff and explosion lights what is round it (its colour, size, life);',
+    '  fxStyle: true, every attack raised to a style floor (echoes, companions braiding one way in a near hue, a charge, a',
+    '  head stretched along its flight, sparks, its ink in its own darkened colour; a laser may stay one beam).',
     `example: ${JSON.stringify({ beams: { twin: { color: '#66ccff', charge: { time: 0.8, size: 0.3 }, strands: [{ form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0] }, { form: 'ray', speed: 18, width: 0.15, twist: 0.5, wave: [0.4, 0], phase: 0.5, color: '#ff66cc' }], impact: 'flash' } }, cues: [{ id: 'fire', when: { use: 'altar' }, then: { beam: { who: 'hero', to: 'golem', is: 'twin' } } }, { id: 'hit', when: { struck: 'golem' }, then: { hurt: { who: 'golem', by: 30 } } }] })}`,
   );
 }

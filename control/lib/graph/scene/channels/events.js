@@ -12,6 +12,8 @@ import { rpgScript } from './rpg-channel.js';
 import { statusElements, statusScript, transitKinds } from './status-channel.js';
 import { momentKinds, momentScript } from './moment-channel.js';
 import { beamSpecs, beamScript } from './beam-channel.js';
+import { fxLightScript } from '../effect-light.js';
+import { styleEvents } from '../effect-style.js';
 import { listensForHits } from '../../playscape/ui/cast.js';
 import { buildStats } from '../../playscape/stats/kernel.js';
 
@@ -187,7 +189,9 @@ function __syncHud(t, incoming) {
 // frame seeds dt 0 (frame zero → no events), so a frozen still / ?t render is the initial condition.
 // Reaction VERBS reflected here are the non-physics ones — spawn (a marker appears), toggle (.on →
 // mesh visibility), move (reposition). Reaching back INTO physics (impulse on a body) is Phase 5b.
-export function eventsChannelScript(events) {
+export function eventsChannelScript(events0, { fxDay = null } = {}) {
+  // the style floor (`fxStyle`, scene/effect-style.js): every beam and explosion raised to it before the page reads them
+  const events = events0 && events0.fxStyle === true ? styleEvents(events0) : events0;
   const { widgets } = normalizeHud(events.hud);
   const menus = Array.isArray(events.menus) && events.menus.length ? events.menus : null;
   const cast = events.cast === true;   // the world's cues reach its characters (cast ops down, their happenings up)
@@ -198,9 +202,11 @@ export function eventsChannelScript(events) {
   const els = cast ? statusElements(events) : [];   // the statuses its cues put on the cast, drawn on their bodies in their looks
   const trs = cast ? transitKinds(events) : [];   // how its cast comes and goes (spawn / vanish with, transfigure)
   const mos = cast ? momentKinds(events) : [];   // the moments its cues put down (a puff's kinds, the camera's shake)
-  const moments = mos.length ? momentScript(mos) : '';
   const bms = cast ? beamSpecs(events) : [];   // the attacks its cast fires
-  const beams = bms.length ? beamScript(bms) : '';
+  // the effect light (`fxLight`, scene/effect-light.js): what its beams and moments throw on the world. Absent ⇒ none
+  const fxl = events.fxLight === true && (mos.length > 0 || bms.length > 0);
+  const moments = mos.length ? momentScript(mos, { fx: fxl }) : '';
+  const beams = bms.length ? beamScript(bms, { fx: fxl }) : '';
   const status = els.length || trs.length ? statusScript(Object.fromEntries(els.filter((n) => events.looks && events.looks[n]).map((n) => [n, events.looks[n]])), trs) : '';
   const scenes = Array.isArray(events.scenes) && events.scenes.length > 0;   // play.scenes: the runner, the bars, the box
   const quests = Array.isArray(events.quests) && events.quests.length > 0;   // play.quests: the journal
@@ -312,7 +318,7 @@ function __ensureMarker(e) {
   __markerMeshes[e.id] = mesh;
   return mesh;
 }
-${hudBlock}${reach}${status}${moments}${beams}
+${hudBlock}${reach}${status}${fxl ? fxLightScript(fxDay == null ? {} : { day: fxDay }) : ''}${moments}${beams}
 // Read-only projection of bus ENTITY state onto meshes. The bus decides WHAT is true; this shows it.
 // Physics body PROXIES (Phase 5b link) are skipped — they already render via the physics channel.
 function __syncBus() {
@@ -359,7 +365,7 @@ stepEvents = (t) => {
   __watchFix();                                      // re-check after timer effects settle
   if (window.__mojSim) __BUS.syncToBodies(__busState, window.__mojSim.state);     // apply impulse/move back
 ${stats ? '  if (window.__mojCtrl) __STATS.applyBodies(__busState, window.__mojCtrl.world);   // stats bound to bodies (hpMax, speed)\n' : ''}  if (window.__mojCtrl) __BUS.syncToCtrl(__busState, window.__mojCtrl.world.entities${cast ? ', window.__mojCtrl.cast' : ''}); // apply respawn/teleport warps${cast ? ' + cast ops' : ''}
-  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''} __updateAim();
+  __syncBus(); __syncHud(t, incoming);${menus ? ' __syncMenus();' : ''}${status ? ' __stepStatus();' : ''}${moments ? ' __stepMoments();' : ''}${beams ? ' __stepBeams();' : ''}${fxl ? ' __stepFxLight();' : ''}${scenes ? ' __stepScenes(dtSec);' : ''}${quests ? ' __stepQuests(dtSec);' : ''}${rpg ? ' __stepRpg(t);' : ''} __updateAim();
 };
 // loop watches→reactions to a fixed point so a reaction's var write can trip a watch the same frame.
 function __watchFix() { let g = 0; while (g++ < 8) { ${stats ? 'const st = __STATS.step(EVENTS.stats, __busState); if (st.length) __BUS.processEvents(__busState, st); ' : ''}const w = __BUS.watchEvents(__busState); if (!w.length${stats ? ' && !st.length' : ''}) break; __BUS.processEvents(__busState, w); } }

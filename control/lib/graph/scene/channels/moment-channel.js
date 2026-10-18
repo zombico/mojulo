@@ -84,13 +84,14 @@ function __sprStep(P, pts, fade, show) {
 }
 function __sprDrop(P) { for (const s of P.sprs) { scene.remove(s); s.material.dispose(); } for (const r of P.rings) { scene.remove(r); r.geometry.dispose(); r.material.dispose(); } }`;
 
-export function momentScript(kinds) {
+export function momentScript(kinds, { fx = false } = {}) {
   const K = kinds.filter((k) => MOMENTS[k]), shake = kinds.includes('shake'), boom = kinds.includes('explosion');
   const spec = Object.fromEntries(K.map((k) => [k, { ...MOMENTS[k], key: MOMENT_KEYS[k] }]));
   const bolt = K.some((k) => MOMENTS[k].bolt), light = boom || K.some((k) => MOMENTS[k].light);
   return `
 // MOMENTS: a puff where it was put (${K.join(', ') || 'none'})${boom ? ', explosions (each carries its parts)' : ''}${shake ? ', and the camera shaking' : ''}, once each, on the world clock
-const __MO = ${safeJson(spec)};
+const __MO = ${safeJson(spec)};${fx ? `
+const __moTint = (M) => { const c = M.color; if (Array.isArray(c)) return c; if (typeof c === 'string' && c[0] === '#') return [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255); return __FXLR.tint[M.spec ? 'explosion' : M.is] || [1, 0.92, 0.8]; };` : ''}
 const __moCol = ${safeJson(FIRE_COLORANTS)};
 const __moRgb = (c) => (Array.isArray(c) ? c : typeof c === 'string' && __moCol[c] ? __moCol[c] : typeof c === 'string' && c[0] === '#' ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255) : [1, 1, 1]);
 const __moGlyph = ${GLYPHS_SRC};
@@ -192,7 +193,9 @@ function __stepMoments() {
     const S = M.spec || __MO[M.is]; if (!S) continue;
     const key = M.is + '|' + M.t0 + '|' + M.at.join(',');
     if (!__moLive[key] && age >= 0 && age < S.dur) __moLive[key] = __moMake(M);${light ? `
-    if (S.light) { const u = (age - (S.light.delay || 0)) / S.light.life; if (u >= 0 && u < 1) { const k = S.light.k * (M.scale || 1) * (1 - u) * (1 - u); if (k > lk) { lk = k; __moLight.position.set(M.at[0], M.at[1], M.at[2] + S.light.z * (M.scale || 1)); } } }` : ''}
+    if (S.light) { const u = (age - (S.light.delay || 0)) / S.light.life; if (u >= 0 && u < 1) { const k = S.light.k * (M.scale || 1) * (1 - u) * (1 - u); if (k > lk) { lk = k; __moLight.position.set(M.at[0], M.at[1], M.at[2] + S.light.z * (M.scale || 1)); }${fx ? `
+      // the effect light (fxLight): every moment's own, tinted by its colour, else its kind's
+      __fxlPush([M.at[0], M.at[1], M.at[2] + S.light.z * (M.scale || 1)], __moTint(M), __FXLR.moment * k, (__FXLR.momentReach * (M.scale || 1)) ** 2);` : ''} } }` : ''}
   }
   for (const key in __moLive) {
     const I = __moLive[key], age = now - I.t0;

@@ -14,6 +14,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Effects: light and a style floor, by rule
+
+- **`fxLight: true`.** On a world whose cues fire beams, puffs or explosions, every effect lights what is round it,
+  the way fire already did: a strand's head, a ray's body and a charging orb throw the attack's colour as strong and as
+  soft as the strand is wide, and a moment its own declared light, tinted by its colour or its kind (a strike cold
+  white, a blast warm). Live steel, baked stone, the anime character light and creatures all take it. A night world
+  takes it fully, a noon one a quarter. Nothing is authored per effect.
+- **`fxStyle: true`.** Every attack is raised to a style floor by rule: no simple shape unless it is a line (a bolt
+  trails fading echoes, a ray carries pulse bands and rings, every attack sprays sparks), layered colour (two companion
+  strands in an analogous hue), chirality (the companions braid one way, the hand seeded by the attack; an explosion's
+  sprays swirl with it), and the principles of animation (a charge before release, a head stretched along its flight,
+  a gentle arc, echoes that lag, a flash where it lands, an explosion's ground ring echoed). An ink edge takes the
+  attack's own darkened colour instead of black. A laser may stay one beam. An attack that already does a thing keeps
+  its own.
+
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 
 - **`materials: { age }`.** A cube's materials take an age, `new`, `worn`, `old` or `ancient`: copper, brass and bronze

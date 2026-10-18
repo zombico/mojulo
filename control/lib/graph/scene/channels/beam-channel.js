@@ -30,13 +30,21 @@ export function beamSpecs(events) {
   return out;
 }
 
-export function beamScript(specs) {
+export function beamScript(specs, { fx = false } = {}) {
   const sparks = specs.some((B) => B.sparks), rings = specs.some((B) => B.rings), charge = specs.some((B) => B.charge);
+  // a strand's style-floor words (scene/effect-style.js): a hue offset from the attack's colour, an opacity (an echo's),
+  // a head stretched along its flight. Only emitted when an attack carries them
+  const any = (k) => specs.some((B) => B.strands.some((S) => S[k]));
+  const hue = any('hue'), alpha = any('alpha'), stretch = any('stretch'), ink = any('ink');
+  // `fx` (the world's fxLight, scene/effect-light.js): each head, a ray's body and a charging orb throw their light
   return `
 // BEAMS: attacks fired from a hand at a target, once each, on the world clock (ink, glow and a white core)
 const __bmCol = ${safeJson(FIRE_COLORANTS)};
 const __bmRgb = (c) => (Array.isArray(c) ? c : typeof c === 'string' && __bmCol[c] ? __bmCol[c] : typeof c === 'string' && c[0] === '#' ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16) / 255) : [1, 1, 1]);
-const __bmStrand = ${strandPoints.toString()};
+const __bmStrand = ${strandPoints.toString()};${hue ? `
+// a colour turned round the hue circle by deg (YIQ), its lightness kept
+const __bmHue = (c, deg) => { const a = deg * Math.PI / 180, co = Math.cos(a), si = Math.sin(a), y = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2], i = 0.596 * c[0] - 0.274 * c[1] - 0.322 * c[2], q = 0.211 * c[0] - 0.523 * c[1] + 0.312 * c[2], i2 = i * co - q * si, q2 = i * si + q * co; return [y + 0.956 * i2 + 0.621 * q2, y - 0.272 * i2 - 0.647 * q2, y - 1.106 * i2 + 1.703 * q2].map((v) => Math.max(0, Math.min(1, v))); };` : ''}${stretch ? `
+const __bmP0 = new THREE.Vector3(), __bmP1 = new THREE.Vector3();` : ''}
 const __bmLength = ${beamLength.toString()};${charge ? `
 const __bmWave = ${wavePoints.toString()};` : ''}
 const __bmGlyph = ${GLYPHS_SRC};${sparks ? `
@@ -51,7 +59,7 @@ const __BM_N = 48;
 function __bmPasses(S, rgb) {
   const out = [];
   if (S.edge !== 'ink') out.push(['glow', S.edge === 'both' ? 2.9 : 2.6, rgb, true]);
-  if (S.edge !== 'glow') out.push(['ink', 1.22, [0, 0, 0], false]);
+  if (S.edge !== 'glow') out.push(['ink', 1.22, ${ink ? 'S.ink != null ? rgb.map((v) => v * S.ink) : ' : ''}[0, 0, 0], false]);
   out.push(['core', S.edge === 'glow' ? 0.8 : 0.9, [1, 1, 1], S.edge === 'glow']);
   return out;
 }
@@ -81,13 +89,14 @@ function __bmLay(mesh, spine, mult) {
 }
 const __bmLive = {}, __bmDone = {};
 function __bmMake(M) {
-  const B = M.spec, base = __bmRgb(M.color != null ? M.color : B.color), I = { M, B, from: M.from, to: M.to, copies: [], extra: [], gather: [] };
+  const B = M.spec, base = __bmRgb(M.color != null ? M.color : B.color), I = { M, B, from: M.from, to: M.to, copies: [], extra: [], gather: [], rgb: base };
   I.len = __bmLength(B, Math.hypot(M.to[0] - M.from[0], M.to[1] - M.from[1], M.to[2] - M.from[2]));
   B.strands.forEach((S, si) => {
-    const rgb = S.color != null && M.color == null ? __bmRgb(S.color) : base, passes = __bmPasses(S, rgb);
+    const rgb0 = S.color != null && M.color == null ? __bmRgb(S.color) : base, rgb = ${hue ? 'S.hue ? __bmHue(rgb0, S.hue) : ' : ''}rgb0, passes = __bmPasses(S, rgb);
     for (let j = 0; j < S.count; j++) {
       const C = { S, j, rib: [], head: [], rgb };
-      passes.forEach(([kind, mult, col, add], pi) => { C.rib.push([__bmRibbon(kind, col, add, 20 + pi), mult]); C.head.push([__bmHead(kind, col, add, 24 + pi), mult]); });${sparks ? `
+      passes.forEach(([kind, mult, col, add], pi) => { C.rib.push([__bmRibbon(kind, col, add, 20 + pi), mult]); C.head.push([__bmHead(kind, col, add, 24 + pi), mult]); });${alpha ? `
+      if (S.alpha != null) for (const [o] of [...C.rib, ...C.head]) o.material.opacity *= S.alpha;` : ''}${sparks ? `
       if (B.sparks) C.sp = __bmSprMake(B.sparks, rgb, __bmGlyph);` : ''}
       I.copies.push(C);
     }
@@ -120,13 +129,18 @@ function __bmStep(I, age) {
   for (const C of I.copies) {
     const R = __bmStrand(C.S, A, T, age, C.j, __BM_N), on = R.spine.length > 1;
     for (const [m, mult] of C.rib) { m.visible = on; if (on) __bmLay(m, R.spine, mult); }
-    for (const [s, mult] of C.head) { s.visible = !!R.head; if (R.head) { s.position.fromArray(R.head.p); const z = R.head.r * mult * 2 * (s.material.map === __bmDisc ? 1 : 1.6); s.scale.set(z, z, 1); } }${sparks ? `
+    for (const [s, mult] of C.head) { s.visible = !!R.head; if (R.head) { s.position.fromArray(R.head.p); const z = R.head.r * mult * 2 * (s.material.map === __bmDisc ? 1 : 1.6); s.scale.set(z, z, 1); } }${stretch ? `
+    // squash and stretch: the head drawn long along its flight on screen, thinner across it
+    if (C.S.stretch && R.head) { if (C.last) { __bmP0.fromArray(C.last).project(camera); __bmP1.fromArray(R.head.p).project(camera); const dx = (__bmP1.x - __bmP0.x) * camera.aspect, dy = __bmP1.y - __bmP0.y; if (dx * dx + dy * dy > 1e-8) { const ang = Math.atan2(dy, dx); for (const [s] of C.head) { s.material.rotation = ang; s.scale.x *= 1 + C.S.stretch; s.scale.y /= 1 + 0.4 * C.S.stretch; } } } C.last = R.head.p.slice(); }` : ''}${fx ? `
+    if (R.head) __fxlPush(R.head.p, I.rgb, __FXLR.head * C.S.width * (C.S.head || 1.2), (__FXLR.reach * C.S.width) ** 2);
+    if (C.S.form === 'ray' && R.spine.length > 2) __fxlPush(R.spine[R.spine.length >> 1].p, I.rgb, __FXLR.body * C.S.width, (__FXLR.reach * 2 * C.S.width) ** 2);` : ''}${sparks ? `
     if (C.sp) __bmSprStep(C.sp, __bmSpray(B.sparks, R.head ? R.head.p : A, age + C.j * 0.37, true), 1, !!R.head);` : ''}
   }${charge ? `
   if (I.orb) {
     // swelling until the strands go, then gone as the first one leaves
     const c = B.charge, u = Math.min(1, age / c.time), go = Math.max(0, (age - c.time) / 0.25), k = (u * u * (3 - 2 * u)) * Math.max(0, 1 - go), fl = 1 + 0.08 * Math.sin(age * 40);
-    for (const [s, mult] of I.orb) { s.visible = k > 0.01; s.position.fromArray(A); const z = c.size * k * fl * mult * 2 * (s.material.map === __bmDisc ? 1 : 1.6); s.scale.set(z, z, 1); }
+    for (const [s, mult] of I.orb) { s.visible = k > 0.01; s.position.fromArray(A); const z = c.size * k * fl * mult * 2 * (s.material.map === __bmDisc ? 1 : 1.6); s.scale.set(z, z, 1); }${fx ? `
+    __fxlPush(A, I.rgb, __FXLR.charge * c.size * k * fl, (c.size * 2) ** 2);` : ''}
     const pts = __bmWave(I.W, [A[0], A[1], A[2] - 0.5 * (1 - u)], age);
     I.gather.forEach((s, i) => { const q = pts[i]; s.visible = age < c.time && q && q.w > 0.05; if (s.visible) { s.position.fromArray(q.p); s.scale.setScalar(0.18 * (0.4 + 0.6 * q.w)); s.material.opacity = q.w; } });
   }` : ''}${rings ? `
