@@ -18,6 +18,7 @@
 //   --acts          an ACTION STRIP: '[{}, {"jaw":0.6}, {"smile":1}]' — one row per set per pole (front, front ¾, ¾, lateral) and
 //                   what each moved from that pole's first row; no sections or table
 //   --crop face     frame the face (the chin to above the brow, cheek to cheek) instead of the whole head
+//   --crop ear      frame the right ear (read it in the front ¾, the ¾, the lateral and the rear ¾)
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
 //   --out           output dir (default /tmp/head-study-field): sheet.png, sheet.svg, measures.json.
@@ -133,7 +134,11 @@ for (const { sex, actions } of ROWS) {
   const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned, actions }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
   // the camera's frame: the head's bounds, or the face's (chin to above the brow, cheek to cheek, the face's depth)
   const L = head.landmarks;
-  const frame = crop === 'face' ? {
+  const ET = L.earTopR, TR = L.tragionR, eh = ET.z - TR.z;
+  const frame = crop === 'ear' ? {
+    min: { x: TR.x - 0.6 * eh, y: TR.y - 1.3 * eh, z: TR.z - 1.25 * eh },
+    max: { x: TR.x + 0.9 * eh, y: TR.y + 0.4 * eh, z: ET.z + 0.15 * eh },
+  } : crop === 'face' ? {
     min: { x: -(L.zygionR.x + 0.006), y: L.tragionR.y, z: L.menton.z - 0.004 },
     max: { x: L.zygionR.x + 0.006, y: L.noseTip.y + 0.004, z: L.glabella.z + 0.012 },
   } : head.bounds;

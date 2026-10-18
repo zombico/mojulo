@@ -30,7 +30,8 @@
  * height (vertex to menton), is 230 mm at the canonical stature (1 unit = 1.8 m). Pure, deterministic: no dice.
  */
 import { smin, smax, sdRoundCone } from './vajra.js';
-import { headMeasures } from './head-field-view.js';
+import { headMeasures, rayIn } from './head-field-view.js';
+import { EAR_OUTLINE, EAR_HINGE } from './head-ear.js';
 import { SM } from '../../util/math-scope.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
@@ -63,6 +64,13 @@ export const RELATIONS = Object.freeze({
   upperVermilion: 0.035, // the upper lip's red height / v-me
   lowerVermilion: 0.043, // the lower lip's / v-me (the lower lip the fuller)
   chin: 0,              // pg ahead of the nasion vertical / v-me (− a receding chin)
+  // ── the ear (its shape the operator's sketch, head-ear.js EAR_OUTLINE; its place and lean these relations)
+  earTop: 0.5,          // the ear's top between the eye line (0) and the glabella (1): at the brow
+  earBottom: 0,         // the lobule's bottom above the subnasale / v-me: level with the nose's base
+  earWidth: 1,          // the ear's width over its outline's own
+  earTilt: 0.65,        // the ear's long axis leans back by this share of the nose's dorsum (the ear parallels the bridge)
+  earProtrusion: 35,    // degrees the outer ear folds off the concha at the antihelix (the concha itself stands 15° off the head)
+  earlobe: 0,           // 0 a free lobule (tilted off the head, a gap behind it) … 1 attached (tilted into the cheek, fused)
   // ── masses (radii as shares of v-me)
   brow: 1,              // brow-ridge radius multiplier (the strongest sex cue)
   // ── the wave: the skin is the level set of the SUM of every mass's wave exp(−d/k); k is its wavelength (in V).
@@ -355,6 +363,11 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE COLUMELLA — the strip under the tip from the subnasale to the tip's underside, so the nose is closed beneath
   // (without it the air under the tip showed through from the side)
   v('columella', at(P.sn, { y: -0.004, z: 0.006 }), at(mid(P.sn, P.prn, 0.55), { y: -0.012, z: -0.008 }), at(P.prn, { y: -0.032, z: -0.012 }), [0.01, 0.011, 0.014], 'nose');
+  // THE SEPTUM — the midline wall filling the triangle between the mid-bridge, the subnasale and the tip, so the nose
+  // is solid between its nostrils (without it the air inside the nose showed through from the side)
+  { const tri = { x: 0, y: (P.rhinion.y + P.sn.y + P.prn.y) / 3 - 0.012, z: (P.rhinion.z + P.sn.z + P.prn.z) / 3 };
+    v('septumUp', at(P.rhinion, { y: -0.024 }), tri, at(P.sn, { y: -0.008, z: 0.01 }), [0.016, 0.02, 0.012], 'nose');
+    v('septumTip', tri, mid(tri, at(P.prn, { y: -0.03 })), at(P.prn, { y: -0.034, z: -0.006 }), [0.02, 0.018, 0.016], 'nose'); }
   // THE SIDEWALLS — from each wing up to the mid-bridge: angled cones, wide at the flare and narrowing as they rise,
   // so the nose is a pyramid (a ridge with two walls) and the wings read as wings where the walls meet them
   for (const s of ['L', 'R']) v(`noseWall${s}`, at(P[`al${s}`], { y: -0.024, z: 0.008 }), at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.012, y: -0.022 }), at(P.rhinion, { y: -0.022 }), [0.02, 0.015, 0.012], 'nose');
@@ -451,6 +464,155 @@ export function applyActions(vajras, P, acts) {
   });
 }
 
+/**
+ * THE EAR — a plate in the shape of the operator's sketch (head-ear.js `EAR_OUTLINE`: unit height, `u` forward, `v` up,
+ * about the bowl), in three pieces: the concha on the head, the outer ear folded off it at the antihelix
+ * (`earProtrusion`), the lobule free or attached (`earlobe`);
+ * its relief on the front face as vajras: the helix rim chained along the outline (the lobule fuller), the antihelix's
+ * Y (its stem from the antitragus, its two crura), the tragus and the antitragus; the concha carved into it, and the
+ * canal a blind dimple at its floor. Its place is relational: the top at the brow (`earTop`), the lobule level with the
+ * nose's base (`earBottom`), the long axis leaning back by a share of the nose's dorsum (`earTilt`), the hinge on the
+ * head's own skin, found by probing the field (`baseX`). Returns { f, carve, top, tragion } in V (`f` the ear's mass,
+ * `carve` its hollows) for side `s` ('L' | 'R').
+ */
+/** the ear's fold line (the antihelix, in the outline's `u`), the lobule's seam (in `v`), a free lobe's tilt (deg) */
+// a free lobule tilts off the head about its seam (+); an attached one tilts INTO it (−), so its front sinks into the
+// cheek and fuses there — no web, the tilt is the attachment
+// the attachment's weld (× height): how deep the concha's back and the lobule's front strip reach toward the head, so
+// they meet the skin where the head's side curves in below the ear canal
+const EAR_FOLD = -0.22, EAR_LOBE = -0.26, EAR_LOBE_FREE = 14, EAR_LOBE_ATTACHED = -16, EAR_CONCHA_TILT = 15, EAR_WELD = 0.14;
+export function earPart(P, rel, s, baseX) {
+  const R = { ...RELATIONS, ...rel };
+  const sg = s === 'L' ? -1 : 1;
+  const zEye = P[`eye${s}`].z, zSa = zEye + R.earTop * (P.g.z - zEye), zSba = P.sn.z + R.earBottom;
+  const lean = Math.atan2(P.prn.y - P.n.y, P.n.z - P.prn.z), t = R.earTilt * lean, ct = Math.cos(t), st = Math.sin(t);
+  const Hear = (zSa - zSba) / ct;                                   // the outline's unit height, along the leaning axis
+  // THE EAR'S THREE PIECES, each a flat frame, meeting along shared lines: the CONCHA lies on the head (the bowl's
+  // back is on the skin); the OUTER ear — the helix and the scapha behind the antihelix — folds off the head at the
+  // antihelix's line (`EAR_FOLD`) by `earProtrusion` (the fold is what sets how far an ear stands out); the LOBULE,
+  // below the bowl (`EAR_LOBE`), hangs tilted about its seam — off the head when free (`earlobe` 0), into the cheek
+  // when attached (`earlobe` 1), where it fuses.
+  const al = (R.earProtrusion * Math.PI) / 180, be = ((EAR_LOBE_FREE + (EAR_LOBE_ATTACHED - EAR_LOBE_FREE) * R.earlobe) * Math.PI) / 180;
+  const U = { x: 0, y: -st, z: ct };                                // up the ear, leaning back
+  const Bk = { x: 0, y: -ct, z: -st };                              // back along the head
+  const Xs = { x: sg, y: 0, z: 0 };                                 // off the head
+  const add3 = (p, q, k = 1) => ({ x: p.x + q.x * k, y: p.y + q.y * k, z: p.z + q.z * k });
+  const comb = (a, ka, b, kb) => ({ x: a.x * ka + b.x * kb, y: a.y * ka + b.y * kb, z: a.z * ka + b.z * kb });
+  const outward = (a, b) => { const n = { x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x }, l = Math.hypot(n.x, n.y, n.z) || 1, k = Math.sign(n.x) === sg ? 1 / l : -1 / l; return { x: n.x * k, y: n.y * k, z: n.z * k }; };
+  const H0 = { x: sg * baseX, y: P.porionR.y + 0.03, z: zSba + 0.481 * Hear * ct };  // the hinge at the bowl's height
+  const W = R.earWidth;
+  // a frame: its origin, the directions of +v and of +b (back, b = (EAR_HINGE − u)·W), its normal, and where (u, v)
+  // sit at the origin; points map linearly, so each piece inverts exactly
+  const frame = (O, Ev, Eb, u0, v0) => ({ O, Ev, Eb, N: outward(Ev, Eb), u0, v0 });
+  // the concha stands up off the head about the hinge (the cephaloconchal angle); the outer ear folds further at the
+  // antihelix; the lobule hangs from the concha's seam, tilted off it when free and into the head when attached
+  const ga = (EAR_CONCHA_TILT * Math.PI) / 180;
+  const Bcon = comb(Bk, Math.cos(ga), Xs, Math.sin(ga)), Bout = comb(Bk, Math.cos(ga + al), Xs, Math.sin(ga + al));
+  const Dlobe = comb(U, -Math.cos(be), outward(U, Bcon), Math.sin(be));
+  const conchaF = frame(H0, U, Bcon, EAR_HINGE, 0);
+  const FR = {
+    concha: conchaF,
+    outer: frame(add3(H0, Bcon, (EAR_HINGE - EAR_FOLD) * W * Hear), U, Bout, EAR_FOLD, 0),
+    lobule: frame(add3(H0, U, EAR_LOBE * Hear), { x: -Dlobe.x, y: -Dlobe.y, z: -Dlobe.z }, Bcon, EAR_HINGE, EAR_LOBE),
+  };
+  const pieceOf = (u, v) => (u < EAR_FOLD ? FR.outer : v < EAR_LOBE ? FR.lobule : FR.concha);
+  const mapIn = (F, u, v, n) => {
+    const b = (F.u0 - u) * W * Hear, a = (v - F.v0) * Hear, c = n * Hear;
+    return { x: F.O.x + F.Ev.x * a + F.Eb.x * b + F.N.x * c, y: F.O.y + F.Ev.y * a + F.Eb.y * b + F.N.y * c, z: F.O.z + F.Ev.z * a + F.Eb.z * b + F.N.z * c };
+  };
+  const map = (u, v, n = 0) => mapIn(pieceOf(u, v), u, v, n);
+  const localIn = (F, p) => {
+    const q = { x: p.x - F.O.x, y: p.y - F.O.y, z: p.z - F.O.z };
+    const a = q.x * F.Ev.x + q.y * F.Ev.y + q.z * F.Ev.z, b = q.x * F.Eb.x + q.y * F.Eb.y + q.z * F.Eb.z, c = q.x * F.N.x + q.y * F.N.y + q.z * F.N.z;
+    return { u: F.u0 - b / (W * Hear), v: F.v0 + a / Hear, n: c / Hear };
+  };
+  // the relief, as vajras in the ear's own units: [u, v, relief, radius] beads
+  // (each chain is ONE ridge: its segments meet by a plain min — a smooth union at every joint added material and
+  // beaded the rim; only whole ridges blend with the plate and with each other)
+  const chains = [];
+  const chain = (pts) => {
+    const bonds = [];
+    for (let i = 0; i + 2 < pts.length; i += 2) bonds.push(pts.slice(i, i + 3));
+    if ((pts.length - 1) % 2) bonds.push([pts[pts.length - 2], pts[pts.length - 2], pts[pts.length - 1]]);
+    chains.push(bonds);
+  };
+  // the helix rim along the outline (its closed run; the front where the bowl opens has none): the sketch's points
+  // smoothed (two rounds of corner cutting) so the rim is a curve and not a run of beads, rolled broad (~8 mm), and
+  // swelling smoothly into the lobule
+  let run = EAR_OUTLINE.filter((q) => q[2] !== 'open').map(([u, v]) => [u, v]);
+  for (let k = 0; k < 2; k++) {
+    const out = [run[0]];
+    for (let i = 0; i + 1 < run.length; i++) { const [a, b] = [run[i], run[i + 1]]; out.push([0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]], [0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]]); }
+    out.push(run[run.length - 1]); run = out;
+  }
+  const lobe = (v) => { const t = Math.max(0, Math.min(1, (-0.12 - v) / 0.26)); return t * t * (3 - 2 * t); };   // 0 above, 1 in the lobule
+  chain(run.map(([u, v]) => [u, v, 0.035 * (1 - lobe(v)), 0.06 + 0.045 * lobe(v) * (1 - 0.35 * R.earlobe)]));
+  // the helix's root (crus helicis): the rim's front end curling down and back into the bowl
+  chain([[run[0][0], run[0][1], 0.035, 0.06], [0.15, 0.12, 0.03, 0.05], [0.04, 0.06, 0.012, 0.035]]);
+  // the antihelix: the stem from the antitragus up to the fork, the superior crus up and back, the inferior forward
+  chain([[-0.12, -0.24, 0.02, 0.05], [-0.25, -0.04, 0.025, 0.05], [-0.2, 0.17, 0.025, 0.046]]);
+  chain([[-0.2, 0.17, 0.025, 0.042], [-0.27, 0.32, 0.02, 0.036], [-0.21, 0.42, 0.012, 0.03]]);
+  chain([[-0.2, 0.17, 0.025, 0.04], [-0.05, 0.25, 0.018, 0.034], [0.08, 0.3, 0.01, 0.028]]);
+  // the tragus before the bowl — RAISED, and carried down into the notch over the lobe, so the flap fills the gap where
+  // the ear meets the cheek; its root runs behind it into the head — and the antitragus below it
+  chain([[0.2, -0.26, 0.01, 0.06], [0.17, -0.11, 0.06, 0.07], [0.17, 0.04, 0.035, 0.045]]);
+  chain([[0.21, -0.24, -0.1, 0.06], [0.2, -0.11, -0.1, 0.06], [0.2, 0.02, -0.08, 0.045]]);
+  chain([[-0.02, -0.25, 0.02, 0.035], [-0.1, -0.22, 0.03, 0.045], [-0.15, -0.16, 0.02, 0.03]]);
+  const ridgesOf = () => chains.map((bonds) => bonds.map(([a, c, b]) => { const A = map(a[0], a[1], a[2]), C = map(c[0], c[1], c[2]), B = map(b[0], b[1], b[2]); return [A, C, B, a[3] * Hear, c[3] * Hear, b[3] * Hear]; }));
+  const ridges = ridgesOf();
+  // the plate: the outline's polygon, thick `PLATE` (× height) about its own plane
+  const poly = EAR_OUTLINE.map(([u, v]) => [u, v]), PLATE = 0.04;
+  const polyD = (u, v) => {   // signed distance to the outline in its plane (negative inside)
+    let d = Infinity, inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [x1, y1] = poly[j], [x2, y2] = poly[i], ex = x2 - x1, ey = y2 - y1, l2 = ex * ex + ey * ey;
+      const tt = Math.max(0, Math.min(1, ((u - x1) * ex + (v - y1) * ey) / l2));
+      d = Math.min(d, Math.hypot(u - x1 - ex * tt, v - y1 - ey * tt));
+      if ((y1 > v) !== (y2 > v) && u < x1 + ((v - y1) * ex) / ey) inside = !inside;
+    }
+    return inside ? -d : d;
+  };
+  const centre = map(-0.11, 0.02, 0), reach = 0.75 * Hear, k = 0.03 * Hear, SEAM = 0.015;
+  // (the concha's piece is filled behind down to the skin — the conchal eminence: the bowl's back is on the head, so
+  // its slab reaches back as far as the tilt has lifted it, plus a weld)
+  const PIECES = [
+    [FR.concha, (u, v, n) => Math.max(EAR_FOLD - SEAM - u, EAR_LOBE - SEAM - v, -n - ((EAR_HINGE - u) * W * Math.sin(ga) + EAR_WELD))],
+    [FR.outer, (u) => u - EAR_FOLD - SEAM],
+    [FR.lobule, (u, v) => Math.max(EAR_FOLD - SEAM - u, v - EAR_LOBE - SEAM)],
+  ];
+  const f = (p) => {
+    if (Math.hypot(p.x - centre.x, p.y - centre.y, p.z - centre.z) > reach) return Infinity;
+    // the plate, piece by piece: each the outline's polygon in its own frame, clipped to its region (a touch past
+    // its seams, so the pieces overlap and close)
+    let d = Infinity;
+    for (const [F, clip] of PIECES) {
+      const L = localIn(F, p);
+      // the concha's back is its clip's; the lobule's front strip is welded deep too (every lobe hangs from its top
+      // front, free or not), fading to the plate's own back by the middle of the lobe
+      // (down the lobe it fades too: a free lobe hangs from its top, and a weld behind its tilted body was a blade)
+      const weld = F === FR.lobule ? EAR_WELD * Math.max(0, Math.min(1, (L.u - 0.03) / 0.14)) * Math.max(0, Math.min(1, (L.v - EAR_LOBE + 0.1) / 0.1)) : 0;
+      const back = F === FR.concha ? -Infinity : -L.n * Hear - (PLATE + weld) * Hear;
+      const piece = Math.max(polyD(L.u, L.v) * Hear * Math.min(1, W), L.n * Hear - PLATE * Hear, back, clip(L.u, L.v, L.n) * Hear);
+      d = d === Infinity ? piece : smin(d, piece, 0.05 * Hear);
+    }
+    for (const segs of ridges) {
+      let r = Infinity;
+      for (const [A, C, B, ra, rc, rb] of segs) r = SM.min(r, sdRoundCone(p, A, C, ra, rc), sdRoundCone(p, C, B, rc, rb));
+      d = smin(d, r, k);
+    }
+    return d;
+  };
+  // the hollows: the concha (a bowl scooped from the front face down to the head) and the canal (a blind dimple)
+  // (the bowl's floor stays: the sphere stops short of the plate's back face — a concha is a bowl, not a hole)
+  const bowl = map(-0.03, -0.04, 0.22), bowlR = 0.2 * Hear, canal = map(0.1, -0.04, -0.12), canalR = 0.05 * Hear;
+  const carve = (p) => {
+    if (Math.hypot(p.x - centre.x, p.y - centre.y, p.z - centre.z) > reach) return Infinity;
+    return SM.min(Math.hypot(p.x - bowl.x, p.y - bowl.y, p.z - bowl.z) - bowlR, Math.hypot(p.x - canal.x, p.y - canal.y, p.z - canal.z) - canalR);
+  };
+  const top = map(-0.106, 0.519, 0.03), tragion = map(0.16, -0.06, 0);
+  return { f, carve, top: { ...top, z: top.z + 0.042 * Hear }, tragion, height: Hear };
+}
+
 /** the globe (V): 24 mm across, its sclera's front 2.5 mm behind the eye point, the cornea proud of it to the point */
 const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034 });
 /** the lid margins' rolls (V): how far above / below the opening's apexes they lie, and how proud of the globe */
@@ -459,7 +621,7 @@ const LID = Object.freeze({ up: 0.006, lo: 0.004, y: 0.006 });
 /** the blend width per group, in V (the bone melts broadly; the nose and the lips keep their lobes) */
 const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lips: 0.01 };
 /** how each soft feature joins the skin */
-const JOIN = { soft: 0.04, nose: 0.02, lips: 0.012 };
+const JOIN = { soft: 0.04, nose: 0.02, lips: 0.012, ear: 0.01 };
 /** the head's layers: the skull alone, or the skin over it */
 export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
 
@@ -560,7 +722,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const skin = layer !== 'skull';
   const kw = rel.skinWave * sc;
   const mouthF = mouth ? (() => { const a = S(mouth.a), c = S(mouth.c), b = S(mouth.b), [ra, rc, rb] = mouth.r.map((r) => r * sc); return (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)); })() : null;
-  const field = (p) => {
+  const skinField = (p) => {
     if (!skin) {
       let d = Infinity;
       for (const b of bonds) if (b.group === 'bone') { const e = b.f(p); d = d === Infinity ? e : smin(d, e, BLEND.bone * sc); }
@@ -595,14 +757,28 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     }
     return d;
   };
+  // THE EARS — hinged on the skin: probe the head's own surface along the hinge's line, then hang each ear on it
+  const ears = skin ? ['L', 'R'].map((s) => {
+    const sg = s === 'L' ? -1 : 1, probe = rayIn(skinField, { x: 0, y: (Pt.porionR.y + 0.03) * sc, z: Pt.porionR.z * sc }, [sg, 0, 0]);
+    const baseX = (probe ? Math.abs(probe.x) / sc : Pt.porionR.x) - 0.004;   // sunk a touch into the skin, so it welds
+    const e = earPart(Pt, rel, s, baseX);
+    return { f: (p) => e.f({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, carve: (p) => e.carve({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, top: S(e.top), tragion: S(e.tragion) };
+  }) : [];
+  const field = ears.length ? (p) => {
+    let d = skinField(p);
+    for (const e of ears) { const ef = e.f(p); if (ef !== Infinity) d = smin(d, ef, JOIN.ear * sc); }
+    for (const e of ears) { const c = e.carve(p); if (c !== Infinity) d = smax(d, -c, 0.004 * sc); }
+    return d;
+  } : skinField;
   // the names head-field-view's calipers read (figure-head.js's landmark names), from the core points
   const s = 0.9 * (sc / 0.1265);
   const W = Object.fromEntries(Object.entries(P).map(([k, p]) => [k, S(p)]));
   const landmarks = {
     ...W, H: sc, s,
     glabella: W.g, nasion: W.n, noseBridge: W.rhinion, subnasale: W.sn, noseTip: W.prn, stomion: W.sto, menton: W.me,
-    zygionR: W.zyR, gonionR: W.goR, alaR: W.alR, tragionR: { ...W.porionR, y: W.porionR.y - 0.01 * sc },
-    earTopR: { ...W.porionR, z: W.g.z }, eyeL: W.eyeL, eyeR: W.eyeR,
+    zygionR: W.zyR, gonionR: W.goR, alaR: W.alR,
+    tragionR: ears.length ? ears[1].tragion : { ...W.porionR, y: W.porionR.y - 0.01 * sc },
+    earTopR: ears.length ? ears[1].top : { ...W.porionR, z: W.g.z }, eyeL: W.eyeL, eyeR: W.eyeR,
   };
   const pad = 0.06 * sc;
   const bounds = {

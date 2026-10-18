@@ -50,6 +50,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   lane reports `through-holes` (`throughHoles`, lines straight across the head that meet no skin though skin closes
   round them): none at rest, smiling, or with the jaw open to its limit, on either pole. The philtrum is its columns
   alone (the carved groove read as a line). The al-al caliper reads the wing's knee when there is no groove.
+- **Ears.** The relational head wears ears in the shape of the operator's sketch (`head-ear.js` `EAR_OUTLINE`, now
+  exported): the helix rolled along the outline into the lobule and curling into its root, the antihelix's Y, the
+  tragus raised into the notch over the lobe, the concha's bowl and a blind canal. Their place is relational: the top
+  at the brow (`earTop`), the lobule level with the nose's base (`earBottom`), the long axis leaning back with the
+  nose's dorsum (`earTilt`), the hinge on the head's own skin, found by probing the field. The concha stands a little
+  off the head with its back welded to the skin, and the outer ear folds off it at the antihelix (`earProtrusion`).
+  `earlobe` sets the lobule from free (0, tilted off the head) to attached (1, tilted into the cheek, where it fuses).
+  `--crop ear` frames the right ear.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 
