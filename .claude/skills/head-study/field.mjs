@@ -20,6 +20,8 @@
 //   --eyes          the relational head's eyes: a word (neutral, wide, angry, sad, sleepy, happy, suspicious,
 //                   focused, closed) or '{"word":"angry","gazeYaw":15,"L":{"open":0.6}}' (head-relational-eye.js);
 //                   a row of --acts may carry its own `eyes`
+//   --epidermis     grow an epidermis cube on the relational head and draw its strands (epidermis/epidermis.js): a
+//                   preset ('default') or '{"hair":{"colour":"black","brows":{"shape":"arched"}}}'
 //   --crop eyes     frame both eyes (the brow's line to the cheek's top)
 //   --crop eye      frame the right eye close
 //   --crop face     frame the face (the chin to above the brow, cheek to cheek) instead of the whole head
@@ -40,10 +42,11 @@ const sharp = createRequire(path.join(REPO, 'control/package.json'))('sharp');
 const { headFieldOf, headFieldMesh, headSections, headMeasures, throughHoles } = await import(P('head-field-view.js'));
 const { HEAD_KNOB_NAMES } = await import(P('figure-head.js'));
 const { relationalHead, RELATION_NAMES, ACTION_NAMES } = await import(P('head-relational.js'));
+const { readEpidermis, growEpidermis } = await import(path.join(REPO, 'control/lib/graph/epidermis/epidermis.js'));
 const { DIMORPH } = await import(P('figure-rig.js'));
 
 const args = process.argv.slice(2);
-let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true, act = null, acts = null, crop = null, eyesSpec = null;
+let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true, act = null, acts = null, crop = null, eyesSpec = null, epiSpec = null;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -57,6 +60,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--layer') { layer = args[++i]; continue; }
   if (a === '--untuned') { tuned = false; continue; }
   if (a === '--crop') { crop = args[++i]; continue; }
+  if (a === '--epidermis') { const v = args[++i]; epiSpec = v.trim().startsWith('{') ? JSON.parse(v) : v; source = 'relational'; continue; }
   if (a === '--eyes') { const v = args[++i]; eyesSpec = v.trim().startsWith('{') ? JSON.parse(v) : v; source = 'relational'; continue; }
   if (a === '--act') { act = JSON.parse(args[++i]); source = 'relational'; continue; }
   if (a === '--acts') { acts = JSON.parse(args[++i]); source = 'relational'; continue; }
@@ -71,7 +75,7 @@ if (unknown.length) { console.error(`head-study --field: not a head knob: ${unkn
 const badRel = Object.keys(rel).filter((k) => !RELATION_NAMES.includes(k));
 if (badRel.length) { console.error(`head-study --field: not a relation: ${badRel.join(', ')} (have ${RELATION_NAMES.join(', ')})`); process.exit(1); }
 if (!['protoform', 'relational'].includes(source)) { console.error(`head-study --field: --source protoform | relational`); process.exit(1); }
-const badAct = [act, ...(acts || [])].filter(Boolean).flatMap((o) => Object.keys(o)).filter((k) => k !== 'eyes' && !ACTION_NAMES.includes(k));
+const badAct = [act, ...(acts || [])].filter(Boolean).flatMap((o) => Object.keys(o)).filter((k) => k !== 'eyes' && k !== 'epidermis' && !ACTION_NAMES.includes(k));
 const { eyeSpecErrors } = await import(P('head-relational-eye.js'));
 const badEyes = [eyesSpec, ...(acts || []).map((o) => o.eyes)].flatMap((e) => eyeSpecErrors(e ?? undefined));
 if (badEyes.length) { console.error(`head-study --field: ${badEyes.join('; ')}`); process.exit(1); }
@@ -108,10 +112,28 @@ function camera(az, elev, bounds) {
 function cropBounds(head) {
   const L = head.landmarks, P = head.points || {}, B = head.bounds;
   if (crop === 'eye' && P.enR) return { min: { x: P.enR.x - 0.008, y: P.eyeR.y - 0.03, z: P.eyeR.z - 0.016 }, max: { x: P.exR.x + 0.008, y: P.eyeR.y + 0.012, z: P.eyeR.z + 0.018 } };
-  if (crop === 'eyes' && P.exL) return { min: { x: P.exL.x - 0.01, y: B.min.y * 0.2 + L.tragionR.y * 0.8, z: P.eyeR.z - 0.03 }, max: { x: P.exR.x + 0.01, y: B.max.y, z: P.eyeR.z + 0.032 } };
+  if (crop === 'eyes' && P.exL) return { min: { x: P.exL.x - 0.01, y: B.min.y * 0.2 + L.tragionR.y * 0.8, z: P.eyeR.z - 0.03 }, max: { x: P.exR.x + 0.01, y: B.max.y, z: P.eyeR.z + 0.04 } };
   if (crop === 'ear') { const T = L.tragionR, E = L.earTopR, eh = E.z - T.z; return { min: { x: T.x - 0.9 * eh, y: T.y - 1.5 * eh, z: T.z - 1.4 * eh }, max: { x: B.max.x, y: T.y + 0.6 * eh, z: E.z + 0.3 * eh } }; }
   if (crop === 'face') return { min: { x: B.min.x, y: L.tragionR.y, z: B.min.z }, max: { x: B.max.x, y: B.max.y, z: L.glabella.z + 0.02 } };
   return B;
+}
+// the epidermis's strands: each segment a line one pixel wide, depth-tested against the surface (a hair just above the
+// skin shows; one behind the brow's ridge does not), its colour a little lit by the light it faces
+function drawStrands(img, zbuf, cam, strands, hex) {
+  const rgb = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)), TOL = 0.0004;
+  for (const st of strands) for (let k = 0; k + 1 < st.pts.length; k++) {
+    const A = cam.project(st.pts[k]), B = cam.project(st.pts[k + 1]);
+    const n = Math.max(1, Math.ceil(Math.hypot(B[0] - A[0], B[1] - A[1]) * 1.5));
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = Math.floor(A[0] + (B[0] - A[0]) * t), y = Math.floor(A[1] + (B[1] - A[1]) * t), d = A[2] + (B[2] - A[2]) * t;
+      if (x < 0 || y < 0 || x >= CW || y >= CH) continue;
+      const o = y * CW + x;
+      if (d < zbuf[o] - TOL) continue;
+      const a = 0.85 * (0.55 + 0.45 * (1 - k / (st.pts.length - 1)));   // the tip finer than the root
+      for (let c = 0; c < 3; c++) img[o * 4 + c] = img[o * 4 + c] * (1 - a) + rgb[c] * a;
+      img[o * 4 + 3] = 255;
+    }
+  }
 }
 // the painted parts (the eyes' globes); everything else is clay
 const PAINT = { sclera: [232, 228, 220], iris: [64, 104, 140], pupil: [18, 18, 20] };
@@ -153,7 +175,7 @@ let y0 = 0;
 const PANEL_H = 520, PROF_W = 760, CUT_W = 760;
 const ROWS = acts ? sexes.flatMap((sex) => acts.map((a) => ({ sex, actions: a }))) : sexes.map((sex) => ({ sex, actions: act }));
 for (const { sex, actions: row } of ROWS) {
-  const { eyes: rowEyes, ...actions } = row || {};
+  const { eyes: rowEyes, epidermis: rowEpi, ...actions } = row || {};
   const eyes = rowEyes ?? eyesSpec;
   const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned, actions, eyes }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
   // the camera's frame: the head's bounds, or the face's (chin to above the brow, cheek to cheek, the face's depth)
@@ -165,8 +187,8 @@ for (const { sex, actions: row } of ROWS) {
     min: { x: EN.x - 0.002, y: EY.y - 0.002, z: EY.z - 0.009 },
     max: { x: ER.x + 0.002, y: EY.y + 0.002, z: EY.z + 0.01 },
   } : crop === 'eyes' && EL ? {
-    min: { x: EL.x - 0.004, y: EY.y - 0.004, z: EY.z - 0.016 },
-    max: { x: ER.x + 0.004, y: EY.y + 0.004, z: EY.z + 0.016 },
+    min: { x: EL.x - 0.004, y: EY.y - 0.004, z: EY.z - 0.014 },
+    max: { x: ER.x + 0.004, y: EY.y + 0.004, z: EY.z + 0.022 },
   } : crop === 'ear' ? {
     min: { x: TR.x - 0.6 * eh, y: TR.y - 1.3 * eh, z: TR.z - 1.25 * eh },
     max: { x: TR.x + 0.9 * eh, y: TR.y + 0.4 * eh, z: ET.z + 0.15 * eh },
@@ -175,8 +197,11 @@ for (const { sex, actions: row } of ROWS) {
     max: { x: L.zygionR.x + 0.006, y: L.noseTip.y + 0.004, z: L.glabella.z + 0.012 },
   } : head.bounds;
   const holes = source === 'relational' ? throughHoles(head) : null;
+  const epiOf = rowEpi ?? epiSpec;
+  const epi = epiOf && head.relational ? growEpidermis(head, readEpidermis(epiOf)) : null;
   const eyeLabel = eyes ? ' · eyes ' + (typeof eyes === 'string' ? eyes : JSON.stringify(eyes).replace(/"/g, '')) : '';
-  const actLabel = (actions && Object.keys(actions).length ? ' · ' + Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ') : acts && !eyes ? ' · rest' : '') + eyeLabel;
+  const epiLabel = rowEpi ? ' · ' + (typeof rowEpi === 'string' ? rowEpi : JSON.stringify(rowEpi?.hair?.brows ?? rowEpi).replace(/"/g, '')) : '';
+  const actLabel = (actions && Object.keys(actions).length ? ' · ' + Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ') : acts && !eyes && !rowEpi ? ' · rest' : '') + eyeLabel + epiLabel;
   const t0 = Date.now();
   const faces = headFieldMesh(crop ? { ...head, bounds: cropBounds(head) } : head, { cells });
   if (head.paint) for (const f of faces) {
@@ -185,12 +210,13 @@ for (const { sex, actions: row } of ROWS) {
   }
   const meas = headMeasures(head);
   const secs = headSections(head);
-  report[sex + actLabel] = { source, throughHoles: holes ? holes.length : null, tuning: head.tuning ?? null, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
+  report[sex + actLabel] = { epidermis: epi ? epi.counts : null, source, throughHoles: holes ? holes.length : null, tuning: head.tuning ?? null, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
   console.log(`${sex}: ${faces.length} quads at ${cells} cells, ${Date.now() - t0} ms`);
 
   for (const [col, v] of VIEWS.entries()) {
     const cam = camera(v.az, v.elev, frame);
     const { img, zbuf } = rasterize(faces, cam);
+    if (epi) drawStrands(img, zbuf, cam, epi.strands, epi.colour);
     const png = await sharp(img, { raw: { width: CW, height: CH, channels: 4 } }).png().toBuffer();
     const x = col * CW;
     svgParts.push(`<rect x="${x}" y="${y0}" width="${CW}" height="${CH}" fill="${BG}"/>`);

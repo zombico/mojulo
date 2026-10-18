@@ -14,6 +14,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Epidermis cube: skin and hair as a recipe
+
+- **Brows.** An epidermis cube (`epidermis/epidermis.js`) is a character's surface as a small recipe, as the geocube
+  is a level's look: its first groom is the brows, grown as strands on the relational head by its relations (the
+  head over the inner canthus, the arch's peak over the outer edge of the iris, the tail on the line from the nose's
+  wing through the outer canthus), in three regions (the head's hairs up, the body's out and up, the tail's out and
+  down) with the herringbone along the spine, laid on the skin and riding the brow pad, so a raised or lowered brow
+  carries them. The field lane draws them (`--epidermis`).
+
 ### Relational head: the face as superposed vajras
 
 - **The head field, seen as it is.** `/head-study --field` meshes the protoform head's field with surface nets

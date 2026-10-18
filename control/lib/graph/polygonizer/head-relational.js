@@ -781,5 +781,8 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   } : null;
   // the eyes' gaze, and their vergence (the angle between the two lines of sight; 0 parallel, larger the nearer)
   const vergence = eyeRigs.length === 2 ? Math.round((Math.acos(Math.max(-1, Math.min(1, eyeRigs[0].gaze.x * eyeRigs[1].gaze.x + eyeRigs[0].gaze.y * eyeRigs[1].gaze.y + eyeRigs[0].gaze.z * eyeRigs[1].gaze.z))) * 1800) / Math.PI) / 10 : null;
-  return { field, paint, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels), vergence };
+  // (`relational` hands what grows on the head its relations in head heights: the tuned points, and the vajras at rest
+  // and as the actions moved them — the epidermis lays its hair by them)
+  const relational = { V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels) };
+  return { field, paint, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels), vergence, relational };
 }
