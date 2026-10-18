@@ -51,6 +51,17 @@ canonical stature (1 unit = 1.8 m), so read the indices for proportion. A readin
 feature to read (al-al: no alar-facial groove). `--proto` takes the head knobs only; `--cells 220` for a close read
 (~20 s for both poles at the default 160).
 
+The RELATIONAL head (`head-relational.js`) is a second source: `--source relational` (its skin), `--layer skull`,
+`--rel '{"cephalic":0.82}'` to replace a relation (`RELATIONS`), `--untuned` to see it before its wave is solved to
+meet its relations (the table prints each relation's target and Δ, and the solve). Its ACTIONS (`ACTIONS`: jaw,
+smile, browRaise, browLower, blink, a side alone with L / R): `--act '{"jaw":0.6}'` for one set, or an action strip,
+one row per set, with a column of the front view's depth against the first row's (red toward, blue away):
+
+```bash
+node .claude/skills/head-study/study.mjs --field male --no-marks \
+     --acts '[{}, {"jaw":0.7}, {"smile":1}, {"browRaise":1}, {"browLower":1}, {"blink":1}]'
+```
+
 Options (the march turntable):
 - `male` / `female` — which poles (default both).
 - `--proto '{"jawWidth":1.2}'` — extra `proto` dials merged over the pole (headScale, browRidge,

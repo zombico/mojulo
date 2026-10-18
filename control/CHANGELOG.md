@@ -27,6 +27,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   vajra's wave summed, the bones offset by the forensic soft-tissue depths and the muscles and fat pads at rest. The
   relations are on the skin; the wave's internal points are solved until the skin's calipers meet them, so each
   relation reads its own target (`--untuned` shows the head as authored).
+- **The face's actions.** The relational head takes `actions`: `jaw` (the mandible rotates about the condyles and
+  glides forward, and the mouth opens between the lips), `smile` (zygomaticus major draws the corners toward the
+  cheekbones and lifts the cheeks), `browRaise`, `browLower`, `blink`, and a side alone (`smileL`, `blinkR`). Each
+  drives named beads of the vajra graph; their displacements add, so actions compose. `--acts` renders an action strip
+  with what each moved from rest.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

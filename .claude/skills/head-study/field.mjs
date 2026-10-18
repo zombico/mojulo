@@ -14,6 +14,9 @@
 //   --no-marks      the surface alone, no landmark or caliper overlay.
 //   --source        protoform (default: figure-head.js) | relational (head-relational.js: vajras placed by relations)
 //   --layer         skin (default) | skull — the relational head's layers
+//   --act           the relational head's actions: '{"jaw":0.6,"smile":1}' (head-relational.js ACTIONS)
+//   --acts          an ACTION STRIP: '[{}, {"jaw":0.6}, {"smile":1}]' — one row per set (front, front ¾, lateral, ¾),
+//                   no sections or table, for comparing expressions on one head
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
 //   --out           output dir (default /tmp/head-study-field): sheet.png, sheet.svg, measures.json.
@@ -29,11 +32,11 @@ const P = (f) => path.join(REPO, 'control/lib/graph/polygonizer', f);
 const sharp = createRequire(path.join(REPO, 'control/package.json'))('sharp');
 const { headFieldOf, headFieldMesh, headSections, headMeasures } = await import(P('head-field-view.js'));
 const { HEAD_KNOB_NAMES } = await import(P('figure-head.js'));
-const { relationalHead, RELATION_NAMES } = await import(P('head-relational.js'));
+const { relationalHead, RELATION_NAMES, ACTION_NAMES } = await import(P('head-relational.js'));
 const { DIMORPH } = await import(P('figure-rig.js'));
 
 const args = process.argv.slice(2);
-let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true;
+let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true, act = null, acts = null;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -46,6 +49,8 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--rel') { rel = JSON.parse(args[++i]); continue; }
   if (a === '--layer') { layer = args[++i]; continue; }
   if (a === '--untuned') { tuned = false; continue; }
+  if (a === '--act') { act = JSON.parse(args[++i]); source = 'relational'; continue; }
+  if (a === '--acts') { acts = JSON.parse(args[++i]); source = 'relational'; continue; }
   if (a === '--field') continue;
   if (a === 'male' || a === 'female') { sexes.push(a); continue; }
   console.error(`head-study --field: unknown argument "${a}"`);
@@ -57,13 +62,16 @@ if (unknown.length) { console.error(`head-study --field: not a head knob: ${unkn
 const badRel = Object.keys(rel).filter((k) => !RELATION_NAMES.includes(k));
 if (badRel.length) { console.error(`head-study --field: not a relation: ${badRel.join(', ')} (have ${RELATION_NAMES.join(', ')})`); process.exit(1); }
 if (!['protoform', 'relational'].includes(source)) { console.error(`head-study --field: --source protoform | relational`); process.exit(1); }
+const badAct = [act, ...(acts || [])].filter(Boolean).flatMap((o) => Object.keys(o)).filter((k) => !ACTION_NAMES.includes(k));
+if (badAct.length) { console.error(`head-study --field: not an action: ${badAct.join(', ')} (have ${ACTION_NAMES.join(', ')})`); process.exit(1); }
 mkdirSync(out, { recursive: true });
 
 // az 0 = face-on (camera on +y), + turns the camera toward the figure's right; elev degrees
-const VIEWS = [
+const ALL_VIEWS = [
   { name: 'front', az: 0, elev: 4 }, { name: 'front ¾', az: 30, elev: 8 }, { name: '¾', az: 50, elev: 10 },
   { name: 'lateral', az: 90, elev: 2 }, { name: 'rear ¾', az: 140, elev: 10 }, { name: 'under', az: 15, elev: -45 },
 ];
+const VIEWS = acts ? ALL_VIEWS.filter((v) => ['front', 'front ¾', 'lateral', '¾'].includes(v.name)) : ALL_VIEWS;
 const CW = 380, CH = 440;
 const CLAY = [196, 184, 170], BG = '#e9e7e3';
 
@@ -114,16 +122,19 @@ function rasterize(faces, cam) {
 const LANDMARK_SKIP = new Set(['H', 's', 'earC', 'centre', 'cranium']);
 const seen = new Set();
 const svgParts = [];
+let restZ = null;
 const report = {};
 let y0 = 0;
 const PANEL_H = 520, PROF_W = 760, CUT_W = 760;
-for (const sex of sexes) {
-  const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
+const ROWS = acts ? sexes.flatMap((sex) => acts.map((a) => ({ sex, actions: a }))) : sexes.map((sex) => ({ sex, actions: act }));
+for (const { sex, actions } of ROWS) {
+  const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned, actions }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
+  const actLabel = actions && Object.keys(actions).length ? ' · ' + Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ') : acts ? ' · rest' : '';
   const t0 = Date.now();
   const faces = headFieldMesh(head, { cells });
   const meas = headMeasures(head);
   const secs = headSections(head);
-  report[sex] = { source, tuning: head.tuning ?? null, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
+  report[sex + actLabel] = { source, tuning: head.tuning ?? null, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
   console.log(`${sex}: ${faces.length} quads at ${cells} cells, ${Date.now() - t0} ms`);
 
   for (const [col, v] of VIEWS.entries()) {
@@ -145,9 +156,30 @@ for (const sex of sexes) {
         const q = vis(p); if (q) svgParts.push(`<circle cx="${x + q[0]}" cy="${y0 + q[1]}" r="3.4" fill="none" stroke="#c0392b" stroke-width="1.6"/>`);
       }
     }
-    svgParts.push(`<text x="${x + 10}" y="${y0 + CH - 12}" font-family="monospace" font-size="15" fill="#555">${sex} · ${source}${source === 'relational' ? ` ${layer}` : ''} · ${v.name}</text>`);
+    svgParts.push(`<text x="${x + 10}" y="${y0 + CH - 12}" font-family="monospace" font-size="15" fill="#555">${sex} · ${source}${source === 'relational' ? ` ${layer}` : ''}${actLabel} · ${v.name}</text>`);
   }
 
+  if (acts) {
+    // the Δ column: the front view's depth against the first row's (the rest), red = the skin came toward the
+    // camera, blue = it went back, full colour at 6 mm; grey where only one of the two has skin
+    const cam = camera(0, 4, head.bounds);
+    const { zbuf } = rasterize(faces, cam);
+    if (!restZ) restZ = zbuf;
+    const img = Buffer.alloc(CW * CH * 4, 0), FULL = 6 / 1000 / 1.8;   // 6 mm in STAND units
+    for (let o = 0; o < CW * CH; o++) {
+      const a = restZ[o], b = zbuf[o];
+      if (a === -Infinity && b === -Infinity) continue;
+      let c;
+      if (a === -Infinity || b === -Infinity) c = [150, 150, 150];
+      else { const t = Math.max(-1, Math.min(1, (b - a) / FULL)); c = t >= 0 ? [235, 235 - 200 * t, 235 - 200 * t] : [235 + 200 * t, 235 + 200 * t, 235]; }
+      img[o * 4] = c[0]; img[o * 4 + 1] = c[1]; img[o * 4 + 2] = c[2]; img[o * 4 + 3] = 255;
+    }
+    const png = await sharp(img, { raw: { width: CW, height: CH, channels: 4 } }).png().toBuffer();
+    const x = VIEWS.length * CW;
+    svgParts.push(`<rect x="${x}" y="${y0}" width="${CW}" height="${CH}" fill="#fff"/><image x="${x}" y="${y0}" width="${CW}" height="${CH}" href="data:image/png;base64,${png.toString('base64')}"/>`);
+    svgParts.push(`<text x="${x + 10}" y="${y0 + CH - 12}" font-family="monospace" font-size="15" fill="#555">moved from rest (red toward, blue away, 6 mm)</text>`);
+    y0 += CH; continue;
+  }
   // second row: the profile (face to the right), the transverse cuts from above (face up), the table
   const B = head.bounds, py0 = y0 + CH, pad = 34;
   svgParts.push(`<rect x="0" y="${py0}" width="${PROF_W + CUT_W}" height="${PANEL_H}" fill="#fbfaf8"/>`);
@@ -182,7 +214,7 @@ for (const sex of sexes) {
   rows.forEach((t, i) => svgParts.push(`<text x="${tx + 16}" y="${py0 + 30 + i * 20}" font-family="monospace" font-size="${i ? 15 : 16}" fill="#333">${t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`));
   y0 += CH + PANEL_H;
 }
-const W = VIEWS.length * CW;
+const W = (VIEWS.length + (acts ? 1 : 0)) * CW;
 writeFileSync(path.join(out, 'sheet.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${y0}" width="${W}" height="${y0}">${svgParts.join('\n')}</svg>`);
 writeFileSync(path.join(out, 'measures.json'), JSON.stringify(report, null, 2) + '\n');
 const r = spawnSync('node', [path.join(REPO, '.claude/skills/view-svg/rasterize.mjs'), path.join(out, 'sheet.svg'), '--out', out, '--max', '2400'], { cwd: REPO, encoding: 'utf8' });
