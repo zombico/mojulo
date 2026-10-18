@@ -62,6 +62,11 @@ export const RELATIONS = Object.freeze({
   nostrilSet: 0.035,    // the alare ahead of sn / v-me
   noseFat: 0.035,       // the nose's flesh: the radius of its cone at the base, over the wings / v-me
   philtrumVolume: 0.026, // the philtrum's fullness: the radius of its body down to the bow (the columns grow with it) / v-me
+  jowl: 0.012,          // the cheek's fold at its foot, the jowl: its roll's radius / v-me (smaller is flatter)
+  foldReach: 0.05,      // how far below the mouth's corner the fold runs / v-me (~11 mm, to the lower lip's edge; ~0.12
+                        // carries it on past below the lip toward the jaw's line)
+  lipFullness: 1.25,    // the vermilion's volume: its beads' radii about their fixed centres (the corners stay fine), so
+                        // fuller lips stand further forward and grow taller and rounder (1 = the bare canon's beads)
   // ── the eye and the mouth
   fissure: 0.045,       // the palpebral fissure's height / v-me (the eye's opening, ~10 mm)
   canthalTilt: 0.008,   // the lateral canthus above the medial / v-me
@@ -84,7 +89,7 @@ export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios the female canon moves (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
   male: Object.freeze({}),
-  female: Object.freeze({ jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
+  female: Object.freeze({ lipFullness: 1.3, jawOpen: 0.16, nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
 });
 
 /**
@@ -366,8 +371,9 @@ export function coreVajras(P, rel = RELATIONS) {
     // THE CHEEK'S FOLD — the nasolabial fold's cheek side, on into the jowl: a thin roll from below and outside the
     // wing (it begins at the alar crease, not on the wing), past the mouth's corner (outside it, clear of the
     // modiolus), down to the jowl over the jaw's line. Summed with the cheek, it is the edge where the cheek's fat stops
-    // against the lip; its middle rides the cheek's bulge (a smile deepens the fold), its foot the jaw
-    soft(`fold${s}`, at(P[`al${s}`], { x: Math.sign(ch.x) * 0.02, y: -0.04, z: -0.024 }), { x: ch.x + Math.sign(ch.x) * 0.04, y: ch.y - 0.026, z: ch.z + 0.006 }, { x: ch.x + Math.sign(ch.x) * 0.012, y: ch.y - 0.03, z: ch.z - 0.085 }, [0.01, 0.012, 0.016], [null, [`bulge${s}`], J]);
+    // against the lip; its middle rides the cheek's bulge (a smile deepens the fold), its foot the jaw. Its foot is the
+    // jowl (`jowl`, its radius) and runs `foldReach` below the corner
+    soft(`fold${s}`, at(P[`al${s}`], { x: Math.sign(ch.x) * 0.02, y: -0.04, z: -0.024 }), { x: ch.x + Math.sign(ch.x) * 0.04, y: ch.y - 0.026, z: ch.z + 0.006 }, { x: ch.x + Math.sign(ch.x) * 0.012, y: ch.y - 0.03, z: ch.z - R.foldReach }, [0.01, 0.012, R.jowl], [null, [`bulge${s}`], J]);
     V.push({ name: `zygomaticus${s}`, a: inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), c: at(mid(malar, ch, 0.5), { y: -0.025 }), b: at(md, { y: -0.02 }), r: [0.018, 0.016, 0.014], group: 'soft', muscle: true, balloon: true, drive: [null, [`zyg${s}`], corner] });
     // the lids: corner → over the globe → corner, upper and lower
     // the lid margins: rolls along the opening's arcs, lying on the globe (canthus → apex → canthus); their centre
@@ -394,17 +400,21 @@ export function coreVajras(P, rel = RELATIONS) {
   // (its fullness is `philtrumVolume`: the lower two beads' radii about their fixed centres, so a fuller philtrum stands
   // further forward, most toward the bow, where the columns are most prominent)
   const pv = R.philtrumVolume, pk = pv / 0.022;
+  // a lip body that TAPERS: its centre bead at the midpoint of its ends, its radius between theirs — a round cone with
+  // no waist and no hump, so the lip falls off evenly from the philtrum to the corner (a centre bead off the line, or
+  // fuller than the line, stood a terrace on the lip that the light read as a lump)
+  const taper = (name, a, b, ra, rb, drive) => v(name, a, mid(a, b), b, [ra, (ra + rb) / 2, rb], 'lipBody', drive);
   v('philtrumBody', { x: 0, y: P.sn.y - 0.024, z: P.sn.z - 0.016 }, philMid, { x: 0, y: P.ls.y - 0.024, z: P.ls.z + 0.012 }, [0.016, pv, 0.02 * pk], 'lipBody');
   // THE SILLS — under each wing the lip's top edge: from the philtrum's top, under the lobule, out to the wing's base
   // where the fold begins. Its top tucks under the nostril, so the wing sits ON the lip in a crease (without it the
   // lip's top fell 8 mm back under each wing, a slot you could see into from the side)
   for (const s of ['L', 'R']) {
     const al = P[`al${s}`], sg = Math.sign(al.x);
-    v(`sill${s}`, { x: sg * 0.006, y: P.sn.y - 0.026, z: P.sn.z - 0.016 }, { x: al.x - sg * 0.018, y: P.sn.y - 0.01, z: al.z - 0.03 }, { x: al.x + sg * 0.008, y: al.y - 0.044, z: al.z - 0.026 }, [0.012, 0.012, 0.01], 'lipBody');
+    taper(`sill${s}`, { x: sg * 0.006, y: P.sn.y - 0.026, z: P.sn.z - 0.016 }, { x: al.x + sg * 0.008, y: al.y - 0.044, z: al.z - 0.026 }, 0.013, 0.01);
   }
   for (const s of ['L', 'R']) {
     const sg = Math.sign(P[`ch${s}`].x), ch = P[`ch${s}`];
-    v(`upperLipPlate${s}`, { ...philMid, x: sg * 0.014, y: philMid.y - 0.004 }, { x: sg * 0.06, y: P.sn.y - 0.01, z: philMid.z - 0.008 }, { x: ch.x - sg * 0.022, y: ch.y - 0.022, z: ch.z + 0.012 }, [0.016, 0.015, 0.009], 'lipBody', [null, [`bow${s}`], [`corner${s}`]]);
+    taper(`upperLipPlate${s}`, { ...philMid, x: sg * 0.014, y: philMid.y - 0.004 }, { x: ch.x - sg * 0.022, y: ch.y - 0.022, z: ch.z + 0.012 }, 0.02, 0.011, [null, [`bow${s}`], [`corner${s}`]]);
   }
   // THE LOWER LIP'S BODY — orbicularis oris below the mouth, behind and below the lower vermilion: corner → under the
   // lip's fullest → the centre above the mentolabial fold, each side; it rides the jaw as the lower lip does, so the
@@ -459,10 +469,10 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE LIPS — corner → the lip's centre → corner, upper and lower
   // (each lip is two vajras, corner → its lateral bead → the centre: the upper through the cupid's bow peak to the
   // tubercle, the lower through its fullest to its centre; the centre beads are shared, so the halves meet there)
-  const upC = at(P.ls, { y: -0.024, z: -0.002 }), loC = at(P.li, { y: -0.028 });
+  const upC = at(P.ls, { y: -0.024, z: -0.002 }), loC = at(P.li, { y: -0.028 }), F = R.lipFullness;
   for (const s of ['L', 'R']) {
-    v(`upperLip${s}`, at(P[`ch${s}`], { y: -0.014 }), at(P[`bow${s}`], { y: -0.016, z: -0.008 }), upC, [0.006, 0.016, 0.022], 'lips', [[`corner${s}`], [`bow${s}`], null]);
-    v(`lowerLip${s}`, at(P[`ch${s}`], { y: -0.014, z: -0.002 }), at(P[`loMid${s}`], { y: -0.02 }), loC, [0.006, 0.02, 0.026], 'lips', [[`corner${s}`], [`loMid${s}`], J]);
+    v(`upperLip${s}`, at(P[`ch${s}`], { y: -0.014 }), at(P[`bow${s}`], { y: -0.016, z: -0.008 }), upC, [0.006, 0.016 * F, 0.022 * F], 'lips', [[`corner${s}`], [`bow${s}`], null]);
+    v(`lowerLip${s}`, at(P[`ch${s}`], { y: -0.014, z: -0.002 }), at(P[`loMid${s}`], { y: -0.02 }), loC, [0.006, 0.02 * F, 0.026 * F], 'lips', [[`corner${s}`], [`loMid${s}`], J]);
     // the philtral columns: two ridges from the nose's base down to the bow's peaks
     v(`philtrum${s}`, at(P.sn, { x: (s === 'L' ? -1 : 1) * 0.012, y: -0.006, z: -0.012 }), at(mid(P.sn, P[`bow${s}`]), { x: (s === 'L' ? -1 : 1) * 0.004, y: -0.006 }), at(P[`bow${s}`], { y: -0.008 }), [0.005, 0.005 * pk, 0.006 * pk], 'lips', [null, null, [`bow${s}`]]);
   }
@@ -476,7 +486,8 @@ export function coreVajras(P, rel = RELATIONS) {
     const sg = Math.sign(P[`al${s}`].x), lb = lobule[s];
     cut(`alarCrease${s}`, at(lb, { x: sg * 0.022, y: -0.006, z: 0.012 }), at(lb, { x: sg * 0.016, y: -0.016, z: -0.004 }), at(lb, { x: sg * 0.004, y: -0.022, z: -0.018 }), [0.003, 0.004, 0.003]);
   }
-  cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 }, at(P.chR, { y: 0.002 }), [0.003, 0.005, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);
+  // (the line parts the lips as far forward as their fullness carries them, and as deep)
+  cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);
   cut('mentolabial', at(P.loMidL, { x: -0.02, y: -0.03, z: -0.035 }), { x: 0, y: P.pg.y - 0.008, z: (P.li.z + P.pg.z) / 2 + 0.006 }, at(P.loMidR, { x: 0.02, y: -0.03, z: -0.035 }), [0.006, 0.01, 0.006], [J, J, J]);
   return V;
 }

@@ -82,8 +82,15 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the vermilion. An alar crease is carved round the back and the bottom of each wing, where it meets the cheek and the
   lip, and the fold begins there; under each wing a sill (the lip's top edge, from the philtrum out to the wing's base)
   tucks under the nostril, so the wing sits on the lip in a crease, not over a slot. `philtrumVolume` is the
-  philtrum's fullness: its body's radius down to the bow, the columns growing with it. The al-al caliper takes a groove
-  the wing runs straight down into, near its edge, as the alar-facial groove even with no crest before it.
+  philtrum's fullness: its body's radius down to the bow, the columns growing with it. The upper lip's plates and sills
+  taper (each centre bead on the line between its ends, its radius between theirs), so the lip falls off evenly from
+  the philtrum to the corner with no terrace for the light to read as a lump. The al-al caliper takes a groove the wing
+  runs straight down into, near its edge, as the alar-facial groove even with no crest before it.
+- **Lip fullness and the jowl.** `lipFullness` is the vermilion's volume: its beads' radii about their fixed centres
+  (the corners stay fine), so fuller lips stand further forward and grow taller and rounder; 1.25 by default, 1.3 on
+  the female pole, and the lip line parts them as far forward and as deep as their fullness carries them. The cheek's
+  fold ends in the jowl: `jowl` is its roll's radius at the foot (0.012, flatter than before) and `foldReach` how far
+  below the mouth's corner it runs (0.05, to the lower lip's edge; ~0.12 carries it past below the lip toward the jaw).
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 
