@@ -11,6 +11,7 @@
  *   busRows()           bus-abi.js BUS_ABI's facts and effects
  *   systemKinds()       power.systems' kinds and the place pad
  *   linkKinds()         era/floormap.js LINK_KINDS
+ *   pageEventKeys()     every `events.<key>` the World page's events channel reads (scene/channels/events.js)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -50,3 +51,8 @@ export function ledgerKeys() {
 export const busRows = () => ({ facts: Object.keys(BUS_ABI.facts), effects: Object.keys(BUS_ABI.effects) });
 export const systemKinds = () => [...Object.keys(SYSTEM_KINDS), 'place'];
 export const linkKinds = () => [...LINK_KINDS];
+
+export function pageEventKeys() {
+  const src = SRC('lib/graph/scene/channels/events.js');
+  return [...new Set([...src.matchAll(/\bevents0?\.([A-Za-z_$][\w$]*)/g)].map((x) => x[1]))];
+}

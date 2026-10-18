@@ -6,7 +6,7 @@ import { describe, it, expect } from 'vitest';
 import { existsSync } from 'node:fs';
 import { MARKS, worstMark, CAMERA_RULE, PAGE_OPTIONS, LEDGER_INFO, SHELL_INFO, figureOverlays } from './marks.js';
 import { ENGINES, MARKED_ENGINES, DEFAULT_ENGINE, ENGINE_OUT_DIRS, engineOf, marksOf, marksAcross } from './registry.js';
-import { pageInputs, controllableRules, platformRuleKeys, ledgerKeys, busRows, systemKinds, linkKinds } from './mark-sources.js';
+import { pageInputs, controllableRules, platformRuleKeys, ledgerKeys, busRows, systemKinds, linkKinds, pageEventKeys } from './mark-sources.js';
 import { mechanicMarks, kitMark, carriedMechanics, carriedRules, assessPortability } from '../engine-portability.js';
 import { busCoverage } from '../bus-abi.js';
 import { extractEngineScore, engineReading } from '../engine-score.js';
@@ -65,6 +65,8 @@ describe.each(MARKED_ENGINES)('%s marks: the same tables over the same closed ke
     for (const rule of Object.values(CAMERA_RULE)) expect(marked(M.RULE_MARKS[rule]), rule).toBe(true);
     expect(sorted(Object.keys(M.FIGURE_MARKS))).toEqual(['beams', 'juice', 'live', 'trails']);
     expect(sorted(Object.keys(M.EVENT_MARKS))).toEqual(sorted(Object.keys(marksOf(DEFAULT_ENGINE).EVENT_MARKS)));
+    // every events key the page reads is marked (the table also marks the bus's own keys, which the reducer reads)
+    expect(pageEventKeys().filter((k) => !M.EVENT_MARKS[k]).sort()).toEqual([]);
     expect(sorted(Object.keys(M.SYSTEM_MARKS))).toEqual(sorted(systemKinds()));
     expect(sorted(Object.keys(M.LINK_MARKS))).toEqual(sorted(linkKinds()));
     for (const t of [M.RULE_MARKS, M.FIGURE_MARKS, M.EVENT_MARKS, M.SYSTEM_MARKS, M.LINK_MARKS]) expect(keyed(t)).toBe(true);

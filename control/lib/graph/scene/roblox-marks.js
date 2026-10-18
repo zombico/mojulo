@@ -133,7 +133,7 @@ export const EVENT_MARKS = Object.freeze({
   cast: m(B, 'bus.json cast rows (kernel/cast.luau), held equal by the combat, mind and levelcast corpora; MojuloServer draws each body as a box'),
   scenes: m(P, 'bus.json scenes (kernel/scenes.luau, the page\'s runner ported): the beats, the line and the choices as words in a box (MojuloClient; Space, Enter or E goes on, Esc skips, the arrows and 1-4 choose); the bars and the shots are not drawn (the camera is Roblox\'s)'),
   quests: m(P, 'bus.json quests (kernel/quests.luau): a word as one begins, moves on, ends (MojuloServer); there is no journal to open'),
-  ...absent(['style', 'register', 'menus', 'looks', 'fxLight', 'fxStyle', 'minigames']),
+  ...absent(['style', 'register', 'menus', 'looks', 'fxLight', 'fxStyle', 'minigames', 'rpg']),
 });
 
 // ── a figure's gaits, power.systems, space.traversal, space.links, the mind ─────────────────────────────────────────

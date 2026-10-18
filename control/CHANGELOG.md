@@ -192,6 +192,14 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   a ranged hit (a round or its splash) so the bus can take it from an hp of its own; `cast.gd` and `cast.luau` dropped
   them. The combat corpus's snapshot now prints them (every ranged scenario carries them), and both kernels are equal
   again.
+- **Every events key the page reads is marked, on both engines.** The marks ratchet reads the keys the World page's
+  events channel takes (`mark-sources.js` `pageEventKeys`) and holds each engine's `EVENT_MARKS` to them, as it holds
+  `PAGE_MARKS` to the page's inputs. The party's battles (`rpg`), the effect light and style floor (`fxLight`,
+  `fxStyle`) and the minigames (`minigames`) are marked absent in Godot and Roblox, so an export says why each stays
+  the page's. What 3.1.1 added is marked too: `versus` absent in both; `vertexContrast` approximated in Godot (shaped
+  into the GLB, no Godot leg plays a geocube world yet), absent in Roblox; turn-based combat, now the party's rounds,
+  approximated in Godot (the one-on-one battle travels); and the `party` mechanic, whose slice the web's `play.rpg`
+  loads and writes, absent in both.
 
 ### Godot plays what the web plays
 
