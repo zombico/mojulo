@@ -19,10 +19,10 @@
  *
  * Pure. `readMinigameBook(v)` the concern read (throws, teaching); `minigamesOfWords(text)` what a prompt asks for;
  * `minigamePlan(G, stages)` the games each stage keeps; `minigameCast(G, stage, ends, { ref, games, bag })` what a stage
- * stands and plays; `mergeExtras(a, b)` two stage extras as one.
+ * stands and plays (its keepers stood as stage-figures.js stands every figure).
  */
 import { MINIGAMES, MINIGAME_IDS, readMinigames } from '../playscape/ui/minigames.js';
-import { playerStates } from '../playscape/player.js';
+import { libraryFigure, stand } from './stage-figures.js';
 
 export const MINIGAME_KEEPER = Object.freeze({ cast: 'female', palette: { Top: '#2f6b55' } });
 const KEEPER_LINE = Object.freeze({ fishing: 'Care to cast a line?', blocks: 'One round on the cabinet?', match: 'Fancy a round of match?' });
@@ -143,23 +143,11 @@ export function minigameCast(G, stage, ends, { ref, games = [], bag = true } = {
     const p = stallAt(ends, j);
     if (!p) return;
     const id = `keeper-${g.id}`;
-    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-    entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.face } });
+    stand({ figures, entities }, id, libraryFigure(ref), p.at, p.face);
     const { where, ...own } = g;
     minigames.push({ ...own, at: { at: [p.at[0], p.at[1]], r: 2 }, purse: 'held:bag:gold' });
     cues.push({ id: `keeper-${g.id}-hello`, when: { near: { at: [p.at[0], p.at[1]], r: 3 } }, once: true, then: { say: KEEPER_LINE[g.game] ?? `${MINIGAMES[g.game].name}?`, as: 'toast' } });
   });
   if (!minigames.length) return null;
   return { figures, entities, play: { minigames, cues }, mechanics: bag ? [{ kind: 'bag', slice: 'bag' }] : [] };
-}
-
-/** Two stage extras as one: their figures, entities, plays (lists joined) and mechanics (each kind once). */
-export function mergeExtras(a, b) {
-  if (!a) return b;
-  if (!b) return a;
-  const play = { ...(a.play ?? {}), ...(b.play ?? {}) };
-  for (const k of ['cues', 'minigames', 'spots', 'menus']) if (a.play?.[k] && b.play?.[k]) play[k] = [...a.play[k], ...b.play[k]];
-  const mechanics = [...(a.mechanics ?? [])];
-  for (const m of b.mechanics ?? []) if (!mechanics.some((x) => x.kind === m.kind && x.slice === m.slice)) mechanics.push(m);
-  return { ...a, ...b, figures: { ...(a.figures ?? {}), ...(b.figures ?? {}) }, entities: [...(a.entities ?? []), ...(b.entities ?? [])], play, mechanics };
 }

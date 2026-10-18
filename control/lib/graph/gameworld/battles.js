@@ -31,9 +31,9 @@
 import { readRpg } from '../playscape/rpg/rpg.js';
 import { CLASS_PRESETS, FOE_PRESETS } from '../playscape/rpg/presets.js';
 import { rpgInit, rpgSave } from '../playscape/rpg/kernel.js';
-import { playerStates } from '../playscape/player.js';
 import { cubeOfWorld } from './intent.js';
 import { castingOf, castingIds } from './casting.js';
+import { libraryFigure, stand, facing } from './stage-figures.js';
 
 export const PACKS = Object.freeze([
   ['slime', 'slime'], ['wolf', 'bat'], ['goblin', 'spider', 'slime'], ['skeleton', 'wolf'],
@@ -166,8 +166,7 @@ export function battleCast(G, stage, ends, { ref, packs = [], from = 0, seed = 1
   const figures = {}, entities = [], encounters = [];
   picks.forEach((b, k) => {
     const id = `foe-${k + 1}`, back = k ? picks[k - 1].at : ends.spawn;
-    figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-    entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: b.at, heading: r3(Math.atan2(back[1] - b.at[1], back[0] - b.at[0])) } });
+    stand({ figures, entities }, id, libraryFigure(ref), b.at, facing(b.at, back));
     const boss = B.boss && k === n - 1 && packs[k] === B.boss;
     encounters.push({ id: `pack-${from + k + 1}`, foes: [...packs[k]], at: [b.at[0], b.at[1]], who: id, ...(boss ? { flee: false } : {}) });
   });

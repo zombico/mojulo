@@ -29,7 +29,7 @@ import { artPalette, natureColours } from '../color-theorist/adapters.js';
 import { layLevel } from '../level/index.js';
 import { assembleStageScene, planStage, stageKit } from '../era/stage.js';
 import { withGeocube } from '../era/geocube.js';
-import { playerWorld, playerStates } from '../playscape/player.js';
+import { playerWorld } from '../playscape/player.js';
 import { resolveEquipment } from './equipment.js';
 import { outTrailOf } from '../era/out-trail-board.js';
 import { TRAVERSAL_MOVES } from './actions.js';
@@ -55,7 +55,7 @@ import { spaceLaws } from '../skyscape/space.js';
 import { flyCourse } from '../skyscape/autopilot.js';
 import { seatCraft, craftPilot } from '../skyscape/craft.js';
 import { battleRoster, laidBattles, PARTY_SLICE, BAG_SLICE, BAG_START } from './battles.js';
-import { mergeExtras } from './minigames.js';
+import { mergeExtras, libraryFigure, fieldFigure, stand, PERSON_BODY } from './stage-figures.js';
 
 const EYE_FALLBACK = 1.7;
 // a person's eye over a hero whose position is its feet (playerWorld's pilot stands at eye 0)
@@ -394,8 +394,8 @@ export function stageLevelOrder(G, stage, { ref, heroRef, heroGaits = null, pilo
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities];
     for (const [k, g] of watchers.entries()) {
       // (a pool of guards' figures, each its own roll, cycled: quick.js refAt)
-      figures[g.id] = { heroRef: Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
+      figures[g.id] = libraryFigure(Array.isArray(guards.ref) ? guards.ref[k % guards.ref.length] : guards.ref);
+      const rule = { type: 'ai', mind: { motivation: 'guard', aggressiveness: 'bold', perception: 'sight' }, sightRange: 14, sightCone: 0.6, scan: 1.3, scanPeriod: 7, guardRadius: 10, speed: 3, turnRate: 2.2, ...PERSON_BODY };
       entities.push({ id: g.id, rule, team: 'guards', body: { type: 'figure-rig', figure: g.id }, transform: { pos: lane ? onLane({ at: g.at }, lane).at : g.at, heading: g.heading } });
     }
     pilotPart = { ...pilotPart, figures, entities };
@@ -479,13 +479,8 @@ function mergePlay(base, extra) {
 /** The story's share of a stage, on its pilot and its play: the level's scenes and the story's moments (with their
  * places as spots), the cast who stand in them, the party who join, the quests' journal. Nothing to add: the same
  * pilot part and play back. */
-/** A cast member's figure on the field: the hero it is made as, the library's walk and idle, and, for a casting page's
- * member (casting.js `field`), its own MOVES by state (its hit, its fall and rise, its swing: world-scene.js plays each
- * the hero has over the library's). A body the library does not fit (a beast, a mascot, a beast-kin on the creature
- * loop's rig) walks on its OWN clips, a `walker` (it follows or stands; it never pilots). */
-const castFigure = (ref, field) => (field?.own
-  ? { heroRef: ref, walker: true, clips: field.own, ...(field.moves ? { moves: field.moves } : {}) }
-  : { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' }, ...(field?.moves ? { moves: field.moves } : {}) });
+// (a cast member's figure on the field: stage-figures.js fieldFigure, its own moves over the library's, or a body the
+// library does not fit on its own clips)
 
 function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, carryFrom = null, party = null, castFigures = null } = {}) {
   // SCENES (the level's, playscape/ui/scenes.js): the ones this stage plays, its places as spots to frame and walk to,
@@ -498,8 +493,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
     for (const c of story.cast) {
       // (a rolled body that does not walk the field yet, a beast or a mascot, is not stood in it)
       if (!c.ref || castFigures?.[c.id] === null) continue;
-      figures[c.id] = castFigure(c.ref, castFigures?.[c.id]);
-      entities.push({ id: c.id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: c.id }, transform: { pos: c.at, heading: c.heading } });
+      stand({ figures, entities }, c.id, fieldFigure(c.ref, castFigures?.[c.id]), c.at, c.heading);
     }
     pilotPart = { ...pilotPart, figures, entities };
   }
@@ -510,7 +504,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
     joiners.forEach((p, i) => {
-      figures[p.id] ??= castFigure(p.ref, castFigures?.[p.id]);
+      figures[p.id] ??= fieldFigure(p.ref, castFigures?.[p.id]);
       const rule = { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
       const k = entities.findIndex((e) => e.id === p.id);
       if (k >= 0) {

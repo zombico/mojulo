@@ -77,7 +77,7 @@ import { composeTrack } from '../roads/trackscape-compose.js';
 import { VEHICLES, TUNINGS, CONDITIONS, vehicleRule } from '../roads/vehicles.js';
 import { CAMERAS } from './cameras.js';
 import { RIDES, RIDE_H } from './ride.js';
-import { playerStates } from '../playscape/player.js';
+import { libraryFigure, standRule, stand, facing, PERSON_BODY } from './stage-figures.js';
 import { mulberry32 } from '../vegetation/grow.js';
 import { beatPosts, padSites, askBoxes } from './lay-concerns.js';
 import { shooterPole, readPole } from './shooter-pole.js';
@@ -693,8 +693,8 @@ export function farmCast(quick, ends, ref) {
   const figures = {}, entities = [], routines = [];
   for (let k = 1; k <= n; k++) {
     const id = `farmhand-${k}`;
-    figures[id] = { heroRef: refAt(ref, k - 1), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-    entities.push({ id, rule: { type: 'static', speed: 1.6, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: [r3(s[0] + 2 * k), r3(s[1] - 2), s[2]], heading: 0 } });
+    figures[id] = libraryFigure(refAt(ref, k - 1));
+    entities.push({ id, rule: standRule({ speed: 1.6 }), body: { type: 'figure-rig', figure: id }, transform: { pos: [r3(s[0] + 2 * k), r3(s[1] - 2), s[2]], heading: 0 } });
     routines.push({ who: id, plan: [{ hour: 7, to: `field-${k}` }, { hour: 18, to: 'home' }] });
   }
   const spots = [{ id: 'home', at: [s[0], s[1]] }, ...Array.from({ length: n }, (_, k) => ({ id: `field-${k + 1}`, at: [r3(field[0] + (k - (n - 1) / 2) * 1.5), r3(field[1] - 3)] }))];
@@ -718,8 +718,7 @@ export function battleCast(quick, ends, ref) {
 
 // a foe fought turn by turn: its figure, standing at `at`, facing `back` (the way the hero comes)
 function standFoe(figures, entities, id, ref, at, back) {
-  figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
-  entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: at, heading: r3(Math.atan2(back[1] - at[1], back[0] - at[0])) } });
+  stand({ figures, entities }, id, libraryFigure(ref), at, facing(at, back));
 }
 
 /**
@@ -791,7 +790,7 @@ export function shootCast(quick, ends, ref, { hero = false, camera } = {}) {
   if (ends.airMap) return dogfightCast(ends.airMap, ends.airField, ends.seat, { foes: quick.foes, waves: quick.waves });
   const posts = shootPosts(quick, ends), figures = {}, entities = [];
   posts.forEach((p, k) => {
-    figures[p.id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    figures[p.id] = libraryFigure(refAt(ref, k));
     entities.push({
       id: p.id, team: 'foes',
       rule: { type: 'ai', mind: { motivation: 'hunt', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, sightRange: 30, sightCone: 1.1, memorySpan: 6, navCell: 0.5, cover: { radius: 7, hold: 2.5 }, standoff: 12, speed: 3, turn: 3, dodge: false, burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
@@ -883,7 +882,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
   const teamRule = S ? { clearLine: true, ...(quick.mode === 'control' ? { objective: { at: deathmatchPoint(ends), radius: 2.5 } } : {}) } : {};
   bots.forEach((id, k) => {
     const at = spot(id, k + 1);
-    figures[id] = { heroRef: refAt(ref, k), library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
+    figures[id] = libraryFigure(refAt(ref, k));
     entities.push({
       id, ...(S ? { team: sideOf(id) } : {}),
       rule: { ...teamRule, type: 'ai', mind: { motivation: 'frag', aggressiveness: 'bold', perception: 'memory', pathing: 'navmesh' }, peek: P ? P.mind.peek : true, sightRange: 40, sightCone: 1.2, memorySpan: 6, navCell: 0.5, standoff: 10, speed: P ? r3(P.move.speed * 0.75) : 3.4, turn: 3, dodge: P ? P.mind.dodge : false, ...(P ? { strafe: P.mind.strafe } : {}), ...(P?.mind.kit ? { kit: P.mind.kit } : {}), items: deathmatchDrops(quick, ends).map((d) => ({ at: d.at, gives: d.gives, back: d.respawn, ...(d.slot ? { slot: d.slot } : {}) })), ...(ends.arena.floors ? { floors: ends.arena.floors } : {}), ...(quick.weapons ? { loadout: deathmatchLoadout(quick, ends, 1.4), keepRange: true, perches: [...ends.arena.drops.filter((d) => d.slot === 'long').map((d) => d.at), ...(ends.arena.floors ?? []).map((f) => [r3((f.area[0] + f.area[2]) / 2), r3((f.area[1] + f.area[3]) / 2), f.z])] } : {}), burst: 0.3, pause: 1.2, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 },
@@ -914,8 +913,7 @@ export function deathmatchCast(quick, ends, ref, { hero = false, camera } = {}) 
 export function defendCast(quick, ends, refs) {
   const along = (ends.beats ?? []).filter((b) => b.beat !== 'exit' && b.beat !== 'trailhead');
   const foes = DEFEND.perWave.slice(0, quick.waves ?? 3).reduce((a, b) => a + b, 0);
-  const fig = (ref) => ({ heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } });
-  const body = { eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 };
+  const fig = libraryFigure, body = PERSON_BODY;
   const figures = {}, entities = [], cues = [];
   const x = ends.exit, back = along.length ? along[along.length - 1].at : ends.spawn, face = Math.atan2(back[1] - x[1], back[0] - x[0]);
   for (let k = 1; k <= foes; k++) {

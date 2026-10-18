@@ -103,6 +103,9 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   or taproom, a hall's hall, a shop's floor, a library's reading room (`ROOMS_KEPT`), in the corner farthest from the
   way in, a building level or the inside of one entered by its door alike. A building level now takes a stage's extra
   (its rooms and use on its ends, its mechanics the level's); a building without one is the level it was.
+- **One way to stand people on a stage** (`gameworld/stage-figures.js`): a figure on the shared library or on its own
+  clips, a person's body numbers, the entity of one who stands, and a stage's extras composed, where battles, minigames,
+  the story's cast, guards and every quick goal's figures each wrote their own. Every run's orders are unchanged.
 
 ## [3.1.1] - 2026-10-16
 

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
-import { readMinigameBook, minigamesOfWords, mergeExtras } from './minigames.js';
+import { readMinigameBook, minigamesOfWords } from './minigames.js';
+import { mergeExtras } from './stage-figures.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
 import { withProgram } from '../era/programs.js';
 import { withBuildingLevel } from '../structure/level.js';
