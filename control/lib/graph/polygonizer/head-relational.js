@@ -51,7 +51,7 @@ export const RELATIONS = Object.freeze({
   faceWidth: 0.9,       // zy-zy / eu-eu
   jaw: 0.72,            // go-go / zy-zy
   fifths: 0.2,          // eye width / zy-zy (the rule of fifths: en-en one eye, ex-ex three)
-  noseWidth: 1.05,      // al-al / en-en
+  nasalIndex: 0.65,     // al-al / n-sn: the nose's base widens with its length (a bigger nose, a wider base)
   mouthWidth: 1.5,      // ch-ch / al-al
   // ── the profile
   nasionDepth: 0.025,   // g ahead of n / v-me
@@ -75,7 +75,7 @@ export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios the female canon moves (the rest are shared) */
 export const RELATION_POLES = Object.freeze({
   male: Object.freeze({}),
-  female: Object.freeze({ fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
+  female: Object.freeze({ nasalIndex: 0.62, fissure: 0.048, canthalTilt: 0.011, upperVermilion: 0.037, lowerVermilion: 0.046, headLength: 0.84, cephalic: 0.8, jaw: 0.68, nasionDepth: 0.012, noseProjection: 0.34, chin: -0.012, brow: 0.45, faceWidth: 0.88 }),
 });
 
 /**
@@ -94,7 +94,7 @@ export function corePoints(rel = RELATIONS) {
   const euX = (R.cephalic * R.headLength) / 2;
   const zyX = (R.faceWidth * 2 * euX) / 2, goX = (R.jaw * 2 * zyX) / 2;
   const eye = R.fifths * 2 * zyX;                 // one eye's width
-  const enX = eye / 2, exX = enX + eye, alX = R.noseWidth * enX, chX = R.mouthWidth * alX;
+  const enX = eye / 2, exX = enX + eye, alX = (R.nasalIndex * (zN - zSn)) / 2, chX = R.mouthWidth * alX;
   // the profile, hung off the nasion
   const n = { x: 0, y: g.y - R.nasionDepth, z: zN };
   const sn = { x: 0, y: n.y + 0.01, z: zSn };
@@ -123,6 +123,9 @@ export function corePoints(rel = RELATIONS) {
   side('eye', (enX + exX) / 2, n.y - 0.07, zEye);
   side('al', alX, sn.y + 0.035, zSn + 0.012);
   side('ch', chX, sn.y + R.lipProjection - 0.045, zSto);
+  // THE CHEEK CONTROL POINT: straight out from the rhinion (mid-bridge) to under the eye's centre — the cheek's apex,
+  // where the malar pad peaks; set on the skin a touch proud of the cornea's plane
+  for (const s of ['L', 'R']) P[`cheek${s}`] = { x: P[`eye${s}`].x, y: P[`eye${s}`].y + 0.01, z: P.rhinion.z };
   // THE EYE'S OPENING: the upper lid's apex sits medial of the pupil and 0.6 of the fissure above it (it covers the
   // iris's top), the lower's lateral and 0.4 below; the canthi are en and ex
   side('lidUp', (enX + exX) / 2 - 0.1 * eye, n.y - 0.07, zEye + 0.6 * R.fissure + R.canthalTilt / 2);
@@ -184,6 +187,7 @@ export const TUNE_CHANNELS = Object.freeze({
                                                // forms where the brow's wave gives way, not at the relation's point
   sn: { point: 'sn', axis: 'z' },              // the subnasale up
   prn: { measure: 'sn-prn' },                  // the nose tip back
+  al: { measure: 'al-al', pair: true },        // the wings inward: the nasal index
 });
 const ZERO_TUNE = Object.freeze(Object.fromEntries(Object.keys(TUNE_CHANNELS).map((k) => [k, 0])));
 
@@ -200,6 +204,7 @@ export function tunedPoints(P, tune = ZERO_TUNE) {
   Q.sn = { ...P.sn, z: P.sn.z + t.sn };
   for (const k of ['alL', 'alR']) Q[k] = { ...P[k], z: P[k].z + t.sn };
   Q.prn = { ...P.prn, y: P.prn.y - t.prn };
+  inward('al', t.al);
   return Q;
 }
 
@@ -259,7 +264,7 @@ export function coreVajras(P, rel = RELATIONS) {
   v('vault', front, crown, back, [rF, rP, rO]);
   // The rest of the bone is authored at its SKIN size (`skin: true`): a bead's bone radius is its radius less the
   // tissue at its centre (relationalHead), so the skin over it — the bone plus the same depth — is the bead again.
-  const w = (name, a, c, b, r, drive) => V.push({ name, a, c, b, r, group: 'bone', skin: true, ...(drive ? { drive } : {}) });
+  const w = (name, a, c, b, r, drive, opts = {}) => V.push({ name, a, c, b, r, group: 'bone', skin: true, ...(drive ? { drive } : {}), ...opts });
   // the temporal walls: the vault narrows to the arch ahead of the ears (the temporal fossa)
   for (const s of ['L', 'R']) w(`temporal${s}`, at(inX(P[`eu${s}`], 0.16), { y: 0.06, z: -0.05 }), inX(mid(P[`fz${s}`], P[`zy${s}`], 0.6), 0.04), inX(P[`zy${s}`], 0.03), [0.11, 0.04, 0.03]);
   // THE CHEEK BAR — cheekbone to cheekbone through the maxilla, behind the nose
@@ -276,8 +281,10 @@ export function coreVajras(P, rel = RELATIONS) {
   // (the body of the jaw tapers into the chin: its front bead is small and set back, so the chin is one mass)
   for (const s of ['L', 'R']) w(`mandible${s}`, P[`condyle${s}`], inX(P[`go${s}`], 0.045), at(inX(P[`ment${s}`], 0.02), { y: -0.03 }), [0.035, 0.045, 0.03], [null, J, J]);
   // the chin: one rounded mass on the midline (the mental protuberance) with its tubercles small either side
-  w('chin', at(P.mentL, { y: 0.01, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: 0.01, z: 0.01 }), [0.03, 0.05, 0.03], [J, J, J]);
-  w('floor', at(P.goL, { x: 0.06 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.06 }), [0.04, 0.07, 0.04], [J, J, J]);
+  // (the chin and the floor face forward and down: their bone steps toward the head's centre, `stepIn`, never
+  // sideways as a width bead's does — a sideways step left the tubercles proud and cleft the chin)
+  w('chin', at(P.mentL, { y: -0.005, z: 0.01 }), at(P.pg, { y: -0.05, z: 0.005 }), at(P.mentR, { y: -0.005, z: 0.01 }), [0.025, 0.05, 0.025], [J, J, J], { stepIn: true });
+  w('floor', at(P.goL, { x: 0.06 }), at(P.me, { y: -0.08, z: 0.06 }), at(P.goR, { x: -0.06 }), [0.04, 0.07, 0.04], [J, J, J], { stepIn: true });
   // THE BROW — frontozygomatic to frontozygomatic through the glabella, its radius the sex's ridge
   const rb = 0.03 + 0.02 * R.brow;
   w('brow', P.fzL, at(P.g, { y: -rb }), P.fzR, [0.035, rb, 0.035]);
@@ -289,17 +296,29 @@ export function coreVajras(P, rel = RELATIONS) {
   for (const s of ['L', 'R']) {
     const zy = P[`zy${s}`], go = P[`go${s}`], malar = P[`malar${s}`], ch = P[`ch${s}`], fz = P[`fz${s}`], eu = P[`eu${s}`], eye = P[`eye${s}`];
     // masseter: the arch's underside → the belly over the ramus → the jaw's corner (its insertion IS the gonion)
-    const corner = [`corner${s}`], cheek = [`cheek${s}`];
+    const corner = [`corner${s}`];
     soft(`masseter${s}`, inX(at(mid(malar, zy, 0.6), { z: -0.04 }), 0.035), inX(at(mid(zy, go), { y: -0.01 }), 0.05), inX(at(go, { y: 0.02, z: 0.02 }), 0.035), [0.035, 0.05, 0.035], [null, ['jawHalf'], J]);
     // temporalis: the temporal line on the vault → the fossa → under the arch (it fills the temple)
     soft(`temporalis${s}`, inX(at(mid(fz, eu, 0.5), { z: 0.06 }), 0.08), inX(at(mid(fz, zy, 0.55), { y: -0.03 }), 0.06), inX(at(zy, { y: 0.03, z: -0.02 }), 0.06), [0.05, 0.045, 0.025]);
-    // the buccal mass (buccinator + the buccal fat): the mouth's corner → the cheek → the masseter's front
-    soft(`buccal${s}`, at(ch, { x: -Math.sign(ch.x) * 0.01, y: -0.03 }), inX(at(mid(ch, go, 0.45), { y: 0.02, z: 0.05 }), 0.045), inX(at(mid(malar, go, 0.6), { y: -0.02 }), 0.05), [0.03, 0.05, 0.04], [corner, ['jawHalf'], null]);
-    // the malar fat pad: the cheekbone → the apple of the cheek → toward the nasolabial line
-    soft(`malarPad${s}`, at(malar, { y: -0.02 }), at(mid(malar, ch, 0.45), { x: -Math.sign(ch.x) * 0.02, y: 0.0 }), at(mid(P[`al${s}`], ch, 0.5), { x: Math.sign(ch.x) * 0.02, y: -0.03 }), [0.04, 0.04, 0.025], [null, cheek, cheek]);
+    // THE CHEEK BALLOON — a water balloon of the cheek (the buccal fat and the malar pad as one mass): anchored at the
+    // jaw's corner (PINNED to the jaw: as the mandible opens the balloon stretches with it, so the cheek's wall reaches
+    // the back of the jaw and does not part from it), bulging at the cheek control point, tapering to the mouth's corner above and below it. Two vajras
+    // sharing the bulge. `balloon` keeps its volume: when an action shortens it (a smile draws its ends toward the
+    // cheek), its radii grow by √(rest length / length), so the cheek's lift in a smile comes from the relation.
+    const anchor = inX(at(go, { y: 0.03, z: 0.04 }), 0.05), bulge = at(P[`cheek${s}`], { y: -0.045 });
+    // (the arms overlap end to end — their ends a corner's height apart, their radii wider than half of it — so the
+    // balloon is one closed mass, not a loop with a hole through it)
+    const endUp = at(ch, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: 0.016 }), endLo = at(ch, { x: -Math.sign(ch.x) * 0.005, y: -0.025, z: -0.016 });
+    V.push({ name: `cheekUp${s}`, a: anchor, c: at(bulge, { z: 0.01 }), b: endUp, r: [0.04, 0.055, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], corner] });
+    V.push({ name: `cheekLo${s}`, a: at(anchor, { z: -0.02 }), c: at(bulge, { z: -0.035, y: -0.01 }), b: endLo, r: [0.04, 0.055, 0.024], group: 'soft', muscle: true, balloon: true, drive: [J, [`bulge${s}`], [`loMid${s}`]] });
+    // the BELLY: the arms bend up through the bulge, so the triangle between the anchor, the bulge and the corner
+    // would be empty — a third vajra through its centre fills it, and the balloon is solid
+    const belly = { x: (anchor.x + bulge.x + ch.x) / 3, y: (anchor.y + bulge.y + ch.y) / 3 - 0.01, z: (anchor.z + bulge.z + ch.z) / 3 };
+    V.push({ name: `cheekBelly${s}`, a: anchor, c: inX(belly, 0.01), b: at(ch, { x: -Math.sign(ch.x) * 0.008, y: -0.03 }), r: [0.04, 0.06, 0.026], group: 'soft', muscle: true, balloon: true, drive: [J, ['jawHalf'], corner] });
     // ZYGOMATICUS MAJOR — the smile's muscle: the cheekbone's side → the belly across the cheek → the mouth's corner
-    // (the modiolus). At rest a thin strap under the pad; `smile` pulls its insertion toward its origin and swells it.
-    soft(`zygomaticus${s}`, inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), at(mid(malar, ch, 0.5), { y: -0.025 }), at(ch, { y: -0.02 }), [0.018, 0.016, 0.014], [null, [`zyg${s}`], corner]);
+    // (the modiolus). At rest a thin strap under the balloon; `smile` pulls its insertion toward its origin, and as a
+    // balloon it keeps its volume, so it thickens as it shortens.
+    V.push({ name: `zygomaticus${s}`, a: inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), c: at(mid(malar, ch, 0.5), { y: -0.025 }), b: at(ch, { y: -0.02 }), r: [0.018, 0.016, 0.014], group: 'soft', muscle: true, balloon: true, drive: [null, [`zyg${s}`], corner] });
     // the lids: corner → over the globe → corner, upper and lower
     // the lid margins: rolls along the opening's arcs, lying on the globe (canthus → apex → canthus); their centre
     // beads ARE the opening's apexes (the carve reads them back, so a lid that moves moves the opening)
@@ -313,7 +332,10 @@ export function coreVajras(P, rel = RELATIONS) {
   // the SOFT features: no bone under them to stand off — the external nose and the lips are their own tissue
   // THE NOSE — nasion → rhinion → tip, the alae across the base through the subnasale
   v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
-  v('alae', at(P.alL, { y: -0.02 }), at(P.sn, { y: -0.02, z: 0.005 }), at(P.alR, { y: -0.02 }), [0.024, 0.02, 0.024], 'nose');
+  v('alae', at(P.alL, { y: -0.02 }), at(P.sn, { y: -0.02, z: 0.005 }), at(P.alR, { y: -0.02 }), [0.022, 0.018, 0.022], 'nose');
+  // THE SIDEWALLS — from each wing up to the mid-bridge: angled cones, wide at the flare and narrowing as they rise,
+  // so the nose is a pyramid (a ridge with two walls) and the wings read as wings where the walls meet them
+  for (const s of ['L', 'R']) v(`noseWall${s}`, at(P[`al${s}`], { y: -0.024, z: 0.008 }), at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.012, y: -0.022 }), at(P.rhinion, { y: -0.022 }), [0.02, 0.015, 0.012], 'nose');
   // THE LIPS — corner → the lip's centre → corner, upper and lower
   // (each lip is two vajras, corner → its lateral bead → the centre: the upper through the cupid's bow peak to the
   // tubercle, the lower through its fullest to its centre; the centre beads are shared, so the halves meet there)
@@ -342,7 +364,7 @@ export function coreVajras(P, rel = RELATIONS) {
  */
 export const ACTIONS = Object.freeze({
   jaw: 'the mandible rotates about the condyles (25° at 1) and glides forward; the lips part and the mouth opens',
-  smile: 'zygomaticus major: the mouth corners drawn up and back toward the cheekbones, the cheeks lifted (both sides)',
+  smile: 'zygomaticus major: the mouth corners drawn up and back toward the cheekbones; the cheek balloons, shortened, bulge (both sides)',
   smileL: 'the smile, the figure\'s left side only', smileR: 'the smile, the figure\'s right side only',
   browRaise: 'frontalis: the brows lifted', browLower: 'the corrugator: the brows drawn down and together',
   blink: 'the upper lids close over the globes (both)', blinkL: 'the left lid only', blinkR: 'the right lid only',
@@ -351,8 +373,8 @@ export const ACTION_NAMES = Object.freeze(Object.keys(ACTIONS));
 const JAW_OPEN_DEG = 25;
 
 /**
- * The drivers' transforms for a set of activations, over the (tuned) points `P`: { driver: (point) => point } plus
- * `swell` (a driver's radius factor). Every driver is the rest bead's displacement, rotation first, translations summed.
+ * The drivers' transforms for a set of activations, over the (tuned) points `P`: { driver: (point) => point }. Every
+ * driver is the rest bead's displacement, rotation first, translations summed.
  */
 export function actionDrivers(P, acts = {}) {
   const a = (k) => Math.max(0, Math.min(1, Number(acts[k]) || 0));
@@ -366,7 +388,7 @@ export function actionDrivers(P, acts = {}) {
   // THE HINGE: the axis through the condyles; opening rotates the chin down and back and glides the joint forward
   const hinge = { x: 0, y: (P.condyleL.y + P.condyleR.y) / 2, z: (P.condyleL.z + P.condyleR.z) / 2 };
   const jawAt = (t) => (p) => add(rotX(p, hinge, t * a('jaw') * JAW_OPEN_DEG), { x: 0, y: 0.02, z: 0 }, t * a('jaw'));
-  const D = { jaw: jawAt(1), jawHalf: jawAt(0.5), swell: {} };
+  const D = { jaw: jawAt(1), jawHalf: jawAt(0.5) };
   for (const s of ['L', 'R']) {
     const sm = side('smile', s), ch = P[`ch${s}`], o = P[`zy${s}`];
     // the smile's pull: from the corner toward the muscle's origin, 10 mm at full
@@ -375,8 +397,9 @@ export function actionDrivers(P, acts = {}) {
     D[`bow${s}`] = (p) => add(jawAt(0.1)(p), pull, 0.02 * sm);
     D[`loMid${s}`] = (p) => add(jawAt(0.75)(p), pull, 0.02 * sm);
     D[`zyg${s}`] = (p) => add(p, pull, 0.02 * sm);
-    D.swell[`zyg${s}`] = 1 + 0.6 * sm;
-    D[`cheek${s}`] = (p) => add(p, { x: 0, y: 0.012, z: 0.02 }, sm);
+    // the balloon's bulge: pushed by the corner into the cheekbone, it bunches UP and FORWARD (not along the pull,
+    // which runs back toward the bone); a little of the jaw; its swell is its own volume
+    D[`bulge${s}`] = (p) => add(jawAt(0.25)(p), { x: 0, y: 0.6, z: 0.8 }, 0.022 * sm);
     // the brow: raised straight up; lowered down, forward a touch, and toward the midline
     const sg = Math.sign(P[`fz${s}`].x);
     D[`brow${s}`] = (p) => add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, a('browLower'));
@@ -390,15 +413,19 @@ export function actionDrivers(P, acts = {}) {
   return D;
 }
 
-/** The vajras moved by the actions: each driven bead through its drivers in order, a driven radius swelled. */
+/**
+ * The vajras moved by the actions: each driven bead through its drivers in order. A `balloon` keeps its volume: its
+ * radii scale by √(rest length / length) (a tube's volume goes as r²L), clamped to a plausible swell.
+ */
 export function applyActions(vajras, P, acts) {
   if (!acts || !Object.values(acts).some((v) => Number(v))) return vajras;
   const D = actionDrivers(P, acts);
   return vajras.map((w) => {
     if (!w.drive) return w;
     const beads = [w.a, w.c, w.b].map((q, i) => (w.drive[i] || []).reduce((p, k) => (D[k] ? D[k](p) : p), q));
-    const r = w.r.map((r, i) => (w.drive[i] || []).reduce((rr, k) => rr * (D.swell[k] || 1), r));
-    return { ...w, a: beads[0], c: beads[1], b: beads[2], r };
+    const len = (a, c, b) => Math.hypot(a.x - c.x, a.y - c.y, a.z - c.z) + Math.hypot(c.x - b.x, c.y - b.y, c.z - b.z);
+    const k = w.balloon ? Math.max(0.75, Math.min(1.6, Math.sqrt(len(w.a, w.c, w.b) / len(beads[0], beads[1], beads[2])))) : 1;
+    return { ...w, a: beads[0], c: beads[1], b: beads[2], r: w.r.map((r) => r * k) };
   });
 }
 
@@ -476,17 +503,17 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // A skin-authored bead's bone is its radius less the tissue at its centre. Where the tissue is thicker than the
   // mass (the jaw's corner under the masseter, the arch), the bone keeps a floor radius and its centre steps INWARD
   // by the shortfall, so the skin still lands where the bead's surface was: sideways for a lateral bead (the widths
-  // are what its relations name), toward the head's centre for the rest.
+  // are what its relations name), toward the head's centre for the rest and for a vajra that faces forward (`stepIn`).
   const RMIN = 0.012, C = { x: 0, y: (P.g.y + P.op.y) / 2, z: 0.45 };
-  const boneBead = (q, r) => {
+  const boneBead = (q, r, stepIn = false) => {
     const t = depthV(q);
     if (r - t >= RMIN) return [q, r - t];
-    const d = Math.abs(q.x) > 0.08 ? { x: Math.sign(q.x), y: 0, z: 0 } : (() => { const v = { x: q.x - C.x, y: q.y - C.y, z: q.z - C.z }, l = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; })();
+    const d = !stepIn && Math.abs(q.x) > 0.08 ? { x: Math.sign(q.x), y: 0, z: 0 } : (() => { const v = { x: q.x - C.x, y: q.y - C.y, z: q.z - C.z }, l = Math.hypot(v.x, v.y, v.z) || 1; return { x: v.x / l, y: v.y / l, z: v.z / l }; })();
     const k = t + RMIN - r;
     return [{ x: q.x - d.x * k, y: q.y - d.y * k, z: q.z - d.z * k }, RMIN];
   };
   const bonds = vajras.map((w) => {
-    const beads = w.skin ? [w.a, w.c, w.b].map((q, i) => boneBead(q, w.r[i])) : [[w.a, w.r[0]], [w.c, w.r[1]], [w.b, w.r[2]]];
+    const beads = w.skin ? [w.a, w.c, w.b].map((q, i) => boneBead(q, w.r[i], w.stepIn)) : [[w.a, w.r[0]], [w.c, w.r[1]], [w.b, w.r[2]]];
     const [a, c, b] = beads.map(([q]) => S(q)), [ra, rc, rb] = beads.map(([, r]) => r * sc);
     return { group: w.group, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)) };
   });
@@ -564,7 +591,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const mm = (a, b) => Math.round(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) * 230 * 10) / 10;
   const targets = skin ? {
     'g-op': mm(P.g, P.op), 'eu-eu': mm(P.euL, P.euR), 'zy-zy': mm(P.zyL, P.zyR), 'go-go': mm(P.goL, P.goR),
-    'n-gn': mm(P.n, P.gn), 'n-sn': mm(P.n, P.sn), 'sn-prn': mm(P.sn, P.prn), 'nasion depth': Math.round((P.g.y - P.n.y) * 2300) / 10,
+    'n-gn': mm(P.n, P.gn), 'n-sn': mm(P.n, P.sn), 'sn-prn': mm(P.sn, P.prn), 'al-al': mm(P.alL, P.alR), 'nasion depth': Math.round((P.g.y - P.n.y) * 2300) / 10,
   } : null;
   return { field, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {} };
 }

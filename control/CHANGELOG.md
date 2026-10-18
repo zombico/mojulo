@@ -38,6 +38,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   centre, the lower the fuller (`upperVermilion`, `lowerVermilion`), with the lip line, the philtrum and the
   mentolabial sulcus carved. The skin's wavelength shortens near the eyes and the mouth (`featureWave`), so features
   smaller than the wave keep their edges. `--crop face` frames the face.
+- **The nose's pyramid and the cheek's balloon.** The nose's base width follows its length (`nasalIndex`, al-al over
+  n-sn, tuned like the other relations), and two sidewalls rise from the wings to the mid-bridge, so the nose is a
+  ridge with two walls and the wings read as wings. Straight out from the mid-bridge to under the eye's centre is the
+  cheek's control point: a cheek balloon is anchored at the jaw's corner (pinned to it, so the cheek's wall follows
+  an opening jaw), bulges there, and tapers to the mouth's corner above and below. A balloon keeps its volume, so a
+  smile that shortens it bulges the cheek; the zygomaticus thickens the same way.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

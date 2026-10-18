@@ -15,8 +15,8 @@
 //   --source        protoform (default: figure-head.js) | relational (head-relational.js: vajras placed by relations)
 //   --layer         skin (default) | skull — the relational head's layers
 //   --act           the relational head's actions: '{"jaw":0.6,"smile":1}' (head-relational.js ACTIONS)
-//   --acts          an ACTION STRIP: '[{}, {"jaw":0.6}, {"smile":1}]' — one row per set (front, front ¾, lateral, ¾),
-//                   no sections or table, for comparing expressions on one head
+//   --acts          an ACTION STRIP: '[{}, {"jaw":0.6}, {"smile":1}]' — one row per set per pole (front, front ¾, ¾, lateral) and
+//                   what each moved from that pole's first row; no sections or table
 //   --crop face     frame the face (the chin to above the brow, cheek to cheek) instead of the whole head
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
@@ -124,7 +124,7 @@ function rasterize(faces, cam) {
 const LANDMARK_SKIP = new Set(['H', 's', 'earC', 'centre', 'cranium']);
 const seen = new Set();
 const svgParts = [];
-let restZ = null;
+let restZ = null, restOf = null;
 const report = {};
 let y0 = 0;
 const PANEL_H = 520, PROF_W = 760, CUT_W = 760;
@@ -172,7 +172,7 @@ for (const { sex, actions } of ROWS) {
     // camera, blue = it went back, full colour at 6 mm; grey where only one of the two has skin
     const cam = camera(0, 4, frame);
     const { zbuf } = rasterize(faces, cam);
-    if (!restZ) restZ = zbuf;
+    if (restOf !== sex) { restZ = zbuf; restOf = sex; }   // each pole's first row is its own rest
     const img = Buffer.alloc(CW * CH * 4, 0), FULL = 6 / 1000 / 1.8;   // 6 mm in STAND units
     for (let o = 0; o < CW * CH; o++) {
       const a = restZ[o], b = zbuf[o];
