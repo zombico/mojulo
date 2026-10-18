@@ -32,6 +32,9 @@
  *   scaleOfWords(text)   → { scale?, n?, familiar?, bodies?, words }   what a prompt's words ask of the cast
  *   classOf(member)      → the play.rpg class (playscape/rpg/presets.js) a member's mind reads as
  *
+ * A QUICK GAME's cast (quick.js `cast`: true, or the same page less the journey) is the same page: rolled in the
+ * game's setting, each member made by path, its party and familiars beside the hero from the start (castingPage).
+ *
  * Pure. A world with no casting page is untouched.
  */
 import { rollCast, castOfScale, RELATIONS, SCALES } from '../egocube/cast.js';
@@ -94,13 +97,23 @@ function requestOf(c, scale, n, heard = {}) {
 }
 
 /** The rollCast request for a world's casting page: { request, scale, from }. */
+/** The casting page a world has: the book's (characters.casting), or a quick game's cast (`true`: a party of one), or null. */
+export function castingPage(G) {
+  if (G.characters?.casting) return G.characters.casting;
+  const q = G.quick?.cast;
+  return q === true ? { scale: 'party', n: 1 } : isObj(q) ? q : null;
+}
+
 export function castingRequest(G) {
-  const c = G.characters?.casting;
+  const c = castingPage(G);
   if (!c) return null;
-  const heard = scaleOfWords(G.prompt ?? G.brief?.prompt);   // the world's prompt (readGameworld carries it for a casting page)
+  const heard0 = scaleOfWords(G.prompt ?? G.brief?.prompt);   // the world's prompt (readGameworld carries it for a casting page)
+  // (a quick game has no review to approve a journey's sheets: its words lean a party at most)
+  const heard = G.quick && heard0.scale === 'journey' ? { ...heard0, scale: 'party' } : heard0;
   const scale = c.scale ?? heard.scale ?? (turnBased(G) ? 'party' : 'hero');
-  const from = c.scale ? 'the page' : heard.scale ? `the prompt's words (${heard.words.join(', ')})` : turnBased(G) ? 'a world that fights turn by turn' : 'nothing asked: the hero alone';
-  const setting = { ...settingOfGame(G), ...(turnBased(G) ? { genre: 'battle' } : {}) };
+  const from = G.quick && !G.characters?.casting ? (c.scale ? 'the quick game\'s cast' : heard.scale ? `the prompt's words (${heard.words.join(', ')})` : 'the quick game\'s cast')
+    : c.scale ? 'the page' : heard.scale ? `the prompt's words (${heard.words.join(', ')})` : turnBased(G) ? 'a world that fights turn by turn' : 'nothing asked: the hero alone';
+  const setting = { ...settingOfGame(G, G.quick ?? null), ...(turnBased(G) ? { genre: 'battle' } : {}) };
   const request = { ...requestOf(c, scale, heard.n, c.scale ? {} : heard), setting, seed: c.seed ?? (Number.isInteger(G.seed) ? G.seed : 1) };
   return { request, scale, from };
 }
@@ -173,7 +186,7 @@ export function castingOf(G) {
   const key = JSON.stringify(Q.request);
   let sheet = ROLLED.get(key);
   if (!sheet) { sheet = rollCast(Q.request); if (ROLLED.size >= ROLLED_MAX) ROLLED.delete(ROLLED.keys().next().value); ROLLED.set(key, sheet); }
-  const own = G.characters.casting.cast ?? {};
+  const own = castingPage(G).cast ?? {};
   const members = sheet.order.slice(1).map((path) => {
     // (an id a written member holds, from a scale the prompt chose, takes '-cast': the written member is the book's)
     const m = sheet.members[path], id = written(G).has(castIdOf(path)) ? `${castIdOf(path)}-cast` : castIdOf(path), key0 = path.split('/').slice(1).join('/'), book = own[key0] ?? {};

@@ -47,6 +47,11 @@
  *     plots?: n, target?: n, days?: n,     // farm: plots (6), the gold to make (40), by which day (6)
  *     folk?: n, farmhand?: <a hero-door spec> // farm: farmhands keeping their day (2), and their looks (rolled by default)
  *     foes?: n,                             // battle: how many foes stand on the trail to be fought turn by turn (3)
+ *     cast?: true | { scale?, n?, cast?, anchor?, bodies?, factions?, seed? },   // on foot: the people rolled for the
+ *                                           // game (gameworld/casting.js, its page less the journey; true: a party of
+ *                                           // one). Its party and familiars walk beside you from the start and fight
+ *                                           // what you fight; a rival with a person's body is the first foe where the
+ *                                           // goal has foes (battle, shoot, deathmatch)
  *     roster?: [<fighter>, …],              // fight: the fighters, each a CHARACTER (versus/versus-sheet.js): an Egocube
  *                                           // sheet (an archetype word, a brief, { brief?, facets?, seed?, archetype?,
  *                                           // role?, build?, age?, name?, color? }) made into one by the run, or { hero:
@@ -149,9 +154,22 @@ export const FARM = Object.freeze({ cost: 2, price: 6, gold: 6, rate: 4, start: 
 export const DEFEND = Object.freeze({ cost: 5, gold: 10, bounty: 2, perWave: [3, 5, 7, 9, 11, 13], hp: 3 });
 // the field scores a rhythm game runs to (each a steady tempo, beats-world's audio.beat)
 export const RHYTHM_MOODS = Object.freeze(['wayfarer', 'expedition', 'tavern', 'village', 'plains', 'forest', 'highlands', 'desert']);
-const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules'];
+const KEYS = ['goal', 'craft', 'assist', 'airspace', 'hero', 'ride', 'racers', 'supercars', 'mood', 'vehicle', 'tuning', 'conditions', 'track', 'roadway', 'laps', 'rivals', 'climb', 'building', 'pickup', 'seconds', 'theme', 'camera', 'guards', 'guard', 'alarms', 'music', 'sfx', 'misses', 'waves', 'lives', 'pads', 'foe', 'tower', 'boulders', 'plots', 'target', 'days', 'folk', 'farmhand', 'run', 'foes', 'bots', 'frags', 'arena', 'pole', 'weapons', 'mode', 'roster', 'arenas', 'stages', 'rounds', 'timer', 'rules', 'cast'];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const fail = (m) => new Error(`gameworld: quick${m}`);
+
+// a quick game's cast: the casting page's words less the journey's (no review to approve its sheets), on foot only
+export const QUICK_CAST_KEYS = Object.freeze(['scale', 'n', 'cast', 'anchor', 'bodies', 'factions', 'seed']);
+export const QUICK_CAST_SCALES = Object.freeze(['hero', 'rival', 'party']);
+function readQuickCast(Q) {
+  const C = Q.cast;
+  if (['fight', 'fly', 'race'].includes(Q.goal) || Q.ride !== undefined || Q.craft !== undefined) throw fail(`.cast walks beside a hero on foot: a ${Q.ride !== undefined ? 'ride' : Q.craft !== undefined ? 'craft' : Q.goal} has none (a fight's roster is its cast)`);
+  if (C === true) return;
+  if (!isObj(C)) throw fail(`.cast is true (a party of one) or { ${QUICK_CAST_KEYS.join('?, ')}? } (the casting page: get_game_vocab({ id: 'gameworld-story' }))`);
+  for (const k of Object.keys(C)) if (!QUICK_CAST_KEYS.includes(k)) throw fail(`.cast.${k} is not part of a quick game's cast (${QUICK_CAST_KEYS.join(', ')})`);
+  if (C.scale !== undefined && !QUICK_CAST_SCALES.includes(C.scale)) throw fail(`.cast.scale is ${QUICK_CAST_SCALES.join(', ')} (a journey's cast is the book's: its sheets wait on the creator's approval)`);
+  if (C.n !== undefined && !(Number.isInteger(C.n) && C.n >= 1 && C.n <= 4)) throw fail('.cast.n is the party beside you, 1 to 4');
+}
 
 /** Read the quick block and say what is wrong. */
 export function readQuick(Q) {
@@ -166,6 +184,7 @@ export function readQuick(Q) {
   }
   if (isObj(Q.hero) && Q.hero.ref !== undefined && (Object.keys(Q.hero).length !== 1 || !(typeof Q.hero.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(Q.hero.ref)))) throw fail('.hero { ref } adopts a hero made with create_character, by its sketch ref alone (its words are its own row\'s)');
   if (Q.climb !== undefined && typeof Q.climb !== 'boolean') throw fail('.climb is true or false');
+  if (Q.cast !== undefined) readQuickCast(Q);
   if (Q.ride !== undefined) {
     if (!RIDES[Q.ride]) throw fail(`.ride is one of ${Object.entries(RIDES).map(([k, v]) => `${k} (${v.words})`).join('; ')}`);
     if (Q.hero) throw fail('.ride and .hero: the ride is the hero (one or the other)');

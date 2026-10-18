@@ -333,6 +333,8 @@ const quickShared = () => [
   `  camera: ${Object.keys(CAMERAS).join(' | ')}   absent: third person with a hero, first person without; top-down and side need a hero`,
   '  climb: true   a climb after the trail;   run: n   a pool of n + 2 trails, each run draws n, a death ends it',
   '  building: { use, seed?, goal?, … }   a building as the level (reach, collect or survive; card game-building)',
+  '  cast: true | { scale?: hero | rival | party, n?, cast?, bodies?, … }   on foot: people rolled for the game (the casting',
+  '    page, gameworld-story); party and familiars walk beside you and fight what you fight, a rival is the first foe',
   `  theme: { accent?, accent2?, ink?, bg?, panel?, line?, font?, style? }   the game shell's skin`,
   "  music: 'auto' | '<mood>', sfx: 'auto' | '<palette>'   a score per level, the goal's sounds",
   `  world: { id, name?, seed?, style?: { kit, look?, land? } }   the ground in words: kits ${GROUND_KITS.join(', ')} (gameworld-world says what each takes)`,

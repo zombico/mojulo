@@ -106,6 +106,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **One way to stand people on a stage** (`gameworld/stage-figures.js`): a figure on the shared library or on its own
   clips, a person's body numbers, the entity of one who stands, and a stage's extras composed, where battles, minigames,
   the story's cast, guards and every quick goal's figures each wrote their own. Every run's orders are unchanged.
+- **A quick game's cast** (quick.js `cast`, casting.js `castingPage`): any quick goal on foot takes the casting page
+  (less the journey; `true` a party of one), rolled in the game's setting and made as the book makes it (one cast row,
+  each member by path). Its party and familiars walk beside the hero from the start on the escort motive and fight what
+  it fights, on the pilot's side in a team game; a rival with a person's body stands as the first foe in a battle, a
+  shooter or a deathmatch; the readout says where each went. A quick game without one makes the steps it did.
 
 ## [3.1.1] - 2026-10-16
 

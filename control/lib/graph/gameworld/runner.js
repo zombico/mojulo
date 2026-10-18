@@ -381,11 +381,29 @@ function quickSteps(world, G, ref, lookup) {
   if (Q.goal === 'farm' && (Q.folk ?? 2) > 0) figRefs.farmhand = castOf('farmhand', Q.farmhand, { n: Q.folk ?? 2 });
   // a sneak's guards, a rank
   const guardRef = Q.goal === 'sneak' ? castOf('guard', Q.guard, { n: Q.guards ?? 3, rank: true }) : null;
+  // THE CAST (quick.js `cast`, casting.js): the people rolled for the game, one egocube row and each member made from it
+  // by path, as the book's casting page makes them (a quick game has no review: none waits). Its party and familiars
+  // walk beside the hero from the start and fight what it fights (the escort motive); a rival with a person's body is
+  // the first foe where the goal has foes; the rest are made, and stand nowhere yet
+  const CG = castingOf(G), party = [], castFigures = CG ? {} : null, placed = [];
+  if (CG) {
+    const castRef = childRef(ref, 'casting'), manifest = { kind: 'egocube', cast: CG.request };
+    steps.push({ key: 'casting', ref: castRef, ready: true, order: { title: `${G.name ?? G.id} · cast`, manifest }, print: fingerprint(manifest) });
+    for (const M of CG.members) {
+      const r = childRef(ref, `cast-${M.id}`);
+      steps.push({ key: `cast-${M.id}`, ref: r, ready: true, order: { egocube: castRef, member: M.path, title: `${G.name ?? G.id} · ${M.name}` }, print: fingerprint({ cast: manifest, member: M.path }) });
+      castFigures[M.id] = M.field;
+      if ((M.bond === 'party' || M.bond === 'familiar') && M.field) { party.push({ id: M.id, ref: r, joins: null }); placed.push(`${M.name} beside you`); }
+      else if (M.relation === 'rival' && M.field && !M.field.own && figRefs.foe) { figRefs.foe = [r, ...[figRefs.foe].flat()]; placed.push(`${M.name} the first foe`); }
+      else placed.push(`${M.name} made, standing nowhere in a ${Q.goal} yet`);
+    }
+  }
   // what the setting rolled, and an adopted hero drawn in another tradition, as advice in the run's readout (a level
   // law, in the concerns' shape), never a refusal
   const castLaws = [];
   if (cast.length) castLaws.push({ concern: 'cast', law: 'setting', holds: cast.every((c) => !c.pending.length),
     says: `rolled in the game's setting (${[setting.tradition, setting.era, setting.genre].filter(Boolean).join(', ')}): ${cast.map((c) => `the ${c.key}${c.n > 1 ? ` (${c.n} rolls${c.rank ? ', one uniform' : ''})` : ''}, ${c.reads.slice(0, 2).join('; ')}${c.pending.length ? ` (${c.pending.join('; ')})` : ''}`).join(' · ')}` });
+  if (CG) castLaws.push({ concern: 'cast', law: 'placed', holds: placed.every((x) => !x.includes('nowhere')), says: `the cast (${CG.from}): ${placed.join('; ')}${Q.goal === 'battle' && party.length ? '; the fights turn by turn are the hero\'s alone' : ''}` });
   const adoptedTradition = adopted && lookup?.heroSpec ? (lookup.heroSpec.head === 'anime' ? 'anime' : 'western') : null;
   if (adoptedTradition && setting.tradition && adoptedTradition !== setting.tradition) castLaws.push({ concern: 'cast', law: 'tradition', holds: false,
     says: `the adopted hero is drawn ${adoptedTradition}; the game is ${setting.tradition}. It is kept as it is: update_character can move its head and proportions to the game's tradition` });
@@ -396,7 +414,7 @@ function quickSteps(world, G, ref, lookup) {
     if (s.building?.ref) return;
     const audio = scoreOf(s, i);
     const guards = guardRef ? { ref: guardRef, posts: (ends) => guardPosts(Q, ends) } : null;
-    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), ...(pilot ? { pilot } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
+    const L = stageLevelOrder(G, s, { ref: levelRefs[i], heroRef, ...(heroGaits ? { heroGaits } : {}), ...(pilot ? { pilot } : {}), goal: (ends) => goalMechanics(Q, ends), ...(map ? { map: map[i] } : {}), ...cityRefsOf(stages, levelRefs, s), ...(guards ? { guards } : {}), ...(party.length ? { party, castFigures } : {}), ...(audio ? { audio } : {}), ...(ride ? { ride } : {}), ...(Q.goal === 'defend' ? { extra: (ends) => defendCast(Q, ends, figRefs) } : Q.goal === 'battle' ? { extra: (ends) => battleCast(Q, ends, figRefs.foe) } : Q.goal === 'shoot' ? { extra: (ends) => shootCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: Q.craft !== undefined ? 'click or Z  guns · R  missile · X  flare · F  boost · Q / E  roll' : 'click  fire' } : Q.goal === 'deathmatch' ? { extra: (ends) => deathmatchCast(Q, ends, figRefs.foe, { hero: !!heroRef, camera: world.camera }), legend: deathmatchLegend(Q) } : Q.goal === 'collect' ? { extra: () => bagPlay(Q), legend: 'I  bag' } : Q.goal === 'race' && ride ? { extra: (ends) => raceCast(Q, ends, ride) } : figRefs.farmhand ? { extra: (ends) => farmCast(Q, ends, figRefs.farmhand) } : {}) });
     const extraLaws = [...(balance ? [balance] : []), ...castLaws], laws = extraLaws.length ? [...(L.laws ?? []), ...extraLaws] : L.laws;
     steps.push({ key: `level-${s.level}-${s.index}`, ref: levelRefs[i], ready: true, order: L.args, print: fingerprint(L.args), ...(laws ? { laws } : {}) });
   });

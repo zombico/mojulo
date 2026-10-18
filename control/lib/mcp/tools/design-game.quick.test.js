@@ -213,6 +213,24 @@ describe('design_game quick', () => {
     expect(payload.events.reactions.some((r) => r.on === 'seen')).toBe(true);
   }, 240_000);
 
+  it('a cast beside you: a wolf familiar made from the cast row, woken at the start and keeping up with you', async () => {
+    const out = await designGameHandler({ quick: { goal: 'reach', cast: { scale: 'hero', cast: { pet: { relation: 'familiar', body: 'beast', species: 'wolf' } } }, world: { id: 'tag', style: { kit: 'trail-valley' } } }, ref: 'w' });
+    expect(out.ran.map((r) => [r.key, r.action])).toEqual([['casting', 'make'], ['cast-pet', 'make'], ['level-run-0', 'make'], ['game', 'make']]);
+    expect(stored('w-cast-pet')).toMatchObject({ kind: 'layered', species: 'wolf' });
+    const L = stored('w-level-run-0');
+    expect(L.play.party).toEqual([{ who: 'pet' }]);
+    expect(L.figures.pet).toMatchObject({ heroRef: 'w-cast-pet', walker: true });
+    const { payload } = await resolveWorldScene(SketchRepository.getByRef('w-level-run-0'));
+    const sim = simLevel({ entities: payload.entities, events: payload.events }), W = sim.world, pilot = W.byId[W.pilotId];
+    sim.run(0.5);
+    const pet = W.byId.pet;
+    expect(pet.dormant).toBeFalsy();
+    // the pilot walks on; the familiar keeps up (within its follow distance and a stride or two)
+    pilot.transform.pos = [pilot.transform.pos[0] + 8, pilot.transform.pos[1], pilot.transform.pos[2]];
+    sim.run(6);
+    expect(Math.hypot(pet.transform.pos[0] - pilot.transform.pos[0], pet.transform.pos[1] - pilot.transform.pos[1])).toBeLessThan(5);
+  }, 600_000);
+
   it('rhythm: the music\'s beat on the bus, a press judged on it, the beats scored and kept', async () => {
     await designGameHandler({ quick: { goal: 'rhythm', music: 'tavern', misses: 4, world: { id: 'pulse', style: { kit: 'trail-valley' } } }, ref: 'm' });
     const L = stored('m-level-run-0');

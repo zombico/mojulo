@@ -503,13 +503,15 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
   const joiners = (party ?? []).filter((p) => p.ref && castFigures?.[p.id] !== null), members = [], stands = [];
   if (joiners.length) {
     const figures = { ...(pilotPart.figures ?? {}) }, entities = [...pilotPart.entities], pilot = entities[0], h = ends.heading;
+    // (on the pilot's own side when it has one: a team game's; else a side of their own)
+    const side = pilot.team ?? 'party';
     joiners.forEach((p, i) => {
       figures[p.id] ??= fieldFigure(p.ref, castFigures?.[p.id]);
       const rule = { type: 'ai', mind: { motivation: 'escort' }, escort: pilot.id, followDist: 2.5, eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3, ...(Number.isFinite(pilot.rule?.speed) ? { speed: pilot.rule.speed } : {}) };
       const k = entities.findIndex((e) => e.id === p.id);
       if (k >= 0) {
         // one the story stands here: waits at its stand until it joins, or (with the pilot from the start) follows at once
-        entities[k] = { ...entities[k], rule, team: 'party' };
+        entities[k] = { ...entities[k], rule, team: side };
         if (p.joins) {
           stands.push({ id: `stand-${p.id}`, at: entities[k].transform.pos.slice(0, 2) });
           members.push({ who: p.id, joins: p.joins, at: `stand-${p.id}` });
@@ -517,7 +519,7 @@ function storyPart(G, stage, ends, lane, pilotPart, basePlay, { story = null, ca
       } else {
         const back = 2 + i * 1.2, aside = (i % 2 ? -1 : 1) * 1.2, s = ends.spawn;
         const at = [r3(s[0] - Math.cos(h) * back - Math.sin(h) * aside), r3(s[1] - Math.sin(h) * back + Math.cos(h) * aside), s[2]];
-        entities.push({ id: p.id, rule, team: 'party', dormant: true, body: { type: 'figure-rig', figure: p.id }, transform: { pos: at, heading: h } });
+        entities.push({ id: p.id, rule, team: side, dormant: true, body: { type: 'figure-rig', figure: p.id }, transform: { pos: at, heading: h } });
         members.push({ who: p.id, ...(p.joins ? { joins: p.joins } : {}) });
       }
     });
