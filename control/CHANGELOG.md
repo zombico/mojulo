@@ -91,6 +91,16 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the female pole, and the lip line parts them as far forward and as deep as their fullness carries them. The cheek's
   fold ends in the jowl: `jowl` is its roll's radius at the foot (0.012, flatter than before) and `foldReach` how far
   below the mouth's corner it runs (0.05, to the lower lip's edge; ~0.12 carries it past below the lip toward the jaw).
+  The fold's top is anchored on the cheek behind the wing, level with the alar crease, so it has a broad base and sits
+  back from the lip; its middle rides the zygomaticus up and back as the cheek bunches over it in a smile.
+- **The teeth.** The incisal point (`inc`, where the incisors meet behind the stomion, `incisorShow` below it: ~2.3 mm,
+  ~3.2 mm female) anchors the dental arches and is where the jaw's opening is measured. The upper arch runs each side
+  from the first molar through the canine to the central incisors, crowns standing up from the occlusal plane; the lower
+  arch is its mirror across that plane, a touch narrower and `overjet` (~3 mm) behind, riding the jaw. As the jaw opens
+  an oral cavity is carved behind the lips, from between them back past the incisors to behind the canines, reaching
+  the upper teeth's edge and the lower's, and the teeth, joined after it, line its top and bottom: a smile on a parted
+  mouth shows the upper incisors. A septum fills the nose's midline (a pocket there opened to a line seen through from
+  the side as the cheek moved).
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 
