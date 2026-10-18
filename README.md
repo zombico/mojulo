@@ -18,7 +18,9 @@ Needs **Node 22.14+** and an MCP-capable coding agent (Claude Code or Codex; Cla
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo`. It starts the same server pinned to one version ([plugins/mojulo](plugins/mojulo/README.md)). The plugin build leaves out the handoff tools for AI image, voice and mesh generators and never downloads a browser, ffmpeg or the search model on its own. Use the plugin or `init` for Claude Code, not both: two registrations run two servers.
 
-The first install is the big one: npx pulls a ~7 MB package that lands, with its dependencies, at about 227 MB on disk plus about 140 MB of npm cache (about 79 MB downloaded; measured for 3.0.0 on one macOS arm64 machine, where a cold start answered in about 4.5 s, nearly all of it npm's install). The biggest pieces are `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and Google AI Studio.
+In ChatGPT, mojulo is available as a plugin too: [Mojulo for ChatGPT](plugins/mojulo-chatgpt/README.md).
+
+The first install is the big one: npx pulls a ~12 MB package that lands, with its dependencies, at about 251 MB on disk plus about 152 MB of npm cache (measured for 3.1.1 on Linux x64, where the install took 11 s from an empty cache and the server answered 2 s after it). The biggest pieces are `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and Google AI Studio.
 
 <details>
 <summary>Wire it by hand instead</summary>
@@ -56,7 +58,7 @@ Linux box it gives itself:
 - The Claude app (macOS, Windows, web, iOS); Grok chat; Google AI Studio; Meta Muse (iOS, web, macOS
   app, one session across all three): *Open a Linux box and install the mojulo npm package in it.*
 - ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
-  it.*
+  it.* Or add the [Mojulo plugin for ChatGPT](plugins/mojulo-chatgpt/README.md).
 
 Each of those has been run this way, from the sentence to a mint and an export handed back. You get
 the same recipes and the same exports, as files: the export result names this host's door, an

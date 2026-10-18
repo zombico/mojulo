@@ -37,6 +37,8 @@ No provider key: your agent is the reasoning loop. Verified on macOS (Apple Sili
 on native Windows (`init` and a first render, under Claude Code), and on Linux x64 in
 the agent boxes of the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and
 Google AI Studio, each run to a mint and an export; a cold install is also checked on Linux arm64.
+In ChatGPT, mojulo is also available as a plugin:
+[Mojulo for ChatGPT](https://github.com/zombico/mojulo/tree/main/plugins/mojulo-chatgpt).
 
 ```bash
 # 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
@@ -80,9 +82,9 @@ npx mojulo init
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
-First install is the big one: npx pulls a ~7 MB package plus its dependencies (about 227 MB on
-disk and about 79 MB downloaded, measured for 3.0.0; the dashboard is its own `mojulo-ui` package,
-fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
+First install is the big one: npx pulls a ~12 MB package plus its dependencies (about 251 MB on
+disk and about 152 MB of npm cache, measured for 3.1.1 on Linux x64; the dashboard is its own
+`mojulo-ui` package, fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 
 **Why these dependencies.** All of them run on your machine. `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
@@ -131,7 +133,7 @@ Linux box it gives itself:
 - The Claude app (macOS, Windows, web, iOS); Grok chat; Meta Muse (iOS, web, macOS app, one session
   across all three): *Open a Linux box and install the mojulo npm package in it.*
 - ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
-  it.*
+  it.* Or add the [Mojulo plugin for ChatGPT](https://github.com/zombico/mojulo/tree/main/plugins/mojulo-chatgpt).
 
 Each of those has been run this way, from the sentence to a mint and an export handed back. You get
 the same recipes and the same exports, as files: the export result names this host's door, an

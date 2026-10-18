@@ -31,6 +31,11 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   encodes the GIF. `session.json` is the record of the session the GIF shows: every call, reply, token count and the
   recipes it left. The media helpers launch Chromium without its sandbox when they run as root, as in a Linux
   container.
+- `docs/tech-requirements.md` is measured for 3.1.1 (Linux x64, 2026-10-18: an 11.6 MB tarball, 251 MB installed
+  across 130 packages, the per-dependency sizes again, and what the measurement turned up), records the Linux runs
+  behind the demo (Claude Code driving the stdio server, Chrome for Testing baking without its sandbox as root), and
+  names `stitch_motion`'s MP4 decode. The READMEs carry the 3.1.1 install size and name the ChatGPT plugin
+  ([plugins/mojulo-chatgpt](../plugins/mojulo-chatgpt/README.md)) beside the Claude one.
 - `design_interior`'s reply says where each piece stands: `at` (its centre, mm from the room's corner) and `facing`
   beside its id and size, so the next call can move a piece by id knowing where it is, and a reader can tell what a
   revision moved.
