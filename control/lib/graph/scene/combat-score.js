@@ -15,9 +15,9 @@
  *     bodies   every hittable character, as the web normalizes it: its egg or radius, team, hpMax, poise and the
  *              reaction's timings (a reacting body staggers, topples, lies flat, gets up; a killing blow floors it;
  *              without poise the web leaves it standing at 0 hp, and so does the kernel), its shield
- * Absent an armed platform hero and hittable bodies ⇒ null (no key). What stays on the web: the combo's stun, scaling
+ * Absent an armed platform hero (or a mind) and hittable bodies ⇒ null (no key). What stays on the web: the combo's stun, scaling
  * and juggle (`combo` names a world or body that opts in), the clash and the other set pieces, a loadout's other
- * slots, the charge-through-boost and every AI's attack.
+ * slots. A mind's attack runs in the kernel since 0.26.0 (mind-score.js carries the minds).
  */
 import { composeLive } from '../worlds/controllable/compose.js';
 
@@ -64,10 +64,14 @@ export function extractCombat(payload, player) {
   // the web's normalized world: the same hoists (poise, hpMax, team) a page starts from
   const world = CW.createWorld({ entities: JSON.parse(JSON.stringify(ents)), ...(Array.isArray(payload.colliders) ? { colliders: payload.colliders } : {}) });
   const me = world.byId[player];
-  if (me.rule.type !== 'platform') return null;   // the strike and the trigger are the platform pilot's: a walker fights nothing
-  const strike = strikeOf(me);
-  const weapon = me.weapon ? JSON.parse(JSON.stringify(me.weapon)) : null;
-  if (!strike && !weapon) return null;
+  // minds fight too (kernel/mind.gd, since 0.26.0): their trigger and blade need the fight whatever the pilot holds
+  const minds = ents.some((e) => e && e.rule && e.rule.type === 'ai');
+  // the strike and the trigger are the platform pilot's: a walker fights nothing of its own
+  const platform = me.rule.type === 'platform';
+  if (!platform && !minds) return null;
+  const strike = platform ? strikeOf(me) : null;
+  const weapon = platform && me.weapon ? JSON.parse(JSON.stringify(me.weapon)) : null;
+  if (!strike && !weapon && !minds) return null;
   // authored hittable (one minted asleep starts unhittable, and a spawn arms it when it has hpMax, as on the web)
   const bodies = {};
   for (const raw of ents) if (raw && raw.body && raw.body.hittable && !raw.isCamera) bodies[raw.id] = bodyOf(world.byId[raw.id]);

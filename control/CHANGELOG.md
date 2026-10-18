@@ -14,6 +14,350 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 
 ## [Unreleased]
 
+### Engine legs: the engines as translations, declared
+
+Every engine pack is a translation of the web game. Which engines exist, what each one carries, and how each is
+held equal to the web are now said once, in an engine registry, instead of in a Godot-shaped column threaded
+through the code. Roblox joins as the second engine with a runtime kernel.
+
+- **The engine registry** (`lib/graph/scene/engines/registry.js`): one row per engine (Godot, Roblox, Unity, Unreal,
+  Blender), its kind (a runtime kernel, a scene project, an art pass), its marks module and the folder its pack lands
+  in. The desktop packager's ignore list reads the folders, so a Roblox pack beside a desktop app stays out of it.
+- **Marks per engine.** A mark row is keyed by its engine (`{ godot: 'built', how }`, `{ roblox: 'absent', how }`),
+  every table in one vocabulary (built, approximated, absent), the bus rows among them. Each engine with a runtime
+  kernel has its own marks module over the same closed keys (`godot-marks.js`, new `roblox-marks.js`); what no engine
+  owns (the camera and traversal rules, the drawing options, the ledger's information rows) is in
+  `scene/engines/marks.js`. `bus-abi.js` is the contract alone: which rows an engine performs is its marks' `BUS_MARKS`.
+- **The score reads the engine it is for.** `extractEngineScore(…, { engine })` reads the level against that engine's
+  marks; Godot packs are byte-identical. Unity and Unreal packs no longer carry Godot's reading rows, Godot's bus
+  column, or a flag naming "the Godot kernel": their kernels run no bus, and their portability reads as before.
+- **The cosmos counts every engine.** A facet value carries its mark in each engine (a sourced setting's `marks`
+  reader runs once per engine; a value no one marked for Roblox reads as absent, while Godot still throws).
+  `dryRun` returns `engines: { godot, roblox }`; the sweep, its CLI and the hillclimb page give each engine its
+  column and its scoreboard. Roblox starts at zero worlds, and its scoreboard ranks what to build first.
+- **The ratchet, per engine** (`scene/engines/marks.test.js`): every engine's tables are closed against the same
+  sources (`scene/engines/mark-sources.js`), the cosmos registry agrees with each engine's export tables, and a young
+  kernel marks a row only with the part of the place that carries it: a Roblox row not absent says how, and a built one
+  names the kernel module or place file that performs it, which must be there.
+- **One conformance protocol.** `scene/engines/conformance.js` says what each corpus holds equal (bus, combat, mind,
+  rules, scenes: its scenarios, the kernel modules it needs by module id, the web's runs) and compares any engine's
+  output to the web's frame by frame; `scene/engines/runners.js` says how each engine's kernel is laid out and run
+  headless. `node scripts/conformance.mjs --engine godot|roblox --corpus <name>` replaces the five
+  `godot-*-conformance.mjs` scripts (their Godot runners moved to `scripts/conformance/godot/`); it refuses, naming
+  the module, a corpus the engine's kernel does not have yet. The sound meter's corpus keeps its own runner.
+- **The Roblox kernel's first modules**, in Luau (`scene/roblox-kernel/`): the event bus, the stats and the game store,
+  ported from the web runtime and laid out as the Godot kernel's modules, with `js.luau` saying once how JS reads a
+  value (null and undefined, an empty array and an empty object, numbers printed as JSON prints them, UTF-16 hashing and
+  order) and `json.luau` reading JSON as JSON.parse does. Pure Luau with no host API: the same modules run under Lune
+  and in a place. The bus corpus runs equal to the web on them, frame by frame, stats and store scenarios included,
+  and every planted bug is caught (`MOJULO_LUNE`, `scene/engines/conformance.test.js`). Lune and Rojo join the
+  optional workers (`lib/workers/find.js`: `MOJULO_LUNE`, `MOJULO_ROJO`, a Roblox toolchain manager's or cargo's bin).
+- The bus corpus gains words beyond ASCII (`text`: a spawn id hashed over UTF-16 code units, accented and astral words
+  matched and stored) and the one place UTF-16 order and code point order part (`text-order`).
+- **One pack pipeline.** `scene/engines/pack.js` holds what every pack is built from: the row and its pixelizer
+  refusal, the recipe's hash, the level seam (resolveWorldScene → facesToGlb → the engine's score, the bus, the
+  level's sound), a game's levels and posture, the music beds, and the clean emit that keeps the developer's folder.
+  The Godot, Unity and Unreal legs compose it and keep only their own layout, sidecars and music policy; Blender and
+  the arcade leg take its front. Every pack is byte-identical but one: a Unity game whose menu music is also a
+  level's now ships `audio/menu.wav` (the importer probes it; the old dedupe dropped it, as Unreal's already did not).
+- **`export_game { target: 'roblox' }`**: a game as a Roblox place, written as a Rojo project under `<ref>/roblox/`
+  (`rojo build default.project.json -o game.rbxl`, then Play in Studio). The place carries the Roblox kernel as
+  ModuleScripts; each level's bus.json and contract.json as the exact JSON text the kernel decodes; a greybox per level
+  (every upward face of the level's mesh rastered into floor slabs, each box collider a wall); and a thin server that
+  plays the levels in order, one player driving (set Max Players to 1: a script cannot). A Roblox Humanoid walks the
+  player, its pace, jump and pull from the pilot's rule; the HUD is drawn as words (readouts in their slots, banners
+  and toasts as moments); the bus's own entities are drawn as the page draws them; a key reaches the bus by the page's
+  name for it; the outcome is applied to the store and the next open level starts. The level's look rides beside the
+  project as `model.glb` for Studio's 3D Importer. What does not travel (menus, the web's walk feel, link travel, saves
+  between sessions; a cast, its fight and its scenes since the whole level, below) is the portability report's, with
+  each value's Roblox mark.
+- **The level step and the game channel, in Luau** (`roblox-kernel/level.luau`, `game.luau`): where the bodies stand
+  becomes zone facts, the bus runs in the page's frame order, its warps are handed back, and the page's game channel
+  hears the log (the first pattern as written maps an event; an emit gathered and its `{event}` named, an end and its
+  exit, a door left by once, the kept numbers rounded as the page rounds them). Held equal by a new **level corpus**
+  (`scene/level-conformance.js`): real levels composed from their mechanics (pickups, hazards, a death, doors and named
+  exits, a carried chapter, a kept score, laps on foot, a fall off the ground's edge and its warp back), walked in the
+  web runtime and replayed under Lune frame by frame, its planted bugs caught. `json.luau` now keeps the order an
+  object's keys were written in (`js.keys`), which the channel's first-match reading needs.
+- **The Roblox gate** (`node scripts/export-roblox.mjs --ref <game>`, `scene/roblox-gate.js`): Rojo builds the place
+  and Lune opens it, checks its tree, compiles its scripts and plays every level from the place's own kernel and data
+  over the track the web recorded for it, frame by frame against the web, and checks the kernel it carries is the one
+  the corpora hold equal. Advisory: without `MOJULO_ROJO` and `MOJULO_LUNE` the pack is emitted and the gate says why
+  it skipped. The eyes gate is the operator's, in Studio.
+- **Roblox marks, the first ones flipped**: the bus's logic, guards, warps, zones, timers, start and stats, the game
+  channel and the colliders built; the walk and platform rules, the follow and eye cameras, the faces (as the greybox),
+  the HUD (as words), key inputs and the play shell's level list approximated. Mechanics follow from the bus rows they
+  use: reach-exit, fail-on-death and win-when built; collect, survive, hazard-damage, laps, score, clock and the rest
+  of the zone family approximated; a door, a use and a beat absent (a cast, hits and sight came with the whole level,
+  below). The hillclimb page's Roblox scoreboard ranks the rest.
+
+- **The Godot kernel, principled** (kernel 0.29.0). Every step below is held by Godot 4.7.2 headless: the five corpora
+  and the level corpus equal to the web, every planted bug caught.
+  - `kernel/js.gd` says JS value semantics once (truthiness, `===`, ToNumber, the relational operators, String(v),
+    numbers as JSON prints them, the deterministic stringify, FNV-1a over UTF-16, the glob, Math.imul and
+    Math.round, a heading's vectors, a segment against a box); the copies in the bus, the minds, the fight, the
+    rules, the nav and the game shell are gone, and every module calls it.
+  - Two JS rules the old copies missed: dictionary keys sort by UTF-16 code units (an astral word before a fullwidth
+    one, the bus corpus's `text-order`, now equal), and a glob's `*` stops at line terminators and matches to the
+    very end, as a JS regex does (new scenario `glob-lines`). A string compared with `<` compares code units too.
+  - `kernel/game_channel.gd`: the page's game channel, out of `level.gd` and held equal by the level corpus (now run
+    on Godot too, with its own plants). It settles three ways Godot's outcome drifted from the page's: a level's
+    `initial` events are not mapped through the contract (the page's channel listens only once the bus has
+    started), a kept number's `scale: 0` is no scale, and a var holding a number's text is kept as its number.
+  - `kernel/beat.gd`: the music's beat clock, out of `level.gd`.
+  - One frame, live and in the harness (`level.gd _frame`, its order written beside it): the frame's presses, the
+    beat, the bus and the fight's first half, then the drivers, the pilot by its rule and the fight's second half.
+    Live play steps it on the physics tick with the keys as the pilot's input, where it used to step the pilot on its
+    own tick before the bus heard where it stood; a ruled walker no longer steps itself.
+  - The cast's edge-detected facts remember the last read in the cast's state, not in the module.
+  - One input a frame, for the pilot's rule and the fight: A / D turn and Q / E strafe as the page binds them (the
+    fight read A / D as a strafe, so a swing picked a side the page would not), and a recorded `fire` and `aiToggle`
+    now reach the fight in the harness; G toggles the AI live.
+- **The web harness freezes as the page does.** The level sim (`game/level-sim.js`, the truth the engine harnesses play
+  against) walked the pilot on under a menu: it read the menus one step late, and its frozen step passed a zero `dt`,
+  which the world's step reads as 1/60. The page steps no world while a menu is up, from the step right after the bus
+  that opened it; the sim now does too, and a level that opens a menu under a held key plays equal in both engines
+  frame by frame (`godot-frame.test.js`).
+
+- **The Roblox kernel, whole** (`scene/roblox-kernel/`): the motion and camera rules (`rules.luau`), the cast, the fight,
+  navigation, the minds and their groups (`cast.luau`, `combat.luau`, `nav.luau`, `mind.luau`, `group.luau`), and the
+  scene runner and quest journal (`scenes.luau`, `quests.luau`), ported from the Godot kernel and held equal to the web
+  under Lune by the same corpora (rules, combat, mind, scenes), default and seeded, with planted bugs in every module
+  (`engines/roblox-rules.test.js`, `roblox-combat.test.js`, `roblox-scenes.test.js`); the corpus holes the plants found
+  are listed in those tests as survivors, so a scenario that closes one says so. Every corpus now has its kernel in
+  both engines.
+- **A whole level in the Roblox place.** `level.luau` builds a level's cast, fight, minds, scenes and journal from its
+  bus.json and steps them in the page's frame order, with the Humanoid's pose as the pilot (a Humanoid has moved by the
+  time the server steps, so the fight runs in one call where Godot splits it round its own pilot). A new **levelcast
+  corpus** (`level-conformance.js castCorpus`) plays real composed levels on the web (guards that spot the pilot, a
+  melee fight, an ambush that bites, a cast cued by the bus and a scene) and feeds Lune only the pilot's pose: the bus
+  and every other body equal frame by frame, with plants for the order (`engines/roblox-levelcast.test.js`; the
+  corpus has no Godot runner, `runCorpus` says so). The place ships every kernel module; the server draws each body as
+  an anchored box (downed laid flat, sent away hidden), the left mouse button is the fight's fire, G the minds' world
+  switch, and a scene's line and choices show in a box at the bottom. The place gate plays a cast level whole from the
+  place's own kernel (`sneak-game` equal to the web). Marks flipped with it: the `ai` rule, the world switch and the
+  tier, the cast's facts, hits, beams and sightings, the rearm and the cast rows built; the cast's effects (a box
+  each, its moments undrawn), the bodies, scenes (words, no bars or shots) and quests (a word, no journal)
+  approximated; the platform rule's strike runs in the fight. hp-pool, defeat-all and unseen now travel.
+- **Where the Roblox ports found Godot off the web** (each now a scenario, with a plant per engine). A swing or a
+  round spends the hero's guard (`guard-and-overdrive`, `guard-spent-by-a-swing`: a spawn guard held the hero
+  unhittable for its whole clock); an overdrive's rounds hit 1.5 times as hard; a respawned mind is a fresh life, its
+  last sighting forgotten (`respawn-forgets`; the mind corpus now takes cast ops as the combat corpus does); a scene's
+  condition compares as JS does, a number's text as its number (`scenes-text-var`). Below what a corpus can see, the
+  same port: a walk's turn in the web's `((x % τ) + τ) % τ` (Godot's `fposmod` parts by an ulp on about one heading in
+  sixteen), the spawn's `among` measured in doubles (not a float32 `Vector2`), an empty `land` lands never, a null
+  wait time or beat read as the web reads it.
+- **A target, as advice** (`intent.target: 'roblox' | 'godot'` on a gameworld). The world names the engine the game is
+  meant for, alone or beside its genre and cube; `design_game`'s readout (`intent.target`, a `target` next step) and
+  the game bible then say which of the cube's values that engine does not carry and which it carries in part, read
+  from the same marks the export reads. Nothing is refused and nothing rewritten: the game still makes and exports
+  whatever it holds, and dropping the target drops the advice. An engine without marks is refused as a target, naming
+  the engines it can be.
+- **The Roblox marks made true across the registry.** A facet value marked inline for Godot read as absent on Roblox
+  (its young kernel's default), so the 3D medium, a linear game, a stage kit or melee read as lost: the advice and the
+  hillclimb page's Roblox scoreboard said so. Each is now marked for Roblox as the place carries it (the voxel look
+  and coloured floors for kits, looks and level forms; the Humanoid for the hero, its walk, jump and stop; the fight
+  for melee, ranged and gear; the stats kernel's own table; scenes, quests and talk as words; links, traversal and
+  systems by what the greybox and the kernel do), and what the place does not do stays absent (pixel, weather, the
+  top-down, side and fixed cameras, hubs and doors between levels, drive and fly, runs, the shot camera).
+- **A Roblox place that looks like its level** (`scene/roblox-look.js`), built from the recipe on the operator's machine:
+  nothing is uploaded and no account is needed. The floor slabs wear their faces' colours, each a Roblox material its
+  texture or group names (grass, rock, bark, brick, slate, soil…), or else what the material shelf stamped on it (a
+  metal surface or metal row Metal, mill scale CorrodedMetal, the glass row Glass), a textured face its tint times its
+  texture's mean colour, a blend tile's over the ground it lies on where the tile shows (a meadow's grass, the trail's soil through
+  it); a slab splits where the look changes, but the grid coarsens on the slabs merged by height alone, so the look
+  never changes what the player stands on; a face too small to cover a cell's centre (a lane's dash) colours it only
+  where nothing covering it lies near. The floor grid starts no finer than its area allows, so a road world kilometres
+  long exports instead of overflowing. The rest of the
+  level (walls, rocks, trees, props) is voxelized into boxes of one colour and material each, the voxel coarsening to
+  fit a part budget, and the level's instanced repeats (a wall laid in bricks with `instance`, a stand of trees, a
+  road's furniture) join it, each instance placed and tinted as the page places it, so they no longer go missing in
+  the place, within a box budget of their own so a forest never coarsens the level; ground cover the page draws as cards, ground shadows, blend tiles and a backdrop are left to the
+  slabs and the sky. The look is decoration only: no body collides with it and no ray meets it, which the place gate
+  now checks part by part. Colliders become unseen, as on the page. The cast stands as block figures (a mind in red,
+  the rest in blue) instead of boxes. Marks: the faces, textures and figures approximated; colliders built.
+- **The harness stands where the page stands.** The level harness (`game/level-equivalence.js`, the web side of every
+  engine comparison) raycast the recipe's raw faces, while the page meshes them first: surface cards realized, then
+  de-collided, which lifts a patch stacked on coplanar ground a step for every face under it. A kart track's patch
+  sits 1.27 cm above its raw height on the page, and so in Godot, whose land is the GLB the same pass wrote; the
+  harness read the raw 0.05, so the fixture matrix blamed Godot. `pageGroundFaces` gives the harness, the level
+  corpus's fall and the levelcast corpus's land the page's faces. The kart racers now hold equal for their first
+  thirty seconds where they parted in one, and the supercar race is frame-equal start to finish.
+- **A walk stands on the ground, on both engines.** The cast's walk (`cast.gd`, `cast.luau`) is pushed out of the
+  level's boxes and stood on its land as the web's `stepRoute` does, at the body's own eye, height, radius and step
+  (a cast row carries them as `walk` where the rule is not the walk's default). A farmhand minted below the ground
+  stood there in Godot; the farming fixture is now frame-equal. The combat corpus prints where each body stands, and
+  a scenario walks a body up from below the ground and round a box (`walk-on-the-ground`), with plants per engine.
+- **A round's hit says what it dealt, on both engines.** The web's `hit:<id>` fact carries `dmg`, `harm` and `head` for
+  a ranged hit (a round or its splash) so the bus can take it from an hp of its own; `cast.gd` and `cast.luau` dropped
+  them. The combat corpus's snapshot now prints them (every ranged scenario carries them), and both kernels are equal
+  again.
+
+### Godot plays what the web plays
+
+If Godot can run it, the export runs it; what Godot cannot run is named in the export, never dropped silently. The
+JS runtime is the truth, and the Godot export is held to it by playing both.
+
+- **One portability source.** `lib/graph/scene/godot-marks.js` marks every World page input, controllable rule,
+  events key, gait, system, traversal entry, link and mind value `built`, `approximated` or `absent`; the export
+  (`engine-portability.js`, the score's ledger) and the cosmos registry read the same marks, and a mechanic's mark is
+  found by lowering it and reading the bus rows it uses (`laps` and `score` travel, keeping no best; `unseen`,
+  `on-beat`, `push`, `crops` and `supplies` name the row they lack). Every cosmos value now carries a mark, and a
+  value the web builds that Godot loses is what fails a world.
+- **The ratchet** (`godot-marks.test.js`, no Godot needed): an unmarked page input, rule, events key, bus verb, cast
+  op, ledger row, mechanic or cosmos value fails; so does a cosmos mark that disagrees with the export's tables, and
+  a `built` mark that names no Godot leg proving it. `bus-abi.js` reads its verbs from the bus, the cast and the stats
+  kernel themselves (a stat cue now counts as `level-up`, which the hand list missed), and gains the `entities`
+  (markers) and `shot` rows.
+- **The export says what it is.** The score's ledger reads the rules a level runs (its camera's included), the page
+  channels and events keys that do not travel whole; `assessPortability` flags them, and `export-godot.mjs` and
+  `export_game` stamp `verdict: plays | plays-partly | hollow` with its lost list beside an unchanged `ok`. The pack
+  README gains a Portability section. It stamps; it never refuses. Unity and Unreal read as before.
+- **The level-equivalence harness.** `lib/graph/game/level-equivalence.js` plays a level in the web runtime from a
+  win script (steered toward the contract's audits, recorded as input) and a stay-put control; kernel 0.21.0's level
+  replays the same input at the same fixed step (`scripts/godot-level-sim.gd`) and both print one key a frame (the
+  bus's `hashState` and the entities, quantized to 5 cm). `scripts/godot-fixture-matrix.mjs` makes every cosmos
+  fixture a game through the quick path, exports, imports and plays it in both; `npm run test:godot` runs every
+  Godot leg and the matrix, and fails without `MOJULO_GODOT`.
+- **The scoreboard.** `docs/tool-surface/hillclimb.md` gains a Godot section: the fixtures' lost lists, the ladders
+  and the values that would free the most worlds.
+- **The beat travels** (kernel 0.22.0). A level's `audio.beat` rides `score.beat`, and the kernel says each beat on
+  the bus from its music player's clock as the page does from its AudioContext: one function, `beats/beat-clock.js`,
+  held equal at seeded jumpy clock readings, and an on-beat level is equal on its bus frame by frame. On-beat travels.
+  The web's `level-sim.js` keeps the beat too, and the harness's input frames press keys.
+- **Rounds and their reserve travel** (kernel 0.22.0): `kernel/cast.gd` performs `rearm` and `kernel/combat.gd`'s
+  reload draws from the weapon's reserve, dry when both are out, held equal by the combat corpus.
+- **The bus's own entities are drawn** (kernel 0.22.0): `level.gd` draws each as the page does (an unlit sphere, its
+  radius and colour, where the bus puts it, shown while on), so a pushed boulder, a growing crop and a supply travel;
+  a pick or a shot (`inputs` on `pick` / `fire`) names the marker its ray meets (`fact:aim`, approximated: the ray
+  meets the markers and the box colliders, not the GLB's meshes). Push, crops and supplies travel.
+- **Turn-based battles and routines travel**, proved equal frame by frame (`godot-story-rows.test.js`): a battle's
+  menu, its guarded vars and the foe's answer; a routine's hour cues and the cast's walk. On the way, two kernel
+  divergences the harness found are fixed: a menu up now freezes the world and its clock as the page's does (the bus's
+  timers and sagas, the cast, the fight; `level-sim.js` models it too), and the cast and the fight step after the bus's
+  ops, as the page's world steps after its events (a walk ordered this frame moves this frame).
+- **The clock dial travels** (`weather/clock-dial.js`, held equal to the page's own emitted night): a level's clock
+  darkens the Godot sky at night and its season swaps the climate (`score.weather.clock`, each season's schedule);
+  day-night and seasons travel as the weather does (approximated: fog, colour and light), and growth with them.
+- **Planted bugs are a standing test** (`godot-plants.test.js`): mutants per kernel script (a flipped comparison, a
+  reserved key dropped, a timer a tick late, a reserve ignored …), each of which must make its corpus fail. Three
+  found holes in the corpus (an emit carrying reserved words, a heal past hpMax, a level past its max), now closed.
+- **The bus corpus plays every mechanic that travels** (`bus-conformance.js` `mechanic-<kind>`), held equal in Godot;
+  the ratchet asks for each by id. **The harness has planted bugs**: `godot-harness.js` `mutate` edits a copy of the
+  kernel, and each plant must break an equality.
+- **The honest baseline.** The sweep's Godot survivors fall from 56 to 8 of 500 (21 to 0 near the probes): the mind,
+  the gaits, the story and the cameras were counted as travelling and do not. The walker's ground is a flat plane
+  under a hilly trail (marked approximated, found by the matrix).
+- **The pilot walks and runs by the web's own rules** (kernel 0.23.0). `kernel/rules.gd` ports the walk rule and the
+  ground half of the platform rule (run; tank, look, world and lane turning; the jump with its cut, buffer, coyote
+  time, wind-up, air jumps and glide; boost and its gauge; the colliders slid along), and the pilot stands on the
+  level's own faces (the GLB's triangles, as the page's ground raycast meets them), not on a flat plane. The score
+  carries the pilot's rule (`score.pilot`, recipe units). A rules corpus (`rules-conformance.js`,
+  `scripts/godot-rules-conformance.mjs`) holds it equal to the web's frame by frame, and a whole level climbs a ramp
+  and jumps a ledge key for key in both engines, the pilot included. A power's move (`game.powers`) merges into the
+  rule when the bus hears it picked up, as the page grants it (`level-sim.js` models it too). The platform rule's
+  opt-in moves the kernel does not run (space, the boost hover and slide, the charged jump, the kneel, the dodge, the
+  tackle, a loadout) are named per level (`PLATFORM_KEYS`), and a walker besides the pilot is flagged as standing.
+  Walk, platform, the platformer kit, unlock, the gap link and the metroidvania idiom are built.
+- **The page's cameras travel** (kernel 0.23.0): follow, eye, overhead, side and fixed run in `kernel/rules.gd` after
+  the pilot, held equal by the same corpus, and drive the level's own Camera3D as the page's `__driveCamera` drives
+  its camera (a whole level checks the pose every frame against the page's own driver, lifted out of its source).
+  The score carries the page's camera (`score.camera`). A camera that watches anything but a pilot the kernel walks,
+  and a follow camera's lock tracking, are flagged. The page pulls its chase camera in by its 3-unit stand-off even
+  with no wall between (a twin bug, named by a failing test in `godot-rules.test.js`); Godot matches it.
+- **Travel travels** (kernel 0.23.0). `store.gd` gains the web store's item gate, a door's transit, and a map's
+  reachable levels and exits (held equal by the store corpus). `game.gd` goes on through the exit a level was won by
+  (telling the next where it came from), takes a door into the linked level by its own door with the session carried,
+  draws a run with the web shell's own roll (lifted from `play-shell.js` and held equal) and keeps the deepest, and
+  keeps each kept number's best in `user://`; the menu shows a run's title and a map's found levels. A level ends
+  through its named exit, leaves by a door once, hears `arrive:<ref>`, stands at the door it came in by, and sends its
+  kept numbers, as the page's game channel does (`level-equivalence.js gameChannel` models it for the harness;
+  `godot-travel.test.js`, `godot-game-shell.test.js`, each with plants). A level with no faces stands on the score's
+  implicit plane; a script that moves the walker's node moves its rule's pose. Interconnected, building, buildings,
+  street, runs, doors, links and kept bests are built.
+- **Scenes and quests travel** (kernel 0.23.0). `bus.json` carries the scenes' program and the quests' journal;
+  `kernel/scenes.gd` ports the page's scene runner (beats, typed lines, presses, holds and skips, choices) and
+  `kernel/quests.gd` its journal and news, held equal step by step by a corpus (`scenes-conformance.js`,
+  `scripts/godot-scenes-conformance.mjs`, with plants). The level steps the runner where the page does (after the
+  bus's ops): its beats go back to the bus, its shots set `kernel/rules.gd`'s new shot rule (frames, moves, the side
+  of the line, the clear view) aside the page's camera, a skip lands the walks (`cast.gd finish`), the pilot's input
+  is held while one plays, and the bars, the text box and the choices are drawn; J opens the journal and a word shows
+  as a quest moves on. `level-sim.js` plays scenes too, so a whole level (a scene watched, answered and skipped) is
+  equal key for key with its directed camera. A twin quirk is named (`godot-scenes.test.js`): the page draws half of
+  an emoji for a frame as a line types on; Godot keeps the half back. Talk, the shots, framing, steps and quests are
+  built.
+- **Vehicles travel** (kernel 0.23.0). `kernel/rules.gd` ports the drive rule (its power curve, brakes and reverse,
+  the slewed bicycle steer, drag and rolling, the classes' opt-in grip, the ground followed down at a fall rate,
+  walls, and flight off a ramp's lip or a crest with `air`), the racer (a rival driving its line: bends braked
+  into, laps counted, a lane, a grip-bound speed plan, ramps lifted for, backing off when held up) and fixed-wing
+  flight (taxi, takeoff, banked turns, stall, touchdown), held equal by the rules corpus (51 scenarios). A car or a
+  plane pilot is walked by its rule with its own node riding the pose; the score carries the rivals
+  (`score.drivers`) and the kernel drives them; the chase camera follows the car. A whole race (the car flown off a
+  lip, the rival round its loop, the camera) is equal key for key. The ground's surface grip under a car stays the
+  web's (`driveSurface`, approximated), and solid bodies that push walkers out on the web are named
+  (`bodies_solid`). Drive, racer, fly, the vehicle hero and the circuit are built.
+- **The look travels further** (kernel 0.24.0). Game packs ship their rigged figures skinned, as world packs do (one
+  mesh, its clips, its face and ink: game-pack emission changes); the skinned suit follows the walker. The score
+  carries the page's background colour, its sky dome, its distance haze and its pixel medium (`bg`, `skyDome`,
+  `haze`, `pixel`), and `kernel/level.gd` builds them: a sky shader with the dome's gradient, stars, moon and sun
+  (`kernel/sky.gdshader`), exponential fog in the horizon colour, the 3D drawn at 1/scale with nearest scaling; a
+  toned stage is graded by `kernel/tone.gdshader` (the page's ramps, bands and detail); a metal reflects the sky, or a
+  plain studio sky. A blend tile (the two-tile vertex blend) leaves the GLB as the page draws it, faded in per corner
+  (COLOR_0 RGBA under a BLEND material, a cut layer masked) instead of an opaque tile over the ground. The figures,
+  the background, the tone and the pixel medium are built; the dome and the haze are approximated (hashed stars, an unphased moon, Godot's fog curve); the backdrop image stays the
+  web's. Under `--lit` a skinned figure carries smooth rest normals, so an engine light shades it (the default unlit
+  export is byte-identical). Machine-held by `godot-look.test.js`; how it looks is the eyes gate.
+- **The export's ground is the page's.** The GLB de-collided its blend tiles together with the ground they lie on,
+  lifting the ground itself a fraction of a millimetre where the page leaves it; blend faces now go last (the page
+  draws them in their own pass), and `score.blendNodes` names their nodes so the kernel's land leaves them out. The
+  harness steps the world in the frame a level ends, as the page does. The fixture matrix reports how far a run
+  drifts (`keyDrift`: the bus frames that part, the largest gap in quanta) and keeps both engines' keys beside the
+  pack.
+- **Clips play the page's keys.** Godot's scene importer bakes every clip at 30 fps, cutting across a key that falls
+  between two samples (a figure's keys come every twelfth of a second: at a key, the hand of the hero's wave sat
+  2.6 cm off the page's). A pack now writes, for each GLB whose keys miss that grid, the lowest rate from 30 up that lands on all of
+  them (`animation/fps` in its `.import`; `godot-bake.js`). Pack emission changes for those GLBs only.
+- **Worlds that are not games** (kernel 0.25.0). A world with no one to play (no seat, no pilot) opens on its
+  authored view, as the page opens on its camera; 0 hands the view to the walker and back. A world's shoot plan plays
+  its edit on P: the program camera the GLB carries, cut for cut, its lens frame by frame from `score.shoot` (a glTF
+  camera keys no field of view); the set pieces, the transitions and the world's clock stay the page's (`shoot`,
+  approximated; the `shoot_edit` ledger row). `--humanoid` (`export-godot.mjs`) ships a humanoid figure's world pack
+  on the engine humanoid skeleton (the T-pose rest, VRM names, nested) with Godot's BoneMap named on it, so the
+  importer makes it `%GeneralSkeleton` and any humanoid clip retargets onto it; the scene turns it from the VRM
+  facing back to the world's. It holds the page's pose at every key; between keys each joint turns against its
+  parent, so a fast move strays from the page's path (6 cm at the hand of the wave, between two keys), which is why it is opt-in and the
+  default pack's `figure_humanoid` row says how to ask for it. Machine-held by `godot-edit.test.js` and
+  `godot-humanoid-pack.test.js`.
+- **The supercars and the race moods, named in Godot** (kernel 0.28.0). Every body the world moves now stands in the
+  zones in Godot as on the page (the drivers and the cast beside the pilot): a rival that starts on its last checkpoint,
+  or crosses one, counts its laps and its place as the web's does, where before only the pilot entered a zone. The
+  flight games' chase camera banks with the craft in Godot too (`rollFollow`, a new rules scenario holds it equal). A
+  supercar field ships skinned like a racer's, the moods' relit faces and sky with it; what the page alone lays on a
+  car is now said per level (`figures_carried`,
+  `FIGURE_MARKS`: the live overlay's steer and lean, the juice, a dark mood's headlamp pool and tail-lamp ribbons), as
+  is the wet road's film (`PAGE_MARKS.wetRoad`). The fixture matrix gains variants past the cosmos fixtures: a field of
+  supercars on a wet night, and an airspace in a palette.
+- **The new games, swept** (kernel 0.27.0). On the rebase onto the flight and shooter games, the fly rule's dials run in
+  `kernel/rules.gd` (a glider, the throttle lever, space without gravity or lift, the boost and its charge, the barrel
+  roll, the arcade and sim assists, the map's bound), held equal by seven new rules scenarios; the space shooter and air
+  combat now play key for key, the flight sim to a quantum. The new mechanics (respawn, frags, control, regen,
+  abilities) carry their marks, and the arena shooter's match player and the minds' new moves (peek, floors, items, the
+  gun for the range, perches, objectives, a flier's clearance) are named per level (`AI_LOST`), as are the guns' new
+  ways (spread, recoil, falloff, headshots, the gun's hand, the round to the crosshair, homing missiles: `WEAPON_LOST`),
+  until the kernel runs them. The fixture matrix mints the four new games.
+- **The mind travels** (kernel 0.26.0). Bodies on the web's `ai` rule decide in `kernel/mind.gd`, a port of the web's
+  mind: every motivation (hunt, guard, escort, territorial, wander, forage, flee, sentry), sight and memory with the
+  search, cover from the one it fights, the blade with its combo and give-up, the roll off a stagger, the loadout's
+  rotation, a world's tier and a body's own tuning, a boss's phases and adapting, the boost juke and space. It paths
+  round walls on the web's grid (`kernel/nav.gd`), moves in groups (`kernel/group.gd`: packs, squads, herds, attack
+  tokens) and fights with the kernel's trigger, blade and charge (`kernel/combat.gd`; a semi or lob weapon holds fire
+  mid-thrust, as on the web). `bus.json` carries the minds (`minds`: each body's rule, the minds' weapons, the tier,
+  the walls), the bus hears `seen`, and a level whose minds hit nothing still runs them. The mind corpus
+  (`mind-conformance.js`, its first scenarios the cover law) is equal frame by frame at five seeds, and every planted
+  bug is caught (`godot-mind.test.js`). The shooter and stealth fixtures now play their levels key for key. What
+  stays the page's: the commander, and the shove-down set piece when an opportunist's counter-charge catches the
+  pilot (the kernel plays the plain counter).
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

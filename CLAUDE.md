@@ -62,7 +62,7 @@ The chatbot factory and its bot runtime left in 3.0.0 for their own project; the
   layers over what the operator's LLM provider already enforces. Posture: [TERMS.md](TERMS.md).
 - Never read or echo `.env` secrets from generated app directories.
 - UI strings go through `next-intl`; add to `control/messages/en.json`, then `/sync-locales`. CI checks parity.
-- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal) are never dependencies.
+- Optional workers (Blender, ComfyUI, Kokoro, slicer, OpenSCAD, Godot, Unity, Unreal, Rojo, Lune) are never dependencies.
   Absence degrades a loop, never breaks one. Search orders live in `control/lib/workers/find.js` (`version({ workers: true })`).
 - Do not commit unless asked. Never touch `control/.next/`, `control/data/`, `.claude/worktrees/`.
 
@@ -157,8 +157,10 @@ Pointers only; each target carries its own design notes.
   [world-kinds.js](control/lib/graph/worlds/world-kinds.js) (the registry).
 - Emitters: [control/lib/graph/scene/](control/lib/graph/scene/); native frame is z-up, 1 unit = 1 m
   ([engine-score.js](control/lib/graph/scene/engine-score.js)); each emitter owns its conversion.
-  Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`; CLIs in
-  `control/scripts/export-*.mjs`; gates are advisory and need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL`.
+  Engine legs: `godot-project.js`, `unity-project.js`, `unreal-project.js`, `blender-project.js`, `roblox-project.js`;
+  one registry and marks per engine in `scene/engines/`; CLIs in `control/scripts/export-*.mjs`; gates are advisory and
+  need `MOJULO_GODOT` / `MOJULO_UNITY` / `MOJULO_UNREAL` / `MOJULO_ROJO` + `MOJULO_LUNE`. A runtime kernel (Godot's
+  GDScript, Roblox's Luau) is held equal to the web by `scripts/conformance.mjs --engine <e> --corpus <c>`.
 - Solids: [polygonizer/](control/lib/graph/polygonizer/) (`field-terms.js`, `code-realm.js`,
   `field-exact.js` for `exact: true` through Manifold), [worlds/workbench.js](control/lib/graph/worlds/workbench.js);
   manuals are the `solid-vocab/` cards. OpenSCAD both ways: [scad/scad-render.js](control/lib/graph/scad/scad-render.js)

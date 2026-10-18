@@ -1,9 +1,11 @@
 extends SceneTree
 # The Godot side of the bus conformance corpus (lib/graph/scene/bus-conformance.js): runs every scenario through
-# kernel/bus.gd in the web page's frame order and writes each frame's snapshot. scripts/godot-bus-conformance.mjs
+# kernel/bus.gd in the web page's frame order and writes each frame's snapshot. scripts/conformance.mjs --engine godot --corpus bus
 # copies this beside the kernel in a scratch project, runs it headless and compares.
 #
 #   godot --headless --path <scratch> --script res://conformance.gd -- <corpus.json> <out.json>
+
+const Js := preload("res://kernel/js.gd")
 
 
 func _init() -> void:
@@ -34,9 +36,9 @@ func _init() -> void:
 			var ctrl: Dictionary = bus.take_ctrl(st)
 			var bodies := ""
 			if bus.stats != null:
-				bodies = "|" + bus.ss(st.get("_statBodyOps", []))
+				bodies = "|" + Js.ss(st.get("_statBodyOps", []))
 				st["_statBodyOps"] = []
-			snaps.append(bus.hash_state(st) + "|" + bus.ss(ctrl) + bodies)
+			snaps.append(bus.hash_state(st) + "|" + Js.ss(ctrl) + bodies)
 		results[sc["id"]] = snaps
 	var out := FileAccess.open(args[1], FileAccess.WRITE)
 	out.store_string(JSON.stringify(results))
@@ -51,13 +53,25 @@ func _run_store(K, Bus, sc: Dictionary) -> Array:
 	var out := []
 	for op in sc["ops"]:
 		if op.has("gate"):
-			out.append(Bus.ss(K.eval_gate(schema, state, op["gate"])))
+			out.append(Js.ss(K.eval_gate(schema, state, op["gate"])))
 			continue
-		var r: Dictionary = K.apply_events(schema, state, op["events"]) if op.has("events") else K.apply_outcome(schema, state, op["outcome"]["contract"], op["outcome"]["envelope"])
+		if op.has("reachable"):
+			out.append(Js.ss(K.reachable(schema, state, op["reachable"])))
+			continue
+		if op.has("travel"):
+			out.append(Js.ss(K.travel(schema, state, op["travel"]["levels"], op["travel"]["from"], op["travel"]["exit"])))
+			continue
+		var r: Dictionary
+		if op.has("transit"):
+			r = K.apply_transit(schema, state, op["transit"]["contract"], op["transit"]["envelope"])
+		elif op.has("events"):
+			r = K.apply_events(schema, state, op["events"])
+		else:
+			r = K.apply_outcome(schema, state, op["outcome"]["contract"], op["outcome"]["envelope"])
 		if r["ok"]:
 			state = r["state"]
 		var snap := {"ok": r["ok"], "state": state}
 		if not r["ok"]:
 			snap["errors"] = r["errors"]
-		out.append(Bus.ss(snap))
+		out.append(Js.ss(snap))
 	return out

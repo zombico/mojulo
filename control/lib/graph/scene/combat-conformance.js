@@ -5,7 +5,7 @@
  * flat ground) and records where the hero stood after each step; the Godot side replays those poses (its walker is
  * its own) and runs its own strike, contacts and hits. Both print the same snapshot for every frame: the hero's swing
  * (its time, clip, cooldown, combo window, direction, counts), every body's hp, hits, last hitter and fall, and the
- * facts the cast tells the bus (hit:<id>, down). scripts/godot-combat-conformance.mjs runs the Godot side.
+ * facts the cast tells the bus (hit:<id>, down). scripts/conformance.mjs --engine godot --corpus combat runs the Godot side.
  *
  *   SCENARIOS                  the hand scenarios: each names what it exercises
  *   randomScenarios(n, seed)   seeded worlds and inputs
@@ -86,6 +86,15 @@ export const SCENARIOS = [
     frames: frames(press(), idle(20), press(), idle(20), [10, { turn: 1 }], press(), idle(20), press(), idle(20), press(), idle(20), press(), idle(20), [20, { turn: -1 }], press(), idle(20), press(), idle(60)),
   },
   {
+    id: 'reserve-and-rearm',
+    about: 'a reserve the reloads draw from runs dry and the weapon stops; a rearm by n adds to the reserve, a rearm with no by fills the magazine; a heal is held to hpMax',
+    entities: [gunner({ fireClass: 'sight', damage: 1, cooldown: 0.1, magazine: 3, reserve: 4, reload: 0.3, eye: 0, range: 40 }), foe('a', [6, 0, 0], { hp: 500 })],
+    // a pull every 0.15 s: 20 pulls run the 3 + 4 rounds dry; the rearm by 5 (frame 125) reloads again; the full
+    // magazine (frame 215) fires without a reload
+    // and a heal far past the body's hp is held to its hpMax (frame 300)
+    frames: withOps(withOps(withOps(frames(...Array.from({ length: 20 }, () => [press(), idle(7)]).flat(), ...Array.from({ length: 10 }, () => [press(), idle(7)]).flat(), ...Array.from({ length: 10 }, () => [press(), idle(7)]).flat(), idle(20)), 125, [{ op: 'rearm', who: 'hero', by: 5 }]), 215, [{ op: 'rearm', who: 'hero' }]), 300, [{ op: 'heal', who: 'a', by: 1000 }]),
+  },
+  {
     id: 'auto-and-assist',
     about: 'an automatic streams while held, its assist ring catches a body just off the line, and the cooldown paces the rounds',
     entities: [gunner({ fireClass: 'area', rof: 9, damage: 1, magazine: 12, reload: 0.5, eye: 0, assistAngle: 9 }), foe('off', [5, 0.5, 0], { hp: 50, radius: 0.2 }), foe('egg', [7, -0.9, 0], { hp: 50, radius: undefined, egg: { a: 0.4, c: 1, cz: 0 } })],
@@ -133,6 +142,25 @@ export const SCENARIOS = [
     about: 'an explosion of every kind at a place and at a character\'s feet, some scaled: a chain scatters its blasts by the web\'s dice and staggers them, a shake rides each',
     entities: [hero({}), foe('target', [3, 1, 0], { hp: 20 })],
     frames: EXPLOSION_NAMES.reduce((fr, is, i) => withOps(fr, 5 + i * 20, [explode(i % 2 ? 'target' : [i, -i, 0], is, i % 3 ? undefined : 1.5)]), quiet(EXPLOSION_NAMES.length * 20 + 120)),
+  },
+  {
+    id: 'guard-and-overdrive',
+    about: 'a spawn guard holds the hero unhittable until its first round leaves; an overdrive makes its rounds hit 1.5 times as hard, until it is lifted',
+    entities: [gunner({ fireClass: 'sight', damage: 2, cooldown: 0.1, magazine: 30, eye: 0, range: 40 }), foe('a', [6, 0, 0], { hp: 100 })],
+    frames: withOps(withOps(withOps(frames(idle(10), press(), idle(20), press(), idle(20), press(), idle(20), press(), idle(20)), 2, [{ op: 'spawn', who: 'hero', guard: 5 }]), 25, [{ op: 'status', who: 'hero', is: 'overdrive' }]), 70, [{ op: 'lift', who: 'hero', is: 'overdrive' }]),
+  },
+  {
+    id: 'guard-spent-by-a-swing',
+    about: 'a spawn guard is spent by the hero\'s first swing as by a round',
+    entities: [hero({ strikeReach: 1.6, strikeDamage: 2, strikeDur: 0.4 }), foe('a', [1.3, 0, 0])],
+    frames: withOps(frames(idle(10), press(), idle(30)), 2, [{ op: 'spawn', who: 'hero', guard: 5 }]),
+  },
+  {
+    id: 'walk-on-the-ground',
+    about: 'a walk minted below the ground stands on it from its first step, and is pushed round a box in its way at its own radius, height and step',
+    colliders: [{ min: [2.5, 2.0, 0], max: [3.5, 2.9, 2] }],
+    entities: [hero({ strikeReach: 1.2, strikeDamage: 1, strikeDur: 0.3 }), foe('w', [0, 3, -0.4], {}, { rule: { type: 'static', speed: 2, collideHeight: 1.7, collideRadius: 0.4, step: 0.3 } })],
+    frames: withOps(frames(idle(150)), 2, [{ op: 'walk', who: 'w', points: [[6, 3]] }]),
   },
   {
     id: 'asleep',
@@ -194,7 +222,7 @@ function canon(v) {
 }
 
 const nano = (x) => Math.floor(x * 1e9 + 0.5) / 1e9;
-const WEAPON_STATE = ['ammo', 'cooldownT', 'reloading', 'reloadT', 'burstLeft', 'shots', 'prevFire', 'charging', 'chargeT', 'chargeReady', 'energy', 'energyLock'];
+const WEAPON_STATE = ['ammo', 'reserve', 'cooldownT', 'reloading', 'reloadT', 'burstLeft', 'shots', 'prevFire', 'charging', 'chargeT', 'chargeReady', 'energy', 'energyLock'];
 
 function snapshot(world, ids, events) {
   const h = world.byId.hero;
@@ -203,6 +231,8 @@ function snapshot(world, ids, events) {
     const e = world.byId[id];
     bodies[id] = {
       hp: e.body && Number.isFinite(e.body.hp) ? e.body.hp : null, hits: e.hits || 0, by: e.lastHitBy || null, downed: !!e.downed,
+      // where it stands (a walk's steps, its ground and its push-out), to 1e-9
+      pos: e.transform.pos.map(nano),
       hittable: !!(e.body && e.body.hittable), invincible: !!e.invincible,
       ...(Number.isFinite(e.poise) ? { poise: e.poise, staggerT: e.staggerT ?? null, react: e.reactClip, pause: e.downPauseT ?? null } : {}),
       ...(Number.isFinite(e.shieldHp) ? { shield: e.shieldHp, broken: !!e.shieldBroken } : {}),
@@ -212,6 +242,8 @@ function snapshot(world, ids, events) {
   return canon({
     hero: {
       swingT: h.swingT ?? null, clip: h.swingClip ?? null, cd: h.strikeCdT || 0, combo: h.comboT || 0, chain: !!h.swingCombo, dir: h.lastSwingDir ?? null, swings: h.swingCount || 0, dealt: h.meleeHitCount || 0,
+      // its protection (a spawn's guard, spent by acting a weapon): whether it can be hit, not how the guard is kept
+      untouchable: !!h.invincible,
       ...(w ? { weapon: Object.fromEntries(WEAPON_STATE.map((k) => [k, w[k] ?? null])) } : {}),
     },
     bodies,
@@ -220,7 +252,8 @@ function snapshot(world, ids, events) {
     rounds: (world.projectiles || []).map((p) => [p.pos.map(nano), p.vel.map(nano), p.age]),
     // the cast's moments (puffs, blasts, beams, shakes), their places to 1e-9 (a chain's dice are a sine)
     moments: (world.moments || []).map((m) => ({ is: m.is, t0: m.t0, at: m.at.map(nano), ...(m.until != null ? { until: m.until } : {}), ...(m.hit != null ? { hit: m.hit, to: m.to.map(nano), target: m.target ?? null, struck: !!m.struck } : {}), ...(m.k != null ? { k: m.k, for: m.for } : {}), ...(m.scale != null ? { scale: m.scale } : {}) })),
-    facts: events.map((ev) => ({ type: ev.type, entity: ev.entity, ...(ev.type.startsWith('hit:') || ev.type === 'struck' ? { by: ev.by } : {}) })),
+    // a round's hit carries what it dealt (dmg, harm, head), so the bus can take it from an hp of its own
+    facts: events.map((ev) => ({ type: ev.type, entity: ev.entity, ...(ev.type.startsWith('hit:') || ev.type === 'struck' ? { by: ev.by } : {}), ...('dmg' in ev ? { dmg: ev.dmg, harm: ev.harm, head: ev.head } : {}) })),
   });
 }
 

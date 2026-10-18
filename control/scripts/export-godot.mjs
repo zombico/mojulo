@@ -19,6 +19,7 @@
  *   node scripts/export-godot.mjs --ref crypt-of-the-rune-key      # game
  *   node scripts/export-godot.mjs --ref <ref> --web                # + web build
  *   node scripts/export-godot.mjs --ref <ref> --no-gate            # emit only
+ *   node scripts/export-godot.mjs --ref <ref> --humanoid           # a humanoid figure retargetable (BoneMap)
  * Env: MOJULO_GODOT (default /Applications/Godot.app/Contents/MacOS/Godot).
  */
 import { parseArgs } from 'node:util';
@@ -43,6 +44,7 @@ const { values: args } = parseArgs({ options: {
   'no-gate': { type: 'boolean', default: false },
   'no-clips': { type: 'boolean', default: false },
   lit: { type: 'boolean', default: false },   // the LIT handoff: PBR materials over an unshaded base (lit-handoff.plan.md)
+  humanoid: { type: 'boolean', default: false },   // a humanoid figure ships the engine skeleton and Godot's BoneMap
 } });
 
 function fail(msg) { process.stdout.write(`${JSON.stringify({ ok: false, error: msg })}\n`); process.exit(1); }
@@ -58,6 +60,7 @@ const { buildGodotWorldPack, buildGodotGamePack, figureClip } = await import('@/
 const { compareShading, declaredShading, sumDeclared } = await import('@/lib/graph/scene/materials-gate.js');
 const { declaredFigure, parseFigureLine, compareFigure, godotName } = await import('@/lib/graph/scene/figure-gate.js');
 const { parseReplayLine, compareReplay, parsePerfLine } = await import('@/lib/graph/pixelizer/brickster-replay.js');
+const { exportVerdict } = await import('@/lib/graph/scene/engine-portability.js');
 
 const sketch = SketchRepository.getByRef(args.ref);
 if (!sketch) fail(`sketch '${args.ref}' not found`);
@@ -71,7 +74,7 @@ let pack;
 try {
   pack = isGame
     ? await buildGodotGamePack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log })
-    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, log });
+    : await buildGodotWorldPack({ ref: args.ref, outDir, clips, posture: args.posture ?? null, lit: args.lit, humanoid: args.humanoid, log });
 } catch (e) {
   fail(e?.message ?? String(e));
 }
@@ -262,8 +265,13 @@ if (!args['no-gate'] && existsSync(godotBin)) {
   gate = { skipped: true, reason: `no Godot binary at ${godotBin} (set MOJULO_GODOT)` };
 }
 
+// the verdict stamps beside `ok` (ok says the pack was made and the machine gate passed; the verdict says whether it is
+// the game): plays | plays-partly | hollow, and the lost list it rests on. It never refuses.
+const stamp = exportVerdict(pack.portability);
 process.stdout.write(`${JSON.stringify({
   ok: true,
+  verdict: stamp.verdict,
+  lost: stamp.lost,
   ref: args.ref,
   scope: pack.scope,
   dir: outDir,
@@ -272,7 +280,7 @@ process.stdout.write(`${JSON.stringify({
   glb: pack.glbStats,
   files: pack.written.length,
   total_bytes: pack.written.reduce((s, f) => s + f.bytes, 0),
-  portability: { portable: pack.portability.portable, flags: pack.portability.flags },
+  portability: { portable: pack.portability.portable, flags: pack.portability.flags, approximated: stamp.approximated },
   ledger: pack.ledger,
   gate,
   ...(webBuild ? { web_build: webBuild } : {}),

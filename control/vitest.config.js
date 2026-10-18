@@ -42,6 +42,9 @@ export default defineConfig({
       // and only say something when the module they sweep changed. `npm run test:deep` runs them all;
       // `npm run test:deep:changed` runs only those whose imports touch a changed file; CI runs them all.
       '**/*.deep.test.js',
+      // The Godot tier's matrix (`npm run test:godot`, vitest.godot.config.js): every cosmos fixture made into a game,
+      // exported and played in both engines. Minutes, and only with MOJULO_GODOT.
+      '**/*.godot.test.js',
     ],
   },
 });

@@ -42,6 +42,17 @@ describe('design_game', () => {
     expect(ground.made).toBeUndefined();
   });
 
+  it('a target is advice: the readout names what the engine does not carry as a next step, and writes the world as given', async () => {
+    const out = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer', target: 'roblox' } }, ref: 'gw-aimed' });
+    expect(out.intent.target).toMatchObject({ engine: 'roblox', carries: false });
+    expect(step(out, 'target')).toEqual({ step: 'target', engine: 'roblox', lost: out.intent.target.lost, card: 'gameworld-intent' });
+    expect(gameworldOf(stored('gw-aimed')).intent).toEqual({ from: 'kart-racer', target: 'roblox' });
+    // the same world with no target: no advice, no step
+    const plain = await designGameHandler({ world: { ...MEADOWMARK, intent: { from: 'kart-racer' } }, ref: 'gw-plain' });
+    expect(plain.intent.target).toBeUndefined();
+    expect(step(plain, 'target')).toBeUndefined();
+  });
+
   it('gated: a run makes the hero and pins its base; the rest waits for the creator; a second run makes nothing', async () => {
     const out = await designGameHandler({ world: GATED, ref: 'gw', run: true });
     expect(action(out, 'hero')).toBe('make');

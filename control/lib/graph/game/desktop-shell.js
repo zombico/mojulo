@@ -9,13 +9,14 @@
  *
  * Pure functions of (title, ref): same game, same bytes. Plain Node, no `@/` imports.
  */
+import { ENGINE_OUT_DIRS } from '../scene/engines/registry.js';
 
 // The Electron major the exported folder installs. `protocol.handle` and `net.fetch` need 25 or newer; the pin is
 // the major the smoke gate last ran against. Raising it changes every desktop export's package.json.
 export const ELECTRON_TARGET = '^44.0.0';
 
-// Engine packs and build output that share the outcome folder but are not the app.
-const PACKAGER_IGNORE = '^/(dist|godot|unity|unreal)(/|$)';
+// Engine packs and build output that share the outcome folder but are not the app (the engines' folders: engines/registry.js).
+const PACKAGER_IGNORE = `^/(${['dist', ...ENGINE_OUT_DIRS].join('|')})(/|$)`;
 
 const slug = (s, fallback) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || fallback;
 

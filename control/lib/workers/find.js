@@ -1,6 +1,6 @@
 /**
- * Where this host's optional workers are: the programs mojulo runs itself when they are present (Blender, Godot, Unity,
- * Unreal, Electron, a slicer, ffmpeg, a Chromium browser, OpenSCAD-in-WASM). One place for each search order, so the export
+ * Where this host's optional workers are: the programs mojulo runs itself when they are present (Blender, Godot, Lune,
+ * Rojo, Unity, Unreal, Electron, a slicer, ffmpeg, a Chromium browser, OpenSCAD-in-WASM). One place for each search order, so the export
  * scripts and `version({ workers: true })` find the same binary. Absence degrades a loop, never breaks one: each entry
  * says what still happens without it.
  *
@@ -33,6 +33,20 @@ export function findBlender({ env, exists, which } = HOST) {
 export function findGodot({ env, exists } = HOST) {
   if (env.MOJULO_GODOT) return env.MOJULO_GODOT;
   return exists(GODOT_APP) ? GODOT_APP : null;
+}
+
+// the Roblox toolchain managers' bin folders (rokit, aftman, foreman) and cargo's, where `lune` and `rojo` land
+const robloxToolDirs = (env) => ['.rokit/bin', '.aftman/bin', '.foreman/bin', '.cargo/bin'].map((d) => path.join(env.HOME || '', d));
+const robloxTool = (name, { env, exists, which }) => which(name) || robloxToolDirs(env).map((d) => path.join(d, name)).find((p) => exists(p)) || null;
+
+/** $MOJULO_LUNE, else `lune` on PATH, else a Roblox toolchain manager's or cargo's bin folder (a standalone Luau runtime). */
+export function findLune(host = HOST) {
+  return host.env.MOJULO_LUNE || robloxTool('lune', host);
+}
+
+/** $MOJULO_ROJO, else `rojo` on PATH, else a Roblox toolchain manager's or cargo's bin folder (a Roblox project → .rbxl). */
+export function findRojo(host = HOST) {
+  return host.env.MOJULO_ROJO || robloxTool('rojo', host);
 }
 
 /** $MOJULO_UNITY, else the newest editor under the Unity Hub. */
@@ -91,6 +105,10 @@ export function workersPresent({ host = HOST, findSlicer, chromiumCandidates = [
       without: 'the pack and its art-pass guide are still written; bakes and the gate skip' },
     { id: 'godot', found: findGodot(host), env: 'MOJULO_GODOT', uses: 'the headless Godot gate on an exported project',
       without: 'the project is still written; the gate skips' },
+    { id: 'lune', found: findLune(host), env: 'MOJULO_LUNE', uses: 'the Roblox kernel\'s conformance gate (its Luau held equal to the web, headless)',
+      without: 'the Roblox pack is still written; the kernel gate skips' },
+    { id: 'rojo', found: findRojo(host), env: 'MOJULO_ROJO', uses: 'building an exported Roblox project into a .rbxl place',
+      without: 'the Rojo project is still written; build it with rojo or serve it to Studio' },
     { id: 'unity', found: findUnity(host), env: 'MOJULO_UNITY', uses: 'the advisory Unity import gate',
       without: 'the data pack and importer are still written' },
     { id: 'unreal', found: findUnreal(host), env: 'MOJULO_UNREAL', uses: 'the advisory Unreal import gate',

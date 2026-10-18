@@ -104,7 +104,7 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
     const pack = await buildGodotWorldPack({ ref: 'sk_gf_hero', outDir: outDir('sk_gf_hero') });
     const files = pack.written.map((f) => f.file);
     for (const f of ['model.glb', 'model.glb.import', 'figure.gd', 'level.tscn', 'export_presets.cfg', 'README.md']) expect(files, f).toContain(f);
-    expect(pack.figure).toEqual({ name: 'body', clip: 'idle', clips: ['idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 57 });   // + the structured core's lumbar bone (18 before it), + the hands' thirty finger bones (hero-hand.js), + the two collarbones, + the hip, knee and elbow folds
+    expect(pack.figure).toEqual({ name: 'body', clip: 'idle', clips: ['idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 57, humanoidRig: true });   // + the structured core's lumbar bone (18 before it), + the hands' thirty finger bones (hero-hand.js), + the two collarbones, + the hip, knee and elbow folds
 
     // the bytes export_model { format: 'glb', clips: '_all', skinned: true } writes
     const { payload } = await resolveWorldScene(SketchRepository.getByRef('sk_gf_hero'), {});
@@ -115,7 +115,8 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
     expect(j.animations.map((a) => a.name)).toEqual(['body:idle', 'body:walk', 'body:wave']);
 
     expect(text('sk_gf_hero', 'level.tscn')).toBe(STUB);
-    expect(text('sk_gf_hero', 'model.glb.import')).toBe(FIGURE_IMPORT);
+    // the importer's settings, and the bake rate the clips' keys land on (bakeFps: a key every twelfth of a second)
+    expect(text('sk_gf_hero', 'model.glb.import')).toBe(FIGURE_IMPORT.replace('\n[params]\n\n', '\n[params]\n\nanimation/fps=36\n'));
     expect(text('sk_gf_hero', 'figure.gd')).toBe(FIGURE_VIEW_GD);
     expect(text('sk_gf_hero', 'export_presets.cfg').match(/^exclude_filter=""$/gm)).toHaveLength(2);
     const readme = text('sk_gf_hero', 'README.md');
@@ -136,6 +137,12 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
     const j = glbJson(read('sk_gf_lit', 'model.glb'));
     expect(j.skins).toHaveLength(1);
     expect(j.materials.find((m) => m.name === 'fig:body')?.extensions?.KHR_materials_unlit).toBeUndefined();
+    // under --lit the skinned mesh carries smooth rest normals, one unit vector per vertex (the default export has none)
+    const skinPrim = j.meshes.flatMap((m) => m.primitives).find((p) => p.attributes.JOINTS_0 !== undefined);
+    expect(skinPrim.attributes.NORMAL).toBeDefined();
+    expect(j.accessors[skinPrim.attributes.NORMAL].count).toBe(j.accessors[skinPrim.attributes.POSITION].count);
+    const unlitPrim = glbJson(read('sk_gf_hero', 'model.glb')).meshes.flatMap((m) => m.primitives).find((p) => p.attributes.JOINTS_0 !== undefined);
+    expect(unlitPrim.attributes.NORMAL).toBeUndefined();
     expect(pack.figure?.clip).toBe('idle');
     for (const f of ['model.glb.import', 'figure.gd']) expect(existsSync(path.join(outDir('sk_gf_lit'), f)), f).toBe(true);
   }, 60000);
@@ -149,7 +156,8 @@ describe('buildGodotWorldPack — a rigged layered figure', () => {
       const pack = await buildGodotWorldPack({ ref, outDir: outDir(ref), ...opts });
       const files = pack.written.map((f) => f.file);
       expect(pack.figure, ref).toBeUndefined();
-      expect(files, ref).not.toContain('model.glb.import');
+      // a GLB's import, if any, carries only the bake rate its clips' keys land on (bakeFps)
+      if (files.includes('model.glb.import')) expect(text(ref, 'model.glb.import'), ref).toMatch(/\[params\]\n\nanimation\/fps=\d+\n$/);
       expect(files, ref).not.toContain('figure.gd');
       expect(text(ref, 'level.tscn'), ref).toBe(KERNEL_STUB);
       expect(text(ref, 'export_presets.cfg'), ref).not.toContain('exclude_filter');
@@ -172,7 +180,7 @@ describe("buildGodotWorldPack — the anime hero's figure", () => {
     const pack = await buildGodotWorldPack({ ref: 'sk_gf_anime', outDir: outDir('sk_gf_anime') });
     expect(pack.figure).toEqual({
       name: 'body', clip: 'idle', clips: ['gesture', 'idle', 'walk', 'wave'], view: 1, viewName: 'three-quarter', joints: 57,   // + the structured core's lumbar bone (18 before it), + the hands' thirty finger bones (hero-hand.js), + the two collarbones, + the hip, knee and elbow folds
-      anime: true, seconds: { gesture: 1, idle: 4, walk: 1, wave: 2 }, face: true, ambientOver: ['body:gesture', 'body:walk', 'body:wave'],
+      anime: true, seconds: { gesture: 1, idle: 4, walk: 1, wave: 2 }, face: true, ambientOver: ['body:gesture', 'body:walk', 'body:wave'], humanoidRig: true,
     });
     // the bytes export_model { format: 'glb', clips: '_all', skinned: true } writes: the face asked for
     const sketch = SketchRepository.getByRef('sk_gf_anime');

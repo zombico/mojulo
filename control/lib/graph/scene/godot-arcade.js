@@ -16,13 +16,11 @@
  */
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
-import { SketchRepository } from '@/lib/db/repositories/sketches';
 import { BANK, LEGEND } from '@/lib/graph/pixelizer/brickster-skin';
 import { GROOVE, SFX } from '@/lib/graph/pixelizer/brickster-audio.recipe';
 import { buildReplayFixture } from '@/lib/graph/pixelizer/brickster-replay';
-import { manifestIdentity } from './engine-score.js';
 import { writePack } from './godot-pack.js';
+import { loadSketch, packHash as hashOf } from './engines/pack.js';
 
 // reducer id → what the arcade kernel needs beyond the manifest. A reducer
 // absent here has no GDScript port yet and refuses with a teaching error.
@@ -39,7 +37,6 @@ export const ARCADE_REDUCERS = {
 export const ARCADE_REDUCER_IDS = Object.keys(ARCADE_REDUCERS);
 
 const arcadeKernelDir = () => path.join(process.cwd(), 'lib', 'graph', 'scene', 'godot-arcade-kernel');
-const hashOf = (m) => createHash('sha256').update(JSON.stringify(manifestIdentity(m))).digest('hex').slice(0, 16);
 const gdName = (s) => String(s).replace(/[^A-Za-z0-9_]/g, '_');
 const gdStr = (s) => JSON.stringify(String(s));
 const SCALE = 4;
@@ -188,8 +185,7 @@ ${ledgerLines(ledger)}
 
 /** A pixelizer game → data + arcade kernel pack at outDir. */
 export async function buildGodotArcadePack({ ref, outDir, log = () => {} }) {
-  const sketch = SketchRepository.getByRef(ref);
-  if (!sketch) throw new Error(`sketch '${ref}' not found`);
+  const sketch = loadSketch(ref);
   const manifest = sketch.manifest ?? {};
   if (manifest.engine !== 'pixelizer' || manifest.kind !== 'game') {
     throw new Error(`'${ref}' is not a pixelizer game (engine '${manifest.engine ?? 'none'}', kind '${manifest.kind ?? 'none'}')`);

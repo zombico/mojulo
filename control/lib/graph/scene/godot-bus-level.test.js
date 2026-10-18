@@ -268,10 +268,10 @@ describe('the store travels', () => {
   });
 
   it('the kernel carries the store (since 0.9.0)', () => {
-    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.22.0');
+    expect(fs.readFileSync(path.join(KERNEL, 'VERSION'), 'utf8').trim()).toBe('0.29.0');
     const game = fs.readFileSync(path.join(KERNEL, 'game.gd'), 'utf8'), level = fs.readFileSync(path.join(KERNEL, 'level.gd'), 'utf8');
     for (const f of ['preload("res://kernel/store.gd")', 'func level_finish(', 'func params_for(', 'eval_gate(', '"user://store.json"']) expect(game).toContain(f);
-    for (const f of ['"contract.json"', 'func outcome_envelope(', 'level_finish(outcome_envelope(', 'bus_pending']) expect(level).toContain(f);
+    for (const f of ['"contract.json"', 'func outcome_envelope(', 'game.level_finish(env, contract)', 'bus_pending']) expect(level).toContain(f);
   });
 
   it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot plays the town, saves the flag, opens the walls and carries the chapter in (MOJULO_GODOT)', () => {
@@ -474,7 +474,7 @@ const systemsWorld = async () => {
 };
 
 describe('the systems travel', () => {
-  it('bus.json carries the keys a game binds; a pick or a shot stays the page\'s', async () => {
+  it('bus.json carries the keys a game binds, and a pick or a shot (aimed at the markers since 0.22.0)', async () => {
     const payload = await systemsWorld(), bus = extractBus(payload);
     expect(bus.inputs).toEqual([
       { on: 'key', key: '1', emit: { type: 'power-gust-step' } }, { on: 'key', key: '2', emit: { type: 'power-wind-orb' } },
@@ -484,8 +484,8 @@ describe('the systems travel', () => {
     expect(s.ledger.bus_carried.godot.built).toContain('fact:input');
     expect(s.ledger.bus_carried.godot.absent).toEqual([]);
     const aimed = { ...payload, events: { ...payload.events, inputs: [{ on: 'pick', emit: { type: 'chose' } }] } };
-    expect(extractBus(aimed)).not.toHaveProperty('inputs');
-    expect(extractEngineScore({ ref: 'sys', manifest: {} }, aimed).ledger.bus_carried.godot.absent).toEqual(['fact:aim']);
+    expect(extractBus(aimed).inputs).toEqual([{ on: 'pick', emit: { type: 'chose' } }]);
+    expect(extractEngineScore({ ref: 'sys', manifest: {} }, aimed).ledger.bus_carried.godot.partial).toEqual(['fact:aim', 'effect:cast']);
   });
 
   it.skipIf(!process.env.MOJULO_GODOT)('a headless Godot fires a power on its key and opens the status page on i (MOJULO_GODOT)', async () => {

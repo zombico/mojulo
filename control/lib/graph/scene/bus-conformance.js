@@ -4,7 +4,7 @@
  * in the web page's order (scene/channels/events.js): the walkers' zone facts join the incoming events, then
  * process, the watch fixpoint, timers, sagas and the fixpoint again. Its snapshot is the canonical state
  * (`hashState`) plus the character intents and warps the frame queued. Both kernels must print the same string for
- * every frame. scripts/godot-bus-conformance.mjs runs the Godot side and compares.
+ * every frame. scripts/conformance.mjs --engine godot --corpus bus runs the Godot side and compares.
  *
  *   SCENARIOS                   the hand scenarios: each names what it exercises
  *   randomScenarios(n, seed)    seeded scenarios over a small vocabulary (globs, refs, sagas, caps, float sums)
@@ -23,6 +23,7 @@ import { lowerPlay } from '../playscape/ui/direction.js';
 import { composeMechanics } from '../game/mechanics.js';
 import { buildGameStoreKernel } from '../game/store-kernel.js';
 import { buildStats } from '../playscape/stats/kernel.js';
+import { MECHANIC_SAMPLES, mechanicMarks } from './engine-portability.js';
 
 // a scenario's frame: { events?: [...], dt?: seconds, walkers?: [{ id, position }] }
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -195,6 +196,8 @@ const statsRun = () => ({
     { events: [{ type: 'sober' }, { type: 'hit' }, { type: 'ding' }, { type: 'buy-train' }, { type: 'buy-train' }, { type: 'buy-train' }] },
     // might past its soft cap (the curve's default slope), and strength held at its max
     { events: [{ type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'lift' }, { type: 'hit' }] },
+    // the level held at its max (10): ten dings past it level no further (a hole the planted-bug test found)
+    { events: Array.from({ length: 12 }, () => ({ type: 'ding' })) },
   ],
 });
 /** Seeded runs over the stats play: random events per frame, so the transactions meet in orders no hand wrote. */
@@ -226,6 +229,36 @@ const crawler = () => {
     frames: [0, 5, 5.5, 10, 12, 10.2, 15, 20].map((x) => ({ walkers: at(x), dt: 1 / 60 })),
   };
 };
+
+// EVERY MECHANIC that travels, lowered from its sample (engine-portability.js MECHANIC_SAMPLES, the one its mark is
+// found from) and played: a walker visits each of its zones in the order they are declared, twice round (a lap is a
+// lap), dwelling a few frames at each, and the events it hears from outside its own fragment (a beat, a press, a
+// sighting, a point) arrive one each a frame, round robin. The godot-marks ratchet asks every mechanic not marked
+// absent to be here by id (mechanic-<kind>).
+const MECH_STORE = { slices: [{ name: 'bag', kind: 'inventory' }, { name: 'hero', kind: 'character', init: { stats: { hp: 100 } } }, { name: 'flags', kind: 'flags' }] };
+// a mechanic that composes only beside another (defeat-all counts an hp-pool's downs)
+const COMPANIONS = { 'defeat-all': [{ kind: 'hp-pool', entities: [{ id: 'foe', hp: 2 }] }], crops: [{ kind: 'clock', rate: 60 }] };
+function mechanicScenario(kind) {
+  const out = composeMechanics([{ kind, ...MECHANIC_SAMPLES[kind] }, ...(COMPANIONS[kind] || []), ...(kind === 'reach-exit' ? [] : [{ kind: 'reach-exit', at: [99, 99, 0] }])], { storeSchema: MECH_STORE, player: 'hero', spawn: [0, 0, 0] });
+  const ev = out.events, zones = (ev.sources || []).filter((x) => x && x.type === 'zone' && Array.isArray(x.at) && x.watch === 'hero' && x.at[0] !== 99);
+  const inner = new Set([...(ev.reactions || []).filter((r) => r.do === 'emit').map((r) => r.type), ...(ev.watches || []).map((w) => w.type),
+    ...(ev.timers || []).map((t) => t.emit && t.emit.type), ...(ev.inputs || []).map((i) => i.emit && i.emit.type)]);
+  const outside = [...new Set([...(ev.reactions || []).map((r) => String(r.on)), ...(ev.sequences || []).map((q) => q.trigger && q.trigger.on)]
+    .filter((t) => t && t !== 'enter' && t !== 'exit' && !inner.has(t)))].sort();
+  const presses = (ev.inputs || []).map((i) => i.emit && i.emit.type).filter(Boolean);
+  const feed = [...outside, ...presses];
+  const frames = [];
+  const visits = zones.length ? [...zones, ...zones].map((z) => z.at) : [[0, 0, 0]];
+  let k = 0;
+  for (const at of [[0, 0, 0], ...visits, [0, 0, 0]]) {
+    for (let d = 0; d < 4; d++) {
+      const events = feed.length && d % 2 === 0 ? [{ type: feed[k++ % feed.length], entity: 'guard', who: 'guard' }] : [];
+      frames.push({ walkers: [{ id: 'hero', position: at }], dt: 0.25, ...(events.length ? { events } : {}) });
+    }
+  }
+  return { id: `mechanic-${kind}`, about: `the ${kind} mechanic lowered from its sample and played through its zones and the events it hears`, config: clone(ev), entities: clone(ev.entities || []), frames };
+}
+export const mechanicScenarios = () => Object.keys(mechanicMarks('godot')).filter((k) => mechanicMarks('godot')[k].godot !== 'absent').map(mechanicScenario);
 
 // Godot's JSON parser rounds some decimals to a neighbouring double (kernel/json_exact.gd reads them exactly): a 60 Hz
 // step summed onto a 0.3 s period, and values JS prints in full (1.3000000000000003), hold the read to the web's
@@ -307,7 +340,74 @@ const GUARDED = {
   ],
 };
 
-export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED];
+// an emit carries its own fields onto the event, never the verb's reserved words (do, var, by, if, target, to …): a
+// reaction that reads them back off the event finds nothing (a hole the planted-bug test found: no scenario emitted one)
+const RESERVED = {
+  id: 'reserved',
+  about: 'an emit with reserved words beside its own fields: only its own reach the event',
+  config: {
+    reactions: [
+      { on: 'go', do: 'emit', type: 'went', by: 3, var: 'q', to: 9, target: 'bot', at: [1, 2, 3], gain: 2, mine: 7 },
+      { on: 'went', do: 'set', var: 'by', to: 'event.by' },
+      { on: 'went', do: 'set', var: 'to', to: 'event.to' },
+      { on: 'went', do: 'set', var: 'target', to: 'event.target' },
+      { on: 'went', do: 'set', var: 'at', to: 'event.at' },
+      { on: 'went', do: 'set', var: 'mine', to: 'event.mine' },
+    ],
+  },
+  entities: [],
+  frames: [{ events: [{ type: 'go' }] }],
+};
+
+// words beyond ASCII: what a kernel reads as code units and what it reads as code points (both must read the web's)
+const TEXT = {
+  id: 'text',
+  about: 'words beyond ASCII: a spawn id hashed over UTF-16 code units, accented and astral words matched by globs and stored',
+  config: {
+    vars: { ñame: 1, zed: 2 },
+    reactions: [
+      { on: 'drop', do: 'spawn', type: 'gem', at: 'event.at' },
+      { on: 'drop', do: 'set', var: 'note', to: 'event.word' },
+      { on: 'tag', match: { who: 'é*' }, do: 'inc', var: 'é', by: 1 },
+      { on: 'tag', match: { who: '*😀' }, do: 'inc', var: 'smile', by: 1 },
+    ],
+  },
+  entities: [{ id: 'café', on: true }],
+  frames: [
+    { events: [{ type: 'drop', at: [1, 2, 0], word: 'naïve 😀' }] },
+    { events: [{ type: 'tag', who: 'école' }, { type: 'tag', who: 'big😀' }, { type: 'tag', who: 'eco' }] },
+  ],
+};
+// the one place UTF-16 order and code point order part: an astral character (a surrogate pair, D800–DFFF) sorts
+// before U+E000–U+FFFF by code units, after them by code points; the state's keys must sort the web's way
+const TEXT_ORDER = {
+  id: 'text-order',
+  about: 'keys sorted by UTF-16 code units: an astral word before a fullwidth one, as the web sorts them',
+  config: { vars: { 'Ａlpha': 1, '😀beta': 2, plain: 3 } },
+  entities: [],
+  frames: [{ events: [] }],
+};
+
+// a glob's `*` is a JS regex's `.*`: it runs over anything but a line terminator (\n, \r, U+2028, U+2029), and the
+// pattern ends at the end of the string (no final newline let through, as PCRE's `$` lets it)
+const GLOB_LINES = {
+  id: 'glob-lines',
+  about: 'a glob stops at line terminators and matches to the very end, as the web\'s regex does',
+  config: {
+    reactions: [
+      { on: 'say', match: { line: 'go*' }, do: 'inc', var: 'go', by: 1 },
+      { on: 'say', match: { line: '*end' }, do: 'inc', var: 'end', by: 1 },
+      { on: 'say', match: { line: 'a*b' }, do: 'inc', var: 'ab', by: 1 },
+    ],
+  },
+  entities: [],
+  frames: [
+    { events: [{ type: 'say', line: 'go far' }, { type: 'say', line: 'go\nfar' }, { type: 'say', line: 'go\rfar' }, { type: 'say', line: 'go\u2028far' }] },
+    { events: [{ type: 'say', line: 'the end' }, { type: 'say', line: 'the end\n' }, { type: 'say', line: 'a\u2029b' }, { type: 'say', line: 'a\tb' }] },
+  ],
+};
+
+export const SCENARIOS = [BILLIARDS, VAULT, STORM, VERBS, FLOATS, UNDEFINED, NUMBERS, GUARDED, RESERVED, TEXT, TEXT_ORDER, GLOB_LINES];
 
 // ── seeded scenarios over a small vocabulary ──────────────────────────────────────────────────────────────────────
 export function randomScenarios(n = 24, seed = 7) {
@@ -356,6 +456,12 @@ const SCHEMA = { slices: [
   { name: 'world', kind: 'flags' },
 ] };
 const CONTRACT = { produces: { results: ['success', 'fail'], events: [{ type: 'setFlag', slice: 'world' }, { type: 'grant', slice: 'bag', max: 2 }, { type: 'promote', slice: 'campaign', max: 1 }] } };
+// a map: levels whose exits lead on, one shut by an item, one by a flag
+const MAP = [
+  { ref: 'town', exits: [{ id: 'east', to: 'fields' }, { id: 'gate', to: 'keep', gate: { has: 'key' } }] },
+  { ref: 'fields', exits: [{ id: 'west', to: 'town' }, { id: 'up', to: 'tower', gate: { flag: 'chapter:siege' } }] },
+  { ref: 'keep', gate: { completed: 'town' } }, { ref: 'tower' },
+];
 const env = (events, result = 'success', extra = {}) => ({ contractVersion: 1, levelRef: 'town', seed: 1, result, events, ...extra });
 
 export const STORE_SCENARIOS = [{
@@ -377,6 +483,22 @@ export const STORE_SCENARIOS = [{
     { outcome: { contract: CONTRACT, envelope: { ...env([]), contractVersion: 2, events: 'none' } } },
     { outcome: { contract: { produces: { events: [] } }, envelope: env([], 'abort') } },
     { gate: { flag: 'k', slice: 'missing' } },
+  ],
+}, {
+  id: 'store-travel', store: true,
+  about: 'a map game: what is found and open, where an exit leads and when it is shut, an item gate, a door\'s transit applied or refused',
+  schema: SCHEMA,
+  ops: [
+    { reachable: MAP }, { reachable: [{ ref: 'a' }, { ref: 'b', gate: { completed: 'a' } }] }, { travel: { levels: MAP, from: 'town', exit: 'east' } },
+    { travel: { levels: MAP, from: 'town', exit: 'gate' } }, { travel: { levels: MAP, from: 'nowhere', exit: 'east' } }, { travel: { levels: MAP, from: 'town', exit: 'up' } },
+    { gate: { has: 'key' } }, { gate: { has: 'coin', count: 2 } }, { gate: { has: 'coin', count: 3 } },
+    { transit: { contract: CONTRACT, envelope: env([{ type: 'grant', slice: 'bag', item: 'key' }], 'transit') } },
+    { gate: { has: 'key' } }, { travel: { levels: MAP, from: 'town', exit: 'gate' } },
+    { events: [{ type: 'promote', slice: 'campaign', ref: 'town' }] }, { reachable: MAP },
+    { events: [{ type: 'promote', slice: 'campaign', ref: 'fields' }] }, { reachable: MAP },
+    { transit: { contract: CONTRACT, envelope: env([{ type: 'grant', slice: 'bag', item: 'x' }], 'success') } },
+    { transit: { contract: CONTRACT, envelope: env([{ type: 'setStat', slice: 'hero', stat: 'hp', value: 1 }], 'transit') } },
+    { transit: { contract: CONTRACT, envelope: null } },
   ],
 }];
 
@@ -410,14 +532,16 @@ export function runStoreScenario(sc) {
   let state = K.createStore(clone(sc.schema));
   return sc.ops.map((op) => {
     if ('gate' in op) return JSON.stringify(K.evalGate(sc.schema, state, clone(op.gate)));
-    const r = 'events' in op ? K.applyEvents(sc.schema, state, clone(op.events)) : K.applyOutcome(sc.schema, state, clone(op.outcome.contract), clone(op.outcome.envelope));
+    if ('reachable' in op) return JSON.stringify(sortedKeys(K.reachable(sc.schema, state, clone(op.reachable))));
+    if ('travel' in op) return JSON.stringify(K.travel(sc.schema, state, clone(op.travel.levels), op.travel.from, op.travel.exit));
+    const r = 'transit' in op ? K.applyTransit(sc.schema, state, clone(op.transit.contract), clone(op.transit.envelope)) : 'events' in op ? K.applyEvents(sc.schema, state, clone(op.events)) : K.applyOutcome(sc.schema, state, clone(op.outcome.contract), clone(op.outcome.envelope));
     if (r.ok) state = r.state;
     return JSON.stringify(sortedKeys({ ok: r.ok, ...(r.ok ? {} : { errors: r.errors }), state }));
   });
 }
 
 export function corpus({ random = 24, seed = 7 } = {}) {
-  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), statsRun(), ...randomStatsScenarios(Math.ceil(random / 4), seed), ...randomScenarios(random, seed), ...STORE_SCENARIOS, ...randomStoreScenarios(Math.ceil(random / 2), seed)]);
+  return clone([...SCENARIOS, chapterTown(), chapterLive(), crawler(), statsRun(), ...mechanicScenarios(), ...randomStatsScenarios(Math.ceil(random / 4), seed), ...randomScenarios(random, seed), ...STORE_SCENARIOS, ...randomStoreScenarios(Math.ceil(random / 2), seed)]);
 }
 
 // ── the web side ─────────────────────────────────────────────────────────────────────────────────────────────────

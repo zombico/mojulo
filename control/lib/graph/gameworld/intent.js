@@ -3,10 +3,13 @@
  * The cube is the contract; a genre is only a preset cube to start from (the cosmos probes), never a lock: any value
  * may be changed and a world may mix what two genres ask.
  *
- *   intent: { from?: '<genre id>', cube?: { <facet>: { <setting>: value } }, why?: '<words>' }
+ *   intent: { from?: '<genre id>', cube?: { <facet>: { <setting>: value } }, why?: '<words>', target?: '<engine>' }
  *     from   a genre (GENRES) whose cube the world starts from
  *     cube   the world's own values, laid over it value by value
  *     why    the creator's words for it
+ *     target an engine the game is meant for (one with marks: scene/engines/registry.js MARKED_ENGINES). ADVICE ONLY:
+ *            the readout says which of the cube's values the engine does not carry and which it carries in part (its
+ *            marks, the export's own reading); nothing is refused and nothing rewritten, and without it the advice goes
  *
  * A world that names no intent still has a cube: the one it implies (its quick goal's genre, its camera, topology,
  * ride, pixel look), read and shown, never written.
@@ -19,12 +22,14 @@
  *   readIntent(v)            → { from, cube, why } or null; throws, teaching
  *   cubeOfWorld(world)       → { cube, from, said: [<facet.setting>] } the cube the world is: its genre's, then what the
  *                            world's own settings imply, then its intent's own values (`said`: the ones the intent wrote)
- *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest? } the
- *                            readout's: the world's cube read (cosmos dryRun's verdict), what it asks of the world, and
- *                            for a world that wrote no intent, the genres its brief's words suggest
+ *   intentReport(world)      → { from, written, verdict, concerns: [{ id, name, by, laid, checked }], suggest?, target? }
+ *                            the readout's: the world's cube read (cosmos dryRun's verdict), what it asks of the world,
+ *                            for a world that wrote no intent the genres its brief's words suggest, and with a target
+ *                            { engine, carries, lost: ['facet.setting=value'], partly: [...], says } (dryRun's engines)
  */
 import { FIXTURES } from '../cosmos/fixtures.js';
 import { validateCube, dryRun } from '../cosmos/cosmos.js';
+import { MARKED_ENGINES, engineOf } from '../scene/engines/registry.js';
 import { concernsOf } from './concerns.js';
 import { CRAFT } from '../skyscape/eye.js';
 
@@ -79,16 +84,17 @@ export function suggestGenres(text, n = 3) {
 
 export function readIntent(v) {
   if (v === undefined) return null;
-  if (!isObj(v)) throw fail(' is { from?: <genre>, cube?: { <facet>: { <setting>: value } }, why? }');
-  for (const k of Object.keys(v)) if (!['from', 'cube', 'why'].includes(k)) throw fail(`.${k} is not part of an intent (from, cube, why)`);
+  if (!isObj(v)) throw fail(' is { from?: <genre>, cube?: { <facet>: { <setting>: value } }, why?, target?: <engine> }');
+  for (const k of Object.keys(v)) if (!['from', 'cube', 'why', 'target'].includes(k)) throw fail(`.${k} is not part of an intent (from, cube, why, target)`);
   if (v.from !== undefined && !GENRES[v.from]) throw fail(`.from is a genre: ${Object.keys(GENRES).join(', ')}`);
   if (v.cube !== undefined) {
     if (!isObj(v.cube)) throw fail('.cube is { <facet>: { <setting>: value } } (get_game_vocab({ id: \'gameworld-intent\' }))');
     try { validateCube(v.cube); } catch (e) { throw fail(`.cube: ${e.message.replace(/^cosmos: /, '')}`); }
   }
   if (v.why !== undefined && typeof v.why !== 'string') throw fail('.why is the creator\'s words for it');
-  if (v.from === undefined && v.cube === undefined) throw fail(' names a genre (from) or its own cube, or both');
-  return { from: v.from ?? null, cube: clone(v.cube), why: v.why ?? null };
+  if (v.target !== undefined && !MARKED_ENGINES.includes(v.target)) throw fail(`.target is an engine whose marks say what it carries: ${MARKED_ENGINES.join(', ')} (advice only: nothing is refused)`);
+  if (v.from === undefined && v.cube === undefined && v.target === undefined) throw fail(' names a genre (from) or its own cube, or both (or only a target)');
+  return { from: v.from ?? null, cube: clone(v.cube), why: v.why ?? null, target: v.target ?? null };
 }
 
 const put = (cube, f, s, v) => { (cube[f] ||= {})[s] = v; };
@@ -113,13 +119,25 @@ export function cubeOfWorld(world) {
   return { cube, from, said };
 }
 
+// a target's advice: what of the cube the engine does not carry and what it carries in part, as its marks say (the
+// export reads the same marks); words to pass on, never a refusal
+function targetAdvice(engine, read) {
+  const at = (r) => `${r.facet}.${r.setting}=${r.value}`, name = engineOf(engine).name, lost = read.lost.map(at), partly = read.approximated.map(at);
+  const says = lost.length
+    ? `${lost.length} of the world's values do not carry to ${name} (${lost.join(', ')}); the game still makes and exports, and the export names what it leaves out. Change one or keep it: the choice is the creator's.`
+    : partly.length ? `everything the world asks carries to ${name}, ${partly.length} in part (${partly.join(', ')}).` : `everything the world asks carries to ${name}.`;
+  return { engine, carries: !lost.length, lost, partly, says };
+}
+
 export function intentReport(world) {
   const { cube, from } = cubeOfWorld(world), written = world?.intent !== undefined;
   const brief = typeof world?.brief === 'string' ? world.brief : world?.brief?.prompt ?? world?.brief?.text ?? '';
   const suggest = !written && !world?.quick && brief ? suggestGenres(brief) : [];
+  const target = readIntent(world?.intent)?.target ?? null, run = dryRun(cube);
   return {
-    from, written, verdict: dryRun(cube).verdict,
+    from, written, verdict: run.verdict,
     concerns: concernsOf(cube).map(({ asks: _, ...c }) => c),
     ...(suggest.length ? { suggest: suggest.map((g) => ({ id: g.id, matched: g.matched })) } : {}),
+    ...(target ? { target: targetAdvice(target, run.engines[target]) } : {}),
   };
 }
