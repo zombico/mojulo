@@ -4,7 +4,11 @@
  * in linear light as the page multiplies a map by its vertex colours; quantized so neighbours merge) and a Roblox material
  * named by its texture or its group (grass, rock, bark, brick, slate, soil…); the level's non-floor faces (walls, rocks,
  * trees, props) are VOXELIZED into a grid of coloured cells, each claimed by the first face to cross it, and the cells of
- * one colour and material merged greedily into boxes. The voxel coarsens until the shell fits SHELL_MAX boxes.
+ * one colour and material merged greedily into boxes. The voxel coarsens until the shell fits SHELL_MAX boxes. What the
+ * material shelf stamped on a face (polygonizer/materials.js) names a material too, when its texture does not: a metal
+ * surface or a metal row is Metal (mill scale CorrodedMetal), the glass row Glass. A level's instanced repeats (a laid
+ * wall's bricks, a stand of trees, a road's furniture) join the shell whole, each instance placed and tinted as the page
+ * places it, their tops included (no floor slab carries them), and claim their cells before the level's faces do.
  *
  * The shell is decoration: a Humanoid passes through it and no raycast meets it (CanCollide, CanQuery and CanTouch false),
  * so where the player and the cast stand is the greybox's and the kernel's alone. Ground cover the page draws as cards
@@ -14,14 +18,17 @@
  *   textureMeans(textures)                → (name) → linear [r, g, b] | null   each texture's alpha-weighted mean, once
  *   faceLook(face, means?)                → { color: [r, g, b] (0..1 sRGB, quantized), material, transparency? }
  *   isFloor(a, b, c)                      → true when the triangle faces up (or down) at least UP
- *   voxelShell(faces, { mpu, voxel, means }) → [{ min, max, color, material, transparency? }] in metres
- *   lookModel(faces, { mpu, textures })   → { model, boxes, voxel, lookOf }   the shell as a Model of decoration Parts,
- *                                           and the face → look the floors wear
+ *   repeatFaces(repeats)                  → the repeats as faces, every instance placed
+ *   voxelShell(faces, { mpu, voxel, means, whole }) → [{ min, max, color, material, transparency? }] in metres; the
+ *                                           faces in `whole` (a Set) keep their upward triangles
+ *   lookModel(faces, { mpu, textures, repeats }) → { model, boxes, voxel, lookOf }   the shell as a Model of decoration
+ *                                           Parts, and the face → look the floors wear
  *
  * Deterministic: faces in their order, integer cells, keys sorted; no clock, no dice.
  */
 import { partOf } from './roblox-project.js';
 import { decodePng } from '../era/tone.js';
+import { MATERIALS as SHELF } from '../polygonizer/materials.js';
 
 export const VOXEL = 0.5;          // metres: the shell's finest cell
 export const SHELL_MAX = 12000;    // boxes: above it, the voxel doubles (to 4 m at most)
@@ -94,13 +101,22 @@ function colorOf(f, means) {
   // the page's map × vertex colour, in linear light
   return tex.map((t, k) => q(toSrgb(t * (tint ? toLin(tint[k]) : 1))));
 }
+const wordMaterial = (word) => {
+  if (typeof word !== 'string' || !word) return null;
+  const w = word.toLowerCase();
+  for (const [re, m] of MATERIALS) if (re.test(w)) return m;
+  return null;
+};
+// the shelf's stamp: a metal surface (`metal`, its key naming the finish), a metal row (`pbr` metallic 1), the glass row
+// (its highlight `spec`, not metallic)
+function shelfMaterial(f) {
+  if (f.metal && typeof f.metal === 'object') return /"finish":"mill"/.test(String(f.metal.s)) ? 'CorrodedMetal' : 'Metal';
+  if (Array.isArray(f.pbr) && f.pbr[0] === 1) return 'Metal';
+  if (Array.isArray(f.spec) && f.spec[0] === SHELF.glass.specular && f.spec[1] === SHELF.glass.shininess) return 'Glass';
+  return null;
+}
 export function materialOf(f) {
-  for (const word of [f.texture, f.group]) {
-    if (typeof word !== 'string' || !word) continue;
-    const w = word.toLowerCase();
-    for (const [re, m] of MATERIALS) if (re.test(w)) return m;
-  }
-  return 'SmoothPlastic';
+  return wordMaterial(f.texture) || shelfMaterial(f) || wordMaterial(f.group) || 'SmoothPlastic';
 }
 export function faceLook(f, means = null) {
   const material = f && f.water ? 'Glass' : materialOf(f || {});
@@ -114,8 +130,33 @@ export function isFloor(a, b, c) {
   return n > 1e-12 && Math.abs(nz) / n >= UP;
 }
 
-/** The non-floor faces as voxels (each cell the first face to cross it), merged into boxes of one look each. */
-export function voxelShell(faces = [], { mpu = 1, voxel = VOXEL, means = null } = {}) {
+/** The repeats as faces: each template face once per instance, scaled (uniformly, or per axis), turned about z, then
+ * moved (the page's instance matrix), its fill times the instance's tint (the page's instance colour). */
+export function repeatFaces(repeats = []) {
+  const out = [];
+  for (const r of Array.isArray(repeats) ? repeats : []) {
+    if (!r || !Array.isArray(r.template) || !Array.isArray(r.transforms)) continue;
+    for (const t of r.transforms) {
+      if (!t || !Array.isArray(t.pos)) continue;
+      const s = Array.isArray(t.scale) && t.scale.length === 3 && t.scale.every(Number.isFinite) ? t.scale : [0, 0, 0].map(() => (Number.isFinite(t.scale) ? t.scale : 1));
+      const rz = Number.isFinite(t.rotZ) ? t.rotZ : 0, c = Math.cos(rz), n = Math.sin(rz), p0 = [0, 1, 2].map((k) => (Number.isFinite(t.pos[k]) ? t.pos[k] : 0));
+      const tint = Array.isArray(t.tint) && t.tint.length >= 3 && t.tint.slice(0, 3).every(Number.isFinite) ? t.tint : null;
+      for (const f of r.template) {
+        if (!f || !Array.isArray(f.corners)) continue;
+        const g = { ...f, corners: f.corners.map((p) => { const x = p[0] * s[0], y = p[1] * s[1]; return [p0[0] + x * c - y * n, p0[1] + x * n + y * c, p0[2] + p[2] * s[2]]; }) };
+        if (tint && typeof f.fill === 'string' && /^#[0-9a-f]{6}$/i.test(f.fill)) {
+          g.fill = `#${[1, 3, 5].map((i, k) => Math.round(Math.min(255, Math.max(0, parseInt(f.fill.slice(i, i + 2), 16) * tint[k]))).toString(16).padStart(2, '0')).join('')}`;
+        }
+        out.push(g);
+      }
+    }
+  }
+  return out;
+}
+
+/** The non-floor faces as voxels (each cell the first face to cross it), merged into boxes of one look each; a face in
+ * `whole` keeps its upward triangles too. */
+export function voxelShell(faces = [], { mpu = 1, voxel = VOXEL, means = null, whole = null } = {}) {
   const cells = new Map();   // 'ix,iy,iz' → look key
   const looks = new Map();   // look key → look
   for (const f of faces) {
@@ -126,7 +167,7 @@ export function voxelShell(faces = [], { mpu = 1, voxel = VOXEL, means = null } 
       const t = [c[0], c[i], c[i + 1]];
       if (!t.every((p) => Array.isArray(p) && p.length >= 3 && p.every(Number.isFinite))) continue;
       const [a0, b0, d0] = t.map((p) => [p[0] * mpu, p[1] * mpu, p[2] * mpu]);
-      if (isFloor(a0, b0, d0)) continue;
+      if (isFloor(a0, b0, d0) && !(whole && whole.has(f))) continue;
       // a hair inside the triangle (toward its centroid), so a face on a cell's boundary covers the cells it spans and
       // not the next one too (architecture laid out on the voxel's grid keeps its size)
       const g = [0, 1, 2].map((k) => (a0[k] + b0[k] + d0[k]) / 3), inset = (p) => p.map((v, k) => v + (g[k] - v) * 1e-6);
@@ -167,11 +208,14 @@ export function voxelShell(faces = [], { mpu = 1, voxel = VOXEL, means = null } 
   return boxes;
 }
 
-/** The shell as a Model of decoration Parts, its voxel doubled until it fits SHELL_MAX (4 m at most). */
-export function lookModel(faces = [], { mpu = 1, max = SHELL_MAX, textures = {} } = {}) {
+/** The shell (the repeats placed, then the faces) as a Model of decoration Parts, its voxel doubled until it fits
+ * SHELL_MAX (4 m at most). */
+export function lookModel(faces = [], { mpu = 1, max = SHELL_MAX, textures = {}, repeats = [] } = {}) {
   const means = textureMeans(textures);
-  let voxel = VOXEL, boxes = voxelShell(faces, { mpu, voxel, means });
-  while (boxes.length > max && voxel < 4) { voxel *= 2; boxes = voxelShell(faces, { mpu, voxel, means }); }
+  // the repeats claim first: an instance stands in front of what it is laid on (a brick before its wall's mortar backing)
+  const reps = repeatFaces(repeats), whole = new Set(reps), all = reps.length ? [...reps, ...faces] : faces;
+  let voxel = VOXEL, boxes = voxelShell(all, { mpu, voxel, means, whole });
+  while (boxes.length > max && voxel < 4) { voxel *= 2; boxes = voxelShell(all, { mpu, voxel, means, whole }); }
   const children = boxes.map((b, i) => partOf(`look-${i}`, b.min, b.max, b.color, {
     Material: b.material, CanCollide: false, CanQuery: false, CanTouch: false, ...(b.transparency ? { Transparency: b.transparency } : {}),
   }));

@@ -161,12 +161,15 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   top-down, side and fixed cameras, hubs and doors between levels, drive and fly, runs, the shot camera).
 - **A Roblox place that looks like its level** (`scene/roblox-look.js`), built from the recipe on the operator's machine:
   nothing is uploaded and no account is needed. The floor slabs wear their faces' colours, each a Roblox material its
-  texture or group names (grass, rock, bark, brick, slate, soil…), a textured face its tint times its texture's mean
-  colour, a blend tile's over the ground it lies on where the tile shows (a meadow's grass, the trail's soil through
+  texture or group names (grass, rock, bark, brick, slate, soil…), or else what the material shelf stamped on it (a
+  metal surface or metal row Metal, mill scale CorrodedMetal, the glass row Glass), a textured face its tint times its
+  texture's mean colour, a blend tile's over the ground it lies on where the tile shows (a meadow's grass, the trail's soil through
   it); a slab splits where the look changes, but the grid coarsens on the slabs merged by height alone, so the look
   never changes what the player stands on. The rest of the
   level (walls, rocks, trees, props) is voxelized into boxes of one colour and material each, the voxel coarsening to
-  fit a part budget; ground cover the page draws as cards, ground shadows, blend tiles and a backdrop are left to the
+  fit a part budget, and the level's instanced repeats (a wall laid in bricks with `instance`, a stand of trees, a
+  road's furniture) join it, each instance placed and tinted as the page places it, so they no longer go missing in
+  the place; ground cover the page draws as cards, ground shadows, blend tiles and a backdrop are left to the
   slabs and the sky. The look is decoration only: no body collides with it and no ray meets it, which the place gate
   now checks part by part. Colliders become unseen, as on the page. The cast stands as block figures (a mind in red,
   the rest in blue) instead of boxes. Marks: the faces, textures and figures approximated; colliders built.

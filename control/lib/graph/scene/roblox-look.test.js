@@ -3,7 +3,8 @@
 // without the look ever changing what the player stands on.
 import { describe, it, expect } from 'vitest';
 import zlib from 'node:zlib';
-import { faceLook, materialOf, textureMeans, voxelShell, lookModel, VOXEL } from './roblox-look.js';
+import { faceLook, materialOf, textureMeans, voxelShell, lookModel, repeatFaces, VOXEL } from './roblox-look.js';
+import { resolveMaterial, tagFacesWithMaterial } from '../polygonizer/materials.js';
 import { floorSlabs, greyboxModel } from './roblox-project.js';
 
 const quad = (x0, y0, x1, y1, z, extra = {}) => ({ corners: [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]], ...extra });
@@ -36,6 +37,51 @@ describe('a face\'s look', () => {
     // a mid-grey tint darkens it in linear light (sRGB 0.5 × 1 → 0.5 back in sRGB, to a level)
     expect(faceLook({ texture: 'leaf', fill: '#808080' }, means).color[1]).toBeCloseTo(0.5, 1);
     expect(means('missing')).toBe(null);
+  });
+});
+
+describe('what the material shelf stamped', () => {
+  // the shelf's own stamp on a face, as a builder applies it
+  const stamped = (m, extra = {}) => tagFacesWithMaterial([wall(0, 1, 0, 0, 1, { fill: '#c0c0c0', ...extra })], resolveMaterial(m))[0];
+
+  it('names a metal Metal (mill scale corroded) and the glass row Glass, when the texture names nothing', () => {
+    expect(materialOf(stamped('gold'))).toBe('Metal');
+    expect(materialOf(stamped({ metal: 'copper' }))).toBe('Metal');
+    expect(materialOf(stamped({ metal: 'steel', finish: 'mill' }))).toBe('CorrodedMetal');
+    expect(faceLook(stamped('glass'))).toMatchObject({ material: 'Glass', transparency: expect.any(Number) });
+    // a matte row stamps nothing a material reads: the group's word, else plastic
+    expect(materialOf(stamped('stone', { group: 'stage:prop' }))).toBe('SmoothPlastic');
+  });
+
+  it('the texture\'s word comes first and the shelf before the group\'s', () => {
+    expect(materialOf(stamped('steel', { texture: 'bark-oak' }))).toBe('Wood');
+    expect(materialOf(stamped('steel', { group: 'trail:rock' }))).toBe('Metal');
+  });
+});
+
+describe('the repeats', () => {
+  const tpl = [wall(0, 1, 0, 0, 1, { fill: '#ff0000' }), quad(0, 0, 1, 1, 1, { fill: '#00ff00' })];
+
+  it('place each instance as the page does: scaled, turned about z, then moved', () => {
+    const [w] = repeatFaces([{ template: [tpl[0]], transforms: [{ pos: [10, 0, 0], scale: 2, rotZ: Math.PI / 2 }] }]);
+    expect(w.corners.map((p) => p.map((v) => Math.round(v * 1e9) / 1e9 + 0))).toEqual([[10, 0, 0], [10, 2, 0], [10, 2, 2], [10, 0, 2]]);
+    expect(w.fill).toBe('#ff0000');
+    // a unit box stretched per axis, and an instance's tint on its fill
+    const [v] = repeatFaces([{ template: [tpl[0]], transforms: [{ pos: [0, 0, 0], scale: [3, 1, 2], tint: [0.5, 1, 1] }] }]);
+    expect(v.corners).toEqual([[0, 0, 0], [3, 0, 0], [3, 0, 2], [0, 0, 2]]);
+    expect(v.fill).toBe('#800000');
+  });
+
+  it('join the shell whole, their tops included, and none adds nothing', () => {
+    const faces = [wall(20, 21, 0.1, 0, 1, { fill: '#0000ff' })];
+    const plain = lookModel(faces);
+    expect(lookModel(faces, { repeats: [] }).model).toEqual(plain.model);
+    const worn = lookModel(faces, { repeats: [{ template: tpl, transforms: [{ pos: [0, 0, 0] }, { pos: [5, 0, 0] }] }] });
+    expect(worn.boxes).toBeGreaterThan(plain.boxes);
+    // the template's top (an upward face) is voxelized, for no floor slab carries it; a level's own floor is not
+    const tops = repeatFaces([{ template: [tpl[1]], transforms: [{ pos: [0, 0, 0] }] }]);
+    expect(voxelShell(tops, { whole: new Set(tops) }).map((b) => b.color)).toEqual([[0, 1, 0]]);
+    expect(voxelShell(tops)).toEqual([]);
   });
 });
 

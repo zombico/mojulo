@@ -94,8 +94,9 @@ export function aiLost(rule) {
 const OPTION = optionRow('roblox');
 export const PAGE_MARKS = Object.freeze({
   ...Object.fromEntries(PAGE_OPTIONS.map((k) => [k, OPTION])),
-  faces: m(P, 'the greybox and its look (roblox-project.js, roblox-look.js): every upward face as floor slabs on a grid, each in its faces\' colour and a Roblox material named by its texture; the rest of the level voxelized into decoration boxes of their faces\' colours (no body or ray meets them); smooth shapes come out in voxels, a backdrop and ground cover drawn as cards are left to the sky and the slabs; the mesh rides beside the project as model.glb for Studio\'s 3D Importer'),
+  faces: m(P, 'the greybox and its look (roblox-project.js, roblox-look.js): every upward face as floor slabs on a grid, each in its faces\' colour and a Roblox material named by its texture, else by what the material shelf stamped (a metal Metal, glass Glass); the rest of the level voxelized into decoration boxes of their faces\' colours (no body or ray meets them); smooth shapes come out in voxels, a backdrop and ground cover drawn as cards are left to the sky and the slabs; the mesh rides beside the project as model.glb for Studio\'s 3D Importer'),
   colliders: m(B, 'each box collider an anchored Part, unseen as on the page (roblox-project.js greyboxModel)'),
+  repeats: m(P, 'each instance placed as the page places it and voxelized into the look\'s decoration boxes (roblox-look.js), not instanced'),
   textures: m(P, 'a texture travels as its mean colour (alpha-weighted, times the face\'s tint) and a material its name picks (roblox-look.js); the image itself does not'),
   figures: m(P, 'a rigged figure stands as a block figure of its body\'s size (MojuloServer): its mesh, clips, face and ink are not carried'),
   walk: m(P, 'the player stands at the seat, its feet on the greybox; the walk\'s eye is added back for the zones'),
@@ -107,7 +108,7 @@ export const PAGE_MARKS = Object.freeze({
   ai: m(B, 'the world switch: off, every mind stands down until G (kernel/combat.luau; MojuloServer hands it the press)'),
   aiDifficulty: m(B, 'the class tier tunes every mind (kernel/mind.luau)'),
   ...absent([
-    'cameras', 'bg', 'backdrop', 'sky', 'light', 'glow', 'cutouts', 'soft', 'repeats', 'ao',
+    'cameras', 'bg', 'backdrop', 'sky', 'light', 'glow', 'cutouts', 'soft', 'ao',
     'picks', 'tracers', 'planets', 'movers', 'comets', 'fields', 'surfaces', 'heatSpheres', 'starSurfaces',
     'buildups', 'transports', 'deforms', 'raymarch', 'signs', 'physics', 'actions',
     'spectate', 'commander', 'lock', 'match', 'hangar', 'breakables', 'breakPieces',

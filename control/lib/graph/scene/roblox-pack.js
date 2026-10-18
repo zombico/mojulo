@@ -50,7 +50,7 @@ export async function buildRobloxGamePack({ ref, outDir, posture = null, log = (
     const lvSketch = loadSketch(spec.ref);
     const { payload, exported, score, bus } = await resolveLevel(lvSketch, { engine: 'roblox', posture: posturePack });
     const mpu = Number(payload.metersPerUnit) > 0 ? Number(payload.metersPerUnit) : 1;
-    const look = lookModel(payload.faces || [], { mpu, textures: payload.textures || {} });
+    const look = lookModel(payload.faces || [], { mpu, textures: payload.textures || {}, repeats: payload.repeats || [] });
     const greybox = greyboxModel({ faces: payload.faces || [], colliders: score.colliders || [], mpu, lookOf: look.lookOf, look });
     log(`level ${i + 1}/${levelSpecs.length} '${spec.ref}': ${greybox.floors} floor slabs, ${greybox.walls} walls, ${greybox.look} look boxes (${greybox.voxel} m voxels)`);
     binaries.push({ rel: `levels/${spec.ref}/model.glb`, bytes: exported.bytes });
