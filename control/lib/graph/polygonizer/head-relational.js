@@ -79,8 +79,8 @@ export const RELATIONS = Object.freeze({
   condyleGlide: 0.045,  // the condyle's glide forward and down the articular eminence at full / v-me (~10 mm)
   overjet: 0.012,       // the lower incisors behind the upper / v-me (~3 mm): the lower arch is the upper's mirror
                         // across the occlusal plane, set back by this
-  incisorShow: 0.024,   // the upper incisors' edge below the stomion / v-me (~5.5 mm: the full upper lip hangs ~3 mm
-                        // below the stomion, and ~2 mm of incisor shows under it as the lips part)
+  incisorShow: 0.032,   // the upper incisors' edge below the stomion / v-me (~7.4 mm: the full upper lip hangs below
+                        // the stomion, and ~4 mm of central incisor shows under it as the lips part, ~3 of the laterals)
   archWidth: 1,         // the dental arch's width, as a share of the canon's (`DENTITION`)
   // ── masses (radii as shares of v-me)
   brow: 1,              // brow-ridge radius multiplier (the strongest sex cue)
@@ -508,7 +508,7 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE CARVES — grooves cut from the skin at the end (`carve`), riding what they part: the lip line between the
   // lips (the corners and half the jaw) and the mentolabial sulcus over the chin. (The philtrum is its columns alone:
   // a carved groove between them read as a line, and cut through the lip under the nose.)
-  const cut = (name, a, c, b, r, drive) => V.push({ name, a, c, b, r, group: 'carve', ...(drive ? { drive } : {}) });
+  const cut = (name, a, c, b, r, drive, blend) => V.push({ name, a, c, b, r, group: 'carve', ...(drive ? { drive } : {}), ...(blend ? { blend } : {}) });
   // the ALAR CREASES — round the back and the bottom of each wing, where it meets the cheek and the lip: the wing stands
   // off the face in a groove (the summed wave fills between near masses; it never parts them)
   for (const s of ['L', 'R']) {
@@ -517,7 +517,15 @@ export function coreVajras(P, rel = RELATIONS) {
   }
   // (the line parts the lips as far forward as their fullness carries them, and as deep)
   cut('lipLine', at(P.chL, { y: 0.002 }), { ...P.sto, y: P.ls.y - 0.001 + (F - 1) * 0.022 }, at(P.chR, { y: 0.002 }), [0.003, 0.005 * F, 0.003], [['cornerL'], ['jawHalf'], ['cornerR']]);
-  cut('mentolabial', at(P.loMidL, { x: -0.02, y: -0.03, z: -0.035 }), { x: 0, y: P.pg.y - 0.008, z: (P.li.z + P.pg.z) / 2 + 0.006 }, at(P.loMidR, { x: 0.02, y: -0.03, z: -0.035 }), [0.006, 0.01, 0.006], [J, J, J]);
+  // the mentolabial fold: a soft hollow curving with the lower lip (each side its end under the lip's fullest, a bead
+  // out from the centre, the centre lowest: a shallow U). A broad tube set forward, so only a shallow sliver of it cuts,
+  // its edge blended over ~3 mm, its ends thinning away into the face (a thin tube cut as sharp as the lip line read as
+  // a chevron scored into the skin)
+  const mlC = { x: 0, y: P.pg.y + 0.008, z: (P.li.z + P.pg.z) / 2 + 0.006 };
+  for (const s of ['L', 'R']) {
+    const sg = Math.sign(P[`loMid${s}`].x), end = at(P[`loMid${s}`], { x: sg * 0.026, y: -0.036, z: -0.032 });
+    cut(`mentolabial${s}`, end, { x: sg * 0.03, y: (end.y + mlC.y) / 2 + 0.004, z: mlC.z + 0.25 * (end.z - mlC.z) }, mlC, [0.005, 0.014, 0.019], [J, J, J], 0.014);
+  }
   // THE TEETH — the upper dental arch, anchored at the incisal point: each side seven crowns on a curved arch (the
   // central and lateral incisors, the canine, two premolars, two molars: `DENTITION`, placed out from the midline and
   // back from the incisors' faces, the arch narrowing into its curve at the front and running nearly straight back
@@ -763,7 +771,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   const bonds = vajras.map((w) => {
     const beads = w.skin ? [w.a, w.c, w.b].map((q, i) => boneBead(q, w.r[i], w.stepIn)) : [[w.a, w.r[0]], [w.c, w.r[1]], [w.b, w.r[2]]];
     const [a, c, b] = beads.map(([q]) => S(q)), [ra, rc, rb] = beads.map(([, r]) => r * sc);
-    return { group: w.group, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)), lo: { x: Math.min(a.x, c.x, b.x) - Math.max(ra, rc, rb), y: Math.min(a.y, c.y, b.y) - Math.max(ra, rc, rb), z: Math.min(a.z, c.z, b.z) - Math.max(ra, rc, rb) }, hi: { x: Math.max(a.x, c.x, b.x) + Math.max(ra, rc, rb), y: Math.max(a.y, c.y, b.y) + Math.max(ra, rc, rb), z: Math.max(a.z, c.z, b.z) + Math.max(ra, rc, rb) } };
+    return { group: w.group, blend: w.blend, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)), lo: { x: Math.min(a.x, c.x, b.x) - Math.max(ra, rc, rb), y: Math.min(a.y, c.y, b.y) - Math.max(ra, rc, rb), z: Math.min(a.z, c.z, b.z) - Math.max(ra, rc, rb) }, hi: { x: Math.max(a.x, c.x, b.x) + Math.max(ra, rc, rb), y: Math.max(a.y, c.y, b.y) + Math.max(ra, rc, rb), z: Math.max(a.z, c.z, b.z) + Math.max(ra, rc, rb) } };
   });
   // the teeth are many small crowns: a box about them all, so the field skips them away from the mouth
   const teethBonds = bonds.filter((b) => b.group === 'teeth'), tm = 0.02 * sc;
@@ -820,11 +828,12 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     let d = lo - k * SM.log(sum);
     for (const k of ['nose', 'lipBody', 'lips']) if (g[k] !== undefined) d = smin(d, g[k], JOIN[k] * sc);
     // the grooves, the mouth, and the eyes' openings cut through to the globes, which sit in them
-    for (const c of carves) d = smax(d, -c.f(p), 0.003 * sc);
+    for (const c of carves) d = smax(d, -c.f(p), (c.blend ?? 0.003) * sc);
     if (mouthF) d = smax(d, -mouthF(p), 0.006 * sc);
     for (const f of openingF) if (f) d = smax(d, -f(p), 0.0025 * sc);
-    // the teeth, in the mouth as it is carved (inside the closed lips they are inside the skin, unseen)
-    if (g.teeth !== undefined) d = SM.min(d, g.teeth);
+    // the teeth and the tongue, seen only through the mouth: clipped to the carved cavity's neighbourhood, so another carve
+    // (the mentolabial fold over the lower incisors' roots) never bares them; with the mouth closed they are not joined
+    if (g.teeth !== undefined && mouthF) d = SM.min(d, smax(g.teeth, mouthF(p) - 0.002 * sc, 0.001 * sc));
     for (const o of globes) {
       const gd = smin(SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r, SM.hypot(p.x - o.cc.x, p.y - o.cc.y, p.z - o.cc.z) - o.cr, 0.006 * sc);
       d = smin(d, gd, 0.0015 * sc);
