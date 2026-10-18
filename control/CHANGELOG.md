@@ -20,13 +20,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   four words: a plan (square, turned squares, a star, a stepped circle, offset faces cut again to a depth), a rise
   (how the plan narrows, turns and is banded as it climbs, r(f) = top + (1 − top)(1 − f^p)), a crown (a ribbed disc,
   a dome or a finial) and an echo (smaller copies of the whole against its own flanks, each echoing again: a tower of
-  towers). The principles are the Indian temple builders', lifted off the temple. Eight presets (`spire`, `cluster`,
-  `ziggurat`, `star`, `drum`, `turning`, `rotunda`, `needle`) and a seeded `auto` that rolls a varied skyline.
+  towers). The principles are the Indian temple builders', lifted off the temple. Presets (`PRESETS` in
+  `fractal-structure/presets.js`) and a seeded `auto` that rolls a varied skyline.
 - Pass them to `compose_world` as `overrides.structures` on any base, or set `structures` on a stored world and
   patch it in place. The faces join before the material, texture and shadow passes; an entity world also gets a box
   collider for each tier and plinth step, so a stepped rise's terraces stand a walker. A face budget trims the
   deepest copies first, never the tower. Absent, every world is byte-identical. Manual: the `structures` view-vocab
   card; kernel: `lib/graph/fractal-structure/`.
+- **A structure made of structures.** A `colonnade` stands any structure's words (a fluted `column` by default)
+  round the plan, spaced evenly along its perimeter, or on a grid, under an entablature that can roof a walk to the
+  wall, or carrying the body on top; a `hollow` body is a wall round open ground whose edge can step out as it rises
+  (a seating bowl); `stretch` makes a plan oval; a `top` echo stands a lantern on the crown. New presets come of
+  it: `column`, `rotunda` (a tholos with its lantern), `cloister`, `hall` (a pillared hall under a stepped roof) and
+  `arena` (an oval bowl behind a storeyed, columned wall). The stepped-circle spire is now `beehive`.
 
 ## [3.1.1] - 2026-10-16
 

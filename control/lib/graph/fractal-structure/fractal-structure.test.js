@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { planRing, radiusAt, turnedInner, PLAN_FORMS, PLAN_DIALS } from './plan.js';
 import { readStructure, validateStructures, CURVES } from './read.js';
-import { growStructure, tierBreaks, riseScale, coarserPlan } from './grow.js';
+import { growStructure, tierBreaks, riseScale, coarserPlan, perimeterPoints, colonnadePoints } from './grow.js';
 import { structureFaces, PRESETS, PRESET_IDS } from './index.js';
 import { FLAT_LIGHT } from '../polygonizer/vexar.js';
 
@@ -147,5 +147,80 @@ describe('structureFaces', () => {
     expect(validateStructures([{ at: [0, 0], echo: { depth: 1, spread: 2 } }])[0]).toMatch(/echo\.spread: not a word here/);
     expect(validateStructures([{ preset: 'spire' }])[0]).toMatch(/\.at: where it stands/);
     expect(validateStructures([{ preset: 'spire', at: [0, 0] }])).toEqual([]);
+  });
+});
+
+// a structure made of structures: one preset per procedure, chosen in code
+const pick = (pred) => Object.keys(PRESETS).find((id) => pred(PRESETS[id]));
+const RING = pick((p) => p.colonnade && p.colonnade.layout === 'ring' && p.colonnade.radius > 1 && !p.hollow);
+const GRID = pick((p) => p.colonnade && p.colonnade.layout === 'grid' && p.colonnade.carry);
+const BOWL = pick((p) => p.hollow && p.hollow.rake > 0 && p.rise.stepped);
+const LANTERN = pick((p) => p.echo && p.echo.where === 'top');
+const zTop = (stacks) => Math.max(...stacks.flatMap((s) => s.stations.map((q) => q.z)));
+
+describe('the colonnade (a structure made of structures)', () => {
+  it('spaces a ring by arc length from the first vertex, so a square takes a column at each corner', () => {
+    const sq = planRing('square');
+    const pts = perimeterPoints(sq, 8);
+    for (const corner of sq) expect(pts.some((p) => Math.hypot(p[0] - corner[0], p[1] - corner[1]) < 1e-9)).toBe(true);
+    const gaps = pts.map((p, i) => { const q = pts[(i + 1) % pts.length]; return Math.hypot(q[0] - p[0], q[1] - p[1]); });
+    for (const g of gaps) expect(g).toBeCloseTo(gaps[0], 9);
+  });
+
+  it('stands another structure\'s words round the body, their capitals meeting the entablature', () => {
+    const S = readStructure({ preset: RING, at: [0, 0] });
+    const { stacks, colliders } = growStructure({ ...S, echo: false });
+    const own = stacks.filter((s) => s.pal !== S.palette);
+    expect(own.length).toBeGreaterThan(0);
+    const beam = stacks.find((s) => s.inner && s.role === 'band');
+    expect(zTop(own)).toBeCloseTo(beam.stations[0].z, 6);
+    expect(colonnadePoints(S.colonnade, planRing(S.plan))).toHaveLength(S.colonnade.count);
+    expect(colliders.filter((k) => k.role === 'body').length).toBeGreaterThan(S.rise.tiers);   // its columns are solid too
+    // without a beam the columns stand free
+    const free = growStructure({ ...S, echo: false, colonnade: { ...S.colonnade, beam: false } }).stacks;
+    expect(free.filter((s) => s.inner && s.role === 'band')).toEqual([]);
+  });
+
+  it('a carrying grid lifts the body onto its columns', () => {
+    const S = readStructure({ preset: GRID, at: [0, 0] });
+    const { stacks } = growStructure(S);
+    const columns = stacks.filter((s) => s.pal !== S.palette), body = stacks.filter((s) => s.pal === S.palette && s.role === 'body');
+    expect(columns.length).toBeGreaterThan(0);
+    expect(Math.min(...body.map((s) => s.stations[0].z))).toBeCloseTo(zTop(columns), 6);
+    expect(colonnadePoints(S.colonnade, planRing(S.plan))).toHaveLength(S.colonnade.count[0] * S.colonnade.count[1]);
+  });
+
+  it('refuses a colonnade that does not read', () => {
+    expect(validateStructures([{ at: [0, 0], colonnade: { layout: 'spiral' } }])[0]).toMatch(/colonnade\.layout: one of ring, grid/);
+    expect(validateStructures([{ at: [0, 0], colonnade: { of: { preset: 'column', at: [1, 1] } } }])[0]).toMatch(/without `at`/);
+    expect(validateStructures([{ at: [0, 0], colonnade: { of: 'obelisk' } }])[0]).toMatch(/colonnade\.of\.preset: one of/);
+  });
+});
+
+describe('the hollow body, the stretch and the lantern', () => {
+  it('a raked, stepped hollow is a bowl: each tier\'s open edge steps out, and no collider covers the open ground', () => {
+    const S = readStructure({ preset: BOWL, at: [0, 0], colonnade: false });
+    const body = growStructure(S).stacks.filter((s) => s.role === 'body');
+    for (let i = 1; i < body.length; i += 1) expect(body[i].inner[0]).toBeGreaterThan(body[i - 1].inner[0]);
+    const { colliders } = structureFaces([{ preset: BOWL, at: [0, 0], colonnade: false }]);
+    // the plinth is the bowl's floor and solid on purpose; the tiers are the walls round it
+    const inside = (c) => c.of.includes(':body') && c.min[0] <= 0 && c.max[0] >= 0 && c.min[1] <= 0 && c.max[1] >= 0;
+    expect(colliders.filter(inside)).toEqual([]);
+  });
+
+  it('a stretch scales the plan per axis', () => {
+    const at = { preset: 'drum', at: [0, 0], size: 10, echo: false, plinth: false };
+    const span = (faces, k) => Math.max(...faces.flatMap((f) => f.corners.map((c) => c[k]))) - Math.min(...faces.flatMap((f) => f.corners.map((c) => c[k])));
+    const flat = structureFaces([{ ...at, stretch: [1, 0.5] }]).faces, round = structureFaces([at]).faces;
+    expect(span(flat, 1) / span(round, 1)).toBeCloseTo(0.5, 2);
+    expect(span(flat, 0)).toBeCloseTo(span(round, 0), 6);
+  });
+
+  it('a top echo stands one smaller copy on the crown in place of its finial', () => {
+    const S = readStructure({ preset: LANTERN, at: [0, 0] });
+    const without = growStructure({ ...S, echo: false }).stacks, withIt = growStructure(S).stacks;
+    const copy = withIt.filter((s) => s.level === 1);
+    expect(copy.length).toBeGreaterThan(0);
+    expect(Math.min(...copy.map((s) => s.stations[0].z))).toBeGreaterThan(zTop(without.filter((s) => s.role === 'body')));
   });
 });

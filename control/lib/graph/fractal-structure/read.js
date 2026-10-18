@@ -8,10 +8,14 @@
  *     crown?   'disc' | 'dome' | 'finial' | 'none', or { form, ribs?, size? }
  *     echo?    false, or { depth, scale, where: 'faces' | 'corners' | 'both', around, rings, reach, sink }
  *     plinth?  false, or { steps, height, margin }
+ *     hollow?  false, or { inner, rake }   the body a wall round open ground, its inner edge at inner + rake · f
+ *     colonnade? false, or { of, layout: 'ring' | 'grid', count, radius, span, width, height, carry?, roof?, beam? }
+ *     stretch? [sx, sy]   the plan scaled per axis (an oval, a long hall)
  *     palette? { body?, band?, crown?, plinth? } }
  *
  * `size` is the base's width and `height` the body's (the plinth and the crown stand outside it), in the world's
- * own units. `auto` rolls a preset and jitters a few of its dials from the seed, each from its own labelled stream,
+ * own units. A colonnade's `of` is any structure's words without `at` (default the `column` preset); its width and
+ * height are fractions of `size`. `auto` rolls a preset and jitters a few of its dials from the seed, each from its own labelled stream,
  * so a later dial never reshuffles an earlier roll; the preset it rolled is in the readout.
  */
 import { readPlan } from './plan.js';
@@ -20,8 +24,9 @@ import { streamOf } from '../city/plan/dice.js';
 
 /** The rise's curvature words → the power p in r(f) = top + (1 − top)(1 − f^p). */
 export const CURVES = Object.freeze({ needle: 0.6, cone: 1, rekha: 2, bulb: 3.2, dome: 6 });
-export const CROWN_FORMS = Object.freeze(['disc', 'dome', 'finial', 'none']);
-export const ECHO_WHERE = Object.freeze(['faces', 'corners', 'both']);
+export const CROWN_FORMS = Object.freeze(['disc', 'dome', 'finial', 'slab', 'none']);
+export const ECHO_WHERE = Object.freeze(['faces', 'corners', 'both', 'top']);
+export const COLONNADE_LAYOUTS = Object.freeze(['ring', 'grid']);
 export const DEFAULT_SIZE = 12;
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -52,9 +57,9 @@ function rolled(seed) {
 }
 
 /** One structure's words → the resolved structure every later step reads. Throws naming what reads. */
-export function readStructure(spec, at = 'structures[0]') {
-  if (!isObj(spec)) throw new Error(`${at}: a structure is { preset?, at: [x, y, z?], size?, height?, plan?, rise?, crown?, echo?, plinth?, palette? }`);
-  only(spec, ['id', 'preset', 'seed', 'at', 'turn', 'size', 'height', 'plan', 'rise', 'crown', 'echo', 'plinth', 'palette'], at);
+export function readStructure(spec, at = 'structures[0]', { depth = 0 } = {}) {
+  if (!isObj(spec)) throw new Error(`${at}: a structure is { preset?, at: [x, y, z?], size?, height?, plan?, rise?, crown?, echo?, plinth?, hollow?, colonnade?, stretch?, palette? }`);
+  only(spec, ['id', 'preset', 'seed', 'at', 'turn', 'size', 'height', 'plan', 'rise', 'crown', 'echo', 'plinth', 'hollow', 'colonnade', 'stretch', 'palette'], at);
   const presetWord = spec.preset ?? (spec.plan === undefined ? 'spire' : null);
   if (presetWord !== null && !PRESET_IDS.includes(presetWord)) throw new Error(`${at}.preset: one of ${PRESET_IDS.join(', ')} (got ${JSON.stringify(presetWord)})`);
   const seed = spec.seed ?? 1;
@@ -64,8 +69,8 @@ export function readStructure(spec, at = 'structures[0]') {
   const resolvedPreset = roll ? roll.id : presetWord;
 
   if (!Array.isArray(spec.at) || spec.at.length < 2 || spec.at.length > 3 || !spec.at.every(Number.isFinite)) throw new Error(`${at}.at: where it stands, [x, y] or [x, y, z] in the world's units (got ${JSON.stringify(spec.at)})`);
-  const size = num(spec.size ?? DEFAULT_SIZE, `${at}.size`, 0.1, 5000);
-  const height = num(spec.height ?? size * base.aspect, `${at}.height`, 0.1, 20000);
+  const size = num(spec.size ?? base.size ?? DEFAULT_SIZE, `${at}.size`, 0.01, 5000);
+  const height = num(spec.height ?? size * base.aspect, `${at}.height`, 0.01, 20000);
   const turn = num(spec.turn ?? 0, `${at}.turn`, -3600, 3600);
   const plan = readPlan(spec.plan ?? base.plan, `${at}.plan`);
 
@@ -118,6 +123,49 @@ export function readStructure(spec, at = 'structures[0]') {
     plinth = { steps: num(p.steps ?? 1, `${at}.plinth.steps`, 1, 8, { int: true }), height: num(p.height ?? 0.06, `${at}.plinth.height`, 0.005, 1), margin: num(p.margin ?? 0.2, `${at}.plinth.margin`, 0, 2) };
   }
 
+  const h = merge(base.hollow, spec.hollow);
+  let hollow = false;
+  if (h) {
+    if (!isObj(h)) throw new Error(`${at}.hollow: { inner, rake } (the open ground's edge as a fraction of the plan, and how far it steps out by the top) or false`);
+    only(h, ['inner', 'rake'], `${at}.hollow`);
+    hollow = { inner: num(h.inner ?? 0.6, `${at}.hollow.inner`, 0.05, 0.96), rake: num(h.rake ?? 0, `${at}.hollow.rake`, -0.9, 0.9) };
+  }
+
+  const st = spec.stretch ?? base.stretch ?? [1, 1];
+  if (!Array.isArray(st) || st.length !== 2) throw new Error(`${at}.stretch: [sx, sy], the plan scaled along x and y (got ${JSON.stringify(st)})`);
+  const stretch = [num(st[0], `${at}.stretch[0]`, 0.2, 5), num(st[1], `${at}.stretch[1]`, 0.2, 5)];
+
+  const cl = merge(base.colonnade, spec.colonnade);
+  let colonnade = false;
+  if (cl) {
+    if (!isObj(cl)) throw new Error(`${at}.colonnade: { of, layout, count, radius | span, width, height, carry?, roof?, beam? } or false`);
+    only(cl, ['of', 'layout', 'count', 'radius', 'span', 'width', 'height', 'carry', 'roof', 'beam'], `${at}.colonnade`);
+    const layout = cl.layout ?? 'ring';
+    if (!COLONNADE_LAYOUTS.includes(layout)) throw new Error(`${at}.colonnade.layout: one of ${COLONNADE_LAYOUTS.join(', ')} (got ${JSON.stringify(layout)})`);
+    if (depth > 1) throw new Error(`${at}.colonnade.of: a column that is itself a colonnade of colonnades is too deep (two levels at most)`);
+    const of = cl.of ?? 'column';
+    const ofWords = typeof of === 'string' ? { preset: of } : of;
+    if (!isObj(ofWords) || ofWords.at !== undefined) throw new Error(`${at}.colonnade.of: a preset name or a structure's words without \`at\` (got ${JSON.stringify(of)})`);
+    readStructure({ ...ofWords, at: [0, 0] }, `${at}.colonnade.of`, { depth: depth + 1 });   // the words read, or the mint refuses here
+    let count;
+    if (layout === 'ring') count = num(cl.count ?? 16, `${at}.colonnade.count`, 3, 128, { int: true });
+    else {
+      const c = cl.count ?? [4, 4];
+      if (!Array.isArray(c) || c.length !== 2) throw new Error(`${at}.colonnade.count: a grid is [nx, ny] (got ${JSON.stringify(c)})`);
+      count = [num(c[0], `${at}.colonnade.count[0]`, 1, 16, { int: true }), num(c[1], `${at}.colonnade.count[1]`, 1, 16, { int: true })];
+    }
+    colonnade = {
+      of: ofWords, layout, count,
+      radius: num(cl.radius ?? 1.25, `${at}.colonnade.radius`, 0.05, 4),
+      span: num(cl.span ?? 0.85, `${at}.colonnade.span`, 0.05, 1.5),
+      width: num(cl.width ?? 0.04, `${at}.colonnade.width`, 0.002, 0.5),
+      height: num(cl.height ?? 0.4, `${at}.colonnade.height`, 0.01, 10),
+      carry: cl.carry === true,
+      roof: cl.roof === true,
+      beam: cl.beam !== false,
+    };
+  }
+
   const pal = { ...base.palette, ...(spec.palette ?? {}) };
   if (spec.palette !== undefined && !isObj(spec.palette)) throw new Error(`${at}.palette: { body?, band?, crown?, plinth? } as #rrggbb`);
   only(pal, ['body', 'band', 'crown', 'plinth'], `${at}.palette`);
@@ -127,7 +175,7 @@ export function readStructure(spec, at = 'structures[0]') {
     id: typeof spec.id === 'string' && spec.id ? spec.id : at.replace(/\W+/g, '-').replace(/-$/, ''),
     preset: resolvedPreset,
     at: [spec.at[0], spec.at[1], spec.at[2] ?? 0],
-    turn, size, height, plan, rise, crown, echo, plinth, palette: pal,
+    turn, size, height, plan, rise, crown, echo, plinth, hollow, colonnade, stretch, palette: pal,
   };
 }
 
