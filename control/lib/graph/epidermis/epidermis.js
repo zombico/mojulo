@@ -12,16 +12,19 @@
  *   hair.lashes   the lash groom, rooted on the eye rig's lid margins: a shape word (`LASH_SHAPES`) and its numbers —
  *                 `length` (mm, the upper's longest), `curl` (0 straight … 1 curled), `density` (1 a natural count),
  *                 `flare` (the lateral lashes' sweep outward), `lower` (the lower lashes' length over the upper's), `seed`
+ *   skin          the skin's relief (skin-relief.js): `fidelity` (`SKIN_FIDELITY`: form, creases, keratin, micro),
+ *                 `age` 0 … 1, `pores` and `creases` (scales), `seed`; studied on swatches before the head
  *
  *   readEpidermis(spec)        a preset id, a document, or { from: preset, …changes } → the cube
  *   growEpidermis(head, cube)  the cube on a relational head → { strands: [{ pts, r, groom }], colour, counts }
  *
- * The brows and the lashes grow now; the skin's micro-relief comes next.
+ * The brows and the lashes grow on the head; the skin's relief is studied on swatches (`head-study --skin`) first.
  */
 import { streamOf } from '../city/plan/dice.js';
 import { rayIn } from '../polygonizer/head-field-view.js';
 import { HAIR_COLOURS } from '../egocube/ancestry.js';
 import { browBridge } from '../polygonizer/head-relational-eye.js';
+import { SKIN_FIDELITY, SKIN_REGIONS } from './skin-relief.js';
 
 const MM = 1 / 230;   // a millimetre in head heights (the relational head's V)
 
@@ -43,7 +46,10 @@ export const LASH_SHAPES = Object.freeze({
   full: { length: 10.5, curl: 0.65, density: 1.5, flare: 0.65, lower: 0.6 },
 });
 export const EPIDERMIS_PRESETS = Object.freeze({
-  default: { hair: { colour: 'dark-brown', brows: { shape: 'natural', seed: 1 }, lashes: { shape: 'natural', seed: 1 } } },
+  default: {
+    hair: { colour: 'dark-brown', brows: { shape: 'natural', seed: 1 }, lashes: { shape: 'natural', seed: 1 } },
+    skin: { fidelity: 'micro', age: 0.35, pores: 1, creases: 1, seed: 1 },
+  },
 });
 
 /** The cube: a preset id, a document, or { from, …changes } (a groom's numbers over its shape word). */
@@ -60,7 +66,14 @@ export function readEpidermis(spec = 'default') {
     if (!shape) throw new Error(`epidermis: hair.${k}.shape '${spec.shape}' (have ${Object.keys(SHAPES).join(', ')})`);
     hair[k] = { ...shape, ...spec };
   }
-  return { hair };
+  // the skin: the preset's numbers and the document's over them; `false` grows no relief
+  let skin = null;
+  if (doc.skin !== false && (base.skin || doc.skin)) {
+    skin = { ...base.skin, ...(doc.skin || {}) };
+    if (!SKIN_FIDELITY.includes(skin.fidelity)) throw new Error(`epidermis: skin.fidelity '${skin.fidelity}' (have ${SKIN_FIDELITY.join(', ')})`);
+    if (skin.region !== undefined && typeof skin.region === 'string' && !SKIN_REGIONS[skin.region]) throw new Error(`epidermis: skin.region '${skin.region}' (have ${Object.keys(SKIN_REGIONS).join(', ')})`);
+  }
+  return { hair, skin };
 }
 
 const lerp = (a, b, t) => a + (b - a) * t;

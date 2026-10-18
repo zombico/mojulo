@@ -33,6 +33,21 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   lash that cannot clear the skin ends there. Shape words: `natural`, `long`, `curled`, `straight`, `sparse`, `full`,
   each with numbers over it (`length`, `curl`, `density`, `flare`, `lower`, `seed`); `lashes: false` grows none.
 
+- **Skin relief, studied on swatches.** The cube's skin (`epidermis/skin-relief.js`) conveys keratin rather than
+  simulating it: a few numbers in, and a height and a roughness out at any point of a flat chart, gray. It has four
+  fidelity tiers, each adding to the last: `form` (nothing), `creases`, `keratin` and `micro`.
+  - **Creases** are thin lines at the bone/skin connections. They fan from a point (crow's feet across the lateral
+    orbital rim) or run beside a tether (under-eye, forehead), each a wavy, tapered, sometimes forked groove with
+    the skin bunched beside it.
+  - **Keratin** is the primary lines: two crossing families of long, wandering furrows about the skin's tension
+    direction, deep in stretches and fading in others, with a weaker family across. Round pores sit near their
+    crossings (and scatter between them on the nose), and a faint minor net turns to follow a crease.
+  - **Micro** adds the finest net, the keratin grain and its sheen.
+
+  The dials are the region (forehead, cheek, nose, eyelid, chin), age, squint, and the pore and crease scales.
+  `/head-study --skin` renders the swatch sheet. The cube reads `skin` (`fidelity`, `age`, `pores`, `creases`,
+  `seed`).
+
 ### Relational head: the face as superposed vajras
 
 - **The head field, seen as it is.** `/head-study --field` meshes the protoform head's field with surface nets

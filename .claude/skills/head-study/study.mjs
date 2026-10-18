@@ -18,6 +18,7 @@
 //                   plus <out>/sheet.svg|png — every view of every sex on ONE contact sheet.
 //   --field         the FIELD lane instead (field.mjs): the head's field surface-netted, its sections and the
 //                   calipers read off it. Its own arguments; see field.mjs.
+//   --skin          the SKIN lane instead (skin.mjs): the epidermis cube's skin relief on swatches. See skin.mjs.
 import { writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -25,8 +26,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, '..', '..', '..');
-if (process.argv.includes('--field')) {
-  const r = spawnSync('node', [path.join(HERE, 'field.mjs'), ...process.argv.slice(2)], { stdio: 'inherit' });
+if (process.argv.includes('--field') || process.argv.includes('--skin')) {
+  const lane = process.argv.includes('--skin') ? 'skin.mjs' : 'field.mjs';
+  const r = spawnSync('node', [path.join(HERE, lane), ...process.argv.slice(2)], { stdio: 'inherit' });
   process.exit(r.status ?? 1);
 }
 const { renderFigureToSvg } = await import(path.join(REPO, 'control/lib/graph/polygonizer/figure-render.js'));
