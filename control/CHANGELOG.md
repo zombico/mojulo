@@ -22,6 +22,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   wing through the outer canthus), in three regions (the head's hairs up, the body's out and up, the tail's out and
   down) with the herringbone along the spine, laid on the skin and riding the brow pad, so a raised or lowered brow
   carries them. The field lane draws them (`--epidermis`).
+- **Lashes.** The cube's second groom roots on the eye rig's lid margins, which the rig now exposes as lash lines.
+  The upper lashes are longest centre-lateral and curl up; the lower are shorter and sparser and curl down; the
+  lateral lashes flare outward. Each leaves the margin at an elevation set by where the margin sits on the globe and
+  the lid's roll, so the lashes ride the openness, a squint, the gaze and a blink, and a shut lid's lashes hang.
+  Every lash is grown step by step: a step that would sink into the skin bends off it with its length kept, and a
+  lash that cannot clear the skin ends there. Shape words: `natural`, `long`, `curled`, `straight`, `sparse`, `full`,
+  each with numbers over it (`length`, `curl`, `density`, `flare`, `lower`, `seed`); `lashes: false` grows none.
 
 ### Relational head: the face as superposed vajras
 
@@ -70,14 +77,23 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
 - **Expressive eyes.** The relational head's eyes are a rig of their own (`head-relational-eye.js`): a globe whose
   cornea, iris and pupil turn with the gaze; the lids as a skin shell over the globe and its cornea (a shut lid shows
   the gaze), the opening carved between two lid curves, each with its own height, peak (inner to outer) and shape
-  (flat and tense to peaked); the upper lid following the gaze's pitch; a crease riding the lid, a hood over it and a
-  pretarsal roll that swells in a squint. `eyes` takes a word (`neutral`, `wide`, `angry`, `sad`, `sleepy`, `happy`,
+  (flat and tense to peaked); the upper lid following the gaze's pitch; a crease, a hood and a pretarsal roll that swells
+  in a squint. `eyes` takes a word (`neutral`, `wide`, `angry`, `sad`, `sleepy`, `happy`,
   `suspicious`, `focused`, `closed`), channels over it and a side's own; blink, a smile's squint and the brows drive
   the same channels. The field lane paints the sclera, iris and pupil, takes `--eyes` and rows with their own `eyes`,
   and frames `--crop eyes` and `--crop eye`; a crop meshes only its own box.
 - **A gaze target.** `eyes: { look: { x, y, z } }` (metres from between the eyes: +x the figure's right, +y ahead,
   +z up) aims each eye from its own centre, so a near target converges them and a far one leaves them parallel; the
   lids follow, and a word or a side's own gaze composes with it. The head reports its `vergence`.
+- **The brow's bridge, and the lid space hung from it.** An invisible bridge runs across the forehead (`browBridge`)
+  with four strings hanging from it: two medial strings down beside the nose's root, and two lateral strings down the
+  temples. Each eye's arc, the edge of its fold under the brow, hangs between its two strings' feet just past the
+  canthi. The brow pad's action pulls the strings, so a raised brow lifts the arc and a lowered one drops it. The
+  upper lid now drapes the globe from its margin to the crease. The fold rolls out of the crease and rises forward
+  to the brow at the arc, and the lid space closes where the arc's feet meet the canthi. Before this, the brow's skin
+  stood about 19 mm proud of the cornea right down to the lid margin, which hid the lid, the crease and the hood. The
+  `hood` channel lowers the crease and draws the fold down, and the crease is a groove along it. `--rig` draws the
+  bridge, the strings and the arcs in red on the skin.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

@@ -32,7 +32,7 @@
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { headMeasures, rayIn } from './head-field-view.js';
 import { EAR_OUTLINE, EAR_HINGE } from './head-ear.js';
-import { GLOBE, eyeRig, resolveEye, lookAngles } from './head-relational-eye.js';
+import { GLOBE, eyeRig, resolveEye, lookAngles, browBridge } from './head-relational-eye.js';
 import { SM } from '../../util/math-scope.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
@@ -720,6 +720,10 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   // head's actions on top — a blink shuts the lid, a smile raises and rounds the lower lid (the squint of a real
   // smile), a raised brow lifts the upper lid, a lowered one drops it and flattens it
   const act = (k) => Math.max(0, Math.min(1, Number(actions?.[k]) || 0));
+  // the brow's fold hangs from the forehead's bridge by strings; the brow pad's action pulls them (its medial bead the
+  // medial strings, each lateral bead its side's)
+  const shift = (k) => ({ x: Vn.browPad[k].x - Rn.browPad[k].x, z: Vn.browPad[k].z - Rn.browPad[k].z });
+  const bridge = skin ? browBridge(Pt, { med: shift('c'), L: shift('a'), R: shift('b') }) : null;
   const eyeRigs = skin ? ['L', 'R'].map((s) => {
     const sm = Math.min(1, act('smile') + act(`smile${s}`)), bl = Math.min(1, act('blink') + act(`blink${s}`));
     // a gaze target (`look`, metres from between the eyes) becomes this eye's yaw and pitch, aimed from its own centre;
@@ -733,11 +737,11 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     }
     const c = resolveEye(spec, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
     c.open *= 1 - bl;
-    const r = eyeRig(Pt, s, c, rel.fissure);
+    const r = eyeRig(Pt, s, c, rel.fissure, bridge.arcs[s]);
     const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
     const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
-    return { near, channels: c, gaze: r.gaze, lids: (p) => r.lids(V(p)) * sc,
-      opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
+    return { side: s, near, channels: c, gaze: r.gaze, margins: r.margins, globeV: r.globe, lids: (p) => r.lids(V(p)) * sc,
+      lidSpace: (p) => r.lidSpace(V(p)) * sc, opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
       crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)) };
   }) : [];
   const field = ears.length || eyeRigs.length ? (p) => {
@@ -746,8 +750,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     for (const e of ears) { const c = e.carve(p); if (c !== Infinity) d = smax(d, -c, 0.004 * sc); }
     for (const e of eyeRigs) {
       if (!e.near(p)) continue;
-      // the lids' mass on the skin, the opening carved through it to the globe, the margins and folds laid on, the
-      // crease cut, the globe set in
+      // the lid space cut back out of the skin, the lids' mass on it, the opening carved through it to the globe, the
+      // margins and the roll laid on, the crease cut, the globe set in
+      d = smax(d, -e.lidSpace(p), 0.003 * sc);
       d = smin(d, e.lids(p), 0.008 * sc);
       if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
       d = smin(d, e.rims(p), 0.004 * sc);
@@ -781,8 +786,13 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
   } : null;
   // the eyes' gaze, and their vergence (the angle between the two lines of sight; 0 parallel, larger the nearer)
   const vergence = eyeRigs.length === 2 ? Math.round((Math.acos(Math.max(-1, Math.min(1, eyeRigs[0].gaze.x * eyeRigs[1].gaze.x + eyeRigs[0].gaze.y * eyeRigs[1].gaze.y + eyeRigs[0].gaze.z * eyeRigs[1].gaze.z))) * 1800) / Math.PI) / 10 : null;
-  // (`relational` hands what grows on the head its relations in head heights: the tuned points, and the vajras at rest
-  // and as the actions moved them — the epidermis lays its hair by them)
-  const relational = { V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels) };
+  // (`relational` hands what grows on the head its relations in head heights: the tuned points, the vajras at rest and
+  // as the actions moved them, and the eyes' lash lines — the epidermis lays its hair by them)
+  const relational = {
+    V: sc, points: Pt, rest: byName(rest), moved: byName(vajras), eyes: eyeRigs.map((e) => e.channels),
+    // the brow's bridge, strings and arcs (V), and the eye rigs' lash lines and globes, for the lashes
+    bridge,
+    eyeRigs: eyeRigs.map((e) => ({ side: e.side, channels: e.channels, margins: e.margins, globe: e.globeV })),
+  };
   return { field, paint, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels), vergence, relational };
 }

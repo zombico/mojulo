@@ -9,11 +9,14 @@
  *   hair.colour   an egocube hair colour's name, or a hex
  *   hair.brows    the brow groom: a shape word (`BROW_SHAPES`) and its numbers over it — `arch` (0 straight … 1 high),
  *                 `thickness`, `density` (hairs per mm²), `length` (mm, the body's hairs), `seed`
+ *   hair.lashes   the lash groom, rooted on the eye rig's lid margins: a shape word (`LASH_SHAPES`) and its numbers —
+ *                 `length` (mm, the upper's longest), `curl` (0 straight … 1 curled), `density` (1 a natural count),
+ *                 `flare` (the lateral lashes' sweep outward), `lower` (the lower lashes' length over the upper's), `seed`
  *
  *   readEpidermis(spec)        a preset id, a document, or { from: preset, …changes } → the cube
  *   growEpidermis(head, cube)  the cube on a relational head → { strands: [{ pts, r, groom }], colour, counts }
  *
- * Phase 1 is the brows; the lashes (on the eye rig's lid curves) and the skin's micro-relief come next.
+ * The brows and the lashes grow now; the skin's micro-relief comes next.
  */
 import { streamOf } from '../city/plan/dice.js';
 import { rayIn } from '../polygonizer/head-field-view.js';
@@ -30,8 +33,17 @@ export const BROW_SHAPES = Object.freeze({
   thick: { arch: 0.35, thickness: 1.45, density: 1.35, length: 9.5 },
   thin: { arch: 0.7, thickness: 0.55, density: 0.75, length: 7 },
 });
+/** lash shapes: the groom's numbers over the natural lash (artists' readings; tuned on the eyes gate) */
+export const LASH_SHAPES = Object.freeze({
+  natural: { length: 9.5, curl: 0.55, density: 1, flare: 0.5, lower: 0.55 },
+  long: { length: 12, curl: 0.6, density: 1.1, flare: 0.6, lower: 0.6 },
+  curled: { length: 10, curl: 1, density: 1, flare: 0.55, lower: 0.55 },
+  straight: { length: 8.5, curl: 0.15, density: 0.95, flare: 0.35, lower: 0.5 },
+  sparse: { length: 7.5, curl: 0.45, density: 0.55, flare: 0.4, lower: 0.5 },
+  full: { length: 10.5, curl: 0.65, density: 1.5, flare: 0.65, lower: 0.6 },
+});
 export const EPIDERMIS_PRESETS = Object.freeze({
-  default: { hair: { colour: 'dark-brown', brows: { shape: 'natural', seed: 1 } } },
+  default: { hair: { colour: 'dark-brown', brows: { shape: 'natural', seed: 1 }, lashes: { shape: 'natural', seed: 1 } } },
 });
 
 /** The cube: a preset id, a document, or { from, …changes } (a groom's numbers over its shape word). */
@@ -40,12 +52,13 @@ export function readEpidermis(spec = 'default') {
   const base = EPIDERMIS_PRESETS[doc.from || 'default'];
   if (!base) throw new Error(`epidermis: unknown preset '${doc.from}' (have ${Object.keys(EPIDERMIS_PRESETS).join(', ')})`);
   const hair = { ...base.hair, ...(doc.hair || {}) };
-  const bspec = { ...base.hair.brows, ...(doc.hair?.brows || {}) };
-  if (doc.hair?.brows === false) hair.brows = null;
-  else {
-    const shape = BROW_SHAPES[bspec.shape || 'natural'];
-    if (!shape) throw new Error(`epidermis: hair.brows.shape '${bspec.shape}' (have ${Object.keys(BROW_SHAPES).join(', ')})`);
-    hair.brows = { ...shape, ...bspec };
+  // each groom: `false` grows none; otherwise its shape word's numbers, the preset's and the document's over them
+  for (const [k, SHAPES] of [['brows', BROW_SHAPES], ['lashes', LASH_SHAPES]]) {
+    if (doc.hair?.[k] === false || !base.hair[k] && !doc.hair?.[k]) { hair[k] = null; continue; }
+    const spec = { ...base.hair[k], ...(doc.hair?.[k] || {}) };
+    const shape = SHAPES[spec.shape || 'natural'];
+    if (!shape) throw new Error(`epidermis: hair.${k}.shape '${spec.shape}' (have ${Object.keys(SHAPES).join(', ')})`);
+    hair[k] = { ...shape, ...spec };
   }
   return { hair };
 }
@@ -122,6 +135,80 @@ export function growBrow(P, s, brow, skinY, shift) {
   return strands;
 }
 
+const add = (a, b, k = 1) => ({ x: a.x + b.x * k, y: a.y + b.y * k, z: a.z + b.z * k });
+const unit = (a) => { const l = Math.hypot(a.x, a.y, a.z) || 1; return { x: a.x / l, y: a.y / l, z: a.z / l }; };
+
+/**
+ * THE LASHES for one eye: roots along each lid margin's front edge (the eye rig's lash lines, `margins.upper/lower`
+ * at t medial → lateral), none at the inner canthus's punctum, thicker toward the lateral. Each lash leaves the margin
+ * facing forward (the globe's normal there, its sideways share softened) at an ELEVATION set by where the margin sits
+ * on the globe — half its angle, tipped down by the lid's roll, more as the lid shuts, so a closed lid's lashes hang —
+ * then CURLS, the upper's up and the lower's down, the curl gathering toward the tip; the lateral lashes FLARE outward,
+ * the medial a touch inward. The upper's longest sit centre-lateral, the lower's are shorter and sparser. Seeded per
+ * side; `open` the lid's openness (the rig's channel). `skin` lays a root on the skin (`place(p)`) and takes each step
+ * (`step(prev, dir, len)`, which may deflect a lash off the skin it would sink into, or end it: null); both default to
+ * free space.
+ * Returns strands in V, their first point the root.
+ */
+export function growLashes(margins, s, lash, open = 1, skin = {}) {
+  const place = skin.place || ((p) => p), step = skin.step || ((p, d, l) => add(p, d, l));
+  const deg = Math.PI / 180, strands = [], K = 6;
+  for (const upper of [true, false]) {
+    const line = upper ? margins.upper : margins.lower;
+    const dice = streamOf(lash.seed ?? 1, upper ? 'lash' : 'lashLow', s);
+    const n = Math.round((upper ? 110 : 55) * lash.density);
+    const L = lash.length * (upper ? 1 : lash.lower);
+    const roll = (upper ? 16 + 34 * (1 - Math.min(1, open)) : -4) * deg, curl = (upper ? 25 + 45 * lash.curl : 15 + 30 * lash.curl) * deg;
+    for (let i = 0; i < n; i++) {
+      // a root along the margin: from past the punctum to the lateral canthus, denser laterally
+      const t = upper ? 0.08 + 0.9 * Math.pow(dice(), 0.85) : 0.15 + 0.82 * Math.pow(dice(), 0.75);
+      const m = line(t);
+      const row = dice() - 0.5;   // the lashes stand in rows across the margin's front
+      const len = L * (upper ? 0.5 + 0.5 * Math.pow(Math.sin(Math.PI * Math.min(1, t / 1.25 + 0.1)), 1.5) : 0.4 + 0.6 * Math.sin(Math.PI * Math.min(1, t * 0.85 + 0.12))) * (0.8 + 0.35 * dice()) * MM;
+      const root = place(add(add(m.c, m.n, m.r * 0.85), m.away, -m.r * (upper ? 0.25 : 0.15) + row * 0.5 * MM));
+      // the frame: forward (the globe's normal, flattened), the margin's tangent for the flare, up
+      const fwd = unit({ x: m.n.x * 0.6, y: m.n.y, z: 0 }), fl = lash.flare * (t - 0.4) * 0.9 + (dice() - 0.5) * 0.12;
+      const e0 = 0.5 * Math.asin(Math.max(-1, Math.min(1, m.n.z))) - roll + (dice() - 0.5) * 10 * deg, cu = curl * (0.8 + 0.4 * dice()) * (upper ? 1 : -1);
+      const pts = [root];
+      let p = root;
+      for (let k = 0; k < K; k++) {
+        const e = e0 + cu * Math.pow((k + 0.5) / K, 1.4);
+        const dir = unit(add({ x: fwd.x * Math.cos(e), y: fwd.y * Math.cos(e), z: Math.sin(e) }, m.T, fl));
+        p = step(p, dir, len / K);
+        if (!p) break;
+        pts.push(p);
+      }
+      if (pts.length > 1) strands.push({ pts, r: (upper ? 0.05 : 0.035) * MM, groom: upper ? 'lash' : 'lashLow' });
+    }
+  }
+  return strands;
+}
+
+/**
+ * A point moved onto the field's level `up` (a hair's lift above the skin): Newton along the gradient, its step scaled
+ * by the gradient's own size (the head's field is a distance only roughly — its blends and cuts steepen it, and a unit
+ * step overshoots and rings), keeping the best point; failing that (a crease, where the gradient flips), bisected along
+ * the first gradient over a bracket grown until it holds the level.
+ */
+function toLevel(f, q, up, tol) {
+  const h = 0.0004;
+  const grad = (p) => ({ x: (f({ ...p, x: p.x + h }) - f({ ...p, x: p.x - h })) / (2 * h), y: (f({ ...p, y: p.y + h }) - f({ ...p, y: p.y - h })) / (2 * h), z: (f({ ...p, z: p.z + h }) - f({ ...p, z: p.z - h })) / (2 * h) });
+  const g0 = grad(q), d0 = unit(g0);
+  let p = q, best = q, bestE = Math.abs(f(q) - up);
+  for (let k = 0; k < 12 && bestE > tol; k++) {
+    const g = grad(p), g2 = g.x * g.x + g.y * g.y + g.z * g.z || 1, m = (up - f(p)) / g2;
+    p = add(p, g, m);
+    const e = Math.abs(f(p) - up);
+    if (e < bestE) { best = p; bestE = e; }
+  }
+  if (bestE <= tol) return best;
+  let lo = 0, hi = 0.0005;
+  while (f(add(q, d0, hi)) < up && hi < 0.05) hi *= 2;
+  if (f(q) > up) { lo = -0.0005; while (f(add(q, d0, lo)) > up && lo > -0.05) lo *= 2; }
+  for (let k = 0; k < 40; k++) { const mid = (lo + hi) / 2; if (f(add(q, d0, mid)) < up) lo = mid; else hi = mid; }
+  return add(q, d0, hi);
+}
+
 /**
  * The cube grown on a relational head (`relationalHead`'s output): strands in the head's own units (STAND), the hair's
  * colour, and how many each groom grew. The skin's depth is probed from the head's field on a grid over each groom's
@@ -168,7 +255,7 @@ export function growEpidermis(head, cube) {
       // wherever the skin turns to face sideways (the brow's tail)
       const lift = 0.1 * MM * sc, h = 0.0004, f = head.field;
       const normal = (q) => { const g = { x: f({ ...q, x: q.x + h }) - f({ ...q, x: q.x - h }), y: f({ ...q, y: q.y + h }) - f({ ...q, y: q.y - h }), z: f({ ...q, z: q.z + h }) - f({ ...q, z: q.z - h }) }, l = Math.hypot(g.x, g.y, g.z) || 1; return { x: g.x / l, y: g.y / l, z: g.z / l }; };
-      const snap = (q, up) => { for (let k = 0; k < 3; k++) { const n = normal(q), m = up - f(q); q = { x: q.x + n.x * m, y: q.y + n.y * m, z: q.z + n.z * m }; } return q; };
+      const snap = (q, up) => toLevel(f, q, up, 0.05 * lift);
       const walk = (g) => {
         const P0 = g.pts.map((p) => ({ x: p.x * sc, y: p.y * sc, z: p.z * sc }));
         const out = [snap(P0[0], lift)];
@@ -183,6 +270,30 @@ export function growEpidermis(head, cube) {
         return out;
       };
       for (const g of grown) strands.push({ ...g, pts: walk(g), r: g.r * sc });
+    }
+  }
+  if (cube.hair.lashes && R.eyeRigs?.length) {
+    counts.lashes = 0;
+    const f = head.field, h = 0.0004;
+    const normal = (q) => unit({ x: f({ ...q, x: q.x + h }) - f({ ...q, x: q.x - h }), y: f({ ...q, y: q.y + h }) - f({ ...q, y: q.y - h }), z: f({ ...q, z: q.z + h }) - f({ ...q, z: q.z - h }) });
+    // in head heights: a root laid on the lid's skin (the rim the margin's beads welded into it, along the field's
+    // normal); a step the lash's curl would sink into the skin (a fold, the other lid on a shut eye) bent off it toward
+    // the skin's normal until it clears a hair's breadth — its length kept, never stretched
+    const fV = (p) => f({ x: p.x * sc, y: p.y * sc, z: p.z * sc }) / sc, nV = (p) => normal({ x: p.x * sc, y: p.y * sc, z: p.z * sc });
+    const clear = 0.05 * MM;
+    const skin = {
+      place: (p) => { const q = toLevel(f, { x: p.x * sc, y: p.y * sc, z: p.z * sc }, 0.2 * clear * sc, 0.05 * clear * sc); return { x: q.x / sc, y: q.y / sc, z: q.z / sc }; },
+      step: (p, dir, l) => {
+        let q = add(p, dir, l);
+        for (let w = 0.25, k = 0; k < 8 && fV(q) < clear; k++, w *= 1.6) q = add(p, unit(add(dir, nV(q), w)), l);
+        return fV(q) < clear ? null : q;   // (pressed against skin it cannot clear — a canthus's corner — it ends)
+      },
+    };
+    for (const rig of R.eyeRigs) {
+      for (const g of growLashes(rig.margins, rig.side, cube.hair.lashes, rig.channels.open, skin)) {
+        strands.push({ ...g, pts: g.pts.map((p) => ({ x: p.x * sc, y: p.y * sc, z: p.z * sc })), r: g.r * sc });
+        counts.lashes++;
+      }
     }
   }
   return { strands, colour, counts };

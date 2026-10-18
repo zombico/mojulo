@@ -10,8 +10,10 @@
  *                 peaked medially, surprise an upper lid lifted round above the iris. The margins ride the globe (and
  *                 the cornea's bulge, so a lid shows the gaze even shut), thickest at the lash line.
  *   lid follow    the upper lid follows the gaze's pitch (look down and it comes down), the lower a little.
- *   the folds     the upper lid's crease rides the margin and flattens as the lid closes; a HOOD (the fold above the
- *                 crease) can overhang it, from deep-set to monolid; the lower lid's pretarsal roll swells in a squint.
+ *   the folds     the upper lid drapes the globe from its margin to the crease (the LID SPACE, cut back out of the
+ *                 skin), and the fold above rises to the brow's ARC, hung from a forehead BRIDGE by strings
+ *                 (`browBridge`); the crease rises as the lid closes; a HOOD lowers the fold, from deep-set to monolid;
+ *                 the lower lid's pretarsal roll swells in a squint.
  *   the opening   the almond between the two curves, carved through the skin to the globe.
  *
  * Channels (`EYE_CHANNELS`, per eye; `EYE_EXPRESSIONS` are words over them) compose: a word, then channels over it,
@@ -110,13 +112,46 @@ function bump(t, a, shape) {
 }
 
 /**
- * The eye for side `s` of the relational points `P` (V units; `en`, `ex`, `eye` the inner and outer canthi and the
- * pupil's point at rest) under its channels `c` (`resolveEye`) and the head's `fissure` relation. Returns
- * { opening, lids, rims, crease, globe, paint } — signed fields in V (negative inside): the lids' mass to add to the
- * skin, the opening to carve through it, the margins and folds to lay on, the crease to cut, the globe to set in; `paint(p)` names the globe's part
- * at a surface point ('pupil' | 'iris' | 'sclera') or null.
+ * THE BRIDGE AND ITS STRINGS: the brow's fold hung from the forehead, as a puppet hangs. An invisible BRIDGE runs
+ * across the forehead, and from it hang four STRINGS: two medial, down either side of the nose's root to just above the
+ * inner canthi, and two lateral, down the temples to just past the outer canthi. Each eye's ARC (the fold's edge under
+ * the brow) hangs between its two strings' feet, its peak over the iris's outer edge, so the fold closes onto the lid
+ * at the corners. Pulling a string moves what hangs from it: `pull` is the brow pad's action ({ med, L, R }, each a
+ * { x, z } shift in V from rest to moved); the medial strings take the medial pull, each lateral string its side's.
+ * Returns { bridge: [{x, z}…], strings: [[top, foot]…], arcs: { L, R } }, each arc { Fm, Fl, K, z(x) } (z null past
+ * the feet). V units, the head's frame.
  */
-export function eyeRig(P, s, c, fissure) {
+export function browBridge(P, pull = {}) {
+  const zero = { x: 0, z: 0 }, med = pull.med || zero, sides = ['L', 'R'].filter((s) => P[`en${s}`]);
+  const bz = sides.reduce((m, s) => m + P[`en${s}`].z, 0) / sides.length + 0.16;
+  const arcs = {}, strings = [], tops = {};
+  for (const s of sides) {
+    const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`], sg = Math.sign(ex.x - en.x), lat = pull[s] || zero;
+    const Fm = { x: en.x - sg * 0.012 + med.x, z: en.z + 0.004 + med.z };
+    const Fl = { x: ex.x + sg * 0.022 + lat.x, z: ex.z + 0.004 + lat.z };
+    const K = { x: e.x + sg * GLOBE.iris + (med.x + lat.x) / 2, z: en.z + 0.08 + (med.z + lat.z) / 2 };
+    const W = Fl.x - Fm.x, uK = (K.x - Fm.x) / W;
+    const chord = (u) => Fm.z + (Fl.z - Fm.z) * u;
+    const z = (x) => { const u = (x - Fm.x) / W; return u <= 0 || u >= 1 ? null : chord(u) + (K.z - chord(uK)) * bump(u, uK, -0.35); };
+    arcs[s] = { Fm, Fl, K, z };
+    tops[s] = { med: { x: Fm.x, z: bz }, lat: { x: Fl.x + sg * 0.012, z: bz - 0.03 } };
+    strings.push([tops[s].med, Fm], [tops[s].lat, Fl]);
+  }
+  // (one side given: the bridge mirrors it)
+  const tL = tops.L ? tops.L.lat : { ...tops.R.lat, x: -tops.R.lat.x }, tR = tops.R ? tops.R.lat : { ...tL, x: -tL.x };
+  const bridge = [tL, { x: tL.x * 0.7, z: bz }, { x: tR.x * 0.7, z: bz }, tR];
+  return { bridge, strings, arcs };
+}
+
+/**
+ * The eye for side `s` of the relational points `P` (V units; `en`, `ex`, `eye` the inner and outer canthi and the
+ * pupil's point at rest) under its channels `c` (`resolveEye`) and the head's `fissure` relation, the fold hung from
+ * `arc` (`browBridge`'s, for this side; at rest when absent). Returns
+ * { opening, lidSpace, lids, rims, crease, globe, paint, margins } — signed fields in V (negative inside): the lid space
+ * to cut back out of the skin, the lids' mass to add to it, the opening to carve through it, the margins and folds to lay on, the crease to cut, the globe to set in; `paint(p)` names the globe's part
+ * at a surface point ('pupil' | 'iris' | 'sclera') or null; `margins` are the lash lines (upper, lower) as functions of t.
+ */
+export function eyeRig(P, s, c, fissure, arc = browBridge(P).arcs[s]) {
   const en = P[`en${s}`], ex = P[`ex${s}`], e = P[`eye${s}`];
   const gc = { x: e.x, y: e.y - GLOBE.back, z: e.z };
   // THE GAZE: the axis the cornea, iris and pupil turn to (+yaw toward the figure's right, +pitch up)
@@ -151,7 +186,7 @@ export function eyeRig(P, s, c, fissure) {
     return Math.max(p.z - upZ(tc), loZ(tc) - p.z, across, gc.y - p.y);
   };
   // the curves as bead chains (ONE min each, so they do not bead): the margins on the ride, the upper thickest at
-  // the lash line's middle; the crease and the hood above the upper; the pretarsal roll under the lower
+  // the lash line's middle; the pretarsal roll under the lower
   const N = 12, ts = Array.from({ length: N + 1 }, (_, i) => i / N);
   const taper = (t) => SM.sin(Math.PI * t) ** 0.6;
   const pt = (t, z, lift, fwd) => ({ x: xAt(t), y: rideY(xAt(t), z) + fwd, z: z + lift });
@@ -162,20 +197,52 @@ export function eyeRig(P, s, c, fissure) {
   };
   const upperRim = ts.map((t) => ({ c: pt(t, upZ(t), 0.004 * taper(t), 0.004), r: 0.0035 + 0.006 * taper(t) }));
   const lowerRim = ts.map((t) => ({ c: pt(t, loZ(t), -0.003 * taper(t), 0.003), r: 0.003 + 0.004 * taper(t) }));
-  // the crease rides above the margin, further as the lid closes (the lid's skin unfolds); the hood sits over it
+  // the crease's height over the margin, more as the lid closes (the lid's skin unfolds)
   const gap = 0.034 * (1 + 0.6 * (1 - Math.min(1, c.open)));
-  const creaseZ = (t) => upZ(t) + gap * (0.35 + 0.65 * taper(t));
-  const crease = c.crease > 0.02 ? chainF(ts.map((t) => ({ c: pt(t, creaseZ(t), 0, 0.016), r: (0.002 + 0.004 * c.crease) * (0.3 + 0.7 * taper(t)) }))) : null;
-  const hood = c.hood > 0.02 ? chainF(ts.map((t) => ({ c: pt(t, creaseZ(t) + 0.008, 0, 0.004 + 0.012 * c.hood), r: (0.004 + 0.012 * c.hood) * (0.25 + 0.75 * taper(t)) }))) : null;
+  // THE LID SPACE, hung from the bridge: the upper lid drapes the globe from its margin up to the KNEE (the crease, no
+  // higher than where the globe turns away over its top, nor than halfway to the arc), and the FOLD rolls out of the
+  // knee forward to the brow's front at the ARC (the bridge's, hung on its strings); the skin in front of that is cut back,
+  // so the lid shows between the margin and the crease. Where the arc's feet meet the margin at the canthi the space
+  // closes. The HOOD lowers the knee and draws the fold down toward the knee, toward a monolid's overhang.
+  const LID_T = 0.012, lidR = GLOBE.r + LID_T, LIDC = GLOBE.cornea + LID_T;
+  const shellY = (x, z) => {
+    const sy = gc.y + Math.sqrt(Math.max(0, lidR ** 2 - (x - gc.x) ** 2 - (z - gc.z) ** 2));
+    const r2 = LIDC ** 2 - (x - cc.x) ** 2 - (z - cc.z) ** 2;
+    return r2 > 0 ? Math.max(sy, cc.y + Math.sqrt(r2)) : sy;
+  };
+  const upMax = Math.max(...ts.map(upZ)), room = clamp(gc.z + 0.75 * lidR - upMax, 0.004, gap);
+  const kneeZ = (t) => upZ(t) + Math.max(0, room - 0.012 * c.hood) * (0.35 + 0.65 * taper(t));
+  const yArc = e.y + 0.12;   // the fold reaches the brow's front by the arc: ahead of any skin, so the cut ends unseen
+  const foldAt = (x, t) => {
+    const za0 = arc.z(x);
+    if (za0 === null) return null;
+    const zm = upZ(t), zk = Math.min(kneeZ(t), zm + 0.5 * Math.max(0, za0 - zm));
+    const za = zk + Math.max(0, za0 - zk) * (1 - 0.5 * c.hood), yk = shellY(x, zk);
+    return { zm, zk, za, yk, h: Math.max(za - zk, 0.002) };
+  };
+  const lidSpace = (p) => {
+    const t = (p.x - en.x) / span, F = foldAt(p.x, clamp(t, 0, 1));
+    if (!F) return Infinity;
+    if (p.z <= F.zk) return Math.max(F.zm - p.z, shellY(p.x, p.z) - p.y);
+    // the fold rolls out of the knee and rises into the arc (a square's ease: gentle at the crease, steep at the brow)
+    const u = Math.min(1, (p.z - F.zk) / F.h), rise = yArc - F.yk, slope = (2 * rise * u) / F.h;
+    return Math.max(p.z - F.za, (F.yk + rise * u * u - p.y) / Math.hypot(1, slope));
+  };
+  // the crease: a groove along the knee
+  const crease = c.crease > 0.02 ? chainF(ts.map((t) => {
+    const x = xAt(t), F = foldAt(x, t);
+    const z = F ? F.zk : kneeZ(t);
+    return { c: { x, y: (F ? F.yk : shellY(x, z)) + 0.001, z }, r: (0.002 + 0.004 * c.crease) * (0.3 + 0.7 * taper(t)) };
+  })) : null;
   const roll = chainF(ts.map((t) => ({ c: pt(t, loZ(t) - 0.012 - 0.004 * c.lower, 0, 0.002 + 0.006 * c.lower), r: (0.003 + 0.007 * c.lower) * taper(t) })));
-  const rims = (p) => SM.min(chainF(upperRim)(p), chainF(lowerRim)(p), roll(p), hood ? hood(p) : Infinity);
+  const rims = (p) => SM.min(chainF(upperRim)(p), chainF(lowerRim)(p), roll(p));
   // THE LIDS' MASS: a skin shell over the globe — and over the cornea's bulge, so a shut lid shows the gaze — across
   // the eye's region (an ellipse about it, the canthi's span and a fissure and a crease high), in front of the globe's
   // centre. The opening is carved through it; where the opening closes, the lid stays.
-  const LID_T = 0.012, ax = Math.abs(span) / 2 + 0.012, az = fissure * 0.9 + 0.03, cx = (en.x + ex.x) / 2, cz = (en.z + ex.z) / 2 + 0.006;
+  const ax = Math.abs(span) / 2 + 0.012, az = fissure * 0.9 + 0.03, cx = (en.x + ex.x) / 2, cz = (en.z + ex.z) / 2 + 0.006;
   const lids = (p) => {
     const reg = (Math.hypot((p.x - cx) / ax, (p.z - cz) / az) - 1) * Math.min(ax, az);
-    const shell = SM.min(dist(p, gc) - (GLOBE.r + LID_T), dist(p, cc) - (GLOBE.cornea + LID_T));
+    const shell = SM.min(dist(p, gc) - lidR, dist(p, cc) - LIDC);
     return Math.max(shell, reg, gc.y + 0.01 - p.y);
   };
   // THE PAINT: about the gaze axis, on the globe's surface
@@ -187,6 +254,28 @@ export function eyeRig(P, s, c, fissure) {
     const rad = Math.hypot(q.x - d.x * along, q.y - d.y * along, q.z - d.z * along);
     return rad < pupilR ? 'pupil' : rad < irisR ? 'iris' : 'sclera';
   };
+  // THE LASH LINES: each margin's front edge, for what grows there (the epidermis's lashes). At t ∈ [0, 1] medial →
+  // lateral: the rim's centre `c` and radius `r`, the globe's outward normal `n` there, the margin's tangent `T`
+  // (toward the lateral canthus), and `away` (along the globe, away from the opening: up for the upper lid, down for the
+  // lower). They ride whatever moved the margins: the openness, a squint, a blink, the gaze and the lid's follow.
+  const gradG = (q) => {
+    const h = 1e-4, g = { x: globe({ ...q, x: q.x + h }) - globe({ ...q, x: q.x - h }), y: globe({ ...q, y: q.y + h }) - globe({ ...q, y: q.y - h }), z: globe({ ...q, z: q.z + h }) - globe({ ...q, z: q.z - h }) };
+    const l = Math.hypot(g.x, g.y, g.z) || 1;
+    return { x: g.x / l, y: g.y / l, z: g.z / l };
+  };
+  const lashLine = (upper) => (t) => {
+    const rim = (u) => (upper ? { c: pt(u, upZ(u), 0.004 * taper(u), 0.004), r: 0.0035 + 0.006 * taper(u) } : { c: pt(u, loZ(u), -0.003 * taper(u), 0.003), r: 0.003 + 0.004 * taper(u) });
+    const { c: q, r } = rim(t), a = rim(Math.max(0, t - 0.01)).c, b = rim(Math.min(1, t + 0.01)).c;
+    const n = gradG(q);
+    let T = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+    const tn = T.x * n.x + T.y * n.y + T.z * n.z;
+    T = { x: T.x - n.x * tn, y: T.y - n.y * tn, z: T.z - n.z * tn };
+    const tl = Math.hypot(T.x, T.y, T.z) || 1; T = { x: T.x / tl, y: T.y / tl, z: T.z / tl };
+    let w = { x: n.y * T.z - n.z * T.y, y: n.z * T.x - n.x * T.z, z: n.x * T.y - n.y * T.x };
+    if ((w.z > 0) !== upper) w = { x: -w.x, y: -w.y, z: -w.z };
+    return { c: q, r, n, T, away: w };
+  };
+  const margins = { upper: lashLine(true), lower: lashLine(false), shut };
   const bound = { c: { x: e.x, y: e.y, z: e.z }, r: 0.16 };
-  return { opening, lids, rims, crease, globe, paint, bound, gaze: d };
+  return { opening, lidSpace, lids, rims, crease, globe, paint, bound, gaze: d, margins };
 }
