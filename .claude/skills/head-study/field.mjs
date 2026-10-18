@@ -14,6 +14,7 @@
 //   --no-marks      the surface alone, no landmark or caliper overlay.
 //   --source        protoform (default: figure-head.js) | relational (head-relational.js: vajras placed by relations)
 //   --layer         skin (default) | skull — the relational head's layers
+//   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
 //   --out           output dir (default /tmp/head-study-field): sheet.png, sheet.svg, measures.json.
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -32,7 +33,7 @@ const { relationalHead, RELATION_NAMES } = await import(P('head-relational.js'))
 const { DIMORPH } = await import(P('figure-rig.js'));
 
 const args = process.argv.slice(2);
-let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin';
+let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -44,6 +45,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--source') { source = args[++i]; continue; }
   if (a === '--rel') { rel = JSON.parse(args[++i]); continue; }
   if (a === '--layer') { layer = args[++i]; continue; }
+  if (a === '--untuned') { tuned = false; continue; }
   if (a === '--field') continue;
   if (a === 'male' || a === 'female') { sexes.push(a); continue; }
   console.error(`head-study --field: unknown argument "${a}"`);
@@ -116,12 +118,12 @@ const report = {};
 let y0 = 0;
 const PANEL_H = 520, PROF_W = 760, CUT_W = 760;
 for (const sex of sexes) {
-  const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
+  const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
   const t0 = Date.now();
   const faces = headFieldMesh(head, { cells });
   const meas = headMeasures(head);
   const secs = headSections(head);
-  report[sex] = { source, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
+  report[sex] = { source, tuning: head.tuning ?? null, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
   console.log(`${sex}: ${faces.length} quads at ${cells} cells, ${Date.now() - t0} ms`);
 
   for (const [col, v] of VIEWS.entries()) {
@@ -175,7 +177,8 @@ for (const sex of sexes) {
   svgParts.push(`<rect x="${tx}" y="${py0}" width="${TABLE_W}" height="${PANEL_H}" fill="#f4f2ee"/>`);
   const rows = [`${sex} · ${source} — calipers on the field`, '', ...Object.entries(meas.mm).map(([k, v]) => { const t = head.targets?.[k]; return `${k.padEnd(13)} ${v == null ? '—' : String(v).padStart(6)}${k === 'g-sn-pg' ? '° ' : ' mm'}${t != null ? `  target ${String(t).padStart(5)}  Δ ${v == null ? '—' : (v - t > 0 ? '+' : '') + (Math.round((v - t) * 10) / 10)}` : ''}`; }),
     '', ...Object.entries(meas.index).map(([k, v]) => `${(k + ' index').padEnd(13)} ${v == null ? '—' : String(v).padStart(6)}  ${meas.classes[k] || ''}`),
-    '', `mm at the canonical stature`, `(1 unit = 1.8 m)`, `al-al — : no alar groove to read`];
+    ...(head.tuning?.steps != null ? ['', `wave tuned in ${head.tuning.steps} step${head.tuning.steps === 1 ? '' : 's'}: worst ${Math.max(...Object.values(head.tuning.residual).map((e) => Math.abs(e ?? 0)))} mm`] : source === 'relational' ? ['', 'wave untuned'] : []),
+    '', `mm at the canonical stature`, `(1 unit = 1.8 m)`, ...(meas.mm['al-al'] == null ? ['al-al — : no alar groove to read'] : [])];
   rows.forEach((t, i) => svgParts.push(`<text x="${tx + 16}" y="${py0 + 30 + i * 20}" font-family="monospace" font-size="${i ? 15 : 16}" fill="#333">${t.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`));
   y0 += CH + PANEL_H;
 }

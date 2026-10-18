@@ -149,15 +149,26 @@ export function headMeasures(head) {
     return out;
   };
   const maxBy = (ps, f) => ps.reduce((b, p) => (b == null || f(p) > f(b) ? p : b), null);
-  const minBy = (ps, f) => maxBy(ps, (p) => -f(p));
+  // the ladder finds the extremum to a rung; a ternary search between the neighbouring rungs refines it, so a reading
+  // moves smoothly with the field instead of in rung-sized jumps
+  const refine = (best, z0, z1, n, sign) => {
+    if (!best) return best;
+    const h = (z1 - z0) / (n - 1);
+    let a = Math.max(z0, best.z - h), b = Math.min(z1, best.z + h);
+    const yAt = (z) => { const p = rayIn(field, { x: 0, y: 0, z }, [0, 1, 0]); return p ? sign * p.y : -Infinity; };
+    for (let k = 0; k < 24; k++) { const m1 = a + (b - a) / 3, m2 = b - (b - a) / 3; if (yAt(m1) < yAt(m2)) a = m1; else b = m2; }
+    return rayIn(field, { x: 0, y: 0, z: (a + b) / 2 }, [0, 1, 0]) || best;
+  };
+  const maxFront = (z0, z1, n = 25) => refine(maxBy(front(z0, z1, n), (p) => p.y), z0, z1, n, 1);
+  const minFront = (z0, z1, n = 25) => refine(maxBy(front(z0, z1, n), (p) => -p.y), z0, z1, n, -1);
 
-  const g = maxBy(front(L.nasion.z, L.glabella.z + 0.03 * s), (p) => p.y);                              // glabella
+  const g = maxFront(L.nasion.z, L.glabella.z + 0.03 * s);                                              // glabella
   const op = caliper(field, 'y', -1, { x: mid, z: [0.40 * H, 0.95 * H] });                              // opisthocranion
-  const n = minBy(front(L.noseBridge.z, g ? g.z : L.glabella.z), (p) => p.y);                           // soft nasion
-  const prn = maxBy(front(L.subnasale.z, L.noseBridge.z), (p) => p.y);                                  // pronasale
-  const sn = prn && minBy(front(L.stomion.z + 0.01 * s, prn.z, 31), (p) => p.y);                        // subnasale (profile)
+  const n = minFront(L.noseBridge.z, g ? g.z : L.glabella.z);                                           // soft nasion
+  const prn = maxFront(L.subnasale.z, L.noseBridge.z);                                                  // pronasale
+  const sn = prn && minFront(L.stomion.z + 0.01 * s, prn.z, 31);                                        // subnasale (profile)
   const gn = gnathion(field, L);                                                                        // gnathion
-  const pg = maxBy(front(gn ? gn.z : L.menton.z, L.stomion.z - 0.01 * s), (p) => p.y);                  // pogonion
+  const pg = maxFront(gn ? gn.z : L.menton.z, L.stomion.z - 0.01 * s);                                  // pogonion
   const above = L.earTopR.z + 0.01 * s;                                                                 // euryon: above the ears
   const eu = [-1, 1].map((sg) => caliper(field, 'x', sg, { y: [-0.06 * s, 0.04 * s], z: [above, H] }));
   const ahead = L.tragionR.y + 0.012 * s;                                                               // zygion: ahead of the ear
@@ -192,14 +203,15 @@ export function headMeasures(head) {
 // submental floor slopes on into the throat and has no lowest point of its own.
 function gnathion(field, L) {
   const s = L.s, out = [0, Math.SQRT1_2, -Math.SQRT1_2], across = [0, Math.SQRT1_2, Math.SQRT1_2];
-  let best = null, bestT = -Infinity;
-  for (const o of range(-0.03 * s, 0.03 * s, 31)) {
-    const p = rayIn(field, { x: 0, y: L.menton.y + across[1] * o, z: L.menton.z + across[2] * o }, out);
-    if (!p) continue;
-    const t = p.y * out[1] + p.z * out[2];
-    if (t > bestT) { bestT = t; best = p; }
-  }
-  return best;
+  const hit = (o) => rayIn(field, { x: 0, y: L.menton.y + across[1] * o, z: L.menton.z + across[2] * o }, out);
+  const reach = (o) => { const p = hit(o); return p ? p.y * out[1] + p.z * out[2] : -Infinity; };
+  const os = range(-0.03 * s, 0.03 * s, 31), h = os[1] - os[0];
+  let bo = null, bestT = -Infinity;
+  for (const o of os) { const t = reach(o); if (t > bestT) { bestT = t; bo = o; } }
+  if (bo == null) return null;
+  let a = bo - h, b = bo + h;
+  for (let k = 0; k < 24; k++) { const m1 = a + (b - a) / 3, m2 = b - (b - a) / 3; if (reach(m1) < reach(m2)) a = m1; else b = m2; }
+  return hit((a + b) / 2) || hit(bo);
 }
 
 // The alae: a caliper would take the cheek (wider than the nose at its base), so read the front depth y(x) across the

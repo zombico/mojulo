@@ -21,6 +21,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   sections through the head (the profile, and across at the brow, the nose base and the mouth), and prints caliper
   measurements read off the field itself: head length and breadth, face and jaw width, face and nose height, nose width
   and protrusion, mouth width, and their indices.
+- **A head of relations.** `--source relational` reads a second head (`head-relational.js`): named proportions (the
+  facial thirds, the eye line, head length and breadth, face and jaw width, the rule of fifths, nasion depth, nose
+  projection) place its points, vajras strung between them make the skull (`--layer skull`), and its skin is every
+  vajra's wave summed, the bones offset by the forensic soft-tissue depths and the muscles and fat pads at rest. The
+  relations are on the skin; the wave's internal points are solved until the skin's calipers meet them, so each
+  relation reads its own target (`--untuned` shows the head as authored).
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

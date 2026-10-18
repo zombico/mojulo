@@ -19,12 +19,18 @@
  *               rest, fat pads, lids) at their own size, SUPERPOSED: the skin is the level set of Σ exp(−dᵢ/k), a
  *               wave per vajra summed (`skinWave` is k). A lone mass keeps its true distance; overlapping masses fill
  *               between them. The nose and the lips join it after. Action vajras, summed, are the next phase.
+ *   tuning      the relations are on the SKIN; the wave's INTERNAL points (the beads under zygion, gonion, euryon,
+ *               opisthocranion, gnathion, glabella, the nose) are solved so the summed wave meets them
+ *               (`solveTune`): a superposition swells where waves overlap, so a bead must sit deeper than its
+ *               relation by however much its neighbours' waves add. One channel per measured relation, a damped
+ *               Newton step each, measured by the calipers on the skin itself.
  *
  * Frame: the protoform head's (`figure-head.js`): +x the figure's right, +y the face, +z up, STAND units; the origin
  * is the menton's height on the porion's vertical (the ear canal is y = 0, the chin's underside z = 0). V, the head
  * height (vertex to menton), is 230 mm at the canonical stature (1 unit = 1.8 m). Pure, deterministic: no dice.
  */
 import { smin, smax, sdRoundCone } from './vajra.js';
+import { headMeasures } from './head-field-view.js';
 import { SM } from '../../util/math-scope.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
@@ -102,7 +108,7 @@ export function corePoints(rel = RELATIONS) {
   side('zy', zyX, 0.13, zEye - 0.06);                         // the arch's widest, ahead of the ear
   side('malar', zyX * 0.78, g.y - 0.09, zEye - 0.09);        // the cheekbone's front (the zygomatic prominence)
   side('fz', exX + 0.01, g.y - 0.07, zG - 0.01);             // frontozygomatic: the brow's outer end
-  side('condyle', euX * 0.78, 0.045, zEye - 0.08);           // ahead of the ear canal, under the arch
+  side('condyle', zyX * 0.87, 0.045, zEye - 0.08);           // ahead of the ear canal, under the arch, inside the zygion
   side('go', goX, 0.07, zSto - 0.03);                        // the jaw's corner
   side('ment', goX * 0.42, pg.y - 0.035, 0.05);              // the mental tubercle: the chin's corners
   side('en', enX, n.y - 0.045, zEye);
@@ -145,6 +151,77 @@ function tissueMarkers(P) {
   }
   return m.map(([p, k]) => ({ p, t: T(k) }));
 }
+
+/**
+ * THE TUNE CHANNELS — one per measured relation: the internal point(s) it moves and what reads it. A `measure`
+ * channel reads a caliper distance its step SHRINKS (a paired width by twice the step); a `point` channel reads where
+ * the skin put a landmark along an `axis`, and its step moves the point the same way (a distance like n-sn cannot say
+ * which of its ends is off).
+ */
+export const TUNE_CHANNELS = Object.freeze({
+  eu: { measure: 'eu-eu', pair: true },        // the euryons inward: the vault's radius
+  zy: { measure: 'zy-zy', pair: true },        // the zygions, the cheekbones' fronts and the condyles inward: the face's
+                                               // widest is wherever the summed wave puts it — the arch, the malar, the joint
+  go: { measure: 'go-go', pair: true },        // the gonions inward: the mandible's corners, the masseter's insertion
+  op: { measure: 'g-op' },                     // the opisthocranion forward
+  g: { measure: 'nasion depth' },              // the glabella back: the brow, the frontal bulb
+  gn: { measure: 'n-gn' },                     // the chin up: pogonion, gnathion, menton, the chin's corners
+  n: { point: 'n', axis: 'z' },                // the brow ridge and the nose's root up together: the skin's nasion dip
+                                               // forms where the brow's wave gives way, not at the relation's point
+  sn: { point: 'sn', axis: 'z' },              // the subnasale up
+  prn: { measure: 'sn-prn' },                  // the nose tip back
+});
+const ZERO_TUNE = Object.freeze(Object.fromEntries(Object.keys(TUNE_CHANNELS).map((k) => [k, 0])));
+
+/** The wave's internal points: the skin points moved by the tune (V). The relations' own points are untouched. */
+export function tunedPoints(P, tune = ZERO_TUNE) {
+  const t = { ...ZERO_TUNE, ...tune };
+  const Q = { ...P };
+  const inward = (k, d) => { for (const s of ['L', 'R']) Q[`${k}${s}`] = { ...P[`${k}${s}`], x: P[`${k}${s}`].x - Math.sign(P[`${k}${s}`].x) * d }; };
+  inward('eu', t.eu); inward('zy', t.zy); inward('malar', t.zy); inward('condyle', t.zy); inward('go', t.go);
+  Q.op = { ...P.op, y: P.op.y + t.op };
+  Q.g = { ...P.g, y: P.g.y - t.g, z: P.g.z + t.n };
+  for (const k of ['pg', 'gn', 'me', 'mentL', 'mentR']) Q[k] = { ...P[k], z: P[k].z + t.gn };
+  Q.n = { ...P.n, z: P.n.z + t.n };
+  Q.sn = { ...P.sn, z: P.sn.z + t.sn };
+  for (const k of ['alL', 'alR']) Q[k] = { ...P[k], z: P[k].z + t.sn };
+  Q.prn = { ...P.prn, y: P.prn.y - t.prn };
+  return Q;
+}
+
+/**
+ * Solve the tune for a sex + relations: measure the skin, step each channel by its own error, repeat until every
+ * relation is met within `tolerance` mm or `steps` run out. Returns { tune, steps, residual: { channel: mm } }.
+ * Deterministic: the same relations solve to the same tune.
+ */
+export function solveTune({ sex = 'male', relations = {}, steps = 14, tolerance = 0.5, damping = 0.9 } = {}) {
+  // a channel whose error grows after its step halves its gain, and earns it back while its error shrinks (a channel
+  // pulled by a neighbour still settling must not run away, nor stall once it has); no point moves further than LIMIT
+  const LIMIT = 0.06;
+  let tune = { ...ZERO_TUNE }, residual = null, last = null, n = 0;
+  const gain = Object.fromEntries(Object.keys(TUNE_CHANNELS).map((k) => [k, damping]));
+  for (; n < steps; n++) {
+    const head = relationalHead({ sex, relations, tune });
+    const { mm, points } = headMeasures(head);
+    const errOf = (c) => (c.measure ? (mm[c.measure] == null ? null : mm[c.measure] - head.targets[c.measure])
+      : (points[c.point] ? (points[c.point][c.axis] - head.landmarks[c.point][c.axis]) / HEAD_V / MM_V : null));
+    residual = Object.fromEntries(Object.entries(TUNE_CHANNELS).map(([k, c]) => { const e = errOf(c); return [k, e == null ? null : Math.round(e * 10) / 10]; }));
+    if (Object.values(residual).every((e) => e == null || Math.abs(e) <= tolerance)) break;
+    const next = { ...tune };
+    for (const [k, c] of Object.entries(TUNE_CHANNELS)) {
+      const e = residual[k];
+      if (e == null || Math.abs(e) <= tolerance) continue;
+      if (last && last[k] != null) gain[k] = Math.abs(e) > Math.abs(last[k]) ? gain[k] / 2 : Math.min(damping, gain[k] * 1.5);
+      const step = (gain[k] * e * MM_V) / (c.pair ? 2 : 1);
+      next[k] = clampTo(c.point ? tune[k] - step : tune[k] + step, LIMIT);
+    }
+    last = residual;
+    tune = next;
+  }
+  return { tune, steps: n, residual };
+}
+const clampTo = (v, lim) => Math.max(-lim, Math.min(lim, v));
+const TUNE_CACHE = new Map();
 
 /**
  * The core vajras over the points: three points (proximal, centre, distal) and three radii in V, and a blend group.
@@ -226,11 +303,19 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * The relational head: { field, landmarks, bounds, points, vajras, targets } in STAND units, the same shape
  * `head-field-view.js` reads (`headFieldOf`). `sex` picks the pole; `relations` replaces ratios over it; `layer` is
  * `skin` (the default) or `skull`. `targets` are the relations' own measurements, in mm, for the calipers to meet.
+ * `tune` places the wave's internal points: `true` solves them (`solveTune`, cached), an object gives them.
  */
-export function relationalHead({ sex = 'male', relations = {}, layer = 'skin' } = {}) {
+export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
   const P = corePoints(rel);
-  const vajras = coreVajras(P, rel);
+  // `tune: true` solves (once per sex + relations, then cached); an object is a tune given; absent, none
+  let tuning = null;
+  if (tune === true) {
+    const key = JSON.stringify([sex, relations]);
+    if (!TUNE_CACHE.has(key)) TUNE_CACHE.set(key, solveTune({ sex, relations }));
+    tuning = TUNE_CACHE.get(key);
+  } else if (tune) tuning = { tune };
+  const vajras = coreVajras(tunedPoints(P, tuning?.tune), rel);
   const sc = HEAD_V;
   const S = (p) => ({ x: p.x * sc, y: p.y * sc, z: p.z * sc });
   // the tissue depth at p: inverse-square weights over the markers, softened so it varies slowly between them
@@ -308,5 +393,5 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin' } 
     'g-op': mm(P.g, P.op), 'eu-eu': mm(P.euL, P.euR), 'zy-zy': mm(P.zyL, P.zyR), 'go-go': mm(P.goL, P.goR),
     'n-gn': mm(P.n, P.gn), 'n-sn': mm(P.n, P.sn), 'sn-prn': mm(P.sn, P.prn), 'nasion depth': Math.round((P.g.y - P.n.y) * 2300) / 10,
   } : null;
-  return { field, landmarks, bounds, points: W, vajras, relations: rel, targets };
+  return { field, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning };
 }
