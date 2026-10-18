@@ -77,7 +77,13 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   group (`lipBody`), joined to the skin by a smooth minimum like the nose and the vermilion rather than summed with the
   cheeks, so they keep their shapes and do not swell the corners or fill the fold. The cheek takes a fold: a thin roll
   from beside the wing's base, past the mouth's corner, down to the jowl, summed into the cheek as the edge where its fat
-  stops against the lip; it rides the cheek's bulge, so a smile deepens it, and the jaw at its foot.
+  stops against the lip; it rides the cheek's bulge, so a smile deepens it, and the jaw at its foot. The upper lip's top
+  sits back under the nose, so the nostrils' base stands off it in an angle, and the lip slopes forward to its peak at
+  the vermilion. An alar crease is carved round the back and the bottom of each wing, where it meets the cheek and the
+  lip, and the fold begins there; under each wing a sill (the lip's top edge, from the philtrum out to the wing's base)
+  tucks under the nostril, so the wing sits on the lip in a crease, not over a slot. `philtrumVolume` is the
+  philtrum's fullness: its body's radius down to the bow, the columns growing with it. The al-al caliper takes a groove
+  the wing runs straight down into, near its edge, as the alar-facial groove even with no crest before it.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

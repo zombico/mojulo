@@ -224,6 +224,12 @@ function alarPair(field, L) {
   let crest = -1;
   for (let i = 1; i < xs.length - 1; i++) {
     if (ys[i] == null || ys[i - 1] == null || ys[i + 1] == null) continue;
+    // a groove the wing runs straight down into, before any crest (the tip's slope covering the wing's own ridge), is
+    // the alar-facial groove too, near the wing's edge: past it the cheek rises, and the first crest would be the
+    // cheek's (nearer the midline a dip is between the tip and the wing, not the groove)
+    if (crest < 0 && xs[i] > L.alaR.x * 0.8 && ys[i] <= ys[i - 1] && ys[i + 1] > ys[i] + 0.05 / MM) {
+      return [{ x: -xs[i], y: ys[i], z }, { x: xs[i], y: ys[i], z }];
+    }
     if (crest < 0 && xs[i] > L.alaR.x * 0.5 && ys[i] > ys[i - 1] + 0.05 / MM && ys[i] >= ys[i + 1]) crest = i;   // a crest rises (a flat cheek, its readings a bisection's noise apart, is none)
     if (crest >= 0 && i > crest && ys[i] <= ys[i - 1] && ys[i] < ys[i + 1]) {
       return [{ x: -xs[i], y: ys[i], z }, { x: xs[i], y: ys[i], z }];
