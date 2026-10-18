@@ -13,7 +13,7 @@
  *               zygion, gonion, condyle, porion, the canthi, the nose, the mouth, the chin. All in head heights (V).
  *   vajras      three points and three radii each — a round cone from the proximal bead to the centre bead and on to
  *               the distal (the vajra's tangent-line wrap, `sdRoundCone`), radii in V too. The core vajras (vault,
- *               cheek bar, arches, mandible, chin, brow, nose, alae, lips) are smooth-min'd: the structure keeps its
+ *               cheek bar, arches, mandible, chin, brow, nose, nostrils, lips) are smooth-min'd: the structure keeps its
  *               distances in the skull. Carves (the orbits) are smooth-subtracted.
  *   skin        the tissue: every bone vajra offset by the forensic soft-tissue depth, the soft masses (muscles at
  *               rest, fat pads, lids) at their own size, SUPERPOSED: the skin is the level set of Σ exp(−dᵢ/k), a
@@ -57,6 +57,10 @@ export const RELATIONS = Object.freeze({
   nasionDepth: 0.025,   // g ahead of n / v-me
   noseProjection: 0.37, // sn-prn / n-sn
   lipProjection: 0.02,  // ls ahead of sn / v-me
+  // ── the nostrils, each placed from the nose's bottom (the subnasale)
+  nostrilRise: 0.012,   // the alare (the wing's lobule at its widest) above sn / v-me
+  nostrilSet: 0.035,    // the alare ahead of sn / v-me
+  noseFat: 0.035,       // the nose's flesh: the radius of its cone at the base, over the wings / v-me
   // ── the eye and the mouth
   fissure: 0.045,       // the palpebral fissure's height / v-me (the eye's opening, ~10 mm)
   canthalTilt: 0.008,   // the lateral canthus above the medial / v-me
@@ -121,7 +125,7 @@ export function corePoints(rel = RELATIONS) {
   side('en', enX, n.y - 0.045, zEye);
   side('ex', exX, n.y - 0.09, zEye + R.canthalTilt);
   side('eye', (enX + exX) / 2, n.y - 0.07, zEye);
-  side('al', alX, sn.y + 0.035, zSn + 0.012);
+  side('al', alX, sn.y + R.nostrilSet, zSn + R.nostrilRise);
   side('ch', chX, sn.y + R.lipProjection - 0.045, zSto);
   // THE CHEEK CONTROL POINT: straight out from the rhinion (mid-bridge) to under the eye's centre — the cheek's apex,
   // where the malar pad peaks; set on the skin a touch proud of the cornea's plane
@@ -345,19 +349,58 @@ export function coreVajras(P, rel = RELATIONS) {
   // down and in. It rides on the bone and does not move the bone.
   soft('browPad', at(P.fzL, { y: -0.012 }), at(P.g, { y: -0.03, z: -0.004 }), at(P.fzR, { y: -0.012 }), [0.022, 0.02, 0.022], [['browL'], ['browC'], ['browR']]);
   // the SOFT features: no bone under them to stand off — the external nose and the lips are their own tissue
-  // THE UPPER LIP'S BODY — orbicularis oris above the mouth: wing base → under the subnasale → wing base, in front of
-  // the teeth, so the lip rises to meet the nose's base (without it the skin under the nose fell ~2 cm behind the
-  // subnasale, a notch you could see through from the side once the cheeks drew back)
-  soft('upperLipBody', at(P.alL, { y: -0.03, z: -0.03 }), { x: 0, y: P.sn.y - 0.022, z: (P.sn.z + P.ls.z) / 2 + 0.01 }, at(P.alR, { y: -0.03, z: -0.03 }), [0.022, 0.03, 0.022], [['bowL'], null, ['bowR']]);
-  // THE NOSE — nasion → rhinion → tip, the alae across the base through the subnasale
+  // THE UPPER LIP'S BODY — orbicularis oris above the mouth, in front of the teeth, as two halves meeting on the
+  // midline (the philtrum is where they meet): each a cone from under the wing's base, down and forward through the
+  // white lip, to its cupid's bow peak. Angled so, the lip slopes forward from the subnasale to the vermilion, and its
+  // tops stop under the alar bar, so the nose sits ON the lip. (One span from wing base to wing base was fattest under
+  // the subnasale, rose over it and melted the nose's base into a bulb; without a body at all the skin under the nose
+  // fell ~2 cm behind the subnasale, a notch you could see through from the side.)
+  for (const s of ['L', 'R']) {
+    const sg = Math.sign(P[`al${s}`].x);
+    soft(`upperLipBody${s}`, at(P[`al${s}`], { x: -sg * 0.01, y: -0.04, z: -0.035 }), { x: sg * 0.014, y: (P.sn.y + P.ls.y) / 2 - 0.016, z: (P.sn.z + P.ls.z) / 2 }, { x: sg * 0.006, y: P[`bow${s}`].y - 0.02, z: P[`bow${s}`].z + 0.006 }, [0.018, 0.02, 0.018], [null, null, [`bow${s}`]]);
+  }
+  // THE NOSE — nasion → rhinion → tip
   v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
-  v('alae', at(P.alL, { y: -0.02 }), at(P.sn, { y: -0.02, z: 0.005 }), at(P.alR, { y: -0.02 }), [0.022, 0.018, 0.022], 'nose');
+  // THE NOSTRILS — one vajra each, placed from the nose's bottom (`nostrilRise`, `nostrilSet` put the alare over the
+  // subnasale): the wing's base where it inserts into the lip → the alar lobule (its outer side IS the alare) → the
+  // soft triangle beside the tip. Mirrored, with the columella between them; the space between a lobule and the
+  // columella, roofed by the tip and the walls, is the nostril's opening seen from below.
+  const lobule = {}, soft3 = {};
+  for (const s of ['L', 'R']) {
+    const al = P[`al${s}`], sg = Math.sign(al.x);
+    lobule[s] = at(al, { x: -sg * 0.018, y: -0.006 });
+    soft3[s] = { x: sg * 0.024, y: P.prn.y - 0.036, z: P.prn.z - 0.008 };
+    v(`nostril${s}`, at(al, { x: -sg * 0.008, y: -0.03, z: -0.006 }), lobule[s], soft3[s], [0.012, 0.018, 0.012], 'nose');
+  }
+  // THE ALAR BAR — lobule → under the subnasale → lobule: the nose's base, joining the nostrils. Its ends are the
+  // lobules (the same bead and radius), so the wing's outer side stays the alare (ended at the alare itself, the bar
+  // stood 5 mm outside each wing)
+  v('alae', lobule.L, at(P.sn, { y: -0.02, z: 0.005 }), lobule.R, [0.018, 0.018, 0.018], 'nose');
   // THE COLUMELLA — the strip under the tip from the subnasale to the tip's underside, so the nose is closed beneath
   // (without it the air under the tip showed through from the side)
   v('columella', at(P.sn, { y: -0.004, z: 0.006 }), at(mid(P.sn, P.prn, 0.55), { y: -0.012, z: -0.008 }), at(P.prn, { y: -0.032, z: -0.012 }), [0.01, 0.011, 0.014], 'nose');
   // THE SIDEWALLS — from each wing up to the mid-bridge: angled cones, wide at the flare and narrowing as they rise,
   // so the nose is a pyramid (a ridge with two walls) and the wings read as wings where the walls meet them
-  for (const s of ['L', 'R']) v(`noseWall${s}`, at(P[`al${s}`], { y: -0.024, z: 0.008 }), at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.012, y: -0.022 }), at(P.rhinion, { y: -0.022 }), [0.02, 0.015, 0.012], 'nose');
+  // (rooted in the lobule, a little above its centre and thinner than it, so the lobule is the wing's widest)
+  const wallMid = {};
+  for (const s of ['L', 'R']) {
+    wallMid[s] = at(mid(P[`al${s}`], P.rhinion, 0.5), { x: -Math.sign(P[`al${s}`].x) * 0.016, y: -0.022 });
+    v(`noseWall${s}`, at(lobule[s], { y: -0.004, z: 0.008 }), wallMid[s], at(P.rhinion, { y: -0.022 }), [0.015, 0.014, 0.012], 'nose');
+  }
+  // THE NOSE'S FLESH — one cone down the middle, narrow at the bridge and widening to the base over the wings: the
+  // soft tissue over the cartilages, closing the grooves beside the ridge and the windows between each wing, its wall
+  // and the tip. Its radius at the base is `noseFat` (thin and pinched to full and fleshy); the base sits on the
+  // lobules' tops (it roofs the nostrils, never fills them) and behind the tip by its own radius, so a fatter nose is
+  // wider and fuller but no longer: the tip's projection stays its own relation, and al-al the wings'
+  const fat = R.noseFat, wingTop = Math.max(lobule.L.z, lobule.R.z) + 0.018;
+  const base = { x: 0, y: P.prn.y - 0.009 - fat, z: wingTop + 0.6 * fat };
+  v('noseFlesh', at(mid(P.n, P.rhinion, 0.5), { y: -0.024 }), mid(at(P.rhinion, { y: -0.012 }), base, 0.5), base, [0.012, 0.6 * fat, fat], 'nose');
+  // and across it, low and forward beside the tip where the cone (set back by its radius) does not reach: a cone from
+  // the window in one side (the triangle between the wing, its wall and the tip) to the other's, its ends at each
+  // triangle's centre, its radius the same flesh
+  const pane = (s) => ({ x: (lobule[s].x + wallMid[s].x + soft3[s].x) / 3, y: (lobule[s].y + wallMid[s].y + soft3[s].y) / 3, z: (lobule[s].z + wallMid[s].z + soft3[s].z) / 3 });
+  const paneL = pane('L'), paneR = pane('R'), rf = 0.63 * fat;
+  v('noseSides', paneL, { x: 0, y: (paneL.y + P.prn.y) / 2 - 0.02, z: paneL.z }, paneR, [rf, rf, rf], 'nose');
   // THE LIPS — corner → the lip's centre → corner, upper and lower
   // (each lip is two vajras, corner → its lateral bead → the centre: the upper through the cupid's bow peak to the
   // tubercle, the lower through its fullest to its centre; the centre beads are shared, so the halves meet there)

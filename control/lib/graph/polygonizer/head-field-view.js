@@ -230,10 +230,11 @@ function alarPair(field, L) {
     }
   }
   // no groove: the alare is still where the wing turns into the cheek — the strongest concave bend of y(x) past the
-  // crest (the knee); none either (no crest), and the wings run into the cheek with no edge to read
-  if (crest < 0) return [null, null];
+  // crest (the knee). No crest either (the tip's slope runs down over the wing at this height, so the wing makes no
+  // ridge of its own): the knee past half the alare's landmark width
+  const from = crest >= 0 ? crest + 1 : xs.findIndex((x) => x > L.alaR.x * 0.5);
   let knee = -1, best = 0;
-  for (let i = crest + 1; i < xs.length - 1; i++) {
+  for (let i = Math.max(1, from); i < xs.length - 1; i++) {
     if (ys[i - 1] == null || ys[i] == null || ys[i + 1] == null) continue;
     const bend = ys[i - 1] - 2 * ys[i] + ys[i + 1];
     if (bend > best) { best = bend; knee = i; }

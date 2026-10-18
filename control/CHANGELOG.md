@@ -46,10 +46,20 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   smile that shortens it bulges the cheek; the zygomaticus thickens the same way.
 - **A closed head.** The cheek's side is walled by the buccinator (upper molars, lower molars riding the jaw, the
   raphe between) and sealed to the chin by the depressor anguli oris; the parotid fills behind the ramus, a fill sits
-  before the ear, the upper lip's body rises to the nose's base and a columella closes the nose beneath. The field
+  before the ear, the upper lip's body meets the nose's base and a columella closes the nose beneath. The field
   lane reports `through-holes` (`throughHoles`, lines straight across the head that meet no skin though skin closes
   round them): none at rest, smiling, or with the jaw open to its limit, on either pole. The philtrum is its columns
   alone (the carved groove read as a line). The al-al caliper reads the wing's knee when there is no groove.
+- **The nose's base and its nostrils.** Each nostril is its own vajra (the wing's base, the alar lobule, the soft
+  triangle beside the tip), placed from the nose's bottom by `nostrilRise` and `nostrilSet`; the alar bar joins the two
+  lobules under the subnasale, so the wing's outer side is the alare and al-al meets its target again. The upper lip's
+  body is two cones, one per side, from under the wing to the cupid's bow peak, meeting on the midline: the lip slopes
+  forward from the subnasale and the nose sits on it, raised from it (one span across had risen over the subnasale and
+  melted the nose's base into a bulb). The nose's flesh is a cone down the middle, narrow at the bridge and widening to
+  the base over the wings, closing the grooves beside the ridge; a second cone across it, low beside the tip, closes
+  the window in each side between the wing, its wall and the tip. Both take their radius from `noseFat`, how fleshy
+  the nose is: wider and fuller, never longer (the tip's projection and the wings' width stay their own relations).
+  The al-al caliper reads the wing's knee when the tip's slope leaves the wing no crest.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 
