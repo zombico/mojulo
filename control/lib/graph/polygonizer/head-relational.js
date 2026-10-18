@@ -32,6 +32,7 @@
 import { smin, smax, sdRoundCone } from './vajra.js';
 import { headMeasures, rayIn } from './head-field-view.js';
 import { EAR_OUTLINE, EAR_HINGE } from './head-ear.js';
+import { GLOBE, eyeRig, resolveEye } from './head-relational-eye.js';
 import { SM } from '../../util/math-scope.js';
 
 /** the head height v-me in STAND units: 230 mm at 1 unit = 1.8 m */
@@ -134,10 +135,6 @@ export function corePoints(rel = RELATIONS) {
   // THE CHEEK CONTROL POINT: straight out from the rhinion (mid-bridge) to under the eye's centre — the cheek's apex,
   // where the malar pad peaks; set on the skin a touch proud of the cornea's plane
   for (const s of ['L', 'R']) P[`cheek${s}`] = { x: P[`eye${s}`].x, y: P[`eye${s}`].y + 0.01, z: P.rhinion.z };
-  // THE EYE'S OPENING: the upper lid's apex sits medial of the pupil and 0.6 of the fissure above it (it covers the
-  // iris's top), the lower's lateral and 0.4 below; the canthi are en and ex
-  side('lidUp', (enX + exX) / 2 - 0.1 * eye, n.y - 0.07, zEye + 0.6 * R.fissure + R.canthalTilt / 2);
-  side('lidLo', (enX + exX) / 2 + 0.1 * eye, n.y - 0.07, zEye - 0.4 * R.fissure + R.canthalTilt / 2);
   // THE MOUTH'S LINES: the cupid's bow peaks on the philtral columns, the lower lip's fullest either side of centre
   side('bow', 0.2 * chX, sn.y + R.lipProjection - 0.004, zSto + R.upperVermilion);
   side('loMid', 0.45 * chX, sn.y + R.lipProjection - 0.012, zSto - 0.5 * R.lowerVermilion);
@@ -343,11 +340,6 @@ export function coreVajras(P, rel = RELATIONS) {
     soft(`parotid${s}`, inX(at(P[`condyle${s}`], { y: -0.05, z: -0.02 }), 0.02), inX(at(mid(P[`condyle${s}`], go), { y: -0.07 }), 0.03), inX(at(go, { y: -0.05, z: 0.03 }), 0.04), [0.045, 0.05, 0.04]);
     V.push({ name: `zygomaticus${s}`, a: inX(at(mid(malar, zy, 0.35), { y: -0.03, z: -0.01 }), 0.03), c: at(mid(malar, ch, 0.5), { y: -0.025 }), b: at(ch, { y: -0.02 }), r: [0.018, 0.016, 0.014], group: 'soft', muscle: true, balloon: true, drive: [null, [`zyg${s}`], corner] });
     // the lids: corner → over the globe → corner, upper and lower
-    // the lid margins: rolls along the opening's arcs, lying on the globe (canthus → apex → canthus); their centre
-    // beads ARE the opening's apexes (the carve reads them back, so a lid that moves moves the opening)
-    const onGlobe = (q, lift) => { const dx = q.x - eye.x, dz = q.z - eye.z, gy = eye.y - GLOBE.back; return { ...q, y: gy + Math.sqrt(Math.max(0, GLOBE.r ** 2 - dx * dx - dz * dz)) + lift }; };
-    soft(`upperLid${s}`, onGlobe(P[`en${s}`], 0.004), onGlobe(at(P[`lidUp${s}`], { z: LID.up }), LID.y), onGlobe(P[`ex${s}`], 0.004), [0.005, 0.009, 0.005], [null, [`lid${s}`], null]);
-    soft(`lowerLid${s}`, onGlobe(P[`en${s}`], 0.004), onGlobe(at(P[`lidLo${s}`], { z: -LID.lo }), LID.y), onGlobe(P[`ex${s}`], 0.004), [0.005, 0.008, 0.005], [null, [`lowLid${s}`], null]);
   }
   // the BROW PAD — the soft brow over the ridge (the eyebrow's bed): frontalis lifts it, the corrugator draws it
   // down and in. It rides on the bone and does not move the bone.
@@ -438,11 +430,6 @@ export function actionDrivers(P, acts = {}) {
     // the brow: raised straight up; lowered down, forward a touch, and toward the midline
     const sg = Math.sign(P[`fz${s}`].x);
     D[`brow${s}`] = (p) => add(add(p, { x: 0, y: 0, z: 0.03 }, a('browRaise')), { x: -sg * 0.012, y: 0.004, z: -0.02 }, a('browLower'));
-    // the lids: the upper comes down over the globe to the lower (a blink closes the opening — the carve reads the
-    // lid back) and lifts a little with the brow; the lower rises with the cheek (a real smile narrows the eye)
-    const shut = P[`lidUp${s}`].z - P[`lidLo${s}`].z + LID.up;
-    D[`lid${s}`] = (p) => add(add(p, { x: 0, y: 0.006, z: -shut }, side('blink', s)), { x: 0, y: 0, z: 0.005 }, a('browRaise') * (1 - side('blink', s)));
-    D[`lowLid${s}`] = (p) => add(p, { x: 0, y: 0.002, z: 0.01 }, sm);
   }
   D.browC = (p) => add(add(p, { x: 0, y: 0, z: 0.022 }, a('browRaise')), { x: 0, y: 0.006, z: -0.016 }, a('browLower'));
   return D;
@@ -613,10 +600,6 @@ export function earPart(P, rel, s, baseX) {
   return { f, carve, top: { ...top, z: top.z + 0.042 * Hear }, tragion, height: Hear };
 }
 
-/** the globe (V): 24 mm across, its sclera's front 2.5 mm behind the eye point, the cornea proud of it to the point */
-const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034 });
-/** the lid margins' rolls (V): how far above / below the opening's apexes they lie, and how proud of the globe */
-const LID = Object.freeze({ up: 0.006, lo: 0.004, y: 0.006 });
 
 /** the blend width per group, in V (the bone melts broadly; the nose and the lips keep their lobes) */
 const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lips: 0.01 };
@@ -630,9 +613,11 @@ export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
  * `head-field-view.js` reads (`headFieldOf`). `sex` picks the pole; `relations` replaces ratios over it; `layer` is
  * `skin` (the default) or `skull`. `targets` are the relations' own measurements, in mm, for the calipers to meet.
  * `tune` places the wave's internal points: `true` solves them (`solveTune`, cached), an object gives them.
- * `actions` are the activations of the face's action relationships (`ACTIONS`), applied over the tuned rest.
+ * `actions` are the activations of the face's action relationships (`ACTIONS`), applied over the tuned rest; `eyes`
+ * is the eyes' spec (head-relational-eye.js: a word, channels, a side's own), the actions adding to it. `paint(p)`
+ * names a surface point's part (the globe's 'sclera' | 'iris' | 'pupil'; null the skin).
  */
-export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null } = {}) {
+export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', tune = null, actions = null, eyes = null } = {}) {
   const rel = { ...RELATIONS, ...RELATION_POLES[sex], ...relations };
   const P = corePoints(rel);
   // `tune: true` solves (once per sex + relations, then cached); an object is a tune given; absent, none
@@ -657,24 +642,6 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const inC = (q) => ({ x: q.x * 0.88, y: q.y - 0.01, z: (q.z + c.z) / 2 });
     return { a: inC(Vn.upperLipL.a), c, b: inC(Vn.upperLipR.a), r: [0.004, Math.min(0.5 * gap + 0.004, 0.06), 0.004] };
   })() : null;
-  // THE EYES' OPENINGS — an almond in the face's plane, the intersection of two discs: the upper lid's arc (a circle
-  // through the canthi and the upper lid's apex, as moved) and the lower's. Read back from the lid rolls, so a blink
-  // that brings the upper lid down to the lower closes it. Carved through the skin in front of the globe's centre.
-  const circle3 = (a, b, c) => {   // the circle through three (x, z) points: [cx, cz, r], or null when they are in line
-    const d = 2 * (a.x * (b.z - c.z) + b.x * (c.z - a.z) + c.x * (a.z - b.z));
-    if (Math.abs(d) < 1e-9) return null;
-    const A = a.x * a.x + a.z * a.z, B = b.x * b.x + b.z * b.z, C = c.x * c.x + c.z * c.z;
-    const cx = (A * (b.z - c.z) + B * (c.z - a.z) + C * (a.z - b.z)) / d, cz = (A * (c.x - b.x) + B * (a.x - c.x) + C * (b.x - a.x)) / d;
-    return [cx, cz, Math.hypot(a.x - cx, a.z - cz)];
-  };
-  const openings = ['L', 'R'].map((s) => {
-    const en = Pt[`en${s}`], ex = Pt[`ex${s}`];
-    const up = { ...Vn[`upperLid${s}`].c, z: Vn[`upperLid${s}`].c.z - LID.up }, lo = { ...Vn[`lowerLid${s}`].c, z: Vn[`lowerLid${s}`].c.z + LID.lo };
-    const chordZ = (q) => en.z + ((q.x - en.x) / (ex.x - en.x)) * (ex.z - en.z);
-    if (up.z - lo.z < 0.004 || up.z - chordZ(up) < 0.002 || chordZ(lo) - lo.z < 0.002) return null;   // shut
-    const U = circle3(en, up, ex), L = circle3(en, lo, ex);
-    return U && L ? { U, L, gy: Pt[`eye${s}`].y - GLOBE.back, x0: Math.min(en.x, ex.x) - 0.01, x1: Math.max(en.x, ex.x) + 0.01 } : null;
-  });
   const sc = HEAD_V;
   const S = (p) => ({ x: p.x * sc, y: p.y * sc, z: p.z * sc });
   // the tissue depth at p: inverse-square weights over the markers, softened so it varies slowly between them
@@ -702,16 +669,6 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     return { group: w.group, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)) };
   });
   const orbits = ['L', 'R'].map((s) => ({ c: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.01 }), r: 0.075 * sc }));
-  // the globe and its cornea: the sclera's sphere, and the cornea's smaller sphere proud of it to the eye point
-  const globes = ['L', 'R'].map((s) => {
-    const e = Pt[`eye${s}`];
-    return { c: S({ ...e, y: e.y - GLOBE.back }), r: GLOBE.r * sc, cc: S({ ...e, y: e.y - GLOBE.cornea }), cr: GLOBE.cornea * sc };
-  });
-  const openingF = openings.map((o) => o && ((p) => {
-    const x = p.x / sc, z = p.z / sc;
-    const dU = Math.hypot(x - o.U[0], z - o.U[1]) - o.U[2], dL = Math.hypot(x - o.L[0], z - o.L[1]) - o.L[2];
-    return Math.max(dU, dL, o.gy - p.y / sc, o.x0 - x, x - o.x1) * sc;   // inside both discs, in front of the globe's centre
-  }));
   const carves = bonds.filter((b) => b.group === 'carve');
   // where the wavelength shortens: the mouth (about the stomion, the mouth's width) and each eye
   const featureFoci = [
@@ -747,14 +704,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     for (const v of es) sum += SM.exp(-(v - lo) / k);
     let d = lo - k * SM.log(sum);
     for (const k of ['nose', 'lips']) d = smin(d, g[k], JOIN[k] * sc);
-    // the grooves, the mouth, and the eyes' openings cut through to the globes, which sit in them
+    // the grooves and the mouth cut from the skin (the eyes are their own rig, set in after)
     for (const c of carves) d = smax(d, -c.f(p), 0.003 * sc);
     if (mouthF) d = smax(d, -mouthF(p), 0.006 * sc);
-    for (const f of openingF) if (f) d = smax(d, -f(p), 0.0025 * sc);
-    for (const o of globes) {
-      const gd = smin(SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r, SM.hypot(p.x - o.cc.x, p.y - o.cc.y, p.z - o.cc.z) - o.cr, 0.006 * sc);
-      d = smin(d, gd, 0.0015 * sc);
-    }
     return d;
   };
   // THE EARS — hinged on the skin: probe the head's own surface along the hinge's line, then hang each ear on it
@@ -764,12 +716,37 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     const e = earPart(Pt, rel, s, baseX);
     return { f: (p) => e.f({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, carve: (p) => e.carve({ x: p.x / sc, y: p.y / sc, z: p.z / sc }) * sc, top: S(e.top), tragion: S(e.tragion) };
   }) : [];
-  const field = ears.length ? (p) => {
+  // THE EYES — their own rig (head-relational-eye.js): the `eyes` spec (a word, channels, a side's own), and the
+  // head's actions on top — a blink shuts the lid, a smile raises and rounds the lower lid (the squint of a real
+  // smile), a raised brow lifts the upper lid, a lowered one drops it and flattens it
+  const act = (k) => Math.max(0, Math.min(1, Number(actions?.[k]) || 0));
+  const eyeRigs = skin ? ['L', 'R'].map((s) => {
+    const sm = Math.min(1, act('smile') + act(`smile${s}`)), bl = Math.min(1, act('blink') + act(`blink${s}`));
+    const c = resolveEye(eyes, s, { lower: 0.6 * sm, lowerShape: 0.3 * sm, open: 0.25 * act('browRaise') - 0.12 * act('browLower'), upperShape: -0.3 * act('browLower') });
+    c.open *= 1 - bl;
+    const r = eyeRig(Pt, s, c, rel.fissure);
+    const V = (p) => ({ x: p.x / sc, y: p.y / sc, z: p.z / sc });
+    const near = (p) => Math.hypot(p.x / sc - r.bound.c.x, p.y / sc - r.bound.c.y, p.z / sc - r.bound.c.z) < r.bound.r;
+    return { near, channels: c, gaze: r.gaze,
+      opening: r.opening && ((p) => r.opening(V(p)) * sc), rims: (p) => r.rims(V(p)) * sc,
+      crease: r.crease && ((p) => r.crease(V(p)) * sc), globe: (p) => r.globe(V(p)) * sc, paint: (p) => r.paint(V(p)) };
+  }) : [];
+  const field = ears.length || eyeRigs.length ? (p) => {
     let d = skinField(p);
     for (const e of ears) { const ef = e.f(p); if (ef !== Infinity) d = smin(d, ef, JOIN.ear * sc); }
     for (const e of ears) { const c = e.carve(p); if (c !== Infinity) d = smax(d, -c, 0.004 * sc); }
+    for (const e of eyeRigs) {
+      if (!e.near(p)) continue;
+      // the opening carved to the globe, the margins and folds laid on, the crease cut, the globe set in
+      if (e.opening) d = smax(d, -e.opening(p), 0.0025 * sc);
+      d = smin(d, e.rims(p), 0.004 * sc);
+      if (e.crease) d = smax(d, -e.crease(p), 0.002 * sc);
+      d = smin(d, e.globe(p), 0.0015 * sc);
+    }
     return d;
   } : skinField;
+  // what a surface point is painted: the globe's parts, or the skin (null)
+  const paint = (p) => { for (const e of eyeRigs) if (e.near(p)) { const t = e.paint(p); if (t) return t; } return null; };
   // the names head-field-view's calipers read (figure-head.js's landmark names), from the core points
   const s = 0.9 * (sc / 0.1265);
   const W = Object.fromEntries(Object.entries(P).map(([k, p]) => [k, S(p)]));
@@ -791,5 +768,5 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     'g-op': mm(P.g, P.op), 'eu-eu': mm(P.euL, P.euR), 'zy-zy': mm(P.zyL, P.zyR), 'go-go': mm(P.goL, P.goR),
     'n-gn': mm(P.n, P.gn), 'n-sn': mm(P.n, P.sn), 'sn-prn': mm(P.sn, P.prn), 'al-al': mm(P.alL, P.alR), 'nasion depth': Math.round((P.g.y - P.n.y) * 2300) / 10,
   } : null;
-  return { field, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {} };
+  return { field, paint, landmarks, bounds, points: W, vajras, relations: rel, targets, tuning, actions: actions || {}, eyes: eyeRigs.map((e) => e.channels) };
 }
