@@ -17,6 +17,7 @@
 //   --act           the relational head's actions: '{"jaw":0.6,"smile":1}' (head-relational.js ACTIONS)
 //   --acts          an ACTION STRIP: '[{}, {"jaw":0.6}, {"smile":1}]' — one row per set (front, front ¾, lateral, ¾),
 //                   no sections or table, for comparing expressions on one head
+//   --crop face     frame the face (the chin to above the brow, cheek to cheek) instead of the whole head
 //   --untuned       the relational head as authored, its wave's internal points not solved to meet its relations
 //   --rel           relations replaced over the relational pole: '{"cephalic":0.82,"jaw":0.8}' (head-relational.js)
 //   --out           output dir (default /tmp/head-study-field): sheet.png, sheet.svg, measures.json.
@@ -36,7 +37,7 @@ const { relationalHead, RELATION_NAMES, ACTION_NAMES } = await import(P('head-re
 const { DIMORPH } = await import(P('figure-rig.js'));
 
 const args = process.argv.slice(2);
-let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true, act = null, acts = null;
+let out = '/tmp/head-study-field', proto = {}, face = null, cells = 160, marks = true, source = 'protoform', rel = {}, layer = 'skin', tuned = true, act = null, acts = null, crop = null;
 const sexes = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -49,6 +50,7 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--rel') { rel = JSON.parse(args[++i]); continue; }
   if (a === '--layer') { layer = args[++i]; continue; }
   if (a === '--untuned') { tuned = false; continue; }
+  if (a === '--crop') { crop = args[++i]; continue; }
   if (a === '--act') { act = JSON.parse(args[++i]); source = 'relational'; continue; }
   if (a === '--acts') { acts = JSON.parse(args[++i]); source = 'relational'; continue; }
   if (a === '--field') continue;
@@ -129,6 +131,12 @@ const PANEL_H = 520, PROF_W = 760, CUT_W = 760;
 const ROWS = acts ? sexes.flatMap((sex) => acts.map((a) => ({ sex, actions: a }))) : sexes.map((sex) => ({ sex, actions: act }));
 for (const { sex, actions } of ROWS) {
   const head = source === 'relational' ? relationalHead({ sex, relations: rel, layer, tune: tuned, actions }) : headFieldOf({ pole: DIMORPH[sex].head, knobs: proto, face });
+  // the camera's frame: the head's bounds, or the face's (chin to above the brow, cheek to cheek, the face's depth)
+  const L = head.landmarks;
+  const frame = crop === 'face' ? {
+    min: { x: -(L.zygionR.x + 0.006), y: L.tragionR.y, z: L.menton.z - 0.004 },
+    max: { x: L.zygionR.x + 0.006, y: L.noseTip.y + 0.004, z: L.glabella.z + 0.012 },
+  } : head.bounds;
   const actLabel = actions && Object.keys(actions).length ? ' · ' + Object.entries(actions).map(([k, v]) => `${k} ${v}`).join(', ') : acts ? ' · rest' : '';
   const t0 = Date.now();
   const faces = headFieldMesh(head, { cells });
@@ -138,7 +146,7 @@ for (const { sex, actions } of ROWS) {
   console.log(`${sex}: ${faces.length} quads at ${cells} cells, ${Date.now() - t0} ms`);
 
   for (const [col, v] of VIEWS.entries()) {
-    const cam = camera(v.az, v.elev, head.bounds);
+    const cam = camera(v.az, v.elev, frame);
     const { img, zbuf } = rasterize(faces, cam);
     const png = await sharp(img, { raw: { width: CW, height: CH, channels: 4 } }).png().toBuffer();
     const x = col * CW;
@@ -162,7 +170,7 @@ for (const { sex, actions } of ROWS) {
   if (acts) {
     // the Δ column: the front view's depth against the first row's (the rest), red = the skin came toward the
     // camera, blue = it went back, full colour at 6 mm; grey where only one of the two has skin
-    const cam = camera(0, 4, head.bounds);
+    const cam = camera(0, 4, frame);
     const { zbuf } = rasterize(faces, cam);
     if (!restZ) restZ = zbuf;
     const img = Buffer.alloc(CW * CH * 4, 0), FULL = 6 / 1000 / 1.8;   // 6 mm in STAND units

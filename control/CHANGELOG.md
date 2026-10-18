@@ -32,6 +32,12 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   cheekbones and lifts the cheeks), `browRaise`, `browLower`, `blink`, and a side alone (`smileL`, `blinkR`). Each
   drives named beads of the vajra graph; their displacements add, so actions compose. `--acts` renders an action strip
   with what each moved from rest.
+- **Eyes and mouth.** The eye's opening is an almond read back from the lid margins (the canthi, the lids' apexes,
+  `fissure` and `canthalTilt`), cut through the skin to a globe with its cornea: a blink brings the upper lid down to
+  the lower and the opening closes; a smile lifts the lower lid. Each lip is two vajras, corner to cupid's bow peak to
+  centre, the lower the fuller (`upperVermilion`, `lowerVermilion`), with the lip line, the philtrum and the
+  mentolabial sulcus carved. The skin's wavelength shortens near the eyes and the mouth (`featureWave`), so features
+  smaller than the wave keep their edges. `--crop face` frames the face.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 
