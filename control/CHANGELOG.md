@@ -587,6 +587,42 @@ renders byte-identically without them.
   foe is made through the animal door with its two gaits and its reactions (design_game realizes an `animal` order) and
   stands, walks and takes a blow on its own body; a shooter's or a deathmatch's foes keep a person's hands.
 
+### README demo: a floor plan to rooms you can live in
+
+- The README and the npm page lead with `docs/images/decor-demo.gif` in place of `lounge-handoff-demo.gif` (which
+  the long tour keeps). It is one real Claude Code session, recorded rather than staged: a homeowner uploads their
+  floor plan as a picture and asks, in their own words, for ideas for living in it (warm, natural, a bit cozy: the
+  living room, the dining room and the big bedroom), then for sage green living-room walls and the sofa turned to the
+  windows, then for a walkthrough video. The agent reads the plan, builds the house with `mint_building`, designs and
+  then repaints and rearranges the rooms with `design_interior`, and films and stitches the walkthrough itself. The
+  change is shown from eye level, aimed at what moved, as a before and after swept in by a glowing line; the last
+  slide is the session's own working time, tokens and cost at API list price. README section 2 walks through it.
+- `docs/images/src/decor-demo/` re-runs it end to end: `plan.mjs` draws the uploaded plan (`house.json` as its own
+  A-101 sheet), `run.mjs` drives `claude -p` (`--resume` per ask, the plan as an image in the first message) with
+  mojulo as the only tool server, `capture.mjs` films from a replay of the session's calls, checked against the
+  recipes it stored, so a kernel fix re-shoots the same session, and `compose.mjs` sets it in a generic chat and
+  encodes the GIF. `session.json` is the record of the session the GIF shows: every call, reply, token count and the
+  recipes it left. The media helpers launch Chromium without its sandbox when they run as root, as in a Linux
+  container.
+- `docs/tech-requirements.md` is measured for 3.1.1 (Linux x64, 2026-10-18: an 11.6 MB tarball, 251 MB installed
+  across 130 packages, the per-dependency sizes again, and what the measurement turned up), records the Linux runs
+  behind the demo (Claude Code driving the stdio server, Chrome for Testing baking without its sandbox as root), and
+  names `stitch_motion`'s MP4 decode. The READMEs carry the 3.1.1 install size and name the ChatGPT plugin
+  ([plugins/mojulo-chatgpt](../plugins/mojulo-chatgpt/README.md)) beside the Claude one.
+- `design_interior`'s reply says where each piece stands: `at` (its centre, mm from the room's corner) and `facing`
+  beside its id and size, so the next call can move a piece by id knowing where it is, and a reader can tell what a
+  revision moved.
+- `design_interior`: a dining room has its chairs. They tuck a little under the table, and the placement check
+  counted the table they tuck under as in their way, so every chair was left out ("collides with dining.table") and a
+  dining room was a table, a rug and a sideboard. `brief.seats` now seats that many where the room fits them.
+- `design_interior`: a plain cloth asked by name on a piece (`finish: { fabric: 'velvet' }`, also linen, canvas,
+  bouclé, twill) changes the cloth and keeps the scheme's colour. It used to drop the colour, so the piece wore the
+  preset's own (velvet's emerald): "make the sofa velvet" turned the sofa green. A room that names such a fabric
+  renders in its scheme's colour now; a patterned cloth (tartan, ticking …) and a full fabric spec are as they were.
+- `stitch_motion` joins World clips (a furnished room, a city, a level), which it used to refuse. A World clip its
+  forge baked to MP4 is decoded from that video, so a stitch of three room clips takes seconds rather than a fresh
+  headless render of every frame; one without an MP4 is rendered again from its recipe.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

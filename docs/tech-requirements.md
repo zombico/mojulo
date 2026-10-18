@@ -29,7 +29,7 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 | Requirement | What exactly | Where it's enforced |
 |---|---|---|
 | **Node.js 22.14 or newer** | Hard floor, checked at startup; older Nodes exit with a message. | `engines` in [control/package.json](../control/package.json); the check in [scripts/mcp-stdio.mjs](../control/scripts/mcp-stdio.mjs) |
-| **An MCP host** | Claude Code or Codex get the most out of it; Claude Desktop and other hosts wire by declared profile. | [scripts/mcp-init.mjs](../control/scripts/mcp-init.mjs) |
+| **An MCP host** | Claude Code or Codex get the most out of it; Claude Desktop and other hosts wire by declared profile. Claude Code also takes it as a plugin ([plugins/mojulo](../plugins/mojulo/README.md)), and ChatGPT as a plugin ([plugins/mojulo-chatgpt](../plugins/mojulo-chatgpt/README.md)). | [scripts/mcp-init.mjs](../control/scripts/mcp-init.mjs) |
 | **A desktop OS** | macOS is the development and verification platform. Windows and Linux are handled by the installer and the native binaries below, but the engine gates are not verified there (see [Platform notes](#platform-notes)). | — |
 | **No GPU** | Headless WebGL bakes rasterize on the CPU via SwiftShader. A GPU only matters for optional workers you host yourself (Blender Cycles, ComfyUI). | [lib/graph/scene/chromium.js](../control/lib/graph/scene/chromium.js) |
 | **No provider key** | Studio, games, publications, research, apps: keyless. A key enters only when something must *paint* (image models) or when you use `mint_solid`'s prompt door. | [README](../README.md#quickstart) |
@@ -39,7 +39,14 @@ your agent is the reasoning loop. Game engines, Blender, slicers, and image or v
 
 ## Package size and disk footprint
 
-Measured for 3.0.0 on **2026-09-28**: the core tarball packed from its release branch, cold-started 10
+Measured for 3.1.1 on **2026-10-18**: the published package from registry.npmjs.org, installed with npm
+10.9.4 into an empty directory with an empty npm cache, on Linux x64 (a cloud container, Node 22.22.0).
+The install took 11.1 s, and the installed server answered `initialize` in 2.0 to 2.3 s over three
+fresh `MOJULO_HOME`s (the server alone, after the install). One run on one machine, with a fast
+network, so it bounds nothing; it is not the macOS cold start below, which ran `npx` through a local
+registry and timed both together. Sizes are decimal MB, `du` on disk.
+
+The 3.0.0 measurement, **2026-09-28**: the core tarball packed from its release branch, cold-started 10
 times with an empty npm cache and a fresh `MOJULO_HOME` through a local registry stand-in on macOS
 arm64 (M1 Max), answered `initialize` in a median 6.6 s (p90 7.0 s, slowest 7.7 s), against 7.2 s
 (p90 7.9 s, slowest 8.5 s) for the 2.2 line in the same interleaved rounds. Nearly all of that is
@@ -66,28 +73,29 @@ have been excluded since 2.0.6.
 
 | Layer | Size | Notes |
 |---|---|---|
-| npm tarball (what `npx` downloads) | **6.7 MB** | `mojulo-3.0.0`; no dashboard build. The 2.2 line measured 6.0 MB. |
-| Unpacked package | **21.3 MB** | The stdio server, the kernels and the vendored three.js (19 MB on the 2.2 line). |
-| What npm installs, the package included | **227 MB** on disk, 153 packages | About 79 MB on the wire (tarballs plus package metadata, the package included) from an empty cache, and about 140 MB left in npm's cache. The 2.2 line, with the document parsers, measured 303 MB, 208 packages and 114 MB the same way. Breakdown below. |
-| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **12.7 MB** tarball, **57.0 MB** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. The 2.2 line, with the bot pages, measured 13.2 MB and 60.0 MB. |
+| npm tarball (what `npx` downloads) | **11.6 MB** | `mojulo-3.1.1`; no dashboard build. 3.0.0 measured 6.7 MB, the 2.2 line 6.0 MB. |
+| Unpacked package | **36.0 MB** (npm's count; 42.7 MB on disk, `lib/` 40.5 MB of it) | The stdio server, the kernels, the bundled recipe book and the vendored three.js. 3.0.0 measured 21.3 MB, the 2.2 line 19 MB. |
+| What npm installs, the package included | **251 MB** on disk, 130 packages | And 152 MB left in npm's cache (Linux x64). 3.0.0 measured 227 MB, 153 packages and 140 MB of cache on macOS arm64, about 79 MB of it on the wire; the 2.2 line, with the document parsers, 303 MB, 208 packages and 114 MB on the wire. Breakdown below. |
+| Dashboard (`mojulo-ui`, fetched the first time it is opened) | **15.7 MB** tarball, **65.0 MB** unpacked | Its own npm package since 3.0.0; shares core's installed dependencies. 3.0.0 measured 12.7 MB and 57.0 MB; the 2.2 line, with the bot pages, 13.2 MB and 60.0 MB. |
 | Recall group (`mojulo install recall`) | **~480 MB** runtime + **~130 MB** model | `@huggingface/transformers` with `onnxruntime-node` and `onnxruntime-web` under `~/.mojulo/recall/`, and `Xenova/multilingual-e5-small` (q8 ONNX) under `~/.mojulo/models/`. Gives `semantic_search` vector ranking; runs in-process. Opt-in. |
 | Your data | **kilobytes per recipe** | One SQLite file under `~/.mojulo/data/`. The maintainer's own `~/.mojulo/data` measures 11 MB. |
 
-**What the dependencies are.** The largest pieces, sized from the 2.0.7 cold install (on the 2.2 line the download was led by `officeparser` with `pdfjs-dist` and a native canvas, which left with the chatbot factory in 3.0.0), all runtime deps of the kernel unless noted:
+**What the dependencies are.** The largest pieces, sized on disk from the 3.1.1 cold install above (Linux x64; native builds differ in size by platform), each with what it pulls in, all runtime deps of the kernel unless noted:
 
 | Dependency | Size | Why it's there |
 |---|---|---|
-| `node-web-audio-api` | 41 MB | Audio synthesis (beats, SFX). Creative group, optional. |
-| `better-sqlite3` | 27 MB | The database. |
-| `sharp` + libvips | 17 MB | Image handling (skins, sprite sheets, the PNG bake, the forges). Creative group, optional. |
-| `puppeteer-core` | 13 MB | Drives a browser for scene bakes. The browser itself is **not** included (below). |
-| `opentype.js`, `manifold-3d` | 7 MB | Fonts for wordmarks; WASM CSG for `union: true` exports. Creative group, optional. |
-| `openscad-wasm-prebuilt` | 11 MB | OpenSCAD 2025.01.19 as WASM with the Manifold backend: the in-process mesher for `mint_solid kind:'scad'` and the exact twin behind `exact: true`. A fresh instance per render, about 210 MB RSS while one runs. Creative group, optional; a stored `scad` row cannot render without it. |
+| `node-web-audio-api` | 42.3 MB | Audio synthesis (beats, SFX). Creative group, optional. |
+| `sharp` + libvips | 28.7 MB | Image handling (skins, sprite sheets, the PNG bake, the forges). On Linux x64 that is libvips for the platform (18.7 MB) and sharp's WebAssembly build (9.4 MB) beside it. Creative group, optional. |
+| `better-sqlite3` | 27.5 MB | The database. |
+| `manifold-3d` | 23.6 MB | WASM CSG for `union: true` exports and the exact twin: 2.9 MB itself, with `esbuild-wasm` (14.1 MB) and `@gltf-transform` (6.6 MB), its own dependencies. Creative group, optional. |
+| `puppeteer-core` | 27.5 MB | Drives a browser for scene bakes: 8.6 MB itself, with `chromium-bidi` (10.3 MB) and its `zod` (8.6 MB). The browser itself is **not** included (below). |
+| `openscad-wasm-prebuilt` | 11.2 MB | OpenSCAD 2025.01.19 as WASM with the Manifold backend: the in-process mesher for `mint_solid kind:'scad'` and the exact twin behind `exact: true`. A fresh instance per render, about 210 MB RSS while one runs. Creative group, optional; a stored `scad` row cannot render without it. |
+| `opentype.js` | 3.7 MB | Fonts for wordmarks. Creative group, optional. |
 
 Since 3.0 two former rows are gone: `three` (38 MB; no Node code imports it, and the exported pages
 load the vendored copy or the pinned CDN) and `@swc/core` (26 MB; the one shipped JSX file is
 precompiled at pack time). The dashboard-only libraries are devDependencies compiled into the
-dashboard bundle. The per-dependency table reflects the 2.0.7 measurement; the totals above are 3.0.0's.
+dashboard bundle.
 
 **Lean install.** `npm install --omit=optional` sheds the optional creative helpers (about 115 MB with
 what they pull in, summed on disk for the packages the 3.0.0 lockfile marks optional-only, macOS arm64,
@@ -103,8 +111,8 @@ are cached, and are skipped entirely if you already have the tool:
 
 | What | When | Size | Skipped if |
 |---|---|---|---|
-| Chrome for Testing (pinned build in [chromium.js](../control/lib/graph/scene/chromium.js)) | First explicit render that needs a browser: a world `forge_motion`, `export_game` hangar portraits, `create_game` with `auto_audit`, or the dashboard's PNG download. The tool result carries a `browser_download` notice. The download is unpacked by running the system `unzip` (Windows: `tar.exe`, then PowerShell's `Expand-Archive`). A mint's background warm and the gallery's thumbnails never download it; with no browser they skip | **~500 MB** | Chrome, Chromium, Edge, or Brave is installed at a standard path, or `MOJULO_CHROMIUM` points at one (mojulo then launches that browser headless, with its sandbox on) |
-| ffmpeg static build (pinned in [ffmpeg.js](../control/lib/motion/ffmpeg.js), from github.com/eugeneware/ffmpeg-static) | First MP4 encode: `stitch_motion`, or `forge_motion` with `export: 'mp4'`. The download's SHA-256 is pinned per platform and checked before it is unpacked or run; a mismatch fails the encode | ~19–30 MB download | `ffmpeg` is on PATH or `MOJULO_FFMPEG` points at one |
+| Chrome for Testing (pinned build in [chromium.js](../control/lib/graph/scene/chromium.js)) | First explicit render that needs a browser: a world `forge_motion` (or a `stitch_motion` of a World clip that has no MP4 yet), `export_game` hangar portraits, `create_game` with `auto_audit`, or the dashboard's PNG download. The tool result carries a `browser_download` notice. The download is unpacked by running the system `unzip` (Windows: `tar.exe`, then PowerShell's `Expand-Archive`). A mint's background warm and the gallery's thumbnails never download it; with no browser they skip | **~500 MB** | Chrome, Chromium, Edge, or Brave is installed at a standard path, or `MOJULO_CHROMIUM` points at one (mojulo then launches that browser headless, with its sandbox on; run as root, as in a Linux container, Chromium cannot keep its sandbox, and mojulo launches it with `--no-sandbox` and says so on stderr) |
+| ffmpeg static build (pinned in [ffmpeg.js](../control/lib/motion/ffmpeg.js), from github.com/eugeneware/ffmpeg-static) | First MP4 encode or decode: `stitch_motion` (which also decodes a World clip's own MP4 to stitch it, in place of rendering its frames again), or `forge_motion` with `export: 'mp4'`. The download's SHA-256 is pinned per platform and checked before it is unpacked or run; a mismatch fails the encode | ~19–30 MB download | `ffmpeg` is on PATH or `MOJULO_FFMPEG` points at one |
 | Embedding model | `mojulo install recall` (never on a default install) | ~130 MB | Already in `~/.mojulo/models/` |
 
 > **Under the Claude plugin** (`MOJULO_DISTRIBUTION=claude-plugin`, which the plugin sets), none of
@@ -365,8 +373,15 @@ not claim a door at a level its profile does not carry.
   runtime from the default install and lets `init` run without a terminal. Re-minting that
   recipe on macOS gives byte-identical geometry, index, colour and UV buffers; the one embedded
   texture PNG is pixel-identical but its deflate stream differs (see the determinism caveat
-  under [Where it goes](../README.md#where-it-goes)). Still unverified on Linux: the dashboard,
-  the embedder, the stdio MCP transport under a host, the Chrome bake, and the engine gates.
+  under [Where it goes](../README.md#where-it-goes)). On 2026-10-17, from a source checkout on Linux x64
+  (a cloud container, Node 22.22.0, run as root), Claude Code drove mojulo as its stdio MCP server
+  through whole sessions: a floor plan read from a picture into `mint_building`, rooms through
+  `design_interior`, World renders through `forge_motion` and a `stitch_motion` of them (the
+  sessions behind the README demo, [docs/images/src/decor-demo](images/src/decor-demo/)). The first
+  World render downloaded Chrome for Testing, which ran headless without its sandbox (root) and baked
+  through SwiftShader. On 2026-10-18 the published 3.1.1 installed clean there from an empty npm cache
+  and answered `initialize` (the measurement under [Package size](#package-size-and-disk-footprint)).
+  Still unverified on Linux: the dashboard, the embedder and the engine gates.
   Chrome and Chromium are detected at the usual `/usr/bin` and snap paths; the app-runtime
   daemon has a systemd user-unit recipe in [app-runtime.md](app-runtime.md). Same env-var story
   for engines; not verified.
@@ -376,7 +391,8 @@ not claim a door at a level its profile does not carry.
 - **Node version pinning**: the floor is 22.14 because better-sqlite3's prebuilt binaries
   declare Node-API 10, which Node 22 has from 22.14: on 22.12 and 22.13 the first database
   open crashes the process (exit 139) with no message. There is no upper pin. Node 24 is recorded as verified for the CLI and the kernel
-  (24.15 on Linux x64, the 2026-09-21 sandbox run above; the dev suite runs on 24.8 on macOS).
+  (24.15 on Linux x64, the 2026-09-21 sandbox run above; the dev suite runs on 24.8 on macOS), and
+  Node 22.22 for the whole stdio server under a host on Linux x64 (the 2026-10-17 runs above).
 
 ---
 
@@ -436,3 +452,13 @@ Recorded so nobody rediscovers them. None are fixed by this page.
    omits 3MF, USD, and the Unity, Unreal, and Blender packs.
 5. **The embedding model** was described as ~113 MB in the README; it is ~130 MB on disk including
    the tokenizer. The README now says ~130 MB.
+
+## Discrepancies found while measuring 3.1.1 (2026-10-18)
+
+1. **The package nearly doubled from 3.0.0 to 3.1.1**: the tarball from 6.7 to 11.6 MB, unpacked from
+   21.3 to 36.0 MB. Most of it is `lib/` (40.5 MB on disk). Not yet traced to its parts; trace it before
+   the next release says the package is small.
+2. **`manifold-3d` brings 20.7 MB of its own dependencies**: `esbuild-wasm` (14.1 MB) and
+   `@gltf-transform` (6.6 MB), against 2.9 MB for itself. They are optional with it
+   (`--omit=optional` sheds them), but a default install carries them.
+3. **`sharp` installs its WebAssembly build (9.4 MB) beside the native one** on Linux x64.

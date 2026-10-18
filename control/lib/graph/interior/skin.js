@@ -101,8 +101,11 @@ export function skinPiece(p, card, override = {}) {
     if (WOOD_WORDS.has(pal.casework)) { finish.board = 'plywood'; if (TIMBER_FINISHES[C.wood]) finish.wood = C.wood; }
     else { finish.board = 'mdf'; finish.paint = hex(pal.casework) || '#e8e2d6'; }
   }
-  // only what the kind wears (forms.js finishErrors), then the operator's finish over it
-  const out = { like, forms, finish: { ...finish, ...(override.finish || {}) } };
+  // only what the kind wears (forms.js finishErrors), then the operator's finish over it. A plain cloth named by its
+  // preset ('velvet') changes the cloth, not the colour: it is woven in the scheme's, as the card's own cloth is
+  const asks = { ...(override.finish || {}) };
+  if (typeof asks.fabric === 'string') asks.fabric = fabricOf(asks.fabric, upholstery);
+  const out = { like, forms, finish: { ...finish, ...asks } };
   // the console's screen hangs on the wall (interior/wall-faces.js), not on the console
   if (p.piece === 'media-console') out.dress = false;
   resolveFurniture({ like: out.like, forms: out.forms, finish: out.finish, size: [p.w, p.d, p.h] });   // throws, naming what is valid, on a bad override

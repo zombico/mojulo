@@ -1,6 +1,8 @@
 # Mojulo
 
-![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/lounge-handoff-demo.gif)
+![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](https://raw.githubusercontent.com/zombico/mojulo/main/docs/images/decor-demo.gif)
+
+<sub>One real Claude Code session on Sonnet 5.5: a floor plan in, three rooms designed, one repainted and rearranged, a walkthrough out; just over two minutes of agent time, 30 cents at API list price. How it was made: [docs/images/src/decor-demo](https://github.com/zombico/mojulo/tree/main/docs/images/src/decor-demo).</sub>
 
 Mojulo is a 3D compiler for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where everything your agent makes is stored as a small recipe (the source), compiled back to the same geometry on every read, and emitted to Godot, Blender, STL and more. A compiler, not a generator; a recipe minted in a box re-mints as the same geometry at home.
 
@@ -35,6 +37,8 @@ No provider key: your agent is the reasoning loop. Verified on macOS (Apple Sili
 on native Windows (`init` and a first render, under Claude Code), and on Linux x64 in
 the agent boxes of the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and
 Google AI Studio, each run to a mint and an export; a cold install is also checked on Linux arm64.
+In ChatGPT, mojulo is also available as a plugin:
+[Mojulo for ChatGPT](https://github.com/zombico/mojulo/tree/main/plugins/mojulo-chatgpt).
 
 ```bash
 # 1. Wire mojulo into your MCP-capable agent. The one-shot installer detects
@@ -54,6 +58,7 @@ npx mojulo init
 
 # 2. In an agent session, just ask:
 #      what is this?                      → mojulo orients itself, out loud
+#      here's my floor plan, ideas?       → the house built from it, rooms designed
 #      build an oak table, exploded       → a jointed frame; see how it goes together
 #      build a New York-style city        → a world; walk it at /world
 #      turn that into a game              → a game; export it for Godot
@@ -77,9 +82,9 @@ npx mojulo init
 #      npx -y -p mojulo mojulo-config set anthropic sk-ant-...
 ```
 
-First install is the big one: npx pulls a ~7 MB package plus its dependencies (about 227 MB on
-disk and about 79 MB downloaded, measured for 3.0.0; the dashboard is its own `mojulo-ui` package,
-fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
+First install is the big one: npx pulls a ~12 MB package plus its dependencies (about 251 MB on
+disk and about 152 MB of npm cache, measured for 3.1.1 on Linux x64; the dashboard is its own
+`mojulo-ui` package, fetched the first time you open it). Measured sizes, lazy downloads, and what each engine leg
 needs: [docs/tech-requirements.md](https://github.com/zombico/mojulo/blob/main/docs/tech-requirements.md).
 
 **Why these dependencies.** All of them run on your machine. `node-web-audio-api` renders audio, `manifold-3d` and `openscad-wasm-prebuilt` do exact
@@ -128,7 +133,7 @@ Linux box it gives itself:
 - The Claude app (macOS, Windows, web, iOS); Grok chat; Meta Muse (iOS, web, macOS app, one session
   across all three): *Open a Linux box and install the mojulo npm package in it.*
 - ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
-  it.*
+  it.* Or add the [Mojulo plugin for ChatGPT](https://github.com/zombico/mojulo/tree/main/plugins/mojulo-chatgpt).
 
 Each of those has been run this way, from the sentence to a mint and an export handed back. You get
 the same recipes and the same exports, as files: the export result names this host's door, an
@@ -173,6 +178,7 @@ The chatbot factory is no longer part of mojulo as of 3.0 and is moving to its o
 
 ## What you can make
 
+- **"Here's our floor plan, some ideas for living in it?"** → the agent reads the rooms off the picture and builds the house at its drawn sizes, then designs the rooms you name: a style, a palette, finishes and furniture at true size, walkways kept, what would not fit said. "Paint the walls sage and turn the sofa to the windows" revises the same room, and "a walkthrough video" is the agent filming each room and stitching one MP4. The GIF at the top is that session, as it ran.
 - **"Model me a bracket that fits this shelf"** → a solid at literal scale on the workbench: lathes, sweeps, extrudes, fields; a hole is a line in the recipe; parts seat by declared relation. Measured without exporting, then out as print-ready STL or 3MF with process-aware print advisories — the conversation ends at the printer.
 - **"A posed archer" / "a wolf, mid-stride"** → figures and animals on one armature, with gaits and emotes; rigs export as glTF clips, skinned meshes, or VRM humanoids.
 - **"A six-storey building with a set-back penthouse" / "a walkable city at dusk"** → furnished floorplans that stack, bespoke buildings, caves and dungeons, cities, transit hubs, campuses, landscapes — every one a place you can walk, and every one exportable.

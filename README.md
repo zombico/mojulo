@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![node](https://img.shields.io/badge/node-%E2%89%A522.14-brightgreen)](control/package.json)
 
-![A coding agent wired to mojulo over MCP: "build a 20 by 24 ft living room with a door on the south wall" mints a 12-line floorplan recipe, the dashboard shows the furnished room shaded with turnable views and HTML / glb / STL downloads, "add pot lights to the ceiling" edits one field on the same recipe, a couch-facing fix lands in the kernel with the recipe unchanged, and the same recipe renders in Blender Cycles before and after — same seed, same camera](docs/images/lounge-handoff-demo.gif)
+![One real chat with an agent that has mojulo connected. A homeowner uploads their floor plan and asks, in their own words, for ideas for living in it: the agent builds the house from the picture and designs the living room, the dining room and the big bedroom; asked for sage green walls and the sofa facing the windows, it repaints the living room and rearranges it, shown from eye level as a before and after; then it films a walkthrough of the three rooms. The last slide shows the session's own time, tokens and API cost](docs/images/decor-demo.gif)
 
 Mojulo is a **3D factory with a media studio** for coding agents: an MCP server that runs wherever your agent runs, on your machine or in the throwaway Linux box it gives itself, where the agent you already run (Claude Code, Codex, any MCP host, or a chat app that can open a Linux box: Claude, ChatGPT with Codex, Grok, Meta Muse, Google AI Studio) builds things to play, print, read, hear and watch (games, objects, walkable worlds, pictures, scores) by conversation, and what gets stored is source, not a mesh. Every artifact is a small deterministic **recipe**: a few hundred bytes of JSON, or an OpenSCAD program, that a kernel compiles back to the same geometry on every read (byte for byte on the same platform), and that emits to Godot, Blender, Unity, Unreal, glTF, OpenUSD, or print-ready STL / 3MF at true scale. Small enough to carry home from a box and re-mint on your own disk. A compiler, not a generator: you edit and diff the recipe like code, and renders are disposable. No API key, no account, no external telemetry. Your agent does the thinking; mojulo holds the state and does the geometry.
 
@@ -18,7 +18,9 @@ Needs **Node 22.14+** and an MCP-capable coding agent (Claude Code or Codex; Cla
 
 In Claude Code you can install the plugin instead: `/plugin marketplace add zombico/mojulo`, then `/plugin install mojulo@mojulo`. It starts the same server pinned to one version ([plugins/mojulo](plugins/mojulo/README.md)). The plugin build leaves out the handoff tools for AI image, voice and mesh generators and never downloads a browser, ffmpeg or the search model on its own. Use the plugin or `init` for Claude Code, not both: two registrations run two servers.
 
-The first install is the big one: npx pulls a ~7 MB package that lands, with its dependencies, at about 227 MB on disk plus about 140 MB of npm cache (about 79 MB downloaded; measured for 3.0.0 on one macOS arm64 machine, where a cold start answered in about 4.5 s, nearly all of it npm's install). The biggest pieces are `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and Google AI Studio.
+In ChatGPT, mojulo is available as a plugin too: [Mojulo for ChatGPT](plugins/mojulo-chatgpt/README.md).
+
+The first install is the big one: npx pulls a ~12 MB package that lands, with its dependencies, at about 251 MB on disk plus about 152 MB of npm cache (measured for 3.1.1 on Linux x64, where the install took 11 s from an empty cache and the server answered 2 s after it). The biggest pieces are `node-web-audio-api` (audio), `manifold-3d` (exact booleans) and `better-sqlite3`. The dashboard is a separate package fetched the first time you open it, and the local search model is the opt-in `mojulo install recall` (`semantic_search` ranks lexically without it). Nothing in the list reaches the network on its own; the per-dependency sheet is in [docs/tech-requirements.md](docs/tech-requirements.md). Verified on macOS (Apple Silicon) and on native Windows under Claude Code (`init` and a first render). On Linux x64 the test suite runs in CI, and the agent-box path below has been run to a mint and an export from the Claude app and web, ChatGPT work mode with Codex, Grok chat, Meta Muse and Google AI Studio.
 
 <details>
 <summary>Wire it by hand instead</summary>
@@ -56,7 +58,7 @@ Linux box it gives itself:
 - The Claude app (macOS, Windows, web, iOS); Grok chat; Google AI Studio; Meta Muse (iOS, web, macOS
   app, one session across all three): *Open a Linux box and install the mojulo npm package in it.*
 - ChatGPT (Codex included): *In work mode, open a Linux box and install the mojulo npm package in
-  it.*
+  it.* Or add the [Mojulo plugin for ChatGPT](plugins/mojulo-chatgpt/README.md).
 
 Each of those has been run this way, from the sentence to a mint and an export handed back. You get
 the same recipes and the same exports, as files: the export result names this host's door, an
@@ -128,18 +130,43 @@ module standoffs() {
 
 with `parts: { tray: 'tray();', standoffs: 'standoffs();' }`. OpenSCAD itself meshes it on every read, in-process as WebAssembly with the Manifold backend, so booleans are exact and every edge is sharp. `color()` is the tint; each named part is a render group a hinge in `movers` can swing. The same ref serves the orbit view, the `.glb`, the engine packs and `model.stl` at 91 × 62 × 14 mm as written; `model.scad` hands the source back unchanged. Change `wall_h` with `update_sketch` and the readout names the one part that moved. For what OpenSCAD cannot say, a blended join, a stroked dent, seeded noise, the source calls `mojulo_field("<id>")` and a field solid from the same recipe is baked in at that spot.
 
-### 2. "Build a 20 by 24 ft living room with a door on the south wall"
+### 2. "We just moved in, here's our floor plan! Some ideas for how we could live in it?"
 
-That is the GIF at the top. The agent calls `create_sketch { title, manifest: { kind: 'floorplan', … } }` and the stored manifest is this:
+That is the GIF at the top: one real Claude Code session on Sonnet 5.5, three asks in a homeowner's words, with no
+style names and no tool names. The first carries a picture of the floor plan and nothing else. The agent reads the
+rooms off the drawing, to the inch, and builds the house with `mint_building`:
 
 ```json
-{ "kind": "floorplan", "width": 24, "height": 28,
-  "rooms": [ { "x": 2, "y": 2, "w": 20, "h": 24, "glyph": "L" } ],
-  "doors": [ { "x": 12, "y": 26, "room": 0, "edge": "S" } ],
-  "furnish": true, "view": "cutaway", "seed": 7 }
+{ "width": 46.67, "height": 34.67, "windows": true, "furnish": true, "view": "cutaway",
+  "rooms": [ { "x": 0, "y": 0, "w": 22.33, "h": 16.33, "glyph": "L" }, { "x": 22.33, "y": 0, "w": 10, "h": 16.33, "glyph": "K" },
+             { "x": 32.33, "y": 0, "w": 14.34, "h": 16.33, "glyph": "D" }, { "x": 0, "y": 16.33, "w": 46.67, "h": 4, "glyph": "H" },
+             { "x": 0, "y": 20.33, "w": 15.33, "h": 14.34, "glyph": "B" }, { "x": 15.33, "y": 20.33, "w": 9, "h": 14.34, "glyph": "W" },
+             { "x": 24.33, "y": 20.33, "w": 22.34, "h": 14.34, "glyph": "B" } ] }
 ```
 
-The `L` glyph and the seed furnish it: sofa, two chairs, rug, lamp, windows. "Add pot lights to the ceiling" adds `"potLights": true` and nothing else changes. `"levels": [...]` stacks it into a building with stairs through the slabs. The same recipe walks in the browser at `/world`, exports as a `.glb`, or goes to Blender as an art-pass pack, where a Cycles bake can write traced light back into the mesh's own vertex colours so the lit result runs anywhere at zero runtime cost.
+Then it calls `design_interior` for the living room, the dining room and the big bedroom, turning "warm, natural and a
+bit cozy" into a style, a palette, finishes and furniture at true size, keeping the walkways clear and saying what it
+could not fit. Each room is its own small recipe over the house, never written into it, so a second scheme for a room
+sits beside the first. "Could the living room walls be a soft sage green, and the sofa look out the windows?" is a
+revision of that room: the walls repainted, the room's focal point turned to the view, and the seating moved by id.
+This is the living room after it:
+
+```json
+{ "kind": "interior", "house": "sk_8c79eurf5c", "room": "lounge", "focal": "view",
+  "style": { "name": "modern-organic", "accent": "wabi-sabi" },
+  "surface": { "walls": { "paint": "sage" }, "accentWall": false },
+  "pieces": [ { "id": "conversation.sofa", "at": [2700, 3000], "facing": "N" }, { "id": "conversation.coffee-table", "at": [2700, 1850], "facing": "N" },
+              { "id": "conversation.chair-1", "at": [900, 3300], "facing": "N" }, { "id": "conversation.chair-2", "at": [4400, 1850], "facing": "W" }, … ] }
+```
+
+The GIF films that change from eye level in the room's far corner, before and after from the same place, aimed at
+what moved. "Make us a walkthrough video" is the agent's own camera work: `forge_motion` over each room and
+`stitch_motion` joining the three into one MP4. The session took just over two minutes of agent time and 30 cents at
+API list price, with a warm prompt cache (a cold one costs more). Its whole record, every call, reply and token count,
+is [session.json](docs/images/src/decor-demo/session.json), and [the runner](docs/images/src/decor-demo/) re-runs it;
+the GIF's room shots are `forge_motion` too, filmed from a replay of the session's calls. The plan in the GIF is
+mojulo's own A-101 sheet of a house, standing in for a homeowner's upload; the agent only ever sees the picture. Every
+room opens at `/world` to walk, exports as a `.glb`, or goes to Blender for a Cycles render.
 
 ### 3. "Build an oak dining table and show me how it goes together"
 

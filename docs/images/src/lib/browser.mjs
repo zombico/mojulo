@@ -18,8 +18,11 @@ const { default: puppeteer } = await import(pathToFileURL(req.resolve('puppeteer
 const CHROME = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const GL_ARGS = ['--use-gl=angle', `--use-angle=${process.platform === 'darwin' ? 'metal' : 'swiftshader'}`, '--ignore-gpu-blocklist'];
 
+// Chromium cannot keep its sandbox as root (a Linux container), so it runs without one there.
+const ROOT_ARGS = process.getuid?.() === 0 ? ['--no-sandbox'] : [];
+
 export const launch = (gl = false) =>
-  puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--allow-file-access-from-files', ...(gl ? GL_ARGS : [])] });
+  puppeteer.launch({ executablePath: CHROME, headless: true, args: ['--allow-file-access-from-files', ...ROOT_ARGS, ...(gl ? GL_ARGS : [])] });
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -93,9 +96,9 @@ export async function snapHtml(htmlFile, outPng, { width, height, dpr = 1 }) {
 export function runJson(env, args) {
   const dir = mkdtempSync(path.join(tmpdir(), 'mj-out-')), file = path.join(dir, 'out.json');
   const fd = openSync(file, 'w');
-  const r = spawnSync(process.execPath, args, { cwd: CONTROL, env, stdio: ['ignore', fd, 'pipe'], encoding: 'utf8' });
+  const r = spawnSync(process.execPath, args, { cwd: CONTROL, env, stdio: ['ignore', fd, 'pipe'], encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   closeSync(fd);
   const out = readFileSync(file, 'utf8'); const i = out.indexOf('{');
-  if (r.status !== 0 || i < 0) throw new Error(`${args.join(' ')}\n${(r.stderr || out).slice(-2000)}`);
+  if (r.status !== 0 || i < 0) throw new Error(`${args.join(' ')}\nexit ${r.status}${r.signal ? ` (killed by ${r.signal})` : ''}, ${out.length} bytes out\n${r.error ? `${r.error.code || r.error.message}\n` : ''}${(r.stderr || out).slice(-2000)}`);
   return JSON.parse(out.slice(i, out.lastIndexOf('}') + 1));
 }
