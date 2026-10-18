@@ -4,13 +4,18 @@
  * (playscape/ui/minigames.js, the arcade cabinet's own reducers); what it scores pays gold into the bag the party
  * carries, and the first win gives its prize. They may have nothing to do with the journey, as minigames often don't.
  *
- *   minigames?: true | false | [{ game, id?, title?, goal?, gold?, prize?, flag? }]
+ *   minigames?: true | false | [{ game, id?, where?, title?, goal?, gold?, prize?, flag? }]
  *     true    the three (fishing, blocks, match); false: none, whatever the prompt says
  *     game    blocks | match | fishing (playscape/ui/minigames.js MINIGAMES)
+ *     where   inside (a building's room: the cabinet in the inn) | trail (beside the way); default: fishing on a trail,
+ *             blocks and match inside, each on the other when the game has none of its own
  *   Absent: read from the world's prompt (minigames, carnival, fishing, arcade, match-3 …), else none.
  *
- * Each game stands on a stage walked along a trail, spread across the game in order: a keeper a few steps on from the
- * stage's start, beside the way. A building, a city, a roadway, an airspace or an arena keeps none.
+ * Each game is spread across the game in order over the stages of its kind, a keeper standing at its stall. On a trail,
+ * a few steps on from the stage's start, beside the way. Inside, in a room that keeps one (ROOMS_KEPT: a tavern's snug
+ * or taproom, a hall's hall, a shop's floor, a library's reading room), in its corner farthest from the way in; a
+ * building level or the inside of a building entered by its door alike. A city, a roadway, an airspace or an arena
+ * keeps none.
  *
  * Pure. `readMinigameBook(v)` the concern read (throws, teaching); `minigamesOfWords(text)` what a prompt asks for;
  * `minigamePlan(G, stages)` the games each stage keeps; `minigameCast(G, stage, ends, { ref, games, bag })` what a stage
@@ -28,9 +33,15 @@ const WORDS = Object.freeze({
   match: ['match-3', 'match3', 'bejeweled', 'gem-matching'],
   all: ['minigame', 'minigames', 'mini-game', 'mini-games', 'sidegames', 'side-games', 'carnival', 'casino'],
 });
-const ITEM_KEYS = ['game', 'id', 'title', 'goal', 'gold', 'prize', 'flag'];
-// where a keeper can stand: a stage walked along a trail
-const KEPT = (s) => !['building', 'interior', 'city', 'roadway', 'airspace', 'arena'].includes(s.section);
+const ITEM_KEYS = ['game', 'id', 'where', 'title', 'goal', 'gold', 'prize', 'flag'];
+export const WHERE = Object.freeze(['inside', 'trail']);
+// where a game is kept when the book does not say
+const HOME = Object.freeze({ fishing: 'trail', blocks: 'inside', match: 'inside' });
+// the rooms of a building that keep a stall, by its use (era/programs.js), the best first
+export const ROOMS_KEPT = Object.freeze({ tavern: ['snug', 'taproom'], hall: ['hall'], keep: ['hall'], shop: ['shopfloor'], library: ['reading'], dwelling: ['hall'] });
+// where a keeper can stand: a stage walked along a trail, or a building with a room that keeps one
+const ON_TRAIL = (s) => !['building', 'interior', 'city', 'roadway', 'airspace', 'arena'].includes(s.section);
+const INSIDE = (s) => (s.section === 'building' || s.section === 'interior') && !!ROOMS_KEPT[s.building?.use];
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const err = (m) => new Error(`gameworld: minigames${m}`);
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -54,11 +65,12 @@ export function readMinigameBook(v) {
     if (typeof g === 'string') g = { game: g };
     if (!isObj(g)) throw err(`[${i}] is { game, id?, … } or a game's name (${MINIGAME_IDS.join(', ')})`);
     for (const k of Object.keys(g)) if (!ITEM_KEYS.includes(k)) throw err(`[${i}].${k} is not part of a minigame here (${ITEM_KEYS.join(', ')})`);
+    if (g.where !== undefined && !WHERE.includes(g.where)) throw err(`[${i}].where is ${WHERE.join(' or ')}: in a building's room, or beside a trail`);
     return { ...g };
   });
   const out = withIds(list);
   // the play's own reading, so a wrong game, goal or prize is said where it was written
-  try { readMinigames({ minigames: out }); } catch (e) { throw err(e.message.replace(/^play\.minigames/, '')); }
+  try { readMinigames({ minigames: out.map(({ where, ...g }) => g) }); } catch (e) { throw err(e.message.replace(/^play\.minigames/, '')); }
   return out;
 }
 
@@ -71,21 +83,43 @@ export function minigamesOfWords(text) {
   return games.length ? { games: readMinigameBook(games), words: games.flatMap((g) => WORDS[g].filter((w) => W.has(w))) } : null;
 }
 
-/** The games each stage keeps: { [stage index]: [game] }, spread over the stages a keeper can stand on, in order. */
+/** The games each stage keeps: { [stage index]: [game] }. Each game goes where it is kept (`where`, else its HOME;
+ * the other kind when the world has none of that), spread over those stages in order. */
 export function minigamePlan(G, stages) {
   const games = G.minigames ?? [];
-  const kept = stages.map((s, i) => [s, i]).filter(([s]) => KEPT(s) && !s.building?.ref).map(([, i]) => i);
-  if (!games.length || !kept.length) return null;
+  const of = (pick) => stages.map((s, i) => [s, i]).filter(([s]) => pick(s) && !s.building?.ref).map(([, i]) => i);
+  const kinds = { trail: of(ON_TRAIL), inside: of(INSIDE) };
+  if (!games.length || (!kinds.trail.length && !kinds.inside.length)) return null;
+  // each game's kind of place: its own, or the other when the world has none of its own
+  const placed = games.map((g) => { const w = g.where ?? HOME[g.game] ?? 'trail'; return [g, kinds[w].length ? w : w === 'inside' ? 'trail' : 'inside']; });
   const plan = {};
-  games.forEach((g, k) => {
-    const i = kept[Math.min(kept.length - 1, Math.floor((k * kept.length) / games.length))];
-    (plan[i] ??= []).push(g);
-  });
+  for (const w of WHERE) {
+    const mine = placed.filter(([, x]) => x === w).map(([g]) => g), at = kinds[w];
+    mine.forEach((g, k) => { const i = at[Math.min(at.length - 1, Math.floor((k * at.length) / mine.length))]; (plan[i] ??= []).push(g); });
+  }
+  // (each stage's games in the book's order)
+  for (const i of Object.keys(plan)) plan[i].sort((a, b) => games.indexOf(a) - games.indexOf(b));
   return plan;
 }
 
-// a stall's place: a few steps on from the start toward the way on, beside it where there is land to stand on
+// a stall inside: in a room that keeps one (the j-th game takes the next such room, then the next corner of it), in
+// the corner farthest from where the walker comes in, a step and a bit off the walls, facing the room's middle
+function stallInside(ends, j) {
+  const rooms = (ROOMS_KEPT[ends.use] ?? []).map((id) => ends.rooms.find((r) => r.id === id)).filter(Boolean);
+  if (!rooms.length) return null;
+  const r = rooms[j % rooms.length], s = ends.spawn, inset = Math.min(1.3, r.w / 3, r.d / 3);
+  const corners = [[r.x + inset, r.y + inset], [r.x + r.w - inset, r.y + inset], [r.x + inset, r.y + r.d - inset], [r.x + r.w - inset, r.y + r.d - inset]]
+    .map((c, k) => ({ c, k, d: Math.hypot(c[0] - s[0], c[1] - s[1]) })).sort((a, b) => b.d - a.d || a.k - b.k);
+  // (never at the way in: a corner within 3 m of where the walker stands is left, unless every one is)
+  const clear = corners.filter((x) => x.d >= 3), from = clear.length ? clear : corners.slice(0, 1);
+  const { c } = from[Math.floor(j / rooms.length) % from.length], mid = [r.x + r.w / 2, r.y + r.d / 2];
+  return { at: [r3(c[0]), r3(c[1]), r3(s[2] + r.z)], face: r3(Math.atan2(mid[1] - c[1], mid[0] - c[0])) };
+}
+
+// a stall's place: in a building, its room's (stallInside); on a trail, a few steps on from the start toward the way on,
+// beside it where there is land to stand on
 function stallAt(ends, j) {
+  if (Array.isArray(ends.rooms)) return stallInside(ends, j);
   const s = ends.spawn, ahead = [...(ends.beats ?? []).filter((b) => b.beat !== 'exit').map((b) => b.at), ends.exit];
   const far = ahead.find((a) => Math.hypot(a[0] - s[0], a[1] - s[1]) > 4) ?? ends.exit;
   const dx = far[0] - s[0], dy = far[1] - s[1], d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
@@ -99,8 +133,8 @@ function stallAt(ends, j) {
 }
 
 /**
- * A stage's minigames: each a keeper standing at its stall, facing back toward the start; interact there and its round
- * comes up. Gold goes into the carried bag (`bag`: the bag mechanic, when nothing else on the stage carries it).
+ * A stage's minigames: each a keeper standing at its stall, facing back toward the start (inside, the room's middle);
+ * interact there and its round comes up. Gold goes into the carried bag (`bag`: the bag mechanic, when nothing else on the stage carries it).
  * → { figures, entities, play: { minigames, cues }, mechanics } (the stage's extra: levels.js stageLevelOrder)
  */
 export function minigameCast(G, stage, ends, { ref, games = [], bag = true } = {}) {
@@ -111,7 +145,8 @@ export function minigameCast(G, stage, ends, { ref, games = [], bag = true } = {
     const id = `keeper-${g.id}`;
     figures[id] = { heroRef: ref, library: 'quaternius-ual', clips: { ...playerStates([], 'quaternius-ual'), forward: 'Walk_Loop' } };
     entities.push({ id, rule: { type: 'static', eye: 0, stride: 1.6, collideRadius: 0.3, collideHeight: 1.7, step: 0.3 }, body: { type: 'figure-rig', figure: id }, transform: { pos: p.at, heading: p.face } });
-    minigames.push({ ...g, at: { at: [p.at[0], p.at[1]], r: 2 }, purse: 'held:bag:gold' });
+    const { where, ...own } = g;
+    minigames.push({ ...own, at: { at: [p.at[0], p.at[1]], r: 2 }, purse: 'held:bag:gold' });
     cues.push({ id: `keeper-${g.id}-hello`, when: { near: { at: [p.at[0], p.at[1]], r: 3 } }, once: true, then: { say: KEEPER_LINE[g.game] ?? `${MINIGAMES[g.game].name}?`, as: 'toast' } });
   });
   if (!minigames.length) return null;

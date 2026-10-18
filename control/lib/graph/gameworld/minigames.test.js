@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { runSteps, readGameworld, MEADOWMARK_HERO } from './index.js';
 import { readMinigameBook, minigamesOfWords, mergeExtras } from './minigames.js';
 import { lowerPlay } from '../playscape/ui/direction.js';
+import { withProgram } from '../era/programs.js';
+import { withBuildingLevel } from '../structure/level.js';
 import { createBusState, processEvents, watchEvents } from '../worlds/event-bus.js';
 
 const levels = (w) => runSteps(w, { ref: 'gw' }).filter((s) => s.key.startsWith('level-'));
@@ -59,6 +61,43 @@ describe('minigames: the games inside the game, kept on the trails', () => {
     const M = levels(W).find((s) => s.order.manifest.play?.minigames).order.manifest;
     expect(M.game.mechanics).toContainEqual({ kind: 'bag', slice: 'bag' });
     expect(M.play.rpg).toBeUndefined();
+  });
+
+  it('an arcade in the inn: blocks and match kept in the tavern\'s rooms, fishing on the trail; where moves one', () => {
+    const W = { ...MEADOWMARK_HERO, battles: {}, minigames: true, levels: { ...MEADOWMARK_HERO.levels, 'the-inn': { name: 'The inn', building: { use: 'tavern', seed: 2 } } } };
+    const L = levels(W), inn = L.find((s) => s.key === 'level-the-inn-0').order.manifest;
+    expect(inn.play.minigames.map((g) => g.id)).toEqual(['blocks', 'match']);
+    const own = (g) => L.filter((s) => s.order.manifest.play?.minigames?.some((x) => x.id === g)).map((s) => s.key);
+    expect(own('fishing')).not.toContain('level-the-inn-0');
+    // each keeper stands in a room the tavern keeps one in (the snug, then the taproom), inside its walls, a figure
+    // the hero's level carries, the round's place under it; the gold into a bag the inn carries (it has no fights)
+    const rooms = withProgram(inn).rooms;
+    for (const g of inn.play.minigames) {
+      const k = inn.entities.find((e) => e.id === `keeper-${g.id}`), [x, y] = k.transform.pos;
+      const room = rooms.find((r) => x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.d);
+      expect(['snug', 'taproom']).toContain(room?.id);
+      const s0 = inn.entities[0].transform.pos;
+      expect(Math.hypot(x - s0[0], y - s0[1])).toBeGreaterThanOrEqual(3);
+      expect(g.at.at).toEqual([x, y]);
+      expect(inn.figures[k.id].heroRef).toBe('gw-keeper');
+    }
+    expect(inn.level.mechanics).toContainEqual({ kind: 'bag', slice: 'bag' });
+    expect(withBuildingLevel(inn, 'gw-level-the-inn-0').game.mechanics).toContainEqual({ kind: 'bag', slice: 'bag' });
+    // the round asked for on the bus when the hero presses interact at the cabinet
+    const ev = lowerPlay(inn, { player: 'hero' });
+    expect(ev.reactions.some((r) => r.do === 'emit' && r.type === 'minigame:blocks')).toBe(true);
+    // where: trail takes a game out of the inn; where: inside with no building keeps it on a trail
+    const out = levels({ ...W, minigames: [{ game: 'blocks', where: 'trail' }] });
+    expect(out.find((s) => s.key === 'level-the-inn-0').order.manifest.play?.minigames).toBeUndefined();
+    expect(levels({ ...MEADOWMARK_HERO, minigames: [{ game: 'fishing', where: 'inside' }] }).some((s) => s.order.manifest.play?.minigames)).toBe(true);
+    expect(() => readMinigameBook([{ game: 'blocks', where: 'cellar' }])).toThrow(/where is inside or trail/);
+  });
+
+  it('an inn without minigames is the level it was', () => {
+    const inn = { ...MEADOWMARK_HERO, levels: { ...MEADOWMARK_HERO.levels, 'the-inn': { name: 'The inn', building: { use: 'tavern', seed: 2 } } } };
+    const a = levels(inn).find((s) => s.key === 'level-the-inn-0'), b = levels({ ...inn, minigames: false }).find((s) => s.key === 'level-the-inn-0');
+    expect(b.print).toBe(a.print);
+    expect(a.order.manifest.level.mechanics).toBeUndefined();
   });
 
   it('a world without them makes the same steps it did', () => {

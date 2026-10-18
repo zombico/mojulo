@@ -95,9 +95,14 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   first win gives its prize and sets its flag. The page inlines only the games a level plays; a level without one
   carries not a byte of them.
 - **Minigames in the game book** (`gameworld/minigames.js`): `minigames: true | false | [game | { game, … }]`, or heard
-  in the prompt (minigames, carnival, fishing, arcade, match-3). A keeper (one figure, made as the foe is) stands a few
-  steps up a trail stage for each, spread across the game; the winnings go into the carried bag (the battles' bag, or
-  its own). A world that asks for none makes the same steps it did.
+  in the prompt (minigames, carnival, fishing, arcade, match-3). A keeper (one figure, made as the foe is) stands at each,
+  spread across the game; the winnings go into the carried bag (the battles' bag, or its own). A world that asks for
+  none makes the same steps it did.
+- **An arcade in the inn.** A game's `where: 'inside' | 'trail'` (blocks and match inside by default, fishing on a
+  trail, each on the other when the world has none of its kind) puts its keeper in a building's room: a tavern's snug
+  or taproom, a hall's hall, a shop's floor, a library's reading room (`ROOMS_KEPT`), in the corner farthest from the
+  way in, a building level or the inside of one entered by its door alike. A building level now takes a stage's extra
+  (its rooms and use on its ends, its mechanics the level's); a building without one is the level it was.
 
 ## [3.1.1] - 2026-10-16
 
