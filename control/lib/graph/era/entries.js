@@ -252,7 +252,7 @@ export function geocubeCard() {
     '  colour    { stone, floor, trim, accent, grass, foliage, water, sand?: "#rrggbb"; shade?: hue degrees the dark ends lean to (222, blue) }',
     '  register  { steps (0 continuous … 8 bands), key (the median value, 0..1) }',
     '  contrast? "wii" | { from?, hemi, foot, crevice, ridge, contact, warmCool, variation, metal } | false: Wii-era shading in the vertex (metal: metal takes the occlusion too)',
-    '  materials? true | { age?, <group>: <material> }: what its people wear is made of (plate as worked steel, kanamono as gold, leather); age new | worn | old | ancient tarnishes bronze to verdigris, blackens steel; a hero takes it through its geocube',
+    '  materials? true | { age?, <group>: <material> }: what its people wear is made of (plate as worked steel, kanamono as gold, leather); age new | worn | old | ancient tarnishes bronze to verdigris, blackens steel; cloth and leather painted (a group may name silk, velvet, wool, denim …); a hero takes it through its geocube',
     '  palette   a pick_palette spec: the color theorist decides the colours, seeded where the cube is stored (a preset\'s character with it); the solve writes colour, shade, register.key, the moon and light.sky. A colour you write is a lock; trim, water and sand stay as written. false: as written. A gameworld\'s style.palette is its levels\' cubes\', and a world on a cube alone takes the cube\'s for its HUD.',
     '  surfaces  { wall, floor, accent: tile specs (card stage-rails) }',
     '  inside    { bones (a room kit), size? [w, d, h], accentWall? "+x" | "-x" | "+y" | "-y" }',

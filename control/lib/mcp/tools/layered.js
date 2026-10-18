@@ -82,7 +82,8 @@ import { targetError, RESOLUTIONS, FRAMINGS, DEFAULT_TARGET } from '../../graph/
 import { densityPlan, castDensityReadout } from '../../graph/era/cast-density.js';
 import { eraCastConventions } from '../../graph/era/eras.js';
 import { readGeocube } from '../../graph/era/geocube.js';
-import { dressSurfaces, agedTones, materialsErrors, recipeTones, CREATURE_MATERIALS } from '@/lib/graph/materials/dress-materials';
+import { dressSurfaces, agedTones, materialsErrors, recipeTones, CREATURE_MATERIALS, genreCloth } from '@/lib/graph/materials/dress-materials';
+import { GENRES } from '@/lib/graph/stylism/genres';
 import { heroTarget, heroEra } from '../../graph/era/cast-light.js';
 import { castSpend } from '../../graph/era/cast-spend.js';
 import { facePaintDense } from '../../graph/polygonizer/face-paint.js';
@@ -193,10 +194,13 @@ function withDressMaterials(recipe, hero, plan = null, geocube = null) {
   if (M === undefined || M === false) return recipe;
   // a creature's groups are painted by its parts' tints (no palette): those are its tones
   const tones = hero ? recipe.palette || {} : recipeTones(recipe);
-  const surfaces = dressSurfaces({ palette: tones, family: hero ? armorFamily(hero.adorn) : null, card: hero ? armorMaterials(hero.adorn) : { ...CREATURE_MATERIALS, ...(plan?.materials ?? {}) }, overrides: M === true ? null : M });
+  const genre = hero?.stylism ? GENRES[hero.stylism.genre ?? 'fantasy'] : null;
+  const surfaces = dressSurfaces({ palette: tones, family: hero ? armorFamily(hero.adorn) : null, cloth: genre ? genreCloth(genre.materials?.cloth) : null, card: hero ? armorMaterials(hero.adorn) : { ...CREATURE_MATERIALS, ...(plan?.materials ?? {}) }, overrides: M === true ? null : M });
   // an aged level (`materials: { age }`) repaints its aged groups' tones toward the aged metal
   const aged = surfaces && M !== true ? agedTones(tones, surfaces, M.age) : null;
-  return surfaces ? { ...recipe, ...(aged ? { palette: { ...recipe.palette, ...aged } } : {}), surfaces } : recipe;
+  // a level that names materials dresses even a figure none of whose groups the table names: its cloth and leather take
+  // the level's painted finish (world-kinds.js levelClothBake reads `surfaces`, here empty)
+  return { ...recipe, ...(aged ? { palette: { ...recipe.palette, ...aged } } : {}), surfaces: surfaces ?? {} };
 }
 function statueRecipeOf(recipe, plan, hero) {
   const { recipe: carved, trace } = statueRecipe(recipe, plan, hero.statue, { female: femaleOf(hero) });

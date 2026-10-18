@@ -33,7 +33,8 @@
  *   finishFor(group, resolved)             the finish a palette group wears
  *   bakeChannels(mesh)                     per vertex { sky, occlusion, edge, height, rise }
  *   bakeTint(mesh, bake, { glows })        per face its corners' multipliers (the face-tint shape), or null
- *   bakeSampler(mesh, bake, { glows })     { tint, groupTint(fi, group), characterLight }: a face's corners under any group's finish
+ *   bakeSampler(mesh, bake, { glows, only })   { tint, groupTint(fi, group), characterLight }: a face's corners under any
+ *                                          group's finish (`only`: a Set of the groups baked, the rest left as they are)
  *   bakePieces(pieces, mesh, tint)         the bake over the character light's pieces (only with `characterLight`)
  *   stackTints(a, b)                       two tints as one (corner by corner, the product)
  *
@@ -229,11 +230,12 @@ export function bakeTint(mesh, bake, opts = {}) { return bakeSampler(mesh, bake,
 /** The bake as a SAMPLER: `tint` (bakeTint's, each face under its own group's finish) and `groupTint(fi, group)`, face
  * `fi`'s corners under ANOTHER group's finish (a field paint cell's: a gold charge on a cloth tabard bakes as gilt), null
  * for an emissive group. The channels are read once. Null for no bake. */
-export function bakeSampler(mesh, bake, { glows = [] } = {}) {
+export function bakeSampler(mesh, bake, { glows = [], only = null } = {}) {
   const B = resolveBake(bake); if (!B) return null;
   const ch = bakeChannels(mesh), lit = new Set(glows), fin = new Map();
   const groupTint = (fi, g) => {
-    if (lit.has(g)) return null;
+    // `only` (a level's cloth and leather, dress-materials.js levelClothBake): every other group is left unbaked
+    if (lit.has(g) || (only && !only.has(g))) return null;
     let F = fin.get(g); if (!F) fin.set(g, F = finishFor(g, B));
     return mesh.faces[fi].map((vi) => finishColour(F, { sky: ch.sky[vi], occlusion: ch.occlusion[vi], edge: ch.edge[vi], height: ch.height[vi], rise: ch.rise[vi] }, B.strength));
   };

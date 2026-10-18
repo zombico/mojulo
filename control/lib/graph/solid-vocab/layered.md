@@ -766,7 +766,9 @@ GLB's baked ink (`bake: true`) cannot stencil: it leaves out only the outline of
   it): where the cube names `materials`, its horn, hoof, beak and shell take a satin gloss, its outfit's metal and
   leather theirs, and its plan's own `materials` (`{ Body: { metal: 'steel', finish: 'brushed' } }`, as an armour
   card's) the rest, all at the cube's `age`, drawn in its character light (a metal steps higher, shades darker, glints).
-  The creature keeps its own light.
+  The creature keeps its own light. On such a level a hero's cloth and leather are painted too (folds, a darker hem,
+  rubbed leather edges); a stylist's hero wears its genre's cloths, and a group may name one: silk, velvet, wool,
+  denim, linen, cotton, canvas, nylon …
   `hero.density` on the readout: each part's radius in pixels, sides, the sides it wants and its error, the worst, the
   parts still over after a split, and the era's conventions still `planned`. Revise either with `update_character`.
   THE TIERED DRESS (`form: 'tiered'`). What the hero wears and carries is drawn for its target too (the default target

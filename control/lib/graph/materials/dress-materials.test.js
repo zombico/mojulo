@@ -4,7 +4,9 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { FAMILY_MATERIALS, metalForTone, dressSurfaces, materialsErrors, agedSurface, agedTones, AGES } from './dress-materials.js';
+import { FAMILY_MATERIALS, metalForTone, dressSurfaces, materialsErrors, agedSurface, agedTones, AGES, levelClothBake, CLOTHS, genreCloth } from './dress-materials.js';
+import { validateBake } from '../polygonizer/surface-bake.js';
+import { GENRES } from '../stylism/genres.js';
 import { heroRecord, expandLayeredManifest } from '../../mcp/tools/layered.js';
 import { resolveWorldScene } from '../worlds/world-scene.js';
 import { readGeocube } from '../era/geocube.js';
@@ -81,6 +83,37 @@ describe('dress materials: age', () => {
   });
 });
 
+describe('dress materials: the level\'s cloth and leather', () => {
+  it('bakes the cloth and leather a figure wears, leaving what a material dresses to it', () => {
+    const B = levelClothBake({ Plate: { metal: 'steel' }, Leather: 'leather', Wrap: 'matte', Suit: 'rubber', Trim: { metal: 'gold' } }, ['Skin', 'Top', 'Bottom', 'Shoes', 'Plate', 'Leather', 'Wrap', 'Suit', 'Trim', 'OutfitBase', 'Hair']);
+    expect(B.finish).toEqual({ Top: 'cloth', Bottom: 'cloth', Shoes: 'leather', Leather: 'leather', Wrap: 'cloth', OutfitBase: 'cloth' });
+    expect([...B.only].sort()).toEqual(Object.keys(B.finish).sort());
+    expect(levelClothBake({}, ['Skin', 'Hair'])).toBeNull();
+    // a stylist's cloth trim is cloth; a family's gilt trim keeps its metal
+    expect(levelClothBake({}, ['Trim']).finish.Trim).toBe('cloth');
+  });
+});
+
+describe('dress materials: the cloths', () => {
+  it('names each cloth a material, paints it its own way, and every cloth is a bake finish', () => {
+    for (const w of Object.keys(CLOTHS)) expect(materialsErrors({ Top: w })).toEqual([]);
+    expect(validateBake({ finish: Object.fromEntries(Object.entries(CLOTHS).map(([w, F], i) => [`G${i}`, F])) })).toEqual([]);
+    const B = levelClothBake({ Top: 'velvet', Outer: 'silk', Bottom: 'linen' }, ['Top', 'Outer', 'Bottom']);
+    expect(B.finish).toEqual({ Top: CLOTHS.velvet, Outer: CLOTHS.silk, Bottom: 'cloth' });
+    // velvet bright at its rims, silk a band toward the sky, wool no ridge
+    expect(CLOTHS.velvet.edge).toBeGreaterThan(CLOTHS.wool.edge);
+    expect(Math.max(...CLOTHS.silk.sky.map((p) => p[1]))).toBeGreaterThan(1.2);
+  });
+
+  it('dresses a stylist\'s garments in its genre\'s cloths, leather left to the leather groups', () => {
+    expect(genreCloth(GENRES.fantasy.materials.cloth)).toEqual({ Top: 'linen', Outer: 'linen', Bottom: 'wool' });
+    expect(genreCloth(GENRES.modern.materials.cloth)).toEqual({ Top: 'cotton', Outer: 'nylon', Bottom: 'denim' });
+    expect(genreCloth(['leather'])).toBeNull();
+    const s = dressSurfaces({ palette: { Top: '#2b2d3a', Bottom: '#3b3346', Leather: '#4a3324' }, cloth: genreCloth(GENRES.fantasy.materials.cloth), overrides: { Top: 'velvet' } });
+    expect(s).toMatchObject({ Top: 'velvet', Bottom: 'wool', Leather: 'leather' });
+  });
+});
+
 describe('dress materials: an armour card\'s own', () => {
   it('sits over its family\'s, under the cube\'s, and ages with the level', () => {
     const palette = { Plate: '#8c7a5b', Trim: '#3d3a36', Suit: '#1b1c1f' }, card = { Trim: { metal: 'steel', finish: 'blasted' } };
@@ -124,6 +157,18 @@ describe('dress materials: a hero on a cube that names them', () => {
     expect(suit('fantasy-space', 'upland-morning').surfaces.Trim).toBe('satin');
     expect(suit('grim-scifi', 'valley-morning')).not.toHaveProperty('surfaces');
   });
+
+  it('paints a plain hero\'s cloth on a level that names materials, and nothing on one that does not', async () => {
+    const plain = (geocube) => expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'female', geocube }) });
+    const dressed = plain('upland-morning'), bare = plain({ from: 'upland-morning', materials: false });
+    expect(dressed.recipe.surfaces).toEqual({});
+    expect(bare.recipe).not.toHaveProperty('surfaces');
+    const [a, b] = await Promise.all([dressed, bare].map((manifest) => resolveWorldScene({ title: 't', manifest })));
+    const fills = (p) => p.payload.faces.map((f) => JSON.stringify(f.cornerFills ?? f.fill));
+    const A = fills(a), B = fills(b);
+    expect(A.length).toBe(B.length);
+    expect(A.filter((x, i) => x !== B[i]).length).toBeGreaterThan(100);
+  }, 120000);
 
   it('shades its plate as live metal in the world', async () => {
     const manifest = expandLayeredManifest({ kind: 'layered', hero: heroRecord({ cast: 'male', adorn: KNIGHT, geocube: 'upland-morning' }) });

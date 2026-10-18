@@ -53,6 +53,9 @@ export const MATERIAL_ALIASES = Object.freeze({
   iron: 'gunmetal', 'cast-iron': 'gunmetal', aluminium: 'steel', aluminum: 'steel', brass: 'bronze', tin: 'silver',
   marble: 'stone', concrete: 'stone', granite: 'stone', clay: 'plaster',
   fabric: 'matte', cloth: 'matte', paper: 'matte', cardboard: 'matte', leather: 'rubber', felt: 'matte',
+  // the cloths a costume names (materials/dress-materials.js CLOTHS paints each its own way on a figure)
+  linen: 'matte', cotton: 'matte', wool: 'matte', canvas: 'matte', denim: 'matte', velvet: 'matte', 'ballistic nylon': 'matte',
+  silk: 'satin', nylon: 'satin', membrane: 'satin', 'spun filament': 'satin', 'resin weave': 'satin', 'carbon weave': 'satin', polymer: 'plastic',
 });
 /** materialName(m) → the shelf row a string names (aliases resolved), or null. */
 export function materialName(m) {

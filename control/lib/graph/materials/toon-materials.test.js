@@ -42,6 +42,18 @@ describe('toon materials: the lowering', () => {
     expect(Math.abs(((h1 - h0 + 540) % 360) - 180)).toBeLessThan(25);
   });
 
+  it('draws the cloths: silk a soft sheen, velvet deep and more in shade, wool soft, denim cool, linen as it was', () => {
+    const P = { A: '#9a1f2e', B: '#24306e', C: '#806040', D: '#30508a', E: '#e0d8c8' };
+    const C = toonMaterials({ A: 'silk', B: 'velvet', C: 'wool', D: 'denim', E: 'linen' }, P);
+    expect(C.highlight.A).toMatchObject({ kind: 'gloss', threshold: TOON_MATERIAL.silk.gloss });
+    expect(C.thresholds.B).toBe(TOON_MATERIAL.velvet.threshold);
+    expect(lch(C.shade.B)[0]).toBeLessThan(lch(P.B)[0] * 0.65);
+    expect(C.thresholds.C).toBeLessThan(0);
+    expect(lch(C.shade.C)[0]).toBeGreaterThan(lch(P.C)[0] * 0.75);
+    expect(C.shade.D).toBeDefined();
+    for (const k of ['thresholds', 'shade', 'highlight']) expect(C[k]).not.toHaveProperty('E');
+  });
+
   it('is null with nothing to lower: no surfaces, or none the palette paints', () => {
     expect(toonMaterials(null, palette)).toBeNull();
     expect(toonMaterials({ Plate: { metal: 'steel' } }, {})).toBeNull();

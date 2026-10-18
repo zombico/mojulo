@@ -29,6 +29,19 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   its outfit's metal and leather theirs, and its plan's own `materials` (as an armour card's) say the rest, all at the
   cube's age. A creature keeps its character light, so its materials are drawn: a metal steps higher, shades darker
   and glints. A creature's tones are its parts' tints. Absent a level, a creature is as before.
+- **A level's cloth and leather are painted.** On a level that names `materials`, a figure's cloth (its top and
+  trousers, its outfit's cloth roles, a stylist's garments) takes the bake's painted `cloth` finish, deep in its folds
+  and darker toward its hem, and its leather the `leather` finish, a low sheen with its edges rubbed lighter. A group a
+  material dresses (metal, satin, glass, rubber) is left to it, and so is every other group. A figure with its own
+  `bake` keeps it; the character light keeps its own look. A plain hero is dressed too.
+- **Cloths.** `linen`, `cotton`, `canvas`, `wool`, `felt`, `denim`, `silk`, `velvet`, `nylon`, `polymer`, `carbon weave`,
+  `ballistic nylon` and the alien `membrane`, `spun filament`, `resin weave` are materials. On a figure each is painted
+  its own way: wool soft with no ridge, denim faded pale at its ridges, silk a sheen band toward the sky, velvet dark in
+  its body and bright at its rims. Under the character light they are drawn: silk a soft sheen, velvet deep and more in
+  shade, wool a soft step, denim a cool shade, the synthetics a small sheen. A stylist's hero wears its genre's cloths
+  on its top, trousers and outer layer (fantasy linen and wool, modern cotton, denim and nylon), and a cube names one
+  for a group (`materials: { Top: 'velvet', Outer: 'silk' }`). Anywhere a material is taken, a cloth word now resolves
+  to its shelf row.
 - **`outside.crystals`.** A cube's island grows crystals: `'amethyst'`, or `{ gem, where: 'crags' | 'hollows', count,
   size, glow, seed }`. Seeded clusters stand out of the cliff faces or sit in the land's hollows, off the trail and the
   seam. They are real gems (the crystal channel shades them live, each throwing its own light, and the GLB carries them

@@ -15,6 +15,8 @@
  *   leather        a little more shade, a warm shade, a dull wide gloss
  *   glass          a small hard white gloss
  *   cloth, rubber  no highlight; rubber a deeper shade
+ *   the cloths     silk a broad soft gloss, velvet a deep rich shade (more of it in shade), wool a soft low-contrast step,
+ *                  denim a cool shade, nylon and the synthetics a small gloss; linen, cotton, canvas the light's own
  * The highlight rules are the light's resolved form ({ kind: 'gloss', threshold, band, colour }); `colour` is the swatch
  * the step's third tone takes (the light otherwise derives one from the base).
  */
@@ -29,7 +31,17 @@ export const TOON_MATERIAL = Object.freeze({
   leather: Object.freeze({ threshold: 0.08, shadeL: 0.62, lean: 8, gloss: 0.86, glossLift: 0.2, band: 0.4 }),
   glass: Object.freeze({ gloss: 0.88 }),
   rubber: Object.freeze({ shadeL: 0.55 }),
+  // the cloths (dress-materials.js CLOTHS), drawn: silk a broad soft sheen, velvet a deep rich shade with more of it in
+  // shade, wool a soft low-contrast step, denim a cool shade, the synthetics a small sheen; linen, cotton and canvas the
+  // light's own cloth
+  silk: Object.freeze({ gloss: 0.86, glossLift: 0.28 }),
+  velvet: Object.freeze({ threshold: 0.22, shadeL: 0.6, shadeC: 1.15 }),
+  wool: Object.freeze({ threshold: -0.06, shadeL: 0.82, shadeC: 0.9 }),
+  denim: Object.freeze({ shadeL: 0.7, lean: 0.25 }),
+  nylon: Object.freeze({ gloss: 0.9, glossLift: 0.45 }),
 });
+const CLOTH_CLASS = Object.freeze({ silk: 'silk', 'spun filament': 'silk', membrane: 'silk', velvet: 'velvet', wool: 'wool', felt: 'wool', denim: 'denim',
+  nylon: 'nylon', polymer: 'nylon', 'carbon weave': 'nylon', 'resin weave': 'nylon', linen: 'cloth', cotton: 'cloth', canvas: 'cloth', 'ballistic nylon': 'cloth' });
 // GREY_C: the chroma under which a tone reads as grey (a steel's own colour), so its shade may lean cool
 const WARM = 40, STEEL = 255, GREY_C = 0.08;
 const lchHex = (hex) => lchOf(hexToRgb(hex));
@@ -42,6 +54,7 @@ const lifted = (hex, k) => { const [L, C, h] = lchHex(hex); return hexOf(L + (1 
 function classOf(spec) {
   if (spec && typeof spec === 'object' && isMetalSurface(spec)) return 'metal';
   const name = typeof spec === 'string' ? spec : spec?.preset;
+  if (Object.hasOwn(CLOTH_CLASS, name)) return CLOTH_CLASS[name];
   if (name === 'leather') return 'leather';
   if (name === 'glass') return 'glass';
   if (name === 'rubber') return 'rubber';
@@ -78,6 +91,16 @@ export function toonMaterials(surfaces, palette = {}) {
       highlight[g] = gloss(TOON_MATERIAL.glass.gloss, '#ffffff');
     } else if (kind === 'rubber') {
       shade[g] = hexOf(L * TOON_MATERIAL.rubber.shadeL, C, h);
+    } else if (kind === 'silk' || kind === 'nylon') {
+      const M = TOON_MATERIAL[kind];
+      highlight[g] = gloss(M.gloss, lifted(tone, M.glossLift));
+    } else if (kind === 'velvet' || kind === 'wool') {
+      const M = TOON_MATERIAL[kind];
+      thresholds[g] = M.threshold;
+      shade[g] = hexOf(L * M.shadeL, C * M.shadeC, h);
+    } else if (kind === 'denim') {
+      const M = TOON_MATERIAL.denim;
+      shade[g] = hexOf(L * M.shadeL, C, mixHue(h, STEEL, M.lean));
     }
   }
   const any = Object.keys(thresholds).length + Object.keys(shade).length + Object.keys(highlight).length;
