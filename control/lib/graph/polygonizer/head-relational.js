@@ -547,13 +547,26 @@ export function coreVajras(P, rel = RELATIONS) {
       V.push({ name: `lower${name}${s}`, a: lo[0], c: lo[1], b: lo[2], r: rr, group: 'teeth', drive: [J, J, J] });
     }
   }
-  // THE TONGUE — on the floor of the mouth inside the lower arch, riding the jaw: two halves from just behind the lower
-  // incisors back between the molars, its back risen a little above the lower teeth's biting plane. It joins with the
-  // teeth after the mouth is carved, so it lies in an open mouth and closes the mouth's middle seen from the side.
-  const occL = (y) => 2 * occ(y + R.overjet) - occ(y + R.overjet), tongueTop = 0.012, ti = labial - R.overjet - mmv(6);
+  // THE PALATE — the roof of the mouth: a midline mass from behind the upper incisors back toward the pharynx, above the
+  // upper teeth (smooth-joined, so it swells no skin). The open mouth's cavity carves its underside; without it the
+  // carve opened into a hollow on the midline behind the alveolar arch, a slot in the back wall that read as a ridge
+  v('palate', { x: 0, y: inc.y - 0.03, z: inc.z + 0.035 }, { x: 0, y: inc.y - 0.12, z: inc.z + 0.04 }, { x: 0, y: inc.y - 0.22, z: inc.z + 0.045 }, [0.035, 0.05, 0.05], 'lipBody');
+  // THE TONGUE — on the floor of the mouth inside the lower arch, riding the jaw, its own mass apart from the teeth: two
+  // halves (blended into one tongue) from just behind the lower incisors back between the molars, each station placed
+  // from the lower crowns themselves — the tip a gap behind the incisors' inner faces, each half's side a gap inside the
+  // premolars' and the first molar's — its dorsum a hair under the lower teeth's edges at the front, level at the back.
+  // (Wider, and blended with the crowns, it merged with them into one mass.)
+  const occL = (y) => occ(y + R.overjet), GAP = mmv(1.5);
+  const lowerTooth = (t) => { const r = mmv(DENTITION[t].r); return { x: mmv(DENTITION[t].x) * R.archWidth * 0.94, y: labial - mmv(DENTITION[t].d) - r - R.overjet, r }; };
+  const ct = lowerTooth('Central'), pm = lowerTooth('Premolar1'), m1 = lowerTooth('Molar1');
+  const tongue = [
+    { y: ct.y - ct.r - GAP - 0.012, half: 0.006, r: 0.012, top: -0.004 },
+    { y: pm.y, half: Math.max(0, pm.x - pm.r - GAP - 0.022), r: 0.022, top: 0 },
+    { y: m1.y, half: Math.max(0, m1.x - m1.r - GAP - 0.03), r: 0.03, top: 0.003 },
+  ];
   for (const s of ['L', 'R']) {
-    const sg = Math.sign(P[`ch${s}`].x), t = (dx, dy, r) => ({ x: sg * dx, y: ti - dy, z: occL(ti - dy) + tongueTop - r });
-    V.push({ name: `tongue${s}`, a: t(0.006, 0, 0.022), c: t(0.03, 0.07, 0.04), b: t(0.035, 0.15, 0.045), r: [0.022, 0.04, 0.045], group: 'teeth', drive: [J, J, J] });
+    const sg = Math.sign(P[`ch${s}`].x), [a, c, b] = tongue.map((t) => ({ x: sg * t.half, y: t.y, z: occL(t.y) + t.top - t.r }));
+    V.push({ name: `tongue${s}`, a, c, b, r: tongue.map((t) => t.r), group: 'tongue', drive: [J, J, J] });
   }
   return V;
 }
@@ -664,7 +677,7 @@ const GLOBE = Object.freeze({ r: 0.052, back: 0.063, cornea: 0.034 });
 const LID = Object.freeze({ up: 0.006, lo: 0.004, y: 0.006 });
 
 /** the blend width per group, in V (the bone melts broadly; the nose and the lips keep their lobes) */
-const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lipBody: 0.05, lips: 0.01, teeth: 0.004 };
+const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lipBody: 0.05, lips: 0.01, teeth: 0.0006, tongue: 0.012 };
 /** how each soft feature joins the skin */
 const JOIN = { soft: 0.04, nose: 0.02, lipBody: 0.016, lips: 0.012 };
 /** the head's layers: the skull alone, or the skin over it */
@@ -726,7 +739,10 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     // and down the middle, back to between the premolars: the side chains diverge along the arch, and a pillar of tissue
     // stood between them from the palate to the floor
     const [pl, pr] = ['L', 'R'].map((s) => station('Premolar1', s, 0.7, 0.036)), back = { x: 0, y: (pl[0].y + pr[0].y) / 2, z: (pl[0].z + pr[0].z) / 2 };
-    oral.push({ beads: [c, midSt, back], r: [rc, rl, pl[1]] }, { beads: [pl[0], back, pr[0]], r: [pl[1], pl[1], pr[1]] });
+    // (the back station rounded to between the incisors' radius and the premolars', capped: tapered to the premolars' it
+    // left a tall narrow slot in the back wall that read as a ridge down the middle of the mouth)
+    const rBack = Math.min(0.05, (rl + pl[1]) / 2);
+    oral.push({ beads: [c, midSt, back], r: [rc, rl, rBack] }, { beads: [pl[0], back, pr[0]], r: [pl[1], rBack, pr[1]] });
     return { beads: [L, out(L), c, out(Rr), Rr], r: [0.004, 0.75 * rc, rc, 0.75 * rc, 0.004], oral };
   })() : null;
   // THE EYES' OPENINGS — an almond in the face's plane, the intersection of two discs: the upper lid's arc (a circle
@@ -774,7 +790,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     return { group: w.group, blend: w.blend, f: (p) => SM.min(sdRoundCone(p, a, c, ra, rc), sdRoundCone(p, c, b, rc, rb)), lo: { x: Math.min(a.x, c.x, b.x) - Math.max(ra, rc, rb), y: Math.min(a.y, c.y, b.y) - Math.max(ra, rc, rb), z: Math.min(a.z, c.z, b.z) - Math.max(ra, rc, rb) }, hi: { x: Math.max(a.x, c.x, b.x) + Math.max(ra, rc, rb), y: Math.max(a.y, c.y, b.y) + Math.max(ra, rc, rb), z: Math.max(a.z, c.z, b.z) + Math.max(ra, rc, rb) } };
   });
   // the teeth are many small crowns: a box about them all, so the field skips them away from the mouth
-  const teethBonds = bonds.filter((b) => b.group === 'teeth'), tm = 0.02 * sc;
+  const teethBonds = bonds.filter((b) => b.group === 'teeth' || b.group === 'tongue'), tm = 0.02 * sc;
   const teethBox = teethBonds.length ? { lo: { x: Math.min(...teethBonds.map((b) => b.lo.x)) - tm, y: Math.min(...teethBonds.map((b) => b.lo.y)) - tm, z: Math.min(...teethBonds.map((b) => b.lo.z)) - tm }, hi: { x: Math.max(...teethBonds.map((b) => b.hi.x)) + tm, y: Math.max(...teethBonds.map((b) => b.hi.y)) + tm, z: Math.max(...teethBonds.map((b) => b.hi.z)) + tm } } : null;
   const orbits = ['L', 'R'].map((s) => ({ c: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.01 }), r: 0.075 * sc }));
   // the globe and its cornea: the sclera's sphere, and the cornea's smaller sphere proud of it to the eye point
@@ -814,7 +830,7 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     let lo = Infinity;
     const nearTeeth = teethBox && p.x >= teethBox.lo.x && p.x <= teethBox.hi.x && p.y >= teethBox.lo.y && p.y <= teethBox.hi.y && p.z >= teethBox.lo.z && p.z <= teethBox.hi.z;
     for (const b of bonds) {
-      if (b.group === 'carve' || (b.group === 'teeth' && !nearTeeth)) continue;
+      if (b.group === 'carve' || ((b.group === 'teeth' || b.group === 'tongue') && !nearTeeth)) continue;
       const e = b.f(p);
       if (b.group === 'bone' || b.group === 'soft') { const v = b.group === 'bone' ? e - t : e; es.push(v); if (v < lo) lo = v; }
       else g[b.group] = g[b.group] === undefined ? e : smin(g[b.group], e, BLEND[b.group] * sc);
@@ -833,7 +849,9 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin', t
     for (const f of openingF) if (f) d = smax(d, -f(p), 0.0025 * sc);
     // the teeth and the tongue, seen only through the mouth: clipped to the carved cavity's neighbourhood, so another carve
     // (the mentolabial fold over the lower incisors' roots) never bares them; with the mouth closed they are not joined
-    if (g.teeth !== undefined && mouthF) d = SM.min(d, smax(g.teeth, mouthF(p) - 0.002 * sc, 0.001 * sc));
+    // (each crown joins the next with an all but hard edge, so the teeth read as teeth, not a band; the tongue is its own
+    // mass beside them)
+    if (mouthF) for (const k of ['teeth', 'tongue']) if (g[k] !== undefined) d = SM.min(d, smax(g[k], mouthF(p) - 0.002 * sc, 0.001 * sc));
     for (const o of globes) {
       const gd = smin(SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r, SM.hypot(p.x - o.cc.x, p.y - o.cc.y, p.z - o.cc.z) - o.cr, 0.006 * sc);
       d = smin(d, gd, 0.0015 * sc);

@@ -101,15 +101,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   arch narrowing into its curve at the front and running nearly straight back along the molars; `archWidth` scales
   it), each crown its own upright vajra from the cervix to its edge or cusps on the occlusal plane, the incisors
   leaning forward and thin at the edge. The lower arch is the upper's mirror across that plane, a touch narrower and
-  `overjet` (~3 mm) behind, riding the jaw, and the tongue lies on the floor inside it, two halves from behind the
-  lower incisors back between the molars. As the jaw opens an oral cavity is carved behind the lips along the arch
+  `overjet` (~3 mm) behind, riding the jaw. The crowns join each other with an all but hard edge, so they read as
+  teeth, not a band. The tongue is its own mass on the floor inside the lower arch, apart from the teeth: its stations
+  are placed from the lower crowns themselves (the tip a gap behind the incisors, each half's side a gap inside the
+  premolars and the first molar, 1 to 3 mm all round), its dorsum a hair under the lower teeth's edges. The palate
+  roofs the mouth on the midline above the upper teeth (the cavity had opened into a hollow there). As the jaw opens an oral cavity is carved behind the lips along the arch
   (each side through the incisors, the canine and the first premolar, down the middle and across the back, reaching
   both arches' edges, narrowing inside the cheeks), and the teeth and the tongue, joined after it and clipped to its
   neighbourhood (another carve never bares them), line it: the open mouth shows the upper incisors under the lip, the
   lower row and the tongue. A septum fills the nose's midline (a
   pocket there opened to a line seen through from the side as the cheek moved). The through-hole lane counts the
   parted lips seen from the side in front of the mouth's corners, where a wide jaw or a smile draws the corners back
-  behind them (5 of 44 states over the jaw's range in tenths, plain and smiling); at rest, smiling, and open to the
+  behind them (4 of 44 states over the jaw's range in tenths, plain and smiling); at rest, smiling, and open to the
   limit with or without a smile there are none.
 - **A soft mentolabial fold.** The fold between the lower lip and the chin is a broad, shallow hollow curving with the
   lip and thinning away at its ends, its edge blended over ~3 mm (carves take their own edge: the lip line stays crisp).
