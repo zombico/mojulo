@@ -78,6 +78,10 @@ describe('the repeats', () => {
     expect(lookModel(faces, { repeats: [] }).model).toEqual(plain.model);
     const worn = lookModel(faces, { repeats: [{ template: tpl, transforms: [{ pos: [0, 0, 0] }, { pos: [5, 0, 0] }] }] });
     expect(worn.boxes).toBeGreaterThan(plain.boxes);
+    // a budget of their own: many repeats coarsen themselves, never the level
+    const forest = lookModel(faces, { max: 25, repeats: [{ template: tpl, transforms: Array.from({ length: 40 }, (_, i) => ({ pos: [i * 2, 10, 0] })) }] });
+    expect(forest.voxel).toBe(plain.voxel);
+    expect(forest.repeatVoxel).toBeGreaterThan(plain.voxel);
     // the template's top (an upward face) is voxelized, for no floor slab carries it; a level's own floor is not
     const tops = repeatFaces([{ template: [tpl[1]], transforms: [{ pos: [0, 0, 0] }] }]);
     expect(voxelShell(tops, { whole: new Set(tops) }).map((b) => b.color)).toEqual([[0, 1, 0]]);
@@ -120,6 +124,14 @@ describe('the floors wear their faces\' looks', () => {
     expect(plain).toHaveLength(1);
     expect(worn.map(({ min, max, look }) => ({ min, max, color: look.color }))).toEqual([
       { min: [0, 0, -0.2], max: [3, 1, 0], color: [1, 0, 0] }, { min: [3, 0, -0.2], max: [4, 1, 0], color: [0, 0, 1] }]);
+  });
+
+  it('a face smaller than a cell marks it but colours it only where nothing covering it lies near', () => {
+    const road = quad(0, 0, 8, 8, 0, { fill: '#333333' }), dash = quad(1, 1, 3, 1.2, 0.02, { fill: '#ffffff' });
+    const lookOf = (f) => faceLook(f);
+    expect(floorSlabs([dash, road], { lookOf, cell: 4 }).every((s) => s.look.color.join() === faceLook(road).color.join())).toBe(true);
+    // alone, it is its cell's look
+    expect(floorSlabs([dash], { lookOf, cell: 4 })[0].look.color).toEqual([1, 1, 1]);
   });
 
   it('a ground\'s shadow decal never colours the floor', () => {

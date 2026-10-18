@@ -67,7 +67,7 @@ export async function buildRobloxGamePack({ ref, outDir, posture = null, log = (
   return {
     scope: 'game', ref, dir: outDir, manifestHash: packHash(manifest), written,
     ledger: Object.fromEntries(levels.map((l) => [l.ref, l.score.ledger])), portability,
-    levels: levels.map((l) => ({ ref: l.ref, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell, look: l.greybox.look, voxel: l.greybox.voxel })),
+    levels: levels.map((l) => ({ ref: l.ref, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell, look: l.greybox.look, voxel: l.greybox.voxel, ...(l.greybox.repeatVoxel ? { repeatVoxel: l.greybox.repeatVoxel } : {}) })),
     payloads,
   };
 }

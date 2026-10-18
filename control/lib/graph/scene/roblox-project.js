@@ -36,6 +36,7 @@ const SLAB = 0.2;          // a floor slab's depth below its surface, metres
 const NEAR = 0.3;          // metres: how far a blend tile lies from the ground it colours
 const UP = 0.6;            // a face counts as floor when its normal's z is at least this
 const MAX_PARTS = 8000;    // above it, the floor grid coarsens (a vast terrain reads in bigger cells)
+const MAX_CELLS = 4e6;     // the floor grid starts no finer than this many cells over the floors' area
 const r4 = (v) => Math.round(v * 1e4) / 1e4 + 0;   // + 0: never a -0
 
 export const toStuds = (p) => [r4(p[0] * STUDS), r4(p[2] * STUDS), r4(-p[1] * STUDS)];
@@ -45,7 +46,9 @@ export const toStuds = (p) => [r4(p[0] * STUDS), r4(p[2] * STUDS), r4(-p[1] * ST
  * (face → { color, material, transparency? }: roblox-look.js faceLook) a cell takes the look of the first face to mark it
  * at that height, a blend tile's over the ground it lies on (within NEAR) where the tile shows (its corner alpha there at
  * least a half: the page draws the blend on top, faded per corner, so a meadow's grass over its soil and the path's soil
- * through it; a ground's shadow decal never shows), and a faded tile's own cells the ground's look beneath; a run then
+ * through it; a ground's shadow decal never shows), and a faded tile's own cells the ground's look beneath; a face too
+ * small to cover a cell's centre colours it only where no face covering it lies within NEAR (a lane's dash on its
+ * road); a run then
  * breaks where the look changes, so the slabs cover the same cells at the same heights, in more rectangles. */
 export function floorSlabs(faces = [], { mpu = 1, cell = CELL, lookOf = null } = {}) {
   const layers = new Map();   // q → Set('ix,iy')
@@ -53,21 +56,27 @@ export function floorSlabs(faces = [], { mpu = 1, cell = CELL, lookOf = null } =
   const cellLook = new Map(); // 'q:ix,iy' → look key, the first ground face's at that height
   const tiles = new Map();    // 'ix,iy' → [[z, look key, shows]] the blend tiles over that cell, in face order
   let look = null, lk = '', blend = false;
-  const mark = (ix, iy, z, shows = true) => {
+  const small = new Map();    // 'q:ix,iy' → look key of the first face too small to cover the cell's centre there
+  const mark = (ix, iy, z, shows = true, weak = false) => {
     const q = Math.round(z / LAYER), c = `${q}:${ix},${iy}`;
     (layers.get(q) || layers.set(q, new Set()).get(q)).add(`${ix},${iy}`);
     if (!lookOf) return;
     if (blend) (tiles.get(`${ix},${iy}`) || tiles.set(`${ix},${iy}`, []).get(`${ix},${iy}`)).push([z, lk, shows]);
+    else if (weak) { if (!small.has(c)) small.set(c, lk); }
     else if (!cellLook.has(c)) cellLook.set(c, lk);
   };
   // a cell's look: the first blend tile lying within NEAR of it where the tile shows, else the ground's there (at its
-  // height, or the nearest within NEAR: a tile floats a hair over its ground and may round to the next layer)
+  // height, or the nearest within NEAR: a tile floats a hair over its ground and may round to the next layer), a face
+  // covering the cell's centre before one only standing in it (a lane's dash marks its cell, the road colours it)
+  const near = (m, q, ix, iy) => {
+    let g = m.get(`${q}:${ix},${iy}`);
+    for (let d = 1; g === undefined && d <= Math.round(NEAR / LAYER); d++) g = m.get(`${q - d}:${ix},${iy}`) ?? m.get(`${q + d}:${ix},${iy}`);
+    return g;
+  };
   const lookAt = (q, ix, iy) => {
     const z = q * LAYER, t = (tiles.get(`${ix},${iy}`) || []).find((e) => Math.abs(e[0] - z) <= NEAR);
     if (t && t[2]) return t[1];
-    let g = cellLook.get(`${q}:${ix},${iy}`);
-    for (let d = 1; g === undefined && d <= Math.round(NEAR / LAYER); d++) g = cellLook.get(`${q - d}:${ix},${iy}`) ?? cellLook.get(`${q + d}:${ix},${iy}`);
-    return g ?? (t ? t[1] : undefined);
+    return near(cellLook, q, ix, iy) ?? near(small, q, ix, iy) ?? (t ? t[1] : undefined);
   };
   for (const f of faces) {
     const c = f && Array.isArray(f.corners) ? f.corners : null;
@@ -101,7 +110,7 @@ export function floorSlabs(faces = [], { mpu = 1, cell = CELL, lookOf = null } =
         }
       }
       // a face smaller than a cell still stands somewhere: its centroid's cell
-      if (!hit) mark(Math.floor((a[0] + b[0] + d[0]) / 3 / cell), Math.floor((a[1] + b[1] + d[1]) / 3 / cell), (a[2] + b[2] + d[2]) / 3, (al[0] + al[1] + al[2]) / 3 >= 0.5);
+      if (!hit) mark(Math.floor((a[0] + b[0] + d[0]) / 3 / cell), Math.floor((a[1] + b[1] + d[1]) / 3 / cell), (a[2] + b[2] + d[2]) / 3, (al[0] + al[1] + al[2]) / 3 >= 0.5, true);
     }
   }
   const slabs = [];
@@ -132,6 +141,23 @@ export function floorSlabs(faces = [], { mpu = 1, cell = CELL, lookOf = null } =
   return slabs;
 }
 
+/** The upward faces' area seen from above, square metres (overlapping floors each counted). */
+function floorArea(faces, mpu) {
+  let a = 0;
+  for (const f of faces) {
+    const c = f && Array.isArray(f.corners) ? f.corners : null;
+    if (!c || c.length < 3) continue;
+    for (let i = 1; i + 1 < c.length; i++) {
+      const t = [c[0], c[i], c[i + 1]];
+      if (!t.every((p) => Array.isArray(p) && p.length >= 3 && p.every(Number.isFinite))) continue;
+      const ux = t[1][0] - t[0][0], uy = t[1][1] - t[0][1], uz = t[1][2] - t[0][2], vx = t[2][0] - t[0][0], vy = t[2][1] - t[0][1], vz = t[2][2] - t[0][2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, n = Math.hypot(nx, ny, nz);
+      if (n > 1e-12 && Math.abs(nz) / n >= UP) a += Math.abs(nz) / 2 * mpu * mpu;
+    }
+  }
+  return a;
+}
+
 const IDENTITY = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 export function partOf(name, min, max, color, extra = {}) {
   const c = [(min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2];
@@ -152,8 +178,11 @@ const FLOOR = [0.64, 0.66, 0.7], WALL = [0.42, 0.45, 0.52];
  * unseen as on the page, and the look's decoration rides in the Model as its `Look` child. */
 export function greyboxModel({ faces = [], colliders = [], mpu = 1, lookOf = null, look = null }) {
   const walls = colliders.filter((c) => c && Array.isArray(c.min) && Array.isArray(c.max) && c.min.length === 3 && c.max.length === 3);
-  // the grid coarsens on the physics alone (the slabs merged by height), so a look never changes where the player stands
+  // the grid coarsens on the physics alone (the slabs merged by height), so a look never changes where the player stands;
+  // it starts no finer than MAX_CELLS cells over the floors' area (a road kilometres long would overflow a fine grid)
   let cell = CELL;
+  const area = floorArea(faces, mpu);
+  while (area / (cell * cell) > MAX_CELLS && cell < 8) cell *= 2;
   while (floorSlabs(faces, { mpu, cell }).length + walls.length > MAX_PARTS && cell < 8) cell *= 2;
   const floors = floorSlabs(faces, { mpu, cell, lookOf });
   const lookProps = (l) => (l ? { Material: l.material, ...(l.transparency ? { Transparency: l.transparency } : {}) } : {});
@@ -162,7 +191,7 @@ export function greyboxModel({ faces = [], colliders = [], mpu = 1, lookOf = nul
     ...walls.map((w, i) => partOf(typeof w.of === 'string' && w.of ? `wall-${i}-${w.of}` : `wall-${i}`, w.min, w.max, WALL, look ? { Transparency: 1 } : {})),
     ...(look ? [look.model] : []),
   ];
-  return { model: { ClassName: 'Model', Children: children }, floors: floors.length, walls: walls.length, cell, ...(look ? { look: look.boxes, voxel: look.voxel } : {}) };
+  return { model: { ClassName: 'Model', Children: children }, floors: floors.length, walls: walls.length, cell, ...(look ? { look: look.boxes, voxel: look.voxel, ...(look.repeatVoxel ? { repeatVoxel: look.repeatVoxel } : {}) } : {}) };
 }
 
 /** A Luau long-bracket string holding text exactly (the level of `=` chosen so the closer never occurs in it). */
@@ -230,7 +259,7 @@ function readme({ ref, title, levels, portability, remint }) {
     '',
     `## Levels (${levels.length})`,
     '',
-    ...levels.map((l) => `- \`${l.ref}\` — ${l.title}: ${l.floors} floor slabs, ${l.walls} walls (cells of ${l.cell} m)${l.look != null ? `, ${l.look} look boxes (voxels of ${l.voxel} m)` : ''}`),
+    ...levels.map((l) => `- \`${l.ref}\` — ${l.title}: ${l.floors} floor slabs, ${l.walls} walls (cells of ${l.cell} m)${l.look != null ? `, ${l.look} look boxes (voxels of ${l.voxel} m${l.repeatVoxel ? `, its repeats' of ${l.repeatVoxel} m` : ''})` : ''}`),
     '',
     '## What did not travel',
     '',
@@ -259,6 +288,6 @@ export function emitRobloxGame({ ref, title, manifest, levels, portability, remi
     files.push({ file: `src/data/Levels/${l.ref}/data.luau`, text: `-- the level's data as JSON text, decoded by the kernel (kernel/json.luau keeps what JSON.parse keeps)\nreturn {\n${rows.join('\n')}\n}\n` });
     files.push({ file: `src/data/Levels/${l.ref}/Greybox.model.json`, text: `${JSON.stringify(l.greybox.model)}\n` });
   }
-  files.push({ file: 'README.md', text: readme({ ref, title, levels: levels.map((l) => ({ ref: l.ref, title: l.title, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell, look: l.greybox.look, voxel: l.greybox.voxel })), portability, remint }) });
+  files.push({ file: 'README.md', text: readme({ ref, title, levels: levels.map((l) => ({ ref: l.ref, title: l.title, floors: l.greybox.floors, walls: l.greybox.walls, cell: l.greybox.cell, look: l.greybox.look, voxel: l.greybox.voxel, repeatVoxel: l.greybox.repeatVoxel })), portability, remint }) });
   return { files };
 }

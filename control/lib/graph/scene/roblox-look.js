@@ -8,7 +8,8 @@
  * material shelf stamped on a face (polygonizer/materials.js) names a material too, when its texture does not: a metal
  * surface or a metal row is Metal (mill scale CorrodedMetal), the glass row Glass. A level's instanced repeats (a laid
  * wall's bricks, a stand of trees, a road's furniture) join the shell whole, each instance placed and tinted as the page
- * places it, their tops included (no floor slab carries them), and claim their cells before the level's faces do.
+ * places it, their tops included (no floor slab carries them), within a box budget of their own (a forest never coarsens
+ * the level); at the level's voxel they claim their cells before its faces do.
  *
  * The shell is decoration: a Humanoid passes through it and no raycast meets it (CanCollide, CanQuery and CanTouch false),
  * so where the player and the cast stand is the greybox's and the kernel's alone. Ground cover the page draws as cards
@@ -21,8 +22,8 @@
  *   repeatFaces(repeats)                  → the repeats as faces, every instance placed
  *   voxelShell(faces, { mpu, voxel, means, whole }) → [{ min, max, color, material, transparency? }] in metres; the
  *                                           faces in `whole` (a Set) keep their upward triangles
- *   lookModel(faces, { mpu, textures, repeats }) → { model, boxes, voxel, lookOf }   the shell as a Model of decoration
- *                                           Parts, and the face → look the floors wear
+ *   lookModel(faces, { mpu, textures, repeats }) → { model, boxes, voxel, repeatVoxel?, lookOf }   the shell as a Model
+ *                                           of decoration Parts, and the face → look the floors wear
  *
  * Deterministic: faces in their order, integer cells, keys sorted; no clock, no dice.
  */
@@ -208,16 +209,25 @@ export function voxelShell(faces = [], { mpu = 1, voxel = VOXEL, means = null, w
   return boxes;
 }
 
-/** The shell (the repeats placed, then the faces) as a Model of decoration Parts, its voxel doubled until it fits
- * SHELL_MAX (4 m at most). */
+/** The shell as a Model of decoration Parts: the faces' voxel doubled until they fit SHELL_MAX (4 m at most), the
+ * repeats' likewise within a SHELL_MAX of their own. */
 export function lookModel(faces = [], { mpu = 1, max = SHELL_MAX, textures = {}, repeats = [] } = {}) {
   const means = textureMeans(textures);
-  // the repeats claim first: an instance stands in front of what it is laid on (a brick before its wall's mortar backing)
-  const reps = repeatFaces(repeats), whole = new Set(reps), all = reps.length ? [...reps, ...faces] : faces;
-  let voxel = VOXEL, boxes = voxelShell(all, { mpu, voxel, means, whole });
-  while (boxes.length > max && voxel < 4) { voxel *= 2; boxes = voxelShell(all, { mpu, voxel, means, whole }); }
+  let voxel = VOXEL, boxes = voxelShell(faces, { mpu, voxel, means });
+  while (boxes.length > max && voxel < 4) { voxel *= 2; boxes = voxelShell(faces, { mpu, voxel, means }); }
+  // the repeats have a budget of their own, so a forest never coarsens the level: at the level's voxel they share its
+  // grid and claim first (an instance stands in front of what it is laid on: a brick before its wall's mortar backing);
+  // coarser, they are a shell of their own beside it
+  const reps = repeatFaces(repeats), whole = new Set(reps);
+  let repeatVoxel = null;
+  if (reps.length) {
+    repeatVoxel = voxel;
+    let own = voxelShell(reps, { mpu, voxel: repeatVoxel, means, whole });
+    while (own.length > max && repeatVoxel < 4) { repeatVoxel *= 2; own = voxelShell(reps, { mpu, voxel: repeatVoxel, means, whole }); }
+    boxes = repeatVoxel === voxel ? voxelShell([...reps, ...faces], { mpu, voxel, means, whole }) : [...boxes, ...own];
+  }
   const children = boxes.map((b, i) => partOf(`look-${i}`, b.min, b.max, b.color, {
     Material: b.material, CanCollide: false, CanQuery: false, CanTouch: false, ...(b.transparency ? { Transparency: b.transparency } : {}),
   }));
-  return { model: { Name: 'Look', ClassName: 'Model', Children: children }, boxes: boxes.length, voxel, lookOf: (f) => faceLook(f, means) };
+  return { model: { Name: 'Look', ClassName: 'Model', Children: children }, boxes: boxes.length, voxel, ...(repeatVoxel ? { repeatVoxel } : {}), lookOf: (f) => faceLook(f, means) };
 }

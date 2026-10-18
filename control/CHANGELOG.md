@@ -165,11 +165,13 @@ through the code. Roblox joins as the second engine with a runtime kernel.
   metal surface or metal row Metal, mill scale CorrodedMetal, the glass row Glass), a textured face its tint times its
   texture's mean colour, a blend tile's over the ground it lies on where the tile shows (a meadow's grass, the trail's soil through
   it); a slab splits where the look changes, but the grid coarsens on the slabs merged by height alone, so the look
-  never changes what the player stands on. The rest of the
+  never changes what the player stands on; a face too small to cover a cell's centre (a lane's dash) colours it only
+  where nothing covering it lies near. The floor grid starts no finer than its area allows, so a road world kilometres
+  long exports instead of overflowing. The rest of the
   level (walls, rocks, trees, props) is voxelized into boxes of one colour and material each, the voxel coarsening to
   fit a part budget, and the level's instanced repeats (a wall laid in bricks with `instance`, a stand of trees, a
   road's furniture) join it, each instance placed and tinted as the page places it, so they no longer go missing in
-  the place; ground cover the page draws as cards, ground shadows, blend tiles and a backdrop are left to the
+  the place, within a box budget of their own so a forest never coarsens the level; ground cover the page draws as cards, ground shadows, blend tiles and a backdrop are left to the
   slabs and the sky. The look is decoration only: no body collides with it and no ray meets it, which the place gate
   now checks part by part. Colliders become unseen, as on the page. The cast stands as block figures (a mind in red,
   the rest in blue) instead of boxes. Marks: the faces, textures and figures approximated; colliders built.
