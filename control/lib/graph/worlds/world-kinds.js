@@ -40,6 +40,8 @@ import { compileLayered } from '@/lib/graph/polygonizer/station-loft';
 import { heroCastLight } from '@/lib/graph/era/cast-light';
 import { faceTint } from '@/lib/graph/polygonizer/face-tint';
 import { bakeSampler, stackTints, stackFace, bakePieces } from '@/lib/graph/polygonizer/surface-bake';
+import { levelClothBake, recipeTones } from '@/lib/graph/materials/dress-materials';
+import { readGeocube } from '@/lib/graph/era/geocube';
 import { fieldPaintOf, fieldColours } from '@/lib/graph/polygonizer/field-paint';
 import { drawnMarkings, drawnCrease } from '@/lib/graph/polygonizer/creature-silhouette.js';
 import { TIERED_SMOOTH_CREASE, TIERED_FACE_SMOOTH, TIERED_FACE_TINT, tieredPole } from '@/lib/graph/polygonizer/tiered-form';
@@ -692,7 +694,12 @@ export const WORLD_KINDS = {
       // and its skin's occlusion and blush (face-tint.js), read off the rest mesh: the same per corner in any pose
       // and the BAKE STACK (surface-bake.js, opt-in `bake`): painted light per corner, read off the rest mesh, stacked
       // over the head's tint or a drawn creature's markings (their product). Absent ⇒ the tint is the one before it
-      const bakeS = m.bake ? bakeSampler(mesh, m.bake, { glows: m.recipe?.emissive }) : null, baked = bakeS?.tint ?? null;
+      // a figure dressed by its level (`recipe.surfaces`: a geocube that names `materials`) with no bake of its own takes
+      // the level's painted cloth and leather (dress-materials.js levelClothBake), its other groups left as they are
+      // (a statue carries its carving as surfaces: never a level's cloth)
+      const levelG = m.hero ? m.hero.geocube : m.geocube, dressedBy = !m.bake && m.recipe?.surfaces && !m.recipe.statue && levelG ? readGeocube(levelG).materials : undefined;
+      const levelBake = dressedBy !== undefined && dressedBy !== false ? levelClothBake(m.recipe.surfaces, Object.keys(m.hero ? m.recipe.palette || {} : recipeTones(m.recipe))) : null;
+      const bakeS = m.bake ? bakeSampler(mesh, m.bake, { glows: m.recipe?.emissive }) : levelBake ? bakeSampler(mesh, { finish: levelBake.finish }, { glows: m.recipe?.emissive, only: levelBake.only }) : null, baked = bakeS?.tint ?? null;
       const under = ellipsoid ? faceTint(mesh, TIERED_FACE_TINT[tieredPole(m.hero)]) : drawn ? drawnMarkings(m.plan, mesh, m.recipe?.palette) : null;
       const tint = stackTints(under, baked);
       // a field paint cell bakes under its OWN group's finish (a gold charge on a cloth tabard as gilt), over the same tint
@@ -788,7 +795,7 @@ export const WORLD_KINDS = {
         // the recipe PALETTE colours the plain pack as it colours the static faces (group → palette, else tint), so a
         // palette-only group (the detailed head, horns, a pinned tile, an adornment) keeps its colour in a clip frame.
         const palette = m.recipe.palette && typeof m.recipe.palette === 'object' ? m.recipe.palette : null;
-        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}) });
+        const pack = packLayeredRig(mesh, skin, R, { clips: clipsIn, keys: 12, dz, hullShade: m.hullShade || null, ...(smooth ? { normals: shown === mesh ? smooth : layeredShadingNormals(mesh, m.recipe, { crease, proxy: false, ellipsoid }) } : {}), ...(character ? { character: { pieces: stand ? piecesAt(litPieces, mesh, dz) : litPieces, hairInk: !!ink } } : {}), ...(face?.rows ? { face } : {}), ...(paintPack ? { paint: paintPack } : {}), ...(seconds ? { seconds } : {}), ...(speeds ? { speeds } : {}), ...(gear?.length ? { gear: gearPackParts(gear, { light: figLight, dz }) } : {}), ...(figLight !== light ? { cast: figLight } : {}), ...(!character && palette ? { palette } : {}), ...(tint ? { tint } : {}), ...(!character && fields ? { fields } : {}), ...(!character && cellTint ? { cellTint } : {}), ...(!character && Array.isArray(m.recipe.emissive) && m.recipe.emissive.length ? { emissive: m.recipe.emissive } : {}), ...(!character && m.recipe.surfaces ? { surfaces: m.recipe.surfaces } : {}) });
         const clips = Object.keys(clipsIn).filter((c) => !(stand && c === GESTURE_CLIP));
         scene.figures = { body: { ...pack, ...(face?.meta ? { face: face.meta } : face?.skipped ? { faceSkipped: face.skipped } : {}), ...(rim ? { rim } : {}), embodies: 'body', preview: { clips, hide: 'body', period: 3, ...(ink ? { ink: true } : {}), ...(stand ? { solid: 'stand' } : {}) } } };
       } else if (motioned) {

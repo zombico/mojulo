@@ -292,7 +292,11 @@ export function bakeRigFigure({ nodesAt, facesAt, clips = {}, keys = 8, targetH 
     // per-vertex specular [strength, power] — packed only when a face carried a material
     // `spec` tag (gm.specs null otherwise → byte-identical). Consumed by channels.js
     // __makeRigGroup, same as the unit-rig path.
-    return { pos: b64f32(gm.positions), col: b64u8(gm.colors), faces: fs.length, ...(gm.specs ? { spec: b64f32(gm.specs) } : {}) };
+    // per-vertex metal [tx, ty, tz, slot, d, nx, ny, nz] and the surfaces its slots index — packed only when a face
+    // carried `metal` (a hero wearing its cube's materials), in the static group's own form, so the page's metal channel
+    // patches the bone mesh as it patches a group. No metal face → no key, byte-identical
+    return { pos: b64f32(gm.positions), col: b64u8(gm.colors), faces: fs.length, ...(gm.specs ? { spec: b64f32(gm.specs) } : {}),
+      ...(gm.mets ? { metal: { surfaces: gm.metSurfaces, a: b64f32(gm.mets) } } : {}) };
   });
 
   // pose curves: per clip, K keys; per key, per bone, [qx,qy,qz,qw, hx,hy,hz]

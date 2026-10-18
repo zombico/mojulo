@@ -47,7 +47,8 @@ const r5 = (p) => p.map((x) => +x.toFixed(5));
  */
 export function crystalPrintsFor(faces, toLight, budget = PRINT_BUDGET, { skip = null } = {}) {
   const sun = crystalSun(toLight); if (sun[2] < 0.05) return [];
-  const list = stonesOf(faces).filter((st) => !(skip && skip.has(st.group))).slice(0, budget.stones);
+  // a stone tagged `print: false` throws none: one standing out of a cliff has no floor under it to throw it on
+  const list = stonesOf(faces).filter((st) => !(skip && skip.has(st.group)) && st.k.print !== false).slice(0, budget.stones);
   const out = [];
   for (const st of list) {
     const { poly, R, at, zMin, cmu } = posedStone(st);

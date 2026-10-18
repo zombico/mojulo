@@ -63,6 +63,10 @@ export function controllableChannelScript(entities, camera, figures, { exposeBod
   // __makeRigGroup q branch below so rig pages without them stay byte-identical.
   const figHasQ = Object.values(figures || {}).some((f) => f && f.rig
     && Array.isArray(f.parts) && f.parts.some((p) => p && p.q));
+  // a bone part carrying metal (a hero wearing its cube's materials, rig-bake.js `metal`): the metal channel's patch on
+  // its mesh. Soup parts only (the hero's encoding); no metal part → the emitted channel is byte-identical
+  const rigMetalHook = Object.values(figures || {}).some((f) => f && f.rig && Array.isArray(f.parts) && f.parts.some((p) => p && p.metal))
+    ? `\n    if (part.metal && !part.q && typeof __metPatch === 'function') __metPatch(mesh, part);` : '';
   // a vehicle rig that LIVES (car-designer/racer.js `live`: steer, lean, squat, dive, bounce, a mast's wobble) —
   // the overlay below is emitted only when some figure carries one, so every other page stays byte-identical.
   const figHasLive = Object.values(figures || {}).some((f) => f && f.rig && f.live);
@@ -429,7 +433,7 @@ function __makeRigGroup(fig, b) {
     // read it back as a NORMALIZED uint8 attribute so the GPU dequantizes ÷255 to the same [0,1].
     geo.setAttribute('color', new THREE.BufferAttribute(decodeU8(part.col), 3, true));
     geo.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rigSpecHook}${rigRimHook}${rigInkHook}${castHook}
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));${rigSpecHook}${rigMetalHook}${rigRimHook}${rigInkHook}${castHook}
     mesh.matrixAutoUpdate = false;
     mesh.frustumCulled = false;   // matrices mutate per frame
     group.add(mesh);

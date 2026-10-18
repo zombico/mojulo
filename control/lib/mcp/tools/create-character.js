@@ -138,8 +138,10 @@ function mergeOps(path, value, stored, top = false) {
 export function characterPatch(row, { spec, target, geocube }) {
   const as = asOf(row.manifest), words = { ...(spec || {}), ...(target !== undefined ? { target } : {}), ...(geocube !== undefined ? { geocube } : {}) };
   if (!Object.keys(words).length) return [];
+  // a creature takes its level (its geocube: the materials it wears there) by word; its body is revised by patch ops
+  if (as === 'creature' && spec === undefined && target === undefined) return geocube === null ? (row.manifest.geocube === undefined ? [] : [{ op: 'remove', path: '/geocube' }]) : [{ op: 'set', path: '/geocube', value: geocube }];
   if (as !== 'hero') {
-    throw new Error(`update_character: '${row.ref}' is ${as === 'animal' ? 'an animal' : 'a creature'}; spec, target and geocube are a hero's words today. Edit its recipe with patch ops (${as === 'animal' ? "get_solid_vocab({ id: 'animal' }): /plan/…, /dials/<name> on a species' ring plan" : "get_solid_vocab({ id: 'layered' }): /plan/…, /dials/<name>; a species' ring plan reads the same, its card is get_solid_vocab({ id: 'animal' })"}).`);
+    throw new Error(`update_character: '${row.ref}' is ${as === 'animal' ? 'an animal' : 'a creature'}; spec and target are a hero's words today${as === 'creature' ? ' (a creature takes geocube alone)' : ', and geocube'}. Edit its recipe with patch ops (${as === 'animal' ? "get_solid_vocab({ id: 'animal' }): /plan/…, /dials/<name> on a species' ring plan" : "get_solid_vocab({ id: 'layered' }): /plan/…, /dials/<name>; a species' ring plan reads the same, its card is get_solid_vocab({ id: 'animal' })"}).`);
   }
   const unknown = Object.keys(words).filter((k) => !HERO_FIELDS.includes(k) && k !== 'vibe');
   if (unknown.length) throw new Error(`update_character refused:\n - ${unknown.map(heroKeyHint).join('\n - ')}`);

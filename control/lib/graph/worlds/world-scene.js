@@ -429,7 +429,8 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
     const vc = geocubeContrastOf(sketch.manifest, { value: !!payload.tone });
     if (vc) {
       payload.vertexContrast = vc;
-      if (vc.contact > 0 && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
+      // (a hero's metal-only shaping asks no bake: its plate takes the foot and the crease, its body keeps its light)
+      if (vc.contact > 0 && !vc.only && !payload.ao && sketch.manifest.ao !== false) payload.ao = {};
     }
   }
 
@@ -550,6 +551,16 @@ export async function resolveWorldScene(sketch, viewOpts = {}) {
   if (payload && sketch.manifest.shadows) payload.shadows = sketch.manifest.shadows;
   // crystal light (crystal-rig R3): lamps whose beams pass through the world's crystals, each gem an operator. Any
   // world can carry it; emitThreeWorld resolves it against the faces. Opt-in; absent ⇒ byte-identical.
+  // effect light (scene/effect-light.js): what a world's beams and moments throw on it, by rule. Opt-in: one word
+  if (payload && sketch.manifest.fxLight !== undefined) {
+    if (typeof sketch.manifest.fxLight !== 'boolean') throw new Error('fxLight is true (the light a world\'s beams, puffs and explosions throw on it, by rule) or false');
+    if (sketch.manifest.fxLight && payload.events) payload.events = { ...payload.events, fxLight: true };
+  }
+  // the effects' style floor (scene/effect-style.js): every beam and explosion raised to it, by rule. Opt-in: one word
+  if (payload && sketch.manifest.fxStyle !== undefined) {
+    if (typeof sketch.manifest.fxStyle !== 'boolean') throw new Error('fxStyle is true (every beam and explosion raised to the effects\' style floor, by rule) or false');
+    if (sketch.manifest.fxStyle && payload.events) payload.events = { ...payload.events, fxStyle: true };
+  }
   if (payload && sketch.manifest.crystalLight) {
     const { validateCrystalLight } = await import('@/lib/graph/scene/crystal-rig.js');
     const errs = validateCrystalLight(sketch.manifest.crystalLight);

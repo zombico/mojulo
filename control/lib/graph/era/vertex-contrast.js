@@ -12,6 +12,9 @@
  *   contact    the AO bake's occlusion (`vao`) tinted to the shade colour and folded in (the `vao` is consumed)
  *   warmCool   the side the key light reaches leans to its colour, the rest to the shade's
  *   variation  a slow seeded drift of value across the world, so a small tile never repeats flatly
+ *   metal      (opt-in, absent from every preset) how far a METAL face takes the cube's occlusion: its foot, its crease
+ *              and its contact, as a multiplier on white (`metalShade`) the World page's live metal and the GLB's metal
+ *              node multiply in. The sky and the key stay the live metal's own reflection: no hemi, no warm/cool
  *
  * Every term is a multiplier on the baked colour, in linear light; every darkening leans to the shade colour, never to
  * black. Under a tone (`mode: 'value'`) only value moves: the tone's ramps colour it on the page.
@@ -36,7 +39,7 @@ const no = (msg) => { throw new Error(`contrast: ${msg}`); };
 export const CONTRAST_PRESETS = Object.freeze({
   wii: Object.freeze({ hemi: 0.55, foot: Object.freeze({ height: 0.9, depth: 0.45 }), crevice: 0.55, ridge: 0.35, contact: 0.7, warmCool: 0.45, variation: 0.5 }),
 });
-export const CONTRAST_TERMS = Object.freeze(['hemi', 'foot', 'crevice', 'ridge', 'contact', 'warmCool', 'variation']);
+export const CONTRAST_TERMS = Object.freeze(['hemi', 'foot', 'crevice', 'ridge', 'contact', 'warmCool', 'variation', 'metal']);
 const UNIT_TERMS = CONTRAST_TERMS.filter((k) => k !== 'foot');
 
 /** A cube's `contrast` → { hemi, foot: { height, depth }, crevice, ridge, contact, warmCool, variation }, or null. */
@@ -114,9 +117,11 @@ const normalOf = (f) => (Array.isArray(f.outNormal) ? unit(f.outNormal) : Array.
 const keyOf = (c) => `${Math.round(c[0] * 100)},${Math.round(c[1] * 100)},${Math.round(c[2] * 100)}`;
 
 const WHITE = '#ffffff';
-// what a face is to the shaping: false (left alone), 'colour' (its baked colour shaped), 'tile' (a painted tile multiplied)
-function shapedFace(f) {
+// what a face is to the shaping: false (left alone), 'colour' (its baked colour shaped), 'tile' (a painted tile multiplied),
+// 'metal' (a metal face's occlusion, with the contrast's `metal` term on)
+function shapedFace(f, metal = false) {
   if (!f || !Array.isArray(f.corners) || f.corners.length < 3) return false;
+  if (f.metal && metal && !(f.emissive || f.glow || f.crystal || f.water || SELF_LIT.has(f.group))) return 'metal';
   if (f.emissive || f.glow || f.crystal || f.metal || f.water || SELF_LIT.has(f.group)) return false;
   if (typeof f.texture === 'string' && !f.textureLit) return Array.isArray(f.uv) && !f.plainFill ? 'tile' : false;
   return HEX.test(f.fill ?? '') || (Array.isArray(f.cornerFills) && f.cornerFills.length && f.cornerFills.every((h) => HEX.test(h))) ? 'colour' : false;
@@ -182,10 +187,11 @@ function floorFinder(faces, idx, normals) {
 export function contrastFaces(faces, vc) {
   if (!vc || !Array.isArray(faces) || !faces.length) return faces;
   // a texture is multiplied only when every face drawn with it can be: one left out would be multiplied by its own fill
-  const how = faces.map(shapedFace), held = new Set();
+  // `only: 'metal'` (a hero on a cube that names `metal`): the metal faces alone, every other face left as it is
+  const metalOn = vc.metal > 0, how = faces.map((f) => { const h = shapedFace(f, metalOn); return vc.only === 'metal' && h !== 'metal' ? false : h; }), held = new Set();
   faces.forEach((f, i) => { if (f && typeof f.texture === 'string' && !f.textureLit && how[i] !== 'tile') held.add(f.texture); });
   const idx = [];
-  faces.forEach((f, i) => { if (how[i] === 'colour' || (how[i] === 'tile' && !held.has(f.texture))) idx.push(i); });
+  faces.forEach((f, i) => { if (how[i] === 'colour' || how[i] === 'metal' || (how[i] === 'tile' && !held.has(f.texture))) idx.push(i); });
   if (!idx.length) return faces;
   const normals = new Array(faces.length);
   for (const i of idx) normals[i] = normalOf(faces[i]);
@@ -205,6 +211,23 @@ export function contrastFaces(faces, vc) {
     const fills = tile ? cs.map(() => WHITE) : cs.map((_, k) => (Array.isArray(f.cornerFills) && HEX.test(f.cornerFills[k] ?? '') ? f.cornerFills[k] : own));
     const vao = vc.contact > 0 && Array.isArray(f.vao) && f.vao.length ? f.vao : null;
     const vaoMean = vao ? vao.reduce((s, x) => s + x, 0) / vao.length : 1;
+    if (how[i] === 'metal') {
+      // a metal face takes the cube's occlusion alone, `metal` of it, as a multiplier on white: the foot of a wall, a
+      // crease, contact. The sky and the key are the live metal's own reflection, so no hemi, ridge, warm/cool or drift
+      const w = vc.metal, wall = 1 - Math.max(0, n[2]);
+      const cornerFills = cs.map((c, k) => {
+        const m = [1, 1, 1];
+        if (foot && wall > 0) { const h = c[2] - floorOf(c); if (Number.isFinite(h)) dark(m, w * foot.depth * wall * (1 - smooth(0, foot.height, h)) / (1 - DEEP)); }
+        if (cav) { const v = cav(c); if (v > 0) dark(m, w * Math.min(1, v * K) * vc.crevice); }
+        if (vao) dark(m, w * (vc.contact * (1 - (k < vao.length ? vao[k] : vaoMean))) / (1 - DEEP));
+        if (value) { const s = lum(m); m[0] = s; m[1] = s; m[2] = s; }
+        return toHex(srgb(m.map((v) => Math.min(1, v))));
+      });
+      const mean = [0, 1, 2].map((j) => cornerFills.reduce((a, h) => a + hexRgb(h)[j], 0) / cornerFills.length);
+      const { vao: _vao, ...rest } = f;
+      out[i] = { ...(vao ? rest : f), fill: toHex(mean), cornerFills, metalShade: true };
+      continue;
+    }
     // the terms that hold over the whole face
     const m0 = [1, 1, 1];
     if (vc.hemi > 0) {

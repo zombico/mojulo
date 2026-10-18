@@ -66,6 +66,18 @@ export function expandArmor(build, { Ht, Hl, scale = 1, pelvis = false, Hth } = 
   return { kit: out.kit, tones, emissive, trace: { style: typeof build.style === 'string' ? build.style : card.id || 'inline', family: card.family, dials, language: lang, laws: build.laws ?? ARMOR_LAWS_VERSION, ...out.trace } };
 }
 
+/** The construction a build is made in ('plate' | 'lamellar' | 'hardsuit'), or null for anything not an armour build. */
+export function armorFamily(build) {
+  const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight') : null;
+  return card && typeof card === 'object' ? card.family ?? null : null;
+}
+
+/** The materials a build's card names for its pieces (styles.js `materials`), or null. */
+export function armorMaterials(build) {
+  const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight') : null;
+  return card && typeof card === 'object' && card.materials && typeof card.materials === 'object' ? card.materials : null;
+}
+
 /** The palette a build suggests beneath the operator's own (its piece groups and the layer beneath). */
 export function armorTones(build) {
   const card = isArmorBuild(build) ? cardOf(build.style ?? 'knight') : null, T = card && build.theme !== undefined ? themeOf(build.theme) : null;

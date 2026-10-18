@@ -143,3 +143,34 @@ describe('contrast: each term moves what it should', () => {
     expect(held[0]).toBe(card);
   });
 });
+
+describe('vertex contrast: metal in the cube\'s light (the `metal` term)', () => {
+  // the room with its wall in steel: the floor is stone, the wall a metal surface
+  const metalRoom = () => room().map((f) => (f.group === 'stage:wall' ? { ...f, metal: { s: '{"metal":"steel"}', d: 0, ta: 0 } } : f));
+  it('is absent from every preset and from a cube that does not name it', () => {
+    expect(readContrast('wii')).not.toHaveProperty('metal');
+    expect(readContrast({ from: 'wii', metal: 0.8 }).metal).toBe(0.8);
+    expect(() => readContrast({ metal: 2 })).toThrow(/metal is 0 \(none\) to 1/);
+  });
+  it('leaves metal alone without it, as it always did', () => {
+    const faces = metalRoom(), out = contrastFaces(faces, vc({ foot: { height: 1.6, depth: 0.6 }, crevice: 0.8 }));
+    out.filter((f) => f.metal).forEach((f, k) => expect(f).toBe(faces.filter((g) => g.metal)[k]));
+  });
+  it('with it, gives a metal face the cube\'s occlusion on white: darker at its foot than at its head, never the hemi', () => {
+    const out = contrastFaces(metalRoom(), vc({ foot: { height: 1.6, depth: 0.6 }, hemi: 1, warmCool: 1, metal: 1 }));
+    const wall = out.filter((f) => f.metal);
+    expect(wall.every((f) => f.metalShade && f.cornerFills.length === 4)).toBe(true);
+    expect(lum(wallAt(out, [4, 2, 0]))).toBeLessThan(lum(wallAt(out, [4, 2, 3])) - 20);
+    // the head of the wall, out of the foot's reach, is white: the sky and the key are the live metal's own
+    expect(wallAt(out, [4, 2, 3])).toBe('#ffffff');
+  });
+  it('carries the multiplier into the live metal and the cube\'s ground into the floor it reflects', async () => {
+    const { metalChannelInputs, metalChannelScript } = await import('../scene/channels/metal.js');
+    const key = JSON.stringify({ metal: 'steel', finish: 'planished' });
+    const plain = metalChannelInputs([key]), shaded = metalChannelInputs([key], { shade: true, ground: '#3a8a2a' });
+    expect(metalChannelScript({ toLight: [0, 0, 1], inputs: plain })).not.toContain('vColor');
+    expect(metalChannelScript({ toLight: [0, 0, 1], inputs: shaded })).toContain('col *= vColor.rgb');
+    expect(shaded.gnd[1]).toBeGreaterThan(shaded.gnd[0]);   // a green ground under the metal
+    expect(plain).not.toHaveProperty('shade');
+  });
+});

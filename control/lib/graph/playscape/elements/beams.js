@@ -58,6 +58,12 @@ export function strandPoints(S, A, B, t, j, N) {
   const P = (x) => {
     const q = Math.max(0, Math.min(1, x / D)), hump = 4 * q * (1 - q), env = Math.sin(Math.PI * q);
     let os = Math.cos(bowA) * bow * hump, ou = S.arc * hump + Math.sin(bowA) * bow * hump;
+    if (S.fan) {
+      // launched its own way round the line, out fast and easing in (peaking a third of the way), corkscrewing one way
+      // (smooth all the way: its lift rides above the line by a sine's swing, never folded by an absolute value)
+      const reach = S.fan * (0.55 + 0.45 * hs(j, 4)) * 1.7 * Math.sqrt(q) * (1 - q), a = TAU * (hs(j, 5) + 0.45 * q);
+      os += Math.cos(a) * reach; ou += (0.55 + 0.45 * Math.sin(a)) * reach * 0.8;
+    }
     if (S.twist) { const a = TAU * (S.twist * x + ph); os += Math.cos(a) * S.wave[0] * env; ou += Math.sin(a) * S.wave[0] * env; }
     else if (S.wave[0]) { const a = TAU * (S.wave[1] * x + ph); os += Math.sin(a) * S.wave[0] * env; ou += 0.45 * Math.sin(0.7 * a + 1.3) * S.wave[0] * env; }
     return [A[0] + u[0] * x + s[0] * os + up[0] * ou, A[1] + u[1] * x + s[1] * os + up[1] * ou, A[2] + u[2] * x + s[2] * os + up[2] * ou];
@@ -133,11 +139,20 @@ export function readStrand(v, where) {
     delay: n('delay', 0, (x) => x >= 0, 'seconds before it goes'),
     edge: v.edge ?? 'glow',
   };
+  // the opt-in words (each only when given, so a strand without them is the one it was):
+  //   fan      metres: each copy launched its own seeded way round the line, corkscrewing one way, then curving in
+  //            (an itano circus); jag: metres of lightning across the spine (ridged noise, the page's), re-struck
+  //            `flicker` times a second, with `forks` branches; fire: its head drawn as flame (noise turbulence)
+  if (v.fan !== undefined) out.fan = n('fan', 0, (x) => x >= 0 && x <= 30, 'metres each copy is launched out before it curves in');
+  if (v.jag !== undefined) out.jag = n('jag', 0, (x) => x >= 0 && x <= 4, 'metres of lightning across the spine');
+  if (v.flicker !== undefined) out.flicker = n('flicker', 12, (x) => x > 0 && x <= 60, 're-strikes a second');
+  if (v.forks !== undefined) out.forks = Math.round(n('forks', 0, (x) => x >= 0 && x <= 6, 'branches off a jagged strand (0 to 6)'));
+  if (v.fire !== undefined) { if (typeof v.fire !== 'boolean') throw new Error(`${where}.fire is true (its head drawn as flame) or false`); if (v.fire) out.fire = true; }
   if (!FORMS.includes(out.form)) throw new Error(`${where}.form is ray or bolt`);
   if (!EDGES.includes(out.edge)) throw new Error(`${where}.edge is glow, ink or both`);
   if (out.twist && !out.wave[0]) throw new Error(`${where}.twist braids round the line at wave's amp: give wave: [amp, 0]`);
   if (v.color !== undefined) out.color = readColor(v.color, `${where}.color`);
-  const bad = Object.keys(v).filter((k) => !(k in out) && k !== 'color');
+  const bad = Object.keys(v).filter((k) => !(k in out) && !['color', 'fan', 'jag', 'flicker', 'forks', 'fire'].includes(k));
   if (bad.length) throw new Error(`${where} has no ${bad.join(', ')}: a strand is ${Object.keys(out).join(', ')}, color`);
   return out;
 }
@@ -163,7 +178,10 @@ export function readBeam(v, where, beams = null, explosions = null) {
     if (!(num(time) && time > 0 && time <= 6)) throw new Error(`${where}.charge.time is seconds (to 6)`);
     if (!(num(size) && size > 0 && size <= 6)) throw new Error(`${where}.charge.size is the orb's radius (m, to 6)`);
     if (!['hand', 'above'].includes(at)) throw new Error(`${where}.charge.at is hand or above`);
-    out.charge = { time, size, at };
+    // form: an orb gathering (the default), or a spell circle, a sigil standing square to the target that the strands
+    // leave from (only when given)
+    if (c.form !== undefined && !['orb', 'circle'].includes(c.form)) throw new Error(`${where}.charge.form is orb or circle (a spell circle the strands leave from)`);
+    out.charge = { time, size, at, ...(c.form === 'circle' ? { form: 'circle' } : {}) };
   }
   const wait = out.charge ? out.charge.time : 0;
   // the charge comes first: every strand waits for it
@@ -214,13 +232,26 @@ export const BEAMS = Object.freeze({
   braid: P({ color: [0.7, 0.5, 1], strands: [{ form: 'ray', speed: 16, width: 0.13, hold: 0.9, head: 1.6, twist: 0.45, wave: [0.42, 0], edge: 'glow' }, { form: 'ray', speed: 16, width: 0.13, hold: 0.9, head: 1.6, twist: 0.45, wave: [0.42, 0], phase: 0.5, edge: 'glow', color: [0.45, 1, 0.8] }], impact: 'flash' }),
   // a thin line, there at once, flickering, inked
   laser: P({ color: [1, 0.2, 0.2], strands: { form: 'ray', speed: 90, width: 0.045, hold: 0.35, head: 2.4, pulse: 30, edge: 'ink' }, impact: 'sparks' }),
+  // a crackling arc, struck again and again, forking
+  lightning: P({ color: [0.78, 0.86, 1], strands: { form: 'ray', speed: 120, width: 0.05, hold: 0.55, head: 2.2, jag: 0.45, flicker: 14, forks: 3, edge: 'glow' }, impact: 'flash', shake: 0.25 }),
+  // a ball of fire thrown from the hand, burning as it flies
+  fireball: P({ color: [1, 0.5, 0.15], charge: { time: 0.4, size: 0.25 }, strands: { form: 'bolt', speed: 8, width: 0.3, length: 1.6, head: 1.6, taper: 0.9, fire: true, edge: 'glow' }, sparks: { glyph: 'spark', count: 12, from: 'point', z: 0, v: 1.4, gravity: 1.2, life: 0.6, size: 0.07 }, impact: 'blast' }),
+  // a spell circle drawn in the air, a ray loosed from its heart
+  sigil: P({ color: [0.75, 0.45, 1], charge: { time: 1, size: 1.2, form: 'circle' }, strands: { form: 'ray', speed: 30, width: 0.22, hold: 0.8, head: 1.4, pulse: 10, edge: 'glow' }, impact: 'flash', shake: 0.3 }),
+  // a swarm of missiles flung every way, corkscrewing in on smoke
+  itano: P({ strands: [
+    { form: 'bolt', speed: 11, width: 0.045, length: 6, head: 0, taper: 1, count: 16, stagger: 0.05, vary: 0.4, fan: 4.5, edge: 'glow', color: [0.5, 0.52, 0.58] },
+    { form: 'bolt', speed: 11, width: 0.07, length: 0.35, head: 1.8, taper: 1, count: 16, stagger: 0.05, vary: 0.4, fan: 4.5, edge: 'glow', color: [1, 0.62, 0.25] },
+  ], impact: 'sparks' }),
+  // homing lasers: thin rays bending out and in, landing together
+  'itano-laser': P({ color: [0.4, 1, 0.75], strands: { form: 'ray', speed: 22, width: 0.035, hold: 0.5, head: 2, count: 10, stagger: 0.03, vary: 0.25, fan: 3.5, edge: 'glow' }, impact: 'sparks' }),
 });
 export const BEAM_NAMES = Object.freeze(Object.keys(BEAMS));
 
 /** What an attack reads as with the colour taken out: its strands' form, edge, width, path and number; its layers. */
 export function beamSignature(B) {
   const band = (x, cuts) => cuts.findIndex((c) => x <= c);
-  const path = (S) => (S.twist ? 'braid' : S.wave[0] ? 'slither' : S.bow ? 'bow' : S.arc ? 'arc' : 'straight');
+  const path = (S) => (S.fan ? 'fan' : S.jag ? 'jag' : S.twist ? 'braid' : S.wave[0] ? 'slither' : S.bow ? 'bow' : S.arc ? 'arc' : 'straight');
   return [B.strands.map((S) => [S.form, S.edge, band(S.width, [0.08, 0.3, 0.7, 9]), path(S), S.count > 1 ? 'many' : 'one', S.speed > 30 ? 'instant' : S.speed < 5 ? 'slow' : 'flies'].join(' ')).join(' + '),
-    B.charge ? `charge ${B.charge.at}` : '', B.rings ? 'rings' : ''].join(' | ');
+    B.charge ? `charge ${B.charge.form === 'circle' ? 'circle' : B.charge.at}` : '', B.rings ? 'rings' : '', B.strands.some((S) => S.fire) ? 'fire' : ''].join(' | ');
 }

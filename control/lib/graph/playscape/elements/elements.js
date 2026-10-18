@@ -18,6 +18,8 @@
  *   ice      { mode: 'encase' (a randomized angular block round the body) | 'spikes' (crystals grown from its surface) }
  *   water    drops run off it, fall and ring out at its feet: {} or { count }
  *   steam    vapour rises off it, swells and thins: {} or { count }
+ *   shield   a half-sphere of hex cells over the body (a fresnel rim, a shimmer), rippling where a beam lands on it:
+ *            { r?: metres, cells?: across, color? }
  *
  * A WAVE: `count` streams of lights, each a head and `trail` lights behind it, travelling one path per `cycle`
  * seconds; at u (0 → 1 along a cycle) a light stands at angle a0 + turn·u turns, radius r(u), height z(u) above the
@@ -159,7 +161,7 @@ export const BOLT_SHAPE = Object.freeze({ arcR: 0.6, zBase: 0.3, zSpan: 1.3 });
 const COAT_SHAPES = ['breathe', 'grow', 'flash', 'flicker', 'hold'];
 const ENVS = ['steady', 'ends', 'in', 'out'];
 const ICE_MODES = ['encase', 'spikes'];
-export const LOOK_LAYERS = Object.freeze(['color', 'coat', 'motes', 'drift', 'bolts', 'fire', 'ice', 'water', 'steam']);
+export const LOOK_LAYERS = Object.freeze(['color', 'coat', 'motes', 'drift', 'bolts', 'fire', 'ice', 'water', 'steam', 'shield']);
 export const GLYPHS = Object.freeze(['dot', 'soft', 'streak', 'drop', 'flake', 'leaf', 'spark', 'chip']);
 const SPRAY_FROM = ['point', 'ground', 'shell', 'cloud'];
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -288,6 +290,13 @@ export function readLook(v, where, looks = null) {
     if (!isObj(c) || (c.mode !== undefined && !ICE_MODES.includes(c.mode))) throw new Error(`${where}.ice is { mode: ${ICE_MODES.join(' | ')} }`);
     out.ice = c.mode === 'spikes' ? { mode: 'spikes', count: 34, length: 0.34, width: 0.06 } : { mode: 'encase' };
   }
+  // a SHIELD: a half-sphere of hex cells over the body, a fresnel rim and a shimmer, rippling where a beam lands on it
+  // (only when given, so a look without one is the one it was)
+  if (v.shield !== undefined && v.shield !== false) {
+    const c = v.shield === true ? {} : v.shield;
+    if (!isObj(c) || (c.r !== undefined && !(num(c.r) && c.r >= 0.4 && c.r <= 8)) || (c.cells !== undefined && !(num(c.cells) && c.cells >= 2 && c.cells <= 20))) throw new Error(`${where}.shield is { r?: metres 0.4 to 8, cells?: 2 to 20 across, color? }`);
+    out.shield = { r: c.r ?? 1.3, cells: c.cells ?? 6, ...(c.color !== undefined ? { color: readColor(c.color, `${where}.shield.color`) } : {}) };
+  }
   for (const k of ['water', 'steam']) if (v[k] !== undefined && v[k] !== false) {
     const c = v[k] === true ? {} : v[k];
     if (!isObj(c) || (c.count !== undefined && !(num(c.count) && c.count >= 1 && c.count <= 40))) throw new Error(`${where}.${k} is {} or { count: 1 to 40 }`);
@@ -341,6 +350,7 @@ export const LOOKS = Object.freeze({
   snow: P({ color: [0.92, 0.96, 1], coat: { k: 0.35, hz: 0, p: 3, shape: 'hold' }, drift: { glyph: 'flake', count: 30, from: 'ground', r: 1.1, z: 2.4, go: [0, 0, -0.55], swirl: 0.05, life: 4.4, spin: 0.2, size: 0.1, env: 'ends' } }),
   wind: P({ color: [0.85, 0.95, 0.9], coat: false, drift: [{ glyph: 'streak', count: 10, from: 'shell', r: 0.9, z: [0.2, 1.7], swirl: 0.55, life: 1.1, size: 0.16, env: 'ends' }, { glyph: 'leaf', count: 9, from: 'shell', r: 0.75, z: [0.1, 1.5], go: [0, 0, 0.35], swirl: 0.4, life: 2.6, spin: 0.9, size: 0.13, env: 'ends', color: [0.55, 0.72, 0.3] }] }),
   embers: P({ color: [1, 0.55, 0.2], coat: { k: 0.45, hz: 1.4, p: 2.4 }, drift: { glyph: 'spark', count: 22, from: 'shell', r: 0.3, z: [0.1, 1.2], v: 0.3, el: [30, 90], gravity: -0.9, swirl: 0.08, life: 2, size: 0.07, env: 'ends' } }),
+  ward: P({ color: [0.45, 0.85, 1], coat: { k: 0.3, hz: 0.5, p: 2.6 }, shield: { r: 1.3, cells: 6 } }),
   dusty: P({ color: [0.72, 0.62, 0.48], coat: false, drift: { glyph: 'soft', count: 14, from: 'ground', r: 0.55, z: 0.06, v: 0.35, el: [0, 25], life: 1.8, grow: 1.8, size: 0.28, env: 'ends' } }),
 });
 export const LOOK_NAMES = Object.freeze(Object.keys(LOOKS));

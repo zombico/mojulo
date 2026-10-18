@@ -39,7 +39,8 @@
 import { articulate, TWIST_REF_NODES, twistPairFor } from './figure-vajra.js';
 import { resolvePose } from './figure-posing.js';
 import { matToQuat, frameQuat, twistQuat, b64f32, b64u8 } from '../figures/rig-bake.js';
-import { faceColorLinear } from '../figures/face-mesh.js';
+import { faceColorLinear, faceListToMesh } from '../figures/face-mesh.js';
+import { resolveMaterial, tagFacesWithMetal } from './materials.js';
 import { characterLitPieces, drawLayer } from './station-loft-shade.js';
 import { castLightFactor } from './vexar.js';
 import * as dmath from '../../util/dmath.js';
@@ -628,14 +629,19 @@ function faceRowOf(face) {
  * instead of their own three seconds and one; the clip keeps its `keys` samples (the door's rig gates pre-solve those
  * phases).
  */
-export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null } = {}) {
+export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, light = [0.35, -0.55, 0.75], hullShade = null, normals = null, character = null, face = null, paint = null, seconds = null, speeds = null, gear = null, emissive = null, cast = null, tint = null, palette = null, fields = null, cellTint = null, surfaces = null } = {}) {
+  // `surfaces` (recipe.surfaces: a hero wearing its cube's materials, the plain path): each part whose triangles include
+  // a metal group's packs the metal channel's per-vertex data (`metal`, face-mesh.js), so the page's metal shades the
+  // moving parts as it shades the static solid. No metal surface ⇒ nothing tracked, byte-identical
+  const metalOf = new Map();
+  if (surfaces && typeof surfaces === 'object' && !character) for (const [g, spec] of Object.entries(surfaces)) { const m = resolveMaterial(spec); if (m?.surface) metalOf.set(g, m.surface); }
   // `fields` (field-paint.js fieldPaintOf, on the rest mesh; the plain path): a face an entry touches is packed as its
   // cells, each corner's colour, joints and weights blended from the face's by its weights; with `cellTint(fi, group)`
   // (the bake's sampler) each cell's corners take its own group's finish. Absent ⇒ byte-identical.
   // `tint` (face-tint.js): per face, its corners' colour multipliers in sRGB, taken to linear here. Absent ⇒ byte-identical.
   const tk = (fi, k, c) => (tint?.[fi] ? tint[fi][k][c] ** 2.2 : 1);
   const rest = Object.fromEntries(Object.entries(R.joints).map(([k, v]) => [k, [v[0], v[1], v[2] + dz]]));
-  const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0 }));
+  const L = unit(light); const parts = R.bones.map(() => ({ pos: [], col: [], jnt: [], wgt: [], faces: 0, ...(metalOf.size ? { tg: [] } : {}) }));
   const vN = hullShade && !character ? hullShadeNormals(mesh, hullShade === true ? {} : hullShade) : null;
   const rowAt = !character ? faceRowOf(face) : null, pp = !character ? paint : null;
   if (rowAt || pp) for (const P of parts) P.mph = [];
@@ -671,7 +677,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
         const hx = faceHex(pal, cell.group, part); let cb = colOf.get(hx); if (!cb) colOf.set(hx, cb = faceColorLinear({ fill: hx }));
         const own = cellTint ? cellTint(fi, cell.group) : undefined, corner = tri.map((vi, k) => colourAt(vi, k, cb, own)), glowing = glow.has(cell.group);
         for (const T of cellTriangles(cell.ring)) {
-          P.faces++;
+          P.faces++; if (P.tg) P.tg.push(cell.group);
           for (const { w } of T) {
             P.pos.push(...[0, 1, 2].map((q) => w[0] * p[0][q] + w[1] * p[1][q] + w[2] * p[2][q]));
             P.col.push(...(glowing ? cb : [0, 1, 2].map((q) => w[0] * corner[0][q] + w[1] * corner[1][q] + w[2] * corner[2][q])));
@@ -685,7 +691,7 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
     if (ri !== undefined) {
       const H = [pp.hidden[0], pp.hidden[1], pp.hidden[2] + dz];
       for (const st of pp.regions[ri].states) {
-        P.faces++;
+        P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
         tri.forEach((vi, k) => {
           const at = st.rest ? p[k] : H, d = new Float64Array((1 + pp.targets) * 3);
           for (const [t, f] of st.deltas) for (let q = 0; q < 3; q++) d[3 + t * 3 + q] += f * (p[k][q] - H[q]);
@@ -694,12 +700,12 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
       }
       return;
     }
-    P.faces++;
+    P.faces++; if (P.tg) P.tg.push(mesh.groups[fi]);
     tri.forEach((vi, k) => { P.pos.push(...p[k]); P.col.push(...colourAt(vi, k)); P.jnt.push(...skin.joints[vi]); P.wgt.push(...skin.weights[vi]); if (P.uv) P.uv.push(...(painted ? pp.baseUV(pp.uvAt({ vi })) : pp.white)); if (rowAt) { const d = rowAt({ vi }); if (d) P.mph.push({ i: P.pos.length / 3 - 1, d }); } });
   });
   // held gear (hero-gear.js gearPackParts): rest triangles already seated, appended to their bone's part with weight 1
   // on that bone, after its own faces (outside its ink and draw-layer spans). Absent ⇒ the pack is byte-identical.
-  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; for (const p of t.p) { P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...paint.white); } } }
+  if (Array.isArray(gear)) for (const g of gear) { const P = parts[g.bone]; if (!P) continue; for (const t of g.tris) { P.faces++; if (P.tg) P.tg.push(null); for (const p of t.p) { P.pos.push(p[0], p[1], p[2]); P.col.push(t.col[0], t.col[1], t.col[2]); P.jnt.push(g.bone, 0, 0, 0); P.wgt.push(1, 0, 0, 0); if (P.uv) P.uv.push(...paint.white); } } }
   const packedClips = {}, props = [];
   for (const [name, clip] of Object.entries(clips)) {
     // a function clip may carry its own key count (a gait's: hero-motion.js locomotionClips, dense so the stance holds)
@@ -717,11 +723,19 @@ export function packLayeredRig(mesh, skin, R, { clips = {}, keys = 12, dz = 0, l
       props.push({ clip: name, item: pr.item, bone: pr.bone, pos: b64f32(pos), col: b64u8(col), faces });
     }
   }
+  // the metal channel per part: its triangles, as faces tagged by their group's metal, through the static solid's packer
+  if (metalOf.size) for (const P of parts) {
+    if (!P.tg || !P.tg.some((g) => metalOf.has(g))) continue;
+    const fs = P.tg.map((g, t) => { const o = 9 * t, f = { corners: [[P.pos[o], P.pos[o + 1], P.pos[o + 2]], [P.pos[o + 3], P.pos[o + 4], P.pos[o + 5]], [P.pos[o + 6], P.pos[o + 7], P.pos[o + 8]]] }; if (metalOf.has(g)) tagFacesWithMetal([f], metalOf.get(g)); return f; });
+    const gm = faceListToMesh(fs, { decollide: false });
+    // (a triangle the packer drops would shift every vertex after it: such a part keeps its paint)
+    if (gm.mets && gm.vertexCount === P.pos.length / 3) P.metal = { surfaces: gm.metSurfaces, a: b64f32(gm.mets) };
+  }
   let mnz = Infinity, mxz = -Infinity; for (const v of mesh.vertices) { if (v[2] + dz < mnz) mnz = v[2] + dz; if (v[2] + dz > mxz) mxz = v[2] + dz; }
   return {
     rig: true, layered: true,
     bones: R.bones.map((b) => ({ id: b.id, head: rest[b.head].map(r4), tail: rest[b.tail].map(r4) })),
-    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}) } : null)),
+    parts: parts.map((P) => (P.faces ? { pos: b64f32(P.pos), col: b64u8(P.col), faces: P.faces, jnt: Buffer.from(Uint8Array.from(P.jnt).buffer).toString('base64'), wgt: b64f32(P.wgt), ...(P.inkFaces !== undefined ? { inkFaces: P.inkFaces } : {}), ...(P.ranges ? { ranges: P.ranges } : {}), ...(P.mph?.length ? { morph: packMorph(P.mph) } : {}), ...(P.uv ? { uv: b64f32(P.uv) } : {}), ...(P.metal ? { metal: P.metal } : {}) } : null)),
     clips: packedClips, figH: r4(mxz - mnz), ...(props.length ? { props } : {}),
     ...(paint ? { paintTex: { ...paint.atlas, white: paint.white } } : {}),
   };

@@ -12,9 +12,18 @@
  *   ridge    the same measure, convex, lifts it a little: the lit lip a facet catches
  *   blend    a different surface a corner or two away carries its colour over the seam (grass takes on stone at the
  *            cliff foot, sand at the beach); rock keeps its own
+ *   grain    (with a relief) the relief's octaves finer than the land's cells move the value of ground and sand, so
+ *            the light carries detail the geometry is too coarse to hold; rock and trail keep their own
+ *   mix      (S.mix metres) every corner's colour is its surfaces' by how much of each lies round it: the weights
+ *            spread S.mix metres over the welded corners, then drawn back to a soft edge with a little noise, so a
+ *            seam between grass, rock and sand is a curve a cell or two wide, on both sides of it (blend steps aside)
+ *   valley   (S.valley) a corner whose horizon stands high (`valley.at`, the ground grid's horizon read over tens of
+ *            metres) darkens toward the shade: the foot of a slope, a hollow, a gully
+ * (`S.facet`, rock in planes, is the ground's geometry: local-meru/scene.js planarises the rock before it is lit.)
  */
 import { bakeStageLight } from '../era/stage.js';
 import { hexRgb, rgbHex } from '../era/geom.js';
+import { gnoise2, smoothstep } from '../noise/noise.js';
 
 export const ROCK = new Set(['isekai:cliff', 'isekai:rock']);
 const PRIORITY = ['isekai:cliff', 'isekai:rock', 'isekai:sand', 'isekai:ground', 'isekai:trail'];
@@ -54,7 +63,7 @@ export function bakeLand(faces, ambient, sun, S) {
 }
 
 /** The land's shape at each corner: concavity, and the nearest different surface (0: it touches it, 1: one corner off). */
-function shapeOf(faces) {
+function shapeOf(faces, mix = null) {
   const V = new Map();
   const at = (c) => { const k = keyOf(c); let v = V.get(k); if (!v) V.set(k, (v = { p: c, n: [0, 0, 0], nb: new Set(), groups: new Set(), cav: 0 })); return v; };
   for (const f of faces) {
@@ -69,31 +78,70 @@ function shapeOf(faces) {
   }
   for (const v of all) { let s = 0; for (const w of v.nb) s += w.cav0; v.cav = v.nb.size ? 0.5 * v.cav0 + 0.5 * s / v.nb.size : 0; }
   const other = (gs, own) => PRIORITY.find((g) => gs.has(g) && g !== own && !(ROCK.has(g) && ROCK.has(own)));
+  if (mix) mixWeights(faces, V, mix);
   return faces.map((f) => f.corners.map((c) => {
     const v = V.get(keyOf(c)), g0 = other(v.groups, f.group);
-    if (g0) return { cav: v.cav, near: [0, g0] };
-    for (const w of v.nb) { const g1 = other(w.groups, f.group); if (g1) return { cav: v.cav, near: [1, g1] }; }
-    return { cav: v.cav, near: null };
+    if (g0) return { cav: v.cav, near: [0, g0], mix: v.mix };
+    for (const w of v.nb) { const g1 = other(w.groups, f.group); if (g1) return { cav: v.cav, near: [1, g1], mix: v.mix }; }
+    return { cav: v.cav, near: null, mix: v.mix };
   }));
 }
 
-const K = 5, DEEP = 0.35, LIFT = 0.22;
-/** The rules into each corner colour, in linear light. `tints` is each surface's albedo (0..1 sRGB) for the blend. */
-export function ruleLand(faces, S, tints) {
+// the surfaces a corner mixes: rock, ground, sand (a trail is laid over the ground and keeps its own)
+const CLASS = { 'isekai:cliff': 0, 'isekai:rock': 0, 'isekai:ground': 1, 'isekai:sand': 2 };
+const MIX_EDGE = 0.3, MIX_JITTER = [0.18, 0, 0.12];
+/** Each welded corner's share of rock, ground and sand (`v.mix`), spread `rings` corners and drawn back to a soft edge. */
+function mixWeights(faces, V, { rings, seed }) {
+  const all = [...V.values()];
+  for (const v of all) v.w = [0, 0, 0];
+  for (const f of faces) { const c = CLASS[f.group]; if (c === undefined) continue; for (const p of f.corners) V.get(keyOf(p)).w[c] += 1; }
+  for (const v of all) { const t = v.w[0] + v.w[1] + v.w[2]; v.w = t > 0 ? v.w.map((x) => x / t) : null; }
+  for (let r = 0; r < rings; r++) {
+    for (const v of all) {
+      if (!v.w) continue;
+      let s = [0, 0, 0], n = 0;
+      for (const u of v.nb) if (u.w) { s = [s[0] + u.w[0], s[1] + u.w[1], s[2] + u.w[2]]; n++; }
+      v.w2 = n ? v.w.map((x, j) => 0.5 * x + 0.5 * s[j] / n) : v.w;
+    }
+    for (const v of all) if (v.w) v.w = v.w2;
+  }
+  for (const v of all) {
+    if (!v.w) { v.mix = null; continue; }
+    const [x, y] = v.p, j = [gnoise2(x * 0.6, y * 0.6, seed), 0, gnoise2(x * 0.6 + 31.7, y * 0.6, seed + 1)];
+    const e = v.w.map((w, k) => smoothstep(0.5 - MIX_EDGE, 0.5 + MIX_EDGE, w + MIX_JITTER[k] * j[k])), t = e[0] + e[1] + e[2];
+    v.mix = t > 1e-6 ? e.map((w) => w / t) : v.w;
+  }
+}
+
+const K = 5, DEEP = 0.35, LIFT = 0.22, GRAIN = 0.35, GRAINED = new Set(['isekai:ground', 'isekai:sand']), VALLEY = 1.8;
+/**
+ * The rules into each corner colour, in linear light. `tints` is each surface's albedo (0..1 sRGB) for the blend and
+ * the mix. `X` (optional): `grain` ({ at(x, y) → about [−1, 1], amount 0..1 }) the relief's fine octaves for the value;
+ * `cell` the land's cell in metres (the mix's spread is counted in cells); `valley` ({ at(corner) → 0..1 or null }) the
+ * horizon the valley rule reads; `seed` for the mix's edge.
+ */
+export function ruleLand(faces, S, tints, X = null) {
   const s = lin(hexRgb(S.shade)), sl = lum(s) || 1, shade = s.map((v) => v / sl);
   const T = Object.fromEntries(Object.entries(tints).map(([g, t]) => [g, lin(t)]));
-  const shape = shapeOf(faces);
+  const grain = X?.grain ?? null, valley = S.valley > 0 && X?.valley ? X.valley : null;
+  const mixing = S.mix > 0, shape = shapeOf(faces, mixing ? { rings: Math.max(1, Math.round(S.mix / (X?.cell ?? 0.5))), seed: (X?.seed ?? 1) | 0 } : null);
+  const M = mixing ? [T['isekai:cliff'] ?? T['isekai:rock'], T['isekai:ground'], T['isekai:sand'] ?? T['isekai:ground']] : null;
   return faces.map((f, i) => {
     if (!f.cornerFills) return f;
     const own = T[f.group];
     const cornerFills = f.cornerFills.map((hex, k) => {
-      const { cav, near } = shape[i][k];
+      const { cav, near, mix } = shape[i][k];
       const d = Math.min(1, Math.max(0, cav * K)) * S.crevice, up = Math.min(1, Math.max(0, -cav * K)) * S.ridge * LIFT;
       let m = shade.map((sv) => (1 - d) + d * DEEP * sv + up);
-      if (near && own && !ROCK.has(f.group) && T[near[1]]) {
+      if (mixing) {
+        // the surfaces round the corner, on whichever side of the seam it lies; a trail keeps its own
+        if (mix && own && CLASS[f.group] !== undefined) m = m.map((v, j) => v * (mix[0] * M[0][j] + mix[1] * M[1][j] + mix[2] * M[2][j]) / Math.max(own[j], 1e-4));
+      } else if (near && own && !ROCK.has(f.group) && T[near[1]]) {
         const w = S.blend * (near[0] === 0 ? 0.55 : 0.22), o = T[near[1]];
         m = m.map((v, j) => v * ((1 - w) + w * o[j] / Math.max(own[j], 1e-4)));
       }
+      if (grain && GRAINED.has(f.group)) { const c = f.corners[k], g = 1 + grain.amount * GRAIN * grain.at(c[0], c[1]); m = m.map((v) => v * g); }
+      if (valley) { const o = valley.at(f.corners[k]); if (o !== null) { const t = Math.min(1, o * VALLEY) * S.valley; m = m.map((v, j) => v * ((1 - t) + t * DEEP * shade[j])); } }
       return rgbHex(srgb(lin(hexRgb(hex)).map((v, j) => Math.min(1, v * m[j]))));
     });
     const mean = [0, 1, 2].map((j) => cornerFills.reduce((a, h) => a + hexRgb(h)[j], 0) / cornerFills.length);

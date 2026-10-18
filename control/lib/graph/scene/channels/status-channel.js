@@ -2,6 +2,7 @@ import { safeJson } from '../emit-util.js';
 import { FIRE_COLORANTS } from '../../fire/fire.js';
 import { wavePoints, sprayPoints, kokusenBolts, BOLT_SHAPE } from '../../playscape/elements/elements.js';
 import { GLYPHS_SRC, SPRAY_SRC } from './moment-channel.js';
+import { NOISE_GLSL } from '../../noise/noise-glsl.js';
 
 /**
  * status-channel — the page's side of the cast's STATUSES: each status a character carries (e.statuses, held by the
@@ -359,6 +360,7 @@ export function transitKinds(events) {
 
 export function statusScript(looks, transits = []) {
   const L = looks || {}, all = Object.values(L);
+  const shield = all.some((x) => x.shield);
   const has = (f) => all.some(f), drift = has((x) => x.drift && x.drift.length), surf = has((x) => (x.ice && x.ice.mode === 'spikes') || x.water || x.steam), encase = has((x) => x.ice && x.ice.mode === 'encase'), bolts = has((x) => x.bolts);
   return `
 // STATUS: what the cast carries, drawn on their bodies in its look (coat, motes, bolts, ice, water, steam; fire is the fire channel's)
@@ -376,7 +378,48 @@ ${transits.length ? `${TRANSIT}
 ` : ''}const __elLive = {}, __elDying = {};   // '<who>|<is>' → what draws it; and what is fading out
 ${surf || encase ? `${SURF}` : ''}${encase ? `
 ${ENCASE}` : ''}
-function __elCoatMat(color, dark, p) {
+${shield ? `// a SHIELD: a half-sphere of hex cells (top-down on its cap, round its wall below), a fresnel rim, the shader noise
+// shimmering across it, and a ripple running out from where a beam lands on it, the struck cells flaring white
+const __elShFS = '#include <logdepthbuf_pars_fragment>\\nuniform float uT; uniform float uK; uniform float uCells; uniform vec3 uCol; uniform vec4 uRip[4]; varying vec3 vP; varying vec3 vN; varying vec3 vV;\\n' + ${JSON.stringify(NOISE_GLSL)} + \`
+float hexD(vec2 p) { p = abs(p); return max(dot(p, vec2(0.5, 0.8660254)), p.x); }
+vec4 hexCell(vec2 uv) { vec2 s = vec2(1.0, 1.7320508), h = s * 0.5; vec2 a = mod(uv, s) - h, b = mod(uv - h, s) - h; vec2 g = dot(a, a) < dot(b, b) ? a : b; return vec4(g, uv - g); }
+void main() {
+#include <logdepthbuf_fragment>
+  vec3 p = normalize(vP); float wt = smoothstep(0.5, 0.82, p.z);
+  vec4 hT = hexCell(p.xy * uCells), hS = hexCell(vec2(atan(p.y, p.x) * uCells * 0.5, p.z * uCells));
+  float e = mix(0.5 - hexD(hS.xy), 0.5 - hexD(hT.xy), wt); vec2 id = mix(hS.zw, hT.zw, wt);
+  float edge = 1.0 - smoothstep(0.0, 0.07, e);
+  float shim = 0.5 + 0.5 * nzN(p.xy * 3.5 + vec2(uT * 0.7, -uT * 0.4), 9), cell = max(nzN(id * 0.9 + vec2(uT * 0.8, 0.0), 5), 0.0);
+  float fres = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.4);
+  float rip = 0.0, hot = 0.0;
+  for (int i = 0; i < 4; i++) { if (uRip[i].w < 0.0) continue; float ang = acos(clamp(dot(p, normalize(uRip[i].xyz)), -1.0, 1.0)), t = uRip[i].w;
+    rip += exp(-pow((ang - t * 2.4) * 6.0, 2.0)) * exp(-t * 2.0); hot += exp(-ang * 5.0) * exp(-t * 4.0); }
+  float a = (edge * (0.3 + 0.6 * shim) + cell * 0.12 + fres * 0.7 + (rip + hot) * (0.5 + 1.2 * edge)) * uK;
+  gl_FragColor = vec4(mix(uCol, vec3(1.0), clamp((rip + hot) * 0.7 + edge * 0.2, 0.0, 1.0)), clamp(a, 0.0, 1.0));
+}\`;
+function __elShield(S, base) {
+  const g = new THREE.SphereGeometry(1, 48, 20, 0, Math.PI * 2, 0, Math.PI / 2); g.rotateX(Math.PI / 2);
+  const col = S.color != null ? __rgb(S.color) : base;
+  const m = new THREE.ShaderMaterial({ uniforms: { uT: { value: 0 }, uK: { value: 0 }, uCells: { value: S.cells }, uCol: { value: new THREE.Color(col[0], col[1], col[2]) }, uRip: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 1, -1)) } },
+    // the page's logarithmic depth buffer: three's log-depth chunks, or the depth test puts the dome behind everything
+    vertexShader: '#include <common>\\n#include <logdepthbuf_pars_vertex>\\nvarying vec3 vP; varying vec3 vN; varying vec3 vV; void main() { vP = position; vN = normalMatrix * normal; vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; gl_Position = projectionMatrix * mv;\\n#include <logdepthbuf_vertex>\\n}',
+    fragmentShader: __elShFS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+  const d = new THREE.Mesh(g, m); d.scale.setScalar(S.r); d.raycast = function () {}; d.renderOrder = 15; d.frustumCulled = false; scene.add(d); return d;
+}
+function __elShieldStep(d, e, age, fade, show) {
+  const W = window.__mojCtrl.world, now = W.time || 0, f = __elFoot(e), R = d.scale.x; d.visible = show && fade > 0.01; d.position.set(f[0], f[1], f[2] + 0.02);
+  // the look opens with an overshoot (a spell snapping up), then holds
+  const u = Math.min(1, age / 0.45), back = 1 + 2.4 * (u - 1) ** 3 + 1.4 * (u - 1) ** 2; d.scale.setScalar(d.userData.r * Math.max(0.01, back));
+  const U = d.material.uniforms; U.uT.value = age; U.uK.value = fade;
+  let n = 0;
+  for (const M of W.moments || []) {
+    if (M.is !== 'beam' || M.hit == null || n >= 4) continue; const t = now - M.hit; if (t < 0 || t > 1.2) continue;
+    if (Math.hypot(M.to[0] - f[0], M.to[1] - f[1]) > R + 1) continue;
+    const v = U.uRip.value[n++]; v.set(M.from[0] - f[0], M.from[1] - f[1], Math.max(0.15, M.from[2] - f[2]), t);
+  }
+  for (let i = n; i < 4; i++) U.uRip.value[i].w = -1;
+}
+` : ''}function __elCoatMat(color, dark, p) {
   const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(color[0], color[1], color[2]), transparent: true, depthWrite: false, blending: dark ? THREE.NormalBlending : THREE.AdditiveBlending });
   m.userData.uK = { value: 0 }; m.userData.__fire = true;   // its own light: the fire channel leaves it unlit
   m.onBeforeCompile = (sh) => {
@@ -422,7 +465,8 @@ function __elMake(e, is, st) {
     if (K.water) D.surf.push(__elSurfMake({ kind: 'drips', count: K.water.count }, meshes, base));
     if (K.steam) D.surf.push(__elSurfMake({ kind: 'vapor', count: K.steam.count }, meshes, base));
   }` : ''}${encase ? `
-  if (body && K.ice && K.ice.mode === 'encase') D.encase = __elEncase(body, __elSeed(e.id + is), base);` : ''}
+  if (body && K.ice && K.ice.mode === 'encase') D.encase = __elEncase(body, __elSeed(e.id + is), base);` : ''}${shield ? `
+  if (K.shield) { D.shield = __elShield(K.shield, base); D.shield.userData.r = K.shield.r; }` : ''}
   return D;
 }
 function __elDrop(D) {
@@ -432,7 +476,8 @@ function __elDrop(D) {
   D.drifts.forEach(__sprDrop); for (const q of D.cloud) { scene.remove(q.c); q.c.material.dispose(); }` : ''}${surf ? `
   for (const U of D.surf) __elSurfDrop(U);` : ''}${encase ? `
   if (D.encase) __elEncaseDrop(D.encase);` : ''}
-  if (D.mat) D.mat.dispose();${surf ? `
+  if (D.mat) D.mat.dispose();${shield ? `
+  if (D.shield) { scene.remove(D.shield); D.shield.geometry.dispose(); D.shield.material.dispose(); }` : ''}${surf ? `
   if (D.boil) __elSurfDrop(D.boil);` : ''}
 }${bolts ? `
 const __elA = new THREE.Vector3(), __elB = new THREE.Vector3(), __elD = new THREE.Vector3(), __elV = new THREE.Vector3(), __elS = new THREE.Vector3();
@@ -474,7 +519,8 @@ function __stepStatus() {
     if (D.K.water && D.meshes.length) { if (!D.boil) D.boil = __elSurfMake({ kind: 'vapor', count: 22 }, D.meshes, [1, 1, 1]); __elSurfStep(D.boil, now - X.t + 0.6, Math.sin(Math.PI * Math.min(1, u * 1.1)), !e.gone, __elFoot(e)[2]); }` : ''}
   }${transits.length ? '\n  __stepTransits();' : ''}
 }
-function __elDraw(D, e, K, age, fade, show, melt) {
+function __elDraw(D, e, K, age, fade, show, melt) {${shield ? `
+  if (D.shield) __elShieldStep(D.shield, e, age, fade, show);` : ''}
   const C = K.coat;
   if (C) {
     D.mat.userData.uK.value = C.k * fade * (C.shape === 'grow' ? Math.min(1, 0.25 + age / 2) * (C.hz ? 0.8 + 0.2 * Math.sin(age * C.hz * 6.283) : 1)

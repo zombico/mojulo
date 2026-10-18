@@ -358,6 +358,130 @@ JS runtime is the truth, and the Godot export is held to it by playing both.
   stays the page's: the commander, and the shove-down set piece when an opportunist's counter-charge catches the
   pilot (the kernel plays the plain counter).
 
+### Effects noise: flames and lightning, spell circles, a hex shield, an itano circus
+
+- **Noise on the World page.** The terrain's gradient noise reaches the page twice: its own source for strand spines,
+  and a GLSL twin on the same integer hash for effect shaders. Nothing carries either unless an attack or a look asks.
+- **Lightning and flame.** A strand's `jag` throws lightning across its spine (noise, ends pinned), re-struck `flicker`
+  times a second with `forks` branches. Its `fire` draws its head as flame: noise turbulence torn back from its
+  flight, white to yellow to red. New presets `lightning` and `fireball`. Under `fxStyle` the attack's colour picks the
+  material by rule: a warm bolt burns (its echoes a trail of smaller flames), a pale ray crackles.
+- **Spell circles.** `charge.form: 'circle'` opens a sigil square to the target: rings, a rune band turning one way,
+  a hexagram turning the other, an overshoot as it opens. The strands leave from it, so a wall or a floating caster can
+  fire from a circle (preset `sigil`).
+- **A hex shield.** A look's `shield { r, cells }` raises a half-sphere of hex cells round the feet, with a fresnel rim
+  and a noise shimmer, and a ripple runs out from wherever a beam lands on it (preset look `ward`).
+- **An itano circus.** A strand's `fan` launches each copy its own seeded way round the line, then curves it back in to
+  land together. Presets `itano` (missiles with smoke trails) and `itano-laser` (homing rays).
+
+### Effects: light and a style floor, by rule
+
+- **`fxLight: true`.** On a world whose cues fire beams, puffs or explosions, every effect lights what is round it,
+  the way fire already did: a strand's head, a ray's body and a charging orb throw the attack's colour as strong and as
+  soft as the strand is wide, and a moment its own declared light, tinted by its colour or its kind (a strike cold
+  white, a blast warm). Live steel, baked stone, the anime character light and creatures all take it. A night world
+  takes it fully, a noon one a quarter. Nothing is authored per effect.
+- **`fxStyle: true`.** Every attack is raised to a style floor by rule: no simple shape unless it is a line (a bolt
+  trails fading echoes, a ray carries pulse bands and rings, every attack sprays sparks), layered colour (two companion
+  strands in an analogous hue), chirality (the companions braid one way, the hand seeded by the attack; an explosion's
+  sprays swirl with it), and the principles of animation (a charge before release, a head stretched along its flight,
+  a gentle arc, echoes that lag, a flash where it lands, an explosion's ground ring echoed). An ink edge takes the
+  attack's own darkened colour instead of black. A laser may stay one beam. An attack that already does a thing keeps
+  its own.
+
+### Level age and crystals: a cube's metal tells its age, its land grows crystals
+
+- **`materials: { age }`.** A cube's materials take an age, `new`, `worn`, `old` or `ancient`: copper, brass and bronze
+  tarnish brown and then turn verdigris green by their measured film law, and steel dulls and then blackens to forged
+  scale. The painted tone of each aged group follows, so the toon light, the paint and the live metal agree. A group the
+  cube names ages too, unless it names its own film or finish. Gold does not age. Absent, metal is bright, as before.
+- **Armour cards name their materials.** A style card's `materials` says what its pieces are made of where its
+  family's table would be wrong: `grim-scifi`'s trim is blasted steel, `armored-hero`'s faceplate brushed stainless, the
+  rest of a hardsuit painted. They are worn only on a level that names `materials`, under the level's own overrides and
+  age, so sci-fi heroes now take live metal, the cube's light and its age where their designer said metal.
+- **Creatures wear their level's materials.** A creature names its level beside its plan (`spec: { plan, geocube }`, or
+  `update_character { geocube }`). Where the cube names `materials`, its horn, hoof, beak and shell take a satin gloss,
+  its outfit's metal and leather theirs, and its plan's own `materials` (as an armour card's) say the rest, all at the
+  cube's age. A creature keeps its character light, so its materials are drawn: a metal steps higher, shades darker
+  and glints. A creature's tones are its parts' tints. Absent a level, a creature is as before.
+- **A level's cloth and leather are painted.** On a level that names `materials`, a figure's cloth (its top and
+  trousers, its outfit's cloth roles, a stylist's garments) takes the bake's painted `cloth` finish, deep in its folds
+  and darker toward its hem, and its leather the `leather` finish, a low sheen with its edges rubbed lighter. A group a
+  material dresses (metal, satin, glass, rubber) is left to it, and so is every other group. A figure with its own
+  `bake` keeps it; the character light keeps its own look. A plain hero is dressed too.
+- **Cloths.** `linen`, `cotton`, `canvas`, `wool`, `felt`, `denim`, `silk`, `velvet`, `nylon`, `polymer`, `carbon weave`,
+  `ballistic nylon` and the alien `membrane`, `spun filament`, `resin weave` are materials. On a figure each is painted
+  its own way: wool soft with no ridge, denim faded pale at its ridges, silk a sheen band toward the sky, velvet dark in
+  its body and bright at its rims. Under the character light they are drawn: silk a soft sheen, velvet deep and more in
+  shade, wool a soft step, denim a cool shade, the synthetics a small sheen. A stylist's hero wears its genre's cloths
+  on its top, trousers and outer layer (fantasy linen and wool, modern cotton, denim and nylon), and a cube names one
+  for a group (`materials: { Top: 'velvet', Outer: 'silk' }`). Anywhere a material is taken, a cloth word now resolves
+  to its shelf row.
+- **`outside.crystals`.** A cube's island grows crystals: `'amethyst'`, or `{ gem, where: 'crags' | 'hollows', count,
+  size, glow, seed }`. Seeded clusters stand out of the cliff faces or sit in the land's hollows, off the trail and the
+  seam. They are real gems (the crystal channel shades them live, each throwing its own light, and the GLB carries them
+  as see-through). Absent, the land is as before.
+
+### Look materials: armour as material, metal in the cube's light
+
+- **`materials` on a geocube.** A hero whose `geocube` names a cube with `materials` wears real materials on its armour,
+  outfit and dress: plate as brushed steel, a lamellar's kanamono as gold, leather as leather, a hardsuit as painted
+  satin, each metal group's metal read from the tone its card already wrote. `materials: { <group>: <material> }`
+  overrides one. Plate then shades as live metal on the World page, in its clips too (the rig pack carries the metal
+  channel per part), and exports as PBR. Absent, every hero is as before.
+- **Anime heroes draw their materials.** Under the character light (an anime hero whose manifest names `toon.light`)
+  the materials are drawn, not reflected: metal steps higher and shades darker (gold leaning red-orange, steel blue)
+  with a small gloss tinted by the metal's measured colour, lacquer takes a small sharp gloss, leather a warm shade and
+  a dull band, glass a white glint, rubber a deeper shade (`materials/toon-materials.js`). Such a hero wears no live
+  metal. An anime hero in the cube's cast light wears the live metal as any hero does.
+- **`contrast.metal`: metal in the cube's light.** Metal faces take the cube's occlusion (the foot of a wall, a crease,
+  contact) as a multiplier the live metal shader and the GLB carry, and the live metal reflects the cube's own world
+  (its sky over a daylit dome, its ground leaned toward grey) instead of the studio's dim room. A hero on such a cube
+  takes it on its metal alone. Absent, metal is shaded as it was. `upland-morning` turns both on.
+
+### Sixth-gen land: ground, mix, facets, valley
+
+Four opt-in words on a local meru (and a geocube's outside), each absent unless asked, so every cube and stage
+renders byte-identically without them.
+
+- **`ground`: a terrain world under the level.** `meru.ground` / geocube `outside.ground` takes a painted scene
+  (`{ from: { heartbeat, splatch, seed }, span, height, at }`) through the `terrain` kind's field (its landform,
+  erosion and fracture detail) and lays it under the plain: its lowest point under the level is the datum, its range
+  scaled to `height`, eased in from the seam. The island's geology still reads only the mounds and the high shore as
+  raised land.
+- **`shading.mix`: surfaces mixed per corner.** Each corner takes rock, grass and sand by how much of each lies round
+  it, spread `mix` metres and drawn back to a soft, noisy edge, on both sides of a seam: grass meets rock in a curve,
+  not in the grid's steps.
+- **`shading.facet`: rock in planes.** The rock's grid heights are drawn onto facet planes about `facet` metres wide
+  before the land is lit, so a cliff reads as planes of stone instead of a checkerboard of half-metre quads; the
+  grass's corners stay where they are.
+- **`island.seabed: 'merged'`: the flat seabed in large quads.** Past the beach an island's floor is one plane under
+  deep water, yet it was drawn in the land's half-metre quads and was most of the faces. Merged, it is a few dozen
+  quads: the upland island goes from 31,944 faces to 10,395 and builds in under half the time, its renders matching the
+  grid's to within 13/255 on 0.04% of pixels. `'grid'` (the default) draws it as before.
+- **`upland-morning`, a geocube preset with them on.** Valley-morning's look (its colours, light and contrast) on a
+  rocky upland: a `rocky-irregular` ground at 45 m and 3.5 m, mix, facet and valley. Its island merges its seabed. The shipped presets are unchanged.
+  The geocube card took an `outside` line naming relief, ground and the land words (its ceiling re-pinned 4000 → 4600).
+- **`shading.valley`: the sky a hollow loses.** The foot of a slope, a hollow and a gully darken toward the shade by
+  how much sky the land round them hides, read over tens of metres and beyond what an even slope of the same grade
+  hides.
+
+### Perlin spike: relief for the geocube land
+
+- **One noise module.** `lib/graph/noise/noise.js`: 2D gradient noise on the terrain kernel's integer hash and
+  8-direction table (the same values as `terrain-kernel.js gn`), its analytic gradient, fractal sums in four flavours
+  (`fbm`, `ridged`, `billow`, `damped`: detail suppressed where the slope is already steep, the eroded look) with
+  octaves rotated off the lattice, domain warp and terraces. Only + − × ÷, floor and imul on the height path, so a
+  field is the same in every engine.
+- **`relief` on a geocube's outside.** `outside.relief` (and `outside.terrains.<name>.relief`) names a relief card
+  (`rolling`, `craggy`, `eroded`, `terraced`, `dune`) or `{ from, …changes }`; the stage's meru carries it and the
+  local meru lays it on the plain under the seam fade. On an island it only lifts the plain (a hollow would drown the
+  grass in beach), and where the island draws its mountain as land (`walk: 'base'`) it runs up the mounds too, so the
+  geology breaks already-broken ground. Octaves are set in metres, not by the mesh. A cube without relief lowers and
+  renders byte-identically. The geocube routing card names the word.
+- **Grain in the vertex.** The relief's octaves finer than the land's cells go to colour only, filtered over each
+  corner's footprint (`relief.grain`), so the polygon land's light carries detail its geometry cannot.
+
 ## [3.1.1] - 2026-10-16
 
 The first published release of the 3.1 line. `mojulo` 3.1.0 reached npm from a stale build of 2026-10-10 and is

@@ -76,6 +76,8 @@ import { stageGrassScript } from './channels/stage-grass.js';
 import { fireChannelScript } from './channels/fire.js';
 import { crystalRigFor } from './crystal-rig.js';
 import { shineOptics } from '../polygonizer/crystal-shine.js';
+import { fxDay } from './effect-light.js';
+const hexRgb255 = (h) => (typeof h === 'string' && /^#[0-9a-f]{6}$/i.test(h) ? [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) : null);
 
 
 // horizontal fov (deg) + aspect → vertical fov (deg) for THREE.PerspectiveCamera
@@ -677,7 +679,8 @@ export function emitThreeWorld({ faces = [], cameras = [], viewBox = { width: 11
   // timer-driven sequences, reflecting verb effects onto marker meshes. No reactions/sequences → no
   // block (a bare `sources` list with nothing listening is inert, so it is not worth emitting).
   const hasEvents = !!events && ((Array.isArray(events.reactions) && events.reactions.length > 0) || (Array.isArray(events.sequences) && events.sequences.length > 0) || (Array.isArray(events.hud) && events.hud.length > 0));
-  const eventsBlock = hasEvents ? eventsChannelScript(events) : '';
+  // the effect light reads the level's sky: an effect lights a night world fully, a noon one a quarter as much
+  const eventsBlock = hasEvents ? eventsChannelScript(events, events.fxLight === true ? { fxDay: fxDay(sky && Array.isArray(sky.zenith) ? sky.zenith : hexRgb255(bg)) } : {}) : '';
   // audio channel: never emitted on capture runs (headless bakes carry no sound and must stay
   // byte-identical to a muted live run); absent audio interpolates '' so no-audio worlds are
   // byte-identical to today.
@@ -897,9 +900,13 @@ scene.add(__eQuad${i});${fxDepth ? ` __fxQuads.push(__eQuad${i});` : ''}
   // metal (metal-surfaces S3): emitted only when some group carries metal faces — one studio, one lookup texture and
   // one program for every metal surface on the page, the studio's dome tinted by the scene's sky when it has one.
   // Absent → zero bytes.
-  const metKeys = [...new Set(groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces))].sort();
+  // (and a rigged figure's bone parts that carry metal: a hero wearing its cube's materials, rig-bake.js `metal`)
+  const rigMetal = Object.values(packedFigures).flatMap((f) => (f && f.rig === true && Array.isArray(f.parts) ? f.parts.flatMap((p) => (p && p.metal ? p.metal.surfaces : [])) : []));
+  const metKeys = [...new Set([...groups.filter((g) => g.metal).flatMap((g) => g.metal.surfaces), ...rigMetal])].sort();
   const metalBlock = metKeys.length ? metalChannelScript({ toLight: light && Array.isArray(light.toLight) ? light.toLight : DEFAULT_LIGHT.toLight,
-    inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit }) }) : '';
+    inputs: metalChannelInputs(metKeys, { sky: skyDome && !skyDome.space ? skyDome : null, unit: metersPerUnit,
+      // a cube's contrast with its `metal` term: the metal multiplies in the occlusion its faces carry, over the cube's ground
+      ...(vertexContrast && vertexContrast.metal > 0 ? { shade: true, ground: vertexContrast.ground, air: vertexContrast.sky } : {}) }) }) : '';
   const setupBlocks = {
     sky: skyBlock + hazeBlock, water: blendBlock + waterBlock, shadowDecal: shadowBlock, inkDecal: inkBlock,
     glow: glowBlock, specular: specBlock, pick: pickBlock, castShadow: castShadowBlock,
