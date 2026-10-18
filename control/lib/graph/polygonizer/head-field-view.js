@@ -224,7 +224,7 @@ function alarPair(field, L) {
   let crest = -1;
   for (let i = 1; i < xs.length - 1; i++) {
     if (ys[i] == null || ys[i - 1] == null || ys[i + 1] == null) continue;
-    if (crest < 0 && xs[i] > L.alaR.x * 0.5 && ys[i] >= ys[i - 1] && ys[i] >= ys[i + 1]) crest = i;
+    if (crest < 0 && xs[i] > L.alaR.x * 0.5 && ys[i] > ys[i - 1] + 0.05 / MM && ys[i] >= ys[i + 1]) crest = i;   // a crest rises (a flat cheek, its readings a bisection's noise apart, is none)
     if (crest >= 0 && i > crest && ys[i] <= ys[i - 1] && ys[i] < ys[i + 1]) {
       return [{ x: -xs[i], y: ys[i], z }, { x: xs[i], y: ys[i], z }];
     }

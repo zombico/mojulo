@@ -143,7 +143,7 @@ for (const { sex, actions } of ROWS) {
   const faces = headFieldMesh(head, { cells });
   const meas = headMeasures(head);
   const secs = headSections(head);
-  report[sex + actLabel] = { source, throughHoles: holes ? holes.length : null, tuning: head.tuning ?? null, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
+  report[sex + actLabel] = { source, throughHoles: holes ? holes.length : null, tuning: head.tuning ?? null, jaw: head.jaw ?? null, cells, quads: faces.length, mm: meas.mm, targets: head.targets ?? null, index: meas.index, classes: meas.classes };
   console.log(`${sex}: ${faces.length} quads at ${cells} cells, ${Date.now() - t0} ms`);
 
   for (const [col, v] of VIEWS.entries()) {
@@ -218,6 +218,7 @@ for (const { sex, actions } of ROWS) {
   svgParts.push(`<rect x="${tx}" y="${py0}" width="${TABLE_W}" height="${PANEL_H}" fill="#f4f2ee"/>`);
   const rows = [`${sex} · ${source} — calipers on the field`, '', ...Object.entries(meas.mm).map(([k, v]) => { const t = head.targets?.[k]; return `${k.padEnd(13)} ${v == null ? '—' : String(v).padStart(6)}${k === 'g-sn-pg' ? '° ' : ' mm'}${t != null ? `  target ${String(t).padStart(5)}  Δ ${v == null ? '—' : (v - t > 0 ? '+' : '') + (Math.round((v - t) * 10) / 10)}` : ''}`; }),
     '', ...Object.entries(meas.index).map(([k, v]) => `${(k + ' index').padEnd(13)} ${v == null ? '—' : String(v).padStart(6)}  ${meas.classes[k] || ''}`),
+    ...(head.jaw ? ['', `jaw ${head.jaw.deg}°, glide ${head.jaw.glide} mm: incisors ${head.jaw.opening} mm (limit ${head.jaw.limit})`] : []),
     ...(holes ? ['', `through-holes (side view): ${holes.length}${holes.length ? ' — at ' + holes.slice(0, 3).map((q) => `y ${(q.y / head.landmarks.H).toFixed(2)} z ${(q.z / head.landmarks.H).toFixed(2)}`).join(', ') : ''}`] : []),
     ...(head.tuning?.steps != null ? ['', `wave tuned in ${head.tuning.steps} step${head.tuning.steps === 1 ? '' : 's'}: worst ${Math.max(...Object.values(head.tuning.residual).map((e) => Math.abs(e ?? 0)))} mm`] : source === 'relational' ? ['', 'wave untuned'] : []),
     '', `mm at the canonical stature`, `(1 unit = 1.8 m)`, ...(meas.mm['al-al'] == null ? ['al-al — : no alar groove to read'] : [])];

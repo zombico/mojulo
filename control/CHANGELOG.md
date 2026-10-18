@@ -60,6 +60,18 @@ Releases up to 2.1.0, and the detailed log behind 3.0.0, are archived in
   the window in each side between the wing, its wall and the tip. Both take their radius from `noseFat`, how fleshy
   the nose is: wider and fuller, never longer (the tip's projection and the wings' width stay their own relations).
   The al-al caliper reads the wing's knee when the tip's slope leaves the wing no crest.
+- **The jaw's limit.** `jawOpen` is how far the incisors part at full (`jaw: 1`, ~39 mm male, ~37 mm female: a full,
+  comfortable opening), `condyleGlide` how far the condyle glides forward and down the articular eminence. The jaw
+  opens by rotation alone at first and glides as it opens wide; the hinge's angle at full is solved so the opening
+  meets `jawOpen` (`jawPose`), so the opening grows evenly with the activation and stops at the limit. The head returns
+  `jaw` (the angle, the glide, the opening and the limit) and the field lane prints it. The open mouth is an oval that
+  rounds into its corners (it was a diamond).
+- **The lips stand forward.** Seven masses end beside the mouth's corner, and their summed waves had swelled it ~12 mm
+  proud of the cheilion, with the alveolar arch's ends on the corners besides: the mouth sat flat in a trough between
+  two mounds. The masses now end at the modiolus, which the tune sets back until the skin at the corner is on the
+  cheilion (`mod`), and the arch curves back behind the corners, so the lips stand on a ~12 mm arc in front of the
+  cheeks. The upper lip's two cones are set back by what their overlap adds, so the white lip slopes forward from the
+  subnasale to the vermilion instead of bulging ahead of it.
 
 ### Level age and crystals: a cube's metal tells its age, its land grows crystals
 

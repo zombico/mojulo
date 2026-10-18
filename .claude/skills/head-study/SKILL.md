@@ -55,7 +55,9 @@ The RELATIONAL head (`head-relational.js`) is a second source: `--source relatio
 `--rel '{"cephalic":0.82}'` to replace a relation (`RELATIONS`), `--untuned` to see it before its wave is solved to
 meet its relations (the table prints each relation's target and Δ, and the solve). Its ACTIONS (`ACTIONS`: jaw,
 smile, browRaise, browLower, blink, a side alone with L / R): `--act '{"jaw":0.6}'` for one set, or an action strip,
-one row per set, with a column of the front view's depth against the first row's (red toward, blue away):
+one row per set, with a column of the front view's depth against the first row's (red toward, blue away). `jaw: 1`
+opens the incisors to the `jawOpen` relation (the hinge's angle is solved for it, the condyle gliding down the eminence
+past the first third), and the table prints the angle, the glide and the opening against that limit:
 
 ```bash
 node .claude/skills/head-study/study.mjs --field male --no-marks \
