@@ -14,7 +14,11 @@
  *   vajras      three points and three radii each — a round cone from the proximal bead to the centre bead and on to
  *               the distal (the vajra's tangent-line wrap, `sdRoundCone`), radii in V too. The core vajras (vault,
  *               cheek bar, arches, mandible, chin, brow, nose, alae, lips) are smooth-min'd: the structure keeps its
- *               distances. Carves (the orbits) are smooth-subtracted. Action vajras, summed, are the next phase.
+ *               distances in the skull. Carves (the orbits) are smooth-subtracted.
+ *   skin        the tissue: every bone vajra offset by the forensic soft-tissue depth, the soft masses (muscles at
+ *               rest, fat pads, lids) at their own size, SUPERPOSED: the skin is the level set of Σ exp(−dᵢ/k), a
+ *               wave per vajra summed (`skinWave` is k). A lone mass keeps its true distance; overlapping masses fill
+ *               between them. The nose and the lips join it after. Action vajras, summed, are the next phase.
  *
  * Frame: the protoform head's (`figure-head.js`): +x the figure's right, +y the face, +z up, STAND units; the origin
  * is the menton's height on the porion's vertical (the ear canal is y = 0, the chin's underside z = 0). V, the head
@@ -50,6 +54,9 @@ export const RELATIONS = Object.freeze({
   chin: 0,              // pg ahead of the nasion vertical / v-me (− a receding chin)
   // ── masses (radii as shares of v-me)
   brow: 1,              // brow-ridge radius multiplier (the strongest sex cue)
+  // ── the wave: the skin is the level set of the SUM of every mass's wave exp(−d/k); k is its wavelength (in V).
+  // A lone mass keeps its distance; overlapping masses fill between them, as skin spans the hollows between bones.
+  skinWave: 0.03,
 });
 export const RELATION_NAMES = Object.freeze(Object.keys(RELATIONS));
 /** the sex poles: ratios the female canon moves (the rest are shared) */
@@ -179,6 +186,25 @@ export function coreVajras(P, rel = RELATIONS) {
   // THE BROW — frontozygomatic to frontozygomatic through the glabella, its radius the sex's ridge
   const rb = 0.03 + 0.02 * R.brow;
   w('brow', P.fzL, at(P.g, { y: -rb }), P.fzR, [0.035, rb, 0.035]);
+  // THE SOFT MASSES — muscles at rest and fat pads, origin → belly → insertion, authored at their skin size (no bone
+  // under them, no tissue over them). They fill what an offset of the bone cannot: the hollows between the bones.
+  // A muscle here is its REST volume; its action (phase 2) drives the same vajra. Lateral beads are set inside the
+  // widths their relations name (zy, go), so the skin still meets them.
+  const soft = (name, a, c, b, r) => V.push({ name, a, c, b, r, group: 'soft', muscle: true });
+  for (const s of ['L', 'R']) {
+    const zy = P[`zy${s}`], go = P[`go${s}`], malar = P[`malar${s}`], ch = P[`ch${s}`], fz = P[`fz${s}`], eu = P[`eu${s}`], eye = P[`eye${s}`];
+    // masseter: the arch's underside → the belly over the ramus → the jaw's corner (its insertion IS the gonion)
+    soft(`masseter${s}`, inX(at(mid(malar, zy, 0.6), { z: -0.04 }), 0.035), inX(at(mid(zy, go), { y: -0.01 }), 0.05), inX(at(go, { y: 0.02, z: 0.02 }), 0.035), [0.035, 0.05, 0.035]);
+    // temporalis: the temporal line on the vault → the fossa → under the arch (it fills the temple)
+    soft(`temporalis${s}`, inX(at(mid(fz, eu, 0.5), { z: 0.06 }), 0.08), inX(at(mid(fz, zy, 0.55), { y: -0.03 }), 0.06), inX(at(zy, { y: 0.03, z: -0.02 }), 0.06), [0.05, 0.045, 0.025]);
+    // the buccal mass (buccinator + the buccal fat): the mouth's corner → the cheek → the masseter's front
+    soft(`buccal${s}`, at(ch, { x: -Math.sign(ch.x) * 0.01, y: -0.03 }), inX(at(mid(ch, go, 0.45), { y: 0.02, z: 0.05 }), 0.045), inX(at(mid(malar, go, 0.6), { y: -0.02 }), 0.05), [0.03, 0.05, 0.04]);
+    // the malar fat pad: the cheekbone → the apple of the cheek → toward the nasolabial line
+    soft(`malarPad${s}`, at(malar, { y: -0.02 }), at(mid(malar, ch, 0.45), { x: -Math.sign(ch.x) * 0.02, y: 0.0 }), at(mid(P[`al${s}`], ch, 0.5), { x: Math.sign(ch.x) * 0.02, y: -0.03 }), [0.04, 0.04, 0.025]);
+    // the lids: corner → over the globe → corner, upper and lower
+    soft(`upperLid${s}`, at(P[`en${s}`], { y: -0.01 }), at(eye, { y: -0.012, z: 0.035 }), at(P[`ex${s}`], { y: -0.012 }), [0.01, 0.022, 0.01]);
+    soft(`lowerLid${s}`, at(P[`en${s}`], { y: -0.012, z: -0.006 }), at(eye, { y: -0.018, z: -0.038 }), at(P[`ex${s}`], { y: -0.014, z: -0.004 }), [0.01, 0.02, 0.01]);
+  }
   // the SOFT features: no bone under them to stand off — the external nose and the lips are their own tissue
   // THE NOSE — nasion → rhinion → tip, the alae across the base through the subnasale
   v('nose', at(P.n, { y: -0.02 }), at(P.rhinion, { y: -0.018 }), at(P.prn, { y: -0.03 }), [0.018, 0.02, 0.03], 'nose');
@@ -190,9 +216,9 @@ export function coreVajras(P, rel = RELATIONS) {
 }
 
 /** the blend width per group, in V (the bone melts broadly; the nose and the lips keep their lobes) */
-const BLEND = { bone: 0.04, nose: 0.012, lips: 0.01 };
+const BLEND = { bone: 0.04, soft: 0.03, nose: 0.012, lips: 0.01 };
 /** how each soft feature joins the skin */
-const JOIN = { nose: 0.02, lips: 0.025 };
+const JOIN = { soft: 0.04, nose: 0.02, lips: 0.025 };
 /** the head's layers: the skull alone, or the skin over it */
 export const HEAD_LAYERS = Object.freeze(['skin', 'skull']);
 
@@ -236,13 +262,28 @@ export function relationalHead({ sex = 'male', relations = {}, layer = 'skin' } 
   const globes = ['L', 'R'].map((s) => ({ c: S({ ...P[`eye${s}`], y: P[`eye${s}`].y - 0.052 }), r: 0.052 * sc }));
   const depth = depthOf(markersV.map((m) => ({ p: S(m.p), t: m.t * sc })), (0.04 * sc) ** 2);
   const skin = layer !== 'skull';
+  const kw = rel.skinWave * sc;
   const field = (p) => {
-    const g = {};
-    for (const b of bonds) { const d = b.f(p); g[b.group] = g[b.group] === undefined ? d : smin(g[b.group], d, BLEND[b.group] * sc); }
-    let d = g.bone;
-    for (const o of orbits) d = smax(d, -(SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r), 0.02 * sc);
-    if (!skin) return d;
-    d -= depth(p);
+    if (!skin) {
+      let d = Infinity;
+      for (const b of bonds) if (b.group === 'bone') { const e = b.f(p); d = d === Infinity ? e : smin(d, e, BLEND.bone * sc); }
+      for (const o of orbits) d = smax(d, -(SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r), 0.02 * sc);
+      return d;
+    }
+    // THE SKIN WAVE: each bone vajra less the tissue at p, each soft mass as it is, summed as waves exp(−e/k)
+    // (log-sum-exp about the nearest, so the sum never overflows)
+    const t = depth(p), es = [], g = {};
+    let lo = Infinity;
+    for (const b of bonds) {
+      const e = b.f(p);
+      if (b.group === 'bone' || b.group === 'soft') { const v = b.group === 'bone' ? e - t : e; es.push(v); if (v < lo) lo = v; }
+      else g[b.group] = g[b.group] === undefined ? e : smin(g[b.group], e, BLEND[b.group] * sc);
+    }
+    let sum = 0;
+    for (const v of es) sum += SM.exp(-(v - lo) / kw);
+    let d = lo - kw * SM.log(sum);
+    // the orbits carve the skin too (less the lid tissue), and the globes sit in them
+    for (const o of orbits) d = smax(d, -(SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r + 0.012 * sc), 0.02 * sc);
     for (const o of globes) d = smin(d, SM.hypot(p.x - o.c.x, p.y - o.c.y, p.z - o.c.z) - o.r, 0.004 * sc);
     for (const k of ['nose', 'lips']) d = smin(d, g[k], JOIN[k] * sc);
     return d;
